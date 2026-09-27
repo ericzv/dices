@@ -1,0 +1,4 @@
+build*/
+.DS_Store
+*.ppm
+dado_*.png

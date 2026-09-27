@@ -332,7 +332,10 @@ static peca_t loja[N_LOJA];
 static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
-static int  menu_cur;                // 0 jogar, 1 dados
+static int  menu_cur;                // 0 contra LILI, 1 dois jogadores, 2 dados
+static int  cpu;                     // bit j: jogador j e do aparelho
+static float t_ia;                   // espera da IA antes de cada gesto
+static int  ia_fase = -1, ia_vez = -1;
 static int  cat_i;                   // dado em exibicao no catalogo
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
@@ -1774,13 +1777,13 @@ static void desenha_abertura(void)
     gfx_text(113, 58, "x", C_TEXTO_M, COL_NONE, false);
     gfx_text(126, 58, "LILI", C_ROSA, COL_NONE, true);
 
-    // Menu: jogar ou ver os dados.
-    static const char *OP[2] = { "Jogar", "Dados" };
-    for (int i = 0; i < 2; i++) {
-        int y = 78 + i * 16;
+    // Menu: contra o aparelho, dois na mesma mesa, ou ver os dados.
+    static const char *OP[3] = { "Contra LILI", "2 jogadores", "Dados" };
+    for (int i = 0; i < 3; i++) {
+        int y = 74 + i * 14;
         bool cur = i == menu_cur;
-        if (cur) gfx_rect(88, y - 2, 64, 15, C_LATAO);
-        else     gfx_rect(88, y - 2, 64, 15, C_FELTRO_ESC);
+        if (cur) gfx_rect(80, y - 1, 80, 13, C_LATAO);
+        else     gfx_rect(80, y - 1, 80, 13, C_FELTRO_ESC);
         txt_c(120, y, OP[i], cur ? C_BARRA : C_MARFIM, cur);
     }
 }
@@ -1803,11 +1806,173 @@ static void abre_premio(void)
 }
 
 // ===========================================================================
+// O aparelho como adversario
+// ===========================================================================
+// A IA joga pelas mesmas teclas que uma pessoa: poe o cursor onde quer e
+// aperta ENTER ou TAB, com uma pausa antes de cada gesto para dar tempo de
+// ver o que ela fez. So decide nas fases de escolha; o resto e animacao.
+static void trata_tecla(int k);
+
+static bool fase_de_escolha(void)
+{
+    return fase == F_LOJA || fase == F_ORDEM || fase == F_JOGA
+        || fase == F_APOSTA || fase == F_PREMIO;
+}
+
+static bool ia_na_vez(void)
+{
+    return (cpu >> vez & 1) && fase_de_escolha();
+}
+
+// Valor medio que o dado mostra ao cair: e o que decide a queda da fila.
+static float media(peca_t p)
+{
+    const tipo_t *t = &TIPO[p.tipo];
+    switch (t->efeito) {
+    case EF_QUEBRADO: return p.fixo;
+    case EF_LASTRO:   return 7.75f;
+    case EF_VICIADO:  return 4.47f;
+    case EF_EXPLODE:  return 5.1f;
+    default:          return (t->lados + 1) / 2.0f;
+    }
+}
+
+// Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
+static bool arriscado(int tipo) { return tipo == D_MALDITO || tipo == D_TUDO_NADA; }
+
+// Fila: os quatro de maior media, do menor para o maior, que assim cada um
+// tem boa chance de passar a barra do anterior.
+static int ia_proximo_da_fila(void)
+{
+    jogador_t *p = &J[vez];
+    fila_t *f = &F[vez];
+    int quer = p->n_mao < N_FILA ? p->n_mao : N_FILA;
+    int ok = 0;
+    for (int i = 0; i < p->n_mao; i++) if (!arriscado(p->col[p->mao[i]].tipo)) ok++;
+    bool sem_risco = ok >= quer;
+    // Os escolhidos: os 'quer' de maior media.
+    bool esc[MAO] = { false };
+    for (int n = 0; n < quer; n++) {
+        int b = -1;
+        for (int i = 0; i < p->n_mao; i++) {
+            peca_t pc = p->col[p->mao[i]];
+            if (esc[i] || (sem_risco && arriscado(pc.tipo))) continue;
+            if (b < 0 || media(pc) > media(p->col[p->mao[b]])) b = i;
+        }
+        if (b >= 0) esc[b] = true;
+    }
+    // Entre os escolhidos ainda fora da fila, o de menor media vai agora.
+    int b = -1;
+    for (int i = 0; i < p->n_mao; i++) {
+        if (!esc[i]) continue;
+        bool ja = false;
+        for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ja = true;
+        if (ja) continue;
+        if (b < 0 || media(p->col[p->mao[i]]) < media(p->col[p->mao[b]])) b = i;
+    }
+    return b;
+}
+
+// Lancar mais um? Quem joga depois sabe o alvo; quem abre olha o risco.
+static bool ia_continua(void)
+{
+    fila_t *f = &F[vez];
+    if (f->lancados >= f->n) return false;
+    if (f->lancados == 0) return true;
+    if (vez != primeiro) {                     // parar agora ganha?
+        desfecho_t d;
+        calcula_desfecho(&d, false);
+        return d.total[vez] <= d.total[outro(vez)];
+    }
+    int r = risco(vez);
+    return r < 40 || (r < 60 && f->pontos < 8);
+}
+
+static int ia_aposta(void)
+{
+    int op[4], n = opcoes(op);
+    int pts = F[primeiro].pontos;
+    bool jogou = vez == primeiro;          // a IA ja tem pontos na mesa?
+    int quer;
+    if (!a_pagar) {
+        if (jogou) quer = pts >= 20 ? OP_APOSTAR25 : (pts >= 13 ? OP_APOSTAR10 : OP_PASSAR);
+        else       quer = pts <= 5 ? OP_APOSTAR10 : OP_PASSAR;
+    } else if (jogou) {
+        quer = pts <= 4 ? OP_CORRER : OP_PAGAR;
+    } else {
+        quer = (pts >= 22 && a_pagar >= 20) ? OP_CORRER
+             : (pts <= 5 ? OP_AUMENTAR : OP_PAGAR);
+    }
+    for (int i = 0; i < n; i++) if (op[i] == quer) return i;
+    for (int i = 0; i < n; i++) if (op[i] == OP_PAGAR || op[i] == OP_PASSAR) return i;
+    return 0;
+}
+
+// Loja: leva o melhor que couber, guardando fichas para as apostas.
+static int ia_compra(void)
+{
+    int b = -1;
+    for (int i = 0; i < N_LOJA; i++) {
+        int pr = preco_loja(loja[i].tipo);
+        if (levou[vez][i] || J[vez].fichas - pr < 75 || J[vez].n_col >= MAX_COL) continue;
+        if (b < 0 || TIPO[loja[i].tipo].raridade > TIPO[loja[b].tipo].raridade
+            || (TIPO[loja[i].tipo].raridade == TIPO[loja[b].tipo].raridade
+                && pr > preco_loja(loja[b].tipo)))
+            b = i;
+    }
+    return b;
+}
+
+static void ia_passo(float dt)
+{
+    if (!ia_na_vez() || (fase == F_PREMIO && t_tira > 0)) { ia_fase = -1; return; }
+    if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
+        ia_fase = fase; ia_vez = vez;
+        t_ia = fase == F_ORDEM ? -0.4f : 0;
+    }
+    t_ia += dt;
+    if (t_ia < 0.55f) return;
+    t_ia = 0;
+
+    switch (fase) {
+    case F_LOJA: {
+        int i = ia_compra();
+        if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
+        else trata_tecla(KEY_TAB);
+        break;
+    }
+    case F_ORDEM: {
+        int i = ia_proximo_da_fila();
+        if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
+        else trata_tecla(KEY_TAB);
+        break;
+    }
+    case F_JOGA:
+        if (ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
+        else trata_tecla(KEY_TAB);
+        break;
+    case F_APOSTA:
+        cursor = ia_aposta();
+        trata_tecla(KEY_ENTER);
+        break;
+    case F_PREMIO: {
+        int b = 0;
+        for (int i = 1; i < 3; i++)
+            if (TIPO[oferta[i].tipo].raridade > TIPO[oferta[b].tipo].raridade) b = i;
+        cursor = b;
+        trata_tecla(KEY_ENTER);
+        break;
+    }
+    }
+}
+
+// ===========================================================================
 // Passo de tempo
 // ===========================================================================
 void dado_passo(float dt)
 {
     t_fase += dt;
+    ia_passo(dt);
     switch (fase) {
     case F_ABERTURA:
         if (!abertura_pronta) {
@@ -2633,7 +2798,6 @@ void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
-    int e = eixo(k);
 
     if (k == 'm') {
         bool on = som_liga(!som_ligado());
@@ -2641,6 +2805,14 @@ void dado_tecla(const key_event_t *ev_)
         if (on) som_toca(SOM_FICHA);
         return;
     }
+    if (ia_na_vez()) return;             // a vez e do aparelho: so ele escolhe
+    trata_tecla(k);
+}
+
+// A tecla ja traduzida, venha de quem vier: pessoa ou IA.
+static void trata_tecla(int k)
+{
+    int e = eixo(k);
     if (e && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA ||
               fase == F_PREMIO || fase == F_LOJA))
         som_toca(SOM_TIQUE);
@@ -2656,9 +2828,9 @@ void dado_tecla(const key_event_t *ev_)
             t_fase = 1.0f;
             return;
         }
-        if (e) { menu_cur ^= 1; som_toca(SOM_TIQUE); return; }
+        if (e) { menu_cur = (menu_cur + e + 3) % 3; som_toca(SOM_TIQUE); return; }
         if (k == KEY_ENTER) {
-            if (menu_cur == 0) abre_loja();
+            if (menu_cur < 2) { cpu = menu_cur == 0 ? 2 : 0; abre_loja(); }
             else { t_fase = 0; fase = F_CATALOGO; }
         }
         return;
@@ -2806,6 +2978,7 @@ int  dado_dbg_n_ev(void)     { return n_ev; }
 int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
 const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
+void dado_dbg_cpu(int mascara) { cpu = mascara; }
 int  dado_dbg_margem(void)
 {
     desfecho_t d;

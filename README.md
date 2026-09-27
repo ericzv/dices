@@ -1,6 +1,7 @@
 # Dado em Casa
 
-Duelo de apostas com dados para dois jogadores, ERIC contra LILI. Nasceu no
+Duelo de apostas com dados, ERIC contra LILI: contra o computador (que joga
+como LILI) ou com duas pessoas no mesmo teclado. Nasceu no
 [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) e agora roda
 também no PC (Windows, macOS e Linux) — com o **mesmo código de jogo**.
 

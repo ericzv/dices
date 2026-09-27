@@ -37,3 +37,4 @@ const char *dado_dbg_cat_nome(void);
 int  dado_dbg_ev_tipo(void);
 int  dado_dbg_margem(void);
 void dado_dbg_bolsa(int j, const int *tipos, int n);
+void dado_dbg_cpu(int mascara);          // bit j: jogador j e do aparelho

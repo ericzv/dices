@@ -88,7 +88,9 @@ int main(int argc, char **argv)
         else partidas = atoi(argv[i]);
     }
 
-    int vitorias[3] = { 0 }, rodadas = 0;
+    // Tres mesas se revezam: duas pessoas, pessoa contra IA, IA contra IA.
+    static const int MESAS[3] = { 0, 2, 3 };
+    int vitorias[3] = { 0 }, rodadas = 0, ia_ganhou = 0, ia_jogou = 0;
     bool fotografada[32] = { false };
     const float dt = 1.0f / 60;
 
@@ -102,6 +104,7 @@ int main(int argc, char **argv)
                 return 1;
             }
             if (sorteio() % 2) tecla(TECLAS[sorteio() % (sizeof TECLAS / sizeof TECLAS[0])]);
+            if (dado_dbg_fase() != 8) dado_dbg_cpu(MESAS[p % 3]);   // 8: abertura
             int quadros = 1 + (int)(sorteio() % 30);
             for (int q = 0; q < quadros; q++) {
                 relogio += 16667;
@@ -119,6 +122,7 @@ int main(int argc, char **argv)
         }
         rodadas += dado_dbg_rodada();
         vitorias[dado_vencedor()]++;
+        if (MESAS[p % 3] == 2) { ia_jogou++; ia_ganhou += dado_vencedor() == 1; }
         dado_desenha();                          // a tela final tambem
     }
 
@@ -126,5 +130,6 @@ int main(int argc, char **argv)
     printf("%d partidas: ERIC %d, LILI %d, empates %d, %.1f rodadas em media\n",
            partidas, vitorias[0], vitorias[1], vitorias[2],
            partidas ? (double)rodadas / partidas : 0.0);
+    printf("contra teclas ao acaso, a IA venceu %d de %d\n", ia_ganhou, ia_jogou);
     return 0;
 }

@@ -17,8 +17,7 @@
 // mesa. Primeiro os poderes de quem jogou primeiro; um dado anulado por um
 // ataque nao dispara o proprio poder depois.
 //
-// Versao PC: mesa de 640x360 (a do Cardputer, 240x135, esta em
-// cardputer/dado.c). Os textos sao UTF-8, com acentos.
+// A fonte do aparelho e ASCII: os textos evitam palavras que pedem acento.
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -27,8 +26,9 @@
 #include "../ui/gfx.h"
 #include "../hal/keyboard.h"
 #include "../hal/som.h"
-#include "../hal/display.h"
 #include "jogos.h"
+
+#define RGB(r, g, b) (uint16_t)((((r) >> 3) << 11) | (((g) >> 2) << 5) | ((b) >> 3))
 
 #define C_FELTRO     RGB(18, 51, 38)
 #define C_FELTRO2    RGB(24, 64, 48)
@@ -65,10 +65,6 @@
 #define C_AZUL       RGB(64, 104, 178)       // ficha da Moeda da sorte: lado 1
 #define C_VERMELHO   RGB(178, 58, 58)        // lado 2
 #define C_TEXTO_M    RGB(170, 190, 178)
-#define C_BRANCO     RGB(255, 252, 240)
-#define C_MADEIRA    RGB(78, 46, 30)
-#define C_MADEIRA_ESC RGB(60, 34, 22)
-#define C_MADEIRA_CLR RGB(120, 78, 50)
 
 #define ANTE        5
 #define FICHAS_INI  100
@@ -77,21 +73,16 @@
 #define MAO         7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
-// Mesa de 640x360: faixa de LILI em cima, de ERIC embaixo, feltro no meio.
-#define FAIXA_H    44
-#define MESA_X0    14
-#define MESA_X1    626
-#define MESA_Y0    (FAIXA_H + 8)
-#define MESA_Y1    (GFX_H - FAIXA_H - 8)
-#define LINHA_LILI 98
-#define LINHA_ERIC 262
-#define CENTRO     180
-#define R_DADO     22                       // raio de um dado na mesa
-#define SLOT_X(k)  (212 + 72 * (k))
-#define ROUBO_X(n) (128 - 56 * (n))         // dados roubados, a esquerda da fila
-#define PLACAR_X   540
-#define POTE_X     586
-#define TXT_H      FONTE_ALT                // altura de uma linha de texto
+#define MESA_X0 6
+#define MESA_X1 234
+#define MESA_Y0 17
+#define MESA_Y1 117
+#define LINHA_LILI 30
+#define LINHA_ERIC 104
+#define CENTRO     67
+#define SLOT_X(k)  (75 + 30 * (k))
+#define ROUBO_X(n) (45 - 24 * (n))          // dados roubados, a esquerda da fila
+#define POTE_X     218
 
 // ===========================================================================
 // Os dados
@@ -120,7 +111,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
-    { "moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2; boa para abrir a fila" },
+    { "moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2; abre bem a fila" },
     { "d4",         4,  EF_NADA,      RAR_COMUM,   "quatro lados" },
     { "d6",         6,  EF_NADA,      RAR_COMUM,   "seis lados" },
     { "d8",         8,  EF_NADA,      RAR_COMUM,   "oito lados" },
@@ -131,20 +122,20 @@ static const tipo_t TIPO[D_N] = {
     { "Lastro",    12,  EF_LASTRO,    RAR_INCOMUM, "nunca menos que 6" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "+8 se igual ao anterior" },
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "nada anula este dado" },
-    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "fica com 4: anula o maior do rival" },
+    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "fica com 4: anula o maior rival" },
     { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8 rola de novo e soma" },
     { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "se fica: -4 no rival" },
     { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "fica com 6+: leva 4 do rival" },
-    { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do rival" },
+    { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior rival" },
     { "Fichas",     4,  EF_FICHAS,    RAR_RARO,    "fica e vence: ganha o valor" },
-    { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: x2 em tudo; 1: rodada vale 0" },
+    { "Tudo/Nada",  2,  EF_TUDO_NADA, RAR_LENDA,   "2: x2 em tudo; 1: rodada vale 0" },
     { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "4 ou menos zera a fila" },
     { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "algum 1 seu: rouba o menor" },
-    { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "sem sorteio; quebra ao ser jogado" },
+    { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "sem sorteio; quebra ao jogar" },
     { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior de cada lado" },
     { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "se fica: rouba o menor rival" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "no fim: x2 nos dados de 1 e 2" },
-    { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +2 nos ímpares; 2: +1 nos pares" },
+    { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +2 impares; 2: +1 pares" },
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "imune a queda da fila" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "dados somando 20+: +10 no fim" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
@@ -164,7 +155,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_DOBRO]     = "No fim da rodada, o dado que ficar logo depois dele vale x2.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior resultado.",
     [D_LASTRO]    = "Doze lados, mas nunca vale menos que 6.",
-    [D_PAR]       = "Ganha +8 se repetir o valor do dado anterior na fila. Valor igual nunca anula; menor anula.",
+    [D_PAR]       = "Ganha +8 se repetir o valor do dado anterior na fila. Valor igual nunca anula, menor anula.",
     [D_ESCUDO]    = "Nada anula este dado: nem queda, nem ataque do rival.",
     [D_CARRASCO]  = "Se terminar valendo com 4, anula o maior dado do rival.",
     [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma. Pode explodir 3 vezes seguidas.",
@@ -176,15 +167,15 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MALDITO]   = "Vinte lados. Se tirar 4 ou menos, zera a fila inteira.",
     [D_TEIMOSO]   = "Seis lados. Uma queda na fila nunca o anula, mas os ataques do rival pegam nele.",
     [D_SEMENTE]   = "Moeda verde. Se no fim os seus dados somarem 20 ou mais, ganha +10.",
-    [D_FOGO]      = "Ficha em chamas. No fim, x2 no seu maior dado — que depois vira cinza e sai do jogo.",
-    [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. A queda da fila compara o que saiu.",
-    [D_MALDICAO]  = "Quatro lados. O valor dele vai contra o rival: no fim, sai do placar dele. Entra na fila como os outros.",
+    [D_FOGO]      = "Ficha em chamas. No fim, x2 no seu maior dado - que depois vira cinza e sai do jogo.",
+    [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. A queda compara o que saiu.",
+    [D_MALDICAO]  = "Quatro lados. Seu valor vai contra o rival: no fim, sai do placar dele. Entra na fila como os outros.",
     [D_GATUNO]    = "Se algum dado seu tirar 1, rouba o menor dado do rival. Basta ter sido jogado.",
-    [D_QUEBRADO]  = "Oito lados sem sorteio: vale o número gravado nele. Quebra depois de jogado.",
+    [D_QUEBRADO]  = "Oito lados sem sorteio: vale o valor gravado nele. Quebra depois de jogado.",
     [D_INVEJOSO]  = "Anula o maior dado do rival, e junto o seu maior outro dado.",
     [D_CARIDOSO]  = "Se terminar valendo, rouba o menor dado do rival.",
     [D_FARTURA]   = "Quatro lados. No fim da rodada, x2 em todos os seus dados de valor 1 ou 2.",
-    [D_SORTE]     = "Ficha azul e vermelha. Azul (1): +2 em cada dado ímpar. Vermelha (2): +1 em cada dado par.",
+    [D_SORTE]     = "Ficha azul e vermelha. Azul (1): +2 em cada dado impar. Vermelha (2): +1 em cada dado par.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -374,28 +365,14 @@ static peca_t nova_peca(int tipo)
     return p;
 }
 
-// Texto centrado em cx; y e o topo da linha.
 static void txt_c(int cx, int y, const char *s, uint16_t c, bool bold)
 {
-    gfx_texto(cx - gfx_largura(s, 1) / 2, y, s, c, 1, bold);
+    gfx_text(cx - (int)strlen(s) * FONT_W / 2, y, s, c, COL_NONE, bold);
 }
 
 static void txt_c2(int cx, int y, const char *s, uint16_t c)
 {
-    gfx_texto(cx - gfx_largura(s, 2) / 2, y, s, c, 2, true);
-}
-
-static void txt(int x, int y, const char *s, uint16_t c, bool bold)
-{
-    gfx_texto(x, y, s, c, 1, bold);
-}
-
-// Texto com sombra de um pixel: legivel sobre o feltro trabalhado.
-static void txt_sombra_c(int cx, int y, const char *s, uint16_t c, int esc)
-{
-    int x = cx - gfx_largura(s, esc) / 2;
-    gfx_texto(x + esc, y + esc, s, RGB(8, 26, 19), esc, true);
-    gfx_texto(x, y, s, c, esc, true);
+    gfx_text_escala(cx - (int)strlen(s) * FONT_W, y, s, 2, c);
 }
 
 // ===========================================================================
@@ -482,11 +459,10 @@ static void pips(int cx, int cy, int v, int r, uint16_t c)
         {{-1,-1},{1,-1},{-1,0},{1,0},{-1,1},{1,1}},
     };
     if (v < 1 || v > 6) return;
-    int pr = r / 7 > 1 ? r / 7 : 1;
     for (int i = 0; i < v; i++) {
         int x = cx + P[v][i][0] * o, y = cy + P[v][i][1] * o;
-        if (r < 12) { gfx_rect(x - 1, y - 1, 3, 3, c); continue; }
-        gfx_disco(x, y, pr, c);
+        gfx_rect(x - 1, y - 1, 3, 3, c);
+        gfx_pixel(x - 1, y - 1, 0);
     }
 }
 
@@ -587,9 +563,6 @@ static void espinho(float bx, float by, float nx, float ny, float comp, float me
     marca_poli(o, 3, c);
 }
 
-// Espessura dos tracos das marcas: 1 px num dado pequeno, mais num grande.
-static int esp_marca(float t) { return t < 12 ? 1 : (int)(t / 11); }
-
 // Na frente: tudo o que se prende ao dado. O valor vem depois, por cima.
 static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
 {
@@ -611,15 +584,16 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         for (int i = 0; i < 2; i++) {                 // ^ ^ bem separados
             float y = -1.0f * t - i * (0.42f * t + 1);
             float w = 0.5f * t + 0.5f, h = 0.26f * t + 0.5f;
-            int e = esp_marca(t);
-            gfx_linha_grossa(MX(-w, y + h), MY(-w, y + h), MX(0, y), MY(0, y), e, C_VERMELHO);
-            gfx_linha_grossa(MX(0, y), MY(0, y), MX(w, y + h), MY(w, y + h), e, C_VERMELHO);
+            gfx_linha(MX(-w, y + h), MY(-w, y + h), MX(0, y), MY(0, y), C_VERMELHO);
+            gfx_linha(MX(0, y), MY(0, y), MX(w, y + h), MY(w, y + h), C_VERMELHO);
+            gfx_linha(MX(-w, y + h + 1), MY(-w, y + h + 1), MX(0, y + 1), MY(0, y + 1), C_VERMELHO);
+            gfx_linha(MX(0, y + 1), MY(0, y + 1), MX(w, y + h + 1), MY(w, y + h + 1), C_VERMELHO);
         }
         break;
     case D_ESPELHO:                               // reflexo na diagonal
-        gfx_linha_grossa(MX(-0.75f * t, -0.2f * t), MY(-0.75f * t, -0.2f * t),
-                         MX(-0.2f * t, -0.75f * t), MY(-0.2f * t, -0.75f * t),
-                         esp_marca(t) + 1, C_MARFIM);
+        for (int o = 0; o < 2; o++)
+            gfx_linha(MX(-0.75f * t + o, -0.2f * t), MY(-0.75f * t + o, -0.2f * t),
+                      MX(-0.2f * t + o, -0.75f * t), MY(-0.2f * t + o, -0.75f * t), C_MARFIM);
         break;
     case D_EXPLOSIVO:                             // faiscas saindo das faces
         for (int i = 0; i < 4; i++) {
@@ -664,9 +638,9 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         break;
     }
     case D_PIRATA: {                              // tapa-olho, tira e brinco
-        gfx_linha_grossa(MX(-1.0f * t, 0.22f * t), MY(-1.0f * t, 0.22f * t),
-                         MX(0.22f * t, -1.0f * t), MY(0.22f * t, -1.0f * t),
-                         esp_marca(t) + 1, escuro);
+        for (int o = 0; o < 2; o++)
+            gfx_linha(MX(-1.0f * t, 0.22f * t + o), MY(-1.0f * t, 0.22f * t + o),
+                      MX(0.22f * t, -1.0f * t + o), MY(0.22f * t, -1.0f * t + o), escuro);
         gfx_disco(MX(-0.36f * t, -0.36f * t), MY(-0.36f * t, -0.36f * t), (int)(0.27f * t + 0.8f), escuro);
         gfx_disco(MX(1.28f * t, 0.12f * t), MY(1.28f * t, 0.12f * t), (int)(0.1f * t + 0.8f), C_OURO);
         break;
@@ -676,10 +650,12 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         marca_ret(-0.05f * t, y, 1.2f * t, h, escuro);
         marca_ret(-0.36f * t, y, 0.14f * t + 0.4f, 0.09f * t + 0.4f, corpo);
         marca_ret(0.36f * t, y, 0.14f * t + 0.4f, 0.09f * t + 0.4f, corpo);
-        gfx_linha_grossa(MX(1.12f * t, y), MY(1.12f * t, y),
-                         MX(1.48f * t, y + 0.38f * t), MY(1.48f * t, y + 0.38f * t), esp_marca(t) + 1, escuro);
-        gfx_linha_grossa(MX(1.12f * t, y), MY(1.12f * t, y),
-                         MX(1.28f * t, y + 0.55f * t), MY(1.28f * t, y + 0.55f * t), esp_marca(t) + 1, escuro);
+        for (int o = 0; o < 2; o++) {
+            gfx_linha(MX(1.12f * t, y + o), MY(1.12f * t, y + o),
+                      MX(1.48f * t, y + 0.38f * t + o), MY(1.48f * t, y + 0.38f * t + o), escuro);
+            gfx_linha(MX(1.12f * t, y + o), MY(1.12f * t, y + o),
+                      MX(1.28f * t, y + 0.55f * t + o), MY(1.28f * t, y + 0.55f * t + o), escuro);
+        }
         break;
     }
     case D_INVEJOSO:                              // olhos colados, olhando de lado
@@ -720,8 +696,7 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         float cy0 = -1.4f * t, d = 0.24f * t + 0.4f;
         int fr = (int)(0.16f * t + 0.8f);
         uint16_t folha = RGB(96, 196, 112);
-        gfx_linha_grossa(MX(0, cy0), MY(0, cy0), MX(0.12f * t, cy0 + 0.55f * t),
-                         MY(0.12f * t, cy0 + 0.55f * t), esp_marca(t), folha);
+        gfx_linha(MX(0, cy0), MY(0, cy0), MX(0.12f * t, cy0 + 0.55f * t), MY(0.12f * t, cy0 + 0.55f * t), folha);
         gfx_disco(MX(-d, cy0 - d), MY(-d, cy0 - d), fr, folha);
         gfx_disco(MX(d, cy0 - d), MY(d, cy0 - d), fr, folha);
         gfx_disco(MX(-d, cy0 + d), MY(-d, cy0 + d), fr, folha);
@@ -731,21 +706,6 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
     default:
         break;
     }
-}
-
-// Numero centrado no dado: grande nos dados grandes.
-static void numero(float cx, float cy, float r, const char *s, uint16_t c)
-{
-    int e = r >= 34 ? 2 : 1;
-    gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
-}
-
-// X grosso em vinho sobre o dado anulado.
-static void risca(float cx, float cy, float r)
-{
-    int e = r < 12 ? 2 : (int)(r / 6);
-    gfx_linha_grossa((int)(cx - r), (int)(cy - r), (int)(cx + r), (int)(cy + r), e, C_VINHO_CLR);
-    gfx_linha_grossa((int)(cx - r), (int)(cy + r), (int)(cx + r), (int)(cy - r), e, C_VINHO_CLR);
 }
 
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
@@ -762,56 +722,55 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         aro = C_FELTRO2;
     }
     mca = cosf(ang); msa = sinf(ang); mcx = cx; mcy = cy;
-    float ea = r < 12 ? 1 : r / 10;      // espessura do aro
-    int so = r < 12 ? 2 : (int)(r / 6);  // deslocamento da sombra
 
-    gfx_disco((int)cx + so, (int)cy + so + 1, (int)r, C_SOMBRA);   // sombra no feltro
+    gfx_disco((int)cx + 2, (int)cy + 3, (int)r, C_SOMBRA);       // sombra no feltro
 
     // Fichas de cassino: Moeda da sorte (azul 1, vermelho 2), Semente (verde,
     // com broto) e Ficha de Fogo (laranja e brasa, com chama). Na mao, o
     // centro mostra o simbolo; jogada, o valor.
     if (tipo == D_SORTE || tipo == D_SEMENTE || tipo == D_FOGO) {
-        int R = (int)(r + ea);
-        float u = r / 9;                             // unidade do desenho
+        int R = (int)r + 1;
         uint16_t f1, f2, marca;
         if (tipo == D_SORTE)        { f1 = C_AZUL;  f2 = C_VERMELHO; marca = C_MARFIM; }
         else if (tipo == D_SEMENTE) { f1 = C_VERDE; f2 = C_VERDE;    marca = C_MARFIM; }
         else                        { f1 = C_FOGO;  f2 = C_BRASA;    marca = C_AMARELO; }
         uint16_t face = modo == 0 ? (tipo == D_SORTE ? C_MARFIM_S : f1) : (valor == 1 ? f1 : f2);
-        gfx_disco((int)cx, (int)cy, R, gfx_mistura(face, C_BARRA, 25));
-        gfx_disco((int)cx, (int)cy - 1, R - 1, face);
+        gfx_disco((int)cx, (int)cy, R, face);
         for (int i = 0; i < 8; i++) {                // marcas da borda
             float a = ang + i * 0.785f;
-            int mx = (int)(cx + cosf(a) * (R - 2 * u)), my = (int)(cy + sinf(a) * (R - 2 * u));
+            int mx = (int)(cx + cosf(a) * (R - 2)), my = (int)(cy + sinf(a) * (R - 2));
             uint16_t c = (modo == 0 && tipo == D_SORTE) ? (i % 2 ? C_AZUL : C_VERMELHO) : marca;
-            gfx_disco(mx, my, (int)(u + 0.5f), c);
+            gfx_rect(mx - 1, my - 1, 3, 3, c);
         }
-        gfx_disco((int)cx, (int)cy, (int)(R - 4 * u), (modo == 0 && tipo == D_SORTE) ? C_MARFIM : face);
+        gfx_disco((int)cx, (int)cy, R - 4, (modo == 0 && tipo == D_SORTE) ? C_MARFIM : face);
         if (modo != 0) {
             char s2[4] = { (char)('0' + valor), 0 };
-            numero(cx, cy, r, s2, C_MARFIM);
+            gfx_text((int)cx - 3, (int)cy - 6, s2, C_MARFIM, COL_NONE, true);
         } else if (tipo == D_SORTE) {
-            numero(cx, cy, r, "$", C_OURO);
+            gfx_text((int)cx - 3, (int)cy - 6, "$", C_OURO, COL_NONE, true);
         } else if (tipo == D_SEMENTE) {              // broto
-            int U = (int)(u + 0.5f);
-            gfx_rect((int)cx, (int)(cy - 3 * u), U, 7 * U, C_MARFIM);
-            gfx_rect((int)(cx - 3 * u), (int)(cy - 2 * u), 3 * U, 2 * U, C_MARFIM);
-            gfx_rect((int)(cx + u), (int)(cy - 4 * u), 3 * U, 2 * U, C_MARFIM);
+            gfx_rect((int)cx, (int)cy - 3, 1, 7, C_MARFIM);
+            gfx_rect((int)cx - 3, (int)cy - 2, 3, 2, C_MARFIM);
+            gfx_rect((int)cx + 1, (int)cy - 4, 3, 2, C_MARFIM);
         } else {                                     // chama
-            int U = (int)(u + 0.5f);
-            gfx_rect((int)cx, (int)(cy - 5 * u), U, U, C_AMARELO);
-            gfx_rect((int)(cx - u), (int)(cy - 4 * u), 3 * U, 2 * U, C_AMARELO);
-            gfx_rect((int)(cx - 2 * u), (int)(cy - 2 * u), 5 * U, 4 * U, C_AMARELO);
-            gfx_rect((int)(cx - u), (int)(cy + 2 * u), 3 * U, U, C_AMARELO);
-            gfx_rect((int)cx, (int)(cy - u), U, 2 * U, C_BRASA);
+            gfx_rect((int)cx, (int)cy - 5, 1, 1, C_AMARELO);
+            gfx_rect((int)cx - 1, (int)cy - 4, 3, 2, C_AMARELO);
+            gfx_rect((int)cx - 2, (int)cy - 2, 5, 4, C_AMARELO);
+            gfx_rect((int)cx - 1, (int)cy + 2, 3, 1, C_AMARELO);
+            gfx_rect((int)cx, (int)cy - 1, 1, 2, C_BRASA);
         }
-        if (zerado) risca(cx, cy, r);
+        if (zerado) {
+            for (int o = 0; o < 2; o++) {
+                gfx_linha((int)(cx - r) + o, (int)(cy - r), (int)(cx + r) + o, (int)(cy + r), C_VINHO_CLR);
+                gfx_linha((int)(cx - r) + o, (int)(cy + r), (int)(cx + r) + o, (int)(cy - r), C_VINHO_CLR);
+            }
+        }
         return;
     }
 
     if (tipo == D_TUDO_NADA) {
         // Metade clara, metade escura: tudo ou nada. Caida, mostra so um lado.
-        int R = (int)(r + ea), Ri = (int)(r - ea);
+        int R = (int)r + 1, Ri = (int)r - 1;
         gfx_disco((int)cx, (int)cy, R, aro);
         for (int dy = -Ri; dy <= Ri; dy++) {
             int w = (int)sqrtf((float)(Ri * Ri - dy * dy));
@@ -823,41 +782,35 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         tinta = (modo != 0 && valor == 2) ? C_VIOLETA : C_MARFIM;
         if (modo == 0) return;
     } else if (lados == 2) {
-        gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
-        gfx_disco((int)cx, (int)cy, (int)(r - ea), gfx_mistura(corpo, C_BRANCO, 22));
-        gfx_disco((int)cx + 1, (int)cy + 1, (int)(r - ea) - 1, corpo);
+        gfx_disco((int)cx, (int)cy, (int)r + 1, aro);
+        gfx_disco((int)cx, (int)cy, (int)r - 1, corpo);
     } else {
         if (!zerado) marca_atras(tipo, lados, r, corpo, aro, ang);
         float vx[12], vy[12];
-        int n = forma(lados, cx, cy, r + ea, ang, vx, vy);
+        int n = forma(lados, cx, cy, r + 1, ang, vx, vy);
         poligono(vx, vy, n, aro);
-        // Brilho no canto de cima: o corpo claro por baixo, deslocado.
-        n = forma(lados, cx, cy, r - ea, ang, vx, vy);
-        poligono(vx, vy, n, zerado ? corpo : gfx_mistura(corpo, C_BRANCO, dono == 0 ? 35 : 18));
-        if (r >= 12) {
-            n = forma(lados, cx + ea * 0.8f, cy + ea * 0.8f, r - ea * 1.6f, ang, vx, vy);
-            poligono(vx, vy, n, corpo);
-        }
+        n = forma(lados, cx, cy, r - 1, ang, vx, vy);
+        poligono(vx, vy, n, corpo);
     }
     if (!zerado) marca_frente(tipo, r, dono, corpo);
 
     char s[12];
     if (tipo == D_QUEBRADO) {                    // rachadura em zigue-zague
         uint16_t rc = dono == 0 ? C_EBANO_B : C_MARFIM_S;
-        int e = esp_marca(r);
-        gfx_linha_grossa((int)(cx - r * 0.7f), (int)(cy - r * 0.6f), (int)(cx - r * 0.2f), (int)(cy - r * 0.1f), e, rc);
-        gfx_linha_grossa((int)(cx - r * 0.2f), (int)(cy - r * 0.1f), (int)(cx + r * 0.1f), (int)(cy - r * 0.4f), e, rc);
+        gfx_linha((int)(cx - r * 0.7f), (int)(cy - r * 0.6f), (int)(cx - r * 0.2f), (int)(cy - r * 0.1f), rc);
+        gfx_linha((int)(cx - r * 0.2f), (int)(cy - r * 0.1f), (int)(cx + r * 0.1f), (int)(cy - r * 0.4f), rc);
     }
     if (modo == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
         if (tipo == D_QUEBRADO && valor) {
             snprintf(s, sizeof s, "%d", valor);
-            numero(cx, cy, r, s, tinta);
+            gfx_text((int)cx - (int)strlen(s) * 3, (int)cy - 6, s, tinta, COL_NONE, true);
             return;
         }
         snprintf(s, sizeof s, "%d", lados);
-        numero(cx, cy, r, s, dono == 0 ? C_MARFIM_S : C_EBANO_B);
+        gfx_text((int)cx - (int)strlen(s) * 3, (int)cy - 6, s,
+                 dono == 0 ? C_MARFIM_S : C_EBANO_B, COL_NONE, true);
         return;
     }
     if (valor < 0) return;               // so o corpo: o catalogo escreve grande
@@ -866,15 +819,20 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
         snprintf(s, sizeof s, "%d", valor);
-        numero(cx, cy, r, s, tinta);
+        gfx_text((int)cx - (int)strlen(s) * 3, (int)cy - 6, s, tinta, COL_NONE, true);
     }
-    if (zerado) risca(cx, cy, r);
+    if (zerado) {                        // X grosso em vinho
+        for (int o = 0; o < 2; o++) {
+            gfx_linha((int)(cx - r) + o, (int)(cy - r), (int)(cx + r) + o, (int)(cy + r), C_VINHO_CLR);
+            gfx_linha((int)(cx - r) + o, (int)(cy + r), (int)(cx + r) + o, (int)(cy - r), C_VINHO_CLR);
+        }
+    }
 }
 
 
 static void estala(float forca)
 {
-    if (forca > 100 && t_fase - t_som > 0.03f) { som_toca(SOM_BATE); t_som = t_fase; }
+    if (forca > 40 && t_fase - t_som > 0.03f) { som_toca(SOM_BATE); t_som = t_fase; }
 }
 
 // Um passo de fisica para todos os dados no ar. Devolve true quando todos
@@ -893,7 +851,7 @@ static bool fisica(float dt)
         float atrito = 1.0f - 2.4f * dt;
         v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
 
-        const float r = R_DADO + 2;
+        const float r = 10;
         if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
         if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
         if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
@@ -903,9 +861,9 @@ static bool fisica(float dt)
         v->t_face -= dt;
         if (v->t_face <= 0) {
             v->face = v->tipo == D_QUEBRADO ? v->valor : rola(TIPO[v->tipo].lados);
-            v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
+            v->t_face = 0.04f + (1.0f - vel / 260.0f) * 0.12f;
         }
-        if (vel < 36 || t_fase > 6.0f) {
+        if (vel < 14 || t_fase > 6.0f) {
             v->parado = true;
             v->pouso = 0.18f;
             v->face = v->valor;
@@ -918,9 +876,8 @@ static bool fisica(float dt)
             voo_t *p = &voo[a], *q = &voo[b];
             float dx = q->x - p->x, dy = q->y - p->y;
             float d = sqrtf(dx * dx + dy * dy);
-            const float D = 2 * R_DADO + 4;
-            if (d >= D || d < 0.01f) continue;
-            float nx = dx / d, ny = dy / d, meio = (D - d) / 2;
+            if (d >= 20 || d < 0.01f) continue;
+            float nx = dx / d, ny = dy / d, meio = (20 - d) / 2;
             p->x -= nx * meio; p->y -= ny * meio;
             q->x += nx * meio; q->y += ny * meio;
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
@@ -935,69 +892,25 @@ static bool fisica(float dt)
     return todos;
 }
 
-// A mesa: trilho de madeira com filete de latao e o feltro, mais escuro nas
-// bordas. Nao muda nunca: e pintada uma vez e copiada a cada quadro.
-static uint16_t mesa_pronta[GFX_W * GFX_H];
-static bool mesa_feita;
-
-static uint32_t ruido_xy(int x, int y)
-{
-    uint32_t h = (uint32_t)x * 374761393u + (uint32_t)y * 668265263u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return h ^ (h >> 16);
-}
-
-static void pinta_mesa(void)
-{
-    gfx_clear(C_BARRA);
-    int x0 = 4, y0 = MESA_Y0 - 8, x1 = GFX_W - 4, y1 = MESA_Y1 + 8;
-    gfx_rect(x0, y0, x1 - x0, y1 - y0, C_MADEIRA);
-    for (int y = y0; y < y1; y += 2)                    // veios da madeira
-        for (int x = x0; x < x1; x++)
-            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, C_MADEIRA_ESC);
-    gfx_rect(x0, y0, x1 - x0, 1, C_MADEIRA_CLR);
-    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2, C_LATAO);
-    gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
-    float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
-    float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
-    for (int y = MESA_Y0; y < MESA_Y1; y++)
-        for (int x = MESA_X0; x < MESA_X1; x++) {
-            float dx = (x - cx) / ax, dy = (y - cy) / ay;
-            int pct = (int)((dx * dx * 0.6f + dy * dy) * 55);
-            if (pct > 80) pct = 80;
-            uint16_t c = gfx_mistura(C_FELTRO, C_FELTRO_ESC, pct);
-            uint32_t h = ruido_xy(x, y) % 11;
-            if (h == 0) c = gfx_mistura(c, C_FELTRO2, 70);
-            else if (h == 1) c = gfx_mistura(c, C_SOMBRA, 30);
-            gfx_pixel(x, y, c);
-        }
-    // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
-    for (int i = 0; i < 360; i++) {
-        if ((i / 4) % 2) continue;
-        float a = i * 0.017453f;
-        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, C_FELTRO2);
-    }
-}
-
 static void mesa(void)
 {
-    if (!mesa_feita) {
-        pinta_mesa();
-        memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
-        mesa_feita = true;
-    }
-    memcpy(display_fb(), mesa_pronta, sizeof mesa_pronta);
+    gfx_rect(0, MESA_Y0 - 3, GFX_W, MESA_Y1 - MESA_Y0 + 6, C_LATAO_ESC);
+    gfx_rect(2, MESA_Y0 - 1, GFX_W - 4, MESA_Y1 - MESA_Y0 + 2, C_LATAO);
+    gfx_rect(3, MESA_Y0, GFX_W - 6, MESA_Y1 - MESA_Y0, C_FELTRO_ESC);
+    gfx_rect(4, MESA_Y0 + 1, GFX_W - 8, MESA_Y1 - MESA_Y0 - 2, C_FELTRO);
+    // Trama do feltro: pontos esparsos, o suficiente para nao ser chapado.
+    for (int y = MESA_Y0 + 3; y < MESA_Y1 - 2; y += 3)
+        for (int x = 6 + (y % 2) * 2; x < GFX_W - 6; x += 5)
+            gfx_pixel(x, y, C_FELTRO2);
+    // Linha de aposta ao centro, como nas mesas de verdade.
+    gfx_rect(40, (MESA_Y0 + MESA_Y1) / 2, GFX_W - 80, 1, C_FELTRO2);
 }
 
 static void ficha(int x, int y, uint16_t c)
 {
-    gfx_disco(x + 1, y + 2, 7, C_SOMBRA);
-    gfx_disco(x, y, 7, c);
-    for (int i = 0; i < 6; i++) {                        // listras da borda
-        float a = i * 1.0472f;
-        gfx_rect(x + (int)(cosf(a) * 5.5f) - 1, y + (int)(sinf(a) * 5.5f) - 1, 2, 2, C_MARFIM);
-    }
-    gfx_disco(x, y, 3, gfx_mistura(c, C_BARRA, 30));
+    gfx_disco(x, y, 4, c);
+    gfx_disco(x, y, 2, C_BARRA);
+    gfx_disco(x, y, 1, c);
 }
 
 // ===========================================================================
@@ -1095,7 +1008,7 @@ static void aplica_regra(int j, int k)
         resistiu = esc_l ? l : (esc_k ? k : -1);
         if (esc_l)      snprintf(veredito, sizeof veredito, "%d < %d: %s segura", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
         else if (esc_k) snprintf(veredito, sizeof veredito, "%d < %d: %s fica, %d cai", v, f->valor[l], TIPO[t].nome, f->valor[l]);
-        else            snprintf(veredito, sizeof veredito, "%d é menor que %d: anulou os dois", v, f->valor[l]);
+        else            snprintf(veredito, sizeof veredito, "%d < %d: anulou os dois", v, f->valor[l]);
         ver_tipo = (esc_l || esc_k) ? 2 : 1;
     } else {
         f->est[k] = V_VALIDO;
@@ -1114,16 +1027,16 @@ static void aplica_regra(int j, int k)
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
         } else if (ef == EF_MALDICAO) {
             snprintf(f->tag[k], sizeof f->tag[k], "-%d", v);
-            snprintf(veredito, sizeof veredito, "Maldito de pé: -%d no rival", v);
-        } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
+            snprintf(veredito, sizeof veredito, "Maldito de pe: -%d no rival", v);
+        } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d: vale", v);
         else if (f->dobra[k])  snprintf(veredito, sizeof veredito, "vale %d, x2 no fim", vale);
         else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
-        else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa fila nova", vale);
+        else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d, fila nova", vale);
         else                   snprintf(veredito, sizeof veredito, "vale %d", vale);
         ver_tipo = 0;
     }
     if (condenou) {                              // o aviso vale mais que o resto
-        snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: a rodada vale 0");
+        snprintf(veredito, sizeof veredito, "Tudo/Nada 1: rodada vale 0");
         ver_tipo = 3;
     }
     f->pontos = soma(j, f->est);
@@ -1215,7 +1128,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = (uint8_t)k;
             e->mascara = mask;
             memcpy(e->por_dado, por, sizeof por);
-            snprintf(e->txt, sizeof e->txt, face == 1 ? "Moeda 1: +2 nos ímpares"
+            snprintf(e->txt, sizeof e->txt, face == 1 ? "Moeda 1: +2 nos impares"
                                                       : "Moeda 2: +1 nos pares");
         }
     }
@@ -1321,7 +1234,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 if (b >= 0) {
                     d->est[j][b] = V_ANULADO;
                     evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                           "e anula o %d do próprio %s", F[j].valor[b], J[j].nome);
+                           "e anula o %d do proprio %s", F[j].valor[b], J[j].nome);
                 }
             } else if (ef == EF_MARTELO) {
                 d->delta[r] -= 4;
@@ -1352,7 +1265,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int k = -1;
         for (int i = 0; i < F[j].lancados; i++)
             if (TIPO[tipo_de(j, i)].efeito == EF_TUDO_NADA && F[j].cru[i] == 1) { k = i; break; }
-        evento(gera, EV_ZERA, j, k < 0 ? 0 : k, j, 0, 0, "Tudo ou Nada: a rodada vale 0");
+        evento(gera, EV_ZERA, j, k < 0 ? 0 : k, j, 0, 0, "Tudo/Nada: a rodada vale 0");
     }
     for (int j = 0; j < 2; j++) {
         int t = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j]
@@ -1494,7 +1407,6 @@ void dado_inicia(int n_partidas)
 {
     partidas = n_partidas;
     semente = (uint32_t)esp_timer_get_time() | 1;
-    som_rufo(false);
     for (int i = 0; i < 8; i++) rnd();
     memset(J, 0, sizeof J);
     J[0].nome = "ERIC"; J[0].cor = C_LATAO;
@@ -1520,9 +1432,9 @@ void dado_inicia(int n_partidas)
 
     n_voo = 2;
     memset(voo, 0, sizeof voo);
-    voo[0] = (voo_t){ .x = 60, .y = 270, .vx = 650, .vy = -180, .spin = 11,
+    voo[0] = (voo_t){ .x = 22, .y = 104, .vx = 250, .vy = -70, .spin = 11,
                       .dono = 0, .tipo = D_D6, .valor = 6, .face = 1 };
-    voo[1] = (voo_t){ .x = 580, .y = 245, .vx = -650, .vy = -110, .spin = -11,
+    voo[1] = (voo_t){ .x = 218, .y = 94, .vx = -250, .vy = -40, .spin = -11,
                       .dono = 1, .tipo = D_D6, .valor = 6, .face = 3 };
     abertura_pronta = false;
     menu_cur = 0;                          // toda partida abre em "Jogar"
@@ -1565,14 +1477,13 @@ static void lanca_proximo(void)
     v->slot = (uint8_t)k;
     v->tipo = (uint8_t)t;
     v->valor = x;
-    v->x = GFX_W / 2 + frnd(-110, 110);
-    v->y = vez == 0 ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
-    v->vx = frnd(-300, 300);
-    v->vy = (vez == 0 ? -1 : 1) * frnd(420, 600);
+    v->x = 120 + frnd(-40, 40);
+    v->y = vez == 0 ? MESA_Y1 - 10 : MESA_Y0 + 10;
+    v->vx = frnd(-110, 110);
+    v->vy = (vez == 0 ? -1 : 1) * frnd(150, 220);
     v->spin = frnd(-14, 14);
     v->face = t == D_QUEBRADO ? x : rola(lados);
     n_voo = 1;
-    som_rufo(true);                          // tensao ate o dado assentar
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -1619,7 +1530,7 @@ static void recolhe_quebrados(void)
         p->n_mao = 0;
     }
     if (n_cinza && n_quebra) snprintf(nota, sizeof nota, "um dado vira cinza, outro se quebra");
-    else if (n_cinza)        snprintf(nota, sizeof nota, n_cinza > 1 ? "os dados queimados viram cinza" : "o dado queimado vira cinza");
+    else if (n_cinza)        snprintf(nota, sizeof nota, n_cinza > 1 ? "dados viram cinza" : "o dado queimado vira cinza");
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
 }
 
@@ -1632,12 +1543,12 @@ static void conclui_rodada(void)
     }
     if (F[0].total == F[1].total) {
         venc_mao = 2;
-        snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
+        snprintf(aviso, sizeof aviso, "empate em %d: o pote fica", F[0].total);
     } else {
         int w = F[0].total > F[1].total ? 0 : 1;
         venc_mao = w;
         J[w].fichas += pote;
-        snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
+        snprintf(aviso, sizeof aviso, "%s leva %d", J[w].nome, pote);
         pote = 0;
         for (int k = 0; k < F[w].lancados; k++)
             if (F[w].est[k] == V_VALIDO && TIPO[tipo_de(w, k)].efeito == EF_FICHAS)
@@ -1795,7 +1706,7 @@ static void executa(int op)
     case OP_CORRER: {
         int w = outro(vez);
         J[w].fichas += pote;
-        snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
+        snprintf(aviso, sizeof aviso, "%s corre. %s leva %d", p->nome, J[w].nome, pote);
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;
@@ -1837,15 +1748,13 @@ static int sorteia_tipo(void)
 
 static void desenha_lance(void);
 
-// Alto-falante miudo na faixa de ERIC quando o som esta ligado.
+// Alto-falante miudo ao lado do contador de maos quando o som esta ligado.
 static void icone_som(int x, int y)
 {
-    gfx_rect(x, y + 4, 4, 6, C_OURO);
-    for (int i = 0; i < 4; i++) gfx_rect(x + 4 + i, y + 4 - i, 1, 6 + 2 * i, C_OURO);
-    for (int k = 0; k < 2; k++) {
-        int d = 11 + 4 * k;
-        gfx_rect(x + d, y + 3 - 2 * k, 1, 8 + 4 * k, C_OURO);
-    }
+    gfx_rect(x, y + 2, 2, 4, C_OURO);
+    for (int i = 0; i < 3; i++) gfx_rect(x + 2 + i, y + 2 - i, 1, 4 + 2 * i, C_OURO);
+    gfx_pixel(x + 7, y + 2, C_OURO); gfx_pixel(x + 7, y + 5, C_OURO);
+    gfx_rect(x + 8, y + 3, 1, 2, C_OURO);
 }
 
 static void desenha_abertura(void)
@@ -1859,28 +1768,24 @@ static void desenha_abertura(void)
     char parcial[16];
     memcpy(parcial, titulo, (size_t)n);
     parcial[n] = 0;
-    int x0 = GFX_W / 2 - gfx_largura(titulo, 3) / 2;
-    gfx_texto(x0 + 3, 70 + 3, parcial, C_SOMBRA, 3, true);
-    gfx_texto(x0, 70, parcial, C_LATAO, 3, true);
+    int x0 = 120 - 12 * FONT_W;
+    gfx_text_escala(x0 + 1, 27, parcial, 2, C_LATAO_ESC);
+    gfx_text_escala(x0, 26, parcial, 2, C_LATAO);
     if (t_fase < 0.75f) return;
-    gfx_rect(GFX_W / 2 - 150, 138, 300, 2, C_LATAO_ESC);
-    int y = 148;
-    int w = gfx_largura("ERIC  x  LILI", 1), x = GFX_W / 2 - w / 2;
-    x += gfx_texto(x, y, "ERIC", C_LATAO, 1, true);
-    x += gfx_texto(x, y, "  x  ", C_TEXTO_M, 1, false);
-    gfx_texto(x, y, "LILI", C_ROSA, 1, true);
+    gfx_rect(60, 54, 120, 1, C_LATAO_ESC);
+    gfx_text(84, 58, "ERIC", C_LATAO, COL_NONE, true);
+    gfx_text(113, 58, "x", C_TEXTO_M, COL_NONE, false);
+    gfx_text(126, 58, "LILI", C_ROSA, COL_NONE, true);
 
     // Menu: contra o aparelho, dois na mesma mesa, ou ver os dados.
-    static const char *OP[3] = { "Contra LILI", "2 jogadores", "Dados da casa" };
+    static const char *OP[3] = { "Contra LILI", "2 jogadores", "Dados" };
     for (int i = 0; i < 3; i++) {
-        int yb = 186 + i * 32;
+        int y = 74 + i * 14;
         bool cur = i == menu_cur;
-        gfx_rect(GFX_W / 2 - 100, yb, 200, 26, cur ? C_LATAO : C_FELTRO_ESC);
-        if (!cur) gfx_moldura(GFX_W / 2 - 100, yb, 200, 26, 1, C_FELTRO2);
-        txt_c(GFX_W / 2, yb + 3, OP[i], cur ? C_BARRA : C_MARFIM, cur);
+        if (cur) gfx_rect(80, y - 1, 80, 13, C_LATAO);
+        else     gfx_rect(80, y - 1, 80, 13, C_FELTRO_ESC);
+        txt_c(120, y, OP[i], cur ? C_BARRA : C_MARFIM, cur);
     }
-    txt_c(GFX_W / 2, MESA_Y1 - 26, "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
-          C_TEXTO_M, false);
 }
 
 static void abre_premio(void)
@@ -2078,7 +1983,7 @@ void dado_passo(float dt)
             }
         } else {
             // O crupie afasta os dados para os cantos e abre espaco ao menu.
-            static const float ALVO[2][2] = { { 120, 250 }, { 520, 250 } };
+            static const float ALVO[2][2] = { { 40, 96 }, { 200, 96 } };
             float a = dt * 5 > 1 ? 1 : dt * 5;
             for (int i = 0; i < n_voo; i++) {
                 voo[i].x += (ALVO[i][0] - voo[i].x) * a;
@@ -2129,7 +2034,6 @@ void dado_passo(float dt)
             int j = v->dono, k = v->slot;
             F[j].lancados = k + 1;
             n_voo = 0;
-            som_rufo(false);
             aplica_regra(j, k);
             som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
             t_fase = 0;
@@ -2160,13 +2064,11 @@ void dado_passo(float dt)
 // ===========================================================================
 // Desenho
 // ===========================================================================
-static int txt_nome(int x, int y, int j, bool destaque);
-
 static void desenha_lance(void)
 {
     for (int i = 0; i < n_voo; i++) {
         voo_t *v = &voo[i];
-        float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
+        float r = 9 + (v->pouso > 0 ? v->pouso * 6 : 0);
         desenha_dado(v->x, v->y, r, v->tipo, v->dono, v->giro,
                      v->parado ? v->valor : v->face, 2, false);
     }
@@ -2177,72 +2079,64 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
     desenha_dado(x, y, r, p.tipo, dono, 0, p.fixo, 0, false);
 }
 
-// Moldura de destaque em volta de um dado da fila.
 static void aro(int x, int y, uint16_t c)
 {
-    int m = R_DADO + 7;
-    gfx_moldura(x - m, y - m, 2 * m, 2 * m, 3, c);
+    gfx_rect(x - 12, y - 12, 24, 2, c);
+    gfx_rect(x - 12, y + 10, 24, 2, c);
+    gfx_rect(x - 12, y - 12, 2, 24, c);
+    gfx_rect(x + 10, y - 12, 2, 24, c);
 }
 
 // Etiqueta no canto do dado (x2, +8, =9), com fundo para ler sobre o feltro.
 static void etiqueta(int x, int y, const char *s)
 {
-    int w = gfx_largura(s, 1) + 8;
-    int ex = x + R_DADO - 8, ey = y - R_DADO - 14;
-    gfx_rect(ex, ey, w, TXT_H + 2, C_BARRA);
-    gfx_moldura(ex, ey, w, TXT_H + 2, 1, s[0] == '-' ? C_VINHO_CLR : C_OURO);
-    txt(ex + 4, ey + 1, s, s[0] == '-' ? C_VINHO_CLR : C_OURO, true);
-}
-
-// Painel escuro e translucido atras de um bloco de texto no meio da mesa.
-static void painel(int y, int h, int w)
-{
-    gfx_rect_alfa(GFX_W / 2 - w / 2, y, w, h, C_SOMBRA, 170);
+    int w = (int)strlen(s) * FONT_W + 2;
+    gfx_rect(x + 4, y - 15, w, 11, C_BARRA);
+    gfx_text(x + 5, y - 16, s, s[0] == '-' ? C_VINHO_CLR : C_OURO, COL_NONE, true);
 }
 
 static void faixa_jogador(int j)
 {
     jogador_t *p = &J[j];
-    int y0 = j == 1 ? 0 : GFX_H - FAIXA_H;
-    gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, j == 1 ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
-    int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
+    int y0 = j == 1 ? 0 : MESA_Y1 + 3;
+    gfx_rect(0, y0, GFX_W, 14, C_BARRA);
+    gfx_rect(0, j == 1 ? 13 : y0, GFX_W, 1, C_LATAO_ESC);
 
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
-    if (da_vez) gfx_rect(0, y0 + 2, 5, FAIXA_H - 4, p->cor);
-    int x = 18 + txt_nome(18, ty, j, da_vez);
-    ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
-    char s[32];
+    if (da_vez) gfx_rect(0, y0 + 1, 2, 12, p->cor);
+    gfx_text(5, y0 + 1, p->nome, p->cor, COL_NONE, true);
+    ficha(38, y0 + 7, j == 0 ? C_LATAO : C_ROSA);
+    char s[24];
     snprintf(s, sizeof s, "%d", p->fichas);
-    txt(x + 36, ty, s, C_MARFIM, true);
+    gfx_text(45, y0 + 1, s, C_MARFIM, COL_NONE, true);
 
     // A rodada mora na faixa de cima; o som, na de baixo.
     if (j == 1 && rodada > 0 && fase != F_LOJA) {
-        snprintf(s, sizeof s, "rodada %d de %d", rodada > MAX_RODADAS ? MAX_RODADAS : rodada,
+        snprintf(s, sizeof s, "rodada %d/%d", rodada > MAX_RODADAS ? MAX_RODADAS : rodada,
                  MAX_RODADAS);
-        txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
+        gfx_text(72, y0 + 1, s, C_TEXTO_M, COL_NONE, false);
     }
-    if (j == 0 && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
+    if (j == 0 && som_ligado()) icone_som(74, y0 + 3);
 
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
-    int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
-    gfx_rect(bx, by - 5, 16, 13, C_LATAO_ESC);              // saquinho
-    gfx_rect(bx + 4, by - 9, 8, 4, C_LATAO_ESC);
-    gfx_rect(bx + 2, by - 3, 12, 9, C_LATAO);
-    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p), p->n_col);
-    txt(bx + 22, ty, s, C_MARFIM_S, false);
+    int bx = GFX_W - 58;
+    gfx_rect(bx, y0 + 5, 9, 7, C_LATAO_ESC);          // saquinho
+    gfx_rect(bx + 2, y0 + 3, 5, 2, C_LATAO_ESC);
+    gfx_rect(bx + 1, y0 + 6, 7, 5, C_LATAO);
+    snprintf(s, sizeof s, "%d/%d", na_bolsa(p), p->n_col);
+    gfx_text(bx + 13, y0 + 1, s, C_MARFIM_S, COL_NONE, false);
 }
 
 // Estilhacos do Quebrado: o dado se abre em lascas que se afastam e somem.
 static void estilhaca(int x, int y, float t, int dono)
 {
-    static const int8_t DIR[9][2] = { {-3,-4},{3,-4},{5,0},{3,4},{-3,4},{-5,0},{0,-5},{2,5},{-4,2} };
+    static const int8_t DIR[7][2] = { {-3,-4},{3,-4},{5,0},{3,4},{-3,4},{-5,0},{0,-5} };
     uint16_t c = t < 0.5f ? (dono == 0 ? C_MARFIM : C_EBANO_B) : C_TERRA;
-    for (int i = 0; i < 9; i++) {
-        int px = x + (int)(DIR[i][0] * t * 16), py = y + (int)(DIR[i][1] * t * 16);
-        int tam = t < 0.6f ? 6 : 4;
-        gfx_rect(px - tam / 2, py - tam / 2, tam, tam, c);
+    for (int i = 0; i < 7; i++) {
+        int px = x + (int)(DIR[i][0] * t * 6), py = y + (int)(DIR[i][1] * t * 6);
+        int tam = t < 0.6f ? 3 : 2;
+        gfx_rect(px - 1, py - 1, tam, tam, c);
     }
 }
 
@@ -2254,7 +2148,6 @@ static void desenha_fila(int j)
     bool pisca = fase == F_VEREDITO && j == vez && ((int)(t_fase * 7) % 2 == 0);
     const evento_t *e = (fase == F_EFEITOS && ev_i < n_ev) ? &ev[ev_i] : NULL;
     float p = e ? t_fase / duracao_evento(ev_i) : 0;
-    const int R = R_DADO;
 
     if (f->n == 0 && j != vez) return;                   // fila alheia ainda vazia
 
@@ -2265,8 +2158,7 @@ static void desenha_fila(int j)
         if (voando) continue;
         int t = tipo_de(j, k);
         if (k >= f->lancados) {
-            gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
-            desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
+            desenha_dado((float)x, (float)y, 8, t, j, 0, f->fixo[k], 0, false);
             continue;
         }
         uint8_t est = no_desfecho ? vis_est[j][k] : f->est[k];
@@ -2277,11 +2169,11 @@ static void desenha_fila(int j)
             if (q > 1) q = 1;
             float s = q * q * (3 - 2 * q);
             int tx = ROUBO_X(vis_nroubo[e->de_j]), ty = zona(e->de_j);
-            desenha_dado(x + (tx - x) * s, y + (ty - y) * s, R, t, j, s * 6.28f, f->valor[k], 2, false);
+            desenha_dado(x + (tx - x) * s, y + (ty - y) * s, 9, t, j, 0, f->valor[k], 2, false);
             continue;
         }
         if (est == V_ROUBADO) {                           // lugar vazio: foi levado
-            gfx_disco(x, y, R - 2, C_FELTRO_ESC);
+            gfx_rect(x - 8, y - 8, 16, 16, C_FELTRO_ESC);
             continue;
         }
         if (fase == F_RESULTADO && f->quebra[k] && t_fase > 0.35f) {
@@ -2292,15 +2184,13 @@ static void desenha_fila(int j)
         if (fase == F_RESULTADO && f->cinza[k] && t_fase > 0.35f) {
             float q = (t_fase - 0.35f) / 1.25f;
             if (q < 1) {
-                desenha_dado((float)x, (float)y, R, t, j, 0, f->valor[k], 2, false);
-                int topo = y - R - 6, corte = topo + (int)(q * (2 * R + 12));
-                for (int yy = topo; yy < corte; yy++)            // o feltro volta
-                    memcpy(display_fb() + yy * GFX_W + x - R - 6,
-                           mesa_pronta + yy * GFX_W + x - R - 6, (size_t)(2 * R + 12) * 2);
-                for (int i = 0; i < 9; i++) {
-                    int ex = x - R + (i * 11) % (2 * R);
-                    int ey = corte - ((int)(t_fase * 90) + i * 13) % 40;
-                    gfx_rect(ex, ey, 4, 4, i % 2 ? C_FOGO : C_CINZA);
+                desenha_dado((float)x, (float)y, 9, t, j, 0, f->valor[k], 2, false);
+                int corte = y - 11 + (int)(q * 22);
+                gfx_rect(x - 12, y - 12, 26, corte - (y - 12), C_FELTRO);
+                for (int i = 0; i < 7; i++) {
+                    int ex = x - 8 + (i * 5) % 17;
+                    int ey = corte - ((int)(t_fase * 40) + i * 7) % 18;
+                    gfx_rect(ex, ey, 2, 2, i % 2 ? C_FOGO : C_CINZA);
                 }
             }
             continue;
@@ -2309,16 +2199,12 @@ static void desenha_fila(int j)
         bool recente = fase == F_VEREDITO && j == vez && (k == anulou_a || k == anulou_b);
         // O que segurou a queda treme no lugar, como quem balanca a cabeca.
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
-            x += ((int)(t_fase * 28) % 2) ? 4 : -4;
+            x += ((int)(t_fase * 28) % 2) ? 2 : -2;
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && e->tipo == EV_ANULA && e->alvo_j == j && e->alvo_k == k;
         if (alvo && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
-        // O dado que acabou de valer da um pulinho.
-        float pulo = 0;
-        if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
-            pulo = sinf(t_fase / 0.25f * 3.1416f) * 8;
-        desenha_dado((float)x, y - pulo, R, t, j, 0, f->valor[k], 2, anul);
+        desenha_dado((float)x, (float)y, 9, t, j, 0, f->valor[k], 2, anul);
         // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
         // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
         char tg[16] = "";
@@ -2329,14 +2215,14 @@ static void desenha_fila(int j)
             aro(x, y, C_OURO);
             // Trevo com 4: SORTE em dourado, com faiscas em volta.
             if (t == D_TREVO && f->valor[k] == 4) {
-                int ty = j == 0 ? y - R - 34 : y + R + 12;
-                gfx_rect(x - 28, ty - 2, 56, TXT_H + 4, C_BARRA);
-                txt_c(x, ty, "SORTE", C_OURO, true);
-                for (int i = 0; i < 6; i++) {
-                    float a = t_fase * 5 + i * 1.0472f;
-                    int sx = x + (int)(cosf(a) * 36), sy = y + (int)(sinf(a) * 32);
-                    gfx_rect(sx - 3, sy, 7, 1, C_OURO);
-                    gfx_rect(sx, sy - 3, 1, 7, C_OURO);
+                int ty = j == 0 ? y - 26 : y + 13;
+                gfx_rect(x - 17, ty - 1, 34, 13, C_BARRA);
+                gfx_text(x - 15, ty, "SORTE", C_OURO, COL_NONE, true);
+                for (int i = 0; i < 4; i++) {
+                    float a = t_fase * 5 + i * 1.5708f;
+                    int sx = x + (int)(cosf(a) * 15), sy = y + (int)(sinf(a) * 13);
+                    gfx_rect(sx - 1, sy, 3, 1, C_OURO);
+                    gfx_rect(sx, sy - 1, 1, 3, C_OURO);
                 }
             }
         }
@@ -2359,14 +2245,14 @@ static void desenha_fila(int j)
     }
     // O par que se anulou fica unido por um traco.
     if (fase == F_VEREDITO && j == vez && anulou_a >= 0 && anulou_b >= 0)
-        gfx_rect(SLOT_X(anulou_a) + R + 4, y - 2, SLOT_X(anulou_b) - SLOT_X(anulou_a) - 2 * R - 8, 5,
+        gfx_rect(SLOT_X(anulou_a) + 10, y - 1, SLOT_X(anulou_b) - SLOT_X(anulou_a) - 20, 3,
                  C_VINHO_CLR);
 
     // Dados roubados por este jogador, a esquerda da fila.
     if (no_desfecho)
         for (int i = 0; i < vis_nroubo[j]; i++) {
             roubado_t *r = &vis_roubo[j][i];
-            desenha_dado((float)ROUBO_X(i), (float)y, R, r->tipo, r->de_j, 0, r->valor, 2, false);
+            desenha_dado((float)ROUBO_X(i), (float)y, 9, r->tipo, r->de_j, 0, r->valor, 2, false);
         }
 
     if (f->lancados || vis_nroubo[j]) {
@@ -2381,9 +2267,7 @@ static void desenha_fila(int j)
         uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
                    : f->zerada ? C_VIOLETA
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
-        gfx_rect_alfa(PLACAR_X - 34, y - 26, 68, 50, C_SOMBRA, 140);
-        txt_c(PLACAR_X, y - 42 + (j == 0 ? 72 : 0), "pontos", C_TEXTO_M, false);
-        txt_c2(PLACAR_X, y - 20, s, c);
+        gfx_text_escala(192, y - 12, s, 2, c);
     }
 }
 
@@ -2400,16 +2284,17 @@ static void desenha_evento(void)
         if (q > 1) q = 1;
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
-        gfx_linha_grossa(ax, ay, ex, ey, 4, C_VINHO_CLR);
+        for (int o = -1; o <= 1; o++) gfx_linha(ax + o, ay, ex + o, ey, C_VINHO_CLR);
     }
-    // Maldito e Espinhoso: um traco do dado ate o placar do rival.
+    // Maldito e Martelo: um traco do dado ate o placar do rival.
     if (e->tipo == EV_TIRA && p < 0.5f) {
         float q = p / 0.35f;
         if (q > 1) q = 1;
         bool praga = TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_MALDICAO;
-        int bx = PLACAR_X, by = zona(e->alvo_j);
+        int bx = 204, by = zona(e->alvo_j);
         int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
-        gfx_linha_grossa(ax, ay, ex, ey, 4, praga ? C_VIOLETA : C_VINHO_CLR);
+        for (int o = -1; o <= 1; o++)
+            gfx_linha(ax + o, ay, ex + o, ey, praga ? C_VIOLETA : C_VINHO_CLR);
     }
     // Ficha de Fogo: linha de fogo tremulando ate o alvo, brasas subindo dele.
     if (e->tipo == EV_FOGO) {
@@ -2418,42 +2303,42 @@ static void desenha_evento(void)
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
         uint16_t c = ((int)(t_fase * 16) % 2) ? C_FOGO : C_AMARELO;
-        gfx_linha_grossa(ax, ay, ex, ey + ((int)(t_fase * 20) % 3) - 1, 5, c);
+        for (int o = -1; o <= 1; o++) gfx_linha(ax + o, ay, ex + o, ey + ((o + (int)(t_fase * 20)) % 2), c);
         if (p > 0.35f)
-            for (int i = 0; i < 10; i++) {
-                int px = bx - 18 + (i * 7) % 36;
-                int py = by - 24 - ((int)(t_fase * 70) + i * 9) % 40;
-                gfx_rect(px, py, 4, 4, i % 2 ? C_AMARELO : C_FOGO);
+            for (int i = 0; i < 6; i++) {
+                int px = bx - 7 + (i * 5) % 15;
+                int py = by - 10 - ((int)(t_fase * 30) + i * 6) % 16;
+                gfx_rect(px, py, 2, 2, i % 2 ? C_AMARELO : C_FOGO);
             }
     }
     // Semente: o broto cresce da moeda, e o +10 sobe em verde.
     if (e->tipo == EV_SEMENTE) {
         float q = p / 0.6f;
         if (q > 1) q = 1;
-        int alto = (int)(q * 34);
-        int sx = ax, sy = ay - R_DADO;
-        gfx_rect(sx - 1, sy - alto, 4, alto, C_VERDE);
+        int alto = (int)(q * 14);
+        int sx = ax, sy = ay - 10;
+        gfx_rect(sx, sy - alto, 2, alto, C_VERDE);
         if (q > 0.5f) {
-            gfx_rect(sx - 12, sy - alto + 8, 11, 6, C_VERDE);
-            gfx_rect(sx + 3, sy - alto + 3, 11, 6, C_VERDE);
+            gfx_rect(sx - 5, sy - alto + 3, 5, 3, C_VERDE);
+            gfx_rect(sx + 2, sy - alto + 1, 5, 3, C_VERDE);
         }
         if (p > 0.5f) {
-            int ty = zona(e->de_j) - 10 - (int)((p - 0.5f) * 30);
-            txt_sombra_c(PLACAR_X - 64, ty, "+10", C_VERDE, 1);
+            int ty = zona(e->de_j) - 18 - (int)((p - 0.5f) * 16);
+            gfx_text(198, ty, "+10", C_VERDE, COL_NONE, true);
         }
     }
     if ((e->tipo == EV_TIRA || e->tipo == EV_PIRATA) && p > 0.2f) {
         float q = (p - 0.2f) / 0.6f;
         if (q > 1) q = 1;
-        int sy = zona(e->alvo_j) - 10 - (int)(q * 18);
+        int sy = zona(e->alvo_j) - 18 - (int)(q * 8);
         char menos[8];
         snprintf(menos, sizeof menos, "-%d", e->valor);
-        txt_sombra_c(PLACAR_X - 64, sy, menos, C_VINHO_CLR, 1);
+        gfx_text(200, sy, menos, C_VINHO_CLR, COL_NONE, true);
         if (e->tipo == EV_PIRATA) {
             int y0 = zona(e->alvo_j), y1 = zona(e->de_j);
             int fy = y0 + (int)((y1 - y0) * q);
-            ficha(PLACAR_X + 46, fy, C_OURO);
-            if (q >= 1) txt_sombra_c(PLACAR_X - 64, zona(e->de_j) - 28, "+4", C_OURO, 1);
+            ficha(POTE_X - 4, fy, C_OURO);
+            if (q >= 1) gfx_text(200, zona(e->de_j) - 26, "+4", C_OURO, COL_NONE, true);
         }
     }
 }
@@ -2461,40 +2346,39 @@ static void desenha_evento(void)
 static void pote_mesa(void)
 {
     int n = pote / 10 + 1;
-    if (n > 9) n = 9;
-    int y = CENTRO + 10;
+    if (n > 6) n = 6;
     for (int i = 0; i < n; i++)
-        ficha(POTE_X, y - i * 4, (i % 3 == 0) ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
+        ficha(POTE_X, 50 - i * 2, (i % 3 == 0) ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM));
     char s[16];
     snprintf(s, sizeof s, "%d", pote);
-    txt_c(POTE_X, y + 12, s, C_OURO, true);
-    txt_c(POTE_X, y - n * 4 - 26, "pote", C_TEXTO_M, false);
+    txt_c(POTE_X, 56, s, C_OURO, true);
 }
 
 // Nome do dado em destaque e o poder logo abaixo.
 static void dado_e_poder(int y, int tipo)
 {
-    txt_c(GFX_W / 2, y, TIPO[tipo].nome, cor_aro(tipo), true);
-    txt_c(GFX_W / 2, y + TXT_H + 2, TIPO[tipo].desc, C_MARFIM_S, false);
+    txt_c(120, y, TIPO[tipo].nome, cor_aro(tipo), true);
+    txt_c(120, y + 12, TIPO[tipo].desc, C_TEXTO_M, false);
 }
 
 static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor)
 {
-    int larg = -12;
-    for (int i = 0; i < n; i++) larg += gfx_largura(rot[i], 1) + 24 + 12;
-    int x = GFX_W / 2 - larg / 2;
+    int larg = -4;
+    for (int i = 0; i < n; i++) larg += (int)strlen(rot[i]) * 6 + 10;
+    int x = 120 - larg / 2 + 3;
     for (int i = 0; i < n; i++) {
-        int w = gfx_largura(rot[i], 1) + 24;
+        int w = (int)strlen(rot[i]) * 6 + 6;
         bool cur = i == cursor && ativo[i];
-        gfx_rect(x + 2, y + 3, w, 28, C_SOMBRA);
-        gfx_rect(x, y, w, 28, cur ? cor : C_FELTRO_ESC);
-        gfx_moldura(x, y, w, 28, 1, cur ? C_BRANCO : C_FELTRO2);
-        txt(x + 12, y + 4, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
-        x += w + 12;
+        gfx_rect(x - 3, y, w, 12, cur ? cor : C_FELTRO_ESC);
+        gfx_text(x, y, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2),
+                 COL_NONE, cur);
+        x += w + 4;
     }
 }
 
-// Montagem da fila: a mao comprada aparece na linha do jogador, um dado de
+// Montagem da fila: a bolsa aparece na faixa do jogador, e ele escolhe ali
+// mesmo, na ordem. O numero dourado e a posicao na fila.
+// Montagem da fila: a mao comprada aparece na faixa do jogador, um dado de
 // cada vez saindo da bolsa. O numero dourado e a posicao na fila.
 static void desenha_ordem(void)
 {
@@ -2506,60 +2390,54 @@ static void desenha_ordem(void)
         if (t_fase < chega) continue;
         float q = (t_fase - chega) / 0.18f;
         if (q > 1) q = 1;
-        int dy = (int)((1 - q) * (vez == 0 ? 40 : -40));   // vem do lado da bolsa
-        int x = GFX_W / 2 + (int)((i - (n - 1) / 2.0f) * 62);
+        int dy = (int)((1 - q) * (vez == 0 ? 16 : -16));   // vem do lado da bolsa
+        int x = 120 + (int)((i - (n - 1) / 2.0f) * 26) - 8;
         int ordem = -1;
         for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ordem = k;
-        bool cur = i == cursor && q >= 1;
-        if (cur) gfx_rect_alfa(x - 29, y - 29, 58, 58, p->cor, 60);
-        peca_parada((float)x, (float)(y + dy - (cur ? 3 : 0)), 20, p->col[p->mao[i]], vez);
+        peca_parada((float)x, (float)(y + dy), 8, p->col[p->mao[i]], vez);
         if (ordem >= 0) {
             char o[2] = { (char)('1' + ordem), 0 };
-            gfx_disco(x + 18, y - 20, 10, C_OURO);
-            gfx_disco(x + 18, y - 20, 8, C_AMARELO);
-            txt_c(x + 18, y - 31, o, C_BARRA, true);
+            gfx_disco(x + 7, y - 8, 5, C_OURO);
+            gfx_text(x + 5, y - 14, o, C_BARRA, COL_NONE, true);
         }
-        if (cur) gfx_rect(x - 18, y + 27, 36, 3, p->cor);
+        if (i == cursor && q >= 1) gfx_rect(x - 8, y + 11, 16, 2, p->cor);
     }
 
-    char t[64];
+    char t[48];
     if (vez == primeiro) snprintf(t, sizeof t, "%s monta a fila", p->nome);
-    else snprintf(t, sizeof t, "%s monta a fila  ·  alvo %d", p->nome, F[outro(vez)].pontos);
-    int y1 = CENTRO - 44;
-    painel(y1 - 6, 100, 470);
-    txt_c(GFX_W / 2, y1, t, p->cor, true);
+    else snprintf(t, sizeof t, "%s monta a fila - alvo %d", p->nome, F[outro(vez)].pontos);
+    int y1 = vez == 0 ? 34 : 44;
+    txt_c(120, y1, t, p->cor, true);
     if (f->n == N_FILA) {
-        txt_c(GFX_W / 2, y1 + 30, "fila cheia: TAB confirma", C_OURO, true);
+        txt_c(120, y1 + 16, "TAB confirma a fila", C_OURO, true);
     } else if (n) {
-        dado_e_poder(y1 + 26, p->col[p->mao[cursor]].tipo);
+        dado_e_poder(y1 + 13, p->col[p->mao[cursor]].tipo);
     }
     // Rodape: o que a compra fez com a bolsa.
-    if (p->embaralhou) snprintf(t, sizeof t, "bolsa vazia: tudo volta para ela e embaralha");
-    else if (f->n)     snprintf(t, sizeof t, "ENTER põe/tira  ·  TAB confirma com %d na fila", f->n);
-    else               snprintf(t, sizeof t, "comprou %d, sobram %d na bolsa  ·  ENTER põe na fila", n, na_bolsa(p));
-    txt_c(GFX_W / 2, y1 + 70, t, p->embaralhou ? C_TERRA : C_TEXTO_M, false);
+    if (p->embaralhou) snprintf(t, sizeof t, "bolsa vazia: tudo volta e embaralha");
+    else if (f->n)     snprintf(t, sizeof t, "TAB confirma com %d na fila", f->n);
+    else               snprintf(t, sizeof t, "comprou %d, sobram %d na bolsa", n, na_bolsa(p));
+    txt_c(120, y1 + 39, t, p->embaralhou ? C_TERRA : C_TEXTO_M, false);
 }
 
 static void desenha_joga(void)
 {
     jogador_t *p = &J[vez];
     fila_t *f = &F[vez];
-    char t[64];
+    char t[48];
     snprintf(t, sizeof t, "%s joga", p->nome);
-    int y1 = CENTRO - 48;
-    if (fase != F_ROLANDO && fase != F_ARRUMA) painel(y1 - 4, fase == F_JOGA ? 104 : 60, 470);
-    txt_c(GFX_W / 2, y1, t, p->cor, true);
+    txt_c(120, 40, t, p->cor, true);
 
     if (fase == F_VEREDITO) {
         uint16_t c = ver_tipo == 0 ? C_OURO : (ver_tipo == 2 ? C_ACO : C_VINHO_CLR);
-        txt_sombra_c(GFX_W / 2, y1 + 28, veredito, c, 1);
+        txt_c(120, 56, veredito, c, true);
     } else if (fase == F_JOGA && f->lancados < f->n) {
-        dado_e_poder(y1 + 22, tipo_de(vez, f->lancados));   // o proximo dado da fila
+        dado_e_poder(52, tipo_de(vez, f->lancados));        // o proximo dado da fila
     }
 
     if (fase == F_JOGA) {
         // Para quem joga em segundo, o botao ja diz o que parar significa.
-        char parar[40] = "parar";
+        char parar[32] = "parar";
         if (vez != primeiro && f->lancados) {
             desfecho_t d;
             calcula_desfecho(&d, false);
@@ -2570,28 +2448,26 @@ static void desenha_joga(void)
         }
         const char *rot[2] = { "jogar", parar };
         bool ativo[2] = { f->lancados < f->n, f->lancados > 0 };
-        botoes(y1 + 70, rot, ativo, 2, p->cor);
+        botoes(77, rot, ativo, 2, p->cor);
     }
     pote_mesa();
 }
 
 static void desenha_aposta(void)
 {
-    char t[64];
-    int y1 = CENTRO - 44;
-    painel(y1 - 6, 96, 520);
-    snprintf(t, sizeof t, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
-    txt_c(GFX_W / 2, y1, t, J[primeiro].cor, true);
-    if (a_pagar) snprintf(t, sizeof t, "%s: paga %d para ver?", J[vez].nome, a_pagar);
+    char t[48];
+    snprintf(t, sizeof t, "%s fez %d", J[primeiro].nome, F[primeiro].pontos);
+    txt_c(120, 42, t, J[primeiro].cor, true);
+    if (a_pagar) snprintf(t, sizeof t, "%s: %d para ver", J[vez].nome, a_pagar);
     else         snprintf(t, sizeof t, "%s: aposta?", J[vez].nome);
-    txt_c(GFX_W / 2, y1 + 26, t, J[vez].cor, false);
+    txt_c(120, 55, t, J[vez].cor, false);
 
     int op[4], n = opcoes(op);
     char r[4][24];
     const char *rot[4];
     bool ativo[4];
     for (int i = 0; i < n; i++) { rotulo_op(op[i], r[i], sizeof r[i]); rot[i] = r[i]; ativo[i] = true; }
-    botoes(y1 + 60, rot, ativo, n, J[vez].cor);
+    botoes(69, rot, ativo, n, J[vez].cor);
     pote_mesa();
 }
 
@@ -2605,21 +2481,19 @@ static void desenha_efeitos(void)
                : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT) ? C_OURO
                : C_VINHO_CLR;
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.
-    int w = gfx_largura(e->txt, 1) + 40;
-    if (w < 240) w = 240;
-    painel(CENTRO - 30, 58, w);
-    txt_c(GFX_W / 2, CENTRO - 24, J[e->de_j].nome, J[e->de_j].cor, true);
-    txt_c(GFX_W / 2, CENTRO + 2, e->txt, c, true);
+    int w = (int)strlen(e->txt) * FONT_W + 8;
+    gfx_rect(120 - w / 2, 51, w, 26, C_FELTRO_ESC);
+    txt_c(120, 52, J[e->de_j].nome, J[e->de_j].cor, true);
+    txt_c(120, 64, e->txt, c, true);
     desenha_evento();
 }
 
 static void desenha_resultado(void)
 {
     uint16_t c = venc_mao == 0 ? C_LATAO : (venc_mao == 1 ? C_ROSA : C_MARFIM);
-    painel(CENTRO - 40, 86, 420);
-    txt_sombra_c(GFX_W / 2, CENTRO - 32, aviso, c, 1);
-    if (nota[0]) txt_c(GFX_W / 2, CENTRO - 6, nota, C_TERRA, false);   // cinza ou cacos
-    txt_c(GFX_W / 2, CENTRO + 20, "ENTER segue", C_TEXTO_M, false);
+    txt_c(120, 48, aviso, c, true);
+    if (nota[0]) txt_c(120, 60, nota, C_TERRA, false);             // cinza ou cacos
+    txt_c(120, 74, "ENTER segue", C_TEXTO_M, false);
 }
 
 #define GRADE 12                     // dados por linha na escolha do que sai
@@ -2627,113 +2501,95 @@ static void desenha_resultado(void)
 static void desenha_premio(void)
 {
     jogador_t *p = &J[vez];
-    char t[64];
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    char t[48];
 
     if (removendo) {
         // Escolha de qual dado sai da colecao: a colecao inteira em duas linhas.
-        snprintf(t, sizeof t, "%s: qual dos %d dados sai?", p->nome, p->n_col);
-        txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
-        txt_c(GFX_W / 2, MESA_Y0 + 38, "ENTER tira para sempre  ·  BACKSPACE volta", C_TEXTO_M, false);
+        snprintf(t, sizeof t, "%s: qual dos %d sai?", p->nome, p->n_col);
+        txt_c(120, 22, t, p->cor, true);
+        txt_c(120, 34, "ENTER tira   BKSP volta", C_TEXTO_M, false);
         for (int i = 0; i < p->n_col; i++) {
             int lin = i / GRADE, col = i % GRADE;
             int na_linha = (p->n_col - lin * GRADE) < GRADE ? p->n_col - lin * GRADE : GRADE;
-            int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46);
-            int y = 134 + lin * 52;
+            int x = 120 + (int)((col - (na_linha - 1) / 2.0f) * 19);
+            int y = 54 + lin * 22;
             if (t_tira > 0 && i == tira_i) {
                 // O escolhido encolhe e cai, deixando um rastro de po.
                 float q = t_tira / 0.7f;
-                float r = 17 * (1 - q);
-                if (r > 2) peca_parada((float)x, y + q * 24, r, p->col[i], vez);
-                for (int k = 0; k < 7; k++)
-                    gfx_rect(x - 14 + k * 4, y + (int)(q * 34) + (k % 2) * 6, 3, 3, C_TEXTO_M);
+                float r = 7 * (1 - q);
+                if (r > 1) peca_parada((float)x, y + q * 10, r, p->col[i], vez);
+                for (int k = 0; k < 5; k++)
+                    gfx_rect(x - 6 + k * 3, y + (int)(q * 14) + (k % 2) * 3, 2, 2, C_TEXTO_M);
                 continue;
             }
-            if (i == cursor) gfx_rect_alfa(x - 22, y - 22, 44, 44, C_VINHO_CLR, 80);
-            peca_parada((float)x, (float)y, 17, p->col[i], vez);
-            if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
+            peca_parada((float)x, (float)y, 7, p->col[i], vez);
+            if (i == cursor) gfx_rect(x - 7, y + 10, 14, 2, C_VINHO_CLR);
         }
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
-        txt_c(GFX_W / 2, 236, TIPO[tc].nome, cor_aro(tc), true);
-        txt_c(GFX_W / 2, 258, t_tira > 0 ? "some para sempre" : TIPO[tc].desc,
-              t_tira > 0 ? C_VINHO_CLR : C_MARFIM_S, false);
+        txt_c(120, 92, TIPO[tc].nome, cor_aro(tc), true);
+        txt_c(120, 104, t_tira > 0 ? "some para sempre" : TIPO[tc].desc,
+              t_tira > 0 ? C_VINHO_CLR : C_TEXTO_M, false);
         return;
     }
 
-    snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
-    txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
+    snprintf(t, sizeof t, "%s escolhe o premio", p->nome);
+    txt_c(120, 22, t, p->cor, true);
     for (int i = 0; i < 3; i++) {
-        int x = GFX_W / 2 + (i - 1) * 150;
+        int x = 48 + i * 72;
         int t2 = oferta[i].tipo;
-        bool cur = i == cursor;
-        gfx_rect(x - 64, 90, 128, 110, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 64, 90, 128, 110, cur ? 3 : 1, cur ? cor_aro(t2) : C_FELTRO2);
-        float bob = cur ? sinf(t_fase * 4) * 3 : 0;
-        peca_parada((float)x, 134 + bob, 28, oferta[i], vez);
-        txt_c(x, 172, TIPO[t2].nome, cur ? cor_aro(t2) : C_MARFIM_S, cur);
+        if (i == cursor) gfx_rect(x - 34, 34, 68, 40, C_FELTRO_ESC);
+        peca_parada((float)x, 49, 11, oferta[i], vez);
+        txt_c(x, 62, TIPO[t2].nome, i == cursor ? cor_aro(t2) : C_TEXTO_M, i == cursor);
     }
     bool pode = p->n_col > N_FILA;
-    if (cursor < 3) {
-        char r[48];
-        snprintf(r, sizeof r, "%s  ·  %s", RARIDADE[TIPO[oferta[cursor].tipo].raridade],
-                 TIPO[oferta[cursor].tipo].desc);
-        txt_c(GFX_W / 2, 212, r, C_MARFIM, false);
-    } else {
-        txt_c(GFX_W / 2, 212, pode ? "troca o prêmio por tirar um dos seus, para sempre"
-                                   : "com 4 dados, nenhum pode sair", C_MARFIM, false);
-    }
+    if (cursor < 3) txt_c(120, 78, TIPO[oferta[cursor].tipo].desc, C_MARFIM, false);
+    else txt_c(120, 78, pode ? "tira um dos seus dados, para sempre"
+                             : "com 4 dados, nenhum pode sair", C_MARFIM, false);
 
     // Quarta opcao: trocar o premio por afinar a bolsa.
     const char *rot = "remover um dado";
-    int w = gfx_largura(rot, 1) + 28;
+    int w = (int)strlen(rot) * FONT_W + 12;
     bool cur = cursor == 3;
-    gfx_rect(GFX_W / 2 - w / 2, 240, w, 26, cur ? (pode ? C_VINHO_CLR : C_FELTRO2) : C_FELTRO_ESC);
-    gfx_moldura(GFX_W / 2 - w / 2, 240, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
-    txt_c(GFX_W / 2, 243, rot, cur ? C_BARRA : (pode ? C_MARFIM : C_FELTRO2), cur);
-    txt_c(GFX_W / 2, 278, "setas escolhem  ·  ENTER leva  ·  X recusa", C_TEXTO_M, false);
+    gfx_rect(120 - w / 2, 90, w, 13, cur ? (pode ? C_VINHO_CLR : C_FELTRO2) : C_FELTRO_ESC);
+    txt_c(120, 91, rot, cur ? C_BARRA : (pode ? C_MARFIM : C_FELTRO2), cur);
+    txt_c(120, 106, "ENTER escolhe   X recusa", C_TEXTO_M, false);
 }
 
 static void desenha_loja(void)
 {
     jogador_t *p = &J[vez];
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
-    txt_c2(GFX_W / 2, MESA_Y0 + 8, "LOJA DA CASA", C_LATAO);
-    char t[64];
-    snprintf(t, sizeof t, "%s escolhe o que levar para a bolsa", p->nome);
-    txt_c(GFX_W / 2, MESA_Y0 + 52, t, p->cor, true);
+    txt_c(120, 20, "LOJA DA CASA", C_LATAO, true);
+    char t[40];
+    snprintf(t, sizeof t, "%s escolhe o que levar", p->nome);
+    txt_c(120, 32, t, p->cor, false);
 
     for (int i = 0; i < N_LOJA; i++) {
-        int x = GFX_W / 2 + (i - 2) * 108, y = 164;
+        int x = 36 + i * 42, y = 58;
         int tp = loja[i].tipo;
-        bool ja = levou[vez][i], cur = i == cursor;
-        gfx_rect(x - 46, 122, 92, 100, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 46, 122, 92, 100, cur ? 3 : 1, cur ? cor_aro(tp) : C_FELTRO2);
-        float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
-        peca_parada((float)x, y + bob - 6, 24, loja[i], vez);
+        bool ja = levou[vez][i];
+        if (i == cursor) gfx_rect(x - 19, 44, 38, 40, C_FELTRO_ESC);
+        peca_parada((float)x, (float)y, 10, loja[i], vez);
         char pr[12];
         if (ja) snprintf(pr, sizeof pr, "levou");
-        else    snprintf(pr, sizeof pr, "%d fichas", preco_loja(tp));
-        txt_c(x, 194, pr, ja ? C_TEXTO_M : (p->fichas >= preco_loja(tp) ? C_OURO : C_VINHO_CLR), !ja);
-        if (ja) gfx_rect_alfa(x - 45, 123, 90, 98, C_SOMBRA, 120);
+        else    snprintf(pr, sizeof pr, "%d", preco_loja(tp));
+        txt_c(x, 72, pr, ja ? C_TEXTO_M : (p->fichas >= preco_loja(tp) ? C_OURO : C_VINHO), !ja);
     }
-    dado_e_poder(234, loja[cursor].tipo);
-    txt_c(GFX_W / 2, 280, "setas escolhem  ·  ENTER compra  ·  TAB sai da loja", C_TEXTO_M, false);
+    dado_e_poder(86, loja[cursor].tipo);
 }
 
 static void desenha_fim(void)
 {
-    painel(CENTRO - 70, 150, 440);
     if (venc_partida == 2) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, "EMPATE", C_MARFIM, 3);
+        txt_c2(120, CENTRO - 16, "EMPATE", C_MARFIM);
     } else {
         jogador_t *p = &J[venc_partida];
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, p->nome, p->cor, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, "leva a mesa", C_MARFIM, true);
+        txt_c2(120, CENTRO - 18, p->nome, p->cor);
+        txt_c(120, CENTRO + 6, "leva a mesa", C_MARFIM, true);
     }
-    char s[48];
+    char s[40];
     snprintf(s, sizeof s, "ERIC %d  x  %d LILI", J[0].fichas, J[1].fichas);
-    txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-    txt_c(GFX_W / 2, CENTRO + 56, "ENTER nova partida", C_MARFIM_S, false);
+    txt_c(120, CENTRO + 18, s, C_TEXTO_M, false);
+    txt_c(120, CENTRO + 30, "ENTER nova partida", C_MARFIM_S, false);
 }
 
 static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
@@ -2750,12 +2606,12 @@ static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
 // passa de lado. A Moeda da sorte mostra azul (1) e vermelho (2).
 static void moeda_girando(int cx, int cy, int tipo, float t)
 {
-    const int R = 48;
+    const int R = 20;
     float c = cosf(t * 3.0f);
     int face = c >= 0 ? 1 : 2;
     int rx = (int)(R * fabsf(c));
     uint16_t aro_c = cor_aro(tipo), corpo = C_MARFIM_D, marca = C_MARFIM;
-    if (tipo == D_D2) corpo = gfx_mistura(C_MARFIM_D, C_OURO, 58);   // moeda dourada
+    if (tipo == D_D2) corpo = mistura(C_MARFIM_D, C_OURO, 58);   // moeda dourada
     bool ficha_casino = true;
     if (tipo == D_SORTE)        { aro_c = C_MARFIM_S; corpo = face == 1 ? C_AZUL : C_VERMELHO; }
     else if (tipo == D_SEMENTE) { aro_c = C_MARFIM_S; corpo = C_VERDE; }
@@ -2765,20 +2621,20 @@ static void moeda_girando(int cx, int cy, int tipo, float t)
         if (tipo == D_TUDO_NADA) { aro_c = C_VIOLETA; corpo = face == 2 ? C_MARFIM : C_EBANO; }
     }
 
-    elipse(cx + 6, cy + 8, rx + 2, R, C_SOMBRA);
-    elipse(cx, cy, rx + 4, R + 4, aro_c);
+    elipse(cx + 3, cy + 4, rx + 1, R, C_SOMBRA);
+    elipse(cx, cy, rx + 2, R + 2, aro_c);
     elipse(cx, cy, rx, R, corpo);
-    if (ficha_casino && rx > 12)
+    if (ficha_casino && rx > 6)
         for (int i = 0; i < 8; i++) {
             float a = i * 0.785f;
-            int mx = cx + (int)(cosf(a) * (rx - 9)), my = cy + (int)(sinf(a) * (R - 9));
-            gfx_disco(mx, my, 4, marca);
+            int mx = cx + (int)(cosf(a) * (rx - 4)), my = cy + (int)(sinf(a) * (R - 4));
+            gfx_rect(mx - 1, my - 1, 3, 3, marca);
         }
     if (fabsf(c) > 0.55f) {
         char n[2] = { (char)('0' + face), 0 };
         uint16_t cn = ficha_casino ? C_MARFIM
                     : (tipo == D_TUDO_NADA ? (face == 2 ? C_VIOLETA : C_MARFIM) : C_EBANO);
-        gfx_texto(cx - gfx_largura(n, 3) / 2, cy - 36, n, cn, 3, true);
+        gfx_text_escala(cx - FONT_W, cy - 12, n, 2, cn);
     }
 }
 
@@ -2791,25 +2647,18 @@ static int faces_de(int tipo, int *f)
     return n;
 }
 
-// Quebra o texto em linhas de ate max_col caracteres (contando acentos como
-// um so), sempre nos espacos.
-static void quebra_linhas(int x, int y, int max_col, int max_lin, const char *txt_, uint16_t c)
+static void quebra_linhas(int x, int y, int max_col, int max_lin, const char *txt, uint16_t c)
 {
-    char linha[160];
+    char linha[40];
     int lin = 0;
-    const char *p = txt_;
+    const char *p = txt;
     while (*p && lin < max_lin) {
-        int n = 0, cols = 0, ultimo_espaco = -1;
-        while (p[n] && cols < max_col) {
-            if (p[n] == ' ') ultimo_espaco = n;
-            n++;
-            while (((unsigned char)p[n] & 0xC0) == 0x80) n++;
-            cols++;
-        }
+        int n = 0, ultimo_espaco = -1;
+        while (p[n] && n < max_col) { if (p[n] == ' ') ultimo_espaco = n; n++; }
         if (p[n] && ultimo_espaco > 0) n = ultimo_espaco;
         memcpy(linha, p, (size_t)n);
         linha[n] = 0;
-        txt(x, y + lin * (TXT_H + 4), linha, c, false);
+        gfx_text(x, y + lin * 10, linha, c, COL_NONE, false);
         lin++;
         p += n;
         while (*p == ' ') p++;
@@ -2822,67 +2671,59 @@ static void desenha_catalogo(void)
     const tipo_t *d = &TIPO[tipo];
 
     // Faixas: o que se ve e como se navega.
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
-    int ty = (FAIXA_H - TXT_H) / 2 - 2;
-    txt(18, ty, "DADOS DA CASA", C_LATAO, true);
-    char s[32];
-    snprintf(s, sizeof s, "%d de %d", cat_i + 1, D_N);
-    txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
-    int yb = GFX_H - FAIXA_H;
-    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
-    txt(18, yb + ty + 2, "<  A     D  >", C_TEXTO_M, false);
-    txt(GFX_W - 18 - gfx_largura("ENTER volta", 1), yb + ty + 2, "ENTER volta", C_TEXTO_M, false);
+    gfx_rect(0, 0, GFX_W, 14, C_BARRA);
+    gfx_rect(0, 13, GFX_W, 1, C_LATAO_ESC);
+    gfx_text(5, 1, "DADOS DA CASA", C_LATAO, COL_NONE, true);
+    char s[24];
+    snprintf(s, sizeof s, "%d/%d", cat_i + 1, D_N);
+    gfx_text(GFX_W - 5 - (int)strlen(s) * FONT_W, 1, s, C_TEXTO_M, COL_NONE, false);
+    int yb = MESA_Y1 + 3;
+    gfx_rect(0, yb, GFX_W, 14, C_BARRA);
+    gfx_rect(0, yb, GFX_W, 1, C_LATAO_ESC);
+    gfx_text(5, yb + 1, "< A   D >", C_TEXTO_M, COL_NONE, false);
+    gfx_text(GFX_W - 5 - 11 * FONT_W, yb + 1, "ENTER volta", C_TEXTO_M, COL_NONE, false);
+
+    // Titulo: o nome do dado, grande, na cor da familia.
+    txt_c2(120, 20, d->nome, cor_aro(tipo));
 
     // A peca, a esquerda, girando pelas faces possiveis.
-    int cx = 160, cy = CENTRO + 4;
-    gfx_disco(cx, cy, 78, C_FELTRO_ESC);
+    int cx = 52, cy = 80;
     if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
         int f[24], nf = faces_de(tipo, f);
         int i = (int)(t_fase / 0.45f) % nf;
         float dentro = fmodf(t_fase, 0.45f);
-        float r = 46 + (dentro < 0.08f ? 4 : 0);          // pulinho a cada face
+        float r = 18 + (dentro < 0.08f ? 2 : 0);          // pulinho a cada face
         float ang = sinf(t_fase * 1.7f) * 0.22f;
         bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
         desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, false);
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);
-            gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, C_EBANO, 2, true);
+            gfx_text_escala(cx - (int)strlen(s) * FONT_W, cy - 12, s, 2, C_EBANO);
         }
         if (tipo == D_TREVO && f[i] == 4) {
-            gfx_rect(cx - 30, cy + 58, 60, TXT_H + 4, C_BARRA);
-            txt_c(cx, cy + 60, "SORTE", C_OURO, true);
+            gfx_rect(cx - 17, cy + 23, 34, 13, C_BARRA);
+            gfx_text(cx - 15, cy + 24, "SORTE", C_OURO, COL_NONE, true);
         }
     }
 
-    // A direita: nome, lados, raridade e o que ele faz.
-    int x = 290;
-    gfx_texto(x, 70, d->nome, cor_aro(tipo), 2, true);
+    // A direita: lados, raridade e o que ele faz.
     const char *rar = so_inicial(tipo) ? "dado inicial" : RARIDADE[d->raridade];
-    if (d->lados == 2) snprintf(s, sizeof s, "moeda  ·  %s", rar);
-    else snprintf(s, sizeof s, "d%d  ·  %s", d->lados, rar);
-    txt(x, 118, s, C_TEXTO_M, false);
-    gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 156, 40, 6, TEXTO_CAT[tipo], C_MARFIM);
-}
-
-// O nome do jogador na faixa, com "computador" ao lado quando e a IA.
-static int txt_nome(int x, int y, int j, bool destaque)
-{
-    int w = gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
-    if (cpu >> j & 1) w += gfx_texto(x + w + 8, y, "(computador)", C_TEXTO_M, 1, false) + 8;
-    (void)destaque;
-    return w;
+    if (d->lados == 2) snprintf(s, sizeof s, "moeda - %s", rar);
+    else snprintf(s, sizeof s, "d%d - %s", d->lados, rar);
+    gfx_text(96, 46, s, C_TEXTO_M, COL_NONE, false);
+    quebra_linhas(96, 59, 22, 5, TEXTO_CAT[tipo], C_MARFIM);
 }
 
 void dado_desenha(void)
 {
+    gfx_clear(C_BARRA);
     mesa();
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
     if (fase == F_ABERTURA) {
+        gfx_rect(0, 13, GFX_W, 1, C_LATAO_ESC);
+        gfx_rect(0, MESA_Y1 + 3, GFX_W, 1, C_LATAO_ESC);
         desenha_abertura();
         return;
     }
@@ -2960,7 +2801,7 @@ void dado_tecla(const key_event_t *ev_)
 
     if (k == 'm') {
         bool on = som_liga(!som_ligado());
-        if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem saída de som neste computador");
+        if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem som neste aparelho");
         if (on) som_toca(SOM_FICHA);
         return;
     }

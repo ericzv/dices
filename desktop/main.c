@@ -1,12 +1,11 @@
 // DADO EM CASA para PC: o mesmo jogo do Cardputer, numa janela.
 //
-// O jogo desenha num framebuffer RGB565 de 240x135, exatamente como no
-// aparelho. Aqui esse quadro vira uma textura, ampliada em escala inteira
+// O jogo desenha num framebuffer RGB565 de 640x360. Aqui esse quadro vira uma textura, ampliada em escala inteira
 // para os pixels ficarem nitidos; o que sobra da janela fica na cor das
 // faixas da mesa.
 //
 // Teclas do PC alem das do jogo: F11 ou Alt+Enter alternam tela cheia,
-// F12 salva uma foto da tela.
+// N liga e desliga a musica, F12 salva uma foto da tela.
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -28,7 +27,7 @@ enum {
 #undef KEY_RIGHT
 
 #include "raylib.h"
-#include "board.h"
+#include "ui/gfx.h"
 #include "hal/display.h"
 #include "games/jogos.h"
 #include "esp_timer.h"
@@ -38,7 +37,7 @@ enum {
 #define TITULO "Dado em Casa"
 #define C_FAIXA (Color){ 16, 16, 15, 255 }      // C_BARRA do dado.c
 
-static uint16_t fb[LCD_W * LCD_H];
+static uint16_t fb[GFX_W * GFX_H];
 uint16_t *display_fb(void) { return fb; }
 
 // Relogio de parede, para cada partida aberta ter outra semente.
@@ -82,8 +81,10 @@ static void le_teclado(void)
     }
     // Letras, numeros e pontuacao chegam ja traduzidos pelo layout do
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
-    for (int c = GetCharPressed(); c > 0; c = GetCharPressed())
+    for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
+        if (c == 'n' || c == 'N') { som_musica(!som_musica_ligada()); continue; }
         if (c >= 0x20 && c < 0x7F) tecla(c);
+    }
 }
 
 // Janela inicial: o maior multiplo inteiro de 240x135 que cabe em 85% do
@@ -92,10 +93,10 @@ static void dimensiona_janela(void)
 {
     int m = GetCurrentMonitor();
     int mw = GetMonitorWidth(m), mh = GetMonitorHeight(m);
-    if (mw <= 0 || mh <= 0) return;           // monitor desconhecido: fica 4x
+    if (mw <= 0 || mh <= 0) return;           // monitor desconhecido: fica 2x
     int k = 1;
-    while (LCD_W * (k + 1) <= mw * 85 / 100 && LCD_H * (k + 1) <= mh * 85 / 100) k++;
-    int w = LCD_W * k, h = LCD_H * k;
+    while (GFX_W * (k + 1) <= mw * 85 / 100 && GFX_H * (k + 1) <= mh * 85 / 100) k++;
+    int w = GFX_W * k, h = GFX_H * k;
     SetWindowSize(w, h);
     Vector2 p = GetMonitorPosition(m);
     SetWindowPosition((int)p.x + (mw - w) / 2, (int)p.y + (mh - h) / 2);
@@ -114,9 +115,9 @@ static void poe_icone(void)
 static Rectangle area_do_jogo(void)
 {
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
-    float k = (float)(int)(W / LCD_W < H / LCD_H ? W / LCD_W : H / LCD_H);
-    if (k < 1) k = W / LCD_W < H / LCD_H ? W / LCD_W : H / LCD_H;
-    float w = LCD_W * k, h = LCD_H * k;
+    float k = (float)(int)(W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H);
+    if (k < 1) k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
+    float w = GFX_W * k, h = GFX_H * k;
     return (Rectangle){ (float)(int)((W - w) / 2), (float)(int)((H - h) / 2), w, h };
 }
 
@@ -124,8 +125,8 @@ int main(void)
 {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     SetTraceLogLevel(LOG_WARNING);
-    InitWindow(LCD_W * 4, LCD_H * 4, TITULO);
-    SetWindowMinSize(LCD_W, LCD_H);
+    InitWindow(GFX_W * 2, GFX_H * 2, TITULO);
+    SetWindowMinSize(GFX_W, GFX_H);
     SetExitKey(KEY_NULL);                  // ESC e do jogo, nao fecha a janela
     dimensiona_janela();
     poe_icone();
@@ -135,7 +136,7 @@ int main(void)
     som_inicia();
 
     Image img = {
-        .data = fb, .width = LCD_W, .height = LCD_H,
+        .data = fb, .width = GFX_W, .height = GFX_H,
         .mipmaps = 1, .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
     };
     Texture2D tela = LoadTextureFromImage(img);
@@ -147,12 +148,13 @@ int main(void)
         float dt = GetFrameTime();
         if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
         dado_passo(dt);
+        som_atualiza(dt);
         dado_desenha();
         UpdateTexture(tela, fb);
 
         BeginDrawing();
         ClearBackground(C_FAIXA);
-        DrawTexturePro(tela, (Rectangle){ 0, 0, LCD_W, LCD_H }, area_do_jogo(),
+        DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area_do_jogo(),
                        (Vector2){ 0, 0 }, 0, WHITE);
         EndDrawing();
     }

@@ -3,7 +3,8 @@
 Duelo de apostas com dados, ERIC contra LILI: contra o computador (que joga
 como LILI) ou com duas pessoas no mesmo teclado. Nasceu no
 [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) e agora roda
-também no PC (Windows, macOS e Linux) — com o **mesmo código de jogo**.
+também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
+sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 
 Cada rodada, os dois montam uma fila de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
@@ -35,7 +36,8 @@ Não precisa instalar nada: é um executável só.
 | Backspace | Tira o último dado da fila |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Liga e desliga o som |
+| M | Liga e desliga todo o som |
+| N | Liga e desliga só a música |
 | F11 ou Alt+Enter | Tela cheia |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
 
@@ -76,17 +78,22 @@ git push origin v0.1.0
 ## Organização
 
 ```
-src/          o jogo, igual ao do Cardputer
-  games/dado.c    regras, animação e desenho (framebuffer 240x135 RGB565)
-  ui/             gfx e fonte 6x12
+src/          o jogo
+  games/dado.c    regras, IA, animação e desenho (framebuffer 640x360 RGB565)
+  ui/             primitivas de desenho e a fonte de pixels (DotGothic16)
   hal/            contrato com a plataforma: teclado, som, tela
-desktop/      a plataforma PC: janela, teclado, som sintetizado, ícone
-tests/        simulador de partidas
+desktop/      a plataforma PC: janela, teclado, trilha e efeitos sintetizados, ícone
+tests/        simulador de partidas e exportador de sons (WAV)
 tools/        geradores da fonte e do ícone
-cardputer/    arquivos do firmware do Cardputer (ESP-IDF), fora do build do PC
+cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC
 ```
 
-`src/games/dado.c`, `src/ui/gfx.c` e `src/ui/font6x12.c` são os mesmos
-arquivos do firmware: uma correção de regra feita aqui vale nos dois lugares.
-Os cabeçalhos de `src/hal/` são a versão PC; no Cardputer valem os do
-firmware.
+A versão do Cardputer (tela 240x135) ficou em `cardputer/dado.c`: tem as
+mesmas regras e a IA, com o desenho do aparelho. Uma regra nova precisa ir
+para os dois arquivos.
+
+Para ouvir a trilha, o rufar e os efeitos fora do jogo:
+`./build/exporta_som pasta/` grava um `.wav` de cada.
+
+A fonte DotGothic16 é distribuída sob a SIL Open Font License
+(`tools/fontes/OFL.txt`).

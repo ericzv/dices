@@ -8,14 +8,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "board.h"
+#include "ui/gfx.h"
 #include "hal/display.h"
 #include "hal/keyboard.h"
 #include "hal/som.h"
 #include "games/jogos.h"
 #include "esp_timer.h"
 
-static uint16_t fb[LCD_W * LCD_H];
+static uint16_t fb[GFX_W * GFX_H];
 uint16_t *display_fb(void) { return fb; }
 
 static int64_t relogio = 1;
@@ -25,6 +25,7 @@ void som_toca(int s) { (void)s; }
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
+void som_rufo(bool on) { (void)on; }
 
 static uint32_t estado = 2463534242u;
 static uint32_t sorteio(void)
@@ -52,8 +53,8 @@ static void foto(const char *dir, int fase)
     snprintf(path, sizeof path, "%s/fase%02d.ppm", dir, fase);
     FILE *f = fopen(path, "wb");
     if (!f) { perror(path); exit(1); }
-    fprintf(f, "P6\n%d %d\n255\n", LCD_W, LCD_H);
-    for (int i = 0; i < LCD_W * LCD_H; i++) {
+    fprintf(f, "P6\n%d %d\n255\n", GFX_W, GFX_H);
+    for (int i = 0; i < GFX_W * GFX_H; i++) {
         uint16_t c = fb[i];
         fputc((((c >> 11) & 0x1F) * 255) / 31, f);
         fputc((((c >> 5) & 0x3F) * 255) / 63, f);

@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(raylib)
 add_library(jogo STATIC
     src/games/dado.c
     src/ui/gfx.c
-    src/ui/font6x12.c)
+    src/ui/fonte.c)
 target_include_directories(jogo PUBLIC src desktop)
 if (MSVC)
     # __attribute__((format)) e coisa de GCC/Clang.
@@ -77,5 +77,10 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
     add_executable(simula tests/simula.c)
     target_link_libraries(simula PRIVATE jogo)
-    add_test(NAME simula COMMAND simula 200)
+    add_test(NAME simula COMMAND simula 120)
+    # Exporta a trilha, o rufar e os efeitos em WAV (e confere que a sintese roda).
+    add_executable(exporta_som tests/exporta_som.c)
+    target_include_directories(exporta_som PRIVATE src desktop)
+    target_link_libraries(exporta_som PRIVATE raylib)
+    add_test(NAME sons COMMAND exporta_som ${CMAKE_CURRENT_BINARY_DIR})
 endif()

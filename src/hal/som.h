@@ -21,3 +21,4 @@ void som_toca(int som);
 bool som_liga(bool on);      // devolve se ficou ligado
 bool som_ligado(void);
 bool som_falhou(void);       // o aparelho nao tem saida de audio
+void som_rufo(bool on);      // rufar de caixinha enquanto o dado rola

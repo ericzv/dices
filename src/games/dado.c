@@ -1,4 +1,4 @@
-// DADO EM CASA - duelo de apostas com dados, ERIC contra LILI.
+// DADO EM CASA - duelo de apostas com dados, para dois jogadores.
 //
 // Cada rodada, os dois montam uma FILA de quatro dados e jogam um por um.
 // Depois de cada dado: parar ou arriscar o proximo. O primeiro sempre vale; os
@@ -77,14 +77,14 @@
 #define MAO         7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
-// Mesa de 640x360: faixa de LILI em cima, de ERIC embaixo, feltro no meio.
+// Mesa de 640x360: faixa do rival em cima, a sua embaixo, feltro no meio.
 #define FAIXA_H    44
 #define MESA_X0    14
 #define MESA_X1    626
 #define MESA_Y0    (FAIXA_H + 8)
 #define MESA_Y1    (GFX_H - FAIXA_H - 8)
-#define LINHA_LILI 98
-#define LINHA_ERIC 262
+#define LINHA_CIMA  98
+#define LINHA_BAIXO 262
 #define CENTRO     180
 #define R_DADO     22                       // raio de um dado na mesa
 #define SLOT_X(k)  (212 + 72 * (k))
@@ -308,7 +308,8 @@ typedef struct {
 typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
 
 enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
-       F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO };
+       F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
+       F_ONLINE, F_TUTORIAL };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -341,7 +342,22 @@ static peca_t loja[N_LOJA];
 static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
-static int  menu_cur;                // 0 contra LILI, 1 dois jogadores, 2 dados
+static int  menu_cur;                // opcao do menu de abertura
+enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
+
+// Modos: contra o computador, dois no mesmo teclado, ou online.
+enum { M_UM, M_DOIS, M_ONLINE };
+static int  modo;
+static int  remoto;                  // bit j: jogador j joga do outro computador
+static uint32_t semente_online;
+#define FILA_REDE 256
+static uint16_t rede_q[FILA_REDE];   // teclas do rival ainda nao aplicadas
+static int  rede_ini, rede_fim;
+static bool digitando;               // lobby online: digitando o codigo da sala
+static char codigo_dig[8];
+static int  online_cur;
+static float t_sair = -1;            // ESC apertado uma vez: confirma com outro
+static int  tut_pag;                 // pagina do tutorial
 static int  cpu;                     // bit j: jogador j e do aparelho
 static float t_ia;                   // espera da IA antes de cada gesto
 static int  ia_fase = -1, ia_vez = -1;
@@ -361,10 +377,20 @@ static uint32_t rnd(void)
     return semente;
 }
 static int sorte(int n) { return n > 0 ? (int)(rnd() % (uint32_t)n) : 0; }
-static float frnd(float a, float b) { return a + (b - a) * (float)(rnd() % 10000) / 10000.0f; }
+// Sorteio so do que se ve (faces piscando, trajetoria do dado): separado do
+// sorteio das regras, que no modo online precisa andar igual nos dois lados.
+static uint32_t semente_v = 88172645u;
+static uint32_t rnd_v(void)
+{
+    semente_v ^= semente_v << 13; semente_v ^= semente_v >> 17; semente_v ^= semente_v << 5;
+    return semente_v;
+}
+static float frnd(float a, float b) { return a + (b - a) * (float)(rnd_v() % 10000) / 10000.0f; }
+static int rola_v(int lados) { return 1 + (int)(rnd_v() % (uint32_t)lados); }
 static int outro(int j) { return j ^ 1; }
 static int rola(int lados) { return 1 + sorte(lados); }
-static int zona(int j) { return j == 0 ? LINHA_ERIC : LINHA_LILI; }
+static int baixo;                        // quem aparece embaixo: o jogador local
+static int zona(int j) { return j == baixo ? LINHA_BAIXO : LINHA_CIMA; }
 static int tipo_de(int j, int k) { return F[j].tipo[k]; }
 
 static peca_t nova_peca(int tipo)
@@ -902,7 +928,7 @@ static bool fisica(float dt)
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
         if (v->t_face <= 0) {
-            v->face = v->tipo == D_QUEBRADO ? v->valor : rola(TIPO[v->tipo].lados);
+            v->face = v->tipo == D_QUEBRADO ? v->valor : rola_v(TIPO[v->tipo].lados);
             v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
         }
         if (vel < 36 || t_fase > 6.0f) {
@@ -1490,15 +1516,31 @@ static void nova_rodada(void)
     fase = F_ORDEM;
 }
 
+// Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2).
+static void poe_nomes(void)
+{
+    switch (modo) {
+    case M_UM:     J[0].nome = "VOCÊ";      J[1].nome = "COMPUTADOR"; break;
+    case M_DOIS:   J[0].nome = "JOGADOR 1"; J[1].nome = "JOGADOR 2";  break;
+    default:       J[baixo].nome = "VOCÊ";  J[outro(baixo)].nome = "RIVAL"; break;
+    }
+}
+
+static void abre_loja(void);
+
 void dado_inicia(int n_partidas)
 {
     partidas = n_partidas;
-    semente = (uint32_t)esp_timer_get_time() | 1;
+    semente_v = (uint32_t)esp_timer_get_time() | 1;
+    // Online, os dois lados sorteiam igual: a semente vem da sala.
+    if (modo == M_ONLINE) semente = (semente_online ^ (uint32_t)n_partidas * 0x9E3779B9u) | 1;
+    else                  semente = (uint32_t)esp_timer_get_time() | 1;
     som_rufo(false);
     for (int i = 0; i < 8; i++) rnd();
     memset(J, 0, sizeof J);
-    J[0].nome = "ERIC"; J[0].cor = C_LATAO;
-    J[1].nome = "LILI"; J[1].cor = C_ROSA;
+    J[0].cor = C_LATAO;
+    J[1].cor = C_ROSA;
+    poe_nomes();
     for (int j = 0; j < 2; j++) {
         J[j].fichas = FICHAS_INI;
         colecao_inicial(&J[j]);
@@ -1525,9 +1567,10 @@ void dado_inicia(int n_partidas)
     voo[1] = (voo_t){ .x = 580, .y = 245, .vx = -650, .vy = -110, .spin = -11,
                       .dono = 1, .tipo = D_D6, .valor = 6, .face = 3 };
     abertura_pronta = false;
-    menu_cur = 0;                          // toda partida abre em "Jogar"
     t_fase = 0;
     fase = F_ABERTURA;
+    t_sair = -1;
+    if (modo == M_ONLINE) abre_loja();     // online, a revanche vai direto a loja
 }
 
 static void abre_loja(void)
@@ -1566,11 +1609,11 @@ static void lanca_proximo(void)
     v->tipo = (uint8_t)t;
     v->valor = x;
     v->x = GFX_W / 2 + frnd(-110, 110);
-    v->y = vez == 0 ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
+    v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
     v->vx = frnd(-300, 300);
-    v->vy = (vez == 0 ? -1 : 1) * frnd(420, 600);
+    v->vy = (vez == baixo ? -1 : 1) * frnd(420, 600);
     v->spin = frnd(-14, 14);
-    v->face = t == D_QUEBRADO ? x : rola(lados);
+    v->face = t == D_QUEBRADO ? x : rola_v(lados);
     n_voo = 1;
     som_rufo(true);                          // tensao ate o dado assentar
     t_fase = 0;
@@ -1863,23 +1906,21 @@ static void desenha_abertura(void)
     gfx_texto(x0 + 3, 70 + 3, parcial, C_SOMBRA, 3, true);
     gfx_texto(x0, 70, parcial, C_LATAO, 3, true);
     if (t_fase < 0.75f) return;
-    gfx_rect(GFX_W / 2 - 150, 138, 300, 2, C_LATAO_ESC);
-    int y = 148;
-    int w = gfx_largura("ERIC  x  LILI", 1), x = GFX_W / 2 - w / 2;
-    x += gfx_texto(x, y, "ERIC", C_LATAO, 1, true);
-    x += gfx_texto(x, y, "  x  ", C_TEXTO_M, 1, false);
-    gfx_texto(x, y, "LILI", C_ROSA, 1, true);
+    gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
+    txt_c(GFX_W / 2, 140, "Criado por ERICZ", C_TEXTO_M, false);
 
-    // Menu: contra o aparelho, dois na mesma mesa, ou ver os dados.
-    static const char *OP[3] = { "Contra LILI", "2 jogadores", "Dados da casa" };
-    for (int i = 0; i < 3; i++) {
-        int yb = 186 + i * 32;
+    static const char *OP[MN_N] = { "1 jogador", "2 jogadores", "Online",
+                                    "Dados da casa", "Como jogar" };
+    for (int i = 0; i < MN_N; i++) {
+        int yb = 170 + i * 26;
         bool cur = i == menu_cur;
-        gfx_rect(GFX_W / 2 - 100, yb, 200, 26, cur ? C_LATAO : C_FELTRO_ESC);
-        if (!cur) gfx_moldura(GFX_W / 2 - 100, yb, 200, 26, 1, C_FELTRO2);
-        txt_c(GFX_W / 2, yb + 3, OP[i], cur ? C_BARRA : C_MARFIM, cur);
+        gfx_rect(GFX_W / 2 - 110 + 2, yb + 2, 220, 22, C_SOMBRA);
+        gfx_rect(GFX_W / 2 - 110, yb, 220, 22, cur ? C_LATAO : C_FELTRO_ESC);
+        gfx_moldura(GFX_W / 2 - 110, yb, 220, 22, 1, cur ? C_BRANCO : C_FELTRO2);
+        txt_c(GFX_W / 2, yb + 1, OP[i], cur ? C_BARRA : C_MARFIM, cur);
     }
-    txt_c(GFX_W / 2, MESA_Y1 - 26, "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
+    txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12,
+          "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
           C_TEXTO_M, false);
 }
 
@@ -2062,12 +2103,101 @@ static void ia_passo(float dt)
 }
 
 // ===========================================================================
+// Online: o rival joga pelas mesmas teclas, vindas da rede
+// ===========================================================================
+// Uma tecla so conta na vez de quem decide, e so numa fase de escolha: assim
+// ela cai no mesmo ponto da partida dos dois lados, por mais que as
+// animacoes de cada computador andem em ritmos diferentes.
+static bool aceita_escolha(void)
+{
+    return fase_de_escolha() && !(fase == F_PREMIO && t_tira > 0);
+}
+
+static bool rede_na_vez(void) { return (remoto >> vez & 1) && aceita_escolha(); }
+
+// Digitando o codigo da sala: todas as letras sao do codigo, ate M e N.
+bool dado_digitando(void) { return fase == F_ONLINE && digitando; }
+
+void dado_rede_tecla(int k)
+{
+    int prox_i = (rede_fim + 1) % FILA_REDE;
+    if (prox_i == rede_ini) return;          // fila cheia: nunca numa partida normal
+    rede_q[rede_fim] = (uint16_t)k;
+    rede_fim = prox_i;
+}
+
+void dado_online_comeca(uint32_t sem, int eu)
+{
+    modo = M_ONLINE;
+    cpu = 0;
+    baixo = eu;
+    remoto = 1 << outro(eu);
+    semente_online = sem;
+    rede_ini = rede_fim = 0;
+    digitando = false;
+    dado_inicia(0);
+}
+
+// Uma tecla do rival por quadro: da para ver o cursor dele andando.
+static void rede_passo(void)
+{
+    if (rede_ini == rede_fim || !rede_na_vez()) return;
+    int k = rede_q[rede_ini];
+    rede_ini = (rede_ini + 1) % FILA_REDE;
+    trata_tecla(k);
+}
+
+static bool conexao_caiu(void)
+{
+    return modo == M_ONLINE && fase != F_ONLINE && rede_estado() != REDE_JOGANDO;
+}
+
+// Volta ao menu de abertura, largando a partida (e a sala, se online).
+static void volta_ao_menu(void)
+{
+    if (modo == M_ONLINE) rede_sai();
+    modo = M_UM;
+    cpu = remoto = 0;
+    baixo = 0;
+    dado_inicia(partidas + 1);
+    for (int i = 0; i < n_voo; i++) { voo[i].parado = true; voo[i].vx = voo[i].vy = 0; }
+    abertura_pronta = true;
+    t_fase = 1.0f;
+}
+
+static void ao_menu_sem_partida(void)
+{
+    t_fase = 1.0f;
+    fase = F_ABERTURA;
+}
+
+// ESC: nas telas do menu, volta; no meio da partida, pede um segundo ESC.
+static void trata_esc(void)
+{
+    switch (fase) {
+    case F_ABERTURA: return;
+    case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
+    case F_ONLINE:
+        if (digitando) { digitando = false; return; }
+        rede_sai();
+        ao_menu_sem_partida();
+        return;
+    default:
+        if (conexao_caiu() || t_sair >= 0) volta_ao_menu();
+        else t_sair = 0;
+        return;
+    }
+}
+
+// ===========================================================================
 // Passo de tempo
 // ===========================================================================
 void dado_passo(float dt)
 {
     t_fase += dt;
     ia_passo(dt);
+    rede_passo();
+    if (t_sair >= 0 && (t_sair += dt) > 2.5f) t_sair = -1;
     switch (fase) {
     case F_ABERTURA:
         if (!abertura_pronta) {
@@ -2203,9 +2333,10 @@ static void painel(int y, int h, int w)
 static void faixa_jogador(int j)
 {
     jogador_t *p = &J[j];
-    int y0 = j == 1 ? 0 : GFX_H - FAIXA_H;
+    bool cima = j != baixo;
+    int y0 = cima ? 0 : GFX_H - FAIXA_H;
     gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, j == 1 ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
+    gfx_rect(0, cima ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
 
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
@@ -2218,12 +2349,12 @@ static void faixa_jogador(int j)
     txt(x + 36, ty, s, C_MARFIM, true);
 
     // A rodada mora na faixa de cima; o som, na de baixo.
-    if (j == 1 && rodada > 0 && fase != F_LOJA) {
+    if (cima && rodada > 0 && fase != F_LOJA) {
         snprintf(s, sizeof s, "rodada %d de %d", rodada > MAX_RODADAS ? MAX_RODADAS : rodada,
                  MAX_RODADAS);
         txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
     }
-    if (j == 0 && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
+    if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
 
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
@@ -2329,7 +2460,7 @@ static void desenha_fila(int j)
             aro(x, y, C_OURO);
             // Trevo com 4: SORTE em dourado, com faiscas em volta.
             if (t == D_TREVO && f->valor[k] == 4) {
-                int ty = j == 0 ? y - R - 34 : y + R + 12;
+                int ty = j == baixo ? y - R - 34 : y + R + 12;
                 gfx_rect(x - 28, ty - 2, 56, TXT_H + 4, C_BARRA);
                 txt_c(x, ty, "SORTE", C_OURO, true);
                 for (int i = 0; i < 6; i++) {
@@ -2382,7 +2513,7 @@ static void desenha_fila(int j)
                    : f->zerada ? C_VIOLETA
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
         gfx_rect_alfa(PLACAR_X - 34, y - 26, 68, 50, C_SOMBRA, 140);
-        txt_c(PLACAR_X, y - 42 + (j == 0 ? 72 : 0), "pontos", C_TEXTO_M, false);
+        txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
         txt_c2(PLACAR_X, y - 20, s, c);
     }
 }
@@ -2506,7 +2637,7 @@ static void desenha_ordem(void)
         if (t_fase < chega) continue;
         float q = (t_fase - chega) / 0.18f;
         if (q > 1) q = 1;
-        int dy = (int)((1 - q) * (vez == 0 ? 40 : -40));   // vem do lado da bolsa
+        int dy = (int)((1 - q) * (vez == baixo ? 40 : -40));   // vem do lado da bolsa
         int x = GFX_W / 2 + (int)((i - (n - 1) / 2.0f) * 62);
         int ordem = -1;
         for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ordem = k;
@@ -2674,7 +2805,7 @@ static void desenha_premio(void)
     }
     bool pode = p->n_col > N_FILA;
     if (cursor < 3) {
-        char r[48];
+        char r[96];
         snprintf(r, sizeof r, "%s  ·  %s", RARIDADE[TIPO[oferta[cursor].tipo].raridade],
                  TIPO[oferta[cursor].tipo].desc);
         txt_c(GFX_W / 2, 212, r, C_MARFIM, false);
@@ -2693,31 +2824,46 @@ static void desenha_premio(void)
     txt_c(GFX_W / 2, 278, "setas escolhem  ·  ENTER leva  ·  X recusa", C_TEXTO_M, false);
 }
 
+// Uma quantia de fichas com o icone da ficha na frente, centrada em cx.
+static void fichas_c(int cx, int y, int valor, const char *sufixo, uint16_t c)
+{
+    char t[80];
+    snprintf(t, sizeof t, "%d%s", valor, sufixo);
+    int w = gfx_largura(t, 1) + 20, x = cx - w / 2;
+    ficha(x + 7, y + 11, C_LATAO);
+    txt(x + 20, y, t, c, true);
+}
+
 static void desenha_loja(void)
 {
     jogador_t *p = &J[vez];
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
-    txt_c2(GFX_W / 2, MESA_Y0 + 8, "LOJA DA CASA", C_LATAO);
+    txt_c2(GFX_W / 2, MESA_Y0 + 2, "LOJA DA CASA", C_LATAO);
+    txt_c(GFX_W / 2, MESA_Y0 + 44, "Compre dados especiais com as suas fichas: eles vão para a sua bolsa.",
+          C_MARFIM_S, false);
     char t[64];
-    snprintf(t, sizeof t, "%s escolhe o que levar para a bolsa", p->nome);
-    txt_c(GFX_W / 2, MESA_Y0 + 52, t, p->cor, true);
+    snprintf(t, sizeof t, " fichas  ·  %s compra", p->nome);
+    fichas_c(GFX_W / 2, MESA_Y0 + 66, p->fichas, t, p->cor);
 
     for (int i = 0; i < N_LOJA; i++) {
-        int x = GFX_W / 2 + (i - 2) * 108, y = 164;
-        int tp = loja[i].tipo;
-        bool ja = levou[vez][i], cur = i == cursor;
-        gfx_rect(x - 46, 122, 92, 100, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 46, 122, 92, 100, cur ? 3 : 1, cur ? cor_aro(tp) : C_FELTRO2);
+        int x = GFX_W / 2 + (i - 2) * 108, yb = 142;
+        int tp = loja[i].tipo, pr = preco_loja(tp);
+        bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
+        gfx_rect(x - 48, yb, 96, 92, cur ? C_FELTRO_ESC : C_FELTRO);
+        gfx_moldura(x - 48, yb, 96, 92, cur ? 3 : 1, cur ? cor_aro(tp) : C_FELTRO2);
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
-        peca_parada((float)x, y + bob - 6, 24, loja[i], vez);
-        char pr[12];
-        if (ja) snprintf(pr, sizeof pr, "levou");
-        else    snprintf(pr, sizeof pr, "%d fichas", preco_loja(tp));
-        txt_c(x, 194, pr, ja ? C_TEXTO_M : (p->fichas >= preco_loja(tp) ? C_OURO : C_VINHO_CLR), !ja);
-        if (ja) gfx_rect_alfa(x - 45, 123, 90, 98, C_SOMBRA, 120);
+        peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
+        if (ja) {
+            txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);
+            gfx_rect_alfa(x - 47, yb + 1, 94, 90, C_SOMBRA, 120);
+        } else {
+            fichas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
+        }
     }
-    dado_e_poder(234, loja[cursor].tipo);
-    txt_c(GFX_W / 2, 280, "setas escolhem  ·  ENTER compra  ·  TAB sai da loja", C_TEXTO_M, false);
+    dado_e_poder(240, loja[cursor].tipo);
+    if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
+        txt_c(GFX_W / 2, 240 - TXT_H - 2, "fichas insuficientes", C_VINHO_CLR, true);
+    txt_c(GFX_W / 2, 286, "setas escolhem  ·  ENTER compra  ·  TAB termina as compras", C_TEXTO_M, false);
 }
 
 static void desenha_fim(void)
@@ -2731,7 +2877,8 @@ static void desenha_fim(void)
         txt_c(GFX_W / 2, CENTRO + 6, "leva a mesa", C_MARFIM, true);
     }
     char s[48];
-    snprintf(s, sizeof s, "ERIC %d  x  %d LILI", J[0].fichas, J[1].fichas);
+    snprintf(s, sizeof s, "%s %d  x  %d %s", J[baixo].nome, J[baixo].fichas,
+             J[outro(baixo)].fichas, J[outro(baixo)].nome);
     txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
     txt_c(GFX_W / 2, CENTRO + 56, "ENTER nova partida", C_MARFIM_S, false);
 }
@@ -2793,7 +2940,7 @@ static int faces_de(int tipo, int *f)
 
 // Quebra o texto em linhas de ate max_col caracteres (contando acentos como
 // um so), sempre nos espacos.
-static void quebra_linhas(int x, int y, int max_col, int max_lin, const char *txt_, uint16_t c)
+static int quebra_linhas(int x, int y, int max_col, int max_lin, const char *txt_, uint16_t c)
 {
     char linha[160];
     int lin = 0;
@@ -2814,6 +2961,7 @@ static void quebra_linhas(int x, int y, int max_col, int max_lin, const char *tx
         p += n;
         while (*p == ' ') p++;
     }
+    return lin;
 }
 
 static void desenha_catalogo(void)
@@ -2873,15 +3021,223 @@ static void desenha_catalogo(void)
 static int txt_nome(int x, int y, int j, bool destaque)
 {
     int w = gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
-    if (cpu >> j & 1) w += gfx_texto(x + w + 8, y, "(computador)", C_TEXTO_M, 1, false) + 8;
     (void)destaque;
     return w;
+}
+
+// Faixas de cima e de baixo das telas fora da partida.
+static void faixas_menu(const char *titulo, const char *dir, const char *rodape)
+{
+    int ty = (FAIXA_H - TXT_H) / 2 - 2, yb = GFX_H - FAIXA_H;
+    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
+    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    txt(18, ty, titulo, C_LATAO, true);
+    if (dir) txt(GFX_W - 18 - gfx_largura(dir, 1), ty, dir, C_TEXTO_M, false);
+    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
+    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
+    txt_c(GFX_W / 2, yb + ty + 2, rodape, C_TEXTO_M, false);
+}
+
+// Botao grande de menu, centrado.
+static void botao_menu(int y, int w, const char *rot, bool cur)
+{
+    gfx_rect(GFX_W / 2 - w / 2 + 2, y + 2, w, 26, C_SOMBRA);
+    gfx_rect(GFX_W / 2 - w / 2, y, w, 26, cur ? C_LATAO : C_FELTRO_ESC);
+    gfx_moldura(GFX_W / 2 - w / 2, y, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
+    txt_c(GFX_W / 2, y + 3, rot, cur ? C_BARRA : C_MARFIM, cur);
+}
+
+// Quatro casas com as letras do codigo da sala.
+static void casas_codigo(int y, const char *cod, bool cursor_pisca)
+{
+    for (int i = 0; i < 4; i++) {
+        int x = GFX_W / 2 - 110 + i * 56;
+        gfx_rect(x, y, 48, 56, C_BARRA);
+        gfx_moldura(x, y, 48, 56, 2, C_LATAO);
+        char c[2] = { cod[i] ? cod[i] : 0, 0 };
+        if (c[0]) gfx_texto(x + 24 - gfx_largura(c, 2) / 2, y + 6, c, C_MARFIM, 2, true);
+        else if (cursor_pisca && i == (int)strlen(cod) && (int)(t_fase * 2) % 2 == 0)
+            gfx_rect(x + 14, y + 44, 20, 3, C_OURO);
+    }
+}
+
+#define URL_WEB "ericzv.github.io/dices"
+
+static void desenha_online(void)
+{
+    faixas_menu("ONLINE", NULL, "ESC volta ao menu");
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    if (!rede_disponivel()) {
+        txt_c2(GFX_W / 2, 84, "Jogar online", C_LATAO);
+        txt_c(GFX_W / 2, 140, "O modo online funciona na versão do jogo para o navegador:", C_MARFIM, false);
+        txt_sombra_c(GFX_W / 2, 176, URL_WEB, C_OURO, 2);
+        txt_c(GFX_W / 2, 236, "Abra esse endereço, escolha Online e crie uma sala.", C_MARFIM_S, false);
+        txt_c(GFX_W / 2, 270, "ENTER volta", C_TEXTO_M, false);
+        return;
+    }
+    int st = rede_estado();
+    txt_c2(GFX_W / 2, 64, "Jogar online", C_LATAO);
+    if (st == REDE_ERRO) {
+        txt_c(GFX_W / 2, 130, "Não deu para conectar:", C_VINHO_CLR, true);
+        txt_c(GFX_W / 2, 156, rede_erro(), C_MARFIM, false);
+        txt_c(GFX_W / 2, 200, "ENTER tenta de novo  ·  ESC volta", C_TEXTO_M, false);
+    } else if (st == REDE_CONECTANDO) {
+        char t[32];
+        snprintf(t, sizeof t, "conectando%.*s", (int)(t_fase * 3) % 4, "...");
+        txt_c(GFX_W / 2, 150, t, C_MARFIM, true);
+    } else if (st == REDE_ESPERANDO) {
+        txt_c(GFX_W / 2, 116, "Sala criada! Passe este código para o seu amigo:", C_MARFIM, true);
+        casas_codigo(146, rede_codigo(), false);
+        char t[48];
+        snprintf(t, sizeof t, "esperando o amigo entrar%.*s", (int)(t_fase * 3) % 4, "...");
+        txt_c(GFX_W / 2, 222, t, C_OURO, false);
+        txt_c(GFX_W / 2, 250, "Ele abre o jogo, escolhe Online > Entrar com código e digita o código.",
+              C_TEXTO_M, false);
+    } else if (digitando) {
+        txt_c(GFX_W / 2, 116, "Digite o código da sala do seu amigo:", C_MARFIM, true);
+        casas_codigo(146, codigo_dig, true);
+        txt_c(GFX_W / 2, 222, strlen(codigo_dig) == 4 ? "ENTER entra na sala" : "4 letras ou números",
+              strlen(codigo_dig) == 4 ? C_OURO : C_TEXTO_M, false);
+        txt_c(GFX_W / 2, 250, "BACKSPACE apaga  ·  ESC volta", C_TEXTO_M, false);
+    } else {
+        txt_c(GFX_W / 2, 112, "Cada um no seu computador: um cria a sala, o outro entra com o código.",
+              C_MARFIM_S, false);
+        botao_menu(150, 240, "Criar sala", online_cur == 0);
+        botao_menu(186, 240, "Entrar com código", online_cur == 1);
+        txt_c(GFX_W / 2, 238, "Quem cria a sala joga primeiro na loja.", C_TEXTO_M, false);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tutorial
+// ---------------------------------------------------------------------------
+typedef struct { const char *titulo; const char *par[3]; } pagina_t;
+static const pagina_t TUTORIAL[] = {
+    { "O jogo", {
+        "Cada jogador começa com 100 fichas. São 15 rodadas, e cada uma custa 5 fichas de entrada, que vão para o pote.",
+        "Quem faz mais pontos na rodada leva o pote. No fim, ganha quem tiver mais fichas.",
+        NULL } },
+    { "A bolsa e a fila", {
+        "Cada jogador tem uma bolsa de dados. A cada rodada, você tira 7 dados dela e escolhe até 4 para a sua fila, na ordem que quiser.",
+        "Depois joga os dados da fila um por um, do primeiro ao último.",
+        NULL } },
+    { "A regra da queda", {
+        "O primeiro dado sempre vale. Cada dado seguinte precisa ser IGUAL OU MAIOR que o último que vale.",
+        "Se sair menor, ele e o último que valia são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
+        NULL } },
+    { "Parar ou arriscar", {
+        "Depois de cada dado você escolhe: jogar o próximo ou parar e ficar com os pontos que tem.",
+        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se você vence, perde ou empata.",
+        NULL } },
+    { "Apostas", {
+        "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
+        "O outro escolhe: pagar para ver, dobrar a aposta ou correr. Quem corre entrega o pote na hora.",
+        NULL } },
+    { "Loja, prêmios e dados especiais", {
+        "No começo da partida, a loja vende dados especiais em troca de fichas.",
+        "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
+        "São 30 dados, cada um com um poder: veja todos em Dados da casa." } },
+    { "Teclas", {
+        "Setas movem  ·  ENTER escolhe e joga  ·  TAB confirma a fila ou para",
+        "BACKSPACE tira da fila  ·  X recusa o prêmio  ·  ESC duas vezes: menu",
+        "M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
+};
+#define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
+
+// Ilustracoes: dados de verdade, desenhados pelo mesmo codigo da mesa.
+static void ilustra_tutorial(int pag, int y)
+{
+    int cx = GFX_W / 2;
+    switch (pag) {
+    case 0:                                          // o pote
+        for (int i = 0; i < 6; i++) ficha(cx - 60, y + 30 - i * 4, i % 2 ? C_VINHO : C_LATAO);
+        for (int i = 0; i < 4; i++) ficha(cx + 60, y + 30 - i * 4, i % 2 ? C_MARFIM_S : C_ROSA);
+        txt_c(cx - 60, y + 44, "suas fichas", C_TEXTO_M, false);
+        txt_c(cx + 60, y + 44, "pote", C_TEXTO_M, false);
+        break;
+    case 1: {                                        // a mao e a ordem
+        static const uint8_t M[7] = { D_D6, D_D2, D_D6, D_D4, D_D8, D_D6, D_D2 };
+        static const int8_t O[7] = { 3, 1, -1, 2, 4, -1, -1 };
+        for (int i = 0; i < 7; i++) {
+            int x = cx + (i - 3) * 58;
+            peca_parada((float)x, (float)y + 26, 19, nova_peca(M[i]), 0);
+            if (O[i] > 0) {
+                char o[2] = { (char)('0' + O[i]), 0 };
+                gfx_disco(x + 17, y + 6, 10, C_OURO);
+                gfx_disco(x + 17, y + 6, 8, C_AMARELO);
+                txt_c(x + 17, y - 5, o, C_BARRA, true);
+            }
+        }
+        break;
+    }
+    case 2: {                                        // 2 vale, 4 vale, sai 3: anula o 3 e o 4
+        static const int V[3] = { 2, 4, 3 };
+        int passo = (int)(t_fase / 1.1f) % 4;        // 0: so o 2 ... 3: a queda
+        for (int i = 0; i < 3 && i <= passo; i++) {
+            int x = cx + (i - 1) * 110;
+            bool anul = passo == 3 && i > 0;
+            desenha_dado((float)x, (float)y + 22, 22, D_D6, 0, 0, V[i], 2, anul);
+            const char *r = anul ? (i == 2 ? "menor: anula" : "anulado") : "vale";
+            txt_c(x, y + 52, r, anul ? C_VINHO_CLR : C_OURO, false);
+        }
+        break;
+    }
+    case 5: {                                        // alguns dados especiais
+        static const uint8_t E[5] = { D_ESCUDO, D_PIRATA, D_TREVO, D_FOGO, D_LASTRO };
+        for (int i = 0; i < 5; i++) {
+            int x = cx + (i - 2) * 80;
+            float bob = sinf(t_fase * 3 + i) * 3;
+            peca_parada((float)x, y + 32 + bob, 20, nova_peca(E[i]), 0);
+            txt_c(x, y + 54, TIPO[E[i]].nome, cor_aro(E[i]), false);
+        }
+        break;
+    }
+    default: break;
+    }
+}
+
+static void desenha_tutorial(void)
+{
+    char s[32];
+    snprintf(s, sizeof s, "%d de %d", tut_pag + 1, N_TUTORIAL);
+    faixas_menu("COMO JOGAR", s, tut_pag + 1 < N_TUTORIAL
+                ? "<  anterior    ·    ENTER ou  >  próxima    ·    ESC menu"
+                : "<  anterior    ·    ENTER volta ao menu");
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    const pagina_t *pg = &TUTORIAL[tut_pag];
+    txt_sombra_c(GFX_W / 2, MESA_Y0 + 8, pg->titulo, C_LATAO, 2);
+    int y = MESA_Y0 + 56;
+    for (int i = 0; i < 3 && pg->par[i]; i++) {
+        int n = quebra_linhas(44, y, 69, 4, pg->par[i], i == 0 ? C_MARFIM : C_MARFIM_S);
+        y += n * (TXT_H + 4) + 4;
+    }
+    ilustra_tutorial(tut_pag, 226);                  // faixa fixa, abaixo do texto
+    // Bolinhas das paginas.
+    for (int i = 0; i < N_TUTORIAL; i++)
+        gfx_disco(GFX_W / 2 + (i - N_TUTORIAL / 2) * 16, MESA_Y1 - 6, 3,
+                  i == tut_pag ? C_OURO : C_FELTRO2);
+}
+
+// Avisos por cima de tudo: sair da partida e conexao perdida.
+static void desenha_avisos(void)
+{
+    const char *msg = NULL;
+    uint16_t c = C_OURO;
+    if (conexao_caiu()) { msg = "A conexão com o rival caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
+    else if (t_sair >= 0) msg = "Aperte ESC de novo para sair da partida.";
+    if (!msg) return;
+    int w = gfx_largura(msg, 1) + 40;
+    gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
+    gfx_moldura(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, 2, c);
+    txt_c(GFX_W / 2, MESA_Y0 + 11, msg, c, true);
 }
 
 void dado_desenha(void)
 {
     mesa();
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
+    if (fase == F_TUTORIAL) { desenha_tutorial(); return; }
+    if (fase == F_ONLINE)   { desenha_online(); return; }
     if (fase == F_ABERTURA) {
         desenha_abertura();
         return;
@@ -2907,6 +3263,7 @@ void dado_desenha(void)
         if (fase == F_ROLANDO || fase == F_ARRUMA) desenha_lance();
         break;
     }
+    desenha_avisos();
 }
 
 // ===========================================================================
@@ -2958,13 +3315,19 @@ void dado_tecla(const key_event_t *ev_)
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
 
-    if (k == 'm') {
+    if (k == 'm' && !dado_digitando()) {
         bool on = som_liga(!som_ligado());
         if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem saída de som neste computador");
         if (on) som_toca(SOM_FICHA);
         return;
     }
+    if (k == KEY_ESC) { trata_esc(); return; }
+    t_sair = -1;
     if (ia_na_vez()) return;             // a vez e do aparelho: so ele escolhe
+    if (modo == M_ONLINE) {
+        if (rede_na_vez()) return;       // a vez e do rival: as teclas vem dele
+        if (aceita_escolha()) rede_envia_tecla(k);
+    }
     trata_tecla(k);
 }
 
@@ -2987,12 +3350,70 @@ static void trata_tecla(int k)
             t_fase = 1.0f;
             return;
         }
-        if (e) { menu_cur = (menu_cur + e + 3) % 3; som_toca(SOM_TIQUE); return; }
-        if (k == KEY_ENTER) {
-            if (menu_cur < 2) { cpu = menu_cur == 0 ? 2 : 0; abre_loja(); }
-            else { t_fase = 0; fase = F_CATALOGO; }
+        if (e) { menu_cur = (menu_cur + e + MN_N) % MN_N; som_toca(SOM_TIQUE); return; }
+        if (k >= '1' && k < '1' + MN_N) menu_cur = k - '1';
+        if (k != KEY_ENTER && !(k >= '1' && k < '1' + MN_N)) return;
+        som_toca(SOM_FICHA);
+        switch (menu_cur) {
+        case MN_UM: case MN_DOIS:
+            modo = menu_cur == MN_UM ? M_UM : M_DOIS;
+            cpu = modo == M_UM ? 2 : 0;
+            remoto = 0;
+            baixo = 0;
+            poe_nomes();
+            abre_loja();
+            break;
+        case MN_ONLINE:
+            online_cur = 0;
+            digitando = false;
+            t_fase = 0;
+            fase = F_ONLINE;
+            break;
+        case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
+        default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
         }
         return;
+
+    case F_TUTORIAL:
+        if (e) {
+            int n = tut_pag + e;
+            if (n >= 0 && n < N_TUTORIAL) { tut_pag = n; t_fase = 0; som_toca(SOM_TIQUE); }
+            return;
+        }
+        if (k == KEY_ENTER) {
+            if (tut_pag + 1 < N_TUTORIAL) { tut_pag++; t_fase = 0; som_toca(SOM_TIQUE); }
+            else ao_menu_sem_partida();
+        }
+        if (k == KEY_BKSP) ao_menu_sem_partida();
+        return;
+
+    case F_ONLINE: {
+        if (!rede_disponivel()) {
+            if (k == KEY_ENTER || k == KEY_BKSP) ao_menu_sem_partida();
+            return;
+        }
+        int st = rede_estado();
+        if (st == REDE_ERRO) { if (k == KEY_ENTER) rede_sai(); return; }
+        if (st != REDE_PARADA) return;
+        if (digitando) {
+            int n = (int)strlen(codigo_dig);
+            if (k == KEY_BKSP) { if (n) codigo_dig[n - 1] = 0; else digitando = false; return; }
+            if (k == KEY_ENTER && n == 4) { rede_entra(codigo_dig); return; }
+            bool letra = k >= 'a' && k <= 'z', num = k >= '0' && k <= '9';
+            if (n < 4 && (letra || num)) {
+                codigo_dig[n] = (char)(letra ? k - 32 : k);
+                codigo_dig[n + 1] = 0;
+                som_toca(SOM_TIQUE);
+            }
+            return;
+        }
+        if (e) { online_cur ^= 1; som_toca(SOM_TIQUE); return; }
+        if (k == KEY_ENTER) {
+            if (online_cur == 0) rede_cria();
+            else { digitando = true; codigo_dig[0] = 0; }
+        }
+        return;
+    }
 
     case F_CATALOGO:
         if (e) {
@@ -3001,10 +3422,7 @@ static void trata_tecla(int k)
             som_toca(SOM_TIQUE);
             return;
         }
-        if (k == KEY_ENTER || k == KEY_BKSP || k == KEY_TAB) {
-            t_fase = 1.0f;
-            fase = F_ABERTURA;
-        }
+        if (k == KEY_ENTER || k == KEY_BKSP || k == KEY_TAB) ao_menu_sem_partida();
         return;
 
     case F_LOJA: {
@@ -3138,6 +3556,7 @@ int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
 const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
+void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)
 {
     desfecho_t d;

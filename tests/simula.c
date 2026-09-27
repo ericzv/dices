@@ -128,6 +128,12 @@ int main(int argc, char **argv)
     }
 
     if (falhas) return 1;
+    if (dir_fotos)                               // e as paginas do tutorial
+        for (int pag = 0; pag < 7; pag++) {
+            dado_dbg_tutorial(pag);
+            dado_desenha();
+            foto(dir_fotos, 20 + pag);
+        }
     printf("%d partidas: ERIC %d, LILI %d, empates %d, %.1f rodadas em media\n",
            partidas, vitorias[0], vitorias[1], vitorias[2],
            partidas ? (double)rodadas / partidas : 0.0);

@@ -18,6 +18,9 @@ endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 include(FetchContent)
+if (EMSCRIPTEN)
+    set(PLATFORM Web CACHE STRING "" FORCE)      # raylib para o navegador
+endif()
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(raylib
@@ -43,7 +46,11 @@ if (UNIX)
     target_link_libraries(jogo PUBLIC m)
 endif()
 
-set(FONTES desktop/main.c desktop/som.c)
+if (EMSCRIPTEN)
+    set(FONTES desktop/main.c desktop/som.c web/rede.c)
+else()
+    set(FONTES desktop/main.c desktop/som.c desktop/rede.c)
+endif()
 if (WIN32)
     list(APPEND FONTES desktop/dado.rc)
 endif()
@@ -67,15 +74,28 @@ if (MSVC)
 elseif (MINGW)
     target_link_options(dado PRIVATE -static)
 endif()
-if (NOT MSVC AND NOT APPLE)
+if (EMSCRIPTEN)
+    # Versao do navegador: index.html + index.js + index.wasm, mais a
+    # biblioteca MQTT do modo online e o icone ao lado.
+    set_target_properties(dado PROPERTIES OUTPUT_NAME "index" SUFFIX ".html")
+    target_link_options(dado PRIVATE
+        -sUSE_GLFW=3 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=64MB
+        "-sEXPORTED_FUNCTIONS=_main,_dado_online_comeca,_dado_rede_tecla,_dado_dbg_fichas,_dado_dbg_rodada,_dado_dbg_fase,_dado_dbg_vez,_dado_dbg_pote"
+        "-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$stringToUTF8,$UTF8ToString"
+        "-sEXPORTED_RUNTIME_METHODS=HEAPF32,HEAP8,HEAPU8,HEAP16,HEAP32"   # o miniaudio le Module.HEAPF32
+        --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
+    set_property(TARGET dado APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
+    configure_file(web/mqtt.min.js mqtt.min.js COPYONLY)
+    configure_file(desktop/icone.png icone.png COPYONLY)
+elseif (NOT MSVC AND NOT APPLE)
     target_link_options(dado PRIVATE $<$<CONFIG:Release>:-s>)
 endif()
 
 # Teste de host: joga partidas inteiras com teclas ao acaso, sem janela.
 option(DADO_TESTES "Compila o teste de host" ON)
-if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING)
+if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     enable_testing()
-    add_executable(simula tests/simula.c)
+    add_executable(simula tests/simula.c desktop/rede.c)
     target_link_libraries(simula PRIVATE jogo)
     add_test(NAME simula COMMAND simula 120)
     # Exporta a trilha, o rufar e os efeitos em WAV (e confere que a sintese roda).

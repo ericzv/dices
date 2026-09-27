@@ -1,7 +1,8 @@
 # Dado em Casa
 
-Duelo de apostas com dados, ERIC contra LILI: contra o computador (que joga
-como LILI) ou com duas pessoas no mesmo teclado. Nasceu no
+Duelo de apostas com dados para dois: contra o computador, com duas pessoas
+no mesmo teclado ou **online**, cada um no seu computador. Criado por ERICZ.
+Nasceu no
 [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) e agora roda
 também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
 sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
@@ -12,7 +13,21 @@ seguintes precisam ser iguais ou maiores que o último que vale — se sair meno
 os dois se anulam. Entre os turnos tem aposta, e 30 dados especiais mudam as
 regras (veja o menu **Dados** no jogo).
 
-## Jogar
+## Jogar no navegador (e online)
+
+**https://ericzv.github.io/dices/** — abre direto no navegador, sem instalar.
+
+Para jogar online com um amigo: os dois abrem o endereço, escolhem **Online**;
+um clica em **Criar sala** e passa o código de 4 letras; o outro clica em
+**Entrar com código** e digita. Cada um se vê embaixo da mesa.
+
+As jogadas passam por um servidor MQTT público e gratuito (HiveMQ, com EMQX
+e Mosquitto de reserva), que só repassa as mensagens da sala. Os dois
+navegadores rodam a mesma partida com a mesma semente; só viajam as teclas
+de quem está na vez. Serve bem para jogar entre amigos — não é um servidor
+com garantia nem privacidade (quem souber o código vê as jogadas).
+
+## Jogar no computador
 
 Baixe o arquivo do seu sistema na página de
 [Releases](https://github.com/ericzv/dices/releases) (ou, antes da primeira
@@ -40,6 +55,9 @@ Não precisa instalar nada: é um executável só.
 | N | Liga e desliga só a música |
 | F11 ou Alt+Enter | Tela cheia |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
+| ESC (duas vezes) | Sai da partida e volta ao menu |
+
+O menu **Como jogar** explica as regras.
 
 ## Compilar
 
@@ -65,6 +83,25 @@ ctest --test-dir build --output-on-failure
 ./build/simula 500 --fotos /tmp/fotos   # salva uma imagem de cada tela
 ```
 
+### Versão do navegador
+
+Precisa do [Emscripten](https://emscripten.org/):
+
+```sh
+emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release
+cmake --build build-web
+cd build-web && python3 -m http.server   # abra http://localhost:8000
+```
+
+Para testar o online sem internet, rode um Mosquitto local com websockets e
+abra `index.html?servidor=ws://localhost:9001` em duas abas.
+
+O GitHub Actions compila a versão web a cada push e publica na branch
+`gh-pages`. Para ela aparecer em `ericzv.github.io/dices`, ligue uma vez:
+**Settings → Pages → Build and deployment → Deploy from a branch → `gh-pages` / `(root)`**.
+O zip `DadoEmCasa-web` (em Actions → Artifacts) também pode ser enviado ao
+[itch.io](https://itch.io) como jogo HTML.
+
 ### Publicar uma versão
 
 Cada push compila os três sistemas no GitHub Actions. Para gerar uma Release
@@ -83,6 +120,7 @@ src/          o jogo
   ui/             primitivas de desenho e a fonte de pixels (DotGothic16)
   hal/            contrato com a plataforma: teclado, som, tela
 desktop/      a plataforma PC: janela, teclado, trilha e efeitos sintetizados, ícone
+web/          a página do navegador e a rede do modo online (MQTT)
 tests/        simulador de partidas e exportador de sons (WAV)
 tools/        geradores da fonte e do ícone
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC

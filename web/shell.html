@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dado em Casa</title>
+<link rel="icon" href="icone.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #10100f; overflow: hidden; }
+  #canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  #capa {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    background: #10100f; color: #eee7d6; cursor: pointer;
+    font: 18px/1.4 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  #capa img { width: 128px; height: 128px; image-rendering: pixelated; }
+  #capa h1 { margin: 0; color: #be9c56; font-size: 34px; letter-spacing: 3px; }
+  #capa .botao { padding: 10px 26px; border: 2px solid #be9c56; color: #be9c56; }
+  #capa .dica { color: #aabeb2; font-size: 14px; text-align: center; max-width: 520px; }
+  #capa.pronto .botao { background: #be9c56; color: #10100f; }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="capa">
+  <img src="icone.png" alt="">
+  <h1>DADO EM CASA</h1>
+  <div class="botao" id="botao">carregando...</div>
+  <div class="dica">Jogue com o teclado: setas, ENTER, TAB e BACKSPACE.<br>
+    Para jogar online, escolha <b>Online</b> no menu e crie uma sala.</div>
+</div>
+<script src="mqtt.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Salas online. Os dois navegadores assinam o mesmo topico num servidor MQTT
+// publico e gratuito; o servidor so repassa mensagens, nao guarda nada.
+// Quem cria a sala sorteia a semente da partida e manda para quem entra;
+// depois disso so viajam as teclas de quem esta na vez.
+// ---------------------------------------------------------------------------
+var DadoRede = (function () {
+  var params = new URLSearchParams(location.search);
+  var SERVIDORES = params.get('servidor') ? [params.get('servidor')] : [
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt',
+  ];
+  // Sem letras que se confundem (0/O, 1/I). A primeira letra do codigo diz
+  // qual servidor a sala usa, para os dois irem ao mesmo.
+  var ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var PARADA = 0, CONECTANDO = 1, ESPERANDO = 2, JOGANDO = 3, ERRO = 4;
+
+  var r = { estado: PARADA, codigo: '', erro: '' };
+  var cliente = null, topico = '', eu = '', rival = '', anfitriao = false;
+  var semente = 0, n_env = 0, n_rec = 0, ultimo = 0, timers = [];
+
+  function id() { return Math.random().toString(36).slice(2, 10); }
+  function limpa() {
+    timers.forEach(clearInterval); timers = [];
+    if (cliente) { try { cliente.end(true); } catch (e) {} }
+    cliente = null; rival = ''; n_env = n_rec = 0;
+  }
+  function falha(msg) { limpa(); r.estado = ERRO; r.erro = msg; }
+  function manda(obj) {
+    if (!cliente) return;
+    obj.de = eu;
+    cliente.publish(topico, JSON.stringify(obj), { qos: 1 });
+  }
+
+  function conecta(url, aoConectar, aoFalhar) {
+    var c = mqtt.connect(url, { clientId: 'dado_' + id(), connectTimeout: 8000,
+                                reconnectPeriod: 2000, clean: true });
+    var ok = false;
+    var desiste = setTimeout(function () { if (!ok) { c.end(true); aoFalhar(); } }, 9000);
+    c.on('connect', function () {
+      if (ok) return;                     // reconexao: ja estava inscrito
+      ok = true; clearTimeout(desiste);
+      c.subscribe(topico, { qos: 1 }, function () { aoConectar(c); });
+    });
+    c.on('message', function (_t, dados) {
+      var m; try { m = JSON.parse(dados.toString()); } catch (e) { return; }
+      if (!m || m.de === eu) return;     // o proprio eco
+      recebe(m);
+    });
+  }
+
+  function recebe(m) {
+    if (rival && m.de !== rival && m.t !== 'oi') return;
+    ultimo = Date.now();
+    if (m.t === 'oi' && anfitriao) {
+      if (rival && m.de !== rival) return;          // sala cheia
+      var novo = !rival;
+      rival = m.de;
+      manda({ t: 'comeca', para: rival, semente: semente });
+      if (novo) { r.estado = JOGANDO; Module._dado_online_comeca(semente >>> 0, 0); }
+    } else if (m.t === 'comeca' && !anfitriao && m.para === eu && r.estado !== JOGANDO) {
+      rival = m.de;
+      r.estado = JOGANDO;
+      Module._dado_online_comeca(m.semente >>> 0, 1);
+    } else if (m.t === 'k' && r.estado === JOGANDO) {
+      if (m.n !== n_rec) return;                    // repetida (qos 1)
+      n_rec++;
+      Module._dado_rede_tecla(m.k);
+    } else if (m.t === 'tchau' && r.estado === JOGANDO) {
+      falha('O rival saiu da partida.');
+    }
+  }
+
+  // Sinal de vida: sem noticia do rival por 25 s, a conexao caiu.
+  function vigia() {
+    ultimo = Date.now();
+    timers.push(setInterval(function () {
+      if (r.estado !== JOGANDO) return;
+      manda({ t: 'p' });
+      if (Date.now() - ultimo > 25000) falha('O rival parou de responder.');
+    }, 3000));
+  }
+
+  r.cria = function () {
+    limpa(); anfitriao = true; eu = id();
+    semente = (Math.random() * 4294967296) >>> 0;
+    r.estado = CONECTANDO;
+    var i = 0;
+    (function tenta() {
+      if (i >= SERVIDORES.length) { falha('Sem conexão com o servidor. Confira a internet.'); return; }
+      var s = i++;
+      var cod = '';
+      do { cod = ''; for (var k = 0; k < 4; k++) cod += ALFABETO[Math.floor(Math.random() * 32)]; }
+      while (ALFABETO.indexOf(cod[0]) % SERVIDORES.length !== s);
+      topico = 'dadoemcasa/v1/' + cod;
+      conecta(SERVIDORES[s], function (c) {
+        cliente = c; r.codigo = cod; r.estado = ESPERANDO; vigia();
+      }, tenta);
+    })();
+  };
+
+  r.entra = function (cod) {
+    limpa(); anfitriao = false; eu = id();
+    cod = String(cod).toUpperCase();
+    if (cod.length !== 4 || ALFABETO.indexOf(cod[0]) < 0) { falha('Código inválido.'); return; }
+    r.codigo = cod; r.estado = CONECTANDO;
+    topico = 'dadoemcasa/v1/' + cod;
+    var s = ALFABETO.indexOf(cod[0]) % SERVIDORES.length;
+    conecta(SERVIDORES[s], function (c) {
+      cliente = c; vigia();
+      var tentativas = 0;
+      manda({ t: 'oi' });
+      timers.push(setInterval(function () {
+        if (r.estado === JOGANDO) return;
+        if (++tentativas > 10) { falha('Não achei a sala ' + cod + '. Confira o código.'); return; }
+        manda({ t: 'oi' });
+      }, 1500));
+    }, function () { falha('Sem conexão com o servidor. Confira a internet.'); });
+  };
+
+  r.envia = function (k) {
+    if (r.estado !== JOGANDO) return;
+    manda({ t: 'k', n: n_env++, k: k });
+  };
+
+  r.sai = function () {
+    if (r.estado === JOGANDO) manda({ t: 'tchau' });
+    var c = cliente;
+    cliente = null;
+    setTimeout(function () { if (c) try { c.end(); } catch (e) {} }, 300);
+    timers.forEach(clearInterval); timers = [];
+    rival = ''; r.estado = PARADA; r.codigo = ''; r.erro = '';
+  };
+
+  window.addEventListener('beforeunload', function () { if (r.estado === JOGANDO) r.sai(); });
+  return r;
+})();
+
+// ---------------------------------------------------------------------------
+// O jogo (WebAssembly). O navegador so libera o som depois de um clique, e o
+// clique tambem poe o teclado no jogo.
+// ---------------------------------------------------------------------------
+var capa = document.getElementById('capa'), botao = document.getElementById('botao');
+var Module = {
+  canvas: document.getElementById('canvas'),
+  print: function (t) { console.log(t); },
+  printErr: function (t) { console.warn(t); },
+  onRuntimeInitialized: function () {
+    capa.classList.add('pronto');
+    botao.textContent = 'clique para jogar';
+  },
+};
+capa.addEventListener('click', function () {
+  if (!capa.classList.contains('pronto')) return;
+  capa.style.display = 'none';
+  Module.canvas.focus();
+  try { if (window.AudioContext) {
+    // O miniaudio cria o contexto de audio suspenso; este clique o acorda.
+    var acorda = function (ctx) { if (ctx && ctx.state === 'suspended') ctx.resume(); };
+    if (Module.miniaudio && Module.miniaudio.devices)
+      Module.miniaudio.devices.forEach(function (d) { if (d) acorda(d.webaudio); });
+    if (window.miniaudio && window.miniaudio.devices)
+      window.miniaudio.devices.forEach(function (d) { if (d) acorda(d.webaudio); });
+  } } catch (e) {}
+});
+window.addEventListener('keydown', function (e) {
+  // TAB, BACKSPACE e as setas sao do jogo, nao da pagina.
+  if ([8, 9, 32, 37, 38, 39, 40].indexOf(e.keyCode) >= 0) e.preventDefault();
+}, { passive: false });
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

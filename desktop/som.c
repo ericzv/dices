@@ -26,7 +26,7 @@ static bool  pronto, falhou, ligado = true, musica = true;
 static bool  rufando;
 static float vol_rufo, duck = 1;             // duck: quanto a trilha abaixa
 
-static float frand(void) { return (float)rand() / RAND_MAX * 2 - 1; }
+static float frand(void) { return (float)rand() / (float)RAND_MAX * 2 - 1; }
 static float mtof(float m) { return 440.0f * powf(2.0f, (m - 69) / 12.0f); }
 
 // ---------------------------------------------------------------------------
@@ -550,7 +550,7 @@ void som_toca(int s)
     Sound v = voz[s][prox[s]++ % VOZES];
     // Baques nunca soam iguais: variam um pouco de tom.
     if (s == SOM_BATE || s == SOM_POUSA || s == SOM_FICHA)
-        SetSoundPitch(v, 0.9f + 0.2f * (float)rand() / RAND_MAX);
+        SetSoundPitch(v, 0.9f + 0.2f * (float)rand() / (float)RAND_MAX);
     PlaySound(v);
 }
 

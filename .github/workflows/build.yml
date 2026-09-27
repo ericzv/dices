@@ -75,10 +75,41 @@ jobs:
           name: DadoEmCasa-macos
           path: DadoEmCasa-macos.zip
 
+  web:
+    name: Navegador (versão online)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write                    # para publicar na branch gh-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.10
+      - run: emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build-web -j
+      - run: |
+          mkdir -p site
+          cp build-web/index.html build-web/index.js build-web/index.wasm \
+             build-web/mqtt.min.js build-web/icone.png site/
+          cd site && zip -r ../DadoEmCasa-web.zip .
+      # Zip pronto para subir no itch.io, se preferir.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DadoEmCasa-web
+          path: DadoEmCasa-web.zip
+      # Publica em https://ericzv.github.io/dices/ (ligue o Pages uma vez em
+      # Settings > Pages > Deploy from a branch > gh-pages).
+      - if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/'))
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site
+          force_orphan: true
+
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, linux, macos]
+    needs: [windows, linux, macos, web]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -93,4 +124,5 @@ jobs:
         run: >
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
           --title "Dado em Casa $GITHUB_REF_NAME" --generate-notes
-          dist/DadoEmCasa-windows.zip dist/DadoEmCasa-macos.zip dist/DadoEmCasa-linux.tar.gz
+          dist/DadoEmCasa-windows.zip dist/DadoEmCasa-macos.zip dist/DadoEmCasa-linux.tar.gz \
+          dist/DadoEmCasa-web.zip

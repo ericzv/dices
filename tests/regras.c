@@ -142,6 +142,26 @@ int main(void)
     F[0].tipo[1] = D_D20; F[0].n = 2;
     CONFERE(risco(0) == 100, "risco depois do Egoista devia ser 100, deu %d", risco(0));
 
+    // Moeda da sorte: 1 da +1 nos impares (ela inclusive), 2 da +1 nos pares.
+    limpa();
+    joga(0, D_SORTE, 1);
+    joga(0, D_D6, 3);
+    joga(0, D_D6, 4);
+    d = fim();
+    CONFERE(d.total[0] == (1 + 1) + (3 + 1) + 4, "Moeda 1: esperava 10, deu %d", d.total[0]);
+    limpa();
+    joga(0, D_SORTE, 2);
+    joga(0, D_D6, 3);
+    joga(0, D_D6, 4);
+    d = fim();
+    CONFERE(d.total[0] == (2 + 1) + 3 + (4 + 1), "Moeda 2: esperava 11, deu %d", d.total[0]);
+
+    // Viciado: o veredito conta os dois lances.
+    limpa();
+    F[0].descarte[0] = 2;
+    joga(0, D_VICIADO, 5);
+    CONFERE(strstr(veredito, "5 e 2") != NULL, "Viciado: veredito devia citar os dois lances: %s", veredito);
+
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");
     return 0;

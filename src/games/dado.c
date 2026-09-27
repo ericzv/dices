@@ -67,6 +67,7 @@
 #define C_TEXTO_M    RGB(170, 190, 178)
 #define C_BRANCO     RGB(255, 252, 240)
 #define C_CIANO      RGB(96, 196, 214)       // Copiador
+#define C_CHUMBO     RGB(84, 90, 100)        // gota de chumbo do Viciado
 #define C_REAL       RGB(186, 70, 160)       // Egoista: purpura real
 #define C_MADEIRA    RGB(78, 46, 30)
 #define C_MADEIRA_ESC RGB(60, 34, 22)
@@ -148,7 +149,7 @@ static const tipo_t TIPO[D_N] = {
     { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior de cada lado" },
     { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "se fica: rouba o menor rival" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "no fim: x2 nos dados de 1 e 2" },
-    { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +2 nos ímpares; 2: +1 nos pares" },
+    { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +1 nos ímpares; 2: +1 nos pares" },
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "imune a queda da fila" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "dados somando 20+: +10 no fim" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
@@ -194,7 +195,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_INVEJOSO]  = "Anula o maior dado do rival, e junto o seu maior outro dado.",
     [D_CARIDOSO]  = "Se terminar valendo, rouba o menor dado do rival.",
     [D_FARTURA]   = "Quatro lados. No fim da rodada, x2 em todos os seus dados de valor 1 ou 2.",
-    [D_SORTE]     = "Ficha azul e vermelha. Azul (1): +2 em cada dado ímpar. Vermelha (2): +1 em cada dado par.",
+    [D_SORTE]     = "Ficha azul e vermelha. Azul (1): +1 em cada dado ímpar. Vermelha (2): +1 em cada dado par.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -253,6 +254,7 @@ static uint16_t cor_aro(int tipo)
     case EF_MALDICAO:  return C_VINHO;
     case EF_TREVO:     return C_TREVO;
     case EF_JACKPOT:   return C_OURO;
+    case EF_VICIADO:   return C_VERMELHO;
     case EF_COPIADOR:  return C_CIANO;
     case EF_EGOISTA:   return C_REAL;
     default:           return C_AGUA;
@@ -294,6 +296,7 @@ typedef struct {
     int8_t  bonus[N_FILA];
     bool    quebra[N_FILA];
     bool    cinza[N_FILA];           // queimado pela Ficha de Fogo
+    uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
     char    tag[N_FILA][14];
     bool    zerada;                  // Tudo ou Nada tirou 1: a rodada vale 0
     int     pontos;
@@ -307,6 +310,7 @@ typedef struct {
     int valor, face;
     float t_face, pouso;
     bool parado;
+    bool fantasma;                   // o segundo lance do Viciado, que e descartado
 } voo_t;
 
 // Eventos do desfecho, tocados um a um.
@@ -586,7 +590,7 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
     case D_FICHAS:   tom = C_OURO;   pct = 42; break;
     case D_D2:       tom = C_OURO;   pct = 58; break;           // moeda dourada
     case D_TREVO:    tom = C_TREVO;  pct = 34; break;
-    case D_JACKPOT:  tom = C_OURO;   pct = 34; break;
+    case D_JACKPOT:  tom = C_OURO;   pct = 16; break;
     case D_COPIADOR: tom = C_CIANO;  pct = 28; break;
     case D_EGOISTA:  tom = C_REAL;   pct = 30; break;
     case D_VICIADO:  *tinta = C_VERMELHO; break;               // pips de cassino
@@ -660,15 +664,15 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         faixa(t, true, C_SALMAO);
         faixa(t, false, C_SALMAO);
         break;
-    case D_VICIADO:                               // duas setas: puxa para o maior
-        for (int i = 0; i < 2; i++) {                 // ^ ^ bem separados
-            float y = -1.0f * t - i * (0.42f * t + 1);
-            float w = 0.5f * t + 0.5f, h = 0.26f * t + 0.5f;
-            int e = esp_marca(t);
-            gfx_linha_grossa(MX(-w, y + h), MY(-w, y + h), MX(0, y), MY(0, y), e, C_VERMELHO);
-            gfx_linha_grossa(MX(0, y), MY(0, y), MX(w, y + h), MY(w, y + h), e, C_VERMELHO);
-        }
+    case D_VICIADO: {                             // gota de chumbo pendurada no canto
+        float cx = 1.02f * t, cy = 1.02f * t, gr = 0.24f * t + 0.8f;
+        float o[6] = { 0.62f * t, 0.78f * t, 0.78f * t, 0.62f * t, cx + gr * 0.2f, cy + gr * 0.2f };
+        marca_poli(o, 3, C_CHUMBO);
+        gfx_disco(MX(cx, cy), MY(cx, cy), (int)gr, C_CHUMBO);
+        gfx_disco(MX(cx - gr * 0.35f, cy - gr * 0.35f), MY(cx - gr * 0.35f, cy - gr * 0.35f),
+                  (int)(gr * 0.3f), C_ACO);                      // brilho do metal
         break;
+    }
     case D_ESPELHO:                               // reflexo na diagonal
         gfx_linha_grossa(MX(-0.75f * t, -0.2f * t), MY(-0.75f * t, -0.2f * t),
                          MX(-0.2f * t, -0.75f * t), MY(-0.2f * t, -0.75f * t),
@@ -768,15 +772,19 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
                       (int)(M[i][2] * t + 0.6f), M[i][3] ? clara : mancha);
         break;
     }
-    case D_JACKPOT: {                             // janela de tres rolos e a alavanca
-        float y = 1.14f * t, w = 0.2f * t + 0.8f;
-        marca_ret(0, y, 0.78f * t + 1, w + 1.2f, C_BARRA);
-        for (int i = -1; i <= 1; i++)
-            marca_ret(i * 0.5f * t, y, w, w, i ? C_VERMELHO : C_AMARELO);
-        int e = esp_marca(t);
-        gfx_linha_grossa(MX(0.95f * t, 0.45f * t), MY(0.95f * t, 0.45f * t),
-                         MX(1.3f * t, -0.35f * t), MY(1.3f * t, -0.35f * t), e, C_ACO);
-        gfx_disco(MX(1.3f * t, -0.35f * t), MY(1.3f * t, -0.35f * t), (int)(0.16f * t + 1), C_VERMELHO);
+    case D_JACKPOT: {                             // tres caixinhas com um 7 vermelho
+        float y = 1.16f * t, h = 0.19f * t + 0.8f, passo = 0.46f * t + 1;
+        marca_ret(0, y, passo * 1.5f + h * 0.3f, h + 1.2f, C_LATAO_ESC);
+        int e = t < 14 ? 1 : 2;
+        for (int i = -1; i <= 1; i++) {
+            float bx = i * passo;
+            marca_ret(bx, y, h, h, C_MARFIM);
+            // o 7: traco de cima e a perna em diagonal
+            gfx_linha_grossa(MX(bx - h * 0.55f, y - h * 0.6f), MY(bx - h * 0.55f, y - h * 0.6f),
+                             MX(bx + h * 0.55f, y - h * 0.6f), MY(bx + h * 0.55f, y - h * 0.6f), e, C_VERMELHO);
+            gfx_linha_grossa(MX(bx + h * 0.55f, y - h * 0.6f), MY(bx + h * 0.55f, y - h * 0.6f),
+                             MX(bx - h * 0.15f, y + h * 0.7f), MY(bx - h * 0.15f, y + h * 0.7f), e, C_VERMELHO);
+        }
         break;
     }
     case D_COPIADOR: {                            // icone de copiar no canto
@@ -1291,6 +1299,8 @@ static void aplica_regra(int j, int k)
     if (condenou) {                              // o aviso vale mais que o resto
         snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: a rodada vale 0");
         ver_tipo = 3;
+    } else if (ef == EF_VICIADO && f->descarte[k] && ver_tipo == 0 && !f->tag[k][0]) {
+        snprintf(veredito, sizeof veredito, "Viciado: %d e %d, fica o %d", v, f->descarte[k], v);
     } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
         snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
         ver_tipo = 0;
@@ -1375,7 +1385,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         for (int i = 0; i < f->lancados; i++) {
             if (est[i] != V_VALIDO || !pontua(j, i)) continue;
             bool impar = f->valor[i] % 2 == 1;
-            if (face == 1 && impar)  { d->bonus[j][i] += 2; mask |= 1 << i; por[i] = 2; }
+            if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
             if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
         }
         if (mask && gera && n_ev < MAX_EV) {
@@ -1384,7 +1394,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = (uint8_t)k;
             e->mascara = mask;
             memcpy(e->por_dado, por, sizeof por);
-            snprintf(e->txt, sizeof e->txt, face == 1 ? "Moeda 1: +2 nos ímpares"
+            snprintf(e->txt, sizeof e->txt, face == 1 ? "Moeda 1: +1 nos ímpares"
                                                       : "Moeda 2: +1 nos pares");
         }
     }
@@ -1764,9 +1774,14 @@ static void lanca_proximo(void)
     int k = f->lancados;
     int t = tipo_de(vez, k), lados = TIPO[t].lados;
 
-    int x = rola(lados);
+    int x = rola(lados), menor = 0;
     switch (TIPO[t].efeito) {
-    case EF_VICIADO: { int y = rola(lados); if (y > x) x = y; break; }
+    case EF_VICIADO: {                       // dois lances; fica o maior
+        int y = rola(lados);
+        menor = x < y ? x : y;
+        if (y > x) x = y;
+        break;
+    }
     case EF_LASTRO:  if (x < 6) x = 6; break;
     case EF_EXPLODE: {
         int n = x, g = 0;
@@ -1792,6 +1807,21 @@ static void lanca_proximo(void)
     v->spin = frnd(-14, 14);
     v->face = t == D_QUEBRADO ? x : rola_v(lados);
     n_voo = 1;
+    f->descarte[k] = (uint8_t)menor;
+    // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
+    // que some quando o maior vai para a fila.
+    if (menor) {
+        voo_t *w = &voo[1];
+        *w = *v;
+        w->fantasma = true;
+        w->valor = menor;
+        w->x = v->x + (v->x < GFX_W / 2 ? 60 : -60);
+        w->vx = -v->vx * 0.8f + frnd(-60, 60);
+        w->vy = v->vy * frnd(0.8f, 1.0f);
+        w->spin = -v->spin;
+        w->face = rola_v(lados);
+        n_voo = 2;
+    }
     som_rufo(true);                          // tensao ate o dado assentar
     t_fase = 0;
     fase = F_ROLANDO;
@@ -2477,11 +2507,20 @@ static int txt_nome(int x, int y, int j, bool destaque);
 
 static void desenha_lance(void)
 {
-    for (int i = 0; i < n_voo; i++) {
+    for (int i = n_voo - 1; i >= 0; i--) {
         voo_t *v = &voo[i];
         float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
+        bool descartado = false;
+        // O lance menor do Viciado: riscado e encolhendo enquanto o maior
+        // vai para a fila.
+        if (v->fantasma && fase == F_ARRUMA) {
+            float q = t_fase / 0.45f;
+            q = q > 1 ? 1 : q;
+            r = R_DADO * (1 - q * 0.4f);
+            descartado = true;
+        }
         desenha_dado(v->x, v->y, r, v->tipo, v->dono, v->giro,
-                     v->parado ? v->valor : v->face, 2, false);
+                     v->parado ? v->valor : v->face, 2, descartado);
     }
 }
 

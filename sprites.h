@@ -1,0 +1,69 @@
+// GERADO POR tools/gen_sprites.py - NAO EDITAR A MAO
+#pragma once
+#include <stdint.h>
+
+#define SPR_W 8
+#define SPR_H 8
+#define SPR_BYTES 16
+
+enum {
+    SPR_ABELHAS,
+    SPR_AGUA,
+    SPR_AMOLADOR,
+    SPR_ARVORE,
+    SPR_BANDIDO,
+    SPR_BODOQUE,
+    SPR_BORNAL,
+    SPR_BOTAS,
+    SPR_BUSSOLA,
+    SPR_CACHORRO,
+    SPR_CACTO,
+    SPR_CANDEEIRO,
+    SPR_CAPACETE,
+    SPR_CAPITAO,
+    SPR_CARCARA,
+    SPR_CARTUCHO,
+    SPR_CHAO,
+    SPR_CHICOTE,
+    SPR_COBRA,
+    SPR_COLETE,
+    SPR_CORDA,
+    SPR_DINAMITE,
+    SPR_ESCADA_BAIXO,
+    SPR_ESCADA_CIMA,
+    SPR_ESCOMBRO,
+    SPR_ESCORPIAO,
+    SPR_ESPINGARDA,
+    SPR_FACA,
+    SPR_FOGO,
+    SPR_FOICE,
+    SPR_FRASCO,
+    SPR_GAS,
+    SPR_JARARACA,
+    SPR_JOGADOR,
+    SPR_LACRAIA,
+    SPR_LANCA,
+    SPR_MARRETA,
+    SPR_MASCARA,
+    SPR_MORCEGO,
+    SPR_MUCURA,
+    SPR_ONCA,
+    SPR_OURO,
+    SPR_PALHA,
+    SPR_PAREDE,
+    SPR_PEDRA,
+    SPR_PEDRA_MOLE,
+    SPR_PICARETA,
+    SPR_QUEROSENE,
+    SPR_RATO,
+    SPR_RODA,
+    SPR_SAIDA,
+    SPR_SANGRIA,
+    SPR_SAPO,
+    SPR_TATU,
+    SPR_VEIO,
+    SPR_ZAGAIA,
+    SPR_N
+};
+
+extern const uint8_t sprites[SPR_N][SPR_BYTES];

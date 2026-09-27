@@ -1,0 +1,104 @@
+# ---------------------------------------------------------------------------
+# Configuracao do pacote TabNet do Cardputer ADV.
+# Editar aqui e rodar  python3 tools/build_pack.py  para gerar tabnet.pack
+# ---------------------------------------------------------------------------
+
+extracao: "2026-09-19"        # data em que os CSVs foram baixados do TabNet
+competencia_minima: 202501    # tudo anterior a isso e descartado
+
+# ---------------------------------------------------------------------------
+# AMB - producao ambulatorial (SIA)
+# valor: R$ por procedimento, tabela SIGTAP, aplicado a toda a serie
+# ---------------------------------------------------------------------------
+amb_procedimentos:
+  - codigo: "0405030045"
+    abrev:  "Foto"
+    nome:   "Fotocoagulacao a laser"
+    valor:  645.66
+  - codigo: "0405030193"
+    abrev:  "Pan-foto"
+    nome:   "Pan-fotocoagulacao de retina a laser"
+    valor:  860.92
+  - codigo: "0211060178"
+    abrev:  "Retinografia"
+    nome:   "Retinografia colorida binocular"
+    valor:  24.68
+  - codigo: "0211060283"
+    abrev:  "OCT"
+    nome:   "Tomografia de coerencia optica"
+    valor:  48.00
+  - codigo: "0303050233"
+    abrev:  "Injecoes"
+    nome:   "Tratamento medicamentoso de doenca da retina"
+    valor:  1881.84
+
+amb_grupos:
+  - abrev: "Laser retina"
+    nome:  "Laser em retina (Foto + Pan-foto)"
+    codigos: ["0405030045", "0405030193"]
+  - abrev: "Imagem retina"
+    nome:  "Imagem de retina (Retinografia + OCT)"
+    codigos: ["0211060178", "0211060283"]
+
+# ---------------------------------------------------------------------------
+# VVPP - vitrectomia posterior (SIH), tratada como procedimento unico.
+# Os tres codigos ja vem somados pelo TabNet; o valor e uma ESTIMATIVA usando
+# o codigo mais caro (VVPP com perfluorcarbono/oleo de silicone/endolaser).
+# ---------------------------------------------------------------------------
+vvpp:
+  abrev: "VVPP"
+  nome:  "Vitrectomia posterior"
+  codigos: ["0405030142", "0405030169", "0405030177"]
+  valor_estimado: 9403.68
+  estimado: true
+
+vvpp_estabelecimentos:          # rotulo curto por CNES; cidade e opcional
+  "2305623": { rotulo: "Praia Grande",   cidade: "" }
+  "2626659": { rotulo: "Tijucas",        cidade: "" }
+  "2555646": { rotulo: "Regional SJ",    cidade: "" }
+  "2691841": { rotulo: "Celso Ramos",    cidade: "" }
+  "2691469": { rotulo: "Penha",          cidade: "" }
+  "2538180": { rotulo: "S.J. Maravilha", cidade: "" }
+  "9543856": { rotulo: "Imigrantes",     cidade: "" }
+
+# ---------------------------------------------------------------------------
+# Regioes de saude (CIR). abrev cabe em 14 colunas da tela.
+# ---------------------------------------------------------------------------
+regioes:
+  "42001": { abrev: "Ext. Oeste",     nome: "Extremo Oeste" }
+  "42002": { abrev: "Oeste",          nome: "Oeste" }
+  "42003": { abrev: "Xanxere",        nome: "Xanxere" }
+  "42004": { abrev: "A.V. Itajai",    nome: "Alto Vale do Itajai" }
+  "42005": { abrev: "Foz Itajai",     nome: "Foz do Rio Itajai" }
+  "42006": { abrev: "M.V. Itajai",    nome: "Medio Vale do Itajai" }
+  "42007": { abrev: "Gde Florianop.", nome: "Grande Florianopolis" }
+  "42008": { abrev: "Meio Oeste",     nome: "Meio Oeste" }
+  "42009": { abrev: "A.V. R. Peixe",  nome: "Alto Vale do Rio do Peixe" }
+  "42010": { abrev: "Alto Uruguai",   nome: "Alto Uruguai Catarinense" }
+  "42011": { abrev: "Nordeste",       nome: "Nordeste" }
+  "42012": { abrev: "Planalto Norte", nome: "Planalto Norte" }
+  "42013": { abrev: "Serra",          nome: "Serra Catarinense" }
+  "42014": { abrev: "Extremo Sul",    nome: "Extremo Sul Catarinense" }
+  "42015": { abrev: "Carbonifera",    nome: "Carbonifera" }
+  "42016": { abrev: "Laguna",         nome: "Laguna" }
+  "42017": { abrev: "Vale Itapocu",   nome: "Vale do Itapocu" }
+
+# Colunas do TabNet descartadas por decisao explicita
+regioes_descartadas: ["Ignorado - SC"]
+
+# ---------------------------------------------------------------------------
+# Recortes de local oferecidos no seletor, na ordem em que aparecem.
+# destaque: true  -> exibido em negrito nas listas
+# ---------------------------------------------------------------------------
+grupos_local:
+  - abrev: "SC"
+    nome:  "Santa Catarina"
+    regioes: "todas"
+  - abrev: "Macro Sul"
+    nome:  "Macrorregiao Sul"
+    regioes: ["42016", "42015", "42014"]
+    destaque: true
+  - abrev: "Laguna"
+    nome:  "Regiao de Saude Laguna"
+    regioes: ["42016"]
+    destaque: true

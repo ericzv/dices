@@ -180,6 +180,15 @@ static void compoe(int s)
         tom(0.00f, 0.35f, mtof(67), mtof(67), TRIANGULO, 0.22f, 0.14f);
         tom(0.20f, 0.70f, mtof(62), mtof(61), TRIANGULO, 0.22f, 0.25f);
         break;
+    case SOM_JACKPOT: {                          // caca-niquel: sinos e moedas caindo
+        static const float N[6] = { 84, 88, 91, 96, 91, 96 };
+        for (int i = 0; i < 6; i++)
+            tom(i * 0.075f, 0.6f, mtof(N[i]), mtof(N[i]), SINO, 0.14f, 0.18f);
+        tom(0.45f, 1.2f, mtof(100), mtof(100), SINO, 0.12f, 0.5f);
+        for (int i = 0; i < 16; i++)
+            clique(0.40f + i * 0.055f + frand() * 0.012f, 2600 + frand() * 700, 0.20f - i * 0.009f);
+        break;
+    }
     case SOM_ABERTURA: {                         // vinheta: arpejo com sino no alto
         static const float N[5] = { 65, 69, 72, 76, 81 };
         for (int i = 0; i < 5; i++)
@@ -193,7 +202,7 @@ static void compoe(int s)
 static const float PICO[SOM_N] = {
     [SOM_TIQUE] = 0.20f, [SOM_BATE] = 0.36f, [SOM_POUSA] = 0.45f, [SOM_VALIDO] = 0.40f,
     [SOM_ANULA] = 0.42f, [SOM_FICHA] = 0.38f, [SOM_EFEITO] = 0.32f, [SOM_VITORIA] = 0.45f,
-    [SOM_CORREU] = 0.34f, [SOM_ABERTURA] = 0.40f,
+    [SOM_CORREU] = 0.34f, [SOM_ABERTURA] = 0.40f, [SOM_JACKPOT] = 0.46f,
 };
 
 // Compoe o efeito s, poe sala, normaliza e devolve quantas amostras valem.

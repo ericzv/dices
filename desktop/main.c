@@ -69,6 +69,7 @@ static void le_teclado(void)
     static const struct { int rl, jogo; } ESPECIAL[] = {
         { KEY_ENTER, J_ENTER }, { KEY_KP_ENTER, J_ENTER },
         { KEY_TAB, J_TAB },     { KEY_BACKSPACE, J_BKSP }, { KEY_ESCAPE, J_ESC },
+        { KEY_LEFT_CONTROL, J_TAB }, { KEY_RIGHT_CONTROL, J_TAB },  // CTRL faz o que o TAB faz
         { KEY_UP, J_UP },       { KEY_DOWN, J_DOWN },
         { KEY_LEFT, J_LEFT },   { KEY_RIGHT, J_RIGHT },
     };
@@ -90,10 +91,13 @@ static void le_teclado(void)
         }
         for (unsigned i = 0; i < n; i++) if (ESPECIAL[i].rl == k) tecla(ESPECIAL[i].jogo);
     }
-    // Tecla segurada repete (setas andando pelo menu, por exemplo).
-    for (unsigned i = 0; i < n; i++)
-        if (IsKeyPressedRepeat(ESPECIAL[i].rl) && !(alt && ESPECIAL[i].jogo == J_ENTER))
-            tecla(ESPECIAL[i].jogo);
+    // Setas e BACKSPACE seguradas repetem; ENTER, TAB e CTRL nao (segurar nao
+    // deve jogar tres dados de uma vez).
+    for (unsigned i = 0; i < n; i++) {
+        int jg = ESPECIAL[i].jogo;
+        bool repete = jg == J_UP || jg == J_DOWN || jg == J_LEFT || jg == J_RIGHT || jg == J_BKSP;
+        if (repete && IsKeyPressedRepeat(ESPECIAL[i].rl)) tecla(jg);
+    }
     // Letras, numeros e pontuacao chegam ja traduzidos pelo layout do
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {

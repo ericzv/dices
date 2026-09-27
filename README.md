@@ -10,7 +10,7 @@ sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 Cada rodada, os dois montam uma fila de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 30 dados especiais mudam as
+os dois se anulam. Entre os turnos tem aposta, e 33 dados mudam as
 regras (veja o menu **Dados** no jogo).
 
 ## Jogar no navegador (e online)
@@ -47,7 +47,7 @@ Não precisa instalar nada: é um executável só.
 |---|---|
 | Setas (ou A/D, W/S) | Move o cursor |
 | Enter | Escolhe / joga o próximo dado |
-| Tab | Confirma a fila / para |
+| Tab ou Ctrl | Confirma a fila / para |
 | Backspace | Tira o último dado da fila |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |

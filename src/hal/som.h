@@ -14,6 +14,7 @@ enum {
     SOM_VITORIA,     // alguem levou o pote
     SOM_CORREU,      // alguem correu da aposta
     SOM_ABERTURA,    // titulo entrando
+    SOM_JACKPOT,     // tres iguais com o Jackpot na mesa
     SOM_N
 };
 

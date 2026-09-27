@@ -57,3 +57,4 @@ int  dado_dbg_margem(void);
 void dado_dbg_bolsa(int j, const int *tipos, int n);
 void dado_dbg_cpu(int mascara);          // bit j: jogador j e do aparelho
 void dado_dbg_tutorial(int pag);         // abre o tutorial na pagina pag
+int  dado_dbg_n_tipos(void);             // quantos tipos de dado existem

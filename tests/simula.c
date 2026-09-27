@@ -98,6 +98,15 @@ int main(int argc, char **argv)
     for (int p = 0; p < partidas && !falhas; p++) {
         relogio = 1000003LL * (p + 1);
         dado_inicia(p);
+        // Metade das partidas comeca com bolsas sorteadas entre todos os
+        // tipos, para os dados raros aparecerem logo.
+        if (p % 2) {
+            for (int j = 0; j < 2; j++) {
+                int tipos[12];
+                for (int i = 0; i < 12; i++) tipos[i] = (int)(sorteio() % (uint32_t)dado_dbg_n_tipos());
+                dado_dbg_bolsa(j, tipos, 12);
+            }
+        }
         long passos = 0;
         while (dado_vencedor() < 0) {
             if (++passos > 400000) {

@@ -142,7 +142,7 @@ static const tipo_t TIPO[D_N] = {
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes, fica o maior" },
     { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "+8 se igual ao anterior" },
-    { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "nada anula este dado" },
+    { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "nada o anula nem o ataca" },
     { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "fica com 4: anula o maior do rival" },
     { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8 rola de novo e soma" },
     { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "se fica: vale e tira o valor do rival" },
@@ -151,20 +151,20 @@ static const tipo_t TIPO[D_N] = {
     { "Fichas",     4,  EF_FICHAS,    RAR_RARO,    "fica e vence: ganha o valor" },
     { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: x2 em tudo; 1: rodada vale 0" },
     { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "4 ou menos zera a fila" },
-    { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "algum 1 seu: rouba o menor" },
+    { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "fica e há 1 seu: rouba o menor" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "sem sorteio; quebra ao ser jogado" },
     { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior de cada lado" },
     { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "se fica: rouba o menor rival" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "no fim: x2 nos dados de 1 e 2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +1 nos ímpares; 2: +1 nos pares" },
-    { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "imune à queda e ao Agouro" },
+    { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "nada o anula" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "dados somando 20+: +10 no fim" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
     { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "tira do rival o que tirar" },
     { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4: SORTE, vale 8. 1 a 3: vale 0" },
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10 no fim" },
     { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2 no fim" },
-    { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "nada o anula; anula os seus outros" },
+    { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "não anulável; anula os seus outros" },
 };
 
 // Texto longo de cada dado, para o catalogo. Sem palavras que pedem acento,
@@ -180,27 +180,27 @@ static const char *TEXTO_CAT[D_N] = {
     [D_VICIADO]   = "Rola duas vezes e fica com o maior resultado.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
     [D_PAR]       = "Ganha +8 se repetir o valor do dado anterior na fila. Valor igual nunca anula; menor anula.",
-    [D_ESCUDO]    = "Nada anula este dado: nem queda, nem ataque do rival.",
-    [D_CARRASCO]  = "Se terminar valendo com 4, anula o maior dado do rival.",
+    [D_ESCUDO]    = "Nada anula este dado, e nenhum ataque o alcança: não cai na fila, não é anulado nem roubado.",
+    [D_CARRASCO]  = "Se terminar valendo com 4, anula o maior dado anulável do rival. Escudo, Teimoso e Egoísta resistem à anulação.",
     [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma. Pode explodir 3 vezes seguidas.",
     [D_MARTELO]   = "Coberto de espinhos. Se terminar valendo, soma para você e tira do rival o mesmo valor que tirou.",
     [D_PIRATA]    = "Se terminar valendo com 6 ou mais, tira 4 pontos do rival e fica com eles.",
-    [D_ESPELHO]   = "Se tirar 1 ou 2, vira o maior dado do rival. Sem rival na mesa, repete o anterior.",
+    [D_ESPELHO]   = "Se tirar 1 ou 2, vira sempre o maior dado do rival. Se o rival ainda não jogou, espera: vira no fim da rodada, na conta de quem venceu.",
     [D_FICHAS]    = "Quatro lados. Se terminar valendo e a rodada for sua, ganha fichas iguais ao valor.",
     [D_TUDO_NADA] = "Risco puro. 2: x2 em todos os seus dados no fim. 1: sua rodada vale zero, sem volta.",
     [D_MALDITO]   = "Vinte lados. Se tirar 4 ou menos, zera a fila inteira. Escudo, Teimoso e Egoísta seguram.",
-    [D_TEIMOSO]   = "Seis lados. Nem a queda da fila nem o Agouro o anulam, mas os ataques do rival pegam nele.",
+    [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da fila, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
     [D_SEMENTE]   = "Moeda verde. Se no fim os seus dados somarem 20 ou mais, ganha +10.",
     [D_FOGO]      = "Ficha em chamas. No fim, x2 no seu maior dado — que depois vira cinza e sai do jogo.",
     [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. A queda da fila compara o que saiu.",
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se ele terminar valendo e três dos seus dados que valem mostrarem o mesmo número, contando ele ou não: JACKPOT, +10 no fim.",
     [D_COPIADOR]  = "Seis lados. No fim, cada outro dado seu que mostrar o mesmo número que ele ganha +2. Iguais nunca caem na fila.",
-    [D_EGOISTA]   = "Doze lados e uma coroa. Nada o anula: nem a queda, nem ataques. Mas ele anula todos os seus outros dados da rodada, antes e depois dele. Só o Escudo resiste.",
+    [D_EGOISTA]   = "Doze lados e uma coroa. Nada o anula, mas pode ser roubado. Ele anula todos os seus outros dados da rodada, antes e depois dele. Escudo e Teimoso resistem à anulação.",
     [D_MALDICAO]  = "Quatro lados. O valor dele vai contra o rival: no fim, sai do placar dele. Entra na fila como os outros.",
-    [D_GATUNO]    = "Se algum dado seu tirar 1, rouba o menor dado do rival. Basta ter sido jogado.",
+    [D_GATUNO]    = "Se terminar valendo e algum dado seu tiver tirado 1, rouba o menor dado do rival. Anulado, não rouba nada.",
     [D_QUEBRADO]  = "Oito lados sem sorteio: vale o número gravado nele. Quebra depois de jogado.",
-    [D_INVEJOSO]  = "Anula o maior dado do rival, e junto o seu maior outro dado.",
-    [D_CARIDOSO]  = "Se terminar valendo, rouba o menor dado do rival.",
+    [D_INVEJOSO]  = "Se terminar valendo, anula o maior dado anulável do rival, e junto o seu maior outro dado. Escudo, Teimoso e Egoísta resistem.",
+    [D_CARIDOSO]  = "Se terminar valendo, rouba o menor dado do rival. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. No fim da rodada, x2 em todos os seus dados de valor 1 ou 2.",
     [D_SORTE]     = "Ficha azul e vermelha. Azul (1): +1 em cada dado ímpar. Vermelha (2): +1 em cada dado par.",
 };
@@ -336,6 +336,7 @@ typedef struct {
     bool    quebra[N_FILA];
     bool    cinza[N_FILA];           // queimado pela Ficha de Fogo
     uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
+    bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     char    tag[N_FILA][14];
     bool    zerada;                  // Tudo ou Nada tirou 1: a rodada vale 0
     int     pontos;
@@ -354,7 +355,7 @@ typedef struct {
 
 // Eventos do desfecho, tocados um a um.
 enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SEMENTE,
-       EV_ZERA, EV_JACKPOT };
+       EV_ZERA, EV_JACKPOT, EV_ESPELHO };
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -379,6 +380,7 @@ static int  a_pagar, passes;
 static bool aumentou;
 static float t_fase, t_som;
 static int  venc_mao, venc_partida;
+static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];
 static char aviso[64], veredito[64], nota[48];
 static int  ver_tipo;
@@ -394,6 +396,7 @@ static roubado_t vis_roubo[2][4];
 static int  vis_nroubo[2], vis_delta[2];
 static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
+static uint8_t vis_espelho[2][N_FILA];   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
 static uint8_t vis_zerada[2];
 
@@ -1332,20 +1335,31 @@ static int valor_pontos(int j, int k)
     return F[j].valor[k];
 }
 
-// Escudo: nada o anula. Teimoso: so a queda da fila nao o anula.
-// Egoista: nada o anula, como o Escudo.
-static bool escudo(int j, int k)
+// Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
+// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e o Egoista.
+// Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
+// So o Escudo.
+static bool nao_anulavel_t(int t)
 {
-    int ef = TIPO[tipo_de(j, k)].efeito;
-    return ef == EF_ESCUDO || ef == EF_EGOISTA;
-}
-static bool firme(int j, int k)
-{
-    int ef = TIPO[tipo_de(j, k)].efeito;
+    int ef = TIPO[t].efeito;
     return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_EGOISTA;
 }
-// Dado que resiste ao Egoista: o Escudo e o proprio Egoista.
-static bool resiste_egoista(int t) { return TIPO[t].efeito == EF_ESCUDO || TIPO[t].efeito == EF_EGOISTA; }
+static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
+static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
+static bool resiste_egoista(int t) { return nao_anulavel_t(t); }
+
+// O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
+// vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
+static int maior_do_rival(int j)
+{
+    const fila_t *r = &F[outro(j)];
+    int vale = 0, qualquer = 0;
+    for (int i = 0; i < r->lancados; i++) {
+        if (r->valor[i] > qualquer) qualquer = r->valor[i];
+        if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
+    }
+    return vale ? vale : qualquer;
+}
 // Algum Egoista valendo antes do dado k?
 static int egoista_antes(int j, int k)
 {
@@ -1419,19 +1433,21 @@ static void aplica_regra(int j, int k)
     anulou_a = anulou_b = -1;
     anulou_masc = 0;
     resistiu = -1;
-    bool espelhou = false;
+    bool espelhou = false, espera = false;
 
-    // Espelho caido baixo vira o maior dado do rival (ou o seu ultimo, se o
-    // rival ainda nao jogou). Nunca cai, portanto.
+    // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
+    // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
+    // vale como esta, sem cair.
     if (ef == EF_ESPELHO && v <= 2) {
-        int r = outro(j), alvo = -1;
-        for (int i = 0; i < F[r].lancados; i++)
-            if (F[r].est[i] == V_VALIDO && F[r].valor[i] > alvo) alvo = F[r].valor[i];
-        if (alvo < 0 && l >= 0) alvo = f->valor[l];
-        if (alvo > v) {
+        int alvo = maior_do_rival(j);
+        if (alvo > 0) {
             v = f->valor[k] = alvo;
             snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
             espelhou = true;
+        } else {
+            espera = true;
+            f->espera[k] = true;
+            snprintf(f->tag[k], sizeof f->tag[k], "=?");
         }
     }
 
@@ -1484,7 +1500,7 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    if (l >= 0 && v < f->valor[l]) {
+    if (!espera && l >= 0 && v < f->valor[l]) {
         bool esc_l = firme(j, l), esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
@@ -1519,6 +1535,7 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+2");
             snprintf(veredito, sizeof veredito, "vale %d, igual ao Copiador: +2", vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
+        else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do rival");
         else if (f->dobra[k])  snprintf(veredito, sizeof veredito, "vale %d, x2 no fim", vale);
         else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
         else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa fila nova", vale);
@@ -1559,11 +1576,16 @@ static int contribui(int j, int k)
     return (valor_pontos(j, k) + F[j].bonus[k]) * (F[j].dobra[k] ? 2 : 1);
 }
 
+// Alvo de um ataque na fila de j. maior = true: o maior, para ANULAR (Carrasco,
+// Invejoso) - os nao anulaveis ficam de fora. maior = false: o menor, para
+// ROUBAR (Caridoso, Gatuno) - so o intocavel fica de fora.
 static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 {
     int a = -1;
     for (int i = 0; i < F[j].lancados; i++) {
-        if (i == exceto || est[i] != V_VALIDO || escudo(j, i)) continue;   // so o Escudo barra ataque
+        if (i == exceto || est[i] != V_VALIDO) continue;
+        int t = tipo_de(j, i);
+        if (maior ? nao_anulavel_t(t) : intocavel_t(t)) continue;
         if (a < 0 || (maior ? F[j].valor[i] > F[j].valor[a] : F[j].valor[i] < F[j].valor[a]))
             a = i;
     }
@@ -1731,6 +1753,23 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     for (int j = 0; j < 2; j++) memcpy(d->est[j], F[j].est, N_FILA);
     if (gera) n_ev = 0;
 
+    // Espelho que esperava o rival: vira agora o maior dado dele. No desfecho
+    // de verdade fica assim; na previa, volta como estava no fim da conta.
+    int8_t esp_antes[2][N_FILA];
+    memset(esp_antes, 0, sizeof esp_antes);
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados; k++) {
+            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO) continue;
+            int alvo = maior_do_rival(j);
+            if (alvo <= 0) continue;
+            esp_antes[j][k] = (int8_t)F[j].valor[k];
+            F[j].valor[k] = alvo;
+            if (!gera) continue;
+            F[j].espera[k] = false;
+            snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+            evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+        }
+
     int ordem[2] = { primeiro, outro(primeiro) };
     for (int o = 0; o < 2; o++) {
         int j = ordem[o], r = outro(j);
@@ -1740,8 +1779,9 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         for (int k = 0; k < F[j].lancados; k++) {
             int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k];
             if (d->est[j][k] == V_ROUBADO) continue;
-            // O Gatuno so precisa ter sido jogado; os outros precisam ficar.
-            if (ef == EF_GATUNO ? !tem_um : d->est[j][k] != V_VALIDO) continue;
+            // Todo poder so age se o dado terminar valendo. O Gatuno, alem
+            // disso, precisa de algum 1 tirado por um dado seu.
+            if (d->est[j][k] != V_VALIDO || (ef == EF_GATUNO && !tem_um)) continue;
             const char *nome = TIPO[tipo_de(j, k)].nome;
 
             if (ef == EF_CARRASCO && v == 4) {
@@ -1801,6 +1841,10 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         d->bruto[j] = d->zerada[j] ? 0 : t;
         d->total[j] = (t < 0 || d->zerada[j]) ? 0 : t;
     }
+    if (!gera)                                   // previa: o Espelho segue esperando
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < F[j].lancados; k++)
+                if (esp_antes[j][k]) F[j].valor[k] = esp_antes[j][k];
 }
 
 // Pontuacao que a mesa mostra durante e depois da animacao dos eventos.
@@ -1809,6 +1853,10 @@ static int total_visivel(int j)
     if (vis_zerada[j]) return 0;
     int t = pontos_fila(j, vis_est[j], vis_bonus[j], vis_mult[j]) + vis_delta[j] + vis_semente[j];
     for (int i = 0; i < vis_nroubo[j]; i++) t += vis_roubo[j][i].valor;
+    // Espelho cujo evento ainda nao tocou: na tela, ainda com o que tirou.
+    // (Esses eventos vem antes de todos, sem bonus nem multiplicador ainda.)
+    for (int k = 0; k < F[j].lancados; k++)
+        if (vis_espelho[j][k] && vis_est[j][k] == V_VALIDO) t -= F[j].valor[k] - F[j].cru[k];
     return t < 0 ? 0 : t;
 }
 
@@ -1932,6 +1980,7 @@ static void nova_rodada(void)
     memset(vis_bonus, 0, sizeof vis_bonus);
     memset(vis_mult, 0, sizeof vis_mult);
     memset(vis_queima, 0, sizeof vis_queima);
+    memset(vis_espelho, 0, sizeof vis_espelho);
     memset(vis_semente, 0, sizeof vis_semente);
     memset(vis_zerada, 0, sizeof vis_zerada);
     aviso[0] = veredito[0] = nota[0] = 0;
@@ -1974,6 +2023,7 @@ void dado_inicia(int n_partidas)
     pote = 0;
     primeiro = partidas % 2;
     venc_partida = -1;
+    correu_venc = -1;
 
     uint8_t v[sizeof VITRINE];
     memcpy(v, VITRINE, sizeof v);
@@ -2170,7 +2220,10 @@ static void desfecho(void)
         memset(vis_bonus[j], 0, N_FILA);
         memset(vis_mult[j], 0, N_FILA);
         memset(vis_queima[j], 0, N_FILA);
+        memset(vis_espelho[j], 0, N_FILA);
     }
+    for (int i = 0; i < n_ev; i++)
+        if (ev[i].tipo == EV_ESPELHO) vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
     n_voo = 0;
     ev_i = 0;
     t_fase = 0;
@@ -2209,6 +2262,7 @@ static void aplica_evento(int i)
         }
         break;
     }
+    case EV_ESPELHO: vis_espelho[e->de_j][e->de_k] = 0; break;
     case EV_TIRA:   vis_delta[e->alvo_j] -= e->valor; break;
     case EV_PIRATA: vis_delta[e->alvo_j] -= e->valor; vis_delta[e->de_j] += e->valor; break;
     case EV_BONUS:
@@ -2321,6 +2375,7 @@ static void executa(int op)
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;
+        correu_venc = w;                  // leva tambem o premio, como numa vitoria
         primeiro = w;                     // quem levou joga primeiro na proxima
         for (int j = 0; j < 2; j++) memcpy(vis_est[j], F[j].est, N_FILA);
         recolhe_quebrados();
@@ -2408,7 +2463,7 @@ static void desenha_abertura(void)
               gfx_mistura(C_TEXTO_M, C_FELTRO, 35), GFX_MIUDO, false);
 }
 
-static void abre_premio(void)
+static void abre_premio(int w)
 {
     for (int i = 0; i < 3; i++) {
         bool rep;
@@ -2418,7 +2473,7 @@ static void abre_premio(void)
             for (int k = 0; k < i; k++) if (oferta[k].tipo == oferta[i].tipo) rep = true;
         } while (rep);
     }
-    vez = venc_mao;
+    vez = w;
     cursor = 0;
     removendo = false;
     t_tira = 0;
@@ -3341,12 +3396,17 @@ static void desenha_fila(int j)
         float pulo = 0;
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
             pulo = sinf(t_fase / 0.25f * 3.1416f) * 8;
-        desenha_dado((float)x, y - pulo, R, t, j, 0, f->valor[k], 2, anul);
+        // Espelho que so vira no fim: mostra o que tirou ate o evento dele
+        // chegar na metade, e entao o numero do rival.
+        bool ainda = no_desfecho && vis_espelho[j][k]
+                     && !(e && e->tipo == EV_ESPELHO && e->de_j == j && e->de_k == k && p > 0.5f);
+        desenha_dado((float)x, y - pulo, R, t, j, 0, ainda ? f->cru[k] : f->valor[k], 2, anul);
         // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
         // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
         char tg[16] = "";
         if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
         else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "+%d", vis_bonus[j][k]);
+        else if (ainda) snprintf(tg, sizeof tg, "=?");
         else if (f->tag[k][0]) snprintf(tg, sizeof tg, "%s", f->tag[k]);
         // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
         // Dobro e o +2 do Copiador ficam por conta dela.
@@ -3466,6 +3526,13 @@ static void desenha_evento(void)
         uint16_t c = praga ? C_VIOLETA : C_VINHO_CLR;
         int bx = e->tipo == EV_ANULA ? SLOT_X(e->alvo_k) : PLACAR_X, by = zona(e->alvo_j);
         projetil(ax, ay, bx, by, p / 0.42f, c);
+    }
+    // Espelho: um reflexo sai do maior dado do rival e chega nele.
+    if (e->tipo == EV_ESPELHO) {
+        const fila_t *fr = &F[e->alvo_j];
+        int a = 0;
+        for (int i = 0; i < fr->lancados; i++) if (fr->valor[i] == e->valor) { a = i; break; }
+        projetil(SLOT_X(a), zona(e->alvo_j), ax, ay, p / 0.5f, C_ACO);
     }
     // Ficha de Fogo: linha de fogo tremulando ate o alvo, brasas subindo dele.
     if (e->tipo == EV_FOGO) {
@@ -3917,6 +3984,24 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
     return lin;
 }
 
+// Etiquetas de protecao, ao lado do tipo e da raridade: "não anulável"
+// (Escudo, Teimoso, Egoista) e "intocável" (so o Escudo: nenhum ataque o
+// alcanca). Devolve onde a proxima coisa pode comecar.
+static int etiqueta_caixa(int x, int y, const char *s, uint16_t c)
+{
+    int w = gfx_largura(s, 1) + 12;
+    gfx_rect_alfa(x, y, w, TXT_H + 2, c, 40);
+    gfx_moldura(x, y, w, TXT_H + 2, 1, c);
+    txt(x + 6, y + 1, s, c, false);
+    return x + w + 6;
+}
+static int etiquetas_protecao(int x, int y, int tipo)
+{
+    if (nao_anulavel_t(tipo)) x = etiqueta_caixa(x, y, "não anulável", C_ACO);
+    if (intocavel_t(tipo))    x = etiqueta_caixa(x, y, "intocável", C_OURO);
+    return x;
+}
+
 static void desenha_catalogo(void)
 {
     int tipo = cat_tipo(cat_i);
@@ -3968,7 +4053,8 @@ static void desenha_catalogo(void)
     gfx_rect_alfa(x, 118, wc, TXT_H + 2, cor_rar(tipo), 40);
     gfx_moldura(x, 118, wc, TXT_H + 2, 1, cor_rar(tipo));
     txt(x + 6, 119, s, cor_rar(tipo), false);
-    if (so_inicial(tipo)) txt(x + wc + 10, 119, "dado inicial", C_TEXTO_M, false);
+    int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
+    if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
@@ -4020,6 +4106,7 @@ static void desenha_detalhe(void)
     gfx_rect_alfa(x + wn + 12, y0 + 18, wc, TXT_H - 2, cor_rar(tipo), 40);
     gfx_moldura(x + wn + 12, y0 + 18, wc, TXT_H - 2, 1, cor_rar(tipo));
     gfx_texto(x + wn + 17, y0 + 16, s, cor_rar(tipo), 1, false);
+    etiquetas_protecao(x + wn + 12 + wc + 6, y0 + 17, tipo);
     gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
     quebra_linhas(x, y0 + 54, w - 180, 6, TEXTO_CAT[tipo], C_MARFIM);
     txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
@@ -4306,12 +4393,24 @@ static int eixo(int k)
     return 0;
 }
 
+// A partida acaba ao fim desta rodada? (ultima rodada, ou alguem sem
+// fichas para a proxima entrada). Entao nao ha premio: o jogo encerra.
+static bool ultima_rodada(void)
+{
+    return rodada >= MAX_RODADAS || J[0].fichas < ANTE || J[1].fichas < ANTE;
+}
+
 static void segue_do_resultado(void)
 {
-    if (venc_mao == 0 || venc_mao == 1) {
-        primeiro = venc_mao;
-        abre_premio();
+    // Quem venceu a rodada, ou quem ficou com o pote porque o outro correu,
+    // escolhe um premio - menos quando a partida ja acabou.
+    int w = (venc_mao == 0 || venc_mao == 1) ? venc_mao : correu_venc;
+    correu_venc = -1;
+    if (w >= 0 && !ultima_rodada()) {
+        primeiro = w;
+        abre_premio(w);
     } else {
+        if (w >= 0) primeiro = w;
         if (venc_mao == 2) primeiro ^= 1;
         nova_rodada();
     }

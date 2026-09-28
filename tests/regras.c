@@ -348,6 +348,110 @@ int main(void)
         CONFERE(pv.bruto[0] == -3 && pv.total[0] == 0, "previa negativa: bruto %d total %d", pv.bruto[0], pv.total[0]);
     }
 
+    // ---- Nao anulaveis (Escudo, Teimoso, Egoista) e intocavel (Escudo) --
+    limpa();
+    joga(0, D_TEIMOSO, 3);
+    joga(0, D_EGOISTA, 7);
+    CONFERE(F[0].est[0] == V_VALIDO, "Egoista nao devia anular o Teimoso");
+    limpa();
+    joga(1, D_TEIMOSO, 6);
+    joga(1, D_D4, 2);                  // cai: o Teimoso segura, o 2 cai
+    joga(0, D_CARRASCO, 4);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Carrasco nao devia anular o Teimoso");
+    limpa();
+    joga(1, D_EGOISTA, 9);
+    joga(0, D_INVEJOSO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Invejoso nao devia anular o Egoista");
+    // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.
+    limpa();
+    joga(1, D_EGOISTA, 5);
+    joga(0, D_CARIDOSO, 2);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO, "Caridoso devia roubar o Egoista");
+    limpa();
+    joga(1, D_TEIMOSO, 5);
+    joga(0, D_CARIDOSO, 2);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO, "Caridoso devia roubar o Teimoso");
+    limpa();
+    joga(1, D_ESCUDO, 5);
+    joga(0, D_CARIDOSO, 2);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Escudo e intocavel: nao devia ser roubado");
+
+    // ---- Gatuno: so rouba se terminar valendo ---------------------------
+    limpa();
+    joga(1, D_D6, 4);
+    joga(0, D_D2, 1);
+    joga(0, D_GATUNO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO, "Gatuno valendo com um 1 seu devia roubar");
+    limpa();
+    joga(1, D_D6, 4);
+    joga(0, D_D8, 5);
+    joga(0, D_GATUNO, 1);              // 1 < 5: cai junto com o 5
+    CONFERE(F[0].est[1] == V_ANULADO, "Gatuno 1 depois de 5 devia cair");
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Gatuno anulado nao devia roubar");
+
+    // ---- Espelho: vira sempre o maior do rival ---------------------------
+    limpa();
+    primeiro = 1;
+    joga(1, D_D8, 7);
+    joga(1, D_D4, 1);                  // cai: sobra... nada, os dois caem
+    joga(1, D_D12, 9);
+    joga(0, D_ESPELHO, 2);
+    CONFERE(F[0].valor[0] == 9, "Espelho do segundo devia virar o 9 do rival, virou %d", F[0].valor[0]);
+    limpa();
+    primeiro = 1;
+    joga(1, D_D2, 1);
+    joga(0, D_ESPELHO, 2);
+    CONFERE(F[0].valor[0] == 1, "Espelho vira sempre o maior do rival, ate menor: devia ser 1, e %d", F[0].valor[0]);
+    // Quem abre: o Espelho espera, nao cai, e vira no fim.
+    limpa();
+    primeiro = 0;
+    joga(0, D_D6, 5);
+    joga(0, D_ESPELHO, 1);
+    CONFERE(F[0].est[1] == V_VALIDO && F[0].espera[1], "Espelho de quem abre devia esperar valendo");
+    joga(1, D_D6, 3);
+    joga(1, D_D12, 11);
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        CONFERE(pv.total[0] == 5 + 11, "previa com Espelho esperando: esperava 16, deu %d", pv.total[0]);
+        CONFERE(F[0].valor[1] == 1 && F[0].espera[1], "a previa nao devia mexer no Espelho");
+    }
+    d = fim();
+    CONFERE(d.total[0] == 16 && F[0].valor[1] == 11 && !F[0].espera[1],
+            "Espelho no fim: total %d, valor %d", d.total[0], F[0].valor[1]);
+    bool viu_esp = false;
+    for (int i = 0; i < n_ev; i++) viu_esp |= ev[i].tipo == EV_ESPELHO;
+    CONFERE(viu_esp, "Espelho no fim: faltou o evento");
+
+    // ---- Premio: quem ganha no correr tambem escolhe; no fim, nao ha ------
+    for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+    J[0].fichas = J[1].fichas = 80;
+    rodada = 3;
+    aposta_zera(80, 80);
+    executa(OP_APOSTAR10);
+    executa(OP_CORRER);                // B corre: A leva o pote
+    segue_do_resultado();
+    CONFERE(fase == F_PREMIO && vez == 0, "quem leva no correr devia escolher premio (fase %d vez %d)", fase, vez);
+    rodada = MAX_RODADAS;
+    venc_mao = 1;
+    J[0].fichas = J[1].fichas = 80;
+    fase = F_RESULTADO;
+    segue_do_resultado();
+    CONFERE(fase == F_FIM, "ultima rodada: sem premio, a partida acaba (fase %d)", fase);
+    rodada = 5;
+    venc_mao = 0;
+    J[0].fichas = 150; J[1].fichas = 3;
+    fase = F_RESULTADO;
+    segue_do_resultado();
+    CONFERE(fase == F_FIM && venc_partida == 0, "rival sem fichas: sem premio, acaba (fase %d)", fase);
+
     // ---- IA: nao troca empate certo por derrota certa --------------------
     // O rival abriu e fez 6. A IA tem um 6 valendo e o proximo e um Quebrado
     // com 1 gravado: lancar anula o 6 e o 1. Parar empata.

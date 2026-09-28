@@ -22,6 +22,10 @@ uint16_t gfx_mistura(uint16_t a, uint16_t b, int pct);   // pct 0 = a, 100 = b
 
 // Texto em UTF-8 (acentos do Latin-1). 'esc' amplia cada pixel da fonte;
 // 'negrito' repete o glifo um pixel ao lado. Devolve a largura em pixels.
+// esc = GFX_MIUDO (0): texto miudo, a 65% do normal (no texto em pixels, sem
+// fonte nitida, fica do tamanho normal).
+#define GFX_MIUDO 0
+#define GFX_MIUDO_ESC 0.65f
 int gfx_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
 int gfx_largura(const char *s, int esc);
 

@@ -136,7 +136,7 @@ static const tipo_t TIPO[D_N] = {
     { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados" },
     { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "no fim, o seguinte vale x2" },
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes, fica o maior" },
-    { "Lastro",    12,  EF_LASTRO,    RAR_INCOMUM, "nunca menos que 6" },
+    { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "+8 se igual ao anterior" },
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "nada anula este dado" },
     { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "fica com 4: anula o maior do rival" },
@@ -174,7 +174,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D20]       = "Vinte lados. O maior da mesa: melhor no fim da fila.",
     [D_DOBRO]     = "No fim da rodada, o dado que ficar logo depois dele vale x2. Multiplicadores se somam: x2 e x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior resultado.",
-    [D_LASTRO]    = "Doze lados, mas nunca vale menos que 6.",
+    [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
     [D_PAR]       = "Ganha +8 se repetir o valor do dado anterior na fila. Valor igual nunca anula; menor anula.",
     [D_ESCUDO]    = "Nada anula este dado: nem queda, nem ataque do rival.",
     [D_CARRASCO]  = "Se terminar valendo com 4, anula o maior dado do rival.",
@@ -447,6 +447,13 @@ static uint32_t rnd_v(void)
 }
 static float frnd(float a, float b) { return a + (b - a) * (float)(rnd_v() % 10000) / 10000.0f; }
 static int rola_v(int lados) { return 1 + (int)(rnd_v() % (uint32_t)lados); }
+// Face que pisca enquanto o dado rola: so as que ele pode mostrar.
+static int face_v(int tipo, int valor)
+{
+    if (tipo == D_QUEBRADO) return valor;
+    if (tipo == D_LASTRO)   return 5 + rola_v(7);
+    return rola_v(TIPO[tipo].lados);
+}
 static int outro(int j) { return j ^ 1; }
 static int rola(int lados) { return 1 + sorte(lados); }
 static int baixo;                        // quem aparece embaixo: o jogador local
@@ -1203,7 +1210,7 @@ static bool fisica(float dt)
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
         if (v->t_face <= 0) {
-            v->face = v->tipo == D_QUEBRADO ? v->valor : rola_v(TIPO[v->tipo].lados);
+            v->face = face_v(v->tipo, v->valor);
             v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
         }
         if (vel < 36 || t_fase > 6.0f) {
@@ -1538,6 +1545,7 @@ typedef struct {
     int roubo_val[2];
     int delta[2];
     int total[2];
+    int bruto[2];                    // o total antes de travar em 0 (a previa mostra negativo)
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -1785,6 +1793,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     for (int j = 0; j < 2; j++) {
         int t = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j]
               + d->delta[j] + d->semente[j];
+        d->bruto[j] = d->zerada[j] ? 0 : t;
         d->total[j] = (t < 0 || d->zerada[j]) ? 0 : t;
     }
 }
@@ -1817,10 +1826,9 @@ static int risco(int j)
             for (int b = 1; b <= lados; b++) { total++; if ((a > b ? a : b) < L) ruins++; }
         return ruins * 100 / total;
     }
-    for (int a = 1; a <= lados; a++) {
+    for (int a = ef == EF_LASTRO ? 6 : 1; a <= lados; a++) {   // Lastro: so 6 a 12
         int v = a;
         total++;
-        if (ef == EF_LASTRO && v < 6) v = 6;
         if (ef == EF_EXPLODE && v == lados) continue;
         if (ef == EF_ESPELHO && v <= 2) continue;
         if ((ef == EF_MALDITO && v <= 4) || (ef == EF_TUDO_NADA && v == 1)) { ruins++; continue; }
@@ -2008,7 +2016,7 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         if (y > x) x = y;
         break;
     }
-    case EF_LASTRO:  if (x < 6) x = 6; break;
+    case EF_LASTRO:  x = 5 + r(7); break;    // 6 a 12, 1 em 7 cada
     case EF_EXPLODE: {
         int n = x, g = 0;
         while (n == lados && g++ < 3) { n = r(lados); x += n; }
@@ -2042,7 +2050,7 @@ static void lanca_proximo(void)
     v->vx = frnd(-300, 300);
     v->vy = (vez == baixo ? -1 : 1) * frnd(420, 600);
     v->spin = frnd(-14, 14);
-    v->face = t == D_QUEBRADO ? x : rola_v(lados);
+    v->face = face_v(t, x);
     n_voo = 1;
     f->descarte[k] = (uint8_t)menor;
     // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
@@ -2432,7 +2440,7 @@ static float media(peca_t p)
     const tipo_t *t = &TIPO[p.tipo];
     switch (t->efeito) {
     case EF_QUEBRADO: return p.fixo;
-    case EF_LASTRO:   return 7.75f;
+    case EF_LASTRO:   return 9.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
     default:          return (t->lados + 1) / 2.0f;
@@ -3103,7 +3111,16 @@ static void desenha_lance(void)
             sombra_alt = 0;
             continue;
         }
-        desenha_dado(v->x, v->y, r, v->tipo, v->dono, v->giro,
+        // Na tela inicial, depois de assentar, os dados flutuam de leve (o
+        // balanco entra devagar, sem pulo), e a sombra acompanha.
+        float bob = 0;
+        if (fase == F_ABERTURA && abertura_pronta && v->parado) {
+            float entra = fminf(1, t_fase / 0.8f);
+            float alto = (1 + sinf(t_fase * 2.2f + i * 1.9f)) * 3 * entra;   // 0..6 px
+            bob = -alto;
+            sombra_alt = alto * 0.6f;
+        }
+        desenha_dado(v->x, v->y + bob, r, v->tipo, v->dono, v->giro,
                      v->parado ? v->valor : v->face, 2, descartado);
         sombra_alt = 0;
     }
@@ -3235,6 +3252,14 @@ static void desenha_fila(int j)
 
     if (f->n == 0 && j != vez) return;                   // fila alheia ainda vazia
 
+    // Previa do fim da rodada, calculada pelas regras de verdade: o que cada
+    // dado ja ganhou de outro (Moeda da sorte, Copiador, multiplicadores) e
+    // o total com isso e com o que o rival ja tirou. So durante o jogo; no
+    // desfecho sao os eventos que mostram.
+    bool previa = !no_desfecho && fase != F_FIM && (F[0].lancados || F[1].lancados);
+    desfecho_t pv;
+    if (previa) calcula_desfecho(&pv, false);
+
     for (int k = 0; k < f->n; k++) {
         int x = SLOT_X(k);
         bool voando = n_voo && (fase == F_ROLANDO || fase == F_ARRUMA)
@@ -3305,6 +3330,16 @@ static void desenha_fila(int j)
         if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
         else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "+%d", vis_bonus[j][k]);
         else if (f->tag[k][0]) snprintf(tg, sizeof tg, "%s", f->tag[k]);
+        // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
+        // Dobro e o +2 do Copiador ficam por conta dela.
+        int extra = 0;
+        if (previa && f->est[k] == V_VALIDO && pontua(j, k)) {
+            int base = valor_pontos(j, k) + f->bonus[k];
+            int m = pv.mult[j][k] > 0 ? pv.mult[j][k] : 1;
+            int fim = pv.est[j][k] == V_VALIDO ? (base + pv.bonus[j][k]) * m : 0;
+            extra = fim - base;
+        }
+        if (previa && (!strcmp(tg, "x2") || !strcmp(tg, "+2"))) tg[0] = 0;
         // Egoista chegando: uma onda purpura se abre dele e derruba os outros.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_EGOISTA
             && anulou_masc && t_fase < 0.9f) {
@@ -3350,6 +3385,16 @@ static void desenha_fila(int j)
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
         if (tg[0] && !anul) etiqueta(x, y, tg);        // por cima dos aros
+        // O bonus, miudo e apagado, no canto de cima a direita (depois da
+        // etiqueta, se houver uma).
+        if (extra && !anul) {
+            char b[8];
+            snprintf(b, sizeof b, "%+d", extra);
+            int bx = tg[0] ? x + R + 3 + gfx_largura(tg, 1) : x + R - 4, by = y - R - 10;
+            uint16_t cb = extra > 0 ? gfx_mistura(C_MARFIM_S, C_FELTRO, 35)
+                                    : gfx_mistura(C_VINHO_CLR, C_FELTRO, 30);
+            gfx_texto(bx, by, b, cb, GFX_MIUDO, false);
+        }
     }
     // O par que se anulou fica unido por um traco.
     if (fase == F_VEREDITO && j == vez && anulou_a >= 0 && anulou_b >= 0)
@@ -3363,7 +3408,7 @@ static void desenha_fila(int j)
             desenha_dado((float)ROUBO_X(i), (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, false);
         }
 
-    if (f->lancados || vis_nroubo[j]) {
+    if (f->lancados || vis_nroubo[j] || (previa && pv.bruto[j] != 0)) {
         char s[16];
         int pts = fase == F_RESULTADO && venc_mao >= 0 ? f->total
                 : no_desfecho ? total_visivel(j) : f->pontos;
@@ -3379,6 +3424,12 @@ static void desenha_fila(int j)
         gfx_rect_alfa(PLACAR_X - 34, y - 26, 68, 50, C_SOMBRA, 140);
         txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
         txt_c2(PLACAR_X, y - 20, s, c);
+        // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
+        // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).
+        if (previa && pv.bruto[j] != pts) {
+            snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
+            txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
+        }
     }
 }
 
@@ -4077,9 +4128,9 @@ static const pagina_t TUTORIAL[] = {
         "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
         "São 33 dados, cada um com um poder: veja todos em Dados da casa." } },
     { "Teclas", {
-        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para",
-        "I mostra tudo sobre o dado escolhido  ·  BACKSPACE tira da fila  ·  X recusa o prêmio  ·  ESC duas vezes: menu",
-        "M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
+        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira da fila",
+        "Durante o jogo, aperte I para ver tudo sobre o dado escolhido: na mão, na loja, no prêmio ou o próximo da fila.",
+        "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
 

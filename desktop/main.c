@@ -188,15 +188,16 @@ static void desenha_textos(Rectangle area)
     float k = area.width / GFX_W;
     for (int i = 0; i < n_textos; i++) {
         const texto_t *t = &textos[i];
-        float tam = FT_EM * t->esc * k;
+        float e = t->esc == GFX_MIUDO ? GFX_MIUDO_ESC : (float)t->esc;
+        float tam = FT_EM * e * k;
         float x = area.x + t->x * k, y = area.y + t->y * k;
         Color c = rgb565(t->cor);
         const char *s = letras + t->ini;
         while (*s) {
             int cp = gfx_proximo_car(&s);
             DrawTextCodepoint(fonte, cp, (Vector2){ x, y }, tam, c);
-            if (t->negrito) DrawTextCodepoint(fonte, cp, (Vector2){ x + k * 0.45f * t->esc, y }, tam, c);
-            x += FT_AVANCO[cp - FONTE_PRIM] * t->esc * k / 64.0f;
+            if (t->negrito) DrawTextCodepoint(fonte, cp, (Vector2){ x + k * 0.45f * e, y }, tam, c);
+            x += FT_AVANCO[cp - FONTE_PRIM] * e * k / 64.0f;
         }
     }
 }

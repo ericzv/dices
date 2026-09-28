@@ -141,6 +141,7 @@ static void glifo(int x, int y, int ch, uint16_t c, int e)
 int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 {
     if (nitido) { nitido(x, y, s, c, e, negrito); return gfx_largura(s, e); }
+    if (e < 1) e = 1;                             // miudo: em pixels, o menor que ha
     int x0 = x;
     while (*s) {
         int ch = gfx_proximo_car(&s);
@@ -156,8 +157,10 @@ int gfx_largura(const char *s, int e)
     int n = 0;
     if (nitido) {                                 // soma os avancos da Jersey 10
         while (*s) n += FT_AVANCO[gfx_proximo_car(&s) - FONTE_PRIM];
+        if (e == GFX_MIUDO) return (int)(n * GFX_MIUDO_ESC / 64 + 0.5f);
         return (n * e + 32) / 64;
     }
+    if (e < 1) e = 1;
     while (*s) { gfx_proximo_car(&s); n++; }
     return n * FONTE_LARG * e;
 }

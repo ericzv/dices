@@ -317,6 +317,37 @@ int main(void)
         if (falhas > 20) break;
     }
 
+    // ---- Lastro: 6 a 12, cada um 1 em 7 ---------------------------------
+    {
+        int cont[13] = { 0 }, n = 70000, menor;
+        semente = 0x1234567u;                    // o sorteio da partida, semeado
+        for (int i = 0; i < n; i++) {
+            int v = sorteia_valor(D_LASTRO, 0, rola, &menor);
+            CONFERE(v >= 6 && v <= 12, "Lastro tirou %d", v);
+            if (v >= 6 && v <= 12) cont[v]++;
+        }
+        for (int v = 6; v <= 12; v++)
+            CONFERE(cont[v] > n / 7 * 0.94 && cont[v] < n / 7 * 1.06,
+                    "Lastro: o %d saiu %d vezes em %d (esperado ~%d)", v, cont[v], n, n / 7);
+        CONFERE(TIPO[D_LASTRO].raridade == RAR_RARO, "Lastro devia ser raro");
+        // Risco com barra 9: 6, 7 e 8 caem = 3 em 7.
+        limpa();
+        joga(0, D_D12, 9);
+        F[0].tipo[1] = D_LASTRO; F[0].n = 2;
+        CONFERE(risco(0) == 300 / 7, "Lastro com barra 9: risco %d, esperado %d", risco(0), 300 / 7);
+    }
+
+    // ---- Previa: o total com os bonus pode ser negativo ------------------
+    limpa();
+    primeiro = 1;
+    joga(1, D_MARTELO, 4);              // Espinhoso do rival: -4
+    joga(0, D_D4, 1);
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        CONFERE(pv.bruto[0] == -3 && pv.total[0] == 0, "previa negativa: bruto %d total %d", pv.bruto[0], pv.total[0]);
+    }
+
     // ---- IA: nao troca empate certo por derrota certa --------------------
     // O rival abriu e fez 6. A IA tem um 6 valendo e o proximo e um Quebrado
     // com 1 gravado: lancar anula o 6 e o 1. Parar empata.

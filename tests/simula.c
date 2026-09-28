@@ -12,6 +12,7 @@
 #include "hal/display.h"
 #include "hal/keyboard.h"
 #include "hal/som.h"
+#include "hal/salva.h"
 #include "games/jogos.h"
 #include "esp_timer.h"
 
@@ -26,6 +27,12 @@ bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
+
+// Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
+static char salvo[4096];
+bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
+int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
+void salva_apaga(void) { salvo[0] = 0; }
 
 static uint32_t estado = 2463534242u;
 static uint32_t sorteio(void)
@@ -143,7 +150,7 @@ int main(int argc, char **argv)
 
     if (falhas) return 1;
     if (dir_fotos)                               // e as paginas do tutorial
-        for (int pag = 0; pag < 7; pag++) {
+        for (int pag = 0; pag < 8; pag++) {
             dado_dbg_tutorial(pag);
             dado_desenha();
             foto(dir_fotos, 20 + pag);

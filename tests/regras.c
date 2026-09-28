@@ -13,6 +13,12 @@ bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 
+// Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
+static char salvo[4096];
+bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
+int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
+void salva_apaga(void) { salvo[0] = 0; }
+
 static int falhas;
 #define CONFERE(cond, ...) do { if (!(cond)) { printf("FALHOU %s:%d: ", __FILE__, __LINE__); \
     printf(__VA_ARGS__); putchar('\n'); falhas++; } } while (0)

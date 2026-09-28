@@ -13,6 +13,20 @@ seguintes precisam ser iguais ou maiores que o último que vale — se sair meno
 os dois se anulam. Entre os turnos tem aposta, e 33 dados mudam as
 regras (veja o menu **Dados** no jogo).
 
+## 1 jogador: partida rápida ou Modo Desafiante
+
+- **Partida rápida**: 15 rodadas contra o computador, em três níveis —
+  **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
+  **Difícil** (simula as jogadas antes de decidir).
+- **Modo Desafiante**: uma run pelo cassino. São 3 salões com 4 mesas cada
+  (a última é o chefe). No mapa você escolhe o caminho entre mesas fáceis,
+  médias e difíceis, e às vezes uma loja. Cada partida tem 8 rodadas e 50
+  fichas de cada lado; vencer converte as fichas que sobraram em moedas de
+  ouro e dá um dado de prêmio. As moedas compram dados nas lojas. Perdeu, a
+  run acaba — nada passa para a próxima. A run fica guardada (no PC, numa
+  pasta do usuário; no navegador, no próprio navegador) e dá para continuar
+  depois.
+
 ## Jogar no navegador (e online)
 
 **https://ericzv.github.io/dices/** — abre direto no navegador, sem instalar.

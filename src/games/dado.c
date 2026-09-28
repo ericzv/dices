@@ -21,6 +21,7 @@
 // cardputer/dado.c). Os textos sao UTF-8, com acentos.
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "esp_timer.h"
@@ -80,7 +81,8 @@
 #define ANTE        5
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
-#define MAX_COL     24             // dados que um jogador pode ter
+#define MAX_COL     48             // espaco para a colecao (o Desafiante nao tem limite)
+#define LIM_COL     24             // dados que um jogador pode ter na partida normal
 #define MAO         7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
@@ -406,7 +408,8 @@ typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
 
 enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
-       F_ONLINE, F_TUTORIAL };
+       F_ONLINE, F_TUTORIAL,
+       F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM };      // Modo Desafiante
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -443,12 +446,26 @@ static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
 static int  menu_cur;                // opcao do menu de abertura
+// Qual lista o menu mostra: a principal, "1 jogador", o nivel da partida
+// rapida ou a escolha da run do Modo Desafiante.
+enum { MT_PRINCIPAL, MT_UM, MT_NIVEL, MT_DESAFIO };
+static int  menu_tela;
 static float sacode;                 // 1 quando o cursor do menu anda: os dados chacoalham
 enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
 
 // Modos: contra o computador, dois no mesmo teclado, ou online.
-enum { M_UM, M_DOIS, M_ONLINE };
+enum { M_UM, M_DOIS, M_ONLINE, M_DESAFIO };
 static int  modo;
+// Quantos dados cabem na colecao: 24 na partida normal; sem limite pratico
+// no Modo Desafiante.
+static int lim_col(void) { return modo == M_DESAFIO ? MAX_COL : LIM_COL; }
+
+// Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
+#define DES_RODADAS 8                // rodadas de cada partida da run
+#define DES_EXTRAS  3                // rodadas extras se terminar empatado
+static void des_resultado(void);
+static void des_premio_feito(void);
+static int  des_foco(void);
 static int  remoto;                  // bit j: jogador j joga do outro computador
 static uint32_t semente_online;
 #define FILA_REDE 256
@@ -1984,13 +2001,17 @@ static void encerra(int vencedor)
 {
     venc_partida = vencedor;
     fase = F_FIM;
+    if (modo == M_DESAFIO) des_resultado();   // a run anota na hora
 }
 
 static void nova_rodada(void)
 {
     rodada++;
     plano_rodada = -1;                       // a IA monta outra fila
-    if (rodada > MAX_RODADAS) {
+    // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
+    int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
+    bool extra = modo == M_DESAFIO && J[0].fichas == J[1].fichas && rodada <= max_r + DES_EXTRAS;
+    if (rodada > max_r && !extra) {
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
     }
@@ -2061,6 +2082,7 @@ void dado_inicia(int n_partidas)
     primeiro = partidas % 2;
     venc_partida = -1;
     correu_venc = -1;
+    menu_tela = MT_PRINCIPAL;
 
     uint8_t v[sizeof VITRINE];
     memcpy(v, VITRINE, sizeof v);
@@ -2462,6 +2484,23 @@ static void icone_som(int x, int y)
     }
 }
 
+static bool des_tem_run(void);
+static void des_resumo(char *s, int n);
+
+// As opcoes da lista do menu em uso.
+static int menu_opcoes(const char **op)
+{
+    switch (menu_tela) {
+    case MT_UM:      op[0] = "Partida rápida"; op[1] = "Modo Desafiante"; return 2;
+    case MT_NIVEL:   op[0] = "Fácil"; op[1] = "Médio"; op[2] = "Difícil"; return 3;
+    case MT_DESAFIO: op[0] = "Continuar a run"; op[1] = "Nova run"; return 2;
+    default:
+        op[0] = "1 jogador"; op[1] = "2 jogadores"; op[2] = "Online";
+        op[3] = "Dados da casa"; op[4] = "Como jogar";
+        return MN_N;
+    }
+}
+
 static void desenha_abertura(void)
 {
     desenha_lance();
@@ -2478,20 +2517,39 @@ static void desenha_abertura(void)
     gfx_texto(x0, 70, parcial, C_LATAO, 3, true);
     if (t_fase < 0.75f) return;
     gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
-    txt_c(GFX_W / 2, 140, "Criado por ERICZ", C_TEXTO_M, false);
+    static const char *const SUB[] = { "Criado por ERICZ", "1 jogador", "Partida rápida · escolha o nível",
+                                       "Modo Desafiante" };
+    txt_c(GFX_W / 2, 140, SUB[menu_tela], menu_tela ? C_LATAO : C_TEXTO_M, menu_tela != 0);
 
-    static const char *OP[MN_N] = { "1 jogador", "2 jogadores", "Online",
-                                    "Dados da casa", "Como jogar" };
-    for (int i = 0; i < MN_N; i++) {
+    const char *op[MN_N];
+    int n_op = menu_opcoes(op);
+    for (int i = 0; i < n_op; i++) {
         int yb = 170 + i * 26;
         bool cur = i == menu_cur;
         gfx_rect(GFX_W / 2 - 110 + 2, yb + 2, 220, 22, C_SOMBRA);
         gfx_rect(GFX_W / 2 - 110, yb, 220, 22, cur ? C_LATAO : C_FELTRO_ESC);
         gfx_moldura(GFX_W / 2 - 110, yb, 220, 22, 1, cur ? C_BRANCO : C_FELTRO2);
-        txt_c(GFX_W / 2, yb + 1, OP[i], cur ? C_BARRA : C_MARFIM, cur);
+        txt_c(GFX_W / 2, yb + 1, op[i], cur ? C_BARRA : C_MARFIM, cur);
     }
-    txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12,
-          "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
+    // Nos submenus, uma linha explica a opcao em foco.
+    char dica[96] = "";
+    if (menu_tela == MT_UM)
+        snprintf(dica, sizeof dica, "%s", menu_cur == 0 ? "15 rodadas contra o computador."
+                                                          : "Suba os 3 salões do cassino. Perdeu, acabou.");
+    else if (menu_tela == MT_NIVEL) {
+        static const char *const NIV[] = { "Joga por regras simples.",
+                                           "Pensa, mas erra de vez em quando.",
+                                           "Calcula cada jogada." };
+        snprintf(dica, sizeof dica, "%s", NIV[menu_cur]);
+    } else if (menu_tela == MT_DESAFIO) {
+        if (menu_cur == 0) des_resumo(dica, sizeof dica);
+        else snprintf(dica, sizeof dica, "A run guardada será perdida.");
+    }
+    if (dica[0]) txt_c(GFX_W / 2, 170 + n_op * 26 + 8, dica, menu_cur == 1 && menu_tela == MT_DESAFIO
+                                                          ? C_VINHO_CLR : C_MARFIM_S, false);
+    txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12, menu_tela
+          ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
+          : "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
           C_TEXTO_M, false);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
     char ver[32];
@@ -2699,6 +2757,21 @@ static float sim_resto(int j)
 
 #define IA_AMOSTRAS 240
 static int ia_esforco = 1;                   // o simulador pede menos para andar rapido
+// Nivel da IA: 0 facil (a IA antiga, de regras simples), 1 medio (a que
+// imagina jogadas, mas pensando pouco: erra de vez em quando), 2 dificil.
+static int ia_nivel = 2;
+static int nivel_jog[2] = { 2, 2 };          // o nivel de cada lado (so conta onde ha IA)
+static float ousadia_jog[2];
+// Ousadia nas apostas, de -1 (cautela) a +1 (aposta alto): o jeito de cada
+// oponente do Modo Desafiante. 0 na partida rapida.
+static float ia_ousadia;
+// Quantas rodadas de mentira cabem numa decisao, pelo nivel.
+static int amostras_ia(int cheio, int pouco)
+{
+    if (ia_esforco == 0) return pouco;
+    if (ia_nivel == 1) return cheio / 6 > pouco ? cheio / 6 : pouco;
+    return cheio;
+}
 
 // ---- A fila ----------------------------------------------------------------
 // Testa toda ordem de ate quatro dados da mao, jogando cada uma varias vezes
@@ -2770,8 +2843,10 @@ static void ia_planeja(void)
     // Primeira peneira com poucas jogadas; as melhores jogam de novo, muito mais.
     int a1 = nc > 60 ? 24 : 64;
     if (ia_esforco == 0) a1 = 4;
+    else if (ia_nivel == 1) a1 = 6;
     for (int c = 0; c < nc; c++) nota_c[c] = avalia_fila(j, cand[c], L, a1, base, &m);
-    int finalistas = ia_esforco ? 8 : 2, a2 = ia_esforco ? IA_AMOSTRAS : 24;
+    int finalistas = ia_esforco == 0 ? 2 : (ia_nivel == 1 ? 3 : 8);
+    int a2 = amostras_ia(IA_AMOSTRAS, 24);
     int melhor = -1;
     float nota_m = -1;
     for (int f = 0; f < finalistas && f < nc; f++) {
@@ -2808,7 +2883,7 @@ static bool ia_continua(void)
     if (f->lancados == 0) return true;
     mesa_t m;
     guarda_mesa(&m);
-    int amostras = ia_esforco ? IA_AMOSTRAS : 24;
+    int amostras = amostras_ia(IA_AMOSTRAS, 24);
     uint32_t base = 0xC0FFEEu + (uint32_t)rodada * 31u + (uint32_t)f->lancados;
     float parar = 0, seguir = 0;
     for (int a = 0; a < amostras; a++) {
@@ -2837,7 +2912,7 @@ static float ia_chance(void)
     if (F[j].lancados == 0) { ia_planeja(); return plano_p; }   // ainda vai jogar
     mesa_t m;
     guarda_mesa(&m);
-    int amostras = ia_esforco ? IA_AMOSTRAS : 24;
+    int amostras = amostras_ia(IA_AMOSTRAS, 24);
     float s = 0;
     for (int a = 0; a < amostras; a++) {
         volta_mesa(&m);
@@ -2853,15 +2928,19 @@ static int ia_aposta(void)
 {
     int op[4], n = opcoes(op);
     float p = ia_chance();
+    // A ousadia desloca as barras: quem e ousado aposta e dobra com menos
+    // chance, e blefa mais; o cauteloso so aposta quando esta bem.
+    float o = ia_ousadia * 0.12f;
     int quer;
     if (!a_pagar) {
-        quer = p >= 0.72f ? OP_APOSTAR25 : (p >= 0.58f ? OP_APOSTAR10 : OP_PASSAR);
-        if (quer == OP_PASSAR && p < 0.35f && rnd_ia() % 8 == 0) quer = OP_APOSTAR10;   // blefe
+        quer = p >= 0.72f - o ? OP_APOSTAR25 : (p >= 0.58f - o ? OP_APOSTAR10 : OP_PASSAR);
+        int blefe = ia_ousadia > 0.5f ? 4 : (ia_ousadia < -0.5f ? 20 : 8);
+        if (quer == OP_PASSAR && p < 0.35f && rnd_ia() % (uint32_t)blefe == 0) quer = OP_APOSTAR10;
     } else {
-        // Pagar 'a_pagar' para disputar o pote, que ja tem a aposta do rival.
+        // Pagar 'a_pagar' para disputar o pote, que ja tem a aposta do oponente.
         float precisa = (float)a_pagar / (float)(pote + a_pagar);
-        if (p >= 0.75f) quer = OP_AUMENTAR;
-        else quer = p >= precisa ? OP_PAGAR : OP_CORRER;
+        if (p >= 0.75f - o) quer = OP_AUMENTAR;
+        else quer = p >= precisa - o * 0.5f ? OP_PAGAR : OP_CORRER;
     }
     for (int i = 0; i < n; i++) if (op[i] == quer) return i;
     for (int i = 0; i < n; i++) if (op[i] == OP_PAGAR || op[i] == OP_PASSAR) return i;
@@ -2882,7 +2961,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
     if (extra >= 0) pool[n++] = (peca_t){ (uint8_t)extra, (uint8_t)fixo_extra };
     mesa_t m;
     guarda_mesa(&m);
-    int amostras = ia_esforco ? 600 : 40, r = outro(j);
+    int amostras = amostras_ia(600, 40), r = outro(j);
     float s = 0;
     for (int a = 0; a < amostras; a++) {
         volta_mesa(&m);
@@ -2915,7 +2994,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
 static int ia_compra(void)
 {
     int j = vez;
-    if (J[j].n_col >= MAX_COL) return -1;
+    if (J[j].n_col >= lim_col()) return -1;
     uint32_t base = 0x51ED27u + (uint32_t)rodada * 977u + (uint32_t)J[j].n_col;
     float sem = forca_colecao(j, -1, 0, base);
     int faltam = MAX_RODADAS - rodada + 1;
@@ -2945,8 +3024,78 @@ static int ia_premio(void)
     return b;
 }
 
+// ---- A IA antiga, do nivel facil -----------------------------------------------
+// Regras fixas, sem imaginar jogadas: a fila pelas medias, parar pelo risco,
+// apostar pelos pontos na mesa, comprar e escolher premio pela raridade.
+static int facil_proximo_da_fila(void)
+{
+    jogador_t *p = &J[vez];
+    peca_t mao[MAO];
+    for (int i = 0; i < p->n_mao; i++) mao[i] = p->col[p->mao[i]];
+    int ordem[N_FILA], q = fila_simples(mao, p->n_mao, ordem);
+    int k = F[vez].n;
+    return k < q ? ordem[k] : -1;
+}
+
+static bool facil_continua(void)
+{
+    fila_t *f = &F[vez];
+    if (f->lancados >= f->n) return false;
+    if (f->lancados == 0) return true;
+    if (vez != primeiro) {                     // parar agora ganha?
+        desfecho_t d;
+        calcula_desfecho(&d, false);
+        return d.total[vez] <= d.total[outro(vez)];
+    }
+    return abre_continua(vez);
+}
+
+static int facil_aposta(void)
+{
+    int op[4], n = opcoes(op);
+    int pts = F[primeiro].pontos;
+    bool jogou = vez == primeiro;          // a IA ja tem pontos na mesa?
+    int quer;
+    if (!a_pagar) {
+        if (jogou) quer = pts >= 20 ? OP_APOSTAR25 : (pts >= 13 ? OP_APOSTAR10 : OP_PASSAR);
+        else       quer = pts <= 5 ? OP_APOSTAR10 : OP_PASSAR;
+    } else if (jogou) {
+        quer = pts <= 4 ? OP_CORRER : OP_PAGAR;
+    } else {
+        quer = (pts >= 22 && a_pagar >= 20) ? OP_CORRER
+             : (pts <= 5 ? OP_AUMENTAR : OP_PAGAR);
+    }
+    for (int i = 0; i < n; i++) if (op[i] == quer) return i;
+    for (int i = 0; i < n; i++) if (op[i] == OP_PAGAR || op[i] == OP_PASSAR) return i;
+    return 0;
+}
+
+static int facil_compra(void)
+{
+    int b = -1;
+    for (int i = 0; i < N_LOJA; i++) {
+        int pr = preco_loja(loja[i].tipo);
+        if (levou[vez][i] || J[vez].fichas - pr < 75 || J[vez].n_col >= lim_col()) continue;
+        if (b < 0 || TIPO[loja[i].tipo].raridade > TIPO[loja[b].tipo].raridade
+            || (TIPO[loja[i].tipo].raridade == TIPO[loja[b].tipo].raridade
+                && pr > preco_loja(loja[b].tipo)))
+            b = i;
+    }
+    return b;
+}
+
+static int facil_premio(void)
+{
+    int b = 0;
+    for (int i = 1; i < 3; i++)
+        if (TIPO[oferta[i].tipo].raridade > TIPO[oferta[b].tipo].raridade) b = i;
+    return b;
+}
+
 static void ia_passo(float dt)
 {
+    ia_nivel = nivel_jog[vez & 1];
+    ia_ousadia = ousadia_jog[vez & 1];
     if (!ia_na_vez() || (fase == F_PREMIO && t_tira > 0)) { ia_fase = -1; return; }
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
         ia_fase = fase; ia_vez = vez;
@@ -2958,27 +3107,27 @@ static void ia_passo(float dt)
 
     switch (fase) {
     case F_LOJA: {
-        int i = ia_compra();
+        int i = ia_nivel == 0 ? facil_compra() : ia_compra();
         if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
     }
     case F_ORDEM: {
-        int i = ia_proximo_da_fila();
+        int i = ia_nivel == 0 ? facil_proximo_da_fila() : ia_proximo_da_fila();
         if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
     }
     case F_JOGA:
-        if (ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
+        if (ia_nivel == 0 ? facil_continua() : ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
     case F_APOSTA:
-        cursor = ia_aposta();
+        cursor = ia_nivel == 0 ? facil_aposta() : ia_aposta();
         trata_tecla(KEY_ENTER);
         break;
     case F_PREMIO:
-        cursor = ia_premio();
+        cursor = ia_nivel == 0 ? facil_premio() : ia_premio();
         trata_tecla(KEY_ENTER);
         break;
     }
@@ -3047,6 +3196,14 @@ static void volta_ao_menu(void)
     t_fase = 1.0f;
 }
 
+// Um nivel acima no menu (ESC ou BACKSPACE num submenu).
+static void menu_volta(void)
+{
+    if (menu_tela == MT_NIVEL || menu_tela == MT_DESAFIO) { menu_cur = menu_tela == MT_NIVEL ? 0 : 1; menu_tela = MT_UM; }
+    else { menu_tela = MT_PRINCIPAL; menu_cur = MN_UM; }
+    sacode = 1;
+}
+
 static void ao_menu_sem_partida(void)
 {
     t_fase = 1.0f;
@@ -3057,8 +3214,11 @@ static void ao_menu_sem_partida(void)
 static void trata_esc(void)
 {
     switch (fase) {
-    case F_ABERTURA: return;
+    case F_ABERTURA: if (menu_tela) menu_volta(); return;
     case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
+    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM:
+        volta_ao_menu();                     // a run fica guardada
+        return;
     case F_ONLINE:
         if (digitando) { digitando = false; return; }
         rede_sai();
@@ -3090,7 +3250,7 @@ void dado_passo(float dt)
             }
         } else {
             // O crupie afasta os dados para os cantos e abre espaco ao menu.
-            static const float ALVO[2][2] = { { 120, 250 }, { 520, 250 } };
+            static const float ALVO[2][2] = { { 92, 250 }, { 548, 250 } };
             float a = dt * 5 > 1 ? 1 : dt * 5;
             if (sacode > 0) sacode -= dt / 0.85f;
             if (sacode < 0) sacode = 0;
@@ -3116,7 +3276,8 @@ void dado_passo(float dt)
                 p->n_mao = 0;
                 t_tira = 0;
                 removendo = false;
-                nova_rodada();
+                if (modo == M_DESAFIO) des_premio_feito();
+                else nova_rodada();
             }
         }
         break;
@@ -3285,8 +3446,9 @@ static void faixa_jogador(int j)
 
     // A rodada mora na faixa de cima; o som, na de baixo.
     if (cima && rodada > 0 && fase != F_LOJA) {
-        snprintf(s, sizeof s, "rodada %d de %d", rodada > MAX_RODADAS ? MAX_RODADAS : rodada,
-                 MAX_RODADAS);
+        int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
+        if (rodada > max_r) snprintf(s, sizeof s, "rodada extra");
+        else snprintf(s, sizeof s, "rodada %d de %d", rodada, max_r);
         txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
@@ -3876,7 +4038,8 @@ static void desenha_premio(void)
         return;
     }
 
-    snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
+    if (modo == M_DESAFIO) snprintf(t, sizeof t, "Prêmio por vencer %s", J[1].nome);
+    else snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
     txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
     for (int i = 0; i < 3; i++) {
         int x = GFX_W / 2 + (i - 1) * 150;
@@ -3949,8 +4112,9 @@ static void desenha_loja(void)
     }
     dado_e_poder(240, loja[cursor].tipo, true);
     if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
-        txt_c(GFX_W / 2, 240 - TXT_H - 2, "fichas insuficientes", C_VINHO_CLR, true);
-    txt_c(GFX_W / 2, 286, "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB/CTRL termina", C_TEXTO_M, false);
+        txt_c(GFX_W / 2, 286, "fichas insuficientes", C_VINHO_CLR, true);
+    else
+        txt_c(GFX_W / 2, 286, "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB/CTRL termina", C_TEXTO_M, false);
 }
 
 static void desenha_fim(void)
@@ -4110,7 +4274,8 @@ static int tipo_em_foco(void)
     case F_PREMIO:
         if (!removendo && cursor >= 0 && cursor < 3) return oferta[cursor].tipo;
         break;
-    default: break;
+    default:
+        return des_foco();
     }
     return -1;
 }
@@ -4266,6 +4431,10 @@ static const pagina_t TUTORIAL[] = {
         "No começo da partida, a loja vende dados especiais em troca de fichas.",
         "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
         "São 33 dados, cada um com um poder: veja todos em Dados da casa." } },
+    { "Modo Desafiante", {
+        "Em 1 jogador: uma run pelo cassino. São 3 salões, com 4 mesas cada; a última é o chefe do salão. No mapa, você escolhe o caminho: mesas fáceis, médias, difíceis ou uma loja.",
+        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas que sobraram viram moedas de ouro, e você escolhe um dado de prêmio (ou tira um dado da bolsa).",
+        "As moedas compram dados nas lojas. Perdeu uma partida, a run acaba. Dá para sair e continuar depois: a run fica guardada." } },
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira",
         "Durante o jogo, aperte I para ver tudo sobre o dado escolhido: na mão, na loja, no prêmio ou o próximo da sequência.",
@@ -4370,6 +4539,8 @@ static void texto_mudo(int x, int y, const char *s, uint16_t c, int e, bool n)
     (void)x; (void)y; (void)s; (void)c; (void)e; (void)n;
 }
 
+#include "desafio.inc"
+
 static void desenha_tudo(void);
 
 void dado_desenha(void)
@@ -4387,6 +4558,7 @@ void dado_desenha(void)
 static void desenha_tudo(void)
 {
     mesa();
+    if (des_desenha()) return;
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
     if (fase == F_TUTORIAL) { desenha_tutorial(); return; }
     if (fase == F_ONLINE)   { desenha_online(); return; }
@@ -4400,7 +4572,7 @@ static void desenha_tudo(void)
     switch (fase) {
     case F_LOJA:   desenha_loja();   break;
     case F_PREMIO: desenha_premio(); break;
-    case F_FIM:    desenha_fim();    break;
+    case F_FIM:    if (modo == M_DESAFIO) desenha_fim_partida_run(); else desenha_fim(); break;
     case F_ORDEM:
         desenha_fila(outro(vez));
         desenha_ordem();
@@ -4440,7 +4612,8 @@ static void segue_do_resultado(void)
     // escolhe um premio - menos quando a partida ja acabou.
     int w = (venc_mao == 0 || venc_mao == 1) ? venc_mao : correu_venc;
     correu_venc = -1;
-    if (w >= 0 && !ultima_rodada()) {
+    // No Desafiante nao ha premio por rodada: so ao fim da partida.
+    if (w >= 0 && !ultima_rodada() && modo != M_DESAFIO) {
         primeiro = w;
         abre_premio(w);
     } else {
@@ -4522,19 +4695,50 @@ static void trata_tecla(int k)
             t_fase = 1.0f;
             return;
         }
+        {
+        const char *op[MN_N];
+        int n_op = menu_opcoes(op);
         if (e) {
-            menu_cur = (menu_cur + e + MN_N) % MN_N;
+            menu_cur = (menu_cur + e + n_op) % n_op;
             sacode = 1;                              // como se alguem mexesse na mesa
             som_toca(SOM_TIQUE);
             return;
         }
-        if (k >= '1' && k < '1' + MN_N) { menu_cur = k - '1'; sacode = 1; }
-        if (k != KEY_ENTER && !(k >= '1' && k < '1' + MN_N)) return;
+        if (k == KEY_BKSP && menu_tela) { menu_volta(); return; }
+        if (k >= '1' && k < '1' + n_op) { menu_cur = k - '1'; sacode = 1; }
+        if (k != KEY_ENTER && !(k >= '1' && k < '1' + n_op)) return;
+        }
         som_toca(SOM_FICHA);
+        sacode = 1;
+        if (menu_tela == MT_UM) {
+            if (menu_cur == 0) { menu_tela = MT_NIVEL; menu_cur = 1; }
+            else if (des_tem_run()) { menu_tela = MT_DESAFIO; menu_cur = 0; }
+            else des_nova_run();
+            return;
+        }
+        if (menu_tela == MT_NIVEL) {                // partida rapida no nivel escolhido
+            modo = M_UM;
+            cpu = 2;
+            remoto = 0;
+            baixo = 0;
+            nivel_jog[1] = menu_cur;
+            ousadia_jog[1] = 0;
+            poe_nomes();
+            abre_loja();
+            return;
+        }
+        if (menu_tela == MT_DESAFIO) {
+            if (menu_cur == 0) des_continua(); else des_nova_run();
+            return;
+        }
         switch (menu_cur) {
-        case MN_UM: case MN_DOIS:
-            modo = menu_cur == MN_UM ? M_UM : M_DOIS;
-            cpu = modo == M_UM ? 2 : 0;
+        case MN_UM:
+            menu_tela = MT_UM;
+            menu_cur = 0;
+            break;
+        case MN_DOIS:
+            modo = M_DOIS;
+            cpu = 0;
             remoto = 0;
             baixo = 0;
             poe_nomes();
@@ -4609,7 +4813,7 @@ static void trata_tecla(int k)
         if (k == KEY_ENTER || (k >= '1' && k <= '5')) {
             int tp = loja[cursor].tipo;
             if (levou[vez][cursor]) return;
-            if (p->fichas < preco_loja(tp) || p->n_col >= MAX_COL) return;
+            if (p->fichas < preco_loja(tp) || p->n_col >= lim_col()) return;
             p->fichas -= preco_loja(tp);
             p->col[p->n_col] = loja[cursor];
             p->onde[p->n_col++] = NA_BOLSA;             // a bolsa comeca cheia
@@ -4680,7 +4884,7 @@ static void trata_tecla(int k)
             return;
         }
         if (e) { cursor = (cursor + e + 4) % 4; return; }
-        if (k == 'x') { nova_rodada(); return; }
+        if (k == 'x') { if (modo == M_DESAFIO) des_premio_feito(); else nova_rodada(); return; }
         if (k == KEY_ENTER) {
             if (cursor == 3) {
                 if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
@@ -4688,20 +4892,24 @@ static void trata_tecla(int k)
             }
             // O dado ganho fica fora da bolsa ate o proximo embaralho: o
             // premio chega, mas nao na rodada seguinte.
-            if (p->n_col < MAX_COL) {
+            if (p->n_col < lim_col()) {
                 p->col[p->n_col] = oferta[cursor];
                 p->onde[p->n_col++] = FORA;
             }
-            nova_rodada();
+            if (modo == M_DESAFIO) des_premio_feito();
+            else nova_rodada();
         }
         return;
     }
 
     case F_FIM:
-        if (k == KEY_ENTER) dado_inicia(partidas + 1);
+        if (k != KEY_ENTER) return;
+        if (modo == M_DESAFIO) des_apos_fim();
+        else dado_inicia(partidas + 1);
         return;
 
     default:
+        des_tecla(k, e);                     // telas do Modo Desafiante
         return;
     }
 }

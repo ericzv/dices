@@ -91,6 +91,10 @@ jobs:
           mkdir -p site
           cp build-web/index.html build-web/index.js build-web/index.wasm \
              build-web/mqtt.min.js build-web/icone.png site/
+          # Enderecos com a versao: o navegador baixa o jogo novo a cada publicacao.
+          v="?v=${GITHUB_SHA::7}"
+          sed -i -E "s|__VERSAO__|$v|g; s#src=\"?index\\.js\"?#src=\"index.js$v\"#" site/index.html
+          grep -qF "index.js$v" site/index.html
           cd site && zip -r ../DadoEmCasa-web.zip .
       # Zip pronto para subir no itch.io, se preferir.
       - uses: actions/upload-artifact@v4

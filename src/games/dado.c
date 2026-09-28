@@ -30,6 +30,10 @@
 #include "../hal/display.h"
 #include "jogos.h"
 
+#ifndef DADO_VERSAO                  // o CMake passa o commit; sem ele, "dev"
+#define DADO_VERSAO "dev"
+#endif
+
 #define C_FELTRO     RGB(18, 51, 38)
 #define C_FELTRO2    RGB(24, 64, 48)
 #define C_FELTRO_ESC RGB(12, 36, 27)
@@ -399,6 +403,7 @@ static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
 static int  menu_cur;                // opcao do menu de abertura
+static float sacode;                 // 1 quando o cursor do menu anda: os dados chacoalham
 enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
 
 // Modos: contra o computador, dois no mesmo teclado, ou online.
@@ -2396,6 +2401,11 @@ static void desenha_abertura(void)
     txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12,
           "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
           C_TEXTO_M, false);
+    // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
+    char ver[32];
+    snprintf(ver, sizeof ver, "versão %s", DADO_VERSAO);
+    gfx_texto(MESA_X1 - 12 - gfx_largura(ver, GFX_MIUDO), MESA_Y1 - 18, ver,
+              gfx_mistura(C_TEXTO_M, C_FELTRO, 35), GFX_MIUDO, false);
 }
 
 static void abre_premio(void)
@@ -2990,6 +3000,8 @@ void dado_passo(float dt)
             // O crupie afasta os dados para os cantos e abre espaco ao menu.
             static const float ALVO[2][2] = { { 120, 250 }, { 520, 250 } };
             float a = dt * 5 > 1 ? 1 : dt * 5;
+            if (sacode > 0) sacode -= dt / 0.85f;
+            if (sacode < 0) sacode = 0;
             for (int i = 0; i < n_voo; i++) {
                 voo[i].x += (ALVO[i][0] - voo[i].x) * a;
                 voo[i].y += (ALVO[i][1] - voo[i].y) * a;
@@ -3113,14 +3125,20 @@ static void desenha_lance(void)
         }
         // Na tela inicial, depois de assentar, os dados flutuam de leve (o
         // balanco entra devagar, sem pulo), e a sombra acompanha.
-        float bob = 0;
+        // Quando o cursor do menu anda, chacoalham: pulinhos, um tremor de
+        // lado e um giro curto, que se acalmam em menos de um segundo.
+        float bob = 0, dx = 0, ang = v->giro;
         if (fase == F_ABERTURA && abertura_pronta && v->parado) {
             float entra = fminf(1, t_fase / 0.8f);
             float alto = (1 + sinf(t_fase * 2.2f + i * 1.9f)) * 3 * entra;   // 0..6 px
+            float s = sacode * sacode;
+            alto += s * 11 * fabsf(sinf(t_fase * 15 + i * 1.3f));
+            dx = s * 3 * sinf(t_fase * 29 + i * 2.1f);
+            ang += s * 0.32f * sinf(t_fase * 18 + i * 1.7f);
             bob = -alto;
             sombra_alt = alto * 0.6f;
         }
-        desenha_dado(v->x, v->y + bob, r, v->tipo, v->dono, v->giro,
+        desenha_dado(v->x + dx, v->y + bob, r, v->tipo, v->dono, ang,
                      v->parado ? v->valor : v->face, 2, descartado);
         sombra_alt = 0;
     }
@@ -4371,8 +4389,13 @@ static void trata_tecla(int k)
             t_fase = 1.0f;
             return;
         }
-        if (e) { menu_cur = (menu_cur + e + MN_N) % MN_N; som_toca(SOM_TIQUE); return; }
-        if (k >= '1' && k < '1' + MN_N) menu_cur = k - '1';
+        if (e) {
+            menu_cur = (menu_cur + e + MN_N) % MN_N;
+            sacode = 1;                              // como se alguem mexesse na mesa
+            som_toca(SOM_TIQUE);
+            return;
+        }
+        if (k >= '1' && k < '1' + MN_N) { menu_cur = k - '1'; sacode = 1; }
         if (k != KEY_ENTER && !(k >= '1' && k < '1' + MN_N)) return;
         som_toca(SOM_FICHA);
         switch (menu_cur) {

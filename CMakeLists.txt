@@ -36,6 +36,18 @@ add_library(jogo STATIC
     src/ui/fonte.c
     src/ui/fonte_tela.c)
 target_include_directories(jogo PUBLIC src desktop)
+# A versao (o commit) aparece miuda na tela inicial: da para saber qual jogo
+# esta aberto, no PC ou no site.
+find_package(Git QUIET)
+if (GIT_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short=7 HEAD
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE DADO_VERSAO OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+if (NOT DADO_VERSAO)
+    set(DADO_VERSAO "dev")
+endif()
+target_compile_definitions(jogo PRIVATE DADO_VERSAO="${DADO_VERSAO}")
 if (MSVC)
     # __attribute__((format)) e coisa de GCC/Clang.
     target_compile_options(jogo PUBLIC /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h

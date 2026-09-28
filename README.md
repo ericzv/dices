@@ -49,6 +49,7 @@ Não precisa instalar nada: é um executável só.
 | Enter | Escolhe / joga o próximo dado |
 | Tab ou Ctrl | Confirma a fila / para |
 | Backspace | Tira o último dado da fila |
+| I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
 | M | Liga e desliga todo o som |

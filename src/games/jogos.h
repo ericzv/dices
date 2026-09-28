@@ -58,3 +58,4 @@ void dado_dbg_bolsa(int j, const int *tipos, int n);
 void dado_dbg_cpu(int mascara);          // bit j: jogador j e do aparelho
 void dado_dbg_tutorial(int pag);         // abre o tutorial na pagina pag
 int  dado_dbg_n_tipos(void);             // quantos tipos de dado existem
+void dado_dbg_ia_esforco(int e);         // 0: IA pensa pouco (simulador rapido)

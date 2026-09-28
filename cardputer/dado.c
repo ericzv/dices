@@ -1378,8 +1378,14 @@ static void nova_rodada(void)
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
     }
-    for (int j = 0; j < 2; j++)
-        if (J[j].fichas < ANTE) { encerra(outro(j)); return; }
+    // Quem nao paga a entrada perde. Se nenhum dos dois paga, vence quem tem
+    // mais fichas; com fichas iguais, empate.
+    bool sem0 = J[0].fichas < ANTE, sem1 = J[1].fichas < ANTE;
+    if (sem0 && sem1) {
+        encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
+        return;
+    }
+    if (sem0 || sem1) { encerra(sem0 ? 1 : 0); return; }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ANTE;
         memset(&F[j], 0, sizeof F[j]);
@@ -1641,13 +1647,24 @@ static void termina_turno(void)
 // ===========================================================================
 enum { OP_PASSAR, OP_APOSTAR10, OP_APOSTAR25, OP_PAGAR, OP_AUMENTAR, OP_CORRER };
 
+// Quanto quem esta na vez pode subir alem de cobrir: o dobro, limitado ao
+// que sobra para ele depois de cobrir e ao que o rival ainda tem.
+static int aumento_possivel(void)
+{
+    int sobe = a_pagar;
+    int sobra = J[vez].fichas - a_pagar;
+    if (sobe > sobra) sobe = sobra;
+    if (sobe > J[outro(vez)].fichas) sobe = J[outro(vez)].fichas;
+    return sobe < 0 ? 0 : sobe;
+}
+
 static int opcoes(int *op)
 {
     int n = 0;
     if (!a_pagar) { op[n++] = OP_PASSAR; op[n++] = OP_APOSTAR10; op[n++] = OP_APOSTAR25; }
     else {
         op[n++] = OP_PAGAR;
-        if (!aumentou && J[vez].fichas > a_pagar && J[outro(vez)].fichas > 0)
+        if (!aumentou && aumento_possivel() > 0)
             op[n++] = OP_AUMENTAR;
         op[n++] = OP_CORRER;
     }
@@ -1694,11 +1711,9 @@ static void executa(int op)
         return;
     }
     case OP_AUMENTAR: {
-        int sobe = a_pagar;
-        if (sobe > J[outro(vez)].fichas) sobe = J[outro(vez)].fichas;
-        int b = a_pagar + sobe;
-        if (b > p->fichas) b = p->fichas;
-        p->fichas -= b; pote += b;
+        // O rival paga so o que de fato subiu.
+        int sobe = aumento_possivel();
+        p->fichas -= a_pagar + sobe; pote += a_pagar + sobe;
         a_pagar = sobe;
         aumentou = true;
         break;

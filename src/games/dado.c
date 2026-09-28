@@ -91,7 +91,10 @@
 #define CENTRO     180
 #define R_DADO     22                       // raio de um dado na mesa
 #define SLOT_X(k)  (212 + 72 * (k))
-#define ROUBO_X(n) (128 - 56 * (n))         // dados roubados, a esquerda da fila
+// Dados roubados, a esquerda da fila e um pouco menores: cabem os quatro
+// (centros 162, 122, 82, 42) entre a borda da mesa e o primeiro lugar.
+#define R_ROUBO    18
+#define ROUBO_X(n) (162 - 40 * (n))
 #define PLACAR_X   540
 #define POTE_X     586
 #define TXT_H      FONTE_ALT                // altura de uma linha de texto
@@ -150,7 +153,7 @@ static const tipo_t TIPO[D_N] = {
     { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "se fica: rouba o menor rival" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "no fim: x2 nos dados de 1 e 2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: +1 nos ímpares; 2: +1 nos pares" },
-    { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "imune a queda da fila" },
+    { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "imune à queda e ao Agouro" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "dados somando 20+: +10 no fim" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
     { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "tira do rival o que tirar" },
@@ -169,7 +172,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D8]        = "Oito lados. Levanta a barra, mas vale mais.",
     [D_D12]       = "Doze lados. Forte no fim da fila, arriscado na frente.",
     [D_D20]       = "Vinte lados. O maior da mesa: melhor no fim da fila.",
-    [D_DOBRO]     = "No fim da rodada, o dado que ficar logo depois dele vale x2.",
+    [D_DOBRO]     = "No fim da rodada, o dado que ficar logo depois dele vale x2. Multiplicadores se somam: x2 e x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior resultado.",
     [D_LASTRO]    = "Doze lados, mas nunca vale menos que 6.",
     [D_PAR]       = "Ganha +8 se repetir o valor do dado anterior na fila. Valor igual nunca anula; menor anula.",
@@ -181,8 +184,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_ESPELHO]   = "Se tirar 1 ou 2, vira o maior dado do rival. Sem rival na mesa, repete o anterior.",
     [D_FICHAS]    = "Quatro lados. Se terminar valendo e a rodada for sua, ganha fichas iguais ao valor.",
     [D_TUDO_NADA] = "Risco puro. 2: x2 em todos os seus dados no fim. 1: sua rodada vale zero, sem volta.",
-    [D_MALDITO]   = "Vinte lados. Se tirar 4 ou menos, zera a fila inteira.",
-    [D_TEIMOSO]   = "Seis lados. Uma queda na fila nunca o anula, mas os ataques do rival pegam nele.",
+    [D_MALDITO]   = "Vinte lados. Se tirar 4 ou menos, zera a fila inteira. Escudo, Teimoso e Egoísta seguram.",
+    [D_TEIMOSO]   = "Seis lados. Nem a queda da fila nem o Agouro o anulam, mas os ataques do rival pegam nele.",
     [D_SEMENTE]   = "Moeda verde. Se no fim os seus dados somarem 20 ou mais, ganha +10.",
     [D_FOGO]      = "Ficha em chamas. No fim, x2 no seu maior dado — que depois vira cinza e sai do jogo.",
     [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. A queda da fila compara o que saiu.",
@@ -355,7 +358,7 @@ typedef struct {
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
     char txt[48];
 } evento_t;
-#define MAX_EV 16
+#define MAX_EV 32
 
 typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
 
@@ -414,7 +417,11 @@ static int  tut_pag;                 // pagina do tutorial
 static int  cpu;                     // bit j: jogador j e do aparelho
 static float t_ia;                   // espera da IA antes de cada gesto
 static int  ia_fase = -1, ia_vez = -1;
-static int  cat_i;                   // dado em exibicao no catalogo
+static int8_t plano[N_FILA];         // a fila que a IA decidiu montar (posicoes na mao)
+static int  plano_n, plano_rodada = -1, plano_vez = -1;
+static float plano_p;                // chance de vencer com o plano
+static int  detalhe = -1, detalhe_fase;   // dado aberto pela tecla I (-1: nenhum)
+static int  cat_i;                // dado em exibicao no catalogo
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
 static int  tira_i;
@@ -1113,8 +1120,10 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             numero(cx, cy, r, s, tinta);
             return;
         }
+        // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
+        // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);
-        numero(cx, cy, r, s, dono == 0 ? C_MARFIM_S : C_EBANO_B);
+        numero(cx, cy, r, s, gfx_mistura(tinta, corpo, 38));
         return;
     }
     if (valor < 0) return;               // so o corpo: o catalogo escreve grande
@@ -1449,7 +1458,15 @@ static void aplica_regra(int j, int k)
         anula_fila(j);
         f->est[k] = V_ANULADO;
         anulou_a = k;
-        snprintf(veredito, sizeof veredito, "%s tirou %d: fila zerada", TIPO[t].nome, v);
+        // Escudo, Teimoso e Egoista seguram: a mensagem nao diz que zerou tudo.
+        int segura = -1;
+        for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) { segura = i; break; }
+        if (segura >= 0) {
+            resistiu = segura;
+            snprintf(veredito, sizeof veredito, "%s zerou a fila; %s segura", TIPO[t].nome,
+                     TIPO[tipo_de(j, segura)].nome);
+        } else
+            snprintf(veredito, sizeof veredito, "%s tirou %d e zerou a fila", TIPO[t].nome, v);
         ver_tipo = 3;
         f->pontos = soma(j, f->est);
         return;
@@ -1874,12 +1891,20 @@ static void encerra(int vencedor)
 static void nova_rodada(void)
 {
     rodada++;
+    plano_rodada = -1;                       // a IA monta outra fila
     if (rodada > MAX_RODADAS) {
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
     }
-    for (int j = 0; j < 2; j++)
-        if (J[j].fichas < ANTE) { encerra(outro(j)); return; }
+    // Quem nao paga a entrada perde. Se nenhum dos dois paga, vence quem tem
+    // mais fichas (o pote parado na mesa se dividiria igual e nao muda isso);
+    // com fichas iguais, empate.
+    bool sem0 = J[0].fichas < ANTE, sem1 = J[1].fichas < ANTE;
+    if (sem0 && sem1) {
+        encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
+        return;
+    }
+    if (sem0 || sem1) { encerra(sem0 ? 1 : 0); return; }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ANTE;
         memset(&F[j], 0, sizeof F[j]);
@@ -1968,29 +1993,41 @@ static void abre_loja(void)
     fase = F_LOJA;
 }
 
-static void lanca_proximo(void)
+// O que o dado de tipo t tira, com os poderes que mexem no sorteio. 'r' e
+// quem sorteia: o da partida ou o da IA quando ela imagina jogadas. No
+// Viciado, 'menor' recebe o lance descartado.
+static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 {
-    fila_t *f = &F[vez];
-    int k = f->lancados;
-    int t = tipo_de(vez, k), lados = TIPO[t].lados;
-
-    int x = rola(lados), menor = 0;
+    int lados = TIPO[t].lados;
+    int x = r(lados);
+    *menor = 0;
     switch (TIPO[t].efeito) {
     case EF_VICIADO: {                       // dois lances; fica o maior
-        int y = rola(lados);
-        menor = x < y ? x : y;
+        int y = r(lados);
+        *menor = x < y ? x : y;
         if (y > x) x = y;
         break;
     }
     case EF_LASTRO:  if (x < 6) x = 6; break;
     case EF_EXPLODE: {
         int n = x, g = 0;
-        while (n == lados && g++ < 3) { n = rola(lados); x += n; }
+        while (n == lados && g++ < 3) { n = r(lados); x += n; }
         break;
     }
-    case EF_QUEBRADO: x = f->fixo[k]; break;        // sem sorteio
+    case EF_QUEBRADO: x = fixo; break;       // sem sorteio
     default: break;
     }
+    return x;
+}
+
+static void lanca_proximo(void)
+{
+    fila_t *f = &F[vez];
+    int k = f->lancados;
+    int t = tipo_de(vez, k), lados = TIPO[t].lados;
+
+    int menor;
+    int x = sorteia_valor(t, f->fixo[k], rola, &menor);
     f->cru[k] = x;
     f->valor[k] = x;
 
@@ -2073,12 +2110,18 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
 }
 
+// O desfecho calculado pelo motor de regras: e ele que paga. Os eventos so
+// contam na tela, um a um, como se chegou nele.
+static desfecho_t resolvido;
+
 // Depois da animacao dos eventos: paga o pote e declara quem levou.
 static void conclui_rodada(void)
 {
     for (int j = 0; j < 2; j++) {
-        memcpy(F[j].est, vis_est[j], N_FILA);
-        F[j].total = total_visivel(j);
+        memcpy(F[j].est, resolvido.est[j], N_FILA);
+        memcpy(vis_est[j], resolvido.est[j], N_FILA);
+        memcpy(vis_queima[j], resolvido.queima[j], N_FILA);
+        F[j].total = resolvido.total[j];
     }
     if (F[0].total == F[1].total) {
         venc_mao = 2;
@@ -2104,8 +2147,7 @@ static int som_do_evento(int i) { return ev[i].tipo == EV_JACKPOT ? SOM_JACKPOT 
 
 static void desfecho(void)
 {
-    desfecho_t d;
-    calcula_desfecho(&d, true);
+    calcula_desfecho(&resolvido, true);
     for (int j = 0; j < 2; j++) {
         memcpy(vis_est[j], F[j].est, N_FILA);
         vis_nroubo[j] = 0;
@@ -2184,13 +2226,24 @@ static void termina_turno(void)
 // ===========================================================================
 enum { OP_PASSAR, OP_APOSTAR10, OP_APOSTAR25, OP_PAGAR, OP_AUMENTAR, OP_CORRER };
 
+// Quanto quem esta na vez pode subir alem de cobrir: o dobro, limitado ao
+// que sobra para ele depois de cobrir e ao que o rival ainda tem.
+static int aumento_possivel(void)
+{
+    int sobe = a_pagar;
+    int sobra = J[vez].fichas - a_pagar;
+    if (sobe > sobra) sobe = sobra;
+    if (sobe > J[outro(vez)].fichas) sobe = J[outro(vez)].fichas;
+    return sobe < 0 ? 0 : sobe;
+}
+
 static int opcoes(int *op)
 {
     int n = 0;
     if (!a_pagar) { op[n++] = OP_PASSAR; op[n++] = OP_APOSTAR10; op[n++] = OP_APOSTAR25; }
     else {
         op[n++] = OP_PAGAR;
-        if (!aumentou && J[vez].fichas > a_pagar && J[outro(vez)].fichas > 0)
+        if (!aumentou && aumento_possivel() > 0)
             op[n++] = OP_AUMENTAR;
         op[n++] = OP_CORRER;
     }
@@ -2210,7 +2263,10 @@ static void rotulo_op(int op, char *s, int n)
     case OP_APOSTAR10: snprintf(s, n, "apostar %d", limite(10)); break;
     case OP_APOSTAR25: snprintf(s, n, "apostar %d", limite(25)); break;
     case OP_PAGAR:     snprintf(s, n, "pagar %d", a_pagar); break;
-    case OP_AUMENTAR:  snprintf(s, n, "dobrar"); break;
+    case OP_AUMENTAR:                    // sem fichas para dobrar, diz quanto sobe
+        if (aumento_possivel() < a_pagar) snprintf(s, n, "subir %d", aumento_possivel());
+        else snprintf(s, n, "dobrar");
+        break;
     default:           snprintf(s, n, "correr"); break;
     }
 }
@@ -2237,11 +2293,10 @@ static void executa(int op)
         return;
     }
     case OP_AUMENTAR: {
-        int sobe = a_pagar;
-        if (sobe > J[outro(vez)].fichas) sobe = J[outro(vez)].fichas;
-        int b = a_pagar + sobe;
-        if (b > p->fichas) b = p->fichas;
-        p->fichas -= b; pote += b;
+        // Cobre a aposta e sobe o mesmo tanto, ate onde as fichas dos dois
+        // alcancam. O rival paga so o que de fato subiu.
+        int sobe = aumento_possivel();
+        p->fichas -= a_pagar + sobe; pote += a_pagar + sobe;
         a_pagar = sobe;
         aumentou = true;
         break;
@@ -2387,87 +2442,395 @@ static float media(peca_t p)
 // Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
 static bool arriscado(int tipo) { return tipo == D_MALDITO || tipo == D_TUDO_NADA || tipo == D_EGOISTA; }
 
-// Fila: os quatro de maior media, do menor para o maior, que assim cada um
-// tem boa chance de passar a barra do anterior.
-static int ia_proximo_da_fila(void)
+// Escolha simples, sem imaginar jogadas: os de maior media, do menor para o
+// maior (assim cada um tem boa chance de passar a barra do anterior), sem os
+// arriscados quando da. E como a IA imagina a fila do rival, e a sua propria
+// quando mede uma compra.
+static int fila_simples(const peca_t *pc, int n, int *ordem)
 {
-    jogador_t *p = &J[vez];
-    fila_t *f = &F[vez];
-    int quer = p->n_mao < N_FILA ? p->n_mao : N_FILA;
-    int ok = 0;
-    for (int i = 0; i < p->n_mao; i++) if (!arriscado(p->col[p->mao[i]].tipo)) ok++;
+    int quer = n < N_FILA ? n : N_FILA, ok = 0;
+    for (int i = 0; i < n; i++) if (!arriscado(pc[i].tipo)) ok++;
     bool sem_risco = ok >= quer;
-    // Os escolhidos: os 'quer' de maior media.
-    bool esc[MAO] = { false };
-    for (int n = 0; n < quer; n++) {
+    bool esc[MAX_COL + 1] = { false };
+    int m = 0;
+    for (int q = 0; q < quer; q++) {
         int b = -1;
-        for (int i = 0; i < p->n_mao; i++) {
-            peca_t pc = p->col[p->mao[i]];
-            if (esc[i] || (sem_risco && arriscado(pc.tipo))) continue;
-            if (b < 0 || media(pc) > media(p->col[p->mao[b]])) b = i;
+        for (int i = 0; i < n; i++) {
+            if (esc[i] || (sem_risco && arriscado(pc[i].tipo))) continue;
+            if (b < 0 || media(pc[i]) > media(pc[b])) b = i;
         }
-        if (b >= 0) esc[b] = true;
+        if (b < 0) break;
+        esc[b] = true;
+        ordem[m++] = b;
     }
-    // Entre os escolhidos ainda fora da fila, o de menor media vai agora.
-    int b = -1;
-    for (int i = 0; i < p->n_mao; i++) {
-        if (!esc[i]) continue;
-        bool ja = false;
-        for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ja = true;
-        if (ja) continue;
-        if (b < 0 || media(p->col[p->mao[i]]) < media(p->col[p->mao[b]])) b = i;
-    }
-    return b;
+    for (int a = 1; a < m; a++)
+        for (int b = a; b > 0 && media(pc[ordem[b]]) < media(pc[ordem[b - 1]]); b--) {
+            int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t;
+        }
+    return m;
 }
 
-// Lancar mais um? Quem joga depois sabe o alvo; quem abre olha o risco.
+// ---- Rodadas imaginadas -----------------------------------------------------
+// A IA decide jogando de mentira com as mesmas regras (aplica_regra e
+// calcula_desfecho) sobre a mesa de verdade, que depois volta como estava.
+// O sorteio e dela: pensar nao mexe nos dados da partida.
+static uint32_t semente_ia = 0x2545F491u;
+static uint32_t rnd_ia(void)
+{
+    semente_ia ^= semente_ia << 13; semente_ia ^= semente_ia >> 17; semente_ia ^= semente_ia << 5;
+    return semente_ia;
+}
+static int rola_ia(int lados) { return 1 + (int)(rnd_ia() % (uint32_t)lados); }
+static void semeia_ia(uint32_t base, int amostra)
+{
+    semente_ia = base ^ (2654435761u * (uint32_t)(amostra + 1));
+    if (!semente_ia) semente_ia = 1;
+}
+
+// Tudo o que as regras escrevem durante uma jogada.
+typedef struct {
+    fila_t f[2];
+    char ver[sizeof veredito];
+    int vt, aa, ab, res, prim;
+    uint8_t am;
+} mesa_t;
+
+static void guarda_mesa(mesa_t *m)
+{
+    memcpy(m->f, F, sizeof F);
+    memcpy(m->ver, veredito, sizeof veredito);
+    m->vt = ver_tipo; m->aa = anulou_a; m->ab = anulou_b; m->res = resistiu;
+    m->am = anulou_masc; m->prim = primeiro;
+}
+static void volta_mesa(const mesa_t *m)
+{
+    memcpy(F, m->f, sizeof F);
+    memcpy(veredito, m->ver, sizeof veredito);
+    ver_tipo = m->vt; anulou_a = m->aa; anulou_b = m->ab; resistiu = m->res;
+    anulou_masc = m->am; primeiro = m->prim;
+}
+
+static void sim_lanca(int j)
+{
+    fila_t *f = &F[j];
+    int k = f->lancados, menor;
+    int x = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
+    f->cru[k] = f->valor[k] = x;
+    f->descarte[k] = (uint8_t)menor;
+    f->lancados = k + 1;
+    aplica_regra(j, k);
+}
+
+// Quem abre nao sabe o alvo: olha o risco do proximo dado. O Egoista
+// trocaria a fila inteira por um d12: so compensa com pouco na mesa.
+static bool abre_continua(int j)
+{
+    const fila_t *f = &F[j];
+    if (tipo_de(j, f->lancados) == D_EGOISTA) return f->pontos < 6;
+    int r = risco(j);
+    return r < 40 || (r < 60 && f->pontos < 8);
+}
+
+// Placar de j com a mesa como esta: 1 vence, 0.5 empata, 0 perde.
+static float placar(int j)
+{
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    int a = d.total[j], b = d.total[outro(j)];
+    return a > b ? 1.0f : (a == b ? 0.5f : 0.0f);
+}
+
+// Joga o turno de j ate o fim da fila ou ate parar. Quem joga depois para
+// assim que passa na frente; quem abre segue o risco.
+static void sim_turno(int j)
+{
+    fila_t *f = &F[j];
+    while (f->lancados < f->n) {
+        if (f->lancados > 0) {
+            if (j != primeiro) { if (placar(j) == 1.0f) break; }
+            else if (!abre_continua(j)) break;
+        }
+        sim_lanca(j);
+    }
+}
+
+// Uma fila provavel para r. A mao de verdade a IA nao olha: sorteia uma entre
+// os dados que ele ainda pode ter (ou a colecao toda, para medir compras) e
+// escolhe pela regra simples.
+static void fila_imaginada(int r, bool toda)
+{
+    jogador_t *p = &J[r];
+    peca_t pool[MAX_COL];
+    int n = 0;
+    for (int i = 0; i < p->n_col; i++) if (toda || p->onde[i] != FORA) pool[n++] = p->col[i];
+    if (n < N_FILA) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
+    int m = n < MAO ? n : MAO;
+    for (int i = 0; i < m; i++) {
+        int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
+        peca_t t = pool[i]; pool[i] = pool[k]; pool[k] = t;
+    }
+    int ordem[N_FILA], q = fila_simples(pool, m, ordem);
+    fila_t *f = &F[r];
+    memset(f, 0, sizeof *f);
+    for (int k = 0; k < q; k++) { f->tipo[k] = pool[ordem[k]].tipo; f->fixo[k] = pool[ordem[k]].fixo; }
+    f->n = q;
+}
+
+// Termina a rodada de mentira do ponto de vista de j e devolve o placar dele.
+// Se o rival ainda nao jogou, ele joga uma fila imaginada.
+static float sim_resto(int j)
+{
+    int r = outro(j);
+    if (j == primeiro) fila_imaginada(r, false);
+    sim_turno(j);
+    if (j == primeiro) sim_turno(r);
+    return placar(j);
+}
+
+#define IA_AMOSTRAS 240
+static int ia_esforco = 1;                   // o simulador pede menos para andar rapido
+
+// ---- A fila ----------------------------------------------------------------
+// Testa toda ordem de ate quatro dados da mao, jogando cada uma varias vezes
+// contra filas imaginadas do rival (ou contra a fila que ele ja jogou). Assim
+// as sinergias (Dobro antes do maior, Fartura com dados baixos, Copiador,
+// Jackpot...) aparecem sozinhas, sem regra escrita para cada uma.
+
+static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t base,
+                         const mesa_t *m)
+{
+    float s = 0;
+    for (int a = 0; a < amostras; a++) {
+        volta_mesa(m);
+        semeia_ia(base, a);
+        fila_t *f = &F[j];
+        memset(f, 0, sizeof *f);
+        for (int k = 0; k < L; k++) {
+            peca_t pc = J[j].col[J[j].mao[seq[k]]];
+            f->tipo[k] = pc.tipo;
+            f->fixo[k] = pc.fixo;
+        }
+        f->n = L;
+        s += sim_resto(j);
+    }
+    return s / (float)amostras;
+}
+
+#define MAX_CAND 840                         // 7 x 6 x 5 x 4
+static void ia_planeja(void)
+{
+    int j = vez;
+    if (plano_rodada == rodada && plano_vez == j) return;
+    jogador_t *p = &J[j];
+    int n = p->n_mao, L = n < N_FILA ? n : N_FILA;
+    plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
+    if (L <= 0) return;
+
+    static int8_t cand[MAX_CAND][N_FILA];
+    static float nota_c[MAX_CAND];
+    static uint64_t assin[MAX_CAND];
+    int nc = 0;
+    // Todas as sequencias de L posicoes diferentes da mao. Sequencias com os
+    // mesmos dados na mesma ordem (dois d6 trocados) contam uma vez so.
+    int8_t s[N_FILA] = { 0 };
+    int nivel = 0;
+    s[0] = -1;
+    while (nivel >= 0) {
+        s[nivel]++;
+        if (s[nivel] >= n) { nivel--; continue; }
+        bool rep = false;
+        for (int i = 0; i < nivel; i++) if (s[i] == s[nivel]) rep = true;
+        if (rep) continue;
+        if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
+        uint64_t a = 0;
+        for (int k = 0; k < L; k++) {
+            peca_t pc = p->col[p->mao[s[k]]];
+            a = a * 512 + (uint64_t)(pc.tipo * 9 + pc.fixo);
+        }
+        bool visto = false;
+        for (int c = 0; c < nc && !visto; c++) visto = assin[c] == a;
+        if (visto || nc >= MAX_CAND) continue;
+        assin[nc] = a;
+        memcpy(cand[nc++], s, N_FILA);
+    }
+
+    mesa_t m;
+    guarda_mesa(&m);
+    uint32_t base = 0xA5A5u + (uint32_t)rodada * 7919u + (uint32_t)j * 104729u;
+    // Primeira peneira com poucas jogadas; as melhores jogam de novo, muito mais.
+    int a1 = nc > 60 ? 24 : 64;
+    if (ia_esforco == 0) a1 = 4;
+    for (int c = 0; c < nc; c++) nota_c[c] = avalia_fila(j, cand[c], L, a1, base, &m);
+    int finalistas = ia_esforco ? 8 : 2, a2 = ia_esforco ? IA_AMOSTRAS : 24;
+    int melhor = -1;
+    float nota_m = -1;
+    for (int f = 0; f < finalistas && f < nc; f++) {
+        int b = -1;
+        for (int c = 0; c < nc; c++) if (nota_c[c] > -1 && (b < 0 || nota_c[c] > nota_c[b])) b = c;
+        if (b < 0) break;
+        nota_c[b] = -2;                      // ja foi finalista
+        float v = avalia_fila(j, cand[b], L, a2, base ^ 0x5bd1e995u, &m);
+        if (v > nota_m) { nota_m = v; melhor = b; }
+    }
+    volta_mesa(&m);
+    if (melhor < 0) return;
+    memcpy(plano, cand[melhor], N_FILA);
+    plano_n = L;
+    plano_p = nota_m;
+}
+
+static int ia_proximo_da_fila(void)
+{
+    ia_planeja();
+    int k = F[vez].n;
+    return k < plano_n ? plano[k] : -1;
+}
+
+// ---- Lancar ou parar -----------------------------------------------------
+// Compara as duas coisas jogando de mentira: parar agora (e o rival
+// responder, se ainda nao jogou) contra lancar mais um e seguir. Um empate
+// certo nao vira derrota certa, como lancar um Quebrado que anula o seu 6.
 static bool ia_continua(void)
 {
-    fila_t *f = &F[vez];
+    int j = vez;
+    fila_t *f = &F[j];
     if (f->lancados >= f->n) return false;
     if (f->lancados == 0) return true;
-    if (vez != primeiro) {                     // parar agora ganha?
-        desfecho_t d;
-        calcula_desfecho(&d, false);
-        return d.total[vez] <= d.total[outro(vez)];
+    mesa_t m;
+    guarda_mesa(&m);
+    int amostras = ia_esforco ? IA_AMOSTRAS : 24;
+    uint32_t base = 0xC0FFEEu + (uint32_t)rodada * 31u + (uint32_t)f->lancados;
+    float parar = 0, seguir = 0;
+    for (int a = 0; a < amostras; a++) {
+        volta_mesa(&m);
+        semeia_ia(base, a);
+        F[j].n = F[j].lancados;              // parar: a fila acaba aqui
+        parar += sim_resto(j);
+        volta_mesa(&m);
+        semeia_ia(base, a);
+        sim_lanca(j);
+        seguir += sim_resto(j);
     }
-    // O Egoista trocaria a fila inteira por um d12: so compensa com pouco na mesa.
-    if (tipo_de(vez, f->lancados) == D_EGOISTA) return f->pontos < 6;
-    int r = risco(vez);
-    return r < 40 || (r < 60 && f->pontos < 8);
+    volta_mesa(&m);
+    parar /= (float)amostras;
+    seguir /= (float)amostras;
+    // O Quebrado some da colecao quando e jogado: so vale a pena se ajudar.
+    if (tipo_de(j, f->lancados) == D_QUEBRADO) seguir -= 0.02f;
+    return seguir > parar + 0.005f;
+}
+
+// ---- Aposta ----------------------------------------------------------------
+// Chance de vencer a rodada, vista por quem esta na vez.
+static float ia_chance(void)
+{
+    int j = vez;
+    if (F[j].lancados == 0) { ia_planeja(); return plano_p; }   // ainda vai jogar
+    mesa_t m;
+    guarda_mesa(&m);
+    int amostras = ia_esforco ? IA_AMOSTRAS : 24;
+    float s = 0;
+    for (int a = 0; a < amostras; a++) {
+        volta_mesa(&m);
+        semeia_ia(0xBE77u + (uint32_t)rodada, a);
+        F[j].n = F[j].lancados;
+        s += sim_resto(j);
+    }
+    volta_mesa(&m);
+    return s / (float)amostras;
 }
 
 static int ia_aposta(void)
 {
     int op[4], n = opcoes(op);
-    int pts = F[primeiro].pontos;
-    bool jogou = vez == primeiro;          // a IA ja tem pontos na mesa?
+    float p = ia_chance();
     int quer;
     if (!a_pagar) {
-        if (jogou) quer = pts >= 20 ? OP_APOSTAR25 : (pts >= 13 ? OP_APOSTAR10 : OP_PASSAR);
-        else       quer = pts <= 5 ? OP_APOSTAR10 : OP_PASSAR;
-    } else if (jogou) {
-        quer = pts <= 4 ? OP_CORRER : OP_PAGAR;
+        quer = p >= 0.72f ? OP_APOSTAR25 : (p >= 0.58f ? OP_APOSTAR10 : OP_PASSAR);
+        if (quer == OP_PASSAR && p < 0.35f && rnd_ia() % 8 == 0) quer = OP_APOSTAR10;   // blefe
     } else {
-        quer = (pts >= 22 && a_pagar >= 20) ? OP_CORRER
-             : (pts <= 5 ? OP_AUMENTAR : OP_PAGAR);
+        // Pagar 'a_pagar' para disputar o pote, que ja tem a aposta do rival.
+        float precisa = (float)a_pagar / (float)(pote + a_pagar);
+        if (p >= 0.75f) quer = OP_AUMENTAR;
+        else quer = p >= precisa ? OP_PAGAR : OP_CORRER;
     }
     for (int i = 0; i < n; i++) if (op[i] == quer) return i;
     for (int i = 0; i < n; i++) if (op[i] == OP_PAGAR || op[i] == OP_PASSAR) return i;
     return 0;
 }
 
-// Loja: leva o melhor que couber, guardando fichas para as apostas.
+// ---- Loja e premio -----------------------------------------------------------
+// Forca da colecao de j, com um dado a mais (ou nenhum, extra < 0): chance
+// media de vencer rodadas imaginadas, com maos sorteadas da colecao toda,
+// contra a colecao do rival, metade abrindo e metade respondendo. Pega as
+// sinergias com o que ja tem e tambem a diluicao: dado fraco atrapalha.
+static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
+{
+    jogador_t *p = &J[j];
+    peca_t pool[MAX_COL + 1];
+    int n = 0;
+    for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i];
+    if (extra >= 0) pool[n++] = (peca_t){ (uint8_t)extra, (uint8_t)fixo_extra };
+    mesa_t m;
+    guarda_mesa(&m);
+    int amostras = ia_esforco ? 600 : 40, r = outro(j);
+    float s = 0;
+    for (int a = 0; a < amostras; a++) {
+        volta_mesa(&m);
+        semeia_ia(base, a);
+        primeiro = a & 1 ? j : r;
+        fila_imaginada(r, true);
+        peca_t mao[MAX_COL + 1];
+        memcpy(mao, pool, sizeof pool);
+        int q = n < MAO ? n : MAO;
+        for (int i = 0; i < q; i++) {
+            int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
+            peca_t t = mao[i]; mao[i] = mao[k]; mao[k] = t;
+        }
+        int ordem[N_FILA], L = fila_simples(mao, q, ordem);
+        fila_t *f = &F[j];
+        memset(f, 0, sizeof *f);
+        for (int k = 0; k < L; k++) { f->tipo[k] = mao[ordem[k]].tipo; f->fixo[k] = mao[ordem[k]].fixo; }
+        f->n = L;
+        sim_turno(primeiro);
+        sim_turno(outro(primeiro));
+        s += placar(j);
+    }
+    volta_mesa(&m);
+    return s / (float)amostras;
+}
+
+// Loja: compra o que mais sobe a chance de vencer, pesando o preco: um ponto
+// de chance a mais em cada rodada que falta vale mais ou menos um quarto do
+// pote medio. Guarda sempre fichas para as apostas.
 static int ia_compra(void)
 {
+    int j = vez;
+    if (J[j].n_col >= MAX_COL) return -1;
+    uint32_t base = 0x51ED27u + (uint32_t)rodada * 977u + (uint32_t)J[j].n_col;
+    float sem = forca_colecao(j, -1, 0, base);
+    int faltam = MAX_RODADAS - rodada + 1;
+    if (faltam < 1) faltam = 1;
     int b = -1;
+    float melhor = 0;
     for (int i = 0; i < N_LOJA; i++) {
         int pr = preco_loja(loja[i].tipo);
-        if (levou[vez][i] || J[vez].fichas - pr < 75 || J[vez].n_col >= MAX_COL) continue;
-        if (b < 0 || TIPO[loja[i].tipo].raridade > TIPO[loja[b].tipo].raridade
-            || (TIPO[loja[i].tipo].raridade == TIPO[loja[b].tipo].raridade
-                && pr > preco_loja(loja[b].tipo)))
-            b = i;
+        if (levou[j][i] || J[j].fichas - pr < 60) continue;
+        float ganho = forca_colecao(j, loja[i].tipo, loja[i].fixo, base) - sem;
+        float valor = ganho * (float)faltam * 25.0f - (float)pr;
+        if (valor > melhor) { melhor = valor; b = i; }
+    }
+    return b;
+}
+
+// Premio: o que mais fortalece a colecao.
+static int ia_premio(void)
+{
+    int j = vez, b = 0;
+    uint32_t base = 0x9E37u + (uint32_t)rodada * 131u;
+    float melhor = -1;
+    for (int i = 0; i < 3; i++) {
+        float v = forca_colecao(j, oferta[i].tipo, oferta[i].fixo, base);
+        if (v > melhor) { melhor = v; b = i; }
     }
     return b;
 }
@@ -2504,14 +2867,10 @@ static void ia_passo(float dt)
         cursor = ia_aposta();
         trata_tecla(KEY_ENTER);
         break;
-    case F_PREMIO: {
-        int b = 0;
-        for (int i = 1; i < 3; i++)
-            if (TIPO[oferta[i].tipo].raridade > TIPO[oferta[b].tipo].raridade) b = i;
-        cursor = b;
+    case F_PREMIO:
+        cursor = ia_premio();
         trata_tecla(KEY_ENTER);
         break;
-    }
     }
 }
 
@@ -2895,7 +3254,8 @@ static void desenha_fila(int j)
             if (q > 1) q = 1;
             float s = q * q * (3 - 2 * q);
             int tx = ROUBO_X(vis_nroubo[e->de_j]), ty = zona(e->de_j);
-            desenha_dado(x + (tx - x) * s, y + (ty - y) * s, R, t, j, s * 6.28f, f->valor[k], 2, false);
+            desenha_dado(x + (tx - x) * s, y + (ty - y) * s, R + (R_ROUBO - R) * s, t, j, s * 6.28f,
+                         f->valor[k], 2, false);
             continue;
         }
         if (est == V_ROUBADO) {                           // lugar vazio: foi levado
@@ -3000,12 +3360,13 @@ static void desenha_fila(int j)
     if (no_desfecho)
         for (int i = 0; i < vis_nroubo[j]; i++) {
             roubado_t *r = &vis_roubo[j][i];
-            desenha_dado((float)ROUBO_X(i), (float)y, R, r->tipo, r->de_j, 0, r->valor, 2, false);
+            desenha_dado((float)ROUBO_X(i), (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, false);
         }
 
     if (f->lancados || vis_nroubo[j]) {
         char s[16];
-        int pts = no_desfecho ? total_visivel(j) : f->pontos;
+        int pts = fase == F_RESULTADO && venc_mao >= 0 ? f->total
+                : no_desfecho ? total_visivel(j) : f->pontos;
         // Rodada zerando: o placar desce ate 0 durante o evento.
         if (e && e->tipo == EV_ZERA && e->de_j == j) {
             float q = p / 0.7f;
@@ -3199,11 +3560,27 @@ static void desenha_ordem(void)
     } else if (n) {
         dado_e_poder(y1 + 26, p->col[p->mao[cursor]].tipo);
     }
-    // Rodape: o que a compra fez com a bolsa.
-    if (p->embaralhou) snprintf(t, sizeof t, "bolsa vazia: tudo volta para ela e embaralha");
-    else if (f->n)     snprintf(t, sizeof t, "ENTER põe/tira  ·  TAB/CTRL confirma com %d na fila", f->n);
-    else               snprintf(t, sizeof t, "comprou %d, sobram %d na bolsa  ·  ENTER põe na fila", n, na_bolsa(p));
-    txt_c(GFX_W / 2, y1 + 70, t, p->embaralhou ? C_TERRA : C_TEXTO_M, false);
+    // Rodape: a fila como vai ser jogada, da esquerda para a direita, e as
+    // teclas (ou o aviso de que a bolsa embaralhou).
+    int ry = y1 + 80, fx = 150;
+    txt(fx - 50, ry - 11, "fila", C_TEXTO_M, false);
+    for (int k = 0; k < N_FILA; k++) {
+        int x = fx + k * 36;
+        if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
+        if (k < f->n) {
+            peca_t pc = { f->tipo[k], f->fixo[k] };
+            peca_parada((float)x, (float)ry, 10, pc, vez);
+        } else {
+            gfx_disco(x, ry, 11, k == f->n ? C_OURO : C_FELTRO2);
+            gfx_disco(x, ry, 9, C_FELTRO_ESC);
+            char o[2] = { (char)('1' + k), 0 };
+            txt_c(x, ry - 10, o, k == f->n ? C_OURO : C_FELTRO2, false);
+        }
+    }
+    if (p->embaralhou)  snprintf(t, sizeof t, "bolsa vazia: tudo voltou e embaralhou");
+    else if (f->n)      snprintf(t, sizeof t, "ENTER põe/tira  ·  TAB confirma");
+    else                snprintf(t, sizeof t, "ENTER põe na fila  ·  I detalhes");
+    txt(fx + N_FILA * 36 + 4, ry - 11, t, p->embaralhou ? C_TERRA : C_TEXTO_M, false);
 }
 
 static void desenha_joga(void)
@@ -3403,7 +3780,7 @@ static void desenha_loja(void)
     dado_e_poder(240, loja[cursor].tipo);
     if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
         txt_c(GFX_W / 2, 240 - TXT_H - 2, "fichas insuficientes", C_VINHO_CLR, true);
-    txt_c(GFX_W / 2, 286, "setas escolhem  ·  ENTER compra  ·  TAB/CTRL termina as compras", C_TEXTO_M, false);
+    txt_c(GFX_W / 2, 286, "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB/CTRL termina", C_TEXTO_M, false);
 }
 
 static void desenha_fim(void)
@@ -3525,6 +3902,58 @@ static void desenha_catalogo(void)
     if (so_inicial(tipo)) txt(x + wc + 10, 119, "dado inicial", C_TEXTO_M, false);
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+}
+
+// O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o
+// proximo da fila. -1 se nao ha nenhum.
+static int tipo_em_foco(void)
+{
+    switch (fase) {
+    case F_ORDEM:
+        if (J[vez].n_mao && cursor >= 0 && cursor < J[vez].n_mao) return J[vez].col[J[vez].mao[cursor]].tipo;
+        break;
+    case F_JOGA:
+        if (F[vez].lancados < F[vez].n) return tipo_de(vez, F[vez].lancados);
+        break;
+    case F_LOJA:
+        if (cursor >= 0 && cursor < N_LOJA) return loja[cursor].tipo;
+        break;
+    case F_PREMIO:
+        if (!removendo && cursor >= 0 && cursor < 3) return oferta[cursor].tipo;
+        break;
+    default: break;
+    }
+    return -1;
+}
+
+// Tecla I: o texto inteiro do dado em foco, por cima da mesa. So olha: a
+// partida fica parada onde estava, e qualquer tecla fecha.
+static void desenha_detalhe(void)
+{
+    if (detalhe < 0) return;
+    if (fase != detalhe_fase) { detalhe = -1; return; }   // a partida andou
+    int tipo = detalhe;
+    const int x0 = 70, y0 = 70, w = GFX_W - 140, h = 220;
+    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 140);
+    gfx_rect(x0 + 3, y0 + 4, w, h, C_SOMBRA);
+    gfx_rect(x0, y0, w, h, C_FELTRO_ESC);
+    gfx_moldura(x0, y0, w, h, 2, cor_rar(tipo));
+    int cx = x0 + 78, cy = y0 + 96;
+    gfx_disco(cx, cy, 52, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));
+    gfx_disco(cx, cy, 49, C_FELTRO_ESC);
+    peca_t pc = { (uint8_t)tipo, 0 };               // nova_peca sortearia: aqui so se olha
+    peca_parada((float)cx, (float)cy, 32, pc, 0);
+    int x = x0 + 160;
+    gfx_texto(x, y0 + 16, TIPO[tipo].nome, cor_aro(tipo), 1, true);
+    char s[32];
+    classe(tipo, s, sizeof s);
+    int wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(s, 1) + 10;
+    gfx_rect_alfa(x + wn + 12, y0 + 18, wc, TXT_H - 2, cor_rar(tipo), 40);
+    gfx_moldura(x + wn + 12, y0 + 18, wc, TXT_H - 2, 1, cor_rar(tipo));
+    gfx_texto(x + wn + 17, y0 + 16, s, cor_rar(tipo), 1, false);
+    gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
+    quebra_linhas(x, y0 + 54, w - 180, 6, TEXTO_CAT[tipo], C_MARFIM);
+    txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
 }
 
 // O nome do jogador na faixa, com "computador" ao lado quando e a IA.
@@ -3649,7 +4078,7 @@ static const pagina_t TUTORIAL[] = {
         "São 33 dados, cada um com um poder: veja todos em Dados da casa." } },
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para",
-        "BACKSPACE tira da fila  ·  X recusa o prêmio  ·  ESC duas vezes: menu",
+        "I mostra tudo sobre o dado escolhido  ·  BACKSPACE tira da fila  ·  X recusa o prêmio  ·  ESC duas vezes: menu",
         "M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
@@ -3696,9 +4125,9 @@ static void ilustra_tutorial(int pag, int y)
         static const uint8_t E[5] = { D_ESCUDO, D_JACKPOT, D_EGOISTA, D_COPIADOR, D_FOGO };
         for (int i = 0; i < 5; i++) {
             int x = cx + (i - 2) * 80;
-            float bob = sinf(t_fase * 3 + i) * 3;
-            peca_parada((float)x, y + 32 + bob, 20, nova_peca(E[i]), 0);
-            txt_c(x, y + 54, TIPO[E[i]].nome, cor_aro(E[i]), false);
+            float bob = sinf(t_fase * 3 + i) * 2;
+            peca_parada((float)x, y + 26 + bob, 19, nova_peca(E[i]), 0);
+            txt_c(x, y + 51, TIPO[E[i]].nome, cor_aro(E[i]), false);
         }
         break;
     }
@@ -3721,7 +4150,9 @@ static void desenha_tutorial(void)
         int n = quebra_linhas(44, y, 552, 4, pg->par[i], i == 0 ? C_MARFIM : C_MARFIM_S);
         y += n * (TXT_H + 4) + 4;
     }
-    ilustra_tutorial(tut_pag, 226);                  // faixa fixa, abaixo do texto
+    // A ilustracao vai abaixo do texto: na faixa de sempre ou, se o texto
+    // desceu mais, logo depois dele.
+    ilustra_tutorial(tut_pag, y + 10 > 226 ? y + 10 : 226);
     // Bolinhas das paginas.
     for (int i = 0; i < N_TUTORIAL; i++)
         gfx_disco(GFX_W / 2 + (i - N_TUTORIAL / 2) * 16, MESA_Y1 - 6, 3,
@@ -3742,7 +4173,28 @@ static void desenha_avisos(void)
     txt_c(GFX_W / 2, MESA_Y0 + 11, msg, c, true);
 }
 
+// Com os detalhes abertos, a mesa por baixo e desenhada sem os textos: eles
+// iriam por cima de tudo, na camada de texto da plataforma.
+static void texto_mudo(int x, int y, const char *s, uint16_t c, int e, bool n)
+{
+    (void)x; (void)y; (void)s; (void)c; (void)e; (void)n;
+}
+
+static void desenha_tudo(void);
+
 void dado_desenha(void)
+{
+    gfx_texto_fn nitido = gfx_texto_nitido_atual();
+    bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
+    if (mudo) gfx_texto_nitido(texto_mudo);
+    desenha_tudo();
+    if (mudo) gfx_texto_nitido(nitido);
+    if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
+    desenha_detalhe();
+    desenha_avisos();
+}
+
+static void desenha_tudo(void)
 {
     mesa();
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
@@ -3773,7 +4225,6 @@ void dado_desenha(void)
         if (fase == F_ROLANDO || fase == F_ARRUMA) desenha_lance();
         break;
     }
-    desenha_avisos();
 }
 
 // ===========================================================================
@@ -3829,6 +4280,15 @@ void dado_tecla(const key_event_t *ev_)
         bool on = som_liga(!som_ligado());
         if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem saída de som neste computador");
         if (on) som_toca(SOM_FICHA);
+        return;
+    }
+    // Detalhes do dado (tecla I): so da tela local, nunca vai para o rival.
+    if (detalhe >= 0 && fase == detalhe_fase) { detalhe = -1; return; }   // qualquer tecla fecha
+    detalhe = -1;
+    if (k == 'i' && !dado_digitando() && tipo_em_foco() >= 0) {
+        detalhe = tipo_em_foco();
+        detalhe_fase = fase;
+        som_toca(SOM_TIQUE);
         return;
     }
     if (k == KEY_ESC) { trata_esc(); return; }
@@ -4067,6 +4527,7 @@ const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
 int  dado_dbg_n_tipos(void) { return D_N; }
+void dado_dbg_ia_esforco(int e) { ia_esforco = e; }
 void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)
 {

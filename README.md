@@ -134,4 +134,5 @@ Para ouvir a trilha, o rufar e os efeitos fora do jogo:
 `./build/exporta_som pasta/` grava um `.wav` de cada.
 
 A fonte DotGothic16 é distribuída sob a SIL Open Font License
-(`tools/fontes/OFL.txt`).
+(`tools/fontes/OFL-DotGothic16.txt`); a Jersey 10, também OFL
+(`tools/fontes/OFL-Jersey10.txt`).

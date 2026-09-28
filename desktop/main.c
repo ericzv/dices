@@ -8,6 +8,7 @@
 // N liga e desliga a musica, F12 salva uma foto da tela.
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 // Os nomes KEY_* do jogo colidem com os do raylib: guardamos os valores do
@@ -33,6 +34,8 @@ enum {
 #include "esp_timer.h"
 #include "plataforma.h"
 #include "icone.h"
+#include "fonte_ttf.h"
+#include "ui/fonte_tela.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -142,6 +145,62 @@ static Rectangle area_do_jogo(void)
 
 static Texture2D tela;
 
+// ---------------------------------------------------------------------------
+// Texto nitido: o jogo avisa cada texto do quadro; aqui ele e desenhado com a
+// Jersey 10 na resolucao da tela, por cima da mesa de pixels.
+// ---------------------------------------------------------------------------
+typedef struct { int16_t x, y; uint8_t esc; bool negrito; uint16_t cor; int ini; } texto_t;
+static texto_t textos[768];
+static int n_textos, usado;
+static char letras[32768];
+static Font fonte;
+
+static void recebe_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
+{
+    int n = (int)strlen(s) + 1;
+    if (n_textos >= (int)(sizeof textos / sizeof textos[0]) || usado + n > (int)sizeof letras) return;
+    textos[n_textos++] = (texto_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, usado };
+    memcpy(letras + usado, s, (size_t)n);
+    usado += n;
+}
+
+static Color rgb565(uint16_t c)
+{
+    return (Color){ (unsigned char)(((c >> 11) & 31) * 255 / 31),
+                    (unsigned char)(((c >> 5) & 63) * 255 / 63),
+                    (unsigned char)((c & 31) * 255 / 31), 255 };
+}
+
+static void carrega_fonte(void)
+{
+    int cps[FONTE_N], n = 0;
+    for (int c = 0x20; c < 0x100; c++) if (c < 0x7F || c >= 0xA0) cps[n++] = c;
+    fonte = LoadFontFromMemory(".ttf", FONTE_TTF, (int)sizeof FONTE_TTF, 96, cps, n);
+    GenTextureMipmaps(&fonte.texture);
+    SetTextureFilter(fonte.texture, TEXTURE_FILTER_TRILINEAR);
+    gfx_texto_nitido(recebe_texto);
+}
+
+// Cada letra vai na posicao que o jogo calculou (mesmos avancos da tabela),
+// assim o centro e as quebras de linha batem com o que o jogo mediu.
+static void desenha_textos(Rectangle area)
+{
+    float k = area.width / GFX_W;
+    for (int i = 0; i < n_textos; i++) {
+        const texto_t *t = &textos[i];
+        float tam = FT_EM * t->esc * k;
+        float x = area.x + t->x * k, y = area.y + t->y * k;
+        Color c = rgb565(t->cor);
+        const char *s = letras + t->ini;
+        while (*s) {
+            int cp = gfx_proximo_car(&s);
+            DrawTextCodepoint(fonte, cp, (Vector2){ x, y }, tam, c);
+            if (t->negrito) DrawTextCodepoint(fonte, cp, (Vector2){ x + k * 0.45f * t->esc, y }, tam, c);
+            x += FT_AVANCO[cp - FONTE_PRIM] * t->esc * k / 64.0f;
+        }
+    }
+}
+
 // Um quadro do jogo: teclado, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
@@ -150,13 +209,15 @@ static void quadro(void)
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     dado_passo(dt);
     som_atualiza(dt);
+    n_textos = usado = 0;
     dado_desenha();
     UpdateTexture(tela, fb);
 
     BeginDrawing();
     ClearBackground(C_FAIXA);
-    DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area_do_jogo(),
-                   (Vector2){ 0, 0 }, 0, WHITE);
+    Rectangle area = area_do_jogo();
+    DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area, (Vector2){ 0, 0 }, 0, WHITE);
+    desenha_textos(area);
     EndDrawing();
 }
 
@@ -181,6 +242,7 @@ int main(void)
     };
     tela = LoadTextureFromImage(img);
     SetTextureFilter(tela, TEXTURE_FILTER_POINT);
+    carrega_fonte();
 
     dado_inicia(0);
 #ifdef __EMSCRIPTEN__

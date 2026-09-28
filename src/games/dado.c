@@ -125,12 +125,12 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
-    { "moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2; boa para abrir a fila" },
-    { "d4",         4,  EF_NADA,      RAR_COMUM,   "quatro lados" },
-    { "d6",         6,  EF_NADA,      RAR_COMUM,   "seis lados" },
-    { "d8",         8,  EF_NADA,      RAR_COMUM,   "oito lados" },
-    { "d12",       12,  EF_NADA,      RAR_INCOMUM, "doze lados" },
-    { "d20",       20,  EF_NADA,      RAR_RARO,    "vinte lados" },
+    { "Moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2; boa para abrir a fila" },
+    { "D4",         4,  EF_NADA,      RAR_COMUM,   "quatro lados" },
+    { "D6",         6,  EF_NADA,      RAR_COMUM,   "seis lados" },
+    { "D8",         8,  EF_NADA,      RAR_COMUM,   "oito lados" },
+    { "D12",       12,  EF_NADA,      RAR_INCOMUM, "doze lados" },
+    { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados" },
     { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "no fim, o seguinte vale x2" },
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes, fica o maior" },
     { "Lastro",    12,  EF_LASTRO,    RAR_INCOMUM, "nunca menos que 6" },
@@ -199,6 +199,38 @@ static const char *TEXTO_CAT[D_N] = {
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
+// Cor de cada raridade: cinza, verde, azul e dourado.
+static const uint16_t COR_RAR[] = { RGB(168, 164, 150), RGB(104, 186, 110),
+                                    RGB(96, 146, 226), RGB(236, 170, 64) };
+static uint16_t cor_rar(int tipo) { return COR_RAR[TIPO[tipo].raridade]; }
+
+// "moeda", "D4" ... "D20": o tipo, sempre escrito do mesmo jeito.
+static const char *nome_tipo(int tipo)
+{
+    switch (TIPO[tipo].lados) {
+    case 2:  return "moeda";
+    case 4:  return "D4";
+    case 6:  return "D6";
+    case 8:  return "D8";
+    case 12: return "D12";
+    default: return "D20";
+    }
+}
+
+static bool igual_sem_caixa(const char *a, const char *b)
+{
+    for (; *a && *b; a++, b++)
+        if ((*a | 32) != (*b | 32)) return false;
+    return *a == *b;
+}
+
+// "D8 · raro", na cor da raridade.
+static void classe(int tipo, char *s, int n)
+{
+    // O dado comum ja se chama pelo tipo ("D6"): a etiqueta diz so a raridade.
+    if (igual_sem_caixa(TIPO[tipo].nome, nome_tipo(tipo))) snprintf(s, (size_t)n, "%s", RARIDADE[TIPO[tipo].raridade]);
+    else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), RARIDADE[TIPO[tipo].raridade]);
+}
 
 // O catalogo mostra os dados do mais comum ao mais raro.
 static int cat_tipo(int i)
@@ -472,6 +504,85 @@ static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
             int x0 = (int)ceilf(xs[k]), x1 = (int)floorf(xs[k + 1]);
             if (x1 >= x0) gfx_rect(x0, y, x1 - x0 + 1, 1, cor);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Texturas: um padrao discreto no corpo de cada dado, que gira com ele
+// ---------------------------------------------------------------------------
+enum { T_LISO, T_GRAO, T_LINHAS, T_METAL, T_ONDAS, T_MARMORE, T_PONTOS, T_MADEIRA };
+
+static int textura_de(int tipo)
+{
+    switch (tipo) {
+    case D_LASTRO: case D_ESCUDO: case D_TEIMOSO:          return T_METAL;
+    case D_DOBRO: case D_CARRASCO: case D_GATUNO: case D_JACKPOT: return T_LINHAS;
+    case D_PAR: case D_FICHAS: case D_INVEJOSO: case D_TREVO: return T_ONDAS;
+    case D_ESPELHO: case D_MALDICAO: case D_EGOISTA:       return T_MARMORE;
+    case D_EXPLOSIVO: case D_MARTELO: case D_CARIDOSO:
+    case D_COPIADOR: case D_VICIADO:                       return T_PONTOS;
+    case D_PIRATA:                                         return T_MADEIRA;
+    case D_MALDITO:                                        return T_LISO;   // ja e manchado
+    default:                                               return T_GRAO;   // marfim com grao
+    }
+}
+
+static uint32_t hash2(int x, int y)
+{
+    uint32_t h = (uint32_t)x * 73856093u ^ (uint32_t)y * 19349663u;
+    h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+    return h;
+}
+
+// -1 escurece, +1 clareia, 0 deixa: o desenho do padrao no ponto (u, v) do
+// dado, em pixels, com s = escala (1 num dado da mesa).
+static int padrao(int tex, float u, float v, float s)
+{
+    switch (tex) {
+    case T_GRAO: {
+        uint32_t h = hash2((int)floorf(u / s), (int)floorf(v / s));
+        return h % 19 == 0 ? -1 : (h % 29 == 0 ? 1 : 0);
+    }
+    case T_LINHAS:  return ((int)floorf((u + v) / (3 * s)) & 3) == 0 ? -1 : 0;
+    case T_METAL:   return ((int)floorf(v / (2 * s)) & 1) ? 1 : 0;
+    case T_ONDAS:   return sinf(v / (2.4f * s) + sinf(u / (5 * s)) * 1.8f) > 0.8f ? 1 : 0;
+    case T_MARMORE: return fabsf(sinf(u / (6 * s) + 2.2f * sinf(v / (7 * s)))) < 0.1f ? -1 : 0;
+    case T_PONTOS: {
+        float a = fmodf(u / s + 100, 5), b = fmodf(v / s + 100, 5);
+        return a < 1.2f && b < 1.2f ? -1 : 0;
+    }
+    case T_MADEIRA: return sinf((u * 0.25f + sinf(v * 0.12f / s) * 2.5f) / s) > 0.7f ? -1 : 0;
+    default:        return 0;
+    }
+}
+
+// Poligono como o poligono(), mas com o padrao do dado por cima da cor base.
+static void poligono_tex(const float *vx, const float *vy, int n, uint16_t cor, int tex,
+                         float cx, float cy, float ang, float r, int dono)
+{
+    if (tex == T_LISO || r < 12) { poligono(vx, vy, n, cor); return; }
+    uint16_t esc = gfx_mistura(cor, C_SOMBRA, dono == 0 ? 12 : 18);
+    uint16_t cla = gfx_mistura(cor, C_BRANCO, dono == 0 ? 14 : 12);
+    float ca = cosf(-ang), sa = sinf(-ang), s = r / 22;
+    float ymin = vy[0], ymax = vy[0];
+    for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
+    for (int y = (int)ceilf(ymin); y <= (int)floorf(ymax); y++) {
+        float xs[16];
+        int nx = 0;
+        for (int i = 0; i < n && nx < 16; i++) {
+            int j = (i + 1) % n;
+            float ya = vy[i], yb = vy[j];
+            if ((ya <= y && yb > y) || (yb <= y && ya > y))
+                xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
+        }
+        for (int a = 1; a < nx; a++)
+            for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
+        for (int k = 0; k + 1 < nx; k += 2)
+            for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
+                float dx = x - cx, dy = y - cy;
+                int p = padrao(tex, dx * ca - dy * sa, dx * sa + dy * ca, s);
+                gfx_pixel(x, y, p < 0 ? esc : (p > 0 ? cla : cor));
+            }
     }
 }
 
@@ -825,6 +936,8 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
     }
 }
 
+static float sombra_alt;                 // altura do dado no ar, em pixels
+
 // Numero centrado no dado: grande nos dados grandes.
 static void numero(float cx, float cy, float r, const char *s, uint16_t c)
 {
@@ -838,6 +951,67 @@ static void risca(float cx, float cy, float r)
     int e = r < 12 ? 2 : (int)(r / 6);
     gfx_linha_grossa((int)(cx - r), (int)(cy - r), (int)(cx + r), (int)(cy + r), e, C_VINHO_CLR);
     gfx_linha_grossa((int)(cx - r), (int)(cy + r), (int)(cx + r), (int)(cy - r), e, C_VINHO_CLR);
+}
+
+// Borda de moeda serrilhada: aro com dentinhos em volta.
+static void serrilha(float cx, float cy, int R, uint16_t aro, uint16_t dente)
+{
+    gfx_disco((int)cx, (int)cy, R, aro);
+    int n = R < 14 ? 12 : 20;
+    for (int i = 0; i < n; i++) {
+        float a = i * 6.2832f / n;
+        gfx_pixel((int)(cx + cosf(a) * (R - 1)), (int)(cy + sinf(a) * (R - 1)), dente);
+        if (R >= 14) gfx_pixel((int)(cx + cosf(a) * (R - 2)), (int)(cy + sinf(a) * (R - 2)), dente);
+    }
+}
+
+// Tudo ou Nada: moeda de ouro. Na mao, yin-yang de marfim e ebano (pode dar
+// tudo, pode dar nada); caida, o lado que saiu: TUDO (2) marfim com brilhos
+// dourados, NADA (1) ebano rachado.
+static void tudo_ou_nada(float cx, float cy, float r, float ang, int valor, bool zerado)
+{
+    int R = (int)(r + (r < 12 ? 1 : r / 10)), Ri = R - (R < 14 ? 2 : 4);
+    serrilha(cx, cy, R, zerado ? C_FELTRO2 : C_OURO, zerado ? C_FELTRO_ESC : C_LATAO_ESC);
+    if (valor < 0) {                                   // yin-yang, girando com a moeda
+        float ca = cosf(-ang), sa = sinf(-ang), h = Ri / 2.0f;
+        for (int dy = -Ri; dy <= Ri; dy++)
+            for (int dx = -Ri; dx <= Ri; dx++) {
+                if (dx * dx + dy * dy > Ri * Ri) continue;
+                float u = dx * ca - dy * sa, v = dx * sa + dy * ca;
+                float dc = u * u + (v + h) * (v + h), db = u * u + (v - h) * (v - h);
+                bool claro = dc <= h * h ? true : db <= h * h ? false : u < 0;
+                float olho = h * 0.3f;
+                if (u * u + (v + h) * (v + h) <= olho * olho) claro = false;
+                if (u * u + (v - h) * (v - h) <= olho * olho) claro = true;
+                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? C_MARFIM : C_EBANO);
+            }
+        return;
+    }
+    bool tudo = valor == 2;
+    uint16_t face = zerado ? C_EBANO_B : tudo ? C_MARFIM : C_EBANO;
+    gfx_disco((int)cx, (int)cy, Ri, face);
+    if (!zerado && r >= 12) {
+        // anel fino por dentro: dourado no TUDO, violeta no NADA
+        for (int i = 0; i < 48; i++) {
+            float a = i * 0.1309f;
+            gfx_pixel((int)(cx + cosf(a) * (Ri - 3)), (int)(cy + sinf(a) * (Ri - 3)), tudo ? C_OURO : C_VIOLETA);
+        }
+        if (tudo)                                       // brilhos dourados
+            for (int i = 0; i < 4; i++) {
+                float a = ang + 0.6f + i * 1.5708f;
+                int bx = (int)(cx + cosf(a) * Ri * 0.62f), by = (int)(cy + sinf(a) * Ri * 0.62f);
+                gfx_rect(bx - 2, by, 5, 1, C_OURO);
+                gfx_rect(bx, by - 2, 1, 5, C_OURO);
+            }
+        else {                                          // rachadura
+            int e = esp_marca(r);
+            gfx_linha_grossa((int)(cx + Ri * 0.15f), (int)(cy + Ri * 0.85f), (int)(cx + Ri * 0.35f), (int)(cy + Ri * 0.55f), e, C_EBANO_B);
+            gfx_linha_grossa((int)(cx + Ri * 0.35f), (int)(cy + Ri * 0.55f), (int)(cx + Ri * 0.65f), (int)(cy + Ri * 0.62f), e, C_EBANO_B);
+        }
+    }
+    char n[2] = { (char)('0' + valor), 0 };
+    numero(cx, cy, r, n, zerado ? C_MARFIM_S : tudo ? C_REAL : C_MARFIM);
+    if (zerado) risca(cx, cy, r);
 }
 
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
@@ -857,7 +1031,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
     int so = r < 12 ? 2 : (int)(r / 6);  // deslocamento da sombra
 
-    gfx_disco((int)cx + so, (int)cy + so + 1, (int)r, C_SOMBRA);   // sombra no feltro
+    int alt = (int)sombra_alt;                    // dado no ar: sombra mais longe
+    gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
 
     // Fichas de cassino: Moeda da sorte (azul 1, vermelho 2), Semente (verde,
     // com broto) e Ficha de Fogo (laranja e brasa, com chama). Na mao, o
@@ -902,18 +1077,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     }
 
     if (tipo == D_TUDO_NADA) {
-        // Metade clara, metade escura: tudo ou nada. Caida, mostra so um lado.
-        int R = (int)(r + ea), Ri = (int)(r - ea);
-        gfx_disco((int)cx, (int)cy, R, aro);
-        for (int dy = -Ri; dy <= Ri; dy++) {
-            int w = (int)sqrtf((float)(Ri * Ri - dy * dy));
-            uint16_t esq = C_MARFIM, dir = C_EBANO;
-            if (modo != 0) esq = dir = (valor == 2 ? C_MARFIM : C_EBANO);
-            gfx_rect((int)cx - w, (int)cy + dy, w, 1, zerado ? corpo : esq);
-            gfx_rect((int)cx, (int)cy + dy, w + 1, 1, zerado ? corpo : dir);
-        }
-        tinta = (modo != 0 && valor == 2) ? C_VIOLETA : C_MARFIM;
-        if (modo == 0) return;
+        tudo_ou_nada(cx, cy, r, ang, modo == 0 ? -1 : valor, zerado);
+        return;
     } else if (lados == 2) {
         gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
         gfx_disco((int)cx, (int)cy, (int)(r - ea), gfx_mistura(corpo, C_BRANCO, 22));
@@ -928,7 +1093,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         poligono(vx, vy, n, zerado ? corpo : gfx_mistura(corpo, C_BRANCO, dono == 0 ? 35 : 18));
         if (r >= 12) {
             n = forma(lados, cx + ea * 0.8f, cy + ea * 0.8f, r - ea * 1.6f, ang, vx, vy);
-            poligono(vx, vy, n, corpo);
+            poligono_tex(vx, vy, n, corpo, zerado ? T_LISO : textura_de(tipo), cx, cy, ang, r, dono);
         }
     }
     if (!zerado) marca_frente(tipo, r, dono, corpo);
@@ -963,6 +1128,41 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (zerado) risca(cx, cy, r);
 }
 
+
+// Moeda girando no ar: a arte de verdade da ficha (desenhada num rascunho)
+// colada achatada na horizontal, pela largura aparente |escx|. Quando ela
+// passa de lado, aparece a espessura.
+#define CHAVE 0xF81F                                   // magenta: fundo do rascunho
+static uint16_t rascunho[GFX_W * GFX_H];
+
+static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, float escx, int face)
+{
+    int caixa = (int)(r * 1.5f) + 4, x0 = (int)cx - caixa, y0 = (int)cy - caixa;
+    for (int y = y0; y <= y0 + 2 * caixa; y++)
+        for (int x = x0; x <= x0 + 2 * caixa; x++)
+            if (x >= 0 && y >= 0 && x < GFX_W && y < GFX_H) rascunho[y * GFX_W + x] = CHAVE;
+    gfx_texto_fn nitido = gfx_texto_nitido_atual();
+    gfx_texto_nitido(NULL);                            // o numero vai junto, achatado
+    gfx_desvia(rascunho);
+    desenha_dado(cx, cy, r, tipo, dono, 0, face, 2, false);
+    gfx_desvia(NULL);
+    gfx_texto_nitido(nitido);
+    float e = fabsf(escx);
+    if (e < 0.06f) e = 0.06f;
+    uint16_t *fb = display_fb();
+    for (int y = y0; y <= y0 + 2 * caixa; y++) {
+        if (y < 0 || y >= GFX_H) continue;
+        for (int x = (int)(cx - caixa * e); x <= (int)(cx + caixa * e); x++) {
+            if (x < 0 || x >= GFX_W) continue;
+            int sx = (int)lroundf(cx + (x - cx) / e);
+            if (sx < x0 || sx > x0 + 2 * caixa || sx < 0 || sx >= GFX_W) continue;
+            uint16_t c = rascunho[y * GFX_W + sx];
+            if (c != CHAVE) fb[y * GFX_W + x] = c;
+        }
+    }
+    if (fabsf(escx) < 0.35f)                           // a borda da moeda, de lado
+        gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(cor_aro(tipo), C_SOMBRA, 30));
+}
 
 static void estala(float forca)
 {
@@ -2519,9 +2719,36 @@ static void desenha_lance(void)
             r = R_DADO * (1 - q * 0.4f);
             descartado = true;
         }
+        // Poeira do feltro quando o dado assenta.
+        if (v->pouso > 0 && !v->fantasma) {
+            float q = 1 - v->pouso / 0.18f;
+            for (int k = 0; k < 10; k++) {
+                float a = k * 0.628f + v->x * 0.01f;
+                int px = (int)(v->x + cosf(a) * (R_DADO + q * 20));
+                int py = (int)(v->y + sinf(a) * (R_DADO + q * 20) * 0.6f + R_DADO * 0.3f);
+                int t = q < 0.5f ? 3 : 2;
+                gfx_rect(px - 1, py - 1, t, t, gfx_mistura(C_FELTRO2, C_MARFIM_S, 30 - (int)(q * 20)));
+            }
+        }
+        // Rolando: quica, e a sombra se afasta quando ele esta no alto.
+        sombra_alt = 0;
+        if (!v->parado) {
+            float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+            float h = fabsf(sinf(v->giro * 0.9f)) * fminf(1, vel / 420);
+            r *= 1 + 0.16f * h;
+            sombra_alt = h * 7;
+        }
+        if (TIPO[v->tipo].lados == 2 && !v->parado && !descartado) {
+            float c = cosf(v->giro * 1.6f);            // moeda gira no ar
+            moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, c >= 0 ? v->face : 3 - v->face);
+            sombra_alt = 0;
+            continue;
+        }
         desenha_dado(v->x, v->y, r, v->tipo, v->dono, v->giro,
                      v->parado ? v->valor : v->face, 2, descartado);
+        sombra_alt = 0;
     }
+    sombra_alt = 0;
 }
 
 static void peca_parada(float x, float y, float r, peca_t p, int dono)
@@ -2599,6 +2826,44 @@ static void estilhaca(int x, int y, float t, int dono)
     }
 }
 
+// Projetil em arco de (ax, ay) a (bx, by); q vai de 0 (sai) a 1 (chega) e
+// segue ate 1.5 com o anel do impacto se abrindo no alvo.
+static void projetil(int ax, int ay, int bx, int by, float q, uint16_t c)
+{
+    if (q < 0) return;
+    float arco = -fminf(90, fabsf((float)(by - ay)) * 0.25f + 40);
+    for (int i = 5; i >= 0; i--) {                     // rastro
+        float t = q - i * 0.05f;
+        if (t < 0 || t > 1) continue;
+        float x = ax + (bx - ax) * t, y = ay + (by - ay) * t + arco * 4 * t * (1 - t);
+        int rr = i == 0 ? 5 : 4 - i / 2;
+        gfx_disco((int)x, (int)y, rr, i == 0 ? C_BRANCO : gfx_mistura(c, C_FELTRO, i * 15));
+        if (i == 0) gfx_disco((int)x, (int)y, 3, c);
+    }
+    if (q > 1 && q < 1.5f) {                           // impacto
+        float t = (q - 1) / 0.5f;
+        int rr = (int)(R_DADO * (0.6f + t * 1.2f));
+        for (int a = 0; a < 32; a++) {
+            float an = a * 0.19635f;
+            gfx_rect(bx + (int)(cosf(an) * rr) - 1, by + (int)(sinf(an) * rr) - 1, 3, 3,
+                     gfx_mistura(c, C_FELTRO, (int)(t * 80)));
+        }
+    }
+}
+
+// Faiscas douradas subindo de um dado que ganhou alguma coisa.
+static void faiscas(int x, int y, float t, uint16_t c)
+{
+    for (int i = 0; i < 6; i++) {
+        float f = fmodf(t * 1.3f + i * 0.17f, 1.0f);
+        int px = x - R_DADO + (i * 37) % (2 * R_DADO) + (int)(sinf(t * 5 + i) * 3);
+        int py = y + R_DADO - (int)(f * (2 * R_DADO + 16));
+        int tam = f < 0.7f ? 2 : 1;
+        gfx_rect(px - tam, py, 2 * tam + 1, 1, c);
+        gfx_rect(px, py - tam, 1, 2 * tam + 1, c);
+    }
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -2664,6 +2929,7 @@ static void desenha_fila(int j)
         // O que segurou a queda treme no lugar, como quem balanca a cabeca.
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
             x += ((int)(t_fase * 28) % 2) ? 4 : -4;
+        if (recente && t_fase < 0.5f) x += (int)(sinf(t_fase * 60) * 3);   // treme antes de apagar
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && e->tipo == EV_ANULA && e->alvo_j == j && e->alvo_k == k;
@@ -2710,8 +2976,10 @@ static void desenha_fila(int j)
         if (alvo) aro(x, y, C_VINHO_CLR);
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
-            && (e->mascara >> k & 1) && p > 0.2f)
+            && (e->mascara >> k & 1) && p > 0.2f) {
             aro(x, y, C_OURO);
+            faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
+        }
         if (e && e->tipo == EV_BONUS && e->de_j == j && e->de_k == k) aro(x, y, C_OURO);
         // Marcado pelo fogo: aro em brasa ate o fim da rodada.
         if (no_desfecho && (vis_queima[j][k] ||
@@ -2761,21 +3029,13 @@ static void desenha_evento(void)
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);
-    if (e->tipo == EV_ANULA && p < 0.6f) {
-        float q = p / 0.4f;
-        if (q > 1) q = 1;
-        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
-        int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
-        gfx_linha_grossa(ax, ay, ex, ey, 4, C_VINHO_CLR);
-    }
-    // Maldito e Espinhoso: um traco do dado ate o placar do rival.
-    if (e->tipo == EV_TIRA && p < 0.5f) {
-        float q = p / 0.35f;
-        if (q > 1) q = 1;
+    // Ataques: um projetil em arco do dado que age ate o alvo (o dado, ou o
+    // placar do rival), com rastro, e um anel de impacto quando chega.
+    if (e->tipo == EV_ANULA || e->tipo == EV_TIRA) {
         bool praga = TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_MALDICAO;
-        int bx = PLACAR_X, by = zona(e->alvo_j);
-        int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
-        gfx_linha_grossa(ax, ay, ex, ey, 4, praga ? C_VIOLETA : C_VINHO_CLR);
+        uint16_t c = praga ? C_VIOLETA : C_VINHO_CLR;
+        int bx = e->tipo == EV_ANULA ? SLOT_X(e->alvo_k) : PLACAR_X, by = zona(e->alvo_j);
+        projetil(ax, ay, bx, by, p / 0.42f, c);
     }
     // Ficha de Fogo: linha de fogo tremulando ate o alvo, brasas subindo dele.
     if (e->tipo == EV_FOGO) {
@@ -2864,8 +3124,23 @@ static void pote_mesa(void)
 // Nome do dado em destaque e o poder logo abaixo.
 static void dado_e_poder(int y, int tipo)
 {
-    txt_c(GFX_W / 2, y, TIPO[tipo].nome, cor_aro(tipo), true);
+    // Nome e, ao lado, a etiqueta "D8 · raro" na cor da raridade.
+    char c[32];
+    classe(tipo, c, sizeof c);
+    int wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(c, 1) + 10;
+    int x = GFX_W / 2 - (wn + 12 + wc) / 2;
+    gfx_texto(x, y, TIPO[tipo].nome, cor_aro(tipo), 1, true);
+    int xc = x + wn + 12;
+    gfx_rect_alfa(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo), 40);
+    gfx_moldura(xc, y + 2, wc, TXT_H - 2, 1, cor_rar(tipo));
+    gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
     txt_c(GFX_W / 2, y + TXT_H + 2, TIPO[tipo].desc, C_MARFIM_S, false);
+}
+
+// Tracinho discreto na cor da raridade, embaixo de um dado.
+static void marca_rar(int x, int y, int tipo)
+{
+    gfx_rect(x - 7, y, 14, 2, cor_rar(tipo));
 }
 
 static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor)
@@ -2903,6 +3178,7 @@ static void desenha_ordem(void)
         bool cur = i == cursor && q >= 1;
         if (cur) gfx_rect_alfa(x - 29, y - 29, 58, 58, p->cor, 60);
         peca_parada((float)x, (float)(y + dy - (cur ? 3 : 0)), 20, p->col[p->mao[i]], vez);
+        if (!cur && q >= 1) marca_rar(x, y + 28, p->col[p->mao[i]].tipo);
         if (ordem >= 0) {
             char o[2] = { (char)('1' + ordem), 0 };
             gfx_disco(x + 18, y - 20, 10, C_OURO);
@@ -3043,6 +3319,7 @@ static void desenha_premio(void)
             }
             if (i == cursor) gfx_rect_alfa(x - 22, y - 22, 44, 44, C_VINHO_CLR, 80);
             peca_parada((float)x, (float)y, 17, p->col[i], vez);
+            if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
             if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
         }
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
@@ -3058,18 +3335,19 @@ static void desenha_premio(void)
         int x = GFX_W / 2 + (i - 1) * 150;
         int t2 = oferta[i].tipo;
         bool cur = i == cursor;
+        uint16_t cr = cor_rar(t2);
         gfx_rect(x - 64, 90, 128, 110, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 64, 90, 128, 110, cur ? 3 : 1, cur ? cor_aro(t2) : C_FELTRO2);
+        gfx_moldura(x - 64, 90, 128, 110, cur ? 3 : 1, cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
-        peca_parada((float)x, 134 + bob, 28, oferta[i], vez);
-        txt_c(x, 172, TIPO[t2].nome, cur ? cor_aro(t2) : C_MARFIM_S, cur);
+        peca_parada((float)x, 130 + bob, 26, oferta[i], vez);
+        txt_c(x, 162, TIPO[t2].nome, cur ? cor_aro(t2) : C_MARFIM_S, cur);
+        char c2[32];
+        classe(t2, c2, sizeof c2);
+        txt_c(x, 180, c2, cr, false);
     }
     bool pode = p->n_col > N_FILA;
     if (cursor < 3) {
-        char r[96];
-        snprintf(r, sizeof r, "%s  ·  %s", RARIDADE[TIPO[oferta[cursor].tipo].raridade],
-                 TIPO[oferta[cursor].tipo].desc);
-        txt_c(GFX_W / 2, 212, r, C_MARFIM, false);
+        txt_c(GFX_W / 2, 212, TIPO[oferta[cursor].tipo].desc, C_MARFIM, false);
     } else {
         txt_c(GFX_W / 2, 212, pode ? "troca o prêmio por tirar um dos seus, para sempre"
                                    : "com 4 dados, nenhum pode sair", C_MARFIM, false);
@@ -3110,8 +3388,9 @@ static void desenha_loja(void)
         int x = GFX_W / 2 + (i - 2) * 108, yb = 142;
         int tp = loja[i].tipo, pr = preco_loja(tp);
         bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
+        uint16_t cr = cor_rar(tp);
         gfx_rect(x - 48, yb, 96, 92, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 48, yb, 96, 92, cur ? 3 : 1, cur ? cor_aro(tp) : C_FELTRO2);
+        gfx_moldura(x - 48, yb, 96, 92, cur ? 3 : 1, cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
         peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
         if (ja) {
@@ -3144,50 +3423,12 @@ static void desenha_fim(void)
     txt_c(GFX_W / 2, CENTRO + 56, "ENTER nova partida", C_MARFIM_S, false);
 }
 
-static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
-{
-    if (rx < 1) rx = 1;
-    for (int dy = -ry; dy <= ry; dy++) {
-        float f = 1.0f - (float)(dy * dy) / (float)(ry * ry);
-        int w = (int)(rx * sqrtf(f > 0 ? f : 0));
-        gfx_rect(cx - w, cy + dy, 2 * w + 1, 1, c);
-    }
-}
 
-// Moeda girando: a largura aparente e |cos|, e a face troca quando ela
-// passa de lado. A Moeda da sorte mostra azul (1) e vermelho (2).
+// Moeda girando no catalogo: a mesma arte da mesa, virando devagar.
 static void moeda_girando(int cx, int cy, int tipo, float t)
 {
-    const int R = 48;
-    float c = cosf(t * 3.0f);
-    int face = c >= 0 ? 1 : 2;
-    int rx = (int)(R * fabsf(c));
-    uint16_t aro_c = cor_aro(tipo), corpo = C_MARFIM_D, marca = C_MARFIM;
-    if (tipo == D_D2) corpo = gfx_mistura(C_MARFIM_D, C_OURO, 58);   // moeda dourada
-    bool ficha_casino = true;
-    if (tipo == D_SORTE)        { aro_c = C_MARFIM_S; corpo = face == 1 ? C_AZUL : C_VERMELHO; }
-    else if (tipo == D_SEMENTE) { aro_c = C_MARFIM_S; corpo = C_VERDE; }
-    else if (tipo == D_FOGO)    { aro_c = C_BRASA; corpo = face == 1 ? C_FOGO : C_BRASA; marca = C_AMARELO; }
-    else {
-        ficha_casino = false;
-        if (tipo == D_TUDO_NADA) { aro_c = C_VIOLETA; corpo = face == 2 ? C_MARFIM : C_EBANO; }
-    }
-
-    elipse(cx + 6, cy + 8, rx + 2, R, C_SOMBRA);
-    elipse(cx, cy, rx + 4, R + 4, aro_c);
-    elipse(cx, cy, rx, R, corpo);
-    if (ficha_casino && rx > 12)
-        for (int i = 0; i < 8; i++) {
-            float a = i * 0.785f;
-            int mx = cx + (int)(cosf(a) * (rx - 9)), my = cy + (int)(sinf(a) * (R - 9));
-            gfx_disco(mx, my, 4, marca);
-        }
-    if (fabsf(c) > 0.55f) {
-        char n[2] = { (char)('0' + face), 0 };
-        uint16_t cn = ficha_casino ? C_MARFIM
-                    : (tipo == D_TUDO_NADA ? (face == 2 ? C_VIOLETA : C_MARFIM) : C_EBANO);
-        gfx_texto(cx - gfx_largura(n, 3) / 2, cy - 36, n, cn, 3, true);
-    }
+    float c = cosf(t * 2.2f);
+    moeda_girando_arte((float)cx, (float)cy, 44, tipo, 0, c, c >= 0 ? 1 : 2);
 }
 
 // Faces que o dado pode mostrar, na ordem em que o catalogo as percorre.
@@ -3199,27 +3440,32 @@ static int faces_de(int tipo, int *f)
     return n;
 }
 
-// Quebra o texto em linhas de ate max_col caracteres (contando acentos como
-// um so), sempre nos espacos.
-static int quebra_linhas(int x, int y, int max_col, int max_lin, const char *txt_, uint16_t c)
+// Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
+static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {
-    char linha[160];
+    char linha[200];
     int lin = 0;
     const char *p = txt_;
     while (*p && lin < max_lin) {
-        int n = 0, cols = 0, ultimo_espaco = -1;
-        while (p[n] && cols < max_col) {
-            if (p[n] == ' ') ultimo_espaco = n;
-            n++;
-            while (((unsigned char)p[n] & 0xC0) == 0x80) n++;
-            cols++;
+        int n = 0, cabe = 0;
+        // Vai somando palavras enquanto a linha couber.
+        while (p[n]) {
+            int fim = n;
+            while (p[fim] == ' ') fim++;
+            while (p[fim] && p[fim] != ' ') fim++;
+            if (fim >= (int)sizeof linha) break;
+            memcpy(linha, p, (size_t)fim);
+            linha[fim] = 0;
+            if (gfx_largura(linha, 1) > max_w && cabe) break;
+            cabe = n = fim;
+            if (!p[n]) break;
         }
-        if (p[n] && ultimo_espaco > 0) n = ultimo_espaco;
-        memcpy(linha, p, (size_t)n);
-        linha[n] = 0;
+        if (!cabe) cabe = (int)strlen(p) < (int)sizeof linha - 1 ? (int)strlen(p) : (int)sizeof linha - 1;
+        memcpy(linha, p, (size_t)cabe);
+        linha[cabe] = 0;
         txt(x, y + lin * (TXT_H + 4), linha, c, false);
         lin++;
-        p += n;
+        p += cabe;
         while (*p == ' ') p++;
     }
     return lin;
@@ -3246,7 +3492,8 @@ static void desenha_catalogo(void)
 
     // A peca, a esquerda, girando pelas faces possiveis.
     int cx = 160, cy = CENTRO + 4;
-    gfx_disco(cx, cy, 78, C_FELTRO_ESC);
+    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));   // anel da raridade
+    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
     if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
@@ -3270,12 +3517,14 @@ static void desenha_catalogo(void)
     // A direita: nome, lados, raridade e o que ele faz.
     int x = 290;
     gfx_texto(x, 70, d->nome, cor_aro(tipo), 2, true);
-    const char *rar = so_inicial(tipo) ? "dado inicial" : RARIDADE[d->raridade];
-    if (d->lados == 2) snprintf(s, sizeof s, "moeda  ·  %s", rar);
-    else snprintf(s, sizeof s, "d%d  ·  %s", d->lados, rar);
-    txt(x, 118, s, C_TEXTO_M, false);
+    classe(tipo, s, sizeof s);
+    int wc = gfx_largura(s, 1) + 12;
+    gfx_rect_alfa(x, 118, wc, TXT_H + 2, cor_rar(tipo), 40);
+    gfx_moldura(x, 118, wc, TXT_H + 2, 1, cor_rar(tipo));
+    txt(x + 6, 119, s, cor_rar(tipo), false);
+    if (so_inicial(tipo)) txt(x + wc + 10, 119, "dado inicial", C_TEXTO_M, false);
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 156, 40, 6, TEXTO_CAT[tipo], C_MARFIM);
+    quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
 
 // O nome do jogador na faixa, com "computador" ao lado quando e a IA.
@@ -3469,7 +3718,7 @@ static void desenha_tutorial(void)
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 8, pg->titulo, C_LATAO, 2);
     int y = MESA_Y0 + 56;
     for (int i = 0; i < 3 && pg->par[i]; i++) {
-        int n = quebra_linhas(44, y, 69, 4, pg->par[i], i == 0 ? C_MARFIM : C_MARFIM_S);
+        int n = quebra_linhas(44, y, 552, 4, pg->par[i], i == 0 ? C_MARFIM : C_MARFIM_S);
         y += n * (TXT_H + 4) + 4;
     }
     ilustra_tutorial(tut_pag, 226);                  // faixa fixa, abaixo do texto

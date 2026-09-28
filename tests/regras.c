@@ -290,7 +290,7 @@ int main(void)
     limpa();
     joga(0, D_D6, 5);
     joga(0, D_MALDITO, 3);
-    CONFERE(strstr(veredito, "zerou a fila") != NULL, "Agouro: veredito '%s'", veredito);
+    CONFERE(strstr(veredito, "zerou a sequência") != NULL, "Agouro: veredito '%s'", veredito);
 
     // ---- O resultado pago e o do motor, e os eventos chegam nele --------
     for (int caso = 0; caso < 4000; caso++) {

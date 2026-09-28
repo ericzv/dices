@@ -102,7 +102,7 @@ var DadoRede = (function () {
       n_rec++;
       Module._dado_rede_tecla(m.k);
     } else if (m.t === 'tchau' && r.estado === JOGANDO) {
-      falha('O rival saiu da partida.');
+      falha('O oponente saiu da partida.');
     }
   }
 
@@ -112,7 +112,7 @@ var DadoRede = (function () {
     timers.push(setInterval(function () {
       if (r.estado !== JOGANDO) return;
       manda({ t: 'p' });
-      if (Date.now() - ultimo > 25000) falha('O rival parou de responder.');
+      if (Date.now() - ultimo > 25000) falha('O oponente parou de responder.');
     }, 3000));
   }
 

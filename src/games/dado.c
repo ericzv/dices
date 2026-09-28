@@ -132,7 +132,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
-    { "Moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2: ótima para abrir a fila" },
+    { "Moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2: ótima para abrir a sequência" },
     { "D4",         4,  EF_NADA,      RAR_COMUM,   "quatro lados, de 1 a 4" },
     { "D6",         6,  EF_NADA,      RAR_COMUM,   "seis lados, de 1 a 6" },
     { "D8",         8,  EF_NADA,      RAR_COMUM,   "oito lados, de 1 a 8" },
@@ -143,24 +143,24 @@ static const tipo_t TIPO[D_N] = {
     { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "não pode ser anulado nem roubado" },
-    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "com 4: anula o maior do rival" },
+    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "com 4: anula o maior do oponente" },
     { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8, rola de novo e soma" },
-    { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "tira do rival o mesmo que tirou" },
-    { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: leva 4 do rival" },
-    { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do rival" },
+    { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "tira do oponente o mesmo que tirou" },
+    { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: leva 4 do oponente" },
+    { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do oponente" },
     { "Fichas",     4,  EF_FICHAS,    RAR_RARO,    "vence com ele: ganha fichas" },
     { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: tudo vale x2 · 1: rodada vale 0" },
-    { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "4 ou menos: anula a sua fila" },
-    { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua fila: rouba" },
+    { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "4 ou menos: anula a sua sequência" },
+    { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
-    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior do rival e o seu" },
-    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "valendo: rouba o menor do rival" },
+    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior do oponente e o seu" },
+    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "valendo: rouba o menor do oponente" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "seus dados com 1 ou 2 valem x2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: ímpares +1 · 2: pares +1" },
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "não pode ser anulado" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "seus dados somam 20+: +10" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
-    { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "tira do rival o que ele tirar" },
+    { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "tira do oponente o que ele tirar" },
     { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4 vale 8 · 1 a 3 vale 0" },
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
     { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2" },
@@ -172,34 +172,34 @@ static const tipo_t TIPO[D_N] = {
 // escolha do que sai; o completo, na colecao e na tecla I.
 static const char *TEXTO_MEDIO[D_N] = {
     [D_D2]        = "Uma moeda: 1 ou 2. Deixa a barra baixa para os próximos.",
-    [D_D4]        = "De 1 a 4. Vale pouco, mas é bom para abrir a fila.",
+    [D_D4]        = "De 1 a 4. Vale pouco, mas é bom para abrir a sequência.",
     [D_D6]        = "O dado comum da casa: de 1 a 6.",
-    [D_D8]        = "De 1 a 8. Vale mais, mas levanta a barra da fila.",
-    [D_D12]       = "De 1 a 12. Forte no fim da fila, arriscado no começo.",
-    [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da fila.",
+    [D_D8]        = "De 1 a 8. Vale mais, mas levanta a barra da sequência.",
+    [D_D12]       = "De 1 a 12. Forte no fim da sequência, arriscado no começo.",
+    [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da sequência.",
     [D_DOBRO]     = "No fim, o seu próximo dado que valer depois dele vale x2.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior dos dois resultados.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, todos com a mesma chance.",
     [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +8.",
     [D_ESCUDO]    = "Nada o anula e nenhum ataque o alcança, nem roubo.",
-    [D_CARRASCO]  = "Se ficar valendo com 4, anula o maior dado do rival.",
+    [D_CARRASCO]  = "Se ficar valendo com 4, anula o maior dado do oponente.",
     [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma (até 3 vezes seguidas).",
-    [D_MARTELO]   = "Se ficar valendo, soma para você e tira o mesmo do rival.",
-    [D_PIRATA]    = "Se ficar valendo com 6 ou mais, leva 4 pontos do rival.",
-    [D_ESPELHO]   = "Se tirar 1 ou 2, vira o número do maior dado do rival.",
+    [D_MARTELO]   = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
+    [D_PIRATA]    = "Se ficar valendo com 6 ou mais, leva 4 pontos do oponente.",
+    [D_ESPELHO]   = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
     [D_FICHAS]    = "Se ficar valendo e você vencer, ganha fichas iguais ao valor.",
     [D_TUDO_NADA] = "Tirou 2: todos os seus dados valem x2. Tirou 1: sua rodada vale 0.",
-    [D_MALDITO]   = "Se tirar 4 ou menos, anula a sua fila inteira, e ele junto.",
-    [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua fila, rouba o menor dado do rival.",
+    [D_MALDITO]   = "Se tirar 4 ou menos, anula a sua sequência inteira, e ele junto.",
+    [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Se ficar valendo, anula o maior dado do rival e o seu maior outro.",
-    [D_CARIDOSO]  = "Se ficar valendo, rouba o menor dado do rival.",
+    [D_INVEJOSO]  = "Se ficar valendo, anula o maior dado do oponente e o seu maior outro.",
+    [D_CARIDOSO]  = "Se ficar valendo, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
-    [D_TEIMOSO]   = "Nada o anula, nem a queda da fila. Mas pode ser roubado.",
+    [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
     [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 20 ou mais no fim: +10.",
     [D_FOGO]      = "Se ficar valendo, dobra o seu maior dado, que depois queima e sai.",
-    [D_MALDICAO]  = "Não conta para você: o número dele sai do placar do rival.",
+    [D_MALDICAO]  = "Não conta para você: o número dele sai do placar do oponente.",
     [D_TREVO]     = "Tirou 4: SORTE, vale 8. Tirou 1, 2 ou 3: vale 0.",
     [D_JACKPOT]   = "Se ficar valendo e três dados seus mostrarem o mesmo número: +10.",
     [D_COPIADOR]  = "Se ficar valendo, cada outro dado seu com o mesmo número ganha +2.",
@@ -207,38 +207,38 @@ static const char *TEXTO_MEDIO[D_N] = {
 };
 
 static const char *TEXTO_CAT[D_N] = {
-    [D_D2]        = "Uma moeda: sai 1 ou 2. Como primeiro dado da fila, deixa a barra baixa para os que vêm depois.",
-    [D_D4]        = "Quatro lados, de 1 a 4. Vale pouco, mas é bom para abrir a fila.",
+    [D_D2]        = "Uma moeda: sai 1 ou 2. Como primeiro dado da sequência, deixa a barra baixa para os que vêm depois.",
+    [D_D4]        = "Quatro lados, de 1 a 4. Vale pouco, mas é bom para abrir a sequência.",
     [D_D6]        = "Seis lados, de 1 a 6. O dado comum da casa.",
     [D_D8]        = "Oito lados, de 1 a 8. Vale mais que o D6, mas levanta a barra para os próximos dados.",
-    [D_D12]       = "Doze lados, de 1 a 12. Forte no fim da fila, arriscado no começo: depois dele, é difícil não cair.",
-    [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da fila.",
-    [D_DOBRO]     = "Seis lados. No fim da rodada, o próximo dado seu que estiver valendo depois dele na fila vale x2. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
+    [D_D12]       = "Doze lados, de 1 a 12. Forte no fim da sequência, arriscado no começo: depois dele, é difícil não cair.",
+    [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da sequência.",
+    [D_DOBRO]     = "Seis lados. No fim da rodada, o próximo dado seu que estiver valendo depois dele na sequência vale x2. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
-    [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na fila, ganha +8. Igual não cai; menor cai, como qualquer dado.",
-    [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da fila, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
-    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do rival. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
+    [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
+    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo, Teimoso e Egoísta resistem à anulação.",
     [D_EXPLOSIVO] = "Oito lados. Tirando 8, rola de novo e soma ao que já tinha. Pode explodir até 3 vezes seguidas.",
-    [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo, soma para você e tira do placar do rival o mesmo número que tirou.",
-    [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do rival e soma para você.",
-    [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do rival. Se o rival ainda não jogou, espera valendo e vira no fim da rodada.",
+    [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
+    [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do oponente e soma para você.",
+    [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, espera valendo e vira no fim da rodada.",
     [D_FICHAS]    = "Quatro lados. Se terminar valendo e você vencer a rodada, ganha fichas iguais ao número que ele tirou.",
     [D_TUDO_NADA] = "Uma moeda de risco. Tirando 2, no fim todos os seus dados que valem ganham x2. Tirando 1, a sua rodada inteira vale zero, sem volta.",
-    [D_MALDITO]   = "Vinte lados. Tirando 5 ou mais, é um D20 forte. Tirando 4 ou menos, anula a sua fila inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
-    [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua fila tiver tirado 1, rouba o menor dado do rival: os pontos dele passam para você. Se for anulado, não rouba.",
+    [D_MALDITO]   = "Vinte lados. Tirando 5 ou mais, é um D20 forte. Tirando 4 ou menos, anula a sua sequência inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
+    [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do rival e também o seu maior outro dado. Escudo, Teimoso e Egoísta resistem à anulação.",
-    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo, rouba o menor dado do rival: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e também o seu maior outro dado. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Ficha azul e vermelha. Se terminar valendo: tirando 1 (azul), cada dado ímpar seu ganha +1; tirando 2 (vermelha), cada dado par ganha +1. Ela conta a si mesma.",
-    [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da fila, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
+    [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
     [D_SEMENTE]   = "Moeda verde. Se terminar valendo e, no fim, os seus dados somarem 20 ou mais (com bônus e roubos), ganha +10.",
     [D_FOGO]      = "Ficha em chamas. Se terminar valendo, no fim dá x2 no seu maior dado, que depois vira cinza e sai da sua bolsa para sempre.",
-    [D_MALDICAO]  = "Quatro lados. Não soma para você: se terminar valendo, o número que ele tirou sai do placar do rival. Entra na fila e cai como os outros.",
-    [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. Na queda da fila conta o número que saiu.",
+    [D_MALDICAO]  = "Quatro lados. Não soma para você: se terminar valendo, o número que ele tirou sai do placar do oponente. Entra na sequência e cai como os outros.",
+    [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se terminar valendo e três dados seus que valem mostrarem o mesmo número (ele pode ser um deles): JACKPOT, +10 no fim.",
-    [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na fila.",
+    [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na sequência.",
     [D_EGOISTA]   = "Doze lados e uma coroa. Nada o anula, mas pode ser roubado. Ele anula todos os seus outros dados da rodada, antes e depois dele. Escudo e Teimoso resistem à anulação.",
 };
 
@@ -1528,10 +1528,10 @@ static void aplica_regra(int j, int k)
         for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) { segura = i; break; }
         if (segura >= 0) {
             resistiu = segura;
-            snprintf(veredito, sizeof veredito, "%s zerou a fila; %s segura", TIPO[t].nome,
+            snprintf(veredito, sizeof veredito, "%s zerou a sequência; %s segura", TIPO[t].nome,
                      TIPO[tipo_de(j, segura)].nome);
         } else
-            snprintf(veredito, sizeof veredito, "%s tirou %d e zerou a fila", TIPO[t].nome, v);
+            snprintf(veredito, sizeof veredito, "%s tirou %d e zerou a sequência", TIPO[t].nome, v);
         ver_tipo = 3;
         f->pontos = soma(j, f->est);
         return;
@@ -1565,17 +1565,17 @@ static void aplica_regra(int j, int k)
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
         } else if (ef == EF_MALDICAO) {
             snprintf(f->tag[k], sizeof f->tag[k], "-%d", v);
-            snprintf(veredito, sizeof veredito, "Maldito de pé: -%d no rival", v);
+            snprintf(veredito, sizeof veredito, "Maldito de pé: -%d no oponente", v);
         } else if (ef == EF_COPIADOR) {
             snprintf(veredito, sizeof veredito, "Copiador tirou %d: cada %d seu ganha +2", v, v);
         } else if (copia_antes(j, k)) {
             snprintf(f->tag[k], sizeof f->tag[k], "+2");
             snprintf(veredito, sizeof veredito, "vale %d, igual ao Copiador: +2", vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
-        else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do rival");
+        else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
         else if (f->dobra[k])  snprintf(veredito, sizeof veredito, "vale %d, x2 no fim", vale);
         else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
-        else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa fila nova", vale);
+        else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa sequência nova", vale);
         else                   snprintf(veredito, sizeof veredito, "vale %d", vale);
         ver_tipo = 0;
     }
@@ -2033,7 +2033,7 @@ static void poe_nomes(void)
     switch (modo) {
     case M_UM:     J[0].nome = "VOCÊ";      J[1].nome = "COMPUTADOR"; break;
     case M_DOIS:   J[0].nome = "JOGADOR 1"; J[1].nome = "JOGADOR 2";  break;
-    default:       J[baixo].nome = "VOCÊ";  J[outro(baixo)].nome = "RIVAL"; break;
+    default:       J[baixo].nome = "VOCÊ";  J[outro(baixo)].nome = "OPONENTE"; break;
     }
 }
 
@@ -3724,13 +3724,13 @@ static void desenha_ordem(void)
     }
 
     char t[64];
-    if (vez == primeiro) snprintf(t, sizeof t, "%s monta a fila", p->nome);
-    else snprintf(t, sizeof t, "%s monta a fila  ·  alvo %d", p->nome, F[outro(vez)].pontos);
+    if (vez == primeiro) snprintf(t, sizeof t, "%s monta a sequência", p->nome);
+    else snprintf(t, sizeof t, "%s monta a sequência  ·  alvo %d", p->nome, F[outro(vez)].pontos);
     int y1 = CENTRO - 44;
     painel(y1 - 6, 100, 470);
     txt_c(GFX_W / 2, y1, t, p->cor, true);
     if (f->n == N_FILA) {
-        txt_c(GFX_W / 2, y1 + 30, "fila cheia: TAB ou CTRL confirma", C_OURO, true);
+        txt_c(GFX_W / 2, y1 + 30, "sequência cheia: TAB ou CTRL confirma", C_OURO, true);
     } else if (n) {
         dado_e_poder(y1 + 26, p->col[p->mao[cursor]].tipo, false);
     }
@@ -4246,9 +4246,9 @@ static const pagina_t TUTORIAL[] = {
         "Cada jogador começa com 100 fichas. São 15 rodadas, e cada uma custa 5 fichas de entrada, que vão para o pote.",
         "Quem faz mais pontos na rodada leva o pote. No fim, ganha quem tiver mais fichas.",
         NULL } },
-    { "A bolsa e a fila", {
-        "Cada jogador tem uma bolsa de dados. A cada rodada, você tira 7 dados dela e escolhe até 4 para a sua fila, na ordem que quiser.",
-        "Depois joga os dados da fila um por um, do primeiro ao último.",
+    { "A bolsa e a sequência", {
+        "Cada jogador tem uma bolsa de dados. A cada rodada, você tira 7 dados dela e escolhe até 4 para a sua sequência, na ordem que quiser.",
+        "Depois joga os dados da sequência um por um, do primeiro ao último.",
         NULL } },
     { "A regra da queda", {
         "O primeiro dado sempre vale. Cada dado seguinte precisa ser IGUAL OU MAIOR que o último que vale.",
@@ -4267,8 +4267,8 @@ static const pagina_t TUTORIAL[] = {
         "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
         "São 33 dados, cada um com um poder: veja todos em Dados da casa." } },
     { "Teclas", {
-        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira da fila",
-        "Durante o jogo, aperte I para ver tudo sobre o dado escolhido: na mão, na loja, no prêmio ou o próximo da fila.",
+        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira",
+        "Durante o jogo, aperte I para ver tudo sobre o dado escolhido: na mão, na loja, no prêmio ou o próximo da sequência.",
         "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
@@ -4354,7 +4354,7 @@ static void desenha_avisos(void)
 {
     const char *msg = NULL;
     uint16_t c = C_OURO;
-    if (conexao_caiu()) { msg = "A conexão com o rival caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
+    if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC de novo para sair da partida.";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;

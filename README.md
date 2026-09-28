@@ -7,7 +7,7 @@ Nasceu no
 também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
 sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 
-Cada rodada, os dois montam uma fila de até quatro dados e jogam um por um.
+Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
 os dois se anulam. Entre os turnos tem aposta, e 33 dados mudam as
@@ -47,8 +47,8 @@ Não precisa instalar nada: é um executável só.
 |---|---|
 | Setas (ou A/D, W/S) | Move o cursor |
 | Enter | Escolhe / joga o próximo dado |
-| Tab ou Ctrl | Confirma a fila / para |
-| Backspace | Tira o último dado da fila |
+| Tab ou Ctrl | Confirma a sequência / para |
+| Backspace | Tira o último dado da sequência |
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |

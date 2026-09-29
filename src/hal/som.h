@@ -15,6 +15,18 @@ enum {
     SOM_CORREU,      // alguem correu da aposta
     SOM_ABERTURA,    // titulo entrando
     SOM_JACKPOT,     // tres iguais com o Jackpot na mesa
+    SOM_LASER,       // o raio do Laser
+    SOM_TIRA,        // pontos saindo do placar (Espinhoso, Pirata, Maldito)
+    SOM_ROUBA,       // um dado levado para o outro lado
+    SOM_FOGO,        // a Ficha de Fogo queimando
+    SOM_ZERA,        // Tudo ou Nada: a rodada vale zero
+    SOM_VENTO,       // a Ventania rolando os dados de novo
+    SOM_PARTIDA,     // comeca a partida
+    SOM_FIM,         // a partida acabou: vitoria
+    SOM_DERROTA,     // a partida acabou: derrota
+    SOM_TURNO,       // um jogador parou: fim do turno
+    SOM_BOLSA,       // dados saindo da bolsa: comeca uma rodada
+    SOM_EMPATE,      // rodada empatada: o pote fica
     SOM_N
 };
 

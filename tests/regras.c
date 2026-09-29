@@ -93,13 +93,42 @@ int main(void)
 {
     desfecho_t d;
 
-    // Espinhoso: tira do rival o valor que tirou, e ainda soma para o dono.
+    // Espinhoso: so com 4 tira 4 do oponente (e vale para o dono).
+    limpa();
+    joga(0, D_MARTELO, 4);
+    joga(1, D_D6, 6);
+    d = fim();
+    CONFERE(d.total[1] == 2, "Espinhoso 4: oponente devia ficar com 2, ficou %d", d.total[1]);
+    CONFERE(d.total[0] == 4, "Espinhoso 4: dono devia fazer 4, fez %d", d.total[0]);
     limpa();
     joga(0, D_MARTELO, 3);
     joga(1, D_D6, 6);
     d = fim();
-    CONFERE(d.total[1] == 3, "Espinhoso 3: rival devia ficar com 3, ficou %d", d.total[1]);
-    CONFERE(d.total[0] == 3, "Espinhoso 3: dono devia fazer 3, fez %d", d.total[0]);
+    CONFERE(d.total[1] == 6 && d.total[0] == 3, "Espinhoso 3: nao tira nada (%d x %d)", d.total[0], d.total[1]);
+
+    // Maldito: soma para o dono e tira o mesmo do oponente.
+    limpa();
+    joga(0, D_MALDICAO, 3);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.total[0] == 3 && d.total[1] == 5, "Maldito 3: esperava 3 x 5, deu %d x %d", d.total[0], d.total[1]);
+
+    // Pirata: com 6+ tira 4 do oponente, sem ficar com eles.
+    limpa();
+    joga(0, D_PIRATA, 7);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.total[0] == 7 && d.total[1] == 4, "Pirata 7: esperava 7 x 4, deu %d x %d", d.total[0], d.total[1]);
+
+    // Agouro: 7 ou menos derruba a sequencia; 8, nao.
+    limpa();
+    joga(0, D_D6, 5);
+    joga(0, D_MALDITO, 7);
+    CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "Agouro 7 devia anular a sequencia");
+    limpa();
+    joga(0, D_D6, 5);
+    joga(0, D_MALDITO, 8);
+    CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Agouro 8 nao devia anular");
 
     // Copiador 4: cada outro 4 ganha +2.
     limpa();

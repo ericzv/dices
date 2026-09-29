@@ -149,12 +149,12 @@ static const tipo_t TIPO[D_N] = {
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "não pode ser anulado nem roubado" },
     { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "com 4: anula o maior do oponente" },
     { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8, rola de novo e soma" },
-    { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "tira do oponente o mesmo que tirou" },
-    { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: leva 4 do oponente" },
+    { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "com 4: tira 4 do oponente" },
+    { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: tira 4 do oponente" },
     { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do oponente" },
     { "Fichas",     4,  EF_FICHAS,    RAR_RARO,    "vence com ele: ganha fichas" },
     { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: tudo vale x2 · 1: rodada vale 0" },
-    { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "4 ou menos: anula a sua sequência" },
+    { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "7 ou menos: anula a sua sequência" },
     { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
     { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior do oponente e o seu" },
@@ -164,7 +164,7 @@ static const tipo_t TIPO[D_N] = {
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_COMUM,   "não pode ser anulado" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "seus dados somam 20+: +10" },
     { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
-    { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "tira do oponente o que ele tirar" },
+    { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "vale e tira o mesmo do oponente" },
     { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4 vale 8 · 1 a 3 vale 0" },
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
     { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2" },
@@ -190,12 +190,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ESCUDO]    = "Nada o anula e nenhum ataque o alcança, nem roubo.",
     [D_CARRASCO]  = "Se ficar valendo com 4, anula o maior dado do oponente.",
     [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma (até 3 vezes seguidas).",
-    [D_MARTELO]   = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
-    [D_PIRATA]    = "Se ficar valendo com 6 ou mais, leva 4 pontos do oponente.",
+    [D_MARTELO]   = "Se ficar valendo com 4, tira 4 pontos do oponente.",
+    [D_PIRATA]    = "Se ficar valendo com 6 ou mais, tira 4 pontos do oponente.",
     [D_ESPELHO]   = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
     [D_FICHAS]    = "Se ficar valendo e você vencer, ganha fichas iguais ao valor.",
     [D_TUDO_NADA] = "Tirou 2: todos os seus dados valem x2. Tirou 1: sua rodada vale 0.",
-    [D_MALDITO]   = "Se tirar 4 ou menos, anula a sua sequência inteira, e ele junto.",
+    [D_MALDITO]   = "Se tirar 7 ou menos, anula a sua sequência inteira, e ele junto.",
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
     [D_INVEJOSO]  = "Se ficar valendo, anula o maior do oponente e depois o seu maior.",
@@ -205,7 +205,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
     [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 20 ou mais no fim: +10.",
     [D_FOGO]      = "Se ficar valendo, dobra o seu maior dado, que depois queima e sai.",
-    [D_MALDICAO]  = "Não conta para você: o número dele sai do placar do oponente.",
+    [D_MALDICAO]  = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
     [D_TREVO]     = "Tirou 4: SORTE, vale 8. Tirou 1, 2 ou 3: vale 0.",
     [D_JACKPOT]   = "Se ficar valendo e três dados seus mostrarem o mesmo número: +10.",
     [D_COPIADOR]  = "Se ficar valendo, cada outro dado seu com o mesmo número ganha +2.",
@@ -228,12 +228,12 @@ static const char *TEXTO_CAT[D_N] = {
     [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
     [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo, Teimoso e Egoísta resistem à anulação.",
     [D_EXPLOSIVO] = "Oito lados. Tirando 8, rola de novo e soma ao que já tinha. Pode explodir até 3 vezes seguidas.",
-    [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
-    [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do oponente e soma para você.",
+    [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo com 4, tira 4 pontos do oponente. Com outro número, é um D4 comum.",
+    [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do oponente. Os pontos não passam para você.",
     [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, espera valendo e vira no fim da rodada.",
     [D_FICHAS]    = "Quatro lados. Se terminar valendo e você vencer a rodada, ganha fichas iguais ao número que ele tirou.",
     [D_TUDO_NADA] = "Uma moeda de risco. Tirando 2, no fim todos os seus dados que valem ganham x2. Tirando 1, a sua rodada inteira vale zero, sem volta.",
-    [D_MALDITO]   = "Vinte lados. Tirando 5 ou mais, é um D20 forte. Tirando 4 ou menos, anula a sua sequência inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
+    [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
     [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo, Teimoso e Egoísta resistem à anulação.",
@@ -243,7 +243,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
     [D_SEMENTE]   = "Moeda verde. Se terminar valendo e, no fim, os seus dados somarem 20 ou mais (com bônus e roubos), ganha +10.",
     [D_FOGO]      = "Ficha em chamas. Se terminar valendo, no fim dá x2 no seu maior dado, que depois vira cinza e sai da sua bolsa para sempre.",
-    [D_MALDICAO]  = "Quatro lados. Não soma para você: se terminar valendo, o número que ele tirou sai do placar do oponente. Entra na sequência e cai como os outros.",
+    [D_MALDICAO]  = "Quatro lados. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
     [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se terminar valendo e três dados seus que valem mostrarem o mesmo número (ele pode ser um deles): JACKPOT, +10 no fim.",
     [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na sequência.",
@@ -1457,7 +1457,8 @@ static int egoista_antes(int j, int k)
     return -1;
 }
 // O Maldito entra na fila, mas o valor dele nao soma para quem o jogou.
-static bool pontua(int j, int k) { return TIPO[tipo_de(j, k)].efeito != EF_MALDICAO; }
+// Todo dado que vale soma para quem o jogou (o Maldito tambem, agora).
+static bool pontua(int j, int k) { (void)j; (void)k; return true; }
 
 // Soma ao vivo: valor mais bonus de Par. Multiplicadores e Moeda da sorte
 // so entram no fim da rodada.
@@ -1571,7 +1572,7 @@ static void aplica_regra(int j, int k)
 
     bool condenou = ef == EF_TUDO_NADA && v == 1 && !f->zerada;
     if (ef == EF_TUDO_NADA && v == 1) f->zerada = true;
-    if (ef == EF_MALDITO && v <= 4) {
+    if (ef == EF_MALDITO && v <= 7) {          // Agouro: 7 ou menos derruba a sequencia
         anula_fila(j);
         f->est[k] = V_ANULADO;
         anulou_a = k;
@@ -1617,8 +1618,7 @@ static void aplica_regra(int j, int k)
             if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 8");
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
         } else if (ef == EF_MALDICAO) {
-            snprintf(f->tag[k], sizeof f->tag[k], "-%d", v);
-            snprintf(veredito, sizeof veredito, "Maldito de pé: -%d no oponente", v);
+            snprintf(veredito, sizeof veredito, "Maldito vale %d e tira %d do oponente", v, v);
         } else if (ef == EF_COPIADOR) {
             snprintf(veredito, sizeof veredito, "Copiador tirou %d: cada %d seu ganha +2", v, v);
         } else if (copia_antes(j, k)) {
@@ -1779,7 +1779,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_COPIADOR) continue;
         uint8_t mask = 0;
         int8_t por[N_FILA] = { 0 };
-        for (int i = 0; i < f->lancados; i++) {
+        int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
+        for (int i = 0; i < nl; i++) {
             if (i == k || est[i] != V_VALIDO || !pontua(j, i) || f->valor[i] != f->valor[k]) continue;
             d->bonus[j][i] += 2; mask |= (uint8_t)(1 << i); por[i] = 2;
         }
@@ -1949,15 +1950,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                     evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                            "e anula o %d do próprio %s", F[j].valor[b], J[j].nome);
                 }
-            } else if (ef == EF_MARTELO) {
-                d->delta[r] -= v;
-                evento(gera, EV_TIRA, j, k, r, 0, v, "Espinhoso: -%d para %s", v, J[r].nome);
-            } else if (ef == EF_MALDICAO) {
+            } else if (ef == EF_MARTELO && v == 4) {     // Espinhoso: so com 4
+                d->delta[r] -= 4;
+                evento(gera, EV_TIRA, j, k, r, 0, 4, "Espinhoso: -4 para %s", J[r].nome);
+            } else if (ef == EF_MALDICAO) {              // vale para o dono e tira do oponente
                 d->delta[r] -= v;
                 evento(gera, EV_TIRA, j, k, r, 0, v, "Maldito: -%d para %s", v, J[r].nome);
-            } else if (ef == EF_PIRATA && v >= 6) {
-                d->delta[r] -= 4; d->delta[j] += 4;
-                evento(gera, EV_PIRATA, j, k, r, 0, 4, "Pirata leva 4 de %s", J[r].nome);
+            } else if (ef == EF_PIRATA && v >= 6) {      // so tira; nao fica com os pontos
+                d->delta[r] -= 4;
+                evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
             } else if (ef == EF_CARIDOSO || ef == EF_GATUNO) {
                 int a = alvo_de(d->est[r], r, false, -1);
                 if (a >= 0) {
@@ -2029,7 +2030,7 @@ static int risco(int j)
         total++;
         if (ef == EF_EXPLODE && v == lados) continue;
         if (ef == EF_ESPELHO && v <= 2) continue;
-        if ((ef == EF_MALDITO && v <= 4) || (ef == EF_TUDO_NADA && v == 1)) { ruins++; continue; }
+        if ((ef == EF_MALDITO && v <= 7) || (ef == EF_TUDO_NADA && v == 1)) { ruins++; continue; }
         if (v < L) ruins++;
     }
     return ruins * 100 / total;
@@ -2092,6 +2093,10 @@ static void encerra(int vencedor)
 {
     venc_partida = vencedor;
     fase = F_FIM;
+    // Contra o computador (ou online), perder tem o seu som; com duas pessoas
+    // no mesmo teclado, alguem sempre ganhou.
+    bool perdeu = modo != M_DOIS && vencedor != baixo;
+    som_toca(vencedor == 2 && modo == M_DOIS ? SOM_EMPATE : (perdeu ? SOM_DERROTA : SOM_FIM));
     if (modo == M_DESAFIO) des_resultado();   // a run anota na hora
 }
 
@@ -2137,6 +2142,7 @@ static void nova_rodada(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
 }
 
 // Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2).
@@ -2338,6 +2344,7 @@ static void conclui_rodada(void)
     }
     if (F[0].total == F[1].total) {
         venc_mao = 2;
+        som_toca(SOM_EMPATE);
         snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
     } else {
         int w = F[0].total > F[1].total ? 0 : 1;
@@ -2356,7 +2363,21 @@ static void conclui_rodada(void)
 }
 
 // O Jackpot tem som proprio; os outros poderes, o brilho de sempre.
-static int som_do_evento(int i) { return ev[i].tipo == EV_JACKPOT ? SOM_JACKPOT : SOM_EFEITO; }
+// Cada poder com o seu som: o Jackpot tem o dele; anular, tirar pontos,
+// roubar, queimar e zerar tambem; o resto, o brilho de sempre.
+static int som_do_evento(int i)
+{
+    const evento_t *e = &ev[i];
+    switch (e->tipo) {
+    case EV_JACKPOT: return SOM_JACKPOT;
+    case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
+    case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
+    case EV_ROUBA:   return SOM_ROUBA;
+    case EV_FOGO:    return SOM_FOGO;
+    case EV_ZERA:    return SOM_ZERA;
+    default:         return SOM_EFEITO;
+    }
+}
 
 static void desfecho(void)
 {
@@ -2429,6 +2450,7 @@ static void aplica_evento(int i)
 
 static void termina_turno(void)
 {
+    som_toca(SOM_TURNO);
     if (vez == primeiro) {
         a_pagar = 0; passes = 0; aumentou = false;
         cursor = 0;
@@ -3397,7 +3419,9 @@ void dado_passo(float dt)
             n_voo = 0;
             som_rufo(false);
             pousa(j, k, rola);
-            som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
+            // A Ventania tem o som dela quando rola os dados de antes.
+            if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
+            else som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
             t_fase = 0;
             fase = F_VEREDITO;
         }

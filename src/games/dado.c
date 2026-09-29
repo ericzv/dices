@@ -140,7 +140,7 @@ static const tipo_t TIPO[D_N] = {
     { "D8",         8,  EF_NADA,      RAR_COMUM,   "oito lados, de 1 a 8" },
     { "D12",       12,  EF_NADA,      RAR_INCOMUM, "doze lados, de 1 a 12" },
     { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados, de 1 a 20" },
-    { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "o próximo dado que valer: x2" },
+    { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "o dado logo depois dele: x2" },
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes e fica com o maior" },
     { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
@@ -179,7 +179,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_D8]        = "De 1 a 8. Vale mais, mas levanta a barra da sequência.",
     [D_D12]       = "De 1 a 12. Forte no fim da sequência, arriscado no começo.",
     [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da sequência.",
-    [D_DOBRO]     = "No fim, o seu próximo dado que valer depois dele vale x2.",
+    [D_DOBRO]     = "No fim, o dado logo depois dele vale x2. Anulado, o x2 se perde.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior dos dois resultados.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, todos com a mesma chance.",
     [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +8.",
@@ -215,7 +215,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D8]        = "Oito lados, de 1 a 8. Vale mais que o D6, mas levanta a barra para os próximos dados.",
     [D_D12]       = "Doze lados, de 1 a 12. Forte no fim da sequência, arriscado no começo: depois dele, é difícil não cair.",
     [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da sequência.",
-    [D_DOBRO]     = "Seis lados. No fim da rodada, o próximo dado seu que estiver valendo depois dele na sequência vale x2. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
+    [D_DOBRO]     = "Seis lados. No fim da rodada, o dado logo depois dele na sequência vale x2, se os dois estiverem valendo. Se esse dado for anulado, o x2 se perde: não passa para o próximo. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
     [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
@@ -1571,7 +1571,8 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = 8;
             snprintf(f->tag[k], sizeof f->tag[k], "+8");
         }
-        if (l >= 0 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO) {
+        // Dobro: so o dado logo depois dele na sequencia (com o Dobro valendo).
+        if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO) {
             f->dobra[k] = 1;
             snprintf(f->tag[k], sizeof f->tag[k], "x2");
         }
@@ -1758,8 +1759,10 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || !pontua(j, k)) continue;
         int m = fogo[k];
-        int l = ultimo_valido(f, est, k);
-        if (l >= 0 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO) m += 2;
+        // Dobro: vale so para o dado logo depois dele, e so se os dois
+        // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
+        // adiante para o proximo que vale.
+        if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO) m += 2;
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }

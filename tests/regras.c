@@ -354,6 +354,21 @@ int main(void)
         CONFERE(pv.bruto[0] == -3 && pv.total[0] == 0, "previa negativa: bruto %d total %d", pv.bruto[0], pv.total[0]);
     }
 
+    // ---- Dobro: so o dado logo depois dele; anulado, o x2 se perde -----
+    limpa();
+    joga(0, D_DOBRO, 3);
+    joga(0, D_D8, 7);
+    joga(0, D_D6, 5);                  // 5 < 7: anula o 7 e o 5
+    joga(0, D_D12, 9);                 // o 9 nao herda o x2
+    d = fim();
+    CONFERE(d.total[0] == 3 + 9, "Dobro com o seguinte anulado: esperava 12, deu %d", d.total[0]);
+    CONFERE(!F[0].dobra[3], "Dobro: o 9 nao devia ganhar a etiqueta x2");
+    limpa();
+    joga(0, D_DOBRO, 2);
+    joga(0, D_D8, 6);
+    d = fim();
+    CONFERE(d.total[0] == 2 + 12, "Dobro com o seguinte valendo: esperava 14, deu %d", d.total[0]);
+
     // ---- Nao anulaveis (Escudo, Teimoso, Egoista) e intocavel (Escudo) --
     limpa();
     joga(0, D_TEIMOSO, 3);

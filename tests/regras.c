@@ -42,6 +42,20 @@ static void joga(int j, int t, int v)
     aplica_regra(j, k);
 }
 
+// Como joga, mas o dado cai pela regra completa (Ventania inclusive) e os
+// lances que ela refaz saem de 'r'.
+static int sempre_dois(int lados) { (void)lados; return 2; }
+static void joga_com(int j, int t, int v, int (*r)(int))
+{
+    fila_t *f = &F[j];
+    int k = f->lancados;
+    f->tipo[k] = (uint8_t)t;
+    f->n = k + 1;
+    f->cru[k] = f->valor[k] = v;
+    f->lancados = k + 1;
+    pousa(j, k, r);
+}
+
 static desfecho_t fim(void)
 {
     desfecho_t d;
@@ -368,6 +382,78 @@ int main(void)
     joga(0, D_D8, 6);
     d = fim();
     CONFERE(d.total[0] == 2 + 12, "Dobro com o seguinte valendo: esperava 14, deu %d", d.total[0]);
+
+    // ---- Dobro so dobra se tirar de 1 a 3 --------------------------------
+    limpa();
+    joga(0, D_DOBRO, 5);
+    joga(0, D_D8, 6);
+    d = fim();
+    CONFERE(d.total[0] == 5 + 6, "Dobro com 5: nao devia dobrar (11), deu %d", d.total[0]);
+
+    // ---- Invejoso: anula o maior do oponente e depois o proprio maior ----
+    limpa();
+    primeiro = 1;
+    joga(1, D_INVEJOSO, 4);            // sozinho: ele e o maior dele
+    joga(0, D_D8, 7);
+    joga(0, D_D8, 8);
+    d = fim();
+    CONFERE(d.est[0][1] == V_ANULADO, "Invejoso devia anular o 8 do oponente");
+    CONFERE(d.est[1][0] == V_ANULADO, "Invejoso sozinho devia anular a si mesmo");
+    CONFERE(d.total[1] == 0 && d.total[0] == 7, "Invejoso sozinho: %d x %d", d.total[1], d.total[0]);
+    limpa();
+    joga(1, D_INVEJOSO, 3);
+    joga(1, D_D8, 7);                  // o maior dele e o 7: o Invejoso fica
+    joga(0, D_D6, 5);
+    d = fim();
+    CONFERE(d.est[1][1] == V_ANULADO && d.est[1][0] == V_VALIDO, "Invejoso devia anular o 7, e nao a si");
+
+    // ---- Laser: com 6, anula um dado anulavel do oponente -----------------
+    limpa();
+    joga(1, D_D6, 2);
+    joga(1, D_TEIMOSO, 4);
+    joga(1, D_D8, 7);
+    joga(0, D_LASER, 6);
+    d = fim();
+    {
+        int anul = 0;
+        for (int i = 0; i < 3; i++) anul += d.est[1][i] == V_ANULADO;
+        CONFERE(anul == 1 && d.est[1][1] == V_VALIDO, "Laser devia anular um dado (e nao o Teimoso)");
+        desfecho_t d2;
+        calcula_desfecho(&d2, false);
+        CONFERE(!memcmp(d.est, d2.est, sizeof d.est), "Laser: previa e desfecho deviam escolher o mesmo alvo");
+    }
+    limpa();
+    joga(1, D_D8, 7);
+    joga(0, D_LASER, 5);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Laser com 5 nao devia anular");
+    limpa();
+    joga(1, D_D8, 7);
+    joga(0, D_D6, 6);
+    joga(0, D_LASER, 5);               // caiu: anulado, nao atira
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Laser anulado nao devia atirar");
+
+    // ---- Ventania: rola de novo os de antes e refaz a sequencia -------------
+    limpa();
+    joga(0, D_D6, 5);
+    joga(0, D_D4, 2);                  // 2 < 5: caem os dois
+    joga(0, D_TUDO_NADA, 1);           // rodada zerada
+    CONFERE(F[0].zerada, "Tudo ou Nada 1 devia zerar");
+    joga_com(0, D_VENTANIA, 9, sempre_dois);
+    CONFERE(F[0].valor[0] == 2 && F[0].valor[1] == 2 && F[0].valor[2] == 2, "Ventania devia rolar de novo os 3");
+    CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Ventania: 2 e 2 deviam voltar a valer");
+    CONFERE(!F[0].zerada, "Ventania: o Tudo ou Nada 2 nao zera mais");
+    CONFERE(F[0].valor[3] == 9 && F[0].est[3] == V_VALIDO, "Ventania nao rola a si mesmo");
+    d = fim();
+    CONFERE(d.total[0] == (2 + 2 + 2 + 9) * 2, "Ventania + Tudo ou Nada 2: esperava 30, deu %d", d.total[0]);
+    // Refeita, a sequencia pode cair: 6 depois de... o Quebrado nao muda.
+    limpa();
+    F[0].fixo[0] = 8;
+    joga(0, D_QUEBRADO, 8);
+    joga_com(0, D_VENTANIA, 3, sempre_dois);    // 3 < 8: cai junto com o Quebrado
+    CONFERE(F[0].valor[0] == 8 && F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO,
+            "Ventania: Quebrado nao muda; 3 depois de 8 cai");
 
     // ---- Nao anulaveis (Escudo, Teimoso, Egoista) e intocavel (Escudo) --
     limpa();

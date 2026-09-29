@@ -74,6 +74,8 @@
 #define C_CIANO      RGB(96, 196, 214)       // Copiador
 #define C_CHUMBO     RGB(84, 90, 100)        // gota de chumbo do Viciado
 #define C_REAL       RGB(186, 70, 160)       // Egoista: purpura real
+#define C_LASER      RGB(90, 232, 112)       // raio do Laser
+#define C_VENTO      RGB(150, 204, 232)      // Ventania
 #define C_MADEIRA    RGB(78, 46, 30)
 #define C_MADEIRA_ESC RGB(60, 34, 22)
 #define C_MADEIRA_CLR RGB(120, 78, 50)
@@ -112,7 +114,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_CARRASCO, EF_EXPLODE, EF_MARTELO, EF_PIRATA, EF_ESPELHO, EF_FICHAS,
        EF_TUDO_NADA, EF_MALDITO, EF_GATUNO, EF_QUEBRADO, EF_INVEJOSO, EF_CARIDOSO,
        EF_FARTURA, EF_SORTE, EF_TEIMOSO, EF_SEMENTE, EF_FOGO, EF_MALDICAO, EF_TREVO,
-       EF_JACKPOT, EF_COPIADOR, EF_EGOISTA };
+       EF_JACKPOT, EF_COPIADOR, EF_EGOISTA, EF_LASER, EF_VENTANIA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -130,7 +132,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // D_MALDITO e o d20 que se chama Agouro na tela; o "Maldito" que a tela
        // mostra e o d4 D_MALDICAO, que tira pontos do rival.
        D_TEIMOSO, D_SEMENTE, D_FOGO, D_MALDICAO, D_TREVO,
-       D_JACKPOT, D_COPIADOR, D_EGOISTA, D_N };
+       D_JACKPOT, D_COPIADOR, D_EGOISTA, D_LASER, D_VENTANIA, D_N };
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
@@ -140,7 +142,7 @@ static const tipo_t TIPO[D_N] = {
     { "D8",         8,  EF_NADA,      RAR_COMUM,   "oito lados, de 1 a 8" },
     { "D12",       12,  EF_NADA,      RAR_INCOMUM, "doze lados, de 1 a 12" },
     { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados, de 1 a 20" },
-    { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "o dado logo depois dele: x2" },
+    { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "1 a 3: o dado seguinte vale x2" },
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes e fica com o maior" },
     { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
@@ -167,6 +169,8 @@ static const tipo_t TIPO[D_N] = {
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
     { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2" },
     { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "anula todos os seus outros dados" },
+    { "Laser",       6,  EF_LASER,     RAR_RARO,    "com 6: anula um dado do oponente" },
+    { "Ventania",   12,  EF_VENTANIA,  RAR_RARO,    "rola de novo os seus já lançados" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -179,7 +183,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_D8]        = "De 1 a 8. Vale mais, mas levanta a barra da sequência.",
     [D_D12]       = "De 1 a 12. Forte no fim da sequência, arriscado no começo.",
     [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da sequência.",
-    [D_DOBRO]     = "No fim, o dado logo depois dele vale x2. Anulado, o x2 se perde.",
+    [D_DOBRO]     = "Tirando 1 a 3, o dado logo depois dele vale x2 no fim.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior dos dois resultados.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, todos com a mesma chance.",
     [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +8.",
@@ -194,7 +198,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MALDITO]   = "Se tirar 4 ou menos, anula a sua sequência inteira, e ele junto.",
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Se ficar valendo, anula o maior dado do oponente e o seu maior outro.",
+    [D_INVEJOSO]  = "Se ficar valendo, anula o maior do oponente e depois o seu maior.",
     [D_CARIDOSO]  = "Se ficar valendo, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
@@ -206,6 +210,8 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_JACKPOT]   = "Se ficar valendo e três dados seus mostrarem o mesmo número: +10.",
     [D_COPIADOR]  = "Se ficar valendo, cada outro dado seu com o mesmo número ganha +2.",
     [D_EGOISTA]   = "Nada o anula, mas ele anula todos os seus outros dados.",
+    [D_LASER]     = "Se ficar valendo com 6, anula um dado do oponente, ao acaso.",
+    [D_VENTANIA]  = "Ao cair, rola de novo todos os seus dados já lançados na rodada.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -215,7 +221,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D8]        = "Oito lados, de 1 a 8. Vale mais que o D6, mas levanta a barra para os próximos dados.",
     [D_D12]       = "Doze lados, de 1 a 12. Forte no fim da sequência, arriscado no começo: depois dele, é difícil não cair.",
     [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da sequência.",
-    [D_DOBRO]     = "Seis lados. No fim da rodada, o dado logo depois dele na sequência vale x2, se os dois estiverem valendo. Se esse dado for anulado, o x2 se perde: não passa para o próximo. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
+    [D_DOBRO]     = "Seis lados. Se tirar de 1 a 3, no fim da rodada o dado logo depois dele na sequência vale x2, se os dois estiverem valendo. Tirando 4 a 6, não dobra nada. Se esse dado for anulado, o x2 se perde: não passa para o próximo. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
     [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
@@ -230,7 +236,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MALDITO]   = "Vinte lados. Tirando 5 ou mais, é um D20 forte. Tirando 4 ou menos, anula a sua sequência inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e também o seu maior outro dado. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo, Teimoso e Egoísta resistem à anulação.",
     [D_CARIDOSO]  = "Quatro lados. Se terminar valendo, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Ficha azul e vermelha. Se terminar valendo: tirando 1 (azul), cada dado ímpar seu ganha +1; tirando 2 (vermelha), cada dado par ganha +1. Ela conta a si mesma.",
@@ -242,6 +248,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se terminar valendo e três dados seus que valem mostrarem o mesmo número (ele pode ser um deles): JACKPOT, +10 no fim.",
     [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na sequência.",
     [D_EGOISTA]   = "Doze lados e uma coroa. Nada o anula, mas pode ser roubado. Ele anula todos os seus outros dados da rodada, antes e depois dele. Escudo e Teimoso resistem à anulação.",
+    [D_LASER]     = "Seis lados, com um emissor no topo. Se terminar valendo com 6, um raio verde anula um dado do oponente escolhido ao acaso. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_VENTANIA]  = "Doze lados de vento. Ao cair, rola de novo os seus dados lançados antes dele nesta rodada (nunca a si mesmo nem os que faltam). A sequência é refeita: dados podem cair ou voltar a valer.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -335,6 +343,8 @@ static uint16_t cor_aro(int tipo)
     case EF_VICIADO:   return C_VERMELHO;
     case EF_COPIADOR:  return C_CIANO;
     case EF_EGOISTA:   return C_REAL;
+    case EF_LASER:     return C_LASER;
+    case EF_VENTANIA:  return C_VENTO;
     default:           return C_AGUA;
     }
 }
@@ -591,7 +601,8 @@ enum { T_LISO, T_GRAO, T_LINHAS, T_METAL, T_ONDAS, T_MARMORE, T_PONTOS, T_MADEIR
 static int textura_de(int tipo)
 {
     switch (tipo) {
-    case D_LASTRO: case D_ESCUDO: case D_TEIMOSO:          return T_METAL;
+    case D_LASTRO: case D_ESCUDO: case D_TEIMOSO: case D_LASER: return T_METAL;
+    case D_VENTANIA:                                       return T_ONDAS;
     case D_DOBRO: case D_CARRASCO: case D_GATUNO: case D_JACKPOT: return T_LINHAS;
     case D_PAR: case D_FICHAS: case D_INVEJOSO: case D_TREVO: return T_ONDAS;
     case D_ESPELHO: case D_MALDICAO: case D_EGOISTA:       return T_MARMORE;
@@ -780,6 +791,8 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
     case D_JACKPOT:  tom = C_OURO;   pct = 16; break;
     case D_COPIADOR: tom = C_CIANO;  pct = 28; break;
     case D_EGOISTA:  tom = C_REAL;   pct = 30; break;
+    case D_LASER:    tom = C_CHUMBO; pct = 34; *aro = C_LASER;  break;
+    case D_VENTANIA: tom = C_VENTO;  pct = 40; *aro = C_VENTO;  break;
     case D_VICIADO:  *tinta = C_VERMELHO; break;               // pips de cassino
     default: break;
     }
@@ -1005,6 +1018,28 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         gfx_disco(MX(d, cy0 - d), MY(d, cy0 - d), fr, folha);
         gfx_disco(MX(-d, cy0 + d), MY(-d, cy0 + d), fr, folha);
         gfx_disco(MX(d, cy0 + d), MY(d, cy0 + d), fr, folha);
+        break;
+    }
+    case D_LASER: {                               // emissor no topo, lente verde e um raio curto
+        marca_ret(0, -1.0f * t, 0.3f * t + 0.6f, 0.17f * t + 0.6f, C_CHUMBO);
+        marca_ret(0, -1.0f * t, 0.3f * t - 0.4f, 0.17f * t - 0.4f, escuro);
+        gfx_disco(MX(0, -1.0f * t), MY(0, -1.0f * t), (int)(0.1f * t + 0.8f), C_LASER);
+        gfx_linha_grossa(MX(0, -1.2f * t), MY(0, -1.2f * t), MX(0, -1.62f * t), MY(0, -1.62f * t),
+                         esp_marca(t), C_LASER);
+        break;
+    }
+    case D_VENTANIA: {                            // tres rajadas de vento saindo pela esquerda
+        static const float V[3][3] = { { -0.55f, 1.0f, 0.9f }, { 0.0f, 1.25f, 1.0f }, { 0.55f, 0.95f, 0.8f } };
+        int e = esp_marca(t);
+        for (int i = 0; i < 3; i++) {
+            float y = V[i][0] * t, x0 = -V[i][1] * t, x1 = x0 - V[i][2] * t * 0.6f;
+            gfx_linha_grossa(MX(x0, y), MY(x0, y), MX(x1, y), MY(x1, y), e, C_BRANCO);
+            // o caracol na ponta da rajada
+            gfx_linha_grossa(MX(x1, y), MY(x1, y), MX(x1 - 0.12f * t, y - 0.14f * t),
+                             MY(x1 - 0.12f * t, y - 0.14f * t), e, C_BRANCO);
+            gfx_linha_grossa(MX(x1 - 0.12f * t, y - 0.14f * t), MY(x1 - 0.12f * t, y - 0.14f * t),
+                             MX(x1 + 0.02f * t, y - 0.26f * t), MY(x1 + 0.02f * t, y - 0.26f * t), e, C_BRANCO);
+        }
         break;
     }
     default:
@@ -1572,7 +1607,7 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+8");
         }
         // Dobro: so o dado logo depois dele na sequencia (com o Dobro valendo).
-        if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO) {
+        if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO && f->valor[l] <= 3) {
             f->dobra[k] = 1;
             snprintf(f->tag[k], sizeof f->tag[k], "x2");
         }
@@ -1607,6 +1642,39 @@ static void aplica_regra(int j, int k)
         ver_tipo = 0;
     }
     f->pontos = soma(j, f->est);
+}
+
+static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor);
+
+// Um dado acabou de cair na posicao k. O Ventania, antes da regra dele, rola
+// de novo todos os dados lancados antes dele nesta rodada e refaz a sequencia
+// do comeco com os valores novos (dados podem cair ou voltar a valer). Nao
+// rola a si mesmo nem os que ainda nao foram lancados. 'r' e o sorteio: o da
+// partida ou o da IA imaginando jogadas.
+static void pousa(int j, int k, int (*r)(int))
+{
+    fila_t *f = &F[j];
+    if (f->tipo[k] != D_VENTANIA || k == 0) { aplica_regra(j, k); return; }
+    for (int i = 0; i < k; i++) {
+        int menor;
+        f->cru[i] = f->valor[i] = sorteia_valor(f->tipo[i], f->fixo[i], r, &menor);
+        f->descarte[i] = (uint8_t)menor;
+        f->est[i] = V_ESPERA;
+        f->bonus[i] = 0;
+        f->dobra[i] = 0;
+        f->tag[i][0] = 0;
+        f->espera[i] = false;
+    }
+    f->zerada = false;
+    int n = f->lancados;
+    for (int i = 0; i < k; i++) { f->lancados = i + 1; aplica_regra(j, i); }
+    f->lancados = n;
+    aplica_regra(j, k);
+    if (f->est[k] == V_VALIDO && ver_tipo == 0)
+    {
+        if (k > 1) snprintf(veredito, sizeof veredito, "Ventania! %d dados rolaram de novo", k);
+        else       snprintf(veredito, sizeof veredito, "Ventania! o dado de antes rolou de novo");
+    }
 }
 
 // ===========================================================================
@@ -1762,7 +1830,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         // Dobro: vale so para o dado logo depois dele, e so se os dois
         // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
         // adiante para o proximo que vale.
-        if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO) m += 2;
+        // E so se o Dobro tirou de 1 a 3.
+        if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
+            && f->valor[k - 1] <= 3) m += 2;
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
@@ -1848,14 +1918,32 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                     evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                            "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
                 }
+            } else if (ef == EF_LASER && v == 6) {
+                // Um dado anulavel do oponente, ao acaso - mas um acaso que so
+                // depende da mesa, para a previa e o desfecho darem o mesmo.
+                int alvos[N_FILA], n = 0;
+                for (int i = 0; i < F[r].lancados; i++)
+                    if (d->est[r][i] == V_VALIDO && !nao_anulavel_t(tipo_de(r, i))) alvos[n++] = i;
+                if (n) {
+                    uint32_t h = (uint32_t)(j * 7 + k);
+                    for (int i = 0; i < F[r].lancados; i++) h = h * 31u + (uint32_t)F[r].valor[i];
+                    for (int i = 0; i < F[j].lancados; i++) h = h * 17u + (uint32_t)F[j].valor[i];
+                    int a = alvos[hash2((int)h, k + 11) % (uint32_t)n];
+                    d->est[r][a] = V_ANULADO;
+                    evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                           "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                }
             } else if (ef == EF_INVEJOSO) {
                 int a = alvo_de(d->est[r], r, true, -1);
-                int b = alvo_de(d->est[j], j, true, k);
+                // Depois de anular o do oponente, anula o maior anulavel da
+                // propria sequencia - ele mesmo, se for o maior.
+                int b;
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
                     evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                            "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
                 }
+                b = alvo_de(d->est[j], j, true, -1);
                 if (b >= 0) {
                     d->est[j][b] = V_ANULADO;
                     evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
@@ -2689,7 +2777,7 @@ static void sim_lanca(int j)
     f->cru[k] = f->valor[k] = x;
     f->descarte[k] = (uint8_t)menor;
     f->lancados = k + 1;
-    aplica_regra(j, k);
+    pousa(j, k, rola_ia);
 }
 
 // Quem abre nao sabe o alvo: olha o risco do proximo dado. O Egoista
@@ -3308,7 +3396,7 @@ void dado_passo(float dt)
             F[j].lancados = k + 1;
             n_voo = 0;
             som_rufo(false);
-            aplica_regra(j, k);
+            pousa(j, k, rola);
             som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
             t_fase = 0;
             fase = F_VEREDITO;
@@ -3515,6 +3603,14 @@ static void faiscas(int x, int y, float t, uint16_t c)
     }
 }
 
+// O Ventania de j acabou de cair e esta rolando os dados de antes?
+static bool ventania_agora(int j)
+{
+    const fila_t *f = &F[j];
+    return fase == F_VEREDITO && j == vez && f->lancados > 1
+        && f->tipo[f->lancados - 1] == D_VENTANIA && t_fase < 0.7f;
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -3602,7 +3698,17 @@ static void desenha_fila(int j)
         // chegar na metade, e entao o numero do rival.
         bool ainda = no_desfecho && vis_espelho[j][k]
                      && !(e && e->tipo == EV_ESPELHO && e->de_j == j && e->de_k == k && p > 0.5f);
-        desenha_dado((float)x, y - pulo, R, t, j, 0, ainda ? f->cru[k] : f->valor[k], 2, anul);
+        // Ventania: os dados de antes rodopiam mostrando faces ao acaso e
+        // assentam nos numeros novos.
+        int face = ainda ? f->cru[k] : f->valor[k];
+        float giro = 0;
+        if (ventania_agora(j) && k < f->lancados - 1) {
+            float q = t_fase / 0.7f;
+            giro = (1 - q) * (1 - q) * 9;
+            x += (int)(sinf(t_fase * 40 + k) * (1 - q) * 3);
+            if (q < 0.7f) face = face_v(t, f->valor[k]);
+        }
+        desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
         // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
         // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
         char tg[16] = "";
@@ -3676,6 +3782,14 @@ static void desenha_fila(int j)
             gfx_texto(bx, by, b, cb, GFX_MIUDO, false);
         }
     }
+    // Rajadas da Ventania atravessando a sequencia.
+    if (ventania_agora(j))
+        for (int i = 0; i < 7; i++) {
+            float q = t_fase / 0.7f;
+            int xs = SLOT_X(0) - 70 + (int)fmodf(t_fase * 700 + i * 97, 380.0f);
+            int ys = y - 24 + i * 8;
+            gfx_rect(xs, ys, 30 + (i % 3) * 10, 1, gfx_mistura(C_VENTO, C_FELTRO, 30 + (int)(q * 60)));
+        }
     // O par que se anulou fica unido por um traco.
     if (fase == F_VEREDITO && j == vez && anulou_a >= 0 && anulou_b >= 0)
         gfx_rect(SLOT_X(anulou_a) + R + 4, y - 2, SLOT_X(anulou_b) - SLOT_X(anulou_a) - 2 * R - 8, 5,
@@ -3727,7 +3841,31 @@ static void desenha_evento(void)
         bool praga = TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_MALDICAO;
         uint16_t c = praga ? C_VIOLETA : C_VINHO_CLR;
         int bx = e->tipo == EV_ANULA ? SLOT_X(e->alvo_k) : PLACAR_X, by = zona(e->alvo_j);
-        projetil(ax, ay, bx, by, p / 0.42f, c);
+        if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_LASER) {
+            // Laser: um raio verde reto sai do emissor e chega ao alvo,
+            // tremulando, e fica aceso um instante antes do impacto.
+            float q = p / 0.3f;
+            if (q > 1) q = 1;
+            int ex = ax + (int)((bx - ax) * q), ey = ay - R_DADO + (int)((by - (ay - R_DADO)) * q);
+            if (p < 0.6f) {
+                int tr = ((int)(t_fase * 40) % 2) ? 5 : 4;
+                gfx_linha_grossa(ax, ay - R_DADO, ex, ey, tr + 2, gfx_mistura(C_LASER, C_FELTRO, 55));
+                gfx_linha_grossa(ax, ay - R_DADO, ex, ey, tr, C_LASER);
+                gfx_linha_grossa(ax, ay - R_DADO, ex, ey, 1, C_BRANCO);
+                gfx_disco(ex, ey, tr, C_BRANCO);
+            }
+            float tt = (p - 0.3f) / 0.5f;           // anel do impacto no alvo
+            if (tt > 0 && tt < 1) {
+                int rr = (int)(R_DADO * (0.6f + tt * 1.2f));
+                for (int a = 0; a < 32; a++) {
+                    float an = a * 0.19635f;
+                    gfx_rect(bx + (int)(cosf(an) * rr) - 1, by + (int)(sinf(an) * rr) - 1, 3, 3,
+                             gfx_mistura(C_LASER, C_FELTRO, (int)(tt * 80)));
+                }
+            }
+        } else {
+            projetil(ax, ay, bx, by, p / 0.42f, c);
+        }
     }
     // Espelho: um reflexo sai do maior dado do rival e chega nele.
     if (e->tipo == EV_ESPELHO) {
@@ -4226,7 +4364,9 @@ static void desenha_catalogo(void)
     int cx = 160, cy = CENTRO + 4;
     gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));   // anel da raridade
     gfx_disco(cx, cy, 77, C_FELTRO_ESC);
-    if (d->lados == 2) {
+    if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
+        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, false);
+    } else if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
         int f[24], nf = faces_de(tipo, f);
@@ -4433,7 +4573,7 @@ static const pagina_t TUTORIAL[] = {
     { "Loja, prêmios e dados especiais", {
         "No começo da partida, a loja vende dados especiais em troca de fichas.",
         "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
-        "São 33 dados, cada um com um poder: veja todos em Dados da casa." } },
+        "São 35 dados, cada um com um poder: veja todos em Dados da casa." } },
     { "Modo Desafiante", {
         "Em 1 jogador: uma run pelo cassino. São 3 salões, com 4 mesas cada; a última é o chefe do salão. No mapa, você escolhe o caminho: mesas fáceis, médias, difíceis ou uma loja.",
         "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas que sobraram viram moedas de ouro, e você escolhe um dado de prêmio (ou tira um dado da bolsa).",

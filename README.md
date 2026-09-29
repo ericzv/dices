@@ -7,11 +7,25 @@ Nasceu no
 também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
 sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 
-Cada rodada, os dois montam uma fila de até quatro dados e jogam um por um.
+Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 30 dados especiais mudam as
+os dois se anulam. Entre os turnos tem aposta, e 35 dados mudam as
 regras (veja o menu **Dados** no jogo).
+
+## 1 jogador: partida rápida ou Modo Desafiante
+
+- **Partida rápida**: 15 rodadas contra o computador, em três níveis —
+  **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
+  **Difícil** (simula as jogadas antes de decidir).
+- **Modo Desafiante**: uma run pelo cassino. São 3 salões com 4 mesas cada
+  (a última é o chefe). No mapa você escolhe o caminho entre mesas fáceis,
+  médias e difíceis, e às vezes uma loja. Cada partida tem 8 rodadas e 50
+  fichas de cada lado; vencer converte as fichas que sobraram em moedas de
+  ouro e dá um dado de prêmio. As moedas compram dados nas lojas. Perdeu, a
+  run acaba — nada passa para a próxima. A run fica guardada (no PC, numa
+  pasta do usuário; no navegador, no próprio navegador) e dá para continuar
+  depois.
 
 ## Jogar no navegador (e online)
 
@@ -47,8 +61,9 @@ Não precisa instalar nada: é um executável só.
 |---|---|
 | Setas (ou A/D, W/S) | Move o cursor |
 | Enter | Escolhe / joga o próximo dado |
-| Tab | Confirma a fila / para |
-| Backspace | Tira o último dado da fila |
+| Tab ou Ctrl | Confirma a sequência / para |
+| Backspace | Tira o último dado da sequência |
+| I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
 | M | Liga e desliga todo o som |
@@ -134,4 +149,5 @@ Para ouvir a trilha, o rufar e os efeitos fora do jogo:
 `./build/exporta_som pasta/` grava um `.wav` de cada.
 
 A fonte DotGothic16 é distribuída sob a SIL Open Font License
-(`tools/fontes/OFL.txt`).
+(`tools/fontes/OFL-DotGothic16.txt`); a Jersey 10, também OFL
+(`tools/fontes/OFL-Jersey10.txt`).

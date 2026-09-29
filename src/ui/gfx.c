@@ -1,8 +1,15 @@
 #include <stdlib.h>
 #include "../hal/display.h"
 #include "gfx.h"
+#include "fonte_tela.h"
 
-#define FB display_fb()
+static gfx_texto_fn nitido;
+void gfx_texto_nitido(gfx_texto_fn fn) { nitido = fn; }
+gfx_texto_fn gfx_texto_nitido_atual(void) { return nitido; }
+
+static uint16_t *desvio;
+void gfx_desvia(uint16_t *buf) { desvio = buf; }
+#define FB (desvio ? desvio : display_fb())
 
 void gfx_clear(uint16_t c)
 {
@@ -105,7 +112,7 @@ void gfx_disco(int cx, int cy, int r, uint16_t c)
 
 // Proximo caractere de uma string UTF-8, como codigo Latin-1. O que a
 // fonte nao tem vira '?'.
-static int proximo(const char **s)
+int gfx_proximo_car(const char **s)
 {
     const unsigned char *p = (const unsigned char *)*s;
     int c = *p++;
@@ -133,9 +140,11 @@ static void glifo(int x, int y, int ch, uint16_t c, int e)
 
 int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 {
+    if (nitido) { nitido(x, y, s, c, e, negrito); return gfx_largura(s, e); }
+    if (e < 1) e = 1;                             // miudo: em pixels, o menor que ha
     int x0 = x;
     while (*s) {
-        int ch = proximo(&s);
+        int ch = gfx_proximo_car(&s);
         glifo(x, y, ch, c, e);
         if (negrito) glifo(x + 1, y, ch, c, e);
         x += FONTE_LARG * e;
@@ -146,6 +155,12 @@ int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 int gfx_largura(const char *s, int e)
 {
     int n = 0;
-    while (*s) { proximo(&s); n++; }
+    if (nitido) {                                 // soma os avancos da Jersey 10
+        while (*s) n += FT_AVANCO[gfx_proximo_car(&s) - FONTE_PRIM];
+        if (e == GFX_MIUDO) return (int)(n * GFX_MIUDO_ESC / 64 + 0.5f);
+        return (n * e + 32) / 64;
+    }
+    if (e < 1) e = 1;
+    while (*s) { gfx_proximo_car(&s); n++; }
     return n * FONTE_LARG * e;
 }

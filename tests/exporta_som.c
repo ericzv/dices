@@ -35,7 +35,10 @@ int main(int argc, char **argv)
 {
     const char *dir = argc > 1 ? argv[1] : ".";
     static const char *NOME[SOM_N] = { "tique", "bate", "pousa", "valido", "anula",
-                                       "ficha", "efeito", "vitoria", "correu", "abertura" };
+                                       "ficha", "efeito", "vitoria", "correu", "abertura",
+                                       "jackpot", "laser", "tira", "rouba", "fogo", "zera",
+                                       "vento", "partida", "fim", "derrota", "turno", "bolsa",
+                                       "empate" };
     srand(12345);
     static float saida[MAX_EF];
     for (int s = 0; s < SOM_N; s++) grava(dir, NOME[s], saida, NULL, renderiza_efeito(s, saida));

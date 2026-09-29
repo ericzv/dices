@@ -1,7 +1,7 @@
 // Teste de host: joga partidas inteiras com teclas ao acaso, sem janela, e
 // confere que o jogo nunca trava nem sai do trilho.
 //
-//   simula [partidas] [--fotos DIR]
+//   simula [partidas] [--fotos DIR] [--ia-forte]
 //
 // Com --fotos, salva em DIR um .ppm da primeira vez que cada tela aparece.
 // Compile com -fsanitize=address,undefined para pegar erro de memoria.
@@ -12,6 +12,7 @@
 #include "hal/display.h"
 #include "hal/keyboard.h"
 #include "hal/som.h"
+#include "hal/salva.h"
 #include "games/jogos.h"
 #include "esp_timer.h"
 
@@ -27,6 +28,12 @@ bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 
+// Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
+static char salvo[4096];
+bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
+int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
+void salva_apaga(void) { salvo[0] = 0; }
+
 static uint32_t estado = 2463534242u;
 static uint32_t sorteio(void)
 {
@@ -38,7 +45,7 @@ static uint32_t sorteio(void)
 static const int TECLAS[] = {
     KEY_ENTER, KEY_ENTER, KEY_ENTER, KEY_ENTER, KEY_ENTER, KEY_TAB, KEY_TAB,
     KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_BKSP, KEY_ESC,
-    'x', 'a', 'd', 'w', 's', 'm', '1', '2', '3', '4', '5', '6', '7',
+    'x', 'a', 'd', 'w', 's', 'm', 'i', '1', '2', '3', '4', '5', '6', '7',
 };
 
 static void tecla(int k)
@@ -84,10 +91,15 @@ int main(int argc, char **argv)
 {
     int partidas = 50;
     const char *dir_fotos = NULL;
+    bool ia_forte = false;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--fotos") && i + 1 < argc) dir_fotos = argv[++i];
+        else if (!strcmp(argv[i], "--ia-forte")) ia_forte = true;
         else partidas = atoi(argv[i]);
     }
+    // A IA pensa jogando rodadas de mentira; aqui ela pensa pouco, para as
+    // partidas andarem rapido (--ia-forte usa o esforco do jogo de verdade).
+    dado_dbg_ia_esforco(ia_forte ? 1 : 0);
 
     // Tres mesas se revezam: duas pessoas, pessoa contra IA, IA contra IA.
     static const int MESAS[3] = { 0, 2, 3 };
@@ -98,6 +110,15 @@ int main(int argc, char **argv)
     for (int p = 0; p < partidas && !falhas; p++) {
         relogio = 1000003LL * (p + 1);
         dado_inicia(p);
+        // Metade das partidas comeca com bolsas sorteadas entre todos os
+        // tipos, para os dados raros aparecerem logo.
+        if (p % 2) {
+            for (int j = 0; j < 2; j++) {
+                int tipos[12];
+                for (int i = 0; i < 12; i++) tipos[i] = (int)(sorteio() % (uint32_t)dado_dbg_n_tipos());
+                dado_dbg_bolsa(j, tipos, 12);
+            }
+        }
         long passos = 0;
         while (dado_vencedor() < 0) {
             if (++passos > 400000) {
@@ -129,7 +150,7 @@ int main(int argc, char **argv)
 
     if (falhas) return 1;
     if (dir_fotos)                               // e as paginas do tutorial
-        for (int pag = 0; pag < 7; pag++) {
+        for (int pag = 0; pag < 8; pag++) {
             dado_dbg_tutorial(pag);
             dado_desenha();
             foto(dir_fotos, 20 + pag);

@@ -180,6 +180,79 @@ static void compoe(int s)
         tom(0.00f, 0.35f, mtof(67), mtof(67), TRIANGULO, 0.22f, 0.14f);
         tom(0.20f, 0.70f, mtof(62), mtof(61), TRIANGULO, 0.22f, 0.25f);
         break;
+    case SOM_JACKPOT: {                          // caca-niquel: sinos e moedas caindo
+        static const float N[6] = { 84, 88, 91, 96, 91, 96 };
+        for (int i = 0; i < 6; i++)
+            tom(i * 0.075f, 0.6f, mtof(N[i]), mtof(N[i]), SINO, 0.14f, 0.18f);
+        tom(0.45f, 1.2f, mtof(100), mtof(100), SINO, 0.12f, 0.5f);
+        for (int i = 0; i < 16; i++)
+            clique(0.40f + i * 0.055f + frand() * 0.012f, 2600 + frand() * 700, 0.20f - i * 0.009f);
+        break;
+    }
+    // Os efeitos abaixo sao discretos de proposito: acompanham, sem brigar
+    // com a trilha.
+    case SOM_LASER:                              // zap: seno despencando, com brilho
+        tom(0, 0.28f, 2600, 260, SENO, 0.20f, 0.10f);
+        tom(0, 0.22f, 3900, 520, TRIANGULO, 0.05f, 0.06f);
+        ruido(0, 0.08f, 0.10f, 0.02f, 0.9f, 0.5f);
+        break;
+    case SOM_TIRA:                               // duas notas graves: pontos indo embora
+        tom(0.00f, 0.16f, mtof(57), mtof(56), TRIANGULO, 0.22f, 0.06f);
+        tom(0.09f, 0.22f, mtof(52), mtof(51), TRIANGULO, 0.20f, 0.08f);
+        break;
+    case SOM_ROUBA:                              // passada rapida: ar varrendo a mesa
+        for (int i = 0; i < 8; i++)
+            ruido(i * 0.022f, 0.05f, 0.30f * (1 - i / 9.0f), 0.018f, 0.12f + i * 0.06f, 0.02f);
+        clique(0.20f, 2400, 0.15f);
+        break;
+    case SOM_FOGO:                               // brasa estalando
+        ruido(0, 0.45f, 0.28f, 0.18f, 0.25f, 0.02f);
+        for (int i = 0; i < 7; i++)
+            clique(0.02f + i * 0.055f + frand() * 0.02f, 1600 + frand() * 900, 0.14f);
+        break;
+    case SOM_ZERA:                               // queda longa e grave
+        tom(0, 0.70f, 196, 82, SENO, 0.30f, 0.35f);
+        tom(0.05f, 0.60f, 294, 123, TRIANGULO, 0.08f, 0.25f);
+        break;
+    case SOM_VENTO:                              // rajada: ruido que cresce e passa
+        for (int i = 0; i < 12; i++) {
+            float q = i / 11.0f, v = sinf(q * 3.1416f);
+            ruido(i * 0.045f, 0.09f, 0.26f * v, 0.05f, 0.10f + v * 0.12f, 0.015f);
+        }
+        break;
+    case SOM_PARTIDA: {                          // dois acordes de sino, suaves
+        static const float A[3] = { 72, 76, 79 }, B[3] = { 74, 79, 83 };
+        for (int i = 0; i < 3; i++) tom(i * 0.02f, 0.9f, mtof(A[i]), mtof(A[i]), SINO, 0.10f, 0.28f);
+        for (int i = 0; i < 3; i++) tom(0.22f + i * 0.02f, 1.2f, mtof(B[i]), mtof(B[i]), SINO, 0.11f, 0.40f);
+        break;
+    }
+    case SOM_FIM: {                              // cadencia que resolve: fim com vitoria
+        static const float N[7] = { 67, 71, 74, 72, 76, 79, 84 };
+        for (int i = 0; i < 7; i++)
+            tom(i < 3 ? i * 0.06f : 0.30f + (i - 3) * 0.05f, 1.4f, mtof(N[i]), mtof(N[i]), SINO,
+                0.11f, i == 6 ? 0.7f : 0.35f);
+        break;
+    }
+    case SOM_DERROTA:                            // tres notas descendo, sem drama
+        tom(0.00f, 0.40f, mtof(69), mtof(69), TRIANGULO, 0.16f, 0.18f);
+        tom(0.22f, 0.40f, mtof(65), mtof(65), TRIANGULO, 0.16f, 0.18f);
+        tom(0.44f, 0.90f, mtof(62), mtof(62), TRIANGULO, 0.16f, 0.35f);
+        break;
+    case SOM_TURNO:                              // toc-toc na madeira: passou a vez
+        for (int i = 0; i < 2; i++) {
+            ruido(i * 0.10f, 0.04f, 0.5f, 0.008f, 0.40f, 0.05f);
+            tom(i * 0.10f, 0.08f, 520 - i * 60, 470 - i * 60, SENO, 0.22f, 0.02f);
+        }
+        break;
+    case SOM_BOLSA:                              // dados se mexendo dentro da bolsa
+        ruido(0, 0.30f, 0.14f, 0.12f, 0.20f, 0.02f);
+        for (int i = 0; i < 6; i++)
+            tom(0.02f + i * 0.04f + frand() * 0.015f, 0.05f, 1100 + frand() * 500, 950, SENO, 0.07f, 0.012f);
+        break;
+    case SOM_EMPATE:                             // um sino e o outro, iguais: ninguem leva
+        tom(0.00f, 0.8f, mtof(76), mtof(76), SINO, 0.12f, 0.30f);
+        tom(0.16f, 0.9f, mtof(76), mtof(76), SINO, 0.10f, 0.35f);
+        break;
     case SOM_ABERTURA: {                         // vinheta: arpejo com sino no alto
         static const float N[5] = { 65, 69, 72, 76, 81 };
         for (int i = 0; i < 5; i++)
@@ -193,7 +266,10 @@ static void compoe(int s)
 static const float PICO[SOM_N] = {
     [SOM_TIQUE] = 0.20f, [SOM_BATE] = 0.36f, [SOM_POUSA] = 0.45f, [SOM_VALIDO] = 0.40f,
     [SOM_ANULA] = 0.42f, [SOM_FICHA] = 0.38f, [SOM_EFEITO] = 0.32f, [SOM_VITORIA] = 0.45f,
-    [SOM_CORREU] = 0.34f, [SOM_ABERTURA] = 0.40f,
+    [SOM_CORREU] = 0.34f, [SOM_ABERTURA] = 0.40f, [SOM_JACKPOT] = 0.46f,
+    [SOM_LASER] = 0.30f, [SOM_TIRA] = 0.30f, [SOM_ROUBA] = 0.28f, [SOM_FOGO] = 0.28f,
+    [SOM_ZERA] = 0.32f, [SOM_VENTO] = 0.28f, [SOM_PARTIDA] = 0.30f, [SOM_FIM] = 0.36f,
+    [SOM_DERROTA] = 0.30f, [SOM_TURNO] = 0.24f, [SOM_BOLSA] = 0.20f, [SOM_EMPATE] = 0.26f,
 };
 
 // Compoe o efeito s, poe sala, normaliza e devolve quantas amostras valem.

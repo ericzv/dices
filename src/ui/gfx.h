@@ -22,6 +22,23 @@ uint16_t gfx_mistura(uint16_t a, uint16_t b, int pct);   // pct 0 = a, 100 = b
 
 // Texto em UTF-8 (acentos do Latin-1). 'esc' amplia cada pixel da fonte;
 // 'negrito' repete o glifo um pixel ao lado. Devolve a largura em pixels.
+// esc = GFX_MIUDO (0): texto miudo, a 65% do normal (no texto em pixels, sem
+// fonte nitida, fica do tamanho normal).
+#define GFX_MIUDO 0
+#define GFX_MIUDO_ESC 0.65f
 int gfx_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
 int gfx_largura(const char *s, int esc);
+
+// Texto nitido: a plataforma que sabe desenhar texto na resolucao da tela
+// (o PC e o navegador) registra aqui quem recebe cada texto; o jogo entao so
+// avisa onde ele vai, e mede as larguras pela fonte Jersey 10. Sem registro
+// (testes sem janela), o texto e desenhado em pixels no framebuffer.
+typedef void (*gfx_texto_fn)(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
+void gfx_texto_nitido(gfx_texto_fn fn);
+gfx_texto_fn gfx_texto_nitido_atual(void);
+
+// Desvia todo o desenho para outro buffer de GFX_W x GFX_H (NULL volta a tela).
+void gfx_desvia(uint16_t *buf);
+// Proximo caractere de uma string UTF-8, como codigo Latin-1.
+int gfx_proximo_car(const char **s);
 #define GFX_ALT_TEXTO(esc) (FONTE_ALT * (esc))

@@ -38,6 +38,7 @@ enum {
 #include "ui/fonte_tela.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 
 #define TITULO "Dado em Casa"
@@ -58,10 +59,23 @@ static void tecla(int k)
     dado_tecla(&ev);
 }
 
+#ifdef __EMSCRIPTEN__
+// No navegador a tela cheia e da pagina inteira (o canvas ocupa 100% dela).
+// O ToggleFullscreen do raylib marca a janela como cheia mesmo quando o
+// navegador recusa, e dai em diante para de acompanhar o tamanho do canvas:
+// o desenho e o mouse se desencontram.
+EM_JS(void, web_tela_cheia, (void), {
+    try {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+    } catch (e) {}
+});
+#endif
+
 static void alterna_tela_cheia(void)
 {
 #ifdef __EMSCRIPTEN__
-    ToggleFullscreen();
+    web_tela_cheia();
 #else
     ToggleBorderlessWindowed();
 #endif
@@ -137,6 +151,12 @@ static void poe_icone(void)
 static Rectangle area_do_jogo(void)
 {
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
+#ifdef __EMSCRIPTEN__
+    // O tamanho de verdade do canvas, que e onde se desenha.
+    int cw = 0, ch = 0;
+    emscripten_get_canvas_element_size("#canvas", &cw, &ch);
+    if (cw > 0 && ch > 0) { W = (float)cw; H = (float)ch; }
+#endif
     float k = (float)(int)(W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H);
     if (k < 1) k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
     float w = GFX_W * k, h = GFX_H * k;
@@ -202,16 +222,118 @@ static void desenha_textos(Rectangle area)
     }
 }
 
-// Um quadro do jogo: teclado, passo, desenho e a textura ampliada na janela.
+// Cliques: o raylib so ve o botao apertado no comeco de cada quadro, e um
+// toque de touchpad aperta e solta no mesmo quadro. Por isso cada clique e
+// anotado na hora, pela GLFW (que o raylib usa no PC e no navegador), e
+// repassado ao raylib em seguida.
+#ifndef __EMSCRIPTEN__
+typedef struct GLFWwindow GLFWwindow;
+typedef void (*GLFWmousebuttonfun)(GLFWwindow *, int, int, int);
+GLFWwindow *glfwGetCurrentContext(void);
+GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow *, GLFWmousebuttonfun);
+
+static GLFWmousebuttonfun botao_raylib;
+static uint8_t cliques[16];
+static int n_cliques;
+
+static void anota_clique(GLFWwindow *w, int botao, int acao, int mods)
+{
+    if (acao == 1 && (botao == 0 || botao == 1) && n_cliques < (int)sizeof cliques)
+        cliques[n_cliques++] = (uint8_t)(botao + 1);          // 1 esquerdo, 2 direito
+    if (botao_raylib) botao_raylib(w, botao, acao, mods);
+}
+#endif
+
+#ifdef __EMSCRIPTEN__
+// No navegador o mouse (e o toque) e lido direto da pagina, em pixels do
+// canvas: nao depende de como o raylib acompanha o tamanho da janela.
+EM_JS(void, web_mouse_inicia, (void), {
+    var c = Module.canvas;
+    Module.dadoMouse = { x: -1, y: -1, cliques: [] };
+    function pos(e) {
+        var r = c.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return;
+        Module.dadoMouse.x = (e.clientX - r.left) * c.width / r.width;
+        Module.dadoMouse.y = (e.clientY - r.top) * c.height / r.height;
+    }
+    c.addEventListener('pointermove', pos);
+    c.addEventListener('pointerdown', function (e) {
+        pos(e);
+        if (e.button === 0 || e.button === 2)
+            Module.dadoMouse.cliques.push([e.button === 0 ? 1 : 2, Module.dadoMouse.x, Module.dadoMouse.y]);
+    });
+});
+EM_JS(float, web_mouse_x, (void), { return Module.dadoMouse ? Module.dadoMouse.x : -1; });
+EM_JS(float, web_mouse_y, (void), { return Module.dadoMouse ? Module.dadoMouse.y : -1; });
+// Tira o proximo clique da fila: devolve o botao (0 se nao ha) e a posicao.
+EM_JS(int, web_clique, (float *x, float *y), {
+    var q = Module.dadoMouse ? Module.dadoMouse.cliques : [];
+    if (!q.length) return 0;
+    var k = q.shift();
+    HEAPF32[x >> 2] = k[1];
+    HEAPF32[y >> 2] = k[2];
+    return k[0];
+});
+#endif
+
+// Posicao da janela (ou do canvas) em posicao da tela do jogo (640x360);
+// false se caiu fora da mesa.
+static bool no_jogo(float mx, float my, int *x, int *y)
+{
+    Rectangle a = area_do_jogo();
+    if (mx < a.x || my < a.y || mx >= a.x + a.width || my >= a.y + a.height) return false;
+    *x = (int)((mx - a.x) * GFX_W / a.width);
+    *y = (int)((my - a.y) * GFX_H / a.height);
+    return true;
+}
+
+// Mouse: a posicao na janela vira posicao na tela do jogo (640x360).
+static void le_mouse(void)
+{
+    static int ult_x = -1, ult_y = -1;
+#ifdef __EMSCRIPTEN__
+    int x, y;
+    if (no_jogo(web_mouse_x(), web_mouse_y(), &x, &y) && (x != ult_x || y != ult_y)) {
+        ult_x = x; ult_y = y;
+        dado_mouse(x, y, 0);
+    }
+    float cx, cy;
+    for (int b; (b = web_clique(&cx, &cy)) != 0; )
+        if (no_jogo(cx, cy, &x, &y)) {
+            if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
+            dado_mouse(x, y, b);
+        }
+#else
+    int n = n_cliques, x, y;
+    n_cliques = 0;
+    Vector2 m = GetMousePosition();
+    if (!no_jogo(m.x, m.y, &x, &y)) return;
+    if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
+    for (int i = 0; i < n; i++) dado_mouse(x, y, cliques[i]);
+#endif
+}
+
+// Maozinha sobre o que se pode clicar (checado depois do desenho, que e
+// quando o jogo marca as areas clicaveis).
+static void poe_cursor(void)
+{
+    static int atual = -1;
+    int c = dado_mouse_clicavel() ? MOUSE_CURSOR_POINTING_HAND : MOUSE_CURSOR_DEFAULT;
+    if (c != atual) { SetMouseCursor(c); atual = c; }
+}
+
+// Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
     le_teclado();
+    le_mouse();
     float dt = GetFrameTime();
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     dado_passo(dt);
     som_atualiza(dt);
     n_textos = usado = 0;
     dado_desenha();
+    poe_cursor();
     UpdateTexture(tela, fb);
 
     BeginDrawing();
@@ -229,6 +351,11 @@ int main(void)
     InitWindow(GFX_W * 2, GFX_H * 2, TITULO);
     SetWindowMinSize(GFX_W, GFX_H);
     SetExitKey(KEY_NULL);                  // ESC e do jogo, nao fecha a janela
+#ifdef __EMSCRIPTEN__
+    web_mouse_inicia();
+#else
+    botao_raylib = glfwSetMouseButtonCallback(glfwGetCurrentContext(), anota_clique);
+#endif
 #ifndef __EMSCRIPTEN__
     dimensiona_janela();
     poe_icone();

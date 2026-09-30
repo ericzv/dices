@@ -11,18 +11,23 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
+// O site de teste (/teste/) guarda a run noutra chave: nao mistura com a
+// run do site principal.
 EM_JS(void, ls_grava, (const char *t), {
-    try { localStorage.setItem('dadoemcasa.desafio', UTF8ToString(t)); } catch (e) {}
+    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
+    try { localStorage.setItem(k, UTF8ToString(t)); } catch (e) {}
 });
 EM_JS(int, ls_le, (char *buf, int n), {
+    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
     var t = null;
-    try { t = localStorage.getItem('dadoemcasa.desafio'); } catch (e) {}
+    try { t = localStorage.getItem(k); } catch (e) {}
     if (!t) return 0;
     stringToUTF8(t, buf, n);
     return Math.min(t.length, n - 1);
 });
 EM_JS(void, ls_apaga, (void), {
-    try { localStorage.removeItem('dadoemcasa.desafio'); } catch (e) {}
+    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
+    try { localStorage.removeItem(k); } catch (e) {}
 });
 
 bool salva_grava(const char *texto) { ls_grava(texto); return true; }

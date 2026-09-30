@@ -168,7 +168,7 @@ static const tipo_t TIPO[D_N] = {
     { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4 vale 8 · 1 a 3 vale 0" },
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
     { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2" },
-    { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "anula todos os seus outros dados" },
+    { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "anula os seus outros dados" },
     { "Laser",       6,  EF_LASER,     RAR_RARO,    "com 6: anula um dado do oponente" },
     { "Ventania",   12,  EF_VENTANIA,  RAR_RARO,    "rola de novo os seus já lançados" },
 };
@@ -209,7 +209,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TREVO]     = "Tirou 4: SORTE, vale 8. Tirou 1, 2 ou 3: vale 0.",
     [D_JACKPOT]   = "Se ficar valendo e três dados seus mostrarem o mesmo número: +10.",
     [D_COPIADOR]  = "Se ficar valendo, cada outro dado seu com o mesmo número ganha +2.",
-    [D_EGOISTA]   = "Nada o anula, mas ele anula todos os seus outros dados.",
+    [D_EGOISTA]   = "Anula todos os seus outros dados, menos a si mesmo. Pode ser anulado.",
     [D_LASER]     = "Se ficar valendo com 6, anula um dado do oponente, ao acaso.",
     [D_VENTANIA]  = "Ao cair, rola de novo todos os seus dados já lançados na rodada.",
 };
@@ -226,17 +226,17 @@ static const char *TEXTO_CAT[D_N] = {
     [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
     [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
     [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
-    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo e Teimoso resistem à anulação.",
     [D_EXPLOSIVO] = "Oito lados. Tirando 8, rola de novo e soma ao que já tinha. Pode explodir até 3 vezes seguidas.",
     [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo com 4, tira 4 pontos do oponente. Com outro número, é um D4 comum.",
     [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do oponente. Os pontos não passam para você.",
     [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, espera valendo e vira no fim da rodada.",
     [D_FICHAS]    = "Quatro lados. Se terminar valendo e você vencer a rodada, ganha fichas iguais ao número que ele tirou.",
     [D_TUDO_NADA] = "Uma moeda de risco. Tirando 2, no fim todos os seus dados que valem ganham x2. Tirando 1, a sua rodada inteira vale zero, sem volta.",
-    [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo, Teimoso e Egoísta resistem.",
+    [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo e Teimoso resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo e Teimoso resistem à anulação.",
     [D_CARIDOSO]  = "Quatro lados. Se terminar valendo, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Ficha azul e vermelha. Se terminar valendo: tirando 1 (azul), cada dado ímpar seu ganha +1; tirando 2 (vermelha), cada dado par ganha +1. Ela conta a si mesma.",
@@ -247,8 +247,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se terminar valendo e três dados seus que valem mostrarem o mesmo número (ele pode ser um deles): JACKPOT, +10 no fim.",
     [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na sequência.",
-    [D_EGOISTA]   = "Doze lados e uma coroa. Nada o anula, mas pode ser roubado. Ele anula todos os seus outros dados da rodada, antes e depois dele. Escudo e Teimoso resistem à anulação.",
-    [D_LASER]     = "Seis lados, com um emissor no topo. Se terminar valendo com 6, um raio verde anula um dado do oponente escolhido ao acaso. Escudo, Teimoso e Egoísta resistem à anulação.",
+    [D_EGOISTA]   = "Doze lados e uma coroa. Ao cair, anula todos os seus outros dados da rodada, antes e depois dele, menos a si mesmo. Ele pode ser anulado: pela queda da sequência, por ataques, pelo Agouro. Escudo e Teimoso resistem.",
+    [D_LASER]     = "Seis lados, com um emissor no topo. Se terminar valendo com 6, um raio verde anula um dado do oponente escolhido ao acaso. Escudo e Teimoso resistem à anulação.",
     [D_VENTANIA]  = "Doze lados de vento. Ao cair, rola de novo os seus dados lançados antes dele nesta rodada (nunca a si mesmo nem os que faltam). A sequência é refeita: dados podem cair ou voltar a valer.",
 };
 
@@ -446,7 +446,8 @@ static roubado_t vis_roubo[2][4];
 static int  vis_nroubo[2], vis_delta[2];
 static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
-static uint8_t vis_espelho[2][N_FILA];   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
+static uint8_t vis_espelho[2][N_FILA];
+static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
 static uint8_t vis_zerada[2];
 
@@ -1431,11 +1432,12 @@ static int valor_pontos(int j, int k)
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_EGOISTA;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
-static bool resiste_egoista(int t) { return nao_anulavel_t(t); }
+// Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
+static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -1566,6 +1568,18 @@ static void aplica_regra(int j, int k)
         if (n) snprintf(veredito, sizeof veredito, "Egoísta tirou %d e anulou %d dado%s", v, n, n > 1 ? "s" : "");
         else   snprintf(veredito, sizeof veredito, "Egoísta vale %d, sozinho", v);
         ver_tipo = n ? 4 : 0;
+        // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
+        // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
+        int l2 = ultimo_valido(f, est, k);
+        if (l2 >= 0 && v < f->valor[l2]) {
+            bool esc_l = firme(j, l2);
+            if (!esc_l) { est[l2] = V_ANULADO; anulou_a = l2; }
+            est[k] = V_ANULADO;
+            anulou_b = k;
+            resistiu = esc_l ? l2 : -1;
+            snprintf(veredito, sizeof veredito, "%d < %d: o Egoísta cai", v, f->valor[l2]);
+            ver_tipo = esc_l ? 2 : 1;
+        }
         f->pontos = soma(j, f->est);
         return;
     }
@@ -1646,6 +1660,24 @@ static void aplica_regra(int j, int k)
 
 static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor);
 
+// Refaz a sequencia de j do comeco ate o dado n (sem ele), com os valores que
+// estao la: a regra da queda, o Egoista, o Tudo ou Nada... tudo de novo.
+// Serve a Ventania (que rolou os de antes) e ao Espelho que virou no fim.
+static void refaz_sequencia(int j, int n)
+{
+    fila_t *f = &F[j];
+    for (int i = 0; i < n; i++) {
+        f->est[i] = V_ESPERA;
+        f->bonus[i] = 0;
+        f->dobra[i] = 0;
+        f->tag[i][0] = 0;
+    }
+    f->zerada = false;
+    int lanc = f->lancados;
+    for (int i = 0; i < n; i++) { f->lancados = i + 1; aplica_regra(j, i); }
+    f->lancados = lanc;
+}
+
 // Um dado acabou de cair na posicao k. O Ventania, antes da regra dele, rola
 // de novo todos os dados lancados antes dele nesta rodada e refaz a sequencia
 // do comeco com os valores novos (dados podem cair ou voltar a valer). Nao
@@ -1659,16 +1691,9 @@ static void pousa(int j, int k, int (*r)(int))
         int menor;
         f->cru[i] = f->valor[i] = sorteia_valor(f->tipo[i], f->fixo[i], r, &menor);
         f->descarte[i] = (uint8_t)menor;
-        f->est[i] = V_ESPERA;
-        f->bonus[i] = 0;
-        f->dobra[i] = 0;
-        f->tag[i][0] = 0;
         f->espera[i] = false;
     }
-    f->zerada = false;
-    int n = f->lancados;
-    for (int i = 0; i < k; i++) { f->lancados = i + 1; aplica_regra(j, i); }
-    f->lancados = n;
+    refaz_sequencia(j, k);
     aplica_regra(j, k);
     if (f->est[k] == V_VALIDO && ver_tipo == 0)
     {
@@ -1878,25 +1903,40 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 static void calcula_desfecho(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
-    for (int j = 0; j < 2; j++) memcpy(d->est[j], F[j].est, N_FILA);
     if (gera) n_ev = 0;
 
-    // Espelho que esperava o rival: vira agora o maior dado dele. No desfecho
-    // de verdade fica assim; na previa, volta como estava no fim da conta.
-    int8_t esp_antes[2][N_FILA];
-    memset(esp_antes, 0, sizeof esp_antes);
-    for (int j = 0; j < 2; j++)
+    // Espelho que esperava o oponente (com "?"): vira agora o maior dado dele,
+    // e a sequencia do dono e refeita com o numero novo - so agora ele pode
+    // cair ou derrubar outro. Enquanto esperava, nao anulava nem era anulado.
+    // No desfecho de verdade fica assim; na previa, a mesa volta como estava.
+    static fila_t f_antes[2];
+    static char ver_antes[sizeof veredito];
+    int vt = ver_tipo, aa = anulou_a, ab = anulou_b, res = resistiu;
+    uint8_t am = anulou_masc;
+    bool virou = false;
+    memcpy(f_antes, F, sizeof F);
+    memcpy(ver_antes, veredito, sizeof veredito);
+    for (int j = 0; j < 2; j++) {
+        int alvo = maior_do_rival(j), virados = 0;
+        uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados; k++) {
-            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO) continue;
-            int alvo = maior_do_rival(j);
-            if (alvo <= 0) continue;
-            esp_antes[j][k] = (int8_t)F[j].valor[k];
+            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO || alvo <= 0) continue;
             F[j].valor[k] = alvo;
-            if (!gera) continue;
             F[j].espera[k] = false;
-            snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+            quais |= (uint8_t)(1 << k);
+            virados++;
             evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
+        if (!virados) continue;
+        if (gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        refaz_sequencia(j, F[j].lancados);
+        for (int k = 0; k < F[j].lancados; k++)
+            if (quais >> k & 1) snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+        virou = true;
+    }
+    memcpy(veredito, ver_antes, sizeof veredito);
+    ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am;
+    for (int j = 0; j < 2; j++) memcpy(d->est[j], F[j].est, N_FILA);
 
     int ordem[2] = { primeiro, outro(primeiro) };
     for (int o = 0; o < 2; o++) {
@@ -1987,10 +2027,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         d->bruto[j] = d->zerada[j] ? 0 : t;
         d->total[j] = (t < 0 || d->zerada[j]) ? 0 : t;
     }
-    if (!gera)                                   // previa: o Espelho segue esperando
-        for (int j = 0; j < 2; j++)
-            for (int k = 0; k < F[j].lancados; k++)
-                if (esp_antes[j][k]) F[j].valor[k] = esp_antes[j][k];
+    if (!gera && virou) memcpy(F, f_antes, sizeof F);   // previa: o Espelho segue esperando
 }
 
 // Pontuacao que a mesa mostra durante e depois da animacao dos eventos.
@@ -2018,7 +2055,14 @@ static int risco(int j)
     int L = l >= 0 ? f->valor[l] : 0;
     if (ef == EF_QUEBRADO) return f->fixo[k] < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
-    if (ef == EF_EGOISTA) return 0;                                   // nunca cai
+    if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
+        int m = 0;
+        for (int i = 0; i < k; i++)
+            if (f->est[i] == V_VALIDO && resiste_egoista(tipo_de(j, i)) && f->valor[i] > m) m = f->valor[i];
+        int ruins = 0;
+        for (int a = 1; a <= lados; a++) ruins += a < m;
+        return ruins * 100 / lados;
+    }
     int ruins = 0, total = 0;
     if (ef == EF_VICIADO) {
         for (int a = 1; a <= lados; a++)
@@ -2394,7 +2438,10 @@ static void desfecho(void)
         memset(vis_espelho[j], 0, N_FILA);
     }
     for (int i = 0; i < n_ev; i++)
-        if (ev[i].tipo == EV_ESPELHO) vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
+        if (ev[i].tipo == EV_ESPELHO) {
+            vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
+            memcpy(vis_est[ev[i].de_j], est_pre_espelho[ev[i].de_j], N_FILA);
+        }
     n_voo = 0;
     ev_i = 0;
     t_fase = 0;
@@ -2433,7 +2480,10 @@ static void aplica_evento(int i)
         }
         break;
     }
-    case EV_ESPELHO: vis_espelho[e->de_j][e->de_k] = 0; break;
+    case EV_ESPELHO:                    // virou: a sequencia refeita aparece
+        vis_espelho[e->de_j][e->de_k] = 0;
+        memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
+        break;
     case EV_TIRA:   vis_delta[e->alvo_j] -= e->valor; break;
     case EV_PIRATA: vis_delta[e->alvo_j] -= e->valor; vis_delta[e->de_j] += e->valor; break;
     case EV_BONUS:
@@ -2614,6 +2664,41 @@ static int menu_opcoes(const char **op)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Mouse: cada tela, ao se desenhar, marca as areas que aceitam clique. Passar
+// o mouse por cima poe o cursor na opcao; clicar e o mesmo que apertar a
+// tecla da area (quase sempre ENTER).
+// ---------------------------------------------------------------------------
+typedef struct { int16_t x, y, w, h; int *var; int val; int tecla; } zona_clique_t;
+#define MAX_ZONAS 64
+static zona_clique_t zonas[MAX_ZONAS];
+static int n_zonas, zonas_fase;            // zonas_fase: a tela que as marcou
+static int mouse_x = -1, mouse_y = -1;
+
+static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla)
+{
+    if (n_zonas >= MAX_ZONAS) return;
+    zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla };
+}
+
+static bool mouse_em(int x, int y, int w, int h)
+{
+    return mouse_x >= x && mouse_x < x + w && mouse_y >= y && mouse_y < y + h;
+}
+
+// Botao pequeno para o que antes so tinha tecla (TAB, X...). x_dir e a borda
+// direita do botao.
+static void botao_clique(int x_dir, int y, const char *rot, int tecla)
+{
+    int w = gfx_largura(rot, 1) + 20, h = TXT_H + 6, x = x_dir - w;
+    bool em = mouse_em(x, y, w, h);
+    gfx_rect(x + 2, y + 2, w, h, C_SOMBRA);
+    gfx_rect(x, y, w, h, em ? C_LATAO : C_FELTRO_ESC);
+    gfx_moldura(x, y, w, h, 1, em ? C_BRANCO : C_LATAO_ESC);
+    txt(x + 10, y + 2, rot, em ? C_BARRA : C_MARFIM, em);
+    zona_clique(x, y, w, h, NULL, 0, tecla);
+}
+
 static void desenha_abertura(void)
 {
     desenha_lance();
@@ -2643,6 +2728,7 @@ static void desenha_abertura(void)
         gfx_rect(GFX_W / 2 - 110, yb, 220, 22, cur ? C_LATAO : C_FELTRO_ESC);
         gfx_moldura(GFX_W / 2 - 110, yb, 220, 22, 1, cur ? C_BRANCO : C_FELTRO2);
         txt_c(GFX_W / 2, yb + 1, op[i], cur ? C_BARRA : C_MARFIM, cur);
+        zona_clique(GFX_W / 2 - 110, yb, 220, 22, &menu_cur, i, KEY_ENTER);
     }
     // Nos submenus, uma linha explica a opcao em foco.
     char dica[96] = "";
@@ -2661,8 +2747,8 @@ static void desenha_abertura(void)
     if (dica[0]) txt_c(GFX_W / 2, 170 + n_op * 26 + 8, dica, menu_cur == 1 && menu_tela == MT_DESAFIO
                                                           ? C_VINHO_CLR : C_MARFIM_S, false);
     txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12, menu_tela
-          ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
-          : "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
+          ? "mouse ou setas escolhem  ·  clique ou ENTER confirma  ·  ESC volta"
+          : "mouse ou setas  ·  clique ou ENTER  ·  M som  ·  N música  ·  F11 tela cheia",
           C_TEXTO_M, false);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
     char ver[32];
@@ -2748,6 +2834,9 @@ static int fila_simples(const peca_t *pc, int n, int *ordem)
         for (int b = a; b > 0 && media(pc[ordem[b]]) < media(pc[ordem[b - 1]]); b--) {
             int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t;
         }
+    // O Dobro dobra o dado seguinte: por ultimo nao serve. Vai uma casa antes.
+    for (int b = m - 1; b > 0; b--)
+        if (pc[ordem[b]].tipo == D_DOBRO && b == m - 1) { int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t; }
     return m;
 }
 
@@ -2938,6 +3027,8 @@ static void ia_planeja(void)
         for (int i = 0; i < nivel; i++) if (s[i] == s[nivel]) rep = true;
         if (rep) continue;
         if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
+        // Dobro por ultimo nao dobra nada: a IA nem considera.
+        if (L >= 2 && p->col[p->mao[s[L - 1]]].tipo == D_DOBRO) continue;
         uint64_t a = 0;
         for (int k = 0; k < L; k++) {
             peca_t pc = p->col[p->mao[s[k]]];
@@ -3215,7 +3306,7 @@ static void ia_passo(float dt)
         t_ia = fase == F_ORDEM ? -0.4f : 0;
     }
     t_ia += dt;
-    if (t_ia < 0.55f) return;
+    if (t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
     t_ia = 0;
 
     switch (fase) {
@@ -3397,8 +3488,12 @@ void dado_passo(float dt)
     case F_ROLANDO: {
         // Camera lenta: o dado rola devagar, e o quarto mais devagar ainda -
         // e nele que a rodada se decide.
-        float lento = voo[0].slot == N_FILA - 1 ? 0.42f : 0.62f;
-        if (fisica(dt * lento) && t_fase > 0.5f) {
+        // O ultimo dado da sequencia rola devagar: e nele que a rodada se
+        // decide. Na vez da IA, os outros andam mais rapido.
+        bool ia = (cpu >> voo[0].dono & 1) != 0;
+        bool ultimo = voo[0].slot == F[voo[0].dono].n - 1;
+        float lento = ultimo ? 0.42f : (ia ? 1.0f : 0.62f);
+        if (fisica(dt * lento) && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
             voo[0].ox = voo[0].x; voo[0].oy = voo[0].y;
             t_fase = 0;
             fase = F_ARRUMA;
@@ -3406,7 +3501,8 @@ void dado_passo(float dt)
         break;
     }
     case F_ARRUMA: {
-        float t = t_fase / 0.45f;
+        bool ia_arr = (cpu >> voo[0].dono & 1) && voo[0].slot != F[voo[0].dono].n - 1;
+        float t = t_fase / (ia_arr ? 0.28f : 0.45f);
         if (t > 1) t = 1;
         float e = t * t * (3 - 2 * t);
         voo_t *v = &voo[0];
@@ -3428,7 +3524,9 @@ void dado_passo(float dt)
         break;
     }
     case F_VEREDITO:
-        if (t_fase > (ver_tipo == 0 ? 0.6f : 1.3f)) {
+        // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
+        bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
+        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f))) {
             if (F[vez].lancados >= F[vez].n) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }
@@ -4017,6 +4115,7 @@ static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t c
         gfx_rect(x, y, w, 28, cur ? cor : C_FELTRO_ESC);
         gfx_moldura(x, y, w, 28, 1, cur ? C_BRANCO : C_FELTRO2);
         txt(x + 12, y + 4, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
+        if (ativo[i]) zona_clique(x, y, w, 28, &cursor, i, KEY_ENTER);
         x += w + 12;
     }
 }
@@ -4048,6 +4147,7 @@ static void desenha_ordem(void)
             txt_c(x + 18, y - 31, o, C_BARRA, true);
         }
         if (cur) gfx_rect(x - 18, y + 27, 36, 3, p->cor);
+        zona_clique(x - 29, y - 29, 58, 58, &cursor, i, KEY_ENTER);
     }
 
     char t[64];
@@ -4071,6 +4171,9 @@ static void desenha_ordem(void)
         if (k < f->n) {
             peca_t pc = { f->tipo[k], f->fixo[k] };
             peca_parada((float)x, (float)ry, 10, pc, vez);
+            // Clicar num dado da sequencia tira ele dela.
+            for (int i = 0; i < n; i++)
+                if (p->mao[i] == f->idx[k]) zona_clique(x - 14, ry - 14, 28, 28, &cursor, i, KEY_ENTER);
         } else {
             gfx_disco(x, ry, 11, k == f->n ? C_OURO : C_FELTRO2);
             gfx_disco(x, ry, 9, C_FELTRO_ESC);
@@ -4078,6 +4181,7 @@ static void desenha_ordem(void)
             txt_c(x, ry - 10, o, k == f->n ? C_OURO : C_FELTRO2, false);
         }
     }
+    if (f->n) botao_clique(GFX_W / 2 + 225, ry - 12, "pronto", KEY_TAB);
 }
 
 static void desenha_joga(void)
@@ -4109,8 +4213,9 @@ static void desenha_joga(void)
             else if (dif < 0) snprintf(parar, sizeof parar, "parar: perde por %d", -dif);
             else              snprintf(parar, sizeof parar, "parar: empata");
         }
+        if (f->lancados == 0) snprintf(parar, sizeof parar, "voltar à sequência");
         const char *rot[2] = { "jogar", parar };
-        bool ativo[2] = { f->lancados < f->n, f->lancados > 0 };
+        bool ativo[2] = { f->lancados < f->n, true };
         botoes(y1 + 70, rot, ativo, 2, p->cor);
     }
     pote_mesa();
@@ -4195,7 +4300,9 @@ static void desenha_premio(void)
             peca_parada((float)x, (float)y, 17, p->col[i], vez);
             if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
             if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
+            zona_clique(x - 22, y - 22, 44, 44, &cursor, i, KEY_ENTER);
         }
+        botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
         txt_c(GFX_W / 2, 236, TIPO[tc].nome, cor_aro(tc), true);
         txt_c(GFX_W / 2, 258, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
@@ -4219,6 +4326,7 @@ static void desenha_premio(void)
         char c2[32];
         classe(t2, c2, sizeof c2);
         txt_c(x, 180, c2, cr, false);
+        zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > N_FILA;
     if (cursor < 3) {
@@ -4235,6 +4343,8 @@ static void desenha_premio(void)
     gfx_rect(GFX_W / 2 - w / 2, 240, w, 26, cur ? (pode ? C_VINHO_CLR : C_FELTRO2) : C_FELTRO_ESC);
     gfx_moldura(GFX_W / 2 - w / 2, 240, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
     txt_c(GFX_W / 2, 243, rot, cur ? C_BARRA : (pode ? C_MARFIM : C_FELTRO2), cur);
+    zona_clique(GFX_W / 2 - w / 2, 240, w, 26, &cursor, 3, KEY_ENTER);
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "recusar", 'x');
     txt_c(GFX_W / 2, 278, "setas escolhem  ·  ENTER leva  ·  X recusa", C_TEXTO_M, false);
 }
 
@@ -4274,7 +4384,9 @@ static void desenha_loja(void)
         } else {
             fichas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
         }
+        zona_clique(x - 48, yb, 96, 92, &cursor, i, KEY_ENTER);
     }
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "terminar", KEY_TAB);
     dado_e_poder(240, loja[cursor].tipo, true);
     if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
         txt_c(GFX_W / 2, 286, "fichas insuficientes", C_VINHO_CLR, true);
@@ -4565,6 +4677,8 @@ static void desenha_online(void)
               C_MARFIM_S, false);
         botao_menu(150, 240, "Criar sala", online_cur == 0);
         botao_menu(186, 240, "Entrar com código", online_cur == 1);
+        zona_clique(GFX_W / 2 - 120, 150, 240, 26, &online_cur, 0, KEY_ENTER);
+        zona_clique(GFX_W / 2 - 120, 186, 240, 26, &online_cur, 1, KEY_ENTER);
         txt_c(GFX_W / 2, 238, "Quem cria a sala joga primeiro na loja.", C_TEXTO_M, false);
     }
 }
@@ -4715,6 +4829,8 @@ void dado_desenha(void)
     gfx_texto_fn nitido = gfx_texto_nitido_atual();
     bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
     if (mudo) gfx_texto_nitido(texto_mudo);
+    n_zonas = 0;
+    zonas_fase = fase;
     desenha_tudo();
     if (mudo) gfx_texto_nitido(nitido);
     if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
@@ -4841,6 +4957,80 @@ void dado_tecla(const key_event_t *ev_)
         if (aceita_escolha()) rede_envia_tecla(k);
     }
     trata_tecla(k);
+}
+
+static void manda_tecla(int k)
+{
+    key_event_t ev = { 0 };
+    ev.key = k;
+    dado_tecla(&ev);
+}
+
+// O mouse esta sobre algo clicavel? (a plataforma troca a seta pela maozinha)
+bool dado_mouse_clicavel(void)
+{
+    if (zonas_fase != fase || ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return false;
+    for (int i = 0; i < n_zonas; i++)
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) return true;
+    return false;
+}
+
+// Mouse, ja nas coordenadas da tela do jogo. acao: 0 moveu, 1 clique
+// esquerdo, 2 clique direito (o mesmo que BACKSPACE: volta ou desfaz).
+void dado_mouse(int x, int y, int acao)
+{
+    mouse_x = x;
+    mouse_y = y;
+    if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (detalhe >= 0 && fase == detalhe_fase) {         // um clique fecha os detalhes
+        if (acao == 1) manda_tecla(KEY_ENTER);
+        return;
+    }
+    // Na vez da IA ou do rival online, o mouse nao mexe em nada.
+    if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return;
+    const zona_clique_t *z = NULL;
+    for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+
+    if (acao == 0) {
+        // Passar por cima escolhe. No online o cursor so anda pelas teclas,
+        // que vao para o rival: la so o clique vale.
+        if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
+            *z->var = z->val;
+            som_toca(SOM_TIQUE);
+        }
+        return;
+    }
+    if (z) {
+        if (z->var && modo == M_ONLINE) {
+            for (int i = 0; i < 64 && *z->var != z->val; i++) manda_tecla(KEY_RIGHT);
+            if (*z->var != z->val) return;
+        } else if (z->var) {
+            *z->var = z->val;
+        }
+        manda_tecla(z->tecla);
+        return;
+    }
+    // Fora dos botoes: nas telas de "aperte para seguir", o clique segue.
+    switch (fase) {
+    case F_CATALOGO:
+        manda_tecla(x < GFX_W / 2 ? KEY_LEFT : KEY_RIGHT);
+        break;
+    case F_TUTORIAL:
+        manda_tecla(x < GFX_W / 3 ? KEY_LEFT : KEY_ENTER);
+        break;
+    case F_ABERTURA:
+        if (!abertura_pronta || t_fase < 0.75f) manda_tecla(KEY_ENTER);   // pula a entrada
+        break;
+    case F_ONLINE:
+        if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
+        break;
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_VEREDITO: case F_EFEITOS:
+        manda_tecla(KEY_ENTER);
+        break;
+    default:
+        break;
+    }
 }
 
 // A tecla ja traduzida, venha de quem vier: pessoa ou IA.
@@ -5010,10 +5200,15 @@ static void trata_tecla(int k)
     case F_JOGA: {
         fila_t *f = &F[vez];
         bool pode_jogar = f->lancados < f->n, pode_parar = f->lancados > 0;
-        if (e) { if (pode_parar) cursor ^= 1; return; }
+        // Antes do primeiro lance, o segundo botao e "voltar": a sequencia
+        // ainda pode ser mudada.
+        bool pode_voltar = f->lancados == 0;
+        if (e) { if (pode_parar || pode_voltar) cursor ^= 1; return; }
+        if (k == KEY_BKSP && pode_voltar) { cursor = 0; t_fase = 1; fase = F_ORDEM; return; }
         if (k == KEY_TAB || k == 'x') { if (pode_parar) termina_turno(); return; }
         if (k == KEY_ENTER) {
-            if (cursor == 1 && pode_parar) termina_turno();
+            if (cursor == 1 && pode_voltar) { cursor = 0; t_fase = 1; fase = F_ORDEM; }
+            else if (cursor == 1 && pode_parar) termina_turno();
             else if (pode_jogar) lanca_proximo();
         }
         return;

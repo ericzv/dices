@@ -27,7 +27,7 @@
   <img src="icone.png" alt="">
   <h1>DADO EM CASA</h1>
   <div class="botao" id="botao">carregando...</div>
-  <div class="dica">Jogue com o teclado: setas, ENTER, TAB e BACKSPACE.<br>
+  <div class="dica">Jogue com o mouse (clique direito volta) ou com o teclado: setas, ENTER, TAB e BACKSPACE.<br>
     Para jogar online, escolha <b>Online</b> no menu e crie uma sala.</div>
 </div>
 <script src="mqtt.min.js"></script>
@@ -176,6 +176,15 @@ var DadoRede = (function () {
 // clique tambem poe o teclado no jogo.
 // ---------------------------------------------------------------------------
 var capa = document.getElementById('capa'), botao = document.getElementById('botao');
+// Site de teste (/teste/): marca no titulo e no canto, para nao confundir.
+if (location.pathname.indexOf('/teste/') >= 0) {
+  document.title = 'Dado em Casa · TESTE';
+  var marca = document.createElement('div');
+  marca.textContent = 'VERSÃO DE TESTE';
+  marca.style.cssText = 'position:fixed;top:8px;right:10px;z-index:9;padding:3px 8px;' +
+    'font:bold 12px sans-serif;color:#10100f;background:#e2c068;border-radius:3px;opacity:.85';
+  document.body.appendChild(marca);
+}
 // A publicacao troca __VERSAO__ por ?v=<commit>: cada versao nova tem
 // enderecos novos, e o navegador nao reaproveita o jogo antigo do cache.
 var VERSAO = '__VERSAO__'.indexOf('__') === 0 ? '' : '__VERSAO__';

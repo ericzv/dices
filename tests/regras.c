@@ -203,13 +203,18 @@ int main(void)
     CONFERE(F[0].est[1] == V_VALIDO, "Egoista 1 depois de 12: nao devia cair");
     CONFERE(F[0].est[0] == V_ANULADO, "Egoista 1 depois de 12: o 12 devia ser anulado por ele");
 
-    // Nem por ataque: o Carrasco com 4 procura outro alvo.
+    // O Egoista e anulavel: o Carrasco com 4 derruba ele.
     limpa();
     joga(1, D_EGOISTA, 8);
     joga(0, D_CARRASCO, 4);
     d = fim();
-    CONFERE(d.est[1][0] == V_VALIDO, "Carrasco nao devia anular o Egoista");
-    CONFERE(d.total[1] == 8, "Egoista atacado: esperava 8, deu %d", d.total[1]);
+    CONFERE(d.est[1][0] == V_ANULADO, "Carrasco devia anular o Egoista");
+    CONFERE(d.total[1] == 0, "Egoista atacado: esperava 0, deu %d", d.total[1]);
+    // E cai na queda da sequencia diante de um Teimoso maior (que fica).
+    limpa();
+    joga(0, D_TEIMOSO, 6);
+    joga(0, D_EGOISTA, 3);
+    CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Egoista 3 depois do Teimoso 6 devia cair sozinho");
 
     // E o risco depois dele e total (a IA usa isso para parar).
     limpa();
@@ -499,7 +504,7 @@ int main(void)
     joga(1, D_EGOISTA, 9);
     joga(0, D_INVEJOSO, 3);
     d = fim();
-    CONFERE(d.est[1][0] == V_VALIDO, "Invejoso nao devia anular o Egoista");
+    CONFERE(d.est[1][0] == V_ANULADO, "Invejoso devia anular o Egoista (agora anulavel)");
     // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.
     limpa();
     joga(1, D_EGOISTA, 5);
@@ -566,6 +571,29 @@ int main(void)
     for (int i = 0; i < n_ev; i++) viu_esp |= ev[i].tipo == EV_ESPELHO;
     CONFERE(viu_esp, "Espelho no fim: faltou o evento");
 
+    // ---- Espelho esperando: so no fim, ja virado, a queda vale -----------
+    // 2 -> 3 -> Espelho 1 (espera). Se virar 2, cai com o 3; se virar 5, fica.
+    for (int caso = 0; caso < 2; caso++) {
+        limpa();
+        primeiro = 0;
+        joga(0, D_D4, 2);
+        joga(0, D_D4, 3);
+        joga(0, D_ESPELHO, 1);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO, "Espelho esperando nao anula nem e anulado");
+        joga(1, D_D8, caso == 0 ? 2 : 5);
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].espera[2] && F[0].valor[2] == 1, "a previa nao devia mexer na mesa");
+        d = fim();
+        if (caso == 0)
+            CONFERE(d.est[0][1] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 2,
+                    "Espelho vira 2: 3 e Espelho caem, fica 2 (deu %d)", d.total[0]);
+        else
+            CONFERE(d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO && d.total[0] == 10,
+                    "Espelho vira 5: nada cai, 2+3+5 (deu %d)", d.total[0]);
+        CONFERE(pv.total[0] == d.total[0], "Espelho: previa %d, desfecho %d", pv.total[0], d.total[0]);
+    }
+
     // ---- Premio: quem ganha no correr tambem escolhe; no fim, nao ha ------
     for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
     J[0].fichas = J[1].fichas = 80;
@@ -587,6 +615,38 @@ int main(void)
     fase = F_RESULTADO;
     segue_do_resultado();
     CONFERE(fase == F_FIM && venc_partida == 0, "rival sem fichas: sem premio, acaba (fase %d)", fase);
+
+    // ---- IA: o Dobro nunca vai por ultimo na sequencia -------------------
+    {
+        static const int T[7] = { D_DOBRO, D_D6, D_D8, D_D4, D_D2, D_D12, D_D20 };
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        J[0].n_col = 0;
+        for (int i = 0; i < 7; i++) {
+            J[0].col[i] = (peca_t){ (uint8_t)T[i], 0 };
+            J[0].onde[i] = NA_MAO;
+            J[0].mao[i] = (int8_t)i;
+            J[0].n_col++;
+        }
+        J[0].n_mao = 7;
+        memset(F, 0, sizeof F);
+        primeiro = vez = 0;
+        rodada = 2;
+        ia_esforco = 0;
+        for (int niv = 1; niv <= 2; niv++) {
+            ia_nivel = niv;
+            plano_rodada = -1;
+            ia_planeja();
+            CONFERE(plano_n >= 2 && J[0].col[J[0].mao[plano[plano_n - 1]]].tipo != D_DOBRO,
+                    "IA nivel %d pos o Dobro por ultimo", niv);
+        }
+        peca_t mao[7];
+        for (int i = 0; i < 7; i++) mao[i] = J[0].col[i];
+        mao[5].tipo = D_D2; mao[6].tipo = D_D2;          // o Dobro entre os de maior media
+        int ordem[N_FILA], q = fila_simples(mao, 7, ordem);
+        CONFERE(q >= 2 && mao[ordem[q - 1]].tipo != D_DOBRO, "IA facil pos o Dobro por ultimo");
+        ia_esforco = 1;
+        ia_nivel = 2;
+    }
 
     // ---- IA: nao troca empate certo por derrota certa --------------------
     // O rival abriu e fez 6. A IA tem um 6 valendo e o proximo e um Quebrado

@@ -144,7 +144,7 @@ static const tipo_t TIPO[D_N] = {
     { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados, de 1 a 20" },
     { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "1 a 3: o dado seguinte vale x2" },
     { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes e fica com o maior" },
-    { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 6 a 12" },
+    { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 4 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "não pode ser anulado nem roubado" },
     { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "com 4: anula o maior do oponente" },
@@ -185,7 +185,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da sequência.",
     [D_DOBRO]     = "Tirando 1 a 3, o dado logo depois dele vale x2 no fim.",
     [D_VICIADO]   = "Rola duas vezes e fica com o maior dos dois resultados.",
-    [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, todos com a mesma chance.",
+    [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, todos com a mesma chance.",
     [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +8.",
     [D_ESCUDO]    = "Nada o anula e nenhum ataque o alcança, nem roubo.",
     [D_CARRASCO]  = "Se ficar valendo com 4, anula o maior dado do oponente.",
@@ -223,7 +223,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da sequência.",
     [D_DOBRO]     = "Seis lados. Se tirar de 1 a 3, no fim da rodada o dado logo depois dele na sequência vale x2, se os dois estiverem valendo. Tirando 4 a 6, não dobra nada. Se esse dado for anulado, o x2 se perde: não passa para o próximo. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
     [D_VICIADO]   = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
-    [D_LASTRO]    = "Doze lados, mas só cai de 6 a 12, cada número com a mesma chance (1 em 7).",
+    [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, cada número com a mesma chance (1 em 9).",
     [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
     [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
     [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo e Teimoso resistem à anulação.",
@@ -498,6 +498,13 @@ static int  cat_i;                // dado em exibicao no catalogo
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
 static int  tira_i;
+// Roleta do premio: os tres rolos giram e travam um a um no dado que ja
+// foi sorteado. t_slot: tempo desde que abriu (-1: sem roleta).
+static float t_slot = -1, slot_t0, slot_dt;
+typedef struct { float x, y, vx, vy, giro, vg; uint16_t cor; uint8_t w, h; } confete_t;
+#define MAX_CONFETE 140
+static confete_t confete[MAX_CONFETE];
+static int n_confete;
 
 // ===========================================================================
 // Utilidades
@@ -524,7 +531,7 @@ static int rola_v(int lados) { return 1 + (int)(rnd_v() % (uint32_t)lados); }
 static int face_v(int tipo, int valor)
 {
     if (tipo == D_QUEBRADO) return valor;
-    if (tipo == D_LASTRO)   return 5 + rola_v(7);
+    if (tipo == D_LASTRO)   return 3 + rola_v(9);
     return rola_v(TIPO[tipo].lados);
 }
 static int outro(int j) { return j ^ 1; }
@@ -2069,7 +2076,7 @@ static int risco(int j)
             for (int b = 1; b <= lados; b++) { total++; if ((a > b ? a : b) < L) ruins++; }
         return ruins * 100 / total;
     }
-    for (int a = ef == EF_LASTRO ? 6 : 1; a <= lados; a++) {   // Lastro: so 6 a 12
+    for (int a = ef == EF_LASTRO ? 4 : 1; a <= lados; a++) {   // Lastro: so 4 a 12
         int v = a;
         total++;
         if (ef == EF_EXPLODE && v == lados) continue;
@@ -2271,7 +2278,7 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         if (y > x) x = y;
         break;
     }
-    case EF_LASTRO:  x = 5 + r(7); break;    // 6 a 12, 1 em 7 cada
+    case EF_LASTRO:  x = 3 + r(9); break;    // 4 a 12, 1 em 9 cada
     case EF_EXPLODE: {
         int n = x, g = 0;
         while (n == lados && g++ < 3) { n = r(lados); x += n; }
@@ -2757,6 +2764,99 @@ static void desenha_abertura(void)
               gfx_mistura(C_TEXTO_M, C_FELTRO, 35), GFX_MIUDO, false);
 }
 
+// ---------------------------------------------------------------------------
+// Roleta do premio
+// ---------------------------------------------------------------------------
+static float slot_para(int i) { return slot_t0 + i * slot_dt; }   // quando o rolo i trava
+static float slot_fim(void)   { return slot_para(2); }
+static bool slot_girando(void) { return fase == F_PREMIO && t_slot >= 0 && t_slot < slot_fim(); }
+
+// Os premios em ordem de raridade: o mais raro fica a direita e aparece por
+// ultimo. Depois os rolos comecam a girar - no Desafiante com calma, nas
+// partidas rapidas num piscar.
+static void slot_comeca(void)
+{
+    for (int i = 1; i < 3; i++)
+        for (int k = i; k > 0 && TIPO[oferta[k].tipo].raridade < TIPO[oferta[k - 1].tipo].raridade; k--) {
+            peca_t t = oferta[k]; oferta[k] = oferta[k - 1]; oferta[k - 1] = t;
+        }
+    bool calma = modo == M_DESAFIO;
+    slot_t0 = calma ? 0.95f : 0.35f;
+    slot_dt = calma ? 0.6f : 0.2f;
+    t_slot = 0;
+    som_giro(true);
+}
+
+// Qualquer tecla (ou clique) durante o giro trava tudo de uma vez.
+static void slot_pula(void)
+{
+    if (!slot_girando()) return;
+    t_slot = slot_fim();
+    som_giro(false);
+}
+
+static void solta_confete(int n)
+{
+    static const uint16_t COR[] = { C_OURO, C_AMARELO, C_ROSA, C_VERDE, C_REAL, C_BRANCO, C_VINHO_CLR };
+    n_confete = n < MAX_CONFETE ? n : MAX_CONFETE;
+    for (int i = 0; i < n_confete; i++) {
+        confete_t *c = &confete[i];
+        bool esq = i % 2 == 0;                   // dois canhoes, um em cada canto de baixo
+        c->x = esq ? 30 + frnd(0, 20) : GFX_W - 30 - frnd(0, 20);
+        c->y = GFX_H - 50 + frnd(-10, 10);
+        c->vx = (esq ? 1 : -1) * frnd(60, 260);
+        c->vy = -frnd(240, 470);
+        c->giro = frnd(0, 6.28f);
+        c->vg = frnd(-14, 14);
+        c->cor = COR[i % (int)(sizeof COR / sizeof COR[0])];
+        c->w = (uint8_t)(3 + (i % 3));
+        c->h = (uint8_t)(2 + (i % 2));
+    }
+}
+
+static void passo_confete(float dt)
+{
+    int m = 0;
+    for (int i = 0; i < n_confete; i++) {
+        confete_t *c = &confete[i];
+        c->vy += 520 * dt;
+        c->vx *= 1 - 1.4f * dt;
+        if (c->vy > 90) c->vy = 90 + (c->vy - 90) * (1 - 3 * dt);   // papel plana ao cair
+        c->x += c->vx * dt + sinf(c->giro) * 12 * dt;
+        c->y += c->vy * dt;
+        c->giro += c->vg * dt;
+        if (c->y < GFX_H + 10) confete[m++] = *c;
+    }
+    n_confete = m;
+}
+
+static void desenha_confete(void)
+{
+    for (int i = 0; i < n_confete; i++) {
+        const confete_t *c = &confete[i];
+        float s = fabsf(cosf(c->giro));          // o papel virando no ar
+        int w = (int)(c->w * (0.3f + 0.7f * s)) + 1;
+        gfx_rect((int)c->x - w / 2, (int)c->y, w, c->h, s > 0.5f ? c->cor : gfx_mistura(c->cor, C_BARRA, 35));
+    }
+}
+
+static void passo_slot(float dt)
+{
+    passo_confete(dt);
+    if (t_slot < 0) return;
+    if (fase != F_PREMIO) { t_slot = -1; som_giro(false); return; }
+    float a = t_slot, fim = slot_fim();
+    t_slot += dt;
+    for (int i = 0; i < 3; i++)
+        if (a < slot_para(i) && t_slot >= slot_para(i)) som_toca(SOM_SLOT);
+    if (a < fim && t_slot >= fim) som_giro(false);
+    if (a < fim + 0.1f && t_slot >= fim + 0.1f) {
+        som_toca(SOM_PREMIO);
+        solta_confete(modo == M_DESAFIO ? MAX_CONFETE : 60);
+    }
+    if (t_slot > fim + 5) t_slot = fim + 5;
+}
+
 static void abre_premio(int w)
 {
     for (int i = 0; i < 3; i++) {
@@ -2772,6 +2872,7 @@ static void abre_premio(int w)
     removendo = false;
     t_tira = 0;
     fase = F_PREMIO;
+    slot_comeca();
 }
 
 // ===========================================================================
@@ -2799,7 +2900,7 @@ static float media(peca_t p)
     const tipo_t *t = &TIPO[p.tipo];
     switch (t->efeito) {
     case EF_QUEBRADO: return p.fixo;
-    case EF_LASTRO:   return 9.0f;
+    case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
     default:          return (t->lados + 1) / 2.0f;
@@ -3300,7 +3401,7 @@ static void ia_passo(float dt)
 {
     ia_nivel = nivel_jog[vez & 1];
     ia_ousadia = ousadia_jog[vez & 1];
-    if (!ia_na_vez() || (fase == F_PREMIO && t_tira > 0)) { ia_fase = -1; return; }
+    if (!ia_na_vez() || (fase == F_PREMIO && (t_tira > 0 || slot_girando()))) { ia_fase = -1; return; }
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
         ia_fase = fase; ia_vez = vez;
         t_ia = fase == F_ORDEM ? -0.4f : 0;
@@ -3441,6 +3542,7 @@ static void trata_esc(void)
 void dado_passo(float dt)
 {
     t_fase += dt;
+    passo_slot(dt);
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt) > 2.5f) t_sair = -1;
@@ -4313,23 +4415,57 @@ static void desenha_premio(void)
     if (modo == M_DESAFIO) snprintf(t, sizeof t, "Prêmio por vencer %s", J[1].nome);
     else snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
     txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
+    bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
         int x = GFX_W / 2 + (i - 1) * 150;
         int t2 = oferta[i].tipo;
-        bool cur = i == cursor;
+        float para = slot_para(i);
+        bool parado = t_slot < 0 || t_slot >= para;
+        bool cur = i == cursor && !girando;
         uint16_t cr = cor_rar(t2);
         gfx_rect(x - 64, 90, 128, 110, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 64, 90, 128, 110, cur ? 3 : 1, cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
+        if (!parado) {
+            // O rolo: dados passando de cima para baixo, cada vez mais devagar,
+            // ate o ultimo (o premio) chegar ao centro. Os de passagem encolhem
+            // perto das bordas, como num cilindro.
+            gfx_rect(x - 60, 94, 120, 64, C_FELTRO_ESC);
+            float r = para - t_slot, o = 9.4f * r * sqrtf(r);
+            int k0 = (int)o;
+            for (int k = k0 - 1; k <= k0 + 1; k++) {
+                if (k < 0) continue;
+                float dy = (o - k) * 34;
+                float q = 1 - fabsf(dy) / 40;
+                if (q <= 0.35f) continue;
+                peca_t pc = oferta[i];
+                if (k > 0) {
+                    uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
+                    pc.tipo = (uint8_t)(h % D_N);
+                    pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
+                }
+                peca_parada((float)x, 126 + dy, 24 * q, pc, vez);
+            }
+            gfx_moldura(x - 64, 90, 128, 110, 1, C_FELTRO2);
+            txt_c(x, 162, "?", C_TEXTO_M, true);
+            continue;
+        }
+        // Acabou de travar: um pulo e a moldura acende.
+        float q = t_slot >= 0 ? (t_slot - para) / 0.3f : 1;
+        bool acende = q < 1;
+        gfx_moldura(x - 64, 90, 128, 110, cur || acende ? 3 : 1,
+                    acende ? gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))) : cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
+        float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
-        peca_parada((float)x, 130 + bob, 26, oferta[i], vez);
-        txt_c(x, 162, TIPO[t2].nome, cur ? cor_aro(t2) : C_MARFIM_S, cur);
+        peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
+        txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_aro(t2) : C_MARFIM_S, cur);
         char c2[32];
         classe(t2, c2, sizeof c2);
         txt_c(x, 180, c2, cr, false);
         zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > N_FILA;
-    if (cursor < 3) {
+    if (girando) {
+        txt_c(GFX_W / 2, 212, "sorteando...", C_OURO, true);
+    } else if (cursor < 3) {
         txt_c(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, false);
     } else {
         txt_c(GFX_W / 2, 212, pode ? "troca o prêmio por tirar um dos seus, para sempre"
@@ -4423,7 +4559,7 @@ static void moeda_girando(int cx, int cy, int tipo, float t)
 static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
-    int de = TIPO[tipo].efeito == EF_LASTRO ? 6 : 1;
+    int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;
     for (int v = de; v <= lados; v++) f[n++] = v;
     return n;
 }
@@ -4832,6 +4968,7 @@ void dado_desenha(void)
     n_zonas = 0;
     zonas_fase = fase;
     desenha_tudo();
+    desenha_confete();
     if (mudo) gfx_texto_nitido(nitido);
     if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
     desenha_detalhe();
@@ -4943,6 +5080,9 @@ void dado_tecla(const key_event_t *ev_)
     // Detalhes do dado (tecla I): so da tela local, nunca vai para o rival.
     if (detalhe >= 0 && fase == detalhe_fase) { detalhe = -1; return; }   // qualquer tecla fecha
     detalhe = -1;
+    // Roleta girando: a tecla so trava os rolos, aqui mesmo (nao vai para o
+    // rival, que ve a propria roleta).
+    if (slot_girando() && k != KEY_ESC) { slot_pula(); return; }
     if (k == 'i' && !dado_digitando() && tipo_em_foco() >= 0) {
         detalhe = tipo_em_foco();
         detalhe_fase = fase;
@@ -5027,6 +5167,9 @@ void dado_mouse(int x, int y, int acao)
         break;
     case F_RESULTADO: case F_FIM: case F_RFIM: case F_VEREDITO: case F_EFEITOS:
         manda_tecla(KEY_ENTER);
+        break;
+    case F_PREMIO:
+        if (slot_girando()) manda_tecla(KEY_ENTER);       // trava a roleta
         break;
     default:
         break;
@@ -5236,6 +5379,7 @@ static void trata_tecla(int k)
 
     case F_PREMIO: {
         jogador_t *p = &J[vez];
+        slot_pula();                                // tecla do rival: a roleta daqui trava
         if (t_tira > 0) return;                     // dado saindo: espera
         if (removendo) {
             if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE) cursor -= GRADE; return; }

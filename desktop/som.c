@@ -4,6 +4,7 @@
 //  - Trilha: bossa de 16 compassos (piano eletrico, contrabaixo, vibrafone,
 //    vassourinha e shaker), composta aqui mesmo e tocada em loop.
 //  - Rufar: caixinha em crescendo enquanto o dado rola; abaixa a trilha.
+//  - Giro: musiquinha de caca-niquel enquanto a roleta do premio gira.
 //  - Efeitos: baques, fichas, sinos; todos com um pouco de sala.
 #include <math.h>
 #include <stdint.h>
@@ -19,12 +20,12 @@
 
 static Sound base[SOM_N], voz[SOM_N][VOZES];
 static int   prox[SOM_N];
-static Sound rufo;
+static Sound rufo, giro;
 static Music trilha;
 static uint8_t *trilha_wav;
 static bool  pronto, falhou, ligado = true, musica = true;
-static bool  rufando;
-static float vol_rufo, duck = 1;             // duck: quanto a trilha abaixa
+static bool  rufando, girando;
+static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
 
 static float frand(void) { return (float)rand() / (float)RAND_MAX * 2 - 1; }
 static float mtof(float m) { return 440.0f * powf(2.0f, (m - 69) / 12.0f); }
@@ -253,6 +254,21 @@ static void compoe(int s)
         tom(0.00f, 0.8f, mtof(76), mtof(76), SINO, 0.12f, 0.30f);
         tom(0.16f, 0.9f, mtof(76), mtof(76), SINO, 0.10f, 0.35f);
         break;
+    case SOM_SLOT:                               // rolo travando: estalo seco e um sino
+        clique(0, 1900, 0.30f);
+        tom(0.00f, 0.08f, 180, 120, SENO, 0.30f, 0.025f);
+        tom(0.02f, 0.45f, mtof(88), mtof(88), SINO, 0.16f, 0.14f);
+        break;
+    case SOM_PREMIO: {                           // fanfarra curta e moedas caindo
+        static const float N[4] = { 76, 79, 84, 88 };
+        for (int i = 0; i < 4; i++)
+            tom(i * 0.06f, 0.5f, mtof(N[i]), mtof(N[i]), TRIANGULO, 0.14f, 0.16f);
+        tom(0.24f, 1.3f, mtof(91), mtof(91), SINO, 0.16f, 0.55f);
+        tom(0.24f, 1.3f, mtof(96), mtof(96), SINO, 0.10f, 0.45f);
+        for (int i = 0; i < 12; i++)
+            clique(0.30f + i * 0.05f + frand() * 0.012f, 2700 + frand() * 700, 0.18f - i * 0.01f);
+        break;
+    }
     case SOM_ABERTURA: {                         // vinheta: arpejo com sino no alto
         static const float N[5] = { 65, 69, 72, 76, 81 };
         for (int i = 0; i < 5; i++)
@@ -270,6 +286,7 @@ static const float PICO[SOM_N] = {
     [SOM_LASER] = 0.30f, [SOM_TIRA] = 0.30f, [SOM_ROUBA] = 0.28f, [SOM_FOGO] = 0.28f,
     [SOM_ZERA] = 0.32f, [SOM_VENTO] = 0.28f, [SOM_PARTIDA] = 0.30f, [SOM_FIM] = 0.36f,
     [SOM_DERROTA] = 0.30f, [SOM_TURNO] = 0.24f, [SOM_BOLSA] = 0.20f, [SOM_EMPATE] = 0.26f,
+    [SOM_SLOT] = 0.30f, [SOM_PREMIO] = 0.40f,
 };
 
 // Compoe o efeito s, poe sala, normaliza e devolve quantas amostras valem.
@@ -342,6 +359,57 @@ static Sound monta_rufo(void)
     renderiza_rufo(x);
     for (int i = 0; i < N_RUFO; i++) pcm[i] = (short)(x[i] * 30000);
     Wave w = { .frameCount = N_RUFO, .sampleRate = TAXA, .sampleSize = 16,
+               .channels = 1, .data = pcm };
+    Sound s = LoadSoundFromWave(w);
+    free(x); free(pcm);
+    return s;
+}
+
+// Giro da roleta: arpejo ligeiro de caca-niquel (sininhos a 12 notas por
+// segundo, subindo e descendo) com o tique-taque dos rolos por baixo.
+#define N_GIRO (TAXA * 4)
+static void renderiza_giro(float *x)
+{
+    static const float N[8] = { 72, 76, 79, 84, 88, 84, 79, 76 };
+    float passo = 1.0f / 12;
+    for (int k = 0; k * passo < 4; k++) {
+        float t0 = k * passo, f = mtof(N[k % 8] + ((k / 8) % 2 ? 2 : 0));
+        int i0 = (int)(t0 * TAXA);
+        float fase = 0;
+        for (int i = 0; i < TAXA / 5 && i0 + i < N_GIRO; i++) {
+            float t = (float)i / TAXA;
+            fase += f / TAXA;
+            float p = fase - floorf(fase);
+            float s = (4 * fabsf(p - 0.5f) - 1) * 0.6f + 0.4f * sinf(PI2 * fase * 2);
+            x[i0 + i] += s * expf(-t / 0.05f) * (t < 0.002f ? t / 0.002f : 1) * 0.16f;
+        }
+        // tique do rolo, duas vezes por nota
+        for (int h = 0; h < 2; h++) {
+            int j0 = i0 + (int)(h * passo * 0.5f * TAXA);
+            pb_t a = { 0 }, b = { 0 };
+            for (int i = 0; i < TAXA / 60 && j0 + i < N_GIRO; i++) {
+                float t = (float)i / TAXA, r = pb(&a, frand(), 0.8f);
+                r -= pb(&b, r, 0.3f);
+                x[j0 + i] += r * expf(-t / 0.003f) * 0.18f;
+            }
+        }
+    }
+    reverb_t *rv = malloc(sizeof *rv);
+    reverb_ini(rv, 0.5f, 0.65f, 0);
+    for (int i = 0; i < N_GIRO; i++) {
+        float y = x[i] + 0.2f * reverb(rv, x[i]);
+        x[i] = y > 1 ? 1 : (y < -1 ? -1 : y);
+    }
+    free(rv);
+}
+
+static Sound monta_giro(void)
+{
+    float *x = calloc(N_GIRO, sizeof *x);
+    short *pcm = malloc(N_GIRO * sizeof *pcm);
+    renderiza_giro(x);
+    for (int i = 0; i < N_GIRO; i++) pcm[i] = (short)(x[i] * 30000);
+    Wave w = { .frameCount = N_GIRO, .sampleRate = TAXA, .sampleSize = 16,
                .channels = 1, .data = pcm };
     Sound s = LoadSoundFromWave(w);
     free(x); free(pcm);
@@ -585,6 +653,7 @@ void som_inicia(void)
         for (int v = 0; v < VOZES; v++) voz[s][v] = LoadSoundAlias(base[s]);
     }
     rufo = monta_rufo();
+    giro = monta_giro();
     monta_trilha();
     SetMusicVolume(trilha, 0.35f);
     PlayMusicStream(trilha);
@@ -599,6 +668,7 @@ void som_encerra(void)
         UnloadSound(base[s]);
     }
     UnloadSound(rufo);
+    UnloadSound(giro);
     UnloadMusicStream(trilha);
     free(trilha_wav);
     pronto = false;
@@ -614,7 +684,14 @@ void som_atualiza(float dt)
         SetSoundVolume(rufo, vol_rufo * 0.8f);
         if (!rufando && vol_rufo < 0.01f) StopSound(rufo);
     }
-    float d = rufando ? 0.45f : 1;
+    // O giro entra na hora e sai em 80 ms, quando o ultimo rolo trava.
+    float ag = girando && ligado ? 1 : 0;
+    vol_giro += (ag - vol_giro) * fminf(1, dt / (girando ? 0.02f : 0.08f));
+    if (IsSoundPlaying(giro)) {
+        SetSoundVolume(giro, vol_giro);
+        if (!girando && vol_giro < 0.01f) StopSound(giro);
+    }
+    float d = rufando || girando ? 0.45f : 1;
     duck += (d - duck) * fminf(1, dt / 0.25f);
     SetMusicVolume(trilha, 0.35f * duck * (ligado && musica ? 1 : 0));
     UpdateMusicStream(trilha);
@@ -639,6 +716,17 @@ void som_rufo(bool on)
         PlaySound(rufo);
     }
     rufando = on;
+}
+
+void som_giro(bool on)
+{
+    if (!pronto) return;
+    if (on && !girando) {
+        vol_giro = 0;
+        SetSoundVolume(giro, 0);
+        PlaySound(giro);
+    }
+    girando = on;
 }
 
 bool som_liga(bool on)  { ligado = on && pronto; return ligado; }

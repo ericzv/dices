@@ -17,6 +17,7 @@ bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
+void som_giro(bool on) { (void)on; }
 
 static char salvo[4096];
 bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }

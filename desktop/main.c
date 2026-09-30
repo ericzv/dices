@@ -202,10 +202,45 @@ static void desenha_textos(Rectangle area)
     }
 }
 
-// Um quadro do jogo: teclado, passo, desenho e a textura ampliada na janela.
+// Cliques: o raylib so ve o botao apertado no comeco de cada quadro, e um
+// toque de touchpad aperta e solta no mesmo quadro. Por isso cada clique e
+// anotado na hora, pela GLFW (que o raylib usa no PC e no navegador), e
+// repassado ao raylib em seguida.
+typedef struct GLFWwindow GLFWwindow;
+typedef void (*GLFWmousebuttonfun)(GLFWwindow *, int, int, int);
+GLFWwindow *glfwGetCurrentContext(void);
+GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow *, GLFWmousebuttonfun);
+
+static GLFWmousebuttonfun botao_raylib;
+static uint8_t cliques[16];
+static int n_cliques;
+
+static void anota_clique(GLFWwindow *w, int botao, int acao, int mods)
+{
+    if (acao == 1 && (botao == 0 || botao == 1) && n_cliques < (int)sizeof cliques)
+        cliques[n_cliques++] = (uint8_t)(botao + 1);          // 1 esquerdo, 2 direito
+    if (botao_raylib) botao_raylib(w, botao, acao, mods);
+}
+
+// Mouse: a posicao na janela vira posicao na tela do jogo (640x360).
+static void le_mouse(void)
+{
+    static int ult_x = -1, ult_y = -1;
+    int n = n_cliques;
+    n_cliques = 0;
+    Rectangle a = area_do_jogo();
+    Vector2 m = GetMousePosition();
+    if (m.x < a.x || m.y < a.y || m.x >= a.x + a.width || m.y >= a.y + a.height) return;
+    int x = (int)((m.x - a.x) * GFX_W / a.width), y = (int)((m.y - a.y) * GFX_H / a.height);
+    if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
+    for (int i = 0; i < n; i++) dado_mouse(x, y, cliques[i]);
+}
+
+// Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
     le_teclado();
+    le_mouse();
     float dt = GetFrameTime();
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     dado_passo(dt);
@@ -229,6 +264,7 @@ int main(void)
     InitWindow(GFX_W * 2, GFX_H * 2, TITULO);
     SetWindowMinSize(GFX_W, GFX_H);
     SetExitKey(KEY_NULL);                  // ESC e do jogo, nao fecha a janela
+    botao_raylib = glfwSetMouseButtonCallback(glfwGetCurrentContext(), anota_clique);
 #ifndef __EMSCRIPTEN__
     dimensiona_janela();
     poe_icone();

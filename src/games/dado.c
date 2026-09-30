@@ -2664,6 +2664,41 @@ static int menu_opcoes(const char **op)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Mouse: cada tela, ao se desenhar, marca as areas que aceitam clique. Passar
+// o mouse por cima poe o cursor na opcao; clicar e o mesmo que apertar a
+// tecla da area (quase sempre ENTER).
+// ---------------------------------------------------------------------------
+typedef struct { int16_t x, y, w, h; int *var; int val; int tecla; } zona_clique_t;
+#define MAX_ZONAS 64
+static zona_clique_t zonas[MAX_ZONAS];
+static int n_zonas, zonas_fase;            // zonas_fase: a tela que as marcou
+static int mouse_x = -1, mouse_y = -1;
+
+static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla)
+{
+    if (n_zonas >= MAX_ZONAS) return;
+    zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla };
+}
+
+static bool mouse_em(int x, int y, int w, int h)
+{
+    return mouse_x >= x && mouse_x < x + w && mouse_y >= y && mouse_y < y + h;
+}
+
+// Botao pequeno para o que antes so tinha tecla (TAB, X...). x_dir e a borda
+// direita do botao.
+static void botao_clique(int x_dir, int y, const char *rot, int tecla)
+{
+    int w = gfx_largura(rot, 1) + 20, h = TXT_H + 6, x = x_dir - w;
+    bool em = mouse_em(x, y, w, h);
+    gfx_rect(x + 2, y + 2, w, h, C_SOMBRA);
+    gfx_rect(x, y, w, h, em ? C_LATAO : C_FELTRO_ESC);
+    gfx_moldura(x, y, w, h, 1, em ? C_BRANCO : C_LATAO_ESC);
+    txt(x + 10, y + 2, rot, em ? C_BARRA : C_MARFIM, em);
+    zona_clique(x, y, w, h, NULL, 0, tecla);
+}
+
 static void desenha_abertura(void)
 {
     desenha_lance();
@@ -2693,6 +2728,7 @@ static void desenha_abertura(void)
         gfx_rect(GFX_W / 2 - 110, yb, 220, 22, cur ? C_LATAO : C_FELTRO_ESC);
         gfx_moldura(GFX_W / 2 - 110, yb, 220, 22, 1, cur ? C_BRANCO : C_FELTRO2);
         txt_c(GFX_W / 2, yb + 1, op[i], cur ? C_BARRA : C_MARFIM, cur);
+        zona_clique(GFX_W / 2 - 110, yb, 220, 22, &menu_cur, i, KEY_ENTER);
     }
     // Nos submenus, uma linha explica a opcao em foco.
     char dica[96] = "";
@@ -4079,6 +4115,7 @@ static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t c
         gfx_rect(x, y, w, 28, cur ? cor : C_FELTRO_ESC);
         gfx_moldura(x, y, w, 28, 1, cur ? C_BRANCO : C_FELTRO2);
         txt(x + 12, y + 4, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
+        if (ativo[i]) zona_clique(x, y, w, 28, &cursor, i, KEY_ENTER);
         x += w + 12;
     }
 }
@@ -4110,6 +4147,7 @@ static void desenha_ordem(void)
             txt_c(x + 18, y - 31, o, C_BARRA, true);
         }
         if (cur) gfx_rect(x - 18, y + 27, 36, 3, p->cor);
+        zona_clique(x - 29, y - 29, 58, 58, &cursor, i, KEY_ENTER);
     }
 
     char t[64];
@@ -4133,6 +4171,9 @@ static void desenha_ordem(void)
         if (k < f->n) {
             peca_t pc = { f->tipo[k], f->fixo[k] };
             peca_parada((float)x, (float)ry, 10, pc, vez);
+            // Clicar num dado da sequencia tira ele dela.
+            for (int i = 0; i < n; i++)
+                if (p->mao[i] == f->idx[k]) zona_clique(x - 14, ry - 14, 28, 28, &cursor, i, KEY_ENTER);
         } else {
             gfx_disco(x, ry, 11, k == f->n ? C_OURO : C_FELTRO2);
             gfx_disco(x, ry, 9, C_FELTRO_ESC);
@@ -4140,6 +4181,7 @@ static void desenha_ordem(void)
             txt_c(x, ry - 10, o, k == f->n ? C_OURO : C_FELTRO2, false);
         }
     }
+    if (f->n) botao_clique(GFX_W / 2 + 225, ry - 12, "pronto", KEY_TAB);
 }
 
 static void desenha_joga(void)
@@ -4258,7 +4300,9 @@ static void desenha_premio(void)
             peca_parada((float)x, (float)y, 17, p->col[i], vez);
             if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
             if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
+            zona_clique(x - 22, y - 22, 44, 44, &cursor, i, KEY_ENTER);
         }
+        botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
         txt_c(GFX_W / 2, 236, TIPO[tc].nome, cor_aro(tc), true);
         txt_c(GFX_W / 2, 258, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
@@ -4282,6 +4326,7 @@ static void desenha_premio(void)
         char c2[32];
         classe(t2, c2, sizeof c2);
         txt_c(x, 180, c2, cr, false);
+        zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > N_FILA;
     if (cursor < 3) {
@@ -4298,6 +4343,8 @@ static void desenha_premio(void)
     gfx_rect(GFX_W / 2 - w / 2, 240, w, 26, cur ? (pode ? C_VINHO_CLR : C_FELTRO2) : C_FELTRO_ESC);
     gfx_moldura(GFX_W / 2 - w / 2, 240, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
     txt_c(GFX_W / 2, 243, rot, cur ? C_BARRA : (pode ? C_MARFIM : C_FELTRO2), cur);
+    zona_clique(GFX_W / 2 - w / 2, 240, w, 26, &cursor, 3, KEY_ENTER);
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "recusar", 'x');
     txt_c(GFX_W / 2, 278, "setas escolhem  ·  ENTER leva  ·  X recusa", C_TEXTO_M, false);
 }
 
@@ -4337,7 +4384,9 @@ static void desenha_loja(void)
         } else {
             fichas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
         }
+        zona_clique(x - 48, yb, 96, 92, &cursor, i, KEY_ENTER);
     }
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "terminar", KEY_TAB);
     dado_e_poder(240, loja[cursor].tipo, true);
     if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
         txt_c(GFX_W / 2, 286, "fichas insuficientes", C_VINHO_CLR, true);
@@ -4628,6 +4677,8 @@ static void desenha_online(void)
               C_MARFIM_S, false);
         botao_menu(150, 240, "Criar sala", online_cur == 0);
         botao_menu(186, 240, "Entrar com código", online_cur == 1);
+        zona_clique(GFX_W / 2 - 120, 150, 240, 26, &online_cur, 0, KEY_ENTER);
+        zona_clique(GFX_W / 2 - 120, 186, 240, 26, &online_cur, 1, KEY_ENTER);
         txt_c(GFX_W / 2, 238, "Quem cria a sala joga primeiro na loja.", C_TEXTO_M, false);
     }
 }
@@ -4778,6 +4829,8 @@ void dado_desenha(void)
     gfx_texto_fn nitido = gfx_texto_nitido_atual();
     bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
     if (mudo) gfx_texto_nitido(texto_mudo);
+    n_zonas = 0;
+    zonas_fase = fase;
     desenha_tudo();
     if (mudo) gfx_texto_nitido(nitido);
     if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
@@ -4904,6 +4957,71 @@ void dado_tecla(const key_event_t *ev_)
         if (aceita_escolha()) rede_envia_tecla(k);
     }
     trata_tecla(k);
+}
+
+static void manda_tecla(int k)
+{
+    key_event_t ev = { 0 };
+    ev.key = k;
+    dado_tecla(&ev);
+}
+
+// Mouse, ja nas coordenadas da tela do jogo. acao: 0 moveu, 1 clique
+// esquerdo, 2 clique direito (o mesmo que BACKSPACE: volta ou desfaz).
+void dado_mouse(int x, int y, int acao)
+{
+    mouse_x = x;
+    mouse_y = y;
+    if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (detalhe >= 0 && fase == detalhe_fase) {         // um clique fecha os detalhes
+        if (acao == 1) manda_tecla(KEY_ENTER);
+        return;
+    }
+    // Na vez da IA ou do rival online, o mouse nao mexe em nada.
+    if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return;
+    const zona_clique_t *z = NULL;
+    for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+
+    if (acao == 0) {
+        // Passar por cima escolhe. No online o cursor so anda pelas teclas,
+        // que vao para o rival: la so o clique vale.
+        if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
+            *z->var = z->val;
+            som_toca(SOM_TIQUE);
+        }
+        return;
+    }
+    if (z) {
+        if (z->var && modo == M_ONLINE) {
+            for (int i = 0; i < 64 && *z->var != z->val; i++) manda_tecla(KEY_RIGHT);
+            if (*z->var != z->val) return;
+        } else if (z->var) {
+            *z->var = z->val;
+        }
+        manda_tecla(z->tecla);
+        return;
+    }
+    // Fora dos botoes: nas telas de "aperte para seguir", o clique segue.
+    switch (fase) {
+    case F_CATALOGO:
+        manda_tecla(x < GFX_W / 2 ? KEY_LEFT : KEY_RIGHT);
+        break;
+    case F_TUTORIAL:
+        manda_tecla(x < GFX_W / 3 ? KEY_LEFT : KEY_ENTER);
+        break;
+    case F_ABERTURA:
+        if (!abertura_pronta || t_fase < 0.75f) manda_tecla(KEY_ENTER);   // pula a entrada
+        break;
+    case F_ONLINE:
+        if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
+        break;
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_VEREDITO: case F_EFEITOS:
+        manda_tecla(KEY_ENTER);
+        break;
+    default:
+        break;
+    }
 }
 
 // A tecla ja traduzida, venha de quem vier: pessoa ou IA.

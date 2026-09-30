@@ -287,6 +287,13 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         int t = (n_fav && sorte_r(100) < 45) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
+    // Recheio: dados simples (ou de efeito fraco) ate um tamanho minimo de
+    // bolsa. Sem isso, um oponente de poucos dados poe os seus dois ou tres
+    // dados bons na mao quase toda rodada.
+    static const uint8_t RECHEIO[] = { D_D6, D_D8, D_D4, D_D8, D_QUEBRADO, D_TEIMOSO, D_PAR,
+                                       D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR };
+    int alvo = 13 + andar * 2;
+    while (n < alvo && n < MAX_COL) col[n++] = peca_r(RECHEIO[sorte_r((int)sizeof RECHEIO)]);
     return n;
 }
 
@@ -714,8 +721,11 @@ static void desenha_mapa(void)
             uint16_t c = vis == V_ABERTO ? cor_no(no->tipo) : gfx_mistura(cor_no(no->tipo), C_FELTRO, 55);
             const char *rot = NOME_NO[no->tipo];
             gfx_texto(MAPA_X[p] - gfx_largura(rot, GFX_MIUDO) / 2, MAPA_Y[l] + r + 5, rot, c, GFX_MIUDO, false);
+            if (vis == V_ABERTO) zona_clique(MAPA_X[p] - r - 6, MAPA_Y[l] - r - 6, 2 * r + 12, 2 * r + 12,
+                                             &des_cur, l, KEY_ENTER);
         }
     info_mesa(des_cur);
+    botao_clique(GFX_W - 40, 242 + 38, "sua bolsa", KEY_TAB);
 }
 
 // ---- Loja ---------------------------------------------------------------
@@ -744,7 +754,9 @@ static void desenha_loja_run(void)
         } else {
             moedas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
         }
+        zona_clique(x - 48, yb, 96, 92, &cursor, i, KEY_ENTER);
     }
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "sair da loja", KEY_TAB);
     dado_e_poder(240, run.loja[cursor].tipo, true);
     if (!run.levou[cursor] && run.moedas < preco_run(run.loja[cursor].tipo))
         txt_c(GFX_W / 2, 284, "moedas insuficientes", C_VINHO_CLR, true);
@@ -769,7 +781,9 @@ static void desenha_bolsa_run(void)
         if (i == cursor) gfx_rect_alfa(x - 20, y - 20, 40, 40, C_LATAO, 70);
         peca_parada((float)x, (float)y, 15, run.col[i], 0);
         if (i != cursor) marca_rar(x, y + 20, run.col[i].tipo);
+        zona_clique(x - 20, y - 20, 40, 40, &cursor, i, 'i');   // clique abre os detalhes
     }
+    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar ao mapa", KEY_TAB);
     if (run.n_col) dado_e_poder(262, run.col[cursor < run.n_col ? cursor : 0].tipo, true);
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
 }

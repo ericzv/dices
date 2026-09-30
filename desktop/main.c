@@ -236,6 +236,15 @@ static void le_mouse(void)
     for (int i = 0; i < n; i++) dado_mouse(x, y, cliques[i]);
 }
 
+// Maozinha sobre o que se pode clicar (checado depois do desenho, que e
+// quando o jogo marca as areas clicaveis).
+static void poe_cursor(void)
+{
+    static int atual = -1;
+    int c = dado_mouse_clicavel() ? MOUSE_CURSOR_POINTING_HAND : MOUSE_CURSOR_DEFAULT;
+    if (c != atual) { SetMouseCursor(c); atual = c; }
+}
+
 // Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
@@ -247,6 +256,7 @@ static void quadro(void)
     som_atualiza(dt);
     n_textos = usado = 0;
     dado_desenha();
+    poe_cursor();
     UpdateTexture(tela, fb);
 
     BeginDrawing();

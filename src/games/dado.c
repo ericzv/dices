@@ -2747,8 +2747,8 @@ static void desenha_abertura(void)
     if (dica[0]) txt_c(GFX_W / 2, 170 + n_op * 26 + 8, dica, menu_cur == 1 && menu_tela == MT_DESAFIO
                                                           ? C_VINHO_CLR : C_MARFIM_S, false);
     txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12, menu_tela
-          ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
-          : "setas escolhem  ·  ENTER confirma  ·  M som  ·  N música  ·  F11 tela cheia",
+          ? "mouse ou setas escolhem  ·  clique ou ENTER confirma  ·  ESC volta"
+          : "mouse ou setas  ·  clique ou ENTER  ·  M som  ·  N música  ·  F11 tela cheia",
           C_TEXTO_M, false);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
     char ver[32];
@@ -4964,6 +4964,15 @@ static void manda_tecla(int k)
     key_event_t ev = { 0 };
     ev.key = k;
     dado_tecla(&ev);
+}
+
+// O mouse esta sobre algo clicavel? (a plataforma troca a seta pela maozinha)
+bool dado_mouse_clicavel(void)
+{
+    if (zonas_fase != fase || ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return false;
+    for (int i = 0; i < n_zonas; i++)
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) return true;
+    return false;
 }
 
 // Mouse, ja nas coordenadas da tela do jogo. acao: 0 moveu, 1 clique

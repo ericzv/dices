@@ -11,6 +11,7 @@ void dado_passo(float dt);               // avanca a animacao dt segundos
 void dado_desenha(void);                 // pinta o quadro inteiro no framebuffer
 void dado_tecla(const key_event_t *ev);
 void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito
+bool dado_mouse_clicavel(void);           // mouse sobre um botao ou opcao
 int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
 
 // Modo online. Os dois computadores rodam a mesma partida com a mesma

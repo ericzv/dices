@@ -392,6 +392,133 @@ int main(void)
         CONFERE(risco(0) == 500 / 9, "Lastro com barra 9: risco %d, esperado %d", risco(0), 500 / 9);
     }
 
+    // ---- Dados novos: Sentinela, Vidro, Ferreiro, Cobrador, ... -----------
+    {
+        desfecho_t d;
+        // Sentinela cai sozinha: o 6 de antes continua valendo.
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_SENTINELA, 2);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Sentinela: o de antes devia ficar");
+        d = fim();
+        CONFERE(d.total[0] == 6, "Sentinela: esperava 6, deu %d", d.total[0]);
+        // Sentinela que passa a barra vale normal.
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_SENTINELA, 3);
+        d = fim();
+        CONFERE(d.total[0] == 5, "Sentinela valendo: esperava 5, deu %d", d.total[0]);
+        // Dado comum que cai sobre a Sentinela derruba os dois, como sempre.
+        limpa();
+        joga(0, D_SENTINELA, 4); joga(0, D_D4, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "queda sobre a Sentinela: os dois caem");
+
+        // Vidro com 1: anulado, sem derrubar o de antes.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_VIDRO, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Vidro 1: so ele cai");
+        joga(0, D_D8, 6);
+        d = fim();
+        CONFERE(d.total[0] == 11, "Vidro 1: esperava 11, deu %d", d.total[0]);
+        // Vidro com outro numero e um D8 comum.
+        limpa();
+        joga(0, D_VIDRO, 6);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Vidro 6: esperava 6, deu %d", d.total[0]);
+        // O Vidro quebrado sai da colecao no fim da rodada.
+        limpa();
+        colecao_inicial(&J[0]); colecao_inicial(&J[1]);
+        J[0].col[J[0].n_col] = nova_peca(D_VIDRO); J[0].onde[J[0].n_col++] = NA_MAO;
+        int nc = J[0].n_col;
+        joga(0, D_VIDRO, 1);
+        F[0].idx[0] = (int8_t)(nc - 1);
+        memset(vis_queima, 0, sizeof vis_queima);
+        recolhe_quebrados();
+        bool ainda = false;
+        for (int i = 0; i < J[0].n_col; i++) if (J[0].col[i].tipo == D_VIDRO) ainda = true;
+        CONFERE(J[0].n_col == nc - 1 && !ainda, "Vidro quebrado devia sair da bolsa (%d dados)", J[0].n_col);
+        // A Ventania nao conserta o vidro quebrado.
+        limpa();
+        joga(0, D_VIDRO, 1);
+        joga_com(0, D_VENTANIA, 9, sempre_dois);
+        CONFERE(F[0].valor[0] == 1 && F[0].est[0] == V_ANULADO, "Ventania rolou o Vidro quebrado");
+
+        // Ferreiro: nao pontua; +4 no dado seguinte se os dois valem.
+        limpa();
+        joga(0, D_FERREIRO, 3); joga(0, D_D6, 5);
+        d = fim();
+        CONFERE(d.total[0] == 9, "Ferreiro: esperava 0 + 5 + 4 = 9, deu %d", d.total[0]);
+        // O seguinte caiu: nada de +4, e o Ferreiro sozinho vale 0.
+        limpa();
+        joga(0, D_FERREIRO, 3); joga(0, D_D6, 5); joga(0, D_D4, 1);
+        d = fim();
+        CONFERE(d.total[0] == 0, "Ferreiro sem o seguinte: esperava 0, deu %d", d.total[0]);
+        // Ferreiro, Dobro e D6: o Dobro ganha +4 (3 + 4) e o D6 vale x2 (12): 19.
+        limpa();
+        joga(0, D_FERREIRO, 2); joga(0, D_DOBRO, 3); joga(0, D_D6, 6);
+        d = fim();
+        CONFERE(d.total[0] == 19, "Ferreiro + Dobro: esperava 19, deu %d", d.total[0]);
+
+        // Cobrador: +2 se o oponente comecou a rodada com mais fichas.
+        limpa();
+        fichas_ini[0] = 50; fichas_ini[1] = 80;
+        joga(0, D_COBRADOR, 3);
+        d = fim();
+        CONFERE(d.total[0] == 5, "Cobrador cobrando: esperava 5, deu %d", d.total[0]);
+        limpa();
+        fichas_ini[0] = 80; fichas_ini[1] = 50;
+        joga(0, D_COBRADOR, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3, "Cobrador sem cobrar: esperava 3, deu %d", d.total[0]);
+        fichas_ini[0] = fichas_ini[1] = 0;
+
+        // Misericordioso: +2 por dado seu anulado.
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_D4, 2); joga(0, D_MISERICORDIOSO, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 4, "Misericordioso: esperava 7, deu %d", d.total[0]);
+        // Anulado, nao da nada.
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_D4, 2); joga(0, D_MISERICORDIOSO, 3); joga(0, D_D4, 1);
+        d = fim();
+        CONFERE(d.total[0] == 0, "Misericordioso anulado: esperava 0, deu %d", d.total[0]);
+
+        // Solitario: +4 se for o unico seu valendo.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_SOLITARIO, 2);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 4, "Solitario sozinho: esperava 6, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_SOLITARIO, 2);
+        d = fim();
+        CONFERE(d.total[0] == 3, "Solitario acompanhado: esperava 3, deu %d", d.total[0]);
+
+        // Desafiante: +4 se for o maior dado da rodada (empate nao conta).
+        limpa();
+        joga(0, D_DESAFIANTE, 7); joga(1, D_D6, 5);
+        d = fim();
+        CONFERE(d.total[0] == 11, "Desafiante maior: esperava 11, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_DESAFIANTE, 7); joga(1, D_D8, 7);
+        d = fim();
+        CONFERE(d.total[0] == 7, "Desafiante empatado: esperava 7, deu %d", d.total[0]);
+        // Um dado maior, mas anulado, nao conta.
+        limpa();
+        joga(0, D_DESAFIANTE, 7); joga(1, D_D20, 15); joga(1, D_D4, 2);
+        d = fim();
+        CONFERE(d.total[0] == 11, "Desafiante com o maior anulado: esperava 11, deu %d", d.total[0]);
+
+        // Acumulador: o bonus guardado vale junto.
+        limpa();
+        F[0].fixo[0] = 3;
+        joga(0, D_ACUMULADOR, 5);
+        d = fim();
+        CONFERE(d.total[0] == 8, "Acumulador +3: esperava 8, deu %d", d.total[0]);
+        limpa();
+        F[0].fixo[0] = 9;                       // nunca passa de +6
+        joga(0, D_ACUMULADOR, 5);
+        d = fim();
+        CONFERE(d.total[0] == 11, "Acumulador no teto: esperava 11, deu %d", d.total[0]);
+    }
+
     // ---- Previa: o total com os bonus pode ser negativo ------------------
     limpa();
     primeiro = 1;

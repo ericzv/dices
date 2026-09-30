@@ -269,6 +269,19 @@ static void compoe(int s)
             clique(0.30f + i * 0.05f + frand() * 0.012f, 2700 + frand() * 700, 0.18f - i * 0.01f);
         break;
     }
+    case SOM_VIDRO:                              // estalo seco e cacos tilintando
+        ruido(0, 0.12f, 0.9f, 0.025f, 0.95f, 0.55f);
+        for (int i = 0; i < 14; i++) {
+            float t = 0.02f + i * 0.03f + frand() * 0.02f, f = 3200 + frand() * 2600;
+            tom(t, 0.25f, f, f * 0.98f, SINO, 0.10f - i * 0.005f, 0.05f);
+        }
+        break;
+    case SOM_BIGORNA:                            // marreta na bigorna: metal que canta
+        clique(0, 1200, 0.5f);
+        tom(0, 1.0f, 1180, 1180, SINO, 0.30f, 0.32f);
+        tom(0, 0.8f, 2710, 2710, SENO, 0.10f, 0.20f);
+        tom(0.18f, 0.6f, 1180, 1180, SINO, 0.10f, 0.18f);   // o quique da marreta
+        break;
     case SOM_ABERTURA: {                         // vinheta: arpejo com sino no alto
         static const float N[5] = { 65, 69, 72, 76, 81 };
         for (int i = 0; i < 5; i++)
@@ -286,7 +299,7 @@ static const float PICO[SOM_N] = {
     [SOM_LASER] = 0.30f, [SOM_TIRA] = 0.30f, [SOM_ROUBA] = 0.28f, [SOM_FOGO] = 0.28f,
     [SOM_ZERA] = 0.32f, [SOM_VENTO] = 0.28f, [SOM_PARTIDA] = 0.30f, [SOM_FIM] = 0.36f,
     [SOM_DERROTA] = 0.30f, [SOM_TURNO] = 0.24f, [SOM_BOLSA] = 0.20f, [SOM_EMPATE] = 0.26f,
-    [SOM_SLOT] = 0.30f, [SOM_PREMIO] = 0.40f,
+    [SOM_SLOT] = 0.30f, [SOM_PREMIO] = 0.40f, [SOM_VIDRO] = 0.34f, [SOM_BIGORNA] = 0.30f,
 };
 
 // Compoe o efeito s, poe sala, normaliza e devolve quantas amostras valem.

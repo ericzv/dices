@@ -101,16 +101,23 @@ jobs:
         with:
           name: DadoEmCasa-web
           path: DadoEmCasa-web.zip
-      # Publica em https://ericzv.github.io/dices/ (ligue o Pages uma vez em
-      # Settings > Pages > Deploy from a branch > gh-pages).
-      # So a main publica: o que esta em teste num branch nao mexe no site.
-      # (Cada build de branch deixa o jogo para baixar em Actions > Artifacts.)
+      # Publica no GitHub Pages (Settings > Pages > Deploy from a branch >
+      # gh-pages). A main vai para https://ericzv.github.io/dices/; os branches
+      # de trabalho (claude/*) vao so para https://ericzv.github.io/dices/teste/,
+      # sem mexer no site principal. Um nao apaga o outro (keep_files).
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: site
-          force_orphan: true
+          keep_files: true
+      - if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/claude/')
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site
+          destination_dir: teste
+          keep_files: true
 
   release:
     name: Release

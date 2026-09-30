@@ -12,6 +12,7 @@ bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
+void som_giro(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
 static char salvo[4096];
@@ -371,24 +372,24 @@ int main(void)
         if (falhas > 20) break;
     }
 
-    // ---- Lastro: 6 a 12, cada um 1 em 7 ---------------------------------
+    // ---- Lastro: 4 a 12, cada um 1 em 9 ---------------------------------
     {
-        int cont[13] = { 0 }, n = 70000, menor;
+        int cont[13] = { 0 }, n = 90000, menor;
         semente = 0x1234567u;                    // o sorteio da partida, semeado
         for (int i = 0; i < n; i++) {
             int v = sorteia_valor(D_LASTRO, 0, rola, &menor);
-            CONFERE(v >= 6 && v <= 12, "Lastro tirou %d", v);
-            if (v >= 6 && v <= 12) cont[v]++;
+            CONFERE(v >= 4 && v <= 12, "Lastro tirou %d", v);
+            if (v >= 4 && v <= 12) cont[v]++;
         }
-        for (int v = 6; v <= 12; v++)
-            CONFERE(cont[v] > n / 7 * 0.94 && cont[v] < n / 7 * 1.06,
-                    "Lastro: o %d saiu %d vezes em %d (esperado ~%d)", v, cont[v], n, n / 7);
+        for (int v = 4; v <= 12; v++)
+            CONFERE(cont[v] > n / 9 * 0.94 && cont[v] < n / 9 * 1.06,
+                    "Lastro: o %d saiu %d vezes em %d (esperado ~%d)", v, cont[v], n, n / 9);
         CONFERE(TIPO[D_LASTRO].raridade == RAR_RARO, "Lastro devia ser raro");
-        // Risco com barra 9: 6, 7 e 8 caem = 3 em 7.
+        // Risco com barra 9: 4, 5, 6, 7 e 8 caem = 5 em 9.
         limpa();
         joga(0, D_D12, 9);
         F[0].tipo[1] = D_LASTRO; F[0].n = 2;
-        CONFERE(risco(0) == 300 / 7, "Lastro com barra 9: risco %d, esperado %d", risco(0), 300 / 7);
+        CONFERE(risco(0) == 500 / 9, "Lastro com barra 9: risco %d, esperado %d", risco(0), 500 / 9);
     }
 
     // ---- Previa: o total com os bonus pode ser negativo ------------------

@@ -27,6 +27,8 @@ enum {
     SOM_TURNO,       // um jogador parou: fim do turno
     SOM_BOLSA,       // dados saindo da bolsa: comeca uma rodada
     SOM_EMPATE,      // rodada empatada: o pote fica
+    SOM_SLOT,        // um rolo da roleta do premio parou
+    SOM_PREMIO,      // a roleta parou toda: o premio saiu
     SOM_N
 };
 
@@ -35,3 +37,4 @@ bool som_liga(bool on);      // devolve se ficou ligado
 bool som_ligado(void);
 bool som_falhou(void);       // o aparelho nao tem saida de audio
 void som_rufo(bool on);      // rufar de caixinha enquanto o dado rola
+void som_giro(bool on);      // musiquinha de caca-niquel enquanto a roleta gira

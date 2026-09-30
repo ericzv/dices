@@ -494,6 +494,7 @@ static void abre_premio_run(void)
     t_tira = 0;
     t_fase = 0;
     fase = F_PREMIO;
+    slot_comeca();
 }
 
 // ENTER na tela do fim da partida.

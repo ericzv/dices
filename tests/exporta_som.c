@@ -38,13 +38,16 @@ int main(int argc, char **argv)
                                        "ficha", "efeito", "vitoria", "correu", "abertura",
                                        "jackpot", "laser", "tira", "rouba", "fogo", "zera",
                                        "vento", "partida", "fim", "derrota", "turno", "bolsa",
-                                       "empate" };
+                                       "empate", "slot", "premio" };
     srand(12345);
     static float saida[MAX_EF];
     for (int s = 0; s < SOM_N; s++) grava(dir, NOME[s], saida, NULL, renderiza_efeito(s, saida));
     float *r = calloc(N_RUFO, sizeof *r);
     renderiza_rufo(r);
     grava(dir, "rufo", r, NULL, N_RUFO);
+    float *g = calloc(N_GIRO, sizeof *g);
+    renderiza_giro(g);
+    grava(dir, "giro", g, NULL, N_GIRO);
     tl = calloc(N_TRILHA, sizeof *tl);
     tr = calloc(N_TRILHA, sizeof *tr);
     srand(2024);

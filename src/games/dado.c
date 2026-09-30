@@ -78,7 +78,8 @@
 #define C_VENTO      RGB(150, 204, 232)      // Ventania
 #define C_HALO       RGB(206, 214, 238)      // Misericordioso: aureola
 #define C_NOITE      RGB(98, 114, 186)       // Solitario: azul de noite
-#define C_BRONZE     RGB(170, 116, 64)       // Sentinela
+#define C_BRONZE     RGB(170, 116, 64)       // Sentinela: aro
+#define C_PEDRA      RGB(150, 146, 136)      // Sentinela: pedra de muralha
 #define C_FERRO      RGB(124, 130, 142)       // Ferreiro: bigorna
 #define C_COBRE      RGB(190, 112, 70)       // Cobrador
 #define C_CARMIM     RGB(176, 42, 58)        // Desafiante
@@ -185,12 +186,12 @@ static const tipo_t TIPO[D_N] = {
     { "Laser",       6,  EF_LASER,     RAR_RARO,    "com 6: anula um dado do oponente" },
     { "Ventania",   12,  EF_VENTANIA,  RAR_RARO,    "rola de novo os seus já lançados" },
     { "Misericordioso",4, EF_MISERICORDIA, RAR_INCOMUM, "valendo: +2 por dado seu anulado" },
-    { "Solitário",  4,  EF_SOLITARIO, RAR_COMUM,   "único dado seu valendo: +4" },
+    { "Solitário",  4,  EF_SOLITARIO, RAR_COMUM,   "sem vizinho valendo: +4" },
     { "Sentinela",  4,  EF_SENTINELA, RAR_COMUM,   "se cair, cai sozinho" },
     { "Ferreiro",   4,  EF_FERREIRO,  RAR_INCOMUM, "não pontua; +4 no dado seguinte" },
     { "Cobrador",   4,  EF_COBRADOR,  RAR_COMUM,   "oponente com mais fichas: +2" },
     { "Desafiante", 8,  EF_DESAFIANTE, RAR_INCOMUM, "maior dado da rodada: +4" },
-    { "Vidro",      8,  EF_VIDRO,     RAR_COMUM,   "tirou 1: quebra para sempre" },
+    { "Vidro",      8,  EF_VIDRO,     RAR_COMUM,   "tirou 1: quebra e anula o anterior" },
     { "Acumulador", 8,  EF_ACUMULADOR, RAR_INCOMUM, "+1 a cada lance, até +6" },
 };
 
@@ -234,12 +235,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_LASER]     = "Se ficar valendo com 6, anula um dado do oponente, ao acaso.",
     [D_VENTANIA]  = "Ao cair, rola de novo todos os seus dados já lançados na rodada.",
     [D_MISERICORDIOSO] = "Se ficar valendo, ganha +2 por dado seu anulado na rodada.",
-    [D_SOLITARIO] = "Se terminar como o único dado seu valendo: +4.",
+    [D_SOLITARIO] = "Valendo, sem dado valendo logo antes nem logo depois dele: +4.",
     [D_SENTINELA] = "Se cair na sequência, cai sozinho: o dado de antes continua valendo.",
     [D_FERREIRO]  = "Não pontua, mas o dado logo depois dele ganha +4 se os dois valerem.",
     [D_COBRADOR]  = "Se o oponente começou a rodada com mais fichas: +2.",
     [D_DESAFIANTE] = "Se for o maior dado da rodada, dos dois lados: +4 no fim.",
-    [D_VIDRO]     = "Oito lados. Se tirar 1, se estilhaça: é anulado e some da bolsa.",
+    [D_VIDRO]     = "Se tirar 1, se estilhaça: anula ele e o anterior, e some da bolsa.",
     [D_ACUMULADOR] = "Cada lance soma +1 de bônus a ele, para sempre (até +6).",
 };
 
@@ -279,14 +280,14 @@ static const char *TEXTO_CAT[D_N] = {
     [D_EGOISTA]   = "Doze lados e uma coroa. Ao cair, anula todos os seus outros dados da rodada, antes e depois dele, menos a si mesmo. Ele pode ser anulado: pela queda da sequência, por ataques, pelo Agouro. Escudo e Teimoso resistem.",
     [D_LASER]     = "Seis lados, com um emissor no topo. Se terminar valendo com 6, um raio verde anula um dado do oponente escolhido ao acaso. Escudo e Teimoso resistem à anulação.",
     [D_VENTANIA]  = "Doze lados de vento. Ao cair, rola de novo os seus dados lançados antes dele nesta rodada (nunca a si mesmo nem os que faltam). A sequência é refeita: dados podem cair ou voltar a valer.",
-    [D_MISERICORDIOSO] = "Quatro lados e uma auréola. Se terminar valendo, ganha +2 por dado seu anulado nesta rodada: pela queda, por ataques, pelo Agouro ou pelo Egoísta.",
-    [D_SOLITARIO] = "Quatro lados e uma estrela solitária. Se terminar como o único dado seu valendo na rodada, ganha +4. Dados roubados do oponente não contam.",
-    [D_SENTINELA] = "Quatro lados e uma torre de vigia. Se tirar menos que o último dado que vale, cai sozinho: o dado de antes fica de pé e continua valendo.",
-    [D_FERREIRO]  = "Quatro lados e uma bigorna. Não pontua, mas conta na queda da sequência com o número que tirou. No fim, o dado logo depois dele ganha +4, se os dois terminarem valendo.",
-    [D_COBRADOR]  = "Quatro lados e uma pilha de moedas. Se o oponente começou a rodada com mais fichas que você, ele vale +2.",
-    [D_DESAFIANTE] = "Oito lados e duas espadas. Se terminar valendo e for maior que todos os outros dados que valem na rodada, dos dois jogadores, ganha +4 no fim. Empate não conta.",
-    [D_VIDRO]     = "Oito lados de vidro. Tirando 1, se estilhaça: é anulado na hora (sem derrubar o dado de antes) e sai da sua bolsa para sempre.",
-    [D_ACUMULADOR] = "Oito lados com um marcador. Cada vez que é lançado, guarda +1 de bônus, até +6, e o bônus fica com ele de rodada em rodada. Valendo, soma o número que tirou mais o bônus.",
+    [D_MISERICORDIOSO] = "Quatro lados. Se terminar valendo, ganha +2 no fim para cada dado seu anulado na rodada.",
+    [D_SOLITARIO] = "Quatro lados. Se terminar valendo e os dados vizinhos dele na sequência (o de antes e o de depois) não estiverem valendo, ganha +4 no fim. Na ponta da sequência, só conta o vizinho que existe.",
+    [D_SENTINELA] = "Quatro lados. Se tirar menos que o último dado que vale, só ele cai: o dado de antes continua valendo.",
+    [D_FERREIRO] = "Quatro lados. Não pontua, mas conta na queda da sequência com o número que tirou. No fim, o dado logo depois dele ganha +4, se os dois terminarem valendo.",
+    [D_COBRADOR] = "Quatro lados. Vale +2 se o oponente começou a rodada com mais fichas que você.",
+    [D_DESAFIANTE] = "Oito lados. Se terminar valendo e for maior que todos os outros dados que valem na rodada, dos dois jogadores, ganha +4 no fim. Empate não conta.",
+    [D_VIDRO] = "Oito lados. Tirando 1, se estilhaça: é anulado, anula também o último dado seu que valia (como na queda) e sai da sua bolsa para sempre.",
+    [D_ACUMULADOR] = "Oito lados. Cada vez que é lançado, guarda +1 de bônus, até +6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar valendo.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -661,7 +662,7 @@ static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
 // ---------------------------------------------------------------------------
 // Texturas: um padrao discreto no corpo de cada dado, que gira com ele
 // ---------------------------------------------------------------------------
-enum { T_LISO, T_GRAO, T_LINHAS, T_METAL, T_ONDAS, T_MARMORE, T_PONTOS, T_MADEIRA };
+enum { T_LISO, T_GRAO, T_LINHAS, T_METAL, T_ONDAS, T_MARMORE, T_PONTOS, T_MADEIRA, T_TIJOLO };
 
 static int textura_de(int tipo)
 {
@@ -674,7 +675,8 @@ static int textura_de(int tipo)
     case D_EXPLOSIVO: case D_MARTELO: case D_CARIDOSO:
     case D_COPIADOR: case D_VICIADO:                       return T_PONTOS;
     case D_PIRATA:                                         return T_MADEIRA;
-    case D_SENTINELA: case D_FERREIRO:                     return T_METAL;
+    case D_SENTINELA:                                      return T_TIJOLO;
+    case D_FERREIRO:                                       return T_METAL;
     case D_MISERICORDIOSO:                                 return T_MARMORE;
     case D_DESAFIANTE:                                     return T_LINHAS;
     case D_ACUMULADOR:                                     return T_PONTOS;
@@ -709,6 +711,14 @@ static int padrao(int tex, float u, float v, float s)
         return a < 1.2f && b < 1.2f ? -1 : 0;
     }
     case T_MADEIRA: return sinf((u * 0.25f + sinf(v * 0.12f / s) * 2.5f) / s) > 0.7f ? -1 : 0;
+    case T_TIJOLO: {                              // pedras de muralha: fiadas desencontradas
+        float a = u / s + 100, b = v / s + 100;
+        int fiada = (int)floorf(b / 6);
+        float desloc = (fiada & 1) * 5.5f;
+        if (fmodf(b, 6) < 1.1f) return -1;          // argamassa entre as fiadas
+        if (fmodf(a + desloc, 11) < 1.1f) return -1;   // juntas entre as pedras
+        return hash2((int)floorf((a + desloc) / 11), fiada) % 3 == 0 ? 1 : 0;
+    }
     default:        return 0;
     }
 }
@@ -866,7 +876,7 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
     case D_VICIADO:  *tinta = C_VERMELHO; break;               // pips de cassino
     case D_MISERICORDIOSO: tom = C_HALO; pct = 34; break;
     case D_SOLITARIO: tom = C_NOITE; pct = 30; *aro = C_NOITE; break;
-    case D_SENTINELA: tom = C_BRONZE; pct = 26; break;
+    case D_SENTINELA: tom = C_PEDRA; pct = 46; break;
     case D_FERREIRO: tom = C_FERRO;  pct = 32; break;
     case D_COBRADOR: tom = C_COBRE;  pct = 22; break;
     case D_DESAFIANTE: tom = C_CARMIM; pct = 20; break;
@@ -893,6 +903,14 @@ static void marca_atras(int tipo, int lados, float r, uint16_t corpo, uint16_t a
         poligono(vx, vy, n, gfx_mistura(C_CIANO, C_SOMBRA, 25));
         n = forma(lados, MX(ox, oy), MY(ox, oy), r * 0.92f - 1, ang, vx, vy);
         poligono(vx, vy, n, gfx_mistura(corpo, C_SOMBRA, 45));
+    }
+    if (tipo == D_COBRADOR) {                     // uma moeda grande atras do dado
+        int x = MX(r * 0.8f, -r * 0.52f), y = MY(r * 0.8f, -r * 0.52f), R = (int)(r * 0.56f);
+        gfx_disco(x, y, R + 1, C_LATAO_ESC);
+        gfx_disco(x, y, R, C_OURO);
+        gfx_disco(x, y, R - (R > 8 ? 3 : 2), C_LATAO);
+        gfx_disco(x, y, R - (R > 8 ? 4 : 3), C_OURO);
+        gfx_disco(x - R / 3, y - R / 3, R > 8 ? 2 : 1, C_BRANCO);
     }
     if (tipo == D_PAR) {                          // gemeo pequeno encostado
         float rr = r * 0.55f;
@@ -1133,42 +1151,24 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         }
         break;
     }
-    case D_SOLITARIO: {                           // uma estrela de quatro pontas, sozinha na ponta
-        float cy0 = -1.5f * t, a = 0.36f * t + 1.2f, b = 0.1f * t + 0.6f;
+    case D_SOLITARIO: {                           // estrela de quatro pontas no centro, atras do numero
+        float cy0 = 0.08f * t, a = 0.64f * t + 1, b = 0.17f * t + 0.6f;
+        uint16_t c = gfx_mistura(corpo, C_OURO, dono == 0 ? 60 : 50);
         float v[8] = { 0, cy0 - a, b, cy0, 0, cy0 + a, -b, cy0 };
         float h[8] = { -a, cy0, 0, cy0 - b, a, cy0, 0, cy0 + b };
-        marca_poli(v, 4, C_OURO);
-        marca_poli(h, 4, C_OURO);
-        marca_ret(0, cy0, b * 0.6f, b * 0.6f, C_BRANCO);
+        marca_poli(v, 4, c);
+        marca_poli(h, 4, c);
         break;
     }
-    case D_SENTINELA: {                           // torre de vigia na ponta, com ameias e seteira
-        float by = -1.02f * t, w = 0.3f * t + 0.8f, h = 0.34f * t + 0.8f;
-        marca_ret(0, by - h, w, h, C_BRONZE);
-        for (int i = -1; i <= 1; i++)
-            marca_ret(i * w * 0.7f, by - 2 * h - 0.09f * t - 0.4f, w * 0.22f + 0.3f, 0.09f * t + 0.5f, C_BRONZE);
-        marca_ret(0, by - h * 1.05f, 0.05f * t + 0.5f, h * 0.45f, escuro);
-        break;
-    }
-    case D_FERREIRO: {                            // bigorna debaixo da base, com uma faisca
-        float y = 1.02f * t, h = 0.12f * t + 0.6f;
-        float o[8] = { -0.62f * t, y, 0.5f * t, y, 0.5f * t, y + 2 * h, -0.45f * t, y + 2 * h };
-        marca_poli(o, 4, C_FERRO);                // mesa da bigorna
-        float chifre[6] = { -0.62f * t, y, -0.98f * t, y + 0.3f * h, -0.62f * t, y + 1.4f * h };
-        marca_poli(chifre, 3, C_FERRO);
-        marca_ret(0, y + 2.8f * h, 0.2f * t + 0.4f, h, gfx_mistura(C_FERRO, C_SOMBRA, 30));   // cintura
-        marca_ret(0, y + 4.0f * h, 0.42f * t + 0.6f, h * 0.6f, C_FERRO);                     // pe
-        marca_ret(0.1f * t, y + 0.2f * h, 0.36f * t, 0.5f, gfx_mistura(C_FERRO, C_BRANCO, 40));
-        marca_ret(0.72f * t, y - 0.4f * t, 0.06f * t + 0.5f, 0.06f * t + 0.5f, C_FOGO);
-        break;
-    }
-    case D_COBRADOR: {                            // pilha de moedas encostada no canto
-        float bx = 0.98f * t, by = 0.9f * t, rr = 0.24f * t + 0.8f, passo = 0.13f * t + 0.8f;
-        for (int i = 0; i < 3; i++) {
-            float yy = by - i * passo;
-            marca_ret(bx, yy, rr, rr * 0.45f + 0.5f, C_LATAO_ESC);
-            marca_ret(bx, yy - 0.5f, rr - 0.6f, rr * 0.4f, i == 2 ? C_OURO : C_COBRE);
-        }
+    case D_FERREIRO: {                            // bigorna pequena dentro do dado, embaixo do numero
+        uint16_t c = dono == 0 ? gfx_mistura(C_FERRO, C_BARRA, 35) : C_FERRO;
+        float y = 0.44f * t, h = 0.07f * t + 0.5f;
+        float mesa_b[8] = { -0.46f * t, y, 0.4f * t, y, 0.36f * t, y + 2 * h, -0.4f * t, y + 2 * h };
+        marca_poli(mesa_b, 4, c);
+        float chifre[6] = { -0.46f * t, y, -0.72f * t, y + 0.2f * h, -0.46f * t, y + 1.4f * h };
+        marca_poli(chifre, 3, c);
+        marca_ret(0, y + 2.6f * h, 0.12f * t + 0.5f, 0.8f * h, c);          // cintura
+        marca_ret(0, y + 3.6f * h, 0.3f * t + 0.5f, 0.6f * h, c);           // pe
         break;
     }
     case D_DESAFIANTE: {                          // flamula de desafio fincada na ponta
@@ -1187,12 +1187,15 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
                          MX(-0.42f * t, -0.08f * t), MY(-0.42f * t, -0.08f * t), e, C_BRANCO);
         break;
     }
-    case D_ACUMULADOR: {                          // marcador de seis casas embaixo
+    case D_ACUMULADOR: {                          // seis casas em volta do numero: as acesas sao o bonus
         int n = marca_nivel < 0 ? 0 : (marca_nivel > 6 ? 6 : marca_nivel);
-        float y = 1.46f * t, passo = 0.27f * t + 0.6f, h = 0.1f * t + 0.6f;
-        marca_ret(0, y, passo * 3 + 0.8f, h + 1, C_BARRA);
-        for (int i = 0; i < 6; i++)
-            marca_ret((i - 2.5f) * passo, y, passo * 0.36f, h, i < n ? C_AMBAR : gfx_mistura(C_AMBAR, C_BARRA, 72));
+        static const float P[6][2] = { {0,-0.74f}, {0.56f,-0.3f}, {0.56f,0.3f}, {0,0.74f}, {-0.56f,0.3f}, {-0.56f,-0.3f} };
+        int pr = (int)(0.08f * t + 0.8f);
+        for (int i = 0; i < 6; i++) {
+            int x = MX(P[i][0] * t, P[i][1] * t), y = MY(P[i][0] * t, P[i][1] * t);
+            gfx_disco(x, y, pr + 1, gfx_mistura(corpo, C_BARRA, 30));
+            gfx_disco(x, y, pr, i < n ? C_AMBAR : gfx_mistura(corpo, C_BARRA, 12));
+        }
         break;
     }
     default:
@@ -1710,12 +1713,19 @@ static void aplica_regra(int j, int k)
         }
     }
 
-    // Vidro com 1: se estilhaca na hora. Fica anulado e nao derruba ninguem;
-    // no fim da rodada sai da bolsa.
+    // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
+    // antes, como na queda; no fim da rodada sai da bolsa.
     if (ef == EF_VIDRO && v == 1) {
         f->est[k] = V_ANULADO;
         anulou_b = k;
-        snprintf(veredito, sizeof veredito, "o Vidro tirou 1 e se estilhaçou");
+        if (l >= 0 && !firme(j, l)) {             // e derruba o anterior, como na queda
+            f->est[l] = V_ANULADO;
+            anulou_a = l;
+            snprintf(veredito, sizeof veredito, "o Vidro se estilhaçou e anulou o %d", f->valor[l]);
+        } else {
+            if (l >= 0) resistiu = l;
+            snprintf(veredito, sizeof veredito, "o Vidro tirou 1 e se estilhaçou");
+        }
         ver_tipo = 1;
         f->pontos = soma(j, f->est);
         return;
@@ -2101,11 +2111,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
     // Misericordioso, Solitario e Desafiante.
-    int anulados = 0, valendo = 0;
-    for (int k = 0; k < f->lancados; k++) {
+    int anulados = 0;
+    for (int k = 0; k < f->lancados; k++)
         if (est[k] == V_ANULADO) anulados++;
-        if (est[k] == V_VALIDO) valendo++;
-    }
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO) continue;
         int ef = TIPO[tipo_de(j, k)].efeito;
@@ -2113,9 +2121,10 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             d->semente[j] += 2 * anulados;
             evento(gera, EV_EXTRA, j, k, j, 0, 2 * anulados, "Misericordioso: %d anulado%s, +%d",
                    anulados, anulados > 1 ? "s" : "", 2 * anulados);
-        } else if (ef == EF_SOLITARIO && valendo == 1) {
+        } else if (ef == EF_SOLITARIO && !(k > 0 && est[k - 1] == V_VALIDO)
+                   && !(k + 1 < f->lancados && est[k + 1] == V_VALIDO)) {
             d->semente[j] += 4;
-            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Solitário vale sozinho: +4");
+            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Solitário sem vizinhos: +4");
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -2321,7 +2330,7 @@ static int risco(int j)
         total++;
         if (ef == EF_EXPLODE && v == lados) continue;
         if (ef == EF_ESPELHO && v <= 2) continue;
-        if ((ef == EF_MALDITO && v <= 7) || (ef == EF_TUDO_NADA && v == 1)) { ruins++; continue; }
+        if ((ef == EF_MALDITO && v <= 7) || (ef == EF_TUDO_NADA && v == 1) || (ef == EF_VIDRO && v == 1)) { ruins++; continue; }
         if (v < L) ruins++;
     }
     return ruins * 100 / total;

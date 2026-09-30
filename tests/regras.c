@@ -411,13 +411,17 @@ int main(void)
         joga(0, D_SENTINELA, 4); joga(0, D_D4, 1);
         CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "queda sobre a Sentinela: os dois caem");
 
-        // Vidro com 1: anulado, sem derrubar o de antes.
+        // Vidro com 1: se estilhaca e derruba o de antes, como na queda.
         limpa();
         joga(0, D_D6, 5); joga(0, D_VIDRO, 1);
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Vidro 1: so ele cai");
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "Vidro 1: devia anular ele e o anterior");
         joga(0, D_D8, 6);
         d = fim();
-        CONFERE(d.total[0] == 11, "Vidro 1: esperava 11, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 6, "Vidro 1: esperava 6, deu %d", d.total[0]);
+        // O Teimoso de antes segura o Vidro quebrado.
+        limpa();
+        joga(0, D_TEIMOSO, 5); joga(0, D_VIDRO, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Vidro 1 sobre o Teimoso: o Teimoso fica");
         // Vidro com outro numero e um D8 comum.
         limpa();
         joga(0, D_VIDRO, 6);
@@ -481,15 +485,25 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 0, "Misericordioso anulado: esperava 0, deu %d", d.total[0]);
 
-        // Solitario: +4 se for o unico seu valendo.
+        // Solitario: +4 se nao ha dado valendo logo antes nem logo depois.
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
-        CONFERE(d.total[0] == 2 + 4, "Solitario sozinho: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 4, "Solitario sem vizinhos: esperava 6, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
-        CONFERE(d.total[0] == 3, "Solitario acompanhado: esperava 3, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3, "Solitario com vizinho: esperava 3, deu %d", d.total[0]);
+        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +4.
+        limpa();
+        joga(0, D_SOLITARIO, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 4, "Solitario na ponta: esperava 6, deu %d", d.total[0]);
+        // Um dado valendo mais longe (nao vizinho) nao atrapalha.
+        limpa();
+        joga(0, D_D4, 1); joga(0, D_D4, 3); joga(0, D_D4, 2); joga(0, D_SOLITARIO, 4);
+        d = fim();
+        CONFERE(d.total[0] == 1 + 4 + 4, "Solitario com dado longe: esperava 9, deu %d", d.total[0]);
 
         // Desafiante: +4 se for o maior dado da rodada (empate nao conta).
         limpa();

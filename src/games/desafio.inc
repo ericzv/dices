@@ -31,21 +31,21 @@ typedef struct {
 
 static const perso_t PERSO[] = {
     { "O NOVATO",        "Chegou hoje ao cassino.",           -0.3f,
-      { D_D8, D_D12, D_TEIMOSO, D_QUEBRADO, 0xFF } },
+      { D_D8, D_D12, D_TEIMOSO, D_QUEBRADO, D_SENTINELA } },
     { "A CAUTELOSA",     "Aposta pouco e não arrisca.",       -1.0f,
-      { D_ESCUDO, D_TEIMOSO, D_LASTRO, D_VICIADO, 0xFF } },
+      { D_ESCUDO, D_TEIMOSO, D_LASTRO, D_SENTINELA, D_ACUMULADOR } },
     { "O APOSTADOR",     "Dobra tudo, sempre.",                1.0f,
       { D_TUDO_NADA, D_EXPLOSIVO, D_D20, D_FICHAS, D_VENTANIA } },
     { "O LADRÃO",        "O que é seu pode ser dele.",         0.3f,
-      { D_GATUNO, D_CARIDOSO, D_PIRATA, D_ESPELHO, 0xFF } },
+      { D_GATUNO, D_CARIDOSO, D_PIRATA, D_ESPELHO, D_COBRADOR } },
     { "A MATEMÁTICA",    "Conta cada multiplicador.",          0.0f,
-      { D_DOBRO, D_FARTURA, D_COPIADOR, D_JACKPOT, D_SORTE } },
+      { D_DOBRO, D_FARTURA, D_COPIADOR, D_FERREIRO, D_ACUMULADOR } },
     { "O ESPINHENTO",    "Cada ponto seu custa caro.",         0.4f,
       { D_MARTELO, D_MALDICAO, D_CARRASCO, D_INVEJOSO, D_LASER } },
     { "A SUPERSTICIOSA", "Confia no trevo e na moeda.",        0.2f,
-      { D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, 0xFF } },
+      { D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_MISERICORDIOSO } },
     { "O BRUTAMONTES",   "Dados grandes, pouca conversa.",     0.5f,
-      { D_D12, D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO } },
+      { D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE } },
     // Chefes, um por salao.
     { "O CRUPIÊ",        "Conhece cada dado desta mesa.",      0.0f,
       { D_VICIADO, D_LASTRO, D_DOBRO, D_ESCUDO, D_CARRASCO } },
@@ -291,7 +291,8 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // bolsa. Sem isso, um oponente de poucos dados poe os seus dois ou tres
     // dados bons na mao quase toda rodada.
     static const uint8_t RECHEIO[] = { D_D6, D_D8, D_D4, D_D8, D_QUEBRADO, D_TEIMOSO, D_PAR,
-                                       D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR };
+                                       D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR,
+                                       D_SENTINELA, D_COBRADOR, D_VIDRO, D_SOLITARIO };
     int alvo = 13 + andar * 2;
     while (n < alvo && n < MAX_COL) col[n++] = peca_r(RECHEIO[sorte_r((int)sizeof RECHEIO)]);
     return n;

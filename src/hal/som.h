@@ -29,6 +29,8 @@ enum {
     SOM_EMPATE,      // rodada empatada: o pote fica
     SOM_SLOT,        // um rolo da roleta do premio parou
     SOM_PREMIO,      // a roleta parou toda: o premio saiu
+    SOM_VIDRO,       // o dado de Vidro se estilhacando
+    SOM_BIGORNA,     // a marreta do Ferreiro na bigorna
     SOM_N
 };
 

@@ -39,20 +39,38 @@ int main(int argc, char **argv)
 
     int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
-    long soma_dados = 0, soma_moedas = 0, soma_compras = 0;
+    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
         dado_inicia(r);
         des_nova_run();
-        CONFERE(fase == F_RLOJA && run.moedas == DES_MOEDAS && run.n_col == 8, "run nova: fase %d", fase);
+        CONFERE(fase == F_RAMULETO && run.moedas == DES_MOEDAS && run.n_col == 8 && !run.amuletos,
+                "run nova: fase %d", fase);
         long passos = 0;
         int compras = 0;
         while (fase != F_RFIM && !falhas) {
             if (++passos > 3000000) { CONFERE(0, "run %d parada na fase %d", r, fase); break; }
             relogio += 16667;
             switch (fase) {
+            case F_RAMULETO: {               // um amuleto ao acaso entre os oferecidos
+                uint16_t antes = run.amuletos;
+                cursor = (int)(rnd_t() % 3u);
+                if (run.am_oferta[cursor] >= A_N) cursor = 0;
+                trata_tecla(KEY_ENTER);
+                CONFERE(am_conta(run.amuletos) == am_conta(antes) + 1, "amuleto nao entrou");
+                amuletos_tidos += am_conta(run.amuletos) - am_conta(antes);
+                break;
+            }
             case F_RLOJA: {                  // compra o de maior raridade que couber
+                // Com folga de moedas, leva o amuleto da loja.
+                if (run.am_loja < A_N && !run.am_levou && run.moedas >= AM_PRECO + 30) {
+                    cursor = N_LOJA;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(run.am_levou && (run.amuletos >> run.am_loja & 1), "amuleto da loja nao entrou");
+                    amuletos_tidos++;
+                    break;
+                }
                 int b = -1;
                 for (int i = 0; i < N_LOJA; i++) {
                     if (run.levou[i] || run.moedas < preco_run(run.loja[i].tipo)) continue;
@@ -151,6 +169,7 @@ int main(int argc, char **argv)
         for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
         putchar('\n');
     }
+    printf("amuletos por run: %.1f\n", (double)amuletos_tidos / runs);
     printf("onde parou (mesa 1..12, 12 = venceu):");
     for (int i = 0; i <= DES_ANDARES * DES_PASSOS; i++) printf(" %d", chegou[i]);
     putchar('\n');

@@ -606,6 +606,39 @@ int main(void)
         modo = modo_antes;
     }
 
+    // ---- Trunfos proprios dos oponentes do Desafiante ----------------------
+    {
+        int modo_antes = modo;
+        modo = M_DESAFIO;
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        // O Crupie leva o empate.
+        limpa(); reg_op = REG_CASA;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = resolvido.total[1] = 7;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(venc_mao == 1 && J[1].fichas == 50 && pote == 0, "Crupie: empate devia ser dele (%d, %d)", venc_mao, J[1].fichas);
+        // O Ladrao, vencendo, leva mais 2 fichas suas.
+        limpa(); reg_op = REG_BATEDOR;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = 3; resolvido.total[1] = 9;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(J[0].fichas == 38 && J[1].fichas == 52, "Ladrao: fichas %d x %d", J[0].fichas, J[1].fichas);
+        // O Novato, depois de perder uma rodada, compra 6.
+        limpa(); reg_op = REG_NERVOSO;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = 9; resolvido.total[1] = 3;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(op_nervoso && tam_mao(1) == 6 && tam_mao(0) == 7, "Novato: maos %d e %d", tam_mao(0), tam_mao(1));
+        // Fora do Desafiante, nada disso vale.
+        modo = M_UM;
+        CONFERE(tam_mao(1) == 7 && !tem_reg(REG_NERVOSO), "trunfo valendo fora do Desafiante");
+        reg_op = REG_NADA; op_nervoso = false;
+        modo = modo_antes;
+    }
+
     // ---- Previa: o total com os bonus pode ser negativo ------------------
     limpa();
     primeiro = 1;

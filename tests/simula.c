@@ -81,7 +81,7 @@ static void confere_estado(int partida)
     for (int j = 0; j < 2; j++) {
         CONFERE(dado_dbg_fichas(j) >= 0, "partida %d jogador %d fichas %d", partida, j, dado_dbg_fichas(j));
         CONFERE(dado_dbg_col(j) >= 4 && dado_dbg_col(j) <= 24, "partida %d colecao %d", partida, dado_dbg_col(j));
-        CONFERE(dado_dbg_pool(j) >= 0 && dado_dbg_pool(j) <= 7, "partida %d mao %d", partida, dado_dbg_pool(j));
+        CONFERE(dado_dbg_pool(j) >= 0 && dado_dbg_pool(j) <= 8, "partida %d mao %d", partida, dado_dbg_pool(j));
         CONFERE(dado_dbg_lancados(j) >= 0 && dado_dbg_lancados(j) <= 4, "partida %d lancados %d", partida, dado_dbg_lancados(j));
     }
     CONFERE(dado_dbg_rodada() <= 16, "partida %d rodada %d", partida, dado_dbg_rodada());

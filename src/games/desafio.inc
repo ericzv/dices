@@ -22,39 +22,409 @@
 enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_LOJA, NO_VAZIO = 0xFF };
 enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_PREMIO, R_LOJA, R_AMULETO };
 
-// Os oponentes do cassino. Cada um tem um jeito de apostar e dados que prefere.
+// Os oponentes do cassino. Cada um tem um jeito de apostar, dados que
+// prefere, um trunfo (regra so dele, que vale a partida toda) e o que diz.
 typedef struct {
     const char *nome, *frase;
     float ousadia;                       // -1 cauteloso ... +1 aposta alto
     uint8_t fav[5];                      // dados preferidos (0xFF = fim)
+    const char *trunfo, *regra;          // nome do trunfo e o que ele faz
+    uint16_t amul;                       // trunfo feito de amuletos
+    uint8_t reg;                         // ou regra propria (REG_*)
+    const char *fala[FA_N][2];
 } perso_t;
 
+#define AM(a) (uint16_t)(1u << (a))
 static const perso_t PERSO[] = {
     { "O NOVATO",        "Chegou hoje ao cassino.",           -0.3f,
-      { D_D8, D_D12, D_TEIMOSO, D_QUEBRADO, D_SENTINELA } },
+      { D_D8, D_D12, D_TEIMOSO, D_QUEBRADO, D_SENTINELA },
+      "Nervoso", "Depois de perder uma rodada, compra só 6 dados na seguinte.", 0, REG_NERVOSO,
+      { { "Primeira vez aqui... pega leve?", "Eu li as regras ontem!" },
+        { "Ih, essa doeu.", "Ufa, não fui eu." },
+        { "Sério? Ganhei?", "Sorte de principiante!" },
+        { "Tá, tá, eu aprendo.", "Calma, calma..." },
+        { "Eu ganhei de verdade?", "Vou contar pra todo mundo!" },
+        { "Foi justo. Boa partida.", "Volto amanhã, mais esperto." } } },
     { "A CAUTELOSA",     "Aposta pouco e não arrisca.",       -1.0f,
-      { D_ESCUDO, D_TEIMOSO, D_LASTRO, D_SENTINELA, D_ACUMULADOR } },
+      { D_ESCUDO, D_TEIMOSO, D_LASTRO, D_SENTINELA, D_ACUMULADOR },
+      "Pé atrás", "O primeiro dado da sequência dela não cai.", AM(A_LUVA), REG_NADA,
+      { { "Devagar se vai longe.", "Sem pressa, querido." },
+        { "Pressa demais dá nisso.", "Eu avisei." },
+        { "Passo a passo.", "Sem sustos." },
+        { "Hm. Anotado.", "Um passo atrás, só isso." },
+        { "Paciência sempre paga.", "Nada como a prudência." },
+        { "Você arriscou e deu certo.", "Desta vez, a sorte foi sua." } } },
     { "O APOSTADOR",     "Dobra tudo, sempre.",                1.0f,
-      { D_TUDO_NADA, D_EXPLOSIVO, D_D20, D_FICHAS, D_VENTANIA } },
+      { D_TUDO_NADA, D_EXPLOSIVO, D_D20, D_FICHAS, D_VENTANIA },
+      "Pote quente", "Vencendo uma rodada, leva 3 fichas a mais.", AM(A_POTE), REG_NADA,
+      { { "Dobra ou nada, parceiro!", "Hoje eu tô quente!" },
+        { "Hahaha! Desabou!", "Faltou coragem!" },
+        { "Pote na mão!", "Mais uma! Mais uma!" },
+        { "Tô só esquentando.", "Ainda tenho ficha!" },
+        { "A mesa é minha!", "Quem não arrisca, não petisca!" },
+        { "Amanhã eu recupero tudo.", "Foi só um azar." } } },
     { "O LADRÃO",        "O que é seu pode ser dele.",         0.3f,
-      { D_GATUNO, D_CARIDOSO, D_PIRATA, D_ESPELHO, D_COBRADOR } },
+      { D_GATUNO, D_CARIDOSO, D_PIRATA, D_ESPELHO, D_COBRADOR },
+      "Batedor de carteira", "Vencendo uma rodada, ainda leva 2 fichas suas.", 0, REG_BATEDOR,
+      { { "Bela bolsa. Seria uma pena...", "Relaxa, eu não mordo." },
+        { "Ops. Escorregou?", "Essa eu nem precisei roubar." },
+        { "Obrigado pelas fichas.", "Ninguém viu nada." },
+        { "Hm, você é atento.", "Da próxima vez..." },
+        { "Leve, como sempre.", "Foi um prazer fazer negócio." },
+        { "Você vigiou bem a bolsa.", "Essa escapou." } } },
     { "A MATEMÁTICA",    "Conta cada multiplicador.",          0.0f,
-      { D_DOBRO, D_FARTURA, D_COPIADOR, D_FERREIRO, D_ACUMULADOR } },
+      { D_DOBRO, D_FARTURA, D_COPIADOR, D_FERREIRO, D_ACUMULADOR },
+      "Conta certa", "Dado dela que tirar o número máximo ganha +2.", AM(A_OURO), REG_NADA,
+      { { "As chances estão comigo.", "Já fiz as contas." },
+        { "Era 62% de chance de cair.", "Previsível." },
+        { "Exatamente como calculei.", "Estatística pura." },
+        { "Um desvio aceitável.", "Margem de erro." },
+        { "Os números não mentem.", "Como queríamos demonstrar." },
+        { "Preciso refazer o modelo.", "Variância. Só isso." } } },
     { "O ESPINHENTO",    "Cada ponto seu custa caro.",         0.4f,
-      { D_MARTELO, D_MALDICAO, D_CARRASCO, D_INVEJOSO, D_LASER } },
+      { D_MARTELO, D_MALDICAO, D_CARRASCO, D_INVEJOSO, D_LASER },
+      "Casca grossa", "Os seus ataques não anulam os dados dele.", AM(A_COURACA), REG_NADA,
+      { { "Vai doer.", "Cada ponto vai custar caro." },
+        { "Isso! Desmorona!", "Gostei de ver." },
+        { "Sentiu o espinho?", "Mais um arranhão." },
+        { "Grrr.", "Você vai pagar por essa." },
+        { "Sai daqui sangrando.", "Ninguém passa por mim." },
+        { "...Respeito.", "Da próxima, eu te pego." } } },
     { "A SUPERSTICIOSA", "Confia no trevo e na moeda.",        0.2f,
-      { D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_MISERICORDIOSO } },
+      { D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_MISERICORDIOSO },
+      "Mão de sorte", "Os dados dela de 2 e 4 lados valem +1.", AM(A_PENA), REG_NADA,
+      { { "Toquei no trevo três vezes.", "As cartas disseram: hoje é meu dia." },
+        { "Viu? Mau agouro.", "A lua não está a seu favor." },
+        { "O trevo nunca falha.", "Bati na madeira!" },
+        { "Gato preto, certeza.", "Esqueci de cruzar os dedos." },
+        { "Os astros me guiaram.", "Sorte é tudo, meu bem." },
+        { "Deixei meu amuleto em casa.", "Mercúrio retrógrado..." } } },
     { "O BRUTAMONTES",   "Dados grandes, pouca conversa.",     0.5f,
-      { D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE } },
+      { D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE },
+      "Mão grande", "Compra 8 dados por rodada.", AM(A_BOLSA), REG_NADA,
+      { { "Dado grande. Ponto grande.", "Hmpf." },
+        { "Fraco.", "Ha." },
+        { "Esmaguei.", "Mais." },
+        { "Hmpf.", "Isso não conta." },
+        { "Fácil.", "Próximo." },
+        { "...Forte, você.", "Vou treinar mais." } } },
     // Chefes, um por salao.
     { "O CRUPIÊ",        "Conhece cada dado desta mesa.",      0.0f,
-      { D_VICIADO, D_LASTRO, D_DOBRO, D_ESCUDO, D_CARRASCO } },
+      { D_VICIADO, D_LASTRO, D_DOBRO, D_ESCUDO, D_CARRASCO },
+      "A casa sempre ganha", "Rodada empatada: o pote fica com ele.", 0, REG_CASA,
+      { { "Façam suas apostas.", "A casa lhe dá as boas-vindas." },
+        { "A casa agradece.", "Que pena, senhor." },
+        { "A casa recolhe.", "Como de costume." },
+        { "A casa paga.", "Bem jogado." },
+        { "A casa sempre ganha.", "Volte sempre." },
+        { "A banca se rende. Por hoje.", "Impressionante. Siga em frente." } } },
     { "A DONA DO SALÃO", "Nunca perdeu no próprio salão.",     0.4f,
-      { D_ESPELHO, D_INVEJOSO, D_FOGO, D_COPIADOR, D_EGOISTA } },
+      { D_ESPELHO, D_INVEJOSO, D_FOGO, D_COPIADOR, D_EGOISTA },
+      "Dona da casa", "Começa com 15 fichas a mais, e você compra só 6 dados por rodada.",
+      AM(A_RESERVA) | AM(A_FURADO), REG_NADA,
+      { { "Você está na minha casa.", "Que gracinha, um desafiante." },
+        { "Que deselegante.", "Meu salão não perdoa." },
+        { "Obrigada pela visita.", "Tudo aqui é meu." },
+        { "Ora, ora.", "Não se acostume." },
+        { "Os seguranças levam você até a porta.", "Ninguém me vence aqui." },
+        { "Você tem talento. Suba.", "O Barão vai gostar de você." } } },
     { "O BARÃO",         "O maior apostador do cassino.",      0.8f,
-      { D_TUDO_NADA, D_MALDITO, D_EXPLOSIVO, D_FOGO, D_JACKPOT } },
+      { D_TUDO_NADA, D_MALDITO, D_EXPLOSIVO, D_FOGO, D_JACKPOT },
+      "Intocável", "Os dados dele não são roubados nem anulados por ataques, e o último da sequência cai sozinho.",
+      AM(A_IMA) | AM(A_COURACA) | AM(A_REDE), REG_NADA,
+      { { "Então você chegou até mim.", "Sente-se. Isso será breve." },
+        { "Lamentável.", "Esperava mais." },
+        { "Naturalmente.", "Como previsto." },
+        { "Interessante...", "Hm. Sorte." },
+        { "O cassino continua meu.", "Volte quando for digno." },
+        { "Impossível... o cassino é seu.", "Bravo. Você mereceu." } } },
 };
 #define N_PERSO_COMUM 8
+
+// ---------------------------------------------------------------------------
+// Falas: um balao curto saindo do retrato do oponente
+// ---------------------------------------------------------------------------
+
+static void fala_evento(int cat)
+{
+    if (modo != M_DESAFIO || fala_perso < 0 || cat < 0 || cat >= FA_N) return;
+    // Nem tudo tem resposta: o comeco e o fim sempre; o resto, as vezes.
+    bool sempre = cat == FA_INICIO || cat == FA_GANHA_P || cat == FA_PERDE_P;
+    if (!sempre && (rnd_v() % 100) >= 55) return;
+    if (!sempre && t_fala > 0.6f) return;               // nao atropela a fala anterior
+    const char *s = PERSO[fala_perso].fala[cat][rnd_v() & 1];
+    snprintf(fala_txt, sizeof fala_txt, "%s", s);
+    t_fala = 3.2f;
+}
+
+// ---------------------------------------------------------------------------
+// Retratos: busto em 20x22 pixels, com contorno escuro e duas tonalidades,
+// ampliado sem filtro. Movimento lento: respira, pisca e fala.
+// ---------------------------------------------------------------------------
+#define RT_W 22
+#define RT_H 27
+#define RT_TOPO 3                        // folga em cima para chapeus e coques
+static uint16_t rt[RT_H][RT_W];          // 0 = vazio (1 px de margem em volta)
+
+static void rp(int x, int y, uint16_t c)
+{
+    x += 1; y += 1 + RT_TOPO;
+    if (x >= 0 && y >= 0 && x < RT_W && y < RT_H) rt[y][x] = c;
+}
+static void rr(int x, int y, int w, int h, uint16_t c) { for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) rp(x + i, y + j, c); }
+
+static uint16_t sombra(uint16_t c) { return gfx_mistura(c, C_BARRA, 28); }
+static uint16_t luz(uint16_t c)    { return gfx_mistura(c, C_BRANCO, 22); }
+
+// Rosto: oval da linha hy em diante, orelhas, olhos, sobrancelhas, nariz e
+// boca. expr: 0 calma, 1 brava, 2 alegre, 3 preocupada.
+static void rosto(int hy, uint16_t pele, uint16_t cabelo, int expr, bool pisca, int boca)
+{
+    static const int8_t X0[12] = { 7, 6, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7 };
+    for (int i = 0; i < 12; i++) {
+        int x0 = X0[i], x1 = 19 - X0[i];
+        rr(x0, hy + i, x1 - x0, 1, pele);
+        rp(x1 - 1, hy + i, sombra(pele));                       // lado da sombra
+    }
+    rr(4, hy + 5, 1, 2, sombra(pele));                          // orelhas
+    rr(15, hy + 5, 1, 2, sombra(pele));
+    int ey = hy + 6;
+    uint16_t olho = RGB(30, 26, 30);
+    if (pisca) { rr(7, ey + 1, 2, 1, sombra(pele)); rr(11, ey + 1, 2, 1, sombra(pele)); }
+    else {
+        rp(7, ey, C_BRANCO); rp(8, ey, olho); rp(8, ey + 1, olho); rp(7, ey + 1, luz(pele));
+        rp(12, ey, C_BRANCO); rp(11, ey, olho); rp(11, ey + 1, olho); rp(12, ey + 1, luz(pele));
+    }
+    uint16_t sob = sombra(cabelo);
+    switch (expr) {                                             // sobrancelhas
+    case 1:  rp(7, ey - 2, sob); rp(8, ey - 1, sob); rp(12, ey - 2, sob); rp(11, ey - 1, sob); break;
+    case 3:  rp(7, ey - 1, sob); rp(8, ey - 2, sob); rp(12, ey - 1, sob); rp(11, ey - 2, sob); break;
+    default: rr(7, ey - 2, 2, 1, sob); rr(11, ey - 2, 2, 1, sob); break;
+    }
+    rp(10, ey + 2, sombra(pele));                               // nariz
+    uint16_t lab = RGB(120, 52, 52);
+    int my = hy + 10;
+    if (boca) { rr(9, my - 1, 2, 2, RGB(60, 22, 26)); rp(8, my - 1, lab); rp(11, my - 1, lab); }
+    else if (expr == 2) { rr(9, my - 1, 2, 1, lab); rp(8, my - 2, lab); rp(11, my - 2, lab); }
+    else if (expr == 1) { rr(8, my - 1, 4, 1, lab); }
+    else rr(9, my - 1, 2, 1, lab);
+}
+
+// Tronco: ombros, pescoco e a gola.
+static void tronco(uint16_t roupa, uint16_t pele, uint16_t camisa, uint16_t gravata, int estilo)
+{
+    rr(8, 14, 4, 3, sombra(pele));                              // pescoco
+    rr(3, 17, 14, 1, roupa);
+    rr(1, 18, 18, 4, roupa);
+    rr(1, 18, 1, 4, luz(roupa));
+    rr(18, 18, 1, 4, sombra(roupa));
+    if (estilo == 0) {                                          // terno: camisa em V e gravata
+        rr(8, 17, 4, 1, camisa); rr(9, 18, 2, 2, camisa); rp(9, 20, camisa);
+        if (gravata) { rp(9, 17, gravata); rp(10, 17, gravata); rp(9, 18, gravata); rp(10, 19, gravata); }
+    } else if (estilo == 1) {                                   // gravata borboleta
+        rr(8, 17, 4, 2, camisa);
+        rr(7, 17, 2, 1, gravata); rr(11, 17, 2, 1, gravata); rr(9, 17, 2, 1, sombra(gravata));
+    } else if (estilo == 2) {                                   // decote: colar
+        rr(8, 17, 4, 1, pele); rr(9, 18, 2, 1, pele);
+    }
+}
+
+// Desenha as linhas l0..l0+nl-1 do retrato em (x, y).
+static void retrato(int x, int y, int esc, int perso, float t, bool falando, int l0, int nl)
+{
+    memset(rt, 0, sizeof rt);
+    // Respira devagar (1 px a cada 1,6 s); pisca de tempos em tempos.
+    int dy = (int)(t / 1.6f) % 2;
+    float ciclo = fmodf(t + perso * 0.77f, 3.9f);
+    bool pisca = ciclo > 3.72f;
+    int boca = falando ? ((int)(t / 0.22f) % 2) : 0;
+    int hy = 3 + dy;
+    const uint16_t PRETO = RGB(34, 30, 32), MARROM = RGB(104, 66, 40),
+                   GRISALHO = RGB(178, 176, 172), RUIVO = RGB(196, 84, 46);
+    const uint16_t P_CLARA = RGB(234, 196, 160), P_MEDIA = RGB(204, 150, 106), P_ESCURA = RGB(132, 88, 60),
+                   P_PALIDA = RGB(236, 210, 188);
+    switch (perso) {
+    case 0: {                                                   // NOVATO: bone verde, sardas, moletom
+        tronco(RGB(86, 140, 92), P_CLARA, 0, 0, 3);
+        rr(8, 17, 4, 1, sombra(RGB(86, 140, 92)));
+        rosto(hy, P_CLARA, MARROM, 3, pisca, boca);
+        rp(6, hy + 8, RGB(196, 128, 96)); rp(13, hy + 8, RGB(196, 128, 96));     // sardas
+        rr(5, hy - 1, 10, 3, RGB(70, 132, 80));                 // bone
+        rr(6, hy - 2, 8, 1, RGB(70, 132, 80));
+        rr(13, hy + 1, 4, 1, sombra(RGB(70, 132, 80)));         // aba
+        rr(5, hy + 2, 2, 2, MARROM); rr(14, hy + 2, 1, 2, MARROM);
+        break;
+    }
+    case 1: {                                                   // CAUTELOSA: coque grisalho, colar de perolas
+        tronco(RGB(196, 178, 146), P_PALIDA, 0, 0, 2);
+        for (int i = 0; i < 4; i++) rp(7 + i * 2, 17 + (i == 1 || i == 2), C_BRANCO);
+        rosto(hy, P_PALIDA, GRISALHO, 0, pisca, boca);
+        rr(5, hy - 1, 10, 3, GRISALHO); rr(4, hy + 1, 2, 4, GRISALHO); rr(14, hy + 1, 2, 4, GRISALHO);
+        rr(8, hy - 4, 4, 3, GRISALHO); rr(9, hy - 5, 2, 1, luz(GRISALHO));       // coque
+        rr(6, hy, 8, 1, luz(GRISALHO));
+        break;
+    }
+    case 2: {                                                   // APOSTADOR: chapeu, charuto, terno vermelho
+        tronco(RGB(168, 46, 46), P_MEDIA, RGB(236, 220, 190), C_OURO, 0);
+        rosto(hy, P_MEDIA, PRETO, 2, pisca, boca);
+        rr(4, hy - 1, 12, 2, RGB(92, 64, 44));                   // aba
+        rr(6, hy - 4, 8, 3, RGB(110, 78, 52));                  // copa
+        rr(6, hy - 2, 8, 1, RGB(176, 52, 52));                  // fita
+        if (!boca) {                                            // charuto e a fumaca subindo
+            rr(12, hy + 9, 4, 1, RGB(120, 80, 50)); rp(16, hy + 9, C_FOGO);
+            int f = (int)(t / 0.9f) % 3;
+            rp(16 + (f == 1), hy + 7 - f, GRISALHO); rp(17 - (f == 2), hy + 5 - f, gfx_mistura(GRISALHO, C_FELTRO, 40));
+        }
+        break;
+    }
+    case 3: {                                                   // LADRAO: gorro, mascara, listras
+        uint16_t lis = RGB(36, 36, 40);
+        tronco(RGB(220, 216, 206), P_MEDIA, 0, 0, 3);
+        for (int i = 18; i < 22; i += 2) rr(1, i, 18, 1, lis);
+        rosto(hy, P_MEDIA, PRETO, 0, pisca, boca);
+        rr(5, hy + 5, 10, 3, lis);                              // mascara
+        if (!pisca) { rp(7, hy + 6, C_BRANCO); rp(8, hy + 6, PRETO); rp(11, hy + 6, PRETO); rp(12, hy + 6, C_BRANCO); }
+        rr(5, hy - 2, 10, 4, RGB(54, 58, 72));                  // gorro
+        rr(5, hy + 1, 10, 1, RGB(74, 80, 98));
+        for (int i = 0; i < 5; i++) rp(6 + i, hy + 9 + (i & 1), sombra(P_MEDIA));  // barba por fazer
+        break;
+    }
+    case 4: {                                                   // MATEMATICA: cabelo longo, oculos redondos
+        tronco(RGB(52, 64, 112), P_ESCURA, RGB(230, 226, 214), 0, 0);
+        rr(3, hy + 2, 3, 13, PRETO); rr(14, hy + 2, 3, 13, PRETO);                  // cabelo atras
+        rosto(hy, P_ESCURA, PRETO, 0, pisca, boca);
+        rr(5, hy - 1, 10, 3, PRETO); rr(5, hy + 2, 1, 3, PRETO); rr(14, hy + 2, 1, 3, PRETO);
+        rr(9, hy - 1, 1, 2, luz(PRETO));
+        uint16_t aro = RGB(196, 160, 90);                       // oculos redondos: so a armacao
+        rr(7, hy + 5, 2, 1, aro); rr(7, hy + 8, 2, 1, aro); rr(6, hy + 6, 1, 2, aro); rr(9, hy + 6, 1, 2, aro);
+        rr(11, hy + 5, 2, 1, aro); rr(11, hy + 8, 2, 1, aro); rr(10, hy + 6, 1, 2, aro); rr(13, hy + 6, 1, 2, aro);
+        if ((int)(t / 2.7f) % 3 == 0) rp(12, hy + 6, C_BRANCO); // brilho na lente
+        break;
+    }
+    case 5: {                                                   // ESPINHENTO: cabelo espetado, jaqueta com rebites
+        uint16_t jaq = RGB(50, 46, 48);
+        tronco(jaq, P_CLARA, RGB(150, 40, 50), 0, 0);
+        for (int i = 0; i < 4; i++) { rp(3 + i, 18 + (i & 1), GRISALHO); rp(16 - i, 18 + (i & 1), GRISALHO); }
+        rosto(hy, P_CLARA, RUIVO, 1, pisca, boca);
+        rr(5, hy - 1, 10, 2, RUIVO);
+        for (int i = 0; i < 5; i++) rr(5 + i * 2, hy - 3 + (i & 1), 1, 2, RUIVO);  // espetos
+        rp(13, hy + 7, RGB(200, 120, 120)); rp(13, hy + 8, RGB(200, 120, 120));    // cicatriz
+        break;
+    }
+    case 6: {                                                   // SUPERSTICIOSA: lenco de bolinhas, argolas, trevo
+        uint16_t lenco = RGB(132, 72, 150);
+        tronco(RGB(64, 112, 98), P_MEDIA, 0, 0, 2);
+        rp(13, 18, RGB(96, 196, 112)); rp(14, 19, RGB(96, 196, 112)); rp(13, 19, RGB(60, 150, 80));  // trevo
+        rosto(hy, P_MEDIA, PRETO, 2, pisca, boca);
+        rr(4, hy - 1, 12, 4, lenco); rr(3, hy + 2, 2, 3, lenco); rr(15, hy + 2, 2, 3, lenco);
+        for (int i = 0; i < 4; i++) rp(6 + i * 3, hy + (i & 1), C_AMARELO);         // bolinhas
+        rp(4, hy + 8, C_OURO); rp(4, hy + 9, C_OURO); rp(15, hy + 8, C_OURO); rp(15, hy + 9, C_OURO);  // argolas
+        break;
+    }
+    case 7: {                                                   // BRUTAMONTES: careca, bigode, regata
+        tronco(RGB(206, 200, 190), P_MEDIA, 0, 0, 3);
+        rr(1, 17, 4, 5, P_MEDIA); rr(15, 17, 4, 5, P_MEDIA);     // ombros de fora
+        rr(1, 17, 1, 5, luz(P_MEDIA));
+        rosto(hy, P_MEDIA, MARROM, 1, pisca, boca);
+        rr(6, hy, 8, 1, luz(P_MEDIA));                          // brilho da careca
+        if (!boca) { rr(7, hy + 9, 6, 1, MARROM); rp(7, hy + 10, MARROM); rp(12, hy + 10, MARROM); }
+        break;
+    }
+    case 8: {                                                   // CRUPIE: viseira verde, colete, gravata borboleta
+        tronco(RGB(40, 40, 44), P_CLARA, RGB(236, 232, 222), RGB(176, 40, 52), 1);
+        rr(2, 18, 3, 4, RGB(236, 232, 222)); rr(15, 18, 3, 4, RGB(236, 232, 222));  // mangas da camisa
+        rosto(hy, P_CLARA, PRETO, 0, pisca, boca);
+        rr(5, hy, 10, 2, PRETO); rr(5, hy + 2, 1, 2, PRETO); rr(14, hy + 2, 1, 2, PRETO);
+        rr(4, hy + 1, 12, 1, RGB(60, 150, 100));                // viseira
+        rr(5, hy + 2, 10, 1, gfx_mistura(RGB(60, 150, 100), C_FELTRO, 30));
+        if (!boca) rr(8, hy + 9, 4, 1, PRETO);                  // bigode fino
+        break;
+    }
+    case 9: {                                                   // DONA DO SALAO: coque com grampo, vestido, colar
+        tronco(RGB(150, 30, 46), P_CLARA, 0, 0, 2);
+        rr(7, 17, 6, 1, C_OURO); rp(10, 18, C_OURO);
+        rosto(hy, P_CLARA, PRETO, 2, pisca, boca);
+        rr(5, hy - 1, 10, 3, PRETO); rr(4, hy + 1, 2, 5, PRETO); rr(14, hy + 1, 2, 5, PRETO);
+        rr(7, hy - 4, 6, 3, PRETO); rp(12, hy - 4, C_OURO); rp(13, hy - 5, C_OURO);   // coque e grampo
+        if (!boca) rr(9, hy + 9, 2, 1, RGB(200, 40, 60));       // batom
+        rp(4, hy + 7, C_OURO); rp(15, hy + 7, C_OURO);
+        break;
+    }
+    default: {                                                  // BARAO: cartola, monoculo, bigodao branco
+        tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
+        rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
+        rosto(hy, P_CLARA, GRISALHO, 0, pisca, boca);
+        rr(5, hy + 2, 1, 3, GRISALHO); rr(14, hy + 2, 1, 3, GRISALHO);
+        rr(4, hy - 1, 12, 1, RGB(28, 28, 30));                  // aba da cartola
+        rr(6, hy - 6, 8, 5, RGB(40, 40, 44));
+        rr(6, hy - 2, 8, 1, RGB(120, 40, 50));                  // fita
+        rr(7, hy - 6, 1, 4, RGB(70, 70, 76));
+        if (!boca) {                                            // bigodao branco, com sombra
+            rr(7, hy + 9, 6, 1, RGB(238, 236, 230)); rp(6, hy + 10, RGB(238, 236, 230)); rp(13, hy + 10, RGB(238, 236, 230));
+            rr(8, hy + 10, 4, 1, RGB(190, 186, 180));
+        }
+        rr(11, hy + 5, 2, 1, C_OURO); rr(11, hy + 8, 2, 1, C_OURO);   // monoculo: aro so no olho direito
+        rr(10, hy + 6, 1, 2, C_OURO); rr(13, hy + 6, 1, 2, C_OURO);
+        rp(14, hy + 8, C_OURO); rp(14, hy + 9, C_OURO);          // cordao
+        if ((int)(t / 3.3f) % 3 == 0 && fmodf(t, 3.3f) < 0.4f) rp(12, hy + 6, C_BRANCO);
+        break;
+    }
+    }
+    // Contorno: tudo o que encosta num pixel cheio e esta vazio vira escuro.
+    uint16_t contorno = RGB(14, 14, 13);
+    for (int j = 0; j < RT_H; j++)
+        for (int i = 0; i < RT_W; i++) {
+            if (rt[j][i]) continue;
+            bool perto = (i > 0 && rt[j][i - 1] > 1) || (i + 1 < RT_W && rt[j][i + 1] > 1)
+                      || (j > 0 && rt[j - 1][i] > 1) || (j + 1 < RT_H && rt[j + 1][i] > 1);
+            if (perto) rt[j][i] = 1;                           // 1 = contorno
+        }
+    for (int j = l0; j < l0 + nl && j < RT_H; j++)
+        for (int i = 0; i < RT_W; i++)
+            if (rt[j][i]) gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, rt[j][i] == 1 ? contorno : rt[j][i]);
+}
+
+// Balao de fala saindo do retrato (x, y: a ponta do bico).
+static void desenha_balao(int x, int y, const char *s)
+{
+    int w = gfx_largura(s, 1) + 16, h = TXT_H + 8;
+    int bx = x + 6, by = y - h / 2;
+    if (bx + w > GFX_W - 6) bx = GFX_W - 6 - w;
+    float a = t_fala < 0.25f ? t_fala / 0.25f : 1;
+    if (a < 0.3f) return;
+    tapa_textos(bx, by, w, h);
+    gfx_rect(bx + 2, by + 2, w, h, C_SOMBRA);
+    gfx_rect(bx, by, w, h, C_MARFIM);
+    gfx_moldura(bx, by, w, h, 1, C_LATAO_ESC);
+    for (int i = 0; i < 5; i++) gfx_rect(x + i, y - (5 - i) / 2, 7 - i, 5 - i, C_MARFIM);   // bico
+    txt(bx + 8, by + 3, s, C_EBANO, false);
+}
+
+// Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
+// balao logo abaixo. Devolve onde o nome comeca.
+static int retrato_faixa(int j, int y0)
+{
+    if (fala_perso < 0) return 18;
+    int x = 6, esc = 2, corte = 3;              // em cima so tem a ponta da cartola
+    gfx_rect(x - 2, y0, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
+    retrato(x, y0, esc, fala_perso, t_fase + fala_perso * 1.3f, t_fala > 0.3f, corte, (FAIXA_H - 2) / esc);
+    gfx_rect(x - 2, y0 + FAIXA_H - 2, RT_W * esc + 4, 2, C_LATAO_ESC);
+    dica_zona(x, y0, RT_W * esc, FAIXA_H, DICA_TRUNFO, fala_perso);
+    (void)j;
+    return x + RT_W * esc + 8;
+}
+
+// O balao do oponente: depois de tudo, por cima da mesa.
+static void balao_oponente(void)
+{
+    if (modo != M_DESAFIO || fala_perso < 0 || t_fala <= 0 || !fala_txt[0]) return;
+    bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
+                || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
+    if (!partida) return;
+    int y = FAIXA_H + 14;
+    desenha_balao(20, y, fala_txt);
+}
+
 
 static const char *const SALAO[DES_ANDARES] = { "Salão Verde", "Salão Vermelho", "Salão Dourado" };
 static const uint16_t COR_SALAO[DES_ANDARES] = { C_VERDE, C_VINHO_CLR, C_OURO };
@@ -289,6 +659,7 @@ static void amuletos_faixa(int x, int y)
             gfx_disco(cx, y, rr, gfx_mistura(C_OURO, C_BARRA, (int)((1.2f - am_brilho[a]) * 70)));
         }
         desenha_amuleto(cx, y, 8, a, false);
+        dica_zona(cx - 9, y - 9, 18, 18, DICA_AMULETO, a);
         n++;
     }
 }
@@ -663,14 +1034,18 @@ static void des_comeca_partida(void)
     J[0].nome = "VOCÊ";
     J[0].cor = C_LATAO;
     amul[0] = run.amuletos;
-    amul[1] = 0;
     memset(am_brilho, 0, sizeof am_brilho);
+    amul[1] = PERSO[no->perso].amul;              // o trunfo do oponente
+    reg_op = PERSO[no->perso].reg;
+    op_nervoso = false;
+    fala_perso = no->perso;
+    t_fala = 0;
     J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 15 : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
-    J[1].fichas = DES_FICHAS;
+    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0);
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
@@ -685,6 +1060,7 @@ static void des_comeca_partida(void)
     t_sair = -1;
     detalhe = -1;
     nova_rodada();
+    fala_evento(FA_INICIO);
 }
 
 // Fim de uma partida da run (chamado assim que ela acaba, para que sair na
@@ -904,17 +1280,32 @@ static void info_mesa(int l)
     }
     const perso_t *pe = &PERSO[no->perso];
     int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
+    // O retrato a esquerda; o resto do painel anda para a direita.
+    int rx = 32, ry = y0 + 4, esc = 2, nl = 27;
+    gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, 58, no->tipo == NO_CHEFE ? C_OURO : C_LATAO_ESC);
+    gfx_rect(rx, ry, RT_W * esc, 54, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(rx, ry, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, nl);
+    dica_zona(rx, ry, RT_W * esc, 54, DICA_TRUNFO, no->perso);
+    x = rx + RT_W * esc + 10;
     int w = gfx_texto(x, y0 + 3, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(x + w + 10, y0 + 3, NOME_NO[no->tipo], cor_no(no->tipo));
     etiqueta_caixa(xt, y0 + 3, NIVEL_IA[no->nivel], C_ACO);
     const char *pr = PREMIO_TIER[tier];
     txt(GFX_W - 40 - gfx_largura(pr, 1), y0 + 3, pr, C_TEXTO_M, false);
-    txt(x, y0 + 24, pe->frase, C_MARFIM_S, false);
-    // A bolsa dele, miuda: da para ver contra o que vai jogar.
+    // O trunfo: nome em destaque e a regra; miuda se nao couber.
+    int wt = gfx_texto(x, y0 + 22, pe->trunfo, C_ROSA, 1, true);
+    int livre = GFX_W - 40 - (x + wt + 14);
+    int esc_r = gfx_largura(pe->regra, 1) <= livre ? 1 : GFX_MIUDO;
+    gfx_texto(x + wt + 14, y0 + 22 + (esc_r == 1 ? 0 : 3), pe->regra, C_MARFIM_S, esc_r, false);
+    dica_zona(x, y0 + 20, GFX_W - 40 - x, TXT_H + 2, DICA_TRUNFO, no->perso);
+    // A bolsa dele, miuda: da para ver contra o que vai jogar (o mouse em
+    // cima de um dado diz o que ele faz).
     peca_t col[MAX_COL];
     int n = monta_oponente(no, run.andar, col);
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
         peca_parada((float)(x + 8 + i * 19), (float)(y0 + 52), 8, col[i], 1);
+        dica_zona(x + i * 19 - 1, y0 + 43, 19, 19, DICA_DADO, col[i].tipo);
+    }
     char s[24];
     snprintf(s, sizeof s, "%d dados", n);
     gfx_texto(x + 8 + n * 19 + 2, y0 + 46, s, C_TEXTO_M, GFX_MIUDO, false);
@@ -974,7 +1365,12 @@ static void desenha_mapa(void)
     botao_clique(GFX_W - 40, 242 + 38, "sua bolsa", KEY_TAB);
     // Os amuletos da run, no canto de cima.
     for (int a = 0, n = 0; a < A_N; a++)
-        if (run.amuletos >> a & 1) { desenha_amuleto(30 + (n % 4) * 19, 66 + (n / 4) * 19, 8, a, false); n++; }
+        if (run.amuletos >> a & 1) {
+            int ax = 30 + (n % 4) * 19, ay = 66 + (n / 4) * 19;
+            desenha_amuleto(ax, ay, 8, a, false);
+            dica_zona(ax - 9, ay - 9, 18, 18, DICA_AMULETO, a);
+            n++;
+        }
 }
 
 // ---- Loja ---------------------------------------------------------------
@@ -1090,6 +1486,16 @@ static void desenha_fim_run(void)
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
 static void desenha_fim_partida_run(void)
 {
+    // O oponente, grande, a esquerda, com o que disse no fim.
+    if (fala_perso >= 0) {
+        int esc = 3, rx = 22, ry = CENTRO - 70;
+        bool chefe = fala_perso >= N_PERSO_COMUM;
+        gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
+        gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+        retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, t_fala > 0.3f, 0, RT_H);
+        dica_zona(rx, ry, RT_W * esc, RT_H * esc, DICA_TRUNFO, fala_perso);
+        if (fala_txt[0]) txt_c(rx + RT_W * esc / 2, ry + RT_H * esc + 6, PERSO[fala_perso].nome, C_ROSA, true);
+    }
     painel(CENTRO - 70, 150, 460);
     char s[80];
     if (venc_partida == 0) {
@@ -1112,6 +1518,11 @@ static void desenha_fim_partida_run(void)
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
         txt_c(GFX_W / 2, CENTRO + 56, "ENTER segue", C_MARFIM_S, false);
+    }
+    if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele
+        char q[80];
+        snprintf(q, sizeof q, "\"%s\"", fala_txt);
+        txt_c(GFX_W / 2, CENTRO + 88, q, C_ROSA, false);
     }
 }
 

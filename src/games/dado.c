@@ -538,6 +538,19 @@ static uint16_t amul[2];
 static uint16_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
 static float am_brilho[A_N];
 static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
+// Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
+// usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
+// sempre ganha (Crupie).
+enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA };
+static uint8_t reg_op;
+static bool op_nervoso;              // o Novato perdeu a ultima rodada
+static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
+// Falas do oponente (desafio.inc): o que acabou de acontecer.
+enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N };
+static void fala_evento(int cat);
+static char  fala_txt[64];
+static float t_fala;                     // > 0: o balao do oponente esta na mesa
+static int   fala_perso = -1;            // o oponente da partida do Desafiante
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
 static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
@@ -2407,6 +2420,7 @@ static int tam_mao(int j)
     int n = MAO_NORMAL;
     if (tem_am(j, A_BOLSA)) n++;
     if (tem_am(j ^ 1, A_FURADO)) n--;
+    if (j == 1 && op_nervoso && tem_reg(REG_NERVOSO)) n--;
     return n;
 }
 
@@ -2442,7 +2456,10 @@ static void encerra(int vencedor)
     // no mesmo teclado, alguem sempre ganhou.
     bool perdeu = modo != M_DOIS && vencedor != baixo;
     som_toca(vencedor == 2 && modo == M_DOIS ? SOM_EMPATE : (perdeu ? SOM_DERROTA : SOM_FIM));
-    if (modo == M_DESAFIO) des_resultado();   // a run anota na hora
+    if (modo == M_DESAFIO) {
+        fala_evento(vencedor == 1 ? FA_GANHA_P : FA_PERDE_P);
+        des_resultado();                      // a run anota na hora
+    }
 }
 
 static void nova_rodada(void)
@@ -2697,15 +2714,23 @@ static void conclui_rodada(void)
         memcpy(vis_queima[j], resolvido.queima[j], N_FILA);
         F[j].total = resolvido.total[j];
     }
-    if (F[0].total == F[1].total) {
+    bool casa = F[0].total == F[1].total && tem_reg(REG_CASA);   // o Crupie leva o empate
+    if (F[0].total == F[1].total && !casa) {
         venc_mao = 2;
         som_toca(SOM_EMPATE);
         snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
     } else {
-        int w = F[0].total > F[1].total ? 0 : 1;
+        int w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
         venc_mao = w;
         J[w].fichas += pote;
-        snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
+        if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
+        else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
+        if (w == 1 && tem_reg(REG_BATEDOR) && J[0].fichas > 0) {   // o Ladrao leva mais 2 suas
+            int b = J[0].fichas < 2 ? J[0].fichas : 2;
+            J[0].fichas -= b;
+            J[1].fichas += b;
+            snprintf(aviso, sizeof aviso, "%s leva %d fichas, e mais %d suas", J[w].nome, pote, b);
+        }
         if (tem_am(w, A_POTE)) {                 // Pote Gordo: 3 a mais
             J[w].fichas += 3;
             snprintf(aviso, sizeof aviso, "%s leva %d fichas (+3)", J[w].nome, pote);
@@ -2717,6 +2742,9 @@ static void conclui_rodada(void)
                 J[w].fichas += F[w].valor[k];
         som_toca(SOM_VITORIA);
     }
+    op_nervoso = venc_mao == 0;
+    if (venc_mao == 0) fala_evento(FA_PERDE_R);
+    else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;
@@ -2997,6 +3025,18 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 {
     if (n_zonas >= MAX_ZONAS) return;
     zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla };
+}
+
+// Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
+enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO };
+typedef struct { int16_t x, y, w, h; uint8_t tipo, id; } dica_t;
+#define MAX_DICAS 64
+static dica_t dicas[MAX_DICAS];
+static int n_dicas;
+static void dica_zona(int x, int y, int w, int h, int tipo, int id)
+{
+    if (n_dicas >= MAX_DICAS) return;
+    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id };
 }
 
 static bool mouse_em(int x, int y, int w, int h)
@@ -3876,6 +3916,7 @@ void dado_passo(float dt)
     t_fase += dt;
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
+    if (t_fala > 0) t_fala -= dt;
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt) > 2.5f) t_sair = -1;
@@ -3958,6 +3999,7 @@ void dado_passo(float dt)
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
             } else som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
+            if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             t_fase = 0;
             fase = F_VEREDITO;
         }
@@ -4082,6 +4124,7 @@ static void painel(int y, int h, int w)
 }
 
 static void amuletos_faixa(int x, int y);   // Modo Desafiante (desafio.inc)
+static int  retrato_faixa(int j, int y0);   // devolve onde o nome comeca
 
 static void faixa_jogador(int j)
 {
@@ -4095,7 +4138,8 @@ static void faixa_jogador(int j)
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
     if (da_vez) gfx_rect(0, y0 + 2, 5, FAIXA_H - 4, p->cor);
-    int x = 18 + txt_nome(18, ty, j, da_vez);
+    int xn = modo == M_DESAFIO && j == 1 ? retrato_faixa(j, y0) : 18;
+    int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     char s[32];
     snprintf(s, sizeof s, "%d", p->fichas);
@@ -4205,6 +4249,7 @@ static void desenha_fila(int j)
                       && voo[0].dono == j && voo[0].slot == k;
         if (voando) continue;
         int t = tipo_de(j, k);
+        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
             marca_nivel = f->fixo[k];
@@ -4675,6 +4720,7 @@ static void desenha_ordem(void)
         }
         if (cur) gfx_rect(x - 18, y + 27, 36, 3, p->cor);
         zona_clique(x - 29, y - 29, 58, 58, &cursor, i, KEY_ENTER);
+        dica_zona(x - 29, y - 29, 58, 58, DICA_DADO, p->col[p->mao[i]].tipo);
     }
 
     char t[64];
@@ -5382,23 +5428,130 @@ static void texto_mudo(int x, int y, const char *s, uint16_t c, int e, bool n)
     (void)x; (void)y; (void)s; (void)c; (void)e; (void)n;
 }
 
+typedef struct { int16_t x, y; uint8_t esc; bool neg; uint16_t cor; uint16_t ini; } texto_g_t;
+static texto_g_t txg[400];
+static char txg_letras[12000];
+static int n_txg, txg_usado;
+static gfx_texto_fn txg_destino;
+// Retangulos que tapam os textos guardados ANTES deles (o balao, a dica).
+static int ocl[4][5], n_ocl;
+static void tapa_textos(int x, int y, int w, int h)
+{
+    if (n_ocl >= 4) return;
+    ocl[n_ocl][0] = x; ocl[n_ocl][1] = y; ocl[n_ocl][2] = w; ocl[n_ocl][3] = h; ocl[n_ocl][4] = n_txg;
+    n_ocl++;
+}
+
 #include "desafio.inc"
 
 static void desenha_tudo(void);
+
+// ---------------------------------------------------------------------------
+// Dica do mouse. Os textos nitidos vao numa camada por cima de tudo; para a
+// caixa da dica nao ficar com texto vazando por baixo, os textos do quadro
+// ficam guardados e saem depois, menos os que a caixa cobre.
+// ---------------------------------------------------------------------------
+static void texto_guarda(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
+{
+    int n = (int)strlen(s) + 1;
+    if (n_txg >= (int)(sizeof txg / sizeof txg[0]) || txg_usado + n > (int)sizeof txg_letras) {
+        txg_destino(x, y, s, c, esc, negrito);           // sem espaco: sai na hora
+        return;
+    }
+    txg[n_txg++] = (texto_g_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, (uint16_t)txg_usado };
+    memcpy(txg_letras + txg_usado, s, (size_t)n);
+    txg_usado += n;
+}
+
+static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, const char **desc)
+{
+    if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_aro(id); *desc = TEXTO_MEDIO[id]; }
+    else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
+    else                           { *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra; }
+}
+
+// A caixa da dica sob o mouse, se houver. Devolve o retangulo em r.
+static bool dica_rect(int *r, const dica_t **qual)
+{
+    if (mouse_x < 0 || (detalhe >= 0 && fase == detalhe_fase)) return false;
+    const dica_t *d = NULL;
+    for (int i = n_dicas - 1; i >= 0 && !d; i--)
+        if (mouse_em(dicas[i].x, dicas[i].y, dicas[i].w, dicas[i].h)) d = &dicas[i];
+    if (!d) return false;
+    const char *nome, *desc;
+    uint16_t cor;
+    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    int larg = 260;
+    gfx_texto_fn antes = gfx_texto_nitido_atual();
+    gfx_texto_nitido(texto_mudo);                       // so conta as linhas
+    int linhas = quebra_linhas(0, 0, larg - 16, 5, desc, 0);
+    gfx_texto_nitido(antes);
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * (TXT_H + 4) + 4;
+    int x = mouse_x + 14, y = mouse_y + 16;
+    if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
+    if (y + h > GFX_H - 4) y = mouse_y - 12 - h;
+    if (x < 4) x = 4;
+    if (y < 4) y = 4;
+    r[0] = x; r[1] = y; r[2] = w; r[3] = h;
+    *qual = d;
+    return true;
+}
+
+static void desenha_dica(const int *r, const dica_t *d)
+{
+    const char *nome, *desc;
+    uint16_t cor;
+    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    gfx_rect(r[0] + 2, r[1] + 3, r[2], r[3], C_SOMBRA);
+    gfx_rect(r[0], r[1], r[2], r[3], C_BARRA);
+    gfx_moldura(r[0], r[1], r[2], r[3], 1, cor);
+    int x = r[0] + 8, y = r[1] + 5;
+    int w = gfx_texto(x, y, nome, cor, 1, true);
+    if (d->tipo == DICA_DADO) {                          // "D4 · raro", miudo, ao lado
+        char c2[32];
+        classe(d->id, c2, sizeof c2);
+        gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
+    }
+    quebra_linhas(x, y + TXT_H + 4, r[2] - 16, 5, desc, C_MARFIM_S);
+}
 
 void dado_desenha(void)
 {
     gfx_texto_fn nitido = gfx_texto_nitido_atual();
     bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
     if (mudo) gfx_texto_nitido(texto_mudo);
+    else if (nitido) { n_txg = txg_usado = 0; txg_destino = nitido; gfx_texto_nitido(texto_guarda); }
+    n_ocl = 0;
     n_zonas = 0;
+    n_dicas = 0;
     zonas_fase = fase;
     desenha_tudo();
+    balao_oponente();
     desenha_confete();
     if (mudo) gfx_texto_nitido(nitido);
-    if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
-    desenha_detalhe();
-    desenha_avisos();
+    bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
+    if (!menu) {
+        desenha_detalhe();
+        desenha_avisos();
+    }
+    int r[4];
+    const dica_t *d = NULL;
+    bool tem_dica = !menu && dica_rect(r, &d);
+    if (tem_dica) tapa_textos(r[0], r[1], r[2], r[3]);
+    if (!mudo && nitido) {                               // os textos guardados, menos os tapados
+        gfx_texto_nitido(nitido);
+        for (int i = 0; i < n_txg; i++) {
+            const texto_g_t *t = &txg[i];
+            const char *s = txg_letras + t->ini;
+            int tw = gfx_largura(s, t->esc), th = t->esc == GFX_MIUDO ? TXT_H * 2 / 3 : TXT_H * t->esc;
+            bool tapado = false;
+            for (int o = 0; o < n_ocl && !tapado; o++)
+                tapado = i < ocl[o][4] && t->x < ocl[o][0] + ocl[o][2] && t->x + tw > ocl[o][0]
+                         && t->y < ocl[o][1] + ocl[o][3] && t->y + th > ocl[o][1];
+            if (!tapado) nitido(t->x, t->y, s, t->cor, t->esc, t->neg);
+        }
+    }
+    if (tem_dica) desenha_dica(r, d);
 }
 
 static void desenha_tudo(void)

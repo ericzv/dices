@@ -533,6 +533,112 @@ int main(void)
         CONFERE(d.total[0] == 11, "Acumulador no teto: esperava 11, deu %d", d.total[0]);
     }
 
+    // ---- Desafiante: salvamento de antes dos amuletos ainda carrega -------
+    {
+        int modo_antes = modo;
+        des_nova_run();
+        CONFERE(fase == F_RAMULETO && run.estado == R_AMULETO, "run nova devia comecar escolhendo amuleto");
+        amuleto_escolhido(0);
+        CONFERE(am_conta(run.amuletos) == 1 && fase == F_RLOJA, "amuleto inicial: %x, fase %d", run.amuletos, fase);
+        run.moedas = 77;
+        des_salva();
+        run_t r;
+        CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos == run.amuletos, "salvamento novo nao volta");
+        salvo[2 * RUN_TAM_V1] = 0;                 // o arquivo do jeito antigo, mais curto
+        CONFERE(des_carrega(&r) && r.moedas == 77 && r.am_loja == 0xFF, "salvamento antigo nao carrega");
+        salva_apaga();
+        modo = modo_antes;
+        // Fora do Desafiante, amuleto nenhum vale.
+        amul[0] = 0xFFF;
+        modo = M_UM;
+        CONFERE(!tem_am(0, A_LUVA) && tam_mao(0) == 7 && max_fila(0) == N_FILA, "amuleto valendo fora do Desafiante");
+        amul[0] = 0;
+        modo = modo_antes;
+    }
+
+    // ---- Amuletos no motor (so com modo = Desafiante) ---------------------
+    {
+        int modo_antes = modo;
+        desfecho_t d;
+        modo = M_DESAFIO;
+        // Luva de Couro: o primeiro nao cai.
+        limpa(); amul[0] = 1 << A_LUVA; F[0].n = 2;
+        joga(0, D_D6, 5); joga(0, D_D4, 2);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Luva: o primeiro devia ficar");
+        // Rede: o ultimo da sequencia cai sozinho.
+        limpa(); amul[0] = 1 << A_REDE; F[0].n = 3;
+        joga(0, D_D4, 2); joga(0, D_D6, 5); joga(0, D_D4, 1);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO, "Rede: o de antes do ultimo devia ficar");
+        // Sem amuleto, cai como sempre.
+        limpa(); amul[0] = 0; F[0].n = 2;
+        joga(0, D_D6, 5); joga(0, D_D4, 2);
+        CONFERE(F[0].est[0] == V_ANULADO, "sem Luva, o primeiro cai");
+        // Dado de Ouro: numero maximo +2. Peso Pena: 2 e 4 lados +1.
+        limpa(); amul[0] = 1 << A_OURO;
+        joga(0, D_D6, 6);
+        d = fim();
+        CONFERE(d.total[0] == 8, "Dado de Ouro: esperava 8, deu %d", d.total[0]);
+        limpa(); amul[0] = 1 << A_PENA | 1 << A_OURO;
+        joga(0, D_D4, 4);
+        d = fim();
+        CONFERE(d.total[0] == 4 + 2 + 1, "Ouro + Pena num D4 com 4: esperava 7, deu %d", d.total[0]);
+        // O oponente nunca tem amuleto.
+        limpa(); amul[0] = 1 << A_OURO;
+        joga(1, D_D6, 6);
+        d = fim();
+        CONFERE(d.total[1] == 6, "amuleto valeu para o oponente: %d", d.total[1]);
+        // Ima: o Caridoso do oponente nao rouba.
+        limpa(); amul[0] = 1 << A_IMA; primeiro = 0;
+        joga(0, D_D4, 2); joga(1, D_CARIDOSO, 3);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2, "Ima: o dado foi roubado");
+        // Couraca: o Carrasco do oponente nao anula.
+        limpa(); amul[0] = 1 << A_COURACA;
+        joga(0, D_D6, 5); joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 5, "Couraca: o dado foi anulado");
+        // Contrato Sujo: sequencia de 3; Bolsa Funda e Saco Furado: tamanho da mao.
+        amul[0] = 1 << A_CONTRATO;
+        CONFERE(max_fila(0) == 3 && max_fila(1) == N_FILA, "Contrato: sequencia de %d", max_fila(0));
+        amul[0] = 1 << A_BOLSA | 1 << A_FURADO;
+        CONFERE(tam_mao(0) == 8 && tam_mao(1) == 6, "Bolsa/Saco: maos %d e %d", tam_mao(0), tam_mao(1));
+        amul[0] = 0;
+        modo = modo_antes;
+    }
+
+    // ---- Trunfos proprios dos oponentes do Desafiante ----------------------
+    {
+        int modo_antes = modo;
+        modo = M_DESAFIO;
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        // O Crupie leva o empate.
+        limpa(); reg_op = REG_CASA;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = resolvido.total[1] = 7;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(venc_mao == 1 && J[1].fichas == 50 && pote == 0, "Crupie: empate devia ser dele (%d, %d)", venc_mao, J[1].fichas);
+        // O Ladrao, vencendo, leva mais 2 fichas suas.
+        limpa(); reg_op = REG_BATEDOR;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = 3; resolvido.total[1] = 9;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(J[0].fichas == 38 && J[1].fichas == 52, "Ladrao: fichas %d x %d", J[0].fichas, J[1].fichas);
+        // O Novato, depois de perder uma rodada, compra 6.
+        limpa(); reg_op = REG_NERVOSO;
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = 9; resolvido.total[1] = 3;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(op_nervoso && tam_mao(1) == 6 && tam_mao(0) == 7, "Novato: maos %d e %d", tam_mao(0), tam_mao(1));
+        // Fora do Desafiante, nada disso vale.
+        modo = M_UM;
+        CONFERE(tam_mao(1) == 7 && !tem_reg(REG_NERVOSO), "trunfo valendo fora do Desafiante");
+        reg_op = REG_NADA; op_nervoso = false;
+        modo = modo_antes;
+    }
+
     // ---- Previa: o total com os bonus pode ser negativo ------------------
     limpa();
     primeiro = 1;

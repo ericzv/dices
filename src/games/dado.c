@@ -94,7 +94,8 @@
 #define MAX_RODADAS 15
 #define MAX_COL     48             // espaco para a colecao (o Desafiante nao tem limite)
 #define LIM_COL     24             // dados que um jogador pode ter na partida normal
-#define MAO         7              // quantos compra da bolsa por rodada
+#define MAO         8              // espaco da mao (compra 7; 8 com a Bolsa Funda)
+#define MAO_NORMAL  7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
 // Mesa de 640x360: faixa do rival em cima, a sua embaixo, feltro no meio.
@@ -476,7 +477,7 @@ typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
 enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
-       F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM };      // Modo Desafiante
+       F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO };      // Modo Desafiante
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -528,6 +529,31 @@ static int  modo;
 // Quantos dados cabem na colecao: 24 na partida normal; sem limite pratico
 // no Modo Desafiante.
 static int lim_col(void) { return modo == M_DESAFIO ? MAX_COL : LIM_COL; }
+
+// Amuletos: so no Modo Desafiante, so de quem joga (o oponente nunca tem).
+// A run guarda quais tem; a partida copia para amul[0].
+enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
+       A_COFRE, A_RESERVA, A_POTE, A_FURADO, A_N };
+static uint16_t amul[2];
+static uint16_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
+static float am_brilho[A_N];
+static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
+// Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
+// usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
+// sempre ganha (Crupie).
+enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA };
+static uint8_t reg_op;
+static bool op_nervoso;              // o Novato perdeu a ultima rodada
+static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
+// Falas do oponente (desafio.inc): o que acabou de acontecer.
+enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N };
+static void fala_evento(int cat);
+static char  fala_txt[64];
+static float t_fala;                     // > 0: o balao do oponente esta na mesa
+static int   fala_perso = -1;            // o oponente da partida do Desafiante
+static void am_acende(int a) { am_brilho[a] = 1.2f; }
+// Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
+static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run
@@ -1793,15 +1819,22 @@ static void aplica_regra(int j, int k)
     }
 
     if (!espera && l >= 0 && v < f->valor[l]) {
-        // A Sentinela cai sozinha: o dado de antes fica de pe.
+        // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
+        // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;
-        bool esc_l = firme(j, l) || sentinela, esc_k = firme(j, k);
+        bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
+        bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
+        if (luva) am_disparou |= 1 << A_LUVA;
+        if (rede) am_disparou |= 1 << A_REDE;
+        bool esc_l = firme(j, l) || sentinela || luva || rede, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
         anulou_a = esc_l ? -1 : l;
         anulou_b = esc_k ? -1 : k;
         resistiu = esc_l ? l : (esc_k ? k : -1);
         if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai sozinha", v, f->valor[l]);
+        else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro segura o %d", v, f->valor[l], f->valor[l]);
+        else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede segura o %d", v, f->valor[l], f->valor[l]);
         else if (esc_l) snprintf(veredito, sizeof veredito, "%d < %d: %s segura", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
         else if (esc_k) snprintf(veredito, sizeof veredito, "%d < %d: %s fica, %d cai", v, f->valor[l], TIPO[t].nome, f->valor[l]);
         else            snprintf(veredito, sizeof veredito, "%d é menor que %d: anulou os dois", v, f->valor[l]);
@@ -1829,6 +1862,15 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_FERREIRO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
+        // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
+        // 2 e 4 lados).
+        int am_b = 0;
+        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1 << A_OURO; }
+        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1 << A_PENA; }
+        if (am_b) {
+            f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
+            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+        }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
             snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 8 : 0);
@@ -1940,6 +1982,7 @@ static int contribui(int j, int k)
 static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 {
     int a = -1;
+    if (!maior && tem_am(j, A_IMA)) return -1;      // Ima: ninguem rouba
     for (int i = 0; i < F[j].lancados; i++) {
         if (i == exceto || est[i] != V_VALIDO) continue;
         int t = tipo_de(j, i);
@@ -2208,8 +2251,12 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (d->est[j][k] != V_VALIDO || (ef == EF_GATUNO && !tem_um)) continue;
             const char *nome = TIPO[tipo_de(j, k)].nome;
 
+            bool couraca = tem_am(r, A_COURACA);         // os ataques dele nao anulam
+            if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v == 6) || ef == EF_INVEJOSO))
+                am_acende(A_COURACA);
+            if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
             if (ef == EF_CARRASCO && v == 4) {
-                int a = alvo_de(d->est[r], r, true, -1);
+                int a = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
                     evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
@@ -2219,7 +2266,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 // Um dado anulavel do oponente, ao acaso - mas um acaso que so
                 // depende da mesa, para a previa e o desfecho darem o mesmo.
                 int alvos[N_FILA], n = 0;
-                for (int i = 0; i < F[r].lancados; i++)
+                for (int i = 0; i < F[r].lancados && !couraca; i++)
                     if (d->est[r][i] == V_VALIDO && !nao_anulavel_t(tipo_de(r, i))) alvos[n++] = i;
                 if (n) {
                     uint32_t h = (uint32_t)(j * 7 + k);
@@ -2231,7 +2278,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                            "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
                 }
             } else if (ef == EF_INVEJOSO) {
-                int a = alvo_de(d->est[r], r, true, -1);
+                int a = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
                 // Depois de anular o do oponente, anula o maior anulavel da
                 // propria sequencia - ele mesmo, se for o maior.
                 int b;
@@ -2366,10 +2413,22 @@ static void descarta_mao(jogador_t *p)
 
 // Compra ate 7 da bolsa, ao acaso. Se a bolsa esvazia no meio, tudo o que
 // esta fora volta para ela - menos o que ja esta na mao - e a compra segue.
+// Quantos j compra por rodada: 7; 8 com a Bolsa Funda; 6 se o oponente tem
+// o Saco Furado.
+static int tam_mao(int j)
+{
+    int n = MAO_NORMAL;
+    if (tem_am(j, A_BOLSA)) n++;
+    if (tem_am(j ^ 1, A_FURADO)) n--;
+    if (j == 1 && op_nervoso && tem_reg(REG_NERVOSO)) n--;
+    return n;
+}
+
 static void compra(jogador_t *p)
 {
     p->embaralhou = false;
-    while (p->n_mao < MAO) {
+    int quer = tam_mao((int)(p - J));
+    while (p->n_mao < quer) {
         int n = na_bolsa(p);
         if (!n) {
             bool voltou = false;
@@ -2397,7 +2456,10 @@ static void encerra(int vencedor)
     // no mesmo teclado, alguem sempre ganhou.
     bool perdeu = modo != M_DOIS && vencedor != baixo;
     som_toca(vencedor == 2 && modo == M_DOIS ? SOM_EMPATE : (perdeu ? SOM_DERROTA : SOM_FIM));
-    if (modo == M_DESAFIO) des_resultado();   // a run anota na hora
+    if (modo == M_DESAFIO) {
+        fala_evento(vencedor == 1 ? FA_GANHA_P : FA_PERDE_P);
+        des_resultado();                      // a run anota na hora
+    }
 }
 
 static void nova_rodada(void)
@@ -2652,21 +2714,37 @@ static void conclui_rodada(void)
         memcpy(vis_queima[j], resolvido.queima[j], N_FILA);
         F[j].total = resolvido.total[j];
     }
-    if (F[0].total == F[1].total) {
+    bool casa = F[0].total == F[1].total && tem_reg(REG_CASA);   // o Crupie leva o empate
+    if (F[0].total == F[1].total && !casa) {
         venc_mao = 2;
         som_toca(SOM_EMPATE);
         snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
     } else {
-        int w = F[0].total > F[1].total ? 0 : 1;
+        int w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
         venc_mao = w;
         J[w].fichas += pote;
-        snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
+        if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
+        else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
+        if (w == 1 && tem_reg(REG_BATEDOR) && J[0].fichas > 0) {   // o Ladrao leva mais 2 suas
+            int b = J[0].fichas < 2 ? J[0].fichas : 2;
+            J[0].fichas -= b;
+            J[1].fichas += b;
+            snprintf(aviso, sizeof aviso, "%s leva %d fichas, e mais %d suas", J[w].nome, pote, b);
+        }
+        if (tem_am(w, A_POTE)) {                 // Pote Gordo: 3 a mais
+            J[w].fichas += 3;
+            snprintf(aviso, sizeof aviso, "%s leva %d fichas (+3)", J[w].nome, pote);
+            am_acende(A_POTE);
+        }
         pote = 0;
         for (int k = 0; k < F[w].lancados; k++)
             if (F[w].est[k] == V_VALIDO && TIPO[tipo_de(w, k)].efeito == EF_FICHAS)
                 J[w].fichas += F[w].valor[k];
         som_toca(SOM_VITORIA);
     }
+    op_nervoso = venc_mao == 0;
+    if (venc_mao == 0) fala_evento(FA_PERDE_R);
+    else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;
@@ -2947,6 +3025,18 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 {
     if (n_zonas >= MAX_ZONAS) return;
     zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla };
+}
+
+// Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
+enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO };
+typedef struct { int16_t x, y, w, h; uint8_t tipo, id; } dica_t;
+#define MAX_DICAS 64
+static dica_t dicas[MAX_DICAS];
+static int n_dicas;
+static void dica_zona(int x, int y, int w, int h, int tipo, int id)
+{
+    if (n_dicas >= MAX_DICAS) return;
+    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id };
 }
 
 static bool mouse_em(int x, int y, int w, int h)
@@ -3317,7 +3407,7 @@ static void fila_imaginada(int r, bool toda)
     int n = 0;
     for (int i = 0; i < p->n_col; i++) if (toda || p->onde[i] != FORA) pool[n++] = p->col[i];
     if (n < N_FILA) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
-    int m = n < MAO ? n : MAO;
+    int m = n < tam_mao(r) ? n : tam_mao(r);
     for (int i = 0; i < m; i++) {
         int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
         peca_t t = pool[i]; pool[i] = pool[k]; pool[k] = t;
@@ -3390,7 +3480,7 @@ static void ia_planeja(void)
     int j = vez;
     if (plano_rodada == rodada && plano_vez == j) return;
     jogador_t *p = &J[j];
-    int n = p->n_mao, L = n < N_FILA ? n : N_FILA;
+    int n = p->n_mao, L = n < max_fila(j) ? n : max_fila(j);
     plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
     if (L <= 0) return;
 
@@ -3557,7 +3647,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
         fila_imaginada(r, true);
         peca_t mao[MAX_COL + 1];
         memcpy(mao, pool, sizeof pool);
-        int q = n < MAO ? n : MAO;
+        int q = n < tam_mao(j) ? n : tam_mao(j);
         for (int i = 0; i < q; i++) {
             int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
             peca_t t = mao[i]; mao[i] = mao[k]; mao[k] = t;
@@ -3825,6 +3915,8 @@ void dado_passo(float dt)
 {
     t_fase += dt;
     passo_slot(dt);
+    for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
+    if (t_fala > 0) t_fala -= dt;
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt) > 2.5f) t_sair = -1;
@@ -3898,13 +3990,16 @@ void dado_passo(float dt)
             F[j].lancados = k + 1;
             n_voo = 0;
             som_rufo(false);
+            am_disparou = 0;
             pousa(j, k, rola);
+            for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             // A Ventania tem o som dela quando rola os dados de antes.
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
             } else som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
+            if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             t_fase = 0;
             fase = F_VEREDITO;
         }
@@ -4028,6 +4123,9 @@ static void painel(int y, int h, int w)
     gfx_rect_alfa(GFX_W / 2 - w / 2, y, w, h, C_SOMBRA, 170);
 }
 
+static void amuletos_faixa(int x, int y);   // Modo Desafiante (desafio.inc)
+static int  retrato_faixa(int j, int y0);   // devolve onde o nome comeca
+
 static void faixa_jogador(int j)
 {
     jogador_t *p = &J[j];
@@ -4040,7 +4138,8 @@ static void faixa_jogador(int j)
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
     if (da_vez) gfx_rect(0, y0 + 2, 5, FAIXA_H - 4, p->cor);
-    int x = 18 + txt_nome(18, ty, j, da_vez);
+    int xn = modo == M_DESAFIO && j == 1 ? retrato_faixa(j, y0) : 18;
+    int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     char s[32];
     snprintf(s, sizeof s, "%d", p->fichas);
@@ -4054,6 +4153,7 @@ static void faixa_jogador(int j)
         txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
+    if (modo == M_DESAFIO && j == 0) amuletos_faixa(x + 60 + gfx_largura(s, 1), y0 + FAIXA_H / 2);
 
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
@@ -4149,6 +4249,7 @@ static void desenha_fila(int j)
                       && voo[0].dono == j && voo[0].slot == k;
         if (voando) continue;
         int t = tipo_de(j, k);
+        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
             marca_nivel = f->fixo[k];
@@ -4619,6 +4720,7 @@ static void desenha_ordem(void)
         }
         if (cur) gfx_rect(x - 18, y + 27, 36, 3, p->cor);
         zona_clique(x - 29, y - 29, 58, 58, &cursor, i, KEY_ENTER);
+        dica_zona(x - 29, y - 29, 58, 58, DICA_DADO, p->col[p->mao[i]].tipo);
     }
 
     char t[64];
@@ -4627,7 +4729,8 @@ static void desenha_ordem(void)
     int y1 = CENTRO - 44;
     painel(y1 - 6, 100, 470);
     txt_c(GFX_W / 2, y1, t, p->cor, true);
-    if (f->n == N_FILA) {
+    int cabe = max_fila(vez);
+    if (f->n >= cabe) {
         txt_c(GFX_W / 2, y1 + 30, "sequência cheia: TAB ou CTRL confirma", C_OURO, true);
     } else if (n) {
         dado_e_poder(y1 + 26, p->col[p->mao[cursor]].tipo, false);
@@ -4635,8 +4738,8 @@ static void desenha_ordem(void)
     // Rodape: a fila como vai ser jogada, da esquerda para a direita, e as
     // teclas (ou o aviso de que a bolsa embaralhou).
     // Rodape: so a fila como vai ser jogada, 1 » 2 » 3 » 4, no centro.
-    int ry = y1 + 80, fx = GFX_W / 2 - (N_FILA - 1) * 36 / 2;
-    for (int k = 0; k < N_FILA; k++) {
+    int ry = y1 + 80, fx = GFX_W / 2 - (cabe - 1) * 36 / 2;
+    for (int k = 0; k < cabe; k++) {
         int x = fx + k * 36;
         if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
         if (k < f->n) {
@@ -5325,23 +5428,130 @@ static void texto_mudo(int x, int y, const char *s, uint16_t c, int e, bool n)
     (void)x; (void)y; (void)s; (void)c; (void)e; (void)n;
 }
 
+typedef struct { int16_t x, y; uint8_t esc; bool neg; uint16_t cor; uint16_t ini; } texto_g_t;
+static texto_g_t txg[400];
+static char txg_letras[12000];
+static int n_txg, txg_usado;
+static gfx_texto_fn txg_destino;
+// Retangulos que tapam os textos guardados ANTES deles (o balao, a dica).
+static int ocl[4][5], n_ocl;
+static void tapa_textos(int x, int y, int w, int h)
+{
+    if (n_ocl >= 4) return;
+    ocl[n_ocl][0] = x; ocl[n_ocl][1] = y; ocl[n_ocl][2] = w; ocl[n_ocl][3] = h; ocl[n_ocl][4] = n_txg;
+    n_ocl++;
+}
+
 #include "desafio.inc"
 
 static void desenha_tudo(void);
+
+// ---------------------------------------------------------------------------
+// Dica do mouse. Os textos nitidos vao numa camada por cima de tudo; para a
+// caixa da dica nao ficar com texto vazando por baixo, os textos do quadro
+// ficam guardados e saem depois, menos os que a caixa cobre.
+// ---------------------------------------------------------------------------
+static void texto_guarda(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
+{
+    int n = (int)strlen(s) + 1;
+    if (n_txg >= (int)(sizeof txg / sizeof txg[0]) || txg_usado + n > (int)sizeof txg_letras) {
+        txg_destino(x, y, s, c, esc, negrito);           // sem espaco: sai na hora
+        return;
+    }
+    txg[n_txg++] = (texto_g_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, (uint16_t)txg_usado };
+    memcpy(txg_letras + txg_usado, s, (size_t)n);
+    txg_usado += n;
+}
+
+static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, const char **desc)
+{
+    if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_aro(id); *desc = TEXTO_MEDIO[id]; }
+    else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
+    else                           { *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra; }
+}
+
+// A caixa da dica sob o mouse, se houver. Devolve o retangulo em r.
+static bool dica_rect(int *r, const dica_t **qual)
+{
+    if (mouse_x < 0 || (detalhe >= 0 && fase == detalhe_fase)) return false;
+    const dica_t *d = NULL;
+    for (int i = n_dicas - 1; i >= 0 && !d; i--)
+        if (mouse_em(dicas[i].x, dicas[i].y, dicas[i].w, dicas[i].h)) d = &dicas[i];
+    if (!d) return false;
+    const char *nome, *desc;
+    uint16_t cor;
+    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    int larg = 260;
+    gfx_texto_fn antes = gfx_texto_nitido_atual();
+    gfx_texto_nitido(texto_mudo);                       // so conta as linhas
+    int linhas = quebra_linhas(0, 0, larg - 16, 5, desc, 0);
+    gfx_texto_nitido(antes);
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * (TXT_H + 4) + 4;
+    int x = mouse_x + 14, y = mouse_y + 16;
+    if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
+    if (y + h > GFX_H - 4) y = mouse_y - 12 - h;
+    if (x < 4) x = 4;
+    if (y < 4) y = 4;
+    r[0] = x; r[1] = y; r[2] = w; r[3] = h;
+    *qual = d;
+    return true;
+}
+
+static void desenha_dica(const int *r, const dica_t *d)
+{
+    const char *nome, *desc;
+    uint16_t cor;
+    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    gfx_rect(r[0] + 2, r[1] + 3, r[2], r[3], C_SOMBRA);
+    gfx_rect(r[0], r[1], r[2], r[3], C_BARRA);
+    gfx_moldura(r[0], r[1], r[2], r[3], 1, cor);
+    int x = r[0] + 8, y = r[1] + 5;
+    int w = gfx_texto(x, y, nome, cor, 1, true);
+    if (d->tipo == DICA_DADO) {                          // "D4 · raro", miudo, ao lado
+        char c2[32];
+        classe(d->id, c2, sizeof c2);
+        gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
+    }
+    quebra_linhas(x, y + TXT_H + 4, r[2] - 16, 5, desc, C_MARFIM_S);
+}
 
 void dado_desenha(void)
 {
     gfx_texto_fn nitido = gfx_texto_nitido_atual();
     bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
     if (mudo) gfx_texto_nitido(texto_mudo);
+    else if (nitido) { n_txg = txg_usado = 0; txg_destino = nitido; gfx_texto_nitido(texto_guarda); }
+    n_ocl = 0;
     n_zonas = 0;
+    n_dicas = 0;
     zonas_fase = fase;
     desenha_tudo();
+    balao_oponente();
     desenha_confete();
     if (mudo) gfx_texto_nitido(nitido);
-    if (fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA) return;
-    desenha_detalhe();
-    desenha_avisos();
+    bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
+    if (!menu) {
+        desenha_detalhe();
+        desenha_avisos();
+    }
+    int r[4];
+    const dica_t *d = NULL;
+    bool tem_dica = !menu && dica_rect(r, &d);
+    if (tem_dica) tapa_textos(r[0], r[1], r[2], r[3]);
+    if (!mudo && nitido) {                               // os textos guardados, menos os tapados
+        gfx_texto_nitido(nitido);
+        for (int i = 0; i < n_txg; i++) {
+            const texto_g_t *t = &txg[i];
+            const char *s = txg_letras + t->ini;
+            int tw = gfx_largura(s, t->esc), th = t->esc == GFX_MIUDO ? TXT_H * 2 / 3 : TXT_H * t->esc;
+            bool tapado = false;
+            for (int o = 0; o < n_ocl && !tapado; o++)
+                tapado = i < ocl[o][4] && t->x < ocl[o][0] + ocl[o][2] && t->x + tw > ocl[o][0]
+                         && t->y < ocl[o][1] + ocl[o][3] && t->y + th > ocl[o][1];
+            if (!tapado) nitido(t->x, t->y, s, t->cor, t->esc, t->neg);
+        }
+    }
+    if (tem_dica) desenha_dica(r, d);
 }
 
 static void desenha_tudo(void)
@@ -5426,7 +5636,7 @@ static void poe_na_fila(int i)
             f->fixo[k] = f->fixo[k + 1];
         }
         f->n--;
-    } else if (f->n < N_FILA) {
+    } else if (f->n < max_fila(vez)) {
         f->idx[f->n] = (int8_t)c;
         f->tipo[f->n] = p->col[c].tipo;
         f->fixo[f->n] = p->col[c].fixo;
@@ -5702,7 +5912,7 @@ static void trata_tecla(int k)
         fila_t *f = &F[vez];
         if (!p->n_mao) return;
         if (e) { cursor = (cursor + e + p->n_mao) % p->n_mao; return; }
-        if (k >= '1' && k <= '7' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
+        if (k >= '1' && k <= '8' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
         if (k == KEY_ENTER) { poe_na_fila(cursor); return; }
         if (k == KEY_BKSP && f->n) { f->n--; return; }
         if ((k == KEY_TAB || k == 'x') && f->n >= 1) { cursor = 0; fase = F_JOGA; }

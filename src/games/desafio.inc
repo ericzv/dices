@@ -162,6 +162,7 @@ static void fala_evento(int cat)
 // ampliado sem filtro. Movimento lento: respira, pisca e fala.
 // ---------------------------------------------------------------------------
 #define RT_W 22
+#define RETRATO_AVATAR 11                // os avatares vem depois dos 11 oponentes no desenho
 #define RT_H 27
 #define RT_TOPO 3                        // folga em cima para chapeus e coques
 static uint16_t rt[RT_H][RT_W];          // 0 = vazio (1 px de margem em volta)
@@ -233,6 +234,7 @@ static void tronco(uint16_t roupa, uint16_t pele, uint16_t camisa, uint16_t grav
 static void retrato(int x, int y, int esc, int perso, float t, bool falando, int l0, int nl)
 {
     memset(rt, 0, sizeof rt);
+    int fundo = 0;                               // os quadros tem paisagem atras
     // Respira devagar (1 px a cada 1,6 s); pisca de tempos em tempos.
     int dy = (int)(t / 1.6f) % 2;
     float ciclo = fmodf(t + perso * 0.77f, 3.9f);
@@ -350,6 +352,109 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rp(4, hy + 7, C_OURO); rp(15, hy + 7, C_OURO);
         break;
     }
+    case RETRATO_AVATAR + 0: {                                  // ET VILU: cabecao, olhos negros, antena
+        const uint16_t PELE = RGB(128, 184, 112), ROUPA = RGB(150, 160, 178);
+        tronco(ROUPA, PELE, 0, 0, 3);
+        rr(7, 17, 6, 1, RGB(84, 196, 200)); rp(9, 19, RGB(84, 196, 200)); rp(10, 19, RGB(84, 196, 200));
+        static const int8_t X0[13] = { 6, 5, 4, 4, 4, 4, 5, 5, 6, 6, 7, 8, 8 };
+        for (int i = 0; i < 13; i++) {
+            rr(X0[i], hy - 2 + i, 20 - 2 * X0[i], 1, PELE);
+            rp(19 - X0[i], hy - 2 + i, sombra(PELE));
+        }
+        rr(6, hy - 1, 3, 1, luz(PELE));                         // brilho do cocuruto
+        uint16_t olho = RGB(18, 20, 26);
+        if (pisca) { rr(5, hy + 5, 4, 1, sombra(PELE)); rr(11, hy + 5, 4, 1, sombra(PELE)); }
+        else {                                                  // olhos amendoados, grandes, puxados para fora
+            rr(4, hy + 2, 3, 1, olho); rr(4, hy + 3, 5, 1, olho); rr(5, hy + 4, 4, 1, olho); rr(6, hy + 5, 3, 1, olho);
+            rr(13, hy + 2, 3, 1, olho); rr(11, hy + 3, 5, 1, olho); rr(11, hy + 4, 4, 1, olho); rr(11, hy + 5, 3, 1, olho);
+            int g = (int)(t / 2.6f) % 2;                        // o brilho corre devagar
+            rp(5 + g, hy + 3, RGB(96, 120, 132)); rp(13 + g, hy + 3, RGB(96, 120, 132));
+        }
+        rp(9, hy + 7, sombra(PELE)); rp(10, hy + 7, sombra(PELE));
+        if (boca) rr(9, hy + 8, 2, 2, RGB(40, 30, 36));
+        else rr(9, hy + 9, 2, 1, sombra(sombra(PELE)));
+        int bal = (int)(t / 1.1f) % 4;                          // a antena balanca
+        int ax = 10 + (bal == 1) - (bal == 3);
+        rp(10, hy - 3, sombra(PELE)); rp(ax, hy - 4, sombra(PELE));
+        bool acesa = fmodf(t, 2.2f) < 1.5f;
+        rp(ax, hy - 5, acesa ? RGB(236, 246, 140) : RGB(130, 150, 80));
+        break;
+    }
+    case RETRATO_AVATAR + 1: {                                  // O BERRO: caveira palida, maos no rosto
+        fundo = 1;
+        const uint16_t PELE = RGB(212, 198, 150), CASACO = RGB(38, 44, 66);
+        rr(5, 16, 10, 6, CASACO); rr(4, 18, 12, 4, CASACO);     // casaco escuro, estreito
+        rr(5, 16, 1, 6, luz(CASACO));
+        rr(9, 14, 2, 2, sombra(PELE));
+        // Cranio comprido, de cabeca de pera: largo na testa, fino no queixo.
+        static const int8_t X0[14] = { 8, 7, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9 };
+        for (int i = 0; i < 14; i++) {
+            rr(X0[i], hy - 2 + i, 20 - 2 * X0[i], 1, PELE);
+            rp(19 - X0[i], hy - 2 + i, sombra(PELE));
+        }
+        rr(8, hy - 1, 3, 1, luz(PELE));
+        uint16_t oco = RGB(70, 66, 58);
+        rr(7, hy + 3, 2, 2, oco); rr(11, hy + 3, 2, 2, oco);   // olhos fundos
+        if (!pisca) { rp(8, hy + 3, luz(PELE)); rp(11, hy + 3, luz(PELE)); }
+        rp(9, hy + 5, sombra(PELE)); rp(10, hy + 5, sombra(PELE));
+        int ab = boca ? 1 : (int)(t / 1.8f) % 2 == 0;             // a boca em O, abrindo e fechando
+        rr(9, hy + 7, 2, 2 + ab, RGB(48, 36, 40));
+        rp(8, hy + 7 + ab, sombra(PELE)); rp(11, hy + 7 + ab, sombra(PELE));
+        // As maos coladas nas bochechas: a borda de dentro, mais escura, separa do rosto.
+        uint16_t mao = gfx_mistura(PELE, RGB(150, 160, 120), 25);
+        rr(5, hy + 3, 2, 7, mao); rr(13, hy + 3, 2, 7, mao);
+        rr(6, hy + 4, 1, 6, sombra(mao)); rr(13, hy + 4, 1, 6, sombra(mao));
+        rp(5, hy + 3, luz(mao)); rp(14, hy + 3, luz(mao));
+        rr(4, hy + 9, 3, 7, CASACO); rr(13, hy + 9, 3, 7, CASACO);   // bracos subindo
+        break;
+    }
+    case RETRATO_AVATAR + 2: {                                  // NOMALISA: cabelo repartido, veu, meio sorriso
+        fundo = 2;
+        const uint16_t PELE = RGB(222, 184, 126), CAB = RGB(58, 40, 28), VEST = RGB(56, 50, 34);
+        tronco(VEST, PELE, 0, 0, 2);
+        rr(7, 17, 6, 1, RGB(146, 116, 60));                     // bordado da gola
+        rr(3, hy + 2, 3, 13, CAB); rr(14, hy + 2, 3, 13, CAB);  // cabelo comprido, atras
+        rosto(hy, PELE, PELE, 2, pisca, boca);
+        if (!pisca) {                                           // os olhos que seguem quem olha
+            bool esq = fmodf(t, 7.0f) > 4.6f;
+            uint16_t olho = RGB(44, 30, 24);
+            rp(7, hy + 6, esq ? olho : C_MARFIM); rp(8, hy + 6, esq ? C_MARFIM : olho);
+            rp(11, hy + 6, esq ? olho : C_MARFIM); rp(12, hy + 6, esq ? C_MARFIM : olho);
+        }
+        rr(5, hy - 1, 4, 2, CAB); rr(11, hy - 1, 4, 2, CAB);    // repartido no meio
+        rr(9, hy - 1, 2, 1, sombra(PELE));
+        rr(5, hy + 1, 1, 4, CAB); rr(14, hy + 1, 1, 4, CAB);
+        rr(5, hy - 2, 10, 1, RGB(36, 30, 26));                  // o veu fino
+        rr(9, hy + 9, 2, 1, PELE);                              // o meio sorriso, sem dente
+        rp(8, hy + 8, RGB(160, 100, 76)); rp(11, hy + 8, RGB(160, 100, 76));
+        if (!boca) { rr(9, hy + 9, 2, 1, RGB(176, 120, 90)); }
+        else rr(9, hy + 9, 2, 1, RGB(110, 60, 50));
+        rr(10, 20, 6, 2, PELE); rr(9, 21, 2, 1, sombra(PELE));  // as maos cruzadas
+        break;
+    }
+    case RETRATO_AVATAR + 3: {                                  // INTERRUPTOR DO FUTURO: meio rosto de metal
+        const uint16_t PELE = P_MEDIA, MET = RGB(150, 156, 164), JAQ = RGB(34, 32, 36);
+        tronco(JAQ, PELE, RGB(56, 54, 60), 0, 0);
+        rr(3, 17, 3, 2, RGB(62, 60, 66)); rr(14, 17, 3, 2, RGB(62, 60, 66));     // gola de couro
+        bool liga = fmodf(t, 5.0f) < 4.2f;                      // o interruptor do peito
+        rr(13, 19, 3, 3, C_MARFIM); rp(14, liga ? 19 : 21, RGB(90, 90, 96)); rp(14, 20, RGB(120, 120, 126));
+        rosto(hy, PELE, PRETO, 1, pisca, boca);
+        for (int i = 0; i < 12; i++) {                          // metade direita: o cranio de metal
+            int x1 = i < 1 || i > 10 ? 12 : 14;
+            if (i == 11) x1 = 12;
+            rr(10, hy + i, x1 - 10 + 1, 1, i & 1 ? MET : luz(MET));
+        }
+        rr(10, hy + 1, 1, 10, sombra(MET));                     // a costura entre os dois lados
+        rp(13, hy + 3, sombra(MET)); rp(13, hy + 9, sombra(MET));
+        float pul = fmodf(t, 1.6f);                             // o olho vermelho pulsando
+        uint16_t olho = !liga ? RGB(70, 20, 20) : (pul < 0.5f ? RGB(255, 70, 50) : (pul < 1.1f ? RGB(214, 44, 36) : RGB(160, 30, 30)));
+        rr(11, hy + 6, 2, 2, olho);
+        if (liga && pul < 0.5f) rp(13, hy + 6, gfx_mistura(olho, MET, 50));
+        for (int i = 0; i < 3; i++) rp(11 + i, hy + 9, i & 1 ? sombra(MET) : C_MARFIM);   // dentes
+        rr(5, hy - 1, 6, 2, PRETO); rr(5, hy + 1, 1, 2, PRETO);   // cabelo curto, so do lado humano
+        rr(10, hy - 1, 4, 2, sombra(MET));
+        break;
+    }
     default: {                                                  // BARAO: cartola, monoculo, bigodao branco
         tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
         rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
@@ -379,6 +484,29 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
                       || (j > 0 && rt[j - 1][i] > 1) || (j + 1 < RT_H && rt[j + 1][i] > 1);
             if (perto) rt[j][i] = 1;                           // 1 = contorno
         }
+    if (fundo) {
+        int fase_c = (int)(t / 1.4f) % 4;                      // o ceu ondula devagar
+        for (int j = 0; j < RT_H; j++)
+            for (int i = 0; i < RT_W; i++) {
+                if (rt[j][i]) continue;
+                uint16_t c;
+                if (fundo == 1) {                              // o ceu em fogo, o fiorde e a ponte
+                    static const uint16_t CEU[4] = { RGB(226, 120, 52), RGB(196, 72, 44), RGB(232, 168, 70), RGB(208, 98, 48) };
+                    static const uint16_t MAR[3] = { RGB(42, 66, 108), RGB(60, 92, 132), RGB(36, 54, 86) };
+                    int ponte = RT_H - 2 - i * 9 / RT_W;
+                    if (j == ponte || j == ponte + 2) c = RGB(122, 78, 44);
+                    else if (j > ponte) c = RGB(150, 106, 62);
+                    else if (j < 12) c = CEU[((j + i / 4 + fase_c) & 7) >> 1];
+                    else c = MAR[((j + (i + fase_c) / 3) % 6) >> 1];
+                } else {                                       // paisagem enevoada, caminho sinuoso
+                    int h1 = 13 + (i * 3 % 7) / 3, h2 = 17 + ((i + 3) % 9) / 4;
+                    if (j < h1) c = j < 6 ? RGB(178, 182, 132) : RGB(156, 170, 128);
+                    else if (j < h2) c = RGB(102, 124, 102);
+                    else c = (i + j / 2) % 7 == 0 ? RGB(150, 112, 66) : RGB(74, 82, 56);
+                }
+                rt[j][i] = c;
+            }
+    }
     for (int j = l0; j < l0 + nl && j < RT_H; j++)
         for (int i = 0; i < RT_W; i++)
             if (rt[j][i]) gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, rt[j][i] == 1 ? contorno : rt[j][i]);
@@ -402,15 +530,19 @@ static void desenha_balao(int x, int y, const char *s)
 
 // Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
 // balao logo abaixo. Devolve onde o nome comeca.
+static int avatar_retrato(void);
 static int retrato_faixa(int j, int y0)
 {
-    if (fala_perso < 0) return 18;
+    int perso = j == 1 ? fala_perso : avatar_retrato();
+    if (perso < 0) return 18;
     int x = 6, esc = 2, corte = 3;              // em cima so tem a ponta da cartola
-    gfx_rect(x - 2, y0, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
-    retrato(x, y0, esc, fala_perso, t_fase + fala_perso * 1.3f, t_fala > 0.3f, corte, (FAIXA_H - 2) / esc);
-    gfx_rect(x - 2, y0 + FAIXA_H - 2, RT_W * esc + 4, 2, C_LATAO_ESC);
-    dica_zona(x, y0, RT_W * esc, FAIXA_H, DICA_TRUNFO, fala_perso);
-    (void)j;
+    int y = j == 1 ? y0 : y0 + 2;
+    gfx_rect(x - 2, y, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
+    retrato(x, y, esc, perso, t_fase + perso * 1.3f, j == 1 && t_fala > 0.3f, corte, (FAIXA_H - 2) / esc);
+    if (j == 1) {
+        gfx_rect(x - 2, y0 + FAIXA_H - 2, RT_W * esc + 4, 2, C_LATAO_ESC);
+        dica_zona(x, y0, RT_W * esc, FAIXA_H, DICA_TRUNFO, fala_perso);
+    }
     return x + RT_W * esc + 8;
 }
 
@@ -469,13 +601,21 @@ typedef struct {
     uint8_t  am_volta;                   // depois da escolha: 0 loja da entrada, 1 segue no mapa
     uint8_t  am_loja, am_levou;          // amuleto a venda na loja (0xFF: nenhum)
     uint8_t  juros;                      // moedas que o Cofre rendeu na ultima vitoria
+    // Desde as dificuldades (um arquivo antigo carrega com tudo zerado):
+    uint8_t  dificuldade;                // 0 normal .. 5 diamante
+    uint16_t amuletos_hi;                // amuletos 16 em diante
+    uint8_t  taca;                       // moedas que a Taca rendeu na ultima vitoria
 } run_t;
+#define RUN_TAM_V2 252                   // o run_t antes das dificuldades
 #define RUN_TAM_V1 244                   // o run_t antes dos amuletos
 
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa
 
 static bool  des_venceu_run;             // tela final: venceu o Barao?
+static int   des_liberou = -1;           // tela final: dificuldade que acabou de abrir
+static int   des_dif;                    // dificuldade escolhida para a proxima run
+static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou
 static int   des_perdeu_para = -1;       // quem encerrou a run (indice em PERSO)
 static int   des_perdeu_andar;
 
@@ -503,16 +643,36 @@ static const amuleto_t AMULETO[A_N] = {
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 15 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 3 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
+    [A_FERRADURA]= { "Ferradura",     "Na primeira queda de cada rodada, nenhum dos dois dados cai.", C_PRATA },
+    [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
+    [A_RELOGIO]  = { "Relógio de Bolso", "O oponente sempre abre a rodada; você joga depois.", RGB(214, 186, 110) },
+    [A_CARTOLA]  = { "Cartola",       "O prêmio de cada mesa vencida sobe um nível.", RGB(150, 110, 170) },
+    [A_COROA]    = { "Coroa do Azarão", "Começando a rodada com menos fichas que o oponente, seus dados valem +1.", RGB(226, 176, 70) },
+    [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 25% menos.", RGB(120, 190, 150) },
+    [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 passa a valer 3.", RGB(150, 150, 160) },
+    [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 2 moedas por rodada que você venceu nela.", C_OURO },
+    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale x2.", RGB(206, 80, 110) },
+    [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
 };
 #define AM_PRECO 70
 
-static int am_conta(uint16_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
+
+static int am_conta(uint32_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
+static uint32_t run_amuletos(void) { return (uint32_t)run.amuletos | (uint32_t)run.amuletos_hi << 16; }
+static void run_poe_amuleto(int a)
+{
+    uint32_t m = run_amuletos() | 1u << a;
+    run.amuletos = (uint16_t)m;
+    run.amuletos_hi = (uint16_t)(m >> 16);
+}
+static bool amuleto_liberado(int a);
+static bool dado_liberado(int t);
 
 // Sorteia n amuletos diferentes que a run ainda nao tem (0xFF se faltar).
 static void sorteia_amuletos(uint8_t *out, int n)
 {
     int livres[A_N], nl = 0;
-    for (int a = 0; a < A_N; a++) if (!(run.amuletos >> a & 1)) livres[nl++] = a;
+    for (int a = 0; a < A_N; a++) if (!(run_amuletos() >> a & 1) && amuleto_liberado(a)) livres[nl++] = a;
     for (int i = 0; i < n; i++) {
         if (!nl) { out[i] = 0xFF; continue; }
         int q = sorte_r(nl);
@@ -641,18 +801,126 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
         gfx_rect(PX(2.0f), PY(4.8f), U + 1, U, bronze);
         break;
     }
+    case A_FERRADURA: {                                // ferradura aberta para cima, com os cravos
+        uint16_t fundo = gfx_mistura(cor, C_BARRA, 78), som = gfx_mistura(cor, C_BARRA, 35);
+        gfx_disco(x, PY(0.8f), (int)(4.6f * u + 0.5f), cor);
+        gfx_disco(x, PY(0.8f), (int)(2.2f * u + 0.5f), fundo);
+        gfx_rect(PX(-2.2f), PY(-5.0f), (int)(4.4f * u) + 1, (int)(5.8f * u), fundo);
+        gfx_rect(PX(-4.6f), PY(-3.6f), (int)(2.4f * u) + 1, (int)(4.4f * u), cor);
+        gfx_rect(PX(2.2f), PY(-3.6f), (int)(2.4f * u) + 1, (int)(4.4f * u), cor);
+        gfx_rect(PX(-5.0f), PY(-4.4f), (int)(3.0f * u) + 1, (int)(1.2f * u) + 1, som);    // as pontas viradas
+        gfx_rect(PX(2.0f), PY(-4.4f), (int)(3.0f * u) + 1, (int)(1.2f * u) + 1, som);
+        static const float C[6][2] = { {-3.4f,-1.8f}, {-3.4f,1.2f}, {-1.4f,3.8f}, {1.4f,3.8f}, {3.4f,1.2f}, {3.4f,-1.8f} };
+        for (int i = 0; i < 6; i++) gfx_rect(PX(C[i][0]) - (U > 1), PY(C[i][1]) - (U > 1), U, U, C_EBANO_B);
+        break;
+    }
+    case A_PESADO: {                                   // d6 de ferro, grosso, mostrando 6
+        int l = (int)(7.0f * u) + 1, d = U + 1;
+        int x0 = PX(-4.0f), y0 = PY(-3.4f);
+        gfx_rect(x0 + d, y0 + d, l, l, gfx_mistura(cor, C_BARRA, 55));        // a espessura
+        gfx_rect(x0, y0, l, l, gfx_mistura(cor, C_BRANCO, 30));
+        gfx_rect(x0, y0, l, U, gfx_mistura(cor, C_BRANCO, 60));
+        for (int i = 0; i < 3; i++) {
+            gfx_rect(PX(-2.4f), PY(-2.0f + i * 2.0f), U, U, C_EBANO_B);
+            gfx_rect(PX(0.8f), PY(-2.0f + i * 2.0f), U, U, C_EBANO_B);
+        }
+        break;
+    }
+    case A_RELOGIO:                                    // relogio de bolso com a coroa em cima
+        gfx_rect(PX(-0.8f), PY(-5.4f), (int)(1.6f * u) + 1, (int)(1.4f * u) + 1, cor);
+        gfx_disco(x, PY(0.6f), (int)(4.4f * u + 0.5f), cor);
+        gfx_disco(x, PY(0.6f), (int)(3.4f * u + 0.5f), claro);
+        for (int i = 0; i < 4; i++) {
+            float an = i * 1.5708f;
+            gfx_rect(x + (int)(cosf(an) * 2.7f * u), PY(0.6f) + (int)(sinf(an) * 2.7f * u), 1, 1, esc);
+        }
+        gfx_linha_grossa(x, PY(0.6f), x, PY(-1.8f), 1, C_EBANO_B);
+        gfx_linha_grossa(x, PY(0.6f), PX(1.8f), PY(1.4f), 1, C_EBANO_B);
+        break;
+    case A_CARTOLA:                                    // cartola preta com fita
+        gfx_rect(PX(-4.8f), PY(2.6f), (int)(9.6f * u) + 1, (int)(1.4f * u) + 1, C_EBANO_B);
+        gfx_rect(PX(-2.8f), PY(-4.4f), (int)(5.6f * u) + 1, (int)(7.2f * u), C_EBANO_B);
+        gfx_rect(PX(-2.8f), PY(0.6f), (int)(5.6f * u) + 1, (int)(1.4f * u) + 1, cor);
+        gfx_rect(PX(-2.2f), PY(-3.8f), U, (int)(3.6f * u), gfx_mistura(C_EBANO_B, C_BRANCO, 25));
+        break;
+    case A_COROA: {                                    // coroa amassada: uma ponta torta
+        float vx[9] = { (float)PX(-4.2f), (float)PX(-4.2f), (float)PX(-2.4f), (float)PX(-1.2f), (float)x,
+                        (float)PX(1.4f), (float)PX(4.0f), (float)PX(4.2f), (float)PX(4.2f) };
+        float vy[9] = { (float)PY(3.2f), (float)PY(-3.8f), (float)PY(-0.6f), (float)PY(-4.4f), (float)PY(-0.6f),
+                        (float)PY(-0.4f), (float)PY(-2.6f), (float)PY(0), (float)PY(3.2f) };
+        poligono(vx, vy, 9, cor);
+        gfx_rect(PX(-4.2f), PY(1.6f), (int)(8.4f * u) + 1, U, esc);
+        gfx_rect(PX(-2.6f), PY(2.4f), U, U, C_VERMELHO);
+        gfx_rect(PX(1.8f), PY(2.4f), U, U, C_AZUL);
+        break;
+    }
+    case A_CUPOM:                                      // tiquete com recortes e o sinal de %
+        gfx_rect(PX(-4.6f), PY(-3.0f), (int)(9.2f * u) + 1, (int)(6.0f * u) + 1, claro);
+        gfx_disco(PX(-4.6f), y, (int)(1.2f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
+        gfx_disco(PX(4.6f), y, (int)(1.2f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
+        gfx_linha_grossa(PX(1.6f), PY(-1.8f), PX(-1.6f), PY(1.8f), 1, cor);
+        gfx_rect(PX(-1.8f), PY(-1.8f), U + 1, U + 1, cor);
+        gfx_rect(PX(1.0f), PY(1.0f), U + 1, U + 1, cor);
+        break;
+    case A_PRENSA: {                                   // prensa apertando um dado que mostra 3
+        uint16_t ferro = gfx_mistura(cor, C_BARRA, 25);
+        gfx_rect(PX(-3.0f), PY(-5.4f), (int)(6.0f * u) + 1, U, esc);              // manivela
+        gfx_rect(PX(-0.5f), PY(-5.0f), U, (int)(2.0f * u), esc);                  // fuso
+        gfx_rect(PX(-4.2f), PY(-3.2f), (int)(8.4f * u) + 1, (int)(1.2f * u) + 1, ferro);
+        gfx_rect(PX(-4.2f), PY(3.4f), (int)(8.4f * u) + 1, (int)(1.2f * u) + 1, ferro);
+        int l = (int)(5.0f * u) + 1;
+        gfx_rect(PX(-2.5f), PY(-1.8f), l, l, C_MARFIM);
+        for (int i = -1; i <= 1; i++) gfx_rect(PX(i * 1.4f) - U / 2, PY(0.7f - i * 1.4f) - U / 2, U, U, C_EBANO_B);
+        break;
+    }
+    case A_TACA:                                       // taca com alcas, haste e base
+        gfx_disco(x, PY(-2.4f), (int)(3.4f * u + 0.5f), cor);
+        gfx_rect(PX(-3.4f), PY(-4.6f), (int)(6.8f * u) + 1, (int)(2.2f * u), cor);
+        gfx_disco(PX(-3.8f), PY(-2.6f), (int)(1.4f * u + 0.5f), esc);
+        gfx_disco(PX(3.8f), PY(-2.6f), (int)(1.4f * u + 0.5f), esc);
+        gfx_disco(PX(-3.8f), PY(-2.6f), (int)(0.6f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
+        gfx_disco(PX(3.8f), PY(-2.6f), (int)(0.6f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
+        gfx_disco(x, PY(-2.4f), (int)(3.4f * u + 0.5f), cor);
+        gfx_rect(PX(-0.6f), PY(0.8f), (int)(1.2f * u) + 1, (int)(2.4f * u), esc);
+        gfx_rect(PX(-2.6f), PY(3.2f), (int)(5.2f * u) + 1, (int)(1.4f * u) + 1, cor);
+        gfx_rect(PX(-1.8f), PY(-4.0f), U, (int)(2.6f * u), gfx_mistura(cor, C_BRANCO, 45));
+        break;
+    case A_CORINGA: {                                  // carta com a estrela do coringa
+        gfx_rect(PX(-3.2f), PY(-4.6f), (int)(6.4f * u) + 1, (int)(9.2f * u) + 1, claro);
+        float vx[10], vy[10];
+        for (int i = 0; i < 10; i++) {
+            float an = -1.5708f + i * 0.6283f, rr = (i & 1 ? 1.1f : 2.6f) * u;
+            vx[i] = x + cosf(an) * rr; vy[i] = y + sinf(an) * rr;
+        }
+        poligono(vx, vy, 10, cor);
+        gfx_rect(PX(-2.6f), PY(-4.0f), U, U, cor);
+        gfx_rect(PX(1.8f), PY(3.2f), U, U, cor);
+        break;
+    }
+    case A_DUPLA:                                      // dois dados iguais, mostrando 2
+        for (int i = 0; i < 2; i++) {
+            int lado = (int)(4.6f * u) + 1;
+            int dx = i ? PX(0.2f) : PX(-4.8f), dy = i ? PY(-0.6f) : PY(-3.8f);
+            gfx_rect(dx, dy, lado, lado, C_EBANO_B);
+            gfx_rect(dx + 1, dy + 1, lado - 2, lado - 2, C_MARFIM);
+            int m = lado / 4 + (U > 1);
+            gfx_rect(dx + m, dy + m, U, U, C_EBANO_B);
+            gfx_rect(dx + lado - m - U, dy + lado - m - U, U, U, C_EBANO_B);
+        }
+        break;
     }
 #undef PX
 #undef PY
 }
 
 // Os amuletos da run, miudos, numa linha (na faixa da partida): os que
-// acabaram de agir acendem.
-static void amuletos_faixa(int x, int y)
+// acabaram de agir acendem. Do oponente, so o que o Diamante deu (o trunfo
+// dele ja aparece no retrato).
+static void amuletos_faixa(int j, int x, int y)
 {
     int n = 0;
     for (int a = 0; a < A_N && n < 9; a++) {
-        if (!(amul[0] >> a & 1)) continue;
+        if (!(amul[j] >> a & 1) || (j == 1 && a != op_amul_extra)) continue;
         int cx = x + n * 19;
         if (am_brilho[a] > 0) {
             int rr = 10 + (int)((1.2f - am_brilho[a]) * 6);
@@ -664,6 +932,107 @@ static void amuletos_faixa(int x, int y)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Perfis: ate 3 por aparelho. Cada um tem nome, avatar e o que liberou no
+// Modo Desafiante (a dificuldade mais alta e o que vem com ela); cada um
+// guarda a sua run.
+// ---------------------------------------------------------------------------
+#define N_PERFIS 3
+#define N_NIVEIS 5                       // dificuldades acima da normal
+enum { AV_ET, AV_BERRO, AV_NOMALISA, AV_INTERRUPTOR, AV_N };
+static const char *const NOME_AVATAR[AV_N] = { "ET Vilu", "O Berro", "Nomalisa", "Interruptor do Futuro" };
+
+typedef struct {
+    char     nome[12];                   // "" = lugar vazio
+    uint8_t  avatar, nivel;              // nivel: a dificuldade mais alta liberada
+    uint8_t  venceu[N_NIVEIS + 1];       // Barao vencido em cada dificuldade
+    uint16_t runs;
+} perfil_t;
+static perfil_t perfis[N_PERFIS];
+static int perfil_atual = -1;
+static bool perfis_lidos;
+
+static const char *chave_run(void)
+{
+    static const char *const K[N_PERFIS] = { "desafio", "desafio2", "desafio3" };
+    return K[perfil_atual >= 0 && perfil_atual < N_PERFIS ? perfil_atual : 0];
+}
+
+static const perfil_t *perfil(void)
+{
+    static const perfil_t nenhum = { "VOCÊ", 0, 0, { 0 }, 0 };
+    return perfil_atual >= 0 && perfis[perfil_atual].nome[0] ? &perfis[perfil_atual] : &nenhum;
+}
+
+static void hex_de(const void *p, size_t n, char *out)
+{
+    const uint8_t *b = (const uint8_t *)p;
+    for (size_t i = 0; i < n; i++) {
+        out[2 * i]     = "0123456789abcdef"[b[i] >> 4];
+        out[2 * i + 1] = "0123456789abcdef"[b[i] & 15];
+    }
+    out[2 * n] = 0;
+}
+static int hexv(char c) { return c >= '0' && c <= '9' ? c - '0' : (c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1); }
+static bool de_hex(const char *s, void *p, size_t n)
+{
+    uint8_t *b = (uint8_t *)p;
+    for (size_t i = 0; i < n; i++) {
+        int a = hexv(s[2 * i]), c = hexv(s[2 * i + 1]);
+        if (a < 0 || c < 0) return false;
+        b[i] = (uint8_t)(a << 4 | c);
+    }
+    return true;
+}
+
+// "PER1" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+static void perfis_salva(void)
+{
+    static char buf[8 + 2 * sizeof perfis + 1];
+    memcpy(buf, "PER1", 4);
+    buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
+    hex_de(perfis, sizeof perfis, buf + 5);
+    salva_grava("perfis", buf);
+}
+
+static void perfis_le(void)
+{
+    if (perfis_lidos) return;
+    perfis_lidos = true;
+    memset(perfis, 0, sizeof perfis);
+    perfil_atual = -1;
+    static char buf[16 + 2 * sizeof perfis];
+    int n = salva_le("perfis", buf, (int)sizeof buf);
+    if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER1", 4)) return;
+    perfil_t lido[N_PERFIS];
+    if (!de_hex(buf + 5, lido, sizeof lido)) return;
+    for (int i = 0; i < N_PERFIS; i++) {
+        lido[i].nome[sizeof lido[i].nome - 1] = 0;
+        if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
+        if (lido[i].nivel > N_NIVEIS) lido[i].nivel = N_NIVEIS;
+    }
+    memcpy(perfis, lido, sizeof perfis);
+    int a = buf[4] - '0';
+    if (a >= 0 && a < N_PERFIS && perfis[a].nome[0]) perfil_atual = a;
+}
+
+// Conteudo liberado: o que vem com cada dificuldade.
+static const uint8_t NIVEL_AMULETO[A_N] = {
+    [A_FERRADURA] = 1, [A_PESADO] = 1, [A_RELOGIO] = 2, [A_CARTOLA] = 2, [A_COROA] = 3,
+    [A_CUPOM] = 3, [A_PRENSA] = 4, [A_TACA] = 4, [A_CORINGA] = 5, [A_DUPLA] = 5 };
+static int nivel_do_dado(int t)
+{
+    switch (t) {
+    case D_BUMERANGUE: return 1;
+    case D_GEMEO:      return 2;
+    case D_PRISMA:     return 3;
+    case D_FENIX:      return 4;
+    case D_TRONO:      return 5;
+    default:           return 0;
+    }
+}
+static bool dado_liberado(int t)  { return nivel_do_dado(t) <= perfil()->nivel; }
+static bool amuleto_liberado(int a) { return NIVEL_AMULETO[a] <= perfil()->nivel; }
 
 // ---------------------------------------------------------------------------
 // Dados sorteados por raridade
@@ -673,10 +1042,10 @@ static void amuletos_faixa(int x, int y)
 static int sorteia_raridade(const float w[4])
 {
     float total = 0;
-    for (int t = 0; t < D_N; t++) if (!so_inicial(t)) total += w[TIPO[t].raridade];
+    for (int t = 0; t < D_N; t++) if (!so_inicial(t) && dado_liberado(t)) total += w[TIPO[t].raridade];
     float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
     for (int t = 0; t < D_N; t++) {
-        if (so_inicial(t)) continue;
+        if (so_inicial(t) || !dado_liberado(t)) continue;
         x -= w[TIPO[t].raridade];
         if (x < 0) return t;
     }
@@ -715,11 +1084,19 @@ static const float PESO_PREMIO[4][4] = {
 
 // Loja: caro de proposito, para a bolsa nao encher. Com as 50 moedas do
 // comeco, da para um dado incomum ou um comum.
+// A dificuldade Prata encarece a loja; o Cupom barateia.
+static int preco_ajusta(int p)
+{
+    if (run.dificuldade >= 2) p = p * 5 / 4;
+    if (run_amuletos() >> A_CUPOM & 1) p = p * 3 / 4;
+    return p;
+}
 static int preco_run(int t)
 {
     static const int P[4] = { 25, 40, 60, 90 };
-    return P[TIPO[t].raridade];
+    return preco_ajusta(P[TIPO[t].raridade]);
 }
+static int preco_am(void) { return preco_ajusta(AM_PRECO); }
 
 static void monta_loja_run(void)
 {
@@ -847,6 +1224,10 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         int t = (n_fav && sorte_r(100) < 45) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
+    if (run.dificuldade >= 3) {                  // Ouro: dois dados raros a mais
+        static const float RARO[4] = { 0, 0.5f, 3, 1.5f };
+        for (int i = 0; i < 2 && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
+    }
     // Recheio: dados simples (ou de efeito fraco) ate um tamanho minimo de
     // bolsa. Sem isso, um oponente de poucos dados poe os seus dois ou tres
     // dados bons na mao quase toda rodada.
@@ -861,38 +1242,35 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
 // ---------------------------------------------------------------------------
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
+// A IA da mesa: Prata faz as mesas dificeis pensarem mais; Diamante, os chefes.
+static int nivel_mesa(const no_t *no)
+{
+    bool pensa = (run.dificuldade >= 2 && no->tipo == NO_DIFICIL) || (run.dificuldade >= 5 && no->tipo == NO_CHEFE);
+    return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
+}
+
 static void des_salva(void)
 {
     static char buf[2 * sizeof(run_t) + 1];
-    const uint8_t *b = (const uint8_t *)&run;
-    for (size_t i = 0; i < sizeof run; i++) {
-        buf[2 * i]     = "0123456789abcdef"[b[i] >> 4];
-        buf[2 * i + 1] = "0123456789abcdef"[b[i] & 15];
-    }
-    buf[2 * sizeof run] = 0;
-    salva_grava(buf);
+    hex_de(&run, sizeof run, buf);
+    salva_grava(chave_run(), buf);
 }
-
-static int hexv(char c) { return c >= '0' && c <= '9' ? c - '0' : (c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1); }
 
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
-    int n = salva_le(buf, (int)sizeof buf);
-    // O arquivo de antes dos amuletos (mais curto) carrega com eles zerados.
-    if (n != (int)(2 * sizeof(run_t)) && n != 2 * RUN_TAM_V1) return false;
+    int n = salva_le(chave_run(), buf, (int)sizeof buf);
+    // Os arquivos de antes (sem amuletos; sem dificuldade) carregam com o
+    // que falta zerado.
+    if (n != (int)(2 * sizeof(run_t)) && n != 2 * RUN_TAM_V1 && n != 2 * RUN_TAM_V2) return false;
     size_t tam = (size_t)n / 2;
     memset(r, 0, sizeof *r);
-    uint8_t *b = (uint8_t *)r;
-    for (size_t i = 0; i < tam; i++) {
-        int a = hexv(buf[2 * i]), c = hexv(buf[2 * i + 1]);
-        if (a < 0 || c < 0) return false;
-        b[i] = (uint8_t)(a << 4 | c);
-    }
+    if (!de_hex(buf, r, tam)) return false;
     if (memcmp(r->marca, "DES1", 4) || r->andar >= DES_ANDARES || r->passo >= DES_PASSOS
         || r->estado > R_AMULETO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
     if (tam == RUN_TAM_V1) r->am_loja = 0xFF;            // loja de antes: sem amuleto
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
+    if (r->dificuldade > N_NIVEIS) return false;
     return true;
 }
 
@@ -940,7 +1318,15 @@ static void abre_loja_run(void)
 static void encerra_run(bool venceu)
 {
     des_venceu_run = venceu;
-    salva_apaga();
+    des_liberou = -1;
+    if (venceu && perfil_atual >= 0) {          // venceu o Barao: a proxima dificuldade abre
+        perfil_t *p = &perfis[perfil_atual];
+        int d = run.dificuldade;
+        if (p->venceu[d] < 255) p->venceu[d]++;
+        if (d == p->nivel && p->nivel < N_NIVEIS) { p->nivel++; des_liberou = p->nivel; }
+        perfis_salva();
+    }
+    salva_apaga(chave_run());
     t_fase = 0;
     fase = F_RFIM;
 }
@@ -988,7 +1374,7 @@ static void oferece_amuleto(int volta)
 
 static void amuleto_escolhido(int i)
 {
-    if (i >= 0 && i < 3 && run.am_oferta[i] != 0xFF) run.amuletos |= (uint16_t)(1u << run.am_oferta[i]);
+    if (i >= 0 && i < 3 && run.am_oferta[i] != 0xFF) run_poe_amuleto(run.am_oferta[i]);
     som_toca(SOM_PREMIO);
     solta_confete(60);
     if (run.am_volta == 0) {
@@ -1008,7 +1394,9 @@ static void des_nova_run(void)
     memcpy(run.marca, "DES1", 4);
     run.semente = ((uint32_t)esp_timer_get_time() * 2654435761u) ^ 0x5bd1e995u;
     if (!run.semente) run.semente = 1;
-    run.moedas = DES_MOEDAS;
+    run.dificuldade = (uint8_t)des_dif;
+    run.moedas = run.dificuldade >= 4 ? 30 : DES_MOEDAS;
+    if (perfil_atual >= 0) { if (perfis[perfil_atual].runs < 65535) perfis[perfil_atual].runs++; perfis_salva(); }
     static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
     for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
     gera_andar();
@@ -1031,11 +1419,22 @@ static void des_comeca_partida(void)
     som_rufo(false);
     memset(J, 0, sizeof J);
     memset(F, 0, sizeof F);
-    J[0].nome = "VOCÊ";
+    J[0].nome = perfil()->nome;
     J[0].cor = C_LATAO;
-    amul[0] = run.amuletos;
+    amul[0] = run_amuletos();
     memset(am_brilho, 0, sizeof am_brilho);
     amul[1] = PERSO[no->perso].amul;              // o trunfo do oponente
+    op_amul_extra = -1;
+    if (run.dificuldade >= 5) {                   // Diamante: mais um amuleto para ele
+        static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
+                                         A_COURACA, A_RESERVA, A_POTE, A_FURADO };
+        uint32_t h = no->semente * 2246822519u;
+        for (int i = 0; i < 4; i++) {
+            int a = EXTRA[(h >> (i * 8)) % sizeof EXTRA];
+            if (!(amul[1] >> a & 1)) { amul[1] |= 1u << a; op_amul_extra = a; break; }
+        }
+    }
+    des_rod_vencidas = 0;
     reg_op = PERSO[no->perso].reg;
     op_nervoso = false;
     fala_perso = no->perso;
@@ -1045,11 +1444,11 @@ static void des_comeca_partida(void)
     memcpy(J[0].col, run.col, sizeof run.col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
-    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0);
+    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 ? 10 : 0);
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
-    nivel_jog[1] = no->nivel;
+    nivel_jog[1] = nivel_mesa(no);
     ousadia_jog[1] = PERSO[no->perso].ousadia;
     rodada = 0;
     pote = 0;
@@ -1076,22 +1475,28 @@ static void des_resultado(void)
     if (venc_partida != 0) {
         des_perdeu_para = no->perso;
         des_perdeu_andar = run.andar;
-        salva_apaga();
+        salva_apaga(chave_run());
         return;
     }
     run.vitorias++;
     run.ganho = J[0].fichas;
-    if (run.amuletos >> A_CONTRATO & 1) run.ganho += J[0].fichas / 2;     // Contrato Sujo: +50%
+    if (run_amuletos() >> A_CONTRATO & 1) run.ganho += J[0].fichas / 2;     // Contrato Sujo: +50%
     run.juros = 0;
-    if (run.amuletos >> A_COFRE & 1) {                                    // Cofre: 1 a cada 5
+    if (run_amuletos() >> A_COFRE & 1) {                                    // Cofre: 1 a cada 5
         int j = (run.moedas + run.ganho) / 5;
         run.juros = (uint8_t)(j > 15 ? 15 : j);
     }
-    run.moedas += run.ganho + run.juros;
+    run.taca = 0;
+    if (run_amuletos() >> A_TACA & 1) {                                     // Taca: 2 por rodada vencida
+        int t = 2 * des_rod_vencidas;
+        run.taca = (uint8_t)(t > 40 ? 40 : t);
+    }
+    run.moedas += run.ganho + run.juros + run.taca;
     run.tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
+    int tp = run.tier + ((run_amuletos() >> A_CARTOLA & 1) && run.tier < 3 ? 1 : 0);   // Cartola
     rs = no->semente ^ 0xA11CEu;
     rnd_r();
-    sorteia_distintos(run.oferta, 3, PESO_PREMIO[run.tier]);
+    sorteia_distintos(run.oferta, 3, PESO_PREMIO[tp]);
     run.estado = R_PREMIO;
     des_salva();
 }
@@ -1101,7 +1506,7 @@ static void abre_premio_run(void)
     modo = M_DESAFIO;
     cpu = 0;
     baixo = 0;
-    J[0].nome = "VOCÊ";
+    J[0].nome = perfil()->nome;
     J[0].cor = C_LATAO;
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
@@ -1185,12 +1590,15 @@ static void pontilhado(int x0, int y0, int x1, int y1, uint16_t c, int esp, int 
     }
 }
 
+static const char *nome_dif(int d);
+static uint16_t cor_dif(int d);
 static void faixa_run(void)
 {
     gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(18, ty, "MODO DESAFIANTE", C_LATAO, true);
+    if (run.dificuldade) txt(18 + gfx_largura("MODO DESAFIANTE", 1) + 10, ty, nome_dif(run.dificuldade), cor_dif(run.dificuldade), true);
     char s[48];
     snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
     txt_c(GFX_W / 2, ty, s, COR_SALAO[run.andar], true);
@@ -1289,7 +1697,8 @@ static void info_mesa(int l)
     x = rx + RT_W * esc + 10;
     int w = gfx_texto(x, y0 + 3, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(x + w + 10, y0 + 3, NOME_NO[no->tipo], cor_no(no->tipo));
-    etiqueta_caixa(xt, y0 + 3, NIVEL_IA[no->nivel], C_ACO);
+    etiqueta_caixa(xt, y0 + 3, NIVEL_IA[nivel_mesa(no)], C_ACO);
+    if ((run_amuletos() >> A_CARTOLA & 1) && tier < 3) tier++;             // Cartola: um premio acima
     const char *pr = PREMIO_TIER[tier];
     txt(GFX_W - 40 - gfx_largura(pr, 1), y0 + 3, pr, C_TEXTO_M, false);
     // O trunfo: nome em destaque e a regra; miuda se nao couber.
@@ -1365,7 +1774,7 @@ static void desenha_mapa(void)
     botao_clique(GFX_W - 40, 242 + 38, "sua bolsa", KEY_TAB);
     // Os amuletos da run, no canto de cima.
     for (int a = 0, n = 0; a < A_N; a++)
-        if (run.amuletos >> a & 1) {
+        if (run_amuletos() >> a & 1) {
             int ax = 30 + (n % 4) * 19, ay = 66 + (n / 4) * 19;
             desenha_amuleto(ax, ay, 8, a, false);
             dica_zona(ax - 9, ay - 9, 18, 18, DICA_AMULETO, a);
@@ -1390,7 +1799,7 @@ static void desenha_loja_run(void)
         int x = GFX_W / 2 + (int)((i - (nc - 1) / 2.0f) * (nc > N_LOJA ? 96 : 108)), yb = 142;
         int wc = nc > N_LOJA ? 88 : 96;
         bool am = i == N_LOJA;
-        int pr = am ? AM_PRECO : preco_run(run.loja[i].tipo);
+        int pr = am ? preco_am() : preco_run(run.loja[i].tipo);
         bool ja = am ? run.am_levou : run.levou[i], cur = i == cursor, da = run.moedas >= pr;
         uint16_t cr = am ? C_OURO : cor_rar(run.loja[i].tipo);
         gfx_rect(x - wc / 2, yb, wc, 92, cur ? C_FELTRO_ESC : C_FELTRO);
@@ -1411,7 +1820,7 @@ static void desenha_loja_run(void)
         const amuleto_t *a = &AMULETO[run.am_loja];
         txt_c(GFX_W / 2, 240, a->nome, a->cor, true);
         txt_c(GFX_W / 2, 240 + TXT_H + 2, a->desc, C_MARFIM_S, false);
-        if (!run.am_levou && run.moedas < AM_PRECO) txt_c(GFX_W / 2, 284, "moedas insuficientes", C_VINHO_CLR, true);
+        if (!run.am_levou && run.moedas < preco_am()) txt_c(GFX_W / 2, 284, "moedas insuficientes", C_VINHO_CLR, true);
     } else if (cursor < N_LOJA) {
         dado_e_poder(240, run.loja[cursor].tipo, true);
         if (!run.levou[cursor] && run.moedas < preco_run(run.loja[cursor].tipo))
@@ -1444,7 +1853,7 @@ static void desenha_bolsa_run(void)
     // Os amuletos da run, nas laterais: seis de cada lado.
     int na = 0;
     for (int a = 0; a < A_N; a++) {
-        if (!(run.amuletos >> a & 1)) continue;
+        if (!(run_amuletos() >> a & 1)) continue;
         int x = na < 6 ? 34 : GFX_W - 34, y = 128 + (na % 6) * 26;
         int idx = run.n_col + na;
         if (idx == cursor) gfx_disco(x, y, 14, C_LATAO);
@@ -1461,15 +1870,18 @@ static void desenha_bolsa_run(void)
 }
 
 // ---- Fim da run ---------------------------------------------------------
+static void desenha_liberou(void);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     faixa_run();
-    painel(CENTRO - 84, 168, 500);
+    bool abriu = des_venceu_run && des_liberou > 0;
+    painel(CENTRO - 84, abriu ? 208 : 168, 500);
     char s[96];
     if (des_venceu_run) {
         txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
         txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
+        desenha_liberou();
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
         if (des_perdeu_para >= 0)
@@ -1480,7 +1892,7 @@ static void desenha_fim_run(void)
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
     txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
-    txt_c(GFX_W / 2, CENTRO + 56, "ENTER volta ao menu", C_MARFIM_S, false);
+    txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 56), "ENTER volta ao menu", C_MARFIM_S, false);
 }
 
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
@@ -1508,7 +1920,12 @@ static void desenha_fim_partida_run(void)
             snprintf(j2, sizeof j2, "  ·  Cofre +%d", run.juros);
             strncat(s, j2, sizeof s - strlen(s) - 1);
         }
-        moedas_c(GFX_W / 2, CENTRO + 6, run.ganho + run.juros, " moedas", C_OURO);
+        if (run.taca) {
+            char j2[24];
+            snprintf(j2, sizeof j2, "  ·  Taça +%d", run.taca);
+            strncat(s, j2, sizeof s - strlen(s) - 1);
+        }
+        moedas_c(GFX_W / 2, CENTRO + 6, run.ganho + run.juros + run.taca, " moedas", C_OURO);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
         txt_c(GFX_W / 2, CENTRO + 56, "ENTER escolhe o prêmio", C_MARFIM_S, false);
     } else {
@@ -1548,14 +1965,273 @@ static void desenha_amuleto_run(void)
     if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)
         txt_c(GFX_W / 2, 234, AMULETO[run.am_oferta[cursor]].desc, C_MARFIM, false);
     // Os que ja tem, miudos, embaixo.
-    int na = am_conta(run.amuletos);
+    int na = am_conta(run_amuletos());
     if (na) {
         int x0 = GFX_W / 2 - (na - 1) * 10, n = 0;
         txt_c(GFX_W / 2, 258, "seus amuletos", C_TEXTO_M, false);
         for (int a = 0; a < A_N; a++)
-            if (run.amuletos >> a & 1) desenha_amuleto(x0 + 20 * n++, 288, 8, a, false);
+            if (run_amuletos() >> a & 1) desenha_amuleto(x0 + 20 * n++, 288, 8, a, false);
     }
     rodape_run("setas escolhem  ·  ENTER leva o amuleto");
+}
+
+// ---------------------------------------------------------------------------
+// Perfis e dificuldades
+// ---------------------------------------------------------------------------
+static const char *const NOME_DIF[N_NIVEIS + 1] = { "Normal", "Bronze", "Prata", "Ouro", "Rubi", "Diamante" };
+static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
+// O que cada dificuldade acrescenta (vale junto com as de baixo).
+static const char *const PENA_DIF[N_NIVEIS + 1] = {
+    "Os salões como sempre.",
+    "O oponente começa com 10 fichas a mais.",
+    "A loja fica 25% mais cara, e as mesas difíceis pensam mais.",
+    "Os oponentes trazem 2 dados raros a mais.",
+    "Você começa a run com 30 moedas, não 50.",
+    "Cada oponente ganha um amuleto, e os chefes pensam mais.",
+};
+
+static const char *nome_dif(int d) { return NOME_DIF[d <= N_NIVEIS ? d : 0]; }
+static uint16_t cor_dif(int d) { return COR_DIF[d <= N_NIVEIS ? d : 0]; }
+
+static int  pf_cur;                      // card em foco na tela de perfis
+static bool pf_apagando;                 // pedindo confirmacao para apagar
+static int  pf_avatar;                   // tela de criar perfil
+static char pf_nome[11];
+static int  dif_cur;
+
+// O que abre com a dificuldade n: dois amuletos e um dado.
+static void liberados(int n, int *am, int *dado)
+{
+    int k = 0;
+    for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n) am[k++] = a;
+    for (; k < 2; k++) am[k] = -1;
+    *dado = -1;
+    for (int t = 0; t < D_N; t++) if (nivel_do_dado(t) == n) *dado = t;
+}
+
+static void des_abre_perfis(void)
+{
+    perfis_le();
+    pf_cur = perfil_atual >= 0 ? perfil_atual : 0;
+    pf_apagando = false;
+    t_fase = 0;
+    fase = F_PERFIS;
+}
+
+// Nova run: com dificuldades abertas, pergunta qual antes.
+static void des_escolhe_nova(void)
+{
+    if (perfil()->nivel > 0) {
+        dif_cur = perfil()->nivel;
+        t_fase = 0;
+        fase = F_RDIFIC;
+        return;
+    }
+    des_dif = 0;
+    des_nova_run();
+}
+
+static void des_entra_perfil(int i)
+{
+    perfil_atual = i;
+    perfis_salva();
+    if (des_tem_run()) {                         // continuar ou comecar outra
+        menu_tela = MT_DESAFIO;
+        menu_cur = 0;
+        t_fase = 1.0f;
+        fase = F_ABERTURA;
+        return;
+    }
+    des_escolhe_nova();
+}
+
+static int avatar_retrato(void) { return perfil_atual >= 0 && perfis[perfil_atual].nome[0] ? RETRATO_AVATAR + perfil()->avatar : -1; }
+
+static void moldura_retrato(int x, int y, int esc, int av, float t, bool cur)
+{
+    gfx_rect(x - 3, y - 3, RT_W * esc + 6, RT_H * esc + 6, cur ? C_OURO : C_LATAO_ESC);
+    gfx_rect(x - 1, y - 1, RT_W * esc + 2, RT_H * esc + 2, C_BARRA);
+    gfx_rect(x, y, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(x, y, esc, RETRATO_AVATAR + av, t, false, 0, RT_H);
+}
+
+static void faixa_titulo(const char *s)
+{
+    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
+    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    int ty = (FAIXA_H - TXT_H) / 2 - 2;
+    txt(18, ty, "MODO DESAFIANTE", C_LATAO, true);
+    txt_c(GFX_W / 2, ty, s, C_MARFIM, true);
+}
+
+static void desenha_perfis(void)
+{
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    faixa_titulo("Quem vai jogar?");
+    for (int i = 0; i < N_PERFIS; i++) {
+        const perfil_t *p = &perfis[i];
+        int w = 170, h = 184, x = GFX_W / 2 + (i - 1) * 186 - w / 2, y = 70;
+        bool cur = i == pf_cur;
+        gfx_rect(x, y, w, h, cur ? C_FELTRO_ESC : C_FELTRO);
+        gfx_moldura(x, y, w, h, cur ? 3 : 1, cur ? C_OURO : gfx_mistura(C_FELTRO, C_OURO, 45));
+        zona_clique(x, y, w, h, &pf_cur, i, KEY_ENTER);
+        if (!p->nome[0]) {
+            int cx = x + w / 2, cy = y + 84;
+            uint16_t c = cur ? C_OURO : C_TEXTO_M;
+            gfx_rect(cx - 14, cy - 2, 28, 4, c);
+            gfx_rect(cx - 2, cy - 14, 4, 28, c);
+            txt_c(cx, y + 120, "novo perfil", c, cur);
+            continue;
+        }
+        int esc = 3, rx = x + (w - RT_W * esc) / 2, ry = y + 14;
+        moldura_retrato(rx, ry, esc, p->avatar, t_fase + i * 2.1f, cur);
+        txt_c(x + w / 2, ry + RT_H * esc + 8, p->nome, cur ? C_OURO : C_MARFIM, true);
+        char s[48];
+        int nv = p->nivel;
+        snprintf(s, sizeof s, "dificuldade %s", NOME_DIF[nv]);
+        txt_c(x + w / 2, ry + RT_H * esc + 26, s, nv ? COR_DIF[nv] : C_MARFIM_S, false);
+        int ganhou = 0;
+        for (int d = 0; d <= N_NIVEIS; d++) ganhou += p->venceu[d];
+        if (ganhou) snprintf(s, sizeof s, "Barão vencido %d %s", ganhou, ganhou == 1 ? "vez" : "vezes");
+        else snprintf(s, sizeof s, "%d %s", p->runs, p->runs == 1 ? "run" : "runs");
+        txt_c(x + w / 2, ry + RT_H * esc + 42, s, C_TEXTO_M, false);
+    }
+    if (pf_apagando && perfis[pf_cur].nome[0]) {
+        char s[80];
+        snprintf(s, sizeof s, "Apagar %s e a run guardada?", perfis[pf_cur].nome);
+        txt_c(GFX_W / 2, 266, s, C_VINHO_CLR, true);
+        rodape_run("ENTER ou X apaga  ·  ESC deixa como está");
+    } else {
+        if (perfis[pf_cur].nome[0]) {
+            int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 30;
+            gfx_rect(bx, 264, 60, 16, C_BARRA);
+            gfx_moldura(bx, 264, 60, 16, 1, C_VINHO_CLR);
+            txt_c(bx + 30, 264, "apagar", C_VINHO_CLR, false);
+            zona_clique(bx, 264, 60, 16, NULL, 0, 'x');
+        }
+        rodape_run("setas escolhem  ·  ENTER entra  ·  X apaga  ·  ESC volta");
+    }
+}
+
+static void desenha_cria_perfil(void)
+{
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    faixa_titulo("Novo perfil");
+    int esc = 4, rx = GFX_W / 2 - RT_W * esc / 2, ry = 58;
+    moldura_retrato(rx, ry, esc, pf_avatar, t_fase, true);
+    // Setas para trocar o retrato.
+    for (int lado = -1; lado <= 1; lado += 2) {
+        int cx = GFX_W / 2 + lado * (RT_W * esc / 2 + 34), cy = ry + RT_H * esc / 2;
+        float o[6] = { (float)(cx + lado * 8), (float)cy, (float)(cx - lado * 6), (float)(cy - 10),
+                       (float)(cx - lado * 6), (float)(cy + 10) };
+        float vx[3] = { o[0], o[2], o[4] }, vy[3] = { o[1], o[3], o[5] };
+        poligono(vx, vy, 3, C_LATAO);
+        zona_clique(cx - 16, cy - 18, 32, 36, NULL, 0, lado < 0 ? KEY_LEFT : KEY_RIGHT);
+    }
+    int y = ry + RT_H * esc + 8;
+    txt_c(GFX_W / 2, y, NOME_AVATAR[pf_avatar], C_OURO, true);
+    // O nome, digitado.
+    int bw = 180, bx = GFX_W / 2 - bw / 2, by = y + 22;
+    gfx_rect(bx, by, bw, 20, C_BARRA);
+    gfx_moldura(bx, by, bw, 20, 1, C_LATAO);
+    char s[16];
+    bool pisca = fmodf(t_fase, 1.0f) < 0.55f;
+    snprintf(s, sizeof s, "%s%s", pf_nome, pisca && strlen(pf_nome) < 10 ? "_" : " ");
+    if (pf_nome[0] || pisca) txt_c(GFX_W / 2, by + 2, s, C_MARFIM, true);
+    if (!pf_nome[0] && !pisca) txt_c(GFX_W / 2, by + 2, "seu nome", C_TEXTO_M, false);
+    // Botao de criar.
+    int ok = pf_nome[0] != 0;
+    gfx_rect(GFX_W / 2 - 50, by + 30, 100, 20, ok ? C_LATAO : C_FELTRO2);
+    txt_c(GFX_W / 2, by + 31, "criar", ok ? C_BARRA : C_TEXTO_M, true);
+    zona_clique(GFX_W / 2 - 50, by + 30, 100, 20, NULL, 0, KEY_ENTER);
+    rodape_run("setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta");
+}
+
+static void desenha_dificuldade(void)
+{
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    faixa_titulo("Dificuldade da run");
+    int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;
+    int x0 = 30, y0 = 54;
+    for (int d = 0; d <= ult; d++) {
+        bool aberta = d <= nv, cur = d == dif_cur;
+        int y = y0 + d * 26;
+        gfx_rect(x0, y, 150, 22, cur ? C_FELTRO_ESC : C_FELTRO);
+        gfx_moldura(x0, y, 150, 22, cur ? 2 : 1, cur ? C_OURO : gfx_mistura(C_FELTRO, C_OURO, 40));
+        uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
+        gfx_disco(x0 + 14, y + 11, 6, gfx_mistura(c, C_BARRA, 30));
+        gfx_disco(x0 + 14, y + 11, 4, c);
+        txt(x0 + 28, y + 3, NOME_DIF[d], aberta ? c : C_TEXTO_M, cur);
+        if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
+            gfx_disco(x0 + 134, y + 11, 5, C_LATAO_ESC);
+            gfx_disco(x0 + 134, y + 11, 4, C_OURO);
+            gfx_disco(x0 + 133, y + 10, 1, C_BRANCO);
+        }
+        if (aberta) zona_clique(x0, y, 150, 22, &dif_cur, d, KEY_ENTER);
+        else zona_clique(x0, y, 150, 22, &dif_cur, d, 0);
+    }
+    // O que vale na escolhida: tudo o que vem de baixo, mais o dela.
+    int px = 194, py = 54;
+    gfx_rect(px, py, 416, 232, C_FELTRO_ESC);
+    gfx_moldura(px, py, 416, 232, 1, C_LATAO_ESC);
+    int d = dif_cur;
+    txt(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], true);
+    int ly = py + 30;
+    if (d > nv) {
+        char s[64];
+        snprintf(s, sizeof s, "Vença o Barão no %s para abrir.", NOME_DIF[d - 1]);
+        txt(px + 12, ly, s, C_VINHO_CLR, false);
+        ly += 22;
+    }
+    for (int k = d == 0 ? 0 : 1; k <= d; k++) {
+        txt(px + 12, ly, k == d ? "+" : "·", k == d ? COR_DIF[d] : C_TEXTO_M, true);
+        txt(px + 24, ly, PENA_DIF[k], k == d ? C_MARFIM : C_TEXTO_M, false);
+        ly += 18;
+    }
+    if (d > 0) {
+        int am[2], dado;
+        liberados(d, am, &dado);
+        ly += 6;
+        txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
+        ly += 26;
+        int ix = px + 24;
+        for (int i = 0; i < 2; i++) {
+            if (am[i] < 0) continue;
+            desenha_amuleto(ix, ly, 9, am[i], d > nv);
+            txt(ix + 14, ly - 6, AMULETO[am[i]].nome, d > nv ? C_TEXTO_M : AMULETO[am[i]].cor, false);
+            if (d <= nv) dica_zona(ix - 10, ly - 10, 120, 20, DICA_AMULETO, am[i]);
+            ly += 24;
+        }
+        if (dado >= 0) {
+            desenha_dado((float)ix, (float)ly, 9, dado, 0, 0, 0, 0, d > nv);
+            txt(ix + 14, ly - 6, TIPO[dado].nome, d > nv ? C_TEXTO_M : cor_aro(dado), false);
+            if (d <= nv) dica_zona(ix - 10, ly - 10, 120, 20, DICA_DADO, dado);
+        }
+    }
+    rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
+}
+
+static void desenha_liberou(void)
+{
+    if (des_liberou < 1) return;
+    int am[2], dado;
+    liberados(des_liberou, am, &dado);
+    char s[64];
+    snprintf(s, sizeof s, "Abriu a dificuldade %s", NOME_DIF[des_liberou]);
+    txt_c(GFX_W / 2, CENTRO + 44, s, COR_DIF[des_liberou], true);
+    int x = GFX_W / 2 - 150;
+    for (int i = 0; i < 2; i++)
+        if (am[i] >= 0) {
+            desenha_amuleto(x + 8, CENTRO + 74, 8, am[i], false);
+            txt(x + 20, CENTRO + 68, AMULETO[am[i]].nome, AMULETO[am[i]].cor, false);
+            dica_zona(x, CENTRO + 64, 96, 20, DICA_AMULETO, am[i]);
+            x += 104;
+        }
+    if (dado >= 0) {
+        desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado, 0, 0, 0, 0, false);
+        txt(x + 20, CENTRO + 68, TIPO[dado].nome, cor_aro(dado), false);
+        dica_zona(x, CENTRO + 64, 96, 20, DICA_DADO, dado);
+    }
 }
 
 static bool des_desenha(void)
@@ -1566,8 +2242,22 @@ static bool des_desenha(void)
     case F_RBOLSA: desenha_bolsa_run(); return true;
     case F_RFIM:   desenha_fim_run();   return true;
     case F_RAMULETO: desenha_amuleto_run(); return true;
+    case F_PERFIS: desenha_perfis();    return true;
+    case F_PCRIA:  desenha_cria_perfil(); return true;
+    case F_RDIFIC: desenha_dificuldade(); return true;
     default:       return false;
     }
+}
+
+// ESC nas telas de perfil e dificuldade: um passo para tras.
+static void des_esc(void)
+{
+    if (fase == F_PERFIS && pf_apagando) { pf_apagando = false; return; }
+    if (fase == F_PCRIA) { t_fase = 0; fase = F_PERFIS; return; }
+    menu_tela = fase == F_RDIFIC && des_tem_run() ? MT_DESAFIO : MT_UM;
+    menu_cur = 1;
+    t_fase = 1.0f;
+    fase = F_ABERTURA;
 }
 
 // O dado em foco nas telas da run (tecla I).
@@ -1613,9 +2303,9 @@ static bool des_tecla(int k, int e)
         if (e) { cursor = (cursor + e + nc) % nc; som_toca(SOM_TIQUE); return true; }
         if (k >= '1' && k < '1' + nc) cursor = k - '1';
         if ((k == KEY_ENTER || (k >= '1' && k < '1' + nc)) && cursor == N_LOJA) {
-            if (run.am_levou || run.am_loja >= A_N || run.moedas < AM_PRECO) return true;
-            run.moedas -= AM_PRECO;
-            run.amuletos |= (uint16_t)(1u << run.am_loja);
+            if (run.am_levou || run.am_loja >= A_N || run.moedas < preco_am()) return true;
+            run.moedas -= preco_am();
+            run_poe_amuleto(run.am_loja);
             run.am_levou = 1;
             som_toca(SOM_FICHA);
             des_salva();
@@ -1655,7 +2345,7 @@ static bool des_tecla(int k, int e)
         if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE_B) cursor -= GRADE_B; return true; }
         if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + GRADE_B < run.n_col) cursor += GRADE_B; return true; }
         if (e && run.n_col) {
-            int tot = run.n_col + am_conta(run.amuletos);
+            int tot = run.n_col + am_conta(run_amuletos());
             cursor = (cursor + e + tot) % tot;
             som_toca(SOM_TIQUE);
             return true;
@@ -1666,6 +2356,73 @@ static bool des_tecla(int k, int e)
     case F_RFIM:
         if (k == KEY_ENTER) volta_ao_menu();
         return true;
+
+    case F_PERFIS: {
+        bool cheio = perfis[pf_cur].nome[0] != 0;
+        if (pf_apagando) {
+            if ((k == KEY_ENTER || k == 'x') && cheio) {
+                int antes = perfil_atual;
+                perfil_atual = pf_cur;
+                salva_apaga(chave_run());
+                memset(&perfis[pf_cur], 0, sizeof perfis[pf_cur]);
+                perfil_atual = antes == pf_cur ? -1 : antes;
+                perfis_salva();
+                som_toca(SOM_FICHA);
+            }
+            pf_apagando = false;
+            return true;
+        }
+        if (e) { pf_cur = (pf_cur + e + N_PERFIS) % N_PERFIS; som_toca(SOM_TIQUE); return true; }
+        if (k >= '1' && k <= '3') { pf_cur = k - '1'; k = KEY_ENTER; cheio = perfis[pf_cur].nome[0] != 0; }
+        if ((k == 'x' || k == KEY_BKSP) && cheio) { pf_apagando = true; return true; }
+        if (k != KEY_ENTER) return true;
+        som_toca(SOM_FICHA);
+        if (cheio) { des_entra_perfil(pf_cur); return true; }
+        pf_avatar = pf_cur % AV_N;
+        pf_nome[0] = 0;
+        t_fase = 0;
+        fase = F_PCRIA;
+        return true;
+    }
+
+    case F_PCRIA: {
+        int n = (int)strlen(pf_nome);
+        if (k == KEY_LEFT || k == KEY_RIGHT) {
+            pf_avatar = (pf_avatar + (k == KEY_LEFT ? AV_N - 1 : 1)) % AV_N;
+            som_toca(SOM_TIQUE);
+            return true;
+        }
+        if (k == KEY_BKSP) { if (n) pf_nome[n - 1] = 0; return true; }
+        if (k == KEY_ENTER) {
+            if (!n) return true;
+            while (n && pf_nome[n - 1] == ' ') pf_nome[--n] = 0;
+            perfil_t *p = &perfis[pf_cur];
+            memset(p, 0, sizeof *p);
+            snprintf(p->nome, sizeof p->nome, "%s", pf_nome);
+            p->avatar = (uint8_t)pf_avatar;
+            som_toca(SOM_PREMIO);
+            des_entra_perfil(pf_cur);
+            return true;
+        }
+        bool letra = k >= 'a' && k <= 'z', num = k >= '0' && k <= '9';
+        if (n < 10 && (letra || num || (k == ' ' && n > 0 && pf_nome[n - 1] != ' '))) {
+            pf_nome[n] = (char)(letra ? k - 32 : k);
+            pf_nome[n + 1] = 0;
+            som_toca(SOM_TIQUE);
+        }
+        return true;
+    }
+
+    case F_RDIFIC: {
+        int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;
+        if (e) { dif_cur = (dif_cur + e + ult + 1) % (ult + 1); som_toca(SOM_TIQUE); return true; }
+        if (k == KEY_ENTER && dif_cur <= nv) {
+            som_toca(SOM_FICHA);
+            des_dif = dif_cur;
+            des_nova_run();
+        }
+        return true;
+    }
 
     default:
         return false;

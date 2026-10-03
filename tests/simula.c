@@ -30,10 +30,7 @@ void som_rufo(bool on) { (void)on; }
 void som_giro(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
-static char salvo[4096];
-bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
-int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
-void salva_apaga(void) { salvo[0] = 0; }
+#include "salva_mem.h"
 
 static uint32_t estado = 2463534242u;
 static uint32_t sorteio(void)

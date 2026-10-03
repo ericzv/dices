@@ -1,8 +1,10 @@
-// Salvamento do Modo Desafiante no PC e no navegador.
-//   Windows: %APPDATA%\DadoEmCasa\desafio.sav
-//   macOS:   ~/Library/Application Support/DadoEmCasa/desafio.sav
-//   Linux:   $XDG_DATA_HOME (ou ~/.local/share)/DadoEmCasa/desafio.sav
-//   Navegador: localStorage["dadoemcasa.desafio"]
+// Salvamento do Modo Desafiante no PC e no navegador, uma entrada por chave.
+//   Windows: %APPDATA%\DadoEmCasa\<chave>.sav
+//   macOS:   ~/Library/Application Support/DadoEmCasa/<chave>.sav
+//   Linux:   $XDG_DATA_HOME (ou ~/.local/share)/DadoEmCasa/<chave>.sav
+//   Navegador: localStorage["dadoemcasa.<chave>"]
+// A chave "desafio" e a mesma do tempo em que so havia uma run: ela continua
+// valendo (vira a run do primeiro perfil).
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,28 +13,28 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
-// O site de teste (/teste/) guarda a run noutra chave: nao mistura com a
-// run do site principal.
-EM_JS(void, ls_grava, (const char *t), {
-    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
-    try { localStorage.setItem(k, UTF8ToString(t)); } catch (e) {}
+// O site de teste (/teste/) guarda em outras chaves: nao mistura com o
+// site principal.
+EM_JS(void, ls_grava, (const char *k, const char *t), {
+    var c = "dadoemcasa." + UTF8ToString(k) + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
+    try { localStorage.setItem(c, UTF8ToString(t)); } catch (e) {}
 });
-EM_JS(int, ls_le, (char *buf, int n), {
-    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
+EM_JS(int, ls_le, (const char *k, char *buf, int n), {
+    var c = "dadoemcasa." + UTF8ToString(k) + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
     var t = null;
-    try { t = localStorage.getItem(k); } catch (e) {}
+    try { t = localStorage.getItem(c); } catch (e) {}
     if (!t) return 0;
     stringToUTF8(t, buf, n);
     return Math.min(t.length, n - 1);
 });
-EM_JS(void, ls_apaga, (void), {
-    var k = "dadoemcasa.desafio" + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
-    try { localStorage.removeItem(k); } catch (e) {}
+EM_JS(void, ls_apaga, (const char *k), {
+    var c = "dadoemcasa." + UTF8ToString(k) + (location.pathname.indexOf("/teste/") >= 0 ? ".teste" : "");
+    try { localStorage.removeItem(c); } catch (e) {}
 });
 
-bool salva_grava(const char *texto) { ls_grava(texto); return true; }
-int  salva_le(char *buf, int n)     { return ls_le(buf, n); }
-void salva_apaga(void)              { ls_apaga(); }
+bool salva_grava(const char *chave, const char *texto) { ls_grava(chave, texto); return true; }
+int  salva_le(const char *chave, char *buf, int n)     { buf[0] = 0; return ls_le(chave, buf, n); }
+void salva_apaga(const char *chave)                    { ls_apaga(chave); }
 
 #else
 #ifdef _WIN32
@@ -43,8 +45,8 @@ void salva_apaga(void)              { ls_apaga(); }
 #define CRIA_PASTA(p) mkdir(p, 0755)
 #endif
 
-// Monta o caminho do arquivo e cria as pastas que faltarem.
-static const char *caminho(void)
+// A pasta do jogo, criada se faltar.
+static const char *pasta(void)
 {
     static char p[1024];
     if (p[0]) return p;
@@ -67,34 +69,48 @@ static const char *caminho(void)
     CRIA_PASTA(base);
     snprintf(p, sizeof p, "%s/DadoEmCasa", base);
     CRIA_PASTA(p);
-    strncat(p, "/desafio.sav", sizeof p - strlen(p) - 1);
     return p;
 }
 
-bool salva_grava(const char *texto)
+static void caminho(const char *chave, char *p, size_t n)
+{
+    snprintf(p, n, "%s/%s.sav", pasta(), chave);
+}
+
+bool salva_grava(const char *chave, const char *texto)
 {
     // Grava num arquivo ao lado e troca: um desligamento no meio nao estraga
-    // a run guardada.
-    char tmp[1100];
-    snprintf(tmp, sizeof tmp, "%s.novo", caminho());
+    // o que estava guardado.
+    char c[1100], tmp[1110];
+    caminho(chave, c, sizeof c);
+    snprintf(tmp, sizeof tmp, "%s.novo", c);
     FILE *f = fopen(tmp, "wb");
     if (!f) return false;
     bool ok = fputs(texto, f) >= 0;
     ok = fclose(f) == 0 && ok;
     if (!ok) { remove(tmp); return false; }
-    remove(caminho());
-    return rename(tmp, caminho()) == 0;
+    remove(c);
+    return rename(tmp, c) == 0;
 }
 
-int salva_le(char *buf, int n)
+int salva_le(const char *chave, char *buf, int n)
 {
-    FILE *f = fopen(caminho(), "rb");
+    char c[1100];
+    caminho(chave, c, sizeof c);
+    buf[0] = 0;
+    FILE *f = fopen(c, "rb");
     if (!f) return 0;
     int lidos = (int)fread(buf, 1, (size_t)(n - 1), f);
     fclose(f);
-    buf[lidos < 0 ? 0 : lidos] = 0;
-    return lidos < 0 ? 0 : lidos;
+    if (lidos < 0) lidos = 0;
+    buf[lidos] = 0;
+    return lidos;
 }
 
-void salva_apaga(void) { remove(caminho()); }
+void salva_apaga(const char *chave)
+{
+    char c[1100];
+    caminho(chave, c, sizeof c);
+    remove(c);
+}
 #endif

@@ -563,7 +563,7 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        A_COFRE, A_RESERVA, A_POTE, A_FURADO,
        // Liberados pelas dificuldades (dois por nivel).
        A_FERRADURA, A_PESADO, A_RELOGIO, A_CARTOLA, A_COROA, A_CUPOM,
-       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_N };
+       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO, A_N };
 #define A_BASICOS A_FERRADURA
 static uint32_t amul[2];
 static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)

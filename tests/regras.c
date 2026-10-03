@@ -729,9 +729,58 @@ int main(void)
         run_poe_amuleto(A_CUPOM);
         CONFERE(run_amuletos() >> A_CUPOM & 1 && run.amuletos_hi, "amuleto 16+ nao entrou na parte alta");
         CONFERE(preco_run(D_D8) == 23, "Prata com Cupom: %d", preco_run(D_D8));
+        // O formato de antes (PER1, sem as partidas) ainda carrega.
+        {
+            memset(perfis, 0, sizeof perfis);
+            snprintf(perfis[2].nome, sizeof perfis[2].nome, "VELHO");
+            perfis[2].nivel = 2; perfis[2].runs = 9;
+            static char buf[8 + 2 * N_PERFIS * PERFIL_TAM_V1];
+            memcpy(buf, "PER12", 5);
+            for (int i = 0; i < N_PERFIS; i++) hex_de(&perfis[i], PERFIL_TAM_V1, buf + 5 + 2 * PERFIL_TAM_V1 * i);
+            salva_grava("perfis", buf);
+            memset(perfis, 0, sizeof perfis); perfis_lidos = false; perfil_atual = -1;
+            perfis_le();
+            CONFERE(perfil_atual == 2 && !strcmp(perfis[2].nome, "VELHO") && perfis[2].nivel == 2
+                    && perfis[2].runs == 9 && perfis[2].partidas == 0, "perfil PER1 nao carregou");
+        }
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
+    }
+
+    // ---- Selo de Divida e Pedagio -----------------------------------------
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "T");
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 0;
+        des_nova_run();
+        amuleto_escolhido(0);
+        run.passo = DES_PASSOS - 1; run.caminho[run.passo] = 1; run.tier = 3;
+        // Pedagio: o chefe comeca com 10 fichas a menos.
+        des_comeca_partida();
+        int sem = J[1].fichas;
+        CONFERE(perfis[0].partidas == 0, "partida contada antes de acabar");
+        run_poe_amuleto(A_PEDAGIO);
+        des_comeca_partida();
+        CONFERE(J[1].fichas == sem - 10, "Pedagio: %d, sem ele %d", J[1].fichas, sem);
+        venc_partida = 0;
+        des_resultado();
+        CONFERE(perfis[0].partidas == 1, "partidas do perfil: %d", perfis[0].partidas);
+        // Selo de Divida: o chefe da dois premios, depois o amuleto.
+        run_poe_amuleto(A_SELO);
+        run.tier = 3;
+        abre_premio_run();
+        des_premio_feito();
+        CONFERE(fase == F_PREMIO && run.premio2 == 1 && run.estado == R_PREMIO, "Selo: sem segundo premio (fase %d)", fase);
+        des_premio_feito();
+        CONFERE(run.premio2 == 0 && fase == F_RAMULETO, "Selo: depois do segundo, o amuleto (fase %d)", fase);
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        perfil_atual = -1;
+        modo = modo_antes;
     }
 
     // ---- Trunfos proprios dos oponentes do Desafiante ----------------------

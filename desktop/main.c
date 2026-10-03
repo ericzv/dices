@@ -320,6 +320,51 @@ static void anota_clique(GLFWwindow *w, int botao, int acao, int mods)
 #endif
 
 #ifdef __EMSCRIPTEN__
+// Celular e tablet: sem teclado fisico, o jogo pede texto (nome do perfil,
+// codigo da sala) e um toque na tela poe o foco num campo invisivel, o que
+// abre o teclado do aparelho. O que se digita ali vem para o jogo por aqui.
+EMSCRIPTEN_KEEPALIVE void web_tecla(int k) { tecla(k); }
+EMSCRIPTEN_KEEPALIVE int web_digitando(void) { return dado_digitando(); }
+EM_JS(void, web_teclado_inicia, (int enter, int apaga), {
+    var e = document.createElement('input');
+    e.type = 'text';
+    e.setAttribute('autocomplete', 'off');
+    e.setAttribute('autocorrect', 'off');
+    e.setAttribute('autocapitalize', 'characters');
+    e.setAttribute('spellcheck', 'false');
+    e.setAttribute('aria-hidden', 'true');
+    e.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;' +
+                      'font-size:16px;border:0;padding:0;';
+    document.body.appendChild(e);
+    Module.dadoCampo = e;
+    // As teclas do campo nao chegam ao raylib (senao cada letra viria duas
+    // vezes): o texto vem pelo evento 'input'; ENTER e apagar, daqui.
+    var deixa = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape', 'Tab'];
+    e.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { Module._web_tecla(enter); ev.preventDefault(); }
+        else if (ev.key === 'Backspace' && !e.value) { Module._web_tecla(apaga); ev.preventDefault(); }
+        if (deixa.indexOf(ev.key) < 0) ev.stopPropagation();
+    });
+    e.addEventListener('keypress', function (ev) { ev.stopPropagation(); });
+    e.addEventListener('keyup', function (ev) { if (deixa.indexOf(ev.key) < 0) ev.stopPropagation(); });
+    e.addEventListener('input', function (ev) {
+        if (ev.inputType === 'deleteContentBackward') Module._web_tecla(apaga);
+        else for (var i = 0; i < e.value.length; i++) {
+            var c = e.value.charCodeAt(i);
+            if (c >= 32 && c < 127) Module._web_tecla(c);
+        }
+        e.value = "";
+    });
+    Module.canvas.addEventListener('pointerup', function (ev) {
+        if (ev.pointerType !== 'mouse' && Module._web_digitando()) e.focus();
+    });
+});
+// Fora das telas de digitar, o campo solta o foco (e o teclado do aparelho fecha).
+EM_JS(void, web_teclado_confere, (int digitando), {
+    var e = Module.dadoCampo;
+    if (e && !digitando && document.activeElement === e) { e.blur(); Module.canvas.focus(); }
+});
+
 // No navegador o mouse (e o toque) e lido direto da pagina, em pixels do
 // canvas: nao depende de como o raylib acompanha o tamanho da janela.
 EM_JS(void, web_mouse_inicia, (void), {
@@ -412,6 +457,7 @@ static void quadro(void)
     UpdateTexture(tela, fb);
 
 #ifdef __EMSCRIPTEN__
+    web_teclado_confere(dado_digitando());
     web_ajusta_canvas();
 #endif
     BeginDrawing();
@@ -440,6 +486,7 @@ int main(void)
     SetExitKey(KEY_NULL);                  // ESC e do jogo, nao fecha a janela
 #ifdef __EMSCRIPTEN__
     web_mouse_inicia();
+    web_teclado_inicia(J_ENTER, J_BKSP);
 #else
     botao_raylib = glfwSetMouseButtonCallback(glfwGetCurrentContext(), anota_clique);
 #endif

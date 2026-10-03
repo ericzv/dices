@@ -1643,13 +1643,15 @@ static void pontilhado(int x0, int y0, int x1, int y1, uint16_t c, int esp, int 
 
 static const char *nome_dif(int d);
 static uint16_t cor_dif(int d);
-static void faixa_run(void)
+// voltar: a tecla do botao "<" (0: sem botao).
+static void faixa_run(int voltar)
 {
     gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
-    txt(18, ty, "MODO DESAFIANTE", C_LATAO, true);
-    if (run.dificuldade) txt(18 + gfx_largura("MODO DESAFIANTE", 1) + 10, ty, nome_dif(run.dificuldade), cor_dif(run.dificuldade), true);
+    int x0 = voltar ? botao_voltar(voltar) : 18;
+    txt(x0, ty, "MODO DESAFIANTE", C_LATAO, true);
+    if (run.dificuldade) txt(x0 + gfx_largura("MODO DESAFIANTE", 1) + 10, ty, nome_dif(run.dificuldade), cor_dif(run.dificuldade), true);
     char s[48];
     snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
     txt_c(GFX_W / 2, ty, s, COR_SALAO[run.andar], true);
@@ -1774,7 +1776,7 @@ static void info_mesa(int l)
 static void desenha_mapa(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 50);
-    faixa_run();
+    faixa_run(KEY_ESC);
     rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB sua bolsa  ·  ESC menu (a run fica guardada)");
 
     for (int p = 0; p < DES_PASSOS; p++) {
@@ -1837,7 +1839,7 @@ static void desenha_mapa(void)
 static void desenha_loja_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
-    faixa_run();
+    faixa_run(0);
     bool ini = run.estado == R_LOJA_INI;
     txt_c2(GFX_W / 2, MESA_Y0 + 2, ini ? "LOJA DA ENTRADA" : "LOJA DO SALÃO", C_OURO);
     txt_c(GFX_W / 2, MESA_Y0 + 44, ini ? "A run começa: gaste bem, a próxima loja pode demorar."
@@ -1885,7 +1887,7 @@ static void desenha_loja_run(void)
 static void desenha_bolsa_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
-    faixa_run();
+    faixa_run(KEY_TAB);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "SUA BOLSA", C_LATAO);
     char s[64];
     snprintf(s, sizeof s, "%d dados: eles vão com você de mesa em mesa", run.n_col);
@@ -1925,7 +1927,7 @@ static void desenha_liberou(void);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
-    faixa_run();
+    faixa_run(0);
     bool abriu = des_venceu_run && des_liberou > 0;
     painel(CENTRO - 84, abriu ? 208 : 168, 500);
     char s[96];
@@ -1998,7 +2000,7 @@ static void desenha_fim_partida_run(void)
 static void desenha_amuleto_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
-    faixa_run();
+    faixa_run(0);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, run.am_volta ? "O CHEFE DEIXOU UM AMULETO" : "ESCOLHA UM AMULETO", C_OURO);
     txt_c(GFX_W / 2, MESA_Y0 + 44, "Ele vale a run inteira.", C_MARFIM_S, false);
     for (int i = 0; i < 3; i++) {
@@ -2113,7 +2115,7 @@ static void faixa_titulo(const char *s)
     gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
-    txt(18, ty, "MODO DESAFIANTE", C_LATAO, true);
+    txt(botao_voltar(KEY_ESC), ty, "MODO DESAFIANTE", C_LATAO, true);
     txt_c(GFX_W / 2, ty, s, C_MARFIM, true);
 }
 

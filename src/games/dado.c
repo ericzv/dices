@@ -5336,8 +5336,16 @@ static int etiquetas_protecao(int x, int y, int tipo)
     return x;
 }
 
+// Coleçao: depois dos dados, os amuletos do Desafiante. O que ainda esta
+// fechado no Desafiante (para o perfil em uso) vem marcado.
+#define CAT_N (D_N + A_N)
+static int  cat_trava_dado(int t, char *s, int n);       // desafio.inc: 0 sempre livre, 1 aberto, 2 fechado
+static void desenha_cat_amuleto(int i);
+static void cadeado(int x, int y, uint16_t c, int e);
+
 static void desenha_catalogo(void)
 {
+    if (cat_i >= D_N) { desenha_cat_amuleto(cat_i - D_N); return; }
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
 
@@ -5347,7 +5355,7 @@ static void desenha_catalogo(void)
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(botao_voltar(KEY_ESC), ty, "DADOS DA CASA", C_LATAO, true);
     char s[32];
-    snprintf(s, sizeof s, "%d de %d", cat_i + 1, D_N);
+    snprintf(s, sizeof s, "%d de %d", cat_i + 1, CAT_N);
     txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
     int yb = GFX_H - FAIXA_H;
     gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
@@ -5370,7 +5378,8 @@ static void desenha_catalogo(void)
         float r = 46 + (dentro < 0.08f ? 4 : 0);          // pulinho a cada face
         float ang = sinf(t_fase * 1.7f) * 0.22f;
         bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
-        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, false);
+        char tr[80];
+        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, cat_trava_dado(tipo, tr, sizeof tr) == 2);
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);
             gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, C_EBANO, 2, true);
@@ -5391,9 +5400,18 @@ static void desenha_catalogo(void)
     txt(x + 6, 119, s, cor_rar(tipo), false);
     int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
-    if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_VINHO_CLR, false);
-    gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+    if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_TEXTO_M, false);
+    char trava[80];
+    int st = cat_trava_dado(tipo, trava, sizeof trava);
+    if (st == 2) {                                       // fechado: cadeado no aro e o que falta
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+        cadeado(x + 5, 138, C_VINHO_CLR, 1);
+        txt(x + 16, 136, trava, C_VINHO_CLR, false);
+    } else if (st == 1) {
+        txt(x, 136, trava, C_VERDE, false);
+    }
+    gfx_rect(x, 156, 320, 1, C_FELTRO2);
+    quebra_linhas(x, 166, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o
@@ -6134,7 +6152,7 @@ static void trata_tecla(int k)
 
     case F_CATALOGO:
         if (e) {
-            cat_i = (cat_i + e + D_N) % D_N;
+            cat_i = (cat_i + e + CAT_N) % CAT_N;
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;
@@ -6280,7 +6298,7 @@ int  dado_dbg_ver(void)      { return ver_tipo; }
 const char *dado_dbg_veredito(void) { return veredito; }
 int  dado_dbg_n_ev(void)     { return n_ev; }
 int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
-const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
+const char *dado_dbg_cat_nome(void) { return cat_i < D_N ? TIPO[cat_tipo(cat_i)].nome : "amuleto"; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
 int  dado_dbg_n_tipos(void) { return D_BASICOS; }   // os da partida comum

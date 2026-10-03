@@ -504,7 +504,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -4089,7 +4089,7 @@ static void trata_esc(void)
     case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM:
         volta_ao_menu();                     // a run fica guardada
         return;
-    case F_PERFIS: case F_PCRIA: case F_RDIFIC:
+    case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_REVENTO:
         des_esc();
         return;
     case F_ONLINE:

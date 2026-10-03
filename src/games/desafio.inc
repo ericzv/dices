@@ -4,9 +4,9 @@
 // Incluido pelo dado.c (usa as mesmas regras, dados e desenho); nao se compila
 // sozinho. Nada daqui muda a partida rapida, as 2 pessoas ou o online.
 //
-// A run: 3 saloes, 4 passos cada. Em cada passo o jogador escolhe um caminho
-// entre 2 ou 3 mesas (oponente facil, medio ou dificil, as vezes uma loja); o
-// quarto passo e o chefe do salao. Cada partida tem 8 rodadas e 50 fichas de
+// A run: 3 saloes, 6 passos cada. Em cada passo o jogador escolhe um caminho
+// entre 2 ou 3 nos (oponente facil, medio ou dificil, loja ou evento); o
+// sexto passo e o chefe do salao. Cada partida tem 8 rodadas e 50 fichas de
 // cada lado; vencer converte as fichas que sobraram em moedas (1 por 1) e da
 // um premio de dado. Perder encerra a run. Nada passa de uma run para outra.
 // ===========================================================================
@@ -3145,6 +3145,90 @@ static void desenha_liberou(void)
             dica_zona(x, CENTRO + 64, 100, 20, DICA_DADO, dado[i]);
             x += 106;
         }
+}
+
+// ---------------------------------------------------------------------------
+// Colecao: o que esta aberto e o que esta fechado no Desafiante
+// ---------------------------------------------------------------------------
+// Cadeado: (x, y) e o meio do topo do corpo; e = escala (1 ou 2).
+static void cadeado(int x, int y, uint16_t c, int e)
+{
+    for (int i = 0; i <= 12; i++) {                      // a alca
+        float a = 3.1416f + i * 0.2618f;
+        gfx_rect(x + (int)(cosf(a) * 3 * e), y + (int)(sinf(a) * 3.5f * e), e, e, c);
+    }
+    gfx_rect(x - 4 * e, y, 9 * e, 7 * e, c);             // o corpo
+    gfx_rect(x - 4 * e, y, 9 * e, e, gfx_mistura(c, C_BRANCO, 30));
+    gfx_rect(x, y + 2 * e, e, 3 * e, C_BARRA);           // a fechadura
+}
+
+static void quem_abre(int nivel, int marco, char *s, int n)
+{
+    if (marco == 0) snprintf(s, (size_t)n, "vença o Crupiê");
+    else if (marco == 1) snprintf(s, (size_t)n, "vença a Dona do Salão");
+    else if (nivel == 1) snprintf(s, (size_t)n, "vença o Barão");
+    else snprintf(s, (size_t)n, "vença o Barão no %s", NOME_DIF_CURTO[nivel - 1]);
+}
+
+// 0: sempre livre; 1: ja aberto; 2: fechado (e o que falta em s).
+static int cat_trava_dado(int t, char *s, int n)
+{
+    perfis_le();
+    int m = marco_do_dado(t), nv = nivel_do_dado(t);
+    if (m < 0 && nv == 0) return 0;
+    if (dado_liberado(t)) {
+        if (perfil_atual >= 0) snprintf(s, (size_t)n, "Aberto no Desafiante (%s)", perfil()->nome);
+        else snprintf(s, (size_t)n, "Aberto no Desafiante");
+        return 1;
+    }
+    quem_abre(nv, m, s, n);
+    return 2;
+}
+
+// Os amuletos na ordem em que abrem.
+static int cat_amuleto(int i)
+{
+    for (int nv = 0; nv <= N_NIVEIS; nv++)
+        for (int a = 0; a < A_N; a++)
+            if (NIVEL_AMULETO[a] == nv && i-- == 0) return a;
+    return 0;
+}
+
+static void desenha_cat_amuleto(int i)
+{
+    perfis_le();
+    int a = cat_amuleto(i);
+    char s[96];
+    faixas_colecao(i, A_N);
+
+    bool aberto = amuleto_liberado(a);
+    int cx = 160, cy = CENTRO + 4;
+    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, AMULETO[a].cor, 45));
+    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
+    desenha_amuleto(cx, cy + (int)(sinf(t_fase * 2) * 2), 40, a, !aberto);
+    if (!aberto) {                                   // fechado: no escuro
+        no_escuro(cx, cy, 76, C_FELTRO_ESC);
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    }
+
+    int x = 290;
+    gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
+    const char *et = "amuleto";
+    int wc = gfx_largura(et, 1) + 12;
+    gfx_moldura(x, 118, wc, TXT_H + 2, 1, C_LATAO);
+    txt(x + 6, 119, et, C_LATAO, false);
+    txt(x + wc + 8, 119, "só no Desafiante", C_TEXTO_M, false);
+    if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
+    else if (aberto) {
+        if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
+        else snprintf(s, sizeof s, "Aberto no Desafiante");
+        txt(x, 139, s, C_VERDE, false);
+    } else {
+        quem_abre(NIVEL_AMULETO[a], -1, s, sizeof s);
+        linha_bloqueio(x, 139, s);
+    }
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
+    quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 
 static bool des_desenha(void)

@@ -616,7 +616,8 @@ static int8_t plano[N_FILA];         // a fila que a IA decidiu montar (posicoes
 static int  plano_n, plano_rodada = -1, plano_vez = -1;
 static float plano_p;                // chance de vencer com o plano
 static int  detalhe = -1, detalhe_fase;   // dado aberto pela tecla I (-1: nenhum)
-static int  cat_i;                // dado em exibicao no catalogo
+static int  cat_i, cat_a;         // dado e amuleto em exibicao na colecao
+static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
 static int  tira_i;
@@ -997,16 +998,6 @@ static void marca_atras(int tipo, int lados, float r, uint16_t corpo, uint16_t a
 }
 
 // Na frente: tudo o que se prende ao dado sem cobrir o valor.
-// Faixa diagonal no corpo, como a de placa de proibido: "\" ou "/".
-static void faixa(float t, bool barra, uint16_t c)
-{
-    float a = 0.62f * t, w = (0.15f * t + 0.6f) * 0.7071f;
-    float s1 = barra ? 1.0f : -1.0f;
-    float o[8] = { -a + w, -s1 * a - s1 * w, a + w, s1 * a - s1 * w,
-                    a - w, s1 * a + s1 * w, -a - w, -s1 * a + s1 * w };
-    marca_poli(o, 4, c);
-}
-
 // Espinho: triangulo com base no ponto (bx, by) e ponta na direcao (nx, ny).
 static void espinho(float bx, float by, float nx, float ny, float comp, float meia, uint16_t c)
 {
@@ -1031,13 +1022,19 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
         marca_ret(0, t * 1.02f, t * 0.85f, t * 0.16f + 1, C_LATAO_ESC);
         marca_ret(0, t * 0.9f, t * 0.85f, 0.6f, C_LATAO);
         break;
-    case D_TEIMOSO:                               // uma faixa: nao anula na queda
-        faixa(t, true, C_SALMAO);
+    case D_TEIMOSO:                               // uma cinta: nao anula na queda
+        marca_ret(0, 0, t * 0.8f, t * 0.13f + 0.6f, C_SALMAO);
         break;
-    case D_ESCUDO:                                // duas faixas: nada o anula
-        faixa(t, true, C_SALMAO);
-        faixa(t, false, C_SALMAO);
+    case D_ESCUDO: {                              // um brasao: nada o anula
+        // (Nada em X: o X e de dado anulado.)
+        float e = t * 0.66f, f = e - esp_marca(t) - 0.6f;
+        float o[10] = { -e, -e * 0.85f, e, -e * 0.85f, e, e * 0.1f, 0, e * 1.05f, -e, e * 0.1f };
+        float i[10] = { -f, -f * 0.85f - (e - f) * 0.15f, f, -f * 0.85f - (e - f) * 0.15f,
+                        f, f * 0.1f, 0, f * 1.05f, -f, f * 0.1f };
+        marca_poli(o, 5, C_SALMAO);
+        marca_poli(i, 5, mistura(corpo, C_SALMAO, 30));
         break;
+    }
     case D_VICIADO: {                             // gota de chumbo pendurada no canto
         float cx = 1.02f * t, cy = 1.02f * t, gr = 0.24f * t + 0.8f;
         float o[6] = { 0.62f * t, 0.78f * t, 0.78f * t, 0.62f * t, cx + gr * 0.2f, cy + gr * 0.2f };
@@ -1354,9 +1351,13 @@ static void numero(float cx, float cy, float r, const char *s, uint16_t c)
     gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
 }
 
+// Fechado no catalogo: o dado fica apagado como o anulado, mas sem o X.
+static bool so_apagado;
+
 // X grosso em vinho sobre o dado anulado.
 static void risca(float cx, float cy, float r)
 {
+    if (so_apagado) return;
     int e = r < 12 ? 2 : (int)(r / 6);
     gfx_linha_grossa((int)(cx - r), (int)(cy - r), (int)(cx + r), (int)(cy + r), e, C_VINHO_CLR);
     gfx_linha_grossa((int)(cx - r), (int)(cy + r), (int)(cx + r), (int)(cy - r), e, C_VINHO_CLR);
@@ -1392,7 +1393,8 @@ static void tudo_ou_nada(float cx, float cy, float r, float ang, int valor, bool
                 float olho = h * 0.3f;
                 if (u * u + (v + h) * (v + h) <= olho * olho) claro = false;
                 if (u * u + (v - h) * (v - h) <= olho * olho) claro = true;
-                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? C_MARFIM : C_EBANO);
+                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? (zerado ? C_MARFIM_S : C_MARFIM)
+                                                            : (zerado ? C_EBANO_B : C_EBANO));
             }
         return;
     }
@@ -1544,7 +1546,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     }
     if (valor < 0) return;               // so o corpo: o catalogo escreve grande
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
-        && !zerado) {
+        && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
         snprintf(s, sizeof s, "%d", valor);
@@ -2915,10 +2917,16 @@ static void recolhe_quebrados(void)
 // O desfecho calculado pelo motor de regras: e ele que paga. Os eventos so
 // contam na tela, um a um, como se chegou nele.
 static desfecho_t resolvido;
+// O pote indo para quem levou: de quanto a quanto vai cada placar, e para onde
+// as fichas voam (a ficha de cada faixa, guardada quando a faixa e desenhada).
+static int res_antes[2], res_quem = -1;
+static int ficha_px[2] = { 160, 160 }, ficha_py[2] = { GFX_H - 22, 22 };
 
 // Depois da animacao dos eventos: paga o pote e declara quem levou.
 static void conclui_rodada(void)
 {
+    res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
+    res_quem = -1;
     for (int j = 0; j < 2; j++) {
         memcpy(F[j].est, resolvido.est[j], N_FILA);
         memcpy(vis_est[j], resolvido.est[j], N_FILA);
@@ -2933,6 +2941,7 @@ static void conclui_rodada(void)
     } else {
         int w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
         venc_mao = w;
+        res_quem = w;
         J[w].fichas += pote;
         if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
         else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
@@ -3152,6 +3161,8 @@ static void executa(int op)
     }
     case OP_CORRER: {
         int w = outro(vez);
+        res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
+        res_quem = w;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
         som_toca(SOM_CORREU);
@@ -4365,7 +4376,8 @@ static void painel(int y, int h, int w)
 }
 
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
-static int  retrato_faixa(int j, int x, int y0);   // devolve onde o nome comeca
+static int  retrato_faixa(int j, int x, int y0);
+static int  fichas_vis(int j);   // devolve onde o nome comeca
 
 static void faixa_jogador(int j)
 {
@@ -4385,8 +4397,9 @@ static void faixa_jogador(int j)
     int xn = modo == M_DESAFIO ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
     int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
+    ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
     char s[32];
-    snprintf(s, sizeof s, "%d", p->fichas);
+    snprintf(s, sizeof s, "%d", fichas_vis(j));
     txt(x + 36, ty, s, C_MARFIM, true);
     int fim_fichas = x + 36 + gfx_largura(s, 1);
 
@@ -5087,8 +5100,49 @@ static void desenha_resultado(void)
     uint16_t c = venc_mao == 0 ? C_LATAO : (venc_mao == 1 ? C_ROSA : C_MARFIM);
     painel(CENTRO - 40, 86, 420);
     txt_sombra_c(GFX_W / 2, CENTRO - 32, aviso, c, 1);
-    if (nota[0]) txt_c(GFX_W / 2, CENTRO - 6, nota, C_TERRA, false);   // cinza ou cacos
-    txt_c(GFX_W / 2, CENTRO + 20, "ENTER segue", C_TEXTO_M, false);
+    if (venc_mao >= 0) {                                   // o placar da rodada
+        char pl[64];
+        snprintf(pl, sizeof pl, "%s   %d x %d   %s", J[0].nome, F[0].total, F[1].total, J[1].nome);
+        txt_c(GFX_W / 2, CENTRO - 12, pl, C_MARFIM_S, false);
+    }
+    if (nota[0]) txt_c(GFX_W / 2, CENTRO + 4, nota, C_TERRA, false);   // cinza ou cacos
+    txt_c(GFX_W / 2, CENTRO + 24, "ENTER segue", C_TEXTO_M, false);
+    // As fichas do pote voando, uma atras da outra, ate a faixa de quem levou;
+    // o placar dela sobe enquanto chegam.
+    int w = res_quem;
+    if (w < 0) return;
+    int ganho = J[w].fichas - res_antes[w];
+    int n = ganho / 8 + 3;
+    if (n > 10) n = 10;
+    float x0 = POTE_X, y0 = CENTRO + 10;
+    for (int i = 0; i < n; i++) {
+        float q = (t_fase - 0.05f - i * 0.07f) / 0.55f;
+        if (q <= 0 || q >= 1) continue;
+        float e = q * q * (3 - 2 * q);                        // sai devagar, acelera, pousa
+        float fx = x0 + (ficha_px[w] - x0) * e, fy = y0 + (ficha_py[w] - y0) * e - sinf(q * 3.1416f) * 46;
+        ficha((int)fx, (int)fy, i % 3 == 0 ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
+    }
+    float fim = 0.05f + n * 0.07f + 0.55f, q = (t_fase - fim) / 0.9f;
+    if (ganho > 0 && q > -0.15f && q < 1) {                  // o "+N" subindo da faixa
+        char mais[16];
+        snprintf(mais, sizeof mais, "+%d", ganho);
+        int sobe = (int)((q < 0 ? 0 : q) * 10);           // no feltro, junto da faixa
+        bool cima = ficha_py[w] < CENTRO;
+        int ty = cima ? MESA_Y0 + 6 + sobe : MESA_Y1 - TXT_H - 8 - sobe;
+        txt_sombra_c(ficha_px[w] + 16, ty, mais, C_OURO, 1);
+    }
+}
+
+// As fichas da faixa: no resultado, sobem (ou descem) enquanto o pote voa.
+static int fichas_vis(int j)
+{
+    if (fase != F_RESULTADO || res_quem < 0) return J[j].fichas;
+    int n = (J[res_quem].fichas - res_antes[res_quem]) / 8 + 3;
+    if (n > 10) n = 10;
+    float fim = 0.05f + n * 0.07f + 0.55f, q = (t_fase - 0.3f) / (fim - 0.3f);
+    if (q >= 1) return J[j].fichas;
+    if (q < 0) q = 0;
+    return res_antes[j] + (int)((J[j].fichas - res_antes[j]) * q);
 }
 
 #define GRADE 12                     // dados por linha na escolha do que sai
@@ -5148,7 +5202,14 @@ static void desenha_premio(void)
             // O rolo: dados passando de cima para baixo, cada vez mais devagar,
             // ate o ultimo (o premio) chegar ao centro. Os de passagem encolhem
             // perto das bordas, como num cilindro.
-            gfx_rect(x - 60, 94, 120, 64, C_FELTRO_ESC);
+            // O rolo e desenhado num rascunho e so a janela volta para a tela:
+            // os dados de passagem nao vazam para fora (nem os numeros deles).
+            const int wx = x - 60, wy = 94, ww = 120, wh = 64;
+            uint16_t *tela = display_fb();
+            gfx_texto_fn nit = gfx_texto_nitido_atual();
+            gfx_texto_nitido(NULL);
+            gfx_desvia(rascunho);
+            gfx_rect(wx, wy, ww, wh, C_FELTRO_ESC);
             float r = para - t_slot, o = 9.4f * r * sqrtf(r);
             int k0 = (int)o;
             for (int k = k0 - 1; k <= k0 + 1; k++) {
@@ -5167,6 +5228,14 @@ static void desenha_premio(void)
                 }
                 peca_parada((float)x, 126 + dy, 24 * q, pc, vez);
             }
+            for (int b2 = 0; b2 < 8; b2++) {             // sombra nas bordas: um cilindro
+                gfx_rect_alfa(wx, wy + b2, ww, 1, C_BARRA, 150 - b2 * 18);
+                gfx_rect_alfa(wx, wy + wh - 1 - b2, ww, 1, C_BARRA, 150 - b2 * 18);
+            }
+            gfx_desvia(NULL);
+            gfx_texto_nitido(nit);
+            for (int yy = wy; yy < wy + wh; yy++)
+                memcpy(tela + yy * GFX_W + wx, rascunho + yy * GFX_W + wx, (size_t)ww * 2);
             gfx_moldura(x - 64, 90, 128, 110, 1, C_FELTRO2);
             txt_c(x, 162, "?", C_TEXTO_M, true);
             continue;
@@ -5336,31 +5405,82 @@ static int etiquetas_protecao(int x, int y, int tipo)
     return x;
 }
 
-static void desenha_catalogo(void)
-{
-    int tipo = cat_tipo(cat_i);
-    const tipo_t *d = &TIPO[tipo];
+// Colecao em duas secoes, Dados e Amuletos, trocadas pela chave no alto.
+// O que ainda esta fechado no Desafiante (para o perfil em uso) fica no
+// escuro, com cadeado e o que falta para abrir.
+static int  cat_trava_dado(int t, char *s, int n);       // desafio.inc: 0 sempre livre, 1 aberto, 2 fechado
+static void desenha_cat_amuleto(int i);
+static void cadeado(int x, int y, uint16_t c, int e);
 
-    // Faixas: o que se ve e como se navega.
+// As faixas da colecao: a chave Dados | Amuletos, a contagem e as teclas.
+static void faixas_colecao(int atual, int total)
+{
     gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
-    txt(botao_voltar(KEY_ESC), ty, "DADOS DA CASA", C_LATAO, true);
+    txt(botao_voltar(KEY_ESC), ty, "COLEÇÃO", C_LATAO, true);
+    static const char *const SEC[2] = { "Dados", "Amuletos" };
+    const int w = 104, h = 26, x0 = GFX_W / 2 - w, y0 = (FAIXA_H - h) / 2 - 1;
+    gfx_rect(x0, y0, 2 * w, h, C_FELTRO_ESC);
+    for (int i = 0; i < 2; i++) {
+        bool on = cat_sec == i;
+        if (on) gfx_rect(x0 + i * w + 2, y0 + 2, w - 4, h - 4, C_LATAO);
+        txt_c(x0 + i * w + w / 2, y0 + 3, SEC[i], on ? C_BARRA : C_TEXTO_M, on);
+        zona_clique(x0 + i * w, y0, w, h, NULL, 0, i == 0 ? KEY_UP : KEY_DOWN);
+    }
+    gfx_moldura(x0, y0, 2 * w, h, 1, C_LATAO_ESC);
     char s[32];
-    snprintf(s, sizeof s, "%d de %d", cat_i + 1, D_N);
+    snprintf(s, sizeof s, "%d de %d", atual + 1, total);
     txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
     int yb = GFX_H - FAIXA_H;
     gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
     txt(18, yb + ty + 2, "<  A     D  >", C_TEXTO_M, false);
+    txt_c(GFX_W / 2, yb + ty + 2, "TAB troca a seção", C_TEXTO_M, false);
     txt(GFX_W - 18 - gfx_largura("ENTER volta", 1), yb + ty + 2, "ENTER volta", C_TEXTO_M, false);
+}
+
+// Fechado: a peca fica no escuro, como na sombra (o fundo do disco nao muda).
+static void no_escuro(int cx, int cy, int R, uint16_t fundo)
+{
+    uint16_t *fb = display_fb();
+    for (int y = cy - R; y <= cy + R; y++) {
+        if (y < 0 || y >= GFX_H) continue;
+        for (int x = cx - R; x <= cx + R; x++) {
+            if (x < 0 || x >= GFX_W || (x - cx) * (x - cx) + (y - cy) * (y - cy) > R * R) continue;
+            uint16_t *p = &fb[y * GFX_W + x];
+            if (*p != fundo) *p = gfx_mistura(*p, C_SOMBRA, 62);
+        }
+    }
+}
+
+// "Bloqueado" e, ao lado e miudo, o que falta para abrir.
+static void linha_bloqueio(int x, int y, const char *falta)
+{
+    cadeado(x + 4, y + 8, C_VINHO_CLR, 1);
+    int xb = x + 14;
+    txt(xb, y, "Bloqueado", C_VINHO_CLR, true);
+    gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y + 5, falta, C_TEXTO_M, GFX_MIUDO, false);
+}
+
+static void desenha_catalogo(void)
+{
+    if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
+    int tipo = cat_tipo(cat_i);
+    const tipo_t *d = &TIPO[tipo];
+    char s[32];
+    faixas_colecao(cat_i, D_N);
+    char trava[80];
+    int st = cat_trava_dado(tipo, trava, sizeof trava);
 
     // A peca, a esquerda, girando pelas faces possiveis.
     int cx = 160, cy = CENTRO + 4;
     gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));   // anel da raridade
     gfx_disco(cx, cy, 77, C_FELTRO_ESC);
     if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
-        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, false);
+        so_apagado = true;                              // fechado: apagado
+        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, st == 2);
+        so_apagado = false;
     } else if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
@@ -5370,10 +5490,12 @@ static void desenha_catalogo(void)
         float r = 46 + (dentro < 0.08f ? 4 : 0);          // pulinho a cada face
         float ang = sinf(t_fase * 1.7f) * 0.22f;
         bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
-        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, false);
+        so_apagado = true;
+        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, st == 2);
+        so_apagado = false;
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);
-            gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, C_EBANO, 2, true);
+            gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, st == 2 ? C_FELTRO2 : C_EBANO, 2, true);
         }
         if (tipo == D_TREVO && f[i] == 4) {
             gfx_rect(cx - 30, cy + 58, 60, TXT_H + 4, C_BARRA);
@@ -5381,9 +5503,14 @@ static void desenha_catalogo(void)
         }
     }
 
+    if (st == 2) {                                       // fechado: no escuro, cadeado no aro
+        no_escuro(cx, cy, 76, C_FELTRO_ESC);
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    }
+
     // A direita: nome, lados, raridade e o que ele faz.
     int x = 290;
-    gfx_texto(x, 70, d->nome, cor_aro(tipo), 2, true);
+    gfx_texto(x, 70, d->nome, st == 2 ? C_TEXTO_M : cor_aro(tipo), 2, true);
     classe(tipo, s, sizeof s);
     int wc = gfx_largura(s, 1) + 12;
     gfx_rect_alfa(x, 118, wc, TXT_H + 2, cor_rar(tipo), 40);
@@ -5391,9 +5518,14 @@ static void desenha_catalogo(void)
     txt(x + 6, 119, s, cor_rar(tipo), false);
     int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
-    if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_VINHO_CLR, false);
-    gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+    if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_TEXTO_M, false);
+    if (st == 2) {
+        linha_bloqueio(x, 139, trava);
+    } else if (st == 1) {
+        txt(x, 139, trava, C_VERDE, false);
+    }
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
+    quebra_linhas(x, 170, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o
@@ -5561,27 +5693,36 @@ static const pagina_t TUTORIAL[] = {
         "Se sair menor, ele e o último que valia são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
         NULL } },
     { "Parar ou arriscar", {
-        "Depois de cada dado você escolhe: jogar o próximo ou parar e ficar com os pontos que tem.",
-        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se você vence, perde ou empata.",
+        "Depois de cada dado: jogar o próximo ou parar com os pontos que tem.",
+        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se vence, perde ou empata.",
         NULL } },
     { "Apostas", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
         "O outro escolhe: pagar para ver, dobrar a aposta ou correr. Quem corre entrega o pote na hora.",
         NULL } },
     { "Loja, prêmios e dados especiais", {
-        "No começo da partida, a loja vende dados especiais em troca de fichas.",
-        "Quem vence uma rodada escolhe um prêmio: um dado novo, ou tirar um dado fraco da bolsa.",
-        "São 35 dados, cada um com um poder: veja todos em Dados da casa." } },
+        "A loja do começo vende dados especiais. Quem vence uma rodada escolhe um prêmio: um dado novo ou tirar um fraco da bolsa.",
+        "São %d dados, cada um com um poder: veja todos em Dados da casa.",
+        NULL } },
     { "Modo Desafiante", {
-        "Em 1 jogador: uma run pelo cassino. São 3 salões, com 4 mesas cada; a última é o chefe do salão. No mapa, você escolhe o caminho: mesas fáceis, médias, difíceis ou uma loja.",
-        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas que sobraram viram moedas de ouro, e você escolhe um dado de prêmio (ou tira um dado da bolsa).",
-        "As moedas compram dados nas lojas. Perdeu uma partida, a run acaba. Dá para sair e continuar depois: a run fica guardada." } },
+        "Em 1 jogador: uma run por 3 salões do cassino, cada um com 5 mesas e o chefe. No mapa você escolhe o caminho: oponentes, lojas e eventos.",
+        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas viram moedas e você ganha um prêmio. Perdeu, a run acaba.",
+        "Vencer o Barão abre a dificuldade seguinte, e os chefes abrem dados novos. Cada perfil guarda o seu progresso e a sua run." } },
     { "Teclas", {
-        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira",
-        "Durante o jogo, aperte I para ver tudo sobre o dado escolhido: na mão, na loja, no prêmio ou o próximo da sequência.",
+        "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
+        "Mouse e toque também jogam: clique no que quiser. O < no alto volta ou sai da partida.",
         "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
+
+// Um botao de mentira nas ilustracoes, aceso ou apagado.
+static void rotulo_tut(int cx, int y, const char *s, bool aceso)
+{
+    int w = gfx_largura(s, 1) + 24;
+    gfx_rect(cx - w / 2, y, w, 26, aceso ? C_VINHO_CLR : C_FELTRO_ESC);
+    gfx_moldura(cx - w / 2, y, w, 26, 1, aceso ? C_BRANCO : C_FELTRO2);
+    txt_c(cx, y + 3, s, aceso ? C_BARRA : C_MARFIM_S, aceso);
+}
 
 // Ilustracoes: dados de verdade, desenhados pelo mesmo codigo da mesa.
 static void ilustra_tutorial(int pag, int y)
@@ -5621,13 +5762,30 @@ static void ilustra_tutorial(int pag, int y)
         }
         break;
     }
+    case 3: {                                        // dois dados valendo; jogar ou parar
+        desenha_dado((float)cx - 214, (float)y + 22, 20, D_D6, 0, 0, 2, 2, false);
+        desenha_dado((float)cx - 162, (float)y + 22, 20, D_D6, 0, 0, 4, 2, false);
+        txt_c(cx - 188, y + 46, "6 pontos", C_OURO, false);
+        bool parar = (int)(t_fase / 1.4f) % 2;
+        rotulo_tut(cx - 6, y + 10, "jogar o próximo", !parar);
+        rotulo_tut(cx + 170, y + 10, "parar: vence por 1", parar);
+        break;
+    }
+    case 4: {                                        // aposta na mesa; pagar, dobrar ou correr
+        for (int i = 0; i < 5; i++) ficha(cx - 190, y + 30 - i * 4, i % 2 ? C_VINHO : C_LATAO);
+        txt_c(cx - 190, y + 44, "aposta 25", C_TEXTO_M, false);
+        static const char *const R[3] = { "pagar", "dobrar", "correr" };
+        int k = (int)(t_fase / 1.2f) % 3;
+        for (int i = 0; i < 3; i++) rotulo_tut(cx - 50 + i * 110, y + 10, R[i], i == k);
+        break;
+    }
     case 5: {                                        // alguns dados especiais
         static const uint8_t E[5] = { D_ESCUDO, D_JACKPOT, D_EGOISTA, D_COPIADOR, D_FOGO };
         for (int i = 0; i < 5; i++) {
-            int x = cx + (i - 2) * 80;
+            int x = cx + (i - 2) * 100;
             float bob = sinf(t_fase * 3 + i) * 2;
-            peca_parada((float)x, y + 26 + bob, 19, nova_peca(E[i]), 0);
-            txt_c(x, y + 51, TIPO[E[i]].nome, cor_aro(E[i]), false);
+            peca_parada((float)x, y + 24 + bob, 19, nova_peca(E[i]), 0);
+            txt_c(x, y + 46, TIPO[E[i]].nome, cor_aro(E[i]), false);
         }
         break;
     }
@@ -5645,14 +5803,18 @@ static void desenha_tutorial(void)
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     const pagina_t *pg = &TUTORIAL[tut_pag];
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 8, pg->titulo, C_LATAO, 2);
-    int y = MESA_Y0 + 56;
+    int y = MESA_Y0 + 52;
     for (int i = 0; i < 3 && pg->par[i]; i++) {
-        int n = quebra_linhas(44, y, 552, 4, pg->par[i], i == 0 ? C_MARFIM : C_MARFIM_S);
+        char par[256];                               // "%d": quantos dados ha
+        snprintf(par, sizeof par, pg->par[i], D_BASICOS);
+        int n = quebra_linhas(44, y, 552, 4, par, i == 0 ? C_MARFIM : C_MARFIM_S);
         y += n * (TXT_H + 4) + 4;
     }
     // A ilustracao vai abaixo do texto: na faixa de sempre ou, se o texto
     // desceu mais, logo depois dele.
-    ilustra_tutorial(tut_pag, y + 10 > 226 ? y + 10 : 226);
+    int yi = y + 10 > 226 ? y + 10 : 226;
+    if (yi > 234) yi = 234;                          // sem encostar nas bolinhas
+    ilustra_tutorial(tut_pag, yi);
     // Bolinhas das paginas.
     for (int i = 0; i < N_TUTORIAL; i++)
         gfx_disco(GFX_W / 2 + (i - N_TUTORIAL / 2) * 16, MESA_Y1 - 6, 3,
@@ -6133,13 +6295,20 @@ static void trata_tecla(int k)
     }
 
     case F_CATALOGO:
+        // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB) {
+            int sec = k == KEY_TAB ? !cat_sec : (k == KEY_DOWN || k == 's');
+            if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
+            return;
+        }
         if (e) {
-            cat_i = (cat_i + e + D_N) % D_N;
+            if (cat_sec == 0) cat_i = (cat_i + e + D_N) % D_N;
+            else cat_a = (cat_a + e + A_N) % A_N;
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;
         }
-        if (k == KEY_ENTER || k == KEY_BKSP || k == KEY_TAB) ao_menu_sem_partida();
+        if (k == KEY_ENTER || k == KEY_BKSP) ao_menu_sem_partida();
         return;
 
     case F_LOJA: {
@@ -6280,7 +6449,7 @@ int  dado_dbg_ver(void)      { return ver_tipo; }
 const char *dado_dbg_veredito(void) { return veredito; }
 int  dado_dbg_n_ev(void)     { return n_ev; }
 int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
-const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
+const char *dado_dbg_cat_nome(void) { return cat_sec == 0 ? TIPO[cat_tipo(cat_i)].nome : "amuleto"; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
 int  dado_dbg_n_tipos(void) { return D_BASICOS; }   // os da partida comum

@@ -1,8 +1,9 @@
 // DADO EM CASA para PC: o mesmo jogo do Cardputer, numa janela.
 //
-// O jogo desenha num framebuffer RGB565 de 640x360. Aqui esse quadro vira uma textura, ampliada em escala inteira
-// para os pixels ficarem nitidos; o que sobra da janela fica na cor das
-// faixas da mesa.
+// O jogo desenha num framebuffer RGB565 de 640x360. Aqui esse quadro vira uma
+// textura, ampliada para encher a janela (sem distorcer): cada pixel do jogo
+// vira um bloco nitido, so com a borda suavizada quando a escala nao e
+// inteira. O que sobra da janela fica na cor das faixas da mesa.
 //
 // Teclas do PC alem das do jogo: F11 ou Alt+Enter alternam tela cheia,
 // N liga e desliga a musica, F12 salva uma foto da tela.
@@ -28,6 +29,7 @@ enum {
 #undef KEY_RIGHT
 
 #include "raylib.h"
+#include "rlgl.h"
 #include "ui/gfx.h"
 #include "hal/display.h"
 #include "games/jogos.h"
@@ -152,7 +154,7 @@ static void poe_icone(void)
     SetWindowIcon(ic);
 }
 
-// Escala inteira quando a janela comporta; abaixo de 1x, encolhe como der.
+// Enche a janela mantendo a proporcao do jogo.
 static Rectangle area_do_jogo(void)
 {
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
@@ -162,13 +164,81 @@ static Rectangle area_do_jogo(void)
     emscripten_get_canvas_element_size("#canvas", &cw, &ch);
     if (cw > 0 && ch > 0) { W = (float)cw; H = (float)ch; }
 #endif
-    float k = (float)(int)(W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H);
-    if (k < 1) k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
-    float w = GFX_W * k, h = GFX_H * k;
+    float k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
+    float w = (float)(int)(GFX_W * k), h = (float)(int)(GFX_H * k);
     return (Rectangle){ (float)(int)((W - w) / 2), (float)(int)((H - h) / 2), w, h };
 }
 
 static Texture2D tela;
+
+// Ampliacao "sharp bilinear": dentro de cada pixel do jogo a cor e chapada;
+// so na faixa de um pixel da tela entre dois vizinhos ela mistura. Em escala
+// inteira da o mesmo que ampliar sem filtro; nas outras, nenhum pixel sai
+// mais largo que o vizinho.
+#if defined(__EMSCRIPTEN__)
+#define GLSL_CAB "#version 100\nprecision mediump float;\nvarying vec2 fragTexCoord;\nvarying vec4 fragColor;\n" \
+                 "#define SAI gl_FragColor\n#define TEX texture2D\n"
+#else
+#define GLSL_CAB "#version 330\nin vec2 fragTexCoord;\nin vec4 fragColor;\nout vec4 saida;\n" \
+                 "#define SAI saida\n#define TEX texture\n"
+#endif
+static const char *const AMPLIA_FS = GLSL_CAB
+    "uniform sampler2D texture0;\n"
+    "uniform vec2 tam;\n"
+    "uniform float esc;\n"
+    "void main() {\n"
+    "    vec2 t = fragTexCoord * tam;\n"
+    "    vec2 base = floor(t);\n"
+    "    vec2 d = fract(t) - 0.5;\n"
+    "    float r = 0.5 - 0.5 / esc;\n"
+    "    vec2 f = (d - clamp(d, -r, r)) * esc + 0.5;\n"
+    "    SAI = TEX(texture0, (base + f) / tam) * fragColor;\n"
+    "}\n";
+static Shader amplia;
+static int amplia_esc = -1;
+static bool amplia_ok;
+
+static void prepara_ampliacao(void)
+{
+    amplia = LoadShaderFromMemory(NULL, AMPLIA_FS);
+    amplia_ok = amplia.id != 0 && amplia.id != rlGetShaderIdDefault();
+    if (amplia_ok) {
+        float tam[2] = { (float)GFX_W, (float)GFX_H };
+        SetShaderValue(amplia, GetShaderLocation(amplia, "tam"), tam, SHADER_UNIFORM_VEC2);
+        amplia_esc = GetShaderLocation(amplia, "esc");
+        SetTextureFilter(tela, TEXTURE_FILTER_BILINEAR);
+    } else {
+        SetTextureFilter(tela, TEXTURE_FILTER_POINT);   // sem shader: amplia sem filtro
+    }
+    SetTextureWrap(tela, TEXTURE_WRAP_CLAMP);
+}
+
+#ifdef __EMSCRIPTEN__
+// Telas densas (celular, Mac, Windows com zoom): o canvas ganha um pixel por
+// pixel do aparelho, em vez de ser esticado pelo navegador.
+EM_JS(int, web_tam_real, (int *w, int *h), {
+    var c = Module.canvas, k = window.devicePixelRatio || 1;
+    var r = c.getBoundingClientRect();
+    HEAP32[w >> 2] = Math.max(1, Math.round(r.width * k));
+    HEAP32[h >> 2] = Math.max(1, Math.round(r.height * k));
+    return 1;
+});
+
+static void web_ajusta_canvas(void)
+{
+    int w = 0, h = 0, cw = 0, ch = 0;
+    web_tam_real(&w, &h);
+    emscripten_get_canvas_element_size("#canvas", &cw, &ch);
+    if (w != cw || h != ch) emscripten_set_canvas_element_size("#canvas", w, h);
+    // O raylib acha que o canvas tem o tamanho da pagina: o desenho segue o de verdade.
+    rlViewport(0, 0, w, h);
+    rlMatrixMode(RL_PROJECTION);
+    rlLoadIdentity();
+    rlOrtho(0, w, h, 0, 0, 1);
+    rlMatrixMode(RL_MODELVIEW);
+    rlLoadIdentity();
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Texto nitido: o jogo avisa cada texto do quadro; aqui ele e desenhado com a
@@ -250,6 +320,51 @@ static void anota_clique(GLFWwindow *w, int botao, int acao, int mods)
 #endif
 
 #ifdef __EMSCRIPTEN__
+// Celular e tablet: sem teclado fisico, o jogo pede texto (nome do perfil,
+// codigo da sala) e um toque na tela poe o foco num campo invisivel, o que
+// abre o teclado do aparelho. O que se digita ali vem para o jogo por aqui.
+EMSCRIPTEN_KEEPALIVE void web_tecla(int k) { tecla(k); }
+EMSCRIPTEN_KEEPALIVE int web_digitando(void) { return dado_digitando(); }
+EM_JS(void, web_teclado_inicia, (int enter, int apaga), {
+    var e = document.createElement('input');
+    e.type = 'text';
+    e.setAttribute('autocomplete', 'off');
+    e.setAttribute('autocorrect', 'off');
+    e.setAttribute('autocapitalize', 'characters');
+    e.setAttribute('spellcheck', 'false');
+    e.setAttribute('aria-hidden', 'true');
+    e.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;' +
+                      'font-size:16px;border:0;padding:0;';
+    document.body.appendChild(e);
+    Module.dadoCampo = e;
+    // As teclas do campo nao chegam ao raylib (senao cada letra viria duas
+    // vezes): o texto vem pelo evento 'input'; ENTER e apagar, daqui.
+    var deixa = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape', 'Tab'];
+    e.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { Module._web_tecla(enter); ev.preventDefault(); }
+        else if (ev.key === 'Backspace' && !e.value) { Module._web_tecla(apaga); ev.preventDefault(); }
+        if (deixa.indexOf(ev.key) < 0) ev.stopPropagation();
+    });
+    e.addEventListener('keypress', function (ev) { ev.stopPropagation(); });
+    e.addEventListener('keyup', function (ev) { if (deixa.indexOf(ev.key) < 0) ev.stopPropagation(); });
+    e.addEventListener('input', function (ev) {
+        if (ev.inputType === 'deleteContentBackward') Module._web_tecla(apaga);
+        else for (var i = 0; i < e.value.length; i++) {
+            var c = e.value.charCodeAt(i);
+            if (c >= 32 && c < 127) Module._web_tecla(c);
+        }
+        e.value = "";
+    });
+    Module.canvas.addEventListener('pointerup', function (ev) {
+        if (ev.pointerType !== 'mouse' && Module._web_digitando()) e.focus();
+    });
+});
+// Fora das telas de digitar, o campo solta o foco (e o teclado do aparelho fecha).
+EM_JS(void, web_teclado_confere, (int digitando), {
+    var e = Module.dadoCampo;
+    if (e && !digitando && document.activeElement === e) { e.blur(); Module.canvas.focus(); }
+});
+
 // No navegador o mouse (e o toque) e lido direto da pagina, em pixels do
 // canvas: nao depende de como o raylib acompanha o tamanho da janela.
 EM_JS(void, web_mouse_inicia, (void), {
@@ -341,10 +456,23 @@ static void quadro(void)
     poe_cursor();
     UpdateTexture(tela, fb);
 
+#ifdef __EMSCRIPTEN__
+    web_teclado_confere(dado_digitando());
+    web_ajusta_canvas();
+#endif
     BeginDrawing();
+#ifdef __EMSCRIPTEN__
+    web_ajusta_canvas();                   // o BeginDrawing refaz a matriz do raylib
+#endif
     ClearBackground(C_FAIXA);
     Rectangle area = area_do_jogo();
+    if (amplia_ok) {
+        float esc = area.width / GFX_W;
+        SetShaderValue(amplia, amplia_esc, &esc, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(amplia);
+    }
     DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area, (Vector2){ 0, 0 }, 0, WHITE);
+    if (amplia_ok) EndShaderMode();
     desenha_textos(area);
     EndDrawing();
 }
@@ -358,6 +486,7 @@ int main(void)
     SetExitKey(KEY_NULL);                  // ESC e do jogo, nao fecha a janela
 #ifdef __EMSCRIPTEN__
     web_mouse_inicia();
+    web_teclado_inicia(J_ENTER, J_BKSP);
 #else
     botao_raylib = glfwSetMouseButtonCallback(glfwGetCurrentContext(), anota_clique);
 #endif
@@ -374,7 +503,7 @@ int main(void)
         .mipmaps = 1, .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
     };
     tela = LoadTextureFromImage(img);
-    SetTextureFilter(tela, TEXTURE_FILTER_POINT);
+    prepara_ampliacao();
     carrega_fonte();
 
     dado_inicia(0);

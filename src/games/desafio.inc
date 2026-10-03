@@ -14,7 +14,6 @@
 
 #define DES_ANDARES   3
 #define DES_PASSOS    6                  // 5 mesas e o chefe
-#define DES_PASSOS_V4 4                  // salvamentos de antes: 3 mesas e o chefe
 #define DES_FICHAS    50
 
 
@@ -838,47 +837,32 @@ typedef struct {
 } no_t;
 
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal).
-//   marca "DES1"; tier: dificuldade da ultima mesa vencida; ganho: moedas da
-//   ultima vitoria; no[passo][linha] (tipo NO_VAZIO = sem mesa); caminho:
-//   linha escolhida em cada passo; oferta: premio a escolher (R_PREMIO).
-//   Depois do primeiro salvamento vieram (um arquivo antigo carrega com eles
-//   zerados): os amuletos (bit a = tem o amuleto a; os de 16 em diante em
-//   amuletos_hi), a oferta de amuletos (R_AMULETO), am_volta (0 vai para a
-//   loja da entrada, 1 segue no mapa), o amuleto da loja (0xFF: nenhum), as
-//   moedas do Cofre (juros) e da Taca, a dificuldade (0 normal .. 5) e o
-//   premio2 (Selo de Divida: no segundo premio do chefe). Dos eventos:
-//   lapidou (o Lapidador ja foi usado: nao aparece mais), garcom (o proximo
-//   oponente comeca com 10 fichas a menos), puxadas (alavancadas no
-//   caca-niquel) e tirados (dados que a Capela ja levou).
-#define RUN_CAMPOS(NP)                                                       \
-    char     marca[4];                                                       \
-    uint8_t  andar, passo, estado, vitorias;                                 \
-    int32_t  moedas, ganho;                                                  \
-    uint32_t semente;                                                        \
-    uint8_t  n_col, tier;                                                    \
-    peca_t   col[MAX_COL];                                                   \
-    no_t     no[NP][3];                                                      \
-    int8_t   caminho[NP];                                                    \
-    peca_t   loja[N_LOJA];                                                   \
-    uint8_t  levou[N_LOJA];                                                  \
-    peca_t   oferta[3];                                                      \
-    uint16_t amuletos;                                                       \
-    uint8_t  am_oferta[3];                                                   \
-    uint8_t  am_volta;                                                       \
-    uint8_t  am_loja, am_levou;                                              \
-    uint8_t  juros;                                                          \
-    uint8_t  dificuldade;                                                    \
-    uint16_t amuletos_hi;                                                    \
-    uint8_t  taca;                                                           \
-    uint8_t  premio2;                                                        \
+typedef struct {
+    char     marca[4];                   // "DES1"
+    uint8_t  andar, passo, estado, vitorias;
+    int32_t  moedas, ganho;              // ganho: moedas da ultima vitoria
+    uint32_t semente;
+    uint8_t  n_col, tier;                // tier: dificuldade da ultima mesa vencida
+    peca_t   col[MAX_COL];
+    no_t     no[DES_PASSOS][3];          // [passo][linha]; tipo NO_VAZIO = sem mesa
+    int8_t   caminho[DES_PASSOS];        // linha escolhida em cada passo do salao
+    peca_t   loja[N_LOJA];
+    uint8_t  levou[N_LOJA];
+    peca_t   oferta[3];                  // premio a escolher (estado R_PREMIO)
+    uint16_t amuletos;                   // bit a: tem o amuleto a (os de 16 em diante em amuletos_hi)
+    uint8_t  am_oferta[3];               // amuletos a escolher (estado R_AMULETO)
+    uint8_t  am_volta;                   // depois da escolha: 0 loja da entrada, 1 segue no mapa
+    uint8_t  am_loja, am_levou;          // amuleto a venda na loja (0xFF: nenhum)
+    uint8_t  juros;                      // moedas que o Cofre rendeu na ultima vitoria
+    uint8_t  dificuldade;                // 0 normal .. 5
+    uint16_t amuletos_hi;
+    uint8_t  taca;                       // moedas que a Taca rendeu na ultima vitoria
+    uint8_t  premio2;                    // Selo de Divida: no segundo premio do chefe
+    // Eventos: lapidou (o Lapidador ja foi usado: nao aparece mais), garcom
+    // (o proximo oponente comeca com 10 fichas a menos), puxadas no
+    // caca-niquel e dados que a Capela ja levou.
     uint8_t  lapidou, garcom, puxadas, tirados;
-typedef struct { RUN_CAMPOS(DES_PASSOS) } run_t;
-typedef struct { RUN_CAMPOS(DES_PASSOS_V4) } run_v4_t;   // salao de 3 mesas e o chefe
-#define RUN_TAM_V5 308                   // o run_t antes dos eventos
-#define RUN_TAM_V4 256                   // o run_t de 3 mesas por salao
-#define RUN_TAM_V3 256                   // o run_t antes do Selo de Divida (mesmo tamanho)
-#define RUN_TAM_V2 252                   // o run_t antes das dificuldades
-#define RUN_TAM_V1 244                   // o run_t antes dos amuletos
+} run_t;
 
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa
@@ -886,6 +870,7 @@ static int   des_cur;                    // linha do cursor no mapa
 static bool  des_venceu_run;             // tela final: venceu o Barao?
 static int   des_liberou = -1;           // tela final: dificuldade que acabou de abrir
 static int   des_dif;                    // dificuldade escolhida para a proxima run
+static int   des_marco = -1;             // dado que a ultima vitoria abriu (chefe vencido pela 1a vez)
 static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou
 static int   des_perdeu_para = -1;       // quem encerrou a run (indice em PERSO)
 static int   des_perdeu_andar;
@@ -1241,8 +1226,8 @@ typedef struct {
     uint8_t  venceu[N_NIVEIS + 1];       // Barao vencido em cada dificuldade
     uint16_t runs;
     uint16_t partidas;                   // partidas jogadas no Desafiante
+    uint8_t  marcos;                     // bit c: ja venceu o chefe do salao c (abre dados)
 } perfil_t;
-#define PERFIL_TAM_V1 22                 // o perfil antes de contar as partidas
 static perfil_t perfis[N_PERFIS];
 static int perfil_atual = -1;
 static bool perfis_lidos;
@@ -1280,12 +1265,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER2" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
-// O "PER1" de antes (sem as partidas) ainda carrega.
+// "PER3" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER2", 4);
+    memcpy(buf, "PER3", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -1299,14 +1283,9 @@ static void perfis_le(void)
     perfil_atual = -1;
     static char buf[16 + 2 * sizeof perfis];
     int n = salva_le("perfis", buf, (int)sizeof buf);
-    size_t tam;
-    if (n == 5 + (int)(2 * sizeof perfis) && !memcmp(buf, "PER2", 4)) tam = sizeof(perfil_t);
-    else if (n == 5 + 2 * N_PERFIS * PERFIL_TAM_V1 && !memcmp(buf, "PER1", 4)) tam = PERFIL_TAM_V1;
-    else return;
+    if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER3", 4)) return;
     perfil_t lido[N_PERFIS];
-    memset(lido, 0, sizeof lido);
-    for (int i = 0; i < N_PERFIS; i++)
-        if (!de_hex(buf + 5 + 2 * tam * (size_t)i, &lido[i], tam)) return;
+    if (!de_hex(buf + 5, lido, sizeof lido)) return;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -1329,10 +1308,23 @@ static int nivel_do_dado(int t)
     case D_PRISMA:     return 3;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
+    // Os fortes que ja existiam: presos no comeco.
+    case D_EXPLOSIVO:  return 1;
+    case D_EGOISTA:    return 2;
+    case D_TUDO_NADA:  return 3;
+    case D_MALDITO:    return 4;                 // Agouro
     default:           return 0;
     }
 }
-static bool dado_liberado(int t)  { return nivel_do_dado(t) <= perfil()->nivel; }
+// D20 e Lastro abrem antes do Barao: na primeira vitoria contra o chefe do
+// primeiro e do segundo salao.
+static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -1); }
+static bool dado_liberado(int t)
+{
+    int m = marco_do_dado(t);
+    if (m >= 0) return perfil()->marcos >> m & 1;
+    return nivel_do_dado(t) <= perfil()->nivel;
+}
 static bool amuleto_liberado(int a) { return NIVEL_AMULETO[a] <= perfil()->nivel; }
 
 // ---------------------------------------------------------------------------
@@ -1585,51 +1577,13 @@ static void des_salva(void)
     salva_grava(chave_run(), buf);
 }
 
-// Uma run salva quando o salao tinha 3 mesas: guarda tudo, menos o mapa. Se
-// ja estava andando no salao, recomeca nele (o mapa novo sai na volta).
-static void run_de_v4(const run_v4_t *v, run_t *r)
-{
-    memset(r, 0, sizeof *r);
-    memcpy(r->marca, v->marca, 4);
-    r->andar = v->andar; r->estado = v->estado; r->vitorias = v->vitorias;
-    r->moedas = v->moedas; r->ganho = v->ganho; r->semente = v->semente;
-    r->n_col = v->n_col; r->tier = v->tier;
-    memcpy(r->col, v->col, sizeof r->col);
-    memcpy(r->loja, v->loja, sizeof r->loja);
-    memcpy(r->levou, v->levou, sizeof r->levou);
-    memcpy(r->oferta, v->oferta, sizeof r->oferta);
-    r->amuletos = v->amuletos; memcpy(r->am_oferta, v->am_oferta, sizeof r->am_oferta);
-    r->am_volta = v->am_volta; r->am_loja = v->am_loja; r->am_levou = v->am_levou;
-    r->juros = v->juros; r->dificuldade = v->dificuldade; r->amuletos_hi = v->amuletos_hi;
-    r->taca = v->taca;
-    for (int p = 0; p < DES_PASSOS; p++) {
-        r->caminho[p] = -1;
-        for (int l = 0; l < 3; l++) r->no[p][l].tipo = NO_VAZIO;      // sem mapa: gera de novo
-    }
-    bool comeco = v->estado == R_LOJA_INI || (v->estado == R_AMULETO && v->am_volta == 0);
-    if (!comeco) r->estado = R_MAPA;
-}
-
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
-    size_t tam = n > 0 ? (size_t)n / 2 : 0;
-    if (n > 0 && (tam == sizeof(run_t) || tam == RUN_TAM_V5)) {
-        memset(r, 0, sizeof *r);
-        if (!de_hex(buf, r, tam)) return false;
-    } else if (tam == RUN_TAM_V1 || tam == RUN_TAM_V2 || tam == RUN_TAM_V4) {
-        // Os arquivos de antes (sem amuletos; sem dificuldade; 3 mesas por
-        // salao) carregam com o que falta zerado.
-        run_v4_t v;
-        memset(&v, 0, sizeof v);
-        if (!de_hex(buf, &v, tam)) return false;
-        if (tam == RUN_TAM_V1) v.am_loja = 0xFF;            // loja de antes: sem amuleto
-        if (v.passo >= DES_PASSOS_V4) return false;
-        run_de_v4(&v, r);
-    } else {
-        return false;
-    }
+    if (n != (int)(2 * sizeof(run_t))) return false;
+    memset(r, 0, sizeof *r);
+    if (!de_hex(buf, r, sizeof *r)) return false;
     if (memcmp(r->marca, "DES1", 4) || r->andar >= DES_ANDARES || r->passo >= DES_PASSOS
         || r->estado > R_EVENTO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
@@ -1850,6 +1804,12 @@ static void des_resultado(void)
         return;
     }
     run.vitorias++;
+    des_marco = -1;
+    if (no->tipo == NO_CHEFE && perfil_atual >= 0 && run.andar < 2 && !(perfis[perfil_atual].marcos >> run.andar & 1)) {
+        perfis[perfil_atual].marcos |= (uint8_t)(1u << run.andar);    // abre o D20 ou o Lastro
+        perfis_salva();
+        des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
+    }
     run.ganho = J[0].fichas;
     if (run_amuletos() >> A_CONTRATO & 1) run.ganho += J[0].fichas / 2;     // Contrato Sujo: +50%
     run.juros = 0;
@@ -1924,10 +1884,6 @@ static void des_premio_feito(void)
 static void des_continua(void)
 {
     if (!des_carrega(&run)) { des_nova_run(); return; }
-    if (run.no[DES_PASSOS - 1][1].tipo != NO_CHEFE) {    // veio de um salvamento sem o mapa novo
-        gera_andar();
-        des_salva();
-    }
     switch (run.estado) {
     case R_LOJA_INI: case R_LOJA: abre_loja_run(); break;
     case R_PARTIDA:               des_comeca_partida(); break;
@@ -2340,7 +2296,16 @@ static void desenha_fim_partida_run(void)
         }
         moedas_c(GFX_W / 2, CENTRO + 6, run.ganho + run.juros + run.taca, " moedas", C_OURO);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-        txt_c(GFX_W / 2, CENTRO + 56, "ENTER escolhe o prêmio", C_MARFIM_S, false);
+        if (des_marco >= 0) {                      // primeira vitoria contra este chefe
+            char m[64];
+            snprintf(m, sizeof m, "Abriu o %s para as próximas runs", TIPO[des_marco].nome);
+            int w = gfx_largura(m, 1);
+            desenha_dado((float)(GFX_W / 2 - w / 2 - 12), (float)(CENTRO + 56), 8, des_marco, 0, 0, 0, 0, false);
+            txt(GFX_W / 2 - w / 2 + 2, CENTRO + 50, m, C_OURO, true);
+            txt_c(GFX_W / 2, CENTRO + 70, "ENTER escolhe o prêmio", C_MARFIM_S, false);
+        } else {
+            txt_c(GFX_W / 2, CENTRO + 56, "ENTER escolhe o prêmio", C_MARFIM_S, false);
+        }
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
         txt_c(GFX_W / 2, CENTRO + 6, venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
@@ -2943,8 +2908,9 @@ static void liberados(int n, int *am, int *dado)
     int k = 0;
     for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n) am[k++] = a;
     for (; k < 2; k++) am[k] = -1;
-    *dado = -1;
-    for (int t = 0; t < D_N; t++) if (nivel_do_dado(t) == n) *dado = t;
+    k = 0;
+    for (int t = 0; t < D_N && k < 2; t++) if (nivel_do_dado(t) == n && marco_do_dado(t) < 0) dado[k++] = t;
+    for (; k < 2; k++) dado[k] = -1;
 }
 
 static void des_abre_perfis(void)
@@ -3129,23 +3095,27 @@ static void desenha_dificuldade(void)
         ly += 18;
     }
     if (d > 0) {
-        int am[2], dado;
-        liberados(d, am, &dado);
+        int am[2], dado[2];
+        liberados(d, am, dado);
         ly += 6;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
         ly += 26;
-        int ix = px + 24;
-        for (int i = 0; i < 2; i++) {
+        int ix = px + 24, ly0 = ly;
+        for (int i = 0; i < 2; i++) {                // amuletos a esquerda...
             if (am[i] < 0) continue;
             desenha_amuleto(ix, ly, 9, am[i], d > nv);
             txt(ix + 14, ly - 6, AMULETO[am[i]].nome, d > nv ? C_TEXTO_M : AMULETO[am[i]].cor, false);
-            if (d <= nv) dica_zona(ix - 10, ly - 10, 120, 20, DICA_AMULETO, am[i]);
+            if (d <= nv) dica_zona(ix - 10, ly - 10, 150, 20, DICA_AMULETO, am[i]);
             ly += 24;
         }
-        if (dado >= 0) {
-            desenha_dado((float)ix, (float)ly, 9, dado, 0, 0, 0, 0, d > nv);
-            txt(ix + 14, ly - 6, TIPO[dado].nome, d > nv ? C_TEXTO_M : cor_aro(dado), false);
-            if (d <= nv) dica_zona(ix - 10, ly - 10, 120, 20, DICA_DADO, dado);
+        ly = ly0;
+        for (int i = 0; i < 2; i++) {                // ...e os dados a direita
+            if (dado[i] < 0) continue;
+            int dx = px + 214;
+            desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
+            txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_aro(dado[i]), false);
+            if (d <= nv) dica_zona(dx - 10, ly - 10, 150, 20, DICA_DADO, dado[i]);
+            ly += 24;
         }
     }
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
@@ -3154,24 +3124,27 @@ static void desenha_dificuldade(void)
 static void desenha_liberou(void)
 {
     if (des_liberou < 1) return;
-    int am[2], dado;
-    liberados(des_liberou, am, &dado);
+    int am[2], dado[2], n = 0;
+    liberados(des_liberou, am, dado);
     char s[64];
     snprintf(s, sizeof s, "Abriu o %s", NOME_DIF[des_liberou]);
     txt_c(GFX_W / 2, CENTRO + 44, s, COR_DIF[des_liberou], true);
-    int x = GFX_W / 2 - 150;
+    for (int i = 0; i < 2; i++) n += (am[i] >= 0) + (dado[i] >= 0);
+    int x = GFX_W / 2 - n * 106 / 2;
     for (int i = 0; i < 2; i++)
         if (am[i] >= 0) {
             desenha_amuleto(x + 8, CENTRO + 74, 8, am[i], false);
             txt(x + 20, CENTRO + 68, AMULETO[am[i]].nome, AMULETO[am[i]].cor, false);
-            dica_zona(x, CENTRO + 64, 96, 20, DICA_AMULETO, am[i]);
-            x += 104;
+            dica_zona(x, CENTRO + 64, 100, 20, DICA_AMULETO, am[i]);
+            x += 106;
         }
-    if (dado >= 0) {
-        desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado, 0, 0, 0, 0, false);
-        txt(x + 20, CENTRO + 68, TIPO[dado].nome, cor_aro(dado), false);
-        dica_zona(x, CENTRO + 64, 96, 20, DICA_DADO, dado);
-    }
+    for (int i = 0; i < 2; i++)
+        if (dado[i] >= 0) {
+            desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado[i], 0, 0, 0, 0, false);
+            txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_aro(dado[i]), false);
+            dica_zona(x, CENTRO + 64, 100, 20, DICA_DADO, dado[i]);
+            x += 106;
+        }
 }
 
 static bool des_desenha(void)

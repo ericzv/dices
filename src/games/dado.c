@@ -3354,7 +3354,7 @@ static void desenha_abertura(void)
                                                           ? C_VINHO_CLR : C_MARFIM_S, false);
     txt_c(GFX_W / 2, GFX_H - FAIXA_H + 12, menu_tela
           ? "mouse ou setas escolhem  ·  clique ou ENTER confirma  ·  ESC volta"
-          : "mouse ou setas  ·  clique ou ENTER  ·  M som  ·  N música  ·  F11 tela cheia",
+          : "M som  ·  N música  ·  F11 tela cheia  ·  - e + tamanho da mesa",
           C_TEXTO_M, false);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
     char ver[32];
@@ -5711,7 +5711,7 @@ static const pagina_t TUTORIAL[] = {
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
         "Mouse e toque também jogam: clique no que quiser. O < no alto volta ou sai da partida.",
-        "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia.  Boa sorte!" } },
+        "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia  ·  - e + tamanho da mesa.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
 

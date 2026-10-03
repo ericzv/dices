@@ -1350,9 +1350,13 @@ static void numero(float cx, float cy, float r, const char *s, uint16_t c)
     gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
 }
 
+// Fechado no catalogo: o dado fica apagado como o anulado, mas sem o X.
+static bool so_apagado;
+
 // X grosso em vinho sobre o dado anulado.
 static void risca(float cx, float cy, float r)
 {
+    if (so_apagado) return;
     int e = r < 12 ? 2 : (int)(r / 6);
     gfx_linha_grossa((int)(cx - r), (int)(cy - r), (int)(cx + r), (int)(cy + r), e, C_VINHO_CLR);
     gfx_linha_grossa((int)(cx - r), (int)(cy + r), (int)(cx + r), (int)(cy - r), e, C_VINHO_CLR);
@@ -1388,7 +1392,8 @@ static void tudo_ou_nada(float cx, float cy, float r, float ang, int valor, bool
                 float olho = h * 0.3f;
                 if (u * u + (v + h) * (v + h) <= olho * olho) claro = false;
                 if (u * u + (v - h) * (v - h) <= olho * olho) claro = true;
-                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? C_MARFIM : C_EBANO);
+                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? (zerado ? C_MARFIM_S : C_MARFIM)
+                                                            : (zerado ? C_EBANO_B : C_EBANO));
             }
         return;
     }
@@ -1540,7 +1545,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     }
     if (valor < 0) return;               // so o corpo: o catalogo escreve grande
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
-        && !zerado) {
+        && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
         snprintf(s, sizeof s, "%d", valor);
@@ -5431,7 +5436,10 @@ static void desenha_catalogo(void)
     gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));   // anel da raridade
     gfx_disco(cx, cy, 77, C_FELTRO_ESC);
     if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
-        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, false);
+        char tr[80];                                    // fechado: apagado
+        so_apagado = true;
+        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, cat_trava_dado(tipo, tr, sizeof tr) == 2);
+        so_apagado = false;
     } else if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
@@ -5442,7 +5450,9 @@ static void desenha_catalogo(void)
         float ang = sinf(t_fase * 1.7f) * 0.22f;
         bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
         char tr[80];
+        so_apagado = true;
         desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, cat_trava_dado(tipo, tr, sizeof tr) == 2);
+        so_apagado = false;
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);
             gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, C_EBANO, 2, true);
@@ -5468,13 +5478,13 @@ static void desenha_catalogo(void)
     int st = cat_trava_dado(tipo, trava, sizeof trava);
     if (st == 2) {                                       // fechado: cadeado no aro e o que falta
         cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
-        cadeado(x + 5, 138, C_VINHO_CLR, 1);
-        txt(x + 16, 136, trava, C_VINHO_CLR, false);
+        cadeado(x + 5, 142, C_VINHO_CLR, 1);
+        txt(x + 16, 139, trava, C_VINHO_CLR, false);
     } else if (st == 1) {
-        txt(x, 136, trava, C_VERDE, false);
+        txt(x, 139, trava, C_VERDE, false);
     }
-    gfx_rect(x, 156, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 166, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
+    quebra_linhas(x, 170, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o

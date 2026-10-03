@@ -3225,17 +3225,17 @@ static void desenha_cat_amuleto(int i)
     gfx_moldura(x, 118, wc, TXT_H + 2, 1, C_LATAO);
     txt(x + 6, 119, et, C_LATAO, false);
     txt(x + wc + 8, 119, "só no Desafiante", C_TEXTO_M, false);
-    if (NIVEL_AMULETO[a] == 0) txt(x, 136, "Aberto desde o começo", C_TEXTO_M, false);
+    if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
-        txt(x, 136, s, C_VERDE, false);
+        txt(x, 139, s, C_VERDE, false);
     } else {
         quem_abre(NIVEL_AMULETO[a], -1, s, sizeof s);
-        cadeado(x + 5, 138, C_VINHO_CLR, 1);
-        txt(x + 16, 136, s, C_VINHO_CLR, false);
+        cadeado(x + 5, 142, C_VINHO_CLR, 1);
+        txt(x + 16, 139, s, C_VINHO_CLR, false);
     }
-    gfx_rect(x, 156, 320, 1, C_FELTRO2);
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
     quebra_linhas(x, 166, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 

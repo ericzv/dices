@@ -531,11 +531,11 @@ static void desenha_balao(int x, int y, const char *s)
 // Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
 // balao logo abaixo. Devolve onde o nome comeca.
 static int avatar_retrato(void);
-static int retrato_faixa(int j, int y0)
+static int retrato_faixa(int j, int x, int y0)
 {
     int perso = j == 1 ? fala_perso : avatar_retrato();
-    if (perso < 0) return 18;
-    int x = 6, esc = 2, corte = 3;              // em cima so tem a ponta da cartola
+    if (perso < 0) return x + 12;
+    int esc = 2, corte = 3;                     // em cima so tem a ponta da cartola
     int y = j == 1 ? y0 : y0 + 2;
     gfx_rect(x - 2, y, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
     retrato(x, y, esc, perso, t_fase + perso * 1.3f, j == 1 && t_fala > 0.3f, corte, (FAIXA_H - 2) / esc);

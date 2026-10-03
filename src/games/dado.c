@@ -4321,7 +4321,7 @@ static void painel(int y, int h, int w)
 }
 
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
-static int  retrato_faixa(int j, int y0);   // devolve onde o nome comeca
+static int  retrato_faixa(int j, int x, int y0);   // devolve onde o nome comeca
 
 static void faixa_jogador(int j)
 {
@@ -4335,19 +4335,25 @@ static void faixa_jogador(int j)
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
     if (da_vez) gfx_rect(0, y0 + 2, 5, FAIXA_H - 4, p->cor);
-    int xn = modo == M_DESAFIO ? retrato_faixa(j, y0) : 18;
+    // Na faixa de cima, o "<" sai da partida (pede confirmacao, como o ESC):
+    // no celular nao ha tecla.
+    int x0 = cima ? botao_voltar(KEY_ESC) - 4 : 6;
+    int xn = modo == M_DESAFIO ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
     int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     char s[32];
     snprintf(s, sizeof s, "%d", p->fichas);
     txt(x + 36, ty, s, C_MARFIM, true);
+    int fim_fichas = x + 36 + gfx_largura(s, 1);
 
     // A rodada mora na faixa de cima; o som, na de baixo.
     if (cima && rodada > 0 && fase != F_LOJA) {
         int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
         if (rodada > max_r) snprintf(s, sizeof s, "rodada extra");
         else snprintf(s, sizeof s, "rodada %d de %d", rodada, max_r);
-        txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
+        int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
+        if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
+        txt_c(cx, ty, s, C_TEXTO_M, false);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
@@ -5615,7 +5621,7 @@ static void desenha_avisos(void)
     const char *msg = NULL;
     uint16_t c = C_OURO;
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
-    else if (t_sair >= 0) msg = "Aperte ESC de novo para sair da partida.";
+    else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
@@ -5890,9 +5896,11 @@ static void manda_tecla(int k)
 // O mouse esta sobre algo clicavel? (a plataforma troca a seta pela maozinha)
 bool dado_mouse_clicavel(void)
 {
-    if (zonas_fase != fase || ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return false;
+    if (zonas_fase != fase) return false;
+    bool alheia = ia_na_vez() || (modo == M_ONLINE && rede_na_vez());
     for (int i = 0; i < n_zonas; i++)
-        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) return true;
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h) && (!alheia || zonas[i].tecla == KEY_ESC))
+            return true;
     return false;
 }
 
@@ -5907,11 +5915,15 @@ void dado_mouse(int x, int y, int acao)
         if (acao == 1) manda_tecla(KEY_ENTER);
         return;
     }
-    // Na vez da IA ou do rival online, o mouse nao mexe em nada.
-    if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) return;
     const zona_clique_t *z = NULL;
     for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
         if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+    // Na vez da IA ou do rival online, o mouse nao mexe em nada; so o "<" de
+    // sair vale sempre.
+    if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) {
+        if (acao == 1 && z && z->tecla == KEY_ESC) manda_tecla(KEY_ESC);
+        return;
+    }
 
     if (acao == 0) {
         // Passar por cima escolhe. No online o cursor so anda pelas teclas,

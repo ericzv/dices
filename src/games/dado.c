@@ -574,7 +574,7 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
-enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA };
+enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE };
 static uint8_t reg_op;
 static bool op_nervoso;              // o Novato perdeu a ultima rodada
 static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
@@ -1980,6 +1980,8 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1u << A_PENA; }
         if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
         if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
+        if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
+        if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 2;                    // o Caubói
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
@@ -2632,7 +2634,8 @@ static void nova_rodada(void)
     rodada++;
     plano_rodada = -1;                       // a IA monta outra fila
     ferr_k[0] = ferr_k[1] = -1;
-    if (tem_am(0, A_RELOGIO)) primeiro = 1;  // Relogio de Bolso: o oponente abre
+    if (tem_reg(REG_ULTIMA)) primeiro = 0;   // a Detetive joga sempre por ultimo
+    if (tem_am(0, A_RELOGIO)) primeiro = 1;  // Relogio de Bolso: o oponente abre (vale mais)
     for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para o Cobrador
     // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;

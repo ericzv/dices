@@ -947,8 +947,44 @@ int main(void)
         J[0].fichas = J[1].fichas = 40; pote = 10;
         conclui_rodada();
         CONFERE(op_nervoso && tam_mao(1) == 6 && tam_mao(0) == 7, "Novato: maos %d e %d", tam_mao(0), tam_mao(1));
+        // A Detetive joga sempre por ultimo (o Relogio de Bolso do jogador vale mais).
+        limpa(); reg_op = REG_ULTIMA; amul[0] = 0;
+        for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 0, "Detetive: quem abre e %d", primeiro); }
+        amul[0] = 1u << A_RELOGIO;
+        entrada(40, 40, 0);
+        CONFERE(primeiro == 1, "Detetive com Relogio: quem abre e %d", primeiro);
+        amul[0] = 0;
+        // A Maratonista: +1 nos dados dela da 5a rodada em diante.
+        {
+            desfecho_t d;
+            reg_op = REG_FOLEGO;
+            limpa(); rodada = 4;
+            joga(1, D_D6, 3);
+            d = fim();
+            CONFERE(d.total[1] == 3, "Maratonista na 4a rodada: %d", d.total[1]);
+            limpa(); rodada = 5;
+            joga(1, D_D6, 3); joga(0, D_D6, 3);
+            d = fim();
+            CONFERE(d.total[1] == 4 && d.total[0] == 3, "Maratonista na 5a rodada: %d x %d", d.total[1], d.total[0]);
+            // O Caubói: +3 no primeiro da sequência dele.
+            reg_op = REG_SAQUE; rodada = 1;
+            limpa();
+            joga(1, D_D6, 4); joga(1, D_D8, 5);
+            d = fim();
+            CONFERE(d.total[1] == 4 + 2 + 5, "Caubói: esperava 11, deu %d", d.total[1]);
+            // O Ilusionista (Dupla) vale para o oponente.
+            reg_op = REG_NADA; amul[1] = 1u << A_DUPLA;
+            limpa();
+            joga(1, D_D6, 3); joga(1, D_D8, 3);
+            d = fim();
+            CONFERE(d.total[1] == 3 + 3 + 4, "Ilusionista: esperava 10, deu %d", d.total[1]);
+            amul[1] = 0;
+        }
         // Fora do Desafiante, nada disso vale.
         modo = M_UM;
+        reg_op = REG_ULTIMA;
+        CONFERE(!tem_reg(REG_ULTIMA), "Detetive valendo fora do Desafiante");
+        reg_op = REG_NERVOSO;
         CONFERE(tam_mao(1) == 7 && !tem_reg(REG_NERVOSO), "trunfo valendo fora do Desafiante");
         reg_op = REG_NADA; op_nervoso = false;
         modo = modo_antes;

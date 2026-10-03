@@ -18,6 +18,9 @@ void som_giro(bool on) { (void)on; }
 #include "salva_mem.h"
 
 static int falhas;
+
+// Posicao (na lista do evento) de um dado do tipo t; -1 se nao ha.
+static int acha_na_lista(int t);
 #define CONFERE(cond, ...) do { if (!(cond)) { printf("FALHOU %s:%d: ", __FILE__, __LINE__); \
     printf(__VA_ARGS__); putchar('\n'); falhas++; } } while (0)
 
@@ -552,8 +555,8 @@ int main(void)
             memcpy(v.col, run.col, sizeof v.col);
             v.amuletos = run.amuletos; v.am_loja = 0xFF; v.dificuldade = 2; v.amuletos_hi = 5; v.taca = 3;
             for (int p2 = 0; p2 < DES_PASSOS_V4; p2++) v.caminho[p2] = 1;
-            static char buf[2 * sizeof(run_v4_t) + 1];
-            hex_de(&v, sizeof v, buf);
+            static char buf[2 * RUN_TAM_V4 + 1];
+            hex_de(&v, RUN_TAM_V4, buf);
             salva_grava(chave_run(), buf);
             CONFERE(des_carrega(&r) && r.moedas == 77 && r.andar == 1 && r.passo == 0 && r.vitorias == 6
                     && r.dificuldade == 2 && r.amuletos == run.amuletos && r.amuletos_hi == 5 && r.taca == 3 && r.estado == R_MAPA,
@@ -801,6 +804,117 @@ int main(void)
         CONFERE(fase == F_PREMIO && run.premio2 == 1 && run.estado == R_PREMIO, "Selo: sem segundo premio (fase %d)", fase);
         des_premio_feito();
         CONFERE(run.premio2 == 0 && fase == F_RAMULETO, "Selo: depois do segundo, o amuleto (fase %d)", fase);
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        perfil_atual = -1;
+        modo = modo_antes;
+    }
+
+    // ---- Eventos do mapa ----------------------------------------------------
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "T");
+        perfis[0].nivel = 5;
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 0;
+        des_nova_run();
+        amuleto_escolhido(0);
+        #define POE_EVENTO(e) do { run.passo = 1; run.caminho[1] = 0; run.no[1][0].tipo = NO_EVENTO; \
+            run.no[1][0].perso = (uint8_t)(e); run.no[1][0].semente = 777u; entra_evento(); } while (0)
+        // Lapidador: D6 vira D8 por 100 moedas; depois nao aparece mais.
+        run.moedas = 150;
+        POE_EVENTO(EVT_LAPIDADOR);
+        CONFERE(fase == F_REVENTO && run.estado == R_EVENTO, "evento nao abriu (fase %d)", fase);
+        run_t r;
+        CONFERE(des_carrega(&r) && r.estado == R_EVENTO, "evento nao ficou salvo");
+        ev_escolhe(EA_LAPIDA);
+        CONFERE(ev_passo == 1 && acha_na_lista(D_D6) >= 0 && acha_na_lista(D_D12) < 0, "Lapidador: lista errada");
+        int i6 = ev_lista[acha_na_lista(D_D6)];
+        ev_aplica_dado(i6);
+        CONFERE(run.col[i6].tipo == D_D8 && run.moedas == 50 && run.lapidou && run.passo == 2 && run.estado == R_MAPA,
+                "Lapidador: tipo %d moedas %d", run.col[i6].tipo, run.moedas);
+        for (int a = 0; a < DES_ANDARES; a++) {
+            run.andar = (uint8_t)a; run.semente += 77;
+            gera_andar();
+            for (int p2 = 0; p2 < DES_PASSOS; p2++)
+                for (int l = 0; l < 3; l++)
+                    CONFERE(!(run.no[p2][l].tipo == NO_EVENTO && run.no[p2][l].perso == EVT_LAPIDADOR),
+                            "Lapidador apareceu de novo");
+        }
+        run.andar = 0;
+        // Capela: tira 2, nunca abaixo do minimo.
+        int antes = run.n_col;
+        POE_EVENTO(EVT_CAPELA);
+        ev_escolhe(EA_CAPELA);
+        ev_aplica_dado(ev_lista[0]);
+        CONFERE(ev_passo == 1 && run.n_col == antes - 1 && run.tirados == 1, "Capela: primeira");
+        des_continua();                                      // sair e voltar no meio: continua
+        CONFERE(fase == F_REVENTO && ev_id == EVT_CAPELA && run.tirados == 1, "Capela: voltar no meio");
+        ev_escolhe(EA_CAPELA);
+        ev_aplica_dado(ev_lista[0]);
+        CONFERE(ev_passo == 2 && run.n_col == antes - 2, "Capela: segunda");
+        // Copista: nao copia lendario; copia por 70.
+        run.col[run.n_col++] = (peca_t){ D_EGOISTA, 0 };
+        run.moedas = 100;
+        POE_EVENTO(EVT_COPISTA);
+        ev_escolhe(EA_COPIA);
+        for (int k = 0; k < ev_n; k++) CONFERE(TIPO[run.col[ev_lista[k]].tipo].raridade < RAR_LENDA, "Copista: lendario na lista");
+        antes = run.n_col;
+        int tc = run.col[ev_lista[0]].tipo;
+        ev_aplica_dado(ev_lista[0]);
+        CONFERE(run.n_col == antes + 1 && run.col[run.n_col - 1].tipo == tc && run.moedas == 30, "Copista");
+        // Trocador: sobe uma raridade.
+        POE_EVENTO(EVT_TROCADOR);
+        ev_escolhe(EA_TROCA);
+        int it = ev_lista[acha_na_lista(D_D4)];
+        ev_aplica_dado(it);
+        CONFERE(TIPO[run.col[it].tipo].raridade == RAR_INCOMUM, "Trocador: virou raridade %d", TIPO[run.col[it].tipo].raridade);
+        // Dado Esquecido: arriscar da raro ou Quebrado.
+        for (int k = 0; k < 6; k++) {
+            POE_EVENTO(EVT_ESQUECIDO);
+            run.no[1][0].semente = 1000u + (uint32_t)k; ev_sem = run.no[1][0].semente;
+            antes = run.n_col;
+            ev_escolhe(EA_ARRISCA);
+            int t2 = run.col[run.n_col - 1].tipo;
+            CONFERE(run.n_col == antes + 1 && (t2 == D_QUEBRADO || TIPO[t2].raridade == RAR_RARO), "Esquecido: %d", t2);
+            run.n_col--;
+        }
+        // Fonte: 100 moedas; o amuleto sai ou nao, e o passo anda.
+        run.moedas = 100;
+        int am = am_conta(run_amuletos());
+        POE_EVENTO(EVT_FONTE);
+        ev_escolhe(EA_FONTE2);
+        CONFERE(run.moedas == 0 && ev_passo == 2 && am_conta(run_amuletos()) - am == (ev_mostra == 2), "Fonte");
+        // Caca-niquel: 15 por puxada ate dar tres iguais; o mesmo sorteio na volta.
+        int puxadas[2];
+        for (int vez2 = 0; vez2 < 2; vez2++) {
+            run.moedas = 15 * 60;
+            POE_EVENTO(EVT_NIQUEL);
+            while (ev_passo != 2 && run.puxadas < 60) { ev_escolhe(EA_PUXA); t_fase += 2; ev_atualiza(); }
+            puxadas[vez2] = run.puxadas;
+            int premio = ev_rolos[0] == RL_MOEDAS ? EVT_PREMIO_NIQUEL : 0;
+            CONFERE(ev_passo == 2 && ev_rolos[0] == ev_rolos[1] && ev_rolos[1] == ev_rolos[2]
+                    && run.moedas == 15 * 60 - 15 * run.puxadas + premio, "Caca-niquel: moedas %d", run.moedas);
+        }
+        CONFERE(puxadas[0] == puxadas[1], "Caca-niquel: sorteio mudou (%d, %d)", puxadas[0], puxadas[1]);
+        // Garcom: o proximo oponente com 10 fichas a menos, uma vez so.
+        run.moedas = 50;
+        POE_EVENTO(EVT_GARCOM);
+        ev_escolhe(EA_GARCOM);
+        CONFERE(run.garcom && run.moedas == 0, "Garcom: pagamento");
+        run.no[2][0].tipo = NO_FACIL; run.no[2][0].perso = 1; run.no[2][0].semente = 99;
+        run.passo = 2; run.caminho[2] = 0;
+        des_comeca_partida();
+        int com = J[1].fichas;
+        venc_partida = 0;
+        des_resultado();
+        CONFERE(!run.garcom, "Garcom: devia valer uma partida so");
+        run.passo = 2; run.caminho[2] = 0;
+        des_comeca_partida();
+        CONFERE(J[1].fichas == com + 10, "Garcom: %d com, %d sem", com, J[1].fichas);
+        #undef POE_EVENTO
         salva_limpa_tudo();
         memset(perfis, 0, sizeof perfis);
         perfil_atual = -1;
@@ -1134,4 +1248,11 @@ int main(void)
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");
     return 0;
+}
+
+static int acha_na_lista(int t)
+{
+    int a = -1;
+    for (int i = 0; i < ev_n; i++) if (run.col[ev_lista[i]].tipo == t) a = i;
+    return a;
 }

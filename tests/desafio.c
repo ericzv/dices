@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
     int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
-    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0;
+    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
@@ -106,6 +106,7 @@ int main(int argc, char **argv)
                 des_cur = l;
                 trata_tecla(KEY_ENTER);
                 if (fase == F_ORDEM || fase == F_JOGA) partidas++;
+                if (fase == F_REVENTO) eventos_vistos++;
                 break;
             }
             case F_PREMIO:
@@ -141,6 +142,28 @@ int main(int argc, char **argv)
             case F_RESULTADO:
                 trata_tecla(KEY_ENTER);
                 break;
+            case F_REVENTO: {                // evento: uma escolha ao acaso entre as que valem
+                if (ev_girando()) { dado_passo(1.0f / 60); break; }
+                if (ev_passo == 2) { trata_tecla(KEY_ENTER); break; }
+                if (ev_passo == 1) {
+                    cursor = ev_n ? (int)(rnd_t() % (uint32_t)ev_n) : 0;
+                    int antes_col = run.n_col;
+                    trata_tecla(ev_acao == EA_CAPELA && run.tirados ? KEY_BKSP : KEY_ENTER);
+                    CONFERE(run.n_col >= N_FILA && run.n_col <= MAX_COL, "evento deixou a bolsa com %d", run.n_col);
+                    (void)antes_col;
+                    break;
+                }
+                ev_op_t op[6];
+                int n = ev_opcoes(op), ok[6], nok = 0;
+                for (int i = 0; i < n; i++) if (op[i].ok) ok[nok++] = i;
+                CONFERE(nok > 0, "evento sem saida");
+                cursor = ok[rnd_t() % (uint32_t)nok];
+                if (ev_id == EVT_NIQUEL && run.puxadas >= 4) cursor = n - 1;   // nao fica la para sempre
+                int moedas_antes = run.moedas;
+                trata_tecla(KEY_ENTER);
+                CONFERE(run.moedas >= 0 && run.moedas <= moedas_antes + EVT_PREMIO_NIQUEL, "moedas do evento: %d", run.moedas);
+                break;
+            }
             case F_RBOLSA:
                 trata_tecla(KEY_TAB);
                 break;
@@ -184,7 +207,8 @@ int main(int argc, char **argv)
         for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
         putchar('\n');
     }
-    printf("amuletos por run: %.1f\n", (double)amuletos_tidos / runs);
+    printf("amuletos por run: %.1f  ·  eventos por run: %.1f\n", (double)amuletos_tidos / runs,
+           (double)eventos_vistos / runs);
     printf("onde parou (mesa 1..%d, %d = venceu):", DES_ANDARES * DES_PASSOS, DES_ANDARES * DES_PASSOS);
     for (int i = 0; i <= DES_ANDARES * DES_PASSOS; i++) printf(" %d", chegou[i]);
     putchar('\n');

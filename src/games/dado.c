@@ -126,7 +126,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_FARTURA, EF_SORTE, EF_TEIMOSO, EF_SEMENTE, EF_FOGO, EF_MALDICAO, EF_TREVO,
        EF_JACKPOT, EF_COPIADOR, EF_EGOISTA, EF_LASER, EF_VENTANIA,
        EF_MISERICORDIA, EF_SOLITARIO, EF_SENTINELA, EF_FERREIRO, EF_COBRADOR,
-       EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR };
+       EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR,
+       EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -147,7 +148,11 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_JACKPOT, D_COPIADOR, D_EGOISTA, D_LASER, D_VENTANIA,
        // Sempre no fim da lista: os numeros dos tipos vao no salvamento.
        D_MISERICORDIOSO, D_SOLITARIO, D_SENTINELA, D_FERREIRO, D_COBRADOR,
-       D_DESAFIANTE, D_VIDRO, D_ACUMULADOR, D_N };
+       D_DESAFIANTE, D_VIDRO, D_ACUMULADOR,
+       // Daqui em diante, so no Modo Desafiante, liberados pelas dificuldades.
+       D_BUMERANGUE, D_GEMEO, D_PRISMA, D_FENIX, D_TRONO, D_N };
+#define D_BASICOS D_BUMERANGUE           // tipos da partida rapida, 2 jogadores e online
+static bool so_desafio(int t) { return t >= D_BASICOS; }
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
@@ -194,6 +199,11 @@ static const tipo_t TIPO[D_N] = {
     { "Desafiante", 8,  EF_DESAFIANTE, RAR_INCOMUM, "maior dado da rodada: +4" },
     { "Vidro",      8,  EF_VIDRO,     RAR_COMUM,   "tirou 1: quebra e anula o anterior" },
     { "Acumulador", 8,  EF_ACUMULADOR, RAR_INCOMUM, "+1 a cada lance, até +6" },
+    { "Bumerangue", 6,  EF_BUMERANGUE, RAR_COMUM,  "tirou 1: volta e rola de novo" },
+    { "Gêmeo",      6,  EF_GEMEO,     RAR_INCOMUM, "tira o mesmo do anterior que vale" },
+    { "Prisma",     8,  EF_PRISMA,    RAR_INCOMUM, "+1 por tipo de dado seu valendo" },
+    { "Fênix",      6,  EF_FENIX,     RAR_RARO,    "anulado: renasce no fim" },
+    { "Trono",     12,  EF_TRONO,     RAR_LENDA,   "último que você jogou, valendo: x2" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -243,6 +253,11 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_DESAFIANTE] = "Se for o maior dado da rodada, dos dois lados: +4 no fim.",
     [D_VIDRO]     = "Se tirar 1, se estilhaça: anula ele e o anterior, e some da bolsa.",
     [D_ACUMULADOR] = "Cada lance soma +1 de bônus a ele, para sempre (até +6).",
+    [D_BUMERANGUE] = "Se tirar 1, volta e rola de novo, uma vez.",
+    [D_GEMEO]     = "Tira o mesmo número do último dado seu que vale (sem um antes, rola normal).",
+    [D_PRISMA]    = "Se ficar valendo, +1 no fim para cada tipo diferente de dado seu valendo.",
+    [D_FENIX]     = "Se terminar anulado, renasce no fim valendo o número que tirou.",
+    [D_TRONO]     = "Se for o último dado que você jogou na rodada e ficar valendo: x2.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -289,6 +304,11 @@ static const char *TEXTO_CAT[D_N] = {
     [D_DESAFIANTE] = "Oito lados. Se terminar valendo e for maior que todos os outros dados que valem na rodada, dos dois jogadores, ganha +4 no fim. Empate não conta.",
     [D_VIDRO] = "Oito lados. Tirando 1, se estilhaça: é anulado, anula também o último dado seu que valia (como na queda) e sai da sua bolsa para sempre.",
     [D_ACUMULADOR] = "Oito lados. Cada vez que é lançado, guarda +1 de bônus, até +6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar valendo.",
+    [D_BUMERANGUE] = "Seis lados. Se tirar 1, volta e rola de novo uma vez; fica o segundo número.",
+    [D_GEMEO]     = "Seis lados. Tira sempre o mesmo número do último dado seu que vale, e por isso nunca cai. Sem um dado valendo antes dele, rola normal.",
+    [D_PRISMA]    = "Oito lados. Se terminar valendo, ganha +1 no fim para cada tipo diferente de dado seu que vale na rodada, ele incluído.",
+    [D_FENIX]     = "Seis lados. Se terminar anulado (pela queda, por ataque, pelo Agouro ou pelo Egoísta), renasce no fim e vale o número que tirou. Roubado, não volta.",
+    [D_TRONO]     = "Doze lados. Se for o último dado que você jogou na rodada e terminar valendo, vale x2 no fim.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -402,6 +422,11 @@ static uint16_t cor_aro(int tipo)
     case EF_DESAFIANTE: return C_CARMIM;
     case EF_VIDRO:     return C_VIDRO;
     case EF_ACUMULADOR: return C_AMBAR;
+    case EF_BUMERANGUE: return C_MADEIRA_CLR;
+    case EF_GEMEO:     return C_CIANO;
+    case EF_PRISMA:    return RGB(176, 132, 220);
+    case EF_FENIX:     return C_FOGO;
+    case EF_TRONO:     return C_OURO;
     default:           return C_AGUA;
     }
 }
@@ -462,7 +487,8 @@ typedef struct {
 // Eventos do desfecho, tocados um a um.
 enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SEMENTE,
        EV_ZERA, EV_JACKPOT, EV_ESPELHO,
-       EV_EXTRA };                   // bonus fixo do fim (Misericordioso, Solitario, Desafiante)
+       EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante)
+       EV_RENASCE };                 // a Fenix volta a valer
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -477,7 +503,8 @@ typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
 enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
-       F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO };      // Modo Desafiante
+       F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
+       F_PERFIS, F_PCRIA, F_RDIFIC };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -533,9 +560,15 @@ static int lim_col(void) { return modo == M_DESAFIO ? MAX_COL : LIM_COL; }
 // Amuletos: so no Modo Desafiante, so de quem joga (o oponente nunca tem).
 // A run guarda quais tem; a partida copia para amul[0].
 enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
-       A_COFRE, A_RESERVA, A_POTE, A_FURADO, A_N };
-static uint16_t amul[2];
-static uint16_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
+       A_COFRE, A_RESERVA, A_POTE, A_FURADO,
+       // Liberados pelas dificuldades (dois por nivel).
+       A_FERRADURA, A_PESADO, A_RELOGIO, A_CARTOLA, A_COROA, A_CUPOM,
+       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO, A_N };
+#define A_BASICOS A_FERRADURA
+static uint32_t amul[2];
+static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
+static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
+static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
 static float am_brilho[A_N];
 static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
@@ -707,6 +740,10 @@ static int textura_de(int tipo)
     case D_DESAFIANTE:                                     return T_LINHAS;
     case D_ACUMULADOR:                                     return T_PONTOS;
     case D_VIDRO: case D_SOLITARIO:                        return T_LISO;
+    case D_BUMERANGUE:                                     return T_MADEIRA;
+    case D_GEMEO: case D_PRISMA:                           return T_LISO;
+    case D_FENIX:                                          return T_ONDAS;
+    case D_TRONO:                                          return T_MARMORE;
     case D_MALDITO:                                        return T_LISO;   // ja e manchado
     default:                                               return T_GRAO;   // marfim com grao
     }
@@ -908,6 +945,11 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
     case D_DESAFIANTE: tom = C_CARMIM; pct = 20; break;
     case D_VIDRO:    tom = C_VIDRO;  pct = 52; *aro = C_VIDRO; break;
     case D_ACUMULADOR: tom = C_AMBAR; pct = 20; break;
+    case D_BUMERANGUE: tom = C_MADEIRA_CLR; pct = 18; break;
+    case D_GEMEO:    tom = C_CIANO;  pct = 16; break;
+    case D_PRISMA:   tom = RGB(176, 132, 220); pct = 26; *aro = RGB(176, 132, 220); break;
+    case D_FENIX:    tom = C_FOGO;   pct = 18; break;
+    case D_TRONO:    tom = C_OURO;   pct = 14; break;
     default: break;
     }
     if (pct) *corpo = mistura(*corpo, tom, dono == 0 ? pct : pct - 12);
@@ -1222,6 +1264,59 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
             gfx_disco(x, y, pr + 1, gfx_mistura(corpo, C_BARRA, 30));
             gfx_disco(x, y, pr, i < n ? C_AMBAR : gfx_mistura(corpo, C_BARRA, 12));
         }
+        break;
+    }
+    case D_BUMERANGUE: {                          // bumerangue inclinado, no alto (onde os pontos nao vao)
+        uint16_t m = dono == 0 ? C_MADEIRA_CLR : RGB(176, 124, 80);
+        int e = esp_marca(t) + 1;
+        float ex = -0.06f * t, ey = -0.8f * t;
+        gfx_linha_grossa(MX(ex, ey), MY(ex, ey), MX(-0.3f * t, -0.5f * t), MY(-0.3f * t, -0.5f * t), e, m);
+        gfx_linha_grossa(MX(ex, ey), MY(ex, ey), MX(0.32f * t, -0.62f * t), MY(0.32f * t, -0.62f * t), e, m);
+        gfx_disco(MX(ex, ey), MY(ex, ey), e / 2 + 1, gfx_mistura(m, C_BRANCO, 25));
+        break;
+    }
+    case D_GEMEO: {                               // duas contas iguais, ligadas, no alto
+        float y = -0.74f * t, d = 0.2f * t + 0.6f;
+        int pr = (int)(0.1f * t + 1.0f);
+        uint16_t c = dono == 0 ? gfx_mistura(C_CIANO, C_BARRA, 35) : C_CIANO;
+        gfx_linha_grossa(MX(-d, y), MY(-d, y), MX(d, y), MY(d, y), esp_marca(t), c);
+        gfx_disco(MX(-d, y), MY(-d, y), pr, c);
+        gfx_disco(MX(d, y), MY(d, y), pr, c);
+        break;
+    }
+    case D_PRISMA: {                              // tres faixas de cor rente a borda de baixo, a esquerda
+        static const uint16_t COR[3] = { RGB(220, 70, 70), RGB(230, 200, 70), RGB(80, 140, 230) };
+        int e = esp_marca(t);
+        for (int i = 0; i < 3; i++) {
+            float o = (0.5f + i * 0.09f) * t;          // distancia da borda para dentro
+            float a = 1.0f * t - o;
+            gfx_linha_grossa(MX(-a * 0.92f, 0.08f * t), MY(-a * 0.92f, 0.08f * t),
+                             MX(-0.08f * t, a * 0.92f), MY(-0.08f * t, a * 0.92f), e, COR[i]);
+        }
+        break;
+    }
+    case D_FENIX: {                               // chama com duas asas, embaixo, no centro
+        float y = 0.6f * t, h = 0.26f * t + 0.6f;
+        float asa_e[6] = { -0.06f * t, y + 0.04f * t, -0.34f * t, y - 0.2f * t, -0.2f * t, y + 0.12f * t };
+        float asa_d[6] = { 0.06f * t, y + 0.04f * t, 0.34f * t, y - 0.2f * t, 0.2f * t, y + 0.12f * t };
+        marca_poli(asa_e, 3, C_FOGO);
+        marca_poli(asa_d, 3, C_FOGO);
+        float ch[8] = { 0, y - h, 0.13f * t + 0.5f, y, 0, y + h * 0.7f, -0.13f * t - 0.5f, y };
+        marca_poli(ch, 4, C_FOGO);
+        float mi[8] = { 0, y - h * 0.4f, 0.06f * t + 0.4f, y + 0.02f * t, 0, y + h * 0.4f, -0.06f * t - 0.4f, y + 0.02f * t };
+        marca_poli(mi, 4, C_AMARELO);
+        break;
+    }
+    case D_TRONO: {                               // trono dourado embaixo do numero
+        uint16_t c = dono == 0 ? gfx_mistura(C_OURO, C_BARRA, 20) : C_OURO;
+        uint16_t vel = C_VINHO_CLR;
+        float y = 0.36f * t, w = 0.26f * t + 0.5f;
+        float enc[10] = { -w, y + 0.34f * t, -w, y + 0.06f * t, 0, y - 0.06f * t, w, y + 0.06f * t, w, y + 0.34f * t };
+        marca_poli(enc, 5, c);                                             // encosto de ponta
+        marca_ret(0, y + 0.2f * t, w * 0.55f, 0.1f * t + 0.3f, vel);      // almofada
+        marca_ret(0, y + 0.4f * t, w + 0.1f * t, 0.06f * t + 0.5f, c);   // assento
+        marca_ret(-w, y + 0.52f * t, 0.05f * t + 0.5f, 0.08f * t + 0.5f, c);   // pes
+        marca_ret(w, y + 0.52f * t, 0.05f * t + 0.5f, 0.08f * t + 0.5f, c);
         break;
     }
     default:
@@ -1739,6 +1834,18 @@ static void aplica_regra(int j, int k)
         }
     }
 
+    // Gemeo: tira o mesmo do ultimo dado que vale. Prensa (amuleto): 1 vira 3.
+    if (ef == EF_GEMEO && l >= 0) {
+        v = f->valor[k] = f->valor[l];
+        snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+    }
+    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO
+        && ef != EF_TREVO && ef != EF_BUMERANGUE) {
+        v = f->valor[k] = 3;
+        snprintf(f->tag[k], sizeof f->tag[k], "=3");
+        am_disparou |= 1u << A_PRENSA;
+    }
+
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
     // antes, como na queda; no fim da rodada sai da bolsa.
     if (ef == EF_VIDRO && v == 1) {
@@ -1824,15 +1931,19 @@ static void aplica_regra(int j, int k)
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
-        if (luva) am_disparou |= 1 << A_LUVA;
-        if (rede) am_disparou |= 1 << A_REDE;
-        bool esc_l = firme(j, l) || sentinela || luva || rede, esc_k = firme(j, k);
+        // Ferradura: na primeira queda da rodada, os dois ficam.
+        bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k);
+        if (luva) am_disparou |= 1u << A_LUVA;
+        if (rede) am_disparou |= 1u << A_REDE;
+        if (ferr) am_disparou |= 1u << A_FERRADURA;
+        bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k) || ferr;
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
         anulou_a = esc_l ? -1 : l;
         anulou_b = esc_k ? -1 : k;
         resistiu = esc_l ? l : (esc_k ? k : -1);
-        if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai sozinha", v, f->valor[l]);
+        if (ferr) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura segura os dois", v, f->valor[l]);
+        else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai sozinha", v, f->valor[l]);
         else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro segura o %d", v, f->valor[l], f->valor[l]);
         else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede segura o %d", v, f->valor[l], f->valor[l]);
         else if (esc_l) snprintf(veredito, sizeof veredito, "%d < %d: %s segura", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
@@ -1865,8 +1976,10 @@ static void aplica_regra(int j, int k)
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
         int am_b = 0;
-        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1 << A_OURO; }
-        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1 << A_PENA; }
+        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1u << A_OURO; }
+        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1u << A_PENA; }
+        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
+        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
@@ -1937,7 +2050,17 @@ static void refaz_sequencia(int j, int n)
 static void pousa(int j, int k, int (*r)(int))
 {
     fila_t *f = &F[j];
-    if (f->tipo[k] != D_VENTANIA || k == 0) { aplica_regra(j, k); return; }
+    bool voltou = false;
+    if (f->tipo[k] == D_BUMERANGUE && f->valor[k] == 1) {     // volta e rola de novo, uma vez
+        f->cru[k] = f->valor[k] = r(6);
+        voltou = true;
+    }
+    if (f->tipo[k] != D_VENTANIA || k == 0) {
+        aplica_regra(j, k);
+        if (voltou && ver_tipo == 0) snprintf(veredito, sizeof veredito, "o Bumerangue voltou: %d", f->valor[k]);
+        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "1>%d", f->valor[k]);
+        return;
+    }
     for (int i = 0; i < k; i++) {
         int menor;
         if (f->tipo[i] == D_VIDRO && f->cru[i] == 1) continue;   // vidro quebrado nao volta
@@ -2072,6 +2195,29 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
     }
 
+    // Dupla (amuleto): +2 em cada dado seu que repete o numero de outro seu.
+    if (tem_am(j, A_DUPLA)) {
+        uint8_t mask = 0;
+        int8_t por[N_FILA] = { 0 };
+        int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
+        for (int k = 0; k < nl; k++) {
+            if (est[k] != V_VALIDO || !pontua(j, k)) continue;
+            for (int i = 0; i < nl; i++)
+                if (i != k && est[i] == V_VALIDO && f->valor[i] == f->valor[k]) {
+                    d->bonus[j][k] += 2; mask |= (uint8_t)(1 << k); por[k] = 2;
+                    break;
+                }
+        }
+        if (mask && gera && n_ev < MAX_EV) {
+            evento_t *e = &ev[n_ev++];
+            memset(e, 0, sizeof *e);
+            e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = 0xFF;
+            e->mascara = mask;
+            memcpy(e->por_dado, por, sizeof por);
+            snprintf(e->txt, sizeof e->txt, "Dupla: +2 nos números repetidos");
+        }
+    }
+
     // Ferreiro: +4 no dado logo depois dele, se os dois terminam valendo.
     for (int k = 0; k + 1 < f->lancados && k + 1 < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FERREIRO) continue;
@@ -2129,6 +2275,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             && f->valor[k - 1] <= 3) m += 2;
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
+        if (k == 0 && tem_am(j, A_CORINGA)) m += 2;                       // Coringa: x2 no primeiro
+        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
     if (mask && gera && n_ev < MAX_EV) {
@@ -2168,6 +2316,14 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                    && !(k + 1 < f->lancados && est[k + 1] == V_VALIDO)) {
             d->semente[j] += 4;
             evento(gera, EV_EXTRA, j, k, j, 0, 4, "Solitário sem vizinhos: +4");
+        } else if (ef == EF_PRISMA) {
+            uint64_t tipos = 0;
+            for (int i = 0; i < f->lancados; i++)
+                if (est[i] == V_VALIDO) tipos |= 1ull << tipo_de(j, i);
+            int nt = 0;
+            for (; tipos; tipos >>= 1) nt += (int)(tipos & 1);
+            d->semente[j] += nt;
+            evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s, +%d", nt, nt > 1 ? "s" : "", nt);
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -2313,6 +2469,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 }
             }
         }
+    }
+    // Fenix: anulada, renasce valendo o que tirou (roubada, nao).
+    for (int o = 0; o < 2; o++) {
+        int j = ordem[o];
+        for (int k = 0; k < F[j].lancados; k++)
+            if (d->est[j][k] == V_ANULADO && TIPO[tipo_de(j, k)].efeito == EF_FENIX) {
+                d->est[j][k] = V_VALIDO;
+                evento(gera, EV_RENASCE, j, k, j, k, F[j].valor[k], "Fênix renasce valendo %d", F[j].valor[k]);
+            }
     }
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) {
@@ -2466,6 +2631,8 @@ static void nova_rodada(void)
 {
     rodada++;
     plano_rodada = -1;                       // a IA monta outra fila
+    ferr_k[0] = ferr_k[1] = -1;
+    if (tem_am(0, A_RELOGIO)) primeiro = 1;  // Relogio de Bolso: o oponente abre
     for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para o Cobrador
     // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
@@ -2743,6 +2910,7 @@ static void conclui_rodada(void)
         som_toca(SOM_VITORIA);
     }
     op_nervoso = venc_mao == 0;
+    if (venc_mao == 0) des_rod_vencidas++;
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     recolhe_quebrados();
@@ -2761,9 +2929,9 @@ static int som_do_evento(int i)
     case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
-    case EV_FOGO:    return SOM_FOGO;
+    case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
     case EV_ZERA:    return SOM_ZERA;
-    case EV_BONUS:   return F[e->de_j].tipo[e->de_k] == D_FERREIRO ? SOM_BIGORNA : SOM_EFEITO;
+    case EV_BONUS:   return e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO ? SOM_BIGORNA : SOM_EFEITO;
     default:         return SOM_EFEITO;
     }
 }
@@ -2802,6 +2970,7 @@ static float duracao_evento(int i)
     case EV_FOGO:  return 1.6f;
     case EV_SEMENTE: return 1.6f;
     case EV_EXTRA:   return 1.6f;
+    case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_ZERA:  return 1.6f;
     case EV_BONUS: return 1.4f;
@@ -2840,6 +3009,7 @@ static void aplica_evento(int i)
         break;
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: vis_semente[e->de_j] += e->valor; break;
+    case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_ZERA:    vis_zerada[e->de_j] = 1; break;
     }
 }
@@ -2965,6 +3135,7 @@ static void executa(int op)
 static bool so_inicial(int t) { return t == D_D2 || t == D_D4 || t == D_D6; }
 static int peso_dado(int t)
 {
+    if (so_desafio(t)) return 0;                 // so no Modo Desafiante
     static const int PESO[4] = { 8, 4, 2, 1 };
     return so_inicial(t) ? 0 : PESO[TIPO[t].raridade];
 }
@@ -2994,7 +3165,9 @@ static void icone_som(int x, int y)
 }
 
 static bool des_tem_run(void);
+static bool dado_liberado(int t);
 static void des_resumo(char *s, int n);
+static void des_esc(void);
 
 // As opcoes da lista do menu em uso.
 static int menu_opcoes(const char **op)
@@ -3824,7 +3997,7 @@ static bool aceita_escolha(void)
 static bool rede_na_vez(void) { return (remoto >> vez & 1) && aceita_escolha(); }
 
 // Digitando o codigo da sala: todas as letras sao do codigo, ate M e N.
-bool dado_digitando(void) { return fase == F_ONLINE && digitando; }
+bool dado_digitando(void) { return (fase == F_ONLINE && digitando) || fase == F_PCRIA; }
 
 void dado_rede_tecla(int k)
 {
@@ -3895,6 +4068,9 @@ static void trata_esc(void)
     case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
     case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM:
         volta_ao_menu();                     // a run fica guardada
+        return;
+    case F_PERFIS: case F_PCRIA: case F_RDIFIC:
+        des_esc();
         return;
     case F_ONLINE:
         if (digitando) { digitando = false; return; }
@@ -3993,6 +4169,7 @@ void dado_passo(float dt)
             am_disparou = 0;
             pousa(j, k, rola);
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
+            if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
             // A Ventania tem o som dela quando rola os dados de antes.
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
@@ -4123,7 +4300,7 @@ static void painel(int y, int h, int w)
     gfx_rect_alfa(GFX_W / 2 - w / 2, y, w, h, C_SOMBRA, 170);
 }
 
-static void amuletos_faixa(int x, int y);   // Modo Desafiante (desafio.inc)
+static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
 static int  retrato_faixa(int j, int y0);   // devolve onde o nome comeca
 
 static void faixa_jogador(int j)
@@ -4138,7 +4315,7 @@ static void faixa_jogador(int j)
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
     if (da_vez) gfx_rect(0, y0 + 2, 5, FAIXA_H - 4, p->cor);
-    int xn = modo == M_DESAFIO && j == 1 ? retrato_faixa(j, y0) : 18;
+    int xn = modo == M_DESAFIO ? retrato_faixa(j, y0) : 18;
     int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     char s[32];
@@ -4153,7 +4330,8 @@ static void faixa_jogador(int j)
         txt_c(GFX_W / 2, ty, s, C_TEXTO_M, false);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
-    if (modo == M_DESAFIO && j == 0) amuletos_faixa(x + 60 + gfx_largura(s, 1), y0 + FAIXA_H / 2);
+    if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
+        amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);
 
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
@@ -4606,7 +4784,7 @@ static void desenha_evento(void)
         }
     }
     // Ferreiro: a marreta desce no dado seguinte e solta faiscas.
-    if (e->tipo == EV_BONUS && F[e->de_j].tipo[e->de_k] == D_FERREIRO) {
+    if (e->tipo == EV_BONUS && e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) {
         int bx = SLOT_X(e->de_k + 1), by = zona(e->de_j) - R_DADO - 6;
         float q = p / 0.3f;
         if (q <= 1) {
@@ -4911,7 +5089,10 @@ static void desenha_premio(void)
                 peca_t pc = oferta[i];
                 if (k > 0) {
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
-                    pc.tipo = (uint8_t)(h % D_N);
+                    // So os tipos que podem sair aqui: os basicos, ou os ja
+                    // abertos no Desafiante.
+                    pc.tipo = (uint8_t)(h % D_BASICOS);
+                    if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }
                 peca_parada((float)x, 126 + dy, 24 * q, pc, vez);
@@ -5140,6 +5321,7 @@ static void desenha_catalogo(void)
     txt(x + 6, 119, s, cor_rar(tipo), false);
     int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
+    if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_VINHO_CLR, false);
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     quebra_linhas(x, 156, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
 }
@@ -5791,8 +5973,7 @@ static void trata_tecla(int k)
         sacode = 1;
         if (menu_tela == MT_UM) {
             if (menu_cur == 0) { menu_tela = MT_NIVEL; menu_cur = 1; }
-            else if (des_tem_run()) { menu_tela = MT_DESAFIO; menu_cur = 0; }
-            else des_nova_run();
+            else des_abre_perfis();
             return;
         }
         if (menu_tela == MT_NIVEL) {                // partida rapida no nivel escolhido
@@ -5807,7 +5988,7 @@ static void trata_tecla(int k)
             return;
         }
         if (menu_tela == MT_DESAFIO) {
-            if (menu_cur == 0) des_continua(); else des_nova_run();
+            if (menu_cur == 0) des_continua(); else des_escolhe_nova();
             return;
         }
         switch (menu_cur) {
@@ -6026,7 +6207,7 @@ int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
 const char *dado_dbg_cat_nome(void) { return TIPO[cat_tipo(cat_i)].nome; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
-int  dado_dbg_n_tipos(void) { return D_N; }
+int  dado_dbg_n_tipos(void) { return D_BASICOS; }   // os da partida comum
 void dado_dbg_ia_esforco(int e) { ia_esforco = e; }
 void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)

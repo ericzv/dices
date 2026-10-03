@@ -89,6 +89,11 @@ static void le_teclado(void)
         { KEY_LEFT_CONTROL, J_TAB }, { KEY_RIGHT_CONTROL, J_TAB },  // CTRL faz o que o TAB faz
         { KEY_UP, J_UP },       { KEY_DOWN, J_DOWN },
         { KEY_LEFT, J_LEFT },   { KEY_RIGHT, J_RIGHT },
+#ifdef __EMSCRIPTEN__
+        // A pagina segura o espaco (para nao rolar) e o caractere nao chega:
+        // vem pela tecla.
+        { KEY_SPACE, ' ' },
+#endif
     };
     bool alt = IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
     unsigned n = sizeof ESPECIAL / sizeof ESPECIAL[0];

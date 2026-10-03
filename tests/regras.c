@@ -15,10 +15,7 @@ void som_rufo(bool on) { (void)on; }
 void som_giro(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
-static char salvo[4096];
-bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
-int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
-void salva_apaga(void) { salvo[0] = 0; }
+#include "salva_mem.h"
 
 static int falhas;
 #define CONFERE(cond, ...) do { if (!(cond)) { printf("FALHOU %s:%d: ", __FILE__, __LINE__); \
@@ -539,14 +536,17 @@ int main(void)
         des_nova_run();
         CONFERE(fase == F_RAMULETO && run.estado == R_AMULETO, "run nova devia comecar escolhendo amuleto");
         amuleto_escolhido(0);
-        CONFERE(am_conta(run.amuletos) == 1 && fase == F_RLOJA, "amuleto inicial: %x, fase %d", run.amuletos, fase);
+        CONFERE(am_conta(run_amuletos()) == 1 && fase == F_RLOJA, "amuleto inicial: %x, fase %d", run_amuletos(), fase);
         run.moedas = 77;
         des_salva();
         run_t r;
         CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos == run.amuletos, "salvamento novo nao volta");
-        salvo[2 * RUN_TAM_V1] = 0;                 // o arquivo do jeito antigo, mais curto
+        char *txt = salva_mem[salva_slot(chave_run(), false)].texto;
+        txt[2 * RUN_TAM_V2] = 0;                   // sem os campos da dificuldade
+        CONFERE(des_carrega(&r) && r.moedas == 77 && r.dificuldade == 0, "salvamento sem dificuldade nao carrega");
+        txt[2 * RUN_TAM_V1] = 0;                   // o arquivo do jeito antigo, mais curto
         CONFERE(des_carrega(&r) && r.moedas == 77 && r.am_loja == 0xFF, "salvamento antigo nao carrega");
-        salva_apaga();
+        salva_apaga(chave_run());
         modo = modo_antes;
         // Fora do Desafiante, amuleto nenhum vale.
         amul[0] = 0xFFF;
@@ -603,6 +603,183 @@ int main(void)
         amul[0] = 1 << A_BOLSA | 1 << A_FURADO;
         CONFERE(tam_mao(0) == 8 && tam_mao(1) == 6, "Bolsa/Saco: maos %d e %d", tam_mao(0), tam_mao(1));
         amul[0] = 0;
+        modo = modo_antes;
+    }
+
+    // ---- Amuletos que as dificuldades abrem -------------------------------
+    {
+        int modo_antes = modo;
+        desfecho_t d;
+        modo = M_DESAFIO;
+        // Ferradura: a primeira queda da rodada nao derruba nenhum dos dois.
+        limpa(); amul[0] = 1u << A_FERRADURA; ferr_k[0] = -1; am_disparou = 0;
+        joga(0, D_D6, 5); joga(0, D_D4, 2);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && (am_disparou >> A_FERRADURA & 1),
+                "Ferradura: os dois deviam ficar");
+        ferr_k[0] = 1;                                   // a primeira queda ja pousou
+        joga(0, D_D6, 6); joga(0, D_D4, 1);
+        CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO, "Ferradura: a segunda queda devia cair");
+        ferr_k[0] = -1;
+        // Dado Pesado: +1 nos de 6 lados.
+        limpa(); amul[0] = 1u << A_PESADO;
+        joga(0, D_D6, 4); joga(0, D_D8, 4);
+        d = fim();
+        CONFERE(d.total[0] == 5 + 4, "Dado Pesado: esperava 9, deu %d", d.total[0]);
+        // Coroa do Azarao: +1 so com menos fichas no comeco da rodada.
+        limpa(); amul[0] = 1u << A_COROA; fichas_ini[0] = 10; fichas_ini[1] = 20;
+        joga(0, D_D6, 3);
+        d = fim();
+        CONFERE(d.total[0] == 4, "Coroa atras no placar: esperava 4, deu %d", d.total[0]);
+        limpa(); fichas_ini[0] = 30;
+        joga(0, D_D6, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3, "Coroa na frente: esperava 3, deu %d", d.total[0]);
+        fichas_ini[0] = fichas_ini[1] = 0;
+        // Prensa: o 1 vale 3.
+        limpa(); amul[0] = 1u << A_PRENSA;
+        joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(F[0].valor[0] == 3 && d.total[0] == 3, "Prensa: esperava 3, deu %d", d.total[0]);
+        // Coringa: o primeiro da sequencia vale x2.
+        limpa(); amul[0] = 1u << A_CORINGA;
+        joga(0, D_D6, 4); joga(0, D_D8, 5);
+        d = fim();
+        CONFERE(d.total[0] == 8 + 5, "Coringa: esperava 13, deu %d", d.total[0]);
+        // Dupla: +2 em cada um dos que repetem o numero.
+        limpa(); amul[0] = 1u << A_DUPLA;
+        joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 3 + 5 + 4, "Dupla: esperava 15, deu %d", d.total[0]);
+        // Relogio de Bolso: o oponente abre a rodada.
+        amul[0] = 1u << A_RELOGIO;
+        for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
+        // Fora do Desafiante, nenhum deles vale.
+        modo = M_UM; amul[0] = 0xFFFFFFFFu;
+        limpa(); joga(0, D_D6, 1); joga(0, D_D6, 4);
+        d = fim();
+        CONFERE(d.total[0] == 5, "amuleto novo valendo fora do Desafiante: %d", d.total[0]);
+        amul[0] = 0;
+        modo = modo_antes;
+    }
+
+    // ---- Dados que as dificuldades abrem ----------------------------------
+    {
+        desfecho_t d;
+        // Bumerangue: tirou 1, rola de novo uma vez.
+        limpa();
+        joga_com(0, D_BUMERANGUE, 1, sempre_dois);
+        d = fim();
+        CONFERE(F[0].valor[0] == 2 && d.total[0] == 2, "Bumerangue: esperava 2, deu %d", d.total[0]);
+        // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_GEMEO, 2);
+        d = fim();
+        CONFERE(F[0].valor[1] == 4 && d.total[0] == 8, "Gemeo: esperava 8, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_GEMEO, 5);
+        d = fim();
+        CONFERE(d.total[0] == 5, "Gemeo sozinho: esperava 5, deu %d", d.total[0]);
+        // Prisma: +1 por tipo diferente valendo.
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 5 + 3, "Prisma: esperava 13, deu %d", d.total[0]);
+        // Fenix: anulado pela queda, renasce no fim.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_FENIX, 2);
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.est[0][0] == V_ANULADO && d.total[0] == 2,
+                "Fenix: esperava so ela (2), deu %d", d.total[0]);
+        // Trono: x2 se for o ultimo jogado.
+        limpa();
+        joga(0, D_D6, 3); joga(0, D_TRONO, 8);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 16, "Trono por ultimo: esperava 19, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_TRONO, 8); joga(0, D_D12, 9);
+        d = fim();
+        CONFERE(d.total[0] == 8 + 9, "Trono no meio: esperava 17, deu %d", d.total[0]);
+        // Nenhum deles entra no sorteio das partidas basicas.
+        for (int t = D_BASICOS; t < D_N; t++) CONFERE(peso_dado(t) == 0 && so_desafio(t), "dado %d na partida basica", t);
+    }
+
+    // ---- Perfis: gravar e ler; precos da dificuldade e do Cupom ----------
+    {
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[1].nome, sizeof perfis[1].nome, "LILI");
+        perfis[1].avatar = AV_NOMALISA; perfis[1].nivel = 3; perfis[1].venceu[2] = 4; perfis[1].runs = 300;
+        perfil_atual = 1;
+        perfis_salva();
+        perfil_t copia[N_PERFIS];
+        memcpy(copia, perfis, sizeof copia);
+        memset(perfis, 0, sizeof perfis); perfil_atual = -1; perfis_lidos = false;
+        perfis_le();
+        CONFERE(!memcmp(copia, perfis, sizeof copia) && perfil_atual == 1, "perfis nao voltaram iguais");
+        CONFERE(!strcmp(chave_run(), "desafio2"), "perfil 2 grava em %s", chave_run());
+        CONFERE(dado_liberado(D_PRISMA) && !dado_liberado(D_FENIX) && amuleto_liberado(A_CUPOM)
+                && !amuleto_liberado(A_PRENSA), "o que abre com o nivel 3");
+        // Salvamento estragado: nenhum perfil, sem quebrar.
+        salva_grava("perfis", "PER1zz");
+        perfis_lidos = false; perfis_le();
+        CONFERE(perfil_atual == -1 && !perfis[0].nome[0] && perfil()->nivel == 0, "perfis estragados");
+        memset(&run, 0, sizeof run);
+        run.dificuldade = 2;
+        CONFERE(preco_run(D_D8) == 31 && preco_am() == 87, "Prata: precos %d e %d", preco_run(D_D8), preco_am());
+        run_poe_amuleto(A_CUPOM);
+        CONFERE(run_amuletos() >> A_CUPOM & 1 && run.amuletos_hi, "amuleto 16+ nao entrou na parte alta");
+        CONFERE(preco_run(D_D8) == 23, "Prata com Cupom: %d", preco_run(D_D8));
+        // O formato de antes (PER1, sem as partidas) ainda carrega.
+        {
+            memset(perfis, 0, sizeof perfis);
+            snprintf(perfis[2].nome, sizeof perfis[2].nome, "VELHO");
+            perfis[2].nivel = 2; perfis[2].runs = 9;
+            static char buf[8 + 2 * N_PERFIS * PERFIL_TAM_V1];
+            memcpy(buf, "PER12", 5);
+            for (int i = 0; i < N_PERFIS; i++) hex_de(&perfis[i], PERFIL_TAM_V1, buf + 5 + 2 * PERFIL_TAM_V1 * i);
+            salva_grava("perfis", buf);
+            memset(perfis, 0, sizeof perfis); perfis_lidos = false; perfil_atual = -1;
+            perfis_le();
+            CONFERE(perfil_atual == 2 && !strcmp(perfis[2].nome, "VELHO") && perfis[2].nivel == 2
+                    && perfis[2].runs == 9 && perfis[2].partidas == 0, "perfil PER1 nao carregou");
+        }
+        memset(&run, 0, sizeof run);
+        salva_limpa_tudo();
+        perfil_atual = -1;
+    }
+
+    // ---- Selo de Divida e Pedagio -----------------------------------------
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "T");
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 0;
+        des_nova_run();
+        amuleto_escolhido(0);
+        run.passo = DES_PASSOS - 1; run.caminho[run.passo] = 1; run.tier = 3;
+        // Pedagio: o chefe comeca com 10 fichas a menos.
+        des_comeca_partida();
+        int sem = J[1].fichas;
+        CONFERE(perfis[0].partidas == 0, "partida contada antes de acabar");
+        run_poe_amuleto(A_PEDAGIO);
+        des_comeca_partida();
+        CONFERE(J[1].fichas == sem - 10, "Pedagio: %d, sem ele %d", J[1].fichas, sem);
+        venc_partida = 0;
+        des_resultado();
+        CONFERE(perfis[0].partidas == 1, "partidas do perfil: %d", perfis[0].partidas);
+        // Selo de Divida: o chefe da dois premios, depois o amuleto.
+        run_poe_amuleto(A_SELO);
+        run.tier = 3;
+        abre_premio_run();
+        des_premio_feito();
+        CONFERE(fase == F_PREMIO && run.premio2 == 1 && run.estado == R_PREMIO, "Selo: sem segundo premio (fase %d)", fase);
+        des_premio_feito();
+        CONFERE(run.premio2 == 0 && fase == F_RAMULETO, "Selo: depois do segundo, o amuleto (fase %d)", fase);
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        perfil_atual = -1;
         modo = modo_antes;
     }
 

@@ -19,10 +19,7 @@ bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_giro(bool on) { (void)on; }
 
-static char salvo[4096];
-bool salva_grava(const char *t) { snprintf(salvo, sizeof salvo, "%s", t); return true; }
-int  salva_le(char *buf, int n) { int l = (int)strlen(salvo); if (l > n - 1) l = n - 1; memcpy(buf, salvo, (size_t)l); buf[l] = 0; return l; }
-void salva_apaga(void) { salvo[0] = 0; }
+#include "salva_mem.h"
 
 static uint32_t est = 99991;
 static uint32_t rnd_t(void) { est ^= est << 13; est ^= est >> 17; est ^= est << 5; return est; }
@@ -36,6 +33,8 @@ int main(int argc, char **argv)
     int nivel = argc > 2 ? atoi(argv[2]) : 2;
     ia_esforco = argc > 3 ? atoi(argv[3]) : 0;
     int estrategia = argc > 4 ? atoi(argv[4]) : 0;
+    int dific = argc > 5 ? atoi(argv[5]) : 0;
+    if (dific < 0 || dific > N_NIVEIS) dific = 0;
 
     int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
@@ -44,9 +43,17 @@ int main(int argc, char **argv)
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
         dado_inicia(r);
+        // Um perfil com a dificuldade pedida aberta (e o que vem com ela).
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "TESTE");
+        perfis[0].nivel = (uint8_t)dific;
+        perfil_atual = 0;
+        perfis_lidos = true;
+        des_dif = dific;
         des_nova_run();
-        CONFERE(fase == F_RAMULETO && run.moedas == DES_MOEDAS && run.n_col == 8 && !run.amuletos,
-                "run nova: fase %d", fase);
+        CONFERE(fase == F_RAMULETO && run.moedas == (dific >= 4 ? 30 : DES_MOEDAS) && run.n_col == 8
+                && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
         int compras = 0;
         while (fase != F_RFIM && !falhas) {
@@ -54,20 +61,22 @@ int main(int argc, char **argv)
             relogio += 16667;
             switch (fase) {
             case F_RAMULETO: {               // um amuleto ao acaso entre os oferecidos
-                uint16_t antes = run.amuletos;
+                uint32_t antes = run_amuletos();
                 cursor = (int)(rnd_t() % 3u);
                 if (run.am_oferta[cursor] >= A_N) cursor = 0;
                 trata_tecla(KEY_ENTER);
-                CONFERE(am_conta(run.amuletos) == am_conta(antes) + 1, "amuleto nao entrou");
-                amuletos_tidos += am_conta(run.amuletos) - am_conta(antes);
+                CONFERE(am_conta(run_amuletos()) == am_conta(antes) + 1, "amuleto nao entrou");
+                for (int a = 0; a < A_N; a++)
+                    CONFERE(!(run_amuletos() >> a & 1) || NIVEL_AMULETO[a] <= dific, "amuleto %d ainda fechado", a);
+                amuletos_tidos += am_conta(run_amuletos()) - am_conta(antes);
                 break;
             }
             case F_RLOJA: {                  // compra o de maior raridade que couber
                 // Com folga de moedas, leva o amuleto da loja.
-                if (run.am_loja < A_N && !run.am_levou && run.moedas >= AM_PRECO + 30) {
+                if (run.am_loja < A_N && !run.am_levou && run.moedas >= preco_am() + 30) {
                     cursor = N_LOJA;
                     trata_tecla(KEY_ENTER);
-                    CONFERE(run.am_levou && (run.amuletos >> run.am_loja & 1), "amuleto da loja nao entrou");
+                    CONFERE(run.am_levou && (run_amuletos() >> run.am_loja & 1), "amuleto da loja nao entrou");
                     amuletos_tidos++;
                     break;
                 }
@@ -151,7 +160,13 @@ int main(int argc, char **argv)
                 CONFERE(des_carrega(&lido) && !memcmp(&antes, &lido, sizeof antes), "salvamento nao confere");
             }
         }
-        if (des_venceu_run) vitorias++;
+        for (int i = 0; i < run.n_col; i++)
+            CONFERE(nivel_do_dado(run.col[i].tipo) <= dific, "dado %d ainda fechado", run.col[i].tipo);
+        if (des_venceu_run) {
+            vitorias++;
+            CONFERE(perfis[0].venceu[dific] == 1 && perfis[0].nivel == (dific < N_NIVEIS ? dific + 1 : dific),
+                    "vitoria nao abriu a dificuldade seguinte");
+        }
         int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS : run.andar * DES_PASSOS + run.passo;
         chegou[ate]++;
         soma_dados += run.n_col;
@@ -160,8 +175,8 @@ int main(int argc, char **argv)
         CONFERE(!des_tem_run(), "run acabada ainda salva");
     }
     if (falhas) return 1;
-    printf("%d runs (IA do jogador nivel %d, caminho %d): %d vencidas (%.0f%%)\n", runs, nivel, estrategia,
-           vitorias, 100.0 * vitorias / runs);
+    printf("%d runs (IA do jogador nivel %d, caminho %d, dificuldade %s): %d vencidas (%.0f%%)\n", runs, nivel,
+           estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
     printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.0f moedas, %.1f compras\n", partidas, ganhas,
            (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs);
     for (int a = 0; a < DES_ANDARES; a++) {

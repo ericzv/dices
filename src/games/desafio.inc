@@ -13,7 +13,8 @@
 #include "hal/salva.h"
 
 #define DES_ANDARES   3
-#define DES_PASSOS    4                  // o ultimo e o chefe
+#define DES_PASSOS    6                  // 5 mesas e o chefe
+#define DES_PASSOS_V4 4                  // salvamentos de antes: 3 mesas e o chefe
 #define DES_FICHAS    50
 
 
@@ -582,32 +583,40 @@ typedef struct {
 } no_t;
 
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal).
-typedef struct {
-    char     marca[4];                   // "DES1"
-    uint8_t  andar, passo, estado, vitorias;
-    int32_t  moedas, ganho;              // ganho: moedas da ultima vitoria
-    uint32_t semente;
-    uint8_t  n_col, tier;                // tier: dificuldade da ultima mesa vencida
-    peca_t   col[MAX_COL];
-    no_t     no[DES_PASSOS][3];          // [passo][linha]; tipo NO_VAZIO = sem mesa
-    int8_t   caminho[DES_PASSOS];        // linha escolhida em cada passo do salao
-    peca_t   loja[N_LOJA];
-    uint8_t  levou[N_LOJA];
-    peca_t   oferta[3];                  // premio a escolher (estado R_PREMIO)
-    // Daqui para baixo, o que veio depois do primeiro salvamento: um arquivo
-    // antigo (RUN_TAM_V1 bytes) carrega com tudo isto zerado.
-    uint16_t amuletos;                   // bit a: tem o amuleto a
-    uint8_t  am_oferta[3];               // amuletos a escolher (estado R_AMULETO)
-    uint8_t  am_volta;                   // depois da escolha: 0 loja da entrada, 1 segue no mapa
-    uint8_t  am_loja, am_levou;          // amuleto a venda na loja (0xFF: nenhum)
-    uint8_t  juros;                      // moedas que o Cofre rendeu na ultima vitoria
-    // Desde as dificuldades (um arquivo antigo carrega com tudo zerado):
-    uint8_t  dificuldade;                // 0 normal .. 5 diamante
-    uint16_t amuletos_hi;                // amuletos 16 em diante
-    uint8_t  taca;                       // moedas que a Taca rendeu na ultima vitoria
-    uint8_t  premio2;                    // Selo de Divida: no segundo premio do chefe
-} run_t;
-#define RUN_TAM_V3 256                   // o run_t antes do Selo de Divida
+//   marca "DES1"; tier: dificuldade da ultima mesa vencida; ganho: moedas da
+//   ultima vitoria; no[passo][linha] (tipo NO_VAZIO = sem mesa); caminho:
+//   linha escolhida em cada passo; oferta: premio a escolher (R_PREMIO).
+//   Depois do primeiro salvamento vieram (um arquivo antigo carrega com eles
+//   zerados): os amuletos (bit a = tem o amuleto a; os de 16 em diante em
+//   amuletos_hi), a oferta de amuletos (R_AMULETO), am_volta (0 vai para a
+//   loja da entrada, 1 segue no mapa), o amuleto da loja (0xFF: nenhum), as
+//   moedas do Cofre (juros) e da Taca, a dificuldade (0 normal .. 5) e o
+//   premio2 (Selo de Divida: no segundo premio do chefe).
+#define RUN_CAMPOS(NP)                                                       \
+    char     marca[4];                                                       \
+    uint8_t  andar, passo, estado, vitorias;                                 \
+    int32_t  moedas, ganho;                                                  \
+    uint32_t semente;                                                        \
+    uint8_t  n_col, tier;                                                    \
+    peca_t   col[MAX_COL];                                                   \
+    no_t     no[NP][3];                                                      \
+    int8_t   caminho[NP];                                                    \
+    peca_t   loja[N_LOJA];                                                   \
+    uint8_t  levou[N_LOJA];                                                  \
+    peca_t   oferta[3];                                                      \
+    uint16_t amuletos;                                                       \
+    uint8_t  am_oferta[3];                                                   \
+    uint8_t  am_volta;                                                       \
+    uint8_t  am_loja, am_levou;                                              \
+    uint8_t  juros;                                                          \
+    uint8_t  dificuldade;                                                    \
+    uint16_t amuletos_hi;                                                    \
+    uint8_t  taca;                                                           \
+    uint8_t  premio2;
+typedef struct { RUN_CAMPOS(DES_PASSOS) } run_t;
+typedef struct { RUN_CAMPOS(DES_PASSOS_V4) } run_v4_t;   // salao de 3 mesas e o chefe
+#define RUN_TAM_V4 256                   // o run_t de 3 mesas por salao
+#define RUN_TAM_V3 256                   // o run_t antes do Selo de Divida (mesmo tamanho)
 #define RUN_TAM_V2 252                   // o run_t antes das dificuldades
 #define RUN_TAM_V1 244                   // o run_t antes dos amuletos
 
@@ -1153,7 +1162,7 @@ static void gera_andar(void)
     for (int p = 0; p < DES_PASSOS; p++)
         for (int l = 0; l < 3; l++) run.no[p][l].tipo = NO_VAZIO;
     uint32_t usados = 0;
-    bool loja_feita = false;
+    int lojas = 0, ult_loja = -9;
     for (int p = 0; p < DES_PASSOS - 1; p++) {
         int ls[3], n;
         if (sorte_r(100) < 45) { n = 3; ls[0] = 0; ls[1] = 1; ls[2] = 2; }
@@ -1164,13 +1173,19 @@ static void gera_andar(void)
         }
         for (int i = 0; i < n; i++) {
             no_t *no = &run.no[p][ls[i]];
+            // O salao esquenta: a primeira mesa nunca e dificil; perto do
+            // chefe, as dificeis aparecem mais.
+            static const uint8_t FACIL[DES_PASSOS - 1] = { 50, 40, 30, 25, 20 };
+            static const uint8_t ATE_MEDIO[DES_PASSOS - 1] = { 100, 80, 70, 65, 60 };
             int x = sorte_r(100);
-            no->tipo = x < 34 ? NO_FACIL : (x < 70 ? NO_MEDIO : NO_DIFICIL);
+            no->tipo = x < FACIL[p] ? NO_FACIL : (x < ATE_MEDIO[p] ? NO_MEDIO : NO_DIFICIL);
         }
-        // Uma loja por salao, no maximo, e nunca na primeira mesa.
-        if (!loja_feita && p >= 1 && sorte_r(100) < (p == 1 ? 40 : 55)) {
+        // Ate duas lojas por salao, nunca na primeira mesa nem em passos
+        // seguidos.
+        if (lojas < 2 && p >= 1 && p - ult_loja >= 2 && sorte_r(100) < (lojas ? 30 : (p == 1 ? 35 : 50))) {
             run.no[p][ls[sorte_r(n)]].tipo = NO_LOJA;
-            loja_feita = true;
+            lojas++;
+            ult_loja = p;
         }
         for (int i = 0; i < n; i++) {
             no_t *no = &run.no[p][ls[i]];
@@ -1245,6 +1260,9 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     int n = 0;
     for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
     int extras = 1 + andar * 2 + (tier == 3 ? 1 : tier);
+    // As duas primeiras mesas do salao aquecem: menos dados especiais.
+    if (tier < 3 && run.passo < 2) extras -= 2 - run.passo;
+    if (extras < 0) extras = 0;
     static const float BASE[4][4] = {
         { 6, 3, 1.0f, 0.0f }, { 3, 4, 2.0f, 0.2f }, { 1, 3, 4.0f, 0.6f }, { 1, 3, 3.5f, 1.0f } };
     float w[4] = { BASE[tier][0] / (1 + andar), BASE[tier][1],
@@ -1288,20 +1306,53 @@ static void des_salva(void)
     salva_grava(chave_run(), buf);
 }
 
+// Uma run salva quando o salao tinha 3 mesas: guarda tudo, menos o mapa. Se
+// ja estava andando no salao, recomeca nele (o mapa novo sai na volta).
+static void run_de_v4(const run_v4_t *v, run_t *r)
+{
+    memset(r, 0, sizeof *r);
+    memcpy(r->marca, v->marca, 4);
+    r->andar = v->andar; r->estado = v->estado; r->vitorias = v->vitorias;
+    r->moedas = v->moedas; r->ganho = v->ganho; r->semente = v->semente;
+    r->n_col = v->n_col; r->tier = v->tier;
+    memcpy(r->col, v->col, sizeof r->col);
+    memcpy(r->loja, v->loja, sizeof r->loja);
+    memcpy(r->levou, v->levou, sizeof r->levou);
+    memcpy(r->oferta, v->oferta, sizeof r->oferta);
+    r->amuletos = v->amuletos; memcpy(r->am_oferta, v->am_oferta, sizeof r->am_oferta);
+    r->am_volta = v->am_volta; r->am_loja = v->am_loja; r->am_levou = v->am_levou;
+    r->juros = v->juros; r->dificuldade = v->dificuldade; r->amuletos_hi = v->amuletos_hi;
+    r->taca = v->taca;
+    for (int p = 0; p < DES_PASSOS; p++) {
+        r->caminho[p] = -1;
+        for (int l = 0; l < 3; l++) r->no[p][l].tipo = NO_VAZIO;      // sem mapa: gera de novo
+    }
+    bool comeco = v->estado == R_LOJA_INI || (v->estado == R_AMULETO && v->am_volta == 0);
+    if (!comeco) r->estado = R_MAPA;
+}
+
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
-    // Os arquivos de antes (sem amuletos; sem dificuldade) carregam com o
-    // que falta zerado.
-    if (n != (int)(2 * sizeof(run_t)) && n != 2 * RUN_TAM_V1 && n != 2 * RUN_TAM_V2 && n != 2 * RUN_TAM_V3)
+    size_t tam = n > 0 ? (size_t)n / 2 : 0;
+    if (n > 0 && tam == sizeof(run_t)) {
+        memset(r, 0, sizeof *r);
+        if (!de_hex(buf, r, tam)) return false;
+    } else if (tam == RUN_TAM_V1 || tam == RUN_TAM_V2 || tam == sizeof(run_v4_t)) {
+        // Os arquivos de antes (sem amuletos; sem dificuldade; 3 mesas por
+        // salao) carregam com o que falta zerado.
+        run_v4_t v;
+        memset(&v, 0, sizeof v);
+        if (!de_hex(buf, &v, tam)) return false;
+        if (tam == RUN_TAM_V1) v.am_loja = 0xFF;            // loja de antes: sem amuleto
+        if (v.passo >= DES_PASSOS_V4) return false;
+        run_de_v4(&v, r);
+    } else {
         return false;
-    size_t tam = (size_t)n / 2;
-    memset(r, 0, sizeof *r);
-    if (!de_hex(buf, r, tam)) return false;
+    }
     if (memcmp(r->marca, "DES1", 4) || r->andar >= DES_ANDARES || r->passo >= DES_PASSOS
         || r->estado > R_AMULETO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
-    if (tam == RUN_TAM_V1) r->am_loja = 0xFF;            // loja de antes: sem amuleto
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     return true;
@@ -1320,8 +1371,8 @@ static void des_resumo(char *s, int n)
     if (!des_carrega(&r)) { s[0] = 0; return; }
     if (r.estado == R_AMULETO && r.vitorias == 0) snprintf(s, (size_t)n, "escolhendo o primeiro amuleto");
     else if (r.estado == R_LOJA_INI) snprintf(s, (size_t)n, "na loja da entrada · %d moedas", r.moedas);
-    else snprintf(s, (size_t)n, "%s · mesa %d de 4 · %d dados · %d moedas",
-                  SALAO[r.andar], r.passo + 1, r.n_col, r.moedas);
+    else snprintf(s, (size_t)n, "%s · mesa %d de %d · %d dados · %d moedas",
+                  SALAO[r.andar], r.passo + 1, DES_PASSOS, r.n_col, r.moedas);
 }
 
 // ---------------------------------------------------------------------------
@@ -1591,6 +1642,10 @@ static void des_premio_feito(void)
 static void des_continua(void)
 {
     if (!des_carrega(&run)) { des_nova_run(); return; }
+    if (run.no[DES_PASSOS - 1][1].tipo != NO_CHEFE) {    // veio de um salvamento sem o mapa novo
+        gera_andar();
+        des_salva();
+    }
     switch (run.estado) {
     case R_LOJA_INI: case R_LOJA: abre_loja_run(); break;
     case R_PARTIDA:               des_comeca_partida(); break;
@@ -1651,10 +1706,16 @@ static void faixa_run(int voltar)
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     int x0 = voltar ? botao_voltar(voltar) : 18;
     txt(x0, ty, "MODO DESAFIANTE", C_LATAO, true);
-    if (run.dificuldade) txt(x0 + gfx_largura("MODO DESAFIANTE", 1) + 10, ty, nome_dif(run.dificuldade), cor_dif(run.dificuldade), true);
+    int fim = x0 + gfx_largura("MODO DESAFIANTE", 1);
+    if (run.dificuldade) {
+        txt(fim + 10, ty, nome_dif(run.dificuldade), cor_dif(run.dificuldade), true);
+        fim += 10 + gfx_largura(nome_dif(run.dificuldade), 1);
+    }
     char s[48];
     snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
-    txt_c(GFX_W / 2, ty, s, COR_SALAO[run.andar], true);
+    int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
+    if (cx - meio < fim + 18) cx = fim + 18 + meio;
+    txt_c(cx, ty, s, COR_SALAO[run.andar], true);
     snprintf(s, sizeof s, "%d", run.moedas);
     int x = GFX_W - 18 - gfx_largura(s, 1);
     txt(x, ty, s, C_OURO, true);
@@ -1672,9 +1733,9 @@ static void rodape_run(const char *s)
 }
 
 // ---- O mapa -------------------------------------------------------------
-static const int MAPA_X[DES_PASSOS] = { 168, 290, 412, 540 };
+static const int MAPA_X[DES_PASSOS] = { 136, 224, 312, 400, 488, 580 };
 static const int MAPA_Y[3] = { 96, 150, 204 };
-#define MAPA_X0 70
+#define MAPA_X0 56
 enum { V_FEITO, V_ABERTO, V_LONGE, V_PERDIDO };
 
 // Uma mesa do mapa como ficha de cassino: a cor diz a dificuldade, os pontos
@@ -1777,7 +1838,7 @@ static void desenha_mapa(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 50);
     faixa_run(KEY_ESC);
-    rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB sua bolsa  ·  ESC menu (a run fica guardada)");
+    rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
 
     for (int p = 0; p < DES_PASSOS; p++) {
         char s[24];

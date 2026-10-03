@@ -185,7 +185,7 @@ int main(int argc, char **argv)
         putchar('\n');
     }
     printf("amuletos por run: %.1f\n", (double)amuletos_tidos / runs);
-    printf("onde parou (mesa 1..12, 12 = venceu):");
+    printf("onde parou (mesa 1..%d, %d = venceu):", DES_ANDARES * DES_PASSOS, DES_ANDARES * DES_PASSOS);
     for (int i = 0; i <= DES_ANDARES * DES_PASSOS; i++) printf(" %d", chegou[i]);
     putchar('\n');
     return 0;

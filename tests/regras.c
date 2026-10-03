@@ -541,11 +541,35 @@ int main(void)
         des_salva();
         run_t r;
         CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos == run.amuletos, "salvamento novo nao volta");
-        char *txt = salva_mem[salva_slot(chave_run(), false)].texto;
-        txt[2 * RUN_TAM_V2] = 0;                   // sem os campos da dificuldade
-        CONFERE(des_carrega(&r) && r.moedas == 77 && r.dificuldade == 0, "salvamento sem dificuldade nao carrega");
-        txt[2 * RUN_TAM_V1] = 0;                   // o arquivo do jeito antigo, mais curto
-        CONFERE(des_carrega(&r) && r.moedas == 77 && r.am_loja == 0xFF, "salvamento antigo nao carrega");
+        // Os arquivos de quando o salao tinha 3 mesas: no meio do salao,
+        // recomeca nele com o mapa novo; os cortes de antes ainda carregam.
+        {
+            run_v4_t v;
+            memset(&v, 0, sizeof v);
+            memcpy(v.marca, "DES1", 4);
+            v.andar = 1; v.passo = 2; v.estado = R_MAPA; v.vitorias = 6;
+            v.moedas = 77; v.semente = run.semente; v.n_col = run.n_col;
+            memcpy(v.col, run.col, sizeof v.col);
+            v.amuletos = run.amuletos; v.am_loja = 0xFF; v.dificuldade = 2; v.amuletos_hi = 5; v.taca = 3;
+            for (int p2 = 0; p2 < DES_PASSOS_V4; p2++) v.caminho[p2] = 1;
+            static char buf[2 * sizeof(run_v4_t) + 1];
+            hex_de(&v, sizeof v, buf);
+            salva_grava(chave_run(), buf);
+            CONFERE(des_carrega(&r) && r.moedas == 77 && r.andar == 1 && r.passo == 0 && r.vitorias == 6
+                    && r.dificuldade == 2 && r.amuletos == run.amuletos && r.amuletos_hi == 5 && r.taca == 3 && r.estado == R_MAPA,
+                    "salvamento de 3 mesas nao carrega");
+            des_continua();
+            CONFERE(fase == F_MAPA && run.andar == 1 && run.passo == 0 && run.no[DES_PASSOS - 1][1].tipo == NO_CHEFE
+                    && run.caminho[0] == -1, "salvamento de 3 mesas: mapa novo (fase %d)", fase);
+            CONFERE(des_carrega(&r) && r.no[DES_PASSOS - 1][1].tipo == NO_CHEFE, "mapa novo nao ficou salvo");
+            buf[2 * RUN_TAM_V2] = 0;                   // sem os campos da dificuldade
+            salva_grava(chave_run(), buf);
+            CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos_hi == 0 && r.taca == 0,
+                    "salvamento sem dificuldade nao carrega");
+            buf[2 * RUN_TAM_V1] = 0;                   // o arquivo do jeito antigo, mais curto
+            salva_grava(chave_run(), buf);
+            CONFERE(des_carrega(&r) && r.moedas == 77 && r.am_loja == 0xFF, "salvamento antigo nao carrega");
+        }
         salva_apaga(chave_run());
         modo = modo_antes;
         // Fora do Desafiante, amuleto nenhum vale.

@@ -609,11 +609,11 @@ int main(void)
         int modo_antes = modo;
         desfecho_t d;
         modo = M_DESAFIO;
-        // Ferradura: a primeira queda da rodada nao derruba nenhum dos dois.
+        // Ferradura: na primeira queda da rodada, o de antes fica; o novo cai.
         limpa(); amul[0] = 1u << A_FERRADURA; ferr_k[0] = -1; am_disparou = 0;
         joga(0, D_D6, 5); joga(0, D_D4, 2);
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && (am_disparou >> A_FERRADURA & 1),
-                "Ferradura: os dois deviam ficar");
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && (am_disparou >> A_FERRADURA & 1),
+                "Ferradura: o 5 devia ficar e o 2 cair");
         ferr_k[0] = 1;                                   // a primeira queda ja pousou
         joga(0, D_D6, 6); joga(0, D_D4, 1);
         CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO, "Ferradura: a segunda queda devia cair");
@@ -638,19 +638,21 @@ int main(void)
         joga(0, D_D6, 1);
         d = fim();
         CONFERE(F[0].valor[0] == 3 && d.total[0] == 3, "Prensa: esperava 3, deu %d", d.total[0]);
-        // Coringa: o primeiro da sequencia vale x2.
+        // Coringa: o primeiro da sequencia vale +3.
         limpa(); amul[0] = 1u << A_CORINGA;
         joga(0, D_D6, 4); joga(0, D_D8, 5);
         d = fim();
-        CONFERE(d.total[0] == 8 + 5, "Coringa: esperava 13, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 7 + 5, "Coringa: esperava 12, deu %d", d.total[0]);
         // Dupla: +2 em cada um dos que repetem o numero.
         limpa(); amul[0] = 1u << A_DUPLA;
         joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
         d = fim();
         CONFERE(d.total[0] == 3 + 3 + 5 + 4, "Dupla: esperava 15, deu %d", d.total[0]);
-        // Relogio de Bolso: o oponente abre a rodada.
+        // Relogio de Bolso: atras em fichas, o oponente abre a rodada.
         amul[0] = 1u << A_RELOGIO;
-        for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
+        for (int i = 0; i < 4; i++) { entrada(30, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
+        primeiro = 0; entrada(40, 40, 0);
+        CONFERE(primeiro == 0, "Relogio sem estar atras: quem abre e %d", primeiro);
         // Fora do Desafiante, nenhum deles vale.
         modo = M_UM; amul[0] = 0xFFFFFFFFu;
         limpa(); joga(0, D_D6, 1); joga(0, D_D6, 4);
@@ -924,7 +926,7 @@ int main(void)
         limpa(); reg_op = REG_ULTIMA; amul[0] = 0;
         for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 0, "Detetive: quem abre e %d", primeiro); }
         amul[0] = 1u << A_RELOGIO;
-        entrada(40, 40, 0);
+        entrada(30, 40, 0);
         CONFERE(primeiro == 1, "Detetive com Relogio: quem abre e %d", primeiro);
         amul[0] = 0;
         // A Maratonista: +1 nos dados dela da 5a rodada em diante.

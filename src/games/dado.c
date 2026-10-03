@@ -1960,18 +1960,19 @@ static void aplica_regra(int j, int k)
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
-        // Ferradura: na primeira queda da rodada, os dois ficam.
-        bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k);
+        // Ferradura: na primeira queda da rodada, o dado de antes fica.
+        bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
+                    && !sentinela && !luva && !rede;
         if (luva) am_disparou |= 1u << A_LUVA;
         if (rede) am_disparou |= 1u << A_REDE;
         if (ferr) am_disparou |= 1u << A_FERRADURA;
-        bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k) || ferr;
+        bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
         anulou_a = esc_l ? -1 : l;
         anulou_b = esc_k ? -1 : k;
         resistiu = esc_l ? l : (esc_k ? k : -1);
-        if (ferr) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura segura os dois", v, f->valor[l]);
+        if (ferr && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura segura o %d", v, f->valor[l], f->valor[l]);
         else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai sozinha", v, f->valor[l]);
         else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro segura o %d", v, f->valor[l], f->valor[l]);
         else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede segura o %d", v, f->valor[l], f->valor[l]);
@@ -2011,6 +2012,7 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 2;                    // o Caubói
+        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 3; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
@@ -2316,7 +2318,6 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             && f->valor[k - 1] <= 3) m += 2;
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
-        if (k == 0 && tem_am(j, A_CORINGA)) m += 2;                       // Coringa: x2 no primeiro
         if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
@@ -2684,7 +2685,9 @@ static void nova_rodada(void)
     plano_rodada = -1;                       // a IA monta outra fila
     ferr_k[0] = ferr_k[1] = -1;
     if (tem_reg(REG_ULTIMA)) primeiro = 0;   // a Detetive joga sempre por ultimo
-    if (tem_am(0, A_RELOGIO)) primeiro = 1;  // Relogio de Bolso: o oponente abre (vale mais)
+    // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
+    // o oponente abre (vale mais).
+    if (tem_am(0, A_RELOGIO) && (rodada == 1 || J[0].fichas < J[1].fichas)) primeiro = 1;
     for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para o Cobrador
     // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;

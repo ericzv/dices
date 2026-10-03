@@ -6,9 +6,11 @@
 // inteira. O que sobra da janela fica na cor das faixas da mesa.
 //
 // Teclas do PC alem das do jogo: F11 ou Alt+Enter alternam tela cheia,
-// N liga e desliga a musica, F12 salva uma foto da tela.
+// - e + mudam o tamanho da mesa, N liga e desliga a musica, F12 salva uma
+// foto da tela.
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -38,6 +40,7 @@ enum {
 #include "icone.h"
 #include "fonte_ttf.h"
 #include "ui/fonte_tela.h"
+#include "hal/salva.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
@@ -83,6 +86,34 @@ static void alterna_tela_cheia(void)
 #endif
 }
 
+// Tamanho da mesa, em % do maior que cabe: num monitor grande em tela
+// cheia, a mesa inteira pode ficar grande demais. Fica guardado.
+#define ZOOM_MIN 50
+static int zoom = 100;
+static float zoom_aviso;                 // segundos que o aviso ainda fica
+
+static void le_zoom(void)
+{
+    char b[16];
+    if (salva_le("tela", b, sizeof b) > 0) {
+        int z = atoi(b);
+        if (z >= ZOOM_MIN && z <= 100) zoom = z;
+    }
+}
+
+static void muda_zoom(int d)
+{
+    int z = zoom + d;
+    if (z < ZOOM_MIN) z = ZOOM_MIN;
+    if (z > 100) z = 100;
+    zoom_aviso = 1.6f;
+    if (z == zoom) return;
+    zoom = z;
+    char b[16];
+    snprintf(b, sizeof b, "%d", zoom);
+    salva_grava("tela", b);
+}
+
 static void le_teclado(void)
 {
     static const struct { int rl, jogo; } ESPECIAL[] = {
@@ -126,6 +157,8 @@ static void le_teclado(void)
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
         if ((c == 'n' || c == 'N') && !dado_digitando()) { som_musica(!som_musica_ligada()); continue; }
+        if ((c == '-' || c == '_') && !dado_digitando()) { muda_zoom(-5); continue; }
+        if ((c == '+' || c == '=') && !dado_digitando()) { muda_zoom(5); continue; }
         if (c >= 0x20 && c < 0x7F) tecla(c);
     }
 }
@@ -165,6 +198,7 @@ static Rectangle area_do_jogo(void)
     if (cw > 0 && ch > 0) { W = (float)cw; H = (float)ch; }
 #endif
     float k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
+    if (k * zoom / 100 >= 1) k = k * zoom / 100;         // nunca menor que 1 pixel por pixel
     float w = (float)(int)(GFX_W * k), h = (float)(int)(GFX_H * k);
     return (Rectangle){ (float)(int)((W - w) / 2), (float)(int)((H - h) / 2), w, h };
 }
@@ -474,6 +508,17 @@ static void quadro(void)
     DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area, (Vector2){ 0, 0 }, 0, WHITE);
     if (amplia_ok) EndShaderMode();
     desenha_textos(area);
+    if (zoom_aviso > 0) {                    // o tamanho escolhido, por um instante
+        zoom_aviso -= GetFrameTime();
+        char b[48];
+        snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom);
+        float tam = FT_EM * area.width / GFX_W;
+        Vector2 m = MeasureTextEx(fonte, b, tam, 0);
+        float x = area.x + (area.width - m.x) / 2, y = area.y + area.height * 0.12f;
+        DrawRectangle((int)(x - tam * 0.6f), (int)(y - tam * 0.2f), (int)(m.x + tam * 1.2f), (int)(m.y + tam * 0.4f),
+                      (Color){ 16, 16, 15, 230 });
+        DrawTextEx(fonte, b, (Vector2){ x, y }, tam, 0, (Color){ 214, 178, 98, 255 });
+    }
     EndDrawing();
 }
 
@@ -506,6 +551,7 @@ int main(void)
     prepara_ampliacao();
     carrega_fonte();
 
+    le_zoom();
     dado_inicia(0);
 #ifdef __EMSCRIPTEN__
     // No navegador quem manda no ritmo e a pagina: um quadro por repintura.

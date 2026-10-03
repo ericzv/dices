@@ -71,6 +71,7 @@ Não precisa instalar nada: é um executável só.
 | M | Liga e desliga todo o som |
 | N | Liga e desliga só a música |
 | F11 ou Alt+Enter | Tela cheia |
+| – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
 | ESC (duas vezes) | Sai da partida e volta ao menu |
 

@@ -29,6 +29,7 @@
 #include "../hal/keyboard.h"
 #include "../hal/som.h"
 #include "../hal/display.h"
+#include "../hal/salva.h"
 #include "jogos.h"
 
 #ifndef DADO_VERSAO                  // o CMake passa o commit; sem ele, "dev"
@@ -588,6 +589,11 @@ enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N }
 static void fala_evento(int cat);
 static char  fala_txt[64];
 static float t_fala;                     // > 0: o balao do oponente esta na mesa
+// Velocidade: no rapido, animacoes e a vez do computador andam em dobro
+// (menos no online, onde os dois lados precisam andar juntos). Fica guardada.
+#define VEL_RAPIDO 2.0f
+static bool rapido, rapido_lido;
+static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
 static int   fala_perso = -1;            // o oponente da partida do Desafiante
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
@@ -2735,6 +2741,11 @@ static void abre_loja(void);
 
 void dado_inicia(int n_partidas)
 {
+    if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
+        char b[8];
+        rapido = salva_le("vel", b, sizeof b) > 0 && b[0] == '1';
+        rapido_lido = true;
+    }
     partidas = n_partidas;
     semente_v = (uint32_t)esp_timer_get_time() | 1;
     // Online, os dois lados sorteiam igual: a semente vem da sala.
@@ -4162,15 +4173,25 @@ static void trata_esc(void)
 // ===========================================================================
 // Passo de tempo
 // ===========================================================================
+// Telas de menu, fora de qualquer partida: nelas a velocidade nao muda nada.
+static bool menu_sem_partida(void)
+{
+    return fase == F_ABERTURA || fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE
+        || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC;
+}
+
 void dado_passo(float dt)
 {
+    float dt_real = dt;                  // baloes e avisos: no tempo de quem le
+    if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
+    if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     t_fase += dt;
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
-    if (t_fala > 0) t_fala -= dt;
+    if (t_fala > 0) t_fala -= dt_real;
     ia_passo(dt);
     rede_passo();
-    if (t_sair >= 0 && (t_sair += dt) > 2.5f) t_sair = -1;
+    if (t_sair >= 0 && (t_sair += dt_real) > 2.5f) t_sair = -1;
     switch (fase) {
     case F_ABERTURA:
         if (!abertura_pronta) {
@@ -4413,6 +4434,12 @@ static void faixa_jogador(int j)
         txt_c(cx, ty, s, C_TEXTO_M, false);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
+    if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
+        const char *v = rapido ? "» rápido" : "» normal";
+        int vx = GFX_W / 2 + 22;
+        gfx_texto(vx, y0 + FAIXA_H / 2 - 7, v, rapido ? C_OURO : C_TEXTO_M, GFX_MIUDO, false);
+        zona_clique(vx - 4, y0 + 6, gfx_largura(v, GFX_MIUDO) + 8, FAIXA_H - 12, NULL, 0, 'v');
+    }
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
         amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);
 
@@ -5019,6 +5046,54 @@ static void desenha_ordem(void)
     if (f->n) botao_clique(GFX_W / 2 + 225, ry - 12, "pronto", KEY_TAB);
 }
 
+// Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o
+// que valia antes. Joga o lance muitas vezes numa copia da mesa, com as
+// regras de verdade (Gemeo, Bumerangue, Teimoso, Sentinela, Vidro...); o
+// sorteio e o da IA, guardado e devolvido, para nada do jogo mudar.
+static int chance_cair(int j)
+{
+    static fila_t c_fila;                       // a mesa da ultima conta: so refaz se mudou
+    static int c_vez = -1, c_valor = 0;
+    fila_t *f = &F[j];
+    int k = f->lancados;
+    if (k >= f->n) return 0;
+    if (c_vez == j && !memcmp(&c_fila, f, sizeof c_fila)) return c_valor;
+    memcpy(&c_fila, f, sizeof c_fila);
+    uint8_t antes[N_FILA];
+    memcpy(antes, f->est, sizeof antes);
+    bool ego = f->tipo[k] == D_EGOISTA;          // o Egoista derruba os outros de proposito
+    mesa_t m;
+    guarda_mesa(&m);
+    uint32_t sem = semente_ia;
+    const int N = 2000;
+    int caiu = 0;
+    for (int a = 0; a < N; a++) {
+        semeia_ia(0xC4A1u + (uint32_t)rodada * 31u + (uint32_t)k, a);
+        if (f->tipo[k] == D_ACUMULADOR && f->fixo[k] < 6) f->fixo[k]++;   // o lance soma antes
+        sim_lanca(j);
+        bool c = f->est[k] != V_VALIDO || (f->tipo[k] == D_TUDO_NADA && f->cru[k] == 1);
+        for (int i = 0; i < k && !c && !ego; i++) c = antes[i] == V_VALIDO && f->est[i] != V_VALIDO;
+        caiu += c;
+        volta_mesa(&m);
+    }
+    semente_ia = sem;
+    c_vez = j;
+    c_valor = (caiu * 100 + N / 2) / N;
+    return c_valor;
+}
+
+static int des_dificuldade(void);
+
+// A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
+// Nivel 3 do Desafiante em diante.
+static bool mostra_chance(void)
+{
+    if (cpu >> vez & 1) return false;            // vez do computador
+    if (modo == M_DESAFIO) return des_dificuldade() < 3;
+    if (cpu >> outro(vez) & 1) return nivel_jog[outro(vez)] < 2;
+    return true;
+}
+
 static void desenha_joga(void)
 {
     jogador_t *p = &J[vez];
@@ -5049,7 +5124,13 @@ static void desenha_joga(void)
             else              snprintf(parar, sizeof parar, "parar: empata");
         }
         if (f->lancados == 0) snprintf(parar, sizeof parar, "voltar à sequência");
-        const char *rot[2] = { "jogar", parar };
+        char jogar[40] = "jogar";
+        if (f->lancados && f->lancados < f->n && mostra_chance()) {
+            int c = chance_cair(vez);
+            if (c <= 0) snprintf(jogar, sizeof jogar, "jogar: não cai");
+            else        snprintf(jogar, sizeof jogar, "jogar: %d%% de cair", c);
+        }
+        const char *rot[2] = { jogar, parar };
         bool ativo[2] = { f->lancados < f->n, true };
         botoes(y1 + 70, rot, ativo, 2, p->cor);
     }
@@ -5693,7 +5774,7 @@ static const pagina_t TUTORIAL[] = {
         "Se sair menor, ele e o último que valia são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
         NULL } },
     { "Parar ou arriscar", {
-        "Depois de cada dado: jogar o próximo ou parar com os pontos que tem.",
+        "Depois de cada dado: jogar o próximo ou parar com os pontos que tem. O botão jogar mostra a chance de cair (some nas dificuldades altas).",
         "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se vence, perde ou empata.",
         NULL } },
     { "Apostas", {
@@ -5711,7 +5792,7 @@ static const pagina_t TUTORIAL[] = {
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
         "Mouse e toque também jogam: clique no que quiser. O < no alto volta ou sai da partida.",
-        "X recusa o prêmio  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  F11 tela cheia  ·  - e + tamanho da mesa.  Boa sorte!" } },
+        "X recusa  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  V velocidade  ·  F11 tela cheia  ·  - e + tamanho da mesa.  Boa sorte!" } },
 };
 #define N_TUTORIAL ((int)(sizeof TUTORIAL / sizeof TUTORIAL[0]))
 
@@ -5767,7 +5848,7 @@ static void ilustra_tutorial(int pag, int y)
         desenha_dado((float)cx - 162, (float)y + 22, 20, D_D6, 0, 0, 4, 2, false);
         txt_c(cx - 188, y + 46, "6 pontos", C_OURO, false);
         bool parar = (int)(t_fase / 1.4f) % 2;
-        rotulo_tut(cx - 6, y + 10, "jogar o próximo", !parar);
+        rotulo_tut(cx - 6, y + 10, "jogar: 50% de cair", !parar);
         rotulo_tut(cx + 170, y + 10, "parar: vence por 1", parar);
         break;
     }
@@ -5828,6 +5909,7 @@ static void desenha_avisos(void)
     uint16_t c = C_OURO;
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
+    else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
@@ -6064,6 +6146,13 @@ void dado_tecla(const key_event_t *ev_)
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
 
+    if (k == 'v' && !dado_digitando()) {
+        rapido = !rapido;
+        salva_grava("vel", rapido ? "1" : "0");
+        t_aviso_vel = 1.6f;
+        som_toca(SOM_TIQUE);
+        return;
+    }
     if (k == 'm' && !dado_digitando()) {
         bool on = som_liga(!som_ligado());
         if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem saída de som neste computador");

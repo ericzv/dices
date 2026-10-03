@@ -3231,6 +3231,8 @@ static void desenha_cat_amuleto(int i)
     quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 
+static int des_dificuldade(void) { return run.dificuldade; }
+
 static bool des_desenha(void)
 {
     switch (fase) {

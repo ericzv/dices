@@ -70,6 +70,7 @@ Não precisa instalar nada: é um executável só.
 | X | Recusa o prêmio / sai da loja |
 | M | Liga e desliga todo o som |
 | N | Liga e desliga só a música |
+| V | Velocidade normal ou rápida (animações e vez do computador em dobro; fica guardada) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |

@@ -3164,10 +3164,10 @@ static void cadeado(int x, int y, uint16_t c, int e)
 
 static void quem_abre(int nivel, int marco, char *s, int n)
 {
-    if (marco == 0) snprintf(s, (size_t)n, "Fechado: vença o Crupiê");
-    else if (marco == 1) snprintf(s, (size_t)n, "Fechado: vença a Dona do Salão");
-    else if (nivel == 1) snprintf(s, (size_t)n, "Fechado: vença o Barão");
-    else snprintf(s, (size_t)n, "Fechado: vença o Barão no %s", NOME_DIF_CURTO[nivel - 1]);
+    if (marco == 0) snprintf(s, (size_t)n, "vença o Crupiê");
+    else if (marco == 1) snprintf(s, (size_t)n, "vença a Dona do Salão");
+    else if (nivel == 1) snprintf(s, (size_t)n, "vença o Barão");
+    else snprintf(s, (size_t)n, "vença o Barão no %s", NOME_DIF_CURTO[nivel - 1]);
 }
 
 // 0: sempre livre; 1: ja aberto; 2: fechado (e o que falta em s).
@@ -3198,25 +3198,18 @@ static void desenha_cat_amuleto(int i)
 {
     perfis_le();
     int a = cat_amuleto(i);
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
-    int ty = (FAIXA_H - TXT_H) / 2 - 2;
-    txt(botao_voltar(KEY_ESC), ty, "AMULETOS DO DESAFIANTE", C_LATAO, true);
     char s[96];
-    snprintf(s, sizeof s, "%d de %d", D_N + i + 1, D_N + A_N);
-    txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
-    int yb = GFX_H - FAIXA_H;
-    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
-    txt(18, yb + ty + 2, "<  A     D  >", C_TEXTO_M, false);
-    txt(GFX_W - 18 - gfx_largura("ENTER volta", 1), yb + ty + 2, "ENTER volta", C_TEXTO_M, false);
+    faixas_colecao(i, A_N);
 
     bool aberto = amuleto_liberado(a);
     int cx = 160, cy = CENTRO + 4;
     gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, AMULETO[a].cor, 45));
     gfx_disco(cx, cy, 77, C_FELTRO_ESC);
     desenha_amuleto(cx, cy + (int)(sinf(t_fase * 2) * 2), 40, a, !aberto);
-    if (!aberto) cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    if (!aberto) {                                   // fechado: no escuro
+        no_escuro(cx, cy, 76, C_FELTRO_ESC);
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    }
 
     int x = 290;
     gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
@@ -3232,11 +3225,10 @@ static void desenha_cat_amuleto(int i)
         txt(x, 139, s, C_VERDE, false);
     } else {
         quem_abre(NIVEL_AMULETO[a], -1, s, sizeof s);
-        cadeado(x + 5, 142, C_VINHO_CLR, 1);
-        txt(x + 16, 139, s, C_VINHO_CLR, false);
+        linha_bloqueio(x, 139, s);
     }
     gfx_rect(x, 160, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 166, 320, 6, AMULETO[a].desc, C_MARFIM);
+    quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 
 static bool des_desenha(void)

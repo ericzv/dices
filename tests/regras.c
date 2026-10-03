@@ -544,35 +544,6 @@ int main(void)
         des_salva();
         run_t r;
         CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos == run.amuletos, "salvamento novo nao volta");
-        // Os arquivos de quando o salao tinha 3 mesas: no meio do salao,
-        // recomeca nele com o mapa novo; os cortes de antes ainda carregam.
-        {
-            run_v4_t v;
-            memset(&v, 0, sizeof v);
-            memcpy(v.marca, "DES1", 4);
-            v.andar = 1; v.passo = 2; v.estado = R_MAPA; v.vitorias = 6;
-            v.moedas = 77; v.semente = run.semente; v.n_col = run.n_col;
-            memcpy(v.col, run.col, sizeof v.col);
-            v.amuletos = run.amuletos; v.am_loja = 0xFF; v.dificuldade = 2; v.amuletos_hi = 5; v.taca = 3;
-            for (int p2 = 0; p2 < DES_PASSOS_V4; p2++) v.caminho[p2] = 1;
-            static char buf[2 * RUN_TAM_V4 + 1];
-            hex_de(&v, RUN_TAM_V4, buf);
-            salva_grava(chave_run(), buf);
-            CONFERE(des_carrega(&r) && r.moedas == 77 && r.andar == 1 && r.passo == 0 && r.vitorias == 6
-                    && r.dificuldade == 2 && r.amuletos == run.amuletos && r.amuletos_hi == 5 && r.taca == 3 && r.estado == R_MAPA,
-                    "salvamento de 3 mesas nao carrega");
-            des_continua();
-            CONFERE(fase == F_MAPA && run.andar == 1 && run.passo == 0 && run.no[DES_PASSOS - 1][1].tipo == NO_CHEFE
-                    && run.caminho[0] == -1, "salvamento de 3 mesas: mapa novo (fase %d)", fase);
-            CONFERE(des_carrega(&r) && r.no[DES_PASSOS - 1][1].tipo == NO_CHEFE, "mapa novo nao ficou salvo");
-            buf[2 * RUN_TAM_V2] = 0;                   // sem os campos da dificuldade
-            salva_grava(chave_run(), buf);
-            CONFERE(des_carrega(&r) && r.moedas == 77 && r.amuletos_hi == 0 && r.taca == 0,
-                    "salvamento sem dificuldade nao carrega");
-            buf[2 * RUN_TAM_V1] = 0;                   // o arquivo do jeito antigo, mais curto
-            salva_grava(chave_run(), buf);
-            CONFERE(des_carrega(&r) && r.moedas == 77 && r.am_loja == 0xFF, "salvamento antigo nao carrega");
-        }
         salva_apaga(chave_run());
         modo = modo_antes;
         // Fora do Desafiante, amuleto nenhum vale.
@@ -746,8 +717,22 @@ int main(void)
         CONFERE(!strcmp(chave_run(), "desafio2"), "perfil 2 grava em %s", chave_run());
         CONFERE(dado_liberado(D_PRISMA) && !dado_liberado(D_FENIX) && amuleto_liberado(A_CUPOM)
                 && !amuleto_liberado(A_PRENSA), "o que abre com o nivel 3");
+        // Os fortes de antes: Explosivo, Egoista e Tudo ou Nada ja abriram no nivel 3; o
+        // Agouro nao; D20 e Lastro so com o chefe de cada salao vencido.
+        CONFERE(dado_liberado(D_EXPLOSIVO) && dado_liberado(D_EGOISTA) && dado_liberado(D_TUDO_NADA)
+                && !dado_liberado(D_MALDITO) && !dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
+                "dados fortes no nivel 3");
+        perfis[1].marcos = 1;
+        CONFERE(dado_liberado(D_D20) && !dado_liberado(D_LASTRO), "D20 com o Crupie vencido");
+        {
+            float w[4] = { 0, 0, 1, 1 };             // so raros e lendarios
+            for (int i = 0; i < 300; i++) {
+                int t = sorteia_raridade(w);
+                CONFERE(dado_liberado(t), "sorteou dado fechado: %s", TIPO[t].nome);
+            }
+        }
         // Salvamento estragado: nenhum perfil, sem quebrar.
-        salva_grava("perfis", "PER1zz");
+        salva_grava("perfis", "PER3zz");
         perfis_lidos = false; perfis_le();
         CONFERE(perfil_atual == -1 && !perfis[0].nome[0] && perfil()->nivel == 0, "perfis estragados");
         memset(&run, 0, sizeof run);
@@ -756,20 +741,6 @@ int main(void)
         run_poe_amuleto(A_CUPOM);
         CONFERE(run_amuletos() >> A_CUPOM & 1 && run.amuletos_hi, "amuleto 16+ nao entrou na parte alta");
         CONFERE(preco_run(D_D8) == 23, "Prata com Cupom: %d", preco_run(D_D8));
-        // O formato de antes (PER1, sem as partidas) ainda carrega.
-        {
-            memset(perfis, 0, sizeof perfis);
-            snprintf(perfis[2].nome, sizeof perfis[2].nome, "VELHO");
-            perfis[2].nivel = 2; perfis[2].runs = 9;
-            static char buf[8 + 2 * N_PERFIS * PERFIL_TAM_V1];
-            memcpy(buf, "PER12", 5);
-            for (int i = 0; i < N_PERFIS; i++) hex_de(&perfis[i], PERFIL_TAM_V1, buf + 5 + 2 * PERFIL_TAM_V1 * i);
-            salva_grava("perfis", buf);
-            memset(perfis, 0, sizeof perfis); perfis_lidos = false; perfil_atual = -1;
-            perfis_le();
-            CONFERE(perfil_atual == 2 && !strcmp(perfis[2].nome, "VELHO") && perfis[2].nivel == 2
-                    && perfis[2].runs == 9 && perfis[2].partidas == 0, "perfil PER1 nao carregou");
-        }
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
@@ -796,6 +767,8 @@ int main(void)
         venc_partida = 0;
         des_resultado();
         CONFERE(perfis[0].partidas == 1, "partidas do perfil: %d", perfis[0].partidas);
+        CONFERE((perfis[0].marcos & 1) && des_marco == D_D20 && dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
+                "vencer o Crupie devia abrir o D20 (marcos %d)", perfis[0].marcos);
         // Selo de Divida: o chefe da dois premios, depois o amuleto.
         run_poe_amuleto(A_SELO);
         run.tier = 3;
@@ -988,6 +961,35 @@ int main(void)
         CONFERE(tam_mao(1) == 7 && !tem_reg(REG_NERVOSO), "trunfo valendo fora do Desafiante");
         reg_op = REG_NADA; op_nervoso = false;
         modo = modo_antes;
+    }
+
+    // ---- Seguranca: leva no lugar a anulacao ou o roubo do oponente --------
+    {
+        desfecho_t d;
+        limpa();
+        joga(0, D_SEGURANCA, 2); joga(0, D_D8, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.total[0] == 7,
+                "Seguranca x Carrasco: esperava so o 7 (deu %d)", d.total[0]);
+        limpa();
+        joga(0, D_D4, 1); joga(0, D_SEGURANCA, 3);
+        joga(1, D_CARIDOSO, 2);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ROUBADO, "Seguranca x Caridoso: devia ir o Seguranca");
+        // Dois ataques: o primeiro leva o Seguranca, o segundo pega o alvo de sempre.
+        limpa();
+        joga(0, D_SEGURANCA, 2); joga(0, D_D8, 5); joga(0, D_D12, 9);
+        joga(1, D_CARRASCO, 4); joga(1, D_INVEJOSO, 6);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][1] == V_VALIDO,
+                "Seguranca com dois ataques");
+        // Sem Seguranca, o Carrasco anula o maior, como sempre.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D8, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 2, "Carrasco sem Seguranca");
     }
 
     // ---- Previa: o total com os bonus pode ser negativo ------------------

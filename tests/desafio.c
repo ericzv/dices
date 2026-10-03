@@ -184,7 +184,7 @@ int main(int argc, char **argv)
             }
         }
         for (int i = 0; i < run.n_col; i++)
-            CONFERE(nivel_do_dado(run.col[i].tipo) <= dific, "dado %d ainda fechado", run.col[i].tipo);
+            CONFERE(dado_liberado(run.col[i].tipo), "dado %d ainda fechado", run.col[i].tipo);
         if (des_venceu_run) {
             vitorias++;
             CONFERE(perfis[0].venceu[dific] == 1 && perfis[0].nivel == (dific < N_NIVEIS ? dific + 1 : dific),

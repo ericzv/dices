@@ -126,7 +126,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_FARTURA, EF_SORTE, EF_TEIMOSO, EF_SEMENTE, EF_FOGO, EF_MALDICAO, EF_TREVO,
        EF_JACKPOT, EF_COPIADOR, EF_EGOISTA, EF_LASER, EF_VENTANIA,
        EF_MISERICORDIA, EF_SOLITARIO, EF_SENTINELA, EF_FERREIRO, EF_COBRADOR,
-       EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR,
+       EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR, EF_SEGURANCA,
        EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
@@ -148,7 +148,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_JACKPOT, D_COPIADOR, D_EGOISTA, D_LASER, D_VENTANIA,
        // Sempre no fim da lista: os numeros dos tipos vao no salvamento.
        D_MISERICORDIOSO, D_SOLITARIO, D_SENTINELA, D_FERREIRO, D_COBRADOR,
-       D_DESAFIANTE, D_VIDRO, D_ACUMULADOR,
+       D_DESAFIANTE, D_VIDRO, D_ACUMULADOR, D_SEGURANCA,
        // Daqui em diante, so no Modo Desafiante, liberados pelas dificuldades.
        D_BUMERANGUE, D_GEMEO, D_PRISMA, D_FENIX, D_TRONO, D_N };
 #define D_BASICOS D_BUMERANGUE           // tipos da partida rapida, 2 jogadores e online
@@ -199,6 +199,7 @@ static const tipo_t TIPO[D_N] = {
     { "Desafiante", 8,  EF_DESAFIANTE, RAR_INCOMUM, "maior dado da rodada: +4" },
     { "Vidro",      8,  EF_VIDRO,     RAR_COMUM,   "tirou 1: quebra e anula o anterior" },
     { "Acumulador", 8,  EF_ACUMULADOR, RAR_INCOMUM, "+1 a cada lance, até +6" },
+    { "Segurança",  4,  EF_SEGURANCA, RAR_INCOMUM, "anulação ou roubo do oponente cai nele" },
     { "Bumerangue", 6,  EF_BUMERANGUE, RAR_COMUM,  "tirou 1: volta e rola de novo" },
     { "Gêmeo",      6,  EF_GEMEO,     RAR_INCOMUM, "tira o mesmo do anterior que vale" },
     { "Prisma",     8,  EF_PRISMA,    RAR_INCOMUM, "+1 por tipo de dado seu valendo" },
@@ -253,6 +254,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_DESAFIANTE] = "Se for o maior dado da rodada, dos dois lados: +4 no fim.",
     [D_VIDRO]     = "Se tirar 1, se estilhaça: anula ele e o anterior, e some da bolsa.",
     [D_ACUMULADOR] = "Cada lance soma +1 de bônus a ele, para sempre (até +6).",
+    [D_SEGURANCA]  = "Valendo, leva no lugar dos outros a anulação ou o roubo do oponente.",
     [D_BUMERANGUE] = "Se tirar 1, volta e rola de novo, uma vez.",
     [D_GEMEO]     = "Tira o mesmo número do último dado seu que vale (sem um antes, rola normal).",
     [D_PRISMA]    = "Se ficar valendo, +1 no fim para cada tipo diferente de dado seu valendo.",
@@ -304,6 +306,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_DESAFIANTE] = "Oito lados. Se terminar valendo e for maior que todos os outros dados que valem na rodada, dos dois jogadores, ganha +4 no fim. Empate não conta.",
     [D_VIDRO] = "Oito lados. Tirando 1, se estilhaça: é anulado, anula também o último dado seu que valia (como na queda) e sai da sua bolsa para sempre.",
     [D_ACUMULADOR] = "Oito lados. Cada vez que é lançado, guarda +1 de bônus, até +6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar valendo.",
+    [D_SEGURANCA]  = "Quatro lados. Se o oponente anular ou roubar um dado seu (Carrasco, Laser, Invejoso, Caridoso, Gatuno) e o Segurança estiver valendo, quem é anulado ou roubado é o Segurança, e o outro dado fica.",
     [D_BUMERANGUE] = "Seis lados. Se tirar 1, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]     = "Seis lados. Tira sempre o mesmo número do último dado seu que vale, e por isso nunca cai. Sem um dado valendo antes dele, rola normal.",
     [D_PRISMA]    = "Oito lados. Se terminar valendo, ganha +1 no fim para cada tipo diferente de dado seu que vale na rodada, ele incluído.",
@@ -359,7 +362,7 @@ static const uint8_t VITRINE[] = { D_D8, D_D12, D_PAR, D_ESCUDO,
                                    D_FARTURA, D_SORTE, D_TEIMOSO, D_SEMENTE, D_TREVO,
                                    D_JACKPOT, D_COPIADOR, D_MISERICORDIOSO, D_SOLITARIO,
                                    D_SENTINELA, D_FERREIRO, D_COBRADOR, D_DESAFIANTE,
-                                   D_VIDRO, D_ACUMULADOR };
+                                   D_VIDRO, D_ACUMULADOR, D_SEGURANCA };
 static int preco_loja(int t)
 {
     switch (t) {
@@ -385,6 +388,7 @@ static int preco_loja(int t)
     case D_MISERICORDIOSO: return 12;
     case D_SOLITARIO: return 8;
     case D_ACUMULADOR: return 14;
+    case D_SEGURANCA: return 10;
     case D_FERREIRO: return 13;
     case D_DESAFIANTE: return 13;
     default:         return 18;
@@ -422,6 +426,7 @@ static uint16_t cor_aro(int tipo)
     case EF_DESAFIANTE: return C_CARMIM;
     case EF_VIDRO:     return C_VIDRO;
     case EF_ACUMULADOR: return C_AMBAR;
+    case EF_SEGURANCA: return RGB(90, 120, 170);
     case EF_BUMERANGUE: return C_MADEIRA_CLR;
     case EF_GEMEO:     return C_CIANO;
     case EF_PRISMA:    return RGB(176, 132, 220);
@@ -739,6 +744,7 @@ static int textura_de(int tipo)
     case D_MISERICORDIOSO:                                 return T_MARMORE;
     case D_DESAFIANTE:                                     return T_LINHAS;
     case D_ACUMULADOR:                                     return T_PONTOS;
+    case D_SEGURANCA:                                      return T_METAL;
     case D_VIDRO: case D_SOLITARIO:                        return T_LISO;
     case D_BUMERANGUE:                                     return T_MADEIRA;
     case D_GEMEO: case D_PRISMA:                           return T_LISO;
@@ -945,6 +951,7 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
     case D_DESAFIANTE: tom = C_CARMIM; pct = 20; break;
     case D_VIDRO:    tom = C_VIDRO;  pct = 52; *aro = C_VIDRO; break;
     case D_ACUMULADOR: tom = C_AMBAR; pct = 20; break;
+    case D_SEGURANCA: tom = RGB(90, 120, 170); pct = 24; break;
     case D_BUMERANGUE: tom = C_MADEIRA_CLR; pct = 18; break;
     case D_GEMEO:    tom = C_CIANO;  pct = 16; break;
     case D_PRISMA:   tom = RGB(176, 132, 220); pct = 26; *aro = RGB(176, 132, 220); break;
@@ -1253,6 +1260,20 @@ static void marca_frente(int tipo, float r, int dono, uint16_t corpo)
                          MX(-0.12f * t, -0.62f * t), MY(-0.12f * t, -0.62f * t), e, C_BRANCO);
         gfx_linha_grossa(MX(-0.62f * t, 0.12f * t), MY(-0.62f * t, 0.12f * t),
                          MX(-0.42f * t, -0.08f * t), MY(-0.42f * t, -0.08f * t), e, C_BRANCO);
+        break;
+    }
+    case D_SEGURANCA: {                           // cadeado embaixo do numero, no centro (longe dos cantos)
+        uint16_t c = dono == 0 ? RGB(70, 96, 140) : RGB(150, 176, 220);
+        float y = 0.62f * t, w = 0.2f * t + 0.6f, h = 0.15f * t + 0.6f;
+        int e = esp_marca(t);
+        int ax = MX(0, y - h), ay = MY(0, y - h);
+        for (int i = 0; i <= 12; i++) {                                      // a alca
+            float a = 3.1416f + i * 0.2618f;
+            int px = ax + (int)(cosf(a) * (w * 0.7f)), py = ay + (int)(sinf(a) * (w * 0.75f));
+            gfx_rect(px, py, e, e, c);
+        }
+        marca_ret(0, y, w, h, c);                                            // o corpo
+        gfx_rect(MX(0, y), MY(0, y), 1, 1 + e, corpo);                       // o buraco da chave
         break;
     }
     case D_ACUMULADOR: {                          // seis casas em volta do numero: as acesas sao o bonus
@@ -2118,6 +2139,16 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
     return a;
 }
 
+// Seguranca: um ataque ao dado a da fila de j cai no Seguranca dele, se houver
+// um valendo (e nao for o proprio alvo).
+static int desvia_seguranca(const uint8_t *est, int j, int a)
+{
+    if (a < 0) return a;
+    for (int i = 0; i < F[j].lancados; i++)
+        if (i != a && est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_SEGURANCA) return i;
+    return a;
+}
+
 static void evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                    const char *fmt, ...) __attribute__((format(printf, 8, 9)));
 static void evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
@@ -2414,11 +2445,13 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 am_acende(A_COURACA);
             if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
             if (ef == EF_CARRASCO && v == 4) {
-                int a = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
+                int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
-                    evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
-                           "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
+                    if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                        "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
+                    else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
                 }
             } else if (ef == EF_LASER && v == 6) {
                 // Um dado anulavel do oponente, ao acaso - mas um acaso que so
@@ -2430,20 +2463,26 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                     uint32_t h = (uint32_t)(j * 7 + k);
                     for (int i = 0; i < F[r].lancados; i++) h = h * 31u + (uint32_t)F[r].valor[i];
                     for (int i = 0; i < F[j].lancados; i++) h = h * 17u + (uint32_t)F[j].valor[i];
-                    int a = alvos[hash2((int)h, k + 11) % (uint32_t)n];
-                    d->est[r][a] = V_ANULADO;
-                    evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
-                           "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                    int a0 = alvos[hash2((int)h, k + 11) % (uint32_t)n], a = desvia_seguranca(d->est[r], r, a0);
+                    if (a >= 0) {
+                        d->est[r][a] = V_ANULADO;
+                        if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                            "Laser: o Segurança de %s leva no lugar", J[r].nome);
+                        else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                    "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                    }
                 }
             } else if (ef == EF_INVEJOSO) {
-                int a = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
+                int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
                 // Depois de anular o do oponente, anula o maior anulavel da
                 // propria sequencia - ele mesmo, se for o maior.
                 int b;
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
-                    evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
-                           "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
+                    if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                        "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
+                    else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
+                                "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
                 }
                 b = alvo_de(d->est[j], j, true, -1);
                 if (b >= 0) {
@@ -2461,13 +2500,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 d->delta[r] -= 4;
                 evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
             } else if (ef == EF_CARIDOSO || ef == EF_GATUNO) {
-                int a = alvo_de(d->est[r], r, false, -1);
+                int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
                 if (a >= 0) {
                     int vale = contribui(r, a);
                     d->est[r][a] = V_ROUBADO;
                     d->roubo_val[j] += vale;
-                    evento(gera, EV_ROUBA, j, k, r, a, vale,
-                           "%s rouba o %d de %s", nome, vale, J[r].nome);
+                    if (a != a0) evento(gera, EV_ROUBA, j, k, r, a, vale,
+                                        "%s: o Segurança de %s vai no lugar (%d)", nome, J[r].nome, vale);
+                    else evento(gera, EV_ROUBA, j, k, r, a, vale,
+                                "%s rouba o %d de %s", nome, vale, J[r].nome);
                 }
             }
         }

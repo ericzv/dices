@@ -1,0 +1,20 @@
+# As variaveis grandes dos jogos e do console vao para a PSRAM: so o dado.c
+# guarda quase 1 MB (mesas prontas, colecoes), mais do que a RAM interna
+# do ESP32-P4 tem livre. Precisa de CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY.
+#
+# O esquema "extram_bss" do IDF mora no componente do Wi-Fi, que este
+# firmware nao usa: este e o mesmo, com outro nome.
+[scheme:bss_na_psram]
+entries:
+    bss -> extern_ram
+    common -> extern_ram
+
+[mapping:jogos_na_psram]
+archive: libmain.a
+entries:
+    dado (bss_na_psram)
+    gfx (bss_na_psram)
+    texto (bss_na_psram)
+    partida (bss_na_psram)
+    console (bss_na_psram)
+    inicio (bss_na_psram)

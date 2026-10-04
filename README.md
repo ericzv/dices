@@ -29,6 +29,13 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 5).
   Barão abre a dificuldade seguinte (são 6), e os chefes e as dificuldades
   abrem dados novos; a coleção mostra o que está aberto e o que falta.
 
+## No ESP32-P4 (tela de 10,1")
+
+Nesta branch o jogo também roda na placa **Guition JC8012P4A1** (ESP32-P4,
+tela de toque de 1280×800), dentro de um pequeno console com tela de início no
+jeito do PS5, ajustes de volume e brilho e uma central de controle durante o
+jogo. Está tudo em [`esp32p4/`](esp32p4/README.md), com um simulador para o PC.
+
 ## Jogar no navegador (e online)
 
 **https://ericzv.github.io/dices/** — abre direto no navegador, sem instalar.
@@ -143,6 +150,7 @@ web/          a página do navegador e a rede do modo online (MQTT)
 tests/        simulador de partidas e exportador de sons (WAV)
 tools/        geradores da fonte e do ícone
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC
+esp32p4/      o console do ESP32-P4 de 10,1" (ESP-IDF) e o simulador dele
 ```
 
 A versão do Cardputer (tela 240x135) ficou em `cardputer/dado.c`: tem as

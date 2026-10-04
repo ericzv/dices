@@ -1,0 +1,5 @@
+# Flash de 16 MB: o programa (com os sons e as fontes) e o NVS, onde ficam os
+# ajustes e o que os jogos guardam (perfis e runs do Modo Desafiante).
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x20000,
+factory,  app,  factory, 0x30000,  0x700000,

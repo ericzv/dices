@@ -174,7 +174,7 @@ static const perso_t PERSO[] = {
         { "Bravo! Você viu o truque.", "Um mágico nunca explica a derrota." } } },
     { "O CAUBÓI",        "Atira primeiro, pergunta depois.",   0.6f,
       { D_LASER, D_EXPLOSIVO, D_DESAFIANTE, D_D12, D_VICIADO },
-      "Saque rápido", "O primeiro dado da sequência dele vale +2.", 0, REG_SAQUE,
+      "Saque rápido", "O primeiro dado da sequência dele vale +1.", 0, REG_SAQUE,
       { { "Esta mesa é pequena pra nós dois.", "Saque quando estiver pronto." },
         { "Caiu do cavalo, parceiro.", "Poeira. Só sobrou poeira." },
         { "Na mosca.", "O mais rápido do oeste." },
@@ -183,7 +183,7 @@ static const perso_t PERSO[] = {
         { "Você saca rápido, forasteiro.", "Tiro limpo. Respeito." } } },
     { "O MONGE",         "Não aposta contra o destino.",      -0.6f,
       { D_SENTINELA, D_SOLITARIO, D_MISERICORDIOSO, D_TEIMOSO, D_D8 },
-      "Equilíbrio", "Na 1ª queda de cada rodada, nenhum dos dois dados cai.", AM(A_FERRADURA), REG_NADA,
+      "Equilíbrio", "Na 1ª queda de cada rodada, o dado de antes não cai; só o novo.", AM(A_FERRADURA), REG_NADA,
       { { "Respire. Os dados também respiram.", "Que a mesa nos ensine algo." },
         { "A pressa derruba o que ergue.", "Tudo que sobe, cai." },
         { "Assim é.", "O rio segue o seu curso." },
@@ -192,7 +192,7 @@ static const perso_t PERSO[] = {
         { "Você está em paz com a sorte.", "O aluno superou o mestre." } } },
     { "A DETETIVE",      "Já sabe o que você vai jogar.",      0.0f,
       { D_INVEJOSO, D_COBRADOR, D_MARTELO, D_D12, D_D8 },
-      "Última palavra", "Ela joga sempre por último: você abre toda rodada.", 0, REG_ULTIMA,
+      "Última palavra", "Na 1ª rodada e quando está atrás em fichas, ela joga por último.", 0, REG_ULTIMA,
       { { "Pode começar. Eu observo.", "Cada jogada deixa uma pista." },
         { "Previsível. Anotei.", "Elementar." },
         { "Caso encerrado.", "As pistas não mentem." },
@@ -899,15 +899,15 @@ static const amuleto_t AMULETO[A_N] = {
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 15 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 3 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
-    [A_FERRADURA]= { "Ferradura",     "Na primeira queda de cada rodada, nenhum dos dois dados cai.", C_PRATA },
+    [A_FERRADURA]= { "Ferradura",     "Na primeira queda de cada rodada, o dado de antes não cai; só o novo.", C_PRATA },
     [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
-    [A_RELOGIO]  = { "Relógio de Bolso", "O oponente sempre abre a rodada; você joga depois.", RGB(214, 186, 110) },
+    [A_RELOGIO]  = { "Relógio de Bolso", "Na primeira rodada e quando você está atrás em fichas, o oponente abre; você joga depois.", RGB(214, 186, 110) },
     [A_CARTOLA]  = { "Cartola",       "O prêmio de cada mesa vencida sobe um nível.", RGB(150, 110, 170) },
     [A_COROA]    = { "Coroa do Azarão", "Começando a rodada com menos fichas que o oponente, seus dados valem +1.", RGB(226, 176, 70) },
     [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 25% menos.", RGB(120, 190, 150) },
     [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 passa a valer 3.", RGB(150, 150, 160) },
     [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 2 moedas por rodada que você venceu nela.", C_OURO },
-    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale x2.", RGB(206, 80, 110) },
+    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale +2.", RGB(206, 80, 110) },
     [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
     [A_SELO]     = { "Selo de Dívida", "Chefe vencido dá dois prêmios de dados.", RGB(196, 60, 60) },
     [A_PEDAGIO]  = { "Pedágio",       "Os chefes começam a partida com 10 fichas a menos.", RGB(226, 186, 70) },
@@ -1765,6 +1765,7 @@ static void des_comeca_partida(void)
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     if (run.garcom) J[1].fichas -= 10;                                            // o Garcom
+    if (run.andar == 0 && run.passo == 0) J[1].fichas -= 10;                      // a primeira mesa aquece
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
@@ -3230,6 +3231,8 @@ static void desenha_cat_amuleto(int i)
     gfx_rect(x, 160, 320, 1, C_FELTRO2);
     quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
+
+static int des_dificuldade(void) { return run.dificuldade; }
 
 static bool des_desenha(void)
 {

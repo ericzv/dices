@@ -94,7 +94,7 @@ int main(void)
 {
     desfecho_t d;
 
-    // Espinhoso: so com 4 tira 4 do oponente (e vale para o dono).
+    // Espinhoso: com 3 ou 4 tira 4 do oponente (e vale para o dono).
     limpa();
     joga(0, D_MARTELO, 4);
     joga(1, D_D6, 6);
@@ -105,7 +105,12 @@ int main(void)
     joga(0, D_MARTELO, 3);
     joga(1, D_D6, 6);
     d = fim();
-    CONFERE(d.total[1] == 6 && d.total[0] == 3, "Espinhoso 3: nao tira nada (%d x %d)", d.total[0], d.total[1]);
+    CONFERE(d.total[1] == 2 && d.total[0] == 3, "Espinhoso 3: tira 4 (%d x %d)", d.total[0], d.total[1]);
+    limpa();
+    joga(0, D_MARTELO, 2);
+    joga(1, D_D6, 6);
+    d = fim();
+    CONFERE(d.total[1] == 6 && d.total[0] == 2, "Espinhoso 2: nao tira nada (%d x %d)", d.total[0], d.total[1]);
 
     // Maldito: soma para o dono e tira o mesmo do oponente.
     limpa();
@@ -609,11 +614,11 @@ int main(void)
         int modo_antes = modo;
         desfecho_t d;
         modo = M_DESAFIO;
-        // Ferradura: a primeira queda da rodada nao derruba nenhum dos dois.
+        // Ferradura: na primeira queda da rodada, o de antes fica; o novo cai.
         limpa(); amul[0] = 1u << A_FERRADURA; ferr_k[0] = -1; am_disparou = 0;
         joga(0, D_D6, 5); joga(0, D_D4, 2);
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && (am_disparou >> A_FERRADURA & 1),
-                "Ferradura: os dois deviam ficar");
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && (am_disparou >> A_FERRADURA & 1),
+                "Ferradura: o 5 devia ficar e o 2 cair");
         ferr_k[0] = 1;                                   // a primeira queda ja pousou
         joga(0, D_D6, 6); joga(0, D_D4, 1);
         CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO, "Ferradura: a segunda queda devia cair");
@@ -638,19 +643,21 @@ int main(void)
         joga(0, D_D6, 1);
         d = fim();
         CONFERE(F[0].valor[0] == 3 && d.total[0] == 3, "Prensa: esperava 3, deu %d", d.total[0]);
-        // Coringa: o primeiro da sequencia vale x2.
+        // Coringa: o primeiro da sequencia vale +2.
         limpa(); amul[0] = 1u << A_CORINGA;
         joga(0, D_D6, 4); joga(0, D_D8, 5);
         d = fim();
-        CONFERE(d.total[0] == 8 + 5, "Coringa: esperava 13, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 6 + 5, "Coringa: esperava 11, deu %d", d.total[0]);
         // Dupla: +2 em cada um dos que repetem o numero.
         limpa(); amul[0] = 1u << A_DUPLA;
         joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
         d = fim();
         CONFERE(d.total[0] == 3 + 3 + 5 + 4, "Dupla: esperava 15, deu %d", d.total[0]);
-        // Relogio de Bolso: o oponente abre a rodada.
+        // Relogio de Bolso: atras em fichas, o oponente abre a rodada.
         amul[0] = 1u << A_RELOGIO;
-        for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
+        for (int i = 0; i < 4; i++) { entrada(30, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
+        primeiro = 0; entrada(40, 40, 0);
+        CONFERE(primeiro == 0, "Relogio sem estar atras: quem abre e %d", primeiro);
         // Fora do Desafiante, nenhum deles vale.
         modo = M_UM; amul[0] = 0xFFFFFFFFu;
         limpa(); joga(0, D_D6, 1); joga(0, D_D6, 4);
@@ -922,9 +929,11 @@ int main(void)
         CONFERE(op_nervoso && tam_mao(1) == 6 && tam_mao(0) == 7, "Novato: maos %d e %d", tam_mao(0), tam_mao(1));
         // A Detetive joga sempre por ultimo (o Relogio de Bolso do jogador vale mais).
         limpa(); reg_op = REG_ULTIMA; amul[0] = 0;
-        for (int i = 0; i < 4; i++) { entrada(40, 40, 0); CONFERE(primeiro == 0, "Detetive: quem abre e %d", primeiro); }
+        for (int i = 0; i < 4; i++) { primeiro = 1; entrada(40, 30, 0); CONFERE(primeiro == 0, "Detetive atras: quem abre e %d", primeiro); }
+        primeiro = 1; entrada(30, 40, 0);
+        CONFERE(primeiro == 1, "Detetive na frente nao muda quem abre: %d", primeiro);
         amul[0] = 1u << A_RELOGIO;
-        entrada(40, 40, 0);
+        entrada(30, 40, 0);
         CONFERE(primeiro == 1, "Detetive com Relogio: quem abre e %d", primeiro);
         amul[0] = 0;
         // A Maratonista: +1 nos dados dela da 5a rodada em diante.
@@ -939,12 +948,12 @@ int main(void)
             joga(1, D_D6, 3); joga(0, D_D6, 3);
             d = fim();
             CONFERE(d.total[1] == 4 && d.total[0] == 3, "Maratonista na 5a rodada: %d x %d", d.total[1], d.total[0]);
-            // O Caubói: +3 no primeiro da sequência dele.
+            // O Caubói: +1 no primeiro da sequência dele.
             reg_op = REG_SAQUE; rodada = 1;
             limpa();
             joga(1, D_D6, 4); joga(1, D_D8, 5);
             d = fim();
-            CONFERE(d.total[1] == 4 + 2 + 5, "Caubói: esperava 11, deu %d", d.total[1]);
+            CONFERE(d.total[1] == 4 + 1 + 5, "Caubói: esperava 10, deu %d", d.total[1]);
             // O Ilusionista (Dupla) vale para o oponente.
             reg_op = REG_NADA; amul[1] = 1u << A_DUPLA;
             limpa();
@@ -974,7 +983,7 @@ int main(void)
                 "Seguranca x Carrasco: esperava so o 7 (deu %d)", d.total[0]);
         limpa();
         joga(0, D_D4, 1); joga(0, D_SEGURANCA, 3);
-        joga(1, D_CARIDOSO, 2);
+        joga(1, D_CARIDOSO, 3);
         d = fim();
         CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ROUBADO, "Seguranca x Caridoso: devia ir o Seguranca");
         // Dois ataques: o primeiro leva o Seguranca, o segundo pega o alvo de sempre.
@@ -1059,9 +1068,14 @@ int main(void)
     }
     limpa();
     joga(1, D_D8, 7);
+    joga(0, D_LASER, 4);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Laser com 4 nao devia anular");
+    limpa();
+    joga(1, D_D8, 7);
     joga(0, D_LASER, 5);
     d = fim();
-    CONFERE(d.est[1][0] == V_VALIDO, "Laser com 5 nao devia anular");
+    CONFERE(d.est[1][0] == V_ANULADO, "Laser com 5 devia anular");
     limpa();
     joga(1, D_D8, 7);
     joga(0, D_D6, 6);
@@ -1109,14 +1123,19 @@ int main(void)
     // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.
     limpa();
     joga(1, D_EGOISTA, 5);
-    joga(0, D_CARIDOSO, 2);
+    joga(0, D_CARIDOSO, 3);
     d = fim();
     CONFERE(d.est[1][0] == V_ROUBADO, "Caridoso devia roubar o Egoista");
     limpa();
     joga(1, D_TEIMOSO, 5);
-    joga(0, D_CARIDOSO, 2);
+    joga(0, D_CARIDOSO, 3);
     d = fim();
     CONFERE(d.est[1][0] == V_ROUBADO, "Caridoso devia roubar o Teimoso");
+    limpa();
+    joga(1, D_TEIMOSO, 5);
+    joga(0, D_CARIDOSO, 1);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Caridoso com 1 nao devia roubar");
     limpa();
     joga(1, D_ESCUDO, 5);
     joga(0, D_CARIDOSO, 2);

@@ -174,7 +174,7 @@ static const perso_t PERSO[] = {
         { "Bravo! Você viu o truque.", "Um mágico nunca explica a derrota." } } },
     { "O CAUBÓI",        "Atira primeiro, pergunta depois.",   0.6f,
       { D_LASER, D_EXPLOSIVO, D_DESAFIANTE, D_D12, D_VICIADO },
-      "Saque rápido", "O primeiro dado da sequência dele vale +2.", 0, REG_SAQUE,
+      "Saque rápido", "O primeiro dado da sequência dele vale +1.", 0, REG_SAQUE,
       { { "Esta mesa é pequena pra nós dois.", "Saque quando estiver pronto." },
         { "Caiu do cavalo, parceiro.", "Poeira. Só sobrou poeira." },
         { "Na mosca.", "O mais rápido do oeste." },
@@ -907,7 +907,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 25% menos.", RGB(120, 190, 150) },
     [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 passa a valer 3.", RGB(150, 150, 160) },
     [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 2 moedas por rodada que você venceu nela.", C_OURO },
-    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale +3.", RGB(206, 80, 110) },
+    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale +2.", RGB(206, 80, 110) },
     [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
     [A_SELO]     = { "Selo de Dívida", "Chefe vencido dá dois prêmios de dados.", RGB(196, 60, 60) },
     [A_PEDAGIO]  = { "Pedágio",       "Os chefes começam a partida com 10 fichas a menos.", RGB(226, 186, 70) },
@@ -1765,6 +1765,7 @@ static void des_comeca_partida(void)
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     if (run.garcom) J[1].fichas -= 10;                                            // o Garcom
+    if (run.andar == 0 && run.passo == 0) J[1].fichas -= 10;                      // a primeira mesa aquece
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;

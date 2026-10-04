@@ -643,11 +643,11 @@ int main(void)
         joga(0, D_D6, 1);
         d = fim();
         CONFERE(F[0].valor[0] == 3 && d.total[0] == 3, "Prensa: esperava 3, deu %d", d.total[0]);
-        // Coringa: o primeiro da sequencia vale +3.
+        // Coringa: o primeiro da sequencia vale +2.
         limpa(); amul[0] = 1u << A_CORINGA;
         joga(0, D_D6, 4); joga(0, D_D8, 5);
         d = fim();
-        CONFERE(d.total[0] == 7 + 5, "Coringa: esperava 12, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 6 + 5, "Coringa: esperava 11, deu %d", d.total[0]);
         // Dupla: +2 em cada um dos que repetem o numero.
         limpa(); amul[0] = 1u << A_DUPLA;
         joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
@@ -948,12 +948,12 @@ int main(void)
             joga(1, D_D6, 3); joga(0, D_D6, 3);
             d = fim();
             CONFERE(d.total[1] == 4 && d.total[0] == 3, "Maratonista na 5a rodada: %d x %d", d.total[1], d.total[0]);
-            // O Caubói: +3 no primeiro da sequência dele.
+            // O Caubói: +1 no primeiro da sequência dele.
             reg_op = REG_SAQUE; rodada = 1;
             limpa();
             joga(1, D_D6, 4); joga(1, D_D8, 5);
             d = fim();
-            CONFERE(d.total[1] == 4 + 2 + 5, "Caubói: esperava 11, deu %d", d.total[1]);
+            CONFERE(d.total[1] == 4 + 1 + 5, "Caubói: esperava 10, deu %d", d.total[1]);
             // O Ilusionista (Dupla) vale para o oponente.
             reg_op = REG_NADA; amul[1] = 1u << A_DUPLA;
             limpa();
@@ -1133,9 +1133,9 @@ int main(void)
     CONFERE(d.est[1][0] == V_ROUBADO, "Caridoso devia roubar o Teimoso");
     limpa();
     joga(1, D_TEIMOSO, 5);
-    joga(0, D_CARIDOSO, 2);
+    joga(0, D_CARIDOSO, 1);
     d = fim();
-    CONFERE(d.est[1][0] == V_VALIDO, "Caridoso com 2 nao devia roubar");
+    CONFERE(d.est[1][0] == V_VALIDO, "Caridoso com 1 nao devia roubar");
     limpa();
     joga(1, D_ESCUDO, 5);
     joga(0, D_CARIDOSO, 2);

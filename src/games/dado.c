@@ -179,7 +179,7 @@ static const tipo_t TIPO[D_N] = {
     { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
     { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior do oponente e o seu" },
-    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 3 ou 4: rouba o menor do oponente" },
+    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 2 a 4: rouba o menor do oponente" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "seus dados com 1 ou 2 valem x2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: ímpares +1 · 2: pares +1" },
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_INCOMUM,   "não pode ser anulado" },
@@ -234,7 +234,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
     [D_INVEJOSO]  = "Se ficar valendo, anula o maior do oponente e depois o seu maior.",
-    [D_CARIDOSO]  = "Se ficar valendo com 3 ou 4, rouba o menor dado do oponente.",
+    [D_CARIDOSO]  = "Se ficar valendo com 2 ou mais, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
     [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
@@ -286,7 +286,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
     [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo e Teimoso resistem à anulação.",
-    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 3 ou 4, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
+    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 2 ou mais, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Ficha azul e vermelha. Se terminar valendo: tirando 1 (azul), cada dado ímpar seu ganha +1; tirando 2 (vermelha), cada dado par ganha +1. Ela conta a si mesma.",
     [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
@@ -389,7 +389,7 @@ static int preco_loja(int t)
     case D_MISERICORDIOSO: return 13;
     case D_SORTE:    return 14;
     case D_FARTURA:  return 14;
-    case D_FICHAS:   return 14;
+    case D_FICHAS:   return 10;
     case D_TUDO_NADA: return 14;
     case D_EGOISTA:  return 14;
     case D_ESCUDO:   return 15;
@@ -2027,8 +2027,8 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
         if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
-        if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 2;                    // o Caubói
-        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 3; am_disparou |= 1u << A_CORINGA; }
+        if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
+        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
@@ -2524,7 +2524,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             } else if (ef == EF_PIRATA && v >= 6) {      // so tira; nao fica com os pontos
                 d->delta[r] -= 4;
                 evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
-            } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4
+            } else if ((ef == EF_CARIDOSO && v >= 2) || ef == EF_GATUNO) {   // Caridoso: com 2 ou mais
                 int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
                 if (a >= 0) {
                     int vale = contribui(r, a);

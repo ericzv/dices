@@ -219,6 +219,22 @@ static bool perso_chefe(int p) { return p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + 
 // Falas: um balao curto saindo do retrato do oponente
 // ---------------------------------------------------------------------------
 
+// Os chefes reparam no andar: a fala de abertura muda a cada dificuldade
+// (do 1o andar a Cobertura), e o Barao se despede de outro jeito la em cima.
+static const char *const FALA_ANDAR[3][5] = {            // [chefe][dificuldade - 1]
+    { "Bronze, senhor? A casa reparou na sua subida.", "Prata. Poucos chegam a esta mesa.",
+      "No ouro, a casa não dá desconto.", "No rubi, até a casa joga sério.",
+      "Cobertura. A casa nunca serviu ninguém aqui." },
+    { "O térreo ficou pequeno para você?", "Prata combina com você. Pena que não fica.",
+      "Ouro... alguém andou se esforçando.", "No rubi, eu uso minhas melhores joias.",
+      "Aqui na cobertura, o salão continua meu." },
+    { "Bronze. É um começo.", "Prata. Começo a lembrar do seu nome.",
+      "Ouro. Agora você me interessa.", "Rubi... ninguém sobe tanto por sorte.",
+      "Bem-vindo à cobertura. Daqui, só se desce." },
+};
+
+static int des_dificuldade(void);
+
 static void fala_evento(int cat)
 {
     if (modo != M_DESAFIO || fala_perso < 0 || cat < 0 || cat >= FA_N) return;
@@ -227,6 +243,11 @@ static void fala_evento(int cat)
     if (!sempre && (rnd_v() % 100) >= 55) return;
     if (!sempre && t_fala > 0.6f) return;               // nao atropela a fala anterior
     const char *s = PERSO[fala_perso].fala[cat][rnd_v() & 1];
+    int dif = des_dificuldade();
+    if (perso_chefe(fala_perso) && dif > 0 && cat == FA_INICIO)
+        s = FALA_ANDAR[fala_perso - PERSO_CHEFE0][dif - 1];
+    if (fala_perso == PERSO_CHEFE0 + 2 && dif == 5 && cat == FA_PERDE_P)
+        s = "A cobertura é sua. Eu desço pela escada.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     t_fala = 3.2f;
 }
@@ -1719,6 +1740,7 @@ static void des_nova_run(void)
     for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
     gera_andar();
     oferece_amuleto(0);                          // a run comeca com um amuleto
+    t_elev = ELEV_T;                             // e o elevador sobe ate o andar
 }
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
@@ -3238,6 +3260,48 @@ static void desenha_cat_amuleto(int i)
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }
+
+// O elevador: um mostrador antigo, em arco, com o ponteiro subindo do terreo
+// ate o andar da run. Pula com qualquer tecla.
+static void des_elevador(void)
+{
+    if (t_elev <= 0 || modo != M_DESAFIO) return;
+    n_zonas = 0;                                 // nada por baixo responde ao clique
+    float e = ELEV_T - t_elev;
+    int d = run.dificuldade;
+    const int w = 250, h = 150, x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 - 4;
+    const int cx = GFX_W / 2, cy = y0 + 106, R = 64;
+    tapa_textos(0, 0, GFX_W, GFX_H);
+    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 150);
+    gfx_rect(x0 + 3, y0 + 4, w, h, C_SOMBRA);
+    gfx_rect(x0, y0, w, h, C_BARRA);
+    gfx_moldura(x0, y0, w, h, 2, C_LATAO);
+    gfx_moldura(x0 + 4, y0 + 4, w - 8, h - 8, 1, C_LATAO_ESC);
+    for (int i = 0; i <= 60; i++) {              // o arco do mostrador
+        float a = 3.1416f * (0.08f + 0.84f * i / 60.0f);
+        gfx_rect(cx - (int)(cosf(a) * R), cy - (int)(sinf(a) * R), 2, 2, C_LATAO_ESC);
+    }
+    // O ponteiro: sai do terreo, passa um pouco do andar e assenta.
+    float q = e / ELEV_CHEGA;
+    if (q > 1) q = 1;
+    float p = d * (1 - (1 - q) * (1 - q) * (1 - q));
+    if (q >= 1 && e < ELEV_CHEGA + 0.25f) p = d + sinf((e - ELEV_CHEGA) / 0.25f * 3.1416f) * 0.08f * (d > 0);
+    bool chegou = e >= ELEV_CHEGA;
+    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "C" };
+    for (int i = 0; i <= N_NIVEIS; i++) {
+        float a = 3.1416f * (0.08f + 0.84f * i / N_NIVEIS);
+        int mx = cx - (int)(cosf(a) * R), my = cy - (int)(sinf(a) * R);
+        bool aceso = chegou && i == d;
+        gfx_disco(mx, my, 3, aceso ? cor_dif(i) : C_LATAO_ESC);
+        int lx = cx - (int)(cosf(a) * (R + 15)), ly = cy - (int)(sinf(a) * (R + 15));
+        txt_c(lx, ly - TXT_H / 2 - 1, MARCA[i], aceso ? cor_dif(i) : C_TEXTO_M, aceso);
+    }
+    float a = 3.1416f * (0.08f + 0.84f * p / N_NIVEIS);
+    gfx_linha_grossa(cx, cy, cx - (int)(cosf(a) * (R - 12)), cy - (int)(sinf(a) * (R - 12)), 2, C_OURO);
+    gfx_disco(cx, cy, 6, C_LATAO_ESC);
+    gfx_disco(cx, cy, 4, C_LATAO);
+    txt_c(cx, cy + 12, chegou ? ANDAR_DIF[d] : "subindo...", chegou ? (d ? cor_dif(d) : C_MARFIM) : C_TEXTO_M, chegou);
+}
 
 static bool des_desenha(void)
 {

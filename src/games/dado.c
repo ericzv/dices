@@ -610,6 +610,11 @@ static float t_fala;                     // > 0: o balao do oponente esta na mes
 #define VEL_RAPIDO 2.0f
 static bool rapido, rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
+// Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
+// da dificuldade (> 0: quanto falta da animacao).
+#define ELEV_T     1.9f
+#define ELEV_CHEGA 1.25f                 // quando o ponteiro chega
+static float t_elev;
 static int   fala_perso = -1;            // o oponente da partida do Desafiante
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
@@ -4291,6 +4296,11 @@ void dado_passo(float dt)
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
     if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
+    if (t_elev > 0) {
+        float antes = ELEV_T - t_elev;
+        t_elev -= dt_real;
+        if (antes < ELEV_CHEGA && ELEV_T - t_elev >= ELEV_CHEGA) som_toca(SOM_VALIDO);   // o "dim" do elevador
+    }
     t_fase += dt;
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
@@ -6134,6 +6144,7 @@ void dado_desenha(void)
     if (!menu) {
         desenha_detalhe();
         desenha_avisos();
+        des_elevador();
     }
     int r[4];
     const dica_t *d = NULL;
@@ -6251,6 +6262,7 @@ void dado_tecla(const key_event_t *ev_)
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
 
+    if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
     if (k == 'v' && !dado_digitando()) {
         rapido = !rapido;
         salva_grava("vel", rapido ? "1" : "0");

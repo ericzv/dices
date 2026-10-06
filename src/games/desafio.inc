@@ -17,7 +17,8 @@
 #define DES_FICHAS    50
 
 
-#define DES_MOEDAS    50                 // moedas no comeco da run
+#define DES_MOEDAS    50                 // moedas no comeco da run, no terreo
+#define DES_MOEDAS_ANDAR 25              // e mais estas a cada andar acima
 
 enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_LOJA, NO_EVENTO, NO_VAZIO = 0xFF };
 enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_PREMIO, R_LOJA, R_AMULETO, R_EVENTO };
@@ -1775,7 +1776,7 @@ static void des_nova_run(void)
     run.semente = ((uint32_t)esp_timer_get_time() * 2654435761u) ^ 0x5bd1e995u;
     if (!run.semente) run.semente = 1;
     run.dificuldade = (uint8_t)des_dif;
-    run.moedas = run.dificuldade >= 4 ? 30 : DES_MOEDAS;
+    run.moedas = DES_MOEDAS + DES_MOEDAS_ANDAR * run.dificuldade;   // andar mais alto, bolsa mais cheia
     if (perfil_atual >= 0) { if (perfis[perfil_atual].runs < 65535) perfis[perfil_atual].runs++; perfis_salva(); }
     static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
     for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
@@ -1827,7 +1828,9 @@ static void des_comeca_partida(void)
     memcpy(J[0].col, run.col, sizeof run.col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
-    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 ? 10 : 0);
+    // Do 1o andar em diante, as mesas dificeis e os chefes comecam com 10 a mais.
+    bool forte = no->tipo == NO_DIFICIL || no->tipo == NO_CHEFE;
+    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 && forte ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     if (run.garcom) J[1].fichas -= 10;                                            // o Garcom
     if (run.andar == 0 && run.passo == 0) J[1].fichas -= 10;                      // a primeira mesa aquece
@@ -2958,11 +2961,11 @@ static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_O
 // O que cada dificuldade acrescenta (vale junto com as de baixo).
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Os salões como sempre.",
-    "O oponente começa com 10 fichas a mais.",
+    "Mesas difíceis e chefes: 10 fichas a mais.",
     "Loja 25% mais cara; as mesas difíceis pensam mais.",
     "Os oponentes trazem 2 dados raros a mais.",
-    "Você começa a run com 30 moedas, não 50.",
-    "Cada oponente ganha um amuleto; chefes pensam mais.",
+    "Viradas do Crupiê e da Dona mais fortes.",
+    "Oponentes ganham um amuleto; chefes pensam mais.",
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
@@ -3165,7 +3168,21 @@ static void desenha_dificuldade(void)
     for (int k = d == 0 ? 0 : 1; k <= d; k++) {
         txt(px + 12, ly, k == d ? "+" : "·", k == d ? COR_DIF[d] : C_TEXTO_M, true);
         txt(px + 24, ly, PENA_DIF[k], k == d ? C_MARFIM : C_TEXTO_M, false);
-        ly += 18;
+        ly += 17;
+    }
+    if (d > 0) {                                     // os chefes que viram na 5a rodada
+        static const char *const VIRAM[N_NIVEIS + 1] = { "", "o Crupiê", "o Crupiê e a Dona",
+            "o Crupiê, a Dona e o Barão", "o Crupiê, a Dona e o Barão", "os três chefes, mais fortes" };
+        char v[80];
+        snprintf(v, sizeof v, "Viram na 5ª rodada: %s.", VIRAM[d]);
+        txt(px + 24, ly, v, C_VINHO_CLR, false);
+        ly += 17;
+    }
+    {
+        char m[48];                                  // e o que ajuda: mais moedas a cada andar
+        snprintf(m, sizeof m, "Você começa com %d moedas.", DES_MOEDAS + DES_MOEDAS_ANDAR * d);
+        txt(px + 24, ly, m, C_VERDE, false);
+        ly += 17;
     }
     if (d > 0) {
         int am[2], dado[2];

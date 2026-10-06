@@ -648,6 +648,11 @@ int main(void)
         joga(0, D_D6, 4); joga(0, D_D8, 5);
         d = fim();
         CONFERE(d.total[0] == 6 + 5, "Coringa: esperava 11, deu %d", d.total[0]);
+        // Contrato Sujo: +2 em cada dado que vale; a sequencia leva 3.
+        limpa(); amul[0] = 1u << A_CONTRATO;
+        joga(0, D_D6, 3); joga(0, D_D8, 5);
+        d = fim();
+        CONFERE(d.total[0] == 5 + 7 && max_fila(0) == 3, "Contrato: esperava 12 e fila de 3, deu %d", d.total[0]);
         // Dupla: +2 em cada um dos que repetem o numero.
         limpa(); amul[0] = 1u << A_DUPLA;
         joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
@@ -1078,11 +1083,46 @@ int main(void)
     CONFERE(d.est[1][0] == V_ANULADO, "Invejoso sozinho devia anular a si mesmo");
     CONFERE(d.total[1] == 0 && d.total[0] == 7, "Invejoso sozinho: %d x %d", d.total[1], d.total[0]);
     limpa();
-    joga(1, D_INVEJOSO, 3);
+    joga(1, D_INVEJOSO, 4);
     joga(1, D_D8, 7);                  // o maior dele e o 7: o Invejoso fica
     joga(0, D_D6, 5);
     d = fim();
     CONFERE(d.est[1][1] == V_ANULADO && d.est[1][0] == V_VALIDO, "Invejoso devia anular o 7, e nao a si");
+    limpa();
+    joga(1, D_INVEJOSO, 3);            // com 3 nao age
+    joga(0, D_D6, 5);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 3 nao devia anular nada");
+
+    // ---- Carrasco com 1: anula o menor da propria sequencia ---------------
+    limpa();
+    joga(0, D_D6, 3); joga(0, D_D6, 5);
+    joga(0, D_CARRASCO, 1);            // cai (1 < 5) e ainda anula o menor que sobrou
+    joga(1, D_D6, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_VALIDO, "Carrasco com 1 devia anular o seu 3");
+    limpa();
+    joga(0, D_CARRASCO, 1); joga(0, D_D6, 2); joga(0, D_D6, 6);
+    d = fim();
+    CONFERE(d.est[0][1] == V_ANULADO && d.est[0][2] == V_VALIDO && d.est[0][0] == V_VALIDO,
+            "Carrasco com 1 valendo devia anular o 2 (fora ele)");
+
+    // ---- Fichas: comecou a rodada na frente, +2 ---------------------------
+    limpa(); fichas_ini[0] = 40; fichas_ini[1] = 30;
+    joga(0, D_FICHAS, 3);
+    d = fim();
+    CONFERE(d.total[0] == 5, "Fichas na frente: esperava 5, deu %d", d.total[0]);
+    limpa(); fichas_ini[0] = 30; fichas_ini[1] = 40;
+    joga(0, D_FICHAS, 3);
+    d = fim();
+    CONFERE(d.total[0] == 3, "Fichas atras: esperava 3, deu %d", d.total[0]);
+    fichas_ini[0] = fichas_ini[1] = 0;
+
+    // ---- Ficha de Fogo: +10 e o maior queima ------------------------------
+    limpa();
+    joga(0, D_FOGO, 2); joga(0, D_D6, 2); joga(0, D_D8, 6);
+    d = fim();
+    CONFERE(d.total[0] == 2 + 2 + 6 + 10 && d.queima[0][2], "Fogo: esperava 20 e o 6 queimando, deu %d", d.total[0]);
 
     // ---- Laser: com 6, anula um dado anulavel do oponente -----------------
     limpa();
@@ -1150,7 +1190,7 @@ int main(void)
     CONFERE(d.est[1][0] == V_VALIDO, "Carrasco nao devia anular o Teimoso");
     limpa();
     joga(1, D_EGOISTA, 9);
-    joga(0, D_INVEJOSO, 3);
+    joga(0, D_INVEJOSO, 4);
     d = fim();
     CONFERE(d.est[1][0] == V_ANULADO, "Invejoso devia anular o Egoista (agora anulavel)");
     // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.

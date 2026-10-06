@@ -168,23 +168,23 @@ static const tipo_t TIPO[D_N] = {
     { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 4 a 12" },
     { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
     { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "não pode ser anulado nem roubado" },
-    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "com 4: anula o maior do oponente" },
+    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "4: anula o maior do rival · 1: anula o seu menor" },
     { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8, rola de novo e soma" },
     { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "com 3 ou 4: tira 4 do oponente" },
     { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: tira 4 do oponente" },
     { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do oponente" },
-    { "Fichas",     4,  EF_FICHAS,    RAR_RARO,    "vence com ele: ganha o dobro em fichas" },
+    { "Fichas",     4,  EF_FICHAS,    RAR_COMUM,   "com mais fichas que o oponente: +2" },
     { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: tudo vale x2 · 1: rodada vale 0" },
     { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "7 ou menos: anula a sua sequência" },
     { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
-    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "anula o maior do oponente e o seu" },
-    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 2 a 4: rouba o menor do oponente" },
+    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "com 4+: anula o maior do oponente e o seu" },
+    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 3 ou 4: rouba o menor do oponente" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "seus dados com 1 ou 2 valem x2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: ímpares +1 · 2: pares +1" },
     { "Teimoso",    6,  EF_TEIMOSO,   RAR_INCOMUM,   "não pode ser anulado" },
     { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "seus dados somam 20+: +10" },
-    { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "x2 no seu maior, que queima" },
+    { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "valendo: +10, e o seu maior queima" },
     { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "vale e tira o mesmo do oponente" },
     { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4 vale 8 · 1 a 3 vale 0" },
     { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
@@ -223,23 +223,23 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, todos com a mesma chance.",
     [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +8.",
     [D_ESCUDO]    = "Nada o anula e nenhum ataque o alcança, nem roubo.",
-    [D_CARRASCO]  = "Se ficar valendo com 4, anula o maior dado do oponente.",
+    [D_CARRASCO]  = "Valendo com 4, anula o maior dado do oponente. Tirando 1, anula o seu menor.",
     [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma (até 3 vezes seguidas).",
     [D_MARTELO]   = "Se ficar valendo com 3 ou 4, tira 4 pontos do oponente.",
     [D_PIRATA]    = "Se ficar valendo com 6 ou mais, tira 4 pontos do oponente.",
     [D_ESPELHO]   = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
-    [D_FICHAS]    = "Se ficar valendo e você vencer, ganha o dobro do valor em fichas.",
+    [D_FICHAS]    = "Se ficar valendo e você começou a rodada com mais fichas que o oponente: +2.",
     [D_TUDO_NADA] = "Tirou 2: todos os seus dados valem x2. Tirou 1: sua rodada vale 0.",
     [D_MALDITO]   = "Se tirar 7 ou menos, anula a sua sequência inteira, e ele junto.",
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Se ficar valendo, anula o maior do oponente e depois o seu maior.",
-    [D_CARIDOSO]  = "Se ficar valendo com 2 ou mais, rouba o menor dado do oponente.",
+    [D_INVEJOSO]  = "Valendo com 4 ou mais, anula o maior do oponente e depois o seu maior.",
+    [D_CARIDOSO]  = "Se ficar valendo com 3 ou 4, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
     [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
     [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 20 ou mais no fim: +10.",
-    [D_FOGO]      = "Se ficar valendo, dobra o seu maior dado, que depois queima e sai.",
+    [D_FOGO]      = "Se ficar valendo: +10 pontos, e o seu maior dado queima e sai.",
     [D_MALDICAO]  = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
     [D_TREVO]     = "Tirou 4: SORTE, vale 8. Tirou 1, 2 ou 3: vale 0.",
     [D_JACKPOT]   = "Se ficar valendo e três dados seus mostrarem o mesmo número: +10.",
@@ -275,23 +275,23 @@ static const char *TEXTO_CAT[D_N] = {
     [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, cada número com a mesma chance (1 em 9).",
     [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +8. Igual não cai; menor cai, como qualquer dado.",
     [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
-    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Escudo e Teimoso resistem à anulação.",
+    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Se tirar 1, anula o menor dado da sua própria sequência (fora ele). Escudo e Teimoso resistem à anulação.",
     [D_EXPLOSIVO] = "Oito lados. Tirando 8, rola de novo e soma ao que já tinha. Pode explodir até 3 vezes seguidas.",
     [D_MARTELO]   = "Quatro lados, coberto de espinhos. Se terminar valendo com 3 ou 4, tira 4 pontos do oponente. Com 1 ou 2, é um D4 comum.",
     [D_PIRATA]    = "Oito lados. Se terminar valendo com 6 ou mais, tira 4 pontos do oponente. Os pontos não passam para você.",
     [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, espera valendo e vira no fim da rodada.",
-    [D_FICHAS]    = "Quatro lados. Se terminar valendo e você vencer a rodada, ganha fichas: o dobro do número que ele tirou.",
+    [D_FICHAS]    = "Quatro lados. Se terminar valendo e você começou a rodada com mais fichas que o oponente, vale +2. É o contrário do Cobrador.",
     [D_TUDO_NADA] = "Uma moeda de risco. Tirando 2, no fim todos os seus dados que valem ganham x2. Tirando 1, a sua rodada inteira vale zero, sem volta.",
     [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo e Teimoso resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo, anula o maior dado do oponente e depois o maior da sua própria sequência — ele mesmo, se for o maior. Escudo e Teimoso resistem à anulação.",
-    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 2 ou mais, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 4 ou mais, anula o maior dado do oponente e depois o maior da sua própria sequência (ele mesmo, se for o maior). Escudo e Teimoso resistem à anulação.",
+    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 3 ou 4, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Ficha azul e vermelha. Se terminar valendo: tirando 1 (azul), cada dado ímpar seu ganha +1; tirando 2 (vermelha), cada dado par ganha +1. Ela conta a si mesma.",
     [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
     [D_SEMENTE]   = "Moeda verde. Se terminar valendo e, no fim, os seus dados somarem 20 ou mais (com bônus e roubos), ganha +10.",
-    [D_FOGO]      = "Ficha em chamas. Se terminar valendo, no fim dá x2 no seu maior dado, que depois vira cinza e sai da sua bolsa para sempre.",
+    [D_FOGO]      = "Ficha em chamas. Se terminar valendo, dá +10 pontos no fim, e o seu maior dado vira cinza e sai da sua bolsa para sempre.",
     [D_MALDICAO]  = "Quatro lados. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
     [D_TREVO]     = "Quatro folhas. Tirando 4: SORTE, vale 8. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
     [D_JACKPOT]   = "Caça-níquel de quatro lados. Se terminar valendo e três dados seus que valem mostrarem o mesmo número (ele pode ser um deles): JACKPOT, +10 no fim.",
@@ -389,7 +389,7 @@ static int preco_loja(int t)
     case D_MISERICORDIOSO: return 13;
     case D_SORTE:    return 14;
     case D_FARTURA:  return 14;
-    case D_FICHAS:   return 10;
+    case D_FICHAS:   return 6;
     case D_TUDO_NADA: return 14;
     case D_EGOISTA:  return 14;
     case D_ESCUDO:   return 15;
@@ -2133,7 +2133,8 @@ static void aplica_regra(int j, int k)
         // Ferreiro valendo logo antes: +4 no fim, se os dois ficarem.
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO)
             snprintf(f->tag[k], sizeof f->tag[k], "+4");
-        if (ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j]) {
+        if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
+            || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
             f->bonus[k] = 2;
             snprintf(f->tag[k], sizeof f->tag[k], "$+2");
         }
@@ -2148,6 +2149,7 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1u << A_OURO; }
         if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1u << A_PENA; }
         if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
+        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= 1u << A_CONTRATO; }   // Contrato Sujo
         if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
@@ -2173,6 +2175,8 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +4 no próximo");
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+2)", vale);
+        } else if (ef == EF_FICHAS && f->bonus[k]) {
+            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+2)", vale);
         } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Acumulador vale %d (+%d guardado)", vale, f->bonus[k]);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
@@ -2428,9 +2432,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     int n_far = 0;
     for (int k = 0; k < f->lancados; k++)
         if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) n_far++;
-    // Ficha de Fogo: x2 no maior dado seu que pontua (sem contar ela), que
-    // depois queima. Duas fichas queimam dois dados diferentes.
-    int8_t fogo[N_FILA] = { 0 };
+    // Ficha de Fogo: +10, e o maior dado seu que pontua (sem contar ela)
+    // queima no fim. Duas fichas queimam dois dados diferentes.
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FOGO) continue;
         int a = -1;
@@ -2441,15 +2444,14 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
         if (a < 0) continue;
         d->queima[j][a] = 1;
-        fogo[a] += 2;
-        evento(gera, EV_FOGO, j, k, j, a, f->valor[a],
-               "Fogo: x2 no %d, que vira cinza", f->valor[a]);
+        d->semente[j] += 10;
+        evento(gera, EV_FOGO, j, k, j, a, 10, "Fogo: +10, e o %d vira cinza", f->valor[a]);
     }
 
     uint8_t mask = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || !pontua(j, k)) continue;
-        int m = fogo[k];
+        int m = 0;
         // Dobro: vale so para o dado logo depois dele, e so se os dois
         // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
         // adiante para o proximo que vale.
@@ -2596,13 +2598,26 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         for (int k = 0; k < F[j].lancados; k++) {
             int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k];
             if (d->est[j][k] == V_ROUBADO) continue;
+            // Carrasco que tirou 1 (valendo ou nao): anula o menor dado de quem
+            // o lancou, fora ele mesmo.
+            if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
+                int b = -1;
+                for (int i = 0; i < F[j].lancados; i++)
+                    if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                        && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+                if (b >= 0) {
+                    d->est[j][b] = V_ANULADO;
+                    evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                           "Carrasco tirou 1: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
+                }
+            }
             // Todo poder so age se o dado terminar valendo. O Gatuno, alem
             // disso, precisa de algum 1 tirado por um dado seu.
             if (d->est[j][k] != V_VALIDO || (ef == EF_GATUNO && !tem_um)) continue;
             const char *nome = TIPO[tipo_de(j, k)].nome;
 
             bool couraca = tem_am(r, A_COURACA);         // os ataques dele nao anulam
-            if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || ef == EF_INVEJOSO))
+            if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && v >= 4)))
                 am_acende(A_COURACA);
             if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
             if (ef == EF_CARRASCO && v == 4) {
@@ -2633,7 +2648,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                     "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
                     }
                 }
-            } else if (ef == EF_INVEJOSO) {
+            } else if (ef == EF_INVEJOSO && v >= 4) {   // Invejoso: com 4 ou mais
                 int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
                 // Depois de anular o do oponente, anula o maior anulavel da
                 // propria sequencia - ele mesmo, se for o maior.
@@ -2660,7 +2675,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             } else if (ef == EF_PIRATA && v >= 6) {      // so tira; nao fica com os pontos
                 d->delta[r] -= 4;
                 evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
-            } else if ((ef == EF_CARIDOSO && v >= 2) || ef == EF_GATUNO) {   // Caridoso: com 2 ou mais
+            } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4
                 int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
                 if (a >= 0) {
                     int vale = contribui(r, a);
@@ -3124,15 +3139,12 @@ static void conclui_rodada(void)
             J[1].fichas += b;
             snprintf(aviso, sizeof aviso, "%s leva %d fichas, e mais %d suas", J[w].nome, pote, b);
         }
-        if (tem_am(w, A_POTE)) {                 // Pote Gordo: 3 a mais
-            J[w].fichas += 3;
-            snprintf(aviso, sizeof aviso, "%s leva %d fichas (+3)", J[w].nome, pote);
+        if (tem_am(w, A_POTE)) {                 // Pote Gordo: 2 a mais
+            J[w].fichas += 2;
+            snprintf(aviso, sizeof aviso, "%s leva %d fichas (+2)", J[w].nome, pote);
             am_acende(A_POTE);
         }
         pote = 0;
-        for (int k = 0; k < F[w].lancados; k++)
-            if (F[w].est[k] == V_VALIDO && TIPO[tipo_de(w, k)].efeito == EF_FICHAS)
-                J[w].fichas += 2 * F[w].valor[k];          // Fichas: o dobro do que tirou
         som_toca(SOM_VITORIA);
     }
     int aluguel = virada_forca(1);                // a Dona cobra o aluguel, ganhe quem ganhar
@@ -3242,7 +3254,7 @@ static void aplica_evento(int i)
     case EV_MULT:
         for (int k = 0; k < N_FILA; k++) vis_mult[e->de_j][k] = e->por_dado[k];
         break;
-    case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; break;
+    case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_ZERA:    vis_zerada[e->de_j] = 1; break;

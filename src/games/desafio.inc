@@ -81,7 +81,7 @@ static const perso_t PERSO[] = {
         { "Você arriscou e deu certo.", "Desta vez, a sorte foi sua." } } },
     { "O APOSTADOR",     "Dobra tudo, sempre.",                1.0f,
       { D_TUDO_NADA, D_EXPLOSIVO, D_D20, D_FICHAS, D_VENTANIA },
-      "Pote quente", "Vencendo uma rodada, leva 3 fichas a mais.", AM(A_POTE), REG_NADA,
+      "Pote quente", "Vencendo uma rodada, leva 2 fichas a mais.", AM(A_POTE), REG_NADA,
       { { "Dobra ou nada, parceiro!", "Hoje eu tô quente!" },
         { "Hahaha! Desabou!", "Faltou coragem!" },
         { "Pote na mão!", "Mais uma! Mais uma!" },
@@ -145,7 +145,7 @@ static const perso_t PERSO[] = {
         { "A banca se rende. Por hoje.", "Impressionante. Siga em frente." } } },
     { "A DONA DO SALÃO", "Nunca perdeu no próprio salão.",     0.4f,
       { D_ESPELHO, D_INVEJOSO, D_FOGO, D_COPIADOR, D_EGOISTA },
-      "Dona da casa", "Começa com 15 fichas a mais, e você compra só 6 dados por rodada.",
+      "Dona da casa", "Começa com 10 fichas a mais, e você compra só 6 dados por rodada.",
       AM(A_RESERVA) | AM(A_FURADO), REG_NADA,
       { { "Você está na minha casa.", "Que gracinha, um desafiante." },
         { "Que deselegante.", "Meu salão não perdoa." },
@@ -955,12 +955,12 @@ static const amuleto_t AMULETO[A_N] = {
     [A_BOLSA]    = { "Bolsa Funda",   "Você compra 8 dados por rodada, em vez de 7.", RGB(204, 150, 96) },
     [A_OURO]     = { "Dado de Ouro",  "Dado seu que tirar o número máximo ganha +2.", C_OURO },
     [A_PENA]     = { "Peso Pena",     "Seus dados de 2 e 4 lados valem +1.", RGB(196, 176, 230) },
-    [A_CONTRATO] = { "Contrato Sujo", "+50% de moedas por vitória, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
+    [A_CONTRATO] = { "Contrato Sujo", "Todo dado seu que vale ganha +2, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
     [A_COURACA]  = { "Couraça",       "Os ataques do oponente não anulam os seus dados.", C_ACO },
-    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem (até 15).", C_LATAO },
-    [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 15 fichas a mais.", RGB(104, 186, 110) },
-    [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 3 fichas a mais.", RGB(222, 154, 50) },
+    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem.", C_LATAO },
+    [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
+    [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
     [A_FERRADURA]= { "Ferradura",     "Na primeira queda de cada rodada, o dado de antes não cai; só o novo.", C_PRATA },
     [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
@@ -1823,14 +1823,12 @@ static void des_comeca_partida(void)
     perso_virado = -1;
     t_virada = 0;
     t_fala = 0;
-    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 15 : 0);
+    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
-    // Do 1o andar em diante, as mesas dificeis e os chefes comecam com 10 a mais.
-    bool forte = no->tipo == NO_DIFICIL || no->tipo == NO_CHEFE;
-    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 15 : 0) + (run.dificuldade >= 1 && forte ? 10 : 0);
+    J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     if (run.garcom) J[1].fichas -= 10;                                            // o Garcom
     if (run.andar == 0 && run.passo == 0) J[1].fichas -= 10;                      // a primeira mesa aquece
@@ -1880,11 +1878,10 @@ static void des_resultado(void)
         des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
     }
     run.ganho = J[0].fichas;
-    if (run_amuletos() >> A_CONTRATO & 1) run.ganho += J[0].fichas / 2;     // Contrato Sujo: +50%
     run.juros = 0;
     if (run_amuletos() >> A_COFRE & 1) {                                    // Cofre: 1 a cada 5
-        int j = (run.moedas + run.ganho) / 5;
-        run.juros = (uint8_t)(j > 15 ? 15 : j);
+        int j = (run.moedas + run.ganho) / 5;               // sem limite (so o do byte)
+        run.juros = (uint8_t)(j > 255 ? 255 : j);
     }
     run.taca = 0;
     if (run_amuletos() >> A_TACA & 1) {                                     // Taca: 2 por rodada vencida
@@ -2352,9 +2349,7 @@ static void desenha_fim_partida_run(void)
     char s[80];
     if (venc_partida == 0) {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, "VOCÊ VENCEU", C_LATAO, 3);
-        if (run.ganho != J[0].fichas)
-            snprintf(s, sizeof s, "%d fichas viram %d moedas (Contrato +50%%)", J[0].fichas, run.ganho);
-        else snprintf(s, sizeof s, "%d fichas viram %d moedas de ouro", run.ganho, run.ganho);
+        snprintf(s, sizeof s, "%d fichas viram %d moedas de ouro", run.ganho, run.ganho);
         if (run.juros) {
             char j2[24];
             snprintf(j2, sizeof j2, "  ·  Cofre +%d", run.juros);
@@ -2961,7 +2956,7 @@ static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_O
 // O que cada dificuldade acrescenta (vale junto com as de baixo).
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Os salões como sempre.",
-    "Mesas difíceis e chefes: 10 fichas a mais.",
+    "Os chefes passam a virar na 5ª rodada.",
     "Loja 25% mais cara; as mesas difíceis pensam mais.",
     "Os oponentes trazem 2 dados raros a mais.",
     "Viradas do Crupiê e da Dona mais fortes.",

@@ -936,6 +936,39 @@ int main(void)
         entrada(30, 40, 0);
         CONFERE(primeiro == 1, "Detetive com Relogio: quem abre e %d", primeiro);
         amul[0] = 0;
+        // As viradas dos chefes, da 5a rodada em diante, pela dificuldade.
+        {
+            desfecho_t d;
+            int modo_v = modo, perso_v = fala_perso;
+            modo = M_DESAFIO; reg_op = REG_NADA;
+            // Crupie no 1o andar: +1 em cada dado dele (antes da 5a, nada).
+            fala_perso = PERSO_CHEFE0; run.dificuldade = 1;
+            limpa(); rodada = 4; joga(1, D_D6, 3); d = fim();
+            CONFERE(d.total[1] == 3, "Crupie antes da virada: %d", d.total[1]);
+            limpa(); rodada = 5; joga(1, D_D6, 3); joga(1, D_D6, 4); d = fim();
+            CONFERE(d.total[1] == 4 + 5, "Crupie virado: esperava 9, deu %d", d.total[1]);
+            CONFERE(tam_mao(0) == 7, "Crupie no 1o andar nao tira dado seu: %d", tam_mao(0));
+            run.dificuldade = 4;
+            CONFERE(tam_mao(0) == 6, "Crupie no 4o andar: voce compra 6, comprou %d", tam_mao(0));
+            // Barao no 3o andar: +3 por dado seu anulado e x2 no primeiro dele.
+            fala_perso = PERSO_CHEFE0 + 2; run.dificuldade = 3;
+            limpa(); rodada = 5;
+            joga(1, D_D6, 2); joga(1, D_D6, 5);
+            joga(0, D_D6, 5); joga(0, D_D6, 2);          // cai: os dois anulados
+            d = fim();
+            CONFERE(d.total[1] == 4 + 5 + 6, "Barao virado: esperava 15, deu %d", d.total[1]);
+            // Na Cobertura, x2 tambem no segundo (o terceiro fica como saiu).
+            run.dificuldade = 5;
+            limpa(); rodada = 5;
+            joga(1, D_D6, 2); joga(1, D_D6, 5); joga(1, D_D6, 6);
+            d = fim();
+            CONFERE(d.total[1] == 4 + 10 + 6, "Barao na Cobertura: esperava 20, deu %d", d.total[1]);
+            // No 2o andar o Barao ainda nao vira.
+            run.dificuldade = 2;
+            limpa(); rodada = 5; joga(1, D_D6, 2); d = fim();
+            CONFERE(d.total[1] == 2, "Barao sem virada no 2o andar: %d", d.total[1]);
+            run.dificuldade = 0; fala_perso = perso_v; modo = modo_v; rodada = 1;
+        }
         // A Maratonista: +1 nos dados dela da 5a rodada em diante.
         {
             desfecho_t d;

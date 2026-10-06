@@ -510,7 +510,8 @@ typedef struct {
 enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SEMENTE,
        EV_ZERA, EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante)
-       EV_RENASCE };                 // a Fenix volta a valer
+       EV_RENASCE,                   // a Fenix volta a valer
+       EV_CHEFE };                   // a virada do Barao: pontos por queda sua
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -610,7 +611,43 @@ static float t_fala;                     // > 0: o balao do oponente esta na mes
 #define VEL_RAPIDO 2.0f
 static bool rapido, rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
+// Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
+// da dificuldade (> 0: quanto falta da animacao).
+#define ELEV_T     1.9f
+#define ELEV_CHEGA 1.25f                 // quando o ponteiro chega
+static float t_elev;
 static int   fala_perso = -1;            // o oponente da partida do Desafiante
+// A virada dos chefes: da 5a rodada em diante, o chefe muda o jogo. Cada um
+// tem a sua, que aparece num andar e fica mais forte num andar acima:
+//   Crupie (1o andar): +1 em cada dado dele; do 4o, voce compra 1 a menos.
+//   Dona do Salao (2o): o aluguel, 3 fichas suas no fim de cada rodada; 5 do 4o.
+//   Barao (3o): +3 para ele por dado seu anulado e x2 no primeiro dado dele;
+//   na Cobertura, x2 tambem no segundo.
+#define PERSO_CHEFE0  8                  // os chefes, na lista dos oponentes
+#ifndef VIRADA_BARAO
+#define VIRADA_BARAO  3                  // pontos do Barao virado por dado seu anulado
+#endif
+#ifndef VIRADA_RODADA
+#define VIRADA_RODADA 5                  // (os testes de balanco desligam com 99)
+#endif
+static int   perso_virado = -1;          // o chefe que ja virou nesta partida
+static float t_virada;                   // > 0: o anuncio da virada na tela
+static int des_dificuldade(void);
+// A virada que o oponente perso traz na dificuldade da run: 0 nenhuma, 1, 2.
+static int virada_de(int perso)
+{
+    int c = perso - PERSO_CHEFE0;
+    if (c < 0 || c > 2) return 0;
+    static const int8_t ABRE[3] = { 1, 2, 3 }, FORTE[3] = { 4, 4, 5 };
+    int d = des_dificuldade();
+    return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
+}
+// Com que forca o chefe c (0 Crupie, 1 Dona, 2 Barao) esta virado agora.
+static int virada_forca(int c)
+{
+    if (modo != M_DESAFIO || fala_perso != PERSO_CHEFE0 + c || rodada < VIRADA_RODADA) return 0;
+    return virada_de(PERSO_CHEFE0 + c);
+}
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
 static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
@@ -1688,16 +1725,72 @@ static uint32_t ruido_xy(int x, int y)
     return h ^ (h >> 16);
 }
 
+// Os andares do cassino: no Desafiante, cada dificuldade e um andar mais
+// chique, e a mesa mostra isso nos acabamentos (0 = terreo, a mesa de sempre).
+static int mesa_andar, mesa_andar_feito = -1;
+#define C_RUBI     RGB(196, 48, 72)
+#define C_DIAMANTE RGB(170, 226, 244)
+
+// Tacha de metal: um botao com brilho em cima e sombra embaixo.
+static void tacha(int x, int y, uint16_t m)
+{
+    gfx_disco(x + 1, y + 1, 2, C_SOMBRA);
+    gfx_disco(x, y, 2, m);
+    gfx_pixel(x - 1, y - 1, gfx_mistura(m, C_BRANCO, 55));
+    gfx_pixel(x + 1, y + 1, gfx_mistura(m, C_SOMBRA, 45));
+}
+
+// Pedra lapidada em losango, com aro de ouro e um ponto de luz.
+static void pedra(int x, int y, uint16_t g)
+{
+    for (int d = -4; d <= 4; d++) {
+        int w = 4 - (d < 0 ? -d : d);
+        gfx_rect(x - w, y + d, 2 * w + 1, 1, C_OURO);
+    }
+    for (int d = -3; d <= 3; d++) {
+        int w = 3 - (d < 0 ? -d : d);
+        gfx_rect(x - w, y + d, 2 * w + 1, 1, d < 0 ? gfx_mistura(g, C_BRANCO, 25) : g);
+    }
+    gfx_pixel(x - 1, y - 2, C_BRANCO);
+}
+
+// Filete fino no feltro, a `in` pixels da borda, com os cantos recortados
+// para dentro (um quarto de circulo) nos andares de ouro em diante.
+static void filete(int in, uint16_t c, bool recorte)
+{
+    int a = MESA_X0 + in, b = MESA_X1 - 1 - in, t = MESA_Y0 + in, u = MESA_Y1 - 1 - in;
+    int r = recorte ? 7 : 0;
+    gfx_rect(a + r, t, b - a - 2 * r + 1, 1, c);
+    gfx_rect(a + r, u, b - a - 2 * r + 1, 1, c);
+    gfx_rect(a, t + r, 1, u - t - 2 * r + 1, c);
+    gfx_rect(b, t + r, 1, u - t - 2 * r + 1, c);
+    if (!recorte) return;
+    for (int i = 0; i <= 16; i++) {                     // quarto de circulo para dentro
+        float q = i * 0.09817f;                         // 0 a 90 graus
+        int dx = (int)(cosf(q) * r + 0.5f), dy = (int)(sinf(q) * r + 0.5f);
+        gfx_pixel(a + dx, t + dy, c);
+        gfx_pixel(b - dx, t + dy, c);
+        gfx_pixel(a + dx, u - dy, c);
+        gfx_pixel(b - dx, u - dy, c);
+    }
+}
+
 static void pinta_mesa(void)
 {
+    int lv = mesa_andar;
     gfx_clear(C_BARRA);
     int x0 = 4, y0 = MESA_Y0 - 8, x1 = GFX_W - 4, y1 = MESA_Y1 + 8;
-    gfx_rect(x0, y0, x1 - x0, y1 - y0, C_MADEIRA);
+    // Do andar do rubi em diante, a madeira e mogno.
+    uint16_t mad = lv >= 4 ? gfx_mistura(C_MADEIRA, RGB(92, 26, 30), 45) : C_MADEIRA;
+    gfx_rect(x0, y0, x1 - x0, y1 - y0, mad);
     for (int y = y0; y < y1; y += 2)                    // veios da madeira
         for (int x = x0; x < x1; x++)
-            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, C_MADEIRA_ESC);
+            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, gfx_mistura(mad, C_SOMBRA, 30));
     gfx_rect(x0, y0, x1 - x0, 1, C_MADEIRA_CLR);
-    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2, C_LATAO);
+    // O metal do andar: latao no terreo, bronze, prata, e ouro dali para cima.
+    uint16_t metal = lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
+    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
+                lv >= 3 ? C_OURO : C_LATAO);
     gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
     float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
@@ -1713,15 +1806,45 @@ static void pinta_mesa(void)
             gfx_pixel(x, y, c);
         }
     // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
+    uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
     for (int i = 0; i < 360; i++) {
         if ((i / 4) % 2) continue;
         float a = i * 0.017453f;
-        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, C_FELTRO2);
+        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, linha);
+    }
+    if (lv <= 0) return;
+
+    // Acabamentos do andar, discretos: so nas bordas.
+    if (lv >= 2) filete(6, gfx_mistura(C_FELTRO, metal, 38), lv >= 3);
+    if (lv >= 5) filete(9, gfx_mistura(C_FELTRO, metal, 22), true);
+    int fx0 = MESA_X0 - 3, fx1 = MESA_X1 + 2, fy0 = MESA_Y0 - 3, fy1 = MESA_Y1 + 2;
+    int my = (MESA_Y0 + MESA_Y1) / 2;
+    // Nos cantos da moldura: tachas; no rubi e no diamante, pedras.
+    uint16_t gema = lv == 4 ? C_RUBI : C_DIAMANTE;
+    const int CX[4] = { fx0, fx1, fx0, fx1 }, CY[4] = { fy0, fy0, fy1, fy1 };
+    for (int i = 0; i < 4; i++) {
+        if (lv >= 4) pedra(CX[i], CY[i], gema);
+        else tacha(CX[i], CY[i], metal);
+    }
+    // No meio das bordas (prata em diante): mais tachas; no rubi e no
+    // diamante, uma pedra no meio de cima e de baixo.
+    if (lv >= 2) {
+        for (int k = 1; k <= 3; k++) {
+            int x = MESA_X0 + (MESA_X1 - MESA_X0) * k / 4;
+            if (lv >= 4 && k == 2) { pedra(x, fy0, gema); pedra(x, fy1, gema); continue; }
+            tacha(x, fy0, metal); tacha(x, fy1, metal);
+        }
+        if (lv >= 4) { pedra(fx0, my, gema); pedra(fx1, my, gema); }
+        else { tacha(fx0, my, metal); tacha(fx1, my, metal); }
     }
 }
 
+static int des_dificuldade(void);
+
 static void mesa(void)
 {
+    mesa_andar = modo == M_DESAFIO ? des_dificuldade() : 0;
+    if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     if (!mesa_feita) {
         pinta_mesa();
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
@@ -2028,6 +2151,7 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
+        if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
         if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
@@ -2335,6 +2459,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
         if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
+        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1)))
+            m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
     if (mask && gera && n_ev < MAX_EV) {
@@ -2358,6 +2484,16 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         evento(gera, EV_SEMENTE, j, k, j, 0, 10, "Semente: %d pontos, brota +10", dados);
     }
 
+    // A virada do Barao: +2 para ele por dado seu anulado na rodada.
+    if (j == 1 && virada_forca(2)) {
+        int caidos = 0;
+        for (int k = 0; k < F[0].lancados; k++) if (d->est[0][k] == V_ANULADO) caidos++;
+        if (caidos) {
+            d->semente[1] += VIRADA_BARAO * caidos;
+            evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, VIRADA_BARAO * caidos, "%s: %d dado%s seu%s caiu, +%d", J[1].nome,
+                   caidos, caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", VIRADA_BARAO * caidos);
+        }
+    }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
     // Misericordioso, Solitario e Desafiante.
     int anulados = 0;
@@ -2654,6 +2790,7 @@ static int tam_mao(int j)
     if (tem_am(j, A_BOLSA)) n++;
     if (tem_am(j ^ 1, A_FURADO)) n--;
     if (j == 1 && op_nervoso && tem_reg(REG_NERVOSO)) n--;
+    if (j == 0 && virada_forca(0) == 2) n--;            // o Crupie forte: voce compra 1 a menos
     return n;
 }
 
@@ -2695,6 +2832,8 @@ static void encerra(int vencedor)
     }
 }
 
+static void des_virou(void);
+
 static void nova_rodada(void)
 {
     rodada++;
@@ -2722,6 +2861,9 @@ static void nova_rodada(void)
         return;
     }
     if (sem0 || sem1) { encerra(sem0 ? 1 : 0); return; }
+    if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
+        && virada_forca(fala_perso - PERSO_CHEFE0))
+        des_virou();                             // o chefe vira: anuncio, retrato e fala
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ANTE;
         memset(&F[j], 0, sizeof F[j]);
@@ -2993,6 +3135,15 @@ static void conclui_rodada(void)
                 J[w].fichas += 2 * F[w].valor[k];          // Fichas: o dobro do que tirou
         som_toca(SOM_VITORIA);
     }
+    int aluguel = virada_forca(1);                // a Dona cobra o aluguel, ganhe quem ganhar
+    if (aluguel && J[0].fichas > 0) {
+        int a = aluguel == 2 ? 5 : 3;
+        if (a > J[0].fichas) a = J[0].fichas;
+        J[0].fichas -= a;
+        J[1].fichas += a;
+        size_t n = strlen(aviso);
+        snprintf(aviso + n, sizeof aviso - n, "  ·  aluguel: %d", a);
+    }
     op_nervoso = venc_mao == 0;
     if (venc_mao == 0) des_rod_vencidas++;
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
@@ -3053,7 +3204,7 @@ static float duracao_evento(int i)
     case EV_MULT:  return 1.7f;
     case EV_FOGO:  return 1.6f;
     case EV_SEMENTE: return 1.6f;
-    case EV_EXTRA:   return 1.6f;
+    case EV_EXTRA: case EV_CHEFE: return 1.6f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_ZERA:  return 1.6f;
@@ -3092,7 +3243,7 @@ static void aplica_evento(int i)
         for (int k = 0; k < N_FILA; k++) vis_mult[e->de_j][k] = e->por_dado[k];
         break;
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; break;
-    case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: vis_semente[e->de_j] += e->valor; break;
+    case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_ZERA:    vis_zerada[e->de_j] = 1; break;
     }
@@ -4205,6 +4356,12 @@ void dado_passo(float dt)
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
     if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
+    if (t_elev > 0) {
+        float antes = ELEV_T - t_elev;
+        t_elev -= dt_real;
+        if (antes < ELEV_CHEGA && ELEV_T - t_elev >= ELEV_CHEGA) som_toca(SOM_VALIDO);   // o "dim" do elevador
+    }
+    if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
     t_fase += dt;
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
@@ -4762,6 +4919,12 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_CHEFE) {                   // a virada do Barao: o +N sobe no placar dele
+        char t[8];
+        snprintf(t, sizeof t, "+%d", e->valor);
+        txt_sombra_c(PLACAR_X, zona(e->de_j) - 10 - (int)(p * 30), t, C_VINHO_CLR, 1);
+        return;
+    }
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);
     // Ataques: um projetil em arco do dado que age ate o alvo (o dado, ou o
     // placar do rival), com rastro, e um anel de impacto quando chega.
@@ -5102,7 +5265,6 @@ static int chance_cair(int j)
     return c_valor;
 }
 
-static int des_dificuldade(void);
 
 // A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
 // Nivel 3 do Desafiante em diante.
@@ -5983,7 +6145,17 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
 {
     if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_aro(id); *desc = TEXTO_MEDIO[id]; }
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
-    else                           { *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra; }
+    else {
+        *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
+        int v = virada_de(id);
+        if (v) {                                         // o chefe tambem conta a virada
+            static char t[200];
+            char vt[96];
+            virada_txt(id - PERSO_CHEFE0, v, false, vt, sizeof vt);
+            snprintf(t, sizeof t, "%s Virada na 5ª rodada: %s", PERSO[id].regra, vt);
+            *desc = t;
+        }
+    }
 }
 
 // A caixa da dica sob o mouse, se houver. Devolve o retangulo em r.
@@ -6000,7 +6172,7 @@ static bool dica_rect(int *r, const dica_t **qual)
     int larg = 260;
     gfx_texto_fn antes = gfx_texto_nitido_atual();
     gfx_texto_nitido(texto_mudo);                       // so conta as linhas
-    int linhas = quebra_linhas(0, 0, larg - 16, 5, desc, 0);
+    int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     gfx_texto_nitido(antes);
     int w = larg, h = 10 + (TXT_H + 2) + linhas * (TXT_H + 4) + 4;
     int x = mouse_x + 14, y = mouse_y + 16;
@@ -6028,7 +6200,7 @@ static void desenha_dica(const int *r, const dica_t *d)
         classe(d->id, c2, sizeof c2);
         gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
     }
-    quebra_linhas(x, y + TXT_H + 4, r[2] - 16, 5, desc, C_MARFIM_S);
+    quebra_linhas(x, y + TXT_H + 4, r[2] - 16, 7, desc, C_MARFIM_S);
 }
 
 void dado_desenha(void)
@@ -6049,6 +6221,8 @@ void dado_desenha(void)
     if (!menu) {
         desenha_detalhe();
         desenha_avisos();
+        des_elevador();
+        des_virada_anuncio();
     }
     int r[4];
     const dica_t *d = NULL;
@@ -6166,6 +6340,8 @@ void dado_tecla(const key_event_t *ev_)
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
 
+    if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
+    if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
     if (k == 'v' && !dado_digitando()) {
         rapido = !rapido;
         salva_grava("vel", rapido ? "1" : "0");

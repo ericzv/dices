@@ -210,7 +210,6 @@ static const perso_t PERSO[] = {
         { "Você correu bem. Vou treinar.", "Cãibra. Só pode ser." } } },
 };
 #define N_PERSO_COMUM 8                  // os oito primeiros...
-#define PERSO_CHEFE0  8                  // ...depois os tres chefes...
 #define PERSO_NOVOS   11                 // ...e os comuns que vieram depois
 #define N_PERSO       ((int)(sizeof PERSO / sizeof PERSO[0]))
 static bool perso_chefe(int p) { return p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + DES_ANDARES; }
@@ -218,6 +217,44 @@ static bool perso_chefe(int p) { return p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + 
 // ---------------------------------------------------------------------------
 // Falas: um balao curto saindo do retrato do oponente
 // ---------------------------------------------------------------------------
+
+// Os chefes reparam no andar: a fala de abertura muda a cada dificuldade
+// (do 1o andar a Cobertura), e o Barao se despede de outro jeito la em cima.
+static const char *const FALA_ANDAR[3][5] = {            // [chefe][dificuldade - 1]
+    { "1º andar, senhor? A casa reparou na sua subida.", "2º andar. Poucos chegam a esta mesa.",
+      "No 3º andar, a casa não dá desconto.", "No 4º andar, até a casa joga sério.",
+      "Cobertura. A casa nunca serviu ninguém aqui." },
+    { "O térreo ficou pequeno para você?", "2º andar. Você está subindo rápido.",
+      "3º andar... alguém andou se esforçando.", "No 4º andar, eu uso minhas melhores joias.",
+      "Aqui na cobertura, o salão continua meu." },
+    { "1º andar. É um começo.", "2º andar. Começo a lembrar do seu nome.",
+      "3º andar. Agora você me interessa.", "4º andar... ninguém sobe tanto por sorte.",
+      "Bem-vindo à cobertura. Daqui, só se desce." },
+};
+
+// As viradas (veja virada_forca no dado.c): o anuncio, a frase curta do
+// mapa e o que o chefe diz ao virar e depois.
+static const char *const VIRADA_TITULO[3] = { "A CASA TOMA VANTAGEM", "A DONA COBRA O ALUGUEL",
+                                              "O BARÃO PERDE A PACIÊNCIA" };
+static const char *const VIRADA_FRASE[3] = { "A casa sempre tem vantagem.", "Agora você paga o aluguel.",
+                                             "Chega de brincadeira." };
+static const char *const FALA_VIROU[3][2][2] = {        // [chefe][ganhou, perdeu a rodada][2]
+    { { "A casa recolhe. Sempre.", "Como manda a casa." }, { "A noite ainda não acabou.", "Anotado." } },
+    { { "Mais um mês de aluguel.", "Meu salão, minhas regras." }, { "Isso vai para a conta.", "Não se anime." } },
+    { { "Hmpf. Como deveria ser.", "Eu avisei." }, { "Isso não vai se repetir!", "Inaceitável!" } },
+};
+static void virada_txt(int c, int forca, bool curto, char *s, int n)
+{
+    if (c == 0) snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+1 em cada dado dele; você compra 1 a menos" : "+1 em cada dado dele")
+                         : (forca == 2 ? "Cada dado dele vale +1, e você compra 1 dado a menos." : "Cada dado dele vale +1."));
+    else if (c == 1) snprintf(s, (size_t)n, curto ? "aluguel: %d fichas suas por rodada"
+                              : "No fim de cada rodada, ela leva %d fichas suas.", forca == 2 ? 5 : 3);
+    else snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+3 por queda sua; 1º e 2º dado dele x2" : "+3 por queda sua; 1º dado dele x2")
+                  : (forca == 2 ? "Cada dado seu que cair dá +3 a ele; os dois primeiros dele valem x2."
+                                : "Cada dado seu que cair dá +3 a ele, e o primeiro dele vale x2."));
+}
+
+static int des_dificuldade(void);
 
 static void fala_evento(int cat)
 {
@@ -227,6 +264,13 @@ static void fala_evento(int cat)
     if (!sempre && (rnd_v() % 100) >= 55) return;
     if (!sempre && t_fala > 0.6f) return;               // nao atropela a fala anterior
     const char *s = PERSO[fala_perso].fala[cat][rnd_v() & 1];
+    int dif = des_dificuldade();
+    if (perso_chefe(fala_perso) && dif > 0 && cat == FA_INICIO)
+        s = FALA_ANDAR[fala_perso - PERSO_CHEFE0][dif - 1];
+    if (fala_perso == perso_virado && (cat == FA_GANHA_R || cat == FA_PERDE_R))
+        s = FALA_VIROU[fala_perso - PERSO_CHEFE0][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
+    if (fala_perso == PERSO_CHEFE0 + 2 && dif == 5 && cat == FA_PERDE_P)
+        s = "A cobertura é sua. Eu desço pela escada.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     t_fala = 3.2f;
 }
@@ -316,6 +360,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     bool pisca = ciclo > 3.72f;
     int boca = falando ? ((int)(t / 0.22f) % 2) : 0;
     int hy = 3 + dy;
+    bool bravo = modo == M_DESAFIO && perso == perso_virado;   // o chefe virou
     const uint16_t PRETO = RGB(34, 30, 32), MARROM = RGB(104, 66, 40),
                    GRISALHO = RGB(178, 176, 172), RUIVO = RGB(196, 84, 46);
     const uint16_t P_CLARA = RGB(234, 196, 160), P_MEDIA = RGB(204, 150, 106), P_ESCURA = RGB(132, 88, 60),
@@ -410,20 +455,25 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     case 8: {                                                   // CRUPIE: viseira verde, colete, gravata borboleta
         tronco(RGB(40, 40, 44), P_CLARA, RGB(236, 232, 222), RGB(176, 40, 52), 1);
         rr(2, 18, 3, 4, RGB(236, 232, 222)); rr(15, 18, 3, 4, RGB(236, 232, 222));  // mangas da camisa
-        rosto(hy, P_CLARA, PRETO, 0, pisca, boca);
+        rosto(hy, P_CLARA, PRETO, bravo ? 1 : 0, pisca, boca);
         rr(5, hy, 10, 2, PRETO); rr(5, hy + 2, 1, 2, PRETO); rr(14, hy + 2, 1, 2, PRETO);
         rr(4, hy + 1, 12, 1, RGB(60, 150, 100));                // viseira
         rr(5, hy + 2, 10, 1, gfx_mistura(RGB(60, 150, 100), C_FELTRO, 30));
+        if (bravo) rr(6, hy + 4, 8, 1, sombra(P_CLARA));       // a viseira sombreia o olhar
         if (!boca) rr(8, hy + 9, 4, 1, PRETO);                  // bigode fino
         break;
     }
     case 9: {                                                   // DONA DO SALAO: coque com grampo, vestido, colar
         tronco(RGB(150, 30, 46), P_CLARA, 0, 0, 2);
         rr(7, 17, 6, 1, C_OURO); rp(10, 18, C_OURO);
-        rosto(hy, P_CLARA, PRETO, 2, pisca, boca);
+        rosto(hy, P_CLARA, PRETO, bravo ? 1 : 2, pisca, boca);
         rr(5, hy - 1, 10, 3, PRETO); rr(4, hy + 1, 2, 5, PRETO); rr(14, hy + 1, 2, 5, PRETO);
         rr(7, hy - 4, 6, 3, PRETO); rp(12, hy - 4, C_OURO); rp(13, hy - 5, C_OURO);   // coque e grampo
-        if (!boca) rr(9, hy + 9, 2, 1, RGB(200, 40, 60));       // batom
+        if (!boca) rr(9, hy + 9, 2, 1, bravo ? RGB(140, 20, 40) : RGB(200, 40, 60));   // batom
+        if (bravo) {                                           // uma sobrancelha erguida; o colar brilha
+            rr(11, hy + 3, 2, 1, sombra(PRETO)); rp(13, hy + 4, sombra(PRETO));
+            if (fmodf(t, 1.8f) < 0.3f) rp(8 + (int)(t / 1.8f) % 4, 17, C_BRANCO);
+        }
         rp(4, hy + 7, C_OURO); rp(15, hy + 7, C_OURO);
         break;
     }
@@ -706,7 +756,9 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     default: {                                                  // BARAO: cartola, monoculo, bigodao branco
         tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
         rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
-        rosto(hy, P_CLARA, GRISALHO, 0, pisca, boca);
+        // Virado, o Barao fica vermelho de raiva, de cara fechada.
+        uint16_t pele_b = bravo ? gfx_mistura(P_CLARA, RGB(222, 84, 72), 42) : P_CLARA;
+        rosto(hy, pele_b, GRISALHO, bravo ? 1 : 0, pisca, boca);
         rr(5, hy + 2, 1, 3, GRISALHO); rr(14, hy + 2, 1, 3, GRISALHO);
         rr(4, hy - 1, 12, 1, RGB(28, 28, 30));                  // aba da cartola
         rr(6, hy - 6, 8, 5, RGB(40, 40, 44));
@@ -720,6 +772,16 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(10, hy + 6, 1, 2, C_OURO); rr(13, hy + 6, 1, 2, C_OURO);
         rp(14, hy + 8, C_OURO); rp(14, hy + 9, C_OURO);          // cordao
         if ((int)(t / 3.3f) % 3 == 0 && fmodf(t, 3.3f) < 0.4f) rp(12, hy + 6, C_BRANCO);
+        if (bravo && !boca) {                                  // e bufa, de vez em quando
+            float b = fmodf(t, 2.6f);
+            if (b < 0.6f) {
+                // Dois sopros saem do nariz e se afastam, sumindo.
+                uint16_t vapor = b < 0.2f ? RGB(226, 230, 234) : b < 0.4f ? RGB(196, 202, 210) : RGB(150, 158, 168);
+                if (b < 0.2f)      { rp(8, hy + 8, vapor); rp(11, hy + 8, vapor); }
+                else if (b < 0.4f) { rr(5, hy + 8, 2, 1, vapor); rr(13, hy + 8, 2, 1, vapor); }
+                else               { rp(3, hy + 7, vapor); rp(16, hy + 7, vapor); }
+            }
+        }
         break;
     }
     }
@@ -1719,6 +1781,7 @@ static void des_nova_run(void)
     for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
     gera_andar();
     oferece_amuleto(0);                          // a run comeca com um amuleto
+    t_elev = ELEV_T;                             // e o elevador sobe ate o andar
 }
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
@@ -1756,6 +1819,8 @@ static void des_comeca_partida(void)
     reg_op = PERSO[no->perso].reg;
     op_nervoso = false;
     fala_perso = no->perso;
+    perso_virado = -1;
+    t_virada = 0;
     t_fala = 0;
     J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 15 : 0);
     J[0].n_col = run.n_col;
@@ -2067,7 +2132,9 @@ static void info_mesa(int l)
     x = rx + RT_W * esc + 10;
     int w = gfx_texto(x, y0 + 3, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(x + w + 10, y0 + 3, NOME_NO[no->tipo], cor_no(no->tipo));
-    etiqueta_caixa(xt, y0 + 3, NIVEL_IA[nivel_mesa(no)], C_ACO);
+    xt = etiqueta_caixa(xt, y0 + 3, NIVEL_IA[nivel_mesa(no)], C_ACO);
+    if (no->tipo == NO_CHEFE && virada_de(no->perso))     // a virada: detalhes na dica do trunfo
+        etiqueta_caixa(xt, y0 + 3, "virada", C_VINHO_CLR);
     if ((run_amuletos() >> A_CARTOLA & 1) && tier < 3) tier++;             // Cartola: um premio acima
     const char *pr = PREMIO_TIER[tier];
     txt(GFX_W - 40 - gfx_largura(pr, 1), y0 + 3, pr, C_TEXTO_M, false);
@@ -2883,6 +2950,10 @@ static void desenha_amuleto_run(void)
 static const char *const NOME_DIF[N_NIVEIS + 1] = { "Normal", "Desafiante - Nível 1", "Desafiante - Nível 2",
     "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5" };
 static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5" };
+// Cada dificuldade e um andar do cassino, mais chique a cada um: a mesa
+// mostra o andar nos acabamentos (veja pinta_mesa).
+static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2º Andar",
+    "3º Andar", "4º Andar", "Cobertura" };
 static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
 // O que cada dificuldade acrescenta (vale junto com as de baixo).
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
@@ -2891,7 +2962,7 @@ static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Loja 25% mais cara; as mesas difíceis pensam mais.",
     "Os oponentes trazem 2 dados raros a mais.",
     "Você começa a run com 30 moedas, não 50.",
-    "Cada oponente ganha um amuleto; os chefes pensam mais.",
+    "Cada oponente ganha um amuleto; chefes pensam mais.",
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
@@ -3082,7 +3153,8 @@ static void desenha_dificuldade(void)
     gfx_rect(px, py, 416, 232, C_FELTRO_ESC);
     gfx_moldura(px, py, 416, 232, 1, C_LATAO_ESC);
     int d = dif_cur;
-    txt(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], true);
+    int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
+    txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
     int ly = py + 30;
     if (d > nv) {
         char s[64];
@@ -3233,6 +3305,83 @@ static void desenha_cat_amuleto(int i)
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }
+
+// O elevador: um mostrador antigo, em arco, com o ponteiro subindo do terreo
+// ate o andar da run. Pula com qualquer tecla.
+static void des_elevador(void)
+{
+    if (t_elev <= 0 || modo != M_DESAFIO) return;
+    n_zonas = 0;                                 // nada por baixo responde ao clique
+    float e = ELEV_T - t_elev;
+    int d = run.dificuldade;
+    const int w = 250, h = 150, x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 - 4;
+    const int cx = GFX_W / 2, cy = y0 + 106, R = 64;
+    tapa_textos(0, 0, GFX_W, GFX_H);
+    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 150);
+    gfx_rect(x0 + 3, y0 + 4, w, h, C_SOMBRA);
+    gfx_rect(x0, y0, w, h, C_BARRA);
+    gfx_moldura(x0, y0, w, h, 2, C_LATAO);
+    gfx_moldura(x0 + 4, y0 + 4, w - 8, h - 8, 1, C_LATAO_ESC);
+    for (int i = 0; i <= 60; i++) {              // o arco do mostrador
+        float a = 3.1416f * (0.08f + 0.84f * i / 60.0f);
+        gfx_rect(cx - (int)(cosf(a) * R), cy - (int)(sinf(a) * R), 2, 2, C_LATAO_ESC);
+    }
+    // O ponteiro: sai do terreo, passa um pouco do andar e assenta.
+    float q = e / ELEV_CHEGA;
+    if (q > 1) q = 1;
+    float p = d * (1 - (1 - q) * (1 - q) * (1 - q));
+    if (q >= 1 && e < ELEV_CHEGA + 0.25f) p = d + sinf((e - ELEV_CHEGA) / 0.25f * 3.1416f) * 0.08f * (d > 0);
+    bool chegou = e >= ELEV_CHEGA;
+    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "C" };
+    for (int i = 0; i <= N_NIVEIS; i++) {
+        float a = 3.1416f * (0.08f + 0.84f * i / N_NIVEIS);
+        int mx = cx - (int)(cosf(a) * R), my = cy - (int)(sinf(a) * R);
+        bool aceso = chegou && i == d;
+        gfx_disco(mx, my, 3, aceso ? cor_dif(i) : C_LATAO_ESC);
+        int lx = cx - (int)(cosf(a) * (R + 15)), ly = cy - (int)(sinf(a) * (R + 15));
+        txt_c(lx, ly - TXT_H / 2 - 1, MARCA[i], aceso ? cor_dif(i) : C_TEXTO_M, aceso);
+    }
+    float a = 3.1416f * (0.08f + 0.84f * p / N_NIVEIS);
+    gfx_linha_grossa(cx, cy, cx - (int)(cosf(a) * (R - 12)), cy - (int)(sinf(a) * (R - 12)), 2, C_OURO);
+    gfx_disco(cx, cy, 6, C_LATAO_ESC);
+    gfx_disco(cx, cy, 4, C_LATAO);
+    txt_c(cx, cy + 12, chegou ? ANDAR_DIF[d] : "subindo...", chegou ? (d ? cor_dif(d) : C_MARFIM) : C_TEXTO_M, chegou);
+}
+
+// O chefe vira na 5a rodada: a mesa para um instante, uma faixa atravessa a
+// tela, o retrato muda e ele diz a frase dele.
+static void des_virou(void)
+{
+    perso_virado = fala_perso;
+    t_virada = 2.4f;
+    som_toca(SOM_ZERA);
+    snprintf(fala_txt, sizeof fala_txt, "%s", VIRADA_FRASE[fala_perso - PERSO_CHEFE0]);
+    t_fala = 3.4f;
+}
+
+static void des_virada_anuncio(void)
+{
+    if (t_virada <= 0 || perso_virado < PERSO_CHEFE0) return;
+    int c = perso_virado - PERSO_CHEFE0;
+    float e = 2.4f - t_virada;
+    n_zonas = 0;
+    tapa_textos(0, 0, GFX_W, GFX_H);
+    int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
+    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, alfa);
+    static const uint16_t COR[3] = { RGB(46, 120, 84), RGB(150, 30, 46), RGB(150, 36, 40) };
+    float q = e / 0.3f;
+    if (q > 1) q = 1;
+    int dx = -(int)((1 - (1 - q) * (1 - q)) * GFX_W) + GFX_W;   // entra pela esquerda
+    int y = CENTRO - 30, h = 60;
+    gfx_rect(-dx, y, GFX_W, h, gfx_mistura(COR[c], C_BARRA, 55));
+    gfx_rect(-dx, y, GFX_W, 2, C_OURO);
+    gfx_rect(-dx, y + h - 2, GFX_W, 2, C_OURO);
+    if (q < 1) return;
+    txt_sombra_c(GFX_W / 2, y + 6, VIRADA_TITULO[c], C_OURO, 2);
+    char s[96];
+    virada_txt(c, virada_forca(c), false, s, sizeof s);
+    txt_c(GFX_W / 2, y + 36, s, C_MARFIM, false);
+}
 
 static bool des_desenha(void)
 {

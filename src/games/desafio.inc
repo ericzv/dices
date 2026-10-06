@@ -2883,6 +2883,10 @@ static void desenha_amuleto_run(void)
 static const char *const NOME_DIF[N_NIVEIS + 1] = { "Normal", "Desafiante - Nível 1", "Desafiante - Nível 2",
     "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5" };
 static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5" };
+// Cada dificuldade e um andar do cassino, mais chique a cada um: a mesa
+// mostra o andar nos acabamentos (veja pinta_mesa).
+static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º andar · Bronze", "2º andar · Prata",
+    "3º andar · Ouro", "4º andar · Rubi", "Cobertura · Diamante" };
 static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
 // O que cada dificuldade acrescenta (vale junto com as de baixo).
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
@@ -2891,7 +2895,7 @@ static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Loja 25% mais cara; as mesas difíceis pensam mais.",
     "Os oponentes trazem 2 dados raros a mais.",
     "Você começa a run com 30 moedas, não 50.",
-    "Cada oponente ganha um amuleto; os chefes pensam mais.",
+    "Cada oponente ganha um amuleto; chefes pensam mais.",
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
@@ -3082,7 +3086,8 @@ static void desenha_dificuldade(void)
     gfx_rect(px, py, 416, 232, C_FELTRO_ESC);
     gfx_moldura(px, py, 416, 232, 1, C_LATAO_ESC);
     int d = dif_cur;
-    txt(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], true);
+    int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
+    txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
     int ly = py + 30;
     if (d > nv) {
         char s[64];

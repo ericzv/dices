@@ -1688,16 +1688,72 @@ static uint32_t ruido_xy(int x, int y)
     return h ^ (h >> 16);
 }
 
+// Os andares do cassino: no Desafiante, cada dificuldade e um andar mais
+// chique, e a mesa mostra isso nos acabamentos (0 = terreo, a mesa de sempre).
+static int mesa_andar, mesa_andar_feito = -1;
+#define C_RUBI     RGB(196, 48, 72)
+#define C_DIAMANTE RGB(170, 226, 244)
+
+// Tacha de metal: um botao com brilho em cima e sombra embaixo.
+static void tacha(int x, int y, uint16_t m)
+{
+    gfx_disco(x + 1, y + 1, 2, C_SOMBRA);
+    gfx_disco(x, y, 2, m);
+    gfx_pixel(x - 1, y - 1, gfx_mistura(m, C_BRANCO, 55));
+    gfx_pixel(x + 1, y + 1, gfx_mistura(m, C_SOMBRA, 45));
+}
+
+// Pedra lapidada em losango, com aro de ouro e um ponto de luz.
+static void pedra(int x, int y, uint16_t g)
+{
+    for (int d = -4; d <= 4; d++) {
+        int w = 4 - (d < 0 ? -d : d);
+        gfx_rect(x - w, y + d, 2 * w + 1, 1, C_OURO);
+    }
+    for (int d = -3; d <= 3; d++) {
+        int w = 3 - (d < 0 ? -d : d);
+        gfx_rect(x - w, y + d, 2 * w + 1, 1, d < 0 ? gfx_mistura(g, C_BRANCO, 25) : g);
+    }
+    gfx_pixel(x - 1, y - 2, C_BRANCO);
+}
+
+// Filete fino no feltro, a `in` pixels da borda, com os cantos recortados
+// para dentro (um quarto de circulo) nos andares de ouro em diante.
+static void filete(int in, uint16_t c, bool recorte)
+{
+    int a = MESA_X0 + in, b = MESA_X1 - 1 - in, t = MESA_Y0 + in, u = MESA_Y1 - 1 - in;
+    int r = recorte ? 7 : 0;
+    gfx_rect(a + r, t, b - a - 2 * r + 1, 1, c);
+    gfx_rect(a + r, u, b - a - 2 * r + 1, 1, c);
+    gfx_rect(a, t + r, 1, u - t - 2 * r + 1, c);
+    gfx_rect(b, t + r, 1, u - t - 2 * r + 1, c);
+    if (!recorte) return;
+    for (int i = 0; i <= 16; i++) {                     // quarto de circulo para dentro
+        float q = i * 0.09817f;                         // 0 a 90 graus
+        int dx = (int)(cosf(q) * r + 0.5f), dy = (int)(sinf(q) * r + 0.5f);
+        gfx_pixel(a + dx, t + dy, c);
+        gfx_pixel(b - dx, t + dy, c);
+        gfx_pixel(a + dx, u - dy, c);
+        gfx_pixel(b - dx, u - dy, c);
+    }
+}
+
 static void pinta_mesa(void)
 {
+    int lv = mesa_andar;
     gfx_clear(C_BARRA);
     int x0 = 4, y0 = MESA_Y0 - 8, x1 = GFX_W - 4, y1 = MESA_Y1 + 8;
-    gfx_rect(x0, y0, x1 - x0, y1 - y0, C_MADEIRA);
+    // Do andar do rubi em diante, a madeira e mogno.
+    uint16_t mad = lv >= 4 ? gfx_mistura(C_MADEIRA, RGB(92, 26, 30), 45) : C_MADEIRA;
+    gfx_rect(x0, y0, x1 - x0, y1 - y0, mad);
     for (int y = y0; y < y1; y += 2)                    // veios da madeira
         for (int x = x0; x < x1; x++)
-            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, C_MADEIRA_ESC);
+            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, gfx_mistura(mad, C_SOMBRA, 30));
     gfx_rect(x0, y0, x1 - x0, 1, C_MADEIRA_CLR);
-    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2, C_LATAO);
+    // O metal do andar: latao no terreo, bronze, prata, e ouro dali para cima.
+    uint16_t metal = lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
+    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
+                lv >= 3 ? C_OURO : C_LATAO);
     gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
     float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
@@ -1713,15 +1769,45 @@ static void pinta_mesa(void)
             gfx_pixel(x, y, c);
         }
     // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
+    uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
     for (int i = 0; i < 360; i++) {
         if ((i / 4) % 2) continue;
         float a = i * 0.017453f;
-        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, C_FELTRO2);
+        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, linha);
+    }
+    if (lv <= 0) return;
+
+    // Acabamentos do andar, discretos: so nas bordas.
+    if (lv >= 2) filete(6, gfx_mistura(C_FELTRO, metal, 38), lv >= 3);
+    if (lv >= 5) filete(9, gfx_mistura(C_FELTRO, metal, 22), true);
+    int fx0 = MESA_X0 - 3, fx1 = MESA_X1 + 2, fy0 = MESA_Y0 - 3, fy1 = MESA_Y1 + 2;
+    int my = (MESA_Y0 + MESA_Y1) / 2;
+    // Nos cantos da moldura: tachas; no rubi e no diamante, pedras.
+    uint16_t gema = lv == 4 ? C_RUBI : C_DIAMANTE;
+    const int CX[4] = { fx0, fx1, fx0, fx1 }, CY[4] = { fy0, fy0, fy1, fy1 };
+    for (int i = 0; i < 4; i++) {
+        if (lv >= 4) pedra(CX[i], CY[i], gema);
+        else tacha(CX[i], CY[i], metal);
+    }
+    // No meio das bordas (prata em diante): mais tachas; no rubi e no
+    // diamante, uma pedra no meio de cima e de baixo.
+    if (lv >= 2) {
+        for (int k = 1; k <= 3; k++) {
+            int x = MESA_X0 + (MESA_X1 - MESA_X0) * k / 4;
+            if (lv >= 4 && k == 2) { pedra(x, fy0, gema); pedra(x, fy1, gema); continue; }
+            tacha(x, fy0, metal); tacha(x, fy1, metal);
+        }
+        if (lv >= 4) { pedra(fx0, my, gema); pedra(fx1, my, gema); }
+        else { tacha(fx0, my, metal); tacha(fx1, my, metal); }
     }
 }
 
+static int des_dificuldade(void);
+
 static void mesa(void)
 {
+    mesa_andar = modo == M_DESAFIO ? des_dificuldade() : 0;
+    if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     if (!mesa_feita) {
         pinta_mesa();
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
@@ -5102,7 +5188,6 @@ static int chance_cair(int j)
     return c_valor;
 }
 
-static int des_dificuldade(void);
 
 // A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
 // Nivel 3 do Desafiante em diante.

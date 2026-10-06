@@ -249,8 +249,8 @@ static void virada_txt(int c, int forca, bool curto, char *s, int n)
                          : (forca == 2 ? "Cada dado dele vale +1, e você compra 1 dado a menos." : "Cada dado dele vale +1."));
     else if (c == 1) snprintf(s, (size_t)n, curto ? "aluguel: %d fichas suas por rodada"
                               : "No fim de cada rodada, ela leva %d fichas suas.", forca == 2 ? 5 : 3);
-    else snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+3 por queda sua; 1º e último dado dele x2" : "+3 por queda sua; 1º dado dele x2")
-                  : (forca == 2 ? "Cada dado seu que cair dá +3 a ele; o primeiro e o último dele valem x2."
+    else snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+3 por queda sua; 1º e 2º dado dele x2" : "+3 por queda sua; 1º dado dele x2")
+                  : (forca == 2 ? "Cada dado seu que cair dá +3 a ele; os dois primeiros dele valem x2."
                                 : "Cada dado seu que cair dá +3 a ele, e o primeiro dele vale x2."));
 }
 

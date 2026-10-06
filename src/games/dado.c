@@ -622,7 +622,7 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 //   Crupie (1o andar): +1 em cada dado dele; do 4o, voce compra 1 a menos.
 //   Dona do Salao (2o): o aluguel, 3 fichas suas no fim de cada rodada; 5 do 4o.
 //   Barao (3o): +3 para ele por dado seu anulado e x2 no primeiro dado dele;
-//   na Cobertura, x2 tambem no ultimo.
+//   na Cobertura, x2 tambem no segundo.
 #define PERSO_CHEFE0  8                  // os chefes, na lista dos oponentes
 #ifndef VIRADA_BARAO
 #define VIRADA_BARAO  3                  // pontos do Barao virado por dado seu anulado
@@ -2459,8 +2459,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (fartura && f->valor[k] <= 2) m += 2 * n_far;
         if (tudo) m += 2;
         if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
-        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == f->lancados - 1)))
-            m += 2;                              // o Barao virado: x2 no primeiro (e no ultimo, na Cobertura)
+        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1)))
+            m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
     if (mask && gera && n_ev < MAX_EV) {

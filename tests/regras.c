@@ -957,12 +957,12 @@ int main(void)
             joga(0, D_D6, 5); joga(0, D_D6, 2);          // cai: os dois anulados
             d = fim();
             CONFERE(d.total[1] == 4 + 5 + 6, "Barao virado: esperava 15, deu %d", d.total[1]);
-            // Na Cobertura, x2 tambem no ultimo.
+            // Na Cobertura, x2 tambem no segundo (o terceiro fica como saiu).
             run.dificuldade = 5;
             limpa(); rodada = 5;
-            joga(1, D_D6, 2); joga(1, D_D6, 5);
+            joga(1, D_D6, 2); joga(1, D_D6, 5); joga(1, D_D6, 6);
             d = fim();
-            CONFERE(d.total[1] == 4 + 10, "Barao na Cobertura: esperava 14, deu %d", d.total[1]);
+            CONFERE(d.total[1] == 4 + 10 + 6, "Barao na Cobertura: esperava 20, deu %d", d.total[1]);
             // No 2o andar o Barao ainda nao vira.
             run.dificuldade = 2;
             limpa(); rodada = 5; joga(1, D_D6, 2); d = fim();

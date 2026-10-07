@@ -90,7 +90,7 @@
 #define C_MADEIRA_ESC RGB(60, 34, 22)
 #define C_MADEIRA_CLR RGB(120, 78, 50)
 
-#define ANTE        5
+#define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
 #define MAX_COL     48             // espaco para a colecao (o Desafiante nao tem limite)
@@ -655,6 +655,21 @@ static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run
 #define DES_EXTRAS  3                // rodadas extras se terminar empatado
+
+// A entrada sobe ao longo da partida, para que abrir vantagem e so correr de
+// tudo nao baste: na partida de 15 rodadas, 5 fichas da 1a a 5a, 10 da 6a a
+// 10a e 15 da 11a em diante; no Desafiante (8 rodadas), 5 da 1a a 4a, 10 da
+// 5a a 7a e 15 da 8a em diante (as extras tambem).
+static int ante_da(int r)
+{
+#ifdef ENTRADA_FIXA
+    (void)r; return ANTE;                // (os testes de balanco comparam com a antiga)
+#else
+    if (modo == M_DESAFIO) return r <= 4 ? ANTE : r <= 7 ? 2 * ANTE : 3 * ANTE;
+    return r <= 5 ? ANTE : r <= 10 ? 2 * ANTE : 3 * ANTE;
+#endif
+}
+static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 static void des_resultado(void);
 static void des_premio_feito(void);
 static int  des_foco(void);
@@ -2870,7 +2885,8 @@ static void nova_rodada(void)
     // Quem nao paga a entrada perde. Se nenhum dos dois paga, vence quem tem
     // mais fichas (o pote parado na mesa se dividiria igual e nao muda isso);
     // com fichas iguais, empate.
-    bool sem0 = J[0].fichas < ANTE, sem1 = J[1].fichas < ANTE;
+    int ante = ante_da(rodada);
+    bool sem0 = J[0].fichas < ante, sem1 = J[1].fichas < ante;
     if (sem0 && sem1) {
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
@@ -2879,13 +2895,14 @@ static void nova_rodada(void)
     if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
+    if (rodada > 1 && ante > ante_da(rodada - 1)) t_aviso_entrada = 2.2f;   // subiu: avisa
     for (int j = 0; j < 2; j++) {
-        J[j].fichas -= ANTE;
+        J[j].fichas -= ante;
         memset(&F[j], 0, sizeof F[j]);
         descarta_mao(&J[j]);
         compra(&J[j]);
     }
-    pote += 2 * ANTE;
+    pote += 2 * ante;
     n_voo = 0;
     n_ev = ev_i = 0;
     memset(vis_nroubo, 0, sizeof vis_nroubo);
@@ -4382,6 +4399,7 @@ void dado_passo(float dt)
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
     if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
+    if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_elev > 0) {
         float antes = ELEV_T - t_elev;
         t_elev -= dt_real;
@@ -4625,7 +4643,7 @@ static void faixa_jogador(int j)
     int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
-    char s[32];
+    char s[48];
     snprintf(s, sizeof s, "%d", fichas_vis(j));
     txt(x + 36, ty, s, C_MARFIM, true);
     int fim_fichas = x + 36 + gfx_largura(s, 1);
@@ -4633,8 +4651,8 @@ static void faixa_jogador(int j)
     // A rodada mora na faixa de cima; o som, na de baixo.
     if (cima && rodada > 0 && fase != F_LOJA) {
         int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
-        if (rodada > max_r) snprintf(s, sizeof s, "rodada extra");
-        else snprintf(s, sizeof s, "rodada %d de %d", rodada, max_r);
+        if (rodada > max_r) snprintf(s, sizeof s, "rodada extra  ·  entrada %d", ante_da(rodada));
+        else snprintf(s, sizeof s, "rodada %d de %d  ·  entrada %d", rodada, max_r, ante_da(rodada));
         int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
         if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
         txt_c(cx, ty, s, C_TEXTO_M, false);
@@ -5988,7 +6006,7 @@ static void desenha_online(void)
 typedef struct { const char *titulo; const char *par[3]; } pagina_t;
 static const pagina_t TUTORIAL[] = {
     { "O jogo", {
-        "Cada jogador começa com 100 fichas. São 15 rodadas, e cada uma custa 5 fichas de entrada, que vão para o pote.",
+        "Cada jogador começa com 100 fichas. São 15 rodadas; a entrada de cada uma vai para o pote: 5 fichas, 10 a partir da 6ª rodada e 15 a partir da 11ª.",
         "Quem faz mais pontos na rodada leva o pote. No fim, ganha quem tiver mais fichas.",
         NULL } },
     { "A bolsa e a sequência", {
@@ -6136,6 +6154,11 @@ static void desenha_avisos(void)
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
+    char m_ent[48];
+    if (!msg && t_aviso_entrada > 0) {
+        snprintf(m_ent, sizeof m_ent, "A entrada sobe para %d fichas", ante_da(rodada));
+        msg = m_ent;
+    }
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
@@ -6336,7 +6359,8 @@ static int eixo(int k)
 // fichas para a proxima entrada). Entao nao ha premio: o jogo encerra.
 static bool ultima_rodada(void)
 {
-    return rodada >= MAX_RODADAS || J[0].fichas < ANTE || J[1].fichas < ANTE;
+    int prox = ante_da(rodada + 1);
+    return rodada >= MAX_RODADAS || J[0].fichas < prox || J[1].fichas < prox;
 }
 
 static void segue_do_resultado(void)

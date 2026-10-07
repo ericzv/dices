@@ -15,7 +15,8 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 5).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
 
-- **Partida rápida**: 15 rodadas contra o computador, em três níveis —
+- **Partida rápida**: 15 rodadas contra o computador (a entrada de cada rodada
+  sobe: 5 fichas, 10 da 6ª e 15 da 11ª), em três níveis —
   **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
   **Difícil** (simula as jogadas antes de decidir).
 - **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o

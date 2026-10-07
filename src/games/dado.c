@@ -670,6 +670,7 @@ static int ante_da(int r)
 #endif
 }
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
+#define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
 static void des_premio_feito(void);
 static int  des_foco(void);
@@ -2895,7 +2896,10 @@ static void nova_rodada(void)
     if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
-    if (rodada > 1 && ante > ante_da(rodada - 1)) t_aviso_entrada = 2.2f;   // subiu: avisa
+    if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
+        t_aviso_entrada = ENTRADA_AVISO_T;
+        som_toca(SOM_FICHA);
+    }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
         memset(&F[j], 0, sizeof F[j]);
@@ -4655,7 +4659,7 @@ static void faixa_jogador(int j)
         else snprintf(s, sizeof s, "rodada %d de %d  ·  entrada %d", rodada, max_r, ante_da(rodada));
         int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
         if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
-        txt_c(cx, ty, s, C_TEXTO_M, false);
+        txt_c(cx, ty, s, t_aviso_entrada > 0 ? C_OURO : C_TEXTO_M, t_aviso_entrada > 0);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
     if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
@@ -6147,6 +6151,35 @@ static void desenha_tutorial(void)
 }
 
 // Avisos por cima de tudo: sair da partida e conexao perdida.
+// A entrada subiu: uma faixa vermelha e dourada no alto da mesa, com fichas
+// pulando dos lados, por uns dois segundos e meio.
+static void tapa_textos(int x, int y, int w, int h);
+static void desenha_aviso_entrada(void)
+{
+    if (t_aviso_entrada <= 0) return;
+    float e = ENTRADA_AVISO_T - t_aviso_entrada;
+    float abre = e < 0.18f ? e / 0.18f : (t_aviso_entrada < 0.25f ? t_aviso_entrada / 0.25f : 1);
+    int h = (int)(46 * abre), y = MESA_Y0 + 34 - h / 2;
+    if (h < 4) return;
+    tapa_textos(MESA_X0, y, MESA_X1 - MESA_X0, h);
+    gfx_rect(MESA_X0, y + 3, MESA_X1 - MESA_X0, h, C_SOMBRA);
+    gfx_rect(MESA_X0, y, MESA_X1 - MESA_X0, h, RGB(120, 26, 34));
+    gfx_rect(MESA_X0, y, MESA_X1 - MESA_X0, 2, C_OURO);
+    gfx_rect(MESA_X0, y + h - 2, MESA_X1 - MESA_X0, 2, C_OURO);
+    if (abre < 1) return;
+    char t[40];
+    snprintf(t, sizeof t, "ENTRADA: %d FICHAS", ante_da(rodada));
+    bool pisca = (int)(e / 0.25f) % 2 == 0 && e < 1.0f;      // pisca no comeco
+    txt_sombra_c(GFX_W / 2, y + 7, t, pisca ? C_AMARELO : C_OURO, 2);
+    int w = gfx_largura(t, 2) / 2;
+    for (int lado = -1; lado <= 1; lado += 2)                // pilhas de fichas pulando
+        for (int i = 0; i < 3; i++) {
+            int x = GFX_W / 2 + lado * (w + 26 + i * 18);
+            int pulo = (int)(fabsf(sinf(e * 7 + i * 1.1f)) * 5);
+            ficha(x, y + h / 2 - pulo, i % 2 ? C_VINHO : C_LATAO);
+        }
+}
+
 static void desenha_avisos(void)
 {
     const char *msg = NULL;
@@ -6154,11 +6187,6 @@ static void desenha_avisos(void)
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
-    char m_ent[48];
-    if (!msg && t_aviso_entrada > 0) {
-        snprintf(m_ent, sizeof m_ent, "A entrada sobe para %d fichas", ante_da(rodada));
-        msg = m_ent;
-    }
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
@@ -6288,6 +6316,7 @@ void dado_desenha(void)
     if (!menu) {
         desenha_detalhe();
         desenha_avisos();
+        desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
     }

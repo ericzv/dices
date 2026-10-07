@@ -3323,6 +3323,20 @@ static void rotulo_op(int op, char *s, int n)
     }
 }
 
+// A cor de cada botao da aposta: passar neutro, apostar em vinho (25 mais
+// forte), pagar em ouro velho, dobrar em vermelho vivo, correr em preto.
+static uint16_t tinta_op(int op)
+{
+    switch (op) {
+    case OP_PASSAR:    return RGB(44, 66, 58);
+    case OP_APOSTAR10: return RGB(112, 40, 46);
+    case OP_APOSTAR25: return RGB(150, 34, 40);
+    case OP_PAGAR:     return RGB(112, 88, 38);
+    case OP_AUMENTAR:  return RGB(168, 44, 36);
+    default:           return RGB(20, 20, 22);       // correr
+    }
+}
+
 static void executa(int op)
 {
     jogador_t *p = &J[vez];
@@ -4460,7 +4474,10 @@ void dado_passo(float dt)
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
-            } else som_toca(ver_tipo == 0 ? SOM_VALIDO : SOM_ANULA);
+            } else if (ver_tipo == 0) {             // valendo: uma nota acima a cada posicao
+                static const int SOM_POS[N_FILA] = { SOM_VALIDO, SOM_VALIDO2, SOM_VALIDO3, SOM_VALIDO4 };
+                som_toca(SOM_POS[k < N_FILA ? k : N_FILA - 1]);
+            } else som_toca(SOM_ANULA);
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             t_fase = 0;
             fase = F_VEREDITO;
@@ -5158,7 +5175,10 @@ static void marca_rar(int x, int y, int tipo)
     gfx_rect(x - 7, y, 14, 2, cor_rar(tipo));
 }
 
-static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor)
+// Uma fileira de botoes. Com tinta, cada um tem a sua cor (a aposta em
+// vermelho, correr em preto...), para reconhecer sem ler; o escolhido acende
+// e ganha a moldura branca. Sem tinta, o escolhido fica na cor do jogador.
+static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor, const uint16_t *tinta)
 {
     int larg = -12;
     for (int i = 0; i < n; i++) larg += gfx_largura(rot[i], 1) + 24 + 12;
@@ -5167,9 +5187,16 @@ static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t c
         int w = gfx_largura(rot[i], 1) + 24;
         bool cur = i == cursor && ativo[i];
         gfx_rect(x + 2, y + 3, w, 28, C_SOMBRA);
-        gfx_rect(x, y, w, 28, cur ? cor : C_FELTRO_ESC);
-        gfx_moldura(x, y, w, 28, 1, cur ? C_BRANCO : C_FELTRO2);
-        txt(x + 12, y + 4, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
+        if (tinta) {
+            uint16_t t = ativo[i] ? tinta[i] : C_FELTRO_ESC;
+            gfx_rect(x, y, w, 28, cur ? gfx_mistura(t, C_BRANCO, 22) : t);
+            gfx_moldura(x, y, w, 28, cur ? 2 : 1, cur ? C_BRANCO : gfx_mistura(t, C_BRANCO, 30));
+            txt(x + 12, y + 4, rot[i], ativo[i] ? (cur ? C_BRANCO : C_MARFIM) : C_FELTRO2, cur);
+        } else {
+            gfx_rect(x, y, w, 28, cur ? cor : C_FELTRO_ESC);
+            gfx_moldura(x, y, w, 28, 1, cur ? C_BRANCO : C_FELTRO2);
+            txt(x + 12, y + 4, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
+        }
         if (ativo[i]) zona_clique(x, y, w, 28, &cursor, i, KEY_ENTER);
         x += w + 12;
     }
@@ -5326,7 +5353,8 @@ static void desenha_joga(void)
         }
         const char *rot[2] = { jogar, parar };
         bool ativo[2] = { f->lancados < f->n, true };
-        botoes(y1 + 70, rot, ativo, 2, p->cor);
+        static const uint16_t TINTA_JOGA[2] = { RGB(38, 96, 64), RGB(40, 62, 104) };   // jogar, parar
+        botoes(y1 + 70, rot, ativo, 2, p->cor, TINTA_JOGA);
     }
     pote_mesa();
 }
@@ -5346,8 +5374,12 @@ static void desenha_aposta(void)
     char r[4][24];
     const char *rot[4];
     bool ativo[4];
-    for (int i = 0; i < n; i++) { rotulo_op(op[i], r[i], sizeof r[i]); rot[i] = r[i]; ativo[i] = true; }
-    botoes(y1 + 60, rot, ativo, n, J[vez].cor);
+    uint16_t tinta[4];
+    for (int i = 0; i < n; i++) {
+        rotulo_op(op[i], r[i], sizeof r[i]); rot[i] = r[i]; ativo[i] = true;
+        tinta[i] = tinta_op(op[i]);
+    }
+    botoes(y1 + 60, rot, ativo, n, J[vez].cor, tinta);
     pote_mesa();
 }
 

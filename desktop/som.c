@@ -146,10 +146,16 @@ static void compoe(int s)
         ruido(0, 0.10f, 1.3f, 0.020f, 0.10f, 0.004f);
         tom(0, 0.12f, 150, 95, SENO, 0.60f, 0.035f);
         break;
-    case SOM_VALIDO: {                           // dois sininhos subindo
+    case SOM_VALIDO: case SOM_VALIDO2: case SOM_VALIDO3: case SOM_VALIDO4: {
+        // Sininhos subindo; cada posicao da sequencia, um pouco mais aguda
+        // (+0, +2, +4 e +7 semitons): os quatro valendo fecham numa quinta.
         static const float N[3] = { 79, 83, 86 };            // G5 B5 D6
-        for (int i = 0; i < 3; i++)
-            tom(i * 0.055f, 0.9f, mtof(N[i]), mtof(N[i]), SINO, 0.20f, 0.30f);
+        int pos = s == SOM_VALIDO ? 0 : s - SOM_VALIDO2 + 1;
+        static const float SOBE[4] = { 0, 2, 4, 7 };
+        for (int i = 0; i < 3; i++) {
+            float m = N[i] + SOBE[pos];
+            tom(i * 0.055f, 0.9f, mtof(m), mtof(m), SINO, 0.20f, 0.30f);
+        }
         break;
     }
     case SOM_ANULA:                              // dois dados caem: baque e descida
@@ -300,6 +306,7 @@ static const float PICO[SOM_N] = {
     [SOM_ZERA] = 0.32f, [SOM_VENTO] = 0.28f, [SOM_PARTIDA] = 0.30f, [SOM_FIM] = 0.36f,
     [SOM_DERROTA] = 0.30f, [SOM_TURNO] = 0.24f, [SOM_BOLSA] = 0.20f, [SOM_EMPATE] = 0.26f,
     [SOM_SLOT] = 0.30f, [SOM_PREMIO] = 0.40f, [SOM_VIDRO] = 0.34f, [SOM_BIGORNA] = 0.30f,
+    [SOM_VALIDO2] = 0.40f, [SOM_VALIDO3] = 0.40f, [SOM_VALIDO4] = 0.42f,
 };
 
 // Compoe o efeito s, poe sala, normaliza e devolve quantas amostras valem.

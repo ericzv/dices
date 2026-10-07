@@ -31,6 +31,9 @@ enum {
     SOM_PREMIO,      // a roleta parou toda: o premio saiu
     SOM_VIDRO,       // o dado de Vidro se estilhacando
     SOM_BIGORNA,     // a marreta do Ferreiro na bigorna
+    SOM_VALIDO2,     // dado valendo na 2a, 3a e 4a posicao: o mesmo sino,
+    SOM_VALIDO3,     // cada vez um pouco mais agudo
+    SOM_VALIDO4,
     SOM_N
 };
 

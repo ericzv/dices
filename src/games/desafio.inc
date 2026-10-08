@@ -837,10 +837,9 @@ static void desenha_balao(int x, int y, const char *s)
     if (bx + w > GFX_W - 6) bx = GFX_W - 6 - w;
     float a = t_fala < 0.25f ? t_fala / 0.25f : 1;
     if (a < 0.3f) return;
-    tapa_textos(bx, by, w, h);
     gfx_rect(bx + 2, by + 2, w, h, C_SOMBRA);
-    gfx_rect(bx, by, w, h, C_MARFIM);
-    gfx_moldura(bx, by, w, h, 1, C_LATAO_ESC);
+    gfx_rect(bx + 1, by + 1, w - 2, h - 2, C_MARFIM);
+    ui_contorno(bx, by, w, h, C_EBANO_B);
     for (int i = 0; i < 5; i++) gfx_rect(x + i, y - (5 - i) / 2, 7 - i, 5 - i, C_MARFIM);   // bico
     txt(bx + 8, by + 3, s, C_EBANO, false);
 }
@@ -2241,8 +2240,7 @@ static void desenha_loja_run(void)
         int pr = am ? preco_am() : preco_run(run.loja[i].tipo);
         bool ja = am ? run.am_levou : run.levou[i], cur = i == cursor, da = run.moedas >= pr;
         uint16_t cr = am ? C_OURO : cor_rar(run.loja[i].tipo);
-        gfx_rect(x - wc / 2, yb, wc, 92, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - wc / 2, yb, wc, 92, cur ? 3 : 1, cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
+        ui_cartao(x - wc / 2, yb, wc, 92, cur, cr);
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
         if (am) desenha_amuleto(x, yb + 32 + (int)bob, 20, run.am_loja, false);
         else peca_parada((float)x, yb + 32 + bob, 22, run.loja[i], 0);
@@ -2283,7 +2281,7 @@ static void desenha_bolsa_run(void)
         int na_linha = (run.n_col - lin * GRADE_B) < GRADE_B ? run.n_col - lin * GRADE_B : GRADE_B;
         int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44);
         int y = 138 + lin * 40;
-        if (i == cursor) gfx_rect_alfa(x - 20, y - 20, 40, 40, C_LATAO, 70);
+        if (i == cursor) ui_selecao(x - 20, y - 20, 40, 40, C_OURO);
         peca_parada((float)x, (float)y, 15, run.col[i], 0);
         if (i != cursor) marca_rar(x, y + 20, run.col[i].tipo);
         zona_clique(x - 20, y - 20, 40, 40, &cursor, i, 'i');   // clique abre os detalhes
@@ -2825,13 +2823,11 @@ static void desenha_evt(void)
         for (int i = 0; i < n; i++) {
             int y = y0 + i * 27;
             bool cur = i == cursor;
-            gfx_rect(x + 2, y + 2, w, 23, C_SOMBRA);
-            gfx_rect(x, y, w, 23, cur ? (op[i].ok ? C_LATAO : C_FELTRO2) : C_FELTRO_ESC);
-            gfx_moldura(x, y, w, 23, 1, cur ? C_BRANCO : C_FELTRO2);
-            uint16_t c = !op[i].ok ? C_TEXTO_M : (cur ? C_BARRA : C_MARFIM);
-            txt(x + 10, y + 2, op[i].rot, c, cur && op[i].ok);
-            if (op[i].det[0]) txt(x + w - 10 - gfx_largura(op[i].det, 1), y + 2, op[i].det, c, false);
-            zona_clique(x, y, w, 23, &cursor, i, KEY_ENTER);
+            ui_botao(x, y, w, 24, "", cur && op[i].ok ? C_LATAO : 0, !op[i].ok ? UI_DESLIGADO : cur ? UI_FOCO : 0);
+            uint16_t c = !op[i].ok ? C_EBANO_B : (cur ? C_BARRA : C_MARFIM);
+            txt(x + 10, y + 1, op[i].rot, c, false);
+            if (op[i].det[0]) txt(x + w - 10 - gfx_largura(op[i].det, 1), y + 1, op[i].det, c, false);
+            zona_clique(x, y, w, 24, &cursor, i, KEY_ENTER);
         }
         if (!ev_girando()) {
             int ym = y0 + n * 27 + 6;
@@ -2847,7 +2843,7 @@ static void desenha_evt(void)
         int por_linha = (w - 4) / 44;
         for (int k = 0; k < ev_n; k++) {
             int px = x + 20 + (k % por_linha) * 44, py = y0 + 44 + (k / por_linha) * 42;
-            if (k == cursor) gfx_rect_alfa(px - 20, py - 20, 40, 40, C_LATAO, 70);
+            if (k == cursor) ui_selecao(px - 20, py - 20, 40, 40, C_OURO);
             peca_parada((float)px, (float)py, 15, run.col[ev_lista[k]], 0);
             zona_clique(px - 20, py - 20, 40, 40, &cursor, k, KEY_ENTER);
         }
@@ -2924,8 +2920,7 @@ static void desenha_amuleto_run(void)
         if (a >= A_N) continue;
         int x = GFX_W / 2 + (i - 1) * 150;
         bool cur = i == cursor;
-        gfx_rect(x - 64, 124, 128, 100, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 64, 124, 128, 100, cur ? 3 : 1, cur ? C_OURO : gfx_mistura(C_FELTRO, C_OURO, 55));
+        ui_cartao(x - 64, 124, 128, 100, cur, 0);
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
         desenha_amuleto(x, 162 + (int)bob, 26, a, false);
         txt_c(x, 198, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, cur);
@@ -3049,8 +3044,7 @@ static void desenha_perfis(void)
         const perfil_t *p = &perfis[i];
         int w = 170, h = 190, x = GFX_W / 2 + (i - 1) * 186 - w / 2, y = 66;
         bool cur = i == pf_cur;
-        gfx_rect(x, y, w, h, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x, y, w, h, cur ? 3 : 1, cur ? C_OURO : gfx_mistura(C_FELTRO, C_OURO, 45));
+        ui_cartao(x, y, w, h, cur, 0);
         zona_clique(x, y, w, h, &pf_cur, i, KEY_ENTER);
         if (!p->nome[0]) {
             int cx = x + w / 2, cy = y + 84;
@@ -3083,10 +3077,8 @@ static void desenha_perfis(void)
     } else {
         if (perfis[pf_cur].nome[0]) {
             int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 30;
-            gfx_rect(bx, 266, 60, 16, C_BARRA);
-            gfx_moldura(bx, 266, 60, 16, 1, C_VINHO_CLR);
-            txt_c(bx + 30, 266, "apagar", C_VINHO_CLR, false);
-            zona_clique(bx, 266, 60, 16, NULL, 0, 'x');
+            ui_botao(bx, 264, 60, 22, "apagar", C_VINHO, 0);
+            zona_clique(bx, 264, 60, 22, NULL, 0, 'x');
         }
         rodape_run("setas escolhem  ·  ENTER entra  ·  X apaga  ·  ESC volta");
     }
@@ -3111,8 +3103,8 @@ static void desenha_cria_perfil(void)
     txt_c(GFX_W / 2, y, NOME_AVATAR[pf_avatar], C_OURO, true);
     // O nome, digitado.
     int bw = 180, bx = GFX_W / 2 - bw / 2, by = y + 22;
-    gfx_rect(bx, by, bw, 20, C_BARRA);
-    gfx_moldura(bx, by, bw, 20, 1, C_LATAO);
+    gfx_rect(bx + 1, by + 1, bw - 2, 18, C_PLACA);
+    ui_contorno(bx, by, bw, 20, C_LATAO);
     char s[16];
     bool pisca = fmodf(t_fase, 1.0f) < 0.55f;
     snprintf(s, sizeof s, "%s%s", pf_nome, pisca && strlen(pf_nome) < 10 ? "_" : " ");
@@ -3135,8 +3127,7 @@ static void desenha_dificuldade(void)
     for (int d = 0; d <= ult; d++) {
         bool aberta = d <= nv, cur = d == dif_cur;
         int y = y0 + d * 26;
-        gfx_rect(x0, y, 150, 22, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x0, y, 150, 22, cur ? 2 : 1, cur ? C_OURO : gfx_mistura(C_FELTRO, C_OURO, 40));
+        ui_cartao(x0, y, 150, 22, cur, 0);
         uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
         gfx_disco(x0 + 14, y + 11, 6, gfx_mistura(c, C_BARRA, 30));
         gfx_disco(x0 + 14, y + 11, 4, c);
@@ -3151,8 +3142,7 @@ static void desenha_dificuldade(void)
     }
     // O que vale na escolhida: tudo o que vem de baixo, mais o dela.
     int px = 194, py = 54;
-    gfx_rect(px, py, 416, 232, C_FELTRO_ESC);
-    gfx_moldura(px, py, 416, 232, 1, C_LATAO_ESC);
+    ui_painel(px, py, 416, 232);
     int d = dif_cur;
     int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
     txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
@@ -3304,7 +3294,7 @@ static void desenha_cat_amuleto(int i)
     gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
     const char *et = "amuleto";
     int wc = gfx_largura(et, 1) + 12;
-    gfx_moldura(x, 118, wc, TXT_H + 2, 1, C_LATAO);
+    ui_etiqueta(x, 118, wc, TXT_H + 2, C_LATAO);
     txt(x + 6, 119, et, C_LATAO, false);
     txt(x + wc + 8, 119, "só no Desafiante", C_TEXTO_M, false);
     if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
@@ -3332,12 +3322,8 @@ static void des_elevador(void)
     int d = run.dificuldade;
     const int w = 250, h = 150, x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 - 4;
     const int cx = GFX_W / 2, cy = y0 + 106, R = 64;
-    tapa_textos(0, 0, GFX_W, GFX_H);
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 150);
-    gfx_rect(x0 + 3, y0 + 4, w, h, C_SOMBRA);
-    gfx_rect(x0, y0, w, h, C_BARRA);
-    gfx_moldura(x0, y0, w, h, 2, C_LATAO);
-    gfx_moldura(x0 + 4, y0 + 4, w - 8, h - 8, 1, C_LATAO_ESC);
+    ui_painel(x0, y0, w, h);
     for (int i = 0; i <= 60; i++) {              // o arco do mostrador
         float a = 3.1416f * (0.08f + 0.84f * i / 60.0f);
         gfx_rect(cx - (int)(cosf(a) * R), cy - (int)(sinf(a) * R), 2, 2, C_LATAO_ESC);
@@ -3381,7 +3367,6 @@ static void des_virada_anuncio(void)
     int c = perso_virado - PERSO_CHEFE0;
     float e = 2.4f - t_virada;
     n_zonas = 0;
-    tapa_textos(0, 0, GFX_W, GFX_H);
     int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, alfa);
     static const uint16_t COR[3] = { RGB(46, 120, 84), RGB(150, 30, 46), RGB(150, 36, 40) };

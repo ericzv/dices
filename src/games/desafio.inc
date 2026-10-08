@@ -1371,6 +1371,8 @@ static int nivel_do_dado(int t)
     case D_PRISMA:     return 3;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
+    case D_CAVALO:     return 4;                 // Cavalo de Troia
+    case D_BERSERKER:  return 5;
     // Os fortes que ja existiam: presos no comeco.
     case D_EXPLOSIVO:  return 1;
     case D_EGOISTA:    return 2;
@@ -2972,15 +2974,16 @@ static int  pf_avatar;                   // tela de criar perfil
 static char pf_nome[11];
 static int  dif_cur;
 
-// O que abre com a dificuldade n: dois amuletos e um dado.
+// O que abre com a dificuldade n: dois amuletos e ate tres dados.
+#define LIB_DADOS 3
 static void liberados(int n, int *am, int *dado)
 {
     int k = 0;
     for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n) am[k++] = a;
     for (; k < 2; k++) am[k] = -1;
     k = 0;
-    for (int t = 0; t < D_N && k < 2; t++) if (nivel_do_dado(t) == n && marco_do_dado(t) < 0) dado[k++] = t;
-    for (; k < 2; k++) dado[k] = -1;
+    for (int t = 0; t < D_N && k < LIB_DADOS; t++) if (nivel_do_dado(t) == n && marco_do_dado(t) < 0) dado[k++] = t;
+    for (; k < LIB_DADOS; k++) dado[k] = -1;
 }
 
 static void des_abre_perfis(void)
@@ -3180,7 +3183,7 @@ static void desenha_dificuldade(void)
         ly += 17;
     }
     if (d > 0) {
-        int am[2], dado[2];
+        int am[2], dado[LIB_DADOS];
         liberados(d, am, dado);
         ly += 6;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
@@ -3194,7 +3197,7 @@ static void desenha_dificuldade(void)
             ly += 24;
         }
         ly = ly0;
-        for (int i = 0; i < 2; i++) {                // ...e os dados a direita
+        for (int i = 0; i < LIB_DADOS; i++) {        // ...e os dados a direita
             if (dado[i] < 0) continue;
             int dx = px + 214;
             desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
@@ -3209,12 +3212,13 @@ static void desenha_dificuldade(void)
 static void desenha_liberou(void)
 {
     if (des_liberou < 1) return;
-    int am[2], dado[2], n = 0;
+    int am[2], dado[LIB_DADOS], n = 0;
     liberados(des_liberou, am, dado);
     char s[64];
     snprintf(s, sizeof s, "Abriu o %s", NOME_DIF[des_liberou]);
     txt_c(GFX_W / 2, CENTRO + 44, s, COR_DIF[des_liberou], true);
-    for (int i = 0; i < 2; i++) n += (am[i] >= 0) + (dado[i] >= 0);
+    for (int i = 0; i < 2; i++) n += am[i] >= 0;
+    for (int i = 0; i < LIB_DADOS; i++) n += dado[i] >= 0;
     int x = GFX_W / 2 - n * 106 / 2;
     for (int i = 0; i < 2; i++)
         if (am[i] >= 0) {
@@ -3223,7 +3227,7 @@ static void desenha_liberou(void)
             dica_zona(x, CENTRO + 64, 100, 20, DICA_AMULETO, am[i]);
             x += 106;
         }
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < LIB_DADOS; i++)
         if (dado[i] >= 0) {
             desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado[i], 0, 0, 0, 0, false);
             txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_aro(dado[i]), false);

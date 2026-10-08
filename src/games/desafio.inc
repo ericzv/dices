@@ -2932,7 +2932,7 @@ static void desenha_evt(void)
         int yc = y0 + 64;
         if (ev_mostra == 1) {
             peca_parada((float)(x + 30), (float)yc, 22, ev_peca, 0);
-            txt(x + 66, yc - 22, TIPO[ev_peca.tipo].nome, cor_aro(ev_peca.tipo), true);
+            txt(x + 66, yc - 22, TIPO[ev_peca.tipo].nome, cor_familia(ev_peca.tipo), true);
             txt(x + 66 + gfx_largura(TIPO[ev_peca.tipo].nome, 1) + 8, yc - 22, RARIDADE[TIPO[ev_peca.tipo].raridade],
                 cor_rar(ev_peca.tipo), false);
             quebra_linhas(x + 66, yc - 4, w - 70, 2, TEXTO_MEDIO[ev_peca.tipo], C_MARFIM_S);
@@ -3257,7 +3257,7 @@ static void desenha_dificuldade(void)
             if (dado[i] < 0) continue;
             int dx = px + 214;
             desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
-            txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_aro(dado[i]), false);
+            txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_familia(dado[i]), false);
             if (d <= nv) dica_zona(dx - 10, ly - 10, 150, 20, DICA_DADO, dado[i]);
             ly += 24;
         }
@@ -3286,7 +3286,7 @@ static void desenha_liberou(void)
     for (int i = 0; i < LIB_DADOS; i++)
         if (dado[i] >= 0) {
             desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado[i], 0, 0, 0, 0, false);
-            txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_aro(dado[i]), false);
+            txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_familia(dado[i]), false);
             dica_zona(x, CENTRO + 64, 100, 20, DICA_DADO, dado[i]);
             x += 106;
         }

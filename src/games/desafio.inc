@@ -876,7 +876,7 @@ static void balao_oponente(void)
 
 static const char *const SALAO[DES_ANDARES] = { "Salão Verde", "Salão Vermelho", "Salão Dourado" };
 static const uint16_t COR_SALAO[DES_ANDARES] = { C_VERDE, C_VINHO_CLR, C_OURO };
-static const char *const NOME_NO[] = { "fácil", "médio", "difícil", "chefe", "loja", "evento" };
+static const char *const NOME_NO[] = { "Fácil", "Médio", "Difícil", "Chefe", "Loja", "Evento" };
 static uint16_t cor_no(int t)
 {
     switch (t) {
@@ -2046,7 +2046,7 @@ static void rodape_run(const char *s)
 
 // ---- O mapa -------------------------------------------------------------
 static const int MAPA_X[DES_PASSOS] = { 136, 224, 312, 400, 488, 580 };
-static const int MAPA_Y[3] = { 96, 150, 204 };
+static const int MAPA_Y[3] = { 92, 142, 192 };
 #define MAPA_X0 56
 enum { V_FEITO, V_ABERTO, V_LONGE, V_PERDIDO };
 
@@ -2105,14 +2105,14 @@ static int vis_de(int p, int l)
 }
 
 static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada" };
-static const char *const PREMIO_TIER[] = { "prêmio: dados comuns", "prêmio: dados variados",
-                                           "prêmio: dados raros", "prêmio: os melhores dados" };
+static const char *const PREMIO_TIER[] = { "Prêmio: dados comuns", "Prêmio: dados variados",
+                                           "Prêmio: dados raros", "Prêmio: os melhores dados" };
 
 // O quadro de baixo do mapa, em colunas separadas por filetes: quem e (com
 // as etiquetas e o premio), o trunfo (nome e regra) e a bolsa dele, com os
 // dados agrupados por tipo.
-#define INFO_Y  228
-#define INFO_H  78
+#define INFO_Y  220
+#define INFO_H  86
 static void info_divisa(int x)
 {
     gfx_rect(x, INFO_Y + 8, 1, INFO_H - 16, gfx_mistura(C_PLACA, C_LATAO_ESC, 60));
@@ -2148,23 +2148,22 @@ static void info_mesa(int l)
     gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, 58, no->tipo == NO_CHEFE ? C_OURO : C_LATAO_ESC);
     gfx_rect(rx, ry, RT_W * esc, 54, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(rx, ry, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, nl);
-    dica_zona(rx, ry, RT_W * esc, 54, DICA_TRUNFO, no->perso);
 
     // Quem e: nome, etiquetas e o premio.
-    int xa = rx + RT_W * esc + 10, wa = 150;
+    int xa = rx + RT_W * esc + 10, wa = 140;
     gfx_texto(xa, cy, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(xa, cy + 21, NOME_NO[no->tipo], cor_no(no->tipo));
     xt = etiqueta_caixa(xt, cy + 21, NIVEL_IA[nivel_mesa(no)], C_ACO);
-    if (no->tipo == NO_CHEFE && virada_de(no->perso))     // a virada: detalhes na dica do trunfo
-        etiqueta_caixa(xa, cy + 44, "virada", C_VINHO_CLR);
-    else txt(xa, cy + 46, PREMIO_TIER[tier], C_TEXTO_M, false);
+    if (no->tipo == NO_CHEFE && virada_de(no->perso)) {   // a virada: os detalhes na dica dela
+        int xv = etiqueta_caixa(xa, cy + 42, "Virada", C_VINHO_CLR);
+        dica_zona(xa, cy + 42, xv - xa, 20, DICA_TRUNFO, no->perso);
+    } else txt(xa, cy + 46, PREMIO_TIER[tier], C_TEXTO_M, false);
     info_divisa(xa + wa);
 
     // O trunfo: nome em destaque e a regra, quebrada em linhas.
-    int xb = xa + wa + 12, wb = 196;
+    int xb = xa + wa + 12, wb = 168;
     txt(xb, cy, pe->trunfo, C_ROSA, true);
-    quebra_linhas(xb, cy + 20, wb, 2, pe->regra, C_MARFIM_S);
-    dica_zona(xb, cy, wb, INFO_H - 12, DICA_TRUNFO, no->perso);
+    quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
     info_divisa(xb + wb + 6);
 
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
@@ -2172,8 +2171,8 @@ static void info_mesa(int l)
     peca_t col[MAX_COL];
     int n = monta_oponente(no, run.andar, col);
     char s[24];
-    snprintf(s, sizeof s, "bolsa · %d dados", n);
-    txt(xc, cy, s, C_TEXTO_M, false);
+    snprintf(s, sizeof s, "Bolsa · %d dados", n);
+    txt(xc, cy + 4, s, C_TEXTO_M, false);
     int tipos[MAX_COL], conta[MAX_COL], nt = 0;
     for (int i = 0; i < n; i++) {
         int k = 0;
@@ -2181,17 +2180,18 @@ static void info_mesa(int l)
         if (k == nt) { tipos[nt] = col[i].tipo; conta[nt++] = 0; }
         conta[k]++;
     }
-    int gx = xc, gy = cy + 32;
+    int gx = xc, gy = cy + 33;
     for (int k = 0; k < nt; k++) {
         char q[16] = "";
         if (conta[k] > 1) snprintf(q, sizeof q, "×%d", conta[k]);
-        int w = 18 + (q[0] ? gfx_largura(q, GFX_FINO) + 1 : 0) + 7;
-        if (gx + w > xc + wc) { gx = xc; gy += 21; }
+        int w = 22 + (q[0] ? gfx_largura(q, GFX_FINO) + 1 : 0) + 6;
+        if (gx + w > xc + wc) { gx = xc; gy += 25; }
         if (gy > y0 + INFO_H - 10) break;
-        // So a silhueta: forma e aro dizem o tipo (o numero nao cabe).
-        desenha_dado((float)(gx + 8), (float)gy, 8, tipos[k], 0, 0, -1, 2, false);
-        if (q[0]) gfx_texto(gx + 19, gy - 10, q, C_MARFIM_S, GFX_FINO, false);
-        dica_zona(gx - 2, gy - 10, w, 20, DICA_DADO, tipos[k]);
+        // O dado parado, como na mao: forma, aro e quantos lados.
+        peca_t pc = { (uint8_t)tipos[k], 0 };
+        peca_parada((float)(gx + 10), (float)gy, 10, pc, 0);
+        if (q[0]) gfx_texto(gx + 22, gy - 12, q, C_MARFIM_S, GFX_FINO, false);
+        dica_zona(gx - 2, gy - 12, w, 24, DICA_DADO, tipos[k]);
         gx += w;
     }
 }
@@ -2207,7 +2207,7 @@ static void desenha_mapa(void)
         if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
         else snprintf(s, sizeof s, "chefe");
         uint16_t c = p == run.passo ? COR_SALAO[run.andar] : (p < run.passo ? C_FELTRO2 : C_TEXTO_M);
-        txt_c(MAPA_X[p], 60, s, c, p == run.passo);
+        txt_c(MAPA_X[p], 52, s, c, false);
     }
     // Entrada do salao e as ligacoes.
     int ey = MAPA_Y[1];
@@ -2954,7 +2954,7 @@ static void desenha_amuleto_run(void)
         ui_cartao(x - 64, 124, 128, 100, cur, 0);
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
         desenha_amuleto(x, 162 + (int)bob, 26, a, false);
-        txt_c(x, 198, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, cur);
+        txt_c(x, 198, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
         zona_clique(x - 64, 124, 128, 100, &cursor, i, KEY_ENTER);
     }
     if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)
@@ -3082,7 +3082,7 @@ static void desenha_perfis(void)
             uint16_t c = cur ? C_OURO : C_TEXTO_M;
             gfx_rect(cx - 14, cy - 2, 28, 4, c);
             gfx_rect(cx - 2, cy - 14, 4, 28, c);
-            txt_c(cx, y + 120, "novo perfil", c, cur);
+            txt_c(cx, y + 120, "novo perfil", c, true);
             continue;
         }
         int esc = 3, rx = x + (w - RT_W * esc) / 2, ry = y + 14;
@@ -3161,7 +3161,7 @@ static void desenha_dificuldade(void)
         uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
         gfx_disco(x0 + 14, y + 11, 6, gfx_mistura(c, C_BARRA, 30));
         gfx_disco(x0 + 14, y + 11, 4, c);
-        txt(x0 + 28, y + 3, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, cur);
+        txt(x0 + 28, y + 1, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
         if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
             gfx_disco(x0 + 134, y + 11, 5, C_LATAO_ESC);
             gfx_disco(x0 + 134, y + 11, 4, C_OURO);
@@ -3323,10 +3323,7 @@ static void desenha_cat_amuleto(int i)
     int x = 290;
     gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
     const char *et = "amuleto";
-    int wc = gfx_largura(et, 1) + 12;
-    ui_etiqueta(x, 118, wc, TXT_H + 2, C_LATAO);
-    txt(x + 6, 119, et, C_LATAO, false);
-    txt(x + wc + 8, 119, "só no Desafiante", C_TEXTO_M, false);
+    txt(etiqueta_caixa(x, 118, et, C_LATAO) + 2, 119, "só no Desafiante", C_TEXTO_M, false);
     if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
@@ -3371,7 +3368,7 @@ static void des_elevador(void)
         bool aceso = chegou && i == d;
         gfx_disco(mx, my, 3, aceso ? cor_dif(i) : C_LATAO_ESC);
         int lx = cx - (int)(cosf(a) * (R + 15)), ly = cy - (int)(sinf(a) * (R + 15));
-        txt_c(lx, ly - TXT_H / 2 - 1, MARCA[i], aceso ? cor_dif(i) : C_TEXTO_M, aceso);
+        txt_c(lx, ly - TXT_H / 2 - 1, MARCA[i], aceso ? cor_dif(i) : C_TEXTO_M, true);
     }
     float a = 3.1416f * (0.08f + 0.84f * p / N_NIVEIS);
     gfx_linha_grossa(cx, cy, cx - (int)(cosf(a) * (R - 12)), cy - (int)(sinf(a) * (R - 12)), 2, C_OURO);

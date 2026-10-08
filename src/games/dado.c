@@ -6131,7 +6131,7 @@ static void desenha_premio(void)
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
         peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
-        txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_aro(t2) : C_MARFIM_S, cur);
+        txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_aro(t2) : C_MARFIM_S, true);
         char c2[32];
         classe(t2, c2, sizeof c2);
         txt_c(x, 180, c2, cr, false);
@@ -6235,7 +6235,7 @@ static int faces_de(int tipo, int *f)
 }
 
 // Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
-#define LINHA_FINA 17                     // passo das linhas do texto corrido (fonte fina)
+#define LINHA_FINA 14                     // passo das linhas do texto corrido (fonte fina)
 static bool quebra_so_conta;                     // so mede: quantas linhas daria
 static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {
@@ -6387,10 +6387,7 @@ static void desenha_catalogo(void)
     int x = 290;
     gfx_texto(x, 70, d->nome, st == 2 ? C_TEXTO_M : cor_aro(tipo), 2, true);
     classe(tipo, s, sizeof s);
-    int wc = gfx_largura(s, 1) + 12;
-    ui_etiqueta(x, 118, wc, TXT_H + 2, cor_rar(tipo));
-    txt(x + 6, 119, s, cor_rar(tipo), false);
-    int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
+    int xt = etiquetas_protecao(etiqueta_caixa(x, 118, s, cor_rar(tipo)), 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
     if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_TEXTO_M, false);
     if (st == 2) {

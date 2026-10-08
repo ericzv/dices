@@ -5,13 +5,10 @@
       75 unidades; no tamanho nativo cada pixel da fonte cai exatamente num
       pixel do jogo (maiusculas de 10 px, linha de 20 px).
   Tiny5 (texto miudo): mesma ideia, pixel de 128 unidades, maiusculas de 5 px.
-  DotGothic16 (texto corrido, fino): os pontos dela tem passo de 76,3
-      unidades (cerca de 13 px por em); amostrada nesse passo cai um ponto por
-      pixel, traco de 1 px. Fica proporcional: cada glifo e cortado nas
-      colunas que tem tinta, com 1 px de espaco.
-
-O texto e desenhado no mesmo framebuffer de 640x360 da mesa, em escala
-inteira: assim letra e desenho ficam no mesmo grid de pixels.
+  Bitcount Prop Single (texto corrido): feita de pontos numa grade de 100
+      unidades; um ponto por pixel, traco de 1 px, maiusculas de 6 px.
+      Fica proporcional: cada glifo e cortado nas colunas que tem tinta,
+      com 1 px de espaco.
 
 Cada glifo vira linhas de bits (bit 0 = coluna 0) e um avanco em pixels.
 Guardamos Latin-1 (0x20..0xFF) para ter os acentos; o que a fonte nao tem
@@ -80,8 +77,9 @@ def gera(ttf, pix, base, alt):
     return saida
 
 
-def gera_fino(ttf, passo, ox, oy, base, alt):
-    """A DotGothic16 no passo dos pontos, proporcional."""
+def gera_fino(ttf, passo, ox, oy, base, alt, espaco=3):
+    """Fonte de pontos no passo dela, proporcional (ox < 0 pega o que passa
+    para a esquerda da origem, como a perna do j)."""
     t = TTFont(ttf)
     cmap, gs = t.getBestCmap(), t.getGlyphSet()
     saida = []
@@ -100,7 +98,7 @@ def gera_fino(ttf, passo, ox, oy, base, alt):
             linhas.append(b)
         cols = [c for c in range(16) if any(l >> c & 1 for l in linhas)]
         if not cols:
-            saida.append((4 if cp == 0x20 else 3, [0] * alt))
+            saida.append((espaco if cp == 0x20 else 3, [0] * alt))
             continue
         c0, c1 = min(cols), max(cols)
         saida.append((c1 - c0 + 2, [l >> c0 for l in linhas]))
@@ -133,13 +131,13 @@ def main():
         larg = max(b.bit_length() for b in ls)
         linhas[9] = (1 << larg) - 1
         jersey[cp - 0x20] = (larg + 1, linhas)
-    fino = gera_fino(os.path.join(AQUI, "fontes", "DotGothic16-Regular.ttf"), 76.3, 28, 0, 15, 20)
+    fino = gera_fino(os.path.join(AQUI, "fontes", "BitcountPropSingle-Regular.ttf"), 100, -200, 0, 15, 20)
     with open(SAIDA_H, "w") as f:
         f.write("""// GERADO POR tools/gen_fonte.py - NAO EDITAR A MAO
 // As fontes de pixels do jogo, Latin-1, no grid de 640x360:
 //   FONTE  Jersey 10 (texto normal): linha de 20 px, base na linha 15.
 //   MIUDA  Tiny5 (texto miudo): linha de 12 px, base na linha 9.
-//   FINO   DotGothic16 (texto corrido): linha de 20 px, base na linha 15.
+//   FINO   Bitcount Prop Single (texto corrido): linha de 20 px, base na linha 15.
 // Cada linha de um glifo e um mapa de bits (bit 0 = coluna 0).
 #pragma once
 #include <stdint.h>
@@ -163,7 +161,7 @@ extern const uint16_t FINO[FONTE_N][FINO_ALT];
         f.write("// GERADO POR tools/gen_fonte.py - NAO EDITAR A MAO\n")
         f.write("// Jersey 10, (c) 2023 The Soft Type Project Authors, SIL OFL 1.1\n")
         f.write("// Tiny5, (c) 2022-2024 The Tiny5 Project Authors, SIL OFL 1.1\n")
-        f.write("// DotGothic16, (c) 2020 The DotGothic16 Project Authors, SIL OFL 1.1\n")
+        f.write("// Bitcount Prop Single, (c) 1980 The Bitcount Project Authors, SIL OFL 1.1\n")
         f.write('#include "fonte.h"\n\n')
         tabela(f, "uint16_t", "FONTE", jersey, 20)
         tabela(f, "uint16_t", "MIUDA", tiny, 12)

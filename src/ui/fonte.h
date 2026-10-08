@@ -2,7 +2,7 @@
 // As fontes de pixels do jogo, Latin-1, no grid de 640x360:
 //   FONTE  Jersey 10 (texto normal): linha de 20 px, base na linha 15.
 //   MIUDA  Tiny5 (texto miudo): linha de 12 px, base na linha 9.
-//   FINO   DotGothic16 (texto corrido): linha de 20 px, base na linha 15.
+//   FINO   Bitcount Prop Single (texto corrido): linha de 20 px, base na linha 15.
 // Cada linha de um glifo e um mapa de bits (bit 0 = coluna 0).
 #pragma once
 #include <stdint.h>

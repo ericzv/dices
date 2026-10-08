@@ -137,7 +137,7 @@ git push origin v0.1.0
 ```
 src/          o jogo
   games/dado.c    regras, IA, animação e desenho (framebuffer 640x360 RGB565)
-  ui/             primitivas de desenho e as fontes de pixels (Jersey 10 e Tiny5)
+  ui/             primitivas de desenho e as fontes de pixels (Jersey 10, Bitcount Prop Single e Tiny5)
   hal/            contrato com a plataforma: teclado, som, tela
 desktop/      a plataforma PC: janela, teclado, trilha e efeitos sintetizados, ícone
 web/          a página do navegador e a rede do modo online (MQTT)
@@ -153,5 +153,6 @@ para os dois arquivos.
 Para ouvir a trilha, o rufar e os efeitos fora do jogo:
 `./build/exporta_som pasta/` grava um `.wav` de cada.
 
-As fontes Jersey 10 e Tiny5 são distribuídas sob a SIL Open Font License
-(`tools/fontes/OFL-Jersey10.txt` e `tools/fontes/OFL-Tiny5.txt`).
+As fontes Jersey 10, Bitcount Prop Single e Tiny5 são distribuídas sob a SIL
+Open Font License (`tools/fontes/OFL-Jersey10.txt`, `OFL-BitcountPropSingle.txt`
+e `OFL-Tiny5.txt`).

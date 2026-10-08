@@ -23,9 +23,11 @@ uint16_t gfx_mistura(uint16_t a, uint16_t b, int pct);   // pct 0 = a, 100 = b
 // Texto em UTF-8 (acentos do Latin-1), em pixels no proprio framebuffer, no
 // mesmo grid da mesa. 'esc' amplia cada pixel da fonte (1 = Jersey 10 no
 // tamanho nativo, linha de 20 px; 2 = o dobro). esc = GFX_MIUDO (0): a fonte
-// miuda (Tiny5), linha de 12 px. 'negrito' poe uma sombra de um pixel embaixo.
-// Devolve a largura em pixels.
+// miuda (Tiny5), linha de 12 px. esc = GFX_FINO (-1): a fonte fina do texto
+// corrido (DotGothic16), linha de 20 px. 'negrito' poe uma sombra de um pixel
+// embaixo. Devolve a largura em pixels.
 #define GFX_MIUDO 0
+#define GFX_FINO  (-1)
 int gfx_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
 int gfx_largura(const char *s, int esc);
 

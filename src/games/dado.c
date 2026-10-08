@@ -804,9 +804,14 @@ static peca_t nova_peca(int tipo)
 }
 
 // Texto centrado em cx; y e o topo da linha.
+// Duas fontes com papeis fixos: 'bold' e a Jersey 10, encorpada, para
+// titulos, nomes e o que importa; sem 'bold' e a fina (DotGothic16), para o
+// texto corrido e as descricoes.
+static int fonte_de(bool bold) { return bold ? 1 : GFX_FINO; }
+
 static void txt_c(int cx, int y, const char *s, uint16_t c, bool bold)
 {
-    gfx_texto(cx - gfx_largura(s, 1) / 2, y, s, c, 1, bold);
+    gfx_texto(cx - gfx_largura(s, fonte_de(bold)) / 2, y, s, c, fonte_de(bold), bold);
 }
 
 static void txt_c2(int cx, int y, const char *s, uint16_t c)
@@ -816,7 +821,7 @@ static void txt_c2(int cx, int y, const char *s, uint16_t c)
 
 static void txt(int x, int y, const char *s, uint16_t c, bool bold)
 {
-    gfx_texto(x, y, s, c, 1, bold);
+    gfx_texto(x, y, s, c, fonte_de(bold), bold);
 }
 
 // Texto com sombra de um pixel: legivel sobre o feltro trabalhado.
@@ -988,8 +993,8 @@ static int linha_teclas(int x, int y, const char *str, uint16_t cor, bool desenh
                     if (!eh_tecla(r, (int)(re - r))) break;
                     char c[4];
                     snprintf(c, sizeof c, "%.*s", m, q);
-                    if (desenha) gfx_texto(x + 1, y - 3, c, cor, 1, false);
-                    x += gfx_largura(c, 1) + 5;
+                    if (desenha) gfx_texto(x + 1, y - 3, c, cor, GFX_FINO, false);
+                    x += gfx_largura(c, GFX_FINO) + 5;
                 } else break;
                 q = e;
                 while (q < ate && *q == ' ') q++;
@@ -998,8 +1003,8 @@ static int linha_teclas(int x, int y, const char *str, uint16_t cor, bool desenh
                 char a[96];
                 snprintf(a, sizeof a, "%.*s", (int)(ate - q), q);
                 if (alguma) x += 2;
-                if (desenha) gfx_texto(x, y - 3, a, cor, 1, false);
-                x += gfx_largura(a, 1);
+                if (desenha) gfx_texto(x, y - 3, a, cor, GFX_FINO, false);
+                x += gfx_largura(a, GFX_FINO);
             } else x -= 3;
         }
         if (!fim) break;
@@ -6230,6 +6235,7 @@ static int faces_de(int tipo, int *f)
 }
 
 // Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
+#define LINHA_FINA 17                     // passo das linhas do texto corrido (fonte fina)
 static bool quebra_so_conta;                     // so mede: quantas linhas daria
 static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {
@@ -6246,14 +6252,14 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
             if (fim >= (int)sizeof linha) break;
             memcpy(linha, p, (size_t)fim);
             linha[fim] = 0;
-            if (gfx_largura(linha, 1) > max_w && cabe) break;
+            if (gfx_largura(linha, GFX_FINO) > max_w && cabe) break;
             cabe = n = fim;
             if (!p[n]) break;
         }
         if (!cabe) cabe = (int)strlen(p) < (int)sizeof linha - 1 ? (int)strlen(p) : (int)sizeof linha - 1;
         memcpy(linha, p, (size_t)cabe);
         linha[cabe] = 0;
-        if (!quebra_so_conta) txt(x, y + lin * (TXT_H + 4), linha, c, false);
+        if (!quebra_so_conta) txt(x, y + lin * LINHA_FINA, linha, c, false);
         lin++;
         p += cabe;
         while (*p == ' ') p++;
@@ -6266,10 +6272,10 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
 // alcanca). Devolve onde a proxima coisa pode comecar.
 static int etiqueta_caixa(int x, int y, const char *s, uint16_t c)
 {
-    int w = gfx_largura(s, 1) + 12;
-    ui_etiqueta(x, y, w, TXT_H + 2, c);
-    txt(x + 6, y + 1, s, c, false);
-    return x + w + 6;
+    int w = gfx_largura(s, GFX_FINO) + 10;
+    ui_etiqueta(x, y + 2, w, 16, c);
+    gfx_texto(x + 5, y - 1, s, c, GFX_FINO, false);
+    return x + w + 4;
 }
 static int etiquetas_protecao(int x, int y, int tipo)
 {
@@ -6667,7 +6673,7 @@ static void desenha_tutorial(void)
         char par[256];                               // "%d": quantos dados ha
         snprintf(par, sizeof par, pg->par[i], D_BASICOS);
         int n = quebra_linhas(44, y, 552, 4, par, i == 0 ? C_MARFIM : C_MARFIM_S);
-        y += n * (TXT_H + 4) + 4;
+        y += n * LINHA_FINA + 8;
     }
     // A ilustracao vai abaixo do texto: na faixa de sempre ou, se o texto
     // desceu mais, logo depois dele.
@@ -6761,7 +6767,7 @@ static bool dica_rect(int *r, const dica_t **qual)
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
-    int w = larg, h = 10 + (TXT_H + 2) + linhas * (TXT_H + 4) + 4;
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6;
     int x = mouse_x + 14, y = mouse_y + 16;
     if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
     if (y + h > GFX_H - 4) y = mouse_y - 12 - h;
@@ -6786,7 +6792,7 @@ static void desenha_dica(const int *r, const dica_t *d)
         classe(d->id, c2, sizeof c2);
         gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
     }
-    quebra_linhas(x, y + TXT_H + 4, r[2] - 16, 7, desc, C_MARFIM_S);
+    quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
 }
 
 void dado_desenha(void)

@@ -2026,8 +2026,13 @@ static void faixa_run(int voltar)
     int x = GFX_W - 18 - gfx_largura(s, 1);
     txt(x, ty, s, C_OURO, true);
     moeda_ic(x - 12, FAIXA_H / 2);
+    // A sua bolsa, junto das suas moedas: no mapa, clicar abre.
     snprintf(s, sizeof s, "%d dados", run.n_col);
-    txt(x - 34 - gfx_largura(s, 1), ty, s, C_MARFIM_S, false);
+    int wb = gfx_largura(s, 1), xb = x - 34 - wb;
+    bool clica = fase == F_MAPA, em = clica && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
+    icone_bolsa(xb - 12, FAIXA_H / 2);
+    txt(xb, ty, s, em ? C_OURO : C_MARFIM, true);
+    if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
 }
 
 static void rodape_run(const char *s)
@@ -2103,60 +2108,92 @@ static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada" }
 static const char *const PREMIO_TIER[] = { "prêmio: dados comuns", "prêmio: dados variados",
                                            "prêmio: dados raros", "prêmio: os melhores dados" };
 
+// O quadro de baixo do mapa, em colunas separadas por filetes: quem e (com
+// as etiquetas e o premio), o trunfo (nome e regra) e a bolsa dele, com os
+// dados agrupados por tipo.
+#define INFO_Y  228
+#define INFO_H  78
+static void info_divisa(int x)
+{
+    gfx_rect(x, INFO_Y + 8, 1, INFO_H - 16, gfx_mistura(C_PLACA, C_LATAO_ESC, 60));
+}
+
 static void info_mesa(int l)
 {
     if (!existe(run.passo, l)) return;
     const no_t *no = &run.no[run.passo][l];
-    int y0 = 242, x = 40;
-    painel(y0, 62, GFX_W - 56);
-    if (no->tipo == NO_EVENTO) {
-        const evt_t *ev = &EVT[no->perso < EVT_N ? no->perso : 0];
-        txt(x, y0 + 3, "EVENTO", cor_no(NO_EVENTO), true);
-        txt(x + gfx_largura("EVENTO", 1) + 10, y0 + 3, ev->nome, C_MARFIM, true);
-        txt(x, y0 + 22, ev->resumo, C_MARFIM_S, false);
-        txt(x, y0 + 40, "Não é uma partida.", C_TEXTO_M, false);
-        return;
-    }
-    if (no->tipo == NO_LOJA) {
-        txt(x, y0 + 3, "LOJA", C_AMARELO, true);
-        txt(x, y0 + 22, "Troque moedas de ouro por dados para a sua bolsa. Não é uma partida.", C_MARFIM_S, false);
-        moedas_c(GFX_W / 2, y0 + 40, run.moedas, " moedas para gastar", C_OURO);
+    const int x0 = 28, w0 = GFX_W - 56, y0 = INFO_Y;
+    painel(y0, INFO_H, w0);
+    int cx = x0 + 14, cy = y0 + 6;
+    if (no->tipo == NO_EVENTO || no->tipo == NO_LOJA) {
+        bool ev = no->tipo == NO_EVENTO;
+        const evt_t *e = &EVT[no->perso < EVT_N ? no->perso : 0];
+        txt(cx, cy, ev ? "EVENTO" : "LOJA", cor_no(no->tipo), true);
+        if (ev) txt(cx, cy + 18, e->nome, C_MARFIM, true);
+        txt(cx, cy + 38, "Não é uma partida.", C_TEXTO_M, false);
+        info_divisa(x0 + 170);
+        if (ev) quebra_linhas(x0 + 184, cy, w0 - 200, 3, e->resumo, C_MARFIM_S);
+        else {
+            quebra_linhas(x0 + 184, cy, w0 - 200, 2, "Troque moedas de ouro por dados para a sua bolsa.", C_MARFIM_S);
+            moedas_c(x0 + 184 + 60, cy + 44, run.moedas, " moedas para gastar", C_OURO);
+        }
         return;
     }
     const perso_t *pe = &PERSO[no->perso];
     int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
-    // O retrato a esquerda; o resto do painel anda para a direita.
-    int rx = 32, ry = y0 + 4, esc = 2, nl = 27;
+    if ((run_amuletos() >> A_CARTOLA & 1) && tier < 3) tier++;             // Cartola: um premio acima
+
+    // Retrato.
+    int rx = x0 + 8, ry = y0 + 10, esc = 2, nl = 27;
     gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, 58, no->tipo == NO_CHEFE ? C_OURO : C_LATAO_ESC);
     gfx_rect(rx, ry, RT_W * esc, 54, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(rx, ry, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, nl);
     dica_zona(rx, ry, RT_W * esc, 54, DICA_TRUNFO, no->perso);
-    x = rx + RT_W * esc + 10;
-    int w = gfx_texto(x, y0 + 3, pe->nome, cor_no(no->tipo), 1, true);
-    int xt = etiqueta_caixa(x + w + 10, y0 + 3, NOME_NO[no->tipo], cor_no(no->tipo));
-    xt = etiqueta_caixa(xt, y0 + 3, NIVEL_IA[nivel_mesa(no)], C_ACO);
+
+    // Quem e: nome, etiquetas e o premio.
+    int xa = rx + RT_W * esc + 10, wa = 150;
+    gfx_texto(xa, cy, pe->nome, cor_no(no->tipo), 1, true);
+    int xt = etiqueta_caixa(xa, cy + 21, NOME_NO[no->tipo], cor_no(no->tipo));
+    xt = etiqueta_caixa(xt, cy + 21, NIVEL_IA[nivel_mesa(no)], C_ACO);
     if (no->tipo == NO_CHEFE && virada_de(no->perso))     // a virada: detalhes na dica do trunfo
-        etiqueta_caixa(xt, y0 + 3, "virada", C_VINHO_CLR);
-    if ((run_amuletos() >> A_CARTOLA & 1) && tier < 3) tier++;             // Cartola: um premio acima
-    const char *pr = PREMIO_TIER[tier];
-    txt(GFX_W - 40 - gfx_largura(pr, 1), y0 + 3, pr, C_TEXTO_M, false);
-    // O trunfo: nome em destaque e a regra; miuda se nao couber.
-    int wt = gfx_texto(x, y0 + 22, pe->trunfo, C_ROSA, 1, true);
-    int livre = GFX_W - 40 - (x + wt + 14);
-    int esc_r = gfx_largura(pe->regra, 1) <= livre ? 1 : GFX_MIUDO;
-    gfx_texto(x + wt + 14, y0 + 22 + (esc_r == 1 ? 0 : 3), pe->regra, C_MARFIM_S, esc_r, false);
-    dica_zona(x, y0 + 20, GFX_W - 40 - x, TXT_H + 2, DICA_TRUNFO, no->perso);
-    // A bolsa dele, miuda: da para ver contra o que vai jogar (o mouse em
-    // cima de um dado diz o que ele faz).
+        etiqueta_caixa(xa, cy + 44, "virada", C_VINHO_CLR);
+    else txt(xa, cy + 46, PREMIO_TIER[tier], C_TEXTO_M, false);
+    info_divisa(xa + wa);
+
+    // O trunfo: nome em destaque e a regra, quebrada em linhas.
+    int xb = xa + wa + 12, wb = 196;
+    txt(xb, cy, pe->trunfo, C_ROSA, true);
+    quebra_linhas(xb, cy + 20, wb, 2, pe->regra, C_MARFIM_S);
+    dica_zona(xb, cy, wb, INFO_H - 12, DICA_TRUNFO, no->perso);
+    info_divisa(xb + wb + 6);
+
+    // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
+    int xc = xb + wb + 18, wc = x0 + w0 - 10 - xc;
     peca_t col[MAX_COL];
     int n = monta_oponente(no, run.andar, col);
-    for (int i = 0; i < n; i++) {
-        peca_parada((float)(x + 8 + i * 19), (float)(y0 + 52), 8, col[i], 1);
-        dica_zona(x + i * 19 - 1, y0 + 43, 19, 19, DICA_DADO, col[i].tipo);
-    }
     char s[24];
-    snprintf(s, sizeof s, "%d dados", n);
-    gfx_texto(x + 8 + n * 19 + 2, y0 + 46, s, C_TEXTO_M, GFX_MIUDO, false);
+    snprintf(s, sizeof s, "bolsa · %d dados", n);
+    txt(xc, cy, s, C_TEXTO_M, false);
+    int tipos[MAX_COL], conta[MAX_COL], nt = 0;
+    for (int i = 0; i < n; i++) {
+        int k = 0;
+        while (k < nt && tipos[k] != col[i].tipo) k++;
+        if (k == nt) { tipos[nt] = col[i].tipo; conta[nt++] = 0; }
+        conta[k]++;
+    }
+    int gx = xc, gy = cy + 32;
+    for (int k = 0; k < nt; k++) {
+        char q[16] = "";
+        if (conta[k] > 1) snprintf(q, sizeof q, "×%d", conta[k]);
+        int w = 18 + (q[0] ? gfx_largura(q, GFX_FINO) + 1 : 0) + 7;
+        if (gx + w > xc + wc) { gx = xc; gy += 21; }
+        if (gy > y0 + INFO_H - 10) break;
+        // So a silhueta: forma e aro dizem o tipo (o numero nao cabe).
+        desenha_dado((float)(gx + 8), (float)gy, 8, tipos[k], 0, 0, -1, 2, false);
+        if (q[0]) gfx_texto(gx + 19, gy - 10, q, C_MARFIM_S, GFX_FINO, false);
+        dica_zona(gx - 2, gy - 10, w, 20, DICA_DADO, tipos[k]);
+        gx += w;
+    }
 }
 
 static void desenha_mapa(void)
@@ -2202,17 +2239,10 @@ static void desenha_mapa(void)
             bool cur = p == run.passo && l == des_cur;
             mesa_no(MAPA_X[p], MAPA_Y[l], no->tipo, vis, cur);
             int r = no->tipo == NO_CHEFE ? 20 : 15;
-            // So as mesas que da para escolher agora dizem o que sao; as
-            // outras falam pela cor e pelo desenho da ficha.
-            if (vis == V_ABERTO) {
-                const char *rot = NOME_NO[no->tipo];
-                txt(MAPA_X[p] + r + 6, MAPA_Y[l] - 10, rot, cor_no(no->tipo), false);
-            }
             if (vis == V_ABERTO) zona_clique(MAPA_X[p] - r - 6, MAPA_Y[l] - r - 6, 2 * r + 12, 2 * r + 12,
                                              &des_cur, l, KEY_ENTER);
         }
     info_mesa(des_cur);
-    botao_clique(GFX_W - 40, 242 + 38, "sua bolsa", KEY_TAB);
     // Os amuletos da run, no canto de cima.
     for (int a = 0, n = 0; a < A_N; a++)
         if (run_amuletos() >> a & 1) {
@@ -2813,7 +2843,7 @@ static void desenha_evt(void)
     gfx_texto(x, 54, ev->nome, cor_no(NO_EVENTO), 2, true);
     txt(x, 86, ev->cena, C_MARFIM_S, false);
     int nl = quebra_linhas(x, 102, w, 2, ev->resumo, C_MARFIM);
-    int y0 = 102 + nl * (TXT_H + 4) + 10;
+    int y0 = 102 + nl * LINHA_FINA + 14;
 
     ev_atualiza();
 
@@ -2826,8 +2856,8 @@ static void desenha_evt(void)
             bool cur = i == cursor;
             ui_botao(x, y, w, 24, "", cur && op[i].ok ? C_LATAO : 0, !op[i].ok ? UI_DESLIGADO : cur ? UI_FOCO : 0);
             uint16_t c = !op[i].ok ? C_EBANO_B : (cur ? C_BARRA : C_MARFIM);
-            txt(x + 10, y + 1, op[i].rot, c, false);
-            if (op[i].det[0]) txt(x + w - 10 - gfx_largura(op[i].det, 1), y + 1, op[i].det, c, false);
+            gfx_texto(x + 10, y + 1, op[i].rot, c, 1, false);
+            if (op[i].det[0]) gfx_texto(x + w - 10 - gfx_largura(op[i].det, 1), y + 1, op[i].det, c, 1, false);
             zona_clique(x, y, w, 24, &cursor, i, KEY_ENTER);
         }
         if (!ev_girando()) {

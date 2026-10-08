@@ -182,7 +182,10 @@ int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
     int x0 = x;
     while (*s) {
         int ch = gfx_proximo_car(&s) - FONTE_PRIM;
-        if (e == GFX_MIUDO) {
+        if (e == GFX_FINO) {
+            glifo(x, y, FINO[ch], FINO_ALT, c, 1);
+            x += FINO_AV[ch];
+        } else if (e == GFX_MIUDO) {
             // A miuda (Tiny5) desce um pixel: a base dela fica onde ficaria a
             // de um texto normal encolhido.
             if (negrito) glifo(x, y + 2, MIUDA[ch], MIUDA_ALT, SOMBRA_TEXTO, 1);
@@ -202,7 +205,7 @@ int gfx_largura(const char *s, int e)
     int n = 0;
     while (*s) {
         int ch = gfx_proximo_car(&s) - FONTE_PRIM;
-        n += e == GFX_MIUDO ? MIUDA_AV[ch] : FONTE_AV[ch] * e;
+        n += e == GFX_FINO ? FINO_AV[ch] : e == GFX_MIUDO ? MIUDA_AV[ch] : FONTE_AV[ch] * e;
     }
     return n;
 }

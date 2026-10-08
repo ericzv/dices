@@ -1107,7 +1107,7 @@ int main(void)
         // Dois ataques: o primeiro leva o Seguranca, o segundo pega o alvo de sempre.
         limpa();
         joga(0, D_SEGURANCA, 2); joga(0, D_D8, 5); joga(0, D_D12, 9);
-        joga(1, D_CARRASCO, 4); joga(1, D_INVEJOSO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_INVEJOSO, 5);
         d = fim();
         CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][1] == V_VALIDO,
                 "Seguranca com dois ataques");
@@ -1155,7 +1155,7 @@ int main(void)
     // ---- Invejoso: anula o maior do oponente e depois o proprio maior ----
     limpa();
     primeiro = 1;
-    joga(1, D_INVEJOSO, 4);            // sozinho: ele e o maior dele
+    joga(1, D_INVEJOSO, 5);            // sozinho: ele e o maior dele
     joga(0, D_D8, 7);
     joga(0, D_D8, 8);
     d = fim();
@@ -1163,16 +1163,21 @@ int main(void)
     CONFERE(d.est[1][0] == V_ANULADO, "Invejoso sozinho devia anular a si mesmo");
     CONFERE(d.total[1] == 0 && d.total[0] == 7, "Invejoso sozinho: %d x %d", d.total[1], d.total[0]);
     limpa();
-    joga(1, D_INVEJOSO, 4);
+    joga(1, D_INVEJOSO, 5);
     joga(1, D_D8, 7);                  // o maior dele e o 7: o Invejoso fica
     joga(0, D_D6, 5);
     d = fim();
     CONFERE(d.est[1][1] == V_ANULADO && d.est[1][0] == V_VALIDO, "Invejoso devia anular o 7, e nao a si");
     limpa();
-    joga(1, D_INVEJOSO, 3);            // com 3 nao age
+    joga(1, D_INVEJOSO, 4);            // com par nao age
     joga(0, D_D6, 5);
     d = fim();
-    CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 3 nao devia anular nada");
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 4 nao devia anular nada");
+    limpa();
+    joga(1, D_INVEJOSO, 1);            // com 1 age: anula o 5 e a si mesmo
+    joga(0, D_D6, 5);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_ANULADO, "Invejoso com 1 devia anular o 5 e a si");
 
     // ---- Carrasco com 1: anula o menor da propria sequencia ---------------
     limpa();
@@ -1279,7 +1284,7 @@ int main(void)
     CONFERE(d.est[1][0] == V_VALIDO, "Carrasco nao devia anular o Teimoso");
     limpa();
     joga(1, D_EGOISTA, 9);
-    joga(0, D_INVEJOSO, 4);
+    joga(0, D_INVEJOSO, 5);
     d = fim();
     CONFERE(d.est[1][0] == V_ANULADO, "Invejoso devia anular o Egoista (agora anulavel)");
     // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.

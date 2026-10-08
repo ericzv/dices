@@ -208,7 +208,7 @@ static const tipo_t TIPO[D_N] = {
     { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "7 ou menos: anula a sua sequência" },
     { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
     { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
-    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "com 4+: anula o maior do oponente e o seu" },
+    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "1, 3 ou 5: anula o maior do oponente e o seu" },
     { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 3 ou 4: rouba o menor do oponente" },
     { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "seus dados com 1 ou 2 valem x2" },
     { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: ímpares +1 · 2: pares +1" },
@@ -266,7 +266,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MALDITO]   = "Se tirar 7 ou menos, anula a sua sequência inteira, e ele junto.",
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Valendo com 4 ou mais, anula o maior do oponente e depois o seu maior.",
+    [D_INVEJOSO]  = "Valendo com 1, 3 ou 5, anula o maior do oponente e depois o seu maior.",
     [D_CARIDOSO]  = "Se ficar valendo com 3 ou 4, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
@@ -321,7 +321,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo e Teimoso resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 4 ou mais, anula o maior dado do oponente e depois o maior da sua própria sequência (ele mesmo, se for o maior). Escudo e Teimoso resistem à anulação.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 1, 3 ou 5, anula o maior dado do oponente e depois o maior da sua própria sequência (ele mesmo, se for o maior). Escudo e Teimoso resistem à anulação.",
     [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 3 ou 4, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Uma moeda. Se terminar valendo: tirando 1, cada dado ímpar seu ganha +1; tirando 2, cada dado par ganha +1. Ela conta a si mesma.",
@@ -455,12 +455,13 @@ static int preco_loja(int t)
 // A cara de cada dado especial: a cor dele (o aro e o nome nas telas), o tom
 // que tinge o corpo e as cores do desenho de dentro (desenho_interno). Tudo
 // entra misturado ao corpo do dono, em %: claro no marfim, escuro no ebano,
-// sempre nas cores da paleta. O dado comum fica em branco: aro neutro.
+// sempre nas cores da paleta. O dado comum fica em branco: aro de latao.
 typedef struct {
     uint16_t cor;                // aro e nome
     uint16_t tom;  uint8_t pct;  // o corpo, tingido
     uint16_t c1;   uint8_t p1;   // o desenho
-    uint16_t c2;   uint8_t p2;   // um segundo tom do desenho
+    uint16_t c2;   uint8_t p2;   // um segundo e um terceiro tom do desenho
+    uint16_t c3;   uint8_t p3;
 } visual_t;
 
 #define V_LATAO   RGB(190, 156, 86)
@@ -493,34 +494,35 @@ typedef struct {
 #define V_LILAS   RGB(206, 180, 218)
 #define V_BREU    RGB(14, 14, 12)
 #define V_BRANCO  RGB(252, 248, 236)
+#define V_TRIGO   RGB(246, 222, 132)
 
 static const visual_t VISUAL[D_N] = {
-    //                 cor        tom           desenho        segundo tom
-    [D_DOBRO]      = { V_LATAO,   0, 0,         V_LATAO, 70 },
+    //                 cor        tom           desenho        segundo e terceiro tons
+    [D_DOBRO]      = { V_OURO,    0, 0,         V_OURO, 70 },
     [D_VICIADO]    = { V_VERM,    0, 0,         V_CHUMBO, 40 },
     [D_LASTRO]     = { V_FERRO,   V_ACO, 34,    V_CHUMBO, 24 },
     [D_PAR]        = { V_AGUA,    0, 0,         V_AGUA, 60 },
     [D_ESCUDO]     = { V_ACO,     0, 0,         V_ACO, 34 },
     [D_CARRASCO]   = { V_SANGUE,  0, 0,         V_BREU, 75 },
     [D_EXPLOSIVO]  = { V_FOGO,    0, 0,         V_FOGO, 65 },
-    [D_MARTELO]    = { V_COURO,   0, 0,         V_COURO, 75 },
+    [D_MARTELO]    = { V_VINHO,   0, 0,         V_ROSA, 100 },
     [D_PIRATA]     = { V_VINHO,   V_TERRA, 26,  V_MADEIRA, 30,  V_BREU, 85 },
     [D_ESPELHO]    = { V_PRATA,   V_PRATA, 55,  V_ACO, 28,      V_BRANCO, 55 },
-    [D_FICHAS]     = { V_LATAO,   V_OURO, 30,   V_LATAO, 65 },
-    [D_TUDO_NADA]  = { V_OURO,    0, 0,         V_OURO, 60 },
+    [D_FICHAS]     = { V_OURO,    0, 0,         V_LATAO, 75,    V_BRANCO, 90,  V_LATAO_E, 85 },
+    [D_TUDO_NADA]  = { V_OURO },                // a moeda de ouro, desenhada a parte
     [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(54, 36, 74), 45, V_LILAS, 40 },
     [D_GATUNO]     = { V_CHUMBO,  0, 0,         V_BREU, 18 },
-    [D_QUEBRADO]   = { V_TERRA,   V_TERRA, 16,  RGB(62, 56, 50), 60 },
+    [D_QUEBRADO]   = { V_TERRA },               // a rachadura vem por cima
     [D_INVEJOSO]   = { V_LIMA,    V_LIMA, 28,   V_VERDE, 65 },
     [D_CARIDOSO]   = { V_ROSA,    0, 0,         V_ROSA, 45 },
-    [D_FARTURA]    = { V_LATAO_E, 0, 0,         V_LATAO, 65 },
+    [D_FARTURA]    = { V_AMBAR,   0, 0,         V_LATAO, 65 },
     [D_SORTE]      = { V_AZUL,    0, 0,         V_AZUL, 65,     V_VERM, 65 },
-    [D_TEIMOSO]    = { V_COURO,   0, 0,         V_COURO, 35 },
+    [D_TEIMOSO]    = { V_ACO,     0, 0,         V_ACO, 34 },
     [D_SEMENTE]    = { V_VERDE,   0, 0,         V_VERDE, 75 },
-    [D_FOGO]       = { V_FOGO,    0, 0,         V_AMBAR, 60,    V_VERM, 65 },
-    [D_MALDICAO]   = { V_ROXO,    V_ROXO, 16,   V_ROXO, 50 },
+    [D_FOGO]       = { V_FOGO },                // a ficha em chamas, desenhada a parte
+    [D_MALDICAO]   = { V_ROXO,    V_ROXO, 20,   V_ROXO, 65 },
     [D_TREVO]      = { V_VERDE,   0, 0,         V_LIMA, 70 },
-    [D_JACKPOT]    = { V_OURO,    0, 0,         V_LATAO, 55,    V_VERM, 50 },
+    [D_JACKPOT]    = { V_OURO,    V_OURO, 16 },  // os tres setes vem por baixo
     [D_COPIADOR]   = { V_CIANO,   V_CIANO, 18,  V_CIANO, 75 },
     [D_EGOISTA]    = { V_AMEIXA,  V_AMEIXA, 18, V_OURO, 55 },
     [D_LASER]      = { V_LIMA,    V_CHUMBO, 34, V_LIMA, 60 },
@@ -530,13 +532,13 @@ static const visual_t VISUAL[D_N] = {
     [D_SENTINELA]  = { V_TERRA,   V_PEDRA, 46,  V_BARRO, 35,    V_BRANCO, 18 },
     [D_FERREIRO]   = { V_FERRO,   V_FERRO, 30,  V_BREU, 22 },
     [D_COBRADOR]   = { V_TERRA,   V_TERRA, 16,  V_TERRA, 35,    V_VINHO, 45 },
-    [D_DESAFIANTE] = { V_VERM,    0, 0,         V_VERM, 65 },
+    [D_DESAFIANTE] = { V_VERM,    V_VERM, 35,   V_VERM, 65 },
     [D_VIDRO]      = { V_CEU,     V_CEU, 52,    V_BRANCO, 85 },
-    [D_ACUMULADOR] = { V_AMBAR,   0, 0,         V_AMBAR, 40,    V_FOGO, 55 },
+    [D_ACUMULADOR] = { V_AMBAR,   V_AMBAR, 20 }, // as seis casas vem por cima
     [D_SEGURANCA]  = { V_NOITE,   0, 0,         V_AZUL, 50 },
     [D_BUMERANGUE] = { V_TERRA,   V_TERRA, 18,  V_COURO, 55 },
     [D_GEMEO]      = { V_AGUA,    0, 0,         V_AGUA, 50 },
-    [D_PRISMA]     = { V_LILAS,   0, 0,         V_ROSA, 45,     V_OURO, 45 },
+    [D_PRISMA]     = { V_LILAS,   0, 0,         V_ROSA, 45,     V_OURO, 45,    V_NOITE, 45 },
     [D_FENIX]      = { V_FOGO,    V_FOGO, 14,   V_AMBAR, 60,    V_FOGO, 60 },
     [D_TRONO]      = { V_OURO,    V_AMEIXA, 18, V_OURO, 65 },
     [D_CAVALO]     = { V_TERRA,   V_TERRA, 30,  V_MADEIRA, 40 },
@@ -549,16 +551,15 @@ static const visual_t VISUAL[D_N] = {
 static uint16_t cor_dado(int tipo)
 {
     uint16_t c = VISUAL[tipo].cor;
-    if (!c) return C_MARFIM_S;
+    if (!c) return C_LATAO;
     int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
     return r * 3 + g * 6 + b < 1200 ? gfx_mistura(c, C_MARFIM, 40) : c;
 }
 
-// O aro: a cor do dado; no dado comum, um tom neutro que se le sobre o corpo.
-static uint16_t aro_de(int tipo, int dono)
+// O aro: a cor do dado; no dado comum, latao.
+static uint16_t aro_de(int tipo)
 {
-    if (VISUAL[tipo].cor) return VISUAL[tipo].cor;
-    return dono == 0 ? RGB(166, 154, 132) : RGB(128, 120, 112);
+    return VISUAL[tipo].cor ? VISUAL[tipo].cor : C_LATAO;
 }
 
 // ===========================================================================
@@ -1218,14 +1219,17 @@ static void pips(int cx, int cy, int v, int r, uint16_t c)
 //
 //   FORMA    quantos lados tem (forma(), acima). Nada sai do contorno.
 //   CORPO    de quem e: marfim para quem joga embaixo, ebano para quem joga
-//            em cima, com um brilho na aresta de cima. O especial pode vir
-//            tingido na cor dele (o Vidro azulado, o Pirata de madeira).
-//   ARO      a cor do dado (VISUAL); o dado comum tem o aro neutro.
+//            em cima, com um brilho na aresta de cima e um grao miudo (ou as
+//            linhas, ou os pontos, em alguns). O especial pode vir tingido
+//            na cor dele (o Vidro azulado, o Pirata de madeira).
+//   ARO      a cor do dado (VISUAL); o dado comum tem o aro de latao.
 //   DESENHO  so nos especiais: um padrao discreto por dentro do corpo, ligado
 //            ao nome e ao poder (desenho_interno): os espinhos do Espinhoso,
 //            o coracao do Caridoso, as listras do Gatuno. Gira com o dado.
 //
-// O valor vai sempre no meio, por cima de tudo.
+// A Ficha de Fogo e o Tudo ou Nada sao fichas de verdade, desenhadas a
+// parte; o Jackpot, o Acumulador e o Quebrado levam uma peca por cima
+// (marca_por_cima). O valor vai sempre no meio, por cima de tudo.
 // ---------------------------------------------------------------------------
 
 // Quanto o Acumulador mostra de carga: quem desenha a peca avisa o bonus
@@ -1289,6 +1293,35 @@ static uint16_t tom_desenho(uint16_t corpo, uint16_t c, int p, int dono)
 
 static float fr(float x) { return x - floorf(x); }
 static float tri(float x) { return 1 - fabsf(2 * fr(x) - 1); }         // 0..1..0 a cada 1
+
+// A textura do corpo, por baixo do desenho: o grao do marfim em quase todos.
+enum { T_GRAO, T_LINHAS, T_PONTOS };
+
+static int textura_de(int tipo)
+{
+    switch (tipo) {
+    case D_JACKPOT:                    return T_LINHAS;
+    case D_ACUMULADOR: case D_MARTELO: return T_PONTOS;
+    default:                           return T_GRAO;
+    }
+}
+
+// -1 escurece, +1 clareia, 0 deixa: a textura no ponto (u, v) do dado, em
+// pixels, com s = escala (1 num dado da mesa).
+static int padrao(int tex, float u, float v, float s)
+{
+    switch (tex) {
+    case T_LINHAS:  return ((int)floorf((u + v) / (3 * s)) & 3) == 0 ? -1 : 0;
+    case T_PONTOS: {
+        float a = fmodf(u / s + 100, 5), b = fmodf(v / s + 100, 5);
+        return a < 1.2f && b < 1.2f ? -1 : 0;
+    }
+    default: {
+        uint32_t h = hash2((int)floorf(u / s), (int)floorf(v / s));
+        return h % 19 == 0 ? -1 : (h % 29 == 0 ? 1 : 0);
+    }
+    }
+}
 
 // Distancia do ponto (u, v) ao segmento a-b.
 static float ate_seg(float u, float v, float ax, float ay, float bx, float by)
@@ -1357,10 +1390,12 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float a = atan2f(v, u) / 6.2832f * 8;
         return fabsf(fr(a + 0.5f) - 0.5f) < 0.11f;
     }
-    case D_MARTELO: {                             // Espinhoso: espinhos para dentro, nas tres bordas
+    case D_MARTELO: {                             // Espinhoso: tres espinhos em cada borda, para dentro
         float t = 0, g = borda_d4(u, v, &t);
-        float q = 1 - 2 * fabsf(2 * fr((t + 1) * 2) - 1);   // espinhos finos, com vao entre eles
-        return q > 0 && g > 1 - 0.40f * q;
+        float tk = roundf(t * 2) / 2;
+        tk = tk < -0.5f ? -0.5f : tk > 0.5f ? 0.5f : tk;
+        float d = fabsf(t - tk) / 0.15f;
+        return d < 1 && g > 1 - 0.6f * (1 - d);
     }
     case D_PIRATA:                                // veio de madeira e a tira do tapa-olho
         if (fabsf(u + v + 0.80f) < 0.10f) return 2;
@@ -1368,15 +1403,13 @@ static int desenho_interno(int tipo, float u, float v, float s)
     case D_ESPELHO:                               // as duas metades e o eixo
         if (fabsf(u) < l) return 2;
         return u > 0;
-    case D_FICHAS: {                              // a beira tracejada de uma ficha de cassino
-        float t = 0, g = borda_d4(u, v, &t);
-        return g > 0.80f && g < 0.93f && fr((t + 1) * 2 + 0.25f) < 0.5f;
-    }
-    case D_TUDO_NADA: {                           // metade e metade, em S
-        float h = 0.42f;
-        bool cheio = u * u + (v + h) * (v + h) <= h * h ? true
-                   : u * u + (v - h) * (v - h) <= h * h ? false : u >= 0;
-        return cheio;
+    case D_FICHAS: {                              // uma ficha de cassino grande, atras do numero
+        float x = u - 0.06f, y = v - 0.24f, rr = sqrtf(x * x + y * y);
+        if (rr > 0.47f) return 0;
+        if (rr > 0.47f - l * 2) return 3;          // o contorno
+        if (rr > 0.33f)                           // a beira, com seis listras claras
+            return fabsf(fr(atan2f(y, x) / 6.2832f * 6) - 0.5f) < 0.2f ? 2 : 1;
+        return rr > 0.33f - l * 2 ? 3 : 1;        // e o anel de dentro
     }
     case D_MALDITO: {                             // Agouro: manchas
         static const float M[7][4] = {
@@ -1390,12 +1423,6 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
     case D_GATUNO:                                // listras de ladrao
         return fr(v / 0.25f) < 0.5f;
-    case D_QUEBRADO: {                            // uma rachadura em zigue-zague
-        static const float P[5][2] = { {-0.85f,-0.25f}, {-0.48f,-0.02f}, {-0.30f,-0.48f}, {0.08f,-0.30f}, {0.32f,-0.78f} };
-        for (int i = 0; i < 4; i++)
-            if (ate_seg(u, v, P[i][0], P[i][1], P[i + 1][0], P[i + 1][1]) < l * 1.2f) return 1;
-        return 0;
-    }
     case D_INVEJOSO: {                            // um olho, olhando de lado
         float e = 0.40f * (1 - u * u / 0.68f);
         if (fabsf(u) < 0.82f && fabsf(fabsf(v) - e) < l) return 1;
@@ -1415,8 +1442,9 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (ro < 0.6f || ro > 0.76f) return 0;
         return ((int)floorf(fr(atan2f(v, u) / 6.2832f + 0.0625f) * 8) & 1) ? 2 : 1;
     }
-    case D_TEIMOSO:                               // uma cinta larga
-        return fabsf(v) < 0.17f;
+    case D_TEIMOSO:                               // um X por tras dos pontos: nao cai
+        if (fabsf(u) > 0.6f || fabsf(v) > 0.6f) return 0;
+        return fabsf(u - v) < 0.2f || fabsf(u + v) < 0.2f;
     case D_SEMENTE: {                             // sementes em espiral, de girassol
         float rs = 0.05f > s * 0.75f ? 0.05f : s * 0.75f;
         for (int k = 1; k < 34; k++) {
@@ -1426,14 +1454,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_FOGO: {                                // chamas subindo da beira de baixo
-        float t = tri(u * 2.2f + 0.5f);
-        if (v > 0.86f - 0.30f * t) return 2;
-        return v > 0.72f - 0.46f * t;
-    }
-    case D_MALDICAO: {                            // Maldito: um triangulo de ponta-cabeca por dentro
-        float g = bitola(u, v, 3, 0.30f, 0, 0.08f, -1.5708f);
-        return fabsf(g - 1) < l / 0.30f;
+    case D_MALDICAO: {                            // Maldito: a espiral de um feitico
+        float x = u - 0.05f, y = v - 0.22f, rr = sqrtf(x * x + y * y);
+        if (rr > 0.44f || rr < 0.03f) return 0;
+        float k = rr / 0.16f - atan2f(y, x) / 6.2832f;
+        return fabsf(k - roundf(k)) * 0.16f < l * 1.2f;
     }
     case D_TREVO: {                               // quatro folhas redondas
         static const float F[4][2] = { {-0.17f,-0.02f}, {0.17f,-0.02f}, {-0.17f,0.32f}, {0.17f,0.32f} };
@@ -1443,10 +1468,6 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_JACKPOT:                               // a janela de tres rolos e a linha do premio
-        if (fabsf(v - 0.12f) < l && fabsf(u) < 0.6f) return 2;
-        if ((fabsf(v + 0.24f) < l || fabsf(v - 0.48f) < l) && fabsf(u) < 0.6f) return 1;
-        return fabsf(v - 0.12f) < 0.36f && (fabsf(u - 0.2f) < l || fabsf(u + 0.2f) < l);
     case D_COPIADOR:                              // uma copia do contorno, deslocada
         return fabsf(bitola(u, v, 4, 0.48f, -0.2f, -0.2f, 0) - 1) < l / 0.48f;
     case D_EGOISTA: {                             // uma coroa no alto
@@ -1485,13 +1506,6 @@ static int desenho_interno(int tipo, float u, float v, float s)
     case D_VIDRO:                                 // dois reflexos
         return ate_seg(u, v, -0.62f, -0.12f, -0.12f, -0.62f) < l * 1.3f
             || ate_seg(u, v, -0.62f, 0.12f, -0.42f, -0.08f) < l * 1.3f;
-    case D_ACUMULADOR: {                          // o nivel, enchendo de baixo; marcas de medida
-        int n = marca_nivel < 0 ? 0 : marca_nivel > 6 ? 6 : marca_nivel;
-        float topo = 0.95f - 1.9f * n / 6;
-        for (int k = 1; k < 6; k++)
-            if (fabsf(v - (0.95f - 1.9f * k / 6)) < l && u > -0.42f && u < -0.24f) return 2;
-        return v > topo;
-    }
     case D_SEGURANCA:                             // as barras de uma grade
         return fr((u + 0.11f) / 0.22f) < s / 0.22f * 1.2f;
     case D_BUMERANGUE: {                          // a curva do bumerangue
@@ -1533,12 +1547,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
 }
 
-// O corpo com o desenho de dentro: o poligono (ou o disco da moeda, quando
-// n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado, r o raio.
+// O corpo com a textura e o desenho de dentro: o poligono (ou o disco da
+// moeda, quando n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado,
+// r o raio. cores: o corpo, os tres tons do desenho e o grao escuro e claro.
 static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, float dcy, int dr,
                         int tipo, const uint16_t *cores, float cx, float cy, float ang, float r)
 {
     float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
+    int tex = textura_de(tipo);
     int y0, y1;
     if (n) {
         float ymin = vy[0], ymax = vy[0];
@@ -1566,11 +1582,167 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
         }
         for (int k = 0; k + 1 < nx; k += 2)
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
-                float dx = x - cx, dy = y - cy;
-                int p = desenho_interno(tipo, (dx * ca - dy * sa) * s, (dx * sa + dy * ca) * s, s);
+                float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa, v = dx * sa + dy * ca;
+                int p = desenho_interno(tipo, u * s, v * s, s);
+                if (!p) {                         // no corpo, a textura
+                    int q = padrao(tex, u, v, r / 22);
+                    p = q < 0 ? 4 : q > 0 ? 5 : 0;
+                }
                 gfx_pixel(x, y, cores[p]);
             }
     }
+}
+
+// ---------------------------------------------------------------------------
+// As pecas desenhadas a parte, como sempre foram.
+// ---------------------------------------------------------------------------
+static float mca, msa, mcx, mcy;            // a rotacao do dado em curso
+static int MX(float ox, float oy) { return (int)lroundf(mcx + ox * mca - oy * msa); }
+static int MY(float ox, float oy) { return (int)lroundf(mcy + ox * msa + oy * mca); }
+
+// Retangulo girado com o dado: centro (ox, oy), meia-largura hw, meia-altura hh.
+static void marca_ret(float ox, float oy, float hw, float hh, uint16_t c)
+{
+    float o[8] = { ox - hw, oy - hh, ox + hw, oy - hh, ox + hw, oy + hh, ox - hw, oy + hh };
+    float vx[4], vy[4];
+    for (int i = 0; i < 4; i++) {
+        vx[i] = mcx + o[2 * i] * mca - o[2 * i + 1] * msa;
+        vy[i] = mcy + o[2 * i] * msa + o[2 * i + 1] * mca;
+    }
+    poligono(vx, vy, 4, c);
+}
+
+// Espessura dos tracos: 1 px num dado pequeno, mais num grande.
+static int esp_marca(float t) { return t < 12 ? 1 : (int)(t / 11); }
+
+// Por cima do corpo: as tres caixinhas com o 7 do Jackpot (embaixo do
+// dado), as seis casas do Acumulador (acesas: o bonus guardado) e a
+// rachadura do Quebrado.
+static void marca_por_cima(int tipo, float r, int dono, uint16_t corpo, bool zerado)
+{
+    float t = r < 5 ? 5 : r;
+    if (tipo == D_QUEBRADO) {
+        uint16_t rc = dono == 0 ? C_EBANO_B : C_MARFIM_S;
+        int e = esp_marca(r);
+        gfx_linha_grossa(MX(-0.7f * r, -0.6f * r), MY(-0.7f * r, -0.6f * r), MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), e, rc);
+        gfx_linha_grossa(MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), MX(0.1f * r, -0.4f * r), MY(0.1f * r, -0.4f * r), e, rc);
+    }
+    if (zerado) return;
+    if (tipo == D_JACKPOT) {
+        float y = 1.16f * t, h = 0.19f * t + 0.8f, passo = 0.46f * t + 1;
+        marca_ret(0, y, passo * 1.5f + h * 0.3f, h + 1.2f, C_LATAO_ESC);
+        int e = t < 14 ? 1 : 2;
+        for (int i = -1; i <= 1; i++) {
+            float bx = i * passo;
+            marca_ret(bx, y, h, h, C_MARFIM);
+            // o 7: o traco de cima e a perna em diagonal
+            gfx_linha_grossa(MX(bx - h * 0.55f, y - h * 0.6f), MY(bx - h * 0.55f, y - h * 0.6f),
+                             MX(bx + h * 0.55f, y - h * 0.6f), MY(bx + h * 0.55f, y - h * 0.6f), e, C_VERMELHO);
+            gfx_linha_grossa(MX(bx + h * 0.55f, y - h * 0.6f), MY(bx + h * 0.55f, y - h * 0.6f),
+                             MX(bx - h * 0.15f, y + h * 0.7f), MY(bx - h * 0.15f, y + h * 0.7f), e, C_VERMELHO);
+        }
+    }
+    if (tipo == D_ACUMULADOR) {
+        int n = marca_nivel < 0 ? 0 : (marca_nivel > 6 ? 6 : marca_nivel);
+        static const float P[6][2] = { {0,-0.74f}, {0.56f,-0.3f}, {0.56f,0.3f}, {0,0.74f}, {-0.56f,0.3f}, {-0.56f,-0.3f} };
+        int pr = (int)(0.08f * t + 0.8f);
+        for (int i = 0; i < 6; i++) {
+            int x = MX(P[i][0] * t, P[i][1] * t), y = MY(P[i][0] * t, P[i][1] * t);
+            gfx_disco(x, y, pr + 1, gfx_mistura(corpo, C_BARRA, 30));
+            gfx_disco(x, y, pr, i < n ? RGB(238, 162, 74) : gfx_mistura(corpo, C_BARRA, 12));
+        }
+    }
+}
+
+// Borda de moeda serrilhada: aro com dentinhos em volta.
+static void serrilha(float cx, float cy, int R, uint16_t aro, uint16_t dente)
+{
+    gfx_disco((int)cx, (int)cy, R, aro);
+    int n = R < 14 ? 12 : 20;
+    for (int i = 0; i < n; i++) {
+        float a = i * 6.2832f / n;
+        gfx_pixel((int)(cx + cosf(a) * (R - 1)), (int)(cy + sinf(a) * (R - 1)), dente);
+        if (R >= 14) gfx_pixel((int)(cx + cosf(a) * (R - 2)), (int)(cy + sinf(a) * (R - 2)), dente);
+    }
+}
+
+// Tudo ou Nada: moeda de ouro. Na mao, yin-yang de marfim e ebano (pode dar
+// tudo, pode dar nada); caida, o lado que saiu: TUDO (2) marfim com brilhos
+// dourados, NADA (1) ebano rachado.
+static void tudo_ou_nada(float cx, float cy, float r, float ang, int valor, bool zerado)
+{
+    int R = (int)(r + (r < 12 ? 1 : r / 10)), Ri = R - (R < 14 ? 2 : 4);
+    serrilha(cx, cy, R, zerado ? C_FELTRO2 : C_OURO, zerado ? C_FELTRO_ESC : C_LATAO_ESC);
+    if (valor < 0) {                                   // yin-yang, girando com a moeda
+        float ca = cosf(-ang), sa = sinf(-ang), h = Ri / 2.0f;
+        for (int dy = -Ri; dy <= Ri; dy++)
+            for (int dx = -Ri; dx <= Ri; dx++) {
+                if (dx * dx + dy * dy > Ri * Ri) continue;
+                float u = dx * ca - dy * sa, v = dx * sa + dy * ca;
+                float dc = u * u + (v + h) * (v + h), db = u * u + (v - h) * (v - h);
+                bool claro = dc <= h * h ? true : db <= h * h ? false : u < 0;
+                float olho = h * 0.3f;
+                if (u * u + (v + h) * (v + h) <= olho * olho) claro = false;
+                if (u * u + (v - h) * (v - h) <= olho * olho) claro = true;
+                gfx_pixel((int)cx + dx, (int)cy + dy, claro ? (zerado ? C_MARFIM_S : C_MARFIM)
+                                                            : (zerado ? C_EBANO_B : C_EBANO));
+            }
+        return;
+    }
+    bool tudo = valor == 2;
+    uint16_t face = zerado ? C_EBANO_B : tudo ? C_MARFIM : C_EBANO;
+    gfx_disco((int)cx, (int)cy, Ri, face);
+    if (!zerado && r >= 12) {
+        // anel fino por dentro: dourado no TUDO, violeta no NADA
+        for (int i = 0; i < 48; i++) {
+            float a = i * 0.1309f;
+            gfx_pixel((int)(cx + cosf(a) * (Ri - 3)), (int)(cy + sinf(a) * (Ri - 3)), tudo ? C_OURO : C_VIOLETA);
+        }
+        if (tudo)                                       // brilhos dourados
+            for (int i = 0; i < 4; i++) {
+                float a = ang + 0.6f + i * 1.5708f;
+                int bx = (int)(cx + cosf(a) * Ri * 0.62f), by = (int)(cy + sinf(a) * Ri * 0.62f);
+                gfx_rect(bx - 2, by, 5, 1, C_OURO);
+                gfx_rect(bx, by - 2, 1, 5, C_OURO);
+            }
+        else {                                          // rachadura
+            int e = esp_marca(r);
+            gfx_linha_grossa((int)(cx + Ri * 0.15f), (int)(cy + Ri * 0.85f), (int)(cx + Ri * 0.35f), (int)(cy + Ri * 0.55f), e, C_EBANO_B);
+            gfx_linha_grossa((int)(cx + Ri * 0.35f), (int)(cy + Ri * 0.55f), (int)(cx + Ri * 0.65f), (int)(cy + Ri * 0.62f), e, C_EBANO_B);
+        }
+    }
+    char n[2] = { (char)('0' + valor), 0 };
+    numero(cx, cy, r, n, zerado ? C_MARFIM_S : tudo ? C_REAL : C_MARFIM);
+    if (zerado) risca(cx, cy, r);
+}
+
+// Ficha de Fogo: ficha de cassino laranja (lado 1) e brasa (lado 2), com
+// marcas na borda. Na mao, o centro mostra a chama; jogada, o valor.
+static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int valor, int modo, bool zerado)
+{
+    int R = (int)(r + ea);
+    float u = r / 9;                             // unidade do desenho
+    uint16_t face = modo == 0 || valor == 1 ? C_FOGO : C_BRASA;
+    gfx_disco((int)cx, (int)cy, R, gfx_mistura(face, C_BARRA, 25));
+    gfx_disco((int)cx, (int)cy - 1, R - 1, face);
+    for (int i = 0; i < 8; i++) {                // marcas da borda
+        float a = ang + i * 0.785f;
+        int mx = (int)(cx + cosf(a) * (R - 2 * u)), my = (int)(cy + sinf(a) * (R - 2 * u));
+        gfx_disco(mx, my, (int)(u + 0.5f), C_AMARELO);
+    }
+    gfx_disco((int)cx, (int)cy, (int)(R - 4 * u), face);
+    if (modo != 0) {
+        char s2[4] = { (char)('0' + valor), 0 };
+        numero(cx, cy, r, s2, C_MARFIM);
+    } else {                                     // a chama
+        int U = (int)(u + 0.5f);
+        gfx_rect((int)cx, (int)(cy - 5 * u), U, U, C_AMARELO);
+        gfx_rect((int)(cx - u), (int)(cy - 4 * u), 3 * U, 2 * U, C_AMARELO);
+        gfx_rect((int)(cx - 2 * u), (int)(cy - 2 * u), 5 * U, 4 * U, C_AMARELO);
+        gfx_rect((int)(cx - u), (int)(cy + 2 * u), 3 * U, U, C_AMARELO);
+        gfx_rect((int)cx, (int)(cy - u), U, 2 * U, C_BRASA);
+    }
+    if (zerado) risca(cx, cy, r);
 }
 
 // modo 0: parado na mao, mostra quantos lados tem.
@@ -1583,8 +1755,9 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     const visual_t *vi = &VISUAL[tipo];
     uint16_t corpo = dono == 0 ? C_MARFIM_D : C_EBANO;
     uint16_t tinta = dono == 0 ? C_EBANO : C_MARFIM;
-    uint16_t aro = aro_de(tipo, dono);
+    uint16_t aro = aro_de(tipo);
     if (vi->tom) corpo = cor_de_dado(gfx_mistura(corpo, vi->tom, dono == 0 ? vi->pct : vi->pct - 12));
+    if (tipo == D_D2) corpo = cor_de_dado(gfx_mistura(corpo, C_OURO, dono == 0 ? 58 : 46));   // moeda dourada
     if (tipo == D_VIUVA) {                        // preta para os dois, com a tinta clara
         corpo = dono == 0 ? RGB(62, 56, 50) : RGB(24, 22, 20);
         tinta = C_MARFIM;
@@ -1595,21 +1768,27 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         tinta = dono == 0 ? C_EBANO_B : C_MARFIM_S;
         aro = C_FELTRO2;
     }
-    // Os tons do desenho de dentro; anulado, ficam todos num cinza so.
-    uint16_t cores[4] = { corpo, corpo, corpo, corpo };
+    // Os tons do desenho de dentro e o grao; anulado, o desenho fica num
+    // cinza so e o grao some.
+    uint16_t cores[6] = { corpo, corpo, corpo, corpo, corpo, corpo };
     if (zerado) {
         cores[1] = cores[2] = cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 18));
     } else {
         cores[1] = tom_desenho(corpo, vi->c1, vi->p1, dono);
         cores[2] = tom_desenho(corpo, vi->c2, vi->p2, dono);
-        cores[3] = tom_desenho(corpo, RGB(96, 134, 196), 45, dono);   // so o Prisma usa
+        cores[3] = tom_desenho(corpo, vi->c3, vi->p3, dono);
+        cores[4] = gfx_mistura(corpo, C_SOMBRA, dono == 0 ? 12 : 18);
+        cores[5] = gfx_mistura(corpo, C_BRANCO, dono == 0 ? 14 : 12);
     }
-    bool desenha = vi->cor && r >= 12;
+    bool desenha = r >= 12;
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
     int so = r < 12 ? 2 : (int)(r / 6);  // deslocamento da sombra
+    mca = cosf(ang); msa = sinf(ang); mcx = cx; mcy = cy;
 
     int alt = (int)sombra_alt;                    // dado no ar: sombra mais longe
     gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
+    if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, modo, zerado); return; }
+    if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, modo == 0 ? -1 : valor, zerado); return; }
 
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
@@ -1632,6 +1811,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             else poligono(vx, vy, n, corpo);
         }
     }
+    marca_por_cima(tipo, r, dono, corpo, zerado);
 
     char s[12];
     // Vidro que tirou 1: estilhacado, com rachaduras saindo do impacto.
@@ -1701,7 +1881,7 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         }
     }
     if (fabsf(escx) < 0.35f)                           // a borda da moeda, de lado
-        gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo, dono), C_SOMBRA, 30));
+        gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo), C_SOMBRA, 30));
 }
 
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
@@ -1959,6 +2139,8 @@ static bool nao_anulavel_t(int t)
     return ef == EF_ESCUDO || ef == EF_TEIMOSO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
+// O Invejoso age com numero impar: 1, 3 ou 5.
+static bool invejoso_age(int v) { return v == 1 || v == 3 || v == 5; }
 static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
 // Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
 static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
@@ -2722,7 +2904,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             }
 
             bool couraca = tem_am(r, A_COURACA);         // os ataques dele nao anulam
-            if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && v >= 4)))
+            if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && invejoso_age(v))))
                 am_acende(A_COURACA);
             if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
             if (ef == EF_CARRASCO && v == 4) {
@@ -2753,7 +2935,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                     "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
                     }
                 }
-            } else if (ef == EF_INVEJOSO && v >= 4) {   // Invejoso: com 4 ou mais
+            } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 1, 3 ou 5
                 int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
                 // Depois de anular o do oponente, anula o maior anulavel da
                 // propria sequencia - ele mesmo, se for o maior.
@@ -6083,7 +6265,11 @@ static void desenha_catalogo(void)
     int cx = 160, cy = CENTRO + 4;
     gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));   // anel da raridade
     gfx_disco(cx, cy, 77, C_FELTRO_ESC);
-    if (d->lados == 2) {
+    if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
+        so_apagado = true;                              // fechado: apagado
+        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, st == 2);
+        so_apagado = false;
+    } else if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
         int f[24], nf = faces_de(tipo, f);

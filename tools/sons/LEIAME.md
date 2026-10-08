@@ -23,7 +23,9 @@ caindo).
 
 | Grupo | Sons | Como é feito |
 |---|---|---|
-| Mesa e dados | `bate_*`, `bate_dado_*`, `pousa_*`, `ficha_*`, `rufo`, `bolsa`, `turno`, `tique` | gravações de dados em madeira, feltro e plástico |
+| Mesa e dados | `bate_*`, `bate_dado_*`, `pousa_*`, `ficha_*`, `rufo`, `bolsa`, `turno` | gravações de dados em madeira, feltro e plástico |
+| Moedas | `moeda_bate_*`, `moeda_pousa_*`, `moeda_rola` | uma ficha leve, meio madeira: cliques de plástico mais agudos, um toque de madeira e o bambear ao deitar; mais baixas que os dados |
+| Menu | `tique` (cursor e escolher), `passa` (o mouse passando por cima) | madeira gravada, encurtada; o `passa` é mais curto e bem mais baixo |
 | Jogadas | `valido`…`valido4`, `anula`, `efeito`, `empate`, `vitoria`, `correu` | as notas do som sintetizado antigo, em teclado (Rhodes) e baixo elétrico; o `valido4` tem um sax-alto |
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
@@ -35,6 +37,7 @@ a anterior, e com um pouco de variação de tom.
 
 O volume de cada som foi igualado ao do som sintetizado que ele substituiu
 (`VOLUME` no `gera.py`); `GANHO_DB` guarda os ajustes pedidos depois
-(vidro mais forte, ventania mais baixa, o 4º valendo mais intenso).
+(vidro mais forte, ventania mais baixa, o 4º valendo mais intenso). Os sons
+que não substituíram nenhum (moedas e `passa`) ficam abaixo dos parentes.
 
 Créditos e licenças das gravações: `desktop/sons/CREDITOS.md`.

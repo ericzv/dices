@@ -584,7 +584,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -2055,10 +2055,12 @@ static bool fisica(float dt)
         v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
 
         const float r = R_DADO + 2;
-        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), SOM_BATE); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), SOM_BATE); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), SOM_BATE); v->vy = -v->vy * 0.62f; }
-        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), SOM_BATE); v->vy = -v->vy * 0.62f; }
+        bool moeda = TIPO[v->tipo].lados == 2;     // moeda tem os sons dela, mais leves
+        int borda = moeda ? SOM_MOEDA_BATE : SOM_BATE;
+        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
+        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
@@ -2070,7 +2072,7 @@ static bool fisica(float dt)
             v->parado = true;
             v->pouso = 0.18f;
             v->face = v->valor;
-            som_toca(SOM_POUSA);
+            som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
         }
     }
     // Dados se empurram quando se encontram.
@@ -2087,7 +2089,7 @@ static bool fisica(float dt)
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
             if (rv < 0) {
                 float imp = -rv * 0.8f;
-                estala(imp, SOM_BATE_DADO);
+                estala(imp, TIPO[p->tipo].lados == 2 || TIPO[q->tipo].lados == 2 ? SOM_MOEDA_BATE : SOM_BATE_DADO);
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }
@@ -3485,7 +3487,8 @@ static void lanca_proximo(void)
         w->face = rola_v(lados);
         n_voo = 2;
     }
-    som_rufo(true);                          // tensao ate o dado assentar
+    if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
+    else som_rufo(true);                     // o dado rolando ate assentar
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -4838,7 +4841,7 @@ static void trata_esc(void)
     switch (fase) {
     case F_ABERTURA: if (menu_tela) menu_volta(); return;
     case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
-    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM:
+    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM: case F_CREDITOS:
         volta_ao_menu();                     // a run fica guardada
         return;
     case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_REVENTO:
@@ -6995,7 +6998,7 @@ void dado_mouse(int x, int y, int acao)
         // que vao para o rival: la so o clique vale.
         if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
             *z->var = z->val;
-            som_toca(SOM_TIQUE);
+            som_toca(SOM_PASSA);                  // mais curto e baixo que o de escolher
         }
         return;
     }
@@ -7023,7 +7026,7 @@ void dado_mouse(int x, int y, int acao)
     case F_ONLINE:
         if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
         break;
-    case F_RESULTADO: case F_FIM: case F_RFIM: case F_VEREDITO: case F_EFEITOS:
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS:
         manda_tecla(KEY_ENTER);
         break;
     case F_PREMIO:

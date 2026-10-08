@@ -276,6 +276,11 @@ def tique():
     x = pb(superficie('surface_wood_table3'), 5000)[:int(0.06 * SR)]
     return sala(tom(x * env(len(x), 0.0005, 0.012), 7), 0.06)
 
+def passa():
+    """O mouse passando por cima: um tic bem curto, agudo e baixinho."""
+    x = pb(superficie('surface_wood_table3'), 6000)[:int(0.02 * SR)]
+    return sala(tom(x * env(len(x), 0.0003, 0.004), 12), 0.03)
+
 def bate(v):         return sala(superficie(MADEIRA[v % len(MADEIRA)]), 0.08)
 def bate_dado(v):    return sala(batida(PLASTICO[v % len(PLASTICO)]), 0.08)
 def pousa(v):        return sala(superficie(FELTRO[v % len(FELTRO)]), 0.10)
@@ -287,6 +292,33 @@ def ficha(v):
         m.poe(t, tom(batida(PLASTICO[(v * 3 + k) % len(PLASTICO)]), -4 + r.uniform(-1, 1)), g)
     m.poe(0, superficie('surface_felt2'), 0.25)
     return sala(m.x, 0.12)
+
+# Moeda: nem metal nem dado. Uma ficha leve, meio madeira: o clique de
+# plastico mais agudo com um toque de madeira por baixo.
+def moeda_bate(v):
+    """A moeda bate na borda ou num dado."""
+    m = Mix(0.3)
+    m.poe(0, tom(batida(PLASTICO[(v * 3 + 1) % len(PLASTICO)]), rnd.uniform(-1, 1)), 1.0)
+    w = pa(superficie(['surface_wood_table2', 'surface_wood_table3', 'surface_wood_table4'][v % 3]), 1500)
+    w = w[:int(0.04 * SR)] * env(int(0.04 * SR), 0.0005, 0.008)
+    m.poe(0, tom(w, 3), 0.45)
+    return sala(m.x, 0.08)
+
+def moeda_pousa(v):
+    """A moeda cai deitada no feltro e bambeia ate parar: um baque macio e
+    tiques cada vez mais rapidos e fracos."""
+    m = Mix(0.7)
+    m.poe(0, pb(superficie(FELTRO[v % len(FELTRO)]), 2500), 0.5)
+    t, passo, g = 0.03, 0.075, 0.38
+    k = 0
+    while passo > 0.018:
+        e = pa(tom(batida(PLASTICO[(v + k) % len(PLASTICO)]), 2 + rnd.uniform(-0.5, 0.5)), 2000)
+        m.poe(t, e, g)
+        t += passo
+        passo *= 0.78
+        g *= 0.82
+        k += 1
+    return sala(m.x, 0.1)
 
 def turno():
     m = Mix(0.5)
@@ -321,6 +353,20 @@ def rufo():
             m.poe(t + 0.01, batida(rnd.choice(PLASTICO)), cresce * 0.25)
         t += rnd.uniform(0.045, 0.085)
     return sala(loop(m, 8.0), 0.10)[:int(8.0 * SR)]
+
+def moeda_rola():
+    """A moeda girando enquanto corre a mesa: a beirada tocando o feltro a
+    cada volta, com um sopro bem leve que pulsa no giro (8 s)."""
+    m = Mix(9.0)
+    n = int(8.0 * SR); t = np.arange(n) / SR
+    giro = np.abs(np.sin(2 * np.pi * 7.0 * t + 0.6 * np.sin(2 * np.pi * 0.4 * t))) ** 3
+    m.poe(0, banda(rng.standard_normal(n), 600, 2500) * (0.2 + 0.8 * giro), 0.015)
+    tt = 0.05
+    while tt < 8.0:
+        e = pb(pa(tom(batida(rnd.choice(PLASTICO)), 4 + rnd.uniform(-1, 1)), 1800), 5000)
+        m.poe(tt, e, rnd.uniform(0.08, 0.16))
+        tt += rnd.uniform(0.07, 0.16)
+    return sala(loop(m, 8.0), 0.08)[:n]
 
 # ---------------------------------------------------------------------------
 # Jogadas e partida: as notas e os tempos do som.c antigo, em teclado e baixo
@@ -749,12 +795,16 @@ VOLUME = {
     'valido': 0.1302, 'valido2': 0.1333, 'valido3': 0.1583, 'valido4': 0.144, 'vento': 0.0788,
     'vidro': 0.0806, 'vitoria': 0.1194, 'zera': 0.1765,
 }
+# Os sons novos, que nao substituem nenhum, ficam abaixo dos parentes:
+VOLUME.update({'passa': VOLUME['tique'] * 0.32, 'moeda_bate': VOLUME['bate'] * 0.6,
+               'moeda_pousa': VOLUME['pousa'] * 0.45, 'moeda_rola': VOLUME['rufo'] * 0.5})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
 SONS = {
     'tique': (tique, 'tique'), 'turno': (turno, 'turno'), 'bolsa': (bolsa, 'bolsa'),
-    'rufo': (rufo, 'rufo'), 'giro': (giro, 'giro'),
+    'rufo': (rufo, 'rufo'), 'giro': (giro, 'giro'), 'passa': (passa, 'passa'),
+    'moeda_rola': (moeda_rola, 'moeda_rola'),
     'valido': (lambda: valido(0), 'valido'), 'valido2': (lambda: valido(1), 'valido2'),
     'valido3': (lambda: valido(2), 'valido3'), 'valido4': (lambda: valido(3), 'valido4'),
     'anula': (anula, 'anula'), 'efeito': (efeito, 'efeito'), 'vitoria': (vitoria, 'vitoria'),
@@ -771,6 +821,9 @@ for v in range(4):
     SONS['ficha_%d' % v] = ((lambda v=v: ficha(v)), 'ficha')
 for v in range(5):
     SONS['pousa_%d' % v] = ((lambda v=v: pousa(v)), 'pousa')
+for v in range(3):
+    SONS['moeda_bate_%d' % v] = ((lambda v=v: moeda_bate(v)), 'moeda_bate')
+    SONS['moeda_pousa_%d' % v] = ((lambda v=v: moeda_pousa(v)), 'moeda_pousa')
 
 def gera(nome, saida):
     semeia(nome)
@@ -780,7 +833,7 @@ def gera(nome, saida):
     else:
         receita, ref = SONS[nome]
         x = receita()
-        if nome not in ('rufo', 'giro'): x = acaba(x)
+        if nome not in ('rufo', 'giro', 'moeda_rola'): x = acaba(x)
         alvo = VOLUME[ref] * 10 ** (GANHO_DB.get(nome, 0.0) / 20)
         x = iguala(x, alvo)
         grava_ogg(os.path.join(saida, nome + '.ogg'), x)

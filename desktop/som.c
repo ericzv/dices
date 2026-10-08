@@ -4,7 +4,8 @@
 //
 //  - Trilha: a bossa de 16 compassos do jogo, tocada por teclado (um Rhodes
 //    gravado) e baixo eletrico, com vassourinha e shaker; em loop.
-//  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha.
+//  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
+//    moeda tem o seu: a beirada tocando o feltro a cada volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
 //  - Efeitos: dados, feltro, madeira e fichas de verdade; as jogadas e a
 //    partida no mesmo teclado e baixo da trilha. Batidas, pousos e fichas
@@ -35,7 +36,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_BOLSA] = "bolsa",       [SOM_EMPATE] = "empate",     [SOM_SLOT] = "slot",
     [SOM_PREMIO] = "premio",     [SOM_VIDRO] = "vidro",       [SOM_BIGORNA] = "bigorna",
     [SOM_VALIDO2] = "valido2",   [SOM_VALIDO3] = "valido3",   [SOM_VALIDO4] = "valido4",
-    [SOM_BATE_DADO] = "bate_dado",
+    [SOM_BATE_DADO] = "bate_dado", [SOM_PASSA] = "passa",
+    [SOM_MOEDA_BATE] = "moeda_bate", [SOM_MOEDA_POUSA] = "moeda_pousa",
 };
 
 typedef struct {
@@ -44,7 +46,8 @@ typedef struct {
 } efeito_t;
 
 static efeito_t ef[SOM_N];
-static Sound rufo, giro;
+static Sound rufo, moeda_rola, giro;
+static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static Music trilha;
 static bool  pronto, falhou, ligado = true, musica = true;
 static bool  rufando, girando;
@@ -88,6 +91,7 @@ void som_inicia(void)
     if (!IsAudioDeviceReady()) { falhou = true; ligado = false; return; }
     for (int s = 0; s < SOM_N; s++) monta_efeito(s);
     rufo = carrega(acha("rufo"));
+    moeda_rola = carrega(acha("moeda_rola"));
     giro = carrega(acha("giro"));
     const som_arquivo_t *t = acha("trilha");
     if (t) {
@@ -109,6 +113,7 @@ void som_encerra(void)
             UnloadSound(ef[s].base[v]);
         }
     UnloadSound(rufo);
+    UnloadSound(moeda_rola);
     UnloadSound(giro);
     UnloadMusicStream(trilha);
     pronto = false;
@@ -120,9 +125,9 @@ void som_atualiza(float dt)
     // O rufo entra em 60 ms e sai em 120 ms; a trilha abaixa enquanto ele toca.
     float alvo = rufando && ligado ? 1 : 0;
     vol_rufo += (alvo - vol_rufo) * fminf(1, dt / (rufando ? 0.06f : 0.12f));
-    if (IsSoundPlaying(rufo)) {
-        SetSoundVolume(rufo, vol_rufo * 0.8f);
-        if (!rufando && vol_rufo < 0.01f) StopSound(rufo);
+    if (IsSoundPlaying(*rolando)) {
+        SetSoundVolume(*rolando, vol_rufo * 0.8f);
+        if (!rufando && vol_rufo < 0.01f) StopSound(*rolando);
     }
     // O giro entra na hora e sai em 80 ms, quando o ultimo rolo trava.
     float ag = girando && ligado ? 1 : 0;
@@ -149,20 +154,33 @@ void som_toca(int s)
     }
     Sound voz = e->voz[v][e->prox++ % VOZES];
     // Batidas, pousos e fichas tambem variam um pouco de tom.
-    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA)
+    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
+        s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA)
         SetSoundPitch(voz, 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f);
     PlaySound(voz);
+}
+
+static void comeca_a_rolar(Sound *s)
+{
+    if (rufando && rolando == s) return;
+    StopSound(*rolando);
+    rolando = s;
+    vol_rufo = 0;
+    SetSoundVolume(*s, 0);
+    PlaySound(*s);
+    rufando = true;
 }
 
 void som_rufo(bool on)
 {
     if (!pronto) return;
-    if (on && !rufando) {
-        vol_rufo = 0;
-        SetSoundVolume(rufo, 0);
-        PlaySound(rufo);
-    }
-    rufando = on;
+    if (on) comeca_a_rolar(&rufo);
+    else rufando = false;
+}
+
+void som_rufo_moeda(void)
+{
+    if (pronto) comeca_a_rolar(&moeda_rola);
 }
 
 void som_giro(bool on)

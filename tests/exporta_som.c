@@ -17,8 +17,8 @@ int main(int argc, char **argv)
             erros++;
         }
     }
-    static const char *const LOOPS[] = { "rufo", "giro", "trilha" };
-    for (int i = 0; i < 3; i++)
+    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha" };
+    for (int i = 0; i < 4; i++)
         if (!acha(LOOPS[i])) { printf("falta %s\n", LOOPS[i]); erros++; }
 
     for (int i = 0; i < SONS_N; i++) {

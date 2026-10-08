@@ -70,11 +70,15 @@ add_custom_command(OUTPUT ${SONS_C}
     DEPENDS ${SONS_OGG} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
     COMMENT "Embutindo os sons do jogo"
     VERBATIM)
+# Um alvo so e dono do .c gerado: se o jogo e o teste o listassem cada um, o
+# build em paralelo poderia gerar o arquivo duas vezes ao mesmo tempo.
+add_library(sons STATIC ${SONS_C})
+target_include_directories(sons PUBLIC desktop)
 
 if (EMSCRIPTEN)
-    set(FONTES desktop/main.c desktop/som.c ${SONS_C} desktop/salva.c web/rede.c)
+    set(FONTES desktop/main.c desktop/som.c desktop/salva.c web/rede.c)
 else()
-    set(FONTES desktop/main.c desktop/som.c ${SONS_C} desktop/salva.c desktop/rede.c)
+    set(FONTES desktop/main.c desktop/som.c desktop/salva.c desktop/rede.c)
 endif()
 if (WIN32)
     list(APPEND FONTES desktop/dado.rc)
@@ -86,7 +90,7 @@ if (APPLE)
 endif()
 
 add_executable(dado WIN32 MACOSX_BUNDLE ${FONTES})
-target_link_libraries(dado PRIVATE jogo raylib)
+target_link_libraries(dado PRIVATE jogo sons raylib)
 set_target_properties(dado PROPERTIES
     OUTPUT_NAME "DadoEmCasa"
     MACOSX_BUNDLE_BUNDLE_NAME "Dado em Casa"
@@ -145,8 +149,8 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     add_test(NAME desafio COMMAND desafio 6)
     # Confere que todo som do jogo tem gravacao e que todas decodificam;
     # exporta tudo em WAV, para ouvir fora do jogo.
-    add_executable(exporta_som tests/exporta_som.c ${SONS_C})
+    add_executable(exporta_som tests/exporta_som.c)
     target_include_directories(exporta_som PRIVATE src desktop)
-    target_link_libraries(exporta_som PRIVATE raylib)
+    target_link_libraries(exporta_som PRIVATE sons raylib)
     add_test(NAME sons COMMAND exporta_som ${CMAKE_CURRENT_BINARY_DIR})
 endif()

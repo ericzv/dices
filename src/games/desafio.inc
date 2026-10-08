@@ -184,7 +184,7 @@ static const perso_t PERSO[] = {
         { "Você saca rápido, forasteiro.", "Tiro limpo. Respeito." } } },
     { "O MONGE",         "Não aposta contra o destino.",      -0.6f,
       { D_SENTINELA, D_SOLITARIO, D_MISERICORDIOSO, D_TEIMOSO, D_D8 },
-      "Equilíbrio", "Na 1ª queda de cada rodada, o dado de antes não cai; só o novo.", AM(A_FERRADURA), REG_NADA,
+      "Equilíbrio", "Uma vez por rodada, na primeira queda que nada mais segurou, o dado de antes fica.", AM(A_FERRADURA), REG_NADA,
       { { "Respire. Os dados também respiram.", "Que a mesa nos ensine algo." },
         { "A pressa derruba o que ergue.", "Tudo que sobe, cai." },
         { "Assim é.", "O rio segue o seu curso." },
@@ -961,7 +961,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
-    [A_FERRADURA]= { "Ferradura",     "Na primeira queda de cada rodada, o dado de antes não cai; só o novo.", C_PRATA },
+    [A_FERRADURA]= { "Ferradura",     "Uma vez por rodada, na primeira queda que nada mais segurou, o dado de antes fica.", C_PRATA },
     [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
     [A_RELOGIO]  = { "Relógio de Bolso", "Na primeira rodada e quando você está atrás em fichas, o oponente abre; você joga depois.", RGB(214, 186, 110) },
     [A_CARTOLA]  = { "Cartola",       "O prêmio de cada mesa vencida sobe um nível.", RGB(150, 110, 170) },
@@ -2360,7 +2360,43 @@ static void desenha_fim_run(void)
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
     txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58), "ENTER volta ao menu", C_MARFIM_S);
+    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58), des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+}
+
+// Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha
+// entra um instante depois da anterior.
+static void desenha_creditos(void)
+{
+    static const struct { const char *s; int tipo; } L[] = {
+        { "Dado em Casa, criado por ERICZ", 0 },
+        { "Sons", 1 },
+        { "Dados, feltro e madeira: dice-box-threejs, de 3D Dice (MIT)", 2 },
+        { "Teclado: jRhodes3d, um Rhodes de 1977 gravado por J. Learman", 2 },
+        { "Baixo e sax: Karoryfer, coleção tonejs-instruments (CC BY 3.0)", 2 },
+        { "Vibrafone, celesta e outros: FluidR3 GM, de Frank Wen (CC BY 3.0)", 2 },
+        { "Fontes", 1 },
+        { "Jersey 10, Tiny5 e Bitcount Prop Single (SIL Open Font License)", 2 },
+        { "Obrigado por jogar.", 3 },
+    };
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    faixa_run(0);
+    const int y0 = MESA_Y0 + 6;                                 // cabe todo dentro do feltro
+    painel(y0, MESA_Y1 - 6 - y0, 520);
+    txt_sombra_c(GFX_W / 2, y0 + 8, "CRÉDITOS", C_OURO, 2);
+    int y = y0 + 48;
+    for (int i = 0; i < (int)(sizeof L / sizeof L[0]); i++) {
+        if (L[i].tipo == 1 || L[i].tipo == 3) y += 4;          // folga antes de cada bloco
+        if (t_fase > 0.2f + i * 0.08f) {
+            switch (L[i].tipo) {
+            case 0: txt_c(GFX_W / 2, y, L[i].s, C_MARFIM, true);  break;
+            case 1: txt_c(GFX_W / 2, y, L[i].s, C_LATAO, true);   break;
+            case 2: txt_c(GFX_W / 2, y, L[i].s, C_TEXTO_M, false); break;
+            default: txt_c(GFX_W / 2, y, L[i].s, C_OURO, true);   break;
+            }
+        }
+        y += L[i].tipo == 2 ? LINHA_FINA : L[i].tipo == 1 ? 18 : 20;
+    }
+    teclas_c(GFX_W / 2, y + 10, "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
@@ -3418,6 +3454,7 @@ static bool des_desenha(void)
     case F_RLOJA:  desenha_loja_run();  return true;
     case F_RBOLSA: desenha_bolsa_run(); return true;
     case F_RFIM:   desenha_fim_run();   return true;
+    case F_CREDITOS: desenha_creditos(); return true;
     case F_RAMULETO: desenha_amuleto_run(); return true;
     case F_PERFIS: desenha_perfis();    return true;
     case F_PCRIA:  desenha_cria_perfil(); return true;
@@ -3541,6 +3578,12 @@ static bool des_tecla(int k, int e)
         return true;
 
     case F_RFIM:
+        if (k != KEY_ENTER) return true;
+        if (des_venceu_run) { t_fase = 0; fase = F_CREDITOS; }   // venceu: os creditos antes do menu
+        else volta_ao_menu();
+        return true;
+
+    case F_CREDITOS:
         if (k == KEY_ENTER) volta_ao_menu();
         return true;
 

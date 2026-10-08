@@ -584,7 +584,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -598,6 +598,11 @@ static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];
 static char aviso[64], veredito[64], nota[48];
+// A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
+// decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
+static char anuncio[64];
+static uint16_t anuncio_cor;
+static float t_anuncio;
 static int  ver_tipo;
 static bool ver_comum;               // veredito do dia a dia (vale 5, caiu): so o numero fala
 static int  anulou_a, anulou_b;
@@ -2032,9 +2037,10 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(cor_aro(tipo), C_SOMBRA, 30));
 }
 
-static void estala(float forca)
+// som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
+static void estala(float forca, int som)
 {
-    if (forca > 100 && t_fase - t_som > 0.03f) { som_toca(SOM_BATE); t_som = t_fase; }
+    if (forca > 100 && t_fase - t_som > 0.03f) { som_toca(som); t_som = t_fase; }
 }
 
 // Um passo de fisica para todos os dados no ar. Devolve true quando todos
@@ -2054,10 +2060,12 @@ static bool fisica(float dt)
         v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
 
         const float r = R_DADO + 2;
-        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
-        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
+        bool moeda = TIPO[v->tipo].lados == 2;     // moeda tem os sons dela, mais leves
+        int borda = moeda ? SOM_MOEDA_BATE : SOM_BATE;
+        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
+        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
@@ -2069,7 +2077,7 @@ static bool fisica(float dt)
             v->parado = true;
             v->pouso = 0.18f;
             v->face = v->valor;
-            som_toca(SOM_POUSA);
+            som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
         }
     }
     // Dados se empurram quando se encontram.
@@ -2086,7 +2094,7 @@ static bool fisica(float dt)
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
             if (rv < 0) {
                 float imp = -rv * 0.8f;
-                estala(imp);
+                estala(imp, TIPO[p->tipo].lados == 2 || TIPO[q->tipo].lados == 2 ? SOM_MOEDA_BATE : SOM_BATE_DADO);
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }
@@ -2490,7 +2498,8 @@ static void aplica_regra(int j, int k)
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
-        // Ferradura: na primeira queda da rodada, o dado de antes fica.
+        // Ferradura: uma vez por rodada, na primeira queda que nada mais
+        // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
         bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
                     && !sentinela && !luva && !rede;
         if (luva) am_disparou |= 1u << A_LUVA;
@@ -3484,7 +3493,8 @@ static void lanca_proximo(void)
         w->face = rola_v(lados);
         n_voo = 2;
     }
-    som_rufo(true);                          // tensao ate o dado assentar
+    if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
+    else som_rufo(true);                     // o dado rolando ate assentar
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -3756,9 +3766,25 @@ static void aplica_evento(int i)
     }
 }
 
+// A maquina joga contra uma pessoa? Entao os menus dela nao aparecem, e o que
+// ela decide vira uma linha curta (maquina contra maquina, nos testes, nao).
+static bool anuncia_maquina(void)
+{
+    return (cpu >> vez & 1) && !(cpu >> outro(vez) & 1);
+}
+
+static void anuncia(const char *fmt, const char *quem, int v)
+{
+    snprintf(anuncio, sizeof anuncio, fmt, quem, v);
+    anuncio_cor = J[vez].cor;
+    t_anuncio = 1.3f;
+}
+
 static void termina_turno(void)
 {
     som_toca(SOM_TURNO);
+    if (anuncia_maquina() && vez == primeiro)
+        anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);
     if (vez == primeiro) {
         a_pagar = 0; passes = 0; aumentou = false;
         cursor = 0;
@@ -3835,9 +3861,11 @@ static uint16_t tinta_op(int op)
 static void executa(int op)
 {
     jogador_t *p = &J[vez];
+    bool maquina = anuncia_maquina();
     if (op != OP_PASSAR && op != OP_CORRER) som_toca(SOM_FICHA);
     switch (op) {
     case OP_PASSAR:
+        if (maquina) anuncia("%s passou", p->nome, 0);
         if (++passes >= 2) { comeca_segundo(); return; }
         break;
     case OP_APOSTAR10:
@@ -3845,11 +3873,13 @@ static void executa(int op)
         int b = limite(op == OP_APOSTAR10 ? 10 : 25);
         if (b <= 0) { comeca_segundo(); return; }
         p->fichas -= b; pote += b; a_pagar = b;
+        if (maquina) anuncia("%s apostou %d", p->nome, b);
         break;
     }
     case OP_PAGAR: {
         int b = a_pagar < p->fichas ? a_pagar : p->fichas;
         p->fichas -= b; pote += b;
+        if (maquina) anuncia("%s pagou %d", p->nome, b);
         comeca_segundo();
         return;
     }
@@ -3860,6 +3890,7 @@ static void executa(int op)
         p->fichas -= a_pagar + sobe; pote += a_pagar + sobe;
         a_pagar = sobe;
         aumentou = true;
+        if (maquina) anuncia("%s pagou e aumentou %d", p->nome, sobe);
         break;
     }
     case OP_CORRER: {
@@ -4718,9 +4749,10 @@ static void ia_passo(float dt)
     ia_nivel = nivel_jog[vez & 1];
     ia_ousadia = ousadia_jog[vez & 1];
     if (!ia_na_vez() || (fase == F_PREMIO && (t_tira > 0 || slot_girando()))) { ia_fase = -1; return; }
+    if (t_anuncio > 0) return;                // a pessoa ainda le o que ela fez
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
         ia_fase = fase; ia_vez = vez;
-        t_ia = fase == F_ORDEM ? -0.4f : 0;
+        t_ia = fase == F_ORDEM && !anuncia_maquina() ? -0.4f : 0;
     }
     t_ia += dt;
     if (t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
@@ -4734,9 +4766,14 @@ static void ia_passo(float dt)
         break;
     }
     case F_ORDEM: {
-        int i = ia_nivel == 0 ? facil_proximo_da_fila() : ia_proximo_da_fila();
-        if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
-        else trata_tecla(KEY_TAB);
+        // Contra uma pessoa, monta a sequencia inteira de uma vez: o menu
+        // dela nao aparece, so os dados indo para a fila.
+        int vezes = anuncia_maquina() ? N_FILA + 1 : 1;
+        for (int n = 0; n < vezes && fase == F_ORDEM; n++) {
+            int i = ia_nivel == 0 ? facil_proximo_da_fila() : ia_proximo_da_fila();
+            if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
+            else { trata_tecla(KEY_TAB); break; }
+        }
         break;
     }
     case F_JOGA:
@@ -4837,7 +4874,7 @@ static void trata_esc(void)
     switch (fase) {
     case F_ABERTURA: if (menu_tela) menu_volta(); return;
     case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
-    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM:
+    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM: case F_CREDITOS:
         volta_ao_menu();                     // a run fica guardada
         return;
     case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_REVENTO:
@@ -4878,6 +4915,7 @@ void dado_passo(float dt)
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
     t_fase += dt;
+    if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
@@ -5240,6 +5278,25 @@ static bool ventania_agora(int j)
         && f->tipo[f->lancados - 1] == D_VENTANIA && t_fase < 0.7f;
 }
 
+// Tira a cor do que foi desenhado por cima da mesa numa caixa: fica cinza e
+// com menos contraste. O feltro, a sombra e o lugar marcado nao mudam.
+static void acinzenta(int x0, int y0, int w, int h, int pct)
+{
+    uint16_t *fb = display_fb();
+    for (int y = y0 < 0 ? 0 : y0; y < y0 + h && y < GFX_H; y++)
+        for (int x = x0 < 0 ? 0 : x0; x < x0 + w && x < GFX_W; x++) {
+            int i = y * GFX_W + x;
+            uint16_t c = fb[i];
+            if (c == mesa_pronta[i] || c == C_FELTRO_ESC || c == C_SOMBRA) continue;
+            int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
+            int l = 70 + ((r * 77 + g * 150 + b * 29) >> 8) * 45 / 100;   // cinza, puxado para o meio
+            r += (l - r) * pct / 100;
+            g += (l - g) * pct / 100;
+            b += (l - b) * pct / 100;
+            fb[i] = RGB(r, g, b);
+        }
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -5272,6 +5329,7 @@ static void desenha_fila(int j)
             marca_nivel = f->fixo[k];
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
             marca_nivel = -1;
+            acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);       // ainda nao foi jogado
             continue;
         }
         uint8_t est = no_desfecho ? vis_est[j][k] : f->est[k];
@@ -5904,6 +5962,9 @@ static void desenha_joga(void)
     // caiu) fala o numero que sobe do dado; o painel so aparece para o que
     // e especial, numa linha.
     if (fase == F_ROLANDO || fase == F_ARRUMA || (fase == F_VEREDITO && ver_comum)) { pote_mesa(); return; }
+    // A maquina joga com a mesa limpa: nem o nome nem o dado da vez, so os
+    // dados caindo (o que for especial ainda aparece no veredito).
+    if (fase == F_JOGA && anuncia_maquina()) { pote_mesa(); return; }
     if (fase == F_VEREDITO) {
         uint16_t c = ver_tipo == 0 ? C_OURO : ver_tipo == 2 ? C_ACO
                    : ver_tipo == 4 ? gfx_mistura(C_EGO, C_BRANCO, 25) : C_VINHO_CLR;
@@ -5913,15 +5974,16 @@ static void desenha_joga(void)
         return;
     }
     bool prox = fase == F_JOGA && f->lancados < f->n;     // o proximo dado da fila, junto do nome
+    bool menu = fase == F_JOGA && !anuncia_maquina();     // a maquina joga sem botoes
     int w = prox ? larg_quem_e_dado(t, tipo_de(vez, f->lancados)) : gfx_largura(t, 1);
-    if (fase == F_JOGA && larg_botoes(rot, 2) > w) w = larg_botoes(rot, 2);
-    int h = fase == F_JOGA ? (prox ? 2 * TXT_H : TXT_H) + BOTAO_H + 12 : 2 * TXT_H + 4;
+    if (menu && larg_botoes(rot, 2) > w) w = larg_botoes(rot, 2);
+    int h = fase == F_JOGA ? (prox ? 2 * TXT_H : TXT_H) + (menu ? BOTAO_H + 12 : 4) : 2 * TXT_H + 4;
     painel(y1 - 5, h, larg_painel(w, 220));
 
     if (prox) quem_e_dado(y1, t, p->cor, tipo_de(vez, f->lancados));
     else txt_c(GFX_W / 2, y1, t, p->cor, true);
 
-    if (fase == F_JOGA) {
+    if (menu) {
         bool ativo[2] = { f->lancados < f->n, true };
         static const uint16_t TINTA_JOGA[2] = { RGB(38, 96, 64), RGB(40, 62, 104) };   // jogar, parar
         botoes(y1 + (prox ? 2 * TXT_H : TXT_H) + 1, rot, ativo, 2, p->cor, TINTA_JOGA);
@@ -5950,14 +6012,15 @@ static void desenha_aposta(void)
         rotulo_op(op[i], r[i], sizeof r[i]); rot[i] = r[i]; ativo[i] = true;
         tinta[i] = tinta_op(op[i]);
     }
+    bool menu = !anuncia_maquina();              // a maquina decide sem botoes
     int w = wt + sep + wq;
-    if (larg_botoes(rot, n) > w) w = larg_botoes(rot, n);
-    painel(y1 - 5, TXT_H + BOTAO_H + 20, larg_painel(w, 220));
+    if (menu && larg_botoes(rot, n) > w) w = larg_botoes(rot, n);
+    painel(y1 - 5, menu ? TXT_H + BOTAO_H + 20 : TXT_H + 8, larg_painel(w, 220));
     int x = GFX_W / 2 - (wt + sep + wq) / 2;
     gfx_texto(x, y1, t, J[primeiro].cor, 1, true);
     txt_c(x + wt + sep / 2, y1, "·", C_TEXTO_M, false);
     gfx_texto(x + wt + sep, y1, qq, J[vez].cor, 1, false);
-    botoes(y1 + TXT_H + 6, rot, ativo, n, J[vez].cor, tinta);
+    if (menu) botoes(y1 + TXT_H + 6, rot, ativo, n, J[vez].cor, tinta);
     pote_mesa();
 }
 
@@ -6711,6 +6774,24 @@ static void desenha_aviso_entrada(void)
         }
 }
 
+// O que a maquina acabou de fazer, numa linha, onde ficariam os menus dela.
+static void desenha_anuncio(void)
+{
+    int y1 = CENTRO - 40;
+    painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(anuncio, 1), 160));
+    txt_c(GFX_W / 2, y1 - 1, anuncio, anuncio_cor, true);
+}
+
+// A maquina montando a sequencia: so o nome, sem a mao e sem o menu.
+static void desenha_maquina_monta(void)
+{
+    char t[64];
+    snprintf(t, sizeof t, "%s monta a sequência", J[vez].nome);
+    int y1 = CENTRO - 40;
+    painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(t, 1), 160));
+    txt_c(GFX_W / 2, y1 - 1, t, J[vez].cor, true);
+}
+
 static void desenha_avisos(void)
 {
     const char *msg = NULL;
@@ -6799,6 +6880,8 @@ void dado_desenha(void)
     zonas_fase = fase;
     desenha_tudo();
     desenha_flutua();
+    // O que a maquina fez fica por cima dos numeros que ainda sobem dos dados.
+    if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA)) desenha_anuncio();
     balao_oponente();
     desenha_confete();
     bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
@@ -6836,12 +6919,19 @@ static void desenha_tudo(void)
     case F_FIM:    if (modo == M_DESAFIO) desenha_fim_partida_run(); else desenha_fim(); break;
     case F_ORDEM:
         desenha_fila(outro(vez));
+        if (t_anuncio > 0) break;                // o anuncio vem por cima, no fim
+        if (anuncia_maquina()) {                 // a maquina monta sem menu
+            desenha_fila(vez);
+            desenha_maquina_monta();
+            break;
+        }
         desenha_ordem();
         break;
     default:
         desenha_fila(outro(vez));
         desenha_fila(vez);
-        if (fase == F_APOSTA)         desenha_aposta();
+        if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
+        else if (fase == F_APOSTA)    desenha_aposta();
         else if (fase == F_RESULTADO) desenha_resultado();
         else if (fase == F_EFEITOS)   desenha_efeitos();
         else                          desenha_joga();
@@ -6905,7 +6995,7 @@ static void poe_na_fila(int i)
         f->fixo[f->n] = p->col[c].fixo;
         f->n++;
     }
-    som_toca(SOM_TIQUE);
+    if (!anuncia_maquina()) som_toca(SOM_TIQUE);
 }
 
 void dado_tecla(const key_event_t *ev_)
@@ -6915,6 +7005,7 @@ void dado_tecla(const key_event_t *ev_)
 
     if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
+    if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
     if (k == 'v' && !dado_digitando()) {
         rapido = !rapido;
         salva_grava("vel", rapido ? "1" : "0");
@@ -6994,7 +7085,7 @@ void dado_mouse(int x, int y, int acao)
         // que vao para o rival: la so o clique vale.
         if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
             *z->var = z->val;
-            som_toca(SOM_TIQUE);
+            som_toca(SOM_PASSA);                  // mais curto e baixo que o de escolher
         }
         return;
     }
@@ -7022,7 +7113,7 @@ void dado_mouse(int x, int y, int acao)
     case F_ONLINE:
         if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
         break;
-    case F_RESULTADO: case F_FIM: case F_RFIM: case F_VEREDITO: case F_EFEITOS:
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS:
         manda_tecla(KEY_ENTER);
         break;
     case F_PREMIO:

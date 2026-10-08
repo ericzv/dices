@@ -2,3 +2,6 @@ build*/
 .DS_Store
 *.ppm
 dado_*.png
+
+tools/sons/fontes/
+__pycache__/

@@ -2032,9 +2032,10 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(cor_aro(tipo), C_SOMBRA, 30));
 }
 
-static void estala(float forca)
+// som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
+static void estala(float forca, int som)
 {
-    if (forca > 100 && t_fase - t_som > 0.03f) { som_toca(SOM_BATE); t_som = t_fase; }
+    if (forca > 100 && t_fase - t_som > 0.03f) { som_toca(som); t_som = t_fase; }
 }
 
 // Um passo de fisica para todos os dados no ar. Devolve true quando todos
@@ -2054,10 +2055,10 @@ static bool fisica(float dt)
         v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
 
         const float r = R_DADO + 2;
-        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
-        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
+        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), SOM_BATE); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), SOM_BATE); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), SOM_BATE); v->vy = -v->vy * 0.62f; }
+        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), SOM_BATE); v->vy = -v->vy * 0.62f; }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
@@ -2086,7 +2087,7 @@ static bool fisica(float dt)
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
             if (rv < 0) {
                 float imp = -rv * 0.8f;
-                estala(imp);
+                estala(imp, SOM_BATE_DADO);
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }

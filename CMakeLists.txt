@@ -58,10 +58,23 @@ if (UNIX)
     target_link_libraries(jogo PUBLIC m)
 endif()
 
+# Os sons (desktop/sons/*.ogg) vao dentro do executavel: no build, o CMake
+# gera um .c com os bytes de cada arquivo (cmake/embute_sons.cmake).
+file(GLOB SONS_OGG CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons/*.ogg)
+list(SORT SONS_OGG)
+string(REPLACE ";" "|" SONS_LISTA "${SONS_OGG}")   # o ; viraria separador de comando
+set(SONS_C ${CMAKE_CURRENT_BINARY_DIR}/sons_embutidos.c)
+add_custom_command(OUTPUT ${SONS_C}
+    COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DARQUIVOS=${SONS_LISTA}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
+    DEPENDS ${SONS_OGG} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
+    COMMENT "Embutindo os sons do jogo"
+    VERBATIM)
+
 if (EMSCRIPTEN)
-    set(FONTES desktop/main.c desktop/som.c desktop/salva.c web/rede.c)
+    set(FONTES desktop/main.c desktop/som.c ${SONS_C} desktop/salva.c web/rede.c)
 else()
-    set(FONTES desktop/main.c desktop/som.c desktop/salva.c desktop/rede.c)
+    set(FONTES desktop/main.c desktop/som.c ${SONS_C} desktop/salva.c desktop/rede.c)
 endif()
 if (WIN32)
     list(APPEND FONTES desktop/dado.rc)
@@ -130,8 +143,9 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(desafio PRIVATE m)
     endif()
     add_test(NAME desafio COMMAND desafio 6)
-    # Exporta a trilha, o rufar e os efeitos em WAV (e confere que a sintese roda).
-    add_executable(exporta_som tests/exporta_som.c)
+    # Confere que todo som do jogo tem gravacao e que todas decodificam;
+    # exporta tudo em WAV, para ouvir fora do jogo.
+    add_executable(exporta_som tests/exporta_som.c ${SONS_C})
     target_include_directories(exporta_som PRIVATE src desktop)
     target_link_libraries(exporta_som PRIVATE raylib)
     add_test(NAME sons COMMAND exporta_som ${CMAKE_CURRENT_BINARY_DIR})

@@ -1,11 +1,11 @@
-// Efeitos sonoros. No PC sao sintetizados na partida (desktop/som.c); no
-// Cardputer saem do codec ES8311.
+// Efeitos sonoros. No PC sao gravacoes embutidas no executavel
+// (desktop/som.c, desktop/sons/); no Cardputer saem do codec ES8311.
 #pragma once
 #include <stdbool.h>
 
 enum {
     SOM_TIQUE,       // cursor andou
-    SOM_BATE,        // dado bateu na borda ou em outro dado
+    SOM_BATE,        // dado bateu na borda de madeira
     SOM_POUSA,       // dado parou
     SOM_VALIDO,      // dado entrou valendo
     SOM_ANULA,       // dado anulado
@@ -31,9 +31,10 @@ enum {
     SOM_PREMIO,      // a roleta parou toda: o premio saiu
     SOM_VIDRO,       // o dado de Vidro se estilhacando
     SOM_BIGORNA,     // a marreta do Ferreiro na bigorna
-    SOM_VALIDO2,     // dado valendo na 2a, 3a e 4a posicao: o mesmo sino,
-    SOM_VALIDO3,     // cada vez um pouco mais agudo
+    SOM_VALIDO2,     // dado valendo na 2a, 3a e 4a posicao: o mesmo arpejo,
+    SOM_VALIDO3,     // cada vez um pouco mais agudo; o 4o fecha a fila
     SOM_VALIDO4,
+    SOM_BATE_DADO,   // dado bateu em outro dado
     SOM_N
 };
 
@@ -41,5 +42,5 @@ void som_toca(int som);
 bool som_liga(bool on);      // devolve se ficou ligado
 bool som_ligado(void);
 bool som_falhou(void);       // o aparelho nao tem saida de audio
-void som_rufo(bool on);      // rufar de caixinha enquanto o dado rola
-void som_giro(bool on);      // musiquinha de caca-niquel enquanto a roleta gira
+void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola
+void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira

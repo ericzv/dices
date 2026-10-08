@@ -2033,9 +2033,10 @@ static void faixa_run(int voltar)
 static void rodape_run(const char *s)
 {
     int yb = GFX_H - FAIXA_H, ty = (FAIXA_H - TXT_H) / 2 - 2;
+    (void)ty;
     gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
-    txt_c(GFX_W / 2, yb + ty + 2, s, C_TEXTO_M, false);
+    teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, s, C_TEXTO_M);
 }
 
 // ---- O mapa -------------------------------------------------------------
@@ -2192,7 +2193,6 @@ static void desenha_mapa(void)
         }
     gfx_disco(MAPA_X0, ey, 6, C_LATAO_ESC);
     gfx_disco(MAPA_X0, ey, 4, C_LATAO);
-    gfx_texto(MAPA_X0 - 16, ey + 10, "entrada", C_TEXTO_M, GFX_MIUDO, false);
 
     for (int p = 0; p < DES_PASSOS; p++)
         for (int l = 0; l < 3; l++) {
@@ -2202,9 +2202,12 @@ static void desenha_mapa(void)
             bool cur = p == run.passo && l == des_cur;
             mesa_no(MAPA_X[p], MAPA_Y[l], no->tipo, vis, cur);
             int r = no->tipo == NO_CHEFE ? 20 : 15;
-            uint16_t c = vis == V_ABERTO ? cor_no(no->tipo) : gfx_mistura(cor_no(no->tipo), C_FELTRO, 55);
-            const char *rot = NOME_NO[no->tipo];
-            gfx_texto(MAPA_X[p] - gfx_largura(rot, GFX_MIUDO) / 2, MAPA_Y[l] + r + 5, rot, c, GFX_MIUDO, false);
+            // So as mesas que da para escolher agora dizem o que sao; as
+            // outras falam pela cor e pelo desenho da ficha.
+            if (vis == V_ABERTO) {
+                const char *rot = NOME_NO[no->tipo];
+                txt(MAPA_X[p] + r + 6, MAPA_Y[l] - 10, rot, cor_no(no->tipo), false);
+            }
             if (vis == V_ABERTO) zona_clique(MAPA_X[p] - r - 6, MAPA_Y[l] - r - 6, 2 * r + 12, 2 * r + 12,
                                              &des_cur, l, KEY_ENTER);
         }
@@ -2227,10 +2230,8 @@ static void desenha_loja_run(void)
     faixa_run(0);
     bool ini = run.estado == R_LOJA_INI;
     txt_c2(GFX_W / 2, MESA_Y0 + 2, ini ? "LOJA DA ENTRADA" : "LOJA DO SALÃO", C_OURO);
-    txt_c(GFX_W / 2, MESA_Y0 + 44, ini ? "A run começa: gaste bem, a próxima loja pode demorar."
-                                        : "Troque moedas de ouro por dados para a sua bolsa.",
-          C_MARFIM_S, false);
-    moedas_c(GFX_W / 2, MESA_Y0 + 66, run.moedas, " moedas", C_OURO);
+    if (ini) txt_c(GFX_W / 2, MESA_Y0 + 44, "A run começa: gaste bem, a próxima loja pode demorar.", C_MARFIM_S, false);
+    moedas_c(GFX_W / 2, MESA_Y0 + (ini ? 66 : 54), run.moedas, " moedas", C_OURO);
     bool tem_am_loja = run.am_loja < A_N;
     int nc = N_LOJA + (tem_am_loja ? 1 : 0);
     for (int i = 0; i < nc; i++) {
@@ -2274,7 +2275,7 @@ static void desenha_bolsa_run(void)
     faixa_run(KEY_TAB);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "SUA BOLSA", C_LATAO);
     char s[64];
-    snprintf(s, sizeof s, "%d dados: eles vão com você de mesa em mesa", run.n_col);
+    snprintf(s, sizeof s, "%d dados", run.n_col);
     txt_c(GFX_W / 2, MESA_Y0 + 44, s, C_MARFIM_S, false);
     for (int i = 0; i < run.n_col; i++) {
         int lin = i / GRADE_B, col = i % GRADE_B;
@@ -2329,7 +2330,7 @@ static void desenha_fim_run(void)
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
     txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
-    txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 56), "ENTER volta ao menu", C_MARFIM_S, false);
+    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58), "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
@@ -2368,9 +2369,9 @@ static void desenha_fim_partida_run(void)
             int w = gfx_largura(m, 1);
             desenha_dado((float)(GFX_W / 2 - w / 2 - 12), (float)(CENTRO + 56), 8, des_marco, 0, 0, 0, 0, false);
             txt(GFX_W / 2 - w / 2 + 2, CENTRO + 50, m, C_OURO, true);
-            txt_c(GFX_W / 2, CENTRO + 70, "ENTER escolhe o prêmio", C_MARFIM_S, false);
+            teclas_c(GFX_W / 2, CENTRO + 72, "ENTER escolhe o prêmio", C_MARFIM_S);
         } else {
-            txt_c(GFX_W / 2, CENTRO + 56, "ENTER escolhe o prêmio", C_MARFIM_S, false);
+            teclas_c(GFX_W / 2, CENTRO + 58, "ENTER escolhe o prêmio", C_MARFIM_S);
         }
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
@@ -2378,7 +2379,7 @@ static void desenha_fim_partida_run(void)
                                                        : "A run termina aqui.", C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-        txt_c(GFX_W / 2, CENTRO + 56, "ENTER segue", C_MARFIM_S, false);
+        teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele
         char q[80];
@@ -3112,8 +3113,7 @@ static void desenha_cria_perfil(void)
     if (!pf_nome[0] && !pisca) txt_c(GFX_W / 2, by + 2, "seu nome", C_TEXTO_M, false);
     // Botao de criar.
     int ok = pf_nome[0] != 0;
-    gfx_rect(GFX_W / 2 - 50, by + 30, 100, 20, ok ? C_LATAO : C_FELTRO2);
-    txt_c(GFX_W / 2, by + 31, "criar", ok ? C_BARRA : C_TEXTO_M, true);
+    ui_botao(GFX_W / 2 - 50, by + 28, 100, 24, "criar", C_LATAO, ok ? 0 : UI_DESLIGADO);
     zona_clique(GFX_W / 2 - 50, by + 30, 100, 20, NULL, 0, KEY_ENTER);
     rodape_run("setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta");
 }

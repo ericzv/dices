@@ -32,6 +32,13 @@ void gfx_paleta(const uint16_t *cores, int n)
     tem_paleta = n > 0;
 }
 
+// Cores a mais, que passam como estao mas nao atraem as vizinhas: so o
+// que for desenhado exatamente nelas as usa.
+void gfx_paleta_exata(const uint16_t *cores, int n)
+{
+    for (int i = 0; i < n; i++) lut[cores[i]] = cores[i];
+}
+
 uint16_t gfx_na_paleta(uint16_t c) { return tem_paleta ? lut[c] : c; }
 
 void gfx_quantiza(void)

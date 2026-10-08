@@ -36,6 +36,8 @@ int gfx_largura(const char *s, int esc);
 // as cores como o olho). Assim misturas, transparencias e sombras caem
 // sempre em cores da paleta. Sem paleta, gfx_quantiza nao faz nada.
 void gfx_paleta(const uint16_t *cores, int n);
+// Cores exatas a mais: passam pela paleta como estao, sem puxar as vizinhas.
+void gfx_paleta_exata(const uint16_t *cores, int n);
 void gfx_quantiza(void);
 uint16_t gfx_na_paleta(uint16_t c);
 

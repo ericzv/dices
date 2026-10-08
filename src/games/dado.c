@@ -118,6 +118,14 @@ static const uint16_t PALETA[] = {
 #define PAL_FELTRO 14                    // onde comeca cada familia em PALETA
 #define PAL_PELE   50
 
+// A luz e a sombra do corpo dos dados: tons do meio entre os do marfim e
+// entre os do ebano. Nao entram na paleta: so o corpo de um dado e pintado
+// exatamente neles (tons_do_corpo), e nada mais cai neles.
+static const uint16_t LUZ_CORPO[] = {
+    RGB(245, 239, 223), RGB(229, 220, 199), RGB(218, 208, 186),
+    RGB(30, 27, 24), RGB(46, 42, 40), RGB(53, 48, 43),
+};
+
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
@@ -1294,32 +1302,64 @@ static uint16_t tom_desenho(uint16_t corpo, uint16_t c, int p, int dono)
 static float fr(float x) { return x - floorf(x); }
 static float tri(float x) { return 1 - fabsf(2 * fr(x) - 1); }         // 0..1..0 a cada 1
 
-// A textura do corpo, por baixo do desenho: o grao do marfim em quase todos.
-enum { T_GRAO, T_LINHAS, T_PONTOS };
+// Alguns dados tem ainda um padrao miudo no corpo, como sempre tiveram.
+enum { T_LISO, T_LINHAS, T_PONTOS };
 
 static int textura_de(int tipo)
 {
     switch (tipo) {
     case D_JACKPOT:                    return T_LINHAS;
     case D_ACUMULADOR: case D_MARTELO: return T_PONTOS;
-    default:                           return T_GRAO;
+    default:                           return T_LISO;
     }
 }
 
-// -1 escurece, +1 clareia, 0 deixa: a textura no ponto (u, v) do dado, em
+// 1 onde o padrao escurece, 0 onde deixa: no ponto (u, v) do dado, em
 // pixels, com s = escala (1 num dado da mesa).
 static int padrao(int tex, float u, float v, float s)
 {
     switch (tex) {
-    case T_LINHAS:  return ((int)floorf((u + v) / (3 * s)) & 3) == 0 ? -1 : 0;
+    case T_LINHAS:  return ((int)floorf((u + v) / (3 * s)) & 3) == 0;
     case T_PONTOS: {
         float a = fmodf(u / s + 100, 5), b = fmodf(v / s + 100, 5);
-        return a < 1.2f && b < 1.2f ? -1 : 0;
+        return a < 1.2f && b < 1.2f;
     }
-    default: {
-        uint32_t h = hash2((int)floorf(u / s), (int)floorf(v / s));
-        return h % 19 == 0 ? -1 : (h % 29 == 0 ? 1 : 0);
+    default:        return 0;
     }
+}
+
+// Ruido suave, de -1 a 1: manchas largas que se fundem umas nas outras.
+static float ruido(float x, float y)
+{
+    int ix = (int)floorf(x), iy = (int)floorf(y);
+    float fx = x - ix, fy = y - iy;
+    fx = fx * fx * (3 - 2 * fx);
+    fy = fy * fy * (3 - 2 * fy);
+    float a = (hash2(ix, iy) & 1023) / 511.5f - 1, b = (hash2(ix + 1, iy) & 1023) / 511.5f - 1;
+    float c = (hash2(ix, iy + 1) & 1023) / 511.5f - 1, d = (hash2(ix + 1, iy + 1) & 1023) / 511.5f - 1;
+    return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+}
+
+// Os cinco tons do corpo, da sombra ao reflexo. No marfim e no ebano, os
+// tons vizinhos da paleta; num corpo tingido, o que a paleta tiver perto.
+static void tons_do_corpo(uint16_t corpo, uint16_t *t)
+{
+    const uint16_t MARFIM[5] = { LUZ_CORPO[2], LUZ_CORPO[1], C_MARFIM_D, LUZ_CORPO[0], C_BRANCO };
+    const uint16_t EBANO[5]  = { RGB(24, 22, 20), LUZ_CORPO[3], C_EBANO, LUZ_CORPO[4], LUZ_CORPO[5] };
+    if (corpo == C_MARFIM_D) { memcpy(t, MARFIM, sizeof MARFIM); return; }
+    if (corpo == C_EBANO)    { memcpy(t, EBANO, sizeof EBANO); return; }
+    // Num corpo tingido os vizinhos da paleta ficam longe: so a sombra do
+    // canto e o reflexo mudam de tom, e so se a paleta tiver um da mesma cor,
+    // um pouco mais escuro ou mais claro. Se nao tiver, fica o proprio corpo.
+    int cr = (corpo >> 11) << 3, cg = ((corpo >> 5) & 63) << 2, cb = (corpo & 31) << 3;
+    for (int k = 0; k < 5; k++) t[k] = corpo;
+    for (int k = -1; k <= 1; k += 2) {
+        uint16_t c = cor_de_dado(gfx_mistura(corpo, k < 0 ? C_SOMBRA : C_BRANCO, 28));
+        int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
+        int dr = r - cr, dg = g - cg, db = b - cb;
+        bool perto = abs(dr) <= 48 && abs(dg) <= 48 && abs(db) <= 48 && abs(dr - dg) <= 24 && abs(dg - db) <= 24;
+        bool rumo = k < 0 ? brilho_de(c) < brilho_de(corpo) : brilho_de(c) > brilho_de(corpo);
+        if (perto && rumo) t[k < 0 ? 0 : 4] = c;
     }
 }
 
@@ -1547,14 +1587,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
 }
 
-// O corpo com a textura e o desenho de dentro: o poligono (ou o disco da
-// moeda, quando n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado,
-// r o raio. cores: o corpo, os tres tons do desenho e o grao escuro e claro.
+// O corpo com a luz e o desenho de dentro: o poligono (ou o disco da moeda,
+// quando n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado, r o
+// raio. tons: os cinco tons do corpo, da sombra ao reflexo; cores: os tres
+// tons do desenho (cores[1..3]).
+//
+// A luz vem de cima, a esquerda, sempre da tela: o corpo escurece aos poucos
+// para baixo e para a direita, e tem um reflexo suave no alto. Por cima,
+// manchas largas e discretas, do proprio material, que giram com o dado.
 static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, float dcy, int dr,
-                        int tipo, const uint16_t *cores, float cx, float cy, float ang, float r)
+                        int tipo, const uint16_t *tons, const uint16_t *cores,
+                        float cx, float cy, float ang, float r)
 {
     float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
     int tex = textura_de(tipo);
+    float semente = tipo * 3.7f;
     int y0, y1;
     if (n) {
         float ymin = vy[0], ymax = vy[0];
@@ -1584,11 +1631,15 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
                 float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa, v = dx * sa + dy * ca;
                 int p = desenho_interno(tipo, u * s, v * s, s);
-                if (!p) {                         // no corpo, a textura
-                    int q = padrao(tex, u, v, r / 22);
-                    p = q < 0 ? 4 : q > 0 ? 5 : 0;
-                }
-                gfx_pixel(x, y, cores[p]);
+                if (p) { gfx_pixel(x, y, cores[p]); continue; }
+                float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
+                float luz = -(dx + dy) * s * 0.75f
+                          + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f)
+                          + 0.32f * ruido(u * s / 0.34f + semente, v * s / 0.34f)
+                          + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + semente);
+                if (padrao(tex, u, v, r / 22)) luz -= 1;
+                int k = (int)lroundf(luz);
+                gfx_pixel(x, y, tons[(k < -2 ? -2 : k > 2 ? 2 : k) + 2]);
             }
     }
 }
@@ -1768,17 +1819,16 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         tinta = dono == 0 ? C_EBANO_B : C_MARFIM_S;
         aro = C_FELTRO2;
     }
-    // Os tons do desenho de dentro e o grao; anulado, o desenho fica num
-    // cinza so e o grao some.
-    uint16_t cores[6] = { corpo, corpo, corpo, corpo, corpo, corpo };
+    // Os tons do desenho de dentro e os do corpo; anulado, o desenho fica num
+    // cinza so e o corpo, sem luz.
+    uint16_t cores[4] = { corpo, corpo, corpo, corpo }, tons[5] = { corpo, corpo, corpo, corpo, corpo };
     if (zerado) {
         cores[1] = cores[2] = cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 18));
     } else {
         cores[1] = tom_desenho(corpo, vi->c1, vi->p1, dono);
         cores[2] = tom_desenho(corpo, vi->c2, vi->p2, dono);
         cores[3] = tom_desenho(corpo, vi->c3, vi->p3, dono);
-        cores[4] = gfx_mistura(corpo, C_SOMBRA, dono == 0 ? 12 : 18);
-        cores[5] = gfx_mistura(corpo, C_BRANCO, dono == 0 ? 14 : 12);
+        tons_do_corpo(corpo, tons);
     }
     bool desenha = r >= 12;
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
@@ -1797,7 +1847,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         int ri = (int)(r - ea);
         gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
         gfx_disco((int)cx, (int)cy, ri, brilho);
-        if (desenha) pinta_corpo(NULL, NULL, 0, cx + 1, cy + 1, ri - 1, tipo, cores, cx, cy, ang, r);
+        if (desenha) pinta_corpo(NULL, NULL, 0, cx + 1, cy + 1, ri - 1, tipo, tons, cores, cx, cy, ang, r);
         else gfx_disco((int)cx + 1, (int)cy + 1, ri - 1, corpo);
     } else {
         float vx[12], vy[12], dx = ea * 0.8f;
@@ -1807,7 +1857,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         poligono(vx, vy, n, brilho);
         if (r >= 12) {
             n = forma(lados, cx + dx, cy + dx, r - ea * 1.6f, ang, vx, vy);
-            if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, cores, cx, cy, ang, r);
+            if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, tons, cores, cx, cy, ang, r);
             else poligono(vx, vy, n, corpo);
         }
     }
@@ -3211,7 +3261,11 @@ static void abre_loja(void);
 void dado_inicia(int n_partidas)
 {
     static bool paleta_pronta;
-    if (!paleta_pronta) { gfx_paleta(PALETA, (int)(sizeof PALETA / sizeof PALETA[0])); paleta_pronta = true; }
+    if (!paleta_pronta) {
+        gfx_paleta(PALETA, (int)(sizeof PALETA / sizeof PALETA[0]));
+        gfx_paleta_exata(LUZ_CORPO, (int)(sizeof LUZ_CORPO / sizeof LUZ_CORPO[0]));
+        paleta_pronta = true;
+    }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
         rapido = salva_le("vel", b, sizeof b) > 0 && b[0] == '1';

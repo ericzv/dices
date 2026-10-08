@@ -2498,7 +2498,8 @@ static void aplica_regra(int j, int k)
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
-        // Ferradura: na primeira queda da rodada, o dado de antes fica.
+        // Ferradura: uma vez por rodada, na primeira queda que nada mais
+        // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
         bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
                     && !sentinela && !luva && !rede;
         if (luva) am_disparou |= 1u << A_LUVA;
@@ -5961,6 +5962,9 @@ static void desenha_joga(void)
     // caiu) fala o numero que sobe do dado; o painel so aparece para o que
     // e especial, numa linha.
     if (fase == F_ROLANDO || fase == F_ARRUMA || (fase == F_VEREDITO && ver_comum)) { pote_mesa(); return; }
+    // A maquina joga com a mesa limpa: nem o nome nem o dado da vez, so os
+    // dados caindo (o que for especial ainda aparece no veredito).
+    if (fase == F_JOGA && anuncia_maquina()) { pote_mesa(); return; }
     if (fase == F_VEREDITO) {
         uint16_t c = ver_tipo == 0 ? C_OURO : ver_tipo == 2 ? C_ACO
                    : ver_tipo == 4 ? gfx_mistura(C_EGO, C_BRANCO, 25) : C_VINHO_CLR;

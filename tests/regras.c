@@ -693,15 +693,35 @@ int main(void)
         limpa();
         joga_com(0, D_BUMERANGUE, 3, sempre_cinco);
         CONFERE(F[0].valor[0] == 3 && !F[0].tag[0][0], "Bumerangue 3: nao devia voltar (%d)", F[0].valor[0]);
-        // Cavalo de Troia: +2 por dado seu valendo, ele incluido.
+        // Cavalo de Troia: +1 por dado seu valendo, ele incluido.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_CAVALO, 5);
         d = fim();
-        CONFERE(d.total[0] == 2 + 3 + 5 + 6, "Cavalo de Troia: esperava 16, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 3 + 5 + 3, "Cavalo de Troia: esperava 13, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_CAVALO, 6);
         d = fim();
-        CONFERE(d.total[0] == 6 + 2, "Cavalo de Troia sozinho: esperava 8, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 6 + 1, "Cavalo de Troia sozinho: esperava 7, deu %d", d.total[0]);
+        // Viuva Negra: x2 se for o unico dado seu valendo.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_VIUVA, 7);
+        d = fim();
+        CONFERE(d.total[0] == 14, "Viuva sozinha: esperava 14, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_VIUVA, 7);
+        d = fim();
+        CONFERE(d.total[0] == 9, "Viuva acompanhada: esperava 9, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_VIUVA, 3);
+        joga(1, D_CARRASCO, 4); joga(1, D_D6, 5);              // o Carrasco anula o maior: ela
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == 0, "Viuva anulada pelo Carrasco: esperava 0, deu %d", d.total[0]);
+        // O Carrasco do oponente anula o outro: ela fica sozinha e dobra.
+        limpa();
+        joga(0, D_VIUVA, 3); joga(0, D_D8, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Viuva que ficou sozinha: esperava 6, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 2); joga(0, D_D8, 7); joga(0, D_CAVALO, 3);    // caiu: nao da nada
         d = fim();

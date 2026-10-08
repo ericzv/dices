@@ -36,63 +36,102 @@
 #define DADO_VERSAO "dev"
 #endif
 
-#define C_FELTRO     RGB(18, 51, 38)
-#define C_FELTRO2    RGB(24, 64, 48)
-#define C_FELTRO_ESC RGB(12, 36, 27)
+#define C_FELTRO     RGB(18, 49, 36)
+#define C_FELTRO2    RGB(24, 62, 46)
+#define C_FELTRO_ESC RGB(11, 33, 24)
+#define C_FELTRO_MEIO RGB(15, 41, 30)
 #define C_LATAO      RGB(190, 156, 86)
-#define C_LATAO_ESC  RGB(110, 90, 46)
-#define C_BARRA      RGB(16, 16, 15)
-#define C_MARFIM     RGB(238, 231, 214)
-#define C_MARFIM_S   RGB(196, 188, 170)
-#define C_EBANO      RGB(34, 30, 29)
-#define C_EBANO_B    RGB(64, 57, 54)
-#define C_ROSA       RGB(214, 158, 170)
-#define C_VINHO      RGB(150, 64, 82)
-#define C_VINHO_CLR  RGB(206, 96, 112)
-#define C_AGUA       RGB(84, 160, 142)
-#define C_VIOLETA    RGB(128, 100, 168)
-#define C_ACO        RGB(128, 148, 166)
-#define C_OURO       RGB(226, 192, 104)
-#define C_TERRA      RGB(184, 116, 76)
-#define C_SOMBRA     RGB(8, 26, 19)
-#define C_VERDE      RGB(92, 156, 84)        // Moeda Semente
-#define C_FOGO       RGB(226, 118, 44)       // Ficha de Fogo: lado 1
-#define C_BRASA      RGB(186, 52, 36)        // lado 2
-#define C_AMARELO    RGB(238, 200, 84)
-#define C_CINZA      RGB(120, 116, 110)      // cinza do que queimou
-#define C_LIMA       RGB(150, 176, 64)       // Invejoso: verde de inveja
-#define C_ROXO       RGB(96, 64, 128)        // Maldito
-#define C_PRATA      RGB(176, 196, 214)      // Espelho
-#define C_OSSO       RGB(224, 214, 186)      // chifres do Teimoso
-#define C_CORACAO    RGB(214, 64, 84)
-#define C_SALMAO     RGB(222, 138, 126)      // faixa de imunidade (pastel)
-#define C_TREVO      RGB(52, 150, 90)
-#define C_MARFIM_D   RGB(232, 220, 194)      // corpo dos dados de ERIC: off-white
-#define C_AZUL       RGB(64, 104, 178)       // ficha da Moeda da sorte: lado 1
-#define C_VERMELHO   RGB(178, 58, 58)        // lado 2
+#define C_LATAO_ESC  RGB(106, 86, 44)
+#define C_BARRA      RGB(14, 14, 12)
+#define C_MARFIM     RGB(238, 230, 212)
+#define C_MARFIM_S   RGB(204, 194, 172)
+#define C_EBANO      RGB(36, 32, 29)
+#define C_EBANO_B    RGB(62, 56, 50)
+#define C_ROSA       RGB(226, 164, 168)
+#define C_VINHO      RGB(150, 62, 80)
+#define C_VINHO_CLR  RGB(208, 98, 108)
+#define C_AGUA       RGB(72, 150, 138)
+#define C_VIOLETA    RGB(102, 74, 138)
+#define C_ACO        RGB(140, 150, 164)
+#define C_OURO       RGB(228, 194, 106)
+#define C_TERRA      RGB(156, 106, 64)
+#define C_SOMBRA     RGB(8, 24, 17)
+#define C_VERDE      RGB(88, 152, 84)        // Moeda Semente
+#define C_FOGO       RGB(214, 112, 44)       // Ficha de Fogo: lado 1
+#define C_BRASA      RGB(190, 56, 60)        // lado 2
+#define C_AMARELO    RGB(246, 222, 132)
+#define C_CINZA      RGB(128, 120, 112)      // cinza do que queimou
+#define C_LIMA       RGB(130, 204, 112)       // Invejoso: verde de inveja
+#define C_ROXO       RGB(102, 74, 138)        // Maldito
+#define C_PRATA      RGB(184, 194, 208)      // Espelho
+#define C_OSSO       RGB(204, 194, 172)      // chifres do Teimoso
+#define C_CORACAO    RGB(190, 56, 60)
+#define C_SALMAO     RGB(226, 164, 168)      // faixa de imunidade (pastel)
+#define C_TREVO      RGB(88, 152, 84)
+#define C_MARFIM_D   RGB(238, 230, 212)      // corpo dos dados de ERIC: off-white
+#define C_AZUL       RGB(56, 86, 150)       // ficha da Moeda da sorte: lado 1
+#define C_VERMELHO   RGB(190, 56, 60)        // lado 2
 #define C_TEXTO_M    RGB(170, 190, 178)
-#define C_BRANCO     RGB(255, 252, 240)
-#define C_CIANO      RGB(96, 196, 214)       // Copiador
-#define C_CHUMBO     RGB(84, 90, 100)        // gota de chumbo do Viciado
-#define C_REAL       RGB(186, 70, 160)       // purpura real
-#define C_EGO        RGB(146, 108, 150)      // Egoista: ameixa, sem gritar
-#define C_LASER      RGB(90, 232, 112)       // raio do Laser
-#define C_VENTO      RGB(150, 204, 232)      // Ventania
-#define C_CARVALHO   RGB(150, 104, 62)       // Cavalo de Troia: madeira do cavalo
-#define C_SANGUE     RGB(160, 76, 68)        // Berserker
-#define C_TEIA       RGB(150, 150, 158)      // Viuva Negra: aro e fios da teia
-#define C_HALO       RGB(206, 214, 238)      // Misericordioso: aureola
-#define C_NOITE      RGB(98, 114, 186)       // Solitario: azul de noite
-#define C_BRONZE     RGB(170, 116, 64)       // Sentinela: aro
-#define C_PEDRA      RGB(150, 146, 136)      // Sentinela: pedra de muralha
-#define C_FERRO      RGB(124, 130, 142)       // Ferreiro: bigorna
-#define C_COBRE      RGB(190, 112, 70)       // Cobrador
-#define C_CARMIM     RGB(176, 42, 58)        // Desafiante
-#define C_VIDRO      RGB(170, 222, 232)      // Vidro
-#define C_AMBAR      RGB(222, 154, 50)       // Acumulador
+#define C_BRANCO     RGB(252, 248, 236)
+#define C_CIANO      RGB(96, 182, 198)       // Copiador
+#define C_CHUMBO     RGB(70, 76, 88)        // gota de chumbo do Viciado
+#define C_REAL       RGB(150, 112, 160)       // purpura real
+#define C_EGO        RGB(150, 112, 160)      // Egoista: ameixa, sem gritar
+#define C_LASER      RGB(130, 204, 112)       // raio do Laser
+#define C_VENTO      RGB(168, 204, 230)      // Ventania
+#define C_CARVALHO   RGB(156, 106, 64)       // Cavalo de Troia: madeira do cavalo
+#define C_SANGUE     RGB(150, 62, 80)        // Berserker
+#define C_TEIA       RGB(140, 150, 164)      // Viuva Negra: aro e fios da teia
+#define C_HALO       RGB(184, 194, 208)      // Misericordioso: aureola
+#define C_NOITE      RGB(96, 134, 196)       // Solitario: azul de noite
+#define C_BRONZE     RGB(156, 106, 64)       // Sentinela: aro
+#define C_PEDRA      RGB(166, 154, 132)      // Sentinela: pedra de muralha
+#define C_FERRO      RGB(104, 112, 124)       // Ferreiro: bigorna
+#define C_COBRE      RGB(156, 106, 64)       // Cobrador
+#define C_CARMIM     RGB(190, 56, 60)        // Desafiante
+#define C_VIDRO      RGB(168, 204, 230)      // Vidro
+#define C_AMBAR      RGB(238, 162, 74)       // Acumulador
 #define C_MADEIRA    RGB(78, 46, 30)
-#define C_MADEIRA_ESC RGB(60, 34, 22)
+#define C_MADEIRA_ESC RGB(56, 32, 20)
 #define C_MADEIRA_CLR RGB(120, 78, 50)
+
+// ===========================================================================
+// A paleta: 52 cores, em familias de tons vizinhos. O quadro inteiro sai so
+// nelas (gfx_quantiza no fim de dado_desenha): misturas, sombras e
+// transparencias caem sempre numa cor daqui. Cor nova so entra se couber numa
+// familia.
+// ===========================================================================
+static const uint16_t PALETA[] = {
+    // escuros quentes: barras, ebano, pardo
+    RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50), RGB(96, 88, 80), RGB(128, 120, 112),
+    // cinzas frios: chumbo, aco, prata
+    RGB(70, 76, 88), RGB(104, 112, 124), RGB(140, 150, 164), RGB(184, 194, 208),
+    // marfim
+    RGB(252, 248, 236), RGB(238, 230, 212), RGB(204, 194, 172), RGB(166, 154, 132),
+    // feltro, do mais escuro ao realce, e o texto discreto (PAL_FELTRO)
+    RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36), RGB(24, 62, 46), RGB(40, 84, 62),
+    RGB(170, 190, 178),
+    // verdes
+    RGB(88, 152, 84), RGB(130, 204, 112),
+    // madeira
+    RGB(56, 32, 20), RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64),
+    // latao e ouro
+    RGB(106, 86, 44), RGB(150, 122, 62), RGB(190, 156, 86), RGB(228, 194, 106), RGB(246, 222, 132),
+    // vinho e vermelho
+    RGB(66, 18, 24), RGB(118, 30, 38), RGB(150, 62, 80), RGB(190, 56, 60), RGB(208, 98, 108), RGB(226, 164, 168),
+    // fogo
+    RGB(214, 112, 44), RGB(238, 162, 74),
+    // azuis
+    RGB(26, 34, 62), RGB(56, 86, 150), RGB(96, 134, 196), RGB(168, 204, 230),
+    // agua
+    RGB(72, 150, 138), RGB(96, 182, 198),
+    // roxos
+    RGB(54, 36, 74), RGB(102, 74, 138), RGB(150, 112, 160), RGB(206, 180, 218),
+    // pele (PAL_PELE): so os retratos
+    RGB(240, 200, 164), RGB(200, 142, 104),
+};
+#define PAL_FELTRO 14                    // onde comeca cada familia em PALETA
+#define PAL_PELE   50
 
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
@@ -788,6 +827,81 @@ static void txt_sombra_c(int cx, int y, const char *s, uint16_t c, int esc)
 }
 
 // ===========================================================================
+// Kit de interface: as mesmas tres pecas em todo o jogo.
+//   ui_painel  placa de ebano com filete de latao (avisos sobre a mesa)
+//   ui_cartao  cartao de feltro escuro (loja, premio, perfis, listas)
+//   ui_botao   botao com espessura: face, brilho em cima, borda de baixo
+// Cantos aparados de um pixel; contorno quase preto; sombra dura embaixo.
+// ===========================================================================
+#define C_PLACA     RGB(24, 22, 20)              // fundo das placas
+#define C_PLACA_LUZ RGB(36, 32, 29)
+
+// Contorno de um pixel com os quatro cantos aparados.
+static void ui_contorno(int x, int y, int w, int h, uint16_t c)
+{
+    gfx_rect(x + 1, y, w - 2, 1, c);
+    gfx_rect(x + 1, y + h - 1, w - 2, 1, c);
+    gfx_rect(x, y + 1, 1, h - 2, c);
+    gfx_rect(x + w - 1, y + 1, 1, h - 2, c);
+}
+
+static void ui_painel(int x, int y, int w, int h)
+{
+    gfx_rect(x + 2, y + 3, w, h, C_SOMBRA);                  // sombra dura
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, C_PLACA);
+    gfx_rect(x + 2, y + 1, w - 4, 1, C_PLACA_LUZ);           // luz na beira de cima
+    ui_contorno(x, y, w, h, C_BARRA);
+    ui_contorno(x + 2, y + 2, w - 4, h - 4, C_LATAO_ESC);    // filete de latao
+}
+
+// 'cor' (0: ouro) e o filete do cartao em foco; fora de foco ele fica apagado.
+static void ui_cartao(int x, int y, int w, int h, bool foco, uint16_t cor)
+{
+    if (!cor) cor = C_OURO;
+    gfx_rect(x + 2, y + 3, w, h, C_SOMBRA);
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, foco ? C_FELTRO : C_FELTRO_ESC);
+    ui_contorno(x, y, w, h, C_BARRA);
+    ui_contorno(x + 1, y + 1, w - 2, h - 2, foco ? cor : gfx_mistura(cor, C_FELTRO_ESC, 55));
+    if (foco) ui_contorno(x + 2, y + 2, w - 4, h - 4, gfx_mistura(cor, C_BARRA, 45));
+}
+
+// Selecao de uma peca numa grade: fundo levemente aceso e contorno na cor.
+static void ui_selecao(int x, int y, int w, int h, uint16_t cor)
+{
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_FELTRO, cor, 22));
+    ui_contorno(x, y, w, h, cor);
+}
+
+// Etiqueta pequena (raridade, protecao): fundo escuro tingido e contorno na cor.
+static void ui_etiqueta(int x, int y, int w, int h, uint16_t cor)
+{
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_PLACA, cor, 22));
+    ui_contorno(x, y, w, h, cor);
+}
+
+// Botao: estado 0 normal, 1 em foco, 2 desligado. 'tinta' e a cor da face
+// (0: ebano). O rotulo vai centrado na face.
+#define UI_FOCO 1
+#define UI_DESLIGADO 2
+static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta, int estado)
+{
+    uint16_t face = estado == UI_DESLIGADO ? C_EBANO : tinta ? tinta : C_EBANO_B;
+    if (estado == UI_FOCO) face = gfx_na_paleta(gfx_mistura(face, C_BRANCO, 18));
+    uint16_t borda = gfx_mistura(face, C_BARRA, 45), luz = gfx_mistura(face, C_BRANCO, 30);
+    gfx_rect(x + 1, y + 2, w - 2, h - 1, C_SOMBRA);                 // sombra no feltro
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, borda);                    // a espessura
+    gfx_rect(x + 1, y + 1, w - 2, h - 4, face);                     // a face
+    if (estado != UI_DESLIGADO) gfx_rect(x + 2, y + 1, w - 4, 1, luz);
+    ui_contorno(x, y, w, h, estado == UI_FOCO ? C_OURO : C_BARRA);
+    uint16_t c = estado == UI_DESLIGADO ? C_EBANO_B : estado == UI_FOCO ? C_BRANCO : C_MARFIM;
+    // Face clara (latao, ouro): letra escura.
+    int lum = ((face >> 11) & 31) * 2 + ((face >> 5) & 63) + (face & 31);
+    if (lum > 85 && estado != UI_DESLIGADO) c = C_BARRA;
+    int tw = gfx_largura(rot, 1);
+    gfx_texto(x + (w - tw) / 2, y + (h - 4 - TXT_H) / 2 + 1, rot, c, 1, false);
+}
+
+// ===========================================================================
 // Desenho de dados: poligono por numero de lados
 // ===========================================================================
 static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
@@ -1020,6 +1134,24 @@ static uint16_t mistura(uint16_t a, uint16_t b, int pct)
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
 
+// O corpo de um dado sempre numa cor da paleta, escolhida entre as que servem
+// a um dado: nem pele (dos retratos) nem feltro (da mesa).
+static uint16_t cor_de_dado(uint16_t c)
+{
+    int r = ((c >> 11) & 31) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
+    uint16_t melhor = c;
+    long dmin = -1;
+    for (unsigned i = 0; i < sizeof PALETA / sizeof PALETA[0]; i++) {
+        uint16_t p = PALETA[i];
+        if (i >= PAL_PELE || (i >= PAL_FELTRO && i < PAL_FELTRO + 7)) continue;
+        int pr = ((p >> 11) & 31) * 255 / 31, pg = ((p >> 5) & 63) * 255 / 63, pb = (p & 31) * 255 / 31;
+        int rm = (r + pr) / 2, dr = r - pr, dg = g - pg, db = b - pb;
+        long d = (long)(512 + rm) * dr * dr / 256 + 4L * dg * dg + (long)(767 - rm) * db * db / 256;
+        if (dmin < 0 || d < dmin) { dmin = d; melhor = p; }
+    }
+    return melhor;
+}
+
 // Cor de corpo e aro proprios de alguns dados. O tom vem misturado com o
 // marfim ou o ebano do dono: claro para ERIC, escuro para LILI, sempre.
 static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, uint16_t *tinta)
@@ -1062,7 +1194,7 @@ static void cores_do_tipo(int tipo, int dono, uint16_t *corpo, uint16_t *aro, ui
         break;
     default: break;
     }
-    if (pct) *corpo = mistura(*corpo, tom, dono == 0 ? pct : pct - 12);
+    if (pct) *corpo = cor_de_dado(mistura(*corpo, tom, dono == 0 ? pct : pct - 12));
 }
 
 // Atras do corpo: as copias do Dobro e do Par.
@@ -1725,12 +1857,9 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
     for (int y = y0; y <= y0 + 2 * caixa; y++)
         for (int x = x0; x <= x0 + 2 * caixa; x++)
             if (x >= 0 && y >= 0 && x < GFX_W && y < GFX_H) rascunho[y * GFX_W + x] = CHAVE;
-    gfx_texto_fn nitido = gfx_texto_nitido_atual();
-    gfx_texto_nitido(NULL);                            // o numero vai junto, achatado
-    gfx_desvia(rascunho);
+    gfx_desvia(rascunho);                              // o numero vai junto, achatado
     desenha_dado(cx, cy, r, tipo, dono, 0, face, 2, false);
     gfx_desvia(NULL);
-    gfx_texto_nitido(nitido);
     float e = fabsf(escx);
     if (e < 0.06f) e = 0.06f;
     uint16_t *fb = display_fb();
@@ -1826,8 +1955,8 @@ static uint32_t ruido_xy(int x, int y)
 // Os andares do cassino: no Desafiante, cada dificuldade e um andar mais
 // chique, e a mesa mostra isso nos acabamentos (0 = terreo, a mesa de sempre).
 static int mesa_andar, mesa_andar_feito = -1;
-#define C_RUBI     RGB(196, 48, 72)
-#define C_DIAMANTE RGB(170, 226, 244)
+#define C_RUBI     RGB(190, 56, 60)
+#define C_DIAMANTE RGB(168, 204, 230)
 
 // Tacha de metal: um botao com brilho em cima e sombra embaixo.
 static void tacha(int x, int y, uint16_t m)
@@ -1892,15 +2021,23 @@ static void pinta_mesa(void)
     gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
     float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
+    // O feltro escurece para as bordas em tres tons da paleta, com pontilhado
+    // ordenado (Bayer 4x4) na passagem de um para o outro, e uma fibra ou
+    // outra mais clara ou mais escura.
+    static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+    static const uint16_t TOM[3] = { C_FELTRO, C_FELTRO_MEIO, C_FELTRO_ESC };
     for (int y = MESA_Y0; y < MESA_Y1; y++)
         for (int x = MESA_X0; x < MESA_X1; x++) {
             float dx = (x - cx) / ax, dy = (y - cy) / ay;
-            int pct = (int)((dx * dx * 0.6f + dy * dy) * 55);
-            if (pct > 80) pct = 80;
-            uint16_t c = gfx_mistura(C_FELTRO, C_FELTRO_ESC, pct);
-            uint32_t h = ruido_xy(x, y) % 11;
-            if (h == 0) c = gfx_mistura(c, C_FELTRO2, 70);
-            else if (h == 1) c = gfx_mistura(c, C_SOMBRA, 30);
+            float v = (dx * dx * 0.6f + dy * dy) * 1.5f - 0.15f;
+            if (v < 0) v = 0;
+            int i = (int)v;
+            if (i >= 2) i = 2;
+            else if ((v - i) * 16 > BAYER[y & 3][x & 3]) i++;
+            uint16_t c = TOM[i];
+            uint32_t h = ruido_xy(x, y) % 23;
+            if (h == 0) c = i == 0 ? C_FELTRO2 : TOM[i - 1];
+            else if (h == 1 && i < 2) c = TOM[i + 1];
             gfx_pixel(x, y, c);
         }
     // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
@@ -3046,6 +3183,8 @@ static void abre_loja(void);
 
 void dado_inicia(int n_partidas)
 {
+    static bool paleta_pronta;
+    if (!paleta_pronta) { gfx_paleta(PALETA, (int)(sizeof PALETA / sizeof PALETA[0])); paleta_pronta = true; }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
         rapido = salva_le("vel", b, sizeof b) > 0 && b[0] == '1';
@@ -3612,12 +3751,9 @@ static bool mouse_em(int x, int y, int w, int h)
 // direita do botao.
 static void botao_clique(int x_dir, int y, const char *rot, int tecla)
 {
-    int w = gfx_largura(rot, 1) + 20, h = TXT_H + 6, x = x_dir - w;
+    int w = gfx_largura(rot, 1) + 20, h = TXT_H + 4, x = x_dir - w;
     bool em = mouse_em(x, y, w, h);
-    gfx_rect(x + 2, y + 2, w, h, C_SOMBRA);
-    gfx_rect(x, y, w, h, em ? C_LATAO : C_FELTRO_ESC);
-    gfx_moldura(x, y, w, h, 1, em ? C_BRANCO : C_LATAO_ESC);
-    txt(x + 10, y + 2, rot, em ? C_BARRA : C_MARFIM, em);
+    ui_botao(x, y, w, h, rot, 0, em ? UI_FOCO : 0);
     zona_clique(x, y, w, h, NULL, 0, tecla);
 }
 
@@ -3629,11 +3765,9 @@ static int botao_voltar(int tecla)
 {
     int x = 8, y = (FAIXA_H - 28) / 2, w = 30, h = 28;
     bool em = mouse_em(0, 0, VOLTAR_X0 - 4, FAIXA_H);
-    gfx_rect(x + 2, y + 2, w, h, C_SOMBRA);
-    gfx_rect(x, y, w, h, em ? C_LATAO : C_FELTRO_ESC);
-    gfx_moldura(x, y, w, h, 1, em ? C_BRANCO : C_LATAO_ESC);
-    uint16_t c = em ? C_BARRA : C_MARFIM;
-    int cx = x + w / 2 - 2, cy = y + h / 2;
+    ui_botao(x, y, w, h, "", 0, em ? UI_FOCO : 0);
+    uint16_t c = em ? C_BRANCO : C_MARFIM;
+    int cx = x + w / 2 - 2, cy = y + h / 2 - 1;
     gfx_linha_grossa(cx + 4, cy - 7, cx - 3, cy, 3, c);          // a seta: so a ponta, para a esquerda
     gfx_linha_grossa(cx - 3, cy, cx + 4, cy + 7, 3, c);
     zona_clique(0, 0, VOLTAR_X0 - 4, FAIXA_H, NULL, 0, tecla);
@@ -3666,11 +3800,8 @@ static void desenha_abertura(void)
     for (int i = 0; i < n_op; i++) {
         int yb = 170 + i * 26;
         bool cur = i == menu_cur;
-        gfx_rect(GFX_W / 2 - 110 + 2, yb + 2, 220, 22, C_SOMBRA);
-        gfx_rect(GFX_W / 2 - 110, yb, 220, 22, cur ? C_LATAO : C_FELTRO_ESC);
-        gfx_moldura(GFX_W / 2 - 110, yb, 220, 22, 1, cur ? C_BRANCO : C_FELTRO2);
-        txt_c(GFX_W / 2, yb + 1, op[i], cur ? C_BARRA : C_MARFIM, cur);
-        zona_clique(GFX_W / 2 - 110, yb, 220, 22, &menu_cur, i, KEY_ENTER);
+        ui_botao(GFX_W / 2 - 110, yb, 220, 24, op[i], cur ? C_LATAO : 0, 0);
+        zona_clique(GFX_W / 2 - 110, yb, 220, 24, &menu_cur, i, KEY_ENTER);
     }
     // Nos submenus, uma linha explica a opcao em foco.
     char dica[96] = "";
@@ -4712,7 +4843,8 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
 static void aro(int x, int y, uint16_t c)
 {
     int m = R_DADO + 7;
-    gfx_moldura(x - m, y - m, 2 * m, 2 * m, 3, c);
+    ui_contorno(x - m, y - m, 2 * m, 2 * m, c);
+    ui_contorno(x - m + 1, y - m + 1, 2 * m - 2, 2 * m - 2, c);
 }
 
 // Etiqueta no canto do dado (x2, +8, =9), com fundo para ler sobre o feltro.
@@ -4720,18 +4852,16 @@ static void etiqueta(int x, int y, const char *s)
 {
     int w = gfx_largura(s, 1) + 8;
     int ex = x + R_DADO - 8, ey = y - R_DADO - 14;
-    gfx_rect(ex, ey, w, TXT_H + 2, C_BARRA);
-    gfx_moldura(ex, ey, w, TXT_H + 2, 1, s[0] == '-' ? C_VINHO_CLR : C_OURO);
-    txt(ex + 4, ey + 1, s, s[0] == '-' ? C_VINHO_CLR : C_OURO, true);
+    uint16_t c = s[0] == '-' ? C_VINHO_CLR : C_OURO;
+    gfx_rect(ex + 1, ey + 1, w - 2, TXT_H, C_PLACA);
+    ui_contorno(ex, ey, w, TXT_H + 2, c);
+    txt(ex + 4, ey + 1, s, c, false);
 }
 
 // Painel escuro e translucido atras de um bloco de texto no meio da mesa.
 static void painel(int y, int h, int w)
 {
-    int x = GFX_W / 2 - w / 2;
-    gfx_rect_alfa(x, y, w, h, C_SOMBRA, 150);
-    gfx_rect_alfa(x + 6, y, w - 12, 1, C_LATAO, 70);           // fio dourado em cima e embaixo
-    gfx_rect_alfa(x + 6, y + h - 1, w - 12, 1, C_LATAO, 70);
+    ui_painel(GFX_W / 2 - w / 2, y, w, h);
 }
 
 // Largura de um painel: o que ele mostra, com folga dos lados.
@@ -4783,8 +4913,8 @@ static void faixa_jogador(int j)
     if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
         const char *v = rapido ? "» rápido" : "» normal";
         int vx = GFX_W / 2 + 22;
-        gfx_texto(vx, y0 + FAIXA_H / 2 - 7, v, rapido ? C_OURO : C_TEXTO_M, GFX_MIUDO, false);
-        zona_clique(vx - 4, y0 + 6, gfx_largura(v, GFX_MIUDO) + 8, FAIXA_H - 12, NULL, 0, 'v');
+        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, rapido ? C_OURO : C_TEXTO_M, 1, false);
+        zona_clique(vx - 4, y0 + 6, gfx_largura(v, 1) + 8, FAIXA_H - 12, NULL, 0, 'v');
     }
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
         amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);
@@ -5091,7 +5221,7 @@ static void desenha_fila(int j)
         uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
                    : f->zerada ? C_VIOLETA
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
-        gfx_rect_alfa(PLACAR_X - 34, y - 26, 68, 50, C_SOMBRA, 140);
+        ui_painel(PLACAR_X - 34, y - 26, 68, 50);
         txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
         txt_c2(PLACAR_X, y - 20, s, c);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
@@ -5346,8 +5476,7 @@ static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
     x += wq + 20;
     gfx_texto(x, y, TIPO[tipo].nome, cor_aro(tipo), 1, true);
     int xc = x + wn + 12;
-    gfx_rect_alfa(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo), 40);
-    gfx_moldura(xc, y + 2, wc, TXT_H - 2, 1, cor_rar(tipo));
+    ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
     txt_c(GFX_W / 2, y + TXT_H - 2, TIPO[tipo].desc, C_MARFIM_S, false);
 }
@@ -5361,8 +5490,7 @@ static void dado_e_poder(int y, int tipo, bool medio)
     int x = GFX_W / 2 - (wn + 12 + wc) / 2;
     gfx_texto(x, y, TIPO[tipo].nome, cor_aro(tipo), 1, true);
     int xc = x + wn + 12;
-    gfx_rect_alfa(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo), 40);
-    gfx_moldura(xc, y + 2, wc, TXT_H - 2, 1, cor_rar(tipo));
+    ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
     txt_c(GFX_W / 2, y + TXT_H - 1, medio ? TEXTO_MEDIO[tipo] : TIPO[tipo].desc, C_MARFIM_S, false);
 }
@@ -5386,21 +5514,12 @@ static int larg_botoes(const char **rot, int n)
 
 static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor, const uint16_t *tinta)
 {
+    (void)cor;
     int x = GFX_W / 2 - larg_botoes(rot, n) / 2;
     for (int i = 0; i < n; i++) {
         int w = gfx_largura(rot[i], 1) + 24;
         bool cur = i == cursor && ativo[i];
-        gfx_rect(x + 2, y + 3, w, BOTAO_H, C_SOMBRA);
-        if (tinta) {
-            uint16_t t = ativo[i] ? tinta[i] : C_FELTRO_ESC;
-            gfx_rect(x, y, w, BOTAO_H, cur ? gfx_mistura(t, C_BRANCO, 22) : t);
-            gfx_moldura(x, y, w, BOTAO_H, cur ? 2 : 1, cur ? C_BRANCO : gfx_mistura(t, C_BRANCO, 30));
-            txt(x + 12, y + 2, rot[i], ativo[i] ? (cur ? C_BRANCO : C_MARFIM) : C_FELTRO2, cur);
-        } else {
-            gfx_rect(x, y, w, BOTAO_H, cur ? cor : C_FELTRO_ESC);
-            gfx_moldura(x, y, w, BOTAO_H, 1, cur ? C_BRANCO : C_FELTRO2);
-            txt(x + 12, y + 2, rot[i], cur ? C_BARRA : (ativo[i] ? C_MARFIM : C_FELTRO2), cur);
-        }
+        ui_botao(x, y, w, BOTAO_H, rot[i], tinta ? tinta[i] : 0, !ativo[i] ? UI_DESLIGADO : cur ? UI_FOCO : 0);
         if (ativo[i]) zona_clique(x, y, w, BOTAO_H, &cursor, i, KEY_ENTER);
         x += w + 12;
     }
@@ -5423,7 +5542,7 @@ static void desenha_ordem(void)
         int ordem = -1;
         for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ordem = k;
         bool cur = i == cursor && q >= 1;
-        if (cur) gfx_rect_alfa(x - 25, y - 25, 50, 50, p->cor, 60);
+        if (cur) ui_selecao(x - 25, y - 25, 50, 50, p->cor);
         peca_parada((float)x, (float)(y + dy - (cur ? 3 : 0)), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) {
@@ -5632,12 +5751,12 @@ static void desenha_resultado(void)
     if (gfx_largura(pl, 1) > wp) wp = gfx_largura(pl, 1);
     if (nota[0] && gfx_largura(nota, 1) > wp) wp = gfx_largura(nota, 1);
     int linhas = 1 + (pl[0] != 0) + (nota[0] != 0), y = CENTRO - 30;
-    painel(y - 5, linhas * (TXT_H - 2) + 25, larg_painel(wp, 220));
+    painel(y - 5, (linhas + 1) * (TXT_H - 2) + 8, larg_painel(wp, 220));
     txt_sombra_c(GFX_W / 2, y, aviso, c, 1);
     y += TXT_H - 2;
     if (pl[0]) { txt_c(GFX_W / 2, y, pl, C_MARFIM_S, false); y += TXT_H - 2; }
     if (nota[0]) { txt_c(GFX_W / 2, y, nota, C_TERRA, false); y += TXT_H - 2; }   // cinza ou cacos
-    gfx_texto(GFX_W / 2 - gfx_largura("ENTER segue", GFX_MIUDO) / 2, y + 2, "ENTER segue", C_TEXTO_M, GFX_MIUDO, false);
+    txt_c(GFX_W / 2, y, "ENTER segue", C_TEXTO_M, false);
     // As fichas do pote voando, uma atras da outra, ate a faixa de quem levou;
     // o placar dela sobe enquanto chegam.
     int w = res_quem;
@@ -5703,7 +5822,7 @@ static void desenha_premio(void)
                     gfx_rect(x - 14 + k * 4, y + (int)(q * 34) + (k % 2) * 6, 3, 3, C_TEXTO_M);
                 continue;
             }
-            if (i == cursor) gfx_rect_alfa(x - 22, y - 22, 44, 44, C_VINHO_CLR, 80);
+            if (i == cursor) ui_selecao(x - 22, y - 22, 44, 44, C_VINHO_CLR);
             peca_parada((float)x, (float)y, 17, p->col[i], vez);
             if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
             if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
@@ -5728,7 +5847,7 @@ static void desenha_premio(void)
         bool parado = t_slot < 0 || t_slot >= para;
         bool cur = i == cursor && !girando;
         uint16_t cr = cor_rar(t2);
-        gfx_rect(x - 64, 90, 128, 110, cur ? C_FELTRO_ESC : C_FELTRO);
+        ui_cartao(x - 64, 90, 128, 110, cur, cr);
         if (!parado) {
             // O rolo: dados passando de cima para baixo, cada vez mais devagar,
             // ate o ultimo (o premio) chegar ao centro. Os de passagem encolhem
@@ -5737,8 +5856,6 @@ static void desenha_premio(void)
             // os dados de passagem nao vazam para fora (nem os numeros deles).
             const int wx = x - 60, wy = 94, ww = 120, wh = 64;
             uint16_t *tela = display_fb();
-            gfx_texto_fn nit = gfx_texto_nitido_atual();
-            gfx_texto_nitido(NULL);
             gfx_desvia(rascunho);
             gfx_rect(wx, wy, ww, wh, C_FELTRO_ESC);
             float r = para - t_slot, o = 9.4f * r * sqrtf(r);
@@ -5764,18 +5881,15 @@ static void desenha_premio(void)
                 gfx_rect_alfa(wx, wy + wh - 1 - b2, ww, 1, C_BARRA, 150 - b2 * 18);
             }
             gfx_desvia(NULL);
-            gfx_texto_nitido(nit);
             for (int yy = wy; yy < wy + wh; yy++)
                 memcpy(tela + yy * GFX_W + wx, rascunho + yy * GFX_W + wx, (size_t)ww * 2);
-            gfx_moldura(x - 64, 90, 128, 110, 1, C_FELTRO2);
             txt_c(x, 162, "?", C_TEXTO_M, true);
             continue;
         }
         // Acabou de travar: um pulo e a moldura acende.
         float q = t_slot >= 0 ? (t_slot - para) / 0.3f : 1;
         bool acende = q < 1;
-        gfx_moldura(x - 64, 90, 128, 110, cur || acende ? 3 : 1,
-                    acende ? gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))) : cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
+        if (acende) ui_cartao(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 : 0;
         peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
@@ -5799,9 +5913,7 @@ static void desenha_premio(void)
     const char *rot = "remover um dado";
     int w = gfx_largura(rot, 1) + 28;
     bool cur = cursor == 3;
-    gfx_rect(GFX_W / 2 - w / 2, 240, w, 26, cur ? (pode ? C_VINHO_CLR : C_FELTRO2) : C_FELTRO_ESC);
-    gfx_moldura(GFX_W / 2 - w / 2, 240, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
-    txt_c(GFX_W / 2, 243, rot, cur ? C_BARRA : (pode ? C_MARFIM : C_FELTRO2), cur);
+    ui_botao(GFX_W / 2 - w / 2, 240, w, 26, rot, C_VINHO, !pode ? UI_DESLIGADO : cur ? UI_FOCO : 0);
     zona_clique(GFX_W / 2 - w / 2, 240, w, 26, &cursor, 3, KEY_ENTER);
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "recusar", 'x');
     txt_c(GFX_W / 2, 278, "setas escolhem  ·  ENTER leva  ·  X recusa", C_TEXTO_M, false);
@@ -5833,8 +5945,7 @@ static void desenha_loja(void)
         int tp = loja[i].tipo, pr = preco_loja(tp);
         bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
         uint16_t cr = cor_rar(tp);
-        gfx_rect(x - 48, yb, 96, 92, cur ? C_FELTRO_ESC : C_FELTRO);
-        gfx_moldura(x - 48, yb, 96, 92, cur ? 3 : 1, cur ? cr : gfx_mistura(C_FELTRO, cr, 55));
+        ui_cartao(x - 48, yb, 96, 92, cur, cr);
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
         peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
         if (ja) {
@@ -5888,6 +5999,7 @@ static int faces_de(int tipo, int *f)
 }
 
 // Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
+static bool quebra_so_conta;                     // so mede: quantas linhas daria
 static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {
     char linha[200];
@@ -5910,7 +6022,7 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
         if (!cabe) cabe = (int)strlen(p) < (int)sizeof linha - 1 ? (int)strlen(p) : (int)sizeof linha - 1;
         memcpy(linha, p, (size_t)cabe);
         linha[cabe] = 0;
-        txt(x, y + lin * (TXT_H + 4), linha, c, false);
+        if (!quebra_so_conta) txt(x, y + lin * (TXT_H + 4), linha, c, false);
         lin++;
         p += cabe;
         while (*p == ' ') p++;
@@ -5924,8 +6036,7 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
 static int etiqueta_caixa(int x, int y, const char *s, uint16_t c)
 {
     int w = gfx_largura(s, 1) + 12;
-    gfx_rect_alfa(x, y, w, TXT_H + 2, c, 40);
-    gfx_moldura(x, y, w, TXT_H + 2, 1, c);
+    ui_etiqueta(x, y, w, TXT_H + 2, c);
     txt(x + 6, y + 1, s, c, false);
     return x + w + 6;
 }
@@ -5952,14 +6063,10 @@ static void faixas_colecao(int atual, int total)
     txt(botao_voltar(KEY_ESC), ty, "COLEÇÃO", C_LATAO, true);
     static const char *const SEC[2] = { "Dados", "Amuletos" };
     const int w = 104, h = 26, x0 = GFX_W / 2 - w, y0 = (FAIXA_H - h) / 2 - 1;
-    gfx_rect(x0, y0, 2 * w, h, C_FELTRO_ESC);
-    for (int i = 0; i < 2; i++) {
-        bool on = cat_sec == i;
-        if (on) gfx_rect(x0 + i * w + 2, y0 + 2, w - 4, h - 4, C_LATAO);
-        txt_c(x0 + i * w + w / 2, y0 + 3, SEC[i], on ? C_BARRA : C_TEXTO_M, on);
+    for (int i = 0; i < 2; i++) {                 // duas abas, a escolhida em latao
+        ui_botao(x0 + i * w, y0, w, h, SEC[i], cat_sec == i ? C_LATAO : 0, 0);
         zona_clique(x0 + i * w, y0, w, h, NULL, 0, i == 0 ? KEY_UP : KEY_DOWN);
     }
-    gfx_moldura(x0, y0, 2 * w, h, 1, C_LATAO_ESC);
     char s[32];
     snprintf(s, sizeof s, "%d de %d", atual + 1, total);
     txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
@@ -5991,7 +6098,7 @@ static void linha_bloqueio(int x, int y, const char *falta)
     cadeado(x + 4, y + 8, C_VINHO_CLR, 1);
     int xb = x + 14;
     txt(xb, y, "Bloqueado", C_VINHO_CLR, true);
-    gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y + 5, falta, C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y, falta, C_TEXTO_M, 1, false);
 }
 
 static void desenha_catalogo(void)
@@ -6046,8 +6153,7 @@ static void desenha_catalogo(void)
     gfx_texto(x, 70, d->nome, st == 2 ? C_TEXTO_M : cor_aro(tipo), 2, true);
     classe(tipo, s, sizeof s);
     int wc = gfx_largura(s, 1) + 12;
-    gfx_rect_alfa(x, 118, wc, TXT_H + 2, cor_rar(tipo), 40);
-    gfx_moldura(x, 118, wc, TXT_H + 2, 1, cor_rar(tipo));
+    ui_etiqueta(x, 118, wc, TXT_H + 2, cor_rar(tipo));
     txt(x + 6, 119, s, cor_rar(tipo), false);
     int xt = etiquetas_protecao(x + wc + 8, 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
@@ -6093,9 +6199,7 @@ static void desenha_detalhe(void)
     int tipo = detalhe;
     const int x0 = 70, y0 = 70, w = GFX_W - 140, h = 220;
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 140);
-    gfx_rect(x0 + 3, y0 + 4, w, h, C_SOMBRA);
-    gfx_rect(x0, y0, w, h, C_FELTRO_ESC);
-    gfx_moldura(x0, y0, w, h, 2, cor_rar(tipo));
+    ui_cartao(x0, y0, w, h, true, cor_rar(tipo));
     int cx = x0 + 78, cy = y0 + 96;
     gfx_disco(cx, cy, 52, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));
     gfx_disco(cx, cy, 49, C_FELTRO_ESC);
@@ -6106,8 +6210,7 @@ static void desenha_detalhe(void)
     char s[32];
     classe(tipo, s, sizeof s);
     int wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(s, 1) + 10;
-    gfx_rect_alfa(x + wn + 12, y0 + 18, wc, TXT_H - 2, cor_rar(tipo), 40);
-    gfx_moldura(x + wn + 12, y0 + 18, wc, TXT_H - 2, 1, cor_rar(tipo));
+    ui_etiqueta(x + wn + 12, y0 + 18, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(x + wn + 17, y0 + 16, s, cor_rar(tipo), 1, false);
     etiquetas_protecao(x + wn + 12 + wc + 6, y0 + 17, tipo);
     gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
@@ -6139,10 +6242,7 @@ static void faixas_menu(const char *titulo, const char *dir, const char *rodape)
 // Botao grande de menu, centrado.
 static void botao_menu(int y, int w, const char *rot, bool cur)
 {
-    gfx_rect(GFX_W / 2 - w / 2 + 2, y + 2, w, 26, C_SOMBRA);
-    gfx_rect(GFX_W / 2 - w / 2, y, w, 26, cur ? C_LATAO : C_FELTRO_ESC);
-    gfx_moldura(GFX_W / 2 - w / 2, y, w, 26, 1, cur ? C_BRANCO : C_FELTRO2);
-    txt_c(GFX_W / 2, y + 3, rot, cur ? C_BARRA : C_MARFIM, cur);
+    ui_botao(GFX_W / 2 - w / 2, y, w, 26, rot, cur ? C_LATAO : 0, 0);
 }
 
 // Quatro casas com as letras do codigo da sala.
@@ -6150,8 +6250,7 @@ static void casas_codigo(int y, const char *cod, bool cursor_pisca)
 {
     for (int i = 0; i < 4; i++) {
         int x = GFX_W / 2 - 110 + i * 56;
-        gfx_rect(x, y, 48, 56, C_BARRA);
-        gfx_moldura(x, y, 48, 56, 2, C_LATAO);
+        ui_painel(x, y, 48, 56);
         char c[2] = { cod[i] ? cod[i] : 0, 0 };
         if (c[0]) gfx_texto(x + 24 - gfx_largura(c, 2) / 2, y + 6, c, C_MARFIM, 2, true);
         else if (cursor_pisca && i == (int)strlen(cod) && (int)(t_fase * 2) % 2 == 0)
@@ -6252,9 +6351,7 @@ static const pagina_t TUTORIAL[] = {
 static void rotulo_tut(int cx, int y, const char *s, bool aceso)
 {
     int w = gfx_largura(s, 1) + 24;
-    gfx_rect(cx - w / 2, y, w, 26, aceso ? C_VINHO_CLR : C_FELTRO_ESC);
-    gfx_moldura(cx - w / 2, y, w, 26, 1, aceso ? C_BRANCO : C_FELTRO2);
-    txt_c(cx, y + 3, s, aceso ? C_BARRA : C_MARFIM_S, aceso);
+    ui_botao(cx - w / 2, y, w, 26, s, aceso ? C_VINHO : 0, aceso ? UI_FOCO : 0);
 }
 
 // Ilustracoes: dados de verdade, desenhados pelo mesmo codigo da mesa.
@@ -6357,7 +6454,6 @@ static void desenha_tutorial(void)
 // Avisos por cima de tudo: sair da partida e conexao perdida.
 // A entrada subiu: uma faixa vermelha e dourada no alto da mesa, com fichas
 // pulando dos lados, por uns dois segundos e meio.
-static void tapa_textos(int x, int y, int w, int h);
 static void desenha_aviso_entrada(void)
 {
     if (t_aviso_entrada <= 0) return;
@@ -6365,7 +6461,6 @@ static void desenha_aviso_entrada(void)
     float abre = e < 0.18f ? e / 0.18f : (t_aviso_entrada < 0.25f ? t_aviso_entrada / 0.25f : 1);
     int h = (int)(46 * abre), y = MESA_Y0 + 34 - h / 2;
     if (h < 4) return;
-    tapa_textos(MESA_X0, y, MESA_X1 - MESA_X0, h);
     gfx_rect(MESA_X0, y + 3, MESA_X1 - MESA_X0, h, C_SOMBRA);
     gfx_rect(MESA_X0, y, MESA_X1 - MESA_X0, h, RGB(120, 26, 34));
     gfx_rect(MESA_X0, y, MESA_X1 - MESA_X0, 2, C_OURO);
@@ -6393,30 +6488,8 @@ static void desenha_avisos(void)
     else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
-    gfx_rect(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, C_BARRA);
-    gfx_moldura(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12, 2, c);
-    txt_c(GFX_W / 2, MESA_Y0 + 11, msg, c, true);
-}
-
-// Com os detalhes abertos, a mesa por baixo e desenhada sem os textos: eles
-// iriam por cima de tudo, na camada de texto da plataforma.
-static void texto_mudo(int x, int y, const char *s, uint16_t c, int e, bool n)
-{
-    (void)x; (void)y; (void)s; (void)c; (void)e; (void)n;
-}
-
-typedef struct { int16_t x, y; uint8_t esc; bool neg; uint16_t cor; uint16_t ini; } texto_g_t;
-static texto_g_t txg[400];
-static char txg_letras[12000];
-static int n_txg, txg_usado;
-static gfx_texto_fn txg_destino;
-// Retangulos que tapam os textos guardados ANTES deles (o balao, a dica).
-static int ocl[4][5], n_ocl;
-static void tapa_textos(int x, int y, int w, int h)
-{
-    if (n_ocl >= 4) return;
-    ocl[n_ocl][0] = x; ocl[n_ocl][1] = y; ocl[n_ocl][2] = w; ocl[n_ocl][3] = h; ocl[n_ocl][4] = n_txg;
-    n_ocl++;
+    ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);
+    txt_c(GFX_W / 2, MESA_Y0 + 12, msg, c, false);
 }
 
 #include "desafio.inc"
@@ -6424,21 +6497,8 @@ static void tapa_textos(int x, int y, int w, int h)
 static void desenha_tudo(void);
 
 // ---------------------------------------------------------------------------
-// Dica do mouse. Os textos nitidos vao numa camada por cima de tudo; para a
-// caixa da dica nao ficar com texto vazando por baixo, os textos do quadro
-// ficam guardados e saem depois, menos os que a caixa cobre.
+// Dica do mouse: uma caixa com o nome e o que a coisa faz, por cima de tudo.
 // ---------------------------------------------------------------------------
-static void texto_guarda(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
-{
-    int n = (int)strlen(s) + 1;
-    if (n_txg >= (int)(sizeof txg / sizeof txg[0]) || txg_usado + n > (int)sizeof txg_letras) {
-        txg_destino(x, y, s, c, esc, negrito);           // sem espaco: sai na hora
-        return;
-    }
-    txg[n_txg++] = (texto_g_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, (uint16_t)txg_usado };
-    memcpy(txg_letras + txg_usado, s, (size_t)n);
-    txg_usado += n;
-}
 
 static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, const char **desc)
 {
@@ -6469,10 +6529,9 @@ static bool dica_rect(int *r, const dica_t **qual)
     uint16_t cor;
     dica_textos(d->tipo, d->id, &nome, &cor, &desc);
     int larg = 260;
-    gfx_texto_fn antes = gfx_texto_nitido_atual();
-    gfx_texto_nitido(texto_mudo);                       // so conta as linhas
+    quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
-    gfx_texto_nitido(antes);
+    quebra_so_conta = false;
     int w = larg, h = 10 + (TXT_H + 2) + linhas * (TXT_H + 4) + 4;
     int x = mouse_x + 14, y = mouse_y + 16;
     if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
@@ -6489,9 +6548,8 @@ static void desenha_dica(const int *r, const dica_t *d)
     const char *nome, *desc;
     uint16_t cor;
     dica_textos(d->tipo, d->id, &nome, &cor, &desc);
-    gfx_rect(r[0] + 2, r[1] + 3, r[2], r[3], C_SOMBRA);
-    gfx_rect(r[0], r[1], r[2], r[3], C_BARRA);
-    gfx_moldura(r[0], r[1], r[2], r[3], 1, cor);
+    ui_painel(r[0], r[1], r[2], r[3]);
+    gfx_rect(r[0] + 3, r[1] + 3, 3, r[3] - 6, cor);             // a cor da coisa, na beira
     int x = r[0] + 8, y = r[1] + 5;
     int w = gfx_texto(x, y, nome, cor, 1, true);
     if (d->tipo == DICA_DADO) {                          // "D4 · raro", miudo, ao lado
@@ -6504,18 +6562,12 @@ static void desenha_dica(const int *r, const dica_t *d)
 
 void dado_desenha(void)
 {
-    gfx_texto_fn nitido = gfx_texto_nitido_atual();
-    bool mudo = detalhe >= 0 && fase == detalhe_fase && nitido;
-    if (mudo) gfx_texto_nitido(texto_mudo);
-    else if (nitido) { n_txg = txg_usado = 0; txg_destino = nitido; gfx_texto_nitido(texto_guarda); }
-    n_ocl = 0;
     n_zonas = 0;
     n_dicas = 0;
     zonas_fase = fase;
     desenha_tudo();
     balao_oponente();
     desenha_confete();
-    if (mudo) gfx_texto_nitido(nitido);
     bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
     if (!menu) {
         desenha_detalhe();
@@ -6527,21 +6579,8 @@ void dado_desenha(void)
     int r[4];
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);
-    if (tem_dica) tapa_textos(r[0], r[1], r[2], r[3]);
-    if (!mudo && nitido) {                               // os textos guardados, menos os tapados
-        gfx_texto_nitido(nitido);
-        for (int i = 0; i < n_txg; i++) {
-            const texto_g_t *t = &txg[i];
-            const char *s = txg_letras + t->ini;
-            int tw = gfx_largura(s, t->esc), th = t->esc == GFX_MIUDO ? TXT_H * 2 / 3 : TXT_H * t->esc;
-            bool tapado = false;
-            for (int o = 0; o < n_ocl && !tapado; o++)
-                tapado = i < ocl[o][4] && t->x < ocl[o][0] + ocl[o][2] && t->x + tw > ocl[o][0]
-                         && t->y < ocl[o][1] + ocl[o][3] && t->y + th > ocl[o][1];
-            if (!tapado) nitido(t->x, t->y, s, t->cor, t->esc, t->neg);
-        }
-    }
     if (tem_dica) desenha_dica(r, d);
+    gfx_quantiza();                                      // o quadro so com cores da paleta
 }
 
 static void desenha_tudo(void)

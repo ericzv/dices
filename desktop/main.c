@@ -38,8 +38,6 @@ enum {
 #include "esp_timer.h"
 #include "plataforma.h"
 #include "icone.h"
-#include "fonte_ttf.h"
-#include "ui/fonte_tela.h"
 #include "hal/salva.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -274,61 +272,17 @@ static void web_ajusta_canvas(void)
 }
 #endif
 
-// ---------------------------------------------------------------------------
-// Texto nitido: o jogo avisa cada texto do quadro; aqui ele e desenhado com a
-// Jersey 10 na resolucao da tela, por cima da mesa de pixels.
-// ---------------------------------------------------------------------------
-typedef struct { int16_t x, y; uint8_t esc; bool negrito; uint16_t cor; int ini; } texto_t;
-static texto_t textos[768];
-static int n_textos, usado;
-static char letras[32768];
-static Font fonte;
-
-static void recebe_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
+// O tamanho da mesa escolhido com - e +, por um instante, desenhado no
+// proprio quadro do jogo (no mesmo grid de pixels do resto).
+static void aviso_zoom(void)
 {
-    int n = (int)strlen(s) + 1;
-    if (n_textos >= (int)(sizeof textos / sizeof textos[0]) || usado + n > (int)sizeof letras) return;
-    textos[n_textos++] = (texto_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, usado };
-    memcpy(letras + usado, s, (size_t)n);
-    usado += n;
-}
-
-static Color rgb565(uint16_t c)
-{
-    return (Color){ (unsigned char)(((c >> 11) & 31) * 255 / 31),
-                    (unsigned char)(((c >> 5) & 63) * 255 / 63),
-                    (unsigned char)((c & 31) * 255 / 31), 255 };
-}
-
-static void carrega_fonte(void)
-{
-    int cps[FONTE_N], n = 0;
-    for (int c = 0x20; c < 0x100; c++) if (c < 0x7F || c >= 0xA0) cps[n++] = c;
-    fonte = LoadFontFromMemory(".ttf", FONTE_TTF, (int)sizeof FONTE_TTF, 96, cps, n);
-    GenTextureMipmaps(&fonte.texture);
-    SetTextureFilter(fonte.texture, TEXTURE_FILTER_TRILINEAR);
-    gfx_texto_nitido(recebe_texto);
-}
-
-// Cada letra vai na posicao que o jogo calculou (mesmos avancos da tabela),
-// assim o centro e as quebras de linha batem com o que o jogo mediu.
-static void desenha_textos(Rectangle area)
-{
-    float k = area.width / GFX_W;
-    for (int i = 0; i < n_textos; i++) {
-        const texto_t *t = &textos[i];
-        float e = t->esc == GFX_MIUDO ? GFX_MIUDO_ESC : (float)t->esc;
-        float tam = FT_EM * e * k;
-        float x = area.x + t->x * k, y = area.y + t->y * k;
-        Color c = rgb565(t->cor);
-        const char *s = letras + t->ini;
-        while (*s) {
-            int cp = gfx_proximo_car(&s);
-            DrawTextCodepoint(fonte, cp, (Vector2){ x, y }, tam, c);
-            if (t->negrito) DrawTextCodepoint(fonte, cp, (Vector2){ x + k * 0.45f * e, y }, tam, c);
-            x += FT_AVANCO[cp - FONTE_PRIM] * e * k / 64.0f;
-        }
-    }
+    if (zoom_aviso <= 0) return;
+    zoom_aviso -= GetFrameTime();
+    char b[48];
+    snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom);
+    int w = gfx_largura(b, 1), x = (GFX_W - w) / 2, y = GFX_H / 8;
+    gfx_rect_alfa(x - 12, y - 4, w + 24, FONTE_ALT + 6, 0x1082, 230);
+    gfx_texto(x, y, b, 0xD58C, 1, false);
 }
 
 // Cliques: o raylib so ve o botao apertado no comeco de cada quadro, e um
@@ -485,8 +439,8 @@ static void quadro(void)
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     dado_passo(dt);
     som_atualiza(dt);
-    n_textos = usado = 0;
     dado_desenha();
+    aviso_zoom();
     poe_cursor();
     UpdateTexture(tela, fb);
 
@@ -507,18 +461,6 @@ static void quadro(void)
     }
     DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area, (Vector2){ 0, 0 }, 0, WHITE);
     if (amplia_ok) EndShaderMode();
-    desenha_textos(area);
-    if (zoom_aviso > 0) {                    // o tamanho escolhido, por um instante
-        zoom_aviso -= GetFrameTime();
-        char b[48];
-        snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom);
-        float tam = FT_EM * area.width / GFX_W;
-        Vector2 m = MeasureTextEx(fonte, b, tam, 0);
-        float x = area.x + (area.width - m.x) / 2, y = area.y + area.height * 0.12f;
-        DrawRectangle((int)(x - tam * 0.6f), (int)(y - tam * 0.2f), (int)(m.x + tam * 1.2f), (int)(m.y + tam * 0.4f),
-                      (Color){ 16, 16, 15, 230 });
-        DrawTextEx(fonte, b, (Vector2){ x, y }, tam, 0, (Color){ 214, 178, 98, 255 });
-    }
     EndDrawing();
 }
 
@@ -549,7 +491,6 @@ int main(void)
     };
     tela = LoadTextureFromImage(img);
     prepara_ampliacao();
-    carrega_fonte();
 
     le_zoom();
     dado_inicia(0);

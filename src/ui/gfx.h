@@ -20,22 +20,22 @@ void gfx_linha_grossa(int x0, int y0, int x1, int y1, int esp, uint16_t c);
 void gfx_disco(int cx, int cy, int r, uint16_t c);
 uint16_t gfx_mistura(uint16_t a, uint16_t b, int pct);   // pct 0 = a, 100 = b
 
-// Texto em UTF-8 (acentos do Latin-1). 'esc' amplia cada pixel da fonte;
-// 'negrito' repete o glifo um pixel ao lado. Devolve a largura em pixels.
-// esc = GFX_MIUDO (0): texto miudo, a 65% do normal (no texto em pixels, sem
-// fonte nitida, fica do tamanho normal).
+// Texto em UTF-8 (acentos do Latin-1), em pixels no proprio framebuffer, no
+// mesmo grid da mesa. 'esc' amplia cada pixel da fonte (1 = Jersey 10 no
+// tamanho nativo, linha de 20 px; 2 = o dobro). esc = GFX_MIUDO (0): a fonte
+// miuda (Tiny5), linha de 12 px. 'negrito' poe uma sombra de um pixel embaixo.
+// Devolve a largura em pixels.
 #define GFX_MIUDO 0
-#define GFX_MIUDO_ESC 0.65f
 int gfx_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
 int gfx_largura(const char *s, int esc);
 
-// Texto nitido: a plataforma que sabe desenhar texto na resolucao da tela
-// (o PC e o navegador) registra aqui quem recebe cada texto; o jogo entao so
-// avisa onde ele vai, e mede as larguras pela fonte Jersey 10. Sem registro
-// (testes sem janela), o texto e desenhado em pixels no framebuffer.
-typedef void (*gfx_texto_fn)(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
-void gfx_texto_nitido(gfx_texto_fn fn);
-gfx_texto_fn gfx_texto_nitido_atual(void);
+// Paleta fechada: depois de gfx_paleta, gfx_quantiza troca cada pixel do
+// quadro pela cor mais proxima da paleta (pela distancia "redmean", que pesa
+// as cores como o olho). Assim misturas, transparencias e sombras caem
+// sempre em cores da paleta. Sem paleta, gfx_quantiza nao faz nada.
+void gfx_paleta(const uint16_t *cores, int n);
+void gfx_quantiza(void);
+uint16_t gfx_na_paleta(uint16_t c);
 
 // Desvia todo o desenho para outro buffer de GFX_W x GFX_H (NULL volta a tela).
 void gfx_desvia(uint16_t *buf);

@@ -33,8 +33,7 @@ FetchContent_MakeAvailable(raylib)
 add_library(jogo STATIC
     src/games/dado.c
     src/ui/gfx.c
-    src/ui/fonte.c
-    src/ui/fonte_tela.c)
+    src/ui/fonte.c)
 target_include_directories(jogo PUBLIC src desktop)
 # A versao (o commit) aparece miuda na tela inicial: da para saber qual jogo
 # esta aberto, no PC ou no site.
@@ -112,7 +111,7 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     target_link_libraries(simula PRIVATE jogo)
     add_test(NAME simula COMMAND simula 120)
     # Regras dos dados com jogadas montadas a mao.
-    add_executable(regras tests/regras.c src/ui/gfx.c src/ui/fonte.c src/ui/fonte_tela.c desktop/rede.c)
+    add_executable(regras tests/regras.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(regras PRIVATE src desktop)
     if (MSVC)
         target_compile_options(regras PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
@@ -122,7 +121,7 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     endif()
     add_test(NAME regras COMMAND regras)
     # Modo Desafiante: runs inteiras com a IA no lugar da pessoa.
-    add_executable(desafio tests/desafio.c src/ui/gfx.c src/ui/fonte.c src/ui/fonte_tela.c desktop/rede.c)
+    add_executable(desafio tests/desafio.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(desafio PRIVATE src desktop)
     if (MSVC)
         target_compile_options(desafio PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)

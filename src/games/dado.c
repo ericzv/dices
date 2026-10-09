@@ -1489,10 +1489,16 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(u) > 0.6f || fabsf(v) > 0.6f) return 0;
         return fabsf(u - v) < 0.2f || fabsf(u + v) < 0.2f;
     case D_SEMENTE: {                             // sementes em espiral, de girassol
+        static float SX[34], SY[34];
+        if (!SX[1])
+            for (int k = 1; k < 34; k++) {
+                float rr = 0.125f * sqrtf((float)k), a = k * 2.39996f;
+                SX[k] = rr * cosf(a); SY[k] = rr * sinf(a);
+            }
         float rs = 0.05f > s * 0.75f ? 0.05f : s * 0.75f;
+        if (ro > 0.75f + rs) return 0;
         for (int k = 1; k < 34; k++) {
-            float rr = 0.125f * sqrtf((float)k), a = k * 2.39996f;
-            float dx = u - rr * cosf(a), dy = v - rr * sinf(a);
+            float dx = u - SX[k], dy = v - SY[k];
             if (dx * dx + dy * dy < rs * rs) return 1;
         }
         return 0;

@@ -1,8 +1,9 @@
 // ===========================================================================
 // MODO DESAFIANTE: uma run pelo cassino, de salao em salao.
 //
-// Incluido pelo dado.c (usa as mesmas regras, dados e desenho); nao se compila
-// sozinho. Nada daqui muda a partida rapida, as 2 pessoas ou o online.
+// Incluido pelo dado.c, como os outros arquivos de dado/ (usa as mesmas regras,
+// dados e desenho); nao se compila sozinho. Nada daqui muda a partida rapida,
+// as 2 pessoas ou o online.
 //
 // A run: 3 saloes, 6 passos cada. Em cada passo o jogador escolhe um caminho
 // entre 2 ou 3 nos (oponente facil, medio ou dificil, loja ou evento); o
@@ -10,7 +11,6 @@
 // cada lado; vencer converte as fichas que sobraram em moedas (1 por 1) e da
 // um premio de dado. Perder encerra a run. Nada passa de uma run para outra.
 // ===========================================================================
-#include "hal/salva.h"
 
 #define DES_ANDARES   3
 #define DES_PASSOS    6                  // 5 mesas e o chefe

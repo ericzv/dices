@@ -70,9 +70,8 @@ static int larg_botoes(const char **rot, int n)
     return larg;
 }
 
-static void botoes(int y, const char **rot, const bool *ativo, int n, uint16_t cor, const uint16_t *tinta)
+static void botoes(int y, const char **rot, const bool *ativo, int n, const uint16_t *tinta)
 {
-    (void)cor;
     int x = GFX_W / 2 - larg_botoes(rot, n) / 2;
     for (int i = 0; i < n; i++) {
         int w = gfx_largura(rot[i], 1) + 24;
@@ -255,7 +254,7 @@ static void desenha_joga(void)
     if (menu) {
         bool ativo[2] = { f->lancados < f->n, true };
         static const uint16_t TINTA_JOGA[2] = { RGB(38, 96, 64), RGB(40, 62, 104) };   // jogar, parar
-        botoes(y1 + (prox ? 2 * TXT_H : TXT_H) + 1, rot, ativo, 2, p->cor, TINTA_JOGA);
+        botoes(y1 + (prox ? 2 * TXT_H : TXT_H) + 1, rot, ativo, 2, TINTA_JOGA);
     }
     pote_mesa();
 }
@@ -289,7 +288,7 @@ static void desenha_aposta(void)
     gfx_texto(x, y1, t, J[primeiro].cor, 1, true);
     txt_c(x + wt + sep / 2, y1, "·", C_TEXTO_M, false);
     gfx_texto(x + wt + sep, y1, qq, J[vez].cor, 1, false);
-    if (menu) botoes(y1 + TXT_H + 6, rot, ativo, n, J[vez].cor, tinta);
+    if (menu) botoes(y1 + TXT_H + 6, rot, ativo, n, tinta);
     pote_mesa();
 }
 
@@ -510,7 +509,7 @@ static void desenha_loja(void)
 
     for (int i = 0; i < N_LOJA; i++) {
         int x = GFX_W / 2 + (i - 2) * 108, yb = 142;
-        int tp = loja[i].tipo, pr = preco_loja(tp);
+        int tp = loja[i].tipo, pr = TIPO[tp].preco;
         bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
         uint16_t cr = cor_rar(tp);
         ui_cartao(x - 48, yb, 96, 92, cur, cr);
@@ -530,7 +529,7 @@ static void desenha_loja(void)
     dado_e_poder(240, loja[cursor].tipo, true);
     char rival[48];
     snprintf(rival, sizeof rival, "%s também comprou este", J[outro(vez)].nome);
-    if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
+    if (!levou[vez][cursor] && p->fichas < TIPO[loja[cursor].tipo].preco)
         txt_c(GFX_W / 2, 286, "fichas insuficientes", C_VINHO_CLR, true);
     else if (levou[outro(vez)][cursor] && (cpu >> outro(vez) & 1))
         txt_c(GFX_W / 2, 286, rival, J[outro(vez)].cor, true);

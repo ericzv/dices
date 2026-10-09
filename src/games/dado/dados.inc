@@ -16,6 +16,7 @@ enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 typedef struct {
     const char *nome;
     uint8_t lados, efeito, raridade;
+    uint8_t preco;                   // fichas na loja (0: sem preco)
     const char *desc;
 } tipo_t;
 
@@ -39,58 +40,58 @@ static bool so_desafio(int t) { return t >= D_BASICOS; }
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
-    { "Moeda",      2,  EF_NADA,      RAR_COMUM,   "1 ou 2: ótima para abrir a sequência" },
-    { "D4",         4,  EF_NADA,      RAR_COMUM,   "quatro lados, de 1 a 4" },
-    { "D6",         6,  EF_NADA,      RAR_COMUM,   "seis lados, de 1 a 6" },
-    { "D8",         8,  EF_NADA,      RAR_COMUM,   "oito lados, de 1 a 8" },
-    { "D12",       12,  EF_NADA,      RAR_INCOMUM, "doze lados, de 1 a 12" },
-    { "D20",       20,  EF_NADA,      RAR_RARO,    "vinte lados, de 1 a 20" },
-    { "Dobro",      6,  EF_DOBRO,     RAR_INCOMUM, "1 a 3: o dado seguinte vale x2" },
-    { "Viciado",    6,  EF_VICIADO,   RAR_INCOMUM, "rola 2 vezes e fica com o maior" },
-    { "Lastro",    12,  EF_LASTRO,    RAR_RARO,    "sempre de 4 a 12" },
-    { "Par",        4,  EF_PAR,       RAR_INCOMUM, "igual ao anterior: +8" },
-    { "Escudo",     6,  EF_ESCUDO,    RAR_INCOMUM, "não pode ser anulado nem roubado" },
-    { "Carrasco",   4,  EF_CARRASCO,  RAR_RARO,    "4: anula o maior do rival · 1: anula o seu menor" },
-    { "Explosivo",  8,  EF_EXPLODE,   RAR_RARO,    "no 8, rola de novo e soma" },
-    { "Espinhoso",  4,  EF_MARTELO,   RAR_RARO,    "com 3 ou 4: tira 4 do oponente" },
-    { "Pirata",     8,  EF_PIRATA,    RAR_RARO,    "com 6 ou mais: tira 4 do oponente" },
-    { "Espelho",    6,  EF_ESPELHO,   RAR_RARO,    "1 ou 2: vira o maior do oponente" },
-    { "Fichas",     4,  EF_FICHAS,    RAR_COMUM,   "com mais fichas que o oponente: +2" },
-    { "Tudo ou Nada",2,  EF_TUDO_NADA, RAR_LENDA,   "2: tudo vale x2 · 1: rodada vale 0" },
-    { "Agouro",    20,  EF_MALDITO,   RAR_LENDA,   "7 ou menos: anula a sua sequência" },
-    { "Gatuno",     6,  EF_GATUNO,    RAR_RARO,    "com um 1 na sua sequência: rouba" },
-    { "Quebrado",   8,  EF_QUEBRADO,  RAR_COMUM,   "número fixo; quebra ao ser jogado" },
-    { "Invejoso",   6,  EF_INVEJOSO,  RAR_RARO,    "1, 3 ou 5: anula o maior do oponente e o seu" },
-    { "Caridoso",   4,  EF_CARIDOSO,  RAR_RARO,    "com 3 ou 4: rouba o menor do oponente" },
-    { "Fartura",    4,  EF_FARTURA,   RAR_INCOMUM, "seus dados com 1 ou 2 valem x2" },
-    { "Moeda sorte",2,  EF_SORTE,     RAR_INCOMUM, "1: ímpares +1 · 2: pares +1" },
-    { "Teimoso",    6,  EF_TEIMOSO,   RAR_INCOMUM,   "não pode ser anulado" },
-    { "Semente",    2,  EF_SEMENTE,   RAR_INCOMUM, "seus dados somam 20+: +10" },
-    { "Ficha Fogo", 2,  EF_FOGO,      RAR_RARO,    "valendo: +10, e o seu maior queima" },
-    { "Maldito",    4,  EF_MALDICAO,  RAR_RARO,    "vale e tira o mesmo do oponente" },
-    { "Trevo",      4,  EF_TREVO,     RAR_INCOMUM, "4 vale 8 · 1 a 3 vale 0" },
-    { "Jackpot",    4,  EF_JACKPOT,   RAR_INCOMUM, "três dados iguais: +10" },
-    { "Copiador",   6,  EF_COPIADOR,  RAR_INCOMUM, "cada dado igual a ele: +2" },
-    { "Egoísta",   12,  EF_EGOISTA,   RAR_RARO,    "anula os seus outros dados" },
-    { "Laser",       6,  EF_LASER,     RAR_RARO,    "com 5 ou 6: anula um dado do oponente" },
-    { "Ventania",    8,  EF_VENTANIA,  RAR_RARO,    "rola de novo o dado de antes dele" },
-    { "Misericordioso",4, EF_MISERICORDIA, RAR_INCOMUM, "valendo: +2 por dado seu anulado" },
-    { "Solitário",  4,  EF_SOLITARIO, RAR_COMUM,   "sem vizinho valendo: +4" },
-    { "Sentinela",  4,  EF_SENTINELA, RAR_COMUM,   "se cair, cai sozinho" },
-    { "Ferreiro",   4,  EF_FERREIRO,  RAR_INCOMUM, "não pontua; 3 ou 4: +6 no seguinte" },
-    { "Cobrador",   4,  EF_COBRADOR,  RAR_COMUM,   "oponente com mais fichas: +2" },
-    { "Desafiante", 8,  EF_DESAFIANTE, RAR_INCOMUM, "maior dado da rodada: +4" },
-    { "Vidro",      8,  EF_VIDRO,     RAR_COMUM,   "tirou 1: quebra e anula o anterior" },
-    { "Acumulador", 8,  EF_ACUMULADOR, RAR_INCOMUM, "+1 a cada lance, até +6" },
-    { "Segurança",  4,  EF_SEGURANCA, RAR_INCOMUM, "anulação ou roubo do oponente cai nele" },
-    { "Bumerangue", 6,  EF_BUMERANGUE, RAR_COMUM,  "1 ou 2: volta e rola de novo" },
-    { "Gêmeo",      6,  EF_GEMEO,     RAR_INCOMUM, "tira o mesmo do anterior que vale" },
-    { "Prisma",     8,  EF_PRISMA,    RAR_INCOMUM, "+1 por tipo de dado seu valendo" },
-    { "Fênix",      6,  EF_FENIX,     RAR_RARO,    "anulado: renasce no fim" },
-    { "Trono",     12,  EF_TRONO,     RAR_LENDA,   "último que você jogou, valendo: x2" },
-    { "Cavalo de Troia", 8, EF_CAVALO, RAR_RARO,  "valendo: +1 por dado seu valendo" },
-    { "Berserker", 20,  EF_BERSERKER, RAR_LENDA,   "valendo: anula um dado seu ao acaso" },
-    { "Viúva Negra", 8, EF_VIUVA,     RAR_RARO,    "único dado seu valendo: x2" },
+    { "Moeda",            2, EF_NADA,         RAR_COMUM,    4, "1 ou 2: ótima para abrir a sequência" },
+    { "D4",               4, EF_NADA,         RAR_COMUM,    5, "quatro lados, de 1 a 4" },
+    { "D6",               6, EF_NADA,         RAR_COMUM,    0, "seis lados, de 1 a 6" },
+    { "D8",               8, EF_NADA,         RAR_COMUM,    9, "oito lados, de 1 a 8" },
+    { "D12",             12, EF_NADA,         RAR_INCOMUM, 20, "doze lados, de 1 a 12" },
+    { "D20",             20, EF_NADA,         RAR_RARO,    26, "vinte lados, de 1 a 20" },
+    { "Dobro",            6, EF_DOBRO,        RAR_INCOMUM, 16, "1 a 3: o dado seguinte vale x2" },
+    { "Viciado",          6, EF_VICIADO,      RAR_INCOMUM, 16, "rola 2 vezes e fica com o maior" },
+    { "Lastro",          12, EF_LASTRO,       RAR_RARO,    26, "sempre de 4 a 12" },
+    { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "igual ao anterior: +8" },
+    { "Escudo",           6, EF_ESCUDO,       RAR_INCOMUM, 15, "não pode ser anulado nem roubado" },
+    { "Carrasco",         4, EF_CARRASCO,     RAR_RARO,    17, "4: anula o maior do rival · 1: anula o seu menor" },
+    { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "no 8, rola de novo e soma" },
+    { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "com 3 ou 4: tira 4 do oponente" },
+    { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "com 6 ou mais: tira 4 do oponente" },
+    { "Espelho",          6, EF_ESPELHO,      RAR_RARO,    20, "1 ou 2: vira o maior do oponente" },
+    { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "com mais fichas que o oponente: +2" },
+    { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_LENDA,   14, "2: tudo vale x2 · 1: rodada vale 0" },
+    { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
+    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "com um 1 na sua sequência: rouba" },
+    { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "número fixo; quebra ao ser jogado" },
+    { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "1, 3 ou 5: anula o maior do oponente e o seu" },
+    { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "com 3 ou 4: rouba o menor do oponente" },
+    { "Fartura",          4, EF_FARTURA,      RAR_INCOMUM, 14, "seus dados com 1 ou 2 valem x2" },
+    { "Moeda sorte",      2, EF_SORTE,        RAR_INCOMUM, 14, "1: ímpares +1 · 2: pares +1" },
+    { "Teimoso",          6, EF_TEIMOSO,      RAR_INCOMUM, 11, "não pode ser anulado" },
+    { "Semente",          2, EF_SEMENTE,      RAR_INCOMUM,  9, "seus dados somam 20+: +10" },
+    { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "valendo: +10, e o seu maior queima" },
+    { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "vale e tira o mesmo do oponente" },
+    { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 vale 8 · 1 a 3 vale 0" },
+    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "três dados iguais: +10" },
+    { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "cada dado igual a ele: +2" },
+    { "Egoísta",         12, EF_EGOISTA,      RAR_RARO,    14, "anula os seus outros dados" },
+    { "Laser",            6, EF_LASER,        RAR_RARO,    16, "com 5 ou 6: anula um dado do oponente" },
+    { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "rola de novo o dado de antes dele" },
+    { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "valendo: +2 por dado seu anulado" },
+    { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "sem vizinho valendo: +4" },
+    { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "se cair, cai sozinho" },
+    { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "não pontua; 3 ou 4: +6 no seguinte" },
+    { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "oponente com mais fichas: +2" },
+    { "Desafiante",       8, EF_DESAFIANTE,   RAR_INCOMUM, 13, "maior dado da rodada: +4" },
+    { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "tirou 1: quebra e anula o anterior" },
+    { "Acumulador",       8, EF_ACUMULADOR,   RAR_INCOMUM, 16, "+1 a cada lance, até +6" },
+    { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "anulação ou roubo do oponente cai nele" },
+    { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
+    { "Gêmeo",            6, EF_GEMEO,        RAR_INCOMUM,  0, "tira o mesmo do anterior que vale" },
+    { "Prisma",           8, EF_PRISMA,       RAR_INCOMUM,  0, "+1 por tipo de dado seu valendo" },
+    { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "anulado: renasce no fim" },
+    { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "último que você jogou, valendo: x2" },
+    { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "valendo: +1 por dado seu valendo" },
+    { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "valendo: anula um dado seu ao acaso" },
+    { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "único dado seu valendo: x2" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -250,59 +251,15 @@ static int cat_tipo(int i)
     return 0;
 }
 
+// O que a loja da partida rapida vende: N_LOJA destes, embaralhados nesta
+// ordem. Precos (TIPO.preco) medidos com partidas IA x IA, 2000 por dado, com
+// duas copias na bolsa: quem rende mais custa mais.
 static const uint8_t VITRINE[] = { D_D8, D_D12, D_PAR, D_ESCUDO,
                                    D_DOBRO, D_VICIADO, D_LASTRO, D_QUEBRADO,
                                    D_FARTURA, D_SORTE, D_TEIMOSO, D_SEMENTE, D_TREVO,
                                    D_JACKPOT, D_COPIADOR, D_MISERICORDIOSO, D_SOLITARIO,
                                    D_SENTINELA, D_FERREIRO, D_COBRADOR, D_DESAFIANTE,
                                    D_VIDRO, D_ACUMULADOR, D_SEGURANCA };
-// Precos medidos com partidas IA x IA (2000 por dado, com duas copias na
-// bolsa): quem rende mais custa mais.
-static int preco_loja(int t)
-{
-    switch (t) {
-    case D_D2:       return 4;
-    case D_D4:       return 5;
-    case D_D8:       return 9;
-    case D_QUEBRADO: return 9;
-    case D_SENTINELA: return 6;
-    case D_COBRADOR: return 6;
-    case D_VIDRO:    return 7;
-    case D_SEGURANCA: return 7;
-    case D_TREVO:    return 8;
-    case D_SEMENTE:  return 9;
-    case D_JACKPOT:  return 9;
-    case D_SOLITARIO: return 9;
-    case D_PAR:      return 11;
-    case D_COPIADOR: return 11;
-    case D_TEIMOSO:  return 11;
-    case D_FERREIRO: return 10;
-    case D_DESAFIANTE: return 13;
-    case D_MISERICORDIOSO: return 13;
-    case D_SORTE:    return 14;
-    case D_FARTURA:  return 14;
-    case D_FICHAS:   return 6;
-    case D_TUDO_NADA: return 14;
-    case D_EGOISTA:  return 14;
-    case D_ESCUDO:   return 15;
-    case D_MARTELO: return 15;
-    case D_DOBRO:    return 16;
-    case D_VICIADO:  return 16;
-    case D_ACUMULADOR: return 16;
-    case D_EXPLOSIVO: return 16;
-    case D_LASER:    return 16;
-    case D_CARRASCO: return 17;
-    case D_D12:      return 20;
-    case D_GATUNO:   return 20;
-    case D_ESPELHO:  return 20;
-    case D_VENTANIA: return 10;
-    case D_FOGO:     return 22;
-    case D_MALDITO:  return 24;
-    case D_D20:      return 26;
-    case D_LASTRO:   return 26;
-    default:         return 18;
-    }
-}
 
 // A cara de cada dado especial: a cor dele (o aro e o nome nas telas), o tom
 // que tinge o corpo e as cores do desenho de dentro (desenho_interno). Tudo

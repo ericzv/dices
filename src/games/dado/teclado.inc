@@ -101,9 +101,9 @@ void dado_tecla(const key_event_t *ev_)
 
 static void manda_tecla(int k)
 {
-    key_event_t ev = { 0 };
-    ev.key = k;
-    dado_tecla(&ev);
+    key_event_t e = { 0 };
+    e.key = k;
+    dado_tecla(&e);
 }
 
 // O mouse esta sobre algo clicavel? (a plataforma troca a seta pela maozinha)
@@ -325,8 +325,8 @@ static void trata_tecla(int k)
         if (k == KEY_ENTER || (k >= '1' && k <= '5')) {
             int tp = loja[cursor].tipo;
             if (levou[vez][cursor]) return;
-            if (p->fichas < preco_loja(tp) || p->n_col >= lim_col()) return;
-            p->fichas -= preco_loja(tp);
+            if (p->fichas < TIPO[tp].preco || p->n_col >= lim_col()) return;
+            p->fichas -= TIPO[tp].preco;
             p->col[p->n_col] = loja[cursor];
             p->onde[p->n_col++] = NA_BOLSA;             // a bolsa comeca cheia
             levou[vez][cursor] = true;

@@ -74,8 +74,7 @@ static void faixa_run(int voltar)
 
 static void rodape_run(const char *s)
 {
-    int yb = GFX_H - FAIXA_H, ty = (FAIXA_H - TXT_H) / 2 - 2;
-    (void)ty;
+    int yb = GFX_H - FAIXA_H;
     gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, s, C_TEXTO_M);
@@ -163,13 +162,13 @@ static void info_mesa(int l)
     painel(y0, INFO_H, w0);
     int cx = x0 + 14, cy = y0 + 6;
     if (no->tipo == NO_EVENTO || no->tipo == NO_LOJA) {
-        bool ev = no->tipo == NO_EVENTO;
+        bool eh_evento = no->tipo == NO_EVENTO;
         const evt_t *e = &EVT[no->perso < EVT_N ? no->perso : 0];
-        txt(cx, cy, ev ? "EVENTO" : "LOJA", cor_no(no->tipo), true);
-        if (ev) txt(cx, cy + 18, e->nome, C_MARFIM, true);
+        txt(cx, cy, eh_evento ? "EVENTO" : "LOJA", cor_no(no->tipo), true);
+        if (eh_evento) txt(cx, cy + 18, e->nome, C_MARFIM, true);
         txt(cx, cy + 38, "Não é uma partida.", C_TEXTO_M, false);
         info_divisa(x0 + 170);
-        if (ev) quebra_linhas(x0 + 184, cy, w0 - 200, 3, e->resumo, C_MARFIM_S);
+        if (eh_evento) quebra_linhas(x0 + 184, cy, w0 - 200, 3, e->resumo, C_MARFIM_S);
         else {
             quebra_linhas(x0 + 184, cy, w0 - 200, 2, "Troque moedas de ouro por dados para a sua bolsa.", C_MARFIM_S);
             moedas_c(x0 + 184 + 60, cy + 44, run.moedas, " moedas para gastar", C_OURO);

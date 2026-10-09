@@ -384,9 +384,9 @@ static int desenho_interno(int tipo, float u, float v, float s)
         return fabsf(k - roundf(k)) * 0.16f < l * 1.2f;
     }
     case D_TREVO: {                               // quatro folhas redondas
-        static const float F[4][2] = { {-0.17f,-0.02f}, {0.17f,-0.02f}, {-0.17f,0.32f}, {0.17f,0.32f} };
+        static const float FOLHA[4][2] = { {-0.17f,-0.02f}, {0.17f,-0.02f}, {-0.17f,0.32f}, {0.17f,0.32f} };
         for (int i = 0; i < 4; i++) {
-            float dx = u - F[i][0], dy = v - F[i][1];
+            float dx = u - FOLHA[i][0], dy = v - FOLHA[i][1];
             if (dx * dx + dy * dy < 0.17f * 0.17f) return 1;
         }
         return 0;
@@ -484,7 +484,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
 {
     float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
     int tex = textura_de(tipo);
-    float semente = tipo * 3.7f;
+    float desvio = tipo * 3.7f;
     int y0, y1;
     if (n) {
         float ymin = vy[0], ymax = vy[0];
@@ -518,11 +518,11 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                 float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
                 float luz = -(dx + dy) * s * 0.75f
                           + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f)
-                          + 0.32f * ruido(u * s / 0.34f + semente, v * s / 0.34f)
-                          + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + semente);
+                          + 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
+                          + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
                 if (padrao(tex, u, v, r / 22)) luz -= 1;
-                int k = (int)lroundf(luz);
-                gfx_pixel(x, y, tons[(k < -2 ? -2 : k > 2 ? 2 : k) + 2]);
+                int nivel = (int)lroundf(luz);
+                gfx_pixel(x, y, tons[(nivel < -2 ? -2 : nivel > 2 ? 2 : nivel) + 2]);
             }
     }
 }
@@ -652,11 +652,11 @@ static void tudo_ou_nada(float cx, float cy, float r, float ang, int valor, bool
 
 // Ficha de Fogo: ficha de cassino laranja (lado 1) e brasa (lado 2), com
 // marcas na borda. Na mao, o centro mostra a chama; jogada, o valor.
-static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int valor, int modo, bool zerado)
+static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int valor, int vista, bool zerado)
 {
     int R = (int)(r + ea);
     float u = r / 9;                             // unidade do desenho
-    uint16_t face = modo == 0 || valor == 1 ? C_FOGO : C_BRASA;
+    uint16_t face = vista == 0 || valor == 1 ? C_FOGO : C_BRASA;
     gfx_disco((int)cx, (int)cy, R, gfx_mistura(face, C_BARRA, 25));
     gfx_disco((int)cx, (int)cy - 1, R - 1, face);
     for (int i = 0; i < 8; i++) {                // marcas da borda
@@ -665,7 +665,7 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
         gfx_disco(mx, my, (int)(u + 0.5f), C_AMARELO);
     }
     gfx_disco((int)cx, (int)cy, (int)(R - 4 * u), face);
-    if (modo != 0) {
+    if (vista != 0) {
         char s2[4] = { (char)('0' + valor), 0 };
         numero(cx, cy, r, s2, C_MARFIM);
     } else {                                     // a chama
@@ -679,11 +679,11 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
     if (zerado) risca(cx, cy, r);
 }
 
-// modo 0: parado na mao, mostra quantos lados tem.
-// modo 1: rolando, mostra uma face qualquer.
-// modo 2: pousado, mostra o valor final (e riscado se zerou).
+// vista 0: parado na mao, mostra quantos lados tem.
+// vista 1: rolando, mostra uma face qualquer.
+// vista 2: pousado, mostra o valor final (e riscado se zerou).
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
-                         float ang, int valor, int modo, bool zerado)
+                         float ang, int valor, int vista, bool zerado)
 {
     int lados = TIPO[tipo].lados;
     const visual_t *vi = &VISUAL[tipo];
@@ -720,8 +720,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 
     int alt = (int)sombra_alt;                    // dado no ar: sombra mais longe
     gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
-    if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, modo, zerado); return; }
-    if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, modo == 0 ? -1 : valor, zerado); return; }
+    if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado); return; }
+    if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado); return; }
 
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
@@ -748,7 +748,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 
     char s[12];
     // Vidro que tirou 1: estilhacado, com rachaduras saindo do impacto.
-    if (tipo == D_VIDRO && modo == 2 && valor == 1 && zerado) {
+    if (tipo == D_VIDRO && vista == 2 && valor == 1 && zerado) {
         int e = r < 12 ? 1 : (int)(r / 11);
         static const float RA[6][2] = { {-0.9f,-0.3f}, {-0.2f,-0.95f}, {0.7f,-0.6f}, {0.95f,0.25f}, {0.2f,0.9f}, {-0.6f,0.7f} };
         float ix = cx + r * 0.15f, iy = cy - r * 0.1f;
@@ -760,7 +760,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         numero(cx, cy, r, "1", tinta);
         return;
     }
-    if (modo == 0) {
+    if (vista == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
         if (tipo == D_QUEBRADO && valor) {

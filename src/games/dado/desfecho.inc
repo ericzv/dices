@@ -16,7 +16,6 @@ typedef struct {
 
 static int contribui(int j, int k)
 {
-    if (!pontua(j, k)) return 0;
     return (valor_pontos(j, k) + F[j].bonus[k]) * (F[j].dobra[k] ? 2 : 1);
 }
 
@@ -47,12 +46,14 @@ static int desvia_seguranca(const uint8_t *est, int j, int a)
     return a;
 }
 
-static void evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
-                   const char *fmt, ...) __attribute__((format(printf, 8, 9)));
-static void evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
-                   const char *fmt, ...)
+// Um evento novo no fim da lista (so quando gera). Devolve o evento, para
+// completar a mascara e os numeros de cada dado, ou NULL.
+static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
+                        const char *fmt, ...) __attribute__((format(printf, 8, 9)));
+static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
+                        const char *fmt, ...)
 {
-    if (!gera || n_ev >= MAX_EV) return;
+    if (!gera || n_ev >= MAX_EV) return NULL;
     evento_t *e = &ev[n_ev++];
     memset(e, 0, sizeof *e);
     e->tipo = (uint8_t)tipo; e->de_j = (uint8_t)dj; e->de_k = (uint8_t)dk;
@@ -61,6 +62,7 @@ static void evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valo
     va_start(ap, fmt);
     vsnprintf(e->txt, sizeof e->txt, fmt, ap);
     va_end(ap);
+    return e;
 }
 
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
@@ -69,7 +71,7 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 {
     int t = 0;
     for (int k = 0; k < F[j].lancados; k++) {
-        if (est[k] != V_VALIDO || !pontua(j, k)) continue;
+        if (est[k] != V_VALIDO) continue;
         int base = valor_pontos(j, k) + F[j].bonus[k] + (bonus ? bonus[k] : 0);
         int m = (mult && mult[k] > 0) ? mult[k] : 1;
         t += base * m;
@@ -90,20 +92,14 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         uint8_t mask = 0;
         int8_t por[N_FILA] = { 0 };
         for (int i = 0; i < f->lancados; i++) {
-            if (est[i] != V_VALIDO || !pontua(j, i)) continue;
+            if (est[i] != V_VALIDO) continue;
             bool impar = f->valor[i] % 2 == 1;
             if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
             if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
         }
-        if (mask && gera && n_ev < MAX_EV) {
-            evento_t *e = &ev[n_ev++];
-            memset(e, 0, sizeof *e);
-            e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = (uint8_t)k;
-            e->mascara = mask;
-            memcpy(e->por_dado, por, sizeof por);
-            snprintf(e->txt, sizeof e->txt, face == 1 ? "Moeda 1: +1 nos ímpares"
-                                                      : "Moeda 2: +1 nos pares");
-        }
+        const char *txt = face == 1 ? "Moeda 1: +1 nos ímpares" : "Moeda 2: +1 nos pares";
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", txt) : NULL;
+        if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
     // Copiador: +2 em cada outro dado seu com o mesmo numero que ele.
@@ -113,17 +109,12 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         int8_t por[N_FILA] = { 0 };
         int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
         for (int i = 0; i < nl; i++) {
-            if (i == k || est[i] != V_VALIDO || !pontua(j, i) || f->valor[i] != f->valor[k]) continue;
+            if (i == k || est[i] != V_VALIDO || f->valor[i] != f->valor[k]) continue;
             d->bonus[j][i] += 2; mask |= (uint8_t)(1 << i); por[i] = 2;
         }
-        if (mask && gera && n_ev < MAX_EV) {
-            evento_t *e = &ev[n_ev++];
-            memset(e, 0, sizeof *e);
-            e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = (uint8_t)k;
-            e->mascara = mask;
-            memcpy(e->por_dado, por, sizeof por);
-            snprintf(e->txt, sizeof e->txt, "Copiador %d: +2 em cada %d", f->valor[k], f->valor[k]);
-        }
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Copiador %d: +2 em cada %d",
+                                    f->valor[k], f->valor[k]) : NULL;
+        if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
     // Dupla (amuleto): +2 em cada dado seu que repete o numero de outro seu.
@@ -132,36 +123,24 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         int8_t por[N_FILA] = { 0 };
         int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
         for (int k = 0; k < nl; k++) {
-            if (est[k] != V_VALIDO || !pontua(j, k)) continue;
+            if (est[k] != V_VALIDO) continue;
             for (int i = 0; i < nl; i++)
                 if (i != k && est[i] == V_VALIDO && f->valor[i] == f->valor[k]) {
                     d->bonus[j][k] += 2; mask |= (uint8_t)(1 << k); por[k] = 2;
                     break;
                 }
         }
-        if (mask && gera && n_ev < MAX_EV) {
-            evento_t *e = &ev[n_ev++];
-            memset(e, 0, sizeof *e);
-            e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = 0xFF;
-            e->mascara = mask;
-            memcpy(e->por_dado, por, sizeof por);
-            snprintf(e->txt, sizeof e->txt, "Dupla: +2 nos números repetidos");
-        }
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, 0xFF, 0, 0, 0, "Dupla: +2 nos números repetidos") : NULL;
+        if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
     // Ferreiro com 3 ou 4: +6 no dado logo depois dele, se os dois terminam valendo.
     for (int k = 0; k + 1 < f->lancados && k + 1 < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FERREIRO || f->valor[k] < 3) continue;
-        if (est[k + 1] != V_VALIDO || !pontua(j, k + 1)) continue;
+        if (est[k + 1] != V_VALIDO) continue;
         d->bonus[j][k + 1] += 6;
-        if (gera && n_ev < MAX_EV) {
-            evento_t *e = &ev[n_ev++];
-            memset(e, 0, sizeof *e);
-            e->tipo = EV_BONUS; e->de_j = (uint8_t)j; e->de_k = (uint8_t)k;
-            e->mascara = (uint8_t)(1 << (k + 1));
-            e->por_dado[k + 1] = 6;
-            snprintf(e->txt, sizeof e->txt, "Ferreiro forja +6 no %d", f->valor[k + 1]);
-        }
+        evento_t *e = evento(gera, EV_BONUS, j, k, 0, 0, 0, "Ferreiro forja +6 no %d", f->valor[k + 1]);
+        if (e) { e->mascara = (uint8_t)(1 << (k + 1)); e->por_dado[k + 1] = 6; }
     }
 
     // Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
@@ -182,7 +161,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FOGO) continue;
         int a = -1;
         for (int i = 0; i < f->lancados; i++) {
-            if (i == k || est[i] != V_VALIDO || !pontua(j, i) || d->queima[j][i]) continue;
+            if (i == k || est[i] != V_VALIDO || d->queima[j][i]) continue;
             if (TIPO[tipo_de(j, i)].efeito == EF_FOGO) continue;
             if (a < 0 || f->valor[i] > f->valor[a]) a = i;
         }
@@ -196,7 +175,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     int sozinhos = 0;                            // dados valendo: a Viuva quer ser a unica
     for (int k = 0; k < f->lancados; k++) sozinhos += est[k] == V_VALIDO;
     for (int k = 0; k < f->lancados; k++) {
-        if (est[k] != V_VALIDO || !pontua(j, k)) continue;
+        if (est[k] != V_VALIDO) continue;
         int m = 0;
         // Dobro: vale so para o dado logo depois dele, e so se os dois
         // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
@@ -212,15 +191,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
-    if (mask && gera && n_ev < MAX_EV) {
-        evento_t *e = &ev[n_ev++];
-        memset(e, 0, sizeof *e);
-        e->tipo = EV_MULT; e->de_j = (uint8_t)j; e->de_k = 0xFF;
-        e->mascara = mask;
-        memcpy(e->por_dado, d->mult[j], N_FILA);
+    if (mask && gera) {
         int antes = pontos_fila(j, d->est[j], d->bonus[j], NULL);
         int depois = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]);
-        snprintf(e->txt, sizeof e->txt, "multiplicadores: %d vira %d", antes, depois);
+        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "multiplicadores: %d vira %d", antes, depois);
+        if (e) { e->mascara = mask; memcpy(e->por_dado, d->mult[j], N_FILA); }
     }
 
     // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
@@ -295,10 +270,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     for (int k = 0; num && k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_JACKPOT) continue;
         d->semente[j] += 10;
-        if (gera && n_ev < MAX_EV) {
-            evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
-            ev[n_ev - 1].mascara = trio;
-        }
+        evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
+        if (e) e->mascara = trio;
     }
 }
 
@@ -510,7 +483,7 @@ static int risco(int j)
     int k = f->lancados;
     if (k >= f->n) return 0;
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
-    int l = ultimo_valido(f, f->est, k);
+    int l = ultimo_valido(f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
     if (ef == EF_QUEBRADO) return f->fixo[k] < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza

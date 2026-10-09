@@ -461,8 +461,8 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(9, 1, 2, 3, AGUA);                                   // o jato
         int f = (int)(t / 0.25f) % 3;
         rp(9 + (f == 1), -1 + (f == 2), luz(AGUA));
-        for (int y = 6; y < 16; y++)                            // agua caindo dos dois lados
-            if ((y + f) % 3) { rp(3, y, AGUA); rp(16, y, AGUA); }
+        for (int yy = 6; yy < 16; yy++)                          // agua caindo dos dois lados
+            if ((yy + f) % 3) { rp(3, yy, AGUA); rp(16, yy, AGUA); }
         break;
     }
     case RETRATO_EVENTO + EVT_ESQUECIDO: {                      // DADO ESQUECIDO: luminaria e um dado sozinho no feltro

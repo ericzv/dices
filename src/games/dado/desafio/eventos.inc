@@ -411,7 +411,7 @@ static void desenha_evt(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 120);
     faixa_run(0);
-    const evt_t *ev = &EVT[ev_id];
+    const evt_t *evt = &EVT[ev_id];
     // O quadro da esquerda: quem (ou o que) esta ali.
     int esc = 4, qx = 30, qy = 60, qw = RT_W * esc, qh = RT_H * esc;
     gfx_rect(qx - 3, qy - 3, qw + 6, qh + 6, cor_no(NO_EVENTO));
@@ -420,9 +420,9 @@ static void desenha_evt(void)
     if (ev_id == EVT_NIQUEL) desenha_niquel(qx + (qw - 66) / 2, qy + (qh - 81) / 2);
     else retrato(qx, qy, esc, RETRATO_EVENTO + ev_id, t_fase, false, 0, RT_H);
     int x = qx + qw + 16, w = MESA_X1 - 14 - x;
-    gfx_texto(x, 54, ev->nome, cor_no(NO_EVENTO), 2, true);
-    txt(x, 86, ev->cena, C_MARFIM_S, false);
-    int nl = quebra_linhas(x, 102, w, 2, ev->resumo, C_MARFIM);
+    gfx_texto(x, 54, evt->nome, cor_no(NO_EVENTO), 2, true);
+    txt(x, 86, evt->cena, C_MARFIM_S, false);
+    int nl = quebra_linhas(x, 102, w, 2, evt->resumo, C_MARFIM);
     int y0 = 102 + nl * LINHA_FINA + 14;
 
     ev_atualiza();

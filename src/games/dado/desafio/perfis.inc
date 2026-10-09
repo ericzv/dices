@@ -28,7 +28,7 @@ static const char *chave_run(void)
 
 static const perfil_t *perfil(void)
 {
-    static const perfil_t nenhum = { "VOCÊ", 0, 0, { 0 }, 0 };
+    static const perfil_t nenhum = { .nome = "VOCÊ" };
     return perfil_atual >= 0 && perfis[perfil_atual].nome[0] ? &perfis[perfil_atual] : &nenhum;
 }
 

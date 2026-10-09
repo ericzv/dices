@@ -3,11 +3,9 @@
 // ataques e o pote
 // ===========================================================================
 // O nome do jogador na faixa.
-static int txt_nome(int x, int y, int j, bool destaque)
+static int txt_nome(int x, int y, int j)
 {
-    int w = gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
-    (void)destaque;
-    return w;
+    return gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
 }
 
 static void desenha_lance(void)
@@ -142,7 +140,7 @@ static void faixa_jogador(int j)
     // no celular nao ha tecla.
     int x0 = cima ? botao_voltar(KEY_ESC) - 4 : 6;
     int xn = modo == M_DESAFIO ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
-    int x = xn + txt_nome(xn, ty, j, da_vez);
+    int x = xn + txt_nome(xn, ty, j);
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
     char s[48];
@@ -395,7 +393,7 @@ static void desenha_fila(int j)
         // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
         // Dobro e o +2 do Copiador ficam por conta dela.
         int extra = 0;
-        if (previa && f->est[k] == V_VALIDO && pontua(j, k)) {
+        if (previa && f->est[k] == V_VALIDO) {
             int base = valor_pontos(j, k) + f->bonus[k];
             int m = pv.mult[j][k] > 0 ? pv.mult[j][k] : 1;
             int fim = pv.est[j][k] == V_VALIDO ? (base + pv.bonus[j][k]) * m : 0;

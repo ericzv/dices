@@ -433,7 +433,7 @@ static int ia_compra(void)
     int b = -1;
     float melhor = 0;
     for (int i = 0; i < N_LOJA; i++) {
-        int pr = preco_loja(loja[i].tipo);
+        int pr = TIPO[loja[i].tipo].preco;
         if (levou[j][i] || J[j].fichas - pr < 60) continue;
         float ganho = forca_colecao(j, loja[i].tipo, loja[i].fixo, base) - sem;
         float valor = ganho * (float)faltam * 25.0f - (float)pr;
@@ -505,11 +505,11 @@ static int facil_compra(void)
 {
     int b = -1;
     for (int i = 0; i < N_LOJA; i++) {
-        int pr = preco_loja(loja[i].tipo);
+        int pr = TIPO[loja[i].tipo].preco;
         if (levou[vez][i] || J[vez].fichas - pr < 75 || J[vez].n_col >= lim_col()) continue;
         if (b < 0 || TIPO[loja[i].tipo].raridade > TIPO[loja[b].tipo].raridade
             || (TIPO[loja[i].tipo].raridade == TIPO[loja[b].tipo].raridade
-                && pr > preco_loja(loja[b].tipo)))
+                && pr > TIPO[loja[b].tipo].preco))
             b = i;
     }
     return b;

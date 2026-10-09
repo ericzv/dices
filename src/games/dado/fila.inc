@@ -1,7 +1,7 @@
 // ===========================================================================
 // A regra da fila
 // ===========================================================================
-static int ultimo_valido(const fila_t *f, const uint8_t *est, int antes)
+static int ultimo_valido(const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--)
         if (est[k] == V_VALIDO) return k;
@@ -53,10 +53,6 @@ static int egoista_antes(int j, int k)
         if (F[j].est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_EGOISTA) return i;
     return -1;
 }
-// O Maldito entra na fila, mas o valor dele nao soma para quem o jogou.
-// Todo dado que vale soma para quem o jogou (o Maldito tambem, agora).
-static bool pontua(int j, int k) { (void)j; (void)k; return true; }
-
 // Soma ao vivo: valor mais bonus de Par. Multiplicadores e Moeda da sorte
 // so entram no fim da rodada.
 static int soma(int j, const uint8_t *est)
@@ -65,7 +61,7 @@ static int soma(int j, const uint8_t *est)
     if (f->zerada) return 0;
     int t = 0;
     for (int k = 0; k < f->lancados; k++)
-        if (est[k] == V_VALIDO && pontua(j, k)) t += valor_pontos(j, k) + f->bonus[k];
+        if (est[k] == V_VALIDO) t += valor_pontos(j, k) + f->bonus[k];
     return t;
 }
 
@@ -115,7 +111,7 @@ static void aplica_regra(int j, int k)
     if (k < 0 || k >= N_FILA) return;
     fila_t *f = &F[j];
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
-    int l = ultimo_valido(f, f->est, k);
+    int l = ultimo_valido(f->est, k);
     int v = f->valor[k];
     anulou_a = anulou_b = -1;
     anulou_masc = 0;
@@ -196,7 +192,7 @@ static void aplica_regra(int j, int k)
         ver_tipo = n ? 4 : 0;
         // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
         // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
-        int l2 = ultimo_valido(f, est, k);
+        int l2 = ultimo_valido(est, k);
         if (l2 >= 0 && v < f->valor[l2]) {
             bool esc_l = firme(j, l2);
             if (!esc_l) { est[l2] = V_ANULADO; anulou_a = l2; }

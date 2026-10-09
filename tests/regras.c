@@ -399,6 +399,10 @@ int main(void)
         CONFERE(risco(0) == 500 / 9, "Lastro com barra 9: risco %d, esperado %d", risco(0), 500 / 9);
     }
 
+    // Todo dado que a loja vende tem preco.
+    for (int i = 0; i < (int)sizeof VITRINE; i++)
+        CONFERE(TIPO[VITRINE[i]].preco > 0, "%s esta na loja sem preco", TIPO[VITRINE[i]].nome);
+
     // ---- Dados novos: Sentinela, Vidro, Ferreiro, Cobrador, ... -----------
     {
         desfecho_t d;

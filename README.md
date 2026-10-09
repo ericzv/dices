@@ -136,7 +136,8 @@ git push origin v0.1.0
 
 ```
 src/          o jogo
-  games/dado.c    regras, IA, animação e desenho (framebuffer 640x360 RGB565)
+  games/dado.c        regras, IA, animação e desenho (framebuffer 640x360 RGB565)
+  games/desafio.inc   o Modo Desafiante
   ui/             primitivas de desenho e as fontes de pixels (Jersey 10, Bitcount Prop Single e Tiny5)
   hal/            contrato com a plataforma: teclado, som, tela
 desktop/      a plataforma PC: janela, teclado, som e ícone

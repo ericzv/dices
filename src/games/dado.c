@@ -663,6 +663,9 @@ static char aviso[64], veredito[64], nota[48];
 static char anuncio[64];
 static uint16_t anuncio_cor;
 static float t_anuncio;
+// Na loja e no premio, o anuncio mostra tambem os dados que ela levou.
+static peca_t anuncio_peca[5];
+static int n_anuncio_peca, anuncio_dono;
 static int  ver_tipo;
 static bool ver_comum;               // veredito do dia a dia (vale 5, caiu): so o numero fala
 static int  anulou_a, anulou_b;
@@ -3681,6 +3684,18 @@ static void anuncia(const char *fmt, const char *quem, int v)
     snprintf(anuncio, sizeof anuncio, fmt, quem, v);
     anuncio_cor = J[vez].cor;
     t_anuncio = 1.3f;
+    n_anuncio_peca = 0;
+}
+
+// O que a maquina levou da loja ou do premio: o texto e os dados, por mais
+// tempo, para dar para ver cada um.
+static void anuncia_pecas(const char *fmt, const peca_t *p, int n)
+{
+    anuncia(fmt, J[vez].nome, 0);
+    for (int i = 0; i < n && i < 5; i++) anuncio_peca[i] = p[i];
+    n_anuncio_peca = n < 5 ? n : 5;
+    anuncio_dono = vez;
+    t_anuncio = n ? 2.2f + 0.4f * n : 1.3f;
 }
 
 static void termina_turno(void)
@@ -4119,7 +4134,8 @@ static void abre_premio(int w)
     removendo = false;
     t_tira = 0;
     fase = F_PREMIO;
-    slot_comeca();
+    if (anuncia_maquina()) t_slot = -1;      // a maquina escolhe sem a roleta
+    else slot_comeca();
 }
 
 // ===========================================================================
@@ -4658,8 +4674,37 @@ static void ia_passo(float dt)
         t_ia = fase == F_ORDEM && !anuncia_maquina() ? -0.4f : 0;
     }
     t_ia += dt;
-    if (t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
+    // Contra uma pessoa, a loja e o premio da maquina nao tem tela: ela
+    // decide na hora, e o anuncio mostra o que levou.
+    bool direto = anuncia_maquina() && (fase == F_LOJA || fase == F_PREMIO);
+    if (!direto && t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
     t_ia = 0;
+
+    if (direto && fase == F_LOJA) {
+        peca_t levadas[N_LOJA];
+        int n = 0;
+        for (int k = 0; k < N_LOJA; k++) {
+            int i = ia_nivel == 0 ? facil_compra() : ia_compra();
+            if (i < 0) break;
+            int antes = J[vez].n_col;
+            cursor = i;
+            trata_tecla(KEY_ENTER);
+            if (J[vez].n_col == antes) break;
+            levadas[n++] = loja[i];
+        }
+        anuncia_pecas(n ? "%s comprou" : "%s não comprou nada", levadas, n);
+        trata_tecla(KEY_TAB);
+        return;
+    }
+    if (direto && fase == F_PREMIO) {
+        int i = ia_nivel == 0 ? facil_premio() : ia_premio();
+        peca_t p = oferta[i];
+        bool cabe = J[vez].n_col < lim_col();
+        cursor = i;
+        anuncia_pecas(cabe ? "%s levou o prêmio" : "%s ficou sem prêmio", &p, cabe ? 1 : 0);
+        trata_tecla(KEY_ENTER);
+        return;
+    }
 
     switch (fase) {
     case F_LOJA: {
@@ -6159,12 +6204,18 @@ static void desenha_loja(void)
         } else {
             fichas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
         }
+        if (levou[outro(vez)][i] && (cpu >> outro(vez) & 1))    // a maquina comprou este
+            ficha(x + 36, yb + 11, J[outro(vez)].cor);
         zona_clique(x - 48, yb, 96, 92, &cursor, i, KEY_ENTER);
     }
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "terminar", KEY_TAB);
     dado_e_poder(240, loja[cursor].tipo, true);
+    char rival[48];
+    snprintf(rival, sizeof rival, "%s também comprou este", J[outro(vez)].nome);
     if (!levou[vez][cursor] && p->fichas < preco_loja(loja[cursor].tipo))
         txt_c(GFX_W / 2, 286, "fichas insuficientes", C_VINHO_CLR, true);
+    else if (levou[outro(vez)][cursor] && (cpu >> outro(vez) & 1))
+        txt_c(GFX_W / 2, 286, rival, J[outro(vez)].cor, true);
     else
         teclas_c(GFX_W / 2, 288, "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB termina", C_TEXTO_M);
 }
@@ -6682,8 +6733,22 @@ static void desenha_aviso_entrada(void)
 static void desenha_anuncio(void)
 {
     int y1 = CENTRO - 40;
-    painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(anuncio, 1), 160));
-    txt_c(GFX_W / 2, y1 - 1, anuncio, anuncio_cor, true);
+    if (!n_anuncio_peca) {
+        painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(anuncio, 1), 160));
+        txt_c(GFX_W / 2, y1 - 1, anuncio, anuncio_cor, true);
+        return;
+    }
+    // Com os dados que a maquina levou: cada um desenhado, com o nome embaixo.
+    const int passo = 104, h = 104;
+    int n = n_anuncio_peca, y0 = CENTRO - h / 2 - 6;
+    painel(y0, h, larg_painel(n * passo - 24, gfx_largura(anuncio, 1) + 36));
+    txt_c(GFX_W / 2, y0 + 6, anuncio, anuncio_cor, true);
+    for (int i = 0; i < n; i++) {
+        int x = GFX_W / 2 + (2 * i - (n - 1)) * passo / 2;
+        peca_parada((float)x, (float)(y0 + 52), 18, anuncio_peca[i], anuncio_dono);
+        txt_c(x, y0 + 76, TIPO[anuncio_peca[i].tipo].nome, cor_dado(anuncio_peca[i].tipo), false);
+        dica_zona(x - 22, y0 + 30, 44, 44, DICA_DADO, anuncio_peca[i].tipo);
+    }
 }
 
 // A maquina montando a sequencia: so o nome, sem a mao e sem o menu.
@@ -6785,7 +6850,8 @@ void dado_desenha(void)
     desenha_tudo();
     desenha_flutua();
     // O que a maquina fez fica por cima dos numeros que ainda sobem dos dados.
-    if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA)) desenha_anuncio();
+    if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA || fase == F_LOJA))
+        desenha_anuncio();
     balao_oponente();
     desenha_confete();
     bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
@@ -6818,8 +6884,10 @@ static void desenha_tudo(void)
     faixa_jogador(0);
 
     switch (fase) {
-    case F_LOJA:   desenha_loja();   break;
-    case F_PREMIO: desenha_premio(); break;
+    // A loja e o premio da maquina contra uma pessoa nao aparecem: so a
+    // mesa, e o anuncio do que ela levou por cima.
+    case F_LOJA:   if (!anuncia_maquina() && t_anuncio <= 0) desenha_loja();   break;
+    case F_PREMIO: if (!anuncia_maquina()) desenha_premio(); break;
     case F_FIM:    if (modo == M_DESAFIO) desenha_fim_partida_run(); else desenha_fim(); break;
     case F_ORDEM:
         desenha_fila(outro(vez));

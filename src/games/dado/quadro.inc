@@ -129,8 +129,8 @@ static void desenha_tudo(void)
         desenha_fila(vez);
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
-        else if (fase == F_RESULTADO) desenha_resultado();
-        else if (fase == F_EFEITOS)   desenha_efeitos();
+        else if (fase == F_RESULTADO) { desenha_log(); desenha_resultado(); }
+        else if (fase == F_EFEITOS)   { desenha_log(); desenha_efeitos(); }
         else                          desenha_joga();
         if (fase == F_ROLANDO || fase == F_ARRUMA) desenha_lance();
         break;

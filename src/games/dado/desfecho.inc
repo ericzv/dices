@@ -303,6 +303,66 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     }
 }
 
+// O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
+// agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
+// 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker).
+static int poder_armado(int j, int k)
+{
+    const fila_t *f = &F[j];
+    if (k >= f->lancados) return 0;
+    int ef = TIPO[tipo_de(j, k)].efeito, v = f->valor[k];
+    if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
+    if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
+    if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (f->est[k] != V_VALIDO) return 0;
+    int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
+    for (int i = 0; i < f->lancados; i++) {
+        uns += f->cru[i] == 1;
+        if (i == k || f->est[i] != V_VALIDO) continue;
+        outros++;
+        baixos += f->valor[i] <= 2;
+        iguais += f->valor[i] == v;
+    }
+    switch (ef) {
+    case EF_DOBRO:        return v <= 3;
+    case EF_PAR:          return f->bonus[k] >= 8;
+    case EF_CARRASCO:     return v == 4;
+    case EF_MARTELO:      return v >= 3;
+    case EF_PIRATA:       return v >= 6;
+    case EF_ESPELHO:      return f->cru[k] <= 2;
+    case EF_FICHAS:       return fichas_ini[j] > fichas_ini[outro(j)];
+    case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
+    case EF_TUDO_NADA:    return v == 2;
+    case EF_GATUNO:       return uns > 0;
+    case EF_INVEJOSO:     return invejoso_age(v);
+    case EF_CARIDOSO:     return v >= 3;
+    case EF_FARTURA:      return baixos > 0 || v <= 2;
+    case EF_SEMENTE:      return soma(j, f->est) >= 20;
+    case EF_FOGO:         return outros > 0;
+    case EF_TREVO:        return v == 4;
+    case EF_JACKPOT:      return trinca(j, f->est, NULL) != 0;
+    case EF_COPIADOR:     return iguais > 0;
+    case EF_LASER:        return v >= 5;
+    case EF_FERREIRO:     return v >= 3;
+    case EF_TRONO:        return k == f->lancados - 1;
+    case EF_VIUVA:        return outros == 0;
+    case EF_SOLITARIO:
+        return !(k > 0 && f->est[k - 1] == V_VALIDO) && !(k + 1 < f->lancados && f->est[k + 1] == V_VALIDO);
+    case EF_DESAFIANTE:                                      // o maior da mesa, sozinho
+        for (int q = 0; q < 2; q++)
+            for (int i = 0; i < F[q].lancados; i++)
+                if (!(q == j && i == k) && F[q].est[i] == V_VALIDO && F[q].valor[i] >= v) return 0;
+        return 1;
+    case EF_BERSERKER:
+        for (int i = 0; i < f->lancados; i++)
+            if (i != k && f->est[i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) return 2;
+        return 0;
+    case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
+        return 1;                                            // basta terminar valendo
+    default:              return 0;
+    }
+}
+
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
 static void calcula_desfecho(desfecho_t *d, bool gera)

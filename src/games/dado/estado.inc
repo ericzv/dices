@@ -63,7 +63,7 @@ typedef struct {
     int valor;
     uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
-    char txt[48];
+    char txt[64];
 } evento_t;
 #define MAX_EV 32
 
@@ -83,6 +83,8 @@ static int  fase, vez, primeiro, rodada, pote, cursor, partidas;
 static int  a_pagar, passes;
 static bool aumentou;
 static float t_fase, t_som;
+static int   log_base[2];                 // pontos de cada um quando os efeitos do fim comecam
+static float t_relogio;                  // corre sempre: brilhos que nao recomecam a cada fase
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];

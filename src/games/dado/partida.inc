@@ -449,6 +449,7 @@ static void desfecho(void)
     n_voo = 0;
     ev_i = 0;
     t_fase = 0;
+    for (int j = 0; j < 2; j++) log_base[j] = total_visivel(j);
     if (n_ev) { fase = F_EFEITOS; som_toca(som_do_evento(0)); }
     else conclui_rodada();
 }

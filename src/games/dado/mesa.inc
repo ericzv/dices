@@ -291,6 +291,46 @@ static bool capitao_agora(const evento_t *e)
     return e && e->tipo == EV_EXTRA && e->mascara && F[e->de_j].tipo[e->de_k] == D_CAPITAO;
 }
 
+// Poder armado: uma borda de luz em volta do dado, rente a forma dele,
+// pulsando devagar, com um ponto claro correndo por ela. bom: dourada;
+// senao (o poder age contra quem o jogou), vinho.
+static void brilho_poder(float cx, float cy, float r, int tipo, float ang, bool bom)
+{
+    float pulso = 0.5f + 0.5f * sinf(t_relogio * 4.5f);
+    uint16_t c = bom ? C_OURO : C_VINHO_CLR, claro = bom ? C_AMARELO : C_ROSA;
+    uint16_t forte = gfx_mistura(c, C_FELTRO, (int)(45 - 40 * pulso));
+    uint16_t fraca = gfx_mistura(c, C_FELTRO, (int)(85 - 30 * pulso));   // o halo de fora
+    int lados = TIPO[tipo].lados;
+    float fase_luz = fmodf(t_relogio * 0.55f, 1.0f);
+    if (lados == 2 || tipo == D_FOGO || tipo == D_TUDO_NADA) {   // moeda e fichas: anel
+        for (int o = 1; o >= 0; o--) {
+            int rr = (int)(r + 3 + o * 2);
+            for (int a = 0; a < 96; a++) {
+                float an = a * 0.06545f;
+                gfx_rect((int)(cx + cosf(an) * rr), (int)(cy + sinf(an) * rr), 1 + !o, 1 + !o, o ? fraca : forte);
+            }
+        }
+        float an = fase_luz * 6.2832f;
+        gfx_rect((int)(cx + cosf(an) * (r + 3)) - 1, (int)(cy + sinf(an) * (r + 3)) - 1, 3, 3, claro);
+        return;
+    }
+    float vx[12], vy[12];
+    int n = 0;
+    for (int o = 1; o >= 0; o--) {
+        n = forma(lados, cx, cy, r + 3.5f + o * 2, ang, vx, vy);
+        for (int i = 0; i < n; i++) {
+            int k = (i + 1) % n;
+            gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[k], (int)vy[k], o ? 1 : 2, o ? fraca : forte);
+        }
+    }
+    if (n < 2) return;
+    float q = fase_luz * n;                            // o ponto claro, de lado em lado
+    int i = (int)q % n, k = (i + 1) % n;
+    float u = q - (int)q;
+    int px = (int)(vx[i] + (vx[k] - vx[i]) * u), py = (int)(vy[i] + (vy[k] - vy[i]) * u);
+    gfx_rect(px - 1, py - 1, 3, 3, claro);
+}
+
 // Um galao: a tira dourada com a borda escura.
 static void galao(int cx, int cy)
 {
@@ -410,6 +450,11 @@ static void desenha_fila(int j)
         marca_nivel = f->fixo[k];
         desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
         marca_nivel = -1;
+        // Durante a sequencia: o dado que tirou o que o poder dele pede brilha.
+        if (!no_desfecho && fase != F_FIM && giro < 0.5f) {
+            int arm = poder_armado(j, k);
+            if (arm) brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
+        }
         // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
         // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
         char tg[16] = "";

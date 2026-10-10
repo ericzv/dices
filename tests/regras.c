@@ -1129,6 +1129,30 @@ int main(void)
         CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 2, "Carrasco sem Seguranca");
     }
 
+    // ---- O brilho: o poder armado pelo que o dado tirou ---------------------
+    {
+        limpa();
+        joga(0, D_LASER, 5); joga(0, D_LASER, 6);
+        CONFERE(poder_armado(0, 0) == 1 && poder_armado(0, 1) == 1, "Laser 5 e 6 armados");
+        limpa();
+        joga(0, D_LASER, 4);
+        CONFERE(poder_armado(0, 0) == 0, "Laser 4 nao arma");
+        limpa();
+        joga(0, D_CARRASCO, 1);
+        CONFERE(poder_armado(0, 0) == 2, "Carrasco 1: armado contra o dono");
+        limpa();
+        joga(0, D_MISERICORDIOSO, 2); joga(0, D_TRONO, 7);
+        CONFERE(poder_armado(0, 0) == 1 && poder_armado(0, 1) == 1, "Misericordioso valendo e Trono no fim");
+        joga(0, D_D12, 9);
+        CONFERE(poder_armado(0, 1) == 0, "Trono deixa de ser o ultimo");
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_FENIX, 2);            // cai com o 6: renasce no fim
+        CONFERE(F[0].est[1] == V_ANULADO && poder_armado(0, 1) == 1, "Fenix anulada brilha");
+        limpa();
+        joga(0, D_CARIDOSO, 2);
+        CONFERE(poder_armado(0, 0) == 0, "Caridoso 2 nao arma");
+    }
+
     // ---- Cavalo de Troia: anulado ou roubado pelo oponente, anula os dele ---
     {
         desfecho_t d;

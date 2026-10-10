@@ -305,9 +305,99 @@ static void desenha_efeitos(void)
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.
     // Uma linha so: o efeito, na cor do que ele faz. De quem e, mostram os
     // dados que se mexem e os numeros que sobem deles.
-    painel(CENTRO - 15, TXT_H + 8, larg_painel(gfx_largura(e->txt, 1), 160));
+    painel(CENTRO - 15, TXT_H + 8, larg_painel(gfx_largura(e->txt, GFX_FINO), 160));
     txt_c(GFX_W / 2, CENTRO - 11, e->txt, c, false);
     desenha_evento();
+}
+
+// O registro do fim da rodada, a esquerda da mesa: os pontos de cada um no
+// comeco, cada efeito numa linha (com a cor de quem agiu) a medida que
+// acontece, e os pontos no fim. Miudo e apagado: e para conferir.
+#define LOG_X0  (MESA_X0 + 10)
+#define LOG_W   156                      // ate onde o aviso do meio nao chega
+#define LOG_Y0  (LINHA_CIMA + R_DADO + 14)
+#define LOG_Y1  (LINHA_BAIXO - R_DADO - 14)
+#define LOG_LIN 10
+// Quebra s em linhas de no maximo w pixels. Devolve quantas; com desenha,
+// escreve a partir de (x, y).
+static int log_quebra(const char *s, int x, int y, int w, uint16_t c, bool desenha)
+{
+    char linha[64];
+    int n = 0;
+    while (*s) {
+        int cabe = 0, i = 0;
+        while (s[i]) {
+            int fim = i;
+            while (s[fim] == ' ') fim++;
+            while (s[fim] && s[fim] != ' ') fim++;
+            if (fim >= (int)sizeof linha) break;
+            memcpy(linha, s, (size_t)fim);
+            linha[fim] = 0;
+            if (gfx_largura(linha, GFX_MIUDO) > w && cabe) break;
+            cabe = i = fim;
+        }
+        if (!cabe) cabe = (int)strlen(s) < (int)sizeof linha - 1 ? (int)strlen(s) : (int)sizeof linha - 1;
+        memcpy(linha, s, (size_t)cabe);
+        linha[cabe] = 0;
+        if (desenha) gfx_texto(x, y + n * LOG_LIN, linha, c, GFX_MIUDO, false);
+        n++;
+        s += cabe;
+        while (*s == ' ') s++;
+    }
+    return n;
+}
+
+// "JOGADOR 1 17  ·  JOGADOR 2 14": os dois placares numa linha.
+static void log_placar(int y, const char *rot, const int *pts)
+{
+    int x = LOG_X0;
+    x += gfx_texto(x, y, rot, C_TEXTO_M, GFX_MIUDO, false) + 6;
+    for (int o = 0; o < 2; o++) {
+        int j = o == 0 ? outro(baixo) : baixo;   // na ordem da mesa: o de cima primeiro
+        char s[40];
+        snprintf(s, sizeof s, "%s %d", J[j].nome, pts[j]);
+        gfx_rect(x, y + 3, 3, 3, J[j].cor);
+        x += 6 + gfx_texto(x + 6, y, s, C_TEXTO_M, GFX_MIUDO, false) + 10;
+    }
+}
+
+static void desenha_log(void)
+{
+    if (!n_ev || (fase != F_EFEITOS && fase != F_RESULTADO)) return;
+    int ate = fase == F_EFEITOS ? ev_i : n_ev - 1;             // o ultimo que ja aparece
+    bool fim = fase == F_RESULTADO;
+    int livres = (LOG_Y1 - LOG_Y0) / LOG_LIN - 1 - fim;         // tirando os placares
+    // Quantas linhas cada efeito ocupa; se nao couberem todos, ficam os
+    // ultimos, com uma linha de "..." no lugar dos de antes.
+    int de = ate;
+    for (int corta = 0; corta < 2; corta++) {
+        int usadas = 0;
+        de = ate;
+        for (int i = ate; i >= 0; i--) {
+            int n = log_quebra(ev[i].txt, 0, 0, LOG_W - 8, 0, false);
+            if (usadas + n > livres - corta) break;
+            usadas += n;
+            de = i;
+        }
+        if (de == 0) break;
+    }
+    int y = LOG_Y0;
+    log_placar(y, "início", log_base);
+    y += LOG_LIN + 2;
+    if (de > 0) {
+        gfx_texto(LOG_X0 + 8, y, "...", C_TEXTO_M, GFX_MIUDO, false);
+        y += LOG_LIN;
+    }
+    for (int i = de; i <= ate; i++) {
+        const evento_t *e = &ev[i];
+        uint16_t c = i == ate && !fim ? C_BRANCO : C_MARFIM_S;
+        gfx_rect(LOG_X0, y + 3, 3, 3, J[e->de_j].cor);
+        y += LOG_LIN * log_quebra(e->txt, LOG_X0 + 8, y, LOG_W - 8, c, true);
+    }
+    if (fim) {
+        int tot[2] = { F[0].total, F[1].total };
+        log_placar(y + 2, "final", tot);
+    }
 }
 
 static void desenha_resultado(void)

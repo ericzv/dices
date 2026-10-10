@@ -65,6 +65,32 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
     return e;
 }
 
+// Cavalo de Troia: o dado a de r acabou de ser anulado ou roubado por um
+// poder de j. Se for o Cavalo, ele se abre: os dados de j que valem caem
+// (Escudo e Teimoso resistem; a Couraca de j segura tudo), e o que j roubou
+// nesta rodada, o proprio Cavalo inclusive, deixa de contar para ele.
+static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
+{
+    if (TIPO[tipo_de(r, a)].efeito != EF_CAVALO) return;
+    if (tem_am(j, A_COURACA)) {
+        if (gera) am_acende(A_COURACA);
+        return;
+    }
+    uint8_t mask = 0;
+    int8_t perde[N_FILA] = { 0 };
+    for (int i = 0; i < F[j].lancados; i++)
+        if (d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) {
+            perde[i] = (int8_t)contribui(j, i);
+            d->est[j][i] = V_ANULADO;
+            mask |= (uint8_t)(1 << i);
+        }
+    int roubado = d->roubo_val[j];
+    d->roubo_val[j] = 0;
+    if (!mask && !roubado) return;
+    evento_t *e = evento(gera, EV_CAVALO, r, a, j, 0, roubado, "Cavalo de Troia: anula os de %s", J[j].nome);
+    if (e) { e->mascara = mask; memcpy(e->por_dado, perde, sizeof perde); }
+}
+
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
 // Multiplicadores se SOMAM (x2, x3, x2 = x7) e valem sobre valor + bonus.
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
@@ -219,7 +245,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
     }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
-    // Misericordioso, Solitario, Prisma, Desafiante e Cavalo de Troia.
+    // Misericordioso, Solitario, Prisma, Desafiante e Capitao.
     int anulados = 0, valendo = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
@@ -244,10 +270,12 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             for (; tipos; tipos >>= 1) nt += (int)(tipos & 1);
             d->semente[j] += nt;
             evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s, +%d", nt, nt > 1 ? "s" : "", nt);
-        } else if (ef == EF_CAVALO) {
-            d->semente[j] += valendo;
-            evento(gera, EV_EXTRA, j, k, j, 0, valendo, "Cavalo de Troia: %d dado%s, +%d",
-                   valendo, valendo > 1 ? "s" : "", valendo);
+        } else if (ef == EF_CAPITAO) {               // +2 por dado seu valendo, ele incluido
+            d->semente[j] += 2 * valendo;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Capitão: %d dado%s, +%d",
+                                 valendo, valendo > 1 ? "s" : "", 2 * valendo);
+            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
+                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -373,6 +401,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
             } else if (ef == EF_LASER && v >= 5) {
                 // Um dado anulavel do oponente, ao acaso - mas um acaso que so
@@ -391,6 +420,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                             "Laser: o Segurança de %s leva no lugar", J[r].nome);
                         else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                        cavalo_abre(d, j, r, a, gera);
                     }
                 }
             } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 1, 3 ou 5
@@ -404,6 +434,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
                 b = alvo_de(d->est[j], j, true, -1);
                 if (b >= 0) {
@@ -430,6 +461,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "%s: o Segurança de %s vai no lugar (%d)", nome, J[r].nome, vale);
                     else evento(gera, EV_ROUBA, j, k, r, a, vale,
                                 "%s rouba o %d de %s", nome, vale, J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
             }
         }
@@ -467,7 +499,7 @@ static int total_visivel(int j)
 {
     if (vis_zerada[j]) return 0;
     int t = pontos_fila(j, vis_est[j], vis_bonus[j], vis_mult[j]) + vis_delta[j] + vis_semente[j];
-    for (int i = 0; i < vis_nroubo[j]; i++) t += vis_roubo[j][i].valor;
+    for (int i = 0; i < vis_nroubo[j]; i++) if (!vis_roubo[j][i].anulado) t += vis_roubo[j][i].valor;
     // Espelho cujo evento ainda nao tocou: na tela, ainda com o que tirou.
     // (Esses eventos vem antes de todos, sem bonus nem multiplicador ainda.)
     for (int k = 0; k < F[j].lancados; k++)

@@ -417,6 +417,7 @@ static int som_do_evento(int i)
     switch (e->tipo) {
     case EV_JACKPOT: return SOM_JACKPOT;
     case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
+    case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
@@ -459,7 +460,9 @@ static float duracao_evento(int i)
     case EV_MULT:  return 1.7f;
     case EV_FOGO:  return 1.6f;
     case EV_SEMENTE: return 1.6f;
-    case EV_EXTRA: case EV_CHEFE: return 1.6f;
+    case EV_EXTRA:   return ev[i].mascara ? 1.9f : 1.6f;    // o Capitao passa por cada dado
+    case EV_CHEFE:   return 1.6f;
+    case EV_CAVALO:  return 2.0f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_ZERA:  return 1.6f;
@@ -518,8 +521,21 @@ static void flutua_evento(const evento_t *e)
         flutua_em(dj, N_FILA, C_OURO, 0.1f, "+%d", e->valor);
         break;
     case EV_ROUBA:   flutua_em(dj, N_FILA, C_OURO, 0, "+%d", e->valor); break;
-    case EV_FOGO: case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_RENASCE:
+    case EV_EXTRA:
+        if (e->mascara) {                   // Capitao: +2 em cada dado seu que vale
+            for (int k = 0; k < N_FILA; k++)
+                if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.06f, "+%d", e->por_dado[k]);
+            break;
+        }
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+        break;
+    case EV_FOGO: case EV_SEMENTE: case EV_JACKPOT: case EV_RENASCE:
+        if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+        break;
+    case EV_CAVALO:
+        for (int k = 0; k < N_FILA; k++)
+            if (e->mascara >> k & 1) flutua_em(aj, k, C_VINHO_CLR, k * 0.06f, "-%d", e->por_dado[k]);
+        if (e->valor) flutua_em(aj, N_FILA, C_VINHO_CLR, 0.1f, "-%d", e->valor);   // o que tinha roubado
         break;
     case EV_CHEFE:   flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "+%d", e->valor); break;
     default: break;
@@ -537,9 +553,9 @@ static void aplica_evento(int i)
         vis_est[e->alvo_j][e->alvo_k] = V_ROUBADO;
         int n = vis_nroubo[e->de_j];
         if (n < 4) {
-            vis_roubo[e->de_j][n] = (roubado_t){ F[e->alvo_j].tipo[e->alvo_k],
-                                                 F[e->alvo_j].fixo[e->alvo_k],
-                                                 e->alvo_j, e->valor };
+            vis_roubo[e->de_j][n] = (roubado_t){ .tipo = F[e->alvo_j].tipo[e->alvo_k],
+                                                 .fixo = F[e->alvo_j].fixo[e->alvo_k],
+                                                 .de_j = e->alvo_j, .valor = e->valor };
             vis_nroubo[e->de_j] = n + 1;
         }
         break;
@@ -560,6 +576,11 @@ static void aplica_evento(int i)
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_ZERA:    vis_zerada[e->de_j] = 1; break;
+    case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
+        for (int k = 0; k < N_FILA; k++)
+            if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;
+        for (int r = 0; r < vis_nroubo[e->alvo_j]; r++) vis_roubo[e->alvo_j][r].anulado = 1;
+        break;
     }
 }
 

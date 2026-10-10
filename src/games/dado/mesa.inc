@@ -276,6 +276,29 @@ static void acinzenta(int x0, int y0, int w, int h, int pct)
         }
 }
 
+// Capitao: um galao dourado sai dele e pousa em cada dado seu que vale, um
+// depois do outro (ele mesmo incluido). Quando, no evento (p de 0 a 1), o
+// galao do dado k sai; ele chega CAPITAO_VOO depois.
+#define CAPITAO_VOO 0.26f
+static float capitao_sai(const evento_t *e, int k)
+{
+    int n = 0;
+    for (int i = 0; i < k; i++) n += e->mascara >> i & 1;
+    return 0.08f + n * 0.12f;
+}
+static bool capitao_agora(const evento_t *e)
+{
+    return e && e->tipo == EV_EXTRA && e->mascara && F[e->de_j].tipo[e->de_k] == D_CAPITAO;
+}
+
+// Um galao: a tira dourada com a borda escura.
+static void galao(int cx, int cy)
+{
+    gfx_rect(cx - 7, cy - 2, 14, 5, C_LATAO_ESC);
+    gfx_rect(cx - 6, cy - 1, 12, 3, C_OURO);
+    gfx_rect(cx - 6, cy - 1, 12, 1, C_AMARELO);
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -358,10 +381,14 @@ static void desenha_fila(int j)
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
             x += ((int)(t_fase * 28) % 2) ? 4 : -4;
         if (recente && t_fase < 0.5f) x += (int)(sinf(t_fase * 60) * 3);   // treme antes de apagar
+        if (e && e->tipo == EV_CAVALO && e->de_j == j && e->de_k == k && p < 0.3f)
+            x += (int)(sinf(t_fase * 70) * 3);                      // o Cavalo treme e se abre
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && e->tipo == EV_ANULA && e->alvo_j == j && e->alvo_k == k;
         if (alvo && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
+        bool cavalo = e && e->tipo == EV_CAVALO && e->alvo_j == j && (e->mascara >> k & 1);
+        if (cavalo && p > 0.6f && ((int)(t_fase * 8) % 2 == 0)) continue;
         // O dado que acabou de valer da um pulinho.
         float pulo = 0;
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
@@ -430,7 +457,13 @@ static void desenha_fila(int j)
             }
         }
         if (e && e->de_j == j && e->de_k == k) aro(x, y, C_VINHO_CLR);   // quem age
-        if (alvo) aro(x, y, C_VINHO_CLR);
+        if (alvo || (cavalo && p > 0.3f)) aro(x, y, C_VINHO_CLR);
+        // Capitao: o galao pousou neste dado.
+        if (capitao_agora(e) && e->de_j == j && (e->mascara >> k & 1)
+            && p > capitao_sai(e, k) + CAPITAO_VOO) {
+            aro(x, y, C_OURO);
+            galao(x, y - R - 7);
+        }
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
             && (e->mascara >> k & 1) && p > 0.2f) {
@@ -476,7 +509,10 @@ static void desenha_fila(int j)
     if (no_desfecho)
         for (int i = 0; i < vis_nroubo[j]; i++) {
             roubado_t *r = &vis_roubo[j][i];
-            desenha_dado((float)ROUBO_X(i), (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, false);
+            int rx = ROUBO_X(i);
+            if (e && e->tipo == EV_CAVALO && e->alvo_j == j && r->tipo == D_CAVALO && p < 0.3f)
+                rx += (int)(sinf(t_fase * 70) * 3);               // o Cavalo roubado treme e se abre
+            desenha_dado((float)rx, (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, r->anulado);
         }
 
     if (f->lancados || vis_nroubo[j] || (previa && pv.bruto[j] != 0)) {
@@ -549,6 +585,31 @@ static void desenha_evento(void)
         } else {
             projetil(ax, ay, bx, by, p / 0.42f, c);
         }
+    }
+    // Cavalo de Troia: atingido, se abre onde estiver (no lugar dele ou, se foi
+    // roubado, entre os roubados do outro) e de dentro sai um soldado para
+    // cada dado de quem o atingiu; os dados piscam e caem.
+    if (e->tipo == EV_CAVALO) {
+        int ox = ax, oy = ay, eu = -1;
+        if (vis_est[e->de_j][e->de_k] == V_ROUBADO)
+            for (int i = vis_nroubo[e->alvo_j] - 1; i >= 0 && eu < 0; i--)
+                if (vis_roubo[e->alvo_j][i].tipo == D_CAVALO) { eu = i; ox = ROUBO_X(i); oy = zona(e->alvo_j); }
+        // As tabuas se soltam: lascas de madeira saltando do cavalo.
+        float q = (p - 0.1f) / 0.35f;
+        if (q > 0 && q < 1)
+            for (int i = 0; i < 10; i++) {
+                float an = i * 0.6283f + 0.3f;
+                int r0 = 14 + (int)(q * 26), r1 = r0 + 7;
+                gfx_linha_grossa(ox + (int)(cosf(an) * r0), oy + (int)(sinf(an) * r0),
+                                 ox + (int)(cosf(an) * r1), oy + (int)(sinf(an) * r1), 3,
+                                 gfx_mistura(i % 2 ? C_TERRA : C_MADEIRA_CLR, C_FELTRO, (int)(q * 70)));
+            }
+        // E de dentro sai um soldado para cada dado de quem o atingiu.
+        int n = 0, by = zona(e->alvo_j);
+        for (int k = 0; k < N_FILA; k++)
+            if (e->mascara >> k & 1) projetil(ox, oy, SLOT_X(k), by, (p - 0.22f - 0.07f * n++) / 0.4f, C_TERRA);
+        for (int i = 0; i < vis_nroubo[e->alvo_j]; i++)         // e nos que ele tinha roubado
+            if (i != eu) projetil(ox, oy, ROUBO_X(i), by, (p - 0.22f - 0.07f * n++) / 0.4f, C_TERRA);
     }
     // Espelho: um reflexo sai do maior dado do rival e chega nele.
     if (e->tipo == EV_ESPELHO) {
@@ -636,6 +697,19 @@ static void desenha_evento(void)
                 int meia = 6 + (yy - topo) * 22 / (base - topo);
                 gfx_rect_alfa(ax - meia, yy, 2 * meia, 2, C_HALO, (int)(40 * q));
             }
+        } else if (t == D_CAPITAO && e->mascara) {
+            // Um galao dourado sai dele em arco e vai pousar em cada dado
+            // seu que vale; o dele sobe primeiro.
+            for (int k = 0; k < N_FILA; k++) {
+                if (!(e->mascara >> k & 1)) continue;
+                float q = (p - capitao_sai(e, k)) / CAPITAO_VOO;
+                if (q < 0 || q >= 1) continue;
+                float s = q * q * (3 - 2 * q);
+                int bx = SLOT_X(k), by = ay - R_DADO - 7;
+                int gx = ax + (int)((bx - ax) * s);
+                int gy = ay - R_DADO + (int)((by - (ay - R_DADO)) * s) - (int)(sinf(s * 3.1416f) * 26);
+                galao(gx, gy);
+            }
         } else if (t == D_DESAFIANTE) {
             // A flamula sobe do dado e se abre, tremulando: ele e o maior da mesa.
             float q = p / 0.4f;
@@ -661,10 +735,11 @@ static void desenha_evento(void)
                          gfx_mistura(c, C_FELTRO, (int)(tt * 85)));
             }
         }
-        if (p > 0.45f) {
+        float pm = capitao_agora(e) ? 0.7f : 0.45f;   // o Capitao: depois do ultimo galao
+        if (p > pm) {
             char mais[8];
             snprintf(mais, sizeof mais, "+%d", e->valor);
-            int ty = zona(e->de_j) - 10 - (int)((p - 0.45f) * 30);
+            int ty = zona(e->de_j) - 10 - (int)((p - pm) * 30);
             txt_sombra_c(PLACAR_X - 64, ty, mais, C_OURO, 1);
         }
     }

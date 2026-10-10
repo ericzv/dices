@@ -15,7 +15,8 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 5).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
 
-- **Partida rápida**: 15 rodadas contra o computador, em três níveis —
+- **Partida rápida**: 15 rodadas contra o computador (a entrada de cada rodada
+  sobe: 5 fichas, 10 da 6ª e 15 da 11ª), em três níveis —
   **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
   **Difícil** (simula as jogadas antes de decidir).
 - **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
@@ -142,13 +143,16 @@ git push origin v0.1.0
 
 ```
 src/          o jogo
-  games/dado.c    regras, IA, animação e desenho (framebuffer 640x360 RGB565)
-  ui/             primitivas de desenho e a fonte de pixels (DotGothic16)
+  games/dado.c        o jogo inteiro (framebuffer 640x360 RGB565), em partes:
+  games/dado/         um arquivo por assunto: regras da fila, poderes, IA, loja e
+                      prêmio, desenho dos dados, telas, Modo Desafiante (desafio.inc)
+  ui/             primitivas de desenho e as fontes de pixels (Jersey 10, Bitcount Prop Single e Tiny5)
   hal/            contrato com a plataforma: teclado, som, tela
-desktop/      a plataforma PC: janela, teclado, trilha e efeitos sintetizados, ícone
+desktop/      a plataforma PC: janela, teclado, som e ícone
+  sons/           a trilha e os efeitos (OGG), embutidos no executável no build
 web/          a página do navegador e a rede do modo online (MQTT)
-tests/        simulador de partidas e exportador de sons (WAV)
-tools/        geradores da fonte e do ícone
+tests/        simulador de partidas, regras, Desafiante e conferência dos sons
+tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC
 esp32p4/      o console do ESP32-P4 de 10,1" (ESP-IDF) e o simulador dele
 ```
@@ -157,9 +161,14 @@ A versão do Cardputer (tela 240x135) ficou em `cardputer/dado.c`: tem as
 mesmas regras e a IA, com o desenho do aparelho. Uma regra nova precisa ir
 para os dois arquivos.
 
-Para ouvir a trilha, o rufar e os efeitos fora do jogo:
-`./build/exporta_som pasta/` grava um `.wav` de cada.
+Para ouvir a trilha e os efeitos fora do jogo:
+`./build/exporta_som pasta/` grava um `.wav` de cada. Os sons são feitos por
+`tools/sons/gera.py`, a partir de gravações que `tools/sons/baixa.py` baixa
+(veja `tools/sons/LEIAME.md`).
 
-A fonte DotGothic16 é distribuída sob a SIL Open Font License
-(`tools/fontes/OFL-DotGothic16.txt`); a Jersey 10, também OFL
-(`tools/fontes/OFL-Jersey10.txt`).
+As fontes Jersey 10, Bitcount Prop Single e Tiny5 são distribuídas sob a SIL
+Open Font License (`tools/fontes/OFL-Jersey10.txt`, `OFL-BitcountPropSingle.txt`
+e `OFL-Tiny5.txt`).
+
+Os sons usam gravações de terceiros; os créditos e as licenças estão em
+`desktop/sons/CREDITOS.md`.

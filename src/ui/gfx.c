@@ -1,11 +1,52 @@
 #include <stdlib.h>
 #include "../hal/display.h"
 #include "gfx.h"
-#include "fonte_tela.h"
 
-static gfx_texto_fn nitido;
-void gfx_texto_nitido(gfx_texto_fn fn) { nitido = fn; }
-gfx_texto_fn gfx_texto_nitido_atual(void) { return nitido; }
+// Tabela de todas as 65536 cores RGB565 para a cor da paleta mais proxima.
+static uint16_t lut[65536];
+static bool tem_paleta;
+
+static void rgb888(uint16_t c, int *r, int *g, int *b)
+{
+    *r = ((c >> 11) & 31) * 255 / 31;
+    *g = ((c >> 5) & 63) * 255 / 63;
+    *b = (c & 31) * 255 / 31;
+}
+
+void gfx_paleta(const uint16_t *cores, int n)
+{
+    int pr[64], pg[64], pb[64];
+    if (n > 64) n = 64;
+    for (int i = 0; i < n; i++) rgb888(cores[i], &pr[i], &pg[i], &pb[i]);
+    for (int c = 0; c < 65536; c++) {
+        int r, g, b, melhor = 0;
+        long dmin = -1;
+        rgb888((uint16_t)c, &r, &g, &b);
+        for (int i = 0; i < n; i++) {
+            int rm = (r + pr[i]) / 2, dr = r - pr[i], dg = g - pg[i], db = b - pb[i];
+            long d = (long)(512 + rm) * dr * dr / 256 + 4L * dg * dg + (long)(767 - rm) * db * db / 256;
+            if (dmin < 0 || d < dmin) { dmin = d; melhor = i; }
+        }
+        lut[c] = cores[melhor];
+    }
+    tem_paleta = n > 0;
+}
+
+// Cores a mais, que passam como estao mas nao atraem as vizinhas: so o
+// que for desenhado exatamente nelas as usa.
+void gfx_paleta_exata(const uint16_t *cores, int n)
+{
+    for (int i = 0; i < n; i++) lut[cores[i]] = cores[i];
+}
+
+uint16_t gfx_na_paleta(uint16_t c) { return tem_paleta ? lut[c] : c; }
+
+void gfx_quantiza(void)
+{
+    if (!tem_paleta) return;
+    uint16_t *fb = display_fb();
+    for (int i = 0; i < GFX_W * GFX_H; i++) fb[i] = lut[fb[i]];
+}
 
 static uint16_t *desvio;
 void gfx_desvia(uint16_t *buf) { desvio = buf; }
@@ -125,29 +166,43 @@ int gfx_proximo_car(const char **s)
     return c >= FONTE_PRIM && c <= 0xFF ? c : '?';
 }
 
-static void glifo(int x, int y, int ch, uint16_t c, int e)
+// Um glifo de uma das fontes de pixels, ampliado 'e' vezes (cada pixel da
+// fonte vira um bloco de e x e pixels do jogo: sempre no grid da mesa).
+static void glifo(int x, int y, const uint16_t *g, int alt, uint16_t c, int e)
 {
-    const uint8_t *g = FONTE[ch - FONTE_PRIM];
-    for (int j = 0; j < FONTE_ALT; j++) {
-        uint8_t b = g[j];
-        for (int i = 0; b; i++, b <<= 1)
-            if (b & 0x80) {
+    for (int j = 0; j < alt; j++) {
+        uint16_t b = g[j];
+        for (int i = 0; b; i++, b >>= 1)
+            if (b & 1) {
                 if (e == 1) gfx_pixel(x + i, y + j, c);
                 else gfx_rect(x + i * e, y + j * e, e, e, c);
             }
     }
 }
 
+// Sombra do texto em destaque: um pixel abaixo, quase preta. Na Jersey, que ja
+// e encorpada, o destaque fica por conta dela (engrossar junta as letras).
+#define SOMBRA_TEXTO 0x0841
+
 int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 {
-    if (nitido) { nitido(x, y, s, c, e, negrito); return gfx_largura(s, e); }
-    if (e < 1) e = 1;                             // miudo: em pixels, o menor que ha
     int x0 = x;
     while (*s) {
-        int ch = gfx_proximo_car(&s);
-        glifo(x, y, ch, c, e);
-        if (negrito) glifo(x + 1, y, ch, c, e);
-        x += FONTE_LARG * e;
+        int ch = gfx_proximo_car(&s) - FONTE_PRIM;
+        if (e == GFX_FINO) {
+            glifo(x, y, FINO[ch], FINO_ALT, c, 1);
+            x += FINO_AV[ch];
+        } else if (e == GFX_MIUDO) {
+            // A miuda (Tiny5) desce um pixel: a base dela fica onde ficaria a
+            // de um texto normal encolhido.
+            if (negrito) glifo(x, y + 2, MIUDA[ch], MIUDA_ALT, SOMBRA_TEXTO, 1);
+            glifo(x, y + 1, MIUDA[ch], MIUDA_ALT, c, 1);
+            x += MIUDA_AV[ch];
+        } else {
+            if (negrito) glifo(x, y + e, FONTE[ch], FONTE_ALT, SOMBRA_TEXTO, e);
+            glifo(x, y, FONTE[ch], FONTE_ALT, c, e);
+            x += FONTE_AV[ch] * e;
+        }
     }
     return x - x0;
 }
@@ -155,12 +210,9 @@ int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 int gfx_largura(const char *s, int e)
 {
     int n = 0;
-    if (nitido) {                                 // soma os avancos da Jersey 10
-        while (*s) n += FT_AVANCO[gfx_proximo_car(&s) - FONTE_PRIM];
-        if (e == GFX_MIUDO) return (int)(n * GFX_MIUDO_ESC / 64 + 0.5f);
-        return (n * e + 32) / 64;
+    while (*s) {
+        int ch = gfx_proximo_car(&s) - FONTE_PRIM;
+        n += e == GFX_FINO ? FINO_AV[ch] : e == GFX_MIUDO ? MIUDA_AV[ch] : FONTE_AV[ch] * e;
     }
-    if (e < 1) e = 1;
-    while (*s) { gfx_proximo_car(&s); n++; }
-    return n * FONTE_LARG * e;
+    return n;
 }

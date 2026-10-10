@@ -17,6 +17,7 @@ bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
+void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
 
 #include "salva_mem.h"
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
         perfis_lidos = true;
         des_dif = dific;
         des_nova_run();
-        CONFERE(fase == F_RAMULETO && run.moedas == (dific >= 4 ? 30 : DES_MOEDAS) && run.n_col == 8
+        CONFERE(fase == F_RAMULETO && run.moedas == DES_MOEDAS + DES_MOEDAS_ANDAR * dific && run.n_col == 8
                 && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
         int compras = 0;

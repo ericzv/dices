@@ -33,8 +33,7 @@ FetchContent_MakeAvailable(raylib)
 add_library(jogo STATIC
     src/games/dado.c
     src/ui/gfx.c
-    src/ui/fonte.c
-    src/ui/fonte_tela.c)
+    src/ui/fonte.c)
 target_include_directories(jogo PUBLIC src desktop)
 # A versao (o commit) aparece miuda na tela inicial: da para saber qual jogo
 # esta aberto, no PC ou no site.
@@ -59,6 +58,23 @@ if (UNIX)
     target_link_libraries(jogo PUBLIC m)
 endif()
 
+# Os sons (desktop/sons/*.ogg) vao dentro do executavel: no build, o CMake
+# gera um .c com os bytes de cada arquivo (cmake/embute_sons.cmake).
+file(GLOB SONS_OGG CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons/*.ogg)
+list(SORT SONS_OGG)
+string(REPLACE ";" "|" SONS_LISTA "${SONS_OGG}")   # o ; viraria separador de comando
+set(SONS_C ${CMAKE_CURRENT_BINARY_DIR}/sons_embutidos.c)
+add_custom_command(OUTPUT ${SONS_C}
+    COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DARQUIVOS=${SONS_LISTA}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
+    DEPENDS ${SONS_OGG} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
+    COMMENT "Embutindo os sons do jogo"
+    VERBATIM)
+# Um alvo so e dono do .c gerado: se o jogo e o teste o listassem cada um, o
+# build em paralelo poderia gerar o arquivo duas vezes ao mesmo tempo.
+add_library(sons STATIC ${SONS_C})
+target_include_directories(sons PUBLIC desktop)
+
 if (EMSCRIPTEN)
     set(FONTES desktop/main.c desktop/som.c desktop/salva.c web/rede.c)
 else()
@@ -74,7 +90,7 @@ if (APPLE)
 endif()
 
 add_executable(dado WIN32 MACOSX_BUNDLE ${FONTES})
-target_link_libraries(dado PRIVATE jogo raylib)
+target_link_libraries(dado PRIVATE jogo sons raylib)
 set_target_properties(dado PROPERTIES
     OUTPUT_NAME "DadoEmCasa"
     MACOSX_BUNDLE_BUNDLE_NAME "Dado em Casa"
@@ -112,7 +128,7 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     target_link_libraries(simula PRIVATE jogo)
     add_test(NAME simula COMMAND simula 120)
     # Regras dos dados com jogadas montadas a mao.
-    add_executable(regras tests/regras.c src/ui/gfx.c src/ui/fonte.c src/ui/fonte_tela.c desktop/rede.c)
+    add_executable(regras tests/regras.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(regras PRIVATE src desktop)
     if (MSVC)
         target_compile_options(regras PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
@@ -122,7 +138,7 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     endif()
     add_test(NAME regras COMMAND regras)
     # Modo Desafiante: runs inteiras com a IA no lugar da pessoa.
-    add_executable(desafio tests/desafio.c src/ui/gfx.c src/ui/fonte.c src/ui/fonte_tela.c desktop/rede.c)
+    add_executable(desafio tests/desafio.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(desafio PRIVATE src desktop)
     if (MSVC)
         target_compile_options(desafio PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
@@ -131,9 +147,10 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(desafio PRIVATE m)
     endif()
     add_test(NAME desafio COMMAND desafio 6)
-    # Exporta a trilha, o rufar e os efeitos em WAV (e confere que a sintese roda).
+    # Confere que todo som do jogo tem gravacao e que todas decodificam;
+    # exporta tudo em WAV, para ouvir fora do jogo.
     add_executable(exporta_som tests/exporta_som.c)
     target_include_directories(exporta_som PRIVATE src desktop)
-    target_link_libraries(exporta_som PRIVATE raylib)
+    target_link_libraries(exporta_som PRIVATE sons raylib)
     add_test(NAME sons COMMAND exporta_som ${CMAKE_CURRENT_BINARY_DIR})
 endif()

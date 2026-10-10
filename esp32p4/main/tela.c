@@ -148,7 +148,13 @@ esp_err_t tela_inicia(int versao)
 
     ESP_RETURN_ON_ERROR(esp_lcd_panel_init(painel), TAG, "inicio do DPI");
     ESP_RETURN_ON_ERROR(esp_lcd_dpi_panel_get_frame_buffer(painel, 2, &fb[0], &fb[1]), TAG, "quadros");
-    esp_lcd_dpi_panel_event_callbacks_t cb = { .on_frame_buf_complete = quadro_pronto };
+    // O fim de cada varredura: no IDF ate o 5.5.4 o aviso se chama
+    // on_refresh_done; do 5.5.5 em diante, on_frame_buf_complete, no mesmo
+    // lugar (os dois nomes dividem o campo). O nome antigo serve nos dois.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    esp_lcd_dpi_panel_event_callbacks_t cb = { .on_refresh_done = quadro_pronto };
+#pragma GCC diagnostic pop
     ESP_RETURN_ON_ERROR(esp_lcd_dpi_panel_register_event_callbacks(painel, &cb, NULL), TAG, "aviso de quadro");
 
     quadro = heap_caps_aligned_calloc(128, TELA_W * TELA_H, 2, MALLOC_CAP_SPIRAM);

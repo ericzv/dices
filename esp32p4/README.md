@@ -65,7 +65,7 @@ também em **Ajustes → Sobre**.
 ## Compilar e gravar
 
 Precisa do [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) **5.5** ou
-**6.x** (testado com 5.5.5 e 6.1). Nenhum componente externo: só o IDF.
+**6.x** (testado com 5.5.4, 5.5.5 e 6.1). Nenhum componente externo: só o IDF.
 
 ```sh
 cd esp32p4

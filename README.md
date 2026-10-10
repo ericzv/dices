@@ -145,7 +145,8 @@ desktop/      a plataforma PC: janela, teclado, som e ícone
   sons/           a trilha e os efeitos (OGG), embutidos no executável no build
 web/          a página do navegador e a rede do modo online (MQTT)
 tests/        simulador de partidas, regras, Desafiante e conferência dos sons
-tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
+tools/        geradores da fonte, do ícone, dos sons (tools/sons/) e do vídeo
+              tutorial com narração (tools/video/)
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC
 ```
 

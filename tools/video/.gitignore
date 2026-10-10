@@ -1,0 +1,6 @@
+libmotor.so
+modelos/
+cache_voz/
+saida/
+previa/
+busca_*.json

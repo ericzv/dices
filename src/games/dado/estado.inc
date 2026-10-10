@@ -54,19 +54,20 @@ typedef struct {
 // Eventos do desfecho, tocados um a um.
 enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SEMENTE,
        EV_ZERA, EV_JACKPOT, EV_ESPELHO,
-       EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante)
+       EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
-       EV_CHEFE };                   // a virada do Barao: pontos por queda sua
+       EV_CHEFE,                     // a virada do Barao: pontos por queda sua
+       EV_CAVALO };                  // o Cavalo de Troia se abre: anula os dados de quem o atingiu
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
-    uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT)
+    uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
-    char txt[48];
+    char txt[64];
 } evento_t;
 #define MAX_EV 32
 
-typedef struct { uint8_t tipo, fixo, de_j; int valor; } roubado_t;
+typedef struct { uint8_t tipo, fixo, de_j, anulado; int valor; } roubado_t;   // anulado: pelo Cavalo
 
 enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
@@ -82,6 +83,15 @@ static int  fase, vez, primeiro, rodada, pote, cursor, partidas;
 static int  a_pagar, passes;
 static bool aumentou;
 static float t_fase, t_som;
+// Dados da sequencia que nao foram lancados: no fim do turno voam de volta
+// para a bolsa (t_devolve: tempo desde que sairam; -1: nenhum no ar).
+#define DEVOLVE_T 0.6f
+typedef struct { float x, y; uint8_t tipo, dono, fixo; } devolvido_t;
+static devolvido_t devolvidos[N_FILA];
+static int   n_devolvidos;
+static float t_devolve = -1;
+static int   log_base[2];                 // pontos de cada um quando os efeitos do fim comecam
+static float t_relogio;                  // corre sempre: brilhos que nao recomecam a cada fase
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];

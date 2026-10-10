@@ -460,6 +460,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
             if (fabsf(d) < w) return 1;
         }
         return 0;
+    case D_CAPITAO:                               // tres galoes de capitao, embaixo
+        if (fabsf(u) > 0.42f) return 0;
+        for (int i = 0; i < 3; i++)
+            if (fabsf(v - 0.38f - i * 0.13f) < s * 1.1f) return 1;
+        return 0;
     case D_VIUVA: {                               // a teia
         float a = atan2f(v, u);
         if (fabsf(sinf(4 * a)) * ro < l) return 1;

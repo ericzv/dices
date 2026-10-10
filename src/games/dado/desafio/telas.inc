@@ -200,7 +200,7 @@ static void desenha_dificuldade(void)
     }
     // O que vale na escolhida: tudo o que vem de baixo, mais o dela.
     int px = 194, py = 54;
-    ui_painel(px, py, 416, 232);
+    ui_painel(px, py, 416, 240);
     int d = dif_cur;
     int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
     txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
@@ -235,7 +235,7 @@ static void desenha_dificuldade(void)
         liberados(d, am, dado);
         ly += 6;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
-        ly += 26;
+        ly += 24;
         int ix = px + 24, ly0 = ly;
         for (int i = 0; i < 2; i++) {                // amuletos a esquerda...
             if (am[i] < 0) continue;
@@ -244,14 +244,13 @@ static void desenha_dificuldade(void)
             if (d <= nv) dica_zona(ix - 10, ly - 10, 150, 20, DICA_AMULETO, am[i]);
             ly += 24;
         }
-        ly = ly0;
-        for (int i = 0; i < LIB_DADOS; i++) {        // ...e os dados a direita
+        for (int i = 0; i < LIB_DADOS; i++) {        // ...e os dados a direita, dois por coluna
             if (dado[i] < 0) continue;
-            int dx = px + 214;
+            int dx = px + 150 + (i / 2) * 130;
+            ly = ly0 + (i % 2) * 24;
             desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
             txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_dado(dado[i]), false);
-            if (d <= nv) dica_zona(dx - 10, ly - 10, 150, 20, DICA_DADO, dado[i]);
-            ly += 24;
+            if (d <= nv) dica_zona(dx - 10, ly - 10, 120, 20, DICA_DADO, dado[i]);
         }
     }
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
@@ -260,26 +259,30 @@ static void desenha_dificuldade(void)
 static void desenha_liberou(void)
 {
     if (des_liberou < 1) return;
-    int am[2], dado[LIB_DADOS], n = 0;
+    int am[2], dado[LIB_DADOS];
     liberados(des_liberou, am, dado);
     char s[64];
     snprintf(s, sizeof s, "Abriu o %s", NOME_DIF[des_liberou]);
     txt_c(GFX_W / 2, CENTRO + 44, s, COR_DIF[des_liberou], true);
-    for (int i = 0; i < 2; i++) n += am[i] >= 0;
-    for (int i = 0; i < LIB_DADOS; i++) n += dado[i] >= 0;
-    int x = GFX_W / 2 - n * 106 / 2;
+    // Lado a lado, cada um com a largura do seu nome, centrados.
+    int w = -18;
+    for (int i = 0; i < 2; i++) if (am[i] >= 0) w += 20 + gfx_largura(AMULETO[am[i]].nome, GFX_FINO) + 18;
+    for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) w += 20 + gfx_largura(TIPO[dado[i]].nome, GFX_FINO) + 18;
+    int x = GFX_W / 2 - w / 2;
     for (int i = 0; i < 2; i++)
         if (am[i] >= 0) {
+            int wn = 20 + gfx_largura(AMULETO[am[i]].nome, GFX_FINO);
             desenha_amuleto(x + 8, CENTRO + 74, 8, am[i], false);
             txt(x + 20, CENTRO + 68, AMULETO[am[i]].nome, AMULETO[am[i]].cor, false);
-            dica_zona(x, CENTRO + 64, 100, 20, DICA_AMULETO, am[i]);
-            x += 106;
+            dica_zona(x, CENTRO + 64, wn, 20, DICA_AMULETO, am[i]);
+            x += wn + 18;
         }
     for (int i = 0; i < LIB_DADOS; i++)
         if (dado[i] >= 0) {
+            int wn = 20 + gfx_largura(TIPO[dado[i]].nome, GFX_FINO);
             desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado[i], 0, 0, 0, 0, false);
             txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_dado(dado[i]), false);
-            dica_zona(x, CENTRO + 64, 100, 20, DICA_DADO, dado[i]);
-            x += 106;
+            dica_zona(x, CENTRO + 64, wn, 20, DICA_DADO, dado[i]);
+            x += wn + 18;
         }
 }

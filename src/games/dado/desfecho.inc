@@ -65,6 +65,32 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
     return e;
 }
 
+// Cavalo de Troia: o dado a de r acabou de ser anulado ou roubado por um
+// poder de j. Se for o Cavalo, ele se abre: os dados de j que valem caem
+// (Escudo e Teimoso resistem; a Couraca de j segura tudo), e o que j roubou
+// nesta rodada, o proprio Cavalo inclusive, deixa de contar para ele.
+static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
+{
+    if (TIPO[tipo_de(r, a)].efeito != EF_CAVALO) return;
+    if (tem_am(j, A_COURACA)) {
+        if (gera) am_acende(A_COURACA);
+        return;
+    }
+    uint8_t mask = 0;
+    int8_t perde[N_FILA] = { 0 };
+    for (int i = 0; i < F[j].lancados; i++)
+        if (d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) {
+            perde[i] = (int8_t)contribui(j, i);
+            d->est[j][i] = V_ANULADO;
+            mask |= (uint8_t)(1 << i);
+        }
+    int roubado = d->roubo_val[j];
+    d->roubo_val[j] = 0;
+    if (!mask && !roubado) return;
+    evento_t *e = evento(gera, EV_CAVALO, r, a, j, 0, roubado, "Cavalo de Troia: anula os de %s", J[j].nome);
+    if (e) { e->mascara = mask; memcpy(e->por_dado, perde, sizeof perde); }
+}
+
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
 // Multiplicadores se SOMAM (x2, x3, x2 = x7) e valem sobre valor + bonus.
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
@@ -77,6 +103,31 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
         t += base * m;
     }
     return t;
+}
+
+// De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
+// Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
+enum { MULT_DOBRO, MULT_FARTURA, MULT_TUDO, MULT_TRONO, MULT_VIUVA, MULT_BARAO, MULT_N };
+static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
+{
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Tudo ou Nada", "Trono", "Viúva Negra", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2 };
+    size_t p = 0;
+    s[0] = 0;
+    for (int q = 0; q < MULT_N && p < n; q++) {
+        if (!de[q]) continue;
+        if (p) p += (size_t)snprintf(s + p, n - p, curto ? ", " : " · ");
+        if (p >= n) break;
+        p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
+        if (curto || p >= n) continue;
+        p += (size_t)snprintf(s + p, n - p, q == MULT_TUDO ? " x%d em tudo" : " x%d", x[q]);
+        if (q == MULT_TUDO || q == MULT_TRONO || q == MULT_VIUVA || p >= n) continue;   // todos, ou ele mesmo
+        int vals[N_FILA], nv = 0;
+        for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
+        p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
+        for (int i = 0; i < nv && p < n; i++)
+            p += (size_t)snprintf(s + p, n - p, i == 0 ? " %d" : (i == nv - 1 ? " e %d" : ", %d"), vals[i]);
+    }
 }
 
 // Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
@@ -97,7 +148,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
             if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
         }
-        const char *txt = face == 1 ? "Moeda 1: +1 nos ímpares" : "Moeda 2: +1 nos pares";
+        const char *txt = face == 1 ? "Moeda sorte deu 1: +1 nos ímpares" : "Moeda sorte deu 2: +1 nos pares";
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", txt) : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
@@ -168,33 +219,40 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (a < 0) continue;
         d->queima[j][a] = 1;
         d->semente[j] += 10;
-        evento(gera, EV_FOGO, j, k, j, a, 10, "Fogo: +10, e o %d vira cinza", f->valor[a]);
+        evento(gera, EV_FOGO, j, k, j, a, 10, "Ficha Fogo: +10, e o %d vira cinza", f->valor[a]);
     }
 
     uint8_t mask = 0;
+    uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
     int sozinhos = 0;                            // dados valendo: a Viuva quer ser a unica
     for (int k = 0; k < f->lancados; k++) sozinhos += est[k] == V_VALIDO;
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO) continue;
         int m = 0;
+        uint8_t bit = (uint8_t)(1 << k);
         // Dobro: vale so para o dado logo depois dele, e so se os dois
         // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
         // adiante para o proximo que vale.
         // E so se o Dobro tirou de 1 a 3.
         if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
-            && f->valor[k - 1] <= 3) m += 2;
-        if (fartura && f->valor[k] <= 2) m += 2 * n_far;
-        if (tudo) m += 2;
-        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
-        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) m += 2;          // Viuva Negra sozinha
-        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1)))
+            && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
+        if (fartura && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
+        if (tudo) { m += 2; de[MULT_TUDO] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) { m += 2; de[MULT_TRONO] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) { m += 2; de[MULT_VIUVA] |= bit; }
+        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
+            de[MULT_BARAO] |= bit;
+        }
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
     if (mask && gera) {
         int antes = pontos_fila(j, d->est[j], d->bonus[j], NULL);
         int depois = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]);
-        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "multiplicadores: %d vira %d", antes, depois);
+        char quem[64];
+        texto_mult(quem, sizeof quem, j, de, n_far, false);
+        if (strlen(quem) > 46) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
+        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d", quem, antes, depois);
         if (e) { e->mascara = mask; memcpy(e->por_dado, d->mult[j], N_FILA); }
     }
 
@@ -219,7 +277,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
     }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
-    // Misericordioso, Solitario, Prisma, Desafiante e Cavalo de Troia.
+    // Misericordioso, Solitario, Prisma, Desafiante e Capitao.
     int anulados = 0, valendo = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
@@ -244,10 +302,12 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             for (; tipos; tipos >>= 1) nt += (int)(tipos & 1);
             d->semente[j] += nt;
             evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s, +%d", nt, nt > 1 ? "s" : "", nt);
-        } else if (ef == EF_CAVALO) {
-            d->semente[j] += valendo;
-            evento(gera, EV_EXTRA, j, k, j, 0, valendo, "Cavalo de Troia: %d dado%s, +%d",
-                   valendo, valendo > 1 ? "s" : "", valendo);
+        } else if (ef == EF_CAPITAO) {               // +2 por dado seu valendo, ele incluido
+            d->semente[j] += 2 * valendo;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Capitão: %d dado%s, +%d",
+                                 valendo, valendo > 1 ? "s" : "", 2 * valendo);
+            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
+                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -272,6 +332,66 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         d->semente[j] += 10;
         evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
         if (e) e->mascara = trio;
+    }
+}
+
+// O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
+// agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
+// 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker).
+static int poder_armado(int j, int k)
+{
+    const fila_t *f = &F[j];
+    if (k >= f->lancados) return 0;
+    int ef = TIPO[tipo_de(j, k)].efeito, v = f->valor[k];
+    if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
+    if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
+    if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (f->est[k] != V_VALIDO) return 0;
+    int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
+    for (int i = 0; i < f->lancados; i++) {
+        uns += f->cru[i] == 1;
+        if (i == k || f->est[i] != V_VALIDO) continue;
+        outros++;
+        baixos += f->valor[i] <= 2;
+        iguais += f->valor[i] == v;
+    }
+    switch (ef) {
+    case EF_DOBRO:        return v <= 3;
+    case EF_PAR:          return f->bonus[k] >= 8;
+    case EF_CARRASCO:     return v == 4;
+    case EF_MARTELO:      return v >= 3;
+    case EF_PIRATA:       return v >= 6;
+    case EF_ESPELHO:      return f->cru[k] <= 2;
+    case EF_FICHAS:       return fichas_ini[j] > fichas_ini[outro(j)];
+    case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
+    case EF_TUDO_NADA:    return v == 2;
+    case EF_GATUNO:       return uns > 0;
+    case EF_INVEJOSO:     return invejoso_age(v);
+    case EF_CARIDOSO:     return v >= 3;
+    case EF_FARTURA:      return baixos > 0 || v <= 2;
+    case EF_SEMENTE:      return soma(j, f->est) >= 20;
+    case EF_FOGO:         return outros > 0;
+    case EF_TREVO:        return v == 4;
+    case EF_JACKPOT:      return trinca(j, f->est, NULL) != 0;
+    case EF_COPIADOR:     return iguais > 0;
+    case EF_LASER:        return v >= 5;
+    case EF_FERREIRO:     return v >= 3;
+    case EF_TRONO:        return k == f->lancados - 1;
+    case EF_VIUVA:        return outros == 0;
+    case EF_SOLITARIO:
+        return !(k > 0 && f->est[k - 1] == V_VALIDO) && !(k + 1 < f->lancados && f->est[k + 1] == V_VALIDO);
+    case EF_DESAFIANTE:                                      // o maior da mesa, sozinho
+        for (int q = 0; q < 2; q++)
+            for (int i = 0; i < F[q].lancados; i++)
+                if (!(q == j && i == k) && F[q].est[i] == V_VALIDO && F[q].valor[i] >= v) return 0;
+        return 1;
+    case EF_BERSERKER:
+        for (int i = 0; i < f->lancados; i++)
+            if (i != k && f->est[i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) return 2;
+        return 0;
+    case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
+        return 1;                                            // basta terminar valendo
+    default:              return 0;
     }
 }
 
@@ -373,6 +493,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
             } else if (ef == EF_LASER && v >= 5) {
                 // Um dado anulavel do oponente, ao acaso - mas um acaso que so
@@ -391,6 +512,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                             "Laser: o Segurança de %s leva no lugar", J[r].nome);
                         else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                        cavalo_abre(d, j, r, a, gera);
                     }
                 }
             } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 1, 3 ou 5
@@ -404,6 +526,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
                 b = alvo_de(d->est[j], j, true, -1);
                 if (b >= 0) {
@@ -430,6 +553,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "%s: o Segurança de %s vai no lugar (%d)", nome, J[r].nome, vale);
                     else evento(gera, EV_ROUBA, j, k, r, a, vale,
                                 "%s rouba o %d de %s", nome, vale, J[r].nome);
+                    cavalo_abre(d, j, r, a, gera);
                 }
             }
         }
@@ -467,7 +591,7 @@ static int total_visivel(int j)
 {
     if (vis_zerada[j]) return 0;
     int t = pontos_fila(j, vis_est[j], vis_bonus[j], vis_mult[j]) + vis_delta[j] + vis_semente[j];
-    for (int i = 0; i < vis_nroubo[j]; i++) t += vis_roubo[j][i].valor;
+    for (int i = 0; i < vis_nroubo[j]; i++) if (!vis_roubo[j][i].anulado) t += vis_roubo[j][i].valor;
     // Espelho cujo evento ainda nao tocou: na tela, ainda com o que tirou.
     // (Esses eventos vem antes de todos, sem bonus nem multiplicador ainda.)
     for (int k = 0; k < F[j].lancados; k++)

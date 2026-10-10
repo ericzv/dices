@@ -698,15 +698,15 @@ int main(void)
         limpa();
         joga_com(0, D_BUMERANGUE, 3, sempre_cinco);
         CONFERE(F[0].valor[0] == 3 && !F[0].tag[0][0], "Bumerangue 3: nao devia voltar (%d)", F[0].valor[0]);
-        // Cavalo de Troia: +1 por dado seu valendo, ele incluido.
+        // Capitao: +2 por dado seu valendo, ele incluido.
         limpa();
-        joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_CAVALO, 5);
+        joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_CAPITAO, 5);
         d = fim();
-        CONFERE(d.total[0] == 2 + 3 + 5 + 3, "Cavalo de Troia: esperava 13, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 3 + 5 + 6, "Capitao: esperava 16, deu %d", d.total[0]);
         limpa();
-        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_CAVALO, 6);
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_CAPITAO, 6);
         d = fim();
-        CONFERE(d.total[0] == 6 + 1, "Cavalo de Troia sozinho: esperava 7, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 6 + 2, "Capitao sozinho: esperava 8, deu %d", d.total[0]);
         // Viuva Negra: x2 se for o unico dado seu valendo.
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_VIUVA, 7);
@@ -728,9 +728,9 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 6, "Viuva que ficou sozinha: esperava 6, deu %d", d.total[0]);
         limpa();
-        joga(0, D_D6, 2); joga(0, D_D8, 7); joga(0, D_CAVALO, 3);    // caiu: nao da nada
+        joga(0, D_D6, 2); joga(0, D_D8, 7); joga(0, D_CAPITAO, 3);   // caiu: nao da nada
         d = fim();
-        CONFERE(d.total[0] == 2, "Cavalo de Troia anulado: esperava 2, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2, "Capitao anulado: esperava 2, deu %d", d.total[0]);
         // Berserker: valendo, anula um outro dado seu ao acaso.
         limpa();
         joga(0, D_D6, 3); joga(0, D_BERSERKER, 15);
@@ -807,11 +807,17 @@ int main(void)
         CONFERE(!strcmp(chave_run(), "desafio2"), "perfil 2 grava em %s", chave_run());
         CONFERE(dado_liberado(D_PRISMA) && !dado_liberado(D_FENIX) && amuleto_liberado(A_CUPOM)
                 && !amuleto_liberado(A_PRENSA), "o que abre com o nivel 3");
-        CONFERE(!dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER), "Cavalo e Berserker fechados no nivel 3");
+        CONFERE(!dado_liberado(D_CAPITAO) && !dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER),
+                "Capitao, Cavalo e Berserker fechados no nivel 3");
         perfis[1].nivel = 4;
-        CONFERE(dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER), "Cavalo abre no 4o Andar");
+        CONFERE(dado_liberado(D_CAPITAO) && !dado_liberado(D_CAVALO), "Capitao abre no 4o Andar, o Cavalo nao");
         perfis[1].nivel = 5;
-        CONFERE(dado_liberado(D_BERSERKER), "Berserker abre na Cobertura");
+        CONFERE(dado_liberado(D_CAVALO) && dado_liberado(D_BERSERKER), "Cavalo e Berserker abrem na Cobertura");
+        for (int n = 1; n <= N_NIVEIS; n++) {        // a tela da dificuldade mostra ate LIB_DADOS
+            int c = 0;
+            for (int t = 0; t < D_N; t++) c += nivel_do_dado(t) == n && marco_do_dado(t) < 0;
+            CONFERE(c <= LIB_DADOS, "nivel %d abre %d dados (cabem %d)", n, c, LIB_DADOS);
+        }
         perfis[1].nivel = 3;
         // Os fortes de antes: Explosivo, Egoista e Tudo ou Nada ja abriram no nivel 3; o
         // Agouro nao; D20 e Lastro so com o chefe de cada salao vencido.
@@ -1121,6 +1127,118 @@ int main(void)
         joga(1, D_CARRASCO, 4);
         d = fim();
         CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 2, "Carrasco sem Seguranca");
+    }
+
+    // ---- Fim do turno: o que nao foi lancado volta para a bolsa -----------
+    {
+        int cpu0 = cpu;
+        cpu = 0;
+        entrada(100, 100, 0);
+        int j = vez = primeiro;
+        jogador_t *p = &J[j];
+        int bolsa0 = na_bolsa(p), mao0 = p->n_mao;
+        for (int i = 0; i < 4; i++) poe_na_fila(i);
+        int c1 = F[j].idx[1], c3 = F[j].idx[3];
+        F[j].lancados = 1;                        // lancou um e parou
+        F[j].est[0] = V_VALIDO;
+        termina_turno();
+        CONFERE(F[j].n == 1 && na_bolsa(p) == bolsa0 + 3 && p->n_mao == mao0 - 3,
+                "devolve: fila %d, bolsa %d (era %d), mao %d (era %d)", F[j].n, na_bolsa(p), bolsa0, p->n_mao, mao0);
+        CONFERE(p->onde[c1] == NA_BOLSA && p->onde[c3] == NA_BOLSA && p->onde[F[j].idx[0]] == NA_MAO,
+                "devolve: os nao lancados deviam estar na bolsa");
+        bool na_mao = false;
+        for (int i = 0; i < p->n_mao; i++) na_mao |= p->mao[i] == c1 || p->mao[i] == c3;
+        CONFERE(!na_mao, "devolve: os nao lancados ainda na mao");
+        cpu = cpu0;
+    }
+
+    // ---- O brilho: o poder armado pelo que o dado tirou ---------------------
+    {
+        limpa();
+        joga(0, D_LASER, 5); joga(0, D_LASER, 6);
+        CONFERE(poder_armado(0, 0) == 1 && poder_armado(0, 1) == 1, "Laser 5 e 6 armados");
+        limpa();
+        joga(0, D_LASER, 4);
+        CONFERE(poder_armado(0, 0) == 0, "Laser 4 nao arma");
+        limpa();
+        joga(0, D_CARRASCO, 1);
+        CONFERE(poder_armado(0, 0) == 2, "Carrasco 1: armado contra o dono");
+        limpa();
+        joga(0, D_MISERICORDIOSO, 2); joga(0, D_TRONO, 7);
+        CONFERE(poder_armado(0, 0) == 1 && poder_armado(0, 1) == 1, "Misericordioso valendo e Trono no fim");
+        joga(0, D_D12, 9);
+        CONFERE(poder_armado(0, 1) == 0, "Trono deixa de ser o ultimo");
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_FENIX, 2);            // cai com o 6: renasce no fim
+        CONFERE(F[0].est[1] == V_ANULADO && poder_armado(0, 1) == 1, "Fenix anulada brilha");
+        limpa();
+        joga(0, D_CARIDOSO, 2);
+        CONFERE(poder_armado(0, 0) == 0, "Caridoso 2 nao arma");
+    }
+
+    // ---- Cavalo de Troia: anulado ou roubado pelo oponente, anula os dele ---
+    {
+        desfecho_t d;
+        // O Carrasco anula o Cavalo: caem o Carrasco e o D8 de quem atacou.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_CAVALO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_D8, 7);
+        d = fim();
+        CONFERE(d.est[0][1] == V_ANULADO && d.est[1][0] == V_ANULADO && d.est[1][1] == V_ANULADO
+                && d.total[1] == 0 && d.total[0] == 2, "Cavalo x Carrasco: %d a %d", d.total[0], d.total[1]);
+        // Laser e Invejoso tambem abrem o Cavalo.
+        limpa();
+        joga(0, D_CAVALO, 3);
+        joga(1, D_LASER, 6); joga(1, D_D8, 8);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 0, "Cavalo x Laser: %d", d.total[1]);
+        limpa();
+        joga(0, D_CAVALO, 7);
+        joga(1, D_INVEJOSO, 5); joga(1, D_D8, 6);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 0, "Cavalo x Invejoso: %d", d.total[1]);
+        // Escudo e Teimoso resistem.
+        limpa();
+        joga(0, D_CAVALO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_ESCUDO, 5); joga(1, D_TEIMOSO, 6);
+        d = fim();
+        CONFERE(d.est[1][0] == V_ANULADO && d.total[1] == 11, "Cavalo: Escudo e Teimoso deviam ficar (%d)", d.total[1]);
+        // Roubado: quem roubou perde os dados e o que roubou na rodada.
+        limpa();
+        joga(0, D_D4, 1); joga(0, D_CAVALO, 5); joga(0, D_D8, 6);
+        joga(1, D_CARIDOSO, 3); joga(1, D_CARIDOSO, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ROUBADO && d.est[0][1] == V_ROUBADO && d.total[1] == 0 && d.total[0] == 6,
+                "Cavalo roubado: %d a %d", d.total[0], d.total[1]);
+        // O Seguranca leva o ataque no lugar: o Cavalo nem e tocado.
+        limpa();
+        joga(0, D_SEGURANCA, 2); joga(0, D_CAVALO, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.total[1] == 4 && d.total[0] == 7, "Cavalo com Seguranca: %d", d.total[1]);
+        // Anulado pelo proprio dono (Berserker) ou pela queda: nada.
+        limpa();
+        joga(0, D_CAVALO, 3); joga(0, D_BERSERKER, 15);
+        joga(1, D_D6, 5);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 5, "Cavalo anulado pelo Berserker abriu: %d", d.total[1]);
+        // Com a Couraca, quem atacou nao perde nada.
+        int modo0 = modo;
+        modo = M_DESAFIO;
+        limpa(); amul[0] = 0; amul[1] = 1 << A_COURACA;
+        joga(0, D_CAVALO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_D8, 7);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 11, "Cavalo x Couraca: %d", d.total[1]);
+        amul[1] = 0;
+        modo = modo0;
+        // Os eventos: o ataque, e o Cavalo se abrindo com os dois dados marcados.
+        limpa();
+        joga(0, D_CAVALO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_D8, 7);
+        d = fim();
+        CONFERE(n_ev == 2 && ev[1].tipo == EV_CAVALO && ev[1].mascara == 3 && ev[1].alvo_j == 1,
+                "Cavalo: eventos (%d)", n_ev);
     }
 
     // ---- Previa: o total com os bonus pode ser negativo ------------------

@@ -96,7 +96,8 @@ static int nivel_do_dado(int t)
     case D_PRISMA:     return 3;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
-    case D_CAVALO:     return 4;                 // Cavalo de Troia
+    case D_CAPITAO:    return 4;
+    case D_CAVALO:     return 5;                 // Cavalo de Troia
     case D_BERSERKER:  return 5;
     // Os fortes que ja existiam: presos no comeco.
     case D_EXPLOSIVO:  return 1;

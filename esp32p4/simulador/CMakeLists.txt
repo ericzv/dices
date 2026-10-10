@@ -19,7 +19,7 @@ add_library(console STATIC
     ${CONSOLE}/console.c ${CONSOLE}/inicio.c ${CONSOLE}/ajustes.c ${CONSOLE}/partida.c
     ${CONSOLE}/primeira.c ${CONSOLE}/ui.c ${CONSOLE}/desenho.c ${CONSOLE}/texto.c
     ${CONSOLE}/fontes_ttf.c ${CONSOLE}/catalogo.c ${CONSOLE}/jogo_dado.c
-    ${RAIZ}/src/games/dado.c ${RAIZ}/src/ui/gfx.c ${RAIZ}/src/ui/fonte.c ${RAIZ}/src/ui/fonte_tela.c
+    ${RAIZ}/src/games/dado.c ${RAIZ}/src/ui/gfx.c ${RAIZ}/src/ui/fonte.c
     ${RAIZ}/desktop/rede.c)
 # desktop/ da o esp_timer.h de mentira que o dado.c inclui.
 target_include_directories(console PUBLIC ${CONSOLE} ${RAIZ}/src ${RAIZ}/desktop ${CMAKE_CURRENT_SOURCE_DIR})
@@ -45,7 +45,32 @@ if (CONSOLE_JANELA)
         GIT_TAG        5.5
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(raylib)
-    # A janela usa o som de verdade do PC (desktop/som.c, sintetizado com o raylib).
-    add_executable(console_sim sim_janela.c sistema_pc.c ${RAIZ}/desktop/som.c)
+    # Os sons do PC (desktop/sons/*.ogg), embutidos como no jogo de PC.
+    file(GLOB SONS_OGG CONFIGURE_DEPENDS ${RAIZ}/desktop/sons/*.ogg)
+    list(SORT SONS_OGG)
+    string(REPLACE ";" "|" SONS_LISTA "${SONS_OGG}")
+    set(SONS_C ${CMAKE_CURRENT_BINARY_DIR}/sons_embutidos.c)
+    add_custom_command(OUTPUT ${SONS_C}
+        COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DARQUIVOS=${SONS_LISTA}
+                -P ${RAIZ}/cmake/embute_sons.cmake
+        DEPENDS ${SONS_OGG} ${RAIZ}/cmake/embute_sons.cmake
+        COMMENT "Embutindo os sons do jogo"
+        VERBATIM)
+    # A janela usa o som de verdade do PC (desktop/som.c, com o raylib).
+    add_executable(console_sim sim_janela.c sistema_pc.c ${RAIZ}/desktop/som.c ${SONS_C})
     target_link_libraries(console_sim PRIVATE console raylib)
+
+    # O sons.bin do firmware: as mesmas gravacoes em ADPCM, abertas pelo
+    # stb_vorbis que vem com o raylib.
+    #   cmake --build build-console --target sons_p4
+    add_executable(gera_sons ../ferramentas/gera_sons.c)
+    target_include_directories(gera_sons PRIVATE ${raylib_SOURCE_DIR}/src/external)
+    if (UNIX)
+        target_link_libraries(gera_sons PRIVATE m)
+    endif()
+    add_custom_target(sons_p4
+        COMMAND gera_sons ${CMAKE_CURRENT_SOURCE_DIR}/../main/sons.bin ${SONS_OGG}
+        DEPENDS gera_sons
+        COMMENT "Gerando esp32p4/main/sons.bin"
+        VERBATIM)
 endif()

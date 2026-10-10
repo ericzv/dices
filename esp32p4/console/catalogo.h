@@ -29,11 +29,6 @@ typedef struct {
     const char *opcoes[4];
     bool (*opcao_le)(int i);
     void (*opcao_troca)(int i);
-
-    // Textos do jogo trocados na tela ({original, novo}; novo NULL some).
-    // Servem para as dicas de teclado virarem dicas de toque.
-    const char *const (*trocas)[2];
-    int n_trocas;
 } jogo_t;
 
 extern const jogo_t *const CATALOGO[];

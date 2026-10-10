@@ -6,9 +6,6 @@
 #include "texto.h"
 #include "sistema.h"
 #include "fontes_ttf.h"
-#include "ui/gfx.h"
-#include "ui/fonte_tela.h"
-#include "../../desktop/fonte_ttf.h"      // a Jersey 10 do PC (FONTE_TTF)
 
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -55,7 +52,7 @@ void texto_inicia(void)
     glifos = sis_aloca(sizeof(glifo_t) * N_GLIFOS);
     arena = sis_aloca(ARENA_TAM);
     esvazia();
-    const unsigned char *dados[FONTE_QTD] = { FONTE_INTER, FONTE_INTER_NEGRITO, FONTE_INTER_PRETO, FONTE_TTF };
+    const unsigned char *dados[FONTE_QTD] = { FONTE_INTER, FONTE_INTER_NEGRITO, FONTE_INTER_PRETO, FONTE_JERSEY };
     for (int f = 0; f < FONTE_QTD; f++) {
         fonte_t *ft = &fontes[f];
         ft->ok = stbtt_InitFont(&ft->info, dados[f], stbtt_GetFontOffsetForIndex(dados[f], 0)) != 0;
@@ -218,58 +215,4 @@ int texto_quebra(int f, float px, int x, int y, int larg, float entrelinha, cons
         y += (int)(px * entrelinha);
     }
     return y - y0;
-}
-
-// ---------------------------------------------------------------------------
-// Texto do jogo, como no PC (desktop/main.c): cada letra no avanco que o jogo
-// mediu, o negrito repetido um tico ao lado.
-// ---------------------------------------------------------------------------
-typedef struct { int16_t x, y; uint8_t esc; bool negrito; uint16_t cor; int ini; } pedido_t;
-static pedido_t pedidos[768];
-static int n_pedidos, usado;
-static char letras[32768];
-
-static const char *const (*trocas)[2];
-static int n_trocas;
-
-void texto_jogo_trocas(const char *const (*t)[2], int n) { trocas = t; n_trocas = n; }
-
-static void recebe(int x, int y, const char *s, uint16_t c, int esc, bool negrito)
-{
-    for (int i = 0; i < n_trocas; i++)
-        if (!strcmp(s, trocas[i][0])) {
-            const char *novo = trocas[i][1];
-            if (!novo) return;
-            x += (gfx_largura(s, esc) - gfx_largura(novo, esc)) / 2;    // mesmo centro
-            s = novo;
-            break;
-        }
-    int n = (int)strlen(s) + 1;
-    if (n_pedidos >= (int)(sizeof pedidos / sizeof pedidos[0]) || usado + n > (int)sizeof letras) return;
-    pedidos[n_pedidos++] = (pedido_t){ (int16_t)x, (int16_t)y, (uint8_t)esc, negrito, c, usado };
-    memcpy(letras + usado, s, (size_t)n);
-    usado += n;
-}
-
-void texto_jogo_registra(void) { gfx_texto_nitido(recebe); }
-void texto_jogo_limpa(void) { n_pedidos = usado = 0; }
-
-void texto_jogo_desenha(int ox, int oy, int k)
-{
-    if (!fontes[FONTE_JOGO].ok) return;
-    for (int i = 0; i < n_pedidos; i++) {
-        const pedido_t *t = &pedidos[i];
-        float e = t->esc == GFX_MIUDO ? GFX_MIUDO_ESC : (float)t->esc;
-        float tam = FT_EM * e * k;
-        float x = ox + t->x * (float)k;
-        int base = oy + t->y * k + (int)(ascendente(FONTE_JOGO, tam) + 0.5f);
-        const char *s = letras + t->ini;
-        while (*s) {
-            int cp = gfx_proximo_car(&s);
-            const glifo_t *g = glifo(FONTE_JOGO, tam, cp);
-            desenha_glifo(g, (int)(x + 0.5f), base, t->cor, 255);
-            if (t->negrito) desenha_glifo(g, (int)(x + k * 0.45f * e + 0.5f), base, t->cor, 255);
-            x += FT_AVANCO[cp - FONTE_PRIM] * e * k / 64.0f;
-        }
-    }
 }

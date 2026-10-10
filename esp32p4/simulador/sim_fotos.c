@@ -18,6 +18,7 @@ bool som_liga(bool on) { return on; }
 bool som_ligado(void) { return true; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
+void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
 bool som_musica(bool on) { return on; }
 

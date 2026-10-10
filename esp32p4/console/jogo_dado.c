@@ -170,7 +170,6 @@ static void passo(float dt) { dado_passo(dt); }
 
 static const uint16_t *desenha(int *w, int *h)
 {
-    texto_jogo_limpa();
     dado_desenha();
     *w = GFX_W;
     *h = GFX_H;
@@ -210,43 +209,6 @@ static void opcao_troca(int i)
     else salva_grava("vel", opcao_le(0) ? "0" : "1");
 }
 
-// As dicas do jogo falam de teclas; aqui o aparelho so tem toque. O console
-// troca cada uma na hora de desenhar (centralizada no mesmo lugar).
-static const char *const TROCAS[][2] = {
-    { "mouse ou setas escolhem  ·  clique ou ENTER confirma  ·  ESC volta",
-      "toque para escolher  ·  o  <  no alto volta" },
-    { "M som  ·  N música  ·  F11 tela cheia  ·  - e + tamanho da mesa",
-      "toque para escolher  ·  segure o dedo num dado para ver o que ele faz" },
-    { "sequência cheia: TAB ou CTRL confirma", "sequência cheia: toque em pronto" },
-    { "ENTER segue", "toque para seguir" },
-    { "ENTER tira para sempre  ·  BACKSPACE volta", "toque num dado para tirar para sempre  ·  voltar desfaz" },
-    { "setas escolhem  ·  ENTER leva  ·  X recusa", "toque no prêmio para levar  ·  ou em recusar" },
-    { "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB/CTRL termina",
-      "toque para comprar  ·  segure o dedo para ver detalhes  ·  terminar fecha a loja" },
-    { "ENTER nova partida", "toque para uma nova partida" },
-    { "qualquer tecla fecha", "toque para fechar" },
-    { "<  anterior    ·    ENTER ou  >  próxima    ·    ESC menu",
-      "toque à esquerda: anterior    ·    à direita: próxima    ·    <  menu" },
-    { "<  anterior    ·    ENTER volta ao menu", "toque à esquerda: anterior    ·    à direita: volta ao menu" },
-    { "Aperte ESC (ou toque no <) de novo para sair da partida.", "Toque no  <  de novo para sair da partida." },
-    { "setas escolhem  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu",
-      "toque numa mesa para sentar  ·  sua bolsa mostra os dados  ·  <  menu" },
-    { "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB sai da loja",
-      "toque para comprar  ·  segure o dedo para ver detalhes" },
-    { "setas escolhem  ·  I detalhes  ·  TAB volta ao mapa", "segure o dedo num dado para ver detalhes" },
-    { "ENTER volta ao menu", "toque para voltar ao menu" },
-    { "ENTER escolhe o prêmio", "toque para escolher o prêmio" },
-    { "setas escolhem  ·  ENTER confirma", "toque para escolher" },
-    { "setas escolhem  ·  ENTER confirma  ·  I detalhes  ·  BACKSPACE volta",
-      "toque para escolher  ·  segure o dedo para ver detalhes" },
-    { "ENTER segue para o mapa", "toque para seguir para o mapa" },
-    { "setas escolhem  ·  ENTER leva o amuleto", "toque num amuleto para levar" },
-    { "setas escolhem  ·  ENTER entra  ·  X apaga  ·  ESC volta", "toque num perfil para entrar  ·  <  volta" },
-    { "setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta",
-      "as setas trocam o retrato  ·  digite o nome  ·  OK cria" },
-    { "setas escolhem  ·  ENTER começa a run  ·  ESC volta", "toque numa dificuldade para começar  ·  <  volta" },
-};
-
 const jogo_t JOGO_DADO = {
     .id = "dado",
     .nome = "Dado em Casa",
@@ -268,6 +230,4 @@ const jogo_t JOGO_DADO = {
     .opcoes = { "Animações rápidas" },
     .opcao_le = opcao_le,
     .opcao_troca = opcao_troca,
-    .trocas = TROCAS,
-    .n_trocas = (int)(sizeof TROCAS / sizeof TROCAS[0]),
 };

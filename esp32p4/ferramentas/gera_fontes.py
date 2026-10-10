@@ -8,8 +8,8 @@ do Inter variavel, so com Latin-1 e alguns sinais), feitos assim:
     pyftsubset x.ttf --unicodes="U+0020-007E,U+00A0-00FF,U+2013,U+2014,..." \
         --no-hinting --layout-features='' --drop-tables+=GPOS,GSUB,GDEF,DSIG,STAT
 
-Saida: console/fontes_ttf.c (os tres pesos). O texto do jogo usa a Jersey 10
-de desktop/fonte_ttf.h, a mesma do PC.
+Saida: console/fontes_ttf.c (os tres pesos), mais a Jersey 10 do jogo
+(tools/fontes/, licenca OFL), para o nome do jogo e as letras da capa.
 
 Uso:  python3 esp32p4/ferramentas/gera_fontes.py
 """
@@ -17,7 +17,8 @@ import os
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 FONTES = [("INTER", "Inter-Regular.ttf"), ("INTER_NEGRITO", "Inter-Bold.ttf"),
-          ("INTER_PRETO", "Inter-Black.ttf")]
+          ("INTER_PRETO", "Inter-Black.ttf"),
+          ("JERSEY", os.path.join("..", "..", "..", "tools", "fontes", "Jersey10-Regular.ttf"))]
 
 
 def main():
@@ -26,6 +27,8 @@ def main():
         f.write("// GERADO POR esp32p4/ferramentas/gera_fontes.py - NAO EDITAR A MAO\n")
         f.write("// Inter, (c) 2020 The Inter Project Authors, SIL OFL 1.1\n")
         f.write("// (ferramentas/fontes/OFL-Inter.txt)\n")
+        f.write("// Jersey 10, (c) 2023 The Soft Type Project Authors, SIL OFL 1.1\n")
+        f.write("// (tools/fontes/OFL-Jersey10.txt)\n")
         f.write('#include "fontes_ttf.h"\n')
         for nome, arq in FONTES:
             dados = open(os.path.join(AQUI, "fontes", arq), "rb").read()

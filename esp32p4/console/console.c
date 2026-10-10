@@ -254,7 +254,6 @@ void console_abre_jogo(const jogo_t *j)
     if (!C.ativo) {
         C.ativo = j;
         sis_espaco(j->id);
-        texto_jogo_trocas(j->trocas, j->n_trocas);
         j->abre();
     }
     console_vai(T_JOGO);
@@ -274,7 +273,6 @@ void console_fecha_jogo(void)
 void console_inicia(void)
 {
     texto_inicia();
-    texto_jogo_registra();
     memset(&C, 0, sizeof C);
     C.armado = -1;
     C.hora = C.minuto = -1;

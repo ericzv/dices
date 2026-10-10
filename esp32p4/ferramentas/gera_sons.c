@@ -1,85 +1,48 @@
-// Gera esp32p4/main/sons.bin: os efeitos, o rufar, o giro da roleta e a
-// trilha do Dado em Casa, sintetizados pelo mesmo desktop/som.c do PC.
+// Gera esp32p4/main/sons.bin a partir das gravacoes do jogo do PC
+// (desktop/sons/*.ogg): cada arquivo vira um trecho em IMA ADPCM, com o
+// mesmo nome. O firmware toca direto desse formato, sem abrir na memoria.
 //
-// No PC o som e composto na hora em que o jogo abre. No ESP32-P4 isso levaria
-// uns 30 s de processador e mais memoria do que sobra (so a trilha, em ponto
-// flutuante, ocupa 27 MB enquanto e mixada). Entao a sintese roda aqui, no
-// computador, uma vez; o firmware so descompacta.
+// Por que nao o OGG direto: abrir Vorbis no ESP32-P4 custaria uns 30% de um
+// nucleo so para a trilha, e abrir todos os efeitos na partida levaria
+// dezenas de segundos. O ADPCM ocupa mais flash (4 bits por amostra), mas o
+// aparelho le quase de graca.
 //
 // Formato (tudo little-endian):
-//   "DSOM", u16 versao (1), u16 n, u32 taxa
-//   u32 amostras[n], u32 bytes[n]
-//   n trechos em IMA ADPCM de 4 bits, mono, cada um comecando em 0
-// Ordem: os SOM_N efeitos de hal/som.h, o rufar, o giro e a trilha (os dois
-// canais da trilha somados: o alto-falante do aparelho e um so).
+//   "DSOM", u16 versao (2), u16 n, u32 taxa (44100)
+//   n entradas: char nome[24] (sem o .ogg), u32 amostras, u32 deslocamento
+//   os trechos: IMA ADPCM de 4 bits, mono, cada um comecando do zero
+// Os sons em estereo (a trilha) chegam somados num canal so: o alto-falante
+// do aparelho e um so.
 //
-// Compilar e rodar (da raiz do repositorio), numa linha so:
-//   cc -O2 -Iesp32p4/ferramentas -Isrc -Idesktop esp32p4/ferramentas/gera_sons.c
-//      desktop/som.c -lm -o /tmp/gera_sons && /tmp/gera_sons esp32p4/main/sons.bin
+// Ao lado do sons.bin sai o sons.lista (nome e tamanho de cada .ogg), que o
+// main/CMakeLists.txt compara com desktop/sons/ para avisar quando o som do
+// PC mudou e o sons.bin ficou velho.
+//
+// Para rodar: o alvo sons_p4 do simulador (simulador/CMakeLists.txt), que
+// compila isto com o stb_vorbis do raylib e passa todos os .ogg:
+//   cmake -S esp32p4/simulador -B build-console
+//   cmake --build build-console --target sons_p4
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "raylib.h"
-#include "hal/som.h"
 
-void som_inicia(void);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-value"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#include "stb_vorbis.c"
+#pragma GCC diagnostic pop
 
-#define MAX_TRECHOS (SOM_N + 3)
-static int16_t *trecho[MAX_TRECHOS];
-static uint32_t amostras[MAX_TRECHOS];
-static int n_trechos;
+#define TAXA 44100
+#define NOME_TAM 24
 
-bool IsAudioDeviceReady(void) { return true; }
-
-Sound LoadSoundFromWave(Wave w)
-{
-    Sound s = { n_trechos, w.frameCount };
-    if (n_trechos >= MAX_TRECHOS || w.channels != 1 || w.sampleSize != 16) {
-        fprintf(stderr, "som inesperado (%u canais, %u bits)\n", w.channels, w.sampleSize);
-        exit(1);
-    }
-    trecho[n_trechos] = malloc(w.frameCount * 2);
-    memcpy(trecho[n_trechos], w.data, w.frameCount * 2);
-    amostras[n_trechos++] = w.frameCount;
-    return s;
-}
-
-// A trilha chega como um WAV estereo de 16 bits em memoria.
-Music LoadMusicStreamFromMemory(const char *tipo, const unsigned char *d, int n)
-{
-    (void)tipo;
-    Music m = { n_trechos, 0, true };
-    uint32_t bytes = (uint32_t)d[40] | (uint32_t)d[41] << 8 | (uint32_t)d[42] << 16 | (uint32_t)d[43] << 24;
-    if (n < 44 || memcmp(d, "RIFF", 4) || d[22] != 2 || bytes + 44 > (uint32_t)n) {
-        fprintf(stderr, "trilha inesperada\n");
-        exit(1);
-    }
-    uint32_t q = bytes / 4;
-    int16_t *mono = malloc(q * 2);
-    for (uint32_t i = 0; i < q; i++) {
-        const unsigned char *p = d + 44 + i * 4;
-        int l = (int16_t)(p[0] | p[1] << 8), r = (int16_t)(p[2] | p[3] << 8);
-        mono[i] = (int16_t)((l + r) / 2);
-    }
-    trecho[n_trechos] = mono;
-    amostras[n_trechos++] = q;
-    m.frameCount = q;
-    return m;
-}
-
-Sound LoadSoundAlias(Sound s) { return s; }
-void  UnloadSoundAlias(Sound s) { (void)s; }
-void  UnloadSound(Sound s) { (void)s; }
-void  UnloadMusicStream(Music m) { (void)m; }
-void  PlayMusicStream(Music m) { (void)m; }
-void  UpdateMusicStream(Music m) { (void)m; }
-void  SetMusicVolume(Music m, float v) { (void)m; (void)v; }
-bool  IsSoundPlaying(Sound s) { (void)s; return false; }
-void  SetSoundVolume(Sound s, float v) { (void)s; (void)v; }
-void  SetSoundPitch(Sound s, float p) { (void)s; (void)p; }
-void  PlaySound(Sound s) { (void)s; }
-void  StopSound(Sound s) { (void)s; }
+typedef struct {
+    char nome[NOME_TAM];
+    long ogg;                            // bytes do arquivo original
+    int16_t *pcm;
+    uint32_t amostras, bytes;
+    uint8_t *cod;
+} trecho_t;
 
 // ---------------------------------------------------------------------------
 // IMA ADPCM
@@ -117,37 +80,116 @@ static uint32_t codifica(const int16_t *x, uint32_t n, uint8_t *saida)
     return (n + 1) / 2;
 }
 
+// ---------------------------------------------------------------------------
+// Um .ogg: abre, soma os canais e, se precisar, leva para 44100 Hz.
+// ---------------------------------------------------------------------------
+static const char *base(const char *p)
+{
+    const char *b = p;
+    for (const char *q = p; *q; q++)
+        if (*q == '/' || *q == '\\') b = q + 1;
+    return b;
+}
+
+static int le_ogg(const char *arq, trecho_t *t)
+{
+    const char *b = base(arq);
+    size_t n = strlen(b);
+    if (n < 5 || strcmp(b + n - 4, ".ogg") || n - 4 >= NOME_TAM) {
+        fprintf(stderr, "%s: nome inesperado\n", arq);
+        return 0;
+    }
+    memset(t, 0, sizeof *t);
+    memcpy(t->nome, b, n - 4);
+
+    FILE *f = fopen(arq, "rb");
+    if (!f) { perror(arq); return 0; }
+    fseek(f, 0, SEEK_END);
+    t->ogg = ftell(f);
+    fclose(f);
+
+    int canais = 0, taxa = 0;
+    short *x = NULL;
+    int q = stb_vorbis_decode_filename(arq, &canais, &taxa, &x);
+    if (q <= 0 || canais < 1) {
+        fprintf(stderr, "%s: nao abriu\n", arq);
+        return 0;
+    }
+    double passo = (double)taxa / TAXA;
+    uint32_t m = (uint32_t)(q / passo);
+    t->pcm = malloc((size_t)m * 2 + 2);
+    for (uint32_t i = 0; i < m; i++) {
+        double p = i * passo;
+        int k = (int)p;
+        double fr = p - k;
+        double s = 0;
+        for (int c = 0; c < canais; c++) {
+            double a = x[(size_t)k * canais + c];
+            double b2 = k + 1 < q ? x[(size_t)(k + 1) * canais + c] : a;
+            s += a + (b2 - a) * fr;
+        }
+        s /= canais;
+        t->pcm[i] = (int16_t)(s > 32767 ? 32767 : s < -32768 ? -32768 : s);
+    }
+    free(x);
+    t->amostras = m;
+    t->cod = malloc(m / 2 + 1);
+    t->bytes = codifica(t->pcm, m, t->cod);
+    return 1;
+}
+
+static int compara(const void *a, const void *b)
+{
+    return strcmp(base(*(const char *const *)a), base(*(const char *const *)b));
+}
+
 static void u16(FILE *f, uint16_t v) { fputc(v & 255, f); fputc(v >> 8, f); }
 static void u32(FILE *f, uint32_t v) { for (int i = 0; i < 4; i++) fputc((v >> (8 * i)) & 255, f); }
 
 int main(int argc, char **argv)
 {
-    const char *saida = argc > 1 ? argv[1] : "sons.bin";
-    som_inicia();
-    if (n_trechos != SOM_N + 3) {
-        fprintf(stderr, "esperava %d sons, vieram %d\n", SOM_N + 3, n_trechos);
+    if (argc < 3) {
+        fprintf(stderr, "uso: gera_sons saida/sons.bin desktop/sons/*.ogg\n");
         return 1;
     }
-    uint8_t *cod[MAX_TRECHOS];
-    uint32_t bytes[MAX_TRECHOS], total = 0;
-    for (int i = 0; i < n_trechos; i++) {
-        cod[i] = malloc(amostras[i] / 2 + 1);
-        bytes[i] = codifica(trecho[i], amostras[i], cod[i]);
-        total += bytes[i];
-    }
+    const char *saida = argv[1];
+    int n = argc - 2;
+    const char **arqs = malloc(sizeof(char *) * (size_t)n);
+    for (int i = 0; i < n; i++) arqs[i] = argv[i + 2];
+    qsort(arqs, (size_t)n, sizeof(char *), compara);       // a mesma ordem do CMake
+
+    trecho_t *t = calloc((size_t)n, sizeof *t);
+    for (int i = 0; i < n; i++)
+        if (!le_ogg(arqs[i], &t[i])) return 1;
+
     FILE *f = fopen(saida, "wb");
     if (!f) { perror(saida); return 1; }
     fwrite("DSOM", 1, 4, f);
-    u16(f, 1);
-    u16(f, (uint16_t)n_trechos);
-    u32(f, 44100);
-    for (int i = 0; i < n_trechos; i++) u32(f, amostras[i]);
-    for (int i = 0; i < n_trechos; i++) u32(f, bytes[i]);
-    for (int i = 0; i < n_trechos; i++) fwrite(cod[i], 1, bytes[i], f);
+    u16(f, 2);
+    u16(f, (uint16_t)n);
+    u32(f, TAXA);
+    uint32_t desl = 0, am = 0;
+    for (int i = 0; i < n; i++) {
+        fwrite(t[i].nome, 1, NOME_TAM, f);
+        u32(f, t[i].amostras);
+        u32(f, desl);
+        desl += t[i].bytes;
+        am += t[i].amostras;
+    }
+    for (int i = 0; i < n; i++) fwrite(t[i].cod, 1, t[i].bytes, f);
     fclose(f);
-    uint32_t am = 0;
-    for (int i = 0; i < n_trechos; i++) am += amostras[i];
-    printf("%s: %d sons, %.1f s de audio, %u KB (%.1f MB descompactado)\n", saida, n_trechos, am / 44100.0,
-           (unsigned)(total / 1024), am * 2 / 1048576.0);
+
+    // A lista, para o build do firmware saber se o sons.bin esta em dia.
+    char lista[4096];
+    snprintf(lista, sizeof lista, "%s", saida);
+    char *ponto = strrchr(lista, '.');
+    if (ponto && ponto > base(lista)) strcpy(ponto, ".lista");
+    else strcat(lista, ".lista");
+    FILE *l = fopen(lista, "wb");
+    if (!l) { perror(lista); return 1; }
+    for (int i = 0; i < n; i++) fprintf(l, "%s %ld\n", t[i].nome, t[i].ogg);
+    fclose(l);
+
+    printf("%s: %d sons, %.1f s de audio, %u KB\n", saida, n, am / (double)TAXA, (unsigned)(desl / 1024));
     return 0;
 }

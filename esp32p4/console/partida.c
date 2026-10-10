@@ -128,7 +128,6 @@ void jogo_desenha_tela(void)
         mesa_y = (JOGO_H - h * k) / 2;
         if (mesa_x > 0 || mesa_y > 0) d_ret(0, 0, TELA_W, JOGO_H, C_BARRA);
         d_amplia(fb, w, h, mesa_x, mesa_y, k);
-        texto_jogo_desenha(mesa_x, mesa_y, k);
     }
     if (jogo_teclado_aberto()) desenha_teclado();
     else desenha_barra();

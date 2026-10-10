@@ -17,17 +17,17 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
   imagem 180°, calibrar o toque, as opções do jogo (no Dado em Casa,
   animações rápidas), o relógio e um cartão "Sobre" com o chip, a memória, a
   versão do painel e do firmware.
-- **Durante o jogo**, a mesa ocupa os 1280×720 de cima (os 640×360 do jogo em
-  2×, sem borrar, e o texto desenhado nítido na resolução da tela, como no PC).
-  Os 80 px de baixo são a barra do sistema: **Início** à esquerda e o volume à
-  direita.
+- **Durante o jogo**, a mesa ocupa os 1280×720 de cima: os 640×360 do jogo
+  em 2×, pixel por pixel, sem borrar (o texto vem no próprio quadro, no mesmo
+  grid de pixels da mesa, como no PC). Os 80 px de baixo são a barra do
+  sistema: **Início** à esquerda e o volume à direita.
 - **Central de controle**: o botão Início da barra (ou o botão **BOOT** da
   placa) pausa o jogo e sobe um painel com Continuar, Ir para o início, Fechar
   o jogo, volume e brilho.
 - **Teclado na tela** quando o jogo pede texto (o nome do perfil no Modo
   Desafiante).
-- **Som**: a mesma trilha e os mesmos efeitos do PC, pelo codec ES8311 e o
-  alto-falante da placa.
+- **Som**: as mesmas gravações do PC (trilha e efeitos, com as variantes de
+  cada batida), pelo codec ES8311 e o alto-falante da placa.
 
 ### Jogar com o dedo
 
@@ -38,9 +38,9 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
 | Segurar ~0,5 s | Mostra tudo sobre o dado embaixo do dedo (a tecla I do PC) |
 | `<` no alto | Volta / sai da partida, como no celular |
 
-As dicas do jogo que falam de teclas ("ENTER segue", "F11 tela cheia"...)
-aparecem trocadas por dicas de toque. Quem troca é o console, na hora de
-desenhar (`TROCAS` em `console/jogo_dado.c`): o `dado.c` continua igual.
+As dicas do jogo mostram as teclas do PC, como no site aberto no celular: o
+jogo as desenha dentro do próprio quadro e o `dado.c` é o mesmo do PC. Tudo
+o que elas pedem também se faz tocando (os botões, o `<` do alto, os dados).
 
 ## A placa e as revisões dela
 
@@ -108,7 +108,7 @@ quanta PSRAM sobrou.
 ## Simulador no PC
 
 O mesmo console e o mesmo jogo, numa janela de 1280×800, com o mouse no lugar
-do dedo e o som de verdade (o `desktop/som.c` do PC):
+do dedo e o som do PC (`desktop/som.c` e as gravações):
 
 ```sh
 cmake -S esp32p4/simulador -B build-console
@@ -132,7 +132,7 @@ esp32p4/
     primeira.c      abertura, calibração do toque, "a imagem está de pé?"
     ui.c            ícones, botões, chaves, barras de deslizar
     desenho.c       formas suavizadas e degradês em RGB565 (1280x800)
-    texto.c         texto TrueType nítido (stb_truetype), com cache de letras
+    texto.c         texto TrueType nítido do console (stb_truetype), com cache de letras
     catalogo.c      a lista de jogos
     jogo_dado.c     o Dado em Casa no console: capa, ícone, logotipo, adaptador
   main/           o firmware: tela, toque, som, relógio, salvamento
@@ -140,11 +140,11 @@ esp32p4/
     painel_jd9365.h as sequências de início das duas telas
     toque.c         GSL3680 (e toque_fw.h, o firmware que vai para o chip)
     audio.c         I2S, codec ES8311 e amplificador
-    som_p4.c        o som do jogo: sons.bin descompactado e o misturador
+    som_p4.c        o som do jogo: as gravações do sons.bin e o misturador
     relogio.c       RX8025T
     salva_nvs.c     o salvamento dos jogos na flash (NVS), um espaço por jogo
     placa.h         os pinos
-  ferramentas/    geradores (sons e fontes)
+  ferramentas/    geradores (sons.bin e fontes)
   simulador/      o console no PC
 ```
 
@@ -155,15 +155,21 @@ esp32p4/
   amplia com filtro e borraria a arte em pixels).
 - O `dado.c` guarda quase 1 MB em variáveis estáticas; o fragmento
   `main/psram.lf` as põe na PSRAM.
-- **Sons:** o PC compõe a trilha e os efeitos na hora em que o jogo abre. No
-  ESP32-P4 isso levaria uns 30 s e mais memória do que sobra, então o mesmo
-  `desktop/som.c` roda no computador e o resultado vai para `main/sons.bin`
-  (1,6 MB em ADPCM). Se o som do jogo mudar, gere de novo:
+- **Sons:** o PC toca as gravações de `desktop/sons/*.ogg`. Abrir OGG no
+  ESP32-P4 custaria processador demais, então elas vão convertidas para
+  `main/sons.bin` (2,2 MB em IMA ADPCM, um trecho por arquivo, com o mesmo
+  nome); `main/som_p4.c` lê cada voz direto dali, aos poucos, sem abrir nada
+  na memória, e segue o `desktop/som.c` (variantes sorteadas, tom variando
+  nas batidas, rufo e giro com rampa abaixando a trilha). Se os sons do PC
+  mudarem, o build avisa; gere de novo com o simulador (da raiz):
 
   ```sh
-  cc -O2 -Iesp32p4/ferramentas -Isrc -Idesktop esp32p4/ferramentas/gera_sons.c desktop/som.c -lm -o /tmp/gera_sons
-  /tmp/gera_sons esp32p4/main/sons.bin
+  cmake -S esp32p4/simulador -B build-console
+  cmake --build build-console --target sons_p4
   ```
+
+  Um som novo no jogo (um `SOM_...` a mais em `hal/som.h`) também precisa do
+  nome dele na tabela `NOME` de `main/som_p4.c`, como no `desktop/som.c`.
 
 ### Adicionar um jogo
 
@@ -187,9 +193,11 @@ catálogo), separado dos outros jogos e dos ajustes do console.
 ## Créditos e licenças
 
 - Fonte do console: [Inter](https://rsms.me/inter/) (SIL OFL 1.1,
-  `ferramentas/fontes/OFL-Inter.txt`), recortada para Latin-1. O texto do jogo
-  usa a Jersey 10 do PC.
-- [stb_truetype](https://github.com/nothings/stb) (domínio público / MIT).
+  `ferramentas/fontes/OFL-Inter.txt`), recortada para Latin-1. O nome do jogo
+  e a capa usam a Jersey 10 do jogo (`tools/fontes/OFL-Jersey10.txt`).
+- Sons: as gravações do jogo de PC (`desktop/sons/CREDITOS.md`).
+- [stb_truetype](https://github.com/nothings/stb) e, no gerador de sons,
+  stb_vorbis (domínio público / MIT).
 - Sequências de início do JD9365: do fabricante (BSP da Guition), as mesmas do
   modelo `JC8012P4A1` / `JC8012P4A1-V2` do ESPHome.
 - Firmware do toque (`main/toque_fw.h`): o mesmo que o ESPHome usa nesta placa

@@ -611,9 +611,34 @@ static void anuncia_pecas(const char *fmt, const peca_t *p, int n)
     t_anuncio = n ? 2.2f + 0.4f * n : 1.3f;
 }
 
+// Fim do turno de j: os dados da sequencia que ele nao lancou saem da mesa
+// e da mao e voltam para a bolsa (podem sair de novo na proxima compra).
+static void devolve_sobras(int j)
+{
+    fila_t *f = &F[j];
+    jogador_t *p = &J[j];
+    n_devolvidos = 0;
+    for (int k = f->lancados; k < f->n && k < N_FILA; k++) {
+        int c = f->idx[k];
+        if (c < 0 || c >= p->n_col) continue;
+        p->onde[c] = NA_BOLSA;
+        for (int i = 0; i < p->n_mao; i++)
+            if (p->mao[i] == c) {
+                memmove(&p->mao[i], &p->mao[i + 1], (size_t)(p->n_mao - i - 1));
+                p->n_mao--;
+                break;
+            }
+        devolvidos[n_devolvidos++] = (devolvido_t){ (float)SLOT_X(k), (float)zona(j), f->tipo[k], (uint8_t)j, f->fixo[k] };
+        f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; f->tag[k][0] = 0;
+    }
+    if (f->n > f->lancados) f->n = f->lancados;
+    t_devolve = n_devolvidos ? 0 : -1;
+}
+
 static void termina_turno(void)
 {
     som_toca(SOM_TURNO);
+    devolve_sobras(vez);
     if (anuncia_maquina() && vez == primeiro)
         anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);
     if (vez == primeiro) {

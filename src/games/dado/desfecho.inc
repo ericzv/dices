@@ -105,6 +105,31 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
     return t;
 }
 
+// De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
+// Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
+enum { MULT_DOBRO, MULT_FARTURA, MULT_TUDO, MULT_TRONO, MULT_VIUVA, MULT_BARAO, MULT_N };
+static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
+{
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Tudo ou Nada", "Trono", "Viúva Negra", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2 };
+    size_t p = 0;
+    s[0] = 0;
+    for (int q = 0; q < MULT_N && p < n; q++) {
+        if (!de[q]) continue;
+        if (p) p += (size_t)snprintf(s + p, n - p, curto ? ", " : " · ");
+        if (p >= n) break;
+        p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
+        if (curto || p >= n) continue;
+        p += (size_t)snprintf(s + p, n - p, q == MULT_TUDO ? " x%d em tudo" : " x%d", x[q]);
+        if (q == MULT_TUDO || q == MULT_TRONO || q == MULT_VIUVA || p >= n) continue;   // todos, ou ele mesmo
+        int vals[N_FILA], nv = 0;
+        for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
+        p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
+        for (int i = 0; i < nv && p < n; i++)
+            p += (size_t)snprintf(s + p, n - p, i == 0 ? " %d" : (i == nv - 1 ? " e %d" : ", %d"), vals[i]);
+    }
+}
+
 // Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
 // multiplicadores. Decididos sobre o estado depois dos ataques.
 static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
@@ -123,7 +148,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
             if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
         }
-        const char *txt = face == 1 ? "Moeda 1: +1 nos ímpares" : "Moeda 2: +1 nos pares";
+        const char *txt = face == 1 ? "Moeda sorte deu 1: +1 nos ímpares" : "Moeda sorte deu 2: +1 nos pares";
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", txt) : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
@@ -194,33 +219,40 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (a < 0) continue;
         d->queima[j][a] = 1;
         d->semente[j] += 10;
-        evento(gera, EV_FOGO, j, k, j, a, 10, "Fogo: +10, e o %d vira cinza", f->valor[a]);
+        evento(gera, EV_FOGO, j, k, j, a, 10, "Ficha Fogo: +10, e o %d vira cinza", f->valor[a]);
     }
 
     uint8_t mask = 0;
+    uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
     int sozinhos = 0;                            // dados valendo: a Viuva quer ser a unica
     for (int k = 0; k < f->lancados; k++) sozinhos += est[k] == V_VALIDO;
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO) continue;
         int m = 0;
+        uint8_t bit = (uint8_t)(1 << k);
         // Dobro: vale so para o dado logo depois dele, e so se os dois
         // terminarem valendo. Anulado o seguinte, o x2 se perde; nao passa
         // adiante para o proximo que vale.
         // E so se o Dobro tirou de 1 a 3.
         if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
-            && f->valor[k - 1] <= 3) m += 2;
-        if (fartura && f->valor[k] <= 2) m += 2 * n_far;
-        if (tudo) m += 2;
-        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) m += 2;   // Trono
-        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) m += 2;          // Viuva Negra sozinha
-        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1)))
+            && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
+        if (fartura && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
+        if (tudo) { m += 2; de[MULT_TUDO] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) { m += 2; de[MULT_TRONO] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) { m += 2; de[MULT_VIUVA] |= bit; }
+        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
+            de[MULT_BARAO] |= bit;
+        }
         if (m) { d->mult[j][k] = (int8_t)m; mask |= 1 << k; }
     }
     if (mask && gera) {
         int antes = pontos_fila(j, d->est[j], d->bonus[j], NULL);
         int depois = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]);
-        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "multiplicadores: %d vira %d", antes, depois);
+        char quem[64];
+        texto_mult(quem, sizeof quem, j, de, n_far, false);
+        if (strlen(quem) > 46) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
+        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d", quem, antes, depois);
         if (e) { e->mascara = mask; memcpy(e->por_dado, d->mult[j], N_FILA); }
     }
 

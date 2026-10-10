@@ -127,6 +127,7 @@ static void desenha_tudo(void)
     default:
         desenha_fila(outro(vez));
         desenha_fila(vez);
+        desenha_devolvidos();
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
         else if (fase == F_RESULTADO) { desenha_log(); desenha_resultado(); }

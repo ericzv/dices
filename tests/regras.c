@@ -1129,6 +1129,29 @@ int main(void)
         CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 2, "Carrasco sem Seguranca");
     }
 
+    // ---- Fim do turno: o que nao foi lancado volta para a bolsa -----------
+    {
+        int cpu0 = cpu;
+        cpu = 0;
+        entrada(100, 100, 0);
+        int j = vez = primeiro;
+        jogador_t *p = &J[j];
+        int bolsa0 = na_bolsa(p), mao0 = p->n_mao;
+        for (int i = 0; i < 4; i++) poe_na_fila(i);
+        int c1 = F[j].idx[1], c3 = F[j].idx[3];
+        F[j].lancados = 1;                        // lancou um e parou
+        F[j].est[0] = V_VALIDO;
+        termina_turno();
+        CONFERE(F[j].n == 1 && na_bolsa(p) == bolsa0 + 3 && p->n_mao == mao0 - 3,
+                "devolve: fila %d, bolsa %d (era %d), mao %d (era %d)", F[j].n, na_bolsa(p), bolsa0, p->n_mao, mao0);
+        CONFERE(p->onde[c1] == NA_BOLSA && p->onde[c3] == NA_BOLSA && p->onde[F[j].idx[0]] == NA_MAO,
+                "devolve: os nao lancados deviam estar na bolsa");
+        bool na_mao = false;
+        for (int i = 0; i < p->n_mao; i++) na_mao |= p->mao[i] == c1 || p->mao[i] == c3;
+        CONFERE(!na_mao, "devolve: os nao lancados ainda na mao");
+        cpu = cpu0;
+    }
+
     // ---- O brilho: o poder armado pelo que o dado tirou ---------------------
     {
         limpa();

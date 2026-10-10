@@ -12,6 +12,7 @@ void dado_passo(float dt)
 {
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
     t_relogio = fmodf(t_relogio + dt_real, 1000.0f);
+    if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;

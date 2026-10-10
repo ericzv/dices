@@ -124,6 +124,41 @@ static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.i
 static int  retrato_faixa(int j, int x, int y0);
 static int  fichas_vis(int j);   // devolve onde o nome comeca
 
+static void acinzenta(int x0, int y0, int w, int h, int pct);
+
+// Onde fica a bolsa de j, na faixa dele.
+static int bolsa_x(void) { return GFX_W - 118 + 8; }
+static int bolsa_y(int j) { return (j == baixo ? GFX_H - FAIXA_H : 0) + FAIXA_H / 2; }
+
+// Quando o dado i da volta chega na bolsa (em t_devolve); antes disso, voa.
+static float devolvido_chega(int i) { return DEVOLVE_T + 0.07f * i; }
+static int devolvendo(int j)
+{
+    int n = 0;
+    for (int i = 0; t_devolve >= 0 && i < n_devolvidos; i++) n += devolvidos[i].dono == j && t_devolve < devolvido_chega(i);
+    return n;
+}
+
+// Os dados nao lancados devolvendo para a bolsa: em arco, diminuindo.
+static void desenha_devolvidos(void)
+{
+    for (int i = 0; t_devolve >= 0 && i < n_devolvidos; i++) {
+        float q = (t_devolve - 0.07f * i) / DEVOLVE_T;
+        if (q >= 1) continue;
+        if (q < 0) q = 0;                              // ainda esperando a vez de sair
+        float s = q * q * (3 - 2 * q);
+        const devolvido_t *v = &devolvidos[i];
+        float bx = (float)bolsa_x(), by = (float)bolsa_y(v->dono);
+        float x = v->x + (bx - v->x) * s, y = v->y + (by - v->y) * s - sinf(s * 3.1416f) * 40;
+        float r = (R_DADO - 6) * (1 - 0.6f * s);
+        marca_nivel = v->fixo;
+        desenha_dado(x, y, r, v->tipo, v->dono, s * 5, 0, 0, false);
+        marca_nivel = -1;
+        int R = (int)r + 4;                            // cinza como estava, enquanto sobre o feltro
+        if (y - R > MESA_Y0 && y + R + 6 < MESA_Y1) acinzenta((int)x - R, (int)y - R, 2 * R + 6, 2 * R + 6, 80);
+    }
+}
+
 static void faixa_jogador(int j)
 {
     jogador_t *p = &J[j];
@@ -170,7 +205,7 @@ static void faixa_jogador(int j)
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     icone_bolsa(bx + 8, by);
-    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p), p->n_col);
+    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), p->n_col);   // os no ar ainda nao chegaram
     txt(bx + 22, ty, s, C_MARFIM_S, false);
 }
 

@@ -33,6 +33,20 @@ int  sis_toque_estado(void) { return 1; }
 int  sis_painel(void) { return 0; }
 void sis_troca_painel(int v) { (void)v; }
 void sis_reinicia(void) { }
+// Uma bateria de mentira, para ver o indicador.
+bool sis_bateria(int *pct, int *mv, bool *carregando)
+{
+    *pct = 76;
+    *mv = 3890;
+    *carregando = false;
+    return true;
+}
+// No PC o console amplia a mesa no proprio quadro.
+bool sis_mostra_jogo(const uint16_t *px, int w, int h, int k, int x, int y, const uint16_t *lut)
+{
+    (void)px; (void)w; (void)h; (void)k; (void)x; (void)y; (void)lut;
+    return false;
+}
 
 bool sis_hora(int *h, int *m)
 {

@@ -178,6 +178,11 @@ static const uint16_t *desenha(int *w, int *h)
 
 static void toque(int x, int y, int acao) { dado_mouse(x, y, acao); }
 
+// O jogo compilado para toque (DADO_TOQUE, src/games/dado/toque.inc): na mesa
+// um toque clica; fora dela o primeiro escolhe e o segundo confirma.
+void dado_toque(int x, int y);
+static void toca(int x, int y) { dado_toque(x, y); }
+
 static void tecla(int k)
 {
     key_event_t ev = { (uint16_t)k };
@@ -223,6 +228,8 @@ const jogo_t JOGO_DADO = {
     .passo = passo,
     .desenha = desenha,
     .toque = toque,
+    .toca = toca,
+    .paleta = gfx_paleta_tabela,
     .tecla = tecla,
     .digitando = digitando,
     .detalhe = detalhe,

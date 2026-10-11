@@ -357,6 +357,11 @@ void d_copia(const uint16_t *src, int sw, int sh, int dx, int dy)
 
 void d_amplia(const uint16_t *src, int sw, int sh, int dx, int dy, int k)
 {
+    d_amplia_lut(src, sw, sh, dx, dy, k, NULL);
+}
+
+void d_amplia_lut(const uint16_t *src, int sw, int sh, int dx, int dy, int k, const uint16_t *lut)
+{
     if (!alvo || k < 1) return;
     // Caso comum (o jogo inteiro em 2x, sem recorte): duas linhas por linha,
     // cada pixel virando uma dupla de 32 bits.
@@ -365,12 +370,24 @@ void d_amplia(const uint16_t *src, int sw, int sh, int dx, int dy, int k)
         for (int j = 0; j < sh; j++) {
             const uint16_t *s = src + j * sw;
             uint32_t *d = (uint32_t *)(alvo->px + (dy + 2 * j) * alvo->w + dx);
-            for (int i = 0; i < sw; i++) d[i] = s[i] | ((uint32_t)s[i] << 16);
+            if (lut)
+                for (int i = 0; i < sw; i++) { uint32_t c = lut[s[i]]; d[i] = c | c << 16; }
+            else
+                for (int i = 0; i < sw; i++) d[i] = s[i] | ((uint32_t)s[i] << 16);
             memcpy(alvo->px + (dy + 2 * j + 1) * alvo->w + dx, d, (size_t)sw * 4);
         }
         return;
     }
-    d_estica(src, sw, sh, dx, dy, sw * k, sh * k);
+    int x = dx, y = dy, w = sw * k, h = sh * k;
+    if (!recorta(&x, &y, &w, &h)) return;
+    for (int j = 0; j < h; j++) {
+        const uint16_t *s = src + (y - dy + j) / k * sw;
+        uint16_t *d = alvo->px + (y + j) * alvo->w + x;
+        for (int i = 0; i < w; i++) {
+            uint16_t c = s[(x - dx + i) / k];
+            d[i] = lut ? lut[c] : c;
+        }
+    }
 }
 
 void d_estica(const uint16_t *src, int sw, int sh, int dx, int dy, int dw, int dh)

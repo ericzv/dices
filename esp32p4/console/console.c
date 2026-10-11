@@ -276,6 +276,7 @@ void console_inicia(void)
     memset(&C, 0, sizeof C);
     C.armado = -1;
     C.hora = C.minuto = -1;
+    C.bateria = -1;
     prefs_le();
     sis_brilho(P.brilho);
     sis_volume(P.volume);
@@ -320,6 +321,15 @@ void console_passo(float dt)
         if (h != C.hora || m != C.minuto) {
             C.hora = h;
             C.minuto = m;
+            if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES) C.sujo = true;
+        }
+        // A bateria: so muda de 5 em 5% (a tensao sobe e desce um pouco o tempo todo).
+        int pct, mv;
+        bool carga;
+        int b = sis_bateria(&pct, &mv, &carga) ? (pct + 2) / 5 * 5 : -1;
+        if (b != C.bateria || carga != C.carregando) {
+            C.bateria = b;
+            C.carregando = carga;
             if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES) C.sujo = true;
         }
     }

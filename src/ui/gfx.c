@@ -41,11 +41,18 @@ void gfx_paleta_exata(const uint16_t *cores, int n)
 
 uint16_t gfx_na_paleta(uint16_t c) { return tem_paleta ? lut[c] : c; }
 
+// A tabela da paleta (NULL sem paleta), para quem aplica a paleta fora do
+// jogo: o console do ESP32-P4 compila com GFX_QUANTIZA_FORA e passa cada
+// pixel pela tabela enquanto amplia o quadro, no outro nucleo.
+const uint16_t *gfx_paleta_tabela(void) { return tem_paleta ? lut : NULL; }
+
 void gfx_quantiza(void)
 {
+#ifndef GFX_QUANTIZA_FORA
     if (!tem_paleta) return;
     uint16_t *fb = display_fb();
     for (int i = 0; i < GFX_W * GFX_H; i++) fb[i] = lut[fb[i]];
+#endif
 }
 
 static uint16_t *desvio;

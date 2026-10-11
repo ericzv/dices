@@ -20,7 +20,9 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
 - **Durante o jogo**, a mesa ocupa os 1280×720 de cima: os 640×360 do jogo
   em 2×, pixel por pixel, sem borrar (o texto vem no próprio quadro, no mesmo
   grid de pixels da mesa, como no PC). Os 80 px de baixo são a barra do
-  sistema: **Início** à esquerda e o volume à direita.
+  sistema: **Início** à esquerda, a bateria e o volume à direita.
+- **Bateria** no canto (início, ajustes, barra do jogo e central): a carga
+  pela tensão da bateria, com um raio quando está carregando.
 - **Central de controle**: o botão Início da barra (ou o botão **BOOT** da
   placa) pausa o jogo e sobe um painel com Continuar, Ir para o início, Fechar
   o jogo, volume e brilho.
@@ -33,14 +35,22 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
 
 | Gesto | O que faz no jogo |
 |---|---|
-| Tocar | Clica (escolhe, joga o dado, compra...) |
-| Arrastar | Passa o "mouse" por cima (o cursor segue o dedo) |
+| Tocar na mesa da partida | Clica na hora (escolhe o dado, para, arrisca, aposta) |
+| Tocar fora da mesa (menus, mapa, lojas, bolsa, prêmios) | O 1º toque escolhe (como o mouse passando por cima); o 2º, no mesmo lugar, confirma |
+| Tocar onde não há o que escolher | Segue na hora (as telas de "toque para seguir") |
 | Segurar ~0,5 s | Mostra tudo sobre o dado embaixo do dedo (a tecla I do PC) |
 | `<` no alto | Volta / sai da partida, como no celular |
 
-As dicas do jogo mostram as teclas do PC, como no site aberto no celular: o
-jogo as desenha dentro do próprio quadro e o `dado.c` é o mesmo do PC. Tudo
-o que elas pedem também se faz tocando (os botões, o `<` do alto, os dados).
+As dicas de teclado do jogo ("ENTER segue", "setas escolhem"...) viram dicas
+de toque, e a página "Teclas" do Como jogar vira "Toque".
+
+**O jogo nesta branch.** O `src/games/dado` é o do PC com um modo só de
+toque, que só o console compila (`DADO_TOQUE`): está quase todo em
+`src/games/dado/toque.inc` (a tabela das dicas e o escolher-e-confirmar),
+mais uma linha `DICA(...)` em `txt`, `txt_c`, `txt_sombra_c`, `teclas_c`,
+`quebra_linhas` e nos avisos. O PC e o navegador compilam o jogo como na
+main. Ao trazer atualizações da main, uma frase de tecla nova aparece no
+aparelho como estava; basta pô-la em `DICAS_TOQUE`.
 
 ## A placa e as revisões dela
 
@@ -142,19 +152,38 @@ esp32p4/
     audio.c         I2S, codec ES8311 e amplificador
     som_p4.c        o som do jogo: as gravações do sons.bin e o misturador
     relogio.c       RX8025T
+    bateria.c       a tensão da bateria (ADC no GPIO52)
     salva_nvs.c     o salvamento dos jogos na flash (NVS), um espaço por jogo
     placa.h         os pinos
   ferramentas/    geradores (sons.bin e fontes)
   simulador/      o console no PC
 ```
 
-- O console desenha numa tela deitada de 1280×800; a cada quadro a **PPA** do
+- O console desenha numa tela deitada de 1280×800; nos menus, a **PPA** do
   ESP32-P4 gira essa imagem um quarto de volta para o painel (que é em pé,
-  800×1280) e o quadro troca no fim da varredura, sem rasgar.
-- A ampliação 2× do jogo é feita pelo processador, pixel por pixel (a PPA
-  amplia com filtro e borraria a arte em pixels).
+  800×1280). O painel tem **três quadros** em roda: um na tela, um esperando
+  o fim da varredura e um livre, então montar um quadro nunca espera a
+  varredura, e a troca acontece sem rasgar.
+- **Durante o jogo**, a mesa não passa pela tela deitada: o **segundo núcleo**
+  amplia 2× e gira os 640×360 do jogo direto para o quadro do painel, aplica
+  a paleta do jogo no mesmo passo (`GFX_QUANTIZA_FORA`) e junta a barra do
+  sistema, enquanto o primeiro núcleo já desenha o quadro seguinte do jogo
+  (o quadro do jogo é duplo). Na partida, `confere_giro` gira uma imagem
+  pequena com a PPA e descobre o sentido, para o giro da CPU bater com o dela.
+  Com o teclado da tela aberto ou na central, a mesa volta pelo caminho dos
+  menus.
+- A cada 5 s o log diz quantos quadros por segundo saíram e onde foi o
+  tempo: `quadros/s | desenho (console e jogo, 1º núcleo) | envio | mesa no
+  2º núcleo`.
+- A tabela da paleta do jogo (128 KB) fica na RAM interna; o resto das
+  variáveis grandes dos jogos vai para a PSRAM.
 - O `dado.c` guarda quase 1 MB em variáveis estáticas; o fragmento
   `main/psram.lf` as põe na PSRAM.
+- **Bateria:** a placa não tem medidor de carga; a tensão do BAT+ chega ao
+  GPIO52 por um divisor de 68k/100k (`main/bateria.c`). A leitura é alisada
+  e convertida pela curva de uma célula de lítio: dá uma ideia, uns 10% para
+  mais ou para menos. Sem bateria no conector, o indicador some. Com a
+  bateria a 4,15 V ou mais, aparece o raio (carregando ou cheia na tomada).
 - **Sons:** o PC toca as gravações de `desktop/sons/*.ogg`. Abrir OGG no
   ESP32-P4 custaria processador demais, então elas vão convertidas para
   `main/sons.bin` (2,2 MB em IMA ADPCM, um trecho por arquivo, com o mesmo
@@ -188,7 +217,7 @@ catálogo), separado dos outros jogos e dos ajustes do console.
 
 - **Online**: o Wi-Fi da placa está no ESP32-C6 (ESP-Hosted); o menu Online do
   jogo diz que esta versão não tem rede.
-- Bateria, cartão de memória, câmera e microfone não são usados.
+- Cartão de memória, câmera e microfone não são usados.
 
 ## Créditos e licenças
 

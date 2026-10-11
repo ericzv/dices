@@ -117,7 +117,8 @@ static void desenha_topo(void)
     d_circulo(gx, gy, 34, C_BRANCO, aperta ? 80 : 26);
     ui_icone_engrenagem(gx, gy, 22, C_BRANCO, d_mistura(C_NOITE, C_BRANCO, aperta ? 80 : 26));
     z_marca(A_AJUSTES, (int)gx - 44, (int)gy - 44, 88, 88, Z_BOTAO);
-    ui_relogio(1130, 40, 32, C_BRANCO);
+    int wr = ui_relogio(1130, 40, 32, C_BRANCO);
+    ui_bateria(1130 - wr - (wr ? 22 : 0), 58, 1.1f, C_BRANCO);
 }
 
 static void desenha_destaque(void)

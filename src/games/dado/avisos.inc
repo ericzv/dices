@@ -69,6 +69,7 @@ static void desenha_avisos(void)
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
     if (!msg) return;
+    msg = DICA(msg);
     int w = gfx_largura(msg, 1) + 40;
     ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);
     txt_c(GFX_W / 2, MESA_Y0 + 12, msg, c, false);

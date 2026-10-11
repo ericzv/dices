@@ -39,6 +39,7 @@ void gfx_paleta(const uint16_t *cores, int n);
 // Cores exatas a mais: passam pela paleta como estao, sem puxar as vizinhas.
 void gfx_paleta_exata(const uint16_t *cores, int n);
 void gfx_quantiza(void);
+const uint16_t *gfx_paleta_tabela(void);   // a tabela de 65536 cores (NULL sem paleta)
 uint16_t gfx_na_paleta(uint16_t c);
 
 // Desvia todo o desenho para outro buffer de GFX_W x GFX_H (NULL volta a tela).

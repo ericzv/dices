@@ -38,3 +38,4 @@
 
 // ---- Outros -----------------------------------------------------------------
 #define PIN_BOOT           35       // botao BOOT: faz o papel do botao "PS"
+#define PIN_BATERIA        52       // BAT+ por um divisor 68k/100k (ADC)

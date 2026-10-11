@@ -21,6 +21,9 @@ add_library(console STATIC
     ${CONSOLE}/fontes_ttf.c ${CONSOLE}/catalogo.c ${CONSOLE}/jogo_dado.c
     ${RAIZ}/src/games/dado.c ${RAIZ}/src/ui/gfx.c ${RAIZ}/src/ui/fonte.c
     ${RAIZ}/desktop/rede.c)
+# O jogo como no aparelho: so de toque (src/games/dado/toque.inc).
+set_source_files_properties(${RAIZ}/src/games/dado.c PROPERTIES COMPILE_DEFINITIONS DADO_TOQUE)
+set_source_files_properties(${RAIZ}/src/ui/gfx.c PROPERTIES COMPILE_DEFINITIONS GFX_QUANTIZA_FORA)
 # desktop/ da o esp_timer.h de mentira que o dado.c inclui.
 target_include_directories(console PUBLIC ${CONSOLE} ${RAIZ}/src ${RAIZ}/desktop ${CMAKE_CURRENT_SOURCE_DIR})
 if (MSVC)

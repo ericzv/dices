@@ -47,4 +47,5 @@ void d_poligono(const float *xy, int n, cor_t c, int alfa);   // convexo, ate 40
 // Copias de imagem: 1:1, ampliada k vezes sem filtro, ou esticada.
 void d_copia(const uint16_t *src, int sw, int sh, int dx, int dy);
 void d_amplia(const uint16_t *src, int sw, int sh, int dx, int dy, int k);
+void d_amplia_lut(const uint16_t *src, int sw, int sh, int dx, int dy, int k, const uint16_t *lut);   // cada pixel por lut
 void d_estica(const uint16_t *src, int sw, int sh, int dx, int dy, int dw, int dh);

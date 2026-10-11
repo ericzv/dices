@@ -27,6 +27,7 @@
 #include "audio.h"
 #include "som_p4.h"
 #include "relogio.h"
+#include "bateria.h"
 #include "console.h"
 #include "sistema.h"
 #include "desenho.h"
@@ -35,11 +36,47 @@
 
 static const char *TAG = "console";
 
-static uint16_t *fb_jogo;
 static int painel_versao, brilho = 80;
 static bool luz_acesa;
 
-uint16_t *display_fb(void) { return fb_jogo; }
+// O quadro do jogo (640x360) em dobro: o jogo desenha num enquanto o segundo
+// nucleo amplia e gira o outro para a tela (tela_mostra_jogo).
+static uint16_t *fb_jogo[2];
+static int fb_vez;                       // o que o jogo desenha agora
+static SemaphoreHandle_t fb_livre[2];    // dado quando o segundo nucleo largou aquele quadro
+static struct { const uint16_t *px, *lut; int w, h, k, x, y; } pedido;
+
+uint16_t *display_fb(void) { return fb_jogo[fb_vez]; }
+
+bool sis_mostra_jogo(const uint16_t *px, int w, int h, int k, int x, int y, const uint16_t *lut)
+{
+    pedido.px = px; pedido.lut = lut;
+    pedido.w = w; pedido.h = h; pedido.k = k; pedido.x = x; pedido.y = y;
+    return true;
+}
+
+// Manda o quadro pronto: o jogo direto (se o console pediu) ou a tela deitada
+// do console inteira.
+static void mostra(void)
+{
+    const uint16_t *px = pedido.px;
+    pedido.px = NULL;
+    if (px) {
+        int g = px == fb_jogo[0] ? 0 : px == fb_jogo[1] ? 1 : -1;
+        if (g >= 0 && tela_mostra_jogo(px, pedido.w, pedido.h, pedido.k, pedido.x, pedido.y, pedido.lut,
+                                       fb_livre[g])) {
+            fb_vez = g ^ 1;                                    // o proximo vai no outro quadro,
+            xSemaphoreTake(fb_livre[fb_vez], portMAX_DELAY);   // assim que o segundo nucleo largar
+            return;
+        }
+        // Sem o caminho rapido: a mesa ampliada pela CPU na tela deitada.
+        tela_t t = { tela_quadro(), TELA_W, TELA_H };
+        d_alvo(&t);
+        d_recorte_tudo();
+        d_amplia_lut(px, pedido.w, pedido.h, pedido.x, pedido.y, pedido.k, pedido.lut);
+    }
+    tela_mostra();
+}
 
 // ---------------------------------------------------------------------------
 // O que o console pede ao aparelho (sistema.h)
@@ -53,6 +90,7 @@ bool sis_hora(int *h, int *m) { return relogio_le(h, m); }
 void sis_acerta_hora(int h, int m) { relogio_acerta(h, m); }
 int  sis_painel(void) { return painel_versao; }
 void sis_reinicia(void) { esp_restart(); }
+bool sis_bateria(int *pct, int *mv, bool *carregando) { return bateria_le(pct, mv, carregando); }
 
 static void grava_painel(int v)
 {
@@ -91,16 +129,24 @@ int sis_info(char *buf, int n)
     esp_chip_info(&ci);
     uint8_t id[3];
     tela_id(id);
+    char bat[64] = "";
+    int pct, mv;
+    bool carga;
+    if (bateria_le(&pct, &mv, &carga))
+        snprintf(bat, sizeof bat, "Bateria: %d%% (%.2f V%s)\n", pct, mv / 1000.0, carga ? ", carregando" : "");
+    else
+        snprintf(bat, sizeof bat, "Bateria: não encontrada\n");
     return snprintf(buf, (size_t)n,
                     "Placa: Guition JC8012P4A1\n"
                     "Chip: ESP32-P4 v%d.%d, %d MHz\n"
                     "Memória livre: %.1f MB\n"
                     "Tela: JD9365, painel V%d (id %02X %02X %02X)\n"
                     "Toque: GSL3680 %s\n"
+                    "%s"
                     "Firmware: %s\n",
                     ci.revision / 100, ci.revision % 100, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
                     heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0, painel_versao, id[0], id[1], id[2],
-                    toque_ok() ? "respondendo" : "sem resposta", esp_app_get_description()->version);
+                    toque_ok() ? "respondendo" : "sem resposta", bat, esp_app_get_description()->version);
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +189,11 @@ void app_main(void)
     gpio_config(&b);
     xTaskCreate(vigia_boot, "boot", 4096, NULL, 5, NULL);
 
-    fb_jogo = heap_caps_calloc(GFX_W * GFX_H, 2, MALLOC_CAP_SPIRAM);
+    for (int i = 0; i < 2; i++) {
+        fb_jogo[i] = heap_caps_calloc(GFX_W * GFX_H, 2, MALLOC_CAP_SPIRAM);
+        fb_livre[i] = xSemaphoreCreateBinary();
+    }
+    xSemaphoreGive(fb_livre[1]);               // o 0 e do jogo; o 1 esta livre
     if (tela_inicia(painel_versao) != ESP_OK)
         ESP_LOGE(TAG, "a tela nao subiu; com o painel errado ela fica preta: aperte BOOT ate 8 s depois de ligar");
 
@@ -161,18 +211,35 @@ void app_main(void)
     som_carrega();
     if (!audio_inicia(i2c, som_mistura)) ESP_LOGE(TAG, "som sem resposta");
     relogio_inicia(i2c);
+    bateria_inicia();
 
     tela_t tela = { tela_quadro(), TELA_W, TELA_H };
     console_inicia();
     ESP_LOGI(TAG, "pronto, %u KB de PSRAM livres", (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
 
-    int64_t antes = esp_timer_get_time();
+    int64_t antes = esp_timer_get_time(), log_em = antes + 5000000, t_quadro = 0, t_envio = 0, descanso = antes;
+    int n_quadros = 0;
     bool boot_antes = true;
     for (;;) {
         int64_t agora = esp_timer_get_time();
         float dt = (agora - antes) / 1e6f;
         antes = agora;
         if (dt > 0.05f) dt = 0.05f;
+        bateria_passo();
+
+        // A cada 5 s, no log: quantos quadros por segundo e onde vai o tempo.
+        if (agora >= log_em) {
+            int giros;
+            float ms_giro;
+            tela_tempos(&giros, &ms_giro);
+            float n = n_quadros ? (float)n_quadros : 1;
+            ESP_LOGI(TAG, "%.1f quadros/s | desenho %.1f ms | envio %.1f ms | mesa no 2o nucleo %.1f ms (%d) | "
+                     "PSRAM livre %u KB", n_quadros / 5.0f, t_quadro / 1000.0f / n, t_envio / 1000.0f / n, ms_giro,
+                     giros, (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
+            n_quadros = 0;
+            t_quadro = t_envio = 0;
+            log_em = agora + 5000000;
+        }
 
         int x = 0, y = 0;
         bool dedo = toque_le(&x, &y);
@@ -184,8 +251,19 @@ void app_main(void)
 
         console_passo(dt);
         som_atualiza(dt);
+        int64_t t0 = esp_timer_get_time();
         if (tela.px && console_desenha(&tela)) {
-            tela_mostra();
+            int64_t t1 = esp_timer_get_time();
+            mostra();
+            t_quadro += t1 - t0;
+            t_envio += esp_timer_get_time() - t1;
+            n_quadros++;
+            // Desenhando sem parar, a tarefa ociosa deste nucleo nunca roda e o
+            // watchdog reclama: um descanso de 1 ms a cada 200 ms.
+            if (agora - descanso > 200000) {
+                vTaskDelay(1);
+                descanso = agora;
+            }
             if (!luz_acesa) {                // so acende depois da primeira imagem
                 luz_acesa = true;
                 tela_brilho(brilho);

@@ -61,7 +61,8 @@ void ajustes_desenha(void)
     ui_icone_voltar(80, 64, 34, C_BRANCO, 255);
     z_marca(A_VOLTAR, 30, 14, 100, 100, Z_BOTAO);
     texto(FONTE_PRETO, 40, 134, 40, "Ajustes", C_BRANCO, 255);
-    ui_relogio(1216, 44, 30, C_BRANCO);
+    int wr = ui_relogio(1216, 44, 30, C_BRANCO);
+    ui_bateria(1216 - wr - (wr ? 22 : 0), 61, 1.05f, C_BRANCO);
 
     // Som
     int y = 124;

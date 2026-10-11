@@ -23,7 +23,7 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
 {
     char linha[200];
     int lin = 0;
-    const char *p = txt_;
+    const char *p = DICA(txt_);
     while (*p && lin < max_lin) {
         int n = 0, cabe = 0;
         // Vai somando palavras enquanto a linha couber.

@@ -186,10 +186,37 @@ void ui_cartao(int x, int y, int w, int h, const char *titulo)
     if (titulo) texto(FONTE_NEGRITO, 19, x + 28, y + 20, titulo, C_TEXTO3, 255);
 }
 
-void ui_relogio(int xd, int y, float px, cor_t c)
+// A pilha: contorno, o "polo" do lado e a carga por dentro (vermelha no
+// fim); um raio quando esta carregando. A porcentagem a esquerda. xd e a
+// borda direita, cy o meio; devolve a largura usada.
+int ui_bateria(int xd, int cy, float esc, cor_t c)
 {
-    if (C.hora < 0) return;
+    if (C.bateria < 0) return 0;
+    float w = 34 * esc, h = 17 * esc, x = xd - w - 3 * esc, y = cy - h / 2, e = 2 * esc;
+    d_arred_borda(x, y, w, h, 4 * esc, e, c, 200);
+    d_arred(x + w + 0.5f * esc, cy - 3.5f * esc, 2.5f * esc, 7 * esc, 1.2f * esc, c, 200);
+    float cheio = (w - 4 * e) * C.bateria / 100.0f;
+    cor_t carga = C.bateria <= 15 && !C.carregando ? COR(235, 80, 70) : c;
+    if (cheio > 0.5f) d_arred(x + 2 * e, y + 2 * e, cheio, h - 4 * e, 1.5f * esc, carga, 230);
+    if (C.carregando) {
+        float rx = x + w / 2, ry = cy;
+        float raio[] = { rx + 2 * esc, ry - 7 * esc, rx - 5 * esc, ry + 1 * esc, rx - 0.5f * esc, ry + 1 * esc,
+                         rx - 2 * esc, ry + 7 * esc, rx + 5 * esc, ry - 1 * esc, rx + 0.5f * esc, ry - 1 * esc };
+        d_poligono(raio, 6, C_NOITE, 255);
+        float dentro[] = { rx + 1.2f * esc, ry - 5 * esc, rx - 3.6f * esc, ry + 0.4f * esc, rx + 0.2f * esc, ry + 0.4f * esc,
+                           rx - 1.2f * esc, ry + 5 * esc, rx + 3.6f * esc, ry - 0.4f * esc, rx - 0.2f * esc, ry - 0.4f * esc };
+        d_poligono(dentro, 6, COR(250, 214, 90), 255);
+    }
+    char b[8];
+    snprintf(b, sizeof b, "%d%%", C.bateria);
+    int tw = texto_d(FONTE_NEGRITO, 17 * esc, (int)(x - 7 * esc), (int)(cy - 9.5f * esc), b, c, 200);
+    return (int)(w + 10 * esc) + tw;
+}
+
+int ui_relogio(int xd, int y, float px, cor_t c)
+{
+    if (C.hora < 0) return 0;
     char b[16];
     snprintf(b, sizeof b, "%02d:%02d", C.hora % 24, C.minuto % 60);
-    texto_d(FONTE_NEGRITO, px, xd, y, b, c, 255);
+    return texto_d(FONTE_NEGRITO, px, xd, y, b, c, 255);
 }

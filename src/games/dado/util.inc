@@ -47,6 +47,7 @@ static int fonte_de(bool bold) { return bold ? 1 : GFX_FINO; }
 
 static void txt_c(int cx, int y, const char *s, uint16_t c, bool bold)
 {
+    s = DICA(s);
     gfx_texto(cx - gfx_largura(s, fonte_de(bold)) / 2, y, s, c, fonte_de(bold), bold);
 }
 
@@ -57,12 +58,14 @@ static void txt_c2(int cx, int y, const char *s, uint16_t c)
 
 static void txt(int x, int y, const char *s, uint16_t c, bool bold)
 {
+    s = DICA(s);
     gfx_texto(x, y, s, c, fonte_de(bold), bold);
 }
 
 // Texto com sombra de um pixel: legivel sobre o feltro trabalhado.
 static void txt_sombra_c(int cx, int y, const char *s, uint16_t c, int esc)
 {
+    s = DICA(s);
     int x = cx - gfx_largura(s, esc) / 2;
     gfx_texto(x + esc, y + esc, s, RGB(8, 26, 19), esc, true);
     gfx_texto(x, y, s, c, esc, true);

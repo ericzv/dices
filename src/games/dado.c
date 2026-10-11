@@ -65,6 +65,15 @@
 #define POTE_X     586
 #define TXT_H      FONTE_ALT                // altura de uma linha de texto
 
+// Aparelho so de toque (o console do ESP32-P4, que compila com DADO_TOQUE):
+// as dicas de teclado viram dicas de toque (dado/toque.inc).
+#ifdef DADO_TOQUE
+static const char *dica_toque(const char *s);
+#define DICA(s) dica_toque(s)
+#else
+#define DICA(s) (s)
+#endif
+
 // O resto mora em dado/, um arquivo por assunto, na ordem em que um usa o
 // outro. Tudo vira uma so unidade de compilacao: as funcoes sao static, e
 // os testes incluem este arquivo para alcancar as de dentro.
@@ -91,6 +100,9 @@
 #include "dado/desafio.inc"       // o Modo Desafiante
 #include "dado/quadro.inc"        // o quadro de cada fase
 #include "dado/teclado.inc"       // teclado e mouse
+#ifdef DADO_TOQUE
+#include "dado/toque.inc"         // o toque: escolher e confirmar fora da mesa
+#endif
 
 int dado_vencedor(void) { return fase == F_FIM ? venc_partida : -1; }
 

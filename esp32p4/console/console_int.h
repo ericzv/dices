@@ -44,6 +44,8 @@ typedef struct {
     int armado;                           // botao que pede um segundo toque (-1: nenhum)
     float t_armado;
     int hora, minuto;                     // relogio mostrado (-1: sem relogio)
+    int bateria;                          // carga mostrada, 0..100 (-1: sem bateria)
+    bool carregando;
     bool central_de_ajustes;              // os ajustes vieram da central: voltam para ela
 } console_t;
 
@@ -86,7 +88,8 @@ enum { IC_NADA, IC_PLAY, IC_CASA, IC_X, IC_GIRAR, IC_MAO, IC_VOLTAR };
 void ui_alterna(int id, int x, int y, bool ligado);           // 76x42
 void ui_desliza(int id, int x, int y, int w, int valor, int vmin, int vmax);
 void ui_cartao(int x, int y, int w, int h, const char *titulo);
-void ui_relogio(int xd, int y, float px, cor_t c);            // hora no canto, se houver
+int  ui_relogio(int xd, int y, float px, cor_t c);            // hora no canto, se houver; devolve a largura
+int  ui_bateria(int xd, int cy, float esc, cor_t c);          // carga no canto, se houver; devolve a largura
 
 // As telas.
 void inicio_desenha(void);

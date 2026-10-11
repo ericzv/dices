@@ -3,6 +3,7 @@
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 void *sis_aloca(size_t n);           // memoria grande (no P4, a PSRAM)
 
@@ -17,6 +18,13 @@ void sis_acerta_hora(int h, int m);
 int  sis_painel(void);               // versao do painel em uso (1 ou 2), 0 se nao se aplica
 void sis_troca_painel(int v);        // guarda a versao e reinicia o aparelho
 void sis_reinicia(void);
+// A bateria: false se nao ha (ou ainda nao se sabe). pct 0..100, mv a tensao.
+bool sis_bateria(int *pct, int *mv, bool *carregando);
+// O jogo direto na tela, sem passar pelo quadro do console: 'px' (w x h)
+// ampliado k vezes em (x, y), cada pixel passado pela paleta 'lut' (ou como
+// esta, se NULL). O aparelho mostra isso junto com o resto do quadro do
+// console. false: aqui nao da, o console amplia no proprio quadro.
+bool sis_mostra_jogo(const uint16_t *px, int w, int h, int k, int x, int y, const uint16_t *lut);
 int  sis_info(char *buf, int n);     // linhas "nome: valor\n" para o cartao "Sobre"
 
 // Cada jogo guarda o que e seu (hal/salva.h) no seu proprio espaco; o console

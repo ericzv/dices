@@ -15,6 +15,7 @@ enum {
 };
 
 static int mesa_x, mesa_y, mesa_k = 2, mesa_w = 640, mesa_h = 360;
+static const uint16_t *mesa_fb, *mesa_lut;      // o ultimo quadro do jogo e a paleta dele
 
 // ---------------------------------------------------------------------------
 // Teclado da tela
@@ -105,6 +106,8 @@ static void desenha_barra(void)
         ui_icone_volume(cx + 2, cy, 30, k ? 3 : 1, C_BRANCO, 235);
         z_marca(id, (int)cx - 36, BARRA_Y, 72, TELA_H - BARRA_Y, Z_BOTAO);
     }
+    ui_bateria(1004, BARRA_Y + 40, 1.0f, C_TEXTO3);
+
     int nivel = (P.volume + 5) / 10;
     for (int i = 0; i < 10; i++) {
         int h = 8 + i * 2, x = 1100 + i * 9;
@@ -127,7 +130,13 @@ void jogo_desenha_tela(void)
         mesa_x = (TELA_W - w * k) / 2;
         mesa_y = (JOGO_H - h * k) / 2;
         if (mesa_x > 0 || mesa_y > 0) d_ret(0, 0, TELA_W, JOGO_H, C_BARRA);
-        d_amplia(fb, w, h, mesa_x, mesa_y, k);
+        mesa_fb = fb;
+        mesa_lut = j->paleta ? j->paleta() : NULL;
+        // O caminho rapido: o aparelho amplia e gira a mesa direto para a tela
+        // (no ESP32-P4, no outro nucleo). Com o teclado ou o escurecido por
+        // cima, a mesa vem para o quadro do console.
+        if (jogo_teclado_aberto() || C.fade > 0 || !sis_mostra_jogo(fb, w, h, k, mesa_x, mesa_y, mesa_lut))
+            d_amplia_lut(fb, w, h, mesa_x, mesa_y, k, mesa_lut);
     }
     if (jogo_teclado_aberto()) desenha_teclado();
     else desenha_barra();
@@ -157,8 +166,12 @@ void jogo_toque(int ev, int x, int y)
         j->toque(gx, gy, 0);
         break;
     case EV_SOLTA:
-        j->toque(gx, gy, 0);
-        j->toque(gx, gy, 1);
+        if (j->toca) {
+            j->toca(gx, gy);
+        } else {
+            j->toque(gx, gy, 0);
+            j->toque(gx, gy, 1);
+        }
         break;
     case EV_LONGO:
         if (j->detalhe) j->detalhe();
@@ -235,6 +248,8 @@ void central_desenha(void)
     tela_t *t = d_alvo_atual();
     if (!foto) foto = sis_aloca((size_t)TELA_W * TELA_H * 2);
     if (foto && !foto_ok) {
+        // A mesa pode nao estar no quadro do console (foi direto para a tela).
+        if (mesa_fb) d_amplia_lut(mesa_fb, mesa_w, mesa_h, mesa_x, mesa_y, mesa_k, mesa_lut);
         memcpy(foto, t->px, (size_t)TELA_W * TELA_H * 2);
         tela_t f = { foto, TELA_W, TELA_H };
         d_alvo(&f);
@@ -253,7 +268,8 @@ void central_desenha(void)
         texto(FONTE_NEGRITO, 30, 64, py + 34, j->nome, C_BRANCO, 255);
         texto(FONTE_NEGRITO, 18, 64, py + 74, "EM PAUSA", C_OURO, 255);
     }
-    ui_relogio(1100, py + 38, 28, C_TEXTO2);
+    int wr = ui_relogio(1100, py + 38, 28, C_TEXTO2);
+    ui_bateria(1100 - wr - (wr ? 20 : 0), py + 54, 1.0f, C_TEXTO2);
     bool ap = z_pressionada() == A_C_AJUSTES;
     d_circulo(1180, py + 56.0f, 30, C_BRANCO, ap ? 80 : 26);
     ui_icone_engrenagem(1180, py + 56.0f, 19, C_BRANCO, d_mistura(COR(24, 29, 45), C_BRANCO, ap ? 80 : 26));

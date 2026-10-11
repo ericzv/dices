@@ -5,7 +5,7 @@ set(CONSOLE ${CMAKE_CURRENT_LIST_DIR}/../console)
 
 idf_component_register(
     SRCS
-        "main.c" "tela.c" "toque.c" "audio.c" "som_p4.c" "relogio.c" "salva_nvs.c"
+        "main.c" "tela.c" "toque.c" "audio.c" "som_p4.c" "relogio.c" "salva_nvs.c" "bateria.c"
         "${CONSOLE}/console.c" "${CONSOLE}/inicio.c" "${CONSOLE}/ajustes.c" "${CONSOLE}/partida.c"
         "${CONSOLE}/primeira.c" "${CONSOLE}/ui.c" "${CONSOLE}/desenho.c" "${CONSOLE}/texto.c"
         "${CONSOLE}/fontes_ttf.c" "${CONSOLE}/catalogo.c" "${CONSOLE}/jogo_dado.c"
@@ -16,7 +16,7 @@ idf_component_register(
     LDFRAGMENTS "psram.lf"
     REQUIRES
         esp_lcd esp_driver_ppa esp_driver_ledc esp_driver_gpio esp_driver_i2c esp_driver_i2s
-        esp_hw_support esp_timer nvs_flash esp_app_format
+        esp_hw_support esp_timer nvs_flash esp_app_format esp_adc
 )
 
 # A versao (o commit) aparece miuda na tela inicial do jogo, como no PC.
@@ -25,7 +25,11 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE DADO_VERSAO="${versao}")
 # O jogo e compilado no PC sem -Werror; aqui tambem, so ele.
 # (No RISC-V, int32_t e long: os printf do jogo com %d dao aviso de formato.)
 set_source_files_properties("${RAIZ}/src/games/dado.c" PROPERTIES COMPILE_OPTIONS
-    "-Wno-error=all;-Wno-format;-Wno-format-truncation;-Wno-missing-field-initializers")
+    "-Wno-error=all;-Wno-format;-Wno-format-truncation;-Wno-missing-field-initializers"
+    COMPILE_DEFINITIONS "DADO_TOQUE")   # aparelho so de toque: src/games/dado/toque.inc
+# A paleta do jogo e aplicada pelo console ao ampliar a mesa (no outro nucleo),
+# nao no fim de cada quadro do jogo.
+set_source_files_properties("${RAIZ}/src/ui/gfx.c" PROPERTIES COMPILE_DEFINITIONS "GFX_QUANTIZA_FORA")
 
 # O sons.bin e feito das gravacoes do PC (desktop/sons/*.ogg). Se elas
 # mudaram desde que ele foi gerado, avisa (o firmware compila assim mesmo,

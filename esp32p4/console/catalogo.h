@@ -20,6 +20,12 @@ typedef struct {
     void (*passo)(float dt);
     const uint16_t *(*desenha)(int *w, int *h);   // um quadro; devolve o framebuffer dele
     void (*toque)(int x, int y, int acao);   // em pixels do jogo: 0 moveu, 1 clique, 2 voltar
+    // Um toque curto (encostou e saiu), em pixels do jogo. Sem isto, o console
+    // passa o "mouse" por cima e clica.
+    void (*toca)(int x, int y);
+    // A paleta que o console aplica ao mostrar o quadro (uma tabela de 65536
+    // cores RGB565), ou NULL: o quadro ja sai com as cores finais.
+    const uint16_t *(*paleta)(void);
     void (*tecla)(int k);                    // teclado da tela (hal/keyboard.h)
     bool (*digitando)(void);                 // pede o teclado da tela
     bool (*detalhe)(void);                   // segurar o dedo: "mostra tudo sobre isto"

@@ -182,6 +182,11 @@ static int linha_teclas(int x, int y, const char *str, uint16_t cor, bool desenh
 // A linha de teclas centrada em cx; y e o topo das teclas.
 static void teclas_c(int cx, int y, const char *s, uint16_t cor)
 {
+#ifdef DADO_TOQUE
+    s = DICA(s);                     // so de toque: a dica e texto, sem teclas
+    gfx_texto(cx - gfx_largura(s, GFX_FINO) / 2, y - 3, s, cor, GFX_FINO, false);
+    return;
+#endif
     int w = linha_teclas(0, y, s, cor, false);
     linha_teclas(cx - w / 2, y, s, cor, true);
 }

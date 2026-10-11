@@ -10,3 +10,4 @@ typedef void (*audio_mistura_fn)(int16_t *saida, int n);   // n amostras mono
 
 bool audio_inicia(i2c_master_bus_handle_t bus, audio_mistura_fn mistura);
 void audio_volume(int pct);              // volume do codec, 0..100 (0: mudo)
+void audio_desliga(void);                // amplificador desligado (e preso assim no sono)

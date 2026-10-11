@@ -6,7 +6,7 @@
 
 enum {
     A_VOLTAR = 200, A_VOL, A_MUSICA, A_BRILHO, A_GIRA, A_CALIBRA,
-    A_H_MENOS, A_H_MAIS, A_M_MENOS, A_M_MAIS, A_PAINEL, A_OPCAO0 = 230,
+    A_H_MENOS, A_H_MAIS, A_M_MENOS, A_M_MAIS, A_DESLIGA, A_OPCAO0 = 230,
 };
 
 #define COL_E  64
@@ -131,16 +131,14 @@ void ajustes_desenha(void)
         if (!fim) break;
         l = fim + 1;
     }
-    if (sis_painel()) {
-        char b[48];
-        int outro = sis_painel() == 1 ? 2 : 1;
-        if (console_armado(A_PAINEL)) {
-            snprintf(b, sizeof b, "Reiniciar com o painel V%d", outro);
-            ui_botao(A_PAINEL, COL_D + 28, ys + hs - 72, COL_W - 56, 50, b, IC_NADA, B_PERIGO, 20);
-        } else {
-            snprintf(b, sizeof b, "Usar o painel V%d", outro);
-            ui_botao(A_PAINEL, COL_D + 28, ys + hs - 72, 260, 50, b, IC_NADA, B_VIDRO, 20);
-        }
+    // Desligar: pede um segundo toque. Liga de novo pelo botao RST da placa.
+    int by = ys + hs - 72;
+    if (console_armado(A_DESLIGA)) {
+        ui_botao(A_DESLIGA, COL_D + 28, by, COL_W - 56, 50, "Toque de novo para desligar", IC_DESLIGA, B_PERIGO, 20);
+    } else {
+        ui_botao(A_DESLIGA, COL_D + 28, by, 200, 50, "Desligar", IC_DESLIGA, B_VIDRO, 20);
+        texto(FONTE_TEXTO, 17, COL_D + 250, by + 3, "Para ligar de novo, aperte", C_TEXTO3, 255);
+        texto(FONTE_TEXTO, 17, COL_D + 250, by + 25, "o botão RST da placa.", C_TEXTO3, 255);
     }
     texto_c(FONTE_TEXTO, 18, TELA_W / 2, 752, "Os ajustes ficam guardados no aparelho.", C_TEXTO3, 200);
 }
@@ -193,9 +191,13 @@ void ajustes_acao(int id)
     case A_H_MAIS:  acerta(1, 0);  som_toca(SOM_TIQUE); break;
     case A_M_MENOS: acerta(0, -1); som_toca(SOM_TIQUE); break;
     case A_M_MAIS:  acerta(0, 1);  som_toca(SOM_TIQUE); break;
-    case A_PAINEL:
-        if (console_armado(A_PAINEL)) sis_troca_painel(sis_painel() == 1 ? 2 : 1);
-        else console_arma(A_PAINEL);
+    case A_DESLIGA:
+        if (console_armado(A_DESLIGA)) {
+            prefs_grava();
+            sis_desliga();
+        } else {
+            console_arma(A_DESLIGA);
+        }
         break;
     case A_VOL: case A_BRILHO:
         prefs_grava();                    // soltou a barra

@@ -16,7 +16,11 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
 - **Ajustes** (a engrenagem no canto): volume, música do jogo, brilho, girar a
   imagem 180°, calibrar o toque, as opções do jogo (no Dado em Casa,
   animações rápidas), o relógio e um cartão "Sobre" com o chip, a memória, a
-  versão do painel e do firmware.
+  versão do painel e do firmware, a bateria e o botão **Desligar**.
+- **Desligar** (a placa não tem chave): pede um segundo toque, apaga a tela
+  devagar, desliga o alto-falante e põe o ESP32-P4 em sono profundo. Para
+  ligar de novo, aperte o botão **RST** da placa (ou tire e ponha a energia).
+  O BOOT não serve para isso: não está entre os pinos que acordam o chip.
 - **Durante o jogo**, a mesa ocupa os 1280×720 de cima: os 640×360 do jogo
   em 2×, pixel por pixel, sem borrar (o texto vem no próprio quadro, no mesmo
   grid de pixels da mesa, como no PC). Os 80 px de baixo são a barra do
@@ -69,8 +73,7 @@ Placas compradas de meados de 2026 para cá costumam ser V3.
 A **versão da tela** não precisa de recompilar: o firmware escolhe sozinho (V2
 nos chips v3, V1 nos anteriores) e guarda. Se a tela ficar **preta ou
 listrada**, ligue a placa e **aperte e solte o BOOT nos primeiros 8 segundos**
-(não segure ao ligar): ela troca para a outra tela e reinicia. Dá para trocar
-também em **Ajustes → Sobre**.
+(não segure ao ligar): ela troca para a outra tela e reinicia.
 
 ## Compilar e gravar
 

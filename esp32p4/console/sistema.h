@@ -15,9 +15,8 @@ int  sis_toque_estado(void);         // 1 o toque respondeu, 0 nao, -1 nao se sa
 bool sis_hora(int *h, int *m);       // false: o relogio nao foi acertado
 void sis_acerta_hora(int h, int m);
 
-int  sis_painel(void);               // versao do painel em uso (1 ou 2), 0 se nao se aplica
-void sis_troca_painel(int v);        // guarda a versao e reinicia o aparelho
 void sis_reinicia(void);
+void sis_desliga(void);              // apaga tudo e dorme; liga de novo pelo botao RST
 // A bateria: false se nao ha (ou ainda nao se sabe). pct 0..100, mv a tensao.
 bool sis_bateria(int *pct, int *mv, bool *carregando);
 // O jogo direto na tela, sem passar pelo quadro do console: 'px' (w x h)

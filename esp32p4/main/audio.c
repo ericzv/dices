@@ -137,10 +137,18 @@ bool audio_inicia(i2c_master_bus_handle_t bus, audio_mistura_fn mistura)
         codec_ok = es8311_inicia();
         if (!codec_ok) ESP_LOGE(TAG, "o ES8311 nao respondeu");
     }
+    gpio_hold_dis(PIN_AMP);              // preso em baixo se o aparelho foi desligado
     gpio_config_t g = { .pin_bit_mask = 1ULL << PIN_AMP, .mode = GPIO_MODE_OUTPUT };
     gpio_config(&g);
     gpio_set_level(PIN_AMP, codec_ok);
 
     xTaskCreatePinnedToCore(tarefa, "som", 4096, NULL, 18, NULL, 1);
     return codec_ok;
+}
+
+void audio_desliga(void)
+{
+    audio_volume(0);
+    gpio_set_level(PIN_AMP, 0);
+    gpio_hold_en(PIN_AMP);
 }

@@ -14,6 +14,7 @@
 #include "esp_chip_info.h"
 #include "esp_heap_caps.h"
 #include "esp_system.h"
+#include "esp_sleep.h"
 #include "esp_timer.h"
 #include "esp_app_desc.h"
 #include "nvs_flash.h"
@@ -88,23 +89,36 @@ void sis_gira(bool g) { tela_gira(g); }
 int  sis_toque_estado(void) { return toque_ok() ? 1 : 0; }
 bool sis_hora(int *h, int *m) { return relogio_le(h, m); }
 void sis_acerta_hora(int h, int m) { relogio_acerta(h, m); }
-int  sis_painel(void) { return painel_versao; }
 void sis_reinicia(void) { esp_restart(); }
 bool sis_bateria(int *pct, int *mv, bool *carregando) { return bateria_le(pct, mv, carregando); }
 
+// Nao ha chave de liga e desliga: apaga a luz devagar, desliga o
+// alto-falante e a tela e poe o ESP32-P4 no sono profundo, sem nada que o
+// acorde (o BOOT nao esta entre os pinos que acordam o chip). Liga de novo
+// pelo botao RST, ou tirando e pondo a energia.
+void sis_desliga(void)
+{
+    ESP_LOGW(TAG, "desligando; para ligar de novo, aperte o RST da placa");
+    for (int b = brilho; b > 0; b -= 6) {
+        tela_brilho(b);
+        vTaskDelay(pdMS_TO_TICKS(12));
+    }
+    audio_desliga();
+    tela_desliga();
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+    esp_deep_sleep_start();
+}
+
+// A versao do painel escolhida pelo BOOT fica em "tela". A chave antiga
+// ("painel") vinha de um botao dos ajustes que saiu: e apagada, para a placa
+// voltar ao painel certo sozinha.
 static void grava_painel(int v)
 {
     nvs_handle_t h;
     if (nvs_open("sistema", NVS_READWRITE, &h) != ESP_OK) return;
-    nvs_set_u8(h, "painel", (uint8_t)v);
+    nvs_set_u8(h, "tela", (uint8_t)v);
     nvs_commit(h);
     nvs_close(h);
-}
-
-void sis_troca_painel(int v)
-{
-    grava_painel(v);
-    esp_restart();
 }
 
 // Sem nada guardado: as placas com ESP32-P4 v3 vem todas com a tela nova (V2);
@@ -113,8 +127,9 @@ static int painel_escolhido(void)
 {
     nvs_handle_t h;
     uint8_t v = 0;
-    if (nvs_open("sistema", NVS_READONLY, &h) == ESP_OK) {
-        nvs_get_u8(h, "painel", &v);
+    if (nvs_open("sistema", NVS_READWRITE, &h) == ESP_OK) {
+        if (nvs_erase_key(h, "painel") == ESP_OK) nvs_commit(h);
+        nvs_get_u8(h, "tela", &v);
         nvs_close(h);
     }
     if (v == 1 || v == 2) return v;
@@ -123,30 +138,28 @@ static int painel_escolhido(void)
     return ci.revision >= 300 ? 2 : 1;
 }
 
+// Quatro linhas: e o que cabe no cartao "Sobre" dos ajustes.
 int sis_info(char *buf, int n)
 {
     esp_chip_info_t ci;
     esp_chip_info(&ci);
     uint8_t id[3];
     tela_id(id);
-    char bat[64] = "";
+    char bat[64];
     int pct, mv;
     bool carga;
     if (bateria_le(&pct, &mv, &carga))
-        snprintf(bat, sizeof bat, "Bateria: %d%% (%.2f V%s)\n", pct, mv / 1000.0, carga ? ", carregando" : "");
+        snprintf(bat, sizeof bat, "Bateria: %d%% (%.2f V%s)", pct, mv / 1000.0, carga ? ", carregando" : "");
     else
-        snprintf(bat, sizeof bat, "Bateria: não encontrada\n");
+        snprintf(bat, sizeof bat, "Bateria: não encontrada");
     return snprintf(buf, (size_t)n,
-                    "Placa: Guition JC8012P4A1\n"
-                    "Chip: ESP32-P4 v%d.%d, %d MHz\n"
-                    "Memória livre: %.1f MB\n"
-                    "Tela: JD9365, painel V%d (id %02X %02X %02X)\n"
-                    "Toque: GSL3680 %s\n"
-                    "%s"
+                    "ESP32-P4 v%d.%d, %d MHz  ·  %.1f MB livres\n"
+                    "Tela: painel V%d (JD9365 %02X %02X %02X)  ·  toque %s\n"
+                    "%s\n"
                     "Firmware: %s\n",
                     ci.revision / 100, ci.revision % 100, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
                     heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0, painel_versao, id[0], id[1], id[2],
-                    toque_ok() ? "respondendo" : "sem resposta", bat, esp_app_get_description()->version);
+                    toque_ok() ? "ok" : "sem resposta", bat, esp_app_get_description()->version);
 }
 
 // ---------------------------------------------------------------------------

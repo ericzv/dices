@@ -98,6 +98,14 @@ void ui_icone_girar(float cx, float cy, float s, cor_t c, int alfa)
     d_poligono(t, 3, c, alfa);
 }
 
+// O simbolo de liga/desliga: um aro aberto em cima e um traco no meio dele.
+void ui_icone_desliga(float cx, float cy, float s, cor_t c, int alfa)
+{
+    float r = s * 0.34f, e = s * 0.11f;
+    arco(cx, cy + s * 0.04f, r, -PI_F / 2 + 0.62f, PI_F * 1.5f - 0.62f, e, c, alfa);
+    d_linha(cx, cy - r - s * 0.02f, cx, cy - s * 0.04f, e, c, alfa);
+}
+
 void ui_icone_tecla_apaga(float cx, float cy, float s, cor_t c, int alfa)
 {
     float p[10] = { cx - s * 0.5f, cy, cx - s * 0.22f, cy - s * 0.3f, cx + s * 0.5f, cy - s * 0.3f,
@@ -123,6 +131,7 @@ static void icone(int ic, float cx, float cy, float s, cor_t c)
     case IC_GIRAR:  ui_icone_girar(cx, cy, s, c, 255); break;
     case IC_MAO:    ui_icone_mao(cx, cy, s, c, 255); break;
     case IC_VOLTAR: ui_icone_voltar(cx, cy, s, c, 255); break;
+    case IC_DESLIGA: ui_icone_desliga(cx, cy, s, c, 255); break;
     default: break;
     }
 }

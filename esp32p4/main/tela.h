@@ -24,4 +24,7 @@ bool tela_mostra_jogo(const uint16_t *px, int w, int h, int k, int x, int y, con
 void tela_tempos(int *quadros, float *ms_giro);
 void tela_brilho(int pct);               // 0..100 (0 apaga)
 void tela_gira(bool gira180);
-void tela_id(uint8_t id[3]);             // o que o JD9365 respondeu ao comando 0x04
+void tela_id(uint8_t id[3]);
+// Apaga a luz, poe o painel para dormir e segura os pinos dele em baixo
+// (para o sono profundo do aparelho).
+void tela_desliga(void);             // o que o JD9365 respondeu ao comando 0x04

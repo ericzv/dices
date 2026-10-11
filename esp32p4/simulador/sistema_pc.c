@@ -30,8 +30,7 @@ void sis_brilho(int pct) { pc_brilho = pct; }
 void sis_volume(int pct) { pc_volume = pct; pc_volume_mudou(pct); }
 void sis_gira(bool g) { pc_gira = g; }
 int  sis_toque_estado(void) { return 1; }
-int  sis_painel(void) { return 0; }
-void sis_troca_painel(int v) { (void)v; }
+void sis_desliga(void) { printf("desligado\n"); exit(0); }
 void sis_reinicia(void) { }
 // Uma bateria de mentira, para ver o indicador.
 bool sis_bateria(int *pct, int *mv, bool *carregando)

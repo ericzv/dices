@@ -78,13 +78,14 @@ void ui_icone_volume(float cx, float cy, float s, int ondas, cor_t c, int alfa);
 void ui_icone_sol(float cx, float cy, float s, cor_t c, int alfa);
 void ui_icone_voltar(float cx, float cy, float s, cor_t c, int alfa);
 void ui_icone_girar(float cx, float cy, float s, cor_t c, int alfa);
+void ui_icone_desliga(float cx, float cy, float s, cor_t c, int alfa);
 void ui_icone_mais(float cx, float cy, float s, cor_t c, int alfa);
 void ui_icone_tecla_apaga(float cx, float cy, float s, cor_t c, int alfa);
 void ui_icone_mao(float cx, float cy, float s, cor_t c, int alfa);
 
 enum { B_PRIMARIO, B_VIDRO, B_PERIGO, B_AZUL };
 void ui_botao(int id, int x, int y, int w, int h, const char *rotulo, int icone, int estilo, float px);
-enum { IC_NADA, IC_PLAY, IC_CASA, IC_X, IC_GIRAR, IC_MAO, IC_VOLTAR };
+enum { IC_NADA, IC_PLAY, IC_CASA, IC_X, IC_GIRAR, IC_MAO, IC_VOLTAR, IC_DESLIGA };
 void ui_alterna(int id, int x, int y, bool ligado);           // 76x42
 void ui_desliza(int id, int x, int y, int w, int valor, int vmin, int vmax);
 void ui_cartao(int x, int y, int w, int h, const char *titulo);

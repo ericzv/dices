@@ -254,6 +254,8 @@ static esp_err_t comando(uint8_t cmd, uint8_t valor)
 
 esp_err_t tela_inicia(int versao)
 {
+    gpio_hold_dis(PIN_LCD_LUZ);          // presos em baixo se o aparelho foi desligado
+    gpio_hold_dis(PIN_LCD_RST);
     luz_inicia();
     fim_varredura = xSemaphoreCreateBinary();
     trava = xSemaphoreCreateMutex();
@@ -387,4 +389,23 @@ void tela_mostra(void)
     };
     if (ppa_do_scale_rotate_mirror(ppa, &op) == ESP_OK) envia(x);
     xSemaphoreGive(trava);
+}
+
+void tela_desliga(void)
+{
+    tela_brilho(0);
+    ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, 0);
+    if (io) {
+        esp_lcd_panel_io_tx_param(io, 0x28, NULL, 0);           // imagem desligada
+        vTaskDelay(pdMS_TO_TICKS(20));
+        esp_lcd_panel_io_tx_param(io, 0x10, NULL, 0);           // painel dormindo
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
+    // A luz e o reset do painel ficam em baixo durante o sono.
+    gpio_config_t g = { .pin_bit_mask = (1ULL << PIN_LCD_LUZ) | (1ULL << PIN_LCD_RST), .mode = GPIO_MODE_OUTPUT };
+    gpio_config(&g);
+    gpio_set_level(PIN_LCD_LUZ, 0);
+    gpio_set_level(PIN_LCD_RST, 0);
+    gpio_hold_en(PIN_LCD_LUZ);
+    gpio_hold_en(PIN_LCD_RST);
 }

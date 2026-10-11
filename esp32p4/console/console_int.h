@@ -47,6 +47,8 @@ typedef struct {
     int bateria;                          // carga mostrada, 0..100 (-1: sem bateria)
     bool carregando;
     bool central_de_ajustes;              // os ajustes vieram da central: voltam para ela
+    bool dormindo;                        // descanso de tela: preta e sem luz ate um toque
+    bool preto_mostrado;
 } console_t;
 
 extern prefs_t P;

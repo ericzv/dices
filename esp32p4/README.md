@@ -17,6 +17,9 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
   imagem 180°, calibrar o toque, as opções do jogo (no Dado em Casa,
   animações rápidas), o relógio e um cartão "Sobre" com o chip, a memória, a
   versão do painel e do firmware, a bateria e o botão **Desligar**.
+- **Descanso de tela:** 3 minutos sem toque, a tela fica preta e a luz
+  apaga (o jogo fica parado). Um toque acende, e esse toque não vale como
+  toque. Uma imagem parada por muito tempo pode marcar o painel de LCD.
 - **Desligar** (a placa não tem chave): pede um segundo toque, apaga a tela
   devagar, desliga o alto-falante e põe o ESP32-P4 em sono profundo. Para
   ligar de novo, aperte o botão **RST** da placa (ou tire e ponha a energia).

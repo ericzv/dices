@@ -151,8 +151,40 @@ static void acao(int id)
     }
 }
 
+// Descanso de tela: 3 minutos sem toque, a tela fica preta e a luz apaga.
+// Uma imagem parada por muito tempo marca o painel (fica um fantasma dela).
+// O toque que acorda nao vale como toque.
+#define DESCANSO_S 180.0f
+static float t_parado;
+static bool engole;
+
+static void dorme(void)
+{
+    C.dormindo = true;
+    C.preto_mostrado = false;
+    sis_brilho(0);
+    som_musica(false);
+    som_rufo(false);
+    som_giro(false);
+}
+
+static void acorda(void)
+{
+    C.dormindo = false;
+    sis_brilho(P.brilho);
+    console_aplica_som();
+    C.sujo = true;
+}
+
 void console_toque(bool tocando, int rx, int ry)
 {
+    if (tocando) t_parado = 0;
+    if (C.dormindo || engole) {               // acordando: espera o dedo sair
+        if (tocando && C.dormindo) { acorda(); engole = true; }
+        if (!tocando) engole = false;
+        toq.dedo = false;
+        return;
+    }
     if (tocando) {
         toq.sem = 0;
         toq.rx = rx;
@@ -289,6 +321,8 @@ void console_inicia(void)
 
 void console_botao(void)
 {
+    t_parado = 0;
+    if (C.dormindo) { acorda(); return; }
     switch (C.tela) {
     case T_JOGO:    central_abre(); break;
     case T_CENTRAL: console_vai(T_JOGO); break;
@@ -316,6 +350,11 @@ void console_passo(float dt)
 {
     C.t_tela += dt;
     t_ligado += dt;
+    if (C.dormindo) return;                   // tudo parado, ate um toque
+    if ((t_parado += dt) > DESCANSO_S && C.tela != T_PARTIDA && C.tela != T_CALIBRA && C.tela != T_TELA) {
+        dorme();
+        return;
+    }
     if (troca_tela_progresso() > 0) {
         C.anima = 0.1f;                       // o aviso vai enchendo
         if (toq.t >= TROCA_SEGURA) sis_tela_troca();
@@ -368,6 +407,13 @@ void console_passo(float dt)
 bool console_desenha(tela_t *t)
 {
     d_alvo(t);
+    if (C.dormindo) {                         // uma tela preta, e depois nada
+        if (C.preto_mostrado) return false;
+        C.preto_mostrado = true;
+        d_recorte_tudo();
+        d_limpa(0);
+        return true;
+    }
     if (!(C.sujo || C.anima > 0 || C.fade > 0 || C.tela == T_JOGO || C.tela == T_PARTIDA ||
           C.tela == T_CALIBRA || C.tela == T_TELA))
         return false;

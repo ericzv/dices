@@ -116,6 +116,13 @@ int main(int argc, char **argv)
     toca(1180, 508);                            // engrenagem da central
     quadros(30);
     foto("ajustes");
+    toca(472, 656);                             // Limpar marcas da tela
+    quadros(20);
+    foto("limpa");
+    quadros(320);
+    foto("limpa_cor");
+    toca(640, 400);                             // um toque para: volta aos ajustes
+    quadros(20);
     toca(80, 64);                               // volta para a central
     quadros(30);
     toca(640, 626);                             // Ir para o inicio

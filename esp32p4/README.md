@@ -20,6 +20,12 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
 - **Descanso de tela:** 3 minutos sem toque, a tela fica preta e a luz
   apaga (o jogo fica parado). Um toque acende, e esse toque não vale como
   toque. Uma imagem parada por muito tempo pode marcar o painel de LCD.
+- **Limpar marcas da tela** (Ajustes → Tela): se uma imagem ficou "marcada"
+  no LCD (um fantasma da tela inicial por cima das outras), a tela inteira
+  troca de cor a cada 2,5 s (branco, preto, vermelho, verde, azul, cinza)
+  com a luz no máximo; de 30 minutos a 1 hora costuma apagar a marca. Um
+  toque para. Serve de teste também: nas cores cheias o console manda a
+  tela de uma cor só; se o fantasma aparece por cima, é marca do painel.
 - **Desligar** (a placa não tem chave): pede um segundo toque, apaga a tela
   devagar, desliga o alto-falante e põe o ESP32-P4 em sono profundo. Para
   ligar de novo, aperte o botão **RST** da placa (ou tire e ponha a energia).

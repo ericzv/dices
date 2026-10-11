@@ -231,6 +231,7 @@ void console_toque(bool tocando, int rx, int ry)
         toq.dedo = false;
         if (calibrando) { calibra_toque(EV_SOLTA, toq.rx, toq.ry); return; }
         if (C.tela == T_TELA) { tela_teste_mantem(); return; }   // qualquer toque mantem a tela
+        if (C.tela == T_LIMPA) { limpa_para(); return; }
         int id = toq.zona;
         toq.zona = -1;
         if (id >= 0) {
@@ -352,7 +353,8 @@ void console_passo(float dt)
     C.t_tela += dt;
     t_ligado += dt;
     if (C.dormindo) return;                   // tudo parado, ate um toque
-    if ((t_parado += dt) > DESCANSO_S && C.tela != T_PARTIDA && C.tela != T_CALIBRA && C.tela != T_TELA) {
+    if ((t_parado += dt) > DESCANSO_S && C.tela != T_PARTIDA && C.tela != T_CALIBRA && C.tela != T_TELA &&
+        C.tela != T_LIMPA) {
         dorme();
         return;
     }
@@ -398,6 +400,7 @@ void console_passo(float dt)
     case T_PARTIDA: partida_passo(dt); break;
     case T_CALIBRA: calibra_passo(dt); break;
     case T_TELA:    tela_teste_passo(dt); break;
+    case T_LIMPA:   limpa_passo(dt); break;
     case T_JOGO:
         if (C.ativo) C.ativo->passo(dt);
         break;

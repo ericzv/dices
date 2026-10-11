@@ -206,6 +206,51 @@ static void desenha_orienta(void)
     ui_botao(A_GIRA_IMG, TELA_W / 2 + 20, 490, 330, 88, "Girar a imagem", IC_GIRAR, B_VIDRO, 26);
 }
 
+// Limpar marcas da tela: uma imagem parada por muito tempo deixa um fantasma
+// no LCD (retencao). Cores cheias, trocando a cada 2,5 s, com a luz no
+// maximo, ajudam o painel a esquecer. Um toque para.
+static const cor_t LIMPA_COR[] = {
+    COR(255, 255, 255), COR(0, 0, 0), COR(255, 0, 0), COR(0, 255, 0), COR(0, 0, 255),
+    COR(255, 255, 255), COR(0, 0, 0), COR(128, 128, 128),
+};
+#define LIMPA_N ((int)(sizeof LIMPA_COR / sizeof LIMPA_COR[0]))
+static int limpa_vez = -1;
+
+void limpa_comeca(void)
+{
+    console_vai(T_LIMPA);
+    C.fade = 0;
+    limpa_vez = -1;
+    sis_brilho(100);
+}
+
+void limpa_passo(float dt)
+{
+    (void)dt;
+    int v = (int)(C.t_tela / 2.5f) % LIMPA_N;
+    if (v != limpa_vez || C.t_tela < 5) C.sujo = true;   // o aviso do comeco some sozinho
+    limpa_vez = v;
+}
+
+void limpa_para(void)
+{
+    sis_brilho(P.brilho);
+    console_vai(T_AJUSTES);
+    som_toca(SOM_TIQUE);
+}
+
+static void desenha_limpa(void)
+{
+    int v = limpa_vez < 0 ? 0 : limpa_vez;
+    d_limpa(LIMPA_COR[v]);
+    if (C.t_tela < 5) {
+        d_arred(290, 300, 700, 200, 28, COR(24, 29, 45), 240);
+        texto_c(FONTE_NEGRITO, 30, TELA_W / 2, 336, "Limpando marcas da tela", C_BRANCO, 255);
+        texto_c(FONTE_TEXTO, 22, TELA_W / 2, 386, "Deixe assim de 30 minutos a 1 hora.", C_TEXTO2, 255);
+        texto_c(FONTE_TEXTO, 22, TELA_W / 2, 420, "Um toque em qualquer lugar para.", C_TEXTO2, 255);
+    }
+}
+
 static void desenha_teste(void)
 {
     fundo();
@@ -232,6 +277,7 @@ void primeira_desenha(void)
     case T_CALIBRA: desenha_calibra(); break;
     case T_ORIENTA: desenha_orienta(); break;
     case T_TELA:    desenha_teste(); break;
+    case T_LIMPA:   desenha_limpa(); break;
     }
 }
 

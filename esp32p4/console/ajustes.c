@@ -6,7 +6,7 @@
 
 enum {
     A_VOLTAR = 200, A_VOL, A_MUSICA, A_BRILHO, A_GIRA, A_CALIBRA,
-    A_H_MENOS, A_H_MAIS, A_M_MENOS, A_M_MAIS, A_DESLIGA, A_OPCAO0 = 230,
+    A_H_MENOS, A_H_MAIS, A_M_MENOS, A_M_MAIS, A_DESLIGA, A_LIMPA, A_OPCAO0 = 230,
 };
 
 #define COL_E  64
@@ -80,8 +80,8 @@ void ajustes_desenha(void)
     rotulo(COL_E + 28, y + 186, "Girar a imagem 180°");
     ui_alterna(A_GIRA, COL_E + COL_W - 28 - 76, y + 165, P.gira);
     linha_divisoria(COL_E, y + 222, COL_W);
-    rotulo(COL_E + 28, y + 268, "Calibrar o toque");
-    ui_botao(A_CALIBRA, COL_E + COL_W - 28 - 160, y + 242, 160, 52, "Calibrar", IC_NADA, B_VIDRO, 21);
+    ui_botao(A_CALIBRA, COL_E + 28, y + 242, 240, 52, "Calibrar o toque", IC_NADA, B_VIDRO, 20);
+    ui_botao(A_LIMPA, COL_E + 28 + 256, y + 242, 248, 52, "Limpar marcas da tela", IC_NADA, B_VIDRO, 20);
 
     // Opcoes do jogo
     const jogo_t *j = jogo_dos_ajustes();
@@ -186,6 +186,10 @@ void ajustes_acao(int id)
         prefs_grava();
         calibra_comeca();
         som_toca(SOM_TIQUE);
+        break;
+    case A_LIMPA:
+        prefs_grava();
+        limpa_comeca();
         break;
     case A_H_MENOS: acerta(-1, 0); som_toca(SOM_TIQUE); break;
     case A_H_MAIS:  acerta(1, 0);  som_toca(SOM_TIQUE); break;

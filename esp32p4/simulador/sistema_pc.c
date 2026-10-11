@@ -31,6 +31,11 @@ void sis_volume(int pct) { pc_volume = pct; pc_volume_mudou(pct); }
 void sis_gira(bool g) { pc_gira = g; }
 int  sis_toque_estado(void) { return 1; }
 void sis_desliga(void) { printf("desligado\n"); exit(0); }
+int  sis_painel(void) { return 0; }
+void sis_tela_troca(void) { printf("trocaria a versao da tela\n"); }
+bool sis_tela_em_teste(void) { return getenv("TELA_EM_TESTE") != NULL; }
+void sis_tela_mantem(void) { }
+void sis_tela_desfaz(void) { printf("voltaria a tela anterior\n"); }
 void sis_reinicia(void) { }
 // Uma bateria de mentira, para ver o indicador.
 bool sis_bateria(int *pct, int *mv, bool *carregando)

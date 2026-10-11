@@ -109,16 +109,57 @@ void sis_desliga(void)
     esp_deep_sleep_start();
 }
 
-// A versao do painel escolhida pelo BOOT fica em "tela". A chave antiga
-// ("painel") vinha de um botao dos ajustes que saiu: e apagada, para a placa
-// voltar ao painel certo sozinha.
-static void grava_painel(int v)
+// A versao do painel fica em "tela" (e a anterior em "tela_ant"). Trocar e
+// um teste ("teste" = 1): o console pergunta se a imagem ficou boa e, sem
+// resposta em 15 s, volta a anterior. Assim uma troca errada nunca deixa a
+// tela presa. A chave antiga ("painel") vinha de um botao dos ajustes que
+// saiu: e apagada.
+static bool em_teste;
+
+static void grava_tela(uint8_t v, uint8_t ant, bool teste)
 {
     nvs_handle_t h;
     if (nvs_open("sistema", NVS_READWRITE, &h) != ESP_OK) return;
-    nvs_set_u8(h, "tela", (uint8_t)v);
+    nvs_set_u8(h, "tela", v);
+    nvs_set_u8(h, "tela_ant", ant);
+    if (teste) nvs_set_u8(h, "teste", 1);
+    else nvs_erase_key(h, "teste");
     nvs_commit(h);
     nvs_close(h);
+}
+
+int  sis_painel(void) { return painel_versao; }
+bool sis_tela_em_teste(void) { return em_teste; }
+
+void sis_tela_troca(void)
+{
+    int outro = painel_versao == 1 ? 2 : 1;
+    ESP_LOGW(TAG, "trocando para o painel V%d (em teste)", outro);
+    grava_tela((uint8_t)outro, (uint8_t)painel_versao, true);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_restart();
+}
+
+void sis_tela_mantem(void)
+{
+    em_teste = false;
+    grava_tela((uint8_t)painel_versao, (uint8_t)painel_versao, false);
+    ESP_LOGI(TAG, "painel V%d mantido", painel_versao);
+}
+
+void sis_tela_desfaz(void)
+{
+    nvs_handle_t h;
+    uint8_t ant = 0;
+    if (nvs_open("sistema", NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_u8(h, "tela_ant", &ant);
+        nvs_close(h);
+    }
+    if (ant != 1 && ant != 2) ant = painel_versao == 1 ? 2 : 1;
+    ESP_LOGW(TAG, "sem confirmacao: voltando ao painel V%d", ant);
+    grava_tela(ant, ant, false);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_restart();
 }
 
 // Sem nada guardado: as placas com ESP32-P4 v3 vem todas com a tela nova (V2);
@@ -126,12 +167,14 @@ static void grava_painel(int v)
 static int painel_escolhido(void)
 {
     nvs_handle_t h;
-    uint8_t v = 0;
+    uint8_t v = 0, t = 0;
     if (nvs_open("sistema", NVS_READWRITE, &h) == ESP_OK) {
         if (nvs_erase_key(h, "painel") == ESP_OK) nvs_commit(h);
         nvs_get_u8(h, "tela", &v);
+        nvs_get_u8(h, "teste", &t);
         nvs_close(h);
     }
+    em_teste = t == 1;
     if (v == 1 || v == 2) return v;
     esp_chip_info_t ci;
     esp_chip_info(&ci);
@@ -171,13 +214,7 @@ static void vigia_boot(void *arg)
     bool antes = gpio_get_level(PIN_BOOT) == 0;
     while (esp_timer_get_time() < 8000000) {
         bool agora = gpio_get_level(PIN_BOOT) == 0;
-        if (agora && !antes) {
-            int outro = painel_versao == 1 ? 2 : 1;
-            ESP_LOGW(TAG, "BOOT apertado: trocando para o painel V%d", outro);
-            grava_painel(outro);
-            vTaskDelay(pdMS_TO_TICKS(100));
-            esp_restart();
-        }
+        if (agora && !antes) sis_tela_troca();
         antes = agora;
         vTaskDelay(pdMS_TO_TICKS(20));
     }

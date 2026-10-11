@@ -306,6 +306,10 @@ esp_err_t tela_inicia(int versao)
     vTaskDelay(pdMS_TO_TICKS(10));
     gpio_set_level(PIN_LCD_RST, 1);
     vTaskDelay(pdMS_TO_TICKS(120));
+    // E por software tambem: com a bateria dentro, a tela nunca fica sem
+    // energia, e um ajuste de outra versao do painel podia sobrar nela.
+    esp_lcd_panel_io_tx_param(io, 0x01, NULL, 0);
+    vTaskDelay(pdMS_TO_TICKS(120));
 
     if (esp_lcd_panel_io_rx_param(io, 0x04, id_painel, 3) == ESP_OK)
         ESP_LOGI(TAG, "JD9365 respondeu: %02X %02X %02X", id_painel[0], id_painel[1], id_painel[2]);

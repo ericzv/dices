@@ -198,6 +198,7 @@ void console_toque(bool tocando, int rx, int ry)
     if (!tocando && toq.dedo) {                       // soltou
         toq.dedo = false;
         if (calibrando) { calibra_toque(EV_SOLTA, toq.rx, toq.ry); return; }
+        if (C.tela == T_TELA) { tela_teste_mantem(); return; }   // qualquer toque mantem a tela
         int id = toq.zona;
         toq.zona = -1;
         if (id >= 0) {
@@ -297,9 +298,28 @@ void console_botao(void)
     }
 }
 
+// Trocar a versao da tela sem botao (a capa da placa cobre o BOOT): nos
+// primeiros 10 s depois de ligar, segurar o dedo 3 s em qualquer lugar.
+#define TROCA_JANELA 10.0f
+#define TROCA_SEGURA 3.0f
+#define TROCA_AVISO  0.7f                 // a partir daqui aparece o aviso
+static float t_ligado;
+
+float troca_tela_progresso(void)
+{
+    if (!toq.dedo || toq.moveu || t_ligado - toq.t > TROCA_JANELA || toq.t < TROCA_AVISO) return 0;
+    float p = (toq.t - TROCA_AVISO) / (TROCA_SEGURA - TROCA_AVISO);
+    return p > 1 ? 1 : p;
+}
+
 void console_passo(float dt)
 {
     C.t_tela += dt;
+    t_ligado += dt;
+    if (troca_tela_progresso() > 0) {
+        C.anima = 0.1f;                       // o aviso vai enchendo
+        if (toq.t >= TROCA_SEGURA) sis_tela_troca();
+    }
     if (C.fade > 0) C.fade -= dt;
     if (C.anima > 0) C.anima -= dt;
     if (C.armado >= 0 && (C.t_armado -= dt) <= 0) { C.armado = -1; C.sujo = true; }
@@ -337,6 +357,7 @@ void console_passo(float dt)
     switch (C.tela) {
     case T_PARTIDA: partida_passo(dt); break;
     case T_CALIBRA: calibra_passo(dt); break;
+    case T_TELA:    tela_teste_passo(dt); break;
     case T_JOGO:
         if (C.ativo) C.ativo->passo(dt);
         break;
@@ -348,7 +369,7 @@ bool console_desenha(tela_t *t)
 {
     d_alvo(t);
     if (!(C.sujo || C.anima > 0 || C.fade > 0 || C.tela == T_JOGO || C.tela == T_PARTIDA ||
-          C.tela == T_CALIBRA))
+          C.tela == T_CALIBRA || C.tela == T_TELA))
         return false;
     C.sujo = false;
     z_limpa();
@@ -363,6 +384,14 @@ bool console_desenha(tela_t *t)
     if (C.fade > 0) {
         float q = C.fade / 0.22f;
         d_ret_alfa(0, 0, TELA_W, TELA_H, 0, (int)(255 * q * q));
+    }
+    float p = troca_tela_progresso();
+    if (p > 0) {                              // segurando o dedo para trocar a versao da tela
+        d_arred(290, 300, 700, 200, 28, COR(24, 29, 45), 245);
+        texto_c(FONTE_NEGRITO, 30, TELA_W / 2, 336, "Trocar a versão da tela", C_BRANCO, 255);
+        texto_c(FONTE_TEXTO, 22, TELA_W / 2, 384, "Continue segurando o dedo na tela.", C_TEXTO2, 255);
+        d_arred(390, 440, 500, 12, 6, C_LINHA, 255);
+        d_arred(390, 440, 500 * p, 12, 6, C_AZUL, 255);
     }
     return true;
 }

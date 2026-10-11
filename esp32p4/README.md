@@ -71,9 +71,20 @@ O esptool mostra a revisão ao gravar (`Chip is ESP32-P4 (revision v3.1)`).
 Placas compradas de meados de 2026 para cá costumam ser V3.
 
 A **versão da tela** não precisa de recompilar: o firmware escolhe sozinho (V2
-nos chips v3, V1 nos anteriores) e guarda. Se a tela ficar **preta ou
-listrada**, ligue a placa e **aperte e solte o BOOT nos primeiros 8 segundos**
-(não segure ao ligar): ela troca para a outra tela e reinicia.
+nos chips v3, V1 nos anteriores). Se a tela ficar **preta, listrada ou com
+riscos**, troque para a outra versão:
+
+- **Pelo toque** (a capa da placa cobre os botões): nos primeiros 10 segundos
+  depois de ligar, **segure o dedo na tela por 3 segundos**, em qualquer
+  lugar. Aparece "Trocar a versão da tela" com uma barra enchendo; a placa
+  reinicia na outra versão.
+- **Pelo BOOT**: aperte e solte o BOOT nos primeiros 8 segundos.
+
+Depois da troca aparece **"A imagem está boa?"**: se estiver limpa, toque em
+qualquer lugar e ela fica guardada; se não, não toque em nada, e em 15 s a
+placa volta à versão anterior. Uma troca errada nunca deixa a tela presa.
+A cada partida a tela também recebe um reset por software (com a bateria
+dentro ela nunca fica sem energia, e um ajuste da outra versão podia sobrar).
 
 ## Compilar e gravar
 

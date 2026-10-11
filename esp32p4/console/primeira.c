@@ -21,9 +21,28 @@ void partida_passo(float dt)
     static bool tocou;
     if (!tocou && C.t_tela > 0.15f) { tocou = true; som_toca(SOM_ABERTURA); }
     if (C.t_tela > 2.6f) {
-        if (P.calibrado) console_vai(T_INICIO);
+        if (sis_tela_em_teste()) console_vai(T_TELA);
+        else if (P.calibrado) console_vai(T_INICIO);
         else { cal_volta = T_INICIO; calibra_comeca(); }
     }
+}
+
+// Depois de trocar a versao da tela: quem nao confirma em 15 s volta a anterior
+// (com a tela errada, talvez nem de para ler).
+#define TESTE_S 15.0f
+
+void tela_teste_passo(float dt)
+{
+    (void)dt;
+    if (C.t_tela > TESTE_S) sis_tela_desfaz();
+}
+
+void tela_teste_mantem(void)
+{
+    sis_tela_mantem();
+    som_toca(SOM_FICHA);
+    if (P.calibrado) console_vai(T_INICIO);
+    else { cal_volta = T_INICIO; calibra_comeca(); }
 }
 
 void calibra_comeca(void)
@@ -187,12 +206,32 @@ static void desenha_orienta(void)
     ui_botao(A_GIRA_IMG, TELA_W / 2 + 20, 490, 330, 88, "Girar a imagem", IC_GIRAR, B_VIDRO, 26);
 }
 
+static void desenha_teste(void)
+{
+    fundo();
+    int falta = (int)(TESTE_S - C.t_tela + 0.99f);
+    if (falta < 0) falta = 0;
+    texto_c(FONTE_PRETO, 48, TELA_W / 2, 200, "A imagem está boa?", C_BRANCO, 255);
+    char b[96];
+    snprintf(b, sizeof b, "A tela foi trocada para a versão V%d.", sis_painel());
+    texto_c(FONTE_TEXTO, 26, TELA_W / 2, 284, b, C_TEXTO2, 255);
+    texto_c(FONTE_NEGRITO, 30, TELA_W / 2, 360, "Imagem limpa: toque em qualquer lugar para manter.", C_BRANCO, 255);
+    texto_c(FONTE_TEXTO, 26, TELA_W / 2, 420, "Com riscos ou cores estranhas: não toque em nada.", C_TEXTO2, 255);
+    snprintf(b, sizeof b, "Em %d s a tela volta como estava.", falta);
+    texto_c(FONTE_TEXTO, 26, TELA_W / 2, 456, b, C_TEXTO2, 255);
+    float q = C.t_tela / TESTE_S;
+    if (q > 1) q = 1;
+    d_arred(340, 540, 600, 12, 6, C_LINHA, 255);
+    d_arred(340, 540, 600 * (1 - q), 12, 6, C_AZUL, 255);
+}
+
 void primeira_desenha(void)
 {
     switch (C.tela) {
     case T_PARTIDA: desenha_abertura(); break;
     case T_CALIBRA: desenha_calibra(); break;
     case T_ORIENTA: desenha_orienta(); break;
+    case T_TELA:    desenha_teste(); break;
     }
 }
 

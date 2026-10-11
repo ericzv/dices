@@ -23,7 +23,7 @@
 #define JOGO_H     720                    // o jogo ocupa 1280x720 (640x360 em 2x)
 #define BARRA_Y    JOGO_H
 
-enum tela_id { T_PARTIDA, T_CALIBRA, T_ORIENTA, T_INICIO, T_AJUSTES, T_JOGO, T_CENTRAL };
+enum tela_id { T_PARTIDA, T_CALIBRA, T_ORIENTA, T_INICIO, T_AJUSTES, T_JOGO, T_CENTRAL, T_TELA };
 
 typedef struct {
     int volume, brilho;                   // 0..100
@@ -113,6 +113,9 @@ void primeira_desenha(void);
 void primeira_acao(int id);
 void calibra_toque(int ev, int rx, int ry);
 void calibra_comeca(void);
+void tela_teste_mantem(void);
+void tela_teste_passo(float dt);             // a imagem ficou boa: fica esta versao do painel
+float troca_tela_progresso(void);         // 0..1: o dedo segurado para trocar a versao da tela
 void calibra_passo(float dt);
 void partida_passo(float dt);
 

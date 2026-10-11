@@ -16,6 +16,14 @@ bool sis_hora(int *h, int *m);       // false: o relogio nao foi acertado
 void sis_acerta_hora(int h, int m);
 
 void sis_reinicia(void);
+// A versao do painel da tela (1 ou 2; 0 se nao se aplica). Trocar e um teste:
+// o aparelho reinicia na outra, o console pergunta se a imagem ficou boa e,
+// sem resposta, sis_tela_desfaz volta a anterior.
+int  sis_painel(void);
+void sis_tela_troca(void);
+bool sis_tela_em_teste(void);
+void sis_tela_mantem(void);
+void sis_tela_desfaz(void);
 void sis_desliga(void);              // apaga tudo e dorme; liga de novo pelo botao RST
 // A bateria: false se nao ha (ou ainda nao se sabe). pct 0..100, mv a tensao.
 bool sis_bateria(int *pct, int *mv, bool *carregando);

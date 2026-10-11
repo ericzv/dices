@@ -87,6 +87,15 @@ int main(int argc, char **argv)
 
     quadros(40);
     foto("abertura");
+    // TELA_EM_TESTE=1: a pergunta depois de trocar a versao da tela, e o
+    // aviso de quem segura o dedo para trocar.
+    if (getenv("TELA_EM_TESTE")) {
+        quadros(140);
+        foto("tela_teste");
+        for (int i = 0; i < 110; i++) { console_toque(true, 640, 600); quadros(1); }
+        foto("segurando");
+        return 0;
+    }
     quadros(140);
     foto("calibra");
     // Os quatro alvos, com o toque cru igual a tela (e um quinto de folga).

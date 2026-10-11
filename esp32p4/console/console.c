@@ -341,7 +341,8 @@ static float t_ligado;
 
 float troca_tela_progresso(void)
 {
-    if (!toq.dedo || toq.moveu || t_ligado - toq.t > TROCA_JANELA || toq.t < TROCA_AVISO) return 0;
+    if (!toq.dedo || toq.moveu || t_ligado - toq.t > TROCA_JANELA || toq.t < TROCA_AVISO || !sis_tela_pode_trocar())
+        return 0;
     float p = (toq.t - TROCA_AVISO) / (TROCA_SEGURA - TROCA_AVISO);
     return p > 1 ? 1 : p;
 }

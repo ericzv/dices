@@ -20,6 +20,7 @@ void sis_reinicia(void);
 // o aparelho reinicia na outra, o console pergunta se a imagem ficou boa e,
 // sem resposta, sis_tela_desfaz volta a anterior.
 int  sis_painel(void);
+bool sis_tela_pode_trocar(void);     // false: so ha uma versao certa (ESP32-P4 v3: sempre a V2)
 void sis_tela_troca(void);
 bool sis_tela_em_teste(void);
 void sis_tela_mantem(void);

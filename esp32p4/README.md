@@ -73,9 +73,11 @@ JD9365, sequência de início diferente) e com duas gerações do ESP32-P4:
 O esptool mostra a revisão ao gravar (`Chip is ESP32-P4 (revision v3.1)`).
 Placas compradas de meados de 2026 para cá costumam ser V3.
 
-A **versão da tela** não precisa de recompilar: o firmware escolhe sozinho (V2
-nos chips v3, V1 nos anteriores). Se a tela ficar **preta, listrada ou com
-riscos**, troque para a outra versão:
+A **versão da tela** não precisa de recompilar: o firmware escolhe sozinho.
+Com o **ESP32-P4 v3** a tela é sempre a V2, e a troca fica desligada (a V1
+deixa a tela preta com riscos; o que estiver guardado de uma troca é
+apagado). Nas placas com chip anterior, se a tela ficar **preta, listrada ou
+com riscos**, troque para a outra versão:
 
 - **Pelo toque** (a capa da placa cobre os botões): nos primeiros 10 segundos
   depois de ligar, **segure o dedo na tela por 3 segundos**, em qualquer

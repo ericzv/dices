@@ -133,6 +133,7 @@ bool sis_tela_em_teste(void) { return em_teste; }
 
 void sis_tela_troca(void)
 {
+    if (!sis_tela_pode_trocar()) return;
     int outro = painel_versao == 1 ? 2 : 1;
     ESP_LOGW(TAG, "trocando para o painel V%d (em teste)", outro);
     grava_tela((uint8_t)outro, (uint8_t)painel_versao, true);
@@ -162,23 +163,38 @@ void sis_tela_desfaz(void)
     esp_restart();
 }
 
-// Sem nada guardado: as placas com ESP32-P4 v3 vem todas com a tela nova (V2);
-// as de antes, na maioria, com a primeira (V1).
+// As placas com ESP32-P4 v3 vem todas com a tela nova (V2): nelas a versao e
+// sempre essa, e o que estiver guardado de uma troca e apagado (a V1 deixa a
+// tela preta com riscos). Nas de antes, sem nada guardado, a primeira (V1).
+static bool chip_v3(void)
+{
+    esp_chip_info_t ci;
+    esp_chip_info(&ci);
+    return ci.revision >= 300;
+}
+
+bool sis_tela_pode_trocar(void) { return !chip_v3(); }
+
 static int painel_escolhido(void)
 {
     nvs_handle_t h;
     uint8_t v = 0, t = 0;
     if (nvs_open("sistema", NVS_READWRITE, &h) == ESP_OK) {
         if (nvs_erase_key(h, "painel") == ESP_OK) nvs_commit(h);
-        nvs_get_u8(h, "tela", &v);
-        nvs_get_u8(h, "teste", &t);
+        if (chip_v3()) {
+            bool apagou = nvs_erase_key(h, "tela") == ESP_OK;
+            apagou |= nvs_erase_key(h, "teste") == ESP_OK;
+            apagou |= nvs_erase_key(h, "tela_ant") == ESP_OK;
+            if (apagou) nvs_commit(h);
+        } else {
+            nvs_get_u8(h, "tela", &v);
+            nvs_get_u8(h, "teste", &t);
+        }
         nvs_close(h);
     }
     em_teste = t == 1;
     if (v == 1 || v == 2) return v;
-    esp_chip_info_t ci;
-    esp_chip_info(&ci);
-    return ci.revision >= 300 ? 2 : 1;
+    return chip_v3() ? 2 : 1;
 }
 
 // Quatro linhas: e o que cabe no cartao "Sobre" dos ajustes.
@@ -212,7 +228,7 @@ int sis_info(char *buf, int n)
 static void vigia_boot(void *arg)
 {
     bool antes = gpio_get_level(PIN_BOOT) == 0;
-    while (esp_timer_get_time() < 8000000) {
+    while (sis_tela_pode_trocar() && esp_timer_get_time() < 8000000) {
         bool agora = gpio_get_level(PIN_BOOT) == 0;
         if (agora && !antes) sis_tela_troca();
         antes = agora;

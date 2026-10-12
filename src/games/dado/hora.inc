@@ -82,14 +82,17 @@ static void reage_lance(int j, int k)
 {
     int seguidos = 0;
     while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
-    int nivel = seguidos == N_FILA ? 1 : 0;
+    bool cheia = seguidos == N_FILA;
+    int nivel = cheia ? 1 : 0, hora_res = 0;
     if (hora) {
         som_suspense(false);
         desfecho_t d;
         calcula_desfecho(&d, false);
-        if (leva_rodada(&d) == j && nivel < 2) nivel = 2;
+        hora_res = leva_rodada(&d) == j ? 2 : 1;
+        if (hora_res == 2 && nivel < 2) nivel = 2;
     }
     if (nivel) crescendo(j, nivel);
+    hist_lance(j, cheia, hora_res);
 }
 
 // A luz da hora da verdade: em volta do dado o feltro como esta; fora do
@@ -198,7 +201,7 @@ static void reage_evento(const evento_t *e)
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) nivel = 2;
     if (nivel) crescendo(e->de_j, nivel);
     // O oponente sente o golpe (ou gosta do que fez).
-    if (e->tipo == EV_JACKPOT && e->de_j == 0) rival_reage(RM_COMBO);
+    if (e->tipo == EV_JACKPOT && e->de_j == 0) { rival_reage(RM_COMBO); hist_jackpot(); }
     else if ((e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_TIRA || e->tipo == EV_PIRATA)
              && e->de_j == 1 && e->alvo_j == 0) rival_reage(RM_ATACOU);
 }

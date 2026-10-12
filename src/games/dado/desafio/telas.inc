@@ -135,11 +135,13 @@ static void desenha_perfis(void)
         rodape_run("ENTER ou X apaga  ·  ESC deixa como está");
     } else {
         if (perfis[pf_cur].nome[0]) {
-            int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 30;
-            ui_botao(bx, 264, 60, 22, "apagar", C_VINHO, 0);
-            zona_clique(bx, 264, 60, 22, NULL, 0, 'x');
+            int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 72;
+            ui_botao(bx, 264, 80, 22, "histórico", 0, 0);
+            zona_clique(bx, 264, 80, 22, NULL, 0, 'h');
+            ui_botao(bx + 86, 264, 60, 22, "apagar", C_VINHO, 0);
+            zona_clique(bx + 86, 264, 60, 22, NULL, 0, 'x');
         }
-        rodape_run("setas escolhem  ·  ENTER entra  ·  X apaga  ·  ESC volta");
+        rodape_run("setas escolhem  ·  ENTER entra  ·  H histórico  ·  X apaga  ·  ESC volta");
     }
 }
 

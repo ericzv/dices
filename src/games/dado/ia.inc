@@ -189,7 +189,7 @@ static int ia_esforco = 1;                   // o simulador pede menos para anda
 // Nivel da IA: 0 facil (a IA antiga, de regras simples), 1 medio (a que
 // imagina jogadas, mas pensando pouco: erra de vez em quando), 2 dificil.
 static int ia_nivel = 2;
-static int nivel_jog[2] = { 2, 2 };          // o nivel de cada lado (so conta onde ha IA)
+static int nivel_jog[2] = { 2, 2 };          // o nivel de cada lado (so conta onde ha IA; declarado em estado.inc)
 static float ousadia_jog[2];
 // Ousadia nas apostas, de -1 (cautela) a +1 (aposta alto): o jeito de cada
 // oponente do Modo Desafiante. 0 na partida rapida.

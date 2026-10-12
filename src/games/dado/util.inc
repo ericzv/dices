@@ -64,6 +64,6 @@ static void txt(int x, int y, const char *s, uint16_t c, bool bold)
 static void txt_sombra_c(int cx, int y, const char *s, uint16_t c, int esc)
 {
     int x = cx - gfx_largura(s, esc) / 2;
-    gfx_texto(x + esc, y + esc, s, RGB(8, 26, 19), esc, true);
+    gfx_texto(x + esc, y + esc, s, C_SOMBRA, esc, true);
     gfx_texto(x, y, s, c, esc, true);
 }

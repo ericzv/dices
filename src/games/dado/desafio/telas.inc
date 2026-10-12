@@ -66,6 +66,7 @@ static void des_entra_perfil(int i)
 {
     perfil_atual = i;
     perfis_salva();
+    estilo_do_perfil();                          // o feltro, a mesa e os dados dele
     if (des_tem_run()) {                         // continuar ou comecar outra
         menu_tela = MT_DESAFIO;
         menu_cur = 0;
@@ -135,13 +136,15 @@ static void desenha_perfis(void)
         rodape_run("ENTER ou X apaga  ·  ESC deixa como está");
     } else {
         if (perfis[pf_cur].nome[0]) {
-            int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 72;
-            ui_botao(bx, 264, 80, 22, "histórico", 0, 0);
-            zona_clique(bx, 264, 80, 22, NULL, 0, 'h');
-            ui_botao(bx + 86, 264, 60, 22, "apagar", C_VINHO, 0);
-            zona_clique(bx + 86, 264, 60, 22, NULL, 0, 'x');
+            int bx = GFX_W / 2 + (pf_cur - 1) * 186 - 104;
+            ui_botao(bx, 264, 64, 22, "estilo", 0, 0);
+            zona_clique(bx, 264, 64, 22, NULL, 0, 'e');
+            ui_botao(bx + 70, 264, 80, 22, "histórico", 0, 0);
+            zona_clique(bx + 70, 264, 80, 22, NULL, 0, 'h');
+            ui_botao(bx + 156, 264, 60, 22, "apagar", C_VINHO, 0);
+            zona_clique(bx + 156, 264, 60, 22, NULL, 0, 'x');
         }
-        rodape_run("setas escolhem  ·  ENTER entra  ·  H histórico  ·  X apaga  ·  ESC volta");
+        rodape_run("setas escolhem  ·  ENTER entra  ·  E estilo  ·  H histórico  ·  X apaga  ·  ESC volta");
     }
 }
 

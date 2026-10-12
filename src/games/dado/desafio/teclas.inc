@@ -106,9 +106,11 @@ static bool des_tecla(int k, int e)
                 perfil_atual = pf_cur;
                 salva_apaga(chave_run());
                 hist_apaga(pf_cur);
+                salva_apaga(chave_estilo(pf_cur));
                 memset(&perfis[pf_cur], 0, sizeof perfis[pf_cur]);
                 perfil_atual = antes == pf_cur ? -1 : antes;
                 perfis_salva();
+                estilo_do_perfil();
                 som_toca(SOM_FICHA);
             }
             pf_apagando = false;
@@ -118,6 +120,7 @@ static bool des_tecla(int k, int e)
         if (k >= '1' && k <= '3') { pf_cur = k - '1'; k = KEY_ENTER; cheio = perfis[pf_cur].nome[0] != 0; }
         if ((k == 'x' || k == KEY_BKSP) && cheio) { pf_apagando = true; return true; }
         if (k == 'h' && cheio) { som_toca(SOM_TIQUE); hist_abre(pf_cur); return true; }
+        if (k == 'e' && cheio) { som_toca(SOM_TIQUE); estilo_abre(pf_cur); return true; }
         if (k != KEY_ENTER) return true;
         som_toca(SOM_FICHA);
         if (cheio) { des_entra_perfil(pf_cur); return true; }
@@ -158,6 +161,9 @@ static bool des_tecla(int k, int e)
 
     case F_HIST:
         return hist_tecla(k, e);
+
+    case F_ESTILO:
+        return estilo_tecla(k);
 
     case F_RDIFIC: {
         int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;

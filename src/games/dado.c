@@ -74,6 +74,7 @@
 #include "dado/estado.inc"        // o estado da partida inteira
 #include "dado/util.inc"          // sorteio, quem e quem na mesa, texto centrado
 #include "dado/interface.inc"     // paineis, botoes, numeros flutuantes e o mouse
+#include "dado/estilo.inc"        // o feltro, a mesa e o material dos dados
 #include "dado/desenho_dado.inc"  // o desenho de cada dado
 #include "dado/fila.inc"          // a regra da fila: o que vale, o que anula
 #include "dado/desfecho.inc"      // os poderes que mexem no rival, em sequencia

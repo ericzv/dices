@@ -75,9 +75,11 @@ static void encerra_run(bool venceu)
 {
     des_venceu_run = venceu;
     des_liberou = -1;
+    des_estilo_abriu = -1;
     if (venceu && perfil_atual >= 0) {          // venceu o Barao: a proxima dificuldade abre
         perfil_t *p = &perfis[perfil_atual];
         int d = run.dificuldade;
+        if (!p->venceu[d]) des_estilo_abriu = d;    // e, na primeira vez, o estilo do andar
         if (p->venceu[d] < 255) p->venceu[d]++;
         if (d == p->nivel && p->nivel < N_NIVEIS) { p->nivel++; des_liberou = p->nivel; }
         perfis_salva();
@@ -223,6 +225,13 @@ static void des_comeca_partida(void)
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
     nivel_jog[1] = nivel_mesa(no);
+    // O material do oponente, pelo nivel da mesa: a maioria de marfim; osso
+    // nas dificeis do 2o salao e no 3o; jade nas dificeis do 3o; os chefes,
+    // de obsidiana.
+    bool dificil = no->tipo == NO_DIFICIL;
+    materiais_da_partida(no->tipo == NO_CHEFE ? MAT_OBSIDIANA
+                         : run.andar == 2 ? (dificil ? MAT_JADE : MAT_OSSO)
+                         : run.andar == 1 && dificil ? MAT_OSSO : MAT_MARFIM);
     ousadia_jog[1] = PERSO[no->perso].ousadia;
     rodada = 0;
     pote = 0;

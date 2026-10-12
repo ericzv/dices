@@ -24,5 +24,6 @@
 #include "desafio/eventos.inc"    // as paradas do mapa que nao sao partida
 #include "desafio/telas.inc"      // perfis e dificuldades
 #include "desafio/historico.inc"  // o que cada perfil ja jogou
+#include "desafio/estilo_perfil.inc" // o feltro, a mesa e os dados do perfil
 #include "desafio/colecao.inc"    // o que esta aberto e o que esta fechado
 #include "desafio/teclas.inc"     // as teclas das telas do Desafiante

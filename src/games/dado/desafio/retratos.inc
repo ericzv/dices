@@ -584,6 +584,32 @@ static int retrato_faixa(int j, int x, int y0)
     return x + RT_W * esc + 8;
 }
 
+// O trunfo do oponente, numa linha miuda: o nome (em ouro, aceso quando age)
+// e o que ele faz, cortado com "..." se nao couber ate x_max. O mouse em cima
+// mostra o texto inteiro.
+static void trunfo_faixa(int x, int y, int x_max)
+{
+    const perso_t *pp = &PERSO[fala_perso];
+    if (!pp->trunfo) return;
+    bool aceso = false;
+    for (int a = 0; a < A_N; a++) if ((pp->amul >> a & 1) && am_brilho[a] > 0) aceso = true;
+    int w = gfx_texto(x, y, pp->trunfo, aceso ? C_AMARELO : C_OURO, GFX_MIUDO, false);
+    char r[200];
+    snprintf(r, sizeof r, "· %s", pp->regra);
+    int livre = x_max - (x + w + 5);
+    if (gfx_largura(r, GFX_MIUDO) > livre) {
+        int n = (int)strlen(r);
+        while (n > 3) {                          // corta numa palavra e poe "..."
+            n--;
+            while (n > 3 && r[n] != ' ') n--;
+            memcpy(r + n, "...", 4);
+            if (gfx_largura(r, GFX_MIUDO) <= livre) break;
+        }
+    }
+    gfx_texto(x + w + 5, y, r, aceso ? C_MARFIM : C_TEXTO_M, GFX_MIUDO, false);
+    dica_zona(x, y - 3, x_max - x, 12, DICA_TRUNFO, fala_perso);
+}
+
 // O balao do oponente: depois de tudo, por cima da mesa.
 static void balao_oponente(void)
 {

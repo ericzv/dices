@@ -58,7 +58,6 @@ static int egoista_antes(int j, int k)
 static int soma(int j, const uint8_t *est)
 {
     const fila_t *f = &F[j];
-    if (f->zerada) return 0;
     int t = 0;
     for (int k = 0; k < f->lancados; k++)
         if (est[k] == V_VALIDO) t += valor_pontos(j, k) + f->bonus[k];
@@ -104,6 +103,15 @@ static bool tem_jackpot(int j, const uint8_t *est)
     return false;
 }
 
+// Os lances de um Explosivo que somaram v: so explode no numero maximo, entao
+// sao maximos ate o ultimo ("(8+8+3)").
+static void lances_explosivo(char *s, size_t n, int v, int lados)
+{
+    size_t p = (size_t)snprintf(s, n, "(");
+    while (v > lados && p < n) { p += (size_t)snprintf(s + p, n - p, "%d+", lados); v -= lados; }
+    if (p < n) snprintf(s + p, n - p, "%d)", v);
+}
+
 // Aplica a regra ao dado k que acabou de pousar. O veredito e curto: diz o
 // que aconteceu, nao o porque em detalhe.
 static void aplica_regra(int j, int k)
@@ -135,11 +143,14 @@ static void aplica_regra(int j, int k)
         }
     }
 
-    // Gemeo: tira o mesmo do ultimo dado que vale. Prensa (amuleto): 1 vira 3.
-    if (ef == EF_GEMEO && l >= 0) {
+    // Gemeo: tira o mesmo do ultimo dado que vale, se couber nos seis lados
+    // dele; acima de 6, fica com o que rolou. Prensa (amuleto): 1 vira 3.
+    if (ef == EF_GEMEO && l >= 0 && f->valor[l] <= TIPO[t].lados) {
         v = f->valor[k] = f->valor[l];
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
     }
+    // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
+    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO
         && ef != EF_TREVO && ef != EF_BUMERANGUE) {
         v = f->valor[k] = 3;
@@ -206,8 +217,7 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    bool condenou = ef == EF_TUDO_NADA && v == 1 && !f->zerada;
-    if (ef == EF_TUDO_NADA && v == 1) f->zerada = true;
+    bool condenou = ef == EF_TUDO_NADA && v == 1;    // -5 em cada dado seu no fim
     if (ef == EF_MALDITO && v <= 7) {          // Agouro: 7 ou menos derruba a sequencia
         anula_fila(j);
         f->est[k] = V_ANULADO;
@@ -315,6 +325,10 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+2)", vale);
         } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Acumulador vale %d (+%d guardado)", vale, f->bonus[k]);
+        } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
+            char lances[24];
+            lances_explosivo(lances, sizeof lances, v, TIPO[t].lados);
+            snprintf(veredito, sizeof veredito, "Explosivo! %s vale %d", lances, vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
         else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
         else {
@@ -327,7 +341,7 @@ static void aplica_regra(int j, int k)
         ver_tipo = 0;
     }
     if (condenou) {                              // o aviso vale mais que o resto
-        snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: a rodada vale 0");
+        snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: -5 em cada dado seu no fim");
         ver_tipo = 3;
         ver_comum = false;
     } else if (ef == EF_VICIADO && f->descarte[k] && ver_tipo == 0 && !f->tag[k][0]) {
@@ -345,7 +359,7 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor);
 
 // Refaz a sequencia de j do comeco ate o dado n (sem ele), com os valores que
 // estao la: a regra da queda, o Egoista, o Tudo ou Nada... tudo de novo.
-// Serve a Ventania (que rolou o de antes) e ao Espelho que virou no fim.
+// Serve a Ventania (que rolou o primeiro) e ao Espelho que virou no fim.
 static void refaz_sequencia(int j, int n)
 {
     fila_t *f = &F[j];
@@ -355,14 +369,13 @@ static void refaz_sequencia(int j, int n)
         f->dobra[i] = 0;
         f->tag[i][0] = 0;
     }
-    f->zerada = false;
     int lanc = f->lancados;
     for (int i = 0; i < n; i++) { f->lancados = i + 1; aplica_regra(j, i); }
     f->lancados = lanc;
 }
 
 // Um dado acabou de cair na posicao k. O Ventania, antes da regra dele, rola
-// de novo o dado lancado logo antes dele e refaz a sequencia do comeco com o
+// de novo o primeiro dado da sequencia e refaz a sequencia do comeco com o
 // valor novo (dados podem cair ou voltar a valer). Nao rola a si mesmo nem os
 // outros. 'r' e o sorteio: o da partida ou o da IA imaginando jogadas.
 static void pousa(int j, int k, int (*r)(int))
@@ -383,7 +396,7 @@ static void pousa(int j, int k, int (*r)(int))
         if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", tirou, f->valor[k]);
         return;
     }
-    int i = k - 1;
+    int i = 0;                                                   // o primeiro da sequencia
     if (!(f->tipo[i] == D_VIDRO && f->cru[i] == 1)) {           // vidro quebrado nao volta
         int menor;
         f->cru[i] = f->valor[i] = sorteia_valor(f->tipo[i], f->fixo[i], r, &menor);
@@ -393,7 +406,7 @@ static void pousa(int j, int k, int (*r)(int))
     refaz_sequencia(j, k);
     aplica_regra(j, k);
     if (f->est[k] == V_VALIDO && ver_tipo == 0) {
-        snprintf(veredito, sizeof veredito, "Ventania! o dado de antes rolou: %d", f->valor[i]);
+        snprintf(veredito, sizeof veredito, "Ventania! o primeiro dado rolou: %d", f->valor[i]);
         ver_comum = false;
     }
 }

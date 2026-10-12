@@ -162,6 +162,14 @@ static void des_nova_run(void)
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
 // recomecada (quem saiu no meio e voltou), sorteia do mesmo jeito.
+// O Acumulador guarda o bonus so dentro de uma partida: a cada partida da
+// run ele recomeca do zero.
+static void zera_acumuladores(peca_t *col, int n)
+{
+    for (int i = 0; i < n; i++)
+        if (col[i].tipo == D_ACUMULADOR) col[i].fixo = 0;
+}
+
 static void des_comeca_partida(void)
 {
     const no_t *no = &run.no[run.passo][run.caminho[run.passo]];
@@ -201,6 +209,7 @@ static void des_comeca_partida(void)
     J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
+    zera_acumuladores(J[0].col, J[0].n_col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
@@ -234,6 +243,7 @@ static void des_resultado(void)
     // queimou nao voltam.
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
+    zera_acumuladores(run.col, run.n_col);
     run.garcom = 0;                              // o agrado do Garcom valeu para esta
     if (perfil_atual >= 0 && perfis[perfil_atual].partidas < 65535) {
         perfis[perfil_atual].partidas++;

@@ -80,6 +80,7 @@
 #include "dado/aposta.inc"        // a aposta entre os dois turnos
 #include "dado/premio.inc"        // o sorteio e a roleta do premio
 #include "dado/ia.inc"            // o aparelho como adversario
+#include "dado/hora.inc"          // a hora da verdade e o crescendo
 #include "dado/online.inc"        // o rival pela rede
 #include "dado/passo.inc"         // o passo de tempo
 #include "dado/mesa.inc"          // o desenho da mesa

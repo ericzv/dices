@@ -466,6 +466,32 @@ def derrota():
         m.poe(i * 0.22, baixo(n - 24, d, 0.75), G_BX)
     return sala(m.x, 0.24)
 
+def forte():
+    """A vitoria grande (o crescendo): o arpejo da vitoria mais firme, o Do
+    com setima maior por baixo, o sax-alto respondendo no Mi, um prato de
+    vassourinha subindo e mais fichas caindo no monte."""
+    m = Mix(2.8)
+    for i, n in enumerate((72, 76, 79, 84, 88)):
+        m.poe(i * 0.06, tecla(n, 1.2 if i < 4 else 1.6, 0.68 if i < 4 else 0.8, 0.6))
+    for i, n in enumerate((60, 64, 67, 71)):
+        m.poe(0.30 + i * 0.012, tecla(n, 1.4, 0.55, 0.6), 0.6)
+    m.poe(0, baixo(36, 1.5, 0.9), G_BX)
+    m.poe(0.30, sala(sax(76, 0.8, 0.7), 0.35), 0.9)
+    n = int(1.6 * SR)
+    m.poe(0.05, ruido(1.6, 3000, 11000) * env(n, 0.25, 0.35), 0.12)
+    monte_de_fichas(m, 0.30, 0.95, 12, 0.4)
+    return sala(m.x, 0.24)
+
+def suspense():
+    """A hora da verdade: duas batidas de coracao no timpano, abafadas (a
+    segunda mais fraca), e o Do grave do baixo segurando por baixo."""
+    m = Mix(2.4)
+    for t0, g in ((0.0, 1.0), (0.95, 0.6)):
+        m.poe(t0, pb(nota('timpani', 36, 0.16, 0.12), 200), 0.7 * g)
+        m.poe(t0 + 0.17, pb(nota('timpani', 36, 0.24, 0.2), 260), g)
+    m.poe(0.02, baixo(36, 1.6, 0.4, 0.5), 0.1)
+    return sala(m.x, 0.15)
+
 def abertura():
     """F4 A4 C5 E5 A5 em arpejo, o ultimo mais longo; Fa no baixo."""
     m = Mix(2.8)
@@ -797,7 +823,8 @@ VOLUME = {
 }
 # Os sons novos, que nao substituem nenhum, ficam abaixo dos parentes:
 VOLUME.update({'passa': VOLUME['tique'] * 0.32, 'moeda_bate': VOLUME['bate'] * 0.6,
-               'moeda_pousa': VOLUME['pousa'] * 0.45, 'moeda_rola': VOLUME['rufo'] * 0.5})
+               'moeda_pousa': VOLUME['pousa'] * 0.45, 'moeda_rola': VOLUME['rufo'] * 0.5,
+               'suspense': VOLUME['anula'] * 0.8, 'forte': VOLUME['vitoria'] * 1.15})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -810,6 +837,7 @@ SONS = {
     'anula': (anula, 'anula'), 'efeito': (efeito, 'efeito'), 'vitoria': (vitoria, 'vitoria'),
     'correu': (correu, 'correu'), 'empate': (empate, 'empate'), 'partida': (partida, 'partida'),
     'fim': (fim, 'fim'), 'derrota': (derrota, 'derrota'), 'abertura': (abertura, 'abertura'),
+    'forte': (forte, 'forte'), 'suspense': (suspense, 'suspense'),
     'laser': (laser, 'laser'), 'vento': (vento, 'vento'), 'vidro': (vidro, 'vidro'), 'fogo': (fogo, 'fogo'),
     'tira': (tira, 'tira'), 'rouba': (rouba, 'rouba'), 'zera': (zera, 'zera'),
     'bigorna': (bigorna, 'bigorna'), 'jackpot': (jackpot, 'jackpot'),

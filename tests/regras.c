@@ -14,6 +14,7 @@ bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
+void som_suspense(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
 #include "salva_mem.h"
@@ -1637,6 +1638,40 @@ int main(void)
     (void)ia_continua();
     CONFERE(semente == sem_antes, "IA: pensar mexeu no sorteio da partida");
     CONFERE(!memcmp(f_antes, F, sizeof F), "IA: pensar mexeu na mesa");
+
+    // Hora da verdade: o ultimo dado da rodada e decisivo quando a face muda
+    // quem leva o pote. Quem joga primeiro, um dado do meio da fila, um jogo
+    // ja decidido ou quase certo nao contam. Imaginar as faces nao mexe na
+    // mesa nem no sorteio da partida.
+    modo = M_UM; rodada = 3; pote = 20; J[0].fichas = J[1].fichas = 50;
+    limpa();
+    primeiro = 1;
+    joga(1, D_D6, 3); joga(1, D_D8, 5); joga(1, D_D8, 6);         // ele: 14
+    joga(0, D_D4, 4); joga(0, D_D6, 5);                            // voce: 9; o 6 vence, o 5 empata
+    F[0].tipo[2] = D_D6; F[0].n = 3;
+    sem_antes = semente;
+    memcpy(f_antes, F, sizeof F);
+    CONFERE(dado_decisivo(0, 2) == 1, "Hora: o D6 que vence com 6 devia decidir a rodada");
+    CONFERE(semente == sem_antes, "Hora: imaginar as faces mexeu no sorteio da partida");
+    CONFERE(!memcmp(f_antes, F, sizeof F), "Hora: imaginar as faces mexeu na mesa");
+    CONFERE(dado_decisivo(1, 2) == 0, "Hora: quem joga primeiro nao decide a rodada");
+    rodada = MAX_RODADAS;                                          // a ultima: decide a partida
+    CONFERE(dado_decisivo(0, 2) == 2, "Hora: na ultima rodada devia decidir a partida");
+    rodada = 3;
+    F[0].tipo[3] = D_D6; F[0].n = 4;
+    CONFERE(dado_decisivo(0, 2) == 0, "Hora: um dado do meio da fila nao e o ultimo");
+    limpa();
+    primeiro = 1;
+    joga(1, D_D6, 4); joga(1, D_D6, 5);                            // ele: 9
+    joga(0, D_D8, 6); joga(0, D_D12, 7); joga(0, D_D8, 7);        // voce: 20
+    F[0].tipo[3] = D_D6; F[0].n = 4;
+    CONFERE(dado_decisivo(0, 3) == 0, "Hora: com 20 contra 9 nao ha o que decidir");
+    limpa();
+    primeiro = 1;
+    joga(1, D_D12, 9); joga(1, D_D12, 9); joga(1, D_D12, 10);     // ele: 28
+    joga(0, D_D4, 4); joga(0, D_D6, 5);                            // voce: 9; so o 20 vence
+    F[0].tipo[2] = D_D20; F[0].n = 3;
+    CONFERE(dado_decisivo(0, 2) == 0, "Hora: 1 chance em 20 nao devia prender a mesa");
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");

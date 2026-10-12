@@ -13,6 +13,11 @@ static void desenha_lance(void)
     for (int i = n_voo - 1; i >= 0; i--) {
         voo_t *v = &voo[i];
         float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
+        if (hora && !v->fantasma) {              // a hora da verdade: a camera chega perto
+            float z = t_hora;
+            if (fase == F_ARRUMA) z *= 1 - fminf(1, t_fase / 0.45f);
+            r *= 1 + 0.22f * z;
+        }
         bool descartado = false;
         // O lance menor do Viciado: riscado e encolhendo enquanto o maior
         // vai para a fila.
@@ -475,6 +480,7 @@ static void desenha_fila(int j)
         float pulo = 0;
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
             pulo = sinf(t_fase / 0.25f * 3.1416f) * 8;
+        if (!anul) pulo += onda_pulo(j, k);
         // Espelho que so vira no fim: mostra o que tirou ate o evento dele
         // chegar na metade, e entao o numero do rival.
         bool ainda = no_desfecho && vis_espelho[j][k]
@@ -492,6 +498,8 @@ static void desenha_fila(int j)
         marca_nivel = f->fixo[k];
         desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
         marca_nivel = -1;
+        if (!anul && t_onda >= 0 && j == onda_j && k < onda_n && onda_nivel >= 2 && t_onda < 0.9f)
+            faiscas(x, (int)(y - pulo), t_onda + k * 0.3f, C_AMARELO);
         // Durante a sequencia: o dado que tirou o que o poder dele pede brilha.
         if (!no_desfecho && fase != F_FIM && giro < 0.5f) {
             int arm = poder_armado(j, k);
@@ -870,8 +878,14 @@ static void pote_mesa(void)
     int n = pote / 10 + 1;
     if (n > 9) n = 9;
     int y = CENTRO + 10;
-    for (int i = 0; i < n; i++)
-        ficha(POTE_X, y - i * 4, (i % 3 == 0) ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
+    for (int i = 0; i < n; i++) {
+        int sobe = 0;                            // na onda do crescendo, as fichas pulam
+        if (t_onda >= 0) {
+            float q = (t_onda - 0.3f - i * 0.03f) / 0.24f;
+            if (q > 0 && q < 1) sobe = (int)(sinf(q * 3.1416f) * (onda_nivel + 1));
+        }
+        ficha(POTE_X, y - i * 4 - sobe, (i % 3 == 0) ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
+    }
     char s[16];
     snprintf(s, sizeof s, "%d", pote);
     txt_c(POTE_X, y + 12, s, C_OURO, true);

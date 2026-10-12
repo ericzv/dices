@@ -164,6 +164,11 @@ void dado_inicia(int n_partidas)
         rapido = salva_le("vel", b, sizeof b) > 0 && b[0] == '1';
         rapido_lido = true;
     }
+    if (!tremor_lido) {                  // e se o tremor da tela foi desligado
+        char b[8];
+        tremor_off = salva_le("tremor", b, sizeof b) > 0 && b[0] == '0';
+        tremor_lido = true;
+    }
     partidas = n_partidas;
     semente_v = (uint32_t)esp_timer_get_time() | 1;
     // Online, os dois lados sorteiam igual: a semente vem da sala.
@@ -256,6 +261,7 @@ static void lanca_proximo(void)
         if (pc->fixo < 6) pc->fixo++;
         f->fixo[k] = pc->fixo;
     }
+    hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     int menor;
     int x = sorteia_valor(t, f->fixo[k], rola, &menor);
     f->cru[k] = x;
@@ -273,6 +279,7 @@ static void lanca_proximo(void)
     v->vy = (vez == baixo ? -1 : 1) * frnd(420, 600);
     v->spin = frnd(-14, 14);
     v->face = face_v(t, x);
+    if (hora) v->hesita = HESITA_T;
     n_voo = 1;
     f->descarte[k] = (uint8_t)menor;
     // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
@@ -387,7 +394,9 @@ static void conclui_rodada(void)
             am_acende(A_POTE);
         }
         pote = 0;
-        som_toca(SOM_VITORIA);
+        // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
+        if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
+        else som_toca(SOM_VITORIA);
     }
     int aluguel = virada_forca(1);                // a Dona cobra o aluguel, ganhe quem ganhar
     if (aluguel && J[0].fichas > 0) {
@@ -450,7 +459,7 @@ static void desfecho(void)
     ev_i = 0;
     t_fase = 0;
     for (int j = 0; j < 2; j++) log_base[j] = total_visivel(j);
-    if (n_ev) { fase = F_EFEITOS; som_toca(som_do_evento(0)); }
+    if (n_ev) { fase = F_EFEITOS; som_toca(som_do_evento(0)); reage_evento(&ev[0]); }
     else conclui_rodada();
 }
 

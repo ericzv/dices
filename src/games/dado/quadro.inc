@@ -91,6 +91,7 @@ void dado_desenha(void)
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
+    aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta
 }
 
@@ -128,6 +129,7 @@ static void desenha_tudo(void)
         desenha_fila(outro(vez));
         desenha_fila(vez);
         desenha_devolvidos();
+        desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
         else if (fase == F_RESULTADO) { desenha_log(); desenha_resultado(); }

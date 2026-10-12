@@ -15,6 +15,7 @@ void dado_passo(float dt)
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     if (rapido && modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_RAPIDO;
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
+    if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_elev > 0) {
         float antes = ELEV_T - t_elev;
@@ -23,6 +24,7 @@ void dado_passo(float dt)
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
     t_fase += dt;
+    hora_passo(dt, dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
     passo_slot(dt);
@@ -73,14 +75,15 @@ void dado_passo(float dt)
         }
         break;
     case F_ROLANDO: {
-        // Camera lenta: o dado rola devagar, e o quarto mais devagar ainda -
-        // e nele que a rodada se decide.
         // O ultimo dado da sequencia rola devagar: e nele que a rodada se
-        // decide. Na vez da IA, os outros andam mais rapido.
+        // decide. Na vez da IA, os outros andam mais rapido. Na hora da
+        // verdade, sai quase parado no ar e rola mais devagar ainda.
         bool ia = (cpu >> voo[0].dono & 1) != 0;
         bool ultimo = voo[0].slot == F[voo[0].dono].n - 1;
         float lento = ultimo ? 0.42f : (ia ? 1.0f : 0.62f);
+        if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
         if (fisica(dt * lento) && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
+            if (hora) som_rufo(false);           // o som segura: silencio ate o veredito
             voo[0].ox = voo[0].x; voo[0].oy = voo[0].y;
             t_fase = 0;
             fase = F_ARRUMA;
@@ -116,6 +119,7 @@ void dado_passo(float dt)
             } else som_toca(SOM_ANULA);
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             flutua_pouso(j, k);
+            reage_lance(j, k);
             t_fase = 0;
             fase = F_VEREDITO;
         }
@@ -124,7 +128,7 @@ void dado_passo(float dt)
     case F_VEREDITO:
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
-        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f))) {
+        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)) {
             if (F[vez].lancados >= F[vez].n) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }
@@ -135,7 +139,7 @@ void dado_passo(float dt)
             ev_i++;
             t_fase = 0;
             if (ev_i >= n_ev) conclui_rodada();
-            else som_toca(som_do_evento(ev_i));
+            else { som_toca(som_do_evento(ev_i)); reage_evento(&ev[ev_i]); }
         }
         break;
     default:

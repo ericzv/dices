@@ -38,6 +38,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_VALIDO2] = "valido2",   [SOM_VALIDO3] = "valido3",   [SOM_VALIDO4] = "valido4",
     [SOM_BATE_DADO] = "bate_dado", [SOM_PASSA] = "passa",
     [SOM_MOEDA_BATE] = "moeda_bate", [SOM_MOEDA_POUSA] = "moeda_pousa",
+    [SOM_SUSPENSE] = "suspense", [SOM_FORTE] = "forte",
 };
 
 typedef struct {
@@ -50,7 +51,7 @@ static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static Music trilha;
 static bool  pronto, falhou, ligado = true, musica = true;
-static bool  rufando, girando;
+static bool  rufando, girando, suspense;
 static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
 
 static const som_arquivo_t *acha(const char *nome)
@@ -136,8 +137,9 @@ void som_atualiza(float dt)
         SetSoundVolume(giro, vol_giro);
         if (!girando && vol_giro < 0.01f) StopSound(giro);
     }
-    float d = rufando || girando ? 0.45f : 1;
-    duck += (d - duck) * fminf(1, dt / 0.25f);
+    // Na hora da verdade a trilha quase some, e volta sem pressa depois.
+    float d = suspense ? 0.08f : (rufando || girando ? 0.45f : 1);
+    duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.4f ? 0.9f : 0.25f));
     SetMusicVolume(trilha, 0.35f * duck * (ligado && musica ? 1 : 0));
     UpdateMusicStream(trilha);
 }
@@ -193,6 +195,8 @@ void som_giro(bool on)
     }
     girando = on;
 }
+
+void som_suspense(bool on) { suspense = on; }
 
 bool som_liga(bool on)  { ligado = on && pronto; return ligado; }
 bool som_ligado(void)   { return ligado; }

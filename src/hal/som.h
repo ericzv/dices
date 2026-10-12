@@ -38,6 +38,8 @@ enum {
     SOM_PASSA,       // o mouse passou por cima de algo que se escolhe
     SOM_MOEDA_BATE,  // uma moeda bateu na borda ou num dado
     SOM_MOEDA_POUSA, // uma moeda parou na mesa
+    SOM_SUSPENSE,    // a hora da verdade: o coracao batendo enquanto o dado decisivo rola
+    SOM_FORTE,       // a mesa vibra: uma rodada grande, uma virada, a fila cheia de poderes
     SOM_N
 };
 
@@ -48,3 +50,4 @@ bool som_falhou(void);       // o aparelho nao tem saida de audio
 void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola (false para tambem a moeda)
 void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e uma moeda
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
+void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide

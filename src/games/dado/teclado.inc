@@ -68,6 +68,15 @@ void dado_tecla(const key_event_t *ev_)
         rapido = !rapido;
         salva_grava("vel", rapido ? "1" : "0");
         t_aviso_vel = 1.6f;
+        t_aviso_tremor = 0;
+        som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == 't' && !dado_digitando()) {
+        tremor_off = !tremor_off;
+        salva_grava("tremor", tremor_off ? "0" : "1");
+        t_aviso_tremor = 1.6f;
+        t_aviso_vel = 0;
         som_toca(SOM_TIQUE);
         return;
     }

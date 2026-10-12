@@ -29,6 +29,7 @@ bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
+void som_suspense(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
 #include "salva_mem.h"

@@ -48,6 +48,7 @@ typedef struct {
     float t_face, pouso;
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
+    float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
 } voo_t;
 
 // Eventos do desfecho, tocados um a um.
@@ -91,6 +92,25 @@ static int   n_devolvidos;
 static float t_devolve = -1;
 static int   log_base[2];                 // pontos de cada um quando os efeitos do fim comecam
 static float t_relogio;                  // corre sempre: brilhos que nao recomecam a cada fase
+// A hora da verdade (hora.inc): o ultimo dado da rodada, quando quem leva o
+// pote depende da face dele. hora: 0 nada, 1 decide a rodada, 2 a partida.
+#define HESITA_T 0.26f                   // o dado hesita na quina antes de deitar (tempo do lance)
+static int   hora;
+static float t_hora;                     // 0..1: o quanto a mesa ja escureceu em volta dele
+static float hora_x, hora_y;             // onde esta a luz
+static int  dado_decisivo(int j, int k);
+static void hora_comeca(int grau);
+// O crescendo: a mesa reage a sequencias longas e a combos. A onda faz os
+// dados de onda_j pularem um depois do outro (e as fichas do pote); o
+// tremor sacode o quadro todo, a menos que a pessoa o desligue (tecla T).
+static float t_onda = -1;
+static int   onda_j, onda_n, onda_nivel;
+static float t_tremor, tremor_dur, tremor_px;
+static bool  tremor_off, tremor_lido;
+static float t_aviso_tremor;
+static void crescendo(int j, int nivel);
+static void reage_evento(const evento_t *e);
+#define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];

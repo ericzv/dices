@@ -68,6 +68,7 @@ static void desenha_avisos(void)
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
+    else if (t_aviso_tremor > 0) msg = tremor_off ? "Tremor da tela: desligado  (T troca)" : "Tremor da tela: ligado  (T troca)";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);

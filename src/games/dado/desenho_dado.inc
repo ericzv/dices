@@ -854,6 +854,21 @@ static bool fisica(float dt)
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
+        // A hora da verdade: quase parado, o dado hesita na quina, balancando,
+        // e a face troca cada vez mais devagar antes de deitar.
+        if ((vel < 36 || t_fase > 6.0f) && v->hesita > 0) {
+            if (v->hesita >= HESITA_T) v->giro_h = v->giro;
+            v->hesita -= dt;
+            float q = fmaxf(0, v->hesita / HESITA_T);
+            v->vx = v->vy = v->spin = 0;
+            v->giro = v->giro_h + 0.2f * q * sinf((1 - q) * 22);
+            if (v->t_face <= 0) {
+                v->face = face_v(v->tipo, v->valor);
+                v->t_face = 0.025f + (1 - q) * 0.08f;
+            }
+            if (v->hesita > 0) continue;
+            v->hesita = -1;
+        }
         if (v->t_face <= 0) {
             v->face = face_v(v->tipo, v->valor);
             v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;

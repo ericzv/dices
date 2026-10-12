@@ -27,6 +27,7 @@ caindo).
 | Moedas | `moeda_bate_*`, `moeda_pousa_*`, `moeda_rola` | uma ficha leve, meio madeira: cliques de plástico mais agudos, um toque de madeira e o bambear ao deitar; mais baixas que os dados |
 | Menu | `tique` (cursor e escolher), `passa` (o mouse passando por cima) | madeira gravada, encurtada; o `passa` é mais curto e bem mais baixo |
 | Jogadas | `valido`…`valido4`, `anula`, `efeito`, `empate`, `vitoria`, `correu` | as notas do som sintetizado antigo, em teclado (Rhodes) e baixo elétrico; o `valido4` tem um sax-alto |
+| Momentos | `suspense` (a hora da verdade), `forte` (a vitória grande do crescendo) | o coração em tímpano abafado com o baixo por baixo; a vitória com acorde cheio, sax-alto, prato de vassourinha e mais fichas |
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |

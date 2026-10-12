@@ -784,6 +784,14 @@ int main(void)
         joga(0, D_GEMEO, 5);
         d = fim();
         CONFERE(d.total[0] == 5, "Gemeo sozinho: esperava 5, deu %d", d.total[0]);
+        // So ate 6 (e um d6): depois de um 9, fica com o que rolou (e pode cair).
+        limpa();
+        joga(0, D_D8, 6); joga(0, D_GEMEO, 2);
+        CONFERE(F[0].valor[1] == 6 && F[0].est[1] == V_VALIDO, "Gemeo devia copiar o 6");
+        limpa();
+        joga(0, D_D12, 9); joga(0, D_GEMEO, 3);
+        CONFERE(F[0].valor[1] == 3 && F[0].est[1] == V_ANULADO && F[0].est[0] == V_ANULADO,
+                "Gemeo depois de 9: devia ficar com o 3 e cair (valor %d)", F[0].valor[1]);
         // Prisma: +1 por tipo diferente valendo.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);

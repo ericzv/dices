@@ -143,8 +143,9 @@ static void aplica_regra(int j, int k)
         }
     }
 
-    // Gemeo: tira o mesmo do ultimo dado que vale. Prensa (amuleto): 1 vira 3.
-    if (ef == EF_GEMEO && l >= 0) {
+    // Gemeo: tira o mesmo do ultimo dado que vale, se couber nos seis lados
+    // dele; acima de 6, fica com o que rolou. Prensa (amuleto): 1 vira 3.
+    if (ef == EF_GEMEO && l >= 0 && f->valor[l] <= TIPO[t].lados) {
         v = f->valor[k] = f->valor[l];
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
     }

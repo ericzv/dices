@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Dados sorteados por raridade
 // ---------------------------------------------------------------------------
-// Pesos por dado de cada raridade [comum, incomum, raro, lenda]. Os dados
+// Pesos por dado de cada raridade [comum, incomum, raro, lendario]. Os dados
 // iniciais (moeda, D4, D6) nunca saem, como no premio da partida normal.
 static int sorteia_raridade(const float w[4])
 {

@@ -702,6 +702,33 @@ static void desenha_evento(void)
                              gfx_mistura(C_LASER, C_FELTRO, (int)(tt * 80)));
                 }
             }
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_AUTOFAGIA) {
+            // Autofagia: a cobra sai do dado, desliza rente a fila ate o mais
+            // fraco e se fecha em volta dele, mordendo o rabo.
+            float q = p / 0.4f;
+            int lado = by < GFX_H / 2 ? 1 : -1;           // pelo lado de fora da mesa
+            int yb = by + lado * (R_DADO + 7);
+            if (q < 1) {
+                for (int i = 9; i >= 0; i--) {
+                    float t = q - i * 0.035f;
+                    if (t < 0) continue;
+                    int x = ax + (int)((bx - ax) * t), y = yb + (int)(sinf(t * 14 - i * 0.6f) * 3);
+                    gfx_disco(x, y, i == 0 ? 4 : 3 - i / 4, i == 0 ? C_VERDE : gfx_mistura(C_VERDE, C_FELTRO, i * 6));
+                    if (i == 0) gfx_pixel(x + (bx > ax ? 1 : -1), y - 1, C_BARRA);
+                }
+            } else if (p < 0.9f) {
+                float a = fminf(1, (q - 1) / 0.6f) * 6.2832f;   // o anel se fecha em volta do alvo
+                int rr = R_DADO + 6;
+                for (float s2 = 0; s2 < a; s2 += 0.12f) {
+                    float an = 1.5708f * lado + s2;
+                    int w = 1 + (int)(s2 / 2.5f);
+                    gfx_disco(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), w, C_VERDE);
+                }
+                float an = 1.5708f * lado + a;            // a cabeca, na ponta
+                int hx = bx + (int)(cosf(an) * rr), hy = by + (int)(sinf(an) * rr);
+                gfx_disco(hx, hy, 4, C_VERDE);
+                gfx_pixel(hx, hy - 1, C_BARRA);
+            }
         } else {
             projetil(ax, ay, bx, by, p / 0.42f, c);
         }

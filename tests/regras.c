@@ -124,12 +124,23 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 3 && d.total[1] == 5, "Maldito 3: esperava 3 x 5, deu %d x %d", d.total[0], d.total[1]);
 
-    // Pirata: com 6+ tira 4 do oponente, sem ficar com eles.
+    // Par: igual ao ultimo que vale, +6.
+    limpa();
+    joga(0, D_D4, 3); joga(0, D_PAR, 3);
+    d = fim();
+    CONFERE(d.total[0] == 3 + 3 + 6, "Par: esperava 12, deu %d", d.total[0]);
+
+    // Pirata: com 7 ou 8 tira 4 do oponente, sem ficar com eles; com 6, nao.
     limpa();
     joga(0, D_PIRATA, 7);
     joga(1, D_D8, 8);
     d = fim();
     CONFERE(d.total[0] == 7 && d.total[1] == 4, "Pirata 7: esperava 7 x 4, deu %d x %d", d.total[0], d.total[1]);
+    limpa();
+    joga(0, D_PIRATA, 6);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.total[0] == 6 && d.total[1] == 8, "Pirata 6: esperava 6 x 8, deu %d x %d", d.total[0], d.total[1]);
 
     // Agouro: 7 ou menos derruba a sequencia; 8, nao.
     limpa();
@@ -497,12 +508,12 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 21, "Ferreiro + Dobro: esperava 21, deu %d", d.total[0]);
 
-        // Cobrador: +2 se o oponente comecou a rodada com mais fichas.
+        // Cobrador: +4 se o oponente comecou a rodada com mais fichas.
         limpa();
         fichas_ini[0] = 50; fichas_ini[1] = 80;
         joga(0, D_COBRADOR, 3);
         d = fim();
-        CONFERE(d.total[0] == 5, "Cobrador cobrando: esperava 5, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 7, "Cobrador cobrando: esperava 7, deu %d", d.total[0]);
         limpa();
         fichas_ini[0] = 80; fichas_ini[1] = 50;
         joga(0, D_COBRADOR, 3);
@@ -521,25 +532,25 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 0, "Misericordioso anulado: esperava 0, deu %d", d.total[0]);
 
-        // Solitario: +4 se nao ha dado valendo logo antes nem logo depois.
+        // Solitario: +6 se nao ha dado valendo logo antes nem logo depois.
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
-        CONFERE(d.total[0] == 2 + 4, "Solitario sem vizinhos: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 6, "Solitario sem vizinhos: esperava 8, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
         CONFERE(d.total[0] == 3, "Solitario com vizinho: esperava 3, deu %d", d.total[0]);
-        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +4.
+        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +6.
         limpa();
         joga(0, D_SOLITARIO, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
         d = fim();
-        CONFERE(d.total[0] == 2 + 4, "Solitario na ponta: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 6, "Solitario na ponta: esperava 8, deu %d", d.total[0]);
         // Um dado valendo mais longe (nao vizinho) nao atrapalha.
         limpa();
         joga(0, D_D4, 1); joga(0, D_D4, 3); joga(0, D_D4, 2); joga(0, D_SOLITARIO, 4);
         d = fim();
-        CONFERE(d.total[0] == 1 + 4 + 4, "Solitario com dado longe: esperava 9, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 1 + 4 + 6, "Solitario com dado longe: esperava 11, deu %d", d.total[0]);
 
         // Desafiante: +4 se for o maior dado da rodada (empate nao conta).
         limpa();
@@ -778,6 +789,31 @@ int main(void)
         joga(0, D_FENIX, 4); joga(0, D_BERSERKER, 10);
         d = fim();
         CONFERE(d.total[0] == 14, "Berserker + Fenix: a Fenix renasce, esperava 14, deu %d", d.total[0]);
+        // Autofagia: valendo, anula o outro dado seu de menor numero (no
+        // empate, o primeiro); Escudo resiste; caida, nao age.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.total[0] == 5 + 9,
+                "Autofagia: devia comer o 2 (deu %d)", d.total[0]);
+        CONFERE(poder_armado(0, 2) == 2, "Autofagia com alvo devia brilhar contra o dono");
+        limpa();
+        joga(0, D_D4, 3); joga(0, D_D6, 3); joga(0, D_AUTOFAGIA, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO, "Autofagia no empate: devia comer o primeiro");
+        limpa();
+        joga(0, D_ESCUDO, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO, "Autofagia: o Escudo resiste, vai o 5");
+        limpa();
+        joga(0, D_AUTOFAGIA, 7);
+        d = fim();
+        CONFERE(d.total[0] == 7, "Autofagia sozinha: esperava 7, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D12, 9); joga(0, D_AUTOFAGIA, 3);
+        d = fim();
+        CONFERE(F[0].est[2] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 2,
+                "Autofagia caida nao devia agir (deu %d)", d.total[0]);
         // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
         limpa();
         joga(0, D_D6, 4); joga(0, D_GEMEO, 2);
@@ -795,8 +831,8 @@ int main(void)
         joga(0, D_D12, 9); joga(0, D_GEMEO, 3);
         CONFERE(F[0].valor[1] == 3 && F[0].est[1] == V_ANULADO && F[0].est[0] == V_ANULADO,
                 "Gemeo depois de 9: devia ficar com o 3 e cair (valor %d)", F[0].valor[1]);
-        // Checkpoint: +3 em cada dado seu valendo lancado depois dele; caido
-        // ou nao, vale; levado pelo oponente, nao.
+        // Checkpoint valendo: +3 em cada dado seu valendo lancado depois dele.
+        // Caido, nao age.
         limpa();
         joga(0, D_D4, 2); joga(0, D_CHECKPOINT, 3); joga(0, D_D6, 4); joga(0, D_D8, 6);
         d = fim();
@@ -805,8 +841,9 @@ int main(void)
         limpa();
         joga(0, D_D6, 5); joga(0, D_CHECKPOINT, 6); joga(0, D_D4, 2); joga(0, D_D8, 7);
         d = fim();
-        CONFERE(F[0].est[1] == V_ANULADO && d.total[0] == 5 + 7 + 3,
-                "Checkpoint caido: o D8 depois dele devia ganhar +3 (deu %d)", d.total[0]);
+        CONFERE(F[0].est[1] == V_ANULADO && d.total[0] == 5 + 7,
+                "Checkpoint caido nao age: esperava 12, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 1) == 0, "Checkpoint caido nao devia brilhar");
         limpa();
         joga(0, D_CHECKPOINT, 6);
         d = fim();
@@ -1418,11 +1455,11 @@ int main(void)
     CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO,
             "Carrasco com 1 valendo e o menor: devia anular a si mesmo");
 
-    // ---- Fichas: comecou a rodada na frente, +2 ---------------------------
+    // ---- Fichas: comecou a rodada na frente, +4 ---------------------------
     limpa(); fichas_ini[0] = 40; fichas_ini[1] = 30;
     joga(0, D_FICHAS, 3);
     d = fim();
-    CONFERE(d.total[0] == 5, "Fichas na frente: esperava 5, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 7, "Fichas na frente: esperava 7, deu %d", d.total[0]);
     limpa(); fichas_ini[0] = 30; fichas_ini[1] = 40;
     joga(0, D_FICHAS, 3);
     d = fim();

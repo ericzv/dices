@@ -174,7 +174,6 @@ static int chance_cair(int j)
     int caiu = 0;
     for (int a = 0; a < N; a++) {
         semeia_ia(0xC4A1u + (uint32_t)rodada * 31u + (uint32_t)k, a);
-        if (f->tipo[k] == D_ACUMULADOR && f->fixo[k] < 6) f->fixo[k]++;   // o lance soma antes
         sim_lanca(j);
         bool c = f->est[k] != V_VALIDO || (f->tipo[k] == D_TUDO_NADA && f->cru[k] == 1);
         for (int i = 0; i < k && !c && !ego; i++) c = antes[i] == V_VALIDO && f->est[i] != V_VALIDO;

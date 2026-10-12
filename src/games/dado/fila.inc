@@ -269,8 +269,8 @@ static void aplica_regra(int j, int k)
     } else {
         f->est[k] = V_VALIDO;
         if (ef == EF_PAR && l >= 0 && v == f->valor[l]) {
-            f->bonus[k] = 8;
-            snprintf(f->tag[k], sizeof f->tag[k], "+8");
+            f->bonus[k] = 6;
+            snprintf(f->tag[k], sizeof f->tag[k], "+6");
         }
         // Dobro: so o dado logo depois dele na sequencia (com o Dobro valendo).
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO && f->valor[l] <= 3) {
@@ -282,11 +282,11 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+6");
         if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
             || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
-            f->bonus[k] = 2;
-            snprintf(f->tag[k], sizeof f->tag[k], "$+2");
+            f->bonus[k] = 4;
+            snprintf(f->tag[k], sizeof f->tag[k], "$+4");
         }
         if (ef == EF_ACUMULADOR && f->fixo[k]) {
-            f->bonus[k] = (int8_t)(f->fixo[k] < 6 ? f->fixo[k] : 6);
+            f->bonus[k] = (int8_t)(f->fixo[k] < ACUM_MAX ? f->fixo[k] : ACUM_MAX);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_FERREIRO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
@@ -322,9 +322,9 @@ static void aplica_regra(int j, int k)
             if (v >= 3) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+2)", vale);
+            snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+2)", vale);
+            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+4)", vale);
         } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Acumulador vale %d (+%d guardado)", vale, f->bonus[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {

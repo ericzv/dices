@@ -10,8 +10,8 @@ sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 46 dados mudam as
-regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 9).
+os dois se anulam. Entre os turnos tem aposta, e 50 dados mudam as
+regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 6).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
 
@@ -20,7 +20,7 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 9).
   **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
   **Difícil** (simula as jogadas antes de decidir). Quem vence a rodada
   escolhe um dado de prêmio entre três: até a 5ª rodada saem comuns e
-  incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendas.
+  incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendários.
 - **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
   chefe cada. No mapa você escolhe o caminho entre 16 oponentes (cada um com
   seu jeito de jogar e um trunfo), lojas e 8 eventos. Cada partida tem 8

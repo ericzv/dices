@@ -111,6 +111,10 @@ void dado_passo(float dt)
             som_rufo(false);
             am_disparou = 0;
             pousa(j, k, rola);
+            // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
+            if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
+                && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
+                J[j].col[F[j].idx[k]].fixo++;
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
             // A Ventania tem o som dela quando rola o primeiro dado.

@@ -288,10 +288,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                    caidos, caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", VIRADA_BARAO * caidos);
         }
     }
-    // Checkpoint: cada dado seu lancado depois dele e valendo ganha +3 - caido
-    // ou nao o Checkpoint; so nao vale se o oponente o levou.
+    // Checkpoint valendo: cada dado seu lancado depois dele e valendo ganha +3.
     for (int c = 0; c < f->lancados; c++) {
-        if (tipo_de(j, c) != D_CHECKPOINT || est[c] == V_ROUBADO) continue;
+        if (tipo_de(j, c) != D_CHECKPOINT || est[c] != V_VALIDO) continue;
         int n = 0;
         for (int i = c + 1; i < f->lancados; i++) n += est[i] == V_VALIDO;
         if (!n) continue;
@@ -317,8 +316,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                    anulados, anulados > 1 ? "s" : "", 2 * anulados);
         } else if (ef == EF_SOLITARIO && !(k > 0 && est[k - 1] == V_VALIDO)
                    && !(k + 1 < f->lancados && est[k + 1] == V_VALIDO)) {
-            d->semente[j] += 4;
-            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Solitário sem vizinhos: +4");
+            d->semente[j] += 6;
+            evento(gera, EV_EXTRA, j, k, j, 0, 6, "Solitário sem vizinhos: +6");
         } else if (ef == EF_PRISMA) {
             uint64_t tipos = 0;
             for (int i = 0; i < f->lancados; i++)
@@ -362,7 +361,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 
 // O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
 // agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
-// 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker).
+// 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker, Autofagia).
 static int poder_armado(int j, int k)
 {
     const fila_t *f = &F[j];
@@ -371,10 +370,6 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
-    if (ef == EF_CHECKPOINT && f->est[k] != V_ROUBADO) {       // caido ou nao: um dado seu valendo depois
-        for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
-        return 0;
-    }
     if (f->est[k] != V_VALIDO) return 0;
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
@@ -386,10 +381,10 @@ static int poder_armado(int j, int k)
     }
     switch (ef) {
     case EF_DOBRO:        return v <= 3;
-    case EF_PAR:          return f->bonus[k] >= 8;
+    case EF_PAR:          return f->bonus[k] >= 6;
     case EF_CARRASCO:     return v == 4;
     case EF_MARTELO:      return v >= 3;
-    case EF_PIRATA:       return v >= 6;
+    case EF_PIRATA:       return v >= 7;
     case EF_ESPELHO:      return f->cru[k] <= 2;
     case EF_FICHAS:       return fichas_ini[j] > fichas_ini[outro(j)];
     case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
@@ -407,6 +402,9 @@ static int poder_armado(int j, int k)
     case EF_FERREIRO:     return v >= 3;
     case EF_TRONO:        return k == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
+    case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
+        for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
+        return 0;
     case EF_SOLITARIO:
         return !(k > 0 && f->est[k - 1] == V_VALIDO) && !(k + 1 < f->lancados && f->est[k + 1] == V_VALIDO);
     case EF_DESAFIANTE:                                      // o maior da mesa, sozinho
@@ -414,7 +412,7 @@ static int poder_armado(int j, int k)
             for (int i = 0; i < F[q].lancados; i++)
                 if (!(q == j && i == k) && F[q].est[i] == V_VALIDO && F[q].valor[i] >= v) return 0;
         return 1;
-    case EF_BERSERKER:
+    case EF_BERSERKER: case EF_AUTOFAGIA:
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) return 2;
         return 0;
@@ -514,6 +512,21 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 continue;
             }
 
+            // Autofagia: anula o outro dado seu de menor numero que vale (no
+            // empate, o primeiro). Escudo e Teimoso resistem.
+            if (ef == EF_AUTOFAGIA) {
+                int b = -1;
+                for (int i = 0; i < F[j].lancados; i++)
+                    if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                        && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+                if (b >= 0) {
+                    d->est[j][b] = V_ANULADO;
+                    evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                           "Autofagia: come o %d do próprio %s", F[j].valor[b], J[j].nome);
+                }
+                continue;
+            }
+
             bool couraca = tem_am(r, A_COURACA);         // os ataques dele nao anulam
             if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && invejoso_age(v))))
                 am_acende(A_COURACA);
@@ -573,7 +586,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             } else if (ef == EF_MALDICAO) {              // vale para o dono e tira do oponente
                 d->delta[r] -= v;
                 evento(gera, EV_TIRA, j, k, r, 0, v, "Maldito: -%d para %s", v, J[r].nome);
-            } else if (ef == EF_PIRATA && v >= 6) {      // so tira; nao fica com os pontos
+            } else if (ef == EF_PIRATA && v >= 7) {      // so tira; nao fica com os pontos
                 d->delta[r] -= 4;
                 evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
             } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4

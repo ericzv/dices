@@ -474,6 +474,20 @@ static int desenho_interno(int tipo, float u, float v, float s)
         int cx = (int)floorf((u + 0.62f) / 0.155f), cy = (int)floorf((v - 0.36f) / 0.15f);
         return (cx + cy) & 1 ? 1 : 2;
     }
+    case D_AUTOFAGIA: {                           // a cobra que come o proprio rabo, em volta do numero
+        // a cabeca, em cima a esquerda, morde a ponta do rabo; o corpo engrossa ate ela
+        float hx = u + 0.17f, hy = v + 0.58f;
+        if (hx * hx / (0.18f * 0.18f) + hy * hy / (0.13f * 0.13f) < 1 + l * 8) {
+            float ex = hx + 0.05f, ey = hy + 0.04f;              // o olho
+            return ex * ex + ey * ey < 0.035f * 0.035f + l * 0.4f ? 2 : 1;
+        }
+        float t = atan2f(u, -v) / 6.2832f;        // 0 em cima, no sentido do relogio
+        if (t < 0) t += 1;
+        if (t < 0.02f || t > 0.93f) return 0;
+        float w = 0.015f + 0.085f * t, d = ro - 0.60f;
+        if (fabsf(d) >= w + l) return 0;
+        return fabsf(fr(t * 22) - 0.5f) < 0.17f && fabsf(d) < w * 0.5f ? 3 : 1;   // as escamas no dorso
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;
@@ -715,12 +729,19 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         tinta = C_MARFIM;
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
+    // O Sorte/Reves no ar: cada metade no material dela. Jogado, o dado
+    // inteiro fica com a cara de quem venceu: marfim se a Sorte foi maior (ou
+    // empatou), ebano se o Reves foi.
     const material_t *lado = NULL;
     if (tipo == D_SORTE_REVES && sr_lado) {
         lado = &MATERIAL[sr_lado == 1 ? MAT_MARFIM : MAT_EBANO];
+        aro = sr_lado == 1 ? C_OURO : C_VINHO_CLR;
+    } else if (tipo == D_SORTE_REVES && vista == 2 && valor != SO_CORPO) {
+        lado = &MATERIAL[valor >= 0 ? MAT_MARFIM : MAT_EBANO];
+    }
+    if (lado) {
         corpo = lado->tons[2];
         tinta = lado->tinta;
-        aro = sr_lado == 1 ? C_OURO : C_VINHO_CLR;
     }
     if (zerado) {                        // anulado: o dado fica, apagado
         corpo = mt->apagado;
@@ -738,7 +759,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         cores[3] = tom_desenho(corpo, vi->c3, vi->p3);
         if (comum) memcpy(tons, mt->tons, sizeof tons);
         else tons_do_corpo(corpo, tons);
-        if (lado) {                              // uma metade do Sorte/Reves: liso, no material dela
+        if (lado) {                              // o Sorte/Reves: liso, no material do lado
             memcpy(tons, lado->tons, sizeof tons);
             cores[1] = cores[2] = cores[3] = corpo;
         }
@@ -810,7 +831,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
-        snprintf(s, sizeof s, lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
+        snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
         numero(cx, cy, r, s, tinta);
     }
     if (zerado) risca(cx, cy, r);

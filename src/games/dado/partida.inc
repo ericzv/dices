@@ -263,12 +263,10 @@ static void lanca_proximo(void)
     int k = f->lancados;
     int t = tipo_de(vez, k), lados = TIPO[t].lados;
 
-    // Acumulador: cada lance guarda +1 nele, para sempre (ate +6).
-    if (t == D_ACUMULADOR && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col) {
-        peca_t *pc = &J[vez].col[f->idx[k]];
-        if (pc->fixo < 6) pc->fixo++;
-        f->fixo[k] = pc->fixo;
-    }
+    // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
+    // cada vez que pousa valendo).
+    if (t == D_ACUMULADOR && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+        f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
         desfecho_t d;

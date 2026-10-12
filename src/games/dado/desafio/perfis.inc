@@ -94,6 +94,7 @@ static int nivel_do_dado(int t)
     case D_BUMERANGUE: return 1;
     case D_GEMEO:      return 2;
     case D_PRISMA:     return 3;
+    case D_CHECKPOINT: return 3;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
     case D_CAPITAO:    return 4;

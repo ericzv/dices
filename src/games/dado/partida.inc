@@ -262,6 +262,11 @@ static void lanca_proximo(void)
         f->fixo[k] = pc->fixo;
     }
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
+    if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
+        desfecho_t d;
+        calcula_desfecho(&d, false);
+        placar_antes[0] = d.total[0]; placar_antes[1] = d.total[1];
+    }
     int menor;
     int x = sorteia_valor(t, f->fixo[k], rola, &menor);
     f->cru[k] = x;
@@ -411,6 +416,8 @@ static void conclui_rodada(void)
     if (venc_mao == 0) des_rod_vencidas++;
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
+    if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
+    else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;

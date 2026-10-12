@@ -72,6 +72,7 @@ static void hora_comeca(int grau)
     if (!hora) return;
     som_suspense(true);                      // a trilha some
     som_toca(SOM_SUSPENSE);                  // e o coracao bate
+    rival_reage(RM_HORA);                    // e o oponente fica serio
 }
 
 // O dado k de j acabou de pousar: a mesa reage. A fila cheia, os quatro
@@ -196,4 +197,8 @@ static void reage_evento(const evento_t *e)
     else if (e->tipo == EV_MULT)
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) nivel = 2;
     if (nivel) crescendo(e->de_j, nivel);
+    // O oponente sente o golpe (ou gosta do que fez).
+    if (e->tipo == EV_JACKPOT && e->de_j == 0) rival_reage(RM_COMBO);
+    else if ((e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_TIRA || e->tipo == EV_PIRATA)
+             && e->de_j == 1 && e->alvo_j == 0) rival_reage(RM_ATACOU);
 }

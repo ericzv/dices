@@ -20,9 +20,14 @@ static uint16_t sombra(uint16_t c) { return gfx_mistura(c, C_BARRA, 28); }
 static uint16_t luz(uint16_t c)    { return gfx_mistura(c, C_BRANCO, 22); }
 
 // Rosto: oval da linha hy em diante, orelhas, olhos, sobrancelhas, nariz e
-// boca. expr: 0 calma, 1 brava, 2 alegre, 3 preocupada.
+// boca. expr: EX_* (falas.inc) - calma, brava, alegre, preocupada; e as de
+// reacao: surpresa, desdem e seria (calma, sem piscar). Quando o oponente
+// reage, rosto_ex passa por cima da expressao de sempre dele.
+static int rosto_ex = -1;
 static void rosto(int hy, uint16_t pele, uint16_t cabelo, int expr, bool pisca, int boca)
 {
+    if (rosto_ex >= 0) expr = rosto_ex;
+    if (expr == EX_SURPRESA || expr == EX_SERIA) pisca = false;   // de olhos bem abertos
     static const int8_t X0[12] = { 7, 6, 5, 5, 5, 5, 5, 5, 5, 5, 6, 7 };
     for (int i = 0; i < 12; i++) {
         int x0 = X0[i], x1 = 19 - X0[i];
@@ -34,22 +39,31 @@ static void rosto(int hy, uint16_t pele, uint16_t cabelo, int expr, bool pisca, 
     int ey = hy + 6;
     uint16_t olho = RGB(30, 26, 30);
     if (pisca) { rr(7, ey + 1, 2, 1, sombra(pele)); rr(11, ey + 1, 2, 1, sombra(pele)); }
-    else {
+    else if (expr == EX_SURPRESA) {                             // arregalados: a pupila pequena no branco
+        rr(7, ey, 2, 2, C_BRANCO); rp(8, ey + 1, olho);
+        rr(11, ey, 2, 2, C_BRANCO); rp(11, ey + 1, olho);
+    } else if (expr == EX_DESDEM) {                             // de canto: a palpebra cai pela metade
+        rr(7, ey, 2, 1, sombra(pele)); rp(8, ey + 1, olho); rp(7, ey + 1, C_BRANCO);
+        rr(11, ey, 2, 1, sombra(pele)); rp(12, ey + 1, olho); rp(11, ey + 1, C_BRANCO);
+    } else {
         rp(7, ey, C_BRANCO); rp(8, ey, olho); rp(8, ey + 1, olho); rp(7, ey + 1, luz(pele));
         rp(12, ey, C_BRANCO); rp(11, ey, olho); rp(11, ey + 1, olho); rp(12, ey + 1, luz(pele));
     }
     uint16_t sob = sombra(cabelo);
     switch (expr) {                                             // sobrancelhas
-    case 1:  rp(7, ey - 2, sob); rp(8, ey - 1, sob); rp(12, ey - 2, sob); rp(11, ey - 1, sob); break;
-    case 3:  rp(7, ey - 1, sob); rp(8, ey - 2, sob); rp(12, ey - 1, sob); rp(11, ey - 2, sob); break;
-    default: rr(7, ey - 2, 2, 1, sob); rr(11, ey - 2, 2, 1, sob); break;
+    case EX_BRAVA:      rp(7, ey - 2, sob); rp(8, ey - 1, sob); rp(12, ey - 2, sob); rp(11, ey - 1, sob); break;
+    case EX_PREOCUPADA: rp(7, ey - 1, sob); rp(8, ey - 2, sob); rp(12, ey - 1, sob); rp(11, ey - 2, sob); break;
+    case EX_SURPRESA:   rr(7, ey - 3, 2, 1, sob); rr(11, ey - 3, 2, 1, sob); break;
+    case EX_DESDEM:     rr(7, ey - 3, 2, 1, sob); rr(11, ey - 1, 2, 1, sob); break;   // uma sobe, a outra desce
+    default:            rr(7, ey - 2, 2, 1, sob); rr(11, ey - 2, 2, 1, sob); break;
     }
     rp(10, ey + 2, sombra(pele));                               // nariz
     uint16_t lab = RGB(120, 52, 52);
     int my = hy + 10;
-    if (boca) { rr(9, my - 1, 2, 2, RGB(60, 22, 26)); rp(8, my - 1, lab); rp(11, my - 1, lab); }
-    else if (expr == 2) { rr(9, my - 1, 2, 1, lab); rp(8, my - 2, lab); rp(11, my - 2, lab); }
-    else if (expr == 1) { rr(8, my - 1, 4, 1, lab); }
+    if (boca || expr == EX_SURPRESA) { rr(9, my - 1, 2, 2, RGB(60, 22, 26)); rp(8, my - 1, lab); rp(11, my - 1, lab); }
+    else if (expr == EX_ALEGRE) { rr(9, my - 1, 2, 1, lab); rp(8, my - 2, lab); rp(11, my - 2, lab); }
+    else if (expr == EX_BRAVA) { rr(8, my - 1, 4, 1, lab); }
+    else if (expr == EX_DESDEM) { rr(9, my - 1, 2, 1, lab); rp(11, my - 2, lab); }      // um canto so
     else rr(9, my - 1, 2, 1, lab);
 }
 
@@ -84,6 +98,9 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     int boca = falando ? ((int)(t / 0.22f) % 2) : 0;
     int hy = 3 + dy;
     bool bravo = modo == M_DESAFIO && perso == perso_virado;   // o chefe virou
+    // O oponente reagindo ao que acabou de acontecer na mesa.
+    int rex = modo == M_DESAFIO && perso == fala_perso && t_reacao > 0 ? reacao_expr : -1;
+    rosto_ex = rex;
     const uint16_t PRETO = RGB(34, 30, 32), MARROM = RGB(104, 66, 40),
                    GRISALHO = RGB(178, 176, 172), RUIVO = RGB(196, 84, 46);
     const uint16_t P_CLARA = RGB(234, 196, 160), P_MEDIA = RGB(204, 150, 106), P_ESCURA = RGB(132, 88, 60),
@@ -98,6 +115,10 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(6, hy - 2, 8, 1, RGB(70, 132, 80));
         rr(13, hy + 1, 4, 1, sombra(RGB(70, 132, 80)));         // aba
         rr(5, hy + 2, 2, 2, MARROM); rr(14, hy + 2, 1, 2, MARROM);
+        if (rex == EX_PREOCUPADA || rex == EX_SURPRESA) {       // uma gota de suor escorre
+            int g = (int)(fmodf(t, 1.2f) / 0.3f);
+            rp(15, hy + 3 + g, RGB(176, 214, 236)); rp(15, hy + 4 + g, RGB(120, 170, 210));
+        }
         break;
     }
     case 1: {                                                   // CAUTELOSA: coque grisalho, colar de perolas
@@ -115,7 +136,10 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(4, hy - 1, 12, 2, RGB(92, 64, 44));                   // aba
         rr(6, hy - 4, 8, 3, RGB(110, 78, 52));                  // copa
         rr(6, hy - 2, 8, 1, RGB(176, 52, 52));                  // fita
-        if (!boca) {                                            // charuto e a fumaca subindo
+        if (!boca && rex == EX_ALEGRE) {                        // contente: o charuto aponta para cima
+            rr(12, hy + 9, 2, 1, RGB(120, 80, 50)); rr(14, hy + 8, 2, 1, RGB(120, 80, 50)); rp(16, hy + 7, C_FOGO);
+            rp(16, hy + 5, GRISALHO);
+        } else if (!boca) {                                     // charuto e a fumaca subindo
             rr(12, hy + 9, 4, 1, RGB(120, 80, 50)); rp(16, hy + 9, C_FOGO);
             int f = (int)(t / 0.9f) % 3;
             rp(16 + (f == 1), hy + 7 - f, GRISALHO); rp(17 - (f == 2), hy + 5 - f, gfx_mistura(GRISALHO, C_FELTRO, 40));
@@ -491,10 +515,16 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
             rr(7, hy + 9, 6, 1, RGB(238, 236, 230)); rp(6, hy + 10, RGB(238, 236, 230)); rp(13, hy + 10, RGB(238, 236, 230));
             rr(8, hy + 10, 4, 1, RGB(190, 186, 180));
         }
-        rr(11, hy + 5, 2, 1, C_OURO); rr(11, hy + 8, 2, 1, C_OURO);   // monoculo: aro so no olho direito
-        rr(10, hy + 6, 1, 2, C_OURO); rr(13, hy + 6, 1, 2, C_OURO);
-        rp(14, hy + 8, C_OURO); rp(14, hy + 9, C_OURO);          // cordao
-        if ((int)(t / 3.3f) % 3 == 0 && fmodf(t, 3.3f) < 0.4f) rp(12, hy + 6, C_BRANCO);
+        if (rex == EX_SURPRESA) {                               // de espanto, o monoculo cai e fica pendurado
+            rr(14, hy + 8, 1, 4, C_OURO);
+            rr(13, hy + 12, 2, 1, C_OURO); rr(13, hy + 15, 2, 1, C_OURO);
+            rr(12, hy + 13, 1, 2, C_OURO); rr(15, hy + 13, 1, 2, C_OURO);
+        } else {
+            rr(11, hy + 5, 2, 1, C_OURO); rr(11, hy + 8, 2, 1, C_OURO);   // monoculo: aro so no olho direito
+            rr(10, hy + 6, 1, 2, C_OURO); rr(13, hy + 6, 1, 2, C_OURO);
+            rp(14, hy + 8, C_OURO); rp(14, hy + 9, C_OURO);          // cordao
+            if ((int)(t / 3.3f) % 3 == 0 && fmodf(t, 3.3f) < 0.4f) rp(12, hy + 6, C_BRANCO);
+        }
         if (bravo && !boca) {                                  // e bufa, de vez em quando
             float b = fmodf(t, 2.6f);
             if (b < 0.6f) {

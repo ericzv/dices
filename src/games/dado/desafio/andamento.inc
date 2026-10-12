@@ -206,6 +206,8 @@ static void des_comeca_partida(void)
     perso_virado = -1;
     t_virada = 0;
     t_fala = 0;
+    t_reacao = t_curta = 0;
+    fala_e_curta = false;
     J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);

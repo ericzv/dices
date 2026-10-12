@@ -9,7 +9,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_MISERICORDIA, EF_SOLITARIO, EF_SENTINELA, EF_FERREIRO, EF_COBRADOR,
        EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR, EF_SEGURANCA,
        EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO,
-       EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO };
+       EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -32,11 +32,37 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // Sempre no fim da lista: os numeros dos tipos vao no salvamento.
        D_MISERICORDIOSO, D_SOLITARIO, D_SENTINELA, D_FERREIRO, D_COBRADOR,
        D_DESAFIANTE, D_VIDRO, D_ACUMULADOR, D_SEGURANCA,
-       // Daqui em diante, so no Modo Desafiante, liberados pelas dificuldades.
+       // So no Modo Desafiante, liberados pelas dificuldades (so_desafio).
        D_BUMERANGUE, D_GEMEO, D_PRISMA, D_FENIX, D_TRONO,
-       D_CAVALO, D_BERSERKER, D_VIUVA, D_CAPITAO, D_N };
-#define D_BASICOS D_BUMERANGUE           // tipos da partida rapida, 2 jogadores e online
-static bool so_desafio(int t) { return t >= D_BASICOS; }
+       D_CAVALO, D_BERSERKER, D_VIUVA, D_CAPITAO,
+       // Os mais novos: so_desafio diz em que modo cada um aparece.
+       D_CHECKPOINT, D_SORTE_REVES, D_N };
+// Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
+// rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
+// novos entram sempre no fim, por causa do salvamento.)
+static bool so_desafio(int t)
+{
+    switch (t) {
+    case D_BUMERANGUE: case D_GEMEO: case D_PRISMA: case D_FENIX: case D_TRONO:
+    case D_CAVALO: case D_BERSERKER: case D_VIUVA: case D_CAPITAO:
+        return true;
+    default:
+        return false;
+    }
+}
+// Quantos tipos a partida rapida tem, e o i-esimo deles.
+static int n_basicos(void)
+{
+    int n = 0;
+    for (int t = 0; t < D_N; t++) n += !so_desafio(t);
+    return n;
+}
+static int basico(int i)
+{
+    for (int t = 0; t < D_N; t++)
+        if (!so_desafio(t) && i-- == 0) return t;
+    return D_D6;
+}
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
@@ -93,6 +119,8 @@ static const tipo_t TIPO[D_N] = {
     { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "valendo: anula um dado seu ao acaso" },
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "único dado seu valendo: x2" },
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "valendo: +2 por dado seu valendo" },
+    { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "seus válidos depois dele: +3 cada" },
+    { "Sorte/Revés",     20, EF_SORTE_REVES,  RAR_INCOMUM,  0, "um d20 soma, o outro tira" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -152,6 +180,8 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_BERSERKER] = "Se ficar valendo, anula no fim um outro dado seu, ao acaso.",
     [D_VIUVA]     = "Se terminar como o único dado seu valendo, vale x2 no fim.",
     [D_CAPITAO]   = "Se ficar valendo, +2 no fim por dado seu valendo, ele incluído.",
+    [D_CHECKPOINT] = "No fim, +3 para cada dado seu lançado depois dele que ficar valendo.",
+    [D_SORTE_REVES] = "Rola dois d20: um soma, o outro tira. Vale a diferença, até negativa.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -208,6 +238,11 @@ static const char *TEXTO_CAT[D_N] = {
     [D_BERSERKER] = "Vinte lados. Se terminar valendo, no fim anula um outro dado seu que vale, escolhido ao acaso. Escudo e Teimoso resistem.",
     [D_VIUVA]     = "Oito lados. Se terminar a rodada como o único dado seu que vale, vale x2 no fim. Soma com outros multiplicadores.",
     [D_CAPITAO]   = "Oito lados. Se terminar valendo, ganha +2 no fim para cada dado seu que vale na rodada, ele incluído.",
+    [D_CHECKPOINT] = "Oito lados. No fim da rodada, cada dado seu lançado depois dele que terminar valendo ganha +3. "
+                     "Vale mesmo que o Checkpoint caia; só não vale se o oponente o levar.",
+    [D_SORTE_REVES] = "Vinte lados, em dobro: rola o d20 da Sorte e o do Revés, e os dois viram um dado só, que vale a "
+                      "Sorte menos o Revés (de -19 a 19). Negativo, tira pontos da sequência - e o próximo dado só "
+                      "precisa ser maior que ele.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lenda" };
@@ -255,10 +290,11 @@ static int cat_tipo(int i)
 }
 
 // O que a loja da partida rapida vende: N_LOJA destes, embaralhados nesta
-// ordem. Precos (TIPO.preco) medidos com partidas IA x IA, 2000 por dado, com
-// duas copias na bolsa: quem rende mais custa mais.
-static const uint8_t VITRINE[] = { D_D8, D_D12, D_PAR, D_ESCUDO,
-                                   D_DOBRO, D_VICIADO, D_LASTRO, D_QUEBRADO,
+// ordem - so comuns e incomuns, como o premio das primeiras rodadas. Precos
+// (TIPO.preco) medidos com partidas IA x IA, 2000 por dado, com duas copias
+// na bolsa: quem rende mais custa mais.
+static const uint8_t VITRINE[] = { D_D8, D_PAR, D_ESCUDO,
+                                   D_DOBRO, D_VICIADO, D_QUEBRADO,
                                    D_FARTURA, D_SORTE, D_TEIMOSO, D_SEMENTE, D_TREVO,
                                    D_JACKPOT, D_COPIADOR, D_MISERICORDIOSO, D_SOLITARIO,
                                    D_SENTINELA, D_FERREIRO, D_COBRADOR, D_DESAFIANTE,
@@ -357,6 +393,8 @@ static const visual_t VISUAL[D_N] = {
     [D_BERSERKER]  = { V_VINHO,   0, 0,         V_SANGUE, 50 },
     [D_VIUVA]      = { V_ACO,     0, 0,         V_ACO, 45 },
     [D_CAPITAO]    = { V_AZUL,    V_AZUL, 14,   V_LATAO_E, 100 },
+    [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_BREU, 85,     V_BRANCO, 100 },
+    [D_SORTE_REVES] = { V_AMEIXA, 0, 0,         V_BREU, 84,     V_OURO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

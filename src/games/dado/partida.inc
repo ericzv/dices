@@ -240,6 +240,12 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         break;
     }
     case EF_LASTRO:  x = 3 + r(9); break;    // 4 a 12, 1 em 9 cada
+    case EF_SORTE_REVES: {                   // o d20 da Sorte menos o do Reves
+        int b = r(lados);
+        *menor = b;
+        x -= b;
+        break;
+    }
     case EF_EXPLODE: {
         int n = x, g = 0;
         while (n == lados && g++ < 3) { n = r(lados); x += n; }
@@ -279,7 +285,7 @@ static void lanca_proximo(void)
     v->dono = (uint8_t)vez;
     v->slot = (uint8_t)k;
     v->tipo = (uint8_t)t;
-    v->valor = x;
+    v->valor = TIPO[t].efeito == EF_SORTE_REVES ? x + menor : x;   // no ar, o da Sorte
     v->x = GFX_W / 2 + frnd(-110, 110);
     v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
     v->vx = frnd(-300, 300);
@@ -290,7 +296,8 @@ static void lanca_proximo(void)
     n_voo = 1;
     f->descarte[k] = (uint8_t)menor;
     // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
-    // que some quando o maior vai para a fila.
+    // que some quando o maior vai para a fila. O Sorte/Reves tambem: o
+    // fantasma e o d20 do Reves, que se junta ao da Sorte antes da fila.
     if (menor) {
         voo_t *w = &voo[1];
         *w = *v;
@@ -308,6 +315,11 @@ static void lanca_proximo(void)
     t_fase = 0;
     fase = F_ROLANDO;
 }
+
+// O Sorte/Reves para no feltro e as duas metades se juntam num dado so, com o
+// valor final, antes de ir para a fila: o tempo da juncao.
+#define SR_JUNTA 0.35f
+static float junta_t(void) { return n_voo > 1 && voo[0].tipo == D_SORTE_REVES ? SR_JUNTA : 0; }
 
 static void comeca_segundo(void)
 {
@@ -513,7 +525,8 @@ static void flutua_pouso(int j, int k)
     const fila_t *f = &F[j];
     if (f->est[k] == V_VALIDO) {
         int v = valor_pontos(j, k) + f->bonus[k];
-        if (v) flutua_em(j, k, C_OURO, 0, "+%d", v);
+        if (v > 0) flutua_em(j, k, C_OURO, 0, "+%d", v);
+        else if (v < 0) flutua_em(j, k, C_VINHO_CLR, 0, "%d", v);   // o Sorte/Reves negativo
     }
     uint8_t caiu = anulou_masc;
     if (anulou_a >= 0) caiu |= (uint8_t)(1 << anulou_a);
@@ -521,7 +534,7 @@ static void flutua_pouso(int j, int k)
     for (int i = 0; i < k; i++)
         if ((caiu >> i & 1) && f->est[i] != V_VALIDO) {
             int v = valor_pontos(j, i) + f->bonus[i];
-            if (v) flutua_em(j, i, C_VINHO_CLR, 0.08f, "-%d", v);
+            if (v > 0) flutua_em(j, i, C_VINHO_CLR, 0.08f, "-%d", v);
         }
 }
 

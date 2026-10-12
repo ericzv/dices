@@ -15,17 +15,35 @@ static void desenha_lance(void)
         float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
         if (hora && !v->fantasma) {              // a hora da verdade: a camera chega perto
             float z = t_hora;
-            if (fase == F_ARRUMA) z *= 1 - fminf(1, t_fase / 0.45f);
+            if (fase == F_ARRUMA) z *= 1 - fminf(1, fmaxf(0, t_fase - junta_t()) / 0.45f);
             r *= 1 + 0.22f * z;
         }
         bool descartado = false;
+        float ex = v->x, ey = v->y;              // onde ele e desenhado
+        int mostra = v->parado ? v->valor : v->face;
         // O lance menor do Viciado: riscado e encolhendo enquanto o maior
-        // vai para a fila.
+        // vai para a fila. O Reves do Sorte/Reves desliza para baixo da
+        // Sorte e os dois viram um dado so, com o valor final.
+        if (v->tipo == D_SORTE_REVES) sr_lado = v->fantasma ? 2 : 1;
+        if (!v->fantasma && v->tipo == D_SORTE_REVES && n_voo > 1 && fase == F_ARRUMA && t_fase >= SR_JUNTA) {
+            sr_lado = 0;
+            mostra = v->valor - voo[1].valor;
+            float pop = 1 - (t_fase - SR_JUNTA) / 0.15f;
+            if (pop > 0) r *= 1 + 0.15f * pop;
+        }
         if (v->fantasma && fase == F_ARRUMA) {
-            float q = t_fase / 0.45f;
+            float q = t_fase / (v->tipo == D_SORTE_REVES ? SR_JUNTA : 0.45f);
             q = q > 1 ? 1 : q;
-            r = R_DADO * (1 - q * 0.4f);
-            descartado = true;
+            if (v->tipo == D_SORTE_REVES) {
+                float s = q * q * (3 - 2 * q);
+                ex = v->ox + (voo[0].x - v->ox) * s;
+                ey = v->oy + (voo[0].y - v->oy) * s;
+                r = R_DADO * (1 - q * 0.3f);
+                if (q >= 1) { sr_lado = 0; continue; }
+            } else {
+                r = R_DADO * (1 - q * 0.4f);
+                descartado = true;
+            }
         }
         // Poeira do feltro quando o dado assenta.
         if (v->pouso > 0 && !v->fantasma) {
@@ -67,8 +85,8 @@ static void desenha_lance(void)
             bob = -alto;
             sombra_alt = alto * 0.6f;
         }
-        desenha_dado(v->x + dx, v->y + bob, r, v->tipo, v->dono, ang,
-                     v->parado ? v->valor : v->face, 2, descartado);
+        desenha_dado(ex + dx, ey + bob, r, v->tipo, v->dono, ang, mostra, 2, descartado);
+        sr_lado = 0;
         sombra_alt = 0;
     }
     sombra_alt = 0;
@@ -566,6 +584,12 @@ static void desenha_fila(int j)
             aro(x, y, C_OURO);
             galao(x, y - R - 7);
         }
+        // Checkpoint: depois que a bandeira sobe, os dados depois dele acendem.
+        if (e && e->tipo == EV_EXTRA && e->de_j == j && (e->mascara >> k & 1)
+            && F[j].tipo[e->de_k] == D_CHECKPOINT && p > 0.3f + 0.08f * (k - e->de_k)) {
+            aro(x, y, C_OURO);
+            faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
+        }
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
             && (e->mascara >> k & 1) && p > 0.2f) {
@@ -806,6 +830,19 @@ static void desenha_evento(void)
                 int gy = ay - R_DADO + (int)((by - (ay - R_DADO)) * s) - (int)(sinf(s * 3.1416f) * 26);
                 galao(gx, gy);
             }
+        } else if (t == D_CHECKPOINT) {
+            // A bandeira quadriculada sobe do dado e tremula: daqui em diante, +3.
+            float q = p / 0.3f;
+            if (q > 1) q = 1;
+            int topo = ay - R_DADO - 4 - (int)(q * 38);
+            gfx_linha_grossa(ax, ay - R_DADO - 4, ax, topo, 2, C_PRATA);
+            int w = (int)(q * 24);
+            for (int cy2 = 0; cy2 < 3; cy2++)
+                for (int cx2 = 0; cx2 * 4 < w; cx2++) {
+                    int onda = (int)(sinf(t_fase * 10 + cx2 * 0.9f) * 2);
+                    gfx_rect(ax + 1 + cx2 * 4, topo + cy2 * 4 + onda, 4, 4, (cx2 + cy2) & 1 ? C_BARRA : C_BRANCO);
+                }
+            gfx_disco(ax, topo, 2, C_PRATA);
         } else if (t == D_DESAFIANTE) {
             // A flamula sobe do dado e se abre, tremulando: ele e o maior da mesa.
             float q = p / 0.4f;

@@ -529,7 +529,7 @@ static void desenha_premio(void)
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
                     // So os tipos que podem sair aqui: os basicos, ou os ja
                     // abertos no Desafiante.
-                    pc.tipo = (uint8_t)(h % D_BASICOS);
+                    pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
                     if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }

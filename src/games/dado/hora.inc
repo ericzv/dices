@@ -41,27 +41,40 @@ static int partida_se(int w)
 static int dado_decisivo(int j, int k)
 {
     if (j == primeiro || k != F[j].n - 1) return 0;
-    int t = F[j].tipo[k], n = TIPO[t].efeito == EF_LASTRO ? 9 : TIPO[t].lados;
+    int t = F[j].tipo[k];
+    // O Sorte/Reves vale de -19 a 19, cada diferenca com o seu peso (de 1 a
+    // 20 jeitos de sair); os outros, uma face de cada vez.
+    bool duplo = TIPO[t].efeito == EF_SORTE_REVES;
+    int n = duplo ? 39 : TIPO[t].efeito == EF_LASTRO ? 9 : TIPO[t].lados;
     mesa_t m;
     guarda_mesa(&m);
     uint32_t am = am_disparou;
-    int ganha = 0, fins = 0;                 // faces em que j leva; bit: como a partida fica
-    for (face_fixa = 1; face_fixa <= n; face_fixa++) {
+    int ganha = 0, total = 0, fins = 0;      // jeitos em que j leva, de quantos; bit: como a partida fica
+    for (int c = 0; c < n; c++) {
         fila_t *f = &F[j];
-        int menor;
-        f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);
+        int menor, peso = 1;
+        if (duplo) {
+            int dv = c - 19;
+            peso = 20 - (dv < 0 ? -dv : dv);
+            f->cru[k] = f->valor[k] = dv;
+            menor = dv < 0 ? 1 - dv : 1;     // um jeito de sair: o Reves que da essa diferenca
+        } else {
+            face_fixa = c + 1;
+            f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);
+        }
         f->descarte[k] = (uint8_t)menor;
         f->lancados = k + 1;
         pousa(j, k, rola_fixo);
         desfecho_t d;
         calcula_desfecho(&d, false);
         int w = leva_rodada(&d);
-        if (w == j) ganha++;
+        total += peso;
+        if (w == j) ganha += peso;
         fins |= 1 << (partida_se(w) + 1);
         volta_mesa(&m);
     }
     am_disparou = am;
-    if (ganha * 10 < n || (n - ganha) * 10 < n) return 0;
+    if (ganha * 10 < total || (total - ganha) * 10 < total) return 0;
     bool acaba = (fins & ~1) != 0;
     return acaba && (fins & (fins - 1)) ? 2 : 1;
 }

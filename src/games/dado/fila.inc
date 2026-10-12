@@ -151,7 +151,9 @@ static void aplica_regra(int j, int k)
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
     if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
-    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO
+    // Sorte/Reves: na etiqueta, os dois lances ("12-5").
+    if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
+    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
         && ef != EF_TREVO && ef != EF_BUMERANGUE) {
         v = f->valor[k] = 3;
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
@@ -346,6 +348,9 @@ static void aplica_regra(int j, int k)
         ver_comum = false;
     } else if (ef == EF_VICIADO && f->descarte[k] && ver_tipo == 0 && !f->tag[k][0]) {
         snprintf(veredito, sizeof veredito, "Viciado: %d e %d, fica o %d", v, f->descarte[k], v);
+        ver_comum = false;
+    } else if (ef == EF_SORTE_REVES && f->descarte[k] && ver_tipo == 0) {
+        snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: vale %d", v + f->descarte[k], f->descarte[k], v);
         ver_comum = false;
     } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
         snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");

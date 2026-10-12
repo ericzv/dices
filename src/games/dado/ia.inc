@@ -26,12 +26,16 @@ static float media(peca_t p)
     case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
+    case EF_SORTE_REVES: return 0.0f;                    // a Sorte menos o Reves
     default:          return (t->lados + 1) / 2.0f;
     }
 }
 
 // Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
-static bool arriscado(int tipo) { return tipo == D_MALDITO || tipo == D_TUDO_NADA || tipo == D_EGOISTA; }
+static bool arriscado(int tipo)
+{
+    return tipo == D_MALDITO || tipo == D_TUDO_NADA || tipo == D_EGOISTA || tipo == D_SORTE_REVES;
+}
 
 // Escolha simples, sem imaginar jogadas: os de maior media, do menor para o
 // maior (assim cada um tem boa chance de passar a barra do anterior), sem os

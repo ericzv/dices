@@ -288,6 +288,19 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                    caidos, caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", VIRADA_BARAO * caidos);
         }
     }
+    // Checkpoint: cada dado seu lancado depois dele e valendo ganha +3 - caido
+    // ou nao o Checkpoint; so nao vale se o oponente o levou.
+    for (int c = 0; c < f->lancados; c++) {
+        if (tipo_de(j, c) != D_CHECKPOINT || est[c] == V_ROUBADO) continue;
+        int n = 0;
+        for (int i = c + 1; i < f->lancados; i++) n += est[i] == V_VALIDO;
+        if (!n) continue;
+        d->semente[j] += 3 * n;
+        evento_t *e = evento(gera, EV_EXTRA, j, c, j, 0, 3 * n, "Checkpoint: %d dado%s depois dele, +%d",
+                             n, n > 1 ? "s" : "", 3 * n);
+        for (int i = c + 1; e && i < f->lancados && i < N_FILA; i++)
+            if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 3; }
+    }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
     // Misericordioso, Solitario, Prisma, Desafiante e Capitao.
     int anulados = 0, valendo = 0;
@@ -358,6 +371,10 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (ef == EF_CHECKPOINT && f->est[k] != V_ROUBADO) {       // caido ou nao: um dado seu valendo depois
+        for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
+        return 0;
+    }
     if (f->est[k] != V_VALIDO) return 0;
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
@@ -626,9 +643,12 @@ static int risco(int j)
         return ruins * 100 / lados;
     }
     int ruins = 0, total = 0;
-    if (ef == EF_VICIADO) {
+    if (ef == EF_VICIADO || ef == EF_SORTE_REVES) {
         for (int a = 1; a <= lados; a++)
-            for (int b = 1; b <= lados; b++) { total++; if ((a > b ? a : b) < L) ruins++; }
+            for (int b = 1; b <= lados; b++) {
+                total++;
+                if ((ef == EF_VICIADO ? (a > b ? a : b) : a - b) < L) ruins++;
+            }
         return ruins * 100 / total;
     }
     for (int a = ef == EF_LASTRO ? 4 : 1; a <= lados; a++) {   // Lastro: so 4 a 12

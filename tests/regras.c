@@ -48,6 +48,8 @@ static void joga(int j, int t, int v)
 // Como joga, mas o dado cai pela regra completa (Ventania inclusive) e os
 // lances que ela refaz saem de 'r'.
 static int sempre_dois(int lados) { (void)lados; return 2; }
+static int lances_sr[2], li_sr;           // os dois lances do Sorte/Reves, em ordem
+static int rola_sr(int lados) { (void)lados; return lances_sr[li_sr++ % 2]; }
 static int sempre_cinco(int lados) { return lados < 5 ? lados : 5; }
 static void joga_com(int j, int t, int v, int (*r)(int))
 {
@@ -793,6 +795,44 @@ int main(void)
         joga(0, D_D12, 9); joga(0, D_GEMEO, 3);
         CONFERE(F[0].valor[1] == 3 && F[0].est[1] == V_ANULADO && F[0].est[0] == V_ANULADO,
                 "Gemeo depois de 9: devia ficar com o 3 e cair (valor %d)", F[0].valor[1]);
+        // Checkpoint: +3 em cada dado seu valendo lancado depois dele; caido
+        // ou nao, vale; levado pelo oponente, nao.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_CHECKPOINT, 3); joga(0, D_D6, 4); joga(0, D_D8, 6);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 4 + 6 + 6, "Checkpoint: esperava 21, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 1) == 1, "Checkpoint com dados depois devia brilhar");
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_CHECKPOINT, 6); joga(0, D_D4, 2); joga(0, D_D8, 7);
+        d = fim();
+        CONFERE(F[0].est[1] == V_ANULADO && d.total[0] == 5 + 7 + 3,
+                "Checkpoint caido: o D8 depois dele devia ganhar +3 (deu %d)", d.total[0]);
+        limpa();
+        joga(0, D_CHECKPOINT, 6);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Checkpoint sozinho: esperava 6, deu %d", d.total[0]);
+        // Sorte/Reves: um d20 soma, o outro tira; o dado vale a diferenca, ate
+        // negativa, e o seguinte so precisa passar dela.
+        {
+            int menor;
+            lances_sr[0] = 12; lances_sr[1] = 5; li_sr = 0;
+            int x = sorteia_valor(D_SORTE_REVES, 0, rola_sr, &menor);
+            CONFERE(x == 7 && menor == 5, "Sorte/Reves 12 e 5: esperava 7 (reves 5), deu %d (%d)", x, menor);
+        }
+        limpa();
+        joga(0, D_D4, 3);
+        F[0].descarte[1] = 5; joga(0, D_SORTE_REVES, 7);
+        CONFERE(F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "12-5"), "Sorte/Reves: etiqueta %s", F[0].tag[1]);
+        limpa();
+        F[0].descarte[0] = 15; joga(0, D_SORTE_REVES, -6);
+        joga(0, D_D4, 1);
+        d = fim();
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && d.bruto[0] == -5 && d.total[0] == 0,
+                "Sorte/Reves negativo: esperava bruto -5 e total 0, deu %d e %d", d.bruto[0], d.total[0]);
+        limpa();
+        joga(0, D_D6, 5);
+        F[0].tipo[1] = D_SORTE_REVES; F[0].n = 2;
+        CONFERE(risco(0) == 70, "Sorte/Reves depois de um 5: esperava 70%% de cair, deu %d", risco(0));
         // Prisma: +1 por tipo diferente valendo.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
@@ -814,7 +854,22 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 8 + 9, "Trono no meio: esperava 17, deu %d", d.total[0]);
         // Nenhum deles entra no sorteio das partidas basicas.
-        for (int t = D_BASICOS; t < D_N; t++) CONFERE(peso_dado(t) == 0 && so_desafio(t), "dado %d na partida basica", t);
+        for (int t = 0; t < D_N; t++) if (so_desafio(t)) CONFERE(peso_dado(t) == 0, "dado %d na partida basica", t);
+        // Fora do Desafiante, o premio sobe de raridade com as rodadas: 1 a 5,
+        // comuns e incomuns; 6 a 10, incomuns e raros; 11 em diante, raros e
+        // lendarios. A loja do comeco: so comuns e incomuns.
+        int rod_antes = rodada;
+        rodada = 3;
+        CONFERE(peso_dado(D_VIDRO) > 0 && peso_dado(D_JACKPOT) > 0 && peso_dado(D_CARIDOSO) == 0 && peso_dado(D_D20) == 0,
+                "rodada 3: so comuns e incomuns");
+        rodada = 8;
+        CONFERE(peso_dado(D_VIDRO) == 0 && peso_dado(D_JACKPOT) > 0 && peso_dado(D_CARIDOSO) > 0 && peso_dado(D_D20) == 0,
+                "rodada 8: so incomuns e raros");
+        rodada = 12;
+        CONFERE(peso_dado(D_JACKPOT) == 0 && peso_dado(D_CARIDOSO) > 0 && peso_dado(D_D20) > 0, "rodada 12: so raros e lendarios");
+        rodada = rod_antes;
+        for (unsigned i = 0; i < sizeof VITRINE; i++)
+            CONFERE(TIPO[VITRINE[i]].raridade <= RAR_INCOMUM, "a loja do comeco vende o raro %s", TIPO[VITRINE[i]].nome);
     }
 
     // ---- Perfis: gravar e ler; precos da dificuldade e do Cupom ----------

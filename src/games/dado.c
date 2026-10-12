@@ -122,7 +122,7 @@ int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
 const char *dado_dbg_cat_nome(void) { return cat_sec == 0 ? TIPO[cat_tipo(cat_i)].nome : "amuleto"; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
-int  dado_dbg_n_tipos(void) { return D_BASICOS; }   // os da partida comum
+int  dado_dbg_n_tipos(void) { return n_basicos(); }   // os da partida comum (dado_dbg_bolsa os numera)
 void dado_dbg_ia_esforco(int e) { ia_esforco = e; }
 void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)
@@ -135,8 +135,8 @@ int  dado_dbg_margem(void)
 void dado_dbg_bolsa(int j, const int *tipos, int n)
 {
     J[j].n_col = 0;
-    for (int i = 0; i < n && i < MAX_COL; i++) {
-        J[j].col[J[j].n_col] = nova_peca(tipos[i]);
+    for (int i = 0; i < n && i < MAX_COL; i++) {         // tipos: o i-esimo da partida comum
+        J[j].col[J[j].n_col] = nova_peca(basico(tipos[i]));
         J[j].onde[J[j].n_col++] = NA_BOLSA;
     }
     J[j].n_mao = 0;

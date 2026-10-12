@@ -122,6 +122,9 @@ static void pips(int cx, int cy, int v, int r, uint16_t c)
 static int marca_nivel = -1;
 
 static float sombra_alt;                 // altura do dado no ar, em pixels
+// O Sorte/Reves no ar sao dois d20: 1 o da Sorte (marfim, aro de ouro, "+"),
+// 2 o do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
+static int sr_lado;
 
 // Numero centrado no dado: grande nos dados grandes.
 static void numero(float cx, float cy, float r, const char *s, uint16_t c)
@@ -466,6 +469,15 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(sinf(4 * a)) * ro < l) return 1;
         return fabsf(ro - 0.28f) < l || fabsf(ro - 0.52f) < l || fabsf(ro - 0.76f) < l;
     }
+    case D_CHECKPOINT: {                          // a faixa quadriculada da chegada, embaixo
+        if (v < 0.36f || v > 0.66f || fabsf(u) > 0.62f) return 0;
+        int cx = (int)floorf((u + 0.62f) / 0.155f), cy = (int)floorf((v - 0.36f) / 0.15f);
+        return (cx + cy) & 1 ? 1 : 2;
+    }
+    case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
+        if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
+        if (ro < 0.58f) return 0;
+        return u + v > 0 ? 1 : 0;
     default:
         return 0;
     }
@@ -680,6 +692,7 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
     if (zerado) risca(cx, cy, r);
 }
 
+#define SO_CORPO (-1000)                 // valor que pede so o corpo, sem numero
 // vista 0: parado na mao, mostra quantos lados tem.
 // vista 1: rolando, mostra uma face qualquer.
 // vista 2: pousado, mostra o valor final (e riscado se zerou).
@@ -702,6 +715,13 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         tinta = C_MARFIM;
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
+    const material_t *lado = NULL;
+    if (tipo == D_SORTE_REVES && sr_lado) {
+        lado = &MATERIAL[sr_lado == 1 ? MAT_MARFIM : MAT_EBANO];
+        corpo = lado->tons[2];
+        tinta = lado->tinta;
+        aro = sr_lado == 1 ? C_OURO : C_VINHO_CLR;
+    }
     if (zerado) {                        // anulado: o dado fica, apagado
         corpo = mt->apagado;
         tinta = mt->tinta_apagada;
@@ -718,6 +738,10 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         cores[3] = tom_desenho(corpo, vi->c3, vi->p3);
         if (comum) memcpy(tons, mt->tons, sizeof tons);
         else tons_do_corpo(corpo, tons);
+        if (lado) {                              // uma metade do Sorte/Reves: liso, no material dela
+            memcpy(tons, lado->tons, sizeof tons);
+            cores[1] = cores[2] = cores[3] = corpo;
+        }
     }
     bool desenha = r >= 12;
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
@@ -731,6 +755,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
+    if (lado) mt = lado;
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
     if (lados == 2) {
         int ri = (int)(r - ea);
@@ -780,12 +805,12 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         numero(cx, cy, r, s, gfx_mistura(tinta, corpo, 38));
         return;
     }
-    if (valor < 0) return;               // so o corpo: o catalogo escreve grande
+    if (valor == SO_CORPO) return;       // so o corpo: o catalogo escreve grande
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
-        snprintf(s, sizeof s, "%d", valor);
+        snprintf(s, sizeof s, lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
         numero(cx, cy, r, s, tinta);
     }
     if (zerado) risca(cx, cy, r);

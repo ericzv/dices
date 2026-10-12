@@ -86,7 +86,7 @@ void dado_passo(float dt)
         if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
         if (fisica(dt * lento) && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
             if (hora) som_rufo(false);           // o som segura: silencio ate o veredito
-            voo[0].ox = voo[0].x; voo[0].oy = voo[0].y;
+            for (int i = 0; i < n_voo; i++) { voo[i].ox = voo[i].x; voo[i].oy = voo[i].y; }
             t_fase = 0;
             fase = F_ARRUMA;
         }
@@ -94,7 +94,10 @@ void dado_passo(float dt)
     }
     case F_ARRUMA: {
         bool ia_arr = (cpu >> voo[0].dono & 1) && voo[0].slot != F[voo[0].dono].n - 1;
-        float t = t_fase / (ia_arr ? 0.28f : 0.45f);
+        float jt = junta_t();                    // o Sorte/Reves se junta antes de ir
+        if (jt && t_fase >= jt && t_fase - dt < jt) som_toca(SOM_BATE_DADO);
+        float t = (t_fase - jt) / (ia_arr ? 0.28f : 0.45f);
+        if (t < 0) t = 0;
         if (t > 1) t = 1;
         float e = t * t * (3 - 2 * t);
         voo_t *v = &voo[0];

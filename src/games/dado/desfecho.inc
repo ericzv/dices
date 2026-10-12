@@ -106,11 +106,11 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
-enum { MULT_DOBRO, MULT_FARTURA, MULT_TRONO, MULT_VIUVA, MULT_BARAO, MULT_N };
+enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_BARAO, MULT_N };
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
-    const char *nome[MULT_N] = { "Dobro", "Fartura", "Trono", "Viúva Negra", J[1].nome };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2 };
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
@@ -120,7 +120,7 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
         if (curto || p >= n) continue;
         p += (size_t)snprintf(s + p, n - p, " x%d", x[q]);
-        if (q == MULT_TRONO || q == MULT_VIUVA || p >= n) continue;   // ele mesmo
+        if (q == MULT_VIUVA || p >= n) continue;                       // ela mesma
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
         p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
@@ -250,7 +250,6 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
             && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
         if (fartura && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
-        if (TIPO[tipo_de(j, k)].efeito == EF_TRONO && k == f->lancados - 1) { m += 2; de[MULT_TRONO] |= bit; }
         if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) { m += 2; de[MULT_VIUVA] |= bit; }
         if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
@@ -301,7 +300,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 3; }
     }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
-    // Misericordioso, Solitario, Prisma, Desafiante e Capitao.
+    // Misericordioso, Solitario, Prisma, Desafiante, Capitao e Trono.
     int anulados = 0, valendo = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
@@ -332,6 +331,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                                  valendo, valendo > 1 ? "s" : "", 2 * valendo);
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
+        } else if (ef == EF_TRONO && k == f->lancados - 1 && valendo == f->lancados) {
+            d->semente[j] += 8;                      // o ultimo que voce jogou, e nenhum dos seus caiu
+            evento(gera, EV_EXTRA, j, k, j, 0, 8, "Trono: todos valendo, +8");
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -400,7 +402,7 @@ static int poder_armado(int j, int k)
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
     case EF_FERREIRO:     return v >= 3;
-    case EF_TRONO:        return k == f->lancados - 1;
+    case EF_TRONO:        return k == f->lancados - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;

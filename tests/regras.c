@@ -881,11 +881,15 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][1] == V_VALIDO && d.est[0][0] == V_ANULADO && d.total[0] == 2,
                 "Fenix: esperava so ela (2), deu %d", d.total[0]);
-        // Trono: x2 se for o ultimo jogado.
+        // Trono: +8 se for o ultimo jogado e todos os seus terminarem valendo.
         limpa();
-        joga(0, D_D6, 3); joga(0, D_TRONO, 8);
+        joga(0, D_D6, 3); joga(0, D_TRONO, 10);
         d = fim();
-        CONFERE(d.total[0] == 3 + 16, "Trono por ultimo: esperava 19, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3 + 10 + 8, "Trono por ultimo: esperava 21, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_TRONO, 8);   // o 5 e o 2 caem
+        d = fim();
+        CONFERE(d.total[0] == 8 && poder_armado(0, 2) == 0, "Trono com dado caido: esperava 8, deu %d", d.total[0]);
         limpa();
         joga(0, D_TRONO, 8); joga(0, D_D12, 9);
         d = fim();

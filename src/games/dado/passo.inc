@@ -5,7 +5,7 @@
 static bool menu_sem_partida(void)
 {
     return fase == F_ABERTURA || fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE
-        || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC;
+        || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC || fase == F_HIST;
 }
 
 void dado_passo(float dt)

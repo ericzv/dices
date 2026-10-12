@@ -81,6 +81,7 @@ static void encerra_run(bool venceu)
         if (p->venceu[d] < 255) p->venceu[d]++;
         if (d == p->nivel && p->nivel < N_NIVEIS) { p->nivel++; des_liberou = p->nivel; }
         perfis_salva();
+        hist_run_venceu();
     }
     salva_apaga(chave_run());
     t_fase = 0;

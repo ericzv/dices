@@ -68,6 +68,7 @@ static void encerra(int vencedor)
 {
     venc_partida = vencedor;
     fase = F_FIM;
+    hist_partida(vencedor);
     // Contra o computador (ou online), perder tem o seu som; com duas pessoas
     // no mesmo teclado, alguem sempre ganhou.
     bool perdeu = modo != M_DOIS && vencedor != baixo;
@@ -369,6 +370,7 @@ static void conclui_rodada(void)
 {
     res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
     res_quem = -1;
+    int seu_pote = 0;                            // o pote que voce levou (historico)
     for (int j = 0; j < 2; j++) {
         memcpy(F[j].est, resolvido.est[j], N_FILA);
         memcpy(vis_est[j], resolvido.est[j], N_FILA);
@@ -398,6 +400,7 @@ static void conclui_rodada(void)
             snprintf(aviso, sizeof aviso, "%s leva %d fichas (+2)", J[w].nome, pote);
             am_acende(A_POTE);
         }
+        if (w == 0) seu_pote = pote;
         pote = 0;
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
@@ -418,6 +421,7 @@ static void conclui_rodada(void)
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
+    hist_rodada(seu_pote);
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;

@@ -165,6 +165,7 @@ static bool des_desenha(void)
     case F_PERFIS: desenha_perfis();    return true;
     case F_PCRIA:  desenha_cria_perfil(); return true;
     case F_RDIFIC: desenha_dificuldade(); return true;
+    case F_HIST:   desenha_historico(); return true;
     case F_REVENTO: desenha_evt();   return true;
     default:       return false;
     }
@@ -179,7 +180,7 @@ static void des_esc(void)
         else if (!ev_girando()) volta_ao_menu();
         return;
     }
-    if (fase == F_PCRIA) { t_fase = 0; fase = F_PERFIS; return; }
+    if (fase == F_PCRIA || fase == F_HIST) { t_fase = 0; fase = F_PERFIS; return; }
     menu_tela = fase == F_RDIFIC && des_tem_run() ? MT_DESAFIO : MT_UM;
     menu_cur = 1;
     t_fase = 1.0f;

@@ -38,6 +38,64 @@ int main(int argc, char **argv)
     int dific = argc > 5 ? atoi(argv[5]) : 0;
     if (dific < 0 || dific > N_NIVEIS) dific = 0;
 
+    // Historico: conta so a pessoa contra a maquina, no perfil escolhido;
+    // grava, le de volta, recusa o salvamento estragado e some com o perfil.
+    {
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "HIST");
+        perfil_atual = 0;
+        perfis_lidos = true;
+        hist_de = -1;
+        modo = M_UM; cpu = 2;
+        memset(F, 0, sizeof F);
+        F[0].tipo[0] = D_D6; F[0].tipo[1] = D_D8; F[0].n = F[0].lancados = 2;
+        F[0].est[0] = V_VALIDO; F[0].est[1] = V_ANULADO;
+        F[0].total = 37; venc_mao = 0;
+        hist_rodada(25);
+        F[0].total = 4; venc_mao = 1;
+        hist_rodada(0);
+        hist_lance(0, true, 2);
+        hist_lance(1, true, 2);                  // o lance do rival nao conta
+        hist_partida(0);
+        hist_partida(1);
+        modo = M_DOIS; cpu = 0;                  // duas pessoas: nao conta
+        hist_rodada(99);
+        hist_partida(0);
+        CONFERE(hist.rodadas == 2 && hist.rodadas_venc == 1 && hist.maior_rodada == 37 && hist.maior_pote == 25,
+                "historico das rodadas: %u %u %d %d", (unsigned)hist.rodadas, (unsigned)hist.rodadas_venc,
+                hist.maior_rodada, hist.maior_pote);
+        CONFERE(hist.lancou[D_D6] == 2 && hist.valeu[D_D6] == 2 && hist.ganhou[D_D6] == 1
+                && hist.lancou[D_D8] == 2 && hist.valeu[D_D8] == 0 && hist.ganhou[D_D8] == 1,
+                "historico por dado errado");
+        CONFERE(hist.filas_cheias == 1 && hist.horas == 1 && hist.horas_venc == 1 && hist.partidas == 2
+                && hist.partidas_venc == 1, "historico dos lances e partidas errado");
+        memset(&run, 0, sizeof run);
+        run.dificuldade = 2; run.n_col = 3; run.moedas = 123; run.amuletos = 1u << A_LUVA;
+        run.col[0] = (peca_t){ D_D6, 0 }; run.col[1] = (peca_t){ D_LASER, 0 }; run.col[2] = (peca_t){ D_D20, 0 };
+        hist_run_venceu();
+        CONFERE(hist.camp_tem && hist.camp_dif == 2 && hist.camp_n == 3 && hist.camp_col[1] == D_LASER
+                && hist.camp_moedas == 123 && (hist.camp_amul >> A_LUVA & 1) && hist.runs_venc[2] == 1,
+                "run campea nao ficou guardada");
+        run.dificuldade = 1; run.moedas = 999;   // uma run mais baixa nao toma o lugar
+        hist_run_venceu();
+        CONFERE(hist.camp_dif == 2 && hist.camp_moedas == 123 && hist.runs_venc[1] == 1, "run campea trocada");
+        hist_t antes = hist;
+        hist_de = -1;
+        hist_carrega(0);
+        CONFERE(!memcmp(&antes, &hist, sizeof hist), "historico nao voltou igual do salvamento");
+        salva_grava("hist1", "HIS1zz");
+        hist_de = -1;
+        hist_carrega(0);
+        CONFERE(hist.rodadas == 0 && !hist.camp_tem, "salvamento estragado devia comecar do zero");
+        hist = antes; hist_de = 0;
+        hist_grava();
+        hist_apaga(0);
+        hist_carrega(0);
+        CONFERE(hist.rodadas == 0, "apagar o perfil devia levar o historico");
+        hist_de = -1;
+    }
+
     int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
     long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;

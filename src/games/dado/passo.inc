@@ -30,6 +30,8 @@ void dado_passo(float dt)
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
+    if (t_reacao > 0) t_reacao -= dt_real;
+    if (t_curta > 0) t_curta -= dt_real;
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt_real) > 2.5f) t_sair = -1;
@@ -120,6 +122,7 @@ void dado_passo(float dt)
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             flutua_pouso(j, k);
             reage_lance(j, k);
+            rival_lance(j, k);
             t_fase = 0;
             fase = F_VEREDITO;
         }

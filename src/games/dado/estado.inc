@@ -188,6 +188,17 @@ enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N }
 static void fala_evento(int cat);
 static char  fala_txt[64];
 static float t_fala;                     // > 0: o balao do oponente esta na mesa
+// Reacoes do oponente (falas.inc): o rosto muda por um instante quando algo
+// acontece na mesa e, as vezes, sai uma palavra num balao curto.
+enum { RM_PASSOU, RM_ELE_PASSOU, RM_CAI_DELE, RM_CAI_SEU, RM_COMBO, RM_ATACOU, RM_HORA,
+       RM_APOSTA, RM_CORREU, RM_GANHA_R, RM_PERDE_R, RM_N };
+static void rival_reage(int momento);
+static void rival_lance(int j, int k);
+static int   reacao_expr;                // a expressao por cima da de sempre (EX_*)
+static float t_reacao;                   // > 0: o rosto ainda reage
+static float t_curta;                    // > 0: espera antes de outra palavra
+static bool  fala_e_curta;               // o balao da vez e so uma palavra
+static int   placar_antes[2];            // os totais antes do lance: quem passou quem
 // Velocidade: no rapido, animacoes e a vez do computador andam em dobro
 // (menos no online, onde os dois lados precisam andar juntos). Fica guardada.
 #define VEL_RAPIDO 2.0f

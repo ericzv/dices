@@ -67,6 +67,8 @@ static void executa(int op)
     jogador_t *p = &J[vez];
     bool maquina = anuncia_maquina();
     if (op != OP_PASSAR && op != OP_CORRER) som_toca(SOM_FICHA);
+    if (vez == 0 && (op == OP_APOSTAR10 || op == OP_APOSTAR25 || op == OP_AUMENTAR)) rival_reage(RM_APOSTA);
+    else if (vez == 0 && op == OP_CORRER) rival_reage(RM_CORREU);
     switch (op) {
     case OP_PASSAR:
         if (maquina) anuncia("%s passou", p->nome, 0);

@@ -46,7 +46,7 @@ static void fala_evento(int cat)
     // Nem tudo tem resposta: o comeco e o fim sempre; o resto, as vezes.
     bool sempre = cat == FA_INICIO || cat == FA_GANHA_P || cat == FA_PERDE_P;
     if (!sempre && (rnd_v() % 100) >= 55) return;
-    if (!sempre && t_fala > 0.6f) return;               // nao atropela a fala anterior
+    if (!sempre && t_fala > 0.6f && !fala_e_curta) return;   // nao atropela a fala anterior
     const char *s = PERSO[fala_perso].fala[cat][rnd_v() & 1];
     int dif = des_dificuldade();
     if (perso_chefe(fala_perso) && dif > 0 && cat == FA_INICIO)
@@ -57,4 +57,88 @@ static void fala_evento(int cat)
         s = "A cobertura é sua. Eu desço pela escada.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     t_fala = 3.2f;
+    fala_e_curta = false;
+}
+
+// ---------------------------------------------------------------------------
+// Reacoes: o rosto do oponente muda por um instante quando algo acontece na
+// mesa - quase sempre so o rosto; as vezes, uma palavra. Cada um reage pelo
+// temperamento; os tres chefes tem as palavras deles.
+// ---------------------------------------------------------------------------
+// As expressoes do rosto (retratos.inc): as quatro de sempre e as de reacao.
+enum { EX_CALMA, EX_BRAVA, EX_ALEGRE, EX_PREOCUPADA, EX_SURPRESA, EX_DESDEM, EX_SERIA };
+enum { TP_TIMIDO, TP_FRIO, TP_ESQUENTADO, TP_ALEGRE, TP_N };
+static const uint8_t TEMPERAMENTO[] = {
+    TP_TIMIDO, TP_TIMIDO, TP_ALEGRE, TP_ALEGRE,               // Novato, Cautelosa, Apostador, Ladrao
+    TP_FRIO, TP_ESQUENTADO, TP_ALEGRE, TP_ESQUENTADO,         // Matematica, Espinhento, Supersticiosa, Brutamontes
+    TP_FRIO, TP_FRIO, TP_FRIO, TP_FRIO,                       // Crupie, Dona do Salao, Barao, Ilusionista
+    TP_ESQUENTADO, TP_TIMIDO, TP_FRIO, TP_ALEGRE,             // Caubói, Monge, Detetive, Maratonista
+};
+// [temperamento][momento]: voce passou ele, ele passou voce, o dado dele
+// caiu, o seu caiu, o seu combo, ele te atacou, a hora da verdade, voce
+// apostou, voce correu, ele levou a rodada, ele perdeu.
+static const uint8_t REACAO[TP_N][RM_N] = {
+    { EX_PREOCUPADA, EX_ALEGRE, EX_PREOCUPADA, EX_ALEGRE, EX_SURPRESA, EX_ALEGRE, EX_PREOCUPADA,
+      EX_PREOCUPADA, EX_ALEGRE, EX_ALEGRE, EX_PREOCUPADA },
+    { EX_BRAVA, EX_DESDEM, EX_BRAVA, EX_DESDEM, EX_SURPRESA, EX_DESDEM, EX_SERIA,
+      EX_DESDEM, EX_DESDEM, EX_DESDEM, EX_BRAVA },
+    { EX_BRAVA, EX_ALEGRE, EX_BRAVA, EX_ALEGRE, EX_BRAVA, EX_ALEGRE, EX_BRAVA,
+      EX_BRAVA, EX_ALEGRE, EX_ALEGRE, EX_BRAVA },
+    { EX_SURPRESA, EX_ALEGRE, EX_SURPRESA, EX_ALEGRE, EX_SURPRESA, EX_ALEGRE, EX_PREOCUPADA,
+      EX_SURPRESA, EX_ALEGRE, EX_ALEGRE, EX_PREOCUPADA },
+};
+// As palavras: so em alguns momentos (passou, caiu o dele, combo, ataque e
+// aposta); NULL fica so no rosto.
+static const char *const CURTA[TP_N][RM_N][2] = {
+    [TP_TIMIDO] = { [RM_PASSOU] = { "Ah, não...", "Eita." }, [RM_CAI_DELE] = { "Ai.", "Puxa..." },
+                    [RM_COMBO] = { "Nossa!", "Uau..." }, [RM_ATACOU] = { "Desculpa!", "Foi sem querer!" },
+                    [RM_APOSTA] = { "Tudo isso?", "Hã..." } },
+    [TP_FRIO] = { [RM_PASSOU] = { "Hm.", "Interessante." }, [RM_CAI_DELE] = { "Irrelevante.", "Hm." },
+                  [RM_COMBO] = { "Ora, ora.", "Notável." }, [RM_ATACOU] = { "Previsível.", "Agradeço." },
+                  [RM_APOSTA] = { "Que ousadia.", "Veremos." } },
+    [TP_ESQUENTADO] = { [RM_PASSOU] = { "Grr!", "Ah, é?" }, [RM_CAI_DELE] = { "Argh!", "Maldição!" },
+                        [RM_COMBO] = { "Sorte!", "Tá de brincadeira!" }, [RM_ATACOU] = { "Toma!", "É meu!" },
+                        [RM_APOSTA] = { "Pode vir!", "Vem!" } },
+    [TP_ALEGRE] = { [RM_PASSOU] = { "Opa!", "Boa!" }, [RM_CAI_DELE] = { "Ops!", "Ih, rapaz." },
+                    [RM_COMBO] = { "Que lance!", "Bonito!" }, [RM_ATACOU] = { "Valeu!", "Hehe." },
+                    [RM_APOSTA] = { "Gostei!", "Agora sim!" } },
+};
+static const char *const CURTA_CHEFE[3][3][2] = {     // [chefe][passou, caiu o dele, combo]
+    { { "A casa anota.", "Hm." }, { "Acontece.", "Hm." }, { "A casa observa.", "Bem jogado." } },
+    { { "Que ousadia.", "Hmpf." }, { "Hmpf.", "Que deselegante." }, { "No meu salão?", "Que ousadia!" } },
+    { { "Hmpf.", "Insolente." }, { "Inadmissível.", "Hmpf!" }, { "Insolente!", "Impossível!" } },
+};
+
+static void rival_reage(int m)
+{
+    if (modo != M_DESAFIO || fala_perso < 0 || fala_perso >= (int)sizeof TEMPERAMENTO || m < 0 || m >= RM_N) return;
+    int tp = TEMPERAMENTO[fala_perso];
+    reacao_expr = REACAO[tp][m];
+    t_reacao = m == RM_HORA ? 6.0f : 1.8f;               // na hora da verdade, ate o veredito
+    // A palavra: as vezes, com folga entre uma e outra, nunca por cima de
+    // uma fala de verdade.
+    const char *const *op = CURTA[tp][m];
+    int c = fala_perso - PERSO_CHEFE0;
+    if (c >= 0 && c < 3 && (m == RM_PASSOU || m == RM_CAI_DELE || m == RM_COMBO))
+        op = CURTA_CHEFE[c][m == RM_PASSOU ? 0 : m == RM_CAI_DELE ? 1 : 2];
+    if (!op[0] || t_curta > 0 || (t_fala > 0 && !fala_e_curta) || rnd_v() % 100 >= 40) return;
+    snprintf(fala_txt, sizeof fala_txt, "%s", op[rnd_v() & 1]);
+    t_fala = 1.4f;
+    fala_e_curta = true;
+    t_curta = 6.0f;
+}
+
+// O dado k de j pousou: quem passou quem, quem caiu, a fila cheia.
+static void rival_lance(int j, int k)
+{
+    if (modo != M_DESAFIO || fala_perso < 0) return;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    int a = j, b = outro(j);
+    bool passou = (j != primeiro) && placar_antes[a] <= placar_antes[b] && d.total[a] > d.total[b];
+    int seguidos = 0;
+    while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
+    if (j == 0 && seguidos == N_FILA) rival_reage(RM_COMBO);
+    else if (passou) rival_reage(j == 0 ? RM_PASSOU : RM_ELE_PASSOU);
+    else if (ver_tipo == 1 || ver_tipo >= 3) rival_reage(j == 0 ? RM_CAI_SEU : RM_CAI_DELE);   // caiu, zerou, o Egoista
 }

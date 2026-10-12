@@ -380,7 +380,10 @@ static void desenha_fim_run(void)
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     faixa_run(0);
     bool abriu = des_venceu_run && des_liberou > 0;
-    painel(CENTRO - 84, abriu ? 208 : 168, 500);
+    char es[96];
+    int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
+    int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
+    painel(CENTRO - 84, (abriu ? 208 : 168) + extra, 500);
     char s[96];
     if (des_venceu_run) {
         txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
@@ -396,7 +399,12 @@ static void desenha_fim_run(void)
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
     txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58), des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    if (ne) {
+        char l[128];
+        snprintf(l, sizeof l, "Estilo: %s", es);
+        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44), l, C_OURO, false);
+    }
+    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha

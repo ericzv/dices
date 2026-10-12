@@ -165,14 +165,13 @@ static int brilho_de(uint16_t c)
     return (((c >> 11) << 3) * 3 + (((c >> 5) & 63) << 2) * 6 + ((c & 31) << 3)) / 10;
 }
 
-// Um tom do desenho: a cor c entrando p% no corpo. No ebano entra mais; se
-// ainda assim nao aparecer, entra a mesma cor, clareada.
-static uint16_t tom_desenho(uint16_t corpo, uint16_t c, int p, int dono)
+// Um tom do desenho: a cor c entrando p% no corpo; se nao aparecer, entra a
+// mesma cor, clareada.
+static uint16_t tom_desenho(uint16_t corpo, uint16_t c, int p)
 {
     if (!c) return corpo;
-    uint16_t t = cor_de_dado(gfx_mistura(corpo, c, dono == 0 ? p : (p + 15 > 100 ? 100 : p + 15)));
-    if (t == corpo || (dono != 0 && brilho_de(t) < brilho_de(corpo) + 14))
-        t = cor_de_dado(gfx_mistura(corpo, gfx_mistura(c, C_MARFIM, 40), 70));
+    uint16_t t = cor_de_dado(gfx_mistura(corpo, c, p));
+    if (t == corpo) t = cor_de_dado(gfx_mistura(corpo, gfx_mistura(c, C_MARFIM, 40), 70));
     return t;
 }
 
@@ -217,14 +216,11 @@ static float ruido(float x, float y)
     return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
 }
 
-// Os cinco tons do corpo, da sombra ao reflexo. No marfim e no ebano, os
-// tons vizinhos da paleta; num corpo tingido, o que a paleta tiver perto.
+// Os cinco tons do corpo de um dado especial, da sombra ao reflexo. No
+// marfim, os do material; num corpo tingido, o que a paleta tiver perto.
 static void tons_do_corpo(uint16_t corpo, uint16_t *t)
 {
-    const uint16_t MARFIM[5] = { LUZ_CORPO[2], LUZ_CORPO[1], C_MARFIM_D, LUZ_CORPO[0], C_BRANCO };
-    const uint16_t EBANO[5]  = { RGB(24, 22, 20), LUZ_CORPO[3], C_EBANO, LUZ_CORPO[4], LUZ_CORPO[5] };
-    if (corpo == C_MARFIM_D) { memcpy(t, MARFIM, sizeof MARFIM); return; }
-    if (corpo == C_EBANO)    { memcpy(t, EBANO, sizeof EBANO); return; }
+    if (corpo == MATERIAL[MAT_MARFIM].tons[2]) { memcpy(t, MATERIAL[MAT_MARFIM].tons, 5 * sizeof *t); return; }
     // Num corpo tingido os vizinhos da paleta ficam longe: so a sombra do
     // canto e o reflexo mudam de tom, e so se a paleta tiver um da mesma cor,
     // um pouco mais escuro ou mais claro. Se nao tiver, fica o proprio corpo.
@@ -557,11 +553,11 @@ static int esp_marca(float t) { return t < 12 ? 1 : (int)(t / 11); }
 // Por cima do corpo: as tres caixinhas com o 7 do Jackpot (embaixo do
 // dado), as seis casas do Acumulador (acesas: o bonus guardado) e a
 // rachadura do Quebrado.
-static void marca_por_cima(int tipo, float r, int dono, uint16_t corpo, bool zerado)
+static void marca_por_cima(int tipo, float r, uint16_t corpo, bool zerado)
 {
     float t = r < 5 ? 5 : r;
     if (tipo == D_QUEBRADO) {
-        uint16_t rc = dono == 0 ? C_EBANO_B : C_MARFIM_S;
+        uint16_t rc = C_EBANO_B;
         int e = esp_marca(r);
         gfx_linha_grossa(MX(-0.7f * r, -0.6f * r), MY(-0.7f * r, -0.6f * r), MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), e, rc);
         gfx_linha_grossa(MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), MX(0.1f * r, -0.4f * r), MY(0.1f * r, -0.4f * r), e, rc);
@@ -692,19 +688,23 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 {
     int lados = TIPO[tipo].lados;
     const visual_t *vi = &VISUAL[tipo];
-    uint16_t corpo = dono == 0 ? C_MARFIM_D : C_EBANO;
-    uint16_t tinta = dono == 0 ? C_EBANO : C_MARFIM;
+    // Os dados comuns no material de quem joga com eles; os especiais (e a
+    // moeda) tem um desenho so, sobre o marfim, para os dois lados.
+    bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2;
+    const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
+    uint16_t corpo = mt->tons[2];
+    uint16_t tinta = mt->tinta;
     uint16_t aro = aro_de(tipo);
-    if (vi->tom) corpo = cor_de_dado(gfx_mistura(corpo, vi->tom, dono == 0 ? vi->pct : vi->pct - 12));
-    if (tipo == D_D2) corpo = cor_de_dado(gfx_mistura(corpo, C_OURO, dono == 0 ? 58 : 46));   // moeda dourada
-    if (tipo == D_VIUVA) {                        // preta para os dois, com a tinta clara
-        corpo = dono == 0 ? RGB(62, 56, 50) : RGB(24, 22, 20);
+    if (vi->tom) corpo = cor_de_dado(gfx_mistura(corpo, vi->tom, vi->pct));
+    if (tipo == D_D2) corpo = cor_de_dado(gfx_mistura(corpo, C_OURO, 58));   // moeda dourada
+    if (tipo == D_VIUVA) {                        // preta, com a tinta clara
+        corpo = RGB(62, 56, 50);
         tinta = C_MARFIM;
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
     if (zerado) {                        // anulado: o dado fica, apagado
-        corpo = dono == 0 ? C_MARFIM_S : C_EBANO_B;
-        tinta = dono == 0 ? C_EBANO_B : C_MARFIM_S;
+        corpo = mt->apagado;
+        tinta = mt->tinta_apagada;
         aro = C_FELTRO2;
     }
     // Os tons do desenho de dentro e os do corpo; anulado, o desenho fica num
@@ -713,10 +713,11 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (zerado) {
         cores[1] = cores[2] = cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 18));
     } else {
-        cores[1] = tom_desenho(corpo, vi->c1, vi->p1, dono);
-        cores[2] = tom_desenho(corpo, vi->c2, vi->p2, dono);
-        cores[3] = tom_desenho(corpo, vi->c3, vi->p3, dono);
-        tons_do_corpo(corpo, tons);
+        cores[1] = tom_desenho(corpo, vi->c1, vi->p1);
+        cores[2] = tom_desenho(corpo, vi->c2, vi->p2);
+        cores[3] = tom_desenho(corpo, vi->c3, vi->p3);
+        if (comum) memcpy(tons, mt->tons, sizeof tons);
+        else tons_do_corpo(corpo, tons);
     }
     bool desenha = r >= 12;
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
@@ -730,7 +731,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
-    uint16_t brilho = zerado ? corpo : gfx_mistura(corpo, C_BRANCO, dono == 0 ? 35 : 18);
+    uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
     if (lados == 2) {
         int ri = (int)(r - ea);
         gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
@@ -749,7 +750,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             else poligono(vx, vy, n, corpo);
         }
     }
-    marca_por_cima(tipo, r, dono, corpo, zerado);
+    marca_por_cima(tipo, r, corpo, zerado);
 
     char s[12];
     // Vidro que tirou 1: estilhacado, com rachaduras saindo do impacto.
@@ -970,17 +971,22 @@ static void pinta_mesa(void)
     int lv = mesa_andar;
     gfx_clear(C_BARRA);
     int x0 = 4, y0 = MESA_Y0 - 8, x1 = GFX_W - 4, y1 = MESA_Y1 + 8;
-    // Do andar do rubi em diante, a madeira e mogno.
-    uint16_t mad = lv >= 4 ? gfx_mistura(C_MADEIRA, RGB(92, 26, 30), 45) : C_MADEIRA;
+    // A mesa escolhida tem a madeira e o metal dela; a de sempre e nogueira,
+    // mogno do andar do rubi em diante, e o metal sobe com os andares:
+    // latao no terreo, bronze, prata, e ouro dali para cima.
+    bool propria = estilo_mesa != MS_NOGUEIRA;
+    const uint16_t *pm = MESAS[estilo_mesa].madeira;
+    uint16_t mad = propria ? pm[1] : lv >= 4 ? gfx_mistura(C_MADEIRA, RGB(92, 26, 30), 45) : C_MADEIRA;
+    uint16_t veio = propria ? pm[0] : gfx_mistura(mad, C_SOMBRA, 30);
     gfx_rect(x0, y0, x1 - x0, y1 - y0, mad);
     for (int y = y0; y < y1; y += 2)                    // veios da madeira
         for (int x = x0; x < x1; x++)
-            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, gfx_mistura(mad, C_SOMBRA, 30));
-    gfx_rect(x0, y0, x1 - x0, 1, C_MADEIRA_CLR);
-    // O metal do andar: latao no terreo, bronze, prata, e ouro dali para cima.
-    uint16_t metal = lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
+            if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, veio);
+    gfx_rect(x0, y0, x1 - x0, 1, propria ? pm[2] : C_MADEIRA_CLR);
+    uint16_t metal = propria ? MESAS[estilo_mesa].metal
+                             : lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
     gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
-                lv >= 3 ? C_OURO : C_LATAO);
+                propria ? metal : lv >= 3 ? C_OURO : C_LATAO);
     gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
     float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
@@ -988,7 +994,7 @@ static void pinta_mesa(void)
     // ordenado (Bayer 4x4) na passagem de um para o outro, e uma fibra ou
     // outra mais clara ou mais escura.
     static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
-    static const uint16_t TOM[3] = { C_FELTRO, C_FELTRO_MEIO, C_FELTRO_ESC };
+    const uint16_t TOM[3] = { C_FELTRO, C_FELTRO_MEIO, C_FELTRO_ESC };
     for (int y = MESA_Y0; y < MESA_Y1; y++)
         for (int x = MESA_X0; x < MESA_X1; x++) {
             float dx = (x - cx) / ax, dy = (y - cy) / ay;
@@ -1043,6 +1049,8 @@ static void mesa(void)
 {
     mesa_andar = modo == M_DESAFIO ? des_dificuldade() : 0;
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
+    static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
+    if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }
     if (!mesa_feita) {
         pinta_mesa();
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);

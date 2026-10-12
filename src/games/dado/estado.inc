@@ -73,7 +73,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS, F_HIST };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS, F_HIST, F_ESTILO };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -199,6 +199,8 @@ static void hist_jackpot(void);
 static void hist_rodada(int pote_seu);
 static void hist_partida(int vencedor);
 static void hist_run_venceu(void);
+static void estilo_do_perfil(void);
+static int nivel_jog[2];                // o nivel da IA de cada lado (ia.inc)      // le o estilo do perfil escolhido e monta a paleta (desafio/estilo.inc)
 static void rival_lance(int j, int k);
 static int   reacao_expr;                // a expressao por cima da de sempre (EX_*)
 static float t_reacao;                   // > 0: o rosto ainda reage

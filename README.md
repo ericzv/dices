@@ -29,7 +29,13 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 5).
   (no PC, numa pasta do usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
   os números de cada dado e a run campeã com a bolsa que venceu. A partida
-  rápida conta no último perfil escolhido. Vencer o
+  rápida conta no último perfil escolhido.
+- **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
+  grafite), o material dos seus dados comuns (marfim, osso, jade, obsidiana,
+  ébano) e a mesa (nogueira e ouro, mogno e cobre, ébano e prata, carvalho e
+  bronze). Abrem andar a andar: vencer o Barão em cada dificuldade abre mais.
+  Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
+  especiais têm um desenho só. Vencer o
   Barão abre a dificuldade seguinte (são 6), e os chefes e as dificuldades
   abrem dados novos; a coleção mostra o que está aberto e o que falta.
 

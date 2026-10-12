@@ -155,9 +155,8 @@ static void abre_loja(void);
 void dado_inicia(int n_partidas)
 {
     static bool paleta_pronta;
-    if (!paleta_pronta) {
-        gfx_paleta(PALETA, (int)(sizeof PALETA / sizeof PALETA[0]));
-        gfx_paleta_exata(LUZ_CORPO, (int)(sizeof LUZ_CORPO / sizeof LUZ_CORPO[0]));
+    if (!paleta_pronta) {                // a paleta, com o feltro e a mesa do perfil
+        estilo_do_perfil();
         paleta_pronta = true;
     }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
@@ -181,6 +180,7 @@ void dado_inicia(int n_partidas)
     J[0].cor = C_LATAO;
     J[1].cor = C_ROSA;
     poe_nomes();
+    materiais_da_partida(MAT_MARFIM);
     for (int j = 0; j < 2; j++) {
         J[j].fichas = FICHAS_INI;
         colecao_inicial(&J[j]);
@@ -217,6 +217,7 @@ void dado_inicia(int n_partidas)
 
 static void abre_loja(void)
 {
+    materiais_da_partida(material_rapida());     // a partida comeca na loja
     vez = loja_primeiro;
     cursor = 0;
     n_voo = 0;

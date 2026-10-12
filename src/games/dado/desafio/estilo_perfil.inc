@@ -1,0 +1,181 @@
+// ---------------------------------------------------------------------------
+// O estilo do perfil: o feltro, a mesa e o material dos seus dados comuns.
+// Abre andar a andar no Desafiante (vencer o Barao naquela dificuldade) e
+// fica na chave do perfil ("EST1" + feltro, material e mesa, um digito cada).
+// ---------------------------------------------------------------------------
+static int estilo_mat = MAT_MARFIM;          // o material dos seus dados comuns
+
+static const char *chave_estilo(int i)
+{
+    static const char *const K[N_PERFIS] = { "estilo1", "estilo2", "estilo3" };
+    return K[i >= 0 && i < N_PERFIS ? i : 0];
+}
+
+// Aberto para o perfil i? (andar -1: sempre aberto)
+static bool estilo_aberto(int i, int andar)
+{
+    if (andar < 0) return true;
+    return i >= 0 && i < N_PERFIS && perfis[i].nome[0] && perfis[i].venceu[andar] > 0;
+}
+
+// A escolha guardada do perfil i; o que nao estiver aberto volta ao padrao.
+static void estilo_le(int i, int *feltro, int *mat, int *mesa_id)
+{
+    *feltro = FT_VERDE; *mat = MAT_MARFIM; *mesa_id = MS_NOGUEIRA;
+    char b[16];
+    if (i < 0 || salva_le(chave_estilo(i), b, (int)sizeof b) != 7 || memcmp(b, "EST1", 4)) return;
+    int f = b[4] - '0', m = b[5] - '0', s = b[6] - '0';
+    if (f >= 0 && f < FT_N && estilo_aberto(i, ABRE_FELTRO[f])) *feltro = f;
+    if (m >= 0 && m < MAT_N && estilo_aberto(i, ABRE_MATERIAL[m])) *mat = m;
+    if (s >= 0 && s < MS_N && estilo_aberto(i, ABRE_MESA[s])) *mesa_id = s;
+}
+
+static void estilo_grava(int i, int feltro, int mat, int mesa_id)
+{
+    char b[8] = { 'E', 'S', 'T', '1', (char)('0' + feltro), (char)('0' + mat), (char)('0' + mesa_id), 0 };
+    salva_grava(chave_estilo(i), b);
+}
+
+static int estilo_material_seu(void) { return estilo_mat; }
+
+// O perfil escolhido entra na mesa com o estilo dele (sem perfil, o padrao).
+static void estilo_do_perfil(void)
+{
+    perfis_le();
+    int f, m, s;
+    estilo_le(perfil_atual >= 0 && perfis[perfil_atual].nome[0] ? perfil_atual : -1, &f, &m, &s);
+    estilo_mat = m;
+    material_j[baixo] = (uint8_t)m;
+    if (f != estilo_feltro || s != estilo_mesa || !estilo_versao) aplica_estilo(f, s);
+}
+
+// ---- A tela ---------------------------------------------------------------
+// Tres linhas (feltro, seus dados, mesa); setas escolhem. O que esta aberto
+// vai para a mesa na hora - a mesa atras e a previa; o fechado diz o andar
+// que o abre. es_foco: linha * 8 + opcao.
+static int es_foco;
+
+static void estilo_abre(int i)
+{
+    perfil_atual = i;                            // ajeitar um perfil e entrar nele
+    perfis_salva();
+    estilo_do_perfil();
+    es_foco = estilo_feltro;
+    t_fase = 0;
+    fase = F_ESTILO;
+}
+
+static const int ES_N[3] = { FT_N, MAT_N, MS_N };
+static int es_andar(int lin, int k)
+{
+    return lin == 0 ? ABRE_FELTRO[k] : lin == 1 ? ABRE_MATERIAL[k] : ABRE_MESA[k];
+}
+
+// A amostra de cada opcao, centrada em (cx, cy).
+static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
+{
+    if (lin == 0) {                              // o feltro, com o pontilhado da mesa
+        const uint16_t *t = FELTROS[k].tons;
+        gfx_rect(cx - 25, cy - 15, 50, 30, C_BARRA);
+        for (int y = 0; y < 28; y++)
+            for (int x = 0; x < 48; x++) {
+                float dx = (x - 23.5f) / 24, dy = (y - 13.5f) / 14, v = (dx * dx * 0.6f + dy * dy) * 1.5f;
+                int i = v > 1.1f ? 1 : v > 0.55f ? 2 : 3;
+                if (ruido_xy(x + k * 50, y) % 23 == 0) i = 4;
+                gfx_pixel(cx - 24 + x, cy - 14 + y, t[i]);
+            }
+    } else if (lin == 1) {                       // um D6 no material
+        uint8_t antes = material_j[0];
+        material_j[0] = (uint8_t)k;
+        desenha_dado((float)cx, (float)cy, 15, D_D6, 0, 0.18f, 5, 2, false);
+        material_j[0] = antes;
+    } else {                                     // a madeira com a moldura
+        bool n0 = k == MS_NOGUEIRA;
+        uint16_t mad = n0 ? C_MADEIRA : MESAS[k].madeira[1], veio = n0 ? C_MADEIRA_ESC : MESAS[k].madeira[0];
+        uint16_t metal = n0 ? C_OURO : MESAS[k].metal;
+        gfx_rect(cx - 25, cy - 15, 50, 30, mad);
+        for (int y = 0; y < 30; y += 2)
+            for (int x = 0; x < 50; x++) if (ruido_xy(x / 7 + k * 9, y) % 5 == 0) gfx_pixel(cx - 25 + x, cy - 15 + y, veio);
+        gfx_moldura(cx - 15, cy - 7, 30, 22, 2, metal);
+        gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
+        tacha(cx - 15, cy - 7, metal); tacha(cx + 14, cy - 7, metal);
+    }
+    if (!aberto) {                               // fechado: apagado, com o cadeado
+        acinzenta(cx - 26, cy - 17, 52, 34, 70);
+        cadeado(cx, cy - 4, C_MARFIM_S, 1);
+    }
+}
+
+static const char *es_nome(int lin, int k)
+{
+    return lin == 0 ? FELTROS[k].nome : lin == 1 ? MATERIAL[k].nome : MESAS[k].nome;
+}
+
+static void desenha_estilo(void)
+{
+    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
+    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    int ty = (FAIXA_H - TXT_H) / 2 - 2;
+    int tx = botao_voltar(KEY_ESC);
+    txt(tx, ty, "ESTILO", C_LATAO, true);
+    txt(tx + gfx_largura("ESTILO", 1) + 12, ty, perfil()->nome, C_MARFIM, true);
+    txt(GFX_W - 18 - gfx_largura("a mesa atrás mostra a escolha", GFX_FINO), ty + 3,
+        "a mesa atrás mostra a escolha", C_TEXTO_M, false);
+    static const char *const TIT[3] = { "Feltro", "Seus dados", "Mesa" };
+    int em_uso[3] = { estilo_feltro, estilo_mat, estilo_mesa };
+    for (int lin = 0; lin < 3; lin++) {
+        int y = 60 + lin * 70, n = ES_N[lin];
+        ui_painel(26, y, GFX_W - 52, 62);
+        txt(40, y + 8, TIT[lin], lin == es_foco / 8 ? C_OURO : C_LATAO, true);
+        if (lin == 1) txt(40, y + 30, "os comuns", C_TEXTO_M, false);
+        for (int k = 0; k < n; k++) {
+            int cx = 170 + k * 92, cy = y + 24;
+            bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
+            if (k == em_uso[lin]) ui_selecao(cx - 32, y + 4, 64, 54, C_OURO);
+            else if (lin * 8 + k == es_foco) ui_selecao(cx - 32, y + 4, 64, 54, C_LATAO_ESC);
+            es_amostra(lin, k, cx, cy, aberto);
+            const char *nm = es_nome(lin, k);
+            char curto[20];
+            snprintf(curto, sizeof curto, "%s", nm);
+            char *e = strstr(curto, " e ");                      // "Mogno e cobre" cabe so "Mogno"
+            if (e) *e = 0;
+            gfx_texto(cx - gfx_largura(curto, GFX_MIUDO) / 2, y + 44, curto,
+                      k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, GFX_MIUDO, false);
+            zona_clique(cx - 32, y + 4, 64, 54, &es_foco, lin * 8 + k, 'u');
+        }
+    }
+    // O que esta em foco: o nome inteiro e, se fechado, o andar que abre.
+    int fl = es_foco / 8, k = es_foco % 8, andar = es_andar(fl, k);
+    char s[96];
+    if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
+    else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer o Barão", es_nome(fl, k));
+    else snprintf(s, sizeof s, "%s  ·  abre ao vencer o Barão no %s", es_nome(fl, k), NOME_DIF_CURTO[andar]);
+    txt_c(GFX_W / 2, 272, s, estilo_aberto(perfil_atual, andar) ? C_MARFIM : C_TEXTO_M, true);
+    rodape_run("setas escolhem  ·  ENTER ou ESC volta");
+}
+
+static bool estilo_tecla(int k)
+{
+    int lin = es_foco / 8, col = es_foco % 8;
+    bool sobe = k == KEY_UP || k == 'w', desce = k == KEY_DOWN || k == 's';
+    if (sobe || desce) {                         // trocar de linha so move o foco
+        lin = (lin + (sobe ? 2 : 1)) % 3;
+        if (col >= ES_N[lin]) col = ES_N[lin] - 1;
+        es_foco = lin * 8 + col;
+        som_toca(SOM_TIQUE);
+        return true;
+    }
+    if (k == KEY_LEFT || k == 'a') col = (col + ES_N[lin] - 1) % ES_N[lin];
+    else if (k == KEY_RIGHT || k == 'd') col = (col + 1) % ES_N[lin];
+    else if (k == KEY_ENTER) { t_fase = 0; fase = F_PERFIS; return true; }
+    else if (k != 'u') return true;              // 'u': o clique numa opcao
+    es_foco = lin * 8 + col;
+    som_toca(SOM_TIQUE);
+    // O que esta aberto vai para a mesa na hora, e fica guardado.
+    if (!estilo_aberto(perfil_atual, es_andar(lin, col))) return true;
+    int f = estilo_feltro, m = estilo_mat, s = estilo_mesa;
+    if (lin == 0) f = col; else if (lin == 1) m = col; else s = col;
+    estilo_grava(perfil_atual, f, m, s);
+    estilo_do_perfil();
+    return true;
+}

@@ -96,6 +96,47 @@ int main(int argc, char **argv)
         hist_de = -1;
     }
 
+    // Estilo: so o que o andar ja abriu vale; o resto volta ao padrao. Os
+    // oponentes tem o material do nivel; os chefes, obsidiana.
+    {
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "ESTILO");
+        perfil_atual = 0;
+        perfis_lidos = true;
+        int f, m, s;
+        estilo_le(0, &f, &m, &s);
+        CONFERE(f == FT_VERDE && m == MAT_MARFIM && s == MS_NOGUEIRA, "estilo novo devia ser o padrao");
+        estilo_grava(0, FT_VINHO, MAT_JADE, MS_MOGNO);
+        estilo_le(0, &f, &m, &s);
+        CONFERE(f == FT_VERDE && m == MAT_MARFIM && s == MS_NOGUEIRA, "estilo fechado nao devia valer");
+        perfis[0].venceu[0] = 1;                 // venceu o Barao no terreo: abre o Vinho (e o Osso)
+        estilo_le(0, &f, &m, &s);
+        CONFERE(f == FT_VINHO && m == MAT_MARFIM && s == MS_NOGUEIRA, "o Vinho devia abrir no terreo");
+        perfis[0].venceu[1] = perfis[0].venceu[2] = 1;
+        estilo_le(0, &f, &m, &s);
+        CONFERE(f == FT_VINHO && m == MAT_JADE && s == MS_MOGNO, "Jade e Mogno deviam abrir");
+        estilo_do_perfil();
+        CONFERE(estilo_feltro == FT_VINHO && estilo_mesa == MS_MOGNO && estilo_material_seu() == MAT_JADE
+                && C_FELTRO == FELTROS[FT_VINHO].tons[3], "o estilo nao foi para a mesa");
+        baixo = 0;
+        modo = M_UM; nivel_jog[1] = 2;
+        materiais_da_partida(material_rapida());
+        CONFERE(material_j[0] == MAT_JADE && material_j[1] == MAT_JADE, "o computador dificil devia ser de jade");
+        nivel_jog[1] = 1;
+        materiais_da_partida(material_rapida());
+        CONFERE(material_j[1] == MAT_OSSO, "o computador medio devia ser de osso");
+        modo = M_DOIS;
+        materiais_da_partida(material_rapida());
+        CONFERE(material_j[1] == MAT_MARFIM, "duas pessoas: o outro lado devia ser de marfim");
+        char l[96];
+        CONFERE(estilo_do_andar(5, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
+        perfil_atual = -1;
+        estilo_do_perfil();                      // sem perfil: o padrao
+        CONFERE(estilo_feltro == FT_VERDE && estilo_material_seu() == MAT_MARFIM, "sem perfil devia voltar ao padrao");
+        modo = M_UM;
+    }
+
     int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
     long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;

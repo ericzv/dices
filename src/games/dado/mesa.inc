@@ -121,6 +121,8 @@ static void icone_som(int x, int y)
 
 static void icone_bolsa(int cx, int cy);
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
+static void trunfo_faixa(int x, int y, int x_max);
+static void desenha_amuleto(int x, int y, int r, int a, bool apagado);
 static int  retrato_faixa(int j, int x, int y0);
 static int  fichas_vis(int j);   // devolve onde o nome comeca
 
@@ -167,6 +169,10 @@ static void faixa_jogador(int j)
     gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, cima ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
+    // O oponente do Desafiante: o trunfo dele fica numa linha miuda embaixo
+    // do nome, sempre a vista; o resto da faixa sobe um pouco.
+    bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0;
+    if (com_trunfo) ty -= 5;
 
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
                   && fase != F_ROLANDO && fase != F_ARRUMA && vez == j;
@@ -204,6 +210,7 @@ static void faixa_jogador(int j)
 
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
+    if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
     icone_bolsa(bx + 8, by);
     snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), p->n_col);   // os no ar ainda nao chegaram
     txt(bx + 22, ty, s, C_MARFIM_S, false);
@@ -284,7 +291,7 @@ static void faiscas(int x, int y, float t, uint16_t c)
     }
 }
 
-// O Ventania de j acabou de cair e esta rolando o dado de antes?
+// O Ventania de j acabou de cair e esta rolando o primeiro dado?
 static bool ventania_agora(int j)
 {
     const fila_t *f = &F[j];
@@ -472,11 +479,11 @@ static void desenha_fila(int j)
         // chegar na metade, e entao o numero do rival.
         bool ainda = no_desfecho && vis_espelho[j][k]
                      && !(e && e->tipo == EV_ESPELHO && e->de_j == j && e->de_k == k && p > 0.5f);
-        // Ventania: o dado de antes rodopia mostrando faces ao acaso e
+        // Ventania: o primeiro dado rodopia mostrando faces ao acaso e
         // assenta no numero novo.
         int face = ainda ? f->cru[k] : f->valor[k];
         float giro = 0;
-        if (ventania_agora(j) && k == f->lancados - 2) {
+        if (ventania_agora(j) && k == 0) {
             float q = t_fase / 0.7f;
             giro = (1 - q) * (1 - q) * 9;
             x += (int)(sinf(t_fase * 40 + k) * (1 - q) * 3);
@@ -490,11 +497,18 @@ static void desenha_fila(int j)
             int arm = poder_armado(j, k);
             if (arm) brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
         }
+        // Protegido contra ataques pelo dono (Couraca: nao e anulado; Ima: nao
+        // e roubado): o medalhao do amuleto no pe do dado.
+        if (!anul && modo == M_DESAFIO) {
+            int n = 0;
+            if (tem_am(j, A_COURACA)) desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_COURACA, false);
+            if (tem_am(j, A_IMA))     desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_IMA, false);
+        }
         // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
         // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
         char tg[16] = "";
         if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
-        else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "+%d", vis_bonus[j][k]);
+        else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "%+d", vis_bonus[j][k]);
         else if (ainda) snprintf(tg, sizeof tg, "=?");
         else if (f->tag[k][0]) snprintf(tg, sizeof tg, "%s", f->tag[k]);
         // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
@@ -547,16 +561,15 @@ static void desenha_fila(int j)
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
             && (e->mascara >> k & 1) && p > 0.2f) {
-            aro(x, y, C_OURO);
-            faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
+            bool perde = e->tipo == EV_BONUS && e->por_dado[k] < 0;     // Tudo ou Nada com 1
+            aro(x, y, perde ? C_VINHO_CLR : C_OURO);
+            if (!perde) faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
         }
         if (e && e->tipo == EV_BONUS && e->de_j == j && e->de_k == k) aro(x, y, C_OURO);
         // Marcado pelo fogo: aro em brasa ate o fim da rodada.
         if (no_desfecho && (vis_queima[j][k] ||
             (e && e->tipo == EV_FOGO && e->alvo_j == j && e->alvo_k == k && p > 0.35f)))
             aro(x, y, ((int)(t_fase * 10) % 2) ? C_FOGO : C_BRASA);
-        if (e && e->tipo == EV_ZERA && e->de_j == j && p > 0.15f && ((int)(t_fase * 9) % 2 == 0))
-            aro(x, y, C_VIOLETA);
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
         if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k) aro(x, y, cor_dado(t));
@@ -572,11 +585,12 @@ static void desenha_fila(int j)
             gfx_texto(bx, by, b, cb, GFX_MIUDO, false);
         }
     }
-    // Rajadas da Ventania saindo dela e passando pelo dado de antes.
+    // Rajadas da Ventania saindo dela e passando ate o primeiro dado.
     if (ventania_agora(j))
         for (int i = 0; i < 7; i++) {
             float q = t_fase / 0.7f;
-            int xs = SLOT_X(f->lancados - 1) + 10 - (int)fmodf(t_fase * 500 + i * 61, 160.0f);
+            float alcance = (float)(SLOT_X(f->lancados - 1) - SLOT_X(0) + 90);
+            int xs = SLOT_X(f->lancados - 1) + 10 - (int)fmodf(t_fase * 500 + i * 61, alcance);
             int ys = y - 24 + i * 8;
             gfx_rect(xs, ys, 30 + (i % 3) * 10, 1, gfx_mistura(C_VENTO, C_FELTRO, 30 + (int)(q * 60)));
         }
@@ -599,14 +613,8 @@ static void desenha_fila(int j)
         char s[16];
         int pts = fase == F_RESULTADO && venc_mao >= 0 ? f->total
                 : no_desfecho ? total_visivel(j) : f->pontos;
-        // Rodada zerando: o placar desce ate 0 durante o evento.
-        if (e && e->tipo == EV_ZERA && e->de_j == j) {
-            float q = p / 0.7f;
-            pts = (int)(pts * (q > 1 ? 0 : 1 - q));
-        }
         snprintf(s, sizeof s, "%d", pts);
         uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
-                   : f->zerada ? C_VIOLETA
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
         ui_painel(PLACAR_X - 34, y - 26, 68, 50);
         txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);

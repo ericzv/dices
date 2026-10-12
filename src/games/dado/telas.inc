@@ -296,10 +296,10 @@ static void desenha_efeitos(void)
 {
     if (ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
-    uint16_t c = e->tipo == EV_ZERA ? C_VIOLETA
-               : e->tipo == EV_FOGO ? C_FOGO
+    uint16_t c = e->tipo == EV_FOGO ? C_FOGO
                : e->tipo == EV_SEMENTE ? C_VERDE
                : e->tipo == EV_JACKPOT ? C_AMARELO
+               : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR
                : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA) ? C_OURO
                : C_VINHO_CLR;
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.

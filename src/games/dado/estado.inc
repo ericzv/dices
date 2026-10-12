@@ -36,7 +36,6 @@ typedef struct {
     uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     char    tag[N_FILA][14];
-    bool    zerada;                  // Tudo ou Nada tirou 1: a rodada vale 0
     int     pontos;
     int     total;
 } fila_t;
@@ -53,7 +52,7 @@ typedef struct {
 
 // Eventos do desfecho, tocados um a um.
 enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SEMENTE,
-       EV_ZERA, EV_JACKPOT, EV_ESPELHO,
+       EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
        EV_CHEFE,                     // a virada do Barao: pontos por queda sua
@@ -122,7 +121,6 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
-static uint8_t vis_zerada[2];
 
 #define N_LOJA 5
 static peca_t loja[N_LOJA];

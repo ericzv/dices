@@ -131,7 +131,6 @@ static void nova_rodada(void)
     memset(vis_queima, 0, sizeof vis_queima);
     memset(vis_espelho, 0, sizeof vis_espelho);
     memset(vis_semente, 0, sizeof vis_semente);
-    memset(vis_zerada, 0, sizeof vis_zerada);
     aviso[0] = veredito[0] = nota[0] = 0;
     vez = primeiro;
     cursor = 0;
@@ -421,8 +420,10 @@ static int som_do_evento(int i)
     case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
-    case EV_ZERA:    return SOM_ZERA;
-    case EV_BONUS:   return e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO ? SOM_BIGORNA : SOM_EFEITO;
+    case EV_BONUS:
+        if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
+        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;   // Tudo ou Nada com 1
+        return SOM_EFEITO;
     default:         return SOM_EFEITO;
     }
 }
@@ -435,7 +436,6 @@ static void desfecho(void)
         vis_nroubo[j] = 0;
         vis_delta[j] = 0;
         vis_semente[j] = 0;
-        vis_zerada[j] = 0;
         memset(vis_bonus[j], 0, N_FILA);
         memset(vis_mult[j], 0, N_FILA);
         memset(vis_queima[j], 0, N_FILA);
@@ -466,7 +466,6 @@ static float duracao_evento(int i)
     case EV_CAVALO:  return 2.0f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
-    case EV_ZERA:  return 1.6f;
     case EV_BONUS: return 1.4f;
     default:       return 1.3f;
     }
@@ -514,6 +513,8 @@ static void flutua_evento(const evento_t *e)
         for (int k = 0; k < N_FILA; k++)
             if (e->por_dado[k] > (e->tipo == EV_MULT ? 1 : 0))
                 flutua_em(dj, k, C_OURO, k * 0.06f, e->tipo == EV_MULT ? "x%d" : "+%d", e->por_dado[k]);
+            else if (e->tipo == EV_BONUS && e->por_dado[k] < 0)             // Tudo ou Nada com 1
+                flutua_em(dj, k, C_VINHO_CLR, k * 0.06f, "%d", e->por_dado[k]);
         break;
     case EV_ANULA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_TIRA:    flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
@@ -576,7 +577,6 @@ static void aplica_evento(int i)
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
-    case EV_ZERA:    vis_zerada[e->de_j] = 1; break;
     case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
         for (int k = 0; k < N_FILA; k++)
             if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;

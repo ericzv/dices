@@ -105,7 +105,7 @@ void dado_passo(float dt)
             pousa(j, k, rola);
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
-            // A Ventania tem o som dela quando rola o dado de antes.
+            // A Ventania tem o som dela quando rola o primeiro dado.
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);

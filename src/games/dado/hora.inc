@@ -41,27 +41,42 @@ static int partida_se(int w)
 static int dado_decisivo(int j, int k)
 {
     if (j == primeiro || k != F[j].n - 1) return 0;
-    int t = F[j].tipo[k], n = TIPO[t].efeito == EF_LASTRO ? 9 : TIPO[t].lados;
+    int t = F[j].tipo[k];
+    // O Sorte/Reves vale de -7 a 11, cada diferenca com o seu peso (quantos
+    // pares de d12 e d8 a dao); os outros, uma face de cada vez.
+    bool duplo = TIPO[t].efeito == EF_SORTE_REVES;
+    int L = TIPO[t].lados;
+    int n = duplo ? L + SR_REVES - 1 : TIPO[t].efeito == EF_LASTRO ? 9 : L;
     mesa_t m;
     guarda_mesa(&m);
     uint32_t am = am_disparou;
-    int ganha = 0, fins = 0;                 // faces em que j leva; bit: como a partida fica
-    for (face_fixa = 1; face_fixa <= n; face_fixa++) {
+    int ganha = 0, total = 0, fins = 0;      // jeitos em que j leva, de quantos; bit: como a partida fica
+    for (int c = 0; c < n; c++) {
         fila_t *f = &F[j];
-        int menor;
-        f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);
+        int menor, peso = 1;
+        if (duplo) {
+            int dv = c - (SR_REVES - 1);
+            int b0 = dv < 0 ? 1 - dv : 1, b1 = L - dv < SR_REVES ? L - dv : SR_REVES;
+            peso = b1 - b0 + 1;              // os Reveses b que dao essa diferenca com uma Sorte a = dv + b
+            f->cru[k] = f->valor[k] = dv;
+            menor = b0;
+        } else {
+            face_fixa = c + 1;
+            f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);
+        }
         f->descarte[k] = (uint8_t)menor;
         f->lancados = k + 1;
         pousa(j, k, rola_fixo);
         desfecho_t d;
         calcula_desfecho(&d, false);
         int w = leva_rodada(&d);
-        if (w == j) ganha++;
+        total += peso;
+        if (w == j) ganha += peso;
         fins |= 1 << (partida_se(w) + 1);
         volta_mesa(&m);
     }
     am_disparou = am;
-    if (ganha * 10 < n || (n - ganha) * 10 < n) return 0;
+    if (ganha * 10 < total || (total - ganha) * 10 < total) return 0;
     bool acaba = (fins & ~1) != 0;
     return acaba && (fins & (fins - 1)) ? 2 : 1;
 }
@@ -98,10 +113,10 @@ static void reage_lance(int j, int k)
 // A luz da hora da verdade: em volta do dado o feltro como esta; fora do
 // circulo, escurece aos poucos (com o pontilhado de sempre, para a paleta
 // fazer degraus suaves). O circulo aperta enquanto a mesa escurece.
+static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 static void desenha_hora(void)
 {
     if (t_hora <= 0) return;
-    static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
     float t = t_hora * t_hora * (3 - 2 * t_hora);
     float raio = 92 + (1 - t) * 280, borda = 110;
     float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo

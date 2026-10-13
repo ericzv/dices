@@ -11,6 +11,10 @@ static void moeda_girando(int cx, int cy, int tipo, float t)
 static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
+    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -7 a 11, de 2 em 2
+        for (int v = -7; v <= 11; v += 2) f[n++] = v;
+        return n;
+    }
     int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;
     for (int v = de; v <= lados; v++) f[n++] = v;
     return n;
@@ -124,7 +128,7 @@ static void desenha_catalogo(void)
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
     char s[32];
-    faixas_colecao(cat_i, D_N);
+    faixas_colecao(cat_i, N_CATALOGO);
     char trava[80];
     int st = cat_trava_dado(tipo, trava, sizeof trava);
 
@@ -146,7 +150,7 @@ static void desenha_catalogo(void)
         float ang = sinf(t_fase * 1.7f) * 0.22f;
         bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
         so_apagado = true;
-        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : -1, 2, st == 2);
+        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : SO_CORPO, 2, st == 2);
         so_apagado = false;
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);

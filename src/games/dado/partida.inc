@@ -19,6 +19,15 @@ static int na_bolsa(const jogador_t *p)
     return n;
 }
 
+// Os dados da bolsa que ainda jogam nesta partida: o que a Autofagia comeu
+// so volta na proxima.
+static int em_jogo(const jogador_t *p)
+{
+    int n = 0;
+    for (int i = 0; i < p->n_col; i++) if (p->onde[i] != COMIDO) n++;
+    return n;
+}
+
 // A mao da rodada anterior sai da mesa.
 static void descarta_mao(jogador_t *p)
 {
@@ -240,12 +249,18 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         break;
     }
     case EF_LASTRO:  x = 3 + r(9); break;    // 4 a 12, 1 em 9 cada
+    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
+        int b = r(SR_REVES);
+        *menor = b;
+        x -= b;
+        break;
+    }
     case EF_EXPLODE: {
         int n = x, g = 0;
         while (n == lados && g++ < 3) { n = r(lados); x += n; }
         break;
     }
-    case EF_QUEBRADO: x = fixo; break;       // sem sorteio
+    case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
     default: break;
     }
     return x;
@@ -257,12 +272,10 @@ static void lanca_proximo(void)
     int k = f->lancados;
     int t = tipo_de(vez, k), lados = TIPO[t].lados;
 
-    // Acumulador: cada lance guarda +1 nele, para sempre (ate +6).
-    if (t == D_ACUMULADOR && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col) {
-        peca_t *pc = &J[vez].col[f->idx[k]];
-        if (pc->fixo < 6) pc->fixo++;
-        f->fixo[k] = pc->fixo;
-    }
+    // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
+    // cada vez que pousa valendo).
+    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+        f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
         desfecho_t d;
@@ -279,7 +292,7 @@ static void lanca_proximo(void)
     v->dono = (uint8_t)vez;
     v->slot = (uint8_t)k;
     v->tipo = (uint8_t)t;
-    v->valor = x;
+    v->valor = TIPO[t].efeito == EF_SORTE_REVES ? x + menor : x;   // no ar, o da Sorte
     v->x = GFX_W / 2 + frnd(-110, 110);
     v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
     v->vx = frnd(-300, 300);
@@ -290,7 +303,8 @@ static void lanca_proximo(void)
     n_voo = 1;
     f->descarte[k] = (uint8_t)menor;
     // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
-    // que some quando o maior vai para a fila.
+    // que some quando o maior vai para a fila. O Sorte/Reves tambem: o
+    // fantasma e o d8 do Reves, que se junta ao da Sorte antes da fila.
     if (menor) {
         voo_t *w = &voo[1];
         *w = *v;
@@ -300,7 +314,7 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
-        w->face = rola_v(lados);
+        w->face = rola_v(TIPO[t].efeito == EF_SORTE_REVES ? SR_REVES : lados);
         n_voo = 2;
     }
     if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
@@ -308,6 +322,11 @@ static void lanca_proximo(void)
     t_fase = 0;
     fase = F_ROLANDO;
 }
+
+// O Sorte/Reves para no feltro e as duas metades se juntam num dado so, com o
+// valor final, antes de ir para a fila: o tempo da juncao.
+#define SR_JUNTA 0.35f
+static float junta_t(void) { return n_voo > 1 && voo[0].tipo == D_SORTE_REVES ? SR_JUNTA : 0; }
 
 static void comeca_segundo(void)
 {
@@ -317,20 +336,56 @@ static void comeca_segundo(void)
     fase = F_ORDEM;
 }
 
-// Quebrados jogados saem da bolsa de quem os tinha. A bolsa nunca cai abaixo
-// de quatro: se cairia, o Quebrado vira um d4 comum.
-// Quebrados jogados saem da colecao de quem os tinha. A colecao nunca cai
-// abaixo de quatro: se cairia, o Quebrado vira um d4 comum.
-// Dados que saem do jogo ao fim da rodada: o Quebrado que foi jogado e o que
-// a Ficha de Fogo queimou. A colecao nunca cai abaixo de quatro: se cairia, o
-// dado perdido vira um d4 comum.
+// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
+static void autofagia_come(int j, const desfecho_t *d)
+{
+    if (!d->come[j] || !d->come_de[j]) return;
+    int b = F[j].idx[d->come[j] - 1], a = F[j].idx[d->come_de[j] - 1];
+    if (a < 0 || a >= J[j].n_col || b < 0 || b >= J[j].n_col) return;
+    J[j].onde[b] = COMIDO;
+    if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
+}
+
+// A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja
+// saem da bolsa) vira um Quebrado com o numero que tirou.
+static void medusa_petrifica(int j, const desfecho_t *d)
+{
+    if (!d->medusa[j]) return;
+    fila_t *f = &F[j];
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+        if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || vis_queima[j][k]) continue;
+        if (f->tipo[k] == D_VIDRO && f->cru[k] == 1) continue;              // estilhacado: ja sai
+        if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
+        int v = f->valor[k] > 99 ? 99 : f->valor[k] < -99 ? -99 : f->valor[k] ? f->valor[k] : 1;
+        J[j].col[f->idx[k]] = (peca_t){ D_QUEBRADO, (uint8_t)(int8_t)v };    // o Reves negativo vira pedra negativa
+    }
+}
+
+// A pedra negativa (um Reves que a Medusa petrificou), jogada por voce no
+// Desafiante: ao se partir, tem um dado dentro.
+static bool pedra_misteriosa(int j, int k)
+{
+    return modo == M_DESAFIO && j == 0 && F[j].tipo[k] == D_QUEBRADO && (int8_t)F[j].fixo[k] < 0
+        && F[j].idx[k] >= 0 && F[j].idx[k] < J[j].n_col;
+}
+
+// Dados que saem do jogo ao fim da rodada: o Quebrado que foi jogado, o Vidro
+// estilhacado e o que a Ficha de Fogo queimou. A bolsa nunca cai abaixo da
+// mao: se cairia, o dado perdido vira um d4 comum. A pedra negativa do
+// Desafiante se parte e deixa o Dado Misterioso no lugar.
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0;
     for (int j = 0; j < 2; j++) {
         int saem[N_FILA], n = 0;
         for (int k = 0; k < F[j].lancados; k++) {
             bool some = false;
+            if (pedra_misteriosa(j, k)) {
+                F[j].quebra[k] = true;
+                J[j].col[F[j].idx[k]] = (peca_t){ D_MISTERIOSO, 0 };
+                n_mist++;
+                continue;
+            }
             if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
             if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
@@ -342,7 +397,7 @@ static void recolhe_quebrados(void)
             }
         jogador_t *p = &J[j];
         for (int i = 0; i < n; i++) {
-            if (p->n_col <= N_FILA) { p->col[saem[i]] = nova_peca(D_D4); continue; }
+            if (em_jogo(p) <= N_FILA) { p->col[saem[i]] = nova_peca(D_D4); continue; }
             for (int m = saem[i]; m + 1 < p->n_col; m++) {
                 p->col[m] = p->col[m + 1];
                 p->onde[m] = p->onde[m + 1];
@@ -356,6 +411,10 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
+    if (n_mist) {
+        snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
+        if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga
+    }
 }
 
 // O desfecho calculado pelo motor de regras: e ele que paga. Os eventos so
@@ -407,6 +466,14 @@ static void conclui_rodada(void)
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);
     }
+    for (int j = 0; j < 2; j++) {                 // o Agiota cobra, ganhe quem ganhar
+        int r = outro(j), a = resolvido.agiota[j] < J[r].fichas ? resolvido.agiota[j] : J[r].fichas;
+        if (a <= 0) continue;
+        J[r].fichas -= a;
+        J[j].fichas += a;
+        size_t n = strlen(aviso);
+        snprintf(aviso + n, sizeof aviso - n, "  ·  Agiota: %d de %s", a, J[r].nome);
+    }
     int aluguel = virada_forca(1);                // a Dona cobra o aluguel, ganhe quem ganhar
     if (aluguel && J[0].fichas > 0) {
         int a = aluguel == 2 ? 5 : 3;
@@ -423,6 +490,7 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
+    for (int j = 0; j < 2; j++) { autofagia_come(j, &resolvido); medusa_petrifica(j, &resolvido); }
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;
@@ -438,8 +506,10 @@ static int som_do_evento(int i)
     case EV_JACKPOT: return SOM_JACKPOT;
     case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
     case EV_CAVALO:  return SOM_ANULA;
-    case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
+    case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
+    case EV_AGIOTA:  return SOM_FICHA;
+    case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
@@ -460,6 +530,8 @@ static void desfecho(void)
         memset(vis_bonus[j], 0, N_FILA);
         memset(vis_mult[j], 0, N_FILA);
         memset(vis_queima[j], 0, N_FILA);
+        memset(vis_corte[j], 0, N_FILA);
+        memset(vis_pedra[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
     }
     for (int i = 0; i < n_ev; i++)
@@ -485,6 +557,9 @@ static float duracao_evento(int i)
     case EV_EXTRA:   return ev[i].mascara ? 1.9f : 1.6f;    // o Capitao passa por cada dado
     case EV_CHEFE:   return 1.6f;
     case EV_CAVALO:  return 2.0f;
+    case EV_CORTA:   return 1.5f;
+    case EV_AGIOTA:  return 1.6f;
+    case EV_MEDUSA:  return 1.9f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
@@ -513,7 +588,8 @@ static void flutua_pouso(int j, int k)
     const fila_t *f = &F[j];
     if (f->est[k] == V_VALIDO) {
         int v = valor_pontos(j, k) + f->bonus[k];
-        if (v) flutua_em(j, k, C_OURO, 0, "+%d", v);
+        if (v > 0) flutua_em(j, k, C_OURO, 0, "+%d", v);
+        else if (v < 0) flutua_em(j, k, C_VINHO_CLR, 0, "%d", v);   // o Sorte/Reves negativo
     }
     uint8_t caiu = anulou_masc;
     if (anulou_a >= 0) caiu |= (uint8_t)(1 << anulou_a);
@@ -521,7 +597,7 @@ static void flutua_pouso(int j, int k)
     for (int i = 0; i < k; i++)
         if ((caiu >> i & 1) && f->est[i] != V_VALIDO) {
             int v = valor_pontos(j, i) + f->bonus[i];
-            if (v) flutua_em(j, i, C_VINHO_CLR, 0.08f, "-%d", v);
+            if (v > 0) flutua_em(j, i, C_VINHO_CLR, 0.08f, "-%d", v);
         }
 }
 
@@ -547,7 +623,7 @@ static void flutua_evento(const evento_t *e)
     case EV_EXTRA:
         if (e->mascara) {                   // Capitao: +2 em cada dado seu que vale
             for (int k = 0; k < N_FILA; k++)
-                if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.06f, "+%d", e->por_dado[k]);
+                if ((e->mascara >> k & 1) && e->por_dado[k] > 0) flutua_em(dj, k, C_OURO, k * 0.06f, "+%d", e->por_dado[k]);
             break;
         }
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
@@ -561,6 +637,7 @@ static void flutua_evento(const evento_t *e)
         if (e->valor) flutua_em(aj, N_FILA, C_VINHO_CLR, 0.1f, "-%d", e->valor);   // o que tinha roubado
         break;
     case EV_CHEFE:   flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "+%d", e->valor); break;
+    case EV_CORTA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     default: break;
     }
 }
@@ -598,6 +675,10 @@ static void aplica_evento(int i)
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
+    case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;
+    case EV_MEDUSA:
+        for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_pedra[e->de_j][k] = 1;
+        break;
     case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
         for (int k = 0; k < N_FILA; k++)
             if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;

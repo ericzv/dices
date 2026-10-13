@@ -91,6 +91,7 @@ void dado_desenha(void)
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
+    desenha_misterio();
     aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta
 }

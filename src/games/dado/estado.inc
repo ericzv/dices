@@ -5,7 +5,7 @@
 typedef struct { uint8_t tipo, fixo; } peca_t;
 
 // Cada dado do jogador esta num de tres lugares.
-enum { NA_BOLSA, NA_MAO, FORA };
+enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
 
 typedef struct {
     const char *nome;
@@ -35,6 +35,8 @@ typedef struct {
     bool    cinza[N_FILA];           // queimado pela Ficha de Fogo
     uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
+    bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
+    bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -57,7 +59,10 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
        EV_CHEFE,                     // a virada do Barao: pontos por queda sua
-       EV_CAVALO };                  // o Cavalo de Troia se abre: anula os dados de quem o atingiu
+       EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
+       EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
+       EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
+       EV_MEDUSA };                  // a Medusa: a fila vira pedra (Quebrados)
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -138,6 +143,8 @@ static roubado_t vis_roubo[2][4];
 static int  vis_nroubo[2], vis_delta[2];
 static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
+static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
+static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
@@ -233,6 +240,12 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 #endif
 static int   perso_virado = -1;          // o chefe que ja virou nesta partida
 static float t_virada;                   // > 0: o anuncio da virada na tela
+// A vinheta do Dado Misterioso: > 0 enquanto corre (primeiro a pedra se parte
+// na mesa; depois de MIST_ESPERA, a luz e o dado, com a mesa parada).
+#define MIST_ESPERA 1.0f
+#define MIST_MIN    1.4f                 // so depois disso uma tecla fecha
+#define MIST_MAX    20.0f
+static float t_misterio;
 static int des_dificuldade(void);
 // A virada que o oponente perso traz na dificuldade da run: 0 nenhuma, 1, 2.
 static int virada_de(int perso)

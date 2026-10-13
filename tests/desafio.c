@@ -88,6 +88,22 @@ int main(int argc, char **argv)
         hist_de = -1;
         hist_carrega(0);
         CONFERE(hist.rodadas == 0 && !hist.camp_tem, "salvamento estragado devia comecar do zero");
+        // O historico de antes (64 tipos) volta convertido, sem perder nada.
+        {
+            static hist64_t velho;
+            static char buf[2 * sizeof(hist64_t) + 1];
+            memset(&velho, 0, sizeof velho);
+            memcpy(velho.marca, "HIS1", 4);
+            velho.rodadas = 77; velho.lancou[D_D6] = 5; velho.ganhou[63] = 9;
+            velho.camp_tem = 1; velho.camp_n = 2; velho.camp_col[1] = D_LASER; velho.camp_moedas = 321;
+            hex_de(&velho, sizeof velho, buf);
+            salva_grava("hist1", buf);
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(hist.rodadas == 77 && hist.lancou[D_D6] == 5 && hist.ganhou[63] == 9 && hist.lancou[64] == 0
+                    && hist.camp_tem && hist.camp_col[1] == D_LASER && hist.camp_moedas == 321,
+                    "historico de antes nao foi convertido");
+        }
         hist = antes; hist_de = 0;
         hist_grava();
         hist_apaga(0);

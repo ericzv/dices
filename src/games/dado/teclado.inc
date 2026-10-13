@@ -63,6 +63,10 @@ void dado_tecla(const key_event_t *ev_)
 
     if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
+    if (t_misterio > 0) {                          // a vinheta do Dado Misterioso: espera um pouco
+        if (t_misterio > MIST_ESPERA + MIST_MIN) t_misterio = 0;
+        return;
+    }
     if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
     if (k == 'v' && !dado_digitando()) {
         rapido = !rapido;
@@ -133,6 +137,10 @@ void dado_mouse(int x, int y, int acao)
     mouse_x = x;
     mouse_y = y;
     if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (t_misterio > 0) {                               // a vinheta: um clique fecha
+        if (acao == 1) manda_tecla(KEY_ENTER);
+        return;
+    }
     if (detalhe >= 0 && fase == detalhe_fase) {         // um clique fecha os detalhes
         if (acao == 1) manda_tecla(KEY_ENTER);
         return;
@@ -318,7 +326,7 @@ static void trata_tecla(int k)
             return;
         }
         if (e) {
-            if (cat_sec == 0) cat_i = (cat_i + e + D_N) % D_N;
+            if (cat_sec == 0) cat_i = (cat_i + e + N_CATALOGO) % N_CATALOGO;
             else cat_a = (cat_a + e + A_N) % A_N;
             t_fase = 0;
             som_toca(SOM_TIQUE);

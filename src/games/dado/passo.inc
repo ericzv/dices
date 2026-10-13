@@ -23,6 +23,13 @@ void dado_passo(float dt)
         if (antes < ELEV_CHEGA && ELEV_T - t_elev >= ELEV_CHEGA) som_toca(SOM_VALIDO);   // o "dim" do elevador
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
+    if (t_misterio > 0) {                // o Dado Misterioso: a pedra se parte, depois a mesa para
+        float antes = t_misterio;
+        t_misterio += dt_real;
+        if (antes <= MIST_ESPERA && t_misterio > MIST_ESPERA) som_toca(SOM_PREMIO);
+        if (t_misterio > MIST_MAX) t_misterio = 0;
+        else if (t_misterio > MIST_ESPERA) return;
+    }
     t_fase += dt;
     hora_passo(dt, dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
@@ -86,7 +93,7 @@ void dado_passo(float dt)
         if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
         if (fisica(dt * lento) && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
             if (hora) som_rufo(false);           // o som segura: silencio ate o veredito
-            voo[0].ox = voo[0].x; voo[0].oy = voo[0].y;
+            for (int i = 0; i < n_voo; i++) { voo[i].ox = voo[i].x; voo[i].oy = voo[i].y; }
             t_fase = 0;
             fase = F_ARRUMA;
         }
@@ -94,7 +101,10 @@ void dado_passo(float dt)
     }
     case F_ARRUMA: {
         bool ia_arr = (cpu >> voo[0].dono & 1) && voo[0].slot != F[voo[0].dono].n - 1;
-        float t = t_fase / (ia_arr ? 0.28f : 0.45f);
+        float jt = junta_t();                    // o Sorte/Reves se junta antes de ir
+        if (jt && t_fase >= jt && t_fase - dt < jt) som_toca(SOM_BATE_DADO);
+        float t = (t_fase - jt) / (ia_arr ? 0.28f : 0.45f);
+        if (t < 0) t = 0;
         if (t > 1) t = 1;
         float e = t * t * (3 - 2 * t);
         voo_t *v = &voo[0];
@@ -108,6 +118,10 @@ void dado_passo(float dt)
             som_rufo(false);
             am_disparou = 0;
             pousa(j, k, rola);
+            // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
+            if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
+                && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
+                J[j].col[F[j].idx[k]].fixo++;
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
             // A Ventania tem o som dela quando rola o primeiro dado.

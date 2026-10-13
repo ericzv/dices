@@ -13,7 +13,7 @@ static int ultimo_valido(const uint8_t *est, int antes)
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
 static int valor_pontos(int j, int k)
 {
-    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 8 : 0;
+    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
     if (F[j].tipo[k] == D_FERREIRO) return 0;
     return F[j].valor[k];
 }
@@ -28,11 +28,14 @@ static bool nao_anulavel_t(int t)
     return ef == EF_ESCUDO || ef == EF_TEIMOSO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
+// O mesmo, pela posicao: o dado preso pela Ancora tambem.
+static bool intocavel(int j, int k) { return intocavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
-static bool invejoso_age(int v) { return v == 1 || v == 3 || v == 5; }
-static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
+static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
+static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
 static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
+static bool resiste_ego(int j, int k) { return resiste_egoista(tipo_de(j, k)) || F[j].ancora[k]; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -82,7 +85,9 @@ static bool copia_antes(int j, int k)
 
 // Tres ou mais dados valendo com o mesmo numero. Devolve o numero (0 se nao
 // ha trinca) e, em masc, quais dados formam a trinca.
-static int trinca(int j, const uint8_t *est, uint8_t *masc)
+// Pelo menos q dados valendo de j com o mesmo numero: devolve o numero (o
+// primeiro que fecha) e, em masc, quais sao. 0: nao ha.
+static int mesmo_numero(int j, const uint8_t *est, int q, uint8_t *masc)
 {
     for (int a = 0; a < F[j].lancados; a++) {
         if (est[a] != V_VALIDO) continue;
@@ -91,10 +96,11 @@ static int trinca(int j, const uint8_t *est, uint8_t *masc)
             if (est[b] == V_VALIDO && F[j].valor[b] == F[j].valor[a]) m |= (uint8_t)(1 << b);
         int n = 0;
         for (uint8_t x = m; x; x >>= 1) n += x & 1;
-        if (n >= 3) { if (masc) *masc = m; return F[j].valor[a]; }
+        if (n >= q) { if (masc) *masc = m; return F[j].valor[a]; }
     }
     return 0;
 }
+static int trinca(int j, const uint8_t *est, uint8_t *masc) { return mesmo_numero(j, est, 3, masc); }
 
 static bool tem_jackpot(int j, const uint8_t *est)
 {
@@ -126,6 +132,8 @@ static void aplica_regra(int j, int k)
     resistiu = -1;
     ver_comum = false;
     bool espelhou = false, espera = false;
+    // Preso pela Ancora: o dado logo depois dela, com ela valendo.
+    f->ancora[k] = k > 0 && tipo_de(j, k - 1) == D_ANCORA && f->est[k - 1] == V_VALIDO;
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
@@ -149,9 +157,21 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = f->valor[l];
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
     }
+    // Eco: tira o mesmo do primeiro dado que vale (ate 6); sendo ele o primeiro,
+    // ou passando de 6, fica com o que rolou.
+    if (ef == EF_ECO) {
+        int p0 = -1;
+        for (int i = 0; i < k && p0 < 0; i++) if (f->est[i] == V_VALIDO) p0 = i;
+        if (p0 >= 0 && f->valor[p0] <= TIPO[t].lados) {
+            v = f->valor[k] = f->valor[p0];
+            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+        }
+    }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
     if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
-    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO
+    // Sorte/Reves: na etiqueta, os dois lances ("12-5").
+    if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
+    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
         && ef != EF_TREVO && ef != EF_BUMERANGUE) {
         v = f->valor[k] = 3;
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
@@ -178,7 +198,7 @@ static void aplica_regra(int j, int k)
 
     // Egoista na fila: nenhum dado novo vale ao lado dele (menos o Escudo).
     int ego = egoista_antes(j, k);
-    if (ego >= 0 && !resiste_egoista(t)) {
+    if (ego >= 0 && !resiste_ego(j, k)) {
         f->est[k] = V_ANULADO;
         anulou_b = k;
         resistiu = ego;
@@ -193,7 +213,7 @@ static void aplica_regra(int j, int k)
         est[k] = V_VALIDO;
         int n = 0;
         for (int i = 0; i < k; i++)
-            if (est[i] == V_VALIDO && !resiste_egoista(f->tipo[i])) {
+            if (est[i] == V_VALIDO && !resiste_ego(j, i)) {
                 est[i] = V_ANULADO;
                 anulou_masc |= (uint8_t)(1 << i);
                 n++;
@@ -267,8 +287,8 @@ static void aplica_regra(int j, int k)
     } else {
         f->est[k] = V_VALIDO;
         if (ef == EF_PAR && l >= 0 && v == f->valor[l]) {
-            f->bonus[k] = 8;
-            snprintf(f->tag[k], sizeof f->tag[k], "+8");
+            f->bonus[k] = 6;
+            snprintf(f->tag[k], sizeof f->tag[k], "+6");
         }
         // Dobro: so o dado logo depois dele na sequencia (com o Dobro valendo).
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO && f->valor[l] <= 3) {
@@ -280,11 +300,12 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+6");
         if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
             || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
-            f->bonus[k] = 2;
-            snprintf(f->tag[k], sizeof f->tag[k], "$+2");
+            f->bonus[k] = 4;
+            snprintf(f->tag[k], sizeof f->tag[k], "$+4");
         }
-        if (ef == EF_ACUMULADOR && f->fixo[k]) {
-            f->bonus[k] = (int8_t)(f->fixo[k] < 6 ? f->fixo[k] : 6);
+        if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->fixo[k]) {
+            int teto = ef == EF_AUTOFAGIA ? AUTO_MAX : ACUM_MAX;
+            f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_FERREIRO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
@@ -306,8 +327,8 @@ static void aplica_regra(int j, int k)
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
-            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 8 : 0);
-            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 8");
+            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 10 : 0);
+            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 10");
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
         } else if (ef == EF_MALDICAO) {
             snprintf(veredito, sizeof veredito, "Maldito vale %d e tira %d do oponente", v, v);
@@ -320,11 +341,11 @@ static void aplica_regra(int j, int k)
             if (v >= 3) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+2)", vale);
+            snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+2)", vale);
-        } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Acumulador vale %d (+%d guardado)", vale, f->bonus[k]);
+            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+4)", vale);
+        } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
+            snprintf(veredito, sizeof veredito, "%s vale %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados);
@@ -347,9 +368,15 @@ static void aplica_regra(int j, int k)
     } else if (ef == EF_VICIADO && f->descarte[k] && ver_tipo == 0 && !f->tag[k][0]) {
         snprintf(veredito, sizeof veredito, "Viciado: %d e %d, fica o %d", v, f->descarte[k], v);
         ver_comum = false;
+    } else if (ef == EF_SORTE_REVES && f->descarte[k] && ver_tipo == 0) {
+        snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: vale %d", v + f->descarte[k], f->descarte[k], v);
+        ver_comum = false;
     } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
         snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
         ver_tipo = 0;
+        ver_comum = false;
+    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && mesmo_numero(j, f->est, 2, NULL) == v && tem_jackpot(j, f->est)) {
+        snprintf(veredito, sizeof veredito, "dois iguais: Jackpot +4 no fim");
         ver_comum = false;
     }
     f->pontos = soma(j, f->est);
@@ -387,6 +414,13 @@ static void pousa(int j, int k, int (*r)(int))
         f->cru[k] = f->valor[k] = r(6);
         voltou = true;
     }
+    // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
+    int mira = f->valor[k];
+    f->calibre[k] = false;
+    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO) {
+        int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
+        if (mira < teto) { f->cru[k] = f->valor[k] = mira + 1; f->calibre[k] = true; }
+    }
     if (f->tipo[k] != D_VENTANIA || k == 0) {
         aplica_regra(j, k);
         if (voltou && ver_tipo == 0) {
@@ -394,6 +428,11 @@ static void pousa(int j, int k, int (*r)(int))
             ver_comum = false;
         }
         if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", tirou, f->valor[k]);
+        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", mira, mira + 1);
+        if (f->calibre[k] && ver_tipo == 0 && !voltou) {
+            snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
+            ver_comum = false;
+        }
         return;
     }
     int i = 0;                                                   // o primeiro da sequencia

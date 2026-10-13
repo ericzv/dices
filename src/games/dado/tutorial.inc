@@ -127,7 +127,7 @@ static void desenha_tutorial(void)
     int y = MESA_Y0 + 52;
     for (int i = 0; i < 3 && pg->par[i]; i++) {
         char par[256];                               // "%d": quantos dados ha
-        snprintf(par, sizeof par, pg->par[i], D_BASICOS);
+        snprintf(par, sizeof par, pg->par[i], n_basicos());
         int n = quebra_linhas(44, y, 552, 4, par, i == 0 ? C_MARFIM : C_MARFIM_S);
         y += n * LINHA_FINA + 8;
     }

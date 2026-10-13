@@ -174,7 +174,6 @@ static int chance_cair(int j)
     int caiu = 0;
     for (int a = 0; a < N; a++) {
         semeia_ia(0xC4A1u + (uint32_t)rodada * 31u + (uint32_t)k, a);
-        if (f->tipo[k] == D_ACUMULADOR && f->fixo[k] < 6) f->fixo[k]++;   // o lance soma antes
         sim_lanca(j);
         bool c = f->est[k] != V_VALIDO || (f->tipo[k] == D_TUDO_NADA && f->cru[k] == 1);
         for (int i = 0; i < k && !c && !ego; i++) c = antes[i] == V_VALIDO && f->est[i] != V_VALIDO;
@@ -529,7 +528,7 @@ static void desenha_premio(void)
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
                     // So os tipos que podem sair aqui: os basicos, ou os ja
                     // abertos no Desafiante.
-                    pc.tipo = (uint8_t)(h % D_BASICOS);
+                    pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
                     if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }

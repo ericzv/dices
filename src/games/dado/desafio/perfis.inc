@@ -94,6 +94,17 @@ static int nivel_do_dado(int t)
     case D_BUMERANGUE: return 1;
     case D_GEMEO:      return 2;
     case D_PRISMA:     return 3;
+    case D_CHECKPOINT: return 3;
+    // Os das builds: os faceis de entender (Domino, Hexa, Azarao, Ampulheta,
+    // Eco, Puxa-fila, Agiota) ja comecam abertos; os diferentes vem andar a
+    // andar, e a Medusa, que mexe na bolsa, por ultimo.
+    case D_MARTIR:     return 1;
+    case D_CALIBRE:    return 1;
+    case D_OURICO:     return 2;
+    case D_COVEIRO:    return 2;
+    case D_SABOTADOR:  return 3;
+    case D_ANCORA:     return 4;
+    case D_MEDUSA:     return 5;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
     case D_CAPITAO:    return 4;
@@ -112,6 +123,7 @@ static int nivel_do_dado(int t)
 static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -1); }
 static bool dado_liberado(int t)
 {
+    if (oculto(t)) return false;                 // nao sai em sorteio nenhum
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
     return nivel_do_dado(t) <= perfil()->nivel;

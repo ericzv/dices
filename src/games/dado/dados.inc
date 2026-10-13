@@ -11,7 +11,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO,
        EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES,
        EF_AUTOFAGIA, EF_ECO, EF_DOMINO, EF_ANCORA, EF_MARTIR, EF_PUXA, EF_COVEIRO, EF_HEXA,
-       EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA };
+       EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA,
+       EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -41,7 +42,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
        D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
        D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
-       D_MISTERIOSO, D_N };
+       D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -52,13 +53,15 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define AUTO_MAX 3
 // A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
 #define AUTO_BOLSA 8
+// A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
+#define ESPERANCA_FICHAS 15
 // O Dado Misterioso nao aparece em lugar nenhum: nem na colecao, nem no
 // premio, nem na loja. So sai de uma pedra negativa que se parte.
 static bool oculto(int t) { return t == D_MISTERIOSO; }
 static bool so_desafio(int t)
 {
     switch (t) {
-    case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA:
+    case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA: case D_GARIMPEIRO:
         return true;
     default:
         return false;
@@ -151,6 +154,11 @@ static const tipo_t TIPO[D_N] = {
     { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "valendo: 2 fichas do rival para você" },
     { "Medusa",          12, EF_MEDUSA,       RAR_LENDA,     0, "valendo: sua fila vira pedra (Quebrados)" },
     { "Misterioso",      20, EF_NADA,         RAR_LENDA,    0, "um d20 todo preto: ninguém sabe de onde veio" },
+    { "Rancor",           4, EF_RANCOR,       RAR_INCOMUM,  0, "+1 por rodada que você perdeu" },
+    { "Esperança",        8, EF_ESPERANCA,    RAR_LENDA,    0, "com 15 fichas ou menos: x2" },
+    { "Ponte",            4, EF_PONTE,        RAR_INCOMUM,  0, "nunca cai, e a fila pula ela" },
+    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: a mão volta para a bolsa" },
+    { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 10 fichas no pote" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -228,6 +236,11 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_AGIOTA]    = "Se ficar valendo, no fim 2 fichas do oponente passam para você, fora do pote.",
     [D_MEDUSA]    = "Se ficar valendo, no fim os dados que você lançou, ela incluída, viram Quebrados com o número que tiraram.",
     [D_MISTERIOSO] = "Um d20, de 1 a 20. Saiu de dentro de uma pedra.",
+    [D_RANCOR]    = "Se ficar valendo: +1 por rodada que você já perdeu nesta partida.",
+    [D_ESPERANCA] = "Se você começou a rodada com 15 fichas ou menos e ela ficar valendo: vale x2.",
+    [D_PONTE]     = "Nunca cai pela regra da fila, e o dado seguinte compara com o de antes dela.",
+    [D_GARIMPEIRO] = "Se ficar valendo, no fim a sua mão desta rodada volta direto para a bolsa.",
+    [D_POTE_QUENTE] = "Se ficar valendo: +1 a cada 10 fichas no pote, no fim da rodada.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -326,6 +339,17 @@ static const char *TEXTO_CAT[D_N] = {
                     "tirou, que sai uma vez com esse número e quebra.",
     [D_MISTERIOSO] = "Vinte lados, de 1 a 20, todo preto. Estava dentro de uma pedra que tinha um número negativo; "
                      "não faz nada além de rolar.",
+    [D_RANCOR]    = "Quatro lados. Se terminar valendo, ganha +1 no fim para cada rodada que você já perdeu na "
+                    "partida (correr conta como perder; empate, não). Cresce enquanto você está atrás.",
+    [D_ESPERANCA] = "Oito lados. Se você começou a rodada com 15 fichas ou menos e ela terminar valendo, vale x2 no "
+                    "fim. Soma com outros multiplicadores.",
+    [D_PONTE]     = "Quatro lados. Não cai pela regra da fila, por menor que saia, e a regra não a enxerga: o dado "
+                    "seguinte só precisa igualar ou passar o último que vale antes dela. Ataques ainda a anulam.",
+    [D_GARIMPEIRO] = "Seis lados. Se terminar valendo, no fim da rodada os dados da sua mão (os lançados e os que "
+                     "ficaram nela) voltam direto para a bolsa, sem esperar ela esvaziar: os melhores podem sair de "
+                     "novo já na próxima rodada.",
+    [D_POTE_QUENTE] = "Oito lados. Se terminar valendo, ganha +1 no fim a cada 10 fichas que estiverem no pote. "
+                      "Quanto mais alta a aposta, mais ele vale.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -495,6 +519,11 @@ static const visual_t VISUAL[D_N] = {
     [D_AGIOTA]     = { V_OURO,    V_OURO, 18,   V_LATAO_E, 85,  V_OURO, 100 },
     [D_MEDUSA]     = { V_VERDE,   V_PEDRA, 34,  V_VERDE, 100,   V_BREU, 80,    V_LIMA, 100 },
     [D_MISTERIOSO] = { RGB(40, 36, 34) },          // o corpo preto e o "?" vem do desenho
+    [D_RANCOR]     = { V_SANGUE,  V_VINHO, 8,   V_VINHO, 100,   V_SANGUE, 100, V_BREU, 85 },
+    [D_ESPERANCA]  = { V_CEU,     V_NOITE, 72,  V_CEU, 95,      V_TRIGO, 100,  V_TRIGO, 75 },
+    [D_PONTE]      = { V_AGUA,    V_CEU, 14,    V_AGUA, 100,    V_CIANO, 100,  V_CEU, 40 },
+    [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
+    [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

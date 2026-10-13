@@ -103,6 +103,7 @@ static void executa(int op)
         int w = outro(vez);
         res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
         res_quem = w;
+        p->perdidas++;                    // correr conta como perder (Rancor)
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
         som_toca(SOM_CORREU);

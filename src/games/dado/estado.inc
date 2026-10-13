@@ -17,6 +17,7 @@ typedef struct {
     int8_t mao[MAO];             // a mao desta rodada: indices em col
     int n_mao;
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
+    int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -62,7 +63,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
        EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
-       EV_MEDUSA };                  // a Medusa: a fila vira pedra (Quebrados)
+       EV_MEDUSA,                    // a Medusa: a fila vira pedra (Quebrados)
+       EV_GARIMPO };                 // o Garimpeiro: a mao volta para a bolsa
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;

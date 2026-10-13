@@ -346,6 +346,15 @@ static void autofagia_come(int j, const desfecho_t *d)
     if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
 }
 
+// O Garimpeiro valeu: a mao inteira de j volta para a bolsa agora, em vez
+// de ficar fora ate ela esvaziar.
+static void garimpa(int j, const desfecho_t *d)
+{
+    if (!d->garimpo[j]) return;
+    for (int i = 0; i < J[j].n_col; i++)
+        if (J[j].onde[i] == NA_MAO) J[j].onde[i] = NA_BOLSA;
+}
+
 // A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja
 // saem da bolsa) vira um Quebrado com o numero que tirou.
 static void medusa_petrifica(int j, const desfecho_t *d)
@@ -446,6 +455,7 @@ static void conclui_rodada(void)
         int w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
         venc_mao = w;
         res_quem = w;
+        J[outro(w)].perdidas++;                  // o Rancor conta
         J[w].fichas += pote;
         if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
         else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
@@ -490,7 +500,11 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
-    for (int j = 0; j < 2; j++) { autofagia_come(j, &resolvido); medusa_petrifica(j, &resolvido); }
+    for (int j = 0; j < 2; j++) {
+        autofagia_come(j, &resolvido);
+        medusa_petrifica(j, &resolvido);
+        garimpa(j, &resolvido);
+    }
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;
@@ -510,6 +524,7 @@ static int som_do_evento(int i)
     case EV_ROUBA:   return SOM_ROUBA;
     case EV_AGIOTA:  return SOM_FICHA;
     case EV_MEDUSA:  return SOM_BIGORNA;
+    case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
@@ -560,6 +575,7 @@ static float duracao_evento(int i)
     case EV_CORTA:   return 1.5f;
     case EV_AGIOTA:  return 1.6f;
     case EV_MEDUSA:  return 1.9f;
+    case EV_GARIMPO: return 1.7f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;

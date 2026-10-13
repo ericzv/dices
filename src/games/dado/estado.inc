@@ -64,7 +64,7 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
        EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
        EV_MEDUSA,                    // a Medusa: a fila vira pedra (Quebrados)
-       EV_GARIMPO };                 // o Garimpeiro: a mao volta para a bolsa
+       EV_GARIMPO };                 // o Garimpeiro: os lancados voltam para a bolsa
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;

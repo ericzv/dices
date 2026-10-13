@@ -346,13 +346,16 @@ static void autofagia_come(int j, const desfecho_t *d)
     if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
 }
 
-// O Garimpeiro valeu: a mao inteira de j volta para a bolsa agora, em vez
-// de ficar fora ate ela esvaziar.
+// O Garimpeiro valeu: os dados que j lancou voltam para a bolsa agora, em vez
+// de ficar fora ate ela esvaziar. Os que ficaram na mao seguem o caminho de
+// sempre.
 static void garimpa(int j, const desfecho_t *d)
 {
     if (!d->garimpo[j]) return;
-    for (int i = 0; i < J[j].n_col; i++)
-        if (J[j].onde[i] == NA_MAO) J[j].onde[i] = NA_BOLSA;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        int c = F[j].idx[k];
+        if (c >= 0 && c < J[j].n_col && J[j].onde[c] == NA_MAO) J[j].onde[c] = NA_BOLSA;
+    }
 }
 
 // A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja

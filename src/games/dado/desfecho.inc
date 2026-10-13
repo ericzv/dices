@@ -15,7 +15,7 @@ typedef struct {
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
-    uint8_t garimpo[2];              // o Garimpeiro valeu: a mao volta para a bolsa
+    uint8_t garimpo[2];              // o Garimpeiro valeu: os lancados voltam para a bolsa
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -413,13 +413,13 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             int n = J[j].perdidas;
             d->semente[j] += n;
             evento(gera, EV_EXTRA, j, k, j, 0, n, "Rancor: %d rodada%s perdida%s, +%d", n, n > 1 ? "s" : "", n > 1 ? "s" : "", n);
-        } else if (ef == EF_POTE && pote >= 10) {           // +1 a cada 10 fichas no pote
-            int n = pote / 10;
+        } else if (ef == EF_POTE && pote >= 25) {           // +1 a cada 25 fichas no pote
+            int n = pote / 25;
             d->semente[j] += n;
             evento(gera, EV_EXTRA, j, k, j, 0, n, "Pote Quente: %d fichas no pote, +%d", pote, n);
-        } else if (ef == EF_GARIMPEIRO && !d->garimpo[j]) { // a mao volta para a bolsa (so o primeiro age)
+        } else if (ef == EF_GARIMPEIRO && !d->garimpo[j]) { // os lancados voltam para a bolsa (so o primeiro age)
             d->garimpo[j] = 1;
-            evento(gera, EV_GARIMPO, j, k, j, 0, 0, "Garimpeiro: a sua mão volta para a bolsa");
+            evento(gera, EV_GARIMPO, j, k, j, 0, 0, "Garimpeiro: os lançados voltam para a bolsa");
         } else if (ef == EF_AGIOTA) {
             d->agiota[j] += 2;
             evento(gera, EV_AGIOTA, j, k, outro(j), 0, 2, "Agiota: 2 fichas de %s", J[outro(j)].nome);
@@ -523,7 +523,7 @@ static int poder_armado(int j, int k)
     case EF_MEDUSA:       return 1;
     case EF_RANCOR:       return J[j].perdidas > 0;
     case EF_ESPERANCA:    return fichas_ini[j] <= ESPERANCA_FICHAS;
-    case EF_POTE:         return pote >= 10;
+    case EF_POTE:         return pote >= 25;
     case EF_GARIMPEIRO:   return 1;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;

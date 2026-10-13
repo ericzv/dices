@@ -1096,28 +1096,29 @@ int main(void)
         // Pote Quente: +1 a cada 10 fichas no pote, valendo.
         {
             int pt = pote;
-            pote = 35;
+            pote = 60;
             limpa(); joga(0, D_POTE_QUENTE, 5); d = fim();
-            CONFERE(d.total[0] == 5 + 3, "Pote Quente com 35 no pote: esperava 8, deu %d", d.total[0]);
-            pote = 9;
+            CONFERE(d.total[0] == 5 + 2, "Pote Quente com 60 no pote: esperava 7, deu %d", d.total[0]);
+            pote = 24;
             limpa(); joga(0, D_POTE_QUENTE, 5); d = fim();
-            CONFERE(d.total[0] == 5, "Pote Quente com 9 no pote: esperava 5, deu %d", d.total[0]);
+            CONFERE(d.total[0] == 5, "Pote Quente com 24 no pote: esperava 5, deu %d", d.total[0]);
             pote = pt;
         }
-        // Garimpeiro: valendo, a mao volta para a bolsa (o que ja estava
-        // fora, nao; o comido, tambem nao).
+        // Garimpeiro: valendo, os lancados voltam para a bolsa; os que ficaram
+        // na mao, nao (nem o que ja estava fora).
         {
             jogador_t guarda = J[0];
             J[0].n_col = 9;
             for (int i = 0; i < 9; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = i < 7 ? NA_MAO : FORA; }
-            J[0].onde[6] = COMIDO;
-            limpa(); joga(0, D_D4, 2); joga(0, D_GARIMPEIRO, 4); d = fim();
+            limpa(); joga(0, D_D4, 2); joga(0, D_GARIMPEIRO, 4);
+            F[0].idx[0] = 2; F[0].idx[1] = 5;
+            d = fim();
             CONFERE(d.garimpo[0], "Garimpeiro valendo devia agir");
             garimpa(0, &d);
             int na = 0;
-            for (int i = 0; i < 6; i++) na += J[0].onde[i] == NA_BOLSA;
-            CONFERE(na == 6 && J[0].onde[6] == COMIDO && J[0].onde[7] == FORA && J[0].onde[8] == FORA,
-                    "Garimpeiro: so a mao volta para a bolsa");
+            for (int i = 0; i < 9; i++) na += J[0].onde[i] == NA_BOLSA;
+            CONFERE(na == 2 && J[0].onde[2] == NA_BOLSA && J[0].onde[5] == NA_BOLSA && J[0].onde[0] == NA_MAO
+                    && J[0].onde[7] == FORA, "Garimpeiro: so os lancados voltam para a bolsa");
             limpa(); joga(0, D_D8, 6); joga(0, D_GARIMPEIRO, 4); d = fim();
             CONFERE(!d.garimpo[0], "Garimpeiro caido nao age");
             J[0] = guarda;

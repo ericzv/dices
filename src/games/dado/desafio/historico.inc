@@ -4,24 +4,25 @@
 // chave do perfil ("HIS1" + hexadecimal). A estrutura tem espaco para os
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
-#define HIST_DADOS 64
+#define HIST_DADOS 96                    // par: o rabo da estrutura fica no mesmo alinhamento
 #define HIST_COL   48
-typedef struct {
-    char     marca[4];                   // "HIS1"
-    uint32_t rodadas, rodadas_venc;
-    uint16_t partidas, partidas_venc;
-    uint16_t runs_venc[N_NIVEIS + 1];    // vezes que o Barao caiu em cada dificuldade
-    uint16_t maior_rodada, maior_pote;
-    uint16_t jackpots, filas_cheias;
-    uint16_t horas, horas_venc;          // horas da verdade suas, e as que deram a rodada
-    uint16_t lancou[HIST_DADOS], valeu[HIST_DADOS], ganhou[HIST_DADOS];
-    // A run campea: a da dificuldade mais alta (a mais recente, se empatar).
-    uint8_t  camp_tem, camp_dif, camp_n, camp_pad;
-    uint8_t  camp_col[HIST_COL];
-    uint32_t camp_amul, camp_data;       // amuletos (bit a) e o dia (AAAAMMDD)
-    int32_t  camp_moedas;
+#define HIST_CAMPOS(N)                                                                     \
+    char     marca[4];                   /* "HIS1" */                                      \
+    uint32_t rodadas, rodadas_venc;                                                        \
+    uint16_t partidas, partidas_venc;                                                      \
+    uint16_t runs_venc[N_NIVEIS + 1];    /* vezes que o Barao caiu em cada dificuldade */  \
+    uint16_t maior_rodada, maior_pote;                                                     \
+    uint16_t jackpots, filas_cheias;                                                       \
+    uint16_t horas, horas_venc;          /* horas da verdade suas, e as que deram a rodada */ \
+    uint16_t lancou[N], valeu[N], ganhou[N];                                               \
+    /* A run campea: a da dificuldade mais alta (a mais recente, se empatar). */           \
+    uint8_t  camp_tem, camp_dif, camp_n, camp_pad;                                         \
+    uint8_t  camp_col[HIST_COL];                                                           \
+    uint32_t camp_amul, camp_data;       /* amuletos (bit a) e o dia (AAAAMMDD) */         \
+    int32_t  camp_moedas;                                                                  \
     uint8_t  reserva[32];
-} hist_t;
+typedef struct { HIST_CAMPOS(HIST_DADOS) } hist_t;
+typedef struct { HIST_CAMPOS(64) } hist64_t;     // o de antes dos 69 tipos: lido e convertido
 _Static_assert(D_N <= HIST_DADOS && MAX_COL <= HIST_COL && A_N <= 32, "o historico nao comporta os dados");
 
 static hist_t hist;
@@ -40,9 +41,19 @@ static void hist_carrega(int i)
     memset(&hist, 0, sizeof hist);
     memcpy(hist.marca, "HIS1", 4);
     static char buf[2 * sizeof(hist_t) + 8];
+    static hist64_t velho;
     hist_t h;
-    if (salva_le(chave_hist(i), buf, (int)sizeof buf) != (int)(2 * sizeof h)) return;
-    if (!de_hex(buf, &h, sizeof h) || memcmp(h.marca, "HIS1", 4)) return;
+    int n = salva_le(chave_hist(i), buf, (int)sizeof buf);
+    if (n == (int)(2 * sizeof velho)) {                // de antes: as tres listas cresceram
+        if (!de_hex(buf, &velho, sizeof velho)) return;
+        memset(&h, 0, sizeof h);
+        memcpy(&h, &velho, offsetof(hist64_t, lancou));
+        memcpy(h.lancou, velho.lancou, sizeof velho.lancou);
+        memcpy(h.valeu, velho.valeu, sizeof velho.valeu);
+        memcpy(h.ganhou, velho.ganhou, sizeof velho.ganhou);
+        memcpy(&h.camp_tem, &velho.camp_tem, sizeof velho - offsetof(hist64_t, camp_tem));
+    } else if (n != (int)(2 * sizeof h) || !de_hex(buf, &h, sizeof h)) return;
+    if (memcmp(h.marca, "HIS1", 4)) return;
     if (h.camp_n > HIST_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
     for (int k = 0; h.camp_tem && k < h.camp_n; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
     hist = h;

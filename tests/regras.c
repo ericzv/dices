@@ -124,15 +124,15 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 3 && d.total[1] == 5, "Maldito 3: esperava 3 x 5, deu %d x %d", d.total[0], d.total[1]);
 
-    // Semente: seus dados somam 15 ou mais, +5.
-    limpa();
-    joga(0, D_SEMENTE, 2); joga(0, D_D6, 5); joga(0, D_D8, 8);
-    d = fim();
-    CONFERE(d.total[0] == 15 + 5, "Semente com 15: esperava 20, deu %d", d.total[0]);
+    // Semente: seus dados somam 14 ou mais, +7.
     limpa();
     joga(0, D_SEMENTE, 2); joga(0, D_D6, 5); joga(0, D_D8, 7);
     d = fim();
-    CONFERE(d.total[0] == 14, "Semente com 14: esperava 14, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 14 + 7, "Semente com 14: esperava 21, deu %d", d.total[0]);
+    limpa();
+    joga(0, D_SEMENTE, 2); joga(0, D_D6, 5); joga(0, D_D8, 6);
+    d = fim();
+    CONFERE(d.total[0] == 13, "Semente com 13: esperava 13, deu %d", d.total[0]);
 
     // Trevo: 4 vale 10; 1 a 3, zero.
     limpa();
@@ -841,6 +841,139 @@ int main(void)
         d = fim();
         CONFERE(F[0].est[2] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 2,
                 "Autofagia caida nao devia agir (deu %d)", d.total[0]);
+        // ---- Os dados das builds ------------------------------------------
+        // Eco: o mesmo do primeiro que vale (ate 6); pode cair se a fila subiu.
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ECO, 1);
+        CONFERE(F[0].valor[1] == 4 && F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "=4"), "Eco devia repetir o 4");
+        limpa();
+        joga(0, D_D4, 3); joga(0, D_D6, 5); joga(0, D_ECO, 6);
+        CONFERE(F[0].valor[2] == 3 && F[0].est[2] == V_ANULADO && F[0].est[1] == V_ANULADO, "Eco 3 depois do 5 devia cair");
+        limpa();
+        joga(0, D_D8, 7); joga(0, D_ECO, 2);
+        CONFERE(F[0].valor[1] == 2, "Eco: acima de 6, rola normal");
+        limpa();
+        joga(0, D_ECO, 5);
+        CONFERE(F[0].valor[0] == 5, "Eco primeiro: rola normal");
+        // Domino: o seguinte com o mesmo numero, +3.
+        limpa();
+        joga(0, D_DOMINO, 3); joga(0, D_D6, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 3 + 3, "Domino: esperava 9, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_DOMINO, 3); joga(0, D_D6, 4);
+        d = fim();
+        CONFERE(d.total[0] == 7, "Domino sem par: esperava 7, deu %d", d.total[0]);
+        // Ancora: o seguinte nao cai nem e roubado; menor, cai ela.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_ANCORA, 3); joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(F[0].ancora[2] && F[0].est[2] == V_VALIDO && F[0].est[1] == V_ANULADO && d.total[0] == 3,
+                "Ancora: o 1 preso devia ficar e ela cair (deu %d)", d.total[0]);
+        limpa();
+        joga(0, D_ANCORA, 2); joga(0, D_D8, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.est[0][0] == V_ANULADO, "Ancora: o Carrasco devia pular o 7 preso");
+        limpa();
+        joga(0, D_ANCORA, 4); joga(0, D_D4, 4);
+        joga(1, D_CARIDOSO, 3);
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.est[0][0] == V_ROUBADO, "Ancora: o preso nao e roubado");
+        // Martir: caido, +2 em cada um que vale.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D8, 6); joga(0, D_MARTIR, 3); joga(0, D_D8, 7);
+        d = fim();
+        CONFERE(d.est[0][2] == V_ANULADO && d.total[0] == 2 + 7 + 4, "Martir caido: esperava 13, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 2) == 1, "Martir caido devia brilhar");
+        limpa();
+        joga(0, D_MARTIR, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3, "Martir de pe: esperava 3, deu %d", d.total[0]);
+        // Puxa-fila: primeiro, e os quatro valendo, +5.
+        limpa();
+        joga(0, D_PUXA_FILA, 1); joga(0, D_D4, 2); joga(0, D_D6, 3); joga(0, D_D8, 4);
+        d = fim();
+        CONFERE(d.total[0] == 1 + 2 + 3 + 4 + 5, "Puxa-fila: esperava 15, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_PUXA_FILA, 1); joga(0, D_D4, 2); joga(0, D_D6, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Puxa-fila com tres: esperava 6, deu %d", d.total[0]);
+        // Coveiro: com 5 ou 6, +1 por anulado na mesa.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_COVEIRO, 6);
+        joga(1, D_D6, 4); joga(1, D_D4, 1);
+        d = fim();
+        CONFERE(d.total[0] == 6 + 4, "Coveiro 6 com 4 anulados: esperava 10, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_COVEIRO, 4);
+        d = fim();
+        CONFERE(d.total[0] == 4, "Coveiro 4: esperava 4, deu %d", d.total[0]);
+        // Hexa: +1 por d6 seu valendo, ele incluido.
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_HEXA, 3); joga(0, D_D4, 4);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 4 + 2, "Hexa: esperava 11, deu %d", d.total[0]);
+        // Ourico: cada dado seu atacado custa 4 ao oponente.
+        limpa();
+        joga(0, D_OURICO, 3); joga(0, D_D8, 7);
+        joga(1, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 3 && d.total[1] == 0, "Ourico: esperava 3 x 0, deu %d x %d",
+                d.total[0], d.total[1]);
+        // Calibre: o seguinte tira 1 a mais, ate o maximo dele.
+        limpa();
+        joga(0, D_CALIBRE, 2); joga_com(0, D_LASER, 4, sempre_dois);
+        CONFERE(F[0].valor[1] == 5 && F[0].calibre[1] && poder_armado(0, 1) == 1, "Calibre: o Laser 4 devia virar 5");
+        limpa();
+        joga(0, D_CALIBRE, 3); joga_com(0, D_D4, 4, sempre_dois);
+        CONFERE(F[0].valor[1] == 4 && !F[0].calibre[1], "Calibre: o 4 do d4 ja e o maximo");
+        limpa();
+        joga(0, D_CALIBRE, 1); joga_com(0, D_TREVO, 3, sempre_dois);
+        d = fim();
+        CONFERE(d.total[0] == 1 + 10, "Calibre + Trevo: o 3 vira 4 e vale 10 (deu %d)", d.total[0]);
+        // Sabotador: com 5 ou 6, o maior do oponente vale metade.
+        limpa();
+        joga(0, D_SABOTADOR, 6);
+        joga(1, D_D8, 7); joga(1, D_D12, 9);
+        d = fim();
+        CONFERE(d.total[1] == 7 + 4 && d.total[0] == 6, "Sabotador: esperava 6 x 11, deu %d x %d", d.total[0], d.total[1]);
+        limpa();
+        joga(0, D_SABOTADOR, 4);
+        joga(1, D_D12, 9);
+        d = fim();
+        CONFERE(d.total[1] == 9, "Sabotador 4: esperava 9, deu %d", d.total[1]);
+        // Azarao: comecou atras em fichas, x2.
+        limpa();
+        fichas_ini[0] = 30; fichas_ini[1] = 50;
+        joga(0, D_AZARAO, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Azarao atras: esperava 6, deu %d", d.total[0]);
+        fichas_ini[0] = fichas_ini[1] = 0;
+        limpa();
+        joga(0, D_AZARAO, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3, "Azarao empatado: esperava 3, deu %d", d.total[0]);
+        // Ampulheta: +1 a cada 3 rodadas jogadas, ate +4.
+        {
+            int rod = rodada;
+            rodada = 7; limpa(); joga(0, D_AMPULHETA, 4); d = fim();
+            CONFERE(d.total[0] == 4 + 2, "Ampulheta na 7a: esperava 6, deu %d", d.total[0]);
+            rodada = 15; limpa(); joga(0, D_AMPULHETA, 4); d = fim();
+            CONFERE(d.total[0] == 4 + 4, "Ampulheta na 15a: esperava 8, deu %d", d.total[0]);
+            rodada = 1; limpa(); joga(0, D_AMPULHETA, 4); d = fim();
+            CONFERE(d.total[0] == 4, "Ampulheta na 1a: esperava 4, deu %d", d.total[0]);
+            rodada = rod;
+        }
+        // Agiota: valendo, 2 fichas do oponente no fim.
+        limpa();
+        joga(0, D_AGIOTA, 2);
+        d = fim();
+        CONFERE(d.agiota[0] == 2 && d.agiota[1] == 0 && d.total[0] == 2, "Agiota: devia cobrar 2 fichas");
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_AGIOTA, 2);
+        d = fim();
+        CONFERE(d.agiota[0] == 0, "Agiota caido nao cobra");
         // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
         limpa();
         joga(0, D_D6, 4); joga(0, D_GEMEO, 2);
@@ -1271,7 +1404,7 @@ int main(void)
         // Dois ataques: o primeiro leva o Seguranca, o segundo pega o alvo de sempre.
         limpa();
         joga(0, D_SEGURANCA, 2); joga(0, D_D8, 5); joga(0, D_D12, 9);
-        joga(1, D_CARRASCO, 4); joga(1, D_INVEJOSO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_INVEJOSO, 5);
         d = fim();
         CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][1] == V_VALIDO,
                 "Seguranca com dois ataques");
@@ -1377,7 +1510,7 @@ int main(void)
         CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 0, "Cavalo x Laser: %d", d.total[1]);
         limpa();
         joga(0, D_CAVALO, 7);
-        joga(1, D_INVEJOSO, 6); joga(1, D_D8, 7);
+        joga(1, D_INVEJOSO, 5); joga(1, D_D8, 7);
         d = fim();
         CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 0, "Cavalo x Invejoso: %d", d.total[1]);
         // Escudo e Teimoso resistem.
@@ -1457,27 +1590,28 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 5 + 6, "Dobro com 5: nao devia dobrar (11), deu %d", d.total[0]);
 
-    // ---- Invejoso com 6: anula o maior do oponente e os seus dois menores --
+    // ---- Invejoso: 5 ou 6 anula o maior do oponente; 1 ou 2, os seus dois
+    // menores (ele incluido); 3 ou 4, nada ---------------------------------
     limpa();
     primeiro = 1;
-    joga(1, D_INVEJOSO, 6);            // sozinho: so o do oponente
+    joga(1, D_INVEJOSO, 5);
     joga(0, D_D8, 7);
     joga(0, D_D8, 8);
     d = fim();
-    CONFERE(d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO, "Invejoso devia anular o 8 do oponente");
-    CONFERE(d.est[1][0] == V_VALIDO, "Invejoso sozinho nao anula a si mesmo");
-    CONFERE(d.total[1] == 6 && d.total[0] == 7, "Invejoso sozinho: %d x %d", d.total[1], d.total[0]);
+    CONFERE(d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO, "Invejoso 5 devia anular o 8 do oponente");
+    CONFERE(d.est[1][0] == V_VALIDO && d.total[1] == 5 && d.total[0] == 7, "Invejoso 5: %d x %d", d.total[1], d.total[0]);
     limpa();
-    joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_INVEJOSO, 6);
+    joga(1, D_D4, 1); joga(1, D_INVEJOSO, 2); joga(1, D_D6, 3);
     joga(0, D_D6, 5);
     d = fim();
-    CONFERE(d.est[1][0] == V_ANULADO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO && d.est[1][3] == V_VALIDO,
-            "Invejoso devia anular o 1 e o 2 dele");
+    CONFERE(d.est[1][0] == V_ANULADO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO && d.est[0][0] == V_VALIDO,
+            "Invejoso 2 devia anular o 1 e a si mesmo");
+    CONFERE(poder_armado(1, 1) == 2, "Invejoso 2: armado contra o dono");
     limpa();
-    joga(1, D_INVEJOSO, 5);            // fora do 6 nao age
+    joga(1, D_INVEJOSO, 4);            // com 3 ou 4 nao age
     joga(0, D_D6, 5);
     d = fim();
-    CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 5 nao devia anular nada");
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 4 nao devia anular nada");
 
     // ---- Carrasco com 1: anula o menor da propria sequencia ---------------
     limpa();
@@ -1583,7 +1717,7 @@ int main(void)
     CONFERE(d.est[1][0] == V_VALIDO, "Carrasco nao devia anular o Teimoso");
     limpa();
     joga(1, D_EGOISTA, 9);
-    joga(0, D_INVEJOSO, 6);
+    joga(0, D_INVEJOSO, 5);
     d = fim();
     CONFERE(d.est[1][0] == V_ANULADO, "Invejoso devia anular o Egoista (agora anulavel)");
     // Roubar pode: o Egoista e o Teimoso sao roubaveis; o Escudo, nao.

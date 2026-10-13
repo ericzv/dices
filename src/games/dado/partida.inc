@@ -417,6 +417,14 @@ static void conclui_rodada(void)
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);
     }
+    for (int j = 0; j < 2; j++) {                 // o Agiota cobra, ganhe quem ganhar
+        int r = outro(j), a = resolvido.agiota[j] < J[r].fichas ? resolvido.agiota[j] : J[r].fichas;
+        if (a <= 0) continue;
+        J[r].fichas -= a;
+        J[j].fichas += a;
+        size_t n = strlen(aviso);
+        snprintf(aviso + n, sizeof aviso - n, "  ·  Agiota: %d de %s", a, J[r].nome);
+    }
     int aluguel = virada_forca(1);                // a Dona cobra o aluguel, ganhe quem ganhar
     if (aluguel && J[0].fichas > 0) {
         int a = aluguel == 2 ? 5 : 3;
@@ -448,8 +456,9 @@ static int som_do_evento(int i)
     case EV_JACKPOT: return SOM_JACKPOT;
     case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
     case EV_CAVALO:  return SOM_ANULA;
-    case EV_TIRA: case EV_PIRATA: return SOM_TIRA;
+    case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
+    case EV_AGIOTA:  return SOM_FICHA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
@@ -470,6 +479,7 @@ static void desfecho(void)
         memset(vis_bonus[j], 0, N_FILA);
         memset(vis_mult[j], 0, N_FILA);
         memset(vis_queima[j], 0, N_FILA);
+        memset(vis_corte[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
     }
     for (int i = 0; i < n_ev; i++)
@@ -495,6 +505,8 @@ static float duracao_evento(int i)
     case EV_EXTRA:   return ev[i].mascara ? 1.9f : 1.6f;    // o Capitao passa por cada dado
     case EV_CHEFE:   return 1.6f;
     case EV_CAVALO:  return 2.0f;
+    case EV_CORTA:   return 1.5f;
+    case EV_AGIOTA:  return 1.6f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
@@ -558,7 +570,7 @@ static void flutua_evento(const evento_t *e)
     case EV_EXTRA:
         if (e->mascara) {                   // Capitao: +2 em cada dado seu que vale
             for (int k = 0; k < N_FILA; k++)
-                if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.06f, "+%d", e->por_dado[k]);
+                if ((e->mascara >> k & 1) && e->por_dado[k] > 0) flutua_em(dj, k, C_OURO, k * 0.06f, "+%d", e->por_dado[k]);
             break;
         }
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
@@ -572,6 +584,7 @@ static void flutua_evento(const evento_t *e)
         if (e->valor) flutua_em(aj, N_FILA, C_VINHO_CLR, 0.1f, "-%d", e->valor);   // o que tinha roubado
         break;
     case EV_CHEFE:   flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "+%d", e->valor); break;
+    case EV_CORTA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     default: break;
     }
 }
@@ -609,6 +622,7 @@ static void aplica_evento(int i)
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
+    case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;
     case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
         for (int k = 0; k < N_FILA; k++)
             if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;

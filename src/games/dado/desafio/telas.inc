@@ -28,8 +28,8 @@ static int  pf_avatar;                   // tela de criar perfil
 static char pf_nome[11];
 static int  dif_cur;
 
-// O que abre com a dificuldade n: dois amuletos e ate tres dados.
-#define LIB_DADOS 3
+// O que abre com a dificuldade n: dois amuletos e ate quatro dados.
+#define LIB_DADOS 4
 static void liberados(int n, int *am, int *dado)
 {
     int k = 0;

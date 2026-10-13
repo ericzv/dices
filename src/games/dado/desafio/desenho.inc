@@ -383,7 +383,7 @@ static void desenha_fim_run(void)
     char es[96];
     int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
     int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
-    painel(CENTRO - 84, (abriu ? 208 : 168) + extra, 500);
+    painel(CENTRO - 84, (abriu ? 208 : 168) + extra, abriu ? 580 : 500);   // o que abriu pode ir a seis nomes
     char s[96];
     if (des_venceu_run) {
         txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);

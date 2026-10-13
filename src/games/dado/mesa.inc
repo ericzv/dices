@@ -523,6 +523,46 @@ static void desenha_fila(int j)
             int arm = poder_armado(j, k);
             if (arm) brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
         }
+        // Preso pela Ancora: dois elos de corrente ligam o dado a ela.
+        if (f->ancora[k] && !anul && vis_est[j][k] != V_ROUBADO) {
+            int mx = (SLOT_X(k - 1) + x) / 2, my = (int)(y - pulo);
+            for (int i = -1; i <= 1; i++) {      // tres elos, deitado, em pe, deitado
+                int ex = mx + i * 7;
+                if (i == 0) { gfx_rect(ex - 2, my - 4, 5, 9, C_PRATA); gfx_rect(ex - 1, my - 2, 3, 5, C_FELTRO_ESC); }
+                else        { gfx_rect(ex - 4, my - 2, 9, 5, C_PRATA); gfx_rect(ex - 2, my - 1, 5, 3, C_FELTRO_ESC); }
+            }
+        }
+        // Cortado pelo Sabotador: uma linha tracejada na diagonal; vale metade.
+        if (no_desfecho && vis_corte[j][k] && !anul)
+            for (int i = 0; i < 2 * R; i += 5)
+                gfx_linha_grossa(x - R + i, (int)(y - pulo) - R + i, x - R + i + 3, (int)(y - pulo) - R + i + 3, 2, C_VINHO_CLR);
+        // Acabou de pousar: o Eco faz ondas do primeiro dado ate ele; o Calibre
+        // mostra a mira sobre o dado que ele subiu.
+        if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_fase < 0.7f) {
+            if (t == D_ECO && !strncmp(f->tag[k], "=", 1)) {
+                int p0 = 0;
+                while (p0 < k && f->est[p0] != V_VALIDO) p0++;
+                for (int o = 0; o < 3; o++) {
+                    float q = t_fase / 0.5f - o * 0.15f;
+                    if (q < 0 || q > 1) continue;
+                    int cx2 = SLOT_X(p0) + (int)((x - SLOT_X(p0)) * q);
+                    for (int a = -4; a <= 4; a++) {
+                        float an = a * 0.15f;
+                        gfx_rect(cx2 + (int)(cosf(an) * 10), (int)(y - pulo) + (int)(sinf(an) * 10), 2, 2,
+                                 gfx_mistura(C_AZUL, C_FELTRO, (int)(q * 60)));
+                    }
+                }
+            }
+            if (f->calibre[k]) {
+                int rr = R + 6 - (int)(t_fase * 8), yy = (int)(y - pulo);
+                for (int a = 0; a < 32; a++) {
+                    float an = a * 0.19635f;
+                    gfx_rect(x + (int)(cosf(an) * rr), yy + (int)(sinf(an) * rr), 1, 1, C_VERMELHO);
+                }
+                gfx_rect(x - rr - 4, yy, 6, 1, C_VERMELHO); gfx_rect(x + rr - 1, yy, 6, 1, C_VERMELHO);
+                gfx_rect(x, yy - rr - 4, 1, 6, C_VERMELHO); gfx_rect(x, yy + rr - 1, 1, 6, C_VERMELHO);
+            }
+        }
         // Protegido contra ataques pelo dono (Couraca: nao e anulado; Ima: nao
         // e roubado): o medalhao do amuleto no pe do dado.
         if (!anul && modo == M_DESAFIO) {
@@ -590,6 +630,15 @@ static void desenha_fila(int j)
             aro(x, y, C_OURO);
             faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
         }
+        // Martir, Hexa e Domino: os dados que recebem acendem quando a luz chega.
+        if (e && e->tipo == EV_EXTRA && e->de_j == j && (e->mascara >> k & 1)) {
+            int td = F[j].tipo[e->de_k];
+            float chega = td == D_MARTIR ? 0.6f + k * 0.06f : td == D_DOMINO ? 0.45f : td == D_HEXA ? 0.38f : 2;
+            if (p > chega) { aro(x, y, C_OURO); faiscas(x, y, t_fase + k * 0.3f, C_AMARELO); }
+        }
+        if (e && e->tipo == EV_EXTRA && e->de_j == j && F[j].tipo[e->de_k] == D_PUXA_FILA
+            && p > 0.1f + 0.12f * k && p < 0.95f)
+            aro(x, y, C_OURO);
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
             && (e->mascara >> k & 1) && p > 0.2f) {
@@ -729,9 +778,59 @@ static void desenha_evento(void)
                 gfx_disco(hx, hy, 4, C_VERDE);
                 gfx_pixel(hx, hy - 1, C_BARRA);
             }
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_OURICO) {
+            // Ourico: um leque de espinhos voa dele ate o placar do rival.
+            for (int i = 0; i < 5; i++) {
+                float q = p / 0.5f - i * 0.06f;
+                if (q < 0 || q > 1) continue;
+                float x = ax + (bx - ax) * q + (i - 2) * 6 * sinf(q * 3.1416f);
+                float y = ay + (by - ay) * q - sinf(q * 3.1416f) * (30 + i * 4);
+                float an = atan2f((float)(by - ay), (float)(bx - ax));
+                float vx[3] = { x + cosf(an) * 6, x + cosf(an + 2.6f) * 3, x + cosf(an - 2.6f) * 3 };
+                float vy[3] = { y + sinf(an) * 6, y + sinf(an + 2.6f) * 3, y + sinf(an - 2.6f) * 3 };
+                poligono(vx, vy, 3, i % 2 ? C_TERRA : C_MADEIRA_CLR);
+            }
         } else {
             projetil(ax, ay, bx, by, p / 0.42f, c);
         }
+    }
+    // Sabotador: uma serra gira da mao dele ate o maior do rival e o corta
+    // na diagonal; dali em diante ele vale metade.
+    if (e->tipo == EV_CORTA) {
+        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        float q = p / 0.4f;
+        if (q < 1) {
+            float s = q * q * (3 - 2 * q);
+            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 30);
+            gfx_disco(x, y, 6, C_PRATA);
+            for (int i = 0; i < 8; i++) {                // os dentes, girando
+                float an = t_fase * 18 + i * 0.785f;
+                gfx_rect(x + (int)(cosf(an) * 7) - 1, y + (int)(sinf(an) * 7) - 1, 2, 2, C_FERRO);
+            }
+            gfx_disco(x, y, 2, C_FERRO);
+        } else if (p < 0.85f) {
+            float c2 = (p - 0.4f) / 0.25f;               // o corte desce na diagonal
+            if (c2 > 1) c2 = 1;
+            int x0 = bx - R_DADO, y0 = by - R_DADO;
+            gfx_linha_grossa(x0, y0, x0 + (int)(2 * R_DADO * c2), y0 + (int)(2 * R_DADO * c2), 2, C_VINHO_CLR);
+            for (int i = 0; i < 6; i++)                 // lascas
+                gfx_rect(x0 + (int)(2 * R_DADO * c2) + (i % 3) * 3 - 3, y0 + (int)(2 * R_DADO * c2) - (i / 3) * 4,
+                         2, 2, i % 2 ? C_PRATA : C_MARFIM_S);
+        }
+    }
+    // Agiota: as fichas do rival saem da faixa dele e pousam na sua.
+    if (e->tipo == EV_AGIOTA) {
+        int r = e->alvo_j, d = e->de_j;
+        for (int i = 0; i < 2; i++) {
+            float q = p / 0.55f - i * 0.14f;
+            if (q < 0 || q > 1) continue;
+            float s = q * q * (3 - 2 * q);
+            int x = ficha_px[r] + (int)((ficha_px[d] - ficha_px[r]) * s) + 30;
+            int y = ficha_py[r] + (int)((ficha_py[d] - ficha_py[r]) * s) - (int)(sinf(s * 3.1416f) * 40);
+            ficha(x, y, C_OURO);
+        }
+        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, "-2", C_VINHO_CLR, 1);
+        if (p > 0.6f) txt_sombra_c(ficha_px[d] + 46, ficha_py[d] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
     }
     // Cavalo de Troia: atingido, se abre onde estiver (no lugar dele ou, se foi
     // roubado, entre os roubados do outro) e de dentro sai um soldado para
@@ -870,6 +969,117 @@ static void desenha_evento(void)
                     gfx_rect(ax + 1 + cx2 * 4, topo + cy2 * 4 + onda, 4, 4, (cx2 + cy2) & 1 ? C_BARRA : C_BRANCO);
                 }
             gfx_disco(ax, topo, 2, C_PRATA);
+        } else if (t == D_DOMINO && e->mascara) {
+            // Domino: uma pedra sobe dele e tomba em cima do seguinte.
+            float q = p / 0.45f;
+            if (q < 1) {
+                int bx = SLOT_X(e->de_k + 1);
+                float s = q * q * (3 - 2 * q), an = s * 1.5708f;
+                float x = ax + (bx - ax) * s, y = ay - R_DADO - 12 - sinf(s * 3.1416f) * 24;
+                float hw = 5, hh = 9, cs = cosf(an), sn = sinf(an);
+                float vx[4], vy[4];
+                static const float CX[4] = { -1, 1, 1, -1 }, CY[4] = { -1, -1, 1, 1 };
+                for (int i = 0; i < 4; i++) {
+                    vx[i] = x + CX[i] * hw * cs - CY[i] * hh * sn;
+                    vy[i] = y + CX[i] * hw * sn + CY[i] * hh * cs;
+                }
+                poligono(vx, vy, 4, C_BARRA);
+                for (int i = 0; i < 4; i++) { vx[i] = x + (vx[i] - x) * 0.8f; vy[i] = y + (vy[i] - y) * 0.8f; }
+                poligono(vx, vy, 4, C_MARFIM);
+                gfx_linha_grossa((int)(x - 4 * cs), (int)(y - 4 * sn), (int)(x + 4 * cs), (int)(y + 4 * sn), 1, C_BARRA);
+            }
+        } else if (t == D_MARTIR && e->mascara) {
+            // Martir: a aureola sobe do dado caido e se reparte em luzes, uma
+            // para cada dado seu que vale.
+            float q = p / 0.25f;
+            int hy = ay - R_DADO - 6 - (int)((q < 1 ? q : 1) * 16);
+            if (p < 0.4f) {
+                for (int a = 0; a < 24; a++) {
+                    float an = a * 0.2618f;
+                    gfx_rect(ax + (int)(cosf(an) * 10) - 1, hy + (int)(sinf(an) * 3) - 1, 2, 2, C_OURO);
+                }
+            }
+            for (int k = 0; k < N_FILA; k++) {
+                if (!(e->mascara >> k & 1)) continue;
+                float s = (p - 0.3f - k * 0.06f) / 0.3f;
+                if (s < 0 || s > 1) continue;
+                int lx = ax + (int)((SLOT_X(k) - ax) * s), ly = hy + (int)((ay - R_DADO - hy) * s) - (int)(sinf(s * 3.1416f) * 14);
+                gfx_disco(lx, ly, 4, C_HALO);
+                gfx_disco(lx, ly, 2, C_OURO);
+            }
+        } else if (t == D_PUXA_FILA) {
+            // Puxa-fila: um rastro dourado corre a fila inteira, da frente ao fim.
+            float q = p / 0.5f;
+            if (q < 1) {
+                int x0 = SLOT_X(0), x1 = SLOT_X(N_FILA - 1), y = ay + (ay < CENTRO ? R_DADO + 8 : -R_DADO - 8);
+                int x = x0 + (int)((x1 - x0 + 30) * q) - 15;
+                gfx_linha_grossa(x0 - 15, y, x, y, 2, gfx_mistura(C_OURO, C_FELTRO, 40));
+                for (int i = 0; i < 3; i++) {
+                    int cx = x - i * 7;
+                    gfx_linha_grossa(cx - 4, y - 4, cx, y, 2, C_OURO);
+                    gfx_linha_grossa(cx - 4, y + 4, cx, y, 2, C_OURO);
+                }
+            }
+        } else if (t == D_COVEIRO) {
+            // Coveiro: de cada dado anulado na mesa sobe uma cruzinha que vem
+            // para a mao dele.
+            int n = 0;
+            for (int q2 = 0; q2 < 2; q2++)
+                for (int i = 0; i < F[q2].lancados; i++) {
+                    if (vis_est[q2][i] != V_ANULADO) continue;
+                    float s = (p - n++ * 0.07f) / 0.5f;
+                    if (s < 0 || s > 1) continue;
+                    int sx = SLOT_X(i), sy = zona(q2);
+                    int x = sx + (int)((ax - sx) * s), y = sy + (int)((ay - sy) * s) - (int)(sinf(s * 3.1416f) * 30);
+                    gfx_rect(x - 1, y - 5, 3, 10, C_CINZA);
+                    gfx_rect(x - 4, y - 2, 9, 3, C_CINZA);
+                }
+        } else if (t == D_HEXA && e->mascara) {
+            // Hexa: um hexagono se acende em volta de cada dado de seis lados.
+            int n = 0;
+            for (int k = 0; k < N_FILA; k++) {
+                if (!(e->mascara >> k & 1)) continue;
+                float s = (p - 0.08f - n++ * 0.12f) / 0.3f;
+                if (s < 0) continue;
+                float rr = R_DADO + 4 + (s < 1 ? (1 - s) * 8 : 0);
+                float vx[6], vy[6];
+                for (int i = 0; i < 6; i++) { vx[i] = SLOT_X(k) + cosf(i * 1.0472f) * rr; vy[i] = ay + sinf(i * 1.0472f) * rr; }
+                for (int i = 0; i < 6; i++)
+                    gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[(i + 1) % 6], (int)vy[(i + 1) % 6], 2,
+                                     s < 1 ? C_FOGO : gfx_mistura(C_FOGO, C_FELTRO, 40));
+            }
+        } else if (t == D_AMPULHETA) {
+            // Ampulheta: ela sobe, vira e a areia cai.
+            float q = p / 0.35f;
+            if (q > 1) q = 1;
+            int cx = ax, cy = ay - R_DADO - 26;
+            float an = q * 3.1416f, cs = cosf(an), sn = sinf(an);
+            // o vidro (dois triangulos), as tampas e a areia: embaixo antes de
+            // virar, caindo depois
+            static const float HX[6] = { -9, 9, 0, 9, -9, 0 }, HY[6] = { -13, -13, 0, 13, 13, 0 };
+            float vx[4], vy[4];
+            for (int m = 0; m < 2; m++) {
+                for (int i = 0; i < 3; i++) {
+                    float x = HX[m * 3 + i], y = HY[m * 3 + i];
+                    vx[i] = cx + x * cs - y * sn; vy[i] = cy + x * sn + y * cs;
+                }
+                poligono(vx, vy, 3, C_MARFIM_S);
+                for (int i = 0; i < 3; i++) { vx[i] = cx + (vx[i] - cx) * 0.7f; vy[i] = cy + (vy[i] - cy) * 0.7f; }
+                if ((m == 1) == (q < 1)) poligono(vx, vy, 3, C_AMARELO);       // a areia
+            }
+            for (int m = -1; m <= 1; m += 2) {                                  // as tampas
+                static const float TX[4] = { -11, 11, 11, -11 }, TY[4] = { -2, -2, 1, 1 };
+                for (int i = 0; i < 4; i++) {
+                    float x = TX[i], y = TY[i] + m * 14;
+                    vx[i] = cx + x * cs - y * sn; vy[i] = cy + x * sn + y * cs;
+                }
+                poligono(vx, vy, 4, C_MADEIRA_CLR);
+            }
+            if (q >= 1 && p < 0.9f)
+                for (int i = 0; i < 4; i++) {
+                    int yy = cy + (int)(fmodf(t_fase * 30 + i * 3, 11));
+                    gfx_rect(cx, yy, 1, 2, C_AMARELO);
+                }
         } else if (t == D_DESAFIANTE) {
             // A flamula sobe do dado e se abre, tremulando: ele e o maior da mesa.
             float q = p / 0.4f;

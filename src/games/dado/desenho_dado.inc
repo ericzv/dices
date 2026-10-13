@@ -488,6 +488,87 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(d) >= w + l) return 0;
         return fabsf(fr(t * 22) - 0.5f) < 0.17f && fabsf(d) < w * 0.5f ? 3 : 1;   // as escamas no dorso
     }
+    case D_ECO: {                                 // tres ondas saindo para a direita
+        float dx = u + 0.62f, dd = sqrtf(dx * dx + v * v), an = atan2f(v, dx);
+        if (fabsf(an) > 0.62f) return 0;
+        for (int i = 0; i < 3; i++)
+            if (fabsf(dd - 0.62f - i * 0.2f) < l * 1.7f) return 1;
+        return 0;
+    }
+    case D_DOMINO:                                // a pedra de domino: a linha do meio e o pino
+        if (u * u + v * v < 0.075f * 0.075f) return 2;
+        return fabsf(v) < l * 1.4f && fabsf(u) < 0.74f;
+    case D_ANCORA: {                              // a ancora, por tras do numero
+        float y = v - 0.20f;                      // o meio do corpo do d4
+        if (fabsf(sqrtf(u * u + (y + 0.36f) * (y + 0.36f)) - 0.07f) < l * 1.2f) return 1;   // a argola
+        if (fabsf(u) < l * 1.5f && y > -0.29f && y < 0.30f) return 1;                           // a haste
+        if (fabsf(y + 0.18f) < l * 1.5f && fabsf(u) < 0.16f) return 2;                          // o cepo
+        float dd = sqrtf(u * u + (y + 0.02f) * (y + 0.02f));
+        if (y > 0.10f && fabsf(dd - 0.32f) < l * 1.6f) return 1;                               // os bracos
+        return 0;
+    }
+    case D_MARTIR: {                              // a aureola em cima e a cruz embaixo
+        float hx = u / 0.24f, hy = (v + 0.28f) / 0.08f, h = sqrtf(hx * hx + hy * hy);
+        if (h > 0.62f && h < 1.08f) return 1;
+        float y = v - 0.50f;
+        if ((fabsf(u) < l * 1.6f && fabsf(y) < 0.15f) || (fabsf(y + 0.05f) < l * 1.6f && fabsf(u) < 0.10f)) return 2;
+        return 0;
+    }
+    case D_PUXA_FILA: {                           // duas divisas para a frente: ele puxa a fila
+        if (fabsf(v) > 0.24f) return 0;
+        for (int i = 0; i < 2; i++)
+            if (fabsf(u - 0.66f + i * 0.18f + 0.55f * fabsf(v)) < l * 1.6f) return 1;
+        return 0;
+    }
+    case D_COVEIRO: {                             // a lapide e o chao, por tras dos pontos
+        if (fabsf(v - 0.66f) < l * 1.3f && fabsf(u) < 0.6f) return 1;
+        float y = v - 0.12f;
+        bool dentro = fabsf(u) < 0.32f && y < 0.54f && (y > -0.22f || u * u + (y + 0.22f) * (y + 0.22f) < 0.32f * 0.32f);
+        return dentro ? 1 : 0;
+    }
+    case D_HEXA:                                  // um favo: o hexagono em volta e as celulas do canto
+        if (fabsf(bitola(u, v, 6, 0.60f, 0, 0, 0) - 1) < s * 1.1f / 0.60f) return 1;
+        return 0;
+    case D_OURICO: {                              // os espinhos em volta, para dentro
+        float x = u - 0.08f, y = v - 0.08f;       // o meio do corpo
+        float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
+        float along = fabsf(x) > fabsf(y) ? y : x;
+        return e > 0.66f - 0.18f * tri(along / 0.22f + 0.5f);
+    }
+    case D_CALIBRE: {                             // a mira em volta do numero
+        float y = v - 0.20f, dd = sqrtf(u * u + y * y);
+        if (fabsf(dd - 0.30f) < l * 1.2f) return 1;
+        if (dd > 0.22f && dd < 0.40f && (fabsf(u) < l * 1.2f || fabsf(y) < l * 1.2f)) return 1;
+        return 0;
+    }
+    case D_SABOTADOR: {                           // a linha de cortar, tracejada, na diagonal
+        float d = (u + v) * 0.7071f, al = (u - v) * 0.7071f;
+        if (fabsf(d - 0.08f) < l * 1.8f && fr(al / 0.18f) < 0.55f && fabsf(al) < 0.62f) return 1;
+        return 0;
+    }
+    case D_AZARAO: {                              // a seta que sobe, no canto de baixo
+        float y = v - 0.30f, x = u - 0.24f;
+        if (ate_seg(x, y, -0.16f, 0.14f, 0.12f, -0.14f) < l * 1.5f) return 1;
+        if (ate_seg(x, y, 0.12f, -0.14f, 0.01f, -0.14f) < l * 1.5f || ate_seg(x, y, 0.12f, -0.14f, 0.12f, -0.03f) < l * 1.5f)
+            return 1;
+        return 0;
+    }
+    case D_AMPULHETA: {                           // a ampulheta, com a areia embaixo
+        if (fabsf(fabsf(v) - 0.62f) < l * 1.6f && fabsf(u) < 0.40f) return 1;   // as tampas
+        if (fabsf(v) > 0.60f) return 0;
+        float w = 0.36f * fabsf(v) / 0.60f + 0.03f;
+        if (fabsf(fabsf(u) - w) < l * 1.3f) return 1;                            // o vidro
+        if (fabsf(u) < w && (v > 0.30f || (v < -0.40f))) return 2;              // a areia
+        return 0;
+    }
+    case D_AGIOTA: {                              // a pilha de moedas, embaixo
+        for (int i = 0; i < 3; i++) {
+            float x = u / 0.24f, y = (v - 0.50f + i * 0.09f) / 0.07f;
+            float q = x * x + y * y;
+            if (q < 1) return q > 0.62f ? 1 : 2;
+        }
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;

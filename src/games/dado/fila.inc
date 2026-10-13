@@ -28,11 +28,14 @@ static bool nao_anulavel_t(int t)
     return ef == EF_ESCUDO || ef == EF_TEIMOSO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
+// O mesmo, pela posicao: o dado preso pela Ancora tambem.
+static bool intocavel(int j, int k) { return intocavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
-static bool invejoso_age(int v) { return v == 6; }
-static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
+static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
+static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
 static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
+static bool resiste_ego(int j, int k) { return resiste_egoista(tipo_de(j, k)) || F[j].ancora[k]; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -129,6 +132,8 @@ static void aplica_regra(int j, int k)
     resistiu = -1;
     ver_comum = false;
     bool espelhou = false, espera = false;
+    // Preso pela Ancora: o dado logo depois dela, com ela valendo.
+    f->ancora[k] = k > 0 && tipo_de(j, k - 1) == D_ANCORA && f->est[k - 1] == V_VALIDO;
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
@@ -151,6 +156,16 @@ static void aplica_regra(int j, int k)
     if (ef == EF_GEMEO && l >= 0 && f->valor[l] <= TIPO[t].lados) {
         v = f->valor[k] = f->valor[l];
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+    }
+    // Eco: tira o mesmo do primeiro dado que vale (ate 6); sendo ele o primeiro,
+    // ou passando de 6, fica com o que rolou.
+    if (ef == EF_ECO) {
+        int p0 = -1;
+        for (int i = 0; i < k && p0 < 0; i++) if (f->est[i] == V_VALIDO) p0 = i;
+        if (p0 >= 0 && f->valor[p0] <= TIPO[t].lados) {
+            v = f->valor[k] = f->valor[p0];
+            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+        }
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
     if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
@@ -183,7 +198,7 @@ static void aplica_regra(int j, int k)
 
     // Egoista na fila: nenhum dado novo vale ao lado dele (menos o Escudo).
     int ego = egoista_antes(j, k);
-    if (ego >= 0 && !resiste_egoista(t)) {
+    if (ego >= 0 && !resiste_ego(j, k)) {
         f->est[k] = V_ANULADO;
         anulou_b = k;
         resistiu = ego;
@@ -198,7 +213,7 @@ static void aplica_regra(int j, int k)
         est[k] = V_VALIDO;
         int n = 0;
         for (int i = 0; i < k; i++)
-            if (est[i] == V_VALIDO && !resiste_egoista(f->tipo[i])) {
+            if (est[i] == V_VALIDO && !resiste_ego(j, i)) {
                 est[i] = V_ANULADO;
                 anulou_masc |= (uint8_t)(1 << i);
                 n++;
@@ -398,6 +413,13 @@ static void pousa(int j, int k, int (*r)(int))
         f->cru[k] = f->valor[k] = r(6);
         voltou = true;
     }
+    // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
+    int mira = f->valor[k];
+    f->calibre[k] = false;
+    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO) {
+        int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
+        if (mira < teto) { f->cru[k] = f->valor[k] = mira + 1; f->calibre[k] = true; }
+    }
     if (f->tipo[k] != D_VENTANIA || k == 0) {
         aplica_regra(j, k);
         if (voltou && ver_tipo == 0) {
@@ -405,6 +427,11 @@ static void pousa(int j, int k, int (*r)(int))
             ver_comum = false;
         }
         if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", tirou, f->valor[k]);
+        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", mira, mira + 1);
+        if (f->calibre[k] && ver_tipo == 0 && !voltou) {
+            snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
+            ver_comum = false;
+        }
         return;
     }
     int i = 0;                                                   // o primeiro da sequencia

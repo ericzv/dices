@@ -95,6 +95,15 @@ static int nivel_do_dado(int t)
     case D_GEMEO:      return 2;
     case D_PRISMA:     return 3;
     case D_CHECKPOINT: return 3;
+    // Os das builds: os faceis de entender (Domino, Hexa, Azarao, Ampulheta,
+    // Eco, Puxa-fila) ja comecam abertos; os diferentes vem andar a andar.
+    case D_MARTIR:     return 1;
+    case D_CALIBRE:    return 1;
+    case D_OURICO:     return 2;
+    case D_COVEIRO:    return 2;
+    case D_SABOTADOR:  return 3;
+    case D_ANCORA:     return 4;
+    case D_AGIOTA:     return 5;
     case D_FENIX:      return 4;
     case D_TRONO:      return 5;
     case D_CAPITAO:    return 4;

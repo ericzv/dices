@@ -11,6 +11,8 @@ typedef struct {
     int delta[2];
     int total[2];
     int bruto[2];                    // o total antes de travar em 0 (a previa mostra negativo)
+    int atacados[2];                 // dados de cada um que poderes do outro anularam ou roubaram (Ourico)
+    int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -27,8 +29,7 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
     if (!maior && tem_am(j, A_IMA)) return -1;      // Ima: ninguem rouba
     for (int i = 0; i < F[j].lancados; i++) {
         if (i == exceto || est[i] != V_VALIDO) continue;
-        int t = tipo_de(j, i);
-        if (maior ? nao_anulavel_t(t) : intocavel_t(t)) continue;
+        if (maior ? firme(j, i) : intocavel(j, i)) continue;
         if (a < 0 || (maior ? F[j].valor[i] > F[j].valor[a] : F[j].valor[i] < F[j].valor[a]))
             a = i;
     }
@@ -78,10 +79,11 @@ static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
     uint8_t mask = 0;
     int8_t perde[N_FILA] = { 0 };
     for (int i = 0; i < F[j].lancados; i++)
-        if (d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) {
+        if (d->est[j][i] == V_VALIDO && !firme(j, i)) {
             perde[i] = (int8_t)contribui(j, i);
             d->est[j][i] = V_ANULADO;
             mask |= (uint8_t)(1 << i);
+            d->atacados[j]++;
         }
     int roubado = d->roubo_val[j];
     d->roubo_val[j] = 0;
@@ -106,11 +108,11 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
-enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_BARAO, MULT_N };
+enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_BARAO, MULT_N };
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
-    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", J[1].nome };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2 };
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
@@ -120,7 +122,7 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
         if (curto || p >= n) continue;
         p += (size_t)snprintf(s + p, n - p, " x%d", x[q]);
-        if (q == MULT_VIUVA || p >= n) continue;                       // ela mesma
+        if (q == MULT_VIUVA || q == MULT_AZARAO || p >= n) continue;   // ele mesmo
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
         p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
@@ -128,6 +130,9 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
             p += (size_t)snprintf(s + p, n - p, i == 0 ? " %d" : (i == nv - 1 ? " e %d" : ", %d"), vals[i]);
     }
 }
+
+// A Ampulheta: +1 a cada 3 rodadas ja jogadas, ate +4.
+static int ampulheta(void) { int n = (rodada - 1) / 3; return n < 0 ? 0 : n > 4 ? 4 : n; }
 
 // Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
 // multiplicadores. Decididos sobre o estado depois dos ataques.
@@ -251,6 +256,10 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
         if (fartura && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
         if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) { m += 2; de[MULT_VIUVA] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && fichas_ini[j] < fichas_ini[outro(j)]) {
+            m += 2;                              // comecou a rodada atras em fichas
+            de[MULT_AZARAO] |= bit;
+        }
         if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
             de[MULT_BARAO] |= bit;
@@ -268,13 +277,13 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     }
 
     // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
-    // roubou) somam 15 ou mais, +5 no fim - fora de qualquer multiplicador.
+    // roubou) somam 14 ou mais, +7 no fim - fora de qualquer multiplicador.
     int dados = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j];
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SEMENTE) continue;
-        if (dados < 15) continue;
-        d->semente[j] += 5;
-        evento(gera, EV_SEMENTE, j, k, j, 0, 5, "Semente: %d pontos, brota +5", dados);
+        if (dados < 14) continue;
+        d->semente[j] += 7;
+        evento(gera, EV_SEMENTE, j, k, j, 0, 7, "Semente: %d pontos, brota +7", dados);
     }
 
     // A virada do Barao: +2 para ele por dado seu anulado na rodada.
@@ -305,6 +314,14 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
         if (est[k] == V_VALIDO) valendo++;
+    }
+    for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
+        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
+        d->semente[j] += 2 * valendo;
+        evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Mártir caído: +2 em %d dado%s",
+                             valendo, valendo > 1 ? "s" : "");
+        for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
+            if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
     }
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO) continue;
@@ -337,6 +354,39 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_SEGURANCA) {
             d->semente[j] += 2;
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: +2");
+        } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] == f->valor[k]) {
+            d->semente[j] += 3;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 3, "Dominó: o seguinte também deu %d, +3", f->valor[k]);
+            if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = 3; }   // a peca cai no seguinte
+        } else if (ef == EF_PUXA && k == 0 && f->lancados == N_FILA && valendo == N_FILA) {
+            d->semente[j] += 5;
+            evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a fila inteira valendo, +5");
+        } else if (ef == EF_COVEIRO && f->valor[k] >= 5) {
+            int n = 0;
+            for (int q = 0; q < 2; q++)
+                for (int i = 0; i < F[q].lancados; i++) n += d->est[q][i] == V_ANULADO;
+            if (n) {
+                d->semente[j] += n;
+                evento(gera, EV_EXTRA, j, k, j, 0, n, "Coveiro: %d anulado%s na mesa, +%d", n, n > 1 ? "s" : "", n);
+            }
+        } else if (ef == EF_HEXA) {                  // +1 por dado de seis lados seu valendo
+            int n = 0;
+            for (int i = 0; i < f->lancados; i++) n += est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6;
+            d->semente[j] += n;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, n, "Hexa: %d dado%s de seis lados, +%d", n, n > 1 ? "s" : "", n);
+            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
+                if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
+        } else if (ef == EF_AMPULHETA && ampulheta() > 0) {
+            int n = ampulheta();
+            d->semente[j] += n;
+            evento(gera, EV_EXTRA, j, k, j, 0, n, "Ampulheta: %d rodadas jogadas, +%d", rodada - 1, n);
+        } else if (ef == EF_OURICO && d->atacados[j]) {   // cada dado seu atacado custa 4 ao oponente
+            int r = outro(j), n = d->atacados[j];
+            d->delta[r] -= 4 * n;
+            evento(gera, EV_TIRA, j, k, r, 0, 4 * n, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "", 4 * n, J[r].nome);
+        } else if (ef == EF_AGIOTA) {
+            d->agiota[j] += 2;
+            evento(gera, EV_AGIOTA, j, k, outro(j), 0, 2, "Agiota: 2 fichas de %s", J[outro(j)].nome);
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -382,6 +432,11 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
+        if (f->est[k] != V_ANULADO) return 0;
+        for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
+        return 0;
+    }
     if (f->est[k] != V_VALIDO) return 0;
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
@@ -402,10 +457,10 @@ static int poder_armado(int j, int k)
     case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
     case EF_TUDO_NADA:    return v == 2;
     case EF_GATUNO:       return uns > 0;
-    case EF_INVEJOSO:     return invejoso_age(v);
+    case EF_INVEJOSO:     return invejoso_age(v) ? 1 : v <= 2 ? 2 : 0;
     case EF_CARIDOSO:     return v >= 3;
     case EF_FARTURA:      return baixos > 0 || v <= 2;
-    case EF_SEMENTE:      return soma(j, f->est) >= 15;
+    case EF_SEMENTE:      return soma(j, f->est) >= 14;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
     case EF_JACKPOT:      return mesmo_numero(j, f->est, 2, NULL) != 0;
@@ -414,6 +469,21 @@ static int poder_armado(int j, int k)
     case EF_FERREIRO:     return v >= 3;
     case EF_TRONO:        return k == N_FILA - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
+    case EF_DOMINO:       return k + 1 < f->lancados && f->valor[k + 1] == v;
+    case EF_ANCORA:       return k == f->lancados - 1 || f->ancora[k + 1];
+    case EF_CALIBRE:      return k == f->lancados - 1 || f->calibre[k + 1];
+    case EF_PUXA:         return k == 0 && f->lancados == N_FILA && outros == N_FILA - 1;
+    case EF_COVEIRO:
+        if (v < 5) return 0;
+        for (int q = 0; q < 2; q++)
+            for (int i = 0; i < F[q].lancados; i++) if (F[q].est[i] == V_ANULADO) return 1;
+        return 0;
+    case EF_HEXA:         return 1;
+    case EF_OURICO:       return 1;
+    case EF_SABOTADOR:    return v >= 5;
+    case EF_AZARAO:       return fichas_ini[j] < fichas_ini[outro(j)];
+    case EF_AMPULHETA:    return ampulheta() > 0;
+    case EF_AGIOTA:       return 1;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;
@@ -426,7 +496,7 @@ static int poder_armado(int j, int k)
         return 1;
     case EF_BERSERKER: case EF_AUTOFAGIA:
         for (int i = 0; i < f->lancados; i++)
-            if (i != k && f->est[i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) return 2;
+            if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
         return 0;
     case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO: case EF_SEGURANCA:
         return 1;                                            // basta terminar valendo
@@ -490,7 +560,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
                 int b = d->est[j][k] == V_VALIDO ? k : -1;
                 for (int i = 0; i < F[j].lancados; i++)
-                    if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                    if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)
                         && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
                 if (b == k) {
                     d->est[j][b] = V_ANULADO;
@@ -511,7 +581,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (ef == EF_BERSERKER) {
                 int alvos[N_FILA], n = 0;
                 for (int i = 0; i < F[j].lancados; i++)
-                    if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) alvos[n++] = i;
+                    if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)) alvos[n++] = i;
                 if (n) {
                     uint32_t h = (uint32_t)(j * 5 + k);
                     for (int i = 0; i < F[j].lancados; i++) h = h * 29u + (uint32_t)F[j].valor[i];
@@ -529,7 +599,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (ef == EF_AUTOFAGIA) {
                 int b = -1;
                 for (int i = 0; i < F[j].lancados; i++)
-                    if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                    if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)
                         && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
                 if (b >= 0) {
                     d->est[j][b] = V_ANULADO;
@@ -551,6 +621,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
+                    d->atacados[r]++;
                     cavalo_abre(d, j, r, a, gera);
                 }
             } else if (ef == EF_LASER && v >= 5) {
@@ -558,7 +629,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 // depende da mesa, para a previa e o desfecho darem o mesmo.
                 int alvos[N_FILA], n = 0;
                 for (int i = 0; i < F[r].lancados && !couraca; i++)
-                    if (d->est[r][i] == V_VALIDO && !nao_anulavel_t(tipo_de(r, i))) alvos[n++] = i;
+                    if (d->est[r][i] == V_VALIDO && !firme(r, i)) alvos[n++] = i;
                 if (n) {
                     uint32_t h = (uint32_t)(j * 7 + k);
                     for (int i = 0; i < F[r].lancados; i++) h = h * 31u + (uint32_t)F[r].valor[i];
@@ -570,30 +641,45 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                             "Laser: o Segurança de %s leva no lugar", J[r].nome);
                         else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
+                        d->atacados[r]++;
                         cavalo_abre(d, j, r, a, gera);
                     }
                 }
-            } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 6
+            } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
                 int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-                // Depois de anular o do oponente, anula os dois menores
-                // anulaveis da propria sequencia (fora ele).
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
                     if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                         "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
+                    d->atacados[r]++;
                     cavalo_abre(d, j, r, a, gera);
                 }
+            } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
                 for (int n = 0; n < 2; n++) {
                     int b = -1;
                     for (int i = 0; i < F[j].lancados; i++)
-                        if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                        if (d->est[j][i] == V_VALIDO && !firme(j, i)
                             && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
                     if (b < 0) break;
                     d->est[j][b] = V_ANULADO;
-                    evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                           "e anula o %d do próprio %s", F[j].valor[b], J[j].nome);
+                    if (b == k) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Invejoso tirou %d: anula a si mesmo", v);
+                    else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                                "Invejoso tirou %d: anula o %d do próprio %s", v, F[j].valor[b], J[j].nome);
+                }
+            } else if (ef == EF_SABOTADOR && v >= 5) {   // o maior do oponente passa a valer metade
+                int a = -1;
+                for (int i = 0; i < F[r].lancados; i++)
+                    if (d->est[r][i] == V_VALIDO && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
+                if (a >= 0) {
+                    int base = valor_pontos(r, a) + F[r].bonus[a] + d->bonus[r][a];
+                    int corte = base > 0 ? (base + 1) / 2 : 0;
+                    if (corte) {
+                        d->bonus[r][a] = (int8_t)(d->bonus[r][a] - corte);
+                        evento(gera, EV_CORTA, j, k, r, a, corte, "Sabotador corta o %d de %s: vale %d",
+                               F[r].valor[a], J[r].nome, base - corte);
+                    }
                 }
             } else if (ef == EF_MARTELO && v >= 3) {     // Espinhoso: com 3 ou 4
                 d->delta[r] -= 4;
@@ -614,6 +700,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                         "%s: o Segurança de %s vai no lugar (%d)", nome, J[r].nome, vale);
                     else evento(gera, EV_ROUBA, j, k, r, a, vale,
                                 "%s rouba o %d de %s", nome, vale, J[r].nome);
+                    d->atacados[r]++;
                     cavalo_abre(d, j, r, a, gera);
                 }
             }
@@ -665,7 +752,7 @@ static int risco(int j)
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;
         for (int i = 0; i < k; i++)
-            if (f->est[i] == V_VALIDO && resiste_egoista(tipo_de(j, i)) && f->valor[i] > m) m = f->valor[i];
+            if (f->est[i] == V_VALIDO && resiste_ego(j, i) && f->valor[i] > m) m = f->valor[i];
         int ruins = 0;
         for (int a = 1; a <= lados; a++) ruins += a < m;
         return ruins * 100 / lados;

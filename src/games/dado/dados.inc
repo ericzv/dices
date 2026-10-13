@@ -10,7 +10,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_DESAFIANTE, EF_VIDRO, EF_ACUMULADOR, EF_SEGURANCA,
        EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO,
        EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES,
-       EF_AUTOFAGIA };
+       EF_AUTOFAGIA, EF_ECO, EF_DOMINO, EF_ANCORA, EF_MARTIR, EF_PUXA, EF_COVEIRO, EF_HEXA,
+       EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -37,7 +38,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // aparecem so la.
        D_BUMERANGUE, D_GEMEO, D_PRISMA, D_FENIX, D_TRONO,
        D_CAVALO, D_BERSERKER, D_VIUVA, D_CAPITAO,
-       D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA, D_N };
+       D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
+       D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
+       D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -91,12 +94,12 @@ static const tipo_t TIPO[D_N] = {
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
     { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "com um 1 na sua sequência: rouba" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "número fixo; quebra ao ser jogado" },
-    { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "6: anula o maior do oponente e os seus 2 menores" },
+    { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "5-6: anula o maior do rival · 1-2: os seus 2 menores" },
     { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "com 3 ou 4: rouba o menor do oponente" },
     { "Fartura",          4, EF_FARTURA,      RAR_INCOMUM, 14, "seus dados com 1 ou 2 valem x2" },
     { "Moeda sorte",      2, EF_SORTE,        RAR_INCOMUM, 14, "1: ímpares +1 · 2: pares +1" },
     { "Teimoso",          6, EF_TEIMOSO,      RAR_INCOMUM, 11, "não pode ser anulado" },
-    { "Semente",          2, EF_SEMENTE,      RAR_INCOMUM,  9, "seus dados somam 15+: +5" },
+    { "Semente",          2, EF_SEMENTE,      RAR_INCOMUM,  9, "seus dados somam 14+: +7" },
     { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "valendo: queima o seu maior · 2: +10" },
     { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "vale e tira o mesmo do oponente" },
     { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 vale 10 · 1 a 3 vale 0" },
@@ -126,6 +129,19 @@ static const tipo_t TIPO[D_N] = {
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "valendo: +3 em cada válido depois dele" },
     { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "um d12 soma, um d8 tira" },
     { "Autofagia",       12, EF_AUTOFAGIA,    RAR_RARO,     0, "valendo: anula o seu dado mais fraco" },
+    { "Eco",              6, EF_ECO,          RAR_INCOMUM,  0, "tira o mesmo número do 1º da fila" },
+    { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "o próximo tira o mesmo: +3" },
+    { "Âncora",           4, EF_ANCORA,       RAR_RARO,     0, "o próximo não cai nem é roubado" },
+    { "Mártir",           4, EF_MARTIR,       RAR_INCOMUM,  0, "caiu: +2 em cada dado seu valendo" },
+    { "Puxa-fila",        8, EF_PUXA,         RAR_RARO,     0, "1º da fila, os quatro valendo: +5" },
+    { "Coveiro",          6, EF_COVEIRO,      RAR_RARO,     0, "5 ou 6: +1 por dado anulado na mesa" },
+    { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por d6 seu valendo" },
+    { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "cada ataque sofrido: -4 para o rival" },
+    { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "o próximo dado tira +1" },
+    { "Sabotador",        6, EF_SABOTADOR,    RAR_RARO,     0, "5 ou 6: o maior do rival vale metade" },
+    { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "começou atrás em fichas: x2" },
+    { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
+    { "Agiota",           4, EF_AGIOTA,       RAR_RARO,     0, "valendo: 2 fichas do rival para você" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -153,12 +169,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MALDITO]   = "Se tirar 7 ou menos, anula a sua sequência inteira, e ele junto.",
     [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
     [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Valendo com 6, anula o maior do oponente e depois os seus dois menores.",
+    [D_INVEJOSO]  = "Valendo com 5 ou 6, anula o maior do oponente. Com 1 ou 2, anula os seus dois menores (ele pode ser um).",
     [D_CARIDOSO]  = "Se ficar valendo com 3 ou 4, rouba o menor dado do oponente.",
     [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
     [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
     [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
-    [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 15 ou mais no fim: +5.",
+    [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 14 ou mais no fim: +7.",
     [D_FOGO]      = "Se ficar valendo, o seu maior dado queima e sai. Tirando 2, ainda +10.",
     [D_MALDICAO]  = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
     [D_TREVO]     = "Tirou 4: SORTE, vale 10. Tirou 1, 2 ou 3: vale 0.",
@@ -188,6 +204,19 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_CHECKPOINT] = "Valendo: +3 no fim para cada dado seu lançado depois dele que ficar valendo.",
     [D_SORTE_REVES] = "Rola um d12 que soma e um d8 que tira. Vale a diferença, até negativa.",
     [D_AUTOFAGIA] = "Se ficar valendo, anula no fim o outro dado seu de menor número.",
+    [D_ECO]       = "Tira o mesmo número do primeiro dado seu que vale (até 6). Pode cair, se a fila já subiu.",
+    [D_DOMINO]    = "Se ficar valendo e o próximo dado seu tirar o mesmo número: +3.",
+    [D_ANCORA]    = "O dado seu lançado logo depois dela não pode ser anulado nem roubado.",
+    [D_MARTIR]    = "Se cair, no fim cada dado seu que vale ganha +2.",
+    [D_PUXA_FILA] = "Se for o 1º da sequência e os quatro terminarem valendo: +5.",
+    [D_COVEIRO]   = "Valendo com 5 ou 6: +1 no fim por dado anulado na mesa, dos dois lados.",
+    [D_HEXA]      = "Se ficar valendo, +1 no fim por dado de seis lados seu que vale, ele incluído.",
+    [D_OURICO]    = "Valendo no fim: cada dado seu que o oponente anulou ou roubou custa 4 pontos a ele.",
+    [D_CALIBRE]   = "O próximo dado seu tira +1, sem passar do máximo dele.",
+    [D_SABOTADOR] = "Valendo com 5 ou 6: o maior dado do oponente vale metade no fim.",
+    [D_AZARAO]    = "Se você começou a rodada com menos fichas e ele ficar valendo: x2.",
+    [D_AMPULHETA] = "Se ficar valendo: +1 a cada 3 rodadas já jogadas, até +4.",
+    [D_AGIOTA]    = "Se ficar valendo, no fim 2 fichas do oponente passam para você, fora do pote.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -212,12 +241,12 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo e Teimoso resistem.",
     [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
     [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 6, anula o maior dado do oponente e depois os dois menores dados da sua própria sequência (fora ele). Escudo e Teimoso resistem à anulação.",
+    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os dois menores dados da sua própria sequência, ele mesmo incluído (no empate, o primeiro). Com 3 ou 4, nada. Escudo e Teimoso resistem à anulação.",
     [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 3 ou 4, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
     [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
     [D_SORTE]     = "Uma moeda. Se terminar valendo: tirando 1, cada dado ímpar seu ganha +1; tirando 2, cada dado par ganha +1. Ela conta a si mesma.",
     [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
-    [D_SEMENTE]   = "Uma moeda. Se terminar valendo e, no fim, os seus dados somarem 15 ou mais (com bônus e roubos), ganha +5.",
+    [D_SEMENTE]   = "Uma moeda. Se terminar valendo e, no fim, os seus dados somarem 14 ou mais (com bônus e roubos), ganha +7.",
     [D_FOGO]      = "Uma moeda. Se terminar valendo, o seu maior dado vira cinza no fim e sai da sua bolsa para sempre. Tirando 2, ainda dá +10 pontos; tirando 1, nada.",
     [D_MALDICAO]  = "Quatro lados. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
     [D_TREVO]     = "Quatro lados. Tirando 4: SORTE, vale 10. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
@@ -251,6 +280,34 @@ static const char *TEXTO_CAT[D_N] = {
                       "precisa ser maior que ele.",
     [D_AUTOFAGIA] = "Doze lados. Se terminar valendo, no fim anula o outro dado seu de menor número que vale (no "
                     "empate, o primeiro). Escudo e Teimoso resistem.",
+    [D_ECO]       = "Seis lados. Tira o mesmo número do primeiro dado seu que vale na sequência, como um eco. Se esse "
+                    "número passar de 6, ou se ele for o primeiro, rola normal. Se a fila já subiu, o eco é menor que o "
+                    "último e cai junto com ele.",
+    [D_DOMINO]    = "Seis lados. Se terminar valendo e o dado seu lançado logo depois dele tirar o mesmo número, "
+                    "ganha +3 no fim. Combina com o Eco, o Gêmeo e o Par.",
+    [D_ANCORA]    = "Quatro lados. O dado seu lançado logo depois dela, com ela valendo, fica preso: não pode ser "
+                    "anulado (nem pela queda da sequência, nem por poderes) nem roubado. Se ele for menor, quem cai é "
+                    "a Âncora.",
+    [D_MARTIR]    = "Quatro lados. Se terminar a rodada anulado, cada dado seu que vale no fim ganha +2. Combina "
+                    "com quem anula os próprios dados.",
+    [D_PUXA_FILA] = "Oito lados. Se for o primeiro dado da sua sequência e os quatro terminarem valendo, ele "
+                    "incluído, ganha +5 no fim.",
+    [D_COVEIRO]   = "Seis lados. Se terminar valendo com 5 ou 6, ganha +1 no fim para cada dado anulado na mesa, "
+                    "seus e do oponente.",
+    [D_HEXA]      = "Seis lados. Se terminar valendo, ganha +1 no fim para cada dado de seis lados seu que vale na "
+                    "rodada, ele incluído.",
+    [D_OURICO]    = "Seis lados. Se terminar valendo, cada dado seu que um poder do oponente anulou ou roubou na "
+                    "rodada custa 4 pontos a ele no fim.",
+    [D_CALIBRE]   = "Quatro lados. O dado seu lançado logo depois dele, com ele valendo, tira 1 a mais, sem passar do "
+                    "máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
+    [D_SABOTADOR] = "Seis lados. Se terminar valendo com 5 ou 6, o maior dado do oponente que vale passa a valer "
+                    "metade no fim (arredondado para baixo).",
+    [D_AZARAO]    = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar valendo, "
+                    "vale x2. Soma com outros multiplicadores.",
+    [D_AMPULHETA] = "Seis lados. Se terminar valendo, ganha +1 no fim a cada 3 rodadas já jogadas na partida, até "
+                    "+4: fraco no começo, forte no fim.",
+    [D_AGIOTA]    = "Quatro lados. Se terminar valendo, no fim da rodada 2 fichas do oponente passam para você, "
+                    "fora do pote, ganhe quem ganhar.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -404,6 +461,19 @@ static const visual_t VISUAL[D_N] = {
     [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_BREU, 85,     V_BRANCO, 100 },
     [D_SORTE_REVES] = { V_AMEIXA, 0, 0,         V_BREU, 84,     V_OURO, 100 },
     [D_AUTOFAGIA]  = { V_AGUA,    V_AGUA, 10,   V_VERDE, 100,   V_BREU, 100,   RGB(34, 76, 44), 100 },
+    [D_ECO]        = { V_CIANO,   V_CIANO, 10,  V_AGUA, 85 },
+    [D_DOMINO]     = { V_BREU,    0, 0,         V_BREU, 70,     V_LATAO, 100 },
+    [D_ANCORA]     = { V_AZUL,    V_AZUL, 12,   V_AZUL, 85,     V_FERRO, 80 },
+    [D_MARTIR]     = { V_LILAS,   V_LILAS, 12,  V_OURO, 100,    V_ROXO, 70 },
+    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 10,   V_VERM, 75,     V_BREU, 70 },
+    [D_COVEIRO]    = { V_BARRO,   V_PEDRA, 30,  V_BARRO, 60 },
+    [D_HEXA]       = { V_AMBAR,   V_TRIGO, 30,  V_AMBAR, 70 },
+    [D_OURICO]     = { V_COURO,   V_TERRA, 22,  V_COURO, 85 },
+    [D_CALIBRE]    = { V_LIMA,    V_LIMA, 10,   V_VERM, 85 },
+    [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_VERM, 80 },
+    [D_AZARAO]     = { V_VERDE,   V_VERDE, 12,  V_VERDE, 85 },
+    [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 26,  V_MADEIRA, 75,  V_TRIGO, 90 },
+    [D_AGIOTA]     = { V_OURO,    V_OURO, 18,   V_LATAO_E, 85,  V_OURO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

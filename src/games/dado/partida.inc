@@ -346,13 +346,13 @@ static void autofagia_come(int j, const desfecho_t *d)
     if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
 }
 
-// O Garimpeiro valeu: os dados que j lancou voltam para a bolsa agora, em vez
-// de ficar fora ate ela esvaziar. Os que ficaram na mao seguem o caminho de
-// sempre.
+// O Garimpeiro valeu: os outros dados de j que terminaram valendo voltam para
+// a bolsa agora, em vez de ficar fora ate ela esvaziar. Ele mesmo, os que
+// cairam e os que ficaram na mao seguem o caminho de sempre.
 static void garimpa(int j, const desfecho_t *d)
 {
-    if (!d->garimpo[j]) return;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        if (!(d->garimpo[j] >> k & 1)) continue;
         int c = F[j].idx[k];
         if (c >= 0 && c < J[j].n_col && J[j].onde[c] == NA_MAO) J[j].onde[c] = NA_BOLSA;
     }

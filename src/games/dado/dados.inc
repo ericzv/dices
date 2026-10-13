@@ -157,7 +157,7 @@ static const tipo_t TIPO[D_N] = {
     { "Rancor",           4, EF_RANCOR,       RAR_RARO,     0, "+1 por rodada que você perdeu" },
     { "Esperança",        8, EF_ESPERANCA,    RAR_LENDA,    0, "com 15 fichas ou menos: x2" },
     { "Ponte",            4, EF_PONTE,        RAR_RARO,     0, "nunca cai, e a fila pula ela" },
-    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: os lançados voltam à bolsa" },
+    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: os outros válidos voltam à bolsa" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
 };
 
@@ -239,7 +239,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_RANCOR]    = "Se ficar valendo: +1 por rodada que você já perdeu nesta partida.",
     [D_ESPERANCA] = "Se você começou a rodada com 15 fichas ou menos e ela ficar valendo: vale x2.",
     [D_PONTE]     = "Nunca cai pela regra da fila, e o dado seguinte compara com o de antes dela.",
-    [D_GARIMPEIRO] = "Se ficar valendo, no fim os dados que você lançou voltam direto para a bolsa.",
+    [D_GARIMPEIRO] = "Se ficar valendo, no fim os outros dados seus que valem voltam direto para a bolsa.",
     [D_POTE_QUENTE] = "Se ficar valendo: +1 a cada 25 fichas no pote, no fim da rodada.",
 };
 
@@ -345,9 +345,9 @@ static const char *TEXTO_CAT[D_N] = {
                     "fim. Soma com outros multiplicadores.",
     [D_PONTE]     = "Quatro lados. Não cai pela regra da fila, por menor que saia, e a regra não a enxerga: o dado "
                     "seguinte só precisa igualar ou passar o último que vale antes dela. Ataques ainda a anulam.",
-    [D_GARIMPEIRO] = "Seis lados. Se terminar valendo, no fim da rodada os dados que você lançou, ele incluído, "
-                     "voltam direto para a bolsa, sem esperar ela esvaziar: podem sair de novo já na próxima rodada. "
-                     "Os que ficaram na mão seguem o caminho de sempre.",
+    [D_GARIMPEIRO] = "Seis lados. Se terminar valendo, no fim da rodada os outros dados da sua sequência que "
+                     "terminaram valendo voltam direto para a bolsa, sem esperar ela esvaziar: podem sair de novo já "
+                     "na próxima rodada. Ele mesmo, os que caíram e os que ficaram na mão seguem o caminho de sempre.",
     [D_POTE_QUENTE] = "Oito lados. Se terminar valendo, ganha +1 no fim a cada 25 fichas que estiverem no pote. "
                       "Quanto mais alta a aposta, mais ele vale.",
 };

@@ -871,12 +871,13 @@ static void desenha_evento(void)
         }
     }
     // Agiota: as fichas do rival saem da faixa dele e pousam na sua.
-    // Garimpeiro: de cada dado da fila sai uma pepita que volta, em arco, para
-    // a bolsa de quem joga; a bolsa acende quando elas chegam.
+    // Garimpeiro: de cada outro dado que vale sai uma pepita que volta, em arco,
+    // para a bolsa de quem joga; a bolsa acende quando elas chegam.
     if (e->tipo == EV_GARIMPO) {
         int j = e->de_j, bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
         int n = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
             float q0 = (p - 0.08f - n++ * 0.09f) / 0.45f;
             for (int r = 3; r >= 0; r--) {                   // a pepita e um rastro que se apaga
                 float q = q0 - r * 0.05f;

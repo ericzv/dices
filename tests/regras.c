@@ -1104,21 +1104,21 @@ int main(void)
             CONFERE(d.total[0] == 5, "Pote Quente com 24 no pote: esperava 5, deu %d", d.total[0]);
             pote = pt;
         }
-        // Garimpeiro: valendo, os lancados voltam para a bolsa; os que ficaram
-        // na mao, nao (nem o que ja estava fora).
+        // Garimpeiro: valendo, os outros dados que valem voltam para a bolsa;
+        // ele mesmo, os que cairam e os que ficaram na mao, nao.
         {
             jogador_t guarda = J[0];
             J[0].n_col = 9;
             for (int i = 0; i < 9; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = i < 7 ? NA_MAO : FORA; }
-            limpa(); joga(0, D_D4, 2); joga(0, D_GARIMPEIRO, 4);
-            F[0].idx[0] = 2; F[0].idx[1] = 5;
+            limpa(); joga(0, D_D6, 5); joga(0, D_D4, 3); joga(0, D_GARIMPEIRO, 4); joga(0, D_D8, 7);
+            F[0].idx[0] = 0; F[0].idx[1] = 3; F[0].idx[2] = 5; F[0].idx[3] = 1;
             d = fim();
-            CONFERE(d.garimpo[0], "Garimpeiro valendo devia agir");
+            CONFERE(d.garimpo[0] == 1 << 3, "Garimpeiro: so o 7 que vale devia voltar (mascara %d)", d.garimpo[0]);
             garimpa(0, &d);
-            int na = 0;
-            for (int i = 0; i < 9; i++) na += J[0].onde[i] == NA_BOLSA;
-            CONFERE(na == 2 && J[0].onde[2] == NA_BOLSA && J[0].onde[5] == NA_BOLSA && J[0].onde[0] == NA_MAO
-                    && J[0].onde[7] == FORA, "Garimpeiro: so os lancados voltam para a bolsa");
+            CONFERE(J[0].onde[1] == NA_BOLSA && J[0].onde[5] == NA_MAO && J[0].onde[0] == NA_MAO && J[0].onde[3] == NA_MAO
+                    && J[0].onde[7] == FORA, "Garimpeiro: so os outros que valem voltam para a bolsa");
+            limpa(); joga(0, D_GARIMPEIRO, 4); d = fim();
+            CONFERE(!d.garimpo[0] && !poder_armado(0, 0), "Garimpeiro sozinho nao devolve nada");
             limpa(); joga(0, D_D8, 6); joga(0, D_GARIMPEIRO, 4); d = fim();
             CONFERE(!d.garimpo[0], "Garimpeiro caido nao age");
             J[0] = guarda;

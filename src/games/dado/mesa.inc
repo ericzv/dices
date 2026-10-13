@@ -235,7 +235,7 @@ static void faixa_jogador(int j)
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
     icone_bolsa(bx + 8, by);
-    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), p->n_col);   // os no ar ainda nao chegaram
+    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), em_jogo(p));   // os no ar ainda nao chegaram
     txt(bx + 22, ty, s, C_MARFIM_S, false);
 }
 

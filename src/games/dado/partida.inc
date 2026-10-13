@@ -19,6 +19,15 @@ static int na_bolsa(const jogador_t *p)
     return n;
 }
 
+// Os dados da bolsa que ainda jogam nesta partida: o que a Autofagia comeu
+// so volta na proxima.
+static int em_jogo(const jogador_t *p)
+{
+    int n = 0;
+    for (int i = 0; i < p->n_col; i++) if (p->onde[i] != COMIDO) n++;
+    return n;
+}
+
 // A mao da rodada anterior sai da mesa.
 static void descarta_mao(jogador_t *p)
 {
@@ -251,7 +260,7 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         while (n == lados && g++ < 3) { n = r(lados); x += n; }
         break;
     }
-    case EF_QUEBRADO: x = fixo; break;       // sem sorteio
+    case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
     default: break;
     }
     return x;
@@ -265,7 +274,7 @@ static void lanca_proximo(void)
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
-    if (t == D_ACUMULADOR && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
         f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
@@ -327,13 +336,16 @@ static void comeca_segundo(void)
     fase = F_ORDEM;
 }
 
-// Quebrados jogados saem da bolsa de quem os tinha. A bolsa nunca cai abaixo
-// de quatro: se cairia, o Quebrado vira um d4 comum.
-// Quebrados jogados saem da colecao de quem os tinha. A colecao nunca cai
-// abaixo de quatro: se cairia, o Quebrado vira um d4 comum.
-// Dados que saem do jogo ao fim da rodada: o Quebrado que foi jogado e o que
-// a Ficha de Fogo queimou. A colecao nunca cai abaixo de quatro: se cairia, o
-// dado perdido vira um d4 comum.
+// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
+static void autofagia_come(int j, const desfecho_t *d)
+{
+    if (!d->come[j] || !d->come_de[j]) return;
+    int b = F[j].idx[d->come[j] - 1], a = F[j].idx[d->come_de[j] - 1];
+    if (a < 0 || a >= J[j].n_col || b < 0 || b >= J[j].n_col) return;
+    J[j].onde[b] = COMIDO;
+    if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
+}
+
 // A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja
 // saem da bolsa) vira um Quebrado com o numero que tirou.
 static void medusa_petrifica(int j, const desfecho_t *d)
@@ -344,18 +356,36 @@ static void medusa_petrifica(int j, const desfecho_t *d)
         if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || vis_queima[j][k]) continue;
         if (f->tipo[k] == D_VIDRO && f->cru[k] == 1) continue;              // estilhacado: ja sai
         if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
-        int v = f->valor[k] < 1 ? 1 : f->valor[k] > 99 ? 99 : f->valor[k];
-        J[j].col[f->idx[k]] = (peca_t){ D_QUEBRADO, (uint8_t)v };
+        int v = f->valor[k] > 99 ? 99 : f->valor[k] < -99 ? -99 : f->valor[k] ? f->valor[k] : 1;
+        J[j].col[f->idx[k]] = (peca_t){ D_QUEBRADO, (uint8_t)(int8_t)v };    // o Reves negativo vira pedra negativa
     }
 }
 
+// A pedra negativa (um Reves que a Medusa petrificou), jogada por voce no
+// Desafiante: ao se partir, tem um dado dentro.
+static bool pedra_misteriosa(int j, int k)
+{
+    return modo == M_DESAFIO && j == 0 && F[j].tipo[k] == D_QUEBRADO && (int8_t)F[j].fixo[k] < 0
+        && F[j].idx[k] >= 0 && F[j].idx[k] < J[j].n_col;
+}
+
+// Dados que saem do jogo ao fim da rodada: o Quebrado que foi jogado, o Vidro
+// estilhacado e o que a Ficha de Fogo queimou. A bolsa nunca cai abaixo da
+// mao: se cairia, o dado perdido vira um d4 comum. A pedra negativa do
+// Desafiante se parte e deixa o Dado Misterioso no lugar.
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0;
     for (int j = 0; j < 2; j++) {
         int saem[N_FILA], n = 0;
         for (int k = 0; k < F[j].lancados; k++) {
             bool some = false;
+            if (pedra_misteriosa(j, k)) {
+                F[j].quebra[k] = true;
+                J[j].col[F[j].idx[k]] = (peca_t){ D_MISTERIOSO, 0 };
+                n_mist++;
+                continue;
+            }
             if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
             if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
@@ -367,7 +397,7 @@ static void recolhe_quebrados(void)
             }
         jogador_t *p = &J[j];
         for (int i = 0; i < n; i++) {
-            if (p->n_col <= N_FILA) { p->col[saem[i]] = nova_peca(D_D4); continue; }
+            if (em_jogo(p) <= N_FILA) { p->col[saem[i]] = nova_peca(D_D4); continue; }
             for (int m = saem[i]; m + 1 < p->n_col; m++) {
                 p->col[m] = p->col[m + 1];
                 p->onde[m] = p->onde[m + 1];
@@ -381,6 +411,10 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
+    if (n_mist) {
+        snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
+        if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga
+    }
 }
 
 // O desfecho calculado pelo motor de regras: e ele que paga. Os eventos so
@@ -456,7 +490,7 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
-    for (int j = 0; j < 2; j++) medusa_petrifica(j, &resolvido);
+    for (int j = 0; j < 2; j++) { autofagia_come(j, &resolvido); medusa_petrifica(j, &resolvido); }
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;

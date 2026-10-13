@@ -559,14 +559,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (dd > 0.22f && dd < 0.40f && (fabsf(u) < l * 1.2f || fabsf(y) < l * 1.2f)) return 1;
         return 0;
     }
-    case D_SABOTADOR: {                           // a faca, na diagonal: o cabo embaixo, a lamina para cima
-        float t = ((u + 0.60f) * 0.7071f - (v - 0.60f) * 0.7071f) / 1.72f;   // 0 no pe do cabo, 1 na ponta
-        float d = (u + 0.60f) * 0.7071f + (v - 0.60f) * 0.7071f;             // de lado
-        if (t < 0 || t > 1) return 0;
-        if (t < 0.32f) return fabsf(d) < 0.07f + l * 0.5f ? 2 : 0;           // o cabo
-        if (t < 0.37f) return fabsf(d) < 0.13f + l * 0.5f ? 2 : 0;           // a guarda
-        float q = (t - 0.37f) / 0.63f, w = 0.075f * (1 - q * q) + l * 0.4f;
-        if (d > -0.075f - l * 0.4f && d < w) return d > w - 2 * s ? 1 : 3;  // a lamina, com o fio
+    case D_SABOTADOR: {                           // a adaga em formas: losango, cabo, guarda e a lamina em duas faces
+        float t = (u - v) * 0.7071f + 0.877f;     // ao longo da diagonal: 0 no pe, 1.75 na ponta
+        float d = (u + v) * 0.7071f;              // de lado
+        if (fabsf(t - 0.12f) + fabsf(d) < 0.13f) return 2;                  // o pomo
+        if (t > 0.22f && t < 0.48f && fabsf(d) < 0.075f) return 2;          // o cabo
+        if (fabsf(t - 0.53f) / 0.07f + fabsf(d) / 0.32f < 1) return 2;      // a guarda
+        if (t > 0.58f && t < 1.70f && fabsf(d) < 0.17f * (1.70f - t) / 1.12f)
+            return d < 0 ? 3 : 1;                                           // a lamina: a face clara e a escura
         return 0;
     }
     case D_AZARAO: {                              // a seta que sobe, no canto de baixo
@@ -576,16 +576,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
             return 1;
         return 0;
     }
-    case D_AMPULHETA: {                           // a ampulheta de madeira: tampas, colunas, vidro e areia
-        if (fabsf(fabsf(v) - 0.62f) < 0.06f + l * 0.5f && fabsf(u) < 0.52f) return 1;   // as tampas
-        if (fabsf(fabsf(u) - 0.46f) < 0.03f + l * 0.5f && fabsf(v) < 0.62f) return 1;   // as colunas
-        if (fabsf(v) > 0.56f) return 0;
-        float a = fabsf(v) / 0.56f, w = 0.05f + 0.30f * powf(a, 1.4f);
-        if (fabsf(fabsf(u) - w) < l * 1.3f) return 3;                                     // o vidro
-        if (fabsf(u) < w && v > 0.30f + 0.10f * (1 - fabsf(u) / 0.3f) * 0) return 2;      // a areia de baixo
-        if (fabsf(u) < w && v < -0.46f) return 2;                                         // o resto, em cima
-        if (fabsf(u) < l && v > -0.05f && v < 0.32f) return 2;                            // o fio caindo
-        return 0;
+    case D_AMPULHETA: {                           // dois triangulos pelo apice, as bases nas bordas
+        float a = fabsf(v) - fabsf(u);
+        if (fabsf(a) < l * 0.8f) return 3;
+        if (a < 0) return 0;
+        return v < 0 ? 1 : 2;                     // a areia de cima, mais clara, e a que ja caiu
     }
     case D_AGIOTA: {                              // a pilha de moedas, embaixo
         for (int i = 0; i < 3; i++) {
@@ -595,18 +590,16 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_MEDUSA: {                              // as cobras no alto, a pedra rachada embaixo
-        static const float X0[3] = { -0.21f, 0.0f, 0.21f }, TOPO[3] = { -0.52f, -0.62f, -0.52f };
+    case D_MEDUSA: {                              // as cobras descendo pelo corpo, sem cabeca, afinando no rabo
+        static const float X0[3] = { -0.58f, 0.0f, 0.58f }, FASE[3] = { 0, 2.6f, 4.4f };
         for (int i = 0; i < 3; i++) {
-            if (v < TOPO[i] - 0.06f || v > -0.20f) continue;
-            float x = X0[i] + 0.055f * sinf((v + 0.20f) * 17 + i * 1.7f);
-            float hx = u - (X0[i] + 0.055f * sinf((TOPO[i] + 0.20f) * 17 + i * 1.7f)), hy = v - TOPO[i];
-            if (hx * hx + hy * hy < 0.06f * 0.06f) return hx * hx + (hy + 0.01f) * (hy + 0.01f) < 0.018f * 0.018f + l * 0.2f ? 2 : 1;
-            if (fabsf(u - x) < 0.032f + l * 0.4f) return 1;
+            float x = u - X0[i] - 0.14f * sinf(v * 5.5f + FASE[i]);
+            float w = 0.13f * (v < 0.10f ? 1 : v > 0.78f ? 0.25f : 1 - 0.75f * (v - 0.10f) / 0.68f);
+            if (fabsf(x) > w + l * 0.8f) continue;
+            if (fabsf(x) > w - l * 0.8f) return 2;                          // o contorno
+            float q = fabsf(fr(v / 0.19f + i * 0.37f) - 0.5f) * 2;          // os losangos do dorso
+            return fabsf(x) / (w * 0.5f) + q * 1.25f < 1 ? 3 : 1;
         }
-        if (ate_seg(u, v, -0.42f, 0.30f, -0.22f, 0.44f) < l * 1.2f || ate_seg(u, v, -0.22f, 0.44f, -0.26f, 0.60f) < l * 1.2f
-            || ate_seg(u, v, 0.30f, 0.36f, 0.44f, 0.52f) < l * 1.2f || ate_seg(u, v, 0.30f, 0.36f, 0.16f, 0.56f) < l * 1.2f)
-            return 3;                                                   // as rachaduras
         return 0;
     }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
@@ -706,8 +699,9 @@ static void marca_por_cima(int tipo, float r, uint16_t corpo, bool zerado)
     if (tipo == D_QUEBRADO) {
         uint16_t rc = C_EBANO_B;
         int e = esp_marca(r);
-        gfx_linha_grossa(MX(-0.7f * r, -0.6f * r), MY(-0.7f * r, -0.6f * r), MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), e, rc);
-        gfx_linha_grossa(MX(-0.2f * r, -0.1f * r), MY(-0.2f * r, -0.1f * r), MX(0.1f * r, -0.4f * r), MY(0.1f * r, -0.4f * r), e, rc);
+        // no alto: o sinal de menos da pedra negativa fica livre
+        gfx_linha_grossa(MX(-0.66f * r, -0.66f * r), MY(-0.66f * r, -0.66f * r), MX(-0.24f * r, -0.26f * r), MY(-0.24f * r, -0.26f * r), e, rc);
+        gfx_linha_grossa(MX(-0.24f * r, -0.26f * r), MY(-0.24f * r, -0.26f * r), MX(0.08f * r, -0.54f * r), MY(0.08f * r, -0.54f * r), e, rc);
     }
     if (zerado) return;
     if (tipo == D_JACKPOT) {
@@ -839,7 +833,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     const visual_t *vi = &VISUAL[tipo];
     // Os dados comuns no material de quem joga com eles; os especiais (e a
     // moeda) tem um desenho so, sobre o marfim, para os dois lados.
-    bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2;
+    bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     uint16_t corpo = mt->tons[2];
     uint16_t tinta = mt->tinta;
@@ -848,6 +842,10 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_D2) corpo = cor_de_dado(gfx_mistura(corpo, C_OURO, 58));   // moeda dourada
     if (tipo == D_VIUVA) {                        // preta, com a tinta clara
         corpo = RGB(62, 56, 50);
+        tinta = C_MARFIM;
+    }
+    if (tipo == D_MISTERIOSO) {                   // todo preto, a tinta de marfim
+        corpo = RGB(24, 22, 22);
         tinta = C_MARFIM;
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
@@ -938,10 +936,11 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
         if (tipo == D_QUEBRADO && valor) {
-            snprintf(s, sizeof s, "%d", valor);
+            snprintf(s, sizeof s, "%d", (int8_t)valor);
             numero(cx, cy, r, s, tinta);
             return;
         }
+        if (tipo == D_MISTERIOSO) { numero(cx, cy, r, "?", tinta); return; }
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
         // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);

@@ -128,7 +128,7 @@ static void desenha_catalogo(void)
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
     char s[32];
-    faixas_colecao(cat_i, D_N);
+    faixas_colecao(cat_i, N_CATALOGO);
     char trava[80];
     int st = cat_trava_dado(tipo, trava, sizeof trava);
 

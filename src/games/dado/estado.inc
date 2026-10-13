@@ -5,7 +5,7 @@
 typedef struct { uint8_t tipo, fixo; } peca_t;
 
 // Cada dado do jogador esta num de tres lugares.
-enum { NA_BOLSA, NA_MAO, FORA };
+enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
 
 typedef struct {
     const char *nome;
@@ -240,6 +240,12 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 #endif
 static int   perso_virado = -1;          // o chefe que ja virou nesta partida
 static float t_virada;                   // > 0: o anuncio da virada na tela
+// A vinheta do Dado Misterioso: > 0 enquanto corre (primeiro a pedra se parte
+// na mesa; depois de MIST_ESPERA, a luz e o dado, com a mesa parada).
+#define MIST_ESPERA 1.0f
+#define MIST_MIN    1.4f                 // so depois disso uma tecla fecha
+#define MIST_MAX    20.0f
+static float t_misterio;
 static int des_dificuldade(void);
 // A virada que o oponente perso traz na dificuldade da run: 0 nenhuma, 1, 2.
 static int virada_de(int perso)

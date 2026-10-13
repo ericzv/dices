@@ -841,6 +841,34 @@ int main(void)
         d = fim();
         CONFERE(F[0].est[2] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 2,
                 "Autofagia caida nao devia agir (deu %d)", d.total[0]);
+        // Come de verdade: com 8 dados em jogo, o comido sai da bolsa e ela
+        // guarda +1 (ate +3); com 7, ou ja com +3, so anula.
+        {
+            jogador_t guarda = J[0];
+            J[0].n_col = 8;
+            for (int i = 0; i < 8; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = NA_BOLSA; }
+            J[0].col[2] = (peca_t){ D_AUTOFAGIA, 0 };
+            limpa();
+            joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            d = fim();
+            CONFERE(d.come[0] == 1 && d.come_de[0] == 3, "Autofagia com 8 em jogo devia comer o 2");
+            autofagia_come(0, &d);
+            CONFERE(J[0].onde[0] == COMIDO && J[0].col[2].fixo == 1 && em_jogo(&J[0]) == 7,
+                    "Autofagia: o comido devia sair da bolsa e ela guardar +1");
+            d = fim();
+            CONFERE(d.come[0] == 0 && d.est[0][0] == V_ANULADO, "Autofagia com 7 em jogo: so anula");
+            J[0].onde[0] = NA_BOLSA;
+            J[0].col[2].fixo = AUTO_MAX;
+            d = fim();
+            CONFERE(d.come[0] == 0, "Autofagia ja com +3: so anula");
+            limpa();
+            F[0].fixo[0] = 9;
+            joga(0, D_AUTOFAGIA, 4);
+            d = fim();
+            CONFERE(d.total[0] == 4 + AUTO_MAX, "Autofagia: o bonus para em +3 (deu %d)", d.total[0]);
+            J[0] = guarda;
+        }
         // ---- Os dados das builds ------------------------------------------
         // Eco: o mesmo do primeiro que vale (ate 6); pode cair se a fila subiu.
         limpa();
@@ -993,7 +1021,49 @@ int main(void)
             joga(0, D_D12, 9); joga(0, D_MEDUSA, 3);
             d = fim();
             CONFERE(!d.medusa[0], "Medusa caida nao age");
+            // O Sorte/Reves negativo vira pedra negativa, e ela sai com esse numero.
+            limpa();
+            joga(0, D_SORTE_REVES, -3); joga(0, D_MEDUSA, 2);
+            F[0].idx[0] = 0; F[0].idx[1] = 1;
+            J[0].n_col = 2;
+            J[0].col[0] = (peca_t){ D_SORTE_REVES, 0 }; J[0].col[1] = (peca_t){ D_MEDUSA, 0 };
+            d = fim();
+            medusa_petrifica(0, &d);
+            CONFERE(J[0].col[0].tipo == D_QUEBRADO && (int8_t)J[0].col[0].fixo == -3,
+                    "Medusa num Reves -3: devia virar Quebrado -3 (deu %d)", (int8_t)J[0].col[0].fixo);
+            int menor = 0;
+            CONFERE(sorteia_valor(D_QUEBRADO, J[0].col[0].fixo, sempre_dois, &menor) == -3, "Quebrado -3 sai -3");
+            // Jogada: na partida rapida, se desfaz como todo Quebrado; no
+            // Desafiante, se parte e deixa o Dado Misterioso.
+            int modo0 = modo;
+            for (int m = 0; m < 2; m++) {
+                modo = m ? M_DESAFIO : M_UM;
+                J[0].n_col = N_FILA + 2;
+                for (int i = 0; i < J[0].n_col; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = NA_MAO; }
+                J[0].col[3] = (peca_t){ D_QUEBRADO, (uint8_t)(int8_t)-3 };
+                limpa();
+                memset(vis_queima, 0, sizeof vis_queima);
+                joga(0, D_QUEBRADO, -3);
+                F[0].idx[0] = 3; F[0].fixo[0] = J[0].col[3].fixo;
+                recolhe_quebrados();
+                if (m) CONFERE(J[0].n_col == N_FILA + 2 && J[0].col[3].tipo == D_MISTERIOSO && F[0].quebra[0],
+                               "Desafiante: a pedra negativa devia deixar o Dado Misterioso");
+                else CONFERE(J[0].n_col == N_FILA + 1 && J[0].col[3].tipo == D_D6, "rapida: o Quebrado -3 se desfaz");
+            }
+            modo = modo0;
+            t_misterio = 0;
             J[0] = guarda;
+        }
+        // O Dado Misterioso e oculto: um d20 sem poder, fora da colecao, do
+        // premio, da loja e da liberacao.
+        CONFERE(TIPO[D_MISTERIOSO].lados == 20 && TIPO[D_MISTERIOSO].efeito == EF_NADA, "Misterioso: um d20 comum");
+        CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
+        {
+            int vis = 0;
+            for (int t = 0; t < D_N; t++) vis += !oculto(t);
+            CONFERE(vis == N_CATALOGO, "a colecao devia ter %d dados (tem %d)", vis, N_CATALOGO);
+            for (int i = 0; i < N_CATALOGO; i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
+            for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");
         }
         // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
         limpa();

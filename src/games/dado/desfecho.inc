@@ -14,6 +14,7 @@ typedef struct {
     int atacados[2];                 // dados de cada um que poderes do outro anularam ou roubaram (Ourico)
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
+    uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -91,6 +92,19 @@ static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
     if (!mask && !roubado) return;
     evento_t *e = evento(gera, EV_CAVALO, r, a, j, 0, roubado, "Cavalo de Troia: anula os de %s", J[j].nome);
     if (e) { e->mascara = mask; memcpy(e->por_dado, perde, sizeof perde); }
+}
+
+// A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
+// vindos da bolsa, com ela abaixo de +3 e com pelo menos 8 dados em jogo.
+static bool autofagia_come_pode(int j, int a, int b)
+{
+    const jogador_t *p = &J[j];
+    int ia = F[j].idx[a], ib = F[j].idx[b];
+    if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
+    if (p->col[ia].tipo != D_AUTOFAGIA || p->col[ia].fixo >= AUTO_MAX) return false;
+    int vivos = 0;
+    for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
+    return vivos >= AUTO_BOLSA;
 }
 
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
@@ -601,8 +615,10 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 continue;
             }
 
-            // Autofagia: anula o outro dado seu de menor numero que vale (no
-            // empate, o primeiro). Escudo e Teimoso resistem.
+            // Autofagia: come o outro dado seu de menor numero que vale (no
+            // empate, o primeiro): ele cai e sai da bolsa ate a proxima
+            // partida, e ela ganha +1 (ate +3). Com a bolsa abaixo de 8 dados
+            // em jogo, ou ja com +3, so anula. Escudo e Teimoso resistem.
             if (ef == EF_AUTOFAGIA) {
                 int b = -1;
                 for (int i = 0; i < F[j].lancados; i++)
@@ -610,8 +626,12 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                         && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
                 if (b >= 0) {
                     d->est[j][b] = V_ANULADO;
-                    evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                           "Autofagia: come o %d do próprio %s", F[j].valor[b], J[j].nome);
+                    bool come = !d->come[j] && autofagia_come_pode(j, k, b);
+                    if (come) { d->come[j] = (uint8_t)(b + 1); d->come_de[j] = (uint8_t)(k + 1); }
+                    if (come) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                                     "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
+                    else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                                "Autofagia: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
                 }
                 continue;
             }
@@ -754,7 +774,7 @@ static int risco(int j)
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
     int l = ultimo_valido(f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
-    if (ef == EF_QUEBRADO) return f->fixo[k] < L ? 100 : 0;
+    if (ef == EF_QUEBRADO) return l >= 0 && (int8_t)f->fixo[k] < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;

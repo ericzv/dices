@@ -22,7 +22,7 @@ static float media(peca_t p)
 {
     const tipo_t *t = &TIPO[p.tipo];
     switch (t->efeito) {
-    case EF_QUEBRADO: return p.fixo;
+    case EF_QUEBRADO: return (int8_t)p.fixo;
     case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
@@ -163,7 +163,8 @@ static void fila_imaginada(int r, bool toda)
     jogador_t *p = &J[r];
     peca_t pool[MAX_COL];
     int n = 0;
-    for (int i = 0; i < p->n_col; i++) if (toda || p->onde[i] != FORA) pool[n++] = p->col[i];
+    for (int i = 0; i < p->n_col; i++)
+        if (p->onde[i] != COMIDO && (toda || p->onde[i] != FORA)) pool[n++] = p->col[i];
     if (n < N_FILA) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
     int m = n < tam_mao(r) ? n : tam_mao(r);
     for (int i = 0; i < m; i++) {

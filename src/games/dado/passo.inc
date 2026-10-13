@@ -23,6 +23,13 @@ void dado_passo(float dt)
         if (antes < ELEV_CHEGA && ELEV_T - t_elev >= ELEV_CHEGA) som_toca(SOM_VALIDO);   // o "dim" do elevador
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
+    if (t_misterio > 0) {                // o Dado Misterioso: a pedra se parte, depois a mesa para
+        float antes = t_misterio;
+        t_misterio += dt_real;
+        if (antes <= MIST_ESPERA && t_misterio > MIST_ESPERA) som_toca(SOM_PREMIO);
+        if (t_misterio > MIST_MAX) t_misterio = 0;
+        else if (t_misterio > MIST_ESPERA) return;
+    }
     t_fase += dt;
     hora_passo(dt, dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;

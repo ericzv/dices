@@ -303,8 +303,9 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = 4;
             snprintf(f->tag[k], sizeof f->tag[k], "$+4");
         }
-        if (ef == EF_ACUMULADOR && f->fixo[k]) {
-            f->bonus[k] = (int8_t)(f->fixo[k] < ACUM_MAX ? f->fixo[k] : ACUM_MAX);
+        if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->fixo[k]) {
+            int teto = ef == EF_AUTOFAGIA ? AUTO_MAX : ACUM_MAX;
+            f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_FERREIRO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
@@ -343,8 +344,8 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+4)", vale);
-        } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Acumulador vale %d (+%d guardado)", vale, f->bonus[k]);
+        } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
+            snprintf(veredito, sizeof veredito, "%s vale %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados);

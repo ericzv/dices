@@ -18,7 +18,7 @@ static bool raridade_da_rodada(int rar, int r)
 
 static int peso_dado(int t)
 {
-    if (so_desafio(t)) return 0;                 // so no Modo Desafiante
+    if (so_desafio(t) || oculto(t)) return 0;    // so no Modo Desafiante (ou em lugar nenhum)
     if (!raridade_da_rodada(TIPO[t].raridade, rodada)) return 0;
     static const int PESO[4] = { 8, 4, 2, 1 };
     return so_inicial(t) ? 0 : PESO[TIPO[t].raridade];

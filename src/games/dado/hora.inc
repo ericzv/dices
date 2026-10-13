@@ -113,10 +113,10 @@ static void reage_lance(int j, int k)
 // A luz da hora da verdade: em volta do dado o feltro como esta; fora do
 // circulo, escurece aos poucos (com o pontilhado de sempre, para a paleta
 // fazer degraus suaves). O circulo aperta enquanto a mesa escurece.
+static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 static void desenha_hora(void)
 {
     if (t_hora <= 0) return;
-    static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
     float t = t_hora * t_hora * (3 - 2 * t_hora);
     float raio = 92 + (1 - t) * 280, borda = 110;
     float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo

@@ -40,18 +40,25 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_CAVALO, D_BERSERKER, D_VIUVA, D_CAPITAO,
        D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
        D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
-       D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA, D_N };
+       D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
+       D_MISTERIOSO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
 // Os lados do d8 do Reves, no Sorte/Reves (a Sorte e o d12 do proprio tipo).
 #define SR_REVES 8
-// O teto do bonus que o Acumulador guarda.
+// O teto do bonus que o Acumulador guarda, e o da Autofagia.
 #define ACUM_MAX 6
+#define AUTO_MAX 3
+// A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
+#define AUTO_BOLSA 8
+// O Dado Misterioso nao aparece em lugar nenhum: nem na colecao, nem no
+// premio, nem na loja. So sai de uma pedra negativa que se parte.
+static bool oculto(int t) { return t == D_MISTERIOSO; }
 static bool so_desafio(int t)
 {
     switch (t) {
-    case D_TRONO: case D_BERSERKER:
+    case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA:
         return true;
     default:
         return false;
@@ -61,13 +68,13 @@ static bool so_desafio(int t)
 static int n_basicos(void)
 {
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += !so_desafio(t);
+    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !oculto(t);
     return n;
 }
 static int basico(int i)
 {
     for (int t = 0; t < D_N; t++)
-        if (!so_desafio(t) && i-- == 0) return t;
+        if (!so_desafio(t) && !oculto(t) && i-- == 0) return t;
     return D_D6;
 }
 
@@ -128,7 +135,7 @@ static const tipo_t TIPO[D_N] = {
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "valendo: +1 por dado seu valendo" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "valendo: +3 em cada válido depois dele" },
     { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "um d12 soma, um d8 tira" },
-    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_RARO,     0, "valendo: anula o seu dado mais fraco" },
+    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "come o seu dado mais fraco: +1 (até +3)" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "tira o mesmo número do 1º da fila" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "o próximo tira o mesmo: +3" },
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "o próximo não cai nem é roubado" },
@@ -142,7 +149,8 @@ static const tipo_t TIPO[D_N] = {
     { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "começou atrás em fichas: x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
     { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "valendo: 2 fichas do rival para você" },
-    { "Medusa",          12, EF_MEDUSA,       RAR_RARO,     0, "valendo: sua fila vira pedra (Quebrados)" },
+    { "Medusa",          12, EF_MEDUSA,       RAR_LENDA,     0, "valendo: sua fila vira pedra (Quebrados)" },
+    { "Misterioso",      20, EF_NADA,         RAR_LENDA,    0, "um d20 todo preto: ninguém sabe de onde veio" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -204,7 +212,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_CAPITAO]   = "Se ficar valendo, +1 no fim por dado seu valendo, ele incluído.",
     [D_CHECKPOINT] = "Valendo: +3 no fim para cada dado seu lançado depois dele que ficar valendo.",
     [D_SORTE_REVES] = "Rola um d12 que soma e um d8 que tira. Vale a diferença, até negativa.",
-    [D_AUTOFAGIA] = "Se ficar valendo, anula no fim o outro dado seu de menor número.",
+    [D_AUTOFAGIA] = "Valendo, come o seu menor dado: ele sai da bolsa até a próxima partida, e ela ganha +1 (até +3).",
     [D_ECO]       = "Tira o mesmo número do primeiro dado seu que vale (até 6). Pode cair, se a fila já subiu.",
     [D_DOMINO]    = "Se ficar valendo e o próximo dado seu tirar o mesmo número: +3.",
     [D_ANCORA]    = "O dado seu lançado logo depois dela não pode ser anulado nem roubado.",
@@ -219,6 +227,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_AMPULHETA] = "Se ficar valendo: +1 a cada 3 rodadas já jogadas, até +4.",
     [D_AGIOTA]    = "Se ficar valendo, no fim 2 fichas do oponente passam para você, fora do pote.",
     [D_MEDUSA]    = "Se ficar valendo, no fim os dados que você lançou, ela incluída, viram Quebrados com o número que tiraram.",
+    [D_MISTERIOSO] = "Um d20, de 1 a 20. Saiu de dentro de uma pedra.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -280,8 +289,10 @@ static const char *TEXTO_CAT[D_N] = {
     [D_SORTE_REVES] = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e os dois viram um dado só, que vale a "
                       "Sorte menos o Revés (de -7 a 11). Negativo, tira pontos da sequência - e o próximo dado só "
                       "precisa ser maior que ele.",
-    [D_AUTOFAGIA] = "Doze lados. Se terminar valendo, no fim anula o outro dado seu de menor número que vale (no "
-                    "empate, o primeiro). Escudo e Teimoso resistem.",
+    [D_AUTOFAGIA] = "Doze lados. Se terminar valendo, no fim come o outro dado seu de menor número que vale (no "
+                    "empate, o primeiro): ele é anulado e sai da bolsa até o fim da partida (na próxima, volta), e a "
+                    "Autofagia ganha +1 nas rodadas seguintes, até +3. Com a bolsa abaixo de 8 dados, ou já com +3, "
+                    "ela só anula. Escudo e Teimoso resistem.",
     [D_ECO]       = "Seis lados. Tira o mesmo número do primeiro dado seu que vale na sequência, como um eco. Se esse "
                     "número passar de 6, ou se ele for o primeiro, rola normal. Se a fila já subiu, o eco é menor que o "
                     "último e cai junto com ele.",
@@ -313,6 +324,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MEDUSA]    = "Doze lados. Se terminar valendo, no fim da rodada todos os dados da sua sequência (os que caíram "
                     "também; os roubados, não), ela incluída, viram pedra: cada um vira um Quebrado com o número que "
                     "tirou, que sai uma vez com esse número e quebra.",
+    [D_MISTERIOSO] = "Vinte lados, de 1 a 20, todo preto. Estava dentro de uma pedra que tinha um número negativo; "
+                     "não faz nada além de rolar.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -350,12 +363,13 @@ static void classe(int tipo, char *s, int n)
     else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), RARIDADE[TIPO[tipo].raridade]);
 }
 
-// O catalogo mostra os dados do mais comum ao mais raro.
+// O catalogo mostra os dados do mais comum ao mais raro, menos o oculto.
+#define N_CATALOGO (D_N - 1)
 static int cat_tipo(int i)
 {
     for (int r = RAR_COMUM; r <= RAR_LENDA; r++)
         for (int t = 0; t < D_N; t++)
-            if (TIPO[t].raridade == r && i-- == 0) return t;
+            if (TIPO[t].raridade == r && !oculto(t) && i-- == 0) return t;
     return 0;
 }
 
@@ -477,9 +491,10 @@ static const visual_t VISUAL[D_N] = {
     [D_CALIBRE]    = { V_LIMA,    V_LIMA, 10,   V_VERM, 85 },
     [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_FERRO, 100,   V_BREU, 85,    V_PRATA, 100 },
     [D_AZARAO]     = { V_VERDE,   V_VERDE, 12,  V_VERDE, 85 },
-    [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 18,  V_MADEIRA, 95,  V_AMBAR, 85,   V_CEU, 80 },
+    [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 18,  V_AMBAR, 55,    V_AMBAR, 95,   V_MADEIRA, 90 },
     [D_AGIOTA]     = { V_OURO,    V_OURO, 18,   V_LATAO_E, 85,  V_OURO, 100 },
-    [D_MEDUSA]     = { V_VERDE,   V_PEDRA, 34,  V_VERDE, 100,   V_BREU, 90,    V_BARRO, 70 },
+    [D_MEDUSA]     = { V_VERDE,   V_PEDRA, 34,  V_VERDE, 100,   V_BREU, 80,    V_LIMA, 100 },
+    [D_MISTERIOSO] = { RGB(40, 36, 34) },          // o corpo preto e o "?" vem do desenho
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

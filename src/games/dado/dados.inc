@@ -11,7 +11,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_BUMERANGUE, EF_GEMEO, EF_PRISMA, EF_FENIX, EF_TRONO,
        EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES,
        EF_AUTOFAGIA, EF_ECO, EF_DOMINO, EF_ANCORA, EF_MARTIR, EF_PUXA, EF_COVEIRO, EF_HEXA,
-       EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA };
+       EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -40,7 +40,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_CAVALO, D_BERSERKER, D_VIUVA, D_CAPITAO,
        D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
        D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
-       D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_N };
+       D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -51,7 +51,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 static bool so_desafio(int t)
 {
     switch (t) {
-    case D_TRONO: case D_BERSERKER: case D_CHECKPOINT:
+    case D_TRONO: case D_BERSERKER:
         return true;
     default:
         return false;
@@ -76,21 +76,21 @@ static const tipo_t TIPO[D_N] = {
     { "Moeda",            2, EF_NADA,         RAR_COMUM,    4, "1 ou 2: ótima para abrir a sequência" },
     { "D4",               4, EF_NADA,         RAR_COMUM,    5, "quatro lados, de 1 a 4" },
     { "D6",               6, EF_NADA,         RAR_COMUM,    0, "seis lados, de 1 a 6" },
-    { "D8",               8, EF_NADA,         RAR_INCOMUM,    9, "oito lados, de 1 a 8" },
+    { "D8",               8, EF_NADA,         RAR_INCOMUM,  9, "oito lados, de 1 a 8" },
     { "D12",             12, EF_NADA,         RAR_RARO,    20, "doze lados, de 1 a 12" },
     { "D20",             20, EF_NADA,         RAR_LENDA,   26, "vinte lados, de 1 a 20" },
     { "Dobro",            6, EF_DOBRO,        RAR_INCOMUM, 16, "1 a 3: o dado seguinte vale x2" },
     { "Viciado",          6, EF_VICIADO,      RAR_INCOMUM, 16, "rola 2 vezes e fica com o maior" },
-    { "Lastro",          12, EF_LASTRO,       RAR_LENDA,    26, "sempre de 4 a 12" },
+    { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "sempre de 4 a 12" },
     { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "igual ao anterior: +6" },
-    { "Escudo",           6, EF_ESCUDO,       RAR_INCOMUM, 15, "não pode ser anulado nem roubado" },
-    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM,    17, "4: anula o maior do rival · 1: anula o seu menor" },
+    { "Escudo",           6, EF_ESCUDO,       RAR_RARO,    15, "não pode ser anulado nem roubado" },
+    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "4: anula o maior do rival · 1: anula o seu menor" },
     { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "no 8, rola de novo e soma" },
     { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "com 3 ou 4: tira 4 do oponente" },
     { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "com 7 ou 8: tira 4 do oponente" },
     { "Espelho",          6, EF_ESPELHO,      RAR_RARO,    20, "1 ou 2: vira o maior do oponente" },
     { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "com mais fichas que o oponente: +4" },
-    { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM,   14, "2: seus dados +5 · 1: seus dados -5" },
+    { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados +5 · 1: seus dados -5" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
     { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "com um 1 na sua sequência: rouba" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "número fixo; quebra ao ser jogado" },
@@ -105,7 +105,7 @@ static const tipo_t TIPO[D_N] = {
     { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 vale 10 · 1 a 3 vale 0" },
     { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "dois iguais: +4 · três iguais: +10" },
     { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "cada dado igual a ele: +2" },
-    { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM,    14, "anula os seus outros dados" },
+    { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "anula os seus outros dados" },
     { "Laser",            6, EF_LASER,        RAR_RARO,    16, "com 5 ou 6: anula um dado do oponente" },
     { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "rola de novo o seu primeiro dado" },
     { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "valendo: +2 por dado seu anulado" },
@@ -113,35 +113,36 @@ static const tipo_t TIPO[D_N] = {
     { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "se cair, cai sozinho" },
     { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "não pontua; 3 ou 4: +6 no seguinte" },
     { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "oponente com mais fichas: +4" },
-    { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO, 13, "maior dado da rodada: +4" },
+    { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO,    13, "maior dado da rodada: +4" },
     { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "tirou 1: quebra e anula o anterior" },
-    { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO, 16, "guarda +1 cada vez que entra valendo" },
+    { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO,    16, "guarda +1 cada vez que entra valendo" },
     { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "ataques caem nele · valendo: +2" },
     { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
-    { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,  0, "tira o mesmo do anterior que vale (até 6)" },
-    { "Prisma",           8, EF_PRISMA,       RAR_RARO,  0, "+1 por tipo de dado seu valendo" },
+    { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "tira o mesmo do anterior que vale (até 6)" },
+    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado seu valendo" },
     { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "anulado: renasce no fim" },
     { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da fila, todos valendo: +4" },
     { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "anulado ou roubado pelo rival: anula os dele" },
     { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "valendo: anula um dado seu ao acaso" },
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "único dado seu valendo: x2" },
-    { "Capitão",          8, EF_CAPITAO,      RAR_COMUM,    0, "valendo: +1 por dado seu valendo" },
+    { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "valendo: +1 por dado seu valendo" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "valendo: +3 em cada válido depois dele" },
     { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "um d12 soma, um d8 tira" },
     { "Autofagia",       12, EF_AUTOFAGIA,    RAR_RARO,     0, "valendo: anula o seu dado mais fraco" },
-    { "Eco",              6, EF_ECO,          RAR_INCOMUM,  0, "tira o mesmo número do 1º da fila" },
+    { "Eco",              6, EF_ECO,          RAR_RARO,     0, "tira o mesmo número do 1º da fila" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "o próximo tira o mesmo: +3" },
-    { "Âncora",           4, EF_ANCORA,       RAR_RARO,     0, "o próximo não cai nem é roubado" },
-    { "Mártir",           4, EF_MARTIR,       RAR_INCOMUM,  0, "caiu: +2 em cada dado seu valendo" },
-    { "Puxa-fila",        8, EF_PUXA,         RAR_RARO,     0, "1º da fila, os quatro valendo: +5" },
-    { "Coveiro",          6, EF_COVEIRO,      RAR_RARO,     0, "5 ou 6: +1 por dado anulado na mesa" },
+    { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "o próximo não cai nem é roubado" },
+    { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "caiu: +2 em cada dado seu valendo" },
+    { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da fila, os quatro valendo: +5" },
+    { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "5 ou 6: +1 por dado anulado na mesa" },
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por d6 seu valendo" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "cada ataque sofrido: -4 para o rival" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "o próximo dado tira +1" },
-    { "Sabotador",        6, EF_SABOTADOR,    RAR_RARO,     0, "5 ou 6: o maior do rival vale metade" },
+    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do rival vale metade" },
     { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "começou atrás em fichas: x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
-    { "Agiota",           4, EF_AGIOTA,       RAR_RARO,     0, "valendo: 2 fichas do rival para você" },
+    { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "valendo: 2 fichas do rival para você" },
+    { "Medusa",          12, EF_MEDUSA,       RAR_RARO,     0, "valendo: sua fila vira pedra (Quebrados)" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -217,6 +218,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_AZARAO]    = "Se você começou a rodada com menos fichas e ele ficar valendo: x2.",
     [D_AMPULHETA] = "Se ficar valendo: +1 a cada 3 rodadas já jogadas, até +4.",
     [D_AGIOTA]    = "Se ficar valendo, no fim 2 fichas do oponente passam para você, fora do pote.",
+    [D_MEDUSA]    = "Se ficar valendo, no fim os dados que você lançou, ela incluída, viram Quebrados com o número que tiraram.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -308,6 +310,9 @@ static const char *TEXTO_CAT[D_N] = {
                     "+4: fraco no começo, forte no fim.",
     [D_AGIOTA]    = "Quatro lados. Se terminar valendo, no fim da rodada 2 fichas do oponente passam para você, "
                     "fora do pote, ganhe quem ganhar.",
+    [D_MEDUSA]    = "Doze lados. Se terminar valendo, no fim da rodada todos os dados da sua sequência (os que caíram "
+                    "também; os roubados, não), ela incluída, viram pedra: cada um vira um Quebrado com o número que "
+                    "tirou, que sai uma vez com esse número e quebra.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -358,7 +363,7 @@ static int cat_tipo(int i)
 // ordem - so comuns e incomuns, como o premio das primeiras rodadas. Precos
 // (TIPO.preco) medidos com partidas IA x IA, 2000 por dado, com duas copias
 // na bolsa: quem rende mais custa mais.
-static const uint8_t VITRINE[] = { D_D8, D_PAR, D_ESCUDO,
+static const uint8_t VITRINE[] = { D_D8, D_PAR,
                                    D_DOBRO, D_VICIADO, D_QUEBRADO,
                                    D_FARTURA, D_SORTE, D_TEIMOSO, D_SEMENTE, D_TREVO,
                                    D_JACKPOT, D_COPIADOR, D_MISERICORDIOSO, D_SOLITARIO,
@@ -411,7 +416,7 @@ typedef struct {
 
 static const visual_t VISUAL[D_N] = {
     //                 cor        tom           desenho        segundo e terceiro tons
-    [D_DOBRO]      = { V_OURO,    0, 0,         V_OURO, 70 },
+    [D_DOBRO]      = { V_OURO,    0, 0,         V_LATAO_E, 100 },
     [D_VICIADO]    = { V_VERM,    0, 0,         V_CHUMBO, 40 },
     [D_LASTRO]     = { V_FERRO,   V_ACO, 34,    V_CHUMBO, 24 },
     [D_PAR]        = { V_AGUA,    0, 0,         V_AGUA, 60 },
@@ -440,7 +445,7 @@ static const visual_t VISUAL[D_N] = {
     [D_EGOISTA]    = { V_AMEIXA,  V_AMEIXA, 18, V_OURO, 55 },
     [D_LASER]      = { V_LIMA,    V_CHUMBO, 34, V_LIMA, 60 },
     [D_VENTANIA]   = { V_CEU,     V_CEU, 35,    V_NOITE, 45 },
-    [D_MISERICORDIOSO] = { V_PRATA, V_PRATA, 20, V_OURO, 60 },
+    [D_MISERICORDIOSO] = { V_PRATA, V_PRATA, 20, V_LATAO, 100 },
     [D_SOLITARIO]  = { V_NOITE,   V_AZUL, 25,   RGB(246, 222, 132), 90 },
     [D_SENTINELA]  = { V_TERRA,   V_PEDRA, 46,  V_BARRO, 35,    V_BRANCO, 18 },
     [D_FERREIRO]   = { V_FERRO,   V_FERRO, 30,  V_BREU, 22 },
@@ -461,19 +466,20 @@ static const visual_t VISUAL[D_N] = {
     [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_BREU, 85,     V_BRANCO, 100 },
     [D_SORTE_REVES] = { V_AMEIXA, 0, 0,         V_BREU, 84,     V_OURO, 100 },
     [D_AUTOFAGIA]  = { V_AGUA,    V_AGUA, 10,   V_VERDE, 100,   V_BREU, 100,   RGB(34, 76, 44), 100 },
-    [D_ECO]        = { V_CIANO,   V_CIANO, 10,  V_AGUA, 85 },
+    [D_ECO]        = { V_LILAS,   V_LILAS, 12,  V_ROXO, 90,     V_ROXO, 62,    V_ROXO, 38 },
     [D_DOMINO]     = { V_BREU,    0, 0,         V_BREU, 70,     V_LATAO, 100 },
     [D_ANCORA]     = { V_AZUL,    V_AZUL, 12,   V_AZUL, 85,     V_FERRO, 80 },
-    [D_MARTIR]     = { V_LILAS,   V_LILAS, 12,  V_OURO, 100,    V_ROXO, 70 },
-    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 10,   V_VERM, 75,     V_BREU, 70 },
-    [D_COVEIRO]    = { V_BARRO,   V_PEDRA, 30,  V_BARRO, 60 },
+    [D_MARTIR]     = { V_SANGUE,  V_PEDRA, 12,  V_SANGUE, 100,  V_BREU, 75,    V_VERM, 100 },
+    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 10,   V_VERM, 75,     V_FOGO, 100 },
+    [D_COVEIRO]    = { V_BARRO,   V_PEDRA, 12,  V_BARRO, 62,    V_BREU, 70,    V_PEDRA, 100 },
     [D_HEXA]       = { V_AMBAR,   V_TRIGO, 30,  V_AMBAR, 70 },
     [D_OURICO]     = { V_COURO,   V_TERRA, 22,  V_COURO, 85 },
     [D_CALIBRE]    = { V_LIMA,    V_LIMA, 10,   V_VERM, 85 },
-    [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_VERM, 80 },
+    [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_FERRO, 100,   V_BREU, 85,    V_PRATA, 100 },
     [D_AZARAO]     = { V_VERDE,   V_VERDE, 12,  V_VERDE, 85 },
-    [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 26,  V_MADEIRA, 75,  V_TRIGO, 90 },
+    [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 18,  V_MADEIRA, 95,  V_AMBAR, 85,   V_CEU, 80 },
     [D_AGIOTA]     = { V_OURO,    V_OURO, 18,   V_LATAO_E, 85,  V_OURO, 100 },
+    [D_MEDUSA]     = { V_VERDE,   V_PEDRA, 34,  V_VERDE, 100,   V_BREU, 90,    V_BARRO, 70 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

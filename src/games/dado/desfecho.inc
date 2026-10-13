@@ -13,6 +13,7 @@ typedef struct {
     int bruto[2];                    // o total antes de travar em 0 (a previa mostra negativo)
     int atacados[2];                 // dados de cada um que poderes do outro anularam ou roubaram (Ourico)
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
+    uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -384,6 +385,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             int r = outro(j), n = d->atacados[j];
             d->delta[r] -= 4 * n;
             evento(gera, EV_TIRA, j, k, r, 0, 4 * n, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "", 4 * n, J[r].nome);
+        } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
+            d->medusa[j] = 1;
+            evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua fila vira pedra");
+            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
+                if (est[i] != V_ROUBADO) e->mascara |= (uint8_t)(1 << i);
         } else if (ef == EF_AGIOTA) {
             d->agiota[j] += 2;
             evento(gera, EV_AGIOTA, j, k, outro(j), 0, 2, "Agiota: 2 fichas de %s", J[outro(j)].nome);
@@ -484,6 +490,7 @@ static int poder_armado(int j, int k)
     case EF_AZARAO:       return fichas_ini[j] < fichas_ini[outro(j)];
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
+    case EF_MEDUSA:       return 1;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;

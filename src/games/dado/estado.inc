@@ -61,7 +61,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_CHEFE,                     // a virada do Barao: pontos por queda sua
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
-       EV_AGIOTA };                  // o Agiota: fichas do rival para o dono, fora do pote
+       EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
+       EV_MEDUSA };                  // a Medusa: a fila vira pedra (Quebrados)
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -143,6 +144,7 @@ static int  vis_nroubo[2], vis_delta[2];
 static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
+static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];

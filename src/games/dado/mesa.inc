@@ -532,6 +532,17 @@ static void desenha_fila(int j)
                 else        { gfx_rect(ex - 4, my - 2, 9, 5, C_PRATA); gfx_rect(ex - 2, my - 1, 5, 3, C_FELTRO_ESC); }
             }
         }
+        // Petrificado pela Medusa (ou alcancado agora pela onda dela): a borda
+        // de pedra e duas rachaduras.
+        bool pedra = no_desfecho && (vis_pedra[j][k] || (e && e->tipo == EV_MEDUSA && e->de_j == j
+                     && (e->mascara >> k & 1) && t_fase / duracao_evento(ev_i) > 0.1f + 0.45f * abs(k - e->de_k) / 3.0f));
+        if (pedra) {
+            int yy = (int)(y - pulo);
+            aro(x, yy, C_CINZA);
+            gfx_linha_grossa(x - R / 2, yy - R / 2, x - 2, yy + 1, 1, C_EBANO);
+            gfx_linha_grossa(x - 2, yy + 1, x + 1, yy + R / 2, 1, C_EBANO);
+            gfx_linha_grossa(x + R / 3, yy - R / 2, x + R / 5, yy - 2, 1, C_EBANO);
+        }
         // Cortado pelo Sabotador: uma linha tracejada na diagonal; vale metade.
         if (no_desfecho && vis_corte[j][k] && !anul)
             for (int i = 0; i < 2 * R; i += 5)
@@ -816,6 +827,19 @@ static void desenha_evento(void)
             for (int i = 0; i < 6; i++)                 // lascas
                 gfx_rect(x0 + (int)(2 * R_DADO * c2) + (i % 3) * 3 - 3, y0 + (int)(2 * R_DADO * c2) - (i / 3) * 4,
                          2, 2, i % 2 ? C_PRATA : C_MARFIM_S);
+        }
+    }
+    // Medusa: o olhar dela sai como uma onda cinza e passa pela fila; cada
+    // dado que ela alcanca vira pedra (racha e acinzenta a borda).
+    if (e->tipo == EV_MEDUSA) {
+        float q = p / 0.55f;
+        if (q < 1) {
+            int rr = (int)(q * 150);
+            for (int a = 0; a < 40; a++) {
+                float an = a * 0.15708f;
+                gfx_rect(ax + (int)(cosf(an) * rr) - 1, ay + (int)(sinf(an) * rr * 0.4f) - 1, 3, 2,
+                         gfx_mistura(C_CINZA, C_FELTRO, (int)(q * 70)));
+            }
         }
     }
     // Agiota: as fichas do rival saem da faixa dele e pousam na sua.

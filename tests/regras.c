@@ -974,6 +974,27 @@ int main(void)
         joga(0, D_D6, 5); joga(0, D_AGIOTA, 2);
         d = fim();
         CONFERE(d.agiota[0] == 0, "Agiota caido nao cobra");
+        // Medusa: valendo, a fila vira Quebrados com o que tirou (os caidos
+        // tambem; os roubados, nao).
+        {
+            jogador_t guarda = J[0];
+            limpa();
+            joga(0, D_D6, 4); joga(0, D_D8, 2); joga(0, D_MEDUSA, 9);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            J[0].n_col = 3;
+            J[0].col[0] = (peca_t){ D_D6, 0 }; J[0].col[1] = (peca_t){ D_D8, 0 }; J[0].col[2] = (peca_t){ D_MEDUSA, 0 };
+            d = fim();
+            CONFERE(d.medusa[0] && !d.medusa[1] && d.total[0] == 9, "Medusa valendo devia agir (total %d)", d.total[0]);
+            medusa_petrifica(0, &d);
+            CONFERE(J[0].col[0].tipo == D_QUEBRADO && J[0].col[0].fixo == 4 && J[0].col[1].tipo == D_QUEBRADO
+                    && J[0].col[1].fixo == 2 && J[0].col[2].tipo == D_QUEBRADO && J[0].col[2].fixo == 9,
+                    "Medusa: a fila devia virar Quebrados 4, 2 e 9");
+            limpa();
+            joga(0, D_D12, 9); joga(0, D_MEDUSA, 3);
+            d = fim();
+            CONFERE(!d.medusa[0], "Medusa caida nao age");
+            J[0] = guarda;
+        }
         // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
         limpa();
         joga(0, D_D6, 4); joga(0, D_GEMEO, 2);

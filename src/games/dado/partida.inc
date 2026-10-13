@@ -334,6 +334,21 @@ static void comeca_segundo(void)
 // Dados que saem do jogo ao fim da rodada: o Quebrado que foi jogado e o que
 // a Ficha de Fogo queimou. A colecao nunca cai abaixo de quatro: se cairia, o
 // dado perdido vira um d4 comum.
+// A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja
+// saem da bolsa) vira um Quebrado com o numero que tirou.
+static void medusa_petrifica(int j, const desfecho_t *d)
+{
+    if (!d->medusa[j]) return;
+    fila_t *f = &F[j];
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+        if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || vis_queima[j][k]) continue;
+        if (f->tipo[k] == D_VIDRO && f->cru[k] == 1) continue;              // estilhacado: ja sai
+        if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
+        int v = f->valor[k] < 1 ? 1 : f->valor[k] > 99 ? 99 : f->valor[k];
+        J[j].col[f->idx[k]] = (peca_t){ D_QUEBRADO, (uint8_t)v };
+    }
+}
+
 static void recolhe_quebrados(void)
 {
     int n_quebra = 0, n_cinza = 0, n_vidro = 0;
@@ -441,6 +456,7 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
+    for (int j = 0; j < 2; j++) medusa_petrifica(j, &resolvido);
     recolhe_quebrados();
     t_fase = 0;
     fase = F_RESULTADO;
@@ -459,6 +475,7 @@ static int som_do_evento(int i)
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
     case EV_AGIOTA:  return SOM_FICHA;
+    case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
@@ -480,6 +497,7 @@ static void desfecho(void)
         memset(vis_mult[j], 0, N_FILA);
         memset(vis_queima[j], 0, N_FILA);
         memset(vis_corte[j], 0, N_FILA);
+        memset(vis_pedra[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
     }
     for (int i = 0; i < n_ev; i++)
@@ -507,6 +525,7 @@ static float duracao_evento(int i)
     case EV_CAVALO:  return 2.0f;
     case EV_CORTA:   return 1.5f;
     case EV_AGIOTA:  return 1.6f;
+    case EV_MEDUSA:  return 1.9f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
@@ -623,6 +642,9 @@ static void aplica_evento(int i)
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;
+    case EV_MEDUSA:
+        for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_pedra[e->de_j][k] = 1;
+        break;
     case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
         for (int k = 0; k < N_FILA; k++)
             if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;

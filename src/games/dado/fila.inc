@@ -1,10 +1,12 @@
 // ===========================================================================
 // A regra da fila
 // ===========================================================================
-static int ultimo_valido(const uint8_t *est, int antes)
+// O ultimo que vale e que a regra da fila enxerga: a Ponte fica de fora (o
+// dado depois dela compara com o de antes dela).
+static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--)
-        if (est[k] == V_VALIDO) return k;
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE) return k;
     return -1;
 }
 
@@ -125,7 +127,7 @@ static void aplica_regra(int j, int k)
     if (k < 0 || k >= N_FILA) return;
     fila_t *f = &F[j];
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
-    int l = ultimo_valido(f->est, k);
+    int l = ultimo_da_regra(j, f->est, k);
     int v = f->valor[k];
     anulou_a = anulou_b = -1;
     anulou_masc = 0;
@@ -223,7 +225,7 @@ static void aplica_regra(int j, int k)
         ver_tipo = n ? 4 : 0;
         // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
         // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
-        int l2 = ultimo_valido(est, k);
+        int l2 = ultimo_da_regra(j, est, k);
         if (l2 >= 0 && v < f->valor[l2]) {
             bool esc_l = firme(j, l2);
             if (!esc_l) { est[l2] = V_ANULADO; anulou_a = l2; }
@@ -256,7 +258,7 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    if (!espera && l >= 0 && v < f->valor[l]) {
+    if (!espera && ef != EF_PONTE && l >= 0 && v < f->valor[l]) {   // a Ponte nunca cai
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
         // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;

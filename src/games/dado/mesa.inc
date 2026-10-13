@@ -564,6 +564,23 @@ static void desenha_fila(int j)
                     }
                 }
             }
+            // Depois de uma Ponte: o arco tracejado sai do dado com que este
+            // se compara e passa por cima dela.
+            if (k > 0 && t != D_PONTE) {
+                int a = anulou_a >= 0 && anulou_a < k ? anulou_a : ultimo_da_regra(j, f->est, k);
+                bool ponte = false;
+                for (int i = a + 1; a >= 0 && i < k; i++) ponte |= f->tipo[i] == D_PONTE;
+                if (ponte) {
+                    int x0 = SLOT_X(a), yy = (int)(y - pulo) - R - 4;
+                    float q = t_fase / 0.35f;
+                    for (int d = 0; d <= 24; d++) {
+                        float s = d / 24.0f;
+                        if (s > q || d % 3 == 2) continue;            // tracejado, nascendo de a para k
+                        int px = x0 + (int)((x - x0) * s), py = yy - (int)(sinf(s * 3.1416f) * 18);
+                        gfx_rect(px - 1, py - 1, 2, 2, gfx_mistura(cor_dado(D_PONTE), C_FELTRO, (int)(t_fase / 0.7f * 60)));
+                    }
+                }
+            }
             if (f->calibre[k]) {
                 int rr = R + 6 - (int)(t_fase * 8), yy = (int)(y - pulo);
                 for (int a = 0; a < 32; a++) {
@@ -658,6 +675,17 @@ static void desenha_fila(int j)
             if (!perde) faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
         }
         if (e && e->tipo == EV_BONUS && e->de_j == j && e->de_k == k) aro(x, y, C_OURO);
+        // Esperanca dobrando: um leque de luz se abre por tras dela, de baixo.
+        if (e && e->tipo == EV_MULT && e->de_j == j && (e->mascara >> k & 1) && t == D_ESPERANCA && p < 0.95f) {
+            float q = p < 0.3f ? p / 0.3f : 1, some = p > 0.75f ? (0.95f - p) / 0.2f : 1;
+            for (int i = 0; i < 9; i++) {
+                float an = 3.1416f + (i + 0.5f) * 3.1416f / 9;
+                int r0 = R + 4, r1 = R + 4 + (int)(q * (i % 2 ? 14 : 22));
+                gfx_linha_grossa(x + (int)(cosf(an) * r0), y + 6 + (int)(sinf(an) * r0),
+                                 x + (int)(cosf(an) * r1), y + 6 + (int)(sinf(an) * r1), 1,
+                                 gfx_mistura(i % 2 ? C_VENTO : C_AMARELO, C_FELTRO, (int)((1 - some) * 90)));
+            }
+        }
         // Marcado pelo fogo: aro em brasa ate o fim da rodada.
         if (no_desfecho && (vis_queima[j][k] ||
             (e && e->tipo == EV_FOGO && e->alvo_j == j && e->alvo_k == k && p > 0.35f)))
@@ -843,6 +871,35 @@ static void desenha_evento(void)
         }
     }
     // Agiota: as fichas do rival saem da faixa dele e pousam na sua.
+    // Garimpeiro: de cada outro dado que vale sai uma pepita que volta, em arco,
+    // para a bolsa de quem joga; a bolsa acende quando elas chegam.
+    if (e->tipo == EV_GARIMPO) {
+        int j = e->de_j, bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
+        int n = 0;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q0 = (p - 0.08f - n++ * 0.09f) / 0.45f;
+            for (int r = 3; r >= 0; r--) {                   // a pepita e um rastro que se apaga
+                float q = q0 - r * 0.05f;
+                if (q < 0 || q >= 1) continue;
+                float s = q * q * (3 - 2 * q);
+                int sx = SLOT_X(k), sy = zona(j), m = r ? 3 - r / 2 : 5;
+                int x = sx + (int)((bx - sx) * s), y = sy + (int)((by - sy) * s) - (int)(sinf(s * 3.1416f) * 36);
+                float vx[4] = { (float)(x - m), (float)x, (float)(x + m), (float)x };
+                float vy[4] = { (float)y, (float)(y - m * 3 / 4), (float)y, (float)(y + m * 3 / 4) };
+                poligono(vx, vy, 4, r ? gfx_mistura(C_OURO, C_FELTRO, 25 * r) : C_OURO);
+                if (!r) gfx_rect(x - 1, y - 1, 2, 1, C_AMARELO);
+            }
+        }
+        if (p > 0.5f) {                                      // a bolsa recebe
+            float q = (p - 0.5f) / 0.5f;
+            int rr = 10 + (int)(q * 10);
+            for (int a = 0; a < 28; a++) {
+                float an = a * 0.2244f;
+                gfx_rect(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), 1, 1, gfx_mistura(C_OURO, C_BARRA, (int)(q * 85)));
+            }
+        }
+    }
     if (e->tipo == EV_AGIOTA) {
         int r = e->alvo_j, d = e->de_j;
         for (int i = 0; i < 2; i++) {
@@ -1104,6 +1161,39 @@ static void desenha_evento(void)
                     int yy = cy + (int)(fmodf(t_fase * 30 + i * 3, 11));
                     gfx_rect(cx, yy, 1, 2, C_AMARELO);
                 }
+        } else if (t == D_RANCOR) {
+            // Rancor: uma camada escura para cada rodada perdida desce do alto e
+            // se assenta no dado, uma sobre a outra.
+            int n = e->valor < 8 ? e->valor : 8;
+            for (int i = 0; i < n; i++) {
+                float q = (p - i * 0.07f) / 0.28f;
+                if (q < 0 || q >= 1) continue;
+                float s = q * q;                                   // cai pesado
+                int cy = ay - R_DADO - 44 + (int)(s * 40), w = 7 - (q > 0.85f ? 2 : 0);
+                float vx[3] = { (float)(ax - w), (float)(ax + w), (float)ax };
+                float vy[3] = { (float)(cy - 4), (float)(cy - 4), (float)(cy + 5) };
+                poligono(vx, vy, 3, i % 2 ? C_VINHO : C_BRASA);
+            }
+            if (n && p > 0.2f && p < 0.2f + n * 0.07f + 0.3f) aro(ax, ay, C_VINHO);
+        } else if (t == D_POTE_QUENTE) {
+            // Pote Quente: losangos de calor se abrem do dado, um atras do
+            // outro, e brasas sobem tremendo.
+            for (int o = 0; o < 3; o++) {
+                float q = (p - o * 0.14f) / 0.5f;
+                if (q < 0 || q > 1) continue;
+                int rr = R_DADO + 2 + (int)(q * 22);
+                uint16_t cq = gfx_mistura(o == 0 ? C_FOGO : C_AMARELO, C_FELTRO, (int)(q * 80));
+                for (int i = 0; i < 4; i++) {
+                    float a0 = i * 1.5708f, a1 = a0 + 1.5708f;
+                    gfx_linha_grossa(ax + (int)(cosf(a0) * rr), ay + (int)(sinf(a0) * rr),
+                                     ax + (int)(cosf(a1) * rr), ay + (int)(sinf(a1) * rr), 1, cq);
+                }
+            }
+            for (int i = 0; i < 6 && p < 0.9f; i++) {
+                float q = fmodf(p * 1.6f + i * 0.17f, 1);
+                int bx = ax - 12 + i * 5 + (int)(sinf(t_fase * 9 + i) * 2), by = ay - R_DADO - (int)(q * 30);
+                gfx_rect(bx, by, 2, 2, gfx_mistura(i % 2 ? C_FOGO : C_AMARELO, C_FELTRO, (int)(q * 70)));
+            }
         } else if (t == D_DESAFIANTE) {
             // A flamula sobe do dado e se abre, tremulando: ele e o maior da mesa.
             float q = p / 0.4f;

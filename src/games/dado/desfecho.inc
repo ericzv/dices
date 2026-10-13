@@ -15,6 +15,7 @@ typedef struct {
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
+    uint8_t garimpo[2];              // o Garimpeiro valeu: posicoes dos outros validos que voltam para a bolsa
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -123,11 +124,11 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
-enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_BARAO, MULT_N };
+enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_BARAO, MULT_N };
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
-    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", J[1].nome };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2 };
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", "Esperança", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
@@ -137,7 +138,7 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
         if (curto || p >= n) continue;
         p += (size_t)snprintf(s + p, n - p, " x%d", x[q]);
-        if (q == MULT_VIUVA || q == MULT_AZARAO || p >= n) continue;   // ele mesmo
+        if (q == MULT_VIUVA || q == MULT_AZARAO || q == MULT_ESPERANCA || p >= n) continue;   // ele mesmo
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
         p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
@@ -275,6 +276,10 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             m += 2;                              // comecou a rodada atras em fichas
             de[MULT_AZARAO] |= bit;
         }
+        if (TIPO[tipo_de(j, k)].efeito == EF_ESPERANCA && fichas_ini[j] <= ESPERANCA_FICHAS) {
+            m += 2;                              // comecou a rodada com 15 fichas ou menos
+            de[MULT_ESPERANCA] |= bit;
+        }
         if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
             de[MULT_BARAO] |= bit;
@@ -404,6 +409,25 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua fila vira pedra");
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] != V_ROUBADO) e->mascara |= (uint8_t)(1 << i);
+        } else if (ef == EF_RANCOR && J[j].perdidas > 0) {   // +1 por rodada perdida na partida
+            int n = J[j].perdidas;
+            d->semente[j] += n;
+            evento(gera, EV_EXTRA, j, k, j, 0, n, "Rancor: %d rodada%s perdida%s, +%d", n, n > 1 ? "s" : "", n > 1 ? "s" : "", n);
+        } else if (ef == EF_POTE && pote >= 25) {           // +1 a cada 25 fichas no pote
+            int n = pote / 25;
+            d->semente[j] += n;
+            evento(gera, EV_EXTRA, j, k, j, 0, n, "Pote Quente: %d fichas no pote, +%d", pote, n);
+        } else if (ef == EF_GARIMPEIRO && !d->garimpo[j]) { // os outros validos voltam para a bolsa (so o primeiro age)
+            uint8_t m = 0;
+            int n = 0;
+            for (int i = 0; i < f->lancados && i < N_FILA; i++)
+                if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito != EF_GARIMPEIRO) { m |= (uint8_t)(1 << i); n++; }
+            if (m) {
+                d->garimpo[j] = m;
+                evento_t *e = evento(gera, EV_GARIMPO, j, k, j, 0, 0, "Garimpeiro: %d dado%s volta%s para a bolsa",
+                                     n, n > 1 ? "s" : "", n > 1 ? "m" : "");
+                if (e) e->mascara = m;
+            }
         } else if (ef == EF_AGIOTA) {
             d->agiota[j] += 2;
             evento(gera, EV_AGIOTA, j, k, outro(j), 0, 2, "Agiota: 2 fichas de %s", J[outro(j)].nome);
@@ -505,6 +529,13 @@ static int poder_armado(int j, int k)
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
     case EF_MEDUSA:       return 1;
+    case EF_RANCOR:       return J[j].perdidas > 0;
+    case EF_ESPERANCA:    return fichas_ini[j] <= ESPERANCA_FICHAS;
+    case EF_POTE:         return pote >= 25;
+    case EF_GARIMPEIRO:                                      // um outro dado seu valendo
+        for (int i = 0; i < f->lancados; i++)
+            if (i != k && f->est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito != EF_GARIMPEIRO) return 1;
+        return 0;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;
@@ -772,8 +803,9 @@ static int risco(int j)
     int k = f->lancados;
     if (k >= f->n) return 0;
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
-    int l = ultimo_valido(f->est, k);
+    int l = ultimo_da_regra(j, f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
+    if (ef == EF_PONTE) return 0;                // nunca cai
     if (ef == EF_QUEBRADO) return l >= 0 && (int8_t)f->fixo[k] < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele

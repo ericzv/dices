@@ -1054,6 +1054,75 @@ int main(void)
             t_misterio = 0;
             J[0] = guarda;
         }
+        // Rancor: +1 por rodada perdida na partida, valendo.
+        {
+            int p0 = J[0].perdidas;
+            J[0].perdidas = 3;
+            limpa(); joga(0, D_RANCOR, 2); d = fim();
+            CONFERE(d.total[0] == 2 + 3, "Rancor com 3 perdidas: esperava 5, deu %d", d.total[0]);
+            limpa(); joga(0, D_D8, 6); joga(0, D_RANCOR, 2); d = fim();
+            CONFERE(d.total[0] == 0, "Rancor caido nao soma (deu %d)", d.total[0]);
+            J[0].perdidas = 0;
+            limpa(); joga(0, D_RANCOR, 2); d = fim();
+            CONFERE(d.total[0] == 2 && !poder_armado(0, 0), "Rancor sem rodada perdida: so o 2 (deu %d)", d.total[0]);
+            J[0].perdidas = p0;
+        }
+        // Esperanca: comecou a rodada com 15 fichas ou menos, x2.
+        {
+            int f0 = fichas_ini[0], f1 = fichas_ini[1];
+            fichas_ini[0] = 15; fichas_ini[1] = 60;
+            limpa(); joga(0, D_D4, 2); joga(0, D_ESPERANCA, 5); d = fim();
+            CONFERE(d.total[0] == 2 + 10, "Esperanca com 15 fichas: esperava 12, deu %d", d.total[0]);
+            fichas_ini[0] = 16;
+            limpa(); joga(0, D_D4, 2); joga(0, D_ESPERANCA, 5); d = fim();
+            CONFERE(d.total[0] == 2 + 5, "Esperanca com 16 fichas: esperava 7, deu %d", d.total[0]);
+            fichas_ini[0] = f0; fichas_ini[1] = f1;
+        }
+        // Ponte: nunca cai, e o seguinte compara com o de antes dela.
+        limpa(); joga(0, D_D8, 6); joga(0, D_PONTE, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Ponte com 1 depois do 6: os dois ficam");
+        F[0].n = 3; F[0].tipo[2] = D_D6;
+        CONFERE(risco(0) == 83, "depois da Ponte, o D6 compara com o 6: risco 83, deu %d", risco(0));
+        joga(0, D_D6, 4);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO,
+                "4 depois de 6 e Ponte: caem o 6 e o 4, a Ponte fica");
+        limpa(); joga(0, D_D4, 2); joga(0, D_PONTE, 4); joga(0, D_D6, 3);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "a Ponte com 4 nao sobe a regua: o 3 compara com o 2");
+        limpa(); joga(0, D_PONTE, 3); joga(0, D_D2, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Ponte primeira: o seguinte vale como o primeiro");
+        limpa(); joga(0, D_D6, 5); joga(0, D_PONTE, 2); joga(0, D_GEMEO, 1);
+        CONFERE(F[0].valor[2] == 5 && F[0].est[2] == V_VALIDO, "Gemeo depois da Ponte copia o de antes dela");
+        // Pote Quente: +1 a cada 10 fichas no pote, valendo.
+        {
+            int pt = pote;
+            pote = 60;
+            limpa(); joga(0, D_POTE_QUENTE, 5); d = fim();
+            CONFERE(d.total[0] == 5 + 2, "Pote Quente com 60 no pote: esperava 7, deu %d", d.total[0]);
+            pote = 24;
+            limpa(); joga(0, D_POTE_QUENTE, 5); d = fim();
+            CONFERE(d.total[0] == 5, "Pote Quente com 24 no pote: esperava 5, deu %d", d.total[0]);
+            pote = pt;
+        }
+        // Garimpeiro: valendo, os outros dados que valem voltam para a bolsa;
+        // ele mesmo, os que cairam e os que ficaram na mao, nao.
+        {
+            jogador_t guarda = J[0];
+            J[0].n_col = 9;
+            for (int i = 0; i < 9; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = i < 7 ? NA_MAO : FORA; }
+            limpa(); joga(0, D_D6, 5); joga(0, D_D4, 3); joga(0, D_GARIMPEIRO, 4); joga(0, D_D8, 7);
+            F[0].idx[0] = 0; F[0].idx[1] = 3; F[0].idx[2] = 5; F[0].idx[3] = 1;
+            d = fim();
+            CONFERE(d.garimpo[0] == 1 << 3, "Garimpeiro: so o 7 que vale devia voltar (mascara %d)", d.garimpo[0]);
+            garimpa(0, &d);
+            CONFERE(J[0].onde[1] == NA_BOLSA && J[0].onde[5] == NA_MAO && J[0].onde[0] == NA_MAO && J[0].onde[3] == NA_MAO
+                    && J[0].onde[7] == FORA, "Garimpeiro: so os outros que valem voltam para a bolsa");
+            limpa(); joga(0, D_GARIMPEIRO, 4); d = fim();
+            CONFERE(!d.garimpo[0] && !poder_armado(0, 0), "Garimpeiro sozinho nao devolve nada");
+            limpa(); joga(0, D_D8, 6); joga(0, D_GARIMPEIRO, 4); d = fim();
+            CONFERE(!d.garimpo[0], "Garimpeiro caido nao age");
+            J[0] = guarda;
+        }
         // O Dado Misterioso e oculto: um d20 sem poder, fora da colecao, do
         // premio, da loja e da liberacao.
         CONFERE(TIPO[D_MISTERIOSO].lados == 20 && TIPO[D_MISTERIOSO].efeito == EF_NADA, "Misterioso: um d20 comum");

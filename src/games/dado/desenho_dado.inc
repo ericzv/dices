@@ -602,6 +602,63 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
+    case D_RANCOR: {                              // camadas que se assentam no fundo, cada vez mais escuras
+        // Triangulos do mesmo formato, todos apoiados na base do corpo: o
+        // ponto entra na camada s se, trazido da base por 1/s, cai no corpo.
+        static const float S[4] = { 0.86f, 0.64f, 0.43f, 0.23f };
+        const float hu = 0.07f, hv = 0.74f;       // o meio da base
+        float t, g = borda_d4(u, v, &t);
+        if (g > 1) return 0;
+        int c = 0;
+        for (int i = 0; i < 4; i++) {
+            float q = borda_d4(hu + (u - hu) / S[i], hv + (v - hv) / S[i], &t);
+            if (q > 1) break;
+            if (q > 1 - (l * 1.6f) / (0.5f * S[i])) return 0;   // o fio do corpo entre as camadas
+            c = i + 1;
+        }
+        return c == 0 ? 0 : c == 1 ? 0 : c == 2 ? 1 : c == 3 ? 2 : 3;
+    }
+    case D_ESPERANCA: {                           // a luz que sobe do ponto mais baixo, em leque
+        const float hu = 0.08f, hv = 0.84f;      // a ponta de baixo do losango
+        float dx = u - hu, dy = v - hv, dd = sqrtf(dx * dx + dy * dy);
+        if (dd < 0.20f) return 2;                                            // a luz
+        if (dd < 0.28f) return 0;
+        float an = atan2f(-dy, dx) / 3.1416f * 11;                           // onze raios no meio circulo
+        float w = fabsf(fr(an) - 0.5f) * 3.1416f / 11 * dd;                  // distancia ao raio, em raios
+        if (w > 0.018f + dd * 0.03f + l * 0.4f) return 0;
+        return (int)floorf(an) % 2 ? 1 : 3;                                  // raios em dois tons
+    }
+    case D_PONTE: {                               // um salto: o arco tracejado entre dois pontos
+        const float cu = 0.07f, cv = 0.62f, ra = 0.48f;
+        for (int m = -1; m <= 1; m += 2) {
+            float x = u - cu - m * ra, y = v - cv;
+            if (x * x + y * y < 0.075f * 0.075f) return 2;                   // os pontos das pontas
+        }
+        float dx = u - cu, dy = v - cv, dd = sqrtf(dx * dx + dy * dy);
+        if (dy > 0) return 0;
+        if (fabsf(dd - ra) < 0.035f + l * 0.5f)
+            return fr(atan2f(-dy, dx) / 3.1416f * 7 + 0.25f) < 0.6f ? 1 : 0;   // o arco, em tracos
+        return dd < ra - 0.07f ? 3 : 0;                                      // o vao por baixo
+    }
+    case D_GARIMPEIRO: {                          // camadas de terra e as pepitas presas nelas
+        static const float P[5][2] = { { -0.46f, -0.42f }, { 0.50f, -0.30f }, { -0.50f, 0.30f },
+                                       { 0.40f, 0.52f }, { -0.04f, 0.64f } };
+        for (int i = 0; i < 5; i++) {
+            float x = fabsf(u - P[i][0]) / 0.10f, y = fabsf(v - P[i][1]) / 0.075f;
+            if (x + y < 1) return 3;
+        }
+        float f = (v + 0.05f * sinf(u * 3.6f + 1.0f)) / 0.27f + 9.35f;   // o meio fica na camada clara
+        int c = (int)floorf(f) % 3;
+        return c;                                                            // claro, terra e couro
+    }
+    case D_POTE_QUENTE: {                         // o calor concentrado: losangos que esquentam para dentro
+        float dd = (fabsf(u - 0.08f) + fabsf(v - 0.08f)) / 0.99f;
+        if (dd < 0.15f) return 3;                                            // o miolo
+        static const float R[3] = { 0.33f, 0.56f, 0.78f }, W[3] = { 0.07f, 0.045f, 0.025f };
+        for (int i = 0; i < 3; i++)
+            if (fabsf(dd - R[i]) < W[i] + l * 0.5f) return i < 1 ? 2 : 1;
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;

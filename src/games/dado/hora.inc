@@ -42,10 +42,11 @@ static int dado_decisivo(int j, int k)
 {
     if (j == primeiro || k != F[j].n - 1) return 0;
     int t = F[j].tipo[k];
-    // O Sorte/Reves vale de -19 a 19, cada diferenca com o seu peso (de 1 a
-    // 20 jeitos de sair); os outros, uma face de cada vez.
+    // O Sorte/Reves vale de -7 a 11, cada diferenca com o seu peso (quantos
+    // pares de d12 e d8 a dao); os outros, uma face de cada vez.
     bool duplo = TIPO[t].efeito == EF_SORTE_REVES;
-    int n = duplo ? 39 : TIPO[t].efeito == EF_LASTRO ? 9 : TIPO[t].lados;
+    int L = TIPO[t].lados;
+    int n = duplo ? L + SR_REVES - 1 : TIPO[t].efeito == EF_LASTRO ? 9 : L;
     mesa_t m;
     guarda_mesa(&m);
     uint32_t am = am_disparou;
@@ -54,10 +55,11 @@ static int dado_decisivo(int j, int k)
         fila_t *f = &F[j];
         int menor, peso = 1;
         if (duplo) {
-            int dv = c - 19;
-            peso = 20 - (dv < 0 ? -dv : dv);
+            int dv = c - (SR_REVES - 1);
+            int b0 = dv < 0 ? 1 - dv : 1, b1 = L - dv < SR_REVES ? L - dv : SR_REVES;
+            peso = b1 - b0 + 1;              // os Reveses b que dao essa diferenca com uma Sorte a = dv + b
             f->cru[k] = f->valor[k] = dv;
-            menor = dv < 0 ? 1 - dv : 1;     // um jeito de sair: o Reves que da essa diferenca
+            menor = b0;
         } else {
             face_fixa = c + 1;
             f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);

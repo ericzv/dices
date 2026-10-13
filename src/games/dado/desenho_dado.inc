@@ -122,8 +122,8 @@ static void pips(int cx, int cy, int v, int r, uint16_t c)
 static int marca_nivel = -1;
 
 static float sombra_alt;                 // altura do dado no ar, em pixels
-// O Sorte/Reves no ar sao dois d20: 1 o da Sorte (marfim, aro de ouro, "+"),
-// 2 o do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
+// O Sorte/Reves no ar sao dois dados: 1 o d12 da Sorte (marfim, aro de ouro,
+// "+"), 2 o d8 do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
 static int sr_lado;
 
 // Numero centrado no dado: grande nos dados grandes.
@@ -714,6 +714,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
     int lados = TIPO[tipo].lados;
+    if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
     const visual_t *vi = &VISUAL[tipo];
     // Os dados comuns no material de quem joga com eles; os especiais (e a
     // moeda) tem um desenho so, sobre o marfim, para os dois lados.

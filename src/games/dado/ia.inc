@@ -26,7 +26,7 @@ static float media(peca_t p)
     case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
-    case EF_SORTE_REVES: return 0.0f;                    // a Sorte menos o Reves
+    case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
     default:          return (t->lados + 1) / 2.0f;
     }
 }

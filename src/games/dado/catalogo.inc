@@ -11,8 +11,8 @@ static void moeda_girando(int cx, int cy, int tipo, float t)
 static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
-    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -18 a 18, de 3 em 3
-        for (int v = -18; v <= 18; v += 3) f[n++] = v;
+    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -7 a 11, de 2 em 2
+        for (int v = -7; v <= 11; v += 2) f[n++] = v;
         return n;
     }
     int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;

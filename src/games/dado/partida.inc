@@ -240,8 +240,8 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         break;
     }
     case EF_LASTRO:  x = 3 + r(9); break;    // 4 a 12, 1 em 9 cada
-    case EF_SORTE_REVES: {                   // o d20 da Sorte menos o do Reves
-        int b = r(lados);
+    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
+        int b = r(SR_REVES);
         *menor = b;
         x -= b;
         break;
@@ -295,7 +295,7 @@ static void lanca_proximo(void)
     f->descarte[k] = (uint8_t)menor;
     // O Viciado rola de verdade dois dados: o do menor valor e um fantasma
     // que some quando o maior vai para a fila. O Sorte/Reves tambem: o
-    // fantasma e o d20 do Reves, que se junta ao da Sorte antes da fila.
+    // fantasma e o d8 do Reves, que se junta ao da Sorte antes da fila.
     if (menor) {
         voo_t *w = &voo[1];
         *w = *v;
@@ -305,7 +305,7 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
-        w->face = rola_v(lados);
+        w->face = rola_v(TIPO[t].efeito == EF_SORTE_REVES ? SR_REVES : lados);
         n_voo = 2;
     }
     if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar

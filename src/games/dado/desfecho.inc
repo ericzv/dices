@@ -268,13 +268,13 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     }
 
     // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
-    // roubou) somam 20 ou mais, +10 no fim - fora de qualquer multiplicador.
+    // roubou) somam 15 ou mais, +5 no fim - fora de qualquer multiplicador.
     int dados = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j];
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SEMENTE) continue;
-        if (dados < 20) continue;
-        d->semente[j] += 10;
-        evento(gera, EV_SEMENTE, j, k, j, 0, 10, "Semente: %d pontos, brota +10", dados);
+        if (dados < 15) continue;
+        d->semente[j] += 5;
+        evento(gera, EV_SEMENTE, j, k, j, 0, 5, "Semente: %d pontos, brota +5", dados);
     }
 
     // A virada do Barao: +2 para ele por dado seu anulado na rodada.
@@ -300,7 +300,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 3; }
     }
     // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
-    // Misericordioso, Solitario, Prisma, Desafiante, Capitao e Trono.
+    // Misericordioso, Solitario, Prisma, Desafiante, Capitao, Trono e Seguranca.
     int anulados = 0, valendo = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
@@ -325,15 +325,18 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             for (; tipos; tipos >>= 1) nt += (int)(tipos & 1);
             d->semente[j] += nt;
             evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s, +%d", nt, nt > 1 ? "s" : "", nt);
-        } else if (ef == EF_CAPITAO) {               // +2 por dado seu valendo, ele incluido
-            d->semente[j] += 2 * valendo;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Capitão: %d dado%s, +%d",
-                                 valendo, valendo > 1 ? "s" : "", 2 * valendo);
+        } else if (ef == EF_CAPITAO) {               // +1 por dado seu valendo, ele incluido
+            d->semente[j] += valendo;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, valendo, "Capitão: %d dado%s, +%d",
+                                 valendo, valendo > 1 ? "s" : "", valendo);
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
-                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
-        } else if (ef == EF_TRONO && k == f->lancados - 1 && valendo == f->lancados) {
-            d->semente[j] += 8;                      // o ultimo que voce jogou, e nenhum dos seus caiu
-            evento(gera, EV_EXTRA, j, k, j, 0, 8, "Trono: todos valendo, +8");
+                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
+        } else if (ef == EF_TRONO && k == N_FILA - 1 && valendo == f->lancados) {
+            d->semente[j] += 4;                      // o 4o da fila, e nenhum dos seus caiu
+            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Trono: a fila inteira valendo, +4");
+        } else if (ef == EF_SEGURANCA) {
+            d->semente[j] += 2;
+            evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: +2");
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -349,15 +352,22 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
     }
 
-    // Jackpot: tres dados valendo com o mesmo numero, +10 fora dos
-    // multiplicadores (soma no mesmo bonus fixo da Semente).
-    uint8_t trio = 0;
-    int num = trinca(j, est, &trio);
-    for (int k = 0; num && k < f->lancados; k++) {
+    // Jackpot: tres dados valendo com o mesmo numero, +10; so dois, +4. Fora
+    // dos multiplicadores (soma no mesmo bonus fixo da Semente).
+    uint8_t trio = 0, dupla = 0;
+    int num = trinca(j, est, &trio), par = num ? 0 : mesmo_numero(j, est, 2, &dupla);
+    for (int k = 0; (num || par) && k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_JACKPOT) continue;
-        d->semente[j] += 10;
-        evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
-        if (e) e->mascara = trio;
+        if (num) {
+            d->semente[j] += 10;
+            evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
+            if (e) e->mascara = trio;
+        } else {
+            d->semente[j] += 4;
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 4, "Jackpot: dois %d, +4", par);
+            for (int i = 0; e && i < N_FILA; i++)
+                if (dupla >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
+        }
     }
 }
 
@@ -395,14 +405,14 @@ static int poder_armado(int j, int k)
     case EF_INVEJOSO:     return invejoso_age(v);
     case EF_CARIDOSO:     return v >= 3;
     case EF_FARTURA:      return baixos > 0 || v <= 2;
-    case EF_SEMENTE:      return soma(j, f->est) >= 20;
+    case EF_SEMENTE:      return soma(j, f->est) >= 15;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
-    case EF_JACKPOT:      return trinca(j, f->est, NULL) != 0;
+    case EF_JACKPOT:      return mesmo_numero(j, f->est, 2, NULL) != 0;
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
     case EF_FERREIRO:     return v >= 3;
-    case EF_TRONO:        return k == f->lancados - 1 && outros == f->lancados - 1;
+    case EF_TRONO:        return k == N_FILA - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
         for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
@@ -418,7 +428,7 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))) return 2;
         return 0;
-    case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
+    case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO: case EF_SEGURANCA:
         return 1;                                            // basta terminar valendo
     default:              return 0;
     }
@@ -563,11 +573,10 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                         cavalo_abre(d, j, r, a, gera);
                     }
                 }
-            } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 1, 3 ou 5
+            } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso: com 6
                 int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-                // Depois de anular o do oponente, anula o maior anulavel da
-                // propria sequencia - ele mesmo, se for o maior.
-                int b;
+                // Depois de anular o do oponente, anula os dois menores
+                // anulaveis da propria sequencia (fora ele).
                 if (a >= 0) {
                     d->est[r][a] = V_ANULADO;
                     if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
@@ -576,8 +585,12 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                 "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
                     cavalo_abre(d, j, r, a, gera);
                 }
-                b = alvo_de(d->est[j], j, true, -1);
-                if (b >= 0) {
+                for (int n = 0; n < 2; n++) {
+                    int b = -1;
+                    for (int i = 0; i < F[j].lancados; i++)
+                        if (i != k && d->est[j][i] == V_VALIDO && !nao_anulavel_t(tipo_de(j, i))
+                            && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+                    if (b < 0) break;
                     d->est[j][b] = V_ANULADO;
                     evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                            "e anula o %d do próprio %s", F[j].valor[b], J[j].nome);
@@ -660,7 +673,7 @@ static int risco(int j)
     int ruins = 0, total = 0;
     if (ef == EF_VICIADO || ef == EF_SORTE_REVES) {
         for (int a = 1; a <= lados; a++)
-            for (int b = 1; b <= lados; b++) {
+            for (int b = 1; b <= (ef == EF_SORTE_REVES ? SR_REVES : lados); b++) {
                 total++;
                 if ((ef == EF_VICIADO ? (a > b ? a : b) : a - b) < L) ruins++;
             }

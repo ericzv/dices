@@ -13,7 +13,7 @@ static int ultimo_valido(const uint8_t *est, int antes)
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
 static int valor_pontos(int j, int k)
 {
-    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 8 : 0;
+    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
     if (F[j].tipo[k] == D_FERREIRO) return 0;
     return F[j].valor[k];
 }
@@ -29,7 +29,7 @@ static bool nao_anulavel_t(int t)
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
-static bool invejoso_age(int v) { return v == 1 || v == 3 || v == 5; }
+static bool invejoso_age(int v) { return v == 6; }
 static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)); }
 // Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
 static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
@@ -82,7 +82,9 @@ static bool copia_antes(int j, int k)
 
 // Tres ou mais dados valendo com o mesmo numero. Devolve o numero (0 se nao
 // ha trinca) e, em masc, quais dados formam a trinca.
-static int trinca(int j, const uint8_t *est, uint8_t *masc)
+// Pelo menos q dados valendo de j com o mesmo numero: devolve o numero (o
+// primeiro que fecha) e, em masc, quais sao. 0: nao ha.
+static int mesmo_numero(int j, const uint8_t *est, int q, uint8_t *masc)
 {
     for (int a = 0; a < F[j].lancados; a++) {
         if (est[a] != V_VALIDO) continue;
@@ -91,10 +93,11 @@ static int trinca(int j, const uint8_t *est, uint8_t *masc)
             if (est[b] == V_VALIDO && F[j].valor[b] == F[j].valor[a]) m |= (uint8_t)(1 << b);
         int n = 0;
         for (uint8_t x = m; x; x >>= 1) n += x & 1;
-        if (n >= 3) { if (masc) *masc = m; return F[j].valor[a]; }
+        if (n >= q) { if (masc) *masc = m; return F[j].valor[a]; }
     }
     return 0;
 }
+static int trinca(int j, const uint8_t *est, uint8_t *masc) { return mesmo_numero(j, est, 3, masc); }
 
 static bool tem_jackpot(int j, const uint8_t *est)
 {
@@ -308,8 +311,8 @@ static void aplica_regra(int j, int k)
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
-            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 8 : 0);
-            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 8");
+            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 10 : 0);
+            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 10");
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
         } else if (ef == EF_MALDICAO) {
             snprintf(veredito, sizeof veredito, "Maldito vale %d e tira %d do oponente", v, v);
@@ -355,6 +358,9 @@ static void aplica_regra(int j, int k)
     } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
         snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
         ver_tipo = 0;
+        ver_comum = false;
+    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && mesmo_numero(j, f->est, 2, NULL) == v && tem_jackpot(j, f->est)) {
+        snprintf(veredito, sizeof veredito, "dois iguais: Jackpot +4 no fim");
         ver_comum = false;
     }
     f->pontos = soma(j, f->est);

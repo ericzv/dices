@@ -93,6 +93,18 @@ static void encerra(int vencedor)
 
 static void des_virou(void);
 
+// O dado de j que tirou o valor mais alto no turno dele (empate: o ultimo).
+static bool melhor_lance(int j, peca_t *out)
+{
+    const fila_t *f = &F[j];
+    int b = -1;
+    for (int k = 0; k < f->lancados && k < f->n; k++)
+        if (b < 0 || f->valor[k] >= f->valor[b]) b = k;
+    if (b < 0) return false;
+    *out = (peca_t){ f->tipo[b], f->fixo[b] };
+    return true;
+}
+
 static void nova_rodada(void)
 {
     rodada++;
@@ -100,6 +112,8 @@ static void nova_rodada(void)
     ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
+    // O Coringa precisa ver o seu jogo: na primeira rodada, voce abre.
+    if (tem_reg(REG_CORINGA) && rodada == 1) { primeiro = 0; coringa_ref_ok = false; }
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
     // o oponente abre (vale mais).
     if (tem_am(0, A_RELOGIO) && (rodada == 1 || J[0].fichas < J[1].fichas)) primeiro = 1;
@@ -142,6 +156,10 @@ static void nova_rodada(void)
         snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
         t_fala = 2.6f;
         fala_e_curta = false;
+    }
+    if (tem_reg(REG_CORINGA) && rodada > 1) {   // o que o Coringa copia se abrir a rodada
+        peca_t c;
+        if (melhor_lance(0, &c)) { coringa_ref = c; coringa_ref_ok = true; }
     }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
@@ -392,24 +410,22 @@ static void medusa_petrifica(int j, const desfecho_t *d)
     }
 }
 
-// O Coringa: o dado mais forte da bolsa de quem joga contra ele - o de maior
-// media, sem os que machucam quem lanca (Agouro, Egoista, Tudo ou Nada,
-// Berserker, Autofagia, Ficha de Fogo, Vidro, Medusa, Quebrado, Fantasma).
+// O Coringa: o 4o dado dele e a copia do seu dado que tirou o valor mais
+// alto no seu ultimo turno (empate: o ultimo deles). Nesta rodada, se voce
+// ja jogou; senao, o da rodada anterior (guardado em nova_rodada). Antes de
+// voce jogar a primeira vez (so com o Relogio de Bolso, que o faz abrir),
+// fica o dado de maior media da sua bolsa.
 static float media(peca_t p);                    // ia.inc
 static peca_t coringa_copia(void)
 {
-    const jogador_t *p = &J[0];
     peca_t b = { D_D6, 0 };
+    if (melhor_lance(0, &b)) return b;
+    if (coringa_ref_ok) return coringa_ref;
+    const jogador_t *p = &J[0];
     float nb = -1;
     for (int i = 0; i < p->n_col; i++) {
-        peca_t c = p->col[i];
-        switch (TIPO[c.tipo].efeito) {
-        case EF_MALDITO: case EF_EGOISTA: case EF_TUDO_NADA: case EF_BERSERKER: case EF_AUTOFAGIA:
-        case EF_FOGO: case EF_VIDRO: case EF_MEDUSA: case EF_QUEBRADO: case EF_FANTASMA: continue;
-        default: break;
-        }
-        float n = media(c) * 10 + TIPO[c.tipo].raridade;
-        if (n > nb) { nb = n; b = c; }
+        float n = media(p->col[i]);
+        if (n > nb) { nb = n; b = p->col[i]; }
     }
     return b;
 }
@@ -425,15 +441,20 @@ static void coringa_completa(int j)
     f->n = 4;
 }
 
-// A Bruxa venceu a rodada: um Fantasma (vale 1) entra na bolsa de j, ate o
-// fim da partida.
+// Mau-Olhado (a Bruxaria da Bruxa): quem o tem venceu a rodada, e um
+// Fantasma (vale 1) entra na bolsa do outro, j, ate o fim da partida. O
+// aviso da rodada ganha a linha dele.
 static void poe_fantasma(int j)
 {
     jogador_t *p = &J[j];
     if (p->n_col >= MAX_COL) return;
     p->col[p->n_col] = (peca_t){ D_FANTASMA, 1 };
     p->onde[p->n_col++] = NA_BOLSA;
-    if (j == baixo) t_fantasma = 1.6f;
+    t_fantasma = 1.6f;
+    fantasma_para = (int8_t)j;
+    if (j == 1) am_acende(A_MAU_OLHADO);
+    size_t n = strlen(aviso);
+    snprintf(aviso + n, sizeof aviso - n, j == 0 ? "  ·  um Fantasma entra na sua bolsa" : "  ·  um Fantasma entra na bolsa dele");
 }
 
 // Fim da partida: os Fantasmas somem das bolsas.
@@ -554,11 +575,7 @@ static void conclui_rodada(void)
         }
         if (w == 0) seu_pote = pote;
         pote = 0;
-        if (w == 1 && tem_reg(REG_BRUXARIA) && J[0].n_col < MAX_COL) {   // a Bruxaria
-            poe_fantasma(0);
-            size_t n = strlen(aviso);
-            snprintf(aviso + n, sizeof aviso - n, "  ·  um Fantasma entra na sua bolsa");
-        }
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w));   // Mau-Olhado, a Bruxaria
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);
@@ -739,7 +756,7 @@ static void flutua_evento(const evento_t *e)
             if (e->mascara >> k & 1) flutua_em(aj, k, C_VINHO_CLR, k * 0.06f, "-%d", e->por_dado[k]);
         if (e->valor) flutua_em(aj, N_FILA, C_VINHO_CLR, 0.1f, "-%d", e->valor);   // o que tinha roubado
         break;
-    case EV_CHEFE:   flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "+%d", e->valor); break;
+    case EV_CHEFE:   flutua_em(dj, N_FILA, dj == 0 ? C_OURO : C_VINHO_CLR, 0, "+%d", e->valor); break;
     case EV_CORTA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     default: break;
     }
@@ -776,7 +793,10 @@ static void aplica_evento(int i)
         for (int k = 0; k < N_FILA; k++) vis_mult[e->de_j][k] = e->por_dado[k];
         break;
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
-    case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE: vis_semente[e->de_j] += e->valor; break;
+    case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE:
+        vis_semente[e->de_j] += e->valor;
+        if (e->tipo == EV_CHEFE && e->de_j == 0) am_acende(A_CRISANTEMO);   // o unico seu e o Crisantemo
+        break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;
     case EV_MEDUSA:

@@ -28,6 +28,9 @@ static const amuleto_t AMULETO[A_N] = {
     [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
     [A_SELO]     = { "Selo de Dívida", "Chefe vencido dá dois prêmios de dados.", RGB(196, 60, 60) },
     [A_PEDAGIO]  = { "Pedágio",       "Os chefes começam a partida com 10 fichas a menos.", RGB(226, 186, 70) },
+    [A_DESFORRA] = { "Desforra",      "Se você perdeu a rodada anterior, cada dado seu que vale ganha +1.", RGB(222, 112, 72) },
+    [A_MAU_OLHADO] = { "Mau-Olhado",  "Cada rodada que você vence põe um Fantasma (vale sempre 1) na bolsa do oponente, até o fim da partida.", RGB(84, 136, 222) },
+    [A_CRISANTEMO] = { "Crisântemo",  "Cada dado seu anulado na rodada, caído ou atacado, vale +1 para você no fim.", RGB(232, 206, 128) },
 };
 #define AM_PRECO 70
 
@@ -290,6 +293,38 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
             gfx_rect(PX(-2.8f + i * 1.9f), y0, (int)(1.9f * u) + 1, h, i & 1 ? C_MARFIM : C_VERMELHO);
         gfx_disco(PX(-3.6f), PY(-0.8f), U + 1, C_EBANO_B);                // o eixo
         gfx_disco(PX(-3.6f), PY(-3.4f), U, cor);                          // a lampada
+        break;
+    }
+    case A_DESFORRA: {                                 // a volta: desce curto, sobe longo, com a ponta
+        int g = U + 1;
+        gfx_linha_grossa(PX(-4.2f), PY(-1.6f), PX(-1.6f), PY(2.8f), g, gfx_mistura(cor, C_BARRA, 30));
+        gfx_linha_grossa(PX(-1.6f), PY(2.8f), PX(3.0f), PY(-3.0f), g, cor);
+        float vx[3] = { (float)PX(4.4f), (float)PX(0.6f), (float)PX(4.0f) };
+        float vy[3] = { (float)PY(-4.6f), (float)PY(-3.6f), (float)PY(-0.6f) };
+        poligono(vx, vy, 3, cor);
+        gfx_disco(PX(-1.6f), PY(2.8f), U, claro);                        // o ponto mais baixo
+        break;
+    }
+    case A_MAU_OLHADO:                                 // o olho turco: aneis concentricos
+        gfx_disco(x, y, (int)(4.8f * u + 0.5f), cor);
+        gfx_disco(x, y, (int)(3.4f * u + 0.5f), claro);
+        gfx_disco(x, y, (int)(2.3f * u + 0.5f), gfx_mistura(cor, C_BRANCO, 45));
+        gfx_disco(x, y, (int)(1.2f * u + 0.5f), C_EBANO_B);
+        gfx_rect(PX(-0.9f), PY(-1.0f), U, U, C_BRANCO);
+        break;
+    case A_CRISANTEMO: {                               // o brasao do crisantemo: petalas de ponta redonda
+        uint16_t fundo = gfx_mistura(cor, C_BARRA, 40);
+        float r1 = 1.5f * u, r2 = 4.0f * u;
+        int g = (int)(0.8f * u) > 1 ? (int)(0.8f * u) : 1, rp = (int)(0.6f * u + 0.5f);
+        for (int i = 0; i < 12; i++) {
+            float an = i * 0.5236f + 0.2618f;
+            uint16_t c = i & 1 ? gfx_mistura(cor, C_BARRA, 22) : cor;
+            int px = x + (int)lroundf(cosf(an) * r2), py = y + (int)lroundf(sinf(an) * r2);
+            gfx_linha_grossa(x + (int)lroundf(cosf(an) * r1), y + (int)lroundf(sinf(an) * r1), px, py, g, c);
+            if (rp > 0) gfx_disco(px, py, rp, c);
+        }
+        gfx_disco(x, y, (int)(1.8f * u + 0.5f), fundo);
+        gfx_disco(x, y, (int)(1.1f * u + 0.5f), claro);
         break;
     }
     case A_DUPLA:                                      // dois dados iguais, mostrando 2

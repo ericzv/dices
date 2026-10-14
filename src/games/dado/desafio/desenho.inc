@@ -202,10 +202,10 @@ static void info_mesa(int l)
     if (trunfo_ativo(no->perso)) {
         txt(xb, cy, pe->trunfo, C_ROSA, true);
         quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
-    } else {                                     // ainda sem trunfo: so no salao em que ele abre
+    } else {                                     // ainda sem trunfo: so a partir do nivel dele
         txt(xb, cy, "Sem trunfo", C_TEXTO_M, true);
         char s2[64];
-        snprintf(s2, sizeof s2, "Traz o trunfo a partir do %s.", SALAO[PERSO[no->perso].andar_trunfo]);
+        snprintf(s2, sizeof s2, "Traz o trunfo a partir do Nível %d.", PERSO[no->perso].andar_trunfo);
         quebra_linhas(xb, cy + 22, wb, 3, s2, C_TEXTO_M);
     }
     info_divisa(xb + wb + 6);

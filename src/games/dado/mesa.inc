@@ -767,10 +767,10 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
-    if (e->tipo == EV_CHEFE) {                   // a virada do Barao: o +N sobe no placar dele
+    if (e->tipo == EV_CHEFE) {                   // pontos direto no placar: o +N sobe nele
         char t[8];
         snprintf(t, sizeof t, "+%d", e->valor);
-        txt_sombra_c(PLACAR_X, zona(e->de_j) - 10 - (int)(p * 30), t, C_VINHO_CLR, 1);
+        txt_sombra_c(PLACAR_X, zona(e->de_j) - 10 - (int)(p * 30), t, e->de_j == 0 ? C_OURO : C_VINHO_CLR, 1);
         return;
     }
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);

@@ -322,7 +322,7 @@ static void aplica_regra(int j, int k)
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
         if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
-        if (j == 1 && tem_reg(REG_REVANCHE) && J[1].perdeu_ultima) am_b += 1;     // a Revanche do Rival
+        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= 1u << A_DESFORRA; }
         if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
         if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {

@@ -93,9 +93,9 @@ static void gera_salao_final(void)
     chefe->semente = rnd_r() | 1;
 }
 
-// O trunfo do oponente p ja vale neste salao? Os comuns trazem o seu a
-// partir de um salao (nenhum no primeiro); os chefes, sempre.
-static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.andar >= PERSO[p].andar_trunfo; }
+// O trunfo do oponente p ja vale nesta dificuldade? Os comuns trazem o seu
+// a partir de um nivel (nenhum no Normal); os chefes, sempre.
+static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.dificuldade >= PERSO[p].andar_trunfo; }
 
 static bool existe(int p, int l) { return p >= 0 && p < DES_PASSOS && l >= 0 && l < 3 && run.no[p][l].tipo != NO_VAZIO; }
 
@@ -218,8 +218,12 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
     // Os oito de saida, do mais forte ao mais fraco; os fracos saem primeiro.
     static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
+    // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
+    // Sem os dados de saida, toda do tema, recheada de dados bons.
+    bool coringa = no->perso == PERSO_CORINGA;
     int tira = andar * 2 + (tier >= 2 ? 1 : 0);
     if (tira > 6) tira = 6;
+    if (coringa) tira = 8;
     int n = 0;
     for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
     int extras = 1 + andar * 2 + (tier == 3 ? 1 : tier);
@@ -241,7 +245,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         if (i > 0 && extras > 0) extras--;
     }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
-        int t = (n_fav && sorte_r(100) < 45) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
+        int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
     if (run.dificuldade >= 3) {                  // Ouro: dois dados raros a mais
@@ -254,7 +258,10 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     static const uint8_t RECHEIO[] = { D_D6, D_D8, D_D4, D_D8, D_QUEBRADO, D_TEIMOSO, D_PAR,
                                        D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR,
                                        D_SENTINELA, D_COBRADOR, D_VIDRO, D_SOLITARIO };
+    static const uint8_t RECHEIO_CORINGA[] = { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO };
     int alvo = 13 + andar * 2;
-    while (n < alvo && n < MAX_COL) col[n++] = peca_r(RECHEIO[sorte_r((int)sizeof RECHEIO)]);
+    while (n < alvo && n < MAX_COL)
+        col[n++] = peca_r(coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)]
+                                  : RECHEIO[sorte_r((int)sizeof RECHEIO)]);
     return n;
 }

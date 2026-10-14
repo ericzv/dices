@@ -11,7 +11,7 @@ static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2�
 static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
 // O que cada dificuldade acrescenta (vale junto com as de baixo).
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
-    "Os salões como sempre.",
+    "Os salões como sempre; só os chefes têm trunfo.",
     "Os chefes passam a virar na 5ª rodada.",
     "Loja 25% mais cara; as mesas difíceis pensam mais.",
     "Os oponentes trazem 2 dados raros a mais.",
@@ -20,6 +20,38 @@ static const char *const PENA_DIF[N_NIVEIS + 1] = {
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
+
+// O nome do oponente sem o artigo e so com a inicial maiuscula ("Caubói").
+static void nome_curto(const char *nome, char *s, int n)
+{
+    if ((nome[0] == 'O' || nome[0] == 'A') && nome[1] == ' ') nome += 2;
+    int k = 0;
+    for (int i = 0; nome[i] && k < n - 1; i++) {
+        unsigned char c = (unsigned char)nome[i];
+        if (i > 0 && c >= 'A' && c <= 'Z') c += 32;
+        else if (i > 0 && c >= 0x80 && c <= 0x9E && (unsigned char)nome[i - 1] == 0xC3) c += 0x20;   // Á, Ã, Ó...
+        s[k++] = (char)c;
+    }
+    s[k] = 0;
+}
+
+// Os oponentes comuns que passam a trazer o trunfo na dificuldade d:
+// "Cautelosa, Apostador e Caubói". Devolve quantos.
+static int trunfos_do_nivel(int d, char *s, int n)
+{
+    int q = 0, tot = 0;
+    for (int p = 0; p < N_PERSO; p++) tot += !perso_chefe(p) && PERSO[p].andar_trunfo == d;
+    s[0] = 0;
+    for (int p = 0; p < N_PERSO; p++) {
+        if (perso_chefe(p) || PERSO[p].andar_trunfo != d) continue;
+        char nm[24];
+        nome_curto(PERSO[p].nome, nm, sizeof nm);
+        int l = (int)strlen(s);
+        snprintf(s + l, (size_t)(n - l), "%s%s", q == 0 ? "" : q == tot - 1 ? " e " : ", ", nm);
+        q++;
+    }
+    return q;
+}
 static uint16_t cor_dif(int d) { return COR_DIF[d <= N_NIVEIS ? d : 0]; }
 
 static int  pf_cur;                      // card em foco na tela de perfis
@@ -220,6 +252,14 @@ static void desenha_dificuldade(void)
         txt(px + 12, ly, k == d ? "+" : "·", k == d ? COR_DIF[d] : C_TEXTO_M, true);
         txt(px + 24, ly, PENA_DIF[k], k == d ? C_MARFIM : C_TEXTO_M, false);
         ly += 17;
+    }
+    if (d > 0) {                                     // quem passa a trazer o trunfo
+        char nomes[96], t[128];
+        if (trunfos_do_nivel(d, nomes, sizeof nomes)) {
+            snprintf(t, sizeof t, "Com trunfo agora: %s.", nomes);
+            txt(px + 24, ly, t, C_ROSA, false);
+            ly += 17;
+        }
     }
     if (d > 0) {                                     // os chefes que viram na 5a rodada
         static const char *const VIRAM[N_NIVEIS + 1] = { "", "o Crupiê", "o Crupiê e a Dona",

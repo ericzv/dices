@@ -23,9 +23,10 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendários.
 - **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
   chefe cada. No mapa você escolhe o caminho entre 21 oponentes (cada um com
-  seu jeito de jogar, dados que são a cara dele e, a partir do segundo salão,
-  um trunfo), lojas e 8 eventos. No nível 5, depois do Barão ainda há o salão
-  do Coringa: a última loja e o oponente mais difícil do jogo. Cada partida tem 8
+  seu jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
+  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 5),
+  lojas e 8 eventos. No nível 5, depois do Barão ainda há o salão do Coringa:
+  a última loja e o oponente mais difícil do jogo. Cada partida tem 8
   rodadas e 50 fichas de cada lado; vencer converte as fichas que sobraram em
   moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas;
   amuletos você escolhe no começo e depois de cada chefe.

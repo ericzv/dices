@@ -108,11 +108,7 @@ static void executa(int op)
         J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
-        if (w == 1 && tem_reg(REG_BRUXARIA) && J[0].n_col < MAX_COL) {
-            poe_fantasma(0);
-            size_t na = strlen(aviso);
-            snprintf(aviso + na, sizeof aviso - na, "  ·  um Fantasma entra na sua bolsa");
-        }
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w));   // Mau-Olhado, a Bruxaria
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;

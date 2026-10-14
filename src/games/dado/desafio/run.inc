@@ -39,10 +39,11 @@ static void abre_evento(void);
 
 // Os oponentes do cassino. Cada um tem um jeito de apostar, dados que
 // prefere, um trunfo (regra so dele, que vale a partida toda) e o que diz.
-// Os comuns trazem o trunfo aos poucos: nenhum no Salao Verde, alguns a
-// partir do Vermelho, todos no Dourado (os chefes, sempre). E alguns tem um
-// nucleo: dados que sempre estao na bolsa deles (um no primeiro salao, dois
-// no segundo, tres no terceiro), alem dos do tema, sorteados.
+// Os comuns trazem o trunfo aos poucos, andar a andar do cassino: nenhum na
+// dificuldade Normal (o terreo), mais alguns a cada nivel, todos no 5 (os
+// chefes, sempre). E alguns tem um nucleo: dados que sempre estao na bolsa
+// deles (um no primeiro salao, dois no segundo, tres no terceiro), alem dos
+// do tema, sorteados.
 enum { ES_NORMAL, ES_BOLA };             // ES_BOLA: aposta alto na frente em fichas, corre atras
 typedef struct {
     const char *nome, *frase;
@@ -52,7 +53,7 @@ typedef struct {
     uint32_t amul;                       // trunfo feito de amuletos
     uint8_t reg;                         // ou regra propria (REG_*)
     const char *fala[FA_N][2];
-    uint8_t andar_trunfo;                // o salao em que o trunfo passa a valer
+    uint8_t andar_trunfo;                // a dificuldade a partir da qual o trunfo vale
     uint8_t nucleo[3];                   // dados que ele sempre traz (0: nenhum; a moeda nunca e nucleo)
     uint8_t estilo;                      // ES_*
 } perso_t;
@@ -68,7 +69,7 @@ static const perso_t PERSO[] = {
         { "Tá, tá, eu aprendo.", "Calma, calma..." },
         { "Eu ganhei de verdade?", "Vou contar pra todo mundo!" },
         { "Foi justo. Boa partida.", "Volto amanhã, mais esperto." } },
-      1, { 0 }, ES_NORMAL },
+      2, { 0 }, ES_NORMAL },
     { "A CAUTELOSA",     "Aposta pouco e não arrisca.",       -1.0f,
       { D_ESCUDO, D_TEIMOSO, D_LASTRO, D_SENTINELA, D_ACUMULADOR, 0xFF },
       "Pé atrás", "O primeiro dado da sequência dela não cai.", AM(A_LUVA), REG_NADA,
@@ -98,7 +99,7 @@ static const perso_t PERSO[] = {
         { "Hm, você é atento.", "Da próxima vez..." },
         { "Leve, como sempre.", "Foi um prazer fazer negócio." },
         { "Você vigiou bem a bolsa.", "Essa escapou." } },
-      2, { D_GATUNO, D_CARIDOSO }, ES_NORMAL },
+      3, { D_GATUNO, D_CARIDOSO }, ES_NORMAL },
     { "A MATEMÁTICA",    "Conta cada multiplicador.",          0.0f,
       { D_DOBRO, D_FARTURA, D_COPIADOR, D_FERREIRO, D_ACUMULADOR, 0xFF },
       "Conta certa", "Dado dela que tirar o número máximo ganha +2.", AM(A_OURO), REG_NADA,
@@ -108,7 +109,7 @@ static const perso_t PERSO[] = {
         { "Um desvio aceitável.", "Margem de erro." },
         { "Os números não mentem.", "Como queríamos demonstrar." },
         { "Preciso refazer o modelo.", "Variância. Só isso." } },
-      1, { D_DOBRO, D_ACUMULADOR }, ES_NORMAL },
+      2, { D_DOBRO, D_ACUMULADOR }, ES_NORMAL },
     { "O ESPINHENTO",    "Cada ponto seu custa caro.",         0.4f,
       { D_MARTELO, D_MALDICAO, D_CARRASCO, D_INVEJOSO, D_LASER, 0xFF },
       "Casca grossa", "Os seus ataques não anulam os dados dele.", AM(A_COURACA), REG_NADA,
@@ -118,7 +119,7 @@ static const perso_t PERSO[] = {
         { "Grrr.", "Você vai pagar por essa." },
         { "Sai daqui sangrando.", "Ninguém passa por mim." },
         { "...Respeito.", "Da próxima, eu te pego." } },
-      2, { D_MARTELO, D_CARRASCO }, ES_NORMAL },
+      4, { D_MARTELO, D_CARRASCO }, ES_NORMAL },
     { "A SUPERSTICIOSA", "Confia no trevo e na moeda.",        0.2f,
       { D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_MISERICORDIOSO, 0xFF },
       "Mão de sorte", "Os dados dela de 2 e 4 lados valem +1.", AM(A_PENA), REG_NADA,
@@ -128,7 +129,7 @@ static const perso_t PERSO[] = {
         { "Gato preto, certeza.", "Esqueci de cruzar os dedos." },
         { "Os astros me guiaram.", "Sorte é tudo, meu bem." },
         { "Deixei meu amuleto em casa.", "Mercúrio retrógrado..." } },
-      1, { D_TREVO, D_SORTE }, ES_NORMAL },
+      2, { D_TREVO, D_SORTE }, ES_NORMAL },
     { "O BRUTAMONTES",   "Dados grandes, pouca conversa.",     0.5f,
       { D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE, 0xFF },
       "Mão grande", "Compra 8 dados por rodada.", AM(A_BOLSA), REG_NADA,
@@ -182,7 +183,7 @@ static const perso_t PERSO[] = {
         { "Faz parte do número.", "Um truque falhou. Tenho outros." },
         { "E para o grand finale...", "Aplausos, por favor." },
         { "Bravo! Você viu o truque.", "Um mágico nunca explica a derrota." } },
-      2, { D_ESPELHO, D_COPIADOR }, ES_NORMAL },
+      4, { D_ESPELHO, D_COPIADOR }, ES_NORMAL },
     { "O CAUBÓI",        "Atira primeiro, pergunta depois.",   0.6f,
       { D_LASER, D_EXPLOSIVO, D_DESAFIANTE, D_D12, D_VICIADO, 0xFF },
       "Saque rápido", "O primeiro dado da sequência dele vale +1.", 0, REG_SAQUE,
@@ -202,7 +203,7 @@ static const perso_t PERSO[] = {
         { "Também isso passará.", "Uma lição, não uma perda." },
         { "Não há vencedor. Só o caminho.", "Medite sobre isso." },
         { "Você está em paz com a sorte.", "O aluno superou o mestre." } },
-      2, { D_SENTINELA, D_SOLITARIO }, ES_NORMAL },
+      3, { D_SENTINELA, D_SOLITARIO }, ES_NORMAL },
     { "A DETETIVE",      "Já sabe o que você vai jogar.",      0.0f,
       { D_INVEJOSO, D_COBRADOR, D_MARTELO, D_D12, D_D8, 0xFF },
       "Última palavra", "Na 1ª rodada e quando está atrás em fichas, ela joga por último.", 0, REG_ULTIMA,
@@ -212,7 +213,7 @@ static const perso_t PERSO[] = {
         { "Uma pista falsa. Curioso.", "Isso não estava no relatório." },
         { "Seu padrão te entregou.", "Investigação concluída." },
         { "Você me despistou. Bom trabalho.", "Vou reabrir o caso." } },
-      2, { D_INVEJOSO }, ES_NORMAL },
+      4, { D_INVEJOSO }, ES_NORMAL },
     { "A MARATONISTA",   "Começa devagar e termina voando.",   0.3f,
       { D_ACUMULADOR, D_SEMENTE, D_TEIMOSO, D_FARTURA, D_D8, 0xFF },
       "Segundo fôlego", "Da 5ª rodada em diante, os dados dela valem +1.", 0, REG_FOLEGO,
@@ -222,29 +223,29 @@ static const perso_t PERSO[] = {
         { "Só aquecendo.", "Ainda tenho fôlego." },
         { "Linha de chegada!", "Treino é tudo." },
         { "Você correu bem. Vou treinar.", "Cãibra. Só pode ser." } },
-      1, { D_ACUMULADOR, D_SEMENTE }, ES_NORMAL },
+      2, { D_ACUMULADOR, D_SEMENTE }, ES_NORMAL },
     // Mais cinco comuns, com nucleo de dados e trunfo proprio...
     { "O RIVAL",         "Entrou no cassino no mesmo dia que você.", 0.4f,
       { D_COPIADOR, D_ESPELHO, D_PAR, D_DOMINO, D_JACKPOT, D_RANCOR, 0xFF },
-      "Revanche", "Se perdeu a rodada anterior, cada dado dele que vale ganha +1.", 0, REG_REVANCHE,
+      "Revanche", "Se perdeu a rodada anterior, cada dado dele que vale ganha +1.", AM(A_DESFORRA), REG_NADA,
       { { "De novo você? Desta vez eu ganho.", "Eu copio tudo que você faz. E melhor." },
         { "Caiu! Igualzinho ao seu.", "Até no erro eu te imito." },
         { "Viu? Eu aprendo rápido.", "Um a zero pra mim." },
         { "Anotei. Revanche já.", "Agora é pessoal." },
         { "Finalmente! Fui melhor que você.", "Sempre um passo à frente." },
         { "Isso não acabou.", "A gente se vê no próximo salão." } },
-      1, { D_ECO, D_GEMEO }, ES_NORMAL },
+      3, { D_ECO, D_GEMEO }, ES_NORMAL },
     { "A BRUXA",         "Lê a sua sorte. E muda.",            0.1f,
       { D_MALDITO, D_MALDICAO, D_QUEBRADO, D_TREVO, D_SORTE, 0xFF },
       "Bruxaria", "Cada rodada que ela vence põe um dado Fantasma (vale 1) na sua bolsa, até o fim da partida.",
-      0, REG_BRUXARIA,
+      AM(A_MAU_OLHADO), REG_NADA,
       { { "Embaralhei os seus dados ontem à noite.", "Já vi como isso termina." },
         { "A pedra não mente.", "Eu disse. Eu sempre digo." },
         { "Mais um para a sua coleção de fantasmas.", "Hihihi..." },
         { "Os astros erraram. Por enquanto.", "Hm. Uma nuvem passou." },
         { "Seus dados agora são meus pesadelos.", "Volte quando estiver menos assombrado." },
         { "Você quebrou o feitiço.", "Os fantasmas vão embora com você." } },
-      2, { D_SORTE_REVES, D_MEDUSA }, ES_NORMAL },
+      5, { D_SORTE_REVES, D_MEDUSA }, ES_NORMAL },
     { "O MALUCO",        "Ninguém sabe o que ele vai fazer. Nem ele.", 1.0f,
       { D_MALDITO, D_SORTE_REVES, D_EXPLOSIVO, D_VENTANIA, D_BUMERANGUE, D_FOGO, 0xFF },
       "Cara ou coroa", "No começo de cada rodada ele joga uma moeda: cara, os dados dele valem +2; coroa, valem -1.",
@@ -255,7 +256,7 @@ static const perso_t PERSO[] = {
         { "Ótimo! Agora fica interessante!", "Perdi? Que divertido!" },
         { "Que loucura! Mais uma?", "Hahaha! Ninguém entende!" },
         { "Perdi tudo! Que dia lindo!", "Hahaha... espera, perdi mesmo?" } },
-      2, { D_TUDO_NADA, D_EGOISTA }, ES_NORMAL },
+      5, { D_TUDO_NADA, D_EGOISTA }, ES_NORMAL },
     { "A BANQUEIRA",     "Empresta, cobra e nunca esquece.",   0.0f,
       { D_COBRADOR, D_FICHAS, D_CAPITAO, D_ESPERANCA, 0xFF },
       "Juros", "Toda rodada que você começa atrás em fichas, a sua entrada custa 2 a mais.", 0, REG_JUROS,
@@ -265,29 +266,29 @@ static const perso_t PERSO[] = {
         { "Um investimento de risco.", "Vou cobrar depois." },
         { "A dívida está quitada. Por você.", "O banco agradece." },
         { "Você saldou a conta. Por hoje.", "Bom pagador. Raro." } },
-      1, { D_AGIOTA, D_POTE_QUENTE }, ES_BOLA },
+      3, { D_AGIOTA, D_POTE_QUENTE }, ES_BOLA },
     { "O COVEIRO",       "Gosta quando as coisas caem.",      -0.2f,
       { D_MISERICORDIOSO, D_FENIX, D_VIDRO, D_SENTINELA, 0xFF },
-      "Velório", "Cada dado dele anulado na rodada, caído ou atacado, vale +1 para ele no fim.", 0, REG_VELORIO,
+      "Velório", "Cada dado dele anulado na rodada, caído ou atacado, vale +1 para ele no fim.", AM(A_CRISANTEMO), REG_NADA,
       { { "Já medi a sua cova.", "Calma. Ninguém tem pressa aqui." },
         { "Mais um para o meu jardim.", "Descanse em paz." },
         { "A terra agradece.", "Silêncio, por favor." },
         { "Tudo volta para o pó.", "Hm. Cedo demais." },
         { "Encomendo as flores.", "Que descanse em paz." },
         { "Você escapou. Desta vez.", "Guardo o seu lugar." } },
-      2, { D_MARTIR, D_COVEIRO }, ES_NORMAL },
+      4, { D_MARTIR, D_COVEIRO }, ES_NORMAL },
     // ...e o chefe do salao final, depois do Barao, so no Desafiante 5.
     { "O CORINGA",       "Ri de tudo. Principalmente de você.", 0.7f,
-      { D_D20, D_CHECKPOINT, D_ESCUDO, D_DESAFIANTE, D_CARRASCO, D_LASER, D_VIUVA, D_ESPELHO },
-      "Carta na manga", "O 4º dado da sequência dele é sempre uma cópia do seu dado mais forte. Começa com 10 fichas a mais, e os seus ataques não anulam nem roubam os dados dele.",
-      AM(A_COURACA) | AM(A_IMA) | AM(A_RESERVA), REG_CORINGA,
+      { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO, D_D20, D_CHECKPOINT },
+      "Carta na manga", "O 4º dado da sequência dele é sempre uma cópia do seu dado que tirou mais no seu último turno (empate: o último). Na 1ª rodada, você abre.",
+      0, REG_CORINGA,
       { { "Hahaha! Achou que o Barão era o último?", "Vamos brincar com os SEUS dados." },
         { "Ops! Hahaha!", "Caiu, caiu, caiu!" },
         { "Ganhei com o seu próprio dado! Hahaha!", "Obrigado pelo empréstimo!" },
         { "Hahaha! Boa piada!", "Essa foi engraçada. Para você." },
         { "A piada era você. Hahaha!", "Fim de jogo! Hahaha!" },
         { "Hahaha... ha. Você venceu o Coringa.", "A última risada é sua. Por hoje." } },
-      0, { D_LASTRO, D_CAPITAO, D_EXPLOSIVO }, ES_NORMAL },
+      0, { D_D20, D_ESCUDO, D_LASER }, ES_NORMAL },
 };
 #define N_PERSO_COMUM 8                  // os oito primeiros...
 #define PERSO_NOVOS   11                 // ...e os comuns que vieram depois

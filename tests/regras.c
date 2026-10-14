@@ -1454,8 +1454,15 @@ int main(void)
                 run.no[1][1].semente = 4242;
                 run.passo = 1; run.caminho[1] = 1;
                 des_comeca_partida();
-                CONFERE(reg_op == REG_CORINGA && (amul[1] >> A_COURACA & 1) && nivel_jog[1] == 2,
-                        "Coringa: trunfo %d, amuletos %u, nivel %d", reg_op, (unsigned)amul[1], nivel_jog[1]);
+                CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == 2 && (primeiro == 0 || tem_am(0, A_RELOGIO)),
+                        "Coringa: trunfo %d, nivel %d, abre %d", reg_op, nivel_jog[1], primeiro);
+                int fracos = 0, bons = 0;              // a bolsa dele: sem dados de saida, so do tema
+                for (int i = 0; i < J[1].n_col; i++) {
+                    int t = J[1].col[i].tipo;
+                    fracos += t == D_D2 || t == D_D4 || t == D_D6;
+                    bons += t == D_D20 || t == D_ESCUDO || t == D_LASER;
+                }
+                CONFERE(fracos == 0 && bons >= 3, "Coringa: bolsa com %d dados fracos e %d bons", fracos, bons);
                 fase = F_MAPA;
                 avanca_passo();
                 CONFERE(fase == F_RFIM && des_venceu_run, "vencer o Coringa devia fechar a run");
@@ -1564,28 +1571,39 @@ int main(void)
         // Os trunfos novos: Revanche, Cara ou coroa, Velorio, Juros, Bruxaria e o Coringa.
         {
             desfecho_t d;
-            reg_op = REG_REVANCHE; rodada = 2;
+            // A Revanche do Rival e o amuleto Desforra: a mesma regra.
+            reg_op = REG_NADA; rodada = 2;
+            amul[1] = 1u << A_DESFORRA;
             J[1].perdeu_ultima = true;
             limpa(); joga(1, D_D6, 3); joga(1, D_D8, 5); d = fim();
             CONFERE(d.total[1] == 3 + 5 + 2, "Revanche depois de perder: esperava 10, deu %d", d.total[1]);
             J[1].perdeu_ultima = false;
             limpa(); joga(1, D_D6, 3); d = fim();
             CONFERE(d.total[1] == 3, "Revanche depois de vencer: esperava 3, deu %d", d.total[1]);
+            amul[1] = 0; amul[0] = 1u << A_DESFORRA;
+            J[0].perdeu_ultima = true;
+            limpa(); joga(0, D_D6, 3); joga(0, D_D8, 5); d = fim();
+            CONFERE(d.total[0] == 3 + 5 + 2, "Desforra depois de perder: esperava 10, deu %d", d.total[0]);
+            J[0].perdeu_ultima = false; amul[0] = 0;
             reg_op = REG_MALUCO;
             maluco_lado = 2; limpa(); joga(1, D_D6, 3); joga(1, D_D8, 5); d = fim();
             CONFERE(d.total[1] == 3 + 5 + 4, "Maluco com cara: esperava 12, deu %d", d.total[1]);
             maluco_lado = -1; limpa(); joga(1, D_D6, 3); d = fim();
             CONFERE(d.total[1] == 2, "Maluco com coroa: esperava 2, deu %d", d.total[1]);
-            reg_op = REG_VELORIO;
+            reg_op = REG_NADA; amul[1] = 1u << A_CRISANTEMO;   // o Velorio do Coveiro
             limpa(); joga(1, D_D8, 6); joga(1, D_D4, 2); joga(1, D_D6, 5); d = fim();
             CONFERE(d.total[1] == 5 + 2, "Velorio: 2 caidos, esperava 7, deu %d", d.total[1]);
+            amul[1] = 0; amul[0] = 1u << A_CRISANTEMO;         // e o seu Crisantemo
+            limpa(); joga(0, D_D8, 6); joga(0, D_D4, 2); joga(0, D_D6, 5); d = fim();
+            CONFERE(d.total[0] == 5 + 2, "Crisantemo: 2 caidos, esperava 7, deu %d", d.total[0]);
+            amul[0] = 0;
             reg_op = REG_JUROS;
             entrada(30, 40, 0);
             CONFERE(J[0].fichas == 30 - 5 - 2 && pote == 12 && juros_rodada == 2, "Juros atras: %d fichas, pote %d", J[0].fichas, pote);
             entrada(40, 30, 0);
             CONFERE(J[0].fichas == 35 && pote == 10 && juros_rodada == 0, "Juros na frente: %d fichas", J[0].fichas);
             // Bruxaria: rodada vencida por ela, um Fantasma na sua bolsa.
-            reg_op = REG_BRUXARIA;
+            reg_op = REG_NADA; amul[1] = 1u << A_MAU_OLHADO;
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
             int antes = J[0].n_col;
             limpa();
@@ -1594,7 +1612,19 @@ int main(void)
             J[0].fichas = J[1].fichas = 40; pote = 10;
             conclui_rodada();
             CONFERE(J[0].n_col == antes + 1 && J[0].col[antes].tipo == D_FANTASMA && J[0].onde[antes] == NA_BOLSA
-                    && J[0].perdidas >= 1 && J[0].perdeu_ultima, "Bruxaria: devia por um Fantasma na sua bolsa");
+                    && J[0].perdidas >= 1 && J[0].perdeu_ultima && fantasma_para == 0,
+                    "Bruxaria: devia por um Fantasma na sua bolsa");
+            // O seu Mau-Olhado: rodada vencida por voce, um Fantasma na bolsa dele.
+            amul[1] = 0; amul[0] = 1u << A_MAU_OLHADO;
+            int antes1 = J[1].n_col;
+            limpa();
+            memset(&resolvido, 0, sizeof resolvido);
+            resolvido.total[0] = 9; resolvido.total[1] = 3;
+            J[0].fichas = J[1].fichas = 40; pote = 10;
+            conclui_rodada();
+            CONFERE(J[1].n_col == antes1 + 1 && J[1].col[antes1].tipo == D_FANTASMA && fantasma_para == 1
+                    && J[0].n_col == antes + 1, "Mau-Olhado: devia por um Fantasma na bolsa dele");
+            amul[0] = 0;
             int menor = 0;
             CONFERE(sorteia_valor(D_FANTASMA, 1, sempre_dois, &menor) == 1, "Fantasma vale sempre 1");
             limpa(); joga(0, D_D6, 4); F[0].n = 2; F[0].tipo[1] = D_FANTASMA; F[0].fixo[1] = 1;
@@ -1602,30 +1632,51 @@ int main(void)
             some_fantasmas();
             CONFERE(J[0].n_col == antes, "fim da partida: o Fantasma some");
             CONFERE(peso_dado(D_FANTASMA) == 0 && !dado_liberado(D_FANTASMA), "Fantasma nao sai em sorteio");
-            // O Coringa: monta 3; o quarto e a copia do seu dado mais forte (sem os que machucam quem lanca).
+            // O Coringa: monta 3; o quarto e a copia do seu dado que tirou mais
+            // no seu ultimo turno (empate: o ultimo).
             reg_op = REG_CORINGA;
             CONFERE(max_fila(1) == 3 && max_fila(0) == N_FILA, "Coringa monta 3");
-            J[0].n_col = 4;
-            J[0].col[0] = (peca_t){ D_D6, 0 }; J[0].col[1] = (peca_t){ D_LASTRO, 0 };
-            J[0].col[2] = (peca_t){ D_MALDITO, 0 }; J[0].col[3] = (peca_t){ D_D12, 0 };
-            CONFERE(coringa_copia().tipo == D_LASTRO, "Coringa: devia copiar o Lastro, copiou %d", coringa_copia().tipo);
-            limpa(); F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
+            limpa(); joga(0, D_D8, 6); joga(0, D_D20, 9); joga(0, D_D12, 9);
+            CONFERE(coringa_copia().tipo == D_D12, "Coringa: empate no 9 devia copiar o ultimo (D12), copiou %d", coringa_copia().tipo);
+            limpa(); joga(0, D_D12, 10); joga(0, D_D4, 3);
+            CONFERE(coringa_copia().tipo == D_D12, "Coringa: o 10 caiu, mas foi o maior que voce tirou");
+            limpa(); joga(0, D_LASTRO, 8); F[0].fixo[0] = 3;
+            F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
             coringa_completa(1);
-            CONFERE(F[1].n == 4 && F[1].tipo[3] == D_LASTRO && F[1].idx[3] == -1, "Coringa: a copia devia ser o quarto");
+            CONFERE(F[1].n == 4 && F[1].tipo[3] == D_LASTRO && F[1].fixo[3] == 3 && F[1].idx[3] == -1,
+                    "Coringa: a copia devia ser o quarto");
+            // Ele abre a rodada: copia o seu melhor da rodada anterior.
+            for (int j = 0; j < 2; j++) { colecao_inicial(&J[j]); J[j].fichas = 50; J[j].n_mao = 0; }
+            rodada = 2; limpa(); joga(0, D_D20, 15); joga(0, D_D6, 2);
+            nova_rodada();
+            CONFERE(F[0].lancados == 0 && coringa_ref_ok && coringa_copia().tipo == D_D20,
+                    "Coringa: abrindo, devia copiar o D20 da rodada anterior (%d)", coringa_copia().tipo);
+            rodada = 0; primeiro = 1;
+            nova_rodada();
+            CONFERE(primeiro == 0 && !coringa_ref_ok, "Coringa: na 1a rodada, voce abre");
             reg_op = REG_NADA; rodada = 1;
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
         }
-        // Trunfos aos poucos: nenhum comum no Salao Verde; os chefes, sempre.
+        // Trunfos aos poucos, por dificuldade: nenhum comum no Normal; todos no 5.
         {
-            int andar0 = run.andar;
-            run.andar = 0;
-            CONFERE(!trunfo_ativo(2) && !trunfo_ativo(16) && trunfo_ativo(PERSO_CHEFE0), "Salao Verde: so os chefes");
-            run.andar = 1;
-            CONFERE(trunfo_ativo(2) && trunfo_ativo(16) && !trunfo_ativo(17), "Salao Vermelho: alguns");
-            run.andar = 2;
+            int andar0 = run.andar, dif0 = run.dificuldade;
+            run.dificuldade = 0;
+            CONFERE(!trunfo_ativo(2) && !trunfo_ativo(16) && trunfo_ativo(PERSO_CHEFE0), "Normal: so os chefes");
+            int antes = 0;
+            for (int d = 1; d <= N_NIVEIS; d++) {
+                run.dificuldade = (uint8_t)d;
+                int com = 0;
+                for (int p2 = 0; p2 < N_PERSO; p2++) com += !perso_chefe(p2) && p2 != PERSO_CORINGA && trunfo_ativo(p2);
+                CONFERE(com > antes, "nivel %d: mais oponentes com trunfo (%d, antes %d)", d, com, antes);
+                antes = com;
+            }
+            run.dificuldade = 1;
+            CONFERE(trunfo_ativo(2) && !trunfo_ativo(16) && !trunfo_ativo(17), "Nivel 1: o Apostador sim, o Rival nao");
+            run.dificuldade = N_NIVEIS;
             int todos = 1;
             for (int p2 = 0; p2 < N_PERSO; p2++) todos &= trunfo_ativo(p2);
-            CONFERE(todos, "Salao Dourado: todos com trunfo");
+            CONFERE(todos, "Nivel 5: todos com trunfo");
+            run.dificuldade = (uint8_t)dif0;
             // O nucleo: o Rival sempre traz o Eco (e o Gemeo a partir do 2o salao).
             no_t no = { 0 };
             no.tipo = NO_FACIL; no.perso = 16; no.semente = 99;

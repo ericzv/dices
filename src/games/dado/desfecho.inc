@@ -306,14 +306,17 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         evento(gera, EV_SEMENTE, j, k, j, 0, 7, "Semente: %d pontos, brota +7", dados);
     }
 
-    // O Velorio do Coveiro: +1 por dado dele anulado na rodada.
-    if (j == 1 && tem_reg(REG_VELORIO)) {
+    // Crisantemo (o Velorio do Coveiro): +1 por dado de j anulado na rodada.
+    // Do oponente, so vem do trunfo do Coveiro; seu, do amuleto.
+    if (tem_am(j, A_CRISANTEMO)) {
         int mortos = 0;
-        for (int k = 0; k < F[1].lancados; k++) if (d->est[1][k] == V_ANULADO) mortos++;
+        for (int k = 0; k < f->lancados; k++) if (d->est[j][k] == V_ANULADO) mortos++;
         if (mortos) {
-            d->semente[1] += mortos;
-            evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
-                   mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
+            d->semente[j] += mortos;
+            if (j == 0) evento(gera, EV_CHEFE, 0, 0xFF, 0, 0, mortos, "Crisântemo: %d dado%s seu%s anulado%s, +%d",
+                               mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
+            else evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
+                        mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
         }
     }
 

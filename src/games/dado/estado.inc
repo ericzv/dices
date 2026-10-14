@@ -18,7 +18,7 @@ typedef struct {
     int n_mao;
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
-    bool perdeu_ultima;          // e se perdeu a ultima (a Revanche do Rival)
+    bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -60,7 +60,7 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
-       EV_CHEFE,                     // a virada do Barao: pontos por queda sua
+       EV_CHEFE,                     // pontos direto no placar (virada do Barao, Crisantemo, Velorio)
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
        EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
@@ -122,7 +122,7 @@ static void reage_evento(const evento_t *e);
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];
-static char aviso[64], veredito[64], nota[48];
+static char aviso[96], veredito[64], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
 static char anuncio[64];
@@ -178,7 +178,9 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        A_COFRE, A_RESERVA, A_POTE, A_FURADO,
        // Liberados pelas dificuldades (dois por nivel).
        A_FERRADURA, A_PESADO, A_RELOGIO, A_CARTOLA, A_COROA, A_CUPOM,
-       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO, A_N };
+       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO,
+       // Vindos dos trunfos do Rival, da Bruxa e do Coveiro (abertos desde o comeco).
+       A_DESFORRA, A_MAU_OLHADO, A_CRISANTEMO, A_N };
 #define A_BASICOS A_FERRADURA
 static uint32_t amul[2];
 static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
@@ -190,12 +192,15 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
 enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
-       REG_REVANCHE, REG_BRUXARIA, REG_MALUCO, REG_JUROS, REG_VELORIO, REG_CORINGA };
+       REG_MALUCO, REG_JUROS, REG_CORINGA };
 static uint8_t reg_op;
 static uint8_t estilo_op;                // o jeito de apostar do oponente (ES_*, desafio/run.inc)
 static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (cara) ou -1 (coroa)
 static int juros_rodada;                 // a entrada a mais que a Banqueira cobrou nesta rodada
-static float t_fantasma;                 // > 0: um Fantasma da Bruxa voando para a sua bolsa
+static float t_fantasma;                 // > 0: um Fantasma voando para uma bolsa...
+static int8_t fantasma_para;             // ...a de quem (Bruxaria da Bruxa, ou o seu Mau-Olhado)
+static peca_t coringa_ref;               // o seu dado que mais tirou no ultimo turno (o Coringa copia)
+static bool coringa_ref_ok;
 static bool op_nervoso;              // o Novato perdeu a ultima rodada
 static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
 // Falas do oponente (desafio.inc): o que acabou de acontecer.
@@ -272,7 +277,7 @@ static int virada_forca(int c)
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
-// O Coringa monta 3: o quarto e a copia do seu dado mais forte.
+// O Coringa monta 3: o quarto e a copia do seu dado que mais tirou (partida.inc).
 static int max_fila(int j) { return tem_am(j, A_CONTRATO) || (j == 1 && tem_reg(REG_CORINGA)) ? 3 : N_FILA; }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.

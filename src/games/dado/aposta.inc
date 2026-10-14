@@ -108,7 +108,7 @@ static void executa(int op)
         J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
-        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w));   // Mau-Olhado, a Bruxaria
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;

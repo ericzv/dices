@@ -114,16 +114,16 @@ static const uint8_t NIVEL_AMULETO[A_N] = {
 static int nivel_do_dado(int t)
 {
     switch (t) {
-    case D_EXPLOSIVO: case D_BUMERANGUE:                         return 1;
-    case D_MARTIR: case D_CALIBRE:                               return 2;
-    case D_EGOISTA: case D_GEMEO: case D_OURICO:                 return 3;
-    case D_COVEIRO: case D_RANCOR: case D_PONTE:                 return 4;
-    case D_TUDO_NADA: case D_PRISMA: case D_CHECKPOINT:          return 5;
-    case D_SABOTADOR: case D_POTE_QUENTE:                        return 6;
-    case D_MALDITO: case D_ANCORA: case D_FENIX: case D_GARIMPEIRO: return 7;   // Agouro
-    case D_CAPITAO: case D_ESPERANCA: case D_CAVALO:             return 8;   // Cavalo de Troia
-    case D_BERSERKER: case D_TRONO:                              return 9;
-    case D_MEDUSA:                                               return 10;  // mexe na bolsa: por ultimo
+    case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_VAZIO:    return 1;
+    case D_MARTIR: case D_CALIBRE: case D_MEDIA: case D_COLECIONADOR:       return 2;
+    case D_EGOISTA: case D_GEMEO: case D_OURICO: case D_SACRIFICIO:         return 3;
+    case D_COVEIRO: case D_RANCOR: case D_PONTE: case D_VAMPIRO:            return 4;
+    case D_TUDO_NADA: case D_PRISMA: case D_CHECKPOINT: case D_PACTO:       return 5;
+    case D_SABOTADOR: case D_POTE_QUENTE: case D_OCULTO: case D_ASSOMBRACAO: return 6;
+    case D_MALDITO: case D_ANCORA: case D_FENIX: case D_GARIMPEIRO:         return 7;   // Agouro
+    case D_CAPITAO: case D_ESPERANCA: case D_CAVALO:                        return 8;   // Cavalo de Troia
+    case D_BERSERKER: case D_TRONO:                                         return 9;
+    case D_MEDUSA:                                                          return 10;  // mexe na bolsa: por ultimo
     default:                                                     return 0;
     }
 }

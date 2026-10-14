@@ -12,7 +12,9 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES,
        EF_AUTOFAGIA, EF_ECO, EF_DOMINO, EF_ANCORA, EF_MARTIR, EF_PUXA, EF_COVEIRO, EF_HEXA,
        EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA,
-       EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA };
+       EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA,
+       EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
+       EF_PACTO, EF_ASSOMBRA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -42,7 +44,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
        D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
        D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
-       D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA, D_N };
+       D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA,
+       D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO, D_COLECIONADOR,
+       D_PACTO, D_ASSOMBRACAO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -163,6 +167,15 @@ static const tipo_t TIPO[D_N] = {
     { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: os outros válidos voltam à bolsa" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
     { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "vale sempre 1; some no fim da partida" },
+    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "tira 1, depois 2, 3...: +1 a cada lance" },
+    { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "o número fica escondido até o fim" },
+    { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "não pontua; valendo: x2 no seu menor" },
+    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0 e nunca cai: baixa a barra" },
+    { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "valendo: + o total da fila ÷ 4" },
+    { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "3 ou 4: -1 em cada dado do oponente" },
+    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
+    { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "lançado: um Fantasma na sua bolsa" },
+    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "valendo: um Fantasma na bolsa dele" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -246,6 +259,15 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GARIMPEIRO] = "Se ficar valendo, no fim os outros dados seus que valem voltam direto para a bolsa.",
     [D_POTE_QUENTE] = "Se ficar valendo: +1 a cada 25 fichas no pote, no fim da rodada.",
     [D_FANTASMA]  = "Vale sempre o número marcado (1). Não some ao ser lançado: só no fim da partida.",
+    [D_PREVISIVEL] = "Não sorteia: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
+    [D_OCULTO]    = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência, e pode cair ou derrubar.",
+    [D_SACRIFICIO] = "Não pontua. Se ficar valendo, o seu dado de menor número que pontua vale x2 no fim.",
+    [D_VAZIO]     = "Vale sempre 0 e nunca cai nem derruba o de antes: depois dele, qualquer número vale.",
+    [D_MEDIA]     = "Se ficar valendo, no fim ganha o total dos seus dados dividido por 4 (para baixo).",
+    [D_VAMPIRO]   = "Se ficar valendo com 3 ou 4, no fim cada dado do oponente que vale perde 1.",
+    [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
+    [D_PACTO]     = "Doze lados. Cada vez que é lançado, um Fantasma (vale 1) entra na sua bolsa.",
+    [D_ASSOMBRACAO] = "Se ficar valendo, no fim um Fantasma (vale 1) entra na bolsa do oponente.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -358,6 +380,25 @@ static const char *TEXTO_CAT[D_N] = {
     [D_FANTASMA]  = "Seis lados, mas vale sempre o número marcado nele (1). Como o Quebrado, não sorteia; mas não "
                     "quebra ao ser lançado: volta para a bolsa como os outros e só some no fim da partida. A Bruxa "
                     "enche a bolsa de quem joga contra ela com eles.",
+    [D_PREVISIVEL] = "Doze lados, mas não sorteia: na primeira vez que é lançado na partida tira 1, na segunda 2, "
+                     "e assim por diante, até 12. Sobe a cada lance, valendo ou não. Recomeça do 1 a cada partida.",
+    [D_OCULTO]    = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto "
+                    "isso não cai, não derruba ninguém e não conta na sequência: o dado seguinte compara com o de "
+                    "antes dele. No fim ele aparece e a sequência é refeita: pode valer, cair ou derrubar o de antes.",
+    [D_SACRIFICIO] = "Quatro lados, mas não pontua. Se terminar valendo, no fim o seu dado de menor número que "
+                     "pontua (sem contar ele) vale x2. Soma com outros multiplicadores.",
+    [D_VAZIO]     = "Vale sempre 0. Nunca cai e nunca derruba o dado de antes, por maior que ele seja: abaixa a "
+                    "barra da sequência para 0, e depois dele qualquer número vale.",
+    [D_MEDIA]     = "Quatro lados. Se terminar valendo, ganha no fim o total dos seus dados na sequência (com "
+                    "bônus e multiplicadores, ele incluído) dividido por 4, arredondado para baixo.",
+    [D_VAMPIRO]   = "Quatro lados. Se terminar valendo com 3 ou 4, no fim cada dado do oponente que vale perde "
+                    "1 ponto.",
+    [D_COLECIONADOR] = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para "
+                       "baixo). Os Fantasmas que entraram na sua bolsa contam: é o contra deles.",
+    [D_PACTO]     = "Doze lados. O preço: cada vez que é lançado, valendo ou não, um Fantasma (vale sempre 1) "
+                    "entra na sua bolsa até o fim da partida.",
+    [D_ASSOMBRACAO] = "Seis lados. Se terminar valendo, no fim da rodada um Fantasma (vale sempre 1) entra na bolsa "
+                      "do oponente até o fim da partida.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -533,6 +574,15 @@ static const visual_t VISUAL[D_N] = {
     [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
     [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
     [D_FANTASMA]   = { V_LILAS,   V_LILAS, 30,  V_AMEIXA, 55,   V_LILAS, 90,   V_BRANCO, 80 },
+    [D_PREVISIVEL] = { V_CIANO,   V_CEU, 16,    V_AZUL, 70,     V_AGUA, 100,   V_BRANCO, 85 },
+    [D_OCULTO]     = { V_CHUMBO,  V_BREU, 30,   V_FERRO, 60,    V_BREU, 70,    V_PRATA, 70 },
+    [D_SACRIFICIO] = { V_VINHO,   V_SANGUE, 20, V_TRIGO, 85,    V_BREU, 65,    V_OURO, 100 },
+    [D_VAZIO]      = { V_PEDRA,   V_BRANCO, 40, V_BARRO, 45,    V_PEDRA, 60,   V_BRANCO, 60 },
+    [D_MEDIA]      = { V_AGUA,    V_CEU, 20,    V_BRANCO, 85,   V_AGUA, 100,   V_CIANO, 70 },
+    [D_VAMPIRO]    = { V_BREU,    V_VINHO, 30,  V_SANGUE, 100,  V_VINHO, 90,   V_BRANCO, 70 },
+    [D_COLECIONADOR] = { V_TERRA, V_TRIGO, 18,  V_OURO, 100,    V_COURO, 100,  V_TRIGO, 90 },
+    [D_PACTO]      = { V_ROXO,    V_SANGUE, 22, V_SANGUE, 90,   V_AMEIXA, 100, V_OURO, 100 },
+    [D_ASSOMBRACAO] = { V_AMEIXA, V_LILAS, 24,  V_LILAS, 100,   V_ROXO, 80,    V_BRANCO, 80 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

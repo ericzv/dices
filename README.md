@@ -10,7 +10,7 @@ sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 71 dados mudam as
+os dois se anulam. Entre os turnos tem aposta, e 80 dados mudam as
 regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
@@ -24,8 +24,8 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
 - **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
   chefe cada. No mapa você escolhe o caminho entre 21 oponentes (cada um com
   seu jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
-  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 5),
-  lojas e 8 eventos. No nível 5, depois do Barão ainda há o salão do Coringa:
+  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10),
+  lojas e 8 eventos. No nível 10, depois do Barão ainda há o salão do Coringa:
   a última loja e o oponente mais difícil do jogo. Cada partida tem 8
   rodadas e 50 fichas de cada lado; vencer converte as fichas que sobraram em
   moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas;
@@ -41,8 +41,9 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   bronze). Abrem andar a andar: vencer o Barão em cada dificuldade abre mais.
   Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
   especiais têm um desenho só. Vencer o
-  Barão abre a dificuldade seguinte (são 6), e os chefes e as dificuldades
-  abrem dados novos; a coleção mostra o que está aberto e o que falta.
+  Barão abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
+  a mais por nível), e os chefes e as dificuldades abrem dados novos; a
+  coleção mostra o que está aberto e o que falta.
 
 ## Jogar no navegador (e online)
 
@@ -85,7 +86,7 @@ Não precisa instalar nada: é um executável só.
 | X | Recusa o prêmio / sai da loja |
 | M | Liga e desliga todo o som |
 | N | Liga e desliga só a música |
-| V | Velocidade normal ou rápida (animações e vez do computador em dobro; fica guardada) |
+| V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela nas jogadas fortes (fica guardado) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |

@@ -669,6 +669,84 @@ static int desenho_interno(int tipo, float u, float v, float s)
             if (fabsf(dd - R[i]) < W[i] + l * 0.5f) return i < 1 ? 2 : 1;
         return 0;
     }
+    case D_PREVISIVEL: {                          // a escada: barras que sobem, uma a mais a cada lance
+        static const float X[4] = { -0.42f, -0.14f, 0.14f, 0.42f }, H[4] = { 0.14f, 0.25f, 0.36f, 0.47f };
+        for (int i = 0; i < 4; i++)
+            if (fabsf(u - X[i]) < 0.085f && v < 0.70f && v > 0.70f - H[i]) return i == 3 ? 2 : 1;
+        return fabsf(v - 0.74f) < l * 1.2f && fabsf(u) < 0.56f ? 3 : 0;      // o chao da escada
+    }
+    case D_OCULTO: {                              // o veu: tracos em diagonal, e um losango vazio no meio
+        float dd = fabsf(u) + fabsf(v);
+        if (dd < 0.40f) return 0;
+        if (dd < 0.40f + l * 2.2f) return 3;                                  // a borda do que nao se ve
+        return fr((u - v) / 0.17f) < 0.32f ? 1 : 0;
+    }
+    case D_SACRIFICIO: {                          // o que se da: um contorno oco, e dois losangos acesos
+        float t, g = borda_d4(u, v, &t);
+        if (fabsf(g - 0.80f) < l * 1.6f / 0.5f * 0.5f + 0.02f) return 1;      // o oco
+        for (int i = 0; i < 2; i++) {
+            float x = fabsf(u - (0.07f + (i ? 0.13f : -0.13f))) / 0.09f, y = fabsf(v - 0.56f) / 0.12f;
+            if (x + y < 1) return 3;
+        }
+        return 0;
+    }
+    case D_VAZIO: {                               // nada: um anel aberto em volta do zero
+        float x = u - 0.08f, y = v - 0.08f, rr = sqrtf(x * x + y * y);
+        if (fabsf(rr - 0.56f) > 0.035f + l) return 0;
+        float an = atan2f(y, x);
+        return an > -2.2f && an < -1.3f ? 0 : 1;                             // a abertura, em cima
+    }
+    case D_MEDIA: {                               // a media: uma linha, e os pontos acima e abaixo dela
+        float t, g = borda_d4(u, v, &t);
+        if (g > 0.92f) return 0;
+        if (fabsf(v - 0.50f) < l * 1.2f + 0.012f) return 1;                   // a linha do meio
+        static const float P[4][2] = { { -0.30f, 0.40f }, { -0.08f, 0.62f }, { 0.20f, 0.36f }, { 0.42f, 0.60f } };
+        for (int i = 0; i < 4; i++) {
+            float x = u - P[i][0], y = v - P[i][1];
+            if (x * x + y * y < 0.045f * 0.045f + l * l) return 2;
+        }
+        return 0;
+    }
+    case D_VAMPIRO: {                             // gotas que escorrem das bordas de cima
+        static const float X[3] = { -0.20f, 0.07f, 0.34f }, Y0[3] = { 0.02f, -0.30f, 0.02f }, C[3] = { 0.30f, 0.46f, 0.24f };
+        for (int i = 0; i < 3; i++) {
+            float x = u - X[i], y1 = Y0[i] + C[i];
+            if (v > Y0[i] - 0.4f && v < y1 && fabsf(x) < 0.028f + l) return 1;   // o fio
+            float y = v - (y1 + 0.03f);
+            if (x * x + y * y < 0.065f * 0.065f) return 2;                       // a gota
+        }
+        return 0;
+    }
+    case D_COLECIONADOR: {                        // a colecao: quadradinhos guardados nos cantos
+        for (int cx = -1; cx <= 1; cx += 2)
+            for (int cy = -1; cy <= 1; cy += 2)
+                for (int a = 0; a < 2; a++)
+                    for (int b = 0; b < 2; b++) {
+                        float qx = 0.08f + cx * (0.50f + a * 0.15f), qy = 0.08f + cy * (0.50f + b * 0.15f);
+                        if (fabsf(u - qx) < 0.055f && fabsf(v - qy) < 0.055f) return (a + b + (cx > 0) + (cy > 0)) % 2 ? 1 : 2;
+                    }
+        return 0;
+    }
+    case D_PACTO: {                               // dois aneis presos um no outro
+        float x0 = u + 0.20f, x1 = u - 0.20f, y = v - 0.04f;
+        float r0 = sqrtf(x0 * x0 + y * y), r1 = sqrtf(x1 * x1 + y * y);
+        bool a0 = fabsf(r0 - 0.40f) < 0.05f + l, a1 = fabsf(r1 - 0.40f) < 0.05f + l;
+        // o entrelace: em cima o anel da esquerda passa por cima, embaixo o da direita
+        if (a0 && a1) return y < 0 ? 1 : 2;
+        if (a0) return 1;
+        if (a1) return 2;
+        return r0 < 0.40f && r1 < 0.40f ? 3 : 0;                              // o que os dois guardam
+    }
+    case D_ASSOMBRACAO: {                         // contornos tracejados que se afastam para o lado de la
+        for (int i = 0; i < 3; i++) {
+            float d = i * 0.10f;
+            float x = u - 0.08f - d, y = v - 0.08f + d;
+            float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
+            float ao_longo = fabsf(x) > fabsf(y) ? y : x;
+            if (fabsf(e - 0.56f) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.33f) < 0.55f - i * 0.12f) return i == 0 ? 1 : i == 1 ? 2 : 3;
+        }
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;
@@ -892,6 +970,9 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
 // vista 0: parado na mao, mostra quantos lados tem.
 // vista 1: rolando, mostra uma face qualquer.
 // vista 2: pousado, mostra o valor final (e riscado se zerou).
+// O Oculto ainda virado: a face mostra "?" no lugar do numero.
+static bool face_escondida;
+
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
@@ -1008,6 +1089,12 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             return;
         }
         if (tipo == D_MISTERIOSO) { numero(cx, cy, r, "?", tinta); return; }
+        if (tipo == D_PREVISIVEL) {               // o proximo da escada: o que ele vai tirar
+            snprintf(s, sizeof s, "%d", valor + 1 < 12 ? valor + 1 : 12);
+            numero(cx, cy, r, s, tinta);
+            return;
+        }
+        if (tipo == D_VAZIO) { numero(cx, cy, r, "0", tinta); return; }
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
         // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);
@@ -1015,6 +1102,11 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         return;
     }
     if (valor == SO_CORPO) return;       // so o corpo: o catalogo escreve grande
+    if (face_escondida) {                // o Oculto: ninguem ve o que saiu
+        numero(cx, cy, r, "?", tinta);
+        if (zerado) risca(cx, cy, r);
+        return;
+    }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);

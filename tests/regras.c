@@ -1124,6 +1124,83 @@ int main(void)
             CONFERE(!d.garimpo[0], "Garimpeiro caido nao age");
             J[0] = guarda;
         }
+        // Os dados novos: Previsivel, Oculto, Sacrificio, Vazio, Media, Vampiro,
+        // Colecionador, Pacto e Assombracao.
+        {
+            int menor = 0;
+            CONFERE(sorteia_valor(D_PREVISIVEL, 0, sempre_dois, &menor) == 1 && sorteia_valor(D_PREVISIVEL, 4, sempre_dois, &menor) == 5
+                    && sorteia_valor(D_PREVISIVEL, 11, sempre_dois, &menor) == 12 && sorteia_valor(D_PREVISIVEL, 20, sempre_dois, &menor) == 12,
+                    "Previsivel: 1, 2, 3... ate 12");
+            limpa(); joga(0, D_D6, 4); F[0].n = 2; F[0].tipo[1] = D_PREVISIVEL; F[0].fixo[1] = 2;
+            CONFERE(risco(0) == 100, "Previsivel: o 3 depois de um 4 cai com certeza (%d)", risco(0));
+            F[0].fixo[1] = 3;
+            CONFERE(risco(0) == 0, "Previsivel: o 4 depois de um 4 vale com certeza (%d)", risco(0));
+            // Oculto: escondido nao cai nem derruba; no fim aparece e a sequencia e refeita.
+            limpa(); joga(0, D_D8, 5); joga_com(0, D_OCULTO, 3, sempre_dois);
+            CONFERE(F[0].escondido[1] && F[0].est[1] == V_ESPERA && F[0].est[0] == V_VALIDO && F[0].pontos == 5,
+                    "Oculto: escondido devia ficar fora da sequencia");
+            joga(0, D_D6, 6);
+            CONFERE(F[0].est[2] == V_VALIDO, "Oculto: o seguinte compara com o de antes dele");
+            desfecho_t pv;
+            calcula_desfecho(&pv, false);
+            CONFERE(pv.total[0] == 11 && F[0].escondido[1], "Oculto: a previa nao sabe o numero (%d)", pv.total[0]);
+            d = fim();
+            CONFERE(!F[0].escondido[1] && F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && d.total[0] == 6,
+                    "Oculto: o 3 aparece, derruba o 5 e o 6 recomeca (total %d)", d.total[0]);
+            int revela = 0;
+            for (int i = 0; i < n_ev; i++) revela += ev[i].tipo == EV_REVELA;
+            CONFERE(revela == 1, "Oculto: devia ter o evento de revelar");
+            CONFERE(melhor_lance(0, &(peca_t){ 0 }), "melhor lance com o Oculto ja aberto");
+            limpa(); joga(0, D_D4, 2); joga_com(0, D_OCULTO, 8, sempre_dois);
+            {
+                peca_t cp;
+                CONFERE(melhor_lance(0, &cp) && cp.tipo == D_D4, "Coringa nao copia o Oculto escondido");
+            }
+            // Sacrificio: nao pontua; valendo, x2 no menor que pontua.
+            limpa(); joga(0, D_D4, 2); joga(0, D_SACRIFICIO, 3); joga(0, D_D8, 5); d = fim();
+            CONFERE(d.total[0] == 4 + 0 + 5, "Sacrificio: esperava 9, deu %d", d.total[0]);
+            // Vazio: vale 0, nunca cai, e baixa a barra.
+            limpa(); joga(0, D_D12, 10); joga(0, D_VAZIO, 0); joga(0, D_D4, 2); d = fim();
+            CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && d.total[0] == 12,
+                    "Vazio: esperava 12, deu %d", d.total[0]);
+            limpa(); joga(0, D_D12, 10); F[0].n = 2; F[0].tipo[1] = D_VAZIO;
+            CONFERE(risco(0) == 0 && sorteia_valor(D_VAZIO, 0, sempre_dois, &menor) == 0, "Vazio nunca cai e vale 0");
+            // Media: + o total dividido por 4.
+            limpa(); joga(0, D_D6, 4); joga(0, D_MEDIA, 4); joga(0, D_D8, 8); d = fim();
+            CONFERE(d.total[0] == 16 + 4, "Media: esperava 20, deu %d", d.total[0]);
+            // Vampiro: com 3 ou 4, -1 em cada dado do oponente que vale.
+            limpa(); joga(1, D_D6, 3); joga(1, D_D6, 5); joga(0, D_VAMPIRO, 4); d = fim();
+            CONFERE(d.total[1] == 2 + 4 && d.total[0] == 4, "Vampiro: oponente devia ficar com 6, ficou %d", d.total[1]);
+            limpa(); joga(1, D_D6, 3); joga(0, D_VAMPIRO, 2); d = fim();
+            CONFERE(d.total[1] == 3, "Vampiro com 2 nao age");
+            // Colecionador: com 6, + metade dos dados que voce tem.
+            for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+            int tem = em_jogo(&J[0]);
+            limpa(); joga(0, D_COLECIONADOR, 6); d = fim();
+            CONFERE(d.total[0] == 6 + tem / 2, "Colecionador com 6: esperava %d, deu %d", 6 + tem / 2, d.total[0]);
+            limpa(); joga(0, D_COLECIONADOR, 5); d = fim();
+            CONFERE(d.total[0] == 5, "Colecionador sem 6 nao ganha nada");
+            // Pacto: lancado, um Fantasma na sua bolsa; Assombracao valendo, na do oponente.
+            int c0 = J[0].n_col, c1 = J[1].n_col;
+            limpa(); joga(0, D_D8, 7); joga(0, D_PACTO, 2);           // o Pacto caiu: cobra do mesmo jeito
+            recolhe_quebrados();
+            CONFERE(J[0].n_col == c0 + 1 && J[0].col[c0].tipo == D_FANTASMA && J[1].n_col == c1, "Pacto: um Fantasma na sua bolsa");
+            limpa(); joga(0, D_ASSOMBRACAO, 4);
+            recolhe_quebrados();
+            CONFERE(J[1].n_col == c1 + 1 && J[1].col[c1].tipo == D_FANTASMA, "Assombracao valendo: Fantasma na bolsa dele");
+            limpa(); joga(0, D_D6, 6); joga(0, D_ASSOMBRACAO, 2);
+            recolhe_quebrados();
+            CONFERE(J[1].n_col == c1 + 1, "Assombracao caida nao assombra");
+            some_fantasmas();
+            for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+            // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
+            static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
+                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO };
+            for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
+                CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= 6 && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
+                        "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
+            limpa();
+        }
         // O Dado Misterioso e oculto: um d20 sem poder, fora da colecao, do
         // premio, da loja e da liberacao.
         CONFERE(TIPO[D_MISTERIOSO].lados == 20 && TIPO[D_MISTERIOSO].efeito == EF_NADA, "Misterioso: um d20 comum");

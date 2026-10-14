@@ -28,6 +28,8 @@ static float media(peca_t p)
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
     case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
+    case EF_PREVISIVEL: return p.fixo + 1 < 12 ? p.fixo + 1 : 12;   // o proximo da escada
+    case EF_VAZIO: case EF_SACRIFICIO: return 0;         // nao pontuam
     default:          return (t->lados + 1) / 2.0f;
     }
 }
@@ -149,14 +151,33 @@ static bool abre_continua(int j)
 // moedas que so ganha porque o rival fez pouco.
 #define IA_MARGEM 0.005f
 static bool ia_sem_margem[2];                // so para medir a IA antiga nos testes
+// O que ainda nao se ve na mesa, a IA imagina: o Oculto de cada lado tira um
+// numero ao acaso (nem o dono sabe o dele) e entra na sequencia.
+static void imagina_ocultos(void)
+{
+    for (int j = 0; j < 2; j++) {
+        if (!tem_escondido(j)) continue;
+        fila_t *f = &F[j];
+        for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+            if (!f->escondido[k]) continue;
+            int menor;
+            f->cru[k] = f->valor[k] = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
+            f->escondido[k] = false;
+        }
+        refaz_sequencia(j, f->lancados);
+    }
+}
+
 static float nota_mesa(int j, bool margem)
 {
     desfecho_t d;
     int c = carta_posta(0) ? 0 : carta_posta(1) ? 1 : -1;
-    if (c >= 0 && F[outro(c)].lancados) {        // a carta do Coringa: imagina ela virando agora
+    bool carta = c >= 0 && F[outro(c)].lancados, ocultos = tem_escondido(0) || tem_escondido(1);
+    if (carta || ocultos) {                      // a carta do Coringa e o Oculto: imagina eles virando agora
         mesa_t m;
         guarda_mesa(&m);
-        if (vira_carta(c)) sim_lanca(c);
+        if (ocultos) imagina_ocultos();
+        if (carta && vira_carta(c)) sim_lanca(c);
         calcula_desfecho(&d, false);
         volta_mesa(&m);
     } else calcula_desfecho(&d, false);

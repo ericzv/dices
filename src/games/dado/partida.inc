@@ -99,7 +99,7 @@ static bool melhor_lance(int j, peca_t *out)
     const fila_t *f = &F[j];
     int b = -1;
     for (int k = 0; k < f->lancados && k < f->n; k++)
-        if (b < 0 || f->valor[k] >= f->valor[b]) b = k;
+        if (!f->escondido[k] && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto ainda nao mostrou
     if (b < 0) return false;
     *out = (peca_t){ f->tipo[b], f->fixo[b] };
     return true;
@@ -299,6 +299,8 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
     }
     case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
     case EF_FANTASMA: x = fixo ? (int8_t)fixo : 1; break;
+    case EF_PREVISIVEL: x = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
+    case EF_VAZIO:    x = 0; break;
     default: break;
     }
     return x;
@@ -325,7 +327,7 @@ static void lanca_proximo(void)
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
-    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA || t == D_PREVISIVEL) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
         f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
@@ -337,6 +339,9 @@ static void lanca_proximo(void)
     int x = sorteia_valor(t, f->fixo[k], rola, &menor);
     f->cru[k] = x;
     f->valor[k] = x;
+    // O Previsivel sobe a cada lance, valendo ou nao (ate 12).
+    if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 11)
+        J[vez].col[f->idx[k]].fixo++;
 
     voo_t *v = &voo[0];
     memset(v, 0, sizeof *v);
@@ -461,17 +466,20 @@ static bool vira_carta(int j)
 // Mau-Olhado (a Bruxaria da Bruxa): quem o tem venceu a rodada, e um
 // Fantasma (vale 1) entra na bolsa do outro, j, ate o fim da partida. O
 // aviso da rodada ganha a linha dele.
-static void poe_fantasma(int j)
+static bool poe_fantasma(int j, bool avisa)
 {
     jogador_t *p = &J[j];
-    if (p->n_col >= MAX_COL) return;
+    if (p->n_col >= MAX_COL) return false;
     p->col[p->n_col] = (peca_t){ D_FANTASMA, 1 };
     p->onde[p->n_col++] = NA_BOLSA;
     t_fantasma = 1.6f;
     fantasma_para = (int8_t)j;
     if (j == 1) am_acende(A_MAU_OLHADO);
-    size_t n = strlen(aviso);
-    snprintf(aviso + n, sizeof aviso - n, j == 0 ? "  ·  um Fantasma entra na sua bolsa" : "  ·  um Fantasma entra na bolsa dele");
+    if (avisa) {
+        size_t n = strlen(aviso);
+        snprintf(aviso + n, sizeof aviso - n, j == 0 ? "  ·  um Fantasma entra na sua bolsa" : "  ·  um Fantasma entra na bolsa dele");
+    }
+    return true;
 }
 
 // Fim da partida: os Fantasmas somem das bolsas.
@@ -544,6 +552,14 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
+    // Pacto (cada lance) e Assombracao (valendo): Fantasmas nas bolsas.
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            int q = F[j].tipo[k] == D_PACTO ? j
+                  : F[j].tipo[k] == D_ASSOMBRACAO && F[j].est[k] == V_VALIDO ? outro(j) : -1;
+            if (q >= 0 && poe_fantasma(q, false))
+                snprintf(nota, sizeof nota, "%s ganha um Fantasma (%s)", J[q].nome, TIPO[F[j].tipo[k]].nome);
+        }
     if (n_coringa)
         snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói os %d dados seus que caíram" : "o Coringa destrói o dado seu que caiu", n_coringa);
     if (n_mist) {
@@ -601,7 +617,7 @@ static void conclui_rodada(void)
         }
         if (w == 0) seu_pote = pote;
         pote = 0;
-        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w));   // Mau-Olhado, a Bruxaria
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);
@@ -678,10 +694,12 @@ static void desfecho(void)
         memset(vis_corte[j], 0, N_FILA);
         memset(vis_pedra[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
+        memset(vis_oculto[j], 0, N_FILA);
     }
     for (int i = 0; i < n_ev; i++)
-        if (ev[i].tipo == EV_ESPELHO) {
-            vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
+        if (ev[i].tipo == EV_ESPELHO || ev[i].tipo == EV_REVELA) {
+            if (ev[i].tipo == EV_ESPELHO) vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
+            else vis_oculto[ev[i].de_j][ev[i].de_k] = 1;
             memcpy(vis_est[ev[i].de_j], est_pre_espelho[ev[i].de_j], N_FILA);
         }
     n_voo = 0;
@@ -706,6 +724,8 @@ static float duracao_evento(int i)
     case EV_AGIOTA:  return 1.6f;
     case EV_MEDUSA:  return 1.9f;
     case EV_GARIMPO: return 1.7f;
+    case EV_REVELA:  return 1.4f;
+    case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
@@ -784,6 +804,10 @@ static void flutua_evento(const evento_t *e)
         break;
     case EV_CHEFE:   flutua_em(dj, N_FILA, dj == 0 ? C_OURO : C_VINHO_CLR, 0, "+%d", e->valor); break;
     case EV_CORTA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+    case EV_VAMPIRO:
+        for (int k = 0; k < N_FILA; k++)
+            if (e->mascara >> k & 1) flutua_em(aj, k, C_VINHO_CLR, 0.25f + k * 0.08f, "-%d", e->valor);
+        break;
     default: break;
     }
 }
@@ -807,8 +831,13 @@ static void aplica_evento(int i)
         break;
     }
     case EV_ESPELHO:                    // virou: a sequencia refeita aparece
+    case EV_REVELA:                     // o Oculto mostrou: idem
         vis_espelho[e->de_j][e->de_k] = 0;
+        vis_oculto[e->de_j][e->de_k] = 0;
         memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
+        break;
+    case EV_VAMPIRO:
+        for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->alvo_j][k] -= (int8_t)e->valor;
         break;
     case EV_TIRA:   vis_delta[e->alvo_j] -= e->valor; break;
     case EV_PIRATA: vis_delta[e->alvo_j] -= e->valor; vis_delta[e->de_j] += e->valor; break;

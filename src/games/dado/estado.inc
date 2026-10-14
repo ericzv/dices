@@ -40,6 +40,7 @@ typedef struct {
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
+    bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -66,7 +67,9 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
        EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
        EV_MEDUSA,                    // a Medusa: a fila vira pedra (Quebrados)
-       EV_GARIMPO };                 // o Garimpeiro: os outros validos voltam para a bolsa
+       EV_GARIMPO,                   // o Garimpeiro: os outros validos voltam para a bolsa
+       EV_REVELA,                    // o Oculto mostra o que tirou
+       EV_VAMPIRO };                 // o Vampiro: -1 em cada dado do oponente que vale
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -150,6 +153,7 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_espelho[2][N_FILA];
+static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
 

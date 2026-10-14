@@ -178,7 +178,7 @@ static void des_nova_run(void)
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++)
-        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA) col[i].fixo = 0;
+        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL) col[i].fixo = 0;
 }
 
 static void des_comeca_partida(void)

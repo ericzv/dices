@@ -21,6 +21,7 @@ static void desenha_lance(void)
         bool descartado = false;
         float ex = v->x, ey = v->y;              // onde ele e desenhado
         int mostra = v->parado ? v->valor : v->face;
+        face_escondida = v->tipo == D_OCULTO;     // o Oculto rola e pousa virado
         // O lance menor do Viciado: riscado e encolhendo enquanto o maior
         // vai para a fila. O Reves do Sorte/Reves desliza para baixo da
         // Sorte e os dois viram um dado so, com o valor final.
@@ -86,6 +87,7 @@ static void desenha_lance(void)
             sombra_alt = alto * 0.6f;
         }
         desenha_dado(ex + dx, ey + bob, r, v->tipo, v->dono, ang, mostra, 2, descartado);
+        face_escondida = false;
         sr_lado = 0;
         sombra_alt = 0;
     }
@@ -542,7 +544,11 @@ static void desenha_fila(int j)
             if (q < 0.7f) face = face_v(t, f->valor[k]);
         }
         marca_nivel = f->fixo[k];
+        // O Oculto: "?" ate o evento dele chegar na metade.
+        face_escondida = f->escondido[k] || (no_desfecho && vis_oculto[j][k]
+                         && !(e && e->tipo == EV_REVELA && e->de_j == j && e->de_k == k && p > 0.5f));
         desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
+        face_escondida = false;
         marca_nivel = -1;
         // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
         if (coringa_joga(j) && k == 3 && f->idx[k] < 0) {
@@ -680,6 +686,8 @@ static void desenha_fila(int j)
             }
         }
         if (e && e->de_j == j && e->de_k == k) aro(x, y, C_VINHO_CLR);   // quem age
+        if (e && e->tipo == EV_VAMPIRO && e->alvo_j == j && (e->mascara >> k & 1) && p > 0.15f + k * 0.08f)
+            aro(x, y, C_VINHO_CLR);              // o Vampiro bebe deste
         if (alvo || (cavalo && p > 0.3f)) aro(x, y, C_VINHO_CLR);
         // Capitao: o galao pousou neste dado.
         if (capitao_agora(e) && e->de_j == j && (e->mascara >> k & 1)
@@ -780,7 +788,8 @@ static void desenha_fila(int j)
             snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
             txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
         }
-        if (carta_posta(j)) txt(PLACAR_X + 38, y - 26, "+?", C_OURO, false);   // a carta do Coringa ainda vai virar
+        if (carta_posta(j) || tem_escondido(j))   // a carta do Coringa ou um Oculto ainda vai virar
+            txt(PLACAR_X + 38, y - 26, "+?", C_OURO, false);
     }
 }
 
@@ -791,6 +800,23 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_VAMPIRO) {                 // gotas saem dos dados do oponente e vao ate o Vampiro
+        int bx = SLOT_X(e->de_k), by = zona(e->de_j);
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q = (p - 0.15f - k * 0.08f) / 0.5f;
+            if (q < 0 || q > 1) continue;
+            float s = q * q * (3 - 2 * q);
+            int ax = SLOT_X(k), ay = zona(e->alvo_j);
+            for (int t = 0; t < 4; t++) {
+                float s2 = s - t * 0.05f;
+                if (s2 < 0) continue;
+                int gx = ax + (int)((bx - ax) * s2), gy = ay + (int)((by - ay) * s2);
+                gfx_disco(gx, gy, t < 2 ? 3 : 2, gfx_mistura(C_VINHO_CLR, C_FELTRO, t * 22));
+            }
+        }
+        return;
+    }
     if (e->tipo == EV_CHEFE) {                   // pontos direto no placar: o +N sobe nele
         char t[8];
         snprintf(t, sizeof t, "+%d", e->valor);

@@ -5,7 +5,7 @@
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
 #define HIST_DADOS 96                    // par: o rabo da estrutura fica no mesmo alinhamento
-#define HIST_COL   48
+#define HIST_COL   48                 // dados guardados da run campea (camp_n conta todos)
 #define HIST_CAMPOS(N, NIV)                                                                \
     char     marca[4];                   /* "HIS2" */                                      \
     uint32_t rodadas, rodadas_venc;                                                        \
@@ -24,7 +24,7 @@
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS) } hist_t;
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS_V) } hist1_t;  // "HIS1", dos 5 niveis: lido e convertido
 typedef struct { HIST_CAMPOS(64, N_NIVEIS_V) } hist64_t;         // o de antes dos 69 tipos: idem
-_Static_assert(D_N <= HIST_DADOS && MAX_COL <= HIST_COL && A_N <= 32, "o historico nao comporta os dados");
+_Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 32, "o historico nao comporta os dados");
 _Static_assert(sizeof(hist_t) != sizeof(hist1_t) && sizeof(hist_t) != sizeof(hist64_t)
                && sizeof(hist1_t) != sizeof(hist64_t), "os formatos do historico se distinguem pelo tamanho");
 
@@ -90,8 +90,8 @@ static void hist_carrega(int i)
         hist_converte(&h, &v1);
     }
     if (memcmp(h.marca, "HIS2", 4)) return;
-    if (h.camp_n > HIST_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
-    for (int k = 0; h.camp_tem && k < h.camp_n; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
+    if (h.camp_n > MAX_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
+    for (int k = 0; h.camp_tem && k < h.camp_n && k < HIST_COL; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
     hist = h;
 }
 
@@ -180,8 +180,8 @@ static void hist_run_venceu(void)
     if (!hist.camp_tem || d >= hist.camp_dif) {
         hist.camp_tem = 1;
         hist.camp_dif = (uint8_t)d;
-        hist.camp_n = run.n_col;
-        for (int k = 0; k < run.n_col; k++) hist.camp_col[k] = run.col[k].tipo;
+        hist.camp_n = run.n_col;              // a bolsa nao tem limite: guarda os 48 primeiros
+        for (int k = 0; k < run.n_col && k < HIST_COL; k++) hist.camp_col[k] = run.col[k].tipo;
         hist.camp_amul = run_amuletos();
         hist.camp_moedas = run.moedas;
         hist.camp_data = hoje();
@@ -274,14 +274,23 @@ static void hist_resumo(void)
                      dt % 100, dt / 100 % 100, dt / 10000, hist.camp_moedas);
     else snprintf(s, sizeof s, "%s  ·  %d moedas", NOME_DIF_CURTO[hist.camp_dif], hist.camp_moedas);
     txt_c(px + pw / 2, y + 30, s, hist.camp_dif ? COR_DIF[hist.camp_dif] : C_MARFIM_S, false);
-    int por = 9, r = hist.camp_n > 27 ? 9 : 11, passo = r * 2 + 8;
-    int linhas = (hist.camp_n + por - 1) / por, topo = y + 56 + (150 - linhas * (passo + 2)) / 2 + r;
-    for (int k = 0; k < hist.camp_n; k++) {
-        int lin = k / por, col = k % por;
-        int na = hist.camp_n - lin * por < por ? hist.camp_n - lin * por : por;
-        int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + lin * (passo + 2);
+    // Os dados guardados (ate 48) numa grade que encolhe; os que passam disso viram "+N".
+    int nc = hist.camp_n < HIST_COL ? hist.camp_n : HIST_COL, mais = hist.camp_n - nc;
+    int alt = mais ? 134 : 150;
+    grade_t g = grade_cabe(nc, 9, 32, alt);
+    int r = (int)(11 * g.f), linhas = (nc + g.por - 1) / g.por;
+    float passo = 30 * g.f, passo_y = 32 * g.f;
+    int topo = y + 56 + (int)((alt - linhas * passo_y) / 2 + passo_y / 2);
+    for (int k = 0; k < nc; k++) {
+        int lin = k / g.por, col = k % g.por;
+        int na = nc - lin * g.por < g.por ? nc - lin * g.por : g.por;
+        int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + (int)(lin * passo_y);
         peca_parada((float)cx, (float)cy, (float)r, (peca_t){ hist.camp_col[k], 0 }, 0);
         dica_zona(cx - r, cy - r, 2 * r, 2 * r, DICA_DADO, hist.camp_col[k]);
+    }
+    if (mais) {
+        snprintf(s, sizeof s, "+%d dados", mais);
+        txt_c(px + pw / 2, topo + (int)((linhas - 1) * passo_y) + r + 6, s, C_TEXTO_M, false);
     }
     int na = 0;
     for (int a = 0; a < A_N; a++) if (hist.camp_amul >> a & 1) na++;

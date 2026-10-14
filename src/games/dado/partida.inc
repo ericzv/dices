@@ -469,7 +469,7 @@ static bool vira_carta(int j)
 static bool poe_fantasma(int j, bool avisa)
 {
     jogador_t *p = &J[j];
-    if (p->n_col >= lim_col()) return false;     // bolsa cheia (24 fora do Desafiante): nao cabe
+    if (p->n_col >= lim_col()) return false;     // so se a estrutura estiver cheia (128)
     p->col[p->n_col] = (peca_t){ D_FANTASMA, 1 };
     p->onde[p->n_col++] = NA_BOLSA;
     t_fantasma = 1.6f;

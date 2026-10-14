@@ -412,8 +412,9 @@ static void trata_tecla(int k)
         slot_pula();                                // tecla do rival: a roleta daqui trava
         if (t_tira > 0) return;                     // dado saindo: espera
         if (removendo) {
-            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE) cursor -= GRADE; return; }
-            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + GRADE < p->n_col) cursor += GRADE; return; }
+            int por = grade_tira(p->n_col).por;
+            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return; }
+            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < p->n_col) cursor += por; return; }
             if (e) { cursor = (cursor + e + p->n_col) % p->n_col; return; }
             if (k == KEY_BKSP || k == 'x') { removendo = false; cursor = 3; return; }
             if (k == KEY_ENTER) { tira_i = cursor; t_tira = 0.001f; som_toca(SOM_ANULA); }

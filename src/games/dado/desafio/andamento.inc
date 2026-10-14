@@ -18,10 +18,16 @@ static void des_salva(void)
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
+    static run48_t v;
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
-    if (n != (int)(2 * sizeof(run_t))) return false;
     memset(r, 0, sizeof *r);
-    if (!de_hex(buf, r, sizeof *r)) return false;
+    if (n == (int)(2 * sizeof v)) {                   // da bolsa de 48: o resto anda para depois dela
+        if (!de_hex(buf, &v, sizeof v)) return false;
+        memcpy(r, &v, offsetof(run48_t, col));
+        memcpy(r->col, v.col, sizeof v.col);
+        memcpy(r->no, v.no, sizeof v - offsetof(run48_t, no));
+        if (r->n_col > 48) return false;
+    } else if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
     if (!memcmp(r->marca, "DES1", 4) && r->dificuldade <= N_NIVEIS_V) {   // do tempo dos 5 niveis: n vira 2n
         r->dificuldade = (uint8_t)(2 * r->dificuldade);
         memcpy(r->marca, "DES2", 4);

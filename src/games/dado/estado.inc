@@ -173,9 +173,9 @@ enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
 // Modos: contra o computador, dois no mesmo teclado, ou online.
 enum { M_UM, M_DOIS, M_ONLINE, M_DESAFIO };
 static int  modo;
-// Quantos dados cabem na colecao: 24 na partida normal; sem limite pratico
-// no Modo Desafiante.
-static int lim_col(void) { return modo == M_DESAFIO ? MAX_COL : LIM_COL; }
+// Quantos dados cabem na colecao: em qualquer modo, so o espaco da
+// estrutura (128, bem longe do que uma run junta); nao ha limite de jogo.
+static int lim_col(void) { return MAX_COL; }
 
 // Amuletos: so no Modo Desafiante, so de quem joga (o oponente nunca tem).
 // A run guarda quais tem; a partida copia para amul[0].

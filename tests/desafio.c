@@ -120,12 +120,54 @@ int main(int argc, char **argv)
                     && !hist.runs_venc[3] && hist.lancou[D_D8] == 3 && hist.camp_tem && hist.camp_dif == 6
                     && hist.camp_col[0] == D_ESCUDO && hist.camp_moedas == 77, "historico dos 5 niveis nao foi convertido");
         }
+        // A bolsa nao tem limite: a run campea grande guarda os 48 primeiros e conta todos.
+        {
+            hist_t salvo = hist;
+            memset(&run, 0, sizeof run);
+            run.dificuldade = N_NIVEIS; run.n_col = 60;
+            for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ i == 47 ? D_LASER : D_D6, 0 };
+            hist_run_venceu();
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(hist.camp_tem && hist.camp_n == 60 && hist.camp_col[47] == D_LASER && hist.camp_dif == N_NIVEIS,
+                    "run campea com 60 dados nao voltou do salvamento");
+            hist = salvo;
+        }
         hist = antes; hist_de = 0;
         hist_grava();
         hist_apaga(0);
         hist_carrega(0);
         CONFERE(hist.rodadas == 0, "apagar o perfil devia levar o historico");
         hist_de = -1;
+    }
+
+    // A run salva quando a bolsa parava em 48 volta convertida, com o que vem
+    // depois da bolsa no lugar; e uma run com mais de 48 dados vai e volta.
+    {
+        salva_limpa_tudo();
+        perfil_atual = 0;
+        static run48_t v;
+        static char buf[2 * sizeof(run48_t) + 1];
+        static run_t r;
+        memset(&v, 0, sizeof v);
+        memcpy(v.marca, "DES2", 4);
+        v.andar = 1; v.passo = 2; v.moedas = 345; v.n_col = 30; v.dificuldade = 4;
+        for (int i = 0; i < v.n_col; i++) v.col[i] = (peca_t){ D_D6, 0 };
+        v.col[29] = (peca_t){ D_LASER, 1 };
+        v.caminho[1] = 2; v.no[1][2].tipo = NO_DIFICIL; v.tirados = 3; v.amuletos_hi = 5;
+        hex_de(&v, sizeof v, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(des_carrega(&r) && r.n_col == 30 && r.col[29].tipo == D_LASER && r.col[29].fixo == 1 && r.moedas == 345
+                && r.caminho[1] == 2 && r.no[1][2].tipo == NO_DIFICIL && r.tirados == 3 && r.amuletos_hi == 5
+                && r.dificuldade == 4, "run da bolsa de 48 nao foi convertida");
+        r.n_col = 100;
+        for (int i = 30; i < r.n_col; i++) r.col[i] = (peca_t){ D_D8, 0 };
+        run = r;
+        des_salva();
+        memset(&r, 0, sizeof r);
+        CONFERE(des_carrega(&r) && r.n_col == 100 && r.col[99].tipo == D_D8 && r.tirados == 3,
+                "run com 100 dados nao voltou do salvamento");
+        salva_limpa_tudo();
     }
 
     // Estilo: so o que o andar ja abriu vale; o resto volta ao padrao. Os

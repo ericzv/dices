@@ -42,8 +42,7 @@
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
-#define MAX_COL     48             // espaco para a colecao (o Desafiante nao tem limite)
-#define LIM_COL     24             // dados que um jogador pode ter na partida normal
+#define MAX_COL     128            // espaco para a colecao: a bolsa nao tem limite de dados
 #define MAO         8              // espaco da mao (compra 7; 8 com a Bolsa Funda)
 #define MAO_NORMAL  7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4

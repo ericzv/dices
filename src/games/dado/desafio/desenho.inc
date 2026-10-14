@@ -346,7 +346,9 @@ static void desenha_loja_run(void)
 }
 
 // ---- A bolsa ------------------------------------------------------------
-#define GRADE_B 12
+// 12 por linha, tres linhas antes de encolher.
+#define BOLSA_Y 118                  // o alto da grade
+static grade_t grade_bolsa(int n) { return grade_cabe(n, 12, 40, 120); }
 static void desenha_bolsa_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
@@ -355,15 +357,18 @@ static void desenha_bolsa_run(void)
     char s[64];
     snprintf(s, sizeof s, "%d dados", run.n_col);
     txt_c(GFX_W / 2, MESA_Y0 + 44, s, C_MARFIM_S, false);
+    grade_t g = grade_bolsa(run.n_col);
+    float f = g.f;
+    int sel = (int)(20 * f);
     for (int i = 0; i < run.n_col; i++) {
-        int lin = i / GRADE_B, col = i % GRADE_B;
-        int na_linha = (run.n_col - lin * GRADE_B) < GRADE_B ? run.n_col - lin * GRADE_B : GRADE_B;
-        int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44);
-        int y = 138 + lin * 40;
-        if (i == cursor) ui_selecao(x - 20, y - 20, 40, 40, C_OURO);
-        peca_parada((float)x, (float)y, 15, run.col[i], 0);
-        if (i != cursor) marca_rar(x, y + 20, run.col[i].tipo);
-        zona_clique(x - 20, y - 20, 40, 40, &cursor, i, 'i');   // clique abre os detalhes
+        int lin = i / g.por, col = i % g.por;
+        int na_linha = (run.n_col - lin * g.por) < g.por ? run.n_col - lin * g.por : g.por;
+        int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44 * f);
+        int y = BOLSA_Y + (int)((lin + 0.5f) * 40 * f);
+        if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_OURO);
+        peca_parada((float)x, (float)y, 15 * f, run.col[i], 0);
+        if (i != cursor) marca_rar(x, y + sel, run.col[i].tipo);
+        zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, 'i');   // clique abre os detalhes
     }
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar ao mapa", KEY_TAB);
     // Os amuletos da run, nas laterais: seis de cada lado.

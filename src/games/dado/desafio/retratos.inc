@@ -772,32 +772,36 @@ typedef struct {
 } no_t;
 
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal).
-typedef struct {
-    char     marca[4];                   // "DES2" (o "DES1" dos 5 niveis e convertido)
-    uint8_t  andar, passo, estado, vitorias;
-    int32_t  moedas, ganho;              // ganho: moedas da ultima vitoria
-    uint32_t semente;
-    uint8_t  n_col, tier;                // tier: dificuldade da ultima mesa vencida
-    peca_t   col[MAX_COL];
-    no_t     no[DES_PASSOS][3];          // [passo][linha]; tipo NO_VAZIO = sem mesa
-    int8_t   caminho[DES_PASSOS];        // linha escolhida em cada passo do salao
-    peca_t   loja[N_LOJA];
-    uint8_t  levou[N_LOJA];
-    peca_t   oferta[3];                  // premio a escolher (estado R_PREMIO)
-    uint16_t amuletos;                   // bit a: tem o amuleto a (os de 16 em diante em amuletos_hi)
-    uint8_t  am_oferta[3];               // amuletos a escolher (estado R_AMULETO)
-    uint8_t  am_volta;                   // depois da escolha: 0 loja da entrada, 1 segue no mapa
-    uint8_t  am_loja, am_levou;          // amuleto a venda na loja (0xFF: nenhum)
-    uint8_t  juros;                      // moedas que o Cofre rendeu na ultima vitoria
-    uint8_t  dificuldade;                // 0 normal .. N_NIVEIS
-    uint16_t amuletos_hi;
-    uint8_t  taca;                       // moedas que a Taca rendeu na ultima vitoria
-    uint8_t  premio2;                    // Selo de Divida: no segundo premio do chefe
-    // Eventos: lapidou (o Lapidador ja foi usado: nao aparece mais), garcom
-    // (o proximo oponente comeca com 10 fichas a menos), puxadas no
-    // caca-niquel e dados que a Capela ja levou.
+#define RUN_CAMPOS(NCOL)                                                                   \
+    char     marca[4];                   /* "DES2" (o "DES1" dos 5 niveis e convertido) */ \
+    uint8_t  andar, passo, estado, vitorias;                                               \
+    int32_t  moedas, ganho;              /* ganho: moedas da ultima vitoria */             \
+    uint32_t semente;                                                                      \
+    uint8_t  n_col, tier;                /* tier: dificuldade da ultima mesa vencida */    \
+    peca_t   col[NCOL];                                                                    \
+    no_t     no[DES_PASSOS][3];          /* [passo][linha]; tipo NO_VAZIO = sem mesa */    \
+    int8_t   caminho[DES_PASSOS];        /* linha escolhida em cada passo do salao */      \
+    peca_t   loja[N_LOJA];                                                                 \
+    uint8_t  levou[N_LOJA];                                                                \
+    peca_t   oferta[3];                  /* premio a escolher (estado R_PREMIO) */         \
+    uint16_t amuletos;                   /* bit a: tem o amuleto a (16+ em amuletos_hi) */  \
+    uint8_t  am_oferta[3];               /* amuletos a escolher (estado R_AMULETO) */      \
+    uint8_t  am_volta;                   /* depois da escolha: 0 loja da entrada, 1 mapa */ \
+    uint8_t  am_loja, am_levou;          /* amuleto a venda na loja (0xFF: nenhum) */      \
+    uint8_t  juros;                      /* moedas que o Cofre rendeu na ultima vitoria */ \
+    uint8_t  dificuldade;                /* 0 normal .. N_NIVEIS */                        \
+    uint16_t amuletos_hi;                                                                  \
+    uint8_t  taca;                       /* moedas que a Taca rendeu na ultima vitoria */  \
+    uint8_t  premio2;                    /* Selo de Divida: no segundo premio do chefe */  \
+    /* Eventos: lapidou (o Lapidador ja foi usado: nao aparece mais), garcom            */ \
+    /* (o proximo oponente comeca com 10 fichas a menos), puxadas no                    */ \
+    /* caca-niquel e dados que a Capela ja levou.                                       */ \
     uint8_t  lapidou, garcom, puxadas, tirados;
-} run_t;
+typedef struct { RUN_CAMPOS(MAX_COL) } run_t;
+typedef struct { RUN_CAMPOS(48) } run48_t;     // de quando a bolsa parava em 48: lido e convertido
+_Static_assert(sizeof(run_t) != sizeof(run48_t)
+               && sizeof(run_t) - offsetof(run_t, no) == sizeof(run48_t) - offsetof(run48_t, no),
+               "os formatos da run se distinguem pelo tamanho, e o que vem depois da bolsa e igual");
 
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa

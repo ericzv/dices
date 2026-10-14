@@ -73,9 +73,10 @@ static bool des_tecla(int k, int e)
         return true;
     }
 
-    case F_RBOLSA:
-        if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE_B) cursor -= GRADE_B; return true; }
-        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + GRADE_B < run.n_col) cursor += GRADE_B; return true; }
+    case F_RBOLSA: {
+        int por = grade_bolsa(run.n_col).por;
+        if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return true; }
+        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < run.n_col) cursor += por; return true; }
         if (e && run.n_col) {
             int tot = run.n_col + am_conta(run_amuletos());
             cursor = (cursor + e + tot) % tot;
@@ -84,6 +85,7 @@ static bool des_tecla(int k, int e)
         }
         if (k == KEY_TAB || k == KEY_ENTER || k == KEY_BKSP || k == 'x') { t_fase = 0; fase = F_MAPA; }
         return true;
+    }
 
     case F_RFIM:
         if (k != KEY_ENTER) return true;

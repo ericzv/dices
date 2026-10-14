@@ -409,27 +409,18 @@ static void galao(int cx, int cy)
     gfx_rect(cx - 6, cy - 1, 12, 1, C_AMARELO);
 }
 
-// A carta do Coringa, de pe na mesa: o verso purpura com o losango. Posta,
-// em suspensao ate o seu turno acabar, um "?" flutua em cima dela.
-static void desenha_carta(int x, int y, bool posta, bool apagada)
+// A carta do Coringa: so um "?" no lugar do dado. Na fila, esperando a vez,
+// e menor e parado, como os dados que ainda nao foram lancados; posta, em
+// suspensao ate o seu turno acabar, fica do tamanho de um dado, flutuando.
+static void desenha_carta(int x, int y, bool posta)
 {
-    int w = 26, h = 2 * R_DADO, x0 = x - w / 2, y0 = y - h / 2;
-    uint16_t verso = apagada ? C_FELTRO2 : C_REAL;
-    gfx_rect(x0 + 2, y0 + 3, w, h, C_SOMBRA);
-    gfx_rect(x0 - 1, y0 - 1, w + 2, h + 2, C_BARRA);
-    gfx_rect(x0, y0, w, h, apagada ? C_FELTRO_ESC : C_MARFIM);
-    gfx_rect(x0 + 2, y0 + 2, w - 4, h - 4, gfx_mistura(verso, C_BARRA, 35));
-    gfx_rect(x0 + 3, y0 + 3, w - 6, h - 6, verso);
-    float vx[4] = { (float)x, (float)(x + 7), (float)x, (float)(x - 7) };
-    float vy[4] = { (float)(y - 11), (float)y, (float)(y + 11), (float)y };
-    poligono(vx, vy, 4, apagada ? C_FELTRO_ESC : C_MARFIM);
-    float ux[4] = { (float)x, (float)(x + 4), (float)x, (float)(x - 4) };
-    float uy[4] = { (float)(y - 6), (float)y, (float)(y + 6), (float)y };
-    poligono(ux, uy, 4, verso);
-    if (posta) {
-        int b = (int)lroundf(sinf(t_relogio * 3.0f) * 3);
-        txt_sombra_c(x, y0 - 26 + b, "?", C_OURO, 2);
+    if (!posta) {
+        gfx_disco(x, y, R_DADO - 2, C_FELTRO_ESC);                // lugar marcado
+        txt_sombra_c(x, y - 20, "?", C_OURO, 2);                  // o glifo: 10 a 30 da linha
+        return;
     }
+    int b = (int)lroundf(sinf(t_relogio * 3.0f) * 3);
+    txt_sombra_c(x, y - 30 + b, "?", C_OURO, 3);                  // 30 px de altura, centrado no lugar
 }
 
 static void desenha_fila(int j)
@@ -460,8 +451,9 @@ static void desenha_fila(int j)
         int t = tipo_de(j, k);
         if (f->carta && k == 3) {                // a carta do Coringa: na fila ou posta
             if (fala_perso >= 0) dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_TRUNFO, fala_perso);
-            bool cinza = k >= f->lancados && (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO);
-            desenha_carta(x, y, k < f->lancados, cinza);
+            desenha_carta(x, y, k < f->lancados);
+            if (k >= f->lancados && (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO))
+                acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);       // como os dados que ainda nao foram
             if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
             continue;
         }

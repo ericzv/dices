@@ -73,8 +73,11 @@ static void compra(jogador_t *p)
     }
 }
 
+static void some_fantasmas(void);
+
 static void encerra(int vencedor)
 {
+    some_fantasmas();
     venc_partida = vencedor;
     fase = F_FIM;
     hist_partida(vencedor);
@@ -124,6 +127,21 @@ static void nova_rodada(void)
     if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
         t_aviso_entrada = ENTRADA_AVISO_T;
         som_toca(SOM_FICHA);
+    }
+    // Os Juros da Banqueira: comecou atras em fichas, a sua entrada custa 2 a
+    // mais (o que der, sem passar do que voce tem).
+    juros_rodada = 0;
+    if (tem_reg(REG_JUROS) && J[0].fichas < J[1].fichas) {
+        juros_rodada = J[0].fichas - ante < 2 ? J[0].fichas - ante : 2;
+        J[0].fichas -= juros_rodada;
+        pote += juros_rodada;
+    }
+    // A moeda do Maluco: cara, +2 nos dados dele nesta rodada; coroa, -1.
+    if (tem_reg(REG_MALUCO)) {
+        maluco_lado = (int8_t)((rnd() & 1) ? 2 : -1);
+        snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
+        t_fala = 2.6f;
+        fala_e_curta = false;
     }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
@@ -261,6 +279,7 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
         break;
     }
     case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
+    case EF_FANTASMA: x = fixo ? (int8_t)fixo : 1; break;
     default: break;
     }
     return x;
@@ -365,11 +384,68 @@ static void medusa_petrifica(int j, const desfecho_t *d)
     if (!d->medusa[j]) return;
     fila_t *f = &F[j];
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
-        if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || vis_queima[j][k]) continue;
+        if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || f->tipo[k] == D_FANTASMA || vis_queima[j][k]) continue;
         if (f->tipo[k] == D_VIDRO && f->cru[k] == 1) continue;              // estilhacado: ja sai
         if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
         int v = f->valor[k] > 99 ? 99 : f->valor[k] < -99 ? -99 : f->valor[k] ? f->valor[k] : 1;
         J[j].col[f->idx[k]] = (peca_t){ D_QUEBRADO, (uint8_t)(int8_t)v };    // o Reves negativo vira pedra negativa
+    }
+}
+
+// O Coringa: o dado mais forte da bolsa de quem joga contra ele - o de maior
+// media, sem os que machucam quem lanca (Agouro, Egoista, Tudo ou Nada,
+// Berserker, Autofagia, Ficha de Fogo, Vidro, Medusa, Quebrado, Fantasma).
+static float media(peca_t p);                    // ia.inc
+static peca_t coringa_copia(void)
+{
+    const jogador_t *p = &J[0];
+    peca_t b = { D_D6, 0 };
+    float nb = -1;
+    for (int i = 0; i < p->n_col; i++) {
+        peca_t c = p->col[i];
+        switch (TIPO[c.tipo].efeito) {
+        case EF_MALDITO: case EF_EGOISTA: case EF_TUDO_NADA: case EF_BERSERKER: case EF_AUTOFAGIA:
+        case EF_FOGO: case EF_VIDRO: case EF_MEDUSA: case EF_QUEBRADO: case EF_FANTASMA: continue;
+        default: break;
+        }
+        float n = media(c) * 10 + TIPO[c.tipo].raridade;
+        if (n > nb) { nb = n; b = c; }
+    }
+    return b;
+}
+static bool coringa_joga(int j) { return j == 1 && tem_reg(REG_CORINGA); }
+// A fila do Coringa ficou pronta com tres dados: o quarto e a copia (fora da
+// bolsa dele: idx -1).
+static void coringa_completa(int j)
+{
+    fila_t *f = &F[j];
+    if (!coringa_joga(j) || f->n != 3) return;
+    peca_t c = coringa_copia();
+    f->tipo[3] = c.tipo; f->fixo[3] = c.fixo; f->idx[3] = -1;
+    f->n = 4;
+}
+
+// A Bruxa venceu a rodada: um Fantasma (vale 1) entra na bolsa de j, ate o
+// fim da partida.
+static void poe_fantasma(int j)
+{
+    jogador_t *p = &J[j];
+    if (p->n_col >= MAX_COL) return;
+    p->col[p->n_col] = (peca_t){ D_FANTASMA, 1 };
+    p->onde[p->n_col++] = NA_BOLSA;
+    if (j == baixo) t_fantasma = 1.6f;
+}
+
+// Fim da partida: os Fantasmas somem das bolsas.
+static void some_fantasmas(void)
+{
+    for (int j = 0; j < 2; j++) {
+        jogador_t *p = &J[j];
+        int n = 0;
+        for (int i = 0; i < p->n_col; i++)
+            if (p->col[i].tipo != D_FANTASMA) { p->col[n] = p->col[i]; p->onde[n++] = p->onde[i]; }
+        p->n_col = n;
+        p->n_mao = 0;
     }
 }
 
@@ -401,7 +477,7 @@ static void recolhe_quebrados(void)
             if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
             if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
-            if (some) saem[n++] = F[j].idx[k];
+            if (some && F[j].idx[k] >= 0) saem[n++] = F[j].idx[k];   // a copia do Coringa nao e da bolsa
         }
         for (int a = 1; a < n; a++)
             for (int b = a; b > 0 && saem[b] > saem[b - 1]; b--) {
@@ -452,6 +528,7 @@ static void conclui_rodada(void)
     bool casa = F[0].total == F[1].total && tem_reg(REG_CASA);   // o Crupie leva o empate
     if (F[0].total == F[1].total && !casa) {
         venc_mao = 2;
+        J[0].perdeu_ultima = J[1].perdeu_ultima = false;
         som_toca(SOM_EMPATE);
         snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
     } else {
@@ -459,6 +536,8 @@ static void conclui_rodada(void)
         venc_mao = w;
         res_quem = w;
         J[outro(w)].perdidas++;                  // o Rancor conta
+        J[outro(w)].perdeu_ultima = true;        // e a Revanche do Rival
+        J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
         else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
@@ -475,6 +554,11 @@ static void conclui_rodada(void)
         }
         if (w == 0) seu_pote = pote;
         pote = 0;
+        if (w == 1 && tem_reg(REG_BRUXARIA) && J[0].n_col < MAX_COL) {   // a Bruxaria
+            poe_fantasma(0);
+            size_t n = strlen(aviso);
+            snprintf(aviso + n, sizeof aviso - n, "  ·  um Fantasma entra na sua bolsa");
+        }
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);

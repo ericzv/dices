@@ -22,7 +22,8 @@ static bool des_carrega(run_t *r)
     if (n != (int)(2 * sizeof(run_t))) return false;
     memset(r, 0, sizeof *r);
     if (!de_hex(buf, r, sizeof *r)) return false;
-    if (memcmp(r->marca, "DES1", 4) || r->andar >= DES_ANDARES || r->passo >= DES_PASSOS
+    if (memcmp(r->marca, "DES1", 4) || r->andar > DES_ANDAR_FINAL || (r->andar == DES_ANDAR_FINAL && r->dificuldade < N_NIVEIS)
+        || r->passo >= DES_PASSOS
         || r->estado > R_EVENTO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
@@ -91,15 +92,18 @@ static void encerra_run(bool venceu)
 }
 
 // Passo vencido (ou loja deixada): segue no mapa; depois do chefe, sobe de
-// salao; depois do terceiro chefe, a run esta ganha.
+// salao; depois do terceiro chefe, a run esta ganha - menos no Desafiante 5,
+// em que ainda falta o salao do Coringa (a ultima loja e ele).
 static void avanca_passo(void)
 {
     run.passo++;
+    if (run.andar == DES_ANDAR_FINAL && run.passo >= 2) { encerra_run(true); return; }   // venceu o Coringa
     if (run.passo >= DES_PASSOS) {
         run.andar++;
-        if (run.andar >= DES_ANDARES) { run.andar = DES_ANDARES - 1; encerra_run(true); return; }
         run.passo = 0;
-        gera_andar();
+        if (run.andar == DES_ANDAR_FINAL && run.dificuldade >= N_NIVEIS) gera_salao_final();
+        else if (run.andar >= DES_ANDARES) { run.andar = DES_ANDARES - 1; encerra_run(true); return; }
+        else gera_andar();
     }
     run.estado = R_MAPA;
     des_salva();
@@ -191,7 +195,7 @@ static void des_comeca_partida(void)
     J[0].cor = C_LATAO;
     amul[0] = run_amuletos();
     memset(am_brilho, 0, sizeof am_brilho);
-    amul[1] = PERSO[no->perso].amul;              // o trunfo do oponente
+    amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
     if (run.dificuldade >= 5) {                   // Diamante: mais um amuleto para ele
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
@@ -203,7 +207,8 @@ static void des_comeca_partida(void)
         }
     }
     des_rod_vencidas = 0;
-    reg_op = PERSO[no->perso].reg;
+    reg_op = trunfo_ativo(no->perso) ? PERSO[no->perso].reg : REG_NADA;
+    estilo_op = PERSO[no->perso].estilo;
     op_nervoso = false;
     fala_perso = no->perso;
     perso_virado = -1;

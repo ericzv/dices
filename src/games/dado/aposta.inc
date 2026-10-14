@@ -104,8 +104,15 @@ static void executa(int op)
         res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
         res_quem = w;
         p->perdidas++;                    // correr conta como perder (Rancor)
+        p->perdeu_ultima = true;
+        J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
+        if (w == 1 && tem_reg(REG_BRUXARIA) && J[0].n_col < MAX_COL) {
+            poe_fantasma(0);
+            size_t na = strlen(aviso);
+            snprintf(aviso + na, sizeof aviso - na, "  ·  um Fantasma entra na sua bolsa");
+        }
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;

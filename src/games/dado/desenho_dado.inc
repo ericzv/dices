@@ -651,6 +651,16 @@ static int desenho_interno(int tipo, float u, float v, float s)
         int c = (int)floorf(f) % 3;
         return c;                                                            // claro, terra e couro
     }
+    case D_FANTASMA: {                            // uma presenca que mal esta ali: dois contornos tracejados
+        float x = u - 0.08f, y = v - 0.08f;
+        float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
+        float ao_longo = fabsf(x) > fabsf(y) ? y : x;            // a posicao ao longo do lado
+        for (int i = 0; i < 2; i++) {
+            float m = i ? 0.36f : 0.58f;
+            if (fabsf(e - m) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.5f) < 0.55f) return i ? 3 : 1;
+        }
+        return e > 0.66f ? 2 : 0;                                 // a borda, um pouco mais densa
+    }
     case D_POTE_QUENTE: {                         // o calor concentrado: losangos que esquentam para dentro
         float dd = (fabsf(u - 0.08f) + fabsf(v - 0.08f)) / 0.99f;
         if (dd < 0.15f) return 3;                                            // o miolo
@@ -992,7 +1002,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (vista == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
-        if (tipo == D_QUEBRADO && valor) {
+        if ((tipo == D_QUEBRADO || tipo == D_FANTASMA) && valor) {
             snprintf(s, sizeof s, "%d", (int8_t)valor);
             numero(cx, cy, r, s, tinta);
             return;

@@ -322,10 +322,12 @@ static void aplica_regra(int j, int k)
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
         if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
+        if (j == 1 && tem_reg(REG_REVANCHE) && J[1].perdeu_ultima) am_b += 1;     // a Revanche do Rival
+        if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
         if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
@@ -419,7 +421,7 @@ static void pousa(int j, int k, int (*r)(int))
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
     int mira = f->valor[k];
     f->calibre[k] = false;
-    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO) {
+    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
         int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
         if (mira < teto) { f->cru[k] = f->valor[k] = mira + 1; f->calibre[k] = true; }
     }

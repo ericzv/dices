@@ -12,7 +12,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_CAVALO, EF_BERSERKER, EF_VIUVA, EF_CAPITAO, EF_CHECKPOINT, EF_SORTE_REVES,
        EF_AUTOFAGIA, EF_ECO, EF_DOMINO, EF_ANCORA, EF_MARTIR, EF_PUXA, EF_COVEIRO, EF_HEXA,
        EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA,
-       EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE };
+       EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -42,7 +42,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_CHECKPOINT, D_SORTE_REVES, D_AUTOFAGIA,
        D_ECO, D_DOMINO, D_ANCORA, D_MARTIR, D_PUXA_FILA, D_COVEIRO, D_HEXA,
        D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
-       D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_N };
+       D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -58,6 +58,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // O Dado Misterioso nao aparece em lugar nenhum: nem na colecao, nem no
 // premio, nem na loja. So sai de uma pedra negativa que se parte.
 static bool oculto(int t) { return t == D_MISTERIOSO; }
+// Dados que nao saem em sorteio nenhum (premio, loja, liberacao): o oculto e
+// o Fantasma, que so aparece quando alguem o poe na bolsa.
+static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA; }
 static bool so_desafio(int t)
 {
     switch (t) {
@@ -71,13 +74,13 @@ static bool so_desafio(int t)
 static int n_basicos(void)
 {
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !oculto(t);
+    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !sem_sorteio(t);
     return n;
 }
 static int basico(int i)
 {
     for (int t = 0; t < D_N; t++)
-        if (!so_desafio(t) && !oculto(t) && i-- == 0) return t;
+        if (!so_desafio(t) && !sem_sorteio(t) && i-- == 0) return t;
     return D_D6;
 }
 
@@ -159,6 +162,7 @@ static const tipo_t TIPO[D_N] = {
     { "Ponte",            4, EF_PONTE,        RAR_RARO,     0, "nunca cai, e a fila pula ela" },
     { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: os outros válidos voltam à bolsa" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
+    { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "vale sempre 1; some no fim da partida" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -241,6 +245,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PONTE]     = "Nunca cai pela regra da fila, e o dado seguinte compara com o de antes dela.",
     [D_GARIMPEIRO] = "Se ficar valendo, no fim os outros dados seus que valem voltam direto para a bolsa.",
     [D_POTE_QUENTE] = "Se ficar valendo: +1 a cada 25 fichas no pote, no fim da rodada.",
+    [D_FANTASMA]  = "Vale sempre o número marcado (1). Não some ao ser lançado: só no fim da partida.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -350,6 +355,9 @@ static const char *TEXTO_CAT[D_N] = {
                      "na próxima rodada. Ele mesmo, os que caíram e os que ficaram na mão seguem o caminho de sempre.",
     [D_POTE_QUENTE] = "Oito lados. Se terminar valendo, ganha +1 no fim a cada 25 fichas que estiverem no pote. "
                       "Quanto mais alta a aposta, mais ele vale.",
+    [D_FANTASMA]  = "Seis lados, mas vale sempre o número marcado nele (1). Como o Quebrado, não sorteia; mas não "
+                    "quebra ao ser lançado: volta para a bolsa como os outros e só some no fim da partida. A Bruxa "
+                    "enche a bolsa de quem joga contra ela com eles.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -524,6 +532,7 @@ static const visual_t VISUAL[D_N] = {
     [D_PONTE]      = { V_AGUA,    V_CEU, 14,    V_AGUA, 100,    V_CIANO, 100,  V_CEU, 40 },
     [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
     [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
+    [D_FANTASMA]   = { V_LILAS,   V_LILAS, 30,  V_AMEIXA, 55,   V_LILAS, 90,   V_BRANCO, 80 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

@@ -132,3 +132,33 @@ static void desenha_misterio(void)
     txt_c(GFX_W / 2, cy + 98, "a pedra negativa se partiu, e havia um d20 dentro", C_MARFIM_S, false);
     if (t > MIST_MIN) teclas_c(GFX_W / 2, cy + 124, "ENTER continua", C_TEXTO_M);
 }
+
+// A Bruxa venceu a rodada: um Fantasma sai do lado dela e desce, em arco,
+// para a sua bolsa, que acende quando ele chega.
+static void desenha_fantasma_voo(void)
+{
+    if (t_fantasma <= 0 || modo != M_DESAFIO) return;
+    float q = 1 - t_fantasma / 1.6f;                     // 0 no comeco, 1 no fim
+    int ax = 60, ay = FAIXA_H + 26;
+    int bx = GFX_W - 110, by = GFX_H - FAIXA_H / 2;
+    float s = q < 0.75f ? q / 0.75f : 1, e = s * s * (3 - 2 * s);
+    int x = ax + (int)((bx - ax) * e), y = ay + (int)((by - ay) * e) - (int)(sinf(e * 3.1416f) * 60);
+    if (q < 0.8f) {
+        for (int r = 1; r <= 3; r++) {                   // um rastro palido
+            float e2 = e - r * 0.05f;
+            if (e2 < 0) continue;
+            int rx = ax + (int)((bx - ax) * e2), ry = ay + (int)((by - ay) * e2) - (int)(sinf(e2 * 3.1416f) * 60);
+            gfx_disco(rx, ry, 5 - r, gfx_mistura(V_LILAS, C_FELTRO, 30 + r * 18));
+        }
+        desenha_dado((float)x, (float)y, 12, D_FANTASMA, 0, sinf(q * 9) * 0.3f, 1, 0, false);
+    }
+    if (q > 0.7f) {                                      // a bolsa recebe
+        float r2 = (q - 0.7f) / 0.3f;
+        int rr = 9 + (int)(r2 * 10);
+        for (int a = 0; a < 28; a++) {
+            float an = a * 0.2244f;
+            gfx_rect(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), 1, 1, gfx_mistura(V_LILAS, C_BARRA, (int)(r2 * 85)));
+        }
+        txt_sombra_c(bx, by - 26 - (int)(r2 * 6), "+1 Fantasma", V_LILAS, 1);
+    }
+}

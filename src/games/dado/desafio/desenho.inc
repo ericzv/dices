@@ -55,7 +55,8 @@ static void faixa_run(int voltar)
         fim += 10 + gfx_largura(nome_dif(run.dificuldade), 1);
     }
     char s[48];
-    snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
+    if (run.andar >= DES_ANDARES) snprintf(s, sizeof s, "%s  ·  final", SALAO[run.andar]);
+    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
     int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
     if (cx - meio < fim + 18) cx = fim + 18 + meio;
     txt_c(cx, ty, s, COR_SALAO[run.andar], true);
@@ -198,8 +199,15 @@ static void info_mesa(int l)
 
     // O trunfo: nome em destaque e a regra, quebrada em linhas.
     int xb = xa + wa + 12, wb = 168;
-    txt(xb, cy, pe->trunfo, C_ROSA, true);
-    quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
+    if (trunfo_ativo(no->perso)) {
+        txt(xb, cy, pe->trunfo, C_ROSA, true);
+        quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
+    } else {                                     // ainda sem trunfo: so no salao em que ele abre
+        txt(xb, cy, "Sem trunfo", C_TEXTO_M, true);
+        char s2[64];
+        snprintf(s2, sizeof s2, "Traz o trunfo a partir do %s.", SALAO[PERSO[no->perso].andar_trunfo]);
+        quebra_linhas(xb, cy + 22, wb, 3, s2, C_TEXTO_M);
+    }
     info_divisa(xb + wb + 6);
 
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
@@ -238,9 +246,13 @@ static void desenha_mapa(void)
     faixa_run(KEY_ESC);
     rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
 
+    bool final = run.andar >= DES_ANDARES;           // o salao do Coringa: so dois passos
     for (int p = 0; p < DES_PASSOS; p++) {
         char s[24];
-        if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
+        if (final) {
+            if (p > 1) continue;
+            snprintf(s, sizeof s, p == 0 ? "última loja" : "final");
+        } else if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
         else snprintf(s, sizeof s, "chefe");
         uint16_t c = p == run.passo ? COR_SALAO[run.andar] : (p < run.passo ? C_FELTRO2 : C_TEXTO_M);
         txt_c(MAPA_X[p], 52, s, c, false);

@@ -76,6 +76,27 @@ static void monta_loja_run(void)
 // ---------------------------------------------------------------------------
 // O mapa de um salao
 // ---------------------------------------------------------------------------
+// O salao do Coringa: so a ultima loja e, depois dela, ele.
+static void gera_salao_final(void)
+{
+    rs = run.semente ^ 0xC0121A5Au;
+    rnd_r();
+    for (int p = 0; p < DES_PASSOS; p++)
+        for (int l = 0; l < 3; l++) run.no[p][l].tipo = NO_VAZIO;
+    no_t *lj = &run.no[0][1], *chefe = &run.no[1][1];
+    lj->tipo = NO_LOJA;
+    lj->liga = 1 << 1;
+    lj->semente = rnd_r() | 1;
+    chefe->tipo = NO_CHEFE;
+    chefe->perso = PERSO_CORINGA;
+    chefe->nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
+    chefe->semente = rnd_r() | 1;
+}
+
+// O trunfo do oponente p ja vale neste salao? Os comuns trazem o seu a
+// partir de um salao (nenhum no primeiro); os chefes, sempre.
+static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.andar >= PERSO[p].andar_trunfo; }
+
 static bool existe(int p, int l) { return p >= 0 && p < DES_PASSOS && l >= 0 && l < 3 && run.no[p][l].tipo != NO_VAZIO; }
 
 static void gera_andar(void)
@@ -134,7 +155,7 @@ static void gera_andar(void)
             if (no->tipo == NO_LOJA || no->tipo == NO_EVENTO) continue;
             int pe, tent = 0;
             // O Novato nao senta nas mesas dificeis.
-            static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15 };
+            static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
             do pe = COMUNS[sorte_r((int)sizeof COMUNS)];
             while (((usados >> pe & 1) || (pe == 0 && no->tipo == NO_DIFICIL)) && ++tent < 20);
             usados |= 1u << pe;
@@ -211,7 +232,14 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
                    BASE[tier][2] * (1 + 0.4f * andar), BASE[tier][3] * (1 + 0.8f * andar) };
     const perso_t *pe = &PERSO[no->perso];
     int n_fav = 0;
-    while (n_fav < 5 && pe->fav[n_fav] != 0xFF) n_fav++;
+    while (n_fav < 8 && pe->fav[n_fav] != 0xFF) n_fav++;
+    // O nucleo: os dados que sao a cara dele, sempre na bolsa - um no primeiro
+    // salao, dois no segundo, tres dali em diante. Cada um toma o lugar de um
+    // dos sorteados (o primeiro vem de graca: ninguem fica sem o seu).
+    for (int i = 0; i < 3 && i <= andar && pe->nucleo[i] && n < MAX_COL; i++) {
+        col[n++] = peca_r(pe->nucleo[i]);
+        if (i > 0 && extras > 0) extras--;
+    }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
         int t = (n_fav && sorte_r(100) < 45) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         col[n++] = peca_r(t);

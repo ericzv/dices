@@ -306,6 +306,17 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         evento(gera, EV_SEMENTE, j, k, j, 0, 7, "Semente: %d pontos, brota +7", dados);
     }
 
+    // O Velorio do Coveiro: +1 por dado dele anulado na rodada.
+    if (j == 1 && tem_reg(REG_VELORIO)) {
+        int mortos = 0;
+        for (int k = 0; k < F[1].lancados; k++) if (d->est[1][k] == V_ANULADO) mortos++;
+        if (mortos) {
+            d->semente[1] += mortos;
+            evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
+                   mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
+        }
+    }
+
     // A virada do Barao: +2 para ele por dado seu anulado na rodada.
     if (j == 1 && virada_forca(2)) {
         int caidos = 0;
@@ -807,6 +818,7 @@ static int risco(int j)
     int L = l >= 0 ? f->valor[l] : 0;
     if (ef == EF_PONTE) return 0;                // nunca cai
     if (ef == EF_QUEBRADO) return l >= 0 && (int8_t)f->fixo[k] < L ? 100 : 0;
+    if (ef == EF_FANTASMA) return l >= 0 && (f->fixo[k] ? (int8_t)f->fixo[k] : 1) < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;

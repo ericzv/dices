@@ -54,7 +54,7 @@ static void fala_evento(int cat)
     if (fala_perso == perso_virado && (cat == FA_GANHA_R || cat == FA_PERDE_R))
         s = FALA_VIROU[fala_perso - PERSO_CHEFE0][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
     if (fala_perso == PERSO_CHEFE0 + 2 && dif == 5 && cat == FA_PERDE_P)
-        s = "A cobertura é sua. Eu desço pela escada.";
+        s = "A cobertura é sua... mas lá em cima alguém está rindo.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     t_fala = 3.2f;
     fala_e_curta = false;
@@ -73,6 +73,8 @@ static const uint8_t TEMPERAMENTO[] = {
     TP_FRIO, TP_ESQUENTADO, TP_ALEGRE, TP_ESQUENTADO,         // Matematica, Espinhento, Supersticiosa, Brutamontes
     TP_FRIO, TP_FRIO, TP_FRIO, TP_FRIO,                       // Crupie, Dona do Salao, Barao, Ilusionista
     TP_ESQUENTADO, TP_TIMIDO, TP_FRIO, TP_ALEGRE,             // Caubói, Monge, Detetive, Maratonista
+    TP_ESQUENTADO, TP_FRIO, TP_ALEGRE, TP_FRIO,               // Rival, Bruxa, Maluco, Banqueira
+    TP_FRIO, TP_ALEGRE,                                       // Coveiro, Coringa
 };
 // [temperamento][momento]: voce passou ele, ele passou voce, o dado dele
 // caiu, o seu caiu, o seu combo, ele te atacou, a hora da verdade, voce

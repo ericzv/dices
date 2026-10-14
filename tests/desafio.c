@@ -153,7 +153,7 @@ int main(int argc, char **argv)
         modo = M_UM;
     }
 
-    int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
+    int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
     long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
@@ -301,13 +301,15 @@ int main(int argc, char **argv)
             }
         }
         for (int i = 0; i < run.n_col; i++)
-            CONFERE(dado_liberado(run.col[i].tipo), "dado %d ainda fechado", run.col[i].tipo);
+            CONFERE(dado_liberado(run.col[i].tipo) || sem_sorteio(run.col[i].tipo), "dado %d ainda fechado", run.col[i].tipo);
         if (des_venceu_run) {
             vitorias++;
             CONFERE(perfis[0].venceu[dific] == 1 && perfis[0].nivel == (dific < N_NIVEIS ? dific + 1 : dific),
                     "vitoria nao abriu a dificuldade seguinte");
         }
-        int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS : run.andar * DES_PASSOS + run.passo;
+        int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS
+                : run.andar >= DES_ANDARES ? DES_ANDARES * DES_PASSOS - 1     // parou no Coringa
+                : run.andar * DES_PASSOS + run.passo;
         chegou[ate]++;
         soma_dados += run.n_col;
         soma_moedas += run.moedas;
@@ -319,7 +321,8 @@ int main(int argc, char **argv)
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
     printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.0f moedas, %.1f compras\n", partidas, ganhas,
            (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs);
-    for (int a = 0; a < DES_ANDARES; a++) {
+    for (int a = 0; a <= DES_ANDARES; a++) {
+        if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);
         for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
         putchar('\n');

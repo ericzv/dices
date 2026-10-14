@@ -123,7 +123,7 @@ static int nivel_do_dado(int t)
 static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -1); }
 static bool dado_liberado(int t)
 {
-    if (oculto(t)) return false;                 // nao sai em sorteio nenhum
+    if (sem_sorteio(t)) return false;            // nao sai em sorteio nenhum
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
     return nivel_do_dado(t) <= perfil()->nivel;

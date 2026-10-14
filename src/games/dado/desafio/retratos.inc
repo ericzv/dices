@@ -3,8 +3,8 @@
 // ampliado sem filtro. Movimento lento: respira, pisca e fala.
 // ---------------------------------------------------------------------------
 #define RT_W 22
-#define RETRATO_AVATAR 20                // os avatares vem depois dos oponentes no desenho
-#define RETRATO_EVENTO 24                // e os eventos, depois dos 4 avatares
+#define RETRATO_AVATAR 32                // os avatares vem depois dos oponentes no desenho
+#define RETRATO_EVENTO 36                // e os eventos, depois dos 4 avatares
 #define RT_H 27
 #define RT_TOPO 3                        // folga em cima para chapeus e coques
 static uint16_t rt[RT_H][RT_W];          // 0 = vazio (1 px de margem em volta)
@@ -296,6 +296,101 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(5, hy + 1, 10, 1, FAIXA); rr(15, hy + 1, 1, 2, FAIXA); // faixa na testa, com a ponta solta
         int g = (int)(t / 0.5f) % 6;                            // gota de suor descendo
         if (g < 4) rp(14, hy + 3 + g, RGB(170, 220, 240));
+        break;
+    }
+    case 16: {                                                  // RIVAL: franja varrida, jaqueta de gola listrada, curativo
+        const uint16_t JAQ = RGB(176, 52, 52), CAB = RGB(56, 40, 34);
+        tronco(JAQ, P_CLARA, RGB(40, 40, 46), 0, 0);
+        rr(3, 17, 3, 1, C_BRANCO); rr(14, 17, 3, 1, C_BRANCO);  // as listras da gola
+        rr(2, 19, 1, 3, C_BRANCO); rr(17, 19, 1, 3, C_BRANCO);
+        rosto(hy, P_CLARA, CAB, 1, pisca, boca);
+        rr(5, hy - 1, 10, 3, CAB); rr(5, hy + 2, 1, 2, CAB); rr(14, hy + 2, 1, 3, CAB);
+        rr(8, hy - 2, 7, 1, CAB); rr(12, hy - 3, 4, 1, CAB); rp(16, hy - 2, CAB); rp(15, hy, CAB);   // a franja para o lado
+        rr(9, hy - 2, 3, 1, luz(CAB));
+        rr(6, hy + 8, 2, 1, C_BRANCO); rp(7, hy + 9, RGB(214, 204, 190));   // o curativo na bochecha
+        break;
+    }
+    case 17: {                                                  // BRUXA: chapeu pontudo torto, cabelo comprido, colar de lua
+        const uint16_t CHAP = RGB(64, 40, 90), CAB = RGB(30, 26, 34), VEST = RGB(46, 34, 64), PELE = RGB(214, 214, 196);
+        tronco(VEST, PELE, 0, 0, 2);
+        rp(9, 18, C_AMARELO); rp(10, 19, C_AMARELO); rp(9, 20, C_AMARELO);   // a lua crescente no colar
+        rr(3, hy + 2, 3, 13, CAB); rr(14, hy + 2, 3, 13, CAB);  // cabelo comprido, atras
+        rosto(hy, PELE, CAB, 2, pisca, boca);
+        rr(5, hy, 10, 2, CAB); rr(5, hy + 2, 1, 2, CAB); rr(14, hy + 2, 1, 2, CAB);
+        rr(2, hy - 1, 16, 1, CHAP); rr(3, hy, 2, 1, sombra(CHAP)); rr(15, hy, 2, 1, sombra(CHAP));   // a aba larga
+        rr(6, hy - 3, 8, 2, CHAP); rr(7, hy - 5, 6, 2, CHAP); rr(9, hy - 6, 4, 1, CHAP); rr(11, hy - 7, 3, 1, CHAP);
+        rp(14, hy - 7, CHAP); rp(15, hy - 6, sombra(CHAP));     // a ponta, caida para o lado
+        rr(6, hy - 2, 8, 1, RGB(150, 120, 60));                 // a fita
+        rr(7, hy - 5, 1, 2, luz(CHAP));
+        if (!pisca && rex < 0) { rp(8, hy + 6, RGB(90, 170, 90)); rp(11, hy + 6, RGB(90, 170, 90)); }   // olhos verdes
+        if (!boca) rr(9, hy + 9, 2, 1, RGB(96, 40, 96));        // batom escuro
+        break;
+    }
+    case 18: {                                                  // MALUCO: cabelo branco espetado, um olho arregalado, suspensorio
+        const uint16_t CAB = RGB(236, 234, 226), CAM = RGB(220, 196, 84), SUS = RGB(150, 40, 50);
+        tronco(CAM, P_CLARA, 0, 0, 3);
+        for (int i = 0; i < 4; i++) rr(3 + i * 4, 18, 1, 4, sombra(CAM));   // listras da camisa
+        rr(5, 17, 2, 5, SUS); rr(13, 17, 2, 5, SUS);            // os suspensorios
+        rosto(hy, P_CLARA, CAB, 2, pisca, boca);
+        int tw = (int)(t / 0.35f) % 2;                          // o cabelo nao para quieto
+        rr(5, hy - 1, 10, 2, CAB);
+        static const int8_t ESP[7][2] = { { 3, -2 }, { 5, -3 }, { 7, -4 }, { 10, -4 }, { 12, -3 }, { 14, -3 }, { 16, -2 } };
+        for (int i = 0; i < 7; i++) rr(ESP[i][0] + ((i + tw) & 1), hy + ESP[i][1], 1, 2 + (i & 1), CAB);
+        rr(3, hy + 1, 2, 3, CAB); rr(15, hy + 1, 2, 3, CAB); rp(2, hy + 2 + tw, CAB); rp(17, hy + 3 - tw, CAB);
+        if (!pisca && rex < 0) { rr(11, hy + 5, 3, 3, C_BRANCO); rp(12, hy + 6, RGB(30, 26, 30)); }   // o olho arregalado
+        if (!boca && rex < 0) {                                 // o sorriso largo, de dentes
+            rr(7, hy + 9, 6, 1, RGB(60, 22, 26)); rr(8, hy + 9, 4, 1, C_BRANCO);
+            rp(6, hy + 8, RGB(120, 52, 52)); rp(13, hy + 8, RGB(120, 52, 52));
+        }
+        break;
+    }
+    case 19: {                                                  // BANQUEIRA: coque, viseira verde de contadora, oculos de meia-lua
+        const uint16_t TERNO = RGB(40, 84, 64), CAB = RGB(176, 128, 60), VIS = RGB(70, 170, 110);
+        tronco(TERNO, P_CLARA, RGB(236, 232, 222), RGB(200, 160, 70), 0);
+        rp(4, 20, C_OURO); rp(15, 20, C_OURO);                  // botoes dourados
+        rosto(hy, P_CLARA, CAB, 0, pisca, boca);
+        rr(5, hy - 1, 10, 3, CAB); rr(4, hy + 1, 2, 4, CAB); rr(14, hy + 1, 2, 4, CAB);
+        rr(7, hy - 4, 6, 3, CAB); rr(8, hy - 5, 4, 1, luz(CAB));   // o coque
+        rr(4, hy + 1, 12, 1, VIS); rr(5, hy + 2, 10, 1, gfx_mistura(VIS, C_FELTRO, 35));   // a viseira
+        uint16_t aro = RGB(196, 160, 90);                       // os oculos de meia-lua, na ponta do nariz
+        rr(6, hy + 7, 3, 1, aro); rr(11, hy + 7, 3, 1, aro); rp(10, hy + 7, aro);
+        if ((int)(t / 3.1f) % 3 == 0) rp(12, hy + 7, C_BRANCO);
+        rp(4, hy + 8, C_BRANCO); rp(15, hy + 8, C_BRANCO);      // brincos de perola
+        if (!boca) rr(9, hy + 9, 2, 1, RGB(170, 50, 60));
+        break;
+    }
+    case 20: {                                                  // COVEIRO: cartola, rosto comprido e palido, olheiras, a pa
+        const uint16_t CASACO = RGB(30, 30, 36), PELE = RGB(196, 196, 186), CART = RGB(24, 22, 26);
+        rr(17, 9, 1, 13, RGB(120, 84, 52));                     // o cabo da pa, atras do ombro
+        rr(16, 5, 3, 4, RGB(140, 142, 150)); rr(16, 5, 1, 4, luz(RGB(140, 142, 150)));
+        tronco(CASACO, PELE, RGB(226, 222, 212), 0, 3);
+        rr(8, 17, 4, 2, RGB(226, 222, 212)); rp(9, 19, RGB(226, 222, 212)); rp(10, 19, RGB(226, 222, 212));   // o lenco branco
+        rosto(hy, PELE, RGB(70, 70, 74), 0, pisca, boca);
+        rr(6, hy + 11, 8, 1, PELE); rr(7, hy + 12, 6, 1, sombra(PELE));   // o queixo comprido
+        if (!pisca) { rr(7, hy + 7, 2, 1, sombra(PELE)); rr(11, hy + 7, 2, 1, sombra(PELE)); }   // olheiras
+        rp(6, hy + 9, sombra(PELE)); rp(13, hy + 9, sombra(PELE));   // as macas fundas
+        rr(4, hy - 1, 12, 1, CART); rr(6, hy - 6, 8, 5, CART);  // a cartola
+        rr(6, hy - 2, 8, 1, RGB(110, 30, 40)); rr(7, hy - 6, 1, 4, luz(CART));
+        rr(5, hy, 1, 3, RGB(70, 70, 74)); rr(14, hy, 1, 3, RGB(70, 70, 74));
+        break;
+    }
+    case 21: {                                                  // CORINGA: chapeu de bobo com guizos, rosto pintado, nariz vermelho
+        const uint16_t ROXO = RGB(110, 60, 150), VERDE = RGB(70, 150, 80), BRANCA = RGB(240, 238, 230), RUBI = RGB(200, 40, 50);
+        tronco(ROXO, BRANCA, 0, 0, 3);
+        rr(10, 18, 9, 4, VERDE); rr(18, 18, 1, 4, sombra(VERDE));   // a roupa em duas cores
+        for (int i = 0; i < 7; i++) rr(3 + i * 2, 16 + (i & 1), 2, 1, i & 1 ? VERDE : C_AMARELO);   // a gola de babado
+        rosto(hy, BRANCA, ROXO, 2, pisca, boca);
+        rp(7, hy + 4, ROXO); rp(8, hy + 9 - 1, ROXO); rp(12, hy + 4, ROXO); rp(11, hy + 8, ROXO);   // os losangos dos olhos
+        rp(6, hy + 6, ROXO); rp(13, hy + 6, ROXO);
+        rr(9, hy + 7, 2, 2, RUBI); rp(9, hy + 7, luz(RUBI));    // o nariz
+        if (!boca && rex < 0) {                                 // o sorriso pintado, de orelha a orelha
+            rr(6, hy + 10, 8, 1, RUBI); rp(5, hy + 9, RUBI); rp(14, hy + 9, RUBI); rr(8, hy + 10, 4, 1, C_BRANCO);
+        }
+        rr(5, hy - 1, 5, 2, ROXO); rr(10, hy - 1, 5, 2, VERDE); // o chapeu de duas cores
+        rr(3, hy - 3, 4, 2, ROXO); rr(1, hy - 2, 2, 3, ROXO); rr(13, hy - 3, 4, 2, VERDE); rr(17, hy - 2, 2, 3, VERDE);
+        rr(4, hy - 3, 2, 1, luz(ROXO)); rr(14, hy - 3, 2, 1, luz(VERDE));
+        int bal = (int)(t / 0.45f) % 2;                         // os guizos balancando
+        rr(0, hy + 1 + bal, 2, 2, C_OURO); rr(18, hy + 2 - bal, 2, 2, C_OURO);
         break;
     }
     case RETRATO_AVATAR + 0: {                                  // ET VILU: cabecao, olhos negros, antena
@@ -620,7 +715,7 @@ static int retrato_faixa(int j, int x, int y0)
 static void trunfo_faixa(int x, int y, int x_max)
 {
     const perso_t *pp = &PERSO[fala_perso];
-    if (!pp->trunfo) return;
+    if (!pp->trunfo || !trunfo_ativo(fala_perso)) return;
     bool aceso = false;
     for (int a = 0; a < A_N; a++) if ((pp->amul >> a & 1) && am_brilho[a] > 0) aceso = true;
     int w = gfx_texto(x, y, pp->trunfo, aceso ? C_AMARELO : C_OURO, GFX_MIUDO, false);
@@ -652,8 +747,8 @@ static void balao_oponente(void)
 }
 
 
-static const char *const SALAO[DES_ANDARES] = { "Salão Verde", "Salão Vermelho", "Salão Dourado" };
-static const uint16_t COR_SALAO[DES_ANDARES] = { C_VERDE, C_VINHO_CLR, C_OURO };
+static const char *const SALAO[DES_ANDARES + 1] = { "Salão Verde", "Salão Vermelho", "Salão Dourado", "Salão do Coringa" };
+static const uint16_t COR_SALAO[DES_ANDARES + 1] = { C_VERDE, C_VINHO_CLR, C_OURO, C_REAL };
 static const char *const NOME_NO[] = { "Fácil", "Médio", "Difícil", "Chefe", "Loja", "Evento" };
 static uint16_t cor_no(int t)
 {
@@ -669,7 +764,7 @@ static uint16_t cor_no(int t)
 
 // Nivel da IA de cada mesa: sobe pouco, porque os oponentes fortes ja tem
 // dados melhores. [salao][facil, medio, dificil, chefe]
-static const uint8_t NIVEL_NO[DES_ANDARES][4] = { { 0, 0, 0, 0 }, { 0, 0, 1, 1 }, { 1, 1, 1, 2 } };
+static const uint8_t NIVEL_NO[DES_ANDARES + 1][4] = { { 0, 0, 0, 0 }, { 0, 0, 1, 1 }, { 1, 1, 1, 2 }, { 2, 2, 2, 2 } };
 
 typedef struct {
     uint8_t tipo, perso, nivel, liga;    // liga: bit l = leva a linha l do proximo passo

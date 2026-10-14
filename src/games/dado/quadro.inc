@@ -11,7 +11,11 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
 {
     if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_dado(id); *desc = TEXTO_MEDIO[id]; }
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
-    else {
+    else if (modo == M_DESAFIO && !trunfo_ativo(id)) {   // ainda sem trunfo neste salao
+        static char t[96];
+        snprintf(t, sizeof t, "Traz o trunfo (%s) a partir do %s.", PERSO[id].trunfo, SALAO[PERSO[id].andar_trunfo]);
+        *nome = "Sem trunfo"; *cor = C_TEXTO_M; *desc = t;
+    } else {
         *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
         int v = virada_de(id);
         if (v) {                                         // o chefe tambem conta a virada
@@ -91,6 +95,7 @@ void dado_desenha(void)
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
+    desenha_fantasma_voo();
     desenha_misterio();
     aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta

@@ -145,6 +145,7 @@ static void icone_som(int x, int y)
 static void icone_bolsa(int cx, int cy);
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
 static void trunfo_faixa(int x, int y, int x_max);
+static bool trunfo_ativo(int p);              // desafio/mapa.inc
 static void desenha_amuleto(int x, int y, int r, int a, bool apagado);
 static int  retrato_faixa(int j, int x, int y0);
 static int  fichas_vis(int j);   // devolve onde o nome comeca
@@ -194,7 +195,7 @@ static void faixa_jogador(int j)
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
     // O oponente do Desafiante: o trunfo dele fica numa linha miuda embaixo
     // do nome, sempre a vista; o resto da faixa sobe um pouco.
-    bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0;
+    bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0 && trunfo_ativo(fala_perso);
     if (com_trunfo) ty -= 5;
 
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
@@ -217,6 +218,10 @@ static void faixa_jogador(int j)
         int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
         if (rodada > max_r) snprintf(s, sizeof s, "rodada extra  ·  entrada %d", ante_da(rodada));
         else snprintf(s, sizeof s, "rodada %d de %d  ·  entrada %d", rodada, max_r, ante_da(rodada));
+        if (juros_rodada > 0) {                  // a Banqueira cobrou juros da sua entrada
+            size_t n = strlen(s);
+            snprintf(s + n, sizeof s - n, " (+%d juros)", juros_rodada);
+        }
         int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
         if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
         txt_c(cx, ty, s, t_aviso_entrada > 0 ? C_OURO : C_TEXTO_M, t_aviso_entrada > 0);
@@ -516,6 +521,13 @@ static void desenha_fila(int j)
         marca_nivel = f->fixo[k];
         desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
         marca_nivel = -1;
+        // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
+        if (coringa_joga(j) && k == 3 && f->idx[k] < 0) {
+            int cx2 = x - R - 2, cy2 = (int)(y - pulo) - R - 4;
+            gfx_rect(cx2 - 1, cy2 - 1, 9, 12, C_BARRA);
+            gfx_rect(cx2, cy2, 7, 10, C_BRANCO);
+            gfx_rect(cx2 + 3, cy2 + 2, 1, 6, C_REAL); gfx_rect(cx2 + 2, cy2 + 3, 3, 4, C_REAL); gfx_rect(cx2 + 1, cy2 + 4, 5, 2, C_REAL);
+        }
         if (!anul && t_onda >= 0 && j == onda_j && k < onda_n && onda_nivel >= 2 && t_onda < 0.9f)
             faiscas(x, (int)(y - pulo), t_onda + k * 0.3f, C_AMARELO);
         // Durante a sequencia: o dado que tirou o que o poder dele pede brilha.

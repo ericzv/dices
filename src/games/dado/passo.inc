@@ -17,6 +17,7 @@ void dado_passo(float dt)
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
+    if (t_fantasma > 0) t_fantasma -= dt_real;
     if (t_elev > 0) {
         float antes = ELEV_T - t_elev;
         t_elev -= dt_real;

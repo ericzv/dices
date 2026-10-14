@@ -365,7 +365,7 @@ static void trata_tecla(int k)
         if (k >= '1' && k <= '8' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
         if (k == KEY_ENTER) { poe_na_fila(cursor); return; }
         if (k == KEY_BKSP && f->n) { f->n--; return; }
-        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { cursor = 0; fase = F_JOGA; }
+        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { coringa_completa(vez); cursor = 0; fase = F_JOGA; }
         return;
     }
 

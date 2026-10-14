@@ -18,6 +18,7 @@ typedef struct {
     int n_mao;
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
+    bool perdeu_ultima;          // e se perdeu a ultima (a Revanche do Rival)
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -188,8 +189,13 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
-enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE };
+enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
+       REG_REVANCHE, REG_BRUXARIA, REG_MALUCO, REG_JUROS, REG_VELORIO, REG_CORINGA };
 static uint8_t reg_op;
+static uint8_t estilo_op;                // o jeito de apostar do oponente (ES_*, desafio/run.inc)
+static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (cara) ou -1 (coroa)
+static int juros_rodada;                 // a entrada a mais que a Banqueira cobrou nesta rodada
+static float t_fantasma;                 // > 0: um Fantasma da Bruxa voando para a sua bolsa
 static bool op_nervoso;              // o Novato perdeu a ultima rodada
 static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
 // Falas do oponente (desafio.inc): o que acabou de acontecer.
@@ -266,7 +272,8 @@ static int virada_forca(int c)
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
-static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
+// O Coringa monta 3: o quarto e a copia do seu dado mais forte.
+static int max_fila(int j) { return tem_am(j, A_CONTRATO) || (j == 1 && tem_reg(REG_CORINGA)) ? 3 : N_FILA; }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run

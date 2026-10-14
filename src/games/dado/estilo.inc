@@ -56,9 +56,9 @@ static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N
 };
 
 // O que cada andar abre: vencer o Barao naquela dificuldade (-1: sempre aberto).
-static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 2, 4 };
-static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 2, 5, 1 };
-static const int8_t ABRE_MESA[MS_N]      = { -1, 1, 4, 3 };
+static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8 };
+static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2 };
+static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6 };
 
 static int estilo_feltro, estilo_mesa;      // o que esta na mesa agora
 static int des_estilo_abriu = -1;           // fim da run: o andar cujo estilo acabou de abrir

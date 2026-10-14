@@ -651,12 +651,101 @@ static int desenho_interno(int tipo, float u, float v, float s)
         int c = (int)floorf(f) % 3;
         return c;                                                            // claro, terra e couro
     }
+    case D_FANTASMA: {                            // nevoa ciano, irregular, e dois contornos tracejados
+        float x = u - 0.08f, y = v - 0.08f;
+        float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
+        float ao_longo = fabsf(x) > fabsf(y) ? y : x;
+        for (int i = 0; i < 2; i++) {
+            float m = i ? 0.36f : 0.58f;
+            if (fabsf(e - m) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.5f) < 0.55f) return 3;
+        }
+        float nv = sinf(u * 5.3f + 1.1f) * sinf(v * 4.1f - 0.7f) + 0.6f * sinf((u + v) * 7.9f + 2.0f)
+                 + 0.35f * sinf(u * 13.0f - v * 11.0f);
+        return nv > 0.55f ? 2 : nv > -0.15f ? 1 : 0;                         // manchas de tres tons
+    }
     case D_POTE_QUENTE: {                         // o calor concentrado: losangos que esquentam para dentro
         float dd = (fabsf(u - 0.08f) + fabsf(v - 0.08f)) / 0.99f;
         if (dd < 0.15f) return 3;                                            // o miolo
         static const float R[3] = { 0.33f, 0.56f, 0.78f }, W[3] = { 0.07f, 0.045f, 0.025f };
         for (int i = 0; i < 3; i++)
             if (fabsf(dd - R[i]) < W[i] + l * 0.5f) return i < 1 ? 2 : 1;
+        return 0;
+    }
+    case D_PREVISIVEL: {                          // a escada: barras que sobem, uma a mais a cada lance
+        static const float X[4] = { -0.42f, -0.14f, 0.14f, 0.42f }, H[4] = { 0.14f, 0.25f, 0.36f, 0.47f };
+        for (int i = 0; i < 4; i++)
+            if (fabsf(u - X[i]) < 0.085f && v < 0.70f && v > 0.70f - H[i]) return i == 3 ? 2 : 1;
+        return fabsf(v - 0.74f) < l * 1.2f && fabsf(u) < 0.56f ? 3 : 0;      // o chao da escada
+    }
+    case D_OCULTO: {                              // o veu: tracos em diagonal, e um losango vazio no meio
+        float dd = fabsf(u) + fabsf(v);
+        if (dd < 0.40f) return 0;
+        if (dd < 0.40f + l * 2.2f) return 3;                                  // a borda do que nao se ve
+        return fr((u - v) / 0.17f) < 0.32f ? 1 : 0;
+    }
+    case D_SACRIFICIO: {                          // a oferta: um triangulo invertido dentro do corpo, aceso
+        float cu = 0.07f, cv = 0.40f;                                         // o meio dele, mais para baixo
+        float g = -1;
+        for (int i = 0; i < 3; i++) {                                        // o d4 de ponta-cabeca, apotema 0.30
+            float an = -1.5708f + i * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float d = ((u - cu) * nx + (v - cv) * ny) / 0.30f;
+            if (d > g) g = d;
+        }
+        if (g < 1 && g > 1 - (l * 1.8f + 0.03f) / 0.30f) return 3;           // o contorno de ouro
+        if (g < 1) return 2;                                                 // o fogo dentro
+        float t, gb = borda_d4(u, v, &t);
+        return gb > 0.86f ? 1 : 0;                                           // a borda escura do corpo
+    }
+    case D_VAZIO: {                               // nada: um anel aberto em volta do zero
+        float x = u - 0.08f, y = v - 0.08f, rr = sqrtf(x * x + y * y);
+        if (fabsf(rr - 0.56f) > 0.035f + l) return 0;
+        float an = atan2f(y, x);
+        return an > -2.2f && an < -1.3f ? 0 : 1;                             // a abertura, em cima
+    }
+    case D_MEDIA: {                               // barras desiguais, e a linha da media cortando todas
+        static const float X[4] = { -0.22f, -0.03f, 0.17f, 0.36f }, H[4] = { 0.16f, 0.36f, 0.22f, 0.42f };
+        const float base = 0.70f, media = base - 0.29f;
+        if (fabsf(v - media) < 0.022f + l && u > -0.34f && u < 0.48f) return 2;   // a media
+        for (int i = 0; i < 4; i++)
+            if (fabsf(u - X[i]) < 0.06f && v < base && v > base - H[i]) return v < media ? 3 : 1;
+        return 0;
+    }
+    case D_VAMPIRO: {                             // gotas que escorrem das bordas de cima
+        static const float X[3] = { -0.20f, 0.07f, 0.34f }, Y0[3] = { 0.02f, -0.30f, 0.02f }, C[3] = { 0.30f, 0.46f, 0.24f };
+        for (int i = 0; i < 3; i++) {
+            float x = u - X[i], y1 = Y0[i] + C[i];
+            if (v > Y0[i] - 0.4f && v < y1 && fabsf(x) < 0.028f + l) return 1;   // o fio
+            float y = v - (y1 + 0.03f);
+            if (x * x + y * y < 0.065f * 0.065f) return 2;                       // a gota
+        }
+        return 0;
+    }
+    case D_COLECIONADOR: {                        // o album: uma grade de casas, quase todas preenchidas
+        float x = (u + 0.70f) / 0.36f, y = (v + 0.62f) / 0.36f;              // quatro por quatro
+        if (x < 0 || y < 0 || x >= 4 || y >= 4) return 0;
+        float fx = fr(x), fy = fr(y);
+        if (fx < 0.12f || fy < 0.12f) return 0;                              // o vao entre as casas
+        int cxi = (int)x, cyi = (int)y, h = (cxi * 7 + cyi * 13 + cxi * cyi * 5) % 11;
+        return h < 2 ? 0 : h < 6 ? 1 : h < 9 ? 3 : 2;                        // vazias, e tres tons
+    }
+    case D_PACTO: {                               // dois aneis presos um no outro
+        float x0 = u + 0.20f, x1 = u - 0.20f, y = v - 0.04f;
+        float r0 = sqrtf(x0 * x0 + y * y), r1 = sqrtf(x1 * x1 + y * y);
+        bool a0 = fabsf(r0 - 0.40f) < 0.05f + l, a1 = fabsf(r1 - 0.40f) < 0.05f + l;
+        // o entrelace: em cima o anel da esquerda passa por cima, embaixo o da direita
+        if (a0 && a1) return y < 0 ? 1 : 2;
+        if (a0) return 1;
+        if (a1) return 2;
+        return r0 < 0.40f && r1 < 0.40f ? 3 : 0;                              // o que os dois guardam
+    }
+    case D_ASSOMBRACAO: {                         // contornos tracejados que se afastam para o lado de la
+        for (int i = 0; i < 3; i++) {
+            float d = i * 0.10f;
+            float x = u - 0.08f - d, y = v - 0.08f + d;
+            float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
+            float ao_longo = fabsf(x) > fabsf(y) ? y : x;
+            if (fabsf(e - 0.56f) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.33f) < 0.55f - i * 0.12f) return i == 0 ? 1 : i == 1 ? 2 : 3;
+        }
         return 0;
     }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
@@ -882,6 +971,9 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
 // vista 0: parado na mao, mostra quantos lados tem.
 // vista 1: rolando, mostra uma face qualquer.
 // vista 2: pousado, mostra o valor final (e riscado se zerou).
+// O Oculto ainda virado: a face mostra "?" no lugar do numero.
+static bool face_escondida;
+
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
@@ -905,7 +997,12 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         corpo = RGB(24, 22, 22);
         tinta = C_MARFIM;
     }
+    if (tipo == D_OCULTO) {                       // cinza-carvao: quase o preto do Misterioso
+        corpo = RGB(50, 50, 52);
+        tinta = C_MARFIM;
+    }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
+    if (tipo == D_SACRIFICIO) tinta = C_MARFIM;   // o corpo vinho pede a tinta clara
     // O Sorte/Reves no ar: cada metade no material dela. Jogado, o dado
     // inteiro fica com a cara de quem venceu: marfim se a Sorte foi maior (ou
     // empatou), ebano se o Reves foi.
@@ -947,6 +1044,18 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     mca = cosf(ang); msa = sinf(ang); mcx = cx; mcy = cy;
 
     int alt = (int)sombra_alt;                    // dado no ar: sombra mais longe
+    if (tipo == D_VAZIO) {                        // o Vazio: so o contorno; dentro, o que estiver atras
+        float vx[12], vy[12], ea2 = r < 12 ? 1 : r / 10;
+        int n = forma(lados, cx, cy, r, ang, vx, vy);
+        uint16_t c = zerado ? C_FELTRO2 : aro;
+        for (int i = 0; i < n; i++)
+            gfx_linha_grossa((int)vx[i] + 1, (int)vy[i] + 2, (int)vx[(i + 1) % n] + 1, (int)vy[(i + 1) % n] + 2, (int)ea2 + 1, C_SOMBRA);
+        for (int i = 0; i < n; i++)
+            gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[(i + 1) % n], (int)vy[(i + 1) % n], (int)ea2 + 1, c);
+        if (valor != SO_CORPO) numero(cx, cy, r, "0", zerado ? C_FELTRO2 : gfx_mistura(c, C_BRANCO, 30));
+        if (zerado && vista) risca(cx, cy, r);
+        return;
+    }
     gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
     if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado); return; }
     if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado); return; }
@@ -992,12 +1101,18 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (vista == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
-        if (tipo == D_QUEBRADO && valor) {
+        if ((tipo == D_QUEBRADO || tipo == D_FANTASMA) && valor) {
             snprintf(s, sizeof s, "%d", (int8_t)valor);
             numero(cx, cy, r, s, tinta);
             return;
         }
         if (tipo == D_MISTERIOSO) { numero(cx, cy, r, "?", tinta); return; }
+        if (tipo == D_PREVISIVEL) {               // o proximo da escada: o que ele vai tirar
+            snprintf(s, sizeof s, "%d", valor + 1 < 12 ? valor + 1 : 12);
+            numero(cx, cy, r, s, tinta);
+            return;
+        }
+        if (tipo == D_VAZIO) { numero(cx, cy, r, "0", tinta); return; }
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
         // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);
@@ -1005,6 +1120,11 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         return;
     }
     if (valor == SO_CORPO) return;       // so o corpo: o catalogo escreve grande
+    if (face_escondida) {                // o Oculto: ninguem ve o que saiu
+        numero(cx, cy, r, "?", tinta);
+        if (zerado) risca(cx, cy, r);
+        return;
+    }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
@@ -1271,7 +1391,7 @@ static int des_dificuldade(void);
 
 static void mesa(void)
 {
-    mesa_andar = modo == M_DESAFIO ? des_dificuldade() : 0;
+    mesa_andar = modo == M_DESAFIO ? (des_dificuldade() + 1) / 2 : 0;   // um acabamento a cada dois andares
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }

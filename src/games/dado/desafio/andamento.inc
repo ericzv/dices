@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
-// A IA da mesa: Prata faz as mesas dificeis pensarem mais; Diamante, os chefes.
+// A IA da mesa: do Nivel 5, as mesas dificeis pensam mais; do 9, os chefes.
 static int nivel_mesa(const no_t *no)
 {
-    bool pensa = (run.dificuldade >= 2 && no->tipo == NO_DIFICIL) || (run.dificuldade >= 5 && no->tipo == NO_CHEFE);
+    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE);
     return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
 }
 
@@ -18,11 +18,22 @@ static void des_salva(void)
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
+    static run48_t v;
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
-    if (n != (int)(2 * sizeof(run_t))) return false;
     memset(r, 0, sizeof *r);
-    if (!de_hex(buf, r, sizeof *r)) return false;
-    if (memcmp(r->marca, "DES1", 4) || r->andar >= DES_ANDARES || r->passo >= DES_PASSOS
+    if (n == (int)(2 * sizeof v)) {                   // da bolsa de 48: o resto anda para depois dela
+        if (!de_hex(buf, &v, sizeof v)) return false;
+        memcpy(r, &v, offsetof(run48_t, col));
+        memcpy(r->col, v.col, sizeof v.col);
+        memcpy(r->no, v.no, sizeof v - offsetof(run48_t, no));
+        if (r->n_col > 48) return false;
+    } else if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
+    if (!memcmp(r->marca, "DES1", 4) && r->dificuldade <= N_NIVEIS_V) {   // do tempo dos 5 niveis: n vira 2n
+        r->dificuldade = (uint8_t)(2 * r->dificuldade);
+        memcpy(r->marca, "DES2", 4);
+    }
+    if (memcmp(r->marca, "DES2", 4) || r->andar > DES_ANDAR_FINAL || (r->andar == DES_ANDAR_FINAL && r->dificuldade < N_NIVEIS)
+        || r->passo >= DES_PASSOS
         || r->estado > R_EVENTO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
@@ -91,15 +102,18 @@ static void encerra_run(bool venceu)
 }
 
 // Passo vencido (ou loja deixada): segue no mapa; depois do chefe, sobe de
-// salao; depois do terceiro chefe, a run esta ganha.
+// salao; depois do terceiro chefe, a run esta ganha - menos no ultimo nivel,
+// em que ainda falta o salao do Coringa (a ultima loja e ele).
 static void avanca_passo(void)
 {
     run.passo++;
+    if (run.andar == DES_ANDAR_FINAL && run.passo >= 2) { encerra_run(true); return; }   // venceu o Coringa
     if (run.passo >= DES_PASSOS) {
         run.andar++;
-        if (run.andar >= DES_ANDARES) { run.andar = DES_ANDARES - 1; encerra_run(true); return; }
         run.passo = 0;
-        gera_andar();
+        if (run.andar == DES_ANDAR_FINAL && run.dificuldade >= N_NIVEIS) gera_salao_final();
+        else if (run.andar >= DES_ANDARES) { run.andar = DES_ANDARES - 1; encerra_run(true); return; }
+        else gera_andar();
     }
     run.estado = R_MAPA;
     des_salva();
@@ -150,7 +164,7 @@ static void amuleto_escolhido(int i)
 static void des_nova_run(void)
 {
     memset(&run, 0, sizeof run);
-    memcpy(run.marca, "DES1", 4);
+    memcpy(run.marca, "DES2", 4);
     run.semente = ((uint32_t)esp_timer_get_time() * 2654435761u) ^ 0x5bd1e995u;
     if (!run.semente) run.semente = 1;
     run.dificuldade = (uint8_t)des_dif;
@@ -170,7 +184,7 @@ static void des_nova_run(void)
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++)
-        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA) col[i].fixo = 0;
+        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL) col[i].fixo = 0;
 }
 
 static void des_comeca_partida(void)
@@ -191,9 +205,9 @@ static void des_comeca_partida(void)
     J[0].cor = C_LATAO;
     amul[0] = run_amuletos();
     memset(am_brilho, 0, sizeof am_brilho);
-    amul[1] = PERSO[no->perso].amul;              // o trunfo do oponente
+    amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
-    if (run.dificuldade >= 5) {                   // Diamante: mais um amuleto para ele
+    if (run.dificuldade >= N_NIVEIS) {            // na Cobertura: mais um amuleto para ele
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
@@ -203,7 +217,8 @@ static void des_comeca_partida(void)
         }
     }
     des_rod_vencidas = 0;
-    reg_op = PERSO[no->perso].reg;
+    reg_op = trunfo_ativo(no->perso) ? PERSO[no->perso].reg : REG_NADA;
+    estilo_op = PERSO[no->perso].estilo;
     op_nervoso = false;
     fala_perso = no->perso;
     perso_virado = -1;

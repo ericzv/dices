@@ -188,11 +188,11 @@ static int chance_cair(int j)
 
 
 // A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
-// Nivel 3 do Desafiante em diante.
+// Nivel 6 do Desafiante em diante.
 static bool mostra_chance(void)
 {
     if (cpu >> vez & 1) return false;            // vez do computador
-    if (modo == M_DESAFIO) return des_dificuldade() < 3;
+    if (modo == M_DESAFIO) return des_dificuldade() < 6;
     if (cpu >> outro(vez) & 1) return nivel_jog[outro(vez)] < 2;
     return true;
 }
@@ -299,7 +299,8 @@ static void desenha_efeitos(void)
                : e->tipo == EV_SEMENTE ? C_VERDE
                : e->tipo == EV_JACKPOT ? C_AMARELO
                : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR
-               : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA) ? C_OURO
+               : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA
+                  || (e->tipo == EV_CHEFE && e->de_j == 0)) ? C_OURO
                : C_VINHO_CLR;
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.
     // Uma linha so: o efeito, na cor do que ele faz. De quem e, mostram os
@@ -453,7 +454,23 @@ static int fichas_vis(int j)
     return res_antes[j] + (int)((J[j].fichas - res_antes[j]) * q);
 }
 
-#define GRADE 12                     // dados por linha na escolha do que sai
+// A bolsa nao tem limite de dados: uma grade de n dados que, se nao couber
+// na altura alt com o tamanho cheio, poe mais dados por linha e encolhe
+// todos por igual (f: a escala; a largura da grade fica a mesma).
+typedef struct { int por; float f; } grade_t;
+static grade_t grade_cabe(int n, int por, int passo_y, int alt)
+{
+    grade_t g = { por, 1.0f };
+    while (g.f > 0.25f && (n + g.por - 1) / g.por * passo_y * g.f > alt) {
+        g.por++;
+        g.f = (float)por / g.por;
+    }
+    return g;
+}
+
+// A escolha do que sai: 12 por linha, duas linhas e meia antes de encolher.
+#define TIRA_Y 108                   // o alto da grade
+static grade_t grade_tira(int n) { return grade_cabe(n, 12, 52, 130); }
 
 static void desenha_premio(void)
 {
@@ -466,30 +483,35 @@ static void desenha_premio(void)
         snprintf(t, sizeof t, "%s: qual dos %d dados sai?", p->nome, p->n_col);
         txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
         teclas_c(GFX_W / 2, MESA_Y0 + 40, "ENTER tira para sempre  ·  BACKSPACE volta", C_TEXTO_M);
+        grade_t g = grade_tira(p->n_col);
+        float f = g.f;
+        int sel = (int)(22 * f), meio = (int)(16 * f);
         for (int i = 0; i < p->n_col; i++) {
-            int lin = i / GRADE, col = i % GRADE;
-            int na_linha = (p->n_col - lin * GRADE) < GRADE ? p->n_col - lin * GRADE : GRADE;
-            int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46);
-            int y = 134 + lin * 52;
+            int lin = i / g.por, col = i % g.por;
+            int na_linha = (p->n_col - lin * g.por) < g.por ? p->n_col - lin * g.por : g.por;
+            int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46 * f);
+            int y = TIRA_Y + (int)((lin + 0.5f) * 52 * f);
             if (t_tira > 0 && i == tira_i) {
                 // O escolhido encolhe e cai, deixando um rastro de po.
                 float q = t_tira / 0.7f;
-                float r = 17 * (1 - q);
-                if (r > 2) peca_parada((float)x, y + q * 24, r, p->col[i], vez);
+                float r = 17 * f * (1 - q);
+                if (r > 2) peca_parada((float)x, y + q * 24 * f, r, p->col[i], vez);
                 for (int k = 0; k < 7; k++)
-                    gfx_rect(x - 14 + k * 4, y + (int)(q * 34) + (k % 2) * 6, 3, 3, C_TEXTO_M);
+                    gfx_rect(x - (int)(14 * f) + (int)(k * 4 * f), y + (int)(q * 34 * f) + (k % 2) * 6, 3, 3, C_TEXTO_M);
                 continue;
             }
-            if (i == cursor) ui_selecao(x - 22, y - 22, 44, 44, C_VINHO_CLR);
-            peca_parada((float)x, (float)y, 17, p->col[i], vez);
-            if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
-            if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
-            zona_clique(x - 22, y - 22, 44, 44, &cursor, i, KEY_ENTER);
+            if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_VINHO_CLR);
+            peca_parada((float)x, (float)y, 17 * f, p->col[i], vez);
+            if (i != cursor) marca_rar(x, y + (int)(23 * f), p->col[i].tipo);
+            if (i == cursor) gfx_rect(x - meio, y + (int)(23 * f), 2 * meio, 3, C_VINHO_CLR);
+            zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, KEY_ENTER);
         }
         botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
-        txt_c(GFX_W / 2, 236, TIPO[tc].nome, cor_dado(tc), true);
-        txt_c(GFX_W / 2, 258, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
+        int linhas = (p->n_col + g.por - 1) / g.por, ty = TIRA_Y + (int)(linhas * 52 * f) + 24;
+        if (ty < 236) ty = 236;              // o nome do dado logo abaixo da grade
+        txt_c(GFX_W / 2, ty, TIPO[tc].nome, cor_dado(tc), true);
+        txt_c(GFX_W / 2, ty + 22, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
               t_tira > 0 ? C_VINHO_CLR : C_MARFIM_S, false);
         return;
     }

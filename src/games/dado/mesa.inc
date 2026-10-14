@@ -21,6 +21,7 @@ static void desenha_lance(void)
         bool descartado = false;
         float ex = v->x, ey = v->y;              // onde ele e desenhado
         int mostra = v->parado ? v->valor : v->face;
+        face_escondida = v->tipo == D_OCULTO;     // o Oculto rola e pousa virado
         // O lance menor do Viciado: riscado e encolhendo enquanto o maior
         // vai para a fila. O Reves do Sorte/Reves desliza para baixo da
         // Sorte e os dois viram um dado so, com o valor final.
@@ -86,6 +87,7 @@ static void desenha_lance(void)
             sombra_alt = alto * 0.6f;
         }
         desenha_dado(ex + dx, ey + bob, r, v->tipo, v->dono, ang, mostra, 2, descartado);
+        face_escondida = false;
         sr_lado = 0;
         sombra_alt = 0;
     }
@@ -145,6 +147,7 @@ static void icone_som(int x, int y)
 static void icone_bolsa(int cx, int cy);
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
 static void trunfo_faixa(int x, int y, int x_max);
+static bool trunfo_ativo(int p);              // desafio/mapa.inc
 static void desenha_amuleto(int x, int y, int r, int a, bool apagado);
 static int  retrato_faixa(int j, int x, int y0);
 static int  fichas_vis(int j);   // devolve onde o nome comeca
@@ -194,7 +197,7 @@ static void faixa_jogador(int j)
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
     // O oponente do Desafiante: o trunfo dele fica numa linha miuda embaixo
     // do nome, sempre a vista; o resto da faixa sobe um pouco.
-    bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0;
+    bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0 && trunfo_ativo(fala_perso);
     if (com_trunfo) ty -= 5;
 
     bool da_vez = fase != F_RESULTADO && fase != F_EFEITOS && fase != F_FIM
@@ -217,15 +220,20 @@ static void faixa_jogador(int j)
         int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
         if (rodada > max_r) snprintf(s, sizeof s, "rodada extra  ·  entrada %d", ante_da(rodada));
         else snprintf(s, sizeof s, "rodada %d de %d  ·  entrada %d", rodada, max_r, ante_da(rodada));
+        if (juros_rodada > 0) {                  // a Banqueira cobrou juros da sua entrada
+            size_t n = strlen(s);
+            snprintf(s + n, sizeof s - n, " (+%d juros)", juros_rodada);
+        }
         int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
         if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
         txt_c(cx, ty, s, t_aviso_entrada > 0 ? C_OURO : C_TEXTO_M, t_aviso_entrada > 0);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
     if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
-        const char *v = rapido ? "» rápido" : "» normal";
+        static const char *const VEL_NOME[VEL_N] = { "» normal", "» médio", "» rápido" };
+        const char *v = VEL_NOME[velocidade];
         int vx = GFX_W / 2 + 22;
-        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, rapido ? C_OURO : C_TEXTO_M, 1, false);
+        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, velocidade == VEL_RAPIDA ? C_OURO : velocidade == VEL_MEDIA ? C_MARFIM_S : C_TEXTO_M, 1, false);
         zona_clique(vx - 4, y0 + 6, gfx_largura(v, 1) + 8, FAIXA_H - 12, NULL, 0, 'v');
     }
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
@@ -404,6 +412,20 @@ static void galao(int cx, int cy)
     gfx_rect(cx - 6, cy - 1, 12, 1, C_AMARELO);
 }
 
+// A carta do Coringa: so um "?" no lugar do dado. Na fila, esperando a vez,
+// e menor e parado, como os dados que ainda nao foram lancados; posta, em
+// suspensao ate o seu turno acabar, fica do tamanho de um dado, flutuando.
+static void desenha_carta(int x, int y, bool posta)
+{
+    if (!posta) {
+        gfx_disco(x, y, R_DADO - 2, C_FELTRO_ESC);                // lugar marcado
+        txt_sombra_c(x, y - 20, "?", C_OURO, 2);                  // o glifo: 10 a 30 da linha
+        return;
+    }
+    int b = (int)lroundf(sinf(t_relogio * 3.0f) * 3);
+    txt_sombra_c(x, y - 30 + b, "?", C_OURO, 3);                  // 30 px de altura, centrado no lugar
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -430,6 +452,14 @@ static void desenha_fila(int j)
                       && voo[0].dono == j && voo[0].slot == k;
         if (voando) continue;
         int t = tipo_de(j, k);
+        if (f->carta && k == 3) {                // a carta do Coringa: na fila ou posta
+            if (fala_perso >= 0) dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_TRUNFO, fala_perso);
+            desenha_carta(x, y, k < f->lancados);
+            if (k >= f->lancados && (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO))
+                acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);       // como os dados que ainda nao foram
+            if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
+            continue;
+        }
         dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
@@ -514,8 +544,19 @@ static void desenha_fila(int j)
             if (q < 0.7f) face = face_v(t, f->valor[k]);
         }
         marca_nivel = f->fixo[k];
+        // O Oculto: "?" ate o evento dele chegar na metade.
+        face_escondida = f->escondido[k] || (no_desfecho && vis_oculto[j][k]
+                         && !(e && e->tipo == EV_REVELA && e->de_j == j && e->de_k == k && p > 0.5f));
         desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
+        face_escondida = false;
         marca_nivel = -1;
+        // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
+        if (coringa_joga(j) && k == 3 && f->idx[k] < 0) {
+            int cx2 = x - R - 2, cy2 = (int)(y - pulo) - R - 4;
+            gfx_rect(cx2 - 1, cy2 - 1, 9, 12, C_BARRA);
+            gfx_rect(cx2, cy2, 7, 10, C_BRANCO);
+            gfx_rect(cx2 + 3, cy2 + 2, 1, 6, C_REAL); gfx_rect(cx2 + 2, cy2 + 3, 3, 4, C_REAL); gfx_rect(cx2 + 1, cy2 + 4, 5, 2, C_REAL);
+        }
         if (!anul && t_onda >= 0 && j == onda_j && k < onda_n && onda_nivel >= 2 && t_onda < 0.9f)
             faiscas(x, (int)(y - pulo), t_onda + k * 0.3f, C_AMARELO);
         // Durante a sequencia: o dado que tirou o que o poder dele pede brilha.
@@ -645,6 +686,8 @@ static void desenha_fila(int j)
             }
         }
         if (e && e->de_j == j && e->de_k == k) aro(x, y, C_VINHO_CLR);   // quem age
+        if (e && e->tipo == EV_VAMPIRO && e->alvo_j == j && (e->mascara >> k & 1) && p > 0.15f + k * 0.08f)
+            aro(x, y, C_VINHO_CLR);              // o Vampiro bebe deste
         if (alvo || (cavalo && p > 0.3f)) aro(x, y, C_VINHO_CLR);
         // Capitao: o galao pousou neste dado.
         if (capitao_agora(e) && e->de_j == j && (e->mascara >> k & 1)
@@ -745,6 +788,8 @@ static void desenha_fila(int j)
             snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
             txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
         }
+        if (carta_posta(j) || tem_escondido(j))   // a carta do Coringa ou um Oculto ainda vai virar
+            txt(PLACAR_X + 38, y - 26, "+?", C_OURO, false);
     }
 }
 
@@ -755,10 +800,27 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
-    if (e->tipo == EV_CHEFE) {                   // a virada do Barao: o +N sobe no placar dele
+    if (e->tipo == EV_VAMPIRO) {                 // gotas saem dos dados do oponente e vao ate o Vampiro
+        int bx = SLOT_X(e->de_k), by = zona(e->de_j);
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q = (p - 0.15f - k * 0.08f) / 0.5f;
+            if (q < 0 || q > 1) continue;
+            float s = q * q * (3 - 2 * q);
+            int ax = SLOT_X(k), ay = zona(e->alvo_j);
+            for (int t = 0; t < 4; t++) {
+                float s2 = s - t * 0.05f;
+                if (s2 < 0) continue;
+                int gx = ax + (int)((bx - ax) * s2), gy = ay + (int)((by - ay) * s2);
+                gfx_disco(gx, gy, t < 2 ? 3 : 2, gfx_mistura(C_VINHO_CLR, C_FELTRO, t * 22));
+            }
+        }
+        return;
+    }
+    if (e->tipo == EV_CHEFE) {                   // pontos direto no placar: o +N sobe nele
         char t[8];
         snprintf(t, sizeof t, "+%d", e->valor);
-        txt_sombra_c(PLACAR_X, zona(e->de_j) - 10 - (int)(p * 30), t, C_VINHO_CLR, 1);
+        txt_sombra_c(PLACAR_X, zona(e->de_j) - 10 - (int)(p * 30), t, e->de_j == 0 ? C_OURO : C_VINHO_CLR, 1);
         return;
     }
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);

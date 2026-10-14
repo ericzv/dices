@@ -67,7 +67,11 @@ static void desenha_avisos(void)
     uint16_t c = C_OURO;
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
-    else if (t_aviso_vel > 0) msg = rapido ? "Velocidade: rápida  (V troca)" : "Velocidade: normal  (V troca)";
+    else if (t_aviso_vel > 0) {
+        static const char *const VEL_AVISO[VEL_N] = { "Velocidade: normal  (V troca)", "Velocidade: média  (V troca)",
+                                                      "Velocidade: rápida  (V troca)" };
+        msg = VEL_AVISO[velocidade];
+    }
     else if (t_aviso_tremor > 0) msg = tremor_off ? "Tremor da tela: desligado  (T troca)" : "Tremor da tela: ligado  (T troca)";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
@@ -131,4 +135,37 @@ static void desenha_misterio(void)
     txt_sombra_c(GFX_W / 2, cy + 62, "Dado Misterioso", C_OURO, 2);
     txt_c(GFX_W / 2, cy + 98, "a pedra negativa se partiu, e havia um d20 dentro", C_MARFIM_S, false);
     if (t > MIST_MIN) teclas_c(GFX_W / 2, cy + 124, "ENTER continua", C_TEXTO_M);
+}
+
+// Mau-Olhado (ou a Bruxaria): um Fantasma sai do lado de quem venceu e vai,
+// em arco, para a bolsa do outro, que acende quando ele chega.
+static void desenha_fantasma_voo(void)
+{
+    if (t_fantasma <= 0 || modo != M_DESAFIO) return;
+    float q = 1 - t_fantasma / 1.6f;                     // 0 no comeco, 1 no fim
+    int para = fantasma_para, de = outro(para);
+    int ax = 60, ay = de == baixo ? GFX_H - FAIXA_H - 26 : FAIXA_H + 26;
+    int bx = bolsa_x(), by = bolsa_y(para);
+    float s = q < 0.75f ? q / 0.75f : 1, e = s * s * (3 - 2 * s);
+    int arco = para == baixo ? 60 : -40;                 // subindo, a curva passa por dentro da mesa
+    int x = ax + (int)((bx - ax) * e), y = ay + (int)((by - ay) * e) - (int)(sinf(e * 3.1416f) * arco);
+    if (q < 0.8f) {
+        for (int r = 1; r <= 3; r++) {                   // um rastro palido
+            float e2 = e - r * 0.05f;
+            if (e2 < 0) continue;
+            int rx = ax + (int)((bx - ax) * e2), ry = ay + (int)((by - ay) * e2) - (int)(sinf(e2 * 3.1416f) * arco);
+            gfx_disco(rx, ry, 5 - r, gfx_mistura(V_LILAS, C_FELTRO, 30 + r * 18));
+        }
+        desenha_dado((float)x, (float)y, 12, D_FANTASMA, 0, sinf(q * 9) * 0.3f, 1, 0, false);
+    }
+    if (q > 0.7f) {                                      // a bolsa recebe
+        float r2 = (q - 0.7f) / 0.3f;
+        int rr = 9 + (int)(r2 * 10);
+        for (int a = 0; a < 28; a++) {
+            float an = a * 0.2244f;
+            gfx_rect(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), 1, 1, gfx_mistura(V_LILAS, C_BARRA, (int)(r2 * 85)));
+        }
+        int ty = para == baixo ? by - 26 - (int)(r2 * 6) : by + 16 + (int)(r2 * 6);   // do lado da mesa
+        txt_sombra_c(bx, ty, "+1 Fantasma", V_LILAS, 1);
+    }
 }

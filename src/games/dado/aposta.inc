@@ -104,8 +104,11 @@ static void executa(int op)
         res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
         res_quem = w;
         p->perdidas++;                    // correr conta como perder (Rancor)
+        p->perdeu_ultima = true;
+        J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;

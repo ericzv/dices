@@ -20,6 +20,7 @@ static int      ev_id, ev_passo;               // passo: 0 escolhas, 1 escolhe u
 static uint32_t ev_sem;
 static int      ev_acao;                       // a escolha que pediu um dado da bolsa
 static int      ev_lista[MAX_COL], ev_n;       // os dados da bolsa que servem
+static int      ev_por = 10;                   // quantos por linha na grade (o desenho acerta)
 static char     ev_msg[96], ev_msg2[96];
 static peca_t   ev_peca;                       // dado ganho ou mudado (resultado)
 static int      ev_mostra = 0;                 // 0 nada, 1 dado, 2 amuleto
@@ -451,14 +452,19 @@ static void desenha_evt(void)
                                             [EA_TROCA] = "Qual dado trocar?", [EA_COPIA] = "Qual dado copiar?" };
         txt(x, y0, PEDE[ev_acao], C_AMARELO, true);
         botao_clique(MESA_X1 - 12, y0 - 4, ev_acao == EA_CAPELA && run.tirados ? "pronto" : "voltar", KEY_BKSP);
-        int por_linha = (w - 4) / 44;
+        // A grade vai do alto ate deixar duas linhas de texto sobre o rodape.
+        int topo = y0 + 23, alt = MESA_Y1 - 2 * TXT_H - 18 - topo;
+        grade_t g = grade_cabe(ev_n, (w - 4) / 44, 42, alt);
+        float f = g.f;
+        int sel = (int)(20 * f);
+        ev_por = g.por;
         for (int k = 0; k < ev_n; k++) {
-            int px = x + 20 + (k % por_linha) * 44, py = y0 + 44 + (k / por_linha) * 42;
-            if (k == cursor) ui_selecao(px - 20, py - 20, 40, 40, C_OURO);
-            peca_parada((float)px, (float)py, 15, run.col[ev_lista[k]], 0);
-            zona_clique(px - 20, py - 20, 40, 40, &cursor, k, KEY_ENTER);
+            int px = x + sel + (int)((k % g.por) * 44 * f), py = topo + (int)((k / g.por + 0.5f) * 42 * f);
+            if (k == cursor) ui_selecao(px - sel, py - sel, 2 * sel, 2 * sel, C_OURO);
+            peca_parada((float)px, (float)py, 15 * f, run.col[ev_lista[k]], 0);
+            zona_clique(px - sel, py - sel, 2 * sel, 2 * sel, &cursor, k, KEY_ENTER);
         }
-        int yd = y0 + 44 + ((ev_n - 1) / por_linha + 1) * 42 - 8;
+        int yd = topo + (int)(((ev_n - 1) / g.por + 1) * 42 * f) + 13;
         if (cursor >= 0 && cursor < ev_n) {
             peca_t p = run.col[ev_lista[cursor]];
             char s[96];
@@ -503,8 +509,8 @@ static bool ev_tecla(int k, int e)
             else { ev_passo = 0; cursor = 0; }
             return true;
         }
-        if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= 11) cursor -= 11; return true; }
-        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + 11 < ev_n) cursor += 11; return true; }
+        if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= ev_por) cursor -= ev_por; return true; }
+        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + ev_por < ev_n) cursor += ev_por; return true; }
         if (e && ev_n) { cursor = (cursor + e + ev_n) % ev_n; som_toca(SOM_TIQUE); return true; }
         if (k == KEY_ENTER && cursor >= 0 && cursor < ev_n) ev_aplica_dado(ev_lista[cursor]);
         return true;

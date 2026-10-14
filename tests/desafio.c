@@ -104,12 +104,70 @@ int main(int argc, char **argv)
                     && hist.camp_tem && hist.camp_col[1] == D_LASER && hist.camp_moedas == 321,
                     "historico de antes nao foi convertido");
         }
+        // O dos 5 niveis: a vitoria no nivel n vai para o 2n, e a run campea tambem.
+        {
+            static hist1_t v1;
+            static char buf[2 * sizeof(hist1_t) + 1];
+            memset(&v1, 0, sizeof v1);
+            memcpy(v1.marca, "HIS1", 4);
+            v1.rodadas = 55; v1.runs_venc[0] = 2; v1.runs_venc[3] = 4; v1.lancou[D_D8] = 3;
+            v1.camp_tem = 1; v1.camp_dif = 3; v1.camp_n = 1; v1.camp_col[0] = D_ESCUDO; v1.camp_moedas = 77;
+            hex_de(&v1, sizeof v1, buf);
+            salva_grava("hist1", buf);
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(!memcmp(hist.marca, "HIS2", 4) && hist.rodadas == 55 && hist.runs_venc[0] == 2 && hist.runs_venc[6] == 4
+                    && !hist.runs_venc[3] && hist.lancou[D_D8] == 3 && hist.camp_tem && hist.camp_dif == 6
+                    && hist.camp_col[0] == D_ESCUDO && hist.camp_moedas == 77, "historico dos 5 niveis nao foi convertido");
+        }
+        // A bolsa nao tem limite: a run campea grande guarda os 48 primeiros e conta todos.
+        {
+            hist_t salvo = hist;
+            memset(&run, 0, sizeof run);
+            run.dificuldade = N_NIVEIS; run.n_col = 60;
+            for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ i == 47 ? D_LASER : D_D6, 0 };
+            hist_run_venceu();
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(hist.camp_tem && hist.camp_n == 60 && hist.camp_col[47] == D_LASER && hist.camp_dif == N_NIVEIS,
+                    "run campea com 60 dados nao voltou do salvamento");
+            hist = salvo;
+        }
         hist = antes; hist_de = 0;
         hist_grava();
         hist_apaga(0);
         hist_carrega(0);
         CONFERE(hist.rodadas == 0, "apagar o perfil devia levar o historico");
         hist_de = -1;
+    }
+
+    // A run salva quando a bolsa parava em 48 volta convertida, com o que vem
+    // depois da bolsa no lugar; e uma run com mais de 48 dados vai e volta.
+    {
+        salva_limpa_tudo();
+        perfil_atual = 0;
+        static run48_t v;
+        static char buf[2 * sizeof(run48_t) + 1];
+        static run_t r;
+        memset(&v, 0, sizeof v);
+        memcpy(v.marca, "DES2", 4);
+        v.andar = 1; v.passo = 2; v.moedas = 345; v.n_col = 30; v.dificuldade = 4;
+        for (int i = 0; i < v.n_col; i++) v.col[i] = (peca_t){ D_D6, 0 };
+        v.col[29] = (peca_t){ D_LASER, 1 };
+        v.caminho[1] = 2; v.no[1][2].tipo = NO_DIFICIL; v.tirados = 3; v.amuletos_hi = 5;
+        hex_de(&v, sizeof v, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(des_carrega(&r) && r.n_col == 30 && r.col[29].tipo == D_LASER && r.col[29].fixo == 1 && r.moedas == 345
+                && r.caminho[1] == 2 && r.no[1][2].tipo == NO_DIFICIL && r.tirados == 3 && r.amuletos_hi == 5
+                && r.dificuldade == 4, "run da bolsa de 48 nao foi convertida");
+        r.n_col = 100;
+        for (int i = 30; i < r.n_col; i++) r.col[i] = (peca_t){ D_D8, 0 };
+        run = r;
+        des_salva();
+        memset(&r, 0, sizeof r);
+        CONFERE(des_carrega(&r) && r.n_col == 100 && r.col[99].tipo == D_D8 && r.tirados == 3,
+                "run com 100 dados nao voltou do salvamento");
+        salva_limpa_tudo();
     }
 
     // Estilo: so o que o andar ja abriu vale; o resto volta ao padrao. Os
@@ -129,7 +187,7 @@ int main(int argc, char **argv)
         perfis[0].venceu[0] = 1;                 // venceu o Barao no terreo: abre o Vinho (e o Osso)
         estilo_le(0, &f, &m, &s);
         CONFERE(f == FT_VINHO && m == MAT_MARFIM && s == MS_NOGUEIRA, "o Vinho devia abrir no terreo");
-        perfis[0].venceu[1] = perfis[0].venceu[2] = 1;
+        perfis[0].venceu[2] = perfis[0].venceu[4] = 1;   // Mogno no 2, Jade no 4
         estilo_le(0, &f, &m, &s);
         CONFERE(f == FT_VINHO && m == MAT_JADE && s == MS_MOGNO, "Jade e Mogno deviam abrir");
         estilo_do_perfil();
@@ -146,14 +204,14 @@ int main(int argc, char **argv)
         materiais_da_partida(material_rapida());
         CONFERE(material_j[1] == MAT_MARFIM, "duas pessoas: o outro lado devia ser de marfim");
         char l[96];
-        CONFERE(estilo_do_andar(5, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
+        CONFERE(estilo_do_andar(N_NIVEIS, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
         perfil_atual = -1;
         estilo_do_perfil();                      // sem perfil: o padrao
         CONFERE(estilo_feltro == FT_VERDE && estilo_material_seu() == MAT_MARFIM, "sem perfil devia voltar ao padrao");
         modo = M_UM;
     }
 
-    int jog[DES_ANDARES][4] = { { 0 } }, ven[DES_ANDARES][4] = { { 0 } };
+    int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
     long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
@@ -301,13 +359,15 @@ int main(int argc, char **argv)
             }
         }
         for (int i = 0; i < run.n_col; i++)
-            CONFERE(dado_liberado(run.col[i].tipo), "dado %d ainda fechado", run.col[i].tipo);
+            CONFERE(dado_liberado(run.col[i].tipo) || sem_sorteio(run.col[i].tipo), "dado %d ainda fechado", run.col[i].tipo);
         if (des_venceu_run) {
             vitorias++;
             CONFERE(perfis[0].venceu[dific] == 1 && perfis[0].nivel == (dific < N_NIVEIS ? dific + 1 : dific),
                     "vitoria nao abriu a dificuldade seguinte");
         }
-        int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS : run.andar * DES_PASSOS + run.passo;
+        int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS
+                : run.andar >= DES_ANDARES ? DES_ANDARES * DES_PASSOS - 1     // parou no Coringa
+                : run.andar * DES_PASSOS + run.passo;
         chegou[ate]++;
         soma_dados += run.n_col;
         soma_moedas += run.moedas;
@@ -319,7 +379,8 @@ int main(int argc, char **argv)
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
     printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.0f moedas, %.1f compras\n", partidas, ganhas,
            (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs);
-    for (int a = 0; a < DES_ANDARES; a++) {
+    for (int a = 0; a <= DES_ANDARES; a++) {
+        if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);
         for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
         putchar('\n');

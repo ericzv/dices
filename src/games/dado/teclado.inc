@@ -69,8 +69,9 @@ void dado_tecla(const key_event_t *ev_)
     }
     if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
     if (k == 'v' && !dado_digitando()) {
-        rapido = !rapido;
-        salva_grava("vel", rapido ? "1" : "0");
+        velocidade = (velocidade + 1) % VEL_N;     // normal, media, rapida
+        char g[2] = { VEL_GRAVA[velocidade], 0 };
+        salva_grava("vel", g);
         t_aviso_vel = 1.6f;
         t_aviso_tremor = 0;
         som_toca(SOM_TIQUE);
@@ -365,7 +366,7 @@ static void trata_tecla(int k)
         if (k >= '1' && k <= '8' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
         if (k == KEY_ENTER) { poe_na_fila(cursor); return; }
         if (k == KEY_BKSP && f->n) { f->n--; return; }
-        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { cursor = 0; fase = F_JOGA; }
+        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { coringa_completa(vez); cursor = 0; fase = F_JOGA; }
         return;
     }
 
@@ -411,8 +412,9 @@ static void trata_tecla(int k)
         slot_pula();                                // tecla do rival: a roleta daqui trava
         if (t_tira > 0) return;                     // dado saindo: espera
         if (removendo) {
-            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE) cursor -= GRADE; return; }
-            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + GRADE < p->n_col) cursor += GRADE; return; }
+            int por = grade_tira(p->n_col).por;
+            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return; }
+            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < p->n_col) cursor += por; return; }
             if (e) { cursor = (cursor + e + p->n_col) % p->n_col; return; }
             if (k == KEY_BKSP || k == 'x') { removendo = false; cursor = 3; return; }
             if (k == KEY_ENTER) { tira_i = cursor; t_tira = 0.001f; som_toca(SOM_ANULA); }

@@ -1,16 +1,16 @@
 // ---------------------------------------------------------------------------
 // Historico: o que cada perfil ja jogou. Conta so a pessoa contra a maquina
 // (Desafiante e partida rapida), no perfil escolhido por ultimo, e guarda na
-// chave do perfil ("HIS1" + hexadecimal). A estrutura tem espaco para os
+// chave do perfil ("HIS2" + hexadecimal). A estrutura tem espaco para os
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
 #define HIST_DADOS 96                    // par: o rabo da estrutura fica no mesmo alinhamento
-#define HIST_COL   48
-#define HIST_CAMPOS(N)                                                                     \
-    char     marca[4];                   /* "HIS1" */                                      \
+#define HIST_COL   48                 // dados guardados da run campea (camp_n conta todos)
+#define HIST_CAMPOS(N, NIV)                                                                \
+    char     marca[4];                   /* "HIS2" */                                      \
     uint32_t rodadas, rodadas_venc;                                                        \
     uint16_t partidas, partidas_venc;                                                      \
-    uint16_t runs_venc[N_NIVEIS + 1];    /* vezes que o Barao caiu em cada dificuldade */  \
+    uint16_t runs_venc[NIV + 1];         /* vezes que o Barao caiu em cada dificuldade */  \
     uint16_t maior_rodada, maior_pote;                                                     \
     uint16_t jackpots, filas_cheias;                                                       \
     uint16_t horas, horas_venc;          /* horas da verdade suas, e as que deram a rodada */ \
@@ -21,9 +21,12 @@
     uint32_t camp_amul, camp_data;       /* amuletos (bit a) e o dia (AAAAMMDD) */         \
     int32_t  camp_moedas;                                                                  \
     uint8_t  reserva[32];
-typedef struct { HIST_CAMPOS(HIST_DADOS) } hist_t;
-typedef struct { HIST_CAMPOS(64) } hist64_t;     // o de antes dos 69 tipos: lido e convertido
-_Static_assert(D_N <= HIST_DADOS && MAX_COL <= HIST_COL && A_N <= 32, "o historico nao comporta os dados");
+typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS) } hist_t;
+typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS_V) } hist1_t;  // "HIS1", dos 5 niveis: lido e convertido
+typedef struct { HIST_CAMPOS(64, N_NIVEIS_V) } hist64_t;         // o de antes dos 69 tipos: idem
+_Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 32, "o historico nao comporta os dados");
+_Static_assert(sizeof(hist_t) != sizeof(hist1_t) && sizeof(hist_t) != sizeof(hist64_t)
+               && sizeof(hist1_t) != sizeof(hist64_t), "os formatos do historico se distinguem pelo tamanho");
 
 static hist_t hist;
 static int hist_de = -1;                 // de que perfil e o historico carregado
@@ -34,28 +37,61 @@ static const char *chave_hist(int i)
     return K[i >= 0 && i < N_PERFIS ? i : 0];
 }
 
+// O "HIS1" dos 5 niveis: tudo igual, menos as vitorias por nivel (o n de la
+// e o 2n daqui) e o nivel da run campea.
+static void hist_converte(hist_t *h, const hist1_t *v)
+{
+    memset(h, 0, sizeof *h);
+    memcpy(h->marca, "HIS2", 4);
+    h->rodadas = v->rodadas; h->rodadas_venc = v->rodadas_venc;
+    h->partidas = v->partidas; h->partidas_venc = v->partidas_venc;
+    for (int d = 0; d <= N_NIVEIS_V; d++) h->runs_venc[2 * d] = v->runs_venc[d];
+    h->maior_rodada = v->maior_rodada; h->maior_pote = v->maior_pote;
+    h->jackpots = v->jackpots; h->filas_cheias = v->filas_cheias;
+    h->horas = v->horas; h->horas_venc = v->horas_venc;
+    memcpy(h->lancou, v->lancou, sizeof h->lancou);
+    memcpy(h->valeu, v->valeu, sizeof h->valeu);
+    memcpy(h->ganhou, v->ganhou, sizeof h->ganhou);
+    h->camp_tem = v->camp_tem; h->camp_dif = (uint8_t)(2 * v->camp_dif); h->camp_n = v->camp_n;
+    memcpy(h->camp_col, v->camp_col, sizeof h->camp_col);
+    h->camp_amul = v->camp_amul; h->camp_data = v->camp_data; h->camp_moedas = v->camp_moedas;
+    memcpy(h->reserva, v->reserva, sizeof h->reserva);
+}
+
 static void hist_carrega(int i)
 {
     if (hist_de == i) return;
     hist_de = i;
     memset(&hist, 0, sizeof hist);
-    memcpy(hist.marca, "HIS1", 4);
+    memcpy(hist.marca, "HIS2", 4);
     static char buf[2 * sizeof(hist_t) + 8];
-    static hist64_t velho;
+    static hist64_t v64;
+    static hist1_t v1;
     hist_t h;
     int n = salva_le(chave_hist(i), buf, (int)sizeof buf);
-    if (n == (int)(2 * sizeof velho)) {                // de antes: as tres listas cresceram
-        if (!de_hex(buf, &velho, sizeof velho)) return;
-        memset(&h, 0, sizeof h);
-        memcpy(&h, &velho, offsetof(hist64_t, lancou));
-        memcpy(h.lancou, velho.lancou, sizeof velho.lancou);
-        memcpy(h.valeu, velho.valeu, sizeof velho.valeu);
-        memcpy(h.ganhou, velho.ganhou, sizeof velho.ganhou);
-        memcpy(&h.camp_tem, &velho.camp_tem, sizeof velho - offsetof(hist64_t, camp_tem));
-    } else if (n != (int)(2 * sizeof h) || !de_hex(buf, &h, sizeof h)) return;
-    if (memcmp(h.marca, "HIS1", 4)) return;
-    if (h.camp_n > HIST_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
-    for (int k = 0; h.camp_tem && k < h.camp_n; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
+    bool velho = true;
+    if (n == (int)(2 * sizeof v64)) {                  // de antes dos 69 tipos: as tres listas cresceram
+        if (!de_hex(buf, &v64, sizeof v64)) return;
+        memset(&v1, 0, sizeof v1);
+        memcpy(&v1, &v64, offsetof(hist64_t, lancou));
+        memcpy(v1.lancou, v64.lancou, sizeof v64.lancou);
+        memcpy(v1.valeu, v64.valeu, sizeof v64.valeu);
+        memcpy(v1.ganhou, v64.ganhou, sizeof v64.ganhou);
+        memcpy(&v1.camp_tem, &v64.camp_tem, sizeof v64 - offsetof(hist64_t, camp_tem));
+    } else if (n == (int)(2 * sizeof v1)) {            // dos 5 niveis
+        if (!de_hex(buf, &v1, sizeof v1)) return;
+    } else {
+        velho = false;
+        if (n != (int)(2 * sizeof h) || !de_hex(buf, &h, sizeof h)) return;
+    }
+    if (velho) {
+        if (memcmp(v1.marca, "HIS1", 4)) return;
+        if (v1.camp_dif > N_NIVEIS_V) v1.camp_tem = 0;
+        hist_converte(&h, &v1);
+    }
+    if (memcmp(h.marca, "HIS2", 4)) return;
+    if (h.camp_n > MAX_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
+    for (int k = 0; h.camp_tem && k < h.camp_n && k < HIST_COL; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
     hist = h;
 }
 
@@ -144,8 +180,8 @@ static void hist_run_venceu(void)
     if (!hist.camp_tem || d >= hist.camp_dif) {
         hist.camp_tem = 1;
         hist.camp_dif = (uint8_t)d;
-        hist.camp_n = run.n_col;
-        for (int k = 0; k < run.n_col; k++) hist.camp_col[k] = run.col[k].tipo;
+        hist.camp_n = run.n_col;              // a bolsa nao tem limite: guarda os 48 primeiros
+        for (int k = 0; k < run.n_col && k < HIST_COL; k++) hist.camp_col[k] = run.col[k].tipo;
         hist.camp_amul = run_amuletos();
         hist.camp_moedas = run.moedas;
         hist.camp_data = hoje();
@@ -238,14 +274,23 @@ static void hist_resumo(void)
                      dt % 100, dt / 100 % 100, dt / 10000, hist.camp_moedas);
     else snprintf(s, sizeof s, "%s  ·  %d moedas", NOME_DIF_CURTO[hist.camp_dif], hist.camp_moedas);
     txt_c(px + pw / 2, y + 30, s, hist.camp_dif ? COR_DIF[hist.camp_dif] : C_MARFIM_S, false);
-    int por = 9, r = hist.camp_n > 27 ? 9 : 11, passo = r * 2 + 8;
-    int linhas = (hist.camp_n + por - 1) / por, topo = y + 56 + (150 - linhas * (passo + 2)) / 2 + r;
-    for (int k = 0; k < hist.camp_n; k++) {
-        int lin = k / por, col = k % por;
-        int na = hist.camp_n - lin * por < por ? hist.camp_n - lin * por : por;
-        int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + lin * (passo + 2);
+    // Os dados guardados (ate 48) numa grade que encolhe; os que passam disso viram "+N".
+    int nc = hist.camp_n < HIST_COL ? hist.camp_n : HIST_COL, mais = hist.camp_n - nc;
+    int alt = mais ? 134 : 150;
+    grade_t g = grade_cabe(nc, 9, 32, alt);
+    int r = (int)(11 * g.f), linhas = (nc + g.por - 1) / g.por;
+    float passo = 30 * g.f, passo_y = 32 * g.f;
+    int topo = y + 56 + (int)((alt - linhas * passo_y) / 2 + passo_y / 2);
+    for (int k = 0; k < nc; k++) {
+        int lin = k / g.por, col = k % g.por;
+        int na = nc - lin * g.por < g.por ? nc - lin * g.por : g.por;
+        int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + (int)(lin * passo_y);
         peca_parada((float)cx, (float)cy, (float)r, (peca_t){ hist.camp_col[k], 0 }, 0);
         dica_zona(cx - r, cy - r, 2 * r, 2 * r, DICA_DADO, hist.camp_col[k]);
+    }
+    if (mais) {
+        snprintf(s, sizeof s, "+%d dados", mais);
+        txt_c(px + pw / 2, topo + (int)((linhas - 1) * passo_y) + r + 6, s, C_TEXTO_M, false);
     }
     int na = 0;
     for (int a = 0; a < A_N; a++) if (hist.camp_amul >> a & 1) na++;

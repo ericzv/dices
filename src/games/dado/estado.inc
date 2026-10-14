@@ -18,6 +18,7 @@ typedef struct {
     int n_mao;
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
+    bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -38,6 +39,8 @@ typedef struct {
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
+    bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
+    bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -59,12 +62,14 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
-       EV_CHEFE,                     // a virada do Barao: pontos por queda sua
+       EV_CHEFE,                     // pontos direto no placar (virada do Barao, Crisantemo, Velorio)
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade
        EV_AGIOTA,                    // o Agiota: fichas do rival para o dono, fora do pote
        EV_MEDUSA,                    // a Medusa: a fila vira pedra (Quebrados)
-       EV_GARIMPO };                 // o Garimpeiro: os outros validos voltam para a bolsa
+       EV_GARIMPO,                   // o Garimpeiro: os outros validos voltam para a bolsa
+       EV_REVELA,                    // o Oculto mostra o que tirou
+       EV_VAMPIRO };                 // o Vampiro: -1 em cada dado do oponente que vale
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -121,7 +126,7 @@ static void reage_evento(const evento_t *e);
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static peca_t oferta[3];
-static char aviso[64], veredito[64], nota[48];
+static char aviso[96], veredito[64], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
 static char anuncio[64];
@@ -148,6 +153,7 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_espelho[2][N_FILA];
+static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
 static int  vis_semente[2];
 
@@ -167,9 +173,9 @@ enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
 // Modos: contra o computador, dois no mesmo teclado, ou online.
 enum { M_UM, M_DOIS, M_ONLINE, M_DESAFIO };
 static int  modo;
-// Quantos dados cabem na colecao: 24 na partida normal; sem limite pratico
-// no Modo Desafiante.
-static int lim_col(void) { return modo == M_DESAFIO ? MAX_COL : LIM_COL; }
+// Quantos dados cabem na colecao: em qualquer modo, so o espaco da
+// estrutura (128, bem longe do que uma run junta); nao ha limite de jogo.
+static int lim_col(void) { return MAX_COL; }
 
 // Amuletos: so no Modo Desafiante, so de quem joga (o oponente nunca tem).
 // A run guarda quais tem; a partida copia para amul[0].
@@ -177,7 +183,9 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        A_COFRE, A_RESERVA, A_POTE, A_FURADO,
        // Liberados pelas dificuldades (dois por nivel).
        A_FERRADURA, A_PESADO, A_RELOGIO, A_CARTOLA, A_COROA, A_CUPOM,
-       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO, A_N };
+       A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO,
+       // Vindos dos trunfos do Rival, da Bruxa e do Coveiro (abertos desde o comeco).
+       A_DESFORRA, A_MAU_OLHADO, A_CRISANTEMO, A_N };
 #define A_BASICOS A_FERRADURA
 static uint32_t amul[2];
 static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
@@ -188,8 +196,15 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
-enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE };
+enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
+       REG_MALUCO, REG_JUROS, REG_CORINGA };
 static uint8_t reg_op;
+static uint8_t estilo_op;                // o jeito de apostar do oponente (ES_*, desafio/run.inc)
+static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (cara) ou -1 (coroa)
+static int juros_rodada;                 // a entrada a mais que a Banqueira cobrou nesta rodada
+static float t_fantasma;                 // > 0: um Fantasma voando para uma bolsa...
+static int8_t fantasma_para;             // ...a de quem (Bruxaria da Bruxa, ou o seu Mau-Olhado)
+static bool carta_virando;               // a carta do Coringa virou e esta sendo lancada agora
 static bool op_nervoso;              // o Novato perdeu a ultima rodada
 static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
 // Falas do oponente (desafio.inc): o que acabou de acontecer.
@@ -216,10 +231,15 @@ static float t_reacao;                   // > 0: o rosto ainda reage
 static float t_curta;                    // > 0: espera antes de outra palavra
 static bool  fala_e_curta;               // o balao da vez e so uma palavra
 static int   placar_antes[2];            // os totais antes do lance: quem passou quem
-// Velocidade: no rapido, animacoes e a vez do computador andam em dobro
-// (menos no online, onde os dois lados precisam andar juntos). Fica guardada.
-#define VEL_RAPIDO 2.0f
-static bool rapido, rapido_lido;
+// Velocidade: normal, media (uma vez e meia) ou rapida (em dobro), nas
+// animacoes e na vez do computador (menos no online, onde os dois lados
+// precisam andar juntos). Fica guardada: "0" normal, "2" media, "1" rapida
+// (o "1" e o rapido de antes).
+enum { VEL_NORMAL, VEL_MEDIA, VEL_RAPIDA, VEL_N };
+static const float VEL_FATOR[VEL_N] = { 1.0f, 1.5f, 2.0f };
+static const char VEL_GRAVA[VEL_N] = { '0', '2', '1' };
+static int velocidade = VEL_MEDIA;
+static bool rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).
@@ -254,7 +274,7 @@ static int virada_de(int perso)
 {
     int c = perso - PERSO_CHEFE0;
     if (c < 0 || c > 2) return 0;
-    static const int8_t ABRE[3] = { 1, 2, 3 }, FORTE[3] = { 4, 4, 5 };
+    static const int8_t ABRE[3] = { 1, 2, 4 }, FORTE[3] = { 7, 7, 9 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
 }
@@ -266,7 +286,8 @@ static int virada_forca(int c)
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
-static int max_fila(int j) { return tem_am(j, A_CONTRATO) ? 3 : N_FILA; }
+// O Coringa monta 3: o quarto e a copia do seu dado que mais tirou (partida.inc).
+static int max_fila(int j) { return tem_am(j, A_CONTRATO) || (j == 1 && tem_reg(REG_CORINGA)) ? 3 : N_FILA; }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run

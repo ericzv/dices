@@ -22,7 +22,8 @@ static int rola_v(int lados) { return 1 + (int)(rnd_v() % (uint32_t)lados); }
 // Face que pisca enquanto o dado rola: so as que ele pode mostrar.
 static int face_v(int tipo, int valor)
 {
-    if (tipo == D_QUEBRADO) return valor;
+    if (tipo == D_QUEBRADO || tipo == D_FANTASMA || tipo == D_PREVISIVEL) return valor;
+    if (tipo == D_VAZIO) return 0;
     if (tipo == D_LASTRO)   return 3 + rola_v(9);
     return rola_v(TIPO[tipo].lados);
 }

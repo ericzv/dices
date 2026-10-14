@@ -124,11 +124,11 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
-enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_BARAO, MULT_N };
+enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_SACRIFICIO, MULT_BARAO, MULT_N };
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
-    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", "Esperança", J[1].nome };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2 };
+    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", "Esperança", "Sacrifício", J[1].nome };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
@@ -256,6 +256,16 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         } else evento(gera, EV_FOGO, j, k, j, a, 0, "Ficha Fogo deu 1: o %d vira cinza", f->valor[a]);
     }
 
+    // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
+    // contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
+    int sac[N_FILA] = { 0 };
+    for (int s = 0; s < f->lancados && s < N_FILA; s++) {
+        if (est[s] != V_VALIDO || TIPO[tipo_de(j, s)].efeito != EF_SACRIFICIO) continue;
+        int a = -1;
+        for (int i = 0; i < f->lancados && i < N_FILA; i++)
+            if (est[i] == V_VALIDO && valor_pontos(j, i) > 0 && (a < 0 || f->valor[i] < f->valor[a])) a = i;
+        if (a >= 0) sac[a] += 2;
+    }
     uint8_t mask = 0;
     uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
     int sozinhos = 0;                            // dados valendo: a Viuva quer ser a unica
@@ -280,6 +290,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             m += 2;                              // comecou a rodada com 15 fichas ou menos
             de[MULT_ESPERANCA] |= bit;
         }
+        if (sac[k]) { m += sac[k]; de[MULT_SACRIFICIO] |= bit; }
         if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
             m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
             de[MULT_BARAO] |= bit;
@@ -304,6 +315,20 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (dados < 14) continue;
         d->semente[j] += 7;
         evento(gera, EV_SEMENTE, j, k, j, 0, 7, "Semente: %d pontos, brota +7", dados);
+    }
+
+    // Crisantemo (o Velorio do Coveiro): +1 por dado de j anulado na rodada.
+    // Do oponente, so vem do trunfo do Coveiro; seu, do amuleto.
+    if (tem_am(j, A_CRISANTEMO)) {
+        int mortos = 0;
+        for (int k = 0; k < f->lancados; k++) if (d->est[j][k] == V_ANULADO) mortos++;
+        if (mortos) {
+            d->semente[j] += mortos;
+            if (j == 0) evento(gera, EV_CHEFE, 0, 0xFF, 0, 0, mortos, "Crisântemo: %d dado%s seu%s anulado%s, +%d",
+                               mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
+            else evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
+                        mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
+        }
     }
 
     // A virada do Barao: +2 para ele por dado seu anulado na rodada.
@@ -413,6 +438,12 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             int n = J[j].perdidas;
             d->semente[j] += n;
             evento(gera, EV_EXTRA, j, k, j, 0, n, "Rancor: %d rodada%s perdida%s, +%d", n, n > 1 ? "s" : "", n > 1 ? "s" : "", n);
+        } else if (ef == EF_MEDIA) {                        // o total da fila dividido por 4
+            int tot = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]), n = tot > 0 ? tot / 4 : 0;
+            if (n) {
+                d->semente[j] += n;
+                evento(gera, EV_EXTRA, j, k, j, 0, n, "Média: %d ÷ 4, +%d", tot, n);
+            }
         } else if (ef == EF_POTE && pote >= 25) {           // +1 a cada 25 fichas no pote
             int n = pote / 25;
             d->semente[j] += n;
@@ -550,7 +581,12 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
         return 0;
+    case EF_COLECIONADOR: return v == 6;
+    case EF_SACRIFICIO:                                      // um outro dado seu que pontua
+        for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
+        return 0;
     case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO: case EF_SEGURANCA:
+    case EF_MEDIA: case EF_ASSOMBRA: case EF_VAMPIRO:
         return 1;                                            // basta terminar valendo
     default:              return 0;
     }
@@ -575,6 +611,16 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     bool virou = false;
     memcpy(f_antes, F, sizeof F);
     memcpy(ver_antes, veredito, sizeof veredito);
+    // O Oculto mostra o que tirou (so no desfecho de verdade: a previa nao
+    // sabe, e a IA imagina o numero antes): a sequencia e refeita com ele.
+    uint8_t revelados[2] = { 0, 0 };
+    for (int j = 0; gera && j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            if (F[j].escondido[k]) {
+                F[j].escondido[k] = false;
+                revelados[j] |= (uint8_t)(1 << k);
+                evento(gera, EV_REVELA, j, k, j, k, F[j].valor[k], "Oculto: tirou %d", F[j].valor[k]);
+            }
     for (int j = 0; j < 2; j++) {
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
@@ -586,7 +632,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             virados++;
             evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
-        if (!virados) continue;
+        if (!virados && !revelados[j]) continue;
         if (gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
@@ -739,6 +785,12 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                F[r].valor[a], J[r].nome, base - corte);
                     }
                 }
+            } else if (ef == EF_VAMPIRO) {               // valendo: -1 em cada dado do oponente que vale
+                uint8_t m = 0;
+                for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
+                    if (d->est[r][i] == V_VALIDO) { d->bonus[r][i] = (int8_t)(d->bonus[r][i] - 1); m |= (uint8_t)(1 << i); }
+                evento_t *e = m ? evento(gera, EV_VAMPIRO, j, k, r, 0, 1, "Vampiro: -1 em cada dado de %s", J[r].nome) : NULL;
+                if (e) e->mascara = m;
             } else if (ef == EF_MARTELO && v >= 3) {     // Espinhoso: com 3 ou 4
                 d->delta[r] -= 4;
                 evento(gera, EV_TIRA, j, k, r, 0, 4, "Espinhoso: -4 para %s", J[r].nome);
@@ -805,8 +857,10 @@ static int risco(int j)
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
-    if (ef == EF_PONTE) return 0;                // nunca cai
+    if (ef == EF_PONTE || ef == EF_VAZIO) return 0;   // nunca caem
+    if (ef == EF_PREVISIVEL) return l >= 0 && (f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12) < L ? 100 : 0;
     if (ef == EF_QUEBRADO) return l >= 0 && (int8_t)f->fixo[k] < L ? 100 : 0;
+    if (ef == EF_FANTASMA) return l >= 0 && (f->fixo[k] ? (int8_t)f->fixo[k] : 1) < L ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;

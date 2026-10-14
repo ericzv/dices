@@ -55,7 +55,8 @@ static void faixa_run(int voltar)
         fim += 10 + gfx_largura(nome_dif(run.dificuldade), 1);
     }
     char s[48];
-    snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
+    if (run.andar >= DES_ANDARES) snprintf(s, sizeof s, "%s  ·  final", SALAO[run.andar]);
+    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
     int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
     if (cx - meio < fim + 18) cx = fim + 18 + meio;
     txt_c(cx, ty, s, COR_SALAO[run.andar], true);
@@ -198,8 +199,15 @@ static void info_mesa(int l)
 
     // O trunfo: nome em destaque e a regra, quebrada em linhas.
     int xb = xa + wa + 12, wb = 168;
-    txt(xb, cy, pe->trunfo, C_ROSA, true);
-    quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
+    if (trunfo_ativo(no->perso)) {
+        txt(xb, cy, pe->trunfo, C_ROSA, true);
+        quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
+    } else {                                     // ainda sem trunfo: so a partir do nivel dele
+        txt(xb, cy, "Sem trunfo", C_TEXTO_M, true);
+        char s2[64];
+        snprintf(s2, sizeof s2, "Traz o trunfo a partir do Nível %d.", PERSO[no->perso].andar_trunfo);
+        quebra_linhas(xb, cy + 22, wb, 3, s2, C_TEXTO_M);
+    }
     info_divisa(xb + wb + 6);
 
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
@@ -238,9 +246,13 @@ static void desenha_mapa(void)
     faixa_run(KEY_ESC);
     rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
 
+    bool final = run.andar >= DES_ANDARES;           // o salao do Coringa: so dois passos
     for (int p = 0; p < DES_PASSOS; p++) {
         char s[24];
-        if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
+        if (final) {
+            if (p > 1) continue;
+            snprintf(s, sizeof s, p == 0 ? "última loja" : "final");
+        } else if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
         else snprintf(s, sizeof s, "chefe");
         uint16_t c = p == run.passo ? COR_SALAO[run.andar] : (p < run.passo ? C_FELTRO2 : C_TEXTO_M);
         txt_c(MAPA_X[p], 52, s, c, false);
@@ -334,7 +346,9 @@ static void desenha_loja_run(void)
 }
 
 // ---- A bolsa ------------------------------------------------------------
-#define GRADE_B 12
+// 12 por linha, tres linhas antes de encolher.
+#define BOLSA_Y 118                  // o alto da grade
+static grade_t grade_bolsa(int n) { return grade_cabe(n, 12, 40, 120); }
 static void desenha_bolsa_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
@@ -343,15 +357,18 @@ static void desenha_bolsa_run(void)
     char s[64];
     snprintf(s, sizeof s, "%d dados", run.n_col);
     txt_c(GFX_W / 2, MESA_Y0 + 44, s, C_MARFIM_S, false);
+    grade_t g = grade_bolsa(run.n_col);
+    float f = g.f;
+    int sel = (int)(20 * f);
     for (int i = 0; i < run.n_col; i++) {
-        int lin = i / GRADE_B, col = i % GRADE_B;
-        int na_linha = (run.n_col - lin * GRADE_B) < GRADE_B ? run.n_col - lin * GRADE_B : GRADE_B;
-        int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44);
-        int y = 138 + lin * 40;
-        if (i == cursor) ui_selecao(x - 20, y - 20, 40, 40, C_OURO);
-        peca_parada((float)x, (float)y, 15, run.col[i], 0);
-        if (i != cursor) marca_rar(x, y + 20, run.col[i].tipo);
-        zona_clique(x - 20, y - 20, 40, 40, &cursor, i, 'i');   // clique abre os detalhes
+        int lin = i / g.por, col = i % g.por;
+        int na_linha = (run.n_col - lin * g.por) < g.por ? run.n_col - lin * g.por : g.por;
+        int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44 * f);
+        int y = BOLSA_Y + (int)((lin + 0.5f) * 40 * f);
+        if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_OURO);
+        peca_parada((float)x, (float)y, 15 * f, run.col[i], 0);
+        if (i != cursor) marca_rar(x, y + sel, run.col[i].tipo);
+        zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, 'i');   // clique abre os detalhes
     }
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar ao mapa", KEY_TAB);
     // Os amuletos da run, nas laterais: seis de cada lado.
@@ -374,7 +391,8 @@ static void desenha_bolsa_run(void)
 }
 
 // ---- Fim da run ---------------------------------------------------------
-static void desenha_liberou(void);
+static void desenha_liberou(int dy);
+static int liberou_itens(void);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
@@ -383,14 +401,16 @@ static void desenha_fim_run(void)
     char es[96];
     int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
     int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
-    painel(CENTRO - 84, (abriu ? 208 : 168) + extra, abriu ? 580 : 500);   // o que abriu pode ir a seis nomes
+    // O que abriu em duas linhas: o painel cresce, e tudo sobe um pouco.
+    int dois = abriu && liberou_itens() > 5 ? 24 : 0, up = dois ? 16 : 0;
+    painel(CENTRO - 84 - up, (abriu ? 208 : 168) + extra + dois, abriu ? 580 : 500);
     char s[96];
     if (des_venceu_run) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
-        txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
-        desenha_liberou();
+        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "VITÓRIA", C_OURO, 3);
+        txt_c(GFX_W / 2, CENTRO - 6 - up, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
+        desenha_liberou(-up);
     } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "FIM DA RUN", C_VINHO_CLR, 3);
         if (des_perdeu_para >= 0)
             snprintf(s, sizeof s, "%s venceu você no %s.", PERSO[des_perdeu_para].nome, SALAO[des_perdeu_andar]);
         else snprintf(s, sizeof s, "A casa ficou com a mesa.");
@@ -398,13 +418,13 @@ static void desenha_fim_run(void)
     }
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
-    txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
+    txt_c(GFX_W / 2, CENTRO + 22 - up, s, C_TEXTO_M, false);
     if (ne) {
         char l[128];
         snprintf(l, sizeof l, "Estilo: %s", es);
-        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44), l, C_OURO, false);
+        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44) + dois - up, l, C_OURO, false);
     }
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra + dois - up, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha

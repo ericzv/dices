@@ -16,7 +16,7 @@ static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 static int valor_pontos(int j, int k)
 {
     if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
-    if (F[j].tipo[k] == D_FERREIRO) return 0;
+    if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO) return 0;
     return F[j].valor[k];
 }
 
@@ -46,6 +46,7 @@ static int maior_do_rival(int j)
     const fila_t *r = &F[outro(j)];
     int vale = 0, qualquer = 0;
     for (int i = 0; i < r->lancados; i++) {
+        if (r->escondido[i]) continue;               // o Oculto ainda nao mostrou
         if (r->valor[i] > qualquer) qualquer = r->valor[i];
         if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
     }
@@ -126,6 +127,7 @@ static void aplica_regra(int j, int k)
 {
     if (k < 0 || k >= N_FILA) return;
     fila_t *f = &F[j];
+    if (f->carta && k == 3) { f->est[k] = V_ESPERA; return; }   // a carta do Coringa: ainda em suspensao
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int v = f->valor[k];
@@ -136,6 +138,15 @@ static void aplica_regra(int j, int k)
     bool espelhou = false, espera = false;
     // Preso pela Ancora: o dado logo depois dela, com ela valendo.
     f->ancora[k] = k > 0 && tipo_de(j, k - 1) == D_ANCORA && f->est[k - 1] == V_VALIDO;
+    // O Oculto lancado: ninguem ve o numero; fica fora da sequencia (nao cai,
+    // nao derruba, o seguinte compara com o de antes dele) ate o fim.
+    if (f->escondido[k]) {
+        f->est[k] = V_ESPERA;
+        snprintf(veredito, sizeof veredito, "Oculto: o número só aparece no fim");
+        ver_tipo = 0;
+        f->pontos = soma(j, f->est);
+        return;
+    }
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
@@ -258,7 +269,7 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    if (!espera && ef != EF_PONTE && l >= 0 && v < f->valor[l]) {   // a Ponte nunca cai
+    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && l >= 0 && v < f->valor[l]) {   // a Ponte e o Vazio nunca caem
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
         // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;
@@ -310,7 +321,14 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
-        if (ef == EF_FERREIRO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
+        if (ef == EF_FERREIRO || ef == EF_SACRIFICIO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
+        // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
+        if (ef == EF_COLECIONADOR && v == 6) {
+            int tem = 0;
+            for (int i = 0; i < J[j].n_col; i++) tem += J[j].onde[i] != COMIDO;
+            f->bonus[k] = (int8_t)(f->bonus[k] + tem / 2);
+            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+        }
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
         int am_b = 0;
@@ -322,10 +340,12 @@ static void aplica_regra(int j, int k)
         if (j == 1 && rodada >= 5 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
         if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
+        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= 1u << A_DESFORRA; }
+        if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
         if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
@@ -339,6 +359,12 @@ static void aplica_regra(int j, int k)
         } else if (copia_antes(j, k)) {
             snprintf(f->tag[k], sizeof f->tag[k], "+2");
             snprintf(veredito, sizeof veredito, "vale %d, igual ao Copiador: +2", vale);
+        } else if (ef == EF_SACRIFICIO) {
+            snprintf(veredito, sizeof veredito, "Sacrifício: não pontua; no fim, x2 no seu menor");
+        } else if (ef == EF_VAZIO) {
+            snprintf(veredito, sizeof veredito, "Vazio: vale 0, e a barra volta a 0");
+        } else if (ef == EF_COLECIONADOR && v == 6) {
+            snprintf(veredito, sizeof veredito, "Colecionador tirou 6: +%d", f->bonus[k]);
         } else if (ef == EF_FERREIRO) {
             if (v >= 3) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
@@ -403,6 +429,13 @@ static void refaz_sequencia(int j, int n)
     f->lancados = lanc;
 }
 
+// Algum Oculto de j ainda escondido?
+static bool tem_escondido(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (F[j].escondido[k]) return true;
+    return false;
+}
+
 // Um dado acabou de cair na posicao k. O Ventania, antes da regra dele, rola
 // de novo o primeiro dado da sequencia e refaz a sequencia do comeco com o
 // valor novo (dados podem cair ou voltar a valer). Nao rola a si mesmo nem os
@@ -410,6 +443,7 @@ static void refaz_sequencia(int j, int n)
 static void pousa(int j, int k, int (*r)(int))
 {
     fila_t *f = &F[j];
+    f->escondido[k] = TIPO[f->tipo[k]].efeito == EF_OCULTO;    // o Oculto cai virado
     bool voltou = false;
     int tirou = f->valor[k];
     if (f->tipo[k] == D_BUMERANGUE && tirou <= 2) {          // volta e rola de novo, uma vez
@@ -419,7 +453,7 @@ static void pousa(int j, int k, int (*r)(int))
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
     int mira = f->valor[k];
     f->calibre[k] = false;
-    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO) {
+    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
         int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
         if (mira < teto) { f->cru[k] = f->valor[k] = mira + 1; f->calibre[k] = true; }
     }
@@ -429,8 +463,8 @@ static void pousa(int j, int k, int (*r)(int))
             snprintf(veredito, sizeof veredito, "o Bumerangue voltou: %d", f->valor[k]);
             ver_comum = false;
         }
-        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", tirou, f->valor[k]);
-        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", mira, mira + 1);
+        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
+        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
         if (f->calibre[k] && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
             ver_comum = false;

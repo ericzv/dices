@@ -48,10 +48,10 @@ static const float PESO_PREMIO[4][4] = {
 
 // Loja: caro de proposito, para a bolsa nao encher. Com as 50 moedas do
 // comeco, da para um dado incomum ou um comum.
-// A dificuldade Prata encarece a loja; o Cupom barateia.
+// Do Nivel 3 a loja fica mais cara; o Cupom barateia.
 static int preco_ajusta(int p)
 {
-    if (run.dificuldade >= 2) p = p * 5 / 4;
+    if (run.dificuldade >= 3) p = p * 5 / 4;
     if (run_amuletos() >> A_CUPOM & 1) p = p * 3 / 4;
     return p;
 }
@@ -76,6 +76,27 @@ static void monta_loja_run(void)
 // ---------------------------------------------------------------------------
 // O mapa de um salao
 // ---------------------------------------------------------------------------
+// O salao do Coringa: so a ultima loja e, depois dela, ele.
+static void gera_salao_final(void)
+{
+    rs = run.semente ^ 0xC0121A5Au;
+    rnd_r();
+    for (int p = 0; p < DES_PASSOS; p++)
+        for (int l = 0; l < 3; l++) run.no[p][l].tipo = NO_VAZIO;
+    no_t *lj = &run.no[0][1], *chefe = &run.no[1][1];
+    lj->tipo = NO_LOJA;
+    lj->liga = 1 << 1;
+    lj->semente = rnd_r() | 1;
+    chefe->tipo = NO_CHEFE;
+    chefe->perso = PERSO_CORINGA;
+    chefe->nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
+    chefe->semente = rnd_r() | 1;
+}
+
+// O trunfo do oponente p ja vale nesta dificuldade? Os comuns trazem o seu
+// a partir de um nivel (nenhum no Normal); os chefes, sempre.
+static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.dificuldade >= PERSO[p].andar_trunfo; }
+
 static bool existe(int p, int l) { return p >= 0 && p < DES_PASSOS && l >= 0 && l < 3 && run.no[p][l].tipo != NO_VAZIO; }
 
 static void gera_andar(void)
@@ -134,7 +155,7 @@ static void gera_andar(void)
             if (no->tipo == NO_LOJA || no->tipo == NO_EVENTO) continue;
             int pe, tent = 0;
             // O Novato nao senta nas mesas dificeis.
-            static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15 };
+            static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
             do pe = COMUNS[sorte_r((int)sizeof COMUNS)];
             while (((usados >> pe & 1) || (pe == 0 && no->tipo == NO_DIFICIL)) && ++tent < 20);
             usados |= 1u << pe;
@@ -190,6 +211,40 @@ static bool escolhivel(int l)
 // ---------------------------------------------------------------------------
 // Os oponentes: dados melhores e menos dados fracos a cada salao e dificuldade
 // ---------------------------------------------------------------------------
+// Dado de numero, sem poder: o que um especial vira quando sobra.
+static bool so_numero(int t) { return t == D_D2 || t == D_D4 || t == D_D6 || t == D_D8 || t == D_D12 || t == D_D20; }
+
+// Poucos tipos diferentes: um oponente simples leva so uns poucos dados
+// especiais diferentes - o nucleo primeiro, depois os que mais se repetem;
+// os outros viram dados de numero do mesmo tamanho (os grandes, d8). Assim
+// da para entender a mesa dele de uma olhada.
+static int poucos_tipos(peca_t *col, int n, const perso_t *pe, int lim)
+{
+    bool fica[D_N] = { false };
+    int nf = 0;
+    for (int i = 0; i < 3 && pe->nucleo[i]; i++)
+        for (int k = 0; k < n; k++)
+            if (col[k].tipo == pe->nucleo[i] && !fica[col[k].tipo]) { fica[col[k].tipo] = true; nf++; }
+    while (nf < lim) {
+        int b = -1, nb = 0;
+        for (int k = 0; k < n; k++) {
+            int t = col[k].tipo, c = 0;
+            if (so_numero(t) || fica[t]) continue;
+            for (int i = 0; i < n; i++) c += col[i].tipo == t;
+            if (c > nb) { nb = c; b = t; }
+        }
+        if (b < 0) break;
+        fica[b] = true;
+        nf++;
+    }
+    for (int k = 0; k < n; k++) {
+        int t = col[k].tipo, l = TIPO[t].lados;
+        if (so_numero(t) || fica[t]) continue;
+        col[k] = (peca_t){ (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), 0 };
+    }
+    return n;
+}
+
 static int monta_oponente(const no_t *no, int andar, peca_t *col)
 {
     rs = no->semente;
@@ -197,8 +252,12 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
     // Os oito de saida, do mais forte ao mais fraco; os fracos saem primeiro.
     static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
+    // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
+    // Sem os dados de saida, toda do tema, recheada de dados bons.
+    bool coringa = no->perso == PERSO_CORINGA;
     int tira = andar * 2 + (tier >= 2 ? 1 : 0);
     if (tira > 6) tira = 6;
+    if (coringa) tira = 8;
     int n = 0;
     for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
     int extras = 1 + andar * 2 + (tier == 3 ? 1 : tier);
@@ -211,14 +270,26 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
                    BASE[tier][2] * (1 + 0.4f * andar), BASE[tier][3] * (1 + 0.8f * andar) };
     const perso_t *pe = &PERSO[no->perso];
     int n_fav = 0;
-    while (n_fav < 5 && pe->fav[n_fav] != 0xFF) n_fav++;
+    while (n_fav < 8 && pe->fav[n_fav] != 0xFF) n_fav++;
+    // O nucleo: os dados que sao a cara dele, sempre na bolsa - um no primeiro
+    // salao, dois no segundo, tres dali em diante. Cada um toma o lugar de um
+    // dos sorteados (o primeiro vem de graca: ninguem fica sem o seu).
+    // So entra o que a sua dificuldade ja abriu (o Coringa, no ultimo nivel,
+    // traz o que quiser): o nucleo e o tema fechados ficam de fora.
+    for (int i = 0; i < 3 && i <= andar && pe->nucleo[i] && n < MAX_COL; i++) {
+        if (!coringa && !dado_liberado(pe->nucleo[i])) continue;
+        col[n++] = peca_r(pe->nucleo[i]);
+        if (i > 0 && extras > 0) extras--;
+    }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
-        int t = (n_fav && sorte_r(100) < 45) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
+        int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
+        if (!coringa && !dado_liberado(t)) t = sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
-    if (run.dificuldade >= 3) {                  // Ouro: dois dados raros a mais
+    if (run.dificuldade >= 6) {                  // dados raros a mais: um do Nivel 6, dois do 8
         static const float RARO[4] = { 0, 0.5f, 3, 1.5f };
-        for (int i = 0; i < 2 && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
+        int raros = run.dificuldade >= 8 ? 2 : 1;
+        for (int i = 0; i < raros && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
     }
     // Recheio: dados simples (ou de efeito fraco) ate um tamanho minimo de
     // bolsa. Sem isso, um oponente de poucos dados poe os seus dois ou tres
@@ -226,7 +297,12 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     static const uint8_t RECHEIO[] = { D_D6, D_D8, D_D4, D_D8, D_QUEBRADO, D_TEIMOSO, D_PAR,
                                        D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR,
                                        D_SENTINELA, D_COBRADOR, D_VIDRO, D_SOLITARIO };
+    static const uint8_t RECHEIO_CORINGA[] = { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO };
     int alvo = 13 + andar * 2;
-    while (n < alvo && n < MAX_COL) col[n++] = peca_r(RECHEIO[sorte_r((int)sizeof RECHEIO)]);
+    while (n < alvo && n < MAX_COL) {
+        int t = coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)] : RECHEIO[sorte_r((int)sizeof RECHEIO)];
+        col[n++] = peca_r(coringa || dado_liberado(t) ? t : D_D6);
+    }
+    if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);
     return n;
 }

@@ -2,24 +2,65 @@
 // Perfis e dificuldades
 // ---------------------------------------------------------------------------
 static const char *const NOME_DIF[N_NIVEIS + 1] = { "Normal", "Desafiante - Nível 1", "Desafiante - Nível 2",
-    "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5" };
-static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5" };
+    "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5", "Desafiante - Nível 6",
+    "Desafiante - Nível 7", "Desafiante - Nível 8", "Desafiante - Nível 9", "Desafiante - Nível 10" };
+static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4",
+    "Nível 5", "Nível 6", "Nível 7", "Nível 8", "Nível 9", "Nível 10" };
 // Cada dificuldade e um andar do cassino, mais chique a cada um: a mesa
 // mostra o andar nos acabamentos (veja pinta_mesa).
-static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2º Andar",
-    "3º Andar", "4º Andar", "Cobertura" };
-static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
-// O que cada dificuldade acrescenta (vale junto com as de baixo).
+static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2º Andar", "3º Andar", "4º Andar",
+    "5º Andar", "6º Andar", "7º Andar", "8º Andar", "9º Andar", "Cobertura" };
+static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, RGB(210, 120, 80), C_PRATA, RGB(110, 190, 150),
+    C_OURO, RGB(232, 150, 60), RGB(222, 70, 92), RGB(176, 110, 210), RGB(90, 140, 230), RGB(150, 220, 240) };
+// O que cada dificuldade acrescenta (vale junto com as de baixo): uma coisa
+// por nivel, para a subida ser aos poucos.
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
-    "Os salões como sempre.",
-    "Os chefes passam a virar na 5ª rodada.",
-    "Loja 25% mais cara; as mesas difíceis pensam mais.",
-    "Os oponentes trazem 2 dados raros a mais.",
+    "Os salões como sempre; só os chefes têm trunfo.",
+    "O Crupiê passa a virar na 5ª rodada.",
+    "A Dona também vira na 5ª rodada.",
+    "A loja fica 25% mais cara.",
+    "O Barão também vira na 5ª rodada.",
+    "As mesas difíceis pensam mais.",
+    "Oponentes trazem 1 dado raro a mais.",
     "Viradas do Crupiê e da Dona mais fortes.",
-    "Oponentes ganham um amuleto; chefes pensam mais.",
+    "Oponentes trazem 2 dados raros a mais.",
+    "Barão vira mais forte; chefes pensam mais.",
+    "Os oponentes ganham um amuleto.",
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
+
+// O nome do oponente sem o artigo e so com a inicial maiuscula ("Caubói").
+static void nome_curto(const char *nome, char *s, int n)
+{
+    if ((nome[0] == 'O' || nome[0] == 'A') && nome[1] == ' ') nome += 2;
+    int k = 0;
+    for (int i = 0; nome[i] && k < n - 1; i++) {
+        unsigned char c = (unsigned char)nome[i];
+        if (i > 0 && c >= 'A' && c <= 'Z') c += 32;
+        else if (i > 0 && c >= 0x80 && c <= 0x9E && (unsigned char)nome[i - 1] == 0xC3) c += 0x20;   // Á, Ã, Ó...
+        s[k++] = (char)c;
+    }
+    s[k] = 0;
+}
+
+// Os oponentes comuns que passam a trazer o trunfo na dificuldade d:
+// "Cautelosa, Apostador e Caubói". Devolve quantos.
+static int trunfos_do_nivel(int d, char *s, int n)
+{
+    int q = 0, tot = 0;
+    for (int p = 0; p < N_PERSO; p++) tot += !perso_chefe(p) && PERSO[p].andar_trunfo == d;
+    s[0] = 0;
+    for (int p = 0; p < N_PERSO; p++) {
+        if (perso_chefe(p) || PERSO[p].andar_trunfo != d) continue;
+        char nm[24];
+        nome_curto(PERSO[p].nome, nm, sizeof nm);
+        int l = (int)strlen(s);
+        snprintf(s + l, (size_t)(n - l), "%s%s", q == 0 ? "" : q == tot - 1 ? " e " : ", ", nm);
+        q++;
+    }
+    return q;
+}
 static uint16_t cor_dif(int d) { return COR_DIF[d <= N_NIVEIS ? d : 0]; }
 
 static int  pf_cur;                      // card em foco na tela de perfis
@@ -29,7 +70,7 @@ static char pf_nome[11];
 static int  dif_cur;
 
 // O que abre com a dificuldade n: dois amuletos e ate quatro dados.
-#define LIB_DADOS 4
+#define LIB_DADOS 8
 static void liberados(int n, int *am, int *dado)
 {
     int k = 0;
@@ -189,21 +230,22 @@ static void desenha_dificuldade(void)
     int x0 = 28, y0 = 54;
     for (int d = 0; d <= ult; d++) {
         bool aberta = d <= nv, cur = d == dif_cur;
-        int y = y0 + d * 26;
-        ui_cartao(x0, y, 150, 22, cur, 0);
+        int y = y0 + d * 22;
+        ui_cartao(x0, y, 150, 20, cur, 0);
         uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
-        gfx_disco(x0 + 14, y + 11, 6, gfx_mistura(c, C_BARRA, 30));
-        gfx_disco(x0 + 14, y + 11, 4, c);
-        txt(x0 + 28, y + 1, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
+        gfx_disco(x0 + 14, y + 10, 6, gfx_mistura(c, C_BARRA, 30));
+        gfx_disco(x0 + 14, y + 10, 4, c);
+        txt(x0 + 28, y, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
         if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
-            gfx_disco(x0 + 134, y + 11, 5, C_LATAO_ESC);
-            gfx_disco(x0 + 134, y + 11, 4, C_OURO);
-            gfx_disco(x0 + 133, y + 10, 1, C_BRANCO);
+            gfx_disco(x0 + 134, y + 10, 5, C_LATAO_ESC);
+            gfx_disco(x0 + 134, y + 10, 4, C_OURO);
+            gfx_disco(x0 + 133, y + 9, 1, C_BRANCO);
         }
-        if (aberta) zona_clique(x0, y, 150, 22, &dif_cur, d, KEY_ENTER);
-        else zona_clique(x0, y, 150, 22, &dif_cur, d, 0);
+        if (aberta) zona_clique(x0, y, 150, 20, &dif_cur, d, KEY_ENTER);
+        else zona_clique(x0, y, 150, 20, &dif_cur, d, 0);
     }
-    // O que vale na escolhida: tudo o que vem de baixo, mais o dela.
+    // O que vale na escolhida: o que ela acrescenta, em destaque, e o que vem
+    // de baixo, miudo.
     int px = 194, py = 54;
     ui_painel(px, py, 416, 240);
     int d = dif_cur;
@@ -214,20 +256,21 @@ static void desenha_dificuldade(void)
         char s[64];
         snprintf(s, sizeof s, "Vença o Barão no %s para abrir.", NOME_DIF_CURTO[d - 1]);
         txt(px + 12, ly, s, C_VINHO_CLR, false);
-        ly += 22;
+        ly += 20;
     }
-    for (int k = d == 0 ? 0 : 1; k <= d; k++) {
-        txt(px + 12, ly, k == d ? "+" : "·", k == d ? COR_DIF[d] : C_TEXTO_M, true);
-        txt(px + 24, ly, PENA_DIF[k], k == d ? C_MARFIM : C_TEXTO_M, false);
-        ly += 17;
-    }
-    if (d > 0) {                                     // os chefes que viram na 5a rodada
-        static const char *const VIRAM[N_NIVEIS + 1] = { "", "o Crupiê", "o Crupiê e a Dona",
-            "o Crupiê, a Dona e o Barão", "o Crupiê, a Dona e o Barão", "os três chefes, mais fortes" };
-        char v[80];
-        snprintf(v, sizeof v, "Viram na 5ª rodada: %s.", VIRAM[d]);
-        txt(px + 24, ly, v, C_VINHO_CLR, false);
-        ly += 17;
+    txt(px + 12, ly, "+", COR_DIF[d], true);
+    txt(px + 24, ly, PENA_DIF[d], C_MARFIM, false);
+    ly += 19;
+    for (int k = d - 1, i = 0; k >= 1; k--, i++)    // as de baixo, da mais recente, em duas colunas
+        gfx_texto(px + 26 + (i % 2) * 196, ly + 2 + (i / 2) * 11, PENA_DIF[k], C_TEXTO_M, GFX_MIUDO, false);
+    if (d > 1) ly += (d / 2) * 11 + 4;
+    if (d > 0) {                                     // quem passa a trazer o trunfo
+        char nomes[96], t[128];
+        if (trunfos_do_nivel(d, nomes, sizeof nomes)) {
+            snprintf(t, sizeof t, "Com trunfo agora: %s.", nomes);
+            txt(px + 24, ly, t, C_ROSA, false);
+            ly += 17;
+        }
     }
     {
         char m[48];                                  // e o que ajuda: mais moedas a cada andar
@@ -235,59 +278,75 @@ static void desenha_dificuldade(void)
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }
-    if (d > 0) {
+    if (d > 0) {                                     // o amuleto e os dados que abrem
         int am[2], dado[LIB_DADOS];
         liberados(d, am, dado);
-        ly += 6;
+        int it[2 + LIB_DADOS], ni = 0;
+        for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
+        for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
+        ly += 4;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
         ly += 24;
-        int ix = px + 24, ly0 = ly;
-        for (int i = 0; i < 2; i++) {                // amuletos a esquerda...
-            if (am[i] < 0) continue;
-            desenha_amuleto(ix, ly, 9, am[i], d > nv);
-            txt(ix + 14, ly - 6, AMULETO[am[i]].nome, d > nv ? C_TEXTO_M : AMULETO[am[i]].cor, false);
-            if (d <= nv) dica_zona(ix - 10, ly - 10, 150, 20, DICA_AMULETO, am[i]);
-            ly += 24;
-        }
-        for (int i = 0; i < LIB_DADOS; i++) {        // ...e os dados a direita, dois por coluna
-            if (dado[i] < 0) continue;
-            int dx = px + 150 + (i / 2) * 130;
-            ly = ly0 + (i % 2) * 24;
-            desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
-            txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_dado(dado[i]), false);
-            if (d <= nv) dica_zona(dx - 10, ly - 10, 120, 20, DICA_DADO, dado[i]);
+        int ix = px + 24, iy = ly;
+        for (int i = 0; i < ni; i++) {              // em fluxo: cada um com a largura do seu nome
+            const char *nome = it[i] < 0 ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome;
+            int wi = 14 + gfx_largura(nome, GFX_FINO) + 16;
+            if (ix + wi > px + 408) { ix = px + 24; iy += 24; }
+            if (it[i] < 0) {
+                int a = -1 - it[i];
+                desenha_amuleto(ix, iy, 9, a, d > nv);
+                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : AMULETO[a].cor, false);
+                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_AMULETO, a);
+            } else {
+                desenha_dado((float)ix, (float)iy, 9, it[i], 0, 0, 0, 0, d > nv);
+                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : cor_dado(it[i]), false);
+                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_DADO, it[i]);
+            }
+            ix += wi;
         }
     }
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
 }
 
-static void desenha_liberou(void)
+// Quantas coisas a dificuldade que acabou de abrir trouxe (amuleto e dados).
+static int liberou_itens(void)
+{
+    if (des_liberou < 1) return 0;
+    int am[2], dado[LIB_DADOS], n = 0;
+    liberados(des_liberou, am, dado);
+    for (int i = 0; i < 2; i++) n += am[i] >= 0;
+    for (int i = 0; i < LIB_DADOS; i++) n += dado[i] >= 0;
+    return n;
+}
+
+static void desenha_liberou(int dy)
 {
     if (des_liberou < 1) return;
     int am[2], dado[LIB_DADOS];
     liberados(des_liberou, am, dado);
     char s[64];
     snprintf(s, sizeof s, "Abriu o %s", NOME_DIF[des_liberou]);
-    txt_c(GFX_W / 2, CENTRO + 44, s, COR_DIF[des_liberou], true);
-    // Lado a lado, cada um com a largura do seu nome, centrados.
-    int w = -18;
-    for (int i = 0; i < 2; i++) if (am[i] >= 0) w += 20 + gfx_largura(AMULETO[am[i]].nome, GFX_FINO) + 18;
-    for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) w += 20 + gfx_largura(TIPO[dado[i]].nome, GFX_FINO) + 18;
-    int x = GFX_W / 2 - w / 2;
-    for (int i = 0; i < 2; i++)
-        if (am[i] >= 0) {
-            int wn = 20 + gfx_largura(AMULETO[am[i]].nome, GFX_FINO);
-            desenha_amuleto(x + 8, CENTRO + 74, 8, am[i], false);
-            txt(x + 20, CENTRO + 68, AMULETO[am[i]].nome, AMULETO[am[i]].cor, false);
-            dica_zona(x, CENTRO + 64, wn, 20, DICA_AMULETO, am[i]);
+    txt_c(GFX_W / 2, CENTRO + 44 + dy, s, COR_DIF[des_liberou], true);
+    // O amuleto e os dados, cada um com a largura do seu nome, em ate duas
+    // linhas centradas.
+    int it[2 + LIB_DADOS], ni = 0;
+    for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
+    for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
+    int porlinha = ni > 5 ? (ni + 1) / 2 : ni;
+    for (int lin = 0; lin * porlinha < ni; lin++) {
+        int de = lin * porlinha, ate = de + porlinha < ni ? de + porlinha : ni, w = -18;
+        for (int i = de; i < ate; i++)
+            w += 20 + gfx_largura(it[i] < 0 ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome, GFX_FINO) + 18;
+        int x = GFX_W / 2 - w / 2, y = CENTRO + 74 + dy + lin * 24;
+        for (int i = de; i < ate; i++) {
+            bool a = it[i] < 0;
+            const char *nome = a ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome;
+            int wn = 20 + gfx_largura(nome, GFX_FINO);
+            if (a) desenha_amuleto(x + 8, y, 8, -1 - it[i], false);
+            else desenha_dado((float)(x + 8), (float)y, 8, it[i], 0, 0, 0, 0, false);
+            txt(x + 20, y - 6, nome, a ? AMULETO[-1 - it[i]].cor : cor_dado(it[i]), false);
+            dica_zona(x, y - 10, wn, 20, a ? DICA_AMULETO : DICA_DADO, a ? -1 - it[i] : it[i]);
             x += wn + 18;
         }
-    for (int i = 0; i < LIB_DADOS; i++)
-        if (dado[i] >= 0) {
-            int wn = 20 + gfx_largura(TIPO[dado[i]].nome, GFX_FINO);
-            desenha_dado((float)(x + 8), (float)(CENTRO + 74), 8, dado[i], 0, 0, 0, 0, false);
-            txt(x + 20, CENTRO + 68, TIPO[dado[i]].nome, cor_dado(dado[i]), false);
-            dica_zona(x, CENTRO + 64, wn, 20, DICA_DADO, dado[i]);
-            x += wn + 18;
-        }
+    }
 }

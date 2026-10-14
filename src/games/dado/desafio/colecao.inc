@@ -103,7 +103,7 @@ static void des_elevador(void)
     float p = d * (1 - (1 - q) * (1 - q) * (1 - q));
     if (q >= 1 && e < ELEV_CHEGA + 0.25f) p = d + sinf((e - ELEV_CHEGA) / 0.25f * 3.1416f) * 0.08f * (d > 0);
     bool chegou = e >= ELEV_CHEGA;
-    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "C" };
+    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "5", "6", "7", "8", "9", "C" };
     for (int i = 0; i <= N_NIVEIS; i++) {
         float a = 3.1416f * (0.08f + 0.84f * i / N_NIVEIS);
         int mx = cx - (int)(cosf(a) * R), my = cy - (int)(sinf(a) * R);

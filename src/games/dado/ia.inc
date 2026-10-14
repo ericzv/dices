@@ -23,10 +23,13 @@ static float media(peca_t p)
     const tipo_t *t = &TIPO[p.tipo];
     switch (t->efeito) {
     case EF_QUEBRADO: return (int8_t)p.fixo;
+    case EF_FANTASMA: return p.fixo ? (int8_t)p.fixo : 1;
     case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
     case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
+    case EF_PREVISIVEL: return p.fixo + 1 < 12 ? p.fixo + 1 : 12;   // o proximo da escada
+    case EF_VAZIO: case EF_SACRIFICIO: return 0;         // nao pontuam
     default:          return (t->lados + 1) / 2.0f;
     }
 }
@@ -115,6 +118,7 @@ static void sim_lanca(int j)
 {
     fila_t *f = &F[j];
     int k = f->lancados, menor;
+    if (f->carta && k == 3) { f->lancados = 4; f->est[3] = V_ESPERA; return; }   // a carta: so posta
     int x = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
     f->cru[k] = f->valor[k] = x;
     f->descarte[k] = (uint8_t)menor;
@@ -122,24 +126,70 @@ static void sim_lanca(int j)
     pousa(j, k, rola_ia);
 }
 
-// Quem abre nao sabe o alvo: olha o risco do proximo dado. O Egoista
-// trocaria a fila inteira por um d12: so compensa com pouco na mesa.
+// Quem abre nao sabe o alvo: olha o risco do proximo dado. Pouco na mesa
+// (um dado so, ou menos de 10 pontos) nao segura a rodada: o rival passa
+// facil, entao so para diante de uma queda quase certa. O Egoista trocaria
+// a fila inteira por um d12: so compensa com pouco na mesa.
 static bool abre_continua(int j)
 {
     const fila_t *f = &F[j];
+    // A carta do Coringa vira, no fim, o dado seu que mais tirou - em geral
+    // um dado grande. Vale arriscar se o ultimo dele que vale nao passa de 10.
+    if (f->carta && f->lancados == 3) {
+        int l = ultimo_da_regra(j, f->est, 3);
+        return l < 0 || f->valor[l] <= 10;
+    }
     if (tipo_de(j, f->lancados) == D_EGOISTA) return f->pontos < 6;
     int r = risco(j);
-    return r < 40 || (r < 60 && f->pontos < 8);
+    if (f->lancados == 1 || f->pontos < 10) return r < 85;
+    return r < 40 || (r < 60 && f->pontos < 14);
 }
 
-// Placar de j com a mesa como esta: 1 vence, 0.5 empata, 0 perde.
-static float placar(int j)
+// Placar de j com a mesa como esta: 1 vence, 0.5 empata, 0 perde. Com a
+// margem, soma um pouco por ponto de diferenca (ate 20): entre jogadas que
+// vencem igual, a IA prefere a que vence com folga, em vez de uma fila de
+// moedas que so ganha porque o rival fez pouco.
+#define IA_MARGEM 0.005f
+static bool ia_sem_margem[2];                // so para medir a IA antiga nos testes
+// O que ainda nao se ve na mesa, a IA imagina: o Oculto de cada lado tira um
+// numero ao acaso (nem o dono sabe o dele) e entra na sequencia.
+static void imagina_ocultos(void)
+{
+    for (int j = 0; j < 2; j++) {
+        if (!tem_escondido(j)) continue;
+        fila_t *f = &F[j];
+        for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+            if (!f->escondido[k]) continue;
+            int menor;
+            f->cru[k] = f->valor[k] = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
+            f->escondido[k] = false;
+        }
+        refaz_sequencia(j, f->lancados);
+    }
+}
+
+static float nota_mesa(int j, bool margem)
 {
     desfecho_t d;
-    calcula_desfecho(&d, false);
+    int c = carta_posta(0) ? 0 : carta_posta(1) ? 1 : -1;
+    bool carta = c >= 0 && F[outro(c)].lancados, ocultos = tem_escondido(0) || tem_escondido(1);
+    if (carta || ocultos) {                      // a carta do Coringa e o Oculto: imagina eles virando agora
+        mesa_t m;
+        guarda_mesa(&m);
+        if (ocultos) imagina_ocultos();
+        if (carta && vira_carta(c)) sim_lanca(c);
+        calcula_desfecho(&d, false);
+        volta_mesa(&m);
+    } else calcula_desfecho(&d, false);
     int a = d.total[j], b = d.total[outro(j)];
-    return a > b ? 1.0f : (a == b ? 0.5f : 0.0f);
+    float r = a > b ? 1.0f : (a == b ? 0.5f : 0.0f);
+    if (margem && !ia_sem_margem[j & 1]) {
+        int m = a - b < -20 ? -20 : a - b > 20 ? 20 : a - b;
+        r += IA_MARGEM * (float)m;
+    }
+    return r;
 }
+static float placar(int j) { return nota_mesa(j, false); }
 
 // Joga o turno de j ate o fim da fila ou ate parar. Quem joga depois para
 // assim que passa na frente; quem abre segue o risco.
@@ -178,15 +228,16 @@ static void fila_imaginada(int r, bool toda)
     f->n = q;
 }
 
-// Termina a rodada de mentira do ponto de vista de j e devolve o placar dele.
-// Se o rival ainda nao jogou, ele joga uma fila imaginada.
-static float sim_resto(int j)
+// Termina a rodada de mentira do ponto de vista de j e devolve o placar dele
+// (com a margem, para comparar jogadas). Se o rival ainda nao jogou, ele joga
+// uma fila imaginada.
+static float sim_resto(int j, bool margem)
 {
     int r = outro(j);
     if (j == primeiro) fila_imaginada(r, false);
     sim_turno(j);
     if (j == primeiro) sim_turno(r);
-    return placar(j);
+    return nota_mesa(j, margem);
 }
 
 #define IA_AMOSTRAS 240
@@ -228,7 +279,8 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
             f->fixo[k] = pc.fixo;
         }
         f->n = L;
-        s += sim_resto(j);
+        if (L == 3) coringa_completa(j);       // o quarto do Coringa: a copia, ou a carta
+        s += sim_resto(j, true);
     }
     return s / (float)amostras;
 }
@@ -279,9 +331,9 @@ static void ia_planeja(void)
     // Primeira peneira com poucas jogadas; as melhores jogam de novo, muito mais.
     int a1 = nc > 60 ? 24 : 64;
     if (ia_esforco == 0) a1 = 4;
-    else if (ia_nivel == 1) a1 = 6;
+    else if (ia_nivel == 1) a1 = nc > 60 ? 24 : 32;
     for (int c = 0; c < nc; c++) nota_c[c] = avalia_fila(j, cand[c], L, a1, base, &m);
-    int finalistas = ia_esforco == 0 ? 2 : (ia_nivel == 1 ? 3 : 8);
+    int finalistas = ia_esforco == 0 ? 2 : (ia_nivel == 1 ? 4 : 8);
     int a2 = amostras_ia(IA_AMOSTRAS, 24);
     int melhor = -1;
     float nota_m = -1;
@@ -293,11 +345,19 @@ static void ia_planeja(void)
         float v = avalia_fila(j, cand[b], L, a2, base ^ 0x5bd1e995u, &m);
         if (v > nota_m) { nota_m = v; melhor = b; }
     }
+    if (melhor < 0) { volta_mesa(&m); return; }
+    // A fila pode ser mais curta: se so o comeco dela ja e melhor (o
+    // Solitario sozinho, um dado grande e parar), a IA monta so esse comeco,
+    // em vez de por quatro dados na mesa e parar no primeiro.
+    int curta = L;
+    for (int q = 1; q < L; q++) {
+        float v = avalia_fila(j, cand[melhor], q, a2, base ^ 0x5bd1e995u, &m);
+        if (v > nota_m + 0.01f) { nota_m = v; curta = q; }
+    }
     volta_mesa(&m);
-    if (melhor < 0) return;
     memcpy(plano, cand[melhor], N_FILA);
-    plano_n = L;
-    plano_p = nota_m;
+    plano_n = curta;
+    plano_p = nota_m < 0 ? 0 : nota_m > 1 ? 1 : nota_m;   // a chance, sem a margem passar de 0 a 1
 }
 
 static int ia_proximo_da_fila(void)
@@ -326,11 +386,11 @@ static bool ia_continua(void)
         volta_mesa(&m);
         semeia_ia(base, a);
         F[j].n = F[j].lancados;              // parar: a fila acaba aqui
-        parar += sim_resto(j);
+        parar += sim_resto(j, true);
         volta_mesa(&m);
         semeia_ia(base, a);
         sim_lanca(j);
-        seguir += sim_resto(j);
+        seguir += sim_resto(j, true);
     }
     volta_mesa(&m);
     parar /= (float)amostras;
@@ -354,7 +414,7 @@ static float ia_chance(void)
         volta_mesa(&m);
         semeia_ia(0xBE77u + (uint32_t)rodada, a);
         F[j].n = F[j].lancados;
-        s += sim_resto(j);
+        s += sim_resto(j, false);
     }
     volta_mesa(&m);
     return s / (float)amostras;
@@ -532,6 +592,9 @@ static void ia_passo(float dt)
 {
     ia_nivel = nivel_jog[vez & 1];
     ia_ousadia = ousadia_jog[vez & 1];
+    // A Banqueira: aposta alto quando esta na frente em fichas e corre cedo
+    // quando esta atras.
+    if (modo == M_DESAFIO && (vez & 1) == 1 && estilo_op == 1) ia_ousadia = J[1].fichas > J[0].fichas ? 1.0f : -1.0f;
     if (!ia_na_vez() || (fase == F_PREMIO && (t_tira > 0 || slot_girando()))) { ia_fase = -1; return; }
     if (t_anuncio > 0) return;                // a pessoa ainda le o que ela fez
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco

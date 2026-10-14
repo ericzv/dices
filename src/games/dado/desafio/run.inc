@@ -280,7 +280,7 @@ static const perso_t PERSO[] = {
     // ...e o chefe do salao final, depois do Barao, so no Desafiante 5.
     { "O CORINGA",       "Ri de tudo. Principalmente de você.", 0.7f,
       { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO, D_D20, D_CHECKPOINT },
-      "Carta na manga", "O 4º dado da sequência dele é sempre uma cópia do seu dado que tirou mais no seu último turno (empate: o último). Na 1ª rodada, você abre.",
+      "Carta na manga", "O 4º dado é cópia do seu que tirou mais (empate: o último). Se ele abre, fica um \"?\" até você jogar.",
       0, REG_CORINGA,
       { { "Hahaha! Achou que o Barão era o último?", "Vamos brincar com os SEUS dados." },
         { "Ops! Hahaha!", "Caiu, caiu, caiu!" },

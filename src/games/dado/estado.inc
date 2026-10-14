@@ -39,6 +39,7 @@ typedef struct {
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
+    bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -199,8 +200,7 @@ static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (
 static int juros_rodada;                 // a entrada a mais que a Banqueira cobrou nesta rodada
 static float t_fantasma;                 // > 0: um Fantasma voando para uma bolsa...
 static int8_t fantasma_para;             // ...a de quem (Bruxaria da Bruxa, ou o seu Mau-Olhado)
-static peca_t coringa_ref;               // o seu dado que mais tirou no ultimo turno (o Coringa copia)
-static bool coringa_ref_ok;
+static bool carta_virando;               // a carta do Coringa virou e esta sendo lancada agora
 static bool op_nervoso;              // o Novato perdeu a ultima rodada
 static bool tem_reg(int r) { return modo == M_DESAFIO && reg_op == r; }
 // Falas do oponente (desafio.inc): o que acabou de acontecer.

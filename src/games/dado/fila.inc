@@ -126,6 +126,7 @@ static void aplica_regra(int j, int k)
 {
     if (k < 0 || k >= N_FILA) return;
     fila_t *f = &F[j];
+    if (f->carta && k == 3) { f->est[k] = V_ESPERA; return; }   // a carta do Coringa: ainda em suspensao
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int v = f->valor[k];
@@ -431,8 +432,8 @@ static void pousa(int j, int k, int (*r)(int))
             snprintf(veredito, sizeof veredito, "o Bumerangue voltou: %d", f->valor[k]);
             ver_comum = false;
         }
-        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", tirou, f->valor[k]);
-        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", mira, mira + 1);
+        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
+        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
         if (f->calibre[k] && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
             ver_comum = false;

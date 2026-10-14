@@ -38,6 +38,7 @@ static void joga(int j, int t, int v)
 {
     fila_t *f = &F[j];
     int k = f->lancados;
+    if (k >= N_FILA) return;
     f->tipo[k] = (uint8_t)t;
     f->n = k + 1;
     f->cru[k] = f->valor[k] = v;
@@ -1454,8 +1455,8 @@ int main(void)
                 run.no[1][1].semente = 4242;
                 run.passo = 1; run.caminho[1] = 1;
                 des_comeca_partida();
-                CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == 2 && (primeiro == 0 || tem_am(0, A_RELOGIO)),
-                        "Coringa: trunfo %d, nivel %d, abre %d", reg_op, nivel_jog[1], primeiro);
+                CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == 2,
+                        "Coringa: trunfo %d, nivel %d", reg_op, nivel_jog[1]);
                 int fracos = 0, bons = 0;              // a bolsa dele: sem dados de saida, so do tema
                 for (int i = 0; i < J[1].n_col; i++) {
                     int t = J[1].col[i].tipo;
@@ -1633,27 +1634,38 @@ int main(void)
             CONFERE(J[0].n_col == antes, "fim da partida: o Fantasma some");
             CONFERE(peso_dado(D_FANTASMA) == 0 && !dado_liberado(D_FANTASMA), "Fantasma nao sai em sorteio");
             // O Coringa: monta 3; o quarto e a copia do seu dado que tirou mais
-            // no seu ultimo turno (empate: o ultimo).
+            // no seu turno (empate: o ultimo).
             reg_op = REG_CORINGA;
             CONFERE(max_fila(1) == 3 && max_fila(0) == N_FILA, "Coringa monta 3");
+            peca_t c;
             limpa(); joga(0, D_D8, 6); joga(0, D_D20, 9); joga(0, D_D12, 9);
-            CONFERE(coringa_copia().tipo == D_D12, "Coringa: empate no 9 devia copiar o ultimo (D12), copiou %d", coringa_copia().tipo);
+            CONFERE(melhor_lance(0, &c) && c.tipo == D_D12, "Coringa: empate no 9 devia copiar o ultimo (D12), copiou %d", c.tipo);
             limpa(); joga(0, D_D12, 10); joga(0, D_D4, 3);
-            CONFERE(coringa_copia().tipo == D_D12, "Coringa: o 10 caiu, mas foi o maior que voce tirou");
-            limpa(); joga(0, D_LASTRO, 8); F[0].fixo[0] = 3;
+            CONFERE(melhor_lance(0, &c) && c.tipo == D_D12, "Coringa: o 10 caiu, mas foi o maior que voce tirou");
+            // Voce ja jogou: o quarto e a copia, na hora.
+            limpa(); primeiro = 0; joga(0, D_LASTRO, 8); F[0].fixo[0] = 3;
             F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
             coringa_completa(1);
-            CONFERE(F[1].n == 4 && F[1].tipo[3] == D_LASTRO && F[1].fixo[3] == 3 && F[1].idx[3] == -1,
+            CONFERE(F[1].n == 4 && !F[1].carta && F[1].tipo[3] == D_LASTRO && F[1].fixo[3] == 3 && F[1].idx[3] == -1,
                     "Coringa: a copia devia ser o quarto");
-            // Ele abre a rodada: copia o seu melhor da rodada anterior.
-            for (int j = 0; j < 2; j++) { colecao_inicial(&J[j]); J[j].fichas = 50; J[j].n_mao = 0; }
-            rodada = 2; limpa(); joga(0, D_D20, 15); joga(0, D_D6, 2);
-            nova_rodada();
-            CONFERE(F[0].lancados == 0 && coringa_ref_ok && coringa_copia().tipo == D_D20,
-                    "Coringa: abrindo, devia copiar o D20 da rodada anterior (%d)", coringa_copia().tipo);
-            rodada = 0; primeiro = 1;
-            nova_rodada();
-            CONFERE(primeiro == 0 && !coringa_ref_ok, "Coringa: na 1a rodada, voce abre");
+            // Ele abre: o quarto e a carta, em suspensao. Posta, nao cai.
+            limpa(); primeiro = 1;
+            F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
+            coringa_completa(1);
+            CONFERE(F[1].n == 4 && F[1].carta && !carta_posta(1), "Coringa abrindo: o quarto devia ser a carta");
+            joga(1, D_D6, 5); joga(1, D_D6, 5); joga(1, D_D6, 6);
+            sim_lanca(1);
+            CONFERE(carta_posta(1) && F[1].lancados == 4 && F[1].est[3] == V_ESPERA && F[1].est[2] == V_VALIDO
+                    && F[1].pontos == 16, "Coringa: a carta posta devia esperar sem cair (est %d, pontos %d)", F[1].est[3], F[1].pontos);
+            // Voce joga um 2 e um 9 no D20: a carta vira o D20 e e lancada.
+            joga(0, D_D4, 2); joga(0, D_D20, 9);
+            CONFERE(vira_carta(1) && !F[1].carta && F[1].tipo[3] == D_D20 && F[1].lancados == 3,
+                    "Coringa: a carta devia virar o seu D20");
+            joga(1, D_D20, 4);
+            CONFERE(F[1].est[3] == V_ANULADO && F[1].est[2] == V_ANULADO, "a copia que tira menos cai, como qualquer dado");
+            // Sem nada seu lancado, a carta sai da fila.
+            limpa(); F[1].n = 4; F[1].carta = true; F[1].lancados = 4;
+            CONFERE(!vira_carta(1) && F[1].n == 3 && !F[1].carta, "Coringa: sem o que copiar, a carta sai");
             reg_op = REG_NADA; rodada = 1;
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
         }

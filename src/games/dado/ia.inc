@@ -116,6 +116,7 @@ static void sim_lanca(int j)
 {
     fila_t *f = &F[j];
     int k = f->lancados, menor;
+    if (f->carta && k == 3) { f->lancados = 4; f->est[3] = V_ESPERA; return; }   // a carta: so posta
     int x = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
     f->cru[k] = f->valor[k] = x;
     f->descarte[k] = (uint8_t)menor;
@@ -130,6 +131,12 @@ static void sim_lanca(int j)
 static bool abre_continua(int j)
 {
     const fila_t *f = &F[j];
+    // A carta do Coringa vira, no fim, o dado seu que mais tirou - em geral
+    // um dado grande. Vale arriscar se o ultimo dele que vale nao passa de 10.
+    if (f->carta && f->lancados == 3) {
+        int l = ultimo_da_regra(j, f->est, 3);
+        return l < 0 || f->valor[l] <= 10;
+    }
     if (tipo_de(j, f->lancados) == D_EGOISTA) return f->pontos < 6;
     int r = risco(j);
     if (f->lancados == 1 || f->pontos < 10) return r < 85;
@@ -145,7 +152,14 @@ static bool ia_sem_margem[2];                // so para medir a IA antiga nos te
 static float nota_mesa(int j, bool margem)
 {
     desfecho_t d;
-    calcula_desfecho(&d, false);
+    int c = carta_posta(0) ? 0 : carta_posta(1) ? 1 : -1;
+    if (c >= 0 && F[outro(c)].lancados) {        // a carta do Coringa: imagina ela virando agora
+        mesa_t m;
+        guarda_mesa(&m);
+        if (vira_carta(c)) sim_lanca(c);
+        calcula_desfecho(&d, false);
+        volta_mesa(&m);
+    } else calcula_desfecho(&d, false);
     int a = d.total[j], b = d.total[outro(j)];
     float r = a > b ? 1.0f : (a == b ? 0.5f : 0.0f);
     if (margem && !ia_sem_margem[j & 1]) {
@@ -244,10 +258,7 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
             f->fixo[k] = pc.fixo;
         }
         f->n = L;
-        if (coringa_joga(j) && L == 3) {        // o quarto do Coringa: a copia
-            peca_t c = coringa_copia();
-            f->tipo[3] = c.tipo; f->fixo[3] = c.fixo; f->n = 4;
-        }
+        if (L == 3) coringa_completa(j);       // o quarto do Coringa: a copia, ou a carta
         s += sim_resto(j, true);
     }
     return s / (float)amostras;

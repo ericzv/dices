@@ -109,11 +109,10 @@ static void nova_rodada(void)
 {
     rodada++;
     plano_rodada = -1;                       // a IA monta outra fila
+    carta_virando = false;
     ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
-    // O Coringa precisa ver o seu jogo: na primeira rodada, voce abre.
-    if (tem_reg(REG_CORINGA) && rodada == 1) { primeiro = 0; coringa_ref_ok = false; }
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
     // o oponente abre (vale mais).
     if (tem_am(0, A_RELOGIO) && (rodada == 1 || J[0].fichas < J[1].fichas)) primeiro = 1;
@@ -156,10 +155,6 @@ static void nova_rodada(void)
         snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
         t_fala = 2.6f;
         fala_e_curta = false;
-    }
-    if (tem_reg(REG_CORINGA) && rodada > 1) {   // o que o Coringa copia se abrir a rodada
-        peca_t c;
-        if (melhor_lance(0, &c)) { coringa_ref = c; coringa_ref_ok = true; }
     }
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
@@ -308,6 +303,19 @@ static void lanca_proximo(void)
     fila_t *f = &F[vez];
     int k = f->lancados;
     int t = tipo_de(vez, k), lados = TIPO[t].lados;
+    if (f->carta && k == 3) {                // a carta do Coringa: posta, sem rolar
+        f->lancados = 4;
+        f->est[3] = V_ESPERA;
+        snprintf(veredito, sizeof veredito, "carta na manga: vira depois do seu turno");
+        ver_tipo = 0;
+        ver_comum = false;
+        anulou_a = anulou_b = resistiu = -1;
+        anulou_masc = 0;
+        som_toca(SOM_BATE_DADO);
+        t_fase = 0;
+        fase = F_VEREDITO;
+        return;
+    }
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
@@ -411,34 +419,37 @@ static void medusa_petrifica(int j, const desfecho_t *d)
 }
 
 // O Coringa: o 4o dado dele e a copia do seu dado que tirou o valor mais
-// alto no seu ultimo turno (empate: o ultimo deles). Nesta rodada, se voce
-// ja jogou; senao, o da rodada anterior (guardado em nova_rodada). Antes de
-// voce jogar a primeira vez (so com o Relogio de Bolso, que o faz abrir),
-// fica o dado de maior media da sua bolsa.
-static float media(peca_t p);                    // ia.inc
-static peca_t coringa_copia(void)
-{
-    peca_t b = { D_D6, 0 };
-    if (melhor_lance(0, &b)) return b;
-    if (coringa_ref_ok) return coringa_ref;
-    const jogador_t *p = &J[0];
-    float nb = -1;
-    for (int i = 0; i < p->n_col; i++) {
-        float n = media(p->col[i]);
-        if (n > nb) { nb = n; b = p->col[i]; }
-    }
-    return b;
-}
+// alto no seu turno (empate: o ultimo deles). Se voce ja jogou, ele sabe
+// qual e. Se ele abre a rodada, o 4o e uma carta: posta na mesa, fica em
+// suspensao ("?") - nao cai nem e atacada - e so depois do seu turno vira a
+// copia e e lancada, com a regra da sequencia valendo para ela.
 static bool coringa_joga(int j) { return j == 1 && tem_reg(REG_CORINGA); }
-// A fila do Coringa ficou pronta com tres dados: o quarto e a copia (fora da
-// bolsa dele: idx -1).
+static bool carta_posta(int j) { return F[j].carta && F[j].lancados > 3; }
+// A fila do Coringa ficou pronta com tres dados: o quarto e a copia, ou a
+// carta (fora da bolsa dele: idx -1).
 static void coringa_completa(int j)
 {
     fila_t *f = &F[j];
     if (!coringa_joga(j) || f->n != 3) return;
-    peca_t c = coringa_copia();
+    peca_t c;
+    f->carta = !melhor_lance(outro(j), &c);
+    if (f->carta) c = (peca_t){ D_D6, 0 };       // so o lugar: o tipo vem depois
     f->tipo[3] = c.tipo; f->fixo[3] = c.fixo; f->idx[3] = -1;
     f->n = 4;
+}
+// A carta virou: passa a ser a copia, pronta para ser lancada (lancados 3).
+// Sem nenhum dado seu lancado, nao tem o que copiar e sai da fila. Devolve
+// se ha o que lancar.
+static bool vira_carta(int j)
+{
+    fila_t *f = &F[j];
+    peca_t c;
+    f->carta = false;
+    f->lancados = 3;
+    f->est[3] = V_ESPERA; f->tag[3][0] = 0;
+    if (!melhor_lance(outro(j), &c)) { f->n = 3; return false; }
+    f->tipo[3] = c.tipo; f->fixo[3] = c.fixo;
+    return true;
 }
 
 // Mau-Olhado (a Bruxaria da Bruxa): quem o tem venceu a rodada, e um
@@ -857,13 +868,33 @@ static void devolve_sobras(int j)
         f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; f->tag[k][0] = 0;
     }
     if (f->n > f->lancados) f->n = f->lancados;
+    if (f->lancados <= 3) f->carta = false;      // parou antes da carta do Coringa
     t_devolve = n_devolvidos ? 0 : -1;
 }
 
 static void termina_turno(void)
 {
     som_toca(SOM_TURNO);
+    if (carta_virando) {                     // a carta do Coringa ja foi lancada: o fim
+        carta_virando = false;
+        desfecho();
+        return;
+    }
     devolve_sobras(vez);
+    // Voce terminou e a carta do Coringa esperava: ela vira a copia do seu
+    // dado que mais tirou e e lancada agora.
+    if (vez != primeiro && carta_posta(primeiro)) {
+        int c = primeiro;
+        if (vira_carta(c)) {
+            vez = c;
+            carta_virando = true;
+            cursor = 0;
+            peca_t copia = { F[c].tipo[3], F[c].fixo[3] };
+            anuncia_pecas("%s vira a carta", &copia, 1);
+            lanca_proximo();
+            return;
+        }
+    }
     if (anuncia_maquina() && vez == primeiro)
         anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);
     if (vez == primeiro) {

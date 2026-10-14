@@ -409,6 +409,29 @@ static void galao(int cx, int cy)
     gfx_rect(cx - 6, cy - 1, 12, 1, C_AMARELO);
 }
 
+// A carta do Coringa, de pe na mesa: o verso purpura com o losango. Posta,
+// em suspensao ate o seu turno acabar, um "?" flutua em cima dela.
+static void desenha_carta(int x, int y, bool posta, bool apagada)
+{
+    int w = 26, h = 2 * R_DADO, x0 = x - w / 2, y0 = y - h / 2;
+    uint16_t verso = apagada ? C_FELTRO2 : C_REAL;
+    gfx_rect(x0 + 2, y0 + 3, w, h, C_SOMBRA);
+    gfx_rect(x0 - 1, y0 - 1, w + 2, h + 2, C_BARRA);
+    gfx_rect(x0, y0, w, h, apagada ? C_FELTRO_ESC : C_MARFIM);
+    gfx_rect(x0 + 2, y0 + 2, w - 4, h - 4, gfx_mistura(verso, C_BARRA, 35));
+    gfx_rect(x0 + 3, y0 + 3, w - 6, h - 6, verso);
+    float vx[4] = { (float)x, (float)(x + 7), (float)x, (float)(x - 7) };
+    float vy[4] = { (float)(y - 11), (float)y, (float)(y + 11), (float)y };
+    poligono(vx, vy, 4, apagada ? C_FELTRO_ESC : C_MARFIM);
+    float ux[4] = { (float)x, (float)(x + 4), (float)x, (float)(x - 4) };
+    float uy[4] = { (float)(y - 6), (float)y, (float)(y + 6), (float)y };
+    poligono(ux, uy, 4, verso);
+    if (posta) {
+        int b = (int)lroundf(sinf(t_relogio * 3.0f) * 3);
+        txt_sombra_c(x, y0 - 26 + b, "?", C_OURO, 2);
+    }
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -435,6 +458,13 @@ static void desenha_fila(int j)
                       && voo[0].dono == j && voo[0].slot == k;
         if (voando) continue;
         int t = tipo_de(j, k);
+        if (f->carta && k == 3) {                // a carta do Coringa: na fila ou posta
+            if (fala_perso >= 0) dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_TRUNFO, fala_perso);
+            bool cinza = k >= f->lancados && (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO);
+            desenha_carta(x, y, k < f->lancados, cinza);
+            if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
+            continue;
+        }
         dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
@@ -757,6 +787,7 @@ static void desenha_fila(int j)
             snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
             txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
         }
+        if (carta_posta(j)) txt(PLACAR_X + 38, y - 26, "+?", C_OURO, false);   // a carta do Coringa ainda vai virar
     }
 }
 

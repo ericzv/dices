@@ -651,15 +651,17 @@ static int desenho_interno(int tipo, float u, float v, float s)
         int c = (int)floorf(f) % 3;
         return c;                                                            // claro, terra e couro
     }
-    case D_FANTASMA: {                            // uma presenca que mal esta ali: dois contornos tracejados
+    case D_FANTASMA: {                            // nevoa ciano, irregular, e dois contornos tracejados
         float x = u - 0.08f, y = v - 0.08f;
         float e = fabsf(x) > fabsf(y) ? fabsf(x) : fabsf(y);
-        float ao_longo = fabsf(x) > fabsf(y) ? y : x;            // a posicao ao longo do lado
+        float ao_longo = fabsf(x) > fabsf(y) ? y : x;
         for (int i = 0; i < 2; i++) {
             float m = i ? 0.36f : 0.58f;
-            if (fabsf(e - m) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.5f) < 0.55f) return i ? 3 : 1;
+            if (fabsf(e - m) < l * 1.3f && fr(ao_longo / 0.16f + i * 0.5f) < 0.55f) return 3;
         }
-        return e > 0.66f ? 2 : 0;                                 // a borda, um pouco mais densa
+        float nv = sinf(u * 5.3f + 1.1f) * sinf(v * 4.1f - 0.7f) + 0.6f * sinf((u + v) * 7.9f + 2.0f)
+                 + 0.35f * sinf(u * 13.0f - v * 11.0f);
+        return nv > 0.55f ? 2 : nv > -0.15f ? 1 : 0;                         // manchas de tres tons
     }
     case D_POTE_QUENTE: {                         // o calor concentrado: losangos que esquentam para dentro
         float dd = (fabsf(u - 0.08f) + fabsf(v - 0.08f)) / 0.99f;
@@ -681,14 +683,18 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (dd < 0.40f + l * 2.2f) return 3;                                  // a borda do que nao se ve
         return fr((u - v) / 0.17f) < 0.32f ? 1 : 0;
     }
-    case D_SACRIFICIO: {                          // o que se da: um contorno oco, e dois losangos acesos
-        float t, g = borda_d4(u, v, &t);
-        if (fabsf(g - 0.80f) < l * 1.6f / 0.5f * 0.5f + 0.02f) return 1;      // o oco
-        for (int i = 0; i < 2; i++) {
-            float x = fabsf(u - (0.07f + (i ? 0.13f : -0.13f))) / 0.09f, y = fabsf(v - 0.56f) / 0.12f;
-            if (x + y < 1) return 3;
+    case D_SACRIFICIO: {                          // a oferta: um triangulo invertido dentro do corpo, aceso
+        float cu = 0.07f, cv = 0.40f;                                         // o meio dele, mais para baixo
+        float g = -1;
+        for (int i = 0; i < 3; i++) {                                        // o d4 de ponta-cabeca, apotema 0.30
+            float an = -1.5708f + i * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float d = ((u - cu) * nx + (v - cv) * ny) / 0.30f;
+            if (d > g) g = d;
         }
-        return 0;
+        if (g < 1 && g > 1 - (l * 1.8f + 0.03f) / 0.30f) return 3;           // o contorno de ouro
+        if (g < 1) return 2;                                                 // o fogo dentro
+        float t, gb = borda_d4(u, v, &t);
+        return gb > 0.86f ? 1 : 0;                                           // a borda escura do corpo
     }
     case D_VAZIO: {                               // nada: um anel aberto em volta do zero
         float x = u - 0.08f, y = v - 0.08f, rr = sqrtf(x * x + y * y);
@@ -696,15 +702,12 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float an = atan2f(y, x);
         return an > -2.2f && an < -1.3f ? 0 : 1;                             // a abertura, em cima
     }
-    case D_MEDIA: {                               // a media: uma linha, e os pontos acima e abaixo dela
-        float t, g = borda_d4(u, v, &t);
-        if (g > 0.92f) return 0;
-        if (fabsf(v - 0.50f) < l * 1.2f + 0.012f) return 1;                   // a linha do meio
-        static const float P[4][2] = { { -0.30f, 0.40f }, { -0.08f, 0.62f }, { 0.20f, 0.36f }, { 0.42f, 0.60f } };
-        for (int i = 0; i < 4; i++) {
-            float x = u - P[i][0], y = v - P[i][1];
-            if (x * x + y * y < 0.045f * 0.045f + l * l) return 2;
-        }
+    case D_MEDIA: {                               // barras desiguais, e a linha da media cortando todas
+        static const float X[4] = { -0.22f, -0.03f, 0.17f, 0.36f }, H[4] = { 0.16f, 0.36f, 0.22f, 0.42f };
+        const float base = 0.70f, media = base - 0.29f;
+        if (fabsf(v - media) < 0.022f + l && u > -0.34f && u < 0.48f) return 2;   // a media
+        for (int i = 0; i < 4; i++)
+            if (fabsf(u - X[i]) < 0.06f && v < base && v > base - H[i]) return v < media ? 3 : 1;
         return 0;
     }
     case D_VAMPIRO: {                             // gotas que escorrem das bordas de cima
@@ -717,15 +720,13 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_COLECIONADOR: {                        // a colecao: quadradinhos guardados nos cantos
-        for (int cx = -1; cx <= 1; cx += 2)
-            for (int cy = -1; cy <= 1; cy += 2)
-                for (int a = 0; a < 2; a++)
-                    for (int b = 0; b < 2; b++) {
-                        float qx = 0.08f + cx * (0.50f + a * 0.15f), qy = 0.08f + cy * (0.50f + b * 0.15f);
-                        if (fabsf(u - qx) < 0.055f && fabsf(v - qy) < 0.055f) return (a + b + (cx > 0) + (cy > 0)) % 2 ? 1 : 2;
-                    }
-        return 0;
+    case D_COLECIONADOR: {                        // o album: uma grade de casas, quase todas preenchidas
+        float x = (u + 0.70f) / 0.36f, y = (v + 0.62f) / 0.36f;              // quatro por quatro
+        if (x < 0 || y < 0 || x >= 4 || y >= 4) return 0;
+        float fx = fr(x), fy = fr(y);
+        if (fx < 0.12f || fy < 0.12f) return 0;                              // o vao entre as casas
+        int cxi = (int)x, cyi = (int)y, h = (cxi * 7 + cyi * 13 + cxi * cyi * 5) % 11;
+        return h < 2 ? 0 : h < 6 ? 1 : h < 9 ? 3 : 2;                        // vazias, e tres tons
     }
     case D_PACTO: {                               // dois aneis presos um no outro
         float x0 = u + 0.20f, x1 = u - 0.20f, y = v - 0.04f;
@@ -996,7 +997,12 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         corpo = RGB(24, 22, 22);
         tinta = C_MARFIM;
     }
+    if (tipo == D_OCULTO) {                       // cinza-carvao: quase o preto do Misterioso
+        corpo = RGB(50, 50, 52);
+        tinta = C_MARFIM;
+    }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
+    if (tipo == D_SACRIFICIO) tinta = C_MARFIM;   // o corpo vinho pede a tinta clara
     // O Sorte/Reves no ar: cada metade no material dela. Jogado, o dado
     // inteiro fica com a cara de quem venceu: marfim se a Sorte foi maior (ou
     // empatou), ebano se o Reves foi.
@@ -1038,6 +1044,18 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     mca = cosf(ang); msa = sinf(ang); mcx = cx; mcy = cy;
 
     int alt = (int)sombra_alt;                    // dado no ar: sombra mais longe
+    if (tipo == D_VAZIO) {                        // o Vazio: so o contorno; dentro, o que estiver atras
+        float vx[12], vy[12], ea2 = r < 12 ? 1 : r / 10;
+        int n = forma(lados, cx, cy, r, ang, vx, vy);
+        uint16_t c = zerado ? C_FELTRO2 : aro;
+        for (int i = 0; i < n; i++)
+            gfx_linha_grossa((int)vx[i] + 1, (int)vy[i] + 2, (int)vx[(i + 1) % n] + 1, (int)vy[(i + 1) % n] + 2, (int)ea2 + 1, C_SOMBRA);
+        for (int i = 0; i < n; i++)
+            gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[(i + 1) % n], (int)vy[(i + 1) % n], (int)ea2 + 1, c);
+        if (valor != SO_CORPO) numero(cx, cy, r, "0", zerado ? C_FELTRO2 : gfx_mistura(c, C_BRANCO, 30));
+        if (zerado && vista) risca(cx, cy, r);
+        return;
+    }
     gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
     if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado); return; }
     if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado); return; }

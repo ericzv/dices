@@ -1168,11 +1168,11 @@ int main(void)
             // Media: + o total dividido por 4.
             limpa(); joga(0, D_D6, 4); joga(0, D_MEDIA, 4); joga(0, D_D8, 8); d = fim();
             CONFERE(d.total[0] == 16 + 4, "Media: esperava 20, deu %d", d.total[0]);
-            // Vampiro: com 3 ou 4, -1 em cada dado do oponente que vale.
-            limpa(); joga(1, D_D6, 3); joga(1, D_D6, 5); joga(0, D_VAMPIRO, 4); d = fim();
-            CONFERE(d.total[1] == 2 + 4 && d.total[0] == 4, "Vampiro: oponente devia ficar com 6, ficou %d", d.total[1]);
-            limpa(); joga(1, D_D6, 3); joga(0, D_VAMPIRO, 2); d = fim();
-            CONFERE(d.total[1] == 3, "Vampiro com 2 nao age");
+            // Vampiro: valendo, -1 em cada dado do oponente que vale.
+            limpa(); joga(1, D_D6, 3); joga(1, D_D6, 5); joga(0, D_VAMPIRO, 1); d = fim();
+            CONFERE(d.total[1] == 2 + 4 && d.total[0] == 1, "Vampiro: oponente devia ficar com 6, ficou %d", d.total[1]);
+            limpa(); joga(1, D_D6, 3); joga(0, D_D4, 4); joga(0, D_VAMPIRO, 2); d = fim();
+            CONFERE(d.total[1] == 3, "Vampiro caido nao age");
             // Colecionador: com 6, + metade dos dados que voce tem.
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
             int tem = em_jogo(&J[0]);
@@ -1197,7 +1197,7 @@ int main(void)
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
                                          D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
-                CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= 6 && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
+                CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
             limpa();
         }
@@ -1330,15 +1330,19 @@ int main(void)
         perfis_le();
         CONFERE(!memcmp(copia, perfis, sizeof copia) && perfil_atual == 1, "perfis nao voltaram iguais");
         CONFERE(!strcmp(chave_run(), "desafio2"), "perfil 2 grava em %s", chave_run());
-        CONFERE(dado_liberado(D_PRISMA) && !dado_liberado(D_FENIX) && amuleto_liberado(A_COROA)
+        CONFERE(dado_liberado(D_FARTURA) && !dado_liberado(D_ESPELHO) && amuleto_liberado(A_COROA)
                 && !amuleto_liberado(A_CUPOM), "o que abre com o nivel 5");
         CONFERE(!dado_liberado(D_CAPITAO) && !dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER),
                 "Capitao, Cavalo e Berserker fechados no nivel 5");
         perfis[1].nivel = 8;
-        CONFERE(dado_liberado(D_CAPITAO) && dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER),
-                "Capitao e Cavalo abrem no 8, o Berserker nao");
+        CONFERE(dado_liberado(D_CAPITAO) && !dado_liberado(D_CAVALO), "Capitao abre no 8, o Cavalo nao");
         perfis[1].nivel = 9;
-        CONFERE(dado_liberado(D_BERSERKER) && !dado_liberado(D_MEDUSA), "Berserker no 9; a Medusa so no 10");
+        CONFERE(dado_liberado(D_CAVALO) && !dado_liberado(D_BERSERKER), "Cavalo no 9; o Berserker so no 10");
+        perfis[1].nivel = 10;
+        CONFERE(dado_liberado(D_BERSERKER) && dado_liberado(D_MEDUSA), "Berserker e Medusa no 10");
+        perfis[1].nivel = 0;                         // no Normal, so os simples
+        CONFERE(dado_liberado(D_PAR) && dado_liberado(D_ESCUDO) && !dado_liberado(D_LASER) && !dado_liberado(D_ESPELHO)
+                && !dado_liberado(D_OCULTO), "no Normal so os dados simples");
         for (int n = 1; n <= N_NIVEIS; n++) {        // um amuleto por nivel
             int c = 0;
             for (int a = 0; a < A_N; a++) c += NIVEL_AMULETO[a] == n;
@@ -1349,12 +1353,12 @@ int main(void)
             for (int t = 0; t < D_N; t++) c += nivel_do_dado(t) == n && marco_do_dado(t) < 0;
             CONFERE(c <= LIB_DADOS, "nivel %d abre %d dados (cabem %d)", n, c, LIB_DADOS);
         }
-        perfis[1].nivel = 5;
-        // Os fortes de antes: Explosivo, Egoista e Tudo ou Nada ja abriram no nivel 5; o
+        perfis[1].nivel = 8;
+        // Os fortes de antes: Explosivo, Egoista e Tudo ou Nada ja abriram no nivel 8; o
         // Agouro nao; D20 e Lastro so com o chefe de cada salao vencido.
         CONFERE(dado_liberado(D_EXPLOSIVO) && dado_liberado(D_EGOISTA) && dado_liberado(D_TUDO_NADA)
                 && !dado_liberado(D_MALDITO) && !dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
-                "dados fortes no nivel 5");
+                "dados fortes no nivel 8");
         perfis[1].marcos = 1;
         CONFERE(dado_liberado(D_D20) && !dado_liberado(D_LASTRO), "D20 com o Crupie vencido");
         {
@@ -1801,7 +1805,14 @@ int main(void)
             for (int p2 = 0; p2 < N_PERSO; p2++) todos &= trunfo_ativo(p2);
             CONFERE(todos, "Nivel 5: todos com trunfo");
             run.dificuldade = (uint8_t)dif0;
-            // O nucleo: o Rival sempre traz o Eco (e o Gemeo a partir do 2o salao).
+            // O nucleo: o Rival sempre traz o Eco (e o Gemeo a partir do 2o salao),
+            // quando a dificuldade ja abriu os dois.
+            int pa0 = perfil_atual;
+            bool pl0 = perfis_lidos;
+            perfil_t p0 = perfis[0];
+            memset(&perfis[0], 0, sizeof perfis[0]);
+            snprintf(perfis[0].nome, sizeof perfis[0].nome, "T");
+            perfis[0].nivel = N_NIVEIS; perfil_atual = 0; perfis_lidos = true;
             no_t no = { 0 };
             no.tipo = NO_FACIL; no.perso = 16; no.semente = 99;
             for (int a = 0; a < 3; a++) {
@@ -1811,6 +1822,27 @@ int main(void)
                 for (int i = 0; i < n; i++) { eco += col[i].tipo == D_ECO; gemeo += col[i].tipo == D_GEMEO; }
                 CONFERE(eco >= 1 && (a == 0 || gemeo >= 1), "nucleo do Rival no salao %d: eco %d gemeo %d", a, eco, gemeo);
             }
+            // No Normal, a mesa facil do primeiro salao: nada fechado e no maximo
+            // dois tipos de dado especial, para qualquer oponente.
+            perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0; run.passo = 3;
+            for (int pp = 0; pp < N_PERSO; pp++) {
+                if (perso_chefe(pp) || pp == PERSO_CORINGA) continue;
+                no.perso = (uint8_t)pp; no.tipo = NO_FACIL;
+                for (int sd = 1; sd <= 5; sd++) {
+                    peca_t col[MAX_COL];
+                    no.semente = (uint32_t)(sd * 7919 + pp);
+                    int n = monta_oponente(&no, 0, col), tipos = 0, fechado = -1;
+                    bool viu[D_N] = { false };
+                    for (int i = 0; i < n; i++) {
+                        int t = col[i].tipo;
+                        if (!dado_liberado(t) && fechado < 0) fechado = t;
+                        if (!so_numero(t) && !viu[t]) { viu[t] = true; tipos++; }
+                    }
+                    CONFERE(fechado < 0 && tipos <= 2, "%s no Normal: %d tipos especiais, fechado %d", PERSO[pp].nome, tipos, fechado);
+                }
+            }
+            perfis[0] = p0; perfil_atual = pa0; perfis_lidos = pl0;
+            run.dificuldade = (uint8_t)dif0;
             run.andar = (uint8_t)andar0;
         }
         // Fora do Desafiante, nada disso vale.

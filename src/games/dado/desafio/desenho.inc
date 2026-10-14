@@ -386,7 +386,8 @@ static void desenha_bolsa_run(void)
 }
 
 // ---- Fim da run ---------------------------------------------------------
-static void desenha_liberou(void);
+static void desenha_liberou(int dy);
+static int liberou_itens(void);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
@@ -395,14 +396,16 @@ static void desenha_fim_run(void)
     char es[96];
     int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
     int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
-    painel(CENTRO - 84, (abriu ? 208 : 168) + extra, abriu ? 580 : 500);   // o que abriu pode ir a seis nomes
+    // O que abriu em duas linhas: o painel cresce, e tudo sobe um pouco.
+    int dois = abriu && liberou_itens() > 5 ? 24 : 0, up = dois ? 16 : 0;
+    painel(CENTRO - 84 - up, (abriu ? 208 : 168) + extra + dois, abriu ? 580 : 500);
     char s[96];
     if (des_venceu_run) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
-        txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
-        desenha_liberou();
+        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "VITÓRIA", C_OURO, 3);
+        txt_c(GFX_W / 2, CENTRO - 6 - up, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
+        desenha_liberou(-up);
     } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "FIM DA RUN", C_VINHO_CLR, 3);
         if (des_perdeu_para >= 0)
             snprintf(s, sizeof s, "%s venceu você no %s.", PERSO[des_perdeu_para].nome, SALAO[des_perdeu_andar]);
         else snprintf(s, sizeof s, "A casa ficou com a mesa.");
@@ -410,13 +413,13 @@ static void desenha_fim_run(void)
     }
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
-    txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
+    txt_c(GFX_W / 2, CENTRO + 22 - up, s, C_TEXTO_M, false);
     if (ne) {
         char l[128];
         snprintf(l, sizeof l, "Estilo: %s", es);
-        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44), l, C_OURO, false);
+        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44) + dois - up, l, C_OURO, false);
     }
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra + dois - up, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha

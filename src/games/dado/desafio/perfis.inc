@@ -108,23 +108,34 @@ static void perfis_le(void)
 static const uint8_t NIVEL_AMULETO[A_N] = {
     [A_FERRADURA] = 1, [A_PESADO] = 2, [A_RELOGIO] = 3, [A_CARTOLA] = 4, [A_COROA] = 5,
     [A_CUPOM] = 6, [A_PRENSA] = 7, [A_TACA] = 8, [A_CORINGA] = 9, [A_DUPLA] = 10 };
-// Os dados que cada nivel abre (ate LIB_DADOS por nivel), dos faceis de
-// entender aos que mexem mais no jogo. Os das builds simples (Domino, Hexa,
-// Azarao, Ampulheta, Eco, Puxa-fila, Agiota) ja comecam abertos.
+// Os dados que cada nivel abre, dos faceis de entender aos que mexem mais
+// no jogo: no Normal so os de bonus simples (e os dados de numero), e a
+// cada nivel uns poucos a mais - ataques, depois os que mexem na sequencia,
+// por ultimo os estranhos. Assim quem comeca nao enfrenta tudo de uma vez.
 static int nivel_do_dado(int t)
 {
     switch (t) {
-    case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_VAZIO:    return 1;
-    case D_MARTIR: case D_CALIBRE: case D_MEDIA: case D_COLECIONADOR:       return 2;
-    case D_EGOISTA: case D_GEMEO: case D_OURICO: case D_SACRIFICIO:         return 3;
-    case D_COVEIRO: case D_RANCOR: case D_PONTE: case D_VAMPIRO:            return 4;
-    case D_TUDO_NADA: case D_PRISMA: case D_CHECKPOINT: case D_PACTO:       return 5;
-    case D_SABOTADOR: case D_POTE_QUENTE: case D_OCULTO: case D_ASSOMBRACAO: return 6;
-    case D_MALDITO: case D_ANCORA: case D_FENIX: case D_GARIMPEIRO:         return 7;   // Agouro
-    case D_CAPITAO: case D_ESPERANCA: case D_CAVALO:                        return 8;   // Cavalo de Troia
-    case D_BERSERKER: case D_TRONO:                                         return 9;
-    case D_MEDUSA:                                                          return 10;  // mexe na bolsa: por ultimo
-    default:                                                     return 0;
+    case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_DOMINO:
+    case D_HEXA: case D_SENTINELA: case D_PIRATA: case D_COPIADOR:              return 1;
+    case D_JACKPOT: case D_SEMENTE: case D_SEGURANCA: case D_AZARAO:
+    case D_AMPULHETA: case D_MALDICAO: case D_DESAFIANTE: case D_VAZIO:         return 2;
+    case D_CARRASCO: case D_LASER: case D_AGIOTA: case D_ACUMULADOR:
+    case D_MEDIA: case D_COLECIONADOR: case D_CALIBRE: case D_MARTIR:           return 3;
+    case D_CARIDOSO: case D_GATUNO: case D_VAMPIRO: case D_QUEBRADO:
+    case D_VIDRO: case D_PONTE: case D_RANCOR:                                  return 4;
+    case D_INVEJOSO: case D_FARTURA: case D_SORTE: case D_PUXA_FILA:
+    case D_COVEIRO: case D_SACRIFICIO:                                          return 5;
+    case D_ESPELHO: case D_VENTANIA: case D_FERREIRO: case D_MISERICORDIOSO:
+    case D_GEMEO: case D_ECO:                                                   return 6;
+    case D_VIUVA: case D_PRISMA: case D_CHECKPOINT: case D_POTE_QUENTE:
+    case D_OURICO: case D_ANCORA:                                               return 7;
+    case D_CAPITAO: case D_ESPERANCA: case D_SABOTADOR: case D_FENIX:
+    case D_TUDO_NADA: case D_EGOISTA:                                           return 8;
+    case D_FOGO: case D_SORTE_REVES: case D_OCULTO: case D_PACTO:
+    case D_ASSOMBRACAO: case D_CAVALO:                                          return 9;
+    case D_MALDITO: case D_GARIMPEIRO: case D_AUTOFAGIA: case D_BERSERKER:      // Agouro
+    case D_TRONO: case D_MEDUSA:                                                return 10;
+    default:                                                                    return 0;
     }
 }
 // D20 e Lastro abrem antes do Barao: na primeira vitoria contra o chefe do

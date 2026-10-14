@@ -581,13 +581,12 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
         return 0;
-    case EF_VAMPIRO:      return v >= 3;
     case EF_COLECIONADOR: return v == 6;
     case EF_SACRIFICIO:                                      // um outro dado seu que pontua
         for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
         return 0;
     case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO: case EF_SEGURANCA:
-    case EF_MEDIA: case EF_ASSOMBRA:
+    case EF_MEDIA: case EF_ASSOMBRA: case EF_VAMPIRO:
         return 1;                                            // basta terminar valendo
     default:              return 0;
     }
@@ -786,7 +785,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                                F[r].valor[a], J[r].nome, base - corte);
                     }
                 }
-            } else if (ef == EF_VAMPIRO && v >= 3) {     // -1 em cada dado do oponente que vale
+            } else if (ef == EF_VAMPIRO) {               // valendo: -1 em cada dado do oponente que vale
                 uint8_t m = 0;
                 for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
                     if (d->est[r][i] == V_VALIDO) { d->bonus[r][i] = (int8_t)(d->bonus[r][i] - 1); m |= (uint8_t)(1 << i); }

@@ -42,7 +42,10 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
   especiais têm um desenho só. Vencer o
   Barão abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
-  a mais por nível), e os chefes e as dificuldades abrem dados novos; a
+  a mais por nível), e os chefes e as dificuldades abrem dados novos: no
+  Normal só os de bônus simples; os ataques, os que mexem na sequência e os
+  mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
+  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. A
   coleção mostra o que está aberto e o que falta.
 
 ## Jogar no navegador (e online)

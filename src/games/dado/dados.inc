@@ -172,7 +172,7 @@ static const tipo_t TIPO[D_N] = {
     { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "não pontua; valendo: x2 no seu menor" },
     { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0 e nunca cai: baixa a barra" },
     { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "valendo: + o total da fila ÷ 4" },
-    { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "3 ou 4: -1 em cada dado do oponente" },
+    { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "valendo: -1 em cada dado do oponente" },
     { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "lançado: um Fantasma na sua bolsa" },
     { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "valendo: um Fantasma na bolsa dele" },
@@ -264,7 +264,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SACRIFICIO] = "Não pontua. Se ficar valendo, o seu dado de menor número que pontua vale x2 no fim.",
     [D_VAZIO]     = "Vale sempre 0 e nunca cai nem derruba o de antes: depois dele, qualquer número vale.",
     [D_MEDIA]     = "Se ficar valendo, no fim ganha o total dos seus dados dividido por 4 (para baixo).",
-    [D_VAMPIRO]   = "Se ficar valendo com 3 ou 4, no fim cada dado do oponente que vale perde 1.",
+    [D_VAMPIRO]   = "Se ficar valendo, no fim cada dado do oponente que vale perde 1.",
     [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]     = "Doze lados. Cada vez que é lançado, um Fantasma (vale 1) entra na sua bolsa.",
     [D_ASSOMBRACAO] = "Se ficar valendo, no fim um Fantasma (vale 1) entra na bolsa do oponente.",
@@ -391,8 +391,8 @@ static const char *TEXTO_CAT[D_N] = {
                     "barra da sequência para 0, e depois dele qualquer número vale.",
     [D_MEDIA]     = "Quatro lados. Se terminar valendo, ganha no fim o total dos seus dados na sequência (com "
                     "bônus e multiplicadores, ele incluído) dividido por 4, arredondado para baixo.",
-    [D_VAMPIRO]   = "Quatro lados. Se terminar valendo com 3 ou 4, no fim cada dado do oponente que vale perde "
-                    "1 ponto.",
+    [D_VAMPIRO]   = "Quatro lados. Se terminar valendo, com qualquer número, no fim cada dado do oponente que vale "
+                    "perde 1 ponto.",
     [D_COLECIONADOR] = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para "
                        "baixo). Os Fantasmas que entraram na sua bolsa contam: é o contra deles.",
     [D_PACTO]     = "Doze lados. O preço: cada vez que é lançado, valendo ou não, um Fantasma (vale sempre 1) "
@@ -573,14 +573,14 @@ static const visual_t VISUAL[D_N] = {
     [D_PONTE]      = { V_AGUA,    V_CEU, 14,    V_AGUA, 100,    V_CIANO, 100,  V_CEU, 40 },
     [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
     [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
-    [D_FANTASMA]   = { V_LILAS,   V_LILAS, 30,  V_AMEIXA, 55,   V_LILAS, 90,   V_BRANCO, 80 },
+    [D_FANTASMA]   = { V_CIANO,   V_CEU, 62,    V_CIANO, 38,    V_BRANCO, 45,  V_AZUL, 70 },
     [D_PREVISIVEL] = { V_CIANO,   V_CEU, 16,    V_AZUL, 70,     V_AGUA, 100,   V_BRANCO, 85 },
-    [D_OCULTO]     = { V_CHUMBO,  V_BREU, 30,   V_FERRO, 60,    V_BREU, 70,    V_PRATA, 70 },
-    [D_SACRIFICIO] = { V_VINHO,   V_SANGUE, 20, V_TRIGO, 85,    V_BREU, 65,    V_OURO, 100 },
+    [D_OCULTO]     = { V_FERRO,   0, 0,         V_FERRO, 45,    V_BREU, 60,    V_PRATA, 60 },
+    [D_SACRIFICIO] = { V_VINHO,   V_SANGUE, 78, V_BREU, 45,     V_AMBAR, 95,   V_OURO, 100 },
     [D_VAZIO]      = { V_PEDRA,   V_BRANCO, 40, V_BARRO, 45,    V_PEDRA, 60,   V_BRANCO, 60 },
-    [D_MEDIA]      = { V_AGUA,    V_CEU, 20,    V_BRANCO, 85,   V_AGUA, 100,   V_CIANO, 70 },
+    [D_MEDIA]      = { V_AGUA,    V_CEU, 20,    V_AGUA, 75,     V_SANGUE, 85,  V_AGUA, 100 },
     [D_VAMPIRO]    = { V_BREU,    V_VINHO, 30,  V_SANGUE, 100,  V_VINHO, 90,   V_BRANCO, 70 },
-    [D_COLECIONADOR] = { V_TERRA, V_TRIGO, 18,  V_OURO, 100,    V_COURO, 100,  V_TRIGO, 90 },
+    [D_COLECIONADOR] = { V_NOITE, V_NOITE, 30,  V_AZUL, 70,     V_OURO, 100,   V_CEU, 85 },
     [D_PACTO]      = { V_ROXO,    V_SANGUE, 22, V_SANGUE, 90,   V_AMEIXA, 100, V_OURO, 100 },
     [D_ASSOMBRACAO] = { V_AMEIXA, V_LILAS, 24,  V_LILAS, 100,   V_ROXO, 80,    V_BRANCO, 80 },
 };

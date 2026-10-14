@@ -137,6 +137,11 @@ static void nova_rodada(void)
     if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
+    if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
+        snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que cai é meu! Hahaha!");
+        t_fala = 3.2f;
+        fala_e_curta = false;
+    }
     if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
         t_aviso_entrada = ENTRADA_AVISO_T;
         som_toca(SOM_FICHA);
@@ -201,7 +206,8 @@ void dado_inicia(int n_partidas)
     }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
-        rapido = salva_le("vel", b, sizeof b) > 0 && b[0] == '1';
+        if (salva_le("vel", b, sizeof b) > 0)
+            for (int v = 0; v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) velocidade = v;
         rapido_lido = true;
     }
     if (!tremor_lido) {                  // e se o tremor da tela foi desligado
@@ -493,9 +499,12 @@ static bool pedra_misteriosa(int j, int k)
 // estilhacado e o que a Ficha de Fogo queimou. A bolsa nunca cai abaixo da
 // mao: se cairia, o dado perdido vira um d4 comum. A pedra negativa do
 // Desafiante se parte e deixa o Dado Misterioso no lugar.
+// O Coringa, da 5a rodada em diante: o dado seu que termina anulado e dele.
+static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIRADA_RODADA; }
+
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0;
     for (int j = 0; j < 2; j++) {
         int saem[N_FILA], n = 0;
         for (int k = 0; k < F[j].lancados; k++) {
@@ -509,6 +518,10 @@ static void recolhe_quebrados(void)
             if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
             if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
+            if (j == 0 && !some && coringa_destroi() && F[j].tipo[k] != D_FANTASMA
+                && F[0].est[k] == V_ANULADO) {         // o estado final (no desfecho, ja com os ataques)
+                F[j].quebra[k] = true; some = true; n_coringa++;
+            }
             if (some && F[j].idx[k] >= 0) saem[n++] = F[j].idx[k];   // a copia do Coringa nao e da bolsa
         }
         for (int a = 1; a < n; a++)
@@ -531,6 +544,8 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
+    if (n_coringa)
+        snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói os %d dados seus que caíram" : "o Coringa destrói o dado seu que caiu", n_coringa);
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga

@@ -48,10 +48,10 @@ static const float PESO_PREMIO[4][4] = {
 
 // Loja: caro de proposito, para a bolsa nao encher. Com as 50 moedas do
 // comeco, da para um dado incomum ou um comum.
-// A dificuldade Prata encarece a loja; o Cupom barateia.
+// Do Nivel 3 a loja fica mais cara; o Cupom barateia.
 static int preco_ajusta(int p)
 {
-    if (run.dificuldade >= 2) p = p * 5 / 4;
+    if (run.dificuldade >= 3) p = p * 5 / 4;
     if (run_amuletos() >> A_CUPOM & 1) p = p * 3 / 4;
     return p;
 }
@@ -248,9 +248,10 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
-    if (run.dificuldade >= 3) {                  // Ouro: dois dados raros a mais
+    if (run.dificuldade >= 6) {                  // dados raros a mais: um do Nivel 6, dois do 8
         static const float RARO[4] = { 0, 0.5f, 3, 1.5f };
-        for (int i = 0; i < 2 && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
+        int raros = run.dificuldade >= 8 ? 2 : 1;
+        for (int i = 0; i < raros && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
     }
     // Recheio: dados simples (ou de efeito fraco) ate um tamanho minimo de
     // bolsa. Sem isso, um oponente de poucos dados poe os seus dois ou tres

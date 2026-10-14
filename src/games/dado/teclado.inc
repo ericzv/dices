@@ -69,8 +69,9 @@ void dado_tecla(const key_event_t *ev_)
     }
     if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
     if (k == 'v' && !dado_digitando()) {
-        rapido = !rapido;
-        salva_grava("vel", rapido ? "1" : "0");
+        velocidade = (velocidade + 1) % VEL_N;     // normal, media, rapida
+        char g[2] = { VEL_GRAVA[velocidade], 0 };
+        salva_grava("vel", g);
         t_aviso_vel = 1.6f;
         t_aviso_tremor = 0;
         som_toca(SOM_TIQUE);

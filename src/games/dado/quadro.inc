@@ -17,6 +17,10 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
         *nome = "Sem trunfo"; *cor = C_TEXTO_M; *desc = t;
     } else {
         *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
+        if (id == PERSO_CORINGA)                         // o Coringa: os detalhes da copia
+            *desc = "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
+                    "Se ele abre a rodada, é um \"?\" que só vira e é lançado depois que você joga. "
+                    "Da 5ª rodada em diante, cada dado seu que terminar anulado é destruído.";
         int v = virada_de(id);
         if (v) {                                         // o chefe tambem conta a virada
             static char t[200];

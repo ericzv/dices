@@ -4,16 +4,22 @@
 
 // Os chefes reparam no andar: a fala de abertura muda a cada dificuldade
 // (do 1o andar a Cobertura), e o Barao se despede de outro jeito la em cima.
-static const char *const FALA_ANDAR[3][5] = {            // [chefe][dificuldade - 1]
+static const char *const FALA_ANDAR[3][N_NIVEIS] = {     // [chefe][dificuldade - 1]
     { "1º andar, senhor? A casa reparou na sua subida.", "2º andar. Poucos chegam a esta mesa.",
-      "No 3º andar, a casa não dá desconto.", "No 4º andar, até a casa joga sério.",
-      "Cobertura. A casa nunca serviu ninguém aqui." },
+      "No 3º andar, a casa não dá desconto.", "4º andar. Aqui a casa conta as fichas duas vezes.",
+      "5º andar. Metade do caminho, e a casa ainda sorri.", "No 6º andar, os dados são mais pesados.",
+      "7º andar. A casa abriu o cofre para você.", "No 8º andar, até a casa joga sério.",
+      "9º andar. A casa já não dorme quando você sobe.", "Cobertura. A casa nunca serviu ninguém aqui." },
     { "O térreo ficou pequeno para você?", "2º andar. Você está subindo rápido.",
-      "3º andar... alguém andou se esforçando.", "No 4º andar, eu uso minhas melhores joias.",
-      "Aqui na cobertura, o salão continua meu." },
+      "3º andar... alguém andou se esforçando.", "4º andar. Já ouvi falar de você nos corredores.",
+      "5º andar. Meus clientes começam a apostar em você.", "6º andar. Trouxe o meu melhor colar.",
+      "7º andar. Aqui o aluguel é outro.", "No 8º andar, eu uso minhas melhores joias.",
+      "9º andar. Nunca recebi ninguém tão alto.", "Aqui na cobertura, o salão continua meu." },
     { "1º andar. É um começo.", "2º andar. Começo a lembrar do seu nome.",
-      "3º andar. Agora você me interessa.", "4º andar... ninguém sobe tanto por sorte.",
-      "Bem-vindo à cobertura. Daqui, só se desce." },
+      "3º andar. Já sei como você aposta.", "4º andar. Agora você me interessa.",
+      "5º andar. Mandei preparar uma mesa melhor.", "6º andar. Os meus sócios querem conhecer você.",
+      "7º andar. Isso já não é sorte.", "8º andar... ninguém sobe tanto por sorte.",
+      "9º andar. Só falta um, e ele é meu.", "Bem-vindo à cobertura. Daqui, só se desce." },
 };
 
 // As viradas (veja virada_forca no dado.c): o anuncio, a frase curta do
@@ -53,7 +59,7 @@ static void fala_evento(int cat)
         s = FALA_ANDAR[fala_perso - PERSO_CHEFE0][dif - 1];
     if (fala_perso == perso_virado && (cat == FA_GANHA_R || cat == FA_PERDE_R))
         s = FALA_VIROU[fala_perso - PERSO_CHEFE0][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
-    if (fala_perso == PERSO_CHEFE0 + 2 && dif == 5 && cat == FA_PERDE_P)
+    if (fala_perso == PERSO_CHEFE0 + 2 && dif == N_NIVEIS && cat == FA_PERDE_P)
         s = "A cobertura é sua... mas lá em cima alguém está rindo.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     t_fala = 3.2f;

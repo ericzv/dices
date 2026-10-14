@@ -227,10 +227,15 @@ static float t_reacao;                   // > 0: o rosto ainda reage
 static float t_curta;                    // > 0: espera antes de outra palavra
 static bool  fala_e_curta;               // o balao da vez e so uma palavra
 static int   placar_antes[2];            // os totais antes do lance: quem passou quem
-// Velocidade: no rapido, animacoes e a vez do computador andam em dobro
-// (menos no online, onde os dois lados precisam andar juntos). Fica guardada.
-#define VEL_RAPIDO 2.0f
-static bool rapido, rapido_lido;
+// Velocidade: normal, media (uma vez e meia) ou rapida (em dobro), nas
+// animacoes e na vez do computador (menos no online, onde os dois lados
+// precisam andar juntos). Fica guardada: "0" normal, "2" media, "1" rapida
+// (o "1" e o rapido de antes).
+enum { VEL_NORMAL, VEL_MEDIA, VEL_RAPIDA, VEL_N };
+static const float VEL_FATOR[VEL_N] = { 1.0f, 1.5f, 2.0f };
+static const char VEL_GRAVA[VEL_N] = { '0', '2', '1' };
+static int velocidade = VEL_MEDIA;
+static bool rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).
@@ -265,7 +270,7 @@ static int virada_de(int perso)
 {
     int c = perso - PERSO_CHEFE0;
     if (c < 0 || c > 2) return 0;
-    static const int8_t ABRE[3] = { 1, 2, 3 }, FORTE[3] = { 4, 4, 5 };
+    static const int8_t ABRE[3] = { 1, 2, 4 }, FORTE[3] = { 7, 7, 9 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
 }

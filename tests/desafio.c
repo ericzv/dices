@@ -104,6 +104,22 @@ int main(int argc, char **argv)
                     && hist.camp_tem && hist.camp_col[1] == D_LASER && hist.camp_moedas == 321,
                     "historico de antes nao foi convertido");
         }
+        // O dos 5 niveis: a vitoria no nivel n vai para o 2n, e a run campea tambem.
+        {
+            static hist1_t v1;
+            static char buf[2 * sizeof(hist1_t) + 1];
+            memset(&v1, 0, sizeof v1);
+            memcpy(v1.marca, "HIS1", 4);
+            v1.rodadas = 55; v1.runs_venc[0] = 2; v1.runs_venc[3] = 4; v1.lancou[D_D8] = 3;
+            v1.camp_tem = 1; v1.camp_dif = 3; v1.camp_n = 1; v1.camp_col[0] = D_ESCUDO; v1.camp_moedas = 77;
+            hex_de(&v1, sizeof v1, buf);
+            salva_grava("hist1", buf);
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(!memcmp(hist.marca, "HIS2", 4) && hist.rodadas == 55 && hist.runs_venc[0] == 2 && hist.runs_venc[6] == 4
+                    && !hist.runs_venc[3] && hist.lancou[D_D8] == 3 && hist.camp_tem && hist.camp_dif == 6
+                    && hist.camp_col[0] == D_ESCUDO && hist.camp_moedas == 77, "historico dos 5 niveis nao foi convertido");
+        }
         hist = antes; hist_de = 0;
         hist_grava();
         hist_apaga(0);
@@ -129,7 +145,7 @@ int main(int argc, char **argv)
         perfis[0].venceu[0] = 1;                 // venceu o Barao no terreo: abre o Vinho (e o Osso)
         estilo_le(0, &f, &m, &s);
         CONFERE(f == FT_VINHO && m == MAT_MARFIM && s == MS_NOGUEIRA, "o Vinho devia abrir no terreo");
-        perfis[0].venceu[1] = perfis[0].venceu[2] = 1;
+        perfis[0].venceu[2] = perfis[0].venceu[4] = 1;   // Mogno no 2, Jade no 4
         estilo_le(0, &f, &m, &s);
         CONFERE(f == FT_VINHO && m == MAT_JADE && s == MS_MOGNO, "Jade e Mogno deviam abrir");
         estilo_do_perfil();
@@ -146,7 +162,7 @@ int main(int argc, char **argv)
         materiais_da_partida(material_rapida());
         CONFERE(material_j[1] == MAT_MARFIM, "duas pessoas: o outro lado devia ser de marfim");
         char l[96];
-        CONFERE(estilo_do_andar(5, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
+        CONFERE(estilo_do_andar(N_NIVEIS, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
         perfil_atual = -1;
         estilo_do_perfil();                      // sem perfil: o padrao
         CONFERE(estilo_feltro == FT_VERDE && estilo_material_seu() == MAT_MARFIM, "sem perfil devia voltar ao padrao");

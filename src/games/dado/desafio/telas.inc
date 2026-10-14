@@ -2,21 +2,30 @@
 // Perfis e dificuldades
 // ---------------------------------------------------------------------------
 static const char *const NOME_DIF[N_NIVEIS + 1] = { "Normal", "Desafiante - Nível 1", "Desafiante - Nível 2",
-    "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5" };
-static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4", "Nível 5" };
+    "Desafiante - Nível 3", "Desafiante - Nível 4", "Desafiante - Nível 5", "Desafiante - Nível 6",
+    "Desafiante - Nível 7", "Desafiante - Nível 8", "Desafiante - Nível 9", "Desafiante - Nível 10" };
+static const char *const NOME_DIF_CURTO[N_NIVEIS + 1] = { "Normal", "Nível 1", "Nível 2", "Nível 3", "Nível 4",
+    "Nível 5", "Nível 6", "Nível 7", "Nível 8", "Nível 9", "Nível 10" };
 // Cada dificuldade e um andar do cassino, mais chique a cada um: a mesa
 // mostra o andar nos acabamentos (veja pinta_mesa).
-static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2º Andar",
-    "3º Andar", "4º Andar", "Cobertura" };
-static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, C_PRATA, C_OURO, RGB(222, 70, 92), RGB(150, 220, 240) };
-// O que cada dificuldade acrescenta (vale junto com as de baixo).
+static const char *const ANDAR_DIF[N_NIVEIS + 1] = { "Térreo", "1º Andar", "2º Andar", "3º Andar", "4º Andar",
+    "5º Andar", "6º Andar", "7º Andar", "8º Andar", "9º Andar", "Cobertura" };
+static const uint16_t COR_DIF[N_NIVEIS + 1] = { C_MARFIM, C_BRONZE, RGB(210, 120, 80), C_PRATA, RGB(110, 190, 150),
+    C_OURO, RGB(232, 150, 60), RGB(222, 70, 92), RGB(176, 110, 210), RGB(90, 140, 230), RGB(150, 220, 240) };
+// O que cada dificuldade acrescenta (vale junto com as de baixo): uma coisa
+// por nivel, para a subida ser aos poucos.
 static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Os salões como sempre; só os chefes têm trunfo.",
-    "Os chefes passam a virar na 5ª rodada.",
-    "Loja 25% mais cara; as mesas difíceis pensam mais.",
-    "Os oponentes trazem 2 dados raros a mais.",
+    "O Crupiê passa a virar na 5ª rodada.",
+    "A Dona também vira na 5ª rodada.",
+    "A loja fica 25% mais cara.",
+    "O Barão também vira na 5ª rodada.",
+    "As mesas difíceis pensam mais.",
+    "Os oponentes trazem 1 dado raro a mais.",
     "Viradas do Crupiê e da Dona mais fortes.",
-    "Oponentes ganham um amuleto; chefes pensam mais.",
+    "Os oponentes trazem 2 dados raros a mais.",
+    "Virada do Barão mais forte; os chefes pensam mais.",
+    "Os oponentes ganham um amuleto.",
 };
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
@@ -221,21 +230,22 @@ static void desenha_dificuldade(void)
     int x0 = 28, y0 = 54;
     for (int d = 0; d <= ult; d++) {
         bool aberta = d <= nv, cur = d == dif_cur;
-        int y = y0 + d * 26;
-        ui_cartao(x0, y, 150, 22, cur, 0);
+        int y = y0 + d * 22;
+        ui_cartao(x0, y, 150, 20, cur, 0);
         uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
-        gfx_disco(x0 + 14, y + 11, 6, gfx_mistura(c, C_BARRA, 30));
-        gfx_disco(x0 + 14, y + 11, 4, c);
-        txt(x0 + 28, y + 1, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
+        gfx_disco(x0 + 14, y + 10, 6, gfx_mistura(c, C_BARRA, 30));
+        gfx_disco(x0 + 14, y + 10, 4, c);
+        txt(x0 + 28, y, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
         if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
-            gfx_disco(x0 + 134, y + 11, 5, C_LATAO_ESC);
-            gfx_disco(x0 + 134, y + 11, 4, C_OURO);
-            gfx_disco(x0 + 133, y + 10, 1, C_BRANCO);
+            gfx_disco(x0 + 134, y + 10, 5, C_LATAO_ESC);
+            gfx_disco(x0 + 134, y + 10, 4, C_OURO);
+            gfx_disco(x0 + 133, y + 9, 1, C_BRANCO);
         }
-        if (aberta) zona_clique(x0, y, 150, 22, &dif_cur, d, KEY_ENTER);
-        else zona_clique(x0, y, 150, 22, &dif_cur, d, 0);
+        if (aberta) zona_clique(x0, y, 150, 20, &dif_cur, d, KEY_ENTER);
+        else zona_clique(x0, y, 150, 20, &dif_cur, d, 0);
     }
-    // O que vale na escolhida: tudo o que vem de baixo, mais o dela.
+    // O que vale na escolhida: o que ela acrescenta, em destaque, e o que vem
+    // de baixo, miudo.
     int px = 194, py = 54;
     ui_painel(px, py, 416, 240);
     int d = dif_cur;
@@ -246,13 +256,16 @@ static void desenha_dificuldade(void)
         char s[64];
         snprintf(s, sizeof s, "Vença o Barão no %s para abrir.", NOME_DIF_CURTO[d - 1]);
         txt(px + 12, ly, s, C_VINHO_CLR, false);
-        ly += 22;
+        ly += 20;
     }
-    for (int k = d == 0 ? 0 : 1; k <= d; k++) {
-        txt(px + 12, ly, k == d ? "+" : "·", k == d ? COR_DIF[d] : C_TEXTO_M, true);
-        txt(px + 24, ly, PENA_DIF[k], k == d ? C_MARFIM : C_TEXTO_M, false);
-        ly += 17;
+    txt(px + 12, ly, "+", COR_DIF[d], true);
+    txt(px + 24, ly, PENA_DIF[d], C_MARFIM, false);
+    ly += 19;
+    for (int k = d - 1; k >= 1; k--) {              // as de baixo, da mais recente
+        gfx_texto(px + 26, ly + 2, PENA_DIF[k], C_TEXTO_M, GFX_MIUDO, false);
+        ly += 11;
     }
+    if (d > 1) ly += 4;
     if (d > 0) {                                     // quem passa a trazer o trunfo
         char nomes[96], t[128];
         if (trunfos_do_nivel(d, nomes, sizeof nomes)) {
@@ -261,41 +274,33 @@ static void desenha_dificuldade(void)
             ly += 17;
         }
     }
-    if (d > 0) {                                     // os chefes que viram na 5a rodada
-        static const char *const VIRAM[N_NIVEIS + 1] = { "", "o Crupiê", "o Crupiê e a Dona",
-            "o Crupiê, a Dona e o Barão", "o Crupiê, a Dona e o Barão", "os três chefes, mais fortes" };
-        char v[80];
-        snprintf(v, sizeof v, "Viram na 5ª rodada: %s.", VIRAM[d]);
-        txt(px + 24, ly, v, C_VINHO_CLR, false);
-        ly += 17;
-    }
     {
         char m[48];                                  // e o que ajuda: mais moedas a cada andar
         snprintf(m, sizeof m, "Você começa com %d moedas.", DES_MOEDAS + DES_MOEDAS_ANDAR * d);
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }
-    if (d > 0) {
+    if (d > 0) {                                     // o amuleto e os dados que abrem: tres por linha
         int am[2], dado[LIB_DADOS];
         liberados(d, am, dado);
-        ly += 6;
+        int it[2 + LIB_DADOS], ni = 0;
+        for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
+        for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
+        ly += 4;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
         ly += 24;
-        int ix = px + 24, ly0 = ly;
-        for (int i = 0; i < 2; i++) {                // amuletos a esquerda...
-            if (am[i] < 0) continue;
-            desenha_amuleto(ix, ly, 9, am[i], d > nv);
-            txt(ix + 14, ly - 6, AMULETO[am[i]].nome, d > nv ? C_TEXTO_M : AMULETO[am[i]].cor, false);
-            if (d <= nv) dica_zona(ix - 10, ly - 10, 150, 20, DICA_AMULETO, am[i]);
-            ly += 24;
-        }
-        for (int i = 0; i < LIB_DADOS; i++) {        // ...e os dados a direita, dois por coluna
-            if (dado[i] < 0) continue;
-            int dx = px + 150 + (i / 2) * 130;
-            ly = ly0 + (i % 2) * 24;
-            desenha_dado((float)dx, (float)ly, 9, dado[i], 0, 0, 0, 0, d > nv);
-            txt(dx + 14, ly - 6, TIPO[dado[i]].nome, d > nv ? C_TEXTO_M : cor_dado(dado[i]), false);
-            if (d <= nv) dica_zona(dx - 10, ly - 10, 120, 20, DICA_DADO, dado[i]);
+        for (int i = 0; i < ni; i++) {
+            int ix = px + 24 + (i % 3) * 130, iy = ly + (i / 3) * 24;
+            if (it[i] < 0) {
+                int a = -1 - it[i];
+                desenha_amuleto(ix, iy, 9, a, d > nv);
+                txt(ix + 14, iy - 6, AMULETO[a].nome, d > nv ? C_TEXTO_M : AMULETO[a].cor, false);
+                if (d <= nv) dica_zona(ix - 10, iy - 10, 120, 20, DICA_AMULETO, a);
+            } else {
+                desenha_dado((float)ix, (float)iy, 9, it[i], 0, 0, 0, 0, d > nv);
+                txt(ix + 14, iy - 6, TIPO[it[i]].nome, d > nv ? C_TEXTO_M : cor_dado(it[i]), false);
+                if (d <= nv) dica_zona(ix - 10, iy - 10, 120, 20, DICA_DADO, it[i]);
+            }
         }
     }
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");

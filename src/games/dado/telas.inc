@@ -188,11 +188,11 @@ static int chance_cair(int j)
 
 
 // A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
-// Nivel 3 do Desafiante em diante.
+// Nivel 6 do Desafiante em diante.
 static bool mostra_chance(void)
 {
     if (cpu >> vez & 1) return false;            // vez do computador
-    if (modo == M_DESAFIO) return des_dificuldade() < 3;
+    if (modo == M_DESAFIO) return des_dificuldade() < 6;
     if (cpu >> outro(vez) & 1) return nivel_jog[outro(vez)] < 2;
     return true;
 }

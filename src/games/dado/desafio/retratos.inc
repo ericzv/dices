@@ -773,7 +773,7 @@ typedef struct {
 
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal).
 typedef struct {
-    char     marca[4];                   // "DES1"
+    char     marca[4];                   // "DES2" (o "DES1" dos 5 niveis e convertido)
     uint8_t  andar, passo, estado, vitorias;
     int32_t  moedas, ganho;              // ganho: moedas da ultima vitoria
     uint32_t semente;
@@ -789,7 +789,7 @@ typedef struct {
     uint8_t  am_volta;                   // depois da escolha: 0 loja da entrada, 1 segue no mapa
     uint8_t  am_loja, am_levou;          // amuleto a venda na loja (0xFF: nenhum)
     uint8_t  juros;                      // moedas que o Cofre rendeu na ultima vitoria
-    uint8_t  dificuldade;                // 0 normal .. 5
+    uint8_t  dificuldade;                // 0 normal .. N_NIVEIS
     uint16_t amuletos_hi;
     uint8_t  taca;                       // moedas que a Taca rendeu na ultima vitoria
     uint8_t  premio2;                    // Selo de Divida: no segundo premio do chefe

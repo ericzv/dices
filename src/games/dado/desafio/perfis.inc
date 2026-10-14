@@ -4,7 +4,6 @@
 // guarda a sua run.
 // ---------------------------------------------------------------------------
 #define N_PERFIS 3
-#define N_NIVEIS 5                       // dificuldades acima da normal
 enum { AV_ET, AV_BERRO, AV_NOMALISA, AV_INTERRUPTOR, AV_N };
 static const char *const NOME_AVATAR[AV_N] = { "ET Vilu", "O Berro", "Nomalisa", "Interruptor do Futuro" };
 
@@ -16,6 +15,14 @@ typedef struct {
     uint16_t partidas;                   // partidas jogadas no Desafiante
     uint8_t  marcos;                     // bit c: ja venceu o chefe do salao c (abre dados)
 } perfil_t;
+typedef struct {                         // "PER3": do tempo dos 5 niveis, lido e convertido
+    char     nome[12];
+    uint8_t  avatar, nivel;
+    uint8_t  venceu[N_NIVEIS_V + 1];
+    uint16_t runs;
+    uint16_t partidas;
+    uint8_t  marcos;
+} perfil_v_t;
 static perfil_t perfis[N_PERFIS];
 static int perfil_atual = -1;
 static bool perfis_lidos;
@@ -53,11 +60,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER3" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER4" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER3", 4);
+    memcpy(buf, "PER4", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -71,9 +78,22 @@ static void perfis_le(void)
     perfil_atual = -1;
     static char buf[16 + 2 * sizeof perfis];
     int n = salva_le("perfis", buf, (int)sizeof buf);
-    if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER3", 4)) return;
     perfil_t lido[N_PERFIS];
-    if (!de_hex(buf + 5, lido, sizeof lido)) return;
+    if (n == 5 + (int)(2 * sizeof(perfil_v_t[N_PERFIS])) && !memcmp(buf, "PER3", 4)) {
+        // Os de antes: o nivel n (de 5) vira 2n (de 10), e a vitoria no n, no 2n.
+        perfil_v_t v[N_PERFIS];
+        if (!de_hex(buf + 5, v, sizeof v)) return;
+        memset(lido, 0, sizeof lido);
+        for (int i = 0; i < N_PERFIS; i++) {
+            memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
+            lido[i].avatar = v[i].avatar;
+            lido[i].nivel = (uint8_t)(2 * (v[i].nivel > N_NIVEIS_V ? N_NIVEIS_V : v[i].nivel));
+            for (int d = 0; d <= N_NIVEIS_V; d++) lido[i].venceu[2 * d] = v[i].venceu[d];
+            lido[i].runs = v[i].runs;
+            lido[i].partidas = v[i].partidas;
+            lido[i].marcos = v[i].marcos;
+        }
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER4", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -86,36 +106,25 @@ static void perfis_le(void)
 
 // Conteudo liberado: o que vem com cada dificuldade.
 static const uint8_t NIVEL_AMULETO[A_N] = {
-    [A_FERRADURA] = 1, [A_PESADO] = 1, [A_RELOGIO] = 2, [A_CARTOLA] = 2, [A_COROA] = 3,
-    [A_CUPOM] = 3, [A_PRENSA] = 4, [A_TACA] = 4, [A_CORINGA] = 5, [A_DUPLA] = 5 };
+    [A_FERRADURA] = 1, [A_PESADO] = 2, [A_RELOGIO] = 3, [A_CARTOLA] = 4, [A_COROA] = 5,
+    [A_CUPOM] = 6, [A_PRENSA] = 7, [A_TACA] = 8, [A_CORINGA] = 9, [A_DUPLA] = 10 };
+// Os dados que cada nivel abre (ate LIB_DADOS por nivel), dos faceis de
+// entender aos que mexem mais no jogo. Os das builds simples (Domino, Hexa,
+// Azarao, Ampulheta, Eco, Puxa-fila, Agiota) ja comecam abertos.
 static int nivel_do_dado(int t)
 {
     switch (t) {
-    case D_BUMERANGUE: return 1;
-    case D_GEMEO:      return 2;
-    case D_PRISMA:     return 3;
-    case D_CHECKPOINT: return 3;
-    // Os das builds: os faceis de entender (Domino, Hexa, Azarao, Ampulheta,
-    // Eco, Puxa-fila, Agiota) ja comecam abertos; os diferentes vem andar a
-    // andar, e a Medusa, que mexe na bolsa, por ultimo.
-    case D_MARTIR:     return 1;
-    case D_CALIBRE:    return 1;
-    case D_OURICO:     return 2;
-    case D_COVEIRO:    return 2;
-    case D_SABOTADOR:  return 3;
-    case D_ANCORA:     return 4;
-    case D_MEDUSA:     return 5;
-    case D_FENIX:      return 4;
-    case D_TRONO:      return 5;
-    case D_CAPITAO:    return 4;
-    case D_CAVALO:     return 5;                 // Cavalo de Troia
-    case D_BERSERKER:  return 5;
-    // Os fortes que ja existiam: presos no comeco.
-    case D_EXPLOSIVO:  return 1;
-    case D_EGOISTA:    return 2;
-    case D_TUDO_NADA:  return 3;
-    case D_MALDITO:    return 4;                 // Agouro
-    default:           return 0;
+    case D_EXPLOSIVO: case D_BUMERANGUE:                         return 1;
+    case D_MARTIR: case D_CALIBRE:                               return 2;
+    case D_EGOISTA: case D_GEMEO: case D_OURICO:                 return 3;
+    case D_COVEIRO: case D_RANCOR: case D_PONTE:                 return 4;
+    case D_TUDO_NADA: case D_PRISMA: case D_CHECKPOINT:          return 5;
+    case D_SABOTADOR: case D_POTE_QUENTE:                        return 6;
+    case D_MALDITO: case D_ANCORA: case D_FENIX: case D_GARIMPEIRO: return 7;   // Agouro
+    case D_CAPITAO: case D_ESPERANCA: case D_CAVALO:             return 8;   // Cavalo de Troia
+    case D_BERSERKER: case D_TRONO:                              return 9;
+    case D_MEDUSA:                                               return 10;  // mexe na bolsa: por ultimo
+    default:                                                     return 0;
     }
 }
 // D20 e Lastro abrem antes do Barao: na primeira vitoria contra o chefe do

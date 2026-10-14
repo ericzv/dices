@@ -228,9 +228,10 @@ static void faixa_jogador(int j)
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
     if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
-        const char *v = rapido ? "» rápido" : "» normal";
+        static const char *const VEL_NOME[VEL_N] = { "» normal", "» médio", "» rápido" };
+        const char *v = VEL_NOME[velocidade];
         int vx = GFX_W / 2 + 22;
-        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, rapido ? C_OURO : C_TEXTO_M, 1, false);
+        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, velocidade == VEL_RAPIDA ? C_OURO : velocidade == VEL_MEDIA ? C_MARFIM_S : C_TEXTO_M, 1, false);
         zona_clique(vx - 4, y0 + 6, gfx_largura(v, 1) + 8, FAIXA_H - 12, NULL, 0, 'v');
     }
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)

@@ -1281,7 +1281,7 @@ static int des_dificuldade(void);
 
 static void mesa(void)
 {
-    mesa_andar = modo == M_DESAFIO ? des_dificuldade() : 0;
+    mesa_andar = modo == M_DESAFIO ? (des_dificuldade() + 1) / 2 : 0;   // um acabamento a cada dois andares
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }

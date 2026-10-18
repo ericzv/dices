@@ -36,12 +36,20 @@ static int cat_trava_dado(int t, char *s, int n)
     return 2;
 }
 
-// Os amuletos na ordem em que abrem.
+// Os amuletos que saem no jogo, por raridade (comuns, incomuns, raros) e,
+// dentro de cada uma, na ordem em que abrem.
+static int n_amuletos_jogo(void)
+{
+    int n = 0;
+    for (int a = 0; a < A_N; a++) n += amuleto_no_jogo(a);
+    return n;
+}
 static int cat_amuleto(int i)
 {
-    for (int nv = 0; nv <= N_NIVEIS; nv++)
-        for (int a = 0; a < A_N; a++)
-            if (NIVEL_AMULETO[a] == nv && i-- == 0) return a;
+    for (int r = AMR_COMUM; r <= AMR_RARO; r++)
+        for (int nv = 0; nv <= N_NIVEIS; nv++)
+            for (int a = 0; a < A_N; a++)
+                if (RAR_AMULETO[a] == r && NIVEL_AMULETO[a] == nv && i-- == 0) return a;
     return 0;
 }
 
@@ -50,7 +58,7 @@ static void desenha_cat_amuleto(int i)
     perfis_le();
     int a = cat_amuleto(i);
     char s[96];
-    faixas_colecao(i, A_N);
+    faixas_colecao(i, n_amuletos_jogo());
 
     bool aberto = amuleto_liberado(a);
     int cx = 160, cy = CENTRO + 4;
@@ -64,8 +72,10 @@ static void desenha_cat_amuleto(int i)
 
     int x = 290;
     gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
-    const char *et = "amuleto";
-    txt(etiqueta_caixa(x, 118, et, C_LATAO) + 2, 119, "só no Desafiante", C_TEXTO_M, false);
+    int ex = etiqueta_caixa(x, 118, nome_rar_am(a), cor_rar_am(a)) + 2;
+    static const char *const QUANDO[] = { "", "no começo da run", "depois do 1º chefe", "depois do 2º chefe" };
+    snprintf(s, sizeof s, "amuleto · %s", QUANDO[RAR_AMULETO[a]]);
+    txt(ex, 119, s, C_TEXTO_M, false);
     if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);

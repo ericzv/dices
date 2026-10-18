@@ -56,7 +56,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ACUM_MAX 6
 #define AUTO_MAX 3
 // O que a Ficha Velha anulada rende no fim.
-#define FICHA_VELHA_PTS 6
+#define FICHA_VELHA_PTS 4
 // A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
 #define AUTO_BOLSA 8
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
@@ -178,7 +178,7 @@ static const tipo_t TIPO[D_N] = {
     { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "lançado: um Fantasma na sua bolsa" },
     { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "valendo: um Fantasma na bolsa dele" },
-    { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "anulada: +6 no fim" },
+    { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "anulada: +4 no fim" },
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "anula o seu de antes; nada a anula" },
 };
 
@@ -272,7 +272,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]     = "Doze lados. Cada vez que é lançado, um Fantasma (vale 1) entra na sua bolsa.",
     [D_ASSOMBRACAO] = "Se ficar valendo, no fim um Fantasma (vale 1) entra na bolsa do oponente.",
-    [D_FICHA_VELHA] = "Se terminar a rodada anulada (caída ou atacada), ganha +6 no fim.",
+    [D_FICHA_VELHA] = "Se terminar a rodada anulada (caída ou atacada), ganha +4 no fim.",
     [D_SANGUESSUGA] = "Ao pousar, anula o seu dado de antes. Ela não pode ser anulada: nem cai, nem é derrubada.",
 };
 
@@ -406,7 +406,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_ASSOMBRACAO] = "Seis lados. Se terminar valendo, no fim da rodada um Fantasma (vale sempre 1) entra na bolsa "
                       "do oponente até o fim da partida.",
     [D_FICHA_VELHA] = "Uma ficha gasta, de 1 ou 2. Valendo, conta o que tirou, como uma moeda. Se terminar a rodada "
-                      "anulada, caída na sequência ou atacada pelo oponente, ganha +6 no fim, fora dos "
+                      "anulada, caída na sequência ou atacada pelo oponente, ganha +4 no fim, fora dos "
                       "multiplicadores.",
     [D_SANGUESSUGA] = "Oito lados. Ao pousar, anula o seu dado de antes na sequência (se ele puder ser anulado), e "
                       "a sequência segue a partir dela. Ela não pode ser anulada: não cai mesmo menor que o de antes "

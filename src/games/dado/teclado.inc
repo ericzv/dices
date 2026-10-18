@@ -329,7 +329,7 @@ static void trata_tecla(int k)
         }
         if (e) {
             if (cat_sec == 0) cat_i = (cat_i + e + N_CATALOGO) % N_CATALOGO;
-            else cat_a = (cat_a + e + A_N) % A_N;
+            else cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;

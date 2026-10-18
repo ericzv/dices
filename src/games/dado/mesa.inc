@@ -692,7 +692,7 @@ static void desenha_fila(int j)
         bool suga = fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_SANGUESSUGA
                     && anulou_a >= 0 && t_fase < 0.9f;
         float r_suga = suga ? R + sanguessuga_gole(t_fase) : R;
-        // A Ficha Velha pagando o seu +6 no fim: a cor volta enquanto ela paga.
+        // A Ficha Velha pagando o seu +4 no fim: a cor volta enquanto ela paga.
         bool paga = e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && t == D_FICHA_VELHA && p > 0.12f && p < 0.92f;
         desenha_dado((float)x, y - pulo, r_suga, t, j, giro, face, 2, anul && giro < 0.5f && !paga);
         if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
@@ -958,6 +958,7 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_AVISO) return;             // so o texto (e o amuleto acende na faixa)
     if (e->tipo == EV_VAMPIRO) {                 // gotas saem dos dados do oponente e vao ate o Vampiro
         int bx = SLOT_X(e->de_k), by = zona(e->de_j);
         for (int k = 0; k < N_FILA; k++) {

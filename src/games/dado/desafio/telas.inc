@@ -74,7 +74,7 @@ static int  dif_cur;
 static void liberados(int n, int *am, int *dado)
 {
     int k = 0;
-    for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n) am[k++] = a;
+    for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n && amuleto_no_jogo(a)) am[k++] = a;
     for (; k < 2; k++) am[k] = -1;
     k = 0;
     for (int t = 0; t < D_N && k < LIB_DADOS; t++) if (nivel_do_dado(t) == n && marco_do_dado(t) < 0) dado[k++] = t;

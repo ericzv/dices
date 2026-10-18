@@ -28,8 +28,10 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   lojas e 8 eventos. No nível 10, depois do Barão ainda há o salão do Coringa:
   a última loja e o oponente mais difícil do jogo. Cada partida tem 8
   rodadas e 50 fichas de cada lado; vencer converte as fichas que sobraram em
-  moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas;
-  amuletos você escolhe no começo e depois de cada chefe.
+  moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas.
+  Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
+  depois do segundo (e do Barão, no nível 10); as lojas e a Fonte de cada
+  salão vendem da raridade dele. Cabem 5: para levar o sexto, um dos seus sai.
   Perdeu, a run acaba. Até 3 perfis, cada um com seu avatar e sua run guardada
   (no PC, numa pasta do usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,

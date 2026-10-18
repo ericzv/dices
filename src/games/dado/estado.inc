@@ -69,15 +69,17 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_MEDUSA,                    // a Medusa: a fila vira pedra (Quebrados)
        EV_GARIMPO,                   // o Garimpeiro: os outros validos voltam para a bolsa
        EV_REVELA,                    // o Oculto mostra o que tirou
-       EV_VAMPIRO };                 // o Vampiro: -1 em cada dado do oponente que vale
+       EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
+       EV_AVISO };                   // so o texto (a Saideira avisa que tudo vai de novo)
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
     uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
+    uint32_t am;                     // amuletos que acendem quando ele toca
     char txt[64];
 } evento_t;
-#define MAX_EV 32
+#define MAX_EV 64                    // a Saideira repete a cadeia inteira
 
 typedef struct { uint8_t tipo, fixo, de_j, anulado; int valor; } roubado_t;   // anulado: pelo Cavalo
 
@@ -197,7 +199,10 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        A_FERRADURA, A_PESADO, A_RELOGIO, A_CARTOLA, A_COROA, A_CUPOM,
        A_PRENSA, A_TACA, A_CORINGA, A_DUPLA, A_SELO, A_PEDAGIO,
        // Vindos dos trunfos do Rival, da Bruxa e do Coveiro (abertos desde o comeco).
-       A_DESFORRA, A_MAU_OLHADO, A_CRISANTEMO, A_N };
+       A_DESFORRA, A_MAU_OLHADO, A_CRISANTEMO,
+       // Os das raridades: dois incomuns e tres raros (abertos desde o comeco).
+       A_TRINCA, A_PIRAMIDE, A_ABRE_ALAS, A_SAIDEIRA, A_CORRIMAO, A_N };
+#define AM_LUGARES 5                 // amuletos que cabem na run; o sexto pede troca
 #define A_BASICOS A_FERRADURA
 static uint32_t amul[2];
 static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)

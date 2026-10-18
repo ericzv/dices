@@ -238,22 +238,35 @@ int main(int argc, char **argv)
             switch (fase) {
             case F_RAMULETO: {               // um amuleto ao acaso entre os oferecidos
                 uint32_t antes = run_amuletos();
-                cursor = (int)(rnd_t() % 3u);
-                if (run.am_oferta[cursor] >= A_N) cursor = 0;
-                trata_tecla(KEY_ENTER);
-                CONFERE(am_conta(run_amuletos()) == am_conta(antes) + 1, "amuleto nao entrou");
+                if (run.am_novo) {           // sem lugar: tira um dos seus ao acaso (ou deixa o novo)
+                    cursor = (int)(rnd_t() % TROCA_N);
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(!run.am_novo && am_conta(run_amuletos()) == AM_LUGARES, "troca: %d amuletos",
+                            am_conta(run_amuletos()));
+                    amuletos_tidos += run_amuletos() != antes;
+                } else {
+                    cursor = (int)(rnd_t() % 3u);
+                    while (run.am_oferta[cursor] >= A_N) cursor = (cursor + 1) % 3;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(run.am_novo || am_conta(run_amuletos()) == am_conta(antes) + 1, "amuleto nao entrou");
+                    amuletos_tidos += am_conta(run_amuletos()) - am_conta(antes);
+                }
+                CONFERE(am_conta(run_amuletos()) <= AM_LUGARES, "%d amuletos", am_conta(run_amuletos()));
                 for (int a = 0; a < A_N; a++)
-                    CONFERE(!(run_amuletos() >> a & 1) || NIVEL_AMULETO[a] <= dific, "amuleto %d ainda fechado", a);
-                amuletos_tidos += am_conta(run_amuletos()) - am_conta(antes);
+                    CONFERE(!(run_amuletos() >> a & 1) || (NIVEL_AMULETO[a] <= dific && amuleto_no_jogo(a)),
+                            "amuleto %d fechado ou fora do jogo", a);
                 break;
             }
             case F_RLOJA: {                  // compra o de maior raridade que couber
                 // Com folga de moedas, leva o amuleto da loja.
-                if (run.am_loja < A_N && !run.am_levou && run.moedas >= preco_am() + 30) {
+                if (run.am_loja < A_N && !run.am_levou && run.moedas >= preco_am() + 30 && (am_lugar() || rnd_t() % 2)) {
+                    bool cabia = am_lugar();
                     cursor = N_LOJA;
                     trata_tecla(KEY_ENTER);
-                    CONFERE(run.am_levou && (run_amuletos() >> run.am_loja & 1), "amuleto da loja nao entrou");
-                    amuletos_tidos++;
+                    if (cabia) {
+                        CONFERE(run.am_levou && (run_amuletos() >> run.am_loja & 1), "amuleto da loja nao entrou");
+                        amuletos_tidos++;
+                    } else CONFERE(run.am_novo && fase == F_RAMULETO, "loja cheia: sem a troca");
                     break;
                 }
                 int b = -1;

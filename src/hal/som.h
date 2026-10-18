@@ -44,6 +44,7 @@ enum {
 };
 
 void som_toca(int som);
+void som_toca_tom(int som, int semitons);   // o mesmo som, transposto (a escada do fim da rodada)
 bool som_liga(bool on);      // devolve se ficou ligado
 bool som_ligado(void);
 bool som_falhou(void);       // o aparelho nao tem saida de audio

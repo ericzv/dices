@@ -101,6 +101,53 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
     marca_nivel = -1;
 }
 
+// O clarao do golpe (hora.inc): enquanto a mesa esta parada, o dado que
+// acertou vira uma silhueta branca (o desenho dele, feito no rascunho, so
+// para saber quais pixels sao dele), com um halo de um pixel; o placar
+// acende a moldura e os numeros. Tudo apaga conforme o golpe solta.
+static void clareia_dado(int j, int k, int pct)
+{
+    int cx = SLOT_X(k), cy = zona(j), caixa = R_DADO + 6;
+    int x0 = cx - caixa, y0 = cy - caixa, lado = 2 * caixa + 1;
+    for (int y = y0; y < y0 + lado; y++)
+        for (int x = x0; x < x0 + lado; x++)
+            if (x >= 0 && y >= 0 && x < GFX_W && y < GFX_H) rascunho[y * GFX_W + x] = CHAVE;
+    gfx_desvia(rascunho);
+    desenha_dado((float)cx, (float)cy, R_DADO, F[j].tipo[k], j, 0, F[j].valor[k], 2, false);
+    gfx_desvia(NULL);
+    for (int y = y0; y < y0 + lado; y++)                // a sombra no feltro nao acende
+        for (int x = x0; x < x0 + lado; x++)
+            if (x >= 0 && y >= 0 && x < GFX_W && y < GFX_H && rascunho[y * GFX_W + x] == C_SOMBRA)
+                rascunho[y * GFX_W + x] = CHAVE;
+    uint16_t *fb = display_fb();
+    for (int y = y0 + 1; y < y0 + lado - 1; y++) {
+        if (y < 1 || y >= GFX_H - 1) continue;
+        for (int x = x0 + 1; x < x0 + lado - 1; x++) {
+            if (x < 1 || x >= GFX_W - 1) continue;
+            const uint16_t *r = &rascunho[y * GFX_W + x];
+            if (*r != CHAVE) fb[y * GFX_W + x] = gfx_mistura(fb[y * GFX_W + x], C_BRANCO, pct);
+            else if (r[-1] != CHAVE || r[1] != CHAVE || r[-GFX_W] != CHAVE || r[GFX_W] != CHAVE)
+                fb[y * GFX_W + x] = gfx_mistura(fb[y * GFX_W + x], C_BRANCO, pct * 3 / 5);   // o halo
+        }
+    }
+}
+
+static void desenha_clarao(void)
+{
+    if (t_congela <= 0 || congela_j < 0) return;
+    float q = t_congela / congela_dur;                 // 1 no golpe, 0 quando solta
+    int pct = q > 0.5f ? 92 : 40 + (int)(104 * q), j = congela_j, y = zona(j);
+    for (int k = 0; k < N_FILA; k++)
+        if (congela_masc >> k & 1) clareia_dado(j, k, pct);
+    if (congela_masc >> N_FILA & 1) {
+        uint16_t c = gfx_mistura(C_OURO, C_BRANCO, pct);
+        gfx_moldura(PLACAR_X - 36, y - 28, 72, 54, 2, c);
+        char s[16];
+        snprintf(s, sizeof s, "%d", placar_c[j].mostra);
+        txt_c2(PLACAR_X, y - 20, s, c);
+    }
+}
+
 // Moldura de destaque em volta de um dado da fila.
 static void aro(int x, int y, uint16_t c)
 {
@@ -774,17 +821,19 @@ static void desenha_fila(int j)
 
     if (f->lancados || vis_nroubo[j] || (previa && pv.bruto[j] != 0)) {
         char s[16];
-        int pts = fase == F_RESULTADO && venc_mao >= 0 ? f->total
-                : no_desfecho ? total_visivel(j) : f->pontos;
-        snprintf(s, sizeof s, "%d", pts);
+        // O numero conta ate o valor de verdade (hora.inc); a cada passo da
+        // um pulinho e acende: dourado subindo, vinho descendo.
+        const contador_t *pc = &placar_c[j];
+        snprintf(s, sizeof s, "%d", pc->mostra);
         uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
+        if (pc->pulo > 0) c = gfx_mistura(c, pc->sinal > 0 ? C_OURO : C_VINHO_CLR, (int)(pc->pulo * 80));
         ui_painel(PLACAR_X - 34, y - 26, 68, 50);
         txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
-        txt_c2(PLACAR_X, y - 20, s, c);
+        txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
         // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).
-        if (previa && pv.bruto[j] != pts) {
+        if (previa && pv.bruto[j] != placar_real(j)) {
             snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
             txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
         }

@@ -13,6 +13,7 @@ uint16_t *display_fb(void) { return fb; }
 static int64_t relogio = 1;
 int64_t esp_timer_get_time(void) { return relogio; }
 void som_toca(int s) { (void)s; }
+void som_toca_tom(int s, int t) { (void)s; (void)t; }
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }

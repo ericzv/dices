@@ -8,6 +8,77 @@ static int nivel_mesa(const no_t *no)
     return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
 }
 
+// ---------------------------------------------------------------------------
+// Moedas que contam
+// ---------------------------------------------------------------------------
+// A faixa mostra as moedas contando ate o valor de verdade (comprou, desce;
+// ganhou, sobe). Run nova ou carregada: o numero ja nasce certo.
+static contador_t moedas_cont;
+static bool moedas_ok;
+static int moedas_vis(void) { return moedas_ok ? moedas_cont.mostra : run.moedas; }
+
+// O saque, no fim de uma partida vencida: as fichas viram moedas contando,
+// com a moeda batendo cada vez mais aguda; depois o Cofre e a Taca somam a
+// parte deles, cada um acendendo na faixa. Etapas: 0 espera, 1 fichas,
+// 2 Cofre, 3 Taca, 4 pronto.
+#define SAQUE_ESPERA 0.45f
+#define SAQUE_PAUSA  0.22f
+static contador_t saque_c;
+static int saque_etapa;
+static float t_saque, t_som_saque;
+static int saque_tom;                       // a escada das moedas segue de uma parte para a outra
+
+static int saque_alvo(void)
+{
+    int a = saque_etapa >= 1 ? run.ganho : 0;
+    if (saque_etapa >= 2) a += run.juros;
+    if (saque_etapa >= 3) a += run.taca;
+    return a;
+}
+
+// A proxima parte que soma (pula as que nao tem): Cofre, Taca ou o fim.
+static void saque_proxima(void)
+{
+    while (++saque_etapa < 4) {
+        if (saque_etapa == 2 && run.juros) { am_acende(A_COFRE); som_toca(SOM_FICHA); return; }
+        if (saque_etapa == 3 && run.taca)  { am_acende(A_TACA); som_toca(SOM_FICHA); return; }
+    }
+    som_toca(SOM_MOEDA_POUSA);                  // a ultima moeda deita: pronto
+    saque_c.pulo = 1;
+}
+
+static void des_contadores_passo(float dt, float dt_real)
+{
+    if (modo != M_DESAFIO) { moedas_ok = false; return; }
+    if (!moedas_ok) { contador_fixa(&moedas_cont, run.moedas); moedas_ok = true; }
+    contador_passo(&moedas_cont, run.moedas, dt_real, dt_real, 6, 12);
+
+    if (fase != F_FIM || venc_partida != 0) {
+        saque_etapa = 0;
+        t_saque = 0;
+        saque_tom = 0;
+        contador_fixa(&saque_c, 0);
+        return;
+    }
+    if (t_som_saque > 0) t_som_saque -= dt_real;
+    t_saque += dt;
+    if (saque_etapa == 0) {                     // o letreiro entra; depois, a contagem
+        if (t_saque < SAQUE_ESPERA) return;
+        saque_etapa = 1;
+        t_saque = 0;
+    }
+    bool fichas = saque_etapa == 1;
+    int andou = contador_passo(&saque_c, saque_alvo(), dt, dt_real, fichas ? 3 : 4, fichas ? 18 : 12);
+    if (saque_etapa >= 4) return;
+    if (andou && t_som_saque <= 0) {
+        som_toca_tom(SOM_MOEDA_BATE, saque_tom / 2 < 9 ? saque_tom / 2 : 9);
+        saque_tom++;
+        t_som_saque = 0.045f;
+    }
+    if (saque_c.mostra != saque_alvo()) t_saque = 0;           // ainda contando
+    else if (t_saque >= SAQUE_PAUSA) { t_saque = 0; saque_proxima(); }   // contou: uma pausa e a proxima parte
+}
+
 static void des_salva(void)
 {
     static char buf[2 * sizeof(run_t) + 1];
@@ -175,6 +246,7 @@ static void des_nova_run(void)
     gera_andar();
     oferece_amuleto(0);                          // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
+    moedas_ok = false;                           // as moedas da faixa nascem certas
 }
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
@@ -362,6 +434,7 @@ static void des_premio_feito(void)
 static void des_continua(void)
 {
     if (!des_carrega(&run)) { des_nova_run(); return; }
+    moedas_ok = false;
     switch (run.estado) {
     case R_LOJA_INI: case R_LOJA: abre_loja_run(); break;
     case R_PARTIDA:               des_comeca_partida(); break;

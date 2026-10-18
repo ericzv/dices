@@ -90,7 +90,7 @@ Não precisa instalar nada: é um executável só.
 | M | Liga e desliga todo o som |
 | N | Liga e desliga só a música |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
-| T | Liga e desliga o tremor da tela nas jogadas fortes (fica guardado) |
+| T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |

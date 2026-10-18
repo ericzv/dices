@@ -144,9 +144,10 @@ void som_atualiza(float dt)
     UpdateMusicStream(trilha);
 }
 
-void som_toca(int s)
+// Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que
+// recebeu, entao todo toque diz o seu.
+static void toca(int s, float tom)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
     efeito_t *e = &ef[s];
     int v = 0;
     if (e->n > 1) {                          // sorteia outra gravacao, nunca a mesma de antes
@@ -155,11 +156,24 @@ void som_toca(int s)
         e->ultima = v;
     }
     Sound voz = e->voz[v][e->prox++ % VOZES];
-    // Batidas, pousos e fichas tambem variam um pouco de tom.
-    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
-        s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA)
-        SetSoundPitch(voz, 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f);
+    SetSoundPitch(voz, tom);
     PlaySound(voz);
+}
+
+void som_toca(int s)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    // Batidas, pousos e fichas variam um pouco de tom.
+    bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
+                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA;
+    toca(s, varia ? 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f : 1.0f);
+}
+
+// Um semitom e a raiz duodecima de 2: doze sobem uma oitava.
+void som_toca_tom(int s, int semitons)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    toca(s, powf(2.0f, semitons / 12.0f));
 }
 
 static void comeca_a_rolar(Sound *s)

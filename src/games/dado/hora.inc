@@ -105,6 +105,7 @@ static void reage_lance(int j, int k)
         calcula_desfecho(&d, false);
         hora_res = leva_rodada(&d) == j ? 2 : 1;
         if (hora_res == 2 && nivel < 2) nivel = 2;
+        if (hora_res == 2) golpe(j, 1u << k);           // o dado que decidiu: a mesa para nele
     }
     if (nivel) crescendo(j, nivel);
     hist_lance(j, cheia, hora_res);
@@ -155,6 +156,10 @@ static void hora_passo(float dt, float dt_real)
 // ---------------------------------------------------------------------------
 static void treme(float px, float dur)
 {
+    if (t_congela > 0) {                     // no golpe a mesa esta parada: treme quando soltar
+        if (px > golpe_px) { golpe_px = px; golpe_dur = dur; }
+        return;
+    }
     float agora = t_tremor > 0 ? tremor_px * t_tremor / tremor_dur : 0;
     if (px < agora) return;                  // ja treme mais que isso
     tremor_px = px;
@@ -205,18 +210,110 @@ static void aplica_tremor(void)
     }
 }
 
+// O golpe: a mesa para por um instante (GOLPE_T, no tempo real), com um
+// clarao nos dados masc de j (bit N_FILA: o placar), e o tremor pedido
+// nesse meio-tempo so vem depois. Desligado o tremor (tecla T), nada disso.
+#define GOLPE_T 0.10f
+static void golpe(int j, unsigned masc)
+{
+    if (tremor_off) return;
+    if (t_congela > 0 && congela_j == j) masc |= congela_masc;   // dois golpes juntos: um clarao so
+    else if (t_congela <= 0) golpe_px = golpe_dur = 0;
+    t_congela = congela_dur = GOLPE_T;
+    congela_j = (int8_t)j;
+    congela_masc = (uint8_t)masc;
+}
+
+// Corre no tempo real, antes do resto do passo: devolve true enquanto a
+// mesa esta parada.
+static bool golpe_passo(float dt_real)
+{
+    if (t_congela <= 0) return false;
+    t_congela -= dt_real;
+    if (t_congela > 0) return true;
+    congela_j = -1;
+    if (golpe_px > 0) treme(golpe_px, golpe_dur);
+    return false;
+}
+
 // Os combos do fim da rodada: o Jackpot, o Capitao com a fila toda e um
-// multiplicador de x4 para cima fazem a mesa tremer.
+// multiplicador de x4 para cima. Quando os pontos deles caem no placar, a
+// mesa para num golpe, depois os dados pulam e ela treme.
+static bool evento_grande(const evento_t *e)
+{
+    if (e->tipo == EV_JACKPOT) return true;
+    if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO && e->mascara == (1u << N_FILA) - 1) return true;
+    if (e->tipo == EV_MULT)
+        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) return true;
+    return false;
+}
+
+static void golpe_evento(const evento_t *e)
+{
+    if (!evento_grande(e)) return;
+    golpe(e->de_j, (e->mascara & ((1u << N_FILA) - 1)) | 1u << N_FILA);
+    crescendo(e->de_j, 2);
+}
+
+// No comeco de cada evento: o oponente sente o golpe (ou gosta do que fez).
 static void reage_evento(const evento_t *e)
 {
-    int nivel = 0;
-    if (e->tipo == EV_JACKPOT) nivel = 2;
-    else if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO && e->mascara == (1u << N_FILA) - 1) nivel = 2;
-    else if (e->tipo == EV_MULT)
-        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) nivel = 2;
-    if (nivel) crescendo(e->de_j, nivel);
-    // O oponente sente o golpe (ou gosta do que fez).
     if (e->tipo == EV_JACKPOT && e->de_j == 0) { rival_reage(RM_COMBO); hist_jackpot(); }
     else if ((e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_TIRA || e->tipo == EV_PIRATA)
              && e->de_j == 1 && e->alvo_j == 0) rival_reage(RM_ATACOU);
+}
+
+// ---------------------------------------------------------------------------
+// Numeros que contam: o placar de cada fila e as moedas do Desafiante sobem
+// (ou descem) contando ate o valor de verdade, rapido de longe e devagar no
+// fim, nunca menos que vmin por segundo (k: o quanto da distancia anda por
+// segundo). Cada vez que o numero muda, ele da um pulinho (pulo, 1 -> 0).
+// ---------------------------------------------------------------------------
+static void contador_fixa(contador_t *c, int v)
+{
+    c->vis = (float)v;
+    c->mostra = v;
+    c->pulo = 0;
+    c->n_som = 0;
+}
+
+// Devolve quantos o numero andou neste passo (com o sinal).
+static int contador_passo(contador_t *c, int alvo, float dt, float dt_real, float k, float vmin)
+{
+    float d = (float)alvo - c->vis;
+    if (d != 0) {
+        float v = fabsf(d) * k, passo = (v > vmin ? v : vmin) * dt;
+        c->vis = fabsf(d) <= passo ? (float)alvo : c->vis + (d > 0 ? passo : -passo);
+    } else c->n_som = 0;                 // parou: a proxima contagem comeca a escada de novo
+    if (c->pulo > 0) c->pulo -= dt_real / 0.16f;
+    int m = (int)lroundf(c->vis), andou = m - c->mostra;
+    if (andou) { c->pulo = 1; c->sinal = andou > 0 ? 1 : -1; }
+    c->mostra = m;
+    return andou;
+}
+
+// Quanto o placar de j vale agora: durante o jogo, os pontos da fila; no fim
+// da rodada, o que os eventos ja mostraram; no resultado, o total.
+static int placar_real(int j)
+{
+    if (fase == F_RESULTADO && venc_mao >= 0) return F[j].total;
+    if (fase == F_EFEITOS || fase == F_RESULTADO) return total_visivel(j);
+    return F[j].pontos;
+}
+
+// No fim da rodada a contagem faz tique, subindo de tom ate meia oitava; no
+// jogo, quem fala e o arpejo do dado que vale.
+static void placar_passo(float dt, float dt_real)
+{
+    bool desfecho_agora = fase == F_EFEITOS || fase == F_RESULTADO;
+    if (t_tique_placar > 0) t_tique_placar -= dt_real;
+    for (int j = 0; j < 2; j++) {
+        contador_t *c = &placar_c[j];
+        if (!F[j].lancados && !desfecho_agora) { contador_fixa(c, F[j].pontos); continue; }   // rodada nova
+        if (contador_passo(c, placar_real(j), dt, dt_real, 10, 25) && desfecho_agora && t_tique_placar <= 0) {
+            som_toca_tom(SOM_TIQUE, c->n_som / 2 < 6 ? c->n_som / 2 : 6);
+            c->n_som++;
+            t_tique_placar = 0.05f;
+        }
+    }
 }

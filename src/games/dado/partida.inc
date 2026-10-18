@@ -139,7 +139,7 @@ static void nova_rodada(void)
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que cai é meu! Hahaha!");
-        t_fala = 3.2f;
+        fala_comeca(3.2f);
         fala_e_curta = false;
     }
     if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
@@ -158,7 +158,7 @@ static void nova_rodada(void)
     if (tem_reg(REG_MALUCO)) {
         maluco_lado = (int8_t)((rnd() & 1) ? 2 : -1);
         snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
-        t_fala = 2.6f;
+        fala_comeca(2.6f);
         fala_e_curta = false;
     }
     for (int j = 0; j < 2; j++) {
@@ -619,7 +619,7 @@ static void conclui_rodada(void)
         pote = 0;
         if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
-        if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); crescendo(w, 3); }
+        if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); golpe(w, 1u << N_FILA); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);
     }
     for (int j = 0; j < 2; j++) {                 // o Agiota cobra, ganhe quem ganhar
@@ -680,6 +680,32 @@ static int som_do_evento(int i)
     }
 }
 
+// A cadeia do fim da rodada sobe de tom: os sons de ficha e de poder comum
+// tocam um semitom acima a cada efeito seguido, ate +7. Os que tem voz
+// propria (Laser, Jackpot, Fogo, roubo...) ficam no tom deles, mas contam
+// na escada.
+#define ESCADA_MAX 7
+static void toca_evento(int i)
+{
+    int s = som_do_evento(i);
+    if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
+    else som_toca(s);
+}
+
+// E acelera: cada efeito corre 12% mais depressa que o anterior (o tempo do
+// jogo anda mais rapido, a animacao inteira vai junto), ate 2,2 vezes; somado
+// a velocidade da mesa (vel), no maximo 3 vezes o normal.
+#define RITMO_PASSO 0.88f
+#define RITMO_MAX   2.2f
+#define RITMO_TETO  3.0f
+static float ritmo_efeitos(float vel)
+{
+    float r = powf(1 / RITMO_PASSO, (float)ev_i), teto = RITMO_TETO / vel;
+    if (r > RITMO_MAX) r = RITMO_MAX;
+    if (teto < 1) teto = 1;
+    return r < teto ? r : teto;
+}
+
 static void desfecho(void)
 {
     calcula_desfecho(&resolvido, true);
@@ -706,8 +732,18 @@ static void desfecho(void)
     ev_i = 0;
     t_fase = 0;
     for (int j = 0; j < 2; j++) log_base[j] = total_visivel(j);
-    if (n_ev) { fase = F_EFEITOS; som_toca(som_do_evento(0)); reage_evento(&ev[0]); }
+    if (n_ev) { fase = F_EFEITOS; toca_evento(0); reage_evento(&ev[0]); }
     else conclui_rodada();
+}
+
+// O evento da vez acabou e ja se aplicou: entra o seguinte (ou a rodada
+// fecha). Depois de um golpe, so quando a mesa solta (passo.inc).
+static void proximo_evento(void)
+{
+    ev_i++;
+    t_fase = 0;
+    if (ev_i >= n_ev) conclui_rodada();
+    else { toca_evento(ev_i); reage_evento(&ev[ev_i]); }
 }
 
 static float duracao_evento(int i)

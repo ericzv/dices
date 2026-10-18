@@ -13,7 +13,9 @@ void dado_passo(float dt)
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
     t_relogio = fmodf(t_relogio + dt_real, 1000.0f);
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
-    if (modo != M_ONLINE && !menu_sem_partida()) dt *= VEL_FATOR[velocidade];
+    float vel = modo != M_ONLINE && !menu_sem_partida() ? VEL_FATOR[velocidade] : 1;
+    dt *= vel;
+    if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
@@ -31,13 +33,22 @@ void dado_passo(float dt)
         if (t_misterio > MIST_MAX) t_misterio = 0;
         else if (t_misterio > MIST_ESPERA) return;
     }
+    if (golpe_passo(dt_real)) return;    // o golpe: a mesa parada por um instante
+    if (ev_espera) {                     // e so depois dele entra o efeito seguinte
+        ev_espera = false;
+        if (fase == F_EFEITOS) proximo_evento();
+    }
     t_fase += dt;
+    mola_passo(dt_real);
     hora_passo(dt, dt_real);
+    placar_passo(dt, dt_real);
+    des_contadores_passo(dt, dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
+    if (fala_dita < 60) fala_dita += dt_real;
     if (t_reacao > 0) t_reacao -= dt_real;
     if (t_curta > 0) t_curta -= dt_real;
     ia_passo(dt);
@@ -154,10 +165,9 @@ void dado_passo(float dt)
     case F_EFEITOS:
         if (t_fase > duracao_evento(ev_i)) {
             aplica_evento(ev_i);
-            ev_i++;
-            t_fase = 0;
-            if (ev_i >= n_ev) conclui_rodada();
-            else { som_toca(som_do_evento(ev_i)); reage_evento(&ev[ev_i]); }
+            golpe_evento(&ev[ev_i]);
+            if (t_congela > 0) ev_espera = true;   // a mesa para mostrando este; o seguinte espera
+            else proximo_evento();
         }
         break;
     default:

@@ -8,6 +8,7 @@ static uint16_t fb[GFX_W * GFX_H];
 uint16_t *display_fb(void) { return fb; }
 int64_t esp_timer_get_time(void) { return 1; }
 void som_toca(int s) { (void)s; }
+void som_toca_tom(int s, int t) { (void)s; (void)t; }
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }

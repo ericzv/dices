@@ -101,6 +101,7 @@ void dado_desenha(void)
     if (tem_dica) desenha_dica(r, d);
     desenha_fantasma_voo();
     desenha_misterio();
+    desenha_clarao();                                    // o golpe: o clarao de quem acertou
     aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta
 }

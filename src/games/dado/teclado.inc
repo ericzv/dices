@@ -54,6 +54,7 @@ static void poe_na_fila(int i)
         f->n++;
     }
     if (!anuncia_maquina()) som_toca(SOM_TIQUE);
+    mola_chuta();                                 // entrou (ou saiu): pula de novo
 }
 
 void dado_tecla(const key_event_t *ev_)

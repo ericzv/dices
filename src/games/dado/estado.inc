@@ -122,6 +122,18 @@ static bool  tremor_off, tremor_lido;
 static float t_aviso_tremor;
 static void crescendo(int j, int nivel);
 static void reage_evento(const evento_t *e);
+// O golpe: nos lances grandes a mesa para alguns quadros, com um clarao em
+// quem acertou, e so depois treme (t_congela corre no tempo real).
+static float t_congela, congela_dur, golpe_px, golpe_dur;
+static int8_t congela_j = -1;
+static uint8_t congela_masc;             // dados de congela_j que clareiam; bit N_FILA: o placar
+static void golpe(int j, unsigned masc);
+static bool ev_espera;                   // o golpe segurou o comeco do efeito seguinte
+// Um numero que conta ate o valor de verdade em vez de pular (hora.inc): o
+// placar de cada fila e, no Desafiante, as moedas.
+typedef struct { float vis, pulo; int mostra, sinal, n_som; } contador_t;
+static contador_t placar_c[2];
+static float t_tique_placar;             // os tiques da contagem nao se amontoam
 #define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
@@ -212,6 +224,8 @@ enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N }
 static void fala_evento(int cat);
 static char  fala_txt[64];
 static float t_fala;                     // > 0: o balao do oponente esta na mesa
+static float fala_dur, fala_dita;        // quanto a fala dura, e ha quanto tempo comecou (sai letra por letra)
+static void fala_comeca(float dur) { t_fala = fala_dur = dur; fala_dita = 0; }
 // Reacoes do oponente (falas.inc): o rosto muda por um instante quando algo
 // acontece na mesa e, as vezes, sai uma palavra num balao curto.
 enum { RM_PASSOU, RM_ELE_PASSOU, RM_CAI_DELE, RM_CAI_SEU, RM_COMBO, RM_ATACOU, RM_HORA,
@@ -309,6 +323,7 @@ static int ante_da(int r)
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
+static void des_contadores_passo(float dt, float dt_real);
 static void des_premio_feito(void);
 static int  des_foco(void);
 static bool dado_liberado(int t);

@@ -14,7 +14,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA,
        EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA,
        EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
-       EF_PACTO, EF_ASSOMBRA };
+       EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -46,7 +46,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
        D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA,
        D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO, D_COLECIONADOR,
-       D_PACTO, D_ASSOMBRACAO, D_N };
+       D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -55,6 +55,8 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // O teto do bonus que o Acumulador guarda, e o da Autofagia.
 #define ACUM_MAX 6
 #define AUTO_MAX 3
+// O que a Ficha Velha anulada rende no fim.
+#define FICHA_VELHA_PTS 4
 // A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
 #define AUTO_BOLSA 8
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
@@ -170,12 +172,14 @@ static const tipo_t TIPO[D_N] = {
     { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "tira 1, depois 2, 3...: +1 a cada lance" },
     { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "o número fica escondido até o fim" },
     { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "não pontua; valendo: x2 no seu menor" },
-    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0 e nunca cai: baixa a barra" },
+    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0, nada o anula: baixa a barra" },
     { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "valendo: + o total da fila ÷ 4" },
     { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "valendo: -1 em cada dado do oponente" },
     { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "lançado: um Fantasma na sua bolsa" },
     { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "valendo: um Fantasma na bolsa dele" },
+    { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "anulada: +4 no fim" },
+    { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "anula o seu de antes; nada a anula" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -262,12 +266,14 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PREVISIVEL] = "Não sorteia: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
     [D_OCULTO]    = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência, e pode cair ou derrubar.",
     [D_SACRIFICIO] = "Não pontua. Se ficar valendo, o seu dado de menor número que pontua vale x2 no fim.",
-    [D_VAZIO]     = "Vale sempre 0 e nunca cai nem derruba o de antes: depois dele, qualquer número vale.",
+    [D_VAZIO]     = "Vale sempre 0, não pode ser anulado e não derruba o de antes: depois dele, qualquer número vale.",
     [D_MEDIA]     = "Se ficar valendo, no fim ganha o total dos seus dados dividido por 4 (para baixo).",
     [D_VAMPIRO]   = "Se ficar valendo, no fim cada dado do oponente que vale perde 1.",
     [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]     = "Doze lados. Cada vez que é lançado, um Fantasma (vale 1) entra na sua bolsa.",
     [D_ASSOMBRACAO] = "Se ficar valendo, no fim um Fantasma (vale 1) entra na bolsa do oponente.",
+    [D_FICHA_VELHA] = "Se terminar a rodada anulada (caída ou atacada), ganha +4 no fim.",
+    [D_SANGUESSUGA] = "Ao pousar, anula o seu dado de antes. Ela não pode ser anulada: nem cai, nem é derrubada.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -388,7 +394,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_SACRIFICIO] = "Quatro lados, mas não pontua. Se terminar valendo, no fim o seu dado de menor número que "
                      "pontua (sem contar ele) vale x2. Soma com outros multiplicadores.",
     [D_VAZIO]     = "Vale sempre 0. Nunca cai e nunca derruba o dado de antes, por maior que ele seja: abaixa a "
-                    "barra da sequência para 0, e depois dele qualquer número vale.",
+                    "barra da sequência para 0, e depois dele qualquer número vale. Não pode ser anulado: nem a "
+                    "sequência nem ataque nenhum o derruba. Pode ser roubado.",
     [D_MEDIA]     = "Quatro lados. Se terminar valendo, ganha no fim o total dos seus dados na sequência (com "
                     "bônus e multiplicadores, ele incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]   = "Quatro lados. Se terminar valendo, com qualquer número, no fim cada dado do oponente que vale "
@@ -399,6 +406,12 @@ static const char *TEXTO_CAT[D_N] = {
                     "entra na sua bolsa até o fim da partida.",
     [D_ASSOMBRACAO] = "Seis lados. Se terminar valendo, no fim da rodada um Fantasma (vale sempre 1) entra na bolsa "
                       "do oponente até o fim da partida.",
+    [D_FICHA_VELHA] = "Uma ficha gasta, de 1 ou 2. Valendo, conta o que tirou, como uma moeda. Se terminar a rodada "
+                      "anulada, caída na sequência ou atacada pelo oponente, ganha +4 no fim, fora dos "
+                      "multiplicadores.",
+    [D_SANGUESSUGA] = "Oito lados. Ao pousar, anula o seu dado de antes na sequência (se ele puder ser anulado), e "
+                      "a sequência segue a partir dela. Ela não pode ser anulada: não cai mesmo menor que o de antes "
+                      "e nenhum ataque a derruba. Pode ser roubada.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -583,6 +596,8 @@ static const visual_t VISUAL[D_N] = {
     [D_COLECIONADOR] = { V_NOITE, V_NOITE, 30,  V_AZUL, 70,     V_OURO, 100,   V_CEU, 85 },
     [D_PACTO]      = { V_ROXO,    V_SANGUE, 22, V_SANGUE, 90,   V_AMEIXA, 100, V_OURO, 100 },
     [D_ASSOMBRACAO] = { V_AMEIXA, V_LILAS, 24,  V_LILAS, 100,   V_ROXO, 80,    V_BRANCO, 80 },
+    [D_FICHA_VELHA] = { V_COURO,  V_TERRA, 46,  V_VINHO, 80,    V_ROSA, 55,    V_MADEIRA, 95 },
+    [D_SANGUESSUGA] = { V_VERDE,  V_VERDE, 16,  V_BREU, 80,     V_AMBAR, 90,   V_SANGUE, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

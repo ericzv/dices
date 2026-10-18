@@ -748,6 +748,49 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
+    case D_FICHA_VELHA: {                         // uma ficha de cassino gasta: listras apagadas, lasca e rachadura
+        float an = atan2f(v, u);
+        // a lasca: uma cunha que se foi da beira, mostrando o miolo escuro
+        float dl = an + 0.70f;
+        if (ro > 0.62f && fabsf(dl) < (ro - 0.62f) * 1.3f) return 3;
+        // a rachadura, saindo da lasca, em ziguezague, pela direita do numero
+        static const float CR[5][2] = { { 0.50f, -0.42f }, { 0.36f, -0.24f }, { 0.47f, -0.08f }, { 0.37f, 0.10f }, { 0.44f, 0.24f } };
+        for (int i = 0; i < 4; i++) {
+            float ax = CR[i][0], ay = CR[i][1], bx = CR[i + 1][0] - ax, by = CR[i + 1][1] - ay;
+            float tt = ((u - ax) * bx + (v - ay) * by) / (bx * bx + by * by);
+            tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+            float ex = u - ax - tt * bx, ey = v - ay - tt * by;
+            if (ex * ex + ey * ey < (l * 1.1f) * (l * 1.1f)) return 3;
+        }
+        // as seis listras da beira, ate a borda, desbotadas; duas ja quase sumiram
+        if (ro > 0.62f) {
+            float a = fr(an / 6.2832f * 6 + 0.25f);
+            int qual = (int)floorf(an / 6.2832f * 6 + 0.25f + 6) % 6;
+            if (fabsf(a - 0.5f) < 0.20f) return (qual == 1 || qual == 4) ? (ro > 0.78f ? 2 : 0) : 1;
+            return 0;
+        }
+        // o filete de dentro, gasto aos pedacos
+        if (fabsf(ro - 0.56f) < l && fr(an / 6.2832f * 9) < 0.62f) return 2;
+        // manchas de patina
+        static const float PT[3][3] = { { -0.46f, 0.32f, 0.06f }, { -0.26f, 0.50f, 0.045f }, { 0.08f, 0.50f, 0.05f } };
+        for (int i = 0; i < 3; i++) {
+            float x = u - PT[i][0], y = v - PT[i][1];
+            if (x * x + y * y < PT[i][2] * PT[i][2]) return 2;
+        }
+        return 0;
+    }
+    case D_SANGUESSUGA: {                         // o corpo em gomos, curvado por baixo do numero, e a ventosa
+        const float R = 0.50f;
+        float an = atan2f(v, u);                  // 0 a direita, pi/2 embaixo, pi a esquerda
+        float hx = u - R * cosf(-0.30f), hy = v - R * sinf(-0.30f), hd = sqrtf(hx * hx + hy * hy);
+        if (hd < 0.17f) return hd > 0.115f ? 3 : hd > 0.055f ? 1 : 3;     // a ventosa: aro, boca, garganta
+        if (an > -0.18f && an < 3.0f) {                                    // da cabeca (direita) ao rabo
+            float q = (an + 0.18f) / 3.18f, w = 0.13f - 0.08f * q;
+            if (fabsf(ro - R) < w) return fr(q * 7 + 0.5f) < 0.17f ? 2 : 1; // os gomos, com aneis ambar
+        }
+        float gx = u - 0.60f, gy = v - 0.06f;                              // uma gota na boca
+        return gx * gx + gy * gy * 0.55f < 0.045f * 0.045f ? 3 : 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;

@@ -94,7 +94,7 @@ static int ev_opcoes(ev_op_t *o)
     case EVT_FONTE: {
         uint8_t a;
         uint32_t guarda = rs;
-        sorteia_amuletos(&a, 1);                 // ainda ha amuleto para sair?
+        sorteia_amuletos(&a, 1, rar_do_salao(run.andar));   // ainda ha amuleto para sair?
         rs = guarda;
         for (int i = 0; i < 3; i++) {
             char r[64];
@@ -285,15 +285,19 @@ static void ev_escolhe(int acao)
         ev_sorteio(41);
         if (sorte_r(100) < FONTE_CHANCE[k]) {
             uint8_t a;
-            sorteia_amuletos(&a, 1);
+            sorteia_amuletos(&a, 1, rar_do_salao(run.andar));
             if (a < A_N) {
-                run_poe_amuleto(a);
+                bool cabe_am = am_lugar();
+                if (cabe_am) run_poe_amuleto(a);
                 ev_amuleto = a;
                 ev_mostra = 2;
                 snprintf(ev_msg, sizeof ev_msg, "Saiu um amuleto: %s.", AMULETO[a].nome);
                 snprintf(ev_msg2, sizeof ev_msg2, "%s", AMULETO[a].desc);
                 som_toca(SOM_PREMIO);
                 solta_confete(40);
+                ev_fim();
+                if (!cabe_am) espera_troca(a, AV_FONTE);   // sem lugar: o ENTER leva a troca
+                return;
             }
         } else {
             ev_mostra = 0;
@@ -490,10 +494,13 @@ static void desenha_evt(void)
         } else if (ev_mostra == 2) {
             desenha_amuleto(x + 30, yc, 22, ev_amuleto, false);
             txt(x + 66, yc - 22, AMULETO[ev_amuleto].nome, AMULETO[ev_amuleto].cor, true);
+            txt(x + 66 + gfx_largura(AMULETO[ev_amuleto].nome, 1) + 8, yc - 22, nome_rar_am(ev_amuleto),
+                cor_rar_am(ev_amuleto), false);
             quebra_linhas(x + 66, yc - 4, w - 70, 2, AMULETO[ev_amuleto].desc, C_MARFIM_S);
+            if (run.am_novo) txt(x + 66, yc + 30, "Seus lugares estão cheios: no ENTER, escolha qual sai.", C_OURO, false);
         }
         botao_clique(MESA_X1 - 12, MESA_Y1 - 30, "seguir", KEY_ENTER);
-        rodape_run("ENTER segue para o mapa");
+        rodape_run(run.am_novo ? "ENTER escolhe qual amuleto sai" : "ENTER segue para o mapa");
     }
 }
 
@@ -501,7 +508,7 @@ static bool ev_tecla(int k, int e)
 {
     if (ev_girando() || ev_atualiza()) return true;
     if (ev_passo == 2) {
-        if (k == KEY_ENTER) { som_toca(SOM_FICHA); abre_mapa(); }
+        if (k == KEY_ENTER) { som_toca(SOM_FICHA); if (run.am_novo) abre_amuleto(); else abre_mapa(); }
         return true;
     }
     if (ev_passo == 1) {
@@ -527,12 +534,81 @@ static bool ev_tecla(int k, int e)
 }
 
 // ---- Escolha de amuleto ---------------------------------------------------
+// Os seus, na ordem do numero (a troca e a faixa contam igual).
+static int meus_amuletos(int *a)
+{
+    int n = 0;
+    for (int i = 0; i < A_N; i++) if (run_amuletos() >> i & 1) a[n++] = i;
+    return n;
+}
+
+// O nome no cartao: na fonte fina, ou na miuda se nao couber.
+static void nome_no_cartao(int cx, int y, const char *s, uint16_t c, int w)
+{
+    if (gfx_largura(s, GFX_FINO) <= w) txt_c(cx, y, s, c, false);
+    else gfx_texto(cx - gfx_largura(s, GFX_MIUDO) / 2, y + 2, s, c, GFX_MIUDO, false);
+}
+
+// Os 5 cheios: o novo em cima; embaixo os seus e, no fim, ficar sem o novo.
+#define TROCA_N   (AM_LUGARES + 1)
+#define TROCA_W   88
+#define TROCA_PASSO 98
+static void desenha_troca_amuleto(void)
+{
+    int novo = run.am_novo - 1, meus[A_N], n = meus_amuletos(meus);
+    txt_c2(GFX_W / 2, MESA_Y0 + 2, "SEM LUGAR: QUAL SAI?", C_OURO);
+    char s[96];
+    snprintf(s, sizeof s, "Cabem %d amuletos. Para levar o novo, um dos seus sai.", AM_LUGARES);
+    txt_c(GFX_W / 2, MESA_Y0 + 44, s, C_MARFIM_S, false);
+    // O novo, com o que faz.
+    int x = 120, yc = 140;
+    desenha_amuleto(x, yc + (int)(sinf(t_fase * 3) * 2), 22, novo, false);
+    txt(x + 34, yc - 22, AMULETO[novo].nome, AMULETO[novo].cor, true);
+    txt(x + 34 + gfx_largura(AMULETO[novo].nome, 1) + 8, yc - 22, nome_rar_am(novo), cor_rar_am(novo), false);
+    quebra_linhas(x + 34, yc - 4, 400, 2, AMULETO[novo].desc, C_MARFIM_S);
+    // Os seus e a ultima saida.
+    int x0 = GFX_W / 2 - (TROCA_N - 1) * TROCA_PASSO / 2, cy = 214;
+    for (int i = 0; i < TROCA_N; i++) {
+        int cx = x0 + i * TROCA_PASSO;
+        bool cur = i == cursor, fica = i == TROCA_N - 1 || i >= n;
+        ui_cartao(cx - TROCA_W / 2, cy - 38, TROCA_W, 84, cur, fica ? C_TEXTO_M : C_VINHO_CLR);
+        float bob = cur ? sinf(t_fase * 4) * 2 - mola_px() : 0;
+        if (i < n && i < TROCA_N - 1) {
+            desenha_amuleto(cx, cy - 8 + (int)bob, 18, meus[i], false);
+            if (cur) {                               // o que sai fica riscado
+                gfx_linha_grossa(cx - 14, cy - 22 + (int)bob, cx + 14, cy + 6 + (int)bob, 2, C_VINHO_CLR);
+            }
+            nome_no_cartao(cx, cy + 20, AMULETO[meus[i]].nome, cur ? AMULETO[meus[i]].cor : C_MARFIM_S, TROCA_W - 6);
+        } else if (i == TROCA_N - 1) {
+            desenha_amuleto(cx, cy - 8 + (int)bob, 18, novo, true);   // o novo, apagado: fica de fora
+            nome_no_cartao(cx, cy + 20, "deixar o novo", cur ? C_MARFIM : C_TEXTO_M, TROCA_W - 6);
+        }
+        zona_clique(cx - TROCA_W / 2, cy - 38, TROCA_W, 84, &cursor, i, KEY_ENTER);
+    }
+    if (cursor >= 0 && cursor < n && cursor < TROCA_N - 1) {
+        snprintf(s, sizeof s, "Sai: %s", AMULETO[meus[cursor]].desc);
+        txt_c(GFX_W / 2, 268, s, C_VINHO_CLR, false);
+    } else if (cursor == TROCA_N - 1)
+        txt_c(GFX_W / 2, 268, "Fica tudo como está: o novo vai embora.", C_MARFIM_S, false);
+    bool volta = run.am_volta == AV_INICIO || run.am_volta == AV_CHEFE || run.am_volta == AV_LOJA;
+    if (volta) botao_clique(MESA_X1 - 12, MESA_Y1 - 30, "voltar", KEY_BKSP);
+    rodape_run(volta ? "setas escolhem  ·  ENTER confirma  ·  BACKSPACE volta"
+                     : "setas escolhem  ·  ENTER confirma");
+}
+
 static void desenha_amuleto_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     faixa_run(0);
-    txt_c2(GFX_W / 2, MESA_Y0 + 2, run.am_volta ? "O CHEFE DEIXOU UM AMULETO" : "ESCOLHA UM AMULETO", C_OURO);
-    txt_c(GFX_W / 2, MESA_Y0 + 44, "Ele vale a run inteira.", C_MARFIM_S, false);
+    if (run.am_novo) { desenha_troca_amuleto(); return; }
+    bool selo = run.am_volta == AV_SELO;
+    txt_c2(GFX_W / 2, MESA_Y0 + 2, selo ? "O SELO DE DÍVIDA COBRA MAIS UM"
+                                 : run.am_volta == AV_CHEFE ? "O CHEFE DEIXOU UM AMULETO" : "ESCOLHA UM AMULETO", C_OURO);
+    char s[96];
+    if (selo) snprintf(s, sizeof s, "Sorteado entre os comuns e os incomuns.");
+    else if (!am_lugar()) snprintf(s, sizeof s, "Seus %d lugares estão cheios: para levar, um dos seus sai.", AM_LUGARES);
+    else snprintf(s, sizeof s, "Ele vale a run inteira.");
+    txt_c(GFX_W / 2, MESA_Y0 + 44, s, am_lugar() || selo ? C_MARFIM_S : C_OURO, false);
     for (int i = 0; i < 3; i++) {
         int a = run.am_oferta[i];
         if (a >= A_N) continue;
@@ -540,19 +616,24 @@ static void desenha_amuleto_run(void)
         bool cur = i == cursor;
         ui_cartao(x - 64, 124, 128, 100, cur, 0);
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
-        desenha_amuleto(x, 162 + (int)bob, 26, a, false);
-        txt_c(x, 198, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
+        desenha_amuleto(x, 156 + (int)bob, 26, a, false);
+        txt_c(x, 186, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
+        gfx_texto(x - gfx_largura(nome_rar_am(a), GFX_MIUDO) / 2, 206, nome_rar_am(a), cor_rar_am(a), GFX_MIUDO, false);
         zona_clique(x - 64, 124, 128, 100, &cursor, i, KEY_ENTER);
     }
     if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)
         txt_c(GFX_W / 2, 234, AMULETO[run.am_oferta[cursor]].desc, C_MARFIM, false);
     // Os que ja tem, miudos, embaixo.
-    int na = am_conta(run_amuletos());
-    if (na) {
-        int x0 = GFX_W / 2 - (na - 1) * 10, n = 0;
-        txt_c(GFX_W / 2, 258, "seus amuletos", C_TEXTO_M, false);
-        for (int a = 0; a < A_N; a++)
-            if (run_amuletos() >> a & 1) desenha_amuleto(x0 + 20 * n++, 288, 8, a, false);
+    int meus[A_N], na = meus_amuletos(meus);
+    snprintf(s, sizeof s, "seus amuletos  ·  %d de %d", na, AM_LUGARES);
+    txt_c(GFX_W / 2, 258, s, C_TEXTO_M, false);
+    int x0 = GFX_W / 2 - (AM_LUGARES - 1) * 12;
+    for (int i = 0; i < AM_LUGARES; i++) {
+        if (i < na) desenha_amuleto(x0 + 24 * i, 288, 9, meus[i], false);
+        else {                                       // lugar vazio: so o aro
+            gfx_disco(x0 + 24 * i, 288, 9, C_FELTRO2);
+            gfx_disco(x0 + 24 * i, 288, 7, C_FELTRO_ESC);
+        }
     }
-    rodape_run("setas escolhem  ·  ENTER leva o amuleto");
+    rodape_run(selo ? "ENTER leva o amuleto" : "setas escolhem  ·  ENTER leva o amuleto");
 }

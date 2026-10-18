@@ -108,6 +108,7 @@ static bool des_carrega(run_t *r)
         || r->estado > R_EVENTO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
+    if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     return true;
 }
 
@@ -191,26 +192,150 @@ static void avanca_passo(void)
     abre_mapa();
 }
 
+// De onde veio o amuleto da tela de escolha (run.am_volta), e para onde ela segue.
+enum { AV_INICIO,                                // o primeiro: depois, a loja da entrada
+       AV_CHEFE,                                 // o do chefe: depois (e do Selo), o mapa
+       AV_LOJA,                                  // comprado sem lugar: volta para a loja
+       AV_FONTE,                                 // da Fonte, sem lugar: volta para o mapa
+       AV_SELO };                                // o segundo do chefe, do Selo de Divida
+
 static void abre_amuleto(void)
 {
     modo = M_DESAFIO;
     cpu = remoto = 0;
     cursor = 0;
+    if (!run.am_novo) while (cursor < 2 && run.am_oferta[cursor] >= A_N) cursor++;
     t_fase = 0;
     fase = F_RAMULETO;
 }
 
-// Escolha de amuleto: volta = 0 vai para a loja da entrada; 1 segue no mapa.
+// Os chefes que deixam amuleto: o do primeiro e o do segundo salao; o Barao,
+// so na Cobertura (antes dela a run acaba nele).
+static bool chefe_deixa_amuleto(void)
+{
+    return run.tier == 3 && (run.andar < DES_ANDARES - 1 || (run.andar == DES_ANDARES - 1 && run.dificuldade >= N_NIVEIS));
+}
+
+static void amuleto_segue(void);
+
+// O Selo de Divida cobra: o chefe deixa mais um, sorteado entre os comuns e
+// os incomuns (nao se escolhe).
+static void selo_segundo(void)
+{
+    run.am_selo = 1;
+    run.am_volta = AV_SELO;
+    rs = run.semente ^ (0x5E10D1u * (uint32_t)(run.andar * 8 + run.passo + 1));
+    rnd_r();
+    uint8_t a;
+    sorteia_amuletos(&a, 1, AMR(AMR_COMUM) | AMR(AMR_INCOMUM));
+    if (a >= A_N) { amuleto_segue(); return; }
+    run.am_oferta[0] = run.am_oferta[2] = 0xFF;
+    run.am_oferta[1] = a;
+    run.estado = R_AMULETO;
+    des_salva();
+    abre_amuleto();
+}
+
+// Depois do amuleto (levado, trocado ou deixado de lado): segue de onde veio.
+static void amuleto_segue(void)
+{
+    run.am_novo = 0;
+    switch (run.am_volta) {
+    case AV_INICIO:
+        run.estado = R_LOJA_INI;
+        monta_loja_run();
+        run.am_loja = 0xFF;                      // a loja da entrada so vende dados
+        des_salva();
+        abre_loja_run();
+        break;
+    case AV_CHEFE:
+        if ((run_amuletos() >> A_SELO & 1) && !run.am_selo) { selo_segundo(); break; }
+        run.am_selo = 0;
+        avanca_passo();
+        break;
+    case AV_SELO:
+        run.am_selo = 0;
+        avanca_passo();
+        break;
+    case AV_LOJA:
+        run.estado = R_LOJA;
+        des_salva();
+        abre_loja_run();
+        break;
+    default:                                     // a Fonte: o passo do evento ja andou
+        run.estado = R_MAPA;
+        des_salva();
+        abre_mapa();
+        break;
+    }
+}
+
+// O amuleto a chega. Com lugar, entra e a run segue (comprado, fica na
+// loja); com os 5 cheios, espera na tela da troca (sai um dos seus, ou ele
+// fica de fora).
+static void espera_troca(int a, int volta)
+{
+    run.am_volta = (uint8_t)volta;
+    run.am_novo = (uint8_t)(a + 1);
+    run.estado = R_AMULETO;
+    des_salva();
+}
+static void ganha_amuleto(int a, int volta)
+{
+    run.am_volta = (uint8_t)volta;
+    if (!am_lugar()) { espera_troca(a, volta); abre_amuleto(); return; }
+    run_poe_amuleto(a);
+    if (volta == AV_LOJA) {
+        run.moedas -= preco_am();
+        run.am_levou = 1;
+        som_toca(SOM_FICHA);
+        des_salva();
+        return;
+    }
+    som_toca(SOM_PREMIO);
+    solta_confete(60);
+    amuleto_segue();
+}
+
+// Na troca: sai o amuleto tirar (ou nenhum, -1: o novo fica de fora).
+static void amuleto_troca(int tirar)
+{
+    int a = run.am_novo - 1;
+    if (a < 0 || a >= A_N) { amuleto_segue(); return; }
+    if (tirar >= 0 && (run_amuletos() >> tirar & 1)) {
+        run_tira_amuleto(tirar);
+        run_poe_amuleto(a);
+        if (run.am_volta == AV_LOJA) { run.moedas -= preco_am(); run.am_levou = 1; }
+        som_toca(SOM_PREMIO);
+        solta_confete(40);
+    } else som_toca(SOM_FICHA);
+    amuleto_segue();
+}
+
+// Desiste da troca: volta para a escolha de onde veio (a dos tres, ou a loja).
+// O que nao tem volta (Fonte, Selo) fica na tela.
+static void amuleto_desiste(void)
+{
+    if (run.am_volta == AV_LOJA) { amuleto_segue(); return; }
+    if (run.am_volta != AV_INICIO && run.am_volta != AV_CHEFE) return;
+    int a = run.am_novo - 1;
+    run.am_novo = 0;
+    des_salva();
+    abre_amuleto();
+    for (int i = 0; i < 3; i++) if (run.am_oferta[i] == a) cursor = i;
+}
+
+// Escolha de amuleto do comeco (os comuns) e de cada chefe (o primeiro deixa
+// incomuns; o segundo e o Barao da Cobertura, raros).
 static void oferece_amuleto(int volta)
 {
     rs = run.semente ^ (0xA3E1u * (uint32_t)(run.andar * 8 + run.passo + 1 + volta * 64));
     rnd_r();
-    sorteia_amuletos(run.am_oferta, 3);
-    if (run.am_oferta[0] == 0xFF) {              // ja tem todos
-        if (volta) avanca_passo();
-        return;
-    }
+    unsigned rar = volta == AV_INICIO ? AMR(AMR_COMUM) : AMR(run.andar == 0 ? AMR_INCOMUM : AMR_RARO);
+    sorteia_amuletos(run.am_oferta, 3, rar);
     run.am_volta = (uint8_t)volta;
+    run.am_novo = 0;
+    if (run.am_oferta[0] == 0xFF) { amuleto_segue(); return; }   // ja tem todos
     run.estado = R_AMULETO;
     des_salva();
     abre_amuleto();
@@ -218,18 +343,9 @@ static void oferece_amuleto(int volta)
 
 static void amuleto_escolhido(int i)
 {
-    if (i >= 0 && i < 3 && run.am_oferta[i] != 0xFF) run_poe_amuleto(run.am_oferta[i]);
-    som_toca(SOM_PREMIO);
-    solta_confete(60);
-    if (run.am_volta == 0) {
-        run.estado = R_LOJA_INI;
-        monta_loja_run();
-        run.am_loja = 0xFF;                      // a loja da entrada so vende dados
-        des_salva();
-        abre_loja_run();
-    } else {
-        avanca_passo();
-    }
+    if (run.am_novo) return;                     // na troca, as teclas sao outras
+    if (i < 0 || i >= 3 || run.am_oferta[i] >= A_N) return;
+    ganha_amuleto(run.am_oferta[i], run.am_volta);
 }
 
 static void des_nova_run(void)
@@ -244,7 +360,7 @@ static void des_nova_run(void)
     static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
     for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
     gera_andar();
-    oferece_amuleto(0);                          // a run comeca com um amuleto
+    oferece_amuleto(AV_INICIO);                  // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
     moedas_ok = false;                           // as moedas da faixa nascem certas
 }
@@ -413,21 +529,9 @@ static void des_premio_feito(void)
 {
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
-    // Selo de Divida: o chefe paga um segundo premio.
-    if (run.tier == 3 && run.andar < DES_ANDARES - 1 && (run_amuletos() >> A_SELO & 1) && !run.premio2) {
-        const no_t *no = &run.no[run.passo][run.caminho[run.passo]];
-        rs = no->semente ^ 0x5E10D1u;
-        rnd_r();
-        sorteia_distintos(run.oferta, 3, PESO_PREMIO[3]);
-        run.premio2 = 1;
-        run.estado = R_PREMIO;
-        des_salva();
-        abre_premio_run();
-        return;
-    }
-    run.premio2 = 0;
-    // Chefe vencido (menos o ultimo, que fecha a run): mais um amuleto.
-    if (run.tier == 3 && run.andar < DES_ANDARES - 1) oferece_amuleto(1);
+    // Chefe vencido: mais um amuleto (e, com o Selo de Divida, outro sorteado).
+    run.am_selo = 0;
+    if (chefe_deixa_amuleto()) oferece_amuleto(AV_CHEFE);
     else avanca_passo();
 }
 

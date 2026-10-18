@@ -787,22 +787,26 @@ typedef struct {
     peca_t   oferta[3];                  /* premio a escolher (estado R_PREMIO) */         \
     uint16_t amuletos;                   /* bit a: tem o amuleto a (16+ em amuletos_hi) */  \
     uint8_t  am_oferta[3];               /* amuletos a escolher (estado R_AMULETO) */      \
-    uint8_t  am_volta;                   /* depois da escolha: 0 loja da entrada, 1 mapa */ \
+    uint8_t  am_volta;                   /* de onde veio o amuleto: AV_* (para onde segue) */ \
     uint8_t  am_loja, am_levou;          /* amuleto a venda na loja (0xFF: nenhum) */      \
     uint8_t  juros;                      /* moedas que o Cofre rendeu na ultima vitoria */ \
     uint8_t  dificuldade;                /* 0 normal .. N_NIVEIS */                        \
     uint16_t amuletos_hi;                                                                  \
     uint8_t  taca;                       /* moedas que a Taca rendeu na ultima vitoria */  \
-    uint8_t  premio2;                    /* Selo de Divida: no segundo premio do chefe */  \
+    uint8_t  am_selo;                    /* Selo de Divida: o segundo amuleto ja saiu */   \
     /* Eventos: lapidou (o Lapidador ja foi usado: nao aparece mais), garcom            */ \
     /* (o proximo oponente comeca com 10 fichas a menos), puxadas no                    */ \
     /* caca-niquel e dados que a Capela ja levou.                                       */ \
-    uint8_t  lapidou, garcom, puxadas, tirados;
+    uint8_t  lapidou, garcom, puxadas, tirados;                                           \
+    /* Amuleto esperando lugar (+1; 0: nenhum): os 5 cheios, a troca. Mora no que       */ \
+    /* sobrava no fim da estrutura: o tamanho (e o salvamento de antes) fica igual.     */ \
+    uint8_t  am_novo;
 typedef struct { RUN_CAMPOS(MAX_COL) } run_t;
 typedef struct { RUN_CAMPOS(48) } run48_t;     // de quando a bolsa parava em 48: lido e convertido
 _Static_assert(sizeof(run_t) != sizeof(run48_t)
                && sizeof(run_t) - offsetof(run_t, no) == sizeof(run48_t) - offsetof(run48_t, no),
                "os formatos da run se distinguem pelo tamanho, e o que vem depois da bolsa e igual");
+_Static_assert(sizeof(run_t) == 472, "a run salva mudou de tamanho: as de antes deixam de abrir");
 
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa

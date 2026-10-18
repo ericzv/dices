@@ -690,6 +690,7 @@ static void toca_evento(int i)
     int s = som_do_evento(i);
     if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
     else som_toca(s);
+    for (int a = 0; a < A_N; a++) if (ev[i].am >> a & 1) am_acende(a);   // o amuleto que agiu acende
 }
 
 // E acelera: cada efeito corre 12% mais depressa que o anterior (o tempo do
@@ -763,6 +764,7 @@ static float duracao_evento(int i)
     case EV_REVELA:  return 1.4f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
+    case EV_AVISO:   return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
     default:       return 1.3f;
@@ -886,7 +888,6 @@ static void aplica_evento(int i)
     case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE:
         vis_semente[e->de_j] += e->valor;
-        if (e->tipo == EV_CHEFE && e->de_j == 0) am_acende(A_CRISANTEMO);   // o unico seu e o Crisantemo
         break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
     case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;

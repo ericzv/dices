@@ -535,6 +535,35 @@ static void placar_faiscas(int x, int y, int w, int h, float alem)
     }
 }
 
+// A Sanguessuga que acabou de pousar sugando o dado de antes (em xa): gotas
+// saem dele, uma atras da outra, e correm em arco ate ela (em xs). Devolve
+// quanto ela incha agora (cada gota que chega e um gole).
+#define SANGUE_GOTAS 5
+static float sangue_parte(int i) { return 0.10f + i * 0.08f; }
+#define SANGUE_VOO 0.28f
+static float sanguessuga_gole(float t)
+{
+    float g = 0;
+    for (int i = 0; i < SANGUE_GOTAS; i++) {
+        float d = t - sangue_parte(i) - SANGUE_VOO;
+        if (d > 0 && d < 0.3f) g += 2.2f * expf(-d / 0.07f);
+    }
+    return g > 3 ? 3 : g;
+}
+static void sanguessuga_gotas(int xa, int xs, int y, float t)
+{
+    for (int i = 0; i < SANGUE_GOTAS; i++) {
+        float q = (t - sangue_parte(i)) / SANGUE_VOO;
+        if (q < 0 || q >= 1) continue;
+        float sq = q * q * (3 - 2 * q);
+        int gx = xa + (int)((xs - xa) * sq), gy = y - 6 - (int)(sinf(sq * 3.1416f) * 20);
+        gfx_disco(gx, gy, 4, C_VINHO);                       // a gota: borda vinho, miolo vermelho, brilho
+        gfx_disco(gx, gy, 3, C_VERMELHO);
+        gfx_rect(gx - 2, gy - 2, 2, 1, C_ROSA);
+        if (q > 0.15f) gfx_rect(gx - (xs > xa ? 7 : -6), gy + 1, 2, 2, C_VINHO);   // um respingo atras
+    }
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -659,7 +688,14 @@ static void desenha_fila(int j)
         // Acabou de pousar valendo: com o pulinho, um brilho atravessa o dado.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase >= 0.05f && t_fase < 0.45f)
             brilho_passa = (t_fase - 0.05f) / 0.4f;
-        desenha_dado((float)x, y - pulo, R, t, j, giro, face, 2, anul && giro < 0.5f);
+        // A Sanguessuga sugando o de antes incha a cada gole.
+        bool suga = fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_SANGUESSUGA
+                    && anulou_a >= 0 && t_fase < 0.9f;
+        float r_suga = suga ? R + sanguessuga_gole(t_fase) : R;
+        // A Ficha Velha pagando o seu +4 no fim: a cor volta enquanto ela paga.
+        bool paga = e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && t == D_FICHA_VELHA && p > 0.12f && p < 0.92f;
+        desenha_dado((float)x, y - pulo, r_suga, t, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
         face_escondida = false;
         marca_nivel = -1;
         // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
@@ -922,6 +958,7 @@ static void desenha_evento(void)
     if (fase != F_EFEITOS || ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_AVISO) return;             // so o texto (e o amuleto acende na faixa)
     if (e->tipo == EV_VAMPIRO) {                 // gotas saem dos dados do oponente e vao ate o Vampiro
         int bx = SLOT_X(e->de_k), by = zona(e->de_j);
         for (int k = 0; k < N_FILA; k++) {
@@ -1252,6 +1289,26 @@ static void desenha_evento(void)
                 for (int i = 0; i < 4; i++) { vx[i] = x + (vx[i] - x) * 0.8f; vy[i] = y + (vy[i] - y) * 0.8f; }
                 poligono(vx, vy, 4, C_MARFIM);
                 gfx_linha_grossa((int)(x - 4 * cs), (int)(y - 4 * sn), (int)(x + 4 * cs), (int)(y + 4 * sn), 1, C_BARRA);
+            }
+        } else if (t == D_FICHA_VELHA) {
+            // Ficha Velha: a rachadura acende e ela paga - seis moedas saem
+            // dela, uma atras da outra, e voam em arco ate o placar.
+            static const float CR[5][2] = { { 0.50f, -0.42f }, { 0.36f, -0.24f }, { 0.47f, -0.08f }, { 0.37f, 0.10f }, { 0.44f, 0.24f } };
+            if (p < 0.55f) {
+                uint16_t cr = ((int)(p * 14) % 2) ? C_AMARELO : C_OURO;
+                for (int i = 0; i < 4; i++)
+                    gfx_linha_grossa(ax + (int)(CR[i][0] * R_DADO), ay + (int)(CR[i][1] * R_DADO),
+                                     ax + (int)(CR[i + 1][0] * R_DADO), ay + (int)(CR[i + 1][1] * R_DADO), 1, cr);
+            }
+            int px = PLACAR_X, py = zona(e->de_j);
+            for (int i = 0; i < FICHA_VELHA_PTS; i++) {
+                float q = (p - 0.22f - i * 0.06f) / 0.32f;
+                if (q < 0 || q >= 1) continue;
+                float sq = q * q * (3 - 2 * q);
+                int mx = ax + (int)((px - ax) * sq), my = ay - (int)(sinf(sq * 3.1416f) * (30 + i * 3)) + (int)((py - ay) * sq);
+                gfx_disco(mx, my, 4, C_LATAO_ESC);
+                gfx_disco(mx, my - 1, 3, C_OURO);
+                gfx_rect(mx - 1, my - 3, 2, 1, C_AMARELO);
             }
         } else if (t == D_MARTIR && e->mascara) {
             // Martir: a aureola sobe do dado caido e se reparte em luzes, uma

@@ -69,7 +69,7 @@ static void monta_loja_run(void)
     float w[4] = { 3, 4, 2.0f * (1 + 0.3f * run.andar), 0.4f * (1 + 0.5f * run.andar) };
     sorteia_distintos(run.loja, N_LOJA, w);
     memset(run.levou, 0, sizeof run.levou);
-    sorteia_amuletos(&run.am_loja, 1);
+    sorteia_amuletos(&run.am_loja, 1, rar_do_salao(run.andar));   // a raridade do salao
     run.am_levou = 0;
 }
 

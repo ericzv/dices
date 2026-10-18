@@ -1,6 +1,10 @@
 // ===========================================================================
 // A regra da fila
 // ===========================================================================
+// v, depois de L, derruba a sequencia? Menor cai; com o Corrimao (amuleto),
+// so 1 abaixo ainda fica.
+static bool cai_depois(int j, int v, int L) { return v < L && !(tem_am(j, A_CORRIMAO) && v == L - 1); }
+
 // O ultimo que vale e que a regra da fila enxerga: a Ponte fica de fora (o
 // dado depois dela compara com o de antes dela).
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
@@ -21,13 +25,13 @@ static int valor_pontos(int j, int k)
 }
 
 // Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
-// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e o Egoista.
+// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e a Sanguessuga.
 // Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
 // So o Escudo.
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 // O mesmo, pela posicao: o dado preso pela Ancora tambem.
@@ -237,7 +241,7 @@ static void aplica_regra(int j, int k)
         // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
         // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
         int l2 = ultimo_da_regra(j, est, k);
-        if (l2 >= 0 && v < f->valor[l2]) {
+        if (l2 >= 0 && cai_depois(j, v, f->valor[l2])) {
             bool esc_l = firme(j, l2);
             if (!esc_l) { est[l2] = V_ANULADO; anulou_a = l2; }
             est[k] = V_ANULADO;
@@ -269,7 +273,9 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && l >= 0 && v < f->valor[l]) {   // a Ponte e o Vazio nunca caem
+    bool corrimao = !espera && l >= 0 && v == f->valor[l] - 1 && tem_am(j, A_CORRIMAO);
+    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && ef != EF_SANGUESSUGA && l >= 0 && cai_depois(j, v, f->valor[l])) {
+        // (a Ponte, o Vazio e a Sanguessuga nunca caem)
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
         // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;
@@ -343,6 +349,8 @@ static void aplica_regra(int j, int k)
         if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= 1u << A_DESFORRA; }
         if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
         if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
+        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= 1u << A_TRINCA; }
+        if (corrimao) am_disparou |= 1u << A_CORRIMAO;
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
@@ -380,14 +388,34 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Explosivo! %s vale %d", lances, vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
         else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
+        else if (corrimao)     snprintf(veredito, sizeof veredito, "%d, 1 abaixo do %d: o Corrimão segura", v, f->valor[l]);
         else {
             if (f->dobra[k])       snprintf(veredito, sizeof veredito, "vale %d, x2 no fim", vale);
-            else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
+            else if (f->bonus[k] && ef == EF_PAR) snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
+            else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (%+d)", vale, f->bonus[k]);
             else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa sequência nova", vale);
             else                   snprintf(veredito, sizeof veredito, "vale %d", vale);
             ver_comum = true;
         }
         ver_tipo = 0;
+    }
+    // Sanguessuga: ao pousar, anula o seu dado de antes que ainda vale (o
+    // ultimo valendo antes dela, qualquer que seja). Ela nunca cai: menor ou
+    // maior, so suga; e a sequencia segue a partir dela.
+    if (ef == EF_SANGUESSUGA && f->est[k] == V_VALIDO) {
+        int a = -1;
+        for (int i = k - 1; i >= 0 && a < 0; i--) if (f->est[i] == V_VALIDO) a = i;
+        if (a >= 0 && !firme(j, a)) {
+            f->est[a] = V_ANULADO;
+            anulou_a = a;
+            snprintf(veredito, sizeof veredito, "Sanguessuga suga o %d: anulado", f->valor[a]);
+            ver_tipo = 4;
+            ver_comum = false;
+        } else if (a >= 0) {
+            resistiu = a;
+            snprintf(veredito, sizeof veredito, "Sanguessuga não suga o %s", TIPO[tipo_de(j, a)].nome);
+            ver_comum = false;
+        }
     }
     if (condenou) {                              // o aviso vale mais que o resto
         snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: -5 em cada dado seu no fim");

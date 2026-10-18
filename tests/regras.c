@@ -734,6 +734,60 @@ int main(void)
         for (int i = 0; i < 4; i++) { entrada(30, 40, 0); CONFERE(primeiro == 1, "Relogio: quem abre e %d", primeiro); }
         primeiro = 0; entrada(40, 40, 0);
         CONFERE(primeiro == 0, "Relogio sem estar atras: quem abre e %d", primeiro);
+        // Trinca: dado que tirar 3 ganha +3.
+        limpa(); amul[0] = 1u << A_TRINCA;
+        joga(0, D_D6, 3); joga(0, D_D8, 5);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 3 + 5, "Trinca: esperava 11, deu %d", d.total[0]);
+        // Prensa com Trinca: o 1 vira 3 e ainda ganha +3.
+        limpa(); amul[0] = 1u << A_PRENSA | 1u << A_TRINCA;
+        joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Prensa com Trinca: esperava 6, deu %d", d.total[0]);
+        // Piramide: x2 nos de 4 lados.
+        limpa(); amul[0] = 1u << A_PIRAMIDE;
+        joga(0, D_D4, 3); joga(0, D_D6, 5);
+        d = fim();
+        CONFERE(d.total[0] == 6 + 5, "Piramide: esperava 11, deu %d", d.total[0]);
+        // Abre-Alas: x2 no primeiro da sequencia (so se ele terminar valendo).
+        limpa(); amul[0] = 1u << A_ABRE_ALAS;
+        joga(0, D_D6, 2); joga(0, D_D6, 5);
+        d = fim();
+        CONFERE(d.total[0] == 4 + 5, "Abre-Alas: esperava 9, deu %d", d.total[0]);
+        limpa(); joga(0, D_D6, 5); joga(0, D_D6, 2);
+        d = fim();
+        CONFERE(d.total[0] == 0, "Abre-Alas caido nao vale: %d", d.total[0]);
+        // Corrimao: so 1 abaixo nao cai; 2 abaixo, cai.
+        limpa(); amul[0] = 1u << A_CORRIMAO; am_disparou = 0;
+        joga(0, D_D6, 5); joga(0, D_D6, 4);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && (am_disparou >> A_CORRIMAO & 1),
+                "Corrimao: 5 e 4 deviam ficar");
+        joga(0, D_D6, 2);
+        CONFERE(F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO && F[0].est[0] == V_VALIDO,
+                "Corrimao: 4 e 2 deviam cair");
+        limpa(); joga(0, D_D6, 5); F[0].n = 2; F[0].tipo[1] = D_D6;   // o proximo, um D6: so 1, 2 e 3 derrubam
+        CONFERE(risco(0) == 50, "Corrimao: risco depois do 5 devia ser 50, deu %d", risco(0));
+        // Saideira: na ultima rodada, os poderes do fim agem duas vezes.
+        int rod = rodada;
+        limpa(); amul[0] = 1u << A_SAIDEIRA; rodada = DES_RODADAS - 1;
+        joga(0, D_D6, 2); joga(0, D_CAPITAO, 3);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 2, "Saideira antes da ultima: esperava 7, deu %d", d.total[0]);
+        rodada = DES_RODADAS;
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 2 + 2, "Saideira: esperava 9, deu %d", d.total[0]);
+        bool aviso = false;
+        for (int i = 0; i < n_ev; i++) aviso |= ev[i].tipo == EV_AVISO && (ev[i].am >> A_SAIDEIRA & 1);
+        CONFERE(aviso, "Saideira: sem o aviso de tudo de novo");
+        limpa(); amul[0] = 1u << A_SAIDEIRA | 1u << A_ABRE_ALAS;     // x2 de novo: x4
+        joga(0, D_D6, 4);
+        d = fim();
+        CONFERE(d.total[0] == 16, "Saideira com Abre-Alas: esperava 16, deu %d", d.total[0]);
+        limpa(); amul[0] = 1u << A_SAIDEIRA;                         // nada para repetir: nem o aviso
+        joga(0, D_D6, 4);
+        d = fim();
+        CONFERE(d.total[0] == 4 && n_ev == 0, "Saideira sem poderes: %d pontos, %d eventos", d.total[0], n_ev);
+        rodada = rod;
         // Fora do Desafiante, nenhum deles vale.
         modo = M_UM; amul[0] = 0xFFFFFFFFu;
         limpa(); joga(0, D_D6, 1); joga(0, D_D6, 4);
@@ -1166,6 +1220,18 @@ int main(void)
                     "Vazio: esperava 12, deu %d", d.total[0]);
             limpa(); joga(0, D_D12, 10); F[0].n = 2; F[0].tipo[1] = D_VAZIO;
             CONFERE(risco(0) == 0 && sorteia_valor(D_VAZIO, 0, sempre_dois, &menor) == 0, "Vazio nunca cai e vale 0");
+            // Vazio nao pode ser anulado: nem pela sequencia nem por dado nenhum.
+            limpa(); joga(0, D_VAZIO, 0); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO, "Vazio anulado pelo Laser");
+            limpa(); joga(0, D_D6, 4); joga(0, D_VAZIO, 0); joga(0, D_SANGUESSUGA, 3);
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO, "Vazio sugado pela Sanguessuga");
+            limpa(); joga(0, D_VAZIO, 0); joga(0, D_SORTE_REVES, -3);
+            CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Vazio derrubado por um negativo depois dele");
+            limpa(); joga(0, D_EGOISTA, 5); joga(0, D_VAZIO, 0);
+            CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Vazio anulado pelo Egoista");
+            limpa(); joga(0, D_D6, 3); joga(0, D_VAZIO, 0); joga(0, D_MALDITO, 5);
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO, "Vazio anulado pelo Agouro");
+            CONFERE(nao_anulavel_t(D_VAZIO) && !intocavel_t(D_VAZIO), "Vazio: nao anulavel, mas pode ser roubado");
             // Media: + o total dividido por 4.
             limpa(); joga(0, D_D6, 4); joga(0, D_MEDIA, 4); joga(0, D_D8, 8); d = fim();
             CONFERE(d.total[0] == 16 + 4, "Media: esperava 20, deu %d", d.total[0]);
@@ -1194,9 +1260,41 @@ int main(void)
             CONFERE(J[1].n_col == c1 + 1, "Assombracao caida nao assombra");
             some_fantasmas();
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+            // Ficha Velha: valendo, conta o que tirou; anulada (caida ou atacada), +4 no fim.
+            limpa(); joga(0, D_FICHA_VELHA, 2); d = fim();
+            CONFERE(d.total[0] == 2, "Ficha Velha valendo: esperava 2, deu %d", d.total[0]);
+            limpa(); joga(0, D_D6, 5); joga(0, D_FICHA_VELHA, 1); d = fim();
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && d.total[0] == FICHA_VELHA_PTS,
+                    "Ficha Velha caida: os dois anulados e +%d, deu %d", FICHA_VELHA_PTS, d.total[0]);
+            CONFERE(poder_armado(0, 1) == 1, "Ficha Velha anulada: o poder fica armado");
+            limpa(); joga(0, D_FICHA_VELHA, 2); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == FICHA_VELHA_PTS,
+                    "Ficha Velha atacada pelo Laser: +%d, deu %d", FICHA_VELHA_PTS, d.total[0]);
+            // Sanguessuga: ao pousar anula o seu de antes, nunca cai, e nada a anula.
+            limpa(); joga(0, D_D6, 5); joga(0, D_SANGUESSUGA, 3);
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && ver_tipo == 4,
+                    "Sanguessuga menor: suga o 5 e fica (est %d %d)", F[0].est[0], F[0].est[1]);
+            joga(0, D_D6, 4);                                       // compara com ela (3): vale
+            joga(0, D_D4, 1);                                       // menor que o 4: cai so o 4 e ele
+            d = fim();
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO && d.total[0] == 3,
+                    "Sanguessuga: a seguir a sequencia parte dela (total %d)", d.total[0]);
+            limpa(); joga(0, D_D6, 2); joga(0, D_SANGUESSUGA, 7); joga(0, D_D4, 3); d = fim();
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO && d.total[0] == 7,
+                    "Sanguessuga maior tambem suga, e o 3 cai sem derruba-la (total %d)", d.total[0]);
+            limpa(); joga(0, D_SANGUESSUGA, 6); d = fim();
+            CONFERE(F[0].est[0] == V_VALIDO && d.total[0] == 6, "Sanguessuga sozinha so vale");
+            limpa(); joga(0, D_ESCUDO, 4); joga(0, D_SANGUESSUGA, 2); d = fim();
+            CONFERE(F[0].est[0] == V_VALIDO && d.total[0] == 6, "o Escudo resiste a Sanguessuga (total %d)", d.total[0]);
+            limpa(); joga(0, D_SANGUESSUGA, 8); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 8, "o Laser nao anula a Sanguessuga");
+            limpa(); joga(0, D_D8, 6); F[0].n = 2; F[0].tipo[1] = D_SANGUESSUGA;
+            CONFERE(risco(0) == 0, "Sanguessuga nunca cai: risco 0");
+            limpa(); joga(0, D_D8, 6); joga(0, D_SANGUESSUGA, 2); joga(0, D_MALDITO, 3);   // o Agouro zera a sequencia
+            CONFERE(F[0].est[1] == V_VALIDO, "o Agouro nao derruba a Sanguessuga");
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
-                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO };
+                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
@@ -1423,14 +1521,99 @@ int main(void)
         CONFERE(perfis[0].partidas == 1, "partidas do perfil: %d", perfis[0].partidas);
         CONFERE((perfis[0].marcos & 1) && des_marco == D_D20 && dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
                 "vencer o Crupie devia abrir o D20 (marcos %d)", perfis[0].marcos);
-        // Selo de Divida: o chefe da dois premios, depois o amuleto.
-        run_poe_amuleto(A_SELO);
-        run.tier = 3;
+        // Selo de Divida: o primeiro chefe deixa um incomum, a escolher; o Selo
+        // cobra mais um, sorteado entre os comuns e os incomuns.
+        run_poe_amuletos(1u << A_SELO | 1u << A_PEDAGIO);
+        run.tier = 3; run.andar = 0;
         abre_premio_run();
         des_premio_feito();
-        CONFERE(fase == F_PREMIO && run.premio2 == 1 && run.estado == R_PREMIO, "Selo: sem segundo premio (fase %d)", fase);
-        des_premio_feito();
-        CONFERE(run.premio2 == 0 && fase == F_RAMULETO, "Selo: depois do segundo, o amuleto (fase %d)", fase);
+        CONFERE(fase == F_RAMULETO && run.estado == R_AMULETO && run.am_volta == AV_CHEFE && !run.am_novo,
+                "chefe: sem amuleto (fase %d)", fase);
+        for (int i = 0; i < 3; i++)
+            CONFERE(run.am_oferta[i] < A_N && RAR_AMULETO[run.am_oferta[i]] == AMR_INCOMUM,
+                    "o primeiro chefe devia deixar incomuns: %d", run.am_oferta[i]);
+        int esc = run.am_oferta[cursor];
+        amuleto_escolhido(cursor);
+        int sel = run.am_oferta[1];
+        CONFERE(fase == F_RAMULETO && run.am_volta == AV_SELO && cursor == 1 && sel < A_N
+                && run.am_oferta[0] == 0xFF && run.am_oferta[2] == 0xFF
+                && (RAR_AMULETO[sel] == AMR_COMUM || RAR_AMULETO[sel] == AMR_INCOMUM) && (run_amuletos() >> esc & 1),
+                "Selo: o segundo amuleto (fase %d, volta %d, %d)", fase, run.am_volta, sel);
+        run_t r2;
+        CONFERE(des_carrega(&r2) && r2.estado == R_AMULETO && r2.am_volta == AV_SELO, "Selo: o segundo nao ficou salvo");
+        amuleto_escolhido(1);
+        CONFERE(am_conta(run_amuletos()) == 4 && (run_amuletos() >> sel & 1) && !run.am_selo && fase == F_MAPA,
+                "Selo: depois do segundo, o mapa (fase %d, %d amuletos)", fase, am_conta(run_amuletos()));
+        // O segundo chefe e o Barao da Cobertura deixam raros; o Barao antes dela, nada.
+        run.tier = 3; run.andar = 1;
+        CONFERE(chefe_deixa_amuleto(), "o segundo chefe devia deixar amuleto");
+        oferece_amuleto(AV_CHEFE);
+        for (int i = 0; i < 3; i++)
+            CONFERE(run.am_oferta[i] < A_N && RAR_AMULETO[run.am_oferta[i]] == AMR_RARO, "o segundo chefe: raros");
+        run.andar = 2; run.dificuldade = N_NIVEIS - 1;
+        CONFERE(!chefe_deixa_amuleto(), "o Barao antes da Cobertura nao deixa amuleto");
+        run.dificuldade = N_NIVEIS;
+        CONFERE(chefe_deixa_amuleto(), "o Barao da Cobertura deixa amuleto");
+        run.andar = 3;
+        CONFERE(!chefe_deixa_amuleto(), "o Coringa fecha a run: sem amuleto");
+        run.dificuldade = 0; run.andar = 0;
+        // Cinco lugares: o sexto pede troca. Voltar devolve a escolha; trocar tira o escolhido.
+        run_poe_amuletos(1u << A_BOLSA | 1u << A_OURO | 1u << A_PENA | 1u << A_IMA | 1u << A_COFRE);
+        oferece_amuleto(AV_CHEFE);
+        cursor = 2;
+        int novo = run.am_oferta[2];
+        amuleto_escolhido(2);
+        CONFERE(run.am_novo == novo + 1 && fase == F_RAMULETO && am_conta(run_amuletos()) == 5 && run.estado == R_AMULETO,
+                "troca: o novo devia esperar (am_novo %d)", run.am_novo);
+        CONFERE(des_carrega(&r2) && r2.am_novo == novo + 1, "troca: nao ficou salva");
+        amuleto_desiste();
+        CONFERE(!run.am_novo && fase == F_RAMULETO && cursor == 2, "troca: voltar devia devolver a escolha");
+        amuleto_escolhido(2);
+        amuleto_troca(A_OURO);
+        CONFERE(am_conta(run_amuletos()) == 5 && !(run_amuletos() >> A_OURO & 1) && (run_amuletos() >> novo & 1)
+                && !run.am_novo && fase == F_MAPA, "troca: o Ouro devia sair e o %d entrar", novo);
+        // Na loja, sem lugar: so paga se trocar.
+        run.estado = R_LOJA; run.andar = 0; run.moedas = 500;
+        monta_loja_run();
+        int al = run.am_loja;
+        CONFERE(al < A_N && RAR_AMULETO[al] == AMR_COMUM, "a loja do Salao Verde vende comuns: %d", al);
+        abre_loja_run();
+        ganha_amuleto(al, AV_LOJA);
+        CONFERE(run.am_novo == al + 1 && run.moedas == 500 && fase == F_RAMULETO, "loja cheia: devia pedir troca");
+        amuleto_desiste();
+        CONFERE(!run.am_novo && run.moedas == 500 && !run.am_levou && fase == F_RLOJA, "loja: voltar sem pagar");
+        ganha_amuleto(al, AV_LOJA);
+        amuleto_troca(-1);
+        CONFERE(run.moedas == 500 && !run.am_levou && fase == F_RLOJA && !(run_amuletos() >> al & 1),
+                "loja: deixar o novo nao paga");
+        ganha_amuleto(al, AV_LOJA);
+        amuleto_troca(A_BOLSA);
+        CONFERE(run.moedas == 500 - preco_am() && run.am_levou && (run_amuletos() >> al & 1)
+                && !(run_amuletos() >> A_BOLSA & 1) && am_conta(run_amuletos()) == 5, "loja: trocar paga");
+        run.andar = 1; monta_loja_run();
+        CONFERE(run.am_loja >= A_N || RAR_AMULETO[run.am_loja] == AMR_INCOMUM, "a loja do Salao Vermelho: incomuns");
+        run.andar = 2; monta_loja_run();
+        CONFERE(run.am_loja >= A_N || RAR_AMULETO[run.am_loja] == AMR_RARO, "a loja do Salao Dourado: raros");
+        // Todos tem raridade; os que voltaram, nas que foram escolhidas.
+        for (int a = 0; a < A_N; a++) CONFERE(amuleto_no_jogo(a), "amuleto %d sem raridade", a);
+        CONFERE(RAR_AMULETO[A_FERRADURA] == AMR_RARO && RAR_AMULETO[A_COROA] == AMR_INCOMUM
+                && RAR_AMULETO[A_PRENSA] == AMR_INCOMUM && RAR_AMULETO[A_CUPOM] == AMR_COMUM
+                && RAR_AMULETO[A_TACA] == AMR_COMUM && RAR_AMULETO[A_CORINGA] == AMR_COMUM
+                && RAR_AMULETO[A_DUPLA] == AMR_COMUM, "raridade dos que voltaram");
+        // Os de nivel so saem depois de abertos: no Normal, nem a Ferradura nem a Dupla.
+        run_poe_amuletos(0);
+        for (int i = 0; i < 300; i++) {
+            uint8_t a;
+            sorteia_amuletos(&a, 1, AMR(AMR_COMUM) | AMR(AMR_INCOMUM) | AMR(AMR_RARO));
+            CONFERE(a < A_N && NIVEL_AMULETO[a] <= perfil()->nivel, "sorteou amuleto fechado: %d", a);
+        }
+        // Os que sairam do jogo nao saem em sorteio nenhum.
+        run_poe_amuletos(0);
+        for (int i = 0; i < 200; i++) {
+            uint8_t a;
+            sorteia_amuletos(&a, 1, AMR(AMR_COMUM) | AMR(AMR_INCOMUM) | AMR(AMR_RARO));
+            CONFERE(a < A_N && amuleto_no_jogo(a), "sorteou amuleto fora do jogo: %d", a);
+        }
         salva_limpa_tudo();
         memset(perfis, 0, sizeof perfis);
         perfil_atual = -1;

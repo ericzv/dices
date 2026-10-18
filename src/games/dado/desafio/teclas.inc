@@ -36,11 +36,7 @@ static bool des_tecla(int k, int e)
         if (k >= '1' && k < '1' + nc) cursor = k - '1';
         if ((k == KEY_ENTER || (k >= '1' && k < '1' + nc)) && cursor == N_LOJA) {
             if (run.am_levou || run.am_loja >= A_N || run.moedas < preco_am()) return true;
-            run.moedas -= preco_am();
-            run_poe_amuleto(run.am_loja);
-            run.am_levou = 1;
-            som_toca(SOM_FICHA);
-            des_salva();
+            ganha_amuleto(run.am_loja, AV_LOJA);     // sem lugar, a troca (e so paga se trocar)
             return true;
         }
         if (k == KEY_ENTER || (k >= '1' && k <= '5')) {
@@ -61,6 +57,15 @@ static bool des_tecla(int k, int e)
     }
 
     case F_RAMULETO: {
+        if (run.am_novo) {                       // a troca: os seus e, no fim, deixar o novo
+            if (e) { cursor = (cursor + e + TROCA_N) % TROCA_N; som_toca(SOM_TIQUE); return true; }
+            if (k == KEY_BKSP || k == 'x') { amuleto_desiste(); return true; }
+            if (k == KEY_ENTER) {
+                int meus[A_N], n = meus_amuletos(meus);
+                amuleto_troca(cursor >= 0 && cursor < n && cursor < TROCA_N - 1 ? meus[cursor] : -1);
+            }
+            return true;
+        }
         if (e) {
             for (int i = 1; i <= 3; i++) {
                 int c = ((cursor + e * i) % 3 + 3) % 3;

@@ -1220,6 +1220,18 @@ int main(void)
                     "Vazio: esperava 12, deu %d", d.total[0]);
             limpa(); joga(0, D_D12, 10); F[0].n = 2; F[0].tipo[1] = D_VAZIO;
             CONFERE(risco(0) == 0 && sorteia_valor(D_VAZIO, 0, sempre_dois, &menor) == 0, "Vazio nunca cai e vale 0");
+            // Vazio nao pode ser anulado: nem pela sequencia nem por dado nenhum.
+            limpa(); joga(0, D_VAZIO, 0); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO, "Vazio anulado pelo Laser");
+            limpa(); joga(0, D_D6, 4); joga(0, D_VAZIO, 0); joga(0, D_SANGUESSUGA, 3);
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO, "Vazio sugado pela Sanguessuga");
+            limpa(); joga(0, D_VAZIO, 0); joga(0, D_SORTE_REVES, -3);
+            CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Vazio derrubado por um negativo depois dele");
+            limpa(); joga(0, D_EGOISTA, 5); joga(0, D_VAZIO, 0);
+            CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Vazio anulado pelo Egoista");
+            limpa(); joga(0, D_D6, 3); joga(0, D_VAZIO, 0); joga(0, D_MALDITO, 5);
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO, "Vazio anulado pelo Agouro");
+            CONFERE(nao_anulavel_t(D_VAZIO) && !intocavel_t(D_VAZIO), "Vazio: nao anulavel, mas pode ser roubado");
             // Media: + o total dividido por 4.
             limpa(); joga(0, D_D6, 4); joga(0, D_MEDIA, 4); joga(0, D_D8, 8); d = fim();
             CONFERE(d.total[0] == 16 + 4, "Media: esperava 20, deu %d", d.total[0]);

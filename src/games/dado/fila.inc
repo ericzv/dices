@@ -31,7 +31,7 @@ static int valor_pontos(int j, int k)
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 // O mesmo, pela posicao: o dado preso pela Ancora tambem.

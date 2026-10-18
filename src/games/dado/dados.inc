@@ -172,7 +172,7 @@ static const tipo_t TIPO[D_N] = {
     { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "tira 1, depois 2, 3...: +1 a cada lance" },
     { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "o número fica escondido até o fim" },
     { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "não pontua; valendo: x2 no seu menor" },
-    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0 e nunca cai: baixa a barra" },
+    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0, nada o anula: baixa a barra" },
     { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "valendo: + o total da fila ÷ 4" },
     { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "valendo: -1 em cada dado do oponente" },
     { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
@@ -266,7 +266,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PREVISIVEL] = "Não sorteia: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
     [D_OCULTO]    = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência, e pode cair ou derrubar.",
     [D_SACRIFICIO] = "Não pontua. Se ficar valendo, o seu dado de menor número que pontua vale x2 no fim.",
-    [D_VAZIO]     = "Vale sempre 0 e nunca cai nem derruba o de antes: depois dele, qualquer número vale.",
+    [D_VAZIO]     = "Vale sempre 0, não pode ser anulado e não derruba o de antes: depois dele, qualquer número vale.",
     [D_MEDIA]     = "Se ficar valendo, no fim ganha o total dos seus dados dividido por 4 (para baixo).",
     [D_VAMPIRO]   = "Se ficar valendo, no fim cada dado do oponente que vale perde 1.",
     [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
@@ -394,7 +394,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_SACRIFICIO] = "Quatro lados, mas não pontua. Se terminar valendo, no fim o seu dado de menor número que "
                      "pontua (sem contar ele) vale x2. Soma com outros multiplicadores.",
     [D_VAZIO]     = "Vale sempre 0. Nunca cai e nunca derruba o dado de antes, por maior que ele seja: abaixa a "
-                    "barra da sequência para 0, e depois dele qualquer número vale.",
+                    "barra da sequência para 0, e depois dele qualquer número vale. Não pode ser anulado: nem a "
+                    "sequência nem ataque nenhum o derruba. Pode ser roubado.",
     [D_MEDIA]     = "Quatro lados. Se terminar valendo, ganha no fim o total dos seus dados na sequência (com "
                     "bônus e multiplicadores, ele incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]   = "Quatro lados. Se terminar valendo, com qualquer número, no fim cada dado do oponente que vale "

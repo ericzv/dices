@@ -21,13 +21,13 @@ static int valor_pontos(int j, int k)
 }
 
 // Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
-// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e o Egoista.
+// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e a Sanguessuga.
 // Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
 // So o Escudo.
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA;
 }
 static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 // O mesmo, pela posicao: o dado preso pela Ancora tambem.
@@ -269,7 +269,8 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && l >= 0 && v < f->valor[l]) {   // a Ponte e o Vazio nunca caem
+    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && ef != EF_SANGUESSUGA && l >= 0 && v < f->valor[l]) {
+        // (a Ponte, o Vazio e a Sanguessuga nunca caem)
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
         // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;
@@ -388,6 +389,24 @@ static void aplica_regra(int j, int k)
             ver_comum = true;
         }
         ver_tipo = 0;
+    }
+    // Sanguessuga: ao pousar, anula o seu dado de antes que ainda vale (o
+    // ultimo valendo antes dela, qualquer que seja). Ela nunca cai: menor ou
+    // maior, so suga; e a sequencia segue a partir dela.
+    if (ef == EF_SANGUESSUGA && f->est[k] == V_VALIDO) {
+        int a = -1;
+        for (int i = k - 1; i >= 0 && a < 0; i--) if (f->est[i] == V_VALIDO) a = i;
+        if (a >= 0 && !firme(j, a)) {
+            f->est[a] = V_ANULADO;
+            anulou_a = a;
+            snprintf(veredito, sizeof veredito, "Sanguessuga suga o %d: anulado", f->valor[a]);
+            ver_tipo = 4;
+            ver_comum = false;
+        } else if (a >= 0) {
+            resistiu = a;
+            snprintf(veredito, sizeof veredito, "Sanguessuga não suga o %s", TIPO[tipo_de(j, a)].nome);
+            ver_comum = false;
+        }
     }
     if (condenou) {                              // o aviso vale mais que o resto
         snprintf(veredito, sizeof veredito, "Tudo ou Nada deu 1: -5 em cada dado seu no fim");

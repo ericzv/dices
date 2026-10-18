@@ -122,9 +122,9 @@ static int nivel_do_dado(int t)
     case D_CARRASCO: case D_LASER: case D_AGIOTA: case D_ACUMULADOR:
     case D_MEDIA: case D_COLECIONADOR: case D_CALIBRE: case D_MARTIR:           return 3;
     case D_CARIDOSO: case D_GATUNO: case D_VAMPIRO: case D_QUEBRADO:
-    case D_VIDRO: case D_PONTE: case D_RANCOR:                                  return 4;
+    case D_VIDRO: case D_PONTE: case D_RANCOR: case D_FICHA_VELHA:              return 4;
     case D_INVEJOSO: case D_FARTURA: case D_SORTE: case D_PUXA_FILA:
-    case D_COVEIRO: case D_SACRIFICIO:                                          return 5;
+    case D_COVEIRO: case D_SACRIFICIO: case D_SANGUESSUGA:                      return 5;
     case D_ESPELHO: case D_VENTANIA: case D_FERREIRO: case D_MISERICORDIOSO:
     case D_GEMEO: case D_ECO:                                                   return 6;
     case D_VIUVA: case D_PRISMA: case D_CHECKPOINT: case D_POTE_QUENTE:

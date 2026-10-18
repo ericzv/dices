@@ -360,6 +360,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (est[k] == V_ANULADO) anulados++;
         if (est[k] == V_VALIDO) valendo++;
     }
+    for (int k = 0; k < f->lancados; k++) {               // Ficha Velha anulada: +6, caida ou atacada
+        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_FICHA_VELHA) continue;
+        d->semente[j] += FICHA_VELHA_PTS;
+        evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
+    }
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
         d->semente[j] += 2 * valendo;
@@ -507,6 +512,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +6 no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
         for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
@@ -857,7 +863,7 @@ static int risco(int j)
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
-    if (ef == EF_PONTE || ef == EF_VAZIO) return 0;   // nunca caem
+    if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
     if (ef == EF_PREVISIVEL) return l >= 0 && (f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12) < L ? 100 : 0;
     if (ef == EF_QUEBRADO) return l >= 0 && (int8_t)f->fixo[k] < L ? 100 : 0;
     if (ef == EF_FANTASMA) return l >= 0 && (f->fixo[k] ? (int8_t)f->fixo[k] : 1) < L ? 100 : 0;

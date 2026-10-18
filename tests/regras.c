@@ -1194,9 +1194,41 @@ int main(void)
             CONFERE(J[1].n_col == c1 + 1, "Assombracao caida nao assombra");
             some_fantasmas();
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+            // Ficha Velha: valendo, conta o que tirou; anulada (caida ou atacada), +6 no fim.
+            limpa(); joga(0, D_FICHA_VELHA, 2); d = fim();
+            CONFERE(d.total[0] == 2, "Ficha Velha valendo: esperava 2, deu %d", d.total[0]);
+            limpa(); joga(0, D_D6, 5); joga(0, D_FICHA_VELHA, 1); d = fim();
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && d.total[0] == FICHA_VELHA_PTS,
+                    "Ficha Velha caida: os dois anulados e +%d, deu %d", FICHA_VELHA_PTS, d.total[0]);
+            CONFERE(poder_armado(0, 1) == 1, "Ficha Velha anulada: o poder fica armado");
+            limpa(); joga(0, D_FICHA_VELHA, 2); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == FICHA_VELHA_PTS,
+                    "Ficha Velha atacada pelo Laser: +%d, deu %d", FICHA_VELHA_PTS, d.total[0]);
+            // Sanguessuga: ao pousar anula o seu de antes, nunca cai, e nada a anula.
+            limpa(); joga(0, D_D6, 5); joga(0, D_SANGUESSUGA, 3);
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && ver_tipo == 4,
+                    "Sanguessuga menor: suga o 5 e fica (est %d %d)", F[0].est[0], F[0].est[1]);
+            joga(0, D_D6, 4);                                       // compara com ela (3): vale
+            joga(0, D_D4, 1);                                       // menor que o 4: cai so o 4 e ele
+            d = fim();
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO && d.total[0] == 3,
+                    "Sanguessuga: a seguir a sequencia parte dela (total %d)", d.total[0]);
+            limpa(); joga(0, D_D6, 2); joga(0, D_SANGUESSUGA, 7); joga(0, D_D4, 3); d = fim();
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO && d.total[0] == 7,
+                    "Sanguessuga maior tambem suga, e o 3 cai sem derruba-la (total %d)", d.total[0]);
+            limpa(); joga(0, D_SANGUESSUGA, 6); d = fim();
+            CONFERE(F[0].est[0] == V_VALIDO && d.total[0] == 6, "Sanguessuga sozinha so vale");
+            limpa(); joga(0, D_ESCUDO, 4); joga(0, D_SANGUESSUGA, 2); d = fim();
+            CONFERE(F[0].est[0] == V_VALIDO && d.total[0] == 6, "o Escudo resiste a Sanguessuga (total %d)", d.total[0]);
+            limpa(); joga(0, D_SANGUESSUGA, 8); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 8, "o Laser nao anula a Sanguessuga");
+            limpa(); joga(0, D_D8, 6); F[0].n = 2; F[0].tipo[1] = D_SANGUESSUGA;
+            CONFERE(risco(0) == 0, "Sanguessuga nunca cai: risco 0");
+            limpa(); joga(0, D_D8, 6); joga(0, D_SANGUESSUGA, 2); joga(0, D_MALDITO, 3);   // o Agouro zera a sequencia
+            CONFERE(F[0].est[1] == V_VALIDO, "o Agouro nao derruba a Sanguessuga");
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
-                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO };
+                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));

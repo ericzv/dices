@@ -331,8 +331,20 @@ static void mola_passo(float dt_real)
     else if (t_mola < 1) t_mola += dt_real;
 }
 static void mola_chuta(void) { t_mola = 0; }
+static float mola_brilho(void)          // e o brilho de passagem dele (0..1; -1: nenhum)
+{
+    return t_mola < 0.45f ? t_mola / 0.45f : -1;
+}
 static int mola_px(void)                 // quanto o item da vez esta acima do lugar
 {
     if (t_mola >= 0.4f) return 0;
     return (int)lroundf(5 * sinf(t_mola * 6 * 2 * 3.14159f) * expf(-t_mola / 0.11f));
+}
+
+// A respiracao: o que esta esperando (os dados da mao, os amuletos da faixa)
+// sobe e desce um pixel, devagar, cada um no seu tempo - a mesa nunca fica
+// parada de todo. Na sequencia nao: ali o numero precisa ficar quieto.
+static int respira(int i)
+{
+    return (int)lroundf(sinf(t_relogio * 2.1f + i * 1.3f) * 0.9f);
 }

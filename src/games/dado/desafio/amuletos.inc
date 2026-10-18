@@ -356,7 +356,7 @@ static void amuletos_faixa(int j, int x, int y)
             int rr = 10 + (int)((1.2f - am_brilho[a]) * 6);
             gfx_disco(cx, y, rr, gfx_mistura(C_OURO, C_BARRA, (int)((1.2f - am_brilho[a]) * 70)));
         }
-        desenha_amuleto(cx, y, 8, a, false);
+        desenha_amuleto(cx, y + respira(n + 2 * j), 8, a, false);   // respira, cada um no seu tempo
         dica_zona(cx - 9, y - 9, 18, 18, DICA_AMULETO, a);
         n++;
     }

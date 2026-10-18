@@ -100,13 +100,15 @@ static void desenha_ordem(void)
         for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ordem = k;
         bool cur = i == cursor && q >= 1;
         if (cur) ui_selecao(x - 25, y - 25, 50, 50, p->cor);
-        peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0)), 17, p->col[p->mao[i]], vez);
+        if (cur) brilho_passa = mola_brilho();          // pulou: o brilho passa junto
+        int rs = respira(i);                     // esperando na mao: respira
+        peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) {
             char o[2] = { (char)('1' + ordem), 0 };
-            gfx_disco(x + 16, y - 17, 9, C_OURO);
-            gfx_disco(x + 16, y - 17, 7, C_AMARELO);
-            txt_c(x + 16, y - 27, o, C_BARRA, true);
+            gfx_disco(x + 16, y - 17 + rs, 9, C_OURO);
+            gfx_disco(x + 16, y - 17 + rs, 7, C_AMARELO);
+            txt_c(x + 16, y - 27 + rs, o, C_BARRA, true);
         }
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
@@ -501,6 +503,7 @@ static void desenha_premio(void)
                 continue;
             }
             if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_VINHO_CLR);
+            if (i == cursor) brilho_passa = mola_brilho();
             peca_parada((float)x, (float)(y - (i == cursor ? mola_px() : 0)), 17 * f, p->col[i], vez);
             if (i != cursor) marca_rar(x, y + (int)(23 * f), p->col[i].tipo);
             if (i == cursor) gfx_rect(x - meio, y + (int)(23 * f), 2 * meio, 3, C_VINHO_CLR);
@@ -572,6 +575,7 @@ static void desenha_premio(void)
         if (acende) ui_cartao(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
+        if (cur) brilho_passa = mola_brilho();
         peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
         txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
         char c2[32];
@@ -625,6 +629,7 @@ static void desenha_loja(void)
         uint16_t cr = cor_rar(tp);
         ui_cartao(x - 48, yb, 96, 92, cur, cr);
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 - mola_px() : 0;
+        if (cur && !ja) brilho_passa = mola_brilho();
         peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
         if (ja) {
             txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);

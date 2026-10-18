@@ -326,7 +326,10 @@ static void desenha_loja_run(void)
         ui_cartao(x - wc / 2, yb, wc, 92, cur, cr);
         float bob = cur && !ja ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         if (am) desenha_amuleto(x, yb + 32 + (int)bob, 20, run.am_loja, false);
-        else peca_parada((float)x, yb + 32 + bob, 22, run.loja[i], 0);
+        else {
+            if (cur && !ja) brilho_passa = mola_brilho();
+            peca_parada((float)x, yb + 32 + bob, 22, run.loja[i], 0);
+        }
         if (ja) {
             txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);
             gfx_rect_alfa(x - wc / 2 + 1, yb + 1, wc - 2, 90, C_SOMBRA, 120);
@@ -370,6 +373,7 @@ static void desenha_bolsa_run(void)
         int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44 * f);
         int y = BOLSA_Y + (int)((lin + 0.5f) * 40 * f);
         if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_OURO);
+        if (i == cursor) brilho_passa = mola_brilho();
         peca_parada((float)x, (float)(y - (i == cursor ? mola_px() : 0)), 15 * f, run.col[i], 0);
         if (i != cursor) marca_rar(x, y + sel, run.col[i].tipo);
         zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, 'i');   // clique abre os detalhes

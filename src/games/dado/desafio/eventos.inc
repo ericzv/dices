@@ -461,6 +461,7 @@ static void desenha_evt(void)
         for (int k = 0; k < ev_n; k++) {
             int px = x + sel + (int)((k % g.por) * 44 * f), py = topo + (int)((k / g.por + 0.5f) * 42 * f);
             if (k == cursor) ui_selecao(px - sel, py - sel, 2 * sel, 2 * sel, C_OURO);
+            if (k == cursor) brilho_passa = mola_brilho();
             peca_parada((float)px, (float)(py - (k == cursor ? mola_px() : 0)), 15 * f, run.col[ev_lista[k]], 0);
             zona_clique(px - sel, py - sel, 2 * sel, 2 * sel, &cursor, k, KEY_ENTER);
         }

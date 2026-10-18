@@ -757,6 +757,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
 }
 
+// O brilho dos lendarios: de tempos em tempos (BRILHO_CADA s) uma faixa de
+// luz fina, com um fio mais fino atras, atravessa o dado na diagonal, de cima
+// a esquerda para baixo a direita (o lado de onde vem a luz), em BRILHO_DUR s.
+// Devolve onde a faixa esta agora, na diagonal (dx + dy) / r do dado, ou um
+// valor fora do dado quando ela nao passa.
+#define BRILHO_CADA 3.4f
+#define BRILHO_DUR  0.5f
+static bool brilho_apagado;              // o dado em curso esta anulado: sem brilho
+static float brilho_lenda(int tipo)
+{
+    if (TIPO[tipo].raridade != RAR_LENDA || brilho_apagado) return -9;
+    float f = fmodf(t_relogio + tipo * 0.77f, BRILHO_CADA);     // cada lendario no seu tempo
+    return f < BRILHO_DUR ? -1.7f + 3.4f * f / BRILHO_DUR : -9;
+}
+
 // O corpo com a luz e o desenho de dentro: o poligono (ou o disco da moeda,
 // quando n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado, r o
 // raio. tons: os cinco tons do corpo, da sombra ao reflexo; cores: os tres
@@ -770,6 +785,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                         float cx, float cy, float ang, float r)
 {
     float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
+    float brilho = brilho_lenda(tipo);
     int tex = textura_de(tipo);
     float desvio = tipo * 3.7f;
     int y0, y1;
@@ -801,15 +817,25 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
                 float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa, v = dx * sa + dy * ca;
                 int p = desenho_interno(tipo, u * s, v * s, s);
-                if (p) { gfx_pixel(x, y, cores[p]); continue; }
-                float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
-                float luz = -(dx + dy) * s * 0.75f
-                          + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f)
-                          + 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
-                          + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
-                if (padrao(tex, u, v, r / 22)) luz -= 1;
-                int nivel = (int)lroundf(luz);
-                gfx_pixel(x, y, tons[(nivel < -2 ? -2 : nivel > 2 ? 2 : nivel) + 2]);
+                uint16_t c;
+                if (p) c = cores[p];
+                else {
+                    float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
+                    float luz = -(dx + dy) * s * 0.75f
+                              + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f)
+                              + 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
+                              + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
+                    if (padrao(tex, u, v, r / 22)) luz -= 1;
+                    int nivel = (int)lroundf(luz);
+                    c = tons[(nivel < -2 ? -2 : nivel > 2 ? 2 : nivel) + 2];
+                }
+                if (brilho > -5) {                     // o brilho do lendario: miolo branco, beira dourada
+                    float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
+                    if (d < 0.06f) c = C_BRANCO;
+                    else if (d < 0.12f) c = gfx_mistura(c, C_AMARELO, 50);
+                    else if (d2 < 0.04f) c = gfx_mistura(c, C_BRANCO, 75);
+                }
+                gfx_pixel(x, y, c);
             }
     }
 }
@@ -1063,6 +1089,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
     if (lado) mt = lado;
+    brilho_apagado = zerado;
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
     if (lados == 2) {
         int ri = (int)(r - ea);

@@ -62,7 +62,7 @@ static void fala_evento(int cat)
     if (fala_perso == PERSO_CHEFE0 + 2 && dif == N_NIVEIS && cat == FA_PERDE_P)
         s = "A cobertura é sua... mas lá em cima alguém está rindo.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
-    t_fala = 3.2f;
+    fala_comeca(3.2f);
     fala_e_curta = false;
 }
 
@@ -131,7 +131,7 @@ static void rival_reage(int m)
         op = CURTA_CHEFE[c][m == RM_PASSOU ? 0 : m == RM_CAI_DELE ? 1 : 2];
     if (!op[0] || t_curta > 0 || (t_fala > 0 && !fala_e_curta) || rnd_v() % 100 >= 40) return;
     snprintf(fala_txt, sizeof fala_txt, "%s", op[rnd_v() & 1]);
-    t_fala = 1.4f;
+    fala_comeca(1.4f);
     fala_e_curta = true;
     t_curta = 6.0f;
 }
@@ -149,4 +149,29 @@ static void rival_lance(int j, int k)
     if (j == 0 && seguidos == N_FILA) rival_reage(RM_COMBO);
     else if (passou) rival_reage(j == 0 ? RM_PASSOU : RM_ELE_PASSOU);
     else if (ver_tipo == 1 || ver_tipo >= 3) rival_reage(j == 0 ? RM_CAI_SEU : RM_CAI_DELE);   // caiu, zerou, o Egoista
+}
+
+// A fala sai letra por letra: o tanto de fala_txt ja dito (contado em letras,
+// nao em bytes, por causa dos acentos), rapido o bastante para terminar com
+// folga antes de o balao sumir.
+static const char *fala_dita_txt(void)
+{
+    static char s[sizeof fala_txt];
+    int n = 0;
+    for (const char *p = fala_txt; *p; p++) n += (*p & 0xC0) != 0x80;
+    float lps = 45, folga = fala_dur > 0 ? n / (0.4f * fala_dur) : lps;   // letras por segundo
+    if (folga > lps) lps = folga;
+    int ver = (int)(fala_dita * lps) + 1, i = 0, l = 0;
+    for (; fala_txt[i]; i++) {
+        if ((fala_txt[i] & 0xC0) != 0x80 && l++ == ver) break;
+        s[i] = fala_txt[i];
+    }
+    s[i] = 0;
+    return s;
+}
+
+// A boca do retrato mexe enquanto as letras saem.
+static bool fala_digitando(void)
+{
+    return t_fala > 0.3f && strlen(fala_dita_txt()) < strlen(fala_txt);
 }

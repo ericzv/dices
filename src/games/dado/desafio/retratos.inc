@@ -676,8 +676,9 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
             if (rt[j][i]) gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, rt[j][i] == 1 ? contorno : rt[j][i]);
 }
 
-// Balao de fala saindo do retrato (x, y: a ponta do bico).
-static void desenha_balao(int x, int y, const char *s)
+// Balao de fala saindo do retrato (x, y: a ponta do bico). O tamanho vem da
+// fala inteira; o texto, do que ja foi dito.
+static void desenha_balao(int x, int y, const char *s, const char *dito)
 {
     int w = gfx_largura(s, 1) + 16, h = TXT_H + 8;
     int bx = x + 6, by = y - h / 2;
@@ -688,7 +689,7 @@ static void desenha_balao(int x, int y, const char *s)
     gfx_rect(bx + 1, by + 1, w - 2, h - 2, C_MARFIM);
     ui_contorno(bx, by, w, h, C_EBANO_B);
     for (int i = 0; i < 5; i++) gfx_rect(x + i, y - (5 - i) / 2, 7 - i, 5 - i, C_MARFIM);   // bico
-    txt(bx + 8, by + 3, s, C_EBANO, false);
+    txt(bx + 8, by + 3, dito, C_EBANO, false);
 }
 
 // Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
@@ -701,7 +702,7 @@ static int retrato_faixa(int j, int x, int y0)
     int esc = 2, corte = 3;                     // em cima so tem a ponta da cartola
     int y = j == 1 ? y0 : y0 + 2;
     gfx_rect(x - 2, y, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
-    retrato(x, y, esc, perso, t_fase + perso * 1.3f, j == 1 && t_fala > 0.3f, corte, (FAIXA_H - 2) / esc);
+    retrato(x, y, esc, perso, t_fase + perso * 1.3f, j == 1 && fala_digitando(), corte, (FAIXA_H - 2) / esc);
     if (j == 1) {
         gfx_rect(x - 2, y0 + FAIXA_H - 2, RT_W * esc + 4, 2, C_LATAO_ESC);
         dica_zona(x, y0, RT_W * esc, FAIXA_H, DICA_TRUNFO, fala_perso);
@@ -743,7 +744,7 @@ static void balao_oponente(void)
                 || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
     if (!partida) return;
     int y = FAIXA_H + 14;
-    desenha_balao(20, y, fala_txt);
+    desenha_balao(20, y, fala_txt, fala_dita_txt());
 }
 
 

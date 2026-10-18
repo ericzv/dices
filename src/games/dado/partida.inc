@@ -139,7 +139,7 @@ static void nova_rodada(void)
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que cai é meu! Hahaha!");
-        t_fala = 3.2f;
+        fala_comeca(3.2f);
         fala_e_curta = false;
     }
     if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
@@ -158,7 +158,7 @@ static void nova_rodada(void)
     if (tem_reg(REG_MALUCO)) {
         maluco_lado = (int8_t)((rnd() & 1) ? 2 : -1);
         snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
-        t_fala = 2.6f;
+        fala_comeca(2.6f);
         fala_e_curta = false;
     }
     for (int j = 0; j < 2; j++) {

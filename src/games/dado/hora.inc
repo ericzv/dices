@@ -317,3 +317,22 @@ static void placar_passo(float dt, float dt_real)
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// A mola: quando o cursor anda (ou o dado escolhido entra na sequencia), o
+// item da vez da um pulinho e assenta, como numa mola amortecida: sobe uns
+// 4 pixels, passa um pouco do lugar na volta e para em um terco de segundo.
+// ---------------------------------------------------------------------------
+static float t_mola = 1;
+static int mola_cursor = -1, mola_fase = -1;
+static void mola_passo(float dt_real)
+{
+    if (cursor != mola_cursor || fase != mola_fase) { mola_cursor = cursor; mola_fase = fase; t_mola = 0; }
+    else if (t_mola < 1) t_mola += dt_real;
+}
+static void mola_chuta(void) { t_mola = 0; }
+static int mola_px(void)                 // quanto o item da vez esta acima do lugar
+{
+    if (t_mola >= 0.4f) return 0;
+    return (int)lroundf(5 * sinf(t_mola * 6 * 2 * 3.14159f) * expf(-t_mola / 0.11f));
+}

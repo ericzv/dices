@@ -3,7 +3,8 @@
 // jogo.
 //
 //  - Trilha: a bossa de 16 compassos do jogo, tocada por teclado (um Rhodes
-//    gravado) e baixo eletrico, com vassourinha e shaker; em loop.
+//    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
+//    com o rufo, na hora da verdade e nos climax (Jackpot, fim, premio).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
 //    moeda tem o seu: a beirada tocando o feltro a cada volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
@@ -53,6 +54,7 @@ static Music trilha;
 static bool  pronto, falhou, ligado = true, musica = true;
 static bool  rufando, girando, suspense;
 static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
+static float t_climax;                       // > 0: um climax tocando (a trilha abaixa ate ele acabar)
 
 static const som_arquivo_t *acha(const char *nome)
 {
@@ -137,8 +139,11 @@ void som_atualiza(float dt)
         SetSoundVolume(giro, vol_giro);
         if (!girando && vol_giro < 0.01f) StopSound(giro);
     }
-    // Na hora da verdade a trilha quase some, e volta sem pressa depois.
+    // Na hora da verdade a trilha quase some; nos climax (Jackpot, fim da
+    // partida, premio) abaixa enquanto eles tocam. Depois volta sem pressa.
+    if (t_climax > 0) t_climax -= dt;
     float d = suspense ? 0.08f : (rufando || girando ? 0.45f : 1);
+    if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.4f ? 0.9f : 0.25f));
     SetMusicVolume(trilha, 0.35f * duck * (ligado && musica ? 1 : 0));
     UpdateMusicStream(trilha);
@@ -158,6 +163,10 @@ static void toca(int s, float tom)
     Sound voz = e->voz[v][e->prox++ % VOZES];
     SetSoundPitch(voz, tom);
     PlaySound(voz);
+    if (s == SOM_JACKPOT || s == SOM_FIM || s == SOM_DERROTA || s == SOM_PREMIO) {
+        float dur = voz.stream.sampleRate ? (float)voz.frameCount / voz.stream.sampleRate / tom : 1;
+        if (dur > t_climax) t_climax = dur;
+    }
 }
 
 void som_toca(int s)

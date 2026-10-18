@@ -324,7 +324,7 @@ static void desenha_loja_run(void)
         bool ja = am ? run.am_levou : run.levou[i], cur = i == cursor, da = run.moedas >= pr;
         uint16_t cr = am ? C_OURO : cor_rar(run.loja[i].tipo);
         ui_cartao(x - wc / 2, yb, wc, 92, cur, cr);
-        float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
+        float bob = cur && !ja ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         if (am) desenha_amuleto(x, yb + 32 + (int)bob, 20, run.am_loja, false);
         else peca_parada((float)x, yb + 32 + bob, 22, run.loja[i], 0);
         if (ja) {
@@ -370,7 +370,7 @@ static void desenha_bolsa_run(void)
         int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 44 * f);
         int y = BOLSA_Y + (int)((lin + 0.5f) * 40 * f);
         if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_OURO);
-        peca_parada((float)x, (float)y, 15 * f, run.col[i], 0);
+        peca_parada((float)x, (float)(y - (i == cursor ? mola_px() : 0)), 15 * f, run.col[i], 0);
         if (i != cursor) marca_rar(x, y + sel, run.col[i].tipo);
         zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, 'i');   // clique abre os detalhes
     }
@@ -476,7 +476,7 @@ static void desenha_fim_partida_run(void)
         bool chefe = perso_chefe(fala_perso);
         gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
         gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
-        retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, t_fala > 0.3f, 0, RT_H);
+        retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, fala_digitando(), 0, RT_H);
         dica_zona(rx, ry, RT_W * esc, RT_H * esc, DICA_TRUNFO, fala_perso);
         if (fala_txt[0]) txt_c(rx + RT_W * esc / 2, ry + RT_H * esc + 6, PERSO[fala_perso].nome, C_ROSA, true);
     }
@@ -519,9 +519,12 @@ static void desenha_fim_partida_run(void)
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
         teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
     }
-    if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele
+    if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];
         snprintf(q, sizeof q, "\"%s\"", fala_txt);
-        txt_c(GFX_W / 2, CENTRO + 88, q, C_ROSA, false);
+        int x0 = GFX_W / 2 - gfx_largura(q, fonte_de(false)) / 2;
+        const char *dito = fala_dita_txt();
+        snprintf(q, sizeof q, "\"%s%s", dito, strlen(dito) == strlen(fala_txt) ? "\"" : "");
+        txt(x0, CENTRO + 88, q, C_ROSA, false);
     }
 }

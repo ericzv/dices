@@ -39,6 +39,7 @@ void dado_passo(float dt)
         if (fase == F_EFEITOS) proximo_evento();
     }
     t_fase += dt;
+    mola_passo(dt_real);
     hora_passo(dt, dt_real);
     placar_passo(dt, dt_real);
     des_contadores_passo(dt, dt_real);
@@ -47,6 +48,7 @@ void dado_passo(float dt)
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
+    if (fala_dita < 60) fala_dita += dt_real;
     if (t_reacao > 0) t_reacao -= dt_real;
     if (t_curta > 0) t_curta -= dt_real;
     ia_passo(dt);

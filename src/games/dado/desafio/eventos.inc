@@ -461,7 +461,7 @@ static void desenha_evt(void)
         for (int k = 0; k < ev_n; k++) {
             int px = x + sel + (int)((k % g.por) * 44 * f), py = topo + (int)((k / g.por + 0.5f) * 42 * f);
             if (k == cursor) ui_selecao(px - sel, py - sel, 2 * sel, 2 * sel, C_OURO);
-            peca_parada((float)px, (float)py, 15 * f, run.col[ev_lista[k]], 0);
+            peca_parada((float)px, (float)(py - (k == cursor ? mola_px() : 0)), 15 * f, run.col[ev_lista[k]], 0);
             zona_clique(px - sel, py - sel, 2 * sel, 2 * sel, &cursor, k, KEY_ENTER);
         }
         int yd = topo + (int)(((ev_n - 1) / g.por + 1) * 42 * f) + 13;
@@ -538,7 +538,7 @@ static void desenha_amuleto_run(void)
         int x = GFX_W / 2 + (i - 1) * 150;
         bool cur = i == cursor;
         ui_cartao(x - 64, 124, 128, 100, cur, 0);
-        float bob = cur ? sinf(t_fase * 4) * 3 : 0;
+        float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         desenha_amuleto(x, 162 + (int)bob, 26, a, false);
         txt_c(x, 198, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
         zona_clique(x - 64, 124, 128, 100, &cursor, i, KEY_ENTER);

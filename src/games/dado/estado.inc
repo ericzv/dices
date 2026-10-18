@@ -224,6 +224,8 @@ enum { FA_INICIO, FA_CAI, FA_GANHA_R, FA_PERDE_R, FA_GANHA_P, FA_PERDE_P, FA_N }
 static void fala_evento(int cat);
 static char  fala_txt[64];
 static float t_fala;                     // > 0: o balao do oponente esta na mesa
+static float fala_dur, fala_dita;        // quanto a fala dura, e ha quanto tempo comecou (sai letra por letra)
+static void fala_comeca(float dur) { t_fala = fala_dur = dur; fala_dita = 0; }
 // Reacoes do oponente (falas.inc): o rosto muda por um instante quando algo
 // acontece na mesa e, as vezes, sai uma palavra num balao curto.
 enum { RM_PASSOU, RM_ELE_PASSOU, RM_CAI_DELE, RM_CAI_SEU, RM_COMBO, RM_ATACOU, RM_HORA,

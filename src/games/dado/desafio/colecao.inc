@@ -127,7 +127,7 @@ static void des_virou(void)
     t_virada = 2.4f;
     som_toca(SOM_ZERA);
     snprintf(fala_txt, sizeof fala_txt, "%s", VIRADA_FRASE[fala_perso - PERSO_CHEFE0]);
-    t_fala = 3.4f;
+    fala_comeca(3.4f);
 }
 
 static void des_virada_anuncio(void)

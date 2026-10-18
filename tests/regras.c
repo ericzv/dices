@@ -739,6 +739,11 @@ int main(void)
         joga(0, D_D6, 3); joga(0, D_D8, 5);
         d = fim();
         CONFERE(d.total[0] == 3 + 3 + 5, "Trinca: esperava 11, deu %d", d.total[0]);
+        // Prensa com Trinca: o 1 vira 3 e ainda ganha +3.
+        limpa(); amul[0] = 1u << A_PRENSA | 1u << A_TRINCA;
+        joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Prensa com Trinca: esperava 6, deu %d", d.total[0]);
         // Piramide: x2 nos de 4 lados.
         limpa(); amul[0] = 1u << A_PIRAMIDE;
         joga(0, D_D4, 3); joga(0, D_D6, 5);
@@ -1577,6 +1582,19 @@ int main(void)
         CONFERE(run.am_loja >= A_N || RAR_AMULETO[run.am_loja] == AMR_INCOMUM, "a loja do Salao Vermelho: incomuns");
         run.andar = 2; monta_loja_run();
         CONFERE(run.am_loja >= A_N || RAR_AMULETO[run.am_loja] == AMR_RARO, "a loja do Salao Dourado: raros");
+        // Todos tem raridade; os que voltaram, nas que foram escolhidas.
+        for (int a = 0; a < A_N; a++) CONFERE(amuleto_no_jogo(a), "amuleto %d sem raridade", a);
+        CONFERE(RAR_AMULETO[A_FERRADURA] == AMR_RARO && RAR_AMULETO[A_COROA] == AMR_INCOMUM
+                && RAR_AMULETO[A_PRENSA] == AMR_INCOMUM && RAR_AMULETO[A_CUPOM] == AMR_COMUM
+                && RAR_AMULETO[A_TACA] == AMR_COMUM && RAR_AMULETO[A_CORINGA] == AMR_COMUM
+                && RAR_AMULETO[A_DUPLA] == AMR_COMUM, "raridade dos que voltaram");
+        // Os de nivel so saem depois de abertos: no Normal, nem a Ferradura nem a Dupla.
+        run_poe_amuletos(0);
+        for (int i = 0; i < 300; i++) {
+            uint8_t a;
+            sorteia_amuletos(&a, 1, AMR(AMR_COMUM) | AMR(AMR_INCOMUM) | AMR(AMR_RARO));
+            CONFERE(a < A_N && NIVEL_AMULETO[a] <= perfil()->nivel, "sorteou amuleto fechado: %d", a);
+        }
         // Os que sairam do jogo nao saem em sorteio nenhum.
         run_poe_amuletos(0);
         for (int i = 0; i < 200; i++) {

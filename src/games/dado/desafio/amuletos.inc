@@ -40,17 +40,18 @@ static const amuleto_t AMULETO[A_N] = {
 // Raridade de cada um, que diz em que momento da run ele aparece: comuns no
 // comeco (e nas lojas e na Fonte do Salao Verde), incomuns depois do primeiro
 // chefe (e no Salao Vermelho), raros depois do segundo e, na Cobertura, do
-// Barao (e no Salao Dourado e no do Coringa). Fora: nao sai mais para o
-// jogador (o codigo fica: ha oponentes que usam como trunfo).
+// Barao (e no Salao Dourado e no do Coringa). Fora: nao sai para o jogador
+// (nenhum hoje). Os de nivel (NIVEL_AMULETO) so entram depois de abertos.
 enum { AMR_FORA, AMR_COMUM, AMR_INCOMUM, AMR_RARO };
 static const uint8_t RAR_AMULETO[A_N] = {
     [A_BOLSA] = AMR_COMUM, [A_OURO] = AMR_COMUM, [A_PENA] = AMR_COMUM, [A_IMA] = AMR_COMUM,
     [A_COURACA] = AMR_COMUM, [A_COFRE] = AMR_COMUM, [A_POTE] = AMR_COMUM, [A_FURADO] = AMR_COMUM,
-    [A_SELO] = AMR_COMUM, [A_DESFORRA] = AMR_COMUM, [A_RELOGIO] = AMR_COMUM,
+    [A_SELO] = AMR_COMUM, [A_DESFORRA] = AMR_COMUM, [A_RELOGIO] = AMR_COMUM, [A_CUPOM] = AMR_COMUM,
+    [A_TACA] = AMR_COMUM, [A_CORINGA] = AMR_COMUM, [A_DUPLA] = AMR_COMUM,
     [A_CONTRATO] = AMR_INCOMUM, [A_RESERVA] = AMR_INCOMUM, [A_PEDAGIO] = AMR_INCOMUM, [A_MAU_OLHADO] = AMR_INCOMUM,
     [A_PESADO] = AMR_INCOMUM, [A_CARTOLA] = AMR_INCOMUM, [A_CRISANTEMO] = AMR_INCOMUM, [A_TRINCA] = AMR_INCOMUM,
-    [A_PIRAMIDE] = AMR_INCOMUM,
-    [A_LUVA] = AMR_RARO, [A_REDE] = AMR_RARO, [A_ABRE_ALAS] = AMR_RARO, [A_SAIDEIRA] = AMR_RARO, [A_CORRIMAO] = AMR_RARO,
+    [A_PIRAMIDE] = AMR_INCOMUM, [A_COROA] = AMR_INCOMUM, [A_PRENSA] = AMR_INCOMUM,
+    [A_LUVA] = AMR_RARO, [A_FERRADURA] = AMR_RARO, [A_REDE] = AMR_RARO, [A_ABRE_ALAS] = AMR_RARO, [A_SAIDEIRA] = AMR_RARO, [A_CORRIMAO] = AMR_RARO,
 };
 #define AMR(r) (1u << (r))
 static bool amuleto_no_jogo(int a) { return RAR_AMULETO[a] != AMR_FORA; }

@@ -273,6 +273,7 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
                 break;
             }
             case F_RBOLSA:
+            case F_NOVIDADES:
                 trata_tecla(KEY_TAB);
                 break;
             default:

@@ -800,6 +800,38 @@ def ad_gorjeta():
     return sala(m.x, 0.12)
 
 # ---------------------------------------------------------------------------
+# Novidades (Modo Desafiante): o que abriu, um card de cada vez
+# ---------------------------------------------------------------------------
+def vira_carta():
+    """O card virando: um sopro curto de papel e o estalo dele deitando."""
+    m = Mix(0.3)
+    n = int(0.09 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 1800, 7000) * np.sin(np.pi * q) ** 1.5, 0.3)
+    m.poe(0.085, estalinho(0.012, 2500), 0.35)
+    return m.x
+
+def novidade():
+    """Uma coisa nova: o card vira e soa uma nota de celesta, com o vibrafone embaixo.
+    O jogo toca cada card seguinte um semitom acima."""
+    m = Mix(1.2)
+    m.poe(0, vira_carta(), 1.0)
+    m.poe(0.09, nota('celesta', 84, 0.35, 0.5), 0.55)
+    m.poe(0.09, nota('vibraphone', 72, 0.5, 0.6), 0.35)
+    return sala(m.x, 0.2)
+
+def novidade_lenda():
+    """A novidade grande (a dificuldade nova, um lendario): o card vira e um
+    acorde de vibrafone abre subindo, com sininhos por cima."""
+    m = Mix(2.0)
+    m.poe(0, vira_carta(), 1.0)
+    for k, n in enumerate((72, 76, 79, 84)):
+        m.poe(0.09 + k * 0.05, nota('vibraphone', n, 1.0, 0.8), 0.32)
+    m.poe(0.09, nota('celesta', 84, 0.6, 0.6), 0.4)
+    for k, n in enumerate((96, 100, 103, 108)):
+        m.poe(0.25 + k * 0.07, nota('glockenspiel', n, 0.2, 0.4), 0.22)
+    return sala(m.x, 0.25)
+
+# ---------------------------------------------------------------------------
 # Roleta do premio
 # ---------------------------------------------------------------------------
 def giro():
@@ -993,6 +1025,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_transparente': VOLUME['efeito'] * 0.8, 'ad_dourado': VOLUME['efeito'], 'ad_lobo': VOLUME['tira'],
                'ad_remendo': VOLUME['efeito'] * 0.7, 'ad_raspadinha': VOLUME['efeito'], 'ad_fermento': VOLUME['efeito'] * 0.9,
                'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha']})
+# As novidades: a comum na altura de um poder, a grande perto da vitoria.
+VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1012,7 +1046,8 @@ SONS = {
     'slot': (slot, 'slot'), 'premio': (premio, 'premio'),
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
-             'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta'):
+             'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
+             'novidade', 'novidade_lenda'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

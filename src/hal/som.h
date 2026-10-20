@@ -44,6 +44,8 @@ enum {
     SOM_AD_COLA, SOM_AD_CHUMBO, SOM_AD_REFLEXIVO, SOM_AD_AVESSO, SOM_AD_CONFETE, SOM_AD_ELETRONICO,
     SOM_AD_TRANSPARENTE, SOM_AD_DOURADO, SOM_AD_LOBO, SOM_AD_REMENDO, SOM_AD_RASPADINHA, SOM_AD_FERMENTO,
     SOM_AD_BIS, SOM_AD_MIRA, SOM_AD_GORJETA,
+    SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
+    SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_N
 };
 

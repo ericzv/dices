@@ -62,9 +62,13 @@ static bool des_tecla(int k, int e)
 
     case F_RFIM:
         if (k != KEY_ENTER) return true;
-        if (des_venceu_run) { t_fase = 0; fase = F_CREDITOS; }   // venceu: os creditos antes do menu
+        if (des_venceu_run && n_nov) nov_abre();                 // venceu: o que abriu, card a card
+        else if (des_venceu_run) { t_fase = 0; fase = F_CREDITOS; }   // e os creditos antes do menu
         else volta_ao_menu();
         return true;
+
+    case F_NOVIDADES:
+        return nov_tecla(k);
 
     case F_CREDITOS:
         if (k == KEY_ENTER) volta_ao_menu();

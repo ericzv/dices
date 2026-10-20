@@ -190,7 +190,7 @@ void dado_mouse(int x, int y, int acao)
     case F_ONLINE:
         if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
         break;
-    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS:
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS: case F_NOVIDADES:
         manda_tecla(KEY_ENTER);
         break;
     case F_PREMIO:

@@ -14,7 +14,7 @@
 
 // Moedas por mesa vencida: [salao][1o, 2o, 3o oponente, chefe]. O Barao so
 // paga na Cobertura (nos outros niveis a run acaba nele); o Coringa fecha a run.
-static const uint8_t MOEDAS_MESA[DES_ANDARES][DES_PASSOS] = { { 1, 2, 3, 5 }, { 4, 5, 6, 10 }, { 7, 8, 9, 20 } };
+static const uint8_t MOEDAS_MESA[DES_ANDARES][DES_PASSOS] = { { 2, 3, 4, 5 }, { 4, 5, 6, 10 }, { 7, 8, 9, 20 } };
 
 enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_VAZIO = 0xFF };
 // Onde a run parou: R_VENCEU e a mesa vencida (falta o amuleto do chefe, a

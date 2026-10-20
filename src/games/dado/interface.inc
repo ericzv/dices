@@ -240,7 +240,7 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 }
 
 // Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
-enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO };
+enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO, DICA_ADESIVO };
 typedef struct { int16_t x, y, w, h; uint8_t tipo, id; } dica_t;
 #define MAX_DICAS 64
 static dica_t dicas[MAX_DICAS];

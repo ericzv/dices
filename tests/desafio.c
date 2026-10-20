@@ -357,6 +357,7 @@ int main(int argc, char **argv)
                 trata_tecla(KEY_ENTER);
                 break;
             case F_RBOLSA:
+            case F_NOVIDADES:                // o card do chefe: TAB vira, TAB segue
                 trata_tecla(KEY_TAB);
                 break;
             default:                         // partida: a IA joga dos dois lados

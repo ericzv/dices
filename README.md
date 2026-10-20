@@ -36,7 +36,7 @@ mais 4).
   jogo. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
   de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
-  salão (1, 2, 3 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
+  salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
   terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
   dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
@@ -65,8 +65,11 @@ mais 4).
   a mais por nível), e os chefes e as dificuldades abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
-  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. A
-  coleção mostra o que está aberto e o que falta.
+  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
+  que abre aparece no fim da run, um card de cada vez (a dificuldade, o
+  amuleto, os dados, o adesivo e o estilo), e o dado de um chefe vencido pela
+  primeira vez, num card logo depois da partida. A coleção mostra o que está
+  aberto e o que falta.
 
 ## Jogar no navegador (e online)
 

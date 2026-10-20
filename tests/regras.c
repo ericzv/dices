@@ -1542,7 +1542,7 @@ int main(void)
         CONFERE(fase == F_MAPA && run.estado == R_MAPA && run.passo == 0, "da loja da entrada, o mapa");
         // Cada mesa vencida paga a tabela e abre a loja; o chefe deixa antes um
         // amuleto (o primeiro, incomum).
-        static const int VALE[DES_PASSOS] = { 1, 2, 3, 5 };
+        static const int VALE[DES_PASSOS] = { 2, 3, 4, 5 };
         for (int p = 0; p < DES_PASSOS; p++) {
             CONFERE(run.passo == p && fase == F_MAPA, "mesa %d: passo %d, fase %d", p, run.passo, fase);
             des_comeca_partida();
@@ -1560,7 +1560,12 @@ int main(void)
             run_t r;
             CONFERE(des_carrega(&r) && r.estado == R_VENCEU, "a vitoria nao ficou salva");
             des_apos_fim();
-            if (p == DES_PASSOS - 1) {
+            if (p == DES_PASSOS - 1) {           // o Crupie vencido pela 1a vez: o card do D20 antes
+                CONFERE(fase == F_NOVIDADES && n_nov == 1 && nov[0].k == NV_DADO && nov[0].v == D_D20 && !nov_pronto(),
+                        "o chefe devia mostrar o D20 num card (fase %d)", fase);
+                nov_tecla(KEY_ENTER);            // vira
+                CONFERE(fase == F_NOVIDADES && nov_pronto(), "ENTER devia virar o card");
+                nov_tecla(KEY_ENTER);            // segue
                 CONFERE(fase == F_RAMULETO && run.am_volta == AV_CHEFE && RAR_AMULETO[run.am_oferta[0]] == AMR_INCOMUM,
                         "o chefe devia deixar um incomum (fase %d)", fase);
                 amuleto_escolhido(cursor);
@@ -1687,6 +1692,38 @@ int main(void)
             CONFERE(run.moedas == m, "o Coringa nao paga: fecha a run");
             des_apos_fim();
             CONFERE(fase == F_RFIM && des_venceu_run, "vencer o Coringa devia fechar a run");
+        }
+        // Vencer o Barao no Nivel 2 pela primeira vez: as novidades, card a
+        // card - a dificuldade, o amuleto, os dados do mais comum ao lendario,
+        // o adesivo e o estilo do andar; ENTER no fim da run as abre, TAB vai
+        // ao resumo e ENTER aos creditos.
+        {
+            perfis[perfil_atual].nivel = 2; perfis[perfil_atual].venceu[2] = 0;
+            run.dificuldade = 2; run.andar = DES_ANDARES - 1; gera_andar(); run.passo = DES_PASSOS - 1;
+            encerra_run(true);
+            int am[2], dd[LIB_DADOS], nd = 0;
+            liberados(3, am, dd);
+            for (int i = 0; i < LIB_DADOS; i++) nd += dd[i] >= 0;
+            CONFERE(fase == F_RFIM && des_liberou == 3 && n_nov == 1 + 1 + nd + 1 + 1
+                    && nov[0].k == NV_DIF && nov[0].v == 3 && nov[1].k == NV_AMULETO && nov[1].v == A_RELOGIO
+                    && nov[n_nov - 2].k == NV_ADESIVO && nov[n_nov - 2].v == AD_TRANSPARENTE
+                    && nov[n_nov - 1].k == NV_ESTILO && nov[n_nov - 1].v == 2,
+                    "novidades do Nivel 3: %d cards (dados %d)", n_nov, nd);
+            for (int i = 3; i < 2 + nd; i++)
+                CONFERE(TIPO[nov[i].v].raridade >= TIPO[nov[i - 1].v].raridade, "novidades: os dados fora de ordem (%d)", i);
+            trata_tecla(KEY_ENTER);
+            CONFERE(fase == F_NOVIDADES && !nov_pronto(), "ENTER no fim da run devia abrir as novidades (fase %d)", fase);
+            int toques = 0;
+            while (!nov_pronto() && toques < 100) { nov_tecla(KEY_ENTER); toques++; }
+            CONFERE(nov_pronto() && toques <= 3 * n_nov + 1, "ENTER devia levar card a card ao resumo (%d toques)", toques);
+            nov_tecla(KEY_ENTER);
+            CONFERE(fase == F_CREDITOS, "do resumo, os creditos (fase %d)", fase);
+            // Sem nada novo (o Nivel 2 ja vencido antes, sem subir): direto aos creditos.
+            perfis[perfil_atual].nivel = 5; perfis[perfil_atual].venceu[2] = 1;
+            encerra_run(true);
+            CONFERE(n_nov == 0, "nada abriu: sem novidades (%d)", n_nov);
+            trata_tecla(KEY_ENTER);
+            CONFERE(fase == F_CREDITOS, "sem novidades, direto aos creditos (fase %d)", fase);
         }
         // A run de antes desta estrutura nao abre: comeca outra.
         salva_grava(chave_run(), "DES2zz");

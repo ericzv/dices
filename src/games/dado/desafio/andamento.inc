@@ -38,6 +38,10 @@ static int saque_total(void) { return run.ganho + run.juros + run.taca + run.dou
 // Barao, em pouco mais de um segundo e meio.
 static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 1.7f / n; }
 
+static void nov_passo(void);             // as novidades (novidades.inc)
+static void nov_monta_run(void);
+static void nov_abre_marco(void);
+
 static void des_contadores_passo(float dt, float dt_real)
 {
     if (modo != M_DESAFIO) { moedas_ok = false; return; }
@@ -46,6 +50,7 @@ static void des_contadores_passo(float dt, float dt_real)
     if (t_bolsa_pulo > 0) t_bolsa_pulo -= dt_real / 0.35f;
     if (t_mapa_anda > 0 && fase == F_MAPA && (t_mapa_anda -= dt_real) <= 0) som_toca(SOM_FICHA);   // a ficha assenta
     loja_passo(dt_real);
+    nov_passo();
 
     if (fase != F_FIM || venc_partida != 0) {
         saque_n = 0;
@@ -157,6 +162,7 @@ static void encerra_run(bool venceu)
         perfis_salva();
         hist_run_venceu();
     }
+    if (venceu) nov_monta_run();                 // o que abriu, para mostrar card a card
     salva_apaga(chave_run());
     t_fase = 0;
     fase = F_RFIM;
@@ -490,7 +496,8 @@ static void des_pos_vitoria(void)
 // ENTER na tela do fim da partida.
 static void des_apos_fim(void)
 {
-    if (venc_partida == 0) des_pos_vitoria();
+    if (venc_partida == 0 && des_marco >= 0) nov_abre_marco();   // o chefe abriu um dado: o card antes
+    else if (venc_partida == 0) des_pos_vitoria();
     else encerra_run(false);
 }
 

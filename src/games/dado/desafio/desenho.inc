@@ -341,26 +341,20 @@ static void desenha_bolsa_run(void)
 }
 
 // ---- Fim da run ---------------------------------------------------------
-static void desenha_liberou(int dy);
-static int liberou_itens(void);
+static int nov_quantas(void);             // as novidades que a run abriu (novidades.inc)
+static void nov_linha_fim(int y);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     faixa_run(0);
-    bool abriu = des_venceu_run && des_liberou > 0;
-    char es[96];
-    int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
-    int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
-    // O que abriu em duas linhas: o painel cresce, e tudo sobe um pouco.
-    int dois = abriu && liberou_itens() > 5 ? 24 : 0, up = dois ? 16 : 0;
-    painel(CENTRO - 84 - up, (abriu ? 208 : 168) + extra + dois, abriu ? 580 : 500);
+    int n = des_venceu_run ? nov_quantas() : 0;
+    painel(CENTRO - 84, n ? 186 : 168, 500);
     char s[96];
     if (des_venceu_run) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "VITÓRIA", C_OURO, 3);
-        txt_c(GFX_W / 2, CENTRO - 6 - up, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
-        desenha_liberou(-up);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
+        txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
     } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "FIM DA RUN", C_VINHO_CLR, 3);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
         if (des_perdeu_para >= 0)
             snprintf(s, sizeof s, "%s venceu você no %s.", PERSO[des_perdeu_para].nome, SALAO[des_perdeu_andar]);
         else snprintf(s, sizeof s, "A casa ficou com a mesa.");
@@ -368,13 +362,10 @@ static void desenha_fim_run(void)
     }
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
-    txt_c(GFX_W / 2, CENTRO + 22 - up, s, C_TEXTO_M, false);
-    if (ne) {
-        char l[128];
-        snprintf(l, sizeof l, "Estilo: %s", es);
-        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44) + dois - up, l, C_OURO, false);
-    }
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra + dois - up, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
+    if (n) nov_linha_fim(CENTRO + 46);          // o que abriu vem depois, card a card
+    teclas_c(GFX_W / 2, CENTRO + (n ? 76 : 58), n ? "ENTER mostra as novidades"
+                                                  : des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha
@@ -487,15 +478,11 @@ static void desenha_fim_partida_run(void)
     if (venc_partida == 0) {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, "VOCÊ VENCEU", C_LATAO, 3);
         saque_fileira(CENTRO + 4);
-        const char *dica = fim_da_run() ? "ENTER segue" : chefe_deixa_amuleto() ? "ENTER: o chefe deixa um amuleto"
-                                                                                 : "ENTER vai à loja";
+        const char *dica = fim_da_run() ? "ENTER segue" : des_marco >= 0 ? "ENTER mostra a novidade"
+                         : chefe_deixa_amuleto() ? "ENTER: o chefe deixa um amuleto" : "ENTER vai à loja";
         int yd = CENTRO + 56;
-        if (des_marco >= 0) {                      // primeira vitoria contra este chefe
-            char m[64];
-            snprintf(m, sizeof m, "Abriu o %s para as próximas runs", TIPO[des_marco].nome);
-            int w = gfx_largura(m, 1);
-            desenha_dado((float)(GFX_W / 2 - w / 2 - 12), (float)(CENTRO + 52), 8, des_marco, 0, 0, 0, 0, false);
-            txt(GFX_W / 2 - w / 2 + 2, CENTRO + 46, m, C_OURO, true);
+        if (des_marco >= 0) {                      // primeira vitoria contra este chefe: o card vem depois
+            txt_c(GFX_W / 2, CENTRO + 46, "Abriu uma novidade para as próximas runs", C_OURO, true);
             yd = CENTRO + 72;
         }
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);

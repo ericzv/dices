@@ -155,11 +155,21 @@ static int compra_medida(void)
     return b;
 }
 
-// A loja da run: compra pelo jeito pedido; com sobra, tira uma moeda (D2) ou
-// troca a vitrine uma vez.
+// A loja da run: compra pelo jeito pedido; com sobra, abre o pacote, tira uma
+// moeda (D2) ou troca a vitrine uma vez.
 static void loja_passo_robo(int *compras)
 {
     relogio += 16667;
+    if (lj_pac) {                                // o pacote aberto: leva o mais raro
+        if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); return; }
+        int b = 0;
+        for (int i = 1; i < PAC_OPCOES; i++)
+            if (TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
+        cursor = b;
+        trata_tecla(KEY_ENTER);
+        (*compras)++;
+        return;
+    }
     if (lj_tirando) {
         if (t_lj_tira > 0 || t_lj_volta > 0) { dado_passo(1.0f / 60); return; }
         int m = -1;
@@ -181,8 +191,12 @@ static void loja_passo_robo(int *compras)
     bool moeda = false;
     for (int i = 0; i < run.n_col; i++) moeda |= run.col[i].tipo == D_D2;
     if (b >= 0) { cursor = b; trata_tecla(KEY_ENTER); (*compras)++; }
-    else if (jeito_compra != 2 && moeda && run.moedas >= preco_remove() + 3) { cursor = nv + 1; trata_tecla(KEY_ENTER); }
-    else if (jeito_compra != 2 && !run.trocas && run.moedas >= 6) { cursor = nv; trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && run.pac_estado == PAC_VENDA && run.pacote < GR_N && run.moedas >= preco_pacote()) {
+        cursor = nv;                             // sobrou: abre o pacote
+        trata_tecla(KEY_ENTER);
+    }
+    else if (jeito_compra != 2 && moeda && run.moedas >= preco_remove() + 3) { cursor = nv + 2; trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && !run.trocas && run.moedas >= 6) { cursor = nv + 1; trata_tecla(KEY_ENTER); }
     else trata_tecla(KEY_TAB);
 }
 

@@ -92,6 +92,8 @@ static bool des_carrega(run_t *r)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
+    for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N) return false;
+    if ((r->pacote >= GR_N && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     return true;

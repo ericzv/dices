@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 
     int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
-    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0;
+    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0, soma_pacotes = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
         CONFERE(fase == F_RAMULETO && run.moedas == moedas_iniciais(dific) && run.n_col == (int)sizeof BOLSA_INICIO
                 && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
-        int compras = 0, trocas = 0;
+        int compras = 0, trocas = 0, pacotes = 0;
         while (fase != F_RFIM && !falhas) {
             if (++passos > 3000000) { CONFERE(0, "run %d parada na fase %d", r, fase); break; }
             relogio += 16667;
@@ -246,6 +246,18 @@ int main(int argc, char **argv)
                 break;
             }
             case F_RLOJA: {
+                if (lj_pac) {                // o pacote aberto: espera pousar e leva o mais raro
+                    if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); break; }
+                    int b = 0;
+                    for (int i = 1; i < PAC_OPCOES; i++)
+                        if (TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
+                    int n0 = run.n_col;
+                    cursor = b;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(run.n_col == n0 + 1 && run.pac_estado == PAC_USADO, "pacote: %d dados", run.n_col);
+                    pacotes++;
+                    break;
+                }
                 if (lj_tirando) {            // tirando: a moeda, depois o D4
                     if (t_lj_tira > 0 || t_lj_volta > 0) { dado_passo(1.0f / 60); break; }
                     int m = -1;
@@ -281,13 +293,18 @@ int main(int argc, char **argv)
                     trata_tecla(KEY_ENTER);
                     CONFERE(run.n_col == n0 + 1 && run.moedas == m0 - pr && run.levou[b], "compra nao entrou");
                     compras++;
+                } else if (run.pac_estado == PAC_VENDA && run.pacote < GR_N && run.moedas >= preco_pacote()) {
+                    int m0 = run.moedas;
+                    cursor = nv;                 // sobrou: abre o pacote
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(lj_pac && run.moedas == m0 - preco_pacote(), "o pacote nao abriu");
                 } else if (fraco && run.n_col > 8 && run.moedas >= preco_remove()) {
-                    cursor = nv + 1;
+                    cursor = nv + 2;
                     trata_tecla(KEY_ENTER);
                     CONFERE(lj_tirando, "tirar nao abriu");
                 } else if (!run.trocas && run.moedas >= 6) {
                     int m0 = run.moedas;
-                    cursor = nv;
+                    cursor = nv + 1;
                     trata_tecla(KEY_ENTER);
                     CONFERE(run.moedas == m0 - 1 && run.trocas == 1, "trocar a vitrine");
                     trocas++;
@@ -347,14 +364,15 @@ int main(int argc, char **argv)
         soma_compras += compras;
         soma_tiradas += run.remocoes;
         soma_trocas += trocas;
+        soma_pacotes += pacotes;
         CONFERE(!des_tem_run(), "run acabada ainda salva");
     }
     if (falhas) return 1;
     printf("%d runs (IA do jogador nivel %d, caminho %d, dificuldade %s): %d vencidas (%.0f%%)\n", runs, nivel,
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
-    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.1f moedas, %.1f compras, %.1f tirados, %.1f trocas\n",
+    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.1f moedas, %.1f compras, %.1f pacotes, %.1f tirados, %.1f trocas\n",
            partidas, ganhas, (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs,
-           (double)soma_tiradas / runs, (double)soma_trocas / runs);
+           (double)soma_pacotes / runs, (double)soma_tiradas / runs, (double)soma_trocas / runs);
     for (int a = 0; a <= DES_ANDARES; a++) {
         if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);

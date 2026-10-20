@@ -60,15 +60,116 @@ static int n_vitrine(void)    { return (run_amuletos() >> A_CARTOLA & 1) ? 3 : 2
 
 // A vitrine sai da semente da run, da loja e de quantas vezes ja trocou:
 // sair e voltar mostra a mesma. Os saloes de cima trazem mais raros.
+static const float PESO_VITRINE[DES_ANDARES][4] = {
+    { 3, 4, 2.0f, 0.4f }, { 1.5f, 4, 3.5f, 0.8f }, { 0.5f, 3, 4.0f, 1.5f } };
+static const float *peso_do_salao(void) { return PESO_VITRINE[run.andar < DES_ANDARES ? run.andar : DES_ANDARES - 1]; }
+
 static void monta_vitrine(void)
 {
     rs = run.semente ^ (0x51ED27u * (uint32_t)(run.lojas * 16 + run.trocas + 1));
     rnd_r();
-    static const float PESO_VITRINE[DES_ANDARES][4] = {
-        { 3, 4, 2.0f, 0.4f }, { 1.5f, 4, 3.5f, 0.8f }, { 0.5f, 3, 4.0f, 1.5f } };
-    const float *w = PESO_VITRINE[run.andar < DES_ANDARES ? run.andar : DES_ANDARES - 1];
-    sorteia_distintos(run.vitrine, VITRINE_MAX, w);
+    sorteia_distintos(run.vitrine, VITRINE_MAX, peso_do_salao());
     memset(run.levou, 0, sizeof run.levou);
+}
+
+// ---------------------------------------------------------------------------
+// Os pacotes: dados embrulhados, um por loja, de um grupo. So se ve o que tem
+// dentro depois de abrir (3 dados do grupo, sorteados pela raridade do
+// salao, e leva 1), por isso custa menos que a vitrine. Os grupos sao largos
+// de proposito: um grupo pequeno deixaria escolher o dado sem depender da
+// sorte. So entra na loja o grupo que ja tem pelo menos 3 dados abertos.
+// ---------------------------------------------------------------------------
+enum { GR_NUMEROS, GR_ATAQUE, GR_DEFESA, GR_COMBO, GR_N, GR_NENHUM = 0xFF };
+enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
+#define PRECO_PACOTE 4
+static const char *const NOME_GRUPO[GR_N] = { "Números", "Ataque", "Defesa", "Combo" };
+static const char *const DESC_GRUPO[GR_N] = {
+    "Números grandes e dados que valem muito (ou nada) sozinhos.",
+    "Dados que tiram pontos, anulam ou roubam do oponente.",
+    "Dados que não caem, seguram a sequência ou ganham quando caem.",
+    "Dados que ganham com os outros dados da sua sequência." };
+// A cor de cada grupo (texto e moldura) e o papel do embrulho: a luz da
+// tampa, a frente e o lado na sombra, todos da paleta.
+static const uint16_t PAPEL_GRUPO[GR_N][3] = {
+    { RGB(228, 194, 106), RGB(190, 156, 86), RGB(150, 122, 62) },     // ouro
+    { RGB(208, 98, 108), RGB(190, 56, 60), RGB(118, 30, 38) },        // vermelho
+    { RGB(96, 134, 196), RGB(56, 86, 150), RGB(26, 34, 62) },         // azul
+    { RGB(150, 112, 160), RGB(102, 74, 138), RGB(54, 36, 74) } };     // roxo
+static uint16_t cor_grupo(int g)
+{
+    static const uint16_t C[GR_N] = { C_OURO, C_VINHO_CLR, RGB(96, 134, 196), RGB(150, 112, 160) };
+    return g >= 0 && g < GR_N ? C[g] : C_LATAO;
+}
+
+static int grupo_do_dado(int t)
+{
+    switch (t) {
+    case D_D8: case D_D12: case D_D20: case D_LASTRO: case D_VICIADO: case D_EXPLOSIVO: case D_DESAFIANTE:
+    case D_ACUMULADOR: case D_PREVISIVEL: case D_PACTO: case D_EGOISTA: case D_BERSERKER: case D_AUTOFAGIA:
+    case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
+    case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
+        return GR_NUMEROS;
+    case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
+    case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
+    case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO:
+        return GR_ATAQUE;
+    case D_ESCUDO: case D_TEIMOSO: case D_SENTINELA: case D_SEGURANCA: case D_ANCORA: case D_PONTE:
+    case D_FENIX: case D_MARTIR: case D_MISERICORDIOSO: case D_FICHA_VELHA: case D_SANGUESSUGA: case D_VAZIO:
+    case D_OCULTO: case D_VIUVA: case D_AZARAO: case D_FICHAS: case D_COBRADOR:
+        return GR_DEFESA;
+    case D_DOBRO: case D_PAR: case D_FARTURA: case D_SORTE: case D_SEMENTE: case D_JACKPOT: case D_COPIADOR:
+    case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
+    case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
+    case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
+        return GR_COMBO;
+    default:
+        return GR_NENHUM;                        // os de saida e os que nao saem em sorteio
+    }
+}
+
+static bool no_grupo(int t, int g) { return !so_inicial(t) && dado_liberado(t) && grupo_do_dado(t) == g; }
+static int dados_no_grupo(int g)
+{
+    int n = 0;
+    for (int t = 0; t < D_N; t++) n += no_grupo(t, g);
+    return n;
+}
+static int preco_pacote(void) { return preco_ajusta(PRECO_PACOTE); }
+
+// Um dado do grupo g, pela raridade (w), que ainda nao esta em out[0..n).
+static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n)
+{
+    float total = 0;
+    for (int t = 0; t < D_N; t++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
+        if (no_grupo(t, g) && !ja) total += w[TIPO[t].raridade];
+    }
+    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+    for (int t = 0; t < D_N; t++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
+        if (!no_grupo(t, g) || ja) continue;
+        x -= w[TIPO[t].raridade];
+        if (x < 0) return peca_r(t);
+    }
+    for (int t = D_N - 1; t >= 0; t--) if (no_grupo(t, g)) return peca_r(t);
+    return peca_r(D_D8);
+}
+
+// O pacote desta loja: o grupo, ao acaso entre os que tem dados bastantes,
+// e o que vem dentro (da semente: sair e voltar mostra o mesmo).
+static void monta_pacote(void)
+{
+    rs = run.semente ^ (0xBA6E1u * (uint32_t)(run.lojas + 1));
+    rnd_r();
+    int pode[GR_N], n = 0;
+    for (int g = 0; g < GR_N; g++) if (dados_no_grupo(g) >= PAC_OPCOES) pode[n++] = g;
+    run.pac_estado = PAC_VENDA;
+    memset(run.pac_op, 0, sizeof run.pac_op);
+    if (!n) { run.pacote = GR_NENHUM; run.pac_estado = PAC_USADO; return; }
+    run.pacote = (uint8_t)pode[sorte_r(n)];
+    for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
 }
 
 static void monta_loja_run(void)
@@ -76,6 +177,7 @@ static void monta_loja_run(void)
     if (run.lojas < 255) run.lojas++;
     run.trocas = 0;
     monta_vitrine();
+    monta_pacote();
 }
 
 // ---------------------------------------------------------------------------

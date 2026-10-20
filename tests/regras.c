@@ -1744,7 +1744,7 @@ int main(void)
         #undef TIRA
         lj_tirando = false;
         loja_tira_abre();
-        CONFERE(!lj_tirando && t_lj_nega[n_vitrine() + 1] > 0, "no minimo, tirar nao devia abrir");
+        CONFERE(!lj_tirando && t_lj_nega[n_vitrine() + 2] > 0, "no minimo, tirar nao devia abrir");
         // Cartola: 3 na vitrine. Cupom: 1 a menos em tudo, nunca abaixo de 1.
         run_poe_amuleto(A_CARTOLA);
         CONFERE(n_vitrine() == 3, "Cartola: vitrine de %d", n_vitrine());
@@ -1752,6 +1752,80 @@ int main(void)
         run.trocas = 0;
         CONFERE(preco_run(D_FICHAS) == 2 && preco_run(D_D20) == 8 && preco_troca() == 1,
                 "Cupom: %d %d %d", preco_run(D_FICHAS), preco_run(D_D20), preco_troca());
+        // ---- O pacote: um grupo por loja, 3 dados dele, leva 1 ----
+        for (int t = 0; t < D_N; t++) {
+            bool sorteia = !so_inicial(t) && !sem_sorteio(t);
+            CONFERE(sorteia ? grupo_do_dado(t) < GR_N : grupo_do_dado(t) == GR_NENHUM, "grupo do dado %s: %d",
+                    TIPO[t].nome, grupo_do_dado(t));
+        }
+        // No Normal o Ataque so tem o Espinhoso: nao entra; os outros, sim.
+        CONFERE(dados_no_grupo(GR_ATAQUE) < PAC_OPCOES && dados_no_grupo(GR_NUMEROS) >= PAC_OPCOES
+                && dados_no_grupo(GR_DEFESA) >= PAC_OPCOES && dados_no_grupo(GR_COMBO) >= PAC_OPCOES,
+                "grupos no Normal: %d %d %d %d", dados_no_grupo(0), dados_no_grupo(1), dados_no_grupo(2), dados_no_grupo(3));
+        {
+            bool viu[GR_N] = { false };
+            for (int l = 0; l < 60; l++) {
+                run.lojas = (uint8_t)l;
+                monta_pacote();
+                int g = run.pacote;
+                CONFERE(g < GR_N && g != GR_ATAQUE && run.pac_estado == PAC_VENDA, "pacote %d na loja %d", g, l);
+                if (g >= GR_N) break;
+                viu[g] = true;
+                for (int i = 0; i < PAC_OPCOES; i++) {
+                    int t = run.pac_op[i].tipo;
+                    CONFERE(grupo_do_dado(t) == g && dado_liberado(t), "pacote de %s com %s", NOME_GRUPO[g], TIPO[t].nome);
+                    for (int k = 0; k < i; k++) CONFERE(run.pac_op[k].tipo != t, "pacote com %s repetido", TIPO[t].nome);
+                }
+            }
+            CONFERE(viu[GR_NUMEROS] && viu[GR_DEFESA] && viu[GR_COMBO], "os grupos do Normal deviam aparecer");
+        }
+        perfis[0].nivel = N_NIVEIS;
+        for (int g = 0; g < GR_N; g++) CONFERE(dados_no_grupo(g) >= 12, "no nivel 10, o grupo %d tem %d", g, dados_no_grupo(g));
+        perfis[0].nivel = 0;
+        CONFERE(preco_pacote() == 3, "pacote com Cupom: %d", preco_pacote());   // o Cupom ainda vale
+        run_poe_amuletos(0);
+        CONFERE(preco_pacote() == 4, "pacote: %d", preco_pacote());
+        monta_loja_run();
+        peca_t op[PAC_OPCOES];
+        memcpy(op, run.pac_op, sizeof op);
+        int grupo = run.pacote;
+        loja_troca();
+        CONFERE(run.pacote == grupo && run.pac_op[0].tipo == op[0].tipo, "trocar a vitrine nao muda o pacote");
+        // Sem moedas: treme e nao abre.
+        run.moedas = 3;
+        cursor = n_vitrine();
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(!lj_pac && run.pac_estado == PAC_VENDA && t_lj_nega[n_vitrine()] > 0, "abriu o pacote sem moedas");
+        // Abre: paga, fica salvo aberto, com as mesmas cartas.
+        run.moedas = 10;
+        n = run.n_col;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(lj_pac && run.pac_estado == PAC_ABERTO && run.moedas == 6, "abrir o pacote: %d moedas", run.moedas);
+        CONFERE(des_carrega(&r) && r.pac_estado == PAC_ABERTO && r.pac_op[2].tipo == op[2].tipo, "o pacote aberto nao ficou salvo");
+        loja_tecla(KEY_ENTER, 0);                // antes de pousar, ENTER so adianta
+        CONFERE(lj_pac && run.n_col == n, "ENTER durante a animacao nao devia escolher");
+        loja_abriu();                            // saiu e voltou: o pacote aberto de novo
+        CONFERE(lj_pac && t_pac >= PAC_RASGA, "voltar devia reabrir o pacote");
+        loja_passo(PAC_PRONTO);
+        cursor = 2;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(run.n_col == n + 1 && run.col[n].tipo == op[2].tipo && run.pac_estado == PAC_USADO, "levar a 3a carta");
+        CONFERE(des_carrega(&r) && r.pac_estado == PAC_USADO && r.n_col == n + 1, "a escolha nao ficou salva");
+        loja_passo(PAC_FIM + 0.01f);
+        CONFERE(!lj_pac && cursor == n_vitrine(), "depois de escolher, a loja devia voltar");
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(!lj_pac && run.moedas == 6, "o pacote abriu duas vezes");
+        // Pular: BACKSPACE vai ao "pular", ENTER confirma; nada entra na bolsa.
+        monta_loja_run();
+        run.moedas = 10;
+        n = run.n_col;
+        loja_pacote();
+        loja_passo(PAC_PRONTO + 0.01f);
+        loja_tecla(KEY_BKSP, 0);
+        CONFERE(lj_pac && cursor == PAC_OPCOES && run.pac_estado == PAC_ABERTO, "BACKSPACE devia so ir ao pular");
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(run.n_col == n && run.pac_estado == PAC_USADO && run.moedas == 6, "pular o pacote");
+        loja_passo(PAC_FIM + 0.01f);
         // Seguir: da loja da entrada, o mapa.
         run.estado = R_LOJA_INI;
         loja_tecla(KEY_TAB, 0);

@@ -36,7 +36,9 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (1, 2, 3 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
   terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
-  dados (3, 4, 6 ou 9 moedas, pela raridade), trocar a vitrine (1, depois 2,
+  dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
+  embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
+  mostra 3 do grupo e você leva 1 ou pula), trocar a vitrine (1, depois 2,
   3...) e tirar um dado da bolsa (3, depois 5, 7... na run inteira).
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,

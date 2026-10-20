@@ -195,6 +195,7 @@ static void des_esc(void)
 // O dado em foco nas telas da run (tecla I).
 static int des_foco(void)
 {
+    if (fase == F_RLOJA && lj_pac) return t_pac >= PAC_PRONTO && cursor >= 0 && cursor < PAC_OPCOES ? run.pac_op[cursor].tipo : -1;
     if (fase == F_RLOJA && lj_tirando && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
     if (fase == F_RLOJA && !lj_tirando && cursor >= 0 && cursor < n_vitrine()) return run.vitrine[cursor].tipo;
     if (fase == F_RBOLSA && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;

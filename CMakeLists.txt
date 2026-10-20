@@ -147,6 +147,15 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(desafio PRIVATE m)
     endif()
     add_test(NAME desafio COMMAND desafio 6)
+    # Balanco do Desafiante: mede, nao testa (fica fora do ctest).
+    add_executable(balanco tests/balanco.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(balanco PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(balanco PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(balanco PRIVATE m)
+    endif()
     # Confere que todo som do jogo tem gravacao e que todas decodificam;
     # exporta tudo em WAV, para ouvir fora do jogo.
     add_executable(exporta_som tests/exporta_som.c)

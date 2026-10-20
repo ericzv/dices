@@ -121,6 +121,7 @@ static void sim_lanca(int j)
     if (f->carta && k == 3) { f->lancados = 4; f->est[3] = V_ESPERA; return; }   // a carta: so posta
     int x = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
     f->cru[k] = f->valor[k] = x;
+    f->lado[k] = (uint8_t)lado_do_lance(f->tipo[k], x, menor);
     f->descarte[k] = (uint8_t)menor;
     f->lancados = k + 1;
     pousa(j, k, rola_ia);
@@ -162,6 +163,7 @@ static void imagina_ocultos(void)
             if (!f->escondido[k]) continue;
             int menor;
             f->cru[k] = f->valor[k] = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
+            f->lado[k] = (uint8_t)lado_do_lance(f->tipo[k], f->valor[k], menor);
             f->escondido[k] = false;
         }
         refaz_sequencia(j, f->lancados);
@@ -454,7 +456,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
     peca_t pool[MAX_COL + 1];
     int n = 0;
     for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i];
-    if (extra >= 0) pool[n++] = (peca_t){ (uint8_t)extra, (uint8_t)fixo_extra };
+    if (extra >= 0) pool[n++] = (peca_t){ .tipo = (uint8_t)extra, .fixo = (uint8_t)fixo_extra };
     mesa_t m;
     guarda_mesa(&m);
     int amostras = amostras_ia(600, 40), r = outro(j);

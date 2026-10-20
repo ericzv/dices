@@ -18,7 +18,7 @@ static int sorteia_raridade(const float w[4])
 
 static peca_t peca_r(int t)
 {
-    peca_t p = { (uint8_t)t, 0 };
+    peca_t p = { .tipo = (uint8_t)t, .fixo = 0 };
     if (t == D_QUEBRADO) p.fixo = (uint8_t)(1 + sorte_r(8));
     return p;
 }
@@ -37,56 +37,175 @@ static void sorteia_distintos(peca_t *out, int n, const float w[4])
     }
 }
 
-// Premio depois de vencer: mesas faceis dao mais dados comuns; dificeis e
-// chefes, mais raros. [tier] = facil, medio, dificil, chefe.
-static const float PESO_PREMIO[4][4] = {
-    { 6, 2.0f, 0.4f, 0.0f },
-    { 3, 3.0f, 1.2f, 0.3f },
-    { 1, 2.0f, 2.5f, 1.5f },
-    { 0, 1.0f, 3.0f, 4.0f },
-};
-
-// Loja: caro de proposito, para a bolsa nao encher. Com as 50 moedas do
-// comeco, da para um dado incomum ou um comum.
-// Do Nivel 3 a loja fica mais cara; o Cupom barateia.
+// ---------------------------------------------------------------------------
+// A loja: depois de cada mesa vencida, com as poucas moedas que ela rendeu.
+// A vitrine mostra 2 dados (3 com a Cartola); trocar a vitrine custa 1, 2, 3...
+// na mesma loja; tirar um dado da bolsa custa 3, 5, 7... na run inteira. O
+// Cupom tira 1 de cada preco (nunca abaixo de 1).
+// ---------------------------------------------------------------------------
+#define BOLSA_MIN 5                      // a bolsa nao fica com menos que isto
 static int preco_ajusta(int p)
 {
-    if (run.dificuldade >= 3) p = p * 5 / 4;
-    if (run_amuletos() >> A_CUPOM & 1) p = p * 3 / 4;
-    return p;
+    if (run_amuletos() >> A_CUPOM & 1) p--;
+    return p < 1 ? 1 : p;
 }
 static int preco_run(int t)
 {
-    static const int P[4] = { 25, 40, 60, 90 };
+    static const int P[4] = { 3, 4, 6, 9 };
     return preco_ajusta(P[TIPO[t].raridade]);
 }
-static int preco_am(void) { return preco_ajusta(AM_PRECO); }
+static int preco_troca(void)  { return preco_ajusta(1 + run.trocas); }
+static int preco_remove(void) { return preco_ajusta(3 + 2 * run.remocoes); }
+static int n_vitrine(void)    { return (run_amuletos() >> A_CARTOLA & 1) ? 3 : 2; }
+
+// A vitrine sai da semente da run, da loja e de quantas vezes ja trocou:
+// sair e voltar mostra a mesma. Os saloes de cima trazem mais raros.
+static const float PESO_VITRINE[DES_ANDARES][4] = {
+    { 3, 4, 2.0f, 0.4f }, { 1.5f, 4, 3.5f, 0.8f }, { 0.5f, 3, 4.0f, 1.5f } };
+static const float *peso_do_salao(void) { return PESO_VITRINE[run.andar < DES_ANDARES ? run.andar : DES_ANDARES - 1]; }
+
+static void monta_vitrine(void)
+{
+    rs = run.semente ^ (0x51ED27u * (uint32_t)(run.lojas * 16 + run.trocas + 1));
+    rnd_r();
+    sorteia_distintos(run.vitrine, VITRINE_MAX, peso_do_salao());
+    memset(run.levou, 0, sizeof run.levou);
+}
+
+// ---------------------------------------------------------------------------
+// Os pacotes: dados embrulhados, um por loja, de um grupo. So se ve o que tem
+// dentro depois de abrir (3 dados do grupo, sorteados pela raridade do
+// salao, e leva 1), por isso custa menos que a vitrine. Os grupos sao largos
+// de proposito: um grupo pequeno deixaria escolher o dado sem depender da
+// sorte. So entra na loja o grupo que ja tem pelo menos 3 dados abertos.
+// ---------------------------------------------------------------------------
+enum { GR_NUMEROS, GR_ATAQUE, GR_DEFESA, GR_COMBO, GR_N, GR_NENHUM = 0xFF };
+enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
+#define PRECO_PACOTE 4
+static const char *const NOME_GRUPO[GR_N] = { "Números", "Ataque", "Defesa", "Combo" };
+static const char *const DESC_GRUPO[GR_N] = {
+    "Números grandes e dados que valem muito (ou nada) sozinhos.",
+    "Dados que tiram pontos, anulam ou roubam do oponente.",
+    "Dados que não caem, seguram a sequência ou ganham quando caem.",
+    "Dados que ganham com os outros dados da sua sequência." };
+// A cor de cada grupo (texto e moldura) e o papel do embrulho: a luz da
+// tampa, a frente e o lado na sombra, todos da paleta.
+static const uint16_t PAPEL_GRUPO[GR_N][3] = {
+    { RGB(228, 194, 106), RGB(190, 156, 86), RGB(150, 122, 62) },     // ouro
+    { RGB(208, 98, 108), RGB(190, 56, 60), RGB(118, 30, 38) },        // vermelho
+    { RGB(96, 134, 196), RGB(56, 86, 150), RGB(26, 34, 62) },         // azul
+    { RGB(150, 112, 160), RGB(102, 74, 138), RGB(54, 36, 74) } };     // roxo
+static uint16_t cor_grupo(int g)
+{
+    static const uint16_t C[GR_N] = { C_OURO, C_VINHO_CLR, RGB(96, 134, 196), RGB(150, 112, 160) };
+    return g >= 0 && g < GR_N ? C[g] : C_LATAO;
+}
+
+static int grupo_do_dado(int t)
+{
+    switch (t) {
+    case D_D8: case D_D12: case D_D20: case D_LASTRO: case D_VICIADO: case D_EXPLOSIVO: case D_DESAFIANTE:
+    case D_ACUMULADOR: case D_PREVISIVEL: case D_PACTO: case D_EGOISTA: case D_BERSERKER: case D_AUTOFAGIA:
+    case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
+    case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
+        return GR_NUMEROS;
+    case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
+    case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
+    case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO:
+        return GR_ATAQUE;
+    case D_ESCUDO: case D_TEIMOSO: case D_SENTINELA: case D_SEGURANCA: case D_ANCORA: case D_PONTE:
+    case D_FENIX: case D_MARTIR: case D_MISERICORDIOSO: case D_FICHA_VELHA: case D_SANGUESSUGA: case D_VAZIO:
+    case D_OCULTO: case D_VIUVA: case D_AZARAO: case D_FICHAS: case D_COBRADOR:
+        return GR_DEFESA;
+    case D_DOBRO: case D_PAR: case D_FARTURA: case D_SORTE: case D_SEMENTE: case D_JACKPOT: case D_COPIADOR:
+    case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
+    case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
+    case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
+        return GR_COMBO;
+    default:
+        return GR_NENHUM;                        // os de saida e os que nao saem em sorteio
+    }
+}
+
+static bool no_grupo(int t, int g) { return !so_inicial(t) && dado_liberado(t) && grupo_do_dado(t) == g; }
+static int dados_no_grupo(int g)
+{
+    int n = 0;
+    for (int t = 0; t < D_N; t++) n += no_grupo(t, g);
+    return n;
+}
+static int preco_pacote(void) { return preco_ajusta(PRECO_PACOTE); }
+
+// Um dado do grupo g, pela raridade (w), que ainda nao esta em out[0..n).
+static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n)
+{
+    float total = 0;
+    for (int t = 0; t < D_N; t++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
+        if (no_grupo(t, g) && !ja) total += w[TIPO[t].raridade];
+    }
+    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+    for (int t = 0; t < D_N; t++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
+        if (!no_grupo(t, g) || ja) continue;
+        x -= w[TIPO[t].raridade];
+        if (x < 0) return peca_r(t);
+    }
+    for (int t = D_N - 1; t >= 0; t--) if (no_grupo(t, g)) return peca_r(t);
+    return peca_r(D_D8);
+}
+
+// O pacote desta loja: o grupo, ao acaso entre os que tem dados bastantes,
+// e o que vem dentro (da semente: sair e voltar mostra o mesmo).
+static void monta_pacote(void)
+{
+    rs = run.semente ^ (0xBA6E1u * (uint32_t)(run.lojas + 1));
+    rnd_r();
+    int pode[GR_N], n = 0;
+    for (int g = 0; g < GR_N; g++) if (dados_no_grupo(g) >= PAC_OPCOES) pode[n++] = g;
+    run.pac_estado = PAC_VENDA;
+    memset(run.pac_op, 0, sizeof run.pac_op);
+    if (!n) { run.pacote = GR_NENHUM; run.pac_estado = PAC_USADO; return; }
+    run.pacote = (uint8_t)pode[sorte_r(n)];
+    for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
+}
+
+// O adesivo da loja (adesivos.inc): um por loja, entre os que o nivel do
+// perfil ja abriu. Trocar a vitrine nao muda o adesivo.
+static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && ADESIVO[a].nivel <= perfil()->nivel; }
+static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
+static void monta_adesivo(void)
+{
+    rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
+    rnd_r();
+    int livres[AD_N], n = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (adesivo_liberado(a)) livres[n++] = a;
+    run.adesivo = (uint8_t)(n ? livres[sorte_r(n)] : AD_NADA);
+    run.ad_vendido = 0;
+}
 
 static void monta_loja_run(void)
 {
-    rs = run.semente ^ (0x51ED27u * (uint32_t)(run.andar * 8 + run.passo + 1));
-    rnd_r();
-    float w[4] = { 3, 4, 2.0f * (1 + 0.3f * run.andar), 0.4f * (1 + 0.5f * run.andar) };
-    sorteia_distintos(run.loja, N_LOJA, w);
-    memset(run.levou, 0, sizeof run.levou);
-    sorteia_amuletos(&run.am_loja, 1, rar_do_salao(run.andar));   // a raridade do salao
-    run.am_levou = 0;
+    if (run.lojas < 255) run.lojas++;
+    run.trocas = 0;
+    monta_vitrine();
+    monta_pacote();
+    monta_adesivo();
 }
 
 // ---------------------------------------------------------------------------
-// O mapa de um salao
+// As mesas de um salao: tres oponentes, do mais facil ao mais dificil, e o
+// chefe. O salao inteiro aparece antes de comecar.
 // ---------------------------------------------------------------------------
-// O salao do Coringa: so a ultima loja e, depois dela, ele.
+// O salao do Coringa: so ele.
 static void gera_salao_final(void)
 {
     rs = run.semente ^ 0xC0121A5Au;
     rnd_r();
-    for (int p = 0; p < DES_PASSOS; p++)
-        for (int l = 0; l < 3; l++) run.no[p][l].tipo = NO_VAZIO;
-    no_t *lj = &run.no[0][1], *chefe = &run.no[1][1];
-    lj->tipo = NO_LOJA;
-    lj->liga = 1 << 1;
-    lj->semente = rnd_r() | 1;
+    for (int p = 0; p < DES_PASSOS; p++) run.no[p].tipo = NO_VAZIO;
+    no_t *chefe = &run.no[0];
     chefe->tipo = NO_CHEFE;
     chefe->perso = PERSO_CORINGA;
     chefe->nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
@@ -97,115 +216,37 @@ static void gera_salao_final(void)
 // a partir de um nivel (nenhum no Normal); os chefes, sempre.
 static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.dificuldade >= PERSO[p].andar_trunfo; }
 
-static bool existe(int p, int l) { return p >= 0 && p < DES_PASSOS && l >= 0 && l < 3 && run.no[p][l].tipo != NO_VAZIO; }
+// Quantas mesas o salao tem (o do Coringa, uma).
+static int mesas_do_salao(void)
+{
+    int n = 0;
+    while (n < DES_PASSOS && run.no[n].tipo != NO_VAZIO) n++;
+    return n;
+}
 
 static void gera_andar(void)
 {
     rs = run.semente ^ (0x9E3779B9u * (uint32_t)(run.andar + 1));
     rnd_r(); rnd_r();
-    for (int p = 0; p < DES_PASSOS; p++)
-        for (int l = 0; l < 3; l++) run.no[p][l].tipo = NO_VAZIO;
     uint32_t usados = 0;
-    int lojas = 0, ult_loja = -9, eventos = 0;
-    uint32_t evt_usados = run.lapidou ? 1u << EVT_LAPIDADOR : 0;
     for (int p = 0; p < DES_PASSOS - 1; p++) {
-        int ls[3], n;
-        if (sorte_r(100) < 45) { n = 3; ls[0] = 0; ls[1] = 1; ls[2] = 2; }
-        else {
-            static const int PAR[3][2] = { { 0, 1 }, { 1, 2 }, { 0, 2 } };
-            int q = sorte_r(3);
-            n = 2; ls[0] = PAR[q][0]; ls[1] = PAR[q][1];
-        }
-        for (int i = 0; i < n; i++) {
-            no_t *no = &run.no[p][ls[i]];
-            // O salao esquenta: a primeira mesa nunca e dificil; perto do
-            // chefe, as dificeis aparecem mais.
-            static const uint8_t FACIL[DES_PASSOS - 1] = { 50, 40, 30, 25, 20 };
-            static const uint8_t ATE_MEDIO[DES_PASSOS - 1] = { 100, 80, 70, 65, 60 };
-            int x = sorte_r(100);
-            no->tipo = x < FACIL[p] ? NO_FACIL : (x < ATE_MEDIO[p] ? NO_MEDIO : NO_DIFICIL);
-        }
-        // Ate duas lojas por salao, nunca na primeira mesa nem em passos
-        // seguidos.
-        if (lojas < 2 && p >= 1 && p - ult_loja >= 2 && sorte_r(100) < (lojas ? 30 : (p == 1 ? 35 : 50))) {
-            run.no[p][ls[sorte_r(n)]].tipo = NO_LOJA;
-            lojas++;
-            ult_loja = p;
-        }
-        // Eventos: um ou dois por salao, da segunda mesa ate a antepenultima
-        // (nunca logo antes do chefe), cada um uma vez so.
-        bool ultima_chance = p == DES_PASSOS - 3 && eventos == 0;
-        if (eventos < 2 && p >= 1 && p <= DES_PASSOS - 3 && (ultima_chance || sorte_r(100) < 40)) {
-            int livres[3], nl = 0;
-            for (int i = 0; i < n; i++) if (run.no[p][ls[i]].tipo != NO_LOJA) livres[nl++] = ls[i];
-            int opc[EVT_N], no_ = 0;
-            for (int e = 0; e < EVT_N; e++) if (!(evt_usados >> e & 1)) opc[no_++] = e;
-            if (nl && no_) {
-                no_t *no = &run.no[p][livres[sorte_r(nl)]];
-                int e = opc[sorte_r(no_)];
-                no->tipo = NO_EVENTO;
-                no->perso = (uint8_t)e;
-                evt_usados |= 1u << e;
-                eventos++;
-            }
-        }
-        for (int i = 0; i < n; i++) {
-            no_t *no = &run.no[p][ls[i]];
-            no->semente = rnd_r() | 1;
-            if (no->tipo == NO_LOJA || no->tipo == NO_EVENTO) continue;
-            int pe, tent = 0;
-            // O Novato nao senta nas mesas dificeis.
-            static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
-            do pe = COMUNS[sorte_r((int)sizeof COMUNS)];
-            while (((usados >> pe & 1) || (pe == 0 && no->tipo == NO_DIFICIL)) && ++tent < 20);
-            usados |= 1u << pe;
-            no->perso = (uint8_t)pe;
-            no->nivel = NIVEL_NO[run.andar][no->tipo];
-        }
+        no_t *no = &run.no[p];
+        no->tipo = (uint8_t)p;                   // NO_FACIL, NO_MEDIO, NO_DIFICIL
+        no->semente = rnd_r() | 1;
+        int pe, tent = 0;
+        // O Novato nao senta na mesa dificil.
+        static const uint8_t COMUNS[] = { 0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+        do pe = COMUNS[sorte_r((int)sizeof COMUNS)];
+        while (((usados >> pe & 1) || (pe == 0 && no->tipo == NO_DIFICIL)) && ++tent < 20);
+        usados |= 1u << pe;
+        no->perso = (uint8_t)pe;
+        no->nivel = NIVEL_NO[run.andar][no->tipo];
     }
-    no_t *chefe = &run.no[DES_PASSOS - 1][1];
+    no_t *chefe = &run.no[DES_PASSOS - 1];
     chefe->tipo = NO_CHEFE;
     chefe->perso = (uint8_t)(PERSO_CHEFE0 + run.andar);
     chefe->nivel = NIVEL_NO[run.andar][3];
     chefe->semente = rnd_r() | 1;
-
-    // Ligacoes: cada mesa leva as do passo seguinte na mesma linha ou ao lado.
-    // Toda mesa tem saida, e toda mesa do passo seguinte tem entrada.
-    for (int p = 0; p < DES_PASSOS - 1; p++) {
-        for (int l = 0; l < 3; l++) {
-            if (!existe(p, l)) continue;
-            uint8_t liga = 0;
-            for (int m = 0; m < 3; m++)
-                if (existe(p + 1, m) && abs(l - m) <= 1) liga |= (uint8_t)(1 << m);
-            if (!liga) {                     // nenhuma ao lado: a mais proxima
-                int melhor = -1;
-                for (int m = 0; m < 3; m++)
-                    if (existe(p + 1, m) && (melhor < 0 || abs(l - m) < abs(l - melhor))) melhor = m;
-                if (melhor >= 0) liga = (uint8_t)(1 << melhor);
-            }
-            run.no[p][l].liga = liga;
-        }
-        for (int m = 0; m < 3; m++) {
-            if (!existe(p + 1, m)) continue;
-            bool entra = false;
-            for (int l = 0; l < 3; l++) if (existe(p, l) && (run.no[p][l].liga >> m & 1)) entra = true;
-            if (entra) continue;
-            int melhor = -1;
-            for (int l = 0; l < 3; l++)
-                if (existe(p, l) && (melhor < 0 || abs(l - m) < abs(melhor - m))) melhor = l;
-            if (melhor >= 0) run.no[p][melhor].liga |= (uint8_t)(1 << m);
-        }
-    }
-    for (int p = 0; p < DES_PASSOS; p++) run.caminho[p] = -1;
-}
-
-// A mesa l do passo atual pode ser escolhida?
-static bool escolhivel(int l)
-{
-    if (!existe(run.passo, l)) return false;
-    if (run.passo == 0) return true;
-    int de = run.caminho[run.passo - 1];
-    return de >= 0 && (run.no[run.passo - 1][de].liga >> l & 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +281,7 @@ static int poucos_tipos(peca_t *col, int n, const perso_t *pe, int lim)
     for (int k = 0; k < n; k++) {
         int t = col[k].tipo, l = TIPO[t].lados;
         if (so_numero(t) || fica[t]) continue;
-        col[k] = (peca_t){ (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), 0 };
+        col[k] = (peca_t){ .tipo = (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), .fixo = 0 };
     }
     return n;
 }
@@ -255,15 +296,22 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
     // Sem os dados de saida, toda do tema, recheada de dados bons.
     bool coringa = no->perso == PERSO_CORINGA;
-    int tira = andar * 2 + (tier >= 2 ? 1 : 0);
+    int tira = andar + (tier >= 2 ? 1 : 0);
     if (tira > 6) tira = 6;
     if (coringa) tira = 8;
     int n = 0;
-    for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
-    int extras = 1 + andar * 2 + (tier == 3 ? 1 : tier);
-    // As duas primeiras mesas do salao aquecem: menos dados especiais.
-    if (tier < 3 && run.passo < 2) extras -= 2 - run.passo;
-    if (extras < 0) extras = 0;
+    // No primeiro salao a bolsa e de dados de numero, mais fraca que a do
+    // jogador e um pouco mais forte a cada mesa: [mesa] = { D2, D4, D6 }.
+    static const uint8_t SAIDA_S1[4][3] = { { 1, 10, 0 }, { 0, 10, 1 }, { 0, 8, 3 }, { 0, 10, 1 } };
+    if (andar == 0 && !coringa) {
+        static const uint8_t LADOS[3] = { D_D2, D_D4, D_D6 };
+        for (int k = 2; k >= 0; k--)
+            for (int i = 0; i < SAIDA_S1[tier][k]; i++) col[n++] = peca_r(LADOS[k]);
+    } else for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
+    // Dados especiais a mais, [salao][1o, 2o, 3o oponente, chefe]: sobem
+    // devagar (o jogador cresce aos poucos, comprando na loja).
+    static const uint8_t EXTRAS[DES_ANDARES + 1][4] = { { 0, 0, 0, 1 }, { 1, 1, 2, 0 }, { 3, 3, 4, 4 }, { 8, 8, 8, 8 } };
+    int extras = EXTRAS[andar][tier];
     static const float BASE[4][4] = {
         { 6, 3, 1.0f, 0.0f }, { 3, 4, 2.0f, 0.2f }, { 1, 3, 4.0f, 0.6f }, { 1, 3, 3.5f, 1.0f } };
     float w[4] = { BASE[tier][0] / (1 + andar), BASE[tier][1],
@@ -286,7 +334,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         if (!coringa && !dado_liberado(t)) t = sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
-    if (run.dificuldade >= 6) {                  // dados raros a mais: um do Nivel 6, dois do 8
+    if (run.dificuldade >= 6 && andar >= 1) {   // do 2o salao: dados raros a mais, um do Nivel 6, dois do 8
         static const float RARO[4] = { 0, 0.5f, 3, 1.5f };
         int raros = run.dificuldade >= 8 ? 2 : 1;
         for (int i = 0; i < raros && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));
@@ -298,9 +346,18 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
                                        D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR,
                                        D_SENTINELA, D_COBRADOR, D_VIDRO, D_SOLITARIO };
     static const uint8_t RECHEIO_CORINGA[] = { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO };
-    int alvo = 13 + andar * 2;
+    // No primeiro salao, so dados de numero, e fracos: o jogador ainda e a
+    // bolsa do comeco.
+    static const uint8_t RECHEIO_SIMPLES[] = { D_D4, D_D4, D_D2, D_D6 };
+    // No segundo, numeros e especiais fracos, meio a meio.
+    static const uint8_t RECHEIO_MEIO[] = { D_D4, D_D6, D_D4, D_D8, D_D2, D_D6, D_TEIMOSO, D_PAR, D_TREVO,
+                                            D_SENTINELA, D_COBRADOR, D_SOLITARIO };
+    int alvo = 12 + andar * 2;
     while (n < alvo && n < MAX_COL) {
-        int t = coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)] : RECHEIO[sorte_r((int)sizeof RECHEIO)];
+        int t = coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)]
+              : andar == 0 ? RECHEIO_SIMPLES[sorte_r((int)sizeof RECHEIO_SIMPLES)]
+              : andar == 1 ? RECHEIO_MEIO[sorte_r((int)sizeof RECHEIO_MEIO)]
+              : RECHEIO[sorte_r((int)sizeof RECHEIO)];
         col[n++] = peca_r(coringa || dado_liberado(t) ? t : D_D6);
     }
     if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);

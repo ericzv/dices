@@ -43,7 +43,7 @@
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
 #define MAX_COL     128            // espaco para a colecao: a bolsa nao tem limite de dados
-#define MAO         8              // espaco da mao (compra 7; 8 com a Bolsa Funda)
+#define MAO         10             // espaco da mao (compra 7; 8 com a Bolsa Funda, mais o Bis)
 #define MAO_NORMAL  7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
@@ -75,6 +75,7 @@
 #include "dado/util.inc"          // sorteio, quem e quem na mesa, texto centrado
 #include "dado/interface.inc"     // paineis, botoes, numeros flutuantes e o mouse
 #include "dado/estilo.inc"        // o feltro, a mesa e o material dos dados
+#include "dado/adesivos.inc"      // os adesivos do Desafiante: o que fazem e o desenho
 #include "dado/desenho_dado.inc"  // o desenho de cada dado
 #include "dado/fila.inc"          // a regra da fila: o que vale, o que anula
 #include "dado/desfecho.inc"      // os poderes que mexem no rival, em sequencia

@@ -16,6 +16,11 @@ typedef struct {
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
     uint8_t garimpo[2];              // o Garimpeiro valeu: posicoes dos outros validos que voltam para a bolsa
+    // Os adesivos (adesivos_de): o que fica depois da rodada.
+    uint8_t moedas[2];               // Dourado: moedas para a run
+    uint8_t bis[2];                  // Bis: dados a mais na proxima compra
+    int gorjeta[2];                  // Gorjeta: fichas do rival para o dono, fora do pote
+    uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -799,6 +804,85 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
         }
 }
 
+// Os adesivos do fim da rodada, pelo lado que ficou para cima de cada dado.
+// Os de "caiu aqui" agem valendo ou nao (Dourado, Lobo, Bis, Gorjeta); os
+// outros, so com o dado valendo (Confete, Eletronico, Raspadinha, Fermento,
+// Mira). Roubado, o dado e do outro: o adesivo nao age. A Saideira nao os
+// repete (sao do dado, nao poderes dele).
+static void adesivos_de(desfecho_t *d, int j, bool gera)
+{
+    int r = outro(j);
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        int a = ad_fila(j, k);
+        if (!a || d->est[j][k] == V_ROUBADO) continue;
+        bool vale = d->est[j][k] == V_VALIDO;
+        uint8_t bit = (uint8_t)(1 << k);
+        evento_t *e = NULL;
+        switch (a) {
+        case AD_CONFETE:
+            if (!vale) break;
+            d->semente[j] += 4;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 4, "Confete: +4");
+            break;
+        case AD_RASPADINHA:
+            if (!vale) break;
+            d->semente[j] += 10;
+            d->raspa[j] |= bit;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 10, "Raspadinha: +10, e o adesivo sai");
+            break;
+        case AD_FERMENTO: {
+            const peca_t *pc = peca_fila(j, k);
+            if (!vale || !pc) break;
+            int n = pc->fermento + 1;
+            d->semente[j] += n;
+            d->fermento[j] |= bit;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, n, "Fermento: +%d, e cresce", n);
+            break;
+        }
+        case AD_ELETRONICO:
+            if (!vale) break;
+            d->mult[j][k] = (int8_t)(d->mult[j][k] + 2);
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 2, "Eletrônico: x2 no %d", F[j].valor[k]);
+            if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
+            break;
+        case AD_LOBO:
+            d->delta[r] -= 2;
+            e = evento(gera, EV_ADESIVO, j, k, r, 0, 2, "Lobo: -2 para %s", J[r].nome);
+            break;
+        case AD_GORJETA:
+            d->gorjeta[j] += 2;
+            e = evento(gera, EV_ADESIVO, j, k, r, 0, 2, "Gorjeta: %s paga 2 fichas", J[r].nome);
+            break;
+        case AD_DOURADO:
+            d->moedas[j]++;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "Dourado: +1 moeda");
+            break;
+        case AD_BIS:
+            d->bis[j]++;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "Bis: 1 dado a mais na próxima rodada");
+            break;
+        case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
+            if (!vale) break;
+            bool couraca = tem_am(r, A_COURACA);
+            if (couraca && gera) am_acende(A_COURACA);
+            int a0 = -1;
+            for (int i = 0; i < F[r].lancados && !couraca; i++)
+                if (d->est[r][i] == V_VALIDO && !firme(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
+            int alvo = desvia_seguranca(d->est[r], r, a0);
+            if (alvo < 0) break;
+            d->est[r][alvo] = V_ANULADO;
+            d->atacados[r]++;
+            if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "Mira: o Segurança de %s leva no lugar", J[r].nome);
+            else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "Mira: anula o %d de %s", F[r].valor[alvo], J[r].nome);
+            cavalo_abre(d, j, r, alvo, gera);
+            break;
+        }
+        default: break;
+        }
+        if (e) e->ad = (uint8_t)a;
+    }
+}
+
 // Saideira (amuleto): na ultima rodada da partida (a 8a e as extras), os
 // poderes do fim dos dados de j agem uma segunda vez, depois de tudo.
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
@@ -838,6 +922,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         for (int k = 0; k < F[j].lancados; k++) {
             if (!F[j].espera[k] || F[j].est[k] != V_VALIDO || alvo <= 0) continue;
             F[j].valor[k] = alvo;
+            lado_vira(j, k, alvo);
             F[j].espera[k] = false;
             quais |= (uint8_t)(1 << k);
             virados++;
@@ -857,6 +942,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     int ordem[2] = { primeiro, outro(primeiro) };
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
+    for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) {
         int j = ordem[o], antes = n_ev;

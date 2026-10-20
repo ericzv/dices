@@ -1,8 +1,11 @@
 // ===========================================================================
 // Estado
 // ===========================================================================
-// Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele.
-typedef struct { uint8_t tipo, fixo; } peca_t;
+// Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele. No
+// Desafiante, os adesivos (adesivos.inc): um por lado, meio byte cada (o lado
+// 1 no meio byte baixo de ad[0]), e o que o Fermento dela ja cresceu.
+#define AD_LADOS 20
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento; } peca_t;
 
 // Cada dado do jogador esta num de tres lugares.
 enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
@@ -30,6 +33,7 @@ typedef struct {
     int     lancados;
     int     cru[N_FILA];
     int     valor[N_FILA];
+    uint8_t lado[N_FILA];        // o lado que ficou para cima (o dos adesivos); 0: nenhum
     uint8_t est[N_FILA];
     uint8_t dobra[N_FILA];       // so para a etiqueta: o x2 vale no fim
     int8_t  bonus[N_FILA];
@@ -54,6 +58,14 @@ typedef struct {
     float t_face, pouso;
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
+    uint8_t lado;                    // o lado que fica para cima (os adesivos)
+    int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso vira; 2 o Reflexivo rola de novo
+    bool virou;                      // o Avesso ja virou
+    bool reflete;                    // depois (ou sem) o Avesso, o Reflexivo
+    bool chumbou;                    // ja deu o baque do Chumbo
+    float t_etapa;
+    int valor_v; uint8_t lado_v;     // depois de virar do avesso
+    int valor2, menor2; uint8_t lado2;   // o segundo lance, do Reflexivo
     float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
 } voo_t;
 
@@ -70,13 +82,15 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_GARIMPO,                   // o Garimpeiro: os outros validos voltam para a bolsa
        EV_REVELA,                    // o Oculto mostra o que tirou
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
-       EV_AVISO };                   // so o texto (a Saideira avisa que tudo vai de novo)
+       EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
+       EV_ADESIVO };                 // um adesivo do lado que ficou para cima (ad: qual)
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
     uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
     uint32_t am;                     // amuletos que acendem quando ele toca
+    uint8_t ad;                      // EV_ADESIVO: o adesivo
     char txt[64];
 } evento_t;
 #define MAX_EV 64                    // a Saideira repete a cadeia inteira
@@ -87,7 +101,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS, F_HIST, F_ESTILO };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_CREDITOS, F_HIST, F_ESTILO, F_NOVIDADES };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -139,6 +153,7 @@ static float t_tique_placar;             // os tiques da contagem nao se amontoa
 #define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
+static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perdeu na hora
 static peca_t oferta[3];
 static char aviso[96], veredito[64], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
@@ -293,7 +308,7 @@ static int virada_de(int perso)
 {
     int c = perso - PERSO_CHEFE0;
     if (c < 0 || c > 2) return 0;
-    static const int8_t ABRE[3] = { 1, 2, 4 }, FORTE[3] = { 7, 7, 9 };   // os niveis em que vira, e forte
+    static const int8_t ABRE[3] = { 3, 2, 4 }, FORTE[3] = { 8, 7, 10 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
 }
@@ -329,7 +344,6 @@ static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
-static void des_premio_feito(void);
 static int  des_foco(void);
 static bool dado_liberado(int t);
 static void des_resumo(char *s, int n);
@@ -343,6 +357,9 @@ static bool digitando;               // lobby online: digitando o codigo da sala
 static char codigo_dig[8];
 static int  online_cur;
 static float t_sair = -1;            // ESC apertado uma vez: confirma com outro
+static bool des_saiu;                // Desafiante: saiu no meio da partida (conta como derrota)
+static void des_abandona(void);
+static bool des_abandono(void);
 static int  tut_pag;                 // pagina do tutorial
 static int  cpu;                     // bit j: jogador j e do aparelho
 static float t_ia;                   // espera da IA antes de cada gesto
@@ -352,7 +369,8 @@ static int  plano_n, plano_rodada = -1, plano_vez = -1;
 static float plano_p;                // chance de vencer com o plano
 static int  detalhe = -1, detalhe_fase;   // dado aberto pela tecla I (-1: nenhum)
 static int  cat_i, cat_a;         // dado e amuleto em exibicao na colecao
-static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos
+static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos, 2 adesivos
+static int  cat_ad;               // o adesivo em foco na colecao
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
 static int  tira_i;

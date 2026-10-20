@@ -43,7 +43,7 @@ static void ui_cartao(int x, int y, int w, int h, bool foco, uint16_t cor)
 // ---------------------------------------------------------------------------
 // 'y' e a beira de onde ele sai; 'dir' -1 sobe (fila de baixo), +1 desce
 // (fila de cima): sempre para o meio da mesa.
-typedef struct { int16_t x, y; int8_t dir; float t, atraso; char s[8]; uint16_t cor; } flutua_t;
+typedef struct { int16_t x, y; int8_t dir; float t, atraso; char s[12]; uint16_t cor; } flutua_t;
 #define MAX_FLUT 16
 #define FLUT_T 0.95f
 static flutua_t flut[MAX_FLUT];
@@ -240,7 +240,7 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 }
 
 // Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
-enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO };
+enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO, DICA_ADESIVO };
 typedef struct { int16_t x, y, w, h; uint8_t tipo, id; } dica_t;
 #define MAX_DICAS 64
 static dica_t dicas[MAX_DICAS];

@@ -1,10 +1,11 @@
 // ---------------------------------------------------------------------------
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
-// A IA da mesa: do Nivel 5, as mesas dificeis pensam mais; do 9, os chefes.
+// A IA da mesa: do Nivel 5, a mesa dificil do 3o salao pensa mais; do 9, os
+// chefes do 2o e do 3o (o primeiro salao fica sempre o mais simples).
 static int nivel_mesa(const no_t *no)
 {
-    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE);
+    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL && run.andar >= 2) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE && run.andar >= 1);
     return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
 }
 
@@ -16,67 +17,64 @@ static int nivel_mesa(const no_t *no)
 static contador_t moedas_cont;
 static bool moedas_ok;
 static int moedas_vis(void) { return moedas_ok ? moedas_cont.mostra : run.moedas; }
+// A bolsa da faixa: o dado comprado so conta quando chega nela (voando, ainda
+// nao), e ela pula ao receber.
+static int   bolsa_voando;
+static float t_bolsa_pulo;
+static int   faixa_bolsa_x = GFX_W - 120, faixa_bolsa_y = FAIXA_H / 2;
+static void loja_passo(float dt);
+static float t_mapa_anda;                    // > 0: a ficha do jogador anda ate a mesa da vez
 
-// O saque, no fim de uma partida vencida: as fichas viram moedas contando,
-// com a moeda batendo cada vez mais aguda; depois o Cofre e a Taca somam a
-// parte deles, cada um acendendo na faixa. Etapas: 0 espera, 1 fichas,
-// 2 Cofre, 3 Taca, 4 pronto.
-#define SAQUE_ESPERA 0.45f
-#define SAQUE_PAUSA  0.22f
-static contador_t saque_c;
-static int saque_etapa;
-static float t_saque, t_som_saque;
-static int saque_tom;                       // a escada das moedas segue de uma parte para a outra
+// O saque, no fim de uma partida vencida: as moedas entram uma a uma na
+// fileira (a da mesa, depois as do Cofre e as da Taca, cada grupo acendendo o
+// seu amuleto), com a moeda batendo cada vez mais aguda; a ultima deita.
+#define SAQUE_ESPERA 0.55f
+#define SAQUE_FIM    0.35f
+static int   saque_n;                       // moedas ja na fileira
+static float t_saque;
+static bool  saque_pronto;
+static int saque_total(void) { return run.ganho + run.juros + run.taca + run.dourado; }
+// O intervalo entre uma moeda e a outra: as poucas sem pressa; as 20 do
+// Barao, em pouco mais de um segundo e meio.
+static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 1.7f / n; }
 
-static int saque_alvo(void)
-{
-    int a = saque_etapa >= 1 ? run.ganho : 0;
-    if (saque_etapa >= 2) a += run.juros;
-    if (saque_etapa >= 3) a += run.taca;
-    return a;
-}
-
-// A proxima parte que soma (pula as que nao tem): Cofre, Taca ou o fim.
-static void saque_proxima(void)
-{
-    while (++saque_etapa < 4) {
-        if (saque_etapa == 2 && run.juros) { am_acende(A_COFRE); som_toca(SOM_FICHA); return; }
-        if (saque_etapa == 3 && run.taca)  { am_acende(A_TACA); som_toca(SOM_FICHA); return; }
-    }
-    som_toca(SOM_MOEDA_POUSA);                  // a ultima moeda deita: pronto
-    saque_c.pulo = 1;
-}
+static void nov_passo(void);             // as novidades (novidades.inc)
+static void nov_monta_run(void);
+static void nov_abre_marco(void);
 
 static void des_contadores_passo(float dt, float dt_real)
 {
     if (modo != M_DESAFIO) { moedas_ok = false; return; }
     if (!moedas_ok) { contador_fixa(&moedas_cont, run.moedas); moedas_ok = true; }
     contador_passo(&moedas_cont, run.moedas, dt_real, dt_real, 6, 12);
+    if (t_bolsa_pulo > 0) t_bolsa_pulo -= dt_real / 0.35f;
+    if (t_mapa_anda > 0 && fase == F_MAPA && (t_mapa_anda -= dt_real) <= 0) som_toca(SOM_FICHA);   // a ficha assenta
+    loja_passo(dt_real);
+    nov_passo();
 
     if (fase != F_FIM || venc_partida != 0) {
-        saque_etapa = 0;
+        saque_n = 0;
         t_saque = 0;
-        saque_tom = 0;
-        contador_fixa(&saque_c, 0);
+        saque_pronto = false;
         return;
     }
-    if (t_som_saque > 0) t_som_saque -= dt_real;
     t_saque += dt;
-    if (saque_etapa == 0) {                     // o letreiro entra; depois, a contagem
-        if (t_saque < SAQUE_ESPERA) return;
-        saque_etapa = 1;
+    if (saque_pronto) return;
+    if (saque_n == 0 && t_saque < SAQUE_ESPERA) return;     // o letreiro entra; depois, as moedas
+    if (saque_n < saque_total()) {
+        if (saque_n && t_saque < saque_passo()) return;
         t_saque = 0;
+        if (saque_n == run.ganho && run.juros) am_acende(A_COFRE);
+        if (saque_n == run.ganho + run.juros && run.taca) am_acende(A_TACA);
+        saque_n++;
+        som_toca_tom(SOM_MOEDA_BATE, saque_n / 2 < 9 ? saque_n / 2 : 9);
+        return;
     }
-    bool fichas = saque_etapa == 1;
-    int andou = contador_passo(&saque_c, saque_alvo(), dt, dt_real, fichas ? 3 : 4, fichas ? 18 : 12);
-    if (saque_etapa >= 4) return;
-    if (andou && t_som_saque <= 0) {
-        som_toca_tom(SOM_MOEDA_BATE, saque_tom / 2 < 9 ? saque_tom / 2 : 9);
-        saque_tom++;
-        t_som_saque = 0.045f;
+    if (t_saque >= SAQUE_FIM) {                 // contou: uma pausa e a ultima deita
+        saque_pronto = true;
+        t_saque = 0;
+        som_toca(SOM_MOEDA_POUSA);
     }
-    if (saque_c.mostra != saque_alvo()) t_saque = 0;           // ainda contando
-    else if (t_saque >= SAQUE_PAUSA) { t_saque = 0; saque_proxima(); }   // contou: uma pausa e a proxima parte
 }
 
 static void des_salva(void)
@@ -86,27 +84,22 @@ static void des_salva(void)
     salva_grava(chave_run(), buf);
 }
 
+// A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
+// para tras.
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
-    static run48_t v;
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
     memset(r, 0, sizeof *r);
-    if (n == (int)(2 * sizeof v)) {                   // da bolsa de 48: o resto anda para depois dela
-        if (!de_hex(buf, &v, sizeof v)) return false;
-        memcpy(r, &v, offsetof(run48_t, col));
-        memcpy(r->col, v.col, sizeof v.col);
-        memcpy(r->no, v.no, sizeof v - offsetof(run48_t, no));
-        if (r->n_col > 48) return false;
-    } else if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
-    if (!memcmp(r->marca, "DES1", 4) && r->dificuldade <= N_NIVEIS_V) {   // do tempo dos 5 niveis: n vira 2n
-        r->dificuldade = (uint8_t)(2 * r->dificuldade);
-        memcpy(r->marca, "DES2", 4);
-    }
-    if (memcmp(r->marca, "DES2", 4) || r->andar > DES_ANDAR_FINAL || (r->andar == DES_ANDAR_FINAL && r->dificuldade < N_NIVEIS)
-        || r->passo >= DES_PASSOS
-        || r->estado > R_EVENTO || r->n_col < N_FILA || r->n_col > MAX_COL) return false;
+    if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
+    if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
+        || (r->andar == DES_ANDAR_FINAL && r->dificuldade < N_NIVEIS)
+        || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
+        || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
+    for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N) return false;
+    if ((r->pacote >= GR_N && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
+    if (r->adesivo >= AD_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     return true;
@@ -118,16 +111,17 @@ static bool des_tem_run(void)
     return des_carrega(&r);
 }
 
-// "Salão Vermelho · mesa 2 · 14 dados · 120 moedas"
+// "Salão Vermelho · mesa 2 de 4 · 14 dados · 7 moedas"
 static void des_resumo(char *s, int n)
 {
     run_t r;
     if (!des_carrega(&r)) { s[0] = 0; return; }
     if (r.estado == R_AMULETO && r.vitorias == 0) snprintf(s, (size_t)n, "escolhendo o primeiro amuleto");
-    else if (r.estado == R_EVENTO) snprintf(s, (size_t)n, "%s · num evento · %d moedas", SALAO[r.andar], r.moedas);
     else if (r.estado == R_LOJA_INI) snprintf(s, (size_t)n, "na loja da entrada · %d moedas", r.moedas);
+    else if (r.estado == R_LOJA) snprintf(s, (size_t)n, "%s · na loja · %d dados · %d moedas",
+                                          SALAO[r.andar], r.n_col, r.moedas);
     else snprintf(s, (size_t)n, "%s · mesa %d de %d · %d dados · %d moedas",
-                  SALAO[r.andar], r.passo + 1, DES_PASSOS, r.n_col, r.moedas);
+                  SALAO[r.andar], r.passo + 1, r.andar == DES_ANDAR_FINAL ? 1 : DES_PASSOS, r.n_col, r.moedas);
 }
 
 // ---------------------------------------------------------------------------
@@ -138,13 +132,12 @@ static void abre_mapa(void)
     modo = M_DESAFIO;
     cpu = remoto = 0;
     run.estado = R_MAPA;
-    des_cur = -1;
-    for (int l = 0; l < 3 && des_cur < 0; l++) if (escolhivel(l)) des_cur = l;
-    if (des_cur < 0) des_cur = 1;
+    des_cur = run.passo;
     t_fase = 0;
     fase = F_MAPA;
 }
 
+static void loja_abriu(void);
 static void abre_loja_run(void)
 {
     modo = M_DESAFIO;
@@ -152,6 +145,7 @@ static void abre_loja_run(void)
     cursor = 0;
     t_fase = 0;
     fase = F_RLOJA;
+    loja_abriu();
 }
 
 static void encerra_run(bool venceu)
@@ -168,19 +162,25 @@ static void encerra_run(bool venceu)
         perfis_salva();
         hist_run_venceu();
     }
+    if (venceu) nov_monta_run();                 // o que abriu, para mostrar card a card
     salva_apaga(chave_run());
     t_fase = 0;
     fase = F_RFIM;
 }
 
-// Passo vencido (ou loja deixada): segue no mapa; depois do chefe, sobe de
-// salao; depois do terceiro chefe, a run esta ganha - menos no ultimo nivel,
-// em que ainda falta o salao do Coringa (a ultima loja e ele).
+// A mesa vencida fecha a run? O Barao, antes da Cobertura; e o Coringa.
+static bool fim_da_run(void)
+{
+    if (run.andar == DES_ANDAR_FINAL) return true;
+    return run.andar == DES_ANDARES - 1 && run.passo == DES_PASSOS - 1 && run.dificuldade < N_NIVEIS;
+}
+
+// Loja deixada: a proxima mesa do salao; depois do chefe, o salao de cima
+// (e, depois do Barao da Cobertura, o do Coringa).
 static void avanca_passo(void)
 {
     run.passo++;
-    if (run.andar == DES_ANDAR_FINAL && run.passo >= 2) { encerra_run(true); return; }   // venceu o Coringa
-    if (run.passo >= DES_PASSOS) {
+    if (run.passo >= mesas_do_salao()) {
         run.andar++;
         run.passo = 0;
         if (run.andar == DES_ANDAR_FINAL && run.dificuldade >= N_NIVEIS) gera_salao_final();
@@ -190,13 +190,12 @@ static void avanca_passo(void)
     run.estado = R_MAPA;
     des_salva();
     abre_mapa();
+    t_mapa_anda = run.passo ? 0.7f : 0;          // o marcador sai da mesa vencida
 }
 
 // De onde veio o amuleto da tela de escolha (run.am_volta), e para onde ela segue.
 enum { AV_INICIO,                                // o primeiro: depois, a loja da entrada
-       AV_CHEFE,                                 // o do chefe: depois (e do Selo), o mapa
-       AV_LOJA,                                  // comprado sem lugar: volta para a loja
-       AV_FONTE,                                 // da Fonte, sem lugar: volta para o mapa
+       AV_CHEFE,                                 // o do chefe: depois (e do Selo), a loja
        AV_SELO };                                // o segundo do chefe, do Selo de Divida
 
 static void abre_amuleto(void)
@@ -213,7 +212,17 @@ static void abre_amuleto(void)
 // so na Cobertura (antes dela a run acaba nele).
 static bool chefe_deixa_amuleto(void)
 {
-    return run.tier == 3 && (run.andar < DES_ANDARES - 1 || (run.andar == DES_ANDARES - 1 && run.dificuldade >= N_NIVEIS));
+    return run.no[run.passo].tipo == NO_CHEFE
+        && (run.andar < DES_ANDARES - 1 || (run.andar == DES_ANDARES - 1 && run.dificuldade >= N_NIVEIS));
+}
+
+// A loja depois de uma mesa vencida.
+static void abre_loja_pos(void)
+{
+    run.estado = R_LOJA;
+    monta_loja_run();
+    des_salva();
+    abre_loja_run();
 }
 
 static void amuleto_segue(void);
@@ -244,54 +253,34 @@ static void amuleto_segue(void)
     case AV_INICIO:
         run.estado = R_LOJA_INI;
         monta_loja_run();
-        run.am_loja = 0xFF;                      // a loja da entrada so vende dados
         des_salva();
         abre_loja_run();
         break;
     case AV_CHEFE:
         if ((run_amuletos() >> A_SELO & 1) && !run.am_selo) { selo_segundo(); break; }
         run.am_selo = 0;
-        avanca_passo();
+        abre_loja_pos();
         break;
-    case AV_SELO:
+    default:                                     // o do Selo
         run.am_selo = 0;
-        avanca_passo();
-        break;
-    case AV_LOJA:
-        run.estado = R_LOJA;
-        des_salva();
-        abre_loja_run();
-        break;
-    default:                                     // a Fonte: o passo do evento ja andou
-        run.estado = R_MAPA;
-        des_salva();
-        abre_mapa();
+        abre_loja_pos();
         break;
     }
 }
 
-// O amuleto a chega. Com lugar, entra e a run segue (comprado, fica na
-// loja); com os 5 cheios, espera na tela da troca (sai um dos seus, ou ele
-// fica de fora).
-static void espera_troca(int a, int volta)
-{
-    run.am_volta = (uint8_t)volta;
-    run.am_novo = (uint8_t)(a + 1);
-    run.estado = R_AMULETO;
-    des_salva();
-}
+// O amuleto a chega. Com lugar, entra e a run segue; com os 5 cheios, espera
+// na tela da troca (sai um dos seus, ou ele fica de fora).
 static void ganha_amuleto(int a, int volta)
 {
     run.am_volta = (uint8_t)volta;
-    if (!am_lugar()) { espera_troca(a, volta); abre_amuleto(); return; }
-    run_poe_amuleto(a);
-    if (volta == AV_LOJA) {
-        run.moedas -= preco_am();
-        run.am_levou = 1;
-        som_toca(SOM_FICHA);
+    if (!am_lugar()) {
+        run.am_novo = (uint8_t)(a + 1);
+        run.estado = R_AMULETO;
         des_salva();
+        abre_amuleto();
         return;
     }
+    run_poe_amuleto(a);
     som_toca(SOM_PREMIO);
     solta_confete(60);
     amuleto_segue();
@@ -305,18 +294,16 @@ static void amuleto_troca(int tirar)
     if (tirar >= 0 && (run_amuletos() >> tirar & 1)) {
         run_tira_amuleto(tirar);
         run_poe_amuleto(a);
-        if (run.am_volta == AV_LOJA) { run.moedas -= preco_am(); run.am_levou = 1; }
         som_toca(SOM_PREMIO);
         solta_confete(40);
     } else som_toca(SOM_FICHA);
     amuleto_segue();
 }
 
-// Desiste da troca: volta para a escolha de onde veio (a dos tres, ou a loja).
-// O que nao tem volta (Fonte, Selo) fica na tela.
+// Desiste da troca: volta para a escolha dos tres. O do Selo, que nao se
+// escolhe, fica na tela.
 static void amuleto_desiste(void)
 {
-    if (run.am_volta == AV_LOJA) { amuleto_segue(); return; }
     if (run.am_volta != AV_INICIO && run.am_volta != AV_CHEFE) return;
     int a = run.am_novo - 1;
     run.am_novo = 0;
@@ -348,17 +335,22 @@ static void amuleto_escolhido(int i)
     ganha_amuleto(run.am_oferta[i], run.am_volta);
 }
 
+// A bolsa do comeco: dados simples, muitos fracos. Tirar os fracos (na loja)
+// e parte da run.
+static const uint8_t BOLSA_INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D4, D_D4, D_D2, D_D2 };
+
+static int moedas_iniciais(int dif) { return DES_MOEDAS + dif / DES_MOEDAS_NIVEL; }
+
 static void des_nova_run(void)
 {
     memset(&run, 0, sizeof run);
-    memcpy(run.marca, "DES2", 4);
+    memcpy(run.marca, RUN_MARCA, 4);
     run.semente = ((uint32_t)esp_timer_get_time() * 2654435761u) ^ 0x5bd1e995u;
     if (!run.semente) run.semente = 1;
     run.dificuldade = (uint8_t)des_dif;
-    run.moedas = DES_MOEDAS + DES_MOEDAS_ANDAR * run.dificuldade;   // andar mais alto, bolsa mais cheia
+    run.moedas = moedas_iniciais(run.dificuldade);
     if (perfil_atual >= 0) { if (perfis[perfil_atual].runs < 65535) perfis[perfil_atual].runs++; perfis_salva(); }
-    static const uint8_t INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D2, D_D2 };
-    for (unsigned i = 0; i < sizeof INICIO; i++) run.col[run.n_col++] = (peca_t){ INICIO[i], 0 };
+    for (unsigned i = 0; i < sizeof BOLSA_INICIO; i++) run.col[run.n_col++] = (peca_t){ .tipo = BOLSA_INICIO[i], .fixo = 0 };
     gera_andar();
     oferece_amuleto(AV_INICIO);                  // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
@@ -377,7 +369,7 @@ static void zera_acumuladores(peca_t *col, int n)
 
 static void des_comeca_partida(void)
 {
-    const no_t *no = &run.no[run.passo][run.caminho[run.passo]];
+    const no_t *no = &run.no[run.passo];
     run.estado = R_PARTIDA;
     des_salva();
     modo = M_DESAFIO;
@@ -395,7 +387,8 @@ static void des_comeca_partida(void)
     memset(am_brilho, 0, sizeof am_brilho);
     amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
-    if (run.dificuldade >= N_NIVEIS) {            // na Cobertura: mais um amuleto para ele
+    // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
+    if (run.dificuldade >= N_NIVEIS && no->perso != PERSO_CHEFE0 + 2) {
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
@@ -422,8 +415,6 @@ static void des_comeca_partida(void)
     J[1].cor = C_ROSA;
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
-    if (run.garcom) J[1].fichas -= 10;                                            // o Garcom
-    if (run.andar == 0 && run.passo == 0) J[1].fichas -= 10;                      // a primeira mesa aquece
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
@@ -437,29 +428,31 @@ static void des_comeca_partida(void)
                          : run.andar == 1 && dificil ? MAT_OSSO : MAT_MARFIM);
     ousadia_jog[1] = PERSO[no->perso].ousadia;
     rodada = 0;
+    memset(bis_extra, 0, sizeof bis_extra);
+    memset(ad_moedas, 0, sizeof ad_moedas);
     pote = 0;
     primeiro = (int)(rnd() & 1);
     venc_partida = -1;
     correu_venc = -1;
     n_voo = 0;
     t_sair = -1;
+    des_saiu = false;
     detalhe = -1;
     nova_rodada();
     fala_evento(FA_INICIO);
 }
 
 // Fim de uma partida da run (chamado assim que ela acaba, para que sair na
-// tela final nao deixe jogar de novo): vitoria vira moedas e premio; derrota
-// ou empate encerram a run.
+// tela final nao deixe jogar de novo): vitoria vira moedas; derrota ou empate
+// encerram a run.
 static void des_resultado(void)
 {
-    const no_t *no = &run.no[run.passo][run.caminho[run.passo]];
+    const no_t *no = &run.no[run.passo];
     // A bolsa volta para a run como terminou: o Quebrado e o que o Fogo
     // queimou nao voltam.
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);
-    run.garcom = 0;                              // o agrado do Garcom valeu para esta
     if (perfil_atual >= 0 && perfis[perfil_atual].partidas < 65535) {
         perfis[perfil_atual].partidas++;
         perfis_salva();
@@ -477,62 +470,56 @@ static void des_resultado(void)
         perfis_salva();
         des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
     }
-    run.ganho = J[0].fichas;
-    run.juros = 0;
-    if (run_amuletos() >> A_COFRE & 1) {                                    // Cofre: 1 a cada 5
-        int j = (run.moedas + run.ganho) / 5;               // sem limite (so o do byte)
-        run.juros = (uint8_t)(j > 255 ? 255 : j);
+    // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Cofre
+    // (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3 rodadas
+    // vencidas na partida).
+    run.ganho = run.juros = run.taca = run.dourado = 0;
+    if (!fim_da_run()) {
+        run.ganho = MOEDAS_MESA[run.andar][run.passo];
+        run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
+        if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
+        if (run_amuletos() >> A_TACA & 1) run.taca = (uint8_t)(des_rod_vencidas / 3);
     }
-    run.taca = 0;
-    if (run_amuletos() >> A_TACA & 1) {                                     // Taca: 2 por rodada vencida
-        int t = 2 * des_rod_vencidas;
-        run.taca = (uint8_t)(t > 40 ? 40 : t);
-    }
-    run.moedas += run.ganho + run.juros + run.taca;
-    run.tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
-    int tp = run.tier + ((run_amuletos() >> A_CARTOLA & 1) && run.tier < 3 ? 1 : 0);   // Cartola
-    rs = no->semente ^ 0xA11CEu;
-    rnd_r();
-    sorteia_distintos(run.oferta, 3, PESO_PREMIO[tp]);
-    run.estado = R_PREMIO;
+    run.moedas += saque_total();
+    run.estado = R_VENCEU;
     des_salva();
 }
 
-static void abre_premio_run(void)
+// Depois da mesa vencida: o fim da run, o amuleto do chefe ou a loja.
+static void des_pos_vitoria(void)
 {
-    modo = M_DESAFIO;
-    cpu = 0;
-    baixo = 0;
-    J[0].nome = perfil()->nome;
-    J[0].cor = C_LATAO;
-    J[0].n_col = run.n_col;
-    memcpy(J[0].col, run.col, sizeof run.col);
-    memcpy(oferta, run.oferta, sizeof run.oferta);
-    vez = 0;
-    cursor = 0;
-    removendo = false;
-    t_tira = 0;
-    t_fase = 0;
-    fase = F_PREMIO;
-    slot_comeca();
+    if (fim_da_run()) { encerra_run(true); return; }
+    run.am_selo = 0;
+    if (chefe_deixa_amuleto()) oferece_amuleto(AV_CHEFE);
+    else abre_loja_pos();
+}
+
+// Sair no meio de uma partida da run (ESC duas vezes) conta como derrota:
+// senao, continuar recomecaria a mesma mesa do zero, e dava para tentar de
+// novo sem limite. Na tela do fim da ultima rodada a partida ja esta
+// decidida: termina com o resultado de verdade.
+static bool des_abandono(void)
+{
+    return modo == M_DESAFIO && fase != F_FIM && fase != F_RAMULETO && fase != F_NOVIDADES;
+}
+
+static void segue_do_resultado(void);
+static void des_abandona(void)
+{
+    t_sair = -1;
+    if (fase == F_RESULTADO && partida_se(2) >= 0) { segue_do_resultado(); return; }   // o pote ja foi: o fim de verdade
+    des_saiu = true;
+    n_voo = 0;                                   // os dados no ar ficam onde estao
+    som_rufo(false);
+    encerra(1);
 }
 
 // ENTER na tela do fim da partida.
 static void des_apos_fim(void)
 {
-    if (venc_partida == 0) abre_premio_run();
+    if (venc_partida == 0 && des_marco >= 0) nov_abre_marco();   // o chefe abriu um dado: o card antes
+    else if (venc_partida == 0) des_pos_vitoria();
     else encerra_run(false);
-}
-
-// Premio escolhido, recusado ou trocado por tirar um dado.
-static void des_premio_feito(void)
-{
-    run.n_col = (uint8_t)J[0].n_col;
-    memcpy(run.col, J[0].col, sizeof run.col);
-    // Chefe vencido: mais um amuleto (e, com o Selo de Divida, outro sorteado).
-    run.am_selo = 0;
-    if (chefe_deixa_amuleto()) oferece_amuleto(AV_CHEFE);
-    else avanca_passo();
 }
 
 static void des_continua(void)
@@ -542,9 +529,8 @@ static void des_continua(void)
     switch (run.estado) {
     case R_LOJA_INI: case R_LOJA: abre_loja_run(); break;
     case R_PARTIDA:               des_comeca_partida(); break;
-    case R_PREMIO:                abre_premio_run(); break;
+    case R_VENCEU:                des_pos_vitoria(); break;
     case R_AMULETO:               abre_amuleto(); break;
-    case R_EVENTO:                abre_evento(); break;
     default:                      abre_mapa(); break;
     }
 }

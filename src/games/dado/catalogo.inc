@@ -70,11 +70,12 @@ static int etiquetas_protecao(int x, int y, int tipo)
     return x;
 }
 
-// Colecao em duas secoes, Dados e Amuletos, trocadas pela chave no alto.
+// Colecao em tres secoes, Dados, Amuletos e Adesivos, trocadas pelas abas no alto.
 // O que ainda esta fechado no Desafiante (para o perfil em uso) fica no
 // escuro, com cadeado e o que falta para abrir.
 static int  cat_trava_dado(int t, char *s, int n);       // desafio.inc: 0 sempre livre, 1 aberto, 2 fechado
 static void desenha_cat_amuleto(int i);
+static void desenha_cat_adesivo(int i);
 static void cadeado(int x, int y, uint16_t c, int e);
 
 // As faixas da colecao: a chave Dados | Amuletos, a contagem e as teclas.
@@ -84,11 +85,11 @@ static void faixas_colecao(int atual, int total)
     gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(botao_voltar(KEY_ESC), ty, "COLEÇÃO", C_LATAO, true);
-    static const char *const SEC[2] = { "Dados", "Amuletos" };
-    const int w = 104, h = 26, x0 = GFX_W / 2 - w, y0 = (FAIXA_H - h) / 2 - 1;
-    for (int i = 0; i < 2; i++) {                 // duas abas, a escolhida em latao
+    static const char *const SEC[3] = { "Dados", "Amuletos", "Adesivos" };
+    const int w = 96, h = 26, x0 = GFX_W / 2 - w * 3 / 2, y0 = (FAIXA_H - h) / 2 - 1;
+    for (int i = 0; i < 3; i++) {                 // tres abas, a escolhida em latao
         ui_botao(x0 + i * w, y0, w, h, SEC[i], cat_sec == i ? C_LATAO : 0, 0);
-        zona_clique(x0 + i * w, y0, w, h, NULL, 0, i == 0 ? KEY_UP : KEY_DOWN);
+        zona_clique(x0 + i * w, y0, w, h, NULL, 0, '1' + i);
     }
     char s[32];
     snprintf(s, sizeof s, "%d de %d", atual + 1, total);
@@ -96,7 +97,8 @@ static void faixas_colecao(int atual, int total)
     int yb = GFX_H - FAIXA_H;
     gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
-    teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
+    teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, cat_sec == 0 ? "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta"
+             : cat_sec == 1 ? "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta" : "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
 }
 
 // Fechado: a peca fica no escuro, como na sombra (o fundo do disco nao muda).
@@ -125,6 +127,7 @@ static void linha_bloqueio(int x, int y, const char *falta)
 static void desenha_catalogo(void)
 {
     if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
+    if (cat_sec == 2) { desenha_cat_adesivo(cat_ad); return; }
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
     char s[32];
@@ -219,7 +222,7 @@ static void desenha_detalhe(void)
     int cx = x0 + 78, cy = y0 + 96;
     gfx_disco(cx, cy, 52, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));
     gfx_disco(cx, cy, 49, C_FELTRO_ESC);
-    peca_t pc = { (uint8_t)tipo, 0 };               // nova_peca sortearia: aqui so se olha
+    peca_t pc = { .tipo = (uint8_t)tipo, .fixo = 0 };               // nova_peca sortearia: aqui so se olha
     peca_parada((float)cx, (float)cy, 32, pc, 0);
     int x = x0 + 160;
     gfx_texto(x, y0 + 16, TIPO[tipo].nome, cor_dado(tipo), 1, true);

@@ -1,42 +1,25 @@
 // ===========================================================================
-// A run: andares, nos do mapa, eventos e os oponentes
+// A run: saloes, as mesas de cada um e os oponentes
 // ===========================================================================
 #define DES_ANDARES   3
 #define DES_ANDAR_FINAL 3               // o salao do Coringa: depois do Barao, so no ultimo nivel
-#define DES_PASSOS    6                  // 5 mesas e o chefe
+#define DES_PASSOS    4                  // 3 oponentes e o chefe, sempre nessa ordem
 #define DES_FICHAS    50
 
 
 #define N_NIVEIS      10                 // dificuldades acima da normal (andares do cassino)
-#define N_NIVEIS_V    5                  // as runs e os perfis de antes tinham 5: o nivel n de la e o 2n daqui
-#define DES_MOEDAS    50                 // moedas no comeco da run, no terreo
-#define DES_MOEDAS_ANDAR 12              // e mais estas a cada andar acima
+#define N_NIVEIS_V    5                  // os perfis de antes tinham 5: o nivel n de la e o 2n daqui
+#define DES_MOEDAS    4                  // moedas no comeco da run: a loja da entrada ja vende
+#define DES_MOEDAS_NIVEL 2               // e mais 1 a cada 2 niveis (os oponentes la de cima sao mais duros)
 
-enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_LOJA, NO_EVENTO, NO_VAZIO = 0xFF };
-enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_PREMIO, R_LOJA, R_AMULETO, R_EVENTO };
-// Eventos do mapa (no no, o campo perso guarda qual).
-enum { EVT_LAPIDADOR, EVT_CAPELA, EVT_NIQUEL, EVT_TROCADOR, EVT_FONTE, EVT_GARCOM, EVT_ESQUECIDO,
-       EVT_COPISTA, EVT_N };
-typedef struct { const char *nome, *cena, *resumo; } evt_t;
-static const evt_t EVT[EVT_N] = {
-    [EVT_LAPIDADOR] = { "O Lapidador", "Bancada de lapidação, lupa e lixas.",
-                        "Um dado simples sobe um degrau: moeda vira D4, D4 vira D6, D6 vira D8, D8 vira D12. Só uma vez por run." },
-    [EVT_CAPELA]    = { "A Capela", "Uma capela pequena no corredor do cassino.",
-                        "Tira até 2 dados da sua bolsa, de graça." },
-    [EVT_NIQUEL]    = { "Caça-níquel", "Uma máquina velha num canto, ainda ligada.",
-                        "15 moedas por puxada. Três iguais: dado raro, 200 moedas ou nada." },
-    [EVT_TROCADOR]  = { "O Trocador", "Um homem de chapéu com o paletó cheio de dados.",
-                        "Troca um dado seu por um sorteado da raridade de cima." },
-    [EVT_FONTE]     = { "Fonte dos Desejos", "Moedas brilham no fundo da água.",
-                        "Jogue moedas: quanto mais, maior a chance de sair um amuleto." },
-    [EVT_GARCOM]    = { "O Garçom", "Ele serve a próxima mesa e aceita um agrado.",
-                        "Por 50 moedas, o próximo oponente começa com 10 fichas a menos." },
-    [EVT_ESQUECIDO] = { "Dado Esquecido", "Alguém deixou um dado na mesa vazia.",
-                        "Pegue um dado comum, ou arrisque: raro ou Quebrado." },
-    [EVT_COPISTA]   = { "O Copista", "Ele copia qualquer dado, menos os lendários.",
-                        "Por 70 moedas, faz uma cópia de um dado da sua bolsa." },
-};
-static void abre_evento(void);
+// Moedas por mesa vencida: [salao][1o, 2o, 3o oponente, chefe]. O Barao so
+// paga na Cobertura (nos outros niveis a run acaba nele); o Coringa fecha a run.
+static const uint8_t MOEDAS_MESA[DES_ANDARES][DES_PASSOS] = { { 2, 3, 4, 5 }, { 4, 5, 6, 10 }, { 7, 8, 9, 20 } };
+
+enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_VAZIO = 0xFF };
+// Onde a run parou: R_VENCEU e a mesa vencida (falta o amuleto do chefe, a
+// loja ou o fim).
+enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_VENCEU, R_LOJA, R_AMULETO };
 
 
 // Os oponentes do cassino. Cada um tem um jeito de apostar, dados que
@@ -133,7 +116,7 @@ static const perso_t PERSO[] = {
         { "Deixei meu amuleto em casa.", "Mercúrio retrógrado..." } },
       4, { D_TREVO, D_SORTE }, ES_NORMAL },
     { "O BRUTAMONTES",   "Dados grandes, pouca conversa.",     0.5f,
-      { D_D20, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE, 0xFF },
+      { D_D12, D_LASTRO, D_EGOISTA, D_EXPLOSIVO, D_DESAFIANTE, 0xFF },
       "Mão grande", "Compra 8 dados por rodada.", AM(A_BOLSA), REG_NADA,
       { { "Dado grande. Ponto grande.", "Hmpf." },
         { "Fraco.", "Ha." },
@@ -141,7 +124,7 @@ static const perso_t PERSO[] = {
         { "Hmpf.", "Isso não conta." },
         { "Fácil.", "Próximo." },
         { "...Forte, você.", "Vou treinar mais." } },
-      2, { D_D12, D_LASTRO }, ES_NORMAL },
+      2, { D_D8, D_D12, D_LASTRO }, ES_NORMAL },
     // Chefes, um por salao.
     { "O CRUPIÊ",        "Conhece cada dado desta mesa.",      0.0f,
       { D_VICIADO, D_LASTRO, D_DOBRO, D_ESCUDO, D_CARRASCO, 0xFF },
@@ -155,8 +138,8 @@ static const perso_t PERSO[] = {
       0, { 0 }, ES_NORMAL },
     { "A DONA DO SALÃO", "Nunca perdeu no próprio salão.",     0.4f,
       { D_ESPELHO, D_INVEJOSO, D_FOGO, D_COPIADOR, D_EGOISTA, 0xFF },
-      "Dona da casa", "Começa com 10 fichas a mais, e você compra só 6 dados por rodada.",
-      AM(A_RESERVA) | AM(A_FURADO), REG_NADA,
+      "Dona da casa", "Você compra só 6 dados por rodada.",
+      AM(A_FURADO), REG_NADA,
       { { "Você está na minha casa.", "Que gracinha, um desafiante." },
         { "Que deselegante.", "Meu salão não perdoa." },
         { "Obrigada pela visita.", "Tudo aqui é meu." },
@@ -218,7 +201,7 @@ static const perso_t PERSO[] = {
       8, { D_INVEJOSO }, ES_NORMAL },
     { "A MARATONISTA",   "Começa devagar e termina voando.",   0.3f,
       { D_ACUMULADOR, D_SEMENTE, D_TEIMOSO, D_FARTURA, D_D8, 0xFF },
-      "Segundo fôlego", "Da 5ª rodada em diante, os dados dela valem +1.", 0, REG_FOLEGO,
+      "Segundo fôlego", "Da 6ª rodada em diante, os dados dela valem +1.", 0, REG_FOLEGO,
       { { "É maratona, não corrida.", "Vou no meu ritmo." },
         { "Tropeçou na largada?", "Fôlego curto, hein." },
         { "Mantendo o ritmo.", "Um passo de cada vez." },

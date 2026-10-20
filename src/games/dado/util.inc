@@ -35,7 +35,7 @@ static int tipo_de(int j, int k) { return F[j].tipo[k]; }
 
 static peca_t nova_peca(int tipo)
 {
-    peca_t p = { (uint8_t)tipo, 0 };
+    peca_t p = { .tipo = (uint8_t)tipo, .fixo = 0 };
     if (tipo == D_QUEBRADO) p.fixo = (uint8_t)rola(8);
     return p;
 }

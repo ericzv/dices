@@ -22,14 +22,14 @@ static const pagina_t TUTORIAL[] = {
     { "Apostas", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
         "O outro escolhe: pagar para ver, dobrar a aposta ou correr. Quem corre entrega o pote na hora.",
-        NULL } },
+        "Se quem abriu termina com 0, nem tem aposta: ele perde a rodada, e o outro leva o pote sem jogar." } },
     { "Loja, prêmios e dados especiais", {
         "A loja do começo vende dados especiais. Quem vence uma rodada escolhe um prêmio: um dado novo ou tirar um fraco da bolsa.",
         "São %d dados, cada um com um poder: veja todos em Dados da casa.",
         NULL } },
     { "Modo Desafiante", {
-        "Em 1 jogador: uma run por 3 salões do cassino, cada um com 5 mesas e o chefe. No mapa você escolhe o caminho: oponentes, lojas e eventos.",
-        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas viram moedas e você ganha um prêmio. Perdeu, a run acaba.",
+        "Em 1 jogador: uma run por 3 salões do cassino, cada um com três oponentes e o chefe, todos à vista desde o começo.",
+        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: algumas moedas e uma loja pequena (comprar, abrir um pacote, colar um adesivo, trocar a vitrine, tirar dados). Perdeu (ou saiu no meio da partida), a run acaba.",
         "Vencer o Barão abre a dificuldade seguinte, e os chefes abrem dados novos. Cada perfil guarda o seu progresso e a sua run." } },
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",

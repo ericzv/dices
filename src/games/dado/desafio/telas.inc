@@ -273,23 +273,25 @@ static void desenha_dificuldade(void)
         }
     }
     {
-        char m[48];                                  // e o que ajuda: mais moedas a cada andar
-        snprintf(m, sizeof m, "Você começa com %d moedas.", DES_MOEDAS + DES_MOEDAS_ANDAR * d);
+        char m[64];                                  // o mesmo comeco em todo andar
+        snprintf(m, sizeof m, "Você começa com %d moedas e %d dados.", moedas_iniciais(d), (int)sizeof BOLSA_INICIO);
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }
-    if (d > 0) {                                     // o amuleto e os dados que abrem
+    if (d > 0) {                                     // o amuleto, os dados e o adesivo que abrem
         int am[2], dado[LIB_DADOS];
         liberados(d, am, dado);
-        int it[2 + LIB_DADOS], ni = 0;
+        int it[2 + LIB_DADOS + AD_N], ni = 0;            // amuleto: -1 - a; dado: o tipo; adesivo: ADE + a
+        enum { ADE = 1000 };
         for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
         for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
+        for (int a = AD_NADA + 1; a < AD_N; a++) if (ADESIVO[a].nivel == d) it[ni++] = ADE + a;
         ly += 4;
         txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
         ly += 24;
         int ix = px + 24, iy = ly;
         for (int i = 0; i < ni; i++) {              // em fluxo: cada um com a largura do seu nome
-            const char *nome = it[i] < 0 ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome;
+            const char *nome = it[i] < 0 ? AMULETO[-1 - it[i]].nome : it[i] >= ADE ? ADESIVO[it[i] - ADE].nome : TIPO[it[i]].nome;
             int wi = 14 + gfx_largura(nome, GFX_FINO) + 16;
             if (ix + wi > px + 408) { ix = px + 24; iy += 24; }
             if (it[i] < 0) {
@@ -297,6 +299,11 @@ static void desenha_dificuldade(void)
                 desenha_amuleto(ix, iy, 9, a, d > nv);
                 txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : AMULETO[a].cor, false);
                 if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_AMULETO, a);
+            } else if (it[i] >= ADE) {
+                int a = it[i] - ADE;
+                ad_solto_d(ix, iy, a, 1, 0);
+                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : ADESIVO[a].luz, false);
+                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_ADESIVO, a);
             } else {
                 desenha_dado((float)ix, (float)iy, 9, it[i], 0, 0, 0, 0, d > nv);
                 txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : cor_dado(it[i]), false);
@@ -308,45 +315,3 @@ static void desenha_dificuldade(void)
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
 }
 
-// Quantas coisas a dificuldade que acabou de abrir trouxe (amuleto e dados).
-static int liberou_itens(void)
-{
-    if (des_liberou < 1) return 0;
-    int am[2], dado[LIB_DADOS], n = 0;
-    liberados(des_liberou, am, dado);
-    for (int i = 0; i < 2; i++) n += am[i] >= 0;
-    for (int i = 0; i < LIB_DADOS; i++) n += dado[i] >= 0;
-    return n;
-}
-
-static void desenha_liberou(int dy)
-{
-    if (des_liberou < 1) return;
-    int am[2], dado[LIB_DADOS];
-    liberados(des_liberou, am, dado);
-    char s[64];
-    snprintf(s, sizeof s, "Abriu o %s", NOME_DIF[des_liberou]);
-    txt_c(GFX_W / 2, CENTRO + 44 + dy, s, COR_DIF[des_liberou], true);
-    // O amuleto e os dados, cada um com a largura do seu nome, em ate duas
-    // linhas centradas.
-    int it[2 + LIB_DADOS], ni = 0;
-    for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
-    for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
-    int porlinha = ni > 5 ? (ni + 1) / 2 : ni;
-    for (int lin = 0; lin * porlinha < ni; lin++) {
-        int de = lin * porlinha, ate = de + porlinha < ni ? de + porlinha : ni, w = -18;
-        for (int i = de; i < ate; i++)
-            w += 20 + gfx_largura(it[i] < 0 ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome, GFX_FINO) + 18;
-        int x = GFX_W / 2 - w / 2, y = CENTRO + 74 + dy + lin * 24;
-        for (int i = de; i < ate; i++) {
-            bool a = it[i] < 0;
-            const char *nome = a ? AMULETO[-1 - it[i]].nome : TIPO[it[i]].nome;
-            int wn = 20 + gfx_largura(nome, GFX_FINO);
-            if (a) desenha_amuleto(x + 8, y, 8, -1 - it[i], false);
-            else desenha_dado((float)(x + 8), (float)y, 8, it[i], 0, 0, 0, 0, false);
-            txt(x + 20, y - 6, nome, a ? AMULETO[-1 - it[i]].cor : cor_dado(it[i]), false);
-            dica_zona(x, y - 10, wn, 20, a ? DICA_AMULETO : DICA_DADO, a ? -1 - it[i] : it[i]);
-            x += wn + 18;
-        }
-    }
-}

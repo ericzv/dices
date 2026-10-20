@@ -638,6 +638,200 @@ def jackpot():
     return sala(m.x, 0.2)
 
 # ---------------------------------------------------------------------------
+# Adesivos (Modo Desafiante): colar na loja e cada um agindo na mesa
+# ---------------------------------------------------------------------------
+def marimba(m_, dur, solta=0.15):
+    """A marimba do FluidR3 so tem de Do3 a Mi3: as outras notas, transpostas."""
+    base = min(range(48, 53), key=lambda b: abs(b - m_))
+    return tom(nota('marimba', base, dur * 2 ** ((m_ - base) / 12), solta), m_ - base)
+
+def estalinho(dur, corte=3000):
+    n = int(dur * SR)
+    return pa(rng.standard_normal(n + 64), corte)[:n] * env(n, 0.0002, dur / 3)
+
+def ad_cola():
+    """O vinil descolando do papel (um chiado que crepita e sobe) e o tapa no dado."""
+    m = Mix(0.6)
+    n = int(0.16 * SR); q = np.linspace(0, 1, n)
+    rasga = banda(rng.standard_normal(n), 1500, 6000) * (0.3 + 0.7 * q) * np.sin(np.pi * q) ** 0.7
+    pulsos = pb((rng.random(n) < 0.08) * rng.uniform(0.3, 1, n), 3000)
+    m.poe(0, rasga * (0.6 + 4 * pulsos), 0.35)
+    m.poe(0.17, pb(superficie('surface_felt4'), 3000), 0.9)            # o tapa
+    m.poe(0.17, tom(batida('dicehit_plastic5'), -6), 0.35)
+    return sala(m.x, 0.08)
+
+def ad_chumbo():
+    """O baque surdo: o dado caindo pesado no feltro, bem abaixo dos outros."""
+    m = Mix(0.7)
+    m.poe(0, pb(tom(superficie('surface_felt3'), -9), 1200), 1.0)
+    m.poe(0, pb(nota('timpani', 36, 0.25, 0.2), 300), 0.55)
+    m.poe(0.005, tom(superficie('surface_wood_table5'), -12), 0.35)
+    return sala(m.x, 0.10)
+
+def ad_reflexivo():
+    """O dado quica de volta: a mola, tres notas subindo na marimba e a batida."""
+    m = Mix(0.6)
+    for k, n in enumerate((72, 79, 84)):
+        m.poe(k * 0.045, marimba(n, 0.08, 0.12), 0.55 - 0.1 * k)
+    m.poe(0, tom(batida('dicehit_plastic2'), 3), 0.6)
+    n = int(0.22 * SR); t = np.arange(n) / SR
+    f = 900 - 400 * (t / t[-1]) + 60 * np.sin(2 * np.pi * 28 * t)
+    m.poe(0.02, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.003, 0.07), 0.25)
+    return sala(m.x, 0.14)
+
+def ad_avesso():
+    """O dado vira no ar: um sopro curto que passa e o clique ao deitar."""
+    m = Mix(0.6)
+    n = int(0.24 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 600, 5000) * np.sin(np.pi * q) ** 2, 0.35)
+    m.poe(0.24, tom(batida('dicehit_wood5'), 2), 0.7)
+    m.poe(0.24, superficie('surface_felt2'), 0.4)
+    return sala(m.x, 0.12)
+
+def ad_confete():
+    """O estalo de festa e o papel picado brilhando: um pop e sininhos caindo."""
+    m = Mix(1.3)
+    m.poe(0, estalinho(0.03, 800), 0.9)
+    m.poe(0, tom(batida('dicehit_plastic9'), 8), 0.5)
+    for k in range(9):
+        nn = int(rng.choice((96, 98, 100, 103, 105, 108)))
+        m.poe(0.04 + k * 0.06 + rnd.uniform(0, 0.03), nota('glockenspiel', nn, 0.08, 0.2), 0.32 * (1 - k / 12))
+    w = ruido(0.6, 2000, 9000)                                         # o papel caindo
+    m.poe(0.05, w * env(len(w), 0.05, 0.25), 0.06)
+    return sala(m.x, 0.2)
+
+def ad_eletronico():
+    """Um zap eletrico: o zumbido serrilhado subindo e faiscas estalando."""
+    m = Mix(0.6)
+    n = int(0.32 * SR); t = np.arange(n) / SR
+    fase = np.cumsum(110 * 2 ** (t / t[-1] * 2.5)) / SR
+    zum = pb(2 * (fase % 1) - 1, 4000) * env(n, 0.005, 0.12) * (0.6 + 0.4 * np.sign(np.sin(2 * np.pi * 40 * t)))
+    m.poe(0, zum, 0.5)
+    for k in range(7):
+        m.poe(rnd.uniform(0, 0.25), estalinho(rnd.uniform(0.001, 0.004)), rnd.uniform(0.4, 1))
+    m.poe(0.05, nota('vibraphone', 88, 0.15, 0.2), 0.25)
+    return sala(m.x, 0.12)
+
+def ad_transparente():
+    """O dado segura a queda: um toque de vidro, limpo, sem quebrar."""
+    m = Mix(0.9)
+    m.poe(0, tom(batida('dicehit_metal3'), 10), 0.5)
+    m.poe(0.005, nota('glockenspiel', 100, 0.3, 0.5), 0.45)
+    m.poe(0.005, nota('vibraphone', 88, 0.4, 0.4), 0.3)
+    return sala(m.x, 0.22)
+
+def ad_dourado():
+    """A moeda salta do dado: o tilintar e um brilho dourado no vibrafone."""
+    m = Mix(1.0)
+    m.poe(0, tom(batida('dicehit_coin3'), 3), 0.8)
+    m.poe(0.07, tom(batida('dicehit_coin5'), 5), 0.5)
+    m.poe(0.05, nota('vibraphone', 84, 0.3, 0.4), 0.45)
+    m.poe(0.12, nota('glockenspiel', 96, 0.3, 0.4), 0.35)
+    return sala(m.x, 0.2)
+
+def ad_lobo():
+    """As garras: tres rasgos rapidos e um rosnado grave por baixo."""
+    m = Mix(0.8)
+    for k in range(3):
+        n = int(0.07 * SR); q = np.linspace(0, 1, n)
+        m.poe(k * 0.07, banda(rng.standard_normal(n), 900 + 300 * k, 6000) * np.sin(np.pi * q) ** 1.5, 0.4)
+    n = int(0.55 * SR); t = np.arange(n) / SR
+    rosna = pb(rng.standard_normal(n), 260) * (0.6 + 0.4 * np.sin(2 * np.pi * 22 * t)) * env(n, 0.06, 0.25)
+    m.poe(0.04, rosna, 1.2)
+    m.poe(0.04, baixo(31, 0.4, 0.6, 0.1, desliza=(0, -2)), 0.35)
+    return sala(m.x, 0.15)
+
+def ad_remendo():
+    """O lado remendado: dois pontos de agulha puxando a linha, e um toque."""
+    m = Mix(0.5)
+    for k, t0 in enumerate((0.0, 0.09)):
+        m.poe(t0, pa(tom(batida('dicehit_wood%d' % (3 + k)), 6), 1500), 0.6)
+        n = int(0.06 * SR); q = np.linspace(0, 1, n)
+        m.poe(t0 + 0.02, banda(rng.standard_normal(n), 2500, 8000) * np.sin(np.pi * q), 0.12)   # a linha
+    m.poe(0.16, marimba(84, 0.1, 0.15), 0.4)
+    return sala(m.x, 0.1)
+
+def ad_raspadinha():
+    """Raspando o bilhete, rapido e ritmado, e o premio nos sininhos."""
+    m = Mix(1.2)
+    for k in range(6):
+        n = int(0.045 * SR); q = np.linspace(0, 1, n)
+        w = banda(rng.standard_normal(n), 1800, 7000) * np.sin(np.pi * q) ** 0.8
+        m.poe(k * 0.055, w, 0.35 * (0.7 + 0.3 * (k % 2)))
+    for k, nn in enumerate((91, 96, 100)):
+        m.poe(0.36 + k * 0.06, nota('glockenspiel', nn, 0.25, 0.4), 0.45)
+    moedas(m, 0.40, 0.75, 5, 0.3)
+    return sala(m.x, 0.2)
+
+def ad_fermento():
+    """A massa subindo: bolhas que estouram, cada uma um pouco mais aguda."""
+    m = Mix(0.9)
+    for k in range(6):
+        n = int(0.06 * SR); t = np.arange(n) / SR
+        f = 300 * 2 ** (k / 5) * (1 + 2.5 * t / t[-1])
+        m.poe(k * 0.08 + rnd.uniform(0, 0.02), np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.002, 0.02), 0.5)
+    m.poe(0.45, marimba(79, 0.12, 0.2), 0.35)
+    return sala(m.x, 0.18)
+
+def ad_bis():
+    """Mais um: dois dados batendo e duas notas subindo, de novo!"""
+    m = Mix(0.8)
+    m.poe(0, tom(batida('dicehit_plastic4'), 2), 0.6)
+    m.poe(0.08, tom(batida('dicehit_plastic6'), 4), 0.5)
+    m.poe(0.12, tecla(76, 0.15, 0.55, 0.2), 0.6)
+    m.poe(0.24, tecla(81, 0.35, 0.6, 0.3), 0.6)
+    return sala(m.x, 0.2)
+
+def ad_mira():
+    """A mira trava: tres bipes subindo e o clique da trava."""
+    m = Mix(0.8)
+    for k in range(3):
+        n = int(0.05 * SR); t = np.arange(n) / SR
+        m.poe(k * 0.09, np.sin(2 * np.pi * (1300 + 250 * k) * t) * env(n, 0.002, 0.03), 0.3)
+    m.poe(0.3, tom(batida('dicehit_metal4'), 4), 0.8)
+    m.poe(0.3, pa(superficie('surface_metal2'), 1500), 0.3)
+    return sala(m.x, 0.12)
+
+def ad_gorjeta():
+    """As fichas do rival vindo para o seu monte."""
+    m = Mix(0.8)
+    monte_de_fichas(m, 0.05, 0.35, 5, 0.6)
+    m.poe(0.3, nota('vibraphone', 81, 0.25, 0.3), 0.35)
+    return sala(m.x, 0.12)
+
+# ---------------------------------------------------------------------------
+# Novidades (Modo Desafiante): o que abriu, um card de cada vez
+# ---------------------------------------------------------------------------
+def vira_carta():
+    """O card virando: um sopro curto de papel e o estalo dele deitando."""
+    m = Mix(0.3)
+    n = int(0.09 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 1800, 7000) * np.sin(np.pi * q) ** 1.5, 0.3)
+    m.poe(0.085, estalinho(0.012, 2500), 0.35)
+    return m.x
+
+def novidade():
+    """Uma coisa nova: o card vira e soa uma nota de celesta, com o vibrafone embaixo.
+    O jogo toca cada card seguinte um semitom acima."""
+    m = Mix(1.2)
+    m.poe(0, vira_carta(), 1.0)
+    m.poe(0.09, nota('celesta', 84, 0.35, 0.5), 0.55)
+    m.poe(0.09, nota('vibraphone', 72, 0.5, 0.6), 0.35)
+    return sala(m.x, 0.2)
+
+def novidade_lenda():
+    """A novidade grande (a dificuldade nova, um lendario): o card vira e um
+    acorde de vibrafone abre subindo, com sininhos por cima."""
+    m = Mix(2.0)
+    m.poe(0, vira_carta(), 1.0)
+    for k, n in enumerate((72, 76, 79, 84)):
+        m.poe(0.09 + k * 0.05, nota('vibraphone', n, 1.0, 0.8), 0.32)
+    m.poe(0.09, nota('celesta', 84, 0.6, 0.6), 0.4)
+    for k, n in enumerate((96, 100, 103, 108)):
+        m.poe(0.25 + k * 0.07, nota('glockenspiel', n, 0.2, 0.4), 0.22)
+    return sala(m.x, 0.25)
+
+# ---------------------------------------------------------------------------
 # Roleta do premio
 # ---------------------------------------------------------------------------
 def giro():
@@ -825,6 +1019,14 @@ VOLUME = {
 VOLUME.update({'passa': VOLUME['tique'] * 0.32, 'moeda_bate': VOLUME['bate'] * 0.6,
                'moeda_pousa': VOLUME['pousa'] * 0.45, 'moeda_rola': VOLUME['rufo'] * 0.5,
                'suspense': VOLUME['anula'] * 0.8, 'forte': VOLUME['vitoria'] * 1.15})
+# Os adesivos: na altura dos poderes (o efeito do fim), os do pouso como o pouso.
+VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_reflexivo': VOLUME['efeito'] * 0.8,
+               'ad_avesso': VOLUME['efeito'] * 0.8, 'ad_confete': VOLUME['efeito'], 'ad_eletronico': VOLUME['efeito'],
+               'ad_transparente': VOLUME['efeito'] * 0.8, 'ad_dourado': VOLUME['efeito'], 'ad_lobo': VOLUME['tira'],
+               'ad_remendo': VOLUME['efeito'] * 0.7, 'ad_raspadinha': VOLUME['efeito'], 'ad_fermento': VOLUME['efeito'] * 0.9,
+               'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha']})
+# As novidades: a comum na altura de um poder, a grande perto da vitoria.
+VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -843,6 +1045,10 @@ SONS = {
     'bigorna': (bigorna, 'bigorna'), 'jackpot': (jackpot, 'jackpot'),
     'slot': (slot, 'slot'), 'premio': (premio, 'premio'),
 }
+for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
+             'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
+             'novidade', 'novidade_lenda'):
+    SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')
     SONS['bate_dado_%d' % v] = ((lambda v=v: bate_dado(v)), 'bate')

@@ -190,7 +190,7 @@ void dado_mouse(int x, int y, int acao)
     case F_ONLINE:
         if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
         break;
-    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS:
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS: case F_NOVIDADES:
         manda_tecla(KEY_ENTER);
         break;
     case F_PREMIO:
@@ -322,14 +322,16 @@ static void trata_tecla(int k)
 
     case F_CATALOGO:
         // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
-        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB) {
-            int sec = k == KEY_TAB ? !cat_sec : (k == KEY_DOWN || k == 's');
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '3')) {
+            int sec = k == KEY_TAB ? (cat_sec + 1) % 3 : k >= '1' && k <= '3' ? k - '1'
+                    : k == KEY_DOWN || k == 's' ? (cat_sec < 2 ? cat_sec + 1 : 2) : (cat_sec > 0 ? cat_sec - 1 : 0);
             if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
             return;
         }
         if (e) {
             if (cat_sec == 0) cat_i = (cat_i + e + N_CATALOGO) % N_CATALOGO;
-            else cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
+            else if (cat_sec == 1) cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
+            else cat_ad = (cat_ad + e + AD_N - 1) % (AD_N - 1);
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;
@@ -422,7 +424,7 @@ static void trata_tecla(int k)
             return;
         }
         if (e) { cursor = (cursor + e + 4) % 4; return; }
-        if (k == 'x') { if (modo == M_DESAFIO) des_premio_feito(); else nova_rodada(); return; }
+        if (k == 'x') { nova_rodada(); return; }
         if (k == KEY_ENTER) {
             if (cursor == 3) {
                 if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
@@ -434,8 +436,7 @@ static void trata_tecla(int k)
                 p->col[p->n_col] = oferta[cursor];
                 p->onde[p->n_col++] = FORA;
             }
-            if (modo == M_DESAFIO) des_premio_feito();
-            else nova_rodada();
+            nova_rodada();
         }
         return;
     }

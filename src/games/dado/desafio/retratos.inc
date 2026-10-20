@@ -4,7 +4,6 @@
 // ---------------------------------------------------------------------------
 #define RT_W 22
 #define RETRATO_AVATAR 32                // os avatares vem depois dos oponentes no desenho
-#define RETRATO_EVENTO 36                // e os eventos, depois dos 4 avatares
 #define RT_H 27
 #define RT_TOPO 3                        // folga em cima para chapeus e coques
 static uint16_t rt[RT_H][RT_W];          // 0 = vazio (1 px de margem em volta)
@@ -496,105 +495,6 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(10, hy - 1, 4, 2, sombra(MET));
         break;
     }
-    case RETRATO_EVENTO + EVT_LAPIDADOR: {                      // LAPIDADOR: careca, lupa de joalheiro, avental
-        const uint16_t COURO = RGB(124, 84, 52);
-        tronco(COURO, P_CLARA, RGB(222, 216, 202), 0, 0);
-        rr(5, 17, 1, 5, luz(COURO)); rr(14, 17, 1, 5, luz(COURO));   // alcas do avental
-        rosto(hy, P_CLARA, GRISALHO, 0, pisca, boca);
-        rr(6, hy - 1, 8, 1, P_CLARA); rr(7, hy - 1, 3, 1, luz(P_CLARA));   // careca com brilho
-        rr(4, hy + 2, 2, 4, GRISALHO); rr(14, hy + 2, 2, 4, GRISALHO);
-        rr(5, hy + 3, 10, 1, RGB(60, 44, 34));                  // a tira da lupa
-        rr(10, hy + 5, 4, 4, RGB(54, 48, 46));                  // a lupa no olho direito
-        rr(11, hy + 6, 2, 2, RGB(150, 190, 200));
-        if ((int)(t / 2.2f) % 3 == 0) rp(11, hy + 6, C_BRANCO);
-        if (!boca) rr(7, hy + 9, 6, 1, GRISALHO);               // bigode branco
-        break;
-    }
-    case RETRATO_EVENTO + EVT_CAPELA: {                         // PADRE: batina, colarinho, cruz pequena
-        const uint16_t BATINA = RGB(36, 36, 42);
-        tronco(BATINA, P_MEDIA, 0, 0, 3);
-        rr(8, 17, 4, 1, BATINA); rr(9, 17, 2, 1, C_BRANCO);     // colarinho
-        rr(9, 19, 1, 3, C_OURO); rr(8, 20, 3, 1, C_OURO);       // a cruz
-        bool reza = fmodf(t, 6.0f) > 4.2f;                      // fecha os olhos de vez em quando
-        rosto(hy, P_MEDIA, GRISALHO, 0, pisca || reza, boca);
-        rr(5, hy - 1, 10, 2, GRISALHO); rr(5, hy + 1, 1, 2, GRISALHO); rr(14, hy + 1, 1, 2, GRISALHO);
-        rr(8, hy - 1, 4, 1, luz(GRISALHO));
-        break;
-    }
-    case RETRATO_EVENTO + EVT_TROCADOR: {                       // TROCADOR: chapelao, bigode fino, dente de ouro
-        const uint16_t CHAPEU = RGB(68, 42, 88);
-        tronco(RGB(112, 32, 52), P_MEDIA, RGB(230, 220, 200), C_OURO, 0);
-        rp(3, 19, C_MARFIM); rp(4, 20, C_MARFIM); rp(16, 19, C_MARFIM); rp(15, 20, C_MARFIM);   // dados na lapela
-        rosto(hy, P_MEDIA, PRETO, 2, pisca, boca);
-        rr(3, hy, 14, 1, CHAPEU);                               // aba larga
-        rr(6, hy - 4, 8, 4, CHAPEU);
-        rr(6, hy - 1, 8, 1, C_OURO);                            // fita
-        rr(7, hy - 4, 1, 3, luz(CHAPEU));
-        if ((int)(t / 4.0f) % 2) rp(12, hy + 3, sombra(PRETO)); // levanta uma sobrancelha
-        if (!boca) {
-            rr(7, hy + 8, 2, 1, PRETO); rr(11, hy + 8, 2, 1, PRETO);   // bigode fino
-            if (fmodf(t, 3.0f) < 0.5f) rp(10, hy + 9, C_OURO);          // o dente de ouro brilha
-            else rp(10, hy + 9, RGB(200, 160, 60));
-        }
-        break;
-    }
-    case RETRATO_EVENTO + EVT_GARCOM: {                         // GARCOM: cabelo lambido, gravata borboleta, pano no ombro
-        tronco(RGB(236, 232, 222), P_CLARA, RGB(250, 250, 250), RGB(30, 30, 34), 1);
-        rr(2, 17, 3, 5, C_BRANCO); rr(2, 19, 3, 1, RGB(150, 40, 50));   // o pano
-        rosto(hy, P_CLARA, PRETO, 0, pisca, boca);
-        rr(5, hy - 1, 10, 3, PRETO); rr(5, hy + 2, 1, 2, PRETO); rr(14, hy + 2, 1, 2, PRETO);
-        rr(7, hy - 1, 4, 1, luz(PRETO));                        // brilho da brilhantina
-        if (!pisca) {                                           // olha de lado, discreto
-            bool lado = fmodf(t, 5.0f) > 3.2f;
-            uint16_t olho = RGB(30, 26, 30);
-            rp(7, hy + 6, lado ? olho : C_BRANCO); rp(8, hy + 6, lado ? C_BRANCO : olho);
-            rp(11, hy + 6, lado ? olho : C_BRANCO); rp(12, hy + 6, lado ? C_BRANCO : olho);
-        }
-        if (!boca) rr(8, hy + 9, 4, 1, PRETO);                  // bigodinho
-        break;
-    }
-    case RETRATO_EVENTO + EVT_COPISTA: {                        // COPISTA: boina, oculos redondos, pena atras da orelha
-        tronco(RGB(92, 72, 52), P_PALIDA, RGB(222, 212, 192), 0, 0);
-        rosto(hy, P_PALIDA, MARROM, 0, pisca, boca);
-        rr(5, hy + 1, 1, 3, MARROM); rr(14, hy + 1, 1, 3, MARROM);
-        rr(4, hy - 1, 11, 2, RGB(140, 40, 48)); rr(6, hy - 2, 8, 1, RGB(140, 40, 48));   // boina caida
-        rr(13, hy - 1, 3, 1, sombra(RGB(140, 40, 48)));
-        uint16_t aro = RGB(70, 60, 50);                         // oculos redondos
-        rr(7, hy + 5, 2, 1, aro); rr(7, hy + 8, 2, 1, aro); rr(6, hy + 6, 1, 2, aro); rr(9, hy + 6, 1, 2, aro);
-        rr(11, hy + 5, 2, 1, aro); rr(11, hy + 8, 2, 1, aro); rr(10, hy + 6, 1, 2, aro); rr(13, hy + 6, 1, 2, aro);
-        if ((int)(t / 2.5f) % 3 == 1) rp(8, hy + 6, C_BRANCO);
-        rp(16, hy + 1, C_BRANCO); rp(16, hy + 2, C_BRANCO); rp(17, hy, C_BRANCO); rp(17, hy - 1, C_MARFIM_S);   // a pena
-        rp(15, hy + 3, PRETO);
-        rp(14, 20, RGB(40, 40, 90)); rp(15, 21, RGB(40, 40, 90));   // mancha de tinta
-        break;
-    }
-    case RETRATO_EVENTO + EVT_FONTE: {                          // FONTE: taca de pedra, agua caindo, moedas no fundo
-        fundo = 3;
-        const uint16_t PEDRA = RGB(150, 150, 140), AGUA = RGB(90, 160, 210);
-        rr(0, 16, 20, 6, PEDRA); rr(0, 16, 20, 1, luz(PEDRA));  // a bacia
-        rr(1, 17, 18, 2, AGUA);
-        static const int8_t MOEDA[4] = { 3, 7, 12, 16 };
-        for (int i = 0; i < 4; i++) rp(MOEDA[i], 18, ((int)(t / 0.7f) + i) % 3 ? C_OURO : C_AMARELO);
-        rr(8, 6, 4, 10, PEDRA); rr(8, 6, 1, 10, luz(PEDRA));    // o pe
-        rr(4, 4, 12, 2, PEDRA); rr(4, 4, 12, 1, luz(PEDRA));    // a taca de cima
-        rr(9, 1, 2, 3, AGUA);                                   // o jato
-        int f = (int)(t / 0.25f) % 3;
-        rp(9 + (f == 1), -1 + (f == 2), luz(AGUA));
-        for (int yy = 6; yy < 16; yy++)                          // agua caindo dos dois lados
-            if ((yy + f) % 3) { rp(3, yy, AGUA); rp(16, yy, AGUA); }
-        break;
-    }
-    case RETRATO_EVENTO + EVT_ESQUECIDO: {                      // DADO ESQUECIDO: luminaria e um dado sozinho no feltro
-        fundo = 4;
-        const uint16_t LUMI = RGB(46, 84, 64);
-        rr(6, -3, 8, 2, LUMI); rr(5, -1, 10, 1, LUMI); rr(9, -4, 2, 1, RGB(60, 60, 60));
-        bool fraca = fmodf(t, 3.7f) > 3.45f;                    // a lampada pisca de leve
-        rr(8, 0, 4, 1, fraca ? RGB(200, 180, 110) : RGB(250, 230, 150));
-        rr(8, 19, 7, 2, sombra(sombra(RGB(40, 110, 72))));       // sombra do dado
-        rr(7, 13, 6, 6, C_MARFIM); rr(7, 13, 6, 1, C_BRANCO); rr(12, 14, 1, 5, C_MARFIM_S);
-        rp(8, 14, C_EBANO_B); rp(10, 16, C_EBANO_B); rp(11, 17, C_EBANO_B);   // tres pontos
-        break;
-    }
     default: {                                                  // BARAO: cartola, monoculo, bigodao branco
         tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
         rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
@@ -750,63 +650,57 @@ static void balao_oponente(void)
 
 static const char *const SALAO[DES_ANDARES + 1] = { "Salão Verde", "Salão Vermelho", "Salão Dourado", "Salão do Coringa" };
 static const uint16_t COR_SALAO[DES_ANDARES + 1] = { C_VERDE, C_VINHO_CLR, C_OURO, C_REAL };
-static const char *const NOME_NO[] = { "Fácil", "Médio", "Difícil", "Chefe", "Loja", "Evento" };
+static const char *const NOME_NO[] = { "Fácil", "Médio", "Difícil", "Chefe" };
 static uint16_t cor_no(int t)
 {
     switch (t) {
     case NO_FACIL:   return RGB(104, 186, 110);
     case NO_MEDIO:   return C_LATAO;
     case NO_DIFICIL: return C_VINHO_CLR;
-    case NO_CHEFE:   return C_OURO;
-    case NO_EVENTO:  return RGB(164, 128, 214);
-    default:         return C_AMARELO;
+    default:         return C_OURO;
     }
 }
 
 // Nivel da IA de cada mesa: sobe pouco, porque os oponentes fortes ja tem
 // dados melhores. [salao][facil, medio, dificil, chefe]
-static const uint8_t NIVEL_NO[DES_ANDARES + 1][4] = { { 0, 0, 0, 0 }, { 0, 0, 1, 1 }, { 1, 1, 1, 2 }, { 2, 2, 2, 2 } };
+static const uint8_t NIVEL_NO[DES_ANDARES + 1][4] = { { 0, 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1, 2 }, { 2, 2, 2, 2 } };
 
 typedef struct {
-    uint8_t tipo, perso, nivel, liga;    // liga: bit l = leva a linha l do proximo passo
+    uint8_t tipo, perso, nivel;          // tipo: NO_* (a posicao no salao); nivel: o da IA
     uint32_t semente;
 } no_t;
 
-// Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal).
-#define RUN_CAMPOS(NCOL)                                                                   \
-    char     marca[4];                   /* "DES2" (o "DES1" dos 5 niveis e convertido) */ \
-    uint8_t  andar, passo, estado, vitorias;                                               \
-    int32_t  moedas, ganho;              /* ganho: moedas da ultima vitoria */             \
-    uint32_t semente;                                                                      \
-    uint8_t  n_col, tier;                /* tier: dificuldade da ultima mesa vencida */    \
-    peca_t   col[NCOL];                                                                    \
-    no_t     no[DES_PASSOS][3];          /* [passo][linha]; tipo NO_VAZIO = sem mesa */    \
-    int8_t   caminho[DES_PASSOS];        /* linha escolhida em cada passo do salao */      \
-    peca_t   loja[N_LOJA];                                                                 \
-    uint8_t  levou[N_LOJA];                                                                \
-    peca_t   oferta[3];                  /* premio a escolher (estado R_PREMIO) */         \
-    uint16_t amuletos;                   /* bit a: tem o amuleto a (16+ em amuletos_hi) */  \
-    uint8_t  am_oferta[3];               /* amuletos a escolher (estado R_AMULETO) */      \
-    uint8_t  am_volta;                   /* de onde veio o amuleto: AV_* (para onde segue) */ \
-    uint8_t  am_loja, am_levou;          /* amuleto a venda na loja (0xFF: nenhum) */      \
-    uint8_t  juros;                      /* moedas que o Cofre rendeu na ultima vitoria */ \
-    uint8_t  dificuldade;                /* 0 normal .. N_NIVEIS */                        \
-    uint16_t amuletos_hi;                                                                  \
-    uint8_t  taca;                       /* moedas que a Taca rendeu na ultima vitoria */  \
-    uint8_t  am_selo;                    /* Selo de Divida: o segundo amuleto ja saiu */   \
-    /* Eventos: lapidou (o Lapidador ja foi usado: nao aparece mais), garcom            */ \
-    /* (o proximo oponente comeca com 10 fichas a menos), puxadas no                    */ \
-    /* caca-niquel e dados que a Capela ja levou.                                       */ \
-    uint8_t  lapidou, garcom, puxadas, tirados;                                           \
-    /* Amuleto esperando lugar (+1; 0: nenhum): os 5 cheios, a troca. Mora no que       */ \
-    /* sobrava no fim da estrutura: o tamanho (e o salvamento de antes) fica igual.     */ \
-    uint8_t  am_novo;
-typedef struct { RUN_CAMPOS(MAX_COL) } run_t;
-typedef struct { RUN_CAMPOS(48) } run48_t;     // de quando a bolsa parava em 48: lido e convertido
-_Static_assert(sizeof(run_t) != sizeof(run48_t)
-               && sizeof(run_t) - offsetof(run_t, no) == sizeof(run48_t) - offsetof(run48_t, no),
-               "os formatos da run se distinguem pelo tamanho, e o que vem depois da bolsa e igual");
-_Static_assert(sizeof(run_t) == 472, "a run salva mudou de tamanho: as de antes deixam de abrir");
+// Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal);
+// a marca muda quando a estrutura muda, e a run salva de antes nao abre mais.
+#define RUN_MARCA "DES5"
+#define VITRINE_MAX 3                    // a vitrine da loja: 2 dados (3 com a Cartola)
+#define PAC_OPCOES  3                    // o pacote mostra 3 dados do grupo: leva 1
+typedef struct {
+    char     marca[4];                   // RUN_MARCA
+    uint8_t  andar, passo, estado, vitorias;
+    int32_t  moedas;
+    uint32_t semente;
+    uint8_t  n_col, dificuldade;         // dificuldade: 0 normal .. N_NIVEIS
+    peca_t   col[MAX_COL];
+    no_t     no[DES_PASSOS];             // as mesas do salao, na ordem (NO_VAZIO: nenhuma)
+    uint16_t amuletos, amuletos_hi;      // bit a: tem o amuleto a (16+ em amuletos_hi)
+    uint8_t  am_oferta[3];               // amuletos a escolher (estado R_AMULETO)
+    uint8_t  am_volta;                   // de onde veio o amuleto: AV_* (para onde segue)
+    uint8_t  am_selo;                    // Selo de Divida: o segundo amuleto ja saiu
+    uint8_t  am_novo;                    // amuleto esperando lugar (+1; 0: nenhum): a troca
+    uint8_t  ganho, juros, taca;         // a ultima vitoria: a mesa, o Cofre e a Taca
+    peca_t   vitrine[VITRINE_MAX];       // a loja aberta agora
+    uint8_t  levou[VITRINE_MAX];
+    uint8_t  trocas;                     // vitrines trocadas nesta loja (o preco sobe)
+    uint8_t  remocoes;                   // dados tirados na run (o preco sobe)
+    uint8_t  lojas;                      // lojas abertas na run (o sorteio de cada uma)
+    uint8_t  pacote;                     // o grupo do pacote desta loja (GR_*; 0xFF: nenhum)
+    uint8_t  pac_estado;                 // PAC_*: a venda, aberto (escolhendo) ou usado
+    peca_t   pac_op[PAC_OPCOES];         // o que tem dentro
+    uint8_t  adesivo;                    // o adesivo desta loja (AD_*; AD_NADA: nenhum)
+    uint8_t  ad_vendido;                 // ja foi colado
+    uint8_t  dourado;                    // a ultima vitoria: as moedas do adesivo Dourado
+} run_t;
 
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa

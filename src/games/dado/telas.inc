@@ -138,7 +138,9 @@ static void desenha_ordem(void)
         int x = fx + k * 36;
         if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
         if (k < f->n) {
-            peca_t pc = { f->tipo[k], f->fixo[k] };
+            const peca_t *pf = peca_fila(vez, k);    // a da bolsa (com os adesivos); a carta do Coringa nao tem
+            peca_t pc = pf ? *pf : (peca_t){ .tipo = f->tipo[k], .fixo = f->fixo[k] };
+            pc.fixo = f->fixo[k];
             peca_parada((float)x, (float)ry, 10, pc, vez);
             // Clicar num dado da sequencia tira ele dela.
             for (int i = 0; i < n; i++)
@@ -297,7 +299,8 @@ static void desenha_efeitos(void)
 {
     if (ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
-    uint16_t c = e->tipo == EV_FOGO ? C_FOGO
+    uint16_t c = e->tipo == EV_ADESIVO ? ADESIVO[e->ad].luz
+               : e->tipo == EV_FOGO ? C_FOGO
                : e->tipo == EV_SEMENTE ? C_VERDE
                : e->tipo == EV_JACKPOT ? C_AMARELO
                : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR
@@ -406,7 +409,9 @@ static void desenha_resultado(void)
 {
     uint16_t c = venc_mao == 0 ? C_LATAO : (venc_mao == 1 ? C_ROSA : C_MARFIM);
     char pl[64] = "";
-    if (venc_mao >= 0)                                     // o placar da rodada
+    if (venc_mao >= 0 && zerou >= 0)                       // quem fez 0 abriu: o outro nem jogou
+        snprintf(pl, sizeof pl, "%s nem precisou jogar", J[outro(zerou)].nome);
+    else if (venc_mao >= 0)                                // o placar da rodada
         snprintf(pl, sizeof pl, "%s   %d x %d   %s", J[0].nome, F[0].total, F[1].total, J[1].nome);
     int wp = gfx_largura(aviso, 1);
     if (gfx_largura(pl, 1) > wp) wp = gfx_largura(pl, 1);
@@ -519,8 +524,7 @@ static void desenha_premio(void)
         return;
     }
 
-    if (modo == M_DESAFIO) snprintf(t, sizeof t, "Prêmio por vencer %s", J[1].nome);
-    else snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
+    snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
     txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
     bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
@@ -551,10 +555,8 @@ static void desenha_premio(void)
                 peca_t pc = oferta[i];
                 if (k > 0) {
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
-                    // So os tipos que podem sair aqui: os basicos, ou os ja
-                    // abertos no Desafiante.
+                    // So os tipos que podem sair aqui: os basicos.
                     pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
-                    if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }
                 peca_parada((float)x, 126 + dy, 24 * q, pc, vez);

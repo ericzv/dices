@@ -40,6 +40,12 @@ enum {
     SOM_MOEDA_POUSA, // uma moeda parou na mesa
     SOM_SUSPENSE,    // a hora da verdade: o coracao batendo enquanto o dado decisivo rola
     SOM_FORTE,       // a mesa vibra: uma rodada grande, uma virada, a fila cheia de poderes
+    // Os adesivos do Desafiante: colar na loja e cada um agindo
+    SOM_AD_COLA, SOM_AD_CHUMBO, SOM_AD_REFLEXIVO, SOM_AD_AVESSO, SOM_AD_CONFETE, SOM_AD_ELETRONICO,
+    SOM_AD_TRANSPARENTE, SOM_AD_DOURADO, SOM_AD_LOBO, SOM_AD_REMENDO, SOM_AD_RASPADINHA, SOM_AD_FERMENTO,
+    SOM_AD_BIS, SOM_AD_MIRA, SOM_AD_GORJETA,
+    SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
+    SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_N
 };
 

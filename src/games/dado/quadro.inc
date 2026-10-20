@@ -11,6 +11,7 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
 {
     if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_dado(id); *desc = TEXTO_MEDIO[id]; }
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
+    else if (tipo == DICA_ADESIVO) { *nome = ADESIVO[id].nome; *cor = ADESIVO[id].luz; *desc = AD_TEXTO[id]; }
     else if (modo == M_DESAFIO && !trunfo_ativo(id)) {   // ainda sem trunfo nesta dificuldade
         static char t[96];
         snprintf(t, sizeof t, "Traz o trunfo (%s) a partir do %s.", PERSO[id].trunfo, NOME_DIF_CURTO[PERSO[id].andar_trunfo]);

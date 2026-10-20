@@ -11,22 +11,25 @@ static void moeda_ic(int x, int y)
     gfx_disco(x - 2, y - 2, 1, gfx_mistura(C_OURO, C_BRANCO, 60));
 }
 
-static void moedas_c(int cx, int y, int valor, const char *sufixo, uint16_t c)
+// A mesma moeda em qualquer tamanho (a que acabou de entrar na fileira pula).
+static void moeda_r(int x, int y, float r)
 {
-    char t[48];
-    snprintf(t, sizeof t, "%d%s", valor, sufixo);
-    int w = gfx_largura(t, 1) + 20, x = cx - w / 2;
-    moeda_ic(x + 7, y + 11);
-    txt(x + 20, y, t, c, true);
+    int R = (int)(r + 0.5f);
+    if (R < 1) return;
+    gfx_disco(x + 1, y + 2, R, C_SOMBRA);
+    gfx_disco(x, y, R, C_LATAO_ESC);
+    gfx_disco(x, y, R - 1, C_OURO);
+    if (R > 3) gfx_disco(x, y, R - 3, gfx_mistura(C_OURO, C_LATAO_ESC, 30));
+    gfx_disco(x - R / 3, y - R / 3, R > 5 ? 1 : 0, gfx_mistura(C_OURO, C_BRANCO, 60));
 }
 
-// Aro de pontinhos em volta de (x, y).
-static void aro_circulo(int x, int y, int r, uint16_t c, int n)
+// A mola de saida: passa um pouco do lugar e volta (0 -> 1).
+static float sai_mola(float q)
 {
-    for (int i = 0; i < n; i++) {
-        float a = i * 6.2832f / n;
-        gfx_rect(x + (int)(cosf(a) * r) - 1, y + (int)(sinf(a) * r) - 1, 2, 2, c);
-    }
+    if (q <= 0) return 0;
+    if (q >= 1) return 1;
+    float u = q - 1;
+    return 1 + 2.70158f * u * u * u + 1.70158f * u * u;
 }
 
 static void pontilhado(int x0, int y0, int x1, int y1, uint16_t c, int esp, int passo)
@@ -68,12 +71,16 @@ static void faixa_run(int voltar)
         cm = gfx_mistura(C_OURO, moedas_cont.sinal > 0 ? C_BRANCO : C_VINHO_CLR, (int)(moedas_cont.pulo * 70));
     txt(x, ty - (moedas_ok && moedas_cont.pulo > 0.4f ? 1 : 0), s, cm, true);
     moeda_ic(x - 12, FAIXA_H / 2);
-    // A sua bolsa, junto das suas moedas: no mapa, clicar abre.
-    snprintf(s, sizeof s, "%d dados", run.n_col);
+    // A sua bolsa, junto das suas moedas: no mapa, clicar abre. O dado
+    // comprado so conta quando chega nela, e ela pula.
+    snprintf(s, sizeof s, "%d dados", run.n_col - bolsa_voando);
     int wb = gfx_largura(s, 1), xb = x - 34 - wb;
     bool clica = fase == F_MAPA, em = clica && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
-    icone_bolsa(xb - 12, FAIXA_H / 2);
-    txt(xb, ty, s, em ? C_OURO : C_MARFIM, true);
+    int pulo = t_bolsa_pulo > 0 ? (int)(sinf(t_bolsa_pulo * 3.1416f) * 4) : 0;
+    faixa_bolsa_x = xb - 12;
+    faixa_bolsa_y = FAIXA_H / 2;
+    icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
+    txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
 }
 
@@ -85,73 +92,29 @@ static void rodape_run(const char *s)
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, s, C_TEXTO_M);
 }
 
-// ---- O mapa -------------------------------------------------------------
-static const int MAPA_X[DES_PASSOS] = { 136, 224, 312, 400, 488, 580 };
-static const int MAPA_Y[3] = { 92, 142, 192 };
-#define MAPA_X0 56
-enum { V_FEITO, V_ABERTO, V_LONGE, V_PERDIDO };
-
-// Uma mesa do mapa como ficha de cassino: a cor diz a dificuldade, os pontos
-// no meio tambem (1, 2 ou 3); a loja e uma moeda; o chefe, uma ficha maior
-// com aro dourado.
-static void mesa_no(int x, int y, int tipo, int vis, bool cur)
+// ---- O salao -------------------------------------------------------------
+// O nome no cartao: na fonte fina, ou na miuda se nao couber.
+static void nome_no_cartao(int cx, int y, const char *s, uint16_t c, int w)
 {
-    int r = tipo == NO_CHEFE ? 20 : 15;
-    uint16_t c = cor_no(tipo);
-    int apaga = vis == V_PERDIDO ? 72 : (vis == V_LONGE ? 38 : (vis == V_FEITO ? 50 : 0));
-    uint16_t base = gfx_mistura(c, C_FELTRO, apaga);
-    uint16_t marca = gfx_mistura(C_MARFIM, C_FELTRO, apaga);
-    if (cur) {
-        int rr = r + 6 + (int)(sinf(t_fase * 6) * 1.5f);
-        gfx_disco(x, y, rr, C_BRANCO);
-        gfx_disco(x, y, rr - 2, C_FELTRO_ESC);
-    } else if (vis == V_ABERTO) {
-        aro_circulo(x, y, r + 5, gfx_mistura(c, C_FELTRO, 30), 32);
-    }
-    gfx_disco(x + 1, y + 3, r, C_SOMBRA);
-    if (tipo == NO_EVENTO) {                     // ficha lisa com uma interrogacao
-        gfx_disco(x, y, r, base);
-        for (int i = 0; i < 8; i++) {                // listras da borda, como as fichas
-            float a = i * 0.7854f + 0.39f;
-            gfx_rect(x + (int)(cosf(a) * (r - 3)) - 1, y + (int)(sinf(a) * (r - 3)) - 1, 3, 3, marca);
-        }
-        gfx_disco(x, y, r - 6, gfx_mistura(base, C_BARRA, 18));
-        txt_c(x, y - 9, "?", marca, true);
-    } else if (tipo == NO_LOJA) {                // moeda grande
-        gfx_disco(x, y, r, gfx_mistura(C_LATAO_ESC, C_FELTRO, apaga));
-        gfx_disco(x, y, r - 2, base);
-        gfx_disco(x, y, r - 6, gfx_mistura(base, C_LATAO_ESC, 30));
-        gfx_disco(x - 4, y - 4, 2, gfx_mistura(base, C_BRANCO, 55));
-        txt_c(x, y - 10, "$", gfx_mistura(C_LATAO_ESC, C_FELTRO, apaga), true);
-    } else {
-        gfx_disco(x, y, r, base);
-        for (int i = 0; i < 8; i++) {                // listras da borda
-            float a = i * 0.7854f + 0.39f;
-            gfx_rect(x + (int)(cosf(a) * (r - 3)) - 1, y + (int)(sinf(a) * (r - 3)) - 1, 3, 3, marca);
-        }
-        gfx_disco(x, y, r - 6, gfx_mistura(base, C_BARRA, 30));
-        int n = tipo == NO_FACIL ? 1 : (tipo == NO_MEDIO ? 2 : 3);
-        for (int k = 0; k < n; k++)
-            gfx_disco(x + (int)((k - (n - 1) / 2.0f) * 6), y, tipo == NO_CHEFE ? 2 : 1, marca);
-        if (tipo == NO_CHEFE) aro_circulo(x, y, r + 3, gfx_mistura(C_OURO, C_FELTRO, apaga), 40);
-    }
-    if (vis == V_FEITO) aro_circulo(x, y, r + 3, C_OURO, 28);
+    if (gfx_largura(s, GFX_FINO) <= w) txt_c(cx, y, s, c, false);
+    else gfx_texto(cx - gfx_largura(s, GFX_MIUDO) / 2, y + 2, s, c, GFX_MIUDO, false);
 }
 
-static int vis_de(int p, int l)
-{
-    if (p < run.passo) return run.caminho[p] == l ? V_FEITO : V_PERDIDO;
-    if (p == run.passo) return escolhivel(l) ? V_ABERTO : V_PERDIDO;
-    return V_LONGE;
-}
+// As quatro mesas do salao em fila, da esquerda para a direita: o retrato de
+// quem senta em cada uma, a dificuldade e quanto ela paga. As vencidas
+// apagam, com o visto; a da vez pulsa, e a ficha do jogador anda ate ela.
+static const int SALAO_X[DES_PASSOS] = { 104, 248, 392, 536 };
+#define SALAO_BASE 139                   // onde os retratos assentam
+#define SALAO_LINHA 112                  // a altura do caminho entre eles
 
-static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada" };
-static const char *const PREMIO_TIER[] = { "Prêmio: dados comuns", "Prêmio: dados variados",
-                                           "Prêmio: dados raros", "Prêmio: os melhores dados" };
+static int salao_x(int p) { return run.andar == DES_ANDAR_FINAL ? GFX_W / 2 : SALAO_X[p]; }
+static int salao_esc(int p) { return run.no[p].tipo == NO_CHEFE ? 3 : 2; }
+static int salao_topo(int p) { return SALAO_BASE - RT_H * salao_esc(p); }
 
-// O quadro de baixo do mapa, em colunas separadas por filetes: quem e (com
-// as etiquetas e o premio), o trunfo (nome e regra) e a bolsa dele, com os
+// O quadro de baixo, em colunas separadas por filetes: quem e (com as
+// etiquetas e quanto paga), o trunfo (nome e regra) e a bolsa dele, com os
 // dados agrupados por tipo.
+static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada" };
 #define INFO_Y  220
 #define INFO_H  86
 static void info_divisa(int x)
@@ -159,30 +122,14 @@ static void info_divisa(int x)
     gfx_rect(x, INFO_Y + 8, 1, INFO_H - 16, gfx_mistura(C_PLACA, C_LATAO_ESC, 60));
 }
 
-static void info_mesa(int l)
+static void info_mesa(int p)
 {
-    if (!existe(run.passo, l)) return;
-    const no_t *no = &run.no[run.passo][l];
+    if (p < 0 || p >= mesas_do_salao()) return;
+    const no_t *no = &run.no[p];
     const int x0 = 28, w0 = GFX_W - 56, y0 = INFO_Y;
     painel(y0, INFO_H, w0);
-    int cx = x0 + 14, cy = y0 + 6;
-    if (no->tipo == NO_EVENTO || no->tipo == NO_LOJA) {
-        bool eh_evento = no->tipo == NO_EVENTO;
-        const evt_t *e = &EVT[no->perso < EVT_N ? no->perso : 0];
-        txt(cx, cy, eh_evento ? "EVENTO" : "LOJA", cor_no(no->tipo), true);
-        if (eh_evento) txt(cx, cy + 18, e->nome, C_MARFIM, true);
-        txt(cx, cy + 38, "Não é uma partida.", C_TEXTO_M, false);
-        info_divisa(x0 + 170);
-        if (eh_evento) quebra_linhas(x0 + 184, cy, w0 - 200, 3, e->resumo, C_MARFIM_S);
-        else {
-            quebra_linhas(x0 + 184, cy, w0 - 200, 2, "Troque moedas de ouro por dados para a sua bolsa.", C_MARFIM_S);
-            moedas_c(x0 + 184 + 60, cy + 44, moedas_vis(), " moedas para gastar", C_OURO);
-        }
-        return;
-    }
+    int cy = y0 + 6;
     const perso_t *pe = &PERSO[no->perso];
-    int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
-    if ((run_amuletos() >> A_CARTOLA & 1) && tier < 3) tier++;             // Cartola: um premio acima
 
     // Retrato.
     int rx = x0 + 8, ry = y0 + 10, esc = 2, nl = 27;
@@ -190,15 +137,24 @@ static void info_mesa(int l)
     gfx_rect(rx, ry, RT_W * esc, 54, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(rx, ry, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, nl);
 
-    // Quem e: nome, etiquetas e o premio.
+    // Quem e: nome, etiquetas e quanto paga.
     int xa = rx + RT_W * esc + 10, wa = 140;
     gfx_texto(xa, cy, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(xa, cy + 21, NOME_NO[no->tipo], cor_no(no->tipo));
-    xt = etiqueta_caixa(xt, cy + 21, NIVEL_IA[nivel_mesa(no)], C_ACO);
+    etiqueta_caixa(xt, cy + 21, NIVEL_IA[nivel_mesa(no)], C_ACO);
     if (no->tipo == NO_CHEFE && virada_de(no->perso)) {   // a virada: os detalhes na dica dela
         int xv = etiqueta_caixa(xa, cy + 42, "Virada", C_VINHO_CLR);
         dica_zona(xa, cy + 42, xv - xa, 20, DICA_TRUNFO, no->perso);
-    } else txt(xa, cy + 46, PREMIO_TIER[tier], C_TEXTO_M, false);
+    } else {
+        int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
+        bool paga = vale && !(run.andar == DES_ANDARES - 1 && no->tipo == NO_CHEFE && run.dificuldade < N_NIVEIS);
+        char v[32];
+        if (paga) {
+            snprintf(v, sizeof v, "vale %d", vale);
+            moeda_ic(xa + 6, cy + 54);
+            txt(xa + 16, cy + 44, v, C_OURO, false);
+        } else txt(xa, cy + 44, "a última mesa da run", C_TEXTO_M, false);
+    }
     info_divisa(xa + wa);
 
     // O trunfo: nome em destaque e a regra, quebrada em linhas.
@@ -217,7 +173,10 @@ static void info_mesa(int l)
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
     int xc = xb + wb + 18, wc = x0 + w0 - 10 - xc;
     peca_t col[MAX_COL];
+    int passo = run.passo;
+    run.passo = (uint8_t)p;                      // a bolsa de cada mesa sai do passo dela
     int n = monta_oponente(no, run.andar, col);
+    run.passo = (uint8_t)passo;
     char s[24];
     snprintf(s, sizeof s, "Bolsa · %d dados", n);
     txt(xc, cy + 4, s, C_TEXTO_M, false);
@@ -236,7 +195,7 @@ static void info_mesa(int l)
         if (gx + w > xc + wc) { gx = xc; gy += 25; }
         if (gy > y0 + INFO_H - 10) break;
         // O dado parado, como na mao: forma, aro e quantos lados.
-        peca_t pc = { (uint8_t)tipos[k], 0 };
+        peca_t pc = { .tipo = (uint8_t)tipos[k], .fixo = 0 };
         peca_parada((float)(gx + 10), (float)gy, 10, pc, 0);
         if (q[0]) gfx_texto(gx + 22, gy - 12, q, C_MARFIM_S, GFX_FINO, false);
         dica_zona(gx - 2, gy - 12, w, 24, DICA_DADO, tipos[k]);
@@ -244,112 +203,91 @@ static void info_mesa(int l)
     }
 }
 
+// A ficha do jogador: na cor dele, com o aro de marfim.
+static void ficha_jogador(int x, int y)
+{
+    gfx_disco(x + 1, y + 2, 8, C_SOMBRA);
+    gfx_disco(x, y, 8, C_LATAO_ESC);
+    gfx_disco(x, y, 7, C_LATAO);
+    for (int i = 0; i < 6; i++) {
+        float a = i * 1.0472f + 0.5f;
+        gfx_rect(x + (int)(cosf(a) * 5.5f) - 1, y + (int)(sinf(a) * 5.5f) - 1, 2, 2, C_MARFIM);
+    }
+    gfx_disco(x, y, 3, C_OURO);
+    gfx_pixel(x - 1, y - 1, C_BRANCO);
+}
+
+// Uma mesa do salao: o retrato na moldura, o nome, a dificuldade e quanto paga.
+static void salao_mesa(int p)
+{
+    const no_t *no = &run.no[p];
+    int x = salao_x(p), esc = salao_esc(p), w = RT_W * esc, h = RT_H * esc, y = salao_topo(p);
+    bool feita = p < run.passo, da_vez = p == run.passo, chefe = no->tipo == NO_CHEFE;
+    uint16_t moldura = chefe ? C_OURO : (feita ? C_FELTRO2 : C_LATAO_ESC);
+    if (da_vez) {                                // a da vez: um aro que pulsa
+        int b = 4 + (int)(sinf(t_fase * 5) * 1.5f + 1.5f);
+        gfx_rect(x - w / 2 - b, y - b, w + 2 * b, h + 2 * b, gfx_mistura(COR_SALAO[run.andar], C_FELTRO, 35));
+    }
+    if (p == des_cur) ui_selecao(x - w / 2 - 9, y - 9, w + 18, h + 74, C_OURO);
+    gfx_rect(x - w / 2 - 2, y - 2, w + 4, h + 4, moldura);
+    gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
+    if (feita) {                                 // vencida: apaga e leva o visto
+        gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
+        gfx_linha_grossa(x - 9, y + h / 2, x - 2, y + h / 2 + 8, 4, C_OURO);
+        gfx_linha_grossa(x - 2, y + h / 2 + 8, x + 12, y + h / 2 - 10, 4, C_OURO);
+    }
+    uint16_t cn = feita ? C_TEXTO_M : cor_no(no->tipo);
+    nome_no_cartao(x, SALAO_BASE + 6, PERSO[no->perso].nome, cn, 130);
+    const char *tag = NOME_NO[no->tipo];
+    if (!feita) gfx_texto(x - gfx_largura(tag, GFX_MIUDO) / 2, SALAO_BASE + 26, tag, cn, GFX_MIUDO, false);
+    // Quanto paga: a moeda e o numero (o fim da run nao paga).
+    int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
+    if (run.andar == DES_ANDARES - 1 && chefe && run.dificuldade < N_NIVEIS) vale = 0;
+    char v[16];
+    if (feita) snprintf(v, sizeof v, "vencida");
+    else if (vale) snprintf(v, sizeof v, "+%d", vale);
+    else snprintf(v, sizeof v, "final");
+    int wv = gfx_largura(v, 1) + (vale && !feita ? 14 : 0), vx = x - wv / 2;
+    if (vale && !feita) { moeda_ic(vx + 6, SALAO_BASE + 52); vx += 14; }
+    txt(vx, SALAO_BASE + (feita ? 26 : 42), v, feita ? C_TEXTO_M : (vale ? C_OURO : C_ROSA), !feita);
+    zona_clique(x - w / 2 - 8, y - 8, w + 16, h + 72, &des_cur, p, da_vez ? KEY_ENTER : 0);
+}
+
 static void desenha_mapa(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 50);
     faixa_run(KEY_ESC);
-    rodape_run("setas escolhem  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
-
-    bool final = run.andar >= DES_ANDARES;           // o salao do Coringa: so dois passos
-    for (int p = 0; p < DES_PASSOS; p++) {
-        char s[24];
-        if (final) {
-            if (p > 1) continue;
-            snprintf(s, sizeof s, p == 0 ? "última loja" : "final");
-        } else if (p < DES_PASSOS - 1) snprintf(s, sizeof s, "mesa %d", p + 1);
-        else snprintf(s, sizeof s, "chefe");
-        uint16_t c = p == run.passo ? COR_SALAO[run.andar] : (p < run.passo ? C_FELTRO2 : C_TEXTO_M);
-        txt_c(MAPA_X[p], 52, s, c, false);
+    rodape_run("setas veem as mesas  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
+    int n = mesas_do_salao();
+    // O caminho entre as mesas: dourado no que ja foi andado.
+    for (int p = 0; p + 1 < n; p++) {
+        int x0 = salao_x(p) + RT_W * salao_esc(p) / 2 + 6, x1 = salao_x(p + 1) - RT_W * salao_esc(p + 1) / 2 - 6;
+        bool feito = p + 1 <= run.passo;
+        pontilhado(x0, SALAO_LINHA, x1, SALAO_LINHA, feito ? C_OURO : C_TEXTO_M, feito ? 3 : 2, 6);
     }
-    // Entrada do salao e as ligacoes.
-    int ey = MAPA_Y[1];
-    for (int l = 0; l < 3; l++) {
-        if (!existe(0, l)) continue;
-        bool feito = run.passo > 0 && run.caminho[0] == l;
-        uint16_t c = feito ? C_OURO : (run.passo == 0 ? C_TEXTO_M : C_FELTRO2);
-        pontilhado(MAPA_X0, ey, MAPA_X[0], MAPA_Y[l], c, feito ? 3 : 2, 6);
-    }
-    for (int p = 0; p < DES_PASSOS - 1; p++)
-        for (int l = 0; l < 3; l++) {
-            if (!existe(p, l)) continue;
-            for (int m = 0; m < 3; m++) {
-                if (!(run.no[p][l].liga >> m & 1) || !existe(p + 1, m)) continue;
-                bool feito = p + 1 < run.passo && run.caminho[p] == l && run.caminho[p + 1] == m;
-                bool aberto = p + 1 == run.passo && run.caminho[p] == l;
-                uint16_t c = feito ? C_OURO : (aberto ? C_TEXTO_M : C_FELTRO2);
-                pontilhado(MAPA_X[p], MAPA_Y[l], MAPA_X[p + 1], MAPA_Y[m], c, feito ? 3 : 2, 6);
-            }
-        }
-    gfx_disco(MAPA_X0, ey, 6, C_LATAO_ESC);
-    gfx_disco(MAPA_X0, ey, 4, C_LATAO);
-
-    for (int p = 0; p < DES_PASSOS; p++)
-        for (int l = 0; l < 3; l++) {
-            if (!existe(p, l)) continue;
-            const no_t *no = &run.no[p][l];
-            int vis = vis_de(p, l);
-            bool cur = p == run.passo && l == des_cur;
-            mesa_no(MAPA_X[p], MAPA_Y[l], no->tipo, vis, cur);
-            int r = no->tipo == NO_CHEFE ? 20 : 15;
-            if (vis == V_ABERTO) zona_clique(MAPA_X[p] - r - 6, MAPA_Y[l] - r - 6, 2 * r + 12, 2 * r + 12,
-                                             &des_cur, l, KEY_ENTER);
-        }
+    for (int p = 0; p < n; p++) salao_mesa(p);
+    // A ficha do jogador: no caminho, logo antes da mesa da vez; vindo da
+    // vencida, anda pelo caminho em dois pulos.
+    int px = salao_x(run.passo) - RT_W * salao_esc(run.passo) / 2 - 14, py = SALAO_LINHA;
+    if (t_mapa_anda > 0 && run.passo > 0) {
+        float q = 1 - t_mapa_anda / 0.7f;
+        if (q < 0) q = 0;
+        int ax = salao_x(run.passo - 1) + RT_W * salao_esc(run.passo - 1) / 2 + 14;
+        float s = q * q * (3 - 2 * q);
+        px = ax + (int)((px - ax) * s);
+        py -= (int)(fabsf(sinf(q * 6.2832f)) * 16);
+    } else py += (int)(sinf(t_fase * 4) * 2) - 1;
+    ficha_jogador(px, py);
     info_mesa(des_cur);
     // Os amuletos da run, no canto de cima.
-    for (int a = 0, n = 0; a < A_N; a++)
+    for (int a = 0, k = 0; a < A_N; a++)
         if (run_amuletos() >> a & 1) {
-            int ax = 30 + (n % 4) * 19, ay = 66 + (n / 4) * 19;
+            int ax = 30 + k * 19, ay = 66;
             desenha_amuleto(ax, ay, 8, a, false);
             dica_zona(ax - 9, ay - 9, 18, 18, DICA_AMULETO, a);
-            n++;
+            k++;
         }
-}
-
-// ---- Loja ---------------------------------------------------------------
-static void desenha_loja_run(void)
-{
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
-    faixa_run(0);
-    bool ini = run.estado == R_LOJA_INI;
-    txt_c2(GFX_W / 2, MESA_Y0 + 2, ini ? "LOJA DA ENTRADA" : "LOJA DO SALÃO", C_OURO);
-    if (ini) txt_c(GFX_W / 2, MESA_Y0 + 44, "A run começa: gaste bem, a próxima loja pode demorar.", C_MARFIM_S, false);
-    moedas_c(GFX_W / 2, MESA_Y0 + (ini ? 66 : 54), moedas_vis(), " moedas", C_OURO);
-    bool tem_am_loja = run.am_loja < A_N;
-    int nc = N_LOJA + (tem_am_loja ? 1 : 0);
-    for (int i = 0; i < nc; i++) {
-        int x = GFX_W / 2 + (int)((i - (nc - 1) / 2.0f) * (nc > N_LOJA ? 96 : 108)), yb = 142;
-        int wc = nc > N_LOJA ? 88 : 96;
-        bool am = i == N_LOJA;
-        int pr = am ? preco_am() : preco_run(run.loja[i].tipo);
-        bool ja = am ? run.am_levou : run.levou[i], cur = i == cursor, da = run.moedas >= pr;
-        uint16_t cr = am ? C_OURO : cor_rar(run.loja[i].tipo);
-        ui_cartao(x - wc / 2, yb, wc, 92, cur, cr);
-        float bob = cur && !ja ? sinf(t_fase * 4) * 3 - mola_px() : 0;
-        if (am) desenha_amuleto(x, yb + 32 + (int)bob, 20, run.am_loja, false);
-        else {
-            if (cur && !ja) brilho_passa = mola_brilho();
-            peca_parada((float)x, yb + 32 + bob, 22, run.loja[i], 0);
-        }
-        if (ja) {
-            txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);
-            gfx_rect_alfa(x - wc / 2 + 1, yb + 1, wc - 2, 90, C_SOMBRA, 120);
-        } else {
-            moedas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
-        }
-        zona_clique(x - wc / 2, yb, wc, 92, &cursor, i, KEY_ENTER);
-    }
-    botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "sair da loja", KEY_TAB);
-    if (cursor == N_LOJA && tem_am_loja) {
-        const amuleto_t *a = &AMULETO[run.am_loja];
-        txt_c(GFX_W / 2, 240, a->nome, a->cor, true);
-        txt_c(GFX_W / 2, 240 + TXT_H + 2, a->desc, C_MARFIM_S, false);
-        if (!run.am_levou && run.moedas < preco_am()) txt_c(GFX_W / 2, 284, "moedas insuficientes", C_VINHO_CLR, true);
-    } else if (cursor < N_LOJA) {
-        dado_e_poder(240, run.loja[cursor].tipo, true);
-        if (!run.levou[cursor] && run.moedas < preco_run(run.loja[cursor].tipo))
-            txt_c(GFX_W / 2, 284, "moedas insuficientes", C_VINHO_CLR, true);
-    }
-    rodape_run("setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB sai da loja");
 }
 
 // ---- A bolsa ------------------------------------------------------------
@@ -394,31 +332,29 @@ static void desenha_bolsa_run(void)
         }
         na++;
     }
-    if (run.n_col && cursor < run.n_col) dado_e_poder(262, run.col[cursor].tipo, true);
+    if (run.n_col && cursor < run.n_col) {
+        bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
+        dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
+        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor]);
+    }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
 }
 
 // ---- Fim da run ---------------------------------------------------------
-static void desenha_liberou(int dy);
-static int liberou_itens(void);
+static int nov_quantas(void);             // as novidades que a run abriu (novidades.inc)
+static void nov_linha_fim(int y);
 static void desenha_fim_run(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
     faixa_run(0);
-    bool abriu = des_venceu_run && des_liberou > 0;
-    char es[96];
-    int ne = des_venceu_run && des_estilo_abriu >= 0 ? estilo_do_andar(des_estilo_abriu, es, sizeof es) : 0;
-    int extra = ne ? 24 : 0;                     // o estilo que o andar abriu, numa linha
-    // O que abriu em duas linhas: o painel cresce, e tudo sobe um pouco.
-    int dois = abriu && liberou_itens() > 5 ? 24 : 0, up = dois ? 16 : 0;
-    painel(CENTRO - 84 - up, (abriu ? 208 : 168) + extra + dois, abriu ? 580 : 500);
+    int n = des_venceu_run ? nov_quantas() : 0;
+    painel(CENTRO - 84, n ? 186 : 168, 500);
     char s[96];
     if (des_venceu_run) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "VITÓRIA", C_OURO, 3);
-        txt_c(GFX_W / 2, CENTRO - 6 - up, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
-        desenha_liberou(-up);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
+        txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
     } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74 - up, "FIM DA RUN", C_VINHO_CLR, 3);
+        txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
         if (des_perdeu_para >= 0)
             snprintf(s, sizeof s, "%s venceu você no %s.", PERSO[des_perdeu_para].nome, SALAO[des_perdeu_andar]);
         else snprintf(s, sizeof s, "A casa ficou com a mesa.");
@@ -426,13 +362,10 @@ static void desenha_fim_run(void)
     }
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
-    txt_c(GFX_W / 2, CENTRO + 22 - up, s, C_TEXTO_M, false);
-    if (ne) {
-        char l[128];
-        snprintf(l, sizeof l, "Estilo: %s", es);
-        txt_c(GFX_W / 2, CENTRO + (abriu ? 96 : 44) + dois - up, l, C_OURO, false);
-    }
-    teclas_c(GFX_W / 2, CENTRO + (abriu ? 98 : 58) + extra + dois - up, des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
+    if (n) nov_linha_fim(CENTRO + 46);          // o que abriu vem depois, card a card
+    teclas_c(GFX_W / 2, CENTRO + (n ? 76 : 58), n ? "ENTER mostra as novidades"
+                                                  : des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha
@@ -471,6 +404,61 @@ static void desenha_creditos(void)
     teclas_c(GFX_W / 2, y + 10, "ENTER volta ao menu", C_MARFIM_S);
 }
 
+// As moedas da vitoria, em fileira: entram uma a uma (andamento.inc), a
+// ultima pulando, com um brilho. Embaixo de cada grupo, de onde veio (a mesa,
+// o Cofre, a Taca); embaixo de tudo, a bolsa de moedas contando.
+static void saque_fileira(int y)
+{
+    int tot = saque_total();
+    if (!tot) {                                  // a ultima mesa da run nao paga: nao ha mais loja
+        txt_c(GFX_W / 2, y - 6, "A última mesa da run.", C_MARFIM, true);
+        return;
+    }
+    int sp = tot > 22 ? 14 : 17, gap = 10;
+    int grupos[4] = { run.ganho, run.juros, run.taca, run.dourado }, ng = (run.juros > 0) + (run.taca > 0) + (run.dourado > 0);
+    int larg = tot * sp + ng * gap, x = GFX_W / 2 - larg / 2 + sp / 2, i = 0;
+    static const char *const ROT[4] = { "mesa", "Cofre", "Taça", "Dourado" };
+    uint16_t cor_rot[4] = { C_OURO, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz };
+    for (int g = 0; g < 4; g++) {
+        if (!grupos[g]) continue;
+        int x0 = x;
+        for (int k = 0; k < grupos[g]; k++, i++, x += sp) {
+            if (i >= saque_n) {                      // ainda nao entrou: so o lugar
+                gfx_disco(x, y, 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+                continue;
+            }
+            float r = 7;
+            if (i == saque_n - 1 && !saque_pronto) {
+                float q = t_saque / 0.13f;
+                r = 7 * (q < 1 ? sai_mola(q) * 1.15f : 1);
+                if (q < 1)                           // o brilho da que entrou
+                    for (int b = 0; b < 4; b++) {
+                        float a = b * 1.5708f + 0.78f;
+                        int d = 9 + (int)(q * 6);
+                        gfx_rect(x + (int)(cosf(a) * d), y + (int)(sinf(a) * d), 2, 2, C_AMARELO);
+                    }
+            }
+            moeda_r(x, y - (i == saque_n - 1 && !saque_pronto ? 2 : 0), r);
+        }
+        const char *rot = ROT[g];
+        int cx = (x0 + x - sp) / 2;
+        bool aceso = i - grupos[g] < saque_n;          // o primeiro do grupo ja entrou
+        gfx_texto(cx - gfx_largura(rot, GFX_MIUDO) / 2, y + 10, rot, aceso ? cor_rot[g] : C_FELTRO2, GFX_MIUDO, false);
+        x += gap;
+    }
+    // A bolsa de moedas: o que tinha mais o que ja entrou.
+    char s[40];
+    snprintf(s, sizeof s, "+%d", saque_n);
+    int na_bolsa = run.moedas - tot + saque_n;
+    char b[40];
+    snprintf(b, sizeof b, "%d moedas na bolsa", na_bolsa);
+    int wb = gfx_largura(b, fonte_de(false)), ws = gfx_largura(s, 1);
+    int bx = GFX_W / 2 - (ws + 30 + wb) / 2;
+    txt(bx, y + 22, s, saque_pronto ? C_AMARELO : C_OURO, true);
+    moeda_ic(bx + ws + 14, y + 33);
+    txt(bx + ws + 26, y + 24, b, C_MARFIM_S, false);
+}
+
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
 static void desenha_fim_partida_run(void)
 {
@@ -484,41 +472,25 @@ static void desenha_fim_partida_run(void)
         dica_zona(rx, ry, RT_W * esc, RT_H * esc, DICA_TRUNFO, fala_perso);
         if (fala_txt[0]) txt_c(rx + RT_W * esc / 2, ry + RT_H * esc + 6, PERSO[fala_perso].nome, C_ROSA, true);
     }
-    painel(CENTRO - 70, 150, 460);
+    int alto = venc_partida == 0 && des_marco >= 0 ? 168 : 150;
+    painel(CENTRO - 70, alto, 460);
     char s[80];
     if (venc_partida == 0) {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, "VOCÊ VENCEU", C_LATAO, 3);
-        // O saque (andamento.inc): o numero conta, e cada parte da conta
-        // acende quando chega a vez dela - dourada enquanto conta.
-        uint16_t cs = saque_c.pulo > 0 ? gfx_mistura(C_OURO, C_BRANCO, (int)(saque_c.pulo * 60)) : C_OURO;
-        moedas_c(GFX_W / 2, CENTRO + 6 - (saque_c.pulo > 0.4f ? 1 : 0), saque_c.mostra, " moedas", cs);
-        char parte[3][48];
-        int np = 0, larg = 0, etapa_de[3];
-        snprintf(parte[np], sizeof parte[0], "%d fichas viram %d moedas de ouro", run.ganho, run.ganho);
-        etapa_de[np++] = 1;
-        if (run.juros) { snprintf(parte[np], sizeof parte[0], "  ·  Cofre +%d", run.juros); etapa_de[np++] = 2; }
-        if (run.taca)  { snprintf(parte[np], sizeof parte[0], "  ·  Taça +%d", run.taca);  etapa_de[np++] = 3; }
-        for (int i = 0; i < np; i++) larg += gfx_largura(parte[i], fonte_de(false));
-        int px = GFX_W / 2 - larg / 2;
-        for (int i = 0; i < np; i++) {
-            uint16_t c = saque_etapa < etapa_de[i] ? gfx_mistura(C_TEXTO_M, C_BARRA, 45)
-                       : saque_etapa == etapa_de[i] ? C_OURO : C_MARFIM_S;
-            px += gfx_texto(px, CENTRO + 32, parte[i], c, fonte_de(false), false);
+        saque_fileira(CENTRO + 4);
+        const char *dica = fim_da_run() ? "ENTER segue" : des_marco >= 0 ? "ENTER mostra a novidade"
+                         : chefe_deixa_amuleto() ? "ENTER: o chefe deixa um amuleto" : "ENTER vai à loja";
+        int yd = CENTRO + 56;
+        if (des_marco >= 0) {                      // primeira vitoria contra este chefe: o card vem depois
+            txt_c(GFX_W / 2, CENTRO + 46, "Abriu uma novidade para as próximas runs", C_OURO, true);
+            yd = CENTRO + 72;
         }
-        if (des_marco >= 0) {                      // primeira vitoria contra este chefe
-            char m[64];
-            snprintf(m, sizeof m, "Abriu o %s para as próximas runs", TIPO[des_marco].nome);
-            int w = gfx_largura(m, 1);
-            desenha_dado((float)(GFX_W / 2 - w / 2 - 12), (float)(CENTRO + 56), 8, des_marco, 0, 0, 0, 0, false);
-            txt(GFX_W / 2 - w / 2 + 2, CENTRO + 50, m, C_OURO, true);
-            teclas_c(GFX_W / 2, CENTRO + 72, "ENTER escolhe o prêmio", C_MARFIM_S);
-        } else {
-            teclas_c(GFX_W / 2, CENTRO + 58, "ENTER escolhe o prêmio", C_MARFIM_S);
-        }
+        teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
-                                                       : "A run termina aqui.", C_MARFIM, true);
+        txt_c(GFX_W / 2, CENTRO + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
+                                     : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
+                                                         : "A run termina aqui.", C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
         teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
@@ -529,6 +501,6 @@ static void desenha_fim_partida_run(void)
         int x0 = GFX_W / 2 - gfx_largura(q, fonte_de(false)) / 2;
         const char *dito = fala_dita_txt();
         snprintf(q, sizeof q, "\"%s%s", dito, strlen(dito) == strlen(fala_txt) ? "\"" : "");
-        txt(x0, CENTRO + 88, q, C_ROSA, false);
+        txt(x0, CENTRO - 70 + alto + 8, q, C_ROSA, false);
     }
 }

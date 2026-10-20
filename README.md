@@ -10,8 +10,10 @@ sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 82 dados mudam as
-regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
+os dois se anulam. Entre os turnos tem aposta — menos quando quem abriu
+termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
+dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
+mais 4).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
 
@@ -21,19 +23,36 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   **Difícil** (simula as jogadas antes de decidir). Quem vence a rodada
   escolhe um dado de prêmio entre três: até a 5ª rodada saem comuns e
   incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendários.
-- **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
-  chefe cada. No mapa você escolhe o caminho entre 21 oponentes (cada um com
-  seu jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
-  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10),
-  lojas e 8 eventos. No nível 10, depois do Barão ainda há o salão do Coringa:
-  a última loja e o oponente mais difícil do jogo. Cada partida tem 8
-  rodadas e 50 fichas de cada lado; vencer converte as fichas que sobraram em
-  moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas.
+- **Modo Desafiante**: uma run pelo cassino. São 3 salões, cada um com três
+  oponentes (do mais fácil ao mais difícil) e o chefe, sempre nessa ordem e
+  todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
+  oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
+  bolsa cresce a cada mesa e a cada salão. São 21 oponentes, cada um com seu
+  jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
+  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
+  chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o
+  Crupiê no 3 e o Barão no 4 (mais fortes no 7, no 8 e no 10). No nível 10,
+  depois do Barão ainda há o salão do Coringa, o oponente mais difícil do
+  jogo. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
+  de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
+  de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
+  salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
+  terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
+  dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
+  embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
+  mostra 3 do grupo e você leva 1 ou pula), um adesivo (2 a 6 moedas), trocar
+  a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
+  na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
+  lado, quantos couberem) e só age quando o dado termina a rodada com esse
+  lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  (cai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
+  menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
-  depois do segundo (e do Barão, no nível 10); as lojas e a Fonte de cada
-  salão vendem da raridade dele. Cabem 5: para levar o sexto, um dos seus sai.
-  Perdeu, a run acaba. Até 3 perfis, cada um com seu avatar e sua run guardada
-  (no PC, numa pasta do usuário; no navegador, no próprio navegador), e o
+  depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
+  um dos seus sai.
+  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. Até 3
+  perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
+  usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
   os números de cada dado e a run campeã com a bolsa que venceu. A partida
   rápida conta no último perfil escolhido.
@@ -47,8 +66,11 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   a mais por nível), e os chefes e as dificuldades abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
-  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. A
-  coleção mostra o que está aberto e o que falta.
+  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
+  que abre aparece no fim da run, um card de cada vez (a dificuldade, o
+  amuleto, os dados, o adesivo e o estilo), e o dado de um chefe vencido pela
+  primeira vez, num card logo depois da partida. A coleção mostra o que está
+  aberto e o que falta.
 
 ## Jogar no navegador (e online)
 
@@ -122,7 +144,11 @@ Teste sem janela, que joga partidas inteiras com teclas ao acaso:
 ```sh
 ctest --test-dir build --output-on-failure
 ./build/simula 500 --fotos /tmp/fotos   # salva uma imagem de cada tela
+./build/balanco curva 2000 0            # o Desafiante no Normal: a chance de vencer cada mesa
 ```
+
+`balanco` também mede cada dado e cada amuleto numa mesa só e o recomeço de
+partida (veja o começo de `tests/balanco.c`).
 
 ### Versão do navegador
 

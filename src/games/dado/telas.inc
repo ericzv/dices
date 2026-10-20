@@ -409,7 +409,9 @@ static void desenha_resultado(void)
 {
     uint16_t c = venc_mao == 0 ? C_LATAO : (venc_mao == 1 ? C_ROSA : C_MARFIM);
     char pl[64] = "";
-    if (venc_mao >= 0)                                     // o placar da rodada
+    if (venc_mao >= 0 && zerou >= 0)                       // quem fez 0 abriu: o outro nem jogou
+        snprintf(pl, sizeof pl, "%s nem precisou jogar", J[outro(zerou)].nome);
+    else if (venc_mao >= 0)                                // o placar da rodada
         snprintf(pl, sizeof pl, "%s   %d x %d   %s", J[0].nome, F[0].total, F[1].total, J[1].nome);
     int wp = gfx_largura(aviso, 1);
     if (gfx_largura(pl, 1) > wp) wp = gfx_largura(pl, 1);

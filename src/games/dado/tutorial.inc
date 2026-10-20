@@ -22,7 +22,7 @@ static const pagina_t TUTORIAL[] = {
     { "Apostas", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
         "O outro escolhe: pagar para ver, dobrar a aposta ou correr. Quem corre entrega o pote na hora.",
-        NULL } },
+        "Se quem abriu termina com 0, nem tem aposta: ele perde a rodada, e o outro leva o pote sem jogar." } },
     { "Loja, prêmios e dados especiais", {
         "A loja do começo vende dados especiais. Quem vence uma rodada escolhe um prêmio: um dado novo ou tirar um fraco da bolsa.",
         "São %d dados, cada um com um poder: veja todos em Dados da casa.",

@@ -114,6 +114,7 @@ static void nova_rodada(void)
     rodada++;
     plano_rodada = -1;                       // a IA monta outra fila
     carta_virando = false;
+    zerou = -1;
     ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
@@ -717,14 +718,15 @@ static void conclui_rodada(void)
         memcpy(vis_queima[j], resolvido.queima[j], N_FILA);
         F[j].total = resolvido.total[j];
     }
-    bool casa = F[0].total == F[1].total && tem_reg(REG_CASA);   // o Crupie leva o empate
-    if (F[0].total == F[1].total && !casa) {
+    int w = zerou >= 0 ? outro(zerou) : -1;      // quem abriu fez 0: o outro leva, sem jogar
+    bool casa = w < 0 && F[0].total == F[1].total && tem_reg(REG_CASA);   // o Crupie leva o empate
+    if (w < 0 && F[0].total == F[1].total && !casa) {
         venc_mao = 2;
         J[0].perdeu_ultima = J[1].perdeu_ultima = false;
         som_toca(SOM_EMPATE);
         snprintf(aviso, sizeof aviso, "empate em %d: o pote fica na mesa", F[0].total);
     } else {
-        int w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
+        if (w < 0) w = casa ? 1 : (F[0].total > F[1].total ? 0 : 1);
         venc_mao = w;
         res_quem = w;
         J[outro(w)].perdidas++;                  // o Rancor conta
@@ -732,6 +734,7 @@ static void conclui_rodada(void)
         J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);
+        else if (zerou >= 0) snprintf(aviso, sizeof aviso, "%s fez 0: %s leva %d fichas", J[zerou].nome, J[w].nome, pote);
         else snprintf(aviso, sizeof aviso, "%s leva %d fichas", J[w].nome, pote);
         if (w == 1 && tem_reg(REG_BATEDOR) && J[0].fichas > 0) {   // o Ladrao leva mais 2 suas
             int b = J[0].fichas < 2 ? J[0].fichas : 2;
@@ -1115,6 +1118,28 @@ static void devolve_sobras(int j)
     t_devolve = n_devolvidos ? 0 : -1;
 }
 
+// Quem abriu a rodada terminou com 0, e nada mais muda isso: sem Espelho
+// esperando o outro, sem Oculto escondido, sem a carta do Coringa, e 0 tambem
+// depois dos efeitos do fim. Qualquer dado do outro ja venceria: a rodada
+// acaba aqui.
+static bool zerou_de_vez(int j)
+{
+    if (carta_posta(j)) return false;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (F[j].espera[k] || F[j].escondido[k]) return false;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    return d.total[j] == 0;
+}
+
+// Quem nao chegou a jogar: a mao inteira volta para a bolsa.
+static void devolve_mao(int j)
+{
+    jogador_t *p = &J[j];
+    for (int i = 0; i < p->n_mao; i++) p->onde[p->mao[i]] = NA_BOLSA;
+    p->n_mao = 0;
+}
+
 static void termina_turno(void)
 {
     som_toca(SOM_TURNO);
@@ -1137,6 +1162,12 @@ static void termina_turno(void)
             lanca_proximo();
             return;
         }
+    }
+    if (vez == primeiro && zerou_de_vez(vez)) {  // fez 0: nem aposta, nem o turno do outro
+        zerou = vez;
+        devolve_mao(outro(vez));
+        desfecho();
+        return;
     }
     if (anuncia_maquina() && vez == primeiro)
         anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);

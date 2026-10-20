@@ -153,6 +153,7 @@ static float t_tique_placar;             // os tiques da contagem nao se amontoa
 #define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
+static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perdeu na hora
 static peca_t oferta[3];
 static char aviso[96], veredito[64], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela

@@ -2379,7 +2379,9 @@ int main(void)
         int c1 = F[j].idx[1], c3 = F[j].idx[3];
         F[j].lancados = 1;                        // lancou um e parou
         F[j].est[0] = V_VALIDO;
+        F[j].valor[0] = F[j].cru[0] = 3;
         termina_turno();
+        CONFERE(fase == F_APOSTA, "parou com 3: devia ir para a aposta (fase %d)", fase);
         CONFERE(F[j].n == 1 && na_bolsa(p) == bolsa0 + 3 && p->n_mao == mao0 - 3,
                 "devolve: fila %d, bolsa %d (era %d), mao %d (era %d)", F[j].n, na_bolsa(p), bolsa0, p->n_mao, mao0);
         CONFERE(p->onde[c1] == NA_BOLSA && p->onde[c3] == NA_BOLSA && p->onde[F[j].idx[0]] == NA_MAO,
@@ -2387,6 +2389,34 @@ int main(void)
         bool na_mao = false;
         for (int i = 0; i < p->n_mao; i++) na_mao |= p->mao[i] == c1 || p->mao[i] == c3;
         CONFERE(!na_mao, "devolve: os nao lancados ainda na mao");
+        cpu = cpu0;
+    }
+    // ---- Quem abre e fica com 0 perde na hora: sem aposta e sem o turno do outro
+    {
+        int cpu0 = cpu;
+        cpu = 0;
+        entrada(100, 100, 0);
+        int j = vez = primeiro, r = outro(j);
+        int mao_r = J[r].n_mao, bolsa_r = na_bolsa(&J[r]), pote0 = pote, fichas_r = J[r].fichas;
+        for (int i = 0; i < 2; i++) poe_na_fila(i);
+        F[j].lancados = 2;                        // 4 e depois 2: os dois caem
+        F[j].valor[0] = F[j].cru[0] = 4; F[j].valor[1] = F[j].cru[1] = 2;
+        F[j].est[0] = F[j].est[1] = V_ANULADO;
+        termina_turno();
+        CONFERE(fase == F_RESULTADO && venc_mao == r && zerou == j, "fez 0: %d devia levar direto (fase %d, venc %d)", r, fase, venc_mao);
+        CONFERE(J[r].fichas == fichas_r + pote0 && pote == 0, "fez 0: o pote (%d) devia ir para %d", pote0, r);
+        CONFERE(F[r].lancados == 0 && na_bolsa(&J[r]) == bolsa_r + mao_r && J[r].n_mao == 0,
+                "fez 0: a mao de quem nao jogou devia voltar para a bolsa (bolsa %d, era %d + %d)", na_bolsa(&J[r]), bolsa_r, mao_r);
+        CONFERE(strstr(aviso, "fez 0") != NULL, "fez 0: aviso '%s'", aviso);
+        // Com um Espelho esperando o outro, o 0 ainda nao e o fim: tem aposta.
+        entrada(100, 100, 0);
+        j = vez = primeiro;
+        for (int i = 0; i < 2; i++) poe_na_fila(i);
+        F[j].lancados = 2;
+        F[j].est[0] = V_ANULADO; F[j].est[1] = V_VALIDO;
+        F[j].tipo[1] = D_ESPELHO; F[j].espera[1] = true;
+        termina_turno();
+        CONFERE(fase == F_APOSTA && zerou < 0, "Espelho esperando: devia seguir para a aposta (fase %d)", fase);
         cpu = cpu0;
     }
 

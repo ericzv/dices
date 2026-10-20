@@ -10,8 +10,10 @@ sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
 seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta, e 82 dados mudam as
-regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
+os dois se anulam. Entre os turnos tem aposta — menos quando quem abriu
+termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
+dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
+mais 4).
 
 ## 1 jogador: partida rápida ou Modo Desafiante
 

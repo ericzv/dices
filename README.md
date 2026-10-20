@@ -127,7 +127,11 @@ Teste sem janela, que joga partidas inteiras com teclas ao acaso:
 ```sh
 ctest --test-dir build --output-on-failure
 ./build/simula 500 --fotos /tmp/fotos   # salva uma imagem de cada tela
+./build/balanco curva 2000 0            # o Desafiante no Normal: a chance de vencer cada mesa
 ```
+
+`balanco` também mede cada dado e cada amuleto numa mesa só e o recomeço de
+partida (veja o começo de `tests/balanco.c`).
 
 ### Versão do navegador
 

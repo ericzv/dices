@@ -64,6 +64,7 @@ static int dado_decisivo(int j, int k)
             face_fixa = c + 1;
             f->cru[k] = f->valor[k] = sorteia_valor(t, f->fixo[k], rola_fixo, &menor);
         }
+        f->lado[k] = (uint8_t)lado_do_lance(t, f->valor[k], menor);
         f->descarte[k] = (uint8_t)menor;
         f->lancados = k + 1;
         pousa(j, k, rola_fixo);
@@ -164,6 +165,18 @@ static void treme(float px, float dur)
     if (px < agora) return;                  // ja treme mais que isso
     tremor_px = px;
     tremor_dur = t_tremor = dur;
+}
+
+// O dado no ar acabou de deitar: no lado do Chumbo, um baque surdo e a mesa
+// treme um pouco; no do Remendo, os pontos da agulha (uma vez por pouso).
+static void ad_pousou(void)
+{
+    voo_t *v = &voo[0];
+    if (!n_voo || !v->parado || v->chumbou || v->fantasma) return;
+    v->chumbou = true;
+    int a = ad_no_lado(peca_fila(v->dono, v->slot), v->lado);
+    if (a == AD_CHUMBO) { som_toca(som_adesivo(a)); treme(3, 0.22f); }
+    else if (a == AD_REMENDO) som_toca(som_adesivo(a));
 }
 
 static void crescendo(int j, int nivel)

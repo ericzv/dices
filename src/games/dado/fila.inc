@@ -24,6 +24,32 @@ static int valor_pontos(int j, int k)
     return F[j].valor[k];
 }
 
+// A peca da bolsa que esta no lugar k da fila de j (a copia do Coringa nao
+// tem), e o adesivo do lado que ficou para cima nela (0: nenhum).
+static const peca_t *peca_fila(int j, int k)
+{
+    int i = F[j].idx[k];
+    return i >= 0 && i < J[j].n_col ? &J[j].col[i] : NULL;
+}
+static int ad_fila(int j, int k) { return ad_no_lado(peca_fila(j, k), F[j].lado[k]); }
+// O lado que um lance deixa para cima: o d12 da Sorte no Sorte/Reves, o
+// primeiro lance no Explosivo; o Vazio nao mostra (0). Fora dos lados, 0.
+static int lado_do_lance(int t, int x, int menor)
+{
+    int ef = TIPO[t].efeito;
+    if (ef == EF_SORTE_REVES) x += menor;
+    else if (ef == EF_EXPLODE && x > TIPO[t].lados) x = TIPO[t].lados;
+    else if (ef == EF_VAZIO) return 0;
+    return x >= ad_lado_min(t) && x <= ad_lado_max(t) ? x : 0;
+}
+// O numero mudou depois do lance (Gemeo, Eco, Espelho, Prensa, Calibre): o
+// lado de cima e o numero novo, se o dado tem esse lado.
+static void lado_vira(int j, int k, int v)
+{
+    int t = F[j].tipo[k];
+    F[j].lado[k] = (uint8_t)(v >= ad_lado_min(t) && v <= ad_lado_max(t) ? v : 0);
+}
+
 // Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
 // Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e a Sanguessuga.
 // Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
@@ -38,10 +64,11 @@ static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
 static bool intocavel(int j, int k) { return intocavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
 static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
-static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
+// O Transparente no lado de cima tambem segura o dado, como o Teimoso.
+static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
 // Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
 static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
-static bool resiste_ego(int j, int k) { return resiste_egoista(tipo_de(j, k)) || F[j].ancora[k]; }
+static bool resiste_ego(int j, int k) { return resiste_egoista(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -159,6 +186,7 @@ static void aplica_regra(int j, int k)
         int alvo = maior_do_rival(j);
         if (alvo > 0) {
             v = f->valor[k] = alvo;
+            lado_vira(j, k, v);
             snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
             espelhou = true;
         } else {
@@ -172,6 +200,7 @@ static void aplica_regra(int j, int k)
     // dele; acima de 6, fica com o que rolou. Prensa (amuleto): 1 vira 3.
     if (ef == EF_GEMEO && l >= 0 && f->valor[l] <= TIPO[t].lados) {
         v = f->valor[k] = f->valor[l];
+        lado_vira(j, k, v);
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
     }
     // Eco: tira o mesmo do primeiro dado que vale (ate 6); sendo ele o primeiro,
@@ -181,6 +210,7 @@ static void aplica_regra(int j, int k)
         for (int i = 0; i < k && p0 < 0; i++) if (f->est[i] == V_VALIDO) p0 = i;
         if (p0 >= 0 && f->valor[p0] <= TIPO[t].lados) {
             v = f->valor[k] = f->valor[p0];
+            lado_vira(j, k, v);
             snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
         }
     }
@@ -191,6 +221,7 @@ static void aplica_regra(int j, int k)
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
         && ef != EF_TREVO && ef != EF_BUMERANGUE) {
         v = f->valor[k] = 3;
+        lado_vira(j, k, 3);
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
         am_disparou |= 1u << A_PRENSA;
     }
@@ -439,6 +470,7 @@ static void aplica_regra(int j, int k)
 }
 
 static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor);
+static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *menor, int *lado, int *antes);
 
 // Refaz a sequencia de j do comeco ate o dado n (sem ele), com os valores que
 // estao la: a regra da queda, o Egoista, o Tudo ou Nada... tudo de novo.
@@ -476,6 +508,7 @@ static void pousa(int j, int k, int (*r)(int))
     int tirou = f->valor[k];
     if (f->tipo[k] == D_BUMERANGUE && tirou <= 2) {          // volta e rola de novo, uma vez
         f->cru[k] = f->valor[k] = r(6);
+        lado_vira(j, k, f->valor[k]);
         voltou = true;
     }
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
@@ -483,7 +516,11 @@ static void pousa(int j, int k, int (*r)(int))
     f->calibre[k] = false;
     if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
         int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
-        if (mira < teto) { f->cru[k] = f->valor[k] = mira + 1; f->calibre[k] = true; }
+        if (mira < teto) {
+            f->cru[k] = f->valor[k] = mira + 1;
+            f->calibre[k] = true;
+            if (f->lado[k] && f->lado[k] < ad_lado_max(t)) f->lado[k]++;     // o dado mostra um lado acima
+        }
     }
     if (f->tipo[k] != D_VENTANIA || k == 0) {
         aplica_regra(j, k);
@@ -501,8 +538,9 @@ static void pousa(int j, int k, int (*r)(int))
     }
     int i = 0;                                                   // o primeiro da sequencia
     if (!(f->tipo[i] == D_VIDRO && f->cru[i] == 1)) {           // vidro quebrado nao volta
-        int menor;
-        f->cru[i] = f->valor[i] = sorteia_valor(f->tipo[i], f->fixo[i], r, &menor);
+        int menor, lado, antes;
+        f->cru[i] = f->valor[i] = sorteia_peca(f->tipo[i], f->fixo[i], peca_fila(j, i), r, &menor, &lado, &antes);
+        f->lado[i] = (uint8_t)lado;
         f->descarte[i] = (uint8_t)menor;
         f->espera[i] = false;
     }

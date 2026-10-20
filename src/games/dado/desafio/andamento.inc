@@ -33,7 +33,7 @@ static float t_mapa_anda;                    // > 0: a ficha do jogador anda ate
 static int   saque_n;                       // moedas ja na fileira
 static float t_saque;
 static bool  saque_pronto;
-static int saque_total(void) { return run.ganho + run.juros + run.taca; }
+static int saque_total(void) { return run.ganho + run.juros + run.taca + run.dourado; }
 // O intervalo entre uma moeda e a outra: as poucas sem pressa; as 20 do
 // Barao, em pouco mais de um segundo e meio.
 static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 1.7f / n; }
@@ -94,6 +94,7 @@ static bool des_carrega(run_t *r)
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N) return false;
     if ((r->pacote >= GR_N && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
+    if (r->adesivo >= AD_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     return true;
@@ -343,7 +344,7 @@ static void des_nova_run(void)
     run.dificuldade = (uint8_t)des_dif;
     run.moedas = moedas_iniciais(run.dificuldade);
     if (perfil_atual >= 0) { if (perfis[perfil_atual].runs < 65535) perfis[perfil_atual].runs++; perfis_salva(); }
-    for (unsigned i = 0; i < sizeof BOLSA_INICIO; i++) run.col[run.n_col++] = (peca_t){ BOLSA_INICIO[i], 0 };
+    for (unsigned i = 0; i < sizeof BOLSA_INICIO; i++) run.col[run.n_col++] = (peca_t){ .tipo = BOLSA_INICIO[i], .fixo = 0 };
     gera_andar();
     oferece_amuleto(AV_INICIO);                  // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
@@ -421,6 +422,8 @@ static void des_comeca_partida(void)
                          : run.andar == 1 && dificil ? MAT_OSSO : MAT_MARFIM);
     ousadia_jog[1] = PERSO[no->perso].ousadia;
     rodada = 0;
+    memset(bis_extra, 0, sizeof bis_extra);
+    memset(ad_moedas, 0, sizeof ad_moedas);
     pote = 0;
     primeiro = (int)(rnd() & 1);
     venc_partida = -1;
@@ -463,9 +466,10 @@ static void des_resultado(void)
     // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Cofre
     // (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3 rodadas
     // vencidas na partida).
-    run.ganho = run.juros = run.taca = 0;
+    run.ganho = run.juros = run.taca = run.dourado = 0;
     if (!fim_da_run()) {
         run.ganho = MOEDAS_MESA[run.andar][run.passo];
+        run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
         if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
         if (run_amuletos() >> A_TACA & 1) run.taca = (uint8_t)(des_rod_vencidas / 3);
     }

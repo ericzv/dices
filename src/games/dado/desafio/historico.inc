@@ -285,7 +285,7 @@ static void hist_resumo(void)
         int lin = k / g.por, col = k % g.por;
         int na = nc - lin * g.por < g.por ? nc - lin * g.por : g.por;
         int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + (int)(lin * passo_y);
-        peca_parada((float)cx, (float)cy, (float)r, (peca_t){ hist.camp_col[k], 0 }, 0);
+        peca_parada((float)cx, (float)cy, (float)r, (peca_t){ .tipo = hist.camp_col[k], .fixo = 0 }, 0);
         dica_zona(cx - r, cy - r, 2 * r, 2 * r, DICA_DADO, hist.camp_col[k]);
     }
     if (mais) {

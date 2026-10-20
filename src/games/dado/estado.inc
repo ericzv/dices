@@ -1,8 +1,11 @@
 // ===========================================================================
 // Estado
 // ===========================================================================
-// Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele.
-typedef struct { uint8_t tipo, fixo; } peca_t;
+// Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele. No
+// Desafiante, os adesivos (adesivos.inc): um por lado, meio byte cada (o lado
+// 1 no meio byte baixo de ad[0]), e o que o Fermento dela ja cresceu.
+#define AD_LADOS 20
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento; } peca_t;
 
 // Cada dado do jogador esta num de tres lugares.
 enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
@@ -30,6 +33,7 @@ typedef struct {
     int     lancados;
     int     cru[N_FILA];
     int     valor[N_FILA];
+    uint8_t lado[N_FILA];        // o lado que ficou para cima (o dos adesivos); 0: nenhum
     uint8_t est[N_FILA];
     uint8_t dobra[N_FILA];       // so para a etiqueta: o x2 vale no fim
     int8_t  bonus[N_FILA];
@@ -54,6 +58,14 @@ typedef struct {
     float t_face, pouso;
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
+    uint8_t lado;                    // o lado que fica para cima (os adesivos)
+    int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso vira; 2 o Reflexivo rola de novo
+    bool virou;                      // o Avesso ja virou
+    bool reflete;                    // depois (ou sem) o Avesso, o Reflexivo
+    bool chumbou;                    // ja deu o baque do Chumbo
+    float t_etapa;
+    int valor_v; uint8_t lado_v;     // depois de virar do avesso
+    int valor2, menor2; uint8_t lado2;   // o segundo lance, do Reflexivo
     float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
 } voo_t;
 
@@ -70,13 +82,15 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_GARIMPO,                   // o Garimpeiro: os outros validos voltam para a bolsa
        EV_REVELA,                    // o Oculto mostra o que tirou
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
-       EV_AVISO };                   // so o texto (a Saideira avisa que tudo vai de novo)
+       EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
+       EV_ADESIVO };                 // um adesivo do lado que ficou para cima (ad: qual)
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
     uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
     uint32_t am;                     // amuletos que acendem quando ele toca
+    uint8_t ad;                      // EV_ADESIVO: o adesivo
     char txt[64];
 } evento_t;
 #define MAX_EV 64                    // a Saideira repete a cadeia inteira
@@ -351,7 +365,8 @@ static int  plano_n, plano_rodada = -1, plano_vez = -1;
 static float plano_p;                // chance de vencer com o plano
 static int  detalhe = -1, detalhe_fase;   // dado aberto pela tecla I (-1: nenhum)
 static int  cat_i, cat_a;         // dado e amuleto em exibicao na colecao
-static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos
+static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos, 2 adesivos
+static int  cat_ad;               // o adesivo em foco na colecao
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)
 static int  tira_i;

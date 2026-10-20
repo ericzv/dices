@@ -102,7 +102,10 @@ void dado_passo(float dt)
         bool ultimo = voo[0].slot == F[voo[0].dono].n - 1;
         float lento = ultimo ? 0.42f : (ia ? 1.0f : 0.62f);
         if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
-        if (fisica(dt * lento) && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
+        bool parou = fisica(dt * lento);
+        ad_pousou();                         // pousou no Chumbo (o baque) ou no Remendo
+        if (parou && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
+            if (ad_etapa_passo(dt)) break;       // o adesivo age no pouso (Avesso, Reflexivo)
             if (hora) som_rufo(false);           // o som segura: silencio ate o veredito
             for (int i = 0; i < n_voo; i++) { voo[i].ox = voo[i].x; voo[i].oy = voo[i].y; }
             t_fase = 0;
@@ -136,6 +139,8 @@ void dado_passo(float dt)
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
             // A Ventania tem o som dela quando rola o primeiro dado.
+            if (resistiu >= 0 && ad_fila(j, resistiu) == AD_TRANSPARENTE)   // o Transparente segurou
+                som_toca(som_adesivo(AD_TRANSPARENTE));
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);

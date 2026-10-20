@@ -18,7 +18,7 @@ static int sorteia_raridade(const float w[4])
 
 static peca_t peca_r(int t)
 {
-    peca_t p = { (uint8_t)t, 0 };
+    peca_t p = { .tipo = (uint8_t)t, .fixo = 0 };
     if (t == D_QUEBRADO) p.fixo = (uint8_t)(1 + sorte_r(8));
     return p;
 }
@@ -172,12 +172,27 @@ static void monta_pacote(void)
     for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
 }
 
+// O adesivo da loja (adesivos.inc): um por loja, entre os que o nivel do
+// perfil ja abriu. Trocar a vitrine nao muda o adesivo.
+static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && ADESIVO[a].nivel <= perfil()->nivel; }
+static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
+static void monta_adesivo(void)
+{
+    rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
+    rnd_r();
+    int livres[AD_N], n = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (adesivo_liberado(a)) livres[n++] = a;
+    run.adesivo = (uint8_t)(n ? livres[sorte_r(n)] : AD_NADA);
+    run.ad_vendido = 0;
+}
+
 static void monta_loja_run(void)
 {
     if (run.lojas < 255) run.lojas++;
     run.trocas = 0;
     monta_vitrine();
     monta_pacote();
+    monta_adesivo();
 }
 
 // ---------------------------------------------------------------------------
@@ -266,7 +281,7 @@ static int poucos_tipos(peca_t *col, int n, const perso_t *pe, int lim)
     for (int k = 0; k < n; k++) {
         int t = col[k].tipo, l = TIPO[t].lados;
         if (so_numero(t) || fica[t]) continue;
-        col[k] = (peca_t){ (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), 0 };
+        col[k] = (peca_t){ .tipo = (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), .fixo = 0 };
     }
     return n;
 }

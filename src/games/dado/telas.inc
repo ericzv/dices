@@ -138,7 +138,9 @@ static void desenha_ordem(void)
         int x = fx + k * 36;
         if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
         if (k < f->n) {
-            peca_t pc = { f->tipo[k], f->fixo[k] };
+            const peca_t *pf = peca_fila(vez, k);    // a da bolsa (com os adesivos); a carta do Coringa nao tem
+            peca_t pc = pf ? *pf : (peca_t){ .tipo = f->tipo[k], .fixo = f->fixo[k] };
+            pc.fixo = f->fixo[k];
             peca_parada((float)x, (float)ry, 10, pc, vez);
             // Clicar num dado da sequencia tira ele dela.
             for (int i = 0; i < n; i++)
@@ -297,7 +299,8 @@ static void desenha_efeitos(void)
 {
     if (ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
-    uint16_t c = e->tipo == EV_FOGO ? C_FOGO
+    uint16_t c = e->tipo == EV_ADESIVO ? ADESIVO[e->ad].luz
+               : e->tipo == EV_FOGO ? C_FOGO
                : e->tipo == EV_SEMENTE ? C_VERDE
                : e->tipo == EV_JACKPOT ? C_AMARELO
                : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR

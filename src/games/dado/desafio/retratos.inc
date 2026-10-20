@@ -672,7 +672,7 @@ typedef struct {
 
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal);
 // a marca muda quando a estrutura muda, e a run salva de antes nao abre mais.
-#define RUN_MARCA "DES4"
+#define RUN_MARCA "DES5"
 #define VITRINE_MAX 3                    // a vitrine da loja: 2 dados (3 com a Cartola)
 #define PAC_OPCOES  3                    // o pacote mostra 3 dados do grupo: leva 1
 typedef struct {
@@ -697,6 +697,9 @@ typedef struct {
     uint8_t  pacote;                     // o grupo do pacote desta loja (GR_*; 0xFF: nenhum)
     uint8_t  pac_estado;                 // PAC_*: a venda, aberto (escolhendo) ou usado
     peca_t   pac_op[PAC_OPCOES];         // o que tem dentro
+    uint8_t  adesivo;                    // o adesivo desta loja (AD_*; AD_NADA: nenhum)
+    uint8_t  ad_vendido;                 // ja foi colado
+    uint8_t  dourado;                    // a ultima vitoria: as moedas do adesivo Dourado
 } run_t;
 
 static run_t run;

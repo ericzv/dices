@@ -63,6 +63,25 @@ static void joga_com(int j, int t, int v, int (*r)(int))
     pousa(j, k, r);
 }
 
+// Poe na fila de j o dado i da bolsa dele (com os adesivos), tirando v.
+static void joga_ad(int j, int i, int v)
+{
+    fila_t *f = &F[j];
+    int k = f->lancados, t = J[j].col[i].tipo;
+    if (k >= N_FILA) return;
+    f->idx[k] = (int8_t)i;
+    f->tipo[k] = (uint8_t)t;
+    f->n = k + 1;
+    f->cru[k] = f->valor[k] = v;
+    f->lado[k] = (uint8_t)lado_do_lance(t, v, 0);
+    f->lancados = k + 1;
+    aplica_regra(j, k);
+}
+static int sempre_um(int lados) { (void)lados; return 1; }
+static int sempre_tres(int lados) { return lados < 3 ? lados : 3; }
+
+static bool ev_tipo_ad(int i, int a) { return ev[i].tipo == EV_ADESIVO && ev[i].ad == a; }
+
 static desfecho_t fim(void)
 {
     desfecho_t d;
@@ -901,8 +920,8 @@ int main(void)
         {
             jogador_t guarda = J[0];
             J[0].n_col = 8;
-            for (int i = 0; i < 8; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = NA_BOLSA; }
-            J[0].col[2] = (peca_t){ D_AUTOFAGIA, 0 };
+            for (int i = 0; i < 8; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].onde[i] = NA_BOLSA; }
+            J[0].col[2] = (peca_t){ .tipo = D_AUTOFAGIA, .fixo = 0 };
             limpa();
             joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
             F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
@@ -1065,7 +1084,7 @@ int main(void)
             joga(0, D_D6, 4); joga(0, D_D8, 2); joga(0, D_MEDUSA, 9);
             F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
             J[0].n_col = 3;
-            J[0].col[0] = (peca_t){ D_D6, 0 }; J[0].col[1] = (peca_t){ D_D8, 0 }; J[0].col[2] = (peca_t){ D_MEDUSA, 0 };
+            J[0].col[0] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].col[1] = (peca_t){ .tipo = D_D8, .fixo = 0 }; J[0].col[2] = (peca_t){ .tipo = D_MEDUSA, .fixo = 0 };
             d = fim();
             CONFERE(d.medusa[0] && !d.medusa[1] && d.total[0] == 9, "Medusa valendo devia agir (total %d)", d.total[0]);
             medusa_petrifica(0, &d);
@@ -1081,7 +1100,7 @@ int main(void)
             joga(0, D_SORTE_REVES, -3); joga(0, D_MEDUSA, 2);
             F[0].idx[0] = 0; F[0].idx[1] = 1;
             J[0].n_col = 2;
-            J[0].col[0] = (peca_t){ D_SORTE_REVES, 0 }; J[0].col[1] = (peca_t){ D_MEDUSA, 0 };
+            J[0].col[0] = (peca_t){ .tipo = D_SORTE_REVES, .fixo = 0 }; J[0].col[1] = (peca_t){ .tipo = D_MEDUSA, .fixo = 0 };
             d = fim();
             medusa_petrifica(0, &d);
             CONFERE(J[0].col[0].tipo == D_QUEBRADO && (int8_t)J[0].col[0].fixo == -3,
@@ -1094,8 +1113,8 @@ int main(void)
             for (int m = 0; m < 2; m++) {
                 modo = m ? M_DESAFIO : M_UM;
                 J[0].n_col = N_FILA + 2;
-                for (int i = 0; i < J[0].n_col; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = NA_MAO; }
-                J[0].col[3] = (peca_t){ D_QUEBRADO, (uint8_t)(int8_t)-3 };
+                for (int i = 0; i < J[0].n_col; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].onde[i] = NA_MAO; }
+                J[0].col[3] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)-3 };
                 limpa();
                 memset(vis_queima, 0, sizeof vis_queima);
                 joga(0, D_QUEBRADO, -3);
@@ -1164,7 +1183,7 @@ int main(void)
         {
             jogador_t guarda = J[0];
             J[0].n_col = 9;
-            for (int i = 0; i < 9; i++) { J[0].col[i] = (peca_t){ D_D6, 0 }; J[0].onde[i] = i < 7 ? NA_MAO : FORA; }
+            for (int i = 0; i < 9; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].onde[i] = i < 7 ? NA_MAO : FORA; }
             limpa(); joga(0, D_D6, 5); joga(0, D_D4, 3); joga(0, D_GARIMPEIRO, 4); joga(0, D_D8, 7);
             F[0].idx[0] = 0; F[0].idx[1] = 3; F[0].idx[2] = 5; F[0].idx[3] = 1;
             d = fim();
@@ -1744,7 +1763,7 @@ int main(void)
         #undef TIRA
         lj_tirando = false;
         loja_tira_abre();
-        CONFERE(!lj_tirando && t_lj_nega[n_vitrine() + 2] > 0, "no minimo, tirar nao devia abrir");
+        CONFERE(!lj_tirando && t_lj_nega[lj_item_tira()] > 0, "no minimo, tirar nao devia abrir");
         // Cartola: 3 na vitrine. Cupom: 1 a menos em tudo, nunca abaixo de 1.
         run_poe_amuleto(A_CARTOLA);
         CONFERE(n_vitrine() == 3, "Cartola: vitrine de %d", n_vitrine());
@@ -1834,6 +1853,199 @@ int main(void)
         memset(perfis, 0, sizeof perfis);
         perfil_atual = -1;
         modo = modo_antes;
+    }
+
+    // ---- Adesivos: um por lado, o lance, o fim da rodada e a loja -----------
+    {
+        int modo_antes = modo;
+        // Um por lado, meio byte cada, nos 20 lados.
+        peca_t p = { .tipo = D_D20 };
+        for (int l = 1; l <= AD_LADOS; l++) ad_cola(&p, l, 1 + (l % (AD_N - 1)));
+        bool ok = true;
+        for (int l = 1; l <= AD_LADOS; l++) ok &= ad_no_lado(&p, l) == 1 + (l % (AD_N - 1));
+        CONFERE(ok && ad_quantos(&p) == 20 && !ad_cabe(&p), "adesivos nos 20 lados");
+        ad_cola(&p, 7, AD_NADA);
+        CONFERE(ad_quantos(&p) == 19 && ad_cabe(&p) && ad_no_lado(&p, 8) == 1 + (8 % (AD_N - 1)), "tirar um adesivo");
+        CONFERE(ad_oposto(D_D6, 1) == 6 && ad_oposto(D_D20, 1) == 20 && ad_oposto(D_LASTRO, 4) == 12
+                && ad_lado_min(D_LASTRO) == 4 && ad_n_lados(D_SORTE_REVES) == 12, "o lado do avesso e os lados de cada tipo");
+
+        // O lance: Avesso, Remendo, Chumbo.
+        int menor, lado, antes;
+        peca_t d6 = { .tipo = D_D6 };
+        ad_cola(&d6, 1, AD_AVESSO);
+        int x = sorteia_peca(D_D6, 0, &d6, sempre_um, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && antes == 1, "o Avesso no 1 vira 6: %d (lado %d, de %d)", x, lado, antes);
+        d6 = (peca_t){ .tipo = D_D6 };
+        ad_cola(&d6, 3, AD_REMENDO);
+        x = sorteia_peca(D_D6, 0, &d6, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 5 && lado == 3 && !antes, "o Remendo no 3 vale 5: %d (lado %d)", x, lado);
+        peca_t vazio = { .tipo = D_VAZIO };
+        ad_cola(&vazio, 3, AD_REMENDO);
+        x = sorteia_peca(D_VAZIO, 0, &vazio, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 2 && lado == 3, "o Vazio com Remendo no lado 3: %d (lado %d)", x, lado);
+        x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);
+        lances_sr[0] = 9; lances_sr[1] = 4; li_sr = 0;
+        x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);
+        CONFERE(x == 5 && lado == 9, "Sorte/Reves: o lado e o da Sorte (%d, lado %d)", x, lado);
+        d6 = (peca_t){ .tipo = D_D6 };
+        ad_cola(&d6, 6, AD_CHUMBO);
+        int seis = 0, N = 6000;
+        for (int i = 0; i < N; i++) { sorteia_peca(D_D6, 0, &d6, rola, &menor, &lado, &antes); seis += lado == 6; }
+        CONFERE(seis > N * 0.55 && seis < N * 0.62, "o Chumbo no 6: %d de %d (esperado ~58%%)", seis, N);
+
+        // A fila: o Transparente segura a queda; o lado que conta e o de cima no fim.
+        // (Na partida rapida: sem amuletos nem trunfos no meio da conta.)
+        modo = M_UM;
+        memset(J, 0, sizeof J);
+        J[0].n_col = 6;
+        J[0].col[0] = (peca_t){ .tipo = D_D8 };
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 2, AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 5);
+        joga_ad(0, 1, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO, "o Transparente no 2 nao cai (cai o 5): %d %d", F[0].est[0], F[0].est[1]);
+        J[0].col[2] = (peca_t){ .tipo = D_GEMEO };
+        ad_cola(&J[0].col[2], 2, AD_CONFETE);
+        limpa();
+        joga_ad(0, 0, 5);
+        joga_ad(0, 2, 2);                         // o Gemeo tirou 2, mas vira 5: o Confete do 2 nao conta
+        desfecho_t d = fim();
+        CONFERE(F[0].lado[1] == 5 && d.total[0] == 10, "o Gemeo virou: o lado e o 5 e o Confete nao age (%d, lado %d)", d.total[0], F[0].lado[1]);
+
+        // O fim da rodada: cada adesivo.
+        static const struct { int ad, valendo, pontos0, pontos1; } C[] = {
+            { AD_CONFETE, 1, 6 + 4, 3 }, { AD_RASPADINHA, 1, 6 + 10, 3 }, { AD_ELETRONICO, 1, 12, 3 },
+            { AD_LOBO, 1, 6, 1 }, { AD_DOURADO, 1, 6, 3 }, { AD_BIS, 1, 6, 3 }, { AD_GORJETA, 1, 6, 3 },
+            { AD_FERMENTO, 1, 6 + 3, 3 }, { AD_CONFETE, 0, 0, 3 }, { AD_LOBO, 0, 0, 1 },
+        };
+        for (unsigned c = 0; c < sizeof C / sizeof C[0]; c++) {
+            J[0].col[3] = (peca_t){ .tipo = D_D6 };
+            ad_cola(&J[0].col[3], C[c].valendo ? 6 : 1, C[c].ad);
+            J[0].col[3].fermento = 2;
+            J[0].col[4] = (peca_t){ .tipo = D_D4 };
+            limpa();
+            if (!C[c].valendo) joga_ad(0, 4, 4);  // um 4 antes: o 1 com o adesivo cai (e leva o 4)
+            joga_ad(0, 3, C[c].valendo ? 6 : 1);
+            joga(1, D_D4, 3);
+            d = fim();
+            CONFERE(d.total[0] == C[c].pontos0 && d.total[1] == C[c].pontos1, "%s (%s): %d x %d, esperado %d x %d",
+                    ADESIVO[C[c].ad].nome, C[c].valendo ? "valendo" : "anulado", d.total[0], d.total[1], C[c].pontos0, C[c].pontos1);
+            bool ev = false;
+            for (int i = 0; i < n_ev; i++) ev |= ev_tipo_ad(i, C[c].ad);
+            CONFERE(ev == (C[c].valendo || C[c].ad == AD_LOBO), "%s: o evento", ADESIVO[C[c].ad].nome);
+            if (C[c].ad == AD_DOURADO) CONFERE(d.moedas[0] == 1, "Dourado: %d moedas", d.moedas[0]);
+            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == 1, "Bis: %d", d.bis[0]);
+            if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == 2, "Gorjeta: %d", d.gorjeta[0]);
+            if (C[c].ad == AD_FERMENTO) {        // depois da rodada, ele cresceu
+                resolvido = d;
+                adesivos_ficam(0, &d);
+                CONFERE(J[0].col[3].fermento == 3, "o Fermento cresceu: %d", J[0].col[3].fermento);
+            }
+            if (C[c].ad == AD_RASPADINHA) {      // e a Raspadinha sai do dado
+                adesivos_ficam(0, &d);
+                CONFERE(ad_no_lado(&J[0].col[3], 6) == AD_NADA, "a Raspadinha devia sair");
+            }
+        }
+        // A Mira: anula o menor do oponente que vale.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_MIRA);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 2); joga(1, D_D6, 5);
+        d = fim();
+        CONFERE(d.est[1][0] == V_ANULADO && d.est[1][1] == V_VALIDO && d.total[1] == 5, "a Mira anula o 2: %d", d.total[1]);
+        // O Bis: a proxima compra leva um dado a mais.
+        memset(bis_extra, 0, sizeof bis_extra);
+        bis_extra[0] = 1;
+        CONFERE(tam_mao(0) == MAO_NORMAL + 1, "o Bis: %d", tam_mao(0));
+        memset(bis_extra, 0, sizeof bis_extra);
+        memset(J, 0, sizeof J);
+        limpa();
+
+        // A loja: um adesivo por visita, o dado e o lado; paga so ao colar.
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "T");
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 0;
+        des_nova_run();
+        amuleto_escolhido(0);
+        run_poe_amuletos(0);
+        bool fechado = false, viu[AD_N] = { 0 };
+        for (int l = 0; l < 200; l++) {
+            run.lojas = (uint8_t)l;
+            monta_adesivo();
+            viu[run.adesivo] = true;
+            fechado |= ADESIVO[run.adesivo].nivel > 0;
+        }
+        CONFERE(!fechado && viu[AD_CONFETE] && viu[AD_LOBO] && viu[AD_REMENDO], "no Normal, so os adesivos abertos");
+        perfis[0].nivel = 8;
+        memset(viu, 0, sizeof viu);
+        for (int l = 0; l < 400; l++) { run.lojas = (uint8_t)l; monta_adesivo(); viu[run.adesivo] = true; }
+        int todos = 0;
+        for (int a = 1; a < AD_N; a++) todos += viu[a];
+        CONFERE(todos == AD_N - 1, "no nivel 8, todos os adesivos: %d de %d", todos, AD_N - 1);
+        perfis[0].nivel = 0;
+        CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
+        monta_loja_run();
+        run.adesivo = AD_ELETRONICO;
+        loja_troca();
+        CONFERE(run.adesivo == AD_ELETRONICO, "trocar a vitrine nao muda o adesivo");
+        run.moedas = 2;
+        cursor = lj_item_adesivo();
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(!lj_colando && t_lj_nega[lj_item_adesivo()] > 0, "colar sem moedas");
+        run.moedas = 20;
+        int n = run.n_col;
+        run.col[0] = (peca_t){ .tipo = D_D2 };
+        ad_cola(&run.col[0], 1, AD_LOBO); ad_cola(&run.col[0], 2, AD_LOBO);   // a moeda cheia
+        run.col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&run.col[1], 6, AD_CONFETE);
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(lj_colando == 1 && cursor == 1, "escolher o dado: comeca no primeiro com lado livre (%d)", cursor);
+        cursor = 0;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(lj_colando == 1, "a moeda cheia nao abre os lados");
+        loja_tecla(KEY_BKSP, 0);
+        CONFERE(!lj_colando && run.moedas == 20 && cursor == lj_item_adesivo(), "voltar nao custa nada");
+        loja_tecla(KEY_ENTER, 0);
+        cursor = 1;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(lj_colando == 2 && lj_cola_dado == 1 && cursor == 0, "os lados do D6");
+        cursor = 5;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(t_lj_cola <= 0 && run.moedas == 20 && ad_no_lado(&run.col[1], 6) == AD_CONFETE, "o lado ocupado e bloqueado");
+        loja_tecla(KEY_BKSP, 0);
+        CONFERE(lj_colando == 1 && cursor == 1, "BACKSPACE volta ao dado");
+        loja_tecla(KEY_ENTER, 0);
+        cursor = 0;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(ad_no_lado(&run.col[1], 1) == AD_ELETRONICO && run.moedas == 15 && run.ad_vendido && run.n_col == n,
+                "colar no 1: %d moedas", run.moedas);
+        run_t r;
+        CONFERE(des_carrega(&r) && ad_no_lado(&r.col[1], 1) == AD_ELETRONICO && ad_no_lado(&r.col[1], 6) == AD_CONFETE
+                && r.ad_vendido, "o adesivo colado nao ficou salvo");
+        loja_passo(LJ_COLA_FIM + 0.01f);
+        CONFERE(!lj_colando && cursor == lj_item_adesivo(), "depois de colar, a loja volta");
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(!lj_colando && run.moedas == 15, "colou duas vezes");
+        // A partida leva os adesivos e devolve como ficaram.
+        des_comeca_partida();
+        CONFERE(ad_no_lado(&J[0].col[1], 1) == AD_ELETRONICO && ad_no_lado(&J[0].col[0], 2) == AD_LOBO, "a partida sem os adesivos");
+        J[0].col[1].fermento = 4;
+        ad_moedas[0] = 3;
+        venc_partida = 0;
+        int m0 = run.moedas;
+        des_resultado();
+        CONFERE(run.col[1].fermento == 4 && ad_no_lado(&run.col[1], 6) == AD_CONFETE && run.dourado == 3
+                && run.moedas == m0 + saque_total(), "a run de volta: fermento %d, dourado %d", run.col[1].fermento, run.dourado);
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        perfil_atual = -1;
+        modo = modo_antes;
+        memset(J, 0, sizeof J);
+        limpa();
     }
 
     // ---- Trunfos proprios dos oponentes do Desafiante ----------------------
@@ -2188,7 +2400,7 @@ int main(void)
         des_dif = 0;
         des_nova_run();
         amuleto_escolhido(0);
-        run.col[run.n_col++] = (peca_t){ D_ACUMULADOR, 4 };    // de uma partida antes
+        run.col[run.n_col++] = (peca_t){ .tipo = D_ACUMULADOR, .fixo = 4 };    // de uma partida antes
         int a = run.n_col - 1;
         des_comeca_partida();
         CONFERE(J[0].col[a].tipo == D_ACUMULADOR && J[0].col[a].fixo == 0,
@@ -2576,7 +2788,7 @@ int main(void)
         for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
         J[0].n_col = 0;
         for (int i = 0; i < 7; i++) {
-            J[0].col[i] = (peca_t){ (uint8_t)T[i], 0 };
+            J[0].col[i] = (peca_t){ .tipo = (uint8_t)T[i], .fixo = 0 };
             J[0].onde[i] = NA_MAO;
             J[0].mao[i] = (int8_t)i;
             J[0].n_col++;

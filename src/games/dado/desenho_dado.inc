@@ -1062,11 +1062,75 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
 // O Oculto ainda virado: a face mostra "?" no lugar do numero.
 static bool face_escondida;
 
+// O adesivo do lado que esta para cima: quem desenha o dado na mesa avisa
+// antes (como o brilho de passagem), e a etiqueta vai na face, por baixo do
+// numero. ad_face_aceso: o halo de quando ela acende (rolando, ao passar pelo
+// lado; pousando nele; agindo no fim).
+static int  ad_face;
+static bool ad_face_aceso;
+
+// A etiqueta: o vinil na forma do dado, com borda branca, e o adesivo da loja
+// em miniatura no canto. Anulado, apagada como o dado.
+static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a, bool aceso, bool zerado)
+{
+    const adesivo_t *d = &ADESIVO[a];
+    bool vidro = d->fundo == AD_SEM_FUNDO;
+    uint16_t fundo = vidro ? 0 : d->fundo, borda = vidro ? d->luz : C_BRANCO, halo = d->luz;
+    if (zerado) {
+        fundo = gfx_mistura(fundo, C_FELTRO2, 60);
+        borda = gfx_mistura(borda, C_FELTRO2, 60);
+        aceso = false;
+    }
+    float k = lados == 4 ? 0.6f : lados == 6 ? 0.7f : 0.62f, oy = lados == 4 ? r * 0.1f : 0;
+    float vx[12], vy[12];
+    int n;
+    if (lados == 2) {
+        int rr = (int)(r * 0.66f);
+        if (aceso) gfx_disco((int)cx, (int)cy, rr + 3, halo);
+        if (vidro) {
+            for (int q = 0; q < 24; q++) {
+                float t = q * 0.2618f;
+                gfx_pixel((int)(cx + cosf(t) * rr), (int)(cy + sinf(t) * rr), borda);
+            }
+        } else {
+            gfx_disco((int)cx + 1, (int)cy + 1, rr + 1, gfx_mistura(fundo, C_BARRA, 45));
+            gfx_disco((int)cx, (int)cy, rr + 1, borda);
+            gfx_disco((int)cx, (int)cy, rr, fundo);
+        }
+    } else if (vidro) {                          // so o contorno de vidro, e um risco de brilho
+        for (int q = 0; q <= (aceso ? 2 : 0); q += 2) {
+            n = forma(lados, cx, cy + oy, r * (k + q * 0.07f), ang, vx, vy);
+            for (int i = 0; i < n; i++)
+                gfx_linha((int)vx[i], (int)vy[i], (int)vx[(i + 1) % n], (int)vy[(i + 1) % n], q ? C_BRANCO : borda);
+        }
+        gfx_linha((int)(cx - r * 0.38f), (int)(cy - r * 0.05f), (int)(cx - r * 0.05f), (int)(cy - r * 0.38f), borda);
+    } else {
+        if (aceso) { n = forma(lados, cx, cy + oy, r * (k + 0.2f), ang, vx, vy); poligono(vx, vy, n, halo); }
+        n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
+        n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy); poligono(vx, vy, n, fundo);
+    }
+    if (r < 12) return;
+    // O adesivo da loja em miniatura, no canto da face: diz qual e.
+    int x = (int)(cx - r * 0.88f), y = (int)(cy - r * 0.88f);
+    if (lados == 4) { x = (int)cx - 5; y = (int)(cy - r * 0.98f); }
+    uint16_t f2 = vidro ? C_FELTRO_ESC : d->fundo;
+    if (zerado) f2 = gfx_mistura(f2, C_FELTRO2, 60);
+    gfx_rect(x + 1, y + 2, 11, 11, C_SOMBRA);
+    ad_caixa(x, y, 11, 11, zerado ? C_FELTRO2 : C_BRANCO);
+    ad_caixa(x + 1, y + 1, 9, 9, f2);
+    ad_icone(x + 2, y + 2, a, 1, zerado ? gfx_mistura(d->tinta, C_FELTRO2, 60) : d->tinta);
+}
+
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
     brilho_desta = brilho_passa;                  // o brilho de passagem e so deste dado
     brilho_passa = -1;
+    int adf = vista && valor != SO_CORPO && !face_escondida ? ad_face : 0;   // a etiqueta e so deste dado
+    bool adf_aceso = ad_face_aceso;
+    ad_face = 0;
+    ad_face_aceso = false;
     int lados = TIPO[tipo].lados;
     if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
     const visual_t *vi = &VISUAL[tipo];
@@ -1142,13 +1206,25 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             gfx_linha_grossa((int)vx[i] + 1, (int)vy[i] + 2, (int)vx[(i + 1) % n] + 1, (int)vy[(i + 1) % n] + 2, (int)ea2 + 1, C_SOMBRA);
         for (int i = 0; i < n; i++)
             gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[(i + 1) % n], (int)vy[(i + 1) % n], (int)ea2 + 1, c);
-        if (valor != SO_CORPO) numero(cx, cy, r, "0", zerado ? C_FELTRO2 : gfx_mistura(c, C_BRANCO, 30));
+        if (adf) ad_etiqueta(cx, cy, r, lados, ang, adf, adf_aceso, zerado);
+        uint16_t t0 = adf && ADESIVO[adf].fundo != AD_SEM_FUNDO ? ADESIVO[adf].tinta : gfx_mistura(c, C_BRANCO, 30);
+        if (valor != SO_CORPO) numero(cx, cy, r, "0", zerado ? C_FELTRO2 : t0);
         if (zerado && vista) risca(cx, cy, r);
         return;
     }
     gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
-    if (tipo == D_FOGO) { ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado); return; }
-    if (tipo == D_TUDO_NADA) { tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado); return; }
+    if (tipo == D_FOGO || tipo == D_TUDO_NADA) {
+        if (tipo == D_FOGO) ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado);
+        else tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado);
+        if (adf) {                                // as fichas: a etiqueta por cima, com o numero
+            char s1[6];
+            snprintf(s1, sizeof s1, "%d", valor);
+            ad_etiqueta(cx, cy, r, 2, ang, adf, adf_aceso, zerado);
+            numero(cx, cy, r, s1, ADESIVO[adf].fundo == AD_SEM_FUNDO ? C_MARFIM : ADESIVO[adf].tinta);
+            if (zerado) risca(cx, cy, r);
+        }
+        return;
+    }
 
     // O aro, o brilho e o corpo por cima do brilho, um pouco deslocado: fica
     // uma luz na aresta de cima.
@@ -1216,11 +1292,23 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         if (zerado) risca(cx, cy, r);
         return;
     }
+    uint16_t contorno = 0;               // o numero sobre o simbolo ganha um contorno da cor do vinil
+    if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
+        ad_etiqueta(cx, cy, r, lados, ang, adf, adf_aceso, zerado);
+        if (ADESIVO[adf].fundo != AD_SEM_FUNDO) {
+            tinta = zerado ? gfx_mistura(ADESIVO[adf].tinta, C_FELTRO2, 60) : ADESIVO[adf].tinta;
+            if (r >= 12) contorno = zerado ? gfx_mistura(ADESIVO[adf].fundo, C_FELTRO2, 60) : ADESIVO[adf].fundo;
+        }
+    }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
         snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
+        if (contorno) {
+            static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+            for (int i = 0; i < 8; i++) numero(cx + D[i][0], cy + D[i][1], r, s, contorno);
+        }
         numero(cx, cy, r, s, tinta);
     }
     if (zerado) risca(cx, cy, r);

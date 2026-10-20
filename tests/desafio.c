@@ -74,7 +74,7 @@ int main(int argc, char **argv)
                 && hist.partidas_venc == 1, "historico dos lances e partidas errado");
         memset(&run, 0, sizeof run);
         run.dificuldade = 2; run.n_col = 3; run.moedas = 123; run.amuletos = 1u << A_LUVA;
-        run.col[0] = (peca_t){ D_D6, 0 }; run.col[1] = (peca_t){ D_LASER, 0 }; run.col[2] = (peca_t){ D_D20, 0 };
+        run.col[0] = (peca_t){ .tipo = D_D6, .fixo = 0 }; run.col[1] = (peca_t){ .tipo = D_LASER, .fixo = 0 }; run.col[2] = (peca_t){ .tipo = D_D20, .fixo = 0 };
         hist_run_venceu();
         CONFERE(hist.camp_tem && hist.camp_dif == 2 && hist.camp_n == 3 && hist.camp_col[1] == D_LASER
                 && hist.camp_moedas == 123 && (hist.camp_amul >> A_LUVA & 1) && hist.runs_venc[2] == 1,
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
             hist_t salvo = hist;
             memset(&run, 0, sizeof run);
             run.dificuldade = N_NIVEIS; run.n_col = 60;
-            for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ i == 47 ? D_LASER : D_D6, 0 };
+            for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ .tipo = i == 47 ? D_LASER : D_D6, .fixo = 0 };
             hist_run_venceu();
             hist_de = -1;
             hist_carrega(0);
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
         memcpy(run.marca, RUN_MARCA, 4);
         gera_andar();
         run.andar = 1; run.passo = 2; run.moedas = 345; run.dificuldade = 4; run.n_col = 100; run.remocoes = 3;
-        for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ i == 99 ? D_LASER : D_D8, i == 99 };
+        for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ .tipo = i == 99 ? D_LASER : D_D8, .fixo = i == 99 };
         des_salva();
         static run_t r;
         CONFERE(des_carrega(&r) && r.n_col == 100 && r.col[99].tipo == D_LASER && r.col[99].fixo == 1 && r.moedas == 345
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 
     int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
-    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0, soma_pacotes = 0;
+    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0, soma_pacotes = 0, soma_adesivos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
         CONFERE(fase == F_RAMULETO && run.moedas == moedas_iniciais(dific) && run.n_col == (int)sizeof BOLSA_INICIO
                 && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
-        int compras = 0, trocas = 0, pacotes = 0;
+        int compras = 0, trocas = 0, pacotes = 0, adesivos = 0;
         while (fase != F_RFIM && !falhas) {
             if (++passos > 3000000) { CONFERE(0, "run %d parada na fase %d", r, fase); break; }
             relogio += 16667;
@@ -256,6 +256,29 @@ int main(int argc, char **argv)
                     trata_tecla(KEY_ENTER);
                     CONFERE(run.n_col == n0 + 1 && run.pac_estado == PAC_USADO, "pacote: %d dados", run.n_col);
                     pacotes++;
+                    break;
+                }
+                if (lj_colando) {            // colando: o dado de mais lados; o Reflexivo e o Avesso no lado
+                    if (t_lj_cola > 0) { dado_passo(1.0f / 60); break; }   // mais baixo, os outros no mais alto
+                    if (lj_colando == 1) {
+                        int b = -1;
+                        for (int i = 0; i < run.n_col; i++)
+                            if (ad_cabe(&run.col[i]) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
+                        cursor = b;
+                        trata_tecla(KEY_ENTER);
+                        CONFERE(lj_colando == 2, "colar: o dado nao abriu");
+                        break;
+                    }
+                    const peca_t *pc = &run.col[lj_cola_dado];
+                    int t = pc->tipo, a = run.adesivo, c = -1, m0 = run.moedas, n0 = ad_quantos(pc);
+                    bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
+                    for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
+                        if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
+                    cursor = c - ad_lado_min(t);
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(ad_no_lado(pc, c) == a && ad_quantos(pc) == n0 + 1 && run.moedas == m0 - preco_adesivo(a)
+                            && run.ad_vendido, "colar: o adesivo nao entrou");
+                    adesivos++;
                     break;
                 }
                 if (lj_tirando) {            // tirando: a moeda, depois o D4
@@ -298,13 +321,17 @@ int main(int argc, char **argv)
                     cursor = nv;                 // sobrou: abre o pacote
                     trata_tecla(KEY_ENTER);
                     CONFERE(lj_pac && run.moedas == m0 - preco_pacote(), "o pacote nao abriu");
+                } else if (run.adesivo && !run.ad_vendido && run.moedas >= preco_adesivo(run.adesivo) && lj_algum_lado()) {
+                    cursor = lj_item_adesivo();  // sobrou mais: o adesivo
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(lj_colando == 1, "o adesivo nao abriu");
                 } else if (fraco && run.n_col > 8 && run.moedas >= preco_remove()) {
-                    cursor = nv + 2;
+                    cursor = lj_item_tira();
                     trata_tecla(KEY_ENTER);
                     CONFERE(lj_tirando, "tirar nao abriu");
                 } else if (!run.trocas && run.moedas >= 6) {
                     int m0 = run.moedas;
-                    cursor = nv + 1;
+                    cursor = lj_item_troca();
                     trata_tecla(KEY_ENTER);
                     CONFERE(run.moedas == m0 - 1 && run.trocas == 1, "trocar a vitrine");
                     trocas++;
@@ -365,14 +392,15 @@ int main(int argc, char **argv)
         soma_tiradas += run.remocoes;
         soma_trocas += trocas;
         soma_pacotes += pacotes;
+        soma_adesivos += adesivos;
         CONFERE(!des_tem_run(), "run acabada ainda salva");
     }
     if (falhas) return 1;
     printf("%d runs (IA do jogador nivel %d, caminho %d, dificuldade %s): %d vencidas (%.0f%%)\n", runs, nivel,
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
-    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.1f moedas, %.1f compras, %.1f pacotes, %.1f tirados, %.1f trocas\n",
+    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.1f moedas, %.1f compras, %.1f pacotes, %.1f adesivos, %.1f tirados, %.1f trocas\n",
            partidas, ganhas, (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs,
-           (double)soma_pacotes / runs, (double)soma_tiradas / runs, (double)soma_trocas / runs);
+           (double)soma_pacotes / runs, (double)soma_adesivos / runs, (double)soma_tiradas / runs, (double)soma_trocas / runs);
     for (int a = 0; a <= DES_ANDARES; a++) {
         if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);

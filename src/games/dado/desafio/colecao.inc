@@ -89,6 +89,59 @@ static void desenha_cat_amuleto(int i)
     quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 
+// Os adesivos, na ordem em que abrem.
+static int cat_adesivo(int i)
+{
+    for (int nv = 0; nv <= N_NIVEIS; nv++)
+        for (int a = AD_NADA + 1; a < AD_N; a++)
+            if (ADESIVO[a].nivel == nv && i-- == 0) return a;
+    return AD_CONFETE;
+}
+
+static void desenha_cat_adesivo(int i)
+{
+    perfis_le();
+    int a = cat_adesivo(i);
+    const adesivo_t *d = &ADESIVO[a];
+    char s[96];
+    faixas_colecao(i, AD_N - 1);
+    bool aberto = adesivo_liberado(a);
+    int cx = 160, cy = CENTRO + 4;
+    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, d->luz, 45));
+    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
+    float ciclo = fmodf(t_fase, 3.1f), descola = ciclo < 0.5f ? sinf(ciclo / 0.5f * 3.1416f) : 0;
+    ad_solto_d(cx, cy - 14 + (int)(sinf(t_fase * 2) * 2), a, 6, aberto ? descola : 0);
+    // Num dado: o lado com ele para cima, nos tres jeitos de dado.
+    static const int T[3] = { D_D4, D_D6, D_D20 };
+    for (int k = 0; k < 3; k++) {
+        int v = k == 0 ? 3 : k == 1 ? 6 : 19;
+        ad_face = a;
+        desenha_dado((float)(cx - 44 + k * 44), (float)(cy + 50), 14, T[k], 0, 0, v + (a == AD_REMENDO ? 2 : 0), 2, false);
+    }
+    if (!aberto) {                                   // fechado: no escuro
+        no_escuro(cx, cy, 76, C_FELTRO_ESC);
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    }
+    int x = 290;
+    gfx_texto(x, 70, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
+    snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
+    int ex = etiqueta_caixa(x, 118, s, C_OURO) + 2;
+    txt(ex, 119, "adesivo · na loja, um por visita", C_TEXTO_M, false);
+    if (d->nivel == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
+    else if (aberto) {
+        if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
+        else snprintf(s, sizeof s, "Aberto no Desafiante");
+        txt(x, 139, s, C_VERDE, false);
+    } else {
+        quem_abre(d->nivel, -1, s, sizeof s);
+        linha_bloqueio(x, 139, s);
+    }
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
+    int n = quebra_linhas(x, 170, 320, 5, AD_TEXTO[a], C_MARFIM);
+    quebra_linhas(x, 170 + n * LINHA_FINA + 10, 320, 3, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
+                  C_TEXTO_M);
+}
+
 static int des_dificuldade(void) { return run.dificuldade; }
 
 // O elevador: um mostrador antigo, em arco, com o ponteiro subindo do terreo
@@ -197,6 +250,8 @@ static int des_foco(void)
 {
     if (fase == F_RLOJA && lj_pac) return t_pac >= PAC_PRONTO && cursor >= 0 && cursor < PAC_OPCOES ? run.pac_op[cursor].tipo : -1;
     if (fase == F_RLOJA && lj_tirando && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
+    if (fase == F_RLOJA && lj_colando == 1 && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
+    if (fase == F_RLOJA && lj_colando) return -1;
     if (fase == F_RLOJA && !lj_tirando && cursor >= 0 && cursor < n_vitrine()) return run.vitrine[cursor].tipo;
     if (fase == F_RBOLSA && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
     return -1;

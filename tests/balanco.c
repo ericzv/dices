@@ -25,6 +25,7 @@
 //       mostra que sair no meio e continuar recomeca a mesma partida.
 //
 // ESFORCO=0 no ambiente faz a IA pensar pouco (bem mais rapido); o jogo usa 1.
+// ADESIVOS=0: o robo nao compra adesivos (para comparar).
 #include <stdio.h>
 #include <stdlib.h>
 #include "../src/games/dado.c"
@@ -49,6 +50,7 @@ static uint32_t est = 99991;
 static uint32_t rnd_t(void) { est ^= est << 13; est ^= est >> 17; est ^= est << 5; return est; }
 
 static int ia_jog = 2, jeito_aposta, jeito_compra, recomecos, recomecou;
+static int adesivos_robo = 1;           // ADESIVOS=0 no ambiente: o robo nao compra adesivos
 
 // Um perfil com o nivel pedido aberto (tudo: todos os dados e amuletos), e
 // sempre com o D20 e o Lastro, que abrem nos dois primeiros chefes.
@@ -170,6 +172,25 @@ static void loja_passo_robo(int *compras)
         (*compras)++;
         return;
     }
+    if (lj_colando) {                            // o adesivo: no dado de mais lados; o Reflexivo e o
+        if (t_lj_cola > 0) { dado_passo(1.0f / 60); return; }   // Avesso no lado mais baixo, os outros no mais alto
+        if (lj_colando == 1) {
+            int b = -1;
+            for (int i = 0; i < run.n_col; i++)
+                if (ad_cabe(&run.col[i]) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
+            cursor = b;
+            trata_tecla(KEY_ENTER);
+            return;
+        }
+        const peca_t *pc = &run.col[lj_cola_dado];
+        int t = pc->tipo, a = run.adesivo, c = -1;
+        bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
+        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
+            if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
+        cursor = c - ad_lado_min(t);
+        trata_tecla(KEY_ENTER);
+        return;
+    }
     if (lj_tirando) {
         if (t_lj_tira > 0 || t_lj_volta > 0) { dado_passo(1.0f / 60); return; }
         int m = -1;
@@ -195,8 +216,10 @@ static void loja_passo_robo(int *compras)
         cursor = nv;                             // sobrou: abre o pacote
         trata_tecla(KEY_ENTER);
     }
-    else if (jeito_compra != 2 && moeda && run.moedas >= preco_remove() + 3) { cursor = nv + 2; trata_tecla(KEY_ENTER); }
-    else if (jeito_compra != 2 && !run.trocas && run.moedas >= 6) { cursor = nv + 1; trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && adesivos_robo && run.adesivo && !run.ad_vendido && run.moedas >= preco_adesivo(run.adesivo)
+             && lj_algum_lado()) { cursor = lj_item_adesivo(); trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && moeda && run.moedas >= preco_remove() + 3) { cursor = lj_item_tira(); trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && !run.trocas && run.moedas >= 6) { cursor = lj_item_troca(); trata_tecla(KEY_ENTER); }
     else trata_tecla(KEY_TAB);
 }
 
@@ -305,7 +328,7 @@ static bool duelo(const peca_t *b, int nb, uint32_t am, int nivel, int salao, in
 
 static int bolsa_inicio(peca_t *b)
 {
-    for (int i = 0; i < (int)sizeof BOLSA_INICIO; i++) b[i] = (peca_t){ BOLSA_INICIO[i], 0 };
+    for (int i = 0; i < (int)sizeof BOLSA_INICIO; i++) b[i] = (peca_t){ .tipo = BOLSA_INICIO[i], .fixo = 0 };
     return (int)sizeof BOLSA_INICIO;
 }
 
@@ -442,6 +465,7 @@ int main(int argc, char **argv)
 {
     #define ARG(i, d) (argc > (i) ? atoi(argv[i]) : (d))
     ia_esforco = getenv("ESFORCO") ? atoi(getenv("ESFORCO")) : 1;
+    adesivos_robo = getenv("ADESIVOS") ? atoi(getenv("ADESIVOS")) : 1;
     const char *m = argc > 1 ? argv[1] : "";
     if (!strcmp(m, "curva")) {
         ia_jog = ARG(4, 2);

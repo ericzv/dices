@@ -322,14 +322,16 @@ static void trata_tecla(int k)
 
     case F_CATALOGO:
         // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
-        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB) {
-            int sec = k == KEY_TAB ? !cat_sec : (k == KEY_DOWN || k == 's');
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '3')) {
+            int sec = k == KEY_TAB ? (cat_sec + 1) % 3 : k >= '1' && k <= '3' ? k - '1'
+                    : k == KEY_DOWN || k == 's' ? (cat_sec < 2 ? cat_sec + 1 : 2) : (cat_sec > 0 ? cat_sec - 1 : 0);
             if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
             return;
         }
         if (e) {
             if (cat_sec == 0) cat_i = (cat_i + e + N_CATALOGO) % N_CATALOGO;
-            else cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
+            else if (cat_sec == 1) cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
+            else cat_ad = (cat_ad + e + AD_N - 1) % (AD_N - 1);
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;

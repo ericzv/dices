@@ -38,8 +38,13 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
   dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
-  mostra 3 do grupo e você leva 1 ou pula), trocar a vitrine (1, depois 2,
-  3...) e tirar um dado da bolsa (3, depois 5, 7... na run inteira).
+  mostra 3 do grupo e você leva 1 ou pula), um adesivo (2 a 6 moedas), trocar
+  a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
+  na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
+  lado, quantos couberem) e só age quando o dado termina a rodada com esse
+  lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  (cai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
+  menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
   um dos seus sai.

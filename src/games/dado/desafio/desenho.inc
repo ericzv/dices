@@ -195,7 +195,7 @@ static void info_mesa(int p)
         if (gx + w > xc + wc) { gx = xc; gy += 25; }
         if (gy > y0 + INFO_H - 10) break;
         // O dado parado, como na mao: forma, aro e quantos lados.
-        peca_t pc = { (uint8_t)tipos[k], 0 };
+        peca_t pc = { .tipo = (uint8_t)tipos[k], .fixo = 0 };
         peca_parada((float)(gx + 10), (float)gy, 10, pc, 0);
         if (q[0]) gfx_texto(gx + 22, gy - 12, q, C_MARFIM_S, GFX_FINO, false);
         dica_zona(gx - 2, gy - 12, w, 24, DICA_DADO, tipos[k]);
@@ -332,7 +332,11 @@ static void desenha_bolsa_run(void)
         }
         na++;
     }
-    if (run.n_col && cursor < run.n_col) dado_e_poder(262, run.col[cursor].tipo, true);
+    if (run.n_col && cursor < run.n_col) {
+        bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
+        dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
+        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor]);
+    }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
 }
 
@@ -420,11 +424,11 @@ static void saque_fileira(int y)
         return;
     }
     int sp = tot > 22 ? 14 : 17, gap = 10;
-    int grupos[3] = { run.ganho, run.juros, run.taca }, ng = (run.juros > 0) + (run.taca > 0);
+    int grupos[4] = { run.ganho, run.juros, run.taca, run.dourado }, ng = (run.juros > 0) + (run.taca > 0) + (run.dourado > 0);
     int larg = tot * sp + ng * gap, x = GFX_W / 2 - larg / 2 + sp / 2, i = 0;
-    static const char *const ROT[3] = { "mesa", "Cofre", "Taça" };
-    uint16_t cor_rot[3] = { C_OURO, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor };
-    for (int g = 0; g < 3; g++) {
+    static const char *const ROT[4] = { "mesa", "Cofre", "Taça", "Dourado" };
+    uint16_t cor_rot[4] = { C_OURO, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz };
+    for (int g = 0; g < 4; g++) {
         if (!grupos[g]) continue;
         int x0 = x;
         for (int k = 0; k < grupos[g]; k++, i++, x += sp) {

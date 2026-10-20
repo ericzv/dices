@@ -86,6 +86,26 @@ static void desenha_lance(void)
             bob = -alto;
             sombra_alt = alto * 0.6f;
         }
+        // Os adesivos: rolando, a etiqueta aparece (acesa) cada vez que passa
+        // pelo lado dela; parado, a do lado de cima, acesa enquanto age (o
+        // Avesso pula e vira; o Reflexivo pisca e sai rolando).
+        if (!v->fantasma && !descartado) {
+            const peca_t *pc = peca_fila(v->dono, v->slot);
+            int t = v->tipo, lv = v->parado ? v->lado : (mostra >= ad_lado_min(t) && mostra <= ad_lado_max(t) ? mostra : 0);
+            int a = ad_no_lado(pc, lv);
+            if (a) {
+                ad_face = a;
+                ad_face_aceso = !v->parado || (v->etapa && (int)(v->t_etapa * 12) % 2 == 0);
+                if (!v->parado && a == AD_REMENDO) mostra += 2;
+            }
+            if (v->etapa == 1 && v->t_etapa > AD_MOSTRA) {    // o Avesso: pula girando meia volta
+                float q = fminf(1, (v->t_etapa - AD_MOSTRA) / AD_VIRA), s = sinf(q * 3.1416f);
+                bob -= s * 14;
+                ang += q * 3.1416f;
+                r *= 1 + 0.15f * s;
+                sombra_alt = s * 8;
+            }
+        }
         desenha_dado(ex + dx, ey + bob, r, v->tipo, v->dono, ang, mostra, 2, descartado);
         face_escondida = false;
         sr_lado = 0;
@@ -99,6 +119,7 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
     marca_nivel = p.fixo;
     desenha_dado(x, y, r, p.tipo, dono, 0, p.fixo, 0, false);
     marca_nivel = -1;
+    ad_selos(x, y, r, &p, 0);                    // os adesivos: um selinho por lado, na beira de baixo
 }
 
 // O clarao do golpe (hora.inc): enquanto a mesa esta parada, o dado que
@@ -604,6 +625,8 @@ static void desenha_fila(int j)
             marca_nivel = f->fixo[k];
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
             marca_nivel = -1;
+            const peca_t *pc = peca_fila(j, k);
+            if (pc) ad_selos((float)x, (float)y, R - 6, pc, 0);
             // Na hora de lancar, o que ainda nao foi jogado fica cinza;
             // montando a sequencia, cada dado na sua cor.
             if (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO)
@@ -658,7 +681,7 @@ static void desenha_fila(int j)
             x += (int)(sinf(t_fase * 70) * 3);                      // o Cavalo treme e se abre
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
-        bool alvo = e && e->tipo == EV_ANULA && e->alvo_j == j && e->alvo_k == k;
+        bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && e->ad == AD_MIRA)) && e->alvo_j == j && e->alvo_k == k;
         if (alvo && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
         bool cavalo = e && e->tipo == EV_CAVALO && e->alvo_j == j && (e->mascara >> k & 1);
         if (cavalo && p > 0.6f && ((int)(t_fase * 8) % 2 == 0)) continue;
@@ -694,6 +717,11 @@ static void desenha_fila(int j)
         float r_suga = suga ? R + sanguessuga_gole(t_fase) : R;
         // A Ficha Velha pagando o seu +4 no fim: a cor volta enquanto ela paga.
         bool paga = e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && t == D_FICHA_VELHA && p > 0.12f && p < 0.92f;
+        // O adesivo do lado de cima: a etiqueta, acesa enquanto ele age no fim.
+        if (!ainda && giro < 0.5f) {
+            ad_face = ad_fila(j, k);
+            ad_face_aceso = e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k && (p > 0.3f || (int)(t_fase * 12) % 2 == 0);
+        }
         desenha_dado((float)x, y - pulo, r_suga, t, j, giro, face, 2, anul && giro < 0.5f && !paga);
         if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
         face_escondida = false;
@@ -951,6 +979,146 @@ static void desenha_fila(int j)
     }
 }
 
+// Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
+// dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
+static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
+{
+    int a = e->ad, j = e->de_j, dir = j == baixo ? -1 : 1;     // para o meio da mesa
+    const adesivo_t *d = &ADESIVO[a];
+    uint16_t fundo = d->fundo == AD_SEM_FUNDO ? d->luz : d->fundo;
+    // O adesivo pula do dado e fica no ar, girando um nada, enquanto age
+    // (a Raspadinha se solta e vai embora).
+    float sobe = fminf(1, p / 0.15f);
+    int sx = ax + R_DADO - 2, sy = ay + dir * (R_DADO + (int)((2 - sobe) * sobe * 10));
+    if (a == AD_RASPADINHA && p > 0.55f) {                     // descola e voa para fora
+        float q = (p - 0.55f) / 0.4f;
+        sx += (int)(q * 60);
+        sy += dir * (int)(q * 30) - (int)(sinf(q * 3.1416f) * 20);
+    }
+    if (p < 0.9f) ad_solto_d(sx, sy, a, 1, a == AD_RASPADINHA ? fminf(1, p * 2) : 0);
+    switch (a) {
+    case AD_CONFETE:                                            // a chuva de papel picado
+        for (int i = 0; i < 24 && p < 0.95f; i++) {
+            static const uint16_t K[6] = { RGB(228, 194, 106), RGB(96, 134, 196), RGB(226, 164, 168),
+                                           RGB(88, 152, 84), RGB(190, 56, 60), RGB(150, 112, 160) };
+            float an = i * 0.2618f + 0.4f, v = 50 + (i * 37) % 60, q = fminf(1, p / 0.8f);
+            int x = ax + (int)(cosf(an) * v * q), y = ay + (int)(sinf(an) * v * q * 0.7f - 40 * q + 90 * q * q);
+            gfx_rect(x, y, (i + (int)(t_fase * 12)) % 2 ? 2 : 3, (i + (int)(t_fase * 12)) % 2 ? 3 : 2, K[i % 6]);
+        }
+        break;
+    case AD_ELETRONICO:                                         // raios em volta do dado
+        if (p < 0.75f && (int)(t_fase * 24) % 3) {
+            for (int b = 0; b < 4; b++) {
+                float an = b * 1.5708f + 0.78f + p * 2;
+                int x0 = ax + (int)(cosf(an) * (R_DADO + 2)), y0 = ay + (int)(sinf(an) * (R_DADO + 2));
+                int x1 = x0, y1 = y0;
+                for (int s = 1; s <= 3; s++) {
+                    int x2 = ax + (int)(cosf(an + (s % 2 ? 0.25f : -0.25f)) * (R_DADO + 2 + s * 7));
+                    int y2 = ay + (int)(sinf(an + (s % 2 ? 0.25f : -0.25f)) * (R_DADO + 2 + s * 7));
+                    gfx_linha_grossa(x1, y1, x2, y2, 2, d->fundo);
+                    gfx_linha(x1, y1, x2, y2, C_BRANCO);
+                    x1 = x2; y1 = y2;
+                }
+            }
+        }
+        break;
+    case AD_RASPADINHA:                                         // a raspa prateada saindo
+        for (int i = 0; i < 16 && p < 0.7f; i++) {
+            float q = fmodf(p * 2.2f + i * 0.13f, 1.0f);
+            int x = ax - 8 + (i * 5) % 16 + (int)(q * ((i % 3) - 1) * 14), y = ay - (int)(q * 26) * (dir < 0 ? 1 : -1);
+            gfx_rect(x, y, 2, 1, i % 2 ? C_PRATA : C_BRANCO);
+        }
+        break;
+    case AD_FERMENTO:                                           // bolhas subindo e crescendo
+        for (int i = 0; i < 8 && p < 0.95f; i++) {
+            float q = fmodf(p * 1.5f + i * 0.125f, 1.0f);
+            int x = ax - 12 + (i * 7) % 24 + (int)(sinf(q * 6 + i) * 3), y = ay + dir * (int)(q * 40);
+            int r = 1 + (int)(q * 4);
+            gfx_disco(x, y, r, gfx_mistura(fundo, C_FELTRO, (int)(q * 60)));
+            if (r > 2) gfx_pixel(x - 1, y - 1, C_BRANCO);
+        }
+        break;
+    case AD_DOURADO: {                                          // a moeda salta do dado para a sua faixa
+        int bx = ficha_px[j] - 46, by = ficha_py[j];
+        float q = (p - 0.12f) / 0.55f;
+        for (int r = 3; r >= 0 && q > 0; r--) {
+            float t = q - r * 0.05f;
+            if (t < 0 || t > 1) continue;
+            float s = t * t * (3 - 2 * t);
+            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 60);
+            if (r) { gfx_rect(x - 1, y - 1, 2, 2, C_AMARELO); continue; }
+            gfx_disco(x, y, 6, C_LATAO_ESC);
+            gfx_disco(x, y, 5, C_OURO);
+            gfx_rect(x - 2, y - 3, 2, 2, C_AMARELO);
+        }
+        if (q > 1 && p < 0.95f)
+            for (int i = 0; i < 6; i++) {                       // chegou: brilho
+                float an = i * 1.047f;
+                int rr = 6 + (int)((q - 1) * 30);
+                gfx_rect(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), 2, 2, C_AMARELO);
+            }
+        break;
+    }
+    case AD_LOBO: {                                             // tres garras no placar do rival
+        int px = PLACAR_X, py = zona(e->alvo_j);
+        for (int g = 0; g < 3; g++) {
+            float q = (p - 0.2f - g * 0.08f) / 0.18f;
+            if (q <= 0 || p > 0.95f) continue;
+            if (q > 1) q = 1;
+            int x0 = px - 22 + g * 12, y0 = py - 20, x1 = x0 + (int)(16 * q), y1 = y0 + (int)(38 * q);
+            gfx_linha_grossa(x0 + 1, y0 + 1, x1 + 1, y1 + 1, 3, C_SOMBRA);
+            gfx_linha_grossa(x0, y0, x1, y1, 3, d->fundo);
+            gfx_linha(x0, y0, x1, y1, C_ROSA);
+        }
+        break;
+    }
+    case AD_MIRA: {                                             // a mira vai ate o alvo e trava
+        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        float q = fminf(1, p / 0.4f), s = q * q * (3 - 2 * q);
+        int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s);
+        int r = q < 1 ? 14 : 14 + (int)(fmaxf(0, 0.6f - p) * 20);
+        if (p < 0.9f) {
+            for (int i = 0; i < 24; i++) {
+                float an = i * 0.2618f;
+                gfx_rect(x + (int)(cosf(an) * r), y + (int)(sinf(an) * r), 2, 2, d->luz);
+            }
+            gfx_rect(x - r - 5, y, 8, 2, d->luz); gfx_rect(x + r - 2, y, 8, 2, d->luz);
+            gfx_rect(x, y - r - 5, 2, 8, d->luz); gfx_rect(x, y + r - 2, 2, 8, d->luz);
+            if (q >= 1 && (int)(t_fase * 16) % 2) gfx_disco(x, y, 3, C_BRANCO);
+        }
+        break;
+    }
+    case AD_GORJETA: {                                          // duas fichas do rival para voce
+        int r = e->alvo_j;
+        for (int i = 0; i < 2; i++) {
+            float q = p / 0.55f - i * 0.14f;
+            if (q < 0 || q > 1) continue;
+            float s = q * q * (3 - 2 * q);
+            int x = ficha_px[r] + (int)((ficha_px[j] - ficha_px[r]) * s) + 30;
+            int y = ficha_py[r] + (int)((ficha_py[j] - ficha_py[r]) * s) - (int)(sinf(s * 3.1416f) * 40);
+            ficha(x, y, d->luz);
+        }
+        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, "-2", C_VINHO_CLR, 1);
+        if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
+        break;
+    }
+    case AD_BIS: {                                              // um dado fantasma vai para a sua bolsa
+        int bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
+        float q = (p - 0.15f) / 0.5f;
+        if (q > 0 && q < 1) {
+            float s = q * q * (3 - 2 * q);
+            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 40);
+            int w = 14 - (int)(s * 6);
+            ad_caixa_borda(x - w / 2, y - w / 2, w, w, d->luz);
+            gfx_rect(x - 1, y - 1, 2, 2, C_BRANCO);
+        }
+        if (q >= 1 && p < 0.95f) txt_sombra_c(bx, by - 26 - (int)((p - 0.65f) * 20), "+1", d->luz, 1);
+        break;
+    }
+    default: break;
+    }
+}
+
 // O que o evento em curso desenha por cima da mesa: o traco do ataque, os
 // pontos que saem de um placar e entram no outro.
 static void desenha_evento(void)
@@ -983,6 +1151,7 @@ static void desenha_evento(void)
         return;
     }
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);
+    if (e->tipo == EV_ADESIVO) { desenha_adesivo_agindo(e, p, ax, ay); return; }
     // Ataques: um projetil em arco do dado que age ate o alvo (o dado, ou o
     // placar do rival), com rastro, e um anel de impacto quando chega.
     if (e->tipo == EV_ANULA || e->tipo == EV_TIRA) {

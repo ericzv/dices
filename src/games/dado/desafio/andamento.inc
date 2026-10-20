@@ -1,10 +1,11 @@
 // ---------------------------------------------------------------------------
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
-// A IA da mesa: do Nivel 5, as mesas dificeis pensam mais; do 9, os chefes.
+// A IA da mesa: do Nivel 5, a mesa dificil do 3o salao pensa mais; do 9, os
+// chefes do 2o e do 3o (o primeiro salao fica sempre o mais simples).
 static int nivel_mesa(const no_t *no)
 {
-    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE);
+    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL && run.andar >= 2) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE && run.andar >= 1);
     return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
 }
 
@@ -377,7 +378,8 @@ static void des_comeca_partida(void)
     memset(am_brilho, 0, sizeof am_brilho);
     amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
-    if (run.dificuldade >= N_NIVEIS) {            // na Cobertura: mais um amuleto para ele
+    // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
+    if (run.dificuldade >= N_NIVEIS && no->perso != PERSO_CHEFE0 + 2) {
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
@@ -404,8 +406,6 @@ static void des_comeca_partida(void)
     J[1].cor = C_ROSA;
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
-    static const int8_t AQUECE[DES_PASSOS] = { 15, 10, 5, 0 };                   // os de antes do chefe, com menos fichas
-    if (run.andar < DES_ANDARES) J[1].fichas -= AQUECE[run.passo];
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;

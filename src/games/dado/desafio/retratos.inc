@@ -663,7 +663,7 @@ static uint16_t cor_no(int t)
 
 // Nivel da IA de cada mesa: sobe pouco, porque os oponentes fortes ja tem
 // dados melhores. [salao][facil, medio, dificil, chefe]
-static const uint8_t NIVEL_NO[DES_ANDARES + 1][4] = { { 0, 0, 0, 0 }, { 0, 0, 0, 1 }, { 0, 1, 1, 2 }, { 2, 2, 2, 2 } };
+static const uint8_t NIVEL_NO[DES_ANDARES + 1][4] = { { 0, 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1, 2 }, { 2, 2, 2, 2 } };
 
 typedef struct {
     uint8_t tipo, perso, nivel;          // tipo: NO_* (a posicao no salao); nivel: o da IA

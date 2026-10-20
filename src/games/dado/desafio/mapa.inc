@@ -183,10 +183,17 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     if (tira > 6) tira = 6;
     if (coringa) tira = 8;
     int n = 0;
-    for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
+    // No primeiro salao a bolsa e de dados de numero, mais fraca que a do
+    // jogador e um pouco mais forte a cada mesa: [mesa] = { D2, D4, D6 }.
+    static const uint8_t SAIDA_S1[4][3] = { { 1, 10, 0 }, { 0, 10, 1 }, { 0, 8, 3 }, { 0, 10, 1 } };
+    if (andar == 0 && !coringa) {
+        static const uint8_t LADOS[3] = { D_D2, D_D4, D_D6 };
+        for (int k = 2; k >= 0; k--)
+            for (int i = 0; i < SAIDA_S1[tier][k]; i++) col[n++] = peca_r(LADOS[k]);
+    } else for (int i = 0; i < 8 - tira; i++) col[n++] = peca_r(INICIO[i]);
     // Dados especiais a mais, [salao][1o, 2o, 3o oponente, chefe]: sobem
     // devagar (o jogador cresce aos poucos, comprando na loja).
-    static const uint8_t EXTRAS[DES_ANDARES + 1][4] = { { 0, 0, 0, 1 }, { 1, 1, 2, 2 }, { 2, 2, 3, 3 }, { 8, 8, 8, 8 } };
+    static const uint8_t EXTRAS[DES_ANDARES + 1][4] = { { 0, 0, 0, 1 }, { 1, 1, 2, 0 }, { 3, 3, 4, 4 }, { 8, 8, 8, 8 } };
     int extras = EXTRAS[andar][tier];
     static const float BASE[4][4] = {
         { 6, 3, 1.0f, 0.0f }, { 3, 4, 2.0f, 0.2f }, { 1, 3, 4.0f, 0.6f }, { 1, 3, 3.5f, 1.0f } };
@@ -210,7 +217,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         if (!coringa && !dado_liberado(t)) t = sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
-    if (run.dificuldade >= 6) {                  // dados raros a mais: um do Nivel 6, dois do 8
+    if (run.dificuldade >= 6 && andar >= 1) {   // do 2o salao: dados raros a mais, um do Nivel 6, dois do 8
         static const float RARO[4] = { 0, 0.5f, 3, 1.5f };
         int raros = run.dificuldade >= 8 ? 2 : 1;
         for (int i = 0; i < raros && n < MAX_COL; i++) col[n++] = peca_r(sorteia_raridade(RARO));

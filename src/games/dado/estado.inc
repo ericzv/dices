@@ -293,7 +293,7 @@ static int virada_de(int perso)
 {
     int c = perso - PERSO_CHEFE0;
     if (c < 0 || c > 2) return 0;
-    static const int8_t ABRE[3] = { 1, 2, 4 }, FORTE[3] = { 7, 7, 9 };   // os niveis em que vira, e forte
+    static const int8_t ABRE[3] = { 3, 2, 4 }, FORTE[3] = { 8, 7, 10 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
 }

@@ -1802,17 +1802,20 @@ int main(void)
             desfecho_t d;
             int modo_v = modo, perso_v = fala_perso;
             modo = M_DESAFIO; reg_op = REG_NADA;
-            // Crupie no 1o andar: +1 em cada dado dele (antes da 5a, nada).
-            fala_perso = PERSO_CHEFE0; run.dificuldade = 1;
+            // Crupie no 3o andar: +1 em cada dado dele (antes da 5a, nada); no 2o ainda nao vira.
+            fala_perso = PERSO_CHEFE0; run.dificuldade = 2;
+            limpa(); rodada = 5; joga(1, D_D6, 3); d = fim();
+            CONFERE(d.total[1] == 3, "Crupie no 2o andar nao vira: %d", d.total[1]);
+            run.dificuldade = 3;
             limpa(); rodada = 4; joga(1, D_D6, 3); d = fim();
             CONFERE(d.total[1] == 3, "Crupie antes da virada: %d", d.total[1]);
             limpa(); rodada = 5; joga(1, D_D6, 3); joga(1, D_D6, 4); d = fim();
             CONFERE(d.total[1] == 4 + 5, "Crupie virado: esperava 9, deu %d", d.total[1]);
-            CONFERE(tam_mao(0) == 7, "Crupie no 1o andar nao tira dado seu: %d", tam_mao(0));
-            run.dificuldade = 6;
-            CONFERE(tam_mao(0) == 7, "Crupie no 6o andar ainda nao tira dado seu: %d", tam_mao(0));
+            CONFERE(tam_mao(0) == 7, "Crupie no 3o andar nao tira dado seu: %d", tam_mao(0));
             run.dificuldade = 7;
-            CONFERE(tam_mao(0) == 6, "Crupie no 7o andar: voce compra 6, comprou %d", tam_mao(0));
+            CONFERE(tam_mao(0) == 7, "Crupie no 7o andar ainda nao tira dado seu: %d", tam_mao(0));
+            run.dificuldade = 8;
+            CONFERE(tam_mao(0) == 6, "Crupie no 8o andar: voce compra 6, comprou %d", tam_mao(0));
             // Barao no 4o andar: +3 por dado seu anulado e x2 no primeiro dele.
             fala_perso = PERSO_CHEFE0 + 2; run.dificuldade = 4;
             limpa(); rodada = 5;
@@ -1820,30 +1823,35 @@ int main(void)
             joga(0, D_D6, 5); joga(0, D_D6, 2);          // cai: os dois anulados
             d = fim();
             CONFERE(d.total[1] == 4 + 5 + 6, "Barao virado: esperava 15, deu %d", d.total[1]);
-            // No 9o andar, x2 tambem no segundo (o terceiro fica como saiu).
+            // Na Cobertura, x2 tambem no segundo (o terceiro fica como saiu); no 9o ainda nao.
             run.dificuldade = 9;
             limpa(); rodada = 5;
             joga(1, D_D6, 2); joga(1, D_D6, 5); joga(1, D_D6, 6);
             d = fim();
-            CONFERE(d.total[1] == 4 + 10 + 6, "Barao no 9o andar: esperava 20, deu %d", d.total[1]);
+            CONFERE(d.total[1] == 4 + 5 + 6, "Barao no 9o andar: esperava 15, deu %d", d.total[1]);
+            run.dificuldade = 10;
+            limpa(); rodada = 5;
+            joga(1, D_D6, 2); joga(1, D_D6, 5); joga(1, D_D6, 6);
+            d = fim();
+            CONFERE(d.total[1] == 4 + 10 + 6, "Barao na Cobertura: esperava 20, deu %d", d.total[1]);
             // No 3o andar o Barao ainda nao vira.
             run.dificuldade = 3;
             limpa(); rodada = 5; joga(1, D_D6, 2); d = fim();
             CONFERE(d.total[1] == 2, "Barao sem virada no 3o andar: %d", d.total[1]);
             run.dificuldade = 0; fala_perso = perso_v; modo = modo_v; rodada = 1;
         }
-        // A Maratonista: +1 nos dados dela da 5a rodada em diante.
+        // A Maratonista: +1 nos dados dela da 6a rodada em diante.
         {
             desfecho_t d;
             reg_op = REG_FOLEGO;
-            limpa(); rodada = 4;
+            limpa(); rodada = 5;
             joga(1, D_D6, 3);
             d = fim();
-            CONFERE(d.total[1] == 3, "Maratonista na 4a rodada: %d", d.total[1]);
-            limpa(); rodada = 5;
+            CONFERE(d.total[1] == 3, "Maratonista na 5a rodada: %d", d.total[1]);
+            limpa(); rodada = 6;
             joga(1, D_D6, 3); joga(0, D_D6, 3);
             d = fim();
-            CONFERE(d.total[1] == 4 && d.total[0] == 3, "Maratonista na 5a rodada: %d x %d", d.total[1], d.total[0]);
+            CONFERE(d.total[1] == 4 && d.total[0] == 3, "Maratonista na 6a rodada: %d x %d", d.total[1], d.total[0]);
             // O Caubói: +1 no primeiro da sequência dele.
             reg_op = REG_SAQUE; rodada = 1;
             limpa();

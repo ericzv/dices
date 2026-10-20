@@ -519,8 +519,7 @@ static void desenha_premio(void)
         return;
     }
 
-    if (modo == M_DESAFIO) snprintf(t, sizeof t, "Prêmio por vencer %s", J[1].nome);
-    else snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
+    snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
     txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
     bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
@@ -551,10 +550,8 @@ static void desenha_premio(void)
                 peca_t pc = oferta[i];
                 if (k > 0) {
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
-                    // So os tipos que podem sair aqui: os basicos, ou os ja
-                    // abertos no Desafiante.
+                    // So os tipos que podem sair aqui: os basicos.
                     pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
-                    if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }
                 peca_parada((float)x, 126 + dy, 24 * q, pc, vez);

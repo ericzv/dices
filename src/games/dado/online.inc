@@ -84,7 +84,7 @@ static void trata_esc(void)
     case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM: case F_CREDITOS:
         volta_ao_menu();                     // a run fica guardada
         return;
-    case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_REVENTO: case F_HIST: case F_ESTILO:
+    case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_HIST: case F_ESTILO:
         des_esc();
         return;
     case F_ONLINE:

@@ -1,42 +1,25 @@
 // ===========================================================================
-// A run: andares, nos do mapa, eventos e os oponentes
+// A run: saloes, as mesas de cada um e os oponentes
 // ===========================================================================
 #define DES_ANDARES   3
 #define DES_ANDAR_FINAL 3               // o salao do Coringa: depois do Barao, so no ultimo nivel
-#define DES_PASSOS    6                  // 5 mesas e o chefe
+#define DES_PASSOS    4                  // 3 oponentes e o chefe, sempre nessa ordem
 #define DES_FICHAS    50
 
 
 #define N_NIVEIS      10                 // dificuldades acima da normal (andares do cassino)
-#define N_NIVEIS_V    5                  // as runs e os perfis de antes tinham 5: o nivel n de la e o 2n daqui
-#define DES_MOEDAS    50                 // moedas no comeco da run, no terreo
-#define DES_MOEDAS_ANDAR 12              // e mais estas a cada andar acima
+#define N_NIVEIS_V    5                  // os perfis de antes tinham 5: o nivel n de la e o 2n daqui
+#define DES_MOEDAS    4                  // moedas no comeco da run: a loja da entrada ja vende
+#define DES_MOEDAS_NIVEL 2               // e mais 1 a cada 2 niveis (os oponentes la de cima sao mais duros)
 
-enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_LOJA, NO_EVENTO, NO_VAZIO = 0xFF };
-enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_PREMIO, R_LOJA, R_AMULETO, R_EVENTO };
-// Eventos do mapa (no no, o campo perso guarda qual).
-enum { EVT_LAPIDADOR, EVT_CAPELA, EVT_NIQUEL, EVT_TROCADOR, EVT_FONTE, EVT_GARCOM, EVT_ESQUECIDO,
-       EVT_COPISTA, EVT_N };
-typedef struct { const char *nome, *cena, *resumo; } evt_t;
-static const evt_t EVT[EVT_N] = {
-    [EVT_LAPIDADOR] = { "O Lapidador", "Bancada de lapidação, lupa e lixas.",
-                        "Um dado simples sobe um degrau: moeda vira D4, D4 vira D6, D6 vira D8, D8 vira D12. Só uma vez por run." },
-    [EVT_CAPELA]    = { "A Capela", "Uma capela pequena no corredor do cassino.",
-                        "Tira até 2 dados da sua bolsa, de graça." },
-    [EVT_NIQUEL]    = { "Caça-níquel", "Uma máquina velha num canto, ainda ligada.",
-                        "15 moedas por puxada. Três iguais: dado raro, 200 moedas ou nada." },
-    [EVT_TROCADOR]  = { "O Trocador", "Um homem de chapéu com o paletó cheio de dados.",
-                        "Troca um dado seu por um sorteado da raridade de cima." },
-    [EVT_FONTE]     = { "Fonte dos Desejos", "Moedas brilham no fundo da água.",
-                        "Jogue moedas: quanto mais, maior a chance de sair um amuleto." },
-    [EVT_GARCOM]    = { "O Garçom", "Ele serve a próxima mesa e aceita um agrado.",
-                        "Por 50 moedas, o próximo oponente começa com 10 fichas a menos." },
-    [EVT_ESQUECIDO] = { "Dado Esquecido", "Alguém deixou um dado na mesa vazia.",
-                        "Pegue um dado comum, ou arrisque: raro ou Quebrado." },
-    [EVT_COPISTA]   = { "O Copista", "Ele copia qualquer dado, menos os lendários.",
-                        "Por 70 moedas, faz uma cópia de um dado da sua bolsa." },
-};
-static void abre_evento(void);
+// Moedas por mesa vencida: [salao][1o, 2o, 3o oponente, chefe]. O Barao so
+// paga na Cobertura (nos outros niveis a run acaba nele); o Coringa fecha a run.
+static const uint8_t MOEDAS_MESA[DES_ANDARES][DES_PASSOS] = { { 1, 2, 3, 5 }, { 4, 5, 6, 10 }, { 7, 8, 9, 20 } };
+
+enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_VAZIO = 0xFF };
+// Onde a run parou: R_VENCEU e a mesa vencida (falta o amuleto do chefe, a
+// loja ou o fim).
+enum { R_LOJA_INI, R_MAPA, R_PARTIDA, R_VENCEU, R_LOJA, R_AMULETO };
 
 
 // Os oponentes do cassino. Cada um tem um jeito de apostar, dados que

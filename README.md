@@ -21,17 +21,22 @@ regras (veja o menu **Dados** no jogo; o Modo Desafiante abre mais 4).
   **Difícil** (simula as jogadas antes de decidir). Quem vence a rodada
   escolhe um dado de prêmio entre três: até a 5ª rodada saem comuns e
   incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendários.
-- **Modo Desafiante**: uma run pelo cassino. São 3 salões com 5 mesas e o
-  chefe cada. No mapa você escolhe o caminho entre 21 oponentes (cada um com
-  seu jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
-  chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10),
-  lojas e 8 eventos. No nível 10, depois do Barão ainda há o salão do Coringa:
-  a última loja e o oponente mais difícil do jogo. Cada partida tem 8
-  rodadas e 50 fichas de cada lado; vencer converte as fichas que sobraram em
-  moedas de ouro e dá um dado de prêmio. As moedas compram dados nas lojas.
+- **Modo Desafiante**: uma run pelo cassino. São 3 salões, cada um com três
+  oponentes (do mais fácil ao mais difícil) e o chefe, sempre nessa ordem e
+  todos à vista desde o começo. São 21 oponentes, cada um com seu jeito de
+  jogar, dados que são a cara dele e um trunfo: no Normal, só os chefes trazem
+  o seu; a cada nível, mais oponentes, até todos no nível 10. No nível 10,
+  depois do Barão ainda há o salão do Coringa, o oponente mais difícil do
+  jogo. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
+  de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
+  de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
+  salão (1, 2, 3 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
+  terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
+  dados (3, 4, 6 ou 9 moedas, pela raridade), trocar a vitrine (1, depois 2,
+  3...) e tirar um dado da bolsa (3, depois 5, 7... na run inteira).
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
-  depois do segundo (e do Barão, no nível 10); as lojas e a Fonte de cada
-  salão vendem da raridade dele. Cabem 5: para levar o sexto, um dos seus sai.
+  depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
+  um dos seus sai.
   Perdeu, a run acaba. Até 3 perfis, cada um com seu avatar e sua run guardada
   (no PC, numa pasta do usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,

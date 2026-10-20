@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Amuletos: efeitos que valem a run inteira. Um no comeco, um por chefe
-// vencido e um a venda em cada loja do caminho. Cabem 5: o sexto pede troca.
+// Amuletos: efeitos que valem a run inteira. Um no comeco e um por chefe
+// vencido (a loja nao vende). Cabem 5: o sexto pede troca.
 // ---------------------------------------------------------------------------
 typedef struct { const char *nome, *desc; uint16_t cor; } amuleto_t;
 static const amuleto_t AMULETO[A_N] = {
@@ -12,18 +12,18 @@ static const amuleto_t AMULETO[A_N] = {
     [A_CONTRATO] = { "Contrato Sujo", "Todo dado seu que vale ganha +2, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
     [A_COURACA]  = { "Couraça",       "Os ataques do oponente não anulam os seus dados.", C_ACO },
-    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem.", C_LATAO },
+    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem (até 3).", C_LATAO },
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
     [A_FERRADURA]= { "Ferradura",     "Uma vez por rodada, na primeira queda que nada mais segurou, o dado de antes fica.", C_PRATA },
     [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
     [A_RELOGIO]  = { "Relógio de Bolso", "Na primeira rodada e quando você está atrás em fichas, o oponente abre; você joga depois.", RGB(214, 186, 110) },
-    [A_CARTOLA]  = { "Cartola",       "O prêmio de cada mesa vencida sobe um nível.", RGB(150, 110, 170) },
+    [A_CARTOLA]  = { "Cartola",       "A vitrine das lojas mostra 3 dados, em vez de 2.", RGB(150, 110, 170) },
     [A_COROA]    = { "Coroa do Azarão", "Começando a rodada com menos fichas que o oponente, seus dados valem +1.", RGB(226, 176, 70) },
-    [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 25% menos.", RGB(120, 190, 150) },
+    [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 1 moeda a menos (nunca menos de 1).", RGB(120, 190, 150) },
     [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 passa a valer 3.", RGB(150, 150, 160) },
-    [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 2 moedas por rodada que você venceu nela.", C_OURO },
+    [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 1 moeda a cada 3 rodadas que você venceu nela.", C_OURO },
     [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale +2.", RGB(206, 80, 110) },
     [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
     [A_SELO]     = { "Selo de Dívida", "Chefe vencido deixa um segundo amuleto, sorteado entre os comuns e os incomuns.", RGB(196, 60, 60) },
@@ -38,9 +38,8 @@ static const amuleto_t AMULETO[A_N] = {
     [A_CORRIMAO] = { "Corrimão",      "Seu dado só 1 menor que o de antes não cai; 2 ou mais abaixo, cai como sempre.", RGB(96, 182, 198) },
 };
 // Raridade de cada um, que diz em que momento da run ele aparece: comuns no
-// comeco (e nas lojas e na Fonte do Salao Verde), incomuns depois do primeiro
-// chefe (e no Salao Vermelho), raros depois do segundo e, na Cobertura, do
-// Barao (e no Salao Dourado e no do Coringa). Fora: nao sai para o jogador
+// comeco, incomuns depois do primeiro chefe, raros depois do segundo e, na
+// Cobertura, do Barao. Fora: nao sai para o jogador
 // (nenhum hoje). Os de nivel (NIVEL_AMULETO) so entram depois de abertos.
 enum { AMR_FORA, AMR_COMUM, AMR_INCOMUM, AMR_RARO };
 static const uint8_t RAR_AMULETO[A_N] = {
@@ -57,9 +56,6 @@ static const uint8_t RAR_AMULETO[A_N] = {
 static bool amuleto_no_jogo(int a) { return RAR_AMULETO[a] != AMR_FORA; }
 static const char *nome_rar_am(int a) { return RAR_AMULETO[a] ? RARIDADE[RAR_AMULETO[a] - 1] : ""; }
 static uint16_t cor_rar_am(int a) { return RAR_AMULETO[a] ? COR_RAR[RAR_AMULETO[a] - 1] : C_TEXTO_M; }
-// A raridade das lojas e da Fonte de cada salao.
-static unsigned rar_do_salao(int andar) { return AMR(andar <= 0 ? AMR_COMUM : andar == 1 ? AMR_INCOMUM : AMR_RARO); }
-#define AM_PRECO 70
 
 
 static int am_conta(uint32_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }

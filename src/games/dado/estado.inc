@@ -87,7 +87,7 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_REVENTO, F_CREDITOS, F_HIST, F_ESTILO };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_CREDITOS, F_HIST, F_ESTILO };
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -329,7 +329,6 @@ static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
-static void des_premio_feito(void);
 static int  des_foco(void);
 static bool dado_liberado(int t);
 static void des_resumo(char *s, int n);

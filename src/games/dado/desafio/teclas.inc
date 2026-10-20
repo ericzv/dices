@@ -5,56 +5,24 @@ static bool des_tecla(int k, int e)
 {
     switch (fase) {
     case F_MAPA:
+        // As setas passam pelas mesas do salao (para ver quem vem); ENTER
+        // senta a mesa da vez.
         if (e) {
-            for (int i = 1; i <= 3; i++) {
-                int l = ((des_cur + e * i) % 3 + 3) % 3;
-                if (escolhivel(l)) { des_cur = l; som_toca(SOM_TIQUE); break; }
-            }
+            int n = mesas_do_salao();
+            des_cur = (des_cur + e + n) % n;
+            som_toca(SOM_TIQUE);
             return true;
         }
-        if (k == KEY_ENTER && escolhivel(des_cur)) {
+        if (k == KEY_ENTER) {
             som_toca(SOM_FICHA);
-            run.caminho[run.passo] = (int8_t)des_cur;
-            if (run.no[run.passo][des_cur].tipo == NO_EVENTO) {
-                entra_evento();
-            } else if (run.no[run.passo][des_cur].tipo == NO_LOJA) {
-                run.estado = R_LOJA;
-                monta_loja_run();
-                des_salva();
-                abre_loja_run();
-            } else {
-                des_comeca_partida();
-            }
+            des_comeca_partida();
             return true;
         }
         if (k == KEY_TAB) { cursor = 0; fase = F_RBOLSA; }
         return true;
 
-    case F_RLOJA: {
-        int nc = N_LOJA + (run.am_loja < A_N ? 1 : 0);
-        if (e) { cursor = (cursor + e + nc) % nc; som_toca(SOM_TIQUE); return true; }
-        if (k >= '1' && k < '1' + nc) cursor = k - '1';
-        if ((k == KEY_ENTER || (k >= '1' && k < '1' + nc)) && cursor == N_LOJA) {
-            if (run.am_levou || run.am_loja >= A_N || run.moedas < preco_am()) return true;
-            ganha_amuleto(run.am_loja, AV_LOJA);     // sem lugar, a troca (e so paga se trocar)
-            return true;
-        }
-        if (k == KEY_ENTER || (k >= '1' && k <= '5')) {
-            int tp = run.loja[cursor].tipo, pr = preco_run(tp);
-            if (run.levou[cursor] || run.moedas < pr || run.n_col >= MAX_COL) return true;
-            run.moedas -= pr;
-            run.col[run.n_col++] = run.loja[cursor];
-            run.levou[cursor] = 1;
-            som_toca(SOM_FICHA);
-            des_salva();
-            return true;
-        }
-        if (k == KEY_TAB || k == 'x') {
-            if (run.estado == R_LOJA_INI) { run.estado = R_MAPA; des_salva(); abre_mapa(); }
-            else avanca_passo();
-        }
-        return true;
-    }
+    case F_RLOJA:
+        return loja_tecla(k, e);
 
     case F_RAMULETO: {
         if (run.am_novo) {                       // a troca: os seus e, no fim, deixar o novo
@@ -101,9 +69,6 @@ static bool des_tecla(int k, int e)
     case F_CREDITOS:
         if (k == KEY_ENTER) volta_ao_menu();
         return true;
-
-    case F_REVENTO:
-        return ev_tecla(k, e);
 
     case F_PERFIS: {
         bool cheio = perfis[pf_cur].nome[0] != 0;

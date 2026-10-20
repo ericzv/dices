@@ -422,7 +422,7 @@ static void trata_tecla(int k)
             return;
         }
         if (e) { cursor = (cursor + e + 4) % 4; return; }
-        if (k == 'x') { if (modo == M_DESAFIO) des_premio_feito(); else nova_rodada(); return; }
+        if (k == 'x') { nova_rodada(); return; }
         if (k == KEY_ENTER) {
             if (cursor == 3) {
                 if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
@@ -434,8 +434,7 @@ static void trata_tecla(int k)
                 p->col[p->n_col] = oferta[cursor];
                 p->onde[p->n_col++] = FORA;
             }
-            if (modo == M_DESAFIO) des_premio_feito();
-            else nova_rodada();
+            nova_rodada();
         }
         return;
     }

@@ -273,8 +273,8 @@ static void desenha_dificuldade(void)
         }
     }
     {
-        char m[48];                                  // e o que ajuda: mais moedas a cada andar
-        snprintf(m, sizeof m, "Você começa com %d moedas.", DES_MOEDAS + DES_MOEDAS_ANDAR * d);
+        char m[64];                                  // o mesmo comeco em todo andar
+        snprintf(m, sizeof m, "Você começa com %d moedas e %d dados.", moedas_iniciais(d), (int)sizeof BOLSA_INICIO);
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }

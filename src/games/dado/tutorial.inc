@@ -28,8 +28,8 @@ static const pagina_t TUTORIAL[] = {
         "São %d dados, cada um com um poder: veja todos em Dados da casa.",
         NULL } },
     { "Modo Desafiante", {
-        "Em 1 jogador: uma run por 3 salões do cassino, cada um com 5 mesas e o chefe. No mapa você escolhe o caminho: oponentes, lojas e eventos.",
-        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: as fichas viram moedas e você ganha um prêmio. Perdeu, a run acaba.",
+        "Em 1 jogador: uma run por 3 salões do cassino, cada um com três oponentes e o chefe, todos à vista desde o começo.",
+        "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: algumas moedas e uma loja pequena (comprar, trocar a vitrine, tirar dados). Perdeu, a run acaba.",
         "Vencer o Barão abre a dificuldade seguinte, e os chefes abrem dados novos. Cada perfil guarda o seu progresso e a sua run." } },
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",

@@ -37,6 +37,7 @@ int main(int argc, char **argv)
     ia_esforco = argc > 3 ? atoi(argv[3]) : 0;
     int estrategia = argc > 4 ? atoi(argv[4]) : 0;
     int dific = argc > 5 ? atoi(argv[5]) : 0;
+    bool imortal = argc > 6 && atoi(argv[6]);   // mede todas as mesas: perder nao acaba a run
     if (dific < 0 || dific > N_NIVEIS) dific = 0;
 
     // Historico: conta so a pessoa contra a maquina, no perfil escolhido;
@@ -142,32 +143,19 @@ int main(int argc, char **argv)
         hist_de = -1;
     }
 
-    // A run salva quando a bolsa parava em 48 volta convertida, com o que vem
-    // depois da bolsa no lugar; e uma run com mais de 48 dados vai e volta.
+    // Uma run com muitos dados vai e volta do salvamento.
     {
         salva_limpa_tudo();
         perfil_atual = 0;
-        static run48_t v;
-        static char buf[2 * sizeof(run48_t) + 1];
-        static run_t r;
-        memset(&v, 0, sizeof v);
-        memcpy(v.marca, "DES2", 4);
-        v.andar = 1; v.passo = 2; v.moedas = 345; v.n_col = 30; v.dificuldade = 4;
-        for (int i = 0; i < v.n_col; i++) v.col[i] = (peca_t){ D_D6, 0 };
-        v.col[29] = (peca_t){ D_LASER, 1 };
-        v.caminho[1] = 2; v.no[1][2].tipo = NO_DIFICIL; v.tirados = 3; v.amuletos_hi = 5;
-        hex_de(&v, sizeof v, buf);
-        salva_grava(chave_run(), buf);
-        CONFERE(des_carrega(&r) && r.n_col == 30 && r.col[29].tipo == D_LASER && r.col[29].fixo == 1 && r.moedas == 345
-                && r.caminho[1] == 2 && r.no[1][2].tipo == NO_DIFICIL && r.tirados == 3 && r.amuletos_hi == 5
-                && r.dificuldade == 4, "run da bolsa de 48 nao foi convertida");
-        r.n_col = 100;
-        for (int i = 30; i < r.n_col; i++) r.col[i] = (peca_t){ D_D8, 0 };
-        run = r;
+        memset(&run, 0, sizeof run);
+        memcpy(run.marca, RUN_MARCA, 4);
+        gera_andar();
+        run.andar = 1; run.passo = 2; run.moedas = 345; run.dificuldade = 4; run.n_col = 100; run.remocoes = 3;
+        for (int i = 0; i < run.n_col; i++) run.col[i] = (peca_t){ i == 99 ? D_LASER : D_D8, i == 99 };
         des_salva();
-        memset(&r, 0, sizeof r);
-        CONFERE(des_carrega(&r) && r.n_col == 100 && r.col[99].tipo == D_D8 && r.tirados == 3,
-                "run com 100 dados nao voltou do salvamento");
+        static run_t r;
+        CONFERE(des_carrega(&r) && r.n_col == 100 && r.col[99].tipo == D_LASER && r.col[99].fixo == 1 && r.moedas == 345
+                && r.remocoes == 3 && r.dificuldade == 4, "run com 100 dados nao voltou do salvamento");
         salva_limpa_tudo();
     }
 
@@ -214,7 +202,7 @@ int main(int argc, char **argv)
 
     int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
     int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
-    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, eventos_vistos = 0;
+    long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
         modo = M_UM;
@@ -228,10 +216,10 @@ int main(int argc, char **argv)
         perfis_lidos = true;
         des_dif = dific;
         des_nova_run();
-        CONFERE(fase == F_RAMULETO && run.moedas == DES_MOEDAS + DES_MOEDAS_ANDAR * dific && run.n_col == 8
+        CONFERE(fase == F_RAMULETO && run.moedas == moedas_iniciais(dific) && run.n_col == (int)sizeof BOLSA_INICIO
                 && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
-        int compras = 0;
+        int compras = 0, trocas = 0;
         while (fase != F_RFIM && !falhas) {
             if (++passos > 3000000) { CONFERE(0, "run %d parada na fase %d", r, fase); break; }
             relogio += 16667;
@@ -257,102 +245,73 @@ int main(int argc, char **argv)
                             "amuleto %d fechado ou fora do jogo", a);
                 break;
             }
-            case F_RLOJA: {                  // compra o de maior raridade que couber
-                // Com folga de moedas, leva o amuleto da loja.
-                if (run.am_loja < A_N && !run.am_levou && run.moedas >= preco_am() + 30 && (am_lugar() || rnd_t() % 2)) {
-                    bool cabia = am_lugar();
-                    cursor = N_LOJA;
+            case F_RLOJA: {
+                if (lj_tirando) {            // tirando: a moeda, depois o D4
+                    if (t_lj_tira > 0 || t_lj_volta > 0) { dado_passo(1.0f / 60); break; }
+                    int m = -1;
+                    for (int i = 0; i < run.n_col && m < 0; i++) if (run.col[i].tipo == D_D2) m = i;
+                    for (int i = 0; i < run.n_col && m < 0; i++) if (run.col[i].tipo == D_D4) m = i;
+                    if (m < 0) { trata_tecla(KEY_BKSP); break; }
+                    int n0 = run.n_col, m0 = run.moedas, pr = preco_remove();
+                    cursor = m;
                     trata_tecla(KEY_ENTER);
-                    if (cabia) {
-                        CONFERE(run.am_levou && (run_amuletos() >> run.am_loja & 1), "amuleto da loja nao entrou");
-                        amuletos_tidos++;
-                    } else CONFERE(run.am_novo && fase == F_RAMULETO, "loja cheia: sem a troca");
+                    for (int q = 0; q < 60 && t_lj_tira > 0; q++) dado_passo(1.0f / 60);   // treme e estoura
+                    CONFERE(run.n_col == n0 - 1 && run.moedas == m0 - pr && run.n_col >= BOLSA_MIN,
+                            "tirar: %d dados, %d moedas", run.n_col, run.moedas);
                     break;
                 }
-                int b = -1;
-                for (int i = 0; i < N_LOJA; i++) {
-                    if (run.levou[i] || run.moedas < preco_run(run.loja[i].tipo)) continue;
-                    if (b < 0 || TIPO[run.loja[i].tipo].raridade > TIPO[run.loja[b].tipo].raridade) b = i;
+                // Compra o de maior raridade que couber (qualquer especial vale mais
+                // que um D4); com sobra, tira um dado fraco; uma troca de vitrine
+                // por loja, com folga.
+                // Enxuto (estrategia 1): so incomum ou melhor, e tira os fracos antes.
+                int nv = n_vitrine(), b = -1;
+                for (int i = 0; i < nv; i++) {
+                    int t = run.vitrine[i].tipo;
+                    if (run.levou[i] || run.moedas < preco_run(t) || t == D_QUEBRADO) continue;
+                    if (estrategia == 1 && TIPO[t].raridade == RAR_COMUM) continue;
+                    if (b < 0 || TIPO[t].raridade > TIPO[run.vitrine[b].tipo].raridade) b = i;
                 }
-                if (b >= 0) { cursor = b; trata_tecla(KEY_ENTER); compras++; }
-                else trata_tecla(KEY_TAB);
+                bool fraco = false;
+                for (int i = 0; i < run.n_col; i++) fraco |= run.col[i].tipo == D_D2 || run.col[i].tipo == D_D4;
+                if (estrategia == 1 && fraco && run.n_col > 8 && run.moedas >= preco_remove()
+                    && (b < 0 || run.moedas - preco_remove() < preco_run(run.vitrine[b].tipo) || run.n_col > 12)) b = -1;
+                if (b >= 0) {
+                    int n0 = run.n_col, m0 = run.moedas, pr = preco_run(run.vitrine[b].tipo);
+                    cursor = b;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(run.n_col == n0 + 1 && run.moedas == m0 - pr && run.levou[b], "compra nao entrou");
+                    compras++;
+                } else if (fraco && run.n_col > 8 && run.moedas >= preco_remove()) {
+                    cursor = nv + 1;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(lj_tirando, "tirar nao abriu");
+                } else if (!run.trocas && run.moedas >= 6) {
+                    int m0 = run.moedas;
+                    cursor = nv;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(run.moedas == m0 - 1 && run.trocas == 1, "trocar a vitrine");
+                    trocas++;
+                } else trata_tecla(KEY_TAB);
+                CONFERE(run.moedas >= 0, "moedas negativas: %d", run.moedas);
                 break;
             }
-            case F_MAPA: {
-                int opc[3], n = 0;
-                for (int l = 0; l < 3; l++) if (escolhivel(l)) opc[n++] = l;
-                CONFERE(n > 0, "mapa sem saida: andar %d passo %d", run.andar, run.passo);
-                if (!n) break;
-                int l = opc[rnd_t() % (uint32_t)n];
-                for (int i = 0; i < n && estrategia; i++) {
-                    int t = run.no[run.passo][opc[i]].tipo, tl = run.no[run.passo][l].tipo;
-                    if (t == NO_LOJA) continue;
-                    if (tl == NO_LOJA || (estrategia == 1 ? t < tl : t > tl)) l = opc[i];
-                }
-                // Com moedas para um dado bom, passa na loja.
-                for (int i = 0; i < n; i++)
-                    if (run.no[run.passo][opc[i]].tipo == NO_LOJA && run.moedas >= 60) l = opc[i];
-                des_cur = l;
+            case F_MAPA:
                 trata_tecla(KEY_ENTER);
                 if (fase == F_ORDEM || fase == F_JOGA) partidas++;
-                if (fase == F_REVENTO) eventos_vistos++;
-                break;
-            }
-            case F_PREMIO:
-                if (t_tira > 0) { dado_passo(1.0f / 60); break; }
-                vez = 0;
-                if (removendo) {                 // tira a moeda, depois o D4
-                    int m = -1;
-                    for (int i = 0; i < J[0].n_col && m < 0; i++) if (J[0].col[i].tipo == D_D2) m = i;
-                    for (int i = 0; i < J[0].n_col && m < 0; i++) if (J[0].col[i].tipo == D_D4) m = i;
-                    cursor = m < 0 ? 0 : m;
-                    trata_tecla(KEY_ENTER);
-                    break;
-                }
-                {
-                    bool fraco = false;
-                    for (int i = 0; i < J[0].n_col; i++) fraco |= J[0].col[i].tipo == D_D2 || J[0].col[i].tipo == D_D4;
-                    bool so_comum = true;
-                    for (int i = 0; i < 3; i++) so_comum &= TIPO[oferta[i].tipo].raridade == RAR_COMUM;
-                    if (fraco && J[0].n_col >= 11 && so_comum) { cursor = 3; trata_tecla(KEY_ENTER); break; }
-                }
-                cursor = ia_premio();
-                trata_tecla(KEY_ENTER);
                 break;
             case F_FIM: {
-                const no_t *no = &run.no[run.passo][run.caminho[run.passo]];
-                int tier = no->tipo == NO_CHEFE ? 3 : no->tipo;
+                const no_t *no = &run.no[run.passo];
+                int tier = no->tipo;
                 jog[run.andar][tier]++;
                 ven[run.andar][tier] += venc_partida == 0;
                 if (venc_partida == 0) ganhas++;
+                if (imortal && venc_partida != 0) { venc_partida = 0; des_resultado(); }
                 trata_tecla(KEY_ENTER);
                 break;
             }
             case F_RESULTADO:
                 trata_tecla(KEY_ENTER);
                 break;
-            case F_REVENTO: {                // evento: uma escolha ao acaso entre as que valem
-                if (ev_girando()) { dado_passo(1.0f / 60); break; }
-                if (ev_passo == 2) { trata_tecla(KEY_ENTER); break; }
-                if (ev_passo == 1) {
-                    cursor = ev_n ? (int)(rnd_t() % (uint32_t)ev_n) : 0;
-                    int antes_col = run.n_col;
-                    trata_tecla(ev_acao == EA_CAPELA && run.tirados ? KEY_BKSP : KEY_ENTER);
-                    CONFERE(run.n_col >= N_FILA && run.n_col <= MAX_COL, "evento deixou a bolsa com %d", run.n_col);
-                    (void)antes_col;
-                    break;
-                }
-                ev_op_t op[6];
-                int n = ev_opcoes(op), ok[6], nok = 0;
-                for (int i = 0; i < n; i++) if (op[i].ok) ok[nok++] = i;
-                CONFERE(nok > 0, "evento sem saida");
-                cursor = ok[rnd_t() % (uint32_t)nok];
-                if (ev_id == EVT_NIQUEL && run.puxadas >= 4) cursor = n - 1;   // nao fica la para sempre
-                int moedas_antes = run.moedas;
-                trata_tecla(KEY_ENTER);
-                CONFERE(run.moedas >= 0 && run.moedas <= moedas_antes + EVT_PREMIO_NIQUEL, "moedas do evento: %d", run.moedas);
-                break;
-            }
             case F_RBOLSA:
                 trata_tecla(KEY_TAB);
                 break;
@@ -361,7 +320,7 @@ int main(int argc, char **argv)
                 nivel_jog[0] = nivel;
                 ousadia_jog[0] = 0;
                 dado_passo(1.0f / 60);
-                if (modo == M_DESAFIO && fase != F_FIM && fase != F_PREMIO)
+                if (modo == M_DESAFIO && fase != F_FIM)
                     CONFERE(J[0].fichas >= 0 && J[1].fichas >= 0 && rodada <= DES_RODADAS + DES_EXTRAS + 1,
                             "partida fora do trilho: fichas %d/%d rodada %d", J[0].fichas, J[1].fichas, rodada);
                 break;
@@ -386,21 +345,23 @@ int main(int argc, char **argv)
         soma_dados += run.n_col;
         soma_moedas += run.moedas;
         soma_compras += compras;
+        soma_tiradas += run.remocoes;
+        soma_trocas += trocas;
         CONFERE(!des_tem_run(), "run acabada ainda salva");
     }
     if (falhas) return 1;
     printf("%d runs (IA do jogador nivel %d, caminho %d, dificuldade %s): %d vencidas (%.0f%%)\n", runs, nivel,
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);
-    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.0f moedas, %.1f compras\n", partidas, ganhas,
-           (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs);
+    printf("partidas %d, vencidas %d; media ao fim: %.1f dados, %.1f moedas, %.1f compras, %.1f tirados, %.1f trocas\n",
+           partidas, ganhas, (double)soma_dados / runs, (double)soma_moedas / runs, (double)soma_compras / runs,
+           (double)soma_tiradas / runs, (double)soma_trocas / runs);
     for (int a = 0; a <= DES_ANDARES; a++) {
         if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);
         for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
         putchar('\n');
     }
-    printf("amuletos por run: %.1f  ·  eventos por run: %.1f\n", (double)amuletos_tidos / runs,
-           (double)eventos_vistos / runs);
+    printf("amuletos por run: %.1f\n", (double)amuletos_tidos / runs);
     printf("onde parou (mesa 1..%d, %d = venceu):", DES_ANDARES * DES_PASSOS, DES_ANDARES * DES_PASSOS);
     for (int i = 0; i <= DES_ANDARES * DES_PASSOS; i++) printf(" %d", chegou[i]);
     putchar('\n');

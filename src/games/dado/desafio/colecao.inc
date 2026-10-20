@@ -177,7 +177,6 @@ static bool des_desenha(void)
     case F_RDIFIC: desenha_dificuldade(); return true;
     case F_HIST:   desenha_historico(); return true;
     case F_ESTILO: desenha_estilo();    return true;
-    case F_REVENTO: desenha_evt();   return true;
     default:       return false;
     }
 }
@@ -186,11 +185,6 @@ static bool des_desenha(void)
 static void des_esc(void)
 {
     if (fase == F_PERFIS && pf_apagando) { pf_apagando = false; return; }
-    if (fase == F_REVENTO) {                     // escolhendo dado: volta as escolhas; senao, menu
-        if (ev_passo == 1) ev_tecla(KEY_BKSP, 0);
-        else if (!ev_girando()) volta_ao_menu();
-        return;
-    }
     if (fase == F_PCRIA || fase == F_HIST || fase == F_ESTILO) { t_fase = 0; fase = F_PERFIS; return; }
     menu_tela = fase == F_RDIFIC && des_tem_run() ? MT_DESAFIO : MT_UM;
     menu_cur = 1;
@@ -201,9 +195,8 @@ static void des_esc(void)
 // O dado em foco nas telas da run (tecla I).
 static int des_foco(void)
 {
-    if (fase == F_RLOJA && cursor >= 0 && cursor < N_LOJA) return run.loja[cursor].tipo;
+    if (fase == F_RLOJA && lj_tirando && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
+    if (fase == F_RLOJA && !lj_tirando && cursor >= 0 && cursor < n_vitrine()) return run.vitrine[cursor].tipo;
     if (fase == F_RBOLSA && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
-    if (fase == F_REVENTO && ev_passo == 1 && cursor >= 0 && cursor < ev_n) return run.col[ev_lista[cursor]].tipo;
-    if (fase == F_REVENTO && ev_passo == 2 && ev_mostra == 1) return ev_peca.tipo;
     return -1;
 }

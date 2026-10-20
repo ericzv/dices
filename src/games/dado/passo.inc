@@ -90,8 +90,7 @@ void dado_passo(float dt)
                 p->n_mao = 0;
                 t_tira = 0;
                 removendo = false;
-                if (modo == M_DESAFIO) des_premio_feito();
-                else nova_rodada();
+                nova_rodada();
             }
         }
         break;

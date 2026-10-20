@@ -488,8 +488,9 @@ static void desenha_fim_partida_run(void)
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
-                                                       : "A run termina aqui.", C_MARFIM, true);
+        txt_c(GFX_W / 2, CENTRO + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
+                                     : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
+                                                         : "A run termina aqui.", C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
         txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
         teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);

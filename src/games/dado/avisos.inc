@@ -66,6 +66,7 @@ static void desenha_avisos(void)
     const char *msg = NULL;
     uint16_t c = C_OURO;
     if (conexao_caiu()) { msg = "A conexão com o oponente caiu.  ESC volta ao menu."; c = C_VINHO_CLR; }
+    else if (t_sair >= 0 && des_abandono()) { msg = "ESC (ou o <) de novo: sair conta como derrota, e a run acaba."; c = C_VINHO_CLR; }
     else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
     else if (t_aviso_vel > 0) {
         static const char *const VEL_AVISO[VEL_N] = { "Velocidade: normal  (V troca)", "Velocidade: média  (V troca)",

@@ -357,6 +357,9 @@ static bool digitando;               // lobby online: digitando o codigo da sala
 static char codigo_dig[8];
 static int  online_cur;
 static float t_sair = -1;            // ESC apertado uma vez: confirma com outro
+static bool des_saiu;                // Desafiante: saiu no meio da partida (conta como derrota)
+static void des_abandona(void);
+static bool des_abandono(void);
 static int  tut_pag;                 // pagina do tutorial
 static int  cpu;                     // bit j: jogador j e do aparelho
 static float t_ia;                   // espera da IA antes de cada gesto

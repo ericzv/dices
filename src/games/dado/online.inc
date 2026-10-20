@@ -93,8 +93,9 @@ static void trata_esc(void)
         ao_menu_sem_partida();
         return;
     default:
-        if (conexao_caiu() || t_sair >= 0) volta_ao_menu();
-        else t_sair = 0;
+        if (!conexao_caiu() && t_sair < 0) t_sair = 0;
+        else if (des_abandono()) des_abandona();   // Desafiante: sair no meio e perder a mesa
+        else volta_ao_menu();
         return;
     }
 }

@@ -10,8 +10,8 @@
 //         tudo, 5 blefa 25 sempre que abre.
 //       compra: 0 o mais raro que couber, 1 o que forca_colecao mede como
 //         melhor, 2 nada.
-//       recomecos: perdeu a partida, sai com ESC ESC e continua (ate n vezes
-//         por mesa), como uma pessoa pode fazer.
+//       recomecos: perdeu a partida, tenta sair com ESC ESC (ate n vezes por
+//         mesa): sair no meio conta como derrota, entao nao salva nada.
 //       imortal: perder nao acaba a run (mede todas as mesas por igual).
 //   balanco dados <partidas> <nivel> <salao> <mesa> <copias> [primeiro] [ultimo]
 //       a bolsa do comeco com copias de cada dado, numa mesa so (salao 1 a 3,
@@ -22,7 +22,7 @@
 //   balanco bolsas <nivel>
 //       a bolsa media dos oponentes de cada mesa.
 //   balanco recomeca
-//       mostra que sair no meio e continuar recomeca a mesma partida.
+//       mostra que sair no meio conta como derrota (antes recomecava a mesa).
 //
 // ESFORCO=0 no ambiente faz a IA pensar pouco (bem mais rapido); o jogo usa 1.
 // ADESIVOS=0: o robo nao compra adesivos (para comparar).
@@ -113,11 +113,9 @@ static bool partida_passo(void)
     }
     if (fase == F_RESULTADO) {
         if (recomecou < recomecos && vai_perder()) {
-            esc_esc();
-            des_continua();
-            if (fase != F_ORDEM || rodada != 1) { printf("o recomeco nao voltou ao comeco: fase %d\n", fase); exit(1); }
+            esc_esc();                           // sair agora conta como derrota: a mesa acaba ali
+            if (fase != F_FIM) { printf("sair no meio devia encerrar a partida: fase %d\n", fase); exit(1); }
             recomecou++;
-            semente ^= rnd_t() | 1;              // outras escolhas, outra sorte
             return true;
         }
         trata_tecla(KEY_ENTER);
@@ -432,8 +430,8 @@ static void bolsas(int nivel)
         }
 }
 
-// Sair no meio (ESC ESC) e continuar recomeca a mesma partida: as mesmas maos
-// e, com as mesmas escolhas, os mesmos dados.
+// Sair no meio (ESC ESC) conta como derrota: a run acaba ali, e continuar
+// nao recomeca a mesa. (Antes recomecava a mesma partida, com as mesmas maos.)
 static void recomeca(void)
 {
     perfil_teste(0, false);
@@ -443,23 +441,12 @@ static void recomeca(void)
     while (fase == F_RAMULETO) { cursor = 0; trata_tecla(KEY_ENTER); }
     if (fase == F_RLOJA) trata_tecla(KEY_TAB);
     trata_tecla(KEY_ENTER);
-    int8_t mao[MAO];
-    int nm = J[0].n_mao;
-    memcpy(mao, J[0].mao, sizeof mao);
     while (!(fase == F_RESULTADO && rodada == 3)) partida_passo();
-    int f0 = J[0].fichas, f1 = J[1].fichas, v[2][N_FILA];
-    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) v[j][k] = F[j].valor[k];
+    int f0 = J[0].fichas, f1 = J[1].fichas;
     esc_esc();
     printf("ESC ESC na rodada 3 (%d x %d fichas): %s, run guardada %s\n", f0, f1,
-           fase == F_ABERTURA ? "voltou ao menu" : "ficou na mesa", des_tem_run() ? "sim" : "nao");
-    des_continua();
-    printf("continuar: rodada %d, %d x %d fichas, a mesma mao: %s\n", rodada, J[0].fichas, J[1].fichas,
-           J[0].n_mao == nm && !memcmp(mao, J[0].mao, (size_t)nm) ? "sim" : "nao");
-    while (!(fase == F_RESULTADO && rodada == 3)) partida_passo();
-    bool iguais = true;
-    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) iguais &= v[j][k] == F[j].valor[k];
-    printf("rodada 3 de novo, com as mesmas escolhas: %d x %d fichas, os mesmos dados: %s\n", J[0].fichas, J[1].fichas,
-           iguais ? "sim" : "nao");
+           fase == F_FIM && venc_partida == 1 ? "a partida conta como perdida" : "a partida seguiu",
+           des_tem_run() ? "sim" : "nao");
 }
 
 int main(int argc, char **argv)

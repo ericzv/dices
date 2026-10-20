@@ -436,6 +436,7 @@ static void des_comeca_partida(void)
     correu_venc = -1;
     n_voo = 0;
     t_sair = -1;
+    des_saiu = false;
     detalhe = -1;
     nova_rodada();
     fala_evento(FA_INICIO);
@@ -491,6 +492,26 @@ static void des_pos_vitoria(void)
     run.am_selo = 0;
     if (chefe_deixa_amuleto()) oferece_amuleto(AV_CHEFE);
     else abre_loja_pos();
+}
+
+// Sair no meio de uma partida da run (ESC duas vezes) conta como derrota:
+// senao, continuar recomecaria a mesma mesa do zero, e dava para tentar de
+// novo sem limite. Na tela do fim da ultima rodada a partida ja esta
+// decidida: termina com o resultado de verdade.
+static bool des_abandono(void)
+{
+    return modo == M_DESAFIO && fase != F_FIM && fase != F_RAMULETO && fase != F_NOVIDADES;
+}
+
+static void segue_do_resultado(void);
+static void des_abandona(void)
+{
+    t_sair = -1;
+    if (fase == F_RESULTADO && partida_se(2) >= 0) { segue_do_resultado(); return; }   // o pote ja foi: o fim de verdade
+    des_saiu = true;
+    n_voo = 0;                                   // os dados no ar ficam onde estao
+    som_rufo(false);
+    encerra(1);
 }
 
 // ENTER na tela do fim da partida.

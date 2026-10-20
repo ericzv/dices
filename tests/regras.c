@@ -1693,6 +1693,35 @@ int main(void)
             des_apos_fim();
             CONFERE(fase == F_RFIM && des_venceu_run, "vencer o Coringa devia fechar a run");
         }
+        // ESC ESC no meio de uma partida da run: conta como derrota e a run
+        // acaba (antes, continuar recomecava a mesma mesa do zero). Na tela da
+        // ultima rodada, a partida ja decidida termina com o resultado real.
+        {
+            des_comeca_partida();
+            CONFERE(fase == F_ORDEM && des_abandono(), "partida da run: ESC devia abandonar");
+            trata_esc();
+            CONFERE(t_sair >= 0 && fase == F_ORDEM, "o primeiro ESC so avisa (fase %d)", fase);
+            trata_esc();
+            CONFERE(fase == F_FIM && venc_partida == 1 && des_saiu && !des_tem_run(),
+                    "o segundo ESC devia perder a mesa e apagar a run (fase %d, venc %d)", fase, venc_partida);
+            trata_tecla(KEY_ENTER);
+            CONFERE(fase == F_RFIM && !des_venceu_run, "depois de sair, o fim da run (fase %d)", fase);
+            // No meio da partida, mesmo ganhando: derrota.
+            des_comeca_partida();
+            rodada = 3; J[0].fichas = 70; J[1].fichas = 20; pote = 0; venc_mao = 0; fase = F_RESULTADO;
+            trata_esc(); trata_esc();
+            CONFERE(fase == F_FIM && venc_partida == 1 && des_saiu, "sair na rodada 3 ganhando ainda e derrota (venc %d)", venc_partida);
+            // Na tela da ultima rodada, ja decidida: o resultado de verdade.
+            run.estado = R_PARTIDA; des_salva();
+            des_comeca_partida();
+            rodada = DES_RODADAS; J[0].fichas = 70; J[1].fichas = 20; pote = 0; venc_mao = 0; fase = F_RESULTADO;
+            trata_esc(); trata_esc();
+            CONFERE(fase == F_FIM && venc_partida == 0 && !des_saiu && run.estado == R_VENCEU,
+                    "sair na ultima rodada vencida devia vencer a mesa (fase %d, venc %d)", fase, venc_partida);
+            // Fora do Desafiante, o ESC ESC de sempre: volta ao menu.
+            modo = M_UM; fase = F_ORDEM; t_sair = -1;
+            CONFERE(!des_abandono(), "fora do Desafiante nao ha abandono");
+        }
         // Vencer o Barao no Nivel 2 pela primeira vez: as novidades, card a
         // card - a dificuldade, o amuleto, os dados do mais comum ao lendario,
         // o adesivo e o estilo do andar; ENTER no fim da run as abre, TAB vai

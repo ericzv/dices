@@ -50,8 +50,9 @@ mais 4).
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
   um dos seus sai.
-  Perdeu, a run acaba. Até 3 perfis, cada um com seu avatar e sua run guardada
-  (no PC, numa pasta do usuário; no navegador, no próprio navegador), e o
+  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. Até 3
+  perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
+  usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
   os números de cada dado e a run campeã com a bolsa que venceu. A partida
   rápida conta no último perfil escolhido.

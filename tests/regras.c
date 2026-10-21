@@ -1634,6 +1634,27 @@ int main(void)
         }
         run_poe_amuletos(0); des_comeca_partida(); venc_partida = 0; des_resultado();
         CONFERE(run.colar == 0, "sem o Colar, nada: %d", run.colar);
+        // A mao comprada vem em ordem: de menos lados para mais, os iguais juntos.
+        {
+            static const uint8_t T[10] = { D_D20, D_D6, D_D2, D_D8, D_D4, D_D12, D_D6, D_D4, D_D20, D_D2 };
+            static jogador_t guarda;
+            guarda = J[0];
+            jogador_t pj = J[0];
+            pj.n_col = 10;
+            for (int i = 0; i < 10; i++) pj.col[i] = (peca_t){ .tipo = T[i] };
+            bool ok = true;
+            for (int vez_ = 0; vez_ < 20 && ok; vez_++) {
+                for (int i = 0; i < 10; i++) pj.onde[i] = NA_BOLSA;
+                pj.n_mao = 0;
+                J[0] = pj;
+                compra(&J[0]);
+                pj = J[0];
+                for (int i = 1; i < pj.n_mao; i++)
+                    ok &= TIPO[pj.col[pj.mao[i - 1]].tipo].lados <= TIPO[pj.col[pj.mao[i]].tipo].lados;
+            }
+            J[0] = guarda;
+            CONFERE(ok && pj.n_mao >= 6, "a mao devia vir do d2 ao d20 (%d dados)", pj.n_mao);
+        }
         // O pop-up da bolsa: abre a do oponente, a partida espera, qualquer tecla fecha.
         {
             bolsa_abre(1);

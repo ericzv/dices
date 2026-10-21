@@ -75,13 +75,18 @@ static void faixa_run(int voltar)
     // comprado so conta quando chega nela, e ela pula.
     snprintf(s, sizeof s, "%d dados", run.n_col - bolsa_voando);
     int wb = gfx_largura(s, 1), xb = x - 34 - wb;
-    bool clica = fase == F_MAPA, em = clica && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
+    bool clica = fase == F_MAPA, pop = !clica && fase != F_RBOLSA && bolsa_pop < 0;
+    bool em = (clica || pop) && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
     int pulo = t_bolsa_pulo > 0 ? (int)(sinf(t_bolsa_pulo * 3.1416f) * 4) : 0;
     faixa_bolsa_x = xb - 12;
     faixa_bolsa_y = FAIXA_H / 2;
     icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
     txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
+    else if (fase != F_RBOLSA) {                 // nas outras telas, o pop-up (bolsa.inc)
+        zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, BOLSA_RUN, TECLA_BOLSA);
+        bolsas_vistas |= 1u << BOLSA_RUN;
+    }
 }
 
 static void rodape_run(const char *s)
@@ -157,21 +162,18 @@ static void info_mesa(int p)
     }
     info_divisa(xa + wa);
 
-    // O trunfo: nome em destaque e a regra, quebrada em linhas.
-    int xb = xa + wa + 12, wb = 168;
+    // O trunfo: nome em destaque e a regra, quebrada em linhas. Sem trunfo
+    // nesta dificuldade, a coluna nem aparece: a bolsa vem para o lugar.
+    int xb = xa + wa + 12, wb = 168, xc = xb;
     if (trunfo_ativo(no->perso)) {
         txt(xb, cy, pe->trunfo, C_ROSA, true);
         quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
-    } else {                                     // ainda sem trunfo: so a partir do nivel dele
-        txt(xb, cy, "Sem trunfo", C_TEXTO_M, true);
-        char s2[64];
-        snprintf(s2, sizeof s2, "Traz o trunfo a partir do Nível %d.", PERSO[no->perso].andar_trunfo);
-        quebra_linhas(xb, cy + 22, wb, 3, s2, C_TEXTO_M);
+        info_divisa(xb + wb + 6);
+        xc = xb + wb + 18;
     }
-    info_divisa(xb + wb + 6);
 
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
-    int xc = xb + wb + 18, wc = x0 + w0 - 10 - xc;
+    int wc = x0 + w0 - 10 - xc;
     peca_t col[MAX_COL];
     int passo = run.passo;
     run.passo = (uint8_t)p;                      // a bolsa de cada mesa sai do passo dela
@@ -406,7 +408,7 @@ static void desenha_creditos(void)
 
 // As moedas da vitoria, em fileira: entram uma a uma (andamento.inc), a
 // ultima pulando, com um brilho. Embaixo de cada grupo, de onde veio (a mesa,
-// o Cofre, a Taca); embaixo de tudo, a bolsa de moedas contando.
+// o Colar, o Cofre, a Taca); embaixo de tudo, a bolsa de moedas contando.
 static void saque_fileira(int y)
 {
     int tot = saque_total();
@@ -415,11 +417,12 @@ static void saque_fileira(int y)
         return;
     }
     int sp = tot > 22 ? 14 : 17, gap = 10;
-    int grupos[4] = { run.ganho, run.juros, run.taca, run.dourado }, ng = (run.juros > 0) + (run.taca > 0) + (run.dourado > 0);
+    int grupos[5] = { run.ganho, run.colar, run.juros, run.taca, run.dourado };
+    int ng = (run.colar > 0) + (run.juros > 0) + (run.taca > 0) + (run.dourado > 0);
     int larg = tot * sp + ng * gap, x = GFX_W / 2 - larg / 2 + sp / 2, i = 0;
-    static const char *const ROT[4] = { "mesa", "Cofre", "Taça", "Dourado" };
-    uint16_t cor_rot[4] = { C_OURO, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz };
-    for (int g = 0; g < 4; g++) {
+    static const char *const ROT[5] = { "mesa", "Colar", "Cofre", "Taça", "Dourado" };
+    uint16_t cor_rot[5] = { C_OURO, AMULETO[A_COLAR].cor, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz };
+    for (int g = 0; g < 5; g++) {
         if (!grupos[g]) continue;
         int x0 = x;
         for (int k = 0; k < grupos[g]; k++, i++, x += sp) {

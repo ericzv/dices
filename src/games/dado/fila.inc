@@ -143,11 +143,13 @@ static bool tem_jackpot(int j, const uint8_t *est)
     return false;
 }
 
-// Os lances de um Explosivo que somaram v: so explode no numero maximo, entao
-// sao maximos ate o ultimo ("(8+8+3)").
-static void lances_explosivo(char *s, size_t n, int v, int lados)
+// Os lances de um Explosivo que somaram v: o primeiro (o 8, ou mais com o
+// Remendo) e os que rolou de novo, maximos ate o ultimo ("(8+8+3)").
+static void lances_explosivo(char *s, size_t n, int v, int lados, int lance1)
 {
-    size_t p = (size_t)snprintf(s, n, "(");
+    if (lance1 < lados || lance1 >= v) lance1 = lados;
+    size_t p = (size_t)snprintf(s, n, "(%d+", lance1);
+    v -= lance1;
     while (v > lados && p < n) { p += (size_t)snprintf(s + p, n - p, "%d+", lados); v -= lados; }
     if (p < n) snprintf(s + p, n - p, "%d)", v);
 }
@@ -215,7 +217,7 @@ static void aplica_regra(int j, int k)
         }
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
-    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
+    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
     if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
@@ -223,7 +225,7 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
-        am_disparou |= 1u << A_PRENSA;
+        am_disparou |= AM_BIT(A_PRENSA);
     }
 
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
@@ -267,7 +269,7 @@ static void aplica_regra(int j, int k)
                 n++;
             }
         if (n) snprintf(veredito, sizeof veredito, "Egoísta tirou %d e anulou %d dado%s", v, n, n > 1 ? "s" : "");
-        else   snprintf(veredito, sizeof veredito, "Egoísta vale %d, sozinho", v);
+        else   snprintf(veredito, sizeof veredito, "Egoísta pontua %d, sozinho", v);
         ver_tipo = n ? 4 : 0;
         // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
         // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
@@ -278,7 +280,7 @@ static void aplica_regra(int j, int k)
             est[k] = V_ANULADO;
             anulou_b = k;
             resistiu = esc_l ? l2 : -1;
-            snprintf(veredito, sizeof veredito, "%d < %d: o Egoísta cai", v, f->valor[l2]);
+            snprintf(veredito, sizeof veredito, "%d < %d: o Egoísta é anulado", v, f->valor[l2]);
             ver_tipo = esc_l ? 2 : 1;
         }
         f->pontos = soma(j, f->est);
@@ -295,7 +297,7 @@ static void aplica_regra(int j, int k)
         for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) { segura = i; break; }
         if (segura >= 0) {
             resistiu = segura;
-            snprintf(veredito, sizeof veredito, "%s zerou a sequência; %s segura", TIPO[t].nome,
+            snprintf(veredito, sizeof veredito, "%s zerou a sequência; %s continua válido", TIPO[t].nome,
                      TIPO[tipo_de(j, segura)].nome);
         } else
             snprintf(veredito, sizeof veredito, "%s tirou %d e zerou a sequência", TIPO[t].nome, v);
@@ -316,21 +318,21 @@ static void aplica_regra(int j, int k)
         // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
         bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
                     && !sentinela && !luva && !rede;
-        if (luva) am_disparou |= 1u << A_LUVA;
-        if (rede) am_disparou |= 1u << A_REDE;
-        if (ferr) am_disparou |= 1u << A_FERRADURA;
+        if (luva) am_disparou |= AM_BIT(A_LUVA);
+        if (rede) am_disparou |= AM_BIT(A_REDE);
+        if (ferr) am_disparou |= AM_BIT(A_FERRADURA);
         bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
         anulou_a = esc_l ? -1 : l;
         anulou_b = esc_k ? -1 : k;
         resistiu = esc_l ? l : (esc_k ? k : -1);
-        if (ferr && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura segura o %d", v, f->valor[l], f->valor[l]);
-        else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai sozinha", v, f->valor[l]);
-        else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro segura o %d", v, f->valor[l], f->valor[l]);
-        else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede segura o %d", v, f->valor[l], f->valor[l]);
-        else if (esc_l) snprintf(veredito, sizeof veredito, "%d < %d: %s segura", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
-        else if (esc_k) snprintf(veredito, sizeof veredito, "%d < %d: %s fica, %d cai", v, f->valor[l], TIPO[t].nome, f->valor[l]);
+        if (ferr && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura mantém o %d válido", v, f->valor[l], f->valor[l]);
+        else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: só a Sentinela é anulada", v, f->valor[l]);
+        else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro mantém o %d válido", v, f->valor[l], f->valor[l]);
+        else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede mantém o %d válido", v, f->valor[l], f->valor[l]);
+        else if (esc_l) snprintf(veredito, sizeof veredito, "%d < %d: %s continua válido", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
+        else if (esc_k) snprintf(veredito, sizeof veredito, "%d < %d: %s continua válido, o %d é anulado", v, f->valor[l], TIPO[t].nome, f->valor[l]);
         else            snprintf(veredito, sizeof veredito, "%d é menor que %d: anulou os dois", v, f->valor[l]);
         ver_tipo = (esc_l || esc_k) ? 2 : 1;
         ver_comum = ver_tipo == 1;
@@ -369,19 +371,19 @@ static void aplica_regra(int j, int k)
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
         int am_b = 0;
-        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1u << A_OURO; }
-        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1u << A_PENA; }
-        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
-        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= 1u << A_CONTRATO; }   // Contrato Sujo
-        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
+        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= AM_BIT(A_OURO); }
+        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= AM_BIT(A_PENA); }
+        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= AM_BIT(A_PESADO); }
+        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo
+        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= AM_BIT(A_COROA); }
         if (j == 1 && rodada >= 6 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
         if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
-        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= 1u << A_DESFORRA; }
+        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= AM_BIT(A_DESFORRA); }
         if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
-        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
-        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= 1u << A_TRINCA; }
-        if (corrimao) am_disparou |= 1u << A_CORRIMAO;
+        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= AM_BIT(A_CORINGA); }
+        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= AM_BIT(A_TRINCA); }
+        if (corrimao) am_disparou |= AM_BIT(A_CORRIMAO);
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
@@ -389,43 +391,43 @@ static void aplica_regra(int j, int k)
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
             snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 10 : 0);
-            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo vale 10");
-            else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: vale 0", v);
+            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo pontua 10");
+            else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: pontua 0", v);
         } else if (ef == EF_MALDICAO) {
-            snprintf(veredito, sizeof veredito, "Maldito vale %d e tira %d do oponente", v, v);
+            snprintf(veredito, sizeof veredito, "Maldito pontua %d e tira %d do oponente", v, v);
         } else if (ef == EF_COPIADOR) {
             snprintf(veredito, sizeof veredito, "Copiador tirou %d: cada %d seu ganha +2", v, v);
         } else if (copia_antes(j, k)) {
             snprintf(f->tag[k], sizeof f->tag[k], "+2");
-            snprintf(veredito, sizeof veredito, "vale %d, igual ao Copiador: +2", vale);
+            snprintf(veredito, sizeof veredito, "pontua %d, igual ao Copiador: +2", vale);
         } else if (ef == EF_SACRIFICIO) {
             snprintf(veredito, sizeof veredito, "Sacrifício: não pontua; no fim, x2 no seu menor");
         } else if (ef == EF_VAZIO) {
-            snprintf(veredito, sizeof veredito, "Vazio: vale 0, e a barra volta a 0");
+            snprintf(veredito, sizeof veredito, "Vazio: pontua 0; depois dele, qualquer número é válido");
         } else if (ef == EF_COLECIONADOR && v == 6) {
             snprintf(veredito, sizeof veredito, "Colecionador tirou 6: +%d", f->bonus[k]);
         } else if (ef == EF_FERREIRO) {
             if (v >= 3) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Cobrador cobra: vale %d (+4)", vale);
+            snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Fichas rende: vale %d (+4)", vale);
+            snprintf(veredito, sizeof veredito, "Fichas rende: pontua %d (+4)", vale);
         } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "%s vale %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
+            snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
-            lances_explosivo(lances, sizeof lances, v, TIPO[t].lados);
-            snprintf(veredito, sizeof veredito, "Explosivo! %s vale %d", lances, vale);
-        } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e vale", v);
+            lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
+            snprintf(veredito, sizeof veredito, "Explosivo! %s pontua %d", lances, vale);
+        } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e é válido", v);
         else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
-        else if (corrimao)     snprintf(veredito, sizeof veredito, "%d, 1 abaixo do %d: o Corrimão segura", v, f->valor[l]);
+        else if (corrimao)     snprintf(veredito, sizeof veredito, "%d, 1 abaixo do %d: o Corrimão mantém os dois válidos", v, f->valor[l]);
         else {
-            if (f->dobra[k])       snprintf(veredito, sizeof veredito, "vale %d, x2 no fim", vale);
-            else if (f->bonus[k] && ef == EF_PAR) snprintf(veredito, sizeof veredito, "vale %d (Par)", vale);
-            else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "vale %d (%+d)", vale, f->bonus[k]);
-            else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "vale %d: começa sequência nova", vale);
-            else                   snprintf(veredito, sizeof veredito, "vale %d", vale);
+            if (f->dobra[k])       snprintf(veredito, sizeof veredito, "pontua %d, x2 no fim", vale);
+            else if (f->bonus[k] && ef == EF_PAR) snprintf(veredito, sizeof veredito, "pontua %d (Par)", vale);
+            else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "pontua %d (%+d)", vale, f->bonus[k]);
+            else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "pontua %d: começa sequência nova", vale);
+            else                   snprintf(veredito, sizeof veredito, "pontua %d", vale);
             ver_comum = true;
         }
         ver_tipo = 0;
@@ -456,7 +458,7 @@ static void aplica_regra(int j, int k)
         snprintf(veredito, sizeof veredito, "Viciado: %d e %d, fica o %d", v, f->descarte[k], v);
         ver_comum = false;
     } else if (ef == EF_SORTE_REVES && f->descarte[k] && ver_tipo == 0) {
-        snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: vale %d", v + f->descarte[k], f->descarte[k], v);
+        snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: pontua %d", v + f->descarte[k], f->descarte[k], v);
         ver_comum = false;
     } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
         snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
@@ -507,8 +509,9 @@ static void pousa(int j, int k, int (*r)(int))
     bool voltou = false;
     int tirou = f->valor[k];
     if (f->tipo[k] == D_BUMERANGUE && tirou <= 2) {          // volta e rola de novo, uma vez
-        f->cru[k] = f->valor[k] = r(6);
-        lado_vira(j, k, f->valor[k]);
+        int x = r(6);
+        f->lado[k] = (uint8_t)x;
+        f->cru[k] = f->valor[k] = remenda(peca_fila(j, k), x);   // o Remendo vale no segundo lance tambem
         voltou = true;
     }
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.

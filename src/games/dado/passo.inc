@@ -8,6 +8,8 @@ static bool menu_sem_partida(void)
         || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC || fase == F_HIST || fase == F_ESTILO;
 }
 
+static void menu_passo(float dt);        // as fichas do menu (menus.inc)
+
 void dado_passo(float dt)
 {
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
@@ -15,6 +17,10 @@ void dado_passo(float dt)
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     float vel = modo != M_ONLINE && !menu_sem_partida() ? VEL_FATOR[velocidade] : 1;
     dt *= vel;
+    if (bolsa_pop >= 0) {                // o pop-up da bolsa: fora do online, a partida espera
+        t_bolsa_pop += dt_real;
+        if (modo != M_ONLINE) dt = 0;
+    }
     if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
@@ -54,6 +60,7 @@ void dado_passo(float dt)
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt_real) > 2.5f) t_sair = -1;
+    if (vence_j >= 0) t_vence += dt_real;
     switch (fase) {
     case F_ABERTURA:
         if (!abertura_pronta) {
@@ -63,8 +70,9 @@ void dado_passo(float dt)
                 som_toca(SOM_ABERTURA);
             }
         } else {
-            // O crupie afasta os dados para os cantos e abre espaco ao menu.
-            static const float ALVO[2][2] = { { 92, 250 }, { 548, 250 } };
+            // O crupie afasta os dados para os lados do titulo e abre a mesa as fichas.
+            static const float ALVO[2][2] = { { 86, 88 }, { 554, 88 } };
+            menu_passo(dt_real);
             float a = dt * 5 > 1 ? 1 : dt * 5;
             if (sacode > 0) sacode -= dt / 0.85f;
             if (sacode < 0) sacode = 0;
@@ -155,14 +163,20 @@ void dado_passo(float dt)
             rival_lance(j, k);
             t_fase = 0;
             fase = F_VEREDITO;
+            if (ja_vence(j)) {                     // passou do alvo: o placar acende e a vez acaba
+                vence_j = j;
+                t_vence = 0;
+                som_toca_tom(SOM_VALIDO4, 5);
+            }
         }
         break;
     }
     case F_VEREDITO:
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
-        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)) {
-            if (F[vez].lancados >= F[vez].n) termina_turno();
+        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)
+                     + (vence_j == vez ? 0.5f : 0)) {
+            if (F[vez].lancados >= F[vez].n || vence_j == vez) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }
         break;

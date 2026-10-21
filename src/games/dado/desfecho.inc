@@ -320,8 +320,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (e) {
             e->mascara = mask;
             memcpy(e->por_dado, d->mult[j], N_FILA);
-            if (de[MULT_PIRAMIDE]) e->am |= 1u << A_PIRAMIDE;
-            if (de[MULT_ABRE_ALAS]) e->am |= 1u << A_ABRE_ALAS;
+            if (de[MULT_PIRAMIDE]) e->am |= AM_BIT(A_PIRAMIDE);
+            if (de[MULT_ABRE_ALAS]) e->am |= AM_BIT(A_ABRE_ALAS);
         }
     }
 
@@ -345,7 +345,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             evento_t *e = NULL;
             if (j == 0) e = evento(gera, EV_CHEFE, 0, 0xFF, 0, 0, mortos, "Crisântemo: %d dado%s seu%s anulado%s, +%d",
                                    mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
-            if (e) e->am = 1u << A_CRISANTEMO;
+            if (e) e->am = AM_BIT(A_CRISANTEMO);
             else evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
                         mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
         }
@@ -357,8 +357,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         for (int k = 0; k < F[0].lancados; k++) if (d->est[0][k] == V_ANULADO) caidos++;
         if (caidos) {
             d->semente[1] += VIRADA_BARAO * caidos;
-            evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, VIRADA_BARAO * caidos, "%s: %d dado%s seu%s caiu, +%d", J[1].nome,
-                   caidos, caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", VIRADA_BARAO * caidos);
+            evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, VIRADA_BARAO * caidos, "%s: %d dado%s seu%s anulado%s, +%d", J[1].nome,
+                   caidos, caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", caidos > 1 ? "s" : "", VIRADA_BARAO * caidos);
         }
     }
     // Checkpoint valendo: cada dado seu lancado depois dele e valendo ganha +3.
@@ -388,7 +388,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
         d->semente[j] += 2 * valendo;
-        evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Mártir caído: +2 em %d dado%s",
+        evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Mártir anulado: +2 em %d dado%s",
                              valendo, valendo > 1 ? "s" : "");
         for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
             if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
@@ -420,7 +420,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                 if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
         } else if (ef == EF_TRONO && k == N_FILA - 1 && valendo == f->lancados) {
             d->semente[j] += 4;                      // o 4o da fila, e nenhum dos seus caiu
-            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Trono: a fila inteira valendo, +4");
+            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Trono: a sequência inteira válida, +4");
         } else if (ef == EF_SEGURANCA) {
             d->semente[j] += 2;
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: +2");
@@ -430,7 +430,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = 3; }   // a peca cai no seguinte
         } else if (ef == EF_PUXA && k == 0 && f->lancados == N_FILA && valendo == N_FILA) {
             d->semente[j] += 5;
-            evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a fila inteira valendo, +5");
+            evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a sequência inteira válida, +5");
         } else if (ef == EF_COVEIRO && f->valor[k] >= 5) {
             int n = 0;
             for (int q = 0; q < 2; q++)
@@ -456,7 +456,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             evento(gera, EV_TIRA, j, k, r, 0, 4 * n, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "", 4 * n, J[r].nome);
         } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
             d->medusa[j] = 1;
-            evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua fila vira pedra");
+            evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua sequência vira pedra");
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] != V_ROUBADO) e->mascara |= (uint8_t)(1 << i);
         } else if (ef == EF_RANCOR && J[j].perdidas > 0) {   // +1 por rodada perdida na partida
@@ -758,7 +758,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 int corte = base > 0 ? (base + 1) / 2 : 0;
                 if (corte) {
                     d->bonus[r][a] = (int8_t)(d->bonus[r][a] - corte);
-                    evento(gera, EV_CORTA, j, k, r, a, corte, "Sabotador corta o %d de %s: vale %d",
+                    evento(gera, EV_CORTA, j, k, r, a, corte, "Sabotador corta o %d de %s: pontua %d",
                            F[r].valor[a], J[r].nome, base - corte);
                 }
             }
@@ -800,7 +800,7 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < F[j].lancados; k++)
         if (d->est[j][k] == V_ANULADO && TIPO[tipo_de(j, k)].efeito == EF_FENIX) {
             d->est[j][k] = V_VALIDO;
-            evento(gera, EV_RENASCE, j, k, j, k, F[j].valor[k], "Fênix renasce valendo %d", F[j].valor[k]);
+            evento(gera, EV_RENASCE, j, k, j, k, F[j].valor[k], "Fênix renasce e pontua %d", F[j].valor[k]);
         }
 }
 
@@ -948,7 +948,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int j = ordem[o], antes = n_ev;
         if (!saideira(j)) continue;
         evento_t *e = evento(gera, EV_AVISO, j, 0xFF, j, 0, 0, "Saideira: tudo de novo!");
-        if (e) e->am = 1u << A_SAIDEIRA;
+        if (e) e->am = AM_BIT(A_SAIDEIRA);
         poderes_de(d, j, gera);
         fenix_de(d, j, gera);
         efeitos_do_fim(d, j, gera);
@@ -985,17 +985,18 @@ static int risco(int j)
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
+    const peca_t *p = peca_fila(j, k);       // cada lado com o numero que tira (o Remendo soma 2)
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
-    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12, L) ? 100 : 0;
-    if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, (int8_t)f->fixo[k], L) ? 100 : 0;
-    if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, f->fixo[k] ? (int8_t)f->fixo[k] : 1, L) ? 100 : 0;
+    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12), L) ? 100 : 0;
+    if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, remenda(p, (int8_t)f->fixo[k]), L) ? 100 : 0;
+    if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] ? (int8_t)f->fixo[k] : 1), L) ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;
         for (int i = 0; i < k; i++)
             if (f->est[i] == V_VALIDO && resiste_ego(j, i) && f->valor[i] > m) m = f->valor[i];
         int ruins = 0;
-        for (int a = 1; a <= lados; a++) ruins += a < m;
+        for (int a = 1; a <= lados; a++) ruins += remenda(p, a) < m;
         return ruins * 100 / lados;
     }
     int ruins = 0, total = 0;
@@ -1003,14 +1004,15 @@ static int risco(int j)
         for (int a = 1; a <= lados; a++)
             for (int b = 1; b <= (ef == EF_SORTE_REVES ? SR_REVES : lados); b++) {
                 total++;
-                if (cai_depois(j, ef == EF_VICIADO ? (a > b ? a : b) : a - b, L)) ruins++;
+                int va = remenda(p, a), vb = ef == EF_VICIADO ? remenda(p, b) : b;
+                if (cai_depois(j, ef == EF_VICIADO ? (va > vb ? va : vb) : va - vb, L)) ruins++;
             }
         return ruins * 100 / total;
     }
     for (int a = ef == EF_LASTRO ? 4 : 1; a <= lados; a++) {   // Lastro: so 4 a 12
-        int v = a;
+        int v = remenda(p, a);
         total++;
-        if (ef == EF_EXPLODE && v == lados) continue;
+        if (ef == EF_EXPLODE && v >= lados) continue;
         if (ef == EF_ESPELHO && v <= 2) continue;
         if ((ef == EF_MALDITO && v <= 7) || (ef == EF_VIDRO && v == 1)) { ruins++; continue; }
         if (cai_depois(j, v, L)) ruins++;

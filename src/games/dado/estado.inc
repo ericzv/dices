@@ -84,12 +84,15 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
        EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
        EV_ADESIVO };                 // um adesivo do lado que ficou para cima (ad: qual)
+// Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
+typedef uint64_t amul_t;
+#define AM_BIT(a) ((amul_t)1 << (a))
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
     uint8_t mascara;                 // dados da fila atingidos (BONUS, MULT, Capitao, Cavalo)
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
-    uint32_t am;                     // amuletos que acendem quando ele toca
+    amul_t  am;                      // amuletos que acendem quando ele toca
     uint8_t ad;                      // EV_ADESIVO: o adesivo
     char txt[64];
 } evento_t;
@@ -154,8 +157,10 @@ static float t_tique_placar;             // os tiques da contagem nao se amontoa
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perdeu na hora
+static int  vence_j = -1;            // quem joga em segundo e ja passou do alvo: a vez acabou
+static float t_vence;                // desde quando (o placar dele acende)
 static peca_t oferta[3];
-static char aviso[96], veredito[64], nota[48];
+static char aviso[96], veredito[96], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
 static char anuncio[64];
@@ -192,12 +197,25 @@ static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
 static int  menu_cur;                // opcao do menu de abertura
-// Qual lista o menu mostra: a principal, "1 jogador", o nivel da partida
-// rapida ou a escolha da run do Modo Desafiante.
-enum { MT_PRINCIPAL, MT_UM, MT_NIVEL, MT_DESAFIO };
+// Qual lista o menu mostra: a principal ou a escolha da run do Modo
+// Desafiante (continuar ou comecar outra).
+enum { MT_PRINCIPAL, MT_DESAFIO };
 static int  menu_tela;
 static float sacode;                 // 1 quando o cursor do menu anda: os dados chacoalham
 enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
+// As fichas do menu: o quanto cada uma esta erguida (o cursor ergue), o giro
+// das listras da borda e a escolhida assentando (a acao vem no fim).
+static float menu_sobe[MN_N], menu_giro[MN_N];
+static float t_menu_clique = -1;
+static int   menu_escolhida, menu_ant = -1, menu_tela_ant = -1;
+// O pop-up da bolsa (bolsa.inc): de quem (0, 1; BOLSA_RUN: a sua, nas telas
+// da run; -1: fechado) e desde quando esta aberto. bolsas_vistas: as bolsas
+// que as faixas mostraram no ultimo quadro (bit j; bit BOLSA_RUN).
+#define BOLSA_RUN   2
+#define TECLA_BOLSA 0x200                // a zona de clique de uma bolsa (val: de quem)
+static int     bolsa_pop = -1;
+static float   t_bolsa_pop;
+static uint8_t bolsas_vistas;
 
 // Modos: contra o computador, dois no mesmo teclado, ou online.
 enum { M_UM, M_DOIS, M_ONLINE, M_DESAFIO };
@@ -216,11 +234,13 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        // Vindos dos trunfos do Rival, da Bruxa e do Coveiro (abertos desde o comeco).
        A_DESFORRA, A_MAU_OLHADO, A_CRISANTEMO,
        // Os das raridades: dois incomuns e tres raros (abertos desde o comeco).
-       A_TRINCA, A_PIRAMIDE, A_ABRE_ALAS, A_SAIDEIRA, A_CORRIMAO, A_N };
+       A_TRINCA, A_PIRAMIDE, A_ABRE_ALAS, A_SAIDEIRA, A_CORRIMAO,
+       // Comum, aberto desde o comeco.
+       A_COLAR, A_N };
 #define AM_LUGARES 5                 // amuletos que cabem na run; o sexto pede troca
 #define A_BASICOS A_FERRADURA
-static uint32_t amul[2];
-static uint32_t am_disparou;         // amuletos que acabaram de agir (a faixa acende)
+static amul_t amul[2];
+static amul_t am_disparou;           // amuletos que acabaram de agir (a faixa acende)
 static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
 static float am_brilho[A_N];

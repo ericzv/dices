@@ -225,8 +225,8 @@ static void desenha_joga(void)
         if (f->lancados == 0) snprintf(parar, sizeof parar, "voltar à sequência");
         if (f->lancados && f->lancados < f->n && mostra_chance()) {
             int c = chance_cair(vez);
-            if (c <= 0) snprintf(jogar, sizeof jogar, "jogar: não cai");
-            else        snprintf(jogar, sizeof jogar, "jogar: %d%% de cair", c);
+            if (c <= 0) snprintf(jogar, sizeof jogar, "jogar: sem risco");
+            else        snprintf(jogar, sizeof jogar, "jogar: %d%% de risco", c);
         }
     }
     // Rolando, o dado que voa fala sozinho. No veredito do dia a dia (vale 5,

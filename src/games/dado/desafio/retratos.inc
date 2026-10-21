@@ -495,6 +495,142 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(10, hy - 1, 4, 2, sombra(MET));
         break;
     }
+    case RETRATO_AVATAR + 4: {                                  // SAMURAI Z: cabelo preso, cara de mau e a cicatriz em Z
+        fundo = 5;
+        const uint16_t VERM = RGB(184, 38, 44), LACO = RGB(236, 198, 76), PELE = RGB(222, 176, 134),
+                       CAB = RGB(30, 26, 30);
+        // O rabo de cavalo, atras da cabeca, caindo pelo lado e balancando.
+        int bal = (int)(t / 0.9f) % 2;
+        rr(15, hy - 3, 2, 2, CAB); rr(17, hy - 2, 1, 3, CAB);
+        rr(17 + bal, hy + 1, 2, 5, CAB); rr(17 + bal, hy + 6, 1, 3, CAB);
+        rp(16, hy - 3, RGB(204, 44, 48));                        // a fita que prende
+        // A armadura: ombreiras de placas, peito com os cordoes em X e a gola escura.
+        rr(8, 14, 4, 3, sombra(PELE));
+        rr(4, 16, 12, 6, sombra(VERM));
+        for (int k = 0; k < 2; k++) {                            // as ombreiras, largas e em degraus
+            int ox = k ? 14 : 0;
+            rr(ox, 16, 6, 6, VERM);
+            for (int j = 17; j < 22; j += 2) rr(ox, j, 6, 1, sombra(VERM));
+            rr(ox + (k ? 5 : 0), 16, 1, 6, k ? sombra(sombra(VERM)) : luz(VERM));
+            rp(ox + 2, 18, LACO); rp(ox + 3, 20, LACO);
+        }
+        rr(7, 16, 6, 1, RGB(44, 30, 30));
+        for (int k = 0; k < 2; k++) {                            // os dois X dourados no peito
+            int cx = 7 + k * 4;
+            rp(cx, 18, LACO); rp(cx + 2, 18, LACO); rp(cx + 1, 19, LACO); rp(cx, 20, LACO); rp(cx + 2, 20, LACO);
+        }
+        // O cabo da katana, por cima do ombro.
+        rp(18, 15, CAB); rp(19, 14, LACO); rp(19, 13, CAB); rp(18, 14, RGB(200, 200, 210));
+        // O rosto, um pouco mais largo que o de sempre: olhos estreitos, as
+        // sobrancelhas em V, a boca torta e, na bochecha, o Z.
+        static const int8_t FX[12] = { 6, 5, 4, 4, 4, 4, 4, 4, 4, 4, 5, 7 };
+        for (int i = 0; i < 12; i++) {
+            rr(FX[i], hy + i, 20 - 2 * FX[i], 1, PELE);
+            rp(19 - FX[i], hy + i, sombra(PELE));
+        }
+        rr(3, hy + 4, 1, 2, sombra(PELE)); rr(16, hy + 4, 1, 2, sombra(PELE));   // as orelhas
+        uint16_t olho = RGB(24, 20, 22), lab = RGB(96, 36, 40);
+        rp(6, hy + 3, CAB); rr(7, hy + 3, 2, 1, CAB); rp(9, hy + 4, CAB);       // as sobrancelhas, descendo para o meio
+        rp(13, hy + 3, CAB); rr(11, hy + 3, 2, 1, CAB); rp(10, hy + 4, CAB);
+        if (pisca) { rr(6, hy + 5, 3, 1, sombra(PELE)); rr(11, hy + 5, 3, 1, sombra(PELE)); }
+        else {                                                  // a fenda dos olhos, com o brilho para dentro
+            rr(6, hy + 5, 3, 1, olho); rr(11, hy + 5, 3, 1, olho);
+            rp(8, hy + 5, RGB(240, 226, 206)); rp(11, hy + 5, RGB(240, 226, 206));
+            rp(6, hy + 6, sombra(PELE)); rp(13, hy + 6, sombra(PELE));      // as olheiras
+        }
+        rp(10, hy + 7, sombra(PELE));                           // o nariz
+        if (boca) rr(7, hy + 9, 3, 2, RGB(60, 20, 24));
+        else { rr(7, hy + 9, 4, 1, lab); rp(6, hy + 10, lab); }             // a boca torta, caida de um lado
+        uint16_t cic = RGB(204, 92, 96);                        // a cicatriz em Z
+        rr(12, hy + 7, 3, 1, cic); rp(13, hy + 8, cic); rp(12, hy + 9, cic); rr(12, hy + 10, 3, 1, cic);
+        // O cabelo preto puxado para tras, com duas mechas soltas na testa.
+        rr(5, hy - 2, 10, 1, CAB); rr(4, hy - 1, 12, 2, CAB);
+        rr(3, hy + 1, 1, 3, CAB); rr(16, hy + 1, 1, 3, CAB);
+        rr(6, hy - 2, 4, 1, RGB(66, 60, 70));                   // o brilho
+        rp(5, hy + 1, CAB); rp(6, hy + 2, CAB); rp(14, hy + 1, CAB); rp(13, hy + 2, CAB);
+        break;
+    }
+    case RETRATO_AVATAR + 5: {                                  // SUSTO: o capuz preto e a mascara branca que grita
+        const uint16_t CAPUZ = RGB(26, 24, 28), MASC = RGB(236, 234, 228);
+        rr(2, 16, 16, 6, CAPUZ); rr(1, 18, 18, 4, CAPUZ);       // o manto
+        for (int i = 0; i < 4; i++) rp(4 + i * 4, 16, RGB(48, 44, 50));     // as pontas rasgadas da gola
+        // O capuz em volta do rosto: largo em cima, fechando no queixo.
+        static const int8_t HX[16] = { 6, 5, 4, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5, 6, 7 };
+        for (int i = 0; i < 16; i++) rr(HX[i], hy - 3 + i, 20 - 2 * HX[i], 1, CAPUZ);
+        rr(5, hy - 2, 4, 1, RGB(52, 50, 56));                   // a luz no pano
+        // A mascara, comprida, inclina a cabeca de vez em quando.
+        int ox = (int)(t / 2.3f) % 3 == 2 ? 1 : 0;
+        static const int8_t MX[14] = { 8, 7, 6, 6, 6, 6, 6, 6, 7, 7, 7, 8, 8, 9 };
+        for (int i = 0; i < 14; i++) {
+            rr(MX[i] + ox, hy - 1 + i, 20 - 2 * MX[i], 1, MASC);
+            rp(19 - MX[i] + ox, hy - 1 + i, sombra(MASC));
+        }
+        uint16_t oco = RGB(16, 14, 16);
+        rr(7 + ox, hy + 3, 2, 2, oco); rp(7 + ox, hy + 5, oco); rp(6 + ox, hy + 6, oco);   // os olhos, escorrendo para fora
+        rr(11 + ox, hy + 3, 2, 2, oco); rp(12 + ox, hy + 5, oco); rp(13 + ox, hy + 6, oco);
+        int ab = boca ? 1 : (int)(t / 1.5f) % 2;               // a boca comprida, em grito
+        rr(9 + ox, hy + 7, 2, 4 + ab, oco); rp(8 + ox, hy + 8, oco); rp(11 + ox, hy + 8, oco);
+        rp(9 + ox, hy - 1, luz(MASC)); rp(8 + ox, hy, luz(MASC));
+        // O telefone na mao de luva preta, colado no capuz.
+        rr(15, hy + 4, 2, 7, RGB(78, 80, 88)); rp(15, hy + 4, RGB(120, 124, 132));
+        bool toca = fmodf(t, 3.0f) < 0.8f;
+        rp(16, hy + 5, toca ? RGB(140, 230, 120) : RGB(60, 90, 60));
+        rr(14, hy + 9, 3, 3, CAPUZ); rp(13, hy + 10, CAPUZ);
+        break;
+    }
+    case RETRATO_AVATAR + 6: {                                  // BLUE: o etzinho azul, de olhos redondos, cantando
+        fundo = 6;
+        const uint16_t PELE = RGB(74, 128, 222), ROUPA = RGB(40, 70, 150);
+        tronco(ROUPA, PELE, 0, 0, 3);
+        rr(8, 17, 4, 1, RGB(120, 186, 246)); rp(9, 19, RGB(120, 186, 246)); rp(10, 20, RGB(120, 186, 246));
+        static const int8_t X0[12] = { 7, 5, 4, 4, 3, 3, 3, 4, 4, 5, 6, 8 };   // a cabeca redonda
+        for (int i = 0; i < 12; i++) {
+            rr(X0[i], hy - 1 + i, 20 - 2 * X0[i], 1, PELE);
+            rp(19 - X0[i], hy - 1 + i, sombra(PELE));
+        }
+        rr(6, hy, 3, 1, luz(PELE));
+        // As antenas de bolinha, balancando com a musica.
+        int bal = (int)(t / 0.5f) % 2;
+        rp(7, hy - 2, sombra(PELE)); rp(6 - bal, hy - 3, sombra(PELE)); rr(5 - bal, hy - 5, 2, 2, RGB(140, 210, 255));
+        rp(12, hy - 2, sombra(PELE)); rp(13 + bal, hy - 3, sombra(PELE)); rr(13 + bal, hy - 5, 2, 2, RGB(140, 210, 255));
+        if (pisca) { rr(5, hy + 4, 4, 1, sombra(PELE)); rr(11, hy + 4, 4, 1, sombra(PELE)); }
+        else {                                                  // os olhos grandes e redondos
+            rr(5, hy + 2, 4, 4, C_BRANCO); rr(11, hy + 2, 4, 4, C_BRANCO);
+            rp(5, hy + 2, PELE); rp(8, hy + 2, PELE); rp(5, hy + 5, PELE); rp(8, hy + 5, PELE);
+            rp(11, hy + 2, PELE); rp(14, hy + 2, PELE); rp(11, hy + 5, PELE); rp(14, hy + 5, PELE);
+            int olha = (int)(t / 3.1f) % 3 == 1;                // olha para o lado, de vez em quando
+            rr(6 + olha, hy + 3, 2, 2, RGB(20, 28, 60)); rr(12 + olha, hy + 3, 2, 2, RGB(20, 28, 60));
+        }
+        if (boca) rr(9, hy + 8, 2, 2, RGB(20, 28, 60));        // o sorriso
+        else { rr(8, hy + 8, 4, 1, RGB(20, 28, 60)); rp(7, hy + 7, RGB(20, 28, 60)); rp(12, hy + 7, RGB(20, 28, 60)); }
+        // Uma nota de musica sobe do lado: "da ba dee".
+        float nq = fmodf(t, 2.6f) / 2.6f;
+        int ny = 12 - (int)(nq * 10), nx = 17;
+        if (nq < 0.85f) { rr(nx, ny, 2, 1, C_BRANCO); rp(nx + 1, ny - 1, C_BRANCO); rp(nx + 1, ny - 2, C_BRANCO); rp(nx + 2, ny - 2, C_BRANCO); }
+        break;
+    }
+    case RETRATO_AVATAR + 7: {                                  // MAICON: chapeu preto, oculos escuros, a mecha na testa
+        const uint16_t PELE = RGB(226, 186, 156), CHAP = RGB(24, 22, 24), JAQ = RGB(176, 36, 40);
+        tronco(JAQ, PELE, RGB(238, 232, 220), 0, 0);            // a jaqueta vermelha, camisa branca
+        rr(3, 18, 1, 4, RGB(30, 28, 30)); rr(16, 18, 1, 4, RGB(30, 28, 30));   // os vivos pretos
+        rr(4, 19, 2, 1, C_OURO); rr(14, 19, 2, 1, C_OURO);
+        rr(3, hy + 2, 3, 12, CHAP); rr(14, hy + 2, 3, 12, CHAP);  // o cabelo comprido, cacheado nas pontas
+        rp(2, hy + 12, CHAP); rp(17, hy + 13, CHAP); rp(3, hy + 14, CHAP);
+        rosto(hy, PELE, CHAP, EX_SERIA, pisca, boca);
+        // Os oculos escuros (aviador), com o brilho correndo.
+        uint16_t lente = RGB(30, 30, 38);
+        rr(6, hy + 5, 3, 3, lente); rr(11, hy + 5, 3, 3, lente); rr(9, hy + 5, 2, 1, RGB(150, 150, 160));
+        int br = (int)(t / 0.12f) % 40;
+        if (br < 3) rp(6 + br, hy + 5, RGB(200, 200, 214));
+        // O chapeu preto, de aba inclinada, com a fita.
+        rr(3, hy, 14, 1, CHAP); rr(2, hy + 1, 3, 1, CHAP);      // a aba, caindo para a esquerda
+        rr(5, hy - 4, 10, 4, CHAP); rr(6, hy - 5, 8, 1, CHAP);
+        rr(5, hy - 1, 10, 1, RGB(70, 66, 70));                  // a fita
+        rr(7, hy - 4, 3, 1, RGB(56, 54, 58));
+        rr(9, hy + 1, 1, 3, CHAP); rp(8, hy + 3, CHAP);                                      // o cachinho na testa
+        if (fmodf(t, 2.4f) < 0.25f) { rp(4, 19, C_BRANCO); rp(15, 19, C_AMARELO); }        // o brilho dos botoes
+        break;
+    }
     default: {                                                  // BARAO: cartola, monoculo, bigodao branco
         tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
         rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
@@ -559,6 +695,13 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
                 } else if (fundo == 3) {                       // jardim a noite, com estrelas
                     c = j < 14 ? RGB(22, 40, 52) : RGB(30, 52, 44);
                     if (j < 10 && (i * 7 + j * 13) % 23 == 0 && ((int)(t / 0.9f) + i) % 4) c = RGB(220, 220, 180);
+                } else if (fundo == 5) {                       // a noite indigo, a lua palida e as nuvens
+                    int sx = i - 19, sy = j - 5;
+                    c = sx * sx + sy * sy <= 5 ? RGB(236, 226, 186) : (j < 16 ? RGB(36, 42, 76) : RGB(28, 32, 58));
+                    if (c != RGB(236, 226, 186) && (j == 9 || j == 13) && (i + (int)(t / 1.2f)) % 9 < 4) c = RGB(58, 64, 104);
+                } else if (fundo == 6) {                       // tudo azul: o ceu com estrelinhas piscando
+                    c = j < 13 ? RGB(52, 92, 176) : RGB(40, 72, 146);
+                    if ((i * 5 + j * 11) % 19 == 0 && ((int)(t / 0.7f) + i + j) % 3) c = RGB(160, 210, 250);
                 } else if (fundo == 4) {                       // feltro, com o cone de luz da luminaria
                     int d = abs(2 * i - 19), largura = 2 + j * 2 / 3;
                     c = (j >= 1 && d <= largura) ? RGB(58, 134, 88) : RGB(28, 78, 52);
@@ -700,6 +843,9 @@ typedef struct {
     uint8_t  adesivo;                    // o adesivo desta loja (AD_*; AD_NADA: nenhum)
     uint8_t  ad_vendido;                 // ja foi colado
     uint8_t  dourado;                    // a ultima vitoria: as moedas do adesivo Dourado
+    // Nos dois bytes que sobravam no fim (a run salva de antes abre igual):
+    uint8_t  amuletos_x;                 // bit a: tem o amuleto 32 + a
+    uint8_t  colar;                      // a ultima vitoria: a moeda do Colar de Perolas
 } run_t;
 
 static run_t run;

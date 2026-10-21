@@ -4,8 +4,9 @@
 // guarda a sua run.
 // ---------------------------------------------------------------------------
 #define N_PERFIS 3
-enum { AV_ET, AV_BERRO, AV_NOMALISA, AV_INTERRUPTOR, AV_N };
-static const char *const NOME_AVATAR[AV_N] = { "ET Vilu", "O Berro", "Nomalisa", "Interruptor do Futuro" };
+enum { AV_ET, AV_BERRO, AV_NOMALISA, AV_INTERRUPTOR, AV_SAMURAI, AV_SUSTO, AV_BLUE, AV_MAICON, AV_N };
+static const char *const NOME_AVATAR[AV_N] = { "ET Vilu", "O Berro", "Nomalisa", "Interruptor do Futuro",
+                                               "Samurai Z", "Susto", "Blue", "Maicon" };
 
 typedef struct {
     char     nome[12];                   // "" = lugar vazio

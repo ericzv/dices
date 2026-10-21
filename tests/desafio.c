@@ -225,7 +225,7 @@ int main(int argc, char **argv)
             relogio += 16667;
             switch (fase) {
             case F_RAMULETO: {               // um amuleto ao acaso entre os oferecidos
-                uint32_t antes = run_amuletos();
+                amul_t antes = run_amuletos();
                 if (run.am_novo) {           // sem lugar: tira um dos seus ao acaso (ou deixa o novo)
                     cursor = (int)(rnd_t() % TROCA_N);
                     trata_tecla(KEY_ENTER);

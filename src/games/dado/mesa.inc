@@ -307,12 +307,16 @@ static void faixa_jogador(int j)
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
         amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);
 
-    // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
+    // A bolsa: quantos ainda estao nela, de quantos o jogador tem. Clicar
+    // abre o pop-up com os dados dela (bolsa.inc), a sua ou a do oponente.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
-    icone_bolsa(bx + 8, by);
+    bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
+    icone_bolsa(bx + 8, by - em);
     snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), em_jogo(p));   // os no ar ainda nao chegaram
-    txt(bx + 22, ty, s, C_MARFIM_S, false);
+    txt(bx + 22, ty, s, em ? C_OURO : C_MARFIM_S, false);
+    zona_clique(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8, NULL, j, TECLA_BOLSA);
+    bolsas_vistas |= (uint8_t)(1 << j);
 }
 
 // Saquinho de couro fechado por um cordao dourado; (cx, cy) e o meio dele.
@@ -965,7 +969,20 @@ static void desenha_fila(int j)
             ui_contorno(PLACAR_X - 32, y - 24, 64, 46, rampa_ouro(1 + q * 2 + pulso * q));
             placar_halo(PLACAR_X - 34, y - 26, 68, 50, calor, pulso);
         }
-        txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
+        bool vence = vence_j == j && fase != F_RESULTADO;   // passou do alvo: a rodada e dele
+        if (vence) {                              // o filete dourado pulsando e um aro que abre
+            float pul = 0.5f + 0.5f * sinf(t_vence * 9);
+            uint16_t cv = gfx_mistura(C_OURO, C_BRANCO, (int)(pul * 55));
+            ui_contorno(PLACAR_X - 36, y - 28, 72, 54, cv);
+            ui_contorno(PLACAR_X - 37, y - 29, 74, 56, gfx_mistura(cv, C_FELTRO, 45));
+            if (t_vence < 0.45f) {
+                int a = (int)(t_vence / 0.45f * 14);
+                ui_contorno(PLACAR_X - 37 - a, y - 29 - a, 74 + 2 * a, 56 + 2 * a, gfx_mistura(C_BRANCO, C_OURO, (int)(t_vence / 0.45f * 100)));
+            }
+            c = C_OURO;
+        }
+        int ly = vence ? (j == baixo ? y + 33 : y - 46) : y - 42 + (j == baixo ? 72 : 0);   // longe do filete
+        txt_c(PLACAR_X, ly, vence ? "VENCE" : "pontos", vence ? C_OURO : C_TEXTO_M, vence);
         txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja

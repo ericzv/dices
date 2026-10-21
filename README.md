@@ -8,22 +8,22 @@ também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
 sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
-Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
-seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta — menos quando quem abriu
+Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido; os
+seguintes precisam ser iguais ou maiores que o último dado válido — se sair
+menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
 termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
 
-## 1 jogador: partida rápida ou Modo Desafiante
+## O menu
 
-- **Partida rápida**: 15 rodadas contra o computador (a entrada de cada rodada
-  sobe: 5 fichas, 10 da 6ª e 15 da 11ª), em três níveis —
-  **Fácil** (regras simples), **Médio** (pensa, mas erra às vezes) e
-  **Difícil** (simula as jogadas antes de decidir). Quem vence a rodada
-  escolhe um dado de prêmio entre três: até a 5ª rodada saem comuns e
-  incomuns, da 6ª à 10ª incomuns e raros, e depois raros e lendários.
-- **Modo Desafiante**: uma run pelo cassino. São 3 salões, cada um com três
+Cinco fichas na mesa: **1 jogador**, **2 jogadores**, **Online**, **Dados da
+casa** e **Tutorial**. A ficha em foco sobe da mesa e gira devagar, cada uma
+com um tom; a escolhida assenta, gira um instante e abre a tela.
+
+## 1 jogador: Modo Desafiante
+
+- **Modo Desafiante**: uma run pelo cassino (1 jogador vai direto aos perfis). São 3 salões, cada um com três
   oponentes (do mais fácil ao mais difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
@@ -45,17 +45,19 @@ mais 4).
   na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (cai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
+  (sai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
   menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
-  um dos seus sai.
+  um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
+  rende 1 moeda a cada mesa vencida.
   Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
-  os números de cada dado e a run campeã com a bolsa que venceu. A partida
-  rápida conta no último perfil escolhido.
+  os números de cada dado e a run campeã com a bolsa que venceu. São 8
+  avatares: ET Vilu, O Berro, Nomalisa, Interruptor do Futuro, Samurai Z,
+  Susto, Blue e Maicon.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite), o material dos seus dados comuns (marfim, osso, jade, obsidiana,
   ébano) e a mesa (nogueira e ouro, mogno e cobre, ébano e prata, carvalho e
@@ -118,9 +120,10 @@ Não precisa instalar nada: é um executável só.
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
+| B, ou clicar numa bolsa | Mostra os dados da bolsa (a sua ou, na partida, a do oponente); a partida espera |
 | ESC (duas vezes) | Sai da partida e volta ao menu |
 
-O menu **Como jogar** explica as regras.
+A ficha **Tutorial** do menu explica as regras.
 
 ## Compilar
 

@@ -33,7 +33,7 @@ static float t_mapa_anda;                    // > 0: a ficha do jogador anda ate
 static int   saque_n;                       // moedas ja na fileira
 static float t_saque;
 static bool  saque_pronto;
-static int saque_total(void) { return run.ganho + run.juros + run.taca + run.dourado; }
+static int saque_total(void) { return run.ganho + run.colar + run.juros + run.taca + run.dourado; }
 // O intervalo entre uma moeda e a outra: as poucas sem pressa; as 20 do
 // Barao, em pouco mais de um segundo e meio.
 static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 1.7f / n; }
@@ -64,8 +64,9 @@ static void des_contadores_passo(float dt, float dt_real)
     if (saque_n < saque_total()) {
         if (saque_n && t_saque < saque_passo()) return;
         t_saque = 0;
-        if (saque_n == run.ganho && run.juros) am_acende(A_COFRE);
-        if (saque_n == run.ganho + run.juros && run.taca) am_acende(A_TACA);
+        if (saque_n == run.ganho && run.colar) am_acende(A_COLAR);
+        if (saque_n == run.ganho + run.colar && run.juros) am_acende(A_COFRE);
+        if (saque_n == run.ganho + run.colar + run.juros && run.taca) am_acende(A_TACA);
         saque_n++;
         som_toca_tom(SOM_MOEDA_BATE, saque_n / 2 < 9 ? saque_n / 2 : 9);
         return;
@@ -102,6 +103,8 @@ static bool des_carrega(run_t *r)
     if (r->adesivo >= AD_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
+    r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
+    if (r->colar > 1) r->colar = 0;
     return true;
 }
 
@@ -394,7 +397,7 @@ static void des_comeca_partida(void)
         uint32_t h = no->semente * 2246822519u;
         for (int i = 0; i < 4; i++) {
             int a = EXTRA[(h >> (i * 8)) % sizeof EXTRA];
-            if (!(amul[1] >> a & 1)) { amul[1] |= 1u << a; op_amul_extra = a; break; }
+            if (!(amul[1] >> a & 1)) { amul[1] |= AM_BIT(a); op_amul_extra = a; break; }
         }
     }
     des_rod_vencidas = 0;
@@ -470,12 +473,13 @@ static void des_resultado(void)
         perfis_salva();
         des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
     }
-    // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Cofre
-    // (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3 rodadas
-    // vencidas na partida).
-    run.ganho = run.juros = run.taca = run.dourado = 0;
+    // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Colar
+    // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3
+    // rodadas vencidas na partida).
+    run.ganho = run.colar = run.juros = run.taca = run.dourado = 0;
     if (!fim_da_run()) {
         run.ganho = MOEDAS_MESA[run.andar][run.passo];
+        if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
         if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
         if (run_amuletos() >> A_TACA & 1) run.taca = (uint8_t)(des_rod_vencidas / 3);

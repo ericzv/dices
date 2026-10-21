@@ -78,6 +78,8 @@ static void joga_ad(int j, int i, int v)
     aplica_regra(j, k);
 }
 static int sempre_um(int lados) { (void)lados; return 1; }
+static int lances_seq[8], li_seq;           // os lances em ordem (adesivos que mexem no sorteio)
+static int rola_seq(int lados) { (void)lados; return lances_seq[li_seq++ % 8]; }
 static int sempre_tres(int lados) { return lados < 3 ? lados : 3; }
 
 static bool ev_tipo_ad(int i, int a) { return ev[i].tipo == EV_ADESIVO && ev[i].ad == a; }
@@ -367,6 +369,34 @@ int main(void)
                         a, b, a - J[0].fichas, b - J[1].fichas);
             }
 
+    // ---- Quem joga em segundo e passou do alvo: a vez acaba sozinha --------
+    {
+        int m0 = modo; modo = M_UM;
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);                         // o oponente abriu com 4
+        F[0].n = 3; joga(0, D_D6, 3); F[0].n = 3;
+        CONFERE(!ja_vence(0), "3 x 4 ainda nao vence");
+        joga(0, D_D6, 5); F[0].n = 3;
+        CONFERE(ja_vence(0) && !ja_vence(1), "3 e 5 contra 4 devia vencer (e so quem joga em segundo)");
+        // Empate nao encerra: ainda pode jogar.
+        limpa(); primeiro = 1; joga(1, D_D6, 6); F[0].n = 3; joga(0, D_D6, 6); F[0].n = 3;
+        CONFERE(!ja_vence(0), "empate nao devia encerrar a vez");
+        // Um Oculto ainda escondido: o placar nao sabe, a vez segue.
+        limpa(); primeiro = 1; joga(1, D_D6, 2); F[1].escondido[0] = false;
+        F[0].n = 3; joga(0, D_D6, 6); F[0].n = 3;
+        CONFERE(ja_vence(0), "6 x 2 devia vencer");
+        F[1].escondido[0] = true;
+        CONFERE(!ja_vence(0), "com um Oculto escondido a vez nao devia acabar");
+        // No passo: o veredito de quem ja venceu termina o turno em vez de abrir a jogada.
+        limpa(); primeiro = 1; vez = 0;
+        joga(1, D_D6, 4); F[0].n = 3; joga(0, D_D6, 5); F[0].n = 3;
+        vence_j = 0; t_fase = 5; fase = F_VEREDITO;
+        dado_passo(1 / 60.0f);
+        CONFERE(fase != F_JOGA && fase != F_VEREDITO, "passou do alvo: a vez devia acabar sozinha (fase %d)", fase);
+        vence_j = -1;
+        modo = m0;
+    }
+
     // ---- Entrada da rodada ----------------------------------------------
     entrada(3, 100, 0);
     CONFERE(fase == F_FIM && venc_partida == 1, "so A sem entrada: B devia vencer (%d)", venc_partida);
@@ -633,7 +663,7 @@ int main(void)
         des_nova_run();
         CONFERE(fase == F_RAMULETO && run.estado == R_AMULETO, "run nova devia comecar escolhendo amuleto");
         amuleto_escolhido(0);
-        CONFERE(am_conta(run_amuletos()) == 1 && fase == F_RLOJA, "amuleto inicial: %x, fase %d", run_amuletos(), fase);
+        CONFERE(am_conta(run_amuletos()) == 1 && fase == F_RLOJA, "amuleto inicial: %llx, fase %d", (unsigned long long)run_amuletos(), fase);
         run.moedas = 77;
         des_salva();
         run_t r;
@@ -1586,6 +1616,35 @@ int main(void)
                 "Cofre e Taca: mesa %d, Cofre %d, Taca %d", run.ganho, run.juros, run.taca);
         run.moedas = 40; des_comeca_partida(); venc_partida = 0; des_resultado();
         CONFERE(run.juros == 3, "Cofre ate 3: %d", run.juros);
+        // Colar de Perolas (o amuleto 33: alem dos 32 bits): 1 moeda por mesa
+        // vencida, e a run salva o guarda.
+        run_poe_amuletos(AM_BIT(A_COLAR) | AM_BIT(A_COFRE));
+        CONFERE(run.amuletos_x == 1 && (run_amuletos() >> A_COLAR & 1) && am_conta(run_amuletos()) == 2,
+                "Colar no bit 32: %d", run.amuletos_x);
+        run.moedas = 12; des_comeca_partida(); venc_partida = 0; des_resultado();
+        CONFERE(run.ganho == 4 && run.colar == 1 && run.juros == 2 && run.moedas == 12 + 7 && saque_total() == 7,
+                "Colar: mesa %d, Colar %d, Cofre %d (moedas %d)", run.ganho, run.colar, run.juros, run.moedas);
+        CONFERE((amul[0] >> A_COLAR & 1) && NIVEL_AMULETO[A_COLAR] == 0 && RAR_AMULETO[A_COLAR] == AMR_COMUM
+                && amuleto_liberado(A_COLAR), "Colar: na partida, comum e aberto desde o comeco");
+        {
+            run_t r;
+            des_salva();
+            CONFERE(des_carrega(&r) && (amul_t)r.amuletos_x << 32 == AM_BIT(A_COLAR) && r.colar == 1,
+                    "Colar salvo e carregado (x %d, colar %d)", r.amuletos_x, r.colar);
+        }
+        run_poe_amuletos(0); des_comeca_partida(); venc_partida = 0; des_resultado();
+        CONFERE(run.colar == 0, "sem o Colar, nada: %d", run.colar);
+        // O pop-up da bolsa: abre a do oponente, a partida espera, qualquer tecla fecha.
+        {
+            bolsa_abre(1);
+            float tf = t_fase;
+            int f0 = fase;
+            for (int i = 0; i < 30; i++) dado_passo(1 / 60.0f);
+            CONFERE(bolsa_pop == 1 && t_fase == tf && fase == f0, "pop-up aberto: a partida devia esperar (%.2f -> %.2f)", tf, t_fase);
+            key_event_t e = { .key = 'x' };
+            dado_tecla(&e);
+            CONFERE(bolsa_pop < 0 && fase == f0, "qualquer tecla fecha o pop-up (pop %d)", bolsa_pop);
+        }
         // Selo de Divida: o chefe deixa o incomum a escolher e mais um sorteado
         // (comum ou incomum); depois, a loja.
         run_poe_amuletos(1u << A_SELO | 1u << A_PEDAGIO);
@@ -1978,6 +2037,66 @@ int main(void)
         joga_ad(0, 2, 2);                         // o Gemeo tirou 2, mas vira 5: o Confete do 2 nao conta
         desfecho_t d = fim();
         CONFERE(F[0].lado[1] == 5 && d.total[0] == 10, "o Gemeo virou: o lado e o 5 e o Confete nao age (%d, lado %d)", d.total[0], F[0].lado[1]);
+
+        // O Remendo muda o numero antes dos poderes: o 6 remendado do
+        // Explosivo e um 8 e explode; o Trevo com Remendo no 2 tira 4.
+        peca_t ex = { .tipo = D_EXPLOSIVO };
+        ad_cola(&ex, 6, AD_REMENDO);
+        lances_seq[0] = 6; lances_seq[1] = 5; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 13 && lado == 6 && li_seq == 2, "Explosivo com Remendo no 6: 8, explode e soma 5 (%d, lado %d)", x, lado);
+        lances_seq[0] = 5; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 5 && li_seq == 1, "Explosivo com Remendo no 6, tirando 5: nao explode (%d)", x);
+        ex = (peca_t){ .tipo = D_EXPLOSIVO };
+        ad_cola(&ex, 8, AD_REMENDO);
+        lances_seq[0] = 8; lances_seq[1] = 3; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 13 && lado == 8, "Explosivo com Remendo no 8: 10, explode e soma 3 (%d, lado %d)", x, lado);
+        x = sorteia_peca(D_EXPLOSIVO, 0, NULL, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 3 && lado == 3, "Explosivo sem adesivo, tirando 3: %d", x);
+        peca_t vi = { .tipo = D_VICIADO };
+        ad_cola(&vi, 5, AD_REMENDO);
+        lances_seq[0] = 5; lances_seq[1] = 6; li_seq = 0;
+        x = sorteia_peca(D_VICIADO, 0, &vi, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 7 && lado == 5 && menor == 6, "Viciado 5 (remendado: 7) e 6: fica o 7 (%d, lado %d, descarta %d)", x, lado, menor);
+        lances_seq[0] = 6; lances_seq[1] = 5; li_seq = 0;
+        x = sorteia_peca(D_VICIADO, 0, &vi, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 7 && lado == 5 && menor == 6, "Viciado 6 e 5 (remendado: 7): fica o 7 (%d, lado %d, descarta %d)", x, lado, menor);
+        J[0].col[3] = (peca_t){ .tipo = D_TREVO };
+        ad_cola(&J[0].col[3], 2, AD_REMENDO);
+        lances_seq[0] = 2; li_seq = 0;
+        x = sorteia_peca(D_TREVO, 0, &J[0].col[3], rola_seq, &menor, &lado, &antes);
+        limpa();
+        joga_ad(0, 3, x);
+        F[0].lado[0] = (uint8_t)lado;
+        d = fim();
+        CONFERE(x == 4 && lado == 2 && d.total[0] == 10, "Trevo com Remendo no 2: tira 4, SORTE (%d, lado %d, total %d)", x, lado, d.total[0]);
+        J[0].col[4] = ex;                         // o Remendo no 8: na etiqueta, o 10 e o que rolou de novo
+        limpa();
+        joga_ad(0, 4, 13);
+        CONFERE(!strcmp(F[0].tag[0], "(10+3)"), "Explosivo com Remendo no 8: etiqueta %s", F[0].tag[0]);
+        J[0].col[5] = (peca_t){ .tipo = D_BUMERANGUE };
+        ad_cola(&J[0].col[5], 4, AD_REMENDO);
+        limpa();
+        F[0].idx[0] = 5; F[0].tipo[0] = D_BUMERANGUE; F[0].n = 1;
+        F[0].cru[0] = F[0].valor[0] = 1; F[0].lado[0] = 1; F[0].lancados = 1;
+        lances_seq[0] = 4; li_seq = 0;
+        pousa(0, 0, rola_seq);
+        CONFERE(F[0].valor[0] == 6 && F[0].lado[0] == 4 && !strcmp(F[0].tag[0], "1>6"),
+                "Bumerangue volta e tira o 4 remendado: %d (lado %d, %s)", F[0].valor[0], F[0].lado[0], F[0].tag[0]);
+        // O risco: depois de um 7, o Explosivo anula com 1 a 6; com o 6 remendado, so com 1 a 5.
+        ex = (peca_t){ .tipo = D_EXPLOSIVO };
+        J[0].col[4] = ex;
+        limpa();
+        joga_ad(0, 0, 7);
+        F[0].idx[1] = 4; F[0].tipo[1] = D_EXPLOSIVO; F[0].n = 2;
+        int r_sem = risco(0), c_sem = chance_cair(0);
+        ad_cola(&J[0].col[4], 6, AD_REMENDO);
+        F[0].fixo[1] = 1;                         // (o botao guarda a conta enquanto a mesa nao muda)
+        int r_com = risco(0), c_com = chance_cair(0);
+        CONFERE(r_sem == 75 && r_com == 62 && c_sem > 70 && c_sem < 80 && c_com > 57 && c_com < 68,
+                "risco do Explosivo depois de um 7: sem Remendo %d (botao %d), com Remendo no 6 %d (botao %d)", r_sem, c_sem, r_com, c_com);
 
         // O fim da rodada: cada adesivo.
         static const struct { int ad, valendo, pontos0, pontos1; } C[] = {

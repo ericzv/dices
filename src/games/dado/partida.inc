@@ -115,6 +115,7 @@ static void nova_rodada(void)
     plano_rodada = -1;                       // a IA monta outra fila
     carta_virando = false;
     zerou = -1;
+    vence_j = -1;
     ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
@@ -143,7 +144,7 @@ static void nova_rodada(void)
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
-        snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que cai é meu! Hahaha!");
+        snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
         fala_comeca(3.2f);
         fala_e_curta = false;
     }
@@ -287,48 +288,54 @@ static int primeiro_lance(int t, int (*r)(int))
 
 // O que o dado de tipo t tira, com os poderes que mexem no sorteio, a partir
 // do primeiro lance x. 'r' e quem sorteia: o da partida ou o da IA quando ela
-// imagina jogadas. No Viciado, 'menor' recebe o lance descartado.
-static int sorteia_valor_de(int t, int fixo, int x, int (*r)(int), int *menor)
+// imagina jogadas. No Viciado, 'menor' recebe o lance descartado. Com a peca
+// p (NULL: sem adesivos), o lado com Remendo ja tira 2 a mais aqui dentro: o
+// 6 remendado do Explosivo e um 8 e explode; o Viciado compara os lances
+// remendados. 'lado' recebe o lado que ficou para cima.
+static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(int), int *menor, int *lado)
 {
     int lados = TIPO[t].lados;
     *menor = 0;
+    *lado = x;
     switch (TIPO[t].efeito) {
     case EF_VICIADO: {                       // dois lances; fica o maior
-        int y = r(lados);
-        *menor = x < y ? x : y;
-        if (y > x) x = y;
-        break;
+        int y = r(lados), vx = remenda(p, x), vy = remenda(p, y);
+        if (vy > vx) { *lado = y; *menor = vx; return vy; }
+        *menor = vy;
+        return vx;
     }
     case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
         int b = r(SR_REVES);
         *menor = b;
-        x -= b;
-        break;
+        return remenda(p, x) - b;
     }
-    case EF_EXPLODE: {
-        int n = x, g = 0;
-        while (n == lados && g++ < 3) { n = r(lados); x += n; }
-        break;
+    case EF_EXPLODE: {                       // o 8 (ou mais, remendado) rola de novo e soma
+        int n = remenda(p, x), g = 0;
+        x = n;
+        while (n >= lados && g++ < 3) { n = r(lados); x += n; }
+        return x;
     }
-    case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
-    case EF_FANTASMA: x = fixo ? (int8_t)fixo : 1; break;
-    case EF_PREVISIVEL: x = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
-    case EF_VAZIO:    x = 0; break;
+    // Os de numero fixo nao rolam: o lado e o numero, e so o Remendo age.
+    case EF_QUEBRADO: *lado = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
+    case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
+    case EF_PREVISIVEL: *lado = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
+    case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
     default: break;
     }
-    return x;
+    return remenda(p, *lado);
 }
 static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 {
-    return sorteia_valor_de(t, fixo, primeiro_lance(t, r), r, menor);
+    int lado;
+    return sorteia_valor_de(t, fixo, primeiro_lance(t, r), NULL, r, menor, &lado);
 }
 
 // O lance de um dado da bolsa, com os adesivos dele (p; NULL: sem). O Chumbo
 // puxa o primeiro lance para o lado dele metade das vezes (com mais de um,
 // para um deles); caindo no Avesso, o dado vira do avesso; o Remendo soma 2
-// ao lado que ficou para cima. Os de numero fixo nao rolam: neles so o
-// Remendo age. 'lado' recebe o lado de cima; 'antes', o lado do Avesso de
-// onde ele virou (0: nao virou).
+// ao lado que ficou para cima (em sorteia_valor_de, antes dos poderes). 'lado'
+// recebe o lado de cima (0: fora dos lados do dado); 'antes', o lado do
+// Avesso de onde ele virou (0: nao virou).
 static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *menor, int *lado, int *antes)
 {
     int ef = TIPO[t].efeito;
@@ -340,9 +347,8 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
         if (n && r(2) == 1) x0 = ch[n > 1 ? r(n) - 1 : 0];
         if (ad_no_lado(p, x0) == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
     }
-    int x = sorteia_valor_de(t, fixo, x0, r, menor);
-    *lado = ef == EF_VAZIO ? x0 : lado_do_lance(t, x, *menor);
-    if (ad_no_lado(p, *lado) == AD_REMENDO) x += 2;
+    int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
+    if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
     return x;
 }
 
@@ -691,7 +697,7 @@ static void recolhe_quebrados(void)
                 snprintf(nota, sizeof nota, "%s ganha um Fantasma (%s)", J[q].nome, TIPO[F[j].tipo[k]].nome);
         }
     if (n_coringa)
-        snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói os %d dados seus que caíram" : "o Coringa destrói o dado seu que caiu", n_coringa);
+        snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga
@@ -1130,6 +1136,18 @@ static bool zerou_de_vez(int j)
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.total[j] == 0;
+}
+
+// Quem joga em segundo ja passou do alvo: com o que esta na mesa, parar agora
+// vence (a previa do fim da rodada, a mesma do botao "parar"). So quando
+// nada ainda vai mudar sozinho: sem Oculto escondido e sem a carta do Coringa
+// por virar. Jogar mais so poderia perder: a vez acaba ali.
+static bool ja_vence(int j)
+{
+    if (j == primeiro || !F[j].lancados || carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1)) return false;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    return d.total[j] > d.total[outro(j)];
 }
 
 // Quem nao chegou a jogar: a mao inteira volta para a bolsa.

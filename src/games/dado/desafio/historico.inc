@@ -316,7 +316,7 @@ static void hist_dados(void)
     for (int c = 0; c < 2; c++) {
         int x = 40 + c * 296, y = HIST_Y0 + 8;
         gfx_texto(x + 150, y, "lances", C_TEXTO_M, GFX_MIUDO, false);
-        gfx_texto(x + 196, y, "vale", C_TEXTO_M, GFX_MIUDO, false);
+        gfx_texto(x + 192, y, "válido", C_TEXTO_M, GFX_MIUDO, false);
         gfx_texto(x + 232, y, "vence", C_TEXTO_M, GFX_MIUDO, false);
         for (int l = 0; l < HIST_LINHAS; l++) {
             int i = hist_rola + c * HIST_LINHAS + l;
@@ -336,7 +336,7 @@ static void hist_dados(void)
         }
     }
     int yl = HIST_Y0 + HIST_H - 18;
-    gfx_texto(40, yl, "vale: terminou valendo  ·  vence: você levou a rodada", C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(40, yl, "válido: terminou válido  ·  vence: você levou a rodada", C_TEXTO_M, GFX_MIUDO, false);
     if (n > 2 * HIST_LINHAS) {
         char s[40];
         snprintf(s, sizeof s, "%d-%d de %d", hist_rola + 1, hist_rola + 2 * HIST_LINHAS < n ? hist_rola + 2 * HIST_LINHAS : n, n);

@@ -884,7 +884,7 @@ static void lj_cola_estala(void)
 static void lj_cola_titulo(const char *pergunta)
 {
     int a = run.adesivo;
-    char s[96];
+    char s[160];
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "COLAR O ADESIVO", ADESIVO[a].luz);
     snprintf(s, sizeof s, "%s: %s %s  ·  %s", ADESIVO[a].nome, ADESIVO[a].l1, ADESIVO[a].l2, pergunta);
     txt_c(GFX_W / 2, MESA_Y0 + 40, s, C_MARFIM_S, false);
@@ -929,7 +929,7 @@ static void lj_cola_lados(void)
 {
     const peca_t *pc = &run.col[lj_cola_dado];
     int t = pc->tipo, n = ad_n_lados(t), a = run.adesivo;
-    char s[64];
+    char s[96];
     snprintf(s, sizeof s, "em qual lado do %s?", TIPO[t].nome);
     lj_cola_titulo(s);
     peca_parada(64, LJ_LADO_Y, 22, *pc, 0);                // o dado, com os selinhos
@@ -1143,7 +1143,7 @@ static void desenha_loja_run(void)
             txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.ad_vendido ? "Já colado. A próxima loja traz outro adesivo." : s,
                   C_MARFIM_S, false);
             if (!run.ad_vendido && t_lj_aviso <= 0)
-                txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H - 3, "Vai num lado de um dado da sua bolsa. Age quando esse lado cai para cima.",
+                txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H - 3, "Vai num lado de um dado da sua bolsa. Age quando o dado tira esse lado.",
                       C_TEXTO_M, false);
         }
     } else if (cursor == lj_item_troca()) {

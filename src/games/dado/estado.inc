@@ -157,7 +157,7 @@ static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perde
 static int  vence_j = -1;            // quem joga em segundo e ja passou do alvo: a vez acabou
 static float t_vence;                // desde quando (o placar dele acende)
 static peca_t oferta[3];
-static char aviso[96], veredito[64], nota[48];
+static char aviso[96], veredito[96], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
 static char anuncio[64];

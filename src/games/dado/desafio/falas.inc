@@ -36,12 +36,12 @@ static const char *const FALA_VIROU[3][2][2] = {        // [chefe][ganhou, perde
 static void virada_txt(int c, int forca, bool curto, char *s, int n)
 {
     if (c == 0) snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+1 em cada dado dele; você compra 1 a menos" : "+1 em cada dado dele")
-                         : (forca == 2 ? "Cada dado dele vale +1, e você compra 1 dado a menos." : "Cada dado dele vale +1."));
+                         : (forca == 2 ? "Cada dado dele pontua +1, e você compra 1 dado a menos." : "Cada dado dele pontua +1."));
     else if (c == 1) snprintf(s, (size_t)n, curto ? "aluguel: %d fichas suas por rodada"
                               : "No fim de cada rodada, ela leva %d fichas suas.", forca == 2 ? 5 : 3);
-    else snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+3 por queda sua; 1º e 2º dado dele x2" : "+3 por queda sua; 1º dado dele x2")
-                  : (forca == 2 ? "Cada dado seu que cair dá +3 a ele; os dois primeiros dele valem x2."
-                                : "Cada dado seu que cair dá +3 a ele, e o primeiro dele vale x2."));
+    else snprintf(s, (size_t)n, "%s", curto ? (forca == 2 ? "+3 por dado seu anulado; 1º e 2º dado dele x2" : "+3 por dado seu anulado; 1º dado dele x2")
+                  : (forca == 2 ? "Cada dado seu que for anulado dá +3 a ele; os dois primeiros dele pontuam x2."
+                                : "Cada dado seu que for anulado dá +3 a ele, e o primeiro dele pontua x2."));
 }
 
 static int des_dificuldade(void);

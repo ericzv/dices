@@ -8,16 +8,16 @@ static const pagina_t TUTORIAL[] = {
         "Quem faz mais pontos na rodada leva o pote. No fim, ganha quem tiver mais fichas.",
         NULL } },
     { "A bolsa e a sequência", {
-        "Cada jogador tem uma bolsa de dados. A cada rodada, você tira 7 dados dela e escolhe até 4 para a sua sequência, na ordem que quiser.",
+        "Cada jogador tem uma bolsa de dados. A cada rodada, você compra 7 dados dela (a sua mão) e escolhe até 4 para a sua sequência, na ordem que quiser.",
         "Depois joga os dados da sequência um por um, do primeiro ao último.",
         NULL } },
-    { "A regra da queda", {
-        "O primeiro dado sempre vale. Cada dado seguinte precisa ser IGUAL OU MAIOR que o último que vale.",
-        "Se sair menor, ele e o último que valia são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
+    { "A regra da sequência", {
+        "O primeiro dado é sempre válido. Cada dado seguinte precisa ser IGUAL OU MAIOR que o último dado válido.",
+        "Se sair menor, ele e o último dado válido são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
         NULL } },
     { "Parar ou arriscar", {
-        "Depois de cada dado: jogar o próximo ou parar com os pontos que tem. O botão jogar mostra a chance de cair (some nas dificuldades altas).",
-        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se vence, perde ou empata.",
+        "Depois de cada dado: jogar o próximo ou parar com os pontos que tem. O botão jogar mostra o risco de o próximo dado ser anulado (some nas dificuldades altas).",
+        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se vence, perde ou empata, e, passando do alvo, o turno acaba sozinho.",
         NULL } },
     { "Apostas", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
@@ -71,14 +71,14 @@ static void ilustra_tutorial(int pag, int y)
         }
         break;
     }
-    case 2: {                                        // 2 vale, 4 vale, sai 3: anula o 3 e o 4
+    case 2: {                                        // 2 valido, 4 valido, sai 3: anula o 3 e o 4
         static const int V[3] = { 2, 4, 3 };
         int passo = (int)(t_fase / 1.1f) % 4;        // 0: so o 2 ... 3: a queda
         for (int i = 0; i < 3 && i <= passo; i++) {
             int x = cx + (i - 1) * 110;
             bool anul = passo == 3 && i > 0;
             desenha_dado((float)x, (float)y + 22, 22, D_D6, 0, 0, V[i], 2, anul);
-            const char *r = anul ? (i == 2 ? "menor: anula" : "anulado") : "vale";
+            const char *r = anul ? (i == 2 ? "menor: anula" : "anulado") : "válido";
             txt_c(x, y + 52, r, anul ? C_VINHO_CLR : C_OURO, false);
         }
         break;
@@ -88,7 +88,7 @@ static void ilustra_tutorial(int pag, int y)
         desenha_dado((float)cx - 162, (float)y + 22, 20, D_D6, 0, 0, 4, 2, false);
         txt_c(cx - 188, y + 46, "6 pontos", C_OURO, false);
         bool parar = (int)(t_fase / 1.4f) % 2;
-        rotulo_tut(cx - 6, y + 10, "jogar: 50% de cair", !parar);
+        rotulo_tut(cx - 6, y + 10, "jogar: 50% de risco", !parar);
         rotulo_tut(cx + 170, y + 10, "parar: vence por 1", parar);
         break;
     }

@@ -8,9 +8,9 @@ também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
 sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
 
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
-Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre vale; os
-seguintes precisam ser iguais ou maiores que o último que vale — se sair menor,
-os dois se anulam. Entre os turnos tem aposta — menos quando quem abriu
+Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido; os
+seguintes precisam ser iguais ou maiores que o último dado válido — se sair
+menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
 termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
@@ -45,7 +45,7 @@ mais 4).
   na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (cai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
+  (sai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
   menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,

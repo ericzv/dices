@@ -144,7 +144,7 @@ static void nova_rodada(void)
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
-        snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que cai é meu! Hahaha!");
+        snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
         fala_comeca(3.2f);
         fala_e_curta = false;
     }
@@ -692,7 +692,7 @@ static void recolhe_quebrados(void)
                 snprintf(nota, sizeof nota, "%s ganha um Fantasma (%s)", J[q].nome, TIPO[F[j].tipo[k]].nome);
         }
     if (n_coringa)
-        snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói os %d dados seus que caíram" : "o Coringa destrói o dado seu que caiu", n_coringa);
+        snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga

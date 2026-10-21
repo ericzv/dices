@@ -84,9 +84,9 @@ enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
 #define PRECO_PACOTE 4
 static const char *const NOME_GRUPO[GR_N] = { "Números", "Ataque", "Defesa", "Combo" };
 static const char *const DESC_GRUPO[GR_N] = {
-    "Números grandes e dados que valem muito (ou nada) sozinhos.",
+    "Números grandes e dados que pontuam muito (ou nada) sozinhos.",
     "Dados que tiram pontos, anulam ou roubam do oponente.",
-    "Dados que não caem, seguram a sequência ou ganham quando caem.",
+    "Dados que não são anulados, protegem a sequência ou ganham quando são anulados.",
     "Dados que ganham com os outros dados da sua sequência." };
 // A cor de cada grupo (texto e moldura) e o papel do embrulho: a luz da
 // tampa, a frente e o lado na sombra, todos da paleta.

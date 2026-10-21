@@ -75,6 +75,19 @@ static void compra(jogador_t *p)
                 break;
             }
     }
+    // A mao em ordem: do dado de menos lados ao de mais (d2, d4, d6, d8, d12,
+    // d20); no mesmo tamanho, os do mesmo tipo juntos.
+    for (int a = 1; a < p->n_mao; a++) {
+        int8_t c = p->mao[a];
+        int t = p->col[c].tipo, k = a;
+        while (k > 0) {
+            int u = p->col[p->mao[k - 1]].tipo;
+            if (TIPO[u].lados < TIPO[t].lados || (TIPO[u].lados == TIPO[t].lados && u <= t)) break;
+            p->mao[k] = p->mao[k - 1];
+            k--;
+        }
+        p->mao[k] = c;
+    }
 }
 
 static void some_fantasmas(void);

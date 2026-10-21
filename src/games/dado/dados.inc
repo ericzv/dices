@@ -92,326 +92,363 @@ static int basico(int i)
 
 // "Fica" = termina a rodada valendo, sem ter sido anulado.
 static const tipo_t TIPO[D_N] = {
-    { "Moeda",            2, EF_NADA,         RAR_COMUM,    4, "1 ou 2: ótima para abrir a sequência" },
-    { "D4",               4, EF_NADA,         RAR_COMUM,    5, "quatro lados, de 1 a 4" },
-    { "D6",               6, EF_NADA,         RAR_COMUM,    0, "seis lados, de 1 a 6" },
-    { "D8",               8, EF_NADA,         RAR_INCOMUM,  9, "oito lados, de 1 a 8" },
-    { "D12",             12, EF_NADA,         RAR_RARO,    20, "doze lados, de 1 a 12" },
-    { "D20",             20, EF_NADA,         RAR_LENDA,   26, "vinte lados, de 1 a 20" },
-    { "Dobro",            6, EF_DOBRO,        RAR_INCOMUM, 16, "1 a 3: o dado seguinte vale x2" },
-    { "Viciado",          6, EF_VICIADO,      RAR_INCOMUM, 16, "rola 2 vezes e fica com o maior" },
-    { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "sempre de 4 a 12" },
-    { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "igual ao anterior: +6" },
-    { "Escudo",           6, EF_ESCUDO,       RAR_RARO,    15, "não pode ser anulado nem roubado" },
-    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "4: anula o maior do rival · 1: anula o seu menor" },
-    { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "no 8, rola de novo e soma" },
-    { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "com 3 ou 4: tira 4 do oponente" },
-    { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "com 7 ou 8: tira 4 do oponente" },
+    { "Moeda",            2, EF_NADA,         RAR_COMUM,    4, "Sai 1 ou 2" },
+    { "D4",               4, EF_NADA,         RAR_COMUM,    5, "Quatro lados, de 1 a 4" },
+    { "D6",               6, EF_NADA,         RAR_COMUM,    0, "Seis lados, de 1 a 6" },
+    { "D8",               8, EF_NADA,         RAR_INCOMUM,  9, "Oito lados, de 1 a 8" },
+    { "D12",             12, EF_NADA,         RAR_RARO,    20, "Doze lados, de 1 a 12" },
+    { "D20",             20, EF_NADA,         RAR_LENDA,   26, "Vinte lados, de 1 a 20" },
+    { "Dobro",            6, EF_DOBRO,        RAR_INCOMUM, 16, "Se tirar de 1 a 3: o próximo dado pontua x2" },
+    { "Viciado",          6, EF_VICIADO,      RAR_INCOMUM, 16, "Rola 2 vezes e fica com o maior" },
+    { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "Sempre de 4 a 12" },
+    { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "Igual ao último dado válido: +6" },
+    { "Escudo",           6, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
+    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado." },
+    { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "Se tirar 8, rola novamente somando a pontuação" },
+    { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "Com 3 ou 4: tira 4 pontos do oponente" },
+    { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "Com 7 ou 8: tira 4 pontos do oponente" },
     { "Espelho",          6, EF_ESPELHO,      RAR_RARO,    20, "1 ou 2: vira o maior do oponente" },
-    { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "com mais fichas que o oponente: +4" },
-    { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados +5 · 1: seus dados -5" },
+    { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "Com mais fichas que o oponente: +4" },
+    { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
-    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "com um 1 na sua sequência: rouba" },
-    { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "número fixo; quebra ao ser jogado" },
-    { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "5-6: anula o maior do rival · 1-2: os seus 2 menores" },
-    { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "com 3 ou 4: rouba o menor do oponente" },
-    { "Fartura",          4, EF_FARTURA,      RAR_INCOMUM, 14, "seus dados com 1 ou 2 valem x2" },
-    { "Moeda sorte",      2, EF_SORTE,        RAR_INCOMUM, 14, "1: ímpares +1 · 2: pares +1" },
-    { "Teimoso",          6, EF_TEIMOSO,      RAR_INCOMUM, 11, "não pode ser anulado" },
-    { "Semente",          2, EF_SEMENTE,      RAR_INCOMUM,  9, "seus dados somam 14+: +7" },
-    { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "valendo: queima o seu maior · 2: +10" },
-    { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "vale e tira o mesmo do oponente" },
-    { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 vale 10 · 1 a 3 vale 0" },
-    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "dois iguais: +4 · três iguais: +10" },
-    { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "cada dado igual a ele: +2" },
-    { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "anula os seus outros dados" },
-    { "Laser",            6, EF_LASER,        RAR_RARO,    16, "com 5 ou 6: anula um dado do oponente" },
-    { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "rola de novo o seu primeiro dado" },
-    { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "valendo: +2 por dado seu anulado" },
-    { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "sem vizinho valendo: +6" },
-    { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "se cair, cai sozinho" },
-    { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "não pontua; 3 ou 4: +6 no seguinte" },
-    { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "oponente com mais fichas: +4" },
-    { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO,    13, "maior dado da rodada: +4" },
-    { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "tirou 1: quebra e anula o anterior" },
-    { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO,    16, "guarda +1 cada vez que entra valendo" },
-    { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "ataques caem nele · valendo: +2" },
+    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Com um 1 na sua sequência: rouba o menor do oponente" },
+    { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "Número fixo; quebra ao ser lançado" },
+    { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "Se tirar 5 ou 6: anula o maior do oponente. Se tirar 1 ou 2: anula os seus 2 menores." },
+    { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Com 3 ou 4: rouba o menor do oponente" },
+    { "Fartura",          4, EF_FARTURA,      RAR_INCOMUM, 14, "Seus dados com 1 ou 2 pontuam x2" },
+    { "Moeda sorte",      2, EF_SORTE,        RAR_INCOMUM, 14, "1: seus dados ímpares +1 · 2: seus dados pares +1" },
+    { "Teimoso",          6, EF_TEIMOSO,      RAR_INCOMUM, 11, "Nunca é anulado" },
+    { "Semente",          2, EF_SEMENTE,      RAR_INCOMUM,  9, "Seus dados somam 14 ou mais: +7" },
+    { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "Válido: queima o seu maior dado · 2: +10" },
+    { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "Pontua e tira o mesmo número do oponente" },
+    { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 pontua 10 · 1 a 3 pontua 0" },
+    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Dois iguais: +4 · três iguais: +10" },
+    { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "Cada dado seu igual a ele: +2" },
+    { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "Anula os seus outros dados" },
+    { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula um dado do oponente" },
+    { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "Rola de novo o seu primeiro dado" },
+    { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "Válido: +2 por dado seu anulado" },
+    { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "Sem vizinho válido: +6" },
+    { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "Anulado pela sequência: só ele é anulado" },
+    { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "Não pontua · 3 ou 4: o próximo dado +6" },
+    { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "Oponente com mais fichas: +4" },
+    { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO,    13, "Maior dado da rodada: +4" },
+    { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "Tirou 1: quebra e anula o dado anterior" },
+    { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO,    16, "Guarda +1 cada vez que entra válido" },
+    { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "Recebe os ataques do oponente · válido: +2" },
     { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
-    { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "tira o mesmo do anterior que vale (até 6)" },
-    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado seu valendo" },
-    { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "anulado: renasce no fim" },
-    { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da fila, todos valendo: +4" },
-    { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "anulado ou roubado pelo rival: anula os dele" },
-    { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "valendo: anula um dado seu ao acaso" },
-    { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "único dado seu valendo: x2" },
-    { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "valendo: +1 por dado seu valendo" },
-    { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "valendo: +3 em cada válido depois dele" },
-    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "um d12 soma, um d8 tira" },
-    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "come o seu dado mais fraco: +1 (até +3)" },
-    { "Eco",              6, EF_ECO,          RAR_RARO,     0, "tira o mesmo número do 1º da fila" },
-    { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "o próximo tira o mesmo: +3" },
-    { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "o próximo não cai nem é roubado" },
-    { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "caiu: +2 em cada dado seu valendo" },
-    { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da fila, os quatro valendo: +5" },
+    { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "Tira o mesmo do último dado válido (até 6)" },
+    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado seu válido" },
+    { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "Se for anulado: renasce no fim" },
+    { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +4" },
+    { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "Anulado ou roubado pelo oponente: anula os dados dele" },
+    { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "Válido: anula um outro dado seu ao acaso" },
+    { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
+    { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
+    { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
+    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d8 subtrai" },
+    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
+    { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
+    { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo dado tira o mesmo: +3" },
+    { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
+    { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "Anulado: +2 em cada dado válido seu" },
+    { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da sequência, os quatro válidos: +5" },
     { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "5 ou 6: +1 por dado anulado na mesa" },
-    { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por d6 seu valendo" },
-    { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "cada ataque sofrido: -4 para o rival" },
-    { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "o próximo dado tira +1" },
-    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do rival vale metade" },
-    { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "começou atrás em fichas: x2" },
+    { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
+    { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada dado seu atacado: -4 para o oponente" },
+    { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
+    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente pontua metade" },
+    { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "Começou a rodada com menos fichas: x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
-    { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "valendo: 2 fichas do rival para você" },
-    { "Medusa",          12, EF_MEDUSA,       RAR_LENDA,     0, "valendo: sua fila vira pedra (Quebrados)" },
-    { "Misterioso",      20, EF_NADA,         RAR_LENDA,    0, "um d20 todo preto: ninguém sabe de onde veio" },
+    { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "Válido: 2 fichas do oponente para você" },
+    { "Medusa",          12, EF_MEDUSA,       RAR_LENDA,     0, "Válido: os dados da sequência viram Quebrados" },
+    { "Misterioso",      20, EF_NADA,         RAR_LENDA,    0, "Um d20 todo preto" },
     { "Rancor",           4, EF_RANCOR,       RAR_RARO,     0, "+1 por rodada que você perdeu" },
-    { "Esperança",        8, EF_ESPERANCA,    RAR_LENDA,    0, "com 15 fichas ou menos: x2" },
-    { "Ponte",            4, EF_PONTE,        RAR_RARO,     0, "nunca cai, e a fila pula ela" },
-    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "valendo: os outros válidos voltam à bolsa" },
+    { "Esperança",        8, EF_ESPERANCA,    RAR_LENDA,    0, "Com 15 fichas ou menos: x2" },
+    { "Ponte",            4, EF_PONTE,        RAR_RARO,     0, "Não é anulado pela sequência, que o ignora" },
+    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "Válido: os outros dados válidos voltam à bolsa" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
-    { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "vale sempre 1; some no fim da partida" },
-    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "tira 1, depois 2, 3...: +1 a cada lance" },
-    { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "o número fica escondido até o fim" },
-    { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "não pontua; valendo: x2 no seu menor" },
-    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "vale 0, nada o anula: baixa a barra" },
-    { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "valendo: + o total da fila ÷ 4" },
-    { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "valendo: -1 em cada dado do oponente" },
-    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "tirou 6: + metade dos seus dados" },
-    { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "lançado: um Fantasma na sua bolsa" },
-    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "valendo: um Fantasma na bolsa dele" },
-    { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "anulada: +4 no fim" },
-    { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "anula o seu de antes; nada a anula" },
+    { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "Pontua sempre 1; some no fim da partida" },
+    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "Tira 1, depois 2, 3... (+1 a cada lance)" },
+    { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "O número fica escondido até o fim da rodada" },
+    { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "Não pontua · válido: x2 no seu menor dado" },
+    { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "Pontua 0 e nunca é anulado" },
+    { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "Válido: + o total da sequência ÷ 4" },
+    { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "Válido: -1 em cada dado do oponente" },
+    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 6: + metade dos seus dados" },
+    { "Pacto",           12, EF_PACTO,        RAR_INCOMUM,  0, "Lançado: um Fantasma na sua bolsa" },
+    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: um Fantasma na bolsa do oponente" },
+    { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "Anulado: +4 no fim" },
+    { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
 // vai no painel da fila e do jogo; o medio, numa linha, no premio, na loja e na
 // escolha do que sai; o completo, na colecao e na tecla I.
 static const char *TEXTO_MEDIO[D_N] = {
-    [D_D2]        = "Uma moeda: 1 ou 2. Deixa a barra baixa para os próximos.",
-    [D_D4]        = "De 1 a 4. Vale pouco, mas é bom para abrir a sequência.",
-    [D_D6]        = "O dado comum da casa: de 1 a 6.",
-    [D_D8]        = "De 1 a 8. Vale mais, mas levanta a barra da sequência.",
-    [D_D12]       = "De 1 a 12. Forte no fim da sequência, arriscado no começo.",
-    [D_D20]       = "De 1 a 20. O maior da mesa: guarde para o fim da sequência.",
-    [D_DOBRO]     = "Tirando 1 a 3, o dado logo depois dele vale x2 no fim.",
-    [D_VICIADO]   = "Rola duas vezes e fica com o maior dos dois resultados.",
-    [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, todos com a mesma chance.",
-    [D_PAR]       = "Se tirar o mesmo número do último dado que vale: +6.",
-    [D_ESCUDO]    = "Nada o anula e nenhum ataque o alcança, nem roubo.",
-    [D_CARRASCO]  = "Valendo com 4, anula o maior dado do oponente. Tirando 1, anula o seu menor, ele inclusive.",
-    [D_EXPLOSIVO] = "Se tirar 8, rola de novo e soma (até 3 vezes seguidas).",
-    [D_MARTELO]   = "Se ficar valendo com 3 ou 4, tira 4 pontos do oponente.",
-    [D_PIRATA]    = "Se ficar valendo com 7 ou 8, tira 4 pontos do oponente.",
-    [D_ESPELHO]   = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
-    [D_FICHAS]    = "Se ficar valendo e você começou a rodada com mais fichas que o oponente: +4.",
-    [D_TUDO_NADA] = "Tirou 2: +5 no fim em cada dado seu que vale. Tirou 1: -5 em cada um.",
-    [D_MALDITO]   = "Se tirar 7 ou menos, anula a sua sequência inteira, e ele junto.",
-    [D_GATUNO]    = "Se ficar valendo e houver um 1 na sua sequência, rouba o menor dado do oponente.",
-    [D_QUEBRADO]  = "Sem sorteio: vale o número gravado nele. Quebra ao ser jogado.",
-    [D_INVEJOSO]  = "Valendo com 5 ou 6, anula o maior do oponente. Com 1 ou 2, anula os seus dois menores (ele pode ser um).",
-    [D_CARIDOSO]  = "Se ficar valendo com 3 ou 4, rouba o menor dado do oponente.",
-    [D_FARTURA]   = "Se ficar valendo, seus dados que tiraram 1 ou 2 valem x2 no fim.",
-    [D_SORTE]     = "Tirou 1: +1 em cada dado ímpar seu. Tirou 2: +1 em cada dado par.",
-    [D_TEIMOSO]   = "Nada o anula, nem a queda da sequência. Mas pode ser roubado.",
-    [D_SEMENTE]   = "Se ficar valendo e seus dados somarem 14 ou mais no fim: +7.",
-    [D_FOGO]      = "Se ficar valendo, o seu maior dado queima e sai. Tirando 2, ainda +10.",
-    [D_MALDICAO]  = "Se ficar valendo, soma para você e tira o mesmo do oponente.",
-    [D_TREVO]     = "Tirou 4: SORTE, vale 10. Tirou 1, 2 ou 3: vale 0.",
-    [D_JACKPOT]   = "Se ficar valendo: dois dados seus com o mesmo número, +4; três, +10.",
-    [D_COPIADOR]  = "Se ficar valendo, cada outro dado seu com o mesmo número ganha +2.",
-    [D_EGOISTA]   = "Anula todos os seus outros dados, menos a si mesmo. Pode ser anulado.",
-    [D_LASER]     = "Se ficar valendo com 5 ou 6, anula um dado do oponente, ao acaso.",
-    [D_VENTANIA]  = "Ao cair, rola de novo o primeiro dado da sua sequência.",
-    [D_MISERICORDIOSO] = "Se ficar valendo, ganha +2 por dado seu anulado na rodada.",
-    [D_SOLITARIO] = "Valendo, sem dado valendo logo antes nem logo depois dele: +6.",
-    [D_SENTINELA] = "Se cair na sequência, cai sozinho: o dado de antes continua valendo.",
-    [D_FERREIRO]  = "Não pontua. Tirando 3 ou 4, o dado logo depois ganha +6 se os dois valerem.",
-    [D_COBRADOR]  = "Se o oponente começou a rodada com mais fichas: +4.",
-    [D_DESAFIANTE] = "Se for o maior dado da rodada, dos dois lados: +4 no fim.",
-    [D_VIDRO]     = "Se tirar 1, se estilhaça: anula ele e o anterior, e some da bolsa.",
-    [D_ACUMULADOR] = "Cada vez que entra valendo, guarda +1 de bônus para as próximas (até +6).",
-    [D_SEGURANCA]  = "Valendo, leva no lugar dos outros a anulação ou o roubo do oponente, e ganha +2 no fim.",
-    [D_BUMERANGUE] = "Se tirar 1 ou 2, volta e rola de novo, uma vez.",
-    [D_GEMEO]     = "Tira o mesmo número do último dado seu que vale, até 6 (acima disso, ou sem um antes, rola normal).",
-    [D_PRISMA]    = "Se ficar valendo, +1 no fim para cada tipo diferente de dado seu valendo.",
-    [D_FENIX]     = "Se terminar anulado, renasce no fim valendo o número que tirou.",
-    [D_TRONO]     = "Se for o 4º dado da sequência e todos os seus terminarem valendo: +4.",
-    [D_CAVALO]    = "Se o oponente anular ou roubar este dado, todos os dados dele são anulados.",
-    [D_BERSERKER] = "Se ficar valendo, anula no fim um outro dado seu, ao acaso.",
-    [D_VIUVA]     = "Se terminar como o único dado seu valendo, vale x2 no fim.",
-    [D_CAPITAO]   = "Se ficar valendo, +1 no fim por dado seu valendo, ele incluído.",
-    [D_CHECKPOINT] = "Valendo: +3 no fim para cada dado seu lançado depois dele que ficar valendo.",
-    [D_SORTE_REVES] = "Rola um d12 que soma e um d8 que tira. Vale a diferença, até negativa.",
-    [D_AUTOFAGIA] = "Valendo, come o seu menor dado: ele sai da bolsa até a próxima partida, e ela ganha +1 (até +3).",
-    [D_ECO]       = "Tira o mesmo número do primeiro dado seu que vale (até 6). Pode cair, se a fila já subiu.",
-    [D_DOMINO]    = "Se ficar valendo e o próximo dado seu tirar o mesmo número: +3.",
-    [D_ANCORA]    = "O dado seu lançado logo depois dela não pode ser anulado nem roubado.",
-    [D_MARTIR]    = "Se cair, no fim cada dado seu que vale ganha +2.",
-    [D_PUXA_FILA] = "Se for o 1º da sequência e os quatro terminarem valendo: +5.",
-    [D_COVEIRO]   = "Valendo com 5 ou 6: +1 no fim por dado anulado na mesa, dos dois lados.",
-    [D_HEXA]      = "Se ficar valendo, +1 no fim por dado de seis lados seu que vale, ele incluído.",
-    [D_OURICO]    = "Valendo no fim: cada dado seu que o oponente anulou ou roubou custa 4 pontos a ele.",
-    [D_CALIBRE]   = "O próximo dado seu tira +1, sem passar do máximo dele.",
-    [D_SABOTADOR] = "Valendo com 5 ou 6: o maior dado do oponente vale metade no fim.",
-    [D_AZARAO]    = "Se você começou a rodada com menos fichas e ele ficar valendo: x2.",
-    [D_AMPULHETA] = "Se ficar valendo: +1 a cada 3 rodadas já jogadas, até +4.",
-    [D_AGIOTA]    = "Se ficar valendo, no fim 2 fichas do oponente passam para você, fora do pote.",
-    [D_MEDUSA]    = "Se ficar valendo, no fim os dados que você lançou, ela incluída, viram Quebrados com o número que tiraram.",
-    [D_MISTERIOSO] = "Um d20, de 1 a 20. Saiu de dentro de uma pedra.",
-    [D_RANCOR]    = "Se ficar valendo: +1 por rodada que você já perdeu nesta partida.",
-    [D_ESPERANCA] = "Se você começou a rodada com 15 fichas ou menos e ela ficar valendo: vale x2.",
-    [D_PONTE]     = "Nunca cai pela regra da fila, e o dado seguinte compara com o de antes dela.",
-    [D_GARIMPEIRO] = "Se ficar valendo, no fim os outros dados seus que valem voltam direto para a bolsa.",
-    [D_POTE_QUENTE] = "Se ficar valendo: +1 a cada 25 fichas no pote, no fim da rodada.",
-    [D_FANTASMA]  = "Vale sempre o número marcado (1). Não some ao ser lançado: só no fim da partida.",
-    [D_PREVISIVEL] = "Não sorteia: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
-    [D_OCULTO]    = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência, e pode cair ou derrubar.",
-    [D_SACRIFICIO] = "Não pontua. Se ficar valendo, o seu dado de menor número que pontua vale x2 no fim.",
-    [D_VAZIO]     = "Vale sempre 0, não pode ser anulado e não derruba o de antes: depois dele, qualquer número vale.",
-    [D_MEDIA]     = "Se ficar valendo, no fim ganha o total dos seus dados dividido por 4 (para baixo).",
-    [D_VAMPIRO]   = "Se ficar valendo, no fim cada dado do oponente que vale perde 1.",
-    [D_COLECIONADOR] = "Tirando 6, ganha a metade dos dados que você tem (Fantasmas contam).",
-    [D_PACTO]     = "Doze lados. Cada vez que é lançado, um Fantasma (vale 1) entra na sua bolsa.",
-    [D_ASSOMBRACAO] = "Se ficar valendo, no fim um Fantasma (vale 1) entra na bolsa do oponente.",
-    [D_FICHA_VELHA] = "Se terminar a rodada anulada (caída ou atacada), ganha +4 no fim.",
-    [D_SANGUESSUGA] = "Ao pousar, anula o seu dado de antes. Ela não pode ser anulada: nem cai, nem é derrubada.",
+    [D_D2]              = "Uma moeda: sai 1 ou 2.",
+    [D_D4]              = "Quatro lados: de 1 a 4.",
+    [D_D6]              = "Seis lados: de 1 a 6.",
+    [D_D8]              = "Oito lados: de 1 a 8.",
+    [D_D12]             = "Doze lados: de 1 a 12.",
+    [D_D20]             = "Vinte lados: de 1 a 20.",
+    [D_DOBRO]           = "Se tirar de 1 a 3, o próximo dado da sequência pontua x2 no fim.",
+    [D_VICIADO]         = "Rola duas vezes e fica com o maior dos dois resultados.",
+    [D_LASTRO]          = "Doze lados, mas só sai de 4 a 12, todos com a mesma chance.",
+    [D_PAR]             = "Se tirar o mesmo número do último dado válido da sequência: +6.",
+    [D_ESCUDO]          = "Nunca é anulado. Nunca é roubado.",
+    [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado.",
+    [D_EXPLOSIVO]       = "Se tirar 8, rola de novo, somando a pontuação (até 3 vezes seguidas).",
+    [D_MARTELO]         = "Se terminar válido com 3 ou 4, tira 4 pontos do oponente.",
+    [D_PIRATA]          = "Se terminar válido com 7 ou 8, tira 4 pontos do oponente.",
+    [D_ESPELHO]         = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
+    [D_FICHAS]          = "Se terminar válido e você começou a rodada com mais fichas que o oponente: +4.",
+    [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
+                          "-5.",
+    [D_MALDITO]         = "Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído.",
+    [D_GATUNO]          = "Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente.",
+    [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
+    [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
+                          "dados.",
+    [D_CARIDOSO]        = "Se terminar válido com 3 ou 4, rouba o menor dado do oponente.",
+    [D_FARTURA]         = "Se terminar válido, seus dados válidos que tiraram 1 ou 2 pontuam x2 no fim.",
+    [D_SORTE]           = "Se terminar válido, tirando 1: cada dado ímpar seu pontua +1. Tirando 2: cada dado par seu pontua "
+                          "+1.",
+    [D_TEIMOSO]         = "Nunca é anulado. Pode ser roubado.",
+    [D_SEMENTE]         = "Se terminar válido e seus dados válidos somarem 14 ou mais no fim: +7.",
+    [D_FOGO]            = "Se terminar válido, o seu maior dado queima e sai da bolsa. Tirando 2, ainda +10.",
+    [D_MALDICAO]        = "Se terminar válido, pontua para você e tira o mesmo número de pontos do oponente.",
+    [D_TREVO]           = "Tirando 4: SORTE, pontua 10. Tirando 1, 2 ou 3: pontua 0.",
+    [D_JACKPOT]         = "Se terminar válido: dois dados válidos seus com o mesmo número, +4; três, +10.",
+    [D_COPIADOR]        = "Se terminar válido, cada outro dado válido seu com o mesmo número pontua +2.",
+    [D_EGOISTA]         = "Anula todos os seus outros dados, menos a si mesmo. Pode ser anulado.",
+    [D_LASER]           = "Se terminar válido com 5 ou 6, anula um dado do oponente, ao acaso.",
+    [D_VENTANIA]        = "Ao ser lançado, rola de novo o primeiro dado da sua sequência.",
+    [D_MISERICORDIOSO]  = "Se terminar válido, pontua +2 por dado seu anulado na rodada.",
+    [D_SOLITARIO]       = "Se terminar válido, sem dado válido logo antes nem logo depois dele: +6.",
+    [D_SENTINELA]       = "Se for anulado pela sequência, só ele é anulado: o dado anterior continua válido.",
+    [D_FERREIRO]        = "Não pontua. Tirando 3 ou 4, o próximo dado pontua +6, se os dois terminarem válidos.",
+    [D_COBRADOR]        = "Se o oponente começou a rodada com mais fichas que você: +4.",
+    [D_DESAFIANTE]      = "Se for o maior dado válido da rodada, seu ou do oponente: +4 no fim.",
+    [D_VIDRO]           = "Se tirar 1, quebra: é anulado, anula o dado anterior e sai da bolsa.",
+    [D_ACUMULADOR]      = "Cada vez que entra válido na sequência, guarda +1 de bônus para as próximas vezes (até +6).",
+    [D_SEGURANCA]       = "Se estiver válido, é anulado ou roubado no lugar dos seus outros dados. Válido no fim: +2.",
+    [D_BUMERANGUE]      = "Se tirar 1 ou 2, volta e rola de novo, uma vez.",
+    [D_GEMEO]           = "Tira o mesmo número do último dado válido da sequência, até 6 (senão, rola normalmente).",
+    [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo diferente de dado válido seu.",
+    [D_FENIX]           = "Se terminar anulado, renasce no fim e pontua o número que tirou.",
+    [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +4.",
+    [D_CAVALO]          = "Se o oponente anular ou roubar este dado, todos os dados do oponente são anulados.",
+    [D_BERSERKER]       = "Se terminar válido, anula no fim um outro dado seu, ao acaso.",
+    [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
+    [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
+    [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
+    [D_SORTE_REVES]     = "Rola um d12 que soma e um d8 que subtrai. Pontua a diferença, até negativa.",
+    [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
+    [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
+    [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3.",
+    [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
+    [D_MARTIR]          = "Se terminar anulado, no fim cada dado válido seu pontua +2.",
+    [D_PUXA_FILA]       = "Se for o 1º da sequência e os quatro terminarem válidos: +5.",
+    [D_COVEIRO]         = "Se terminar válido com 5 ou 6: +1 no fim por dado anulado, seu ou do oponente.",
+    [D_HEXA]            = "Se terminar válido, +1 no fim por dado de seis lados válido seu, este dado incluído.",
+    [D_OURICO]          = "Se terminar válido: cada dado seu que o oponente anulou ou roubou custa 4 pontos a ele.",
+    [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
+    [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente pontua metade no fim.",
+    [D_AZARAO]          = "Se você começou a rodada com menos fichas e ele terminar válido: x2.",
+    [D_AMPULHETA]       = "Se terminar válido: +1 a cada 3 rodadas já jogadas, até +4.",
+    [D_AGIOTA]          = "Se terminar válido, no fim 2 fichas do oponente passam para você, fora do pote.",
+    [D_MEDUSA]          = "Se terminar válido, no fim os dados que você lançou, este incluído, viram Quebrados com o número que "
+                          "tiraram.",
+    [D_MISTERIOSO]      = "Um d20, de 1 a 20. Saiu de dentro de uma pedra.",
+    [D_RANCOR]          = "Se terminar válido: +1 por rodada que você já perdeu nesta partida.",
+    [D_ESPERANCA]       = "Se você começou a rodada com 15 fichas ou menos e este dado terminar válido: x2.",
+    [D_PONTE]           = "Não pode ser anulado pela sequência, e o dado seguinte compara com o dado anterior a ele.",
+    [D_GARIMPEIRO]      = "Se terminar válido, no fim os outros dados válidos seus voltam direto para a bolsa.",
+    [D_POTE_QUENTE]     = "Se terminar válido: +1 a cada 25 fichas no pote, no fim da rodada.",
+    [D_FANTASMA]        = "Pontua sempre o número marcado (1). Não quebra ao ser lançado: só some no fim da partida.",
+    [D_PREVISIVEL]      = "Não é sorteado: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
+    [D_OCULTO]          = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência e pode ser anulado ou "
+                          "anular.",
+    [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
+    [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
+    [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
+    [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
+    [D_COLECIONADOR]    = "Tirando 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
+    [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
+    [D_ASSOMBRACAO]     = "Se terminar válido, no fim um Fantasma (pontua 1) entra na bolsa do oponente.",
+    [D_FICHA_VELHA]     = "Se terminar a rodada anulado (pela sequência ou por outro dado), pontua +4 no fim.",
+    [D_SANGUESSUGA]     = "Ao ser lançado, anula o dado anterior na sequência. Este dado não pode ser anulado.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
-    [D_D2]        = "Uma moeda: sai 1 ou 2. Como primeiro dado da sequência, deixa a barra baixa para os que vêm depois.",
-    [D_D4]        = "Quatro lados, de 1 a 4. Vale pouco, mas é bom para abrir a sequência.",
-    [D_D6]        = "Seis lados, de 1 a 6. O dado comum da casa.",
-    [D_D8]        = "Oito lados, de 1 a 8. Vale mais que o D6, mas levanta a barra para os próximos dados.",
-    [D_D12]       = "Doze lados, de 1 a 12. Forte no fim da sequência, arriscado no começo: depois dele, é difícil não cair.",
-    [D_D20]       = "Vinte lados, de 1 a 20. O maior da mesa: melhor como último dado da sequência.",
-    [D_DOBRO]     = "Seis lados. Se tirar de 1 a 3, no fim da rodada o dado logo depois dele na sequência vale x2, se os dois estiverem valendo. Tirando 4 a 6, não dobra nada. Se esse dado for anulado, o x2 se perde: não passa para o próximo. Multiplicadores se somam: dois x2 no mesmo dado dão x4; três, x6.",
-    [D_VICIADO]   = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
-    [D_LASTRO]    = "Doze lados, mas só cai de 4 a 12, cada número com a mesma chance (1 em 9).",
-    [D_PAR]       = "Quatro lados. Se tirar o mesmo número do último dado que vale na sequência, ganha +6. Igual não cai; menor cai, como qualquer dado.",
-    [D_ESCUDO]    = "Seis lados. Nada anula este dado: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. E ninguém pode roubá-lo.",
-    [D_CARRASCO]  = "Quatro lados. Se terminar valendo com 4, anula o maior dado do oponente. Se tirar 1, anula o menor dado da sua própria sequência, que pode ser ele mesmo. Escudo e Teimoso resistem à anulação.",
-    [D_EXPLOSIVO] = "Oito lados. Tirando 8, rola de novo e soma ao que já tinha. Pode explodir até 3 vezes seguidas.",
-    [D_MARTELO]   = "Quatro lados. Se terminar valendo com 3 ou 4, tira 4 pontos do oponente. Com 1 ou 2, é um D4 comum.",
-    [D_PIRATA]    = "Oito lados. Se terminar valendo com 7 ou 8, tira 4 pontos do oponente. Os pontos não passam para você.",
-    [D_ESPELHO]   = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, espera valendo e vira no fim da rodada.",
-    [D_FICHAS]    = "Quatro lados. Se terminar valendo e você começou a rodada com mais fichas que o oponente, vale +4. É o contrário do Cobrador.",
-    [D_TUDO_NADA] = "Uma moeda de risco. Tirando 2 (e valendo), no fim cada dado seu que vale ganha +5. Tirando 1, mesmo caído, cada dado seu que vale perde 5.",
-    [D_MALDITO]   = "Vinte lados. Tirando 8 ou mais, é um D20 forte. Tirando 7 ou menos, anula a sua sequência inteira, e ele junto. Escudo e Teimoso resistem.",
-    [D_GATUNO]    = "Seis lados. Se terminar valendo e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente: os pontos dele passam para você. Se for anulado, não rouba.",
-    [D_QUEBRADO]  = "Oito lados, mas sem sorteio: vale sempre o número gravado nele. Depois de jogado, quebra e sai da sua bolsa.",
-    [D_INVEJOSO]  = "Seis lados. Se terminar valendo com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os dois menores dados da sua própria sequência, ele mesmo incluído (no empate, o primeiro). Com 3 ou 4, nada. Escudo e Teimoso resistem à anulação.",
-    [D_CARIDOSO]  = "Quatro lados. Se terminar valendo com 3 ou 4, rouba o menor dado do oponente: os pontos dele passam para você. Só o Escudo não pode ser roubado.",
-    [D_FARTURA]   = "Quatro lados. Se terminar valendo, no fim da rodada todos os seus dados que tiraram 1 ou 2 valem x2, ele também.",
-    [D_SORTE]     = "Uma moeda. Se terminar valendo: tirando 1, cada dado ímpar seu ganha +1; tirando 2, cada dado par ganha +1. Ela conta a si mesma.",
-    [D_TEIMOSO]   = "Seis lados. Nada o anula: nem a queda da sequência, nem o Agouro, nem o Egoísta, nem ataques. Mas pode ser roubado.",
-    [D_SEMENTE]   = "Uma moeda. Se terminar valendo e, no fim, os seus dados somarem 14 ou mais (com bônus e roubos), ganha +7.",
-    [D_FOGO]      = "Uma moeda. Se terminar valendo, o seu maior dado vira cinza no fim e sai da sua bolsa para sempre. Tirando 2, ainda dá +10 pontos; tirando 1, nada.",
-    [D_MALDICAO]  = "Quatro lados. Se terminar valendo, soma para você e tira do placar do oponente o mesmo número que tirou.",
-    [D_TREVO]     = "Quatro lados. Tirando 4: SORTE, vale 10. Tirando 1, 2 ou 3, vale zero. Na queda da sequência conta o número que saiu.",
-    [D_JACKPOT]   = "Quatro lados. Se terminar valendo e dois dados seus que valem mostrarem o mesmo número (ele pode ser um deles), +4 no fim; se forem três: JACKPOT, +10.",
-    [D_COPIADOR]  = "Seis lados. Se terminar valendo, no fim cada outro dado seu que mostrar o mesmo número ganha +2. Iguais nunca caem na sequência.",
-    [D_EGOISTA]   = "Doze lados. Ao cair, anula todos os seus outros dados da rodada, antes e depois dele, menos a si mesmo. Ele pode ser anulado: pela queda da sequência, por ataques, pelo Agouro. Escudo e Teimoso resistem.",
-    [D_LASER]     = "Seis lados. Se terminar valendo com 5 ou 6, um raio verde anula um dado do oponente escolhido ao acaso. Escudo e Teimoso resistem à anulação.",
-    [D_VENTANIA]  = "Oito lados. Ao cair, rola de novo o primeiro dado da sua sequência (nunca a si mesmo nem os outros). A sequência é refeita: dados podem cair ou voltar a valer.",
-    [D_MISERICORDIOSO] = "Quatro lados. Se terminar valendo, ganha +2 no fim para cada dado seu anulado na rodada.",
-    [D_SOLITARIO] = "Quatro lados. Se terminar valendo e os dados vizinhos dele na sequência (o de antes e o de depois) não estiverem valendo, ganha +6 no fim. Na ponta da sequência, só conta o vizinho que existe.",
-    [D_SENTINELA] = "Quatro lados. Se tirar menos que o último dado que vale, só ele cai: o dado de antes continua valendo.",
-    [D_FERREIRO] = "Quatro lados. Não pontua, mas conta na queda da sequência com o número que tirou. Se tirar 3 ou 4, o dado logo depois dele ganha +6 no fim, se os dois terminarem valendo.",
-    [D_COBRADOR] = "Quatro lados. Vale +4 se o oponente começou a rodada com mais fichas que você.",
-    [D_DESAFIANTE] = "Oito lados. Se terminar valendo e for maior que todos os outros dados que valem na rodada, dos dois jogadores, ganha +4 no fim. Empate não conta.",
-    [D_VIDRO] = "Oito lados. Tirando 1, se estilhaça: é anulado, anula também o último dado seu que valia (como na queda) e sai da sua bolsa para sempre.",
-    [D_ACUMULADOR] = "Oito lados. Cada vez que entra valendo na sequência, guarda +1 de bônus para as próximas vezes, até +6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar valendo.",
-    [D_SEGURANCA]  = "Quatro lados. Se o oponente anular ou roubar um dado seu (Carrasco, Laser, Invejoso, Caridoso, Gatuno) e o Segurança estiver valendo, quem é anulado ou roubado é o Segurança, e o outro dado fica. Se terminar valendo, ganha +2 no fim.",
-    [D_BUMERANGUE] = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
-    [D_GEMEO]     = "Seis lados. Tira o mesmo número do último dado seu que vale, e por isso não cai. Se esse número passar de 6, ou se não houver um dado valendo antes dele, rola normal.",
-    [D_PRISMA]    = "Oito lados. Se terminar valendo, ganha +1 no fim para cada tipo diferente de dado seu que vale na rodada, ele incluído.",
-    [D_FENIX]     = "Seis lados. Se terminar anulado (pela queda, por ataque, pelo Agouro ou pelo Egoísta), renasce no fim e vale o número que tirou. Roubado, não volta.",
-    [D_TRONO]     = "Doze lados. Se for o 4º dado da sua sequência e os quatro terminarem valendo, ele incluído, ganha +4 no fim.",
-    [D_CAVALO]    = "Oito lados. Se um poder do oponente anular ou roubar este dado, ele se abre: todos os dados do oponente que valem são anulados, e o que ele roubou na rodada deixa de contar. Escudo e Teimoso resistem.",
-    [D_BERSERKER] = "Vinte lados. Se terminar valendo, no fim anula um outro dado seu que vale, escolhido ao acaso. Escudo e Teimoso resistem.",
-    [D_VIUVA]     = "Oito lados. Se terminar a rodada como o único dado seu que vale, vale x2 no fim. Soma com outros multiplicadores.",
-    [D_CAPITAO]   = "Oito lados. Se terminar valendo, ganha +1 no fim para cada dado seu que vale na rodada, ele incluído.",
-    [D_CHECKPOINT] = "Oito lados. Se terminar valendo, no fim da rodada cada dado seu lançado depois dele que "
-                     "também terminar valendo ganha +3.",
-    [D_SORTE_REVES] = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e os dois viram um dado só, que vale a "
-                      "Sorte menos o Revés (de -7 a 11). Negativo, tira pontos da sequência - e o próximo dado só "
-                      "precisa ser maior que ele.",
-    [D_AUTOFAGIA] = "Doze lados. Se terminar valendo, no fim come o outro dado seu de menor número que vale (no "
-                    "empate, o primeiro): ele é anulado e sai da bolsa até o fim da partida (na próxima, volta), e a "
-                    "Autofagia ganha +1 nas rodadas seguintes, até +3. Com a bolsa abaixo de 8 dados, ou já com +3, "
-                    "ela só anula. Escudo e Teimoso resistem.",
-    [D_ECO]       = "Seis lados. Tira o mesmo número do primeiro dado seu que vale na sequência, como um eco. Se esse "
-                    "número passar de 6, ou se ele for o primeiro, rola normal. Se a fila já subiu, o eco é menor que o "
-                    "último e cai junto com ele.",
-    [D_DOMINO]    = "Seis lados. Se terminar valendo e o dado seu lançado logo depois dele tirar o mesmo número, "
-                    "ganha +3 no fim. Combina com o Eco, o Gêmeo e o Par.",
-    [D_ANCORA]    = "Quatro lados. O dado seu lançado logo depois dela, com ela valendo, fica preso: não pode ser "
-                    "anulado (nem pela queda da sequência, nem por poderes) nem roubado. Se ele for menor, quem cai é "
-                    "a Âncora.",
-    [D_MARTIR]    = "Quatro lados. Se terminar a rodada anulado, cada dado seu que vale no fim ganha +2. Combina "
-                    "com quem anula os próprios dados.",
-    [D_PUXA_FILA] = "Oito lados. Se for o primeiro dado da sua sequência e os quatro terminarem valendo, ele "
-                    "incluído, ganha +5 no fim.",
-    [D_COVEIRO]   = "Seis lados. Se terminar valendo com 5 ou 6, ganha +1 no fim para cada dado anulado na mesa, "
-                    "seus e do oponente.",
-    [D_HEXA]      = "Seis lados. Se terminar valendo, ganha +1 no fim para cada dado de seis lados seu que vale na "
-                    "rodada, ele incluído.",
-    [D_OURICO]    = "Seis lados. Se terminar valendo, cada dado seu que um poder do oponente anulou ou roubou na "
-                    "rodada custa 4 pontos a ele no fim.",
-    [D_CALIBRE]   = "Quatro lados. O dado seu lançado logo depois dele, com ele valendo, tira 1 a mais, sem passar do "
-                    "máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
-    [D_SABOTADOR] = "Seis lados. Se terminar valendo com 5 ou 6, o maior dado do oponente que vale passa a valer "
-                    "metade no fim (arredondado para baixo).",
-    [D_AZARAO]    = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar valendo, "
-                    "vale x2. Soma com outros multiplicadores.",
-    [D_AMPULHETA] = "Seis lados. Se terminar valendo, ganha +1 no fim a cada 3 rodadas já jogadas na partida, até "
-                    "+4: fraco no começo, forte no fim.",
-    [D_AGIOTA]    = "Quatro lados. Se terminar valendo, no fim da rodada 2 fichas do oponente passam para você, "
-                    "fora do pote, ganhe quem ganhar.",
-    [D_MEDUSA]    = "Doze lados. Se terminar valendo, no fim da rodada todos os dados da sua sequência (os que caíram "
-                    "também; os roubados, não), ela incluída, viram pedra: cada um vira um Quebrado com o número que "
-                    "tirou, que sai uma vez com esse número e quebra.",
-    [D_MISTERIOSO] = "Vinte lados, de 1 a 20, todo preto. Estava dentro de uma pedra que tinha um número negativo; "
-                     "não faz nada além de rolar.",
-    [D_RANCOR]    = "Quatro lados. Se terminar valendo, ganha +1 no fim para cada rodada que você já perdeu na "
-                    "partida (correr conta como perder; empate, não). Cresce enquanto você está atrás.",
-    [D_ESPERANCA] = "Oito lados. Se você começou a rodada com 15 fichas ou menos e ela terminar valendo, vale x2 no "
-                    "fim. Soma com outros multiplicadores.",
-    [D_PONTE]     = "Quatro lados. Não cai pela regra da fila, por menor que saia, e a regra não a enxerga: o dado "
-                    "seguinte só precisa igualar ou passar o último que vale antes dela. Ataques ainda a anulam.",
-    [D_GARIMPEIRO] = "Seis lados. Se terminar valendo, no fim da rodada os outros dados da sua sequência que "
-                     "terminaram valendo voltam direto para a bolsa, sem esperar ela esvaziar: podem sair de novo já "
-                     "na próxima rodada. Ele mesmo, os que caíram e os que ficaram na mão seguem o caminho de sempre.",
-    [D_POTE_QUENTE] = "Oito lados. Se terminar valendo, ganha +1 no fim a cada 25 fichas que estiverem no pote. "
-                      "Quanto mais alta a aposta, mais ele vale.",
-    [D_FANTASMA]  = "Seis lados, mas vale sempre o número marcado nele (1). Como o Quebrado, não sorteia; mas não "
-                    "quebra ao ser lançado: volta para a bolsa como os outros e só some no fim da partida. A Bruxa "
-                    "enche a bolsa de quem joga contra ela com eles.",
-    [D_PREVISIVEL] = "Doze lados, mas não sorteia: na primeira vez que é lançado na partida tira 1, na segunda 2, "
-                     "e assim por diante, até 12. Sobe a cada lance, valendo ou não. Recomeça do 1 a cada partida.",
-    [D_OCULTO]    = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto "
-                    "isso não cai, não derruba ninguém e não conta na sequência: o dado seguinte compara com o de "
-                    "antes dele. No fim ele aparece e a sequência é refeita: pode valer, cair ou derrubar o de antes.",
-    [D_SACRIFICIO] = "Quatro lados, mas não pontua. Se terminar valendo, no fim o seu dado de menor número que "
-                     "pontua (sem contar ele) vale x2. Soma com outros multiplicadores.",
-    [D_VAZIO]     = "Vale sempre 0. Nunca cai e nunca derruba o dado de antes, por maior que ele seja: abaixa a "
-                    "barra da sequência para 0, e depois dele qualquer número vale. Não pode ser anulado: nem a "
-                    "sequência nem ataque nenhum o derruba. Pode ser roubado.",
-    [D_MEDIA]     = "Quatro lados. Se terminar valendo, ganha no fim o total dos seus dados na sequência (com "
-                    "bônus e multiplicadores, ele incluído) dividido por 4, arredondado para baixo.",
-    [D_VAMPIRO]   = "Quatro lados. Se terminar valendo, com qualquer número, no fim cada dado do oponente que vale "
-                    "perde 1 ponto.",
-    [D_COLECIONADOR] = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para "
-                       "baixo). Os Fantasmas que entraram na sua bolsa contam: é o contra deles.",
-    [D_PACTO]     = "Doze lados. O preço: cada vez que é lançado, valendo ou não, um Fantasma (vale sempre 1) "
-                    "entra na sua bolsa até o fim da partida.",
-    [D_ASSOMBRACAO] = "Seis lados. Se terminar valendo, no fim da rodada um Fantasma (vale sempre 1) entra na bolsa "
-                      "do oponente até o fim da partida.",
-    [D_FICHA_VELHA] = "Uma ficha gasta, de 1 ou 2. Valendo, conta o que tirou, como uma moeda. Se terminar a rodada "
-                      "anulada, caída na sequência ou atacada pelo oponente, ganha +4 no fim, fora dos "
-                      "multiplicadores.",
-    [D_SANGUESSUGA] = "Oito lados. Ao pousar, anula o seu dado de antes na sequência (se ele puder ser anulado), e "
-                      "a sequência segue a partir dela. Ela não pode ser anulada: não cai mesmo menor que o de antes "
-                      "e nenhum ataque a derruba. Pode ser roubada.",
+    [D_D2]              = "Uma moeda: sai 1 ou 2.",
+    [D_D4]              = "Quatro lados, de 1 a 4.",
+    [D_D6]              = "Seis lados, de 1 a 6.",
+    [D_D8]              = "Oito lados, de 1 a 8.",
+    [D_D12]             = "Doze lados, de 1 a 12.",
+    [D_D20]             = "Vinte lados, de 1 a 20.",
+    [D_DOBRO]           = "Seis lados. Se terminar válido, tirando de 1 a 3: o próximo dado da sequência pontua x2 no fim da "
+                          "rodada, se também terminar válido. Tirando de 4 a 6, pontua normalmente.",
+    [D_VICIADO]         = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
+    [D_LASTRO]          = "Doze lados, mas só sai de 4 a 12, cada número com a mesma chance (1 em 9).",
+    [D_PAR]             = "Quatro lados. Se tirar o mesmo número do último dado válido da sequência, pontua +6.",
+    [D_ESCUDO]          = "Seis lados. Nunca é anulado. Nunca é roubado.",
+    [D_CARRASCO]        = "Quatro lados. Se terminar válido, tirando 4: anula o maior dado do oponente. Tirando 1, mesmo se "
+                          "terminar anulado: anula o seu menor dado.",
+    [D_EXPLOSIVO]       = "Oito lados. Tirando 8, rola de novo e soma a pontuação da nova rolagem ao 8 que já tinha. Pode rolar "
+                          "de novo, a cada 8, até 3 vezes seguidas (pontuação máxima: 32).",
+    [D_MARTELO]         = "Quatro lados. Se terminar válido, tirando 3 ou 4: tira 4 pontos do oponente. Tirando 1 ou 2, pontua "
+                          "normalmente.",
+    [D_PIRATA]          = "Oito lados. Se terminar válido, tirando 7 ou 8: tira 4 pontos do oponente. Os pontos não passam para "
+                          "você.",
+    [D_ESPELHO]         = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, "
+                          "o Espelho permanece válido até o fim do turno do oponente, vira no fim da rodada e pode ser anulado "
+                          "pela sequência.",
+    [D_FICHAS]          = "Quatro lados. Se terminar válido e você começou a rodada com mais fichas que o oponente, pontua +4.",
+    [D_TUDO_NADA]       = "Uma moeda de risco. Tirando 2 e terminando válido: cada dado válido da sequência pontua +5. Tirando "
+                          "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
+    [D_MALDITO]         = "Vinte lados. Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 8 ou "
+                          "mais, pontua normalmente.",
+    [D_GATUNO]          = "Seis lados. Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do "
+                          "oponente: os pontos dele passam para você.",
+    [D_QUEBRADO]        = "Oito lados, mas não é sorteado: pontua sempre o número gravado nele. Depois de lançado, quebra e sai "
+                          "da sua bolsa.",
+    [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "
+                          "tirando 1 ou 2: anula os seus 2 menores dados. Tirando 3 ou 4, pontua normalmente.",
+    [D_CARIDOSO]        = "Quatro lados. Se terminar válido, tirando 3 ou 4, rouba o menor dado do oponente: os pontos dele "
+                          "passam para você. Se tirar 1 ou 2, pontua normalmente, mas não rouba dado do oponente.",
+    [D_FARTURA]         = "Quatro lados. Se terminar válido, no fim da rodada cada dado válido seu que tirou 1 ou 2 pontua x2, "
+                          "este dado incluído.",
+    [D_SORTE]           = "Uma moeda. Se terminar válido, tirando 1: cada dado válido seu com número ímpar pontua +1. Tirando "
+                          "2: cada dado válido seu com número par pontua +1. Conta a si mesma.",
+    [D_TEIMOSO]         = "Seis lados. Nunca é anulado. Pode ser roubado.",
+    [D_SEMENTE]         = "Uma moeda. Se terminar válido e, no fim da rodada, os seus dados válidos somarem 14 ou mais (com "
+                          "bônus e roubos), pontua +7.",
+    [D_FOGO]            = "Uma moeda. Se terminar válido, o seu maior dado vira cinza no fim da rodada e sai da sua bolsa para "
+                          "sempre. Tirando 2, ainda pontua +10; tirando 1, nada.",
+    [D_MALDICAO]        = "Quatro lados. Se terminar válido, pontua para você e tira do oponente o mesmo número de pontos que "
+                          "tirou.",
+    [D_TREVO]           = "Quatro lados. Tirando 4: SORTE, pontua 10. Tirando 1, 2 ou 3, pontua 0. Para a sequência, conta o "
+                          "número que saiu.",
+    [D_JACKPOT]         = "Quatro lados. Se terminar válido e dois dados válidos seus mostrarem o mesmo número (este dado pode "
+                          "ser um deles), pontua +4 no fim da rodada; se forem três: JACKPOT, +10.",
+    [D_COPIADOR]        = "Seis lados. Se terminar válido, no fim da rodada cada outro dado válido seu com o mesmo número "
+                          "pontua +2.",
+    [D_EGOISTA]         = "Doze lados. Ao ser lançado, anula os outros dados da sequência, antes e depois dele, menos a si "
+                          "mesmo. Este dado pode ser anulado.",
+    [D_LASER]           = "Seis lados. Se terminar válido com 5 ou 6, um raio verde anula um dado do oponente escolhido ao "
+                          "acaso.",
+    [D_VENTANIA]        = "Oito lados. Ao ser lançado, rola de novo o primeiro dado da sua sequência, e a sequência é refeita: "
+                          "dados podem ser anulados ou voltar a ser válidos. Se for o primeiro da sequência, não faz nada.",
+    [D_MISERICORDIOSO]  = "Quatro lados. Se terminar válido, pontua +2 no fim da rodada para cada dado seu anulado.",
+    [D_SOLITARIO]       = "Quatro lados. Se terminar válido e os dados vizinhos dele na sequência (o anterior e o seguinte) não "
+                          "forem válidos, pontua +6 no fim da rodada. Na ponta da sequência, só conta o vizinho que existe.",
+    [D_SENTINELA]       = "Quatro lados. Se tirar menos que o último dado válido, só ele é anulado: o dado anterior continua "
+                          "válido.",
+    [D_FERREIRO]        = "Quatro lados. Não pontua, mas conta na sequência com o número que tirou. Tirando 3 ou 4, o próximo "
+                          "dado da sequência pontua +6 no fim da rodada, se os dois terminarem válidos.",
+    [D_COBRADOR]        = "Quatro lados. Pontua +4 se o oponente começou a rodada com mais fichas que você.",
+    [D_DESAFIANTE]      = "Oito lados. Se terminar válido e for maior que todos os outros dados válidos da rodada, seus e do "
+                          "oponente, pontua +4 no fim da rodada. Empate não conta.",
+    [D_VIDRO]           = "Oito lados. Tirando 1, quebra: é anulado, anula também o último dado válido seu e sai da sua bolsa "
+                          "para sempre.",
+    [D_ACUMULADOR]      = "Oito lados. Cada vez que entra válido na sequência, guarda +1 de bônus para as próximas vezes, até "
+                          "+6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar válido.",
+    [D_SEGURANCA]       = "Quatro lados. Se o oponente anular ou roubar um dado seu e o Segurança estiver válido, quem é "
+                          "anulado ou roubado é o Segurança, e o outro dado fica. Se terminar válido, pontua +2 no fim da "
+                          "rodada.",
+    [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
+    [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
+                          "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",
+    [D_PRISMA]          = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada tipo diferente de dado válido "
+                          "seu, este dado incluído.",
+    [D_FENIX]           = "Seis lados. Se terminar anulado, renasce no fim da rodada e pontua o número que tirou. Se for "
+                          "roubado, não volta.",
+    [D_TRONO]           = "Doze lados. Se for o 4º dado da sua sequência e os quatro terminarem válidos, este dado incluído, "
+                          "pontua +4 no fim da rodada.",
+    [D_CAVALO]          = "Oito lados. Se um dado do oponente anular ou roubar este dado, todos os dados válidos do oponente "
+                          "são anulados, e o que ele roubou na rodada deixa de contar.",
+    [D_BERSERKER]       = "Vinte lados. Se terminar válido, no fim da rodada anula um outro dado válido seu, escolhido ao "
+                          "acaso.",
+    [D_VIUVA]           = "Oito lados. Se terminar a rodada como o único dado válido seu, pontua x2 no fim.",
+    [D_CAPITAO]         = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada dado válido seu, este dado "
+                          "incluído.",
+    [D_CHECKPOINT]      = "Oito lados. Se terminar válido, no fim da rodada cada dado seu lançado depois dele que também "
+                          "terminar válido pontua +3.",
+    [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
+                          "Negativo, tira pontos da sequência, e o dado seguinte só precisa ser maior que ele.",
+    [D_AUTOFAGIA]       = "Doze lados. Se terminar válido, no fim da rodada anula o outro dado válido seu de menor número, que "
+                          "sai da bolsa até o fim da partida, e a Autofagia ganha +1 nas rodadas seguintes, até +3. Se você "
+                          "tiver menos de 8 dados, ou ela já tiver +3, só anula.",
+    [D_ECO]             = "Seis lados. Tira o mesmo número do primeiro dado válido da sequência. Se esse número passar de 6, ou "
+                          "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
+                          "sequência.",
+    [D_DOMINO]          = "Seis lados. Se terminar válido e o dado seu lançado logo depois dele tirar o mesmo número, pontua +3 "
+                          "no fim da rodada.",
+    [D_ANCORA]          = "Quatro lados. O dado seu lançado logo depois da Âncora, com ela válida, não pode ser anulado (nem "
+                          "pela sequência, nem por outro dado) nem roubado. Se ele for menor, quem é anulada pela sequência é a "
+                          "Âncora.",
+    [D_MARTIR]          = "Quatro lados. Se terminar a rodada anulado, cada dado válido seu pontua +2 no fim.",
+    [D_PUXA_FILA]       = "Oito lados. Se for o primeiro dado da sua sequência e os quatro terminarem válidos, este dado "
+                          "incluído, pontua +5 no fim da rodada.",
+    [D_COVEIRO]         = "Seis lados. Se terminar válido com 5 ou 6, pontua +1 no fim da rodada para cada dado anulado, seus e "
+                          "do oponente.",
+    [D_HEXA]            = "Seis lados. Se terminar válido, pontua +1 no fim da rodada para cada dado de seis lados válido seu, "
+                          "este dado incluído.",
+    [D_OURICO]          = "Seis lados. Se terminar válido, cada dado seu que um dado do oponente anulou ou roubou na rodada "
+                          "custa 4 pontos ao oponente no fim.",
+    [D_CALIBRE]         = "Quatro lados. O dado seu lançado logo depois dele, com o Calibre válido, tira 1 a mais, sem passar "
+                          "do máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
+    [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado válido do oponente passa a pontuar metade no "
+                          "fim da rodada (arredondado para baixo).",
+    [D_AZARAO]          = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar válido, pontua "
+                          "x2.",
+    [D_AMPULHETA]       = "Seis lados. Se terminar válido, pontua +1 no fim da rodada a cada 3 rodadas já jogadas na partida, "
+                          "até +4.",
+    [D_AGIOTA]          = "Quatro lados. Se terminar válido, no fim da rodada 2 fichas do oponente passam para você, fora do "
+                          "pote, ganhe quem ganhar.",
+    [D_MEDUSA]          = "Doze lados. Se terminar válido, no fim da rodada todos os dados da sua sequência (os anulados "
+                          "também; os roubados, não), este dado incluído, viram pedra: cada um vira um Quebrado com o número "
+                          "que tirou, que sai uma vez com esse número e quebra.",
+    [D_MISTERIOSO]      = "Vinte lados, de 1 a 20, todo preto. Estava dentro de uma pedra que tinha um número negativo; não faz "
+                          "nada além de rolar.",
+    [D_RANCOR]          = "Quatro lados. Se terminar válido, pontua +1 no fim da rodada para cada rodada que você já perdeu na "
+                          "partida (correr conta como perder; empate, não).",
+    [D_ESPERANCA]       = "Oito lados. Se você começou a rodada com 15 fichas ou menos e este dado terminar válido, pontua x2 "
+                          "no fim.",
+    [D_PONTE]           = "Quatro lados. Este dado não pode ser anulado pela sequência, mas pode ser anulado por outro dado. A "
+                          "sequência o ignora: o dado seguinte só precisa igualar ou passar o último dado válido antes dele.",
+    [D_GARIMPEIRO]      = "Seis lados. Se terminar válido, no fim da rodada os outros dados válidos da sua sequência voltam "
+                          "direto para a bolsa e podem sair de novo já na próxima rodada.",
+    [D_POTE_QUENTE]     = "Oito lados. Se terminar válido, pontua +1 no fim da rodada a cada 25 fichas no pote.",
+    [D_FANTASMA]        = "Seis lados, mas não é sorteado: pontua sempre o número marcado nele (1). Não quebra ao ser lançado: "
+                          "volta para a bolsa como os outros e só some no fim da partida.",
+    [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 1, na segunda 2, e "
+                          "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 1 a cada partida.",
+    [D_OCULTO]          = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto isso "
+                          "não é anulado, não anula nenhum dado e não conta na sequência: o dado seguinte compara com o dado "
+                          "anterior a ele. No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o "
+                          "dado anterior.",
+    [D_SACRIFICIO]      = "Quatro lados, mas não pontua. Se terminar válido, no fim da rodada o seu dado válido de menor "
+                          "número, entre os que pontuam, pontua x2.",
+    [D_VAZIO]           = "Seis lados, mas pontua sempre 0. Nunca é anulado e nunca anula o dado anterior, por maior que ele "
+                          "seja: depois dele, qualquer número é válido. Pode ser roubado.",
+    [D_MEDIA]           = "Quatro lados. Se terminar válido, ganha no fim da rodada um bônus igual ao total dos seus dados "
+                          "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
+    [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
+                          "perde 1 ponto.",
+    [D_COLECIONADOR]    = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
+                          "Fantasmas que entraram na sua bolsa contam.",
+    [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "
+                          "até o fim da partida.",
+    [D_ASSOMBRACAO]     = "Seis lados. Se terminar válido, no fim da rodada um Fantasma (pontua sempre 1) entra na bolsa do "
+                          "oponente até o fim da partida.",
+    [D_FICHA_VELHA]     = "Uma ficha gasta, de 1 ou 2. Se terminar válido, pontua o que tirou, como uma moeda. Se terminar a "
+                          "rodada anulado, pela sequência ou por um dado do oponente, pontua +4 no fim, fora dos "
+                          "multiplicadores.",
+    [D_SANGUESSUGA]     = "Oito lados. Ao ser lançado, anula o dado anterior na sequência (se ele puder ser anulado), e a "
+                          "sequência segue a partir dela. Este dado não pode ser anulado.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };

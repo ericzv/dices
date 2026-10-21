@@ -985,17 +985,18 @@ static int risco(int j)
     int t = tipo_de(j, k), lados = TIPO[t].lados, ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
     int L = l >= 0 ? f->valor[l] : 0;
+    const peca_t *p = peca_fila(j, k);       // cada lado com o numero que tira (o Remendo soma 2)
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
-    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12, L) ? 100 : 0;
-    if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, (int8_t)f->fixo[k], L) ? 100 : 0;
-    if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, f->fixo[k] ? (int8_t)f->fixo[k] : 1, L) ? 100 : 0;
+    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12), L) ? 100 : 0;
+    if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, remenda(p, (int8_t)f->fixo[k]), L) ? 100 : 0;
+    if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] ? (int8_t)f->fixo[k] : 1), L) ? 100 : 0;
     if (egoista_antes(j, k) >= 0 && !resiste_egoista(t)) return 100;   // cai com certeza
     if (ef == EF_EGOISTA) {                  // so cai diante de quem resiste a ele
         int m = 0;
         for (int i = 0; i < k; i++)
             if (f->est[i] == V_VALIDO && resiste_ego(j, i) && f->valor[i] > m) m = f->valor[i];
         int ruins = 0;
-        for (int a = 1; a <= lados; a++) ruins += a < m;
+        for (int a = 1; a <= lados; a++) ruins += remenda(p, a) < m;
         return ruins * 100 / lados;
     }
     int ruins = 0, total = 0;
@@ -1003,14 +1004,15 @@ static int risco(int j)
         for (int a = 1; a <= lados; a++)
             for (int b = 1; b <= (ef == EF_SORTE_REVES ? SR_REVES : lados); b++) {
                 total++;
-                if (cai_depois(j, ef == EF_VICIADO ? (a > b ? a : b) : a - b, L)) ruins++;
+                int va = remenda(p, a), vb = ef == EF_VICIADO ? remenda(p, b) : b;
+                if (cai_depois(j, ef == EF_VICIADO ? (va > vb ? va : vb) : va - vb, L)) ruins++;
             }
         return ruins * 100 / total;
     }
     for (int a = ef == EF_LASTRO ? 4 : 1; a <= lados; a++) {   // Lastro: so 4 a 12
-        int v = a;
+        int v = remenda(p, a);
         total++;
-        if (ef == EF_EXPLODE && v == lados) continue;
+        if (ef == EF_EXPLODE && v >= lados) continue;
         if (ef == EF_ESPELHO && v <= 2) continue;
         if ((ef == EF_MALDITO && v <= 7) || (ef == EF_VIDRO && v == 1)) { ruins++; continue; }
         if (cai_depois(j, v, L)) ruins++;

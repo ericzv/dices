@@ -41,7 +41,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_LOBO]         = { "Lobo", "tirando este lado:", "-2 para o oponente", 3, 0,
                           RGB(190, 56, 60), RGB(226, 164, 168), C_BRANCO,
                           { "#.....#", "##...##", "#######", "#.###.#", "#######", ".#####.", "..###.." } },
-    [AD_REMENDO]      = { "Remendo", "este lado", "pontua +2", 4, 0,
+    [AD_REMENDO]      = { "Remendo", "este lado", "tem 2 a mais", 4, 0,
                           RGB(88, 152, 84), RGB(130, 204, 112), C_BRANCO,
                           { "#.#.#.#", ".......", "#..#..#", "..###..", "#..#..#", ".......", "#.#.#.#" } },
     [AD_RASPADINHA]   = { "Raspadinha", "tirando este lado, se terminar", "válido: +10, e o adesivo sai", 2, 0,
@@ -71,6 +71,9 @@ static int ad_no_lado(const peca_t *p, int lado)
     uint8_t b = p->ad[(lado - 1) / 2];
     return (lado - 1) & 1 ? b >> 4 : b & 15;
 }
+// O numero que o lado tira: o Remendo soma 2, e e esse o numero que conta,
+// na sequencia e nos poderes do dado (o Trevo com Remendo no 2 tira 4).
+static int remenda(const peca_t *p, int lado) { return ad_no_lado(p, lado) == AD_REMENDO ? lado + 2 : lado; }
 static void ad_cola(peca_t *p, int lado, int a)
 {
     if (lado < 1 || lado > AD_LADOS) return;
@@ -110,7 +113,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_TRANSPARENTE] = "Tirando este lado, o dado não pode ser anulado: nem pela sequência, nem por outro dado. Ainda pode ser roubado.",
     [AD_DOURADO]      = "Tirando este lado, válido ou anulado: +1 moeda, que entra com o saque da mesa vencida.",
     [AD_LOBO]         = "Tirando este lado, válido ou anulado: -2 pontos para o oponente na rodada.",
-    [AD_REMENDO]      = "Este lado pontua 2 a mais: um 3 vira 5, e o 5 é o que conta na sequência.",
+    [AD_REMENDO]      = "Este lado tem 2 a mais, e o dado tira esse número: um 3 vira 5, e o 5 conta na sequência e nos poderes do dado (no Explosivo, o 6 vira 8 e explode).",
     [AD_RASPADINHA]   = "Tirando este lado, se o dado terminar válido: +10 pontos no fim da rodada, e o adesivo sai do dado.",
     [AD_FERMENTO]     = "Tirando este lado, se o dado terminar válido: +1 na primeira vez, +2 na segunda, e assim por diante. O dado guarda o quanto cresceu, a run inteira.",
     [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 1 dado a mais na próxima rodada.",

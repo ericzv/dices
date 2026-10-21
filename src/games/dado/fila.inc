@@ -143,11 +143,13 @@ static bool tem_jackpot(int j, const uint8_t *est)
     return false;
 }
 
-// Os lances de um Explosivo que somaram v: so explode no numero maximo, entao
-// sao maximos ate o ultimo ("(8+8+3)").
-static void lances_explosivo(char *s, size_t n, int v, int lados)
+// Os lances de um Explosivo que somaram v: o primeiro (o 8, ou mais com o
+// Remendo) e os que rolou de novo, maximos ate o ultimo ("(8+8+3)").
+static void lances_explosivo(char *s, size_t n, int v, int lados, int lance1)
 {
-    size_t p = (size_t)snprintf(s, n, "(");
+    if (lance1 < lados || lance1 >= v) lance1 = lados;
+    size_t p = (size_t)snprintf(s, n, "(%d+", lance1);
+    v -= lance1;
     while (v > lados && p < n) { p += (size_t)snprintf(s + p, n - p, "%d+", lados); v -= lados; }
     if (p < n) snprintf(s + p, n - p, "%d)", v);
 }
@@ -215,7 +217,7 @@ static void aplica_regra(int j, int k)
         }
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
-    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados);
+    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
     if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
@@ -415,7 +417,7 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
-            lances_explosivo(lances, sizeof lances, v, TIPO[t].lados);
+            lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
             snprintf(veredito, sizeof veredito, "Explosivo! %s pontua %d", lances, vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e é válido", v);
         else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
@@ -507,8 +509,9 @@ static void pousa(int j, int k, int (*r)(int))
     bool voltou = false;
     int tirou = f->valor[k];
     if (f->tipo[k] == D_BUMERANGUE && tirou <= 2) {          // volta e rola de novo, uma vez
-        f->cru[k] = f->valor[k] = r(6);
-        lado_vira(j, k, f->valor[k]);
+        int x = r(6);
+        f->lado[k] = (uint8_t)x;
+        f->cru[k] = f->valor[k] = remenda(peca_fila(j, k), x);   // o Remendo vale no segundo lance tambem
         voltou = true;
     }
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.

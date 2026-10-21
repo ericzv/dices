@@ -288,48 +288,54 @@ static int primeiro_lance(int t, int (*r)(int))
 
 // O que o dado de tipo t tira, com os poderes que mexem no sorteio, a partir
 // do primeiro lance x. 'r' e quem sorteia: o da partida ou o da IA quando ela
-// imagina jogadas. No Viciado, 'menor' recebe o lance descartado.
-static int sorteia_valor_de(int t, int fixo, int x, int (*r)(int), int *menor)
+// imagina jogadas. No Viciado, 'menor' recebe o lance descartado. Com a peca
+// p (NULL: sem adesivos), o lado com Remendo ja tira 2 a mais aqui dentro: o
+// 6 remendado do Explosivo e um 8 e explode; o Viciado compara os lances
+// remendados. 'lado' recebe o lado que ficou para cima.
+static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(int), int *menor, int *lado)
 {
     int lados = TIPO[t].lados;
     *menor = 0;
+    *lado = x;
     switch (TIPO[t].efeito) {
     case EF_VICIADO: {                       // dois lances; fica o maior
-        int y = r(lados);
-        *menor = x < y ? x : y;
-        if (y > x) x = y;
-        break;
+        int y = r(lados), vx = remenda(p, x), vy = remenda(p, y);
+        if (vy > vx) { *lado = y; *menor = vx; return vy; }
+        *menor = vy;
+        return vx;
     }
     case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
         int b = r(SR_REVES);
         *menor = b;
-        x -= b;
-        break;
+        return remenda(p, x) - b;
     }
-    case EF_EXPLODE: {
-        int n = x, g = 0;
-        while (n == lados && g++ < 3) { n = r(lados); x += n; }
-        break;
+    case EF_EXPLODE: {                       // o 8 (ou mais, remendado) rola de novo e soma
+        int n = remenda(p, x), g = 0;
+        x = n;
+        while (n >= lados && g++ < 3) { n = r(lados); x += n; }
+        return x;
     }
-    case EF_QUEBRADO: x = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
-    case EF_FANTASMA: x = fixo ? (int8_t)fixo : 1; break;
-    case EF_PREVISIVEL: x = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
-    case EF_VAZIO:    x = 0; break;
+    // Os de numero fixo nao rolam: o lado e o numero, e so o Remendo age.
+    case EF_QUEBRADO: *lado = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
+    case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
+    case EF_PREVISIVEL: *lado = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
+    case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
     default: break;
     }
-    return x;
+    return remenda(p, *lado);
 }
 static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 {
-    return sorteia_valor_de(t, fixo, primeiro_lance(t, r), r, menor);
+    int lado;
+    return sorteia_valor_de(t, fixo, primeiro_lance(t, r), NULL, r, menor, &lado);
 }
 
 // O lance de um dado da bolsa, com os adesivos dele (p; NULL: sem). O Chumbo
 // puxa o primeiro lance para o lado dele metade das vezes (com mais de um,
 // para um deles); caindo no Avesso, o dado vira do avesso; o Remendo soma 2
-// ao lado que ficou para cima. Os de numero fixo nao rolam: neles so o
-// Remendo age. 'lado' recebe o lado de cima; 'antes', o lado do Avesso de
-// onde ele virou (0: nao virou).
+// ao lado que ficou para cima (em sorteia_valor_de, antes dos poderes). 'lado'
+// recebe o lado de cima (0: fora dos lados do dado); 'antes', o lado do
+// Avesso de onde ele virou (0: nao virou).
 static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *menor, int *lado, int *antes)
 {
     int ef = TIPO[t].efeito;
@@ -341,9 +347,8 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
         if (n && r(2) == 1) x0 = ch[n > 1 ? r(n) - 1 : 0];
         if (ad_no_lado(p, x0) == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
     }
-    int x = sorteia_valor_de(t, fixo, x0, r, menor);
-    *lado = ef == EF_VAZIO ? x0 : lado_do_lance(t, x, *menor);
-    if (ad_no_lado(p, *lado) == AD_REMENDO) x += 2;
+    int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
+    if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
     return x;
 }
 

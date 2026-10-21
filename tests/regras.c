@@ -78,6 +78,8 @@ static void joga_ad(int j, int i, int v)
     aplica_regra(j, k);
 }
 static int sempre_um(int lados) { (void)lados; return 1; }
+static int lances_seq[8], li_seq;           // os lances em ordem (adesivos que mexem no sorteio)
+static int rola_seq(int lados) { (void)lados; return lances_seq[li_seq++ % 8]; }
 static int sempre_tres(int lados) { return lados < 3 ? lados : 3; }
 
 static bool ev_tipo_ad(int i, int a) { return ev[i].tipo == EV_ADESIVO && ev[i].ad == a; }
@@ -2006,6 +2008,66 @@ int main(void)
         joga_ad(0, 2, 2);                         // o Gemeo tirou 2, mas vira 5: o Confete do 2 nao conta
         desfecho_t d = fim();
         CONFERE(F[0].lado[1] == 5 && d.total[0] == 10, "o Gemeo virou: o lado e o 5 e o Confete nao age (%d, lado %d)", d.total[0], F[0].lado[1]);
+
+        // O Remendo muda o numero antes dos poderes: o 6 remendado do
+        // Explosivo e um 8 e explode; o Trevo com Remendo no 2 tira 4.
+        peca_t ex = { .tipo = D_EXPLOSIVO };
+        ad_cola(&ex, 6, AD_REMENDO);
+        lances_seq[0] = 6; lances_seq[1] = 5; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 13 && lado == 6 && li_seq == 2, "Explosivo com Remendo no 6: 8, explode e soma 5 (%d, lado %d)", x, lado);
+        lances_seq[0] = 5; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 5 && li_seq == 1, "Explosivo com Remendo no 6, tirando 5: nao explode (%d)", x);
+        ex = (peca_t){ .tipo = D_EXPLOSIVO };
+        ad_cola(&ex, 8, AD_REMENDO);
+        lances_seq[0] = 8; lances_seq[1] = 3; li_seq = 0;
+        x = sorteia_peca(D_EXPLOSIVO, 0, &ex, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 13 && lado == 8, "Explosivo com Remendo no 8: 10, explode e soma 3 (%d, lado %d)", x, lado);
+        x = sorteia_peca(D_EXPLOSIVO, 0, NULL, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 3 && lado == 3, "Explosivo sem adesivo, tirando 3: %d", x);
+        peca_t vi = { .tipo = D_VICIADO };
+        ad_cola(&vi, 5, AD_REMENDO);
+        lances_seq[0] = 5; lances_seq[1] = 6; li_seq = 0;
+        x = sorteia_peca(D_VICIADO, 0, &vi, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 7 && lado == 5 && menor == 6, "Viciado 5 (remendado: 7) e 6: fica o 7 (%d, lado %d, descarta %d)", x, lado, menor);
+        lances_seq[0] = 6; lances_seq[1] = 5; li_seq = 0;
+        x = sorteia_peca(D_VICIADO, 0, &vi, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 7 && lado == 5 && menor == 6, "Viciado 6 e 5 (remendado: 7): fica o 7 (%d, lado %d, descarta %d)", x, lado, menor);
+        J[0].col[3] = (peca_t){ .tipo = D_TREVO };
+        ad_cola(&J[0].col[3], 2, AD_REMENDO);
+        lances_seq[0] = 2; li_seq = 0;
+        x = sorteia_peca(D_TREVO, 0, &J[0].col[3], rola_seq, &menor, &lado, &antes);
+        limpa();
+        joga_ad(0, 3, x);
+        F[0].lado[0] = (uint8_t)lado;
+        d = fim();
+        CONFERE(x == 4 && lado == 2 && d.total[0] == 10, "Trevo com Remendo no 2: tira 4, SORTE (%d, lado %d, total %d)", x, lado, d.total[0]);
+        J[0].col[4] = ex;                         // o Remendo no 8: na etiqueta, o 10 e o que rolou de novo
+        limpa();
+        joga_ad(0, 4, 13);
+        CONFERE(!strcmp(F[0].tag[0], "(10+3)"), "Explosivo com Remendo no 8: etiqueta %s", F[0].tag[0]);
+        J[0].col[5] = (peca_t){ .tipo = D_BUMERANGUE };
+        ad_cola(&J[0].col[5], 4, AD_REMENDO);
+        limpa();
+        F[0].idx[0] = 5; F[0].tipo[0] = D_BUMERANGUE; F[0].n = 1;
+        F[0].cru[0] = F[0].valor[0] = 1; F[0].lado[0] = 1; F[0].lancados = 1;
+        lances_seq[0] = 4; li_seq = 0;
+        pousa(0, 0, rola_seq);
+        CONFERE(F[0].valor[0] == 6 && F[0].lado[0] == 4 && !strcmp(F[0].tag[0], "1>6"),
+                "Bumerangue volta e tira o 4 remendado: %d (lado %d, %s)", F[0].valor[0], F[0].lado[0], F[0].tag[0]);
+        // O risco: depois de um 7, o Explosivo anula com 1 a 6; com o 6 remendado, so com 1 a 5.
+        ex = (peca_t){ .tipo = D_EXPLOSIVO };
+        J[0].col[4] = ex;
+        limpa();
+        joga_ad(0, 0, 7);
+        F[0].idx[1] = 4; F[0].tipo[1] = D_EXPLOSIVO; F[0].n = 2;
+        int r_sem = risco(0), c_sem = chance_cair(0);
+        ad_cola(&J[0].col[4], 6, AD_REMENDO);
+        F[0].fixo[1] = 1;                         // (o botao guarda a conta enquanto a mesa nao muda)
+        int r_com = risco(0), c_com = chance_cair(0);
+        CONFERE(r_sem == 75 && r_com == 62 && c_sem > 70 && c_sem < 80 && c_com > 57 && c_com < 68,
+                "risco do Explosivo depois de um 7: sem Remendo %d (botao %d), com Remendo no 6 %d (botao %d)", r_sem, c_sem, r_com, c_com);
 
         // O fim da rodada: cada adesivo.
         static const struct { int ad, valendo, pontos0, pontos1; } C[] = {

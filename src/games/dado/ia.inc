@@ -119,9 +119,13 @@ static void sim_lanca(int j)
     fila_t *f = &F[j];
     int k = f->lancados, menor;
     if (f->carta && k == 3) { f->lancados = 4; f->est[3] = V_ESPERA; return; }   // a carta: so posta
-    int x = sorteia_valor(f->tipo[k], f->fixo[k], rola_ia, &menor);
+    // Com os adesivos do dado, como no lance de verdade (o Reflexivo rola de novo).
+    const peca_t *pc = peca_fila(j, k);
+    int lado, antes;
+    int x = sorteia_peca(f->tipo[k], f->fixo[k], pc, rola_ia, &menor, &lado, &antes);
+    if (ad_no_lado(pc, lado) == AD_REFLEXIVO) x = sorteia_peca(f->tipo[k], f->fixo[k], pc, rola_ia, &menor, &lado, &antes);
     f->cru[k] = f->valor[k] = x;
-    f->lado[k] = (uint8_t)lado_do_lance(f->tipo[k], x, menor);
+    f->lado[k] = (uint8_t)lado;
     f->descarte[k] = (uint8_t)menor;
     f->lancados = k + 1;
     pousa(j, k, rola_ia);

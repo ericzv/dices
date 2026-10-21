@@ -35,7 +35,7 @@ typedef struct {
     float ousadia;                       // -1 cauteloso ... +1 aposta alto
     uint8_t fav[8];                      // o tema: dados preferidos (0xFF = fim)
     const char *trunfo, *regra;          // nome do trunfo e o que ele faz
-    uint32_t amul;                       // trunfo feito de amuletos
+    amul_t   amul;                       // trunfo feito de amuletos
     uint8_t reg;                         // ou regra propria (REG_*)
     const char *fala[FA_N][2];
     uint8_t andar_trunfo;                // a dificuldade a partir da qual o trunfo vale
@@ -43,7 +43,7 @@ typedef struct {
     uint8_t estilo;                      // ES_*
 } perso_t;
 
-#define AM(a) (1u << (a))
+#define AM(a) AM_BIT(a)
 static const perso_t PERSO[] = {
     { "O NOVATO",        "Chegou hoje ao cassino.",           -0.3f,
       { D_D8, D_D12, D_TEIMOSO, D_QUEBRADO, D_SENTINELA, 0xFF },

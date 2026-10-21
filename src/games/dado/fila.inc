@@ -225,7 +225,7 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
-        am_disparou |= 1u << A_PRENSA;
+        am_disparou |= AM_BIT(A_PRENSA);
     }
 
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
@@ -318,9 +318,9 @@ static void aplica_regra(int j, int k)
         // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
         bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
                     && !sentinela && !luva && !rede;
-        if (luva) am_disparou |= 1u << A_LUVA;
-        if (rede) am_disparou |= 1u << A_REDE;
-        if (ferr) am_disparou |= 1u << A_FERRADURA;
+        if (luva) am_disparou |= AM_BIT(A_LUVA);
+        if (rede) am_disparou |= AM_BIT(A_REDE);
+        if (ferr) am_disparou |= AM_BIT(A_FERRADURA);
         bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
@@ -371,19 +371,19 @@ static void aplica_regra(int j, int k)
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
         int am_b = 0;
-        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= 1u << A_OURO; }
-        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= 1u << A_PENA; }
-        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= 1u << A_PESADO; }
-        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= 1u << A_CONTRATO; }   // Contrato Sujo
-        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= 1u << A_COROA; }
+        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= AM_BIT(A_OURO); }
+        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= AM_BIT(A_PENA); }
+        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= AM_BIT(A_PESADO); }
+        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo
+        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= AM_BIT(A_COROA); }
         if (j == 1 && rodada >= 6 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
         if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
         if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
-        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= 1u << A_DESFORRA; }
+        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= AM_BIT(A_DESFORRA); }
         if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
-        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= 1u << A_CORINGA; }
-        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= 1u << A_TRINCA; }
-        if (corrimao) am_disparou |= 1u << A_CORRIMAO;
+        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= AM_BIT(A_CORINGA); }
+        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= AM_BIT(A_TRINCA); }
+        if (corrimao) am_disparou |= AM_BIT(A_CORRIMAO);
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
             snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);

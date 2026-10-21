@@ -46,6 +46,8 @@ enum {
     SOM_AD_BIS, SOM_AD_MIRA, SOM_AD_GORJETA,
     SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
     SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
+    SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)
+    SOM_MENU_ESCOLHE, // a ficha escolhida assenta e gira ate deitar
     SOM_N
 };
 

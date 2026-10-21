@@ -118,7 +118,7 @@ static void desenha_tutorial(void)
 {
     char s[32];
     snprintf(s, sizeof s, "%d de %d", tut_pag + 1, N_TUTORIAL);
-    faixas_menu("COMO JOGAR", s, tut_pag + 1 < N_TUTORIAL
+    faixas_menu("TUTORIAL", s, tut_pag + 1 < N_TUTORIAL
                 ? "< anterior  ·  ENTER ou > próxima  ·  ESC menu"
                 : "< anterior  ·  ENTER volta ao menu");
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);

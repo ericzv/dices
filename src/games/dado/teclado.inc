@@ -162,7 +162,7 @@ void dado_mouse(int x, int y, int acao)
         // que vao para o rival: la so o clique vale.
         if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
             *z->var = z->val;
-            som_toca(SOM_PASSA);                  // mais curto e baixo que o de escolher
+            if (fase != F_ABERTURA) som_toca(SOM_PASSA);   // mais curto e baixo que o de escolher
         }
         return;
     }
@@ -201,6 +201,37 @@ void dado_mouse(int x, int y, int acao)
     }
 }
 
+// A ficha escolhida no menu, depois de assentar. 1 jogador e o Modo
+// Desafiante: vai direto aos perfis.
+static void menu_executa(int i)
+{
+    if (menu_tela == MT_DESAFIO) {
+        if (i == 0) des_continua(); else des_escolhe_nova();
+        return;
+    }
+    switch (i) {
+    case MN_UM:
+        des_abre_perfis();
+        break;
+    case MN_DOIS:
+        modo = M_DOIS;
+        cpu = 0;
+        remoto = 0;
+        baixo = 0;
+        poe_nomes();
+        abre_loja();
+        break;
+    case MN_ONLINE:
+        online_cur = 0;
+        digitando = false;
+        t_fase = 0;
+        fase = F_ONLINE;
+        break;
+    case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
+    default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
+    }
+}
+
 // A tecla ja traduzida, venha de quem vier: pessoa ou IA.
 static void trata_tecla(int k)
 {
@@ -221,62 +252,23 @@ static void trata_tecla(int k)
             return;
         }
         {
+        if (t_menu_clique >= 0) return;             // a ficha escolhida ainda assenta
         const char *op[MN_N];
         int n_op = menu_opcoes(op);
         if (e) {
             menu_cur = (menu_cur + e + n_op) % n_op;
             sacode = 1;                              // como se alguem mexesse na mesa
-            som_toca(SOM_TIQUE);
-            return;
+            return;                                  // o tom da ficha toca no passo (menu_passo)
         }
         if (k == KEY_BKSP && menu_tela) { menu_volta(); return; }
         if (k >= '1' && k < '1' + n_op) { menu_cur = k - '1'; sacode = 1; }
         if (k != KEY_ENTER && !(k >= '1' && k < '1' + n_op)) return;
         }
-        som_toca(SOM_FICHA);
+        // A ficha assenta e gira um instante; a acao vem no fim (menu_executa).
+        som_toca(SOM_MENU_ESCOLHE);
         sacode = 1;
-        if (menu_tela == MT_UM) {
-            if (menu_cur == 0) { menu_tela = MT_NIVEL; menu_cur = 1; }
-            else des_abre_perfis();
-            return;
-        }
-        if (menu_tela == MT_NIVEL) {                // partida rapida no nivel escolhido
-            modo = M_UM;
-            cpu = 2;
-            remoto = 0;
-            baixo = 0;
-            nivel_jog[1] = menu_cur;
-            ousadia_jog[1] = 0;
-            poe_nomes();
-            abre_loja();
-            return;
-        }
-        if (menu_tela == MT_DESAFIO) {
-            if (menu_cur == 0) des_continua(); else des_escolhe_nova();
-            return;
-        }
-        switch (menu_cur) {
-        case MN_UM:
-            menu_tela = MT_UM;
-            menu_cur = 0;
-            break;
-        case MN_DOIS:
-            modo = M_DOIS;
-            cpu = 0;
-            remoto = 0;
-            baixo = 0;
-            poe_nomes();
-            abre_loja();
-            break;
-        case MN_ONLINE:
-            online_cur = 0;
-            digitando = false;
-            t_fase = 0;
-            fase = F_ONLINE;
-            break;
-        case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
-        default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
-        }
+        menu_escolhida = menu_cur;
+        t_menu_clique = 0;
         return;
 
     case F_TUTORIAL:

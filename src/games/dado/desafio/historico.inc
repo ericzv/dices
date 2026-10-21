@@ -16,7 +16,7 @@
     uint16_t horas, horas_venc;          /* horas da verdade suas, e as que deram a rodada */ \
     uint16_t lancou[N], valeu[N], ganhou[N];                                               \
     /* A run campea: a da dificuldade mais alta (a mais recente, se empatar). */           \
-    uint8_t  camp_tem, camp_dif, camp_n, camp_pad;                                         \
+    uint8_t  camp_tem, camp_dif, camp_n, camp_amul_x;   /* amul_x: os amuletos 32+ */       \
     uint8_t  camp_col[HIST_COL];                                                           \
     uint32_t camp_amul, camp_data;       /* amuletos (bit a) e o dia (AAAAMMDD) */         \
     int32_t  camp_moedas;                                                                  \
@@ -24,7 +24,7 @@
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS) } hist_t;
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS_V) } hist1_t;  // "HIS1", dos 5 niveis: lido e convertido
 typedef struct { HIST_CAMPOS(64, N_NIVEIS_V) } hist64_t;         // o de antes dos 69 tipos: idem
-_Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 32, "o historico nao comporta os dados");
+_Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 40, "o historico nao comporta os dados");
 _Static_assert(sizeof(hist_t) != sizeof(hist1_t) && sizeof(hist_t) != sizeof(hist64_t)
                && sizeof(hist1_t) != sizeof(hist64_t), "os formatos do historico se distinguem pelo tamanho");
 
@@ -182,7 +182,8 @@ static void hist_run_venceu(void)
         hist.camp_dif = (uint8_t)d;
         hist.camp_n = run.n_col;              // a bolsa nao tem limite: guarda os 48 primeiros
         for (int k = 0; k < run.n_col && k < HIST_COL; k++) hist.camp_col[k] = run.col[k].tipo;
-        hist.camp_amul = run_amuletos();
+        hist.camp_amul = (uint32_t)run_amuletos();
+        hist.camp_amul_x = (uint8_t)(run_amuletos() >> 32);
         hist.camp_moedas = run.moedas;
         hist.camp_data = hoje();
     }
@@ -292,11 +293,11 @@ static void hist_resumo(void)
         snprintf(s, sizeof s, "+%d dados", mais);
         txt_c(px + pw / 2, topo + (int)((linhas - 1) * passo_y) + r + 6, s, C_TEXTO_M, false);
     }
-    int na = 0;
-    for (int a = 0; a < A_N; a++) if (hist.camp_amul >> a & 1) na++;
+    amul_t am = (amul_t)hist.camp_amul | (amul_t)hist.camp_amul_x << 32;
+    int na = am_conta(am);
     int ax = px + pw / 2 - (na - 1) * 13, ay = y + HIST_H - 26;
     for (int a = 0; a < A_N; a++) {
-        if (!(hist.camp_amul >> a & 1)) continue;
+        if (!(am >> a & 1)) continue;
         desenha_amuleto(ax, ay, 10, a, false);
         dica_zona(ax - 10, ay - 10, 20, 20, DICA_AMULETO, a);
         ax += 26;

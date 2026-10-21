@@ -35,6 +35,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_PIRAMIDE] = { "Pirâmide",      "Seus dados de 4 lados pontuam x2 no fim.", RGB(238, 162, 74) },
     [A_ABRE_ALAS]= { "Abre-Alas",     "O primeiro dado da sua sequência pontua x2 no fim.", RGB(96, 134, 196) },
     [A_SAIDEIRA] = { "Saideira",      "Na última rodada da partida, os poderes de fim de rodada dos seus dados agem duas vezes.", RGB(150, 112, 160) },
+    [A_COLAR]    = { "Colar de Pérolas", "Ao vencer uma mesa, rende 1 moeda.", RGB(226, 220, 236) },
     [A_CORRIMAO] = { "Corrimão",      "Se o seu dado for só 1 menor que o anterior, a sequência não anula nenhum dos dois.", RGB(96, 182, 198) },
 };
 // Raridade de cada um, que diz em que momento da run ele aparece: comuns no
@@ -46,7 +47,7 @@ static const uint8_t RAR_AMULETO[A_N] = {
     [A_BOLSA] = AMR_COMUM, [A_OURO] = AMR_COMUM, [A_PENA] = AMR_COMUM, [A_IMA] = AMR_COMUM,
     [A_COURACA] = AMR_COMUM, [A_COFRE] = AMR_COMUM, [A_POTE] = AMR_COMUM, [A_FURADO] = AMR_COMUM,
     [A_SELO] = AMR_COMUM, [A_DESFORRA] = AMR_COMUM, [A_RELOGIO] = AMR_COMUM, [A_CUPOM] = AMR_COMUM,
-    [A_TACA] = AMR_COMUM, [A_CORINGA] = AMR_COMUM, [A_DUPLA] = AMR_COMUM,
+    [A_TACA] = AMR_COMUM, [A_CORINGA] = AMR_COMUM, [A_DUPLA] = AMR_COMUM, [A_COLAR] = AMR_COMUM,
     [A_CONTRATO] = AMR_INCOMUM, [A_RESERVA] = AMR_INCOMUM, [A_PEDAGIO] = AMR_INCOMUM, [A_MAU_OLHADO] = AMR_INCOMUM,
     [A_PESADO] = AMR_INCOMUM, [A_CARTOLA] = AMR_INCOMUM, [A_CRISANTEMO] = AMR_INCOMUM, [A_TRINCA] = AMR_INCOMUM,
     [A_PIRAMIDE] = AMR_INCOMUM, [A_COROA] = AMR_INCOMUM, [A_PRENSA] = AMR_INCOMUM,
@@ -58,15 +59,19 @@ static const char *nome_rar_am(int a) { return RAR_AMULETO[a] ? RARIDADE[RAR_AMU
 static uint16_t cor_rar_am(int a) { return RAR_AMULETO[a] ? COR_RAR[RAR_AMULETO[a] - 1] : C_TEXTO_M; }
 
 
-static int am_conta(uint32_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
-static uint32_t run_amuletos(void) { return (uint32_t)run.amuletos | (uint32_t)run.amuletos_hi << 16; }
-static void run_poe_amuletos(uint32_t m)
+static int am_conta(amul_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
+static amul_t run_amuletos(void)
+{
+    return (amul_t)run.amuletos | (amul_t)run.amuletos_hi << 16 | (amul_t)run.amuletos_x << 32;
+}
+static void run_poe_amuletos(amul_t m)
 {
     run.amuletos = (uint16_t)m;
     run.amuletos_hi = (uint16_t)(m >> 16);
+    run.amuletos_x = (uint8_t)(m >> 32);
 }
-static void run_poe_amuleto(int a) { run_poe_amuletos(run_amuletos() | 1u << a); }
-static void run_tira_amuleto(int a) { run_poe_amuletos(run_amuletos() & ~(1u << a)); }
+static void run_poe_amuleto(int a) { run_poe_amuletos(run_amuletos() | AM_BIT(a)); }
+static void run_tira_amuleto(int a) { run_poe_amuletos(run_amuletos() & ~AM_BIT(a)); }
 static bool am_lugar(void) { return am_conta(run_amuletos()) < AM_LUGARES; }
 static bool amuleto_liberado(int a);
 static bool dado_liberado(int t);
@@ -412,6 +417,22 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
             gfx_rect(px, PY(-3.1f + i * 1.6f), U, dy - PY(-3.1f + i * 1.6f), C_LATAO);  // o balaustre
         }
         gfx_linha_grossa(PX(-4.8f), PY(-4.0f), PX(4.4f), PY(0.9f), U, C_OURO);    // o corrimao, de latao
+        break;
+    }
+    case A_COLAR: {                                    // o fio de perolas em U e a maior pendurada
+        uint16_t perola = apagado ? C_FELTRO2 : RGB(238, 234, 244), aro = gfx_mistura(cor, C_BARRA, 72);
+        int ip = (int)(0.85f * u + 0.5f) > 0 ? (int)(0.85f * u + 0.5f) : 1;
+        for (int i = 0; i < 7; i++) {
+            float an = 0.22f + i * (3.1416f - 0.44f) / 6;           // de uma ponta a outra, por baixo
+            int px = PX(cosf(an) * 4.6f), py = PY(-3.4f + sinf(an) * 5.0f);
+            gfx_disco(px, py, ip + 1, aro);                        // o aro escuro separa as perolas
+            gfx_disco(px, py, ip, perola);
+            if (ip >= 2 && !apagado) gfx_rect(px - ip / 2, py - ip / 2, 1, 1, C_BRANCO);
+        }
+        int gr = (int)(1.5f * u + 0.5f) > 1 ? (int)(1.5f * u + 0.5f) : 1;
+        gfx_disco(x, PY(3.7f), gr + 1, aro);
+        gfx_disco(x, PY(3.7f), gr, perola);
+        if (!apagado) gfx_rect(x - gr / 2, PY(3.7f) - gr / 2, U, U, C_BRANCO);   // o brilho
         break;
     }
     case A_DUPLA:                                      // dois dados iguais, mostrando 2

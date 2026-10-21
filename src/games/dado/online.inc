@@ -64,8 +64,8 @@ static void volta_ao_menu(void)
 // Um nivel acima no menu (ESC ou BACKSPACE num submenu).
 static void menu_volta(void)
 {
-    if (menu_tela == MT_NIVEL || menu_tela == MT_DESAFIO) { menu_cur = menu_tela == MT_NIVEL ? 0 : 1; menu_tela = MT_UM; }
-    else { menu_tela = MT_PRINCIPAL; menu_cur = MN_UM; }
+    menu_tela = MT_PRINCIPAL;
+    menu_cur = MN_UM;
     sacode = 1;
 }
 

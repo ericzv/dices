@@ -832,6 +832,27 @@ def novidade_lenda():
     return sala(m.x, 0.25)
 
 # ---------------------------------------------------------------------------
+# O menu de fichas
+# ---------------------------------------------------------------------------
+def menu_passa():
+    """O cursor chega numa ficha: ela sobe da mesa com um tique de plastico,
+    curto e baixinho. O jogo toca cada ficha um tom acima da anterior."""
+    x = pb(tom(batida(PLASTICO[2]), -1), 5200)[:int(0.05 * SR)]
+    return sala(x * env(len(x), 0.0004, 0.014), 0.05)
+
+def menu_escolhe():
+    """A ficha escolhida: assenta no feltro com o clique de plastico e gira
+    um instante, os tiques ficando mais curtos e mais juntos ate deitar."""
+    m = Mix(0.5)
+    m.poe(0, tom(batida(PLASTICO[4]), -3), 1.0)
+    m.poe(0.004, superficie('surface_felt3'), 0.35)
+    t, passo, g = 0.07, 0.05, 0.42
+    for k in range(6):                         # a ficha rodando ate deitar
+        m.poe(t, pb(tom(batida(PLASTICO[(k * 3) % len(PLASTICO)]), 1 + k * 0.6), 4000), g)
+        t += passo; passo *= 0.72; g *= 0.74
+    return sala(m.x, 0.1)
+
+# ---------------------------------------------------------------------------
 # Roleta do premio
 # ---------------------------------------------------------------------------
 def giro():
@@ -1027,6 +1048,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha']})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
+# O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
+VOLUME.update({'menu_passa': VOLUME['tique'] * 0.45, 'menu_escolhe': VOLUME['ficha'] * 0.9})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1047,7 +1070,7 @@ SONS = {
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
-             'novidade', 'novidade_lenda'):
+             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

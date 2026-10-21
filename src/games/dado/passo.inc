@@ -8,6 +8,8 @@ static bool menu_sem_partida(void)
         || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC || fase == F_HIST || fase == F_ESTILO;
 }
 
+static void menu_passo(float dt);        // as fichas do menu (menus.inc)
+
 void dado_passo(float dt)
 {
     float dt_real = dt;                  // baloes e avisos: no tempo de quem le
@@ -64,8 +66,9 @@ void dado_passo(float dt)
                 som_toca(SOM_ABERTURA);
             }
         } else {
-            // O crupie afasta os dados para os cantos e abre espaco ao menu.
-            static const float ALVO[2][2] = { { 92, 250 }, { 548, 250 } };
+            // O crupie afasta os dados para os lados do titulo e abre a mesa as fichas.
+            static const float ALVO[2][2] = { { 86, 88 }, { 554, 88 } };
+            menu_passo(dt_real);
             float a = dt * 5 > 1 ? 1 : dt * 5;
             if (sacode > 0) sacode -= dt / 0.85f;
             if (sacode < 0) sacode = 0;

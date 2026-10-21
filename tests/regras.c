@@ -663,7 +663,7 @@ int main(void)
         des_nova_run();
         CONFERE(fase == F_RAMULETO && run.estado == R_AMULETO, "run nova devia comecar escolhendo amuleto");
         amuleto_escolhido(0);
-        CONFERE(am_conta(run_amuletos()) == 1 && fase == F_RLOJA, "amuleto inicial: %x, fase %d", run_amuletos(), fase);
+        CONFERE(am_conta(run_amuletos()) == 1 && fase == F_RLOJA, "amuleto inicial: %llx, fase %d", (unsigned long long)run_amuletos(), fase);
         run.moedas = 77;
         des_salva();
         run_t r;
@@ -1616,6 +1616,24 @@ int main(void)
                 "Cofre e Taca: mesa %d, Cofre %d, Taca %d", run.ganho, run.juros, run.taca);
         run.moedas = 40; des_comeca_partida(); venc_partida = 0; des_resultado();
         CONFERE(run.juros == 3, "Cofre ate 3: %d", run.juros);
+        // Colar de Perolas (o amuleto 33: alem dos 32 bits): 1 moeda por mesa
+        // vencida, e a run salva o guarda.
+        run_poe_amuletos(AM_BIT(A_COLAR) | AM_BIT(A_COFRE));
+        CONFERE(run.amuletos_x == 1 && (run_amuletos() >> A_COLAR & 1) && am_conta(run_amuletos()) == 2,
+                "Colar no bit 32: %d", run.amuletos_x);
+        run.moedas = 12; des_comeca_partida(); venc_partida = 0; des_resultado();
+        CONFERE(run.ganho == 4 && run.colar == 1 && run.juros == 2 && run.moedas == 12 + 7 && saque_total() == 7,
+                "Colar: mesa %d, Colar %d, Cofre %d (moedas %d)", run.ganho, run.colar, run.juros, run.moedas);
+        CONFERE((amul[0] >> A_COLAR & 1) && NIVEL_AMULETO[A_COLAR] == 0 && RAR_AMULETO[A_COLAR] == AMR_COMUM
+                && amuleto_liberado(A_COLAR), "Colar: na partida, comum e aberto desde o comeco");
+        {
+            run_t r;
+            des_salva();
+            CONFERE(des_carrega(&r) && (amul_t)r.amuletos_x << 32 == AM_BIT(A_COLAR) && r.colar == 1,
+                    "Colar salvo e carregado (x %d, colar %d)", r.amuletos_x, r.colar);
+        }
+        run_poe_amuletos(0); des_comeca_partida(); venc_partida = 0; des_resultado();
+        CONFERE(run.colar == 0, "sem o Colar, nada: %d", run.colar);
         // Selo de Divida: o chefe deixa o incomum a escolher e mais um sorteado
         // (comum ou incomum); depois, a loja.
         run_poe_amuletos(1u << A_SELO | 1u << A_PEDAGIO);

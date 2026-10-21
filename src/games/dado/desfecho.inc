@@ -320,8 +320,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (e) {
             e->mascara = mask;
             memcpy(e->por_dado, d->mult[j], N_FILA);
-            if (de[MULT_PIRAMIDE]) e->am |= 1u << A_PIRAMIDE;
-            if (de[MULT_ABRE_ALAS]) e->am |= 1u << A_ABRE_ALAS;
+            if (de[MULT_PIRAMIDE]) e->am |= AM_BIT(A_PIRAMIDE);
+            if (de[MULT_ABRE_ALAS]) e->am |= AM_BIT(A_ABRE_ALAS);
         }
     }
 
@@ -345,7 +345,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             evento_t *e = NULL;
             if (j == 0) e = evento(gera, EV_CHEFE, 0, 0xFF, 0, 0, mortos, "Crisântemo: %d dado%s seu%s anulado%s, +%d",
                                    mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
-            if (e) e->am = 1u << A_CRISANTEMO;
+            if (e) e->am = AM_BIT(A_CRISANTEMO);
             else evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, mortos, "Velório: %d dado%s dele anulado%s, +%d",
                         mortos, mortos > 1 ? "s" : "", mortos > 1 ? "s" : "", mortos);
         }
@@ -948,7 +948,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int j = ordem[o], antes = n_ev;
         if (!saideira(j)) continue;
         evento_t *e = evento(gera, EV_AVISO, j, 0xFF, j, 0, 0, "Saideira: tudo de novo!");
-        if (e) e->am = 1u << A_SAIDEIRA;
+        if (e) e->am = AM_BIT(A_SAIDEIRA);
         poderes_de(d, j, gera);
         fenix_de(d, j, gera);
         efeitos_do_fim(d, j, gera);

@@ -240,8 +240,9 @@ static void des_esc(void)
 {
     if (fase == F_PERFIS && pf_apagando) { pf_apagando = false; return; }
     if (fase == F_PCRIA || fase == F_HIST || fase == F_ESTILO) { t_fase = 0; fase = F_PERFIS; return; }
-    menu_tela = fase == F_RDIFIC && des_tem_run() ? MT_DESAFIO : MT_UM;
-    menu_cur = 1;
+    bool tem = fase == F_RDIFIC && des_tem_run();      // da dificuldade, de volta a continuar ou nova
+    menu_tela = tem ? MT_DESAFIO : MT_PRINCIPAL;
+    menu_cur = tem ? 1 : MN_UM;
     t_fase = 1.0f;
     fase = F_ABERTURA;
 }

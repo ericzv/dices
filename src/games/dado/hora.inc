@@ -49,7 +49,7 @@ static int dado_decisivo(int j, int k)
     int n = duplo ? L + SR_REVES - 1 : TIPO[t].efeito == EF_LASTRO ? 9 : L;
     mesa_t m;
     guarda_mesa(&m);
-    uint32_t am = am_disparou;
+    amul_t am = am_disparou;
     int ganha = 0, total = 0, fins = 0;      // jeitos em que j leva, de quantos; bit: como a partida fica
     for (int c = 0; c < n; c++) {
         fila_t *f = &F[j];

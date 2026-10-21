@@ -1634,6 +1634,17 @@ int main(void)
         }
         run_poe_amuletos(0); des_comeca_partida(); venc_partida = 0; des_resultado();
         CONFERE(run.colar == 0, "sem o Colar, nada: %d", run.colar);
+        // O pop-up da bolsa: abre a do oponente, a partida espera, qualquer tecla fecha.
+        {
+            bolsa_abre(1);
+            float tf = t_fase;
+            int f0 = fase;
+            for (int i = 0; i < 30; i++) dado_passo(1 / 60.0f);
+            CONFERE(bolsa_pop == 1 && t_fase == tf && fase == f0, "pop-up aberto: a partida devia esperar (%.2f -> %.2f)", tf, t_fase);
+            key_event_t e = { .key = 'x' };
+            dado_tecla(&e);
+            CONFERE(bolsa_pop < 0 && fase == f0, "qualquer tecla fecha o pop-up (pop %d)", bolsa_pop);
+        }
         // Selo de Divida: o chefe deixa o incomum a escolher e mais um sorteado
         // (comum ou incomum); depois, a loja.
         run_poe_amuletos(1u << A_SELO | 1u << A_PEDAGIO);

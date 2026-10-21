@@ -56,7 +56,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
   os números de cada dado e a run campeã com a bolsa que venceu. São 8
-  avatares: ET Vilu, O Berro, Nomalisa, Interruptor do Futuro, Samurai,
+  avatares: ET Vilu, O Berro, Nomalisa, Interruptor do Futuro, Samurai Z,
   Susto, Blue e Maicon.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite), o material dos seus dados comuns (marfim, osso, jade, obsidiana,
@@ -120,6 +120,7 @@ Não precisa instalar nada: é um executável só.
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
+| B, ou clicar numa bolsa | Mostra os dados da bolsa (a sua ou, na partida, a do oponente); a partida espera |
 | ESC (duas vezes) | Sai da partida e volta ao menu |
 
 A ficha **Tutorial** do menu explica as regras.

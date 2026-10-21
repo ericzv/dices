@@ -79,6 +79,7 @@ void dado_desenha(void)
     n_zonas = 0;
     n_dicas = 0;
     zonas_fase = fase;
+    bolsas_vistas = 0;
     desenha_tudo();
     desenha_flutua();
     // O que a maquina fez fica por cima dos numeros que ainda sobem dos dados.
@@ -93,7 +94,8 @@ void dado_desenha(void)
         desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
-    }
+        desenha_bolsa_pop();
+    } else bolsa_pop = -1;
     int r[4];
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);

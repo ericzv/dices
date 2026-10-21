@@ -48,6 +48,7 @@ enum {
     SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)
     SOM_MENU_ESCOLHE, // a ficha escolhida assenta e gira ate deitar
+    SOM_BOLSA_ESPIA, // abrir o pop-up de uma bolsa: o couro abre e os dados rolam la dentro
     SOM_N
 };
 

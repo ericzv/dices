@@ -495,27 +495,59 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(10, hy - 1, 4, 2, sombra(MET));
         break;
     }
-    case RETRATO_AVATAR + 4: {                                  // SAMURAI: elmo vermelho com o crescente, armadura de placas
+    case RETRATO_AVATAR + 4: {                                  // SAMURAI Z: cabelo preso, cara de mau e a cicatriz em Z
         fundo = 5;
-        const uint16_t VERM = RGB(178, 40, 44), LACO = RGB(222, 184, 92), PELE = P_MEDIA;
-        rr(8, 14, 4, 3, sombra(PELE));                          // pescoco
-        rr(1, 17, 18, 5, VERM);                                 // a armadura: placas atadas
-        for (int j = 18; j < 22; j += 2) rr(1, j, 18, 1, sombra(VERM));
-        rr(1, 17, 4, 5, luz(VERM)); rr(15, 17, 4, 5, sombra(VERM));          // as ombreiras
-        for (int i = 0; i < 3; i++) { rp(2 + i, 18 + i, LACO); rp(17 - i, 18 + i, LACO); }   // o cordao trancado
-        rr(7, 17, 6, 1, RGB(40, 30, 30));                       // a gola escura
-        rosto(hy, PELE, PRETO, EX_BRAVA, pisca, boca);
-        if (!boca) { rp(8, hy + 9, PRETO); rp(11, hy + 9, PRETO); }   // o bigode fino, caido
-        rr(4, hy - 2, 12, 3, VERM);                             // o elmo: a cupula
-        rr(5, hy - 3, 10, 1, VERM); rr(6, hy - 3, 4, 1, luz(VERM));
-        rr(3, hy + 1, 3, 4, VERM); rr(14, hy + 1, 3, 4, VERM);  // as abas dos lados, descendo
-        rr(3, hy + 4, 3, 1, sombra(VERM)); rr(14, hy + 4, 3, 1, sombra(VERM));
-        rr(5, hy + 1, 10, 1, sombra(VERM));                     // a borda sobre a testa
-        // O crescente dourado na frente, com um brilho que corre de vez em quando.
-        rp(6, hy - 4, LACO); rp(5, hy - 5, LACO); rp(13, hy - 4, LACO); rp(14, hy - 5, LACO);
-        rr(7, hy - 4, 6, 1, LACO); rr(9, hy - 3, 2, 1, LACO);
-        float g = fmodf(t, 4.5f);
-        if (g < 0.36f) rp(5 + (int)(g / 0.04f), hy - 4 - (g < 0.08f || g > 0.32f), C_BRANCO);
+        const uint16_t VERM = RGB(184, 38, 44), LACO = RGB(236, 198, 76), PELE = RGB(222, 176, 134),
+                       CAB = RGB(30, 26, 30);
+        // O rabo de cavalo, atras da cabeca, caindo pelo lado e balancando.
+        int bal = (int)(t / 0.9f) % 2;
+        rr(15, hy - 3, 2, 2, CAB); rr(17, hy - 2, 1, 3, CAB);
+        rr(17 + bal, hy + 1, 2, 5, CAB); rr(17 + bal, hy + 6, 1, 3, CAB);
+        rp(16, hy - 3, RGB(204, 44, 48));                        // a fita que prende
+        // A armadura: ombreiras de placas, peito com os cordoes em X e a gola escura.
+        rr(8, 14, 4, 3, sombra(PELE));
+        rr(4, 16, 12, 6, sombra(VERM));
+        for (int k = 0; k < 2; k++) {                            // as ombreiras, largas e em degraus
+            int ox = k ? 14 : 0;
+            rr(ox, 16, 6, 6, VERM);
+            for (int j = 17; j < 22; j += 2) rr(ox, j, 6, 1, sombra(VERM));
+            rr(ox + (k ? 5 : 0), 16, 1, 6, k ? sombra(sombra(VERM)) : luz(VERM));
+            rp(ox + 2, 18, LACO); rp(ox + 3, 20, LACO);
+        }
+        rr(7, 16, 6, 1, RGB(44, 30, 30));
+        for (int k = 0; k < 2; k++) {                            // os dois X dourados no peito
+            int cx = 7 + k * 4;
+            rp(cx, 18, LACO); rp(cx + 2, 18, LACO); rp(cx + 1, 19, LACO); rp(cx, 20, LACO); rp(cx + 2, 20, LACO);
+        }
+        // O cabo da katana, por cima do ombro.
+        rp(18, 15, CAB); rp(19, 14, LACO); rp(19, 13, CAB); rp(18, 14, RGB(200, 200, 210));
+        // O rosto, um pouco mais largo que o de sempre: olhos estreitos, as
+        // sobrancelhas em V, a boca torta e, na bochecha, o Z.
+        static const int8_t FX[12] = { 6, 5, 4, 4, 4, 4, 4, 4, 4, 4, 5, 7 };
+        for (int i = 0; i < 12; i++) {
+            rr(FX[i], hy + i, 20 - 2 * FX[i], 1, PELE);
+            rp(19 - FX[i], hy + i, sombra(PELE));
+        }
+        rr(3, hy + 4, 1, 2, sombra(PELE)); rr(16, hy + 4, 1, 2, sombra(PELE));   // as orelhas
+        uint16_t olho = RGB(24, 20, 22), lab = RGB(96, 36, 40);
+        rp(6, hy + 3, CAB); rr(7, hy + 3, 2, 1, CAB); rp(9, hy + 4, CAB);       // as sobrancelhas, descendo para o meio
+        rp(13, hy + 3, CAB); rr(11, hy + 3, 2, 1, CAB); rp(10, hy + 4, CAB);
+        if (pisca) { rr(6, hy + 5, 3, 1, sombra(PELE)); rr(11, hy + 5, 3, 1, sombra(PELE)); }
+        else {                                                  // a fenda dos olhos, com o brilho para dentro
+            rr(6, hy + 5, 3, 1, olho); rr(11, hy + 5, 3, 1, olho);
+            rp(8, hy + 5, RGB(240, 226, 206)); rp(11, hy + 5, RGB(240, 226, 206));
+            rp(6, hy + 6, sombra(PELE)); rp(13, hy + 6, sombra(PELE));      // as olheiras
+        }
+        rp(10, hy + 7, sombra(PELE));                           // o nariz
+        if (boca) rr(7, hy + 9, 3, 2, RGB(60, 20, 24));
+        else { rr(7, hy + 9, 4, 1, lab); rp(6, hy + 10, lab); }             // a boca torta, caida de um lado
+        uint16_t cic = RGB(204, 92, 96);                        // a cicatriz em Z
+        rr(12, hy + 7, 3, 1, cic); rp(13, hy + 8, cic); rp(12, hy + 9, cic); rr(12, hy + 10, 3, 1, cic);
+        // O cabelo preto puxado para tras, com duas mechas soltas na testa.
+        rr(5, hy - 2, 10, 1, CAB); rr(4, hy - 1, 12, 2, CAB);
+        rr(3, hy + 1, 1, 3, CAB); rr(16, hy + 1, 1, 3, CAB);
+        rr(6, hy - 2, 4, 1, RGB(66, 60, 70));                   // o brilho
+        rp(5, hy + 1, CAB); rp(6, hy + 2, CAB); rp(14, hy + 1, CAB); rp(13, hy + 2, CAB);
         break;
     }
     case RETRATO_AVATAR + 5: {                                  // SUSTO: o capuz preto e a mascara branca que grita

@@ -832,6 +832,20 @@ def novidade_lenda():
     return sala(m.x, 0.25)
 
 # ---------------------------------------------------------------------------
+# Espiar uma bolsa (o pop-up): o cordao afrouxa, o couro abre e os dados
+# rolam de leve la dentro, sem cair na mesa.
+# ---------------------------------------------------------------------------
+def bolsa_espia():
+    m = Mix(0.5)
+    n = int(0.16 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 900, 4200) * np.sin(np.pi * q) ** 2, 0.22)      # o couro abrindo
+    m.poe(0.005, estalinho(0.01, 1800), 0.18)                                                   # o cordao
+    for k in range(4):                                                                          # os dados la dentro
+        m.poe(0.07 + k * 0.035 + rnd.uniform(0, 0.01), pb(tom(batida(rnd.choice(PLASTICO)), rnd.uniform(-5, -2)), 2600),
+              rnd.uniform(0.35, 0.55) * (1 - 0.15 * k))
+    return sala(m.x, 0.1)
+
+# ---------------------------------------------------------------------------
 # O menu de fichas
 # ---------------------------------------------------------------------------
 def menu_passa():
@@ -1050,6 +1064,7 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
 VOLUME.update({'menu_passa': VOLUME['tique'] * 0.45, 'menu_escolhe': VOLUME['ficha'] * 0.9})
+VOLUME.update({'bolsa_espia': VOLUME['bolsa'] * 0.7})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1070,7 +1085,7 @@ SONS = {
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
-             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe'):
+             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

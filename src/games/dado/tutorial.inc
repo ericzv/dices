@@ -17,7 +17,7 @@ static const pagina_t TUTORIAL[] = {
         NULL } },
     { "Parar ou arriscar", {
         "Depois de cada dado: jogar o próximo ou parar com os pontos que tem. O botão jogar mostra o risco de o próximo dado ser anulado (some nas dificuldades altas).",
-        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra se vence, perde ou empata, e, passando do alvo, o turno acaba sozinho.",
+        "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra por quanto perde (ou se empata), e, passando do alvo, o turno acaba sozinho.",
         NULL } },
     { "Apostas", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
@@ -89,7 +89,7 @@ static void ilustra_tutorial(int pag, int y)
         txt_c(cx - 188, y + 46, "6 pontos", C_OURO, false);
         bool parar = (int)(t_fase / 1.4f) % 2;
         rotulo_tut(cx - 6, y + 10, "jogar: 50% de risco", !parar);
-        rotulo_tut(cx + 170, y + 10, "parar: vence por 1", parar);
+        rotulo_tut(cx + 170, y + 10, "parar: perde por 1", parar);
         break;
     }
     case 4: {                                        // aposta na mesa; pagar, dobrar ou correr

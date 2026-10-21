@@ -208,6 +208,14 @@ enum { MN_UM, MN_DOIS, MN_ONLINE, MN_DADOS, MN_TUTORIAL, MN_N };
 static float menu_sobe[MN_N], menu_giro[MN_N];
 static float t_menu_clique = -1;
 static int   menu_escolhida, menu_ant = -1, menu_tela_ant = -1;
+// O pop-up da bolsa (bolsa.inc): de quem (0, 1; BOLSA_RUN: a sua, nas telas
+// da run; -1: fechado) e desde quando esta aberto. bolsas_vistas: as bolsas
+// que as faixas mostraram no ultimo quadro (bit j; bit BOLSA_RUN).
+#define BOLSA_RUN   2
+#define TECLA_BOLSA 0x200                // a zona de clique de uma bolsa (val: de quem)
+static int     bolsa_pop = -1;
+static float   t_bolsa_pop;
+static uint8_t bolsas_vistas;
 
 // Modos: contra o computador, dois no mesmo teclado, ou online.
 enum { M_UM, M_DOIS, M_ONLINE, M_DESAFIO };

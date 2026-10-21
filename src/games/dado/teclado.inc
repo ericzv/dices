@@ -61,6 +61,8 @@ void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
+    if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
+    if (k == 'b' && !dado_digitando() && bolsa_abre_tecla()) return;   // B: a sua bolsa
 
     if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
@@ -127,7 +129,8 @@ bool dado_mouse_clicavel(void)
     if (zonas_fase != fase) return false;
     bool alheia = ia_na_vez() || (modo == M_ONLINE && rede_na_vez());
     for (int i = 0; i < n_zonas; i++)
-        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h) && (!alheia || zonas[i].tecla == KEY_ESC))
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)
+            && (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA))
             return true;
     return false;
 }
@@ -147,9 +150,18 @@ void dado_mouse(int x, int y, int acao)
         if (acao == 1) manda_tecla(KEY_ENTER);
         return;
     }
+    if (bolsa_pop >= 0) {                               // e o pop-up da bolsa
+        if (acao == 1) bolsa_fecha();
+        return;
+    }
     const zona_clique_t *z = NULL;
     for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
         if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+    // Uma bolsa (a sua ou a do oponente): so olhar, vale ate na vez dos outros.
+    if (z && z->tecla == TECLA_BOLSA) {
+        if (acao == 1) bolsa_abre(z->val);
+        return;
+    }
     // Na vez da IA ou do rival online, o mouse nao mexe em nada; so o "<" de
     // sair vale sempre.
     if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) {

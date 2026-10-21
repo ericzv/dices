@@ -307,12 +307,16 @@ static void faixa_jogador(int j)
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
         amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);
 
-    // A bolsa: quantos ainda estao nela, de quantos o jogador tem.
+    // A bolsa: quantos ainda estao nela, de quantos o jogador tem. Clicar
+    // abre o pop-up com os dados dela (bolsa.inc), a sua ou a do oponente.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
-    icone_bolsa(bx + 8, by);
+    bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
+    icone_bolsa(bx + 8, by - em);
     snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), em_jogo(p));   // os no ar ainda nao chegaram
-    txt(bx + 22, ty, s, C_MARFIM_S, false);
+    txt(bx + 22, ty, s, em ? C_OURO : C_MARFIM_S, false);
+    zona_clique(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8, NULL, j, TECLA_BOLSA);
+    bolsas_vistas |= (uint8_t)(1 << j);
 }
 
 // Saquinho de couro fechado por um cordao dourado; (cx, cy) e o meio dele.

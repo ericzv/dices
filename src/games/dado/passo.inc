@@ -17,6 +17,10 @@ void dado_passo(float dt)
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     float vel = modo != M_ONLINE && !menu_sem_partida() ? VEL_FATOR[velocidade] : 1;
     dt *= vel;
+    if (bolsa_pop >= 0) {                // o pop-up da bolsa: fora do online, a partida espera
+        t_bolsa_pop += dt_real;
+        if (modo != M_ONLINE) dt = 0;
+    }
     if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;

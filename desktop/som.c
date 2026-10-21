@@ -47,6 +47,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_BIS] = "ad_bis",     [SOM_AD_MIRA] = "ad_mira",     [SOM_AD_GORJETA] = "ad_gorjeta",
     [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
     [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
+    [SOM_BOLSA_ESPIA] = "bolsa_espia",
 };
 
 typedef struct {

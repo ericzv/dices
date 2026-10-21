@@ -75,13 +75,18 @@ static void faixa_run(int voltar)
     // comprado so conta quando chega nela, e ela pula.
     snprintf(s, sizeof s, "%d dados", run.n_col - bolsa_voando);
     int wb = gfx_largura(s, 1), xb = x - 34 - wb;
-    bool clica = fase == F_MAPA, em = clica && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
+    bool clica = fase == F_MAPA, pop = !clica && fase != F_RBOLSA && bolsa_pop < 0;
+    bool em = (clica || pop) && mouse_em(xb - 22, 6, wb + 28, FAIXA_H - 12);
     int pulo = t_bolsa_pulo > 0 ? (int)(sinf(t_bolsa_pulo * 3.1416f) * 4) : 0;
     faixa_bolsa_x = xb - 12;
     faixa_bolsa_y = FAIXA_H / 2;
     icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
     txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
+    else if (fase != F_RBOLSA) {                 // nas outras telas, o pop-up (bolsa.inc)
+        zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, BOLSA_RUN, TECLA_BOLSA);
+        bolsas_vistas |= 1u << BOLSA_RUN;
+    }
 }
 
 static void rodape_run(const char *s)

@@ -114,8 +114,8 @@ static int  fase, vez, primeiro, rodada, pote, cursor, partidas;
 static int  a_pagar, passes;
 static bool aumentou;
 static float t_fase, t_som;
-// Dados da sequencia que nao foram lancados: no fim do turno voam de volta
-// para a bolsa (t_devolve: tempo desde que sairam; -1: nenhum no ar).
+// Dados da sequencia que nao foram lancados: no fim do turno saem da mesa
+// (t_devolve: tempo desde que sairam; -1: nenhum saindo).
 #define DEVOLVE_T 0.6f
 typedef struct { float x, y; uint8_t tipo, dono, fixo; } devolvido_t;
 static devolvido_t devolvidos[N_FILA];

@@ -2573,7 +2573,7 @@ int main(void)
         CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 2, "Carrasco sem Seguranca");
     }
 
-    // ---- Fim do turno: o que nao foi lancado volta para a bolsa -----------
+    // ---- Fim do turno: o que nao foi lancado sai, fora da bolsa ----------
     {
         int cpu0 = cpu;
         cpu = 0;
@@ -2588,13 +2588,13 @@ int main(void)
         F[j].valor[0] = F[j].cru[0] = 3;
         termina_turno();
         CONFERE(fase == F_APOSTA, "parou com 3: devia ir para a aposta (fase %d)", fase);
-        CONFERE(F[j].n == 1 && na_bolsa(p) == bolsa0 + 3 && p->n_mao == mao0 - 3,
-                "devolve: fila %d, bolsa %d (era %d), mao %d (era %d)", F[j].n, na_bolsa(p), bolsa0, p->n_mao, mao0);
-        CONFERE(p->onde[c1] == NA_BOLSA && p->onde[c3] == NA_BOLSA && p->onde[F[j].idx[0]] == NA_MAO,
-                "devolve: os nao lancados deviam estar na bolsa");
+        CONFERE(F[j].n == 1 && na_bolsa(p) == bolsa0 && p->n_mao == mao0 - 3,
+                "sobras: fila %d, bolsa %d (era %d), mao %d (era %d)", F[j].n, na_bolsa(p), bolsa0, p->n_mao, mao0);
+        CONFERE(p->onde[c1] == FORA && p->onde[c3] == FORA && p->onde[F[j].idx[0]] == NA_MAO,
+                "sobras: os nao lancados deviam ficar fora da bolsa, como a mao");
         bool na_mao = false;
         for (int i = 0; i < p->n_mao; i++) na_mao |= p->mao[i] == c1 || p->mao[i] == c3;
-        CONFERE(!na_mao, "devolve: os nao lancados ainda na mao");
+        CONFERE(!na_mao, "sobras: os nao lancados ainda na mao");
         cpu = cpu0;
     }
     // ---- Quem abre e fica com 0 perde na hora: sem aposta e sem o turno do outro

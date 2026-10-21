@@ -1112,9 +1112,10 @@ static void anuncia_pecas(const char *fmt, const peca_t *p, int n)
     t_anuncio = n ? 2.2f + 0.4f * n : 1.3f;
 }
 
-// Fim do turno de j: os dados da sequencia que ele nao lancou saem da mesa
-// e da mao e voltam para a bolsa (podem sair de novo na proxima compra).
-static void devolve_sobras(int j)
+// Fim do turno de j: os dados da sequencia que ele nao lancou saem da mesa e
+// ficam fora da bolsa, como os lancados e os que ficaram na mao: so voltam
+// quando a bolsa esvaziar.
+static void descarta_sobras(int j)
 {
     fila_t *f = &F[j];
     jogador_t *p = &J[j];
@@ -1122,7 +1123,7 @@ static void devolve_sobras(int j)
     for (int k = f->lancados; k < f->n && k < N_FILA; k++) {
         int c = f->idx[k];
         if (c < 0 || c >= p->n_col) continue;
-        p->onde[c] = NA_BOLSA;
+        p->onde[c] = FORA;
         for (int i = 0; i < p->n_mao; i++)
             if (p->mao[i] == c) {
                 memmove(&p->mao[i], &p->mao[i + 1], (size_t)(p->n_mao - i - 1));
@@ -1179,7 +1180,7 @@ static void termina_turno(void)
         desfecho();
         return;
     }
-    devolve_sobras(vez);
+    descarta_sobras(vez);
     // Voce terminou e a carta do Coringa esperava: ela vira a copia do seu
     // dado que mais tirou e e lancada agora.
     if (vez != primeiro && carta_posta(primeiro)) {

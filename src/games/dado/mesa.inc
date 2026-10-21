@@ -226,16 +226,9 @@ static void acinzenta(int x0, int y0, int w, int h, int pct);
 static int bolsa_x(void) { return GFX_W - 118 + 8; }
 static int bolsa_y(int j) { return (j == baixo ? GFX_H - FAIXA_H : 0) + FAIXA_H / 2; }
 
-// Quando o dado i da volta chega na bolsa (em t_devolve); antes disso, voa.
-static float devolvido_chega(int i) { return DEVOLVE_T + 0.07f * i; }
-static int devolvendo(int j)
-{
-    int n = 0;
-    for (int i = 0; t_devolve >= 0 && i < n_devolvidos; i++) n += devolvidos[i].dono == j && t_devolve < devolvido_chega(i);
-    return n;
-}
-
-// Os dados nao lancados devolvendo para a bolsa: em arco, diminuindo.
+// Os dados nao lancados saindo da mesa: escorregam para o lado de quem
+// jogou, diminuindo e apagando (nao voltam para a bolsa: ficam fora, como a
+// mao).
 static void desenha_devolvidos(void)
 {
     for (int i = 0; t_devolve >= 0 && i < n_devolvidos; i++) {
@@ -244,11 +237,11 @@ static void desenha_devolvidos(void)
         if (q < 0) q = 0;                              // ainda esperando a vez de sair
         float s = q * q * (3 - 2 * q);
         const devolvido_t *v = &devolvidos[i];
-        float bx = (float)bolsa_x(), by = (float)bolsa_y(v->dono);
-        float x = v->x + (bx - v->x) * s, y = v->y + (by - v->y) * s - sinf(s * 3.1416f) * 40;
-        float r = (R_DADO - 6) * (1 - 0.6f * s);
+        float lado = v->dono == baixo ? 1.0f : -1.0f;
+        float x = v->x, y = v->y + lado * 22 * s;
+        float r = (R_DADO - 6) * (1 - 0.8f * s);
         marca_nivel = v->fixo;
-        desenha_dado(x, y, r, v->tipo, v->dono, s * 5, 0, 0, false);
+        desenha_dado(x, y, r, v->tipo, v->dono, s * 1.2f, 0, 0, false);
         marca_nivel = -1;
         int R = (int)r + 4;                            // cinza como estava, enquanto sobre o feltro
         if (y - R > MESA_Y0 && y + R + 6 < MESA_Y1) acinzenta((int)x - R, (int)y - R, 2 * R + 6, 2 * R + 6, 80);
@@ -313,7 +306,7 @@ static void faixa_jogador(int j)
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
     bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
     icone_bolsa(bx + 8, by - em);
-    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p) - devolvendo(j), em_jogo(p));   // os no ar ainda nao chegaram
+    snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p), em_jogo(p));
     txt(bx + 22, ty, s, em ? C_OURO : C_MARFIM_S, false);
     zona_clique(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8, NULL, j, TECLA_BOLSA);
     bolsas_vistas |= (uint8_t)(1 << j);

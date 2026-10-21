@@ -367,6 +367,34 @@ int main(void)
                         a, b, a - J[0].fichas, b - J[1].fichas);
             }
 
+    // ---- Quem joga em segundo e passou do alvo: a vez acaba sozinha --------
+    {
+        int m0 = modo; modo = M_UM;
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);                         // o oponente abriu com 4
+        F[0].n = 3; joga(0, D_D6, 3); F[0].n = 3;
+        CONFERE(!ja_vence(0), "3 x 4 ainda nao vence");
+        joga(0, D_D6, 5); F[0].n = 3;
+        CONFERE(ja_vence(0) && !ja_vence(1), "3 e 5 contra 4 devia vencer (e so quem joga em segundo)");
+        // Empate nao encerra: ainda pode jogar.
+        limpa(); primeiro = 1; joga(1, D_D6, 6); F[0].n = 3; joga(0, D_D6, 6); F[0].n = 3;
+        CONFERE(!ja_vence(0), "empate nao devia encerrar a vez");
+        // Um Oculto ainda escondido: o placar nao sabe, a vez segue.
+        limpa(); primeiro = 1; joga(1, D_D6, 2); F[1].escondido[0] = false;
+        F[0].n = 3; joga(0, D_D6, 6); F[0].n = 3;
+        CONFERE(ja_vence(0), "6 x 2 devia vencer");
+        F[1].escondido[0] = true;
+        CONFERE(!ja_vence(0), "com um Oculto escondido a vez nao devia acabar");
+        // No passo: o veredito de quem ja venceu termina o turno em vez de abrir a jogada.
+        limpa(); primeiro = 1; vez = 0;
+        joga(1, D_D6, 4); F[0].n = 3; joga(0, D_D6, 5); F[0].n = 3;
+        vence_j = 0; t_fase = 5; fase = F_VEREDITO;
+        dado_passo(1 / 60.0f);
+        CONFERE(fase != F_JOGA && fase != F_VEREDITO, "passou do alvo: a vez devia acabar sozinha (fase %d)", fase);
+        vence_j = -1;
+        modo = m0;
+    }
+
     // ---- Entrada da rodada ----------------------------------------------
     entrada(3, 100, 0);
     CONFERE(fase == F_FIM && venc_partida == 1, "so A sem entrada: B devia vencer (%d)", venc_partida);

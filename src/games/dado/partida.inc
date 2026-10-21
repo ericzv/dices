@@ -115,6 +115,7 @@ static void nova_rodada(void)
     plano_rodada = -1;                       // a IA monta outra fila
     carta_virando = false;
     zerou = -1;
+    vence_j = -1;
     ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
@@ -1130,6 +1131,18 @@ static bool zerou_de_vez(int j)
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.total[j] == 0;
+}
+
+// Quem joga em segundo ja passou do alvo: com o que esta na mesa, parar agora
+// vence (a previa do fim da rodada, a mesma do botao "parar"). So quando
+// nada ainda vai mudar sozinho: sem Oculto escondido e sem a carta do Coringa
+// por virar. Jogar mais so poderia perder: a vez acaba ali.
+static bool ja_vence(int j)
+{
+    if (j == primeiro || !F[j].lancados || carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1)) return false;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    return d.total[j] > d.total[outro(j)];
 }
 
 // Quem nao chegou a jogar: a mao inteira volta para a bolsa.

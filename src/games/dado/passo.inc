@@ -54,6 +54,7 @@ void dado_passo(float dt)
     ia_passo(dt);
     rede_passo();
     if (t_sair >= 0 && (t_sair += dt_real) > 2.5f) t_sair = -1;
+    if (vence_j >= 0) t_vence += dt_real;
     switch (fase) {
     case F_ABERTURA:
         if (!abertura_pronta) {
@@ -155,14 +156,20 @@ void dado_passo(float dt)
             rival_lance(j, k);
             t_fase = 0;
             fase = F_VEREDITO;
+            if (ja_vence(j)) {                     // passou do alvo: o placar acende e a vez acaba
+                vence_j = j;
+                t_vence = 0;
+                som_toca_tom(SOM_VALIDO4, 5);
+            }
         }
         break;
     }
     case F_VEREDITO:
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
-        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)) {
-            if (F[vez].lancados >= F[vez].n) termina_turno();
+        if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)
+                     + (vence_j == vez ? 0.5f : 0)) {
+            if (F[vez].lancados >= F[vez].n || vence_j == vez) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }
         break;

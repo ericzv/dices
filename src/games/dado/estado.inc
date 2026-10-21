@@ -154,6 +154,8 @@ static float t_tique_placar;             // os tiques da contagem nao se amontoa
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
 static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perdeu na hora
+static int  vence_j = -1;            // quem joga em segundo e ja passou do alvo: a vez acabou
+static float t_vence;                // desde quando (o placar dele acende)
 static peca_t oferta[3];
 static char aviso[96], veredito[64], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela

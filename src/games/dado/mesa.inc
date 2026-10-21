@@ -965,7 +965,20 @@ static void desenha_fila(int j)
             ui_contorno(PLACAR_X - 32, y - 24, 64, 46, rampa_ouro(1 + q * 2 + pulso * q));
             placar_halo(PLACAR_X - 34, y - 26, 68, 50, calor, pulso);
         }
-        txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
+        bool vence = vence_j == j && fase != F_RESULTADO;   // passou do alvo: a rodada e dele
+        if (vence) {                              // o filete dourado pulsando e um aro que abre
+            float pul = 0.5f + 0.5f * sinf(t_vence * 9);
+            uint16_t cv = gfx_mistura(C_OURO, C_BRANCO, (int)(pul * 55));
+            ui_contorno(PLACAR_X - 36, y - 28, 72, 54, cv);
+            ui_contorno(PLACAR_X - 37, y - 29, 74, 56, gfx_mistura(cv, C_FELTRO, 45));
+            if (t_vence < 0.45f) {
+                int a = (int)(t_vence / 0.45f * 14);
+                ui_contorno(PLACAR_X - 37 - a, y - 29 - a, 74 + 2 * a, 56 + 2 * a, gfx_mistura(C_BRANCO, C_OURO, (int)(t_vence / 0.45f * 100)));
+            }
+            c = C_OURO;
+        }
+        int ly = vence ? (j == baixo ? y + 33 : y - 46) : y - 42 + (j == baixo ? 72 : 0);   // longe do filete
+        txt_c(PLACAR_X, ly, vence ? "VENCE" : "pontos", vence ? C_OURO : C_TEXTO_M, vence);
         txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja

@@ -157,21 +157,18 @@ static void info_mesa(int p)
     }
     info_divisa(xa + wa);
 
-    // O trunfo: nome em destaque e a regra, quebrada em linhas.
-    int xb = xa + wa + 12, wb = 168;
+    // O trunfo: nome em destaque e a regra, quebrada em linhas. Sem trunfo
+    // nesta dificuldade, a coluna nem aparece: a bolsa vem para o lugar.
+    int xb = xa + wa + 12, wb = 168, xc = xb;
     if (trunfo_ativo(no->perso)) {
         txt(xb, cy, pe->trunfo, C_ROSA, true);
         quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
-    } else {                                     // ainda sem trunfo: so a partir do nivel dele
-        txt(xb, cy, "Sem trunfo", C_TEXTO_M, true);
-        char s2[64];
-        snprintf(s2, sizeof s2, "Traz o trunfo a partir do Nível %d.", PERSO[no->perso].andar_trunfo);
-        quebra_linhas(xb, cy + 22, wb, 3, s2, C_TEXTO_M);
+        info_divisa(xb + wb + 6);
+        xc = xb + wb + 18;
     }
-    info_divisa(xb + wb + 6);
 
     // A bolsa dele, agrupada por tipo: o mouse em cima diz o que o dado faz.
-    int xc = xb + wb + 18, wc = x0 + w0 - 10 - xc;
+    int wc = x0 + w0 - 10 - xc;
     peca_t col[MAX_COL];
     int passo = run.passo;
     run.passo = (uint8_t)p;                      // a bolsa de cada mesa sai do passo dela

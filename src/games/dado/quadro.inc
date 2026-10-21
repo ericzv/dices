@@ -12,11 +12,7 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
     if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_dado(id); *desc = TEXTO_MEDIO[id]; }
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
     else if (tipo == DICA_ADESIVO) { *nome = ADESIVO[id].nome; *cor = ADESIVO[id].luz; *desc = AD_TEXTO[id]; }
-    else if (modo == M_DESAFIO && !trunfo_ativo(id)) {   // ainda sem trunfo nesta dificuldade
-        static char t[96];
-        snprintf(t, sizeof t, "Traz o trunfo (%s) a partir do %s.", PERSO[id].trunfo, NOME_DIF_CURTO[PERSO[id].andar_trunfo]);
-        *nome = "Sem trunfo"; *cor = C_TEXTO_M; *desc = t;
-    } else {
+    else {
         *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
         if (id == PERSO_CORINGA)                         // o Coringa: os detalhes da copia
             *desc = "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
@@ -38,8 +34,10 @@ static bool dica_rect(int *r, const dica_t **qual)
 {
     if (mouse_x < 0 || (detalhe >= 0 && fase == detalhe_fase)) return false;
     const dica_t *d = NULL;
-    for (int i = n_dicas - 1; i >= 0 && !d; i--)
+    for (int i = n_dicas - 1; i >= 0 && !d; i--) {
+        if (dicas[i].tipo == DICA_TRUNFO && modo == M_DESAFIO && !trunfo_ativo(dicas[i].id)) continue;   // sem trunfo ainda: nada
         if (mouse_em(dicas[i].x, dicas[i].y, dicas[i].w, dicas[i].h)) d = &dicas[i];
+    }
     if (!d) return false;
     const char *nome, *desc;
     uint16_t cor;

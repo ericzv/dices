@@ -40,7 +40,8 @@ static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 
 
 static void nov_passo(void);             // as novidades (novidades.inc)
 static void nov_monta_run(void);
-static void nov_abre_marco(void);
+static void nov_abre_chefe(void);
+static bool nov_tem_chefe(void);
 
 static void des_contadores_passo(float dt, float dt_real)
 {
@@ -94,7 +95,7 @@ static bool des_carrega(run_t *r)
     memset(r, 0, sizeof *r);
     if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
-        || (r->andar == DES_ANDAR_FINAL && r->dificuldade < N_NIVEIS)
+        || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
@@ -155,11 +156,10 @@ static void encerra_run(bool venceu)
 {
     des_venceu_run = venceu;
     des_liberou = -1;
-    des_estilo_abriu = -1;
-    if (venceu && perfil_atual >= 0) {          // venceu o Barao: a proxima dificuldade abre
+    if (!venceu) des_chefe_novo = false;
+    if (venceu && perfil_atual >= 0) {          // venceu a run: a proxima dificuldade abre
         perfil_t *p = &perfis[perfil_atual];
         int d = run.dificuldade;
-        if (!p->venceu[d]) des_estilo_abriu = d;    // e, na primeira vez, o estilo do andar
         if (p->venceu[d] < 255) p->venceu[d]++;
         if (d == p->nivel && p->nivel < N_NIVEIS) { p->nivel++; des_liberou = p->nivel; }
         perfis_salva();
@@ -171,22 +171,22 @@ static void encerra_run(bool venceu)
     fase = F_RFIM;
 }
 
-// A mesa vencida fecha a run? O Barao, antes da Cobertura; e o Coringa.
+// A mesa vencida fecha a run? O Barao, antes do Nivel 5; e o Coringa.
 static bool fim_da_run(void)
 {
     if (run.andar == DES_ANDAR_FINAL) return true;
-    return run.andar == DES_ANDARES - 1 && run.passo == DES_PASSOS - 1 && run.dificuldade < N_NIVEIS;
+    return run.andar == DES_ANDARES - 1 && run.passo == DES_PASSOS - 1 && !com_coringa();
 }
 
 // Loja deixada: a proxima mesa do salao; depois do chefe, o salao de cima
-// (e, depois do Barao da Cobertura, o do Coringa).
+// (e, depois do Barao, do Nivel 5 em diante, o do Coringa).
 static void avanca_passo(void)
 {
     run.passo++;
     if (run.passo >= mesas_do_salao()) {
         run.andar++;
         run.passo = 0;
-        if (run.andar == DES_ANDAR_FINAL && run.dificuldade >= N_NIVEIS) gera_salao_final();
+        if (run.andar == DES_ANDAR_FINAL && com_coringa()) gera_salao_final();
         else if (run.andar >= DES_ANDARES) { run.andar = DES_ANDARES - 1; encerra_run(true); return; }
         else gera_andar();
     }
@@ -212,11 +212,11 @@ static void abre_amuleto(void)
 }
 
 // Os chefes que deixam amuleto: o do primeiro e o do segundo salao; o Barao,
-// so na Cobertura (antes dela a run acaba nele).
+// quando o Coringa vem depois (antes do Nivel 5 a run acaba nele).
 static bool chefe_deixa_amuleto(void)
 {
     return run.no[run.passo].tipo == NO_CHEFE
-        && (run.andar < DES_ANDARES - 1 || (run.andar == DES_ANDARES - 1 && run.dificuldade >= N_NIVEIS));
+        && (run.andar < DES_ANDARES - 1 || (run.andar == DES_ANDARES - 1 && com_coringa()));
 }
 
 // A loja depois de uma mesa vencida.
@@ -316,7 +316,7 @@ static void amuleto_desiste(void)
 }
 
 // Escolha de amuleto do comeco (os comuns) e de cada chefe (o primeiro deixa
-// incomuns; o segundo e o Barao da Cobertura, raros).
+// incomuns; o segundo e o Barao, quando o Coringa vem depois, raros).
 static void oferece_amuleto(int volta)
 {
     rs = run.semente ^ (0xA3E1u * (uint32_t)(run.andar * 8 + run.passo + 1 + volta * 64));
@@ -468,10 +468,25 @@ static void des_resultado(void)
     }
     run.vitorias++;
     des_marco = -1;
-    if (no->tipo == NO_CHEFE && perfil_atual >= 0 && run.andar < 2 && !(perfis[perfil_atual].marcos >> run.andar & 1)) {
-        perfis[perfil_atual].marcos |= (uint8_t)(1u << run.andar);    // abre o D20 ou o Lastro
+    des_chefe_novo = false;
+    if (no->tipo == NO_CHEFE && perfil_atual >= 0) {
+        perfil_t *p = &perfis[perfil_atual];
+        if (run.andar < 2 && !(p->marcos >> run.andar & 1)) {
+            p->marcos |= (uint8_t)(1u << run.andar);                  // abre o D20 ou o Lastro
+            des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
+        }
+        // O chefe abre o pedaco dele nesta dificuldade (o salao do chefe e o
+        // indice dele: o Coringa e o do salao final). A dificuldade
+        // seguinte, se for dele, so no fim da run.
+        int c = run.andar, d = run.dificuldade;
+        if (!chefe_abriu(d, c)) {
+            novidade_t pd[PEDACO_MAX];
+            int n = pedaco(d, c, pd);
+            for (int i = 0; i < n; i++) des_chefe_novo |= pd[i].k != NV_DIF;
+        }
+        p->chefes[d] |= (uint8_t)(1u << c);
+        des_chefe_c = c;
         perfis_salva();
-        des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
     }
     // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Colar
     // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3
@@ -521,7 +536,7 @@ static void des_abandona(void)
 // ENTER na tela do fim da partida.
 static void des_apos_fim(void)
 {
-    if (venc_partida == 0 && des_marco >= 0) nov_abre_marco();   // o chefe abriu um dado: o card antes
+    if (venc_partida == 0 && nov_tem_chefe() && !fim_da_run()) nov_abre_chefe();   // o chefe abriu coisas: os cards antes
     else if (venc_partida == 0) des_pos_vitoria();
     else encerra_run(false);
 }

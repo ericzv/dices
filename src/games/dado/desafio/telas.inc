@@ -30,6 +30,18 @@ static const char *const PENA_DIF[N_NIVEIS + 1] = {
 
 static const char *nome_dif(int d) { return NOME_DIF_CURTO[d <= N_NIVEIS ? d : 0]; }
 
+// O Coringa da dificuldade d, numa linha (0 se ele ainda nao aparece): do
+// Nivel 5, depois do Barao, e mais forte a cada nivel.
+static int coringa_txt(int d, char *s, int n)
+{
+    if (d < CORINGA_DESDE) { s[0] = 0; return 0; }
+    if (d == CORINGA_DESDE) return snprintf(s, (size_t)n, "O Coringa espera depois do Barão, com %d dados.", coringa_bolsa(d));
+    return snprintf(s, (size_t)n, "Coringa mais forte: %d dados%s.", coringa_bolsa(d),
+                    d >= N_NIVEIS ? ", um amuleto e seu dado anulado some"
+                    : d == CORINGA_SOME ? ", IA afiada; da 5ª rodada, seu dado anulado some"
+                    : d > CORINGA_SOME ? "; da 5ª rodada, seu dado anulado some" : "");
+}
+
 // O nome do oponente sem o artigo e so com a inicial maiuscula ("Caubói").
 static void nome_curto(const char *nome, char *s, int n)
 {
@@ -69,16 +81,39 @@ static int  pf_avatar;                   // tela de criar perfil
 static char pf_nome[11];
 static int  dif_cur;
 
-// O que abre com a dificuldade n: dois amuletos e ate quatro dados.
-#define LIB_DADOS 8
-static void liberados(int n, int *am, int *dado)
+// Uma parte do estilo, pequena: o feltro e a mesa num retalho, o material
+// num D6. lin: 0 feltro, 1 material, 2 mesa.
+static void estilo_mini(int lin, int k, int cx, int cy, int r)
 {
-    int k = 0;
-    for (int a = 0; a < A_N && k < 2; a++) if (NIVEL_AMULETO[a] == n && amuleto_no_jogo(a)) am[k++] = a;
-    for (; k < 2; k++) am[k] = -1;
-    k = 0;
-    for (int t = 0; t < D_N && k < LIB_DADOS; t++) if (nivel_do_dado(t) == n && marco_do_dado(t) < 0) dado[k++] = t;
-    for (; k < LIB_DADOS; k++) dado[k] = -1;
+    if (lin == 1) {
+        uint8_t antes = material_j[0];
+        material_j[0] = (uint8_t)k;
+        desenha_dado((float)cx, (float)cy, (float)r, D_D6, 0, 0.18f, 5, 2, false);
+        material_j[0] = antes;
+        return;
+    }
+    uint16_t c = lin == 0 ? FELTROS[k].tons[k == FT_GALAXIA ? 3 : 4] : k == MS_NOGUEIRA ? C_MADEIRA : MESAS[k].madeira[1];
+    uint16_t aro = lin == 0 ? C_LATAO_ESC : k == MS_NOGUEIRA ? C_OURO : k == MS_LED ? LED_TOM[5] : MESAS[k].metal;
+    int x = cx - r, y = cy - r * 2 / 3, w = r * 2, h = r * 4 / 3;
+    gfx_rect(x, y, w, h, c);
+    if (lin == 0) retalho_enfeite(k, x, y, w, h);
+    if (lin != 0 || k != FT_NATAL) ui_contorno(x, y, w, h, aro);
+}
+
+// As partes do estilo de um andar (linha da tela de estilo e a opcao).
+static int estilo_partes(int andar, int *lin, int *k)
+{
+    int n = 0;
+    for (int i = 0; i < FT_N; i++)  if (ABRE_FELTRO[i] == andar)   { lin[n] = 0; k[n++] = i; }
+    for (int i = 0; i < MAT_N; i++) if (ABRE_MATERIAL[i] == andar) { lin[n] = 1; k[n++] = i; }
+    for (int i = 0; i < MS_N; i++)  if (ABRE_MESA[i] == andar)     { lin[n] = 2; k[n++] = i; }
+    return n;
+}
+static void estilo_parte_nome(int lin, int k, char *s, int n)
+{
+    if (lin == 0) snprintf(s, (size_t)n, "feltro %s", FELTROS[k].nome);
+    else if (lin == 1) snprintf(s, (size_t)n, "dados de %s", MATERIAL[k].nome);
+    else snprintf(s, (size_t)n, "mesa %s", MESAS[k].nome);
 }
 
 static void des_abre_perfis(void)
@@ -166,7 +201,7 @@ static void desenha_perfis(void)
         int ganhou = 0;
         for (int d = 0; d <= N_NIVEIS; d++) ganhou += p->venceu[d];
         if (ganhou) {
-            snprintf(s, sizeof s, "Barão vencido: %d", ganhou);
+            snprintf(s, sizeof s, "Runs vencidas: %d", ganhou);
             txt_c(x + w / 2, ry + RT_H * esc + 58, s, C_OURO, false);
         }
     }
@@ -247,14 +282,15 @@ static void desenha_dificuldade(void)
     // O que vale na escolhida: o que ela acrescenta, em destaque, e o que vem
     // de baixo, miudo.
     int px = 194, py = 54;
-    ui_painel(px, py, 416, 240);
+    ui_painel(px, py, 416, 254);
     int d = dif_cur;
     int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
     txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
     int ly = py + 30;
     if (d > nv) {
         char s[64];
-        snprintf(s, sizeof s, "Vença o Barão no %s para abrir.", NOME_DIF_CURTO[d - 1]);
+        snprintf(s, sizeof s, "Vença %s no %s para abrir.", d - 1 >= CORINGA_DESDE ? "o Coringa" : "o Barão",
+                 NOME_DIF_CURTO[d - 1]);
         txt(px + 12, ly, s, C_VINHO_CLR, false);
         ly += 20;
     }
@@ -273,44 +309,78 @@ static void desenha_dificuldade(void)
         }
     }
     {
+        char cj[96];                                 // o Coringa, do Nivel 5
+        if (coringa_txt(d, cj, sizeof cj)) {
+            txt(px + 24, ly, cj, C_REAL, false);
+            ly += 17;
+        }
+    }
+    {
         char m[64];                                  // o mesmo comeco em todo andar
         snprintf(m, sizeof m, "Você começa com %d moedas e %d dados.", moedas_iniciais(d), (int)sizeof BOLSA_INICIO);
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }
-    if (d > 0) {                                     // o amuleto, os dados e o adesivo que abrem
-        int am[2], dado[LIB_DADOS];
-        liberados(d, am, dado);
-        int it[2 + LIB_DADOS + AD_N], ni = 0;            // amuleto: -1 - a; dado: o tipo; adesivo: ADE + a
-        enum { ADE = 1000 };
-        for (int i = 0; i < 2; i++) if (am[i] >= 0) it[ni++] = -1 - am[i];
-        for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0) it[ni++] = dado[i];
-        for (int a = AD_NADA + 1; a < AD_N; a++) if (ADESIVO[a].nivel == d) it[ni++] = ADE + a;
-        ly += 4;
-        txt(px + 12, ly, d <= nv ? "Abriu para você:" : "Abre:", C_TEXTO_M, false);
-        ly += 24;
-        int ix = px + 24, iy = ly;
-        for (int i = 0; i < ni; i++) {              // em fluxo: cada um com a largura do seu nome
-            const char *nome = it[i] < 0 ? AMULETO[-1 - it[i]].nome : it[i] >= ADE ? ADESIVO[it[i] - ADE].nome : TIPO[it[i]].nome;
-            int wi = 14 + gfx_largura(nome, GFX_FINO) + 16;
-            if (ix + wi > px + 408) { ix = px + 24; iy += 24; }
-            if (it[i] < 0) {
-                int a = -1 - it[i];
-                desenha_amuleto(ix, iy, 9, a, d > nv);
-                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : AMULETO[a].cor, false);
-                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_AMULETO, a);
-            } else if (it[i] >= ADE) {
-                int a = it[i] - ADE;
-                ad_solto_d(ix, iy, a, 1, 0);
-                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : ADESIVO[a].luz, false);
-                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_ADESIVO, a);
-            } else {
-                desenha_dado((float)ix, (float)iy, 9, it[i], 0, 0, 0, 0, d > nv);
-                txt(ix + 14, iy - 6, nome, d > nv ? C_TEXTO_M : cor_dado(it[i]), false);
-                if (d <= nv) dica_zona(ix - 10, iy - 10, wi, 20, DICA_DADO, it[i]);
+    // O que os chefes desta dificuldade abrem, chefe a chefe: aceso o que ja
+    // abriu, apagado (com o nome do chefe apagado) o que falta.
+    ly += 4;
+    txt(px + 12, ly, "Os chefes deste nível abrem:", C_TEXTO_M, false);
+    ly += 18;
+    static const char *const CURTO[CH_N] = { "Crupiê", "Dona", "Barão", "Coringa" };
+    for (int c = 0; c < chefes_de(d); c++) {
+        novidade_t it[PEDACO_MAX];
+        int ni = pedaco(d, c, it);
+        if (!ni) continue;
+        bool ab = chefe_abriu(d, c);
+        int ix = px + 84, iy = ly + 9;
+        gfx_texto(px + 24, iy - 10, CURTO[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
+        for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
+            int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
+            for (int q = 0; q < np; q++) {
+                char nome[40];
+                switch (it[i].k) {
+                case NV_DIF:     snprintf(nome, sizeof nome, "%s", NOME_DIF_CURTO[v]); break;
+                case NV_AMULETO: snprintf(nome, sizeof nome, "%s", AMULETO[v].nome); break;
+                case NV_ADESIVO: snprintf(nome, sizeof nome, "%s", ADESIVO[v].nome); break;
+                case NV_DADO:    snprintf(nome, sizeof nome, "%s", TIPO[v].nome); break;
+                default:         estilo_parte_nome(lin[q], k[q], nome, sizeof nome); break;
+                }
+                int wi = 13 + gfx_largura(nome, GFX_FINO) + 12;
+                if (ix + wi > px + 410) { ix = px + 84; iy += 19; }
+                uint16_t cn = C_TEXTO_M;
+                switch (it[i].k) {
+                case NV_DIF: {
+                    char nn[4];
+                    snprintf(nn, sizeof nn, "%d", v);
+                    gfx_disco(ix, iy, 8, ab ? COR_DIF[v] : C_FELTRO2);
+                    gfx_disco(ix, iy, 6, C_FELTRO_ESC);
+                    gfx_texto(ix - gfx_largura(nn, GFX_MIUDO) / 2, iy - 6, nn, ab ? COR_DIF[v] : C_TEXTO_M, GFX_MIUDO, false);
+                    if (ab) cn = COR_DIF[v];
+                    break;
+                }
+                case NV_AMULETO:
+                    desenha_amuleto(ix, iy, 8, v, !ab);
+                    if (ab) { cn = AMULETO[v].cor; dica_zona(ix - 10, iy - 9, wi, 18, DICA_AMULETO, v); }
+                    break;
+                case NV_ADESIVO:
+                    ad_solto_d(ix, iy, v, 1, 0);
+                    if (ab) { cn = ADESIVO[v].luz; dica_zona(ix - 10, iy - 9, wi, 18, DICA_ADESIVO, v); }
+                    break;
+                case NV_DADO:
+                    desenha_dado((float)ix, (float)iy, 8, v, 0, 0, 0, 0, !ab);
+                    if (ab) { cn = cor_dado(v); dica_zona(ix - 10, iy - 9, wi, 18, DICA_DADO, v); }
+                    break;
+                default:
+                    estilo_mini(lin[q], k[q], ix, iy, 7);
+                    if (!ab) acinzenta(ix - 8, iy - 8, 17, 17, 70);
+                    if (ab) cn = C_MARFIM_S;
+                    break;
+                }
+                gfx_texto(ix + 12, iy - 10, nome, cn, GFX_FINO, false);
+                ix += wi;
             }
-            ix += wi;
         }
+        ly = iy + 10;
     }
     rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
 }

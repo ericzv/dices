@@ -802,7 +802,7 @@ static void lj_proxima(char *s, int n)
     int p = run.estado == R_LOJA_INI ? run.passo : run.passo + 1;
     if (run.estado != R_LOJA_INI && p >= mesas_do_salao()) {
         int a = run.andar + 1;
-        if (a == DES_ANDAR_FINAL && run.dificuldade >= N_NIVEIS) snprintf(s, (size_t)n, "A seguir: O CORINGA");
+        if (a == DES_ANDAR_FINAL && com_coringa()) snprintf(s, (size_t)n, "A seguir: O CORINGA");
         else if (a < DES_ANDARES) snprintf(s, (size_t)n, "A seguir: o %s", SALAO[a]);
         else s[0] = 0;
         return;

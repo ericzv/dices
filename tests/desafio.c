@@ -241,7 +241,7 @@ int main(int argc, char **argv)
                 }
                 CONFERE(am_conta(run_amuletos()) <= AM_LUGARES, "%d amuletos", am_conta(run_amuletos()));
                 for (int a = 0; a < A_N; a++)
-                    CONFERE(!(run_amuletos() >> a & 1) || (NIVEL_AMULETO[a] <= dific && amuleto_no_jogo(a)),
+                    CONFERE(!(run_amuletos() >> a & 1) || (amuleto_liberado(a) && amuleto_no_jogo(a)),
                             "amuleto %d fechado ou fora do jogo", a);
                 break;
             }

@@ -851,10 +851,12 @@ typedef struct {
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa
 
-static bool  des_venceu_run;             // tela final: venceu o Barao?
+static bool  des_venceu_run;             // tela final: venceu a run (o Barao, ou o Coringa)?
 static int   des_liberou = -1;           // tela final: dificuldade que acabou de abrir
 static int   des_dif;                    // dificuldade escolhida para a proxima run
 static int   des_marco = -1;             // dado que a ultima vitoria abriu (chefe vencido pela 1a vez)
+static bool  des_chefe_novo;             // o chefe vencido abriu o pedaco dele (perfis.inc) agora
+static int   des_chefe_c;                // e qual chefe (CH_*)
 static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou
 static int   des_perdeu_para = -1;       // quem encerrou a run (indice em PERSO)
 static int   des_perdeu_andar;

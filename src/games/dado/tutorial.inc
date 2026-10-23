@@ -30,7 +30,7 @@ static const pagina_t TUTORIAL[] = {
     { "Modo Desafiante", {
         "Em 1 jogador: uma run por 3 salões do cassino, cada um com três oponentes e o chefe, todos à vista desde o começo.",
         "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: algumas moedas e uma loja pequena (comprar, abrir um pacote, colar um adesivo, trocar a vitrine, tirar dados). Perdeu (ou saiu no meio da partida), a run acaba.",
-        "Vencer o Barão abre a dificuldade seguinte, e os chefes abrem dados novos. Cada perfil guarda o seu progresso e a sua run." } },
+        "Cada chefe vencido abre coisas novas, e vencer a run abre a dificuldade seguinte (do Nível 5, o Coringa espera depois do Barão). Cada perfil guarda o seu progresso e a sua run." } },
     { "Teclas", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
         "Mouse e toque também jogam: clique no que quiser. O < no alto volta ou sai da partida.",

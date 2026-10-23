@@ -152,7 +152,7 @@ static void info_mesa(int p)
         dica_zona(xa, cy + 42, xv - xa, 20, DICA_TRUNFO, no->perso);
     } else {
         int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
-        bool paga = vale && !(run.andar == DES_ANDARES - 1 && no->tipo == NO_CHEFE && run.dificuldade < N_NIVEIS);
+        bool paga = vale && !(run.andar == DES_ANDARES - 1 && no->tipo == NO_CHEFE && !com_coringa());
         char v[32];
         if (paga) {
             snprintf(v, sizeof v, "vale %d", vale);
@@ -167,7 +167,7 @@ static void info_mesa(int p)
     int xb = xa + wa + 12, wb = 168, xc = xb;
     if (trunfo_ativo(no->perso)) {
         txt(xb, cy, pe->trunfo, C_ROSA, true);
-        quebra_linhas(xb, cy + 22, wb, 3, pe->regra, C_MARFIM_S);
+        quebra_linhas(xb, cy + 22, wb, 3, regra_perso(no->perso), C_MARFIM_S);
         info_divisa(xb + wb + 6);
         xc = xb + wb + 18;
     }
@@ -245,7 +245,7 @@ static void salao_mesa(int p)
     if (!feita) gfx_texto(x - gfx_largura(tag, GFX_MIUDO) / 2, SALAO_BASE + 26, tag, cn, GFX_MIUDO, false);
     // Quanto paga: a moeda e o numero (o fim da run nao paga).
     int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
-    if (run.andar == DES_ANDARES - 1 && chefe && run.dificuldade < N_NIVEIS) vale = 0;
+    if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale = 0;
     char v[16];
     if (feita) snprintf(v, sizeof v, "vencida");
     else if (vale) snprintf(v, sizeof v, "+%d", vale);

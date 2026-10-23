@@ -237,7 +237,7 @@ static void hist_resumo(void)
     int barao = 0;
     for (int d = 0; d <= N_NIVEIS; d++) barao += hist.runs_venc[d];
     snprintf(s, sizeof s, "%d", barao);
-    hist_linha(x, y, w, "Barão vencido", s, barao ? C_OURO : C_MARFIM); y += dy;
+    hist_linha(x, y, w, "Runs vencidas", s, barao ? C_OURO : C_MARFIM); y += dy;
     snprintf(s, sizeof s, "%d  ·  %d%%", hist.partidas, pct(hist.partidas_venc, hist.partidas));
     hist_linha(x, y, w, "Partidas  ·  vencidas", s, C_MARFIM); y += dy;
     snprintf(s, sizeof s, "%u  ·  %d%%", (unsigned)hist.rodadas, pct(hist.rodadas_venc, hist.rodadas));
@@ -266,7 +266,7 @@ static void hist_resumo(void)
     ui_painel(px, y = HIST_Y0, pw, HIST_H);
     txt_c(px + pw / 2, y + 8, "Run campeã", C_LATAO, true);
     if (!hist.camp_tem) {
-        txt_c(px + pw / 2, y + 100, "Vença o Barão: a run campeã", C_TEXTO_M, false);
+        txt_c(px + pw / 2, y + 100, "Vença uma run: a run campeã", C_TEXTO_M, false);
         txt_c(px + pw / 2, y + 116, "fica guardada aqui.", C_TEXTO_M, false);
         return;
     }

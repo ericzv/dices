@@ -1,14 +1,13 @@
 // ---------------------------------------------------------------------------
 // Novidades: o que abriu, um card de cada vez
 // ---------------------------------------------------------------------------
-// No fim de uma run vencida (a dificuldade nova, o amuleto, os dados, o
-// adesivo e o estilo do andar) e na primeira vitoria contra um chefe (o D20
-// ou o Lastro). Os cards esperam de costas na fileira de baixo; um de cada
+// Logo depois de cada chefe vencido pela primeira vez na dificuldade (o
+// pedaco dele: dados, amuleto, adesivo; e o D20 ou o Lastro, na primeira
+// vitoria contra o Crupie e a Dona) e no fim da run vencida (a dificuldade
+// nova e o pedaco de quem fecha a run). Os cards esperam de costas na fileira de baixo; um de cada
 // vez sobe, vira no meio da mesa e volta de frente para o lugar, sozinho.
 // ENTER acelera, TAB mostra tudo; no fim, o resumo (com um card so, ele fica).
-enum { NV_DIF, NV_AMULETO, NV_DADO, NV_ADESIVO, NV_ESTILO };
-typedef struct { uint8_t k, v; } novidade_t;
-#define NOV_MAX   16
+#define NOV_MAX   (PEDACO_MAX + 2)       // um pedaco, o dado do marco e a dificuldade
 #define NOV_ENTRA 0.35f                  // a fileira aparece antes do primeiro
 #define NOV_VOA   0.22f                  // de costas, da fileira ao meio
 #define NOV_VIRA  0.20f
@@ -62,22 +61,22 @@ static int nov_atual(int *etapa, float *q)
 }
 
 // ---- O que abriu ------------------------------------------------------------
-// Fim da run vencida: a dificuldade, o amuleto, os dados (os lendarios por
-// ultimo, para fechar em alta), o adesivo e o estilo do andar.
+// O pedaco do chefe vencido (perfis.inc), quando e novo, sem a dificuldade.
+static void nov_poe_pedaco(void)
+{
+    if (!des_chefe_novo) return;
+    novidade_t p[PEDACO_MAX];
+    int n = pedaco(run.dificuldade, des_chefe_c, p);
+    for (int i = 0; i < n; i++) if (p[i].k != NV_DIF) nov_poe(p[i].k, p[i].v);
+    des_chefe_novo = false;
+}
+
+// Fim da run vencida: a dificuldade que abriu e o pedaco de quem fechou a run.
 static void nov_monta_run(void)
 {
     n_nov = 0;
-    if (des_liberou > 0) {
-        int am[2], dado[LIB_DADOS];
-        liberados(des_liberou, am, dado);
-        nov_poe(NV_DIF, des_liberou);
-        for (int i = 0; i < 2; i++) if (am[i] >= 0) nov_poe(NV_AMULETO, am[i]);
-        for (int r = RAR_COMUM; r <= RAR_LENDA; r++)
-            for (int i = 0; i < LIB_DADOS; i++) if (dado[i] >= 0 && TIPO[dado[i]].raridade == r) nov_poe(NV_DADO, dado[i]);
-        for (int a = AD_NADA + 1; a < AD_N; a++) if (ADESIVO[a].nivel == des_liberou) nov_poe(NV_ADESIVO, a);
-    }
-    char es[96];
-    if (des_estilo_abriu >= 0 && estilo_do_andar(des_estilo_abriu, es, sizeof es)) nov_poe(NV_ESTILO, des_estilo_abriu);
+    if (des_liberou > 0) nov_poe(NV_DIF, des_liberou);
+    nov_poe_pedaco();
     snprintf(nov_sub, sizeof nov_sub, "Você venceu %s no %s", PERSO[run.no[run.passo].perso].nome,
              NOME_DIF_CURTO[run.dificuldade]);
     nov_da_run = true;
@@ -87,8 +86,9 @@ static void nov_monta_run(void)
 static void nov_linha_fim(int y)
 {
     char s[64];
-    if (des_liberou > 0) snprintf(s, sizeof s, "Abriu o %s  ·  %d novidades", NOME_DIF_CURTO[des_liberou], n_nov);
-    else snprintf(s, sizeof s, n_nov == 1 ? "%d novidade" : "%d novidades", n_nov);
+    const char *nn = n_nov == 1 ? "novidade" : "novidades";
+    if (des_liberou > 0) snprintf(s, sizeof s, "Abriu o %s  ·  %d %s", NOME_DIF_CURTO[des_liberou], n_nov, nn);
+    else snprintf(s, sizeof s, "%d %s", n_nov, nn);
     txt_c(GFX_W / 2, y, s, des_liberou > 0 ? COR_DIF[des_liberou] : C_OURO, true);
 }
 
@@ -100,12 +100,19 @@ static void nov_abre(void)
     fase = F_NOVIDADES;
 }
 
-// O chefe vencido pela primeira vez: o dado que ele abre, num card so.
-static void nov_abre_marco(void)
+// Um chefe vencido no meio da run: o pedaco dele (na primeira vez nesta
+// dificuldade) e, na primeira vitoria contra o Crupie e a Dona, o D20 e o
+// Lastro.
+static bool nov_tem_chefe(void) { return des_marco >= 0 || des_chefe_novo; }
+static void nov_abre_chefe(void)
 {
     n_nov = 0;
-    nov_poe(NV_DADO, des_marco);
-    snprintf(nov_sub, sizeof nov_sub, "Primeira vitória contra %s", PERSO[run.no[run.passo].perso].nome);
+    bool so_marco = !des_chefe_novo;
+    if (des_marco >= 0) nov_poe(NV_DADO, des_marco);
+    nov_poe_pedaco();
+    const char *nome = PERSO[run.no[run.passo].perso].nome;
+    if (so_marco) snprintf(nov_sub, sizeof nov_sub, "Primeira vitória contra %s", nome);
+    else snprintf(nov_sub, sizeof nov_sub, "Você venceu %s no %s", nome, NOME_DIF_CURTO[run.dificuldade]);
     nov_da_run = false;
     des_marco = -1;
     nov_abre();
@@ -189,7 +196,12 @@ static const char *nov_texto(int i)
     static char s[200];
     int v = nov[i].v;
     switch (nov[i].k) {
-    case NV_DIF:     snprintf(s, sizeof s, "O que muda: %s", PENA_DIF[v]); return s;
+    case NV_DIF: {
+        char cj[96];
+        if (coringa_txt(v, cj, sizeof cj)) snprintf(s, sizeof s, "O que muda: %s %s", PENA_DIF[v], cj);
+        else snprintf(s, sizeof s, "O que muda: %s", PENA_DIF[v]);
+        return s;
+    }
     case NV_AMULETO: return AMULETO[v].desc;
     case NV_DADO:    return TEXTO_MEDIO[v];
     case NV_ADESIVO: return AD_TEXTO[v];
@@ -200,16 +212,6 @@ static const char *nov_texto(int i)
         return s;
     }
     }
-}
-
-// As partes do estilo de um andar (linha da tela de estilo e a opcao).
-static int nov_estilo_partes(int andar, int *lin, int *k)
-{
-    int n = 0;
-    for (int i = 0; i < FT_N; i++)  if (ABRE_FELTRO[i] == andar)   { lin[n] = 0; k[n++] = i; }
-    for (int i = 0; i < MAT_N; i++) if (ABRE_MATERIAL[i] == andar) { lin[n] = 1; k[n++] = i; }
-    for (int i = 0; i < MS_N; i++)  if (ABRE_MESA[i] == andar)     { lin[n] = 2; k[n++] = i; }
-    return n;
 }
 
 // A figura grande, no quadro do card.
@@ -232,7 +234,7 @@ static void nov_figura(int i, int cx, int cy, float desde)
         break;
     case NV_ADESIVO: ad_solto_d(cx, cy, v, 4, 0); break;
     default: {
-        int lin[4], k[4], n = nov_estilo_partes(v, lin, k);
+        int lin[4], k[4], n = estilo_partes(v, lin, k);
         for (int j = 0; j < n; j++) es_amostra(lin[j], k[j], cx, cy + (j * 2 - (n - 1)) * 18, true);
         break;
     }
@@ -257,17 +259,7 @@ static void nov_icone(int i, int cx, int cy, int r)
     case NV_ADESIVO: ad_solto_d(cx, cy, v, r > 10 ? 2 : 1, 0); break;
     default: {                                   // a primeira parte: o feltro, o dado no material ou a madeira
         int lin[4], k[4];
-        if (!nov_estilo_partes(v, lin, k)) break;
-        if (lin[0] == 1) {
-            uint8_t antes = material_j[0];
-            material_j[0] = (uint8_t)k[0];
-            desenha_dado((float)cx, (float)cy, (float)r, D_D6, 0, 0.18f, 5, 2, false);
-            material_j[0] = antes;
-        } else {
-            uint16_t c = lin[0] == 0 ? FELTROS[k[0]].tons[4] : MESAS[k[0]].madeira[1];
-            gfx_rect(cx - r, cy - r * 2 / 3, r * 2, r * 4 / 3, c);
-            ui_contorno(cx - r, cy - r * 2 / 3, r * 2, r * 4 / 3, lin[0] == 0 ? C_LATAO_ESC : MESAS[k[0]].metal);
-        }
+        if (estilo_partes(v, lin, k)) estilo_mini(lin[0], k[0], cx, cy, r);
         break;
     }
     }

@@ -2,7 +2,7 @@
 // A run: saloes, as mesas de cada um e os oponentes
 // ===========================================================================
 #define DES_ANDARES   3
-#define DES_ANDAR_FINAL 3               // o salao do Coringa: depois do Barao, so no ultimo nivel
+#define DES_ANDAR_FINAL 3               // o salao do Coringa: depois do Barao, do Nivel 5 (CORINGA_DESDE)
 #define DES_PASSOS    4                  // 3 oponentes e o chefe, sempre nessa ordem
 #define DES_FICHAS    50
 
@@ -13,7 +13,8 @@
 #define DES_MOEDAS_NIVEL 2               // e mais 1 a cada 2 niveis (os oponentes la de cima sao mais duros)
 
 // Moedas por mesa vencida: [salao][1o, 2o, 3o oponente, chefe]. O Barao so
-// paga na Cobertura (nos outros niveis a run acaba nele); o Coringa fecha a run.
+// paga quando o Coringa vem depois (do Nivel 5; antes, a run acaba nele); o
+// Coringa fecha a run.
 static const uint8_t MOEDAS_MESA[DES_ANDARES][DES_PASSOS] = { { 2, 3, 4, 5 }, { 4, 5, 6, 10 }, { 7, 8, 9, 20 } };
 
 enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_VAZIO = 0xFF };
@@ -262,10 +263,11 @@ static const perso_t PERSO[] = {
         { "Encomendo as flores.", "Que descanse em paz." },
         { "Você escapou. Desta vez.", "Guardo o seu lugar." } },
       8, { D_MARTIR, D_COVEIRO }, ES_NORMAL },
-    // ...e o chefe do salao final, depois do Barao, so no ultimo nivel.
+    // ...e o chefe do salao final, depois do Barao, do Nivel 5 em diante. A
+    // regra cresce no 7 (veja regra_perso).
     { "O CORINGA",       "Ri de tudo. Principalmente de você.", 0.7f,
       { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO, D_D20, D_CHECKPOINT },
-      "Carta na manga", "Seu dado que tirou mais vira o 4º dele (\"?\" se ele abre). Da 5ª rodada, seu dado anulado some.",
+      "Carta na manga", "Seu dado que tirou mais vira o 4º dele (\"?\" se ele abre).",
       0, REG_CORINGA,
       { { "Hahaha! Achou que o Barão era o último?", "Vamos brincar com os SEUS dados." },
         { "Ops! Hahaha!", "Anulado, anulado, anulado!" },

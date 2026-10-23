@@ -11,11 +11,20 @@ static const char *const NOME_AVATAR[AV_N] = { "ET Vilu", "O Berro", "Nomalisa",
 typedef struct {
     char     nome[12];                   // "" = lugar vazio
     uint8_t  avatar, nivel;              // nivel: a dificuldade mais alta liberada
-    uint8_t  venceu[N_NIVEIS + 1];       // Barao vencido em cada dificuldade
+    uint8_t  venceu[N_NIVEIS + 1];       // runs vencidas em cada dificuldade
     uint16_t runs;
     uint16_t partidas;                   // partidas jogadas no Desafiante
     uint8_t  marcos;                     // bit c: ja venceu o chefe do salao c (abre dados)
+    uint8_t  chefes[N_NIVEIS + 1];       // bit CH_*: os chefes ja vencidos em cada dificuldade
 } perfil_t;
+typedef struct {                         // "PER4": de antes dos chefes, lido e convertido
+    char     nome[12];
+    uint8_t  avatar, nivel;
+    uint8_t  venceu[N_NIVEIS + 1];
+    uint16_t runs;
+    uint16_t partidas;
+    uint8_t  marcos;
+} perfil_4_t;
 typedef struct {                         // "PER3": do tempo dos 5 niveis, lido e convertido
     char     nome[12];
     uint8_t  avatar, nivel;
@@ -61,11 +70,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER4" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER5" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER4", 4);
+    memcpy(buf, "PER5", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -94,7 +103,22 @@ static void perfis_le(void)
             lido[i].partidas = v[i].partidas;
             lido[i].marcos = v[i].marcos;
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER4", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
+    } else if (n == 5 + (int)(2 * sizeof(perfil_4_t[N_PERFIS])) && !memcmp(buf, "PER4", 4)) {
+        // Os de antes dos chefes: tudo igual, sem chefe nenhum anotado (o
+        // que o nivel ja passou fica aberto do mesmo jeito).
+        perfil_4_t v[N_PERFIS];
+        if (!de_hex(buf + 5, v, sizeof v)) return;
+        memset(lido, 0, sizeof lido);
+        for (int i = 0; i < N_PERFIS; i++) {
+            memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
+            lido[i].avatar = v[i].avatar;
+            lido[i].nivel = v[i].nivel;
+            memcpy(lido[i].venceu, v[i].venceu, sizeof lido[i].venceu);
+            lido[i].runs = v[i].runs;
+            lido[i].partidas = v[i].partidas;
+            lido[i].marcos = v[i].marcos;
+        }
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER5", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -142,11 +166,66 @@ static int nivel_do_dado(int t)
 // D20 e Lastro abrem antes do Barao: na primeira vitoria contra o chefe do
 // primeiro e do segundo salao.
 static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -1); }
+
+// O que abre, chefe a chefe. Os chefes da dificuldade d abrem, um pedaco
+// cada, o que vem com o nivel d + 1: o Crupie, os dados mais comuns e o
+// adesivo; a Dona, os do meio e o amuleto; o Barao, os mais raros; e quem
+// fecha a run (o Barao, ou do Nivel 5 o Coringa), o estilo do andar d e a
+// dificuldade seguinte. O que a dificuldade ja passou fica todo aberto.
+enum { CH_CRUPIE, CH_DONA, CH_BARAO, CH_CORINGA, CH_N };
+static const char *const NOME_CHEFE[CH_N] = { "o Crupiê", "a Dona do Salão", "o Barão", "o Coringa" };
+static int chefe_final(int d) { return d >= CORINGA_DESDE ? CH_CORINGA : CH_BARAO; }
+static int chefes_de(int d) { return chefe_final(d) + 1; }
+static bool chefe_abriu_de(const perfil_t *p, int d, int c)
+{
+    if (d < 0) return true;
+    return p->nivel > d || p->venceu[d] || (p->chefes[d] >> c & 1);
+}
+static bool chefe_abriu(int d, int c) { return chefe_abriu_de(perfil(), d, c); }
+
+// Qual chefe abre o dado t: os dados do nivel dele, do mais comum ao mais
+// raro, em tres partes.
+static int chefe_do_dado(int t)
+{
+    int nv = nivel_do_dado(t), n = 0, antes = 0;
+    for (int u = 0; u < D_N; u++) {
+        if (nivel_do_dado(u) != nv || marco_do_dado(u) >= 0) continue;
+        n++;
+        antes += TIPO[u].raridade < TIPO[t].raridade || (TIPO[u].raridade == TIPO[t].raridade && u < t);
+    }
+    return n ? antes * 3 / n : CH_CRUPIE;
+}
 static bool dado_liberado(int t)
 {
     if (sem_sorteio(t)) return false;            // nao sai em sorteio nenhum
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
-    return nivel_do_dado(t) <= perfil()->nivel;
+    return chefe_abriu(nivel_do_dado(t) - 1, chefe_do_dado(t));
 }
-static bool amuleto_liberado(int a) { return NIVEL_AMULETO[a] <= perfil()->nivel; }
+static bool amuleto_liberado(int a) { return chefe_abriu(NIVEL_AMULETO[a] - 1, CH_DONA); }
+
+// O pedaco do chefe c na dificuldade d, como os cards o mostram: a
+// dificuldade seguinte (so quem fecha a run), o amuleto, os dados (os
+// lendarios por ultimo), o adesivo e o estilo do andar.
+enum { NV_DIF, NV_AMULETO, NV_DADO, NV_ADESIVO, NV_ESTILO };
+typedef struct { uint8_t k, v; } novidade_t;
+#define PEDACO_MAX 16
+static int pedaco(int d, int c, novidade_t *out)
+{
+    int n = 0, nv = d + 1;
+    bool fecha = c == chefe_final(d);
+    if (fecha && d < N_NIVEIS) out[n++] = (novidade_t){ NV_DIF, (uint8_t)nv };
+    if (c == CH_DONA)
+        for (int a = 0; a < A_N && n < PEDACO_MAX; a++)
+            if (NIVEL_AMULETO[a] == nv && amuleto_no_jogo(a)) out[n++] = (novidade_t){ NV_AMULETO, (uint8_t)a };
+    for (int r = RAR_COMUM; r <= RAR_LENDA; r++)
+        for (int t = 0; t < D_N && n < PEDACO_MAX; t++)
+            if (nivel_do_dado(t) == nv && marco_do_dado(t) < 0 && TIPO[t].raridade == r && chefe_do_dado(t) == c)
+                out[n++] = (novidade_t){ NV_DADO, (uint8_t)t };
+    if (c == CH_CRUPIE)
+        for (int a = AD_NADA + 1; a < AD_N && n < PEDACO_MAX; a++)
+            if (ADESIVO[a].nivel == nv) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a };
+    char es[96];
+    if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d };
+    return n;
+}

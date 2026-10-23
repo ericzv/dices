@@ -172,9 +172,9 @@ static void monta_pacote(void)
     for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
 }
 
-// O adesivo da loja (adesivos.inc): um por loja, entre os que o nivel do
-// perfil ja abriu. Trocar a vitrine nao muda o adesivo.
-static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && ADESIVO[a].nivel <= perfil()->nivel; }
+// O adesivo da loja (adesivos.inc): um por loja, entre os que o perfil ja
+// abriu (o Crupie abre o de cada nivel). Trocar a vitrine nao muda o adesivo.
+static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
 static void monta_adesivo(void)
 {
@@ -209,12 +209,26 @@ static void gera_salao_final(void)
     chefe->tipo = NO_CHEFE;
     chefe->perso = PERSO_CORINGA;
     chefe->nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
+    if (run.dificuldade < CORINGA_SOME) chefe->nivel = 1;    // no 5 e no 6 ele ainda pensa menos
     chefe->semente = rnd_r() | 1;
 }
 
 // O trunfo do oponente p ja vale nesta dificuldade? Os comuns trazem o seu
 // a partir de um nivel (nenhum no Normal); os chefes, sempre.
 static bool trunfo_ativo(int p) { return p >= 0 && p < N_PERSO && run.dificuldade >= PERSO[p].andar_trunfo; }
+
+// A regra do trunfo, como vale na run: a do Coringa cresce no Nivel 7.
+static const char *regra_perso(int p)
+{
+    if (p == PERSO_CORINGA && run.dificuldade >= CORINGA_SOME)
+        return "Seu dado que tirou mais vira o 4º dele (\"?\" se ele abre). Da 5ª rodada, seu dado anulado some.";
+    return PERSO[p].regra;
+}
+
+// O Coringa vem depois do Barao nesta run?
+static bool com_coringa(void) { return run.dificuldade >= CORINGA_DESDE; }
+// Quantos dados o Coringa traz na dificuldade d: 13 no Nivel 5, um a mais por nivel.
+static int coringa_bolsa(int d) { return 13 + (d > N_NIVEIS ? N_NIVEIS : d) - CORINGA_DESDE; }
 
 // Quantas mesas o salao tem (o do Coringa, uma).
 static int mesas_do_salao(void)
@@ -296,6 +310,12 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
     // Sem os dados de saida, toda do tema, recheada de dados bons.
     bool coringa = no->perso == PERSO_CORINGA;
+    // Ele cresce do Nivel 5 a Cobertura (g de 0 a 5): mais dados do tema e
+    // uma bolsa maior. So na Cobertura ele traz o que quiser; antes, o que
+    // voce ainda nao abriu vira D12.
+    int g = coringa ? run.dificuldade - CORINGA_DESDE : 0;
+    g = g < 0 ? 0 : g > 5 ? 5 : g;
+    bool tudo = coringa && run.dificuldade >= N_NIVEIS;
     int tira = andar + (tier >= 2 ? 1 : 0);
     if (tira > 6) tira = 6;
     if (coringa) tira = 8;
@@ -311,7 +331,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // Dados especiais a mais, [salao][1o, 2o, 3o oponente, chefe]: sobem
     // devagar (o jogador cresce aos poucos, comprando na loja).
     static const uint8_t EXTRAS[DES_ANDARES + 1][4] = { { 0, 0, 0, 1 }, { 1, 1, 2, 0 }, { 3, 3, 4, 4 }, { 8, 8, 8, 8 } };
-    int extras = EXTRAS[andar][tier];
+    int extras = coringa ? 3 + g : EXTRAS[andar][tier];
     static const float BASE[4][4] = {
         { 6, 3, 1.0f, 0.0f }, { 3, 4, 2.0f, 0.2f }, { 1, 3, 4.0f, 0.6f }, { 1, 3, 3.5f, 1.0f } };
     float w[4] = { BASE[tier][0] / (1 + andar), BASE[tier][1],
@@ -322,16 +342,16 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // O nucleo: os dados que sao a cara dele, sempre na bolsa - um no primeiro
     // salao, dois no segundo, tres dali em diante. Cada um toma o lugar de um
     // dos sorteados (o primeiro vem de graca: ninguem fica sem o seu).
-    // So entra o que a sua dificuldade ja abriu (o Coringa, no ultimo nivel,
+    // So entra o que a sua dificuldade ja abriu (o Coringa, na Cobertura,
     // traz o que quiser): o nucleo e o tema fechados ficam de fora.
     for (int i = 0; i < 3 && i <= andar && pe->nucleo[i] && n < MAX_COL; i++) {
-        if (!coringa && !dado_liberado(pe->nucleo[i])) continue;
+        if (!tudo && !dado_liberado(pe->nucleo[i])) continue;
         col[n++] = peca_r(pe->nucleo[i]);
         if (i > 0 && extras > 0) extras--;
     }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
         int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
-        if (!coringa && !dado_liberado(t)) t = sorteia_raridade(w);
+        if (!tudo && !dado_liberado(t)) t = coringa ? D_D12 : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
     if (run.dificuldade >= 6 && andar >= 1) {   // do 2o salao: dados raros a mais, um do Nivel 6, dois do 8
@@ -346,19 +366,21 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
                                        D_TREVO, D_SORTE, D_SEMENTE, D_JACKPOT, D_COPIADOR,
                                        D_SENTINELA, D_COBRADOR, D_VIDRO, D_SOLITARIO };
     static const uint8_t RECHEIO_CORINGA[] = { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO };
+    static const uint8_t RECHEIO_CORINGA_LEVE[] = { D_D12, D_D20, D_D8, D_ESCUDO, D_TEIMOSO, D_D12 };   // no 5 e no 6
     // No primeiro salao, so dados de numero, e fracos: o jogador ainda e a
     // bolsa do comeco.
     static const uint8_t RECHEIO_SIMPLES[] = { D_D4, D_D4, D_D2, D_D6 };
     // No segundo, numeros e especiais fracos, meio a meio.
     static const uint8_t RECHEIO_MEIO[] = { D_D4, D_D6, D_D4, D_D8, D_D2, D_D6, D_TEIMOSO, D_PAR, D_TREVO,
                                             D_SENTINELA, D_COBRADOR, D_SOLITARIO };
-    int alvo = 12 + andar * 2;
+    int alvo = coringa ? coringa_bolsa(CORINGA_DESDE + g) : 12 + andar * 2;
     while (n < alvo && n < MAX_COL) {
-        int t = coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)]
+        int t = coringa && g < CORINGA_SOME - CORINGA_DESDE ? RECHEIO_CORINGA_LEVE[sorte_r((int)sizeof RECHEIO_CORINGA_LEVE)]
+              : coringa ? RECHEIO_CORINGA[sorte_r((int)sizeof RECHEIO_CORINGA)]
               : andar == 0 ? RECHEIO_SIMPLES[sorte_r((int)sizeof RECHEIO_SIMPLES)]
               : andar == 1 ? RECHEIO_MEIO[sorte_r((int)sizeof RECHEIO_MEIO)]
               : RECHEIO[sorte_r((int)sizeof RECHEIO)];
-        col[n++] = peca_r(coringa || dado_liberado(t) ? t : D_D6);
+        col[n++] = peca_r(tudo || dado_liberado(t) ? t : coringa ? D_D12 : D_D6);
     }
     if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);
     return n;

@@ -156,7 +156,7 @@ static void nova_rodada(void)
     if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
         && virada_forca(fala_perso - PERSO_CHEFE0))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
-    if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA)) {   // o Coringa avisa: daqui, o que cai e dele
+    if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA) && des_dificuldade() >= CORINGA_SOME) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
         fala_comeca(3.2f);
         fala_e_curta = false;
@@ -656,8 +656,9 @@ static bool pedra_misteriosa(int j, int k)
 // estilhacado e o que a Ficha de Fogo queimou. A bolsa nunca cai abaixo da
 // mao: se cairia, o dado perdido vira um d4 comum. A pedra negativa do
 // Desafiante se parte e deixa o Dado Misterioso no lugar.
-// O Coringa, da 5a rodada em diante: o dado seu que termina anulado e dele.
-static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIRADA_RODADA; }
+// O Coringa, da 5a rodada em diante (do Nivel 7): o dado seu que termina
+// anulado e dele.
+static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIRADA_RODADA && des_dificuldade() >= CORINGA_SOME; }
 
 static void recolhe_quebrados(void)
 {

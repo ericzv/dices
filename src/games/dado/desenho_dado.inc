@@ -814,6 +814,9 @@ static bool brilho_apagado;              // o dado em curso esta anulado: sem br
 // consome (volta a -1), entao nao passa para o dado seguinte.
 static float brilho_passa = -1;
 static float brilho_desta = -1;          // o de passagem do dado em curso
+// O material do corpo comum deste dado (veio da madeira, furta-cor da
+// perola); -1: os outros, sem textura propria.
+static int mat_desta = -1;
 static float brilho_lenda(int tipo, bool *forte)
 {
     *forte = false;
@@ -879,12 +882,26 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                 else {
                     float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
                     float luz = -(dx + dy) * s * 0.75f
-                              + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f)
-                              + 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
-                              + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
+                              + 1.6f * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f);
+                    if (mat_desta == MAT_MADEIRA) {                           // o veio: aneis largos e tortos
+                        float w = v * s * 5.5f + 1.3f * ruido(u * s * 1.6f + 4.1f, v * s * 1.1f)
+                                + 0.25f * ruido(u * s * 6.0f, v * s * 0.8f + 2.0f);
+                        luz += 0.85f * (tri(w) - 0.55f);
+                    } else if (mat_desta == MAT_PEROLA) {                     // lisa: so uma ondulacao leve
+                        luz += 0.12f * ruido(u * s / 0.4f + desvio, v * s / 0.4f);
+                    } else {
+                        luz += 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
+                             + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
+                    }
                     if (padrao(tex, u, v, r / 22)) luz -= 1;
                     int nivel = (int)lroundf(luz);
-                    c = tons[(nivel < -2 ? -2 : nivel > 2 ? 2 : nivel) + 2];
+                    nivel = nivel < -2 ? -2 : nivel > 2 ? 2 : nivel;
+                    c = tons[nivel + 2];
+                    if (mat_desta == MAT_PEROLA && (nivel == 0 || nivel == 1)) {   // o furta-cor, em faixas
+                        float f = sinf((u * 0.7f + v) * s * 3.6f + 2.2f * ruido(u * s * 1.2f + 1, v * s * 1.2f));
+                        if (f > 0.62f) c = PEROLA_FURTA[0];
+                        else if (f < -0.62f) c = PEROLA_FURTA[1];
+                    }
                 }
                 if (brilho > -5) {
                     float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
@@ -1138,6 +1155,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     // moeda) tem um desenho so, sobre o marfim, para os dois lados.
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
+    mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
     uint16_t corpo = mt->tons[2];
     uint16_t tinta = mt->tinta;
     uint16_t aro = aro_de(tipo);
@@ -1489,7 +1507,303 @@ static void filete(int in, uint16_t c, bool recorte)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Os enfeites dos estilos novos. O que mexe (estrelas que cintilam, o
+// pisca-pisca, o led que respira) troca de quadro no ritmo dos retratos e e
+// pintado direto na mesa pronta: o fundo de cada coisa que mexe fica
+// guardado para voltar no quadro seguinte.
+// ---------------------------------------------------------------------------
+#define ANIMA_PASSO 0.24f                // um quadro, como os retratos
+#define ANIMA_MAX   96
+#define ANIMA_POOL  2400
+typedef struct { int16_t x, y; uint8_t w, h, tipo, cor; uint16_t de; } anima_t;
+enum { AN_ESTRELA, AN_LAMPADA };
+static anima_t anima[ANIMA_MAX];
+static int n_anima, anima_usado;
+static uint16_t anima_fundo[ANIMA_POOL];
+
+// Um enfeite que mexe, na caixa (x, y, w, h): so mesa_anima o desenha.
+static void anima_poe(int x, int y, int w, int h, int tipo, int cor)
+{
+    if (n_anima >= ANIMA_MAX || anima_usado + w * h > ANIMA_POOL) return;
+    anima[n_anima++] = (anima_t){ (int16_t)x, (int16_t)y, (uint8_t)w, (uint8_t)h, (uint8_t)tipo, (uint8_t)cor,
+                                  (uint16_t)anima_usado };
+    anima_usado += w * h;
+}
+// Com a mesa inteira pintada: o fundo de cada caixa, para voltar a cada quadro.
+static void anima_guarda(void)
+{
+    const uint16_t *fb = display_fb();
+    for (int k = 0; k < n_anima; k++) {
+        const anima_t *a = &anima[k];
+        for (int j = 0; j < a->h; j++)
+            for (int i = 0; i < a->w; i++) {
+                int xx = a->x + i, yy = a->y + j;
+                anima_fundo[a->de + j * a->w + i] = xx >= 0 && xx < GFX_W && yy >= 0 && yy < GFX_H ? fb[yy * GFX_W + xx] : 0;
+            }
+    }
+}
+static void anima_volta(const anima_t *a, uint16_t *fb)
+{
+    for (int j = 0; j < a->h; j++)
+        for (int i = 0; i < a->w; i++) {
+            int xx = a->x + i, yy = a->y + j;
+            if (xx >= 0 && xx < GFX_W && yy >= 0 && yy < GFX_H) fb[yy * GFX_W + xx] = anima_fundo[a->de + j * a->w + i];
+        }
+}
+
+// Uma estrela de quatro pontas: o miolo e os bracos (b de comprimento), do
+// claro para o fraco.
+static void estrela4(int x, int y, int b, uint16_t miolo, uint16_t braco, uint16_t ponta)
+{
+    gfx_pixel(x, y, miolo);
+    for (int k = 1; k <= b; k++) {
+        uint16_t c = k == b && b > 1 ? ponta : braco;
+        gfx_pixel(x - k, y, c); gfx_pixel(x + k, y, c);
+        gfx_pixel(x, y - k, c); gfx_pixel(x, y + k, c);
+    }
+}
+
+// O ceu de Galaxias: a Via Lactea em nevoa, atravessando a mesa torta, e as
+// estrelas - muitas fracas, poucas claras, umas mais quentes, outras mais
+// frias, mais juntas dentro da faixa. Algumas grandes cintilam.
+static void pinta_galaxia(void)
+{
+    static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+    float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
+    for (int y = MESA_Y0; y < MESA_Y1; y++)
+        for (int x = MESA_X0; x < MESA_X1; x++) {
+            float t = (x - cx) / 300.0f;
+            float meio = cy - 0.30f * (x - cx) + sinf(t * 2.6f + 0.6f) * 16;
+            float d = fabsf(y - meio) / (40 + 14 * sinf(t * 3.7f + 1.1f));
+            float n = 0.55f * ruido(x / 41.0f, y / 19.0f) + 0.30f * ruido(x / 13.0f + 7, y / 7.0f);
+            float dens = 1.0f - d + n * 0.7f;
+            if (dens <= 0.05f) continue;
+            float v = dens * 2.2f;
+            int i = (int)v;
+            if ((v - i) * 16 > BAYER[y & 3][x & 3]) i++;
+            if (i <= 0) continue;
+            uint16_t c;
+            if (i == 1) c = GAL_NEVOA[0];
+            else if (i == 2) c = ruido(x / 57.0f + 3, y / 31.0f) > 0.05f ? GAL_NEVOA[1] : GAL_NEVOA[2];
+            else c = GAL_NEVOA[3];
+            gfx_pixel(x, y, c);
+        }
+    // As estrelas: a chance sobe dentro da faixa.
+    for (int y = MESA_Y0 + 2; y < MESA_Y1 - 2; y++)
+        for (int x = MESA_X0 + 2; x < MESA_X1 - 2; x++) {
+            float t = (x - cx) / 300.0f;
+            float meio = cy - 0.30f * (x - cx) + sinf(t * 2.6f + 0.6f) * 16;
+            bool faixa = fabsf(y - meio) < 34;
+            uint32_t h = ruido_xy(x * 7 + 3, y * 13 + 5);
+            uint32_t q = h % (faixa ? 66u : 160u);
+            if (q) continue;
+            uint32_t k = (h >> 8) % 100;
+            if (k < 62) gfx_pixel(x, y, GAL_ESTRELA[0]);
+            else if (k < 84) gfx_pixel(x, y, GAL_ESTRELA[1]);
+            else if (k < 91) gfx_pixel(x, y, GAL_ESTRELA[2]);
+            else if (k < 96) gfx_pixel(x, y, GAL_ESTRELA[3]);
+            else {                                       // a clara, com uma cruz miuda e apagada
+                gfx_pixel(x, y, GAL_ESTRELA[4]);
+                gfx_pixel(x - 1, y, GAL_ESTRELA[0]); gfx_pixel(x + 1, y, GAL_ESTRELA[0]);
+                gfx_pixel(x, y - 1, GAL_ESTRELA[0]); gfx_pixel(x, y + 1, GAL_ESTRELA[0]);
+            }
+        }
+    // As grandes, que cintilam: espalhadas, longe da borda.
+    for (int i = 0; i < 11; i++) {
+        uint32_t h = ruido_xy(i * 97 + 11, i * 31 + 7);
+        int x = MESA_X0 + 18 + (int)(h % (uint32_t)(MESA_X1 - MESA_X0 - 36));
+        int y = MESA_Y0 + 14 + (int)((h >> 12) % (uint32_t)(MESA_Y1 - MESA_Y0 - 28));
+        anima_poe(x - 3, y - 3, 7, 7, AN_ESTRELA, (uint8_t)(h >> 24) & 1);
+    }
+}
+
+// Uma lampada do pisca-pisca: o soquete e o vidro (2 x 3); acesa, com um
+// brilho em volta e um ponto de luz.
+static void lampada(int x, int y, int c, bool acesa)
+{
+    if (acesa) {
+        gfx_pixel(x - 1, y, NATAL_BRILHO[c]); gfx_pixel(x + 2, y, NATAL_BRILHO[c]);
+        gfx_pixel(x - 1, y + 1, NATAL_BRILHO[c]); gfx_pixel(x + 2, y + 1, NATAL_BRILHO[c]);
+        gfx_pixel(x, y + 2, NATAL_BRILHO[c]); gfx_pixel(x + 1, y + 2, NATAL_BRILHO[c]);
+    }
+    gfx_rect(x, y - 2, 2, 1, NATAL_FIO);
+    gfx_rect(x, y - 1, 2, 3, acesa ? NATAL_ACESA[c] : NATAL_APAGADA[c]);
+    if (acesa) gfx_pixel(x, y - 1, C_BRANCO);
+}
+
+// Uma folha de azevinho de comprimento n, a partir de (x, y), deitada (dx)
+// ou em pe (dy): a nervura escura no meio, a metade de cima mais clara e as
+// pontas da borda saindo de um lado e do outro.
+static void folha_azevinho(int x, int y, int dx, int dy, int n)
+{
+    for (int i = 0; i < n; i++) {
+        float q = (i + 0.5f) / n;
+        int w = (int)lroundf(sinf(q * 3.1416f) * 2.4f);
+        int pico = i > 1 && i < n - 1 && i % 3 == 1 ? ((i / 3) & 1 ? 1 : -1) : 0;   // as pontas
+        for (int k = -w - (pico < 0); k <= w + (pico > 0); k++) {
+            int px = x + dx * i + dy * k, py = y + dy * i + dx * k;
+            gfx_pixel(px, py, k == 0 ? NATAL_FOLHA[0] : k < 0 ? NATAL_FOLHA[2] : NATAL_FOLHA[1]);
+        }
+    }
+}
+
+// Uma bolinha de azevinho (4 x 4), com o brilho no alto.
+static void bolinha(int x, int y)
+{
+    gfx_rect(x + 1, y, 2, 4, C_VERMELHO);
+    gfx_rect(x, y + 1, 4, 2, C_VERMELHO);
+    gfx_pixel(x + 3, y + 2, NATAL_FITA[1]); gfx_pixel(x + 2, y + 3, NATAL_FITA[1]);
+    gfx_pixel(x + 1, y + 1, C_ROSA);
+}
+
+// O raminho do canto (x, y) da moldura: uma folha correndo na borda de cima
+// e outra na do lado, para dentro (sx, sy = +-1), e tres bolinhas no canto.
+static void azevinho(int x, int y, int sx, int sy)
+{
+    folha_azevinho(x + 3 * sx, y + 1 * sy, sx, 0, 12);
+    folha_azevinho(x + 1 * sx, y + 3 * sy, 0, sy, 12);
+    bolinha(x + (sx > 0 ? 1 : -4), y + (sy > 0 ? 1 : -4));
+    bolinha(x + (sx > 0 ? 5 : -8), y + (sy > 0 ? 2 : -5));
+    bolinha(x + (sx > 0 ? 2 : -5), y + (sy > 0 ? 5 : -8));
+}
+
+// Um floco de neve: seis bracos curtos, a ponta mais apagada.
+static void floco(int x, int y, uint16_t c)
+{
+    gfx_pixel(x, y, c);
+    for (int k = 1; k <= 2; k++) {
+        uint16_t b = k == 2 ? NATAL_NEVE[1] : c;
+        gfx_pixel(x - k, y, b); gfx_pixel(x + k, y, b);
+        gfx_pixel(x, y - k, b); gfx_pixel(x, y + k, b);
+    }
+    gfx_pixel(x - 1, y - 1, NATAL_NEVE[1]); gfx_pixel(x + 1, y + 1, NATAL_NEVE[1]);
+    gfx_pixel(x + 1, y - 1, NATAL_NEVE[1]); gfx_pixel(x - 1, y + 1, NATAL_NEVE[1]);
+}
+
+// O Natal: uma fita de veludo vinho com filete de ouro no lugar da moldura,
+// com o pisca-pisca correndo nela, e azevinho nos cantos (na mesa Led, a fita
+// de led fica e o Natal so enfeita o feltro); no feltro, neve amontoada nos
+// cantos de baixo e uns flocos, longe do meio.
+static void natal_fita(int a, int b, int t, int u)
+{
+    for (int k = 0; k < 5; k++) {
+        bool ouro = k == 0 || k == 4;
+        uint16_t claro = ouro ? (k == 0 ? C_LATAO : C_LATAO_ESC) : k == 1 ? NATAL_FITA[2] : k == 2 ? NATAL_FITA[1] : NATAL_FITA[0];
+        uint16_t escuro = ouro ? (k == 0 ? C_LATAO_ESC : C_LATAO) : k == 1 ? NATAL_FITA[0] : NATAL_FITA[1];
+        gfx_rect(a + k, t + k, b - a - 2 * k + 1, 1, claro);      // em cima e a esquerda, a luz
+        gfx_rect(a + k, t + k, 1, u - t - 2 * k + 1, claro);
+        gfx_rect(a + k, u - k, b - a - 2 * k + 1, 1, escuro);     // embaixo e a direita, a sombra
+        gfx_rect(b - k, t + k, 1, u - t - 2 * k + 1, escuro);
+    }
+}
+
+// Um monte de neve no canto (cx, cy), crescendo para dentro (dx, dy = +-1).
+static void monte_neve(int cx, int cy, int dx, int dy)
+{
+    for (int j = 0; j < 12; j++)
+        for (int i = 0; i < 34; i++) {
+            float q = i / 34.0f, alto = 10 * (1 - q * q) + 1.2f * sinf(i * 0.7f);
+            if (j > alto) continue;
+            uint16_t c = j > alto - 1.2f || j > 2 ? NATAL_NEVE[0] : NATAL_NEVE[1];   // a base na sombra
+            if (j > 2 && j < alto - 2 && (i * 3 + j * 5) % 17 == 0) c = NATAL_NEVE[1];
+            gfx_pixel(cx + dx * i, cy + dy * j, c);
+        }
+}
+
+static void pinta_natal(void)
+{
+    float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
+    for (int y = MESA_Y0 + 10; y < MESA_Y1 - 10; y++)               // a neve caindo, longe do meio
+        for (int x = MESA_X0 + 10; x < MESA_X1 - 10; x++) {
+            uint32_t h = ruido_xy(x * 3 + 1, y * 5 + 9);
+            float dx = (x - cx) / 300, dy = (y - cy) / 128, d = dx * dx + dy * dy;
+            if (d < 0.34f) continue;
+            if (h % 1100 == 0) gfx_pixel(x, y, NATAL_NEVE[1]);
+            else if (h % 3300 == 1) { gfx_rect(x, y, 2, 2, NATAL_NEVE[1]); gfx_pixel(x, y, NATAL_NEVE[0]); }
+            else if (h % 12000 == 2) floco(x, y, NATAL_NEVE[0]);
+        }
+    monte_neve(MESA_X0, MESA_Y1 - 1, 1, -1);
+    monte_neve(MESA_X1 - 1, MESA_Y1 - 1, -1, -1);
+    if (estilo_mesa == MS_LED) return;
+    int a = MESA_X0 - 5, b = MESA_X1 + 4, t = MESA_Y0 - 5, u = MESA_Y1 + 4;
+    natal_fita(a, b, t, u);
+    // O pisca-pisca: na fita, uma lampada a cada 14 pixels, na ordem
+    // vermelha, dourada, verde e azul, dando a volta na mesa.
+    int nl = 0;
+    for (int x = a + 16; x < b - 14; x += 14, nl++) anima_poe(x - 1, t, 4, 6, AN_LAMPADA, (uint8_t)(nl % 4));
+    for (int y = t + 16; y < u - 14; y += 14, nl++) anima_poe(b - 4, y - 2, 4, 6, AN_LAMPADA, (uint8_t)(nl % 4));
+    for (int x = b - 18; x > a + 12; x -= 14, nl++) anima_poe(x - 1, u - 4, 4, 6, AN_LAMPADA, (uint8_t)(nl % 4));
+    for (int y = u - 16; y > t + 12; y -= 14, nl++) anima_poe(a + 1, y - 2, 4, 6, AN_LAMPADA, (uint8_t)(nl % 4));
+    azevinho(a, t, 1, 1);
+    azevinho(b, t, -1, 1);
+    azevinho(a, u, 1, -1);
+    azevinho(b, u, -1, -1);
+}
+
+// O enfeite de um feltro num retalho pequeno (amostras e icones): as
+// estrelas e a nevoa do ceu; a fita, o pisca-pisca e a neve do Natal.
+static void retalho_enfeite(int k, int x, int y, int w, int h)
+{
+    if (k == FT_GALAXIA) {
+        for (int j = 0; j < h; j++)
+            for (int i = 0; i < w; i++) {
+                float d = fabsf(j - h * 0.5f + (i - w * 0.5f) * 0.35f) / (h * 0.28f);
+                if (d < 1 && ((i + j) & 1 || d < 0.45f)) gfx_pixel(x + i, y + j, d < 0.45f ? GAL_NEVOA[1] : GAL_NEVOA[0]);
+                uint32_t q = ruido_xy(i * 7 + 3, j * 13 + 5) % 23;
+                if (q == 0) gfx_pixel(x + i, y + j, GAL_ESTRELA[(ruido_xy(i, j) >> 9) % 4]);
+            }
+        if (w >= 20) estrela4(x + w / 3, y + h / 3, 2, GAL_CINTILA[3], GAL_CINTILA[1], GAL_CINTILA[0]);
+    } else if (k == FT_NATAL) {
+        gfx_moldura(x, y, w, h, 1, C_LATAO);
+        if (w >= 20) {
+            gfx_moldura(x + 1, y + 1, w - 2, h - 2, 2, NATAL_FITA[1]);
+            gfx_moldura(x + 3, y + 3, w - 6, h - 6, 1, C_LATAO);
+            for (int i = 0; i < w - 2; i += 2) gfx_pixel(x + 1 + i, y, NATAL_NEVE[0]);   // neve em cima
+            for (int i = 0; i < 4; i++) {                                           // o pisca-pisca
+                int lx = x + w / 5 + i * (w * 3 / 5) / 3, ly = y + 7 + (i == 1 || i == 2);
+                gfx_rect(lx, ly, 2, 2, NATAL_ACESA[i]);
+            }
+            floco(x + w * 3 / 4, y + h * 2 / 3, NATAL_NEVE[0]);
+        } else {
+            gfx_moldura(x + 1, y + 1, w - 2, h - 2, 1, NATAL_FITA[1]);
+            gfx_pixel(x + w / 3, y + 3, NATAL_ACESA[0]);
+            gfx_pixel(x + w * 2 / 3, y + 3, NATAL_ACESA[1]);
+        }
+    }
+}
+
+// A fita de led da mesa Led, na forca k (0 a 4): tres pixels no lugar da
+// moldura, o do meio com os leds acesos a cada 3 pixels, e o halo na laca.
+// No pico (4) tudo sobe mais um tom: o led mais aceso, puxando para o rosa.
+static void fita_led(int k)
+{
+    int x = MESA_X0, y = MESA_Y0, w = MESA_X1 - MESA_X0, h = MESA_Y1 - MESA_Y0;
+    int c = k >= 4 ? k + 1 : k, q = c + 1 < LED_N ? c + 1 : LED_N - 1;
+    gfx_moldura(x - 8, y - 8, w + 16, h + 16, 1, LED_HALO[c > 0 ? c - 1 : 0]);
+    gfx_moldura(x - 7, y - 7, w + 14, h + 14, 1, LED_HALO[q]);
+    gfx_moldura(x - 6, y - 6, w + 12, h + 12, 1, LED_TOM[c]);
+    gfx_moldura(x - 5, y - 5, w + 10, h + 10, 1, LED_TOM[q]);
+    gfx_moldura(x - 4, y - 4, w + 8, h + 8, 1, LED_TOM[c]);
+    gfx_moldura(x - 3, y - 3, w + 6, h + 6, 1, LED_HALO[q]);
+    gfx_moldura(x - 2, y - 2, w + 4, h + 4, 2, C_SOMBRA);
+    uint16_t chip = LED_TOM[c + 2 < LED_N ? c + 2 : LED_N - 1];
+    for (int i = x - 5; i < x + w + 5; i += 3) { gfx_pixel(i, y - 5, chip); gfx_pixel(i, y + h + 4, chip); }
+    for (int j = y - 2; j < y + h + 3; j += 3) { gfx_pixel(x - 5, j, chip); gfx_pixel(x + w + 4, j, chip); }
+}
+
+// A forca do led no quadro q: respira devagar, um ciclo a cada 20 quadros.
+static int led_forca(int q) { return (int)lroundf((sinf(q * 6.2832f / 20) + 1) * 2); }
+
+static void pinta_mesa_toda(void);
 static void pinta_mesa(void)
+{
+    n_anima = anima_usado = 0;
+    pinta_mesa_toda();
+    anima_guarda();
+}
+
+static void pinta_mesa_toda(void)
 {
     int lv = mesa_andar;
     gfx_clear(C_BARRA);
@@ -1508,9 +1822,13 @@ static void pinta_mesa(void)
     gfx_rect(x0, y0, x1 - x0, 1, propria ? pm[2] : C_MADEIRA_CLR);
     uint16_t metal = propria ? MESAS[estilo_mesa].metal
                              : lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
-    gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
-                propria ? metal : lv >= 3 ? C_OURO : C_LATAO);
-    gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
+    bool led = estilo_mesa == MS_LED;
+    if (led) fita_led(led_forca(0));                    // a moldura e a fita (mesa_anima a faz respirar)
+    else {
+        gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
+                    propria ? metal : lv >= 3 ? C_OURO : C_LATAO);
+        gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
+    }
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
     float ax = (MESA_X1 - MESA_X0) / 2.0f, ay = (MESA_Y1 - MESA_Y0) / 2.0f;
     // O feltro escurece para as bordas em tres tons da paleta, com pontilhado
@@ -1532,6 +1850,7 @@ static void pinta_mesa(void)
             else if (h == 1 && i < 2) c = TOM[i + 1];
             gfx_pixel(x, y, c);
         }
+    if (estilo_feltro == FT_GALAXIA) pinta_galaxia();
     // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
     uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
     for (int i = 0; i < 360; i++) {
@@ -1539,6 +1858,7 @@ static void pinta_mesa(void)
         float a = i * 0.017453f;
         gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, linha);
     }
+    if (estilo_feltro == FT_NATAL) pinta_natal();      // por cima da linha: a fita contorna tudo
     if (lv <= 0) return;
 
     // Acabamentos do andar, discretos: so nas bordas.
@@ -1546,6 +1866,7 @@ static void pinta_mesa(void)
     if (lv >= 5) filete(9, gfx_mistura(C_FELTRO, metal, 22), true);
     int fx0 = MESA_X0 - 3, fx1 = MESA_X1 + 2, fy0 = MESA_Y0 - 3, fy1 = MESA_Y1 + 2;
     int my = (MESA_Y0 + MESA_Y1) / 2;
+    if (led || estilo_feltro == FT_NATAL) return;       // a fita de led (ou a do Natal) e o acabamento
     // Nos cantos da moldura: tachas; no rubi e no diamante, pedras.
     uint16_t gema = lv == 4 ? C_RUBI : C_DIAMANTE;
     const int CX[4] = { fx0, fx1, fx0, fx1 }, CY[4] = { fy0, fy0, fy1, fy1 };
@@ -1568,16 +1889,49 @@ static void pinta_mesa(void)
 
 static int des_dificuldade(void);
 
+// O quadro q dos enfeites que mexem, pintado na mesa pronta: as estrelas
+// grandes cintilam cada uma no seu tempo, as lampadas apagam uma de cada vez
+// em volta da mesa e o led respira.
+static void mesa_anima(int q)
+{
+    uint16_t *fb = mesa_pronta;
+    gfx_desvia(fb);
+    for (int i = 0; i < n_anima; i++) {
+        const anima_t *a = &anima[i];
+        anima_volta(a, fb);
+        int x = a->x + 3, y = a->y + 3;
+        if (a->tipo == AN_ESTRELA) {
+            int f = (q + i * 7 + a->cor * 3) % 19;           // brilha forte por dois quadros, fraca por um
+            if (f == 0 || f == 2) estrela4(x, y, 3, GAL_CINTILA[3], GAL_CINTILA[a->cor ? 2 : 1], GAL_CINTILA[0]);
+            else if (f == 1) estrela4(x, y, 3, C_BRANCO, GAL_CINTILA[3], GAL_CINTILA[1]);
+            else if (f == 3) estrela4(x, y, 1, GAL_CINTILA[1], GAL_CINTILA[0], GAL_CINTILA[0]);
+            else estrela4(x, y, 2, GAL_CINTILA[3], GAL_CINTILA[1], GAL_CINTILA[0]);
+        } else {
+            bool acesa = (q + i * 5) % 9 < 7;
+            lampada(a->x + 1, a->y + 2, a->cor, acesa);
+        }
+    }
+    if (estilo_mesa == MS_LED) fita_led(led_forca(q));
+    gfx_desvia(NULL);
+}
+
 static void mesa(void)
 {
     mesa_andar = modo == M_DESAFIO ? (des_dificuldade() + 1) / 2 : 0;   // um acabamento a cada dois andares
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }
+    static int quadro_feito = -1;
     if (!mesa_feita) {
         pinta_mesa();
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
         mesa_feita = true;
+        quadro_feito = -1;
+    }
+    int q = (int)(t_relogio / ANIMA_PASSO);
+    if ((n_anima || estilo_mesa == MS_LED) && q != quadro_feito) {
+        mesa_anima(q);
+        quadro_feito = q;
     }
     memcpy(display_fb(), mesa_pronta, sizeof mesa_pronta);
 }

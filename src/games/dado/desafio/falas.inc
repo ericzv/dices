@@ -59,8 +59,9 @@ static void fala_evento(int cat)
         s = FALA_ANDAR[fala_perso - PERSO_CHEFE0][dif - 1];
     if (fala_perso == perso_virado && (cat == FA_GANHA_R || cat == FA_PERDE_R))
         s = FALA_VIROU[fala_perso - PERSO_CHEFE0][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
-    if (fala_perso == PERSO_CHEFE0 + 2 && dif == N_NIVEIS && cat == FA_PERDE_P)
-        s = "A cobertura é sua... mas lá em cima alguém está rindo.";
+    if (fala_perso == PERSO_CHEFE0 + 2 && dif >= CORINGA_DESDE && cat == FA_PERDE_P)   // o Coringa vem depois
+        s = dif == N_NIVEIS ? "A cobertura é sua... mas lá em cima alguém está rindo."
+                            : "Você me venceu... mas ouço alguém rindo lá em cima.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     fala_comeca(3.2f);
     fala_e_curta = false;

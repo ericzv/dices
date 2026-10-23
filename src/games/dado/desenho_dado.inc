@@ -1596,7 +1596,7 @@ static void pinta_galaxia(void)
             float meio = cy - 0.30f * (x - cx) + sinf(t * 2.6f + 0.6f) * 16;
             bool faixa = fabsf(y - meio) < 34;
             uint32_t h = ruido_xy(x * 7 + 3, y * 13 + 5);
-            uint32_t q = h % (faixa ? 54u : 130u);
+            uint32_t q = h % (faixa ? 66u : 160u);
             if (q) continue;
             uint32_t k = (h >> 8) % 100;
             if (k < 62) gfx_pixel(x, y, GAL_ESTRELA[0]);
@@ -1775,7 +1775,7 @@ static void retalho_enfeite(int k, int x, int y, int w, int h)
 
 // A fita de led da mesa Led, na forca k (0 a 4): tres pixels no lugar da
 // moldura, o do meio com os leds acesos a cada 3 pixels, e o halo na laca.
-// No pico (4) tudo sobe mais um tom: o led quase branco de tao aceso.
+// No pico (4) tudo sobe mais um tom: o led mais aceso, puxando para o rosa.
 static void fita_led(int k)
 {
     int x = MESA_X0, y = MESA_Y0, w = MESA_X1 - MESA_X0, h = MESA_Y1 - MESA_Y0;

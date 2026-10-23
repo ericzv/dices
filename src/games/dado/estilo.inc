@@ -77,8 +77,8 @@ static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N
 // escuro (a fraca, a media, a quente, a fria e a clara); e as que cintilam,
 // mais fortes.
 static const uint16_t GAL_NEVOA[4]   = { RGB(20, 22, 56), RGB(34, 28, 74), RGB(20, 36, 76), RGB(52, 44, 102) };
-static const uint16_t GAL_ESTRELA[5] = { RGB(46, 52, 90), RGB(86, 94, 140), RGB(150, 138, 114), RGB(110, 126, 176),
-                                         RGB(166, 172, 204) };
+static const uint16_t GAL_ESTRELA[5] = { RGB(36, 42, 78), RGB(66, 74, 116), RGB(118, 108, 94), RGB(86, 100, 148),
+                                         RGB(132, 138, 172) };
 static const uint16_t GAL_CINTILA[4] = { RGB(78, 86, 128), RGB(146, 156, 196), RGB(255, 234, 176), RGB(252, 248, 236) };
 // O Natal: a fita de veludo vinho, as lampadas (acesas e apagadas), a neve e
 // o azevinho.
@@ -93,9 +93,9 @@ static const uint16_t NATAL_FIO        = RGB(26, 34, 26);
 // so no pico da respiracao), e o halo de cada uma.
 #define LED_N 7
 static const uint16_t LED_TOM[LED_N]  = { RGB(110, 18, 22), RGB(140, 24, 30), RGB(172, 32, 38), RGB(204, 42, 46),
-                                          RGB(232, 58, 60), RGB(252, 92, 88), RGB(255, 152, 140) };
+                                          RGB(232, 58, 60), RGB(252, 92, 88), RGB(255, 124, 114) };
 static const uint16_t LED_HALO[LED_N] = { RGB(30, 8, 10), RGB(42, 10, 12), RGB(56, 14, 16), RGB(72, 18, 20),
-                                          RGB(88, 22, 24), RGB(108, 28, 30), RGB(132, 40, 40) };
+                                          RGB(88, 22, 24), RGB(108, 28, 30), RGB(120, 32, 34) };
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
 // Barao, ou do Nivel 5 o Coringa; -1: sempre aberto).

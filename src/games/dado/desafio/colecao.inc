@@ -13,12 +13,13 @@ static void cadeado(int x, int y, uint16_t c, int e)
     gfx_rect(x, y + 2 * e, e, 3 * e, C_BARRA);           // a fechadura
 }
 
-static void quem_abre(int nivel, int marco, char *s, int n)
+// O que vem com o nivel: o chefe c (CH_*) o abre na dificuldade de baixo.
+static void quem_abre(int nivel, int c, int marco, char *s, int n)
 {
     if (marco == 0) snprintf(s, (size_t)n, "vença o Crupiê");
     else if (marco == 1) snprintf(s, (size_t)n, "vença a Dona do Salão");
-    else if (nivel == 1) snprintf(s, (size_t)n, "vença o Barão");
-    else snprintf(s, (size_t)n, "vença o Barão no %s", NOME_DIF_CURTO[nivel - 1]);
+    else if (nivel == 1) snprintf(s, (size_t)n, "vença %s", NOME_CHEFE[c]);
+    else snprintf(s, (size_t)n, "vença %s no %s", NOME_CHEFE[c], NOME_DIF_CURTO[nivel - 1]);
 }
 
 // 0: sempre livre; 1: ja aberto; 2: fechado (e o que falta em s).
@@ -32,7 +33,7 @@ static int cat_trava_dado(int t, char *s, int n)
         else snprintf(s, (size_t)n, "Aberto no Desafiante");
         return 1;
     }
-    quem_abre(nv, m, s, n);
+    quem_abre(nv, chefe_do_dado(t), m, s, n);
     return 2;
 }
 
@@ -82,7 +83,7 @@ static void desenha_cat_amuleto(int i)
         else snprintf(s, sizeof s, "Aberto no Desafiante");
         txt(x, 139, s, C_VERDE, false);
     } else {
-        quem_abre(NIVEL_AMULETO[a], -1, s, sizeof s);
+        quem_abre(NIVEL_AMULETO[a], CH_DONA, -1, s, sizeof s);
         linha_bloqueio(x, 139, s);
     }
     gfx_rect(x, 160, 320, 1, C_FELTRO2);
@@ -133,7 +134,7 @@ static void desenha_cat_adesivo(int i)
         else snprintf(s, sizeof s, "Aberto no Desafiante");
         txt(x, 139, s, C_VERDE, false);
     } else {
-        quem_abre(d->nivel, -1, s, sizeof s);
+        quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
         linha_bloqueio(x, 139, s);
     }
     gfx_rect(x, 160, 320, 1, C_FELTRO2);

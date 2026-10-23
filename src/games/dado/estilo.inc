@@ -5,7 +5,7 @@
 // dados comuns; o que ainda nao abriu fica no padrao. Os oponentes tem o
 // material do nivel deles. Os dados especiais tem um desenho so, o mesmo
 // para os dois lados.
-enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_N };
+enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_GALAXIA, FT_NATAL, FT_N };
 static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
     // do mais escuro (a sombra) ao realce, e o texto discreto
     [FT_VERDE]   = { "Verde", { RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36),
@@ -16,9 +16,14 @@ static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
                                      RGB(26, 46, 78), RGB(44, 70, 108), RGB(170, 184, 206) } },
     [FT_GRAFITE] = { "Grafite", { RGB(14, 14, 16), RGB(20, 20, 23), RGB(26, 26, 30), RGB(32, 32, 36),
                                   RGB(42, 42, 48), RGB(64, 64, 72), RGB(182, 182, 188) } },
+    // Os de enfeite: o ceu de estrelas e o Natal (pinta_mesa desenha o resto).
+    [FT_GALAXIA] = { "Galáxias", { RGB(3, 4, 12), RGB(6, 8, 22), RGB(9, 12, 32), RGB(13, 17, 44),
+                                   RGB(24, 30, 68), RGB(44, 52, 100), RGB(178, 186, 216) } },
+    [FT_NATAL]   = { "Natalino", { RGB(5, 20, 12), RGB(8, 30, 18), RGB(11, 40, 24), RGB(14, 50, 30),
+                                   RGB(22, 66, 40), RGB(40, 92, 58), RGB(192, 212, 196) } },
 };
 
-enum { MAT_MARFIM, MAT_OSSO, MAT_JADE, MAT_OBSIDIANA, MAT_EBANO, MAT_N };
+enum { MAT_MARFIM, MAT_OSSO, MAT_JADE, MAT_OBSIDIANA, MAT_EBANO, MAT_MADEIRA, MAT_PEROLA, MAT_N };
 typedef struct {
     const char *nome;
     uint16_t tons[5];            // o corpo: sombra, meia-sombra, corpo, luz, reflexo
@@ -43,25 +48,58 @@ static const material_t MATERIAL[MAT_N] = {
     [MAT_EBANO]     = { "Ébano", { RGB(24, 22, 20), RGB(30, 27, 24), RGB(36, 32, 29), RGB(46, 42, 40),
                                    RGB(53, 48, 43) }, 0, 18,
                         RGB(238, 230, 212), RGB(62, 56, 50), RGB(204, 194, 172) },
+    // Madeira polida, com veio (pinta_corpo), e os pontos marchetados em
+    // marfim dourado; perola, com o furta-cor por cima.
+    [MAT_MADEIRA]   = { "Madeira", { RGB(72, 36, 20), RGB(98, 52, 28), RGB(126, 70, 38), RGB(158, 94, 52),
+                                     RGB(204, 140, 86) }, RGB(214, 158, 102), 0,
+                        RGB(242, 218, 160), RGB(88, 70, 58), RGB(146, 128, 110) },
+    [MAT_PEROLA]    = { "Pérola", { RGB(192, 184, 198), RGB(216, 210, 218), RGB(234, 230, 230), RGB(246, 243, 240),
+                                    RGB(255, 253, 250) }, RGB(255, 253, 250), 0,
+                        RGB(70, 58, 82), RGB(176, 172, 178), RGB(116, 110, 122) },
 };
+// O furta-cor da perola: rosado e azulado, em faixas largas no corpo.
+static const uint16_t PEROLA_FURTA[2] = { RGB(246, 224, 230), RGB(222, 236, 242) };
 
 // A mesa: a madeira (veio, corpo, filete de luz) e o metal da moldura. A de
 // nogueira e ouro e a de sempre: o metal acompanha os andares do Desafiante.
-enum { MS_NOGUEIRA, MS_MOGNO, MS_EBANO, MS_CARVALHO, MS_N };
+enum { MS_NOGUEIRA, MS_MOGNO, MS_EBANO, MS_CARVALHO, MS_LED, MS_N };
 static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N] = {
     [MS_NOGUEIRA] = { "Nogueira e ouro", { 0, 0, 0 }, 0 },
     [MS_MOGNO]    = { "Mogno e cobre", { RGB(44, 16, 14), RGB(66, 24, 20), RGB(104, 40, 32) }, RGB(184, 110, 70) },
     [MS_EBANO]    = { "Ébano e prata", { RGB(18, 16, 16), RGB(30, 27, 26), RGB(84, 76, 70) }, RGB(184, 194, 208) },
     [MS_CARVALHO] = { "Carvalho e bronze", { RGB(128, 90, 54), RGB(150, 108, 66), RGB(204, 164, 110) }, RGB(176, 124, 72) },
+    // Laca preta, e a moldura e uma fita de led ambar que respira (pinta_mesa).
+    [MS_LED]      = { "Led", { RGB(10, 10, 12), RGB(18, 18, 22), RGB(70, 68, 76) }, RGB(204, 144, 56) },
 };
 
-// O que cada andar abre: vencer o Barao naquela dificuldade (-1: sempre aberto).
-static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8 };
-static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2 };
-static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6 };
+// Os enfeites dos estilos novos (pinta_mesa): cores exatas, so deles.
+// O ceu: quatro nevoas da Via Lactea e as estrelas, da fraca a branca.
+static const uint16_t GAL_NEVOA[4]   = { RGB(20, 22, 56), RGB(34, 28, 74), RGB(20, 36, 76), RGB(52, 44, 102) };
+static const uint16_t GAL_ESTRELA[5] = { RGB(78, 86, 128), RGB(146, 156, 196), RGB(255, 234, 176), RGB(194, 214, 255),
+                                         RGB(252, 248, 236) };
+// O Natal: a fita de veludo vinho, as lampadas (acesas e apagadas), a neve e
+// o azevinho.
+static const uint16_t NATAL_FITA[3]    = { RGB(64, 14, 22), RGB(98, 22, 32), RGB(136, 40, 50) };
+static const uint16_t NATAL_ACESA[4]   = { RGB(255, 86, 74), RGB(255, 208, 94), RGB(114, 232, 126), RGB(118, 174, 255) };
+static const uint16_t NATAL_APAGADA[4] = { RGB(110, 36, 36), RGB(122, 96, 42), RGB(42, 96, 56), RGB(44, 66, 122) };
+static const uint16_t NATAL_BRILHO[4]  = { RGB(150, 52, 48), RGB(160, 128, 56), RGB(58, 132, 74), RGB(60, 92, 160) };
+static const uint16_t NATAL_NEVE[2]    = { RGB(238, 244, 252), RGB(170, 186, 206) };
+static const uint16_t NATAL_FOLHA[3]   = { RGB(16, 70, 36), RGB(30, 104, 56), RGB(64, 146, 88) };
+static const uint16_t NATAL_FIO        = RGB(26, 34, 26);
+// O led: seis forcas da fita, da mais fraca a mais forte, e o halo de cada uma.
+#define LED_N 6
+static const uint16_t LED_TOM[LED_N]  = { RGB(140, 90, 30), RGB(170, 112, 40), RGB(198, 136, 52), RGB(224, 162, 66),
+                                          RGB(244, 190, 88), RGB(255, 218, 130) };
+static const uint16_t LED_HALO[LED_N] = { RGB(36, 24, 10), RGB(50, 34, 14), RGB(64, 44, 18), RGB(80, 54, 22),
+                                          RGB(96, 66, 28), RGB(112, 78, 34) };
+
+// O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
+// Barao, ou do Nivel 5 o Coringa; -1: sempre aberto).
+static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, 3 };
+static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1 };
+static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6, 9 };
 
 static int estilo_feltro, estilo_mesa;      // o que esta na mesa agora
-static int des_estilo_abriu = -1;           // fim da run: o andar cujo estilo acabou de abrir
 static uint8_t material_j[2];               // o material dos dados comuns de cada lado
 static int estilo_versao;                   // muda a cada troca: a mesa pronta se refaz
 
@@ -84,13 +122,25 @@ static void aplica_estilo(int feltro, int mesa_id)
         if (m == MAT_MARFIM || m == MAT_EBANO) continue;          // ja estao na paleta
         const material_t *t = &MATERIAL[m];
         gfx_paleta_exata(t->tons, 5);
-        uint16_t outras[3] = { t->tinta, t->apagado, t->tinta_apagada };
-        gfx_paleta_exata(outras, 3);
+        uint16_t outras[4] = { t->tinta, t->apagado, t->tinta_apagada, t->brilho ? t->brilho : t->tons[4] };
+        gfx_paleta_exata(outras, 4);
     }
+    gfx_paleta_exata(PEROLA_FURTA, 2);
     for (int s = 1; s < MS_N; s++) {
         gfx_paleta_exata(MESAS[s].madeira, 3);
         gfx_paleta_exata(&MESAS[s].metal, 1);
     }
+    gfx_paleta_exata(GAL_NEVOA, 4);
+    gfx_paleta_exata(GAL_ESTRELA, 5);
+    gfx_paleta_exata(NATAL_FITA, 3);
+    gfx_paleta_exata(NATAL_ACESA, 4);
+    gfx_paleta_exata(NATAL_APAGADA, 4);
+    gfx_paleta_exata(NATAL_BRILHO, 4);
+    gfx_paleta_exata(NATAL_NEVE, 2);
+    gfx_paleta_exata(NATAL_FOLHA, 3);
+    gfx_paleta_exata(&NATAL_FIO, 1);
+    gfx_paleta_exata(LED_TOM, LED_N);
+    gfx_paleta_exata(LED_HALO, LED_N);
     estilo_versao++;
 }
 

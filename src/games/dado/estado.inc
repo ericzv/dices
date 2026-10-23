@@ -314,6 +314,12 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 #ifndef VIRADA_RODADA
 #define VIRADA_RODADA 5                  // (os testes de balanco desligam com 99)
 #endif
+// O Coringa: o salao dele, depois do Barao, do Nivel 5 em diante; a cada
+// nivel a bolsa dele melhora; do 7 ele pensa mais, o recheio da bolsa fica
+// forte e o seu dado anulado some (da 5a rodada); na Cobertura ele traz o que
+// quiser e ganha um amuleto, como todos.
+#define CORINGA_DESDE 5
+#define CORINGA_SOME  7
 static int   perso_virado = -1;          // o chefe que ja virou nesta partida
 static float t_virada;                   // > 0: o anuncio da virada na tela
 // A vinheta do Dado Misterioso: > 0 enquanto corre (primeiro a pedra se parte

@@ -13,17 +13,20 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
     else if (tipo == DICA_ADESIVO) { *nome = ADESIVO[id].nome; *cor = ADESIVO[id].luz; *desc = AD_TEXTO[id]; }
     else {
-        *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
+        *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = regra_perso(id);
         if (id == PERSO_CORINGA)                         // o Coringa: os detalhes da copia
-            *desc = "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
+            *desc = des_dificuldade() >= CORINGA_SOME
+                  ? "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
                     "Se ele abre a rodada, é um \"?\" que só vira e é lançado depois que você joga. "
-                    "Da 5ª rodada em diante, cada dado seu que terminar anulado é destruído.";
+                    "Da 5ª rodada em diante, cada dado seu que terminar anulado é destruído."
+                  : "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
+                    "Se ele abre a rodada, é um \"?\" que só vira e é lançado depois que você joga.";
         int v = virada_de(id);
         if (v) {                                         // o chefe tambem conta a virada
             static char t[200];
             char vt[96];
             virada_txt(id - PERSO_CHEFE0, v, false, vt, sizeof vt);
-            snprintf(t, sizeof t, "%s Virada na 5ª rodada: %s", PERSO[id].regra, vt);
+            snprintf(t, sizeof t, "%s Virada na 5ª rodada: %s", regra_perso(id), vt);
             *desc = t;
         }
     }

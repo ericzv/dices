@@ -1495,10 +1495,26 @@ int main(void)
             for (int a = 0; a < A_N; a++) c += NIVEL_AMULETO[a] == n;
             CONFERE(c == 1, "nivel %d abre %d amuletos", n, c);
         }
-        for (int n = 1; n <= N_NIVEIS; n++) {        // a tela da dificuldade mostra ate LIB_DADOS
-            int c = 0;
-            for (int t = 0; t < D_N; t++) c += nivel_do_dado(t) == n && marco_do_dado(t) < 0;
-            CONFERE(c <= LIB_DADOS, "nivel %d abre %d dados (cabem %d)", n, c, LIB_DADOS);
+        // Todo andar tem o seu estilo, e o Natal, o ceu, a madeira, a perola e
+        // o led entram nos andares impares.
+        for (int d = 0; d <= N_NIVEIS; d++) {
+            char es[96];
+            CONFERE(estilo_do_andar(d, es, sizeof es) >= 1, "o andar %d sem estilo", d);
+        }
+        CONFERE(ABRE_FELTRO[FT_GALAXIA] == 7 && ABRE_FELTRO[FT_NATAL] == 3 && ABRE_MATERIAL[MAT_MADEIRA] == 5
+                && ABRE_MATERIAL[MAT_PEROLA] == 1 && ABRE_MESA[MS_LED] == 9, "os estilos novos nos andares");
+        // Os chefes repartem o que cada nivel abre: todo dado com um chefe so,
+        // todo chefe com alguma coisa, e o que fecha a run com a dificuldade.
+        for (int d = 0; d < N_NIVEIS; d++) {
+            int dados = 0, nos_pedacos = 0;
+            for (int t = 0; t < D_N; t++) dados += nivel_do_dado(t) == d + 1 && marco_do_dado(t) < 0;
+            for (int c = 0; c < chefes_de(d); c++) {
+                novidade_t pd[PEDACO_MAX];
+                int n = pedaco(d, c, pd), dif = 0;
+                for (int i = 0; i < n; i++) { nos_pedacos += pd[i].k == NV_DADO; dif += pd[i].k == NV_DIF; }
+                CONFERE(n > 0 && dif == (c == chefe_final(d)), "dificuldade %d: %s com %d coisas", d, NOME_CHEFE[c], n);
+            }
+            CONFERE(dados == nos_pedacos, "dificuldade %d: %d dados, %d nos pedacos", d, dados, nos_pedacos);
         }
         perfis[1].nivel = 8;
         // Os fortes de antes: Explosivo, Egoista e Tudo ou Nada ja abriram no nivel 8; o
@@ -1590,11 +1606,13 @@ int main(void)
             run_t r;
             CONFERE(des_carrega(&r) && r.estado == R_VENCEU, "a vitoria nao ficou salva");
             des_apos_fim();
-            if (p == DES_PASSOS - 1) {           // o Crupie vencido pela 1a vez: o card do D20 antes
-                CONFERE(fase == F_NOVIDADES && n_nov == 1 && nov[0].k == NV_DADO && nov[0].v == D_D20 && !nov_pronto(),
-                        "o chefe devia mostrar o D20 num card (fase %d)", fase);
-                nov_tecla(KEY_ENTER);            // vira
-                CONFERE(fase == F_NOVIDADES && nov_pronto(), "ENTER devia virar o card");
+            if (p == DES_PASSOS - 1) {           // o Crupie vencido pela 1a vez: o D20 e o pedaco dele, em cards
+                novidade_t pc[PEDACO_MAX];
+                int npc = pedaco(0, CH_CRUPIE, pc);
+                CONFERE(fase == F_NOVIDADES && n_nov == 1 + npc && nov[0].k == NV_DADO && nov[0].v == D_D20 && !nov_pronto(),
+                        "o chefe devia mostrar o D20 e o pedaco dele (fase %d, %d cards)", fase, n_nov);
+                nov_tudo();                      // TAB: o resumo
+                CONFERE(fase == F_NOVIDADES && nov_pronto(), "TAB devia ir ao resumo");
                 nov_tecla(KEY_ENTER);            // segue
                 CONFERE(fase == F_RAMULETO && run.am_volta == AV_CHEFE && RAR_AMULETO[run.am_oferta[0]] == AMR_INCOMUM,
                         "o chefe devia deixar um incomum (fase %d)", fase);
@@ -1695,8 +1713,10 @@ int main(void)
         oferece_amuleto(AV_CHEFE);
         for (int i = 0; i < 3; i++)
             CONFERE(run.am_oferta[i] < A_N && RAR_AMULETO[run.am_oferta[i]] == AMR_RARO, "o segundo chefe: raros");
-        run.andar = 2; run.dificuldade = N_NIVEIS - 1;
-        CONFERE(!chefe_deixa_amuleto() && fim_da_run(), "o Barao antes da Cobertura fecha a run, sem amuleto");
+        run.andar = 2; run.dificuldade = CORINGA_DESDE - 1;
+        CONFERE(!chefe_deixa_amuleto() && fim_da_run(), "o Barao antes do Nivel 5 fecha a run, sem amuleto");
+        run.dificuldade = CORINGA_DESDE;
+        CONFERE(chefe_deixa_amuleto() && !fim_da_run(), "o Barao do Nivel 5 deixa amuleto (o Coringa vem depois)");
         run.dificuldade = N_NIVEIS;
         CONFERE(chefe_deixa_amuleto() && !fim_da_run(), "o Barao da Cobertura deixa amuleto");
         run.dificuldade = 0; run.andar = 0;
@@ -1726,46 +1746,52 @@ int main(void)
         for (int i = 0; i < 300; i++) {
             uint8_t a;
             sorteia_amuletos(&a, 1, AMR(AMR_COMUM) | AMR(AMR_INCOMUM) | AMR(AMR_RARO));
-            CONFERE(a < A_N && NIVEL_AMULETO[a] <= perfil()->nivel, "sorteou amuleto fechado: %d", a);
+            CONFERE(a < A_N && amuleto_liberado(a), "sorteou amuleto fechado: %d", a);
         }
-        // Depois do Barao: no ultimo nivel, o salao do Coringa (so ele); nas
-        // outras dificuldades, a run acaba ali, sem moedas.
-        for (int dif = N_NIVEIS - 1; dif <= N_NIVEIS; dif++) {
+        // Depois do Barao: do Nivel 5, o salao do Coringa (so ele); antes, a
+        // run acaba ali, sem moedas.
+        static const int DIFS[] = { CORINGA_DESDE - 1, CORINGA_DESDE, N_NIVEIS };
+        for (unsigned di = 0; di < sizeof DIFS / sizeof DIFS[0]; di++) {
+            int dif = DIFS[di];
             run.dificuldade = (uint8_t)dif;
             run.andar = DES_ANDARES - 1; gera_andar(); run.passo = DES_PASSOS - 1;
             des_comeca_partida();
             int m = run.moedas;
             venc_partida = 0; des_venceu_run = false;
             des_resultado();
-            if (dif < N_NIVEIS) {
-                CONFERE(run.moedas == m && !run.ganho, "o Barao antes da Cobertura nao paga: %d", run.moedas - m);
+            if (dif < CORINGA_DESDE) {
+                CONFERE(run.moedas == m && !run.ganho, "o Barao antes do Nivel 5 nao paga: %d", run.moedas - m);
                 des_apos_fim();
                 CONFERE(fase == F_RFIM && des_venceu_run, "dificuldade %d: a run devia acabar no Barao", dif);
                 continue;
             }
-            CONFERE(run.moedas == m + 20, "o Barao da Cobertura paga 20: %d", run.moedas - m);
+            CONFERE(run.moedas == m + 20, "o Barao com o Coringa depois paga 20: %d", run.moedas - m);
             run_poe_amuletos(0);
             des_apos_fim();
-            CONFERE(fase == F_RAMULETO && RAR_AMULETO[run.am_oferta[0]] == AMR_RARO, "Barao da Cobertura: raro");
+            if (fase == F_NOVIDADES) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
+            CONFERE(fase == F_RAMULETO && RAR_AMULETO[run.am_oferta[0]] == AMR_RARO, "Barao do Nivel %d: raro", dif);
             amuleto_escolhido(cursor);
-            CONFERE(fase == F_RLOJA, "Barao da Cobertura: a loja");
+            CONFERE(fase == F_RLOJA, "Barao do Nivel %d: a loja", dif);
             loja_sai();
             CONFERE(run.andar == DES_ANDAR_FINAL && run.passo == 0 && mesas_do_salao() == 1
                     && run.no[0].tipo == NO_CHEFE && run.no[0].perso == PERSO_CORINGA && fase == F_MAPA,
-                    "Cobertura: devia abrir o salao do Coringa (andar %d, fase %d)", run.andar, fase);
+                    "Nivel %d: devia abrir o salao do Coringa (andar %d, fase %d)", dif, run.andar, fase);
             run_t rr2;
             CONFERE(des_carrega(&rr2) && rr2.andar == DES_ANDAR_FINAL, "o salao do Coringa devia ficar salvo");
             run.no[0].semente = 4242;
             des_comeca_partida();
-            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == 2,
+            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 1),
                     "Coringa: trunfo %d, nivel %d", reg_op, nivel_jog[1]);
-            int fracos = 0, bons = 0;              // a bolsa dele: sem dados de saida, so do tema
+            int fracos = 0, bons = 0, fechados = 0;   // a bolsa dele: sem dados de saida, so do tema
             for (int i = 0; i < J[1].n_col; i++) {
                 int t = J[1].col[i].tipo;
                 fracos += t == D_D2 || t == D_D4 || t == D_D6;
                 bons += t == D_D20 || t == D_ESCUDO || t == D_LASER;
+                fechados += !dado_liberado(t);
             }
             CONFERE(fracos == 0 && bons >= 3, "Coringa: bolsa com %d dados fracos e %d bons", fracos, bons);
+            CONFERE(J[1].n_col == 13 + dif - CORINGA_DESDE
+                    && (dif == N_NIVEIS || !fechados), "Coringa no %d: %d dados (%d fechados)", dif, J[1].n_col, fechados);
             m = run.moedas;
             venc_partida = 0;
             des_resultado();
@@ -1802,23 +1828,50 @@ int main(void)
             modo = M_UM; fase = F_ORDEM; t_sair = -1;
             CONFERE(!des_abandono(), "fora do Desafiante nao ha abandono");
         }
-        // Vencer o Barao no Nivel 2 pela primeira vez: as novidades, card a
-        // card - a dificuldade, o amuleto, os dados do mais comum ao lendario,
-        // o adesivo e o estilo do andar; ENTER no fim da run as abre, TAB vai
-        // ao resumo e ENTER aos creditos.
+        // Os chefes do Nivel 2 vencidos pela primeira vez: cada um abre o seu
+        // pedaco do que vem com o Nivel 3, nos cards logo depois da partida (o
+        // Crupie e a Dona) ou no fim da run (o Barao, com a dificuldade).
         {
-            perfis[perfil_atual].nivel = 2; perfis[perfil_atual].venceu[2] = 0;
-            run.dificuldade = 2; run.andar = DES_ANDARES - 1; gera_andar(); run.passo = DES_PASSOS - 1;
-            encerra_run(true);
-            int am[2], dd[LIB_DADOS], nd = 0;
-            liberados(3, am, dd);
-            for (int i = 0; i < LIB_DADOS; i++) nd += dd[i] >= 0;
-            CONFERE(fase == F_RFIM && des_liberou == 3 && n_nov == 1 + 1 + nd + 1 + 1
-                    && nov[0].k == NV_DIF && nov[0].v == 3 && nov[1].k == NV_AMULETO && nov[1].v == A_RELOGIO
-                    && nov[n_nov - 2].k == NV_ADESIVO && nov[n_nov - 2].v == AD_TRANSPARENTE
+            perfil_t *pf = &perfis[perfil_atual];
+            pf->nivel = 2; pf->venceu[2] = 0; pf->chefes[2] = 0; pf->marcos = 3;
+            run.dificuldade = 2; run.andar = 0; gera_andar(); run.passo = DES_PASSOS - 1;
+            int dc = -1, dd = -1;                    // um dado do Crupie e um da Dona
+            for (int t = 0; t < D_N; t++)
+                if (nivel_do_dado(t) == 3 && marco_do_dado(t) < 0) {
+                    if (chefe_do_dado(t) == CH_CRUPIE && dc < 0) dc = t;
+                    if (chefe_do_dado(t) == CH_DONA && dd < 0) dd = t;
+                }
+            CONFERE(dc >= 0 && dd >= 0 && !dado_liberado(dc) && !amuleto_liberado(A_RELOGIO)
+                    && !adesivo_liberado(AD_TRANSPARENTE), "Nivel 2: o pedaco do Nivel 3 ainda fechado");
+            J[0].n_col = run.n_col; memcpy(J[0].col, run.col, sizeof run.col);
+            venc_partida = 0;
+            des_resultado();
+            CONFERE(dado_liberado(dc) && !dado_liberado(dd) && adesivo_liberado(AD_TRANSPARENTE) && !amuleto_liberado(A_RELOGIO)
+                    && (pf->chefes[2] & 1) && des_chefe_novo, "o Crupie devia abrir os comuns e o adesivo");
+            des_apos_fim();
+            novidade_t pc[PEDACO_MAX];
+            int npc = pedaco(2, CH_CRUPIE, pc);
+            CONFERE(fase == F_NOVIDADES && !nov_da_run && n_nov == npc && nov[n_nov - 1].k == NV_ADESIVO,
+                    "o Crupie: os cards logo depois (fase %d, %d de %d)", fase, n_nov, npc);
+            nov_tudo(); nov_tecla(KEY_ENTER);
+            CONFERE(fase == F_RAMULETO, "depois dos cards do Crupie, o amuleto dele (fase %d)", fase);
+            // De novo, ja aberto: sem cards.
+            run.andar = 0; gera_andar(); run.passo = DES_PASSOS - 1;
+            venc_partida = 0; des_resultado();
+            CONFERE(!des_chefe_novo, "o Crupie de novo nao abre nada");
+            run.andar = 1; gera_andar(); run.passo = DES_PASSOS - 1;
+            venc_partida = 0; des_resultado();
+            CONFERE(dado_liberado(dd) && amuleto_liberado(A_RELOGIO) && des_chefe_novo, "a Dona devia abrir o amuleto");
+            // O Barao fecha a run: a dificuldade e o pedaco dele (os mais raros e o estilo do andar).
+            run.andar = 2; gera_andar(); run.passo = DES_PASSOS - 1;
+            venc_partida = 0; des_resultado();
+            des_apos_fim();
+            novidade_t pb[PEDACO_MAX];
+            int npb = pedaco(2, CH_BARAO, pb);
+            CONFERE(fase == F_RFIM && des_liberou == 3 && n_nov == npb && nov[0].k == NV_DIF && nov[0].v == 3
                     && nov[n_nov - 1].k == NV_ESTILO && nov[n_nov - 1].v == 2,
-                    "novidades do Nivel 3: %d cards (dados %d)", n_nov, nd);
-            for (int i = 3; i < 2 + nd; i++)
+                    "o Barao: a dificuldade e o pedaco dele (%d cards de %d)", n_nov, npb);
+            for (int i = 2; i < n_nov - 1; i++)
                 CONFERE(TIPO[nov[i].v].raridade >= TIPO[nov[i - 1].v].raridade, "novidades: os dados fora de ordem (%d)", i);
             trata_tecla(KEY_ENTER);
             CONFERE(fase == F_NOVIDADES && !nov_pronto(), "ENTER no fim da run devia abrir as novidades (fase %d)", fase);
@@ -1828,11 +1881,24 @@ int main(void)
             nov_tecla(KEY_ENTER);
             CONFERE(fase == F_CREDITOS, "do resumo, os creditos (fase %d)", fase);
             // Sem nada novo (o Nivel 2 ja vencido antes, sem subir): direto aos creditos.
-            perfis[perfil_atual].nivel = 5; perfis[perfil_atual].venceu[2] = 1;
+            pf->nivel = 5; pf->venceu[2] = 1;
             encerra_run(true);
             CONFERE(n_nov == 0, "nada abriu: sem novidades (%d)", n_nov);
             trata_tecla(KEY_ENTER);
             CONFERE(fase == F_CREDITOS, "sem novidades, direto aos creditos (fase %d)", fase);
+            // Os perfis de antes dos chefes (PER4) voltam iguais, sem chefe anotado.
+            perfil_4_t v4[N_PERFIS];
+            static char b4[8 + 2 * sizeof v4 + 1];
+            memset(v4, 0, sizeof v4);
+            snprintf(v4[0].nome, sizeof v4[0].nome, "QUATRO");
+            v4[0].nivel = 4; v4[0].venceu[3] = 2; v4[0].runs = 9; v4[0].marcos = 1;
+            memcpy(b4, "PER40", 5);
+            hex_de(v4, sizeof v4, b4 + 5);
+            salva_grava("perfis", b4);
+            perfis_lidos = false; perfis_le();
+            CONFERE(perfil_atual == 0 && !strcmp(perfis[0].nome, "QUATRO") && perfis[0].nivel == 4 && perfis[0].venceu[3] == 2
+                    && perfis[0].runs == 9 && perfis[0].marcos == 1 && !perfis[0].chefes[4] && dado_liberado(D_GATUNO)
+                    && !dado_liberado(D_INVEJOSO), "perfil PER4: nivel %d", perfis[0].nivel);
         }
         // A run de antes desta estrutura nao abre: comeca outra.
         salva_grava(chave_run(), "DES2zz");
@@ -2455,17 +2521,22 @@ int main(void)
             // Sem nada seu lancado, a carta sai da fila.
             limpa(); F[1].n = 4; F[1].carta = true; F[1].lancados = 4;
             CONFERE(!vira_carta(1) && F[1].n == 3 && !F[1].carta, "Coringa: sem o que copiar, a carta sai");
-            // Da 5a rodada, dado seu anulado e destruido (antes, nao).
-            for (int r5 = 4; r5 <= 5; r5++) {
+            // Da 5a rodada, dado seu anulado e destruido (antes, nao), do Nivel 7.
+            int dif_c = run.dificuldade;
+            for (int k = 0; k < 4; k++) {
+                int r5 = 4 + (k & 1);
+                run.dificuldade = (uint8_t)(k < 2 ? CORINGA_SOME : CORINGA_SOME - 1);
                 for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
                 int antes_c = J[0].n_col;
                 limpa(); rodada = r5;
                 joga(0, D_D6, 5); joga(0, D_D6, 2); joga(0, D_D8, 7);
                 F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
                 recolhe_quebrados();
-                int esperado = r5 >= VIRADA_RODADA ? antes_c - 2 : antes_c;
-                CONFERE(J[0].n_col == esperado, "Coringa na rodada %d: bolsa com %d, esperava %d", r5, J[0].n_col, esperado);
+                int esperado = r5 >= VIRADA_RODADA && run.dificuldade >= CORINGA_SOME ? antes_c - 2 : antes_c;
+                CONFERE(J[0].n_col == esperado, "Coringa no Nivel %d, rodada %d: bolsa com %d, esperava %d",
+                        run.dificuldade, r5, J[0].n_col, esperado);
             }
+            run.dificuldade = (uint8_t)dif_c;
             reg_op = REG_NADA; rodada = 1;
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
         }

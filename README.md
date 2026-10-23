@@ -31,13 +31,15 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
   chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o
-  Crupiê no 3 e o Barão no 4 (mais fortes no 7, no 8 e no 10). No nível 10,
-  depois do Barão ainda há o salão do Coringa, o oponente mais difícil do
-  jogo. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
+  Crupiê no 3 e o Barão no 4 (mais fortes no 7, no 8 e no 10). Do nível 5 em
+  diante, depois do Barão ainda há o salão do Coringa, o chefe especial, que
+  fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
+  nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
+  o que quiser e ganha um amuleto, como todos. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
   de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
-  terceiro, este só no nível 10), e abre uma loja pequena: a vitrine com 2
+  terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
   dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
   mostra 3 do grupo e você leva 1 ou pula), um adesivo (2 a 6 moedas), trocar
@@ -48,10 +50,16 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   (sai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
   menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
-  depois do segundo (e do Barão, no nível 10). Cabem 5: para levar o sexto,
+  depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
   rende 1 moeda a cada mesa vencida.
-  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. Até 3
+  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
+  abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
+  comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
+  Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)
+  abre o estilo do andar e a dificuldade seguinte. Os cards aparecem logo
+  depois da partida, na primeira vitória contra cada chefe naquela
+  dificuldade. A tela da dificuldade mostra o que cada chefe abre ali. Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
@@ -59,20 +67,23 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   avatares: ET Vilu, O Berro, Nomalisa, Interruptor do Futuro, Samurai Z,
   Susto, Blue e Maicon.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
-  grafite), o material dos seus dados comuns (marfim, osso, jade, obsidiana,
-  ébano) e a mesa (nogueira e ouro, mogno e cobre, ébano e prata, carvalho e
-  bronze). Abrem andar a andar: vencer o Barão em cada dificuldade abre mais.
+  grafite, Galáxias, um céu de estrelas que cintilam com a Via Láctea
+  atravessando a mesa, e Natalino, com fita vinho e pisca-pisca na borda,
+  azevinho e neve), o material dos seus dados comuns (marfim, osso, jade,
+  obsidiana, ébano, madeira polida e pérola) e a mesa (nogueira e ouro, mogno
+  e cobre, ébano e prata, carvalho e bronze, e Led, laca preta com a moldura
+  de led âmbar respirando devagar). Abrem andar a andar: cada andar tem o
+  seu, aberto por quem fecha a run naquela dificuldade.
   Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
-  especiais têm um desenho só. Vencer o
-  Barão abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
-  a mais por nível), e os chefes e as dificuldades abrem dados novos: no
+  especiais têm um desenho só. Vencer a
+  run abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
+  a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
-  que abre aparece no fim da run, um card de cada vez (a dificuldade, o
-  amuleto, os dados, o adesivo e o estilo), e o dado de um chefe vencido pela
-  primeira vez, num card logo depois da partida. A coleção mostra o que está
-  aberto e o que falta.
+  que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
+  D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
+  mostra o que está aberto e qual chefe abre o que falta.
 
 ## Jogar no navegador (e online)
 

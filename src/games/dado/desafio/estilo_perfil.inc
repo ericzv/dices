@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // O estilo do perfil: o feltro, a mesa e o material dos seus dados comuns.
-// Abre andar a andar no Desafiante (vencer o Barao naquela dificuldade) e
+// Abre andar a andar no Desafiante (vencer a run naquela dificuldade) e
 // fica na chave do perfil ("EST1" + feltro, material e mesa, um digito cada).
 // ---------------------------------------------------------------------------
 static int estilo_mat = MAT_MARFIM;          // o material dos seus dados comuns
@@ -11,11 +11,12 @@ static const char *chave_estilo(int i)
     return K[i >= 0 && i < N_PERFIS ? i : 0];
 }
 
-// Aberto para o perfil i? (andar -1: sempre aberto)
+// Aberto para o perfil i? (andar -1: sempre aberto) Quem fecha a run do
+// andar o abre.
 static bool estilo_aberto(int i, int andar)
 {
     if (andar < 0) return true;
-    return i >= 0 && i < N_PERFIS && perfis[i].nome[0] && perfis[i].venceu[andar] > 0;
+    return i >= 0 && i < N_PERFIS && perfis[i].nome[0] && chefe_abriu_de(&perfis[i], andar, chefe_final(andar));
 }
 
 // A escolha guardada do perfil i; o que nao estiver aberto volta ao padrao.
@@ -84,6 +85,7 @@ static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
                 if (ruido_xy(x + k * 50, y) % 23 == 0) i = 4;
                 gfx_pixel(cx - 24 + x, cy - 14 + y, t[i]);
             }
+        retalho_enfeite(k, cx - 24, cy - 14, 48, 28);
     } else if (lin == 1) {                       // um D6 no material
         uint8_t antes = material_j[0];
         material_j[0] = (uint8_t)k;
@@ -96,9 +98,17 @@ static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
         gfx_rect(cx - 25, cy - 15, 50, 30, mad);
         for (int y = 0; y < 30; y += 2)
             for (int x = 0; x < 50; x++) if (ruido_xy(x / 7 + k * 9, y) % 5 == 0) gfx_pixel(cx - 25 + x, cy - 15 + y, veio);
-        gfx_moldura(cx - 15, cy - 7, 30, 22, 2, metal);
-        gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
-        tacha(cx - 15, cy - 7, metal); tacha(cx + 14, cy - 7, metal);
+        if (k == MS_LED) {                       // a fita acesa no lugar da moldura
+            gfx_moldura(cx - 16, cy - 8, 32, 24, 1, LED_HALO[4]);
+            gfx_moldura(cx - 15, cy - 7, 30, 22, 1, LED_TOM[3]);
+            gfx_moldura(cx - 14, cy - 6, 28, 20, 1, LED_TOM[5]);
+            gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
+            gfx_moldura(cx - 13, cy - 5, 26, 18, 1, LED_HALO[3]);
+        } else {
+            gfx_moldura(cx - 15, cy - 7, 30, 22, 2, metal);
+            gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
+            tacha(cx - 15, cy - 7, metal); tacha(cx + 14, cy - 7, metal);
+        }
     }
     if (!aberto) {                               // fechado: apagado, com o cadeado
         acinzenta(cx - 26, cy - 17, 52, 34, 70);
@@ -128,11 +138,13 @@ static void desenha_estilo(void)
         ui_painel(26, y, GFX_W - 52, 62);
         txt(40, y + 8, TIT[lin], lin == es_foco / 8 ? C_OURO : C_LATAO, true);
         if (lin == 1) txt(40, y + 30, "os comuns", C_TEXTO_M, false);
+        int vao = n > 5 ? 66 : 92;                           // sete opcoes ainda cabem na linha
         for (int k = 0; k < n; k++) {
-            int cx = 170 + k * 92, cy = y + 24;
+            int cx = (n > 5 ? 166 : 170) + k * vao, cy = y + 24;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
-            if (k == em_uso[lin]) ui_selecao(cx - 32, y + 4, 64, 54, C_OURO);
-            else if (lin * 8 + k == es_foco) ui_selecao(cx - 32, y + 4, 64, 54, C_LATAO_ESC);
+            int sw = vao < 92 ? 62 : 64;
+            if (k == em_uso[lin]) ui_selecao(cx - sw / 2, y + 4, sw, 54, C_OURO);
+            else if (lin * 8 + k == es_foco) ui_selecao(cx - sw / 2, y + 4, sw, 54, C_LATAO_ESC);
             es_amostra(lin, k, cx, cy, aberto);
             const char *nm = es_nome(lin, k);
             char curto[20];
@@ -141,15 +153,16 @@ static void desenha_estilo(void)
             if (e) *e = 0;
             gfx_texto(cx - gfx_largura(curto, GFX_MIUDO) / 2, y + 44, curto,
                       k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, GFX_MIUDO, false);
-            zona_clique(cx - 32, y + 4, 64, 54, &es_foco, lin * 8 + k, 'u');
+            zona_clique(cx - sw / 2, y + 4, sw, 54, &es_foco, lin * 8 + k, 'u');
         }
     }
     // O que esta em foco: o nome inteiro e, se fechado, o andar que abre.
     int fl = es_foco / 8, k = es_foco % 8, andar = es_andar(fl, k);
     char s[96];
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
-    else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer o Barão", es_nome(fl, k));
-    else snprintf(s, sizeof s, "%s  ·  abre ao vencer o Barão no %s", es_nome(fl, k), NOME_DIF_CURTO[andar]);
+    else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)]);
+    else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)],
+                  NOME_DIF_CURTO[andar]);
     txt_c(GFX_W / 2, 272, s, estilo_aberto(perfil_atual, andar) ? C_MARFIM : C_TEXTO_M, true);
     rodape_run("setas escolhem  ·  ENTER ou ESC volta");
 }

@@ -1596,17 +1596,17 @@ static void pinta_galaxia(void)
             float meio = cy - 0.30f * (x - cx) + sinf(t * 2.6f + 0.6f) * 16;
             bool faixa = fabsf(y - meio) < 34;
             uint32_t h = ruido_xy(x * 7 + 3, y * 13 + 5);
-            uint32_t q = h % (faixa ? 46u : 110u);
+            uint32_t q = h % (faixa ? 54u : 130u);
             if (q) continue;
             uint32_t k = (h >> 8) % 100;
             if (k < 62) gfx_pixel(x, y, GAL_ESTRELA[0]);
             else if (k < 84) gfx_pixel(x, y, GAL_ESTRELA[1]);
             else if (k < 91) gfx_pixel(x, y, GAL_ESTRELA[2]);
             else if (k < 96) gfx_pixel(x, y, GAL_ESTRELA[3]);
-            else {                                       // a clara, com uma cruz miuda
+            else {                                       // a clara, com uma cruz miuda e apagada
                 gfx_pixel(x, y, GAL_ESTRELA[4]);
-                gfx_pixel(x - 1, y, GAL_ESTRELA[1]); gfx_pixel(x + 1, y, GAL_ESTRELA[1]);
-                gfx_pixel(x, y - 1, GAL_ESTRELA[1]); gfx_pixel(x, y + 1, GAL_ESTRELA[1]);
+                gfx_pixel(x - 1, y, GAL_ESTRELA[0]); gfx_pixel(x + 1, y, GAL_ESTRELA[0]);
+                gfx_pixel(x, y - 1, GAL_ESTRELA[0]); gfx_pixel(x, y + 1, GAL_ESTRELA[0]);
             }
         }
     // As grandes, que cintilam: espalhadas, longe da borda.
@@ -1753,7 +1753,7 @@ static void retalho_enfeite(int k, int x, int y, int w, int h)
                 uint32_t q = ruido_xy(i * 7 + 3, j * 13 + 5) % 23;
                 if (q == 0) gfx_pixel(x + i, y + j, GAL_ESTRELA[(ruido_xy(i, j) >> 9) % 4]);
             }
-        if (w >= 20) estrela4(x + w / 3, y + h / 3, 2, GAL_ESTRELA[4], GAL_ESTRELA[1], GAL_ESTRELA[0]);
+        if (w >= 20) estrela4(x + w / 3, y + h / 3, 2, GAL_CINTILA[3], GAL_CINTILA[1], GAL_CINTILA[0]);
     } else if (k == FT_NATAL) {
         gfx_moldura(x, y, w, h, 1, C_LATAO);
         if (w >= 20) {
@@ -1775,18 +1775,19 @@ static void retalho_enfeite(int k, int x, int y, int w, int h)
 
 // A fita de led da mesa Led, na forca k (0 a 4): tres pixels no lugar da
 // moldura, o do meio com os leds acesos a cada 3 pixels, e o halo na laca.
+// No pico (4) tudo sobe mais um tom: o led quase branco de tao aceso.
 static void fita_led(int k)
 {
     int x = MESA_X0, y = MESA_Y0, w = MESA_X1 - MESA_X0, h = MESA_Y1 - MESA_Y0;
-    int q = k + 1 < LED_N ? k + 1 : LED_N - 1;
-    gfx_moldura(x - 8, y - 8, w + 16, h + 16, 1, LED_HALO[k > 0 ? k - 1 : 0]);
+    int c = k >= 4 ? k + 1 : k, q = c + 1 < LED_N ? c + 1 : LED_N - 1;
+    gfx_moldura(x - 8, y - 8, w + 16, h + 16, 1, LED_HALO[c > 0 ? c - 1 : 0]);
     gfx_moldura(x - 7, y - 7, w + 14, h + 14, 1, LED_HALO[q]);
-    gfx_moldura(x - 6, y - 6, w + 12, h + 12, 1, LED_TOM[k]);
+    gfx_moldura(x - 6, y - 6, w + 12, h + 12, 1, LED_TOM[c]);
     gfx_moldura(x - 5, y - 5, w + 10, h + 10, 1, LED_TOM[q]);
-    gfx_moldura(x - 4, y - 4, w + 8, h + 8, 1, LED_TOM[k]);
+    gfx_moldura(x - 4, y - 4, w + 8, h + 8, 1, LED_TOM[c]);
     gfx_moldura(x - 3, y - 3, w + 6, h + 6, 1, LED_HALO[q]);
     gfx_moldura(x - 2, y - 2, w + 4, h + 4, 2, C_SOMBRA);
-    uint16_t chip = LED_TOM[k + 2 < LED_N ? k + 2 : LED_N - 1];
+    uint16_t chip = LED_TOM[c + 2 < LED_N ? c + 2 : LED_N - 1];
     for (int i = x - 5; i < x + w + 5; i += 3) { gfx_pixel(i, y - 5, chip); gfx_pixel(i, y + h + 4, chip); }
     for (int j = y - 2; j < y + h + 3; j += 3) { gfx_pixel(x - 5, j, chip); gfx_pixel(x + w + 4, j, chip); }
 }
@@ -1901,10 +1902,10 @@ static void mesa_anima(int q)
         int x = a->x + 3, y = a->y + 3;
         if (a->tipo == AN_ESTRELA) {
             int f = (q + i * 7 + a->cor * 3) % 19;           // brilha forte por dois quadros, fraca por um
-            if (f == 0 || f == 2) estrela4(x, y, 3, GAL_ESTRELA[4], GAL_ESTRELA[a->cor ? 2 : 1], GAL_ESTRELA[0]);
-            else if (f == 1) estrela4(x, y, 3, C_BRANCO, GAL_ESTRELA[4], GAL_ESTRELA[1]);
-            else if (f == 3) estrela4(x, y, 1, GAL_ESTRELA[1], GAL_ESTRELA[0], GAL_ESTRELA[0]);
-            else estrela4(x, y, 2, GAL_ESTRELA[4], GAL_ESTRELA[1], GAL_ESTRELA[0]);
+            if (f == 0 || f == 2) estrela4(x, y, 3, GAL_CINTILA[3], GAL_CINTILA[a->cor ? 2 : 1], GAL_CINTILA[0]);
+            else if (f == 1) estrela4(x, y, 3, C_BRANCO, GAL_CINTILA[3], GAL_CINTILA[1]);
+            else if (f == 3) estrela4(x, y, 1, GAL_CINTILA[1], GAL_CINTILA[0], GAL_CINTILA[0]);
+            else estrela4(x, y, 2, GAL_CINTILA[3], GAL_CINTILA[1], GAL_CINTILA[0]);
         } else {
             bool acesa = (q + i * 5) % 9 < 7;
             lampada(a->x + 1, a->y + 2, a->cor, acesa);

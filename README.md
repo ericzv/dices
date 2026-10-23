@@ -72,7 +72,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   azevinho e neve), o material dos seus dados comuns (marfim, osso, jade,
   obsidiana, ébano, madeira polida e pérola) e a mesa (nogueira e ouro, mogno
   e cobre, ébano e prata, carvalho e bronze, e Led, laca preta com a moldura
-  de led âmbar respirando devagar). Abrem andar a andar: cada andar tem o
+  de led vermelho respirando devagar). Abrem andar a andar: cada andar tem o
   seu, aberto por quem fecha a run naquela dificuldade.
   Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
   especiais têm um desenho só. Vencer a

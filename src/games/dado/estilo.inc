@@ -68,15 +68,18 @@ static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N
     [MS_MOGNO]    = { "Mogno e cobre", { RGB(44, 16, 14), RGB(66, 24, 20), RGB(104, 40, 32) }, RGB(184, 110, 70) },
     [MS_EBANO]    = { "Ébano e prata", { RGB(18, 16, 16), RGB(30, 27, 26), RGB(84, 76, 70) }, RGB(184, 194, 208) },
     [MS_CARVALHO] = { "Carvalho e bronze", { RGB(128, 90, 54), RGB(150, 108, 66), RGB(204, 164, 110) }, RGB(176, 124, 72) },
-    // Laca preta, e a moldura e uma fita de led ambar que respira (pinta_mesa).
-    [MS_LED]      = { "Led", { RGB(10, 10, 12), RGB(18, 18, 22), RGB(70, 68, 76) }, RGB(204, 144, 56) },
+    // Laca preta, e a moldura e uma fita de led vermelha que respira (pinta_mesa).
+    [MS_LED]      = { "Led", { RGB(10, 10, 12), RGB(18, 18, 22), RGB(70, 68, 76) }, RGB(204, 42, 46) },
 };
 
 // Os enfeites dos estilos novos (pinta_mesa): cores exatas, so deles.
-// O ceu: quatro nevoas da Via Lactea e as estrelas, da fraca a branca.
+// O ceu: quatro nevoas da Via Lactea; as estrelas paradas, apagadinhas no
+// escuro (a fraca, a media, a quente, a fria e a clara); e as que cintilam,
+// mais fortes.
 static const uint16_t GAL_NEVOA[4]   = { RGB(20, 22, 56), RGB(34, 28, 74), RGB(20, 36, 76), RGB(52, 44, 102) };
-static const uint16_t GAL_ESTRELA[5] = { RGB(78, 86, 128), RGB(146, 156, 196), RGB(255, 234, 176), RGB(194, 214, 255),
-                                         RGB(252, 248, 236) };
+static const uint16_t GAL_ESTRELA[5] = { RGB(46, 52, 90), RGB(86, 94, 140), RGB(150, 138, 114), RGB(110, 126, 176),
+                                         RGB(166, 172, 204) };
+static const uint16_t GAL_CINTILA[4] = { RGB(78, 86, 128), RGB(146, 156, 196), RGB(255, 234, 176), RGB(252, 248, 236) };
 // O Natal: a fita de veludo vinho, as lampadas (acesas e apagadas), a neve e
 // o azevinho.
 static const uint16_t NATAL_FITA[3]    = { RGB(64, 14, 22), RGB(98, 22, 32), RGB(136, 40, 50) };
@@ -86,12 +89,13 @@ static const uint16_t NATAL_BRILHO[4]  = { RGB(150, 52, 48), RGB(160, 128, 56), 
 static const uint16_t NATAL_NEVE[2]    = { RGB(238, 244, 252), RGB(170, 186, 206) };
 static const uint16_t NATAL_FOLHA[3]   = { RGB(16, 70, 36), RGB(30, 104, 56), RGB(64, 146, 88) };
 static const uint16_t NATAL_FIO        = RGB(26, 34, 26);
-// O led: seis forcas da fita, da mais fraca a mais forte, e o halo de cada uma.
-#define LED_N 6
-static const uint16_t LED_TOM[LED_N]  = { RGB(140, 90, 30), RGB(170, 112, 40), RGB(198, 136, 52), RGB(224, 162, 66),
-                                          RGB(244, 190, 88), RGB(255, 218, 130) };
-static const uint16_t LED_HALO[LED_N] = { RGB(36, 24, 10), RGB(50, 34, 14), RGB(64, 44, 18), RGB(80, 54, 22),
-                                          RGB(96, 66, 28), RGB(112, 78, 34) };
+// O led vermelho: sete forcas da fita, da mais fraca a mais forte (a ultima
+// so no pico da respiracao), e o halo de cada uma.
+#define LED_N 7
+static const uint16_t LED_TOM[LED_N]  = { RGB(110, 18, 22), RGB(140, 24, 30), RGB(172, 32, 38), RGB(204, 42, 46),
+                                          RGB(232, 58, 60), RGB(252, 92, 88), RGB(255, 152, 140) };
+static const uint16_t LED_HALO[LED_N] = { RGB(30, 8, 10), RGB(42, 10, 12), RGB(56, 14, 16), RGB(72, 18, 20),
+                                          RGB(88, 22, 24), RGB(108, 28, 30), RGB(132, 40, 40) };
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
 // Barao, ou do Nivel 5 o Coringa; -1: sempre aberto).
@@ -132,6 +136,7 @@ static void aplica_estilo(int feltro, int mesa_id)
     }
     gfx_paleta_exata(GAL_NEVOA, 4);
     gfx_paleta_exata(GAL_ESTRELA, 5);
+    gfx_paleta_exata(GAL_CINTILA, 4);
     gfx_paleta_exata(NATAL_FITA, 3);
     gfx_paleta_exata(NATAL_ACESA, 4);
     gfx_paleta_exata(NATAL_APAGADA, 4);

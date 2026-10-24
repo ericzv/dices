@@ -4,7 +4,7 @@
 // chave do perfil ("HIS2" + hexadecimal). A estrutura tem espaco para os
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
-#define HIST_DADOS 96                    // par: o rabo da estrutura fica no mesmo alinhamento
+#define HIST_DADOS 128                   // par: o rabo da estrutura fica no mesmo alinhamento
 #define HIST_COL   48                 // dados guardados da run campea (camp_n conta todos)
 #define HIST_CAMPOS(N, NIV)                                                                \
     char     marca[4];                   /* "HIS2" */                                      \
@@ -22,11 +22,16 @@
     int32_t  camp_moedas;                                                                  \
     uint8_t  reserva[32];
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS) } hist_t;
-typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS_V) } hist1_t;  // "HIS1", dos 5 niveis: lido e convertido
+typedef struct { HIST_CAMPOS(96, N_NIVEIS) } hist96_t;           // "HIS2" de antes dos 102 tipos: lido e convertido
+typedef struct { HIST_CAMPOS(96, N_NIVEIS_V) } hist1_t;          // "HIS1", dos 5 niveis: idem
 typedef struct { HIST_CAMPOS(64, N_NIVEIS_V) } hist64_t;         // o de antes dos 69 tipos: idem
 _Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 40, "o historico nao comporta os dados");
 _Static_assert(sizeof(hist_t) != sizeof(hist1_t) && sizeof(hist_t) != sizeof(hist64_t)
-               && sizeof(hist1_t) != sizeof(hist64_t), "os formatos do historico se distinguem pelo tamanho");
+               && sizeof(hist1_t) != sizeof(hist64_t) && sizeof(hist96_t) != sizeof(hist_t)
+               && sizeof(hist96_t) != sizeof(hist1_t) && sizeof(hist96_t) != sizeof(hist64_t),
+               "os formatos do historico se distinguem pelo tamanho");
+_Static_assert(sizeof(hist_t) - offsetof(hist_t, camp_tem) == sizeof(hist96_t) - offsetof(hist96_t, camp_tem),
+               "o rabo do historico fica igual quando as listas crescem");
 
 static hist_t hist;
 static int hist_de = -1;                 // de que perfil e o historico carregado
@@ -49,9 +54,9 @@ static void hist_converte(hist_t *h, const hist1_t *v)
     h->maior_rodada = v->maior_rodada; h->maior_pote = v->maior_pote;
     h->jackpots = v->jackpots; h->filas_cheias = v->filas_cheias;
     h->horas = v->horas; h->horas_venc = v->horas_venc;
-    memcpy(h->lancou, v->lancou, sizeof h->lancou);
-    memcpy(h->valeu, v->valeu, sizeof h->valeu);
-    memcpy(h->ganhou, v->ganhou, sizeof h->ganhou);
+    memcpy(h->lancou, v->lancou, sizeof v->lancou);
+    memcpy(h->valeu, v->valeu, sizeof v->valeu);
+    memcpy(h->ganhou, v->ganhou, sizeof v->ganhou);
     h->camp_tem = v->camp_tem; h->camp_dif = (uint8_t)(2 * v->camp_dif); h->camp_n = v->camp_n;
     memcpy(h->camp_col, v->camp_col, sizeof h->camp_col);
     h->camp_amul = v->camp_amul; h->camp_data = v->camp_data; h->camp_moedas = v->camp_moedas;
@@ -66,11 +71,21 @@ static void hist_carrega(int i)
     memcpy(hist.marca, "HIS2", 4);
     static char buf[2 * sizeof(hist_t) + 8];
     static hist64_t v64;
+    static hist96_t v96;
     static hist1_t v1;
     hist_t h;
     int n = salva_le(chave_hist(i), buf, (int)sizeof buf);
     bool velho = true;
-    if (n == (int)(2 * sizeof v64)) {                  // de antes dos 69 tipos: as tres listas cresceram
+    if (n == (int)(2 * sizeof v96)) {                  // de antes dos 102 tipos: as tres listas cresceram
+        if (!de_hex(buf, &v96, sizeof v96)) return;
+        velho = false;
+        memset(&h, 0, sizeof h);
+        memcpy(&h, &v96, offsetof(hist96_t, lancou));
+        memcpy(h.lancou, v96.lancou, sizeof v96.lancou);
+        memcpy(h.valeu, v96.valeu, sizeof v96.valeu);
+        memcpy(h.ganhou, v96.ganhou, sizeof v96.ganhou);
+        memcpy(&h.camp_tem, &v96.camp_tem, sizeof v96 - offsetof(hist96_t, camp_tem));
+    } else if (n == (int)(2 * sizeof v64)) {                  // de antes dos 69 tipos: as tres listas cresceram
         if (!de_hex(buf, &v64, sizeof v64)) return;
         memset(&v1, 0, sizeof v1);
         memcpy(&v1, &v64, offsetof(hist64_t, lancou));

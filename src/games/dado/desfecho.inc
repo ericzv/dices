@@ -17,6 +17,7 @@ typedef struct {
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
     uint8_t garimpo[2];              // o Garimpeiro valeu: posicoes dos outros validos que voltam para a bolsa
     uint8_t onda[2];                 // posicoes das Ondas que juntaram 9: viram Tsunami
+    uint8_t meia[2];                 // posicoes das Meias anuladas que ja avisaram que guardam
     // Os adesivos (adesivos_de): o que fica depois da rodada.
     uint8_t moedas[2];               // Dourado: moedas para a run
     uint8_t bis[2];                  // Bis: dados a mais na proxima compra
@@ -131,12 +132,12 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
 enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_SACRIFICIO, MULT_BARAO,
-       MULT_PIRAMIDE, MULT_ABRE_ALAS, MULT_PATINHOS, MULT_N };
+       MULT_PIRAMIDE, MULT_ABRE_ALAS, MULT_PATINHOS, MULT_PISCA, MULT_N };
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
     const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", "Esperança", "Sacrifício", J[1].nome,
-                                 "Pirâmide", "Abre-Alas", "Três Patinhos" };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2, 2, 2, 2, 3 };
+                                 "Pirâmide", "Abre-Alas", "Três Patinhos", "Pisca-pisca" };
+    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2, 2, 2, 2, 3, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
@@ -146,7 +147,8 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
         if (curto || p >= n) continue;
         p += (size_t)snprintf(s + p, n - p, " x%d", x[q]);
-        if (q == MULT_VIUVA || q == MULT_AZARAO || q == MULT_ESPERANCA || q == MULT_PATINHOS || p >= n) continue;   // ele mesmo
+        if (q == MULT_VIUVA || q == MULT_AZARAO || q == MULT_ESPERANCA || q == MULT_PATINHOS || q == MULT_PISCA
+            || p >= n) continue;                 // ele mesmo
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
         p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
@@ -207,6 +209,21 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (est[i] == V_VALIDO) { n++; d->bonus[j][i] += (int8_t)n; por[i] = (int8_t)n; mask |= (uint8_t)(1 << i); }
         evento_t *e = !mask ? NULL : n == 1 ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Trenó puxa o dado de antes: +1")
                                            : evento(gera, EV_BONUS, j, k, 0, 0, 0, "Trenó puxa %d dados: +1 a +%d", n, n);
+        if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
+    }
+
+    // Rena valendo: +1 no seu dado lancado logo antes e no logo depois dela,
+    // se terminarem valendo. Duas Renas lado a lado puxam uma a outra.
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+        if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_RENA) continue;
+        uint8_t mask = 0;
+        int8_t por[N_FILA] = { 0 };
+        for (int i = k - 1; i <= k + 1; i += 2)
+            if (i >= 0 && i < f->lancados && i < N_FILA && est[i] == V_VALIDO) {
+                d->bonus[j][i] += 1; por[i] = 1; mask |= (uint8_t)(1 << i);
+            }
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", (mask & (mask - 1)) ? "Rena puxa os dois vizinhos: +1"
+                                                                                       : "Rena puxa o vizinho: +1") : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
@@ -323,6 +340,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (tem_am(j, A_PIRAMIDE) && TIPO[tipo_de(j, k)].lados == 4) { m += 2; de[MULT_PIRAMIDE] |= bit; }
         // Tres Patinhos: na 3a (6a, 9a...) vez que termina valendo, x3.
         if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(f->fixo[k])) { m += 3; de[MULT_PATINHOS] |= bit; }
+        // Pisca-pisca aceso: x2 nele mesmo.
+        if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(f->fixo[k])) { m += 2; de[MULT_PISCA] |= bit; }
         if (k == 0 && tem_am(j, A_ABRE_ALAS)) { m += 2; de[MULT_ABRE_ALAS] |= bit; }
         // Somam aos que ja havia (a Saideira passa uma segunda vez: x2 de novo e x4).
         if (m) { d->mult[j][k] = (int8_t)(d->mult[j][k] + m); mask |= 1 << k; }
@@ -413,6 +432,33 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                              sinos, JINGLE_PTS);
         for (int i = 0; e && i < N_FILA; i++)
             if (m_sino >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = JINGLE_PTS; }
+    }
+    // Estrela de Belem valendo e lancada por ultimo: +2 por dado seu valendo
+    // abaixo dela, fora dos multiplicadores.
+    int ult = f->lancados - 1;
+    if (ult >= 0 && ult < N_FILA && est[ult] == V_VALIDO && TIPO[tipo_de(j, ult)].efeito == EF_ESTRELA) {
+        int n = 0;
+        for (int i = 0; i < ult; i++) n += est[i] == V_VALIDO;
+        if (n) {
+            d->semente[j] += ESTRELA_PTS * n;
+            evento_t *e = evento(gera, EV_EXTRA, j, ult, j, 0, ESTRELA_PTS * n, "Estrela de Belém no topo: %d dado%s, +%d",
+                                 n, n > 1 ? "s" : "", ESTRELA_PTS * n);
+            for (int i = 0; e && i < ult; i++)
+                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = ESTRELA_PTS; }
+        }
+    }
+    // Meia na Lareira: valendo, paga o que guardou (fora dos multiplicadores);
+    // anulada, avisa que guarda mais 2 (uma vez so, mesmo com a Saideira).
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+        if (TIPO[tipo_de(j, k)].efeito != EF_MEIA) continue;
+        if (est[k] == V_VALIDO && f->fixo[k]) {
+            d->semente[j] += f->fixo[k];
+            evento(gera, EV_EXTRA, j, k, j, 0, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
+        } else if (est[k] == V_ANULADO && !(d->meia[j] >> k & 1)) {
+            d->meia[j] |= (uint8_t)(1 << k);
+            int g = meia_depois(f->fixo[k]);
+            evento(gera, EV_EXTRA, j, k, j, 0, 0, "Meia na Lareira anulada: guarda +%d (%d na meia)", g - f->fixo[k], g);
+        }
     }
     // A Onda valendo que, com o que tirou, junta 9: vira Tsunami no fim (so a
     // que veio da bolsa; uma vez so, mesmo com a Saideira).
@@ -575,6 +621,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
+    if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
         for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
@@ -653,6 +700,14 @@ static int poder_armado(int j, int k)
     case EF_BONECO:       return v >= 8;
     case EF_TSUNAMI:      return v >= 9;
     case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
+    case EF_PISCA:        return pisca_aceso(f->fixo[k]);
+    case EF_MEIA:         return f->fixo[k] > 0;
+    case EF_ESTRELA:                                         // por ultimo, com um seu valendo abaixo
+        if (k != f->lancados - 1) return 0;
+        for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) return 1;
+        return 0;
+    case EF_RENA:                                            // um vizinho valendo
+        return (k > 0 && f->est[k - 1] == V_VALIDO) || (k + 1 < f->lancados && f->est[k + 1] == V_VALIDO);
     case EF_ONDA:         return onda_da_bolsa(j, k) && onda_depois(f->fixo[k], v) >= ONDA_VIRA;
     case EF_TRENO:                                           // um dado seu valendo antes dele
         for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) return 1;

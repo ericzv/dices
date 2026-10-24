@@ -14,6 +14,9 @@ static int ultimo_da_regra(int j, const uint8_t *est, int antes)
     return -1;
 }
 
+// O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
+static bool pisca_aceso(int fixo) { return !(fixo & 1); }
+
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
 // O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
@@ -21,6 +24,7 @@ static int valor_pontos(int j, int k)
 {
     if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
     if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO || F[j].tipo[k] == D_ONDA) return 0;
+    if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
 }
 
@@ -34,6 +38,8 @@ static int furia_depois(int g, int v)
 // Os Tres Patinhos ja terminaram valendo c vezes: valendo agora, e a 3a (6a,
 // 9a...) vez, e pontuam x3.
 static bool patinhos_ativo(int c) { return (c + 1) % PATINHOS_CADA == 0; }
+// A Meia na Lareira que guardou g e terminou anulada: o quanto fica.
+static int meia_depois(int g) { return g + MEIA_GUARDA > MEIA_MAX ? MEIA_MAX : g + MEIA_GUARDA; }
 // A Onda que guardou g e tirou v: o quanto fica, no maximo o que a vira.
 static int onda_depois(int g, int v) { int n = g + (v > 0 ? v : 0); return n > ONDA_VIRA ? ONDA_VIRA : n; }
 
@@ -47,6 +53,11 @@ static const peca_t *peca_fila(int j, int k)
 // A Onda no lugar k veio da bolsa (a copia do Coringa nao vira Tsunami).
 static bool onda_da_bolsa(int j, int k) { const peca_t *p = peca_fila(j, k); return p && p->tipo == D_ONDA; }
 static int ad_fila(int j, int k) { return ad_no_lado(peca_fila(j, k), F[j].lado[k]); }
+// O Panetone, a cada lance: a fatia vem com 0 a 3 frutas.
+static void fatia(int j, int k, int (*r)(int))
+{
+    F[j].fruta[k] = (uint8_t)(TIPO[F[j].tipo[k]].efeito == EF_PANETONE ? r(4) - 1 : 0);
+}
 // O lado que um lance deixa para cima: o d12 da Sorte no Sorte/Reves, o
 // primeiro lance no Explosivo; o Vazio nao mostra (0). Fora dos lados, 0.
 static int lado_do_lance(int t, int x, int menor)
@@ -384,6 +395,13 @@ static void aplica_regra(int j, int k)
         // Onda: nao pontua; a etiqueta diz quanto ela tera guardado se ficar.
         if (ef == EF_ONDA) snprintf(f->tag[k], sizeof f->tag[k], "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
         if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) snprintf(f->tag[k], sizeof f->tag[k], "x3");
+        // Panetone: as frutas da fatia somam no que ele tirou.
+        if (ef == EF_PANETONE && f->fruta[k]) {
+            f->bonus[k] = (int8_t)(f->bonus[k] + f->fruta[k]);
+            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+        }
+        if (ef == EF_PISCA) snprintf(f->tag[k], sizeof f->tag[k], pisca_aceso(f->fixo[k]) ? "x2" : "=0");
+        if (ef == EF_MEIA && f->fixo[k]) snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->fixo[k]);
         // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
         if (ef == EF_COLECIONADOR && v == 6) {
             int tem = 0;
@@ -449,6 +467,15 @@ static void aplica_regra(int j, int k)
             else snprintf(veredito, sizeof veredito, "Onda: não pontua, guarda %d (%d de %d)", v, g, ONDA_VIRA);
         } else if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) {
             snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", f->fixo[k] + 1);
+        } else if (ef == EF_PANETONE) {
+            if (f->fruta[k]) snprintf(veredito, sizeof veredito, "Panetone com %d fruta%s: pontua %d", f->fruta[k],
+                                      f->fruta[k] > 1 ? "s" : "", vale);
+            else snprintf(veredito, sizeof veredito, "Panetone sem frutas: pontua %d", vale);
+        } else if (ef == EF_PISCA) {
+            if (pisca_aceso(f->fixo[k])) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
+            else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua 0");
+        } else if (ef == EF_MEIA && f->fixo[k]) {
+            snprintf(veredito, sizeof veredito, "Meia na Lareira: se ficar, paga +%d", f->fixo[k]);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
@@ -578,6 +605,7 @@ static void pousa(int j, int k, int (*r)(int))
         int menor, lado, antes;
         f->cru[i] = f->valor[i] = sorteia_peca(f->tipo[i], f->fixo[i], peca_fila(j, i), r, &menor, &lado, &antes);
         f->lado[i] = (uint8_t)lado;
+        fatia(j, i, r);
         f->descarte[i] = (uint8_t)menor;
         f->espera[i] = false;
     }

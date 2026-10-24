@@ -846,6 +846,8 @@ typedef struct {
     // Nos dois bytes que sobravam no fim (a run salva de antes abre igual):
     uint8_t  amuletos_x;                 // bit a: tem o amuleto 32 + a
     uint8_t  colar;                      // a ultima vitoria: a moeda do Colar de Perolas
+    // Depois do fim de antes (a run salva sem ele abre com 0):
+    uint8_t  presente;                   // o primeiro Presente aberto ja virou de vez
 } run_t;
 
 static run_t run;

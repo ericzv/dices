@@ -366,6 +366,32 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     return x;
 }
 
+// O Presente desembrulha no lance: um dado raro ao acaso, que joga no lugar
+// dele nesta rodada (no Desafiante, os seus so entre os que voce ja abriu). O
+// primeiro que voce abre na run fica sendo esse dado de vez.
+static int desembrulha(int j, int k, int (*r)(int))
+{
+    int ok[D_N], n = 0;
+    for (int t = 0; t < D_N; t++) {
+        if (TIPO[t].raridade != RAR_RARO || sem_sorteio(t) || t == D_PRESENTE) continue;
+        if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : so_desafio(t)) continue;
+        ok[n++] = t;
+    }
+    int t = n ? ok[r(n) - 1] : D_D6;
+    fila_t *f = &F[j];
+    f->tipo[k] = (uint8_t)t;
+    f->fixo[k] = nova_peca(t).fixo;
+    f->presente[k] = true;
+    int i = f->idx[k];
+    if (modo == M_DESAFIO && j == 0 && presente_livre && i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {
+        J[j].col[i].tipo = (uint8_t)t;          // fica: os adesivos seguem com ele
+        J[j].col[i].fixo = f->fixo[k];
+        presente_livre = false;
+        presente_virou = true;
+    }
+    return t;
+}
+
 static void lanca_proximo(void)
 {
     fila_t *f = &F[vez];
@@ -384,6 +410,7 @@ static void lanca_proximo(void)
         fase = F_VEREDITO;
         return;
     }
+    if (t == D_PRESENTE) { t = desembrulha(vez, k, rola); lados = TIPO[t].lados; }
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
@@ -407,6 +434,7 @@ static void lanca_proximo(void)
     f->cru[k] = x;
     f->valor[k] = x;
     f->lado[k] = (uint8_t)lado;
+    fatia(vez, k, rola);
     // O Previsivel sobe a cada lance, valendo ou nao (ate 12).
     if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 11)
         J[vez].col[f->idx[k]].fixo++;
@@ -557,6 +585,9 @@ static void contadores_ficam(int j, const desfecho_t *d)
             if (d->onda[j] >> k & 1) { p->tipo = D_TSUNAMI; p->fixo = 0; }
             else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
         } else if (p->tipo == D_PATINHOS && vale && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);
+        else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
+        else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
+        else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
     }
 }
 

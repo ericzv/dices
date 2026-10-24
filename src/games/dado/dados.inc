@@ -15,7 +15,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA,
        EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
        EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA,
-       EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS };
+       EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
+       EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -49,7 +50,8 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO, D_COLECIONADOR,
        D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
        // Os de Natal (so em novembro e dezembro) e os mais novos.
-       D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS, D_N };
+       D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS,
+       D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -74,10 +76,26 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ONDA_VIRA 9
 // Os Tres Patinhos: x3 a cada tantas vezes que terminam valendo.
 #define PATINHOS_CADA 3
+// A Meia na Lareira: o que guarda a cada vez que termina anulada, e o teto.
+#define MEIA_GUARDA 2
+#define MEIA_MAX    99
+// A Estrela de Belem, por ultimo: o que rende por dado valendo abaixo dela.
+#define ESTRELA_PTS 2
 // A epoca do Natal (novembro e dezembro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
-static bool natal;
-static bool de_natal(int t) { return t == D_TRENO || t == D_BONECO || t == D_JINGLE; }
+// Em dezembro o Papai Noel e os oponentes de Natal chegam ao cassino; do dia
+// 26 ao fim do ano, o feltro do Reveillon.
+static bool natal, dezembro, reveillon;
+static bool de_natal(int t)
+{
+    switch (t) {
+    case D_TRENO: case D_BONECO: case D_JINGLE: case D_PRESENTE: case D_PANETONE:
+    case D_PISCA: case D_MEIA: case D_ESTRELA: case D_RENA:
+        return true;
+    default:
+        return false;
+    }
+}
 static bool fora_de_epoca(int t) { return de_natal(t) && !natal; }
 // O Dado Misterioso nao aparece em lugar nenhum: nem na colecao, nem no
 // premio, nem na loja. So sai de uma pedra negativa que se parte.
@@ -206,6 +224,12 @@ static const tipo_t TIPO[D_N] = {
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Não pontua · válido: guarda o que tirou; 9 vira Tsunami" },
     { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula um dado do oponente" },
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que termina válido: x3" },
+    { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: desembrulha um dado raro ao acaso" },
+    { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
+    { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Uma vez aceso (x2), outra apagado (0)" },
+    { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +2 · válida: paga tudo" },
+    { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
+    { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -312,6 +336,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ONDA]            = "Não pontua. Cada vez que termina válido, guarda o que tirou; ao juntar 9, vira um Tsunami.",
     [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula um dado do oponente, ao acaso.",
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que termina válido, pontua x3. Os patinhos marcam a contagem.",
+    [D_PRESENTE]        = "Ao ser lançado, desembrulha: vira um dado raro ao acaso, só nesta rodada.",
+    [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
+    [D_PISCA]           = "Lançado aceso, pontua x2; na vez seguinte, apagado, pontua 0. O dado mostra como vem.",
+    [D_MEIA]            = "Cada vez que termina anulada, guarda +2. Válida, paga tudo o que guardou e esvazia.",
+    [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
+    [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -501,6 +531,22 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PATINHOS]        = "Quatro lados. Conta as vezes que termina válido: na 3ª, na 6ª, na 9ª... pontua x3 no fim da "
                           "rodada. Os três patinhos no dado marcam a contagem; com os três acesos, ele está ativo. A "
                           "contagem fica com ele.",
+    [D_PRESENTE]        = "Seis lados, embrulhado. Ao ser lançado, desembrulha e vira um dado raro sorteado, que joga no "
+                          "lugar dele nesta rodada (no Desafiante, só os que você já abriu). No Desafiante, o primeiro "
+                          "Presente que você abre na run fica sendo esse dado de vez. Só aparece em novembro e dezembro.",
+    [D_PANETONE]        = "Oito lados. Cada vez que é lançado, a fatia vem com 0, 1, 2 ou 3 frutas cristalizadas, ao acaso: "
+                          "esse bônus soma no que ele tirou, se terminar válido. Só aparece em novembro e dezembro.",
+    [D_PISCA]           = "Quatro lados. Alterna a cada vez que é lançado: aceso, pontua x2; apagado, pontua 0 (mas conta "
+                          "na sequência com o número que tirou). As luzinhas no dado mostram como ele vem na próxima vez. "
+                          "Só aparece em novembro e dezembro.",
+    [D_MEIA]            = "Quatro lados. Cada vez que termina a rodada anulada, guarda +2 na meia. Quando termina válida, "
+                          "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece em "
+                          "novembro e dezembro.",
+    [D_ESTRELA]         = "Oito lados. Se terminar válida e for o último dado que você lançou na rodada (a estrela no "
+                          "topo da árvore), pontua +2 no fim para cada dado seu válido abaixo dela. Só aparece em "
+                          "novembro e dezembro.",
+    [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
+                          "se terminarem válidos, pontuam +1 cada. Só aparece em novembro e dezembro.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -701,6 +747,12 @@ static const visual_t VISUAL[D_N] = {
     [D_ONDA]       = { V_CIANO,   V_CEU, 14,    V_AZUL, 75,     V_CIANO, 100,  V_BRANCO, 90 },
     [D_TSUNAMI]    = { V_AZUL,    V_NOITE, 44,  V_AZUL, 100,    V_CIANO, 100,  V_BRANCO, 100 },
     [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
+    [D_PRESENTE]   = { V_VERM,    V_VERM, 30,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
+    [D_PANETONE]   = { V_AMBAR,   V_TRIGO, 40,  V_COURO, 100,   V_VERM, 100,   V_VERDE, 100 },
+    [D_PISCA]      = { V_VERDE,   V_BREU, 55,   V_VERDE, 80,    V_AMBAR, 100,  V_CHUMBO, 100 },
+    [D_MEIA]       = { V_VERM,    V_BRANCO, 30, V_VERM, 100,    V_BRANCO, 100, V_OURO, 100 },
+    [D_ESTRELA]    = { V_OURO,    V_NOITE, 60,  V_OURO, 100,    V_TRIGO, 100,  V_BRANCO, 100 },
+    [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 100,   V_MADEIRA, 100, V_VERM, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

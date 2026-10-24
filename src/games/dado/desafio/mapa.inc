@@ -108,7 +108,7 @@ static int grupo_do_dado(int t)
     case D_ACUMULADOR: case D_PREVISIVEL: case D_PACTO: case D_EGOISTA: case D_BERSERKER: case D_AUTOFAGIA:
     case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
     case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
-    case D_FURIA: case D_ONDA: case D_PATINHOS:
+    case D_FURIA: case D_ONDA: case D_PATINHOS: case D_PRESENTE: case D_PANETONE: case D_PISCA: case D_MEIA:
         return GR_NUMEROS;
     case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
     case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
@@ -122,7 +122,7 @@ static int grupo_do_dado(int t)
     case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
     case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
     case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
-    case D_TRENO: case D_JINGLE:
+    case D_TRENO: case D_JINGLE: case D_ESTRELA: case D_RENA:
         return GR_COMBO;
     default:
         return GR_NENHUM;                        // os de saida e os que nao saem em sorteio

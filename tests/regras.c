@@ -78,6 +78,8 @@ static void joga_ad(int j, int i, int v)
     aplica_regra(j, k);
 }
 static int sempre_um(int lados) { (void)lados; return 1; }
+static int lance_fixo = 1;                  // o lance que lance_q devolve (no limite dos lados)
+static int lance_q(int lados) { return lance_fixo < lados ? lance_fixo : lados; }
 static int lances_seq[8], li_seq;           // os lances em ordem (adesivos que mexem no sorteio)
 static int rola_seq(int lados) { (void)lados; return lances_seq[li_seq++ % 8]; }
 static int sempre_tres(int lados) { return lados < 3 ? lados : 3; }
@@ -1466,6 +1468,97 @@ int main(void)
                 CONFERE(J[0].col[n0].fixo == 2, "Patinhos caidos nao contam");
                 J[0].n_col--;
             }
+            // Panetone: as frutas da fatia (0 a 3, a cada lance) somam no que tirou.
+            limpa(); F[0].fruta[0] = 2; joga(0, D_PANETONE, 5); d = fim();
+            CONFERE(d.total[0] == 7 && !strcmp(F[0].tag[0], "+2"), "Panetone com 2 frutas: 7, deu %d", d.total[0]);
+            limpa(); joga(0, D_PANETONE, 5); d = fim();
+            CONFERE(d.total[0] == 5 && !F[0].tag[0][0], "Panetone sem frutas: 5, deu %d", d.total[0]);
+            limpa(); F[0].tipo[0] = D_PANETONE; fatia(0, 0, sempre_dois);
+            F[0].tipo[1] = D_D8; F[0].fruta[1] = 3; fatia(0, 1, sempre_dois);
+            CONFERE(F[0].fruta[0] == 1 && F[0].fruta[1] == 0, "a fatia: r(4) - 1, so no Panetone");
+            // Pisca-pisca: aceso, x2; apagado, 0 (mas conta na sequencia); alterna a cada lance.
+            limpa(); joga(0, D_PISCA, 3); d = fim();
+            CONFERE(d.total[0] == 6 && !strcmp(F[0].tag[0], "x2") && poder_armado(0, 0) == 1, "Pisca aceso: 6, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 3); joga(0, D_D6, 5); d = fim();
+            CONFERE(d.total[0] == 5 && !strcmp(F[0].tag[0], "=0") && poder_armado(0, 0) == 0, "Pisca apagado: 0, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 4); joga(0, D_D4, 2); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO, "Pisca apagado ainda derruba quem tira menos");
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_PISCA, .fixo = 0 };
+                J[0].n_col++;
+                limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 1, "Pisca lancado (mesmo caido) apaga para a proxima");
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 0, "e acende de novo");
+                J[0].n_col--;
+            }
+            // Meia na Lareira: anulada, guarda +2; valendo, paga tudo e esvazia.
+            limpa(); F[0].fixo[0] = 6; joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 9 && !strcmp(F[0].tag[0], "+6") && n_ev == 1 && ev[0].tipo == EV_EXTRA && ev[0].valor == 6,
+                    "Meia com 6 paga: 9, deu %d", d.total[0]);
+            limpa(); F[0].fixo[1] = 6; joga(0, D_DOBRO, 2); joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 2 + 3 * 2 + 6, "Meia paga fora do x2: 14, deu %d", d.total[0]);
+            limpa(); joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 3 && n_ev == 0, "Meia vazia: so o numero");
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_MEIA, .fixo = 4 };
+                J[0].n_col++;
+                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 4; joga_ad(0, n0, 2); d = fim();
+                CONFERE(d.total[0] == 0 && n_ev == 1 && ev[0].valor == 0 && poder_armado(0, 1) == 1, "Meia anulada avisa que guarda");
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 6, "Meia anulada guardou 6 (%d)", J[0].col[n0].fixo);
+                limpa(); F[0].fixo[0] = 6; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.total[0] == 8 && J[0].col[n0].fixo == 0, "Meia valendo paga e esvazia");
+                J[0].n_col--;
+            }
+            // Estrela de Belem: lancada por ultimo e valendo, +2 por dado valendo abaixo.
+            limpa(); joga(0, D_D4, 2); joga(0, D_D6, 3); joga(0, D_ESTRELA, 5); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 5 + 2 * ESTRELA_PTS && poder_armado(0, 2) == 1, "Estrela no topo: 14, deu %d", d.total[0]);
+            limpa(); joga(0, D_D4, 2); joga(0, D_ESTRELA, 5); joga(0, D_D8, 6); d = fim();
+            CONFERE(d.total[0] == 13 && poder_armado(0, 1) == 0, "Estrela que nao e a ultima: 13, deu %d", d.total[0]);
+            limpa(); joga(0, D_D4, 3); joga(0, D_D4, 1); joga(0, D_ESTRELA, 5); d = fim();
+            CONFERE(d.total[0] == 5, "Estrela sem nenhum valendo abaixo: 5, deu %d", d.total[0]);
+            // Rena valendo: +1 no vizinho de antes e no de depois, se valem.
+            limpa(); joga(0, D_D4, 2); joga(0, D_RENA, 3); joga(0, D_D6, 4); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 4 + 2 && poder_armado(0, 1) == 1, "Rena com dois vizinhos: 11, deu %d", d.total[0]);
+            limpa(); joga(0, D_RENA, 3); joga(0, D_D8, 8); joga(0, D_D4, 1); d = fim();
+            CONFERE(d.total[0] == 3 && poder_armado(0, 0) == 0, "Rena sem vizinho valendo: 3, deu %d", d.total[0]);
+            limpa(); joga(0, D_RENA, 2); joga(0, D_RENA, 3); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 2, "duas Renas puxam uma a outra: 7, deu %d", d.total[0]);
+            // Presente: desembrulha um raro ao acaso, so nesta rodada; no
+            // Desafiante, o primeiro que voce abre na run fica de vez.
+            {
+                int modo0 = modo;
+                modo = M_DOIS;
+                for (int q = 1; q <= 40; q++) {
+                    lance_fixo = q;
+                    limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = -1;
+                    int t = desembrulha(0, 0, lance_q);
+                    CONFERE(TIPO[t].raridade == RAR_RARO && !sem_sorteio(t) && !so_desafio(t) && t != D_PRESENTE
+                            && F[0].tipo[0] == t && F[0].presente[0], "Presente vira um raro (%s)", TIPO[t].nome);
+                }
+                modo = M_DESAFIO;
+                int n0 = J[0].n_col;
+                J[0].col[n0] = nova_peca(D_PRESENTE);
+                J[0].col[n0 + 1] = nova_peca(D_PRESENTE);
+                J[0].n_col += 2;
+                presente_livre = true; presente_virou = false;
+                lance_fixo = 1;
+                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)n0;
+                int t = desembrulha(0, 0, lance_q);
+                CONFERE(J[0].col[n0].tipo == t && !presente_livre && presente_virou, "o primeiro Presente da run fica");
+                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)(n0 + 1);
+                desembrulha(0, 0, lance_q);
+                CONFERE(J[0].col[n0 + 1].tipo == D_PRESENTE, "o segundo Presente volta embrulhado");
+                J[0].n_col -= 2;
+                presente_livre = presente_virou = false;
+                modo = modo0;
+            }
             // A epoca: os de Natal so em novembro e dezembro, e entao abertos
             // no Desafiante, no premio e na colecao; o feltro Natalino idem.
             {
@@ -1477,10 +1570,15 @@ int main(void)
                 natal_forcado = 1; le_epoca();
                 rodada = 12;                                         // o premio dos raros
                 CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_JINGLE) > 0 && dado_liberado(D_BONECO)
-                        && n_catalogo() == fora + 3 && estilo_aberto(-1, ABRE_FELTRO[FT_NATAL]), "no Natal: tudo aberto");
+                        && n_catalogo() == fora + 9 && estilo_aberto(-1, ABRE_FELTRO[FT_NATAL]), "no Natal: tudo aberto");
                 CONFERE(nivel_do_dado(D_TRENO) == 0 && grupo_do_dado(D_TRENO) != GR_NENHUM && grupo_do_dado(D_BONECO) == GR_ATAQUE
                         && grupo_do_dado(D_JINGLE) != GR_NENHUM, "os de Natal: sem nivel, com grupo");
                 rodada = 1;
+                CONFERE(!dezembro && !reveillon, "novembro: nem dezembro, nem Reveillon");
+                natal_forcado = 2; le_epoca();
+                CONFERE(natal && dezembro && !reveillon, "dezembro, antes do dia 26");
+                natal_forcado = 3; le_epoca();
+                CONFERE(natal && dezembro && reveillon, "do dia 26 em diante: o Reveillon");
                 natal_forcado = antes; le_epoca();
             }
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.

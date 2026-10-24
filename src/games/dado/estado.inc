@@ -45,6 +45,8 @@ typedef struct {
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
+    uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
+    bool    presente[N_FILA];        // saiu de um Presente desembrulhado no lance
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -376,6 +378,9 @@ static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
 static int  des_foco(void);
 static bool dado_liberado(int t);
+// O Presente no Desafiante: o primeiro que voce abre na run vira de vez
+// (livre: ainda nao abriu nenhum; virou: abriu nesta partida).
+static bool presente_livre, presente_virou;
 static void des_resumo(char *s, int n);
 static void des_esc(void);
 static int  remoto;                  // bit j: jogador j joga do outro computador

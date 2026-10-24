@@ -30,14 +30,23 @@ static int face_v(int tipo, int valor)
 // A epoca do Natal, pelo relogio do computador: novembro e dezembro. Online,
 // pelo de Greenwich, para os dois lados sortearem dos mesmos dados. Le-se no
 // comeco de cada partida (e na volta ao menu). natal_forcado: os testes e as
-// cenas de amostra fixam a epoca (1 sempre, 0 nunca; -1, o relogio).
+// cenas de amostra fixam a epoca (0 fora dela, 1 novembro, 2 dezembro, 3 do
+// dia 26 em diante; -1, o relogio).
 static int natal_forcado = -1;
 static void le_epoca(void)
 {
-    if (natal_forcado >= 0) { natal = natal_forcado != 0; return; }
-    time_t agora = time(NULL);
-    const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
-    natal = m && (m->tm_mon == 10 || m->tm_mon == 11);
+    int mes = -1, dia = 0;
+    if (natal_forcado >= 0) {
+        mes = natal_forcado == 0 ? 0 : natal_forcado == 1 ? 10 : 11;
+        dia = natal_forcado == 3 ? 26 : 1;
+    } else {
+        time_t agora = time(NULL);
+        const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
+        if (m) { mes = m->tm_mon; dia = m->tm_mday; }
+    }
+    natal = mes == 10 || mes == 11;
+    dezembro = mes == 11;
+    reveillon = dezembro && dia >= 26;
 }
 
 static int outro(int j) { return j ^ 1; }

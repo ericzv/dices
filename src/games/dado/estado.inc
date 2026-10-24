@@ -45,6 +45,8 @@ typedef struct {
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
+    uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
+    uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -83,7 +85,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_REVELA,                    // o Oculto mostra o que tirou
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
        EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
-       EV_ADESIVO };                 // um adesivo do lado que ficou para cima (ad: qual)
+       EV_ADESIVO,                   // um adesivo do lado que ficou para cima (ad: qual)
+       EV_ONDA };                    // a Onda juntou 9: vira Tsunami
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
@@ -186,6 +189,9 @@ static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
+static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
+static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
+static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
@@ -249,7 +255,14 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
 enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
-       REG_MALUCO, REG_JUROS, REG_CORINGA };
+       REG_MALUCO, REG_JUROS, REG_CORINGA,
+       REG_PRESENTE,                     // o Papai Noel: um dado da sua mao vem embrulhado
+       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior dado pontua metade
+       REG_DUENDE };                     // o Duende: +1 por dado igual na sequencia dele
+// O Presente surpresa do Papai Noel: o dado da sua mao (indice na bolsa) que
+// veio embrulhado nesta rodada, e o que ele e de verdade (-1: nenhum).
+static int16_t embrulho = -1;
+static uint8_t embrulho_tipo;
 static uint8_t reg_op;
 static uint8_t estilo_op;                // o jeito de apostar do oponente (ES_*, desafio/run.inc)
 static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (cara) ou -1 (coroa)
@@ -308,6 +321,19 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 //   Barao (3o): +3 para ele por dado seu anulado e x2 no primeiro dado dele;
 //   na Cobertura, x2 tambem no segundo.
 #define PERSO_CHEFE0  8                  // os chefes, na lista dos oponentes
+// Os de dezembro (veja run.inc): o Papai Noel, no lugar do Barao, e tres comuns.
+#define PERSO_NOEL     22
+#define PERSO_RANZINZA 23
+#define PERSO_DUENDE   24
+#define PERSO_RENA     25
+// Qual chefe o oponente p e (0 Crupie, 1 Dona, 2 Barao - ou o Papai Noel, que
+// senta no lugar dele); -1: nao e chefe.
+static int chefe_idx(int p)
+{
+    if (p == PERSO_NOEL) return 2;
+    int c = p - PERSO_CHEFE0;
+    return c >= 0 && c < 3 ? c : -1;
+}
 #ifndef VIRADA_BARAO
 #define VIRADA_BARAO  3                  // pontos do Barao virado por dado seu anulado
 #endif
@@ -332,8 +358,8 @@ static int des_dificuldade(void);
 // A virada que o oponente perso traz na dificuldade da run: 0 nenhuma, 1, 2.
 static int virada_de(int perso)
 {
-    int c = perso - PERSO_CHEFE0;
-    if (c < 0 || c > 2) return 0;
+    int c = chefe_idx(perso);
+    if (c < 0) return 0;
     static const int8_t ABRE[3] = { 3, 2, 4 }, FORTE[3] = { 8, 7, 10 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
@@ -341,8 +367,8 @@ static int virada_de(int perso)
 // Com que forca o chefe c (0 Crupie, 1 Dona, 2 Barao) esta virado agora.
 static int virada_forca(int c)
 {
-    if (modo != M_DESAFIO || fala_perso != PERSO_CHEFE0 + c || rodada < VIRADA_RODADA) return 0;
-    return virada_de(PERSO_CHEFE0 + c);
+    if (modo != M_DESAFIO || chefe_idx(fala_perso) != c || rodada < VIRADA_RODADA) return 0;
+    return virada_de(fala_perso);
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).

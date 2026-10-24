@@ -49,6 +49,11 @@ enum {
     SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)
     SOM_MENU_ESCOLHE, // a ficha escolhida assenta e gira ate deitar
     SOM_BOLSA_ESPIA, // abrir o pop-up de uma bolsa: o couro abre e os dados rolam la dentro
+    SOM_SINO,        // os Jingle Bells batendo um no outro
+    SOM_GELO,        // o Boneco de Neve congelando um dado
+    SOM_ONDA,        // a onda: a Onda virando Tsunami, o Tsunami levando um dado
+    SOM_PRESENTE,    // o Presente desembrulhando no lance
+    SOM_ESTRELA,     // a Estrela de Belem lancando a luz nos dados de baixo
     SOM_N
 };
 

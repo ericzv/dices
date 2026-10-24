@@ -93,7 +93,8 @@ static bool des_carrega(run_t *r)
     static char buf[2 * sizeof(run_t) + 8];
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
     memset(r, 0, sizeof *r);
-    if (n != (int)(2 * sizeof(run_t)) || !de_hex(buf, r, sizeof *r)) return false;
+    size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente) : sizeof *r;   // a de antes do Presente
+    if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
@@ -106,6 +107,7 @@ static bool des_carrega(run_t *r)
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > 1) r->colar = 0;
+    r->presente = 0;                             // sem uso (todo Presente fica agora)
     return true;
 }
 
@@ -362,12 +364,14 @@ static void des_nova_run(void)
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
 // recomecada (quem saiu no meio e voltou), sorteia do mesmo jeito.
-// O Acumulador guarda o bonus so dentro de uma partida: a cada partida da
-// run ele recomeca do zero.
+// O Acumulador (e a Furia) guarda o bonus so dentro de uma partida: a cada
+// partida da run ele recomeca do zero. A Onda e os Tres Patinhos levam a
+// contagem de uma partida para a outra.
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++)
-        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL) col[i].fixo = 0;
+        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
+            || col[i].tipo == D_FURIA) col[i].fixo = 0;
 }
 
 static void des_comeca_partida(void)
@@ -391,7 +395,7 @@ static void des_comeca_partida(void)
     amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
     // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
-    if (run.dificuldade >= N_NIVEIS && no->perso != PERSO_CHEFE0 + 2) {
+    if (run.dificuldade >= N_NIVEIS && chefe_idx(no->perso) != 2) {
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
@@ -452,7 +456,8 @@ static void des_resultado(void)
 {
     const no_t *no = &run.no[run.passo];
     // A bolsa volta para a run como terminou: o Quebrado e o que o Fogo
-    // queimou nao voltam.
+    // queimou nao voltam (e o embrulho do Papai Noel, desfeito).
+    desfaz_embrulho();
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);

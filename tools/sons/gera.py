@@ -1039,6 +1039,96 @@ def trilha():
     return x * (0.97 / p) if p > 0.97 else x
 
 # ---------------------------------------------------------------------------
+# Os dados de Natal e os mais novos
+# ---------------------------------------------------------------------------
+def guizos(m, t0, n, g0, dur=0.22):
+    """Um chacoalhar de guizos: muitos tilintar metalicos curtos e agudos,
+    juntos no comeco e rareando."""
+    for k in range(n):
+        t = t0 + dur * (k / n) ** 1.6 + rng.uniform(0, 0.012)
+        e = tom(batida(MOEDA[k % len(MOEDA)] if k % 2 else METAL[k % len(METAL)]), rng.uniform(14, 22))
+        m.poe(t, pa(e, 2500), g0 * rng.uniform(0.4, 1.0) * (1 - 0.6 * k / n))
+        if k % 3 == 0:
+            m.poe(t, nota('glockenspiel', int(rng.choice((103, 105, 107, 108))), 0.03, 0.06), g0 * 0.25)
+
+def sino():
+    """Os Jingle Bells batendo um no outro: um chacoalhar de guizos e tres
+    batidas, cada uma com um mi no glockenspiel (o comeco de 'Jingle Bells')."""
+    m = Mix(1.8)
+    guizos(m, 0.0, 14, 0.5, 0.18)
+    for k, t in enumerate((0.30, 0.62, 0.94)):
+        m.poe(t, tom(batida('dicehit_metal8'), 12), 0.55)          # o toque de metal com metal
+        m.poe(t, nota('glockenspiel', 88, 0.35 if k < 2 else 0.7, 0.4), 0.75)
+        guizos(m, t + 0.005, 10, 0.45 - 0.08 * k, 0.16)
+    return sala(m.x, 0.2)
+
+def gelo():
+    """O Boneco de Neve congelando: um sopro gelado, estalos de cristal que
+    se espalham e um tilintar de gelo descendo."""
+    m = Mix(1.4)
+    n = int(0.5 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 3000, 9000) * np.sin(np.pi * q) ** 2, 0.05)   # o sopro
+    t = 0.12
+    while t < 0.85:                                   # o gelo estalando, cada vez mais raro
+        m.poe(t, estalinho(rng.uniform(0.001, 0.004), 4500), rng.uniform(0.25, 0.8) * (1 - (t - 0.12) / 0.9))
+        t += rng.exponential(0.018 + 0.05 * (t - 0.12))
+    for k, n_ in enumerate((105, 100, 96, 93, 88)):
+        m.poe(0.16 + k * 0.07, nota('celesta' if n_ < 96 else 'glockenspiel', n_, 0.12, 0.3), 0.35 * (1 - k / 8))
+    m.poe(0.55, tom(batida('dicehit_metal2'), 10), 0.35)    # a ultima lasca
+    return sala(m.x, 0.22)
+
+def bolha(f0, f1, dur):
+    """Uma gota caindo na agua: um seno que desliza para baixo, curtinho."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    f = f0 + (f1 - f0) * (t / dur)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.002, dur / 3)
+
+def onda():
+    """A onda: o mar crescendo, a crista quebrando num chiado claro e as
+    gotas que caem depois."""
+    n = int(1.15 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    w = rng.standard_normal(n)
+    sobe = np.clip(q / 0.45, 0, 1) ** 1.5
+    cai = np.where(q < 0.45, 1, np.exp(-(q - 0.45) / 0.18))
+    m = Mix(1.6)
+    m.poe(0, (banda(w, 150, 1200) * (1 - 0.5 * sobe) + banda(w, 900, 7000) * sobe) * sobe * cai, 0.5)
+    k = int(0.45 * 1.15 * SR)                         # a quebra: um estouro claro
+    b = pa(rng.standard_normal(int(0.35 * SR)), 2000) * env(int(0.35 * SR), 0.004, 0.09)
+    m.poe(k / SR, b, 0.35)
+    for i in range(7):
+        m.poe(0.62 + i * 0.07 + rng.uniform(0, 0.03), bolha(rng.uniform(900, 1500), rng.uniform(400, 700), 0.05), 0.10)
+    return sala(m.x, 0.2)
+
+def presente():
+    """O Presente desembrulhando: o papel rasgando em tres puxoes, a fita
+    escorregando e um arpejo de celesta subindo quando a caixa abre."""
+    m = Mix(1.3)
+    for k, (t, d) in enumerate(((0.0, 0.09), (0.11, 0.12), (0.25, 0.16))):   # os puxoes no papel
+        n = int(d * SR); q = np.linspace(0, 1, n)
+        rasgo = banda(rng.standard_normal(n), 1800, 7500) * (0.4 + 0.6 * rng.random(n) ** 3)
+        m.poe(t, rasgo * np.sin(np.pi * q) ** 0.6, 0.30 + 0.08 * k)
+        c = t
+        while c < t + d:                              # os estalinhos do papel
+            m.poe(c, estalinho(rng.uniform(0.001, 0.003), 3500), rng.uniform(0.15, 0.35))
+            c += rng.exponential(0.012)
+    for k, n_ in enumerate((84, 88, 91, 96)):          # do, mi, sol, do: a caixa abriu
+        m.poe(0.40 + k * 0.075, nota('celesta' if n_ < 96 else 'glockenspiel', n_, 0.22 if k < 3 else 0.6, 0.35), 0.45 + 0.08 * k)
+    m.poe(0.40 + 3 * 0.075, nota('glockenspiel', 108, 0.5, 0.4), 0.18)
+    return sala(m.x, 0.22)
+
+def estrela():
+    """A Estrela de Belem: um brilho que desce em cascata de glockenspiel e
+    um acorde claro de celesta que fica no ar."""
+    m = Mix(1.7)
+    for k, n_ in enumerate((103, 100, 98, 96, 93, 91)):   # a luz descendo
+        m.poe(k * 0.055, nota('glockenspiel', n_, 0.14, 0.35), 0.32 * (1 - k / 9))
+    for n_ in (79, 84, 88, 91):                           # o acorde (sol, do, mi, sol)
+        m.poe(0.36, nota('celesta', n_, 0.9, 0.5), 0.26)
+    n = int(1.1 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.30, banda(rng.standard_normal(n), 6000, 12000) * np.sin(np.pi * q) ** 2, 0.025)   # o brilho
+    return sala(m.x, 0.3)
+
+# ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
 VOLUME = {
@@ -1065,6 +1155,9 @@ VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria']
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
 VOLUME.update({'menu_passa': VOLUME['tique'] * 0.45, 'menu_escolhe': VOLUME['ficha'] * 0.9})
 VOLUME.update({'bolsa_espia': VOLUME['bolsa'] * 0.7})
+# Os dados novos: os sinos na altura de um poder; o gelo e a onda, de um ataque.
+VOLUME.update({'sino': VOLUME['efeito'], 'gelo': VOLUME['anula'] * 0.85, 'onda': VOLUME['anula'] * 0.9})
+VOLUME.update({'presente': VOLUME['efeito'] * 0.9, 'estrela': VOLUME['efeito']})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1085,7 +1178,8 @@ SONS = {
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
-             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia'):
+             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
+             'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

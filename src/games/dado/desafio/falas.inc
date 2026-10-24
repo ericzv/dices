@@ -28,6 +28,13 @@ static const char *const VIRADA_TITULO[3] = { "A CASA TOMA VANTAGEM", "A DONA CO
                                               "O BARÃO PERDE A PACIÊNCIA" };
 static const char *const VIRADA_FRASE[3] = { "A casa sempre tem vantagem.", "Agora você paga o aluguel.",
                                              "Chega de brincadeira." };
+// O Papai Noel vira como o Barao (o lugar e o mesmo), com as palavras dele.
+static const char *const NOEL_TITULO = "O PAPAI NOEL PERDE O BOM HUMOR";
+static const char *const NOEL_FRASE = "Ho. Ho. Ho. Agora é sério.";
+static const char *const NOEL_VIROU[2][2] = { { "Ho-ho. Como deveria ser.", "Carvão. Muito carvão." },
+                                              { "Isso não estava na lista!", "Nem as renas acreditam!" } };
+static const char *virada_titulo(int perso) { return perso == PERSO_NOEL ? NOEL_TITULO : VIRADA_TITULO[chefe_idx(perso)]; }
+static const char *virada_frase(int perso) { return perso == PERSO_NOEL ? NOEL_FRASE : VIRADA_FRASE[chefe_idx(perso)]; }
 static const char *const FALA_VIROU[3][2][2] = {        // [chefe][ganhou, perdeu a rodada][2]
     { { "A casa recolhe. Sempre.", "Como manda a casa." }, { "A noite ainda não acabou.", "Anotado." } },
     { { "Mais um mês de aluguel.", "Meu salão, minhas regras." }, { "Isso vai para a conta.", "Não se anime." } },
@@ -55,13 +62,16 @@ static void fala_evento(int cat)
     if (!sempre && t_fala > 0.6f && !fala_e_curta) return;   // nao atropela a fala anterior
     const char *s = PERSO[fala_perso].fala[cat][rnd_v() & 1];
     int dif = des_dificuldade();
-    if (perso_chefe(fala_perso) && dif > 0 && cat == FA_INICIO)
-        s = FALA_ANDAR[fala_perso - PERSO_CHEFE0][dif - 1];
+    bool noel = fala_perso == PERSO_NOEL;
+    if (perso_chefe(fala_perso) && !noel && dif > 0 && cat == FA_INICIO)
+        s = FALA_ANDAR[chefe_idx(fala_perso)][dif - 1];
     if (fala_perso == perso_virado && (cat == FA_GANHA_R || cat == FA_PERDE_R))
-        s = FALA_VIROU[fala_perso - PERSO_CHEFE0][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
-    if (fala_perso == PERSO_CHEFE0 + 2 && dif >= CORINGA_DESDE && cat == FA_PERDE_P)   // o Coringa vem depois
-        s = dif == N_NIVEIS ? "A cobertura é sua... mas lá em cima alguém está rindo."
-                            : "Você me venceu... mas ouço alguém rindo lá em cima.";
+        s = noel ? NOEL_VIROU[cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1]
+                 : FALA_VIROU[chefe_idx(fala_perso)][cat == FA_GANHA_R ? 0 : 1][rnd_v() & 1];
+    if (chefe_idx(fala_perso) == 2 && dif >= CORINGA_DESDE && cat == FA_PERDE_P)   // o Coringa vem depois
+        s = noel ? "Ho-ho... ouço alguém rindo lá em cima. Não é rena."
+                 : dif == N_NIVEIS ? "A cobertura é sua... mas lá em cima alguém está rindo."
+                                   : "Você me venceu... mas ouço alguém rindo lá em cima.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
     fala_comeca(3.2f);
     fala_e_curta = false;
@@ -82,7 +92,9 @@ static const uint8_t TEMPERAMENTO[] = {
     TP_ESQUENTADO, TP_TIMIDO, TP_FRIO, TP_ALEGRE,             // Caubói, Monge, Detetive, Maratonista
     TP_ESQUENTADO, TP_FRIO, TP_ALEGRE, TP_FRIO,               // Rival, Bruxa, Maluco, Banqueira
     TP_FRIO, TP_ALEGRE,                                       // Coveiro, Coringa
+    TP_ALEGRE, TP_ESQUENTADO, TP_ALEGRE, TP_TIMIDO,           // Papai Noel, Ranzinza, Duende, Rena
 };
+_Static_assert(sizeof TEMPERAMENTO == PERSO_RENA + 1, "um temperamento por oponente");
 // [temperamento][momento]: voce passou ele, ele passou voce, o dado dele
 // caiu, o seu caiu, o seu combo, ele te atacou, a hora da verdade, voce
 // apostou, voce correu, ele levou a rodada, ele perdeu.
@@ -127,8 +139,8 @@ static void rival_reage(int m)
     // A palavra: as vezes, com folga entre uma e outra, nunca por cima de
     // uma fala de verdade.
     const char *const *op = CURTA[tp][m];
-    int c = fala_perso - PERSO_CHEFE0;
-    if (c >= 0 && c < 3 && (m == RM_PASSOU || m == RM_CAI_DELE || m == RM_COMBO))
+    int c = fala_perso == PERSO_NOEL ? -1 : chefe_idx(fala_perso);   // o Noel reage como os alegres
+    if (c >= 0 && (m == RM_PASSOU || m == RM_CAI_DELE || m == RM_COMBO))
         op = CURTA_CHEFE[c][m == RM_PASSOU ? 0 : m == RM_CAI_DELE ? 1 : 2];
     if (!op[0] || t_curta > 0 || (t_fala > 0 && !fala_e_curta) || rnd_v() % 100 >= 40) return;
     snprintf(fala_txt, sizeof fala_txt, "%s", op[rnd_v() & 1]);

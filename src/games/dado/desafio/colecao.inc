@@ -18,8 +18,8 @@ static void quem_abre(int nivel, int c, int marco, char *s, int n)
 {
     if (marco == 0) snprintf(s, (size_t)n, "vença o Crupiê");
     else if (marco == 1) snprintf(s, (size_t)n, "vença a Dona do Salão");
-    else if (nivel == 1) snprintf(s, (size_t)n, "vença %s", NOME_CHEFE[c]);
-    else snprintf(s, (size_t)n, "vença %s no %s", NOME_CHEFE[c], NOME_DIF_CURTO[nivel - 1]);
+    else if (nivel == 1) snprintf(s, (size_t)n, "vença %s", nome_chefe(c));
+    else snprintf(s, (size_t)n, "vença %s no %s", nome_chefe(c), NOME_DIF_CURTO[nivel - 1]);
 }
 
 // 0: sempre livre; 1: ja aberto; 2: fechado (e o que falta em s).
@@ -190,14 +190,14 @@ static void des_virou(void)
     perso_virado = fala_perso;
     t_virada = 2.4f;
     som_toca(SOM_ZERA);
-    snprintf(fala_txt, sizeof fala_txt, "%s", VIRADA_FRASE[fala_perso - PERSO_CHEFE0]);
+    snprintf(fala_txt, sizeof fala_txt, "%s", virada_frase(fala_perso));
     fala_comeca(3.4f);
 }
 
 static void des_virada_anuncio(void)
 {
-    if (t_virada <= 0 || perso_virado < PERSO_CHEFE0) return;
-    int c = perso_virado - PERSO_CHEFE0;
+    if (t_virada <= 0 || chefe_idx(perso_virado) < 0) return;
+    int c = chefe_idx(perso_virado);
     float e = 2.4f - t_virada;
     n_zonas = 0;
     int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
@@ -211,7 +211,7 @@ static void des_virada_anuncio(void)
     gfx_rect(-dx, y, GFX_W, 2, C_OURO);
     gfx_rect(-dx, y + h - 2, GFX_W, 2, C_OURO);
     if (q < 1) return;
-    txt_sombra_c(GFX_W / 2, y + 6, VIRADA_TITULO[c], C_OURO, 2);
+    txt_sombra_c(GFX_W / 2, y + 6, virada_titulo(perso_virado), C_OURO, 2);
     char s[96];
     virada_txt(c, virada_forca(c), false, s, sizeof s);
     txt_c(GFX_W / 2, y + 36, s, C_MARFIM, false);

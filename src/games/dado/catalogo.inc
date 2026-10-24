@@ -128,10 +128,11 @@ static void desenha_catalogo(void)
 {
     if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
     if (cat_sec == 2) { desenha_cat_adesivo(cat_ad); return; }
+    if (cat_i >= n_catalogo()) cat_i = 0;              // o Natal acabou com a colecao aberta num deles
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
     char s[32];
-    faixas_colecao(cat_i, N_CATALOGO);
+    faixas_colecao(cat_i, n_catalogo());
     char trava[80];
     int st = cat_trava_dado(tipo, trava, sizeof trava);
 
@@ -177,6 +178,8 @@ static void desenha_catalogo(void)
     int xt = etiquetas_protecao(etiqueta_caixa(x, 118, s, cor_rar(tipo)), 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
     if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_TEXTO_M, false);
+    if (de_natal(tipo)) txt(xt + 2, 119, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
+    if (tipo == D_TSUNAMI) txt(xt + 2, 119, "nasce da Onda", C_TEXTO_M, false);
     if (st == 2) {
         linha_bloqueio(x, 139, trava);
     } else if (st == 1) {

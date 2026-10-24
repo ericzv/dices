@@ -122,6 +122,34 @@ static bool melhor_lance(int j, peca_t *out)
     return true;
 }
 
+// O Presente surpresa do Papai Noel: no comeco da rodada, um dado da sua mao
+// (nao um Presente de verdade) vira uma caixa embrulhada - na mao, na fila e
+// na bolsa -, e so mostra o que e quando voce o lanca (desembrulha). No fim da
+// rodada, lancado ou nao, volta a ser o que era.
+static void desfaz_embrulho(void)
+{
+    if (embrulho >= 0 && embrulho < J[0].n_col && J[0].col[embrulho].tipo == D_PRESENTE)
+        J[0].col[embrulho].tipo = embrulho_tipo;
+    embrulho = -1;
+}
+static void embrulha_um(void)
+{
+    embrulho = -1;
+    if (!tem_reg(REG_PRESENTE) || !J[0].n_mao) return;
+    int ok[MAO], n = 0;
+    for (int i = 0; i < J[0].n_mao; i++)
+        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE) ok[n++] = J[0].mao[i];
+    if (!n) return;
+    embrulho = (int16_t)ok[rnd() % (uint32_t)n];
+    embrulho_tipo = J[0].col[embrulho].tipo;
+    J[0].col[embrulho].tipo = D_PRESENTE;
+    if (rodada == 1) {
+        snprintf(fala_txt, sizeof fala_txt, "Ho-ho-ho! Embrulhei um dos seus dados. Adivinha qual?");
+        fala_comeca(3.0f);
+        fala_e_curta = false;
+    }
+}
+
 static void nova_rodada(void)
 {
     rodada++;
@@ -153,8 +181,7 @@ static void nova_rodada(void)
         return;
     }
     if (sem0 || sem1) { encerra(sem0 ? 1 : 0); return; }
-    if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
-        && virada_forca(fala_perso - PERSO_CHEFE0))
+    if (rodada == VIRADA_RODADA && chefe_idx(fala_perso) >= 0 && virada_forca(chefe_idx(fala_perso)))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA) && des_dificuldade() >= CORINGA_SOME) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
@@ -180,12 +207,14 @@ static void nova_rodada(void)
         fala_comeca(2.6f);
         fala_e_curta = false;
     }
+    desfaz_embrulho();
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
         memset(&F[j], 0, sizeof F[j]);
         descarta_mao(&J[j]);
         compra(&J[j]);
     }
+    embrulha_um();
     pote += 2 * ante;
     n_voo = 0;
     n_ev = ev_i = 0;
@@ -219,6 +248,7 @@ static void abre_loja(void);
 void dado_inicia(int n_partidas)
 {
     static bool paleta_pronta;
+    le_epoca();                          // o Natal (o feltro e os dados dele)
     if (!paleta_pronta) {                // a paleta, com o feltro e a mesa do perfil
         estilo_do_perfil();
         paleta_pronta = true;
@@ -365,6 +395,42 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     return x;
 }
 
+// O Presente desembrulha no lance: um dado raro ao acaso (no Desafiante, os
+// seus so entre os que voce ja abriu), que sai dele e fica no lugar dele na
+// bolsa - no Desafiante, pela run (a bolsa volta para a run como terminou a
+// partida); nas outras, ate o fim da partida.
+static int desembrulha(int j, int k, int (*r)(int))
+{
+    fila_t *fe = &F[j];
+    if (j == 0 && embrulho >= 0 && fe->idx[k] == embrulho && embrulho < J[0].n_col) {   // o do Papai Noel
+        peca_t *p = &J[0].col[embrulho];
+        p->tipo = embrulho_tipo;
+        fe->tipo[k] = embrulho_tipo;
+        fe->fixo[k] = p->fixo;
+        fe->presente[k] = 3;
+        embrulho = -1;
+        return fe->tipo[k];
+    }
+    int ok[D_N], n = 0;
+    for (int t = 0; t < D_N; t++) {
+        if (TIPO[t].raridade != RAR_RARO || sem_sorteio(t) || t == D_PRESENTE) continue;
+        if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : so_desafio(t)) continue;
+        ok[n++] = t;
+    }
+    int t = n ? ok[r(n) - 1] : D_D6;
+    fila_t *f = &F[j];
+    f->tipo[k] = (uint8_t)t;
+    f->fixo[k] = nova_peca(t).fixo;
+    f->presente[k] = 1;
+    int i = f->idx[k];
+    if (i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {   // a copia do Coringa nao tem peca
+        J[j].col[i].tipo = (uint8_t)t;          // fica: os adesivos seguem com ele
+        J[j].col[i].fixo = f->fixo[k];
+        f->presente[k] = 2;
+    }
+    return t;
+}
+
 static void lanca_proximo(void)
 {
     fila_t *f = &F[vez];
@@ -382,6 +448,11 @@ static void lanca_proximo(void)
         t_fase = 0;
         fase = F_VEREDITO;
         return;
+    }
+    if (t == D_PRESENTE) {
+        t = desembrulha(vez, k, rola);
+        lados = TIPO[t].lados;
+        som_toca(SOM_PRESENTE);
     }
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
@@ -406,6 +477,7 @@ static void lanca_proximo(void)
     f->cru[k] = x;
     f->valor[k] = x;
     f->lado[k] = (uint8_t)lado;
+    fatia(vez, k, rola);
     // O Previsivel sobe a cada lance, valendo ou nao (ate 12).
     if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 11)
         J[vez].col[f->idx[k]].fixo++;
@@ -541,6 +613,27 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     ad_moedas[j] += d->moedas[j];
 }
 
+// O que os dados guardam da rodada, na peca da bolsa: a Furia, o que o lance
+// mexeu no bonus (valendo ou nao); a Onda valendo, o que tirou - e com 9 vira
+// Tsunami, de vez; os Tres Patinhos valendo, mais uma vez.
+static void contadores_ficam(int j, const desfecho_t *d)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        int i = F[j].idx[k];
+        if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
+        peca_t *p = &J[j].col[i];
+        bool vale = d->est[j][k] == V_VALIDO;
+        if (p->tipo == D_FURIA) p->fixo = (uint8_t)(int8_t)furia_depois(F[j].fixo[k], F[j].valor[k]);
+        else if (p->tipo == D_ONDA && vale) {
+            if (d->onda[j] >> k & 1) { p->tipo = D_TSUNAMI; p->fixo = 0; }
+            else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
+        } else if (p->tipo == D_PATINHOS && vale && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);
+        else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
+        else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
+        else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
+    }
+}
+
 // A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
 static void autofagia_come(int j, const desfecho_t *d)
 {
@@ -631,14 +724,28 @@ static bool poe_fantasma(int j, bool avisa)
     return true;
 }
 
-// Fim da partida: os Fantasmas somem das bolsas.
+// A copia de um Jingle Bell: a mesma peca, adesivos e tudo, marcada (fixo 1)
+// para sumir no fim da partida.
+static bool copia_jingle(const peca_t *pc) { return pc->tipo == D_JINGLE && pc->fixo; }
+static bool poe_copia_jingle(int j, const peca_t *orig)
+{
+    jogador_t *p = &J[j];
+    if (p->n_col >= lim_col()) return false;
+    peca_t c = orig && orig->tipo == D_JINGLE ? *orig : nova_peca(D_JINGLE);
+    c.fixo = 1;
+    p->col[p->n_col] = c;
+    p->onde[p->n_col++] = NA_BOLSA;
+    return true;
+}
+
+// Fim da partida: os Fantasmas e as copias dos Jingle Bells somem das bolsas.
 static void some_fantasmas(void)
 {
     for (int j = 0; j < 2; j++) {
         jogador_t *p = &J[j];
         int n = 0;
         for (int i = 0; i < p->n_col; i++)
-            if (p->col[i].tipo != D_FANTASMA) { p->col[n] = p->col[i]; p->onde[n++] = p->onde[i]; }
+            if (p->col[i].tipo != D_FANTASMA && !copia_jingle(&p->col[i])) { p->col[n] = p->col[i]; p->onde[n++] = p->onde[i]; }
         p->n_col = n;
         p->n_mao = 0;
     }
@@ -663,6 +770,14 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 static void recolhe_quebrados(void)
 {
     int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0;
+    // Os Jingle Bells lancados deixam uma copia na bolsa: tiradas antes que
+    // os dados que saem mudem as posicoes da bolsa.
+    peca_t sino[2][N_FILA];
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            const peca_t *pc = peca_fila(j, k);
+            if (F[j].tipo[k] == D_JINGLE) sino[j][k] = pc && pc->tipo == D_JINGLE ? *pc : nova_peca(D_JINGLE);
+        }
     for (int j = 0; j < 2; j++) {
         int saem[N_FILA], n = 0;
         for (int k = 0; k < F[j].lancados; k++) {
@@ -702,6 +817,17 @@ static void recolhe_quebrados(void)
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
+    int n_sino = 0;
+    for (int j = 0; j < 2; j++) {
+        jingle_copias[j] = 0;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            if (F[j].tipo[k] == D_JINGLE && poe_copia_jingle(j, &sino[j][k])) {
+                jingle_copias[j] |= (uint8_t)(1 << k);
+                n_sino++;
+            }
+    }
+    if (n_sino)
+        snprintf(nota, sizeof nota, n_sino > 1 ? "cópias dos Jingle Bells entram na bolsa" : "uma cópia do Jingle Bell entra na bolsa");
     // Pacto (cada lance) e Assombracao (valendo): Fantasmas nas bolsas.
     for (int j = 0; j < 2; j++)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -806,8 +932,10 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
+    desfaz_embrulho();                       // o embrulho do Papai Noel nao lancado volta a ser o dado
     for (int j = 0; j < 2; j++) {
         adesivos_ficam(j, &resolvido);
+        contadores_ficam(j, &resolvido);
         autofagia_come(j, &resolvido);
         medusa_petrifica(j, &resolvido);
         garimpa(j, &resolvido);
@@ -825,7 +953,14 @@ static int som_do_evento(int i)
     const evento_t *e = &ev[i];
     switch (e->tipo) {
     case EV_JACKPOT: return SOM_JACKPOT;
-    case EV_ANULA:   return F[e->de_j].tipo[e->de_k] == D_LASER ? SOM_LASER : SOM_ANULA;
+    case EV_ANULA:
+        switch (F[e->de_j].tipo[e->de_k]) {
+        case D_LASER:   return SOM_LASER;
+        case D_BONECO:  return SOM_GELO;
+        case D_TSUNAMI: return SOM_ONDA;
+        default:        return SOM_ANULA;
+        }
+    case EV_ONDA:    return SOM_ONDA;
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
@@ -834,8 +969,17 @@ static int som_do_evento(int i)
     case EV_ADESIVO: return som_adesivo(e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
+    case EV_EXTRA:
+        if (e->de_k >= N_FILA) return SOM_EFEITO;
+        switch (F[e->de_j].tipo[e->de_k]) {
+        case D_JINGLE:  return SOM_SINO;
+        case D_ESTRELA: return SOM_ESTRELA;
+        case D_MEIA:    return e->valor ? SOM_AD_DOURADO : SOM_MOEDA_POUSA;   // paga; ou guarda mais uma
+        default:        return SOM_EFEITO;
+        }
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
+        if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_RENA) return SOM_SINO;  // os guizos do treno
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;   // Tudo ou Nada com 1
         return SOM_EFEITO;
     default:         return SOM_EFEITO;
@@ -882,6 +1026,8 @@ static void desfecho(void)
         memset(vis_queima[j], 0, N_FILA);
         memset(vis_corte[j], 0, N_FILA);
         memset(vis_pedra[j], 0, N_FILA);
+        memset(vis_gelo[j], 0, N_FILA);
+        memset(vis_tsunami[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
         memset(vis_oculto[j], 0, N_FILA);
     }
@@ -922,6 +1068,7 @@ static float duracao_evento(int i)
     case EV_CORTA:   return 1.5f;
     case EV_AGIOTA:  return 1.6f;
     case EV_MEDUSA:  return 1.9f;
+    case EV_ONDA:    return 2.1f;
     case EV_GARIMPO: return 1.7f;
     case EV_REVELA:  return 1.4f;
     case EV_VAMPIRO: return 1.6f;
@@ -994,6 +1141,7 @@ static void flutua_evento(const evento_t *e)
             break;
         }
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+        else if (dk < N_FILA && F[dj].tipo[dk] == D_MEIA) flutua_em(dj, dk, C_LATAO, 0.3f, "guarda +%d", MEIA_GUARDA);
         break;
     case EV_FOGO: case EV_SEMENTE: case EV_JACKPOT: case EV_RENASCE:
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
@@ -1030,7 +1178,11 @@ static void aplica_evento(int i)
     evento_t *e = &ev[i];
     flutua_evento(e);
     switch (e->tipo) {
-    case EV_ANULA:  vis_est[e->alvo_j][e->alvo_k] = V_ANULADO; break;
+    case EV_ANULA:
+        vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
+        if (F[e->de_j].tipo[e->de_k] == D_BONECO) vis_gelo[e->alvo_j][e->alvo_k] = 1;   // fica congelado
+        break;
+    case EV_ONDA:   vis_tsunami[e->de_j][e->de_k] = 1; break;
     case EV_ROUBA: {
         vis_est[e->alvo_j][e->alvo_k] = V_ROUBADO;
         int n = vis_nroubo[e->de_j];

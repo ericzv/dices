@@ -193,7 +193,8 @@ int main(int argc, char **argv)
         materiais_da_partida(material_rapida());
         CONFERE(material_j[1] == MAT_MARFIM, "duas pessoas: o outro lado devia ser de marfim");
         char l[96];
-        CONFERE(estilo_do_andar(N_NIVEIS, l, sizeof l) == 1 && strstr(l, "Obsidiana"), "a cobertura devia abrir a obsidiana");
+        CONFERE(estilo_do_andar(N_NIVEIS, l, sizeof l) == 2 && strstr(l, "Obsidiana") && strstr(l, "Mar à noite"),
+                "a cobertura devia abrir a obsidiana e o Mar à noite");
         perfil_atual = -1;
         estilo_do_perfil();                      // sem perfil: o padrao
         CONFERE(estilo_feltro == FT_VERDE && estilo_material_seu() == MAT_MARFIM, "sem perfil devia voltar ao padrao");

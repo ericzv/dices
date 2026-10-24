@@ -108,10 +108,11 @@ static int grupo_do_dado(int t)
     case D_ACUMULADOR: case D_PREVISIVEL: case D_PACTO: case D_EGOISTA: case D_BERSERKER: case D_AUTOFAGIA:
     case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
     case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
+    case D_FURIA: case D_ONDA: case D_PATINHOS: case D_PRESENTE: case D_PANETONE: case D_PISCA: case D_MEIA:
         return GR_NUMEROS;
     case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
     case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
-    case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO:
+    case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO: case D_BONECO:
         return GR_ATAQUE;
     case D_ESCUDO: case D_TEIMOSO: case D_SENTINELA: case D_SEGURANCA: case D_ANCORA: case D_PONTE:
     case D_FENIX: case D_MARTIR: case D_MISERICORDIOSO: case D_FICHA_VELHA: case D_SANGUESSUGA: case D_VAZIO:
@@ -121,6 +122,7 @@ static int grupo_do_dado(int t)
     case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
     case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
     case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
+    case D_TRENO: case D_JINGLE: case D_ESTRELA: case D_RENA:
         return GR_COMBO;
     default:
         return GR_NENHUM;                        // os de saida e os que nao saem em sorteio
@@ -240,6 +242,7 @@ static int mesas_do_salao(void)
 
 static void gera_andar(void)
 {
+    le_epoca();                                  // dezembro: o Papai Noel e os de Natal
     rs = run.semente ^ (0x9E3779B9u * (uint32_t)(run.andar + 1));
     rnd_r(); rnd_r();
     uint32_t usados = 0;
@@ -261,6 +264,13 @@ static void gera_andar(void)
     chefe->perso = (uint8_t)(PERSO_CHEFE0 + run.andar);
     chefe->nivel = NIVEL_NO[run.andar][3];
     chefe->semente = rnd_r() | 1;
+    // Em dezembro: um oponente de Natal em cada salao, numa das tres mesas, e
+    // o Papai Noel no lugar do Barao.
+    if (dezembro) {
+        static const uint8_t DE_NATAL[DES_ANDARES] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
+        run.no[sorte_r(DES_PASSOS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
+        if (run.andar == 2) chefe->perso = PERSO_NOEL;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -310,6 +320,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
     // Sem os dados de saida, toda do tema, recheada de dados bons.
     bool coringa = no->perso == PERSO_CORINGA;
+    bool noel = no->perso == PERSO_NOEL;         // a bolsa do Papai Noel: so do tema (Trenos e sinos)
     // Ele cresce do Nivel 5 a Cobertura (g de 0 a 5): mais dados do tema e
     // uma bolsa maior. So na Cobertura ele traz o que quiser; antes, o que
     // voce ainda nao abriu vira D12.
@@ -350,7 +361,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         if (i > 0 && extras > 0) extras--;
     }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
-        int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
+        int t = (n_fav && (coringa || sorte_r(100) < (noel ? 70 : 45))) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         if (!tudo && !dado_liberado(t)) t = coringa ? D_D12 : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }

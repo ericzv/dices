@@ -78,6 +78,8 @@ static void joga_ad(int j, int i, int v)
     aplica_regra(j, k);
 }
 static int sempre_um(int lados) { (void)lados; return 1; }
+static int lance_fixo = 1;                  // o lance que lance_q devolve (no limite dos lados)
+static int lance_q(int lados) { return lance_fixo < lados ? lance_fixo : lados; }
 static int lances_seq[8], li_seq;           // os lances em ordem (adesivos que mexem no sorteio)
 static int rola_seq(int lados) { (void)lados; return lances_seq[li_seq++ % 8]; }
 static int sempre_tres(int lados) { return lados < 3 ? lados : 3; }
@@ -119,6 +121,7 @@ static uint32_t teste_rnd(void)
 
 int main(void)
 {
+    natal_forcado = 0;                   // a epoca nao depende do dia em que o teste roda
     desfecho_t d;
 
     // Espinhoso: com 3 ou 4 tira 4 do oponente (e vale para o dono).
@@ -1340,9 +1343,339 @@ int main(void)
             CONFERE(risco(0) == 0, "Sanguessuga nunca cai: risco 0");
             limpa(); joga(0, D_D8, 6); joga(0, D_SANGUESSUGA, 2); joga(0, D_MALDITO, 3);   // o Agouro zera a sequencia
             CONFERE(F[0].est[1] == V_VALIDO, "o Agouro nao derruba a Sanguessuga");
+            // Treno valendo: +1, +2, +3 nos seus dados valendo antes dele (dentro
+            // dos multiplicadores); caido, nada.
+            limpa(); joga(0, D_D4, 2); joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_TRENO, 6); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 5 + 6 + 1 + 2 + 3, "Treno: esperava 22, deu %d", d.total[0]);
+            CONFERE(n_ev == 1 && ev[0].tipo == EV_BONUS && ev[0].por_dado[0] == 1 && ev[0].por_dado[2] == 3,
+                    "Treno: um evento de bonus, +1 no primeiro e +3 no terceiro");
+            limpa(); joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_D6, 4); joga(0, D_TRENO, 6); d = fim();
+            CONFERE(d.total[0] == 4 + 6 + 1, "Treno: so o valendo de antes ganha (+1), deu %d", d.total[0]);
+            limpa(); joga(0, D_DOBRO, 2); joga(0, D_D6, 5); joga(0, D_TRENO, 6); d = fim();
+            CONFERE(d.total[0] == (2 + 1) + (5 + 2) * 2 + 6, "Treno com o Dobro: esperava 23, deu %d", d.total[0]);
+            limpa(); joga(0, D_D8, 7); joga(0, D_TRENO, 3); d = fim();
+            CONFERE(d.total[0] == 0, "Treno caido nao puxa");
+            limpa(); joga(0, D_TRENO, 5); d = fim();
+            CONFERE(d.total[0] == 5 && poder_armado(0, 0) == 0, "Treno sozinho: so o que tirou");
+            // Boneco de Neve valendo com 8: congela e anula o 4o do oponente.
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); joga(0, D_BONECO, 8); d = fim();
+            CONFERE(d.est[1][3] == V_ANULADO && d.total[1] == 6 && d.total[0] == 8, "Boneco: o 4o do oponente cai (total %d)", d.total[1]);
+            CONFERE(poder_armado(0, 0) == 1, "Boneco com 8: armado");
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); joga(0, D_BONECO, 7); d = fim();
+            CONFERE(d.est[1][3] == V_VALIDO && d.total[1] == 11, "Boneco com 7 nao congela");
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(0, D_BONECO, 8); d = fim();
+            CONFERE(d.total[1] == 6, "Boneco: sem 4o dado, nada");
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_ESCUDO, 5); joga(0, D_BONECO, 8); d = fim();
+            CONFERE(d.est[1][3] == V_VALIDO, "o Escudo no 4o resiste ao Boneco");
+            limpa(); joga(1, D_SEGURANCA, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); joga(0, D_BONECO, 8); d = fim();
+            CONFERE(d.est[1][0] == V_ANULADO && d.est[1][3] == V_VALIDO, "Boneco: o Seguranca leva no lugar do 4o");
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_D8, 5);
+            joga(0, D_D12, 9); joga(0, D_BONECO, 8); d = fim();
+            CONFERE(d.est[1][3] == V_VALIDO, "Boneco caido nao congela");
+            // Jingle Bell: com 2 ou mais valendo, +4 em cada; um so, nada.
+            limpa(); joga(0, D_JINGLE, 2); joga(0, D_JINGLE, 3); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 2 * JINGLE_PTS, "dois Jingle Bells: esperava 13, deu %d", d.total[0]);
+            CONFERE(poder_armado(0, 0) == 1 && poder_armado(0, 1) == 1, "dois sinos valendo: armados");
+            limpa(); joga(0, D_JINGLE, 1); joga(0, D_JINGLE, 2); joga(0, D_D6, 3); joga(0, D_JINGLE, 3); d = fim();
+            CONFERE(d.total[0] == 1 + 2 + 3 + 3 + 3 * JINGLE_PTS, "tres Jingle Bells: esperava 21, deu %d", d.total[0]);
+            limpa(); joga(0, D_JINGLE, 2); joga(0, D_D6, 6); joga(0, D_JINGLE, 3); d = fim();
+            CONFERE(d.total[0] == 2, "um Jingle so valendo (o outro caiu) nao toca: deu %d", d.total[0]);
+            limpa(); joga(0, D_JINGLE, 4); d = fim();
+            CONFERE(d.total[0] == 4 && poder_armado(0, 0) == 0, "um Jingle sozinho nao toca");
+            // Lancado, valendo ou nao, deixa uma copia (com os adesivos) na
+            // bolsa ate o fim da partida.
+            {
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+                int n0 = J[0].n_col;
+                J[0].col[n0] = nova_peca(D_JINGLE);
+                ad_cola(&J[0].col[n0], 2, AD_CONFETE);
+                J[0].onde[n0] = NA_MAO;
+                J[0].n_col++;
+                limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2);        // caiu: copia do mesmo jeito
+                recolhe_quebrados();
+                CONFERE(J[0].n_col == n0 + 2 && J[0].col[n0 + 1].tipo == D_JINGLE && J[0].col[n0 + 1].fixo == 1
+                        && ad_no_lado(&J[0].col[n0 + 1], 2) == AD_CONFETE && J[0].onde[n0 + 1] == NA_BOLSA
+                        && jingle_copias[0] == 2, "Jingle: a copia, com o adesivo, na bolsa");
+                some_fantasmas();
+                CONFERE(J[0].n_col == n0 + 1 && J[0].col[n0].tipo == D_JINGLE && J[0].col[n0].fixo == 0,
+                        "fim da partida: a copia some, o original fica");
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+            }
+            // Furia: tirando 4 guarda +2, tirando 1 perde 1; o bonus soma no que tira.
+            CONFERE(furia_depois(0, 4) == 2 && furia_depois(2, 4) == 4 && furia_depois(4, 1) == 3 && furia_depois(3, 2) == 3
+                    && furia_depois(0, 1) == -1 && furia_depois((uint8_t)(int8_t)-1, 1) == -2 && furia_depois(FURIA_MAX, 4) == FURIA_MAX,
+                    "Furia: a conta do bonus");
+            limpa(); joga(0, D_FURIA, 4); d = fim();
+            CONFERE(d.total[0] == 4 + 2, "Furia com 4: esperava 6, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 3; joga(0, D_FURIA, 1); d = fim();
+            CONFERE(d.total[0] == 1 + 2, "Furia +3 que tira 1: esperava 3, deu %d", d.total[0]);
+            limpa(); F[0].fixo[1] = (uint8_t)(int8_t)-3; joga(0, D_D4, 1); joga(0, D_FURIA, 2); d = fim();
+            CONFERE(d.total[0] == 1 + 2 - 3, "Furia negativa: esperava 0, deu %d", d.total[0]);
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_FURIA, .fixo = 2 };
+                J[0].n_col++;
+                limpa(); joga(0, D_D8, 8); F[0].fixo[1] = 2; joga_ad(0, n0, 4); d = fim();   // caiu: guarda mesmo assim
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 4, "Furia guarda o 4 mesmo caida (fixo %d)", J[0].col[n0].fixo);
+                J[0].n_col--;
+            }
+            // Onda: nao pontua; valendo, guarda o que tirou; com 9, vira Tsunami.
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_ONDA, .fixo = 4 };
+                J[0].n_col++;
+                limpa(); F[0].fixo[0] = 4; joga_ad(0, n0, 3); d = fim();
+                CONFERE(d.total[0] == 0 && !strcmp(F[0].tag[0], "7/9") && !d.onda[0], "Onda: pontua 0 e guarda (tag %s)", F[0].tag[0]);
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_ONDA && J[0].col[n0].fixo == 7, "Onda guardou 7 (%d)", J[0].col[n0].fixo);
+                limpa(); F[0].fixo[0] = 7; joga_ad(0, n0, 2); d = fim();
+                CONFERE(d.onda[0] == 1 && n_ev == 1 && ev[0].tipo == EV_ONDA && poder_armado(0, 0) == 1, "Onda com 9: vira Tsunami");
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_TSUNAMI && J[0].col[n0].fixo == 0, "a Onda virou Tsunami na bolsa");
+                J[0].col[n0] = (peca_t){ .tipo = D_ONDA, .fixo = 7 };
+                limpa(); joga(0, D_D6, 5); F[0].fixo[1] = 7; joga_ad(0, n0, 4); joga(0, D_D4, 1); d = fim();
+                CONFERE(!d.onda[0], "Onda caida nao vira");
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_ONDA && J[0].col[n0].fixo == 7, "Onda caida nao guarda");
+                J[0].n_col--;
+                limpa(); F[0].fixo[0] = 8; joga(0, D_ONDA, 4); d = fim();    // sem peca da bolsa (a copia do Coringa): nao vira
+                CONFERE(!d.onda[0], "Onda sem peca nao vira");
+            }
+            // Tsunami valendo de 9 a 12: anula um dado do oponente.
+            limpa(); joga(1, D_D6, 5); joga(0, D_TSUNAMI, 10); d = fim();
+            CONFERE(d.est[1][0] == V_ANULADO && d.total[0] == 10 && d.total[1] == 0, "Tsunami com 10 anula o 5");
+            limpa(); joga(1, D_D6, 5); joga(0, D_TSUNAMI, 8); d = fim();
+            CONFERE(d.est[1][0] == V_VALIDO, "Tsunami com 8 nao anula");
+            CONFERE(sem_sorteio(D_TSUNAMI) && peso_dado(D_TSUNAMI) == 0 && !dado_liberado(D_TSUNAMI) && no_catalogo(D_TSUNAMI),
+                    "Tsunami: so da Onda, mas na colecao");
+            // Tres Patinhos: na 3a, 6a... vez valendo, x3; a contagem fica no dado.
+            limpa(); joga(0, D_PATINHOS, 3); d = fim();
+            CONFERE(d.total[0] == 3, "Patinhos na 1a vez: 3, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 2; joga(0, D_PATINHOS, 3); d = fim();
+            CONFERE(d.total[0] == 9 && !strcmp(F[0].tag[0], "x3") && poder_armado(0, 0) == 1, "Patinhos na 3a vez: x3, deu %d", d.total[0]);
+            limpa(); F[0].fixo[1] = 5; joga(0, D_DOBRO, 1); joga(0, D_PATINHOS, 4); d = fim();
+            CONFERE(d.total[0] == 1 + 4 * 5, "Patinhos na 6a vez com o Dobro: x5, deu %d", d.total[0]);
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_PATINHOS, .fixo = 1 };
+                J[0].n_col++;
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 2, "Patinhos valendo contam mais um");
+                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 2; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 2, "Patinhos caidos nao contam");
+                J[0].n_col--;
+            }
+            // Panetone: as frutas da fatia (0 a 3, a cada lance) somam no que tirou.
+            limpa(); F[0].fruta[0] = 2; joga(0, D_PANETONE, 5); d = fim();
+            CONFERE(d.total[0] == 7 && !strcmp(F[0].tag[0], "+2"), "Panetone com 2 frutas: 7, deu %d", d.total[0]);
+            limpa(); joga(0, D_PANETONE, 5); d = fim();
+            CONFERE(d.total[0] == 5 && !F[0].tag[0][0], "Panetone sem frutas: 5, deu %d", d.total[0]);
+            limpa(); F[0].tipo[0] = D_PANETONE; fatia(0, 0, sempre_dois);
+            F[0].tipo[1] = D_D8; F[0].fruta[1] = 3; fatia(0, 1, sempre_dois);
+            CONFERE(F[0].fruta[0] == 1 && F[0].fruta[1] == 0, "a fatia: r(4) - 1, so no Panetone");
+            // Pisca-pisca: aceso, x2; apagado, 0 (mas conta na sequencia); alterna a cada lance.
+            limpa(); joga(0, D_PISCA, 3); d = fim();
+            CONFERE(d.total[0] == 6 && !strcmp(F[0].tag[0], "x2") && poder_armado(0, 0) == 1, "Pisca aceso: 6, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 3); joga(0, D_D6, 5); d = fim();
+            CONFERE(d.total[0] == 5 && !strcmp(F[0].tag[0], "=0") && poder_armado(0, 0) == 0, "Pisca apagado: 0, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 4); joga(0, D_D4, 2); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO, "Pisca apagado ainda derruba quem tira menos");
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_PISCA, .fixo = 0 };
+                J[0].n_col++;
+                limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 1, "Pisca lancado (mesmo caido) apaga para a proxima");
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 0, "e acende de novo");
+                J[0].n_col--;
+            }
+            // Meia na Lareira: anulada, guarda +2; valendo, paga tudo e esvazia.
+            limpa(); F[0].fixo[0] = 6; joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 9 && !strcmp(F[0].tag[0], "+6") && n_ev == 1 && ev[0].tipo == EV_EXTRA && ev[0].valor == 6,
+                    "Meia com 6 paga: 9, deu %d", d.total[0]);
+            limpa(); F[0].fixo[1] = 6; joga(0, D_DOBRO, 2); joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 2 + 3 * 2 + 6, "Meia paga fora do x2: 14, deu %d", d.total[0]);
+            limpa(); joga(0, D_MEIA, 3); d = fim();
+            CONFERE(d.total[0] == 3 && n_ev == 0, "Meia vazia: so o numero");
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_MEIA, .fixo = 4 };
+                J[0].n_col++;
+                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 4; joga_ad(0, n0, 2); d = fim();
+                CONFERE(d.total[0] == 0 && n_ev == 1 && ev[0].valor == 0 && poder_armado(0, 1) == 1, "Meia anulada avisa que guarda");
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 6, "Meia anulada guardou 6 (%d)", J[0].col[n0].fixo);
+                limpa(); F[0].fixo[0] = 6; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.total[0] == 8 && J[0].col[n0].fixo == 0, "Meia valendo paga e esvazia");
+                J[0].n_col--;
+            }
+            // Estrela de Belem: lancada por ultimo e valendo, +2 por dado valendo abaixo.
+            limpa(); joga(0, D_D4, 2); joga(0, D_D6, 3); joga(0, D_ESTRELA, 5); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 5 + 2 * ESTRELA_PTS && poder_armado(0, 2) == 1, "Estrela no topo: 14, deu %d", d.total[0]);
+            limpa(); joga(0, D_D4, 2); joga(0, D_ESTRELA, 5); joga(0, D_D8, 6); d = fim();
+            CONFERE(d.total[0] == 13 && poder_armado(0, 1) == 0, "Estrela que nao e a ultima: 13, deu %d", d.total[0]);
+            limpa(); joga(0, D_D4, 3); joga(0, D_D4, 1); joga(0, D_ESTRELA, 5); d = fim();
+            CONFERE(d.total[0] == 5, "Estrela sem nenhum valendo abaixo: 5, deu %d", d.total[0]);
+            // Rena valendo: +1 no vizinho de antes e no de depois, se valem.
+            limpa(); joga(0, D_D4, 2); joga(0, D_RENA, 3); joga(0, D_D6, 4); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 4 + 2 && poder_armado(0, 1) == 1, "Rena com dois vizinhos: 11, deu %d", d.total[0]);
+            limpa(); joga(0, D_RENA, 3); joga(0, D_D8, 8); joga(0, D_D4, 1); d = fim();
+            CONFERE(d.total[0] == 3 && poder_armado(0, 0) == 0, "Rena sem vizinho valendo: 3, deu %d", d.total[0]);
+            limpa(); joga(0, D_RENA, 2); joga(0, D_RENA, 3); d = fim();
+            CONFERE(d.total[0] == 2 + 3 + 2, "duas Renas puxam uma a outra: 7, deu %d", d.total[0]);
+            // Presente: desembrulha um raro ao acaso, que fica no lugar dele na
+            // bolsa (no Desafiante, pela run; nas outras, ate o fim da partida).
+            {
+                int modo0 = modo;
+                modo = M_DOIS;
+                for (int q = 1; q <= 40; q++) {
+                    lance_fixo = q;
+                    limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = -1;
+                    int t = desembrulha(0, 0, lance_q);
+                    CONFERE(TIPO[t].raridade == RAR_RARO && !sem_sorteio(t) && !so_desafio(t) && t != D_PRESENTE
+                            && F[0].tipo[0] == t && F[0].presente[0], "Presente vira um raro (%s)", TIPO[t].nome);
+                }
+                for (int m = 0; m < 2; m++) {            // nos dois modos, e para os dois lados
+                    modo = m ? M_DESAFIO : M_DOIS;
+                    for (int j = 0; j < 2; j++) {
+                        int n0 = J[j].n_col;
+                        J[j].col[n0] = nova_peca(D_PRESENTE);
+                        J[j].col[n0 + 1] = nova_peca(D_PRESENTE);
+                        J[j].n_col += 2;
+                        lance_fixo = 1;
+                        limpa(); F[j].tipo[0] = D_PRESENTE; F[j].idx[0] = (int8_t)n0;
+                        int t = desembrulha(j, 0, lance_q);
+                        lance_fixo = 2;
+                        limpa(); F[j].tipo[0] = D_PRESENTE; F[j].idx[0] = (int8_t)(n0 + 1);
+                        int t2 = desembrulha(j, 0, lance_q);
+                        CONFERE(J[j].col[n0].tipo == t && J[j].col[n0 + 1].tipo == t2 && t != D_PRESENTE && t2 != D_PRESENTE
+                                && F[j].presente[0] == 2, "modo %d, jogador %d: os dois Presentes ficam", modo, j);
+                        J[j].n_col -= 2;
+                    }
+                }
+                modo = modo0;
+            }
+            // Os trunfos de dezembro: o Ranzinza corta o seu maior da 5a rodada,
+            // o Duende soma +1 por dado igual, o Papai Noel embrulha um dado seu.
+            {
+                int modo0 = modo, rod0 = rodada;
+                amul_t a0 = amul[0], a1 = amul[1];
+                uint8_t reg0 = reg_op;
+                modo = M_DESAFIO; amul[0] = amul[1] = 0;
+                reg_op = REG_RANZINZA; rodada = 5;
+                limpa(); joga(0, D_D6, 2); joga(0, D_D8, 6); d = fim();
+                CONFERE(d.total[0] == 2 + 3 && n_ev == 1 && ev[0].tipo == EV_CORTA, "Ranzinza: o 6 vale 3, deu %d", d.total[0]);
+                rodada = 4;
+                limpa(); joga(0, D_D6, 2); joga(0, D_D8, 6); d = fim();
+                CONFERE(d.total[0] == 8, "Ranzinza antes da 5a rodada: nada, deu %d", d.total[0]);
+                reg_op = REG_DUENDE;
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); d = fim();
+                CONFERE(d.total[1] == 2 + 3 + 5 + 2, "Duende: dois D6, +1 cada; deu %d", d.total[1]);
+                limpa(); joga(0, D_D6, 2); joga(0, D_D6, 3); d = fim();
+                CONFERE(d.total[0] == 5, "a linha de montagem e so dele");
+                reg_op = REG_PRESENTE; rodada = 2;
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+                J[0].n_mao = 2; J[0].mao[0] = 0; J[0].mao[1] = 1;
+                J[0].col[0] = nova_peca(D_D8); J[0].col[1] = nova_peca(D_D8);
+                embrulha_um();
+                CONFERE(embrulho >= 0 && embrulho <= 1 && J[0].col[embrulho].tipo == D_PRESENTE && embrulho_tipo == D_D8,
+                        "Papai Noel: um dado da mao embrulhado");
+                int e0 = embrulho;
+                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)e0;
+                int t = desembrulha(0, 0, sempre_um);
+                CONFERE(t == D_D8 && J[0].col[e0].tipo == D_D8 && embrulho < 0 && F[0].presente[0] == 3,
+                        "o embrulho volta a ser o dado ao ser lancado");
+                embrulha_um();
+                e0 = embrulho;
+                desfaz_embrulho();
+                CONFERE(e0 >= 0 && J[0].col[e0].tipo == D_D8 && embrulho < 0, "nao lancado, desembrulha no fim");
+                reg_op = REG_NADA;
+                embrulha_um();
+                CONFERE(embrulho < 0, "sem o Papai Noel, nada embrulhado");
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+                modo = modo0; rodada = rod0; amul[0] = a0; amul[1] = a1; reg_op = reg0;
+            }
+            // A epoca: os de Natal so em novembro e dezembro, e entao abertos
+            // no Desafiante, no premio e na colecao; o feltro Natalino idem.
+            {
+                int antes = natal_forcado;
+                natal_forcado = 0; le_epoca();
+                int fora = n_catalogo();
+                CONFERE(!natal && sem_sorteio(D_TRENO) && peso_dado(D_JINGLE) == 0 && !dado_liberado(D_BONECO)
+                        && !no_catalogo(D_TRENO) && !estilo_aberto(0, ABRE_FELTRO[FT_NATAL]), "fora do Natal: nada de Natal");
+                natal_forcado = 1; le_epoca();
+                rodada = 12;                                         // o premio dos raros
+                CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_JINGLE) > 0 && dado_liberado(D_BONECO)
+                        && n_catalogo() == fora + 9 && estilo_aberto(-1, ABRE_FELTRO[FT_NATAL]), "no Natal: tudo aberto");
+                CONFERE(nivel_do_dado(D_TRENO) == 0 && grupo_do_dado(D_TRENO) != GR_NENHUM && grupo_do_dado(D_BONECO) == GR_ATAQUE
+                        && grupo_do_dado(D_JINGLE) != GR_NENHUM, "os de Natal: sem nivel, com grupo");
+                rodada = 1;
+                CONFERE(!dezembro && !reveillon, "novembro: nem dezembro, nem Reveillon");
+                // As datas: de 20 de outubro a 6 de janeiro; o Reveillon de 26/12 a 6/1.
+                static const struct { int8_t mes, dia; bool n, d, r; } DT[] = {
+                    { 9, 19, 0, 0, 0 }, { 9, 20, 1, 0, 0 }, { 10, 15, 1, 0, 0 }, { 11, 1, 1, 1, 0 }, { 11, 25, 1, 1, 0 },
+                    { 11, 26, 1, 1, 1 }, { 11, 31, 1, 1, 1 }, { 0, 1, 1, 0, 1 }, { 0, 6, 1, 0, 1 }, { 0, 7, 0, 0, 0 },
+                    { 5, 15, 0, 0, 0 } };
+                for (unsigned i = 0; i < sizeof DT / sizeof DT[0]; i++) {
+                    poe_epoca(DT[i].mes, DT[i].dia);
+                    CONFERE(natal == DT[i].n && dezembro == DT[i].d && reveillon == DT[i].r,
+                            "dia %d/%d: natal %d dezembro %d reveillon %d", DT[i].dia, DT[i].mes + 1, natal, dezembro, reveillon);
+                }
+                natal_forcado = 1; le_epoca();
+                natal_forcado = 2; le_epoca();
+                CONFERE(natal && dezembro && !reveillon, "dezembro, antes do dia 26");
+                natal_forcado = 3; le_epoca();
+                CONFERE(natal && dezembro && reveillon, "do dia 26 em diante: o Reveillon");
+                // Os estilos de Natal: abertos na epoca; o Reveillon, so do dia 26.
+                CONFERE(ABRE_FELTRO[FT_NOITE_FELIZ] == ANDAR_NATAL && ABRE_FELTRO[FT_XADREZ] == ANDAR_NATAL
+                        && ABRE_FELTRO[FT_REVEILLON] == ANDAR_REVEILLON && ABRE_MATERIAL[MAT_BOLA] == ANDAR_NATAL
+                        && ABRE_MATERIAL[MAT_VELUDO] == ANDAR_NATAL && ABRE_MESA[MS_LAREIRA] == ANDAR_NATAL
+                        && ABRE_MESA[MS_PINHO] == ANDAR_NATAL, "os estilos de Natal");
+                CONFERE(estilo_aberto(-1, ANDAR_REVEILLON) && estilo_aberto(-1, ANDAR_NATAL), "dia 26: tudo aberto");
+                natal_forcado = 2; le_epoca();
+                CONFERE(!estilo_aberto(-1, ANDAR_REVEILLON) && estilo_aberto(-1, ANDAR_NATAL), "antes do dia 26: sem Reveillon");
+                // Em dezembro, um oponente de Natal em cada salao e o Papai Noel
+                // no lugar do Barao; fora dele, ninguem de Natal.
+                {
+                    run_t r0 = run;
+                    static const int DE_NATAL[3] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
+                    for (int ep = 0; ep <= 2; ep += 2) {
+                        natal_forcado = ep;
+                        for (int a = 0; a < DES_ANDARES; a++)
+                            for (int sd = 1; sd <= 6; sd++) {
+                                run.semente = (uint32_t)(sd * 2654435761u);
+                                run.andar = (uint8_t)a;
+                                gera_andar();
+                                int nat = 0;
+                                for (int q = 0; q < DES_PASSOS - 1; q++) nat += run.no[q].perso == DE_NATAL[a];
+                                int chefe = run.no[DES_PASSOS - 1].perso;
+                                if (ep) CONFERE(nat == 1 && chefe == (a == 2 ? PERSO_NOEL : PERSO_CHEFE0 + a),
+                                                "dezembro, salao %d: %d de Natal, chefe %d", a, nat, chefe);
+                                else {
+                                    bool algum = false;
+                                    for (int q = 0; q < DES_PASSOS; q++) algum |= perso_natal(run.no[q].perso);
+                                    CONFERE(!algum && chefe == PERSO_CHEFE0 + a, "fora de dezembro, salao %d: ninguem de Natal", a);
+                                }
+                            }
+                    }
+                    run = r0;
+                }
+                CONFERE(chefe_idx(PERSO_NOEL) == 2 && chefe_idx(PERSO_CHEFE0 + 1) == 1 && chefe_idx(0) < 0
+                        && perso_chefe(PERSO_NOEL) && !perso_chefe(PERSO_RANZINZA) && perso_natal(PERSO_RENA)
+                        && !perso_natal(PERSO_CORINGA), "quem e chefe e quem e de Natal");
+                natal_forcado = antes; le_epoca();
+            }
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
-                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA };
+                                         D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
+                                         D_FURIA, D_ONDA, D_PATINHOS };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
@@ -1354,9 +1687,9 @@ int main(void)
         CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0;
-            for (int t = 0; t < D_N; t++) vis += !oculto(t);
-            CONFERE(vis == N_CATALOGO, "a colecao devia ter %d dados (tem %d)", vis, N_CATALOGO);
-            for (int i = 0; i < N_CATALOGO; i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
+            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t);
+            CONFERE(vis == n_catalogo(), "a colecao devia ter %d dados (tem %d)", vis, n_catalogo());
+            for (int i = 0; i < n_catalogo(); i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
             for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");
         }
         // Gemeo: tira o mesmo do anterior que vale; sozinho, fica com o seu.
@@ -1501,8 +1834,25 @@ int main(void)
             char es[96];
             CONFERE(estilo_do_andar(d, es, sizeof es) >= 1, "o andar %d sem estilo", d);
         }
-        CONFERE(ABRE_FELTRO[FT_GALAXIA] == 7 && ABRE_FELTRO[FT_NATAL] == 3 && ABRE_MATERIAL[MAT_MADEIRA] == 5
+        CONFERE(ABRE_FELTRO[FT_GALAXIA] == 7 && ABRE_FELTRO[FT_NATAL] == ANDAR_NATAL && ABRE_MATERIAL[MAT_MADEIRA] == 5
                 && ABRE_MATERIAL[MAT_PEROLA] == 1 && ABRE_MESA[MS_LED] == 9, "os estilos novos nos andares");
+        CONFERE(ABRE_FELTRO[FT_MAR] == 10 && ABRE_FELTRO[FT_DECO] == 9 && ABRE_FELTRO[FT_COURO] == 5
+                && ABRE_FELTRO[FT_LOSANGO] == 1 && ABRE_MATERIAL[MAT_MARMORE] == 6 && ABRE_MATERIAL[MAT_LAPIS] == 7
+                && ABRE_MATERIAL[MAT_PEROLA_NEGRA] == 8 && ABRE_MATERIAL[MAT_BRONZE] == 3, "a segunda leva de estilos");
+        for (int d = 0; d <= N_NIVEIS; d++) {            // nenhum andar com mais de tres partes (o card do estilo)
+            int lin[8], k[8];
+            CONFERE(estilo_partes(d, lin, k) <= 3, "o andar %d com estilo demais", d);
+        }
+        {                                                // o estilo guardado volta igual, ate a opcao 10
+            int f, m, me;
+            snprintf(perfis[0].nome, sizeof perfis[0].nome, "EST");
+            for (int d = 0; d <= N_NIVEIS; d++) perfis[0].venceu[d] = 1;
+            estilo_grava(0, FT_LOSANGO, MAT_BRONZE, MS_LED);
+            estilo_le(0, &f, &m, &me);
+            CONFERE(f == FT_LOSANGO && m == MAT_BRONZE && me == MS_LED, "estilo novo nao voltou: %d %d %d", f, m, me);
+            memset(&perfis[0], 0, sizeof perfis[0]);
+            salva_apaga(chave_estilo(0));
+        }
         // Os chefes repartem o que cada nivel abre: todo dado com um chefe so,
         // todo chefe com alguma coisa, e o que fecha a run com a dificuldade.
         for (int d = 0; d < N_NIVEIS; d++) {
@@ -1985,7 +2335,7 @@ int main(void)
                 "Cupom: %d %d %d", preco_run(D_FICHAS), preco_run(D_D20), preco_troca());
         // ---- O pacote: um grupo por loja, 3 dados dele, leva 1 ----
         for (int t = 0; t < D_N; t++) {
-            bool sorteia = !so_inicial(t) && !sem_sorteio(t);
+            bool sorteia = !so_inicial(t) && (!sem_sorteio(t) || de_natal(t));   // os de Natal tem grupo para quando chegar a epoca
             CONFERE(sorteia ? grupo_do_dado(t) < GR_N : grupo_do_dado(t) == GR_NENHUM, "grupo do dado %s: %d",
                     TIPO[t].nome, grupo_do_dado(t));
         }

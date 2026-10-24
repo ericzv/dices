@@ -235,7 +235,8 @@ static void nov_figura(int i, int cx, int cy, float desde)
     case NV_ADESIVO: ad_solto_d(cx, cy, v, 4, 0); break;
     default: {
         int lin[4], k[4], n = estilo_partes(v, lin, k);
-        for (int j = 0; j < n; j++) es_amostra(lin[j], k[j], cx, cy + (j * 2 - (n - 1)) * 18, true);
+        for (int j = 0; j < n; j++)                 // tres partes: mais juntas, acima do rotulo
+            es_amostra(lin[j], k[j], cx, n >= 3 ? cy - 4 + (j - 1) * 32 : cy + (j * 2 - (n - 1)) * 18, true);
         break;
     }
     }

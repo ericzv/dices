@@ -8,6 +8,40 @@ static int txt_nome(int x, int y, int j)
     return gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
 }
 
+// O laco do Presente, com o no em (x, y): marca o dado que saiu de um.
+static void lacinho(int x, int y)
+{
+    gfx_rect(x - 6, y - 3, 5, 5, C_LATAO_ESC);                // as alcas, com a borda escura
+    gfx_rect(x + 2, y - 3, 5, 5, C_LATAO_ESC);
+    gfx_rect(x - 5, y - 2, 3, 3, C_OURO);
+    gfx_rect(x + 3, y - 2, 3, 3, C_OURO);
+    gfx_rect(x - 3, y + 2, 2, 3, C_OURO);                     // as pontas
+    gfx_rect(x + 2, y + 2, 2, 3, C_OURO);
+    gfx_rect(x - 1, y - 2, 3, 4, C_AMARELO);                  // o no
+}
+// O Presente abrindo no lance (q de 0 a 1): no comeco ainda e a caixa;
+// depois o papel rasga em pedacos que voam e caem, e o laco sobe.
+#define PRESENTE_ABRE 0.62f
+#define PRESENTE_RASGA 0.24f                 // ate aqui, a caixa fechada
+static void presente_abre(float x, float y, float q)
+{
+    if (q < PRESENTE_RASGA || q >= 1) return;
+    float s = (q - PRESENTE_RASGA) / (1 - PRESENTE_RASGA);
+    if (s < 0.25f)                                           // o estalo da caixa abrindo
+        for (int a = 0; a < 24; a++) {
+            float an = a * 0.2618f, rr = R_DADO + 2 + s * 40;
+            gfx_rect((int)(x + cosf(an) * rr), (int)(y + sinf(an) * rr), 2, 2, gfx_mistura(C_AMARELO, C_FELTRO, (int)(s * 280)));
+        }
+    for (int i = 0; i < 16; i++) {
+        float an = i * 0.3927f + 0.2f, vel = 34 + (i * 37) % 30, d = R_DADO * 0.8f + vel * s * 1.2f;
+        int px = (int)(x + cosf(an) * d), py = (int)(y + sinf(an) * d * 0.85f - 8 * s + 40 * s * s);
+        uint16_t c = i % 5 == 4 ? C_OURO : (i % 2 ? C_VERMELHO : C_VINHO_CLR);
+        int w = 3 + i % 2, h = 2 + (i + 1) % 2;
+        if ((int)(s * 20 + i) % 4 == 0) { int t = w; w = h; h = t; }        // o papel girando
+        gfx_rect(px, py, w, h, gfx_mistura(c, C_FELTRO, (int)(s * 75)));
+    }
+    if (s < 0.8f) lacinho((int)x, (int)(y - R_DADO - 4 - s * 34));
+}
 static void desenha_lance(void)
 {
     for (int i = n_voo - 1; i >= 0; i--) {
@@ -65,9 +99,14 @@ static void desenha_lance(void)
             r *= 1 + 0.16f * h;
             sombra_alt = h * 7;
         }
-        if (TIPO[v->tipo].lados == 2 && !v->parado && !descartado) {
+        // O Presente no comeco do lance: ainda a caixa embrulhada, que rasga.
+        bool abre = !v->fantasma && fase == F_ROLANDO && v->slot < N_FILA && F[v->dono].presente[v->slot]
+                    && t_fase < PRESENTE_ABRE;
+        bool caixa = abre && t_fase < PRESENTE_ABRE * PRESENTE_RASGA;
+        if (TIPO[v->tipo].lados == 2 && !v->parado && !descartado && !caixa) {
             float c = cosf(v->giro * 1.6f);            // moeda gira no ar
             moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, c >= 0 ? v->face : 3 - v->face);
+            if (abre) presente_abre(v->x, v->y, t_fase / PRESENTE_ABRE);
             sombra_alt = 0;
             continue;
         }
@@ -106,7 +145,10 @@ static void desenha_lance(void)
                 sombra_alt = s * 8;
             }
         }
-        desenha_dado(ex + dx, ey + bob, r, v->tipo, v->dono, ang, mostra, 2, descartado);
+        int tv = caixa ? D_PRESENTE : v->tipo;
+        if (caixa && mostra > 6) mostra = (mostra - 1) % 6 + 1;   // a caixa e um d6
+        desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        if (abre) presente_abre(ex + dx, ey + bob, t_fase / PRESENTE_ABRE);
         face_escondida = false;
         sr_lado = 0;
         sombra_alt = 0;
@@ -387,6 +429,143 @@ static void faiscas(int x, int y, float t, uint16_t c)
     }
 }
 
+// Um presente do Treno: caixa na cor c, fita de ouro em cruz e o laco em cima.
+static void presente(int x, int y, uint16_t c)
+{
+    gfx_rect(x - 4, y - 3, 9, 8, C_BARRA);
+    gfx_rect(x - 3, y - 2, 7, 6, c);
+    gfx_rect(x, y - 2, 1, 6, C_OURO);
+    gfx_rect(x - 3, y, 7, 1, C_OURO);
+    gfx_rect(x - 2, y - 5, 2, 2, C_OURO);
+    gfx_rect(x + 1, y - 5, 2, 2, C_OURO);
+}
+// Os presentes do Treno saem um atras do outro: quando o do n-esimo dado sai
+// (p do evento), e o tempo do voo.
+#define TRENO_VOO 0.30f
+static float treno_sai(int n) { return 0.06f + n * 0.16f; }
+static bool treno_agora(const evento_t *e)
+{
+    return e && e->tipo == EV_BONUS && e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_TRENO;
+}
+// Quando o presente chega ao dado k (a ordem dele entre os que recebem).
+static float treno_chega(const evento_t *e, int k)
+{
+    int n = 0;
+    for (int i = 0; i < k; i++) n += e->mascara >> i & 1;
+    return treno_sai(n) + TRENO_VOO;
+}
+
+// Um patinho de perfil, olhando para a direita: (x, y) e o meio do corpo.
+static void patinho(int x, int y)
+{
+    gfx_rect(x - 4, y - 1, 9, 4, C_AMARELO);         // o corpo
+    gfx_rect(x - 6, y - 2, 3, 2, C_AMARELO);         // o rabinho
+    gfx_rect(x + 1, y - 5, 4, 4, C_AMARELO);         // a cabeca
+    gfx_rect(x + 5, y - 3, 2, 1, C_FOGO);            // o bico
+    gfx_pixel(x + 3, y - 4, C_BARRA);                // o olho
+    gfx_rect(x - 3, y + 3, 7, 1, C_LATAO);           // a sombra do corpo
+}
+
+// Uma moedinha de ouro (a Meia na Lareira pagando).
+static void moedinha(int x, int y)
+{
+    gfx_disco(x, y, 4, C_LATAO_ESC);
+    gfx_disco(x, y - 1, 3, C_OURO);
+    gfx_rect(x - 1, y - 3, 2, 1, C_AMARELO);
+}
+// Uma estrelinha de quatro pontas em (x, y), de raio r.
+static void estrelinha(int x, int y, int r, uint16_t c)
+{
+    gfx_rect(x - r, y, 2 * r + 1, 1, c);
+    gfx_rect(x, y - r, 1, 2 * r + 1, c);
+    if (r >= 3) { gfx_rect(x - 1, y - 1, 3, 3, c); gfx_pixel(x, y, C_BRANCO); }
+}
+
+// O gelo do Boneco de Neve sobre o dado em (x, y), q de 0 a 1: a camada
+// palida que se espalha do meio, os cristais e os pingentes embaixo.
+static void gelo_sobre(int x, int y, float q)
+{
+    if (q <= 0) return;
+    if (q > 1) q = 1;
+    uint16_t *fb = display_fb();
+    int rr = (int)((R_DADO + 4) * (0.35f + 0.65f * q));
+    for (int yy = y - rr; yy <= y + rr; yy++)
+        for (int xx = x - rr; xx <= x + rr; xx++) {
+            if (xx < 0 || yy < 0 || xx >= GFX_W || yy >= GFX_H) continue;
+            if ((xx - x) * (xx - x) + (yy - y) * (yy - y) > rr * rr) continue;
+            fb[yy * GFX_W + xx] = gfx_mistura(fb[yy * GFX_W + xx], C_VENTO, 42);
+        }
+    for (int i = 0; i < 6; i++) {                    // os cristais, com dois ramos cada
+        float an = i * 1.0472f + 0.26f, L = R_DADO * 0.95f * q;
+        float cs = cosf(an), sn = sinf(an);
+        gfx_linha(x, y, x + (int)(cs * L), y + (int)(sn * L), C_BRANCO);
+        int mx = x + (int)(cs * L * 0.6f), my = y + (int)(sn * L * 0.6f);
+        for (int k = -1; k <= 1; k += 2)
+            gfx_linha(mx, my, mx + (int)(cosf(an + k * 0.8f) * L * 0.28f), my + (int)(sinf(an + k * 0.8f) * L * 0.28f), C_BRANCO);
+    }
+    if (q > 0.5f)                                    // os pingentes, crescendo embaixo
+        for (int i = -1; i <= 1; i++) {
+            int h = (int)((q - 0.5f) * 2 * (i ? 5 : 8));
+            gfx_rect(x + i * 8, y + R_DADO - 2, 2, h, C_BRANCO);
+            gfx_rect(x + i * 8, y + R_DADO - 2, 1, h + 1, C_VENTO);
+        }
+}
+
+// Os Jingle Bells tocando (o bonus deles no fim): os sinos sobem um pouco da
+// fila, para o lado do meio da mesa (assim passam por cima dos outros dados),
+// se juntam no ar e batem tres vezes um no outro, e voltam.
+static bool sinos_agora(const evento_t *e)
+{
+    return e && e->tipo == EV_EXTRA && e->mascara && e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_JINGLE;
+}
+static float suave(float a, float b, float p)    // 0 ate a, 1 depois de b, suave no meio
+{
+    float q = (p - a) / (b - a);
+    q = q < 0 ? 0 : q > 1 ? 1 : q;
+    return q * q * (3 - 2 * q);
+}
+static float sinos_no_ar(float p) { return suave(0.0f, 0.10f, p) * (1 - suave(0.84f, 0.94f, p)); }   // sobem e descem
+static float sinos_perto(float p) { return suave(0.08f, 0.18f, p) * (1 - suave(0.76f, 0.86f, p)); }  // e chegam perto la em cima
+static float sinos_juntos(float p)               // la em cima: 0 afastados, 1 encostados
+{
+    if (p < 0.16f || p > 0.78f) return 0;
+    return 1 - fabsf(cosf((p - 0.16f) / 0.62f * 3 * 3.1416f));
+}
+// Onde o sino k esta agora: todos em volta do meio deles, cada vez mais perto.
+static void sino_pos(const evento_t *e, float p, int k, int *x, int *y)
+{
+    int n = 0, ik = 0;
+    float soma = 0;
+    for (int i = 0; i < N_FILA; i++)
+        if (e->mascara >> i & 1) { if (i == k) ik = n; soma += (float)SLOT_X(i); n++; }
+    float vao = 2 * R_DADO + 14 - 12 * sinos_juntos(p);
+    float alvo = soma / (float)n + (ik - (n - 1) / 2.0f) * vao;
+    *x = SLOT_X(k) + (int)((alvo - SLOT_X(k)) * sinos_perto(p));
+    *y = zona(e->de_j) + (int)((e->de_j == baixo ? -40 : 40) * sinos_no_ar(p));
+}
+
+// Uma notinha musical subindo (cabeca, haste e bandeira).
+static void notinha(int x, int y, uint16_t c)
+{
+    gfx_rect(x - 2, y, 3, 2, c);
+    gfx_rect(x, y - 6, 1, 7, c);
+    gfx_rect(x + 1, y - 6, 2, 1, c);
+    gfx_rect(x + 2, y - 5, 1, 1, c);
+}
+
+// A crista de uma onda andando para a frente (dir: +1 descendo, -1 subindo
+// na tela), larga e curva, com espuma na beira.
+static void crista(int x, int y, int dir, int larg)
+{
+    for (int i = -larg; i <= larg; i++) {
+        float t = i / (float)larg;
+        int yy = y - dir * (int)(t * t * 7);
+        gfx_disco(x + i * 3, yy - dir * 3, 4, C_AZUL);
+        gfx_disco(x + i * 3, yy, 3, RGB(96, 182, 198));
+        if ((i + larg) % 2 == 0) gfx_rect(x + i * 3 - 1, yy + dir * 3, 3, 2, C_BRANCO);
+    }
+}
+
 // O Ventania de j acabou de cair e esta rolando o primeiro dado?
 static bool ventania_agora(int j)
 {
@@ -582,6 +761,36 @@ static void sanguessuga_gotas(int xa, int xs, int y, float t)
     }
 }
 
+// O fim da rodada: de cada Jingle Bell lancado sai a copia, que voa em arco
+// para a bolsa de quem o jogou; a bolsa acende quando ela chega.
+static void desenha_jingle_copias(void)
+{
+    if (fase != F_RESULTADO) return;
+    for (int j = 0; j < 2; j++) {
+        int n = 0, bx = bolsa_x(), by = bolsa_y(j);
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(jingle_copias[j] >> k & 1)) continue;
+            float q = (t_fase - 0.25f - n++ * 0.12f) / 0.6f;
+            if (q < 0 || q > 1.4f) continue;
+            if (q < 1) {
+                float sq = q * q * (3 - 2 * q);
+                int sx = SLOT_X(k), sy = zona(j), arco = j == baixo ? 40 : -30;
+                int x = sx + (int)((bx - sx) * sq), y = sy + (int)((by - sy) * sq) - (int)(sinf(sq * 3.1416f) * arco);
+                desenha_dado((float)x, (float)y, 14 - sq * 2, D_JINGLE, j, sinf(q * 12) * 0.3f, 6, 0, false);
+            } else {
+                float r2 = (q - 1) / 0.4f;
+                int rr = 9 + (int)(r2 * 10);
+                for (int a = 0; a < 28; a++) {
+                    float an = a * 0.2244f;
+                    gfx_rect(bx + (int)(cosf(an) * rr), by + (int)(sinf(an) * rr), 1, 1, gfx_mistura(C_OURO, C_BARRA, (int)(r2 * 85)));
+                }
+                int ty = j == baixo ? by - 26 - (int)(r2 * 6) : by + 16 + (int)(r2 * 6);
+                txt_sombra_c(bx, ty, "+1 Jingle Bell", C_OURO, 1);
+            }
+        }
+    }
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -616,10 +825,11 @@ static void desenha_fila(int j)
             if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
             continue;
         }
-        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
+        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, j == 0 && k >= f->lancados && f->idx[k] == embrulho ? DICA_EMBRULHO : t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
             marca_nivel = f->fixo[k];
+            caixa_fechada = j == 0 && f->idx[k] == embrulho;
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
             marca_nivel = -1;
             const peca_t *pc = peca_fila(j, k);
@@ -679,7 +889,8 @@ static void desenha_fila(int j)
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && e->ad == AD_MIRA)) && e->alvo_j == j && e->alvo_k == k;
-        if (alvo && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
+        bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
+        if (alvo && !congela && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
         bool cavalo = e && e->tipo == EV_CAVALO && e->alvo_j == j && (e->mascara >> k & 1);
         if (cavalo && p > 0.6f && ((int)(t_fase * 8) % 2 == 0)) continue;
         // O dado que acabou de valer da um pulinho.
@@ -687,6 +898,13 @@ static void desenha_fila(int j)
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
             pulo = sinf(t_fase / 0.25f * 3.1416f) * 8;
         if (!anul) pulo += onda_pulo(j, k);
+        // Os Jingle Bells tocando: sobem, batem um no outro e voltam.
+        if (sinos_agora(e) && e->de_j == j && (e->mascara >> k & 1)) {
+            int sx, sy;
+            sino_pos(e, p, k, &sx, &sy);
+            x += sx - SLOT_X(k);
+            pulo += (float)(y - sy);
+        }
         // Espelho que so vira no fim: mostra o que tirou ate o evento dele
         // chegar na metade, e entao o numero do rival.
         bool ainda = no_desfecho && vis_espelho[j][k]
@@ -719,8 +937,18 @@ static void desenha_fila(int j)
             ad_face = ad_fila(j, k);
             ad_face_aceso = e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k && (p > 0.3f || (int)(t_fase * 12) % 2 == 0);
         }
-        desenha_dado((float)x, y - pulo, r_suga, t, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        // A Onda que juntou 9 vira Tsunami no meio do evento dela (e fica).
+        int td = t;
+        if (t == D_ONDA && no_desfecho && (vis_tsunami[j][k] || (e && e->tipo == EV_ONDA && e->de_j == j && e->de_k == k && p > 0.48f)))
+            td = D_TSUNAMI;
+        patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
+        frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
+        desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        patos_pousou = false;
+        frutas_desta = -1;
+        if (f->presente[k] && giro < 0.5f) lacinho(x + R - 3, (int)(y - pulo) - R + 2);   // saiu de um Presente
         if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
+        if (anul && no_desfecho && vis_gelo[j][k]) gelo_sobre(x, (int)(y - pulo), 0.8f);   // congelado pelo Boneco
         face_escondida = false;
         marca_nivel = -1;
         // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
@@ -795,6 +1023,18 @@ static void desenha_fila(int j)
                     }
                 }
             }
+            // A Furia: tirou 4, as chamas sobem dela; tirou 1, solta fumaca.
+            if (t == D_FURIA && (f->valor[k] == 4 || f->valor[k] == 1)) {
+                bool brava = f->valor[k] == 4;
+                for (int i = 0; i < 14; i++) {
+                    float q = fmodf(t_fase * 1.8f + i * 0.09f, 1.0f);
+                    int px = x - R + 2 + (i * 29) % (2 * R - 4) + (int)(sinf(t_fase * 9 + i) * 2);
+                    int py = (int)(y - pulo) + R / 3 - (int)(q * (2 * R + 14));
+                    int tam = q < 0.4f ? 4 : q < 0.75f ? 3 : 2;
+                    uint16_t c = brava ? (i % 3 ? C_FOGO : C_AMARELO) : (i % 2 ? C_CINZA : C_MARFIM_S);
+                    gfx_rect(px, py, tam, tam, gfx_mistura(c, C_FELTRO, (int)(q * 40)));
+                }
+            }
             if (f->calibre[k]) {
                 int rr = R + 6 - (int)(t_fase * 8), yy = (int)(y - pulo);
                 for (int a = 0; a < 32; a++) {
@@ -818,7 +1058,7 @@ static void desenha_fila(int j)
         if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
         else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "%+d", vis_bonus[j][k]);
         else if (ainda) snprintf(tg, sizeof tg, "=?");
-        else if (f->tag[k][0]) snprintf(tg, sizeof tg, "%s", f->tag[k]);
+        else if (f->tag[k][0] && td == t) snprintf(tg, sizeof tg, "%s", f->tag[k]);   // a Onda que virou Tsunami ja nao guarda
         // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
         // Dobro e o +2 do Copiador ficam por conta dela.
         int extra = 0;
@@ -858,7 +1098,8 @@ static void desenha_fila(int j)
                 }
             }
         }
-        if (e && e->de_j == j && e->de_k == k) aro(x, y, C_VINHO_CLR);   // quem age
+        bool sino = sinos_agora(e) && e->de_j == j;    // os sinos voando: o aro de quem age nao segue
+        if (e && e->de_j == j && e->de_k == k && !sino) aro(x, y, C_VINHO_CLR);   // quem age
         if (e && e->tipo == EV_VAMPIRO && e->alvo_j == j && (e->mascara >> k & 1) && p > 0.15f + k * 0.08f)
             aro(x, y, C_VINHO_CLR);              // o Vampiro bebe deste
         if (alvo || (cavalo && p > 0.3f)) aro(x, y, C_VINHO_CLR);
@@ -885,7 +1126,7 @@ static void desenha_fila(int j)
             aro(x, y, C_OURO);
         // Bonus e multiplicadores: aro dourado nos dados que recebem.
         if (e && (e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_JACKPOT) && e->de_j == j
-            && (e->mascara >> k & 1) && p > 0.2f) {
+            && (e->mascara >> k & 1) && p > (treno_agora(e) ? treno_chega(e, k) : 0.2f)) {
             bool perde = e->tipo == EV_BONUS && e->por_dado[k] < 0;     // Tudo ou Nada com 1
             aro(x, y, perde ? C_VINHO_CLR : C_OURO);
             if (!perde) faiscas(x, y, t_fase + k * 0.3f, C_AMARELO);
@@ -908,7 +1149,7 @@ static void desenha_fila(int j)
             aro(x, y, ((int)(t_fase * 10) % 2) ? C_FOGO : C_BRASA);
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
-        if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k) aro(x, y, cor_dado(t));
+        if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && !sino) aro(x, y, cor_dado(t));
         if (tg[0] && !anul) etiqueta(x, y, tg);        // por cima dos aros
         // O bonus, miudo e apagado, no canto de cima a direita (depois da
         // etiqueta, se houver uma).
@@ -1217,6 +1458,40 @@ static void desenha_evento(void)
                 gfx_disco(hx, hy, 4, C_VERDE);
                 gfx_pixel(hx, hy - 1, C_BARRA);
             }
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_BONECO) {
+            // Boneco de Neve: um sopro de flocos sai dele em arco ate o 4o do
+            // oponente, que congela - o gelo se espalha e prende o dado.
+            for (int i = 0; i < 9; i++) {
+                float q = (p - i * 0.03f) / 0.42f;
+                if (q < 0 || q > 1) continue;
+                float sq = q * q * (3 - 2 * q);
+                int x = ax + (int)((bx - ax) * sq + sinf(q * 9 + i * 1.7f) * 7);
+                int y = ay - R_DADO + (int)((by - (ay - R_DADO)) * sq - sinf(sq * 3.1416f) * 40 + cosf(q * 7 + i) * 4);
+                floco(x, y, i % 2 ? C_BRANCO : C_VENTO);
+            }
+            if (p > 0.35f) gelo_sobre(bx, by, (p - 0.35f) / 0.4f);
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_TSUNAMI) {
+            // Tsunami: a crista sai dele, atravessa a mesa e quebra em cima do
+            // dado do oponente, que some na espuma.
+            float q = p / 0.5f;
+            int dir = by > ay ? 1 : -1;
+            if (q < 1) {                                     // tres cristas rolando, a da frente maior
+                float sq = q * q * (3 - 2 * q);
+                for (int c2 = 2; c2 >= 0; c2--) {
+                    float s2 = sq - c2 * 0.13f;
+                    if (s2 < 0) continue;
+                    int x = ax + (int)((bx - ax) * s2), y = ay + (int)((by - ay) * s2);
+                    crista(x, y, dir, 4 + (int)(q * 4) - c2);
+                }
+            } else if (p < 0.95f) {
+                float t = (p - 0.5f) / 0.45f;                // a espuma espirrando em volta do alvo
+                for (int i = 0; i < 12; i++) {
+                    float an = i * 0.5236f + 0.2f, rr = R_DADO * (0.5f + t * 1.4f);
+                    int x = bx + (int)(cosf(an) * rr), y = by + (int)(sinf(an) * rr * 0.8f) + (int)(t * t * 10);
+                    gfx_rect(x - 1, y - 1, 3, 3, gfx_mistura(i % 3 ? C_BRANCO : RGB(96, 182, 198), C_FELTRO, (int)(t * 75)));
+                }
+                if (t < 0.4f) crista(bx, by, dir, 10);
+            }
         } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_OURICO) {
             // Ourico: um leque de espinhos voa dele ate o placar do rival.
             for (int i = 0; i < 5; i++) {
@@ -1233,14 +1508,105 @@ static void desenha_evento(void)
             projetil(ax, ay, bx, by, p / 0.42f, c);
         }
     }
+    // A Onda junta 9: a agua sobe e cobre o dado; quando baixa, ele e um
+    // Tsunami.
+    if (e->tipo == EV_ONDA) {
+        float h = p < 0.48f ? p / 0.48f : p < 0.85f ? 1 - (p - 0.48f) / 0.37f : 0;
+        h = h * h * (3 - 2 * h);
+        int base = ay + R_DADO + 6, topo = base - (int)(h * (2 * R_DADO + 22));
+        if (h > 0) {
+            for (int xx = ax - R_DADO - 10; xx <= ax + R_DADO + 10; xx++) {
+                int ty = topo + (int)(sinf(xx * 0.35f + t_fase * 14) * 2);
+                for (int yy = ty; yy < base; yy++)
+                    gfx_pixel(xx, yy, ((yy - ty) / 4) % 3 == 1 ? RGB(96, 182, 198) : C_AZUL);
+                gfx_pixel(xx, ty, C_BRANCO);
+                if ((xx + (int)(t_fase * 40)) % 5 == 0) gfx_rect(xx, ty - 2, 2, 2, C_BRANCO);
+            }
+        }
+        if (p > 0.5f && p < 0.97f) {
+            int ty = zona(e->de_j) < CENTRO ? ay + R_DADO + 12 : ay - R_DADO - 34;
+            int w = gfx_largura("TSUNAMI!", 1) + 12;
+            gfx_rect(ax - w / 2, ty - 2, w, TXT_H + 4, C_BARRA);
+            txt_c(ax, ty, "TSUNAMI!", RGB(96, 182, 198), true);
+            for (int i = 0; i < 8; i++) {                    // gotas que sobram da onda
+                float q = fmodf((p - 0.5f) * 2.2f + i * 0.125f, 1.0f);
+                int gx = ax - R_DADO + (i * 11) % (2 * R_DADO), gy = ay - R_DADO - 6 + (int)(q * q * 30);
+                gfx_rect(gx, gy, 2, 3, gfx_mistura(RGB(96, 182, 198), C_FELTRO, (int)(q * 70)));
+            }
+        }
+    }
+    // Treno: do treno saem os presentes, um para cada dado valendo antes dele,
+    // do primeiro (+1) ao ultimo; cada um cai em arco em cima do dado, que acende.
+    if (treno_agora(e)) {
+        static const uint16_t COR[3] = { C_VERMELHO, C_VERDE, C_AZUL };
+        int n = 0;
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q = (p - treno_sai(n)) / TRENO_VOO;
+            int bx = SLOT_X(k), by = ay - R_DADO - 8;
+            if (q >= 0 && q < 2.2f) {
+                float sq = q > 1 ? 1 : q * q * (3 - 2 * q);
+                int x = ax + (int)((bx - ax) * sq), y = ay - R_DADO + (int)((by - (ay - R_DADO)) * sq) - (int)(sinf(sq * 3.1416f) * 30);
+                if (q > 1) y -= (int)(sinf((q - 1) * 6) * 2);     // assenta com um pulinho
+                presente(x, y, COR[n % 3]);
+                if (q < 1)                                        // o rastro de neve
+                    for (int r = 1; r <= 3; r++) {
+                        float s2 = sq - r * 0.06f;
+                        if (s2 < 0) continue;
+                        int rx = ax + (int)((bx - ax) * s2), ry = ay - R_DADO + (int)((by - (ay - R_DADO)) * s2) - (int)(sinf(s2 * 3.1416f) * 30);
+                        gfx_rect(rx, ry, 2, 2, gfx_mistura(C_BRANCO, C_FELTRO, r * 25));
+                    }
+            }
+            n++;
+        }
+    }
+    // Rena: o nariz acende e uma luz vermelha corre ate cada vizinho valendo
+    // (o nariz guia o caminho); o vizinho acende quando ela chega.
+    if (e->tipo == EV_BONUS && e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_RENA) {
+        int nx = ax, ny = ay + (int)(R_DADO * 0.34f);
+        float pulso = 0.5f + 0.5f * sinf(t_fase * 16);
+        if (p < 0.9f) {
+            int hr = 4 + (int)(pulso * 3);
+            for (int a = 0; a < 16; a++)
+                gfx_pixel(nx + (int)(cosf(a * 0.3927f) * hr), ny + (int)(sinf(a * 0.3927f) * hr), gfx_mistura(C_VERMELHO, C_ROSA, (int)(pulso * 60)));
+        }
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q = (p - 0.18f) / 0.42f;
+            if (q < 0 || q >= 1.35f) continue;
+            float s = q > 1 ? 1 : q * q * (3 - 2 * q);
+            int bx = SLOT_X(k), by = ay - R_DADO - 2;
+            for (int r = 3; r >= 0; r--) {                  // a luz e o rastro
+                float s2 = s - r * 0.07f;
+                if (s2 < 0 || (q > 1 && r)) continue;
+                int lx = nx + (int)((bx - nx) * s2), ly = ny + (int)((by - ny) * s2) - (int)(sinf(s2 * 3.1416f) * 22);
+                gfx_disco(lx, ly, r ? 2 : 3, gfx_mistura(C_VERMELHO, C_FELTRO, r * 22));
+                if (!r) gfx_pixel(lx - 1, ly - 1, C_ROSA);
+            }
+        }
+    }
+    // Tres Patinhos: na vez que conta, os tres saltam do dado, um atras do
+    // outro, e ficam em fila em cima dele.
+    if (e->tipo == EV_MULT)
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1) || F[e->de_j].tipo[k] != D_PATINHOS || !patinhos_ativo(F[e->de_j].fixo[k])) continue;
+            int bx = SLOT_X(k), by = e->de_j == baixo ? zona(e->de_j) - R_DADO - 16 : zona(e->de_j) + R_DADO + 20;
+            for (int i = 0; i < 3; i++) {
+                float q = (p - 0.10f - i * 0.12f) / 0.22f;
+                if (q < 0) continue;
+                int hop = q < 1 ? (int)(sinf(q * 3.1416f) * 12) : (int)(fabsf(sinf((p + i * 0.3f) * 14)) * 2);
+                patinho(bx - 16 + i * 15, by - hop);
+            }
+        }
     // Sabotador: uma serra gira da mao dele ate o maior do rival e o corta
     // na diagonal; dali em diante ele vale metade.
     if (e->tipo == EV_CORTA) {
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        int sx = e->de_k < N_FILA ? ax : 60, sy = e->de_k < N_FILA ? ay : zona(e->de_j);   // o Ranzinza: da mao dele
         float q = p / 0.4f;
         if (q < 1) {
             float s = q * q * (3 - 2 * q);
-            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 30);
+            int x = sx + (int)((bx - sx) * s), y = sy + (int)((by - sy) * s) - (int)(sinf(s * 3.1416f) * 30);
             gfx_disco(x, y, 6, C_PRATA);
             for (int i = 0; i < 8; i++) {                // os dentes, girando
                 float an = t_fase * 18 + i * 0.785f;
@@ -1489,6 +1855,63 @@ static void desenha_evento(void)
                 gfx_disco(mx, my - 1, 3, C_OURO);
                 gfx_rect(mx - 1, my - 3, 2, 1, C_AMARELO);
             }
+        } else if (t == D_MEIA && e->valor > 0) {
+            // Meia na Lareira pagando: as moedas saltam da boca da meia, uma
+            // atras da outra, e voam em arco ate o placar.
+            int px = PLACAR_X, py = zona(e->de_j), n = e->valor < 10 ? (e->valor + 1) / 2 : 5;
+            for (int i = 0; i < n; i++) {
+                float q = (p - 0.08f - i * 0.07f) / 0.40f;
+                if (q < 0 || q >= 1) continue;
+                float sq = q * q * (3 - 2 * q);
+                moedinha(ax + (int)((px - ax) * sq), ay - R_DADO / 2 + (int)((py - ay) * sq) - (int)(sinf(sq * 3.1416f) * (34 + i * 4)));
+            }
+        } else if (t == D_MEIA) {
+            // Meia anulada: uma moeda cai do alto dentro dela e some, com um brilho.
+            float q = p / 0.45f;
+            if (q < 1) moedinha(ax - 2, ay - R_DADO - 34 + (int)(q * q * 30));
+            else if (p < 0.85f) estrelinha(ax - 2, ay - R_DADO / 2, (int)(2 + (p - 0.45f) * 8), C_AMARELO);
+        } else if (t == D_ESTRELA && e->mascara) {
+            // Estrela de Belem: a estrela sobe do dado e brilha; dela desce um
+            // facho de luz em cada dado valendo abaixo, do mais perto ao mais longe.
+            int sx = ax, sy = ay - R_DADO - 14 - (int)(suave(0, 0.15f, p) * 6);
+            float pulso = 0.5f + 0.5f * sinf(t_fase * 14);
+            estrelinha(sx, sy, 5 + (int)(pulso * 2), C_AMARELO);
+            estrelinha(sx, sy, 2, C_BRANCO);
+            int n = 0;
+            for (int k = N_FILA - 1; k >= 0; k--) {
+                if (!(e->mascara >> k & 1)) continue;
+                float q = (p - 0.15f - n++ * 0.12f) / 0.22f;
+                if (q < 0 || p > 0.92f) continue;
+                float s = q > 1 ? 1 : q * q * (3 - 2 * q);
+                int bx = SLOT_X(k), by = ay - R_DADO + 2;
+                int fx = sx + (int)((bx - sx) * s), fy = sy + (int)((by - sy) * s);
+                gfx_linha_grossa(sx, sy, fx, fy, 1, gfx_mistura(C_AMARELO, C_FELTRO, q > 1 ? (int)((q - 1) * 30) : 0));
+                if (q >= 1) estrelinha(bx, by - 3, 3 + (int)(pulso * 2), C_AMARELO);
+            }
+        } else if (t == D_JINGLE && e->mascara) {
+            // Jingle Bells: os sinos batem um no outro no ar (desenha_fila os
+            // move); em cada batida, um estalo de luz onde encostam, e
+            // notinhas sobem deles.
+            float b = sinos_juntos(p);
+            int n = 0, xs[N_FILA], ys[N_FILA];
+            for (int k = 0; k < N_FILA; k++)
+                if (e->mascara >> k & 1) { sino_pos(e, p, k, &xs[n], &ys[n]); n++; }
+            if (b > 0.80f)
+                for (int i = 0; i + 1 < n; i++) {
+                    int cx = (xs[i] + xs[i + 1]) / 2, cy = ys[i] - 4, m = (int)((b - 0.80f) / 0.20f * 9) + 3;
+                    for (int a = 0; a < 8; a++) {
+                        float an = a * 0.7854f;
+                        gfx_linha(cx + (int)(cosf(an) * 3), cy + (int)(sinf(an) * 3),
+                                  cx + (int)(cosf(an) * m), cy + (int)(sinf(an) * m), a % 2 ? C_AMARELO : C_BRANCO);
+                    }
+                }
+            for (int i = 0; i < n * 2 && p > 0.12f; i++) {
+                float q = fmodf(p * 1.4f + i * 0.23f, 1.0f);
+                if (p > 0.86f && q > 0.5f) continue;
+                int nx = xs[i / 2] + (i % 2 ? 14 : -16) + (int)(sinf(q * 6 + i) * 3);
+                int ny = ys[i / 2] - 4 - (int)(q * 12);
+                notinha(nx, ny, gfx_mistura(i % 3 ? C_OURO : C_AMARELO, C_FELTRO, (int)(q * 70)));
+            }
         } else if (t == D_MARTIR && e->mascara) {
             // Martir: a aureola sobe do dado caido e se reparte em luzes, uma
             // para cada dado seu que vale.
@@ -1629,8 +2052,8 @@ static void desenha_evento(void)
             gfx_disco(ax, topo, 2, C_OURO);
             if (q >= 1 && p < 0.85f) faiscas(ax + 12, topo + 10, t_fase, C_OURO);
         }
-        // Anel que se abre do dado.
-        float tt = p / 0.6f;
+        // Anel que se abre do dado (os sinos nao: eles saem do lugar).
+        float tt = t == D_JINGLE ? 1 : p / 0.6f;
         if (tt < 1) {
             int rr = (int)(R_DADO * (0.8f + tt * 1.3f));
             for (int a = 0; a < 40; a++) {
@@ -1640,7 +2063,7 @@ static void desenha_evento(void)
             }
         }
         float pm = capitao_agora(e) ? 0.7f : 0.45f;   // o Capitao: depois do ultimo galao
-        if (p > pm) {
+        if (p > pm && e->valor) {             // (a Meia anulada so guarda: nada sobe)
             char mais[8];
             snprintf(mais, sizeof mais, "+%d", e->valor);
             int ty = zona(e->de_j) - 10 - (int)((p - pm) * 30);

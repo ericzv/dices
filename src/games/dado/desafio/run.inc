@@ -276,9 +276,55 @@ static const perso_t PERSO[] = {
         { "A piada era você. Hahaha!", "Fim de jogo! Hahaha!" },
         { "Hahaha... ha. Você venceu o Coringa.", "A última risada é sua. Por hoje." } },
       0, { D_D20, D_ESCUDO, D_LASER }, ES_NORMAL },
+    // Os de dezembro (PERSO_NOEL em diante): o Papai Noel senta no lugar do
+    // Barao, com a mesma virada; os outros tres, um por salao.
+    { "O PAPAI NOEL",    "Veio do Polo Norte só para esta mesa.", 0.6f,
+      { D_TRENO, D_JINGLE, D_TRENO, D_JINGLE, D_PRESENTE, D_ESTRELA, D_RENA, 0xFF },
+      "Presente surpresa", "No começo de cada rodada, um dado da sua mão vem embrulhado: você só descobre qual é quando lança.",
+      0, REG_PRESENTE,
+      { { "Ho-ho-ho! Você foi bonzinho este ano?", "Trouxe presentes. Quase todos para mim." },
+        { "Ho-ho... carvão para você.", "Esse vai para a lista dos travessos." },
+        { "Ho-ho-ho!", "Feliz Natal para mim!" },
+        { "Ho... hm.", "As renas estão cansadas." },
+        { "Volte no ano que vem!", "O cassino continua no Polo Norte." },
+        { "Ho-ho-ho! Você mereceu o presente.", "Feliz Natal, campeão." } },
+      0, { D_TRENO, D_JINGLE, D_JINGLE }, ES_NORMAL },
+    { "O RANZINZA",      "Odeia o Natal. E você também.",    -0.2f,
+      { D_SABOTADOR, D_VAMPIRO, D_MALDICAO, D_TEIMOSO, D_D12, 0xFF },
+      "Bah, Natal", "Da 5ª rodada em diante, o seu maior dado de cada rodada pontua metade.", 0, REG_RANZINZA,
+      { { "Tire esse gorro da minha mesa.", "Bah. Natal." },
+        { "Bem feito.", "Hmpf. Justo." },
+        { "Menos um enfeite.", "Bah." },
+        { "Grr. Sorte de festa.", "Não comemore." },
+        { "Feliz nada para você.", "Agora apague essas luzes." },
+        { "...Tá. Bom Natal. Satisfeito?", "Bah. Ganhou." } },
+      6, { D_SABOTADOR, D_VAMPIRO }, ES_NORMAL },
+    { "O DUENDE",        "Faz os próprios dados na oficina do Noel.", 0.2f,
+      { D_D8, D_D6, D_PAR, D_GEMEO, D_ECO, D_COPIADOR, 0xFF },
+      "Linha de montagem", "Cada dado dele ganha +1 para cada outro dado igual na sequência dele.", 0, REG_DUENDE,
+      { { "Feitos à mão, um por um.", "Na oficina, tudo sai igual." },
+        { "Peça com defeito. A sua.", "Volta pra oficina!" },
+        { "Produção em série!", "Mais uma caixa pronta." },
+        { "Ajusto a máquina.", "Hm. Lote ruim." },
+        { "Tudo embrulhado e entregue!", "O Noel vai gostar." },
+        { "Você é bom de oficina.", "Volto pra bancada." } },
+      4, { D_GEMEO, D_PAR }, ES_NORMAL },
+    { "A RENA",          "Guia o trenó mesmo na neblina.",     0.1f,
+      { D_RENA, D_TRENO, D_ESTRELA, D_D8, D_SENTINELA, 0xFF },
+      "Nariz que guia", "O primeiro dado da sequência dela não é anulado pela sequência.", AM(A_LUVA), REG_NADA,
+      { { "Siga o nariz.", "Já guiei trenó em noite pior." },
+        { "Desviou do caminho.", "Ops. Neblina." },
+        { "Direto ao destino!", "O nariz não erra." },
+        { "Uma curva errada.", "Hm. Vento contrário." },
+        { "Entrega feita!", "Pode voltar pra casa." },
+        { "Você achou o caminho.", "Vou avisar o Noel." } },
+      1, { D_RENA, D_TRENO }, ES_NORMAL },
 };
 #define N_PERSO_COMUM 8                  // os oito primeiros...
 #define PERSO_NOVOS   11                 // ...e os comuns que vieram depois
 #define PERSO_CORINGA 21                 // o chefe do salao final
 #define N_PERSO       ((int)(sizeof PERSO / sizeof PERSO[0]))
-static bool perso_chefe(int p) { return p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + DES_ANDARES; }
+_Static_assert(N_PERSO == PERSO_RENA + 1, "os de dezembro no fim da lista");
+static bool perso_chefe(int p) { return (p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + DES_ANDARES) || p == PERSO_NOEL; }
+// Os de dezembro: so aparecem no Desafiante nesse mes.
+static bool perso_natal(int p) { return p >= PERSO_NOEL && p <= PERSO_RENA; }

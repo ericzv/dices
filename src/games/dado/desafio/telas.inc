@@ -61,10 +61,10 @@ static void nome_curto(const char *nome, char *s, int n)
 static int trunfos_do_nivel(int d, char *s, int n)
 {
     int q = 0, tot = 0;
-    for (int p = 0; p < N_PERSO; p++) tot += !perso_chefe(p) && PERSO[p].andar_trunfo == d;
+    for (int p = 0; p < N_PERSO; p++) tot += !perso_chefe(p) && !perso_natal(p) && PERSO[p].andar_trunfo == d;
     s[0] = 0;
     for (int p = 0; p < N_PERSO; p++) {
-        if (perso_chefe(p) || PERSO[p].andar_trunfo != d) continue;
+        if (perso_chefe(p) || perso_natal(p) || PERSO[p].andar_trunfo != d) continue;
         char nm[24];
         nome_curto(PERSO[p].nome, nm, sizeof nm);
         int l = (int)strlen(s);
@@ -289,7 +289,7 @@ static void desenha_dificuldade(void)
     int ly = py + 30;
     if (d > nv) {
         char s[64];
-        snprintf(s, sizeof s, "Vença %s no %s para abrir.", d - 1 >= CORINGA_DESDE ? "o Coringa" : "o Barão",
+        snprintf(s, sizeof s, "Vença %s no %s para abrir.", d - 1 >= CORINGA_DESDE ? "o Coringa" : nome_chefe(2),
                  NOME_DIF_CURTO[d - 1]);
         txt(px + 12, ly, s, C_VINHO_CLR, false);
         ly += 20;
@@ -327,13 +327,14 @@ static void desenha_dificuldade(void)
     txt(px + 12, ly, "Os chefes deste nível abrem:", C_TEXTO_M, false);
     ly += 18;
     static const char *const CURTO[CH_N] = { "Crupiê", "Dona", "Barão", "Coringa" };
+    const char *curto_c[CH_N] = { CURTO[0], CURTO[1], dezembro ? "Noel" : CURTO[2], CURTO[3] };
     for (int c = 0; c < chefes_de(d); c++) {
         novidade_t it[PEDACO_MAX];
         int ni = pedaco(d, c, it);
         if (!ni) continue;
         bool ab = chefe_abriu(d, c);
         int ix = px + 84, iy = ly + 9;
-        gfx_texto(px + 24, iy - 10, CURTO[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
+        gfx_texto(px + 24, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
         for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
             int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
             for (int q = 0; q < np; q++) {

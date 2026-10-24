@@ -85,6 +85,49 @@ static void tronco(uint16_t roupa, uint16_t pele, uint16_t camisa, uint16_t grav
     }
 }
 
+// Os enfeites de dezembro nos oponentes de sempre: o gorro do Papai Noel
+// (no lugar do que tinha em cima da cabeca), o cachecol listrado ou a tiara
+// com chifres de rena.
+static void gorro_natal(int hy)
+{
+    const uint16_t VERM = RGB(190, 40, 46), BRANCA = RGB(240, 238, 232);
+    for (int y = -RT_TOPO; y < hy - 1; y++)
+        for (int x = 0; x < 20; x++) rp(x, y, 0);              // o coque, o chapeu, os espetos: saem
+    rr(6, hy - 2, 9, 1, VERM); rr(7, hy - 3, 8, 1, VERM); rr(9, hy - 4, 5, 1, VERM);   // o cone, caindo para a direita
+    rr(14, hy - 4, 2, 1, sombra(VERM)); rr(15, hy - 3, 2, 1, sombra(VERM));
+    rp(8, hy - 3, luz(VERM)); rr(10, hy - 4, 2, 1, luz(VERM));
+    rr(16, hy - 2, 2, 2, BRANCA); rp(17, hy - 1, gfx_mistura(BRANCA, C_BARRA, 15));   // o pompom
+    rr(4, hy - 1, 12, 2, BRANCA); rr(4, hy, 12, 1, gfx_mistura(BRANCA, C_BARRA, 12)); // a barra de pelucia
+}
+static void cachecol_natal(int perso)
+{
+    uint16_t a = perso % 2 ? RGB(190, 40, 46) : RGB(46, 120, 70), b = RGB(240, 238, 232);
+    for (int x = 4; x < 16; x++) { rp(x, 16, (x / 2) % 2 ? a : b); rp(x, 17, (x / 2) % 2 ? b : a); }   // a volta, em listras
+    rr(12, 18, 3, 3, a); rr(12, 19, 3, 1, b);                  // a ponta caida, com franja
+    rp(12, 21, b); rp(14, 21, b);
+    rr(15, 18, 1, 3, sombra(a));
+}
+static void tiara_rena(int hy)
+{
+    const uint16_t CHIFRE = RGB(150, 104, 60), CLARO = RGB(196, 152, 96), TIARA = RGB(70, 46, 34);
+    rr(5, hy - 1, 10, 1, TIARA);
+    for (int s = 0; s < 2; s++) {
+        int x = s ? 13 : 6, d = s ? 1 : -1;
+        rr(x, hy - 3, 1, 2, CHIFRE);                            // a haste
+        rp(x + d, hy - 4, CHIFRE); rp(x + 2 * d, hy - 5, CLARO); // a ponta para fora
+        rp(x - d, hy - 4, CLARO);                               // e a de dentro
+        rp(x + d, hy - 2, CLARO);
+    }
+}
+static void enfeite_natal(int perso, int hy)
+{
+    static const uint8_t QUAL[PERSO_NOEL] = { 1, 0, 1, 0, 2, 2, 1, 0, 1, 2, 1, 0, 1, 0, 1, 2, 0, 1, 2, 1, 1, 1 };
+    if (perso < 0 || perso >= PERSO_NOEL) return;               // os de Natal (e os avatares) ja estao vestidos
+    if (QUAL[perso] == 0) gorro_natal(hy);
+    else if (QUAL[perso] == 1) cachecol_natal(perso);
+    else tiara_rena(hy);
+}
+
 // Desenha as linhas l0..l0+nl-1 do retrato em (x, y).
 static void retrato(int x, int y, int esc, int perso, float t, bool falando, int l0, int nl)
 {
@@ -631,6 +674,86 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         if (fmodf(t, 2.4f) < 0.25f) { rp(4, 19, C_BRANCO); rp(15, 19, C_AMARELO); }        // o brilho dos botoes
         break;
     }
+    case 22: {                                                  // PAPAI NOEL: gorro com pompom, barba farta, bochechas coradas
+        const uint16_t VERM = RGB(190, 40, 46), BRANCA = RGB(240, 238, 232), BARBA_S = RGB(206, 204, 198);
+        tronco(VERM, P_CLARA, 0, 0, 3);
+        rr(3, 17, 14, 1, BRANCA); rr(9, 18, 2, 3, BRANCA);      // a gola e a frente de pelucia
+        rr(1, 21, 18, 1, RGB(34, 28, 30)); rr(9, 21, 2, 1, C_OURO);   // o cinto e a fivela
+        // Virado, fica vermelho de raiva, como o Barao no lugar de quem ele senta.
+        uint16_t pele = bravo ? gfx_mistura(P_CLARA, RGB(222, 84, 72), 42) : P_CLARA;
+        rosto(hy, pele, BRANCA, bravo ? 1 : 2, pisca, boca);
+        rp(6, hy + 8, RGB(232, 140, 130)); rp(13, hy + 8, RGB(232, 140, 130));   // as bochechas
+        static const int8_t BW[6] = { 12, 12, 10, 8, 6, 4 };   // a barba: larga embaixo do nariz, afinando
+        for (int i = 0; i < 6; i++) {
+            int x0 = 10 - BW[i] / 2;
+            rr(x0, hy + 9 + i, BW[i], 1, BRANCA);
+            rp(x0 + BW[i] - 1, hy + 9 + i, BARBA_S);
+        }
+        rr(6, hy + 8, 8, 1, BRANCA); rp(5, hy + 9, BARBA_S); rp(14, hy + 9, BARBA_S);   // o bigode
+        if (boca) rr(9, hy + 10, 2, 2, RGB(60, 22, 26));
+        else rr(9, hy + 10, 2, 1, RGB(170, 70, 70));
+        rr(4, hy - 1, 12, 2, BRANCA); rr(4, hy, 12, 1, BARBA_S);   // o gorro: a barra de pelucia,
+        rr(5, hy - 2, 10, 1, VERM); rr(7, hy - 3, 8, 1, VERM); rr(9, hy - 4, 6, 1, VERM);   // o cone
+        rr(15, hy - 3, 2, 1, sombra(VERM)); rr(16, hy - 2, 2, 2, BRANCA);                 // e o pompom
+        rp(8, hy - 3, luz(VERM));
+        if ((int)(t / 2.2f) % 3 == 0 && fmodf(t, 2.2f) < 0.3f) rp(12, hy + 6, C_BRANCO);  // a piscadela de luz no olho
+        break;
+    }
+    case 23: {                                                  // RANZINZA: careca com tufos, sobrancelha unica, cara fechada
+        const uint16_t CASACO = RGB(74, 80, 66), CAB = GRISALHO, PELE = P_CLARA;
+        tronco(CASACO, PELE, 0, 0, 3);
+        rr(7, 17, 6, 1, sombra(CASACO)); for (int i = 0; i < 3; i++) rp(10, 18 + i, RGB(150, 130, 90));   // a gola e os botoes
+        rr(14, 19, 3, 2, RGB(110, 86, 62)); rp(15, 19, sombra(RGB(110, 86, 62)));   // o remendo no cotovelo
+        rosto(hy, PELE, CAB, 1, pisca, boca);
+        rr(4, hy + 2, 2, 3, CAB); rr(14, hy + 2, 2, 3, CAB);     // os tufos
+        rp(3, hy + 1, CAB); rp(16, hy + 1, CAB); rp(3, hy + 3, CAB); rp(16, hy + 3, CAB);
+        rr(7, hy, 4, 1, luz(PELE));                             // o brilho da careca
+        rr(7, hy + 4, 6, 1, sombra(CAB));                       // a sobrancelha, uma so
+        rr(9, hy + 7, 2, 2, sombra(PELE));                      // o narigao
+        if (!boca) { rr(8, hy + 9, 4, 1, RGB(110, 50, 50)); rp(7, hy + 10, RGB(110, 50, 50)); rp(12, hy + 10, RGB(110, 50, 50)); }   // a boca para baixo
+        break;
+    }
+    case 24: {                                                  // DUENDE: gorro verde com guizo, orelhas pontudas, gola de pontas
+        const uint16_t VERDE = RGB(60, 140, 76), VERM = RGB(190, 44, 50), CAB = RGB(176, 110, 52);
+        tronco(VERDE, P_CLARA, 0, 0, 3);
+        for (int i = 0; i < 5; i++) { rp(5 + i * 2, 17, VERM); rp(6 + i * 2, 18, VERM); }   // a gola de pontas
+        rr(16, 13, 1, 4, RGB(130, 90, 56)); rr(15, 12, 3, 2, RGB(150, 154, 164));          // o martelinho no ombro
+        rosto(hy, P_CLARA, CAB, 2, pisca, boca);
+        rp(3, hy + 4, P_CLARA); rp(2, hy + 3, P_CLARA); rr(3, hy + 5, 2, 2, P_CLARA);     // as orelhas pontudas
+        rp(16, hy + 4, P_CLARA); rp(17, hy + 3, P_CLARA); rr(15, hy + 5, 2, 2, P_CLARA);
+        rp(3, hy + 5, P_MEDIA); rp(16, hy + 5, P_MEDIA);       // o dentro das orelhas
+        rp(6, hy + 8, RGB(232, 140, 130)); rp(13, hy + 8, RGB(232, 140, 130));
+        rr(5, hy + 1, 10, 1, CAB);                              // a franja
+        rr(4, hy - 1, 12, 2, VERM);                             // o gorro: a barra vermelha,
+        rr(5, hy - 2, 10, 1, VERDE); rr(6, hy - 3, 8, 1, VERDE); rr(8, hy - 4, 5, 1, VERDE);   // o cone verde
+        rp(13, hy - 4, VERDE); rp(14, hy - 3, sombra(VERDE));
+        int bal = (int)(t / 0.6f) % 2;                          // e o guizo, balancando
+        rr(15 + bal, hy - 3, 2, 2, C_OURO); rp(15 + bal, hy - 3, C_AMARELO);
+        rr(6, hy - 3, 2, 1, luz(VERDE));
+        break;
+    }
+    case 25: {                                                  // RENA: pelo marrom, focinho claro, nariz vermelho e chifres
+        const uint16_t PELO = RGB(150, 104, 64), FOC = RGB(222, 190, 150), CHIFRE = RGB(196, 152, 96),
+                       VERM = RGB(206, 40, 44), CACH = RGB(46, 120, 70);
+        tronco(RGB(124, 84, 52), PELO, 0, 0, 3);
+        for (int x = 4; x < 16; x++) { rp(x, 16, (x / 2) % 2 ? CACH : C_BRANCO); rp(x, 17, (x / 2) % 2 ? C_BRANCO : CACH); }   // o cachecol
+        rosto(hy, PELO, RGB(90, 60, 36), 2, pisca, boca);
+        rr(2, hy + 3, 3, 2, PELO); rp(3, hy + 3, RGB(232, 170, 160));   // as orelhas, de lado
+        rr(15, hy + 3, 3, 2, sombra(PELO)); rp(16, hy + 3, RGB(232, 170, 160));
+        if (!pisca) { rp(6, hy + 5, RGB(30, 26, 30)); rp(13, hy + 5, RGB(30, 26, 30)); }   // os cilios
+        rr(7, hy + 8, 6, 4, FOC); rr(6, hy + 9, 1, 2, FOC); rr(13, hy + 9, 1, 2, sombra(FOC));   // o focinho
+        rr(9, hy + 7, 2, 2, VERM); rp(9, hy + 7, luz(luz(VERM)));      // o nariz que guia
+        if (boca) rr(9, hy + 10, 2, 1, RGB(60, 22, 26));
+        else { rp(8, hy + 10, RGB(120, 60, 50)); rp(11, hy + 10, RGB(120, 60, 50)); rr(9, hy + 11, 2, 1, RGB(120, 60, 50)); }
+        rr(8, hy - 1, 4, 1, PELO);                              // o topete
+        for (int s = 0; s < 2; s++) {                           // os chifres, abrindo
+            int x = s ? 13 : 6, d = s ? 1 : -1;
+            rr(x, hy - 3, 1, 3, CHIFRE);
+            rp(x + d, hy - 4, CHIFRE); rp(x + 2 * d, hy - 5, CHIFRE); rp(x + 2 * d, hy - 3, CHIFRE);
+            rp(x - d, hy - 4, luz(CHIFRE));
+        }
+        break;
+    }
     default: {                                                  // BARAO: cartola, monoculo, bigodao branco
         tronco(RGB(30, 30, 34), P_CLARA, RGB(236, 232, 222), RGB(30, 30, 34), 1);
         rr(13, 19, 3, 1, C_OURO);                               // corrente do relogio
@@ -669,6 +792,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         break;
     }
     }
+    if (dezembro) enfeite_natal(perso, hy);                     // em dezembro, todos se enfeitam
     // Contorno: tudo o que encosta num pixel cheio e esta vazio vira escuro.
     uint16_t contorno = RGB(14, 14, 13);
     for (int j = 0; j < RT_H; j++)
@@ -846,6 +970,9 @@ typedef struct {
     // Nos dois bytes que sobravam no fim (a run salva de antes abre igual):
     uint8_t  amuletos_x;                 // bit a: tem o amuleto 32 + a
     uint8_t  colar;                      // a ultima vitoria: a moeda do Colar de Perolas
+    // Depois do fim de antes (a run salva sem ele abre com 0): sem uso desde
+    // que todo Presente aberto fica; segue aqui para a run salva abrir igual.
+    uint8_t  presente;
 } run_t;
 
 static run_t run;

@@ -11,9 +11,34 @@ Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por u
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido; os
 seguintes precisam ser iguais ou maiores que o último dado válido — se sair
 menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
-termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
+termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 85
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
+
+**Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
+Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez
+escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas
+Lareira e Pinho com fita), e nove dados de Natal entram no jogo, nos dois
+modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus dados
+válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
+e anula o 4º dado do oponente), o **Jingle Bell** (d6: lançado, deixa uma
+cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
+um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
+vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
+pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
+0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
+apagado, 0), a **Meia na Lareira** (d4, guarda +2 cada vez que é anulada e
+paga tudo quando termina válida), a **Estrela de Belém** (d8, por último na
+sequência: +2 por dado válido abaixo dela) e a **Rena** (d6, +1 nos dados
+válidos ao lado dela). **Em dezembro**, o **Papai Noel** senta no lugar do
+Barão (trunfo "Presente surpresa": um dado da sua mão vem embrulhado e você
+só descobre qual é ao lançar; a bolsa dele é cheia de Trenós e Jingle Bells),
+cada salão tem um oponente de Natal — a **Rena** (o primeiro dado dela não
+cai pela sequência), o **Duende** (+1 por dado igual na sequência dele) e o
+**Ranzinza** (da 5ª rodada, o seu maior dado pontua metade) — e todos os
+retratos ganham gorro, cachecol ou tiara de rena. De 26 de dezembro a 6 de
+janeiro, abre também o feltro **Réveillon**, preto com ouro e fogos nos cantos. Fora
+da época, nada disso aparece.
 
 ## O menu
 
@@ -68,18 +93,29 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Susto, Blue e Maicon.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite, Galáxias, um céu de estrelas que cintilam com a Via Láctea
-  atravessando a mesa, e Natalino, com fita vinho e pisca-pisca na borda,
-  azevinho e neve), o material dos seus dados comuns (marfim, osso, jade,
-  obsidiana, ébano, madeira polida e pérola) e a mesa (nogueira e ouro, mogno
+  atravessando a mesa, Natalino, com fita vinho e pisca-pisca na borda,
+  azevinho e neve, aberto de 20 de outubro a 6 de janeiro, Mar à noite, com a lua e o reflexo dela cintilando na
+  água, Art déco, com leques de ouro nos cantos, Couro, com costura na
+  borda, e Losangos, com a estampa um tom acima; e, no Natal, Noite Feliz,
+  azul-noite com neve caindo devagar, Xadrez escocês e, de 26 de dezembro a
+  6 de janeiro, Réveillon), o material dos seus dados
+  comuns (marfim, osso, jade, obsidiana, ébano, madeira polida, pérola,
+  mármore, lápis-lazúli, pérola negra e bronze; no Natal, Bola de Natal
+  espelhada, Biscoito de gengibre com os pontos de glacê, Gelo com um floco
+  gravado e Veludo vinho) e a mesa (nogueira e ouro, mogno
   e cobre, ébano e prata, carvalho e bronze, e Led, laca preta com a moldura
-  de led vermelho respirando devagar). Abrem andar a andar: cada andar tem o
+  de led vermelho respirando devagar; no Natal, Lareira, tijolinho com a brasa
+  respirando no ritmo do led, e Pinho com fita). Abrem andar a andar: cada andar tem o
   seu, aberto por quem fecha a run naquela dificuldade.
   Os oponentes têm o material do nível deles (os chefes, obsidiana); os dados
   especiais têm um desenho só. Vencer a
   run abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
-  mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
+  mais estranhos entram aos poucos, alguns por nível (os Três Patinhos, x3 a
+  cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
+  cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um
+  Tsunami, no 7). Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

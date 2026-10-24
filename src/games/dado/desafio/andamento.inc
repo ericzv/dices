@@ -107,7 +107,7 @@ static bool des_carrega(run_t *r)
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > 1) r->colar = 0;
-    if (r->presente > 1) r->presente = 0;
+    r->presente = 0;                             // sem uso (todo Presente fica agora)
     return true;
 }
 
@@ -418,8 +418,6 @@ static void des_comeca_partida(void)
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
     zera_acumuladores(J[0].col, J[0].n_col);
-    presente_livre = !run.presente;
-    presente_virou = false;
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
@@ -463,7 +461,6 @@ static void des_resultado(void)
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);
-    if (presente_virou) run.presente = 1;
     if (perfil_atual >= 0 && perfis[perfil_atual].partidas < 65535) {
         perfis[perfil_atual].partidas++;
         perfis_salva();

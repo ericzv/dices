@@ -178,7 +178,7 @@ static void desenha_catalogo(void)
     int xt = etiquetas_protecao(etiqueta_caixa(x, 118, s, cor_rar(tipo)), 118, tipo);
     if (so_inicial(tipo)) txt(xt + 2, 119, "dado inicial", C_TEXTO_M, false);
     if (so_desafio(tipo)) txt(xt + 2, 119, "só no Desafiante", C_TEXTO_M, false);
-    if (de_natal(tipo)) txt(xt + 2, 119, "de Natal: só em novembro e dezembro", C_TEXTO_M, false);
+    if (de_natal(tipo)) txt(xt + 2, 119, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
     if (tipo == D_TSUNAMI) txt(xt + 2, 119, "nasce da Onda", C_TEXTO_M, false);
     if (st == 2) {
         linha_bloqueio(x, 139, trava);

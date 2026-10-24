@@ -15,7 +15,7 @@ termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 85
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
 
-**Natal** (novembro e dezembro, pelo relógio do computador): os estilos de
+**Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
 Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez
 escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas
 Lareira e Pinho com fita), e nove dados de Natal entram no jogo, nos dois
@@ -24,8 +24,8 @@ válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
 e anula o 4º dado do oponente), o **Jingle Bell** (d6: lançado, deixa uma
 cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
 um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
-vira um dado raro ao acaso naquela rodada; no Desafiante, o primeiro que você
-abre na run fica sendo esse dado de vez), o **Panetone** (d8, cada fatia com
+vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
+pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
 0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
 apagado, 0), a **Meia na Lareira** (d4, guarda +2 cada vez que é anulada e
 paga tudo quando termina válida), a **Estrela de Belém** (d8, por último na
@@ -36,8 +36,8 @@ só descobre qual é ao lançar; a bolsa dele é cheia de Trenós e Jingle Bells
 cada salão tem um oponente de Natal — a **Rena** (o primeiro dado dela não
 cai pela sequência), o **Duende** (+1 por dado igual na sequência dele) e o
 **Ranzinza** (da 5ª rodada, o seu maior dado pontua metade) — e todos os
-retratos ganham gorro, cachecol ou tiara de rena. Do dia 26 ao fim do ano,
-abre também o feltro **Réveillon**, preto com ouro e fogos nos cantos. Fora
+retratos ganham gorro, cachecol ou tiara de rena. De 26 de dezembro a 6 de
+janeiro, abre também o feltro **Réveillon**, preto com ouro e fogos nos cantos. Fora
 da época, nada disso aparece.
 
 ## O menu
@@ -94,11 +94,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite, Galáxias, um céu de estrelas que cintilam com a Via Láctea
   atravessando a mesa, Natalino, com fita vinho e pisca-pisca na borda,
-  azevinho e neve, aberto em novembro e dezembro, Mar à noite, com a lua e o reflexo dela cintilando na
+  azevinho e neve, aberto de 20 de outubro a 6 de janeiro, Mar à noite, com a lua e o reflexo dela cintilando na
   água, Art déco, com leques de ouro nos cantos, Couro, com costura na
   borda, e Losangos, com a estampa um tom acima; e, no Natal, Noite Feliz,
-  azul-noite com neve caindo devagar, Xadrez escocês e, do dia 26 ao fim do
-  ano, Réveillon), o material dos seus dados
+  azul-noite com neve caindo devagar, Xadrez escocês e, de 26 de dezembro a
+  6 de janeiro, Réveillon), o material dos seus dados
   comuns (marfim, osso, jade, obsidiana, ébano, madeira polida, pérola,
   mármore, lápis-lazúli, pérola negra e bronze; no Natal, Bola de Natal
   espelhada, Biscoito de gengibre com os pontos de glacê, Gelo com um floco

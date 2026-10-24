@@ -1530,8 +1530,8 @@ int main(void)
             CONFERE(d.total[0] == 3 && poder_armado(0, 0) == 0, "Rena sem vizinho valendo: 3, deu %d", d.total[0]);
             limpa(); joga(0, D_RENA, 2); joga(0, D_RENA, 3); d = fim();
             CONFERE(d.total[0] == 2 + 3 + 2, "duas Renas puxam uma a outra: 7, deu %d", d.total[0]);
-            // Presente: desembrulha um raro ao acaso, so nesta rodada; no
-            // Desafiante, o primeiro que voce abre na run fica de vez.
+            // Presente: desembrulha um raro ao acaso, que fica no lugar dele na
+            // bolsa (no Desafiante, pela run; nas outras, ate o fim da partida).
             {
                 int modo0 = modo;
                 modo = M_DOIS;
@@ -1542,21 +1542,24 @@ int main(void)
                     CONFERE(TIPO[t].raridade == RAR_RARO && !sem_sorteio(t) && !so_desafio(t) && t != D_PRESENTE
                             && F[0].tipo[0] == t && F[0].presente[0], "Presente vira um raro (%s)", TIPO[t].nome);
                 }
-                modo = M_DESAFIO;
-                int n0 = J[0].n_col;
-                J[0].col[n0] = nova_peca(D_PRESENTE);
-                J[0].col[n0 + 1] = nova_peca(D_PRESENTE);
-                J[0].n_col += 2;
-                presente_livre = true; presente_virou = false;
-                lance_fixo = 1;
-                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)n0;
-                int t = desembrulha(0, 0, lance_q);
-                CONFERE(J[0].col[n0].tipo == t && !presente_livre && presente_virou, "o primeiro Presente da run fica");
-                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)(n0 + 1);
-                desembrulha(0, 0, lance_q);
-                CONFERE(J[0].col[n0 + 1].tipo == D_PRESENTE, "o segundo Presente volta embrulhado");
-                J[0].n_col -= 2;
-                presente_livre = presente_virou = false;
+                for (int m = 0; m < 2; m++) {            // nos dois modos, e para os dois lados
+                    modo = m ? M_DESAFIO : M_DOIS;
+                    for (int j = 0; j < 2; j++) {
+                        int n0 = J[j].n_col;
+                        J[j].col[n0] = nova_peca(D_PRESENTE);
+                        J[j].col[n0 + 1] = nova_peca(D_PRESENTE);
+                        J[j].n_col += 2;
+                        lance_fixo = 1;
+                        limpa(); F[j].tipo[0] = D_PRESENTE; F[j].idx[0] = (int8_t)n0;
+                        int t = desembrulha(j, 0, lance_q);
+                        lance_fixo = 2;
+                        limpa(); F[j].tipo[0] = D_PRESENTE; F[j].idx[0] = (int8_t)(n0 + 1);
+                        int t2 = desembrulha(j, 0, lance_q);
+                        CONFERE(J[j].col[n0].tipo == t && J[j].col[n0 + 1].tipo == t2 && t != D_PRESENTE && t2 != D_PRESENTE
+                                && F[j].presente[0] == 2, "modo %d, jogador %d: os dois Presentes ficam", modo, j);
+                        J[j].n_col -= 2;
+                    }
+                }
                 modo = modo0;
             }
             // Os trunfos de dezembro: o Ranzinza corta o seu maior da 5a rodada,
@@ -1615,6 +1618,17 @@ int main(void)
                         && grupo_do_dado(D_JINGLE) != GR_NENHUM, "os de Natal: sem nivel, com grupo");
                 rodada = 1;
                 CONFERE(!dezembro && !reveillon, "novembro: nem dezembro, nem Reveillon");
+                // As datas: de 20 de outubro a 6 de janeiro; o Reveillon de 26/12 a 6/1.
+                static const struct { int8_t mes, dia; bool n, d, r; } DT[] = {
+                    { 9, 19, 0, 0, 0 }, { 9, 20, 1, 0, 0 }, { 10, 15, 1, 0, 0 }, { 11, 1, 1, 1, 0 }, { 11, 25, 1, 1, 0 },
+                    { 11, 26, 1, 1, 1 }, { 11, 31, 1, 1, 1 }, { 0, 1, 1, 0, 1 }, { 0, 6, 1, 0, 1 }, { 0, 7, 0, 0, 0 },
+                    { 5, 15, 0, 0, 0 } };
+                for (unsigned i = 0; i < sizeof DT / sizeof DT[0]; i++) {
+                    poe_epoca(DT[i].mes, DT[i].dia);
+                    CONFERE(natal == DT[i].n && dezembro == DT[i].d && reveillon == DT[i].r,
+                            "dia %d/%d: natal %d dezembro %d reveillon %d", DT[i].dia, DT[i].mes + 1, natal, dezembro, reveillon);
+                }
+                natal_forcado = 1; le_epoca();
                 natal_forcado = 2; le_epoca();
                 CONFERE(natal && dezembro && !reveillon, "dezembro, antes do dia 26");
                 natal_forcado = 3; le_epoca();

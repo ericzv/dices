@@ -398,9 +398,6 @@ static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
 static int  des_foco(void);
 static bool dado_liberado(int t);
-// O Presente no Desafiante: o primeiro que voce abre na run vira de vez
-// (livre: ainda nao abriu nenhum; virou: abriu nesta partida).
-static bool presente_livre, presente_virou;
 static void des_resumo(char *s, int n);
 static void des_esc(void);
 static int  remoto;                  // bit j: jogador j joga do outro computador

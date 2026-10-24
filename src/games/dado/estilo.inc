@@ -186,8 +186,9 @@ static const uint16_t NOITE_NEVE[2] = { RGB(64, 80, 112), RGB(206, 216, 236) };
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
 // Barao, ou do Nivel 5 o Coringa; -1: sempre aberto). O Natalino nao e de
-// andar nenhum: fica aberto em novembro e dezembro, e so (ANDAR_NATAL); os
-// outros de Natal tambem. O Reveillon, so do dia 26 de dezembro ao fim do ano.
+// andar nenhum: fica aberto de 20 de outubro a 6 de janeiro, e so
+// (ANDAR_NATAL); os outros de Natal tambem. O Reveillon, so de 26 de dezembro
+// a 6 de janeiro.
 #define ANDAR_NATAL (-2)
 #define ANDAR_REVEILLON (-3)
 static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, ANDAR_NATAL, 10, 9, 5, 1,

@@ -49,7 +49,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA,
        D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO, D_COLECIONADOR,
        D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
-       // Os de Natal (so em novembro e dezembro) e os mais novos.
+       // Os de Natal (so de 20 de outubro a 6 de janeiro) e os mais novos.
        D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS,
        D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
@@ -83,10 +83,10 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ESTRELA_PTS 2
 // O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
 static bool pisca_aceso(int fixo) { return !(fixo & 1); }
-// A epoca do Natal (novembro e dezembro): o feltro Natalino abre e os dados
+// A epoca do Natal (20 de outubro a 6 de janeiro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
 // Em dezembro o Papai Noel e os oponentes de Natal chegam ao cassino; do dia
-// 26 ao fim do ano, o feltro do Reveillon.
+// 26 de dezembro a 6 de janeiro, o feltro do Reveillon.
 static bool natal, dezembro, reveillon;
 static bool de_natal(int t)
 {
@@ -104,7 +104,7 @@ static bool fora_de_epoca(int t) { return de_natal(t) && !natal; }
 static bool oculto(int t) { return t == D_MISTERIOSO; }
 // Dados que nao saem em sorteio nenhum (premio, loja, liberacao): o oculto, o
 // Fantasma, que so aparece quando alguem o poe na bolsa, o Tsunami, que so
-// nasce de uma Onda, e os de Natal fora de novembro e dezembro.
+// nasce de uma Onda, e os de Natal fora da epoca.
 static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t); }
 static bool so_desafio(int t)
 {
@@ -226,7 +226,7 @@ static const tipo_t TIPO[D_N] = {
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Não pontua · válido: guarda o que tirou; 9 vira Tsunami" },
     { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula um dado do oponente" },
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que termina válido: x3" },
-    { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: desembrulha um dado raro ao acaso" },
+    { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ao acaso" },
     { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
     { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Uma vez aceso (x2), outra apagado (0)" },
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +2 · válida: paga tudo" },
@@ -338,7 +338,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ONDA]            = "Não pontua. Cada vez que termina válido, guarda o que tirou; ao juntar 9, vira um Tsunami.",
     [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula um dado do oponente, ao acaso.",
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que termina válido, pontua x3. Os patinhos marcam a contagem.",
-    [D_PRESENTE]        = "Ao ser lançado, desembrulha: vira um dado raro ao acaso, só nesta rodada.",
+    [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ao acaso, que fica no lugar dele na bolsa.",
     [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
     [D_PISCA]           = "Lançado aceso, pontua x2; na vez seguinte, apagado, pontua 0. O dado mostra como vem.",
     [D_MEIA]            = "Cada vez que termina anulada, guarda +2. Válida, paga tudo o que guardou e esvazia.",
@@ -515,13 +515,13 @@ static const char *TEXTO_CAT[D_N] = {
     [D_SANGUESSUGA]     = "Oito lados. Ao ser lançado, anula o dado anterior na sequência (se ele puder ser anulado), e a "
                           "sequência segue a partir dela. Este dado não pode ser anulado.",
     [D_TRENO]           = "Oito lados. Se terminar válido, puxa os seus dados válidos que vieram antes dele na sequência: o "
-                          "primeiro pontua +1, o segundo +2 e o terceiro +3 no fim da rodada. Só aparece em novembro e "
-                          "dezembro.",
+                          "primeiro pontua +1, o segundo +2 e o terceiro +3 no fim da rodada. Só aparece de 20 de outubro "
+                          "a 6 de janeiro.",
     [D_BONECO]          = "Oito lados. Se terminar válido tirando 8, no fim da rodada congela e anula o 4º dado da sequência "
-                          "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece em novembro e dezembro.",
+                          "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_JINGLE]          = "Seis lados. Cada vez que é lançado, válido ou não, uma cópia dele (com os mesmos adesivos) entra na "
                           "sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
-                          "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece em novembro e dezembro.",
+                          "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_FURIA]           = "Quatro lados. Cada vez que tira 4, guarda +2 de bônus; cada vez que tira 1, perde 1. O bônus "
                           "guardado, já com o lance de agora, soma no que ele tira, de rodada em rodada, sem limite, e pode "
                           "ficar negativo. Recomeça a cada partida.",
@@ -533,22 +533,23 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PATINHOS]        = "Quatro lados. Conta as vezes que termina válido: na 3ª, na 6ª, na 9ª... pontua x3 no fim da "
                           "rodada. Os três patinhos no dado marcam a contagem; com os três acesos, ele está ativo. A "
                           "contagem fica com ele.",
-    [D_PRESENTE]        = "Seis lados, embrulhado. Ao ser lançado, desembrulha e vira um dado raro sorteado, que joga no "
-                          "lugar dele nesta rodada (no Desafiante, só os que você já abriu). No Desafiante, o primeiro "
-                          "Presente que você abre na run fica sendo esse dado de vez. Só aparece em novembro e dezembro.",
+    [D_PRESENTE]        = "Seis lados, embrulhado. Ao ser lançado, desembrulha e vira um dado raro sorteado (no Desafiante, "
+                          "só entre os que você já abriu): o Presente sai e o dado novo fica no lugar dele na bolsa - no "
+                          "Desafiante, pela run inteira; nas outras partidas, até o fim da partida. Só aparece de 20 de "
+                          "outubro a 6 de janeiro.",
     [D_PANETONE]        = "Oito lados. Cada vez que é lançado, a fatia vem com 0, 1, 2 ou 3 frutas cristalizadas, ao acaso: "
-                          "esse bônus soma no que ele tirou, se terminar válido. Só aparece em novembro e dezembro.",
+                          "esse bônus soma no que ele tirou, se terminar válido. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_PISCA]           = "Quatro lados. Alterna a cada vez que é lançado: aceso, pontua x2; apagado, pontua 0 (mas conta "
                           "na sequência com o número que tirou). As luzinhas no dado mostram como ele vem na próxima vez. "
-                          "Só aparece em novembro e dezembro.",
+                          "Só aparece de 20 de outubro a 6 de janeiro.",
     [D_MEIA]            = "Quatro lados. Cada vez que termina a rodada anulada, guarda +2 na meia. Quando termina válida, "
                           "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece em "
-                          "novembro e dezembro.",
+                          "20 de outubro a 6 de janeiro.",
     [D_ESTRELA]         = "Oito lados. Se terminar válida e for o último dado que você lançou na rodada (a estrela no "
                           "topo da árvore), pontua +2 no fim para cada dado seu válido abaixo dela. Só aparece em "
-                          "novembro e dezembro.",
+                          "20 de outubro a 6 de janeiro.",
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
-                          "se terminarem válidos, pontuam +1 cada. Só aparece em novembro e dezembro.",
+                          "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -587,7 +588,7 @@ static void classe(int tipo, char *s, int n)
 }
 
 // O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
-// fora de novembro e dezembro, os de Natal.
+// fora da epoca, os de Natal.
 static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t); }
 static int n_catalogo(void)
 {

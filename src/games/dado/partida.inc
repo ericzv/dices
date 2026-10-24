@@ -395,9 +395,10 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     return x;
 }
 
-// O Presente desembrulha no lance: um dado raro ao acaso, que joga no lugar
-// dele nesta rodada (no Desafiante, os seus so entre os que voce ja abriu). O
-// primeiro que voce abre na run fica sendo esse dado de vez.
+// O Presente desembrulha no lance: um dado raro ao acaso (no Desafiante, os
+// seus so entre os que voce ja abriu), que sai dele e fica no lugar dele na
+// bolsa - no Desafiante, pela run (a bolsa volta para a run como terminou a
+// partida); nas outras, ate o fim da partida.
 static int desembrulha(int j, int k, int (*r)(int))
 {
     fila_t *fe = &F[j];
@@ -422,11 +423,9 @@ static int desembrulha(int j, int k, int (*r)(int))
     f->fixo[k] = nova_peca(t).fixo;
     f->presente[k] = 1;
     int i = f->idx[k];
-    if (modo == M_DESAFIO && j == 0 && presente_livre && i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {
+    if (i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {   // a copia do Coringa nao tem peca
         J[j].col[i].tipo = (uint8_t)t;          // fica: os adesivos seguem com ele
         J[j].col[i].fixo = f->fixo[k];
-        presente_livre = false;
-        presente_virou = true;
         f->presente[k] = 2;
     }
     return t;

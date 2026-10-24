@@ -27,26 +27,35 @@ static int face_v(int tipo, int valor)
     if (tipo == D_LASTRO)   return 3 + rola_v(9);
     return rola_v(TIPO[tipo].lados);
 }
-// A epoca do Natal, pelo relogio do computador: novembro e dezembro. Online,
+// A epoca do Natal, pelo relogio do computador: de 20 de outubro a 6 de
+// janeiro (o Dia de Reis). Dentro dela, dezembro (o Papai Noel e os
+// oponentes de Natal) e o Reveillon (de 26 de dezembro a 6 de janeiro). Online,
 // pelo de Greenwich, para os dois lados sortearem dos mesmos dados. Le-se no
 // comeco de cada partida (e na volta ao menu). natal_forcado: os testes e as
 // cenas de amostra fixam a epoca (0 fora dela, 1 novembro, 2 dezembro, 3 do
 // dia 26 em diante; -1, o relogio).
+#define NATAL_DESDE 20                   // o dia de outubro em que comeca
+#define NATAL_ATE   6                    // e o de janeiro em que acaba
 static int natal_forcado = -1;
+static void poe_epoca(int mes, int dia)  // mes de 0 (janeiro) a 11
+{
+    bool jan = mes == 0 && dia <= NATAL_ATE;
+    natal = (mes == 9 && dia >= NATAL_DESDE) || mes == 10 || mes == 11 || jan;
+    dezembro = mes == 11;
+    reveillon = (dezembro && dia >= 26) || jan;
+}
 static void le_epoca(void)
 {
-    int mes = -1, dia = 0;
     if (natal_forcado >= 0) {
-        mes = natal_forcado == 0 ? 0 : natal_forcado == 1 ? 10 : 11;
-        dia = natal_forcado == 3 ? 26 : 1;
-    } else {
-        time_t agora = time(NULL);
-        const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
-        if (m) { mes = m->tm_mon; dia = m->tm_mday; }
+        static const int8_t MES[4] = { 3, 10, 11, 11 }, DIA[4] = { 1, 1, 1, 26 };
+        int f = natal_forcado < 4 ? natal_forcado : 0;
+        poe_epoca(MES[f], DIA[f]);
+        return;
     }
-    natal = mes == 10 || mes == 11;
-    dezembro = mes == 11;
-    reveillon = dezembro && dia >= 26;
+    time_t agora = time(NULL);
+    const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
+    if (m) poe_epoca(m->tm_mon, m->tm_mday);
+    else natal = dezembro = reveillon = false;
 }
 
 static int outro(int j) { return j ^ 1; }

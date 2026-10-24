@@ -12,8 +12,9 @@ static const char *chave_estilo(int i)
     return K[i >= 0 && i < N_PERFIS ? i : 0];
 }
 
-// Aberto para o perfil i? (andar -1: sempre aberto; ANDAR_NATAL: em novembro
-// e dezembro, para todos; ANDAR_REVEILLON: do dia 26 ao fim do ano) Quem
+// Aberto para o perfil i? (andar -1: sempre aberto; ANDAR_NATAL: de 20 de
+// outubro a 6 de janeiro, para todos; ANDAR_REVEILLON: de 26 de dezembro a 6
+// de janeiro) Quem
 // fecha a run do andar o abre.
 static bool estilo_aberto(int i, int andar)
 {
@@ -202,8 +203,8 @@ static void desenha_estilo(void)
     int fl = es_foco / ES_LIN, k = es_foco % ES_LIN, andar = es_andar(fl, k);
     char s[96];
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
-    else if (andar == ANDAR_NATAL) snprintf(s, sizeof s, "%s  ·  só em novembro e dezembro", es_nome(fl, k));
-    else if (andar == ANDAR_REVEILLON) snprintf(s, sizeof s, "%s  ·  só do dia 26 de dezembro ao fim do ano", es_nome(fl, k));
+    else if (andar == ANDAR_NATAL) snprintf(s, sizeof s, "%s  ·  só de 20 de outubro a 6 de janeiro", es_nome(fl, k));
+    else if (andar == ANDAR_REVEILLON) snprintf(s, sizeof s, "%s  ·  só de 26 de dezembro a 6 de janeiro", es_nome(fl, k));
     else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), nome_chefe(chefe_final(andar)));
     else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), nome_chefe(chefe_final(andar)),
                   NOME_DIF_CURTO[andar]);

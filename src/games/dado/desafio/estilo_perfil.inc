@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
 // O estilo do perfil: o feltro, a mesa e o material dos seus dados comuns.
 // Abre andar a andar no Desafiante (vencer a run naquela dificuldade) e
-// fica na chave do perfil ("EST1" + feltro, material e mesa, um digito cada).
+// fica na chave do perfil ("EST1" + feltro, material e mesa, um caractere
+// cada: '0' + o numero, que passa do 9).
 // ---------------------------------------------------------------------------
 static int estilo_mat = MAT_MARFIM;          // o material dos seus dados comuns
 
@@ -12,10 +13,12 @@ static const char *chave_estilo(int i)
 }
 
 // Aberto para o perfil i? (andar -1: sempre aberto; ANDAR_NATAL: em novembro
-// e dezembro, para todos) Quem fecha a run do andar o abre.
+// e dezembro, para todos; ANDAR_REVEILLON: do dia 26 ao fim do ano) Quem
+// fecha a run do andar o abre.
 static bool estilo_aberto(int i, int andar)
 {
     if (andar == ANDAR_NATAL) return natal;
+    if (andar == ANDAR_REVEILLON) return reveillon;
     if (andar < 0) return true;
     return i >= 0 && i < N_PERFIS && perfis[i].nome[0] && chefe_abriu_de(&perfis[i], andar, chefe_final(andar));
 }
@@ -56,6 +59,7 @@ static void estilo_do_perfil(void)
 // vai para a mesa na hora - a mesa atras e a previa; o fechado diz o andar
 // que o abre. es_foco: linha * ES_LIN + opcao.
 #define ES_LIN 16
+#define ES_VE  11                                // quantas opcoes cabem numa linha
 static int es_foco;
 
 static void estilo_abre(int i)
@@ -100,7 +104,25 @@ static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
         gfx_rect(cx - 25, cy - 15, 50, 30, mad);
         for (int y = 0; y < 30; y += 2)
             for (int x = 0; x < 50; x++) if (ruido_xy(x / 7 + k * 9, y) % 5 == 0) gfx_pixel(cx - 25 + x, cy - 15 + y, veio);
-        if (k == MS_LED) {                       // a fita acesa no lugar da moldura
+        if (k == MS_LAREIRA) {                   // o tijolinho e a brasa
+            for (int y = 0; y < 30; y++)
+                for (int x = 0; x < 50; x++) {
+                    int fiada = y / 5, bx = x + (fiada & 1) * 6;
+                    uint16_t c = y % 5 == 4 || bx % 12 == 11 ? MESAS[k].madeira[0]
+                               : ruido_xy(bx / 12 + 2, fiada) % 4 == 0 ? MESAS[k].madeira[2] : MESAS[k].madeira[1];
+                    gfx_pixel(cx - 25 + x, cy - 15 + y, c);
+                }
+            gfx_moldura(cx - 16, cy - 8, 32, 24, 1, BRASA_TOM[1]);
+            gfx_moldura(cx - 15, cy - 7, 30, 22, 2, BRASA_TOM[3]);
+            for (int i = 0; i < 30; i += 3) { gfx_pixel(cx - 15 + i, cy - 7, BRASA_TOM[5]); gfx_pixel(cx - 14 + i, cy + 14, BRASA_TOM[5]); }
+            gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
+        } else if (k == MS_PINHO) {              // a fita vermelha, com o laco
+            gfx_moldura(cx - 15, cy - 7, 30, 22, 1, FITA_VERM[2]);
+            gfx_moldura(cx - 14, cy - 6, 28, 20, 1, FITA_VERM[1]);
+            gfx_rect(cx - 13, cy - 5, 26, 18, feltro_tons[3]);
+            gfx_rect(cx - 5, cy - 10, 4, 4, FITA_VERM[1]); gfx_rect(cx + 2, cy - 10, 4, 4, FITA_VERM[1]);
+            gfx_rect(cx - 1, cy - 9, 3, 3, FITA_VERM[2]);
+        } else if (k == MS_LED) {                // a fita acesa no lugar da moldura
             gfx_moldura(cx - 16, cy - 8, 32, 24, 1, LED_HALO[4]);
             gfx_moldura(cx - 15, cy - 7, 30, 22, 1, LED_TOM[3]);
             gfx_moldura(cx - 14, cy - 6, 28, 20, 1, LED_TOM[5]);
@@ -141,10 +163,27 @@ static void desenha_estilo(void)
         ui_painel(26, y, GFX_W - 52, 76);
         int wt = gfx_texto(40, y + 2, TIT[lin], lin == es_foco / ES_LIN ? C_OURO : C_LATAO, 1, true);
         if (lin == 1) gfx_texto(40 + wt + 8, y + 3, "os comuns", C_TEXTO_M, GFX_FINO, false);
-        int vao = (GFX_W - 72) / n > 92 ? 92 : (GFX_W - 72) / n;
-        int x0 = GFX_W / 2 - (n * vao) / 2 + vao / 2, sw = vao - 2 < 64 ? vao - 2 : 64;
-        for (int k = 0; k < n; k++) {
-            int cx = x0 + k * vao, cy = y + 44;
+        // Mais de ES_VE opcoes: uma janela de ES_VE que so anda quando o foco
+        // (ou a que esta em uso) sai dela; as setas mostram (e passam) o resto.
+        static int es_ini[3];
+        int ve = n < ES_VE ? n : ES_VE, foco = lin == es_foco / ES_LIN ? es_foco % ES_LIN : em_uso[lin];
+        int ini = es_ini[lin];
+        if (foco < ini) ini = foco;
+        if (foco >= ini + ve) ini = foco - ve + 1;
+        ini = ini < 0 ? 0 : ini > n - ve ? n - ve : ini;
+        es_ini[lin] = ini;
+        int vao = (GFX_W - 72) / ve > 92 ? 92 : (GFX_W - 72) / ve;
+        int x0 = GFX_W / 2 - (ve * vao) / 2 + vao / 2, sw = vao - 2 < 64 ? vao - 2 : 64;
+        if (ini > 0) {
+            txt(31, y + 38, "<", C_OURO, true);
+            zona_clique(28, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini - 1, 'v');
+        }
+        if (ini + ve < n) {
+            txt(GFX_W - 31 - gfx_largura(">", 1), y + 38, ">", C_OURO, true);
+            zona_clique(GFX_W - 42, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini + ve, 'v');
+        }
+        for (int k = ini; k < ini + ve; k++) {
+            int cx = x0 + (k - ini) * vao, cy = y + 44;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
             if (k == em_uso[lin]) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
             else if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
@@ -164,6 +203,7 @@ static void desenha_estilo(void)
     char s[96];
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
     else if (andar == ANDAR_NATAL) snprintf(s, sizeof s, "%s  ·  só em novembro e dezembro", es_nome(fl, k));
+    else if (andar == ANDAR_REVEILLON) snprintf(s, sizeof s, "%s  ·  só do dia 26 de dezembro ao fim do ano", es_nome(fl, k));
     else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)]);
     else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)],
                   NOME_DIF_CURTO[andar]);

@@ -5,7 +5,8 @@
 // dados comuns; o que ainda nao abriu fica no padrao. Os oponentes tem o
 // material do nivel deles. Os dados especiais tem um desenho so, o mesmo
 // para os dois lados.
-enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_GALAXIA, FT_NATAL, FT_MAR, FT_DECO, FT_COURO, FT_LOSANGO, FT_N };
+enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_GALAXIA, FT_NATAL, FT_MAR, FT_DECO, FT_COURO, FT_LOSANGO,
+       FT_NOITE_FELIZ, FT_XADREZ, FT_REVEILLON, FT_N };
 static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
     // do mais escuro (a sombra) ao realce, e o texto discreto
     [FT_VERDE]   = { "Verde", { RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36),
@@ -31,10 +32,20 @@ static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
                                 RGB(70, 45, 29), RGB(98, 66, 44), RGB(214, 194, 172) } },
     [FT_LOSANGO] = { "Losangos", { RGB(6, 19, 18), RGB(9, 28, 26), RGB(12, 37, 34), RGB(15, 46, 42),
                                    RGB(23, 61, 55), RGB(42, 86, 76), RGB(176, 196, 190) } },
+    // Os do fim do ano: a noite azul com neve caindo devagar, o xadrez
+    // escoces vermelho e verde (o vermelho e o feltro; o verde, as faixas) e
+    // o Reveillon, preto com ouro e fogos nos cantos.
+    [FT_NOITE_FELIZ] = { "Noite Feliz", { RGB(5, 9, 22), RGB(8, 14, 32), RGB(11, 19, 42), RGB(14, 24, 52),
+                                          RGB(24, 38, 74), RGB(46, 64, 106), RGB(178, 190, 214) } },
+    [FT_XADREZ]  = { "Xadrez escocês", { RGB(30, 6, 8), RGB(46, 10, 12), RGB(60, 14, 16), RGB(74, 18, 20),
+                                         RGB(94, 28, 28), RGB(124, 48, 44), RGB(214, 182, 176) } },
+    [FT_REVEILLON] = { "Réveillon", { RGB(6, 6, 6), RGB(10, 10, 10), RGB(14, 14, 13), RGB(18, 18, 17),
+                                      RGB(28, 27, 24), RGB(52, 48, 40), RGB(196, 186, 160) } },
 };
 
 enum { MAT_MARFIM, MAT_OSSO, MAT_JADE, MAT_OBSIDIANA, MAT_EBANO, MAT_MADEIRA, MAT_PEROLA,
-       MAT_MARMORE, MAT_LAPIS, MAT_PEROLA_NEGRA, MAT_BRONZE, MAT_N };
+       MAT_MARMORE, MAT_LAPIS, MAT_PEROLA_NEGRA, MAT_BRONZE,
+       MAT_BOLA, MAT_BISCOITO, MAT_GELO, MAT_VELUDO, MAT_N };
 typedef struct {
     const char *nome;
     uint16_t tons[5];            // o corpo: sombra, meia-sombra, corpo, luz, reflexo
@@ -81,6 +92,21 @@ static const material_t MATERIAL[MAT_N] = {
     [MAT_BRONZE]    = { "Bronze", { RGB(94, 58, 24), RGB(130, 86, 36), RGB(166, 116, 52), RGB(202, 154, 78),
                                     RGB(238, 206, 140) }, RGB(238, 206, 140), 0,
                         RGB(58, 32, 14), RGB(112, 92, 74), RGB(70, 54, 40) },
+    // Os de Natal: a bola vermelha espelhada, com os pontos de ouro; o
+    // biscoito de gengibre, com os pontos de glace; o gelo azul, com um floco
+    // gravado; e o veludo vinho, com os pontos de ouro - o mais sobrio.
+    [MAT_BOLA]      = { "Bola de Natal", { RGB(70, 8, 14), RGB(112, 16, 24), RGB(152, 26, 34), RGB(196, 50, 54),
+                                           RGB(250, 196, 184) }, RGB(250, 196, 184), 0,
+                        RGB(240, 206, 120), RGB(96, 52, 54), RGB(146, 120, 80) },
+    [MAT_BISCOITO]  = { "Biscoito", { RGB(96, 52, 24), RGB(118, 66, 32), RGB(142, 84, 42), RGB(164, 104, 56),
+                                      RGB(186, 128, 74) }, RGB(192, 136, 82), 0,
+                        RGB(250, 246, 236), RGB(110, 84, 64), RGB(176, 162, 146) },
+    [MAT_GELO]      = { "Gelo", { RGB(112, 156, 196), RGB(140, 184, 218), RGB(170, 208, 234), RGB(200, 228, 246),
+                                  RGB(236, 248, 254) }, RGB(236, 248, 254), 0,
+                        RGB(28, 56, 104), RGB(132, 150, 168), RGB(72, 88, 112) },
+    [MAT_VELUDO]    = { "Veludo vinho", { RGB(48, 10, 20), RGB(64, 16, 28), RGB(80, 22, 36), RGB(98, 32, 46),
+                                          RGB(120, 46, 60) }, RGB(124, 52, 64), 0,
+                        RGB(226, 190, 104), RGB(62, 40, 46), RGB(132, 112, 80) },
 };
 // O furta-cor da perola: rosado e azulado, em faixas largas no corpo; o da
 // perola negra, esverdeado e arroxeado.
@@ -89,10 +115,13 @@ static const uint16_t PEROLA_NEGRA_FURTA[2] = { RGB(70, 86, 84), RGB(86, 74, 98)
 // Os veios do marmore (o forte e o fraco) e as pintas de ouro do lapis-lazuli.
 static const uint16_t MARMORE_VEIO[2] = { RGB(146, 150, 160), RGB(180, 184, 192) };
 static const uint16_t LAPIS_OURO = RGB(222, 188, 100);
+// O floco gravado no gelo (o sulco e a luz dele) e as migalhas do biscoito.
+static const uint16_t GELO_FLOCO[2] = { RGB(120, 166, 206), RGB(246, 252, 255) };
+static const uint16_t BISCOITO_MIGALHA[2] = { RGB(80, 42, 18), RGB(206, 152, 98) };
 
 // A mesa: a madeira (veio, corpo, filete de luz) e o metal da moldura. A de
 // nogueira e ouro e a de sempre: o metal acompanha os andares do Desafiante.
-enum { MS_NOGUEIRA, MS_MOGNO, MS_EBANO, MS_CARVALHO, MS_LED, MS_N };
+enum { MS_NOGUEIRA, MS_MOGNO, MS_EBANO, MS_CARVALHO, MS_LED, MS_LAREIRA, MS_PINHO, MS_N };
 static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N] = {
     [MS_NOGUEIRA] = { "Nogueira e ouro", { 0, 0, 0 }, 0 },
     [MS_MOGNO]    = { "Mogno e cobre", { RGB(44, 16, 14), RGB(66, 24, 20), RGB(104, 40, 32) }, RGB(184, 110, 70) },
@@ -100,6 +129,11 @@ static const struct { const char *nome; uint16_t madeira[3], metal; } MESAS[MS_N
     [MS_CARVALHO] = { "Carvalho e bronze", { RGB(128, 90, 54), RGB(150, 108, 66), RGB(204, 164, 110) }, RGB(176, 124, 72) },
     // Laca preta, e a moldura e uma fita de led vermelha que respira (pinta_mesa).
     [MS_LED]      = { "Led", { RGB(10, 10, 12), RGB(18, 18, 22), RGB(70, 68, 76) }, RGB(204, 42, 46) },
+    // A lareira: tijolinho em volta (madeira: o rejunte, o tijolo, a luz) e,
+    // no lugar da moldura, a brasa que respira com o led. O pinho claro, com
+    // uma fita vermelha no lugar do metal.
+    [MS_LAREIRA]  = { "Lareira", { RGB(54, 30, 24), RGB(132, 58, 40), RGB(170, 86, 60) }, RGB(232, 108, 40) },
+    [MS_PINHO]    = { "Pinho com fita", { RGB(170, 128, 78), RGB(206, 166, 110), RGB(232, 202, 150) }, RGB(178, 30, 40) },
 };
 
 // Os enfeites dos estilos novos (pinta_mesa): cores exatas, so deles.
@@ -133,14 +167,34 @@ static const uint16_t LED_TOM[LED_N]  = { RGB(110, 18, 22), RGB(140, 24, 30), RG
                                           RGB(232, 58, 60), RGB(252, 92, 88), RGB(255, 124, 114) };
 static const uint16_t LED_HALO[LED_N] = { RGB(30, 8, 10), RGB(42, 10, 12), RGB(56, 14, 16), RGB(72, 18, 20),
                                           RGB(88, 22, 24), RGB(108, 28, 30), RGB(120, 32, 34) };
+// A brasa da Lareira: do carvao ao amarelo, e o tijolo esquentando perto dela.
+#define BRASA_N 7
+static const uint16_t BRASA_TOM[BRASA_N] = { RGB(60, 16, 10), RGB(98, 24, 12), RGB(140, 38, 14), RGB(184, 60, 18),
+                                            RGB(224, 96, 26), RGB(246, 142, 44), RGB(255, 196, 92) };
+static const uint16_t BRASA_TIJOLO[2] = { RGB(150, 70, 46), RGB(184, 96, 62) };
+// A fita do Pinho: a sombra, o cetim e o brilho dele.
+static const uint16_t FITA_VERM[3] = { RGB(110, 14, 22), RGB(178, 30, 40), RGB(226, 82, 84) };
+// O xadrez: o verde das faixas, o cruzamento com o vermelho (do escuro ao
+// claro, um por tom do feltro) e o fio claro que corta.
+static const uint16_t XADREZ_VERDE[3] = { RGB(10, 30, 18), RGB(14, 42, 26), RGB(18, 54, 32) };
+static const uint16_t XADREZ_MISTO[3] = { RGB(22, 20, 14), RGB(30, 28, 18), RGB(38, 36, 22) };
+static const uint16_t XADREZ_FIO[2]   = { RGB(92, 72, 40), RGB(120, 96, 52) };
+// O Reveillon: o ouro dos fogos, do mais forte ao que se apaga.
+static const uint16_t FOGOS_TOM[4] = { RGB(255, 236, 170), RGB(236, 196, 102), RGB(170, 132, 62), RGB(92, 72, 36) };
+// A neve da Noite Feliz: a fraca, ao longe, e a do floco que cai.
+static const uint16_t NOITE_NEVE[2] = { RGB(64, 80, 112), RGB(206, 216, 236) };
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
 // Barao, ou do Nivel 5 o Coringa; -1: sempre aberto). O Natalino nao e de
-// andar nenhum: fica aberto em novembro e dezembro, e so (ANDAR_NATAL).
+// andar nenhum: fica aberto em novembro e dezembro, e so (ANDAR_NATAL); os
+// outros de Natal tambem. O Reveillon, so do dia 26 de dezembro ao fim do ano.
 #define ANDAR_NATAL (-2)
-static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, ANDAR_NATAL, 10, 9, 5, 1 };
-static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1, 6, 7, 8, 3 };
-static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6, 9 };
+#define ANDAR_REVEILLON (-3)
+static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, ANDAR_NATAL, 10, 9, 5, 1,
+                                            ANDAR_NATAL, ANDAR_NATAL, ANDAR_REVEILLON };
+static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1, 6, 7, 8, 3,
+                                             ANDAR_NATAL, ANDAR_NATAL, ANDAR_NATAL, ANDAR_NATAL };
+static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6, 9, ANDAR_NATAL, ANDAR_NATAL };
 
 static int estilo_feltro, estilo_mesa;      // o que esta na mesa agora
 static uint8_t material_j[2];               // o material dos dados comuns de cada lado
@@ -190,6 +244,16 @@ static void aplica_estilo(int feltro, int mesa_id)
     gfx_paleta_exata(&NATAL_FIO, 1);
     gfx_paleta_exata(LED_TOM, LED_N);
     gfx_paleta_exata(LED_HALO, LED_N);
+    gfx_paleta_exata(GELO_FLOCO, 2);
+    gfx_paleta_exata(BISCOITO_MIGALHA, 2);
+    gfx_paleta_exata(BRASA_TOM, BRASA_N);
+    gfx_paleta_exata(BRASA_TIJOLO, 2);
+    gfx_paleta_exata(FITA_VERM, 3);
+    gfx_paleta_exata(XADREZ_VERDE, 3);
+    gfx_paleta_exata(XADREZ_MISTO, 3);
+    gfx_paleta_exata(XADREZ_FIO, 2);
+    gfx_paleta_exata(FOGOS_TOM, 4);
+    gfx_paleta_exata(NOITE_NEVE, 2);
     estilo_versao++;
 }
 

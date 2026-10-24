@@ -41,6 +41,17 @@ static const char *const NOME[SOM_N] = {
     [SOM_VALIDO2] = "valido2",   [SOM_VALIDO3] = "valido3",   [SOM_VALIDO4] = "valido4",
     [SOM_BATE_DADO] = "bate_dado", [SOM_PASSA] = "passa",
     [SOM_MOEDA_BATE] = "moeda_bate", [SOM_MOEDA_POUSA] = "moeda_pousa",
+    [SOM_SUSPENSE] = "suspense", [SOM_FORTE] = "forte",
+    [SOM_AD_COLA] = "ad_cola",   [SOM_AD_CHUMBO] = "ad_chumbo", [SOM_AD_REFLEXIVO] = "ad_reflexivo",
+    [SOM_AD_AVESSO] = "ad_avesso", [SOM_AD_CONFETE] = "ad_confete", [SOM_AD_ELETRONICO] = "ad_eletronico",
+    [SOM_AD_TRANSPARENTE] = "ad_transparente", [SOM_AD_DOURADO] = "ad_dourado", [SOM_AD_LOBO] = "ad_lobo",
+    [SOM_AD_REMENDO] = "ad_remendo", [SOM_AD_RASPADINHA] = "ad_raspadinha", [SOM_AD_FERMENTO] = "ad_fermento",
+    [SOM_AD_BIS] = "ad_bis",     [SOM_AD_MIRA] = "ad_mira",     [SOM_AD_GORJETA] = "ad_gorjeta",
+    [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
+    [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
+    [SOM_BOLSA_ESPIA] = "bolsa_espia",
+    [SOM_SINO] = "sino",         [SOM_GELO] = "gelo",         [SOM_ONDA] = "onda",
+    [SOM_PRESENTE] = "presente", [SOM_ESTRELA] = "estrela",
 };
 
 typedef struct {
@@ -149,9 +160,10 @@ static voz_t vozes[N_VOZES];
 static portMUX_TYPE trava = portMUX_INITIALIZER_UNLOCKED;
 
 // Estado do lado do jogo (como no PC).
-static bool rufando, girando;
+static bool rufando, girando, suspense;
 static int rolando = -1;                     // o trecho do rufo da vez: dado ou moeda
 static float f_rufo, f_giro, duck = 1;
+static float t_climax;                       // > 0: um climax tocando (a trilha abaixa ate ele acabar)
 
 // ---------------------------------------------------------------------------
 // sons.bin
@@ -255,9 +267,9 @@ void som_mistura(int16_t *saida, int n)
 // ---------------------------------------------------------------------------
 // hal/som.h
 // ---------------------------------------------------------------------------
-void som_toca(int s)
+// Toca o som s com o passo (16.16) dado: 1 << 16 e o tom gravado.
+static void toca(int s, uint32_t passo)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
     efeito_t *e = &ef[s];
     int var = 0;
     if (e->n > 1) {                          // sorteia outra gravacao, nunca a mesma de antes
@@ -266,11 +278,11 @@ void som_toca(int s)
         e->ultima = var;
     }
     int t = e->var[var];
-    uint32_t passo = 1u << 16;
-    // Batidas, pousos e fichas tambem variam um pouco de tom.
-    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
-        s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA)
-        passo = (uint32_t)((0.9f + 0.2f * (float)(rand() % 1001) / 1000.0f) * 65536);
+    // Nos climax (Jackpot, fim, premio) a trilha abaixa enquanto eles tocam.
+    if (s == SOM_JACKPOT || s == SOM_FIM || s == SOM_DERROTA || s == SOM_PREMIO) {
+        float dur = trechos[t].n / 44100.0f * 65536.0f / passo;
+        if (dur > t_climax) t_climax = dur;
+    }
     portENTER_CRITICAL(&trava);
     int iguais = 0, velha_igual = -1, livre = -1, velha = 0;
     for (int v = 0; v < N_EFEITOS; v++) {
@@ -286,6 +298,26 @@ void som_toca(int s)
     comeca(&vozes[v], t, passo, 256, false);
     portEXIT_CRITICAL(&trava);
 }
+
+void som_toca(int s)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    uint32_t passo = 1u << 16;
+    // Batidas, pousos e fichas variam um pouco de tom.
+    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
+        s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA)
+        passo = (uint32_t)((0.9f + 0.2f * (float)(rand() % 1001) / 1000.0f) * 65536);
+    toca(s, passo);
+}
+
+// Um semitom e a raiz duodecima de 2: doze sobem uma oitava.
+void som_toca_tom(int s, int semitons)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    toca(s, (uint32_t)(powf(2.0f, semitons / 12.0f) * 65536));
+}
+
+void som_suspense(bool on) { suspense = on; }
 
 bool som_liga(bool on) { ligado = on && pronto; return ligado; }
 bool som_ligado(void) { return ligado; }
@@ -339,8 +371,12 @@ void som_atualiza(float dt)
     // O giro entra na hora e sai em 80 ms, quando o ultimo rolo trava.
     float ag = girando && ligado ? 1 : 0;
     f_giro += (ag - f_giro) * fminf(1, dt / (girando ? 0.02f : 0.08f));
-    float d = rufando || girando ? 0.45f : 1;
-    duck += (d - duck) * fminf(1, dt / 0.25f);
+    // Na hora da verdade a trilha quase some; nos climax (Jackpot, fim da
+    // partida, premio) abaixa enquanto eles tocam. Depois volta sem pressa.
+    if (t_climax > 0) t_climax -= dt;
+    float d = suspense ? 0.08f : (rufando || girando ? 0.45f : 1);
+    if (t_climax > 0 && d > 0.35f) d = 0.35f;
+    duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.4f ? 0.9f : 0.25f));
 
     portENTER_CRITICAL(&trava);
     voz_t *r = &vozes[V_RUFO], *g = &vozes[V_GIRO];

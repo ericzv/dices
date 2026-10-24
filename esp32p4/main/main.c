@@ -87,8 +87,19 @@ void sis_brilho(int pct) { brilho = pct; if (luz_acesa) tela_brilho(pct); }
 void sis_volume(int pct) { audio_volume(pct); }
 void sis_gira(bool g) { tela_gira(g); }
 int  sis_toque_estado(void) { return toque_ok() ? 1 : 0; }
-bool sis_hora(int *h, int *m) { return relogio_le(h, m); }
-void sis_acerta_hora(int h, int m) { relogio_acerta(h, m); }
+bool sis_data_hora(sis_data_t *d)
+{
+    struct tm t;
+    bool com_data;
+    if (!relogio_le(&t, &com_data)) return false;
+    *d = (sis_data_t){ com_data ? t.tm_year + 1900 : 0, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min };
+    return true;
+}
+void sis_acerta_data_hora(const sis_data_t *d)
+{
+    struct tm t = { .tm_year = d->ano - 1900, .tm_mon = d->mes - 1, .tm_mday = d->dia, .tm_hour = d->h, .tm_min = d->m };
+    relogio_acerta(&t);
+}
 void sis_reinicia(void) { esp_restart(); }
 bool sis_bateria(int *pct, int *mv, bool *carregando) { return bateria_le(pct, mv, carregando); }
 

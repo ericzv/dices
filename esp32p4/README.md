@@ -17,6 +17,13 @@ Este diretório é um projeto paralelo: não mexe no jogo nem no build do PC.
   imagem 180°, calibrar o toque, as opções do jogo (no Dado em Casa,
   animações rápidas), o relógio e um cartão "Sobre" com o chip, a memória, a
   versão do painel e do firmware, a bateria e o botão **Desligar**.
+- **Data e hora** (Ajustes → Relógio → **Acertar**): dia, mês, ano, hora e
+  minuto, com + e −; segurar corre os números. Fica no relógio da placa
+  (RX8025T) e, ao ligar, vai para o relógio do sistema, que é o que o jogo
+  lê: a época do Natal (de 20 de outubro ao Dia de Reis, com dezembro e o
+  Réveillon) e o dia da run campeã no histórico. Enquanto a data não for
+  acertada (as versões antigas deste firmware só acertavam a hora), o cartão
+  avisa em amarelo e o jogo fica fora da época, sem data no histórico.
 - **Descanso de tela:** 3 minutos sem toque, a tela fica preta e a luz
   apaga (o jogo fica parado). Um toque acende, e esse toque não vale como
   toque. Uma imagem parada por muito tempo pode marcar o painel de LCD.
@@ -171,12 +178,12 @@ esp32p4/
     catalogo.c      a lista de jogos
     jogo_dado.c     o Dado em Casa no console: capa, ícone, logotipo, adaptador
   main/           o firmware: tela, toque, som, relógio, salvamento
-    tela.c          JD9365 por MIPI-DSI, dois quadros, giro com a PPA, luz
+    tela.c          JD9365 por MIPI-DSI, três quadros, giro com a PPA, luz
     painel_jd9365.h as sequências de início das duas telas
     toque.c         GSL3680 (e toque_fw.h, o firmware que vai para o chip)
     audio.c         I2S, codec ES8311 e amplificador
     som_p4.c        o som do jogo: as gravações do sons.bin e o misturador
-    relogio.c       RX8025T
+    relogio.c       RX8025T: data e hora, postas no relógio do sistema
     bateria.c       a tensão da bateria (ADC no GPIO52)
     salva_nvs.c     o salvamento dos jogos na flash (NVS), um espaço por jogo
     placa.h         os pinos
@@ -211,10 +218,12 @@ esp32p4/
   bateria a 4,15 V ou mais, aparece o raio (carregando ou cheia na tomada).
 - **Sons:** o PC toca as gravações de `desktop/sons/*.ogg`. Abrir OGG no
   ESP32-P4 custaria processador demais, então elas vão convertidas para
-  `main/sons.bin` (2,2 MB em IMA ADPCM, um trecho por arquivo, com o mesmo
-  nome); `main/som_p4.c` lê cada voz direto dali, aos poucos, sem abrir nada
-  na memória, e segue o `desktop/som.c` (variantes sorteadas, tom variando
-  nas batidas, rufo e giro com rampa abaixando a trilha). Se os sons do PC
+  `main/sons.bin` (82 sons, 2,9 MB em IMA ADPCM, um trecho por arquivo, com
+  o mesmo nome); `main/som_p4.c` lê cada voz direto dali, aos poucos, sem
+  abrir nada na memória, e segue o `desktop/som.c` (variantes sorteadas, tom
+  variando nas batidas e nos adesivos, rufo e giro com rampa abaixando a
+  trilha, a trilha quase calando no suspense e baixando nos grandes
+  momentos). Se os sons do PC
   mudarem, o build avisa; gere de novo com o simulador (da raiz):
 
   ```sh

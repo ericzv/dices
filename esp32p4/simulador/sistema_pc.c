@@ -23,7 +23,8 @@ int64_t esp_timer_get_time(void)
 
 int pc_brilho = 80, pc_volume = 70;
 bool pc_gira;
-static int desvio_min;                    // o relogio acertado: minutos somados a hora do PC
+static long desvio_s;                     // o relogio acertado: segundos somados a hora do PC
+static bool acertado;
 
 void *sis_aloca(size_t n) { return calloc(1, n); }
 void sis_brilho(int pct) { pc_brilho = pct; }
@@ -53,23 +54,29 @@ bool sis_mostra_jogo(const uint16_t *px, int w, int h, int k, int x, int y, cons
     return false;
 }
 
-bool sis_hora(int *h, int *m)
+// O relogio do PC, com o que se acertou nos Ajustes somado. RELOGIO_SEM_DATA
+// faz de conta que o aparelho ainda nao sabe o dia.
+bool sis_data_hora(sis_data_t *d)
 {
-    time_t t = time(NULL);
+    time_t t = time(NULL) + desvio_s;
     struct tm *l = localtime(&t);
-    int min = (l->tm_hour * 60 + l->tm_min + desvio_min) % 1440;
-    if (min < 0) min += 1440;
-    *h = min / 60;
-    *m = min % 60;
+    bool sem_data = !acertado && getenv("RELOGIO_SEM_DATA");
+    *d = (sis_data_t){ sem_data ? 0 : l->tm_year + 1900, l->tm_mon + 1, l->tm_mday, l->tm_hour, l->tm_min };
     return true;
 }
 
-void sis_acerta_hora(int h, int m)
+void sis_acerta_data_hora(const sis_data_t *d)
 {
-    int ah, am;
-    desvio_min = 0;
-    sis_hora(&ah, &am);
-    desvio_min = (h * 60 + m) - (ah * 60 + am);
+    time_t agora = time(NULL);
+    struct tm t = *localtime(&agora);
+    t.tm_year = d->ano - 1900;
+    t.tm_mon = d->mes - 1;
+    t.tm_mday = d->dia;
+    t.tm_hour = d->h;
+    t.tm_min = d->m;
+    t.tm_isdst = -1;
+    desvio_s = (long)(mktime(&t) - agora);
+    acertado = true;
 }
 
 int sis_info(char *buf, int n)

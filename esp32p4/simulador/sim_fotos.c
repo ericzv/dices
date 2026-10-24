@@ -20,6 +20,8 @@ bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
+void som_toca_tom(int s, int t) { (void)s; (void)t; }
+void som_suspense(bool on) { (void)on; }
 bool som_musica(bool on) { return on; }
 
 static uint16_t px[TELA_W * TELA_H];
@@ -123,6 +125,16 @@ int main(int argc, char **argv)
     foto("limpa_cor");
     toca(640, 400);                             // um toque para: volta aos ajustes
     quadros(20);
+    // A data (RELOGIO_SEM_DATA=1: um aparelho que ainda nao sabe o dia).
+    toca(1108, 384);                            // Relogio: Acertar
+    quadros(30);
+    foto("data");
+    segura(182, 290, 1.6f);                     // segura o + do dia: os numeros correm
+    quadros(5);
+    foto("data_corre");
+    toca(640, 672);                             // Pronto
+    quadros(30);
+    foto("ajustes_data");
     toca(80, 64);                               // volta para a central
     quadros(30);
     toca(640, 626);                             // Ir para o inicio
@@ -131,10 +143,10 @@ int main(int argc, char **argv)
     toca(200, 703);                             // Continuar
     quadros(20);
 
-    // Uma partida rapida contra o aparelho, pelo teclado do jogo.
-    tecla_jogo(KEY_ENTER);                      // 1 jogador
-    tecla_jogo(KEY_ENTER);                      // partida rapida
-    tecla_jogo(KEY_ENTER);                      // nivel
+    // Uma partida de 2 jogadores, pelo teclado do jogo (1 jogador e o Modo
+    // Desafiante).
+    tecla_jogo(KEY_RIGHT);                      // 2 jogadores
+    tecla_jogo(KEY_ENTER);
     quadros(240);
     foto("partida");
     segura(320, 640, 0.9f);                     // segurar: detalhes do que esta embaixo

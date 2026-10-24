@@ -142,7 +142,8 @@ static uint32_t hoje(void)
 {
     time_t t = time(NULL);
     const struct tm *m = localtime(&t);
-    return m ? (uint32_t)((m->tm_year + 1900) * 10000 + (m->tm_mon + 1) * 100 + m->tm_mday) : 0;
+    // 0: sem data (um relogio que nao sabe o dia fica antes de 2020)
+    return m && m->tm_year >= 120 ? (uint32_t)((m->tm_year + 1900) * 10000 + (m->tm_mon + 1) * 100 + m->tm_mday) : 0;
 }
 
 // O seu dado pousou: a fila cheia valendo; a hora da verdade (1 caiu, 2 deu

@@ -144,7 +144,7 @@ static void acao(int id)
 {
     switch (C.tela) {
     case T_INICIO:  inicio_acao(id); break;
-    case T_AJUSTES: ajustes_acao(id); break;
+    case T_AJUSTES: case T_DATA: ajustes_acao(id); break;
     case T_JOGO:    jogo_acao(id); break;
     case T_CENTRAL: central_acao(id); break;
     default:        primeira_acao(id); break;
@@ -328,6 +328,7 @@ void console_botao(void)
     case T_JOGO:    central_abre(); break;
     case T_CENTRAL: console_vai(T_JOGO); break;
     case T_AJUSTES: console_vai(T_INICIO); break;
+    case T_DATA:    console_vai(T_AJUSTES); break;
     case T_INICIO:  if (C.ativo) console_vai(T_JOGO); break;
     default: break;
     }
@@ -379,11 +380,12 @@ void console_passo(float dt)
     if ((t_rel += dt) >= 1) {
         t_rel = 0;
         int h = -1, m = -1;
-        if (!sis_hora(&h, &m)) h = m = -1;
+        sis_data_t d;
+        if (sis_data_hora(&d)) h = d.h, m = d.m;
         if (h != C.hora || m != C.minuto) {
             C.hora = h;
             C.minuto = m;
-            if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES) C.sujo = true;
+            if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES || C.tela == T_DATA) C.sujo = true;
         }
         // A bateria: so muda de 5 em 5% (a tensao sobe e desce um pouco o tempo todo).
         int pct, mv;
@@ -392,7 +394,7 @@ void console_passo(float dt)
         if (b != C.bateria || carga != C.carregando) {
             C.bateria = b;
             C.carregando = carga;
-            if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES) C.sujo = true;
+            if (C.tela == T_INICIO || C.tela == T_CENTRAL || C.tela == T_AJUSTES || C.tela == T_DATA) C.sujo = true;
         }
     }
 
@@ -401,6 +403,7 @@ void console_passo(float dt)
     case T_CALIBRA: calibra_passo(dt); break;
     case T_TELA:    tela_teste_passo(dt); break;
     case T_LIMPA:   limpa_passo(dt); break;
+    case T_DATA:    data_passo(dt); break;
     case T_JOGO:
         if (C.ativo) C.ativo->passo(dt);
         break;
@@ -425,7 +428,7 @@ bool console_desenha(tela_t *t)
     z_limpa();
     switch (C.tela) {
     case T_INICIO:  inicio_desenha(); break;
-    case T_AJUSTES: ajustes_desenha(); break;
+    case T_AJUSTES: case T_DATA: ajustes_desenha(); break;
     case T_JOGO:    jogo_desenha_tela(); break;
     case T_CENTRAL: central_desenha(); break;
     default:        primeira_desenha(); break;

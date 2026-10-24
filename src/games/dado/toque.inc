@@ -68,6 +68,43 @@ static const char *const DICAS_TOQUE[][2] = {
       "toque num dado para escolher  ·  segure para ver tudo sobre ele" },
     { "ENTER volta ao menu", "toque para voltar ao menu" },
     { "ENTER escolhe o prêmio", "toque para escolher o prêmio" },
+    // novidades da main (bolsa, colecao, Desafiante: lojas, historico, estilo)
+    { "ESC (ou o <) de novo: sair conta como derrota, e a run acaba.",
+      "Toque no < de novo para sair: conta como derrota, e a run acaba." },
+    { "ENTER continua", "toque para continuar" },
+    { "apagados: fora da bolsa  ·  clique ou qualquer tecla fecha", "apagados: fora da bolsa  ·  toque para fechar" },
+    { "clique ou qualquer tecla fecha", "toque para fechar" },
+    { "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta",
+      "toque à esquerda ou à direita para trocar o amuleto  ·  as abas trocam a seção" },
+    { "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta",
+      "toque à esquerda ou à direita para trocar o adesivo  ·  as abas trocam a seção" },
+    { "setas escolhem  ·  ENTER confirma  ·  BACKSPACE volta", "toque para escolher  ·  de novo para confirmar" },
+    { "ENTER leva o amuleto", "toque no amuleto para levar" },
+    { "setas veem as mesas  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu",
+      "toque numa mesa para escolher  ·  de novo para sentar  ·  a bolsa fica no alto" },
+    { "ENTER mostra as novidades", "toque para ver as novidades" },
+    { "ENTER mostra a novidade", "toque para ver a novidade" },
+    { "ENTER: o chefe deixa um amuleto", "toque: o chefe deixa um amuleto" },
+    { "ENTER vai à loja", "toque para ir à loja" },
+    { "setas escolhem  ·  ENTER ou ESC volta", "toque para escolher  ·  o < volta" },
+    { "TAB resumo  ·  setas trocam a página  ·  ESC volta", "as abas no alto trocam a página  ·  o < volta" },
+    { "TAB os números de cada dado  ·  ESC volta", "a aba dados mostra os números de cada dado  ·  o < volta" },
+    { "setas escolhem  ·  ENTER tira para sempre  ·  I detalhes  ·  BACKSPACE volta",
+      "toque para escolher  ·  de novo para tirar para sempre  ·  segure para ver o dado" },
+    { "setas escolhem  ·  ENTER escolhe o dado  ·  I detalhes  ·  BACKSPACE volta",
+      "toque para escolher  ·  de novo para ficar com o dado  ·  segure para ver o dado" },
+    { "setas escolhem  ·  ENTER cola  ·  BACKSPACE volta ao dado", "toque para escolher  ·  de novo para colar" },
+    { "setas escolhem  ·  ENTER leva  ·  I detalhes  ·  BACKSPACE pular",
+      "toque para escolher  ·  de novo para levar  ·  segure para ver o dado" },
+    { "ENTER abre de uma vez", "toque para abrir de uma vez" },
+    { "setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB segue",
+      "toque para escolher  ·  de novo para comprar  ·  segure para ver o dado" },
+    { "ENTER acelera  ·  TAB mostra tudo", "toque para acelerar" },
+    { "ENTER acelera", "toque para acelerar" },
+    { "setas escolhem  ·  ENTER entra  ·  E estilo  ·  H histórico  ·  X apaga  ·  ESC volta",
+      "toque num perfil para escolher  ·  de novo para entrar  ·  o < volta" },
+    { "X recusa  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  V velocidade  ·  T tremor da tela  ·  F11 tela cheia  ·  - e + tamanho da mesa.  Boa sorte!",
+      "O botão Início, embaixo da mesa, pausa o jogo e abre o volume e o brilho.  Boa sorte!" },
     // como jogar: a pagina das teclas vira a do toque
     { "Teclas", "Toque" },
     { "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
@@ -103,7 +140,7 @@ static bool toque_na_mesa(void)
 static bool toque_por_cima(void)
 {
     return (detalhe >= 0 && fase == detalhe_fase) || t_elev > 0 || t_virada > 0 || t_anuncio > 0 ||
-           slot_girando();
+           slot_girando() || t_misterio > 0 || bolsa_pop >= 0;
 }
 
 static const zona_clique_t *zona_no(int x, int y)

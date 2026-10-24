@@ -12,8 +12,10 @@ void sis_volume(int pct);            // volume geral, 0..100
 void sis_gira(bool gira180);         // vira a imagem de cabeca para baixo
 int  sis_toque_estado(void);         // 1 o toque respondeu, 0 nao, -1 nao se sabe ainda
 
-bool sis_hora(int *h, int *m);       // false: o relogio nao foi acertado
-void sis_acerta_hora(int h, int m);
+// O relogio (a data serve ao jogo: a epoca do Natal, o dia da run campea).
+typedef struct { int ano, mes, dia, h, m; } sis_data_t;   // mes 1..12; ano 0: so a hora e certa
+bool sis_data_hora(sis_data_t *d);   // false: o relogio nao foi acertado
+void sis_acerta_data_hora(const sis_data_t *d);
 
 void sis_reinicia(void);
 // A versao do painel da tela (1 ou 2; 0 se nao se aplica). Trocar e um teste:

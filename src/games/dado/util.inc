@@ -54,8 +54,8 @@ static void le_epoca(void)
     }
     time_t agora = time(NULL);
     const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
-    if (m) poe_epoca(m->tm_mon, m->tm_mday);
-    else natal = dezembro = reveillon = false;
+    if (m && m->tm_year >= 120) poe_epoca(m->tm_mon, m->tm_mday);
+    else natal = dezembro = reveillon = false;   // antes de 2020: um relogio que nao sabe o dia
 }
 
 static int outro(int j) { return j ^ 1; }

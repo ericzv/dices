@@ -23,7 +23,7 @@
 #define JOGO_H     720                    // o jogo ocupa 1280x720 (640x360 em 2x)
 #define BARRA_Y    JOGO_H
 
-enum tela_id { T_PARTIDA, T_CALIBRA, T_ORIENTA, T_INICIO, T_AJUSTES, T_JOGO, T_CENTRAL, T_TELA, T_LIMPA };
+enum tela_id { T_PARTIDA, T_CALIBRA, T_ORIENTA, T_INICIO, T_AJUSTES, T_JOGO, T_CENTRAL, T_TELA, T_LIMPA, T_DATA };
 
 typedef struct {
     int volume, brilho;                   // 0..100
@@ -101,6 +101,7 @@ void inicio_capa_suja(void);
 void ajustes_desenha(void);
 void ajustes_acao(int id);
 void ajustes_desliza(int id, int x);
+void data_passo(float dt);                // T_DATA (em ajustes.c): segurar o + ou o - repete
 void jogo_desenha_tela(void);
 void jogo_acao(int id);
 void jogo_desliza(int id, int x);

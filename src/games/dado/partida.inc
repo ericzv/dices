@@ -381,13 +381,14 @@ static int desembrulha(int j, int k, int (*r)(int))
     fila_t *f = &F[j];
     f->tipo[k] = (uint8_t)t;
     f->fixo[k] = nova_peca(t).fixo;
-    f->presente[k] = true;
+    f->presente[k] = 1;
     int i = f->idx[k];
     if (modo == M_DESAFIO && j == 0 && presente_livre && i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {
         J[j].col[i].tipo = (uint8_t)t;          // fica: os adesivos seguem com ele
         J[j].col[i].fixo = f->fixo[k];
         presente_livre = false;
         presente_virou = true;
+        f->presente[k] = 2;
     }
     return t;
 }
@@ -410,7 +411,11 @@ static void lanca_proximo(void)
         fase = F_VEREDITO;
         return;
     }
-    if (t == D_PRESENTE) { t = desembrulha(vez, k, rola); lados = TIPO[t].lados; }
+    if (t == D_PRESENTE) {
+        t = desembrulha(vez, k, rola);
+        lados = TIPO[t].lados;
+        som_toca(SOM_PRESENTE);
+    }
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
@@ -925,9 +930,17 @@ static int som_do_evento(int i)
     case EV_ADESIVO: return som_adesivo(e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
-    case EV_EXTRA:   return e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_JINGLE ? SOM_SINO : SOM_EFEITO;
+    case EV_EXTRA:
+        if (e->de_k >= N_FILA) return SOM_EFEITO;
+        switch (F[e->de_j].tipo[e->de_k]) {
+        case D_JINGLE:  return SOM_SINO;
+        case D_ESTRELA: return SOM_ESTRELA;
+        case D_MEIA:    return e->valor ? SOM_AD_DOURADO : SOM_MOEDA_POUSA;   // paga; ou guarda mais uma
+        default:        return SOM_EFEITO;
+        }
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
+        if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_RENA) return SOM_SINO;  // os guizos do treno
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;   // Tudo ou Nada com 1
         return SOM_EFEITO;
     default:         return SOM_EFEITO;
@@ -1089,6 +1102,7 @@ static void flutua_evento(const evento_t *e)
             break;
         }
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+        else if (dk < N_FILA && F[dj].tipo[dk] == D_MEIA) flutua_em(dj, dk, C_LATAO, 0.3f, "guarda +%d", MEIA_GUARDA);
         break;
     case EV_FOGO: case EV_SEMENTE: case EV_JACKPOT: case EV_RENASCE:
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);

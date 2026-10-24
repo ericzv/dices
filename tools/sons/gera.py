@@ -1099,6 +1099,35 @@ def onda():
         m.poe(0.62 + i * 0.07 + rng.uniform(0, 0.03), bolha(rng.uniform(900, 1500), rng.uniform(400, 700), 0.05), 0.10)
     return sala(m.x, 0.2)
 
+def presente():
+    """O Presente desembrulhando: o papel rasgando em tres puxoes, a fita
+    escorregando e um arpejo de celesta subindo quando a caixa abre."""
+    m = Mix(1.3)
+    for k, (t, d) in enumerate(((0.0, 0.09), (0.11, 0.12), (0.25, 0.16))):   # os puxoes no papel
+        n = int(d * SR); q = np.linspace(0, 1, n)
+        rasgo = banda(rng.standard_normal(n), 1800, 7500) * (0.4 + 0.6 * rng.random(n) ** 3)
+        m.poe(t, rasgo * np.sin(np.pi * q) ** 0.6, 0.30 + 0.08 * k)
+        c = t
+        while c < t + d:                              # os estalinhos do papel
+            m.poe(c, estalinho(rng.uniform(0.001, 0.003), 3500), rng.uniform(0.15, 0.35))
+            c += rng.exponential(0.012)
+    for k, n_ in enumerate((84, 88, 91, 96)):          # do, mi, sol, do: a caixa abriu
+        m.poe(0.40 + k * 0.075, nota('celesta' if n_ < 96 else 'glockenspiel', n_, 0.22 if k < 3 else 0.6, 0.35), 0.45 + 0.08 * k)
+    m.poe(0.40 + 3 * 0.075, nota('glockenspiel', 108, 0.5, 0.4), 0.18)
+    return sala(m.x, 0.22)
+
+def estrela():
+    """A Estrela de Belem: um brilho que desce em cascata de glockenspiel e
+    um acorde claro de celesta que fica no ar."""
+    m = Mix(1.7)
+    for k, n_ in enumerate((103, 100, 98, 96, 93, 91)):   # a luz descendo
+        m.poe(k * 0.055, nota('glockenspiel', n_, 0.14, 0.35), 0.32 * (1 - k / 9))
+    for n_ in (79, 84, 88, 91):                           # o acorde (sol, do, mi, sol)
+        m.poe(0.36, nota('celesta', n_, 0.9, 0.5), 0.26)
+    n = int(1.1 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.30, banda(rng.standard_normal(n), 6000, 12000) * np.sin(np.pi * q) ** 2, 0.025)   # o brilho
+    return sala(m.x, 0.3)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -1128,6 +1157,7 @@ VOLUME.update({'menu_passa': VOLUME['tique'] * 0.45, 'menu_escolhe': VOLUME['fic
 VOLUME.update({'bolsa_espia': VOLUME['bolsa'] * 0.7})
 # Os dados novos: os sinos na altura de um poder; o gelo e a onda, de um ataque.
 VOLUME.update({'sino': VOLUME['efeito'], 'gelo': VOLUME['anula'] * 0.85, 'onda': VOLUME['anula'] * 0.9})
+VOLUME.update({'presente': VOLUME['efeito'] * 0.9, 'estrela': VOLUME['efeito']})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1148,7 +1178,8 @@ SONS = {
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
-             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda'):
+             'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
+             'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

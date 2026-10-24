@@ -130,6 +130,21 @@ static int patos_acesos(void)
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
     return marca_nivel % PATINHOS_CADA + (patos_pousou ? 1 : 0);
 }
+// As frutas do Panetone na fatia desta vez (-1: na mao, ainda nao cortada;
+// mostra as tres).
+static int frutas_desta = -1;
+// O Pisca-pisca aceso? Na mao, como vem no proximo lance; na fila, como veio.
+static bool pisca_desta(void) { return marca_nivel < 0 || pisca_aceso(marca_nivel); }
+// A Meia na Lareira: o que ela guardou (na colecao, um pouco).
+static int meia_desta(void) { return marca_nivel < 0 ? 4 : marca_nivel; }
+// A distancia do ponto (u, v) ao segmento de (ax, ay) a (bx, by).
+static float dist_seg(float u, float v, float ax, float ay, float bx, float by)
+{
+    float dx = bx - ax, dy = by - ay, tt = ((u - ax) * dx + (v - ay) * dy) / (dx * dx + dy * dy);
+    tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+    float ex = u - ax - tt * dx, ey = v - ay - tt * dy;
+    return sqrtf(ex * ex + ey * ey);
+}
 // A agua da Onda, de 0 a 1 (o que ela guardou, de 9).
 static float onda_cheia(void)
 {
@@ -926,6 +941,102 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
+    case D_PRESENTE: {                            // a caixa embrulhada: a fita em cruz, o laco em cima e o papel listrado
+        float w = 0.075f + l * 0.5f;
+        for (int k = -1; k <= 1; k += 2) {                                                   // o laco: duas alcas e as pontas
+            float bx = u - k * 0.17f, by = v + 0.54f;
+            float e = bx * bx / (0.15f * 0.15f) + by * by / (0.09f * 0.09f);
+            if (e < 1) return e < 0.28f ? 1 : 2;
+            if (dist_seg(u, v, k * 0.03f, -0.50f, k * 0.18f, -0.34f) < w * 0.6f) return 2;   // as pontas
+        }
+        if (u * u + (v + 0.52f) * (v + 0.52f) < 0.07f * 0.07f) return 2;                    // o no
+        if (fabsf(u) < w || fabsf(v - 0.04f) < w) return 2;                                   // a fita em cruz
+        return fr((u + v) / 0.30f) < 0.12f ? 1 : 0;                                           // o papel, em listras
+    }
+    case D_PANETONE: {                            // a cupula tostada com o corte em cruz, as frutas e a forma de papel
+        if (v < -0.30f) {                                                                    // a cupula
+            float cx = u, cy = v + 0.62f;
+            if (fabsf(cx) < l * 1.4f + 0.02f && cy > -0.18f && cy < 0.14f) return 0;           // o corte em cruz
+            if (fabsf(cy + 0.02f) < l * 1.4f + 0.02f && fabsf(cx) < 0.18f) return 0;
+            return 1;
+        }
+        if (v > 0.62f) return fr(u / 0.14f) < 0.35f ? 1 : 0;                                 // a forma de papel, pregueada
+        static const float FX[3] = { -0.50f, 0.50f, 0.02f }, FY[3] = { 0.06f, 0.12f, 0.50f };
+        int n = frutas_desta < 0 ? 3 : frutas_desta;
+        for (int i = 0; i < n && i < 3; i++) {                                               // as frutas cristalizadas
+            float x = u - FX[i], y = v - FY[i];
+            if (fabsf(x) < 0.085f && fabsf(y) < 0.075f) return i == 1 ? 3 : 2;
+        }
+        float mx = fr(u * 3.1f + v * 1.7f), my = fr(v * 2.9f - u * 1.3f);                     // o miolo: furinhos
+        return mx < 0.07f && my < 0.09f ? 1 : 0;
+    }
+    case D_PISCA: {                               // o fio de luzinhas atravessando a base: acesas ou apagadas
+        bool aceso = pisca_desta();
+        float fio = 0.30f + 0.14f * (1 - (u / 0.80f) * (u / 0.80f));                        // o fio, caido no meio
+        if (fabsf(v - fio) < l * 1.3f + 0.015f && fabsf(u) < 0.84f) return 3;
+        for (int i = 0; i < 4; i++) {
+            float bx = -0.54f + i * 0.36f;
+            float by = 0.30f + 0.14f * (1 - (bx / 0.80f) * (bx / 0.80f));
+            float x = u - bx, y = v - by;
+            if (fabsf(x) < 0.05f && y > 0 && y < 0.08f) return 3;                              // o soquete
+            float e = x * x / (0.085f * 0.085f) + (y - 0.18f) * (y - 0.18f) / (0.12f * 0.12f);
+            if (e < 1) {
+                if (!aceso) return 3;                                                        // apagada: so o vidro escuro
+                bool pisca = (int)(t_relogio * 2.4f + i * 1.5f) % 3 != 0;                      // acesas, piscando em roda
+                return e < 0.25f && pisca ? 0 : (i % 2 ? 2 : 1);
+            }
+        }
+        return 0;
+    }
+    case D_MEIA: {                                // a meia pendurada: o punho branco, o pe para a direita e o que tem dentro
+        int g = meia_desta();
+        int moedas = g <= 0 ? 0 : g < 4 ? 1 : g < 8 ? 2 : 3;
+        static const float MX[3] = { -0.10f, -0.26f, 0.06f }, MY[3] = { -0.52f, -0.46f, -0.46f };
+        for (int i = 0; i < moedas; i++) {                                                   // as moedas saindo pelo punho
+            float x = u - MX[i], y = v - MY[i];
+            float d = x * x + y * y;
+            if (d < 0.085f * 0.085f) return d < 0.04f * 0.04f ? 2 : 3;
+        }
+        if (v > -0.40f && v < -0.24f && u > -0.36f && u < 0.16f) return 2;                  // o punho
+        if (u > -0.30f && u < 0.10f && v >= -0.24f && v < 0.44f) {                           // a perna
+            return fabsf(v - 0.06f) < 0.03f + l ? 2 : 1;                                     // com uma listra
+        }
+        float px = (u - 0.10f) / 0.40f, py = (v - 0.48f) / 0.17f;                             // o pe, com o calcanhar e a ponta brancos
+        if (u > -0.30f && u <= 0.10f && v >= 0.44f && v < 0.65f) return u < -0.16f && v > 0.52f ? 2 : 1;
+        if (u > 0.10f && px * px + py * py < 1) return px > 0.62f ? 2 : 1;
+        return 0;
+    }
+    case D_ESTRELA: {                             // a estrela no alto, com quatro pontas longas, e a cauda de luz descendo
+        float x = u, y = v + 0.46f, ax = fabsf(x), ay = fabsf(y);
+        // as pontas: losangos finos nas quatro direcoes, e quatro curtas nas diagonais
+        if (ax < 0.10f * (1 - ay / 0.40f) && ay < 0.40f) return ay < 0.10f ? 2 : 1;
+        if (ay < 0.10f * (1 - ax / 0.34f) && ax < 0.34f) return ax < 0.10f ? 2 : 1;
+        float dx = (x + y) * 0.7071f, dy = (x - y) * 0.7071f;
+        if ((fabsf(dx) < 0.05f * (1 - fabsf(dy) / 0.18f) && fabsf(dy) < 0.18f)
+            || (fabsf(dy) < 0.05f * (1 - fabsf(dx) / 0.18f) && fabsf(dx) < 0.18f)) return 1;
+        if (v > -0.06f) {                                                                    // a cauda, abrindo para baixo
+            float meia = 0.03f + (v + 0.06f) * 0.16f;
+            if (ax < meia && fr(v / 0.12f) < 0.55f) return 2;
+        }
+        static const float PX[4] = { -0.52f, 0.50f, 0.34f, -0.36f }, PY[4] = { 0.06f, -0.06f, 0.42f, 0.48f };
+        for (int i = 0; i < 4; i++) {                                                        // estrelinhas em volta
+            float px = u - PX[i], py = v - PY[i];
+            if ((fabsf(px) < l * 1.4f + 0.012f && fabsf(py) < 0.05f) || (fabsf(py) < l * 1.4f + 0.012f && fabsf(px) < 0.05f)) return 3;
+        }
+        return 0;
+    }
+    case D_RENA: {                               // a rena: a galhada abrindo nos cantos de cima e o nariz vermelho
+        float w = 0.032f + l * 0.6f, au = fabsf(u);
+        // cada galho: a haste subindo para fora, com pontas para cima e para o lado
+        if (dist_seg(au, v, 0.12f, -0.26f, 0.26f, -0.58f) < w || dist_seg(au, v, 0.17f, -0.38f, 0.40f, -0.44f) < w
+            || dist_seg(au, v, 0.40f, -0.44f, 0.50f, -0.58f) < w || dist_seg(au, v, 0.40f, -0.44f, 0.58f, -0.38f) < w
+            || dist_seg(au, v, 0.22f, -0.50f, 0.36f, -0.62f) < w) return 2;
+        float nx = u, ny = v - 0.40f, nd = nx * nx + ny * ny;                                 // o nariz, com um brilho
+        if (nd < 0.12f * 0.12f) return (nx + 0.04f) * (nx + 0.04f) + (ny + 0.04f) * (ny + 0.04f) < 0.032f * 0.032f ? 0 : 3;
+        float mx = u / 0.30f, my = (v - 0.38f) / 0.20f;                                       // o focinho
+        if (mx * mx + my * my < 1) return 1;
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;
@@ -1295,16 +1406,16 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
 }
 
 // A Furia na mao: o bonus guardado num selo no alto, a direita (vermelho se
-// ja ficou negativo).
-static void furia_selo(float cx, float cy, float r, int b)
+// ja ficou negativo). A Meia na Lareira tambem: o que ela guardou, em ouro.
+static void furia_selo(float cx, float cy, float r, int b, bool ouro)
 {
     char t[8];
     snprintf(t, sizeof t, "%+d", b);
     int w = gfx_largura(t, GFX_MIUDO) + 5, h = 9, x = (int)(cx + r * 0.40f), y = (int)(cy - r * 1.05f);
     gfx_rect(x + 1, y + 2, w, h, C_SOMBRA);
-    gfx_rect(x, y, w, h, b > 0 ? C_FOGO : C_VINHO_CLR);
+    gfx_rect(x, y, w, h, ouro ? C_OURO : b > 0 ? C_FOGO : C_VINHO_CLR);
     gfx_rect(x + 1, y + 1, w - 2, h - 2, C_BARRA);
-    gfx_texto(x + 3, y - 2, t, b > 0 ? C_AMARELO : C_VINHO_CLR, GFX_MIUDO, false);
+    gfx_texto(x + 3, y - 2, t, ouro ? C_OURO : b > 0 ? C_AMARELO : C_VINHO_CLR, GFX_MIUDO, false);
 }
 
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
@@ -1471,7 +1582,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         snprintf(s, sizeof s, "%d", lados);
         numero(cx, cy, r, s, gfx_mistura(tinta, corpo, 38));
         if (tipo == D_FURIA && marca_nivel >= 0 && (int8_t)marca_nivel && !zerado && r >= 12)
-            furia_selo(cx, cy, r, (int8_t)marca_nivel);
+            furia_selo(cx, cy, r, (int8_t)marca_nivel, false);
+        if (tipo == D_MEIA && marca_nivel > 0 && !zerado && r >= 12) furia_selo(cx, cy, r, marca_nivel, true);
         return;
     }
     if (valor == SO_CORPO) return;       // so o corpo: o catalogo escreve grande

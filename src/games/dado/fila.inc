@@ -14,9 +14,6 @@ static int ultimo_da_regra(int j, const uint8_t *est, int antes)
     return -1;
 }
 
-// O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
-static bool pisca_aceso(int fixo) { return !(fixo & 1); }
-
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
 // O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
@@ -596,6 +593,12 @@ static void pousa(int j, int k, int (*r)(int))
         if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
         if (f->calibre[k] && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
+            ver_comum = false;
+        }
+        if (f->presente[k] && ver_comum) {           // o que saiu do Presente (e se fica de vez)
+            snprintf(veredito, sizeof veredito, f->presente[k] == 2 ? "o Presente era um %s: e fica com você!"
+                                                                    : "o Presente era um %s: pontua %d",
+                     TIPO[f->tipo[k]].nome, valor_pontos(j, k) + f->bonus[k]);
             ver_comum = false;
         }
         return;

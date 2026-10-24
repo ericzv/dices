@@ -46,7 +46,7 @@ typedef struct {
     bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
-    bool    presente[N_FILA];        // saiu de um Presente desembrulhado no lance
+    uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
     char    tag[N_FILA][14];
     int     pontos;
     int     total;

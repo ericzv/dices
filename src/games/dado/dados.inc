@@ -81,6 +81,8 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define MEIA_MAX    99
 // A Estrela de Belem, por ultimo: o que rende por dado valendo abaixo dela.
 #define ESTRELA_PTS 2
+// O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
+static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // A epoca do Natal (novembro e dezembro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
 // Em dezembro o Papai Noel e os oponentes de Natal chegam ao cassino; do dia
@@ -748,8 +750,8 @@ static const visual_t VISUAL[D_N] = {
     [D_TSUNAMI]    = { V_AZUL,    V_NOITE, 44,  V_AZUL, 100,    V_CIANO, 100,  V_BRANCO, 100 },
     [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
     [D_PRESENTE]   = { V_VERM,    V_VERM, 30,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
-    [D_PANETONE]   = { V_AMBAR,   V_TRIGO, 40,  V_COURO, 100,   V_VERM, 100,   V_VERDE, 100 },
-    [D_PISCA]      = { V_VERDE,   V_BREU, 55,   V_VERDE, 80,    V_AMBAR, 100,  V_CHUMBO, 100 },
+    [D_PANETONE]   = { V_AMBAR,   V_TRIGO, 55,  V_COURO, 100,   V_VERM, 100,   V_VERDE, 100 },
+    [D_PISCA]      = { V_VERDE,   V_VERDE, 16,  V_VERM, 100,    V_AMBAR, 100,  V_CHUMBO, 100 },
     [D_MEIA]       = { V_VERM,    V_BRANCO, 30, V_VERM, 100,    V_BRANCO, 100, V_OURO, 100 },
     [D_ESTRELA]    = { V_OURO,    V_NOITE, 60,  V_OURO, 100,    V_TRIGO, 100,  V_BRANCO, 100 },
     [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 100,   V_MADEIRA, 100, V_VERM, 100 },

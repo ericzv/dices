@@ -1,53 +1,89 @@
 // ---------------------------------------------------------------------------
-// Amuletos: efeitos que valem a run inteira. Um no comeco, um por chefe
-// vencido e um a venda em cada loja do caminho.
+// Amuletos: efeitos que valem a run inteira. Um no comeco e um por chefe
+// vencido (a loja nao vende). Cabem 5: o sexto pede troca.
 // ---------------------------------------------------------------------------
 typedef struct { const char *nome, *desc; uint16_t cor; } amuleto_t;
 static const amuleto_t AMULETO[A_N] = {
-    [A_LUVA]     = { "Luva de Couro", "O primeiro dado da sequência não cai quando o seguinte é menor.", RGB(196, 140, 90) },
-    [A_REDE]     = { "Rede",          "Se o último dado da sequência cair, cai sozinho: o de antes fica.", RGB(150, 186, 214) },
+    [A_LUVA]     = { "Luva de Couro", "O primeiro dado da sequência não é anulado quando o dado seguinte é menor.", RGB(196, 140, 90) },
+    [A_REDE]     = { "Rede",          "Se o último dado da sequência for anulado pela sequência, o dado anterior continua válido.", RGB(150, 186, 214) },
     [A_BOLSA]    = { "Bolsa Funda",   "Você compra 8 dados por rodada, em vez de 7.", RGB(204, 150, 96) },
-    [A_OURO]     = { "Dado de Ouro",  "Dado seu que tirar o número máximo ganha +2.", C_OURO },
-    [A_PENA]     = { "Peso Pena",     "Seus dados de 2 e 4 lados valem +1.", RGB(196, 176, 230) },
-    [A_CONTRATO] = { "Contrato Sujo", "Todo dado seu que vale ganha +2, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
+    [A_OURO]     = { "Dado de Ouro",  "Dado seu que tirar o número máximo pontua +2.", C_OURO },
+    [A_PENA]     = { "Peso Pena",     "Seus dados de 2 e 4 lados pontuam +1.", RGB(196, 176, 230) },
+    [A_CONTRATO] = { "Contrato Sujo", "Cada dado válido seu pontua +2, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
-    [A_COURACA]  = { "Couraça",       "Os ataques do oponente não anulam os seus dados.", C_ACO },
-    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem.", C_LATAO },
+    [A_COURACA]  = { "Couraça",       "Os dados do oponente não podem anular os seus.", C_ACO },
+    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem (até 3).", C_LATAO },
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 6 dados por rodada.", RGB(170, 160, 150) },
-    [A_FERRADURA]= { "Ferradura",     "Uma vez por rodada, na primeira queda que nada mais segurou, o dado de antes fica.", C_PRATA },
-    [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados valem +1.", RGB(120, 128, 140) },
+    [A_FERRADURA]= { "Ferradura",     "Uma vez por rodada, na primeira vez que a sequência anularia o dado anterior, ele continua válido.", C_PRATA },
+    [A_PESADO]   = { "Dado Pesado",   "Seus dados de 6 lados pontuam +1.", RGB(120, 128, 140) },
     [A_RELOGIO]  = { "Relógio de Bolso", "Na primeira rodada e quando você está atrás em fichas, o oponente abre; você joga depois.", RGB(214, 186, 110) },
-    [A_CARTOLA]  = { "Cartola",       "O prêmio de cada mesa vencida sobe um nível.", RGB(150, 110, 170) },
-    [A_COROA]    = { "Coroa do Azarão", "Começando a rodada com menos fichas que o oponente, seus dados valem +1.", RGB(226, 176, 70) },
-    [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 25% menos.", RGB(120, 190, 150) },
-    [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 passa a valer 3.", RGB(150, 150, 160) },
-    [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 2 moedas por rodada que você venceu nela.", C_OURO },
-    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência vale +2.", RGB(206, 80, 110) },
-    [A_DUPLA]    = { "Dupla",         "Seu dado que repete o número de outro seu valendo ganha +2.", RGB(110, 160, 220) },
-    [A_SELO]     = { "Selo de Dívida", "Chefe vencido dá dois prêmios de dados.", RGB(196, 60, 60) },
+    [A_CARTOLA]  = { "Cartola",       "A vitrine das lojas mostra 3 dados, em vez de 2.", RGB(150, 110, 170) },
+    [A_COROA]    = { "Coroa do Azarão", "Começando a rodada com menos fichas que o oponente, seus dados pontuam +1.", RGB(226, 176, 70) },
+    [A_CUPOM]    = { "Cupom",         "Tudo na loja custa 1 moeda a menos (nunca menos de 1).", RGB(120, 190, 150) },
+    [A_PRENSA]   = { "Prensa",        "Seu dado que tirar 1 vira um 3.", RGB(150, 150, 160) },
+    [A_TACA]     = { "Taça",          "Ao vencer uma mesa, rende 1 moeda a cada 3 rodadas que você venceu nela.", C_OURO },
+    [A_CORINGA]  = { "Coringa",       "O primeiro dado da sua sequência pontua +2.", RGB(206, 80, 110) },
+    [A_DUPLA]    = { "Dupla",         "Seu dado que repetir o número de outro dado válido seu pontua +2.", RGB(110, 160, 220) },
+    [A_SELO]     = { "Selo de Dívida", "Chefe vencido deixa um segundo amuleto, sorteado entre os comuns e os incomuns.", RGB(196, 60, 60) },
     [A_PEDAGIO]  = { "Pedágio",       "Os chefes começam a partida com 10 fichas a menos.", RGB(226, 186, 70) },
+    [A_DESFORRA] = { "Desforra",      "Se você perdeu a rodada anterior, cada dado válido seu pontua +1.", RGB(222, 112, 72) },
+    [A_MAU_OLHADO] = { "Mau-Olhado",  "Cada rodada que você vence põe um Fantasma (pontua sempre 1) na bolsa do oponente, até o fim da partida.", RGB(84, 136, 222) },
+    [A_CRISANTEMO] = { "Crisântemo",  "Cada dado seu anulado na rodada pontua +1 para você no fim.", RGB(232, 206, 128) },
+    [A_TRINCA]   = { "Trinca",        "Dado seu que tirar 3 pontua +3.", RGB(72, 150, 138) },
+    [A_PIRAMIDE] = { "Pirâmide",      "Seus dados de 4 lados pontuam x2 no fim.", RGB(238, 162, 74) },
+    [A_ABRE_ALAS]= { "Abre-Alas",     "O primeiro dado da sua sequência pontua x2 no fim.", RGB(96, 134, 196) },
+    [A_SAIDEIRA] = { "Saideira",      "Na última rodada da partida, os poderes de fim de rodada dos seus dados agem duas vezes.", RGB(150, 112, 160) },
+    [A_COLAR]    = { "Colar de Pérolas", "Ao vencer uma mesa, rende 1 moeda.", RGB(226, 220, 236) },
+    [A_CORRIMAO] = { "Corrimão",      "Se o seu dado for só 1 menor que o anterior, a sequência não anula nenhum dos dois.", RGB(96, 182, 198) },
 };
-#define AM_PRECO 70
+// Raridade de cada um, que diz em que momento da run ele aparece: comuns no
+// comeco, incomuns depois do primeiro chefe, raros depois do segundo e, na
+// Cobertura, do Barao. Fora: nao sai para o jogador
+// (nenhum hoje). Os de nivel (NIVEL_AMULETO) so entram depois de abertos.
+enum { AMR_FORA, AMR_COMUM, AMR_INCOMUM, AMR_RARO };
+static const uint8_t RAR_AMULETO[A_N] = {
+    [A_BOLSA] = AMR_COMUM, [A_OURO] = AMR_COMUM, [A_PENA] = AMR_COMUM, [A_IMA] = AMR_COMUM,
+    [A_COURACA] = AMR_COMUM, [A_COFRE] = AMR_COMUM, [A_POTE] = AMR_COMUM, [A_FURADO] = AMR_COMUM,
+    [A_SELO] = AMR_COMUM, [A_DESFORRA] = AMR_COMUM, [A_RELOGIO] = AMR_COMUM, [A_CUPOM] = AMR_COMUM,
+    [A_TACA] = AMR_COMUM, [A_CORINGA] = AMR_COMUM, [A_DUPLA] = AMR_COMUM, [A_COLAR] = AMR_COMUM,
+    [A_CONTRATO] = AMR_INCOMUM, [A_RESERVA] = AMR_INCOMUM, [A_PEDAGIO] = AMR_INCOMUM, [A_MAU_OLHADO] = AMR_INCOMUM,
+    [A_PESADO] = AMR_INCOMUM, [A_CARTOLA] = AMR_INCOMUM, [A_CRISANTEMO] = AMR_INCOMUM, [A_TRINCA] = AMR_INCOMUM,
+    [A_PIRAMIDE] = AMR_INCOMUM, [A_COROA] = AMR_INCOMUM, [A_PRENSA] = AMR_INCOMUM,
+    [A_LUVA] = AMR_RARO, [A_FERRADURA] = AMR_RARO, [A_REDE] = AMR_RARO, [A_ABRE_ALAS] = AMR_RARO, [A_SAIDEIRA] = AMR_RARO, [A_CORRIMAO] = AMR_RARO,
+};
+#define AMR(r) (1u << (r))
+static bool amuleto_no_jogo(int a) { return RAR_AMULETO[a] != AMR_FORA; }
+static const char *nome_rar_am(int a) { return RAR_AMULETO[a] ? RARIDADE[RAR_AMULETO[a] - 1] : ""; }
+static uint16_t cor_rar_am(int a) { return RAR_AMULETO[a] ? COR_RAR[RAR_AMULETO[a] - 1] : C_TEXTO_M; }
 
 
-static int am_conta(uint32_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
-static uint32_t run_amuletos(void) { return (uint32_t)run.amuletos | (uint32_t)run.amuletos_hi << 16; }
-static void run_poe_amuleto(int a)
+static int am_conta(amul_t m) { int n = 0; for (; m; m >>= 1) n += m & 1; return n; }
+static amul_t run_amuletos(void)
 {
-    uint32_t m = run_amuletos() | 1u << a;
+    return (amul_t)run.amuletos | (amul_t)run.amuletos_hi << 16 | (amul_t)run.amuletos_x << 32;
+}
+static void run_poe_amuletos(amul_t m)
+{
     run.amuletos = (uint16_t)m;
     run.amuletos_hi = (uint16_t)(m >> 16);
+    run.amuletos_x = (uint8_t)(m >> 32);
 }
+static void run_poe_amuleto(int a) { run_poe_amuletos(run_amuletos() | AM_BIT(a)); }
+static void run_tira_amuleto(int a) { run_poe_amuletos(run_amuletos() & ~AM_BIT(a)); }
+static bool am_lugar(void) { return am_conta(run_amuletos()) < AM_LUGARES; }
 static bool amuleto_liberado(int a);
 static bool dado_liberado(int t);
 
-// Sorteia n amuletos diferentes que a run ainda nao tem (0xFF se faltar).
-static void sorteia_amuletos(uint8_t *out, int n)
+// Sorteia n amuletos diferentes que a run ainda nao tem, das raridades em
+// rar (AMR(...)); 0xFF se faltar.
+static void sorteia_amuletos(uint8_t *out, int n, unsigned rar)
 {
     int livres[A_N], nl = 0;
-    for (int a = 0; a < A_N; a++) if (!(run_amuletos() >> a & 1) && amuleto_liberado(a)) livres[nl++] = a;
+    for (int a = 0; a < A_N; a++)
+        if (!(run_amuletos() >> a & 1) && amuleto_liberado(a) && (rar >> RAR_AMULETO[a] & 1) && amuleto_no_jogo(a))
+            livres[nl++] = a;
     for (int i = 0; i < n; i++) {
         if (!nl) { out[i] = 0xFF; continue; }
         int q = sorte_r(nl);
@@ -66,7 +102,10 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
     gfx_disco(x + 1, y + 2, r, C_SOMBRA);
     gfx_disco(x, y, r, apagado ? C_FELTRO2 : C_LATAO_ESC);
     gfx_disco(x, y, r - 1, apagado ? C_FELTRO2 : C_LATAO);
-    gfx_disco(x, y, r - (r > 10 ? 3 : 2), gfx_mistura(cor, C_BARRA, 78));
+    // O fundo: a cor do amuleto no escuro (a Saideira, no roxo da noite, para nao
+    // se confundir com o Abre-Alas).
+    uint16_t medalha = a == A_SAIDEIRA && !apagado ? RGB(54, 36, 74) : gfx_mistura(cor, C_BARRA, 78);
+    gfx_disco(x, y, r - (r > 10 ? 3 : 2), medalha);
     uint16_t claro = apagado ? C_FELTRO2 : C_MARFIM, esc = gfx_mistura(cor, C_BARRA, 45);
 #define PX(v) (x + (int)lroundf((v) * u))
 #define PY(v) (y + (int)lroundf((v) * u))
@@ -292,6 +331,110 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
         gfx_disco(PX(-3.6f), PY(-3.4f), U, cor);                          // a lampada
         break;
     }
+    case A_DESFORRA: {                                 // a volta: desce curto, sobe longo, com a ponta
+        int g = U + 1;
+        gfx_linha_grossa(PX(-4.2f), PY(-1.6f), PX(-1.6f), PY(2.8f), g, gfx_mistura(cor, C_BARRA, 30));
+        gfx_linha_grossa(PX(-1.6f), PY(2.8f), PX(3.0f), PY(-3.0f), g, cor);
+        float vx[3] = { (float)PX(4.4f), (float)PX(0.6f), (float)PX(4.0f) };
+        float vy[3] = { (float)PY(-4.6f), (float)PY(-3.6f), (float)PY(-0.6f) };
+        poligono(vx, vy, 3, cor);
+        gfx_disco(PX(-1.6f), PY(2.8f), U, claro);                        // o ponto mais baixo
+        break;
+    }
+    case A_MAU_OLHADO:                                 // o olho turco: aneis concentricos
+        gfx_disco(x, y, (int)(4.8f * u + 0.5f), cor);
+        gfx_disco(x, y, (int)(3.4f * u + 0.5f), claro);
+        gfx_disco(x, y, (int)(2.3f * u + 0.5f), gfx_mistura(cor, C_BRANCO, 45));
+        gfx_disco(x, y, (int)(1.2f * u + 0.5f), C_EBANO_B);
+        gfx_rect(PX(-0.9f), PY(-1.0f), U, U, C_BRANCO);
+        break;
+    case A_CRISANTEMO: {                               // o brasao do crisantemo: petalas de ponta redonda
+        uint16_t fundo = gfx_mistura(cor, C_BARRA, 40);
+        float r1 = 1.5f * u, r2 = 4.0f * u;
+        int g = (int)(0.8f * u) > 1 ? (int)(0.8f * u) : 1, rp = (int)(0.6f * u + 0.5f);
+        for (int i = 0; i < 12; i++) {
+            float an = i * 0.5236f + 0.2618f;
+            uint16_t c = i & 1 ? gfx_mistura(cor, C_BARRA, 22) : cor;
+            int px = x + (int)lroundf(cosf(an) * r2), py = y + (int)lroundf(sinf(an) * r2);
+            gfx_linha_grossa(x + (int)lroundf(cosf(an) * r1), y + (int)lroundf(sinf(an) * r1), px, py, g, c);
+            if (rp > 0) gfx_disco(px, py, rp, c);
+        }
+        gfx_disco(x, y, (int)(1.8f * u + 0.5f), fundo);
+        gfx_disco(x, y, (int)(1.1f * u + 0.5f), claro);
+        break;
+    }
+    case A_TRINCA: {                                   // tres circulos em triangulo, ligados
+        static const float T[3][2] = { { 0, -2.6f }, { -2.8f, 2.2f }, { 2.8f, 2.2f } };
+        int cr = (int)(1.9f * u + 0.5f);
+        for (int i = 0; i < 3; i++)
+            gfx_linha_grossa(PX(T[i][0]), PY(T[i][1]), PX(T[(i + 1) % 3][0]), PY(T[(i + 1) % 3][1]), U, esc);
+        for (int i = 0; i < 3; i++) {
+            gfx_disco(PX(T[i][0]), PY(T[i][1]), cr + 1, esc);
+            gfx_disco(PX(T[i][0]), PY(T[i][1]), cr, cor);
+            gfx_disco(PX(T[i][0] - 0.5f), PY(T[i][1] - 0.5f), cr > 3 ? cr / 3 : 1, gfx_mistura(cor, C_BRANCO, 50));
+        }
+        break;
+    }
+    case A_PIRAMIDE: {                                 // o tetraedro do d4: uma face na luz, outra na sombra
+        float lx[3] = { (float)x, (float)PX(-4.6f), (float)PX(0.8f) }, ly[3] = { (float)PY(-4.8f), (float)PY(3.0f), (float)PY(4.6f) };
+        float rx[3] = { (float)x, (float)PX(0.8f), (float)PX(4.6f) }, ry[3] = { (float)PY(-4.8f), (float)PY(4.6f), (float)PY(3.0f) };
+        poligono(lx, ly, 3, gfx_mistura(cor, C_BRANCO, 22));
+        poligono(rx, ry, 3, gfx_mistura(cor, C_BARRA, 38));
+        gfx_linha_grossa(x, PY(-4.8f), PX(0.8f), PY(4.6f), 1, claro);          // a aresta da frente
+        break;
+    }
+    case A_ABRE_ALAS: {                                // a fila: o primeiro grande, com o dobro atras; os outros miudos
+        int l = (int)(4.2f * u) + 1, m = (int)(2.2f * u) + 1;
+        uint16_t meio = gfx_mistura(cor, C_BARRA, 30);
+        gfx_rect(PX(-3.4f), PY(-3.8f), l, l, meio);                            // o dobro, atras
+        gfx_rect(PX(-3.4f), PY(-3.8f), l, U, cor);
+        gfx_rect(PX(-4.8f), PY(-2.4f), l, l, cor);                             // o primeiro
+        gfx_rect(PX(-4.8f), PY(-2.4f), l, U, gfx_mistura(cor, C_BRANCO, 45));
+        gfx_rect(PX(0.8f), PY(-0.2f), m, m, meio);                             // os que vem depois
+        gfx_rect(PX(3.4f), PY(-0.2f), m, m, meio);
+        break;
+    }
+    case A_SAIDEIRA: {                                 // o copo da ultima: chope com colarinho
+        float gx[4] = { (float)PX(-3.2f), (float)PX(3.2f), (float)PX(2.3f), (float)PX(-2.3f) };
+        float gy[4] = { (float)PY(-4.4f), (float)PY(-4.4f), (float)PY(4.8f), (float)PY(4.8f) };
+        poligono(gx, gy, 4, C_PRATA);                                          // o vidro
+        float bx[4] = { (float)PX(-2.6f), (float)PX(2.6f), (float)PX(1.8f), (float)PX(-1.8f) };
+        float by[4] = { (float)PY(-1.4f), (float)PY(-1.4f), (float)PY(4.0f), (float)PY(4.0f) };
+        poligono(bx, by, 4, C_OURO);                                           // o chope
+        gfx_rect(PX(-2.8f), PY(-3.8f), (int)(5.6f * u) + 1, (int)(2.6f * u) + 1, C_MARFIM);   // o colarinho
+        for (int i = -1; i <= 1; i++) gfx_disco(PX(i * 1.8f), PY(-3.9f), (int)(1.0f * u + 0.5f), C_BRANCO);
+        gfx_rect(PX(-0.6f), PY(1.2f), U, U, C_AMARELO);                        // bolhas
+        gfx_rect(PX(0.8f), PY(2.6f), U, U, C_AMARELO);
+        gfx_rect(PX(-1.4f), PY(-1.0f), U, (int)(4.6f * u), gfx_mistura(C_OURO, C_BRANCO, 40));   // a luz no vidro
+        break;
+    }
+    case A_CORRIMAO: {                                 // a escada descendo e o corrimao por cima
+        for (int i = 0; i < 3; i++) {
+            int dx = PX(-4.6f + i * 3.0f), dy = PY(-0.6f + i * 1.6f);
+            gfx_rect(dx, dy, (int)(3.0f * u) + 1, PY(4.4f) - dy, i ? gfx_mistura(cor, C_BARRA, 20 * i) : cor);
+            gfx_rect(dx, dy, (int)(3.0f * u) + 1, U, gfx_mistura(cor, C_BRANCO, 45));   // a quina do degrau
+            int px = PX(-3.1f + i * 3.0f);
+            gfx_rect(px, PY(-3.1f + i * 1.6f), U, dy - PY(-3.1f + i * 1.6f), C_LATAO);  // o balaustre
+        }
+        gfx_linha_grossa(PX(-4.8f), PY(-4.0f), PX(4.4f), PY(0.9f), U, C_OURO);    // o corrimao, de latao
+        break;
+    }
+    case A_COLAR: {                                    // o fio de perolas em U e a maior pendurada
+        uint16_t perola = apagado ? C_FELTRO2 : RGB(238, 234, 244), aro = gfx_mistura(cor, C_BARRA, 72);
+        int ip = (int)(0.85f * u + 0.5f) > 0 ? (int)(0.85f * u + 0.5f) : 1;
+        for (int i = 0; i < 7; i++) {
+            float an = 0.22f + i * (3.1416f - 0.44f) / 6;           // de uma ponta a outra, por baixo
+            int px = PX(cosf(an) * 4.6f), py = PY(-3.4f + sinf(an) * 5.0f);
+            gfx_disco(px, py, ip + 1, aro);                        // o aro escuro separa as perolas
+            gfx_disco(px, py, ip, perola);
+            if (ip >= 2 && !apagado) gfx_rect(px - ip / 2, py - ip / 2, 1, 1, C_BRANCO);
+        }
+        int gr = (int)(1.5f * u + 0.5f) > 1 ? (int)(1.5f * u + 0.5f) : 1;
+        gfx_disco(x, PY(3.7f), gr + 1, aro);
+        gfx_disco(x, PY(3.7f), gr, perola);
+        if (!apagado) gfx_rect(x - gr / 2, PY(3.7f) - gr / 2, U, U, C_BRANCO);   // o brilho
+        break;
+    }
     case A_DUPLA:                                      // dois dados iguais, mostrando 2
         for (int i = 0; i < 2; i++) {
             int lado = (int)(4.6f * u) + 1;
@@ -321,7 +464,7 @@ static void amuletos_faixa(int j, int x, int y)
             int rr = 10 + (int)((1.2f - am_brilho[a]) * 6);
             gfx_disco(cx, y, rr, gfx_mistura(C_OURO, C_BARRA, (int)((1.2f - am_brilho[a]) * 70)));
         }
-        desenha_amuleto(cx, y, 8, a, false);
+        desenha_amuleto(cx, y + respira(n + 2 * j), 8, a, false);   // respira, cada um no seu tempo
         dica_zona(cx - 9, y - 9, 18, 18, DICA_AMULETO, a);
         n++;
     }

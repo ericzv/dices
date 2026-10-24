@@ -13,12 +13,13 @@ static void cadeado(int x, int y, uint16_t c, int e)
     gfx_rect(x, y + 2 * e, e, 3 * e, C_BARRA);           // a fechadura
 }
 
-static void quem_abre(int nivel, int marco, char *s, int n)
+// O que vem com o nivel: o chefe c (CH_*) o abre na dificuldade de baixo.
+static void quem_abre(int nivel, int c, int marco, char *s, int n)
 {
     if (marco == 0) snprintf(s, (size_t)n, "vença o Crupiê");
     else if (marco == 1) snprintf(s, (size_t)n, "vença a Dona do Salão");
-    else if (nivel == 1) snprintf(s, (size_t)n, "vença o Barão");
-    else snprintf(s, (size_t)n, "vença o Barão no %s", NOME_DIF_CURTO[nivel - 1]);
+    else if (nivel == 1) snprintf(s, (size_t)n, "vença %s", nome_chefe(c));
+    else snprintf(s, (size_t)n, "vença %s no %s", nome_chefe(c), NOME_DIF_CURTO[nivel - 1]);
 }
 
 // 0: sempre livre; 1: ja aberto; 2: fechado (e o que falta em s).
@@ -32,16 +33,24 @@ static int cat_trava_dado(int t, char *s, int n)
         else snprintf(s, (size_t)n, "Aberto no Desafiante");
         return 1;
     }
-    quem_abre(nv, m, s, n);
+    quem_abre(nv, chefe_do_dado(t), m, s, n);
     return 2;
 }
 
-// Os amuletos na ordem em que abrem.
+// Os amuletos que saem no jogo, por raridade (comuns, incomuns, raros) e,
+// dentro de cada uma, na ordem em que abrem.
+static int n_amuletos_jogo(void)
+{
+    int n = 0;
+    for (int a = 0; a < A_N; a++) n += amuleto_no_jogo(a);
+    return n;
+}
 static int cat_amuleto(int i)
 {
-    for (int nv = 0; nv <= N_NIVEIS; nv++)
-        for (int a = 0; a < A_N; a++)
-            if (NIVEL_AMULETO[a] == nv && i-- == 0) return a;
+    for (int r = AMR_COMUM; r <= AMR_RARO; r++)
+        for (int nv = 0; nv <= N_NIVEIS; nv++)
+            for (int a = 0; a < A_N; a++)
+                if (RAR_AMULETO[a] == r && NIVEL_AMULETO[a] == nv && i-- == 0) return a;
     return 0;
 }
 
@@ -50,7 +59,7 @@ static void desenha_cat_amuleto(int i)
     perfis_le();
     int a = cat_amuleto(i);
     char s[96];
-    faixas_colecao(i, A_N);
+    faixas_colecao(i, n_amuletos_jogo());
 
     bool aberto = amuleto_liberado(a);
     int cx = 160, cy = CENTRO + 4;
@@ -64,19 +73,74 @@ static void desenha_cat_amuleto(int i)
 
     int x = 290;
     gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
-    const char *et = "amuleto";
-    txt(etiqueta_caixa(x, 118, et, C_LATAO) + 2, 119, "só no Desafiante", C_TEXTO_M, false);
+    int ex = etiqueta_caixa(x, 118, nome_rar_am(a), cor_rar_am(a)) + 2;
+    static const char *const QUANDO[] = { "", "no começo da run", "depois do 1º chefe", "depois do 2º chefe" };
+    snprintf(s, sizeof s, "amuleto · %s", QUANDO[RAR_AMULETO[a]]);
+    txt(ex, 119, s, C_TEXTO_M, false);
     if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
         txt(x, 139, s, C_VERDE, false);
     } else {
-        quem_abre(NIVEL_AMULETO[a], -1, s, sizeof s);
+        quem_abre(NIVEL_AMULETO[a], CH_DONA, -1, s, sizeof s);
         linha_bloqueio(x, 139, s);
     }
     gfx_rect(x, 160, 320, 1, C_FELTRO2);
     quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
+}
+
+// Os adesivos, na ordem em que abrem.
+static int cat_adesivo(int i)
+{
+    for (int nv = 0; nv <= N_NIVEIS; nv++)
+        for (int a = AD_NADA + 1; a < AD_N; a++)
+            if (ADESIVO[a].nivel == nv && i-- == 0) return a;
+    return AD_CONFETE;
+}
+
+static void desenha_cat_adesivo(int i)
+{
+    perfis_le();
+    int a = cat_adesivo(i);
+    const adesivo_t *d = &ADESIVO[a];
+    char s[96];
+    faixas_colecao(i, AD_N - 1);
+    bool aberto = adesivo_liberado(a);
+    int cx = 160, cy = CENTRO + 4;
+    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, d->luz, 45));
+    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
+    float ciclo = fmodf(t_fase, 3.1f), descola = ciclo < 0.5f ? sinf(ciclo / 0.5f * 3.1416f) : 0;
+    ad_solto_d(cx, cy - 14 + (int)(sinf(t_fase * 2) * 2), a, 6, aberto ? descola : 0);
+    // Num dado: o lado com ele para cima, nos tres jeitos de dado.
+    static const int T[3] = { D_D4, D_D6, D_D20 };
+    for (int k = 0; k < 3; k++) {
+        int v = k == 0 ? 3 : k == 1 ? 6 : 19;
+        ad_face = a;
+        desenha_dado((float)(cx - 44 + k * 44), (float)(cy + 50), 14, T[k], 0, 0, v + (a == AD_REMENDO ? 2 : 0), 2, false);
+    }
+    if (!aberto) {                                   // fechado: no escuro
+        no_escuro(cx, cy, 76, C_FELTRO_ESC);
+        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
+    }
+    int x = 290;
+    gfx_texto(x, 70, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
+    snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
+    int ex = etiqueta_caixa(x, 118, s, C_OURO) + 2;
+    txt(ex, 119, "adesivo · na loja, um por visita", C_TEXTO_M, false);
+    if (d->nivel == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
+    else if (aberto) {
+        if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
+        else snprintf(s, sizeof s, "Aberto no Desafiante");
+        txt(x, 139, s, C_VERDE, false);
+    } else {
+        quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
+        linha_bloqueio(x, 139, s);
+    }
+    gfx_rect(x, 160, 320, 1, C_FELTRO2);
+    int n = quebra_linhas(x, 170, 320, 5, AD_TEXTO[a], C_MARFIM);
+    quebra_linhas(x, 170 + n * LINHA_FINA + 10, 320, 3, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
+                  C_TEXTO_M);
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }
@@ -103,7 +167,7 @@ static void des_elevador(void)
     float p = d * (1 - (1 - q) * (1 - q) * (1 - q));
     if (q >= 1 && e < ELEV_CHEGA + 0.25f) p = d + sinf((e - ELEV_CHEGA) / 0.25f * 3.1416f) * 0.08f * (d > 0);
     bool chegou = e >= ELEV_CHEGA;
-    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "C" };
+    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "5", "6", "7", "8", "9", "C" };
     for (int i = 0; i <= N_NIVEIS; i++) {
         float a = 3.1416f * (0.08f + 0.84f * i / N_NIVEIS);
         int mx = cx - (int)(cosf(a) * R), my = cy - (int)(sinf(a) * R);
@@ -126,14 +190,14 @@ static void des_virou(void)
     perso_virado = fala_perso;
     t_virada = 2.4f;
     som_toca(SOM_ZERA);
-    snprintf(fala_txt, sizeof fala_txt, "%s", VIRADA_FRASE[fala_perso - PERSO_CHEFE0]);
-    t_fala = 3.4f;
+    snprintf(fala_txt, sizeof fala_txt, "%s", virada_frase(fala_perso));
+    fala_comeca(3.4f);
 }
 
 static void des_virada_anuncio(void)
 {
-    if (t_virada <= 0 || perso_virado < PERSO_CHEFE0) return;
-    int c = perso_virado - PERSO_CHEFE0;
+    if (t_virada <= 0 || chefe_idx(perso_virado) < 0) return;
+    int c = chefe_idx(perso_virado);
     float e = 2.4f - t_virada;
     n_zonas = 0;
     int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
@@ -147,7 +211,7 @@ static void des_virada_anuncio(void)
     gfx_rect(-dx, y, GFX_W, 2, C_OURO);
     gfx_rect(-dx, y + h - 2, GFX_W, 2, C_OURO);
     if (q < 1) return;
-    txt_sombra_c(GFX_W / 2, y + 6, VIRADA_TITULO[c], C_OURO, 2);
+    txt_sombra_c(GFX_W / 2, y + 6, virada_titulo(perso_virado), C_OURO, 2);
     char s[96];
     virada_txt(c, virada_forca(c), false, s, sizeof s);
     txt_c(GFX_W / 2, y + 36, s, C_MARFIM, false);
@@ -161,11 +225,13 @@ static bool des_desenha(void)
     case F_RBOLSA: desenha_bolsa_run(); return true;
     case F_RFIM:   desenha_fim_run();   return true;
     case F_CREDITOS: desenha_creditos(); return true;
+    case F_NOVIDADES: desenha_novidades(); return true;
     case F_RAMULETO: desenha_amuleto_run(); return true;
     case F_PERFIS: desenha_perfis();    return true;
     case F_PCRIA:  desenha_cria_perfil(); return true;
     case F_RDIFIC: desenha_dificuldade(); return true;
-    case F_REVENTO: desenha_evt();   return true;
+    case F_HIST:   desenha_historico(); return true;
+    case F_ESTILO: desenha_estilo();    return true;
     default:       return false;
     }
 }
@@ -174,14 +240,10 @@ static bool des_desenha(void)
 static void des_esc(void)
 {
     if (fase == F_PERFIS && pf_apagando) { pf_apagando = false; return; }
-    if (fase == F_REVENTO) {                     // escolhendo dado: volta as escolhas; senao, menu
-        if (ev_passo == 1) ev_tecla(KEY_BKSP, 0);
-        else if (!ev_girando()) volta_ao_menu();
-        return;
-    }
-    if (fase == F_PCRIA) { t_fase = 0; fase = F_PERFIS; return; }
-    menu_tela = fase == F_RDIFIC && des_tem_run() ? MT_DESAFIO : MT_UM;
-    menu_cur = 1;
+    if (fase == F_PCRIA || fase == F_HIST || fase == F_ESTILO) { t_fase = 0; fase = F_PERFIS; return; }
+    bool tem = fase == F_RDIFIC && des_tem_run();      // da dificuldade, de volta a continuar ou nova
+    menu_tela = tem ? MT_DESAFIO : MT_PRINCIPAL;
+    menu_cur = tem ? 1 : MN_UM;
     t_fase = 1.0f;
     fase = F_ABERTURA;
 }
@@ -189,9 +251,11 @@ static void des_esc(void)
 // O dado em foco nas telas da run (tecla I).
 static int des_foco(void)
 {
-    if (fase == F_RLOJA && cursor >= 0 && cursor < N_LOJA) return run.loja[cursor].tipo;
+    if (fase == F_RLOJA && lj_pac) return t_pac >= PAC_PRONTO && cursor >= 0 && cursor < PAC_OPCOES ? run.pac_op[cursor].tipo : -1;
+    if (fase == F_RLOJA && lj_tirando && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
+    if (fase == F_RLOJA && lj_colando == 1 && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
+    if (fase == F_RLOJA && lj_colando) return -1;
+    if (fase == F_RLOJA && !lj_tirando && cursor >= 0 && cursor < n_vitrine()) return run.vitrine[cursor].tipo;
     if (fase == F_RBOLSA && cursor >= 0 && cursor < run.n_col) return run.col[cursor].tipo;
-    if (fase == F_REVENTO && ev_passo == 1 && cursor >= 0 && cursor < ev_n) return run.col[ev_lista[cursor]].tipo;
-    if (fase == F_REVENTO && ev_passo == 2 && ev_mostra == 1) return ev_peca.tipo;
     return -1;
 }

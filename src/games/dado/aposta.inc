@@ -67,6 +67,8 @@ static void executa(int op)
     jogador_t *p = &J[vez];
     bool maquina = anuncia_maquina();
     if (op != OP_PASSAR && op != OP_CORRER) som_toca(SOM_FICHA);
+    if (vez == 0 && (op == OP_APOSTAR10 || op == OP_APOSTAR25 || op == OP_AUMENTAR)) rival_reage(RM_APOSTA);
+    else if (vez == 0 && op == OP_CORRER) rival_reage(RM_CORREU);
     switch (op) {
     case OP_PASSAR:
         if (maquina) anuncia("%s passou", p->nome, 0);
@@ -101,8 +103,12 @@ static void executa(int op)
         int w = outro(vez);
         res_antes[0] = J[0].fichas; res_antes[1] = J[1].fichas;
         res_quem = w;
+        p->perdidas++;                    // correr conta como perder (Rancor)
+        p->perdeu_ultima = true;
+        J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
+        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
         som_toca(SOM_CORREU);
         pote = 0;
         venc_mao = -1;

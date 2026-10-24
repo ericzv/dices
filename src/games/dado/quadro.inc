@@ -9,16 +9,28 @@ static void desenha_tudo(void);
 
 static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, const char **desc)
 {
-    if (tipo == DICA_DADO)         { *nome = TIPO[id].nome; *cor = cor_dado(id); *desc = TEXTO_MEDIO[id]; }
+    if (tipo == DICA_DADO && id == DICA_EMBRULHO) {
+        *nome = "Embrulho"; *cor = cor_dado(D_PRESENTE);
+        *desc = "Um dos seus dados, embrulhado pelo Papai Noel: só se sabe qual é quando você o lança. "
+                "No fim da rodada, volta a ser o que era.";
+    } else if (tipo == DICA_DADO)  { *nome = TIPO[id].nome; *cor = cor_dado(id); *desc = TEXTO_MEDIO[id]; }
     else if (tipo == DICA_AMULETO) { *nome = AMULETO[id].nome; *cor = AMULETO[id].cor; *desc = AMULETO[id].desc; }
+    else if (tipo == DICA_ADESIVO) { *nome = ADESIVO[id].nome; *cor = ADESIVO[id].luz; *desc = AD_TEXTO[id]; }
     else {
-        *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = PERSO[id].regra;
+        *nome = PERSO[id].trunfo; *cor = C_ROSA; *desc = regra_perso(id);
+        if (id == PERSO_CORINGA)                         // o Coringa: os detalhes da copia
+            *desc = des_dificuldade() >= CORINGA_SOME
+                  ? "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
+                    "Se ele abre a rodada, é um \"?\" que só vira e é lançado depois que você joga. "
+                    "Da 5ª rodada em diante, cada dado seu que terminar anulado é destruído."
+                  : "O 4º dado dele é a cópia do seu dado que tirou o maior valor no seu turno (empate: o último). "
+                    "Se ele abre a rodada, é um \"?\" que só vira e é lançado depois que você joga.";
         int v = virada_de(id);
         if (v) {                                         // o chefe tambem conta a virada
             static char t[200];
             char vt[96];
-            virada_txt(id - PERSO_CHEFE0, v, false, vt, sizeof vt);
-            snprintf(t, sizeof t, "%s Virada na 5ª rodada: %s", PERSO[id].regra, vt);
+            virada_txt(chefe_idx(id), v, false, vt, sizeof vt);
+            snprintf(t, sizeof t, "%s Virada na 5ª rodada: %s", regra_perso(id), vt);
             *desc = t;
         }
     }
@@ -29,8 +41,10 @@ static bool dica_rect(int *r, const dica_t **qual)
 {
     if (mouse_x < 0 || (detalhe >= 0 && fase == detalhe_fase)) return false;
     const dica_t *d = NULL;
-    for (int i = n_dicas - 1; i >= 0 && !d; i--)
+    for (int i = n_dicas - 1; i >= 0 && !d; i--) {
+        if (dicas[i].tipo == DICA_TRUNFO && modo == M_DESAFIO && !trunfo_ativo(dicas[i].id)) continue;   // sem trunfo ainda: nada
         if (mouse_em(dicas[i].x, dicas[i].y, dicas[i].w, dicas[i].h)) d = &dicas[i];
+    }
     if (!d) return false;
     const char *nome, *desc;
     uint16_t cor;
@@ -59,7 +73,7 @@ static void desenha_dica(const int *r, const dica_t *d)
     gfx_rect(r[0] + 3, r[1] + 3, 3, r[3] - 6, cor);             // a cor da coisa, na beira
     int x = r[0] + 8, y = r[1] + 5;
     int w = gfx_texto(x, y, nome, cor, 1, true);
-    if (d->tipo == DICA_DADO) {                          // "D4 · raro", miudo, ao lado
+    if (d->tipo == DICA_DADO && d->id != DICA_EMBRULHO) {   // "D4 · raro", miudo, ao lado
         char c2[32];
         classe(d->id, c2, sizeof c2);
         gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
@@ -72,6 +86,7 @@ void dado_desenha(void)
     n_zonas = 0;
     n_dicas = 0;
     zonas_fase = fase;
+    bolsas_vistas = 0;
     desenha_tudo();
     desenha_flutua();
     // O que a maquina fez fica por cima dos numeros que ainda sobem dos dados.
@@ -86,11 +101,16 @@ void dado_desenha(void)
         desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
-    }
+        desenha_bolsa_pop();
+    } else bolsa_pop = -1;
     int r[4];
     const dica_t *d = NULL;
     bool tem_dica = !menu && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
+    desenha_fantasma_voo();
+    desenha_misterio();
+    desenha_clarao();                                    // o golpe: o clarao de quem acertou
+    aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta
 }
 
@@ -128,6 +148,8 @@ static void desenha_tudo(void)
         desenha_fila(outro(vez));
         desenha_fila(vez);
         desenha_devolvidos();
+        desenha_jingle_copias();                 // as copias dos Jingle Bells voando para a bolsa
+        desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
         else if (fase == F_RESULTADO) { desenha_log(); desenha_resultado(); }

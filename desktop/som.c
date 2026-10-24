@@ -3,7 +3,8 @@
 // jogo.
 //
 //  - Trilha: a bossa de 16 compassos do jogo, tocada por teclado (um Rhodes
-//    gravado) e baixo eletrico, com vassourinha e shaker; em loop.
+//    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
+//    com o rufo, na hora da verdade e nos climax (Jackpot, fim, premio).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
 //    moeda tem o seu: a beirada tocando o feltro a cada volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
@@ -38,6 +39,17 @@ static const char *const NOME[SOM_N] = {
     [SOM_VALIDO2] = "valido2",   [SOM_VALIDO3] = "valido3",   [SOM_VALIDO4] = "valido4",
     [SOM_BATE_DADO] = "bate_dado", [SOM_PASSA] = "passa",
     [SOM_MOEDA_BATE] = "moeda_bate", [SOM_MOEDA_POUSA] = "moeda_pousa",
+    [SOM_SUSPENSE] = "suspense", [SOM_FORTE] = "forte",
+    [SOM_AD_COLA] = "ad_cola",   [SOM_AD_CHUMBO] = "ad_chumbo", [SOM_AD_REFLEXIVO] = "ad_reflexivo",
+    [SOM_AD_AVESSO] = "ad_avesso", [SOM_AD_CONFETE] = "ad_confete", [SOM_AD_ELETRONICO] = "ad_eletronico",
+    [SOM_AD_TRANSPARENTE] = "ad_transparente", [SOM_AD_DOURADO] = "ad_dourado", [SOM_AD_LOBO] = "ad_lobo",
+    [SOM_AD_REMENDO] = "ad_remendo", [SOM_AD_RASPADINHA] = "ad_raspadinha", [SOM_AD_FERMENTO] = "ad_fermento",
+    [SOM_AD_BIS] = "ad_bis",     [SOM_AD_MIRA] = "ad_mira",     [SOM_AD_GORJETA] = "ad_gorjeta",
+    [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
+    [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
+    [SOM_BOLSA_ESPIA] = "bolsa_espia",
+    [SOM_SINO] = "sino",         [SOM_GELO] = "gelo",         [SOM_ONDA] = "onda",
+    [SOM_PRESENTE] = "presente", [SOM_ESTRELA] = "estrela",
 };
 
 typedef struct {
@@ -50,8 +62,9 @@ static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static Music trilha;
 static bool  pronto, falhou, ligado = true, musica = true;
-static bool  rufando, girando;
+static bool  rufando, girando, suspense;
 static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
+static float t_climax;                       // > 0: um climax tocando (a trilha abaixa ate ele acabar)
 
 static const som_arquivo_t *acha(const char *nome)
 {
@@ -136,15 +149,20 @@ void som_atualiza(float dt)
         SetSoundVolume(giro, vol_giro);
         if (!girando && vol_giro < 0.01f) StopSound(giro);
     }
-    float d = rufando || girando ? 0.45f : 1;
-    duck += (d - duck) * fminf(1, dt / 0.25f);
+    // Na hora da verdade a trilha quase some; nos climax (Jackpot, fim da
+    // partida, premio) abaixa enquanto eles tocam. Depois volta sem pressa.
+    if (t_climax > 0) t_climax -= dt;
+    float d = suspense ? 0.08f : (rufando || girando ? 0.45f : 1);
+    if (t_climax > 0 && d > 0.35f) d = 0.35f;
+    duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.4f ? 0.9f : 0.25f));
     SetMusicVolume(trilha, 0.35f * duck * (ligado && musica ? 1 : 0));
     UpdateMusicStream(trilha);
 }
 
-void som_toca(int s)
+// Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que
+// recebeu, entao todo toque diz o seu.
+static void toca(int s, float tom)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
     efeito_t *e = &ef[s];
     int v = 0;
     if (e->n > 1) {                          // sorteia outra gravacao, nunca a mesma de antes
@@ -153,11 +171,28 @@ void som_toca(int s)
         e->ultima = v;
     }
     Sound voz = e->voz[v][e->prox++ % VOZES];
-    // Batidas, pousos e fichas tambem variam um pouco de tom.
-    if (s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
-        s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA)
-        SetSoundPitch(voz, 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f);
+    SetSoundPitch(voz, tom);
     PlaySound(voz);
+    if (s == SOM_JACKPOT || s == SOM_FIM || s == SOM_DERROTA || s == SOM_PREMIO) {
+        float dur = voz.stream.sampleRate ? (float)voz.frameCount / voz.stream.sampleRate / tom : 1;
+        if (dur > t_climax) t_climax = dur;
+    }
+}
+
+void som_toca(int s)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    // Batidas, pousos e fichas variam um pouco de tom.
+    bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
+                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA;
+    toca(s, varia ? 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f : 1.0f);
+}
+
+// Um semitom e a raiz duodecima de 2: doze sobem uma oitava.
+void som_toca_tom(int s, int semitons)
+{
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    toca(s, powf(2.0f, semitons / 12.0f));
 }
 
 static void comeca_a_rolar(Sound *s)
@@ -193,6 +228,8 @@ void som_giro(bool on)
     }
     girando = on;
 }
+
+void som_suspense(bool on) { suspense = on; }
 
 bool som_liga(bool on)  { ligado = on && pronto; return ligado; }
 bool som_ligado(void)   { return ligado; }

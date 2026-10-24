@@ -54,20 +54,37 @@ static void poe_na_fila(int i)
         f->n++;
     }
     if (!anuncia_maquina()) som_toca(SOM_TIQUE);
+    mola_chuta();                                 // entrou (ou saiu): pula de novo
 }
 
 void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
+    if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
+    if (k == 'b' && !dado_digitando() && bolsa_abre_tecla()) return;   // B: a sua bolsa
 
     if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
+    if (t_misterio > 0) {                          // a vinheta do Dado Misterioso: espera um pouco
+        if (t_misterio > MIST_ESPERA + MIST_MIN) t_misterio = 0;
+        return;
+    }
     if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
     if (k == 'v' && !dado_digitando()) {
-        rapido = !rapido;
-        salva_grava("vel", rapido ? "1" : "0");
+        velocidade = (velocidade + 1) % VEL_N;     // normal, media, rapida
+        char g[2] = { VEL_GRAVA[velocidade], 0 };
+        salva_grava("vel", g);
         t_aviso_vel = 1.6f;
+        t_aviso_tremor = 0;
+        som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == 't' && !dado_digitando()) {
+        tremor_off = !tremor_off;
+        salva_grava("tremor", tremor_off ? "0" : "1");
+        t_aviso_tremor = 1.6f;
+        t_aviso_vel = 0;
         som_toca(SOM_TIQUE);
         return;
     }
@@ -112,7 +129,8 @@ bool dado_mouse_clicavel(void)
     if (zonas_fase != fase) return false;
     bool alheia = ia_na_vez() || (modo == M_ONLINE && rede_na_vez());
     for (int i = 0; i < n_zonas; i++)
-        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h) && (!alheia || zonas[i].tecla == KEY_ESC))
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)
+            && (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA))
             return true;
     return false;
 }
@@ -124,13 +142,26 @@ void dado_mouse(int x, int y, int acao)
     mouse_x = x;
     mouse_y = y;
     if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (t_misterio > 0) {                               // a vinheta: um clique fecha
+        if (acao == 1) manda_tecla(KEY_ENTER);
+        return;
+    }
     if (detalhe >= 0 && fase == detalhe_fase) {         // um clique fecha os detalhes
         if (acao == 1) manda_tecla(KEY_ENTER);
+        return;
+    }
+    if (bolsa_pop >= 0) {                               // e o pop-up da bolsa
+        if (acao == 1) bolsa_fecha();
         return;
     }
     const zona_clique_t *z = NULL;
     for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
         if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+    // Uma bolsa (a sua ou a do oponente): so olhar, vale ate na vez dos outros.
+    if (z && z->tecla == TECLA_BOLSA) {
+        if (acao == 1) bolsa_abre(z->val);
+        return;
+    }
     // Na vez da IA ou do rival online, o mouse nao mexe em nada; so o "<" de
     // sair vale sempre.
     if (ia_na_vez() || (modo == M_ONLINE && rede_na_vez())) {
@@ -143,7 +174,7 @@ void dado_mouse(int x, int y, int acao)
         // que vao para o rival: la so o clique vale.
         if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
             *z->var = z->val;
-            som_toca(SOM_PASSA);                  // mais curto e baixo que o de escolher
+            if (fase != F_ABERTURA) som_toca(SOM_PASSA);   // mais curto e baixo que o de escolher
         }
         return;
     }
@@ -171,7 +202,7 @@ void dado_mouse(int x, int y, int acao)
     case F_ONLINE:
         if (!rede_disponivel() || rede_estado() == REDE_ERRO) manda_tecla(KEY_ENTER);
         break;
-    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS:
+    case F_RESULTADO: case F_FIM: case F_RFIM: case F_CREDITOS: case F_VEREDITO: case F_EFEITOS: case F_NOVIDADES:
         manda_tecla(KEY_ENTER);
         break;
     case F_PREMIO:
@@ -179,6 +210,37 @@ void dado_mouse(int x, int y, int acao)
         break;
     default:
         break;
+    }
+}
+
+// A ficha escolhida no menu, depois de assentar. 1 jogador e o Modo
+// Desafiante: vai direto aos perfis.
+static void menu_executa(int i)
+{
+    if (menu_tela == MT_DESAFIO) {
+        if (i == 0) des_continua(); else des_escolhe_nova();
+        return;
+    }
+    switch (i) {
+    case MN_UM:
+        des_abre_perfis();
+        break;
+    case MN_DOIS:
+        modo = M_DOIS;
+        cpu = 0;
+        remoto = 0;
+        baixo = 0;
+        poe_nomes();
+        abre_loja();
+        break;
+    case MN_ONLINE:
+        online_cur = 0;
+        digitando = false;
+        t_fase = 0;
+        fase = F_ONLINE;
+        break;
+    case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
+    default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
     }
 }
 
@@ -202,62 +264,23 @@ static void trata_tecla(int k)
             return;
         }
         {
+        if (t_menu_clique >= 0) return;             // a ficha escolhida ainda assenta
         const char *op[MN_N];
         int n_op = menu_opcoes(op);
         if (e) {
             menu_cur = (menu_cur + e + n_op) % n_op;
             sacode = 1;                              // como se alguem mexesse na mesa
-            som_toca(SOM_TIQUE);
-            return;
+            return;                                  // o tom da ficha toca no passo (menu_passo)
         }
         if (k == KEY_BKSP && menu_tela) { menu_volta(); return; }
         if (k >= '1' && k < '1' + n_op) { menu_cur = k - '1'; sacode = 1; }
         if (k != KEY_ENTER && !(k >= '1' && k < '1' + n_op)) return;
         }
-        som_toca(SOM_FICHA);
+        // A ficha assenta e gira um instante; a acao vem no fim (menu_executa).
+        som_toca(SOM_MENU_ESCOLHE);
         sacode = 1;
-        if (menu_tela == MT_UM) {
-            if (menu_cur == 0) { menu_tela = MT_NIVEL; menu_cur = 1; }
-            else des_abre_perfis();
-            return;
-        }
-        if (menu_tela == MT_NIVEL) {                // partida rapida no nivel escolhido
-            modo = M_UM;
-            cpu = 2;
-            remoto = 0;
-            baixo = 0;
-            nivel_jog[1] = menu_cur;
-            ousadia_jog[1] = 0;
-            poe_nomes();
-            abre_loja();
-            return;
-        }
-        if (menu_tela == MT_DESAFIO) {
-            if (menu_cur == 0) des_continua(); else des_escolhe_nova();
-            return;
-        }
-        switch (menu_cur) {
-        case MN_UM:
-            menu_tela = MT_UM;
-            menu_cur = 0;
-            break;
-        case MN_DOIS:
-            modo = M_DOIS;
-            cpu = 0;
-            remoto = 0;
-            baixo = 0;
-            poe_nomes();
-            abre_loja();
-            break;
-        case MN_ONLINE:
-            online_cur = 0;
-            digitando = false;
-            t_fase = 0;
-            fase = F_ONLINE;
-            break;
-        case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
-        default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
-        }
+        menu_escolhida = menu_cur;
+        t_menu_clique = 0;
         return;
 
     case F_TUTORIAL:
@@ -303,14 +326,16 @@ static void trata_tecla(int k)
 
     case F_CATALOGO:
         // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
-        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB) {
-            int sec = k == KEY_TAB ? !cat_sec : (k == KEY_DOWN || k == 's');
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '3')) {
+            int sec = k == KEY_TAB ? (cat_sec + 1) % 3 : k >= '1' && k <= '3' ? k - '1'
+                    : k == KEY_DOWN || k == 's' ? (cat_sec < 2 ? cat_sec + 1 : 2) : (cat_sec > 0 ? cat_sec - 1 : 0);
             if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
             return;
         }
         if (e) {
-            if (cat_sec == 0) cat_i = (cat_i + e + D_N) % D_N;
-            else cat_a = (cat_a + e + A_N) % A_N;
+            if (cat_sec == 0) cat_i = (cat_i + e + n_catalogo()) % n_catalogo();
+            else if (cat_sec == 1) cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
+            else cat_ad = (cat_ad + e + AD_N - 1) % (AD_N - 1);
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;
@@ -348,7 +373,7 @@ static void trata_tecla(int k)
         if (k >= '1' && k <= '8' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
         if (k == KEY_ENTER) { poe_na_fila(cursor); return; }
         if (k == KEY_BKSP && f->n) { f->n--; return; }
-        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { cursor = 0; fase = F_JOGA; }
+        if ((k == KEY_TAB || k == 'x') && f->n >= 1) { coringa_completa(vez); cursor = 0; fase = F_JOGA; }
         return;
     }
 
@@ -394,15 +419,16 @@ static void trata_tecla(int k)
         slot_pula();                                // tecla do rival: a roleta daqui trava
         if (t_tira > 0) return;                     // dado saindo: espera
         if (removendo) {
-            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= GRADE) cursor -= GRADE; return; }
-            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + GRADE < p->n_col) cursor += GRADE; return; }
+            int por = grade_tira(p->n_col).por;
+            if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return; }
+            if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < p->n_col) cursor += por; return; }
             if (e) { cursor = (cursor + e + p->n_col) % p->n_col; return; }
             if (k == KEY_BKSP || k == 'x') { removendo = false; cursor = 3; return; }
             if (k == KEY_ENTER) { tira_i = cursor; t_tira = 0.001f; som_toca(SOM_ANULA); }
             return;
         }
         if (e) { cursor = (cursor + e + 4) % 4; return; }
-        if (k == 'x') { if (modo == M_DESAFIO) des_premio_feito(); else nova_rodada(); return; }
+        if (k == 'x') { nova_rodada(); return; }
         if (k == KEY_ENTER) {
             if (cursor == 3) {
                 if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
@@ -414,8 +440,7 @@ static void trata_tecla(int k)
                 p->col[p->n_col] = oferta[cursor];
                 p->onde[p->n_col++] = FORA;
             }
-            if (modo == M_DESAFIO) des_premio_feito();
-            else nova_rodada();
+            nova_rodada();
         }
         return;
     }

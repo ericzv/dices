@@ -22,8 +22,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 #include "esp_timer.h"
 #include "../ui/gfx.h"
 #include "../hal/keyboard.h"
@@ -40,9 +42,8 @@
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
-#define MAX_COL     48             // espaco para a colecao (o Desafiante nao tem limite)
-#define LIM_COL     24             // dados que um jogador pode ter na partida normal
-#define MAO         8              // espaco da mao (compra 7; 8 com a Bolsa Funda)
+#define MAX_COL     128            // espaco para a colecao: a bolsa nao tem limite de dados
+#define MAO         10             // espaco da mao (compra 7; 8 com a Bolsa Funda, mais o Bis)
 #define MAO_NORMAL  7              // quantos compra da bolsa por rodada
 #define N_FILA      4              // a fila leva de 1 a 4
 
@@ -82,6 +83,8 @@ static const char *dica_toque(const char *s);
 #include "dado/estado.inc"        // o estado da partida inteira
 #include "dado/util.inc"          // sorteio, quem e quem na mesa, texto centrado
 #include "dado/interface.inc"     // paineis, botoes, numeros flutuantes e o mouse
+#include "dado/estilo.inc"        // o feltro, a mesa e o material dos dados
+#include "dado/adesivos.inc"      // os adesivos do Desafiante: o que fazem e o desenho
 #include "dado/desenho_dado.inc"  // o desenho de cada dado
 #include "dado/fila.inc"          // a regra da fila: o que vale, o que anula
 #include "dado/desfecho.inc"      // os poderes que mexem no rival, em sequencia
@@ -89,6 +92,7 @@ static const char *dica_toque(const char *s);
 #include "dado/aposta.inc"        // a aposta entre os dois turnos
 #include "dado/premio.inc"        // o sorteio e a roleta do premio
 #include "dado/ia.inc"            // o aparelho como adversario
+#include "dado/hora.inc"          // a hora da verdade e o crescendo
 #include "dado/online.inc"        // o rival pela rede
 #include "dado/passo.inc"         // o passo de tempo
 #include "dado/mesa.inc"          // o desenho da mesa
@@ -98,6 +102,7 @@ static const char *dica_toque(const char *s);
 #include "dado/tutorial.inc"      // como jogar
 #include "dado/avisos.inc"        // os avisos sobre a mesa
 #include "dado/desafio.inc"       // o Modo Desafiante
+#include "dado/bolsa.inc"         // o pop-up da bolsa: os dados de um jogador
 #include "dado/quadro.inc"        // o quadro de cada fase
 #include "dado/teclado.inc"       // teclado e mouse
 #ifdef DADO_TOQUE
@@ -131,7 +136,7 @@ int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
 const char *dado_dbg_cat_nome(void) { return cat_sec == 0 ? TIPO[cat_tipo(cat_i)].nome : "amuleto"; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
-int  dado_dbg_n_tipos(void) { return D_BASICOS; }   // os da partida comum
+int  dado_dbg_n_tipos(void) { return n_basicos(); }   // os da partida comum (dado_dbg_bolsa os numera)
 void dado_dbg_ia_esforco(int e) { ia_esforco = e; }
 void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)
@@ -144,8 +149,8 @@ int  dado_dbg_margem(void)
 void dado_dbg_bolsa(int j, const int *tipos, int n)
 {
     J[j].n_col = 0;
-    for (int i = 0; i < n && i < MAX_COL; i++) {
-        J[j].col[J[j].n_col] = nova_peca(tipos[i]);
+    for (int i = 0; i < n && i < MAX_COL; i++) {         // tipos: o i-esimo da partida comum
+        J[j].col[J[j].n_col] = nova_peca(basico(tipos[i]));
         J[j].onde[J[j].n_col++] = NA_BOLSA;
     }
     J[j].n_mao = 0;

@@ -100,17 +100,20 @@ static void desenha_ordem(void)
         for (int k = 0; k < f->n; k++) if (f->idx[k] == p->mao[i]) ordem = k;
         bool cur = i == cursor && q >= 1;
         if (cur) ui_selecao(x - 25, y - 25, 50, 50, p->cor);
-        peca_parada((float)x, (float)(y + dy - (cur ? 3 : 0)), 17, p->col[p->mao[i]], vez);
+        if (cur) brilho_passa = mola_brilho();          // pulou: o brilho passa junto
+        int rs = respira(i);                     // esperando na mao: respira
+        caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
+        peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) {
             char o[2] = { (char)('1' + ordem), 0 };
-            gfx_disco(x + 16, y - 17, 9, C_OURO);
-            gfx_disco(x + 16, y - 17, 7, C_AMARELO);
-            txt_c(x + 16, y - 27, o, C_BARRA, true);
+            gfx_disco(x + 16, y - 17 + rs, 9, C_OURO);
+            gfx_disco(x + 16, y - 17 + rs, 7, C_AMARELO);
+            txt_c(x + 16, y - 27 + rs, o, C_BARRA, true);
         }
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
-        dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p->col[p->mao[i]].tipo);
+        dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p == &J[0] && p->mao[i] == embrulho ? DICA_EMBRULHO : p->col[p->mao[i]].tipo);
     }
 
     char t[64];
@@ -136,7 +139,9 @@ static void desenha_ordem(void)
         int x = fx + k * 36;
         if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
         if (k < f->n) {
-            peca_t pc = { f->tipo[k], f->fixo[k] };
+            const peca_t *pf = peca_fila(vez, k);    // a da bolsa (com os adesivos); a carta do Coringa nao tem
+            peca_t pc = pf ? *pf : (peca_t){ .tipo = f->tipo[k], .fixo = f->fixo[k] };
+            pc.fixo = f->fixo[k];
             peca_parada((float)x, (float)ry, 10, pc, vez);
             // Clicar num dado da sequencia tira ele dela.
             for (int i = 0; i < n; i++)
@@ -174,7 +179,6 @@ static int chance_cair(int j)
     int caiu = 0;
     for (int a = 0; a < N; a++) {
         semeia_ia(0xC4A1u + (uint32_t)rodada * 31u + (uint32_t)k, a);
-        if (f->tipo[k] == D_ACUMULADOR && f->fixo[k] < 6) f->fixo[k]++;   // o lance soma antes
         sim_lanca(j);
         bool c = f->est[k] != V_VALIDO || (f->tipo[k] == D_TUDO_NADA && f->cru[k] == 1);
         for (int i = 0; i < k && !c && !ego; i++) c = antes[i] == V_VALIDO && f->est[i] != V_VALIDO;
@@ -189,11 +193,11 @@ static int chance_cair(int j)
 
 
 // A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
-// Nivel 3 do Desafiante em diante.
+// Nivel 6 do Desafiante em diante.
 static bool mostra_chance(void)
 {
     if (cpu >> vez & 1) return false;            // vez do computador
-    if (modo == M_DESAFIO) return des_dificuldade() < 3;
+    if (modo == M_DESAFIO) return des_dificuldade() < 6;
     if (cpu >> outro(vez) & 1) return nivel_jog[outro(vez)] < 2;
     return true;
 }
@@ -222,8 +226,8 @@ static void desenha_joga(void)
         if (f->lancados == 0) snprintf(parar, sizeof parar, "voltar à sequência");
         if (f->lancados && f->lancados < f->n && mostra_chance()) {
             int c = chance_cair(vez);
-            if (c <= 0) snprintf(jogar, sizeof jogar, "jogar: não cai");
-            else        snprintf(jogar, sizeof jogar, "jogar: %d%% de cair", c);
+            if (c <= 0) snprintf(jogar, sizeof jogar, "jogar: sem risco");
+            else        snprintf(jogar, sizeof jogar, "jogar: %d%% de risco", c);
         }
     }
     // Rolando, o dado que voa fala sozinho. No veredito do dia a dia (vale 5,
@@ -296,11 +300,13 @@ static void desenha_efeitos(void)
 {
     if (ev_i >= n_ev) return;
     const evento_t *e = &ev[ev_i];
-    uint16_t c = e->tipo == EV_ZERA ? C_VIOLETA
+    uint16_t c = e->tipo == EV_ADESIVO ? ADESIVO[e->ad].luz
                : e->tipo == EV_FOGO ? C_FOGO
                : e->tipo == EV_SEMENTE ? C_VERDE
                : e->tipo == EV_JACKPOT ? C_AMARELO
-               : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA) ? C_OURO
+               : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR
+               : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA
+                  || e->tipo == EV_AVISO || (e->tipo == EV_CHEFE && e->de_j == 0)) ? C_OURO
                : C_VINHO_CLR;
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.
     // Uma linha so: o efeito, na cor do que ele faz. De quem e, mostram os
@@ -404,7 +410,9 @@ static void desenha_resultado(void)
 {
     uint16_t c = venc_mao == 0 ? C_LATAO : (venc_mao == 1 ? C_ROSA : C_MARFIM);
     char pl[64] = "";
-    if (venc_mao >= 0)                                     // o placar da rodada
+    if (venc_mao >= 0 && zerou >= 0)                       // quem fez 0 abriu: o outro nem jogou
+        snprintf(pl, sizeof pl, "%s nem precisou jogar", J[outro(zerou)].nome);
+    else if (venc_mao >= 0)                                // o placar da rodada
         snprintf(pl, sizeof pl, "%s   %d x %d   %s", J[0].nome, F[0].total, F[1].total, J[1].nome);
     int wp = gfx_largura(aviso, 1);
     if (gfx_largura(pl, 1) > wp) wp = gfx_largura(pl, 1);
@@ -454,7 +462,23 @@ static int fichas_vis(int j)
     return res_antes[j] + (int)((J[j].fichas - res_antes[j]) * q);
 }
 
-#define GRADE 12                     // dados por linha na escolha do que sai
+// A bolsa nao tem limite de dados: uma grade de n dados que, se nao couber
+// na altura alt com o tamanho cheio, poe mais dados por linha e encolhe
+// todos por igual (f: a escala; a largura da grade fica a mesma).
+typedef struct { int por; float f; } grade_t;
+static grade_t grade_cabe(int n, int por, int passo_y, int alt)
+{
+    grade_t g = { por, 1.0f };
+    while (g.f > 0.25f && (n + g.por - 1) / g.por * passo_y * g.f > alt) {
+        g.por++;
+        g.f = (float)por / g.por;
+    }
+    return g;
+}
+
+// A escolha do que sai: 12 por linha, duas linhas e meia antes de encolher.
+#define TIRA_Y 108                   // o alto da grade
+static grade_t grade_tira(int n) { return grade_cabe(n, 12, 52, 130); }
 
 static void desenha_premio(void)
 {
@@ -467,36 +491,41 @@ static void desenha_premio(void)
         snprintf(t, sizeof t, "%s: qual dos %d dados sai?", p->nome, p->n_col);
         txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
         teclas_c(GFX_W / 2, MESA_Y0 + 40, "ENTER tira para sempre  ·  BACKSPACE volta", C_TEXTO_M);
+        grade_t g = grade_tira(p->n_col);
+        float f = g.f;
+        int sel = (int)(22 * f), meio = (int)(16 * f);
         for (int i = 0; i < p->n_col; i++) {
-            int lin = i / GRADE, col = i % GRADE;
-            int na_linha = (p->n_col - lin * GRADE) < GRADE ? p->n_col - lin * GRADE : GRADE;
-            int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46);
-            int y = 134 + lin * 52;
+            int lin = i / g.por, col = i % g.por;
+            int na_linha = (p->n_col - lin * g.por) < g.por ? p->n_col - lin * g.por : g.por;
+            int x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46 * f);
+            int y = TIRA_Y + (int)((lin + 0.5f) * 52 * f);
             if (t_tira > 0 && i == tira_i) {
                 // O escolhido encolhe e cai, deixando um rastro de po.
                 float q = t_tira / 0.7f;
-                float r = 17 * (1 - q);
-                if (r > 2) peca_parada((float)x, y + q * 24, r, p->col[i], vez);
+                float r = 17 * f * (1 - q);
+                if (r > 2) peca_parada((float)x, y + q * 24 * f, r, p->col[i], vez);
                 for (int k = 0; k < 7; k++)
-                    gfx_rect(x - 14 + k * 4, y + (int)(q * 34) + (k % 2) * 6, 3, 3, C_TEXTO_M);
+                    gfx_rect(x - (int)(14 * f) + (int)(k * 4 * f), y + (int)(q * 34 * f) + (k % 2) * 6, 3, 3, C_TEXTO_M);
                 continue;
             }
-            if (i == cursor) ui_selecao(x - 22, y - 22, 44, 44, C_VINHO_CLR);
-            peca_parada((float)x, (float)y, 17, p->col[i], vez);
-            if (i != cursor) marca_rar(x, y + 23, p->col[i].tipo);
-            if (i == cursor) gfx_rect(x - 16, y + 23, 32, 3, C_VINHO_CLR);
-            zona_clique(x - 22, y - 22, 44, 44, &cursor, i, KEY_ENTER);
+            if (i == cursor) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, C_VINHO_CLR);
+            if (i == cursor) brilho_passa = mola_brilho();
+            peca_parada((float)x, (float)(y - (i == cursor ? mola_px() : 0)), 17 * f, p->col[i], vez);
+            if (i != cursor) marca_rar(x, y + (int)(23 * f), p->col[i].tipo);
+            if (i == cursor) gfx_rect(x - meio, y + (int)(23 * f), 2 * meio, 3, C_VINHO_CLR);
+            zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, KEY_ENTER);
         }
         botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
         int tc = p->col[cursor < p->n_col ? cursor : 0].tipo;
-        txt_c(GFX_W / 2, 236, TIPO[tc].nome, cor_dado(tc), true);
-        txt_c(GFX_W / 2, 258, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
+        int linhas = (p->n_col + g.por - 1) / g.por, ty = TIRA_Y + (int)(linhas * 52 * f) + 24;
+        if (ty < 236) ty = 236;              // o nome do dado logo abaixo da grade
+        txt_c(GFX_W / 2, ty, TIPO[tc].nome, cor_dado(tc), true);
+        txt_c(GFX_W / 2, ty + 22, t_tira > 0 ? "some para sempre" : TEXTO_MEDIO[tc],
               t_tira > 0 ? C_VINHO_CLR : C_MARFIM_S, false);
         return;
     }
 
-    if (modo == M_DESAFIO) snprintf(t, sizeof t, "Prêmio por vencer %s", J[1].nome);
-    else snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
+    snprintf(t, sizeof t, "%s levou a rodada e escolhe um prêmio", p->nome);
     txt_c(GFX_W / 2, MESA_Y0 + 14, t, p->cor, true);
     bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
@@ -527,10 +556,8 @@ static void desenha_premio(void)
                 peca_t pc = oferta[i];
                 if (k > 0) {
                     uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
-                    // So os tipos que podem sair aqui: os basicos, ou os ja
-                    // abertos no Desafiante.
-                    pc.tipo = (uint8_t)(h % D_BASICOS);
-                    if (modo == M_DESAFIO && dado_liberado((int)(h % D_N))) pc.tipo = (uint8_t)(h % D_N);
+                    // So os tipos que podem sair aqui: os basicos.
+                    pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }
                 peca_parada((float)x, 126 + dy, 24 * q, pc, vez);
@@ -550,7 +577,8 @@ static void desenha_premio(void)
         bool acende = q < 1;
         if (acende) ui_cartao(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
-        float bob = cur ? sinf(t_fase * 4) * 3 : 0;
+        float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
+        if (cur) brilho_passa = mola_brilho();
         peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
         txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
         char c2[32];
@@ -603,7 +631,8 @@ static void desenha_loja(void)
         bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
         uint16_t cr = cor_rar(tp);
         ui_cartao(x - 48, yb, 96, 92, cur, cr);
-        float bob = cur && !ja ? sinf(t_fase * 4) * 3 : 0;
+        float bob = cur && !ja ? sinf(t_fase * 4) * 3 - mola_px() : 0;
+        if (cur && !ja) brilho_passa = mola_brilho();
         peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
         if (ja) {
             txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);

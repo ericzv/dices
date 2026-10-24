@@ -5,9 +5,21 @@
 // Assim cada lendario e mais raro que cada raro, quantos houver em cada grupo.
 // Moeda, d4 e d6 sao so da colecao inicial: nunca saem como premio.
 static bool so_inicial(int t) { return t == D_D2 || t == D_D4 || t == D_D6; }
+
+// O premio sobe de raridade com as rodadas: da 1a a 5a, comuns e incomuns;
+// da 6a a 10a, incomuns e raros; da 11a em diante, raros e lendarios. Assim
+// ninguem pega um dado forte cedo e abre uma vantagem dificil de desfazer.
+static bool raridade_da_rodada(int rar, int r)
+{
+    if (r <= 5)  return rar <= RAR_INCOMUM;
+    if (r <= 10) return rar == RAR_INCOMUM || rar == RAR_RARO;
+    return rar >= RAR_RARO;
+}
+
 static int peso_dado(int t)
 {
-    if (so_desafio(t)) return 0;                 // so no Modo Desafiante
+    if (so_desafio(t) || sem_sorteio(t)) return 0;   // so no Modo Desafiante (ou em lugar nenhum)
+    if (!raridade_da_rodada(TIPO[t].raridade, rodada)) return 0;
     static const int PESO[4] = { 8, 4, 2, 1 };
     return so_inicial(t) ? 0 : PESO[TIPO[t].raridade];
 }
@@ -39,9 +51,8 @@ static void slot_comeca(void)
         for (int k = i; k > 0 && TIPO[oferta[k].tipo].raridade < TIPO[oferta[k - 1].tipo].raridade; k--) {
             peca_t t = oferta[k]; oferta[k] = oferta[k - 1]; oferta[k - 1] = t;
         }
-    bool calma = modo == M_DESAFIO;
-    slot_t0 = calma ? 0.95f : 0.35f;
-    slot_dt = calma ? 0.6f : 0.2f;
+    slot_t0 = 0.35f;
+    slot_dt = 0.2f;
     t_slot = 0;
     som_giro(true);
 }
@@ -130,7 +141,7 @@ static void passo_slot(float dt)
     if (a < fim && t_slot >= fim) som_giro(false);
     if (a < fim + 0.1f && t_slot >= fim + 0.1f) {
         som_toca(SOM_PREMIO);
-        solta_confete(modo == M_DESAFIO ? MAX_CONFETE : 60);
+        solta_confete(60);
     }
     if (t_slot > fim + 5) t_slot = fim + 5;
 }

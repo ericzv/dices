@@ -64,8 +64,8 @@ static void volta_ao_menu(void)
 // Um nivel acima no menu (ESC ou BACKSPACE num submenu).
 static void menu_volta(void)
 {
-    if (menu_tela == MT_NIVEL || menu_tela == MT_DESAFIO) { menu_cur = menu_tela == MT_NIVEL ? 0 : 1; menu_tela = MT_UM; }
-    else { menu_tela = MT_PRINCIPAL; menu_cur = MN_UM; }
+    menu_tela = MT_PRINCIPAL;
+    menu_cur = MN_UM;
     sacode = 1;
 }
 
@@ -81,10 +81,10 @@ static void trata_esc(void)
     switch (fase) {
     case F_ABERTURA: if (menu_tela) menu_volta(); return;
     case F_CATALOGO: case F_TUTORIAL: ao_menu_sem_partida(); return;
-    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM: case F_CREDITOS:
+    case F_MAPA: case F_RLOJA: case F_RBOLSA: case F_RFIM: case F_CREDITOS: case F_NOVIDADES:
         volta_ao_menu();                     // a run fica guardada
         return;
-    case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_REVENTO:
+    case F_PERFIS: case F_PCRIA: case F_RDIFIC: case F_HIST: case F_ESTILO:
         des_esc();
         return;
     case F_ONLINE:
@@ -93,8 +93,9 @@ static void trata_esc(void)
         ao_menu_sem_partida();
         return;
     default:
-        if (conexao_caiu() || t_sair >= 0) volta_ao_menu();
-        else t_sair = 0;
+        if (!conexao_caiu() && t_sair < 0) t_sair = 0;
+        else if (des_abandono()) des_abandona();   // Desafiante: sair no meio e perder a mesa
+        else volta_ao_menu();
         return;
     }
 }

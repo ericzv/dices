@@ -1,10 +1,16 @@
 // ===========================================================================
 // Cores da mesa e dos dados
 // ===========================================================================
-#define C_FELTRO     RGB(18, 49, 36)
-#define C_FELTRO2    RGB(24, 62, 46)
-#define C_FELTRO_ESC RGB(11, 33, 24)
-#define C_FELTRO_MEIO RGB(15, 41, 30)
+// O feltro troca com o estilo escolhido (estilo.inc): os tons dele, a sombra
+// no feltro e o texto discreto vem da tabela do feltro em uso. Comeca verde.
+static uint16_t feltro_tons[7] = { RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36),
+                                   RGB(24, 62, 46), RGB(40, 84, 62), RGB(170, 190, 178) };
+#define C_SOMBRA      (feltro_tons[0])
+#define C_FELTRO_ESC  (feltro_tons[1])
+#define C_FELTRO_MEIO (feltro_tons[2])
+#define C_FELTRO      (feltro_tons[3])
+#define C_FELTRO2     (feltro_tons[4])
+#define C_TEXTO_M     (feltro_tons[6])
 #define C_LATAO      RGB(190, 156, 86)
 #define C_LATAO_ESC  RGB(106, 86, 44)
 #define C_BARRA      RGB(14, 14, 12)
@@ -19,7 +25,6 @@
 #define C_ACO        RGB(140, 150, 164)
 #define C_OURO       RGB(228, 194, 106)
 #define C_TERRA      RGB(156, 106, 64)
-#define C_SOMBRA     RGB(8, 24, 17)
 #define C_VERDE      RGB(88, 152, 84)        // a Semente brotando
 #define C_FOGO       RGB(214, 112, 44)       // a Ficha de Fogo queimando
 #define C_BRASA      RGB(190, 56, 60)
@@ -29,7 +34,6 @@
 #define C_MARFIM_D   RGB(238, 230, 212)      // corpo dos dados de quem joga embaixo
 #define C_AZUL       RGB(56, 86, 150)
 #define C_VERMELHO   RGB(190, 56, 60)
-#define C_TEXTO_M    RGB(170, 190, 178)
 #define C_BRANCO     RGB(252, 248, 236)
 #define C_CHUMBO     RGB(70, 76, 88)
 #define C_REAL       RGB(150, 112, 160)       // purpura real
@@ -58,7 +62,8 @@ static const uint16_t PALETA[] = {
     RGB(70, 76, 88), RGB(104, 112, 124), RGB(140, 150, 164), RGB(184, 194, 208),
     // marfim
     RGB(252, 248, 236), RGB(238, 230, 212), RGB(204, 194, 172), RGB(166, 154, 132),
-    // feltro, do mais escuro ao realce, e o texto discreto (PAL_FELTRO)
+    // feltro, do mais escuro ao realce, e o texto discreto (PAL_FELTRO): os do
+    // verde; outro feltro troca estes sete (estilo.inc)
     RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36), RGB(24, 62, 46), RGB(40, 84, 62),
     RGB(170, 190, 178),
     // verdes

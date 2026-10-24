@@ -23,12 +23,14 @@ static int64_t relogio = 1;
 int64_t esp_timer_get_time(void) { return relogio; }
 
 void som_toca(int s) { (void)s; }
+void som_toca_tom(int s, int t) { (void)s; (void)t; }
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
+void som_suspense(bool on) { (void)on; }
 
 // Salvamento do Modo Desafiante na memoria (sem arquivo nos testes).
 #include "salva_mem.h"
@@ -78,7 +80,7 @@ static void confere_estado(int partida)
 {
     for (int j = 0; j < 2; j++) {
         CONFERE(dado_dbg_fichas(j) >= 0, "partida %d jogador %d fichas %d", partida, j, dado_dbg_fichas(j));
-        CONFERE(dado_dbg_col(j) >= 4 && dado_dbg_col(j) <= 24, "partida %d colecao %d", partida, dado_dbg_col(j));
+        CONFERE(dado_dbg_col(j) >= 4 && dado_dbg_col(j) <= 128, "partida %d colecao %d", partida, dado_dbg_col(j));
         CONFERE(dado_dbg_pool(j) >= 0 && dado_dbg_pool(j) <= 8, "partida %d mao %d", partida, dado_dbg_pool(j));
         CONFERE(dado_dbg_lancados(j) >= 0 && dado_dbg_lancados(j) <= 4, "partida %d lancados %d", partida, dado_dbg_lancados(j));
     }

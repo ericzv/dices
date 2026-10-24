@@ -29,7 +29,7 @@ static float media(peca_t p)
     case EF_EXPLODE:  return 5.1f;
     case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
     case EF_PREVISIVEL: return p.fixo + 1 < 12 ? p.fixo + 1 : 12;   // o proximo da escada
-    case EF_VAZIO: case EF_SACRIFICIO: return 0;         // nao pontuam
+    case EF_VAZIO: case EF_SACRIFICIO: case EF_ONDA: return 0;   // nao pontuam
     default:          return (t->lados + 1) / 2.0f;
     }
 }

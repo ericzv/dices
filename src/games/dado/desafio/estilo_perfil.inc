@@ -11,10 +11,11 @@ static const char *chave_estilo(int i)
     return K[i >= 0 && i < N_PERFIS ? i : 0];
 }
 
-// Aberto para o perfil i? (andar -1: sempre aberto) Quem fecha a run do
-// andar o abre.
+// Aberto para o perfil i? (andar -1: sempre aberto; ANDAR_NATAL: em novembro
+// e dezembro, para todos) Quem fecha a run do andar o abre.
 static bool estilo_aberto(int i, int andar)
 {
+    if (andar == ANDAR_NATAL) return natal;
     if (andar < 0) return true;
     return i >= 0 && i < N_PERFIS && perfis[i].nome[0] && chefe_abriu_de(&perfis[i], andar, chefe_final(andar));
 }
@@ -162,6 +163,7 @@ static void desenha_estilo(void)
     int fl = es_foco / ES_LIN, k = es_foco % ES_LIN, andar = es_andar(fl, k);
     char s[96];
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
+    else if (andar == ANDAR_NATAL) snprintf(s, sizeof s, "%s  ·  só em novembro e dezembro", es_nome(fl, k));
     else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)]);
     else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)],
                   NOME_DIF_CURTO[andar]);

@@ -362,12 +362,14 @@ static void des_nova_run(void)
 
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
 // recomecada (quem saiu no meio e voltou), sorteia do mesmo jeito.
-// O Acumulador guarda o bonus so dentro de uma partida: a cada partida da
-// run ele recomeca do zero.
+// O Acumulador (e a Furia) guarda o bonus so dentro de uma partida: a cada
+// partida da run ele recomeca do zero. A Onda e os Tres Patinhos levam a
+// contagem de uma partida para a outra.
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++)
-        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL) col[i].fixo = 0;
+        if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
+            || col[i].tipo == D_FURIA) col[i].fixo = 0;
 }
 
 static void des_comeca_partida(void)

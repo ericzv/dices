@@ -83,7 +83,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_REVELA,                    // o Oculto mostra o que tirou
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
        EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
-       EV_ADESIVO };                 // um adesivo do lado que ficou para cima (ad: qual)
+       EV_ADESIVO,                   // um adesivo do lado que ficou para cima (ad: qual)
+       EV_ONDA };                    // a Onda juntou 9: vira Tsunami
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
@@ -186,6 +187,9 @@ static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
+static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
+static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
+static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou

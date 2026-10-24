@@ -135,8 +135,10 @@ static const uint16_t LED_HALO[LED_N] = { RGB(30, 8, 10), RGB(42, 10, 12), RGB(5
                                           RGB(88, 22, 24), RGB(108, 28, 30), RGB(120, 32, 34) };
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
-// Barao, ou do Nivel 5 o Coringa; -1: sempre aberto).
-static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, 3, 10, 9, 5, 1 };
+// Barao, ou do Nivel 5 o Coringa; -1: sempre aberto). O Natalino nao e de
+// andar nenhum: fica aberto em novembro e dezembro, e so (ANDAR_NATAL).
+#define ANDAR_NATAL (-2)
+static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, ANDAR_NATAL, 10, 9, 5, 1 };
 static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1, 6, 7, 8, 3 };
 static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6, 9 };
 

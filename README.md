@@ -11,9 +11,18 @@ Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por u
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido; os
 seguintes precisam ser iguais ou maiores que o último dado válido — se sair
 menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
-termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 82
+termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 85
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
+
+**Natal** (novembro e dezembro, pelo relógio do computador): o feltro
+Natalino fica aberto para todos, e três dados de Natal entram no jogo, nos
+dois modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus
+dados válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8
+congela e anula o 4º dado do oponente) e o **Jingle Bell** (d6: lançado, deixa
+uma cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos
+batem um no outro e cada um rende +4). Fora da época, nem eles nem o feltro
+aparecem.
 
 ## O menu
 
@@ -69,7 +78,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite, Galáxias, um céu de estrelas que cintilam com a Via Láctea
   atravessando a mesa, Natalino, com fita vinho e pisca-pisca na borda,
-  azevinho e neve, Mar à noite, com a lua e o reflexo dela cintilando na
+  azevinho e neve, aberto em novembro e dezembro, Mar à noite, com a lua e o reflexo dela cintilando na
   água, Art déco, com leques de ouro nos cantos, Couro, com costura na
   borda, e Losangos, com a estampa um tom acima), o material dos seus dados
   comuns (marfim, osso, jade, obsidiana, ébano, madeira polida, pérola,
@@ -82,7 +91,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   run abre a dificuldade seguinte (são 11: a Normal e 10 níveis, uma coisa
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
-  mais estranhos entram aos poucos, alguns por nível. Os oponentes só usam o
+  mais estranhos entram aos poucos, alguns por nível (os Três Patinhos, x3 a
+  cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
+  cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um
+  Tsunami, no 7). Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

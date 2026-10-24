@@ -27,6 +27,19 @@ static int face_v(int tipo, int valor)
     if (tipo == D_LASTRO)   return 3 + rola_v(9);
     return rola_v(TIPO[tipo].lados);
 }
+// A epoca do Natal, pelo relogio do computador: novembro e dezembro. Online,
+// pelo de Greenwich, para os dois lados sortearem dos mesmos dados. Le-se no
+// comeco de cada partida (e na volta ao menu). natal_forcado: os testes e as
+// cenas de amostra fixam a epoca (1 sempre, 0 nunca; -1, o relogio).
+static int natal_forcado = -1;
+static void le_epoca(void)
+{
+    if (natal_forcado >= 0) { natal = natal_forcado != 0; return; }
+    time_t agora = time(NULL);
+    const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
+    natal = m && (m->tm_mon == 10 || m->tm_mon == 11);
+}
+
 static int outro(int j) { return j ^ 1; }
 static int rola(int lados) { return 1 + sorte(lados); }
 static int baixo;                        // quem aparece embaixo: o jogador local

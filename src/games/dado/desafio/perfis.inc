@@ -149,11 +149,11 @@ static int nivel_do_dado(int t)
     case D_CARIDOSO: case D_GATUNO: case D_VAMPIRO: case D_QUEBRADO:
     case D_VIDRO: case D_PONTE: case D_RANCOR: case D_FICHA_VELHA:              return 4;
     case D_INVEJOSO: case D_FARTURA: case D_SORTE: case D_PUXA_FILA:
-    case D_COVEIRO: case D_SACRIFICIO: case D_SANGUESSUGA:                      return 5;
+    case D_COVEIRO: case D_SACRIFICIO: case D_SANGUESSUGA: case D_PATINHOS:     return 5;
     case D_ESPELHO: case D_VENTANIA: case D_FERREIRO: case D_MISERICORDIOSO:
-    case D_GEMEO: case D_ECO:                                                   return 6;
+    case D_GEMEO: case D_ECO: case D_FURIA:                                     return 6;
     case D_VIUVA: case D_PRISMA: case D_CHECKPOINT: case D_POTE_QUENTE:
-    case D_OURICO: case D_ANCORA:                                               return 7;
+    case D_OURICO: case D_ANCORA: case D_ONDA:                                  return 7;
     case D_CAPITAO: case D_ESPERANCA: case D_SABOTADOR: case D_FENIX:
     case D_TUDO_NADA: case D_EGOISTA:                                           return 8;
     case D_FOGO: case D_SORTE_REVES: case D_OCULTO: case D_PACTO:
@@ -198,6 +198,7 @@ static int chefe_do_dado(int t)
 static bool dado_liberado(int t)
 {
     if (sem_sorteio(t)) return false;            // nao sai em sorteio nenhum
+    if (de_natal(t)) return true;                // no Natal, abertos para todos
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
     return chefe_abriu(nivel_do_dado(t) - 1, chefe_do_dado(t));

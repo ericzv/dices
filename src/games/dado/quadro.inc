@@ -144,6 +144,7 @@ static void desenha_tudo(void)
         desenha_fila(outro(vez));
         desenha_fila(vez);
         desenha_devolvidos();
+        desenha_jingle_copias();                 // as copias dos Jingle Bells voando para a bolsa
         desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();

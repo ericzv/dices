@@ -14,7 +14,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_OURICO, EF_CALIBRE, EF_SABOTADOR, EF_AZARAO, EF_AMPULHETA, EF_AGIOTA, EF_MEDUSA,
        EF_RANCOR, EF_ESPERANCA, EF_PONTE, EF_GARIMPEIRO, EF_POTE, EF_FANTASMA,
        EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
-       EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA };
+       EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA,
+       EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -46,7 +47,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_OURICO, D_CALIBRE, D_SABOTADOR, D_AZARAO, D_AMPULHETA, D_AGIOTA, D_MEDUSA,
        D_MISTERIOSO, D_RANCOR, D_ESPERANCA, D_PONTE, D_GARIMPEIRO, D_POTE_QUENTE, D_FANTASMA,
        D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO, D_COLECIONADOR,
-       D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA, D_N };
+       D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
+       // Os de Natal (so em novembro e dezembro) e os mais novos.
+       D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -61,12 +64,28 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define AUTO_BOLSA 8
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
 #define ESPERANCA_FICHAS 15
+// O que cada Jingle Bell valendo rende no fim, com outro valendo junto.
+#define JINGLE_PTS 4
+// A Furia: o que guarda tirando 4, o que perde tirando 1, e o teto (dos dois lados).
+#define FURIA_GANHA 2
+#define FURIA_PERDE 1
+#define FURIA_MAX   99
+// A Onda vira Tsunami quando o que ela guardou chega a tanto.
+#define ONDA_VIRA 9
+// Os Tres Patinhos: x3 a cada tantas vezes que terminam valendo.
+#define PATINHOS_CADA 3
+// A epoca do Natal (novembro e dezembro): o feltro Natalino abre e os dados
+// de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
+static bool natal;
+static bool de_natal(int t) { return t == D_TRENO || t == D_BONECO || t == D_JINGLE; }
+static bool fora_de_epoca(int t) { return de_natal(t) && !natal; }
 // O Dado Misterioso nao aparece em lugar nenhum: nem na colecao, nem no
 // premio, nem na loja. So sai de uma pedra negativa que se parte.
 static bool oculto(int t) { return t == D_MISTERIOSO; }
-// Dados que nao saem em sorteio nenhum (premio, loja, liberacao): o oculto e
-// o Fantasma, que so aparece quando alguem o poe na bolsa.
-static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA; }
+// Dados que nao saem em sorteio nenhum (premio, loja, liberacao): o oculto, o
+// Fantasma, que so aparece quando alguem o poe na bolsa, o Tsunami, que so
+// nasce de uma Onda, e os de Natal fora de novembro e dezembro.
+static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t); }
 static bool so_desafio(int t)
 {
     switch (t) {
@@ -180,6 +199,13 @@ static const tipo_t TIPO[D_N] = {
     { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: um Fantasma na bolsa do oponente" },
     { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "Anulado: +4 no fim" },
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
+    { "Trenó",            8, EF_TRENO,        RAR_RARO,     0, "Válido: +1, +2, +3 nos seus dados antes dele" },
+    { "Boneco de Neve",   8, EF_BONECO,       RAR_RARO,     0, "Tirou 8: congela e anula o 4º do oponente" },
+    { "Jingle Bell",      6, EF_JINGLE,       RAR_RARO,     0, "Lançado: cópia na bolsa · 2 ou mais válidos: +4 cada" },
+    { "Fúria",            4, EF_FURIA,        RAR_RARO,     0, "Tirou 4: guarda +2 · tirou 1: perde 1" },
+    { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Não pontua · válido: guarda o que tirou; 9 vira Tsunami" },
+    { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula um dado do oponente" },
+    { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que termina válido: x3" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -279,6 +305,13 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ASSOMBRACAO]     = "Se terminar válido, no fim um Fantasma (pontua 1) entra na bolsa do oponente.",
     [D_FICHA_VELHA]     = "Se terminar a rodada anulado (pela sequência ou por outro dado), pontua +4 no fim.",
     [D_SANGUESSUGA]     = "Ao ser lançado, anula o dado anterior na sequência. Este dado não pode ser anulado.",
+    [D_TRENO]           = "Se terminar válido, os seus dados válidos antes dele pontuam +1, +2 e +3, do primeiro ao último.",
+    [D_BONECO]          = "Se terminar válido tirando 8, congela e anula o 4º dado da sequência do oponente.",
+    [D_JINGLE]          = "Lançado, uma cópia dele entra na sua bolsa. Com 2 ou mais válidos na sequência: +4 em cada um.",
+    [D_FURIA]           = "Tirando 4, guarda +2 de bônus; tirando 1, perde 1. O bônus soma no que ele tira, até negativo.",
+    [D_ONDA]            = "Não pontua. Cada vez que termina válido, guarda o que tirou; ao juntar 9, vira um Tsunami.",
+    [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula um dado do oponente, ao acaso.",
+    [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que termina válido, pontua x3. Os patinhos marcam a contagem.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -449,6 +482,25 @@ static const char *TEXTO_CAT[D_N] = {
                           "multiplicadores.",
     [D_SANGUESSUGA]     = "Oito lados. Ao ser lançado, anula o dado anterior na sequência (se ele puder ser anulado), e a "
                           "sequência segue a partir dela. Este dado não pode ser anulado.",
+    [D_TRENO]           = "Oito lados. Se terminar válido, puxa os seus dados válidos que vieram antes dele na sequência: o "
+                          "primeiro pontua +1, o segundo +2 e o terceiro +3 no fim da rodada. Só aparece em novembro e "
+                          "dezembro.",
+    [D_BONECO]          = "Oito lados. Se terminar válido tirando 8, no fim da rodada congela e anula o 4º dado da sequência "
+                          "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece em novembro e dezembro.",
+    [D_JINGLE]          = "Seis lados. Cada vez que é lançado, válido ou não, uma cópia dele (com os mesmos adesivos) entra na "
+                          "sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
+                          "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece em novembro e dezembro.",
+    [D_FURIA]           = "Quatro lados. Cada vez que tira 4, guarda +2 de bônus; cada vez que tira 1, perde 1. O bônus "
+                          "guardado, já com o lance de agora, soma no que ele tira, de rodada em rodada, sem limite, e pode "
+                          "ficar negativo. Recomeça a cada partida.",
+    [D_ONDA]            = "Quatro lados, mas não pontua: conta na sequência com o número que tirou. Cada vez que termina "
+                          "válido, guarda esse número. Quando o que guardou chega a 9, no fim da rodada vira um Tsunami, de "
+                          "vez.",
+    [D_TSUNAMI]         = "Doze lados. Não é vendido nem sorteado: nasce de uma Onda que juntou 9. Se terminar válido tirando "
+                          "de 9 a 12, uma onda anula um dado do oponente, escolhido ao acaso.",
+    [D_PATINHOS]        = "Quatro lados. Conta as vezes que termina válido: na 3ª, na 6ª, na 9ª... pontua x3 no fim da "
+                          "rodada. Os três patinhos no dado marcam a contagem; com os três acesos, ele está ativo. A "
+                          "contagem fica com ele.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -486,13 +538,20 @@ static void classe(int tipo, char *s, int n)
     else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), RARIDADE[TIPO[tipo].raridade]);
 }
 
-// O catalogo mostra os dados do mais comum ao mais raro, menos o oculto.
-#define N_CATALOGO (D_N - 1)
+// O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
+// fora de novembro e dezembro, os de Natal.
+static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t); }
+static int n_catalogo(void)
+{
+    int n = 0;
+    for (int t = 0; t < D_N; t++) n += no_catalogo(t);
+    return n;
+}
 static int cat_tipo(int i)
 {
     for (int r = RAR_COMUM; r <= RAR_LENDA; r++)
         for (int t = 0; t < D_N; t++)
-            if (TIPO[t].raridade == r && !oculto(t) && i-- == 0) return t;
+            if (TIPO[t].raridade == r && no_catalogo(t) && i-- == 0) return t;
     return 0;
 }
 
@@ -635,6 +694,13 @@ static const visual_t VISUAL[D_N] = {
     [D_ASSOMBRACAO] = { V_AMEIXA, V_LILAS, 24,  V_LILAS, 100,   V_ROXO, 80,    V_BRANCO, 80 },
     [D_FICHA_VELHA] = { V_COURO,  V_TERRA, 46,  V_VINHO, 80,    V_ROSA, 55,    V_MADEIRA, 95 },
     [D_SANGUESSUGA] = { V_VERDE,  V_VERDE, 16,  V_BREU, 80,     V_AMBAR, 90,   V_SANGUE, 100 },
+    [D_TRENO]      = { V_VERM,    V_VERM, 16,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
+    [D_BONECO]     = { V_CEU,     V_CEU, 30,    V_BRANCO, 100,  V_BREU, 85,    V_FOGO, 100 },
+    [D_JINGLE]     = { V_OURO,    V_OURO, 12,   V_OURO, 100,    V_LATAO_E, 100, V_VERM, 100 },
+    [D_FURIA]      = { V_FOGO,    V_SANGUE, 16, V_FOGO, 95,     V_AMBAR, 100,  V_BREU, 85 },
+    [D_ONDA]       = { V_CIANO,   V_CEU, 14,    V_AZUL, 75,     V_CIANO, 100,  V_BRANCO, 90 },
+    [D_TSUNAMI]    = { V_AZUL,    V_NOITE, 44,  V_AZUL, 100,    V_CIANO, 100,  V_BRANCO, 100 },
+    [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

@@ -102,6 +102,7 @@ static void desenha_ordem(void)
         if (cur) ui_selecao(x - 25, y - 25, 50, 50, p->cor);
         if (cur) brilho_passa = mola_brilho();          // pulou: o brilho passa junto
         int rs = respira(i);                     // esperando na mao: respira
+        caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) {
@@ -112,7 +113,7 @@ static void desenha_ordem(void)
         }
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
-        dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p->col[p->mao[i]].tipo);
+        dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p == &J[0] && p->mao[i] == embrulho ? DICA_EMBRULHO : p->col[p->mao[i]].tipo);
     }
 
     char t[64];

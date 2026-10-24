@@ -1559,6 +1559,46 @@ int main(void)
                 presente_livre = presente_virou = false;
                 modo = modo0;
             }
+            // Os trunfos de dezembro: o Ranzinza corta o seu maior da 5a rodada,
+            // o Duende soma +1 por dado igual, o Papai Noel embrulha um dado seu.
+            {
+                int modo0 = modo, rod0 = rodada;
+                amul_t a0 = amul[0], a1 = amul[1];
+                uint8_t reg0 = reg_op;
+                modo = M_DESAFIO; amul[0] = amul[1] = 0;
+                reg_op = REG_RANZINZA; rodada = 5;
+                limpa(); joga(0, D_D6, 2); joga(0, D_D8, 6); d = fim();
+                CONFERE(d.total[0] == 2 + 3 && n_ev == 1 && ev[0].tipo == EV_CORTA, "Ranzinza: o 6 vale 3, deu %d", d.total[0]);
+                rodada = 4;
+                limpa(); joga(0, D_D6, 2); joga(0, D_D8, 6); d = fim();
+                CONFERE(d.total[0] == 8, "Ranzinza antes da 5a rodada: nada, deu %d", d.total[0]);
+                reg_op = REG_DUENDE;
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); d = fim();
+                CONFERE(d.total[1] == 2 + 3 + 5 + 2, "Duende: dois D6, +1 cada; deu %d", d.total[1]);
+                limpa(); joga(0, D_D6, 2); joga(0, D_D6, 3); d = fim();
+                CONFERE(d.total[0] == 5, "a linha de montagem e so dele");
+                reg_op = REG_PRESENTE; rodada = 2;
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+                J[0].n_mao = 2; J[0].mao[0] = 0; J[0].mao[1] = 1;
+                J[0].col[0] = nova_peca(D_D8); J[0].col[1] = nova_peca(D_D8);
+                embrulha_um();
+                CONFERE(embrulho >= 0 && embrulho <= 1 && J[0].col[embrulho].tipo == D_PRESENTE && embrulho_tipo == D_D8,
+                        "Papai Noel: um dado da mao embrulhado");
+                int e0 = embrulho;
+                limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = (int8_t)e0;
+                int t = desembrulha(0, 0, sempre_um);
+                CONFERE(t == D_D8 && J[0].col[e0].tipo == D_D8 && embrulho < 0 && F[0].presente[0] == 3,
+                        "o embrulho volta a ser o dado ao ser lancado");
+                embrulha_um();
+                e0 = embrulho;
+                desfaz_embrulho();
+                CONFERE(e0 >= 0 && J[0].col[e0].tipo == D_D8 && embrulho < 0, "nao lancado, desembrulha no fim");
+                reg_op = REG_NADA;
+                embrulha_um();
+                CONFERE(embrulho < 0, "sem o Papai Noel, nada embrulhado");
+                for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+                modo = modo0; rodada = rod0; amul[0] = a0; amul[1] = a1; reg_op = reg0;
+            }
             // A epoca: os de Natal so em novembro e dezembro, e entao abertos
             // no Desafiante, no premio e na colecao; o feltro Natalino idem.
             {
@@ -1579,6 +1619,43 @@ int main(void)
                 CONFERE(natal && dezembro && !reveillon, "dezembro, antes do dia 26");
                 natal_forcado = 3; le_epoca();
                 CONFERE(natal && dezembro && reveillon, "do dia 26 em diante: o Reveillon");
+                // Os estilos de Natal: abertos na epoca; o Reveillon, so do dia 26.
+                CONFERE(ABRE_FELTRO[FT_NOITE_FELIZ] == ANDAR_NATAL && ABRE_FELTRO[FT_XADREZ] == ANDAR_NATAL
+                        && ABRE_FELTRO[FT_REVEILLON] == ANDAR_REVEILLON && ABRE_MATERIAL[MAT_BOLA] == ANDAR_NATAL
+                        && ABRE_MATERIAL[MAT_VELUDO] == ANDAR_NATAL && ABRE_MESA[MS_LAREIRA] == ANDAR_NATAL
+                        && ABRE_MESA[MS_PINHO] == ANDAR_NATAL, "os estilos de Natal");
+                CONFERE(estilo_aberto(-1, ANDAR_REVEILLON) && estilo_aberto(-1, ANDAR_NATAL), "dia 26: tudo aberto");
+                natal_forcado = 2; le_epoca();
+                CONFERE(!estilo_aberto(-1, ANDAR_REVEILLON) && estilo_aberto(-1, ANDAR_NATAL), "antes do dia 26: sem Reveillon");
+                // Em dezembro, um oponente de Natal em cada salao e o Papai Noel
+                // no lugar do Barao; fora dele, ninguem de Natal.
+                {
+                    run_t r0 = run;
+                    static const int DE_NATAL[3] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
+                    for (int ep = 0; ep <= 2; ep += 2) {
+                        natal_forcado = ep;
+                        for (int a = 0; a < DES_ANDARES; a++)
+                            for (int sd = 1; sd <= 6; sd++) {
+                                run.semente = (uint32_t)(sd * 2654435761u);
+                                run.andar = (uint8_t)a;
+                                gera_andar();
+                                int nat = 0;
+                                for (int q = 0; q < DES_PASSOS - 1; q++) nat += run.no[q].perso == DE_NATAL[a];
+                                int chefe = run.no[DES_PASSOS - 1].perso;
+                                if (ep) CONFERE(nat == 1 && chefe == (a == 2 ? PERSO_NOEL : PERSO_CHEFE0 + a),
+                                                "dezembro, salao %d: %d de Natal, chefe %d", a, nat, chefe);
+                                else {
+                                    bool algum = false;
+                                    for (int q = 0; q < DES_PASSOS; q++) algum |= perso_natal(run.no[q].perso);
+                                    CONFERE(!algum && chefe == PERSO_CHEFE0 + a, "fora de dezembro, salao %d: ninguem de Natal", a);
+                                }
+                            }
+                    }
+                    run = r0;
+                }
+                CONFERE(chefe_idx(PERSO_NOEL) == 2 && chefe_idx(PERSO_CHEFE0 + 1) == 1 && chefe_idx(0) < 0
+                        && perso_chefe(PERSO_NOEL) && !perso_chefe(PERSO_RANZINZA) && perso_natal(PERSO_RENA)
+                        && !perso_natal(PERSO_CORINGA), "quem e chefe e quem e de Natal");
                 natal_forcado = antes; le_epoca();
             }
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.

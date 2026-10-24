@@ -597,6 +597,7 @@ static void pousa(int j, int k, int (*r)(int))
         }
         if (f->presente[k] && ver_comum) {           // o que saiu do Presente (e se fica de vez)
             snprintf(veredito, sizeof veredito, f->presente[k] == 2 ? "o Presente era um %s: e fica com você!"
+                                              : f->presente[k] == 3 ? "o embrulho era o seu %s: pontua %d"
                                                                     : "o Presente era um %s: pontua %d",
                      TIPO[f->tipo[k]].nome, valor_pontos(j, k) + f->bonus[k]);
             ver_comum = false;

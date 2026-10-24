@@ -212,6 +212,21 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
+    // O Duende (trunfo): cada dado dele valendo ganha +1 por outro dado do
+    // mesmo tipo valendo na sequencia dele (a linha de montagem).
+    if (j == 1 && tem_reg(REG_DUENDE)) {
+        uint8_t mask = 0;
+        int8_t por[N_FILA] = { 0 };
+        for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+            if (est[k] != V_VALIDO) continue;
+            int n = 0;
+            for (int i = 0; i < f->lancados && i < N_FILA; i++) n += i != k && est[i] == V_VALIDO && tipo_de(j, i) == tipo_de(j, k);
+            if (n) { d->bonus[j][k] += (int8_t)n; por[k] = (int8_t)n; mask |= (uint8_t)(1 << k); }
+        }
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, 0xFF, 0, 0, 0, "Linha de montagem: +1 por dado igual") : NULL;
+        if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
+    }
+
     // Rena valendo: +1 no seu dado lancado logo antes e no logo depois dela,
     // se terminarem valendo. Duas Renas lado a lado puxam uma a outra.
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
@@ -918,6 +933,23 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
     }
 }
 
+// O Ranzinza (trunfo): da 5a rodada em diante, o seu maior dado valendo
+// pontua metade - uma vez por rodada, depois dos poderes.
+#define RANZINZA_RODADA 5
+static void ranzinza_corta(desfecho_t *d, bool gera)
+{
+    if (!tem_reg(REG_RANZINZA) || rodada < RANZINZA_RODADA) return;
+    int a = -1;
+    for (int i = 0; i < F[0].lancados && i < N_FILA; i++)
+        if (d->est[0][i] == V_VALIDO && (a < 0 || F[0].valor[i] > F[0].valor[a])) a = i;
+    if (a < 0) return;
+    int base = valor_pontos(0, a) + F[0].bonus[a] + d->bonus[0][a];
+    int corte = base > 0 ? (base + 1) / 2 : 0;
+    if (!corte) return;
+    d->bonus[0][a] = (int8_t)(d->bonus[0][a] - corte);
+    evento(gera, EV_CORTA, 1, 0xFF, 0, a, corte, "%s: o seu %d pontua só %d", J[1].nome, F[0].valor[a], base - corte);
+}
+
 // Fenix: anulada, renasce valendo o que tirou (roubada, nao).
 static void fenix_de(desfecho_t *d, int j, bool gera)
 {
@@ -1065,6 +1097,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
 
     int ordem[2] = { primeiro, outro(primeiro) };
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
+    ranzinza_corta(d, gera);
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);

@@ -122,6 +122,34 @@ static bool melhor_lance(int j, peca_t *out)
     return true;
 }
 
+// O Presente surpresa do Papai Noel: no comeco da rodada, um dado da sua mao
+// (nao um Presente de verdade) vira uma caixa embrulhada - na mao, na fila e
+// na bolsa -, e so mostra o que e quando voce o lanca (desembrulha). No fim da
+// rodada, lancado ou nao, volta a ser o que era.
+static void desfaz_embrulho(void)
+{
+    if (embrulho >= 0 && embrulho < J[0].n_col && J[0].col[embrulho].tipo == D_PRESENTE)
+        J[0].col[embrulho].tipo = embrulho_tipo;
+    embrulho = -1;
+}
+static void embrulha_um(void)
+{
+    embrulho = -1;
+    if (!tem_reg(REG_PRESENTE) || !J[0].n_mao) return;
+    int ok[MAO], n = 0;
+    for (int i = 0; i < J[0].n_mao; i++)
+        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE) ok[n++] = J[0].mao[i];
+    if (!n) return;
+    embrulho = (int16_t)ok[rnd() % (uint32_t)n];
+    embrulho_tipo = J[0].col[embrulho].tipo;
+    J[0].col[embrulho].tipo = D_PRESENTE;
+    if (rodada == 1) {
+        snprintf(fala_txt, sizeof fala_txt, "Ho-ho-ho! Embrulhei um dos seus dados. Adivinha qual?");
+        fala_comeca(3.0f);
+        fala_e_curta = false;
+    }
+}
+
 static void nova_rodada(void)
 {
     rodada++;
@@ -153,8 +181,7 @@ static void nova_rodada(void)
         return;
     }
     if (sem0 || sem1) { encerra(sem0 ? 1 : 0); return; }
-    if (rodada == VIRADA_RODADA && fala_perso >= PERSO_CHEFE0 && fala_perso < PERSO_CHEFE0 + 3
-        && virada_forca(fala_perso - PERSO_CHEFE0))
+    if (rodada == VIRADA_RODADA && chefe_idx(fala_perso) >= 0 && virada_forca(chefe_idx(fala_perso)))
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA) && des_dificuldade() >= CORINGA_SOME) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
@@ -180,12 +207,14 @@ static void nova_rodada(void)
         fala_comeca(2.6f);
         fala_e_curta = false;
     }
+    desfaz_embrulho();
     for (int j = 0; j < 2; j++) {
         J[j].fichas -= ante;
         memset(&F[j], 0, sizeof F[j]);
         descarta_mao(&J[j]);
         compra(&J[j]);
     }
+    embrulha_um();
     pote += 2 * ante;
     n_voo = 0;
     n_ev = ev_i = 0;
@@ -371,6 +400,16 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
 // primeiro que voce abre na run fica sendo esse dado de vez.
 static int desembrulha(int j, int k, int (*r)(int))
 {
+    fila_t *fe = &F[j];
+    if (j == 0 && embrulho >= 0 && fe->idx[k] == embrulho && embrulho < J[0].n_col) {   // o do Papai Noel
+        peca_t *p = &J[0].col[embrulho];
+        p->tipo = embrulho_tipo;
+        fe->tipo[k] = embrulho_tipo;
+        fe->fixo[k] = p->fixo;
+        fe->presente[k] = 3;
+        embrulho = -1;
+        return fe->tipo[k];
+    }
     int ok[D_N], n = 0;
     for (int t = 0; t < D_N; t++) {
         if (TIPO[t].raridade != RAR_RARO || sem_sorteio(t) || t == D_PRESENTE) continue;
@@ -894,6 +933,7 @@ static void conclui_rodada(void)
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
+    desfaz_embrulho();                       // o embrulho do Papai Noel nao lancado volta a ser o dado
     for (int j = 0; j < 2; j++) {
         adesivos_ficam(j, &resolvido);
         contadores_ficam(j, &resolvido);

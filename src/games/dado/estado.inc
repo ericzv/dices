@@ -255,7 +255,14 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 // usa amul[1]): Nervoso (Novato), Batedor de carteira (Ladrao), A casa
 // sempre ganha (Crupie).
 enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
-       REG_MALUCO, REG_JUROS, REG_CORINGA };
+       REG_MALUCO, REG_JUROS, REG_CORINGA,
+       REG_PRESENTE,                     // o Papai Noel: um dado da sua mao vem embrulhado
+       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior dado pontua metade
+       REG_DUENDE };                     // o Duende: +1 por dado igual na sequencia dele
+// O Presente surpresa do Papai Noel: o dado da sua mao (indice na bolsa) que
+// veio embrulhado nesta rodada, e o que ele e de verdade (-1: nenhum).
+static int16_t embrulho = -1;
+static uint8_t embrulho_tipo;
 static uint8_t reg_op;
 static uint8_t estilo_op;                // o jeito de apostar do oponente (ES_*, desafio/run.inc)
 static int8_t maluco_lado;               // a moeda do Maluco nesta rodada: +2 (cara) ou -1 (coroa)
@@ -314,6 +321,19 @@ static int   fala_perso = -1;            // o oponente da partida do Desafiante
 //   Barao (3o): +3 para ele por dado seu anulado e x2 no primeiro dado dele;
 //   na Cobertura, x2 tambem no segundo.
 #define PERSO_CHEFE0  8                  // os chefes, na lista dos oponentes
+// Os de dezembro (veja run.inc): o Papai Noel, no lugar do Barao, e tres comuns.
+#define PERSO_NOEL     22
+#define PERSO_RANZINZA 23
+#define PERSO_DUENDE   24
+#define PERSO_RENA     25
+// Qual chefe o oponente p e (0 Crupie, 1 Dona, 2 Barao - ou o Papai Noel, que
+// senta no lugar dele); -1: nao e chefe.
+static int chefe_idx(int p)
+{
+    if (p == PERSO_NOEL) return 2;
+    int c = p - PERSO_CHEFE0;
+    return c >= 0 && c < 3 ? c : -1;
+}
 #ifndef VIRADA_BARAO
 #define VIRADA_BARAO  3                  // pontos do Barao virado por dado seu anulado
 #endif
@@ -338,8 +358,8 @@ static int des_dificuldade(void);
 // A virada que o oponente perso traz na dificuldade da run: 0 nenhuma, 1, 2.
 static int virada_de(int perso)
 {
-    int c = perso - PERSO_CHEFE0;
-    if (c < 0 || c > 2) return 0;
+    int c = chefe_idx(perso);
+    if (c < 0) return 0;
     static const int8_t ABRE[3] = { 3, 2, 4 }, FORTE[3] = { 8, 7, 10 };   // os niveis em que vira, e forte
     int d = des_dificuldade();
     return d >= FORTE[c] ? 2 : d >= ABRE[c] ? 1 : 0;
@@ -347,8 +367,8 @@ static int virada_de(int perso)
 // Com que forca o chefe c (0 Crupie, 1 Dona, 2 Barao) esta virado agora.
 static int virada_forca(int c)
 {
-    if (modo != M_DESAFIO || fala_perso != PERSO_CHEFE0 + c || rodada < VIRADA_RODADA) return 0;
-    return virada_de(PERSO_CHEFE0 + c);
+    if (modo != M_DESAFIO || chefe_idx(fala_perso) != c || rodada < VIRADA_RODADA) return 0;
+    return virada_de(fala_perso);
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // Quantos dados cabem na sequencia de j (Contrato Sujo: 3).

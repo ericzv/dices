@@ -395,7 +395,7 @@ static void des_comeca_partida(void)
     amul[1] = trunfo_ativo(no->perso) ? PERSO[no->perso].amul : 0;   // o trunfo do oponente, se ja vale
     op_amul_extra = -1;
     // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
-    if (run.dificuldade >= N_NIVEIS && no->perso != PERSO_CHEFE0 + 2) {
+    if (run.dificuldade >= N_NIVEIS && chefe_idx(no->perso) != 2) {
         static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
@@ -458,7 +458,8 @@ static void des_resultado(void)
 {
     const no_t *no = &run.no[run.passo];
     // A bolsa volta para a run como terminou: o Quebrado e o que o Fogo
-    // queimou nao voltam.
+    // queimou nao voltam (e o embrulho do Papai Noel, desfeito).
+    desfaz_embrulho();
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);

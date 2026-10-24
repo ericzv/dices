@@ -242,6 +242,7 @@ static int mesas_do_salao(void)
 
 static void gera_andar(void)
 {
+    le_epoca();                                  // dezembro: o Papai Noel e os de Natal
     rs = run.semente ^ (0x9E3779B9u * (uint32_t)(run.andar + 1));
     rnd_r(); rnd_r();
     uint32_t usados = 0;
@@ -263,6 +264,13 @@ static void gera_andar(void)
     chefe->perso = (uint8_t)(PERSO_CHEFE0 + run.andar);
     chefe->nivel = NIVEL_NO[run.andar][3];
     chefe->semente = rnd_r() | 1;
+    // Em dezembro: um oponente de Natal em cada salao, numa das tres mesas, e
+    // o Papai Noel no lugar do Barao.
+    if (dezembro) {
+        static const uint8_t DE_NATAL[DES_ANDARES] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
+        run.no[sorte_r(DES_PASSOS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
+        if (run.andar == 2) chefe->perso = PERSO_NOEL;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +320,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // O Coringa nao tem poder nenhum alem da copia: a forca dele e a bolsa.
     // Sem os dados de saida, toda do tema, recheada de dados bons.
     bool coringa = no->perso == PERSO_CORINGA;
+    bool noel = no->perso == PERSO_NOEL;         // a bolsa do Papai Noel: so do tema (Trenos e sinos)
     // Ele cresce do Nivel 5 a Cobertura (g de 0 a 5): mais dados do tema e
     // uma bolsa maior. So na Cobertura ele traz o que quiser; antes, o que
     // voce ainda nao abriu vira D12.
@@ -352,7 +361,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         if (i > 0 && extras > 0) extras--;
     }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
-        int t = (n_fav && (coringa || sorte_r(100) < 45)) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
+        int t = (n_fav && (coringa || sorte_r(100) < (noel ? 70 : 45))) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
         if (!tudo && !dado_liberado(t)) t = coringa ? D_D12 : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }

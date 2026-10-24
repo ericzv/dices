@@ -825,10 +825,11 @@ static void desenha_fila(int j)
             if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
             continue;
         }
-        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
+        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, j == 0 && k >= f->lancados && f->idx[k] == embrulho ? DICA_EMBRULHO : t);
         if (k >= f->lancados) {
             gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
             marca_nivel = f->fixo[k];
+            caixa_fechada = j == 0 && f->idx[k] == embrulho;
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
             marca_nivel = -1;
             const peca_t *pc = peca_fila(j, k);
@@ -1601,10 +1602,11 @@ static void desenha_evento(void)
     // na diagonal; dali em diante ele vale metade.
     if (e->tipo == EV_CORTA) {
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        int sx = e->de_k < N_FILA ? ax : 60, sy = e->de_k < N_FILA ? ay : zona(e->de_j);   // o Ranzinza: da mao dele
         float q = p / 0.4f;
         if (q < 1) {
             float s = q * q * (3 - 2 * q);
-            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 30);
+            int x = sx + (int)((bx - sx) * s), y = sy + (int)((by - sy) * s) - (int)(sinf(s * 3.1416f) * 30);
             gfx_disco(x, y, 6, C_PRATA);
             for (int i = 0; i < 8; i++) {                // os dentes, girando
                 float an = t_fase * 18 + i * 0.785f;

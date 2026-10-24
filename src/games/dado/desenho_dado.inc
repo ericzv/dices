@@ -130,6 +130,9 @@ static int patos_acesos(void)
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
     return marca_nivel % PATINHOS_CADA + (patos_pousou ? 1 : 0);
 }
+// O dado em curso e o embrulho do Papai Noel: a caixa mostra "?", nao os
+// lados do Presente. Quem desenha avisa; o desenho consome.
+static bool caixa_fechada;
 // As frutas do Panetone na fatia desta vez (-1: na mao, ainda nao cortada;
 // mostra as tres).
 static int frutas_desta = -1;
@@ -1446,6 +1449,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 {
     brilho_desta = brilho_passa;                  // o brilho de passagem e so deste dado
     brilho_passa = -1;
+    bool caixa = caixa_fechada && tipo == D_PRESENTE;
+    caixa_fechada = false;
     int adf = vista && valor != SO_CORPO && !face_escondida ? ad_face : 0;   // a etiqueta e so deste dado
     bool adf_aceso = ad_face_aceso;
     ad_face = 0;
@@ -1593,7 +1598,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             numero(cx, cy, r, s, tinta);
             return;
         }
-        if (tipo == D_MISTERIOSO) { numero(cx, cy, r, "?", tinta); return; }
+        if (tipo == D_MISTERIOSO || caixa) { numero(cx, cy, r, "?", tinta); return; }
         if (tipo == D_PREVISIVEL) {               // o proximo da escada: o que ele vai tirar
             snprintf(s, sizeof s, "%d", valor + 1 < 12 ? valor + 1 : 12);
             numero(cx, cy, r, s, tinta);

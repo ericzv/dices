@@ -204,8 +204,8 @@ static void desenha_estilo(void)
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
     else if (andar == ANDAR_NATAL) snprintf(s, sizeof s, "%s  ·  só em novembro e dezembro", es_nome(fl, k));
     else if (andar == ANDAR_REVEILLON) snprintf(s, sizeof s, "%s  ·  só do dia 26 de dezembro ao fim do ano", es_nome(fl, k));
-    else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)]);
-    else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)],
+    else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), nome_chefe(chefe_final(andar)));
+    else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), nome_chefe(chefe_final(andar)),
                   NOME_DIF_CURTO[andar]);
     txt_c(GFX_W / 2, 292, s, estilo_aberto(perfil_atual, andar) ? C_MARFIM : C_TEXTO_M, true);
     rodape_run("setas escolhem  ·  ENTER ou ESC volta");

@@ -86,10 +86,11 @@ static void desenha_bolsa_pop(void)
         int na_linha = no - lin * g.por < g.por ? no - lin * g.por : g.por;
         int x = GFX_W / 2 + (int)((c - (na_linha - 1) / 2.0f) * 36 * f);
         int y = topo + (int)((lin + 0.5f) * 36 * f);
+        caixa_fechada = col == J[0].col && i == embrulho;
         peca_parada((float)x, (float)y, (float)r, col[i], dono);
         if (onde && onde[i] != NA_BOLSA)
             gfx_rect_alfa(x - r - 2, y - r - 2, 2 * r + 5, 2 * r + 5, C_SOMBRA, onde[i] == COMIDO ? 190 : 130);
-        dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_DADO, col[i].tipo);
+        dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_DADO, col == J[0].col && i == embrulho ? DICA_EMBRULHO : col[i].tipo);
     }
     if (!no) txt_c(GFX_W / 2, topo + 8, "Nenhum dado.", C_TEXTO_M, false);
     txt_c(GFX_W / 2, y0 + h - 24, conta[1] + conta[2] ? "apagados: fora da bolsa  ·  clique ou qualquer tecla fecha"

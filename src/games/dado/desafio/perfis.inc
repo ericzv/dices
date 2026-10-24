@@ -174,6 +174,8 @@ static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -
 // dificuldade seguinte. O que a dificuldade ja passou fica todo aberto.
 enum { CH_CRUPIE, CH_DONA, CH_BARAO, CH_CORINGA, CH_N };
 static const char *const NOME_CHEFE[CH_N] = { "o Crupiê", "a Dona do Salão", "o Barão", "o Coringa" };
+// Em dezembro, quem senta no lugar do Barao e o Papai Noel.
+static const char *nome_chefe(int c) { return c == 2 && dezembro ? "o Papai Noel" : NOME_CHEFE[c]; }
 static int chefe_final(int d) { return d >= CORINGA_DESDE ? CH_CORINGA : CH_BARAO; }
 static int chefes_de(int d) { return chefe_final(d) + 1; }
 static bool chefe_abriu_de(const perfil_t *p, int d, int c)

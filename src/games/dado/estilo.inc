@@ -118,6 +118,9 @@ static const uint16_t LAPIS_OURO = RGB(222, 188, 100);
 // O floco gravado no gelo (o sulco e a luz dele) e as migalhas do biscoito.
 static const uint16_t GELO_FLOCO[2] = { RGB(120, 166, 206), RGB(246, 252, 255) };
 static const uint16_t BISCOITO_MIGALHA[2] = { RGB(80, 42, 18), RGB(206, 152, 98) };
+// O miolo do Panetone (o dado especial, nao um material): a massa creme, sem
+// a luz do marfim por cima.
+static const uint16_t MIOLO_MASSA = RGB(244, 232, 186);
 
 // A mesa: a madeira (veio, corpo, filete de luz) e o metal da moldura. A de
 // nogueira e ouro e a de sempre: o metal acompanha os andares do Desafiante.
@@ -247,6 +250,7 @@ static void aplica_estilo(int feltro, int mesa_id)
     gfx_paleta_exata(LED_HALO, LED_N);
     gfx_paleta_exata(GELO_FLOCO, 2);
     gfx_paleta_exata(BISCOITO_MIGALHA, 2);
+    gfx_paleta_exata(&MIOLO_MASSA, 1);
     gfx_paleta_exata(BRASA_TOM, BRASA_N);
     gfx_paleta_exata(BRASA_TIJOLO, 2);
     gfx_paleta_exata(FITA_VERM, 3);

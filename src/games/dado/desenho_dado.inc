@@ -922,17 +922,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_PRESENTE: {                            // a caixa embrulhada: a fita em cruz, o laco em cima e o papel listrado
-        float w = 0.075f + l * 0.5f;
-        for (int k = -1; k <= 1; k += 2) {                                                   // o laco: duas alcas e as pontas
-            float bx = u - k * 0.17f, by = v + 0.54f;
-            float e = bx * bx / (0.15f * 0.15f) + by * by / (0.09f * 0.09f);
-            if (e < 1) return e < 0.28f ? 1 : 2;
-            if (dist_seg(u, v, k * 0.03f, -0.50f, k * 0.18f, -0.34f) < w * 0.6f) return 2;   // as pontas
+    case D_PRESENTE: {                            // o papel de presente: listras finas na diagonal, e o laco na beira de cima
+        for (int k = -1; k <= 1; k += 2) {                                                   // o laco: duas alcas, com o furo, e o no
+            float bx = u - k * 0.13f, by = v + 0.60f;
+            float e = bx * bx / (0.12f * 0.12f) + by * by / (0.075f * 0.075f);
+            if (e < 1) return e < 0.25f ? 0 : 2;
         }
-        if (u * u + (v + 0.52f) * (v + 0.52f) < 0.07f * 0.07f) return 2;                    // o no
-        if (fabsf(u) < w || fabsf(v - 0.04f) < w) return 2;                                   // a fita em cruz
-        return fr((u + v) / 0.30f) < 0.12f ? 1 : 0;                                           // o papel, em listras
+        if (u * u + (v + 0.60f) * (v + 0.60f) < 0.05f * 0.05f) return 2;
+        return fr((u + v) / 0.22f) < 0.22f ? 1 : 0;
     }
     case D_PISCA: {                               // o fio de luzinhas atravessando a base: acesas ou apagadas
         bool aceso = pisca_desta();
@@ -952,23 +949,15 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_MEIA: {                                // a meia pendurada: o punho branco, o pe para a direita e o que tem dentro
+    case D_MEIA: {                                // o trico da meia, em carreiras de zigue-zague, e na beira de baixo as moedas que ela guardou
         int g = meia_desta();
         int moedas = g <= 0 ? 0 : g < 4 ? 1 : g < 8 ? 2 : 3;
-        static const float MX[3] = { -0.10f, -0.26f, 0.06f }, MY[3] = { -0.52f, -0.46f, -0.46f };
-        for (int i = 0; i < moedas; i++) {                                                   // as moedas saindo pelo punho
-            float x = u - MX[i], y = v - MY[i];
-            float d = x * x + y * y;
-            if (d < 0.085f * 0.085f) return d < 0.04f * 0.04f ? 2 : 3;
+        for (int i = 0; i < moedas; i++) {
+            float x = u - (-0.21f + i * 0.28f), y = v - 0.54f, d = x * x + y * y;
+            if (d < 0.085f * 0.085f) return d > 0.05f * 0.05f ? 2 : 3;
         }
-        if (v > -0.40f && v < -0.24f && u > -0.36f && u < 0.16f) return 2;                  // o punho
-        if (u > -0.30f && u < 0.10f && v >= -0.24f && v < 0.44f) {                           // a perna
-            return fabsf(v - 0.06f) < 0.03f + l ? 2 : 1;                                     // com uma listra
-        }
-        float px = (u - 0.10f) / 0.40f, py = (v - 0.48f) / 0.17f;                             // o pe, com o calcanhar e a ponta brancos
-        if (u > -0.30f && u <= 0.10f && v >= 0.44f && v < 0.65f) return u < -0.16f && v > 0.52f ? 2 : 1;
-        if (u > 0.10f && px * px + py * py < 1) return px > 0.62f ? 2 : 1;
-        return 0;
+        float t = v / 0.14f + tri(u / 0.16f) * 0.5f;
+        return fr(t) < s * 1.1f / 0.14f;
     }
     case D_ESTRELA: {                             // a estrela no alto, com quatro pontas longas, e a cauda de luz descendo
         float x = u, y = v + 0.46f, ax = fabsf(x), ay = fabsf(y);
@@ -989,17 +978,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_RENA: {                               // a rena: a galhada abrindo nos cantos de cima e o nariz vermelho
-        float w = 0.032f + l * 0.6f, au = fabsf(u);
-        // cada galho: a haste subindo para fora, com pontas para cima e para o lado
-        if (dist_seg(au, v, 0.12f, -0.26f, 0.26f, -0.58f) < w || dist_seg(au, v, 0.17f, -0.38f, 0.40f, -0.44f) < w
-            || dist_seg(au, v, 0.40f, -0.44f, 0.50f, -0.58f) < w || dist_seg(au, v, 0.40f, -0.44f, 0.58f, -0.38f) < w
-            || dist_seg(au, v, 0.22f, -0.50f, 0.36f, -0.62f) < w) return 2;
-        float nx = u, ny = v - 0.40f, nd = nx * nx + ny * ny;                                 // o nariz, com um brilho
-        if (nd < 0.12f * 0.12f) return (nx + 0.04f) * (nx + 0.04f) + (ny + 0.04f) * (ny + 0.04f) < 0.032f * 0.032f ? 0 : 3;
-        float mx = u / 0.30f, my = (v - 0.38f) / 0.20f;                                       // o focinho
-        if (mx * mx + my * my < 1) return 1;
-        return 0;
+    case D_RENA: {                                // o pelo da rena, em tufinhos, a galhada pequena no alto e o nariz vermelho embaixo
+        float au = fabsf(u), w = 0.024f + l * 0.6f;
+        if (dist_seg(au, v, 0.04f, -0.55f, 0.15f, -0.74f) < w || dist_seg(au, v, 0.10f, -0.65f, 0.23f, -0.64f) < w) return 2;
+        float ny = v - 0.68f;
+        if (u * u + ny * ny < 0.075f * 0.075f) return 3;
+        float fy = v / 0.13f, fx = u / 0.15f + ((int)floorf(fy) & 1) * 0.5f;                 // o pelo: tracinhos em fileiras desencontradas
+        float px = (fr(fx) - 0.5f) * 0.15f, py = (fr(fy) - 0.5f) * 0.13f;
+        return fabsf(py) < 0.045f && fabsf(px - py * 0.45f) < s * 0.6f;
     }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
@@ -1042,142 +1028,92 @@ static float brilho_lenda(int tipo, bool *forte)
 }
 
 // Dois dados de Natal sao o proprio material, nao um desenho no meio: o
-// Panetone e o miolo dele, o Boneco de Neve e a neve batida com a cara e o
-// cachecol. corpo_desta diz qual (0: nenhum); apagado, so o que e desenho
-// (passas, frutas, carvao, cachecol) fica, num cinza so.
+// Panetone e o miolo dele, o Boneco de Neve e a neve, com o cachecol e a
+// cartola nas pontas. corpo_desta diz qual (0: nenhum); apagado, so o que e
+// desenho (passas, frutas, cartola, cachecol) fica, num cinza so.
 static int corpo_desta;
 static bool corpo_apagado;
 
 // O miolo do Panetone no ponto (u, v) do dado, em raios, girando com ele: a
-// massa dourada com os alveolos compridos (a massa sobe e estica), as passas
-// e as frutas cristalizadas da fatia (frutas_desta; na mao, as tres). nivel:
-// a luz do corpo ali (-2 a 2). Devolve a cor, ou c (o corpo) onde nao muda.
+// massa creme com os alveolos compridos (a massa sobe e estica), mais raros
+// no meio, umas passas na beira e, nos cantos, as frutas cristalizadas da
+// fatia (frutas_desta; na mao, as tres). nivel: a luz do corpo ali (-2 a 2).
+// Devolve a cor, ou c (o corpo) onde nao muda.
 static const uint16_t MIOLO[] = {
-    0, RGB(228, 194, 106), RGB(190, 156, 86),                              // (0: a massa, que e o corpo), o alveolo e o fundo dele
-    RGB(120, 78, 50), RGB(78, 46, 30),                                    // a passa e a sombra dela
+    RGB(246, 222, 132), RGB(228, 194, 106),                               // o alveolo e o fundo dele (a massa: MIOLO_MASSA)
+    RGB(156, 106, 64),                                                    // a passa
     RGB(238, 162, 74), RGB(214, 112, 44),                                 // a laranja cristalizada
     RGB(208, 98, 108), RGB(190, 56, 60),                                  // a cereja
     RGB(130, 204, 112), RGB(88, 152, 84),                                 // a cidra
 };
 static uint16_t miolo_panetone(float u, float v, float s, int nivel, uint16_t c, uint16_t cinza)
 {
-    // as frutas da fatia: cubinhos tortos, a beira de cima mais clara (o
-    // giro de cada um ja em cosseno e seno; so perto dele se faz a conta)
-    static const float FX[3] = { -0.44f, 0.42f, 0.02f }, FY[3] = { 0.02f, -0.06f, 0.46f };
+    // as frutas da fatia, nos cantos: cubinhos tortos, a beira de cima mais
+    // clara (o giro de cada um ja em cosseno e seno; so perto se faz a conta)
+    static const float FX[3] = { -0.48f, 0.47f, 0.02f }, FY[3] = { 0.02f, -0.04f, 0.52f };
     static const float FC[3] = { 0.921f, 0.955f, 0.622f }, FS[3] = { 0.389f, -0.296f, 0.783f };
     int n = frutas_desta < 0 ? 3 : frutas_desta;
     for (int i = 0; i < n && i < 3; i++) {
         float x = u - FX[i], y = v - FY[i];
-        if (x * x + y * y > 0.15f * 0.15f) continue;
-        float a = x * FC[i] - y * FS[i], b = x * FS[i] + y * FC[i], lado = 0.085f + 0.012f * ruido(a * 30 + i, b * 30);
+        if (x * x + y * y > 0.13f * 0.13f) continue;
+        float a = x * FC[i] - y * FS[i], b = x * FS[i] + y * FC[i], lado = 0.072f + 0.01f * ruido(a * 30 + i, b * 30);
         if (fabsf(a) < lado && fabsf(b) < lado * 0.85f) {
             if (corpo_apagado) return cinza;
-            bool luz = a < -lado + 0.035f || b < -lado * 0.85f + 0.035f;
-            return MIOLO[5 + i * 2 + (luz ? 0 : 1)];
+            bool luz = a < -lado + 0.03f || b < -lado * 0.85f + 0.03f;
+            return MIOLO[3 + i * 2 + (luz ? 0 : 1)];
         }
     }
-    // as passas: gotas escuras e enrugadas, cada uma num rumo
-    static const float PX[9] = { -0.12f, 0.24f, -0.30f, 0.10f, -0.20f, 0.30f, -0.52f, 0.54f, -0.02f };
-    static const float PY[9] = { -0.54f, -0.32f, -0.24f, 0.18f, 0.30f, 0.26f, -0.10f, 0.14f, -0.16f };
-    static const float PC[9] = { 1, 0.199f, -0.920f, -0.567f, 0.694f, 0.844f, -0.358f, -0.986f, -0.036f };
-    static const float PS[9] = { 0, 0.980f, 0.391f, -0.824f, -0.720f, 0.537f, 0.934f, -0.164f, -0.999f };
-    for (int i = 0; i < 9; i++) {
+    // umas passas, so perto da beira
+    static const float PX[5] = { -0.10f, 0.30f, -0.36f, 0.22f, -0.20f }, PY[5] = { -0.58f, -0.40f, -0.36f, 0.40f, 0.44f };
+    for (int i = 0; i < 5; i++) {
         float x = u - PX[i], y = v - PY[i];
-        if (x * x + y * y > 0.12f * 0.12f) continue;
-        float a = x * PC[i] - y * PS[i], b = x * PS[i] + y * PC[i];
-        float e = a * a / (0.072f * 0.072f) + b * b / (0.052f * 0.052f);
-        if (e < 1 + 0.55f * ruido(a * 28 + i * 7, b * 28 + i)) {
-            if (corpo_apagado) return cinza;
-            return e > 0.45f && a < -0.01f && b < 0.01f ? MIOLO[3] : MIOLO[4];            // a borda de cima pega luz
-        }
+        if (x * x + y * y < 0.045f * 0.045f * (1 + 0.5f * ruido(x * 40 + i * 7, y * 40))) return corpo_apagado ? cinza : MIOLO[2];
     }
     if (corpo_apagado) return c;
-    // a massa: alveolos tortos e compridos (a massa sobe e estica), dos
-    // grandes aos poros miudos, e a sombra do canto
+    // a massa creme: alveolos tortos e compridos, dourados (a massa sobe e
+    // estica), mais raros perto do meio, onde fica o numero
+    float ro = sqrtf(u * u + v * v), meio = ro < 0.5f ? (0.5f - ro) * 0.9f : 0;
     float w1 = ruido(u * 3 + 11, v * 3 + 3), w2 = ruido(u * 3 + 5, v * 3 + 17);
-    float a = ruido((u + 0.12f * w1) * 10 + 3, (v + 0.12f * w2) * 4.2f + 7);
-    float b = ruido(u * 21 + 9, v * 9 + 1);
-    float m = a + 0.5f * b;
-    if (m > 0.98f) return MIOLO[2];
-    if (m > 0.58f) return MIOLO[1];
-    if (hash2((int)floorf(u / (1.4f * s)) + 300, (int)floorf(v / (1.4f * s)) + 300) % 13 == 0) return MIOLO[1];
-    if (nivel <= -2) return MIOLO[1];
-    return c;
+    float m = ruido((u + 0.12f * w1) * 10 + 3, (v + 0.12f * w2) * 4.2f + 7) + 0.5f * ruido(u * 21 + 9, v * 9 + 1);
+    if (m > 0.95f + meio) return MIOLO[1];
+    if (m > 0.52f + meio || nivel <= -2) return MIOLO[0];                 // o alveolo e a sombra do canto
+    return MIOLO_MASSA;
 }
 
-// A neve do Boneco no ponto (u, v) do dado, em raios, girando com ele: neve
-// batida, em torroes com a sombra azulada, e uns brilhos que piscam; a cara
-// de carvao e a cenoura em volta do numero, e o cachecol de trico embaixo.
+// A neve do Boneco no ponto (u, v) do dado, em raios, girando com ele: lisa,
+// com um grao miudo e uns brilhos que piscam longe do numero; o cachecol de
+// trico na ponta de baixo e a cartola na de cima.
 static const uint16_t NEVE[] = {
-    RGB(184, 194, 208), RGB(168, 204, 230), 0,                             // a sombra do torrao e o brilho (2: sem uso)
-    RGB(36, 32, 29), RGB(96, 88, 80),                                     // o carvao e o brilho dele
-    RGB(238, 162, 74), RGB(214, 112, 44),                                 // a cenoura
-    RGB(190, 56, 60), RGB(118, 30, 38), RGB(252, 248, 236),              // o cachecol: o vermelho, o ponto e a listra
+    RGB(184, 194, 208), RGB(168, 204, 230),                               // o grao e o brilho
+    RGB(36, 32, 29),                                                      // a cartola
+    RGB(190, 56, 60), RGB(118, 30, 38), RGB(252, 248, 236),              // o cachecol (e a fita): o vermelho, o ponto e a listra
 };
 static uint16_t neve_boneco(float u, float v, float s, int nivel, uint16_t c, uint16_t cinza)
 {
-    // o cachecol no pescoco, embaixo: a volta de trico vermelha, com as
-    // listras brancas, e a ponta caindo pela frente, com a franja
-    float base = 0.42f + 0.05f * (u / 0.4f) * (u / 0.4f), y = v - base;
-    bool faixa = y > 0 && y < 0.16f;
-    float px = u + 0.07f - (v - 0.50f) * 0.18f;                         // a ponta, meio torta
-    bool ponta = v > 0.50f && v < 0.72f && fabsf(px) < 0.075f;
-    bool franja = v >= 0.72f && v < 0.79f && fabsf(px) < 0.075f;
-    if (faixa || ponta || franja) {
+    // o cachecol de trico atravessando a ponta de baixo, com a listra branca
+    if (v > 0.50f && v < 0.66f) {
         if (corpo_apagado) return cinza;
-        if (franja) return fr(px / 0.035f) < 0.5f ? NEVE[7] : c;
-        if (ponta && (y >= 0.16f || y <= 0)) {
-            if (fabsf(fabsf(px) - 0.075f) < s * 0.9f) return NEVE[8];                 // a beira da ponta
-            float ly = v - base - 0.16f;
-            if (fabsf(ly - 0.06f) < 0.018f + s * 0.4f) return NEVE[9];               // a listra
-            return NEVE[7];
-        }
-        if (ponta && fabsf(fabsf(px) - 0.075f) < s * 0.9f) return NEVE[8];           // a ponta por cima da volta
-        if (y < s * 1.2f || y > 0.16f - s * 1.2f) return NEVE[8];                    // a beira da volta
+        float y = v - 0.50f;
+        if (fabsf(y - 0.08f) < 0.012f + s * 0.4f) return NEVE[5];
+        if (y < s * 1.2f || y > 0.16f - s * 1.2f) return NEVE[4];
         if (s < 0.05f) {                                                     // grande: os pontos do trico, em V
             float sx = fr(u / 0.06f), sy = fr(y / 0.04f);
-            if (fabsf(fabsf(sx - 0.5f) - (1 - sy) * 0.5f) < 0.07f) return NEVE[8];
+            if (fabsf(fabsf(sx - 0.5f) - (1 - sy) * 0.5f) < 0.07f) return NEVE[4];
         }
-        return NEVE[7];
+        return NEVE[3];
     }
-    // a cara de carvao: os olhos acima do numero e o sorriso de pedrinhas embaixo
-    static const float CX[7] = { -0.16f, 0.16f, -0.20f, -0.10f, 0.0f, 0.10f, 0.20f };
-    static const float CY[7] = { -0.54f, -0.54f, 0.14f, 0.21f, 0.235f, 0.21f, 0.14f };
-    for (int i = 0; i < 7; i++) {
-        float x = u - CX[i], y2 = v - CY[i], rr = i < 2 ? 0.065f : 0.032f + s * 0.4f, d = x * x + y2 * y2;
-        if (d < rr * rr * 1.3f && d < rr * rr * (1 + 0.3f * ruido(x * 50 + i, y2 * 50))) {
-            if (corpo_apagado) return cinza;
-            return i < 2 && x < -0.01f && y2 < -0.01f ? NEVE[4] : NEVE[3];
-        }
-    }
-    // a cenoura: sai de tras do numero para a direita, afinando, com os riscos
-    float cy = v + 0.18f;
-    if (u > 0.06f && u < 0.48f && fabsf(cy) < 0.075f * (0.48f - u) / 0.42f + s * 0.3f) {
+    // a cartola na ponta de cima: a copa, a fita vermelha e a aba
+    if ((fabsf(u) < 0.10f && v > -0.72f && v < -0.55f) || (fabsf(u) < 0.19f && v >= -0.55f && v < -0.50f)) {
         if (corpo_apagado) return cinza;
-        return cy > 0.012f || fabsf(fr(u / 0.09f) - 0.5f) < 0.08f ? NEVE[6] : NEVE[5];
+        return v > -0.60f && v < -0.55f ? NEVE[3] : NEVE[2];
     }
     if (corpo_apagado) return c;
-    // a neve batida: torroes de tamanhos tortos, so alguns, cada um com um
-    // risco de sombra embaixo, a direita (a luz vem de cima, a esquerda), e os
-    // brilhos que acendem e apagam
-    const float cel = 0.30f;
-    int gx = (int)floorf(u / cel), gy = (int)floorf(v / cel);
-    for (int j = -1; j <= 1; j++)
-        for (int i = -1; i <= 1; i++) {
-            uint32_t q = hash2(gx + i + 50, gy + j + 80);
-            if (q % 100 < 60) continue;
-            float ox = (gx + i + 0.15f + (q >> 7 & 255) / 255.0f * 0.7f) * cel;
-            float oy = (gy + j + 0.15f + (q >> 15 & 255) / 255.0f * 0.7f) * cel;
-            float rr = cel * (0.30f + (q >> 23 & 255) / 255.0f * 0.45f);
-            float x = u - ox, y2 = v - oy, e = s * 1.2f + 0.012f;
-            float d = x * x + y2 * y2;
-            if (d < rr * rr && (x + e) * (x + e) + (y2 + e) * (y2 + e) > rr * rr && x + y2 > rr * 0.75f)
-                return NEVE[0];
-        }
+    // a neve: o grao miudo, mais raro perto do meio, e os brilhos que acendem e apagam
+    float ro = sqrtf(u * u + v * v);
     uint32_t h = hash2((int)floorf(u / s) + 700, (int)floorf(v / s) + 700);
-    if (h % 61 == 0 && (h >> 8) % 4 == ((int)(t_relogio * 2) & 3)) return NEVE[1];   // o brilho
-    if (h % 43 == 1) return NEVE[0];                                      // o grao
-    if (nivel <= -2) return NEVE[0];
+    if (ro > 0.32f && h % 61 == 0 && (h >> 8) % 4 == ((int)(t_relogio * 2) & 3)) return NEVE[1];
+    if (ro > 0.32f && h % 23 == 1) return NEVE[0];
+    if (nivel <= -2) return NEVE[0];                                      // a sombra do canto
     return c;
 }
 

@@ -750,12 +750,12 @@ static const visual_t VISUAL[D_N] = {
     [D_ONDA]       = { V_CIANO,   V_CEU, 14,    V_AZUL, 75,     V_CIANO, 100,  V_BRANCO, 90 },
     [D_TSUNAMI]    = { V_AZUL,    V_NOITE, 44,  V_AZUL, 100,    V_CIANO, 100,  V_BRANCO, 100 },
     [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
-    [D_PRESENTE]   = { V_VERM,    V_VERM, 30,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
-    [D_PANETONE]   = { V_TERRA,   V_TRIGO, 100 }, // o miolo e as frutas vem do corpo (miolo_panetone)
+    [D_PRESENTE]   = { V_VERM,    0, 0,         V_ROSA, 40,     V_LATAO, 100 },
+    [D_PANETONE]   = { V_TERRA }, // o miolo e as frutas vem do corpo (miolo_panetone)
     [D_PISCA]      = { V_VERDE,   V_VERDE, 16,  V_VERM, 100,    V_AMBAR, 100,  V_CHUMBO, 100 },
-    [D_MEIA]       = { V_VERM,    V_BRANCO, 30, V_VERM, 100,    V_BRANCO, 100, V_OURO, 100 },
+    [D_MEIA]       = { V_VERM,    0, 0,         V_VERM, 40,     V_LATAO_E, 100, V_OURO, 100 },
     [D_ESTRELA]    = { V_OURO,    V_NOITE, 60,  V_OURO, 100,    V_TRIGO, 100,  V_BRANCO, 100 },
-    [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 100,   V_MADEIRA, 100, V_VERM, 100 },
+    [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 35,    V_MADEIRA, 100, V_VERM, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

@@ -956,22 +956,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(u) < w || fabsf(v - 0.04f) < w) return 2;                                   // a fita em cruz
         return fr((u + v) / 0.30f) < 0.12f ? 1 : 0;                                           // o papel, em listras
     }
-    case D_PANETONE: {                            // a cupula tostada com o corte em cruz, as frutas e a forma de papel
-        if (v < -0.30f) {                                                                    // a cupula
-            float cx = u, cy = v + 0.62f;
-            if (fabsf(cx) < l * 1.4f + 0.02f && cy > -0.18f && cy < 0.14f) return 0;           // o corte em cruz
-            if (fabsf(cy + 0.02f) < l * 1.4f + 0.02f && fabsf(cx) < 0.18f) return 0;
-            return 1;
-        }
-        if (v > 0.62f) return fr(u / 0.14f) < 0.35f ? 1 : 0;                                 // a forma de papel, pregueada
-        static const float FX[3] = { -0.50f, 0.50f, 0.02f }, FY[3] = { 0.06f, 0.12f, 0.50f };
+    case D_PANETONE: {                            // o panetone: a cupula tostada com as frutas por cima e a forma de papel alta
+        float cy = v + 0.20f;
+        static const float FX[3] = { 0.0f, -0.25f, 0.25f }, FY[3] = { -0.44f, -0.26f, -0.25f };
         int n = frutas_desta < 0 ? 3 : frutas_desta;
         for (int i = 0; i < n && i < 3; i++) {                                               // as frutas cristalizadas
             float x = u - FX[i], y = v - FY[i];
-            if (fabsf(x) < 0.085f && fabsf(y) < 0.075f) return i == 1 ? 3 : 2;
+            if (x * x + y * y < 0.062f * 0.062f) return 3;
         }
-        float mx = fr(u * 3.1f + v * 1.7f), my = fr(v * 2.9f - u * 1.3f);                     // o miolo: furinhos
-        return mx < 0.07f && my < 0.09f ? 1 : 0;
+        if (cy < 0.05f) {                                                                    // a cupula, com a aba para fora da forma
+            float ry = cy < 0 ? 0.32f : 0.05f, e = u * u / (0.42f * 0.42f) + cy * cy / (ry * ry);
+            if (e < 1) return cy < -0.14f && u < -0.08f && e > 0.58f && e < 0.80f ? 2 : 1;      // e o brilho, de lado
+        }
+        if (fabsf(u) > 0.35f || v < -0.16f || v > 0.48f) return 0;
+        float d = fabsf(fr(u / 0.14f + 0.5f) - 0.5f) * 0.14f;                                  // a forma, pregueada
+        return d < 0.008f + l ? 1 : 2;
     }
     case D_PISCA: {                               // o fio de luzinhas atravessando a base: acesas ou apagadas
         bool aceso = pisca_desta();
@@ -2258,23 +2257,23 @@ static void fita_led(int k)
 // A forca do led no quadro q: respira devagar, um ciclo a cada 20 quadros.
 static int led_forca(int q) { return (int)lroundf((sinf(q * 6.2832f / 20) + 1) * 2); }
 
-// O xadrez escoces (sett de 48): a faixa larga verde, um risco escuro e o
-// fio claro, nos dois sentidos; onde o verde cruza o vermelho, o tom de
-// mistura; o fio e o risco, em sarja (um pixel de cada sentido). i: o tom
-// do feltro ali (0 o claro do meio, 2 o escuro da beira); base: a cor dele.
+// O xadrez escoces (sett de 64), discreto: a faixa larga verde, apagada, e
+// um fio so um pouco mais claro que o feltro, nos dois sentidos; onde o verde
+// cruza o vermelho, o tom de mistura; o fio, em sarja (um pixel de cada
+// sentido). i: o tom do feltro ali (0 o claro do meio, 2 o escuro da beira);
+// base: a cor dele.
 static int faixa_xadrez(int p)
 {
-    p %= 48;
-    return p < 12 ? 1 : p == 14 || p == 15 ? 3 : p == 31 ? 2 : 0;    // 0 vermelho, 1 verde, 2 fio, 3 risco
+    p %= 64;
+    return p < 16 ? 1 : p == 40 ? 2 : 0;                 // 0 vermelho, 1 verde, 2 fio
 }
 static uint16_t xadrez(int x, int y, int i, uint16_t base)
 {
-    int fx = faixa_xadrez(x + 6), fy = faixa_xadrez(y + 20);
+    int fx = faixa_xadrez(x + 8), fy = faixa_xadrez(y + 26);
     int f = ((x + y) & 1) ? fx : fy;                     // a sarja: o fio da vez
     if (f == 2) return XADREZ_FIO[i == 0];
-    if (f == 3) return C_SOMBRA;
     int o = f == fx ? fy : fx;                           // o outro sentido, por baixo
-    if (o == 2 || o == 3) o = 0;
+    if (o == 2) o = 0;
     if (f == 1 && o == 1) return XADREZ_VERDE[2 - i];
     if (f == 1 || o == 1) return XADREZ_MISTO[2 - i];
     return base;

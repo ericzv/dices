@@ -176,9 +176,9 @@ static const uint16_t BRASA_TIJOLO[2] = { RGB(150, 70, 46), RGB(184, 96, 62) };
 static const uint16_t FITA_VERM[3] = { RGB(110, 14, 22), RGB(178, 30, 40), RGB(226, 82, 84) };
 // O xadrez: o verde das faixas, o cruzamento com o vermelho (do escuro ao
 // claro, um por tom do feltro) e o fio claro que corta.
-static const uint16_t XADREZ_VERDE[3] = { RGB(10, 30, 18), RGB(14, 42, 26), RGB(18, 54, 32) };
-static const uint16_t XADREZ_MISTO[3] = { RGB(22, 20, 14), RGB(30, 28, 18), RGB(38, 36, 22) };
-static const uint16_t XADREZ_FIO[2]   = { RGB(92, 72, 40), RGB(120, 96, 52) };
+static const uint16_t XADREZ_VERDE[3] = { RGB(20, 26, 18), RGB(26, 34, 24), RGB(32, 42, 30) };
+static const uint16_t XADREZ_MISTO[3] = { RGB(30, 16, 12), RGB(38, 22, 16), RGB(46, 28, 20) };
+static const uint16_t XADREZ_FIO[2]   = { RGB(70, 30, 26), RGB(86, 40, 32) };
 // O Reveillon: o ouro dos fogos, do mais forte ao que se apaga.
 static const uint16_t FOGOS_TOM[4] = { RGB(255, 236, 170), RGB(236, 196, 102), RGB(170, 132, 62), RGB(92, 72, 36) };
 // A neve da Noite Feliz: a fraca, ao longe, e a do floco que cai.

@@ -53,7 +53,8 @@ static void estilo_do_perfil(void)
 // ---- A tela ---------------------------------------------------------------
 // Tres linhas (feltro, seus dados, mesa); setas escolhem. O que esta aberto
 // vai para a mesa na hora - a mesa atras e a previa; o fechado diz o andar
-// que o abre. es_foco: linha * 8 + opcao.
+// que o abre. es_foco: linha * ES_LIN + opcao.
+#define ES_LIN 16
 static int es_foco;
 
 static void estilo_abre(int i)
@@ -134,47 +135,48 @@ static void desenha_estilo(void)
     static const char *const TIT[3] = { "Feltro", "Seus dados", "Mesa" };
     int em_uso[3] = { estilo_feltro, estilo_mat, estilo_mesa };
     for (int lin = 0; lin < 3; lin++) {
-        int y = 60 + lin * 70, n = ES_N[lin];
-        ui_painel(26, y, GFX_W - 52, 62);
-        txt(40, y + 8, TIT[lin], lin == es_foco / 8 ? C_OURO : C_LATAO, true);
-        if (lin == 1) txt(40, y + 30, "os comuns", C_TEXTO_M, false);
-        int vao = n > 5 ? 66 : 92;                           // sete opcoes ainda cabem na linha
+        // O titulo em cima e as opcoes em fila, na largura toda (cabem 11).
+        int y = 52 + lin * 80, n = ES_N[lin];
+        ui_painel(26, y, GFX_W - 52, 76);
+        int wt = gfx_texto(40, y + 2, TIT[lin], lin == es_foco / ES_LIN ? C_OURO : C_LATAO, 1, true);
+        if (lin == 1) gfx_texto(40 + wt + 8, y + 3, "os comuns", C_TEXTO_M, GFX_FINO, false);
+        int vao = (GFX_W - 72) / n > 92 ? 92 : (GFX_W - 72) / n;
+        int x0 = GFX_W / 2 - (n * vao) / 2 + vao / 2, sw = vao - 2 < 64 ? vao - 2 : 64;
         for (int k = 0; k < n; k++) {
-            int cx = (n > 5 ? 166 : 170) + k * vao, cy = y + 24;
+            int cx = x0 + k * vao, cy = y + 44;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
-            int sw = vao < 92 ? 62 : 64;
-            if (k == em_uso[lin]) ui_selecao(cx - sw / 2, y + 4, sw, 54, C_OURO);
-            else if (lin * 8 + k == es_foco) ui_selecao(cx - sw / 2, y + 4, sw, 54, C_LATAO_ESC);
+            if (k == em_uso[lin]) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
+            else if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
             es_amostra(lin, k, cx, cy, aberto);
             const char *nm = es_nome(lin, k);
             char curto[20];
             snprintf(curto, sizeof curto, "%s", nm);
             char *e = strstr(curto, " e ");                      // "Mogno e cobre" cabe so "Mogno"
             if (e) *e = 0;
-            gfx_texto(cx - gfx_largura(curto, GFX_MIUDO) / 2, y + 44, curto,
+            gfx_texto(cx - gfx_largura(curto, GFX_MIUDO) / 2, y + 62, curto,
                       k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, GFX_MIUDO, false);
-            zona_clique(cx - sw / 2, y + 4, sw, 54, &es_foco, lin * 8 + k, 'u');
+            zona_clique(cx - sw / 2, y + 25, sw, 50, &es_foco, lin * ES_LIN + k, 'u');
         }
     }
     // O que esta em foco: o nome inteiro e, se fechado, o andar que abre.
-    int fl = es_foco / 8, k = es_foco % 8, andar = es_andar(fl, k);
+    int fl = es_foco / ES_LIN, k = es_foco % ES_LIN, andar = es_andar(fl, k);
     char s[96];
     if (estilo_aberto(perfil_atual, andar)) snprintf(s, sizeof s, "%s", es_nome(fl, k));
     else if (andar == 0) snprintf(s, sizeof s, "%s  ·  abre ao vencer %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)]);
     else snprintf(s, sizeof s, "%s  ·  abre ao vencer %s no %s", es_nome(fl, k), NOME_CHEFE[chefe_final(andar)],
                   NOME_DIF_CURTO[andar]);
-    txt_c(GFX_W / 2, 272, s, estilo_aberto(perfil_atual, andar) ? C_MARFIM : C_TEXTO_M, true);
+    txt_c(GFX_W / 2, 292, s, estilo_aberto(perfil_atual, andar) ? C_MARFIM : C_TEXTO_M, true);
     rodape_run("setas escolhem  ·  ENTER ou ESC volta");
 }
 
 static bool estilo_tecla(int k)
 {
-    int lin = es_foco / 8, col = es_foco % 8;
+    int lin = es_foco / ES_LIN, col = es_foco % ES_LIN;
     bool sobe = k == KEY_UP || k == 'w', desce = k == KEY_DOWN || k == 's';
     if (sobe || desce) {                         // trocar de linha so move o foco
         lin = (lin + (sobe ? 2 : 1)) % 3;
         if (col >= ES_N[lin]) col = ES_N[lin] - 1;
-        es_foco = lin * 8 + col;
+        es_foco = lin * ES_LIN + col;
         som_toca(SOM_TIQUE);
         return true;
     }
@@ -182,7 +184,7 @@ static bool estilo_tecla(int k)
     else if (k == KEY_RIGHT || k == 'd') col = (col + 1) % ES_N[lin];
     else if (k == KEY_ENTER) { t_fase = 0; fase = F_PERFIS; return true; }
     else if (k != 'u') return true;              // 'u': o clique numa opcao
-    es_foco = lin * 8 + col;
+    es_foco = lin * ES_LIN + col;
     som_toca(SOM_TIQUE);
     // O que esta aberto vai para a mesa na hora, e fica guardado.
     if (!estilo_aberto(perfil_atual, es_andar(lin, col))) return true;

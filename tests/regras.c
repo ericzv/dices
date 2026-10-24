@@ -1503,6 +1503,23 @@ int main(void)
         }
         CONFERE(ABRE_FELTRO[FT_GALAXIA] == 7 && ABRE_FELTRO[FT_NATAL] == 3 && ABRE_MATERIAL[MAT_MADEIRA] == 5
                 && ABRE_MATERIAL[MAT_PEROLA] == 1 && ABRE_MESA[MS_LED] == 9, "os estilos novos nos andares");
+        CONFERE(ABRE_FELTRO[FT_MAR] == 10 && ABRE_FELTRO[FT_DECO] == 9 && ABRE_FELTRO[FT_COURO] == 5
+                && ABRE_FELTRO[FT_LOSANGO] == 1 && ABRE_MATERIAL[MAT_MARMORE] == 6 && ABRE_MATERIAL[MAT_LAPIS] == 7
+                && ABRE_MATERIAL[MAT_PEROLA_NEGRA] == 8 && ABRE_MATERIAL[MAT_BRONZE] == 3, "a segunda leva de estilos");
+        for (int d = 0; d <= N_NIVEIS; d++) {            // nenhum andar com mais de tres partes (o card do estilo)
+            int lin[8], k[8];
+            CONFERE(estilo_partes(d, lin, k) <= 3, "o andar %d com estilo demais", d);
+        }
+        {                                                // o estilo guardado volta igual, ate a opcao 10
+            int f, m, me;
+            snprintf(perfis[0].nome, sizeof perfis[0].nome, "EST");
+            for (int d = 0; d <= N_NIVEIS; d++) perfis[0].venceu[d] = 1;
+            estilo_grava(0, FT_LOSANGO, MAT_BRONZE, MS_LED);
+            estilo_le(0, &f, &m, &me);
+            CONFERE(f == FT_LOSANGO && m == MAT_BRONZE && me == MS_LED, "estilo novo nao voltou: %d %d %d", f, m, me);
+            memset(&perfis[0], 0, sizeof perfis[0]);
+            salva_apaga(chave_estilo(0));
+        }
         // Os chefes repartem o que cada nivel abre: todo dado com um chefe so,
         // todo chefe com alguma coisa, e o que fecha a run com a dificuldade.
         for (int d = 0; d < N_NIVEIS; d++) {

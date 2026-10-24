@@ -5,7 +5,7 @@
 // dados comuns; o que ainda nao abriu fica no padrao. Os oponentes tem o
 // material do nivel deles. Os dados especiais tem um desenho so, o mesmo
 // para os dois lados.
-enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_GALAXIA, FT_NATAL, FT_N };
+enum { FT_VERDE, FT_VINHO, FT_AZUL, FT_GRAFITE, FT_GALAXIA, FT_NATAL, FT_MAR, FT_DECO, FT_COURO, FT_LOSANGO, FT_N };
 static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
     // do mais escuro (a sombra) ao realce, e o texto discreto
     [FT_VERDE]   = { "Verde", { RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 30), RGB(18, 49, 36),
@@ -21,9 +21,20 @@ static const struct { const char *nome; uint16_t tons[7]; } FELTROS[FT_N] = {
                                    RGB(24, 30, 68), RGB(44, 52, 100), RGB(178, 186, 216) } },
     [FT_NATAL]   = { "Natalino", { RGB(5, 20, 12), RGB(8, 30, 18), RGB(11, 40, 24), RGB(14, 50, 30),
                                    RGB(22, 66, 40), RGB(40, 92, 58), RGB(192, 212, 196) } },
+    // O mar a noite (ondas e o reflexo da lua), o art deco (leques de ouro
+    // nos cantos), o couro (com costura) e os losangos (a estampa um tom acima).
+    [FT_MAR]     = { "Mar à noite", { RGB(3, 7, 16), RGB(5, 11, 26), RGB(8, 16, 36), RGB(11, 21, 46),
+                                      RGB(20, 34, 66), RGB(38, 58, 98), RGB(172, 188, 214) } },
+    [FT_DECO]    = { "Art déco", { RGB(5, 12, 11), RGB(8, 19, 17), RGB(11, 26, 23), RGB(14, 33, 29),
+                                   RGB(22, 47, 41), RGB(40, 72, 62), RGB(180, 198, 190) } },
+    [FT_COURO]   = { "Couro", { RGB(20, 11, 7), RGB(31, 18, 11), RGB(42, 25, 16), RGB(54, 33, 21),
+                                RGB(70, 45, 29), RGB(98, 66, 44), RGB(214, 194, 172) } },
+    [FT_LOSANGO] = { "Losangos", { RGB(6, 19, 18), RGB(9, 28, 26), RGB(12, 37, 34), RGB(15, 46, 42),
+                                   RGB(23, 61, 55), RGB(42, 86, 76), RGB(176, 196, 190) } },
 };
 
-enum { MAT_MARFIM, MAT_OSSO, MAT_JADE, MAT_OBSIDIANA, MAT_EBANO, MAT_MADEIRA, MAT_PEROLA, MAT_N };
+enum { MAT_MARFIM, MAT_OSSO, MAT_JADE, MAT_OBSIDIANA, MAT_EBANO, MAT_MADEIRA, MAT_PEROLA,
+       MAT_MARMORE, MAT_LAPIS, MAT_PEROLA_NEGRA, MAT_BRONZE, MAT_N };
 typedef struct {
     const char *nome;
     uint16_t tons[5];            // o corpo: sombra, meia-sombra, corpo, luz, reflexo
@@ -56,9 +67,28 @@ static const material_t MATERIAL[MAT_N] = {
     [MAT_PEROLA]    = { "Pérola", { RGB(192, 184, 198), RGB(216, 210, 218), RGB(234, 230, 230), RGB(246, 243, 240),
                                     RGB(255, 253, 250) }, RGB(255, 253, 250), 0,
                         RGB(70, 58, 82), RGB(176, 172, 178), RGB(116, 110, 122) },
+    // Marmore branco com veios cinza; lapis-lazuli azul com pintas de ouro;
+    // perola negra, com o furta-cor verde e roxo; bronze fosco, de metal.
+    [MAT_MARMORE]   = { "Mármore", { RGB(194, 196, 202), RGB(214, 216, 220), RGB(232, 232, 234), RGB(243, 243, 245),
+                                     RGB(252, 252, 252) }, RGB(252, 252, 252), 0,
+                        RGB(50, 52, 60), RGB(174, 174, 178), RGB(108, 110, 116) },
+    [MAT_LAPIS]     = { "Lápis-lazúli", { RGB(20, 30, 84), RGB(28, 42, 110), RGB(36, 54, 134), RGB(50, 72, 160),
+                                          RGB(82, 106, 190) }, RGB(96, 120, 200), 0,
+                        RGB(232, 198, 110), RGB(50, 56, 82), RGB(118, 108, 80) },
+    [MAT_PEROLA_NEGRA] = { "Pérola negra", { RGB(36, 36, 44), RGB(52, 52, 62), RGB(70, 70, 82), RGB(94, 94, 108),
+                                             RGB(130, 130, 146) }, RGB(130, 130, 146), 0,
+                        RGB(236, 228, 210), RGB(62, 62, 68), RGB(128, 124, 118) },
+    [MAT_BRONZE]    = { "Bronze", { RGB(94, 58, 24), RGB(130, 86, 36), RGB(166, 116, 52), RGB(202, 154, 78),
+                                    RGB(238, 206, 140) }, RGB(238, 206, 140), 0,
+                        RGB(58, 32, 14), RGB(112, 92, 74), RGB(70, 54, 40) },
 };
-// O furta-cor da perola: rosado e azulado, em faixas largas no corpo.
+// O furta-cor da perola: rosado e azulado, em faixas largas no corpo; o da
+// perola negra, esverdeado e arroxeado.
 static const uint16_t PEROLA_FURTA[2] = { RGB(246, 224, 230), RGB(222, 236, 242) };
+static const uint16_t PEROLA_NEGRA_FURTA[2] = { RGB(70, 86, 84), RGB(86, 74, 98) };
+// Os veios do marmore (o forte e o fraco) e as pintas de ouro do lapis-lazuli.
+static const uint16_t MARMORE_VEIO[2] = { RGB(146, 150, 160), RGB(180, 184, 192) };
+static const uint16_t LAPIS_OURO = RGB(222, 188, 100);
 
 // A mesa: a madeira (veio, corpo, filete de luz) e o metal da moldura. A de
 // nogueira e ouro e a de sempre: o metal acompanha os andares do Desafiante.
@@ -91,6 +121,13 @@ static const uint16_t NATAL_FOLHA[3]   = { RGB(16, 70, 36), RGB(30, 104, 56), RG
 static const uint16_t NATAL_FIO        = RGB(26, 34, 26);
 // O led vermelho: sete forcas da fita, da mais fraca a mais forte (a ultima
 // so no pico da respiracao), e o halo de cada uma.
+// O mar a noite: a onda fraca e a mais clara, a lua, e o reflexo dela do
+// mais perto (o mais claro) ao mais longe.
+#define MAR_N 7
+static const uint16_t MAR_TOM[MAR_N] = { RGB(24, 42, 76), RGB(36, 56, 94), RGB(214, 218, 196), RGB(132, 142, 146),
+                                         RGB(92, 106, 128), RGB(62, 78, 108), RGB(42, 58, 92) };
+// A linha da costura do couro e o furo dela.
+static const uint16_t COURO_LINHA[2] = { RGB(196, 172, 130), RGB(26, 14, 8) };
 #define LED_N 7
 static const uint16_t LED_TOM[LED_N]  = { RGB(110, 18, 22), RGB(140, 24, 30), RGB(172, 32, 38), RGB(204, 42, 46),
                                           RGB(232, 58, 60), RGB(252, 92, 88), RGB(255, 124, 114) };
@@ -99,8 +136,8 @@ static const uint16_t LED_HALO[LED_N] = { RGB(30, 8, 10), RGB(42, 10, 12), RGB(5
 
 // O estilo de cada andar: abre com quem fecha a run naquela dificuldade (o
 // Barao, ou do Nivel 5 o Coringa; -1: sempre aberto).
-static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, 3 };
-static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1 };
+static const int8_t ABRE_FELTRO[FT_N]   = { -1, 0, 4, 8, 7, 3, 10, 9, 5, 1 };
+static const int8_t ABRE_MATERIAL[MAT_N] = { -1, 0, 4, 10, 2, 5, 1, 6, 7, 8, 3 };
 static const int8_t ABRE_MESA[MS_N]      = { -1, 2, 8, 6, 9 };
 
 static int estilo_feltro, estilo_mesa;      // o que esta na mesa agora
@@ -130,6 +167,11 @@ static void aplica_estilo(int feltro, int mesa_id)
         gfx_paleta_exata(outras, 4);
     }
     gfx_paleta_exata(PEROLA_FURTA, 2);
+    gfx_paleta_exata(PEROLA_NEGRA_FURTA, 2);
+    gfx_paleta_exata(MARMORE_VEIO, 2);
+    gfx_paleta_exata(&LAPIS_OURO, 1);
+    gfx_paleta_exata(MAR_TOM, MAR_N);
+    gfx_paleta_exata(COURO_LINHA, 2);
     for (int s = 1; s < MS_N; s++) {
         gfx_paleta_exata(MESAS[s].madeira, 3);
         gfx_paleta_exata(&MESAS[s].metal, 1);

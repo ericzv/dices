@@ -68,9 +68,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Susto, Blue e Maicon.
 - **Estilo** (E na tela de perfis): o feltro (verde, vinho, azul-noite,
   grafite, Galáxias, um céu de estrelas que cintilam com a Via Láctea
-  atravessando a mesa, e Natalino, com fita vinho e pisca-pisca na borda,
-  azevinho e neve), o material dos seus dados comuns (marfim, osso, jade,
-  obsidiana, ébano, madeira polida e pérola) e a mesa (nogueira e ouro, mogno
+  atravessando a mesa, Natalino, com fita vinho e pisca-pisca na borda,
+  azevinho e neve, Mar à noite, com a lua e o reflexo dela cintilando na
+  água, Art déco, com leques de ouro nos cantos, Couro, com costura na
+  borda, e Losangos, com a estampa um tom acima), o material dos seus dados
+  comuns (marfim, osso, jade, obsidiana, ébano, madeira polida, pérola,
+  mármore, lápis-lazúli, pérola negra e bronze) e a mesa (nogueira e ouro, mogno
   e cobre, ébano e prata, carvalho e bronze, e Led, laca preta com a moldura
   de led vermelho respirando devagar). Abrem andar a andar: cada andar tem o
   seu, aberto por quem fecha a run naquela dificuldade.

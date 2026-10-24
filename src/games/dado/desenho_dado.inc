@@ -849,25 +849,15 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(fabsf(lx) - 0.06f) < 0.04f && fabsf(ly) < 0.035f) return 2;
         return 0;
     }
-    case D_JINGLE: {                              // o guizo: a esfera dourada, a fenda embaixo e o laco vermelho
-        float x = u, y = v - 0.06f, rr = sqrtf(x * x + y * y);
-        float w = 0.035f + l * 0.6f;
-        if (fabsf(sqrtf(x * x + (v + 0.66f) * (v + 0.66f)) - 0.07f) < w) return 2;          // a argola
-        for (int k = -1; k <= 1; k += 2) {                                                   // o laco, um de cada lado
-            float bx = u - k * 0.17f, by = v + 0.62f;
-            if (bx * bx / (0.11f * 0.11f) + by * by / (0.065f * 0.065f) < 1) return 3;
+    case D_JINGLE: {                              // a correia do treno atravessando a beira de baixo, com tres guizos
+        for (int k = -1; k <= 1; k++) {
+            float x = u - k * 0.26f, y = v - 0.67f, d = x * x + y * y;
+            if (d < 0.085f * 0.085f) {                                                       // o guizo: a fenda, o contorno e o ouro
+                if (fabsf(y - 0.02f) < s * 0.6f && fabsf(x) < 0.05f) return 2;
+                return d > (0.085f - s) * (0.085f - s) ? 2 : 1;
+            }
         }
-        if (rr < 0.58f) {
-            float bx = x + 0.24f, by = y + 0.24f;                                            // o brilho, no alto a esquerda
-            if (bx * bx + by * by < 0.10f * 0.10f) return 0;
-            // a fenda: uma linha com um furo em cada ponta, e o corte ate a boca
-            if (fabsf(y - 0.30f) < w && fabsf(x) < 0.30f) return 2;
-            if ((fabsf(x) - 0.30f) * (fabsf(x) - 0.30f) + (y - 0.30f) * (y - 0.30f) < 0.06f * 0.06f) return 2;
-            if (fabsf(x) < w && y > 0.30f) return 2;
-            if (rr > 0.58f - w * 1.6f) return 2;                                             // o contorno
-            if (fabsf(y + 0.05f) < w * 0.7f) return 2;                                       // o friso do meio
-            return 1;
-        }
+        if (v > 0.62f && v < 0.72f) return fabsf(v - 0.67f) < s * 0.5f && fr(u / 0.08f) < 0.5f ? 0 : 3;   // a correia, pespontada
         return 0;
     }
     case D_FURIA: {                               // as chamas subindo da base e as sobrancelhas bravas
@@ -959,24 +949,20 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float t = v / 0.14f + tri(u / 0.16f) * 0.5f;
         return fr(t) < s * 1.1f / 0.14f;
     }
-    case D_ESTRELA: {                             // a estrela no alto, com quatro pontas longas, e a cauda de luz descendo
-        float x = u, y = v + 0.46f, ax = fabsf(x), ay = fabsf(y);
-        // as pontas: losangos finos nas quatro direcoes, e quatro curtas nas diagonais
-        if (ax < 0.10f * (1 - ay / 0.40f) && ay < 0.40f) return ay < 0.10f ? 2 : 1;
-        if (ay < 0.10f * (1 - ax / 0.34f) && ax < 0.34f) return ax < 0.10f ? 2 : 1;
-        float dx = (x + y) * 0.7071f, dy = (x - y) * 0.7071f;
-        if ((fabsf(dx) < 0.05f * (1 - fabsf(dy) / 0.18f) && fabsf(dy) < 0.18f)
-            || (fabsf(dy) < 0.05f * (1 - fabsf(dx) / 0.18f) && fabsf(dx) < 0.18f)) return 1;
-        if (v > -0.06f) {                                                                    // a cauda, abrindo para baixo
-            float meia = 0.03f + (v + 0.06f) * 0.16f;
-            if (ax < meia && fr(v / 0.12f) < 0.55f) return 2;
-        }
-        static const float PX[4] = { -0.52f, 0.50f, 0.34f, -0.36f }, PY[4] = { 0.06f, -0.06f, 0.42f, 0.48f };
-        for (int i = 0; i < 4; i++) {                                                        // estrelinhas em volta
-            float px = u - PX[i], py = v - PY[i];
-            if ((fabsf(px) < l * 1.4f + 0.012f && fabsf(py) < 0.05f) || (fabsf(py) < l * 1.4f + 0.012f && fabsf(px) < 0.05f)) return 3;
-        }
-        return 0;
+    case D_ESTRELA: {                             // o ceu da noite: estrelinhas espalhadas longe do numero, e a estrela de Belem na ponta de cima
+        float ax = fabsf(u), ay = fabsf(v + 0.60f);
+        if (ax < 0.06f * (1 - ay / 0.17f) && ay < 0.17f) return ay < 0.045f ? 2 : 1;      // as pontas, finas
+        if (ay < 0.06f * (1 - ax / 0.15f) && ax < 0.15f) return ax < 0.045f ? 2 : 1;
+        if (ro < 0.34f) return 0;
+        const float cel = 0.16f;                                                             // as estrelinhas: uma ou nenhuma por celula
+        int gx = (int)floorf(u / cel), gy = (int)floorf(v / cel);
+        uint32_t h = hash2(gx + 7, gy + 23);
+        if (h % 100 >= 40) return 0;
+        float ox = (gx + 0.25f + (h >> 8 & 255) / 255.0f * 0.5f) * cel, oy = (gy + 0.25f + (h >> 16 & 255) / 255.0f * 0.5f) * cel;
+        float dx = fabsf(u - ox), dy = fabsf(v - oy);
+        if ((h >> 24) % 4 == 0 && ((dx < s * 0.6f && dy < 0.04f) || (dy < s * 0.6f && dx < 0.04f))) return 3;   // umas em cruz
+        bool apaga = (int)(t_relogio * 1.5f + (h >> 4) % 7) % 5 == 0;                       // e umas piscando
+        return dx < s * 0.7f && dy < s * 0.7f && !apaga ? 3 : 0;
     }
     case D_RENA: {                                // o pelo da rena, em tufinhos, a galhada pequena no alto e o nariz vermelho embaixo
         float au = fabsf(u), w = 0.024f + l * 0.6f;

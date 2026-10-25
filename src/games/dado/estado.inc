@@ -8,7 +8,7 @@
 // rodada seguinte). A run salva de antes, com os adesivos em meio byte
 // (peca13_t), abre convertida (des_carrega).
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento; uint8_t selo : 1, velcro : 1; } peca_t;
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento; uint8_t selo : 1, velcro : 1, figurinha : 6; } peca_t;
 typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca13_t;
 _Static_assert(sizeof(peca_t) == 4 + AD_LADOS && sizeof(peca13_t) == 13, "a peca vai assim para a run salva");
 

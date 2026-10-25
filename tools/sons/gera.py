@@ -924,6 +924,41 @@ def ad_figurinha():
     m.poe(0.24, nota('vibraphone', 84, 0.35, 0.4), 0.25)
     return sala(m.x, 0.16)
 
+def ad_patinho():
+    """O Patinho Feio: um quá anasalado (a serra filtrada que cai de tom)."""
+    m = Mix(0.6)
+    for k, (f0, f1, t0) in enumerate(((620, 430, 0.0), (560, 380, 0.16))):
+        n = int(0.13 * SR); t = np.arange(n) / SR
+        f = f0 + (f1 - f0) * (t / t[-1]) ** 0.7
+        fase = np.cumsum(f) / SR
+        x = 2 * (fase % 1) - 1
+        x = banda(x, 700, 2600) + 0.4 * banda(x, 2600, 4200)
+        m.poe(t0, x * env(n, 0.008, 0.05), 0.5 - 0.1 * k)
+    return sala(m.x, 0.1)
+
+def ad_etiqueta():
+    """A Etiqueta: o clique da maquininha de etiquetar e o plim do caixa."""
+    m = Mix(0.7)
+    m.poe(0, pa(tom(batida('dicehit_plastic4'), 8), 1800), 0.6)
+    m.poe(0.05, estalinho(0.01, 2500), 0.6)
+    m.poe(0.09, tom(batida('dicehit_metal3'), 9), 0.3)
+    m.poe(0.15, nota('glockenspiel', 98, 0.2, 0.4), 0.35)
+    m.poe(0.15, nota('vibraphone', 86, 0.3, 0.4), 0.25)
+    return sala(m.x, 0.14)
+
+def ad_bilhete():
+    """O Bilhete Premiado: o bilhete raspado, um arpejo de premio e moedas caindo."""
+    m = Mix(1.6)
+    for k in range(3):
+        n = int(0.04 * SR); q = np.linspace(0, 1, n)
+        m.poe(k * 0.05, banda(rng.standard_normal(n), 1800, 7000) * np.sin(np.pi * q), 0.25)
+    for k, nn in enumerate((84, 88, 91, 96, 100)):
+        m.poe(0.18 + k * 0.06, nota('glockenspiel', nn, 0.2, 0.3), 0.38)
+    m.poe(0.48, nota('vibraphone', 84, 0.7, 0.6), 0.3)
+    m.poe(0.48, nota('vibraphone', 88, 0.7, 0.6), 0.25)
+    moedas(m, 0.5, 1.0, 7, 0.32)
+    return sala(m.x, 0.22)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1280,7 +1315,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_imantado': VOLUME['efeito'], 'ad_postit': VOLUME['efeito'] * 0.7,
                'ad_holografico': VOLUME['efeito'], 'ad_purpurina': VOLUME['efeito'],
                'ad_velcro': VOLUME['efeito'] * 0.8, 'ad_ratoeira': VOLUME['anula'],
-               'ad_figurinha': VOLUME['efeito']})
+               'ad_figurinha': VOLUME['efeito'], 'ad_patinho': VOLUME['efeito'] * 0.85,
+               'ad_etiqueta': VOLUME['efeito'] * 0.85, 'ad_bilhete': VOLUME['efeito'] * 1.1})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1310,7 +1346,7 @@ SONS = {
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta', 'ad_selo',
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
-             'ad_velcro', 'ad_ratoeira', 'ad_figurinha',
+             'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)

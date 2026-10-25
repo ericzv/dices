@@ -49,6 +49,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_CORRETIVO] = "ad_corretivo", [SOM_AD_IMANTADO] = "ad_imantado", [SOM_AD_POSTIT] = "ad_postit",
     [SOM_AD_HOLOGRAFICO] = "ad_holografico", [SOM_AD_PURPURINA] = "ad_purpurina", [SOM_AD_VELCRO] = "ad_velcro",
     [SOM_AD_RATOEIRA] = "ad_ratoeira", [SOM_AD_FIGURINHA] = "ad_figurinha",
+    [SOM_AD_PATINHO] = "ad_patinho", [SOM_AD_ETIQUETA] = "ad_etiqueta", [SOM_AD_BILHETE] = "ad_bilhete",
     [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
     [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
     [SOM_BOLSA_ESPIA] = "bolsa_espia",

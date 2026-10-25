@@ -292,7 +292,6 @@ void dado_inicia(int n_partidas)
     pote = 0;
     memset(bis_extra, 0, sizeof bis_extra);
     memset(ad_moedas, 0, sizeof ad_moedas);
-    memset(album, 0, sizeof album);
     primeiro = partidas % 2;
     venc_partida = -1;
     correu_venc = -1;
@@ -663,7 +662,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;
-        if (d->figurinha[j] >> k & 1) ad_poe_no_album(&p->col[i], F[j].lado[k]);   // no album ate o fim da partida
+        if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
@@ -672,7 +671,6 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     }
     bis_extra[j] += d->bis[j];
     ad_moedas[j] += d->moedas[j];
-    album[j] = d->album[j];
 }
 
 // O que os dados guardam da rodada, na peca da bolsa: a Furia, o que o lance
@@ -1233,7 +1231,12 @@ static void flutua_evento(const evento_t *e)
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
         case AD_RATOEIRA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
-        case AD_FIGURINHA:  flutua_em(dj, dk, C_OURO, 0, e->valor ? "+%d" : "no álbum", e->valor); break;
+        case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
+        case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro
+            for (int k = 0; k < N_FILA; k++)
+                if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "+%d", e->por_dado[k]);
+            if (e->valor) flutua_em(dj, N_FILA, C_OURO, 0.1f, "+%d", e->valor);
+            break;
         case AD_FRAGIL:     flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor); break;
         case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++)
@@ -1302,6 +1305,7 @@ static void aplica_evento(int i)
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
+        case AD_ETIQUETA: case AD_PATINHO:
             vis_semente[e->de_j] += e->valor;
             break;
         case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim)
@@ -1311,6 +1315,10 @@ static void aplica_evento(int i)
         case AD_SELO:                   // o lacre rompeu (pagando) ou fechou
             vis_semente[e->de_j] += e->valor;
             if (e->de_k < N_FILA) vis_selo[e->de_j][e->valor ? 0 : 1] |= (uint8_t)(1 << e->de_k);
+            break;
+        case AD_BILHETE:                // o bonus dos dados (por dado) e o de fora (valor)
+            for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->de_j][k] += e->por_dado[k];
+            vis_semente[e->de_j] += e->valor;
             break;
         case AD_ELETRONICO: case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k];

@@ -68,12 +68,14 @@ static float t_lj_cola;                  // > 0: colou; o adesivo assenta e a lo
 static float t_lj_ad_carimbo;            // o carimbo de colado no cartao do adesivo
 // Onde o adesivo vai: na loja, na bolsa da run, comprado; no premio do modo de
 // 2 jogadores (cola_premio), na bolsa de quem venceu a rodada, de graca.
+// Do pacote de adesivos (cola_pac: a carta), tambem de graca: o pacote ja foi pago.
 static bool  cola_premio;
 static int   cola_premio_ad;              // o adesivo ganho
 static int   cola_premio_slot;            // de qual cartao do premio ele veio
+static int   cola_pac = -1;               // colando a carta do pacote de adesivos (-1: nao)
 static peca_t *cola_col(void) { return cola_premio ? J[vez].col : run.col; }
 static int   cola_n(void) { return cola_premio ? J[vez].n_col : run.n_col; }
-static int   cola_ad(void) { return cola_premio ? cola_premio_ad : run.adesivo; }
+static int   cola_ad(void) { return cola_premio ? cola_premio_ad : cola_pac >= 0 ? pac_ad(cola_pac) : run.adesivo; }
 static int   cola_dono(void) { return cola_premio ? vez : 0; }
 
 // Os itens, na ordem das setas: a vitrine, o pacote, o adesivo e os dois servicos.
@@ -117,6 +119,7 @@ static void loja_abriu(void)
     t_pac_carimbo = 0;
     lj_colando = 0;
     cola_premio = false;
+    cola_pac = -1;
     t_lj_cola = t_lj_ad_carimbo = 0;
     // Saiu com o pacote aberto: volta nele, rasgado, com as mesmas cartas.
     lj_pac = run.pac_estado == PAC_ABERTO;
@@ -173,7 +176,7 @@ static void lj_estoura(void)
 // maiores que as lascas de um dado.
 static void pac_rasga(void)
 {
-    const uint16_t *p = PAPEL_GRUPO[run.pacote < GR_N ? run.pacote : 0];
+    const uint16_t *p = PAPEL_GRUPO[tem_pacote() ? run.pacote : 0];
     uint16_t cores[3] = { p[1], p[0], C_MARFIM_S };
     lj_lascas_de(PAC_CX, PAC_CY, cores, LJ_LASCAS, 1.6f);
     for (int i = 0; i < n_lasca; i++) lasca[i].tam = (uint8_t)(lasca[i].tam + 2);
@@ -200,6 +203,13 @@ static void cola_passo(float dt)
             t_lj_cola = 0;
             lj_colando = 0;
             if (cola_premio) { cola_premio = false; nova_rodada(); return; }
+            if (cola_pac >= 0) {                 // o pacote de adesivos: acabou, volta a loja
+                cola_pac = -1;
+                lj_pac = false;
+                cursor = lj_item_pacote();
+                t_pac_carimbo = 0.001f;
+                return;
+            }
             cursor = lj_item_adesivo();
             t_lj_ad_carimbo = 0.001f;
         }
@@ -311,15 +321,25 @@ static void loja_compra(int i)
     som_toca(SOM_FICHA);
 }
 
+// Algum dado da bolsa tem algum lado livre? (o pacote de adesivos)
+static bool lj_algum_lado_livre(void)
+{
+    for (int i = 0; i < run.n_col; i++) if (ad_cabe(&run.col[i])) return true;
+    return false;
+}
+
 // Compra o pacote: paga e ele abre na hora (fica salvo aberto: sair e voltar
 // mostra as mesmas cartas).
 static void loja_pacote(void)
 {
     int it = lj_item_pacote(), pr = preco_pacote();
-    if (run.pacote >= GR_N) { lj_nega(it, "Nenhum pacote nesta loja."); return; }
+    if (!tem_pacote()) { lj_nega(it, "Nenhum pacote nesta loja."); return; }
     if (run.pac_estado != PAC_VENDA) { lj_nega(it, "O pacote desta loja já foi aberto."); return; }
     if (run.moedas < pr) { lj_nega(it, "Moedas insuficientes."); return; }
-    if (run.n_col >= MAX_COL) { lj_nega(it, "A bolsa está cheia."); return; }
+    if (pacote_de_adesivos() ? !lj_algum_lado_livre() : run.n_col >= MAX_COL) {
+        lj_nega(it, pacote_de_adesivos() ? "Nenhum dado da bolsa tem lado livre." : "A bolsa está cheia.");
+        return;
+    }
     run.moedas -= pr;
     run.pac_estado = PAC_ABERTO;
     des_salva();
@@ -337,6 +357,16 @@ static void loja_pacote(void)
 static void pacote_escolhe(int i)
 {
     if (!lj_pac || t_pac_fim > 0 || run.pac_estado != PAC_ABERTO) return;
+    if (i >= 0 && i < PAC_OPCOES && pacote_de_adesivos()) {   // o adesivo: escolhe o dado e o lado
+        if (!pac_ad(i)) return;
+        cola_pac = i;
+        lj_colando = 1;
+        t_lj_cola = 0;
+        cursor = 0;
+        while (cursor < run.n_col - 1 && !ad_cabe_o(&run.col[cursor], pac_ad(i))) cursor++;
+        som_toca(SOM_TIQUE);
+        return;
+    }
     if (i >= 0 && i < PAC_OPCOES) {
         if (run.n_col >= MAX_COL) { lj_nega(-1, "A bolsa está cheia."); return; }
         run.col[run.n_col++] = run.pac_op[i];
@@ -396,7 +426,12 @@ static void cola_escolhe_lado(int c)
     if (c < 0 || lado > ad_lado_max(p->tipo)) return;
     if (ad_no_lado(p, lado)) { lj_nega(-1, "Esse lado já tem adesivo."); return; }
     if (cola_premio) ad_cola(p, lado, a);       // o premio: de graca, so ate o fim da partida
-    else {
+    else if (cola_pac >= 0) {                   // o pacote ja pago: cola e o pacote acaba
+        ad_cola(p, lado, a);
+        pac_levado = cola_pac;
+        run.pac_estado = PAC_USADO;
+        des_salva();
+    } else {
         if (run.moedas < pr || run.ad_vendido) return;
         run.moedas -= pr;
         ad_cola(p, lado, a);
@@ -505,10 +540,11 @@ static bool cola_tecla(int k, int e)
         if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return true; }
         if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < nc) cursor += por; return true; }
         if (e) { cursor = (cursor + e + nc) % nc; som_toca(SOM_TIQUE); return true; }
-        if (volta) {                              // volta aos cartoes (o premio: ao do adesivo)
+        if (volta) {                              // volta aos cartoes (o premio: ao do adesivo; o pacote: as cartas)
             lj_colando = 0;
-            cursor = cola_premio ? cola_premio_slot : lj_item_adesivo();
+            cursor = cola_premio ? cola_premio_slot : cola_pac >= 0 ? cola_pac : lj_item_adesivo();
             cola_premio = false;
+            cola_pac = -1;
             return true;
         }
         if (k == KEY_ENTER) cola_escolhe_dado(cursor);
@@ -525,8 +561,8 @@ static bool cola_tecla(int k, int e)
 
 static bool loja_tecla(int k, int e)
 {
+    if (lj_colando) return cola_tecla(k, e);    // (o pacote de adesivos tambem cola)
     if (lj_pac) return pacote_tecla(k, e);
-    if (lj_colando) return cola_tecla(k, e);
     if (lj_tirando) {
         if (t_lj_tira > 0 || t_lj_volta > 0) return true;      // estourando
         int por = grade_lj_tira(run.n_col).por;
@@ -628,6 +664,11 @@ static void glifo_grupo(int cx, int cy, int g, uint16_t c, int k)
         gfx_rect(cx - 2 * k, cy + 1 * k, 5 * k, 2 * k, c);
         gfx_rect(cx - 1 * k, cy + 3 * k, 3 * k, 1 * k, c);
         break;
+    case GR_ADESIVOS:                            // um adesivo com a ponta descolando
+        gfx_rect(cx - 3 * k, cy - 3 * k, 7 * k, 7 * k, c);
+        gfx_rect(cx + 2 * k, cy + 2 * k, 2 * k, 2 * k, C_MARFIM_S);
+        gfx_rect(cx + 1 * k, cy + 1 * k, k, k, C_MARFIM);
+        break;
     default: {                                   // dois aros entrelacados
         uint16_t fundo = C_MARFIM_S;
         gfx_disco(cx - 2 * k, cy, 3 * k, c);
@@ -644,7 +685,7 @@ static void glifo_grupo(int cx, int cy, int g, uint16_t c, int k)
 // a tampa arrancada e a caixa vazia.
 static void desenha_pacote(int cx, int cy, float e, int g, bool rasgado)
 {
-    const uint16_t *pp = PAPEL_GRUPO[g >= 0 && g < GR_N ? g : 0];
+    const uint16_t *pp = PAPEL_GRUPO[g >= 0 && g <= GR_ADESIVOS ? g : 0];
     uint16_t luz = pp[0], papel = pp[1], sombra = pp[2];
     int w = (int)(44 * e), h = (int)(36 * e), x = cx - w / 2, y = cy - h / 2 + (int)(4 * e);
     int tampa = (int)(9 * e), fw = (int)(5 * e) < 3 ? 3 : (int)(5 * e), k = e >= 1.6f ? 2 : 1;
@@ -702,7 +743,7 @@ static void lj_cartao_pacote(void)
     if (q <= 0) return;
     int y = LJ_Y - (int)((1 - sai_mola(q)) * 80);
     int g = run.pacote;
-    bool tem = g < GR_N, usado = run.pac_estado != PAC_VENDA, cur = it == cursor && !lj_tirando;
+    bool tem = tem_pacote(), usado = run.pac_estado != PAC_VENDA, cur = it == cursor && !lj_tirando;
     float nega = t_lj_nega[it];
     int dx = nega > 0 ? (int)(sinf(nega * 70) * 2 * (nega / 0.4f)) : 0;
     ui_cartao(x - cw / 2 + dx, y, cw, LJ_CH, cur, tem ? cor_grupo(g) : C_LATAO);
@@ -1029,6 +1070,9 @@ static void lj_cola_lados(void)
         txt_c(GFX_W / 2, ty, s, C_VINHO_CLR, true);
         snprintf(s, sizeof s, "%s %s", ADESIVO[ja].l1, ADESIVO[ja].l2);
         txt_c(GFX_W / 2, ty + TXT_H - 1, s, C_MARFIM_S, false);
+    } else if (cola_pac >= 0) {
+        snprintf(s, sizeof s, "Lado %d  ·  do pacote", lado);
+        txt_c(GFX_W / 2, ty, s, C_OURO, true);
     } else if (cola_premio) {
         snprintf(s, sizeof s, "Lado %d  ·  prêmio: fica até o fim da partida", lado);
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
@@ -1091,6 +1135,22 @@ static void pac_carta(int i)
     if (w < 8 || h < 8) return;
     peca_t pc = run.pac_op[i];
     bool pronto = t_pac >= PAC_PRONTO && t_pac_fim <= 0, cur = pronto && i == cursor;
+    int a = pacote_de_adesivos() ? pac_ad(i) : AD_NADA;
+    if (a) {                                         // a carta do adesivo: ele solto, o nome e a raridade
+        uint16_t cr = COR_RAR[RAR_ADESIVO[a]];
+        ui_cartao(x, y, w, h, cur, cr);
+        float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
+        float descola = cur ? 0.25f + 0.15f * sinf(t_fase * 4) : 0;
+        int s = esc > 0.9f ? 4 : esc > 0.6f ? 3 : 2;
+        ad_solto_d(cx, (int)(y + 40 * esc + bob), a, s, descola);
+        if (esc > 0.9f) {
+            nome_no_cartao(cx, y + 72, ADESIVO[a].nome, cur ? ADESIVO[a].luz : C_MARFIM_S, w - 8);
+            const char *rar = RARIDADE[RAR_ADESIVO[a]];
+            gfx_texto(cx - gfx_largura(rar, GFX_MIUDO) / 2, y + 90, rar, cr, GFX_MIUDO, false);
+        }
+        if (pronto) zona_clique(x1 - PAC_CW / 2, y1, PAC_CW, LJ_CH, &cursor, i, KEY_ENTER);
+        return;
+    }
     ui_cartao(x, y, w, h, cur, cor_rar(pc.tipo));
     float giro = q < 1 ? (1 - q) * 9 : 0;
     float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
@@ -1128,10 +1188,12 @@ static void lj_desenha_pacote(void)
 {
     int g = run.pacote;
     char s[64];
-    snprintf(s, sizeof s, "PACOTE DE %s", g == GR_NUMEROS ? "NÚMEROS" : g == GR_ATAQUE ? "ATAQUE" : g == GR_DEFESA ? "DEFESA" : "COMBO");
+    snprintf(s, sizeof s, "PACOTE DE %s", g == GR_NUMEROS ? "NÚMEROS" : g == GR_ATAQUE ? "ATAQUE" : g == GR_DEFESA ? "DEFESA"
+                                         : g == GR_ADESIVOS ? "ADESIVOS" : "COMBO");
     txt_c2(GFX_W / 2, MESA_Y0 + 2, s, cor_grupo(g));
-    txt_c(GFX_W / 2, MESA_Y0 + 36, t_pac < PAC_RASGA ? DESC_GRUPO[g] : "Escolha 1 dos 3 dados  ·  ou pule o pacote",
-          C_MARFIM_S, false);
+    txt_c(GFX_W / 2, MESA_Y0 + 36, t_pac < PAC_RASGA ? DESC_GRUPO[g]
+          : g == GR_ADESIVOS ? "Escolha 1 dos 3 adesivos e cole num dado  ·  ou pule o pacote"
+          : "Escolha 1 dos 3 dados  ·  ou pule o pacote", C_MARFIM_S, false);
     if (t_pac < PAC_RASGA) {
         // Cresce do cartao da loja ate o meio da mesa e sacode cada vez mais.
         float qc = t_pac / PAC_CRESCE;
@@ -1153,7 +1215,14 @@ static void lj_desenha_pacote(void)
     lj_lascas();
     // O que a carta em foco faz; ou o que e pular.
     bool pronto = t_pac >= PAC_PRONTO && t_pac_fim <= 0;
-    if (pronto && cursor < PAC_OPCOES) dado_e_poder(LJ_DESC_Y + 6, run.pac_op[cursor].tipo, true);
+    if (pronto && cursor < PAC_OPCOES && pacote_de_adesivos()) {   // o adesivo em foco: o que ele faz
+        int a = pac_ad(cursor);
+        char l[112];
+        snprintf(l, sizeof l, "Adesivo %s", ADESIVO[a].nome);
+        txt_c(GFX_W / 2, LJ_DESC_Y + 6, l, ADESIVO[a].luz, true);
+        snprintf(l, sizeof l, "%s %s", ADESIVO[a].l1, ADESIVO[a].l2);
+        txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, l, C_MARFIM_S, false);
+    } else if (pronto && cursor < PAC_OPCOES) dado_e_poder(LJ_DESC_Y + 6, run.pac_op[cursor].tipo, true);
     else if (pronto) {
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, "Pular o pacote", C_LATAO, true);
         txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, "Fica sem nenhum dos três. As moedas não voltam.", C_MARFIM_S, false);
@@ -1175,9 +1244,9 @@ static void desenha_loja_run(void)
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
     faixa_run(0);
     if (lj_tirando) { lj_desenha_tirando(); return; }
-    if (lj_pac) { lj_desenha_pacote(); return; }
     if (lj_colando == 1) { lj_cola_dados(); return; }
     if (lj_colando == 2) { lj_cola_lados(); return; }
+    if (lj_pac) { lj_desenha_pacote(); return; }
     bool ini = run.estado == R_LOJA_INI;
     txt_c2(GFX_W / 2, MESA_Y0 + 2, ini ? "LOJA DA ENTRADA" : "LOJA", C_OURO);
     char s[96];
@@ -1205,14 +1274,15 @@ static void desenha_loja_run(void)
     if (cursor < nv) dado_e_poder(LJ_DESC_Y, run.vitrine[cursor].tipo, true);
     else if (cursor == nv) {
         int g = run.pacote;
-        if (g >= GR_N) txt_c(GFX_W / 2, LJ_DESC_Y, "Sem pacote nesta loja", C_LATAO, true);
+        if (!tem_pacote()) txt_c(GFX_W / 2, LJ_DESC_Y, "Sem pacote nesta loja", C_LATAO, true);
         else {
             snprintf(s, sizeof s, "Pacote de %s", NOME_GRUPO[g]);
             txt_c(GFX_W / 2, LJ_DESC_Y, s, cor_grupo(g), true);
             txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.pac_estado == PAC_VENDA ? DESC_GRUPO[g]
                   : "Já aberto. A próxima loja traz outro pacote.", C_MARFIM_S, false);
             if (run.pac_estado == PAC_VENDA && t_lj_aviso <= 0)
-                txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H - 3, "Abre na hora: 3 dados do grupo, leva 1.", C_TEXTO_M, false);
+                txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H - 3, g == GR_ADESIVOS ? "Abre na hora: 3 adesivos, leva 1 e cola num dado."
+                      : "Abre na hora: 3 dados do grupo, leva 1.", C_TEXTO_M, false);
         }
     } else if (cursor == lj_item_adesivo()) {
         int a = run.adesivo;

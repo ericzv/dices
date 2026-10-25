@@ -1203,7 +1203,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         bool algum = false;
         for (int c = 0; c < n_fonte; c++) algum |= ad_age(d, j, k, fonte[c], qual[c], gera, true);
         if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
-            d->bil_holo[j][k] = (uint8_t)__builtin_popcount(d->bilhete[j]);
+            for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
             algum = true;
         }
         if (algum) agiram++;

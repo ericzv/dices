@@ -6,13 +6,16 @@
 // loja vende um por visita; escolhe-se o dado e depois o lado.
 enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARENTE, AD_DOURADO,
        AD_LOBO, AD_REMENDO, AD_RASPADINHA, AD_FERMENTO, AD_BIS, AD_MIRA, AD_AVESSO, AD_GORJETA,
-       AD_SELO,
-       AD_N };                                   // cabe em meio byte (peca_t.ad): 15 no maximo
-_Static_assert(AD_N <= 16, "os adesivos cabem em meio byte por lado");
+       AD_SELO, AD_FRAGIL, AD_ESTRELINHA, AD_CORRETIVO, AD_IMANTADO, AD_POSTIT, AD_HOLOGRAFICO,
+       AD_PURPURINA, AD_VELCRO, AD_RATOEIRA,
+       AD_N };                                   // um byte por lado (peca_t.ad)
 
 #define AD_SEM_FUNDO 1                          // o Transparente: so o contorno de vidro
 #define FERMENTO_MAX 20
 #define SELO_PONTOS 5                           // o que o lacre do Selo paga no proximo lance valendo
+#define FRAGIL_PONTOS 6                         // o Fragil valendo
+#define ESTRELINHA_PONTOS 6                     // a Estrelinha com a sequencia cheia
+#define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7.
@@ -68,24 +71,58 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_SELO]         = { "Selo", "tirando este lado: no próximo", "lance, se terminar válido, +5", 3, 0,
                           RGB(118, 30, 38), RGB(190, 56, 60), RGB(226, 164, 168),
                           { "..###..", ".#####.", "###.###", "##...##", "###.###", ".#####.", "..#.##." } },
+    [AD_FRAGIL]       = { "Frágil", "tirando este lado: válido, +6;", "anulado, o dado quebra", 3, 1,
+                          RGB(214, 112, 44), RGB(238, 162, 74), RGB(252, 248, 236),
+                          { "#######", "#.....#", ".#.#.#.", "..###..", "...#...", "...#...", "..###.." } },
+    [AD_ESTRELINHA]   = { "Estrelinha", "tirando este lado: com os 4", "dados válidos no fim, +6", 3, 3,
+                          RGB(96, 134, 196), RGB(168, 204, 230), RGB(246, 222, 132),
+                          { "...#...", "..###..", "#######", ".#####.", "..###..", ".##.##.", ".#...#." } },
+    [AD_CORRETIVO]    = { "Corretivo", "tirando este lado, o dado", "não sobe a régua da sequência", 4, 5,
+                          RGB(252, 248, 236), RGB(184, 194, 208), RGB(70, 76, 88),
+                          { "..###..", "..###..", "...#...", ".#####.", "##...##", "##...##", ".#####." } },
+    [AD_IMANTADO]     = { "Imantado", "tirando este lado: se o próximo", "tirar igual, os dois x2", 3, 4,
+                          RGB(26, 34, 62), RGB(96, 134, 196), RGB(190, 56, 60),
+                          { "##...##", "##...##", "#.....#", "#.....#", "#.....#", ".#...#.", "..###.." } },
+    [AD_POSTIT]       = { "Post-it", "tirando este lado: o próximo", "rola 2 vezes e fica o maior", 4, 6,
+                          RGB(246, 222, 132), RGB(252, 248, 236), RGB(150, 122, 62),
+                          { "#######", "#.....#", "#.###.#", "#.....#", "#.###.#", "#....#.", "#####.." } },
+    [AD_HOLOGRAFICO]  = { "Holográfico", "tirando este lado: copia os", "adesivos do fim dos seus dados", 6, 9,
+                          RGB(184, 194, 208), RGB(252, 248, 236), RGB(102, 74, 138),
+                          { "...#...", "..###..", ".#####.", "#######", ".#####.", "..###..", "...#..." } },
+    [AD_PURPURINA]    = { "Purpurina", "tirando este lado, se válido:", "+3 por adesivo que agiu", 5, 7,
+                          RGB(150, 62, 80), RGB(208, 98, 108), RGB(246, 222, 132),
+                          { ".#.....", "###..#.", ".#..###", ".....#.", "..#....", ".###.#.", "..#...." } },
+    [AD_VELCRO]       = { "Velcro", "tirando este lado: o dado volta", "para a mão na próxima rodada", 3, 2,
+                          RGB(36, 32, 29), RGB(96, 88, 80), RGB(166, 154, 132),
+                          { "#.#.#.#", "#.#.#.#", "#######", ".......", "#######", ".#.#.#.", ".#.#.#." } },
+    [AD_RATOEIRA]     = { "Ratoeira", "tirando este lado: anulado pelo", "oponente, o maior dele cai", 4, 8,
+                          RGB(120, 78, 50), RGB(156, 106, 64), RGB(204, 194, 172),
+                          { ".......", "....##.", "..####.", ".##.###", "#######", ".......", "#######" } },
 };
 
 // O adesivo do lado 'lado' (0: nenhum).
 static int ad_no_lado(const peca_t *p, int lado)
 {
     if (!p || lado < 1 || lado > AD_LADOS) return AD_NADA;
-    uint8_t b = p->ad[(lado - 1) / 2];
-    return (lado - 1) & 1 ? b >> 4 : b & 15;
+    return p->ad[lado - 1] < AD_N ? p->ad[lado - 1] : AD_NADA;
 }
 // O numero que o lado tira: o Remendo soma 2, e e esse o numero que conta,
 // na sequencia e nos poderes do dado (o Trevo com Remendo no 2 tira 4).
 static int remenda(const peca_t *p, int lado) { return ad_no_lado(p, lado) == AD_REMENDO ? lado + 2 : lado; }
 static void ad_cola(peca_t *p, int lado, int a)
 {
-    if (lado < 1 || lado > AD_LADOS) return;
-    uint8_t *b = &p->ad[(lado - 1) / 2];
-    if ((lado - 1) & 1) *b = (uint8_t)((*b & 15) | a << 4);
-    else *b = (uint8_t)((*b & 0xF0) | a);
+    if (lado >= 1 && lado <= AD_LADOS) p->ad[lado - 1] = (uint8_t)a;
+}
+// A peca da run salva de antes (adesivos em meio byte: o lado 1 no meio
+// byte baixo de ad[0]) na de agora.
+static peca_t peca_de_13(const peca13_t *v)
+{
+    peca_t p = { .tipo = v->tipo, .fixo = v->fixo, .fermento = v->fermento, .selo = v->selo };
+    for (int l = 1; l <= AD_LADOS; l++) {
+        uint8_t b = v->ad[(l - 1) / 2];
+        p.ad[l - 1] = (uint8_t)((l - 1) & 1 ? b >> 4 : b & 15);
+    }
+    return p;
 }
 static int ad_quantos(const peca_t *p)
 {
@@ -127,6 +164,15 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_AVESSO]       = "Tirando este lado, o dado vira e fica com o lado oposto para cima (no d6, o 1 vira 6; no d20, o 1 vira 20).",
     [AD_GORJETA]      = "Tirando este lado, válido ou anulado: o oponente te paga 2 fichas, fora do pote.",
     [AD_SELO]         = "Tirando este lado, válido ou anulado, o dado fica lacrado. Na próxima vez que ele for lançado, caia no lado que cair, se terminar válido: +5 pontos no fim da rodada. Lançado, o lacre se rompe, valendo ou não; tirando o Selo de novo, lacra outra vez.",
+    [AD_FRAGIL]       = "Tirando este lado: se o dado terminar válido, +6 pontos no fim da rodada; se terminar anulado, ele quebra e vira um Quebrado com o número que tirou (pontua esse número uma vez e sai da bolsa).",
+    [AD_ESTRELINHA]   = "Tirando este lado: se a sua sequência terminar com os 4 dados válidos, +6 pontos no fim da rodada.",
+    [AD_CORRETIVO]    = "Tirando este lado, o dado pontua mas não sobe a régua: o próximo só precisa ser igual ou maior que o dado válido de antes dele. Como a Ponte, mas o dado com o Corretivo ainda cai se sair menor.",
+    [AD_IMANTADO]     = "Tirando este lado: se o próximo dado da sequência tirar o mesmo número, os dois pontuam x2 no fim da rodada (soma com os outros multiplicadores).",
+    [AD_POSTIT]       = "Tirando este lado, o próximo dado da sequência rola duas vezes e fica com o maior resultado. O Viciado rola os dois dados duas vezes e fica com o maior de todos.",
+    [AD_HOLOGRAFICO]  = "Tirando este lado, copia os adesivos dos seus outros dados que agiram no fim da rodada, como se fossem dele: o Confete dá +4, o Eletrônico dobra este dado, o Selo lacra este dado. Não copia os que agem no pouso (Chumbo, Reflexivo, Avesso, Remendo, Transparente, Corretivo, Post-it) nem a Ratoeira.",
+    [AD_PURPURINA]    = "Tirando este lado, se o dado terminar válido: +3 pontos por adesivo seu que agiu na rodada, ela junto. Os que agem no pouso também contam.",
+    [AD_VELCRO]       = "Tirando este lado, válido ou anulado, o dado gruda: na rodada seguinte ele volta direto para a sua mão (e conta como um dos dados da compra), em vez de ir para fora.",
+    [AD_RATOEIRA]     = "Tirando este lado: se o oponente anular este dado com um poder (não a sequência), o maior dado válido dele também é anulado.",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
@@ -140,9 +186,22 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
         return;
     }
     if (a <= AD_NADA || a >= AD_N) return;
+    // Os de varias cores (fora do cinza da mao): o Holografico muda de cor em
+    // faixas; a Purpurina, um brilho de cada cor; o Imantado, as pontas de
+    // metal; a Ratoeira, o queijo sobre a tabua.
+    static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
+                                      RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
+    bool cores = c == ADESIVO[a].tinta;
     for (int j = 0; j < 7; j++)
-        for (int i = 0; i < 7; i++)
-            if (ADESIVO[a].ic[j][i] == '#') gfx_rect(x + i * s, y + j * s, s, s, c);
+        for (int i = 0; i < 7; i++) {
+            if (ADESIVO[a].ic[j][i] != '#') continue;
+            uint16_t k = c;
+            if (cores && a == AD_HOLOGRAFICO) k = ARCO[(i + j) % 6];
+            else if (cores && a == AD_PURPURINA) k = j <= 2 && i <= 2 ? RGB(246, 222, 132) : j <= 3 ? C_BRANCO : i <= 3 ? RGB(226, 164, 168) : RGB(246, 222, 132);
+            else if (cores && a == AD_IMANTADO && j < 2) k = RGB(204, 194, 172);
+            else if (cores && a == AD_RATOEIRA && j < 5) k = RGB(246, 222, 132);
+            gfx_rect(x + i * s, y + j * s, s, s, k);
+        }
 }
 
 // Retangulo de cantos aparados, cheio e so a borda.
@@ -262,6 +321,9 @@ static int som_adesivo(int a)
         [AD_LOBO] = SOM_AD_LOBO, [AD_REMENDO] = SOM_AD_REMENDO, [AD_RASPADINHA] = SOM_AD_RASPADINHA,
         [AD_FERMENTO] = SOM_AD_FERMENTO, [AD_BIS] = SOM_AD_BIS, [AD_MIRA] = SOM_AD_MIRA,
         [AD_AVESSO] = SOM_AD_AVESSO, [AD_GORJETA] = SOM_AD_GORJETA, [AD_SELO] = SOM_AD_SELO,
+        [AD_FRAGIL] = SOM_AD_FRAGIL, [AD_ESTRELINHA] = SOM_AD_ESTRELINHA, [AD_CORRETIVO] = SOM_AD_CORRETIVO,
+        [AD_IMANTADO] = SOM_AD_IMANTADO, [AD_POSTIT] = SOM_AD_POSTIT, [AD_HOLOGRAFICO] = SOM_AD_HOLOGRAFICO,
+        [AD_PURPURINA] = SOM_AD_PURPURINA, [AD_VELCRO] = SOM_AD_VELCRO, [AD_RATOEIRA] = SOM_AD_RATOEIRA,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

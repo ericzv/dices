@@ -810,6 +810,107 @@ def ad_gorjeta():
     m.poe(0.3, nota('vibraphone', 81, 0.25, 0.3), 0.35)
     return sala(m.x, 0.12)
 
+def ad_fragil():
+    """O FRAGIL valendo: dois tinidos de vidro fino, com cuidado, e um brilho.
+    (Quebrando, a mesa toca o som do vidro.)"""
+    m = Mix(0.8)
+    m.poe(0, tom(batida('dicehit_metal3'), 12), 0.35)
+    m.poe(0.005, nota('glockenspiel', 103, 0.2, 0.4), 0.35)
+    m.poe(0.11, tom(batida('dicehit_metal3'), 14), 0.25)
+    m.poe(0.115, nota('glockenspiel', 108, 0.2, 0.4), 0.25)
+    m.poe(0.16, nota('vibraphone', 84, 0.35, 0.4), 0.3)
+    return sala(m.x, 0.2)
+
+def ad_estrelinha():
+    """A estrela do caderno: um arpejo de sininhos subindo e o brilho no alto."""
+    m = Mix(1.0)
+    for k, nn in enumerate((84, 88, 91, 96)):
+        m.poe(k * 0.05, nota('glockenspiel', nn, 0.15, 0.3), 0.4)
+    m.poe(0.2, nota('vibraphone', 84, 0.5, 0.5), 0.35)
+    m.poe(0.2, nota('vibraphone', 88, 0.5, 0.5), 0.25)
+    w = ruido(0.35, 5000, 11000)
+    m.poe(0.18, w * env(len(w), 0.02, 0.12), 0.05)
+    return sala(m.x, 0.22)
+
+def ad_corretivo():
+    """O corretivo: a bolinha chacoalhando no frasco e o pincel passando."""
+    m = Mix(0.7)
+    for k in range(3):
+        m.poe(k * 0.05, pa(tom(batida('dicehit_plastic%d' % (3 + k)), 10), 2000), 0.35)
+    n = int(0.2 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.17, banda(rng.standard_normal(n), 1200, 4500) * np.sin(np.pi * q) ** 1.5, 0.22)   # o pincel
+    m.poe(0.36, marimba(79, 0.12, 0.2), 0.35)
+    return sala(m.x, 0.12)
+
+def ad_imantado():
+    """O ima: o zumbido grave puxando e o clac dos dois grudando, em dobro."""
+    m = Mix(0.8)
+    n = int(0.22 * SR); t = np.arange(n) / SR
+    f = 90 + 140 * (t / t[-1]) ** 2
+    m.poe(0, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.04, 0.05), 0.35)
+    m.poe(0.21, tom(batida('dicehit_metal4'), 2), 0.7)
+    m.poe(0.21, tom(batida('dicehit_metal2'), 5), 0.4)
+    m.poe(0.23, nota('vibraphone', 76, 0.3, 0.4), 0.35)
+    m.poe(0.33, nota('vibraphone', 76, 0.3, 0.4), 0.3)
+    return sala(m.x, 0.12)
+
+def ad_postit():
+    """O Post-it: o papelzinho descolando e duas batidinhas (rola duas vezes)."""
+    m = Mix(0.6)
+    n = int(0.09 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 2000, 7000) * q * np.sin(np.pi * q), 0.25)
+    m.poe(0.1, marimba(72, 0.08, 0.12), 0.45)
+    m.poe(0.2, marimba(79, 0.1, 0.15), 0.45)
+    return sala(m.x, 0.12)
+
+def ad_holografico():
+    """O holografico: o brilho que muda de cor, um acorde que ondula e varre."""
+    m = Mix(1.1)
+    for k, nn in enumerate((76, 81, 86)):
+        x = nota('vibraphone', nn, 0.6, 0.5)
+        t = np.arange(len(x)) / SR
+        m.poe(k * 0.03, x * (0.7 + 0.3 * np.sin(2 * np.pi * (5 + k) * t)), 0.3)
+    for k in range(5):
+        m.poe(0.05 + k * 0.07, nota('glockenspiel', int(rng.choice((96, 98, 101, 103))), 0.1, 0.2), 0.18)
+    n = int(0.7 * SR); t = np.arange(n) / SR
+    w = rng.standard_normal(n)
+    varre = sum(banda(w, f0 * 0.8, f0 * 1.25) * np.exp(-((t - c) / 0.12) ** 2)
+                for f0, c in ((2000, 0.1), (3500, 0.25), (6000, 0.4)))
+    m.poe(0, varre, 0.08)
+    return sala(m.x, 0.25)
+
+def ad_purpurina():
+    """A purpurina: um punhado de brilhinhos caindo, rapido e miudo."""
+    m = Mix(1.0)
+    for k in range(16):
+        nn = int(rng.choice((98, 100, 103, 105, 108)))
+        m.poe(k * 0.035 + rnd.uniform(0, 0.02), nota('glockenspiel', nn, 0.05, 0.12), 0.22 * (1 - k / 22))
+    w = ruido(0.5, 4000, 11000)
+    m.poe(0, w * env(len(w), 0.01, 0.2), 0.07)
+    m.poe(0.03, nota('vibraphone', 88, 0.3, 0.4), 0.25)
+    return sala(m.x, 0.22)
+
+def ad_velcro():
+    """O velcro: o rasgado aspero, crepitando, e o dado grudando de volta."""
+    m = Mix(0.7)
+    n = int(0.26 * SR); q = np.linspace(0, 1, n)
+    pulsos = pb((rng.random(n) < 0.12) * rng.uniform(0.3, 1, n), 5000)
+    m.poe(0, banda(rng.standard_normal(n), 800, 6000) * (0.2 + 6 * pulsos) * np.sin(np.pi * q) ** 0.5, 0.3)
+    m.poe(0.3, pb(superficie('surface_felt4'), 2500), 0.7)
+    m.poe(0.32, marimba(76, 0.1, 0.15), 0.3)
+    return sala(m.x, 0.1)
+
+def ad_ratoeira():
+    """A ratoeira desarma: o estalo seco da mola, a madeira e a mola vibrando."""
+    m = Mix(0.7)
+    m.poe(0, estalinho(0.012, 1200), 1.0)
+    m.poe(0, tom(batida('dicehit_wood5'), 4), 0.9)
+    m.poe(0.003, tom(batida('dicehit_metal4'), -2), 0.5)
+    n = int(0.4 * SR); t = np.arange(n) / SR
+    mola = np.sin(2 * np.pi * (320 + 40 * np.sin(2 * np.pi * 18 * t)) * t) * env(n, 0.002, 0.09)
+    m.poe(0.01, mola, 0.22)
+    return sala(m.x, 0.1)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1161,7 +1262,11 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_transparente': VOLUME['efeito'] * 0.8, 'ad_dourado': VOLUME['efeito'], 'ad_lobo': VOLUME['tira'],
                'ad_remendo': VOLUME['efeito'] * 0.7, 'ad_raspadinha': VOLUME['efeito'], 'ad_fermento': VOLUME['efeito'] * 0.9,
                'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha'],
-               'ad_selo': VOLUME['efeito'] * 0.9})
+               'ad_selo': VOLUME['efeito'] * 0.9, 'ad_fragil': VOLUME['efeito'] * 0.85,
+               'ad_estrelinha': VOLUME['efeito'], 'ad_corretivo': VOLUME['efeito'] * 0.75,
+               'ad_imantado': VOLUME['efeito'], 'ad_postit': VOLUME['efeito'] * 0.7,
+               'ad_holografico': VOLUME['efeito'], 'ad_purpurina': VOLUME['efeito'],
+               'ad_velcro': VOLUME['efeito'] * 0.8, 'ad_ratoeira': VOLUME['anula']})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1190,6 +1295,8 @@ SONS = {
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta', 'ad_selo',
+             'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
+             'ad_velcro', 'ad_ratoeira',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)

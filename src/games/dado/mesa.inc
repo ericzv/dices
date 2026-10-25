@@ -792,6 +792,7 @@ static void desenha_jingle_copias(void)
     }
 }
 
+static void rachadura(int x, int y, int r, float q);
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -889,7 +890,7 @@ static void desenha_fila(int j)
             x += (int)(sinf(t_fase * 70) * 3);                      // o Cavalo treme e se abre
         if (recente && pisca) continue;
         // Alvo de anulacao agora: pisca antes de cair.
-        bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && e->ad == AD_MIRA)) && e->alvo_j == j && e->alvo_k == k;
+        bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || e->ad == AD_RATOEIRA))) && e->alvo_j == j && e->alvo_k == k;
         bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
         if (alvo && !congela && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
         bool cavalo = e && e->tipo == EV_CAVALO && e->alvo_j == j && (e->mascara >> k & 1);
@@ -937,6 +938,9 @@ static void desenha_fila(int j)
         if (!ainda && giro < 0.5f) {
             ad_face = ad_fila(j, k);
             ad_face_aceso = e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k && (p > 0.3f || (int)(t_fase * 12) % 2 == 0);
+            // O Post-it aceso enquanto o dado seguinte rola as duas vezes.
+            if (ad_face == AD_POSTIT && (fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].dono == j && voo[0].slot == k + 1)
+                ad_face_aceso = true;
         }
         // A Onda que juntou 9 vira Tsunami no meio do evento dela (e fica).
         int td = t;
@@ -954,6 +958,7 @@ static void desenha_fila(int j)
         if (lacrado && giro < 0.5f && !f->presente[k]) lacre_cera(x + R - 4, (int)(y - pulo) - R + 4, 4, 0);
         if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
         if (anul && no_desfecho && vis_gelo[j][k]) gelo_sobre(x, (int)(y - pulo), 0.8f);   // congelado pelo Boneco
+        if (no_desfecho && (vis_fragil[j] >> k & 1) && giro < 0.5f) rachadura(x, (int)(y - pulo), R, 1);   // o Fragil rachou
         face_escondida = false;
         marca_nivel = -1;
         // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
@@ -1011,20 +1016,24 @@ static void desenha_fila(int j)
                     }
                 }
             }
-            // Depois de uma Ponte: o arco tracejado sai do dado com que este
-            // se compara e passa por cima dela.
+            // Depois de uma Ponte (ou de um Corretivo): o arco tracejado sai do
+            // dado com que este se compara e passa por cima dela.
             if (k > 0 && t != D_PONTE) {
                 int a = anulou_a >= 0 && anulou_a < k ? anulou_a : ultimo_da_regra(j, f->est, k);
-                bool ponte = false;
-                for (int i = a + 1; a >= 0 && i < k; i++) ponte |= f->tipo[i] == D_PONTE;
-                if (ponte) {
+                bool ponte = false, corretivo = false;
+                for (int i = a + 1; a >= 0 && i < k; i++) {
+                    ponte |= f->tipo[i] == D_PONTE;
+                    corretivo |= f->est[i] == V_VALIDO && ad_fila(j, i) == AD_CORRETIVO;
+                }
+                if (ponte || corretivo) {
+                    uint16_t c_arco = ponte ? cor_dado(D_PONTE) : ADESIVO[AD_CORRETIVO].fundo;
                     int x0 = SLOT_X(a), yy = (int)(y - pulo) - R - 4;
                     float q = t_fase / 0.35f;
                     for (int d = 0; d <= 24; d++) {
                         float s = d / 24.0f;
                         if (s > q || d % 3 == 2) continue;            // tracejado, nascendo de a para k
                         int px = x0 + (int)((x - x0) * s), py = yy - (int)(sinf(s * 3.1416f) * 18);
-                        gfx_rect(px - 1, py - 1, 2, 2, gfx_mistura(cor_dado(D_PONTE), C_FELTRO, (int)(t_fase / 0.7f * 60)));
+                        gfx_rect(px - 1, py - 1, 2, 2, gfx_mistura(c_arco, C_FELTRO, (int)(t_fase / 0.7f * 60)));
                     }
                 }
             }
@@ -1237,10 +1246,30 @@ static void desenha_fila(int j)
 
 // Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
 // dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
+// A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1).
+static void rachadura(int x, int y, int r, float q)
+{
+    static const int8_t R[4][4][2] = {        // quatro trincas em zigue-zague, do meio para a beira
+        { { -2, -3 }, { -5, -4 }, { -7, -8 }, { -11, -10 } }, { { 3, -1 }, { 6, -4 }, { 9, -3 }, { 12, -6 } },
+        { { 1, 3 }, { 0, 7 }, { 3, 9 }, { 2, 13 } },          { { -3, 2 }, { -7, 1 }, { -9, 5 }, { -13, 6 } },
+    };
+    float esc = r / 13.0f;
+    for (int t = 0; t < 4; t++) {
+        int x0 = x, y0 = y, n = (int)(q * 4 + 0.999f);
+        for (int s = 0; s < n && s < 4; s++) {
+            int x1 = x + (int)(R[t][s][0] * esc), y1 = y + (int)(R[t][s][1] * esc);
+            gfx_linha(x0 + 1, y0 + 1, x1 + 1, y1 + 1, C_BRANCO);
+            gfx_linha(x0, y0, x1, y1, C_SOMBRA);
+            x0 = x1; y0 = y1;
+        }
+    }
+}
+
 static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 {
     int a = e->ad, j = e->de_j, dir = j == baixo ? -1 : 1;     // para o meio da mesa
     const adesivo_t *d = &ADESIVO[a];
+    int salta = e->copia ? AD_HOLOGRAFICO : a;                 // o Holografico copiando: e ele que pula
     uint16_t fundo = d->fundo == AD_SEM_FUNDO ? d->luz : d->fundo;
     // O adesivo pula do dado e fica no ar, girando um nada, enquanto age
     // (a Raspadinha se solta e vai embora).
@@ -1252,8 +1281,105 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         sy += dir * (int)(q * 30) - (int)(sinf(q * 3.1416f) * 20);
     }
     bool rompe = a == AD_SELO && e->valor;                     // o lacre de antes: so ele age, sem o adesivo
-    if (p < 0.9f && !rompe) ad_solto_d(sx, sy, a, 1, a == AD_RASPADINHA ? fminf(1, p * 2) : 0);
+    if (p < 0.9f && !rompe) ad_solto_d(sx, sy, salta, 1, a == AD_RASPADINHA && !e->copia ? fminf(1, p * 2) : 0);
+    if (e->copia && p < 0.85f) {                                // o brilho que muda de cor em volta dele
+        static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
+                                          RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
+        for (int i = 0; i < 10; i++) {
+            float an = i * 0.628f + t_fase * 3;
+            int rr = 9 + (int)(fminf(1, p / 0.2f) * 4);
+            gfx_rect(sx + (int)(cosf(an) * rr), sy + (int)(sinf(an) * rr), 2, 2, ARCO[(i + (int)(t_fase * 10)) % 6]);
+        }
+    }
     switch (a) {
+    case AD_FRAGIL:
+        if (e->valor) {                                         // valendo: um brilho de vidro atravessa o dado
+            float q = fminf(1, p / 0.5f);
+            for (int i = -2; i <= 2 && p < 0.6f; i++) {
+                int bx = ax - R_DADO + (int)(q * 2 * R_DADO) + i;
+                gfx_linha(bx - 6, ay + 8, bx + 6, ay - 8, i ? gfx_mistura(C_BRANCO, fundo, 50) : C_BRANCO);
+            }
+        } else {                                                // anulado: racha e solta lascas
+            rachadura(ax, ay, R_DADO, fminf(1, p / 0.45f));
+            for (int i = 0; i < 7 && p > 0.4f && p < 0.95f; i++) {
+                float q = (p - 0.4f) / 0.55f;
+                int x = ax - 9 + (i * 13) % 19 + (int)((i - 3) * q * 6), y = ay + (int)(q * q * 40) - (int)(sinf(q * 3.1416f) * 8);
+                gfx_rect(x, y, i % 2 ? 2 : 3, 2, i % 3 ? C_BRANCO : fundo);
+            }
+        }
+        break;
+    case AD_ESTRELINHA:                                         // uma estrelinha pula em cima de cada dado
+        for (int k = 0; k < N_FILA && p < 0.95f; k++) {
+            float q = (p - 0.1f - k * 0.1f) / 0.35f;
+            if (q <= 0) continue;
+            if (q > 1) q = 1;
+            int x = SLOT_X(k), y = zona(j) + dir * (R_DADO + 6) - (int)(sinf(q * 3.1416f) * 10) * (dir < 0 ? 1 : -1);
+            ad_icone(x - 3, y - 3, AD_ESTRELINHA, 1, d->tinta);
+            if (q >= 1 && (int)(t_fase * 12 + k) % 3) gfx_pixel(x + 4, y - 4, C_BRANCO);
+        }
+        break;
+    case AD_IMANTADO: {                                         // as linhas do ima entre os dois dados
+        int bx = SLOT_X(e->alvo_k);
+        for (int l = 0; l < 3 && p < 0.9f; l++) {
+            int alto = 8 + l * 7;
+            for (int i = 0; i <= 16; i++) {
+                float s2 = i / 16.0f;
+                if ((i + (int)(t_fase * 20)) % 4 == 0) continue;   // a corrente andando
+                int x = ax + (int)((bx - ax) * s2), y = ay + dir * (R_DADO - 4 + (int)(sinf(s2 * 3.1416f) * alto));
+                gfx_rect(x, y, 2, 2, l == 1 ? d->tinta : d->luz);
+            }
+        }
+        break;
+    }
+    case AD_PURPURINA:                                          // um punhado de brilho sobe do dado e cai piscando
+        for (int i = 0; i < 40 && p < 0.95f; i++) {
+            static const uint16_t K[3] = { RGB(246, 222, 132), C_BRANCO, RGB(226, 164, 168) };
+            float q = fminf(1, p / 0.9f);
+            float vx = ((i * 37) % 21 - 10) * 3.2f, vy = 60 + (i * 53) % 40;
+            int x = ax + (int)(vx * q), y = ay - (int)(vy * q) + (int)(150 * q * q) * (dir < 0 ? 1 : 1);
+            if ((i + (int)(t_fase * 15)) % 4 == 0) continue;     // piscando
+            uint16_t k = K[i % 3];
+            if (i % 4 == 0) {                                   // os maiores: uma cruzinha
+                gfx_pixel(x - 1, y, k); gfx_pixel(x + 1, y, k); gfx_pixel(x, y - 1, k); gfx_pixel(x, y + 1, k);
+            }
+            gfx_rect(x, y, i % 3 ? 1 : 2, i % 3 ? 1 : 2, k);
+        }
+        break;
+    case AD_VELCRO: {                                           // as duas fitas se soltam e grudam de volta
+        float q = p < 0.35f ? p / 0.35f : p < 0.6f ? 1 : fmaxf(0, 1 - (p - 0.6f) / 0.15f);
+        int abre = (int)(q * 8), y0 = ay + dir * (R_DADO + 6);
+        for (int f = 0; f < 2 && p < 0.92f; f++) {
+            int y = y0 + (f ? abre : -abre) / 2 + (f ? 2 : -3);
+            gfx_rect(ax - 13, y + 1, 26, 4, C_SOMBRA);
+            gfx_rect(ax - 14, y, 26, 4, f ? d->tinta : gfx_mistura(d->tinta, C_BRANCO, 40));
+            for (int i = 0; i < 7; i++) gfx_pixel(ax - 13 + i * 4, f ? y - 1 : y + 4, f ? d->tinta : C_BRANCO);   // os ganchinhos
+        }
+        break;
+    }
+    case AD_RATOEIRA: {                                         // a mola estala no dado e a barra vai ate o maior dele
+        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        float q = fminf(1, p / 0.15f);
+        float an = 3.1416f * (1 - q);                           // a barra gira por cima do dado
+        if (p < 0.5f) gfx_linha_grossa(ax, ay, ax + (int)(cosf(an) * (R_DADO + 4)), ay - (int)(sinf(an) * (R_DADO + 4)), 3, C_PRATA);
+        float m = (p - 0.15f) / 0.3f;
+        if (m > 0 && p < 0.9f) {                                // a mola esticando ate o alvo
+            if (m > 1) m = 1;
+            int n = 14;
+            for (int i = 0; i < n; i++) {
+                float s1 = i / (float)n * m, s2 = (i + 1) / (float)n * m;
+                int x1 = ax + (int)((bx - ax) * s1) + (i % 2 ? 3 : -3), y1 = ay + (int)((by - ay) * s1);
+                int x2 = ax + (int)((bx - ax) * s2) + (i % 2 ? -3 : 3), y2 = ay + (int)((by - ay) * s2);
+                gfx_linha(x1 + 1, y1 + 1, x2 + 1, y2 + 1, C_SOMBRA);
+                gfx_linha(x1, y1, x2, y2, d->tinta);
+            }
+            if (m >= 1) for (int i = 0; i < 12; i++) {          // o impacto
+                float a2 = i * 0.5236f;
+                int rr = R_DADO + 2 + (int)((p - 0.45f) * 30);
+                gfx_rect(bx + (int)(cosf(a2) * rr), by + (int)(sinf(a2) * rr), 2, 2, d->tinta);
+            }
+        }
+        break;
+    }
     case AD_SELO: {
         int lx = ax + R_DADO - 4, ly = ay - R_DADO + 4;
         if (rompe) {                                            // o lacre racha e as metades caem

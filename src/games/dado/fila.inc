@@ -5,12 +5,14 @@
 // so 1 abaixo ainda fica.
 static bool cai_depois(int j, int v, int L) { return v < L && !(tem_am(j, A_CORRIMAO) && v == L - 1); }
 
-// O ultimo que vale e que a regra da fila enxerga: a Ponte fica de fora (o
-// dado depois dela compara com o de antes dela).
+static int ad_fila(int j, int k);
+
+// O ultimo que vale e que a regra da fila enxerga: a Ponte e o dado no lado
+// do Corretivo ficam de fora (o dado depois compara com o de antes deles).
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE) return k;
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO) return k;
     return -1;
 }
 

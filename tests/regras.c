@@ -2619,6 +2619,186 @@ int main(void)
         CONFERE(J[0].col[3].selo && J[0].col[3].fermento == 7, "Selo: lacrado de novo, o Fermento igual");
         limpa();
 
+        // Os adesivos novos. (Os dados da bolsa: 3 a 7; o 3 leva o adesivo.)
+        J[0].n_col = 8;
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
+        J[0].col[6] = (peca_t){ .tipo = D_D6 };
+        J[0].col[7] = (peca_t){ .tipo = D_D8 };
+        // O Fragil: valendo, +6; anulado, o dado quebra e vira um Quebrado com o que tirou.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_FRAGIL);
+        ad_cola(&J[0].col[3], 2, AD_FRAGIL);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6 + FRAGIL_PONTOS && !d.fragil[0], "Fragil valendo: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 4, 4);
+        joga_ad(0, 3, 2);                         // anulado (depois de um 4)
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 0 && d.fragil[0] == 2, "Fragil anulado: %d (bits %d)", d.total[0], d.fragil[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(J[0].col[3].tipo == D_QUEBRADO && (int8_t)J[0].col[3].fixo == 2 && !ad_quantos(&J[0].col[3]),
+                "Fragil: o dado quebrou num Quebrado de %d", (int8_t)J[0].col[3].fixo);
+        // A Estrelinha: com os 4 dados valendo, +6; com 3, nada.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_ESTRELINHA);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 6, 5); joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 16 + ESTRELINHA_PONTOS, "Estrelinha com os 4: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 11, "Estrelinha com 3 dados: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 3, 6); joga_ad(0, 6, 1);   // o 1 cai e leva o 6
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 5, "Estrelinha anulada: %d", d.total[0]);
+        // O Corretivo: o dado pontua, mas o seguinte compara com o de antes dele.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 3, 6); joga_ad(0, 5, 3);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "Corretivo: 2, 6, 3 valem (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        joga_ad(0, 6, 1);                         // o 1 cai diante do 3
+        CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO && F[0].est[1] == V_VALIDO, "Corretivo: o 1 cai com o 3");
+        limpa();
+        joga_ad(0, 4, 4); joga_ad(0, 3, 6);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 2, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 4, 4); joga_ad(0, 3, 2);       // o dado do Corretivo ainda cai
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "Corretivo: ele mesmo cai");
+        // O Imantado: o seguinte tirou igual, os dois x2.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 4, AD_IMANTADO);
+        limpa();
+        joga_ad(0, 3, 4); joga_ad(0, 5, 4);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 16, "Imantado, 4 e 4: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 3, 4); joga_ad(0, 5, 5);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 9, "Imantado, 4 e 5: %d", d.total[0]);
+        // O Holografico: repete cada adesivo que agiu nos seus dados.
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        ad_cola(&J[0].col[4], 2, AD_CONFETE);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_HOLOGRAFICO);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        bool copiou = false;
+        for (int i = 0; i < n_ev; i++) copiou |= ev_tipo_ad(i, AD_CONFETE) && ev[i].copia && ev[i].de_k == 1;
+        CONFERE(d.total[0] == 8 + 4 + 4 && copiou, "Holografico copia o Confete: %d", d.total[0]);
+        ad_cola(&J[0].col[4], 2, AD_ELETRONICO);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 4 + 12, "Holografico copia o Eletronico: %d", d.total[0]);
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 8, "Holografico sem nada para copiar: %d", d.total[0]);
+        // A Purpurina: +3 por adesivo seu que agiu, ela junto.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_PURPURINA);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6 + PURPURINA_CADA, "Purpurina sozinha: %d", d.total[0]);
+        ad_cola(&J[0].col[4], 2, AD_CONFETE);
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[5], 6, AD_HOLOGRAFICO);
+        limpa();
+        joga_ad(0, 4, 2); joga_ad(0, 3, 6); joga_ad(0, 5, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        // Confete +4, o Holografico como Confete +4, a Purpurina (3 adesivos) +9 e o Holografico como ela +9.
+        CONFERE(d.total[0] == 14 + 4 + 4 + 9 + 9, "Purpurina com Confete e Holografico: %d", d.total[0]);
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
+        // O Velcro: o dado volta para a mao na proxima rodada (e so nela).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_VELCRO);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6 && d.velcro[0] == 1, "Velcro: %d (bits %d)", d.total[0], d.velcro[0]);
+        adesivos_ficam(0, &d);
+        for (int i = 0; i < J[0].n_col; i++) J[0].onde[i] = NA_BOLSA;
+        J[0].onde[3] = NA_MAO;
+        descarta_mao(&J[0]);
+        CONFERE(J[0].n_mao == 1 && J[0].mao[0] == 3 && J[0].onde[3] == NA_MAO && !J[0].col[3].velcro,
+                "Velcro: o dado ficou na mao (%d na mao)", J[0].n_mao);
+        descarta_mao(&J[0]);
+        CONFERE(J[0].n_mao == 0 && J[0].onde[3] == FORA, "Velcro: na outra rodada sai como sempre");
+        // A Ratoeira: anulada por um poder do oponente, anula o maior dele que vale.
+        J[1].n_col = 2;
+        J[1].col[0] = (peca_t){ .tipo = D_D4 };
+        ad_cola(&J[1].col[0], 2, AD_RATOEIRA);
+        J[1].col[1] = (peca_t){ .tipo = D_D6 };
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_MIRA);
+        limpa();
+        joga_ad(0, 4, 3); joga_ad(0, 3, 6);
+        joga_ad(1, 0, 2); joga_ad(1, 1, 5);
+        d = fim();
+        CONFERE(d.est[1][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 3 && d.total[1] == 5,
+                "Ratoeira: a Mira anula o 2 e a Ratoeira, o 6 (%d x %d)", d.total[0], d.total[1]);
+        limpa();
+        joga_ad(0, 4, 3);
+        joga_ad(1, 0, 2); joga_ad(1, 1, 1);       // anulada pela propria sequencia: nao desarma
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 3, "Ratoeira: so o oponente desarma");
+        memset(&J[1], 0, sizeof J[1]);
+        // O Post-it: o seguinte rola duas vezes e fica o maior (o Viciado, o maior de quatro).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 1, AD_POSTIT);
+        J[0].col[7] = (peca_t){ .tipo = D_VICIADO };
+        for (int vic = 0; vic < 2; vic++) {
+            int soma = 0, N2 = 4000;
+            for (int i = 0; i < N2; i++) {
+                limpa();
+                joga_ad(0, 3, 1);
+                F[0].idx[1] = (int8_t)(vic ? 7 : 5); F[0].tipo[1] = vic ? D_VICIADO : D_D6; F[0].n = 2;
+                sim_lanca(0);
+                soma += F[0].valor[1];
+            }
+            float media = (float)soma / N2;   // o maior de 2 d6: 4,47; de 4: 5,24
+            CONFERE(vic ? media > 5.1f && media < 5.4f : media > 4.3f && media < 4.65f,
+                    "Post-it %s: media %.2f", vic ? "no Viciado" : "no d6", media);
+        }
+        int fant = 0;
+        for (int i = 0; i < 200; i++) {
+            limpa();
+            vez = 0;
+            joga_ad(0, 3, 1);
+            F[0].idx[1] = 5; F[0].tipo[1] = D_D6; F[0].n = 2;
+            lanca_proximo();
+            fant += n_voo == 2 && voo[1].fantasma && voo[1].valor <= F[0].valor[1];
+        }
+        CONFERE(fant == 200, "Post-it: o lance descartado fica de fantasma (%d de 200)", fant);
+        n_voo = 0;
+        J[0].col[7] = (peca_t){ .tipo = D_D8 };
+        limpa();
+
         // O Bis: a proxima compra leva um dado a mais.
         memset(bis_extra, 0, sizeof bis_extra);
         bis_extra[0] = 1;
@@ -2636,6 +2816,48 @@ int main(void)
         des_nova_run();
         amuleto_escolhido(0);
         run_poe_amuletos(0);
+        // A run salva de antes dos adesivos de um byte (meio byte por lado) abre
+        // convertida: os adesivos, o lacre do Selo e o Fermento vem iguais.
+        {
+            run.col[0] = (peca_t){ .tipo = D_D20 };
+            ad_cola(&run.col[0], 1, AD_SELO); ad_cola(&run.col[0], 2, AD_GORJETA); ad_cola(&run.col[0], 20, AD_CHUMBO);
+            run.col[0].fermento = 9; run.col[0].selo = 1;
+            run.moedas = 17; run.adesivo = AD_MIRA;
+            static run13_t v;
+            memset(&v, 0, sizeof v);
+            memcpy(v.marca, run.marca, 4);
+            v.andar = run.andar; v.passo = run.passo; v.estado = run.estado; v.moedas = run.moedas;
+            v.semente = run.semente; v.n_col = run.n_col; v.dificuldade = run.dificuldade;
+            for (int i = 0; i < run.n_col; i++) {
+                v.col[i].tipo = run.col[i].tipo; v.col[i].fixo = run.col[i].fixo;
+                v.col[i].fermento = run.col[i].fermento; v.col[i].selo = run.col[i].selo;
+                for (int l = 1; l <= AD_LADOS; l++) {
+                    int a = ad_no_lado(&run.col[i], l);
+                    v.col[i].ad[(l - 1) / 2] |= (uint8_t)((l - 1) & 1 ? a << 4 : a);
+                }
+            }
+            memcpy(v.no, run.no, sizeof v.no);
+            v.amuletos = run.amuletos; v.pacote = run.pacote; v.pac_estado = run.pac_estado;
+            for (int i = 0; i < PAC_OPCOES; i++) v.pac_op[i].tipo = run.pac_op[i].tipo;
+            for (int i = 0; i < VITRINE_MAX; i++) v.vitrine[i].tipo = run.vitrine[i].tipo;
+            v.adesivo = run.adesivo;
+            static char hx[2 * sizeof(run13_t) + 1];
+            hex_de(&v, sizeof v, hx);
+            salva_grava(chave_run(), hx);
+            run_t r;
+            bool abriu = des_carrega(&r);
+            CONFERE(abriu && r.n_col == run.n_col && r.moedas == 17 && r.adesivo == AD_MIRA && r.amuletos == run.amuletos,
+                    "a run salva de antes abre convertida");
+            CONFERE(ad_no_lado(&r.col[0], 1) == AD_SELO && ad_no_lado(&r.col[0], 2) == AD_GORJETA
+                    && ad_no_lado(&r.col[0], 20) == AD_CHUMBO && ad_quantos(&r.col[0]) == 3
+                    && r.col[0].fermento == 9 && r.col[0].selo && !r.col[0].velcro,
+                    "a peca convertida: adesivos %d %d %d, Fermento %d", ad_no_lado(&r.col[0], 1), ad_no_lado(&r.col[0], 2),
+                    ad_no_lado(&r.col[0], 20), r.col[0].fermento);
+            for (int i = 1; i < run.n_col; i++)
+                CONFERE(r.col[i].tipo == run.col[i].tipo && !ad_quantos(&r.col[i]), "a peca %d convertida", i);
+            des_salva();                              // e salva no formato novo
+            CONFERE(des_carrega(&r) && ad_no_lado(&r.col[0], 1) == AD_SELO, "a run convertida salva e abre de novo");
+        }
         bool fechado = false, viu[AD_N] = { 0 };
         for (int l = 0; l < 200; l++) {
             run.lojas = (uint8_t)l;
@@ -2644,12 +2866,12 @@ int main(void)
             fechado |= ADESIVO[run.adesivo].nivel > 0;
         }
         CONFERE(!fechado && viu[AD_CONFETE] && viu[AD_LOBO] && viu[AD_REMENDO], "no Normal, so os adesivos abertos");
-        perfis[0].nivel = 8;
+        perfis[0].nivel = N_NIVEIS;
         memset(viu, 0, sizeof viu);
         for (int l = 0; l < 400; l++) { run.lojas = (uint8_t)l; monta_adesivo(); viu[run.adesivo] = true; }
         int todos = 0;
         for (int a = 1; a < AD_N; a++) todos += viu[a];
-        CONFERE(todos == AD_N - 1, "no nivel 8, todos os adesivos: %d de %d", todos, AD_N - 1);
+        CONFERE(todos == AD_N - 1, "no ultimo nivel, todos os adesivos: %d de %d", todos, AD_N - 1);
         perfis[0].nivel = 0;
         CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
         monta_loja_run();

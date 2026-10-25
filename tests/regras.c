@@ -2815,6 +2815,9 @@ int main(void)
                 && J[0].col[3].figurinha == 2 && J[0].col[5].figurinha == 3,
                 "Figurinha: %d %d %d %d (juntadas %d e %d)", fig[0], fig[1], fig[2], fig[3],
                 1 + J[0].col[3].figurinha, 1 + J[0].col[5].figurinha);
+        zera_acumuladores(J[0].col, J[0].n_col);             // o comeco e o fim de cada partida do Desafiante
+        CONFERE(J[0].col[3].figurinha == 0 && J[0].col[5].figurinha == 0 && ad_conta(&J[0].col[3], AD_FIGURINHA) == 2,
+                "Figurinha: as juntadas zeram na partida nova (%d e %d)", J[0].col[3].figurinha, J[0].col[5].figurinha);
         // O Fermento cresce de 2 em 2.
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_FERMENTO);
@@ -2849,6 +2852,10 @@ int main(void)
         CONFERE(d.total[0] == 6, "Bilhete Premiado sem bonus: %d", d.total[0]);
         limpa(); joga_ad(0, 4, 2); joga_ad(0, 3, 6); F[0].bonus[0] = 3; joga(1, D_D4, 3); d = fim();
         CONFERE(d.total[0] == 8 + 3 + 3 + 4 + 4, "Bilhete Premiado com bonus no dado: %d", d.total[0]);
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };              // o Holografico copia o Confete e o Bilhete
+        ad_cola(&J[0].col[5], 5, AD_HOLOGRAFICO);
+        limpa(); joga_ad(0, 4, 2); joga_ad(0, 5, 5); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 2 + 5 + 6 + (4 + 4) * 2 * 2, "Holográfico copiando o Bilhete Premiado: %d", d.total[0]);
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         J[0].col[4] = (peca_t){ .tipo = D_D4 };
         J[0].col[5] = (peca_t){ .tipo = D_D6 };

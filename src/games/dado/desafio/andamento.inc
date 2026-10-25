@@ -398,9 +398,11 @@ static void des_nova_run(void)
 // contagem de uma partida para a outra.
 static void zera_acumuladores(peca_t *col, int n)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
+        col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
+    }
 }
 
 static void des_comeca_partida(void)

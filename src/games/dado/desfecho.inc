@@ -28,6 +28,7 @@ typedef struct {
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
+    uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -1201,6 +1202,10 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         holo[n_holo++] = k;
         bool algum = false;
         for (int c = 0; c < n_fonte; c++) algum |= ad_age(d, j, k, fonte[c], qual[c], gera, true);
+        if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
+            d->bil_holo[j][k] = (uint8_t)__builtin_popcount(d->bilhete[j]);
+            algum = true;
+        }
         if (algum) agiram++;
     }
     int purp[N_FILA], n_purp = 0;
@@ -1226,31 +1231,37 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
 // bonus dos dados validos de j vale em dobro - o que os poderes e amuletos
 // somaram em cada dado e os pontos a parte (a semente: os dos adesivos e dos
 // poderes que pontuam por fora). O numero que cada dado tirou, nao. Com dois
-// Bilhetes, dobra duas vezes.
+// Bilhetes, dobra duas vezes; o Holografico copia cada um, e dobra de novo.
+static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia)
+{
+    int8_t por[N_FILA] = { 0 };
+    uint8_t m = 0;
+    int extra = 0;
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
+        if (d->est[j][i] != V_VALIDO) continue;
+        int b = F[j].bonus[i] + d->bonus[j][i];
+        if (b <= 0) continue;
+        if (d->bonus[j][i] + b > 127) b = 127 - d->bonus[j][i];
+        d->bonus[j][i] = (int8_t)(d->bonus[j][i] + b);
+        por[i] = (int8_t)b;
+        m |= (uint8_t)(1 << i);
+        extra += b * (d->mult[j][i] > 0 ? d->mult[j][i] : 1);
+    }
+    int sem = d->semente[j] > 0 ? d->semente[j] : 0;
+    d->semente[j] += sem;
+    extra += sem;
+    const char *nome = copia ? "Holográfico, como Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
+    evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? "%s: bônus em dobro, +%d"
+                                                                 : "%s: nenhum bônus para dobrar", nome, extra);
+    if (e) { e->ad = AD_BILHETE; e->copia = copia; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
+}
+
 static void bilhete_de(desfecho_t *d, int j, bool gera)
 {
-    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
-        if (!(d->bilhete[j] >> k & 1)) continue;
-        int8_t por[N_FILA] = { 0 };
-        uint8_t m = 0;
-        int extra = 0;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
-            if (d->est[j][i] != V_VALIDO) continue;
-            int b = F[j].bonus[i] + d->bonus[j][i];
-            if (b <= 0) continue;
-            if (d->bonus[j][i] + b > 127) b = 127 - d->bonus[j][i];
-            d->bonus[j][i] = (int8_t)(d->bonus[j][i] + b);
-            por[i] = (int8_t)b;
-            m |= (uint8_t)(1 << i);
-            extra += b * (d->mult[j][i] > 0 ? d->mult[j][i] : 1);
-        }
-        int sem = d->semente[j] > 0 ? d->semente[j] : 0;
-        d->semente[j] += sem;
-        extra += sem;
-        evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? "Bilhete Premiado: bônus em dobro, +%d"
-                                                                     : "Bilhete Premiado: nenhum bônus para dobrar", extra);
-        if (e) { e->ad = AD_BILHETE; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
-    }
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (d->bilhete[j] >> k & 1) dobra_bonus(d, j, k, gera, false);
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true);
 }
 
 // Saideira (amuleto): na ultima rodada da partida (a 8a e as extras), os

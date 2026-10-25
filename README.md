@@ -83,7 +83,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Holográfico (repete os adesivos que agiram nos seus dados), ao Fermento
   (+2, +4, +6... crescendo a cada vez que age), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
-  Figurinhas, e a que agiu ganha mais uma), ao Patinho Feio (valendo, -2 neste
+  Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
   lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados) e
   ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada); sete
   desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem

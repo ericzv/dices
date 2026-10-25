@@ -23,6 +23,7 @@ typedef struct {
     uint8_t bis[2];                  // Bis: dados a mais na proxima compra
     int gorjeta[2];                  // Gorjeta: fichas do rival para o dono, fora do pote
     uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
+    uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -961,19 +962,30 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
 }
 
 // Os adesivos do fim da rodada, pelo lado que ficou para cima de cada dado.
-// Os de "caiu aqui" agem valendo ou nao (Dourado, Lobo, Bis, Gorjeta); os
-// outros, so com o dado valendo (Confete, Eletronico, Raspadinha, Fermento,
-// Mira). Roubado, o dado e do outro: o adesivo nao age. A Saideira nao os
-// repete (sao do dado, nao poderes dele).
+// Os de "caiu aqui" agem valendo ou nao (Dourado, Lobo, Bis, Gorjeta, Selo);
+// os outros, so com o dado valendo (Confete, Eletronico, Raspadinha,
+// Fermento, Mira). Roubado, o dado e do outro: o adesivo nao age. A Saideira
+// nao os repete (sao do dado, nao poderes dele). Antes de tudo, o lacre que
+// um Selo deixou num lance de antes: este lance o rompe, e valendo paga.
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     int r = outro(j);
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
-        int a = ad_fila(j, k);
-        if (!a || d->est[j][k] == V_ROUBADO) continue;
         bool vale = d->est[j][k] == V_VALIDO;
         uint8_t bit = (uint8_t)(1 << k);
         evento_t *e = NULL;
+        const peca_t *pc = peca_fila(j, k);
+        if (pc && pc->selo) {
+            d->selo_rompe[j] |= bit;
+            if (vale) {
+                d->semente[j] += SELO_PONTOS;
+                e = evento(gera, EV_ADESIVO, j, k, j, k, SELO_PONTOS, "Selo: o lacre se rompe, +%d", SELO_PONTOS);
+                if (e) e->ad = AD_SELO;
+                e = NULL;
+            }
+        }
+        int a = ad_fila(j, k);
+        if (!a || d->est[j][k] == V_ROUBADO) continue;
         switch (a) {
         case AD_CONFETE:
             if (!vale) break;
@@ -987,7 +999,6 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             e = evento(gera, EV_ADESIVO, j, k, j, k, 10, "Raspadinha: +10, e o adesivo sai");
             break;
         case AD_FERMENTO: {
-            const peca_t *pc = peca_fila(j, k);
             if (!vale || !pc) break;
             int n = pc->fermento + 1;
             d->semente[j] += n;
@@ -1016,6 +1027,10 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         case AD_BIS:
             d->bis[j]++;
             e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "Bis: 1 dado a mais na próxima rodada");
+            break;
+        case AD_SELO:
+            d->selo_lacra[j] |= bit;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "Selo: lacrado até o próximo lance");
             break;
         case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
             if (!vale) break;

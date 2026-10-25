@@ -2577,6 +2577,48 @@ int main(void)
         joga(1, D_D4, 2); joga(1, D_D6, 5);
         d = fim();
         CONFERE(d.est[1][0] == V_ANULADO && d.est[1][1] == V_VALIDO && d.total[1] == 5, "a Mira anula o 2: %d", d.total[1]);
+        // O Selo: tirando o lado dele, lacra; o proximo lance, valendo, rompe e
+        // paga +5 (caia onde cair); anulado, rompe sem pagar; tirando o Selo
+        // de novo, rompe, paga e lacra outra vez.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        ad_cola(&J[0].col[3], 6, AD_SELO);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        bool lacrou = false;
+        for (int i = 0; i < n_ev; i++) lacrou |= ev_tipo_ad(i, AD_SELO) && ev[i].valor == 0;
+        CONFERE(d.total[0] == 6 && lacrou && !J[0].col[3].selo, "Selo: so lacra (%d)", d.total[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(J[0].col[3].selo && J[0].col[3].fermento == 0, "Selo: o dado ficou lacrado");
+        limpa();
+        joga_ad(0, 3, 3);                         // o proximo lance, noutro lado, valendo
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 3 + SELO_PONTOS, "Selo: o lacre paga no proximo lance: %d", d.total[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(!J[0].col[3].selo, "Selo: o lacre rompeu");
+        J[0].col[3].selo = 1;
+        limpa();
+        joga_ad(0, 4, 4);
+        joga_ad(0, 3, 1);                         // anulado (depois de um 4)
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 0, "Selo: anulado nao paga: %d", d.total[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(!J[0].col[3].selo, "Selo: anulado, o lacre rompe igual");
+        J[0].col[3].selo = 1;
+        J[0].col[3].fermento = 7;                 // o lacre nao mexe no Fermento (dividem o byte)
+        limpa();
+        joga_ad(0, 3, 6);                         // tira o Selo de novo: paga e lacra outra vez
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6 + SELO_PONTOS, "Selo: paga e relacra: %d", d.total[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(J[0].col[3].selo && J[0].col[3].fermento == 7, "Selo: lacrado de novo, o Fermento igual");
+        limpa();
+
         // O Bis: a proxima compra leva um dado a mais.
         memset(bis_extra, 0, sizeof bis_extra);
         bis_extra[0] = 1;

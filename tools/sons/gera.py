@@ -792,6 +792,17 @@ def ad_mira():
     m.poe(0.3, pa(superficie('surface_metal2'), 1500), 0.3)
     return sala(m.x, 0.12)
 
+def ad_selo():
+    """O lacre de cera: o carimbo afunda na cera morna (um baque abafado, o
+    chiado curto da cera cedendo) e uma nota grave de vibrafone."""
+    m = Mix(0.8)
+    m.poe(0, pb(tom(superficie('surface_felt2'), -5), 1800), 0.9)        # o carimbo
+    m.poe(0.01, tom(batida('dicehit_wood2'), -8), 0.35)
+    n = int(0.12 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.02, banda(rng.standard_normal(n), 600, 2400) * (1 - q) ** 2, 0.18)   # a cera cedendo
+    m.poe(0.10, nota('vibraphone', 74, 0.4, 0.5), 0.4)
+    return sala(m.x, 0.14)
+
 def ad_gorjeta():
     """As fichas do rival vindo para o seu monte."""
     m = Mix(0.8)
@@ -1149,7 +1160,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_avesso': VOLUME['efeito'] * 0.8, 'ad_confete': VOLUME['efeito'], 'ad_eletronico': VOLUME['efeito'],
                'ad_transparente': VOLUME['efeito'] * 0.8, 'ad_dourado': VOLUME['efeito'], 'ad_lobo': VOLUME['tira'],
                'ad_remendo': VOLUME['efeito'] * 0.7, 'ad_raspadinha': VOLUME['efeito'], 'ad_fermento': VOLUME['efeito'] * 0.9,
-               'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha']})
+               'ad_bis': VOLUME['efeito'], 'ad_mira': VOLUME['anula'], 'ad_gorjeta': VOLUME['ficha'],
+               'ad_selo': VOLUME['efeito'] * 0.9})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1177,7 +1189,7 @@ SONS = {
     'slot': (slot, 'slot'), 'premio': (premio, 'premio'),
 }
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
-             'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta',
+             'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta', 'ad_selo',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)

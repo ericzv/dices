@@ -71,9 +71,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
   na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (sai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
-  menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
+  lado para cima: são 15, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  (sai nesse lado metade das vezes), ao Avesso (vira o dado), à Mira (anula o
+  menor do oponente) e ao Selo (lacra o dado: no próximo lance, caia onde
+  cair, valendo, +5); sete desde o começo, os outros abrem nos níveis 1 a 8.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)

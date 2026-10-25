@@ -598,8 +598,10 @@ static void comeca_segundo(void)
 }
 
 // O que os adesivos deixam depois da rodada: o Fermento cresce (no dado, a
-// run inteira), a Raspadinha sai do dado, o Bis guarda os dados a mais da
-// proxima compra e o Dourado as moedas (a run as recebe no fim da partida).
+// run inteira), a Raspadinha sai do dado, o lacre do Selo se rompe ou se
+// fecha (o que este lance tirou vale para o proximo), o Bis guarda os dados
+// a mais da proxima compra e o Dourado as moedas (a run as recebe no fim da
+// partida).
 static void adesivos_ficam(int j, const desfecho_t *d)
 {
     jogador_t *p = &J[j];
@@ -608,6 +610,8 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (i < 0 || i >= p->n_col) continue;
         if ((d->fermento[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;
         if (d->raspa[j] >> k & 1) ad_cola(&p->col[i], F[j].lado[k], AD_NADA);
+        if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
+        if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
     }
     bis_extra[j] += d->bis[j];
     ad_moedas[j] += d->moedas[j];
@@ -1027,6 +1031,7 @@ static void desfecho(void)
         memset(vis_corte[j], 0, N_FILA);
         memset(vis_pedra[j], 0, N_FILA);
         memset(vis_gelo[j], 0, N_FILA);
+        vis_selo[j][0] = vis_selo[j][1] = 0;
         memset(vis_tsunami[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
         memset(vis_oculto[j], 0, N_FILA);
@@ -1165,6 +1170,7 @@ static void flutua_evento(const evento_t *e)
         case AD_GORJETA:    flutua_em(dj, dk, C_OURO, 0, "+%d fichas", e->valor); break;
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
         case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dado", e->valor); break;
+        case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
         default:            flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor); break;
         }
         break;
@@ -1228,6 +1234,10 @@ static void aplica_evento(int i)
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: vis_semente[e->de_j] += e->valor; break;
+        case AD_SELO:                   // o lacre rompeu (pagando) ou fechou
+            vis_semente[e->de_j] += e->valor;
+            if (e->de_k < N_FILA) vis_selo[e->de_j][e->valor ? 0 : 1] |= (uint8_t)(1 << e->de_k);
+            break;
         case AD_ELETRONICO:
             for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k];
             break;

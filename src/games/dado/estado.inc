@@ -3,9 +3,12 @@
 // ===========================================================================
 // Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele. No
 // Desafiante, os adesivos (adesivos.inc): um por lado, meio byte cada (o lado
-// 1 no meio byte baixo de ad[0]), e o que o Fermento dela ja cresceu.
+// 1 no meio byte baixo de ad[0]), o que o Fermento dela ja cresceu e o lacre
+// do Selo (o proximo lance dela, valendo, pontua mais). O Fermento e o lacre
+// dividem o ultimo byte: a run salva de antes (so o Fermento, ate 20) abre igual.
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento; } peca_t;
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca_t;
+_Static_assert(sizeof(peca_t) == 3 + AD_LADOS / 2, "a peca vai assim para a run salva");
 
 // Cada dado do jogador esta num de tres lugares.
 enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
@@ -190,6 +193,7 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
+static uint8_t vis_selo[2][2];                   // posicoes na fila: [0] o lacre do Selo ja rompeu; [1] ja lacrou
 static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
 static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];

@@ -162,6 +162,7 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
     desenha_dado(x, y, r, p.tipo, dono, 0, p.fixo, 0, false);
     marca_nivel = -1;
     ad_selos(x, y, r, &p, 0);                    // os adesivos: um selinho por lado, na beira de baixo
+    if (p.selo) lacre_cera((int)(x + r * 0.72f), (int)(y - r * 0.72f), r >= 16 ? 4 : 3, 0);   // lacrado pelo Selo
 }
 
 // O clarao do golpe (hora.inc): enquanto a mesa esta parada, o dado que
@@ -947,6 +948,10 @@ static void desenha_fila(int j)
         patos_pousou = false;
         frutas_desta = -1;
         if (f->presente[k] && giro < 0.5f) lacinho(x + R - 3, (int)(y - pulo) - R + 2);   // saiu de um Presente
+        const peca_t *pl = peca_fila(j, k);                // lacrado pelo Selo: ate o lacre romper (ou desde que fechou)
+        bool lacrado = pl && pl->selo;
+        if (no_desfecho) lacrado = (lacrado && !(vis_selo[j][0] >> k & 1)) || (vis_selo[j][1] >> k & 1);
+        if (lacrado && giro < 0.5f && !f->presente[k]) lacre_cera(x + R - 4, (int)(y - pulo) - R + 4, 4, 0);
         if (suga) sanguessuga_gotas(SLOT_X(anulou_a), x, y, t_fase);
         if (anul && no_desfecho && vis_gelo[j][k]) gelo_sobre(x, (int)(y - pulo), 0.8f);   // congelado pelo Boneco
         face_escondida = false;
@@ -1246,8 +1251,23 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         sx += (int)(q * 60);
         sy += dir * (int)(q * 30) - (int)(sinf(q * 3.1416f) * 20);
     }
-    if (p < 0.9f) ad_solto_d(sx, sy, a, 1, a == AD_RASPADINHA ? fminf(1, p * 2) : 0);
+    bool rompe = a == AD_SELO && e->valor;                     // o lacre de antes: so ele age, sem o adesivo
+    if (p < 0.9f && !rompe) ad_solto_d(sx, sy, a, 1, a == AD_RASPADINHA ? fminf(1, p * 2) : 0);
     switch (a) {
+    case AD_SELO: {
+        int lx = ax + R_DADO - 4, ly = ay - R_DADO + 4;
+        if (rompe) {                                            // o lacre racha e as metades caem
+            float q = fminf(1, p / 0.7f);
+            for (int h = -1; h <= 1 && p < 0.85f; h += 2)
+                lacre_cera(lx + h * (1 + (int)(q * 12)), ly - (int)(sinf(q * 3.1416f) * 12) + (int)(q * q * 22), 4, h);
+        } else {                                                // o carimbo desce e lacra: amassa ao bater
+            float q = fminf(1, p / 0.3f);
+            int bate = p > 0.3f && p < 0.4f;
+            lacre_cera(lx, ly - (int)((1 - q * q) * 34), 4 + bate, 0);
+            if (bate) for (int i = 0; i < 6; i++) gfx_pixel(lx - 7 + i * 3, ly + 6 - (i % 2), CERA[2]);
+        }
+        break;
+    }
     case AD_CONFETE:                                            // a chuva de papel picado
         for (int i = 0; i < 24 && p < 0.95f; i++) {
             static const uint16_t K[6] = { RGB(228, 194, 106), RGB(96, 134, 196), RGB(226, 164, 168),

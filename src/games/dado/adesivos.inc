@@ -6,10 +6,13 @@
 // loja vende um por visita; escolhe-se o dado e depois o lado.
 enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARENTE, AD_DOURADO,
        AD_LOBO, AD_REMENDO, AD_RASPADINHA, AD_FERMENTO, AD_BIS, AD_MIRA, AD_AVESSO, AD_GORJETA,
-       AD_N };                                   // cabe em meio byte (peca_t.ad)
+       AD_SELO,
+       AD_N };                                   // cabe em meio byte (peca_t.ad): 15 no maximo
+_Static_assert(AD_N <= 16, "os adesivos cabem em meio byte por lado");
 
 #define AD_SEM_FUNDO 1                          // o Transparente: so o contorno de vidro
 #define FERMENTO_MAX 20
+#define SELO_PONTOS 5                           // o que o lacre do Selo paga no proximo lance valendo
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7.
@@ -62,6 +65,9 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_GORJETA]      = { "Gorjeta", "tirando este lado: o oponente", "te paga 2 fichas", 3, 1,
                           RGB(56, 86, 150), RGB(96, 134, 196), RGB(168, 204, 230),
                           { ".#####.", "#.#.#.#", "#######", ".#####.", "#.#.#.#", "#######", "......." } },
+    [AD_SELO]         = { "Selo", "tirando este lado: no próximo", "lance, se terminar válido, +5", 3, 0,
+                          RGB(118, 30, 38), RGB(190, 56, 60), RGB(226, 164, 168),
+                          { "..###..", ".#####.", "###.###", "##...##", "###.###", ".#####.", "..#.##." } },
 };
 
 // O adesivo do lado 'lado' (0: nenhum).
@@ -120,6 +126,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_MIRA]         = "Tirando este lado, se o dado terminar válido: anula o menor dado válido do oponente.",
     [AD_AVESSO]       = "Tirando este lado, o dado vira e fica com o lado oposto para cima (no d6, o 1 vira 6; no d20, o 1 vira 20).",
     [AD_GORJETA]      = "Tirando este lado, válido ou anulado: o oponente te paga 2 fichas, fora do pote.",
+    [AD_SELO]         = "Tirando este lado, válido ou anulado, o dado fica lacrado. Na próxima vez que ele for lançado, caia no lado que cair, se terminar válido: +5 pontos no fim da rodada. Lançado, o lacre se rompe, valendo ou não; tirando o Selo de novo, lacra outra vez.",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
@@ -225,6 +232,26 @@ static void ad_selos(float cx, float cy, float r, const peca_t *p, int aceso)
     }
 }
 
+// O lacre de cera que o Selo deixa no dado, de raio r, centrado em (x, y):
+// a cera escorrida em volta, o carimbo afundado no meio e um brilho. lado:
+// so uma metade (-1 a esquerda, 1 a direita: o lacre rompendo); 0, inteiro.
+static const uint16_t CERA[3] = { RGB(118, 30, 38), RGB(190, 56, 60), RGB(226, 164, 168) };
+static void lacre_cera(int x, int y, int r, int lado)
+{
+    for (int dy = -r - 1; dy <= r + 1; dy++)
+        for (int dx = -r - 1; dx <= r + 1; dx++) {
+            if ((lado < 0 && dx > 0) || (lado > 0 && dx < 0)) continue;
+            int d2 = dx * dx + dy * dy;
+            bool gota = d2 <= (r + 1) * (r + 1) && ((dx * 7 + dy * 3 + 64) % 5 == 0);   // a beira escorrida, torta
+            if (d2 > r * r && !gota) continue;
+            uint16_t c = d2 > (r - 1) * (r - 1) ? CERA[0] : CERA[1];
+            if (r >= 4 && ((dx == 0 && dy * dy <= 2) || (dy == 0 && dx * dx <= 2))) c = CERA[0];   // o carimbo, em cruz
+            if (dx == -r / 2 && dy == -r / 2 && r >= 3) c = CERA[2];                            // o brilho
+            gfx_pixel(x + dx + 1, y + dy + 1, C_SOMBRA);
+            gfx_pixel(x + dx, y + dy, c);
+        }
+}
+
 // O som de colar um adesivo na loja, e o de cada um quando age.
 static int som_cola(void) { return SOM_AD_COLA; }
 static int som_adesivo(int a)
@@ -234,7 +261,7 @@ static int som_adesivo(int a)
         [AD_ELETRONICO] = SOM_AD_ELETRONICO, [AD_TRANSPARENTE] = SOM_AD_TRANSPARENTE, [AD_DOURADO] = SOM_AD_DOURADO,
         [AD_LOBO] = SOM_AD_LOBO, [AD_REMENDO] = SOM_AD_REMENDO, [AD_RASPADINHA] = SOM_AD_RASPADINHA,
         [AD_FERMENTO] = SOM_AD_FERMENTO, [AD_BIS] = SOM_AD_BIS, [AD_MIRA] = SOM_AD_MIRA,
-        [AD_AVESSO] = SOM_AD_AVESSO, [AD_GORJETA] = SOM_AD_GORJETA,
+        [AD_AVESSO] = SOM_AD_AVESSO, [AD_GORJETA] = SOM_AD_GORJETA, [AD_SELO] = SOM_AD_SELO,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }
@@ -249,6 +276,7 @@ static void ad_linha(int cx, int y, const peca_t *p)
     for (int i = 0; i < n; i++) {
         int a = ad_no_lado(p, lados[i]);
         if (a == AD_FERMENTO && p->fermento) snprintf(nomes[i], sizeof nomes[i], "%s +%d", ADESIVO[a].nome, p->fermento + 1);
+        else if (a == AD_SELO && p->selo) snprintf(nomes[i], sizeof nomes[i], "%s lacrado", ADESIVO[a].nome);
         else snprintf(nomes[i], sizeof nomes[i], "%s", ADESIVO[a].nome);
         ws[i] = ad_pilula_w(lados[i]) + 3 + gfx_largura(nomes[i], GFX_MIUDO);
         if (tot + ws[i] > 520) break;

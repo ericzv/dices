@@ -35,6 +35,38 @@ static int sorteia_tipo(void)
     return D_D8;
 }
 
+// No modo de 2 jogadores, cada cartao tem 20% de chance de ser um adesivo, da
+// mesma raridade da rodada e com o mesmo peso por adesivo. A maquina (e o
+// online, que nao leva o adesivo ao outro lado) fica so com dados.
+#define PREMIO_AD_PCT 20
+// Colando o adesivo ganho: as telas sao as da loja do Desafiante (desafio/loja.inc).
+static bool premio_colando(void);
+static bool premio_cabe(void);
+static void premio_cola_desenha(void);
+static void cola_passo(float dt);
+static bool premio_com_adesivo(int w) { return modo == M_DOIS && !(cpu >> w & 1); }
+static int peso_adesivo(int a)
+{
+    if (!ad_no_premio(a) || !raridade_da_rodada(RAR_ADESIVO[a], rodada)) return 0;
+    for (int i = 0; i < 3; i++) if (oferta_ad[i] == a) return 0;     // sem repetir
+    static const int PESO[4] = { 8, 4, 2, 1 };
+    return PESO[RAR_ADESIVO[a]];
+}
+static int sorteia_adesivo(void)
+{
+    int total = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) total += peso_adesivo(a);
+    if (!total) return AD_NADA;
+    int r = sorte(total);
+    for (int a = AD_NADA + 1; a < AD_N; a++) {
+        r -= peso_adesivo(a);
+        if (r < 0) return a;
+    }
+    return AD_NADA;
+}
+// A raridade do cartao i (dado ou adesivo) e a cor dela.
+static int rar_oferta(int i) { return oferta_ad[i] ? RAR_ADESIVO[oferta_ad[i]] : TIPO[oferta[i].tipo].raridade; }
+
 // ---------------------------------------------------------------------------
 // Roleta do premio
 // ---------------------------------------------------------------------------
@@ -48,8 +80,9 @@ static bool slot_girando(void) { return fase == F_PREMIO && t_slot >= 0 && t_slo
 static void slot_comeca(void)
 {
     for (int i = 1; i < 3; i++)
-        for (int k = i; k > 0 && TIPO[oferta[k].tipo].raridade < TIPO[oferta[k - 1].tipo].raridade; k--) {
+        for (int k = i; k > 0 && rar_oferta(k) < rar_oferta(k - 1); k--) {
             peca_t t = oferta[k]; oferta[k] = oferta[k - 1]; oferta[k - 1] = t;
+            uint8_t a = oferta_ad[k]; oferta_ad[k] = oferta_ad[k - 1]; oferta_ad[k - 1] = a;
         }
     slot_t0 = 0.35f;
     slot_dt = 0.2f;
@@ -148,12 +181,18 @@ static void passo_slot(float dt)
 
 static void abre_premio(int w)
 {
+    memset(oferta_ad, 0, sizeof oferta_ad);
     for (int i = 0; i < 3; i++) {
+        oferta[i] = nova_peca(D_D8);
+        if (premio_com_adesivo(w) && sorte(100) < PREMIO_AD_PCT) {
+            oferta_ad[i] = (uint8_t)sorteia_adesivo();
+            if (oferta_ad[i]) continue;
+        }
         bool rep;
         do {
             oferta[i] = nova_peca(sorteia_tipo());
             rep = false;
-            for (int k = 0; k < i; k++) if (oferta[k].tipo == oferta[i].tipo) rep = true;
+            for (int k = 0; k < i; k++) if (!oferta_ad[k] && oferta[k].tipo == oferta[i].tipo) rep = true;
         } while (rep);
     }
     vez = w;

@@ -529,6 +529,7 @@ static int ia_premio(void)
     uint32_t base = 0x9E37u + (uint32_t)rodada * 131u;
     float melhor = -1;
     for (int i = 0; i < 3; i++) {
+        if (oferta_ad[i]) continue;              // (a maquina nao ganha adesivo: so dados)
         float v = forca_colecao(j, oferta[i].tipo, oferta[i].fixo, base);
         if (v > melhor) { melhor = v; b = i; }
     }
@@ -598,8 +599,9 @@ static int facil_compra(void)
 static int facil_premio(void)
 {
     int b = 0;
-    for (int i = 1; i < 3; i++)
-        if (TIPO[oferta[i].tipo].raridade > TIPO[oferta[b].tipo].raridade) b = i;
+    while (b < 2 && oferta_ad[b]) b++;
+    for (int i = b + 1; i < 3; i++)
+        if (!oferta_ad[i] && TIPO[oferta[i].tipo].raridade > TIPO[oferta[b].tipo].raridade) b = i;
     return b;
 }
 

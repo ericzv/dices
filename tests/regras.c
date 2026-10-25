@@ -3703,6 +3703,70 @@ int main(void)
     segue_do_resultado();
     CONFERE(fase == F_FIM && venc_partida == 0, "rival sem fichas: sem premio, acaba (fase %d)", fase);
 
+    // ---- Premio com adesivos (2 jogadores): 20% por cartao, da raridade da rodada ----
+    {
+        int modo0 = modo, cpu0 = cpu;
+        modo = M_DOIS; cpu = 0;
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        J[0].fichas = J[1].fichas = 80;
+        static const int RODS[3] = { 3, 8, 13 };
+        for (int r = 0; r < 3; r++) {
+            rodada = RODS[r];
+            int cartoes = 0, ads = 0;
+            bool fora = false, dourado = false, repetido = false, ordem = true;
+            for (int n = 0; n < 3000; n++) {
+                abre_premio(0);
+                for (int i = 0; i < 3; i++) {
+                    cartoes++;
+                    if (i && rar_oferta(i) < rar_oferta(i - 1)) ordem = false;
+                    int a = oferta_ad[i];
+                    if (!a) continue;
+                    ads++;
+                    fora |= !raridade_da_rodada(RAR_ADESIVO[a], rodada);
+                    dourado |= a == AD_DOURADO;
+                    for (int k = 0; k < i; k++) repetido |= oferta_ad[k] == a;
+                }
+            }
+            float pct = 100.0f * ads / cartoes;
+            CONFERE(pct > 18 && pct < 22 && !fora && !dourado && !repetido && ordem,
+                    "premio da rodada %d: %.1f%% adesivos (fora da raridade %d, Dourado %d, repetido %d, ordem %d)",
+                    rodada, pct, fora, dourado, repetido, ordem);
+        }
+        int sem = 0;
+        rodada = 3;
+        cpu = 1;                                  // a maquina: so dados
+        for (int n = 0; n < 500; n++) { abre_premio(0); for (int i = 0; i < 3; i++) sem += oferta_ad[i] != 0; }
+        cpu = 0; modo = M_ONLINE;                 // o online: so dados
+        for (int n = 0; n < 500; n++) { abre_premio(0); for (int i = 0; i < 3; i++) sem += oferta_ad[i] != 0; }
+        CONFERE(sem == 0, "adesivo no premio da maquina ou do online: %d", sem);
+        // Levar o adesivo: o dado, o lado, e a partida segue para a proxima rodada.
+        modo = M_DOIS;
+        int c = -1;
+        for (int n = 0; n < 200 && c < 0; n++) {
+            abre_premio(0);
+            for (int i = 0; i < 3 && c < 0; i++) if (oferta_ad[i]) c = i;
+        }
+        t_slot = -1;
+        int a = oferta_ad[c];
+        cursor = c;
+        trata_tecla(KEY_ENTER);
+        CONFERE(premio_colando() && lj_colando == 1, "premio: levar o adesivo abre a escolha do dado");
+        trata_tecla(KEY_BKSP);                    // volta aos cartoes, no do adesivo
+        CONFERE(!premio_colando() && fase == F_PREMIO && cursor == c, "premio: voltar da escolha do dado");
+        trata_tecla(KEY_ENTER);
+        cursor = 1;
+        trata_tecla(KEY_ENTER);
+        CONFERE(lj_colando == 2, "premio: escolheu o dado, agora o lado");
+        int lado = ad_lado_min(J[0].col[1].tipo) + cursor, rod = rodada;
+        trata_tecla(KEY_ENTER);
+        for (int q = 0; q < 200 && premio_colando(); q++) cola_passo(1 / 60.0f);
+        CONFERE(ad_no_lado(&J[0].col[1], lado) == a && ad_quantos(&J[0].col[1]) == 1 && !premio_colando()
+                && fase != F_PREMIO && rodada == rod + 1,
+                "premio: o %s no lado %d do dado 1 (%d), e a rodada seguinte (fase %d, rodada %d)",
+                ADESIVO[a].nome, lado, ad_no_lado(&J[0].col[1], lado), fase, rodada);
+        modo = modo0; cpu = cpu0;
+    }
+
     // ---- IA: o Dobro nunca vai por ultimo na sequencia -------------------
     {
         static const int T[7] = { D_DOBRO, D_D6, D_D8, D_D4, D_D2, D_D12, D_D20 };

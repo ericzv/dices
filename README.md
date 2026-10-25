@@ -127,6 +127,21 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto e qual chefe abre o que falta.
 
+## 2 jogadores e online: o prêmio da rodada
+
+Quem vence a rodada (ou fica com o pote porque o outro correu) escolhe um
+prêmio entre três cartões, numa roleta, ou troca o prêmio por tirar um dado
+da bolsa. A raridade sobe com a partida: da 1ª à 5ª rodada, comuns e
+incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
+lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
+um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
+Raspadinha, Confete, Lobo, Gorjeta, Selo, Frágil, Estrelinha, Imantado e
+Velcro; incomuns: Reflexivo, Remendo, Bis, Avesso, Corretivo, Post-it e
+Ratoeira; raros: Eletrônico, Transparente, Fermento e Purpurina; lendários:
+Chumbo, Mira e Holográfico). Levando o adesivo, você escolhe o dado da sua
+bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
+moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
+
 ## Jogar no navegador (e online)
 
 **https://ericzv.github.io/dices/** — abre direto no navegador, sem instalar.

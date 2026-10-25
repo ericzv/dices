@@ -86,6 +86,7 @@ void dado_passo(float dt)
     case F_CATALOGO:
         break;
     case F_PREMIO:
+        if (premio_colando()) cola_passo(dt_real);   // o adesivo ganho descendo no lado
         if (t_tira > 0) {
             t_tira += dt;
             if (t_tira > 0.7f) {

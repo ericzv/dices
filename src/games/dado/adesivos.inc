@@ -100,6 +100,21 @@ static const adesivo_t ADESIVO[AD_N] = {
                           { ".......", "....##.", "..####.", ".##.###", "#######", ".......", "#######" } },
 };
 
+// A raridade de cada um (a mesma escala dos dados), para o premio do modo de
+// 2 jogadores: pelo preco da loja, 2-3 comum, 4 incomum, 5 raro, 6 lendario.
+static const uint8_t RAR_ADESIVO[AD_N] = {
+    [AD_RASPADINHA] = RAR_COMUM, [AD_CONFETE] = RAR_COMUM, [AD_LOBO] = RAR_COMUM, [AD_GORJETA] = RAR_COMUM,
+    [AD_SELO] = RAR_COMUM, [AD_FRAGIL] = RAR_COMUM, [AD_ESTRELINHA] = RAR_COMUM, [AD_IMANTADO] = RAR_COMUM,
+    [AD_VELCRO] = RAR_COMUM,
+    [AD_REFLEXIVO] = RAR_INCOMUM, [AD_REMENDO] = RAR_INCOMUM, [AD_BIS] = RAR_INCOMUM, [AD_AVESSO] = RAR_INCOMUM,
+    [AD_CORRETIVO] = RAR_INCOMUM, [AD_POSTIT] = RAR_INCOMUM, [AD_RATOEIRA] = RAR_INCOMUM,
+    [AD_ELETRONICO] = RAR_RARO, [AD_TRANSPARENTE] = RAR_RARO, [AD_DOURADO] = RAR_RARO, [AD_FERMENTO] = RAR_RARO,
+    [AD_PURPURINA] = RAR_RARO,
+    [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
+};
+// Fora do Desafiante nao ha moedas: o Dourado nao sai no premio.
+static bool ad_no_premio(int a) { return a > AD_NADA && a < AD_N && a != AD_DOURADO; }
+
 // O adesivo do lado 'lado' (0: nenhum).
 static int ad_no_lado(const peca_t *p, int lado)
 {

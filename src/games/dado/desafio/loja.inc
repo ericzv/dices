@@ -33,7 +33,7 @@
 // Colando o adesivo: ele desce sobre o lado escolhido e assenta.
 #define LJ_COLA_BATE 0.22f               // encosta no dado (o estalo)
 #define LJ_COLA_FIM  1.0f                // depois disso, a loja volta
-#define LJ_LADO_Y    142                 // a primeira fileira de lados
+#define LJ_LADO_Y    158                 // a primeira fileira de lados
 #define LJ_LADO_DY   70                  // entre uma fileira e a outra
 
 static bool  lj_tirando;                 // escolhendo o dado que sai
@@ -66,6 +66,15 @@ static int   lj_cola_dado;               // o dado escolhido (posicao na bolsa)
 static int   lj_cola_lado;               // o lado onde colou (a animacao)
 static float t_lj_cola;                  // > 0: colou; o adesivo assenta e a loja volta
 static float t_lj_ad_carimbo;            // o carimbo de colado no cartao do adesivo
+// Onde o adesivo vai: na loja, na bolsa da run, comprado; no premio do modo de
+// 2 jogadores (cola_premio), na bolsa de quem venceu a rodada, de graca.
+static bool  cola_premio;
+static int   cola_premio_ad;              // o adesivo ganho
+static int   cola_premio_slot;            // de qual cartao do premio ele veio
+static peca_t *cola_col(void) { return cola_premio ? J[vez].col : run.col; }
+static int   cola_n(void) { return cola_premio ? J[vez].n_col : run.n_col; }
+static int   cola_ad(void) { return cola_premio ? cola_premio_ad : run.adesivo; }
+static int   cola_dono(void) { return cola_premio ? vez : 0; }
 
 // Os itens, na ordem das setas: a vitrine, o pacote, o adesivo e os dois servicos.
 static int lj_n_itens(void) { return n_vitrine() + 4; }
@@ -107,6 +116,7 @@ static void loja_abriu(void)
     memset(lj_flut, 0, sizeof lj_flut);
     t_pac_carimbo = 0;
     lj_colando = 0;
+    cola_premio = false;
     t_lj_cola = t_lj_ad_carimbo = 0;
     // Saiu com o pacote aberto: volta nele, rasgado, com as mesmas cartas.
     lj_pac = run.pac_estado == PAC_ABERTO;
@@ -177,6 +187,29 @@ static void lj_voa(int slot, peca_t p, int x, int y)
     bolsa_voando++;
 }
 
+// O adesivo colado: desce, assenta com um estalo, e a loja volta (o premio:
+// segue para a proxima rodada). As lascas voam e caem.
+static void lj_lascas_passo(float dt);
+static void cola_passo(float dt)
+{
+    if (t_lj_cola > 0) {
+        float antes = t_lj_cola;
+        t_lj_cola += dt;
+        if (antes < LJ_COLA_BATE && t_lj_cola >= LJ_COLA_BATE) lj_cola_estala();
+        if (t_lj_cola >= LJ_COLA_FIM) {
+            t_lj_cola = 0;
+            lj_colando = 0;
+            if (cola_premio) { cola_premio = false; nova_rodada(); return; }
+            cursor = lj_item_adesivo();
+            t_lj_ad_carimbo = 0.001f;
+        }
+    }
+    if (cola_premio) {
+        if (t_lj_aviso > 0) t_lj_aviso -= dt;
+        lj_lascas_passo(dt);
+    }
+}
+
 static void loja_passo(float dt)
 {
     if (fase != F_RLOJA) return;
@@ -193,18 +226,7 @@ static void loja_passo(float dt)
         if (i >= n_vitrine()) q = (t_lj_abriu - i * 0.08f) / 0.34f;
         if (q >= 0.75f && !(lj_caiu >> i & 1)) { lj_caiu |= (uint8_t)(1 << i); som_toca_tom(SOM_BATE_DADO, i * 2); }
     }
-    // O adesivo colado: desce, assenta com um estalo, e a loja volta.
-    if (t_lj_cola > 0) {
-        float antes = t_lj_cola;
-        t_lj_cola += dt;
-        if (antes < LJ_COLA_BATE && t_lj_cola >= LJ_COLA_BATE) lj_cola_estala();
-        if (t_lj_cola >= LJ_COLA_FIM) {
-            t_lj_cola = 0;
-            lj_colando = 0;
-            cursor = lj_item_adesivo();
-            t_lj_ad_carimbo = 0.001f;
-        }
-    }
+    cola_passo(dt);
     // O dado comprado chegando na bolsa.
     for (int i = 0; i <= VITRINE_MAX; i++) {
         if (!lj_voo[i].vivo) continue;
@@ -256,6 +278,11 @@ static void loja_passo(float dt)
         lj_tirando = false;
         cursor = lj_item_tira();
     }
+    lj_lascas_passo(dt);
+}
+
+static void lj_lascas_passo(float dt)
+{
     for (int i = 0; i < n_lasca; i++) {
         lasca_t *l = &lasca[i];
         l->t += dt;
@@ -348,29 +375,33 @@ static void loja_adesivo(void)
 // O dado i: abre os lados dele (o cursor no primeiro livre).
 static void cola_escolhe_dado(int i)
 {
-    if (i < 0 || i >= run.n_col) return;
-    if (!ad_cabe(&run.col[i])) { lj_nega(-1, "Todos os lados desse dado já têm adesivo."); return; }
+    peca_t *col = cola_col();
+    if (i < 0 || i >= cola_n()) return;
+    if (!ad_cabe(&col[i])) { lj_nega(-1, "Todos os lados desse dado já têm adesivo."); return; }
     lj_cola_dado = i;
     lj_colando = 2;
-    int t = run.col[i].tipo;
+    int t = col[i].tipo;
     cursor = 0;
-    while (cursor < ad_n_lados(t) - 1 && ad_no_lado(&run.col[i], ad_lado_min(t) + cursor)) cursor++;
+    while (cursor < ad_n_lados(t) - 1 && ad_no_lado(&col[i], ad_lado_min(t) + cursor)) cursor++;
     som_toca(SOM_TIQUE);
 }
 
 // Cola no lado c (contando do primeiro): paga, fica salvo, e ele desce sobre o lado.
 static void cola_escolhe_lado(int c)
 {
-    if (lj_colando != 2 || t_lj_cola > 0 || lj_cola_dado < 0 || lj_cola_dado >= run.n_col) return;
-    peca_t *p = &run.col[lj_cola_dado];
-    int lado = ad_lado_min(p->tipo) + c, a = run.adesivo, pr = preco_adesivo(a);
+    if (lj_colando != 2 || t_lj_cola > 0 || lj_cola_dado < 0 || lj_cola_dado >= cola_n()) return;
+    peca_t *p = &cola_col()[lj_cola_dado];
+    int lado = ad_lado_min(p->tipo) + c, a = cola_ad(), pr = preco_adesivo(a);
     if (c < 0 || lado > ad_lado_max(p->tipo)) return;
     if (ad_no_lado(p, lado)) { lj_nega(-1, "Esse lado já tem adesivo."); return; }
-    if (run.moedas < pr || run.ad_vendido) return;
-    run.moedas -= pr;
-    ad_cola(p, lado, a);
-    run.ad_vendido = 1;
-    des_salva();
+    if (cola_premio) ad_cola(p, lado, a);       // o premio: de graca, so ate o fim da partida
+    else {
+        if (run.moedas < pr || run.ad_vendido) return;
+        run.moedas -= pr;
+        ad_cola(p, lado, a);
+        run.ad_vendido = 1;
+        des_salva();
+    }
     lj_cola_lado = lado;
     t_lj_cola = 0.001f;
     som_toca(SOM_FICHA);
@@ -403,14 +434,15 @@ static void loja_tira_abre(void)
 
 #define LJ_TIRA_Y 112                     // o alto da grade da bolsa, tirando
 static grade_t grade_lj_tira(int n) { return grade_cabe(n, 12, 52, 120); }
-static void lj_pos_tira(int i, int *x, int *y)
+static void lj_pos_grade(int i, int n, int *x, int *y)
 {
-    grade_t g = grade_lj_tira(run.n_col);
+    grade_t g = grade_lj_tira(n);
     int lin = i / g.por, col = i % g.por;
-    int na_linha = (run.n_col - lin * g.por) < g.por ? run.n_col - lin * g.por : g.por;
+    int na_linha = (n - lin * g.por) < g.por ? n - lin * g.por : g.por;
     *x = GFX_W / 2 + (int)((col - (na_linha - 1) / 2.0f) * 46 * g.f);
     *y = LJ_TIRA_Y + (int)((lin + 0.5f) * 52 * g.f);
 }
+static void lj_pos_tira(int i, int *x, int *y) { lj_pos_grade(i, run.n_col, x, y); }
 
 // O dado escolhido sai de vez: paga, sai da bolsa e fica salvo.
 static void lj_tira_confirma(void)
@@ -468,15 +500,20 @@ static bool cola_tecla(int k, int e)
     if (t_lj_cola > 0) return true;
     bool volta = k == KEY_BKSP || k == 'x' || k == KEY_TAB;
     if (lj_colando == 1) {
-        int por = grade_lj_tira(run.n_col).por;
+        int nc = cola_n(), por = grade_lj_tira(nc).por;
         if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return true; }
-        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < run.n_col) cursor += por; return true; }
-        if (e) { cursor = (cursor + e + run.n_col) % run.n_col; som_toca(SOM_TIQUE); return true; }
-        if (volta) { lj_colando = 0; cursor = lj_item_adesivo(); return true; }
+        if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < nc) cursor += por; return true; }
+        if (e) { cursor = (cursor + e + nc) % nc; som_toca(SOM_TIQUE); return true; }
+        if (volta) {                              // volta aos cartoes (o premio: ao do adesivo)
+            lj_colando = 0;
+            cursor = cola_premio ? cola_premio_slot : lj_item_adesivo();
+            cola_premio = false;
+            return true;
+        }
         if (k == KEY_ENTER) cola_escolhe_dado(cursor);
         return true;
     }
-    int n = ad_n_lados(run.col[lj_cola_dado].tipo), por = lj_lados_por(n);
+    int n = ad_n_lados(cola_col()[lj_cola_dado].tipo), por = lj_lados_por(n);
     if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return true; }
     if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < n) cursor += por; return true; }
     if (e) { cursor = (cursor + e + n) % n; som_toca(SOM_TIQUE); return true; }
@@ -872,8 +909,8 @@ static void lj_lado_pos(int c, int n, int *x, int *y)
 // O estalo: o adesivo encostou no lado. Lascas de vinil e um som seco.
 static void lj_cola_estala(void)
 {
-    int a = run.adesivo, n = ad_n_lados(run.col[lj_cola_dado].tipo), x, y;
-    lj_lado_pos(lj_cola_lado - ad_lado_min(run.col[lj_cola_dado].tipo), n, &x, &y);
+    int a = cola_ad(), t = cola_col()[lj_cola_dado].tipo, n = ad_n_lados(t), x, y;
+    lj_lado_pos(lj_cola_lado - ad_lado_min(t), n, &x, &y);
     uint16_t cores[3] = { ADESIVO[a].fundo == AD_SEM_FUNDO ? ADESIVO[a].luz : ADESIVO[a].fundo, C_BRANCO, ADESIVO[a].luz };
     lj_lascas_de(x, y, cores, 18, 0.8f);
     som_toca(som_cola());
@@ -883,11 +920,18 @@ static void lj_cola_estala(void)
 // O titulo das duas telas: o adesivo, o nome e o que ele faz.
 static void lj_cola_titulo(const char *pergunta)
 {
-    int a = run.adesivo;
+    int a = cola_ad();
     char s[160];
-    txt_c2(GFX_W / 2, MESA_Y0 + 2, "COLAR O ADESIVO", ADESIVO[a].luz);
+    txt_c2(GFX_W / 2, MESA_Y0 + 2, cola_premio ? "COLAR O ADESIVO GANHO" : "COLAR O ADESIVO", ADESIVO[a].luz);
     snprintf(s, sizeof s, "%s: %s %s  ·  %s", ADESIVO[a].nome, ADESIVO[a].l1, ADESIVO[a].l2, pergunta);
     txt_c(GFX_W / 2, MESA_Y0 + 40, s, C_MARFIM_S, false);
+}
+
+// O rodape: o da run na loja; no premio, dentro da mesa, como o do premio.
+static void cola_rodape(const char *s)
+{
+    if (cola_premio) teclas_c(GFX_W / 2, 288, s, C_TEXTO_M);
+    else rodape_run(s);
 }
 
 // 1: qual dado. Os sem lado livre ficam apagados.
@@ -895,24 +939,26 @@ static void lj_cola_dados(void)
 {
     char s[64];
     lj_cola_titulo("em qual dado?");
-    grade_t g = grade_lj_tira(run.n_col);
+    const peca_t *col = cola_col();
+    int nc = cola_n();
+    grade_t g = grade_lj_tira(nc);
     float f = g.f;
-    int sel = (int)(22 * f), meio = (int)(16 * f), a = run.adesivo;
-    for (int i = 0; i < run.n_col; i++) {
+    int sel = (int)(22 * f), meio = (int)(16 * f), a = cola_ad();
+    for (int i = 0; i < nc; i++) {
         int x, y;
-        lj_pos_tira(i, &x, &y);
-        bool cur = i == cursor, cabe = ad_cabe(&run.col[i]);
+        lj_pos_grade(i, nc, &x, &y);
+        bool cur = i == cursor, cabe = ad_cabe(&col[i]);
         if (cur) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, ADESIVO[a].luz);
         if (cur && cabe) brilho_passa = mola_brilho();
-        peca_parada((float)x, (float)(y - (cur ? mola_px() : 0)), 17 * f, run.col[i], 0);
+        peca_parada((float)x, (float)(y - (cur ? mola_px() : 0)), 17 * f, col[i], cola_dono());
         if (!cabe) gfx_rect_alfa(x - sel, y - sel, 2 * sel, 2 * sel, C_SOMBRA, 150);
         if (cur) gfx_rect(x - meio, y + (int)(23 * f), 2 * meio, 3, ADESIVO[a].luz);
-        else marca_rar(x, y + (int)(23 * f), run.col[i].tipo);
+        else marca_rar(x, y + (int)(23 * f), col[i].tipo);
         zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, KEY_ENTER);
     }
-    int linhas = (run.n_col + g.por - 1) / g.por, ty = LJ_TIRA_Y + (int)(linhas * 52 * f) + 22;
+    int linhas = (nc + g.por - 1) / g.por, ty = LJ_TIRA_Y + (int)(linhas * 52 * f) + 22;
     if (ty < 236) ty = 236;
-    const peca_t *pc = &run.col[cursor < run.n_col ? cursor : 0];
+    const peca_t *pc = &col[cursor < nc ? cursor : 0];
     int livres = ad_n_lados(pc->tipo) - ad_quantos(pc);
     txt_c(GFX_W / 2, ty, TIPO[pc->tipo].nome, cor_dado(pc->tipo), true);
     if (livres) snprintf(s, sizeof s, "%d %s de %d", livres, livres == 1 ? "lado livre" : "lados livres", ad_n_lados(pc->tipo));
@@ -920,19 +966,20 @@ static void lj_cola_dados(void)
     txt_c(GFX_W / 2, ty + 22, s, livres ? C_MARFIM_S : C_VINHO_CLR, false);
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, ty + 22 + TXT_H, lj_aviso, C_VINHO_CLR, true);
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
-    rodape_run("setas escolhem  ·  ENTER escolhe o dado  ·  I detalhes  ·  BACKSPACE volta");
+    cola_rodape(cola_premio ? "setas escolhem  ·  ENTER escolhe o dado  ·  BACKSPACE volta"
+                            : "setas escolhem  ·  ENTER escolhe o dado  ·  I detalhes  ·  BACKSPACE volta");
 }
 
 // 2: qual lado. O dado inteiro, um lado ao lado do outro, com os adesivos que
 // ja tem; o novo paira sobre o lado da vez e, escolhido, desce e assenta.
 static void lj_cola_lados(void)
 {
-    const peca_t *pc = &run.col[lj_cola_dado];
-    int t = pc->tipo, n = ad_n_lados(t), a = run.adesivo;
+    const peca_t *pc = &cola_col()[lj_cola_dado];
+    int t = pc->tipo, n = ad_n_lados(t), a = cola_ad();
     char s[96];
     snprintf(s, sizeof s, "em qual lado do %s?", TIPO[t].nome);
     lj_cola_titulo(s);
-    peca_parada(64, LJ_LADO_Y, 22, *pc, 0);                // o dado, com os selinhos
+    peca_parada(64, LJ_LADO_Y, 22, *pc, cola_dono());      // o dado, com os selinhos
     txt_c(64, LJ_LADO_Y + 32, TIPO[t].nome, cor_dado(t), true);
     for (int c = 0; c < n; c++) {
         int lado = ad_lado_min(t) + c, x, y, ja = ad_no_lado(pc, lado);
@@ -951,7 +998,7 @@ static void lj_cola_lados(void)
             ad_face_aceso = t_lj_cola < LJ_COLA_BATE + 0.5f && (int)(t_lj_cola * 14) % 2 == 0;
         }
         ad_face = ja;
-        desenha_dado((float)x, y - pulo, 17, t, 0, 0, mostra, 2, false);
+        desenha_dado((float)x, y - pulo, 17, t, cola_dono(), 0, mostra, 2, false);
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
         if (mostra != lado || t == D_VAZIO) {
             snprintf(s, sizeof s, "%d", lado);
@@ -965,7 +1012,7 @@ static void lj_cola_lados(void)
         lj_lado_pos(t_lj_cola > 0 ? lj_cola_lado - ad_lado_min(t) : cursor, n, &x, &y);
         bool livre = !ad_no_lado(pc, ad_lado_min(t) + cursor);
         float desce = t_lj_cola > 0 ? t_lj_cola / LJ_COLA_BATE : 0;
-        int hy = y - 40 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 40);
+        int hy = y - 36 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 36);
         if (livre || t_lj_cola > 0) ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
         else gfx_texto(x - gfx_largura("ocupado", GFX_MIUDO) / 2, y - 36, "ocupado", C_VINHO_CLR, GFX_MIUDO, false);
     }
@@ -980,13 +1027,45 @@ static void lj_cola_lados(void)
         txt_c(GFX_W / 2, ty, s, C_VINHO_CLR, true);
         snprintf(s, sizeof s, "%s %s", ADESIVO[ja].l1, ADESIVO[ja].l2);
         txt_c(GFX_W / 2, ty + TXT_H - 1, s, C_MARFIM_S, false);
+    } else if (cola_premio) {
+        snprintf(s, sizeof s, "Lado %d  ·  prêmio: fica até o fim da partida", lado);
+        txt_c(GFX_W / 2, ty, s, C_OURO, true);
     } else {
         snprintf(s, sizeof s, "Lado %d  ·  custa %d %s", lado, preco_adesivo(a), preco_adesivo(a) == 1 ? "moeda" : "moedas");
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, ty + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
-    rodape_run("setas escolhem  ·  ENTER cola  ·  BACKSPACE volta ao dado");
+    cola_rodape("setas escolhem  ·  ENTER cola  ·  BACKSPACE volta ao dado");
+}
+
+// ---- O adesivo do premio (modo de 2 jogadores) -------------------------------
+// As mesmas duas telas, na bolsa de quem venceu a rodada, sem custo; colado,
+// a partida segue para a proxima rodada.
+static bool premio_colando(void) { return cola_premio && lj_colando; }
+static bool premio_cabe(void)
+{
+    for (int c = 0; c < J[vez].n_col; c++) if (ad_cabe(&J[vez].col[c])) return true;
+    return false;
+}
+static bool premio_cola_comeca(int i)
+{
+    if (i < 0 || i >= 3 || !oferta_ad[i] || !premio_cabe()) return false;
+    cola_premio = true;
+    cola_premio_ad = oferta_ad[i];
+    cola_premio_slot = i;
+    lj_colando = 1;
+    t_lj_cola = t_lj_aviso = 0;
+    n_lasca = 0;
+    cursor = 0;
+    while (cursor < J[vez].n_col - 1 && !ad_cabe(&J[vez].col[cursor])) cursor++;
+    som_toca(SOM_TIQUE);
+    return true;
+}
+static void premio_cola_desenha(void)
+{
+    if (lj_colando == 1) lj_cola_dados();
+    else lj_cola_lados();
 }
 
 // ---- O pacote aberto ----------------------------------------------------------

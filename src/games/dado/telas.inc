@@ -605,7 +605,7 @@ static void desenha_premio(void)
         txt_c(GFX_W / 2, 212, "sorteando...", C_OURO, true);
     } else if (cursor < 3 && oferta_ad[cursor]) {   // o adesivo: o que faz, e que vai num lado de um dado seu
         const adesivo_t *d = &ADESIVO[oferta_ad[cursor]];
-        if (premio_cabe()) {
+        if (premio_cabe(oferta_ad[cursor])) {
             char l[112];
             snprintf(l, sizeof l, "%s %s", d->l1, d->l2);
             txt_c(GFX_W / 2, 212, l, C_MARFIM, false);

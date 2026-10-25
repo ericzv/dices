@@ -1356,6 +1356,86 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
+    case AD_FIGURINHA: {                                        // as figurinhas juntadas abrem em leque
+        int n = e->valor > 0 ? e->valor : 1;
+        if (n > 9) n = 9;
+        for (int c = 0; c < n && p < 0.95f; c++) {
+            float q = (p - 0.1f - c * 0.06f) / 0.25f;
+            if (q <= 0) continue;
+            if (q > 1) q = 1;
+            float an = (c - (n - 1) / 2.0f) * 0.42f;              // o leque, de um lado ao outro
+            int rr = (int)(q * (R_DADO + 26));
+            int x = ax + (int)(sinf(an) * rr), y = ay + dir * (int)(cosf(an) * rr);
+            bool nova = c == n - 1;                             // a ultima (a deste lance) pisca
+            gfx_rect(x - 3, y - 4 + 1, 7, 9, C_SOMBRA);
+            gfx_rect(x - 4, y - 5, 8, 10, nova && (int)(t_fase * 12) % 2 ? C_OURO : d->tinta);
+            gfx_rect(x - 3, y - 4, 6, 8, C_BRANCO);
+            gfx_rect(x - 1, y - 2, 2, 2, RGB(190, 56, 60));      // o jogador do cromo
+            gfx_rect(x - 2, y, 4, 2, RGB(190, 56, 60));
+        }
+        break;
+    }
+    case AD_PATINHO: {                                          // o patinho pula do dado: feliz (+2) ou com a nuvem (-2)
+        float q = fminf(1, p / 0.5f);
+        int x = ax - R_DADO - 14, y = ay + dir * (R_DADO + 6) - (int)(sinf(q * 3.1416f * 2) * 6) * (dir < 0 ? 1 : -1);
+        if (p < 0.92f) {
+            gfx_disco(x, y, 14, C_SOMBRA);
+            gfx_disco(x, y - 1, 13, d->fundo);
+            ad_icone(x - 10, y - 11, AD_PATINHO, 3, d->tinta);
+        }
+        if (e->valor < 0) {                                     // a nuvem de chuva em cima dele
+            if (p > 0.15f && p < 0.92f) {
+                gfx_disco(x - 4, y - 20, 5, C_ACO); gfx_disco(x + 4, y - 21, 6, C_ACO);
+                for (int i = 0; i < 3; i++) {
+                    float g = fmodf(p * 3 + i * 0.33f, 1.0f);
+                    gfx_rect(x - 5 + i * 5, y - 14 + (int)(g * 12), 1, 3, RGB(96, 134, 196));
+                }
+            }
+        } else if (p > 0.3f && p < 0.92f)                       // brilhinhos
+            for (int i = 0; i < 4; i++) {
+                float an = i * 1.57f + p * 6;
+                if ((int)(t_fase * 12 + i) % 2) gfx_rect(x + (int)(cosf(an) * 17), y + (int)(sinf(an) * 15), 2, 2, C_BRANCO);
+            }
+        break;
+    }
+    case AD_ETIQUETA: {                                         // as etiquetas da bolsa caem uma sobre a outra
+        int n = e->valor > 0 ? e->valor : 1;
+        if (n > 9) n = 9;
+        for (int c = 0; c < n && p < 0.95f; c++) {
+            float q = (p - 0.08f - c * 0.07f) / 0.22f;
+            if (q <= 0) continue;
+            if (q > 1) q = 1;
+            int x = ax - 16 + (c % 3) * 16, y0 = ay + dir * (R_DADO + 10 + (c / 3) * 9);
+            int y = y0 - (int)((1 - q) * 30) * (dir < 0 ? 1 : -1);
+            gfx_rect(x - 5, y - 2, 11, 6, C_SOMBRA);
+            gfx_rect(x - 6, y - 3, 11, 6, d->tinta);
+            gfx_rect(x - 5, y - 1, 1, 2, d->fundo);              // o furo
+            gfx_linha(x - 5, y, x - 9, y - 4, d->luz);           // o barbante
+        }
+        break;
+    }
+    case AD_BILHETE: {                                          // o dourado passa por cada dado com bonus e pelo placar
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(e->mascara >> k & 1)) continue;
+            float q = (p - 0.2f - k * 0.08f) / 0.3f;
+            if (q <= 0 || q >= 1) continue;
+            int rr = R_DADO + 2 + (int)(q * 10);
+            for (int i = 0; i < 16; i++) {
+                float an = i * 0.3927f + q * 2;
+                gfx_rect(SLOT_X(k) + (int)(cosf(an) * rr), zona(j) + (int)(sinf(an) * rr), 2, 2,
+                         i % 2 ? d->tinta : C_AMARELO);
+            }
+        }
+        if (e->valor > 0 && p > 0.45f && p < 0.95f) {           // a parte de fora: o placar
+            float q = (p - 0.45f) / 0.5f;
+            for (int i = 0; i < 10; i++) {
+                float an = i * 0.628f + q * 3;
+                int rr = 12 + (int)(q * 16);
+                gfx_rect(PLACAR_X + (int)(cosf(an) * rr), zona(j) + (int)(sinf(an) * rr * 0.6f), 2, 2, C_AMARELO);
+            }
+        }
+        break;
+    }
     case AD_RATOEIRA: {                                         // a mola estala no dado e a barra vai ate o maior dele
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         float q = fminf(1, p / 0.15f);
@@ -1499,17 +1579,23 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
         break;
     }
-    case AD_BIS: {                                              // um dado fantasma vai para a sua bolsa
+    case AD_BIS: {                                              // dois dados fantasmas vao para a sua bolsa
         int bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
-        float q = (p - 0.15f) / 0.5f;
-        if (q > 0 && q < 1) {
+        float q = 0;
+        for (int f = 0; f < BIS_DADOS; f++) {
+            q = (p - 0.15f - f * 0.12f) / 0.5f;
+            if (q <= 0 || q >= 1) continue;
             float s = q * q * (3 - 2 * q);
-            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 40);
+            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * (40 + f * 14));
             int w = 14 - (int)(s * 6);
             ad_caixa_borda(x - w / 2, y - w / 2, w, w, d->luz);
             gfx_rect(x - 1, y - 1, 2, 2, C_BRANCO);
         }
-        if (q >= 1 && p < 0.95f) txt_sombra_c(bx, by - 26 - (int)((p - 0.65f) * 20), "+1", d->luz, 1);
+        if (q >= 1 && p < 0.95f) {
+            char t[8];
+            snprintf(t, sizeof t, "+%d", BIS_DADOS);
+            txt_sombra_c(bx, by - 26 - (int)((p - 0.77f) * 20), t, d->luz, 1);
+        }
         break;
     }
     default: break;

@@ -26,6 +26,9 @@ typedef struct {
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
+    uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
+    uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
+    uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -990,6 +993,22 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
         }
 }
 
+// As figurinhas juntadas nos dados de j com Figurinha (cada um comeca com 1),
+// e as Etiquetas coladas nos dados dele: o que a Figurinha e a Etiqueta pagam.
+static int figurinhas_de(int j)
+{
+    int n = 0;
+    for (int i = 0; i < J[j].n_col; i++)
+        if (J[j].onde[i] != COMIDO && ad_conta(&J[j].col[i], AD_FIGURINHA)) n += 1 + J[j].col[i].figurinha;
+    return n;
+}
+static int etiquetas_de(int j)
+{
+    int n = 0;
+    for (int i = 0; i < J[j].n_col; i++) if (J[j].onde[i] != COMIDO) n += ad_conta(&J[j].col[i], AD_ETIQUETA);
+    return n;
+}
+
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
 // Avesso, o Remendo, o Post-it), ou na regra da fila (o Transparente, o
 // Corretivo): no fim da rodada so contam para a Purpurina.
@@ -1024,7 +1043,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     case AD_FERMENTO: {
         const peca_t *po = peca_fila(j, ko);
         if (!vale || !po) return false;
-        int n = po->fermento + 1;
+        int n = FERMENTO_CADA * (po->fermento + 1);
         d->semente[j] += n;
         if (!copia) d->fermento[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, n, copia ? "%sFermento: +%d" : "%sFermento: +%d, e cresce", pre, n);
@@ -1049,8 +1068,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sDourado: +1 moeda", pre);
         break;
     case AD_BIS:
-        d->bis[j]++;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sBis: 1 dado a mais na próxima rodada", pre);
+        d->bis[j] += BIS_DADOS;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, BIS_DADOS, "%sBis: %d dados a mais na próxima rodada", pre, BIS_DADOS);
         break;
     case AD_SELO:
         d->selo_lacra[j] |= bit;
@@ -1089,6 +1108,30 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
     }
+    case AD_FIGURINHA: {                         // ativa todas as figurinhas juntadas nos seus dados
+        if (!vale) return false;
+        int n = figurinhas_de(j);
+        d->semente[j] += n;
+        if (!copia) d->fig_cresce[j] |= bit;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, n, copia ? "%sFigurinha: %d figurinhas, +%d"
+                                                         : "%sFigurinha: %d figurinhas, +%d, e junta mais uma", pre, n, n);
+        break;
+    }
+    case AD_ETIQUETA: {                          // +1 por Etiqueta nos seus dados
+        if (!vale) return false;
+        int n = etiquetas_de(j);
+        d->semente[j] += n;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sEtiqueta: %d na bolsa, +%d", pre, n, n);
+        break;
+    }
+    case AD_PATINHO: {                           // valendo: no lado dele, -2; caindo em outro, +2
+        if (!vale) return false;
+        bool cima = !copia && ko == k;           // (ko < 0: um Patinho de outro lado do dado)
+        int pts = cima ? -PATINHO_PONTOS : PATINHO_PONTOS;
+        d->semente[j] += pts;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, pts, cima ? "%sPatinho Feio: caiu nele, %d" : "%sPatinho Feio: +%d", pre, pts);
+        break;
+    }
     case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
         if (!vale) return false;
         bool couraca = tem_am(r, A_COURACA);
@@ -1124,7 +1167,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     int agiram = d->ratoeira[j];
-    int fonte[N_FILA], qual[N_FILA], n_fonte = 0;     // o que o Holografico copia: o dado e o adesivo
+    int fonte[N_FILA * AD_LADOS], qual[N_FILA * AD_LADOS], n_fonte = 0;   // o que o Holografico copia: o dado e o adesivo
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         const peca_t *pc = peca_fila(j, k);
         if (!pc || !pc->selo) continue;
@@ -1139,7 +1182,19 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         int a = ad_fila(j, k);
         if (!a || d->est[j][k] == V_ROUBADO || a == AD_HOLOGRAFICO || a == AD_PURPURINA || a == AD_RATOEIRA) continue;
         if (ad_do_pouso(a)) { agiram++; continue; }
+        if (a == AD_BILHETE) {                   // o Bilhete age no fim de tudo (bilhete_de)
+            if (d->est[j][k] == V_VALIDO) { d->bilhete[j] |= (uint8_t)(1 << k); agiram++; }
+            continue;
+        }
         if (ad_age(d, j, k, k, a, gera, false)) { agiram++; fonte[n_fonte] = k; qual[n_fonte++] = a; }
+    }
+    // O Patinho Feio dos outros lados do dado: caiu em outro lado, +2.
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        const peca_t *pc = peca_fila(j, k);
+        if (!pc || d->est[j][k] == V_ROUBADO) continue;
+        int n = ad_conta(pc, AD_PATINHO) - (ad_fila(j, k) == AD_PATINHO);
+        for (int i = 0; i < n && n_fonte < N_FILA * AD_LADOS; i++)
+            if (ad_age(d, j, k, -1, AD_PATINHO, gera, false)) { agiram++; fonte[n_fonte] = k; qual[n_fonte++] = AD_PATINHO; }
     }
     int holo[N_FILA], n_holo = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -1147,6 +1202,10 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         holo[n_holo++] = k;
         bool algum = false;
         for (int c = 0; c < n_fonte; c++) algum |= ad_age(d, j, k, fonte[c], qual[c], gera, true);
+        if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
+            for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
+            algum = true;
+        }
         if (algum) agiram++;
     }
     int purp[N_FILA], n_purp = 0;
@@ -1166,6 +1225,43 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             if (e) { e->ad = AD_PURPURINA; e->copia = 1; }
         }
     }
+}
+
+// O Bilhete Premiado (adesivos_de anotou os que valeram), no fim de tudo: o
+// bonus dos dados validos de j vale em dobro - o que os poderes e amuletos
+// somaram em cada dado e os pontos a parte (a semente: os dos adesivos e dos
+// poderes que pontuam por fora). O numero que cada dado tirou, nao. Com dois
+// Bilhetes, dobra duas vezes; o Holografico copia cada um, e dobra de novo.
+static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia)
+{
+    int8_t por[N_FILA] = { 0 };
+    uint8_t m = 0;
+    int extra = 0;
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
+        if (d->est[j][i] != V_VALIDO) continue;
+        int b = F[j].bonus[i] + d->bonus[j][i];
+        if (b <= 0) continue;
+        if (d->bonus[j][i] + b > 127) b = 127 - d->bonus[j][i];
+        d->bonus[j][i] = (int8_t)(d->bonus[j][i] + b);
+        por[i] = (int8_t)b;
+        m |= (uint8_t)(1 << i);
+        extra += b * (d->mult[j][i] > 0 ? d->mult[j][i] : 1);
+    }
+    int sem = d->semente[j] > 0 ? d->semente[j] : 0;
+    d->semente[j] += sem;
+    extra += sem;
+    const char *nome = copia ? "Holográfico, como Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
+    evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? "%s: bônus em dobro, +%d"
+                                                                 : "%s: nenhum bônus para dobrar", nome, extra);
+    if (e) { e->ad = AD_BILHETE; e->copia = copia; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
+}
+
+static void bilhete_de(desfecho_t *d, int j, bool gera)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (d->bilhete[j] >> k & 1) dobra_bonus(d, j, k, gera, false);
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true);
 }
 
 // Saideira (amuleto): na ultima rodada da partida (a 8a e as extras), os
@@ -1240,6 +1336,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         efeitos_do_fim(d, j, gera);
         if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: nem o aviso
     }
+    for (int o = 0; o < 2; o++) bilhete_de(d, ordem[o], gera);   // o Bilhete Premiado, por ultimo
     for (int j = 0; j < 2; j++) {
         int t = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j]
               + d->delta[j] + d->semente[j];

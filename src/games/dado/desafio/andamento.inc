@@ -129,8 +129,8 @@ static bool des_carrega(run_t *r)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
-    for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N) return false;
-    if ((r->pacote >= GR_N && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
+    for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N || r->pac_op[i].ad[0] >= AD_N) return false;
+    if ((r->pacote > GR_ADESIVOS && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
     if (r->adesivo >= AD_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
@@ -398,9 +398,11 @@ static void des_nova_run(void)
 // contagem de uma partida para a outra.
 static void zera_acumuladores(peca_t *col, int n)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
+        col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
+    }
 }
 
 static void des_comeca_partida(void)

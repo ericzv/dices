@@ -160,33 +160,34 @@ static int compra_medida(void)
 static void loja_passo_robo(int *compras)
 {
     relogio += 16667;
-    if (lj_pac) {                                // o pacote aberto: leva o mais raro
-        if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); return; }
-        int b = 0;
-        for (int i = 1; i < PAC_OPCOES; i++)
-            if (TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
-        cursor = b;
-        trata_tecla(KEY_ENTER);
-        (*compras)++;
-        return;
-    }
     if (lj_colando) {                            // o adesivo: no dado de mais lados; o Reflexivo e o
         if (t_lj_cola > 0) { dado_passo(1.0f / 60); return; }   // Avesso no lado mais baixo, os outros no mais alto
         if (lj_colando == 1) {
             int b = -1;
             for (int i = 0; i < run.n_col; i++)
-                if (ad_cabe(&run.col[i]) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
+                if (ad_cabe_o(&run.col[i], cola_ad()) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
             cursor = b;
             trata_tecla(KEY_ENTER);
             return;
         }
         const peca_t *pc = &run.col[lj_cola_dado];
-        int t = pc->tipo, a = run.adesivo, c = -1;
+        int t = pc->tipo, a = cola_ad(), c = -1;
         bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
         for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
             if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
         cursor = c - ad_lado_min(t);
         trata_tecla(KEY_ENTER);
+        return;
+    }
+    if (lj_pac) {                                // o pacote aberto: leva o mais raro (dado ou adesivo)
+        if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); return; }
+        int b = 0;
+        for (int i = 1; i < PAC_OPCOES; i++)
+            if (pacote_de_adesivos() ? RAR_ADESIVO[pac_ad(i)] > RAR_ADESIVO[pac_ad(b)]
+                                     : TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
+        cursor = b;
+        trata_tecla(KEY_ENTER);
+        (*compras)++;
         return;
     }
     if (lj_tirando) {
@@ -210,7 +211,8 @@ static void loja_passo_robo(int *compras)
     bool moeda = false;
     for (int i = 0; i < run.n_col; i++) moeda |= run.col[i].tipo == D_D2;
     if (b >= 0) { cursor = b; trata_tecla(KEY_ENTER); (*compras)++; }
-    else if (jeito_compra != 2 && run.pac_estado == PAC_VENDA && run.pacote < GR_N && run.moedas >= preco_pacote()) {
+    else if (jeito_compra != 2 && run.pac_estado == PAC_VENDA && tem_pacote() && run.moedas >= preco_pacote()
+             && (!pacote_de_adesivos() || (adesivos_robo && lj_algum_lado_livre()))) {
         cursor = nv;                             // sobrou: abre o pacote
         trata_tecla(KEY_ENTER);
     }

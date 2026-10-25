@@ -2344,14 +2344,24 @@ int main(void)
                 && dados_no_grupo(GR_DEFESA) >= PAC_OPCOES && dados_no_grupo(GR_COMBO) >= PAC_OPCOES,
                 "grupos no Normal: %d %d %d %d", dados_no_grupo(0), dados_no_grupo(1), dados_no_grupo(2), dados_no_grupo(3));
         {
-            bool viu[GR_N] = { false };
-            for (int l = 0; l < 60; l++) {
+            bool viu[GR_N + 1] = { false };
+            int de_adesivos = 0;
+            for (int l = 0; l < 120; l++) {
                 run.lojas = (uint8_t)l;
                 monta_pacote();
                 int g = run.pacote;
-                CONFERE(g < GR_N && g != GR_ATAQUE && run.pac_estado == PAC_VENDA, "pacote %d na loja %d", g, l);
-                if (g >= GR_N) break;
+                CONFERE(g <= GR_ADESIVOS && g != GR_ATAQUE && run.pac_estado == PAC_VENDA, "pacote %d na loja %d", g, l);
+                if (g > GR_ADESIVOS) break;
                 viu[g] = true;
+                if (g == GR_ADESIVOS) {          // o de adesivos: 3 abertos, diferentes
+                    de_adesivos++;
+                    for (int i = 0; i < PAC_OPCOES; i++) {
+                        int a = pac_ad(i);
+                        CONFERE(adesivo_liberado(a), "pacote de adesivos com %d", a);
+                        for (int k = 0; k < i; k++) CONFERE(pac_ad(k) != a, "pacote com adesivo repetido");
+                    }
+                    continue;
+                }
                 for (int i = 0; i < PAC_OPCOES; i++) {
                     int t = run.pac_op[i].tipo;
                     CONFERE(grupo_do_dado(t) == g && dado_liberado(t), "pacote de %s com %s", NOME_GRUPO[g], TIPO[t].nome);
@@ -2359,6 +2369,7 @@ int main(void)
                 }
             }
             CONFERE(viu[GR_NUMEROS] && viu[GR_DEFESA] && viu[GR_COMBO], "os grupos do Normal deviam aparecer");
+            CONFERE(de_adesivos > 120 * 0.4 && de_adesivos < 120 * 0.6, "pacotes de adesivos: %d de 120", de_adesivos);
         }
         perfis[0].nivel = N_NIVEIS;
         for (int g = 0; g < GR_N; g++) CONFERE(dados_no_grupo(g) >= 12, "no nivel 10, o grupo %d tem %d", g, dados_no_grupo(g));
@@ -2366,7 +2377,7 @@ int main(void)
         CONFERE(preco_pacote() == 3, "pacote com Cupom: %d", preco_pacote());   // o Cupom ainda vale
         run_poe_amuletos(0);
         CONFERE(preco_pacote() == 4, "pacote: %d", preco_pacote());
-        monta_loja_run();
+        do monta_loja_run(); while (pacote_de_adesivos());   // um de dados
         peca_t op[PAC_OPCOES];
         memcpy(op, run.pac_op, sizeof op);
         int grupo = run.pacote;
@@ -2396,8 +2407,30 @@ int main(void)
         CONFERE(!lj_pac && cursor == n_vitrine(), "depois de escolher, a loja devia voltar");
         loja_tecla(KEY_ENTER, 0);
         CONFERE(!lj_pac && run.moedas == 6, "o pacote abriu duas vezes");
+        // O pacote de adesivos: leva a carta, escolhe o dado e o lado, cola de
+        // graca (o pacote ja foi pago); voltar do dado volta as cartas.
+        do monta_loja_run(); while (!pacote_de_adesivos());
+        run.moedas = 10;
+        loja_pacote();
+        loja_passo(PAC_PRONTO + 0.01f);
+        int a_pac = pac_ad(1);
+        cursor = 1;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(lj_colando == 1 && cola_ad() == a_pac && run.pac_estado == PAC_ABERTO, "pacote de adesivos: escolher o dado");
+        loja_tecla(KEY_BKSP, 0);
+        CONFERE(!lj_colando && lj_pac && cursor == 1 && run.pac_estado == PAC_ABERTO, "pacote de adesivos: voltar as cartas");
+        loja_tecla(KEY_ENTER, 0);
+        int dado_p = cursor;
+        loja_tecla(KEY_ENTER, 0);
+        int lado_p = ad_lado_min(run.col[dado_p].tipo) + cursor;
+        loja_tecla(KEY_ENTER, 0);
+        CONFERE(ad_no_lado(&run.col[dado_p], lado_p) == a_pac && run.pac_estado == PAC_USADO && run.moedas == 6,
+                "pacote de adesivos: colou o %s no lado %d (%d moedas)", ADESIVO[a_pac].nome, lado_p, run.moedas);
+        CONFERE(des_carrega(&r) && r.pac_estado == PAC_USADO && ad_no_lado(&r.col[dado_p], lado_p) == a_pac, "pacote de adesivos: salvo");
+        for (int q = 0; q < 120 && lj_colando; q++) loja_passo(1 / 60.0f);
+        CONFERE(!lj_pac && !lj_colando && cursor == n_vitrine(), "pacote de adesivos: a loja volta");
         // Pular: BACKSPACE vai ao "pular", ENTER confirma; nada entra na bolsa.
-        monta_loja_run();
+        do monta_loja_run(); while (pacote_de_adesivos());
         run.moedas = 10;
         n = run.n_col;
         loja_pacote();
@@ -2454,6 +2487,18 @@ int main(void)
         int seis = 0, N = 6000;
         for (int i = 0; i < N; i++) { sorteia_peca(D_D6, 0, &d6, rola, &menor, &lado, &antes); seis += lado == 6; }
         CONFERE(seis > N * 0.55 && seis < N * 0.62, "o Chumbo no 6: %d de %d (esperado ~58%%)", seis, N);
+        // Dois Chumbos (o maximo): cada um sai metade das vezes, e nenhum outro lado.
+        ad_cola(&d6, 2, AD_CHUMBO);
+        int dois = 0, fora = 0;
+        seis = 0;
+        for (int i = 0; i < N; i++) {
+            sorteia_peca(D_D6, 0, &d6, rola, &menor, &lado, &antes);
+            seis += lado == 6; dois += lado == 2; fora += lado != 2 && lado != 6;
+        }
+        CONFERE(!fora && seis > N * 0.46 && seis < N * 0.54 && dois > N * 0.46 && dois < N * 0.54,
+                "dois Chumbos (2 e 6): %d e %d de %d, %d fora", dois, seis, N, fora);
+        CONFERE(!ad_cabe_o(&d6, AD_CHUMBO) && ad_cabe_o(&d6, AD_CONFETE) && ad_conta(&d6, AD_CHUMBO) == 2,
+                "no maximo dois Chumbos por dado");
 
         // A fila: o Transparente segura a queda; o lado que conta e o de cima no fim.
         // (Na partida rapida: sem amuletos nem trunfos no meio da conta.)
@@ -2539,7 +2584,7 @@ int main(void)
         static const struct { int ad, valendo, pontos0, pontos1; } C[] = {
             { AD_CONFETE, 1, 6 + 4, 3 }, { AD_RASPADINHA, 1, 6 + 10, 3 }, { AD_ELETRONICO, 1, 12, 3 },
             { AD_LOBO, 1, 6, 1 }, { AD_DOURADO, 1, 6, 3 }, { AD_BIS, 1, 6, 3 }, { AD_GORJETA, 1, 6, 3 },
-            { AD_FERMENTO, 1, 6 + 3, 3 }, { AD_CONFETE, 0, 0, 3 }, { AD_LOBO, 0, 0, 1 },
+            { AD_FERMENTO, 1, 6 + 2 * 3, 3 }, { AD_CONFETE, 0, 0, 3 }, { AD_LOBO, 0, 0, 1 },
         };
         for (unsigned c = 0; c < sizeof C / sizeof C[0]; c++) {
             J[0].col[3] = (peca_t){ .tipo = D_D6 };
@@ -2557,7 +2602,7 @@ int main(void)
             for (int i = 0; i < n_ev; i++) ev |= ev_tipo_ad(i, C[c].ad);
             CONFERE(ev == (C[c].valendo || C[c].ad == AD_LOBO), "%s: o evento", ADESIVO[C[c].ad].nome);
             if (C[c].ad == AD_DOURADO) CONFERE(d.moedas[0] == 1, "Dourado: %d moedas", d.moedas[0]);
-            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == 1, "Bis: %d", d.bis[0]);
+            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == BIS_DADOS, "Bis: %d", d.bis[0]);
             if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == 2, "Gorjeta: %d", d.gorjeta[0]);
             if (C[c].ad == AD_FERMENTO) {        // depois da rodada, ele cresceu
                 resolvido = d;
@@ -2749,6 +2794,71 @@ int main(void)
                 "Velcro: o dado ficou na mao (%d na mao)", J[0].n_mao);
         descarta_mao(&J[0]);
         CONFERE(J[0].n_mao == 0 && J[0].onde[3] == FORA, "Velcro: na outra rodada sai como sempre");
+        // A Figurinha: cada dado com ela comeca com 1 figurinha; tirando o lado
+        // dela, valendo, ativa todas (+1 por figurinha de todos) e o dado junta mais uma.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_FIGURINHA);
+        ad_cola(&J[0].col[3], 5, AD_FIGURINHA);              // dois lados no mesmo dado: uma conta so
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[5], 6, AD_FIGURINHA);
+        J[0].col[5].figurinha = 1;                           // este ja juntou 2
+        int fig[4];
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3);
+        d = fim(); fig[0] = d.total[0]; adesivos_ficam(0, &d);   // 1 + 2 = 3; o dado 3 vai a 2
+        limpa(); joga_ad(0, 5, 6); joga(1, D_D4, 3);
+        d = fim(); fig[1] = d.total[0]; adesivos_ficam(0, &d);   // 2 + 2 = 4; o dado 5 vai a 3
+        limpa(); joga_ad(0, 6, 6); joga_ad(0, 3, 5); joga(1, D_D4, 3);   // anulada: nada, e nao junta
+        d = fim(); fig[2] = d.total[0]; adesivos_ficam(0, &d);
+        limpa(); joga_ad(0, 3, 5); joga_ad(0, 5, 6); joga(1, D_D4, 3);   // as duas: 2 + 3 = 5, cada uma
+        d = fim(); fig[3] = d.total[0]; adesivos_ficam(0, &d);
+        CONFERE(fig[0] == 6 + 3 && fig[1] == 6 + 4 && fig[2] == 0 && fig[3] == 11 + 5 + 5
+                && J[0].col[3].figurinha == 2 && J[0].col[5].figurinha == 3,
+                "Figurinha: %d %d %d %d (juntadas %d e %d)", fig[0], fig[1], fig[2], fig[3],
+                1 + J[0].col[3].figurinha, 1 + J[0].col[5].figurinha);
+        zera_acumuladores(J[0].col, J[0].n_col);             // o comeco e o fim de cada partida do Desafiante
+        CONFERE(J[0].col[3].figurinha == 0 && J[0].col[5].figurinha == 0 && ad_conta(&J[0].col[3], AD_FIGURINHA) == 2,
+                "Figurinha: as juntadas zeram na partida nova (%d e %d)", J[0].col[3].figurinha, J[0].col[5].figurinha);
+        // O Fermento cresce de 2 em 2.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_FERMENTO);
+        int fer[3];
+        for (int i = 0; i < 3; i++) { limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim(); fer[i] = d.total[0] - 6; adesivos_ficam(0, &d); }
+        CONFERE(fer[0] == 2 && fer[1] == 4 && fer[2] == 6, "Fermento: +%d, +%d, +%d", fer[0], fer[1], fer[2]);
+        // O Patinho Feio: valendo, no lado dele -2; em outro lado, +2 (por Patinho).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_PATINHO);
+        ad_cola(&J[0].col[3], 1, AD_PATINHO);
+        int pat[3];
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim(); pat[0] = d.total[0];   // -2 e +2 do outro
+        limpa(); joga_ad(0, 3, 4); joga(1, D_D4, 3); d = fim(); pat[1] = d.total[0];   // os dois +2
+        limpa(); joga_ad(0, 4, 4); joga_ad(0, 3, 3); joga(1, D_D4, 3); d = fim(); pat[2] = d.total[0];   // anulado: nada
+        CONFERE(pat[0] == 6 && pat[1] == 4 + 4 && pat[2] == 0, "Patinho Feio: %d %d %d", pat[0], pat[1], pat[2]);
+        // A Etiqueta: +1 por Etiqueta nos dados da bolsa, ela junto.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_ETIQUETA);
+        ad_cola(&J[0].col[3], 2, AD_ETIQUETA);
+        ad_cola(&J[0].col[6], 1, AD_ETIQUETA);
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 6 + 3, "Etiqueta com 3 na bolsa: %d", d.total[0]);
+        J[0].col[6] = (peca_t){ .tipo = D_D6 };
+        // O Bilhete Premiado: o bonus dos dados validos (poderes e adesivos) em dobro; o numero, nao.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_BILHETE);
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        ad_cola(&J[0].col[4], 2, AD_CONFETE);
+        limpa(); joga_ad(0, 4, 2); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 8 + 4 + 4, "Bilhete Premiado com o Confete: %d", d.total[0]);
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 6, "Bilhete Premiado sem bonus: %d", d.total[0]);
+        limpa(); joga_ad(0, 4, 2); joga_ad(0, 3, 6); F[0].bonus[0] = 3; joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 8 + 3 + 3 + 4 + 4, "Bilhete Premiado com bonus no dado: %d", d.total[0]);
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };              // o Holografico copia o Confete e o Bilhete
+        ad_cola(&J[0].col[5], 5, AD_HOLOGRAFICO);
+        limpa(); joga_ad(0, 4, 2); joga_ad(0, 5, 5); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
+        CONFERE(d.total[0] == 2 + 5 + 6 + (4 + 4) * 2 * 2, "Holográfico copiando o Bilhete Premiado: %d", d.total[0]);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
         // A Ratoeira: anulada por um poder do oponente, anula o maior dele que vale.
         J[1].n_col = 2;
         J[1].col[0] = (peca_t){ .tipo = D_D4 };
@@ -2799,10 +2909,10 @@ int main(void)
         J[0].col[7] = (peca_t){ .tipo = D_D8 };
         limpa();
 
-        // O Bis: a proxima compra leva um dado a mais.
+        // O Bis: a proxima compra leva dois dados a mais.
         memset(bis_extra, 0, sizeof bis_extra);
-        bis_extra[0] = 1;
-        CONFERE(tam_mao(0) == MAO_NORMAL + 1, "o Bis: %d", tam_mao(0));
+        bis_extra[0] = BIS_DADOS;
+        CONFERE(BIS_DADOS == 2 && tam_mao(0) == MAO_NORMAL + 2, "o Bis: %d", tam_mao(0));
         memset(bis_extra, 0, sizeof bis_extra);
         memset(J, 0, sizeof J);
         limpa();
@@ -2868,10 +2978,31 @@ int main(void)
         CONFERE(!fechado && viu[AD_CONFETE] && viu[AD_LOBO] && viu[AD_REMENDO], "no Normal, so os adesivos abertos");
         perfis[0].nivel = N_NIVEIS;
         memset(viu, 0, sizeof viu);
-        for (int l = 0; l < 400; l++) { run.lojas = (uint8_t)l; monta_adesivo(); viu[run.adesivo] = true; }
+        // A raridade pesa como na vitrine: no primeiro salao, o lendario e raro;
+        // no terceiro, bem menos.
+        uint32_t sem0 = run.semente;
+        int por_rar[DES_ANDARES][4] = { { 0 } }, n_rar[4] = { 0 };
+        for (int a = 1; a < AD_N; a++) n_rar[RAR_ADESIVO[a]]++;
+        for (int an = 0; an < DES_ANDARES; an += 2) {
+            run.andar = (uint8_t)an;
+            for (int sm = 0; sm < 20; sm++)
+                for (int l = 0; l < 200; l++) {
+                    run.semente = sem0 + (uint32_t)sm * 7919u;
+                    run.lojas = (uint8_t)l;
+                    monta_adesivo();
+                    viu[run.adesivo] = true;
+                    por_rar[an][RAR_ADESIVO[run.adesivo]]++;
+                }
+        }
+        run.semente = sem0; run.andar = 0;
         int todos = 0;
         for (int a = 1; a < AD_N; a++) todos += viu[a];
         CONFERE(todos == AD_N - 1, "no ultimo nivel, todos os adesivos: %d de %d", todos, AD_N - 1);
+        // Por adesivo: [comum, lendario] no 1o salao ~ 3 : 0,4; no 3o, 0,5 : 1,5.
+        float c1 = (float)por_rar[0][RAR_COMUM] / n_rar[RAR_COMUM], l1 = (float)por_rar[0][RAR_LENDA] / n_rar[RAR_LENDA];
+        float c3 = (float)por_rar[2][RAR_COMUM] / n_rar[RAR_COMUM], l3 = (float)por_rar[2][RAR_LENDA] / n_rar[RAR_LENDA];
+        CONFERE(c1 > 5 * l1 && l3 > 2 * c3, "raridade dos adesivos na loja: 1o salao comum %.0f lendario %.0f; 3o comum %.0f lendario %.0f",
+                c1, l1, c3, l3);
         perfis[0].nivel = 0;
         CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
         monta_loja_run();

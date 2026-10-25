@@ -247,39 +247,44 @@ int main(int argc, char **argv)
                 break;
             }
             case F_RLOJA: {
-                if (lj_pac) {                // o pacote aberto: espera pousar e leva o mais raro
-                    if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); break; }
-                    int b = 0;
-                    for (int i = 1; i < PAC_OPCOES; i++)
-                        if (TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
-                    int n0 = run.n_col;
-                    cursor = b;
-                    trata_tecla(KEY_ENTER);
-                    CONFERE(run.n_col == n0 + 1 && run.pac_estado == PAC_USADO, "pacote: %d dados", run.n_col);
-                    pacotes++;
-                    break;
-                }
                 if (lj_colando) {            // colando: o dado de mais lados; o Reflexivo e o Avesso no lado
                     if (t_lj_cola > 0) { dado_passo(1.0f / 60); break; }   // mais baixo, os outros no mais alto
                     if (lj_colando == 1) {
                         int b = -1;
                         for (int i = 0; i < run.n_col; i++)
-                            if (ad_cabe(&run.col[i]) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
+                            if (ad_cabe_o(&run.col[i], cola_ad()) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
                         cursor = b;
                         trata_tecla(KEY_ENTER);
                         CONFERE(lj_colando == 2, "colar: o dado nao abriu");
                         break;
                     }
                     const peca_t *pc = &run.col[lj_cola_dado];
-                    int t = pc->tipo, a = run.adesivo, c = -1, m0 = run.moedas, n0 = ad_quantos(pc);
+                    int t = pc->tipo, a = cola_ad(), c = -1, m0 = run.moedas, n0 = ad_quantos(pc);
                     bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
                     for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
                         if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
+                    bool do_pacote = cola_pac >= 0;
                     cursor = c - ad_lado_min(t);
                     trata_tecla(KEY_ENTER);
-                    CONFERE(ad_no_lado(pc, c) == a && ad_quantos(pc) == n0 + 1 && run.moedas == m0 - preco_adesivo(a)
-                            && run.ad_vendido, "colar: o adesivo nao entrou");
+                    CONFERE(ad_no_lado(pc, c) == a && ad_quantos(pc) == n0 + 1
+                            && (do_pacote ? run.moedas == m0 && run.pac_estado == PAC_USADO
+                                          : run.moedas == m0 - preco_adesivo(a) && run.ad_vendido), "colar: o adesivo nao entrou");
                     adesivos++;
+                    break;
+                }
+                if (lj_pac) {                // o pacote aberto: espera pousar e leva o mais raro (dado ou adesivo)
+                    if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); break; }
+                    int b = 0;
+                    for (int i = 1; i < PAC_OPCOES; i++)
+                        if (pacote_de_adesivos() ? RAR_ADESIVO[pac_ad(i)] > RAR_ADESIVO[pac_ad(b)]
+                                                 : TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
+                    int n0 = run.n_col;
+                    bool ads = pacote_de_adesivos();
+                    cursor = b;
+                    trata_tecla(KEY_ENTER);
+                    CONFERE(ads ? lj_colando == 1 && cola_pac == b : run.n_col == n0 + 1 && run.pac_estado == PAC_USADO,
+                            "pacote: %d dados", run.n_col);
+                    pacotes++;
                     break;
                 }
                 if (lj_tirando) {            // tirando: a moeda, depois o D4
@@ -317,7 +322,8 @@ int main(int argc, char **argv)
                     trata_tecla(KEY_ENTER);
                     CONFERE(run.n_col == n0 + 1 && run.moedas == m0 - pr && run.levou[b], "compra nao entrou");
                     compras++;
-                } else if (run.pac_estado == PAC_VENDA && run.pacote < GR_N && run.moedas >= preco_pacote()) {
+                } else if (run.pac_estado == PAC_VENDA && tem_pacote() && run.moedas >= preco_pacote()
+                           && (!pacote_de_adesivos() || lj_algum_lado_livre())) {
                     int m0 = run.moedas;
                     cursor = nv;                 // sobrou: abre o pacote
                     trata_tecla(KEY_ENTER);

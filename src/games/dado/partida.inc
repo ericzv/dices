@@ -395,7 +395,9 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     if (p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL) {
         int ch[AD_LADOS], n = 0;
         for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
-        if (n && r(2) == 1) x0 = ch[n > 1 ? r(n) - 1 : 0];
+        // Um Chumbo: metade das vezes; dois (o maximo), cada um a metade.
+        if (n == 1 && r(2) == 1) x0 = ch[0];
+        else if (n > 1) x0 = ch[r(n) - 1];
         if (ad_no_lado(p, x0) == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
@@ -660,6 +662,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;
+        if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
@@ -1224,10 +1227,16 @@ static void flutua_evento(const evento_t *e)
         case AD_MIRA:       flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_GORJETA:    flutua_em(dj, dk, C_OURO, 0, "+%d fichas", e->valor); break;
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
-        case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dado", e->valor); break;
+        case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dados", e->valor); break;
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
         case AD_RATOEIRA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
+        case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
+        case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro
+            for (int k = 0; k < N_FILA; k++)
+                if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "+%d", e->por_dado[k]);
+            if (e->valor) flutua_em(dj, N_FILA, C_OURO, 0.1f, "+%d", e->valor);
+            break;
         case AD_FRAGIL:     flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor); break;
         case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++)
@@ -1295,7 +1304,8 @@ static void aplica_evento(int i)
         break;
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
         switch (e->ad) {
-        case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA:
+        case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
+        case AD_ETIQUETA: case AD_PATINHO:
             vis_semente[e->de_j] += e->valor;
             break;
         case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim)
@@ -1305,6 +1315,10 @@ static void aplica_evento(int i)
         case AD_SELO:                   // o lacre rompeu (pagando) ou fechou
             vis_semente[e->de_j] += e->valor;
             if (e->de_k < N_FILA) vis_selo[e->de_j][e->valor ? 0 : 1] |= (uint8_t)(1 << e->de_k);
+            break;
+        case AD_BILHETE:                // o bonus dos dados (por dado) e o de fora (valor)
+            for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->de_j][k] += e->por_dado[k];
+            vis_semente[e->de_j] += e->valor;
             break;
         case AD_ELETRONICO: case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k];

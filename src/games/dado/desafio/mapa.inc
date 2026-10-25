@@ -80,26 +80,34 @@ static void monta_vitrine(void)
 // sorte. So entra na loja o grupo que ja tem pelo menos 3 dados abertos.
 // ---------------------------------------------------------------------------
 enum { GR_NUMEROS, GR_ATAQUE, GR_DEFESA, GR_COMBO, GR_N, GR_NENHUM = 0xFF };
+// O pacote de adesivos: metade das lojas, no lugar do de dados. As cartas
+// guardam o adesivo em pac_op[i].ad[0] (a run salva fica como era).
+#define GR_ADESIVOS GR_N
 enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
 #define PRECO_PACOTE 4
-static const char *const NOME_GRUPO[GR_N] = { "Números", "Ataque", "Defesa", "Combo" };
-static const char *const DESC_GRUPO[GR_N] = {
+static const char *const NOME_GRUPO[GR_N + 1] = { "Números", "Ataque", "Defesa", "Combo", "Adesivos" };
+static const char *const DESC_GRUPO[GR_N + 1] = {
     "Números grandes e dados que pontuam muito (ou nada) sozinhos.",
     "Dados que tiram pontos, anulam ou roubam do oponente.",
     "Dados que não são anulados, protegem a sequência ou ganham quando são anulados.",
-    "Dados que ganham com os outros dados da sua sequência." };
+    "Dados que ganham com os outros dados da sua sequência.",
+    "Adesivos para colar num lado de um dado seu." };
 // A cor de cada grupo (texto e moldura) e o papel do embrulho: a luz da
 // tampa, a frente e o lado na sombra, todos da paleta.
-static const uint16_t PAPEL_GRUPO[GR_N][3] = {
+static const uint16_t PAPEL_GRUPO[GR_N + 1][3] = {
     { RGB(228, 194, 106), RGB(190, 156, 86), RGB(150, 122, 62) },     // ouro
     { RGB(208, 98, 108), RGB(190, 56, 60), RGB(118, 30, 38) },        // vermelho
     { RGB(96, 134, 196), RGB(56, 86, 150), RGB(26, 34, 62) },         // azul
-    { RGB(150, 112, 160), RGB(102, 74, 138), RGB(54, 36, 74) } };     // roxo
+    { RGB(150, 112, 160), RGB(102, 74, 138), RGB(54, 36, 74) },       // roxo
+    { RGB(130, 204, 112), RGB(72, 150, 138), RGB(26, 34, 62) } };     // os adesivos: verde-agua
 static uint16_t cor_grupo(int g)
 {
-    static const uint16_t C[GR_N] = { C_OURO, C_VINHO_CLR, RGB(96, 134, 196), RGB(150, 112, 160) };
-    return g >= 0 && g < GR_N ? C[g] : C_LATAO;
+    static const uint16_t C[GR_N + 1] = { C_OURO, C_VINHO_CLR, RGB(96, 134, 196), RGB(150, 112, 160), RGB(130, 204, 112) };
+    return g >= 0 && g <= GR_ADESIVOS ? C[g] : C_LATAO;
 }
+static bool tem_pacote(void) { return run.pacote <= GR_ADESIVOS; }
+static bool pacote_de_adesivos(void) { return run.pacote == GR_ADESIVOS; }
+static int pac_ad(int i) { return i >= 0 && i < PAC_OPCOES && run.pac_op[i].ad[0] < AD_N ? run.pac_op[i].ad[0] : AD_NADA; }
 
 static int grupo_do_dado(int t)
 {
@@ -161,6 +169,8 @@ static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n
 
 // O pacote desta loja: o grupo, ao acaso entre os que tem dados bastantes,
 // e o que vem dentro (da semente: sair e voltar mostra o mesmo).
+static int sorteia_adesivo_loja(const uint8_t *fora, int n);
+static int adesivos_abertos(void);
 static void monta_pacote(void)
 {
     rs = run.semente ^ (0xBA6E1u * (uint32_t)(run.lojas + 1));
@@ -169,22 +179,56 @@ static void monta_pacote(void)
     for (int g = 0; g < GR_N; g++) if (dados_no_grupo(g) >= PAC_OPCOES) pode[n++] = g;
     run.pac_estado = PAC_VENDA;
     memset(run.pac_op, 0, sizeof run.pac_op);
+    // Metade das lojas traz o pacote de adesivos (com 3 abertos, pelo menos).
+    if (adesivos_abertos() >= PAC_OPCOES && (!n || sorte_r(2))) {
+        run.pacote = GR_ADESIVOS;
+        uint8_t ja[PAC_OPCOES];
+        for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i].ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i);
+        return;
+    }
     if (!n) { run.pacote = GR_NENHUM; run.pac_estado = PAC_USADO; return; }
     run.pacote = (uint8_t)pode[sorte_r(n)];
     for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
 }
 
 // O adesivo da loja (adesivos.inc): um por loja, entre os que o perfil ja
-// abriu (o Crupie abre o de cada nivel). Trocar a vitrine nao muda o adesivo.
+// abriu (o Crupie abre o de cada nivel), sorteado pela raridade com os pesos
+// da vitrine: no primeiro salao, os lendarios quase nao saem. Trocar a
+// vitrine nao muda o adesivo.
 static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
+static int adesivos_abertos(void)
+{
+    int n = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) n += adesivo_liberado(a);
+    return n;
+}
+// Um adesivo aberto, pela raridade com os pesos do salao, fora os n de 'fora'.
+static int sorteia_adesivo_loja(const uint8_t *fora, int n)
+{
+    const float *w = peso_do_salao();
+    float total = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= fora[k] == a;
+        if (adesivo_liberado(a) && !ja) total += w[RAR_ADESIVO[a]];
+    }
+    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+    int r = AD_NADA;
+    for (int a = AD_NADA + 1; a < AD_N && total > 0; a++) {
+        bool ja = false;
+        for (int k = 0; k < n; k++) ja |= fora[k] == a;
+        if (!adesivo_liberado(a) || ja) continue;
+        r = a;
+        if ((x -= w[RAR_ADESIVO[a]]) < 0) break;
+    }
+    return r;
+}
 static void monta_adesivo(void)
 {
     rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
     rnd_r();
-    int livres[AD_N], n = 0;
-    for (int a = AD_NADA + 1; a < AD_N; a++) if (adesivo_liberado(a)) livres[n++] = a;
-    run.adesivo = (uint8_t)(n ? livres[sorte_r(n)] : AD_NADA);
+    run.adesivo = (uint8_t)sorteia_adesivo_loja(NULL, 0);
     run.ad_vendido = 0;
 }
 

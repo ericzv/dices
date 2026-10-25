@@ -467,6 +467,8 @@ static void des_comeca_partida(void)
     rodada = 0;
     memset(bis_extra, 0, sizeof bis_extra);
     memset(ad_moedas, 0, sizeof ad_moedas);
+    memset(album, 0, sizeof album);
+    ad_album_vazio(J[0].col, J[0].n_col);       // o album comeca vazio a cada partida
     pote = 0;
     primeiro = (int)(rnd() & 1);
     venc_partida = -1;

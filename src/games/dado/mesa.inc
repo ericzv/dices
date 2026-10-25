@@ -1356,6 +1356,25 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
+    case AD_FIGURINHA: {                                        // o album: os cromos colados abrem em leque
+        int n = e->valor ? e->valor / FIGURINHA_CADA : 1;
+        if (n > 9) n = 9;
+        for (int c = 0; c < n && p < 0.95f; c++) {
+            float q = (p - 0.1f - c * 0.06f) / 0.25f;
+            if (q <= 0) continue;
+            if (q > 1) q = 1;
+            float an = (c - (n - 1) / 2.0f) * 0.42f;              // o leque, de um lado ao outro
+            int rr = (int)(q * (R_DADO + 26));
+            int x = ax + (int)(sinf(an) * rr), y = ay + dir * (int)(cosf(an) * rr);
+            bool nova = c == n - 1;                             // a ultima (a deste lance) pisca
+            gfx_rect(x - 3, y - 4 + 1, 7, 9, C_SOMBRA);
+            gfx_rect(x - 4, y - 5, 8, 10, nova && (int)(t_fase * 12) % 2 ? C_OURO : d->tinta);
+            gfx_rect(x - 3, y - 4, 6, 8, C_BRANCO);
+            gfx_rect(x - 1, y - 2, 2, 2, RGB(190, 56, 60));      // o jogador do cromo
+            gfx_rect(x - 2, y, 4, 2, RGB(190, 56, 60));
+        }
+        break;
+    }
     case AD_RATOEIRA: {                                         // a mola estala no dado e a barra vai ate o maior dele
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         float q = fminf(1, p / 0.15f);

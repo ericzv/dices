@@ -26,6 +26,7 @@ typedef struct {
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
+    uint8_t figurinha[2], album[2];  // Figurinhas que entram no album agora (posicoes); o album com elas
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -990,6 +991,10 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
         }
 }
 
+// As Figurinhas diferentes que ja cairam nesta partida, de cada um (o album
+// zera quando a partida comeca).
+static uint8_t album[2];
+
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
 // Avesso, o Remendo, o Post-it), ou na regra da fila (o Transparente, o
 // Corretivo): no fim da rodada so contam para a Purpurina.
@@ -1089,6 +1094,17 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
     }
+    case AD_FIGURINHA: {                         // o album da partida: +2 por figurinha diferente
+        if (!vale) {                             // anulada: so entra no album (se e nova)
+            if (copia || !(d->figurinha[j] >> k & 1)) return false;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "Figurinha: entra no álbum (%d)", d->album[j]);
+            break;
+        }
+        int pts = FIGURINHA_CADA * d->album[j];
+        d->semente[j] += pts;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, pts, "%sFigurinha: %d no álbum, +%d", pre, d->album[j], pts);
+        break;
+    }
     case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
         if (!vale) return false;
         bool couraca = tem_am(r, A_COURACA);
@@ -1125,6 +1141,14 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     int agiram = d->ratoeira[j];
     int fonte[N_FILA], qual[N_FILA], n_fonte = 0;     // o que o Holografico copia: o dado e o adesivo
+    // As Figurinhas que caem pela primeira vez na partida entram no album
+    // antes de pagar: a do lance ja conta.
+    d->album[j] = album[j];
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (ad_fila(j, k) == AD_FIGURINHA && d->est[j][k] != V_ROUBADO && !ad_no_album(peca_fila(j, k), F[j].lado[k])) {
+            d->figurinha[j] |= (uint8_t)(1 << k);
+            if (d->album[j] < 255) d->album[j]++;
+        }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         const peca_t *pc = peca_fila(j, k);
         if (!pc || !pc->selo) continue;

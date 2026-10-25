@@ -911,6 +911,19 @@ def ad_ratoeira():
     m.poe(0.01, mola, 0.22)
     return sala(m.x, 0.1)
 
+def ad_figurinha():
+    """A figurinha no album: o papel da figurinha virando, o tapa que cola na
+    pagina e dois sininhos de "completei"."""
+    m = Mix(0.9)
+    n = int(0.07 * SR); q = np.linspace(0, 1, n)
+    m.poe(0, banda(rng.standard_normal(n), 2500, 8000) * np.sin(np.pi * q), 0.2)   # o papel
+    m.poe(0.08, pb(superficie('surface_felt2'), 3500), 0.8)                       # o tapa na pagina
+    m.poe(0.08, tom(batida('dicehit_wood3'), 7), 0.3)
+    m.poe(0.16, nota('glockenspiel', 91, 0.15, 0.3), 0.35)
+    m.poe(0.24, nota('glockenspiel', 96, 0.25, 0.4), 0.35)
+    m.poe(0.24, nota('vibraphone', 84, 0.35, 0.4), 0.25)
+    return sala(m.x, 0.16)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1266,7 +1279,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_estrelinha': VOLUME['efeito'], 'ad_corretivo': VOLUME['efeito'] * 0.75,
                'ad_imantado': VOLUME['efeito'], 'ad_postit': VOLUME['efeito'] * 0.7,
                'ad_holografico': VOLUME['efeito'], 'ad_purpurina': VOLUME['efeito'],
-               'ad_velcro': VOLUME['efeito'] * 0.8, 'ad_ratoeira': VOLUME['anula']})
+               'ad_velcro': VOLUME['efeito'] * 0.8, 'ad_ratoeira': VOLUME['anula'],
+               'ad_figurinha': VOLUME['efeito']})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1296,7 +1310,7 @@ SONS = {
 for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 'ad_eletronico', 'ad_transparente',
              'ad_dourado', 'ad_lobo', 'ad_remendo', 'ad_raspadinha', 'ad_fermento', 'ad_bis', 'ad_mira', 'ad_gorjeta', 'ad_selo',
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
-             'ad_velcro', 'ad_ratoeira',
+             'ad_velcro', 'ad_ratoeira', 'ad_figurinha',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela'):
     SONS[nome] = (globals()[nome], nome)

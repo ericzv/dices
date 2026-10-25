@@ -2761,6 +2761,43 @@ int main(void)
                 "Velcro: o dado ficou na mao (%d na mao)", J[0].n_mao);
         descarta_mao(&J[0]);
         CONFERE(J[0].n_mao == 0 && J[0].onde[3] == FORA, "Velcro: na outra rodada sai como sempre");
+        // A Figurinha: +2 por figurinha diferente no album da partida (ela junto);
+        // cair de novo nao conta outra vez; anulada so entra no album.
+        memset(album, 0, sizeof album);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_FIGURINHA);
+        ad_cola(&J[0].col[3], 5, AD_FIGURINHA);
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[5], 6, AD_FIGURINHA);
+        ad_cola(&J[0].col[5], 1, AD_FIGURINHA);
+        int fig[5];
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3);
+        d = fim(); fig[0] = d.total[0]; adesivos_ficam(0, &d);
+        limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3);       // a mesma figurinha: continua 1 no album
+        d = fim(); fig[1] = d.total[0]; adesivos_ficam(0, &d);
+        limpa(); joga_ad(0, 3, 5); joga(1, D_D4, 3);       // a outra do mesmo dado: 2
+        d = fim(); fig[2] = d.total[0]; adesivos_ficam(0, &d);
+        limpa(); joga_ad(0, 4, 4); joga_ad(0, 5, 1); joga(1, D_D4, 3);   // anulada: entra no album (3), nao paga
+        d = fim(); fig[3] = d.total[0]; adesivos_ficam(0, &d);
+        limpa(); joga_ad(0, 3, 6); joga_ad(0, 5, 6); joga(1, D_D4, 3);   // duas: uma ja estava, outra nova (4)
+        d = fim(); fig[4] = d.total[0]; adesivos_ficam(0, &d);
+        CONFERE(fig[0] == 6 + 2 && fig[1] == 6 + 2 && fig[2] == 5 + 4 && fig[3] == 0 && fig[4] == 12 + 8 + 8 && album[0] == 4,
+                "Figurinha: %d %d %d %d %d (album %d)", fig[0], fig[1], fig[2], fig[3], fig[4], album[0]);
+        CONFERE(ad_no_lado(&J[0].col[3], 6) == AD_FIGURINHA && ad_no_album(&J[0].col[3], 6) && ad_quantos(&J[0].col[3]) == 2,
+                "Figurinha: marcada no album, o adesivo continua la");
+        ad_album_vazio(J[0].col, J[0].n_col);
+        memset(album, 0, sizeof album);
+        CONFERE(!ad_no_album(&J[0].col[3], 6) && !ad_no_album(&J[0].col[5], 1) && ad_no_lado(&J[0].col[5], 1) == AD_FIGURINHA,
+                "Figurinha: a partida seguinte comeca com o album vazio");
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };          // o Holografico valendo paga o album tambem
+        ad_cola(&J[0].col[4], 4, AD_HOLOGRAFICO);
+        limpa(); joga_ad(0, 4, 4); joga_ad(0, 3, 5); joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 4 + 5 + 2 + 2, "Holografico como Figurinha: %d", d.total[0]);
+        memset(album, 0, sizeof album);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        J[0].col[4] = (peca_t){ .tipo = D_D4 };
+        J[0].col[5] = (peca_t){ .tipo = D_D6 };
         // A Ratoeira: anulada por um poder do oponente, anula o maior dele que vale.
         J[1].n_col = 2;
         J[1].col[0] = (peca_t){ .tipo = D_D4 };

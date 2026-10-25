@@ -43,7 +43,9 @@ enum {
     // Os adesivos do Desafiante: colar na loja e cada um agindo
     SOM_AD_COLA, SOM_AD_CHUMBO, SOM_AD_REFLEXIVO, SOM_AD_AVESSO, SOM_AD_CONFETE, SOM_AD_ELETRONICO,
     SOM_AD_TRANSPARENTE, SOM_AD_DOURADO, SOM_AD_LOBO, SOM_AD_REMENDO, SOM_AD_RASPADINHA, SOM_AD_FERMENTO,
-    SOM_AD_BIS, SOM_AD_MIRA, SOM_AD_GORJETA,
+    SOM_AD_BIS, SOM_AD_MIRA, SOM_AD_GORJETA, SOM_AD_SELO,
+    SOM_AD_FRAGIL, SOM_AD_ESTRELINHA, SOM_AD_CORRETIVO, SOM_AD_IMANTADO, SOM_AD_POSTIT, SOM_AD_HOLOGRAFICO,
+    SOM_AD_PURPURINA, SOM_AD_VELCRO, SOM_AD_RATOEIRA,
     SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
     SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)

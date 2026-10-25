@@ -204,7 +204,7 @@ static int tipo_em_foco(void)
         if (cursor >= 0 && cursor < N_LOJA) return loja[cursor].tipo;
         break;
     case F_PREMIO:
-        if (!removendo && cursor >= 0 && cursor < 3) return oferta[cursor].tipo;
+        if (!removendo && !premio_colando() && cursor >= 0 && cursor < 3 && !oferta_ad[cursor]) return oferta[cursor].tipo;
         break;
     default:
         return des_foco();

@@ -975,6 +975,24 @@ typedef struct {
     uint8_t  presente;
 } run_t;
 
+// A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
+// campo, com a peca de 13 bytes. Abre convertida (des_carrega).
+typedef struct {
+    char     marca[4];
+    uint8_t  andar, passo, estado, vitorias;
+    int32_t  moedas;
+    uint32_t semente;
+    uint8_t  n_col, dificuldade;
+    peca13_t col[MAX_COL];
+    no_t     no[DES_PASSOS];
+    uint16_t amuletos, amuletos_hi;
+    uint8_t  am_oferta[3], am_volta, am_selo, am_novo, ganho, juros, taca;
+    peca13_t vitrine[VITRINE_MAX];
+    uint8_t  levou[VITRINE_MAX], trocas, remocoes, lojas, pacote, pac_estado;
+    peca13_t pac_op[PAC_OPCOES];
+    uint8_t  adesivo, ad_vendido, dourado, amuletos_x, colar, presente;
+} run13_t;
+
 static run_t run;
 static int   des_cur;                    // linha do cursor no mapa
 

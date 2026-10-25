@@ -418,6 +418,7 @@ static void trata_tecla(int k)
         jogador_t *p = &J[vez];
         slot_pula();                                // tecla do rival: a roleta daqui trava
         if (t_tira > 0) return;                     // dado saindo: espera
+        if (premio_colando()) { cola_tecla(k, e); return; }   // o adesivo: em qual dado, em qual lado
         if (removendo) {
             int por = grade_tira(p->n_col).por;
             if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return; }
@@ -432,6 +433,11 @@ static void trata_tecla(int k)
         if (k == KEY_ENTER) {
             if (cursor == 3) {
                 if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
+                return;
+            }
+            // O adesivo: escolhe o dado e o lado (sem lado livre, nao leva).
+            if (oferta_ad[cursor]) {
+                if (!premio_cola_comeca(cursor)) som_toca_tom(SOM_TIQUE, -7);
                 return;
             }
             // O dado ganho fica fora da bolsa ate o proximo embaralho: o

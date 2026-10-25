@@ -86,15 +86,44 @@ static void des_salva(void)
     salva_grava(chave_run(), buf);
 }
 
+// A run de antes dos adesivos de um byte (run13_t) na de agora, campo a campo.
+static void run_de_13(run_t *r, const run13_t *v)
+{
+    memcpy(r->marca, v->marca, 4);
+    r->andar = v->andar; r->passo = v->passo; r->estado = v->estado; r->vitorias = v->vitorias;
+    r->moedas = v->moedas; r->semente = v->semente; r->n_col = v->n_col; r->dificuldade = v->dificuldade;
+    for (int i = 0; i < MAX_COL; i++) r->col[i] = peca_de_13(&v->col[i]);
+    memcpy(r->no, v->no, sizeof r->no);
+    r->amuletos = v->amuletos; r->amuletos_hi = v->amuletos_hi;
+    memcpy(r->am_oferta, v->am_oferta, sizeof r->am_oferta);
+    r->am_volta = v->am_volta; r->am_selo = v->am_selo; r->am_novo = v->am_novo;
+    r->ganho = v->ganho; r->juros = v->juros; r->taca = v->taca;
+    for (int i = 0; i < VITRINE_MAX; i++) r->vitrine[i] = peca_de_13(&v->vitrine[i]);
+    memcpy(r->levou, v->levou, sizeof r->levou);
+    r->trocas = v->trocas; r->remocoes = v->remocoes; r->lojas = v->lojas;
+    r->pacote = v->pacote; r->pac_estado = v->pac_estado;
+    for (int i = 0; i < PAC_OPCOES; i++) r->pac_op[i] = peca_de_13(&v->pac_op[i]);
+    r->adesivo = v->adesivo; r->ad_vendido = v->ad_vendido; r->dourado = v->dourado;
+    r->amuletos_x = v->amuletos_x; r->colar = v->colar; r->presente = v->presente;
+}
+
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
-// para tras.
+// para tras. A de antes dos adesivos de um byte abre convertida, e a de antes
+// do Presente (sem o ultimo byte) abre com ele em 0.
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
+    static run13_t v;
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
     memset(r, 0, sizeof *r);
-    size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente) : sizeof *r;   // a de antes do Presente
-    if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
+    memset(&v, 0, sizeof v);
+    if (n == (int)(2 * sizeof v) || n == (int)(2 * offsetof(run13_t, presente))) {
+        if (!de_hex(buf, &v, (size_t)n / 2)) return false;
+        run_de_13(r, &v);
+    } else {
+        size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente) : sizeof *r;
+        if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
+    }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
@@ -417,6 +446,7 @@ static void des_comeca_partida(void)
     J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
+    for (int i = 0; i < J[0].n_col; i++) J[0].col[i].velcro = 0;   // o Velcro so segura de uma rodada para a outra
     zera_acumuladores(J[0].col, J[0].n_col);
     J[1].nome = PERSO[no->perso].nome;
     J[1].cor = C_ROSA;

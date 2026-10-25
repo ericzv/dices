@@ -2,10 +2,15 @@
 // Estado
 // ===========================================================================
 // Uma peca da bolsa: o tipo, e para o Quebrado o numero gravado nele. No
-// Desafiante, os adesivos (adesivos.inc): um por lado, meio byte cada (o lado
-// 1 no meio byte baixo de ad[0]), e o que o Fermento dela ja cresceu.
+// Desafiante, os adesivos (adesivos.inc): um por lado (ad[0] e o lado 1), o
+// que o Fermento dela ja cresceu e duas marcas: o lacre do Selo (o proximo
+// lance dela, valendo, pontua mais) e o Velcro (ela volta para a mao na
+// rodada seguinte). A run salva de antes, com os adesivos em meio byte
+// (peca13_t), abre convertida (des_carrega).
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento; } peca_t;
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento; uint8_t selo : 1, velcro : 1; } peca_t;
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca13_t;
+_Static_assert(sizeof(peca_t) == 4 + AD_LADOS && sizeof(peca13_t) == 13, "a peca vai assim para a run salva");
 
 // Cada dado do jogador esta num de tres lugares.
 enum { NA_BOLSA, NA_MAO, FORA, COMIDO };    // COMIDO: a Autofagia o comeu; volta na proxima partida
@@ -97,6 +102,7 @@ typedef struct {
     int8_t  por_dado[N_FILA];        // bonus ou multiplicador de cada um
     amul_t  am;                      // amuletos que acendem quando ele toca
     uint8_t ad;                      // EV_ADESIVO: o adesivo
+    uint8_t copia;                   // EV_ADESIVO: o Holografico copiando o 'ad' (o dado e o dele)
     char txt[64];
 } evento_t;
 #define MAX_EV 64                    // a Saideira repete a cadeia inteira
@@ -163,6 +169,7 @@ static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perde
 static int  vence_j = -1;            // quem joga em segundo e ja passou do alvo: a vez acabou
 static float t_vence;                // desde quando (o placar dele acende)
 static peca_t oferta[3];
+static uint8_t oferta_ad[3];            // o cartao i e um adesivo (0: e o dado de oferta[i])
 static char aviso[96], veredito[96], nota[48];
 // A vez da maquina contra uma pessoa: os menus dela nao aparecem; o que ela
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
@@ -190,6 +197,8 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
+static uint8_t vis_selo[2][2];                   // posicoes na fila: [0] o lacre do Selo ja rompeu; [1] ja lacrou
+static uint8_t vis_fragil[2];            // o Fragil anulado ja rachou (quebra no fim da rodada)
 static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
 static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];

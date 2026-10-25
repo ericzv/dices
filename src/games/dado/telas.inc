@@ -485,6 +485,7 @@ static void desenha_premio(void)
     jogador_t *p = &J[vez];
     char t[64];
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    if (premio_colando()) { premio_cola_desenha(); return; }   // o adesivo ganho: o dado e o lado
 
     if (removendo) {
         // Escolha de qual dado sai da colecao: a colecao inteira em duas linhas.
@@ -530,11 +531,11 @@ static void desenha_premio(void)
     bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
         int x = GFX_W / 2 + (i - 1) * 150;
-        int t2 = oferta[i].tipo;
+        int t2 = oferta[i].tipo, ad = oferta_ad[i];
         float para = slot_para(i);
         bool parado = t_slot < 0 || t_slot >= para;
         bool cur = i == cursor && !girando;
-        uint16_t cr = cor_rar(t2);
+        uint16_t cr = COR_RAR[rar_oferta(i)];
         ui_cartao(x - 64, 90, 128, 110, cur, cr);
         if (!parado) {
             // O rolo: dados passando de cima para baixo, cada vez mais devagar,
@@ -554,8 +555,14 @@ static void desenha_premio(void)
                 float q = 1 - fabsf(dy) / 40;
                 if (q <= 0.35f) continue;
                 peca_t pc = oferta[i];
+                uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
+                if (ad) {                                // o rolo de adesivos: passam outros
+                    int a = k > 0 ? 1 + (int)(h % (uint32_t)(AD_N - 1)) : ad;
+                    if (!ad_no_premio(a)) a = AD_CONFETE;          // (o Dourado nao sai aqui)
+                    ad_solto_d(x, 126 + (int)dy, a, q > 0.75f ? 5 : 4, 0);
+                    continue;
+                }
                 if (k > 0) {
-                    uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(i * 40503u + 17);
                     // So os tipos que podem sair aqui: os basicos.
                     pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
@@ -579,16 +586,30 @@ static void desenha_premio(void)
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         if (cur) brilho_passa = mola_brilho();
-        peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
-        txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
-        char c2[32];
-        classe(t2, c2, sizeof c2);
+        char c2[40];
+        if (ad) {                                    // o adesivo: solto, a ponta levantando na vez dele
+            float descola = cur ? 0.25f + 0.15f * sinf(t_fase * 4) : 0;
+            ad_solto_d(x, 128 + (int)(bob + pulo), ad, acende && q < 0.5f ? 6 : 5, descola);
+            txt_c(x, 162, ADESIVO[ad].nome, cur || acende ? ADESIVO[ad].luz : C_MARFIM_S, true);
+            snprintf(c2, sizeof c2, "adesivo · %s", RARIDADE[RAR_ADESIVO[ad]]);
+        } else {
+            peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
+            txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
+            classe(t2, c2, sizeof c2);
+        }
         txt_c(x, 180, c2, cr, false);
         zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > N_FILA;
     if (girando) {
         txt_c(GFX_W / 2, 212, "sorteando...", C_OURO, true);
+    } else if (cursor < 3 && oferta_ad[cursor]) {   // o adesivo: o que faz, e que vai num lado de um dado seu
+        const adesivo_t *d = &ADESIVO[oferta_ad[cursor]];
+        if (premio_cabe()) {
+            char l[112];
+            snprintf(l, sizeof l, "%s %s", d->l1, d->l2);
+            txt_c(GFX_W / 2, 212, l, C_MARFIM, false);
+        } else txt_c(GFX_W / 2, 212, "nenhum dado seu tem lado livre", C_VINHO_CLR, false);
     } else if (cursor < 3) {
         txt_c(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, false);
     } else {

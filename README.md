@@ -71,9 +71,15 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
   na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 14, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (sai nesse lado metade das vezes), ao Avesso (vira o dado) e à Mira (anula o
-  menor do oponente); seis desde o começo, os outros abrem nos níveis 1 a 8.
+  lado para cima: são 24, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  (sai nesse lado metade das vezes), ao Avesso (vira o dado), à Mira (anula o
+  menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
+  cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
+  Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
+  dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
+  rodada seguinte), à Ratoeira (anulada pelo oponente, o maior dele cai) e ao
+  Holográfico (repete os adesivos que agiram nos seus dados); sete desde o
+  começo, os outros abrem nos níveis 1 a 9, dois por nível.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
@@ -120,6 +126,21 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto e qual chefe abre o que falta.
+
+## 2 jogadores e online: o prêmio da rodada
+
+Quem vence a rodada (ou fica com o pote porque o outro correu) escolhe um
+prêmio entre três cartões, numa roleta, ou troca o prêmio por tirar um dado
+da bolsa. A raridade sobe com a partida: da 1ª à 5ª rodada, comuns e
+incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
+lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
+um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
+Raspadinha, Confete, Lobo, Gorjeta, Selo, Frágil, Estrelinha, Imantado e
+Velcro; incomuns: Reflexivo, Remendo, Bis, Avesso, Corretivo, Post-it e
+Ratoeira; raros: Eletrônico, Transparente, Fermento e Purpurina; lendários:
+Chumbo, Mira e Holográfico). Levando o adesivo, você escolhe o dado da sua
+bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
+moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 
 ## Jogar no navegador (e online)
 

@@ -3,7 +3,7 @@
 #include <string.h>
 #include "hal/salva.h"
 
-static struct { char chave[16]; char texto[4096]; } salva_mem[8];
+static struct { char chave[16]; char texto[16384]; } salva_mem[8];   // a run salva tem uns 7 KB
 
 static int salva_slot(const char *chave, bool cria)
 {

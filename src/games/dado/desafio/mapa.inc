@@ -175,16 +175,25 @@ static void monta_pacote(void)
 }
 
 // O adesivo da loja (adesivos.inc): um por loja, entre os que o perfil ja
-// abriu (o Crupie abre o de cada nivel). Trocar a vitrine nao muda o adesivo.
+// abriu (o Crupie abre o de cada nivel), sorteado pela raridade com os pesos
+// da vitrine: no primeiro salao, os lendarios quase nao saem. Trocar a
+// vitrine nao muda o adesivo.
 static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
 static void monta_adesivo(void)
 {
     rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
     rnd_r();
-    int livres[AD_N], n = 0;
-    for (int a = AD_NADA + 1; a < AD_N; a++) if (adesivo_liberado(a)) livres[n++] = a;
-    run.adesivo = (uint8_t)(n ? livres[sorte_r(n)] : AD_NADA);
+    const float *w = peso_do_salao();
+    float total = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (adesivo_liberado(a)) total += w[RAR_ADESIVO[a]];
+    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+    run.adesivo = AD_NADA;
+    for (int a = AD_NADA + 1; a < AD_N && total > 0; a++) {
+        if (!adesivo_liberado(a)) continue;
+        run.adesivo = (uint8_t)a;
+        if ((x -= w[RAR_ADESIVO[a]]) < 0) break;
+    }
     run.ad_vendido = 0;
 }
 

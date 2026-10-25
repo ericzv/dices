@@ -16,6 +16,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define FRAGIL_PONTOS 6                         // o Fragil valendo
 #define ESTRELINHA_PONTOS 6                     // a Estrelinha com a sequencia cheia
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
+#define BIS_DADOS 2                             // o Bis: dados a mais na proxima compra
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7.
@@ -56,7 +57,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_FERMENTO]     = { "Fermento", "tirando este lado, se terminar", "válido: +1, crescendo a cada vez", 5, 6,
                           RGB(238, 162, 74), RGB(246, 222, 132), RGB(56, 32, 20),
                           { "...#...", "..###..", ".#####.", "...#...", "..###..", ".#####.", "#######" } },
-    [AD_BIS]          = { "Bis", "tirando este lado: 1 dado", "a mais na próxima rodada", 4, 2,
+    [AD_BIS]          = { "Bis", "tirando este lado: 2 dados", "a mais na próxima rodada", 4, 2,
                           RGB(102, 74, 138), RGB(150, 112, 160), C_BRANCO,
                           { "####...", "#..#...", "#..####", "####..#", "...#..#", "...####", "......." } },
     [AD_MIRA]         = { "Mira", "tirando este lado, se terminar", "válido: anula o menor do oponente", 6, 8,
@@ -100,14 +101,15 @@ static const adesivo_t ADESIVO[AD_N] = {
                           { ".......", "....##.", "..####.", ".##.###", "#######", ".......", "#######" } },
 };
 
-// A raridade de cada um (a mesma escala dos dados), para o premio do modo de
-// 2 jogadores: pelo preco da loja, 2-3 comum, 4 incomum, 5 raro, 6 lendario.
+// A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
+// do Desafiante (como na vitrine, pelo salao) e no premio do modo de 2
+// jogadores (pela rodada).
 static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_RASPADINHA] = RAR_COMUM, [AD_CONFETE] = RAR_COMUM, [AD_LOBO] = RAR_COMUM, [AD_GORJETA] = RAR_COMUM,
-    [AD_SELO] = RAR_COMUM, [AD_FRAGIL] = RAR_COMUM, [AD_ESTRELINHA] = RAR_COMUM, [AD_IMANTADO] = RAR_COMUM,
-    [AD_VELCRO] = RAR_COMUM,
+    [AD_FRAGIL] = RAR_COMUM, [AD_VELCRO] = RAR_COMUM,
     [AD_REFLEXIVO] = RAR_INCOMUM, [AD_REMENDO] = RAR_INCOMUM, [AD_BIS] = RAR_INCOMUM, [AD_AVESSO] = RAR_INCOMUM,
     [AD_CORRETIVO] = RAR_INCOMUM, [AD_POSTIT] = RAR_INCOMUM, [AD_RATOEIRA] = RAR_INCOMUM,
+    [AD_SELO] = RAR_INCOMUM, [AD_ESTRELINHA] = RAR_INCOMUM, [AD_IMANTADO] = RAR_INCOMUM,
     [AD_ELETRONICO] = RAR_RARO, [AD_TRANSPARENTE] = RAR_RARO, [AD_DOURADO] = RAR_RARO, [AD_FERMENTO] = RAR_RARO,
     [AD_PURPURINA] = RAR_RARO,
     [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
@@ -158,13 +160,26 @@ static bool ad_cabe(const peca_t *p)
     for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo); l++) if (!ad_no_lado(p, l)) return true;
     return false;
 }
+// Quantos lados dele tem o adesivo a.
+static int ad_conta(const peca_t *p, int a)
+{
+    int n = 0;
+    for (int l = 1; l <= AD_LADOS; l++) n += ad_no_lado(p, l) == a;
+    return n;
+}
+// Cabe o adesivo a nele? Um por lado, e no maximo dois Chumbos por dado.
+#define CHUMBO_MAX 2
+static bool ad_cabe_o(const peca_t *p, int a)
+{
+    return ad_cabe(p) && (a != AD_CHUMBO || ad_conta(p, AD_CHUMBO) < CHUMBO_MAX);
+}
 
 // ---------------------------------------------------------------------------
 // O desenho: o simbolo, o adesivo solto e os selinhos da borda
 // ---------------------------------------------------------------------------
 // A regra inteira, para a colecao.
 static const char *const AD_TEXTO[AD_N] = {
-    [AD_CHUMBO]       = "O dado tira o lado do Chumbo metade das vezes; na outra metade rola normalmente (e ainda pode tirar esse lado). Com dois Chumbos no mesmo dado, a metade se divide entre eles.",
+    [AD_CHUMBO]       = "O dado tira o lado do Chumbo metade das vezes; na outra metade rola normalmente (e ainda pode tirar esse lado). Cabem no máximo dois Chumbos num dado: com dois, cada um sai metade das vezes.",
     [AD_REFLEXIVO]    = "Tirando este lado, o dado rola de novo, uma vez só, e pontua o segundo lance.",
     [AD_CONFETE]      = "Tirando este lado, se o dado terminar válido: +4 pontos no fim da rodada.",
     [AD_ELETRONICO]   = "Tirando este lado, se o dado terminar válido: pontua x2 no fim da rodada (soma com os outros multiplicadores).",
@@ -174,7 +189,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_REMENDO]      = "Este lado tem 2 a mais, e o dado tira esse número: um 3 vira 5, e o 5 conta na sequência e nos poderes do dado (no Explosivo, o 6 vira 8 e explode).",
     [AD_RASPADINHA]   = "Tirando este lado, se o dado terminar válido: +10 pontos no fim da rodada, e o adesivo sai do dado.",
     [AD_FERMENTO]     = "Tirando este lado, se o dado terminar válido: +1 na primeira vez, +2 na segunda, e assim por diante. O dado guarda o quanto cresceu, a run inteira.",
-    [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 1 dado a mais na próxima rodada.",
+    [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 2 dados a mais na próxima rodada.",
     [AD_MIRA]         = "Tirando este lado, se o dado terminar válido: anula o menor dado válido do oponente.",
     [AD_AVESSO]       = "Tirando este lado, o dado vira e fica com o lado oposto para cima (no d6, o 1 vira 6; no d20, o 1 vira 20).",
     [AD_GORJETA]      = "Tirando este lado, válido ou anulado: o oponente te paga 2 fichas, fora do pote.",

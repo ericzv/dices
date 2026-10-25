@@ -395,7 +395,9 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     if (p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL) {
         int ch[AD_LADOS], n = 0;
         for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
-        if (n && r(2) == 1) x0 = ch[n > 1 ? r(n) - 1 : 0];
+        // Um Chumbo: metade das vezes; dois (o maximo), cada um a metade.
+        if (n == 1 && r(2) == 1) x0 = ch[0];
+        else if (n > 1) x0 = ch[r(n) - 1];
         if (ad_no_lado(p, x0) == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
@@ -1224,7 +1226,7 @@ static void flutua_evento(const evento_t *e)
         case AD_MIRA:       flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_GORJETA:    flutua_em(dj, dk, C_OURO, 0, "+%d fichas", e->valor); break;
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
-        case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dado", e->valor); break;
+        case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dados", e->valor); break;
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
         case AD_RATOEIRA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;

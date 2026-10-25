@@ -72,14 +72,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 24, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (sai nesse lado metade das vezes), ao Avesso (vira o dado), à Mira (anula o
+  (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
+  um sai metade das vezes), ao Bis (2 dados a mais na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
   dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
   rodada seguinte), à Ratoeira (anulada pelo oponente, o maior dele cai) e ao
   Holográfico (repete os adesivos que agiram nos seus dados); sete desde o
-  começo, os outros abrem nos níveis 1 a 9, dois por nível.
+  começo, os outros abrem nos níveis 1 a 9, dois por nível. Cada adesivo tem
+  uma raridade, como os dados, e o da loja sai com os mesmos pesos da
+  vitrine: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
@@ -135,9 +138,9 @@ da bolsa. A raridade sobe com a partida: da 1ª à 5ª rodada, comuns e
 incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
 lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
 um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
-Raspadinha, Confete, Lobo, Gorjeta, Selo, Frágil, Estrelinha, Imantado e
-Velcro; incomuns: Reflexivo, Remendo, Bis, Avesso, Corretivo, Post-it e
-Ratoeira; raros: Eletrônico, Transparente, Fermento e Purpurina; lendários:
+Raspadinha, Confete, Lobo, Gorjeta, Frágil e Velcro; incomuns: Reflexivo,
+Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha e
+Imantado; raros: Eletrônico, Transparente, Fermento e Purpurina; lendários:
 Chumbo, Mira e Holográfico). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.

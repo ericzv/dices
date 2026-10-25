@@ -2454,6 +2454,18 @@ int main(void)
         int seis = 0, N = 6000;
         for (int i = 0; i < N; i++) { sorteia_peca(D_D6, 0, &d6, rola, &menor, &lado, &antes); seis += lado == 6; }
         CONFERE(seis > N * 0.55 && seis < N * 0.62, "o Chumbo no 6: %d de %d (esperado ~58%%)", seis, N);
+        // Dois Chumbos (o maximo): cada um sai metade das vezes, e nenhum outro lado.
+        ad_cola(&d6, 2, AD_CHUMBO);
+        int dois = 0, fora = 0;
+        seis = 0;
+        for (int i = 0; i < N; i++) {
+            sorteia_peca(D_D6, 0, &d6, rola, &menor, &lado, &antes);
+            seis += lado == 6; dois += lado == 2; fora += lado != 2 && lado != 6;
+        }
+        CONFERE(!fora && seis > N * 0.46 && seis < N * 0.54 && dois > N * 0.46 && dois < N * 0.54,
+                "dois Chumbos (2 e 6): %d e %d de %d, %d fora", dois, seis, N, fora);
+        CONFERE(!ad_cabe_o(&d6, AD_CHUMBO) && ad_cabe_o(&d6, AD_CONFETE) && ad_conta(&d6, AD_CHUMBO) == 2,
+                "no maximo dois Chumbos por dado");
 
         // A fila: o Transparente segura a queda; o lado que conta e o de cima no fim.
         // (Na partida rapida: sem amuletos nem trunfos no meio da conta.)
@@ -2557,7 +2569,7 @@ int main(void)
             for (int i = 0; i < n_ev; i++) ev |= ev_tipo_ad(i, C[c].ad);
             CONFERE(ev == (C[c].valendo || C[c].ad == AD_LOBO), "%s: o evento", ADESIVO[C[c].ad].nome);
             if (C[c].ad == AD_DOURADO) CONFERE(d.moedas[0] == 1, "Dourado: %d moedas", d.moedas[0]);
-            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == 1, "Bis: %d", d.bis[0]);
+            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == BIS_DADOS, "Bis: %d", d.bis[0]);
             if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == 2, "Gorjeta: %d", d.gorjeta[0]);
             if (C[c].ad == AD_FERMENTO) {        // depois da rodada, ele cresceu
                 resolvido = d;
@@ -2799,10 +2811,10 @@ int main(void)
         J[0].col[7] = (peca_t){ .tipo = D_D8 };
         limpa();
 
-        // O Bis: a proxima compra leva um dado a mais.
+        // O Bis: a proxima compra leva dois dados a mais.
         memset(bis_extra, 0, sizeof bis_extra);
-        bis_extra[0] = 1;
-        CONFERE(tam_mao(0) == MAO_NORMAL + 1, "o Bis: %d", tam_mao(0));
+        bis_extra[0] = BIS_DADOS;
+        CONFERE(BIS_DADOS == 2 && tam_mao(0) == MAO_NORMAL + 2, "o Bis: %d", tam_mao(0));
         memset(bis_extra, 0, sizeof bis_extra);
         memset(J, 0, sizeof J);
         limpa();
@@ -2868,10 +2880,31 @@ int main(void)
         CONFERE(!fechado && viu[AD_CONFETE] && viu[AD_LOBO] && viu[AD_REMENDO], "no Normal, so os adesivos abertos");
         perfis[0].nivel = N_NIVEIS;
         memset(viu, 0, sizeof viu);
-        for (int l = 0; l < 400; l++) { run.lojas = (uint8_t)l; monta_adesivo(); viu[run.adesivo] = true; }
+        // A raridade pesa como na vitrine: no primeiro salao, o lendario e raro;
+        // no terceiro, bem menos.
+        uint32_t sem0 = run.semente;
+        int por_rar[DES_ANDARES][4] = { { 0 } }, n_rar[4] = { 0 };
+        for (int a = 1; a < AD_N; a++) n_rar[RAR_ADESIVO[a]]++;
+        for (int an = 0; an < DES_ANDARES; an += 2) {
+            run.andar = (uint8_t)an;
+            for (int sm = 0; sm < 20; sm++)
+                for (int l = 0; l < 200; l++) {
+                    run.semente = sem0 + (uint32_t)sm * 7919u;
+                    run.lojas = (uint8_t)l;
+                    monta_adesivo();
+                    viu[run.adesivo] = true;
+                    por_rar[an][RAR_ADESIVO[run.adesivo]]++;
+                }
+        }
+        run.semente = sem0; run.andar = 0;
         int todos = 0;
         for (int a = 1; a < AD_N; a++) todos += viu[a];
         CONFERE(todos == AD_N - 1, "no ultimo nivel, todos os adesivos: %d de %d", todos, AD_N - 1);
+        // Por adesivo: [comum, lendario] no 1o salao ~ 3 : 0,4; no 3o, 0,5 : 1,5.
+        float c1 = (float)por_rar[0][RAR_COMUM] / n_rar[RAR_COMUM], l1 = (float)por_rar[0][RAR_LENDA] / n_rar[RAR_LENDA];
+        float c3 = (float)por_rar[2][RAR_COMUM] / n_rar[RAR_COMUM], l3 = (float)por_rar[2][RAR_LENDA] / n_rar[RAR_LENDA];
+        CONFERE(c1 > 5 * l1 && l3 > 2 * c3, "raridade dos adesivos na loja: 1o salao comum %.0f lendario %.0f; 3o comum %.0f lendario %.0f",
+                c1, l1, c3, l3);
         perfis[0].nivel = 0;
         CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
         monta_loja_run();

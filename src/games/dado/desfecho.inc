@@ -1049,8 +1049,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sDourado: +1 moeda", pre);
         break;
     case AD_BIS:
-        d->bis[j]++;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sBis: 1 dado a mais na próxima rodada", pre);
+        d->bis[j] += BIS_DADOS;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, BIS_DADOS, "%sBis: %d dados a mais na próxima rodada", pre, BIS_DADOS);
         break;
     case AD_SELO:
         d->selo_lacra[j] |= bit;

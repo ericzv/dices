@@ -354,7 +354,7 @@ static void pacote_escolhe(int i)
 // Algum dado da bolsa ainda tem lado livre?
 static bool lj_algum_lado(void)
 {
-    for (int i = 0; i < run.n_col; i++) if (ad_cabe(&run.col[i])) return true;
+    for (int i = 0; i < run.n_col; i++) if (ad_cabe_o(&run.col[i], run.adesivo)) return true;
     return false;
 }
 
@@ -368,7 +368,7 @@ static void loja_adesivo(void)
     if (!lj_algum_lado()) { lj_nega(it, "Nenhum dado da bolsa tem lado livre."); return; }
     lj_colando = 1;
     cursor = 0;
-    while (cursor < run.n_col - 1 && !ad_cabe(&run.col[cursor])) cursor++;
+    while (cursor < run.n_col - 1 && !ad_cabe_o(&run.col[cursor], a)) cursor++;
     som_toca(SOM_TIQUE);
 }
 
@@ -378,6 +378,7 @@ static void cola_escolhe_dado(int i)
     peca_t *col = cola_col();
     if (i < 0 || i >= cola_n()) return;
     if (!ad_cabe(&col[i])) { lj_nega(-1, "Todos os lados desse dado já têm adesivo."); return; }
+    if (!ad_cabe_o(&col[i], cola_ad())) { lj_nega(-1, "Esse dado já tem dois Chumbos, o máximo."); return; }
     lj_cola_dado = i;
     lj_colando = 2;
     int t = col[i].tipo;
@@ -947,7 +948,7 @@ static void lj_cola_dados(void)
     for (int i = 0; i < nc; i++) {
         int x, y;
         lj_pos_grade(i, nc, &x, &y);
-        bool cur = i == cursor, cabe = ad_cabe(&col[i]);
+        bool cur = i == cursor, cabe = ad_cabe_o(&col[i], a);
         if (cur) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, ADESIVO[a].luz);
         if (cur && cabe) brilho_passa = mola_brilho();
         peca_parada((float)x, (float)(y - (cur ? mola_px() : 0)), 17 * f, col[i], cola_dono());
@@ -963,6 +964,7 @@ static void lj_cola_dados(void)
     txt_c(GFX_W / 2, ty, TIPO[pc->tipo].nome, cor_dado(pc->tipo), true);
     if (livres) snprintf(s, sizeof s, "%d %s de %d", livres, livres == 1 ? "lado livre" : "lados livres", ad_n_lados(pc->tipo));
     else snprintf(s, sizeof s, "todos os lados já têm adesivo");
+    if (livres && !ad_cabe_o(pc, a)) { snprintf(s, sizeof s, "já tem dois Chumbos, o máximo"); livres = 0; }
     txt_c(GFX_W / 2, ty + 22, s, livres ? C_MARFIM_S : C_VINHO_CLR, false);
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, ty + 22 + TXT_H, lj_aviso, C_VINHO_CLR, true);
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
@@ -1043,14 +1045,14 @@ static void lj_cola_lados(void)
 // As mesmas duas telas, na bolsa de quem venceu a rodada, sem custo; colado,
 // a partida segue para a proxima rodada.
 static bool premio_colando(void) { return cola_premio && lj_colando; }
-static bool premio_cabe(void)
+static bool premio_cabe(int a)
 {
-    for (int c = 0; c < J[vez].n_col; c++) if (ad_cabe(&J[vez].col[c])) return true;
+    for (int c = 0; c < J[vez].n_col; c++) if (ad_cabe_o(&J[vez].col[c], a)) return true;
     return false;
 }
 static bool premio_cola_comeca(int i)
 {
-    if (i < 0 || i >= 3 || !oferta_ad[i] || !premio_cabe()) return false;
+    if (i < 0 || i >= 3 || !oferta_ad[i] || !premio_cabe(oferta_ad[i])) return false;
     cola_premio = true;
     cola_premio_ad = oferta_ad[i];
     cola_premio_slot = i;
@@ -1058,7 +1060,7 @@ static bool premio_cola_comeca(int i)
     t_lj_cola = t_lj_aviso = 0;
     n_lasca = 0;
     cursor = 0;
-    while (cursor < J[vez].n_col - 1 && !ad_cabe(&J[vez].col[cursor])) cursor++;
+    while (cursor < J[vez].n_col - 1 && !ad_cabe_o(&J[vez].col[cursor], cola_premio_ad)) cursor++;
     som_toca(SOM_TIQUE);
     return true;
 }

@@ -1499,17 +1499,23 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
         break;
     }
-    case AD_BIS: {                                              // um dado fantasma vai para a sua bolsa
+    case AD_BIS: {                                              // dois dados fantasmas vao para a sua bolsa
         int bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
-        float q = (p - 0.15f) / 0.5f;
-        if (q > 0 && q < 1) {
+        float q = 0;
+        for (int f = 0; f < BIS_DADOS; f++) {
+            q = (p - 0.15f - f * 0.12f) / 0.5f;
+            if (q <= 0 || q >= 1) continue;
             float s = q * q * (3 - 2 * q);
-            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * 40);
+            int x = ax + (int)((bx - ax) * s), y = ay + (int)((by - ay) * s) - (int)(sinf(s * 3.1416f) * (40 + f * 14));
             int w = 14 - (int)(s * 6);
             ad_caixa_borda(x - w / 2, y - w / 2, w, w, d->luz);
             gfx_rect(x - 1, y - 1, 2, 2, C_BRANCO);
         }
-        if (q >= 1 && p < 0.95f) txt_sombra_c(bx, by - 26 - (int)((p - 0.65f) * 20), "+1", d->luz, 1);
+        if (q >= 1 && p < 0.95f) {
+            char t[8];
+            snprintf(t, sizeof t, "+%d", BIS_DADOS);
+            txt_sombra_c(bx, by - 26 - (int)((p - 0.77f) * 20), t, d->luz, 1);
+        }
         break;
     }
     default: break;

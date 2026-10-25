@@ -264,7 +264,7 @@ int main(int argc, char **argv)
                     if (lj_colando == 1) {
                         int b = -1;
                         for (int i = 0; i < run.n_col; i++)
-                            if (ad_cabe(&run.col[i]) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
+                            if (ad_cabe_o(&run.col[i], run.adesivo) && (b < 0 || TIPO[run.col[i].tipo].lados > TIPO[run.col[b].tipo].lados)) b = i;
                         cursor = b;
                         trata_tecla(KEY_ENTER);
                         CONFERE(lj_colando == 2, "colar: o dado nao abriu");

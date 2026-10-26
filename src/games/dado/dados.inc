@@ -351,7 +351,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MEIA]            = "Cada vez que termina anulada, guarda +2. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
-    [D_REVOLVER]        = "Cada vez que é lançado, carrega uma bala. Na 6ª vez, o tambor cheio dispara: +12, e esvazia.",
+    [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 6ª vez, o tambor cheio dispara: +12, e esvazia.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -558,9 +558,10 @@ static const char *TEXTO_CAT[D_N] = {
                           "20 de outubro a 6 de janeiro.",
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
                           "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, carrega uma bala no tambor (as balas aparecem no dado). "
-                          "Na sexta vez, com o tambor cheio, dispara: +12 no que tirou, se terminar válido, e o tambor "
-                          "esvazia para a próxima volta. As balas ficam com ele.",
+    [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, termine válido ou anulado, carrega uma bala no tambor (as "
+                          "balas aparecem no dado). Na sexta vez, com o tambor cheio, dispara: +12 - somado no que tirou, "
+                          "se ficar válido; anulado, o tiro já saiu e os +12 vêm no fim da rodada. Depois o tambor esvazia "
+                          "para a próxima volta. As balas ficam com ele.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };

@@ -479,6 +479,7 @@ static void lanca_proximo(void)
         lados = TIPO[t].lados;
         som_toca(SOM_PRESENTE);
     }
+    if (t == D_REVOLVER) som_toca(SOM_CARREGA);  // lancado, valendo ou nao: entra uma bala
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).

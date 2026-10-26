@@ -147,7 +147,13 @@ static void desenha_lance(void)
         }
         int tv = caixa ? D_PRESENTE : v->tipo;
         if (caixa && mostra > 6) mostra = (mostra - 1) % 6 + 1;   // a caixa e um d6
+        // No ar, o dado mostra o que guarda (a carga, os patinhos, as balas -
+        // a do Revolver ja com a bala deste lance), como na mao e na mesa.
+        marca_nivel = v->slot < N_FILA ? F[v->dono].fixo[v->slot] : -1;
+        bala_lancada = v->tipo == D_REVOLVER;
         desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        marca_nivel = -1;
+        bala_lancada = false;
         if (abre) presente_abre(ex + dx, ey + bob, t_fase / PRESENTE_ABRE);
         face_escondida = false;
         sr_lado = 0;
@@ -947,10 +953,10 @@ static void desenha_fila(int j)
         if (t == D_ONDA && no_desfecho && (vis_tsunami[j][k] || (e && e->tipo == EV_ONDA && e->de_j == j && e->de_k == k && p > 0.48f)))
             td = D_TSUNAMI;
         patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
-        bala_pousou = t == D_REVOLVER;             // na mesa, valendo ou nao: a bala desta vez ja entrou
+        bala_lancada = t == D_REVOLVER;            // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
         desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
-        patos_pousou = bala_pousou = false;
+        patos_pousou = bala_lancada = false;
         frutas_desta = -1;
         if (f->presente[k] && giro < 0.5f) lacinho(x + R - 3, (int)(y - pulo) - R + 2);   // saiu de um Presente
         const peca_t *pl = peca_fila(j, k);                // lacrado pelo Selo: ate o lacre romper (ou desde que fechou)

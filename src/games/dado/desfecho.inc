@@ -521,6 +521,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         d->semente[j] += FICHA_VELHA_PTS;
         evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na sexta: o tiro ja saiu, +12 por fora
+        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
+        d->semente[j] += REVOLVER_TIRO;
+        evento(gera, EV_EXTRA, j, k, j, 0, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
+    }
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
         d->semente[j] += 2 * valendo;
@@ -669,6 +674,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
+    if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;

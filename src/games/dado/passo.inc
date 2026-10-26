@@ -151,11 +151,8 @@ void dado_passo(float dt)
             // A Ventania tem o som dela quando rola o primeiro dado.
             if (resistiu >= 0 && ad_fila(j, resistiu) == AD_TRANSPARENTE)   // o Transparente segurou
                 som_toca(som_adesivo(AD_TRANSPARENTE));
-            // O Revolver: a sexta bala dispara; as outras so carregam.
-            if (F[j].tipo[k] == D_REVOLVER) {
-                if (revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
-                else som_toca(SOM_CARREGA);
-            }
+            // O Revolver com a sexta bala dispara ao pousar, valendo ou nao.
+            if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);

@@ -129,7 +129,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
-  carrega uma bala a cada lance e na sexta dispara, +12, no 3 - o Caubói
+  carrega uma bala a cada lance, valendo ou não, e na sexta dispara, +12
+  mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
   cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
   cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um

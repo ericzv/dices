@@ -130,14 +130,14 @@ static int patos_acesos(void)
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
     return marca_nivel % PATINHOS_CADA + (patos_pousou ? 1 : 0);
 }
-// O Revolver pousado na mesa: este lance ja carregou a bala dele.
-static bool bala_pousou;
-// Quantas balas no tambor: as de antes e, pousado, mais uma (com seis, ele
+// O Revolver lancado (no ar ou ja na mesa): este lance ja carregou a bala dele.
+static bool bala_lancada;
+// Quantas balas no tambor: as de antes e, lancado, mais uma (com seis, ele
 // dispara). Na colecao, meio tambor.
 static int balas_desta(void)
 {
     if (marca_nivel < 0) return REVOLVER_BALAS / 2;
-    int n = marca_nivel + (bala_pousou ? 1 : 0);
+    int n = marca_nivel + (bala_lancada ? 1 : 0);
     return n > REVOLVER_BALAS ? REVOLVER_BALAS : n;
 }
 // O dado em curso e o embrulho do Papai Noel: a caixa mostra "?", nao os
@@ -1810,6 +1810,10 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     uint16_t cores[4] = { corpo, corpo, corpo, corpo }, tons[5] = { corpo, corpo, corpo, corpo, corpo };
     if (zerado) {
         cores[1] = cores[2] = cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 18));
+        if (tipo == D_REVOLVER) {                // anulado, as balas do tambor continuam a vista
+            cores[2] = RGB(150, 122, 62);
+            cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 55));
+        }
     } else {
         cores[1] = tom_desenho(corpo, vi->c1, vi->p1);
         cores[2] = tom_desenho(corpo, vi->c2, vi->p2);

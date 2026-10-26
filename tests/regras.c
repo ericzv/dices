@@ -1476,7 +1476,8 @@ int main(void)
             limpa(); F[0].fixo[0] = 5; joga(0, D_REVOLVER, 4); d = fim();
             CONFERE(d.total[0] == 4 + REVOLVER_TIRO && !strcmp(F[0].tag[0], "+12"), "Revolver na 6a: 16, deu %d", d.total[0]);
             limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 5; joga(0, D_REVOLVER, 2); d = fim();
-            CONFERE(d.total[0] == 0 && d.est[0][1] == V_ANULADO, "Revolver anulado na 6a: o tiro nao conta, deu %d", d.total[0]);
+            CONFERE(d.total[0] == REVOLVER_TIRO && d.est[0][1] == V_ANULADO && poder_armado(0, 1) == 1,
+                    "Revolver anulado na 6a: o tiro ja saiu, +12 no fim, deu %d", d.total[0]);
             {
                 int n0 = J[0].n_col;
                 J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 3 };

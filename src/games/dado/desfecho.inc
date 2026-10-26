@@ -686,8 +686,8 @@ static int poder_armado(int j, int k)
     if (f->est[k] != V_VALIDO) return 0;
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
-        if (i != k) uns += f->cru[i] == 1;                     // os 1 dos outros, valendo ou nao (o Gatuno)
         if (i == k || f->est[i] != V_VALIDO) continue;
+        uns += f->cru[i] == 1;                                 // os 1 dos outros valendo (o Gatuno)
         outros++;
         baixos += f->valor[i] <= 2;
         iguais += f->valor[i] == v;
@@ -786,8 +786,6 @@ static int poder_armado(int j, int k)
 static void poderes_de(desfecho_t *d, int j, bool gera)
 {
     int r = outro(j);
-    int uns = 0;                                     // os 1 tirados por dados de j (o Gatuno)
-    for (int k = 0; k < F[j].lancados; k++) uns += F[j].cru[k] == 1;
 
     for (int k = 0; k < F[j].lancados; k++) {
         int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k];
@@ -810,8 +808,12 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             }
         }
         // Todo poder so age se o dado terminar valendo. O Gatuno, alem
-        // disso, rouba um dado por 1 tirado por outro dado seu.
-        int roubos = ef == EF_GATUNO ? uns - (F[j].cru[k] == 1) : 1;
+        // disso, rouba um dado por 1 tirado por outro dado seu valendo.
+        int roubos = 1;
+        if (ef == EF_GATUNO) {
+            roubos = 0;
+            for (int i = 0; i < F[j].lancados; i++) roubos += i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO;
+        }
         if (d->est[j][k] != V_VALIDO || roubos <= 0) continue;
         const char *nome = TIPO[tipo_de(j, k)].nome;
 

@@ -156,7 +156,7 @@ static const tipo_t TIPO[D_N] = {
     { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "Com mais fichas que o oponente: +4" },
     { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
-    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Rouba 1 dado do oponente por 1 nos seus outros dados" },
+    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Rouba 1 dado do oponente por 1 nos seus outros válidos" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "Número fixo; quebra ao ser lançado" },
     { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "Se tirar 5 ou 6: anula o maior do oponente. Se tirar 1 ou 2: anula os seus 2 menores." },
     { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Com 3 ou 4: rouba o menor do oponente" },
@@ -198,7 +198,7 @@ static const tipo_t TIPO[D_N] = {
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
     { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "Anulado: +2 em cada dado válido seu" },
     { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da sequência, os quatro válidos: +5" },
-    { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "+1 por dado anulado na mesa" },
+    { "Coveiro",          6, EF_COVEIRO,      RAR_INCOMUM,  0, "+1 por dado anulado na mesa" },
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada dado seu atacado: -4 para o oponente" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
@@ -265,7 +265,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
                           "-5.",
     [D_MALDITO]         = "Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído.",
-    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu.",
+    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu válido.",
     [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
     [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
                           "dados.",
@@ -383,9 +383,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
     [D_MALDITO]         = "Vinte lados. Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 8 ou "
                           "mais, pontua normalmente.",
-    [D_GATUNO]          = "Seis lados. Se terminar válido, rouba um dado do oponente para cada 1 tirado por outro dado da sua "
-                          "sequência, valendo ou não: o menor, depois o menor que sobrou, e assim por diante. Os pontos dos "
-                          "roubados passam para você.",
+    [D_GATUNO]          = "Seis lados. Se terminar válido, rouba um dado do oponente para cada 1 tirado por outro dado válido "
+                          "da sua sequência (o anulado não conta): o menor, depois o menor que sobrou, e assim por diante. Os "
+                          "pontos dos roubados passam para você.",
     [D_QUEBRADO]        = "Oito lados, mas não é sorteado: pontua sempre o número gravado nele. Depois de lançado, quebra e sai "
                           "da sua bolsa.",
     [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "

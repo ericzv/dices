@@ -3800,6 +3800,19 @@ int main(void)
     d = fim();
     CONFERE(d.est[1][0] == V_ROUBADO && d.est[1][1] == V_ROUBADO && d.est[1][2] == V_VALIDO,
             "Gatuno com dois 1: rouba o 4 e o 6 (%d %d %d)", d.est[1][0], d.est[1][1], d.est[1][2]);
+    // O 1 anulado nao conta: o 1 depois do 3 cai (e derruba o 3).
+    limpa();
+    joga(1, D_D6, 4); joga(1, D_D8, 6);
+    joga(0, D_D2, 1); joga(0, D_GATUNO, 3); joga(0, D_D4, 1);
+    d = fim();
+    CONFERE(d.est[0][2] == V_ANULADO && d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO,
+            "Gatuno anulado pelo 1 depois dele: nao rouba (%d %d)", d.est[1][0], d.est[1][1]);
+    limpa();
+    joga(1, D_D6, 4); joga(1, D_D8, 6);
+    joga(0, D_D2, 1); joga(0, D_D4, 3); joga(0, D_D6, 1); joga(0, D_GATUNO, 3);
+    d = fim();
+    CONFERE(d.est[0][2] == V_ANULADO && d.est[1][0] == V_ROUBADO && d.est[1][1] == V_VALIDO,
+            "Gatuno: o 1 valendo conta, o anulado nao (%d %d)", d.est[1][0], d.est[1][1]);
     // O 1 do proprio Gatuno nao conta.
     limpa();
     joga(1, D_D6, 4);

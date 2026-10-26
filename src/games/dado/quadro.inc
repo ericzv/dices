@@ -88,7 +88,9 @@ void dado_desenha(void)
     zonas_fase = fase;
     bolsas_vistas = 0;
     desenha_tudo();
+    desenha_tiro();
     desenha_flutua();
+    desenha_tiro_fogo();
     // O que a maquina fez fica por cima dos numeros que ainda sobem dos dados.
     if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA || fase == F_LOJA))
         desenha_anuncio();

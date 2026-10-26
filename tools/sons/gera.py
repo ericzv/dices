@@ -1288,6 +1288,37 @@ def estrela():
     m.poe(0.30, banda(rng.standard_normal(n), 6000, 12000) * np.sin(np.pi * q) ** 2, 0.025)   # o brilho
     return sala(m.x, 0.3)
 
+def revolver_carrega():
+    """O Revolver carregando: o tambor gira um dente (dois estalinhos de
+    metal, o segundo mais grave) e a bala assenta na camara."""
+    m = Mix(0.25)
+    m.poe(0, estalinho(0.004, 2500), 0.8)
+    m.poe(0, tom(batida('dicehit_metal3'), 9), 0.35)
+    m.poe(0.045, estalinho(0.005, 1800), 0.6)
+    m.poe(0.045, tom(batida('dicehit_metal7'), 5), 0.3)
+    m.poe(0.07, tom(batida('dicehit_coin2'), 3), 0.25)
+    return sala(m.x, 0.06)
+
+def revolver_tiro():
+    """O Revolver disparando: o estalo seco, o estouro grave do cano, o
+    zunido da bala ricocheteando la na frente e o eco de faroeste."""
+    m = Mix(1.7)
+    n = int(0.35 * SR)
+    m.poe(0, pb(rng.standard_normal(n), 1400) * env(n, 0.001, 0.05), 1.0)          # o estouro
+    t = np.arange(n) / SR
+    m.poe(0, np.sin(2 * np.pi * (75 * t - 40 * t ** 2)) * env(n, 0.002, 0.09), 0.9) # o soco grave
+    m.x = np.tanh(1.4 * m.x) / np.tanh(1.4)                                      # saturado, como um tiro
+    n = int(0.012 * SR)
+    m.poe(0, pa(rng.standard_normal(n), 1500) * env(n, 0.0003, 0.003), 2.5)       # o estalo, por cima
+    n = int(0.45 * SR); t = np.arange(n) / SR
+    f = 2700 * np.exp(-t / 0.35) + 900                                           # o ricochete: o zunido caindo
+    zun = np.sin(2 * np.pi * np.cumsum(f * (1 + 0.02 * np.sin(2 * np.pi * 23 * t))) / SR)
+    m.poe(0.15, zun * env(n, 0.01, 0.16), 0.10)
+    seco = m.x.copy()
+    for atraso, g in ((0.30, 0.28), (0.58, 0.13), (0.86, 0.06)):                   # o eco no canyon
+        m.poe(atraso, pb(seco, 1600), g)
+    return sala(m.x, 0.35)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -1325,6 +1356,8 @@ VOLUME.update({'bolsa_espia': VOLUME['bolsa'] * 0.7})
 # Os dados novos: os sinos na altura de um poder; o gelo e a onda, de um ataque.
 VOLUME.update({'sino': VOLUME['efeito'], 'gelo': VOLUME['anula'] * 0.85, 'onda': VOLUME['anula'] * 0.9})
 VOLUME.update({'presente': VOLUME['efeito'] * 0.9, 'estrela': VOLUME['efeito']})
+# O Revolver: carregar, baixinho como uma ficha; o tiro, acima da vitoria.
+VOLUME.update({'revolver_carrega': VOLUME['ficha'] * 0.7, 'revolver_tiro': VOLUME['vitoria'] * 1.25})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1348,7 +1381,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
-             'presente', 'estrela'):
+             'presente', 'estrela', 'revolver_carrega', 'revolver_tiro'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

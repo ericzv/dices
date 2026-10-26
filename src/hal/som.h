@@ -57,6 +57,8 @@ enum {
     SOM_ONDA,        // a onda: a Onda virando Tsunami, o Tsunami levando um dado
     SOM_PRESENTE,    // o Presente desembrulhando no lance
     SOM_ESTRELA,     // a Estrela de Belem lancando a luz nos dados de baixo
+    SOM_CARREGA,     // o Revolver carregando uma bala: o tambor gira um dente
+    SOM_TIRO,        // o Revolver disparando: o estampido e o eco
     SOM_N
 };
 

@@ -130,6 +130,16 @@ static int patos_acesos(void)
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
     return marca_nivel % PATINHOS_CADA + (patos_pousou ? 1 : 0);
 }
+// O Revolver pousado na mesa: este lance ja carregou a bala dele.
+static bool bala_pousou;
+// Quantas balas no tambor: as de antes e, pousado, mais uma (com seis, ele
+// dispara). Na colecao, meio tambor.
+static int balas_desta(void)
+{
+    if (marca_nivel < 0) return REVOLVER_BALAS / 2;
+    int n = marca_nivel + (bala_pousou ? 1 : 0);
+    return n > REVOLVER_BALAS ? REVOLVER_BALAS : n;
+}
 // O dado em curso e o embrulho do Papai Noel: a caixa mostra "?", nao os
 // lados do Presente. Quem desenha avisa; o desenho consome.
 static bool caixa_fechada;
@@ -912,6 +922,23 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
+    case D_REVOLVER: {                            // o tambor: seis camaras em volta do numero, as carregadas com a bala
+        float rt = 0.74f;
+        if (ro > rt + l) return 0;
+        int balas = balas_desta();
+        for (int i = 0; i < REVOLVER_BALAS; i++) {
+            float a = -1.0472f + i * 1.0472f, cx = cosf(a) * 0.5f, cy = sinf(a) * 0.5f;   // nenhuma em cima nem embaixo do numero
+            float d = sqrtf((u - cx) * (u - cx) + (v - cy) * (v - cy));
+            if (d < 0.155f) {
+                if (i >= balas) return d < 0.115f ? 3 : 1;                    // vazia: o buraco, com a beira
+                return d < 0.03f + l ? 1 : 2;                                 // a bala: o latao, e a espoleta
+            }
+            float fa = a + 0.5236f, fx = cosf(fa) * rt, fy = sinf(fa) * rt;    // o sulco entre duas camaras, na beira
+            if ((u - fx) * (u - fx) + (v - fy) * (v - fy) < 0.11f * 0.11f) return 0;
+        }
+        if (ro > rt - 0.05f - l) return 3;                                     // a beira do tambor
+        return 1;
+    }
     case D_PRESENTE: {                            // o papel de presente: listras finas na diagonal, e o laco na beira de cima
         for (int k = -1; k <= 1; k += 2) {                                                   // o laco: duas alcas, com o furo, e o no
             float bx = u - k * 0.13f, by = v + 0.60f;
@@ -1403,6 +1430,252 @@ static bool face_escondida;
 static int  ad_face;
 static bool ad_face_aceso;
 
+// O vinil de cada adesivo nao e so a cor: tem uma textura discreta, sempre
+// nas cores vizinhas da paleta e em poucos pontos, para o numero (que tem o
+// contorno da cor do vinil) continuar lendo bem. (X, Y): o ponto em pixels a
+// partir do meio da etiqueta, girando com o dado; de: os pixels ate a borda;
+// r: o raio do dado; fase: o acaso deste dado (o que acende de tempos em
+// tempos nao acende em todos juntos); mov: muda quando o dado anda ou gira (o
+// Holografico).
+static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fase, float mov, uint16_t fundo)
+{
+    int ix = (int)floorf(X), iy = (int)floorf(Y);
+    uint32_t h = hash2(ix + 64, iy + 64);
+    float t = t_relogio, dist = sqrtf(X * X + Y * Y);
+    switch (a) {
+    case AD_CHUMBO: {                             // metal escovado: riscos finos na horizontal
+        uint32_t q = hash2((int)floorf(X / 5) + 64, iy + 64) % 9;
+        if (q == 0) return C_FERRO;
+        if (q == 1 && (h & 3) == 0) return RGB(36, 32, 29);
+        return fundo;
+    }
+    case AD_REFLEXIVO: {                          // o reflexo: uma faixa de luz e duas luzinhas que piscam
+        float f = X + Y + r * 0.45f;
+        if (f > 0 && f < 2) return C_BRANCO;
+        if (f > 3.5f && f < 4.5f && (ix & 1)) return C_BRANCO;
+        static const float L[2][3] = { { -0.42f, 0.30f, 0.0f }, { 0.36f, -0.34f, 2.4f } };
+        for (int i = 0; i < 2; i++) {
+            float lx = X - L[i][0] * r, ly = Y - L[i][1] * r, s = sinf(t * 1.7f + L[i][2] + fase * 6.3f);
+            if (s < 0.2f) continue;
+            float b = s > 0.75f ? 2.5f : 1.5f;     // no pico, a cruz cresce
+            if ((fabsf(lx) < 0.5f && fabsf(ly) < b) || (fabsf(ly) < 0.5f && fabsf(lx) < b)) return C_BRANCO;
+        }
+        return fundo;
+    }
+    case AD_CONFETE: {                            // papeizinhos de cor, espalhados
+        static const uint16_t K[6] = { RGB(246, 222, 132), RGB(168, 204, 230), RGB(208, 98, 108),
+                                       RGB(130, 204, 112), RGB(206, 180, 218), RGB(252, 248, 236) };
+        int cxl = (int)floorf(X / 5), cyl = (int)floorf(Y / 5);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 3) return fundo;
+        int px = cxl * 5 + 1 + (int)(q >> 4) % 3, py = cyl * 5 + 1 + (int)(q >> 6) % 3;
+        bool deitado = q >> 8 & 1;
+        if ((ix == px || ix == px + deitado) && (iy == py || iy == py + !deitado)) return K[(q >> 9) % 6];
+        return fundo;
+    }
+    case AD_ELETRONICO: {                         // o raio, apagado; de tempos em tempos, acende (duas piscadas)
+        float c = r * 0.17f;
+        int i = (int)floorf(X / c + 3.5f), j = (int)floorf(Y / c + 3.5f);
+        if (i < 0 || i > 6 || j < 0 || j > 6 || ADESIVO[a].ic[j][i] != '#') return fundo;
+        float p = fr(t / 4.5f + fase);
+        if (p < 0.02f || (p > 0.035f && p < 0.065f)) return p < 0.02f ? C_VENTO : C_BRANCO;
+        return (ix + iy) & 1 ? RGB(72, 150, 138) : fundo;
+    }
+    case AD_DOURADO: {                            // folha de ouro: o grao, e um brilho que passa de vez em quando
+        float p = fr(t / 4 + fase) * 4, pos = -1.7f * r + p / 0.55f * 3.4f * r, f = X + Y - pos;
+        if (p < 0.55f && fabsf(f) < 1) return C_BRANCO;
+        if (p < 0.55f && fabsf(f) < 2.5f) return C_AMARELO;
+        if (h % 11 == 0) return C_AMARELO;
+        if (h % 13 == 1) return RGB(190, 156, 86);
+        return fundo;
+    }
+    case AD_LOBO: {                               // tres arranhoes no canto
+        for (int i = 0; i < 3; i++) {
+            float ax = (0.12f + i * 0.15f) * r, ay = 0.05f * r, bx = ax + 0.24f * r, by = 0.6f * r;
+            float vx = bx - ax, vy = by - ay, w = fmaxf(0, fminf(1, ((X - ax) * vx + (Y - ay) * vy) / (vx * vx + vy * vy)));
+            float ex = X - ax - w * vx, ey = Y - ay - w * vy;
+            if (ex * ex + ey * ey < (w > 0.15f && w < 0.85f ? 0.55f : 0.25f)) return RGB(118, 30, 38);
+        }
+        return fundo;
+    }
+    case AD_REMENDO: {                            // o pesponto em volta, e a trama do pano
+        if (de >= 2 && de < 3) return (int)floorf(atan2f(Y, X) * r * 0.62f / 2) & 1 ? RGB(130, 204, 112) : fundo;
+        if (de >= 4 && ((ix & 3) == 0 && (iy & 1) == 0)) return RGB(72, 150, 138);
+        return fundo;
+    }
+    case AD_RASPADINHA: {                         // ranhuras curtas na diagonal, de onde ja rasparam
+        int d1 = (int)floorf(X - Y + 200), d2 = (int)floorf((X + Y) / 3);
+        if (d1 % 5 > 1) return fundo;
+        uint32_t q = hash2(d1 / 5, d2 + 64);
+        if (q % 3) return fundo;
+        return d1 % 5 == 0 ? C_BRANCO : RGB(150, 112, 160);
+    }
+    case AD_FERMENTO: {                           // bolhinhas subindo devagar
+        float yy = Y + t * 2.5f;
+        int cxl = (int)floorf(X / 6), cyl = (int)floorf(yy / 6);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 3) return fundo;
+        float bx = cxl * 6 + 2 + (q >> 4) % 3, by = cyl * 6 + 2 + (q >> 6) % 3, bd = (X - bx) * (X - bx) + (yy - by) * (yy - by);
+        if (q >> 8 & 1) return bd > 0.8f && bd < 2.6f ? C_AMARELO : fundo;    // bolha de anel
+        return bd < 0.5f ? C_AMARELO : fundo;
+    }
+    case AD_BIS:                                  // borda dupla
+        return (de >= 1.5f && de < 2.5f) || (de >= 3.5f && de < 4.5f) ? C_REAL : fundo;
+    case AD_MIRA: {                               // a luneta: um anel e quatro marcas
+        bool anel = fabsf(dist - 0.5f * r) < 0.6f;
+        bool marca = (fabsf(X) < 0.5f && fabsf(Y) > 0.36f * r && fabsf(Y) < 0.66f * r)
+                  || (fabsf(Y) < 0.5f && fabsf(X) > 0.36f * r && fabsf(X) < 0.66f * r);
+        return anel || marca ? RGB(118, 30, 38) : fundo;
+    }
+    case AD_AVESSO: {                             // o canto descolando, mostrando o avesso
+        float f = X + Y - 0.58f * r;
+        if (f > 1) return (ix + iy) & 1 ? C_MARFIM : RGB(204, 194, 172);
+        if (f > 0) return RGB(96, 182, 198);
+        return fundo;
+    }
+    case AD_GORJETA: {                            // o desenho de cedula: ondas finas que se cruzam
+        float o = 1.4f * sinf(X * 0.5f);
+        if (fr((Y + o + 100) / 6) < 0.17f && (ix % 3)) return RGB(96, 134, 196);
+        if (fr((Y - o + 103) / 6) < 0.17f && (ix % 3) == 1) return RGB(96, 134, 196);
+        return fundo;
+    }
+    case AD_SELO: {                               // a cera: manchas, e o brilho no alto
+        float m = ruido(X / 3.5f + 7, Y / 3.5f);
+        if (m > 0.6f) return RGB(150, 62, 80);
+        if (m < -0.65f && (h & 1)) return RGB(66, 18, 24);
+        return fundo;
+    }
+    case AD_FRAGIL: {                             // uma rachadura saindo do canto
+        static const float P[6][2] = { { 0.70f, -0.70f }, { 0.32f, -0.30f }, { 0.40f, 0.02f }, { 0.12f, 0.30f },
+                                       { 0.32f, -0.30f }, { 0.02f, -0.44f } };
+        static const int8_t S[4][2] = { { 0, 1 }, { 1, 2 }, { 2, 3 }, { 4, 5 } };
+        for (int i = 0; i < 4; i++) {
+            float ax = P[S[i][0]][0] * r, ay = P[S[i][0]][1] * r, vx = P[S[i][1]][0] * r - ax, vy = P[S[i][1]][1] * r - ay;
+            float w = fmaxf(0, fminf(1, ((X - ax) * vx + (Y - ay) * vy) / (vx * vx + vy * vy)));
+            float ex = X - ax - w * vx, ey = Y - ay - w * vy;
+            if (ex * ex + ey * ey < 0.3f) return C_MADEIRA_CLR;
+        }
+        return fundo;
+    }
+    case AD_ESTRELINHA: {                         // estrelinhas miudas, piscando cada uma no seu tempo
+        int cxl = (int)floorf(X / 7), cyl = (int)floorf(Y / 7);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 3) return fundo;
+        int px = cxl * 7 + 2 + (int)(q >> 4) % 3, py = cyl * 7 + 2 + (int)(q >> 6) % 3;
+        bool pisca = sinf(t * 2.2f + (q >> 8) % 17) > 0.35f;
+        if (ix == px && iy == py) return C_AMARELO;
+        if (pisca && abs(ix - px) + abs(iy - py) == 1) return C_AMARELO;
+        return fundo;
+    }
+    case AD_CORRETIVO: {                          // as passadas da fita, uma do lado da outra
+        int b = (int)floorf((Y + 0.7f * sinf(X * 0.35f + floorf(Y / 4) * 2)) / 4);
+        return b & 1 && (h % 5) ? C_MARFIM_D : fundo;
+    }
+    case AD_IMANTADO: {                           // as linhas de forca, em limalha
+        float py = -1.0f * r, p1 = -0.32f * r, p2 = 0.32f * r;
+        float phi = atan2f(Y - py, X - p1) - atan2f(Y - py, X - p2);
+        if (fr(phi / 0.32f) < 0.16f && (h & 1)) return C_AZUL;
+        return fundo;
+    }
+    case AD_POSTIT:                               // pautado
+        return fr((Y + 100) / 5) < 0.2f ? RGB(228, 194, 106) : fundo;
+    case AD_HOLOGRAFICO: {                        // faixas de cor que correm quando o dado anda ou gira
+        static const uint16_t K[5] = { RGB(226, 164, 168), RGB(246, 222, 132), RGB(130, 204, 112),
+                                       RGB(168, 204, 230), RGB(206, 180, 218) };
+        float f = (X * 0.6f + Y) / r * 1.3f + mov;
+        if (tri(f * 0.35f) < 0.45f) return fundo;              // so uma faixa de cada vez
+        return (ix + iy) & 1 ? K[((int)floorf(f * 2.5f) % 5 + 5) % 5] : fundo;
+    }
+    case AD_PURPURINA: {                          // purpurina: pontinhos de brilho piscando
+        if (h % 9) return fundo;
+        static const uint16_t K[3] = { RGB(246, 222, 132), RGB(252, 248, 236), RGB(226, 164, 168) };
+        return sinf(t * 3 + (h >> 4) % 29) > -0.2f ? K[(h >> 9) % 3] : RGB(208, 98, 108);
+    }
+    case AD_VELCRO:                               // os fios: o pelo miudo, mais escuro e mais claro
+        if (h % 6 == 0) return RGB(14, 14, 12);
+        if (h % 6 == 1 && (iy & 1)) return RGB(62, 56, 50);
+        if (h % 29 == 2) return RGB(96, 88, 80);
+        return fundo;
+    case AD_RATOEIRA: {                           // o veio da tabua
+        float w = tri(Y * 0.22f + 0.9f * ruido(X / 7 + 3, Y / 3));
+        if (w > 0.86f) return C_MADEIRA;
+        if (w < 0.1f && (ix & 1)) return C_BRONZE;
+        return fundo;
+    }
+    case AD_FIGURINHA:                            // a moldura do cromo, e a retícula da impressao
+        if (de >= 2 && de < 3) return C_BRANCO;
+        if (de >= 4 && (ix % 3) == 0 && (iy % 3) == 0) return RGB(88, 152, 84);
+        return fundo;
+    case AD_PATINHO: {                            // a agua do lago, com ondinhas indo devagar
+        float o = 1.1f * sinf(X * 0.42f + t * 1.4f);
+        return fr((Y + o + 100) / 6) < 0.16f && (ix % 4) ? C_BRANCO : fundo;
+    }
+    case AD_ETIQUETA: {                           // o papel pardo: fibras curtas
+        uint32_t q = hash2((int)floorf(X / 3) + 64, iy + 64) % 13;
+        if (q == 0) return RGB(190, 156, 86);
+        if (q == 1) return RGB(106, 86, 44);
+        return fundo;
+    }
+    case AD_BILHETE: {                            // o picote do canhoto, e um po de ouro
+        if (fabsf(X - 0.42f * r) < 0.6f && (iy & 1)) return C_REAL;
+        if (h % 23 == 0) return RGB(150, 122, 62);
+        return fundo;
+    }
+    default: return fundo;
+    }
+}
+
+// O vinil pintado ponto a ponto, com a textura: o poligono (ou o disco, n ==
+// 0, com o mesmo contorno de gfx_disco) com o meio em (cx, cy).
+static void ad_vinil(const float *vx, const float *vy, int n, int rr, int a, uint16_t fundo,
+                     float cx, float cy, float ang, float r)
+{
+    float ca = cosf(-ang), sa = sinf(-ang);
+    float nxs[12], nys[12], hs[12];               // as normais dos lados e a distancia do meio a cada um
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        float ex = vx[j] - vx[i], ey = vy[j] - vy[i], l = sqrtf(ex * ex + ey * ey);
+        nxs[i] = ey / l; nys[i] = -ex / l;
+        hs[i] = (vx[i] - cx) * nxs[i] + (vy[i] - cy) * nys[i];
+        if (hs[i] < 0) { nxs[i] = -nxs[i]; nys[i] = -nys[i]; hs[i] = -hs[i]; }
+    }
+    float fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f;
+    float mov = ang * 0.8f + (cx + cy) * 0.02f;
+    int y0, y1;
+    if (n) {
+        float ymin = vy[0], ymax = vy[0];
+        for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
+        y0 = (int)ceilf(ymin); y1 = (int)floorf(ymax);
+    } else {
+        y0 = (int)cy - rr; y1 = (int)cy + rr;
+    }
+    for (int y = y0; y <= y1; y++) {
+        float xs[16];
+        int nx = 0;
+        if (n) {
+            for (int i = 0; i < n && nx < 16; i++) {
+                int j = (i + 1) % n;
+                float ya = vy[i], yb = vy[j];
+                if ((ya <= y && yb > y) || (yb <= y && ya > y))
+                    xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
+            }
+            for (int p = 1; p < nx; p++)
+                for (int b = p; b > 0 && xs[b] < xs[b - 1]; b--) { float q = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = q; }
+        } else {
+            int dy = y - (int)cy, w = 0;
+            while ((w + 1) * (w + 1) + dy * dy <= rr * rr + rr) w++;
+            xs[0] = (float)((int)cx - w); xs[1] = (float)((int)cx + w); nx = 2;
+        }
+        for (int k = 0; k + 1 < nx; k += 2)
+            for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
+                float dx = x - cx, dy = y - cy, de = 1e9f;
+                if (n) for (int i = 0; i < n; i++) de = fminf(de, hs[i] - dx * nxs[i] - dy * nys[i]);
+                else de = rr - sqrtf(dx * dx + dy * dy);
+                gfx_pixel(x, y, ad_textura(a, dx * ca - dy * sa, dx * sa + dy * ca, de, r, fase, mov, fundo));
+            }
+    }
+}
+
 // A etiqueta: o vinil na forma do dado, com borda branca, e o adesivo da loja
 // em miniatura no canto. Anulado, apagada como o dado.
 static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a, bool aceso, bool zerado)
@@ -1418,6 +1691,7 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
     float k = lados == 4 ? 0.6f : lados == 6 ? 0.7f : 0.62f, oy = lados == 4 ? r * 0.1f : 0;
     float vx[12], vy[12];
     int n;
+    bool textura = !zerado && r >= 10;            // anulada ou miuda, so a cor
     if (lados == 2) {
         int rr = (int)(r * 0.66f);
         if (aceso) gfx_disco((int)cx, (int)cy, rr + 3, halo);
@@ -1429,7 +1703,8 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
         } else {
             gfx_disco((int)cx + 1, (int)cy + 1, rr + 1, gfx_mistura(fundo, C_BARRA, 45));
             gfx_disco((int)cx, (int)cy, rr + 1, borda);
-            gfx_disco((int)cx, (int)cy, rr, fundo);
+            if (textura) ad_vinil(NULL, NULL, 0, rr, a, fundo, cx, cy, ang, r);
+            else gfx_disco((int)cx, (int)cy, rr, fundo);
         }
     } else if (vidro) {                          // so o contorno de vidro, e um risco de brilho
         for (int q = 0; q <= (aceso ? 2 : 0); q += 2) {
@@ -1442,7 +1717,9 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
         if (aceso) { n = forma(lados, cx, cy + oy, r * (k + 0.2f), ang, vx, vy); poligono(vx, vy, n, halo); }
         n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
         n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
-        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy); poligono(vx, vy, n, fundo);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
+        if (textura) ad_vinil(vx, vy, n, 0, a, fundo, cx, cy + oy, ang, r);
+        else poligono(vx, vy, n, fundo);
     }
     if (r < 12) return;
     // O adesivo da loja em miniatura, no canto da face: diz qual e.
@@ -1655,7 +1932,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             if (r >= 12) contorno = zerado ? gfx_mistura(ADESIVO[adf].fundo, C_FELTRO2, 60) : ADESIVO[adf].fundo;
         }
     }
-    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
+    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {

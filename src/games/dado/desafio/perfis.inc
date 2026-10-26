@@ -145,7 +145,8 @@ static int nivel_do_dado(int t)
     case D_JACKPOT: case D_SEMENTE: case D_SEGURANCA: case D_AZARAO:
     case D_AMPULHETA: case D_MALDICAO: case D_DESAFIANTE: case D_VAZIO:         return 2;
     case D_CARRASCO: case D_LASER: case D_AGIOTA: case D_ACUMULADOR:
-    case D_MEDIA: case D_COLECIONADOR: case D_CALIBRE: case D_MARTIR:           return 3;
+    case D_MEDIA: case D_COLECIONADOR: case D_CALIBRE: case D_MARTIR:
+    case D_REVOLVER:                                                            return 3;
     case D_CARIDOSO: case D_GATUNO: case D_VAMPIRO: case D_QUEBRADO:
     case D_VIDRO: case D_PONTE: case D_RANCOR: case D_FICHA_VELHA:              return 4;
     case D_INVEJOSO: case D_FARTURA: case D_SORTE: case D_PUXA_FILA:

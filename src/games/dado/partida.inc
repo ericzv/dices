@@ -675,7 +675,8 @@ static void adesivos_ficam(int j, const desfecho_t *d)
 
 // O que os dados guardam da rodada, na peca da bolsa: a Furia, o que o lance
 // mexeu no bonus (valendo ou nao); a Onda valendo, o que tirou - e com 9 vira
-// Tsunami, de vez; os Tres Patinhos valendo, mais uma vez.
+// Tsunami, de vez; os Tres Patinhos valendo, mais uma vez; o Revolver, valendo
+// ou nao, mais uma bala (e o tambor vazio depois do tiro).
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -689,6 +690,8 @@ static void contadores_ficam(int j, const desfecho_t *d)
             else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
         } else if (p->tipo == D_PATINHOS && vale && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);
         else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
+        else if (p->tipo == D_REVOLVER)                                              // mais uma bala; com a sexta, disparou
+            p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
         else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
     }

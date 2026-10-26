@@ -1034,7 +1034,7 @@ int main(void)
         joga(0, D_PUXA_FILA, 1); joga(0, D_D4, 2); joga(0, D_D6, 3);
         d = fim();
         CONFERE(d.total[0] == 6, "Puxa-fila com tres: esperava 6, deu %d", d.total[0]);
-        // Coveiro: com 5 ou 6, +1 por anulado na mesa.
+        // Coveiro: valendo, +1 por anulado na mesa (com qualquer numero).
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_COVEIRO, 6);
         joga(1, D_D6, 4); joga(1, D_D4, 1);
@@ -1043,7 +1043,7 @@ int main(void)
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_COVEIRO, 4);
         d = fim();
-        CONFERE(d.total[0] == 4, "Coveiro 4: esperava 4, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 4 + 2, "Coveiro 4 com 2 anulados: esperava 6, deu %d", d.total[0]);
         // Hexa: +1 por d6 seu valendo, ele incluido.
         limpa();
         joga(0, D_D6, 2); joga(0, D_HEXA, 3); joga(0, D_D4, 4);
@@ -1783,6 +1783,11 @@ int main(void)
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
         d = fim();
         CONFERE(d.total[0] == 2 + 3 + 5 + 3, "Prisma: esperava 13, deu %d", d.total[0]);
+        // Pelo numero de lados: o D6 e o Hexa sao os dois d6, um tipo so.
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_HEXA, 3); joga(0, D_PRISMA, 5);
+        d = fim();
+        CONFERE(d.total[0] == 2 + 3 + 5 + 2 + 2, "Prisma com dois d6: +2 (e o Hexa +2), deu %d", d.total[0]);
         // Fenix: anulado pela queda, renasce no fim.
         limpa();
         joga(0, D_D6, 5); joga(0, D_FENIX, 2);
@@ -3788,6 +3793,19 @@ int main(void)
     CONFERE(F[0].est[1] == V_ANULADO, "Gatuno 1 depois de 5 devia cair");
     d = fim();
     CONFERE(d.est[1][0] == V_VALIDO, "Gatuno anulado nao devia roubar");
+    // Um roubo por 1 dos outros: dois 1, dois roubos (o menor, depois o seguinte).
+    limpa();
+    joga(1, D_D6, 4); joga(1, D_D8, 6); joga(1, D_D12, 9);
+    joga(0, D_D2, 1); joga(0, D_D4, 1); joga(0, D_GATUNO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO && d.est[1][1] == V_ROUBADO && d.est[1][2] == V_VALIDO,
+            "Gatuno com dois 1: rouba o 4 e o 6 (%d %d %d)", d.est[1][0], d.est[1][1], d.est[1][2]);
+    // O 1 do proprio Gatuno nao conta.
+    limpa();
+    joga(1, D_D6, 4);
+    joga(0, D_GATUNO, 1);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO, "Gatuno com o 1 dele mesmo nao rouba");
 
     // ---- Espelho: vira sempre o maior do rival ---------------------------
     limpa();

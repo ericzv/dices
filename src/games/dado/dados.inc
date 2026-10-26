@@ -156,7 +156,7 @@ static const tipo_t TIPO[D_N] = {
     { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "Com mais fichas que o oponente: +4" },
     { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
-    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Com um 1 na sua sequência: rouba o menor do oponente" },
+    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Rouba 1 dado do oponente por 1 nos seus outros dados" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "Número fixo; quebra ao ser lançado" },
     { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "Se tirar 5 ou 6: anula o maior do oponente. Se tirar 1 ou 2: anula os seus 2 menores." },
     { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Com 3 ou 4: rouba o menor do oponente" },
@@ -183,7 +183,7 @@ static const tipo_t TIPO[D_N] = {
     { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "Recebe os ataques do oponente · válido: +2" },
     { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
     { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "Tira o mesmo do último dado válido (até 6)" },
-    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado seu válido" },
+    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado válido (d2, d4, d6...)" },
     { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "Se for anulado: renasce no fim" },
     { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +4" },
     { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "Anulado ou roubado pelo oponente: anula os dados dele" },
@@ -198,7 +198,7 @@ static const tipo_t TIPO[D_N] = {
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
     { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "Anulado: +2 em cada dado válido seu" },
     { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da sequência, os quatro válidos: +5" },
-    { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "5 ou 6: +1 por dado anulado na mesa" },
+    { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "+1 por dado anulado na mesa" },
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada dado seu atacado: -4 para o oponente" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
@@ -265,7 +265,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
                           "-5.",
     [D_MALDITO]         = "Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído.",
-    [D_GATUNO]          = "Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente.",
+    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu.",
     [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
     [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
                           "dados.",
@@ -294,7 +294,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SEGURANCA]       = "Se estiver válido, é anulado ou roubado no lugar dos seus outros dados. Válido no fim: +2.",
     [D_BUMERANGUE]      = "Se tirar 1 ou 2, volta e rola de novo, uma vez.",
     [D_GEMEO]           = "Tira o mesmo número do último dado válido da sequência, até 6 (senão, rola normalmente).",
-    [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo diferente de dado válido seu.",
+    [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo de dado entre os seus válidos: d2, d4, d6, d8, d12, d20.",
     [D_FENIX]           = "Se terminar anulado, renasce no fim e pontua o número que tirou.",
     [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +4.",
     [D_CAVALO]          = "Se o oponente anular ou roubar este dado, todos os dados do oponente são anulados.",
@@ -309,7 +309,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
     [D_MARTIR]          = "Se terminar anulado, no fim cada dado válido seu pontua +2.",
     [D_PUXA_FILA]       = "Se for o 1º da sequência e os quatro terminarem válidos: +5.",
-    [D_COVEIRO]         = "Se terminar válido com 5 ou 6: +1 no fim por dado anulado, seu ou do oponente.",
+    [D_COVEIRO]         = "Se terminar válido: +1 no fim por dado anulado, seu ou do oponente.",
     [D_HEXA]            = "Se terminar válido, +1 no fim por dado de seis lados válido seu, este dado incluído.",
     [D_OURICO]          = "Se terminar válido: cada dado seu que o oponente anulou ou roubou custa 4 pontos a ele.",
     [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
@@ -383,8 +383,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
     [D_MALDITO]         = "Vinte lados. Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 8 ou "
                           "mais, pontua normalmente.",
-    [D_GATUNO]          = "Seis lados. Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do "
-                          "oponente: os pontos dele passam para você.",
+    [D_GATUNO]          = "Seis lados. Se terminar válido, rouba um dado do oponente para cada 1 tirado por outro dado da sua "
+                          "sequência, valendo ou não: o menor, depois o menor que sobrou, e assim por diante. Os pontos dos "
+                          "roubados passam para você.",
     [D_QUEBRADO]        = "Oito lados, mas não é sorteado: pontua sempre o número gravado nele. Depois de lançado, quebra e sai "
                           "da sua bolsa.",
     [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "
@@ -434,8 +435,9 @@ static const char *TEXTO_CAT[D_N] = {
     [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
                           "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",
-    [D_PRISMA]          = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada tipo diferente de dado válido "
-                          "seu, este dado incluído.",
+    [D_PRISMA]          = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada tipo de dado diferente entre os "
+                          "seus válidos, pelo número de lados (d2, d4, d6, d8, d12 e d20), este dado incluído: com um d4, um d6 "
+                          "e um d20 válidos, +4.",
     [D_FENIX]           = "Seis lados. Se terminar anulado, renasce no fim da rodada e pontua o número que tirou. Se for "
                           "roubado, não volta.",
     [D_TRONO]           = "Doze lados. Se for o 4º dado da sua sequência e os quatro terminarem válidos, este dado incluído, "
@@ -465,7 +467,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MARTIR]          = "Quatro lados. Se terminar a rodada anulado, cada dado válido seu pontua +2 no fim.",
     [D_PUXA_FILA]       = "Oito lados. Se for o primeiro dado da sua sequência e os quatro terminarem válidos, este dado "
                           "incluído, pontua +5 no fim da rodada.",
-    [D_COVEIRO]         = "Seis lados. Se terminar válido com 5 ou 6, pontua +1 no fim da rodada para cada dado anulado, seus e "
+    [D_COVEIRO]         = "Seis lados. Se terminar válido, pontua +1 no fim da rodada para cada dado anulado na mesa, seus e "
                           "do oponente.",
     [D_HEXA]            = "Seis lados. Se terminar válido, pontua +1 no fim da rodada para cada dado de seis lados válido seu, "
                           "este dado incluído.",

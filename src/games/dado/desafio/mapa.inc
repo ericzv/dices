@@ -117,7 +117,7 @@ static int grupo_do_dado(int t)
     case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
     case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
     case D_FURIA: case D_ONDA: case D_PATINHOS: case D_PRESENTE: case D_PANETONE: case D_PISCA: case D_MEIA:
-    case D_REVOLVER:
+    case D_REVOLVER: case D_ASTRO:
         return GR_NUMEROS;
     case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
     case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:

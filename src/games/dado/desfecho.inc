@@ -752,6 +752,10 @@ static int poder_armado(int j, int k)
             if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
         return 0;
     case EF_COLECIONADOR: return v == 6;
+    case EF_BURACO:                                          // vai engolir um vizinho seu
+        for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
+            if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme(j, k + s)) return 2;
+        return 0;
     case EF_BONECO:       return v >= 8;
     case EF_TSUNAMI:      return v >= 9;
     case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
@@ -852,6 +856,19 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                                  "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
                 else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                             "Autofagia: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
+            }
+            continue;
+        }
+
+        // Buraco Negro que evolui: engole os seus dados logo antes e logo
+        // depois dele na sequencia (os firmes resistem).
+        if (ef == EF_BURACO) {
+            for (int s = -1; s <= 1 && F[j].evolui[k]; s += 2) {
+                int b = k + s;
+                if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme(j, b)) continue;
+                d->est[j][b] = V_ANULADO;
+                evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                       "Buraco Negro engole o %d do próprio %s", F[j].valor[b], J[j].nome);
             }
             continue;
         }

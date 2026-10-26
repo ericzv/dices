@@ -59,6 +59,9 @@ enum {
     SOM_ESTRELA,     // a Estrela de Belem lancando a luz nos dados de baixo
     SOM_CARREGA,     // o Revolver carregando uma bala: o tambor gira um dente
     SOM_TIRO,        // o Revolver disparando: o estampido e o eco
+    SOM_EVOLUI,      // o ciclo cosmico evoluindo (cada estagio um tom acima)
+    SOM_BURACO,      // o Buraco Negro engolindo um dado
+    SOM_BIG_BANG,    // o Universo explodindo e voltando a ser Estrela
     SOM_N
 };
 

@@ -1498,6 +1498,71 @@ int main(void)
                 while (cb < N_PERSO - 1 && strcmp(PERSO[cb].nome, "O CAUBÓI")) cb++;
                 CONFERE(PERSO[cb].nucleo[0] == D_REVOLVER && PERSO[cb].fav[0] == D_REVOLVER, "o Revolver e do Caubói");
             }
+            // O ciclo cosmico: na faixa de cima, valendo ou nao, evolui; valendo, o bonus.
+            limpa(); joga(0, D_ASTRO, 4); d = fim();
+            CONFERE(d.total[0] == 4 && !F[0].evolui[0], "Estrela com 4: 4, sem evoluir (%d)", d.total[0]);
+            limpa(); joga(0, D_ASTRO, 5); d = fim();
+            CONFERE(d.total[0] == 6 && F[0].evolui[0] && !strcmp(F[0].tag[0], "+1"), "Estrela com 5: 6, e evolui (%d)", d.total[0]);
+            limpa(); joga(0, D_CONSTELACAO, 5); d = fim();
+            CONFERE(d.total[0] == 5 && !F[0].evolui[0], "Constelacao com 5: 5 (%d)", d.total[0]);
+            limpa(); joga(0, D_CONSTELACAO, 6); d = fim();
+            CONFERE(d.total[0] == 9 && F[0].evolui[0], "Constelacao com 6: 9 (%d)", d.total[0]);
+            limpa(); joga(0, D_GALAXIA, 8); d = fim();
+            CONFERE(d.total[0] == 8 && !F[0].evolui[0], "Galaxia com 8: 8 (%d)", d.total[0]);
+            limpa(); joga(0, D_GALAXIA, 9); d = fim();
+            CONFERE(d.total[0] == 14 && F[0].evolui[0], "Galaxia com 9: 14 (%d)", d.total[0]);
+            limpa(); joga(0, D_D12, 12); joga(0, D_ASTRO, 6); d = fim();
+            CONFERE(d.est[0][1] == V_ANULADO && F[0].evolui[1] && d.total[0] == 0, "Estrela anulada com 6: evolui sem pontuar (%d)", d.total[0]);
+            // O Buraco Negro valendo, de 14 a 20: anula os seus vizinhos (os firmes ficam).
+            limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 15); joga(0, D_D20, 18);
+            CONFERE(poder_armado(0, 1) == 2, "Buraco Negro com 15: armado contra os seus");
+            d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 15 && F[0].evolui[1],
+                    "Buraco Negro com 15: anula os dois vizinhos (%d)", d.total[0]);
+            limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 13); joga(0, D_D20, 18); d = fim();
+            CONFERE(d.total[0] == 34 && !F[0].evolui[1], "Buraco Negro com 13: nada (%d)", d.total[0]);
+            limpa(); joga(0, D_TEIMOSO, 3); joga(0, D_BURACO, 16); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 19, "Buraco Negro: o Teimoso resiste (%d)", d.total[0]);
+            limpa(); joga(0, D_D6, 2); joga(0, D_D20, 18); joga(0, D_BURACO, 15); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && F[0].evolui[2] && d.total[0] == 2,
+                    "Buraco Negro anulado: evolui, mas nao engole (%d)", d.total[0]);
+            // O Universo: pontua o que tirou, sempre faz o Big Bang, nao cai nem e atacado.
+            limpa(); joga(0, D_UNIVERSO, 77); d = fim();
+            CONFERE(d.total[0] == 77 && F[0].evolui[0], "Universo: 77 e Big Bang (%d)", d.total[0]);
+            CONFERE(nao_anulavel_t(D_UNIVERSO) && intocavel_t(D_UNIVERSO), "Universo: nao cai nem e roubado");
+            limpa(); joga(0, D_UNIVERSO, 40); joga(1, D_LASER, 6); d = fim();
+            CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 40, "Universo: o Laser nao alcanca (%d)", d.total[0]);
+            {
+                peca_t pc[3] = { { .tipo = D_D20 }, { .tipo = D_UNIVERSO }, { .tipo = D_D12 } };
+                int ordem[N_FILA], q = fila_simples(pc, 3, ordem);
+                CONFERE(q == 1 && ordem[0] == 1, "fila simples: o Universo vai sozinho");
+            }
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_ASTRO };
+                ad_cola(&J[0].col[n0], 2, AD_CHUMBO);
+                J[0].n_col++;
+                limpa(); joga_ad(0, n0, 6); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_CONSTELACAO && J[0].col[n0].velcro && !ad_quantos(&J[0].col[n0]),
+                        "Estrela evolui: Constelacao, sem os adesivos, e volta para a mao");
+                limpa(); joga_ad(0, n0, 3); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_CONSTELACAO, "Constelacao com 3: fica");
+                J[0].col[n0] = (peca_t){ .tipo = D_BURACO };
+                limpa(); joga(0, D_D20, 20); joga_ad(0, n0, 14); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_UNIVERSO && J[0].col[n0].velcro, "Buraco Negro anulado com 14 tambem evolui");
+                limpa(); joga_ad(0, n0, 50); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_ASTRO && !J[0].col[n0].velcro, "Big Bang: volta a ser Estrela, sem voltar para a mao");
+                J[0].col[n0] = (peca_t){ .tipo = D_GALAXIA };
+                zera_acumuladores(J[0].col + n0, 1);
+                CONFERE(J[0].col[n0].tipo == D_ASTRO, "partida nova: o ciclo recomeca da Estrela");
+                J[0].n_col--;
+            }
+            CONFERE(!no_catalogo(D_GALAXIA) && sem_sorteio(D_UNIVERSO) && no_catalogo(D_ASTRO) && !sem_sorteio(D_ASTRO),
+                    "so a Estrela aparece; o resto do ciclo e surpresa");
             // Panetone: as frutas da fatia (0 a 3, a cada lance) somam no que tirou.
             limpa(); F[0].fruta[0] = 2; joga(0, D_PANETONE, 5); d = fim();
             CONFERE(d.total[0] == 7 && !strcmp(F[0].tag[0], "+2"), "Panetone com 2 frutas: 7, deu %d", d.total[0]);
@@ -1705,7 +1770,7 @@ int main(void)
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
                                          D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
-                                         D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER };
+                                         D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER, D_ASTRO };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
@@ -1717,7 +1782,7 @@ int main(void)
         CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0;
-            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t);
+            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t);
             CONFERE(vis == n_catalogo(), "a colecao devia ter %d dados (tem %d)", vis, n_catalogo());
             for (int i = 0; i < n_catalogo(); i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
             for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");
@@ -3450,6 +3515,30 @@ int main(void)
         bool na_mao = false;
         for (int i = 0; i < p->n_mao; i++) na_mao |= p->mao[i] == c1 || p->mao[i] == c3;
         CONFERE(!na_mao, "sobras: os nao lancados ainda na mao");
+        cpu = cpu0;
+    }
+    // ---- O Universo so vai sozinho: nem entra com outros, nem deixa entrar
+    {
+        int cpu0 = cpu;
+        cpu = 0;
+        entrada(100, 100, 0);
+        int j = vez = primeiro;
+        jogador_t *p = &J[j];
+        p->col[p->mao[1]].tipo = D_UNIVERSO;
+        poe_na_fila(0); poe_na_fila(1);
+        CONFERE(F[j].n == 1 && F[j].tipo[0] != D_UNIVERSO, "Universo depois de outro: nao entra (fila %d)", F[j].n);
+        poe_na_fila(0);                           // tira o outro
+        poe_na_fila(1); poe_na_fila(0);
+        CONFERE(F[j].n == 1 && F[j].tipo[0] == D_UNIVERSO, "depois do Universo: nenhum outro entra (fila %d)", F[j].n);
+        int nivel0 = ia_nivel;
+        ia_nivel = 2;
+        cpu = 1 << j;
+        plano_rodada = -1;
+        F[j].n = 0;
+        ia_planeja();                             // contra d6, d4 e moedas, o Universo sozinho vale mais
+        CONFERE(plano_n == 1 && p->col[p->mao[plano[0]]].tipo == D_UNIVERSO, "IA: o Universo sozinho (plano de %d)", plano_n);
+        t_aviso_universo = 0;
+        ia_nivel = nivel0;
         cpu = cpu0;
     }
     // ---- Quem abre e fica com 0 perde na hora: sem aposta e sem o turno do outro

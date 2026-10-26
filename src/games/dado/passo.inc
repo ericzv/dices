@@ -23,6 +23,7 @@ void dado_passo(float dt)
     }
     if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
+    if (t_aviso_universo > 0) t_aviso_universo -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
@@ -52,6 +53,7 @@ void dado_passo(float dt)
     if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
     tiro_passo(dt);
+    cosmo_passo(dt);
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
@@ -153,6 +155,7 @@ void dado_passo(float dt)
                 som_toca(som_adesivo(AD_TRANSPARENTE));
             // O Revolver com a sexta bala dispara ao pousar, valendo ou nao.
             if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
+            cosmo_pousa(j, k);                    // o ciclo cosmico que tirou a faixa de cima: evolui (o Universo: Big Bang)
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
                 som_toca(SOM_VIDRO);
@@ -179,7 +182,7 @@ void dado_passo(float dt)
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
         if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)
-                     + (vence_j == vez ? 0.5f : 0)) {
+                     + (vence_j == vez ? 0.5f : 0) && !cosmo_segura()) {
             if (F[vez].lancados >= F[vez].n || vence_j == vez) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }

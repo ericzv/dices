@@ -48,6 +48,15 @@ static void poe_na_fila(int i)
         }
         f->n--;
     } else if (f->n < max_fila(vez)) {
+        // O Universo so vai sozinho: nao entra numa fila com outros, e nenhum
+        // outro entra depois dele.
+        bool uni = p->col[c].tipo == D_UNIVERSO;
+        for (int k = 0; k < f->n; k++) uni |= f->tipo[k] == D_UNIVERSO;
+        if (uni && f->n > 0) {
+            t_aviso_universo = 1.8f;
+            if (!anuncia_maquina()) som_toca(SOM_BATE_DADO);
+            return;
+        }
         f->idx[f->n] = (int8_t)c;
         f->tipo[f->n] = p->col[c].tipo;
         f->fixo[f->n] = p->col[c].fixo;

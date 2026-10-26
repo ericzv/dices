@@ -134,7 +134,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
   cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
   cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um
-  Tsunami, no 7). Os oponentes só usam o
+  Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
+  evolui e volta para a mão na rodada seguinte - e o que ela vira é
+  surpresa, que a coleção não mostra -, no 8). Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

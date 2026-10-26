@@ -166,9 +166,9 @@ static int ad_quantos(const peca_t *p)
     return n;
 }
 // Os lados que um tipo mostra: o Lastro so de 4 a 12; o Sorte/Reves, os 12
-// da Sorte.
+// da Sorte; o Universo (d100), adesivo so nos 20 primeiros.
 static int ad_lado_min(int t) { return TIPO[t].efeito == EF_LASTRO ? 4 : 1; }
-static int ad_lado_max(int t) { return TIPO[t].lados; }
+static int ad_lado_max(int t) { return TIPO[t].lados < AD_LADOS ? TIPO[t].lados : AD_LADOS; }
 static int ad_n_lados(int t) { return ad_lado_max(t) - ad_lado_min(t) + 1; }
 // O lado do avesso: o 1 do d6 e o 6; o 4 do Lastro, o 12.
 static int ad_oposto(int t, int lado) { return ad_lado_min(t) + ad_lado_max(t) - lado; }

@@ -112,6 +112,7 @@ static void desenha_ordem(void)
             txt_c(x + 16, y - 27 + rs, o, C_BARRA, true);
         }
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
+        if (cosmo_recem[vez][p->mao[i]]) cosmo_chegou(x, y + dy + rs, p->col[p->mao[i]].tipo, t_fase - cosmo_chega(p, i));   // evoluiu: o nome novo
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
         dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p == &J[0] && p->mao[i] == embrulho ? DICA_EMBRULHO : p->col[p->mao[i]].tipo);
     }

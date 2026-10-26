@@ -115,6 +115,8 @@ static void executa(int op)
         correu_venc = w;                  // leva tambem o premio, como numa vitoria
         primeiro = w;                     // quem levou joga primeiro na proxima
         for (int j = 0; j < 2; j++) memcpy(vis_est[j], F[j].est, N_FILA);
+        memset(cosmo_recem, 0, sizeof cosmo_recem);   // o ciclo cosmico evolui mesmo assim
+        for (int j = 0; j < 2; j++) cosmo_ficam(j);
         recolhe_quebrados();
         t_fase = 0;
         fase = F_RESULTADO;

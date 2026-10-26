@@ -898,7 +898,8 @@ static void desenha_fila(int j)
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || e->ad == AD_RATOEIRA))) && e->alvo_j == j && e->alvo_k == k;
         bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
-        if (alvo && !congela && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
+        bool engolido = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BURACO;  // o Buraco Negro puxa: gira
+        if (alvo && !congela && !engolido && p > 0.4f && ((int)(t_fase * 8) % 2 == 0)) continue;
         bool cavalo = e && e->tipo == EV_CAVALO && e->alvo_j == j && (e->mascara >> k & 1);
         if (cavalo && p > 0.6f && ((int)(t_fase * 8) % 2 == 0)) continue;
         // O dado que acabou de valer da um pulinho.
@@ -921,6 +922,10 @@ static void desenha_fila(int j)
         // assenta no numero novo.
         int face = ainda ? f->cru[k] : f->valor[k];
         float giro = 0;
+        if (engolido) {                          // puxado pelo Buraco Negro: gira e chega mais perto
+            giro = p * p * 9;
+            x += (int)((SLOT_X(e->de_k) - x) * 0.25f * (p < 0.75f ? p / 0.75f : 1));
+        }
         if (ventania_agora(j) && k == 0) {
             float q = t_fase / 0.7f;
             giro = (1 - q) * (1 - q) * 9;
@@ -982,6 +987,10 @@ static void desenha_fila(int j)
             int arm = poder_armado(j, k);
             if (arm) brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
         }
+        // O ciclo cosmico que vai evoluir: uma estrelinha gira em volta dele.
+        if (f->evolui[k] && t != D_UNIVERSO && f->idx[k] >= 0 && k < f->lancados && fase != F_FIM && giro < 0.5f
+            && !(fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_evolui >= 0 && t_evolui < EVOLUI_CLARAO))
+            cosmo_orbita(x, (int)(y - pulo), R, t);
         // Preso pela Ancora: dois elos de corrente ligam o dado a ela.
         if (f->ancora[k] && !anul && vis_est[j][k] != V_ROUBADO) {
             int mx = (SLOT_X(k - 1) + x) / 2, my = (int)(y - pulo);

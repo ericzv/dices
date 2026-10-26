@@ -39,7 +39,7 @@ static uint32_t hash2(int x, int y)
 
 // A forma diz quantos lados o dado tem antes de qualquer numero:
 // moeda redonda, d4 triangulo, d6 quadrado de canto aparado, d8 losango,
-// d12 pentagono, d20 hexagono.
+// d12 pentagono, d20 hexagono, d100 a esfera.
 static int forma(int lados, float cx, float cy, float r, float ang,
                  float *vx, float *vy)
 {
@@ -70,6 +70,12 @@ static int forma(int lados, float cx, float cy, float r, float ang,
         for (int i = 0; i < 5; i++) {
             float a = ang - 1.5708f + i * 1.2566f;
             vx[n] = cx + cosf(a) * r * 1.08f; vy[n] = cy + sinf(a) * r * 1.08f; n++;
+        }
+        break;
+    case 100:  // a esfera do Universo: um circulo
+        for (int i = 0; i < 12; i++) {
+            float a = ang + i * 0.5236f;
+            vx[n] = cx + cosf(a) * r * 1.04f; vy[n] = cy + sinf(a) * r * 1.04f; n++;
         }
         break;
     default:   // 20
@@ -176,6 +182,15 @@ static void numero(float cx, float cy, float r, const char *s, uint16_t c)
 {
     int e = r >= 34 ? 2 : 1;
     gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
+}
+
+// O numero com um contorno de um pixel em volta (0: sem contorno).
+static void numero_contorno(float cx, float cy, float r, const char *s, uint16_t c, uint16_t contorno)
+{
+    static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+    if (contorno)
+        for (int i = 0; i < 8; i++) numero(cx + D[i][0], cy + D[i][1], r, s, contorno);
+    numero(cx, cy, r, s, c);
 }
 
 // Fechado no catalogo: o dado fica apagado como o anulado, mas sem o X.
@@ -1130,6 +1145,131 @@ static uint16_t neve_boneco(float u, float v, float s, int nivel, uint16_t c, ui
     return c;
 }
 
+// O ciclo cosmico e o proprio ceu, pintado ponto a ponto no corpo de noite
+// (girando com o dado): a Estrela, um ponto de luz grande no meio, com o halo
+// e os raios; a Constelacao, estrelas ligadas por fios; a Galaxia, dois
+// bracos em espiral girando devagar; o Buraco Negro, o escuro com o anel de
+// luz e o disco de fogo em volta; o Universo, uma esfera de nebulosas e
+// estrelas, com a luz de cima (nivel) e a beira mais escura. (u, v) em raios;
+// devolve a cor, ou c (o corpo) onde nao muda. Apagado, so a luz principal
+// fica, num cinza so.
+static const uint16_t COSMO[] = {
+    RGB(26, 34, 62), RGB(56, 86, 150), RGB(96, 134, 196), RGB(168, 204, 230),       // 0-3 o azul da noite ao gelo
+    RGB(252, 248, 236), RGB(246, 222, 132), RGB(228, 194, 106),                    // 4-6 o branco e os ouros
+    RGB(54, 36, 74), RGB(102, 74, 138), RGB(150, 112, 160), RGB(206, 180, 218),    // 7-10 os roxos
+    RGB(14, 14, 12), RGB(214, 112, 44), RGB(238, 162, 74), RGB(150, 62, 80),       // 11-14 o breu, o fogo e o vinho
+};
+enum { CO_NOITE, CO_AZUL, CO_CEU, CO_GELO, CO_BRANCO, CO_TRIGO, CO_OURO,
+       CO_ROXO_E, CO_ROXO, CO_AMEIXA, CO_LILAS, CO_BREU, CO_FOGO, CO_AMBAR, CO_VINHO };
+// Estrelinhas soltas: uma ou nenhuma por celula, longe do meio (o numero).
+static int cosmo_estrelinha(float u, float v, float s, float cel, int semente, int chance, float longe)
+{
+    if (u * u + v * v < longe * longe) return 0;
+    int gx = (int)floorf(u / cel), gy = (int)floorf(v / cel);
+    uint32_t h = hash2(gx + semente, gy + 31);
+    if ((int)(h % 100) >= chance) return 0;
+    float ox = (gx + 0.25f + (h >> 8 & 255) / 255.0f * 0.5f) * cel, oy = (gy + 0.25f + (h >> 16 & 255) / 255.0f * 0.5f) * cel;
+    float dx = fabsf(u - ox), dy = fabsf(v - oy);
+    if ((int)(t_relogio * 1.4f + (h >> 4) % 9) % 6 == 0) return 0;                  // umas piscando
+    if ((h >> 24) % 3 == 0 && ((dx < s * 0.6f && dy < s * 1.6f) || (dy < s * 0.6f && dx < s * 1.6f))) return 2;   // em cruz
+    return dx < s * 0.7f && dy < s * 0.7f ? 1 : 0;
+}
+static uint16_t ceu_cosmico(int tipo, float u, float v, float s, int nivel, uint16_t c, uint16_t cinza)
+{
+    float ro = sqrtf(u * u + v * v), ax = fabsf(u), ay = fabsf(v);
+    bool xadrez = ((int)floorf(u / s) + (int)floorf(v / s)) & 1;                     // o pontilhado das bordas de luz
+    switch (tipo) {
+    case D_ASTRO: {                               // o ponto de luz: o miolo branco, o halo de ouro e quatro raios
+        if (ro < 0.27f) return corpo_apagado ? cinza : COSMO[CO_BRANCO];
+        if (ro < 0.37f) return corpo_apagado ? cinza : COSMO[CO_TRIGO];
+        float fino = s * 0.55f;
+        bool raio = (ax < fino + 0.035f * (1 - ay / 0.74f) && ay < 0.74f) || (ay < fino + 0.035f * (1 - ax / 0.74f) && ax < 0.74f);
+        if (raio) return corpo_apagado ? cinza : (ro < 0.5f ? COSMO[CO_TRIGO] : COSMO[CO_OURO]);
+        float d1 = fabsf(u - v) * 0.7071f, d2 = fabsf(u + v) * 0.7071f;
+        if ((d1 < fino || d2 < fino) && ro < 0.52f) return corpo_apagado ? cinza : COSMO[CO_OURO];
+        if (corpo_apagado) return c;
+        if (ro < 0.43f) return COSMO[CO_OURO];
+        if (ro < 0.50f && xadrez) return COSMO[CO_OURO];                             // o halo se desfazendo no ceu
+        if (ro < 0.58f && xadrez && ((int)floorf(v / s) & 1)) return COSMO[CO_AZUL];
+        int e = cosmo_estrelinha(u, v, s, 0.17f, 7, 38, 0.62f);
+        return e == 2 ? COSMO[CO_BRANCO] : e ? COSMO[CO_CEU] : c;
+    }
+    case D_CONSTELACAO: {                         // estrelas ligadas por fios: o W em cima, a cauda embaixo
+        static const float P[7][2] = { { -0.52f, -0.16f }, { -0.30f, -0.48f }, { -0.02f, -0.30f }, { 0.26f, -0.54f },
+                                       { 0.52f, -0.20f }, { 0.20f, 0.48f }, { -0.14f, 0.62f } };
+        for (int i = 0; i < 7; i++) {
+            float x = u - P[i][0], y = v - P[i][1], d = x * x + y * y;
+            bool apaga = (int)(t_relogio * 1.3f + i * 1.7f) % 7 == 0;                // uma de cada vez pisca
+            if (d < 0.065f * 0.065f) return corpo_apagado ? cinza : COSMO[apaga ? CO_TRIGO : CO_BRANCO];
+            if (d < 0.12f * 0.12f && (fabsf(x) < s * 0.6f || fabsf(y) < s * 0.6f)) return corpo_apagado ? cinza : COSMO[CO_TRIGO];
+        }
+        if (corpo_apagado) return c;
+        for (int i = 0; i < 6; i++)
+            if (dist_seg(u, v, P[i][0], P[i][1], P[i + 1][0], P[i + 1][1]) < s * 0.55f) return COSMO[CO_CEU];
+        int e = cosmo_estrelinha(u, v, s, 0.15f, 41, 30, 0.0f);
+        return e ? COSMO[CO_AZUL] : c;
+    }
+    case D_GALAXIA: {                             // dois bracos em espiral, girando devagar, e o miolo claro
+        if (ro < 0.10f) return corpo_apagado ? cinza : COSMO[CO_BRANCO];
+        if (ro < 0.17f) return corpo_apagado ? cinza : COSMO[CO_LILAS];
+        if (ro < 0.25f) return corpo_apagado ? cinza : (xadrez ? COSMO[CO_LILAS] : COSMO[CO_AMEIXA]);
+        if (corpo_apagado) return c;
+        float a = atan2f(v, u);
+        float b = fr((a + t_relogio * 0.45f - 2.6f * logf(ro + 0.04f)) / 3.14159f);  // 0 no meio de um braco
+        float w = 0.13f + 0.12f * (1 - ro);
+        uint32_t h = hash2((int)floorf(u / s) + 500, (int)floorf(v / s) + 500);
+        if (ro < 0.90f && b < w * 0.55f) return h % 9 == 0 ? COSMO[CO_LILAS] : h % 23 == 1 ? COSMO[CO_BRANCO] : COSMO[CO_AMEIXA];
+        if (ro < 0.90f && b < w) return h % 3 ? COSMO[CO_ROXO] : c;
+        if (ro < 0.90f && b > 1 - w * 0.4f) return h % 2 ? COSMO[CO_ROXO] : c;       // a poeira atras do braco
+        int e = cosmo_estrelinha(u, v, s, 0.16f, 77, 26, 0.0f);
+        return e == 2 ? COSMO[CO_LILAS] : e ? COSMO[CO_AMEIXA] : c;
+    }
+    case D_BURACO: {                              // o escuro, o anel de luz e o disco de fogo girando em volta
+        const float hor = 0.34f;
+        float el = (u / 0.88f) * (u / 0.88f) + (v / 0.27f) * (v / 0.27f);
+        bool disco = el > 0.50f && el < 1.0f && (v > 0 || ro > hor + 0.05f);         // a metade da frente passa por cima do escuro
+        if (disco) {
+            if (corpo_apagado) return cinza;
+            float a = atan2f(v * 3.2f, u) - t_relogio * 1.6f;                         // o redemoinho
+            uint32_t h = hash2((int)floorf(a * 5.0f) + 900, (int)floorf(el * 9.0f));
+            if (el < 0.64f) return h % 4 ? COSMO[CO_TRIGO] : COSMO[CO_AMBAR];
+            if (el < 0.82f) return h % 3 ? COSMO[CO_AMBAR] : COSMO[CO_FOGO];
+            return h % 3 ? COSMO[CO_FOGO] : COSMO[CO_VINHO];
+        }
+        if (fabsf(ro - hor) < s * 0.7f + 0.025f) return corpo_apagado ? cinza : COSMO[v < 0 ? CO_TRIGO : CO_AMBAR];   // o anel de luz curvada
+        if (ro < hor) return corpo_apagado ? c : COSMO[CO_BREU];
+        if (corpo_apagado) return c;
+        if (ro < hor + 0.12f && v < 0 && xadrez) return COSMO[CO_FOGO];               // o disco de tras, dobrado por cima
+        int e = cosmo_estrelinha(u, v, s, 0.17f, 13, 22, 0.55f);
+        return e ? COSMO[CO_VINHO] : c;
+    }
+    case D_UNIVERSO: {                            // a esfera: nebulosas, estrelas, a luz de cima e a beira escura
+        if (corpo_apagado) {
+            uint32_t h = hash2((int)floorf(u / s) + 300, (int)floorf(v / s) + 300);
+            return h % 29 == 0 ? cinza : c;
+        }
+        float tt = t_relogio * 0.05f;
+        float neb = ruido(u * 2.3f + 3 + tt, v * 2.3f + 1) + 0.5f * ruido(u * 5.0f + 9, v * 5.0f + 2 - tt);
+        float rubor = ruido(u * 2.8f + 21 - tt, v * 2.8f + 12);
+        static const uint8_t ESCALA[] = { CO_BREU, CO_NOITE, CO_ROXO_E, CO_ROXO, CO_AMEIXA, CO_LILAS, CO_BRANCO };
+        int i = neb > 0.85f ? 5 : neb > 0.5f ? 4 : neb > 0.2f ? 3 : neb > -0.1f ? 2 : 1;
+        i += nivel >= 2 ? 1 : nivel <= -2 ? -1 : 0;                                   // a luz da esfera
+        if (ro > 0.86f) i--;                                                          // a beira, mais escura
+        i = i < 0 ? 0 : i > 6 ? 6 : i;
+        uint16_t cor = COSMO[ESCALA[i]];
+        if (rubor > 0.62f && i >= 2 && i <= 4) cor = COSMO[CO_VINHO];                  // o vinho das nebulosas, aqui e ali
+        uint32_t h = hash2((int)floorf(u / s) + 300, (int)floorf(v / s) + 300);
+        bool pisca = (int)(t_relogio * 1.7f + (h >> 6) % 11) % 7 == 0;
+        if (h % 37 == 0 && !pisca) return COSMO[(h >> 9) % 3 ? CO_BRANCO : CO_TRIGO];
+        if (h % 53 == 1) return COSMO[CO_GELO];
+        if (nivel >= 2 && xadrez && ro < 0.7f) return COSMO[CO_CEU];                  // o reflexo, pontilhado
+        return cor;
+    }
+    default:
+        return c;
+    }
+}
+
 // O corpo com a luz e o desenho de dentro: o poligono (ou o disco da moeda,
 // quando n == 0) pintado ponto a ponto. (cx, cy) e o centro do dado, r o
 // raio. tons: os cinco tons do corpo, da sombra ao reflexo; cores: os tres
@@ -1246,6 +1386,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     }
                     if (corpo_desta == D_PANETONE) c = miolo_panetone(u * s, v * s, s, nivel, c, cores[1]);
                     else if (corpo_desta == D_BONECO) c = neve_boneco(u * s, v * s, s, nivel, c, cores[1]);
+                    else if (cosmico(corpo_desta)) c = ceu_cosmico(corpo_desta, u * s, v * s, s, nivel, c, cores[1]);
                 }
                 if (brilho > -5) {
                     float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
@@ -1765,7 +1906,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
-    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO ? tipo : 0;
+    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || cosmico(tipo) ? tipo : 0;
     corpo_apagado = zerado;
     uint16_t corpo = mt->tons[2];
     uint16_t tinta = mt->tinta;
@@ -1786,6 +1927,10 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
     if (tipo == D_SACRIFICIO) tinta = C_MARFIM;   // o corpo vinho pede a tinta clara
+    if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)
+        corpo = tipo == D_GALAXIA ? RGB(54, 36, 74) : tipo == D_BURACO ? RGB(14, 14, 12) : RGB(26, 34, 62);
+        tinta = tipo == D_ASTRO ? RGB(26, 34, 62) : C_MARFIM;   // na Estrela, o numero escuro sobre a luz
+    }
     // O Sorte/Reves no ar: cada metade no material dela. Jogado, o dado
     // inteiro fica com a cara de quem venceu: marfim se a Sorte foi maior (ou
     // empatou), ebano se o Reves foi.
@@ -1864,7 +2009,9 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (lado) mt = lado;
     brilho_apagado = zerado;
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
-    if (lados == 2) {
+    if (cosmico(tipo) && !zerado)                 // no ceu, a aresta acesa e um tom da propria noite
+        brilho = tipo == D_GALAXIA || tipo == D_UNIVERSO ? RGB(102, 74, 138) : tipo == D_BURACO ? RGB(62, 56, 50) : RGB(56, 86, 150);
+    if (lados == 2 || lados == 100) {             // a moeda e a esfera do Universo
         int ri = (int)(r - ea);
         gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
         gfx_disco((int)cx, (int)cy, ri, brilho);
@@ -1898,6 +2045,9 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         numero(cx, cy, r, "1", tinta);
         return;
     }
+    // O ciclo cosmico: o numero sobre o ceu desenhado ganha o contorno do
+    // corpo (na Estrela, nao: o numero escuro fica sobre a luz).
+    uint16_t contorno = cosmico(tipo) && tipo != D_ASTRO && !zerado && r >= 12 ? corpo : 0;
     if (vista == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
@@ -1916,7 +2066,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
         // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);
-        numero(cx, cy, r, s, gfx_mistura(tinta, corpo, 38));
+        numero_contorno(cx, cy, r, s, gfx_mistura(tinta, corpo, 38), contorno);
         if (tipo == D_FURIA && marca_nivel >= 0 && (int8_t)marca_nivel && !zerado && r >= 12)
             furia_selo(cx, cy, r, (int8_t)marca_nivel, false);
         if (tipo == D_MEIA && marca_nivel > 0 && !zerado && r >= 12) furia_selo(cx, cy, r, marca_nivel, true);
@@ -1928,24 +2078,20 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         if (zerado) risca(cx, cy, r);
         return;
     }
-    uint16_t contorno = 0;               // o numero sobre o simbolo ganha um contorno da cor do vinil
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
         ad_etiqueta(cx, cy, r, lados, ang, adf, adf_aceso, zerado);
         if (ADESIVO[adf].fundo != AD_SEM_FUNDO) {
             tinta = zerado ? gfx_mistura(ADESIVO[adf].tinta, C_FELTRO2, 60) : ADESIVO[adf].tinta;
+            // o numero sobre o simbolo ganha um contorno da cor do vinil
             if (r >= 12) contorno = zerado ? gfx_mistura(ADESIVO[adf].fundo, C_FELTRO2, 60) : ADESIVO[adf].fundo;
         }
     }
-    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && valor >= 1 && valor <= 6
-        && (!zerado || so_apagado)) {
+    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && TIPO[tipo].efeito != EF_ASTRO
+        && valor >= 1 && valor <= 6 && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {
         snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
-        if (contorno) {
-            static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
-            for (int i = 0; i < 8; i++) numero(cx + D[i][0], cy + D[i][1], r, s, contorno);
-        }
-        numero(cx, cy, r, s, tinta);
+        numero_contorno(cx, cy, r, s, tinta, contorno);
     }
     if (zerado) risca(cx, cy, r);
 }

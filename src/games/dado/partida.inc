@@ -124,7 +124,7 @@ static bool melhor_lance(int j, peca_t *out)
     const fila_t *f = &F[j];
     int b = -1;
     for (int k = 0; k < f->lancados && k < f->n; k++)
-        if (!f->escondido[k] && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto ainda nao mostrou
+        if (!f->escondido[k] && f->tipo[k] != D_UNIVERSO && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto ainda nao mostrou; o Universo nao se copia
     if (b < 0) return false;
     *out = (peca_t){ .tipo = f->tipo[b], .fixo = f->fixo[b] };
     return true;
@@ -146,7 +146,7 @@ static void embrulha_um(void)
     if (!tem_reg(REG_PRESENTE) || !J[0].n_mao) return;
     int ok[MAO], n = 0;
     for (int i = 0; i < J[0].n_mao; i++)
-        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE) ok[n++] = J[0].mao[i];
+        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE && J[0].col[J[0].mao[i]].tipo != D_UNIVERSO) ok[n++] = J[0].mao[i];   // o Universo vai sozinho: nao embrulha
     if (!n) return;
     embrulho = (int16_t)ok[rnd() % (uint32_t)n];
     embrulho_tipo = J[0].col[embrulho].tipo;
@@ -161,6 +161,7 @@ static void embrulha_um(void)
 static void nova_rodada(void)
 {
     rodada++;
+    if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
     plano_rodada = -1;                       // a IA monta outra fila
     carta_virando = false;
     zerou = -1;
@@ -674,10 +675,33 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     ad_moedas[j] += d->moedas[j];
 }
 
+// O ciclo cosmico: a peca vira o estagio t, sem os adesivos. Evoluindo, volta
+// para a mao na rodada seguinte (como o Velcro); no Big Bang, nao.
+static void cosmo_vira(peca_t *p, int t, bool volta)
+{
+    *p = (peca_t){ .tipo = (uint8_t)t, .velcro = volta };
+}
+
+// O ciclo cosmico que tirou a faixa de cima evolui, valendo ou nao - ate
+// quando a rodada acaba porque alguem correu. Na rodada seguinte, ele chega
+// na mao com o nome novo (menos depois do Big Bang).
+static void cosmo_ficam(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        int i = F[j].idx[k];
+        if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
+        peca_t *p = &J[j].col[i];
+        if (!cosmico(p->tipo) || !F[j].evolui[k]) continue;
+        cosmo_recem[j][i] = p->tipo != D_UNIVERSO;
+        cosmo_vira(p, cosmo_proximo(p->tipo), p->tipo != D_UNIVERSO);
+    }
+}
+
 // O que os dados guardam da rodada, na peca da bolsa: a Furia, o que o lance
 // mexeu no bonus (valendo ou nao); a Onda valendo, o que tirou - e com 9 vira
 // Tsunami, de vez; os Tres Patinhos valendo, mais uma vez; o Revolver, valendo
-// ou nao, mais uma bala (e o tambor vazio depois do tiro).
+// ou nao, mais uma bala (e o tambor vazio depois do tiro); e o ciclo cosmico
+// evolui (cosmo_ficam).
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -696,6 +720,7 @@ static void contadores_ficam(int j, const desfecho_t *d)
         else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
     }
+    cosmo_ficam(j);
 }
 
 // A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
@@ -997,6 +1022,7 @@ static void conclui_rodada(void)
     else if (venc_mao == 1) rival_reage(RM_GANHA_R);
     hist_rodada(seu_pote);
     desfaz_embrulho();                       // o embrulho do Papai Noel nao lancado volta a ser o dado
+    memset(cosmo_recem, 0, sizeof cosmo_recem);
     for (int j = 0; j < 2; j++) {
         adesivos_ficam(j, &resolvido);
         contadores_ficam(j, &resolvido);
@@ -1022,6 +1048,7 @@ static int som_do_evento(int i)
         case D_LASER:   return SOM_LASER;
         case D_BONECO:  return SOM_GELO;
         case D_TSUNAMI: return SOM_ONDA;
+        case D_BURACO:  return SOM_BURACO;
         default:        return SOM_ANULA;
         }
     case EV_ONDA:    return SOM_ONDA;

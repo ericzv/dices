@@ -352,6 +352,215 @@ static void desenha_tiro_fogo(void)
     }
 }
 
+// ---------------------------------------------------------------------------
+// O ciclo cosmico. O dado que vai evoluir, ao pousar: a luz se junta nele
+// girando, um clarao, um anel e raios abrem e as faiscas sobem (o som, um
+// pouco mais agudo a cada estagio); ate o fim da rodada, uma estrelinha gira
+// em volta dele. O Universo, ao pousar, faz o Big Bang: a mesa escurece e as
+// estrelas sao sugadas para ele, o clarao branco toma a tela, a mesa treme,
+// e aneis e estrelas se espalham. Na rodada seguinte, o dado que evoluiu
+// chega na mao com o brilho e o nome novo.
+// ---------------------------------------------------------------------------
+#define EVOLUI_T      1.2f
+#define EVOLUI_CLARAO 0.30f                  // quando a luz junta e estoura
+#define BANG_T        2.8f
+#define BANG_ESTOURO  0.38f                  // o estouro, junto com o do som
+static float t_evolui = -1, t_bang = -1;
+static int evo_x, evo_y, evo_tipo, bang_j, bang_k;
+static int cosmo_tom(int t) { static const int8_t TOM[5] = { 0, 2, 4, 5, 7 }; return cosmico(t) ? TOM[t - D_ASTRO] : 0; }
+
+// Quando o dado i da mao que evoluiu se revela: depois de chegar, um de
+// cada vez (o nome de um nao cobre o do outro).
+#define CHEGOU_T 1.5f
+static float cosmo_chega(const jogador_t *p, int i)
+{
+    int antes = 0;
+    for (int q = 0; q < i; q++) antes += cosmo_recem[p - J][p->mao[q]];
+    return i * 0.07f + 0.18f + antes * CHEGOU_T;
+}
+
+static void cosmo_pousa(int j, int k)
+{
+    int t = F[j].tipo[k];
+    if (!cosmico(t) || !F[j].evolui[k] || F[j].idx[k] < 0) return;   // a copia do Coringa nao evolui
+    evo_x = SLOT_X(k);
+    evo_y = zona(j);
+    evo_tipo = t;
+    if (t == D_UNIVERSO) {
+        t_bang = 0;
+        bang_j = j; bang_k = k;
+        som_toca(SOM_BIG_BANG);
+        return;
+    }
+    t_evolui = 0;
+    som_toca_tom(SOM_EVOLUI, cosmo_tom(t));
+}
+
+// O veredito espera a luz estourar (e o Big Bang espalhar) antes de seguir.
+static bool cosmo_segura(void)
+{
+    return (t_evolui >= 0 && t_evolui < EVOLUI_CLARAO + 0.35f) || (t_bang >= 0 && t_bang < BANG_ESTOURO + 1.3f);
+}
+
+static void cosmo_passo(float dt)
+{
+    if (t_evolui >= 0 && (t_evolui += dt) > EVOLUI_T) t_evolui = -1;
+    if (t_bang >= 0) {
+        float antes = t_bang;
+        t_bang += dt;
+        if (antes < BANG_ESTOURO && t_bang >= BANG_ESTOURO) {   // o estouro: a mesa para no clarao e treme
+            golpe(bang_j, 1u << bang_k | 1u << N_FILA);
+            treme(7, 0.8f);
+        }
+        if (t_bang > BANG_T) t_bang = -1;
+    }
+    // O dado que evoluiu chegando na mao: o som do estagio novo.
+    if (fase == F_ORDEM && !anuncia_maquina() && t_anuncio <= 0) {
+        const jogador_t *p = &J[vez];
+        for (int i = 0; i < p->n_mao; i++) {
+            int c = p->mao[i];
+            float chega = cosmo_chega(p, i);
+            if (cosmo_recem[vez][c] && t_fase - dt < chega && t_fase >= chega) som_toca_tom(SOM_EVOLUI, cosmo_tom(p->col[c].tipo));
+        }
+    }
+}
+
+// Um anel de um ou dois pixels de espessura.
+static void anel(int cx, int cy, int r, int esp, uint16_t c)
+{
+    int n = r * 6 + 12;
+    for (int i = 0; i < n; i++) {
+        float a = i * 6.2832f / n;
+        gfx_rect(cx + (int)lroundf(cosf(a) * r), cy + (int)lroundf(sinf(a) * r), esp, esp, c);
+    }
+}
+
+static void desenha_evolui(void)
+{
+    if (t_evolui < 0) return;
+    int R = R_DADO, cx = evo_x, cy = evo_y;
+    uint16_t luz = VISUAL[evo_tipo].c1, cor = aro_de(evo_tipo);
+    if (t_evolui < EVOLUI_CLARAO) {               // a luz se junta no dado, girando
+        float q = t_evolui / EVOLUI_CLARAO, e = q * q;
+        for (int i = 0; i < 10; i++) {
+            float a = i * 0.6283f + q * 2.5f, d = (1 - e) * (R + 30) + R * 0.5f;
+            estrela4(cx + (int)(cosf(a) * d), cy + (int)(sinf(a) * d), i % 3 ? 1 : 2, C_BRANCO, luz, cor);
+        }
+        return;
+    }
+    float s = t_evolui - EVOLUI_CLARAO, q = s / (EVOLUI_T - EVOLUI_CLARAO);
+    if (s < 0.06f) gfx_disco(cx, cy, R + 4, C_BRANCO);                       // o clarao, por um instante
+    if (q < 0.7f) anel(cx, cy, R + 3 + (int)(q * 36), q < 0.3f ? 2 : 1, q < 0.3f ? luz : cor);
+    if (q < 0.35f)                                                          // oito raios curtos
+        for (int i = 0; i < 8; i++) {
+            float a = i * 0.7854f + 0.39f, d0 = R + 4 + q * 24, d1 = d0 + 8 + q * 16;
+            gfx_linha(cx + (int)(cosf(a) * d0), cy + (int)(sinf(a) * d0), cx + (int)(cosf(a) * d1), cy + (int)(sinf(a) * d1),
+                      i % 2 ? cor : luz);
+        }
+    for (int i = 0; i < 9; i++) {                                           // as faiscas subindo
+        uint32_t h = hash2(i, 33);
+        float x = cx + ((int)(h % (2 * R)) - R) * 0.9f + sinf(s * 6 + i) * 3;
+        float y = cy + R * 0.3f - s * (38 + (h >> 8) % 30);
+        if (q > 0.7f && ((int)(t_evolui * 20) + i) & 1) continue;
+        estrela4((int)x, (int)y, i % 3 ? 1 : 2, C_BRANCO, luz, cor);
+    }
+}
+
+// A estrelinha que gira em volta do dado que vai evoluir, ate o fim da rodada.
+static void cosmo_orbita(int x, int y, int R, int t)
+{
+    uint16_t luz = VISUAL[t].c1, cor = aro_de(t);
+    for (int i = 0; i < 2; i++) {
+        float a = t_relogio * 2.6f + i * 3.1416f, d = R + 5;
+        estrela4(x + (int)(cosf(a) * d), y + (int)(sinf(a) * d * 0.9f), i ? 1 : 2, C_BRANCO, luz, cor);
+    }
+}
+
+static void desenha_big_bang(void)
+{
+    if (t_bang < 0) return;
+    int cx = evo_x, cy = evo_y;
+    if (t_bang < BANG_ESTOURO) {                  // tudo sendo sugado para o dado
+        float q = t_bang / BANG_ESTOURO;
+        gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_BARRA, (int)(210 * q));
+        for (int i = 0; i < 28; i++) {
+            uint32_t h = hash2(i, 77);
+            float a = (h % 628) / 100.0f, d0 = 240 + (h >> 10) % 160;
+            float d = d0 * (1 - q) * (1 - q) + 6, d2 = d + 8 + 34 * q;
+            gfx_linha(cx + (int)(cosf(a) * d), cy + (int)(sinf(a) * d), cx + (int)(cosf(a) * d2), cy + (int)(sinf(a) * d2),
+                      i % 3 ? C_BRANCO : RGB(206, 180, 218));
+        }
+        gfx_disco(cx, cy, (int)(4 + 7 * q), C_BRANCO);
+        return;
+    }
+    float s = t_bang - BANG_ESTOURO, q = s / (BANG_T - BANG_ESTOURO);
+    for (int k = 0; k < 3; k++) {                 // os aneis
+        float rr = (s - k * 0.12f) * (440 + k * 70);
+        if (rr <= 2 || rr > 760) continue;
+        static const uint16_t AN[3] = { RGB(252, 248, 236), RGB(206, 180, 218), RGB(246, 222, 132) };
+        anel(cx, cy, (int)rr, q < 0.35f ? 3 : q < 0.6f ? 2 : 1, AN[k]);
+    }
+    for (int i = 0; i < 56; i++) {                // as estrelas voando para fora, com rastro
+        uint32_t h = hash2(i, 191);
+        float a = (h % 6283) / 1000.0f, v = 110 + (h >> 12) % 280;
+        float d = 10 + v * s * (1 - 0.2f * s), d2 = d - 5 - v * 0.05f;
+        int x = cx + (int)(cosf(a) * d), y = cy + (int)(sinf(a) * d * 0.85f);
+        if (x < -10 || x > GFX_W + 10 || y < -10 || y > GFX_H + 10) continue;
+        if (q > 0.65f && ((int)(t_bang * 16) + i) & 1) continue;             // somem piscando
+        static const uint16_t EST[4] = { RGB(252, 248, 236), RGB(246, 222, 132), RGB(206, 180, 218), RGB(168, 204, 230) };
+        uint16_t c = EST[(h >> 5) & 3];
+        gfx_linha(cx + (int)(cosf(a) * d2), cy + (int)(sinf(a) * d2 * 0.85f), x, y, gfx_mistura(c, C_BARRA, 45));
+        if ((h >> 9) % 3 == 0) estrela4(x, y, 2, C_BRANCO, c, gfx_mistura(c, C_BARRA, 40));
+        else gfx_rect(x - 1, y - 1, 2, 2, c);
+    }
+    if (s < 0.5f) gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_BRANCO, (int)(255 * (1 - s / 0.5f) * (1 - s / 0.5f)));   // o clarao
+}
+
+// O dado que evoluiu chegando na mao (s: desde que se revelou): um anel e
+// faiscas em volta e, embaixo, o nome novo.
+static void cosmo_chegou(int x, int y, int t, float s)
+{
+    if (s < 0 || s > CHEGOU_T) return;
+    uint16_t luz = VISUAL[t].c1, cor = aro_de(t);
+    float q = s / CHEGOU_T;
+    if (s < 0.06f) gfx_disco(x, y, 22, C_BRANCO);
+    if (s < 0.5f) anel(x, y, 20 + (int)(s * 40), s < 0.2f ? 2 : 1, s < 0.2f ? luz : cor);
+    for (int i = 0; i < 6; i++) {
+        float a = t_relogio * 1.8f + i * 1.0472f, d = 24 + 3 * sinf(s * 5 + i);
+        if (q > 0.8f && ((int)(s * 16) + i) & 1) continue;
+        estrela4(x + (int)(cosf(a) * d), y + (int)(sinf(a) * d), i % 2 ? 1 : 2, C_BRANCO, luz, cor);
+    }
+    if (q > 0.85f && (int)(s * 12) & 1) return;                        // o nome some piscando
+    char nome[32];
+    snprintf(nome, sizeof nome, "%s!", TIPO[t].nome);
+    int w = gfx_largura(nome, 1), sobe = s < 0.3f ? (int)((0.3f - s) * 20) : 0;
+    int ty = y + 29 + sobe;
+    gfx_rect(x - w / 2 - 4, ty - 2, w + 8, TXT_H + 3, C_BARRA);
+    gfx_rect(x - w / 2 - 4, ty + TXT_H, w + 8, 1, cor);
+    txt_c(x, ty, nome, cor_dado(t), true);
+}
+
+// O Buraco Negro engolindo um vizinho, no fim da rodada: a poeira do dado
+// vai rodando para dentro dele.
+static void desenha_buraco_suga(void)
+{
+    if (fase != F_EFEITOS || ev_i >= n_ev) return;
+    const evento_t *e = &ev[ev_i];
+    if (e->tipo != EV_ANULA || e->de_k >= N_FILA || F[e->de_j].tipo[e->de_k] != D_BURACO) return;
+    float p = t_fase / duracao_evento(ev_i);
+    if (p > 0.75f) return;
+    int bx = SLOT_X(e->de_k), by = zona(e->de_j), ax = SLOT_X(e->alvo_k), ay = zona(e->alvo_j);
+    for (int i = 0; i < 26; i++) {
+        float f = fr(p * 1.6f + i / 26.0f);                   // cada grao: do alvo ao centro do buraco
+        float a = i * 2.4f + f * 9.0f, raio = (1 - f) * R_DADO * 0.9f;   // girando cada vez mais junto
+        int x = (int)(ax + (bx - ax) * f * f + cosf(a) * raio), y = (int)(ay + (by - ay) * f * f + sinf(a) * raio * 0.8f);
+        uint16_t c = f > 0.75f ? C_FOGO : i % 3 ? RGB(238, 162, 74) : C_AMARELO;
+        gfx_rect(x - 1, y - 1, 3, 3, gfx_mistura(c, C_BARRA, 35));
+        gfx_rect(x, y, 2, 2, c);
+    }
+    anel(bx, by, R_DADO + 3 + (int)(3 * sinf(p * 30)), 1, C_FOGO);
+}
+
 // No comeco de cada evento: o oponente sente o golpe (ou gosta do que fez).
 static void reage_evento(const evento_t *e)
 {

@@ -130,6 +130,16 @@ static int patos_acesos(void)
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
     return marca_nivel % PATINHOS_CADA + (patos_pousou ? 1 : 0);
 }
+// O Revolver pousado na mesa: este lance ja carregou a bala dele.
+static bool bala_pousou;
+// Quantas balas no tambor: as de antes e, pousado, mais uma (com seis, ele
+// dispara). Na colecao, meio tambor.
+static int balas_desta(void)
+{
+    if (marca_nivel < 0) return REVOLVER_BALAS / 2;
+    int n = marca_nivel + (bala_pousou ? 1 : 0);
+    return n > REVOLVER_BALAS ? REVOLVER_BALAS : n;
+}
 // O dado em curso e o embrulho do Papai Noel: a caixa mostra "?", nao os
 // lados do Presente. Quem desenha avisa; o desenho consome.
 static bool caixa_fechada;
@@ -911,6 +921,23 @@ static int desenho_interno(int tipo, float u, float v, float s)
             if (corpo) return aceso ? 1 : 3;
         }
         return 0;
+    }
+    case D_REVOLVER: {                            // o tambor: seis camaras em volta do numero, as carregadas com a bala
+        float rt = 0.74f;
+        if (ro > rt + l) return 0;
+        int balas = balas_desta();
+        for (int i = 0; i < REVOLVER_BALAS; i++) {
+            float a = -1.0472f + i * 1.0472f, cx = cosf(a) * 0.5f, cy = sinf(a) * 0.5f;   // nenhuma em cima nem embaixo do numero
+            float d = sqrtf((u - cx) * (u - cx) + (v - cy) * (v - cy));
+            if (d < 0.155f) {
+                if (i >= balas) return d < 0.115f ? 3 : 1;                    // vazia: o buraco, com a beira
+                return d < 0.03f + l ? 1 : 2;                                 // a bala: o latao, e a espoleta
+            }
+            float fa = a + 0.5236f, fx = cosf(fa) * rt, fy = sinf(fa) * rt;    // o sulco entre duas camaras, na beira
+            if ((u - fx) * (u - fx) + (v - fy) * (v - fy) < 0.11f * 0.11f) return 0;
+        }
+        if (ro > rt - 0.05f - l) return 3;                                     // a beira do tambor
+        return 1;
     }
     case D_PRESENTE: {                            // o papel de presente: listras finas na diagonal, e o laco na beira de cima
         for (int k = -1; k <= 1; k += 2) {                                                   // o laco: duas alcas, com o furo, e o no
@@ -1905,7 +1932,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             if (r >= 12) contorno = zerado ? gfx_mistura(ADESIVO[adf].fundo, C_FELTRO2, 60) : ADESIVO[adf].fundo;
         }
     }
-    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && valor >= 1 && valor <= 6
+    if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && valor >= 1 && valor <= 6
         && (!zerado || so_apagado)) {
         pips((int)cx, (int)cy, valor, (int)r, tinta);
     } else {

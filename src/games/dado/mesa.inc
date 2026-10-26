@@ -947,9 +947,10 @@ static void desenha_fila(int j)
         if (t == D_ONDA && no_desfecho && (vis_tsunami[j][k] || (e && e->tipo == EV_ONDA && e->de_j == j && e->de_k == k && p > 0.48f)))
             td = D_TSUNAMI;
         patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
+        bala_pousou = t == D_REVOLVER;             // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
         desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
-        patos_pousou = false;
+        patos_pousou = bala_pousou = false;
         frutas_desta = -1;
         if (f->presente[k] && giro < 0.5f) lacinho(x + R - 3, (int)(y - pulo) - R + 2);   // saiu de um Presente
         const peca_t *pl = peca_fila(j, k);                // lacrado pelo Selo: ate o lacre romper (ou desde que fechou)

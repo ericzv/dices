@@ -1468,6 +1468,35 @@ int main(void)
                 CONFERE(J[0].col[n0].fixo == 2, "Patinhos caidos nao contam");
                 J[0].n_col--;
             }
+            // Revolver: cada lance carrega uma bala; o sexto dispara, +12, e o tambor esvazia.
+            limpa(); joga(0, D_REVOLVER, 4); d = fim();
+            CONFERE(d.total[0] == 4 && !F[0].tag[0][0], "Revolver com 1 bala: 4, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 4; joga(0, D_REVOLVER, 4); d = fim();
+            CONFERE(d.total[0] == 4, "Revolver com 5 balas: 4, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 5; joga(0, D_REVOLVER, 4); d = fim();
+            CONFERE(d.total[0] == 4 + REVOLVER_TIRO && !strcmp(F[0].tag[0], "+12"), "Revolver na 6a: 16, deu %d", d.total[0]);
+            limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 5; joga(0, D_REVOLVER, 2); d = fim();
+            CONFERE(d.total[0] == 0 && d.est[0][1] == V_ANULADO, "Revolver anulado na 6a: o tiro nao conta, deu %d", d.total[0]);
+            {
+                int n0 = J[0].n_col;
+                J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 3 };
+                J[0].n_col++;
+                limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].fixo == 4, "Revolver: mais uma bala (%d)", J[0].col[n0].fixo);
+                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 4; joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.est[0][1] == V_ANULADO && J[0].col[n0].fixo == 5, "Revolver anulado tambem carrega (%d)", J[0].col[n0].fixo);
+                limpa(); F[0].fixo[0] = 5; joga_ad(0, n0, 3); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.total[0] == 15 && J[0].col[n0].fixo == 0, "Revolver: disparou e esvaziou (%d, %d)", d.total[0], J[0].col[n0].fixo);
+                J[0].n_col--;
+            }
+            {
+                int cb = 0;
+                while (cb < N_PERSO - 1 && strcmp(PERSO[cb].nome, "O CAUBÓI")) cb++;
+                CONFERE(PERSO[cb].nucleo[0] == D_REVOLVER && PERSO[cb].fav[0] == D_REVOLVER, "o Revolver e do Caubói");
+            }
             // Panetone: as frutas da fatia (0 a 3, a cada lance) somam no que tirou.
             limpa(); F[0].fruta[0] = 2; joga(0, D_PANETONE, 5); d = fim();
             CONFERE(d.total[0] == 7 && !strcmp(F[0].tag[0], "+2"), "Panetone com 2 frutas: 7, deu %d", d.total[0]);
@@ -1675,7 +1704,7 @@ int main(void)
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
                                          D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
-                                         D_FURIA, D_ONDA, D_PATINHOS };
+                                         D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));

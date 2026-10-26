@@ -400,6 +400,11 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_PISCA) snprintf(f->tag[k], sizeof f->tag[k], pisca_aceso(f->fixo[k]) ? "x2" : "=0");
+        // Revolver: com a sexta bala, o tiro soma no que ele tirou.
+        if (ef == EF_REVOLVER && revolver_dispara(f->fixo[k])) {
+            f->bonus[k] = (int8_t)(f->bonus[k] + REVOLVER_TIRO);
+            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+        }
         if (ef == EF_MEIA && f->fixo[k]) snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->fixo[k]);
         // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
         if (ef == EF_COLECIONADOR && v == 6) {
@@ -475,6 +480,9 @@ static void aplica_regra(int j, int k)
             else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua 0");
         } else if (ef == EF_MEIA && f->fixo[k]) {
             snprintf(veredito, sizeof veredito, "Meia na Lareira: se ficar, paga +%d", f->fixo[k]);
+        } else if (ef == EF_REVOLVER) {
+            if (revolver_dispara(f->fixo[k])) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
+            else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", f->fixo[k] + 1, REVOLVER_BALAS);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));

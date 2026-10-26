@@ -16,7 +16,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
        EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA,
        EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
-       EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA };
+       EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -51,7 +51,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
        // Os de Natal (so de 20 de outubro a 6 de janeiro) e os mais novos.
        D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS,
-       D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_N };
+       D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_REVOLVER, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -76,6 +76,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ONDA_VIRA 9
 // Os Tres Patinhos: x3 a cada tantas vezes que terminam valendo.
 #define PATINHOS_CADA 3
+// O Revolver: as balas do tambor (uma por lance) e o que o tiro vale, na ultima.
+#define REVOLVER_BALAS 6
+#define REVOLVER_TIRO  12
 // A Meia na Lareira: o que guarda a cada vez que termina anulada, e o teto.
 #define MEIA_GUARDA 2
 #define MEIA_MAX    99
@@ -83,6 +86,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ESTRELA_PTS 2
 // O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
 static bool pisca_aceso(int fixo) { return !(fixo & 1); }
+// O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
+// mais uma, e com a sexta ele dispara.
+static bool revolver_dispara(int fixo) { return fixo + 1 >= REVOLVER_BALAS; }
 // A epoca do Natal (20 de outubro a 6 de janeiro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
 // Em dezembro o Papai Noel e os oponentes de Natal chegam ao cassino; do dia
@@ -232,6 +238,7 @@ static const tipo_t TIPO[D_N] = {
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +2 · válida: paga tudo" },
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
+    { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 6ª: +12" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -344,6 +351,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MEIA]            = "Cada vez que termina anulada, guarda +2. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
+    [D_REVOLVER]        = "Cada vez que é lançado, carrega uma bala. Na 6ª vez, o tambor cheio dispara: +12, e esvazia.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -550,6 +558,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "20 de outubro a 6 de janeiro.",
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
                           "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",
+    [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, carrega uma bala no tambor (as balas aparecem no dado). "
+                          "Na sexta vez, com o tambor cheio, dispara: +12 no que tirou, se terminar válido, e o tambor "
+                          "esvazia para a próxima volta. As balas ficam com ele.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -756,6 +767,7 @@ static const visual_t VISUAL[D_N] = {
     [D_MEIA]       = { V_VERM,    0, 0,         V_VERM, 40,     V_LATAO_E, 100, V_OURO, 100 },
     [D_ESTRELA]    = { V_OURO,    V_NOITE, 60,  V_OURO, 100,    V_TRIGO, 100,  V_BRANCO, 100 },
     [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 35,    V_MADEIRA, 100, V_VERM, 100 },
+    [D_REVOLVER]   = { V_CHUMBO,  V_COURO, 16,  V_ACO, 100,     V_LATAO, 100,  V_BREU, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

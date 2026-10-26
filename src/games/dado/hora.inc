@@ -268,6 +268,90 @@ static void golpe_evento(const evento_t *e)
     crescendo(e->de_j, 2);
 }
 
+// ---------------------------------------------------------------------------
+// O tiro do Revolver, quando a sexta bala entra: o estampido, a mesa para
+// num clarao e treme, sai o fogo da boca do cano, a bala risca a mesa ate a
+// fila do oponente (e ricocheteia la) e a fumaca sobe do tambor.
+// ---------------------------------------------------------------------------
+#define TIRO_T 1.5f
+static float t_tiro = -1;
+static int tiro_x, tiro_y, tiro_ate, tiro_dir;
+
+static void dispara_revolver(int j, int k)
+{
+    t_tiro = 0;
+    tiro_x = SLOT_X(k);
+    tiro_y = zona(j);
+    tiro_ate = zona(outro(j));
+    tiro_dir = tiro_ate < tiro_y ? -1 : 1;
+    som_toca(SOM_TIRO);
+    golpe(j, 1u << k);
+    treme(4, 0.35f);
+}
+
+static void tiro_passo(float dt)
+{
+    if (t_tiro < 0) return;
+    t_tiro += dt;
+    if (t_tiro > TIRO_T) t_tiro = -1;
+}
+
+static void desenha_tiro(void)
+{
+    if (t_tiro < 0) return;
+    float t = t_tiro;
+    int bx = tiro_x, by = tiro_y + tiro_dir * (R_DADO + 2);      // a boca do cano: a beira do dado, do lado do oponente
+    // A fumaca: nuvens que saem da boca, abrem para os lados (em volta do
+    // numero que sobe do dado), crescem e sobem devagar.
+    static const float FU[8][3] = { { -1.0f, 0.1f, 0.00f }, { 1.0f, 0.2f, 0.02f }, { -0.5f, 0.6f, 0.05f },
+                                    { 0.6f, 0.7f, 0.08f }, { -1.6f, 0.9f, 0.11f }, { 1.5f, 1.0f, 0.14f },
+                                    { -0.2f, 1.3f, 0.18f }, { 0.9f, 1.5f, 0.22f } };
+    for (int i = 0; i < 8; i++) {
+        float q = (t - FU[i][2]) / (TIRO_T - FU[i][2]);
+        if (q <= 0 || q >= 1) continue;
+        float x = bx + FU[i][0] * 14 * (0.5f + q), y = by + tiro_dir * FU[i][1] * 10 - q * 30;
+        int r = (int)(3 + 8 * sqrtf(q) * (1 - q * 0.45f));
+        if (q > 0.7f && ((int)(t * 30) + i) & 1) continue;   // some aos poucos, piscando
+        gfx_disco((int)x + 1, (int)y + 2, r, C_CINZA);
+        gfx_disco((int)x, (int)y, r, q < 0.45f ? RGB(204, 194, 172) : RGB(166, 154, 132));
+        if (r > 4) gfx_disco((int)x - r / 3, (int)y - r / 3, r / 3, q < 0.45f ? RGB(238, 230, 212) : RGB(204, 194, 172));
+    }
+    // A bala: um risco claro indo da boca do cano ate a fila de la, e a faisca do ricochete.
+    float qb = t / 0.14f;
+    if (qb < 1) {
+        int y = (int)(by + (tiro_ate - by) * qb), y0 = y - tiro_dir * 22;
+        gfx_linha_grossa(bx, y0, bx, y, 2, C_AMARELO);
+        gfx_linha_grossa(bx, y - tiro_dir * 6, bx, y, 3, C_BRANCO);
+    } else if (t < 0.40f) {
+        float q = (t - 0.14f) / 0.26f;
+        int y = tiro_ate - tiro_dir * (R_DADO + 4), n = (int)(5 + q * 10);
+        for (int i = 0; i < 7; i++) {
+            float a = -1.5708f * tiro_dir + (i - 3) * 0.42f;
+            gfx_linha(bx + (int)(cosf(a) * n * 0.45f), y - (int)(sinf(a) * n * 0.45f),
+                      bx + (int)(cosf(a) * n), y - (int)(sinf(a) * n), q < 0.5f ? C_BRANCO : C_AMARELO);
+        }
+        if (q < 0.6f) gfx_disco(bx, y, (int)(3 * (1 - q)) + 1, C_BRANCO);
+    }
+}
+
+// O fogo da boca do cano: uma estrela de raios, logo no estampido - por cima
+// de tudo, ate do numero que sobe do dado (a fumaca e a bala ficam embaixo).
+static void desenha_tiro_fogo(void)
+{
+    float t = t_tiro;
+    int bx = tiro_x, by = tiro_y + tiro_dir * (R_DADO + 2);
+    if (t >= 0 && t < 0.2f) {
+        float q = t / 0.2f;
+        int R = (int)(14 + q * 12);
+        for (int i = 0; i < 9; i++) {
+            float a = 1.5708f * tiro_dir + (i - 4) * 0.36f, len = R * (i % 2 ? 0.55f : 1.0f) * (i == 4 ? 1.5f : 1.0f);
+            gfx_linha_grossa(bx, by, bx + (int)(cosf(a) * len), by + (int)(sinf(a) * len), i == 4 ? 4 : 3,
+                             q < 0.35f ? C_BRANCO : (i % 2 ? C_FOGO : C_AMARELO));
+        }
+        gfx_disco(bx, by, (int)(8 * (1 - q)) + 2, q < 0.5f ? C_BRANCO : C_AMARELO);
+    }
+}
+
 // No comeco de cada evento: o oponente sente o golpe (ou gosta do que fez).
 static void reage_evento(const evento_t *e)
 {

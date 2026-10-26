@@ -61,7 +61,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
   o que quiser e ganha um amuleto, como todos. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
-  de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
+  de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
+  no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
   terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2

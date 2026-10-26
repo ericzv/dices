@@ -9,8 +9,8 @@
 
 #define N_NIVEIS      10                 // dificuldades acima da normal (andares do cassino)
 #define N_NIVEIS_V    5                  // os perfis de antes tinham 5: o nivel n de la e o 2n daqui
-#define DES_MOEDAS    4                  // moedas no comeco da run: a loja da entrada ja vende
-#define DES_MOEDAS_NIVEL 2               // e mais 1 a cada 2 niveis (os oponentes la de cima sao mais duros)
+#define DES_MOEDAS    4                  // moedas no comeco da run no terreo: a loja da entrada ja vende
+                                         // (e mais 1 a cada andar: os oponentes la de cima sao mais duros)
 
 // Moedas por mesa vencida: [salao][1o, 2o, 3o oponente, chefe]. O Barao so
 // paga quando o Coringa vem depois (do Nivel 5; antes, a run acaba nele); o

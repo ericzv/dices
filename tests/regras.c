@@ -1956,6 +1956,10 @@ int main(void)
         }
         CONFERE(run.n_col == 12 && d2 == 2 && d4 == 4 && d6 == 6 && run.moedas == DES_MOEDAS,
                 "run nova: %d dados (%d, %d, %d), %d moedas", run.n_col, d2, d4, d6, run.moedas);
+        // As moedas do comeco: 4 no terreo, e uma a mais a cada andar (14 na Cobertura).
+        CONFERE(moedas_iniciais(0) == 4 && moedas_iniciais(1) == 5 && moedas_iniciais(2) == 6
+                && moedas_iniciais(N_NIVEIS) == 4 + N_NIVEIS, "moedas do comeco: %d %d %d ... %d",
+                moedas_iniciais(0), moedas_iniciais(1), moedas_iniciais(2), moedas_iniciais(N_NIVEIS));
         // O salao: tres oponentes, do facil ao dificil, e o chefe; sem repetir.
         CONFERE(mesas_do_salao() == 4 && run.no[0].tipo == NO_FACIL && run.no[1].tipo == NO_MEDIO
                 && run.no[2].tipo == NO_DIFICIL && run.no[3].tipo == NO_CHEFE && run.no[3].perso == PERSO_CHEFE0

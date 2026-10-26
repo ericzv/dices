@@ -373,7 +373,7 @@ static void amuleto_escolhido(int i)
 // e parte da run.
 static const uint8_t BOLSA_INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D4, D_D4, D_D2, D_D2 };
 
-static int moedas_iniciais(int dif) { return DES_MOEDAS + dif / DES_MOEDAS_NIVEL; }
+static int moedas_iniciais(int dif) { return DES_MOEDAS + dif; }
 
 static void des_nova_run(void)
 {

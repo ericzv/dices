@@ -1319,6 +1319,76 @@ def revolver_tiro():
         m.poe(atraso, pb(seco, 1600), g)
     return sala(m.x, 0.35)
 
+def cosmo_evolui():
+    """O ciclo cosmico evoluindo: um sopro de luz subindo, um arpejo de
+    celesta e glockenspiel em lidio (do, mi, sol, si, re, fa#, do) e um
+    acorde de vibrafone que fica no ar. No jogo, cada estagio toca um pouco
+    mais agudo."""
+    m = Mix(2.0)
+    n = int(0.6 * SR); q = np.linspace(0, 1, n); w = rng.standard_normal(n)
+    sopro = banda(w, 700, 2500) * (1 - q) + banda(w, 3000, 9500) * q        # o ar subindo, cada vez mais claro
+    m.poe(0, sopro * np.sin(np.pi * np.minimum(1, q * 1.25)) ** 1.5, 0.07)
+    t = np.arange(n) / SR
+    f = 1100 * 2 ** (2 * q)                                                  # um brilho que desliza duas oitavas
+    m.poe(0, np.sin(2 * np.pi * np.cumsum(f) / SR) * (0.6 + 0.4 * np.sin(2 * np.pi * 19 * t)) * q ** 1.2 * (1 - q) * 4, 0.03)
+    for k, n_ in enumerate((72, 76, 79, 83, 86, 90, 96)):
+        inst = 'celesta' if n_ < 84 else 'glockenspiel'
+        m.poe(0.10 + k * 0.055, nota(inst, n_, 0.18 if k < 6 else 0.7, 0.35), 0.34 + 0.04 * k)
+    for n_ in (72, 76, 79, 83):                                              # do com setima maior
+        m.poe(0.46, nota('vibraphone', n_, 1.1, 0.6), 0.16)
+    m.poe(0.62, nota('glockenspiel', 103, 0.4, 0.4), 0.16)
+    m.poe(0.80, nota('glockenspiel', 108, 0.4, 0.4), 0.10)
+    return sala(m.x, 0.32)
+
+def buraco_negro():
+    """O Buraco Negro engolindo um dado: o ar sendo puxado para dentro (um
+    chiado que cresce e escurece, como fita ao contrario), o grave que
+    despenca e o baque surdo la no fundo, com um zumbido que some girando."""
+    m = Mix(1.9)
+    n = int(0.62 * SR); q = np.linspace(0, 1, n); w = rng.standard_normal(n)
+    puxa = (banda(w, 2500, 8000) * (1 - q) + banda(w, 250, 1400) * q) * q ** 2.2
+    m.poe(0, puxa, 0.4)
+    t = np.arange(n) / SR
+    m.poe(0, np.sin(2 * np.pi * np.cumsum(900 * 2 ** (-3 * q)) / SR) * q ** 2 * 0.5, 0.06)   # o tom sendo sugado
+    T = 0.60
+    n = int(1.2 * SR); t = np.arange(n) / SR
+    sub = np.sin(2 * np.pi * np.cumsum(28 + 120 * np.exp(-t / 0.22)) / SR) * env(n, 0.004, 0.42)
+    m.poe(T, sub, 1.0)
+    m.poe(T, tom(nota('timpani', 36, 0.9, 0.5), -5), 0.55)
+    zum = np.sin(2 * np.pi * np.cumsum(55 + 6 * np.sin(2 * np.pi * 3 * t)) / SR) * env(n, 0.05, 0.5)
+    m.poe(T + 0.05, zum * (0.5 + 0.5 * np.sin(2 * np.pi * 5.5 * t)), 0.25)   # o zumbido girando
+    m.x = np.tanh(1.3 * m.x) / np.tanh(1.3)
+    return sala(m.x, 0.3)
+
+def big_bang():
+    """O Big Bang: tudo sendo sugado para um ponto (um chiado e um tom que
+    sobem), o estouro enorme (o grave, o timpano, o ruido saturado e o
+    estalo), um brilho que se espalha em muitas notas subindo e um acorde
+    aberto de vibrafone e sinos que nasce e fica."""
+    m = Mix(3.8)
+    T = 0.38                                                                 # o estouro
+    n = int(T * SR); q = np.linspace(0, 1, n); w = rng.standard_normal(n)
+    m.poe(0, (banda(w, 400, 2000) * (1 - q) + banda(w, 2500, 9000) * q) * q ** 2.5, 0.4)
+    m.poe(0, np.sin(2 * np.pi * np.cumsum(180 + 1600 * q ** 2) / SR) * q ** 3, 0.08)
+    n = int(1.8 * SR); t = np.arange(n) / SR
+    sub = np.sin(2 * np.pi * np.cumsum(24 + 80 * np.exp(-t / 0.16)) / SR) * env(n, 0.003, 0.7)
+    estouro = sub + 0.9 * pb(rng.standard_normal(n), 900) * env(n, 0.002, 0.32)
+    m.poe(T, np.tanh(1.8 * estouro) / np.tanh(1.8), 1.0)
+    m.poe(T, tom(nota('timpani', 36, 1.4, 0.9), -7), 0.75)
+    k = int(0.02 * SR)
+    m.poe(T, pa(rng.standard_normal(k), 1500) * env(k, 0.0003, 0.004), 1.6)    # o estalo, por cima
+    escala = (84, 86, 88, 91, 93, 96, 98, 100, 103, 105, 108)
+    for i in range(28):                                                      # o brilho espalhando, subindo
+        tk = T + 0.10 + i * 0.042 + rng.uniform(0, 0.03)
+        e = int(np.clip(i / 28 * len(escala) + rng.integers(-1, 2), 0, len(escala) - 1))
+        m.poe(tk, nota('glockenspiel', escala[e], 0.2, 0.4), 0.24 * (1 - i / 40))
+    m.poe(T + 0.04, tom(nota('tubular_bells', 84, 1.8, 0.9), -12), 0.32)      # o sino grave do comeco de tudo
+    for n_ in (72, 79, 84, 88):                                              # do aberto, com a quinta e a terca la em cima
+        m.poe(T + 0.30, nota('vibraphone', n_, 2.0, 0.9), 0.20)
+    for n_ in (76, 83):
+        m.poe(T + 0.55, nota('celesta', n_, 1.4, 0.8), 0.14)
+    return sala(m.x, 0.42)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -1358,6 +1428,10 @@ VOLUME.update({'sino': VOLUME['efeito'], 'gelo': VOLUME['anula'] * 0.85, 'onda':
 VOLUME.update({'presente': VOLUME['efeito'] * 0.9, 'estrela': VOLUME['efeito']})
 # O Revolver: carregar, baixinho como uma ficha; o tiro, acima da vitoria.
 VOLUME.update({'revolver_carrega': VOLUME['ficha'] * 0.7, 'revolver_tiro': VOLUME['vitoria'] * 1.25})
+# O ciclo cosmico: evoluir, na altura de um poder; o Buraco Negro, de um
+# ataque; o Big Bang, o maior de todos.
+VOLUME.update({'cosmo_evolui': VOLUME['efeito'] * 1.05, 'buraco_negro': VOLUME['anula'] * 1.05,
+               'big_bang': VOLUME['vitoria'] * 1.35})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1381,7 +1455,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
-             'presente', 'estrela', 'revolver_carrega', 'revolver_tiro'):
+             'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

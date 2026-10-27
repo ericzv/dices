@@ -76,15 +76,16 @@ static void lado_vira(int j, int k, int v)
 }
 
 // Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
-// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso e a Sanguessuga.
+// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso, a Sanguessuga,
+// o Vazio e o Universo.
 // Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
-// So o Escudo.
+// O Escudo e o Universo.
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO || ef == EF_UNIVERSO;
 }
-static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO; }
+static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO || TIPO[t].efeito == EF_UNIVERSO; }
 // O mesmo, pela posicao: o dado preso pela Ancora tambem.
 static bool intocavel(int j, int k) { return intocavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
@@ -253,6 +254,10 @@ static void aplica_regra(int j, int k)
         am_disparou |= AM_BIT(A_PRENSA);
     }
 
+    // O ciclo cosmico: tirando a faixa de cima, valendo ou nao, evolui no fim
+    // da rodada (o Universo, sempre: e o Big Bang).
+    f->evolui[k] = cosmo_evolui(t, v);
+
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
     // antes, como na queda; no fim da rodada sai da bolsa.
     if (ef == EF_VIDRO && v == 1) {
@@ -406,6 +411,11 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
         }
         if (ef == EF_MEIA && f->fixo[k]) snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->fixo[k]);
+        // O ciclo cosmico: quem vai evoluir pontua o bonus do estagio.
+        if (f->evolui[k] && cosmo_bonus(t)) {
+            f->bonus[k] = (int8_t)(f->bonus[k] + cosmo_bonus(t));
+            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+        }
         // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
         if (ef == EF_COLECIONADOR && v == 6) {
             int tem = 0;
@@ -483,6 +493,12 @@ static void aplica_regra(int j, int k)
         } else if (ef == EF_REVOLVER) {
             if (revolver_dispara(f->fixo[k])) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
             else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", f->fixo[k] + 1, REVOLVER_BALAS);
+        } else if (ef == EF_UNIVERSO) {
+            snprintf(veredito, sizeof veredito, "BIG BANG! O Universo pontua %d", vale);
+        } else if (ef == EF_BURACO && f->evolui[k]) {
+            snprintf(veredito, sizeof veredito, "Buraco Negro tirou %d: no fim, anula os vizinhos e evolui", v);
+        } else if (cosmico(t) && f->evolui[k]) {
+            snprintf(veredito, sizeof veredito, "%s tirou %d: pontua %d (+%d) e evolui!", TIPO[t].nome, v, vale, cosmo_bonus(t));
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));

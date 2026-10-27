@@ -16,7 +16,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_PREVISIVEL, EF_OCULTO, EF_SACRIFICIO, EF_VAZIO, EF_MEDIA, EF_VAMPIRO, EF_COLECIONADOR,
        EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA,
        EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
-       EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER };
+       EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER,
+       EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -51,7 +52,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
        // Os de Natal (so de 20 de outubro a 6 de janeiro) e os mais novos.
        D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS,
-       D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_REVOLVER, D_N };
+       D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_REVOLVER,
+       // O ciclo cosmico: a Estrela (D_ASTRO; a de Natal e a D_ESTRELA) e o que ela vira.
+       D_ASTRO, D_CONSTELACAO, D_GALAXIA, D_BURACO, D_UNIVERSO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -76,6 +79,13 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ONDA_VIRA 9
 // Os Tres Patinhos: x3 a cada tantas vezes que terminam valendo.
 #define PATINHOS_CADA 3
+// O ciclo cosmico: tirando a faixa de cima, a Estrela (d6) vira Constelacao
+// (d8), Galaxia (d12), Buraco Negro (d20) e Universo (d100); o Universo,
+// lancado (sempre sozinho), faz o Big Bang e volta a ser Estrela. O bonus de
+// quem evolui, e o Buraco Negro anula os vizinhos.
+#define COSMO_ESTRELA 1
+#define COSMO_CONSTELACAO 3
+#define COSMO_GALAXIA 5
 // O Revolver: as balas do tambor (uma por lance) e o que o tiro vale, na ultima.
 #define REVOLVER_BALAS 6
 #define REVOLVER_TIRO  12
@@ -89,6 +99,21 @@ static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
 // mais uma, e com a sexta ele dispara.
 static bool revolver_dispara(int fixo) { return fixo + 1 >= REVOLVER_BALAS; }
+static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
+// O que ele vira, e a partir de que numero (o Universo: sempre, no Big Bang).
+static int cosmo_proximo(int t) { return t == D_UNIVERSO ? D_ASTRO : t + 1; }
+static int cosmo_faixa(int t)
+{
+    switch (t) {
+    case D_ASTRO:       return 5;
+    case D_CONSTELACAO: return 6;
+    case D_GALAXIA:     return 9;
+    case D_BURACO:      return 14;
+    default:            return 1;
+    }
+}
+static bool cosmo_evolui(int t, int v) { return cosmico(t) && v >= cosmo_faixa(t); }
+static int cosmo_bonus(int t) { return t == D_ASTRO ? COSMO_ESTRELA : t == D_CONSTELACAO ? COSMO_CONSTELACAO : t == D_GALAXIA ? COSMO_GALAXIA : 0; }
 // A epoca do Natal (20 de outubro a 6 de janeiro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
 // Em dezembro o Papai Noel e os oponentes de Natal chegam ao cassino; do dia
@@ -111,7 +136,10 @@ static bool oculto(int t) { return t == D_MISTERIOSO; }
 // Dados que nao saem em sorteio nenhum (premio, loja, liberacao): o oculto, o
 // Fantasma, que so aparece quando alguem o poe na bolsa, o Tsunami, que so
 // nasce de uma Onda, e os de Natal fora da epoca.
-static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t); }
+// O ciclo cosmico depois da Estrela so nasce dela: nao sai em sorteio nem
+// aparece na colecao (e surpresa).
+static bool cosmo_oculto(int t) { return t >= D_CONSTELACAO && t <= D_UNIVERSO; }
+static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t) || cosmo_oculto(t); }
 static bool so_desafio(int t)
 {
     switch (t) {
@@ -156,7 +184,7 @@ static const tipo_t TIPO[D_N] = {
     { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "Com mais fichas que o oponente: +4" },
     { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "7 ou menos: anula a sua sequência" },
-    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Com um 1 na sua sequência: rouba o menor do oponente" },
+    { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Rouba 1 dado do oponente por 1 nos seus outros válidos" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "Número fixo; quebra ao ser lançado" },
     { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "Se tirar 5 ou 6: anula o maior do oponente. Se tirar 1 ou 2: anula os seus 2 menores." },
     { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Com 3 ou 4: rouba o menor do oponente" },
@@ -183,7 +211,7 @@ static const tipo_t TIPO[D_N] = {
     { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "Recebe os ataques do oponente · válido: +2" },
     { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
     { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "Tira o mesmo do último dado válido (até 6)" },
-    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado seu válido" },
+    { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado válido (d2, d4, d6...)" },
     { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "Se for anulado: renasce no fim" },
     { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +4" },
     { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "Anulado ou roubado pelo oponente: anula os dados dele" },
@@ -198,7 +226,7 @@ static const tipo_t TIPO[D_N] = {
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
     { "Mártir",           4, EF_MARTIR,       RAR_RARO,     0, "Anulado: +2 em cada dado válido seu" },
     { "Puxa-fila",        8, EF_PUXA,         RAR_INCOMUM,  0, "1º da sequência, os quatro válidos: +5" },
-    { "Coveiro",          6, EF_COVEIRO,      RAR_COMUM,    0, "5 ou 6: +1 por dado anulado na mesa" },
+    { "Coveiro",          6, EF_COVEIRO,      RAR_INCOMUM,  0, "+1 por dado anulado na mesa" },
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada dado seu atacado: -4 para o oponente" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
@@ -239,6 +267,11 @@ static const tipo_t TIPO[D_N] = {
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
     { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 6ª: +12" },
+    { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "5 ou 6: +1, e evolui" },
+    { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "6 a 8: +3, e evolui" },
+    { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
+    { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "14 a 20: anula os vizinhos, e evolui" },
+    { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · não cai nem é roubado" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -265,7 +298,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
                           "-5.",
     [D_MALDITO]         = "Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído.",
-    [D_GATUNO]          = "Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do oponente.",
+    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu válido.",
     [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
     [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
                           "dados.",
@@ -294,7 +327,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SEGURANCA]       = "Se estiver válido, é anulado ou roubado no lugar dos seus outros dados. Válido no fim: +2.",
     [D_BUMERANGUE]      = "Se tirar 1 ou 2, volta e rola de novo, uma vez.",
     [D_GEMEO]           = "Tira o mesmo número do último dado válido da sequência, até 6 (senão, rola normalmente).",
-    [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo diferente de dado válido seu.",
+    [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo de dado entre os seus válidos: d2, d4, d6, d8, d12, d20.",
     [D_FENIX]           = "Se terminar anulado, renasce no fim e pontua o número que tirou.",
     [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +4.",
     [D_CAVALO]          = "Se o oponente anular ou roubar este dado, todos os dados do oponente são anulados.",
@@ -309,7 +342,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
     [D_MARTIR]          = "Se terminar anulado, no fim cada dado válido seu pontua +2.",
     [D_PUXA_FILA]       = "Se for o 1º da sequência e os quatro terminarem válidos: +5.",
-    [D_COVEIRO]         = "Se terminar válido com 5 ou 6: +1 no fim por dado anulado, seu ou do oponente.",
+    [D_COVEIRO]         = "Se terminar válido: +1 no fim por dado anulado, seu ou do oponente.",
     [D_HEXA]            = "Se terminar válido, +1 no fim por dado de seis lados válido seu, este dado incluído.",
     [D_OURICO]          = "Se terminar válido: cada dado seu que o oponente anulou ou roubou custa 4 pontos a ele.",
     [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
@@ -351,7 +384,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MEIA]            = "Cada vez que termina anulada, guarda +2. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
-    [D_REVOLVER]        = "Cada vez que é lançado, carrega uma bala. Na 6ª vez, o tambor cheio dispara: +12, e esvazia.",
+    [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 6ª vez, o tambor cheio dispara: +12, e esvazia.",
+    [D_ASTRO]           = "Tirando 5 ou 6, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +1.",
+    [D_CONSTELACAO]     = "Tirando 6, 7 ou 8, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +3.",
+    [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
+    [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
+    [D_UNIVERSO]        = "Só pode ser lançado sozinho. Não pode ser anulado nem roubado.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -383,8 +421,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
     [D_MALDITO]         = "Vinte lados. Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 8 ou "
                           "mais, pontua normalmente.",
-    [D_GATUNO]          = "Seis lados. Se terminar válido e algum dado da sua sequência tiver tirado 1, rouba o menor dado do "
-                          "oponente: os pontos dele passam para você.",
+    [D_GATUNO]          = "Seis lados. Se terminar válido, rouba um dado do oponente para cada 1 tirado por outro dado válido "
+                          "da sua sequência (o anulado não conta): o menor, depois o menor que sobrou, e assim por diante. Os "
+                          "pontos dos roubados passam para você.",
     [D_QUEBRADO]        = "Oito lados, mas não é sorteado: pontua sempre o número gravado nele. Depois de lançado, quebra e sai "
                           "da sua bolsa.",
     [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "
@@ -434,8 +473,9 @@ static const char *TEXTO_CAT[D_N] = {
     [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
                           "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",
-    [D_PRISMA]          = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada tipo diferente de dado válido "
-                          "seu, este dado incluído.",
+    [D_PRISMA]          = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada tipo de dado diferente entre os "
+                          "seus válidos, pelo número de lados (d2, d4, d6, d8, d12 e d20), este dado incluído: com um d4, um d6 "
+                          "e um d20 válidos, +4.",
     [D_FENIX]           = "Seis lados. Se terminar anulado, renasce no fim da rodada e pontua o número que tirou. Se for "
                           "roubado, não volta.",
     [D_TRONO]           = "Doze lados. Se for o 4º dado da sua sequência e os quatro terminarem válidos, este dado incluído, "
@@ -465,7 +505,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MARTIR]          = "Quatro lados. Se terminar a rodada anulado, cada dado válido seu pontua +2 no fim.",
     [D_PUXA_FILA]       = "Oito lados. Se for o primeiro dado da sua sequência e os quatro terminarem válidos, este dado "
                           "incluído, pontua +5 no fim da rodada.",
-    [D_COVEIRO]         = "Seis lados. Se terminar válido com 5 ou 6, pontua +1 no fim da rodada para cada dado anulado, seus e "
+    [D_COVEIRO]         = "Seis lados. Se terminar válido, pontua +1 no fim da rodada para cada dado anulado na mesa, seus e "
                           "do oponente.",
     [D_HEXA]            = "Seis lados. Se terminar válido, pontua +1 no fim da rodada para cada dado de seis lados válido seu, "
                           "este dado incluído.",
@@ -558,9 +598,22 @@ static const char *TEXTO_CAT[D_N] = {
                           "20 de outubro a 6 de janeiro.",
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
                           "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, carrega uma bala no tambor (as balas aparecem no dado). "
-                          "Na sexta vez, com o tambor cheio, dispara: +12 no que tirou, se terminar válido, e o tambor "
-                          "esvazia para a próxima volta. As balas ficam com ele.",
+    [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, termine válido ou anulado, carrega uma bala no tambor (as "
+                          "balas aparecem no dado). Na sexta vez, com o tambor cheio, dispara: +12 - somado no que tirou, "
+                          "se ficar válido; anulado, o tiro já saiu e os +12 vêm no fim da rodada. Depois o tambor esvazia "
+                          "para a próxima volta. As balas ficam com ele.",
+    [D_ASTRO]           = "Seis lados. Tirando 5 ou 6, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
+                          "(e os adesivos dela caem). Se ficar válida, ainda pontua +1 no que tirou. A cada partida, "
+                          "recomeça como Estrela.",
+    [D_CONSTELACAO]     = "Oito lados. Tirando 6, 7 ou 8, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_GALAXIA]         = "Doze lados. Tirando de 9 a 12, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válido, no fim da rodada ainda anula os seus dados lançados logo antes e logo depois "
+                          "dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
+    [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Não pode ser anulado "
+                          "nem roubado. A cada partida, recomeça como Estrela.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -570,16 +623,17 @@ static const uint16_t COR_RAR[] = { RGB(128, 120, 112), RGB(156, 106, 64),
                                     RGB(184, 194, 208), RGB(228, 194, 106) };
 static uint16_t cor_rar(int tipo) { return COR_RAR[TIPO[tipo].raridade]; }
 
-// "moeda", "D4" ... "D20": o tipo, sempre escrito do mesmo jeito.
+// "moeda", "D4" ... "D20" (e o "D100" do Universo): o tipo, sempre escrito do mesmo jeito.
 static const char *nome_tipo(int tipo)
 {
     switch (TIPO[tipo].lados) {
-    case 2:  return "moeda";
-    case 4:  return "D4";
-    case 6:  return "D6";
-    case 8:  return "D8";
-    case 12: return "D12";
-    default: return "D20";
+    case 2:   return "moeda";
+    case 4:   return "D4";
+    case 6:   return "D6";
+    case 8:   return "D8";
+    case 12:  return "D12";
+    case 100: return "D100";
+    default:  return "D20";
     }
 }
 
@@ -600,7 +654,7 @@ static void classe(int tipo, char *s, int n)
 
 // O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
 // fora da epoca, os de Natal.
-static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t); }
+static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t); }
 static int n_catalogo(void)
 {
     int n = 0;
@@ -768,6 +822,12 @@ static const visual_t VISUAL[D_N] = {
     [D_ESTRELA]    = { V_OURO,    V_NOITE, 60,  V_OURO, 100,    V_TRIGO, 100,  V_BRANCO, 100 },
     [D_RENA]       = { V_TERRA,   V_TERRA, 30,  V_COURO, 35,    V_MADEIRA, 100, V_VERM, 100 },
     [D_REVOLVER]   = { V_CHUMBO,  V_COURO, 16,  V_ACO, 100,     V_LATAO, 100,  V_BREU, 100 },
+    // O ciclo cosmico: o corpo de noite vem de desenha_dado; aqui, o aro e as luzes.
+    [D_ASTRO]       = { V_OURO,   0, 0,         V_BRANCO, 100,  V_TRIGO, 100,  V_NOITE, 100 },
+    [D_CONSTELACAO] = { V_NOITE,  0, 0,         V_BRANCO, 100,  V_TRIGO, 100,  V_NOITE, 100 },
+    [D_GALAXIA]     = { V_AMEIXA, 0, 0,         V_LILAS, 100,   V_AMEIXA, 100, V_ROXO, 100 },
+    [D_BURACO]      = { V_FOGO,   0, 0,         V_TRIGO, 100,   V_AMBAR, 100,  V_FOGO, 100 },
+    [D_UNIVERSO]    = { V_AMEIXA, 0, 0,         V_BRANCO, 100,  V_ROXO, 100,   V_VINHO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

@@ -373,7 +373,7 @@ static void amuleto_escolhido(int i)
 // e parte da run.
 static const uint8_t BOLSA_INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D4, D_D4, D_D2, D_D2 };
 
-static int moedas_iniciais(int dif) { return DES_MOEDAS + dif / DES_MOEDAS_NIVEL; }
+static int moedas_iniciais(int dif) { return DES_MOEDAS + dif; }
 
 static void des_nova_run(void)
 {
@@ -394,7 +394,7 @@ static void des_nova_run(void)
 // Monta a mesa de uma partida da run e comeca a primeira rodada. A mesma mesa,
 // recomecada (quem saiu no meio e voltou), sorteia do mesmo jeito.
 // O Acumulador (e a Furia) guarda o bonus so dentro de uma partida: a cada
-// partida da run ele recomeca do zero. A Onda e os Tres Patinhos levam a
+// partida da run ele recomeca do zero; o ciclo cosmico recomeca da Estrela. A Onda e os Tres Patinhos levam a
 // contagem de uma partida para a outra.
 static void zera_acumuladores(peca_t *col, int n)
 {
@@ -402,6 +402,7 @@ static void zera_acumuladores(peca_t *col, int n)
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
+        if (cosmico(col[i].tipo) && col[i].tipo != D_ASTRO) cosmo_vira(&col[i], D_ASTRO, false);   // o ciclo cosmico recomeca
     }
 }
 

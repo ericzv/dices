@@ -172,9 +172,12 @@ static int ad_lado_max(int t) { return TIPO[t].lados; }
 static int ad_n_lados(int t) { return ad_lado_max(t) - ad_lado_min(t) + 1; }
 // O lado do avesso: o 1 do d6 e o 6; o 4 do Lastro, o 12.
 static int ad_oposto(int t, int lado) { return ad_lado_min(t) + ad_lado_max(t) - lado; }
-// Ainda cabe adesivo nele? (um por lado)
+// Ainda cabe adesivo nele? (um por lado) Do ciclo cosmico, so na Estrela:
+// o que ela vira so existe dentro da partida (e nem o premio de 2 jogadores
+// cola nele).
 static bool ad_cabe(const peca_t *p)
 {
+    if (cosmo_oculto(p->tipo)) return false;
     for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo); l++) if (!ad_no_lado(p, l)) return true;
     return false;
 }

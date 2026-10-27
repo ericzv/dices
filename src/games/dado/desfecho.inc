@@ -521,6 +521,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         d->semente[j] += FICHA_VELHA_PTS;
         evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na sexta: o tiro ja saiu, +12 por fora
+        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
+        d->semente[j] += REVOLVER_TIRO;
+        evento(gera, EV_EXTRA, j, k, j, 0, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
+    }
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
         d->semente[j] += 2 * valendo;
@@ -540,14 +545,16 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                    && !(k + 1 < f->lancados && est[k + 1] == V_VALIDO)) {
             d->semente[j] += 6;
             evento(gera, EV_EXTRA, j, k, j, 0, 6, "Solitário sem vizinhos: +6");
-        } else if (ef == EF_PRISMA) {
-            uint64_t tipos = 0;
-            for (int i = 0; i < f->lancados; i++)
-                if (est[i] == V_VALIDO) tipos |= 1ull << tipo_de(j, i);
-            int nt = 0;
-            for (; tipos; tipos >>= 1) nt += (int)(tipos & 1);
+        } else if (ef == EF_PRISMA) {                // +1 por tamanho de dado diferente valendo: d2, d4, d6...
+            int lados[N_FILA], nt = 0;
+            for (int i = 0; i < f->lancados && i < N_FILA; i++) {
+                if (est[i] != V_VALIDO) continue;
+                int l = TIPO[tipo_de(j, i)].lados, ja = 0;
+                for (int q = 0; q < nt; q++) ja |= lados[q] == l;
+                if (!ja) lados[nt++] = l;
+            }
             d->semente[j] += nt;
-            evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s, +%d", nt, nt > 1 ? "s" : "", nt);
+            evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s de dado, +%d", nt, nt > 1 ? "s" : "", nt);
         } else if (ef == EF_CAPITAO) {               // +1 por dado seu valendo, ele incluido
             d->semente[j] += valendo;
             evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, valendo, "Capitão: %d dado%s, +%d",
@@ -567,7 +574,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_PUXA && k == 0 && f->lancados == N_FILA && valendo == N_FILA) {
             d->semente[j] += 5;
             evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a sequência inteira válida, +5");
-        } else if (ef == EF_COVEIRO && f->valor[k] >= 5) {
+        } else if (ef == EF_COVEIRO) {
             int n = 0;
             for (int q = 0; q < 2; q++)
                 for (int i = 0; i < F[q].lancados; i++) n += d->est[q][i] == V_ANULADO;
@@ -669,6 +676,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
+    if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
@@ -678,8 +686,8 @@ static int poder_armado(int j, int k)
     if (f->est[k] != V_VALIDO) return 0;
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
-        uns += f->cru[i] == 1;
         if (i == k || f->est[i] != V_VALIDO) continue;
+        uns += f->cru[i] == 1;                                 // os 1 dos outros valendo (o Gatuno)
         outros++;
         baixos += f->valor[i] <= 2;
         iguais += f->valor[i] == v;
@@ -712,7 +720,6 @@ static int poder_armado(int j, int k)
     case EF_CALIBRE:      return k == f->lancados - 1 || f->calibre[k + 1];
     case EF_PUXA:         return k == 0 && f->lancados == N_FILA && outros == N_FILA - 1;
     case EF_COVEIRO:
-        if (v < 5) return 0;
         for (int q = 0; q < 2; q++)
             for (int i = 0; i < F[q].lancados; i++) if (F[q].est[i] == V_ANULADO) return 1;
         return 0;
@@ -745,6 +752,10 @@ static int poder_armado(int j, int k)
             if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
         return 0;
     case EF_COLECIONADOR: return v == 6;
+    case EF_BURACO:                                          // vai engolir um vizinho seu
+        for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
+            if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme(j, k + s)) return 2;
+        return 0;
     case EF_BONECO:       return v >= 8;
     case EF_TSUNAMI:      return v >= 9;
     case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
@@ -779,8 +790,6 @@ static int poder_armado(int j, int k)
 static void poderes_de(desfecho_t *d, int j, bool gera)
 {
     int r = outro(j);
-    bool tem_um = false;
-    for (int k = 0; k < F[j].lancados; k++) if (F[j].cru[k] == 1) tem_um = true;
 
     for (int k = 0; k < F[j].lancados; k++) {
         int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k];
@@ -803,8 +812,13 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             }
         }
         // Todo poder so age se o dado terminar valendo. O Gatuno, alem
-        // disso, precisa de algum 1 tirado por um dado seu.
-        if (d->est[j][k] != V_VALIDO || (ef == EF_GATUNO && !tem_um)) continue;
+        // disso, rouba um dado por 1 tirado por outro dado seu valendo.
+        int roubos = 1;
+        if (ef == EF_GATUNO) {
+            roubos = 0;
+            for (int i = 0; i < F[j].lancados; i++) roubos += i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO;
+        }
+        if (d->est[j][k] != V_VALIDO || roubos <= 0) continue;
         const char *nome = TIPO[tipo_de(j, k)].nome;
 
         // Berserker: anula um outro dado de quem o lancou, ao acaso - um
@@ -842,6 +856,19 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                                  "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
                 else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                             "Autofagia: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
+            }
+            continue;
+        }
+
+        // Buraco Negro que evolui: engole os seus dados logo antes e logo
+        // depois dele na sequencia (os firmes resistem).
+        if (ef == EF_BURACO) {
+            for (int s = -1; s <= 1 && F[j].evolui[k]; s += 2) {
+                int b = k + s;
+                if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme(j, b)) continue;
+                d->est[j][b] = V_ANULADO;
+                evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
+                       "Buraco Negro engole o %d do próprio %s", F[j].valor[b], J[j].nome);
             }
             continue;
         }
@@ -949,9 +976,10 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_PIRATA && v >= 7) {      // so tira; nao fica com os pontos
             d->delta[r] -= 4;
             evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
-        } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4
-            int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
-            if (a >= 0) {
+        } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
+            for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
+                int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
+                if (a < 0) break;
                 int vale = contribui(r, a);
                 d->est[r][a] = V_ROUBADO;
                 d->roubo_val[j] += vale;

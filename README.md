@@ -61,7 +61,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
   o que quiser e ganha um amuleto, como todos. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
-  de ouro (mais 1 a cada dois níveis). Cada partida tem 8 rodadas e 50 fichas
+  de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
+  no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
   terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
@@ -128,11 +129,14 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
-  carrega uma bala a cada lance e na sexta dispara, +12, no 3 - o Caubói
+  carrega uma bala a cada lance, valendo ou não, e na sexta dispara, +12
+  mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
   cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
   cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um
-  Tsunami, no 7). Os oponentes só usam o
+  Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
+  evolui e volta para a mão na rodada seguinte - e o que ela vira é
+  surpresa, que a coleção não mostra -, no 8). Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

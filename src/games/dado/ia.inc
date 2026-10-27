@@ -50,6 +50,8 @@ static bool arriscado(int tipo)
 // quando mede uma compra.
 static int fila_simples(const peca_t *pc, int n, int *ordem)
 {
+    for (int i = 0; i < n; i++)                  // o Universo so vai sozinho, e vale mais que a fila
+        if (pc[i].tipo == D_UNIVERSO) { ordem[0] = i; return 1; }
     int quer = n < N_FILA ? n : N_FILA, ok = 0;
     for (int i = 0; i < n; i++) if (!arriscado(pc[i].tipo)) ok++;
     bool sem_risco = ok >= quer;
@@ -326,8 +328,12 @@ static void ia_planeja(void)
         for (int i = 0; i < nivel; i++) if (s[i] == s[nivel]) rep = true;
         if (rep) continue;
         if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
-        // Dobro por ultimo nao dobra nada: a IA nem considera.
+        // Dobro por ultimo nao dobra nada: a IA nem considera. O Universo so
+        // vai sozinho: entra no fim, como fila de um dado so.
         if (L >= 2 && (p->col[p->mao[s[L - 1]]].tipo == D_DOBRO || p->col[p->mao[s[L - 1]]].tipo == D_FERREIRO)) continue;
+        bool uni = false;
+        for (int k = 0; k < L && L >= 2; k++) uni |= p->col[p->mao[s[k]]].tipo == D_UNIVERSO;
+        if (uni) continue;
         uint64_t a = 0;
         for (int k = 0; k < L; k++) {
             peca_t pc = p->col[p->mao[s[k]]];
@@ -360,18 +366,25 @@ static void ia_planeja(void)
         float v = avalia_fila(j, cand[b], L, a2, base ^ 0x5bd1e995u, &m);
         if (v > nota_m) { nota_m = v; melhor = b; }
     }
-    if (melhor < 0) { volta_mesa(&m); return; }
     // A fila pode ser mais curta: se so o comeco dela ja e melhor (o
     // Solitario sozinho, um dado grande e parar), a IA monta so esse comeco,
     // em vez de por quatro dados na mesa e parar no primeiro.
     int curta = L;
-    for (int q = 1; q < L; q++) {
+    for (int q = 1; q < L && melhor >= 0; q++) {
         float v = avalia_fila(j, cand[melhor], q, a2, base ^ 0x5bd1e995u, &m);
         if (v > nota_m + 0.01f) { nota_m = v; curta = q; }
     }
+    if (melhor >= 0) { memcpy(plano, cand[melhor], N_FILA); plano_n = curta; }
+    // O Universo, sozinho, contra a melhor fila sem ele.
+    for (int i = 0; i < n && L >= 2; i++) {
+        if (p->col[p->mao[i]].tipo != D_UNIVERSO) continue;
+        int8_t so[N_FILA] = { (int8_t)i };
+        float v = avalia_fila(j, so, 1, a2, base ^ 0x5bd1e995u, &m);
+        if (melhor < 0 || v > nota_m) { nota_m = v; melhor = i; memcpy(plano, so, N_FILA); plano_n = 1; }
+        break;
+    }
     volta_mesa(&m);
-    memcpy(plano, cand[melhor], N_FILA);
-    plano_n = curta;
+    if (melhor < 0) return;
     plano_p = nota_m < 0 ? 0 : nota_m > 1 ? 1 : nota_m;   // a chance, sem a margem passar de 0 a 1
 }
 

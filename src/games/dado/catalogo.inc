@@ -16,6 +16,11 @@ static int faces_de(int tipo, int *f)
         return n;
     }
     int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;
+    if (lados > 24) {                                   // o d100: o 1 e de 5 em 5 (cabe em f[24])
+        f[n++] = 1;
+        for (int v = 5; v <= lados && n < 24; v += 5) f[n++] = v;
+        return n;
+    }
     for (int v = de; v <= lados; v++) f[n++] = v;
     return n;
 }
@@ -152,13 +157,14 @@ static void desenha_catalogo(void)
         float dentro = fmodf(t_fase, 0.45f);
         float r = 46 + (dentro < 0.08f ? 4 : 0);          // pulinho a cada face
         float ang = sinf(t_fase * 1.7f) * 0.22f;
-        bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO;
+        bool com_pips = d->lados == 6 && d->efeito != EF_ESPELHO && d->efeito != EF_REVOLVER && d->efeito != EF_ASTRO;
         so_apagado = true;
         desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, com_pips ? f[i] : SO_CORPO, 2, st == 2);
         so_apagado = false;
         if (!com_pips) {
             snprintf(s, sizeof s, "%d", f[i]);
-            gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, st == 2 ? C_FELTRO2 : C_EBANO, 2, true);
+            uint16_t tc = st == 2 ? C_FELTRO2 : cosmico(tipo) && tipo != D_ASTRO ? C_MARFIM : C_EBANO;   // no ceu escuro, o claro
+            gfx_texto(cx - gfx_largura(s, 2) / 2, cy - 24, s, tc, 2, true);
         }
         if (tipo == D_TREVO && f[i] == 4) {
             gfx_rect(cx - 30, cy + 58, 60, TXT_H + 4, C_BARRA);

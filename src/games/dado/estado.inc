@@ -52,6 +52,7 @@ typedef struct {
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
     uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
+    bool    evolui[N_FILA];          // o ciclo cosmico tirou a faixa de cima: no fim da rodada, evolui
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -317,6 +318,8 @@ static const char VEL_GRAVA[VEL_N] = { '0', '2', '1' };
 static int velocidade = VEL_MEDIA;
 static bool rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
+static float t_aviso_universo;           // > 0: o aviso de que o Universo so vai sozinho
+static bool cosmo_recem[2][MAX_COL];     // o ciclo cosmico que evoluiu na rodada passada: chega na mao com o nome novo
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).
 #define ELEV_T     1.9f

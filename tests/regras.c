@@ -2063,14 +2063,13 @@ int main(void)
         CONFERE(mesas_do_salao() == 3 && run.no[0].tipo == NO_FACIL && run.no[1].tipo == NO_DIFICIL
                 && run.no[2].tipo == NO_CHEFE && run.no[2].perso == PERSO_CHEFE0 && run.no[3].tipo == NO_VAZIO
                 && run.no[0].perso != run.no[1].perso && run.no[1].perso != 0, "salao verde");
-        CONFERE(coracoes() == DES_CORACOES && run.derrotas == 0, "run nova: %d coracoes", coracoes());
         amuleto_escolhido(0);
         CONFERE(fase == F_RLOJA && run.estado == R_LOJA_INI && am_conta(run_amuletos()) == 1, "a loja da entrada");
         loja_sai();
         CONFERE(fase == F_MAPA && run.estado == R_MAPA && run.passo == 0, "da loja da entrada, o mapa");
         // Cada mesa vencida paga a tabela e abre a loja; o chefe deixa antes um
         // amuleto (o primeiro, incomum).
-        static const int VALE[DES_MESAS] = { 3, 6, 5 };
+        static const int VALE[DES_MESAS] = { 3, 5, 6 };
         for (int p = 0; p < DES_MESAS; p++) {
             CONFERE(run.passo == p && fase == F_MAPA, "mesa %d: passo %d, fase %d", p, run.passo, fase);
             des_comeca_partida();
@@ -2112,7 +2111,7 @@ int main(void)
         des_comeca_partida();
         run.moedas = 12; des_rod_vencidas = 7; venc_partida = 0;
         des_resultado();
-        CONFERE(run.ganho == 6 && run.juros == 2 && run.taca == 2 && run.moedas == 12 + 10,
+        CONFERE(run.ganho == 5 && run.juros == 2 && run.taca == 2 && run.moedas == 12 + 9,
                 "Cofre e Taca: mesa %d, Cofre %d, Taca %d", run.ganho, run.juros, run.taca);
         run.moedas = 40; des_comeca_partida(); venc_partida = 0; des_resultado();
         CONFERE(run.juros == 3, "Cofre ate 3: %d", run.juros);
@@ -2122,7 +2121,7 @@ int main(void)
         CONFERE(run.amuletos_x == 1 && (run_amuletos() >> A_COLAR & 1) && am_conta(run_amuletos()) == 2,
                 "Colar no bit 32: %d", run.amuletos_x);
         run.moedas = 12; des_comeca_partida(); venc_partida = 0; des_resultado();
-        CONFERE(run.ganho == 6 && run.colar == 1 && run.juros == 2 && run.moedas == 12 + 9 && saque_total() == 9,
+        CONFERE(run.ganho == 5 && run.colar == 1 && run.juros == 2 && run.moedas == 12 + 8 && saque_total() == 8,
                 "Colar: mesa %d, Colar %d, Cofre %d (moedas %d)", run.ganho, run.colar, run.juros, run.moedas);
         CONFERE((amul[0] >> A_COLAR & 1) && NIVEL_AMULETO[A_COLAR] == 0 && RAR_AMULETO[A_COLAR] == AMR_COMUM
                 && amuleto_liberado(A_COLAR), "Colar: na partida, comum e aberto desde o comeco");
@@ -2247,7 +2246,7 @@ int main(void)
                 CONFERE(fase == F_RFIM && des_venceu_run, "dificuldade %d: a run devia acabar no Barao", dif);
                 continue;
             }
-            CONFERE(run.moedas == m + 20, "o Barao com o Coringa depois paga 20: %d", run.moedas - m);
+            CONFERE(run.moedas == m + 21, "o Barao com o Coringa depois paga 21: %d", run.moedas - m);
             run_poe_amuletos(0);
             des_apos_fim();
             if (fase == F_NOVIDADES) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
@@ -2281,44 +2280,19 @@ int main(void)
             des_apos_fim();
             CONFERE(fase == F_RFIM && des_venceu_run, "vencer o Coringa devia fechar a run");
         }
-        // ESC ESC no meio de uma partida da run: conta como derrota (antes,
-        // continuar recomecava a mesma mesa do zero). Com coracao, custa um e a
-        // mesma mesa se joga de novo; sem, a run acaba. Na tela da ultima
-        // rodada, a partida ja decidida termina com o resultado real.
+        // ESC ESC no meio de uma partida da run: conta como derrota e a run
+        // acaba (antes, continuar recomecava a mesma mesa do zero). Na tela da
+        // ultima rodada, a partida ja decidida termina com o resultado real.
         {
-            run.derrotas = 0;
-            int passo0 = run.passo, andar0 = run.andar;
-            uint32_t sem0 = run.no[run.passo].semente;
             des_comeca_partida();
             CONFERE(fase == F_ORDEM && des_abandono(), "partida da run: ESC devia abandonar");
             trata_esc();
             CONFERE(t_sair >= 0 && fase == F_ORDEM, "o primeiro ESC so avisa (fase %d)", fase);
             trata_esc();
-            CONFERE(fase == F_FIM && venc_partida == 1 && des_saiu && des_tem_run() && coracoes() == DES_CORACOES - 1,
-                    "o segundo ESC devia perder a mesa e um coracao (fase %d, venc %d, %d coracoes)", fase, venc_partida, coracoes());
-            trata_tecla(KEY_ENTER);
-            CONFERE(fase == F_MAPA && run.passo == passo0 && run.andar == andar0 && run.no[run.passo].semente != sem0,
-                    "com coracao: o mapa, na mesma mesa, outra partida (fase %d)", fase);
-            run.derrotas = DES_CORACOES - 1;     // o ultimo coracao
-            des_comeca_partida();
-            trata_esc(); trata_esc();
-            CONFERE(fase == F_FIM && venc_partida == 1 && !des_tem_run() && !coracoes(),
-                    "sem coracao: a derrota apaga a run (fase %d)", fase);
+            CONFERE(fase == F_FIM && venc_partida == 1 && des_saiu && !des_tem_run(),
+                    "o segundo ESC devia perder a mesa e apagar a run (fase %d, venc %d)", fase, venc_partida);
             trata_tecla(KEY_ENTER);
             CONFERE(fase == F_RFIM && !des_venceu_run, "depois de sair, o fim da run (fase %d)", fase);
-            // Do Nivel 7, perder custa tambem as moedas que a mesa vale.
-            {
-                run_t r0 = run;
-                run.derrotas = 0; run.dificuldade = DES_PERDE_MOEDAS; run.andar = 1; gera_andar(); run.passo = 0;
-                run.moedas = 20;
-                des_comeca_partida(); venc_partida = 1; des_resultado();
-                CONFERE(run.moedas == 20 - MOEDAS_MESA[1][NO_FACIL] && des_perda_moedas == MOEDAS_MESA[1][NO_FACIL],
-                        "Nivel 7: perder custa %d moedas (ficou %d)", MOEDAS_MESA[1][NO_FACIL], run.moedas);
-                run.derrotas = 0; run.dificuldade = DES_PERDE_MOEDAS - 1; run.moedas = 20;
-                des_comeca_partida(); venc_partida = 1; des_resultado();
-                CONFERE(run.moedas == 20, "Nivel 6: perder nao custa moedas (%d)", run.moedas);
-                run = r0;
-            }
             // No meio da partida, mesmo ganhando: derrota.
             des_comeca_partida();
             rodada = 3; J[0].fichas = 70; J[1].fichas = 20; pote = 0; venc_mao = 0; fase = F_RESULTADO;

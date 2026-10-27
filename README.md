@@ -73,7 +73,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
-  salão (3, 6 e 5 no primeiro; 6, 9 e 10 no segundo; 10, 11 e 20 no
+  salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
   terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
   dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
@@ -103,10 +103,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
   rende 1 moeda a cada mesa vencida.
-  A run tem 2 corações: perder (ou sair no meio da partida, com ESC duas
-  vezes) custa um, e você joga a mesma mesa de novo, numa partida nova; sem
-  corações, a run acaba. Do nível 7, perder também custa as moedas que a mesa
-  vale. O que
+  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
   abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
   comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
   Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)

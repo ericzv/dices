@@ -389,7 +389,6 @@ static int max_fila(int j) { return tem_am(j, A_CONTRATO) || (j == 1 && tem_reg(
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run
-#define DES_CORACOES 2               // perder custa um e joga a mesma mesa de novo; sem nenhum, a run acaba
 #define DES_EXTRAS  3                // rodadas extras se terminar empatado
 
 // A entrada sobe ao longo da partida, para que abrir vantagem e so correr de
@@ -425,7 +424,6 @@ static float t_sair = -1;            // ESC apertado uma vez: confirma com outro
 static bool des_saiu;                // Desafiante: saiu no meio da partida (conta como derrota)
 static void des_abandona(void);
 static bool des_abandono(void);
-static int coracoes(void);               // os coracoes que restam na run (desafio/mapa.inc)
 static int  tut_pag;                 // pagina do tutorial
 static int  cpu;                     // bit j: jogador j e do aparelho
 static float t_ia;                   // espera da IA antes de cada gesto

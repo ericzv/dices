@@ -290,8 +290,6 @@ static int moedas_mesa(int p)
     if (run.andar >= DES_ANDARES || p < 0 || p >= DES_PASSOS || run.no[p].tipo > NO_CHEFE) return 0;
     return MOEDAS_MESA[run.andar][run.no[p].tipo];
 }
-// Os coracoes que restam: cada partida perdida custa um.
-static int coracoes(void) { return run.derrotas < DES_CORACOES ? DES_CORACOES - run.derrotas : 0; }
 
 static void gera_andar(void)
 {

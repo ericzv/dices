@@ -81,8 +81,6 @@ static void faixa_run(int voltar)
     faixa_bolsa_x = xb - 12;
     faixa_bolsa_y = FAIXA_H / 2;
     icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
-    for (int i = 0; i < DES_CORACOES; i++)       // os coracoes da run, antes da bolsa
-        coracao_ic(xb - 28 - (DES_CORACOES - i) * 10, FAIXA_H / 2 - 4, i < coracoes());
     txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
     else if (fase != F_RBOLSA) {                 // nas outras telas, o pop-up (bolsa.inc)
@@ -498,25 +496,12 @@ static void desenha_fim_partida_run(void)
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        // Os coracoes: o que se foi agora pisca antes de apagar.
-        int resta = coracoes(), x0 = GFX_W / 2 - (DES_CORACOES * 20 - 6) / 2;
-        for (int i = 0; i < DES_CORACOES; i++) {
-            bool cheio = i < resta || (i == resta && t_fase < 0.9f && ((int)(t_fase * 8) & 1));
-            coracao_e(x0 + i * 20, CENTRO - 12, cheio, 2);
-        }
-        const char *por = des_saiu ? "Você saiu da mesa: conta como derrota."
-                        : venc_partida == 2 ? "Empate não passa de mesa." : NULL;
-        int y = CENTRO + 8;
-        if (por) { txt_c(GFX_W / 2, y, por, C_MARFIM_S, false); y += 15; }
-        if (resta && des_perda_moedas)
-            snprintf(s, sizeof s, "Perdeu um coração e %d %s: jogue esta mesa de novo.", des_perda_moedas,
-                     des_perda_moedas == 1 ? "moeda" : "moedas");
-        else if (resta) snprintf(s, sizeof s, "Perdeu um coração: jogue esta mesa de novo.");
-        else snprintf(s, sizeof s, "Sem corações: a run termina aqui.");
-        txt_c(GFX_W / 2, y, s, C_MARFIM, true);
+        txt_c(GFX_W / 2, CENTRO + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
+                                     : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
+                                                         : "A run termina aqui.", C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
-        txt_c(GFX_W / 2, y + 20, s, C_TEXTO_M, false);
-        teclas_c(GFX_W / 2, CENTRO + 60, resta ? "ENTER joga de novo" : "ENTER segue", C_MARFIM_S);
+        txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
+        teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];

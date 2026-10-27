@@ -298,21 +298,6 @@ static void desenha_devolvidos(void)
     }
 }
 
-// Um coracao da run (7x7 pixels de tamanho e, (x, y) no canto de cima):
-// cheio, vermelho com o brilho; vazio, so o contorno no escuro.
-static void coracao_e(int x, int y, bool cheio, int e)
-{
-    static const char *const C[7] = { ".XX.XX.", "XBRXRRX", "XRRRRRX", "XRRRRRX", ".XRRRX.", "..XRX..", "...X..." };
-    for (int yy = 0; yy < 7; yy++)
-        for (int xx = 0; xx < 7; xx++) {
-            char c = C[yy][xx];
-            if (c == '.') continue;
-            uint16_t cor = c == 'X' ? C_BARRA : !cheio ? RGB(66, 18, 24) : c == 'B' ? C_ROSA : C_VERMELHO;
-            gfx_rect(x + xx * e, y + yy * e, e, e, cor);
-        }
-}
-static void coracao_ic(int x, int y, bool cheio) { coracao_e(x, y, cheio, 1); }
-
 static void faixa_jogador(int j)
 {
     jogador_t *p = &J[j];
@@ -369,8 +354,6 @@ static void faixa_jogador(int j)
     // abre o pop-up com os dados dela (bolsa.inc), a sua ou a do oponente.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
-    if (modo == M_DESAFIO && j == 0)        // os coracoes da run, antes da bolsa
-        for (int i = 0; i < DES_CORACOES; i++) coracao_ic(bx - 12 - (DES_CORACOES - i) * 10, by - 4, i < coracoes());
     bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
     icone_bolsa(bx + 8, by - em);
     snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p), em_jogo(p));

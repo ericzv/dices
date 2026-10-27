@@ -5,7 +5,6 @@
 #define DES_ANDAR_FINAL 3               // o salao do Coringa: depois do Barao, do Nivel 5 (CORINGA_DESDE)
 #define DES_PASSOS    4                  // as mesas que cabem num salao (o salvamento guarda 4)
 #define DES_MESAS     3                  // as que um salao tem: 2 oponentes e o chefe, sempre nessa ordem
-#define DES_PERDE_MOEDAS 7               // a partir deste nivel, perder custa tambem as moedas que a mesa vale
 #define DES_FICHAS    50
 
 
@@ -14,11 +13,12 @@
 #define DES_MOEDAS    4                  // moedas no comeco da run no terreo: a loja da entrada ja vende
                                          // (e mais 1 a cada andar: os oponentes la de cima sao mais duros)
 
-// Moedas por mesa vencida: [salao][facil, media, dificil, chefe] (a media so
+// Moedas por mesa vencida: [salao][facil, media, dificil, chefe], uma a mais
+// que nos saloes de 4 mesas (a media so
 // existe nas runs salvas de antes dos saloes de 3 mesas). O Barao so paga
 // quando o Coringa vem depois (do Nivel 5; antes, a run acaba nele); o
 // Coringa fecha a run.
-static const uint8_t MOEDAS_MESA[DES_ANDARES][4] = { { 3, 4, 6, 5 }, { 6, 7, 9, 10 }, { 10, 10, 11, 20 } };
+static const uint8_t MOEDAS_MESA[DES_ANDARES][4] = { { 3, 4, 5, 6 }, { 5, 6, 7, 11 }, { 8, 9, 10, 21 } };
 
 enum { NO_FACIL, NO_MEDIO, NO_DIFICIL, NO_CHEFE, NO_VAZIO = 0xFF };
 // Onde a run parou: R_VENCEU e a mesa vencida (falta o amuleto do chefe, a

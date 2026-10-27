@@ -605,15 +605,13 @@ static const char *TEXTO_CAT[D_N] = {
     [D_ASTRO]           = "Seis lados. Tirando 5 ou 6, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
                           "(e os adesivos dela caem). Se ficar válida, ainda pontua +1 no que tirou. A cada partida, "
                           "recomeça como Estrela.",
-    [D_CONSTELACAO]     = "Oito lados. Tirando 6, 7 ou 8, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
-                          "(e os adesivos dela caem). Se ficar válida, ainda pontua +3 no que tirou. A cada partida, "
-                          "recomeça como Estrela.",
-    [D_GALAXIA]         = "Doze lados. Tirando de 9 a 12, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
-                          "(e os adesivos dela caem). Se ficar válida, ainda pontua +5 no que tirou. A cada partida, "
-                          "recomeça como Estrela.",
-    [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
-                          "(e os adesivos dele caem). Se ficar válido, no fim da rodada ainda anula os seus dados lançados "
-                          "logo antes e logo depois dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
+    [D_CONSTELACAO]     = "Oito lados. Tirando 6, 7 ou 8, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_GALAXIA]         = "Doze lados. Tirando de 9 a 12, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
+                          "Se ficar válido, no fim da rodada ainda anula os seus dados lançados logo antes e logo depois "
+                          "dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
     [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Não pode ser anulado "
                           "nem roubado. A cada partida, recomeça como Estrela.",
 };

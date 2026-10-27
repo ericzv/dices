@@ -1563,6 +1563,10 @@ int main(void)
             }
             CONFERE(!no_catalogo(D_GALAXIA) && sem_sorteio(D_UNIVERSO) && no_catalogo(D_ASTRO) && !sem_sorteio(D_ASTRO),
                     "so a Estrela aparece; o resto do ciclo e surpresa");
+            {
+                peca_t est = { .tipo = D_ASTRO }, con = { .tipo = D_CONSTELACAO }, uni = { .tipo = D_UNIVERSO };
+                CONFERE(ad_cabe(&est) && !ad_cabe(&con) && !ad_cabe(&uni), "adesivo no ciclo cosmico: so na Estrela");
+            }
             // Panetone: as frutas da fatia (0 a 3, a cada lance) somam no que tirou.
             limpa(); F[0].fruta[0] = 2; joga(0, D_PANETONE, 5); d = fim();
             CONFERE(d.total[0] == 7 && !strcmp(F[0].tag[0], "+2"), "Panetone com 2 frutas: 7, deu %d", d.total[0]);

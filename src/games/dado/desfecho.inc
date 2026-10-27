@@ -175,7 +175,7 @@ static bool autofagia_come_pode(int j, int a, int b)
 // Multiplicadores se SOMAM (x2, x3, x2 = x7) e valem sobre valor + bonus.
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
 {
-    int t = 0;
+    int t = -lapis_pena(j);                      // o Estojo de Lapis: a rodada comeca com -4
     for (int k = 0; k < F[j].lancados; k++) {
         if (est[k] != V_VALIDO) continue;
         if (universo(j, k)) { t += F[j].valor[k]; continue; }   // nada mexe no Universo
@@ -585,7 +585,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                                  valendo, valendo > 1 ? "s" : "", valendo);
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
-        } else if (ef == EF_TRONO && k == N_FILA - 1 && valendo == f->lancados) {
+        } else if (ef == EF_TRONO && k == FILA_NORMAL - 1 && valendo == f->lancados) {
             d->semente[j] += 4;                      // o 4o da fila, e nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 4, "Trono: a sequência inteira válida, +4");
         } else if (ef == EF_SEGURANCA) {
@@ -595,7 +595,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             d->semente[j] += 3;
             evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 3, "Dominó: o seguinte também deu %d, +3", f->valor[k]);
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = 3; }   // a peca cai no seguinte
-        } else if (ef == EF_PUXA && k == 0 && f->lancados == N_FILA && valendo == N_FILA) {
+        } else if (ef == EF_PUXA && k == 0 && f->lancados >= FILA_NORMAL && valendo == f->lancados) {
             d->semente[j] += 5;
             evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a sequência inteira válida, +5");
         } else if (ef == EF_COVEIRO) {
@@ -737,12 +737,12 @@ static int poder_armado(int j, int k)
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
     case EF_FERREIRO:     return v >= 3;
-    case EF_TRONO:        return k == N_FILA - 1 && outros == f->lancados - 1;
+    case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
     case EF_DOMINO:       return k + 1 < f->lancados && f->valor[k + 1] == v;
     case EF_ANCORA:       return k == f->lancados - 1 || f->ancora[k + 1];
     case EF_CALIBRE:      return k == f->lancados - 1 || f->calibre[k + 1];
-    case EF_PUXA:         return k == 0 && f->lancados == N_FILA && outros == N_FILA - 1;
+    case EF_PUXA:         return k == 0 && f->lancados >= FILA_NORMAL && outros == f->lancados - 1;
     case EF_COVEIRO:
         for (int q = 0; q < 2; q++)
             for (int i = 0; i < F[q].lancados; i++) if (F[q].est[i] == V_ANULADO) return 1;
@@ -1208,12 +1208,12 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
         } else return false;
         break;
-    case AD_ESTRELINHA: {                        // a sequencia cheia, os 4 valendo
+    case AD_ESTRELINHA: {                        // a sequencia cheia, os 4 (ou 5) valendo
         int n = 0;
         for (int i = 0; i < F[j].lancados && i < N_FILA; i++) n += d->est[j][i] == V_VALIDO;
-        if (F[j].lancados < N_FILA || n < N_FILA) return false;
+        if (F[j].lancados < FILA_NORMAL || n < F[j].lancados) return false;
         d->semente[j] += ESTRELINHA_PONTOS;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, ESTRELINHA_PONTOS, "%sEstrelinha: os 4 válidos, +%d", pre, ESTRELINHA_PONTOS);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, ESTRELINHA_PONTOS, "%sEstrelinha: os %d válidos, +%d", pre, n, ESTRELINHA_PONTOS);
         break;
     }
     case AD_IMANTADO: {                          // o proximo tirou o mesmo numero: x2 nos dois

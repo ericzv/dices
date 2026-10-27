@@ -52,7 +52,7 @@ static int fila_simples(const peca_t *pc, int n, int *ordem)
 {
     for (int i = 0; i < n; i++)                  // o Universo so vai sozinho, e vale mais que a fila
         if (pc[i].tipo == D_UNIVERSO) { ordem[0] = i; return 1; }
-    int quer = n < N_FILA ? n : N_FILA, ok = 0;
+    int quer = n < FILA_NORMAL ? n : FILA_NORMAL, ok = 0;
     for (int i = 0; i < n; i++) if (!arriscado(pc[i].tipo)) ok++;
     bool sem_risco = ok >= quer;
     bool esc[MAX_COL + 1] = { false };
@@ -232,7 +232,7 @@ static void fila_imaginada(int r, bool toda)
     int n = 0;
     for (int i = 0; i < p->n_col; i++)
         if (p->onde[i] != COMIDO && (toda || p->onde[i] != FORA)) pool[n++] = p->col[i];
-    if (n < N_FILA) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
+    if (n < FILA_NORMAL) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
     int m = n < tam_mao(r) ? n : tam_mao(r);
     for (int i = 0; i < m; i++) {
         int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
@@ -302,7 +302,7 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
     return s / (float)amostras;
 }
 
-#define MAX_CAND 840                         // 7 x 6 x 5 x 4
+#define MAX_CAND 2520                        // 7 x 6 x 5 x 4 x 3 (a fila de 5 do Estojo de Lapis)
 static void ia_planeja(void)
 {
     int j = vez;

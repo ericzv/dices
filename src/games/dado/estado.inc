@@ -114,7 +114,8 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_LOJA, F_ABERTURA, F_JOGA, F_VEREDITO, F_EFEITOS, F_CATALOGO,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
-       F_PERFIS, F_PCRIA, F_RDIFIC, F_CREDITOS, F_HIST, F_ESTILO, F_NOVIDADES };
+       F_PERFIS, F_PCRIA, F_RDIFIC, F_CREDITOS, F_HIST, F_ESTILO, F_NOVIDADES,
+       F_RBOLSAS };                                          // a escolha da bolsa, no comeco da run
 
 static jogador_t J[2];
 static fila_t F[2];
@@ -253,12 +254,16 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
        A_TRINCA, A_PIRAMIDE, A_ABRE_ALAS, A_SAIDEIRA, A_CORRIMAO,
        // Comum, aberto desde o comeco.
        A_COLAR, A_N };
-#define AM_LUGARES 5                 // amuletos que cabem na run; o sexto pede troca
+#define AM_LUGARES 5                 // amuletos que cabem na run; o sexto pede troca (4 com o Bauzinho)
+static int am_lugares(void);         // os de agora (desafio/bolsas.inc)
 #define A_BASICOS A_FERRADURA
 static amul_t amul[2];
 static amul_t am_disparou;           // amuletos que acabaram de agir (a faixa acende)
 static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
+static int des_rod_cheias;           // as vencidas com 4 dados validos (abre o Estojo de Lapis)
+static bool des_atras7;              // comecou a 7a rodada atras em fichas (abre o Saco de Sementes)
+static void des_rodada_vencida(void);    // desafio/bolsas.inc
 static float am_brilho[A_N];
 static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
@@ -383,9 +388,33 @@ static int virada_forca(int c)
     return virada_de(fala_perso);
 }
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
-// Quantos dados cabem na sequencia de j (Contrato Sujo: 3).
-// O Coringa monta 3: o quarto e a copia do seu dado que mais tirou (partida.inc).
-static int max_fila(int j) { return tem_am(j, A_CONTRATO) || (j == 1 && tem_reg(REG_CORINGA)) ? 3 : N_FILA; }
+
+// As bolsas do comeco da run (desafio/bolsas.inc): a que voce escolhe traz
+// os dados de saida e uma regra que melhora uma coisa e piora outra.
+enum { B_PANO, B_COPO, B_LATA, B_PORCO, B_SEMENTES, B_LAPIS, B_BAU, B_FOSFORO, B_N };
+static bool tem_bolsa(int j, int b);     // so voce, so no Desafiante
+// Estojo de Lapis: toda rodada comeca com -4.
+#define LAPIS_PENA 4
+static int lapis_pena(int j) { return tem_bolsa(j, B_LAPIS) ? LAPIS_PENA : 0; }
+// Saco de Sementes: seus dados pontuam -1 nas rodadas 1 e 2 e +1 da 7a em diante.
+static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 2 ? -1 : rodada >= 7 ? 1 : 0; }
+// Caixa de Fosforos: cada partida comeca com 5 fichas a menos.
+#define FOSFORO_FICHAS 5
+
+// Quantos dados cabem na sequencia de j: 4; o Contrato Sujo tira 1 e o
+// Estojo de Lapis poe 1. O Coringa monta 3: o quarto e a copia do seu dado
+// que mais tirou (partida.inc).
+static int max_fila(int j)
+{
+    if (j == 1 && tem_reg(REG_CORINGA)) return 3;
+    return FILA_NORMAL - tem_am(j, A_CONTRATO) + tem_bolsa(j, B_LAPIS);
+}
+// Onde fica o lugar k da fila na mesa. Com uma fila de 5 (o Estojo de
+// Lapis), os lugares chegam mais perto, para caber antes do placar.
+static int slot_x(int k)
+{
+    return max_fila(0) > FILA_NORMAL || max_fila(1) > FILA_NORMAL ? 210 + 60 * k : 218 + 68 * k;
+}
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
 #define DES_RODADAS 8                // rodadas de cada partida da run
@@ -408,6 +437,8 @@ static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
+static void bolsas_passo(float dt);      // as bolsas do comeco da run (desafio/bolsas.inc)
+static void fosforo_ve(void);            // Caixa de Fosforos: a mao que o oponente comprou
 static int  des_foco(void);
 static bool dado_liberado(int t);
 static void des_resumo(char *s, int n);

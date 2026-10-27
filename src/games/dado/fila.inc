@@ -123,7 +123,7 @@ static int egoista_antes(int j, int k)
 static int soma(int j, const uint8_t *est)
 {
     const fila_t *f = &F[j];
-    int t = 0;
+    int t = -lapis_pena(j);                      // o Estojo de Lapis: a rodada comeca com -4
     for (int k = 0; k < f->lancados; k++)
         if (est[k] == V_VALIDO) t += valor_pontos(j, k) + f->bonus[k];
     return t;
@@ -430,6 +430,7 @@ static void aplica_regra(int j, int k)
             if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
             if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= AM_BIT(A_CORINGA); }
             if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= AM_BIT(A_TRINCA); }
+            am_b += sementes_bonus(j);                                                // o Saco de Sementes
         }
         if (corrimao) am_disparou |= AM_BIT(A_CORRIMAO);
         if (am_b) {

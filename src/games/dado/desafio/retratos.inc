@@ -973,7 +973,14 @@ typedef struct {
     // Depois do fim de antes (a run salva sem ele abre com 0): sem uso desde
     // que todo Presente aberto fica; segue aqui para a run salva abrir igual.
     uint8_t  presente;
+    // Depois das bolsas do comeco (a run salva de antes abre com o Saco de
+    // Pano): a bolsa da run e o porquinho dela.
+    uint8_t  bolsa;                      // B_*
+    uint8_t  porco;                      // Porquinho: as moedas dentro
+    uint8_t  porco_quebrou;              // ja quebrado: as mesas pagam inteiro
 } run_t;
+// O tamanho da run salva de antes das bolsas (ate o presente, com a folga).
+#define RUN_TAM_SEM_BOLSA (offsetof(run_t, presente) + 2)
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
 // campo, com a peca de 13 bytes. Abre convertida (des_carrega).

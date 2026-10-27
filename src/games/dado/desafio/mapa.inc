@@ -39,7 +39,7 @@ static void sorteia_distintos(peca_t *out, int n, const float w[4])
 
 // ---------------------------------------------------------------------------
 // A loja: depois de cada mesa vencida, com as poucas moedas que ela rendeu.
-// A vitrine mostra 2 dados (3 com a Cartola); trocar a vitrine custa 1, 2, 3...
+// A vitrine mostra 2 dados (3 com a Cartola; 1 a menos com a Lata de Biscoito); trocar a vitrine custa 1, 2, 3...
 // na mesma loja; tirar um dado da bolsa custa 3, 5, 7... na run inteira. O
 // Cupom tira 1 de cada preco (nunca abaixo de 1).
 // ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ static int preco_run(int t)
 }
 static int preco_troca(void)  { return preco_ajusta(1 + run.trocas); }
 static int preco_remove(void) { return preco_ajusta(3 + 2 * run.remocoes); }
-static int n_vitrine(void)    { return (run_amuletos() >> A_CARTOLA & 1) ? 3 : 2; }
+static int n_vitrine(void)    { return ((run_amuletos() >> A_CARTOLA & 1) ? 3 : 2) - (run.bolsa == B_LATA); }
 
 // A vitrine sai da semente da run, da loja e de quantas vezes ja trocou:
 // sair e voltar mostra a mesma. Os saloes de cima trazem mais raros.
@@ -197,7 +197,7 @@ static void monta_pacote(void)
 // da vitrine: no primeiro salao, os lendarios quase nao saem. Trocar a
 // vitrine nao muda o adesivo.
 static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
-static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
+static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco - (run.bolsa == B_LATA) : 0); }
 static int adesivos_abertos(void)
 {
     int n = 0;

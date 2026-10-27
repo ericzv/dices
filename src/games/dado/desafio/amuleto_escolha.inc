@@ -11,7 +11,7 @@ static int meus_amuletos(int *a)
 }
 
 // Os 5 cheios: o novo em cima; embaixo os seus e, no fim, ficar sem o novo.
-#define TROCA_N   (AM_LUGARES + 1)
+#define TROCA_N   (am_lugares() + 1)        // os lugares de agora (4 com o Bauzinho) e ficar sem o novo
 #define TROCA_W   88
 #define TROCA_PASSO 98
 static void desenha_troca_amuleto(void)
@@ -19,7 +19,7 @@ static void desenha_troca_amuleto(void)
     int novo = run.am_novo - 1, meus[A_N], n = meus_amuletos(meus);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "SEM LUGAR: QUAL SAI?", C_OURO);
     char s[96];
-    snprintf(s, sizeof s, "Cabem %d amuletos. Para levar o novo, um dos seus sai.", AM_LUGARES);
+    snprintf(s, sizeof s, "Cabem %d amuletos. Para levar o novo, um dos seus sai.", am_lugares());
     txt_c(GFX_W / 2, MESA_Y0 + 44, s, C_MARFIM_S, false);
     // O novo, com o que faz.
     int x = 120, yc = 140;
@@ -63,11 +63,13 @@ static void desenha_amuleto_run(void)
     faixa_run(0);
     if (run.am_novo) { desenha_troca_amuleto(); return; }
     bool selo = run.am_volta == AV_SELO;
+    bool bau2 = run.am_volta == AV_INICIO && run.bolsa == B_BAU && am_conta(run_amuletos()) == 1;   // o Bauzinho: o segundo
     txt_c2(GFX_W / 2, MESA_Y0 + 2, selo ? "O SELO DE DÍVIDA COBRA MAIS UM"
-                                 : run.am_volta == AV_CHEFE ? "O CHEFE DEIXOU UM AMULETO" : "ESCOLHA UM AMULETO", C_OURO);
+                                 : run.am_volta == AV_CHEFE ? "O CHEFE DEIXOU UM AMULETO"
+                                 : bau2 ? "O BAUZINHO: MAIS UM" : "ESCOLHA UM AMULETO", C_OURO);
     char s[96];
     if (selo) snprintf(s, sizeof s, "Sorteado entre os comuns e os incomuns.");
-    else if (!am_lugar()) snprintf(s, sizeof s, "Seus %d lugares estão cheios: para levar, um dos seus sai.", AM_LUGARES);
+    else if (!am_lugar()) snprintf(s, sizeof s, "Seus %d lugares estão cheios: para levar, um dos seus sai.", am_lugares());
     else snprintf(s, sizeof s, "Ele vale a run inteira.");
     txt_c(GFX_W / 2, MESA_Y0 + 44, s, am_lugar() || selo ? C_MARFIM_S : C_OURO, false);
     for (int i = 0; i < 3; i++) {
@@ -86,10 +88,11 @@ static void desenha_amuleto_run(void)
         txt_c(GFX_W / 2, 234, AMULETO[run.am_oferta[cursor]].desc, C_MARFIM, false);
     // Os que ja tem, miudos, embaixo.
     int meus[A_N], na = meus_amuletos(meus);
-    snprintf(s, sizeof s, "seus amuletos  ·  %d de %d", na, AM_LUGARES);
+    int lugares = am_lugares();
+    snprintf(s, sizeof s, "seus amuletos  ·  %d de %d", na, lugares);
     txt_c(GFX_W / 2, 258, s, C_TEXTO_M, false);
-    int x0 = GFX_W / 2 - (AM_LUGARES - 1) * 12;
-    for (int i = 0; i < AM_LUGARES; i++) {
+    int x0 = GFX_W / 2 - (lugares - 1) * 12;
+    for (int i = 0; i < lugares; i++) {
         if (i < na) desenha_amuleto(x0 + 24 * i, 288, 9, meus[i], false);
         else {                                       // lugar vazio: so o aro
             gfx_disco(x0 + 24 * i, 288, 9, C_FELTRO2);

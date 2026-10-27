@@ -80,7 +80,7 @@ static void faixa_run(int voltar)
     int pulo = t_bolsa_pulo > 0 ? (int)(sinf(t_bolsa_pulo * 3.1416f) * 4) : 0;
     faixa_bolsa_x = xb - 12;
     faixa_bolsa_y = FAIXA_H / 2;
-    icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
+    icone_da_run(xb - 12, FAIXA_H / 2 - pulo);
     txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
     else if (fase != F_RBOLSA) {                 // nas outras telas, o pop-up (bolsa.inc)

@@ -613,7 +613,7 @@ static void desenha_premio(void)
         txt_c(x, 180, c2, cr, false);
         zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
-    bool pode = p->n_col > N_FILA;
+    bool pode = p->n_col > FILA_NORMAL;
     if (girando) {
         txt_c(GFX_W / 2, 212, "sorteando...", C_OURO, true);
     } else if (cursor < 3 && oferta_ad[cursor]) {   // o adesivo: o que faz, e que vai num lado de um dado seu

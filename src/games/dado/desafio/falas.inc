@@ -159,7 +159,7 @@ static void rival_lance(int j, int k)
     bool passou = (j != primeiro) && placar_antes[a] <= placar_antes[b] && d.total[a] > d.total[b];
     int seguidos = 0;
     while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
-    if (j == 0 && seguidos == N_FILA) rival_reage(RM_COMBO);
+    if (j == 0 && seguidos == FILA_NORMAL) rival_reage(RM_COMBO);
     else if (passou) rival_reage(j == 0 ? RM_PASSOU : RM_ELE_PASSOU);
     else if (ver_tipo == 1 || ver_tipo >= 3) rival_reage(j == 0 ? RM_CAI_SEU : RM_CAI_DELE);   // caiu, zerou, o Egoista
 }

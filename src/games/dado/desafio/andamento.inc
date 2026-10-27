@@ -81,6 +81,7 @@ static void des_contadores_passo(float dt, float dt_real)
 
 static void des_salva(void)
 {
+    bolsas_confere();                            // os adesivos e os amuletos que abrem bolsas
     static char buf[2 * sizeof(run_t) + 1];
     hex_de(&run, sizeof run, buf);
     salva_grava(chave_run(), buf);
@@ -108,8 +109,9 @@ static void run_de_13(run_t *r, const run13_t *v)
 }
 
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
-// para tras. A de antes dos adesivos de um byte abre convertida, e a de antes
-// do Presente (sem o ultimo byte) abre com ele em 0.
+// para tras. A de antes dos adesivos de um byte abre convertida, a de antes
+// do Presente (sem o ultimo byte) abre com ele em 0 e a de antes das bolsas,
+// com o Saco de Pano.
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
@@ -121,8 +123,10 @@ static bool des_carrega(run_t *r)
         if (!de_hex(buf, &v, (size_t)n / 2)) return false;
         run_de_13(r, &v);
     } else {
-        size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente) : sizeof *r;
+        size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente)
+                   : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
+        if (tam < sizeof *r) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
@@ -133,6 +137,8 @@ static bool des_carrega(run_t *r)
     if ((r->pacote > GR_ADESIVOS && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
     if (r->adesivo >= AD_N) return false;
     if (r->dificuldade > N_NIVEIS) return false;
+    if (r->bolsa >= B_N) r->bolsa = B_PANO;
+    if (r->porco_quebrou > 1) r->porco_quebrou = 1;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > 1) r->colar = 0;
@@ -193,8 +199,10 @@ static void encerra_run(bool venceu)
     des_liberou = -1;
     if (!venceu) des_chefe_novo = false;
     if (venceu && perfil_atual >= 0) {          // venceu a run: a proxima dificuldade abre
+        abre_bolsa(B_FOSFORO);
         perfil_t *p = &perfis[perfil_atual];
         int d = run.dificuldade;
+        if (run.bolsa < B_N && p->bolsa_rec[run.bolsa] < d + 1) p->bolsa_rec[run.bolsa] = (uint8_t)(d + 1);   // o recorde da bolsa
         if (p->venceu[d] < 255) p->venceu[d]++;
         if (d == p->nivel && p->nivel < N_NIVEIS) { p->nivel++; des_liberou = p->nivel; }
         perfis_salva();
@@ -289,6 +297,21 @@ static void amuleto_segue(void)
     run.am_novo = 0;
     switch (run.am_volta) {
     case AV_INICIO:
+        if (run.bolsa == B_BAU && am_conta(run_amuletos()) < 2) {   // o Bauzinho: mais um dos tres
+            uint8_t sobra[3];
+            int ns = 0;
+            for (int i = 0; i < 3; i++)
+                if (run.am_oferta[i] < A_N && !(run_amuletos() >> run.am_oferta[i] & 1)) sobra[ns++] = run.am_oferta[i];
+            if (ns) {                            // os que sobraram, centrados
+                run.am_oferta[0] = run.am_oferta[1] = run.am_oferta[2] = 0xFF;
+                if (ns == 1) run.am_oferta[1] = sobra[0];
+                else { run.am_oferta[0] = sobra[0]; run.am_oferta[2] = sobra[1]; }
+                run.estado = R_AMULETO;
+                des_salva();
+                abre_amuleto();
+                break;
+            }
+        }
         run.estado = R_LOJA_INI;
         monta_loja_run();
         des_salva();
@@ -373,10 +396,6 @@ static void amuleto_escolhido(int i)
     ganha_amuleto(run.am_oferta[i], run.am_volta);
 }
 
-// A bolsa do comeco: dados simples, muitos fracos. Tirar os fracos (na loja)
-// e parte da run.
-static const uint8_t BOLSA_INICIO[] = { D_D6, D_D6, D_D6, D_D6, D_D6, D_D6, D_D4, D_D4, D_D4, D_D4, D_D2, D_D2 };
-
 static int moedas_iniciais(int dif) { return DES_MOEDAS + dif; }
 
 static void des_nova_run(void)
@@ -387,8 +406,16 @@ static void des_nova_run(void)
     if (!run.semente) run.semente = 1;
     run.dificuldade = (uint8_t)des_dif;
     run.moedas = moedas_iniciais(run.dificuldade);
-    if (perfil_atual >= 0) { if (perfis[perfil_atual].runs < 65535) perfis[perfil_atual].runs++; perfis_salva(); }
-    for (unsigned i = 0; i < sizeof BOLSA_INICIO; i++) run.col[run.n_col++] = (peca_t){ .tipo = BOLSA_INICIO[i], .fixo = 0 };
+    if (des_bolsa < 0 || des_bolsa >= B_N || !bolsa_aberta(des_bolsa)) des_bolsa = B_PANO;
+    if (perfil_atual >= 0) {
+        perfil_t *p = &perfis[perfil_atual];
+        if (p->runs < 65535) p->runs++;
+        p->bolsa_ult = (uint8_t)des_bolsa;
+        perfis_salva();
+    }
+    // A bolsa do comeco: dados simples, muitos fracos (tirar os fracos, na
+    // loja, e parte da run), e o que a bolsa escolhida traz.
+    bolsa_monta_run(des_bolsa);
     gera_andar();
     oferece_amuleto(AV_INICIO);                  // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
@@ -440,7 +467,7 @@ static void des_comeca_partida(void)
             if (!(amul[1] >> a & 1)) { amul[1] |= AM_BIT(a); op_amul_extra = a; break; }
         }
     }
-    des_rod_vencidas = 0;
+    des_rod_vencidas = des_rod_cheias = 0;
     reg_op = trunfo_ativo(no->perso) ? PERSO[no->perso].reg : REG_NADA;
     estilo_op = PERSO[no->perso].estilo;
     op_nervoso = false;
@@ -450,7 +477,7 @@ static void des_comeca_partida(void)
     t_fala = 0;
     t_reacao = t_curta = 0;
     fala_e_curta = false;
-    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0);
+    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0) - (tem_bolsa(0, B_FOSFORO) ? FOSFORO_FICHAS : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
     for (int i = 0; i < J[0].n_col; i++) J[0].col[i].velcro = 0;   // o Velcro so segura de uma rodada para a outra
@@ -509,10 +536,12 @@ static void des_resultado(void)
         return;
     }
     run.vitorias++;
+    if (des_atras7) abre_bolsa(B_SEMENTES);      // virou: comecou a 7a rodada atras
     des_marco = -1;
     des_chefe_novo = false;
     if (no->tipo == NO_CHEFE && perfil_atual >= 0) {
         perfil_t *p = &perfis[perfil_atual];
+        if (run.andar == 0) abre_bolsa(B_COPO);   // o Crupie caiu
         if (run.andar < 2 && !(p->marcos >> run.andar & 1)) {
             p->marcos |= (uint8_t)(1u << run.andar);                  // abre o D20 ou o Lastro
             des_marco = run.andar == 0 ? D_D20 : D_LASTRO;
@@ -536,6 +565,10 @@ static void des_resultado(void)
     run.ganho = run.colar = run.juros = run.taca = run.dourado = 0;
     if (!fim_da_run()) {
         run.ganho = (uint8_t)moedas_mesa(run.passo);
+        if (porco_inteiro()) {                   // o Porquinho: 1 a menos na mao, 2 nele
+            if (run.ganho) run.ganho--;
+            run.porco = (uint8_t)(run.porco + PORCO_GUARDA < 250 ? run.porco + PORCO_GUARDA : 250);
+        }
         if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
         if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);

@@ -468,7 +468,7 @@ int main(void)
     for (int caso = 0; caso < 4000; caso++) {
         limpa();
         for (int j = 0; j < 2; j++) {
-            int n = 1 + (int)(teste_rnd() % N_FILA);
+            int n = 1 + (int)(teste_rnd() % FILA_NORMAL);
             for (int k = 0; k < n; k++) {
                 int t = (int)(teste_rnd() % D_N);
                 int v = 1 + (int)(teste_rnd() % TIPO[t].lados);
@@ -676,7 +676,7 @@ int main(void)
         // Fora do Desafiante, amuleto nenhum vale.
         amul[0] = 0xFFF;
         modo = M_UM;
-        CONFERE(!tem_am(0, A_LUVA) && tam_mao(0) == 7 && max_fila(0) == N_FILA, "amuleto valendo fora do Desafiante");
+        CONFERE(!tem_am(0, A_LUVA) && tam_mao(0) == 7 && max_fila(0) == FILA_NORMAL, "amuleto valendo fora do Desafiante");
         amul[0] = 0;
         modo = modo_antes;
     }
@@ -724,7 +724,7 @@ int main(void)
         CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 5, "Couraca: o dado foi anulado");
         // Contrato Sujo: sequencia de 3; Bolsa Funda e Saco Furado: tamanho da mao.
         amul[0] = 1 << A_CONTRATO;
-        CONFERE(max_fila(0) == 3 && max_fila(1) == N_FILA, "Contrato: sequencia de %d", max_fila(0));
+        CONFERE(max_fila(0) == 3 && max_fila(1) == FILA_NORMAL, "Contrato: sequencia de %d", max_fila(0));
         amul[0] = 1 << A_BOLSA | 1 << A_FURADO;
         CONFERE(tam_mao(0) == 8 && tam_mao(1) == 6, "Bolsa/Saco: maos %d e %d", tam_mao(0), tam_mao(1));
         amul[0] = 0;
@@ -1165,7 +1165,7 @@ int main(void)
             int modo0 = modo;
             for (int m = 0; m < 2; m++) {
                 modo = m ? M_DESAFIO : M_UM;
-                J[0].n_col = N_FILA + 2;
+                J[0].n_col = FILA_NORMAL + 2;
                 for (int i = 0; i < J[0].n_col; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].onde[i] = NA_MAO; }
                 J[0].col[3] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)-3 };
                 limpa();
@@ -1173,9 +1173,9 @@ int main(void)
                 joga(0, D_QUEBRADO, -3);
                 F[0].idx[0] = 3; F[0].fixo[0] = J[0].col[3].fixo;
                 recolhe_quebrados();
-                if (m) CONFERE(J[0].n_col == N_FILA + 2 && J[0].col[3].tipo == D_MISTERIOSO && F[0].quebra[0],
+                if (m) CONFERE(J[0].n_col == FILA_NORMAL + 2 && J[0].col[3].tipo == D_MISTERIOSO && F[0].quebra[0],
                                "Desafiante: a pedra negativa devia deixar o Dado Misterioso");
-                else CONFERE(J[0].n_col == N_FILA + 1 && J[0].col[3].tipo == D_D6, "rapida: o Quebrado -3 se desfaz");
+                else CONFERE(J[0].n_col == FILA_NORMAL + 1 && J[0].col[3].tipo == D_D6, "rapida: o Quebrado -3 se desfaz");
             }
             modo = modo0;
             t_misterio = 0;
@@ -2038,6 +2038,144 @@ int main(void)
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
+    }
+
+    // ---- As bolsas do comeco: os dados, a regra de cada uma e o que abre ----
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "B");
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 0;
+        // Fechada: a run comeca com o Saco de Pano. O Copo abre com o
+        // Crupie vencido e os Fosforos com uma run vencida, ja de antes.
+        des_bolsa = B_LAPIS; des_nova_run();
+        CONFERE(run.bolsa == B_PANO && run.n_col == 12, "bolsa fechada: o Saco de Pano (%d)", run.bolsa);
+        CONFERE(bolsa_aberta(B_PANO) && !bolsa_aberta(B_COPO) && !bolsa_aberta(B_FOSFORO), "so o Saco de Pano aberto");
+        perfis[0].marcos = 1;
+        CONFERE(bolsa_aberta(B_COPO), "o Crupie vencido abre o Copo");
+        perfis[0].marcos = 0; perfis[0].venceu[3] = 1;
+        CONFERE(bolsa_aberta(B_FOSFORO), "uma run vencida abre os Fosforos");
+        perfis[0].venceu[3] = 0;
+        CONFERE(perfis[0].bolsa_ult == B_PANO, "a ultima escolhida: %d", perfis[0].bolsa_ult);
+        perfis[0].bolsas = 0xFF;
+        // Copo de Couro: sem os D2, com dois D8 e o Viciado; compra 6.
+        des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
+        int d2 = 0, d8 = 0, vic = 0;
+        for (int i = 0; i < run.n_col; i++) { d2 += run.col[i].tipo == D_D2; d8 += run.col[i].tipo == D_D8; vic += run.col[i].tipo == D_VICIADO; }
+        CONFERE(run.bolsa == B_COPO && run.n_col == 13 && !d2 && d8 == 2 && vic == 1 && tam_mao(0) == 6 && J[0].n_mao == 6,
+                "Copo: %d dados, mao %d", run.n_col, J[0].n_mao);
+        CONFERE(perfis[0].bolsa_ult == B_COPO, "a ultima escolhida, o Copo: %d", perfis[0].bolsa_ult);
+        // Lata de Biscoito: dois adesivos ja colados, a vitrine com 1 e o adesivo 1 mais barato.
+        des_bolsa = B_LATA; des_nova_run();
+        int ad = 0;
+        for (int i = 0; i < run.n_col; i++) ad += ad_quantos(&run.col[i]);
+        CONFERE(ad == 2 && n_vitrine() == 1 && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
+                "Lata: %d adesivos, vitrine %d, Lobo %d", ad, n_vitrine(), preco_adesivo(AD_LOBO));
+        run_poe_amuleto(A_CARTOLA);
+        CONFERE(n_vitrine() == 2, "Lata com a Cartola: %d", n_vitrine());
+        // Porquinho: a mesa paga 1 a menos e poe 2 nele; quebrar leva tudo.
+        des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0); loja_sai();
+        des_comeca_partida();
+        int m = run.moedas;
+        venc_partida = 0; des_resultado();
+        CONFERE(run.ganho == moedas_mesa(0) - 1 && run.porco == PORCO_GUARDA && run.moedas == m + saque_total(),
+                "Porquinho: mesa %d, porco %d", run.ganho, run.porco);
+        m = run.moedas;
+        porco_quebra();
+        CONFERE(run.moedas == m + PORCO_GUARDA && !run.porco && run.porco_quebrou && !porco_inteiro(), "Porquinho quebrado: %d", run.moedas - m);
+        porco_quebra();
+        CONFERE(run.moedas == m + PORCO_GUARDA, "o Porquinho so quebra uma vez");
+        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 da 7a em diante.
+        des_bolsa = B_SEMENTES; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
+        int sb[9];
+        for (int r = 1; r <= 8; r++) { rodada = r; sb[r] = sementes_bonus(0); }
+        CONFERE(sb[1] == -1 && sb[2] == -1 && sb[3] == 0 && sb[6] == 0 && sb[7] == 1 && sb[8] == 1 && !sementes_bonus(1),
+                "Sementes: %d %d %d %d %d", sb[1], sb[2], sb[3], sb[7], sb[8]);
+        rodada = 1;
+        limpa(); joga(0, D_D6, 4);
+        CONFERE(F[0].pontos == 3, "Sementes na rodada 1: o 4 pontua %d", F[0].pontos);
+        // Estojo de Lapis: 5 na sequencia (4 com o Contrato Sujo), e a rodada comeca com -4.
+        des_bolsa = B_LAPIS; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
+        CONFERE(max_fila(0) == 5 && max_fila(1) == 4, "Lapis: fila de %d", max_fila(0));
+        limpa();
+        for (int k = 0; k < 5; k++) joga(0, D_D6, k + 1);
+        desfecho_t d;
+        calcula_desfecho(&d, false);
+        CONFERE(F[0].lancados == 5 && d.total[0] == 15 - LAPIS_PENA && F[0].pontos == 15 - LAPIS_PENA,
+                "Lapis: 1+2+3+4+5 - 4 = %d (%d)", d.total[0], F[0].pontos);
+        limpa(); joga(0, D_D6, 3);
+        primeiro = 0;
+        CONFERE(!zerou_de_vez(0), "Lapis: 3 - 4 nao conta como zerar");
+        run_poe_amuleto(A_CONTRATO); amul[0] = run_amuletos();
+        CONFERE(max_fila(0) == 4, "Lapis com o Contrato Sujo: %d", max_fila(0));
+        // Bauzinho: escolhe 2 dos 3 do comeco, e cabem 4.
+        des_bolsa = B_BAU; des_nova_run();
+        CONFERE(am_lugares() == 4 && fase == F_RAMULETO, "Bauzinho: %d lugares", am_lugares());
+        amuleto_escolhido(1);
+        CONFERE(fase == F_RAMULETO && am_conta(run_amuletos()) == 1 && run.am_oferta[1] == 0xFF
+                && run.am_oferta[0] < A_N && run.am_oferta[2] < A_N, "Bauzinho: o segundo, dos dois que sobraram");
+        amuleto_escolhido(2);
+        CONFERE(fase == F_RLOJA && am_conta(run_amuletos()) == 2, "Bauzinho: 2 amuletos (%d)", am_conta(run_amuletos()));
+        // Caixa de Fosforos: 45 fichas e a mao dele a vista.
+        des_bolsa = B_FOSFORO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
+        CONFERE(J[0].fichas + ante_da(1) == DES_FICHAS - FOSFORO_FICHAS && fosf_n == J[1].n_mao && fosf_n > 0,
+                "Fosforos: %d fichas, ve %d de %d", J[0].fichas, fosf_n, J[1].n_mao);
+        // O que abre cada uma: adesivos, amuletos, a loja com 12, a virada,
+        // as rodadas cheias.
+        perfis[0].bolsas = 0;
+        bolsa_nova = -1;
+        des_bolsa = B_PANO; des_nova_run(); amuleto_escolhido(0);
+        for (int i = 0; i < 3; i++) ad_cola(&run.col[i], 1, AD_LOBO);
+        des_salva();
+        CONFERE(bolsa_aberta(B_LATA) && bolsa_nova == B_LATA, "3 adesivos abrem a Lata");
+        run.moedas = PORCO_ABRE; loja_sai();
+        CONFERE(bolsa_aberta(B_PORCO), "sair da loja com 12 abre o Porquinho");
+        for (int a = 0; a < AM_LUGARES; a++) run_poe_amuleto(a);
+        des_salva();
+        CONFERE(bolsa_aberta(B_BAU), "5 amuletos abrem o Bauzinho");
+        des_comeca_partida();
+        des_rod_cheias = LAPIS_ABRE - 1;
+        limpa(); for (int k = 0; k < 4; k++) joga(0, D_D6, k + 1);
+        des_rodada_vencida();
+        CONFERE(bolsa_aberta(B_LAPIS), "rodadas cheias abrem o Estojo de Lapis");
+        des_atras7 = true; venc_partida = 0; des_resultado();
+        CONFERE(bolsa_aberta(B_SEMENTES), "a virada abre o Saco de Sementes");
+        // A run salva de antes das bolsas abre com o Saco de Pano; a desta, com a dela.
+        {
+            static char buf[2 * sizeof(run_t) + 1];
+            perfis[0].bolsas = 0xFF;
+            des_bolsa = B_LATA; des_nova_run();
+            run_t r;
+            CONFERE(des_carrega(&r) && r.bolsa == B_LATA, "a run salva guarda a bolsa (%d)", r.bolsa);
+            run.porco = 9;
+            hex_de(&run, RUN_TAM_SEM_BOLSA, buf);
+            salva_grava(chave_run(), buf);
+            CONFERE(des_carrega(&r) && r.bolsa == B_PANO && !r.porco && r.n_col == run.n_col, "a run de antes das bolsas (%d)", r.bolsa);
+        }
+        // Os perfis de antes das bolsas ("PER5") abrem com tudo e so o Saco de Pano.
+        {
+            perfil_5_t v[N_PERFIS];
+            memset(v, 0, sizeof v);
+            snprintf(v[1].nome, sizeof v[1].nome, "VELHO");
+            v[1].nivel = 4; v[1].marcos = 1; v[1].chefes[2] = 5; v[1].runs = 7;
+            static char buf[16 + 2 * sizeof v];
+            memcpy(buf, "PER51", 5);
+            hex_de(v, sizeof v, buf + 5);
+            salva_grava("perfis", buf);
+            perfis_lidos = false; perfis_le();
+            perfil_atual = 1;
+            CONFERE(!strcmp(perfis[1].nome, "VELHO") && perfis[1].nivel == 4 && perfis[1].chefes[2] == 5 && perfis[1].runs == 7
+                    && !perfis[1].bolsas && bolsa_aberta(B_COPO) && !bolsa_aberta(B_LATA), "perfil PER5 convertido");
+            perfil_atual = 0;
+        }
+        des_bolsa = B_PANO;
+        bolsa_nova = -1;
+        memset(&run, 0, sizeof run);
+        salva_limpa_tudo();
+        perfil_atual = -1;
+        modo = modo_antes;
     }
 
     // ---- Run: o salao, as moedas de cada mesa, a loja e o fim -------------
@@ -3367,7 +3505,7 @@ int main(void)
             // O Coringa: monta 3; o quarto e a copia do seu dado que tirou mais
             // no seu turno (empate: o ultimo).
             reg_op = REG_CORINGA;
-            CONFERE(max_fila(1) == 3 && max_fila(0) == N_FILA, "Coringa monta 3");
+            CONFERE(max_fila(1) == 3 && max_fila(0) == FILA_NORMAL, "Coringa monta 3");
             peca_t c;
             limpa(); joga(0, D_D8, 6); joga(0, D_D20, 9); joga(0, D_D12, 9);
             CONFERE(melhor_lance(0, &c) && c.tipo == D_D12, "Coringa: empate no 9 devia copiar o ultimo (D12), copiou %d", c.tipo);

@@ -9,7 +9,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_BOLSA]    = { "Bolsa Funda",   "Você compra 8 dados por rodada, em vez de 7.", RGB(204, 150, 96) },
     [A_OURO]     = { "Dado de Ouro",  "Dado seu que tirar o número máximo pontua +2.", C_OURO },
     [A_PENA]     = { "Peso Pena",     "Seus dados de 2 e 4 lados pontuam +1.", RGB(196, 176, 230) },
-    [A_CONTRATO] = { "Contrato Sujo", "Cada dado válido seu pontua +2, mas a sequência leva no máximo 3 dados.", C_VINHO_CLR },
+    [A_CONTRATO] = { "Contrato Sujo", "Cada dado válido seu pontua +2, mas a sequência leva 1 dado a menos.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
     [A_COURACA]  = { "Couraça",       "Os dados do oponente não podem anular os seus.", C_ACO },
     [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem (até 3).", C_LATAO },
@@ -72,7 +72,7 @@ static void run_poe_amuletos(amul_t m)
 }
 static void run_poe_amuleto(int a) { run_poe_amuletos(run_amuletos() | AM_BIT(a)); }
 static void run_tira_amuleto(int a) { run_poe_amuletos(run_amuletos() & ~AM_BIT(a)); }
-static bool am_lugar(void) { return am_conta(run_amuletos()) < AM_LUGARES; }
+static bool am_lugar(void) { return am_conta(run_amuletos()) < am_lugares(); }
 static bool amuleto_liberado(int a);
 static bool dado_liberado(int t);
 

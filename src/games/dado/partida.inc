@@ -46,13 +46,14 @@ static void descarta_mao(jogador_t *p)
 // Compra ate 7 da bolsa, ao acaso. Se a bolsa esvazia no meio, tudo o que
 // esta fora volta para ela - menos o que ja esta na mao - e a compra segue.
 // Quantos j compra por rodada: 7; 8 com a Bolsa Funda; 6 se o oponente tem
-// o Saco Furado.
+// o Saco Furado ou com o Copo de Couro.
 static int bis_extra[2];                 // dados a mais na proxima compra (o adesivo Bis)
 static int ad_moedas[2];                 // moedas do Dourado nesta partida
 static int tam_mao(int j)
 {
     int n = MAO_NORMAL + bis_extra[j];
     if (tem_am(j, A_BOLSA)) n++;
+    if (tem_bolsa(j, B_COPO)) n--;                      // o Copo de Couro: dados maiores, mao menor
     if (tem_am(j ^ 1, A_FURADO)) n--;
     if (j == 1 && op_nervoso && tem_reg(REG_NERVOSO)) n--;
     if (j == 0 && virada_forca(0) == 2) n--;            // o Crupie forte: voce compra 1 a menos
@@ -173,6 +174,8 @@ static void nova_rodada(void)
     // o oponente abre (vale mais).
     if (tem_am(0, A_RELOGIO) && (rodada == 1 || J[0].fichas < J[1].fichas)) primeiro = 1;
     for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para o Cobrador
+    if (rodada == 1) des_atras7 = false;
+    if (rodada == 7) des_atras7 = J[0].fichas < J[1].fichas;
     // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
     bool extra = modo == M_DESAFIO && J[0].fichas == J[1].fichas && rodada <= max_r + DES_EXTRAS;
@@ -224,6 +227,7 @@ static void nova_rodada(void)
         compra(&J[j]);
     }
     embrulha_um();
+    fosforo_ve();                                // a Caixa de Fosforos: o que ele comprou
     pote += 2 * ante;
     n_voo = 0;
     n_ev = ev_i = 0;
@@ -892,7 +896,7 @@ static void recolhe_quebrados(void)
             }
         jogador_t *p = &J[j];
         for (int i = 0; i < n; i++) {
-            if (em_jogo(p) <= N_FILA) { p->col[saem[i]] = nova_peca(D_D4); continue; }
+            if (em_jogo(p) <= FILA_NORMAL) { p->col[saem[i]] = nova_peca(D_D4); continue; }
             for (int m = saem[i]; m + 1 < p->n_col; m++) {
                 p->col[m] = p->col[m + 1];
                 p->onde[m] = p->onde[m + 1];
@@ -1016,6 +1020,7 @@ static void conclui_rodada(void)
     }
     op_nervoso = venc_mao == 0;
     if (venc_mao == 0) des_rod_vencidas++;
+    if (venc_mao == 0 && modo == M_DESAFIO) des_rodada_vencida();
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);
@@ -1456,7 +1461,7 @@ static bool zerou_de_vez(int j)
         if (F[j].espera[k] || F[j].escondido[k]) return false;
     desfecho_t d;
     calcula_desfecho(&d, false);
-    return d.total[j] == 0;
+    return d.bruto[j] + lapis_pena(j) <= 0;      // os dados fizeram 0 (o -4 do Estojo de Lapis nao conta)
 }
 
 // Quem joga em segundo ja passou do alvo: com o que esta na mesa, parar agora

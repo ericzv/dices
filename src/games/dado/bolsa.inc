@@ -2,6 +2,8 @@
 // O pop-up da bolsa: clicar numa bolsa (a sua ou a do oponente, nas faixas da
 // partida; a sua, nas telas da run) mostra os dados dela por cima de tudo. So
 // olha: fora do online a partida espera, e qualquer tecla ou clique fecha.
+// Mostra todos os dados de quem e, sem marcar os que ja sairam: nao da para
+// saber o que ele comprou (so a Caixa de Fosforos ve isso).
 // ---------------------------------------------------------------------------
 static void bolsa_abre(int quem)
 {
@@ -37,31 +39,26 @@ static void desenha_bolsa_pop(void)
     n_zonas = 0;                                      // so o que esta no pop-up responde ao mouse
     n_dicas = 0;
     const peca_t *col;
-    const uint8_t *onde = NULL;
     int n, dono = 0;
     if (bolsa_pop == BOLSA_RUN) { col = run.col; n = run.n_col; }
     else {
         const jogador_t *p = &J[bolsa_pop];
-        col = p->col; n = p->n_col; onde = p->onde; dono = bolsa_pop;
+        col = p->col; n = p->n_col; dono = bolsa_pop;
     }
-    // A ordem: primeiro os que estao na bolsa, depois os que sairam nesta
-    // rodada (na mao ou na mesa) e, por ultimo, os que a Autofagia comeu;
-    // dentro de cada parte, os do mesmo tipo juntos.
+    // Os do mesmo tipo juntos.
     static int ord[MAX_COL];
-    int no = 0, conta[3] = { 0 };
-    for (int parte = 0; parte < 3; parte++)
-        for (int t = 0; t < D_N; t++)
-            for (int i = 0; i < n; i++) {
-                int st = !onde || onde[i] == NA_BOLSA ? 0 : onde[i] == COMIDO ? 2 : 1;
-                if (st == parte && col[i].tipo == t) { ord[no++] = i; conta[parte]++; }
-            }
+    int no = 0;
+    for (int t = 0; t < D_N; t++)
+        for (int i = 0; i < n; i++)
+            if (col[i].tipo == t) ord[no++] = i;
+    bool sua = modo == M_DESAFIO && (bolsa_pop == BOLSA_RUN || bolsa_pop == 0);   // a da run: a regra dela
 
     float q = fminf(1, t_bolsa_pop / 0.16f);
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, (int)(150 * q));
     grade_t g = grade_cabe(no, 14, 36, 168);
     float f = g.f;
     int linhas = no ? (no + g.por - 1) / g.por : 1, passo = (int)(36 * f);
-    int w = 548, h = 78 + linhas * passo + 30;
+    int w = 548, h = 78 + linhas * passo + 30 + (sua ? 16 : 0);
     int x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 + (int)((1 - sai_mola(q)) * 12);
     ui_cartao(x0, y0, w, h, true, C_LATAO);
 
@@ -69,18 +66,24 @@ static void desenha_bolsa_pop(void)
     if (bolsa_pop == BOLSA_RUN || (bolsa_pop == baixo && modo != M_DOIS)) snprintf(s, sizeof s, "SUA BOLSA");
     else snprintf(s, sizeof s, "BOLSA DE %s", J[bolsa_pop].nome);
     int wt = gfx_largura(s, 2);
-    icone_bolsa(GFX_W / 2 - wt / 2 - 14, y0 + 22);
+    if (sua) icone_da_run(GFX_W / 2 - wt / 2 - 16, y0 + 22);
+    else icone_bolsa(GFX_W / 2 - wt / 2 - 14, y0 + 22);
     txt_c2(GFX_W / 2 + 4, y0 + 8, s, C_LATAO);
-    if (!onde) snprintf(s, sizeof s, "%d dados", n);
-    else {
-        int k = snprintf(s, sizeof s, "%d dados  ·  %d na bolsa agora", n, conta[0]);
-        if (conta[1]) k += snprintf(s + k, sizeof s - (size_t)k, "  ·  %d fora nesta rodada", conta[1]);
-        if (conta[2]) snprintf(s + k, sizeof s - (size_t)k, "  ·  %d %s", conta[2], conta[2] > 1 ? "comidos" : "comido");
+    if (sua) {                                        // a bolsa da run e a regra dela
+        const bolsa_t *bo = &BOLSA[run.bolsa < B_N ? run.bolsa : 0];
+        snprintf(s, sizeof s, "%s  ·  %d dados", bo->nome, n);
+        txt_c(GFX_W / 2, y0 + 42, s, bo->cor == BOLSA[B_PANO].cor ? C_MARFIM_S : bo->cor, true);
+        char r2[200];
+        if (run.bolsa == B_PANO) snprintf(r2, sizeof r2, "Sem regra.");
+        else snprintf(r2, sizeof r2, "%s %s", bo->ganho, bo->custo);
+        gfx_texto(GFX_W / 2 - gfx_largura(r2, GFX_MIUDO) / 2, y0 + 62, r2, C_TEXTO_M, GFX_MIUDO, false);
+    } else {
+        snprintf(s, sizeof s, "%d dados", n);
+        txt_c(GFX_W / 2, y0 + 44, s, C_MARFIM_S, false);
     }
-    txt_c(GFX_W / 2, y0 + 44, s, C_MARFIM_S, false);
 
-    // Os dados: os de fora, apagados. O mouse em cima diz o que cada um faz.
-    int topo = y0 + 66, r = (int)(13 * f + 0.5f);
+    // Os dados. O mouse em cima diz o que cada um faz.
+    int topo = y0 + 66 + (sua ? 16 : 0), r = (int)(13 * f + 0.5f);
     for (int k = 0; k < no; k++) {
         int i = ord[k], lin = k / g.por, c = k % g.por;
         int na_linha = no - lin * g.por < g.por ? no - lin * g.por : g.por;
@@ -88,11 +91,8 @@ static void desenha_bolsa_pop(void)
         int y = topo + (int)((lin + 0.5f) * 36 * f);
         caixa_fechada = col == J[0].col && i == embrulho;
         peca_parada((float)x, (float)y, (float)r, col[i], dono);
-        if (onde && onde[i] != NA_BOLSA)
-            gfx_rect_alfa(x - r - 2, y - r - 2, 2 * r + 5, 2 * r + 5, C_SOMBRA, onde[i] == COMIDO ? 190 : 130);
         dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_DADO, col == J[0].col && i == embrulho ? DICA_EMBRULHO : col[i].tipo);
     }
     if (!no) txt_c(GFX_W / 2, topo + 8, "Nenhum dado.", C_TEXTO_M, false);
-    txt_c(GFX_W / 2, y0 + h - 24, conta[1] + conta[2] ? "apagados: fora da bolsa  ·  clique ou qualquer tecla fecha"
-                                                     : "clique ou qualquer tecla fecha", C_TEXTO_M, false);
+    txt_c(GFX_W / 2, y0 + h - 24, "clique ou qualquer tecla fecha", C_TEXTO_M, false);
 }

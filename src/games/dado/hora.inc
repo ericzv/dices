@@ -98,7 +98,7 @@ static void reage_lance(int j, int k)
 {
     int seguidos = 0;
     while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
-    bool cheia = seguidos == N_FILA;
+    bool cheia = seguidos >= FILA_NORMAL;
     int nivel = cheia ? 1 : 0, hora_res = 0;
     if (hora) {
         som_suspense(false);
@@ -255,7 +255,11 @@ static bool golpe_passo(float dt_real)
 static bool evento_grande(const evento_t *e)
 {
     if (e->tipo == EV_JACKPOT) return true;
-    if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO && e->mascara == (1u << N_FILA) - 1) return true;
+    if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO) {
+        int n = 0;
+        for (int k = 0; k < N_FILA; k++) n += e->mascara >> k & 1;
+        if (n >= FILA_NORMAL) return true;
+    }
     if (e->tipo == EV_MULT)
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) return true;
     return false;

@@ -125,7 +125,8 @@ static void des_abre_perfis(void)
     fase = F_PERFIS;
 }
 
-// Nova run: com dificuldades abertas, pergunta qual antes.
+// Nova run: com dificuldades abertas, pergunta qual antes; depois, a bolsa.
+static void abre_bolsas(void);           // bolsa_escolha.inc
 static void des_escolhe_nova(void)
 {
     if (perfil()->nivel > 0) {
@@ -135,7 +136,7 @@ static void des_escolhe_nova(void)
         return;
     }
     des_dif = 0;
-    des_nova_run();
+    abre_bolsas();
 }
 
 static void des_entra_perfil(int i)
@@ -317,7 +318,7 @@ static void desenha_dificuldade(void)
     }
     {
         char m[64];                                  // o mesmo comeco em todo andar
-        snprintf(m, sizeof m, "Você começa com %d moedas e %d dados.", moedas_iniciais(d), (int)sizeof BOLSA_INICIO);
+        snprintf(m, sizeof m, "Você começa com %d moedas.", moedas_iniciais(d));
         txt(px + 24, ly, m, C_VERDE, false);
         ly += 17;
     }

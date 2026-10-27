@@ -107,6 +107,7 @@ void dado_desenha(void)
         desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
+        des_bolsa_nova();
         desenha_bolsa_pop();
     } else bolsa_pop = -1;
     int r[4];
@@ -133,6 +134,7 @@ static void desenha_tudo(void)
     }
     faixa_jogador(1);
     faixa_jogador(0);
+    if (modo == M_DESAFIO) desenha_fosforo();    // a Caixa de Fosforos: a mao dele na luz
 
     switch (fase) {
     // A loja e o premio da maquina contra uma pessoa nao aparecem: so a

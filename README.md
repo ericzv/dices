@@ -57,6 +57,26 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 
 ## 1 jogador: Modo Desafiante
 
+- **As bolsas**: a run começa escolhendo a bolsa, numa tela de fichas (cada
+  uma da sua cor, com o ícone dela). Cada bolsa traz os dados de saída e
+  uma regra leve, que melhora uma coisa e piora outra:
+
+  | Bolsa | Melhora | Piora | Abre quando |
+  |---|---|---|---|
+  | Saco de Pano | os dados de sempre | sem regra | desde o começo |
+  | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
+  | Lata de Biscoito | 2 adesivos já colados; colar custa 1 a menos | a vitrine mostra 1 dado a menos | ter 3 adesivos colados |
+  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
+  | Saco de Sementes | +1 nos seus dados da 7ª rodada em diante; vem com o Trevo | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
+  | Estojo de Lápis | +1 dado na sequência; vem com o Dobro | toda rodada começa com -4 | vencer 3 rodadas de uma partida com 4 dados válidos |
+  | Bauzinho | começa com 2 amuletos; vem com um D12 | cabem só 4 amuletos | ter 5 amuletos |
+  | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo | cada partida começa com 45 fichas | vencer uma run |
+
+  A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
+  nível mais alto em que você venceu uma run com ela. Na partida, abrir uma
+  bolsa (a sua ou a do oponente) mostra todos os dados dela, sem dizer quais
+  já saíram: só a Caixa de Fósforos vê o que ele comprou.
+
 - **Modo Desafiante**: uma run pelo cassino (1 jogador vai direto aos perfis). São 3 salões, cada um com dois
   oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
@@ -69,7 +89,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   diante, depois do Barão ainda há o salão do Coringa, o chefe especial, que
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
-  o que quiser e ganha um amuleto, como todos. Você começa com 12 dados simples (6 D6, 4 D4 e 2 moedas) e 4 moedas
+  o que quiser e ganha um amuleto, como todos. Você começa com os dados da
+  bolsa que escolheu (o Saco de Pano: 12 dados simples, 6 D6, 4 D4 e 2 moedas) e 4 moedas
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada

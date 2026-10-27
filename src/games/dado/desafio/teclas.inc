@@ -147,10 +147,13 @@ static bool des_tecla(int k, int e)
         if (k == KEY_ENTER && dif_cur <= nv) {
             som_toca(SOM_FICHA);
             des_dif = dif_cur;
-            des_nova_run();
+            abre_bolsas();                       // e a bolsa da run
         }
         return true;
     }
+
+    case F_RBOLSAS:
+        return bs_tecla(k, e);
 
     default:
         return false;

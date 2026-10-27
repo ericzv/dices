@@ -15,6 +15,15 @@ termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 85
 dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
 mais 4).
 
+Proteção, só de dois jeitos, com o mesmo ícone em todo lugar: o escudo
+(**não anulável**: nada o anula, nem a sequência nem ataque) e o cadeado
+(**não roubável**). O Universo vai além: nada interfere nele. Os ataques
+pegam alvos que dá para prever (o Laser, o último dado; o Tsunami, o
+primeiro; o Berserker, o vizinho), e quando um dado de ataque fica armado (a
+borda dourada) uma mira vermelha marca o dado que ele vai pegar no fim. No
+registro do fim da rodada, à esquerda, a linha que decidiu o resultado vem
+em ouro.
+
 **Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
 Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez
 escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas
@@ -48,8 +57,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 
 ## 1 jogador: Modo Desafiante
 
-- **Modo Desafiante**: uma run pelo cassino (1 jogador vai direto aos perfis). São 3 salões, cada um com três
-  oponentes (do mais fácil ao mais difícil) e o chefe, sempre nessa ordem e
+- **Modo Desafiante**: uma run pelo cassino (1 jogador vai direto aos perfis). São 3 salões, cada um com dois
+  oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
   bolsa cresce a cada mesa e a cada salão. São 21 oponentes, cada um com seu
@@ -64,7 +73,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
-  salão (2, 3, 4 e 5 no primeiro; 4, 5, 6 e 10 no segundo; 7, 8, 9 e 20 no
+  salão (3, 6 e 5 no primeiro; 6, 9 e 10 no segundo; 10, 11 e 20 no
   terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
   dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
@@ -94,7 +103,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
   rende 1 moeda a cada mesa vencida.
-  Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
+  A run tem 2 corações: perder (ou sair no meio da partida, com ESC duas
+  vezes) custa um, e você joga a mesma mesa de novo, numa partida nova; sem
+  corações, a run acaba. Do nível 7, perder também custa as moedas que a mesa
+  vale. O que
   abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
   comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
   Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)

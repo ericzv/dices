@@ -373,20 +373,24 @@ static void desenha_log(void)
     if (!n_ev || (fase != F_EFEITOS && fase != F_RESULTADO)) return;
     int ate = fase == F_EFEITOS ? ev_i : n_ev - 1;             // o ultimo que ja aparece
     bool fim = fase == F_RESULTADO;
-    int livres = (LOG_Y1 - LOG_Y0) / LOG_LIN - 1 - fim;         // tirando os placares
     // Quantas linhas cada efeito ocupa; se nao couberem todos, ficam os
-    // ultimos, com uma linha de "..." no lugar dos de antes.
+    // ultimos, com uma linha de "..." no lugar dos de antes (e, se a decisiva
+    // ficou la, duas linhas embaixo para repeti-la).
     int de = ate;
-    for (int corta = 0; corta < 2; corta++) {
-        int usadas = 0;
-        de = ate;
-        for (int i = ate; i >= 0; i--) {
-            int n = log_quebra(ev[i].txt, 0, 0, LOG_W - 8, 0, false);
-            if (usadas + n > livres - corta) break;
-            usadas += n;
-            de = i;
+    for (int reserva = 0; reserva <= 3; reserva += 3) {
+        int livres = (LOG_Y1 - LOG_Y0) / LOG_LIN - 1 - fim - reserva;   // tirando os placares
+        for (int corta = 0; corta < 2; corta++) {
+            int usadas = 0;
+            de = ate;
+            for (int i = ate; i >= 0; i--) {
+                int n = log_quebra(ev[i].txt, 0, 0, LOG_W - 8, 0, false);
+                if (usadas + n > livres - corta) break;
+                usadas += n;
+                de = i;
+            }
+            if (de == 0) break;
         }
-        if (de == 0) break;
+        if (!(fim && ev_decisivo >= 0 && ev_decisivo < de)) break;
     }
     int y = LOG_Y0;
     log_placar(y, "início", log_base);
@@ -397,13 +401,21 @@ static void desenha_log(void)
     }
     for (int i = de; i <= ate; i++) {
         const evento_t *e = &ev[i];
-        uint16_t c = i == ate && !fim ? C_BRANCO : C_MARFIM_S;
-        gfx_rect(LOG_X0, y + 3, 3, 3, J[e->de_j].cor);
+        bool decide = fim && i == ev_decisivo;   // no fim, a linha que decidiu a rodada, em ouro
+        uint16_t c = decide ? C_OURO : i == ate && !fim ? C_BRANCO : C_MARFIM_S;
+        if (decide) estrela4(LOG_X0 + 1, y + 4, 2, C_BRANCO, C_OURO, C_LATAO);
+        else gfx_rect(LOG_X0, y + 3, 3, 3, J[e->de_j].cor);
         y += LOG_LIN * log_quebra(e->txt, LOG_X0 + 8, y, LOG_W - 8, c, true);
     }
     if (fim) {
         int tot[2] = { F[0].total, F[1].total };
         log_placar(y + 2, "final", tot);
+        if (ev_decisivo >= 0 && ev_decisivo < de) {          // a decisiva ficou no "...": repete embaixo
+            char s[96];
+            snprintf(s, sizeof s, "decidiu: %s", ev[ev_decisivo].txt);
+            estrela4(LOG_X0 + 1, y + LOG_LIN + 8, 2, C_BRANCO, C_OURO, C_LATAO);
+            log_quebra(s, LOG_X0 + 8, y + LOG_LIN + 4, LOG_W - 8, C_OURO, true);
+        }
     }
 }
 

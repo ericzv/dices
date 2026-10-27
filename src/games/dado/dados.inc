@@ -198,7 +198,7 @@ static const tipo_t TIPO[D_N] = {
     { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Dois iguais: +4 · três iguais: +10" },
     { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "Cada dado seu igual a ele: +2" },
     { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "Anula os seus outros dados" },
-    { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula um dado do oponente" },
+    { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula o último dado do oponente" },
     { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "Rola de novo o seu primeiro dado" },
     { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "Válido: +2 por dado seu anulado" },
     { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "Sem vizinho válido: +6" },
@@ -215,7 +215,7 @@ static const tipo_t TIPO[D_N] = {
     { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "Se for anulado: renasce no fim" },
     { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +4" },
     { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "Anulado ou roubado pelo oponente: anula os dados dele" },
-    { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "Válido: anula um outro dado seu ao acaso" },
+    { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "Válido: anula o seu dado vizinho" },
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
@@ -258,7 +258,7 @@ static const tipo_t TIPO[D_N] = {
     { "Jingle Bell",      6, EF_JINGLE,       RAR_RARO,     0, "Lançado: cópia na bolsa · 2 ou mais válidos: +4 cada" },
     { "Fúria",            4, EF_FURIA,        RAR_RARO,     0, "Tirou 4: guarda +2 · tirou 1: perde 1" },
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Não pontua · válido: guarda o que tirou; 9 vira Tsunami" },
-    { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula um dado do oponente" },
+    { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula o primeiro dado do oponente" },
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que termina válido: x3" },
     { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ao acaso" },
     { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
@@ -271,7 +271,7 @@ static const tipo_t TIPO[D_N] = {
     { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "6 a 8: +3, e evolui" },
     { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
     { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "14 a 20: anula os vizinhos, e evolui" },
-    { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · não cai nem é roubado" },
+    { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · nada interfere nele" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -313,8 +313,8 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TREVO]           = "Tirando 4: SORTE, pontua 10. Tirando 1, 2 ou 3: pontua 0.",
     [D_JACKPOT]         = "Se terminar válido: dois dados válidos seus com o mesmo número, +4; três, +10.",
     [D_COPIADOR]        = "Se terminar válido, cada outro dado válido seu com o mesmo número pontua +2.",
-    [D_EGOISTA]         = "Anula todos os seus outros dados, menos a si mesmo. Pode ser anulado.",
-    [D_LASER]           = "Se terminar válido com 5 ou 6, anula um dado do oponente, ao acaso.",
+    [D_EGOISTA]         = "Anula todos os seus outros dados. Ele mesmo não pode ser anulado.",
+    [D_LASER]           = "Se terminar válido com 5 ou 6, anula o último dado válido do oponente.",
     [D_VENTANIA]        = "Ao ser lançado, rola de novo o primeiro dado da sua sequência.",
     [D_MISERICORDIOSO]  = "Se terminar válido, pontua +2 por dado seu anulado na rodada.",
     [D_SOLITARIO]       = "Se terminar válido, sem dado válido logo antes nem logo depois dele: +6.",
@@ -331,7 +331,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_FENIX]           = "Se terminar anulado, renasce no fim e pontua o número que tirou.",
     [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +4.",
     [D_CAVALO]          = "Se o oponente anular ou roubar este dado, todos os dados do oponente são anulados.",
-    [D_BERSERKER]       = "Se terminar válido, anula no fim um outro dado seu, ao acaso.",
+    [D_BERSERKER]       = "Se terminar válido, anula no fim o seu dado logo antes dele (sem esse, o logo depois).",
     [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
@@ -376,7 +376,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_JINGLE]          = "Lançado, uma cópia dele entra na sua bolsa. Com 2 ou mais válidos na sequência: +4 em cada um.",
     [D_FURIA]           = "Tirando 4, guarda +2 de bônus; tirando 1, perde 1. O bônus soma no que ele tira, até negativo.",
     [D_ONDA]            = "Não pontua. Cada vez que termina válido, guarda o que tirou; ao juntar 9, vira um Tsunami.",
-    [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula um dado do oponente, ao acaso.",
+    [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula o primeiro dado válido do oponente.",
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que termina válido, pontua x3. Os patinhos marcam a contagem.",
     [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ao acaso, que fica no lugar dele na bolsa.",
     [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
@@ -389,7 +389,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_CONSTELACAO]     = "Tirando 6, 7 ou 8, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +3.",
     [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
     [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
-    [D_UNIVERSO]        = "Só pode ser lançado sozinho. Não pode ser anulado nem roubado.",
+    [D_UNIVERSO]        = "Só pode ser lançado sozinho. Nada interfere nele: pontua exatamente o que tirar.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -447,10 +447,10 @@ static const char *TEXTO_CAT[D_N] = {
                           "ser um deles), pontua +4 no fim da rodada; se forem três: JACKPOT, +10.",
     [D_COPIADOR]        = "Seis lados. Se terminar válido, no fim da rodada cada outro dado válido seu com o mesmo número "
                           "pontua +2.",
-    [D_EGOISTA]         = "Doze lados. Ao ser lançado, anula os outros dados da sequência, antes e depois dele, menos a si "
-                          "mesmo. Este dado pode ser anulado.",
-    [D_LASER]           = "Seis lados. Se terminar válido com 5 ou 6, um raio verde anula um dado do oponente escolhido ao "
-                          "acaso.",
+    [D_EGOISTA]         = "Doze lados. Ao ser lançado, anula os outros dados da sequência, antes e depois dele. Ele mesmo "
+                          "não pode ser anulado.",
+    [D_LASER]           = "Seis lados. Se terminar válido com 5 ou 6, um raio verde anula no fim o último dado válido do "
+                          "oponente (o mais à direita da sequência dele) que possa ser anulado.",
     [D_VENTANIA]        = "Oito lados. Ao ser lançado, rola de novo o primeiro dado da sua sequência, e a sequência é refeita: "
                           "dados podem ser anulados ou voltar a ser válidos. Se for o primeiro da sequência, não faz nada.",
     [D_MISERICORDIOSO]  = "Quatro lados. Se terminar válido, pontua +2 no fim da rodada para cada dado seu anulado.",
@@ -482,8 +482,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "pontua +4 no fim da rodada.",
     [D_CAVALO]          = "Oito lados. Se um dado do oponente anular ou roubar este dado, todos os dados válidos do oponente "
                           "são anulados, e o que ele roubou na rodada deixa de contar.",
-    [D_BERSERKER]       = "Vinte lados. Se terminar válido, no fim da rodada anula um outro dado válido seu, escolhido ao "
-                          "acaso.",
+    [D_BERSERKER]       = "Vinte lados. Se terminar válido, no fim da rodada anula o seu dado válido logo antes dele; se "
+                          "não houver (ou não puder ser anulado), o logo depois.",
     [D_VIUVA]           = "Oito lados. Se terminar a rodada como o único dado válido seu, pontua x2 no fim.",
     [D_CAPITAO]         = "Oito lados. Se terminar válido, pontua +1 no fim da rodada para cada dado válido seu, este dado "
                           "incluído.",
@@ -577,7 +577,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "válido, guarda esse número. Quando o que guardou chega a 9, no fim da rodada vira um Tsunami, de "
                           "vez.",
     [D_TSUNAMI]         = "Doze lados. Não é vendido nem sorteado: nasce de uma Onda que juntou 9. Se terminar válido tirando "
-                          "de 9 a 12, uma onda anula um dado do oponente, escolhido ao acaso.",
+                          "de 9 a 12, uma onda anula no fim o primeiro dado válido do oponente (o mais à esquerda da "
+                          "sequência dele) que possa ser anulado.",
     [D_PATINHOS]        = "Quatro lados. Conta as vezes que termina válido: na 3ª, na 6ª, na 9ª... pontua x3 no fim da "
                           "rodada. Os três patinhos no dado marcam a contagem; com os três acesos, ele está ativo. A "
                           "contagem fica com ele.",
@@ -612,8 +613,9 @@ static const char *TEXTO_CAT[D_N] = {
     [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
                           "Se ficar válido, no fim da rodada ainda anula os seus dados lançados logo antes e logo depois "
                           "dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
-    [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Não pode ser anulado "
-                          "nem roubado. A cada partida, recomeça como Estrela.",
+    [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Nada interfere nele: "
+                          "nenhum dado, adesivo, amuleto ou trunfo, seu ou do oponente, o anula, rouba, copia ou muda o que "
+                          "ele tira. A cada partida, recomeça como Estrela.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };

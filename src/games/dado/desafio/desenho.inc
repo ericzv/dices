@@ -81,6 +81,8 @@ static void faixa_run(int voltar)
     faixa_bolsa_x = xb - 12;
     faixa_bolsa_y = FAIXA_H / 2;
     icone_bolsa(xb - 12, FAIXA_H / 2 - pulo);
+    for (int i = 0; i < DES_CORACOES; i++)       // os coracoes da run, antes da bolsa
+        coracao_ic(xb - 28 - (DES_CORACOES - i) * 10, FAIXA_H / 2 - 4, i < coracoes());
     txt(xb, ty - (pulo > 1), s, t_bolsa_pulo > 0.3f ? C_OURO : (em ? C_OURO : C_MARFIM), true);
     if (clica) zona_clique(xb - 22, 6, wb + 28, FAIXA_H - 12, NULL, 0, KEY_TAB);
     else if (fase != F_RBOLSA) {                 // nas outras telas, o pop-up (bolsa.inc)
@@ -109,10 +111,15 @@ static void nome_no_cartao(int cx, int y, const char *s, uint16_t c, int w)
 // quem senta em cada uma, a dificuldade e quanto ela paga. As vencidas
 // apagam, com o visto; a da vez pulsa, e a ficha do jogador anda ate ela.
 static const int SALAO_X[DES_PASSOS] = { 104, 248, 392, 536 };
+static const int SALAO_X3[3] = { 150, 320, 490 };   // o salao de tres mesas
 #define SALAO_BASE 139                   // onde os retratos assentam
 #define SALAO_LINHA 112                  // a altura do caminho entre eles
 
-static int salao_x(int p) { return run.andar == DES_ANDAR_FINAL ? GFX_W / 2 : SALAO_X[p]; }
+static int salao_x(int p)
+{
+    if (run.andar == DES_ANDAR_FINAL) return GFX_W / 2;
+    return mesas_do_salao() == 3 && p < 3 ? SALAO_X3[p] : SALAO_X[p];
+}
 static int salao_esc(int p) { return run.no[p].tipo == NO_CHEFE ? 3 : 2; }
 static int salao_topo(int p) { return SALAO_BASE - RT_H * salao_esc(p); }
 
@@ -151,7 +158,7 @@ static void info_mesa(int p)
         int xv = etiqueta_caixa(xa, cy + 42, "Virada", C_VINHO_CLR);
         dica_zona(xa, cy + 42, xv - xa, 20, DICA_TRUNFO, no->perso);
     } else {
-        int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
+        int vale = moedas_mesa(p);
         bool paga = vale && !(run.andar == DES_ANDARES - 1 && no->tipo == NO_CHEFE && !com_coringa());
         char v[32];
         if (paga) {
@@ -244,7 +251,7 @@ static void salao_mesa(int p)
     const char *tag = NOME_NO[no->tipo];
     if (!feita) gfx_texto(x - gfx_largura(tag, GFX_MIUDO) / 2, SALAO_BASE + 26, tag, cn, GFX_MIUDO, false);
     // Quanto paga: a moeda e o numero (o fim da run nao paga).
-    int vale = run.andar < DES_ANDARES ? MOEDAS_MESA[run.andar][p] : 0;
+    int vale = moedas_mesa(p);
     if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale = 0;
     char v[16];
     if (feita) snprintf(v, sizeof v, "vencida");
@@ -491,12 +498,25 @@ static void desenha_fim_partida_run(void)
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
         txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
-                                     : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
-                                                         : "A run termina aqui.", C_MARFIM, true);
+        // Os coracoes: o que se foi agora pisca antes de apagar.
+        int resta = coracoes(), x0 = GFX_W / 2 - (DES_CORACOES * 20 - 6) / 2;
+        for (int i = 0; i < DES_CORACOES; i++) {
+            bool cheio = i < resta || (i == resta && t_fase < 0.9f && ((int)(t_fase * 8) & 1));
+            coracao_e(x0 + i * 20, CENTRO - 12, cheio, 2);
+        }
+        const char *por = des_saiu ? "Você saiu da mesa: conta como derrota."
+                        : venc_partida == 2 ? "Empate não passa de mesa." : NULL;
+        int y = CENTRO + 8;
+        if (por) { txt_c(GFX_W / 2, y, por, C_MARFIM_S, false); y += 15; }
+        if (resta && des_perda_moedas)
+            snprintf(s, sizeof s, "Perdeu um coração e %d %s: jogue esta mesa de novo.", des_perda_moedas,
+                     des_perda_moedas == 1 ? "moeda" : "moedas");
+        else if (resta) snprintf(s, sizeof s, "Perdeu um coração: jogue esta mesa de novo.");
+        else snprintf(s, sizeof s, "Sem corações: a run termina aqui.");
+        txt_c(GFX_W / 2, y, s, C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
-        txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-        teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
+        txt_c(GFX_W / 2, y + 20, s, C_TEXTO_M, false);
+        teclas_c(GFX_W / 2, CENTRO + 60, resta ? "ENTER joga de novo" : "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];

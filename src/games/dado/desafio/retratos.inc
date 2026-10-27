@@ -973,6 +973,9 @@ typedef struct {
     // Depois do fim de antes (a run salva sem ele abre com 0): sem uso desde
     // que todo Presente aberto fica; segue aqui para a run salva abrir igual.
     uint8_t  presente;
+    // No byte de folga do fim (a run salva de antes abre com 0): as partidas
+    // perdidas na run, que custaram um coracao cada.
+    uint8_t  derrotas;
 } run_t;
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a

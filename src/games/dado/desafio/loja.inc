@@ -888,7 +888,7 @@ static void lj_proxima(char *s, int n)
     }
     const no_t *no = &run.no[p];
     snprintf(s, (size_t)n, "Próxima mesa: %s  ·  vale %d %s", PERSO[no->perso].nome,
-             MOEDAS_MESA[run.andar][p], MOEDAS_MESA[run.andar][p] == 1 ? "moeda" : "moedas");
+             moedas_mesa(p), moedas_mesa(p) == 1 ? "moeda" : "moedas");
 }
 
 static void lj_desenha_tirando(void)

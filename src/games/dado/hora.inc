@@ -466,6 +466,18 @@ static void desenha_evolui(void)
     }
 }
 
+// A mira de um poder armado sobre o dado que ele vai pegar no fim: um anel
+// vermelho com quatro tracos cruzando, pulsando de leve.
+static void mira_sobre(int x, int y, int R)
+{
+    int r = R + 5 + (int)lroundf(sinf(t_relogio * 5.5f));
+    anel(x, y, r, 1, C_VINHO_CLR);
+    for (int i = 0; i < 4; i++) {
+        int dx = i == 0 ? 1 : i == 1 ? -1 : 0, dy = i == 2 ? 1 : i == 3 ? -1 : 0;
+        gfx_linha_grossa(x + dx * (r - 3), y + dy * (r - 3), x + dx * (r + 4), y + dy * (r + 4), 2, C_VINHO_CLR);
+    }
+}
+
 // A estrelinha que gira em volta do dado que vai evoluir, ate o fim da rodada.
 static void cosmo_orbita(int x, int y, int R, int t)
 {

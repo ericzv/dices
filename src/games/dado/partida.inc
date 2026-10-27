@@ -1106,9 +1106,40 @@ static float ritmo_efeitos(float vel)
     return r < teto ? r : teto;
 }
 
+// A causa decisiva do fim da rodada: o efeito cujo dado, se nao tivesse
+// agido, viraria a rodada (ou empataria) - entre esses, o que mais mudaria.
+// -1: nenhum, sozinho, decide. So os efeitos dos dados (nao os de amuleto ou
+// trunfo), e so os do fim da rodada.
+static int ev_decisivo = -1;
+static int leva_rodada(const desfecho_t *d);
+static int acha_decisivo(void)
+{
+    int w = leva_rodada(&resolvido);
+    if (zerou >= 0 || !n_ev || w > 1) return -1;
+    static fila_t salvo[2];
+    memcpy(salvo, F, sizeof F);
+    int melhor = -1, menor = 0;
+    for (int i = 0; i < n_ev; i++) {
+        const evento_t *e = &ev[i];
+        if (e->de_k >= N_FILA || e->de_j > 1) continue;
+        bool visto = false;                      // o mesmo dado, uma vez so
+        for (int q = 0; q < i; q++) visto |= ev[q].de_j == e->de_j && ev[q].de_k == e->de_k;
+        if (visto) continue;
+        calado_j = (int8_t)e->de_j; calado_k = (int8_t)e->de_k;
+        desfecho_t d;
+        calcula_desfecho(&d, false);
+        calado_j = calado_k = -1;
+        memcpy(F, salvo, sizeof F);
+        int margem = d.total[w] - d.total[outro(w)];
+        if (leva_rodada(&d) != w && (melhor < 0 || margem < menor)) { melhor = i; menor = margem; }
+    }
+    return melhor;
+}
+
 static void desfecho(void)
 {
     calcula_desfecho(&resolvido, true);
+    ev_decisivo = acha_decisivo();
     for (int j = 0; j < 2; j++) {
         memcpy(vis_est[j], F[j].est, N_FILA);
         vis_nroubo[j] = 0;

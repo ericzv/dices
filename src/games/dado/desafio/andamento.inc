@@ -137,6 +137,7 @@ static bool des_carrega(run_t *r)
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > 1) r->colar = 0;
     r->presente = 0;                             // sem uso (todo Presente fica agora)
+    if (r->derrotas >= DES_CORACOES) return false;   // sem coracao, a run ja tinha acabado
     return true;
 }
 
@@ -155,8 +156,13 @@ static void des_resumo(char *s, int n)
     else if (r.estado == R_LOJA_INI) snprintf(s, (size_t)n, "na loja da entrada · %d moedas", r.moedas);
     else if (r.estado == R_LOJA) snprintf(s, (size_t)n, "%s · na loja · %d dados · %d moedas",
                                           SALAO[r.andar], r.n_col, r.moedas);
-    else snprintf(s, (size_t)n, "%s · mesa %d de %d · %d dados · %d moedas",
-                  SALAO[r.andar], r.passo + 1, r.andar == DES_ANDAR_FINAL ? 1 : DES_PASSOS, r.n_col, r.moedas);
+    else {
+        int m = 0;
+        while (m < DES_PASSOS && r.no[m].tipo != NO_VAZIO) m++;
+        int cor = r.derrotas < DES_CORACOES ? DES_CORACOES - r.derrotas : 0;
+        snprintf(s, (size_t)n, "%s · mesa %d de %d · %d %s · %d moedas",
+                 SALAO[r.andar], r.passo + 1, m, cor, cor == 1 ? "coração" : "corações", r.moedas);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +212,7 @@ static void encerra_run(bool venceu)
 static bool fim_da_run(void)
 {
     if (run.andar == DES_ANDAR_FINAL) return true;
-    return run.andar == DES_ANDARES - 1 && run.passo == DES_PASSOS - 1 && !com_coringa();
+    return run.andar == DES_ANDARES - 1 && run.passo == mesas_do_salao() - 1 && !com_coringa();
 }
 
 // Loja deixada: a proxima mesa do salao; depois do chefe, o salao de cima
@@ -484,7 +490,9 @@ static void des_comeca_partida(void)
 
 // Fim de uma partida da run (chamado assim que ela acaba, para que sair na
 // tela final nao deixe jogar de novo): vitoria vira moedas; derrota ou empate
-// encerram a run.
+// custam um coracao (e, do Nivel 7, as moedas que a mesa vale) e a mesma mesa
+// se joga de novo - sem coracao, a run acaba.
+static int des_perda_moedas;             // a ultima derrota: as moedas que custou
 static void des_resultado(void)
 {
     const no_t *no = &run.no[run.passo];
@@ -501,7 +509,18 @@ static void des_resultado(void)
     if (venc_partida != 0) {
         des_perdeu_para = no->perso;
         des_perdeu_andar = run.andar;
-        salva_apaga(chave_run());
+        if (run.derrotas < 255) run.derrotas++;
+        des_perda_moedas = 0;
+        if (run.dificuldade >= DES_PERDE_MOEDAS) {
+            int m = moedas_mesa(run.passo);
+            if (run.andar == DES_ANDAR_FINAL) m = 10;            // o Coringa nao paga, mas cobra
+            des_perda_moedas = m < run.moedas ? m : run.moedas;
+            run.moedas -= des_perda_moedas;
+        }
+        if (!coracoes()) { salva_apaga(chave_run()); return; }
+        run.no[run.passo].semente = (run.no[run.passo].semente * 2654435761u + 0x9E3779B9u) | 1;   // outra partida
+        run.estado = R_MAPA;
+        des_salva();
         return;
     }
     run.vitorias++;
@@ -531,7 +550,7 @@ static void des_resultado(void)
     // rodadas vencidas na partida).
     run.ganho = run.colar = run.juros = run.taca = run.dourado = 0;
     if (!fim_da_run()) {
-        run.ganho = MOEDAS_MESA[run.andar][run.passo];
+        run.ganho = (uint8_t)moedas_mesa(run.passo);
         if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
         if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
@@ -576,6 +595,7 @@ static void des_apos_fim(void)
 {
     if (venc_partida == 0 && nov_tem_chefe() && !fim_da_run()) nov_abre_chefe();   // o chefe abriu coisas: os cards antes
     else if (venc_partida == 0) des_pos_vitoria();
+    else if (coracoes()) abre_mapa();            // ainda tem coracao: a mesma mesa, de novo
     else encerra_run(false);
 }
 

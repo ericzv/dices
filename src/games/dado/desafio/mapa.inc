@@ -243,8 +243,8 @@ static void monta_loja_run(void)
 }
 
 // ---------------------------------------------------------------------------
-// As mesas de um salao: tres oponentes, do mais facil ao mais dificil, e o
-// chefe. O salao inteiro aparece antes de comecar.
+// As mesas de um salao: dois oponentes, um facil e um dificil, e o chefe.
+// O salao inteiro aparece antes de comecar.
 // ---------------------------------------------------------------------------
 // O salao do Coringa: so ele.
 static void gera_salao_final(void)
@@ -284,6 +284,14 @@ static int mesas_do_salao(void)
     while (n < DES_PASSOS && run.no[n].tipo != NO_VAZIO) n++;
     return n;
 }
+// Quantas moedas a mesa p do salao vale (o salao do Coringa, nenhuma).
+static int moedas_mesa(int p)
+{
+    if (run.andar >= DES_ANDARES || p < 0 || p >= DES_PASSOS || run.no[p].tipo > NO_CHEFE) return 0;
+    return MOEDAS_MESA[run.andar][run.no[p].tipo];
+}
+// Os coracoes que restam: cada partida perdida custa um.
+static int coracoes(void) { return run.derrotas < DES_CORACOES ? DES_CORACOES - run.derrotas : 0; }
 
 static void gera_andar(void)
 {
@@ -291,9 +299,10 @@ static void gera_andar(void)
     rs = run.semente ^ (0x9E3779B9u * (uint32_t)(run.andar + 1));
     rnd_r(); rnd_r();
     uint32_t usados = 0;
-    for (int p = 0; p < DES_PASSOS - 1; p++) {
+    for (int p = 0; p < DES_PASSOS; p++) run.no[p].tipo = NO_VAZIO;
+    for (int p = 0; p < DES_MESAS - 1; p++) {
         no_t *no = &run.no[p];
-        no->tipo = (uint8_t)p;                   // NO_FACIL, NO_MEDIO, NO_DIFICIL
+        no->tipo = (uint8_t)(p == 0 ? NO_FACIL : NO_DIFICIL);
         no->semente = rnd_r() | 1;
         int pe, tent = 0;
         // O Novato nao senta na mesa dificil.
@@ -304,7 +313,7 @@ static void gera_andar(void)
         no->perso = (uint8_t)pe;
         no->nivel = NIVEL_NO[run.andar][no->tipo];
     }
-    no_t *chefe = &run.no[DES_PASSOS - 1];
+    no_t *chefe = &run.no[DES_MESAS - 1];
     chefe->tipo = NO_CHEFE;
     chefe->perso = (uint8_t)(PERSO_CHEFE0 + run.andar);
     chefe->nivel = NIVEL_NO[run.andar][3];
@@ -313,7 +322,7 @@ static void gera_andar(void)
     // o Papai Noel no lugar do Barao.
     if (dezembro) {
         static const uint8_t DE_NATAL[DES_ANDARES] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
-        run.no[sorte_r(DES_PASSOS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
+        run.no[sorte_r(DES_MESAS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
         if (run.andar == 2) chefe->perso = PERSO_NOEL;
     }
 }

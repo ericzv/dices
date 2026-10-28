@@ -82,6 +82,10 @@ else()
 endif()
 if (WIN32)
     list(APPEND FONTES desktop/dado.rc)
+    # O compilador de recursos nao ve o icone que o .rc inclui: sem isto, um
+    # icone novo nao entra no .exe ate alguem apagar a pasta de build.
+    set_source_files_properties(desktop/dado.rc PROPERTIES
+        OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/icone.ico)
 endif()
 if (APPLE)
     set(ICNS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/icone.icns)

@@ -449,6 +449,7 @@ static void loja_troca(void)
     if (run.moedas < pr) { lj_nega(it, "Moedas insuficientes."); return; }
     run.moedas -= pr;
     if (run.trocas < 255) run.trocas++;
+    vitrine_vista();                             // a que sai nao volta na run
     monta_vitrine();
     des_salva();
     t_lj_entra = 0;                              // a vitrine nova cai, girando

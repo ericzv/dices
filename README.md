@@ -96,7 +96,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
   terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
-  dados (3, 4, 6 ou 9 moedas, pela raridade), um pacote (4 moedas: dados
+  dados (3, 4, 6 ou 9 moedas, pela raridade; cada dado, e cada adesivo da
+  loja, aparece à venda uma vez só na run, e só os pacotes repetem), um pacote (4 moedas: dados
   embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
   mostra 3 do grupo e você leva 1 ou pula; em metade das lojas, o pacote é
   de adesivos: 3 adesivos, você leva 1 e já cola), um adesivo (2 a 6 moedas), trocar

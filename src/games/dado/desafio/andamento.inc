@@ -110,8 +110,8 @@ static void run_de_13(run_t *r, const run13_t *v)
 
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
 // para tras. A de antes dos adesivos de um byte abre convertida, a de antes
-// do Presente (sem o ultimo byte) abre com ele em 0 e a de antes das bolsas,
-// com o Saco de Pano.
+// do Presente (sem o ultimo byte) abre com ele em 0, a de antes das bolsas
+// com o Saco de Pano e a de antes da loja sem repeticao, sem nada visto.
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
@@ -124,9 +124,11 @@ static bool des_carrega(run_t *r)
         run_de_13(r, &v);
     } else {
         size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente)
-                   : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA : sizeof *r;
+                   : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA
+                   : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
-        if (tam < sizeof *r) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
+        if (tam <= RUN_TAM_SEM_BOLSA) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
+        if (tam < sizeof *r) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)

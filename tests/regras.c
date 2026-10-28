@@ -2040,6 +2040,43 @@ int main(void)
         perfil_atual = -1;
     }
 
+    // ---- A loja nao repete: cada dado e cada adesivo a venda uma vez na run ----
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "V");
+        perfil_atual = 0; perfis_lidos = true;
+        perfis[0].nivel = N_NIVEIS;                  // tudo aberto
+        des_dif = 0; des_bolsa = B_PANO; des_nova_run();
+        int visto[D_N] = { 0 }, ad_visto[AD_N] = { 0 }, rep = 0, rep_ad = 0, mostrou = 0;
+        for (int l = 0; l < 12; l++) {
+            monta_loja_run();
+            for (int tr = 0; tr < 3; tr++) {
+                if (tr) { run.trocas++; vitrine_vista(); monta_vitrine(); }
+                for (int i = 0; i < n_vitrine(); i++) { rep += visto[run.vitrine[i].tipo]++ > 0; mostrou++; }
+            }
+            rep_ad += ad_visto[run.adesivo]++ > 0;
+        }
+        CONFERE(!rep && !rep_ad && mostrou == 72, "a loja repetiu %d dados (de %d) e %d adesivos", rep, mostrou, rep_ad);
+        // Os pacotes repetem; acabados os novos, a vitrine volta a sortear entre todos.
+        memset(run.vistos, 0xFF, sizeof run.vistos);
+        memset(run.ad_vistos, 0xFF, sizeof run.ad_vistos);
+        monta_loja_run();
+        CONFERE(dado_liberado(run.vitrine[0].tipo) && run.vitrine[0].tipo != run.vitrine[1].tipo && run.adesivo != AD_NADA,
+                "acabados os novos: vitrine %d %d, adesivo %d", run.vitrine[0].tipo, run.vitrine[1].tipo, run.adesivo);
+        // A run salva de antes (sem os vistos) abre sem nenhum visto.
+        static char buf[2 * sizeof(run_t) + 1];
+        hex_de(&run, RUN_TAM_SEM_VISTOS, buf);
+        salva_grava(chave_run(), buf);
+        run_t r;
+        CONFERE(des_carrega(&r) && !r.vistos[0] && !r.ad_vistos[0] && r.lojas == run.lojas, "a run de antes da loja sem repeticao");
+        memset(&run, 0, sizeof run);
+        salva_limpa_tudo();
+        perfil_atual = -1;
+        modo = modo_antes;
+    }
+
     // ---- As bolsas do comeco: os dados, a regra de cada uma e o que abre ----
     {
         int modo_antes = modo;

@@ -66,6 +66,8 @@ static void poe_na_fila(int i)
     mola_chuta();                                 // entrou (ou saiu): pula de novo
 }
 
+static bool aperto_do_mouse;            // o clique ja disse qual botao afunda
+
 void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
@@ -122,6 +124,7 @@ void dado_tecla(const key_event_t *ev_)
         if (rede_na_vez()) return;       // a vez e do rival: as teclas vem dele
         if (aceita_escolha()) rede_envia_tecla(k);
     }
+    if (k == KEY_ENTER && foco_bx >= 0 && !aperto_do_mouse) ui_aperta(foco_bx, foco_by);   // o botao em foco afunda
     trata_tecla(k);
 }
 
@@ -194,7 +197,10 @@ void dado_mouse(int x, int y, int acao)
         } else if (z->var) {
             *z->var = z->val;
         }
+        ui_aperta(x, y);                                // o botao clicado afunda
+        aperto_do_mouse = true;
         manda_tecla(z->tecla);
+        aperto_do_mouse = false;
         return;
     }
     // Fora dos botoes: nas telas de "aperte para seguir", o clique segue.

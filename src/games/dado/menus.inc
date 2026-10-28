@@ -106,7 +106,7 @@ static void ficha_menu(int cx, int cy, int i, float sobe, float giro, bool foco,
         }
     }
     gfx_disco(cx + 2, cy + 3, r - (int)lroundf(sobe * 2), C_SOMBRA);   // a sombra fica no feltro
-    if (foco) gfx_disco(cx, y, r + 2, C_OURO);
+    if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
     gfx_disco(cx, y, r, gfx_mistura(cor, C_BARRA, 45));
     gfx_disco(cx, y, r - 1, cor);
     // As listras da borda: seis placas de marfim, que giram com a ficha.

@@ -236,7 +236,10 @@ static void salao_mesa(int p)
         gfx_rect(x - w / 2 - b, y - b, w + 2 * b, h + 2 * b, gfx_mistura(COR_SALAO[run.andar], C_FELTRO, 35));
     }
     if (p == des_cur) ui_selecao(x - w / 2 - 9, y - 9, w + 18, h + 74, C_OURO);
-    gfx_rect(x - w / 2 - 2, y - 2, w + 4, h + 4, moldura);
+    uint16_t rm[4];                              // a moldura: metal em rampa, com contorno
+    ui_rampa(moldura, feita, rm);
+    ui_contorno(x - w / 2 - 3, y - 3, w + 6, h + 6, C_BARRA);
+    ui_aro(x - w / 2 - 2, y - 2, w + 4, h + 4, 2, rm, UI_VIVO);
     gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
     if (feita) {                                 // vencida: apaga e leva o visto

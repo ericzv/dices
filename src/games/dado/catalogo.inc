@@ -229,7 +229,7 @@ static void desenha_detalhe(void)
     int tipo = detalhe;
     const int x0 = 70, y0 = 70, w = GFX_W - 140, h = 220;
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 140);
-    ui_cartao(x0, y0, w, h, true, cor_rar(tipo));
+    ui_cartao_aceso(x0, y0, w, h, true, cor_rar(tipo));
     int cx = x0 + 78, cy = y0 + 96;
     gfx_disco(cx, cy, 52, gfx_mistura(C_FELTRO_ESC, cor_rar(tipo), 55));
     gfx_disco(cx, cy, 49, C_FELTRO_ESC);

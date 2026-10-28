@@ -1,12 +1,17 @@
 // ===========================================================================
-// Kit de interface: as mesmas tres pecas em todo o jogo.
-//   ui_painel  placa de ebano com filete de latao (avisos sobre a mesa)
+// Kit de interface: as mesmas pecas em todo o jogo, no desenho dos dados.
+//   ui_painel  placa de ebano com moldura de latao (avisos sobre a mesa)
 //   ui_cartao  cartao de feltro escuro (loja, premio, perfis, listas)
-//   ui_botao   botao com espessura: face, brilho em cima, borda de baixo
-// Cantos aparados de um pixel; contorno quase preto; sombra dura embaixo.
+//   ui_botao   botao com espessura: face em dois tons, beira de baixo, apertado
+//   ui_cantos  a selecao: quatro cantoneiras de latao que respiram
+// Como nos dados: contorno quase preto de um pixel, metal em rampa com a luz
+// de cima a esquerda (o pontilhado so na passagem) e sombra com a beira
+// pontilhada. Cantos aparados de um pixel.
 // ===========================================================================
 #define C_PLACA     RGB(24, 22, 20)              // fundo das placas
 #define C_PLACA_LUZ RGB(36, 32, 29)
+static float bayer(int x, int y);                 // desenho_dado.inc: o pontilhado
+static void rampa_de(uint16_t c, uint16_t *r);    // e a rampa de 4 tons de uma cor
 
 // Contorno de um pixel com os quatro cantos aparados.
 static void ui_contorno(int x, int y, int w, int h, uint16_t c)
@@ -17,24 +22,133 @@ static void ui_contorno(int x, int y, int w, int h, uint16_t c)
     gfx_rect(x + w - 1, y + 1, 1, h - 2, c);
 }
 
-static void ui_painel(int x, int y, int w, int h)
+// A sombra de uma peca de w x h: dois pixels a direita e tres embaixo, com o
+// miolo cheio e a ultima coluna e a ultima linha pontilhadas.
+static void ui_sombra(int x, int y, int w, int h)
 {
-    gfx_rect(x + 2, y + 3, w, h, C_SOMBRA);                  // sombra dura
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, C_PLACA);
-    gfx_rect(x + 2, y + 1, w - 4, 1, C_PLACA_LUZ);           // luz na beira de cima
-    ui_contorno(x, y, w, h, C_BARRA);
-    ui_contorno(x + 2, y + 2, w - 4, h - 4, C_LATAO_ESC);    // filete de latao
+    int sx = x + 2, sy = y + 3;
+    gfx_rect(sx, sy, w - 1, h - 1, C_SOMBRA);
+    for (int i = 0; i < w; i++)
+        if (bayer(sx + i, sy + h - 1) < 0.5f) gfx_pixel(sx + i, sy + h - 1, C_SOMBRA);
+    for (int j = 0; j < h - 1; j++)
+        if (bayer(sx + w - 1, sy + j) < 0.5f) gfx_pixel(sx + w - 1, sy + j, C_SOMBRA);
 }
 
-// 'cor' (0: ouro) e o filete do cartao em foco; fora de foco ele fica apagado.
+// Moldura de metal de 'e' pixels por dentro do retangulo, na rampa r (4 tons
+// do escuro ao claro): cada beira num tom (k: 0..3; cima, esquerda, direita,
+// baixo). Com 2 pixels ou mais, nos cantos em que duas beiras se encontram a
+// passagem de uma a outra e pontilhada, como no aro dos dados; com 1 pixel o
+// pontilhado viraria tracejado, e o canto so troca de tom.
+static void ui_aro(int x, int y, int w, int h, int e, const uint16_t *r, const float *k)
+{
+    int K = (w < h ? w : h) / 3;
+    if (K > 8) K = 8;
+    if (K < 2 || e < 2) K = 0;
+    if (e == 1) {                                 // 1 pixel: quatro filetes, os cantos com a beira de cima e a de baixo
+        gfx_rect(x, y, w, 1, r[(int)k[0]]);
+        gfx_rect(x, y + h - 1, w, 1, r[(int)k[3]]);
+        gfx_rect(x, y + 1, 1, h - 2, r[(int)k[1]]);
+        gfx_rect(x + w - 1, y + 1, 1, h - 2, r[(int)k[2]]);
+        return;
+    }
+    for (int v = 0; v < h; v++)
+        for (int u = 0; u < w; u++) {
+            int dt = v, db = h - 1 - v, dl = u, dr = w - 1 - u;
+            int dh = dt < db ? dt : db, dv = dl < dr ? dl : dr;
+            if (dh >= e && dv >= e) { u = w - 1 - e; continue; }   // o meio: pula para a outra beira
+            float t;
+            if (dh <= dv) {                       // beira de cima ou de baixo
+                float b = dt <= db ? k[0] : k[3];
+                float a = dl <= dr ? k[1] : k[2];   // a beira do lado mais perto
+                int d = dv;
+                t = d >= K ? b : b + ((a + b) / 2 - b) * (1 - (float)d / K);
+            } else {                              // beira da esquerda ou da direita
+                float b = dl <= dr ? k[1] : k[2];
+                float a = dt <= db ? k[0] : k[3];
+                int d = dh;
+                t = d >= K ? b : b + ((a + b) / 2 - b) * (1 - (float)d / K);
+            }
+            int i = (int)floorf(t);
+            if (t - i > bayer(x + u, y + v)) i++;
+            gfx_pixel(x + u, y + v, r[i < 0 ? 0 : i > 3 ? 3 : i]);
+        }
+}
+
+// Os tons das beiras (cima, esquerda, direita, baixo): a cor em cima e a
+// esquerda, um e dois tons abaixo do lado da sombra. Apagado (fora de foco,
+// ja feito) e a mesma moldura, dois tons abaixo.
+static const float UI_VIVO[4] = { 2, 2, 1, 0 };
+static void ui_rampa(uint16_t cor, bool apagada, uint16_t *r)
+{
+    rampa_de(cor, r);
+    if (apagada) rampa_de(r[0], r);
+}
+
+// O fundo com a luz de cima: as primeiras linhas pontilhadas no tom 'luz'.
+static void ui_fundo(int x, int y, int w, int h, uint16_t c, uint16_t luz)
+{
+    gfx_rect(x, y, w, h, c);
+    int n = h < 12 ? h / 2 : 6;
+    for (int j = 0; j < n; j++) {
+        float q = 0.75f * (1 - (float)j / n);
+        for (int i = 0; i < 4 && i < w; i++)      // a matriz e de 4: um pixel aceso a cada 4, em passos
+            if (bayer(x + i, y + j) < q)
+                for (int u = i; u < w; u += 4) gfx_pixel(x + u, y + j, luz);
+    }
+}
+
+static void ui_painel(int x, int y, int w, int h)
+{
+    uint16_t r[4];
+    rampa_de(C_LATAO, r);
+    ui_sombra(x, y, w, h);
+    ui_fundo(x + 2, y + 2, w - 4, h - 4, C_PLACA, C_PLACA_LUZ);
+    ui_contorno(x, y, w, h, C_BARRA);
+    ui_aro(x + 1, y + 1, w - 2, h - 2, 1, r, UI_VIVO);
+}
+
+// A selecao: quatro cantoneiras de 2 pixels na rampa da cor (0: latao), com
+// contorno, 'fora' pixels por fora do retangulo, respirando um pixel.
+static void ui_cantos_em(int x, int y, int w, int h, uint16_t cor, int fora)
+{
+    uint16_t r[4];
+    rampa_de(cor ? cor : C_OURO, r);
+    int L = (w < h ? w : h) / 4;
+    if (L > 9) L = 9;
+    if (L < 4) L = 4;
+    int x0 = x - fora, y0 = y - fora, x1 = x + w - 1 + fora, y1 = y + h - 1 + fora;
+    static const int8_t TOM[4] = { 3, 2, 2, 1 };   // a luz de cima, a esquerda
+    for (int c = 0; c < 4; c++) {
+        int cx = c & 1 ? x1 - 1 : x0, cy = c & 2 ? y1 - 1 : y0;   // o quadrado 2x2 do canto
+        int hx = c & 1 ? x1 - L + 1 : x0, vy = c & 2 ? y1 - L + 1 : y0;
+        gfx_rect(hx - 1, cy - 1, L + 2, 4, C_BARRA);               // o contorno
+        gfx_rect(cx - 1, vy - 1, 4, L + 2, C_BARRA);
+        gfx_rect(hx, cy, L, 2, r[TOM[c]]);
+        gfx_rect(cx, vy, 2, L, r[TOM[c]]);
+    }
+}
+static int ui_respira(void) { return sinf(t_relogio * 5.0f) > 0 ? 1 : 0; }
+static void ui_cantos(int x, int y, int w, int h, uint16_t cor) { ui_cantos_em(x, y, w, h, cor, 2 + ui_respira()); }
+
+// 'cor' (0: latao) e o metal da moldura. Aceso, o cartao que se mostra (a
+// bolsa aberta, a peca da colecao); apagado, o que espera.
+static void ui_cartao_aceso(int x, int y, int w, int h, bool aceso, uint16_t cor)
+{
+    if (!cor) cor = C_LATAO;
+    uint16_t r[4];
+    ui_rampa(cor, !aceso, r);
+    ui_sombra(x, y, w, h);
+    gfx_rect(x + 2, y + 2, w - 4, h - 4, aceso ? C_FELTRO : C_FELTRO_ESC);
+    ui_contorno(x, y, w, h, C_BARRA);
+    ui_aro(x + 1, y + 1, w - 2, h - 2, 1, r, UI_VIVO);
+}
+
+// O cartao de uma escolha: o do cursor acende e ganha as cantoneiras
+// (sempre de latao: a cor e da coisa).
 static void ui_cartao(int x, int y, int w, int h, bool foco, uint16_t cor)
 {
-    if (!cor) cor = C_OURO;
-    gfx_rect(x + 2, y + 3, w, h, C_SOMBRA);
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, foco ? C_FELTRO : C_FELTRO_ESC);
-    ui_contorno(x, y, w, h, C_BARRA);
-    ui_contorno(x + 1, y + 1, w - 2, h - 2, foco ? cor : gfx_mistura(cor, C_FELTRO_ESC, 55));
-    if (foco) ui_contorno(x + 2, y + 2, w - 4, h - 4, gfx_mistura(cor, C_BARRA, 45));
+    ui_cartao_aceso(x, y, w, h, foco, cor);
+    if (foco) ui_cantos_em(x, y, w, h, C_OURO, ui_respira());
 }
 
 // ---------------------------------------------------------------------------
@@ -186,8 +300,17 @@ static void teclas_c(int cx, int y, const char *s, uint16_t cor)
     linha_teclas(cx - w / 2, y, s, cor, true);
 }
 
-// Selecao de uma peca numa grade: fundo levemente aceso e contorno na cor.
+// Selecao de uma peca numa grade: fundo levemente aceso e as cantoneiras
+// na cor, rentes a caixa (as pecas da grade ficam perto umas das outras).
 static void ui_selecao(int x, int y, int w, int h, uint16_t cor)
+{
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_FELTRO, cor, 22));
+    ui_cantos_em(x, y, w, h, cor, ui_respira());
+}
+
+// A peca marcada (a que esta em uso), que nao e o cursor: fundo aceso e
+// contorno fino na cor, parado.
+static void ui_marca(int x, int y, int w, int h, uint16_t cor)
 {
     gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_FELTRO, cor, 22));
     ui_contorno(x, y, w, h, cor);
@@ -200,26 +323,52 @@ static void ui_etiqueta(int x, int y, int w, int h, uint16_t cor)
     ui_contorno(x, y, w, h, cor);
 }
 
+// O botao apertado: um clique (ou o ENTER no botao em foco) afunda o botao
+// que esta naquele ponto por um instante.
+#define UI_APERTO_T 0.16f
+static float t_aperto;
+static int aperto_x = -1, aperto_y = -1;
+static int foco_bx = -1, foco_by = -1;        // o meio do botao em foco no ultimo quadro
+static void ui_aperta(int x, int y) { aperto_x = x; aperto_y = y; t_aperto = UI_APERTO_T; }
+
 // Botao: estado 0 normal, 1 em foco, 2 desligado. 'tinta' e a cor da face
-// (0: ebano). O rotulo vai centrado na face.
+// (0: ebano). A face vai em dois tons da rampa da cor, o claro em cima e a
+// passagem pontilhada; embaixo, dois pixels de espessura. Apertado, a face
+// desce sobre a espessura. O rotulo vai centrado na face.
 #define UI_FOCO 1
 #define UI_DESLIGADO 2
 static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta, int estado)
 {
     uint16_t face = estado == UI_DESLIGADO ? C_EBANO : tinta ? tinta : C_EBANO_B;
-    if (estado == UI_FOCO) face = gfx_na_paleta(gfx_mistura(face, C_BRANCO, 18));
-    uint16_t borda = gfx_mistura(face, C_BARRA, 45), luz = gfx_mistura(face, C_BRANCO, 30);
-    gfx_rect(x + 1, y + 2, w - 2, h - 1, C_SOMBRA);                 // sombra no feltro
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, borda);                    // a espessura
-    gfx_rect(x + 1, y + 1, w - 2, h - 4, face);                     // a face
-    if (estado != UI_DESLIGADO) gfx_rect(x + 2, y + 1, w - 4, 1, luz);
-    ui_contorno(x, y, w, h, estado == UI_FOCO ? C_OURO : C_BARRA);
+    uint16_t r[4];
+    rampa_de(face, r);
+    if (estado == UI_FOCO) { face = r[3]; rampa_de(face, r); }   // em foco, um tom acima
+    if (estado == UI_FOCO) { foco_bx = x + w / 2; foco_by = y + h / 2; }
+    bool baixo = t_aperto > 0 && estado != UI_DESLIGADO && aperto_x >= x && aperto_x < x + w
+                 && aperto_y >= y && aperto_y < y + h;
+    int d = baixo ? 2 : 0;                                          // apertado: desce a espessura
+    if (!baixo) {                                                   // a sombra no feltro
+        gfx_rect(x + 2, y + h, w - 3, 1, C_SOMBRA);
+        for (int i = 1; i < w; i++) if (bayer(x + i, y + h + 1) < 0.5f) gfx_pixel(x + i, y + h + 1, C_SOMBRA);
+    }
+    gfx_rect(x + 1, y + 1 + d, w - 2, h - 2 - d, r[0]);            // a espessura
+    int fh = h - 4;                                                 // a face: claro, e a passagem embaixo, fora da letra
+    for (int j = 0; j < fh; j++) {
+        int Y = y + 1 + d + j;
+        float m = (j - (fh - 4.5f)) / 3.0f;                         // 0..1 nas linhas de baixo
+        if (estado == UI_DESLIGADO || m <= 0) gfx_rect(x + 1, Y, w - 2, 1, r[2]);
+        else if (m >= 1) gfx_rect(x + 1, Y, w - 2, 1, r[1]);
+        else for (int i = 1; i < w - 1; i++) gfx_pixel(x + i, Y, bayer(x + i, Y) < m ? r[1] : r[2]);
+    }
+    if (estado != UI_DESLIGADO) gfx_rect(x + 2, y + 1 + d, w - 4, 1, r[3]);   // a luz na beira de cima
+    ui_contorno(x, y + d, w, h - d, C_BARRA);
+    if (estado == UI_FOCO && !baixo) ui_cantos(x, y, w, h + 1, C_OURO);
     uint16_t c = estado == UI_DESLIGADO ? C_EBANO_B : estado == UI_FOCO ? C_BRANCO : C_MARFIM;
     // Face clara (latao, ouro): letra escura.
     int lum = ((face >> 11) & 31) * 2 + ((face >> 5) & 63) + (face & 31);
     if (lum > 85 && estado != UI_DESLIGADO) c = C_BARRA;
     int tw = gfx_largura(rot, 1);
-    gfx_texto(x + (w - tw) / 2, y + (h - 4 - TXT_H) / 2 + 1, rot, c, 1, false);
+    gfx_texto(x + (w - tw) / 2, y + d + (h - 4 - TXT_H) / 2 + 1, rot, c, 1, false);
 }
 
 // ---------------------------------------------------------------------------

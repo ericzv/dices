@@ -595,7 +595,7 @@ static void desenha_premio(void)
         // Acabou de travar: um pulo e a moldura acende.
         float q = t_slot >= 0 ? (t_slot - para) / 0.3f : 1;
         bool acende = q < 1;
-        if (acende) ui_cartao(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
+        if (acende) ui_cartao_aceso(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         if (cur) brilho_passa = mola_brilho();

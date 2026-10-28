@@ -219,12 +219,11 @@ static void desenha_clarao(void)
     }
 }
 
-// Moldura de destaque em volta de um dado da fila.
+// Destaque em volta de um dado da fila: as cantoneiras da selecao, na cor.
 static void aro(int x, int y, uint16_t c)
 {
-    int m = R_DADO + 7;
-    ui_contorno(x - m, y - m, 2 * m, 2 * m, c);
-    ui_contorno(x - m + 1, y - m + 1, 2 * m - 2, 2 * m - 2, c);
+    int m = R_DADO + 6;
+    ui_cantos_em(x - m, y - m, 2 * m, 2 * m, c, ui_respira());
 }
 
 // Etiqueta no canto do dado (x2, +8, =9), com fundo para ler sobre o feltro.
@@ -1245,15 +1244,9 @@ static void desenha_fila(int j)
             placar_halo(PLACAR_X - 34, y - 26, 68, 50, calor, pulso);
         }
         bool vence = vence_j == j && fase != F_RESULTADO;   // passou do alvo: a rodada e dele
-        if (vence) {                              // o filete dourado pulsando e um aro que abre
-            float pul = 0.5f + 0.5f * sinf(t_vence * 9);
-            uint16_t cv = gfx_mistura(C_OURO, C_BRANCO, (int)(pul * 55));
-            ui_contorno(PLACAR_X - 36, y - 28, 72, 54, cv);
-            ui_contorno(PLACAR_X - 37, y - 29, 74, 56, gfx_mistura(cv, C_FELTRO, 45));
-            if (t_vence < 0.45f) {
-                int a = (int)(t_vence / 0.45f * 14);
-                ui_contorno(PLACAR_X - 37 - a, y - 29 - a, 74 + 2 * a, 56 + 2 * a, gfx_mistura(C_BRANCO, C_OURO, (int)(t_vence / 0.45f * 100)));
-            }
+        if (vence) {                              // as cantoneiras chegam de longe, fecham e respiram
+            int a = t_vence < 0.45f ? (int)((1 - t_vence / 0.45f) * 14) : 0;
+            ui_cantos_em(PLACAR_X - 34, y - 26, 68, 50, C_OURO, 3 + a + ui_respira());
             c = C_OURO;
         }
         int ly = vence ? (j == baixo ? y + 33 : y - 46) : y - 42 + (j == baixo ? 72 : 0);   // longe do filete

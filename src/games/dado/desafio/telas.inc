@@ -158,7 +158,10 @@ static int avatar_retrato(void) { return perfil_atual >= 0 && perfis[perfil_atua
 
 static void moldura_retrato(int x, int y, int esc, int av, float t, bool cur)
 {
-    gfx_rect(x - 3, y - 3, RT_W * esc + 6, RT_H * esc + 6, cur ? C_OURO : C_LATAO_ESC);
+    uint16_t r[4];                               // a moldura de latao em rampa, como a dos retratos do mapa
+    ui_rampa(C_LATAO, !cur, r);
+    ui_contorno(x - 4, y - 4, RT_W * esc + 8, RT_H * esc + 8, C_BARRA);
+    ui_aro(x - 3, y - 3, RT_W * esc + 6, RT_H * esc + 6, 2, r, UI_VIVO);
     gfx_rect(x - 1, y - 1, RT_W * esc + 2, RT_H * esc + 2, C_BARRA);
     gfx_rect(x, y, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(x, y, esc, RETRATO_AVATAR + av, t, false, 0, RT_H);

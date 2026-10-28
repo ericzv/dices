@@ -310,10 +310,17 @@ static void desenha_efeitos(void)
                   || e->tipo == EV_AVISO || (e->tipo == EV_CHEFE && e->de_j == 0)) ? C_OURO
                : C_VINHO_CLR;
     // Fundo atras do texto: o dado roubado passa por baixo, sem embaralhar.
-    // Uma linha so: o efeito, na cor do que ele faz. De quem e, mostram os
-    // dados que se mexem e os numeros que sobem deles.
-    painel(CENTRO - 15, TXT_H + 8, larg_painel(gfx_largura(e->txt, GFX_FINO), 160));
-    txt_c(GFX_W / 2, CENTRO - 11, e->txt, c, false);
+    // Uma linha so: o efeito, na cor do que ele faz, e na frente o desenho do
+    // poder do dado que age (o mesmo que anima em cima dele). De quem e,
+    // mostram os dados que se mexem e os numeros que sobem deles. Fica a vista
+    // tambem no respiro, depois que o efeito se aplica.
+    int tipo = e->tipo != EV_ADESIVO && e->de_j < 2 && e->de_k < N_FILA ? F[e->de_j].tipo[e->de_k] : -1;
+    int f = gfx_largura(e->txt, 1) > 300 ? GFX_FINO : 1;   // o texto comprido fica no fino
+    int wt = gfx_largura(e->txt, f), wi = tipo >= 0 && TIPO[tipo].efeito ? 20 : 0;
+    painel(CENTRO - 15, TXT_H + 8, larg_painel(wt + wi, 160));
+    int x = GFX_W / 2 - (wt + wi) / 2;
+    if (wi && !icone_poder(x + 6, CENTRO - 15 + (TXT_H + 8) / 2, tipo)) x += wi / 2, wi = 0;
+    gfx_texto(x + wi, CENTRO - 11 - (f == 1), e->txt, c, f, f == 1);
     desenha_evento();
 }
 
@@ -610,7 +617,7 @@ static void desenha_premio(void)
             txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
             classe(t2, c2, sizeof c2);
         }
-        txt_c(x, 180, c2, cr, false);
+        ui_selo_c(x, 180, c2, cr, GFX_FINO);
         zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > FILA_NORMAL;

@@ -316,11 +316,37 @@ static void ui_marca(int x, int y, int w, int h, uint16_t cor)
     ui_contorno(x, y, w, h, cor);
 }
 
-// Etiqueta pequena (raridade, protecao): fundo escuro tingido e contorno na cor.
+// Etiqueta pequena (raridade, protecao): fundo escuro tingido, o filete na
+// cor (cima e esquerda na cor, o lado da sombra um tom abaixo) e o contorno
+// escuro por fora, como as placas.
 static void ui_etiqueta(int x, int y, int w, int h, uint16_t cor)
 {
+    uint16_t r[4];
+    rampa_de(cor, r);
     gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_PLACA, cor, 22));
-    ui_contorno(x, y, w, h, cor);
+    gfx_rect(x + 1, y, w - 2, 1, cor);
+    gfx_rect(x, y + 1, 1, h - 2, cor);
+    gfx_rect(x + w - 1, y + 1, 1, h - 2, r[1]);
+    gfx_rect(x + 1, y + h - 1, w - 2, 1, r[1]);
+    ui_contorno(x - 1, y - 1, w + 2, h + 2, C_BARRA);
+}
+
+// O selo de raridade (ou de tipo: "D8 · raro", "adesivo · comum"), igual em
+// todo o jogo: a etiqueta e o nome na cor do metal da raridade. y e o do
+// texto, como no gfx_texto; f e a fonte (GFX_MIUDO nos cartoes, GFX_FINO nas
+// linhas, 1 ao lado de um nome). Devolve a largura.
+static int ui_selo(int x, int y, const char *s, uint16_t cor, int f)
+{
+    int pad = f == GFX_MIUDO ? 4 : 5, w = gfx_largura(s, f) + 2 * pad;
+    if (f == GFX_MIUDO) ui_etiqueta(x, y + 1, w, 12, cor);
+    else ui_etiqueta(x, y + 2, w, f == GFX_FINO ? 16 : TXT_H - 2, cor);
+    gfx_texto(x + pad, f == GFX_FINO ? y - 1 : y, s, cor, f, false);
+    return w;
+}
+static int ui_selo_c(int cx, int y, const char *s, uint16_t cor, int f)
+{
+    int w = gfx_largura(s, f) + 2 * (f == GFX_MIUDO ? 4 : 5);
+    return ui_selo(cx - w / 2, y, s, cor, f);
 }
 
 // O botao apertado: um clique (ou o ENTER no botao em foco) afunda o botao
@@ -369,6 +395,23 @@ static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta
     if (lum > 85 && estado != UI_DESLIGADO) c = C_BARRA;
     int tw = gfx_largura(rot, 1);
     gfx_texto(x + (w - tw) / 2, y + d + (h - 4 - TXT_H) / 2 + 1, rot, c, 1, false);
+}
+
+// Plaquinha de metal com um rotulo curto (o "VENCE" do placar), presa na
+// beira de uma placa: face na rampa da cor com luz em cima e sombra embaixo,
+// contorno e a letra escura gravada. cx e o meio; y, o topo.
+#define UI_PLAQUETA_H 16
+static void ui_plaqueta(int cx, int y, const char *s, uint16_t cor)
+{
+    uint16_t r[4];
+    rampa_de(cor, r);
+    int w = gfx_largura(s, fonte_de(true)) + 14, h = UI_PLAQUETA_H, x = cx - w / 2;
+    ui_sombra(x, y, w, h);
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, r[2]);
+    gfx_rect(x + 2, y + 1, w - 4, 1, r[3]);                          // a luz na beira de cima
+    gfx_rect(x + 1, y + h - 2, w - 2, 1, r[1]);                      // e a sombra na de baixo
+    ui_contorno(x, y, w, h, C_BARRA);
+    gfx_texto(x + 7, y - 2, s, C_BARRA, fonte_de(true), true);
 }
 
 // ---------------------------------------------------------------------------

@@ -560,7 +560,7 @@ static void cosmo_chegou(int x, int y, int t, float s)
 // vai rodando para dentro dele.
 static void desenha_buraco_suga(void)
 {
-    if (fase != F_EFEITOS || ev_i >= n_ev) return;
+    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
     const evento_t *e = &ev[ev_i];
     if (e->tipo != EV_ANULA || e->de_k >= N_FILA || F[e->de_j].tipo[e->de_k] != D_BURACO) return;
     float p = t_fase / duracao_evento(ev_i);

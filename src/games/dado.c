@@ -87,6 +87,7 @@
 #include "dado/hora.inc"          // a hora da verdade e o crescendo
 #include "dado/online.inc"        // o rival pela rede
 #include "dado/passo.inc"         // o passo de tempo
+#include "dado/anima_poder.inc"   // o desenho do poder armado de cada dado
 #include "dado/mesa.inc"          // o desenho da mesa
 #include "dado/telas.inc"         // as telas da partida
 #include "dado/catalogo.inc"      // os dados da casa

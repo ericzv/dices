@@ -1084,30 +1084,68 @@ static int som_do_evento(int i)
     }
 }
 
-// A cadeia do fim da rodada sobe de tom: os sons de ficha e de poder comum
-// tocam um semitom acima a cada efeito seguido, ate +7. Os que tem voz
-// propria (Laser, Jackpot, Fogo, roubo...) ficam no tom deles, mas contam
-// na escada.
+// A voz de cada poder, quando o som do evento seria o comum (efeito, anula,
+// tira): um som da casa que lembre o que o dado faz e o tom dele, para uma
+// cadeia de efeitos nao soar como a mesma nota repetida. som 0: sem voz.
+static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_UNIVERSO + 1] = {
+    [EF_CARRASCO] = { SOM_ANULA, -5 },        [EF_INVEJOSO] = { SOM_ANULA, 3 },
+    [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
+    [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
+    [EF_MARTELO] = { SOM_TIRA, 2 },           [EF_PIRATA] = { SOM_TIRA, -3 },
+    [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_AD_LOBO, 0 },
+    [EF_OURICO] = { SOM_TIRA, 5 },            [EF_SABOTADOR] = { SOM_AD_CORRETIVO, 0 },
+    [EF_FICHAS] = { SOM_FICHA, 0 },           [EF_COBRADOR] = { SOM_FICHA, -2 },
+    [EF_POTE] = { SOM_FICHA, 3 },             [EF_FICHA_VELHA] = { SOM_MOEDA_POUSA, 0 },
+    [EF_SORTE] = { SOM_MOEDA_BATE, 0 },       [EF_TREVO] = { SOM_AD_ESTRELINHA, 0 },
+    [EF_SEMENTE] = { SOM_AD_FERMENTO, 0 },    [EF_DOBRO] = { SOM_AD_BIS, 0 },
+    [EF_FARTURA] = { SOM_AD_BIS, 2 },         [EF_VIUVA] = { SOM_AD_BIS, -3 },
+    [EF_AZARAO] = { SOM_AD_BIS, 4 },          [EF_ESPERANCA] = { SOM_AD_ESTRELINHA, 3 },
+    [EF_SACRIFICIO] = { SOM_AD_BIS, -5 },     [EF_PATINHOS] = { SOM_AD_PATINHO, 0 },
+    [EF_PISCA] = { SOM_AD_ELETRONICO, 0 },    [EF_COPIADOR] = { SOM_AD_HOLOGRAFICO, 0 },
+    [EF_ESPELHO] = { SOM_AD_REFLEXIVO, 0 },   [EF_TRONO] = { SOM_AD_DOURADO, 0 },
+    [EF_DESAFIANTE] = { SOM_AD_DOURADO, 3 },  [EF_CAPITAO] = { SOM_VALIDO2, 0 },
+    [EF_CHECKPOINT] = { SOM_VALIDO3, 0 },     [EF_PUXA] = { SOM_VALIDO2, 4 },
+    [EF_COVEIRO] = { SOM_AD_CHUMBO, 0 },      [EF_MISERICORDIA] = { SOM_ESTRELA, 0 },
+    [EF_MARTIR] = { SOM_ESTRELA, -4 },        [EF_PRISMA] = { SOM_AD_PURPURINA, 0 },
+    [EF_SEGURANCA] = { SOM_BATE_DADO, 0 },    [EF_DOMINO] = { SOM_BATE_DADO, 3 },
+    [EF_COLECIONADOR] = { SOM_AD_FIGURINHA, 0 }, [EF_AUTOFAGIA] = { SOM_AD_RATOEIRA, 0 },
+    [EF_ASSOMBRA] = { SOM_AD_TRANSPARENTE, 0 }, [EF_PACTO] = { SOM_AD_TRANSPARENTE, -3 },
+    [EF_TRENO] = { SOM_SINO, -4 },            [EF_REVOLVER] = { SOM_TIRO, 0 },
+    [EF_AMPULHETA] = { SOM_AD_RASPADINHA, 0 }, [EF_PAR] = { SOM_VALIDO3, 3 },
+    [EF_SOLITARIO] = { SOM_EFEITO, -7 },      [EF_HEXA] = { SOM_EFEITO, 5 },
+    [EF_RANCOR] = { SOM_EFEITO, -9 },         [EF_MEDIA] = { SOM_EFEITO, -4 },
+    [EF_JINGLE] = { SOM_SINO, 0 },            [EF_PANETONE] = { SOM_PRESENTE, 0 },
+    [EF_JACKPOT] = { SOM_FICHA, 4 },
+};
+
+// A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons
+// comuns que sobram (ficha, efeito e tira sem voz propria) sobem um semitom
+// a cada efeito seguido, ate +7; os que tem voz propria (Laser, Jackpot,
+// Fogo, roubo...) ficam no tom deles.
 #define ESCADA_MAX 7
 static void toca_evento(int i)
 {
     int s = som_do_evento(i);
-    if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
+    const evento_t *e = &ev[i];
+    int ef = e->tipo != EV_ADESIVO && e->de_j < 2 && e->de_k < N_FILA ? TIPO[F[e->de_j].tipo[e->de_k]].efeito : 0;
+    bool comum = s == SOM_EFEITO || s == SOM_ANULA || s == SOM_TIRA || s == SOM_FICHA;
+    if (comum && ef > 0 && ef <= EF_UNIVERSO && VOZ_PODER[ef].som) som_toca_tom(VOZ_PODER[ef].som, VOZ_PODER[ef].tom);
+    else if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
     else som_toca(s);
     for (int a = 0; a < A_N; a++) if (ev[i].am >> a & 1) am_acende(a);   // o amuleto que agiu acende
 }
 
-// E acelera: cada efeito corre 12% mais depressa que o anterior (o tempo do
-// jogo anda mais rapido, a animacao inteira vai junto), ate 2,2 vezes; somado
-// a velocidade da mesa (vel), no maximo 3 vezes o normal.
-#define RITMO_PASSO 0.88f
-#define RITMO_MAX   2.2f
-#define RITMO_TETO  3.0f
+// E acelera de leve: cada efeito corre 5% mais depressa que o anterior (o
+// tempo do jogo anda mais rapido, a animacao inteira vai junto), ate 1,3
+// vezes. Somado a velocidade da mesa (vel), no maximo 1,4 vezes o normal: na
+// mesa rapida o resto anda ligeiro, mas os efeitos ficam legiveis.
+#define RITMO_PASSO 0.95f
+#define RITMO_MAX   1.3f
+#define RITMO_TETO  1.4f
 static float ritmo_efeitos(float vel)
 {
     float r = powf(1 / RITMO_PASSO, (float)ev_i), teto = RITMO_TETO / vel;
     if (r > RITMO_MAX) r = RITMO_MAX;
-    if (teto < 1) teto = 1;
     return r < teto ? r : teto;
 }
 
@@ -1170,6 +1208,7 @@ static void desfecho(void)
     n_voo = 0;
     ev_i = 0;
     t_fase = 0;
+    t_respiro = -1;
     for (int j = 0; j < 2; j++) log_base[j] = total_visivel(j);
     if (n_ev) { fase = F_EFEITOS; toca_evento(0); reage_evento(&ev[0]); }
     else conclui_rodada();
@@ -1179,6 +1218,7 @@ static void desfecho(void)
 // fecha). Depois de um golpe, so quando a mesa solta (passo.inc).
 static void proximo_evento(void)
 {
+    t_respiro = -1;
     ev_i++;
     t_fase = 0;
     if (ev_i >= n_ev) conclui_rodada();

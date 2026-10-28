@@ -2269,7 +2269,6 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (x0 > x1 || y0 > y1) return;
     for (int y = y0 - 1; y <= y1 + 1; y++)
         for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
-    if (sombra) sombra_px(fb, (int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f));   // a sombra, por baixo
     gfx_desvia(px_buf);
     px_dentro = true;
     px_sem_sombra = sombra;
@@ -2286,6 +2285,21 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                 && nb < max_b) px_borda[nb++] = i;
         }
     for (int k = 0; k < nb; k++) px_buf[px_borda[k]] = C_BARRA;
+    // A sombra: a propria silhueta (com o contorno) deslocada para baixo e a
+    // direita, onde o dado nao cobre; o miolo cheio e a beira (o que veio do
+    // contorno) pontilhada. Um disco ficava sobrando em volta do D4.
+    if (sombra) {
+        int dx = so + alt, dy = so + 1 + alt;
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++) {
+                uint16_t c = px_buf[y * GFX_W + x];
+                int X = x + dx, Y = y + dy;
+                if (c == CHAVE || X > GFX_W - 1 || Y > GFX_H - 1) continue;
+                if (X <= x1 && Y <= y1 && px_buf[Y * GFX_W + X] != CHAVE) continue;   // o dado cobre
+                if (c == C_BARRA && bayer(X, Y) >= 0.5f) continue;                     // a beira, a meio tom
+                fb[Y * GFX_W + X] = C_SOMBRA;
+            }
+    }
     for (int y = y0; y <= y1; y++)                      // cola o que nao e fundo
         for (int x = x0; x <= x1; x++) {
             uint16_t c = px_buf[y * GFX_W + x];
@@ -3343,13 +3357,59 @@ static void mesa(void)
     }
 }
 
+// Uma ficha vista de cima, no material dos dados. A face na rampa da cor,
+// com a luz de cima a esquerda e o pontilhado so na passagem; com 'beira', o
+// contorno escuro e a beira de um pixel, clara do lado da luz e escura do
+// outro. Sem beira, so a face (o miolo de dentro do friso), no mesmo degrade
+// da ficha inteira: (lx, ly) e o centro da ficha, de onde a luz se mede.
+// rx < ry: a ficha virando de lado.
+static void ficha_disco_em(int cx, int cy, int rx, int ry, uint16_t cor, bool beira, int lx, int ly, int lr)
+{
+    uint16_t r[4];
+    rampa_de(cor, r);
+    if (rx < 1) rx = 1;
+    if (ry < 1) ry = 1;
+    float ax = rx + 0.5f, ay = ry + 0.5f, bx = rx - 0.5f, by = ry - 0.5f;
+    float ia = 1 / (ax * ax), ib = 1 / (ay * ay), ic = 1 / ((ax + 1) * (ax + 1)), id = 1 / ((ay + 1) * (ay + 1));
+    float ie = bx > 0 ? 1 / (bx * bx) : 4, ig = by > 0 ? 1 / (by * by) : 4, il = 1.0f / lr;
+    for (int y = -ry - 1; y <= ry + 1; y++)
+        for (int x = -rx - 1; x <= rx + 1; x++) {
+            int X = cx + x, Y = cy + y;
+            if (x * x * ia + y * y * ib > 1) {            // fora: o contorno, so com beira
+                if (beira && x * x * ic + y * y * id <= 1) gfx_pixel(X, Y, C_BARRA);
+                continue;
+            }
+            if (beira && x * x * ie + y * y * ig > 1) {   // a beira: o tom pela direcao em que ela olha
+                gfx_pixel(X, Y, tom_rampa(r, luz_de((float)x, (float)y), X, Y));
+                continue;
+            }
+            // A face: na cor, com um toque de luz e de sombra so nos cantos
+            // (o tom cheio vai de |s| 0 a 1.15: ali nem precisa da rampa).
+            float s = ((X - lx) + (Y - ly)) * il;
+            gfx_pixel(X, Y, s > -1.15f && s < 1.15f ? r[2] : tom_rampa(r, 0.33f - s * 0.16f, X, Y));
+        }
+}
+static void ficha_disco(int cx, int cy, int rx, int ry, uint16_t cor)
+{
+    ficha_disco_em(cx, cy, rx, ry, cor, true, cx, cy, ry);
+}
+
+// A sombra de uma ficha: a dos dados (miolo cheio, beira pontilhada).
+static void ficha_sombra(int cx, int cy, int R)
+{
+    uint16_t *alvo = gfx_alvo();
+    sombra_px(alvo ? alvo : display_fb(), cx, cy, R);
+}
+
 static void ficha(int x, int y, uint16_t c)
 {
-    gfx_disco(x + 1, y + 2, 7, C_SOMBRA);
-    gfx_disco(x, y, 7, c);
+    ficha_sombra(x + 1, y + 2, 6);
+    ficha_disco(x, y, 6, 6, c);
     for (int i = 0; i < 6; i++) {                        // listras da borda
         float a = i * 1.0472f;
         gfx_rect(x + (int)(cosf(a) * 5.5f) - 1, y + (int)(sinf(a) * 5.5f) - 1, 2, 2, C_MARFIM);
     }
-    gfx_disco(x, y, 3, gfx_mistura(c, C_BARRA, 30));
+    uint16_t r[4];
+    rampa_de(c, r);
+    gfx_disco(x, y, 3, r[1]);                            // o miolo, fundo
 }

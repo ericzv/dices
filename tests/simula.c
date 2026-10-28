@@ -1,10 +1,9 @@
 // Teste de host: joga partidas inteiras com teclas ao acaso, sem janela, e
 // confere que o jogo nunca trava nem sai do trilho.
 //
-//   simula [partidas] [--fotos DIR] [--ia-forte] [--pixel N]
+//   simula [partidas] [--fotos DIR] [--ia-forte]
 //
 // Com --fotos, salva em DIR um .ppm da primeira vez que cada tela aparece.
-// --pixel N liga o modo Pixel (0 o de sempre, 1 pontilhado, 2 pontilhado 2x).
 // Compile com -fsanitize=address,undefined para pegar erro de memoria.
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,17 +93,14 @@ int main(int argc, char **argv)
     int partidas = 50;
     const char *dir_fotos = NULL;
     bool ia_forte = false;
-    int pixel = 0;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--fotos") && i + 1 < argc) dir_fotos = argv[++i];
         else if (!strcmp(argv[i], "--ia-forte")) ia_forte = true;
-        else if (!strcmp(argv[i], "--pixel") && i + 1 < argc) pixel = atoi(argv[++i]);
         else partidas = atoi(argv[i]);
     }
     // A IA pensa jogando rodadas de mentira; aqui ela pensa pouco, para as
     // partidas andarem rapido (--ia-forte usa o esforco do jogo de verdade).
     dado_dbg_ia_esforco(ia_forte ? 1 : 0);
-    dado_dbg_pixel(pixel);
 
     // Tres mesas se revezam: duas pessoas, pessoa contra IA, IA contra IA.
     static const int MESAS[3] = { 0, 2, 3 };

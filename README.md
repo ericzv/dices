@@ -65,7 +65,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   |---|---|---|---|
   | Saco de Pano | os dados de sempre | sem regra | desde o começo |
   | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
-  | Lata de Biscoito | 2 adesivos já colados; colar custa 1 a menos | a vitrine mostra 1 dado a menos | ter 3 adesivos colados |
+  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | a vitrine mostra 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados da 7ª rodada em diante; vem com o Trevo | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro | toda rodada começa com -4 | vencer 3 rodadas de uma partida com 4 dados válidos |
@@ -232,7 +232,6 @@ Não precisa instalar nada: é um executável só.
 | N | Liga e desliga só a música |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
-| P | Modo Pixel, em teste: desligado, pontilhado (Bayer, contorno escuro, luz na mesa) ou pontilhado em pixels de 2x2 (fica guardado) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |

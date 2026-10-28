@@ -179,7 +179,8 @@ static int dados_no_grupo(int g)
     for (int t = 0; t < D_N; t++) n += no_grupo(t, g);
     return n;
 }
-static int preco_pacote(void) { return preco_ajusta(PRECO_PACOTE); }
+// A Lata de Biscoito: o pacote de adesivos, como o adesivo, 1 mais barato.
+static int preco_pacote(void) { return preco_ajusta(PRECO_PACOTE - (run.bolsa == B_LATA && run.pacote == GR_ADESIVOS)); }
 
 // Um dado do grupo g, pela raridade (w), que ainda nao esta em out[0..n).
 static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n)

@@ -75,11 +75,6 @@ static void desenha_avisos(void)
         msg = VEL_AVISO[velocidade];
     }
     else if (t_aviso_tremor > 0) msg = tremor_off ? "Tremor da tela: desligado  (T troca)" : "Tremor da tela: ligado  (T troca)";
-    else if (t_aviso_pixel > 0) {
-        static const char *const PX[3] = { "Pixel: desligado  (P troca)", "Pixel: pontilhado  (P troca)",
-                                           "Pixel: pontilhado em 2x  (P troca)" };
-        msg = PX[pixel_nivel % 3];
-    }
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);

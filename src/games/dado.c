@@ -127,7 +127,6 @@ int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }
 int  dado_dbg_n_tipos(void) { return n_basicos(); }   // os da partida comum (dado_dbg_bolsa os numera)
 void dado_dbg_ia_esforco(int e) { ia_esforco = e; }
-void dado_dbg_pixel(int n) { pixel_nivel = n < 0 ? 0 : n > 2 ? 2 : n; pixel_lido = true; }
 void dado_dbg_tutorial(int pag) { tut_pag = pag; t_fase = 2.5f; fase = F_TUTORIAL; }
 int  dado_dbg_margem(void)
 {

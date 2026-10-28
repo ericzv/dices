@@ -26,7 +26,6 @@ void dado_passo(float dt)
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_universo > 0) t_aviso_universo -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
-    if (t_aviso_pixel > 0) t_aviso_pixel -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;

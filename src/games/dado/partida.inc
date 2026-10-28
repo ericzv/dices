@@ -277,11 +277,6 @@ void dado_inicia(int n_partidas)
         tremor_off = salva_le("tremor", b, sizeof b) > 0 && b[0] == '0';
         tremor_lido = true;
     }
-    if (!pixel_lido) {                   // e o modo Pixel
-        char b[8];
-        if (salva_le("pixel", b, sizeof b) > 0 && b[0] >= '0' && b[0] <= '2') pixel_nivel = b[0] - '0';
-        pixel_lido = true;
-    }
     partidas = n_partidas;
     semente_v = (uint32_t)esp_timer_get_time() | 1;
     // Online, os dois lados sorteiam igual: a semente vem da sala.

@@ -593,7 +593,7 @@ static void acinzenta(int x0, int y0, int w, int h, int pct)
         for (int x = x0 < 0 ? 0 : x0; x < x0 + w && x < GFX_W; x++) {
             int i = y * GFX_W + x;
             uint16_t c = fb[i];
-            if (c == mesa_pronta[i] || c == C_FELTRO_ESC || c == C_SOMBRA) continue;
+            if (c == mesa_acesa[i] || c == C_FELTRO_ESC || c == C_SOMBRA || c == C_BARRA) continue;   // o feltro (com a luz) e o contorno ficam
             int r = (c >> 11) << 3, g = ((c >> 5) & 63) << 2, b = (c & 31) << 3;
             int l = 70 + ((r * 77 + g * 150 + b * 29) >> 8) * 45 / 100;   // cinza, puxado para o meio
             r += (l - r) * pct / 100;
@@ -881,7 +881,7 @@ static void desenha_fila(int j)
                 int topo = y - R - 6, corte = topo + (int)(q * (2 * R + 12));
                 for (int yy = topo; yy < corte; yy++)            // o feltro volta
                     memcpy(display_fb() + yy * GFX_W + x - R - 6,
-                           mesa_pronta + yy * GFX_W + x - R - 6, (size_t)(2 * R + 12) * 2);
+                           mesa_acesa + yy * GFX_W + x - R - 6, (size_t)(2 * R + 12) * 2);
                 for (int i = 0; i < 9; i++) {
                     int ex = x - R + (i * 11) % (2 * R);
                     int ey = corte - ((int)(t_fase * 90) + i * 13) % 40;

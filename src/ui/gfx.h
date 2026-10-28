@@ -43,6 +43,8 @@ uint16_t gfx_na_paleta(uint16_t c);
 
 // Desvia todo o desenho para outro buffer de GFX_W x GFX_H (NULL volta a tela).
 void gfx_desvia(uint16_t *buf);
+// O buffer onde se desenha agora (NULL: a tela).
+uint16_t *gfx_alvo(void);
 // Proximo caractere de uma string UTF-8, como codigo Latin-1.
 int gfx_proximo_car(const char **s);
 #define GFX_ALT_TEXTO(esc) (FONTE_ALT * (esc))

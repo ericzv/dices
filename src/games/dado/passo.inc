@@ -26,6 +26,7 @@ void dado_passo(float dt)
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_universo > 0) t_aviso_universo -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
+    if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
     if (t_elev > 0) {
@@ -165,6 +166,7 @@ void dado_passo(float dt)
             } else if (ver_tipo == 0) {             // valendo: uma nota acima a cada posicao
                 static const int SOM_POS[N_FILA] = { SOM_VALIDO, SOM_VALIDO2, SOM_VALIDO3, SOM_VALIDO4, SOM_VALIDO4 };
                 som_toca(SOM_POS[k < N_FILA ? k : N_FILA - 1]);
+                px_pulsa(SLOT_X(k), zona(j));          // o modo Pixel: a luz pulsa embaixo dele
             } else som_toca(SOM_ANULA);
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             flutua_pouso(j, k);

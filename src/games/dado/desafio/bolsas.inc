@@ -28,7 +28,7 @@ static const bolsa_t BOLSA[B_N] = {
                      "Você compra 6 dados por rodada, em vez de 7.", "",
                      "Vença o Crupiê.", RGB(150, 62, 80),
                      { X6(D_D6), X4(D_D4), D_D8, D_D8, D_VICIADO, 0xFF } },
-    [B_LATA]     = { "Lata de Biscoito", "Colar adesivo custa 1 moeda a menos.",
+    [B_LATA]     = { "Lata de Biscoito", "Adesivos e pacotes de adesivos custam 1 moeda a menos.",
                      "A vitrine das lojas mostra 1 dado a menos.", "e 2 adesivos já colados",
                      "Tenha 3 adesivos colados na bolsa.", RGB(56, 86, 150),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_PAR, 0xFF } },

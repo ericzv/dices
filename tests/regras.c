@@ -2110,6 +2110,10 @@ int main(void)
         for (int i = 0; i < run.n_col; i++) ad += ad_quantos(&run.col[i]);
         CONFERE(ad == 2 && n_vitrine() == 1 && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
                 "Lata: %d adesivos, vitrine %d, Lobo %d", ad, n_vitrine(), preco_adesivo(AD_LOBO));
+        run.pacote = GR_ADESIVOS;
+        int pac_ad = preco_pacote();
+        run.pacote = GR_ATAQUE;
+        CONFERE(pac_ad == PRECO_PACOTE - 1 && preco_pacote() == PRECO_PACOTE, "Lata: pacote de adesivos %d, de dados %d", pac_ad, preco_pacote());
         run_poe_amuleto(A_CARTOLA);
         CONFERE(n_vitrine() == 2, "Lata com a Cartola: %d", n_vitrine());
         // Porquinho: a mesa paga 1 a menos e poe 2 nele; quebrar leva tudo.

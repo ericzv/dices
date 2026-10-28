@@ -76,7 +76,7 @@ static void desenha_dica(const int *r, const dica_t *d)
     if (d->tipo == DICA_DADO && d->id != DICA_EMBRULHO) {   // "D4 · raro", miudo, ao lado
         char c2[32];
         classe(d->id, c2, sizeof c2);
-        int wc = gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
+        int wc = ui_selo(x + w + 9, y + 3, c2, cor_rar(d->id), GFX_MIUDO);
         icone_protecao(x + w + 8 + wc + 6, y + 3, nao_anulavel_t(d->id), nao_roubavel_t(d->id));   // as protecoes dele
     }
     quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);

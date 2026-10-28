@@ -379,15 +379,15 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
     if (fechada) cor = gfx_mistura(cor, C_BARRA, 72);
     int y = cy - (int)lroundf(sobe * 6);
     int rx = (int)lroundf(r * sx);
-    elipse(cx + 2, cy + 4, rx - (int)lroundf(sobe * 2), r - (int)lroundf(sobe * 2), C_SOMBRA);   // a sombra no feltro
+    if (sx > 0.95f) ficha_sombra(cx + 2, cy + 4, r - (int)lroundf(sobe * 2));   // a sombra no feltro
+    else elipse(cx + 2, cy + 4, rx - (int)lroundf(sobe * 2), r - (int)lroundf(sobe * 2), C_SOMBRA);
     if (sx < 0.25f) {                                     // de lado: so a borda, com as listras
         elipse(cx, y, rx + 1, r, gfx_mistura(cor, C_BARRA, 45));
         for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, fechada ? C_EBANO_B : C_MARFIM_S);
         return;
     }
     if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
-    elipse(cx, y, rx, r, gfx_mistura(cor, C_BARRA, 45));
-    elipse(cx, y, rx - 1, r - 1, cor);
+    ficha_disco(cx, y, rx - 1, r - 1, cor);
     bool grande = r >= 24;                                // pequena (o aviso): sem listras, so o centro
     for (int k = 0; grande && k < 6; k++) {               // as listras da borda, girando com a ficha
         float a = giro + k * 1.0472f, d = 0.17f;
@@ -398,8 +398,10 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
         poligono(vx, vy, 4, fechada ? C_EBANO_B : C_MARFIM_S);
     }
     if (grande) {
-        elipse(cx, y, (int)lroundf((r - 8) * sx), r - 8, gfx_mistura(cor, C_BARRA, 35));   // o friso de dentro
-        elipse(cx, y, (int)lroundf((r - 9) * sx), r - 9, cor);
+        uint16_t rc[4];
+        rampa_de(cor, rc);
+        elipse(cx, y, (int)lroundf((r - 8) * sx), r - 8, rc[1]);   // o friso de dentro, um tom abaixo
+        ficha_disco_em(cx, y, (int)lroundf((r - 9) * sx), r - 9, cor, false, cx, y, r - 1);
         for (int k = 0; k < 26; k++) {                    // o pontilhado em volta do centro
             float a = giro * 0.5f + k * 0.2417f;
             gfx_rect(cx + (int)lroundf(cosf(a) * (r - 10.5f) * sx), y + (int)lroundf(sinf(a) * (r - 10.5f)), 1, 1,
@@ -408,9 +410,8 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
     }
     int rc = grande ? r - 12 : r - 3;
     elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, gfx_mistura(cor, C_BARRA, 30));
-    elipse(cx, y, (int)lroundf(rc * sx), rc, fechada ? C_EBANO : C_MARFIM);
-    if (!fechada) elipse(cx - (int)(4 * sx), y - 4, (int)lroundf((rc - 6) * sx), rc - 6, C_BRANCO);   // a luz do marfim
-    if (!fechada) elipse(cx + (int)(1 * sx), y + 1, (int)lroundf((rc - 2) * sx), rc - 2, C_MARFIM);
+    if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, C_EBANO);
+    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
     int e = rc >= 19 ? 2 : 1;
     if (fechada) {
         icone_bolsa_em(b, cx, y, e, sx, -1, 1, 88);       // a silhueta, quase apagada

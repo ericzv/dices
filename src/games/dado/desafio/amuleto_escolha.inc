@@ -25,7 +25,8 @@ static void desenha_troca_amuleto(void)
     int x = 120, yc = 140;
     desenha_amuleto(x, yc + (int)(sinf(t_fase * 3) * 2), 22, novo, false);
     txt(x + 34, yc - 22, AMULETO[novo].nome, AMULETO[novo].cor, true);
-    txt(x + 34 + gfx_largura(AMULETO[novo].nome, 1) + 8, yc - 22, nome_rar_am(novo), cor_rar_am(novo), false);
+    if (nome_rar_am(novo)[0])
+        ui_selo(x + 34 + gfx_largura(AMULETO[novo].nome, 1) + 10, yc - 22, nome_rar_am(novo), cor_rar_am(novo), GFX_FINO);
     quebra_linhas(x + 34, yc - 4, 400, 2, AMULETO[novo].desc, C_MARFIM_S);
     // Os seus e a ultima saida.
     int x0 = GFX_W / 2 - (TROCA_N - 1) * TROCA_PASSO / 2, cy = 214;
@@ -81,7 +82,7 @@ static void desenha_amuleto_run(void)
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         desenha_amuleto(x, 156 + (int)bob, 26, a, false);
         txt_c(x, 186, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
-        gfx_texto(x - gfx_largura(nome_rar_am(a), GFX_MIUDO) / 2, 206, nome_rar_am(a), cor_rar_am(a), GFX_MIUDO, false);
+        if (nome_rar_am(a)[0]) ui_selo_c(x, 205, nome_rar_am(a), cor_rar_am(a), GFX_MIUDO);
         zona_clique(x - 64, 124, 128, 100, &cursor, i, KEY_ENTER);
     }
     if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)

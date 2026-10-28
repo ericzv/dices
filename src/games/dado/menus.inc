@@ -105,10 +105,9 @@ static void ficha_menu(int cx, int cy, int i, float sobe, float giro, bool foco,
             gfx_rect(cx + (int)(cosf(a) * ra), y + (int)(sinf(a) * ra), 1, 1, ca);
         }
     }
-    gfx_disco(cx + 2, cy + 3, r - (int)lroundf(sobe * 2), C_SOMBRA);   // a sombra fica no feltro
+    ficha_sombra(cx + 2, cy + 3, r - (int)lroundf(sobe * 2));      // a sombra fica no feltro
     if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
-    gfx_disco(cx, y, r, gfx_mistura(cor, C_BARRA, 45));
-    gfx_disco(cx, y, r - 1, cor);
+    ficha_disco(cx, y, r - 1, r - 1, cor);
     // As listras da borda: seis placas de marfim, que giram com a ficha.
     for (int k = 0; k < 6; k++) {
         float a = giro + k * 1.0472f, d = 0.16f;
@@ -118,14 +117,16 @@ static void ficha_menu(int cx, int cy, int i, float sobe, float giro, bool foco,
                         y + sinf(a + d) * (r - 1.5f), y + sinf(a + d) * (r - 7) };
         poligono(vx, vy, 4, C_MARFIM_S);
     }
-    gfx_disco(cx, y, r - 8, gfx_mistura(cor, C_BARRA, 35));          // o friso de dentro
-    gfx_disco(cx, y, r - 9, cor);
+    uint16_t rc[4];
+    rampa_de(cor, rc);
+    gfx_disco(cx, y, r - 8, rc[1]);                                    // o friso de dentro, um tom abaixo
+    ficha_disco_em(cx, y, r - 9, r - 9, cor, false, cx, y, r - 1);
     for (int k = 0; k < 18; k++) {                    // o pontilhado em volta do centro
         float a = giro * 0.5f + k * 0.349f;
         gfx_rect(cx + (int)lroundf(cosf(a) * (r - 11)), y + (int)lroundf(sinf(a) * (r - 11)), 1, 1,
                  gfx_mistura(cor, C_MARFIM, 55));
     }
-    gfx_disco(cx, y, r - 13, C_MARFIM);               // o centro de marfim, com o desenho
+    ficha_disco_em(cx, y, r - 13, r - 13, C_MARFIM, false, cx, y, r - 13);   // o centro de marfim, com o desenho
     gfx_rect(cx - 6, y - (r - 13) + 2, 4, 1, C_BRANCO);
     icone_menu(cx, y, ico, gfx_mistura(cor, C_BARRA, 25));
 }

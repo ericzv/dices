@@ -674,8 +674,7 @@ static void lj_cartao_dado(int i)
         marca_nivel = -1;
     }
     nome_no_cartao(x + dx, y + 68, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, cw - 8);
-    const char *rar = RARIDADE[TIPO[pc.tipo].raridade];
-    gfx_texto(x + dx - gfx_largura(rar, GFX_MIUDO) / 2, y + 85, rar, cor_rar(pc.tipo), GFX_MIUDO, false);
+    ui_selo_c(x + dx, y + 84, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
     if (ja) {
         gfx_rect_alfa(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, C_SOMBRA, 110);
         lj_carimbo(x, y + LJ_CH - 22, t_lj_vendido[i] > 0 ? t_lj_vendido[i] : 1, "VENDIDO");   // ja vendido: assentado
@@ -1184,8 +1183,7 @@ static void pac_carta(int i)
         ad_solto_d(cx, (int)(y + 40 * esc + bob), a, s, descola);
         if (esc > 0.9f) {
             nome_no_cartao(cx, y + 72, ADESIVO[a].nome, cur ? ADESIVO[a].luz : C_MARFIM_S, w - 8);
-            const char *rar = RARIDADE[RAR_ADESIVO[a]];
-            gfx_texto(cx - gfx_largura(rar, GFX_MIUDO) / 2, y + 90, rar, cr, GFX_MIUDO, false);
+            ui_selo_c(cx, y + 89, RARIDADE[RAR_ADESIVO[a]], cr, GFX_MIUDO);
         }
         if (pronto) zona_clique(x1 - PAC_CW / 2, y1, PAC_CW, LJ_CH, &cursor, i, KEY_ENTER);
         return;
@@ -1199,8 +1197,7 @@ static void pac_carta(int i)
     marca_nivel = -1;
     if (esc > 0.9f) {
         nome_no_cartao(cx, y + 72, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, w - 8);
-        const char *rar = RARIDADE[TIPO[pc.tipo].raridade];
-        gfx_texto(cx - gfx_largura(rar, GFX_MIUDO) / 2, y + 90, rar, cor_rar(pc.tipo), GFX_MIUDO, false);
+        ui_selo_c(cx, y + 89, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
     }
     if (pronto) zona_clique(x1 - PAC_CW / 2, y1, PAC_CW, LJ_CH, &cursor, i, KEY_ENTER);
 }

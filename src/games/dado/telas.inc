@@ -610,7 +610,7 @@ static void desenha_premio(void)
             txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
             classe(t2, c2, sizeof c2);
         }
-        txt_c(x, 180, c2, cr, false);
+        ui_selo_c(x, 180, c2, cr, GFX_FINO);
         zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > FILA_NORMAL;

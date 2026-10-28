@@ -219,6 +219,15 @@ static void desenha_clarao(void)
     }
 }
 
+// O lugar de um dado que ainda vai sair (ou que foi levado): o feltro escuro
+// pontilhado, a meio tom (cheio, parecia um buraco na mesa).
+static void lugar_marcado(int cx, int cy, int R)
+{
+    for (int y = -R; y <= R; y++)
+        for (int x = -R; x <= R; x++)
+            if (x * x + y * y <= R * R + R && bayer(cx + x, cy + y) < 0.5f) gfx_pixel(cx + x, cy + y, C_FELTRO_ESC);
+}
+
 // Destaque em volta de um dado da fila: as cantoneiras da selecao, na cor.
 static void aro(int x, int y, uint16_t c)
 {
@@ -671,7 +680,7 @@ static void galao(int cx, int cy)
 static void desenha_carta(int x, int y, bool posta)
 {
     if (!posta) {
-        gfx_disco(x, y, R_DADO - 2, C_FELTRO_ESC);                // lugar marcado
+        lugar_marcado(x, y, R_DADO - 2);
         txt_sombra_c(x, y - 20, "?", C_OURO, 2);                  // o glifo: 10 a 30 da linha
         return;
     }
@@ -839,7 +848,7 @@ static void desenha_fila(int j)
         }
         dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, j == 0 && k >= f->lancados && f->idx[k] == embrulho ? DICA_EMBRULHO : t);
         if (k >= f->lancados) {
-            gfx_disco(x, y, R - 2, C_FELTRO_ESC);                    // lugar marcado
+            lugar_marcado(x, y, R - 2);
             marca_nivel = f->fixo[k];
             caixa_fechada = j == 0 && f->idx[k] == embrulho;
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
@@ -865,7 +874,7 @@ static void desenha_fila(int j)
             continue;
         }
         if (est == V_ROUBADO) {                           // lugar vazio: foi levado
-            gfx_disco(x, y, R - 2, C_FELTRO_ESC);
+            lugar_marcado(x, y, R - 2);
             continue;
         }
         if (fase == F_RESULTADO && f->quebra[k] && t_fase > 0.35f) {
@@ -1249,8 +1258,9 @@ static void desenha_fila(int j)
             ui_cantos_em(PLACAR_X - 34, y - 26, 68, 50, C_OURO, 3 + a + ui_respira());
             c = C_OURO;
         }
-        int ly = vence ? (j == baixo ? y + 33 : y - 46) : y - 42 + (j == baixo ? 72 : 0);   // longe do filete
-        txt_c(PLACAR_X, ly, vence ? "VENCE" : "pontos", vence ? C_OURO : C_TEXTO_M, vence);
+        if (vence)                                // a plaquinha de latao, presa na beira do placar
+            ui_plaqueta(PLACAR_X, (j == baixo ? y + 24 : y - 26) - UI_PLAQUETA_H / 2, "VENCE", C_OURO);
+        else txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
         txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja

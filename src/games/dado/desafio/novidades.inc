@@ -289,7 +289,7 @@ static void nov_frente(int i, int cx, int cy, float desde)
 {
     int x0 = cx - NOV_CW / 2, y0 = cy - NOV_CH / 2;
     uint16_t c = nov_cor(i);
-    ui_cartao(x0, y0, NOV_CW, NOV_CH, true, c);
+    ui_cartao_aceso(x0, y0, NOV_CW, NOV_CH, true, c);
     gfx_rect(x0 + 8, y0 + 8, 96, NOV_CH - 16, gfx_mistura(c, C_FELTRO_ESC, 84));     // o quadro da figura
     nov_figura(i, x0 + 56, y0 + NOV_CH / 2 - 6, desde);
     char s[48];
@@ -380,7 +380,7 @@ static void nov_resumo(float desde)
         if (q <= 0) continue;
         int dy = (int)((1 - sai_mola(q)) * 10);
         uint16_t c = nov_cor(i);
-        ui_cartao(cx - w / 2, y + dy, w, h, false, c);
+        ui_cartao_aceso(cx - w / 2, y + dy, w, h, false, c);
         nov_icone(i, cx, y + dy + 26, 13);
         nome_no_cartao(cx, y + dy + 48, nov_nome(i), nov_cor_nome(i), w - 8);
         int dt = nov[i].k == NV_DADO ? DICA_DADO : nov[i].k == NV_AMULETO ? DICA_AMULETO
@@ -418,7 +418,7 @@ static void desenha_novidades(void)
             if (q < 0.5f) nov_verso(cx, NOV_CY, (int)(NOV_CW * (1 - 2 * q)), NOV_CH);
             else {
                 int w = (int)(NOV_CW * (2 * q - 1));
-                if (w > 4) ui_cartao(cx - w / 2, NOV_CY - NOV_CH / 2, w, NOV_CH, true, nov_cor(i));
+                if (w > 4) ui_cartao_aceso(cx - w / 2, NOV_CY - NOV_CH / 2, w, NOV_CH, true, nov_cor(i));
             }
         } else if (etapa == 2) {
             int pulo = desde < 0.16f ? (int)(sinf(desde / 0.16f * 3.1416f) * 4) : 0;
@@ -432,7 +432,7 @@ static void desenha_novidades(void)
             float e = q * q;
             int w = NOV_CW + (int)((24 - NOV_CW) * e), h = NOV_CH + (int)((24 - NOV_CH) * e);
             int x = cx + (int)((sx - cx) * e), y = NOV_CY + (int)((NOV_FY - NOV_CY) * e);
-            if (w > 4 && h > 4) ui_cartao(x - w / 2, y - h / 2, w, h, true, nov_cor(i));
+            if (w > 4 && h > 4) ui_cartao_aceso(x - w / 2, y - h / 2, w, h, true, nov_cor(i));
             nov_icone(i, x, y, 9 + (int)((1 - e) * 14));
         }
     }

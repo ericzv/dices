@@ -186,8 +186,8 @@ static void desenha_estilo(void)
         for (int k = ini; k < ini + ve; k++) {
             int cx = x0 + (k - ini) * vao, cy = y + 44;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
-            if (k == em_uso[lin]) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
-            else if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
+            if (k == em_uso[lin]) ui_marca(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
+            if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
             es_amostra(lin, k, cx, cy, aberto);
             const char *nm = es_nome(lin, k);
             char curto[20];

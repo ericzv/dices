@@ -60,7 +60,7 @@ static void desenha_bolsa_pop(void)
     int linhas = no ? (no + g.por - 1) / g.por : 1, passo = (int)(36 * f);
     int w = 548, h = 78 + linhas * passo + 30 + (sua ? 16 : 0);
     int x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 + (int)((1 - sai_mola(q)) * 12);
-    ui_cartao(x0, y0, w, h, true, C_LATAO);
+    ui_cartao_aceso(x0, y0, w, h, true, C_LATAO);
 
     char s[96];
     if (bolsa_pop == BOLSA_RUN || (bolsa_pop == baixo && modo != M_DOIS)) snprintf(s, sizeof s, "SUA BOLSA");

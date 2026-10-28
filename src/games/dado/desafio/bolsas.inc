@@ -385,7 +385,7 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
         for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, fechada ? C_EBANO_B : C_MARFIM_S);
         return;
     }
-    if (foco) elipse(cx, y, rx + 2, r + 2, C_OURO);
+    if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
     elipse(cx, y, rx, r, gfx_mistura(cor, C_BARRA, 45));
     elipse(cx, y, rx - 1, r - 1, cor);
     bool grande = r >= 24;                                // pequena (o aviso): sem listras, so o centro
@@ -429,7 +429,7 @@ static void des_bolsa_nova(void)
     char s[64];
     snprintf(s, sizeof s, "Nova bolsa: %s", BOLSA[bolsa_nova].nome);
     int w = gfx_largura(s, 1) + 64, h = 40, x = GFX_W / 2 - w / 2, y = -h + (int)((h + FAIXA_H + 6) * q);
-    ui_cartao(x, y, w, h, true, BOLSA[bolsa_nova].cor);
+    ui_cartao_aceso(x, y, w, h, true, BOLSA[bolsa_nova].cor);
     ficha_bolsa(x + 22, y + h / 2, 15, bolsa_nova, 0, t * 2, false, false, 1, t, -1);
     txt(x + 44, y + 3, s, C_OURO, true);
     gfx_texto(x + 44, y + 23, "escolha no começo de uma run", C_MARFIM_S, GFX_MIUDO, false);

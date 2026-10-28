@@ -86,6 +86,7 @@ void dado_desenha(void)
 {
     n_zonas = 0;
     n_dicas = 0;
+    foco_bx = -1;
     zonas_fase = fase;
     bolsas_vistas = 0;
     desenha_tudo();

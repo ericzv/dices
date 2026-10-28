@@ -62,7 +62,21 @@ static int outro(int j) { return j ^ 1; }
 static int rola(int lados) { return 1 + sorte(lados); }
 static int baixo;                        // quem aparece embaixo: o jogador local
 static int zona(int j) { return j == baixo ? LINHA_BAIXO : LINHA_CIMA; }
-static int tipo_de(int j, int k) { return F[j].tipo[k]; }
+// So para a conta da causa decisiva (partida.inc): o dado calado nao age -
+// vale como um dado comum do mesmo tamanho.
+static int8_t calado_j = -1, calado_k = -1;
+static int tipo_comum(int lados)
+{
+    switch (lados) {
+    case 2: return D_D2; case 4: return D_D4; case 6: return D_D6;
+    case 8: return D_D8; case 12: return D_D12; default: return D_D20;
+    }
+}
+static int tipo_de(int j, int k)
+{
+    if (j == calado_j && k == calado_k) return tipo_comum(TIPO[F[j].tipo[k]].lados);
+    return F[j].tipo[k];
+}
 
 static peca_t nova_peca(int tipo)
 {

@@ -45,7 +45,8 @@
 #define MAX_COL     128            // espaco para a colecao: a bolsa nao tem limite de dados
 #define MAO         10             // espaco da mao (compra 7; 8 com a Bolsa Funda, mais o Bis)
 #define MAO_NORMAL  7              // quantos compra da bolsa por rodada
-#define N_FILA      4              // a fila leva de 1 a 4
+#define N_FILA      5              // espaco da fila: leva de 1 a 4 (5 com o Estojo de Lapis)
+#define FILA_NORMAL 4              // quantos dados a sequencia leva
 
 // Mesa de 640x360: faixa do rival em cima, a sua embaixo, feltro no meio.
 #define FAIXA_H    44
@@ -57,7 +58,7 @@
 #define LINHA_BAIXO 262
 #define CENTRO     180
 #define R_DADO     18                       // raio de um dado na mesa
-#define SLOT_X(k)  (218 + 68 * (k))
+#define SLOT_X(k)  slot_x(k)                     // estado.inc: com a fila de 5, mais juntos
 // Dados roubados, a esquerda da fila e um pouco menores: cabem os quatro
 // (centros 170, 136, 102, 68) entre a borda da mesa e o primeiro lugar.
 #define R_ROUBO    15

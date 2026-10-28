@@ -20,11 +20,13 @@
 #include "desafio/amuletos.inc"   // os amuletos da run
 #include "desafio/perfis.inc"     // ate 3 perfis por aparelho
 #include "desafio/mapa.inc"       // o sorteio, a loja, as mesas de cada salao e os oponentes
+#include "desafio/bolsas.inc"     // as bolsas do comeco da run: regra, icone e o que abre cada uma
 #include "desafio/andamento.inc"  // salvamento e andamento da run
 #include "desafio/desenho.inc"    // o salao, a bolsa, a vitoria e o fim de run
 #include "desafio/loja.inc"       // a loja depois de cada mesa
 #include "desafio/amuleto_escolha.inc" // a escolha e a troca de amuleto
 #include "desafio/telas.inc"      // perfis e dificuldades
+#include "desafio/bolsa_escolha.inc" // a escolha da bolsa, em fichas, no comeco da run
 #include "desafio/historico.inc"  // o que cada perfil ja jogou
 #include "desafio/estilo_perfil.inc" // o feltro, a mesa e os dados do perfil
 #include "desafio/novidades.inc"  // o que abriu, um card de cada vez

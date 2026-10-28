@@ -28,7 +28,7 @@ static const pagina_t TUTORIAL[] = {
         "São %d dados, cada um com um poder: veja todos em Dados da casa.",
         NULL } },
     { "Modo Desafiante", {
-        "Em 1 jogador: uma run por 3 salões do cassino, cada um com três oponentes e o chefe, todos à vista desde o começo.",
+        "Em 1 jogador: uma run por 3 salões do cassino, cada um com dois oponentes e o chefe, todos à vista desde o começo. Antes, você escolhe a bolsa: os dados do começo e uma regra (as outras abrem jogando).",
         "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: algumas moedas e uma loja pequena (comprar, abrir um pacote, colar um adesivo, trocar a vitrine, tirar dados). Perdeu (ou saiu no meio da partida), a run acaba.",
         "Cada chefe vencido abre coisas novas, e vencer a run abre a dificuldade seguinte (do Nível 5, o Coringa espera depois do Barão). Cada perfil guarda o seu progresso e a sua run." } },
     { "Teclas", {

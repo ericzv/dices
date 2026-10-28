@@ -217,7 +217,7 @@ int main(int argc, char **argv)
         perfis_lidos = true;
         des_dif = dific;
         des_nova_run();
-        CONFERE(fase == F_RAMULETO && run.moedas == moedas_iniciais(dific) && run.n_col == (int)sizeof BOLSA_INICIO
+        CONFERE(fase == F_RAMULETO && run.moedas == moedas_iniciais(dific) && run.n_col == bolsa_n_dados(B_PANO)
                 && !run_amuletos() && run.dificuldade == dific && perfis[0].runs == 1, "run nova: fase %d", fase);
         long passos = 0;
         int compras = 0, trocas = 0, pacotes = 0, adesivos = 0;

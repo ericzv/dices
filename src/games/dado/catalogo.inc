@@ -58,20 +58,22 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
     return lin;
 }
 
-// Etiquetas de protecao, ao lado do tipo e da raridade: "não anulável"
-// (Escudo, Teimoso, Egoista) e "intocável" (so o Escudo: nenhum ataque o
-// alcanca). Devolve onde a proxima coisa pode comecar.
-static int etiqueta_caixa(int x, int y, const char *s, uint16_t c)
+// Etiquetas ao lado do tipo e da raridade; as de protecao com o icone dela
+// na frente ("não anulável", "não roubável"). Devolve onde a proxima coisa
+// pode comecar.
+static int etiqueta_icone(int x, int y, const char *s, uint16_t c, int icone)
 {
-    int w = gfx_largura(s, GFX_FINO) + 10;
+    int iw = icone ? 10 : 0, w = gfx_largura(s, GFX_FINO) + 10 + iw;
     ui_etiqueta(x, y + 2, w, 16, c);
-    gfx_texto(x + 5, y - 1, s, c, GFX_FINO, false);
+    if (icone) icone_protecao(x + 5, y + 6, icone == 1, icone == 2);
+    gfx_texto(x + 5 + iw, y - 1, s, c, GFX_FINO, false);
     return x + w + 4;
 }
+static int etiqueta_caixa(int x, int y, const char *s, uint16_t c) { return etiqueta_icone(x, y, s, c, 0); }
 static int etiquetas_protecao(int x, int y, int tipo)
 {
-    if (nao_anulavel_t(tipo)) x = etiqueta_caixa(x, y, "não anulável", C_ACO);
-    if (intocavel_t(tipo))    x = etiqueta_caixa(x, y, "intocável", C_OURO);
+    if (nao_anulavel_t(tipo)) x = etiqueta_icone(x, y, "não anulável", C_ACO, 1);
+    if (nao_roubavel_t(tipo)) x = etiqueta_icone(x, y, "não roubável", C_OURO, 2);
     return x;
 }
 

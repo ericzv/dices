@@ -449,6 +449,7 @@ static void loja_troca(void)
     if (run.moedas < pr) { lj_nega(it, "Moedas insuficientes."); return; }
     run.moedas -= pr;
     if (run.trocas < 255) run.trocas++;
+    vitrine_vista();                             // a que sai nao volta na run
     monta_vitrine();
     des_salva();
     t_lj_entra = 0;                              // a vitrine nova cai, girando
@@ -507,6 +508,7 @@ static void loja_tira(int i)
 
 static void loja_sai(void)
 {
+    if (run.moedas >= PORCO_ABRE) abre_bolsa(B_PORCO);   // guardou: abre o Porquinho
     bolsa_voando = 0;
     if (run.estado == R_LOJA_INI) { run.estado = R_MAPA; des_salva(); abre_mapa(); }
     else avanca_passo();
@@ -584,11 +586,48 @@ static bool loja_tecla(int k, int e)
         else loja_tira_abre();
         return true;
     }
+    if (k == 'q' && porco_inteiro()) porco_quebra();
     if (k == KEY_TAB || k == 'x') loja_sai();
     return true;
 }
 
 // ---- O desenho --------------------------------------------------------------
+// O Porquinho, ao lado das moedas: o que tem dentro e, inteiro, Q (ou o
+// clique) quebra. Quebrando, os cacos voam e as moedas pulam para as suas.
+static void lj_porquinho(void)
+{
+    if (run.bolsa != B_PORCO) return;
+    int cx = MESA_X0 + 108, cy = MESA_Y0 + 24;
+    char s[24];
+    if (!run.porco_quebrou) {
+        bool em = mouse_em(cx - 20, cy - 18, 70, 40);
+        int pula = em ? (int)(sinf(t_relogio * 9) * 1.5f) : 0;
+        icone_bolsa_em(B_PORCO, cx, cy + pula, 2, 1, t_relogio, 1, 0);
+        snprintf(s, sizeof s, "%d", run.porco);
+        gfx_texto(cx + 19, cy - 16, s, C_ROSA, 1, true);
+        gfx_texto(cx + 19, cy + 4, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_MIUDO, false);
+        if (run.porco) zona_clique(cx - 20, cy - 18, 70, 40, NULL, 0, 'q');
+        return;
+    }
+    if (t_porco <= 0) return;
+    float t = t_porco;                           // os cacos e as moedas
+    for (int i = 0; i < 10; i++) {
+        float a = i * 0.628f + 0.3f, v = 26 + (i % 3) * 9;
+        int x = cx + (int)(cosf(a) * v * t), y = cy + (int)(-sinf(a) * v * t + 70 * t * t);
+        gfx_rect(x, y, 3, 2, i % 2 ? C_ROSA : C_VINHO_CLR);
+    }
+    for (int i = 0; i < porco_saiu && i < 12; i++) {   // as moedas voam para o contador
+        float q = (t - i * 0.05f) / 0.45f;
+        if (q <= 0 || q >= 1) continue;
+        int x = cx + (int)((MESA_X0 + 30 - cx) * q), y = cy - (int)(sinf(q * 3.1416f) * 22) + (int)((MESA_Y0 + 24 - cy) * q);
+        moeda_r(x, y, 5);
+    }
+    if (t < 0.9f) {
+        snprintf(s, sizeof s, "+%d", porco_saiu);
+        gfx_texto(cx + 6, cy - 22 - (int)(t * 14), s, C_AMARELO, 1, true);
+    }
+}
+
 // O preco: a moeda e o numero; tremendo e vermelho quando nao deu.
 static void lj_preco(int cx, int y, int pr, bool da, float nega)
 {
@@ -888,7 +927,7 @@ static void lj_proxima(char *s, int n)
     }
     const no_t *no = &run.no[p];
     snprintf(s, (size_t)n, "Próxima mesa: %s  ·  vale %d %s", PERSO[no->perso].nome,
-             MOEDAS_MESA[run.andar][p], MOEDAS_MESA[run.andar][p] == 1 ? "moeda" : "moedas");
+             moedas_mesa(p), moedas_mesa(p) == 1 ? "moeda" : "moedas");
 }
 
 static void lj_desenha_tirando(void)
@@ -1259,6 +1298,7 @@ static void desenha_loja_run(void)
     moeda_ic(MESA_X0 + 30, MESA_Y0 + 24);
     gfx_texto(MESA_X0 + 42, MESA_Y0 + 12 - (moedas_ok && moedas_cont.pulo > 0.4f ? 1 : 0), s, cm, 1, true);
     gfx_texto(MESA_X0 + 22, MESA_Y0 + 36, "moedas", C_TEXTO_M, GFX_MIUDO, false);
+    lj_porquinho();
 
     int nv = n_vitrine(), cw = lj_cw();
     gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 11, "VITRINE", C_TEXTO_M, GFX_MIUDO, false);

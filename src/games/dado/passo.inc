@@ -5,7 +5,8 @@
 static bool menu_sem_partida(void)
 {
     return fase == F_ABERTURA || fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE
-        || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC || fase == F_HIST || fase == F_ESTILO;
+        || fase == F_PERFIS || fase == F_PCRIA || fase == F_RDIFIC || fase == F_HIST || fase == F_ESTILO
+        || fase == F_RBOLSAS;
 }
 
 static void menu_passo(float dt);        // as fichas do menu (menus.inc)
@@ -50,6 +51,7 @@ void dado_passo(float dt)
     hora_passo(dt, dt_real);
     placar_passo(dt, dt_real);
     des_contadores_passo(dt, dt_real);
+    bolsas_passo(dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
     tiro_passo(dt);
@@ -161,7 +163,7 @@ void dado_passo(float dt)
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
             } else if (ver_tipo == 0) {             // valendo: uma nota acima a cada posicao
-                static const int SOM_POS[N_FILA] = { SOM_VALIDO, SOM_VALIDO2, SOM_VALIDO3, SOM_VALIDO4 };
+                static const int SOM_POS[N_FILA] = { SOM_VALIDO, SOM_VALIDO2, SOM_VALIDO3, SOM_VALIDO4, SOM_VALIDO4 };
                 som_toca(SOM_POS[k < N_FILA ? k : N_FILA - 1]);
             } else som_toca(SOM_ANULA);
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);

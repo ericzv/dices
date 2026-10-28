@@ -169,6 +169,7 @@ static void peca_parada(float x, float y, float r, peca_t p, int dono)
     marca_nivel = -1;
     ad_selos(x, y, r, &p, 0);                    // os adesivos: um selinho por lado, na beira de baixo
     if (p.selo) lacre_cera((int)(x + r * 0.72f), (int)(y - r * 0.72f), r >= 16 ? 4 : 3, 0);   // lacrado pelo Selo
+    marca_protecao(x, y, r, nao_anulavel_t(p.tipo), nao_roubavel_t(p.tipo));
 }
 
 // O clarao do golpe (hora.inc): enquanto a mesa esta parada, o dado que
@@ -262,6 +263,7 @@ static void icone_som(int x, int y)
 }
 
 static void icone_bolsa(int cx, int cy);
+static void icone_da_run(int cx, int cy);         // desafio/bolsas.inc
 static void amuletos_faixa(int j, int x, int y);   // Modo Desafiante (desafio.inc)
 static void trunfo_faixa(int x, int y, int x_max);
 static bool trunfo_ativo(int p);              // desafio/mapa.inc
@@ -354,7 +356,8 @@ static void faixa_jogador(int j)
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
     if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
     bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
-    icone_bolsa(bx + 8, by - em);
+    if (modo == M_DESAFIO && p == &J[0]) icone_da_run(bx + 8, by - em);   // a bolsa que voce escolheu
+    else icone_bolsa(bx + 8, by - em);
     snprintf(s, sizeof s, "bolsa %d/%d", na_bolsa(p), em_jogo(p));
     txt(bx + 22, ty, s, em ? C_OURO : C_MARFIM_S, false);
     zona_clique(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8, NULL, j, TECLA_BOLSA);
@@ -818,6 +821,8 @@ static void desenha_fila(int j)
     bool previa = !no_desfecho && fase != F_FIM && (F[0].lancados || F[1].lancados);
     desfecho_t pv;
     if (previa) calcula_desfecho(&pv, false);
+    uint8_t mira[2] = { 0, 0 };                          // os dados que um poder armado vai pegar
+    if (previa) miras_agora(mira);
 
     for (int k = 0; k < f->n; k++) {
         int x = SLOT_X(k);
@@ -991,6 +996,12 @@ static void desenha_fila(int j)
         if (f->evolui[k] && t != D_UNIVERSO && f->idx[k] >= 0 && k < f->lancados && fase != F_FIM && giro < 0.5f
             && !(fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_evolui >= 0 && t_evolui < EVOLUI_CLARAO))
             cosmo_orbita(x, (int)(y - pulo), R, t);
+        if ((mira[j] >> k & 1) && !anul && giro < 0.5f) mira_sobre(x, (int)(y - pulo), R);
+        // As protecoes de agora: lancado, conta a Ancora e o Transparente.
+        if (!anul && giro < 0.5f && vis_est[j][k] != V_ROUBADO) {
+            bool la = k < f->lancados;
+            marca_protecao((float)x, y - pulo, R, la ? firme(j, k) : nao_anulavel_t(t), la ? nao_roubavel(j, k) : nao_roubavel_t(t));
+        }
         // Preso pela Ancora: dois elos de corrente ligam o dado a ela.
         if (f->ancora[k] && !anul && vis_est[j][k] != V_ROUBADO) {
             int mx = (SLOT_X(k - 1) + x) / 2, my = (int)(y - pulo);
@@ -2183,7 +2194,7 @@ static void desenha_evento(void)
             // Puxa-fila: um rastro dourado corre a fila inteira, da frente ao fim.
             float q = p / 0.5f;
             if (q < 1) {
-                int x0 = SLOT_X(0), x1 = SLOT_X(N_FILA - 1), y = ay + (ay < CENTRO ? R_DADO + 8 : -R_DADO - 8);
+                int x0 = SLOT_X(0), x1 = SLOT_X(F[e->de_j].n - 1), y = ay + (ay < CENTRO ? R_DADO + 8 : -R_DADO - 8);
                 int x = x0 + (int)((x1 - x0 + 30) * q) - 15;
                 gfx_linha_grossa(x0 - 15, y, x, y, 2, gfx_mistura(C_OURO, C_FELTRO, 40));
                 for (int i = 0; i < 3; i++) {

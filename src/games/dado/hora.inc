@@ -98,7 +98,7 @@ static void reage_lance(int j, int k)
 {
     int seguidos = 0;
     while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
-    bool cheia = seguidos == N_FILA;
+    bool cheia = seguidos >= FILA_NORMAL;
     int nivel = cheia ? 1 : 0, hora_res = 0;
     if (hora) {
         som_suspense(false);
@@ -255,7 +255,11 @@ static bool golpe_passo(float dt_real)
 static bool evento_grande(const evento_t *e)
 {
     if (e->tipo == EV_JACKPOT) return true;
-    if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO && e->mascara == (1u << N_FILA) - 1) return true;
+    if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO) {
+        int n = 0;
+        for (int k = 0; k < N_FILA; k++) n += e->mascara >> k & 1;
+        if (n >= FILA_NORMAL) return true;
+    }
     if (e->tipo == EV_MULT)
         for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] >= 4) return true;
     return false;
@@ -463,6 +467,18 @@ static void desenha_evolui(void)
         float y = cy + R * 0.3f - s * (38 + (h >> 8) % 30);
         if (q > 0.7f && ((int)(t_evolui * 20) + i) & 1) continue;
         estrela4((int)x, (int)y, i % 3 ? 1 : 2, C_BRANCO, luz, cor);
+    }
+}
+
+// A mira de um poder armado sobre o dado que ele vai pegar no fim: um anel
+// vermelho com quatro tracos cruzando, pulsando de leve.
+static void mira_sobre(int x, int y, int R)
+{
+    int r = R + 5 + (int)lroundf(sinf(t_relogio * 5.5f));
+    anel(x, y, r, 1, C_VINHO_CLR);
+    for (int i = 0; i < 4; i++) {
+        int dx = i == 0 ? 1 : i == 1 ? -1 : 0, dy = i == 2 ? 1 : i == 3 ? -1 : 0;
+        gfx_linha_grossa(x + dx * (r - 3), y + dy * (r - 3), x + dx * (r + 4), y + dy * (r + 4), 2, C_VINHO_CLR);
     }
 }
 

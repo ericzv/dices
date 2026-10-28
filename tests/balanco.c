@@ -64,6 +64,8 @@ static void perfil_teste(int nivel, bool tudo)
     perfil_atual = 0;
     perfis_lidos = true;
     des_dif = nivel;
+    perfis[0].bolsas = 0xFF;                     // todas abertas: BOLSA=b escolhe a da run
+    des_bolsa = getenv("BOLSA") ? atoi(getenv("BOLSA")) : B_PANO;
 }
 
 static int escolhe_aposta(void)
@@ -329,8 +331,8 @@ static bool duelo(const peca_t *b, int nb, uint32_t am, int nivel, int salao, in
 
 static int bolsa_inicio(peca_t *b)
 {
-    for (int i = 0; i < (int)sizeof BOLSA_INICIO; i++) b[i] = (peca_t){ .tipo = BOLSA_INICIO[i], .fixo = 0 };
-    return (int)sizeof BOLSA_INICIO;
+    for (int i = 0; i < bolsa_n_dados(B_PANO); i++) b[i] = (peca_t){ .tipo = BOLSA[B_PANO].dados[i], .fixo = 0 };
+    return bolsa_n_dados(B_PANO);
 }
 
 // Cada dado com as mesmas sementes: a diferenca e so o dado. A primeira

@@ -76,7 +76,8 @@ static void desenha_dica(const int *r, const dica_t *d)
     if (d->tipo == DICA_DADO && d->id != DICA_EMBRULHO) {   // "D4 · raro", miudo, ao lado
         char c2[32];
         classe(d->id, c2, sizeof c2);
-        gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
+        int wc = gfx_texto(x + w + 8, y + 3, c2, cor_rar(d->id), GFX_MIUDO, false);
+        icone_protecao(x + w + 8 + wc + 6, y + 3, nao_anulavel_t(d->id), nao_roubavel_t(d->id));   // as protecoes dele
     }
     quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
 }
@@ -106,6 +107,7 @@ void dado_desenha(void)
         desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
+        des_bolsa_nova();
         desenha_bolsa_pop();
     } else bolsa_pop = -1;
     int r[4];
@@ -132,6 +134,7 @@ static void desenha_tudo(void)
     }
     faixa_jogador(1);
     faixa_jogador(0);
+    if (modo == M_DESAFIO) desenha_fosforo();    // a Caixa de Fosforos: a mao dele na luz
 
     switch (fase) {
     // A loja e o premio da maquina contra uma pessoa nao aparecem: so a

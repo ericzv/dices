@@ -16,7 +16,21 @@ typedef struct {
     uint16_t partidas;                   // partidas jogadas no Desafiante
     uint8_t  marcos;                     // bit c: ja venceu o chefe do salao c (abre dados)
     uint8_t  chefes[N_NIVEIS + 1];       // bit CH_*: os chefes ja vencidos em cada dificuldade
+    // As bolsas do comeco da run (desafio/bolsas.inc):
+    uint8_t  bolsas;                     // bit b: a bolsa b abriu (o Saco de Pano, sempre)
+    uint8_t  bolsas_vistas;              // bit b: ja apareceu aberta na escolha (a nova chega com festa)
+    uint8_t  bolsa_ult;                  // a ultima escolhida (a escolha comeca nela)
+    uint8_t  bolsa_rec[B_N];             // o maior nivel vencido com cada uma, +1 (0: nenhum)
 } perfil_t;
+typedef struct {                         // "PER5": de antes das bolsas, lido e convertido
+    char     nome[12];
+    uint8_t  avatar, nivel;
+    uint8_t  venceu[N_NIVEIS + 1];
+    uint16_t runs;
+    uint16_t partidas;
+    uint8_t  marcos;
+    uint8_t  chefes[N_NIVEIS + 1];
+} perfil_5_t;
 typedef struct {                         // "PER4": de antes dos chefes, lido e convertido
     char     nome[12];
     uint8_t  avatar, nivel;
@@ -70,11 +84,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER5" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER6" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER5", 4);
+    memcpy(buf, "PER6", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -118,11 +132,28 @@ static void perfis_le(void)
             lido[i].partidas = v[i].partidas;
             lido[i].marcos = v[i].marcos;
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER5", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
+    } else if (n == 5 + (int)(2 * sizeof(perfil_5_t[N_PERFIS])) && !memcmp(buf, "PER5", 4)) {
+        // Os de antes das bolsas: tudo igual, so o Saco de Pano aberto (o
+        // Copo e os Fosforos abrem pelo que ja foi vencido).
+        perfil_5_t v[N_PERFIS];
+        if (!de_hex(buf + 5, v, sizeof v)) return;
+        memset(lido, 0, sizeof lido);
+        for (int i = 0; i < N_PERFIS; i++) {
+            memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
+            lido[i].avatar = v[i].avatar;
+            lido[i].nivel = v[i].nivel;
+            memcpy(lido[i].venceu, v[i].venceu, sizeof lido[i].venceu);
+            lido[i].runs = v[i].runs;
+            lido[i].partidas = v[i].partidas;
+            lido[i].marcos = v[i].marcos;
+            memcpy(lido[i].chefes, v[i].chefes, sizeof lido[i].chefes);
+        }
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER6", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
         if (lido[i].nivel > N_NIVEIS) lido[i].nivel = N_NIVEIS;
+        if (lido[i].bolsa_ult >= B_N) lido[i].bolsa_ult = B_PANO;
     }
     memcpy(perfis, lido, sizeof perfis);
     int a = buf[4] - '0';

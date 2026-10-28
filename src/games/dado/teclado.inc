@@ -441,7 +441,7 @@ static void trata_tecla(int k)
         if (k == 'x') { nova_rodada(); return; }
         if (k == KEY_ENTER) {
             if (cursor == 3) {
-                if (p->n_col > N_FILA) { removendo = true; cursor = 0; }
+                if (p->n_col > FILA_NORMAL) { removendo = true; cursor = 0; }
                 return;
             }
             // O adesivo: escolhe o dado e o lado (sem lado livre, nao leva).

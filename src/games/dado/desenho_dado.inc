@@ -184,6 +184,34 @@ static void numero(float cx, float cy, float r, const char *s, uint16_t c)
     gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
 }
 
+// As duas protecoes, sempre com o mesmo desenho, em todo lugar: o escudo de
+// aco (nao anulavel) e o cadeado de ouro (nao roubavel), lado a lado a partir
+// de (x, y), cada um com 7x8 pixels e o contorno escuro. Devolve a largura.
+static int icone_protecao(int x, int y, bool anula, bool rouba)
+{
+    static const char *const ESCUDO[8] = { ".XXXXX.", "XPAAAAX", "XPAAAAX", "XPAAAAX", "XAAAAAX", ".XAAAX.", "..XAX..", "...X..." };
+    static const char *const CADEADO[8] = { "..XXX..", ".XP.PX.", ".XP.PX.", "XXXXXXX", "XOOOOOX", "XOOXOOX", "XOOXOOX", "XXXXXXX" };
+    int w = 0;
+    for (int q = 0; q < 2; q++) {
+        if (!(q ? rouba : anula)) continue;
+        const char *const *m = q ? CADEADO : ESCUDO;
+        for (int yy = 0; yy < 8; yy++)
+            for (int xx = 0; xx < 7; xx++) {
+                char c = m[yy][xx];
+                if (c == '.') continue;
+                gfx_pixel(x + w + xx, y + yy, c == 'X' ? C_BARRA : c == 'P' ? C_PRATA : c == 'A' ? C_ACO : C_OURO);
+            }
+        w += 8;
+    }
+    return w ? w - 1 : 0;
+}
+// No canto de cima, a esquerda, de um dado de raio r em (cx, cy).
+static void marca_protecao(float cx, float cy, float r, bool anula, bool rouba)
+{
+    if (r < 12 || (!anula && !rouba)) return;
+    icone_protecao((int)(cx - r * 0.95f) - 2, (int)(cy - r * 0.95f) - 2, anula, rouba);
+}
+
 // O numero com um contorno de um pixel em volta (0: sem contorno).
 static void numero_contorno(float cx, float cy, float r, const char *s, uint16_t c, uint16_t contorno)
 {

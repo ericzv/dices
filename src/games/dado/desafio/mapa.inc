@@ -23,14 +23,43 @@ static peca_t peca_r(int t)
     return p;
 }
 
-// Tres (ou n) dados diferentes entre si.
+// A loja nao repete: cada dado e cada adesivo aparece a venda uma vez so na
+// run (a vitrine, ao abrir ou trocar, e o adesivo da loja). Os pacotes
+// repetem. Se os abertos acabarem, volta a sortear entre todos. O que esta
+// a venda vira "visto" quando sai (trocar a vitrine, a loja seguinte): assim
+// a mesma loja, sorteada de novo, mostra o mesmo.
+static bool dado_visto(int t) { return run.vistos[t >> 3] >> (t & 7) & 1; }
+static void marca_visto(int t) { if (t >= 0 && t < D_N) run.vistos[t >> 3] |= (uint8_t)(1u << (t & 7)); }
+static bool adesivo_visto(int a) { return run.ad_vistos[a >> 3] >> (a & 7) & 1; }
+static void marca_adesivo_visto(int a) { if (a > AD_NADA && a < AD_N) run.ad_vistos[a >> 3] |= (uint8_t)(1u << (a & 7)); }
+
+// Um dado da vitrine: pela raridade, entre os abertos que ainda nao
+// estiveram a venda na run.
+static int sorteia_vitrine(const float w[4])
+{
+    for (int todos = 0; todos < 2; todos++) {
+        float total = 0;
+        for (int t = 0; t < D_N; t++)
+            if (!so_inicial(t) && dado_liberado(t) && (todos || !dado_visto(t))) total += w[TIPO[t].raridade];
+        if (total <= 0) continue;
+        float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+        for (int t = 0; t < D_N; t++) {
+            if (so_inicial(t) || !dado_liberado(t) || (!todos && dado_visto(t))) continue;
+            x -= w[TIPO[t].raridade];
+            if (x < 0) return t;
+        }
+    }
+    return D_D8;
+}
+
+// Tres (ou n) dados diferentes entre si, que a vitrine ainda nao mostrou.
 static void sorteia_distintos(peca_t *out, int n, const float w[4])
 {
     for (int i = 0; i < n; i++) {
         bool rep;
         int tent = 0;
         do {
-            out[i] = peca_r(sorteia_raridade(w));
+            out[i] = peca_r(sorteia_vitrine(w));
             rep = false;
             for (int k = 0; k < i; k++) if (out[k].tipo == out[i].tipo) rep = true;
         } while (rep && ++tent < 50);
@@ -39,7 +68,7 @@ static void sorteia_distintos(peca_t *out, int n, const float w[4])
 
 // ---------------------------------------------------------------------------
 // A loja: depois de cada mesa vencida, com as poucas moedas que ela rendeu.
-// A vitrine mostra 2 dados (3 com a Cartola); trocar a vitrine custa 1, 2, 3...
+// A vitrine mostra 2 dados (3 com a Cartola; 1 a menos com a Lata de Biscoito); trocar a vitrine custa 1, 2, 3...
 // na mesma loja; tirar um dado da bolsa custa 3, 5, 7... na run inteira. O
 // Cupom tira 1 de cada preco (nunca abaixo de 1).
 // ---------------------------------------------------------------------------
@@ -56,7 +85,7 @@ static int preco_run(int t)
 }
 static int preco_troca(void)  { return preco_ajusta(1 + run.trocas); }
 static int preco_remove(void) { return preco_ajusta(3 + 2 * run.remocoes); }
-static int n_vitrine(void)    { return (run_amuletos() >> A_CARTOLA & 1) ? 3 : 2; }
+static int n_vitrine(void)    { return ((run_amuletos() >> A_CARTOLA & 1) ? 3 : 2) - (run.bolsa == B_LATA); }
 
 // A vitrine sai da semente da run, da loja e de quantas vezes ja trocou:
 // sair e voltar mostra a mesma. Os saloes de cima trazem mais raros.
@@ -64,6 +93,11 @@ static const float PESO_VITRINE[DES_ANDARES][4] = {
     { 3, 4, 2.0f, 0.4f }, { 1.5f, 4, 3.5f, 0.8f }, { 0.5f, 3, 4.0f, 1.5f } };
 static const float *peso_do_salao(void) { return PESO_VITRINE[run.andar < DES_ANDARES ? run.andar : DES_ANDARES - 1]; }
 
+// A vitrine que sai (trocada, ou a loja acabou): os dados dela nao voltam.
+static void vitrine_vista(void)
+{
+    for (int i = 0; i < n_vitrine(); i++) if (!so_inicial(run.vitrine[i].tipo)) marca_visto(run.vitrine[i].tipo);
+}
 static void monta_vitrine(void)
 {
     rs = run.semente ^ (0x51ED27u * (uint32_t)(run.lojas * 16 + run.trocas + 1));
@@ -170,7 +204,7 @@ static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n
 
 // O pacote desta loja: o grupo, ao acaso entre os que tem dados bastantes,
 // e o que vem dentro (da semente: sair e voltar mostra o mesmo).
-static int sorteia_adesivo_loja(const uint8_t *fora, int n);
+static int sorteia_adesivo_loja(const uint8_t *fora, int n, bool so_novos);
 static int adesivos_abertos(void);
 static void monta_pacote(void)
 {
@@ -184,7 +218,7 @@ static void monta_pacote(void)
     if (adesivos_abertos() >= PAC_OPCOES && (!n || sorte_r(2))) {
         run.pacote = GR_ADESIVOS;
         uint8_t ja[PAC_OPCOES];
-        for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i].ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i);
+        for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i].ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i, false);
         return;
     }
     if (!n) { run.pacote = GR_NENHUM; run.pac_estado = PAC_USADO; return; }
@@ -197,44 +231,53 @@ static void monta_pacote(void)
 // da vitrine: no primeiro salao, os lendarios quase nao saem. Trocar a
 // vitrine nao muda o adesivo.
 static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
-static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco : 0); }
+static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco - (run.bolsa == B_LATA) : 0); }
 static int adesivos_abertos(void)
 {
     int n = 0;
     for (int a = AD_NADA + 1; a < AD_N; a++) n += adesivo_liberado(a);
     return n;
 }
-// Um adesivo aberto, pela raridade com os pesos do salao, fora os n de 'fora'.
-static int sorteia_adesivo_loja(const uint8_t *fora, int n)
+// Um adesivo aberto, pela raridade com os pesos do salao, fora os n de 'fora'
+// (so_novos: e os que ja estiveram a venda na run, enquanto houver outros).
+static int sorteia_adesivo_loja(const uint8_t *fora, int n, bool so_novos)
 {
     const float *w = peso_do_salao();
-    float total = 0;
-    for (int a = AD_NADA + 1; a < AD_N; a++) {
-        bool ja = false;
-        for (int k = 0; k < n; k++) ja |= fora[k] == a;
-        if (adesivo_liberado(a) && !ja) total += w[RAR_ADESIVO[a]];
+    for (int todos = !so_novos; todos < 2; todos++) {
+        float total = 0;
+        for (int a = AD_NADA + 1; a < AD_N; a++) {
+            bool ja = !todos && adesivo_visto(a);
+            for (int k = 0; k < n; k++) ja |= fora[k] == a;
+            if (adesivo_liberado(a) && !ja) total += w[RAR_ADESIVO[a]];
+        }
+        if (total <= 0) continue;
+        float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+        int r = AD_NADA;
+        for (int a = AD_NADA + 1; a < AD_N; a++) {
+            bool ja = !todos && adesivo_visto(a);
+            for (int k = 0; k < n; k++) ja |= fora[k] == a;
+            if (!adesivo_liberado(a) || ja) continue;
+            r = a;
+            if ((x -= w[RAR_ADESIVO[a]]) < 0) break;
+        }
+        return r;
     }
-    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
-    int r = AD_NADA;
-    for (int a = AD_NADA + 1; a < AD_N && total > 0; a++) {
-        bool ja = false;
-        for (int k = 0; k < n; k++) ja |= fora[k] == a;
-        if (!adesivo_liberado(a) || ja) continue;
-        r = a;
-        if ((x -= w[RAR_ADESIVO[a]]) < 0) break;
-    }
-    return r;
+    return AD_NADA;
 }
 static void monta_adesivo(void)
 {
     rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
     rnd_r();
-    run.adesivo = (uint8_t)sorteia_adesivo_loja(NULL, 0);
+    run.adesivo = (uint8_t)sorteia_adesivo_loja(NULL, 0, true);
     run.ad_vendido = 0;
 }
 
 static void monta_loja_run(void)
 {
+    if (run.lojas) {                             // o que a loja de antes mostrou nao volta
+        vitrine_vista();
+        marca_adesivo_visto(run.adesivo);
+    }
     if (run.lojas < 255) run.lojas++;
     run.trocas = 0;
     monta_vitrine();
@@ -243,8 +286,8 @@ static void monta_loja_run(void)
 }
 
 // ---------------------------------------------------------------------------
-// As mesas de um salao: tres oponentes, do mais facil ao mais dificil, e o
-// chefe. O salao inteiro aparece antes de comecar.
+// As mesas de um salao: dois oponentes, um facil e um dificil, e o chefe.
+// O salao inteiro aparece antes de comecar.
 // ---------------------------------------------------------------------------
 // O salao do Coringa: so ele.
 static void gera_salao_final(void)
@@ -284,6 +327,12 @@ static int mesas_do_salao(void)
     while (n < DES_PASSOS && run.no[n].tipo != NO_VAZIO) n++;
     return n;
 }
+// Quantas moedas a mesa p do salao vale (o salao do Coringa, nenhuma).
+static int moedas_mesa(int p)
+{
+    if (run.andar >= DES_ANDARES || p < 0 || p >= DES_PASSOS || run.no[p].tipo > NO_CHEFE) return 0;
+    return MOEDAS_MESA[run.andar][run.no[p].tipo];
+}
 
 static void gera_andar(void)
 {
@@ -291,9 +340,10 @@ static void gera_andar(void)
     rs = run.semente ^ (0x9E3779B9u * (uint32_t)(run.andar + 1));
     rnd_r(); rnd_r();
     uint32_t usados = 0;
-    for (int p = 0; p < DES_PASSOS - 1; p++) {
+    for (int p = 0; p < DES_PASSOS; p++) run.no[p].tipo = NO_VAZIO;
+    for (int p = 0; p < DES_MESAS - 1; p++) {
         no_t *no = &run.no[p];
-        no->tipo = (uint8_t)p;                   // NO_FACIL, NO_MEDIO, NO_DIFICIL
+        no->tipo = (uint8_t)(p == 0 ? NO_FACIL : NO_DIFICIL);
         no->semente = rnd_r() | 1;
         int pe, tent = 0;
         // O Novato nao senta na mesa dificil.
@@ -304,7 +354,7 @@ static void gera_andar(void)
         no->perso = (uint8_t)pe;
         no->nivel = NIVEL_NO[run.andar][no->tipo];
     }
-    no_t *chefe = &run.no[DES_PASSOS - 1];
+    no_t *chefe = &run.no[DES_MESAS - 1];
     chefe->tipo = NO_CHEFE;
     chefe->perso = (uint8_t)(PERSO_CHEFE0 + run.andar);
     chefe->nivel = NIVEL_NO[run.andar][3];
@@ -313,7 +363,7 @@ static void gera_andar(void)
     // o Papai Noel no lugar do Barao.
     if (dezembro) {
         static const uint8_t DE_NATAL[DES_ANDARES] = { PERSO_RENA, PERSO_DUENDE, PERSO_RANZINZA };
-        run.no[sorte_r(DES_PASSOS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
+        run.no[sorte_r(DES_MESAS - 1)].perso = DE_NATAL[run.andar < DES_ANDARES ? run.andar : 0];
         if (run.andar == 2) chefe->perso = PERSO_NOEL;
     }
 }

@@ -75,26 +75,28 @@ static void lado_vira(int j, int k, int v)
     F[j].lado[k] = (uint8_t)(v >= ad_lado_min(t) && v <= ad_lado_max(t) ? v : 0);
 }
 
-// Nao anulavel: nada o anula - nem a queda da fila, nem o Agouro, nem o
-// Egoista, nem Carrasco ou Invejoso. Sao o Escudo, o Teimoso, a Sanguessuga,
-// o Vazio e o Universo.
-// Intocavel: alem disso, nenhum ataque o alcanca (nao pode ser roubado).
-// O Escudo e o Universo.
+// As duas protecoes, e so elas. Nao anulavel: nada o anula - nem a queda da
+// sequencia, nem o Agouro, nem o Egoista, nem ataque nenhum. Sao o Escudo, o
+// Teimoso, a Sanguessuga, o Vazio, o Egoista e o Universo.
+// Nao roubavel: ninguem o rouba. O Escudo e o Universo.
+// (O Universo vai alem: nada interfere nele - ver universo.)
 static bool nao_anulavel_t(int t)
 {
     int ef = TIPO[t].efeito;
-    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO || ef == EF_UNIVERSO;
+    return ef == EF_ESCUDO || ef == EF_TEIMOSO || ef == EF_SANGUESSUGA || ef == EF_VAZIO || ef == EF_EGOISTA
+        || ef == EF_UNIVERSO;
 }
-static bool intocavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO || TIPO[t].efeito == EF_UNIVERSO; }
-// O mesmo, pela posicao: o dado preso pela Ancora tambem.
-static bool intocavel(int j, int k) { return intocavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
+static bool nao_roubavel_t(int t) { return TIPO[t].efeito == EF_ESCUDO || TIPO[t].efeito == EF_UNIVERSO; }
+// O mesmo, pela posicao: o dado preso pela Ancora ganha as duas.
+static bool nao_roubavel(int j, int k) { return nao_roubavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
+// O Universo: nada interfere nele - nenhum dado, adesivo, amuleto ou trunfo,
+// de quem for, mexe no que ele tira (nem o copia, nem o embrulha).
+static bool universo(int j, int k) { return tipo_de(j, k) == D_UNIVERSO; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
 static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
-// O Transparente no lado de cima tambem segura o dado, como o Teimoso.
+// Nao anulavel agora: pelo tipo, preso pela Ancora ou com o Transparente no
+// lado de cima.
 static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
-// Quem nao cai quando o Egoista chega: os nao anulaveis e outro Egoista.
-static bool resiste_egoista(int t) { return nao_anulavel_t(t) || TIPO[t].efeito == EF_EGOISTA; }
-static bool resiste_ego(int j, int k) { return resiste_egoista(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -103,7 +105,7 @@ static int maior_do_rival(int j)
     const fila_t *r = &F[outro(j)];
     int vale = 0, qualquer = 0;
     for (int i = 0; i < r->lancados; i++) {
-        if (r->escondido[i]) continue;               // o Oculto ainda nao mostrou
+        if (r->escondido[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto ainda nao mostrou; o Universo, ninguem copia
         if (r->valor[i] > qualquer) qualquer = r->valor[i];
         if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
     }
@@ -121,7 +123,7 @@ static int egoista_antes(int j, int k)
 static int soma(int j, const uint8_t *est)
 {
     const fila_t *f = &F[j];
-    int t = 0;
+    int t = -lapis_pena(j);                      // o Estojo de Lapis: a rodada comeca com -4
     for (int k = 0; k < f->lancados; k++)
         if (est[k] == V_VALIDO) t += valor_pontos(j, k) + f->bonus[k];
     return t;
@@ -246,8 +248,7 @@ static void aplica_regra(int j, int k)
     if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
     if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
-    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_VIDRO && ef != EF_TUDO_NADA && ef != EF_ESPELHO && ef != EF_SORTE_REVES
-        && ef != EF_TREVO && ef != EF_BUMERANGUE) {
+    if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_UNIVERSO) {
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
         snprintf(f->tag[k], sizeof f->tag[k], "=3");
@@ -276,9 +277,9 @@ static void aplica_regra(int j, int k)
         return;
     }
 
-    // Egoista na fila: nenhum dado novo vale ao lado dele (menos o Escudo).
+    // Egoista na fila: nenhum dado novo vale ao lado dele (menos os nao anulaveis).
     int ego = egoista_antes(j, k);
-    if (ego >= 0 && !resiste_ego(j, k)) {
+    if (ego >= 0 && !firme(j, k)) {
         f->est[k] = V_ANULADO;
         anulou_b = k;
         resistiu = ego;
@@ -287,13 +288,14 @@ static void aplica_regra(int j, int k)
         f->pontos = soma(j, f->est);
         return;
     }
-    // Egoista chegando: anula todos os outros que valiam, e vale sozinho.
+    // Egoista chegando: anula todos os outros que valiam, e vale sozinho. Ele
+    // e nao anulavel: nem a queda da sequencia o derruba.
     if (ef == EF_EGOISTA) {
         uint8_t *est = f->est;
         est[k] = V_VALIDO;
         int n = 0;
         for (int i = 0; i < k; i++)
-            if (est[i] == V_VALIDO && !resiste_ego(j, i)) {
+            if (est[i] == V_VALIDO && !firme(j, i)) {
                 est[i] = V_ANULADO;
                 anulou_masc |= (uint8_t)(1 << i);
                 n++;
@@ -301,18 +303,6 @@ static void aplica_regra(int j, int k)
         if (n) snprintf(veredito, sizeof veredito, "Egoísta tirou %d e anulou %d dado%s", v, n, n > 1 ? "s" : "");
         else   snprintf(veredito, sizeof veredito, "Egoísta pontua %d, sozinho", v);
         ver_tipo = n ? 4 : 0;
-        // Ele nao se anula, mas pode cair: se sobrou antes dele um dado que
-        // resiste (Escudo, Teimoso) maior que ele, a queda da sequencia vale.
-        int l2 = ultimo_da_regra(j, est, k);
-        if (l2 >= 0 && cai_depois(j, v, f->valor[l2])) {
-            bool esc_l = firme(j, l2);
-            if (!esc_l) { est[l2] = V_ANULADO; anulou_a = l2; }
-            est[k] = V_ANULADO;
-            anulou_b = k;
-            resistiu = esc_l ? l2 : -1;
-            snprintf(veredito, sizeof veredito, "%d < %d: o Egoísta é anulado", v, f->valor[l2]);
-            ver_tipo = esc_l ? 2 : 1;
-        }
         f->pontos = soma(j, f->est);
         return;
     }
@@ -425,19 +415,23 @@ static void aplica_regra(int j, int k)
         }
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
+        // Nada mexe no Universo: nenhum amuleto nem trunfo.
         int am_b = 0;
-        if (tem_am(j, A_OURO) && v == TIPO[t].lados && ef != EF_ESPELHO) { am_b += 2; am_disparou |= AM_BIT(A_OURO); }
-        if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= AM_BIT(A_PENA); }
-        if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= AM_BIT(A_PESADO); }
-        if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo
-        if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= AM_BIT(A_COROA); }
-        if (j == 1 && rodada >= 6 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
-        if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
-        if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
-        if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= AM_BIT(A_DESFORRA); }
-        if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
-        if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= AM_BIT(A_CORINGA); }
-        if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= AM_BIT(A_TRINCA); }
+        if (ef != EF_UNIVERSO) {
+            if (tem_am(j, A_OURO) && v == TIPO[t].lados) { am_b += 2; am_disparou |= AM_BIT(A_OURO); }
+            if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= AM_BIT(A_PENA); }
+            if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= AM_BIT(A_PESADO); }
+            if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo
+            if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= AM_BIT(A_COROA); }
+            if (j == 1 && rodada >= 6 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
+            if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
+            if (j == 1 && virada_forca(0)) am_b += 1;                                 // a casa tem vantagem
+            if (tem_am(j, A_DESFORRA) && J[j].perdeu_ultima) { am_b += 1; am_disparou |= AM_BIT(A_DESFORRA); }
+            if (j == 1 && tem_reg(REG_MALUCO)) am_b += maluco_lado;                   // a moeda do Maluco
+            if (k == 0 && tem_am(j, A_CORINGA)) { am_b += 2; am_disparou |= AM_BIT(A_CORINGA); }
+            if (tem_am(j, A_TRINCA) && v == 3 && !espera) { am_b += 3; am_disparou |= AM_BIT(A_TRINCA); }
+            am_b += sementes_bonus(j);                                                // o Saco de Sementes
+        }
         if (corrimao) am_disparou |= AM_BIT(A_CORRIMAO);
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);

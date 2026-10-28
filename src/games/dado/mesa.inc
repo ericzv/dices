@@ -816,7 +816,7 @@ static void desenha_fila(int j)
     int y = zona(j);
     bool no_desfecho = fase == F_EFEITOS || fase == F_RESULTADO;
     bool pisca = fase == F_VEREDITO && j == vez && ((int)(t_fase * 7) % 2 == 0);
-    const evento_t *e = (fase == F_EFEITOS && ev_i < n_ev) ? &ev[ev_i] : NULL;
+    const evento_t *e = (fase == F_EFEITOS && ev_i < n_ev && t_respiro < 0) ? &ev[ev_i] : NULL;
     float p = e ? t_fase / duracao_evento(ev_i) : 0;
     const int R = R_DADO;
 
@@ -847,8 +847,7 @@ static void desenha_fila(int j)
             continue;
         }
         dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, j == 0 && k >= f->lancados && f->idx[k] == embrulho ? DICA_EMBRULHO : t);
-        if (k >= f->lancados) {
-            lugar_marcado(x, y, R - 2);
+        if (k >= f->lancados) {                  // ainda vai sair: o dado menor, sem nada atras
             marca_nivel = f->fixo[k];
             caixa_fechada = j == 0 && f->idx[k] == embrulho;
             desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
@@ -998,7 +997,10 @@ static void desenha_fila(int j)
         // Durante a sequencia: o dado que tirou o que o poder dele pede brilha.
         if (!no_desfecho && fase != F_FIM && giro < 0.5f) {
             int arm = poder_armado(j, k);
-            if (arm) brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
+            if (arm) {
+                brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
+                anima_poder(x, (int)(y - pulo), R, t, k * 0.37f + j * 0.19f);   // e o desenho do que ele vai fazer
+            }
         }
         // O ciclo cosmico que vai evoluir: uma estrelinha gira em volta dele.
         if (f->evolui[k] && t != D_UNIVERSO && f->idx[k] >= 0 && k < f->lancados && fase != F_FIM && giro < 0.5f
@@ -1636,7 +1638,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 // pontos que saem de um placar e entram no outro.
 static void desenha_evento(void)
 {
-    if (fase != F_EFEITOS || ev_i >= n_ev) return;
+    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
     if (e->tipo == EV_AVISO) return;             // so o texto (e o amuleto acende na faixa)

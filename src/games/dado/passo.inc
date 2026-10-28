@@ -193,11 +193,15 @@ void dado_passo(float dt)
         }
         break;
     case F_EFEITOS:
+        if (t_respiro >= 0) {                      // o respiro: o resultado deste fica a vista, e so entao o seguinte
+            if ((t_respiro += dt_real) > EV_RESPIRO) proximo_evento();
+            break;
+        }
         if (t_fase > duracao_evento(ev_i)) {
             aplica_evento(ev_i);
             golpe_evento(&ev[ev_i]);
             if (t_congela > 0) ev_espera = true;   // a mesa para mostrando este; o seguinte espera
-            else proximo_evento();
+            else t_respiro = 0;
         }
         break;
     default:

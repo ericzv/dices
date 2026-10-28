@@ -2269,7 +2269,6 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (x0 > x1 || y0 > y1) return;
     for (int y = y0 - 1; y <= y1 + 1; y++)
         for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
-    if (sombra) sombra_px(fb, (int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f));   // a sombra, por baixo
     gfx_desvia(px_buf);
     px_dentro = true;
     px_sem_sombra = sombra;
@@ -2286,6 +2285,21 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                 && nb < max_b) px_borda[nb++] = i;
         }
     for (int k = 0; k < nb; k++) px_buf[px_borda[k]] = C_BARRA;
+    // A sombra: a propria silhueta (com o contorno) deslocada para baixo e a
+    // direita, onde o dado nao cobre; o miolo cheio e a beira (o que veio do
+    // contorno) pontilhada. Um disco ficava sobrando em volta do D4.
+    if (sombra) {
+        int dx = so + alt, dy = so + 1 + alt;
+        for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++) {
+                uint16_t c = px_buf[y * GFX_W + x];
+                int X = x + dx, Y = y + dy;
+                if (c == CHAVE || X > GFX_W - 1 || Y > GFX_H - 1) continue;
+                if (X <= x1 && Y <= y1 && px_buf[Y * GFX_W + X] != CHAVE) continue;   // o dado cobre
+                if (c == C_BARRA && bayer(X, Y) >= 0.5f) continue;                     // a beira, a meio tom
+                fb[Y * GFX_W + X] = C_SOMBRA;
+            }
+    }
     for (int y = y0; y <= y1; y++)                      // cola o que nao e fundo
         for (int x = x0; x <= x1; x++) {
             uint16_t c = px_buf[y * GFX_W + x];

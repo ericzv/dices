@@ -159,6 +159,8 @@ static int8_t congela_j = -1;
 static uint8_t congela_masc;             // dados de congela_j que clareiam; bit N_FILA: o placar
 static void golpe(int j, unsigned masc);
 static bool ev_espera;                   // o golpe segurou o comeco do efeito seguinte
+static float t_respiro = -1;             // a pausa entre um efeito e o seguinte (>= 0: correndo)
+#define EV_RESPIRO 0.4f                  // segundos de verdade: o resultado de um efeito fica a vista
 // Um numero que conta ate o valor de verdade em vez de pular (hora.inc): o
 // placar de cada fila e, no Desafiante, as moedas.
 typedef struct { float vis, pulo; int mostra, sinal, n_som; } contador_t;

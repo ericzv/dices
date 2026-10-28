@@ -50,6 +50,7 @@ void gfx_quantiza(void)
 
 static uint16_t *desvio;
 void gfx_desvia(uint16_t *buf) { desvio = buf; }
+uint16_t *gfx_alvo(void) { return desvio; }
 #define FB (desvio ? desvio : display_fb())
 
 void gfx_clear(uint16_t c)

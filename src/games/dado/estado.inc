@@ -150,6 +150,12 @@ static int   onda_j, onda_n, onda_nivel;
 static float t_tremor, tremor_dur, tremor_px;
 static bool  tremor_off, tremor_lido;
 static float t_aviso_tremor;
+// O modo Pixel (tecla P): 0 o desenho de sempre; 1 pontilhado (Bayer, aro em
+// rampa, contorno escuro, luz de cena); 2 o mesmo, com o dado e a luz em
+// pixels de 2x2. Comeca desligado; fica guardado.
+static int   pixel_nivel;
+static bool  pixel_lido;
+static float t_aviso_pixel;
 static void crescendo(int j, int nivel);
 static void reage_evento(const evento_t *e);
 // O golpe: nos lances grandes a mesa para alguns quadros, com um clarao em

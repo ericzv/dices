@@ -85,7 +85,7 @@ void dado_tecla(const key_event_t *ev_)
         char g[2] = { VEL_GRAVA[velocidade], 0 };
         salva_grava("vel", g);
         t_aviso_vel = 1.6f;
-        t_aviso_tremor = 0;
+        t_aviso_tremor = t_aviso_pixel = 0;
         som_toca(SOM_TIQUE);
         return;
     }
@@ -93,7 +93,16 @@ void dado_tecla(const key_event_t *ev_)
         tremor_off = !tremor_off;
         salva_grava("tremor", tremor_off ? "0" : "1");
         t_aviso_tremor = 1.6f;
-        t_aviso_vel = 0;
+        t_aviso_vel = t_aviso_pixel = 0;
+        som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == 'p' && !dado_digitando()) {           // o modo Pixel: desligado, pontilhado, 2x
+        pixel_nivel = (pixel_nivel + 1) % 3;
+        char g[2] = { (char)('0' + pixel_nivel), 0 };
+        salva_grava("pixel", g);
+        t_aviso_pixel = 1.6f;
+        t_aviso_vel = t_aviso_tremor = 0;
         som_toca(SOM_TIQUE);
         return;
     }

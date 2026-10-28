@@ -37,6 +37,104 @@ static uint32_t hash2(int x, int y)
     return h;
 }
 
+// ---------------------------------------------------------------------------
+// O modo Pixel (tecla P; pixel_nivel em estado.inc). Todo degrade escolhe,
+// pixel a pixel, entre dois tons vizinhos de uma rampa da paleta pelo limiar
+// de uma matriz de Bayer 4x4 presa a tela: nada de misturar cores e deixar a
+// quantizacao decidir. No 2x o dado e desenhado em meia escala, entao o
+// limiar ja cai em blocos de 2x2 (x >> 1, y >> 1) da tela.
+// ---------------------------------------------------------------------------
+static const uint8_t BAYER4[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+static float bayer(int x, int y) { return (BAYER4[y & 3][x & 3] + 0.5f) / 16; }
+static bool px_meia;                     // desenhando o dado em meia escala (o 2x)
+
+// As familias da paleta (cores.inc): o aro em rampa sai da familia da cor
+// dele, do escuro ao claro, dois tons abaixo e um acima; faltando tom, entra
+// a familia mais perto (os escuros quentes embaixo, o marfim em cima).
+static const uint8_t PX_FAMILIA[][2] = { { 0, 6 }, { 6, 10 }, { 10, 14 }, { 21, 23 }, { 23, 27 }, { 27, 32 },
+                                         { 32, 38 }, { 38, 40 }, { 40, 44 }, { 44, 46 }, { 46, 50 } };
+static uint16_t cor_de_dado(uint16_t c);
+static int brilho_de(uint16_t c);
+static void rampa_de(uint16_t c, uint16_t *r)
+{
+    int n = (int)(sizeof PALETA / sizeof PALETA[0]), i = 0;
+    while (i < n && PALETA[i] != c) i++;
+    if (i == n) { c = cor_de_dado(c); for (i = 0; i < n && PALETA[i] != c; i++) {} }
+    if (i == n) { r[0] = r[1] = r[2] = r[3] = c; return; }
+    int a = i, b = i + 1;
+    for (unsigned f = 0; f < sizeof PX_FAMILIA / sizeof PX_FAMILIA[0]; f++)
+        if (i >= PX_FAMILIA[f][0] && i < PX_FAMILIA[f][1]) { a = PX_FAMILIA[f][0]; b = PX_FAMILIA[f][1]; }
+    uint16_t L[12] = { 0 };
+    int nl = 0;
+    if (a > 0) {                                  // os escuros embaixo (o marfim desce ao pardo)
+        L[nl++] = PALETA[a == 10 ? 4 : 2];
+        L[nl++] = PALETA[a == 10 ? 5 : 3];
+    }
+    int f0 = nl;
+    for (int k = a; k < b; k++) L[nl++] = PALETA[k];
+    for (int p = f0 + 1; p < nl; p++)             // a familia do escuro ao claro
+        for (int q = p; q > f0 && brilho_de(L[q]) < brilho_de(L[q - 1]); q--) { uint16_t t = L[q]; L[q] = L[q - 1]; L[q - 1] = t; }
+    if (a != 10) L[nl++] = PALETA[a == 27 ? 10 : 11];   // e o marfim em cima
+    int j = 0;
+    while (j < nl && L[j] != PALETA[i]) j++;
+    r[0] = L[j - 2 >= 0 ? j - 2 : 0];
+    r[1] = L[j - 1 >= 0 ? j - 1 : 0];
+    r[2] = L[j];
+    r[3] = L[j + 1 < nl ? j + 1 : nl - 1];
+}
+
+// Um tom da rampa de 4 pela luz l (-1 de costas, 1 de frente para a luz de
+// cima, a esquerda): faixas cheias, com o pontilhado so na passagem.
+static uint16_t tom_rampa(const uint16_t *r, float l, int x, int y)
+{
+    float f = (l + 1) * 1.5f;                     // 0..3
+    int k = (int)floorf(f);
+    float fr_ = f - k;
+    fr_ = (fr_ - 0.5f) * 2.4f + 0.5f;            // a passagem, mais estreita
+    if (fr_ > 0 && (fr_ >= 1 || bayer(x, y) < fr_)) k++;
+    return r[k < 0 ? 0 : k > 3 ? 3 : k];
+}
+static float luz_de(float dx, float dy)
+{
+    float d = sqrtf(dx * dx + dy * dy);
+    return d < 0.5f ? 0 : -(dx + dy) / (d * 1.4142f);
+}
+
+// O aro do modo Pixel: o poligono (n > 0) ou o disco (n == 0, raio R) cheio,
+// cada pixel no tom da rampa pela direcao em que a borda olha.
+static void aro_rampa(const float *vx, const float *vy, int n, float cx, float cy, int R, uint16_t aro)
+{
+    uint16_t r[4];
+    rampa_de(aro, r);
+    int y0, y1;
+    if (n) {
+        float ymin = vy[0], ymax = vy[0];
+        for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
+        y0 = (int)ceilf(ymin); y1 = (int)floorf(ymax);
+    } else { y0 = (int)cy - R; y1 = (int)cy + R; }
+    for (int y = y0; y <= y1; y++) {
+        float xs[16];
+        int nx = 0;
+        if (n) {
+            for (int i = 0; i < n && nx < 16; i++) {
+                int j = (i + 1) % n;
+                float ya = vy[i], yb = vy[j];
+                if ((ya <= y && yb > y) || (yb <= y && ya > y)) xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
+            }
+            for (int a = 1; a < nx; a++)
+                for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
+        } else {                                  // o mesmo disco de gfx_disco
+            int dy = y - (int)cy, w = 0;
+            if (dy * dy > R * R + R) continue;
+            while ((w + 1) * (w + 1) + dy * dy <= R * R + R) w++;
+            xs[0] = (float)((int)cx - w); xs[1] = (float)((int)cx + w); nx = 2;
+        }
+        for (int k = 0; k + 1 < nx; k += 2)
+            for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++)
+                gfx_pixel(x, y, tom_rampa(r, luz_de(x - cx, y - cy), x, y));
+    }
+}
+
 // A forma diz quantos lados o dado tem antes de qualquer numero:
 // moeda redonda, d4 triangulo, d6 quadrado de canto aparado, d8 losango,
 // d12 pentagono, d20 hexagono, d100 a esfera.
@@ -88,7 +186,8 @@ static int forma(int lados, float cx, float cy, float r, float ang,
     return n;
 }
 
-static void pips(int cx, int cy, int v, int r, uint16_t c)
+// luz: o tom da beira do furo, no modo Pixel (0: o furo liso de sempre).
+static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 {
     int o = r * 5 / 11;
     static const int8_t P[7][6][2] = {
@@ -100,8 +199,13 @@ static void pips(int cx, int cy, int v, int r, uint16_t c)
     int pr = r / 7 > 1 ? r / 7 : 1;
     for (int i = 0; i < v; i++) {
         int x = cx + P[v][i][0] * o, y = cy + P[v][i][1] * o;
+        if (r < 12 && px_meia && r >= 6) { gfx_rect(x - 1, y - 1, 2, 2, c); continue; }   // no 2x, 2 vira 4
         if (r < 12) { gfx_rect(x - 1, y - 1, 3, 3, c); continue; }
         gfx_disco(x, y, pr, c);
+        if (luz) {                                // o furo com relevo: a luz bate na beira de baixo, a direita
+            gfx_pixel(x + pr - 1, y + pr - 1, luz);
+            if (pr >= 3) { gfx_pixel(x + pr - 2, y + pr - 1, luz); gfx_pixel(x + pr - 1, y + pr - 2, luz); }
+        }
     }
 }
 
@@ -181,6 +285,10 @@ static int sr_lado;
 static void numero(float cx, float cy, float r, const char *s, uint16_t c)
 {
     int e = r >= 34 ? 2 : 1;
+    if (px_meia && (r < 11 || gfx_largura(s, 1) > r * 1.5f)) {   // no 2x: a fonte, se couber; senao a miuda
+        gfx_texto((int)cx - gfx_largura(s, GFX_MIUDO) / 2, (int)cy - 7, s, c, GFX_MIUDO, false);
+        return;
+    }
     gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
 }
 
@@ -1350,7 +1458,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
                     float reflexo = mat_desta == MAT_BRONZE ? 2.1f : mat_desta == MAT_BOLA ? 2.6f   // o metal e o espelho
                                   : mat_desta == MAT_VELUDO || mat_desta == MAT_BISCOITO ? 0.7f : 1.6f;  // foscos
-                    float luz = -(dx + dy) * s * 0.75f
+                    float luz = -(dx + dy) * s * (pixel_nivel ? 1.1f : 0.75f)    // no modo Pixel, mais volume
                               + reflexo * fmaxf(0, 1 - (hx * hx + hy * hy) / 0.045f);
                     bool perola = mat_desta == MAT_PEROLA || mat_desta == MAT_PEROLA_NEGRA;
                     if (mat_desta == MAT_MADEIRA) {                           // o veio: aneis largos e tortos
@@ -1365,11 +1473,13 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     } else if (mat_desta == MAT_VELUDO) {                     // o pelo: miudo, e a beira mais clara
                         luz += 0.30f * ruido(u * s / 0.08f + desvio, v * s / 0.08f) + 0.9f * fmaxf(0, (dx * dx + dy * dy) * s * s - 0.62f);
                     } else {
-                        luz += 0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
-                             + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
+                        float k = pixel_nivel ? 0.5f : 1;          // no modo Pixel, metade da mancha
+                        luz += k * (0.32f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
+                                    + 0.14f * ruido(u * s / 0.15f, v * s / 0.15f + desvio));
                     }
                     if (padrao(tex, u, v, r / 22)) luz -= 1;
-                    int nivel = (int)lroundf(luz);
+                    // No modo Pixel, o tom pelo limiar de Bayer: entre os dois vizinhos, pontilhado.
+                    int nivel = pixel_nivel ? (int)floorf(luz + bayer(x, y)) : (int)lroundf(luz);
                     nivel = nivel < -2 ? -2 : nivel > 2 ? 2 : nivel;
                     c = tons[nivel + 2];
                     if (perola && (nivel == 0 || nivel == 1)) {               // o furta-cor, em faixas
@@ -1915,8 +2025,9 @@ static void furia_selo(float cx, float cy, float r, int b, bool ouro)
     gfx_texto(x + 3, y - 2, t, ouro ? C_OURO : b > 0 ? C_AMARELO : C_VINHO_CLR, GFX_MIUDO, false);
 }
 
-static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
-                         float ang, int valor, int vista, bool zerado)
+static bool px_sem_sombra;               // o modo Pixel faz a sombra (pontilhada) por fora
+static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
+                              float ang, int valor, int vista, bool zerado)
 {
     brilho_desta = brilho_passa;                  // o brilho de passagem e so deste dado
     brilho_passa = -1;
@@ -2018,7 +2129,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         if (zerado && vista) risca(cx, cy, r);
         return;
     }
-    gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
+    if (!px_sem_sombra) gfx_disco((int)cx + so + alt, (int)cy + so + 1 + alt, (int)(r - alt * 0.2f), C_SOMBRA);   // sombra no feltro
     if (tipo == D_FOGO || tipo == D_TUDO_NADA) {
         if (tipo == D_FOGO) ficha_de_fogo(cx, cy, r, ea, ang, valor, vista, zerado);
         else tudo_ou_nada(cx, cy, r, ang, vista == 0 ? -1 : valor, zerado);
@@ -2041,14 +2152,16 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         brilho = tipo == D_GALAXIA || tipo == D_UNIVERSO ? RGB(102, 74, 138) : tipo == D_BURACO ? RGB(62, 56, 50) : RGB(56, 86, 150);
     if (lados == 2 || lados == 100) {             // a moeda e a esfera do Universo
         int ri = (int)(r - ea);
-        gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
+        if (pixel_nivel && !zerado) aro_rampa(NULL, NULL, 0, cx, cy, (int)(r + ea), aro);   // o aro em rampa
+        else gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
         gfx_disco((int)cx, (int)cy, ri, brilho);
         if (desenha) pinta_corpo(NULL, NULL, 0, cx + 1, cy + 1, ri - 1, tipo, tons, cores, cx, cy, ang, r);
         else gfx_disco((int)cx + 1, (int)cy + 1, ri - 1, corpo);
     } else {
         float vx[12], vy[12], dx = ea * 0.8f;
         int n = forma(lados, cx, cy, r + ea, ang, vx, vy);
-        poligono(vx, vy, n, aro);
+        if (pixel_nivel && !zerado) aro_rampa(vx, vy, n, cx, cy, 0, aro);   // o aro em rampa
+        else poligono(vx, vy, n, aro);
         n = forma(lados, cx, cy, r - ea, ang, vx, vy);
         poligono(vx, vy, n, brilho);
         if (r >= 12) {
@@ -2116,7 +2229,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && TIPO[tipo].efeito != EF_ASTRO
         && valor >= 1 && valor <= 6 && (!zerado || so_apagado)) {
-        pips((int)cx, (int)cy, valor, (int)r, tinta);
+        uint16_t luz = pixel_nivel ? cor_de_dado(gfx_mistura(tinta, corpo, 45)) : 0;   // o furo com relevo
+        pips_luz((int)cx, (int)cy, valor, (int)r, tinta, luz == tinta ? 0 : luz);
     } else {
         snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
         numero_contorno(cx, cy, r, s, tinta, contorno);
@@ -2124,10 +2238,85 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (zerado) risca(cx, cy, r);
 }
 
+// ---- O modo Pixel: o dado num rascunho, colado com o contorno -------------
+// O dado (aro, corpo, numero) e desenhado no rascunho do Pixel e colado no
+// destino de agora (a tela, ou o rascunho da moeda girando) com um contorno
+// de 1 px em C_BARRA por fora da silhueta (vizinhos em cruz). A sombra vem
+// por baixo, com o miolo cheio e a beira pontilhada. No 2x, tudo em meia
+// escala (o contorno tambem) e cada pixel vira 2x2 na tela.
+#define CHAVE 0xF81F                                   // magenta: fundo do rascunho
+static uint16_t px_buf[GFX_W * GFX_H];
+static int px_borda[GFX_W * GFX_H / 4];
+static bool px_dentro;
+
+static void sombra_px(uint16_t *buf, int cx, int cy, int R, bool so_chave)
+{
+    if (R < 1) return;
+    float b = R >= 6 ? 2.5f : 1.5f;                     // a largura da beira pontilhada
+    for (int y = cy - R - 1; y <= cy + R + 1; y++)
+        for (int x = cx - R - 1; x <= cx + R + 1; x++) {
+            if (x < 0 || y < 0 || x >= GFX_W || y >= GFX_H) continue;
+            float d = sqrtf((float)((x - cx) * (x - cx) + (y - cy) * (y - cy)));
+            float q = (R + 0.5f - d) / b;               // 1 no miolo, 0 fora
+            if (q <= 0 || (q < 1 && bayer(x, y) >= q)) continue;
+            uint16_t *p = &buf[y * GFX_W + x];
+            if (!so_chave || *p == CHAVE) *p = C_SOMBRA;
+        }
+}
+
+static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
+                         float ang, int valor, int vista, bool zerado)
+{
+    if (!pixel_nivel || px_dentro) { desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado); return; }
+    uint16_t *alvo = gfx_alvo(), *fb = alvo ? alvo : display_fb();
+    bool meia = pixel_nivel == 2 && r >= 12;
+    int so = r < 12 ? 2 : (int)(r / 6), alt = (int)sombra_alt;
+    int scx = (int)cx + so + alt, scy = (int)cy + so + 1 + alt, sr = (int)(r - alt * 0.2f);
+    bool sombra = tipo != D_VAZIO;                      // o Vazio faz a dele (as linhas)
+    float bcx = meia ? floorf(cx / 2) : cx, bcy = meia ? floorf(cy / 2) : cy, br = meia ? r / 2 : r;
+    int m = (int)(br * 1.7f) + 8;
+    int x0 = (int)bcx - m, y0 = (int)bcy - m, x1 = (int)bcx + m, y1 = (int)bcy + m;
+    if (x0 < 1) x0 = 1;
+    if (y0 < 1) y0 = 1;
+    if (x1 > GFX_W - 2) x1 = GFX_W - 2;
+    if (y1 > GFX_H - 2) y1 = GFX_H - 2;
+    if (x0 > x1 || y0 > y1) return;
+    for (int y = y0 - 1; y <= y1 + 1; y++)
+        for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
+    if (sombra && !meia) sombra_px(fb, scx, scy, sr, false);   // a sombra, por baixo
+    gfx_desvia(px_buf);
+    px_dentro = true;
+    px_sem_sombra = sombra;
+    px_meia = meia;
+    desenha_dado_base(bcx, bcy, br, tipo, dono, ang, valor, vista, zerado);
+    px_dentro = px_sem_sombra = px_meia = false;
+    gfx_desvia(alvo);
+    // O contorno: o fundo que encosta na silhueta, em cruz.
+    int nb = 0, max_b = (int)(sizeof px_borda / sizeof px_borda[0]);
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++) {
+            int i = y * GFX_W + x;
+            if (px_buf[i] != CHAVE) continue;
+            if ((px_buf[i - 1] != CHAVE || px_buf[i + 1] != CHAVE || px_buf[i - GFX_W] != CHAVE || px_buf[i + GFX_W] != CHAVE)
+                && nb < max_b) px_borda[nb++] = i;
+        }
+    for (int k = 0; k < nb; k++) px_buf[px_borda[k]] = C_BARRA;
+    if (sombra && meia) sombra_px(px_buf, scx / 2, scy / 2, sr / 2, true);   // no 2x, a sombra tambem em meia escala
+    // Cola: o que nao e fundo; no 2x, cada pixel em 2x2.
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++) {
+            uint16_t c = px_buf[y * GFX_W + x];
+            if (c == CHAVE) continue;
+            if (!meia) { fb[y * GFX_W + x] = c; continue; }
+            int X = 2 * x, Y = 2 * y;
+            if (X + 1 >= GFX_W || Y + 1 >= GFX_H) continue;
+            fb[Y * GFX_W + X] = fb[Y * GFX_W + X + 1] = fb[(Y + 1) * GFX_W + X] = fb[(Y + 1) * GFX_W + X + 1] = c;
+        }
+}
+
 // Moeda girando no ar: a arte de verdade da ficha (desenhada num rascunho)
 // colada achatada na horizontal, pela largura aparente |escx|. Quando ela
 // passa de lado, aparece a espessura.
-#define CHAVE 0xF81F                                   // magenta: fundo do rascunho
 static uint16_t rascunho[GFX_W * GFX_H];
 
 static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, float escx, int face)
@@ -2948,16 +3137,18 @@ static void pinta_mesa_toda(void)
     // outra mais clara ou mais escura.
     static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
     const uint16_t TOM[3] = { C_FELTRO, C_FELTRO_MEIO, C_FELTRO_ESC };
+    bool px2 = pixel_nivel == 2;                          // no modo Pixel 2x, o grao em blocos de 2x2
     for (int y = MESA_Y0; y < MESA_Y1; y++)
         for (int x = MESA_X0; x < MESA_X1; x++) {
-            float dx = (x - cx) / ax, dy = (y - cy) / ay;
+            int gx = px2 ? x >> 1 : x, gy = px2 ? y >> 1 : y, qx = px2 ? x & ~1 : x, qy = px2 ? y & ~1 : y;
+            float dx = (qx - cx) / ax, dy = (qy - cy) / ay;
             float v = (dx * dx * 0.6f + dy * dy) * 1.5f - 0.15f;
             if (v < 0) v = 0;
             int i = (int)v;
             if (i >= 2) i = 2;
-            else if ((v - i) * 16 > BAYER[y & 3][x & 3]) i++;
+            else if ((v - i) * 16 > BAYER[gy & 3][gx & 3]) i++;
             uint16_t c = TOM[i];
-            uint32_t h = ruido_xy(x, y) % 23;
+            uint32_t h = ruido_xy(gx, gy) % 23;
             if (h == 0) c = i == 0 ? C_FELTRO2 : TOM[i - 1];
             else if (h == 1 && i < 2) c = TOM[i + 1];
             if (estilo_feltro == FT_COURO) {                // o couro: poros miudos e rugas largas
@@ -3065,15 +3256,105 @@ static void mesa_anima(int q)
     gfx_desvia(NULL);
 }
 
+// ---- A luz de cena do modo Pixel ------------------------------------------
+// A vinheta escura nas bordas do feltro vai pintada na mesa pronta (nao
+// muda); por cima, a cada quadro, uma poca quente sob a fila de quem joga e
+// um pulso curto quando um dado pousa valendo. Cada pixel do feltro sobe ou
+// desce degraus da rampa (os tons do feltro, o latao escuro, o latao e o
+// ouro) pelo limiar de Bayer; o que nao e feltro (os enfeites) fica como
+// esta. No 2x, em blocos de 2x2.
+static float t_px_pulso = -1;
+static int px_pulso_x, px_pulso_y;
+static void px_pulsa(int x, int y) { t_px_pulso = 0; px_pulso_x = x; px_pulso_y = y; }
+#define PX_VINHETA 26                    // a largura da vinheta, em pixels
+#define PX_PULSO_T 0.4f
+static uint16_t px_rampa[9];
+static uint8_t  px_lut[65536];           // a cor do feltro -> o degrau dela na rampa (0xFF: nao e feltro)
+static int px_lut_versao = -1;
+static void px_rampa_monta(void)
+{
+    if (px_lut_versao == estilo_versao) return;
+    px_lut_versao = estilo_versao;
+    for (int i = 0; i < 6; i++) px_rampa[i] = feltro_tons[i];
+    px_rampa[6] = C_LATAO_ESC; px_rampa[7] = C_LATAO; px_rampa[8] = C_OURO;
+    memset(px_lut, 0xFF, sizeof px_lut);
+    for (int i = 5; i >= 0; i--) px_lut[feltro_tons[i]] = (uint8_t)i;
+}
+// Sobe (ou desce) o bloco de e x e em (x, y) por s degraus, pelo limiar.
+static void px_degrau(uint16_t *fb, int x, int y, int e, float s)
+{
+    int st = (int)floorf(s + bayer(e == 2 ? x >> 1 : x, e == 2 ? y >> 1 : y));
+    if (!st) return;
+    for (int yy = y; yy < y + e && yy < MESA_Y1; yy++)
+        for (int xx = x; xx < x + e && xx < MESA_X1; xx++) {
+            uint16_t *p = &fb[yy * GFX_W + xx];
+            int k = px_lut[*p];
+            if (k == 0xFF) continue;                     // nao e feltro: fica
+            k += st;
+            *p = px_rampa[k < 0 ? 0 : k > 8 ? 8 : k];
+        }
+}
+// A vinheta, uma vez, na mesa pintada.
+static void px_vinheta(uint16_t *fb)
+{
+    px_rampa_monta();
+    int e = pixel_nivel == 2 ? 2 : 1;
+    for (int y = MESA_Y0; y < MESA_Y1; y += e) {
+        int dy = y - MESA_Y0 < MESA_Y1 - 1 - y ? y - MESA_Y0 : MESA_Y1 - 1 - y;
+        for (int x = MESA_X0; x < MESA_X1; x += e) {
+            int d = x - MESA_X0 < MESA_X1 - 1 - x ? x - MESA_X0 : MESA_X1 - 1 - x;
+            if (dy < d) d = dy;
+            if (d >= PX_VINHETA) { if (dy >= PX_VINHETA) x = MESA_X1 - PX_VINHETA - e; continue; }
+            px_degrau(fb, x, y, e, -1.3f * (1 - (float)d / PX_VINHETA));
+        }
+    }
+}
+static void luz_de_cena(void)
+{
+    if (!pixel_nivel) return;
+    px_rampa_monta();
+    int e = pixel_nivel == 2 ? 2 : 1;
+    uint16_t *fb = display_fb();
+    bool poca = fase == F_ORDEM || fase == F_APOSTA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_JOGA
+             || fase == F_VEREDITO;
+    if (poca) {                                           // a poca, embaixo da fila de quem joga
+        int n = max_fila(vez);
+        float pcx = (SLOT_X(0) + SLOT_X(n - 1)) * 0.5f, pcy = (float)zona(vez);
+        float prx = (SLOT_X(n - 1) - SLOT_X(0)) * 0.5f + 64, pry = 46;
+        int x0 = (int)(pcx - prx), x1 = (int)(pcx + prx), y0 = (int)(pcy - pry), y1 = (int)(pcy + pry);
+        x0 -= (x0 - MESA_X0) % e; y0 -= (y0 - MESA_Y0) % e;
+        for (int y = y0 < MESA_Y0 ? MESA_Y0 : y0; y <= y1 && y < MESA_Y1; y += e)
+            for (int x = x0 < MESA_X0 ? MESA_X0 : x0; x <= x1 && x < MESA_X1; x += e) {
+                float qx = (x + (e - 1) * 0.5f - pcx) / prx, qy = (y + (e - 1) * 0.5f - pcy) / pry, q = qx * qx + qy * qy;
+                if (q < 1) px_degrau(fb, x, y, e, 1.8f * (1 - q) * (1 - q * 0.5f));
+            }
+    }
+    if (t_px_pulso >= 0 && t_px_pulso < PX_PULSO_T) {    // o pulso do dado que pousou valendo
+        float pulso = 1 - t_px_pulso / PX_PULSO_T;
+        int x0 = px_pulso_x - 40, y0 = px_pulso_y - 40;
+        x0 -= ((x0 - MESA_X0) % e + e) % e; y0 -= ((y0 - MESA_Y0) % e + e) % e;
+        for (int y = y0 < MESA_Y0 ? MESA_Y0 : y0; y <= px_pulso_y + 40 && y < MESA_Y1; y += e)
+            for (int x = x0 < MESA_X0 ? MESA_X0 : x0; x <= px_pulso_x + 40 && x < MESA_X1; x += e) {
+                float qx = (x + (e - 1) * 0.5f - px_pulso_x) / 40, qy = (y + (e - 1) * 0.5f - px_pulso_y) / 40;
+                float q = qx * qx + qy * qy;
+                if (q < 1) px_degrau(fb, x, y, e, 2.4f * pulso * (1 - q));
+            }
+    }
+}
+
 static void mesa(void)
 {
     mesa_andar = modo == M_DESAFIO ? (des_dificuldade() + 1) / 2 : 0;   // um acabamento a cada dois andares
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
+    static int pixel_feito = -1;                          // o modo Pixel muda a vinheta e, no 2x, o grao
+    if (pixel_nivel != pixel_feito) mesa_feita = false;
+    pixel_feito = pixel_nivel;
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }
     static int quadro_feito = -1;
     if (!mesa_feita) {
         pinta_mesa();
+        if (pixel_nivel) px_vinheta(display_fb());       // o modo Pixel: a vinheta, pintada com a mesa
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
         mesa_feita = true;
         quadro_feito = -1;
@@ -3084,6 +3365,7 @@ static void mesa(void)
         quadro_feito = q;
     }
     memcpy(display_fb(), mesa_pronta, sizeof mesa_pronta);
+    luz_de_cena();
 }
 
 static void ficha(int x, int y, uint16_t c)

@@ -12,6 +12,9 @@ void dado_desenha(void);                 // pinta o quadro inteiro no framebuffe
 void dado_tecla(const key_event_t *ev);
 void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito
 bool dado_mouse_clicavel(void);           // mouse sobre um botao ou opcao
+// O salao em volta da mesa, para a margem da janela: px tem w x h pixels do
+// jogo, com o quadro de GFX_W x GFX_H em (ox, oy).
+void dado_salao(uint16_t *px, int w, int h, int ox, int oy);
 int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
 
 // Modo online. Os dois computadores rodam a mesma partida com a mesma

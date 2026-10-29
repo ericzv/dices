@@ -32,6 +32,7 @@ void dado_passo(float dt)
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_sua_vez > 0) t_sua_vez -= dt_real;
+    for (int j = 0; j < 2; j++) if (t_humor_pisca[j] > 0) t_humor_pisca[j] -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
     if (t_elev > 0) {
         float antes = ELEV_T - t_elev;

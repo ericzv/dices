@@ -3223,6 +3223,30 @@ static void fita_pinho(void)
     gfx_rect(m - 1, c - 2, 3, 5, FITA_VERM[2]);
 }
 
+// As faixas de cima e de baixo sao a borda da propria mesa: a madeira dela
+// ate a beira da tela, a quina de fora com a luz, uma canaleta escura
+// rebaixada onde ficam os textos (o contraste de sempre: sombra na beira de
+// cima, luz na de baixo) e tachas na beira de fora.
+#define CANAL_0 8                        // a canaleta, contada da beira da tela
+#define CANAL_1 37
+static void trilhos(uint16_t veio, uint16_t claro, uint16_t metal, bool tachas)
+{
+    for (int b = 0; b < 2; b++) {
+        int ya = b ? GFX_H - 1 - CANAL_1 : CANAL_0, yb = b ? GFX_H - 1 - CANAL_0 : CANAL_1;
+        gfx_rect(0, b ? GFX_H - 1 : 0, GFX_W, 1, veio);                   // a quina: o escuro na beira
+        gfx_rect(0, b ? GFX_H - 2 : 1, GFX_W, 1, claro);                  // e a luz logo dentro
+        for (int y = ya; y <= yb; y++)                                     // a canaleta, com um veio apagado
+            for (int x = 0; x < GFX_W; x++)
+                gfx_pixel(x, y, ruido_xy(x / 9, y) % 11 == 0 ? C_MADEIRA_ESC : C_EBANO);
+        gfx_rect(0, ya - 1, GFX_W, 1, C_BARRA);
+        gfx_rect(0, yb + 1, GFX_W, 1, claro);
+        if (!tachas) continue;
+        int ty = b ? GFX_H - 5 : 4;
+        for (int x = 10; x < GFX_W - 6; x += 124) tacha(x, ty, metal);
+        tacha(GFX_W - 11, ty, metal);
+    }
+}
+
 static void pinta_mesa_toda(void);
 static void pinta_mesa(void)
 {
@@ -3235,7 +3259,7 @@ static void pinta_mesa_toda(void)
 {
     int lv = mesa_andar;
     gfx_clear(C_BARRA);
-    int x0 = 4, y0 = MESA_Y0 - 8, x1 = GFX_W - 4, y1 = MESA_Y1 + 8;
+    int x0 = 0, y0 = 0, x1 = GFX_W, y1 = GFX_H;          // a madeira vai ate a beira da tela: as faixas sao a borda
     // A mesa escolhida tem a madeira e o metal dela; a de sempre e nogueira,
     // mogno do andar do rubi em diante, e o metal sobe com os andares:
     // latao no terreo, bronze, prata, e ouro dali para cima.
@@ -3249,9 +3273,9 @@ static void pinta_mesa_toda(void)
         for (int y = y0; y < y1; y += 2)                // veios da madeira
             for (int x = x0; x < x1; x++)
                 if (ruido_xy(x / 7, y) % 5 == 0) gfx_pixel(x, y, veio);
-    gfx_rect(x0, y0, x1 - x0, 1, propria ? pm[2] : C_MADEIRA_CLR);
     uint16_t metal = propria ? MESAS[estilo_mesa].metal
                              : lv == 1 ? C_BRONZE : lv == 2 ? C_PRATA : lv >= 3 ? C_OURO : C_LATAO;
+    trilhos(veio, propria ? pm[2] : C_MADEIRA_CLR, metal, estilo_mesa != MS_LAREIRA);
     bool led = estilo_mesa == MS_LED;
     // Sem moldura de metal: a fita de led, a brasa e a fita do pinho.
     bool sem_metal = led || estilo_mesa == MS_LAREIRA || estilo_mesa == MS_PINHO;
@@ -3259,8 +3283,10 @@ static void pinta_mesa_toda(void)
     else if (estilo_mesa == MS_LAREIRA) fita_brasa(led_forca(0));
     else if (estilo_mesa == MS_PINHO) fita_pinho();
     else {
-        gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 2,
-                    propria ? metal : lv >= 3 ? C_OURO : C_LATAO);
+        uint16_t rm[4];                                 // o filete de metal em dois tons: a luz por fora
+        rampa_de(propria ? metal : lv >= 3 ? C_OURO : C_LATAO, rm);
+        gfx_moldura(MESA_X0 - 4, MESA_Y0 - 4, MESA_X1 - MESA_X0 + 8, MESA_Y1 - MESA_Y0 + 8, 1, rm[3]);
+        gfx_moldura(MESA_X0 - 3, MESA_Y0 - 3, MESA_X1 - MESA_X0 + 6, MESA_Y1 - MESA_Y0 + 6, 1, rm[1]);
         gfx_moldura(MESA_X0 - 2, MESA_Y0 - 2, MESA_X1 - MESA_X0 + 4, MESA_Y1 - MESA_Y0 + 4, 2, C_SOMBRA);
     }
     float cx = (MESA_X0 + MESA_X1) / 2.0f, cy = (MESA_Y0 + MESA_Y1) / 2.0f;
@@ -3495,6 +3521,13 @@ static void mesa(void)
         memcpy(mesa_acesa_buf, display_fb(), sizeof mesa_acesa_buf);
         mesa_acesa = mesa_acesa_buf;
     }
+}
+
+// O fundo de uma faixa (y0: o alto dela): a borda da mesa, como mesa()
+// acabou de por na tela.
+static void faixa_madeira(int y0)
+{
+    memcpy(display_fb() + y0 * GFX_W, mesa_acesa + y0 * GFX_W, (size_t)FAIXA_H * GFX_W * sizeof(uint16_t));
 }
 
 // Uma ficha vista de cima, no material dos dados. A face na rampa da cor,

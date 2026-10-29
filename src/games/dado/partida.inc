@@ -161,6 +161,7 @@ static void embrulha_um(void)
 
 // A vez de uma pessoa na mesa (nao a maquina, nem o outro computador): a
 // plaquinha SUA VEZ desce no painel da sequencia.
+static void humor_da_rodada(void);       // desafio/falas.inc
 static void avisa_sua_vez(void)
 {
     t_sua_vez = !(cpu >> vez & 1) && !(remoto >> vez & 1) ? SUA_VEZ_T : 0;
@@ -251,6 +252,7 @@ static void nova_rodada(void)
     t_fase = 0;
     fase = F_ORDEM;
     avisa_sua_vez();
+    humor_da_rodada();
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
 }
 

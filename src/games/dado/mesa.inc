@@ -317,8 +317,7 @@ static void faixa_jogador(int j)
     jogador_t *p = &J[j];
     bool cima = j != baixo;
     int y0 = cima ? 0 : GFX_H - FAIXA_H;
-    gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, cima ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(y0);
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
     // O oponente do Desafiante: o trunfo dele fica numa linha fina embaixo
     // do nome, sempre a vista; o resto da faixa sobe um pouco.

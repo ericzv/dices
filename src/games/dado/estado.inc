@@ -437,6 +437,8 @@ static int ante_da(int r)
 }
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 static float t_sua_vez;                  // > 0: a plaquinha SUA VEZ no painel da sequencia
+static int   humor[2] = { -1, -1 };      // o rosto que dura a rodada (EX_*; -1: o de sempre), seu e do oponente
+static float t_humor_pisca[2];           // > 0: piscando, que o humor acabou de mudar
 static float t_detalhe;                  // desde que o cartao do detalhe (I) abriu
 static float t_trans = -1;               // >= 0: a transicao entre telas varrendo (quadro.inc)
 #define SUA_VEZ_T 2.0f

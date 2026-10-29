@@ -91,8 +91,7 @@ static void cadeado(int x, int y, uint16_t c, int e);
 // As faixas da colecao: a chave Dados | Amuletos, a contagem e as teclas.
 static void faixas_colecao(int atual, int total)
 {
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(botao_voltar(KEY_ESC), ty, "COLEÇÃO", C_LATAO, true);
     static const char *const SEC[3] = { "Dados", "Amuletos", "Adesivos" };
@@ -105,8 +104,7 @@ static void faixas_colecao(int atual, int total)
     snprintf(s, sizeof s, "%d de %d", atual + 1, total);
     txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
     int yb = GFX_H - FAIXA_H;
-    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(yb);
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, cat_sec == 0 ? "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta"
              : cat_sec == 1 ? "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta" : "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
 }

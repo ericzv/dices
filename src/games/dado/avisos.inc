@@ -47,7 +47,7 @@ static void desenha_anuncio(void)
         int x = GFX_W / 2 + (2 * i - (n - 1)) * passo / 2;
         peca_parada((float)x, (float)(y0 + 52), 18, anuncio_peca[i], anuncio_dono);
         txt_c(x, y0 + 76, TIPO[anuncio_peca[i].tipo].nome, cor_dado(anuncio_peca[i].tipo), false);
-        dica_zona(x - 22, y0 + 30, 44, 44, DICA_DADO, anuncio_peca[i].tipo);
+        dica_peca(x - 22, y0 + 30, 44, 44, &anuncio_peca[i]);
     }
 }
 

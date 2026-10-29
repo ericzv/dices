@@ -91,7 +91,8 @@ static void desenha_bolsa_pop(void)
         int y = topo + (int)((lin + 0.5f) * 36 * f);
         caixa_fechada = col == J[0].col && i == embrulho;
         peca_parada((float)x, (float)y, (float)r, col[i], dono);
-        dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_DADO, col == J[0].col && i == embrulho ? DICA_EMBRULHO : col[i].tipo);
+        if (col == J[0].col && i == embrulho) dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_DADO, DICA_EMBRULHO);
+        else dica_peca(x - r, y - r, 2 * r, 2 * r, &col[i]);
     }
     if (!no) txt_c(GFX_W / 2, topo + 8, "Nenhum dado.", C_TEXTO_M, false);
     txt_c(GFX_W / 2, y0 + h - 24, "clique ou qualquer tecla fecha", C_TEXTO_M, false);

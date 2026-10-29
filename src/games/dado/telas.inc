@@ -114,7 +114,8 @@ static void desenha_ordem(void)
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         if (cosmo_recem[vez][p->mao[i]]) cosmo_chegou(x, y + dy + rs, p->col[p->mao[i]].tipo, t_fase - cosmo_chega(p, i));   // evoluiu: o nome novo
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
-        dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, p == &J[0] && p->mao[i] == embrulho ? DICA_EMBRULHO : p->col[p->mao[i]].tipo);
+        if (p == &J[0] && p->mao[i] == embrulho) dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, DICA_EMBRULHO);
+        else dica_peca(x - 25, y - 25, 50, 50, &p->col[p->mao[i]]);
     }
 
     char t[64];
@@ -264,6 +265,54 @@ static void desenha_joga(void)
     pote_mesa();
 }
 
+// Os botoes da aposta: maiores que os outros, cada um com o seu desenho e a
+// sua cor, para nao errar no clique ligeiro. Passar: o visto. Pagar: as
+// fichas. Apostar 10 e dobrar: as fichas e uma seta. Apostar 25: as fichas e
+// tres setas. Correr: o X vermelho no ebano, afastado dos outros.
+#define BOTAO_AP_H 28
+#define AP_VAO     14                    // entre um botao e outro
+#define AP_LONGE   34                    // e do correr para o vizinho
+static const char *const IC_FICHAS[] = { ".#######.", "#+++++++#", ".#######.", "#o#o#o#o#", ".#######.", "#o#o#o#o#", ".#######." };
+static const char *const IC_SETA[] = { "...#...", "..###..", ".#####.", "###.###", "##...##" };
+static const char *const IC_X[] = { "##...##", "###.###", ".#####.", "..###..", ".#####.", "###.###", "##...##" };
+static const char *const IC_VISTO[] = { "......##", ".....##.", "##..##..", ".####...", "..##...." };
+static int icone_aposta_w(int op)
+{
+    return op == OP_PASSAR ? 8 : op == OP_CORRER ? 7 : op == OP_PAGAR ? 9 : 9 + 2 + 7;
+}
+static void icone_aposta(int op, int x, int cy)
+{
+    if (op == OP_PASSAR) { sprite_em(x + 4, cy, IC_VISTO, 5, C_MARFIM, C_BRANCO, C_MARFIM, false, 0); return; }
+    if (op == OP_CORRER) { sprite_em(x + 3, cy, IC_X, 7, C_VERMELHO, C_ROSA, C_VERMELHO, false, 0); return; }
+    sprite_em(x + 4, cy + 1, IC_FICHAS, 7, C_MARFIM, C_BRANCO, C_VERMELHO, false, 0);   // a pilha de fichas, de lado
+    if (op == OP_APOSTAR10 || op == OP_AUMENTAR) sprite_em(x + 14, cy - 1, IC_SETA, 5, C_AMARELO, C_BRANCO, C_AMARELO, false, 0);
+    if (op == OP_APOSTAR25)                                  // tres setas, uma em cima da outra
+        for (int i = 0; i < 3; i++) sprite_em(x + 14, cy - 4 + i * 4, IC_SETA, 5, C_AMARELO, C_BRANCO, C_AMARELO, false, 0);
+}
+static int larg_aposta(const int *op, int n, char rot[][24], int *w)
+{
+    int tot = 0;
+    for (int i = 0; i < n; i++) {
+        w[i] = 10 + icone_aposta_w(op[i]) + 6 + gfx_largura(rot[i], 1) + 12;
+        tot += w[i] + (i ? (op[i] == OP_CORRER || op[i - 1] == OP_CORRER ? AP_LONGE : AP_VAO) : 0);
+    }
+    return tot;
+}
+static void botoes_aposta(int y, const int *op, int n, char rot[][24])
+{
+    int w[4], x = GFX_W / 2 - larg_aposta(op, n, rot, w) / 2;
+    for (int i = 0; i < n; i++) {
+        if (i) x += op[i] == OP_CORRER || op[i - 1] == OP_CORRER ? AP_LONGE : AP_VAO;
+        int d;
+        uint16_t c = ui_botao_face(x, y, w[i], BOTAO_AP_H, tinta_op(op[i]), i == cursor ? UI_FOCO : 0, &d);
+        if (op[i] == OP_CORRER) c = C_ROSA;                  // o correr fala em vermelho
+        icone_aposta(op[i], x + 10, y + d + (BOTAO_AP_H - 4) / 2);
+        gfx_texto(x + 10 + icone_aposta_w(op[i]) + 6, y + d + (BOTAO_AP_H - 4 - TXT_H) / 2 + 1, rot[i], c, 1, false);
+        zona_clique(x, y, w[i], BOTAO_AP_H, &cursor, i, KEY_ENTER);
+        x += w[i];
+    }
+}
+
 static void desenha_aposta(void)
 {
     char t[64], q[64];
@@ -276,24 +325,18 @@ static void desenha_aposta(void)
     const char *qq = q[0] == ' ' ? q + 1 : q;
     int wt = gfx_largura(t, 1), wq = gfx_largura(qq, 1), sep = 20;
 
-    int op[4], n = opcoes(op);
+    int op[4], n = opcoes(op), wb[4];
     char r[4][24];
-    const char *rot[4];
-    bool ativo[4];
-    uint16_t tinta[4];
-    for (int i = 0; i < n; i++) {
-        rotulo_op(op[i], r[i], sizeof r[i]); rot[i] = r[i]; ativo[i] = true;
-        tinta[i] = tinta_op(op[i]);
-    }
+    for (int i = 0; i < n; i++) rotulo_op(op[i], r[i], sizeof r[i]);
     bool menu = !anuncia_maquina();              // a maquina decide sem botoes
     int w = wt + sep + wq;
-    if (menu && larg_botoes(rot, n) > w) w = larg_botoes(rot, n);
-    painel(y1 - 5, menu ? TXT_H + BOTAO_H + 20 : TXT_H + 8, larg_painel(w, 220));
+    if (menu && larg_aposta(op, n, r, wb) > w) w = larg_aposta(op, n, r, wb);
+    painel(y1 - 5, menu ? TXT_H + BOTAO_AP_H + 22 : TXT_H + 8, larg_painel(w, 220));
     int x = GFX_W / 2 - (wt + sep + wq) / 2;
     gfx_texto(x, y1, t, J[primeiro].cor, 1, true);
     txt_c(x + wt + sep / 2, y1, "·", C_TEXTO_M, false);
     gfx_texto(x + wt + sep, y1, qq, J[vez].cor, 1, false);
-    if (menu) botoes(y1 + TXT_H + 6, rot, ativo, n, tinta);
+    if (menu) botoes_aposta(y1 + TXT_H + 6, op, n, r);
     pote_mesa();
 }
 

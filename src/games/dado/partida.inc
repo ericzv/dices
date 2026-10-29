@@ -1179,6 +1179,7 @@ static int acha_decisivo(void)
     return melhor;
 }
 
+static int cursor_aposta(void);           // aposta.inc: onde o cursor comeca (nunca no correr)
 static void desfecho(void)
 {
     calcula_desfecho(&resolvido, true);
@@ -1557,7 +1558,7 @@ static void termina_turno(void)
         anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);
     if (vez == primeiro) {
         a_pagar = 0; passes = 0; aumentou = false;
-        cursor = 0;
+        cursor = cursor_aposta();
         fase = F_APOSTA;
     } else {
         desfecho();

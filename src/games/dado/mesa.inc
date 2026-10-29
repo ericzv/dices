@@ -2,6 +2,15 @@
 // Desenho da mesa: o lance, as faixas dos jogadores, as filas, os
 // ataques e o pote
 // ===========================================================================
+// A cor de um numero que conta: no pulinho de cada passo, acende dourado
+// subindo e vinho descendo (o que ja e dourado acende para o branco).
+static uint16_t conta_cor(const contador_t *c, uint16_t base)
+{
+    if (c->pulo <= 0) return base;
+    uint16_t acende = c->sinal > 0 ? (base == C_OURO ? C_BRANCO : C_OURO) : C_VINHO_CLR;
+    return gfx_mistura(base, acende, (int)(c->pulo * 75));
+}
+
 // O nome do jogador na faixa.
 static int txt_nome(int x, int y, int j)
 {
@@ -42,11 +51,74 @@ static void presente_abre(float x, float y, float q)
     }
     if (s < 0.8f) lacinho((int)x, (int)(y - R_DADO - 4 - s * 34));
 }
+// ---- O pouso -------------------------------------------------------------
+// Quando o dado deita, o feltro levanta poeira: um anel que clareia o feltro
+// um tom (pontilhado), abre em volta de onde ele bateu e some. Fica no lugar
+// mesmo quando o dado ja foi para a fila.
+#define POEIRA_T 0.42f
+#define POEIRA_N 4
+static struct { float x, y, t; } poeira[POEIRA_N];
+static int feltro_idx(uint16_t c);           // catalogo.inc
+static void poeira_solta(float x, float y)
+{
+    int k = 0;
+    for (int i = 1; i < POEIRA_N; i++) if (poeira[i].t <= 0 || poeira[i].t > poeira[k].t) k = i;   // a mais velha
+    poeira[k].x = x; poeira[k].y = y; poeira[k].t = 0.001f;
+}
+static void poeira_passo(float dt)
+{
+    for (int i = 0; i < POEIRA_N; i++)
+        if (poeira[i].t > 0 && (poeira[i].t += dt) > POEIRA_T) poeira[i].t = 0;
+    for (int i = 0; i < n_voo; i++) if (voo[i].t_assenta > 0 && voo[i].t_assenta < 9) voo[i].t_assenta += dt;
+}
+static void desenha_poeira(void)
+{
+    uint16_t *fb = display_fb();
+    for (int i = 0; i < POEIRA_N; i++) {
+        if (poeira[i].t <= 0) continue;
+        float q = poeira[i].t / POEIRA_T, e = 1 - (1 - q) * (1 - q) * (1 - q);   // abre rapido e devagara
+        float rx = R_DADO + 2 + e * 28, ry = rx * 0.55f, larg = 7 - 5 * q;   // o anel, achatado como o chao
+        float forte = (1 - q) * 1.5f;
+        int cx = (int)poeira[i].x, cy = (int)(poeira[i].y + R_DADO * 0.45f);
+        for (int y = (int)(cy - ry - larg); y <= (int)(cy + ry + larg); y++) {
+            if (y < MESA_Y0 || y >= MESA_Y1) continue;
+            float dy = (y - cy) / ry;
+            for (int x = (int)(cx - rx - larg); x <= (int)(cx + rx + larg); x++) {
+                if (x < MESA_X0 || x >= MESA_X1) continue;
+                float dx = (x - cx) / rx, d = sqrtf(dx * dx + dy * dy) * rx;   // ~ a distancia, em px no eixo x
+                float fora = fabsf(d - rx) / larg;                             // 0 no meio do anel
+                if (fora >= 1) continue;
+                float dens = (1 - fora) * forte;
+                if (bayer(x, y) >= dens) continue;
+                uint16_t *p = &fb[y * GFX_W + x];
+                int k = feltro_idx(*p);
+                int k2 = k + (dens > 0.6f ? 2 : 1);              // forte: dois tons acima
+                if (k >= 0 && k < 5) *p = feltro_tons[k2 > 5 ? 5 : k2];
+            }
+        }
+        for (int g = 0; g < 7; g++) {                // uns graos que espirram para fora
+            float a = g * 0.898f + poeira[i].x * 0.03f, d = rx + 4 + e * 10;
+            int px = (int)(cx + cosf(a) * d), py = (int)(cy + sinf(a) * d * 0.55f - sinf(q * 3.1416f) * 5);
+            if (q < 0.7f && px > MESA_X0 && px < MESA_X1 - 2 && py > MESA_Y0 && py < MESA_Y1 - 2)
+                gfx_rect(px, py, q < 0.35f ? 2 : 1, q < 0.35f ? 2 : 1, feltro_tons[5]);
+        }
+    }
+}
+// O achatado do pouso: bate (largo e baixo), volta passando um pouco do
+// ponto (alto e fino) e assenta. t: desde que deitou.
+#define ACHATA_T 0.26f
+static float achata_mola(float t)
+{
+    if (t <= 0 || t >= ACHATA_T) return 0;
+    return expf(-t / 0.07f) * cosf(t * 6.2832f / 0.16f);
+}
+
 static void desenha_lance(void)
 {
+    desenha_poeira();
     for (int i = n_voo - 1; i >= 0; i--) {
         voo_t *v = &voo[i];
-        float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
+        float r = R_DADO;
         if (hora && !v->fantasma) {              // a hora da verdade: a camera chega perto
             float z = t_hora;
             if (fase == F_ARRUMA) z *= 1 - fminf(1, fmaxf(0, t_fase - junta_t()) / 0.45f);
@@ -78,17 +150,6 @@ static void desenha_lance(void)
             } else {
                 r = R_DADO * (1 - q * 0.4f);
                 descartado = true;
-            }
-        }
-        // Poeira do feltro quando o dado assenta.
-        if (v->pouso > 0 && !v->fantasma) {
-            float q = 1 - v->pouso / 0.18f;
-            for (int k = 0; k < 10; k++) {
-                float a = k * 0.628f + v->x * 0.01f;
-                int px = (int)(v->x + cosf(a) * (R_DADO + q * 20));
-                int py = (int)(v->y + sinf(a) * (R_DADO + q * 20) * 0.6f + R_DADO * 0.3f);
-                int t = q < 0.5f ? 3 : 2;
-                gfx_rect(px - 1, py - 1, t, t, gfx_mistura(C_FELTRO2, C_MARFIM_S, 30 - (int)(q * 20)));
             }
         }
         // Rolando: quica, e a sombra se afasta quando ele esta no alto.
@@ -156,7 +217,15 @@ static void desenha_lance(void)
         // a do Revolver ja com a bala deste lance), como na mao e na mesa.
         marca_nivel = v->slot < N_FILA ? F[v->dono].fixo[v->slot] : -1;
         bala_lancada = v->tipo == D_REVOLVER;
+        // No pouso: achata contra o feltro e o numero aparece com um pulo.
+        float k = !v->fantasma && v->t_assenta > 0 ? achata_mola(v->t_assenta) : 0;
+        achata_x = 1 + 0.16f * k;
+        achata_y = 1 - 0.22f * k;
+        num_cresce = !v->fantasma && v->t_assenta > 0.03f && v->t_assenta < 0.11f && mostra < 10
+                     && TIPO[tv].lados != 4;                   // no triangulo o numero grande nao cabe
         desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        achata_x = achata_y = 1;
+        num_cresce = 0;
         marca_nivel = -1;
         bala_lancada = false;
         if (abre) presente_abre(ex + dx, ey + bob, t_fase / PRESENTE_ABRE);
@@ -335,8 +404,8 @@ static void faixa_jogador(int j)
     ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
     ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
     char s[48];
-    snprintf(s, sizeof s, "%d", fichas_vis(j));
-    txt(x + 36, ty, s, C_MARFIM, true);
+    snprintf(s, sizeof s, "%d", faixa_c[j].mostra);        // contando: dourado subindo, vinho descendo
+    txt(x + 36, ty - (faixa_c[j].pulo > 0.4f ? 1 : 0), s, conta_cor(&faixa_c[j], C_MARFIM), true);
     int fim_fichas = x + 36 + gfx_largura(s, 1);
 
     // A rodada mora na faixa de cima; o som, na de baixo.
@@ -819,12 +888,39 @@ static void desenha_jingle_copias(void)
 }
 
 static void rachadura(int x, int y, int r, float q);
+static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
+// O risco do proximo dado, no lugar dele: um aro tracejado que gira devagar,
+// na cor do risco - verde sem risco, latao ate 40%, vinho dali para cima.
+static int chance_cair(int j);                     // telas.inc
+static bool mostra_chance(void);
+static void aro_risco(int cx, int cy, int c)
+{
+    uint16_t cor = c <= 0 ? C_VERDE : c < 40 ? C_LATAO : C_VINHO_CLR;
+    int n = 44, rr = R_DADO + 3;
+    float gira = t_relogio * 0.9f;
+    for (int a = 0; a < n; a++) {
+        if (a % 4 >= 2) continue;                    // tracos de dois, vaos de dois
+        float an = a * 6.2832f / n + gira;
+        int px = cx + (int)lroundf(cosf(an) * rr), py = cy + (int)lroundf(sinf(an) * rr);
+        gfx_rect(px - 1, py - 1, 2, 2, cor);
+    }
+}
+// O tombo do dado anulado pela sequencia (t: desde que caiu): treme ate
+// TOMBA_T0, deita de lado com um quique curto e fica (1: deitado).
+#define TOMBA_T0   0.28f
+#define TOMBA_GIRO 0.42f                           // quanto ele inclina, em radianos
+static float tombo(float t)
+{
+    if (t < TOMBA_T0) return 0;
+    float q = (t - TOMBA_T0) / 0.2f;
+    if (q >= 1) return 1;
+    return q * q * (3 - 2 * q) + sinf(q * 3.1416f) * 0.12f;
+}
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
     int y = zona(j);
     bool no_desfecho = fase == F_EFEITOS || fase == F_RESULTADO;
-    bool pisca = fase == F_VEREDITO && j == vez && ((int)(t_fase * 7) % 2 == 0);
     const evento_t *e = (fase == F_EFEITOS && ev_i < n_ev && t_respiro < 0) ? &ev[ev_i] : NULL;
     float p = e ? t_fase / duracao_evento(ev_i) : 0;
     const int R = R_DADO;
@@ -869,6 +965,8 @@ static void desenha_fila(int j)
             // montando a sequencia, cada dado na sua cor.
             if (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO)
                 acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);
+            if (fase == F_JOGA && j == vez && k == f->lancados && k > 0 && mostra_chance())
+                aro_risco(x, y, chance_cair(j));     // o proximo: o risco de cair, na mesa
             continue;
         }
         uint8_t est = no_desfecho ? vis_est[j][k] : f->est[k];
@@ -914,10 +1012,13 @@ static void desenha_fila(int j)
         // O que segurou a queda treme no lugar, como quem balanca a cabeca.
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
             x += ((int)(t_fase * 28) % 2) ? 4 : -4;
-        if (recente && t_fase < 0.5f) x += (int)(sinf(t_fase * 60) * 3);   // treme antes de apagar
+        if (recente && t_fase < TOMBA_T0) x += (int)(sinf(t_fase * 60) * 3);   // treme antes de tombar
         if (e && e->tipo == EV_CAVALO && e->de_j == j && e->de_k == k && p < 0.3f)
             x += (int)(sinf(t_fase * 70) * 3);                      // o Cavalo treme e se abre
-        if (recente && pisca) continue;
+        // Anulado: pela sequencia, tomba de lado e fica apagado; por um
+        // ataque no fim da rodada, fica de pe e racha na cor de quem atacou.
+        uint16_t golpe = anul && no_desfecho ? vis_golpe_cor[j][k] : 0;
+        float tomba = anul && !golpe && !(no_desfecho && vis_gelo[j][k]) ? tombo(recente ? t_fase : 9) : 0;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || e->ad == AD_RATOEIRA))) && e->alvo_j == j && e->alvo_k == k;
         bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
@@ -983,7 +1084,22 @@ static void desenha_fila(int j)
         patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
         bala_lancada = t == D_REVOLVER;            // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
+        float lado = (k + j) % 2 ? 1 : -1;                   // para que lado tomba
+        if (tomba > 0 && giro == 0) {
+            giro = lado * TOMBA_GIRO * tomba;
+            achata_y = 1 - 0.16f * tomba;
+            achata_x = 1 + 0.05f * tomba;
+            x += (int)(lado * 3 * tomba);
+            pulo -= 2 * tomba;
+        }
+        so_apagado = anul && !(no_desfecho && vis_gelo[j][k]);   // sem o X: o tombo e a trinca ja dizem
         desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        so_apagado = false;
+        achata_x = achata_y = 1;
+        if (golpe && giro < 0.5f) {                           // as trincas crescem do meio
+            float qg = (t_relogio - vis_golpe_t[j][k]) / 0.22f;
+            rachadura_em(x, (int)(y - pulo), R, qg < 0 || qg > 1 ? 1 : qg, golpe, C_BARRA);
+        }
         patos_pousou = bala_lancada = false;
         frutas_desta = -1;
         if (f->presente[k] && giro < 0.5f) lacinho(x + R - 3, (int)(y - pulo) - R + 2);   // saiu de um Presente
@@ -1299,8 +1415,10 @@ static void desenha_fila(int j)
 
 // Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
 // dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
-// A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1).
-static void rachadura(int x, int y, int r, float q)
+// A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1). Com
+// as cores: a do dado que levou um ataque (a clara, a de quem atacou).
+static void rachadura(int x, int y, int r, float q) { rachadura_em(x, y, r, q, C_BRANCO, C_SOMBRA); }
+static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura)
 {
     static const int8_t R[4][4][2] = {        // quatro trincas em zigue-zague, do meio para a beira
         { { -2, -3 }, { -5, -4 }, { -7, -8 }, { -11, -10 } }, { { 3, -1 }, { 6, -4 }, { 9, -3 }, { 12, -6 } },
@@ -1311,8 +1429,8 @@ static void rachadura(int x, int y, int r, float q)
         int x0 = x, y0 = y, n = (int)(q * 4 + 0.999f);
         for (int s = 0; s < n && s < 4; s++) {
             int x1 = x + (int)(R[t][s][0] * esc), y1 = y + (int)(R[t][s][1] * esc);
-            gfx_linha(x0 + 1, y0 + 1, x1 + 1, y1 + 1, C_BRANCO);
-            gfx_linha(x0, y0, x1, y1, C_SOMBRA);
+            gfx_linha(x0 + 1, y0 + 1, x1 + 1, y1 + 1, clara);
+            gfx_linha(x0, y0, x1, y1, escura);
             x0 = x1; y0 = y1;
         }
     }
@@ -2391,7 +2509,7 @@ static void desenha_evento(void)
 
 static void pote_mesa(void)
 {
-    int n = pote / 10 + 1;
+    int n = pote_c.mostra / 10 + 1;
     if (n > 9) n = 9;
     int y = CENTRO + 10;
     for (int i = 0; i < n; i++) {
@@ -2403,7 +2521,7 @@ static void pote_mesa(void)
         ficha(POTE_X, y - i * 4 - sobe, (i % 3 == 0) ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
     }
     char s[16];
-    snprintf(s, sizeof s, "%d", pote);
-    txt_c(POTE_X, y + 12, s, C_OURO, true);
+    snprintf(s, sizeof s, "%d", pote_c.mostra);
+    txt_c(POTE_X, y + 12 - (pote_c.pulo > 0.4f ? 1 : 0), s, conta_cor(&pote_c, C_OURO), true);
     txt_c(POTE_X, y - n * 4 - 26, "pote", C_TEXTO_M, false);
 }

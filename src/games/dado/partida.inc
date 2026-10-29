@@ -619,7 +619,7 @@ static bool ad_etapa_passo(float dt)
         }
         if (q < 1) return true;
         som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA);
-        v->pouso = 0.18f;
+        assenta(v);
         v->t_etapa = 0;
         v->etapa = v->reflete ? 2 : 0;
         return v->etapa != 0;
@@ -631,7 +631,7 @@ static bool ad_etapa_passo(float dt)
         voo_t *w = &voo[i];
         if (w->fantasma && !v->menor2) continue;
         w->parado = false;
-        w->pouso = 0;
+        w->t_assenta = 0;
         w->t_face = 0;
         w->vx = frnd(-260, 260);
         w->vy = (w->y > CENTRO ? -1 : 1) * frnd(240, 360);
@@ -1206,6 +1206,7 @@ static void desfecho(void)
         memset(vis_corte[j], 0, N_FILA);
         memset(vis_pedra[j], 0, N_FILA);
         memset(vis_gelo[j], 0, N_FILA);
+        memset(vis_golpe_cor[j], 0, sizeof vis_golpe_cor[j]);
         vis_selo[j][0] = vis_selo[j][1] = vis_fragil[j] = 0;
         memset(vis_tsunami[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
@@ -1368,6 +1369,14 @@ static void flutua_evento(const evento_t *e)
     }
 }
 
+// O dado (j, k) caiu num ataque: racha, na cor de quem atacou.
+static void golpe_marca(int j, int k, uint16_t cor)
+{
+    if (k < 0 || k >= N_FILA) return;
+    vis_golpe_cor[j][k] = cor ? cor : C_LATAO;
+    vis_golpe_t[j][k] = t_relogio;
+}
+
 // O evento i terminou: a mesa passa a mostrar o efeito dele.
 static void aplica_evento(int i)
 {
@@ -1376,6 +1385,7 @@ static void aplica_evento(int i)
     switch (e->tipo) {
     case EV_ANULA:
         vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
+        golpe_marca(e->alvo_j, e->alvo_k, aro_de(F[e->de_j].tipo[e->de_k]));
         if (F[e->de_j].tipo[e->de_k] == D_BONECO) vis_gelo[e->alvo_j][e->alvo_k] = 1;   // fica congelado
         break;
     case EV_ONDA:   vis_tsunami[e->de_j][e->de_k] = 1; break;
@@ -1418,7 +1428,10 @@ static void aplica_evento(int i)
         break;
     case EV_CAVALO:                     // tudo o que era de quem atingiu o Cavalo cai
         for (int k = 0; k < N_FILA; k++)
-            if (e->mascara >> k & 1) vis_est[e->alvo_j][k] = V_ANULADO;
+            if (e->mascara >> k & 1) {
+                vis_est[e->alvo_j][k] = V_ANULADO;
+                golpe_marca(e->alvo_j, k, aro_de(F[e->de_j].tipo[e->de_k]));
+            }
         for (int r = 0; r < vis_nroubo[e->alvo_j]; r++) vis_roubo[e->alvo_j][r].anulado = 1;
         break;
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
@@ -1443,7 +1456,10 @@ static void aplica_evento(int i)
             for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k];
             break;
         case AD_LOBO: vis_delta[e->alvo_j] -= e->valor; break;
-        case AD_MIRA: case AD_RATOEIRA: vis_est[e->alvo_j][e->alvo_k] = V_ANULADO; break;
+        case AD_MIRA: case AD_RATOEIRA:
+            vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
+            golpe_marca(e->alvo_j, e->alvo_k, ADESIVO[e->ad].fundo == AD_SEM_FUNDO ? ADESIVO[e->ad].tinta : ADESIVO[e->ad].fundo);
+            break;
         default: break;
         }
         break;

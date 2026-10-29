@@ -372,9 +372,10 @@ static const char *const ALG[13][10] = {
     { ".......", ".......", ".......", ".......", "######.", "######.", ".......", ".......", ".......", "......." }
 };
 #define ALG_H 10
+static int num_cresce;                     // o "pop" do numero no pouso: uma escala a mais
 static void numero_em(float cx, float cy, float r, const char *s, uint16_t c, bool sombra)
 {
-    int e = r >= 34 ? 2 : 1, n = 0, g[8], a[8], w[8], W = 0;
+    int e = (r >= 34 ? 2 : 1) + num_cresce, n = 0, g[8], a[8], w[8], W = 0;
     for (const char *p = s; *p; p++) {            // mede: cada algarismo so nas colunas que usa
         const char *q = strchr(ALG_CARS, *p);
         if (!q || n >= 8) {                       // fora dos algarismos: a letra da fonte
@@ -2393,6 +2394,9 @@ static void sombra_px(uint16_t *buf, int cx, int cy, int R)
         }
 }
 
+// O dado achatado contra o feltro no pouso: a largura e a altura que ele
+// tem agora (1: o normal), com a base dele parada no chao.
+static float achata_x = 1, achata_y = 1;
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
@@ -2440,6 +2444,26 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                 fb[Y * GFX_W + X] = C_SOMBRA;
             }
     }
+    if (achata_x != 1 || achata_y != 1) {              // achatado: cola esticado, a base no chao
+        float base = cy + r, ax = achata_x, ay = achata_y;
+        int X0 = (int)floorf(cx - (cx - x0) * ax), X1 = (int)ceilf(cx + (x1 - cx) * ax);
+        int Y0 = (int)floorf(base - (base - y0) * ay), Y1 = (int)ceilf(base + (y1 - base) * ay);
+        if (X0 < 0) X0 = 0;
+        if (Y0 < 0) Y0 = 0;
+        if (X1 > GFX_W - 1) X1 = GFX_W - 1;
+        if (Y1 > GFX_H - 1) Y1 = GFX_H - 1;
+        for (int y = Y0; y <= Y1; y++) {
+            int sy = (int)lroundf(base + (y - base) / ay);
+            if (sy < y0 || sy > y1) continue;
+            for (int x = X0; x <= X1; x++) {
+                int sx = (int)lroundf(cx + (x - cx) / ax);
+                if (sx < x0 || sx > x1) continue;
+                uint16_t c = px_buf[sy * GFX_W + sx];
+                if (c != CHAVE) fb[y * GFX_W + x] = c;
+            }
+        }
+        return;
+    }
     for (int y = y0; y <= y1; y++)                      // cola o que nao e fundo
         for (int x = x0; x <= x1; x++) {
             uint16_t c = px_buf[y * GFX_W + x];
@@ -2478,6 +2502,15 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo), C_SOMBRA, 30));
 }
 
+// O dado deitou no feltro: o relogio do pouso (o achatado, o numero) e o
+// anel de poeira no lugar (mesa.inc).
+static void poeira_solta(float x, float y);
+static void assenta(voo_t *v)
+{
+    v->t_assenta = 0.001f;
+    if (!v->fantasma) poeira_solta(v->x, v->y);
+}
+
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
 static void estala(float forca, int som)
 {
@@ -2491,7 +2524,6 @@ static bool fisica(float dt)
     bool todos = true;
     for (int i = 0; i < n_voo; i++) {
         voo_t *v = &voo[i];
-        if (v->pouso > 0) v->pouso -= dt;
         if (v->parado) continue;
         todos = false;
         v->x += v->vx * dt;
@@ -2531,7 +2563,7 @@ static bool fisica(float dt)
         }
         if (vel < 36 || t_fase > 6.0f) {
             v->parado = true;
-            v->pouso = 0.18f;
+            assenta(v);
             v->face = v->valor;
             som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
         }

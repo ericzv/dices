@@ -227,7 +227,7 @@ static void desenha_detalhe(void)
     if (detalhe < 0) return;
     if (fase != detalhe_fase) { detalhe = -1; return; }   // a partida andou
     int tipo = detalhe;
-    const int x0 = 70, y0 = 70, w = GFX_W - 140, h = 220;
+    const int x0 = 70, y0 = 70 + ui_entra(t_detalhe, 0, UI_ENTRA_CARTAO / 2), w = GFX_W - 140, h = 220;
     gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 140);
     ui_cartao_aceso(x0, y0, w, h, true, cor_rar(tipo));
     int cx = x0 + 78, cy = y0 + 96;

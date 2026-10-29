@@ -131,6 +131,58 @@ static void desenha_dica(const int *r, const dica_t *d)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Transicao entre telas: ao trocar de tela, o ultimo quadro da velha fica
+// guardado e a nova entra por cima dele numa varredura em diagonal, da
+// esquerda para a direita, com a beira pontilhada (o Bayer em blocos de 2x2,
+// o mesmo grao dos dados), em TRANS_T segundos. A partida inteira conta como
+// uma tela so: as fases dela se sucedem na mesma mesa.
+// ---------------------------------------------------------------------------
+#define TRANS_T    0.3f
+#define TRANS_BEIRA 0.16f                    // a largura da beira pontilhada (0..1 da tela)
+static uint16_t trans_buf[GFX_W * GFX_H];
+static int trans_tela = -1;                  // a tela do ultimo quadro
+
+static int tela_atual(void)
+{
+    bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
+                || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
+    int t = (partida ? F_JOGA : fase) * 32;
+    if (fase == F_ABERTURA) t += menu_tela;
+    if (fase == F_TUTORIAL) t += tut_pag;
+    if (fase == F_RLOJA) t += lj_tirando ? 1 : lj_colando ? 1 + lj_colando : lj_pac ? 4 : 0;
+    if (fase == F_PREMIO) t += removendo ? 1 : premio_colando() ? 2 : 0;
+    return t;
+}
+
+// No fim do quadro, com as cores ja na paleta (as duas telas misturam so
+// pixels prontos).
+static void transicao(void)
+{
+    uint16_t *fb = display_fb();
+    int tela = tela_atual();
+    if (trans_tela >= 0 && tela != trans_tela) t_trans = 0;   // trocou: a velha esta em trans_buf
+    trans_tela = tela;
+    if (t_trans >= 0 && t_trans >= TRANS_T) t_trans = -1;
+    if (t_trans >= 0) {
+        // A beira e uma faixa escura pontilhada, como a sombra de uma cortina
+        // passando: do lado novo ela vai abrindo em pontos, do velho fecha.
+        float e = t_trans / TRANS_T * (1 + TRANS_BEIRA), tot = GFX_W + GFX_H * 0.6f;
+        for (int y = 0; y < GFX_H; y++)
+            for (int x = 0; x < GFX_W; x++) {
+                float s = (x + y * 0.6f) / tot;           // 0 no canto de cima a esquerda, 1 no de baixo a direita
+                float k = (e - s) / TRANS_BEIRA;          // 1: ja na tela nova; 0: ainda na velha
+                if (k >= 1) continue;
+                int i = y * GFX_W + x;
+                float b = bayer(x >> 1, y >> 1);
+                if (k <= 0) fb[i] = trans_buf[i];
+                else if (b >= k) fb[i] = b < k + 0.35f ? C_BARRA : trans_buf[i];
+            }
+        return;                                           // a velha fica guardada ate a varredura acabar
+    }
+    memcpy(trans_buf, fb, sizeof trans_buf);
+}
+
 void dado_desenha(void)
 {
     n_zonas = 0;
@@ -169,6 +221,7 @@ void dado_desenha(void)
     desenha_clarao();                                    // o golpe: o clarao de quem acertou
     aplica_tremor();
     gfx_quantiza();                                      // o quadro so com cores da paleta
+    transicao();
 }
 
 static void desenha_tudo(void)

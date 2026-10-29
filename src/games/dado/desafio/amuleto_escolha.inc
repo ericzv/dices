@@ -77,13 +77,15 @@ static void desenha_amuleto_run(void)
         int a = run.am_oferta[i];
         if (a >= A_N) continue;
         int x = GFX_W / 2 + (i - 1) * 150;
+        if (ui_entra_q(t_fase, i) <= 0) continue;           // os cartoes entram em cascata
+        int cy = 124 + ui_entra(t_fase, i, UI_ENTRA_CARTAO);
         bool cur = i == cursor;
-        ui_cartao(x - 64, 124, 128, 100, cur, 0);
+        ui_cartao(x - 64, cy, 128, 100, cur, 0);
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
-        desenha_amuleto(x, 156 + (int)bob, 26, a, false);
-        txt_c(x, 186, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
-        if (nome_rar_am(a)[0]) ui_selo_c(x, 205, nome_rar_am(a), cor_rar_am(a), GFX_MIUDO);
-        zona_clique(x - 64, 124, 128, 100, &cursor, i, KEY_ENTER);
+        desenha_amuleto(x, cy + 32 + (int)bob, 26, a, false);
+        txt_c(x, cy + 62, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
+        if (nome_rar_am(a)[0]) ui_selo_c(x, cy + 80, nome_rar_am(a), cor_rar_am(a), GFX_FINO);
+        zona_clique(x - 64, cy, 128, 100, &cursor, i, KEY_ENTER);
     }
     if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)
         txt_c(GFX_W / 2, 234, AMULETO[run.am_oferta[cursor]].desc, C_MARFIM, false);

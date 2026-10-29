@@ -448,6 +448,23 @@ static void ui_plaqueta(int cx, int y, const char *s, uint16_t cor)
     gfx_texto(x + 7, y - 2, s, C_BARRA, fonte_de(true), true);
 }
 
+// A entrada das placas e dos cartoes, igual em todo lugar: descem 'dist'
+// pixels de cima e assentam com a mola (sai_mola) em UI_ENTRA_T segundos;
+// cartoes lado a lado entram em cascata, UI_CASCATA depois do vizinho.
+// t: ha quanto tempo a tela (ou a placa) apareceu; i: a vez na cascata.
+// ui_entra_q > 0: ja apareceu; ui_entra: quanto ainda falta descer (y).
+#define UI_ENTRA_T      0.3f
+#define UI_CASCATA      0.07f
+#define UI_ENTRA_PLACA  10                  // placas e paineis: um pulinho
+#define UI_ENTRA_CARTAO 40                  // cartoes: caem de mais alto
+static float sai_mola(float q);             // desafio/desenho.inc
+static float ui_entra_q(float t, int i) { return (t - i * UI_CASCATA) / UI_ENTRA_T; }
+static int ui_entra(float t, int i, int dist)
+{
+    float q = ui_entra_q(t, i);
+    return q >= 1 ? 0 : -(int)((1 - sai_mola(q < 0 ? 0 : q)) * dist);
+}
+
 // ---------------------------------------------------------------------------
 // Mouse: cada tela, ao se desenhar, marca as areas que aceitam clique. Passar
 // o mouse por cima poe o cursor na opcao; clicar e o mesmo que apertar a

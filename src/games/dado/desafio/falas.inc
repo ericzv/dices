@@ -156,21 +156,6 @@ static void humor_da_rodada(void)
     }
 }
 
-// No fim da partida, a cara do resultado: quem ganhou, alegre (o chefe, com
-// desdem); quem perdeu, preocupado (bravo, os esquentados e os chefes).
-static void humor_fim_partida(int vencedor)
-{
-    bool chefe = fala_perso >= 0 && perso_chefe(fala_perso);
-    bool quente = fala_perso >= 0 && fala_perso < (int)sizeof TEMPERAMENTO && TEMPERAMENTO[fala_perso] == TP_ESQUENTADO;
-    int h[2] = { -1, -1 };
-    if (vencedor == 0) { h[0] = EX_ALEGRE; h[1] = chefe || quente ? EX_BRAVA : EX_PREOCUPADA; }
-    else if (vencedor == 1) { h[0] = EX_PREOCUPADA; h[1] = chefe ? EX_DESDEM : EX_ALEGRE; }
-    for (int j = 0; j < 2; j++) {
-        if (h[j] != humor[j]) t_humor_pisca[j] = 0.18f;
-        humor[j] = h[j];
-    }
-}
-
 static void rival_reage(int m)
 {
     if (modo != M_DESAFIO || fala_perso < 0 || fala_perso >= (int)sizeof TEMPERAMENTO || m < 0 || m >= RM_N) return;

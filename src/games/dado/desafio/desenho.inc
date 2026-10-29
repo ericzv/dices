@@ -646,13 +646,9 @@ static void saque_fileira(int y)
 static void desenha_fim_partida_run(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    if (venc_partida < 2) chuva_fichas(venc_partida, t_fase, venc_partida == 0 ? 44 : 30);   // as fichas chovem do lado de quem levou
-    // O oponente, grande, a esquerda, com o que disse no fim. Reage: perdeu,
-    // estremece; ganhou, da uns pulinhos.
+    // O oponente, grande, a esquerda, com o que disse no fim.
     if (fala_perso >= 0) {
         int esc = 3, rx = 22, ry = C0 - 70;
-        if (venc_partida == 0 && t_fase < 0.6f) rx += (int)(sinf(t_fase * 55) * 3 * (1 - t_fase / 0.6f));
-        if (venc_partida == 1 && t_fase < 1.2f) ry -= (int)(fabsf(sinf(t_fase * 8)) * 5 * (1 - t_fase / 1.2f));
         bool chefe = perso_chefe(fala_perso);
         gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
         gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));

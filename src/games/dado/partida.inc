@@ -101,7 +101,6 @@ static void compra(jogador_t *p)
 
 static void some_fantasmas(void);
 
-static void humor_fim_partida(int vencedor);   // desafio/falas.inc
 static void encerra(int vencedor)
 {
     some_fantasmas();
@@ -114,7 +113,6 @@ static void encerra(int vencedor)
     som_toca(vencedor == 2 && modo == M_DOIS ? SOM_EMPATE : (perdeu ? SOM_DERROTA : SOM_FIM));
     if (modo == M_DESAFIO) {
         fala_evento(vencedor == 1 ? FA_GANHA_P : FA_PERDE_P);
-        humor_fim_partida(vencedor);          // os retratos ficam com a cara do resultado
         des_resultado();                      // a run anota na hora
     }
 }

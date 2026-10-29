@@ -531,30 +531,6 @@ static void desenha_log(void)
     }
 }
 
-// A chuva de fichas do lado de quem levou (rodada grande, fim de partida):
-// caem de cima para o chao do lado dele, cada uma no seu tempo e no seu
-// lugar (o acaso vem do numero da ficha: nada fica guardado), quicam uma vez
-// e ficam deitadas no feltro. t: desde que comecou.
-static void chuva_fichas(int j, float t, int n)
-{
-    static const uint16_t COR[4] = { C_LATAO, C_VINHO, C_MARFIM_S, C_ROSA };
-    bool embaixo = j == baixo;
-    for (int i = 0; i < n; i++) {
-        uint32_t h = (uint32_t)(i + 1) * 2654435761u;
-        float t0 = i * 0.045f + (h >> 7) % 100 / 600.0f, q = t - t0;
-        if (q <= 0) continue;
-        int x = MESA_X0 + 96 + (int)(h % (uint32_t)(MESA_X1 - MESA_X0 - 120));   // longe do porta-retrato
-        int chao = embaixo ? MESA_Y1 - 12 - (int)(h >> 12) % 10 : MESA_Y0 + 10 + (int)(h >> 12) % 10;
-        float cai = embaixo ? CENTRO - 60.0f : -14.0f;               // de onde cai
-        float y = cai + 0.5f * 1100 * q * q;
-        if (y >= chao) {                                             // no chao: um quique e para
-            float tq = q - sqrtf(2 * (chao - cai) / 1100), pulo = tq < 0.16f ? sinf(tq / 0.16f * 3.1416f) * 5 : 0;
-            y = chao - pulo;
-        }
-        ficha(x, (int)y, COR[i % 4]);
-    }
-}
-
 // O placar final numa plaquinha de latao, no feltro logo acima do painel
 // (y_beira, a beira de cima dele): as fichas de cada um, cada nome do lado.
 static void placa_placar(int y_beira)
@@ -608,7 +584,6 @@ static void desenha_resultado(void)
         ui_plaqueta(POTE_X, y, "EMPATE", C_MARFIM_S);
         fim = 0.6f;
     }
-    if (w >= 0 && F[w].total >= RODADA_GRANDE) chuva_fichas(w, t_fase - 0.15f, 28);   // rodada grande
     if (w >= 0) {
         float x0 = POTE_X, y0 = CENTRO + 10;
         for (int i = 0; i < n; i++) {
@@ -863,7 +838,6 @@ static void desenha_loja(void)
 static void desenha_fim(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    if (venc_partida < 2) chuva_fichas(venc_partida, t_fase, 44);   // as fichas chovem do lado de quem levou
     painel(C0 - 70, 150, 440);
     if (venc_partida == 2) {
         txt_sombra_c(GFX_W / 2, C0 - 52, "EMPATE", C_MARFIM, 3);

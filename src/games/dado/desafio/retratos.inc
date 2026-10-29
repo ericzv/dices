@@ -853,11 +853,17 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
 // um pouco do tamanho) e sai encolhendo de volta para o bico. O tamanho vem
 // da fala inteira; o texto, do que ja foi dito.
 #define BALAO_BICO 6
+static void balao_em(int tx, int ty, const char *s, const char *dito, float q);
 static void desenha_balao(int tx, int ty, const char *s, const char *dito)
 {
     float e = fala_dur - t_fala, q = 1;               // ha quanto tempo saiu
     if (e < 0.2f) q = sai_mola(e / 0.2f);
     if (t_fala < 0.14f) q = t_fala / 0.14f;
+    balao_em(tx, ty, s, dito, q);
+}
+// O balao no tamanho q (0..1, o pulinho de entrar e o encolher de sair).
+static void balao_em(int tx, int ty, const char *s, const char *dito, float q)
+{
     if (q < 0.15f) return;
     int W = gfx_largura(s, 1) + 16, H = TXT_H + 8;
     int w = (int)(W * q + 0.5f), h = (int)(H * q + 0.5f);

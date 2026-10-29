@@ -232,8 +232,8 @@ static void loja_passo(float dt)
     if (t_lj_ad_carimbo > 0) t_lj_ad_carimbo += dt;
     // Os cartoes batendo na mesa, um depois do outro (o pacote e o adesivo por ultimo).
     for (int i = 0; i <= lj_item_adesivo(); i++) {
-        float q = (t_lj_entra - i * 0.08f) / 0.34f;
-        if (i >= n_vitrine()) q = (t_lj_abriu - i * 0.08f) / 0.34f;
+        float q = ui_entra_q(t_lj_entra, i);            // a cascata padrao (interface.inc)
+        if (i >= n_vitrine()) q = ui_entra_q(t_lj_abriu, i);
         if (q >= 0.75f && !(lj_caiu >> i & 1)) { lj_caiu |= (uint8_t)(1 << i); som_toca_tom(SOM_BATE_DADO, i * 2); }
     }
     cola_passo(dt);
@@ -656,7 +656,7 @@ static void lj_carimbo(int cx, int cy, float t, const char *s)
 static void lj_cartao_dado(int i)
 {
     int x = lj_card_x(i), cw = lj_cw();
-    float q = (t_lj_entra - i * 0.08f) / 0.34f;
+    float q = ui_entra_q(t_lj_entra, i);            // a cascata padrao (interface.inc)
     if (q <= 0) return;
     int y = LJ_Y - (int)((1 - sai_mola(q)) * 80);
     peca_t pc = run.vitrine[i];
@@ -805,7 +805,7 @@ static void desenha_pacote(int cx, int cy, float e, int g, bool rasgado)
 static void lj_cartao_pacote(void)
 {
     int it = lj_item_pacote(), x = lj_card_x(it), cw = lj_cw();
-    float q = (t_lj_abriu - it * 0.08f) / 0.34f;
+    float q = ui_entra_q(t_lj_abriu, it);
     if (q <= 0) return;
     int y = LJ_Y - (int)((1 - sai_mola(q)) * 80);
     int g = run.pacote;
@@ -835,7 +835,7 @@ static void lj_cartao_pacote(void)
 static void lj_cartao_adesivo(void)
 {
     int it = lj_item_adesivo(), x = lj_card_x(it), cw = lj_cw();
-    float q = (t_lj_abriu - it * 0.08f) / 0.34f;
+    float q = ui_entra_q(t_lj_abriu, it);
     if (q <= 0) return;
     int y = LJ_Y - (int)((1 - sai_mola(q)) * 80);
     int a = run.adesivo;
@@ -866,7 +866,7 @@ static void lj_cartao_adesivo(void)
 static void lj_servico(int s)
 {
     int item = lj_item_troca() + s, y0 = lj_serv_y(s), sx = lj_sx();
-    float q = (t_lj_abriu - 0.12f - s * 0.08f) / 0.3f;
+    float q = ui_entra_q(t_lj_abriu - 0.12f, s);
     if (q <= 0) return;
     int x0 = sx + (int)((1 - sai_mola(q)) * 120);
     bool cur = item == cursor && !lj_tirando;

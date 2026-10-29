@@ -378,7 +378,7 @@ static void botoes_aposta(int y, const int *op, int n, char rot[][24])
 static void desenha_aposta(void)
 {
     char t[64], q[64];
-    int y1 = CENTRO - 36;
+    int y1 = CENTRO - 36 + ui_entra(t_fase, 0, UI_ENTRA_PLACA);   // a placa entra (interface.inc)
     // Uma linha so: quem fez quantos pontos e a pergunta, cada um na sua cor.
     snprintf(t, sizeof t, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
     if (a_pagar)            snprintf(q, sizeof q, "%s paga %d para ver?", vez == primeiro ? "" : J[vez].nome, a_pagar);
@@ -664,19 +664,21 @@ static void desenha_premio(void)
     bool girando = slot_girando();
     for (int i = 0; i < 3; i++) {
         int x = GFX_W / 2 + (i - 1) * 150;
+        if (ui_entra_q(t_fase, i) <= 0) continue;           // os cartoes entram em cascata
+        int cy = 90 + ui_entra(t_fase, i, UI_ENTRA_CARTAO);
         int t2 = oferta[i].tipo, ad = oferta_ad[i];
         float para = slot_para(i);
         bool parado = t_slot < 0 || t_slot >= para;
         bool cur = i == cursor && !girando;
         uint16_t cr = COR_RAR[rar_oferta(i)];
-        ui_cartao(x - 64, 90, 128, 110, cur, cr);
+        ui_cartao(x - 64, cy, 128, 110, cur, cr);
         if (!parado) {
             // O rolo: dados passando de cima para baixo, cada vez mais devagar,
             // ate o ultimo (o premio) chegar ao centro. Os de passagem encolhem
             // perto das bordas, como num cilindro.
             // O rolo e desenhado num rascunho e so a janela volta para a tela:
             // os dados de passagem nao vazam para fora (nem os numeros deles).
-            const int wx = x - 60, wy = 94, ww = 120, wh = 64;
+            const int wx = x - 60, wy = cy + 4, ww = 120, wh = 64;
             uint16_t *tela = display_fb();
             gfx_desvia(rascunho);
             gfx_rect(wx, wy, ww, wh, C_FELTRO_ESC);
@@ -692,7 +694,7 @@ static void desenha_premio(void)
                 if (ad) {                                // o rolo de adesivos: passam outros
                     int a = k > 0 ? 1 + (int)(h % (uint32_t)(AD_N - 1)) : ad;
                     if (!ad_no_premio(a)) a = AD_CONFETE;          // (o Dourado nao sai aqui)
-                    ad_solto_d(x, 126 + (int)dy, a, q > 0.75f ? 5 : 4, 0);
+                    ad_solto_d(x, cy + 36 + (int)dy, a, q > 0.75f ? 5 : 4, 0);
                     continue;
                 }
                 if (k > 0) {
@@ -700,7 +702,7 @@ static void desenha_premio(void)
                     pc.tipo = (uint8_t)basico((int)(h % (uint32_t)n_basicos()));
                     pc.fixo = (uint8_t)(1 + (h >> 8) % 8);
                 }
-                peca_parada((float)x, 126 + dy, 24 * q, pc, vez);
+                peca_parada((float)x, cy + 36 + dy, 24 * q, pc, vez);
             }
             for (int b2 = 0; b2 < 8; b2++) {             // sombra nas bordas: um cilindro
                 gfx_rect_alfa(wx, wy + b2, ww, 1, C_BARRA, 150 - b2 * 18);
@@ -709,29 +711,29 @@ static void desenha_premio(void)
             gfx_desvia(NULL);
             for (int yy = wy; yy < wy + wh; yy++)
                 memcpy(tela + yy * GFX_W + wx, rascunho + yy * GFX_W + wx, (size_t)ww * 2);
-            txt_c(x, 162, "?", C_TEXTO_M, true);
+            txt_c(x, cy + 72, "?", C_TEXTO_M, true);
             continue;
         }
         // Acabou de travar: um pulo e a moldura acende.
         float q = t_slot >= 0 ? (t_slot - para) / 0.3f : 1;
         bool acende = q < 1;
-        if (acende) ui_cartao_aceso(x - 64, 90, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
+        if (acende) ui_cartao_aceso(x - 64, cy, 128, 110, true, gfx_mistura(cr, C_BRANCO, (int)(60 * (1 - q))));
         float pulo = acende ? sinf(q * 3.14159f) * -8 : 0;
         float bob = cur ? sinf(t_fase * 4) * 3 - mola_px() : 0;
         if (cur) brilho_passa = mola_brilho();
         char c2[40];
         if (ad) {                                    // o adesivo: solto, a ponta levantando na vez dele
             float descola = cur ? 0.25f + 0.15f * sinf(t_fase * 4) : 0;
-            ad_solto_d(x, 128 + (int)(bob + pulo), ad, acende && q < 0.5f ? 6 : 5, descola);
-            txt_c(x, 162, ADESIVO[ad].nome, cur || acende ? ADESIVO[ad].luz : C_MARFIM_S, true);
+            ad_solto_d(x, cy + 38 + (int)(bob + pulo), ad, acende && q < 0.5f ? 6 : 5, descola);
+            txt_c(x, cy + 72, ADESIVO[ad].nome, cur || acende ? ADESIVO[ad].luz : C_MARFIM_S, true);
             snprintf(c2, sizeof c2, "adesivo · %s", RARIDADE[RAR_ADESIVO[ad]]);
         } else {
-            peca_parada((float)x, 130 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
-            txt_c(x, 162, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
+            peca_parada((float)x, cy + 40 + bob + pulo, 26 * (acende ? 1 + 0.12f * (1 - q) : 1), oferta[i], vez);
+            txt_c(x, cy + 72, TIPO[t2].nome, cur || acende ? cor_dado(t2) : C_MARFIM_S, true);
             classe(t2, c2, sizeof c2);
         }
-        ui_selo_c(x, 180, c2, cr, GFX_FINO);
-        zona_clique(x - 64, 90, 128, 110, &cursor, i, KEY_ENTER);
+        ui_selo_c(x, cy + 90, c2, cr, GFX_FINO);
+        zona_clique(x - 64, cy, 128, 110, &cursor, i, KEY_ENTER);
     }
     bool pode = p->n_col > FILA_NORMAL;
     if (girando) {
@@ -780,7 +782,8 @@ static void desenha_loja(void)
     fichas_c(GFX_W / 2, MESA_Y0 + 54, p->fichas, t, p->cor);
 
     for (int i = 0; i < N_LOJA; i++) {
-        int x = GFX_W / 2 + (i - 2) * 108, yb = 142;
+        if (ui_entra_q(t_fase, i) <= 0) continue;           // os cartoes entram em cascata
+        int x = GFX_W / 2 + (i - 2) * 108, yb = 142 + ui_entra(t_fase, i, UI_ENTRA_CARTAO);
         int tp = loja[i].tipo, pr = TIPO[tp].preco;
         bool ja = levou[vez][i], cur = i == cursor, da = p->fichas >= pr;
         uint16_t cr = cor_rar(tp);
@@ -812,19 +815,20 @@ static void desenha_loja(void)
 
 static void desenha_fim(void)
 {
-    painel(CENTRO - 70, 150, 440);
+    int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
+    painel(C0 - 70, 150, 440);
     if (venc_partida == 2) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, "EMPATE", C_MARFIM, 3);
+        txt_sombra_c(GFX_W / 2, C0 - 58, "EMPATE", C_MARFIM, 3);
     } else {
         jogador_t *p = &J[venc_partida];
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, p->nome, p->cor, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, "leva a mesa", C_MARFIM, true);
+        txt_sombra_c(GFX_W / 2, C0 - 58, p->nome, p->cor, 3);
+        txt_c(GFX_W / 2, C0 + 6, "leva a mesa", C_MARFIM, true);
     }
     char s[48];
     snprintf(s, sizeof s, "%s %d  x  %d %s", J[baixo].nome, J[baixo].fichas,
              J[outro(baixo)].fichas, J[outro(baixo)].nome);
-    txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-    teclas_c(GFX_W / 2, CENTRO + 58, "ENTER nova partida", C_MARFIM_S);
+    txt_c(GFX_W / 2, C0 + 32, s, C_TEXTO_M, false);
+    teclas_c(GFX_W / 2, C0 + 58, "ENTER nova partida", C_MARFIM_S);
 }
 
 

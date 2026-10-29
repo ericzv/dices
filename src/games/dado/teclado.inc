@@ -113,6 +113,7 @@ void dado_tecla(const key_event_t *ev_)
     if (slot_girando() && k != KEY_ESC) { slot_pula(); return; }
     if (k == 'i' && !dado_digitando() && tipo_em_foco() >= 0) {
         detalhe = tipo_em_foco();
+        t_detalhe = 0;
         detalhe_fase = fase;
         som_toca(SOM_TIQUE);
         return;

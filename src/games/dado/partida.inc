@@ -1459,7 +1459,7 @@ static void anuncia(const char *fmt, const char *quem, int v)
 {
     snprintf(anuncio, sizeof anuncio, fmt, quem, v);
     anuncio_cor = J[vez].cor;
-    t_anuncio = 1.3f;
+    t_anuncio = anuncio_dur = 1.3f;
     n_anuncio_peca = 0;
 }
 
@@ -1471,7 +1471,7 @@ static void anuncia_pecas(const char *fmt, const peca_t *p, int n)
     for (int i = 0; i < n && i < 5; i++) anuncio_peca[i] = p[i];
     n_anuncio_peca = n < 5 ? n : 5;
     anuncio_dono = vez;
-    t_anuncio = n ? 2.2f + 0.4f * n : 1.3f;
+    t_anuncio = anuncio_dur = n ? 2.2f + 0.4f * n : 1.3f;
 }
 
 // Fim do turno de j: os dados da sequencia que ele nao lancou saem da mesa e

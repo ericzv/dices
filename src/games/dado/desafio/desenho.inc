@@ -473,9 +473,10 @@ static void saque_fileira(int y)
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
 static void desenha_fim_partida_run(void)
 {
+    int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
     // O oponente, grande, a esquerda, com o que disse no fim.
     if (fala_perso >= 0) {
-        int esc = 3, rx = 22, ry = CENTRO - 70;
+        int esc = 3, rx = 22, ry = C0 - 70;
         bool chefe = perso_chefe(fala_perso);
         gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
         gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
@@ -484,27 +485,27 @@ static void desenha_fim_partida_run(void)
         if (fala_txt[0]) txt_c(rx + RT_W * esc / 2, ry + RT_H * esc + 6, PERSO[fala_perso].nome, C_ROSA, true);
     }
     int alto = venc_partida == 0 && des_marco >= 0 ? 168 : 150;
-    painel(CENTRO - 70, alto, 460);
+    painel(C0 - 70, alto, 460);
     char s[80];
     if (venc_partida == 0) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, "VOCÊ VENCEU", C_LATAO, 3);
-        saque_fileira(CENTRO + 4);
+        txt_sombra_c(GFX_W / 2, C0 - 58, "VOCÊ VENCEU", C_LATAO, 3);
+        saque_fileira(C0 + 4);
         const char *dica = fim_da_run() ? "ENTER segue" : des_marco >= 0 ? "ENTER mostra a novidade"
                          : chefe_deixa_amuleto() ? "ENTER: o chefe deixa um amuleto" : "ENTER vai à loja";
-        int yd = CENTRO + 56;
+        int yd = C0 + 56;
         if (des_marco >= 0) {                      // primeira vitoria contra este chefe: o card vem depois
-            txt_c(GFX_W / 2, CENTRO + 46, "Abriu uma novidade para as próximas runs", C_OURO, true);
-            yd = CENTRO + 72;
+            txt_c(GFX_W / 2, C0 + 46, "Abriu uma novidade para as próximas runs", C_OURO, true);
+            yd = C0 + 72;
         }
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        txt_c(GFX_W / 2, CENTRO + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
+        txt_sombra_c(GFX_W / 2, C0 - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
+        txt_c(GFX_W / 2, C0 + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
                                      : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
                                                          : "A run termina aqui.", C_MARFIM, true);
         snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
-        txt_c(GFX_W / 2, CENTRO + 32, s, C_TEXTO_M, false);
-        teclas_c(GFX_W / 2, CENTRO + 58, "ENTER segue", C_MARFIM_S);
+        txt_c(GFX_W / 2, C0 + 32, s, C_TEXTO_M, false);
+        teclas_c(GFX_W / 2, C0 + 58, "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];
@@ -512,6 +513,6 @@ static void desenha_fim_partida_run(void)
         int x0 = GFX_W / 2 - gfx_largura(q, fonte_de(false)) / 2;
         const char *dito = fala_dita_txt();
         snprintf(q, sizeof q, "\"%s%s", dito, strlen(dito) == strlen(fala_txt) ? "\"" : "");
-        txt(x0, CENTRO - 70 + alto + 8, q, C_ROSA, false);
+        txt(x0, C0 - 70 + alto + 8, q, C_ROSA, false);
     }
 }

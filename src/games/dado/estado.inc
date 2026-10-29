@@ -179,7 +179,7 @@ static char aviso[96], veredito[96], nota[48];
 // decidiu (parou, passou, apostou...) aparece numa linha curta no lugar.
 static char anuncio[64];
 static uint16_t anuncio_cor;
-static float t_anuncio;
+static float t_anuncio, anuncio_dur;   // o anuncio da maquina: quanto falta, e quanto dura
 // Na loja e no premio, o anuncio mostra tambem os dados que ela levou.
 static peca_t anuncio_peca[5];
 static int n_anuncio_peca, anuncio_dono;
@@ -437,6 +437,8 @@ static int ante_da(int r)
 }
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 static float t_sua_vez;                  // > 0: a plaquinha SUA VEZ no painel da sequencia
+static float t_detalhe;                  // desde que o cartao do detalhe (I) abriu
+static float t_trans = -1;               // >= 0: a transicao entre telas varrendo (quadro.inc)
 #define SUA_VEZ_T 2.0f
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);

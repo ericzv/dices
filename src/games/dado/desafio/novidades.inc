@@ -376,9 +376,8 @@ static void nov_resumo(float desde)
     for (int i = 0; i < n_nov; i++) {
         int lin = i / cols, col = i % cols, na_lin = lin == linhas - 1 ? n_nov - lin * cols : cols;
         int cx = GFX_W / 2 + (int)((col - (na_lin - 1) / 2.0f) * (w + vao)), y = y0 + lin * (h + 8);
-        float q = (desde - i * 0.04f) / 0.25f;
-        if (q <= 0) continue;
-        int dy = (int)((1 - sai_mola(q)) * 10);
+        if (ui_entra_q(desde, i) <= 0) continue;            // a cascata padrao (interface.inc)
+        int dy = ui_entra(desde, i, UI_ENTRA_PLACA);
         uint16_t c = nov_cor(i);
         ui_cartao_aceso(cx - w / 2, y + dy, w, h, false, c);
         nov_icone(i, cx, y + dy + 26, 13);

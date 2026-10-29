@@ -32,7 +32,8 @@ static void desenha_aviso_entrada(void)
 // O que a maquina acabou de fazer, numa linha, onde ficariam os menus dela.
 static void desenha_anuncio(void)
 {
-    int y1 = CENTRO - 40;
+    int dy = ui_entra(anuncio_dur - t_anuncio, 0, UI_ENTRA_PLACA);   // a placa entra (interface.inc)
+    int y1 = CENTRO - 40 + dy;
     if (!n_anuncio_peca) {
         painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(anuncio, 1), 160));
         txt_c(GFX_W / 2, y1 - 1, anuncio, anuncio_cor, true);
@@ -40,7 +41,7 @@ static void desenha_anuncio(void)
     }
     // Com os dados que a maquina levou: cada um desenhado, com o nome embaixo.
     const int passo = 104, h = 104;
-    int n = n_anuncio_peca, y0 = CENTRO - h / 2 - 6;
+    int n = n_anuncio_peca, y0 = CENTRO - h / 2 - 6 + dy;
     painel(y0, h, larg_painel(n * passo - 24, gfx_largura(anuncio, 1) + 36));
     txt_c(GFX_W / 2, y0 + 6, anuncio, anuncio_cor, true);
     for (int i = 0; i < n; i++) {

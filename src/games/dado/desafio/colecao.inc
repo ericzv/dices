@@ -62,32 +62,30 @@ static void desenha_cat_amuleto(int i)
     faixas_colecao(i, n_amuletos_jogo());
 
     bool aberto = amuleto_liberado(a);
-    int cx = 160, cy = CENTRO + 4;
-    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, AMULETO[a].cor, 45));
-    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
-    desenha_amuleto(cx, cy + (int)(sinf(t_fase * 2) * 2), 40, a, !aberto);
-    if (!aberto) {                                   // fechado: no escuro
-        no_escuro(cx, cy, 76, C_FELTRO_ESC);
-        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
-    }
+    // Na vitrine (catalogo.inc): flutuando na poca de luz; fechado, no escuro.
+    int cx = VIT_X, sobe = vitrine_chao(cx, 40), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
+    if (!aberto) vitrine_guarda(cx, cy);
+    desenha_amuleto(cx, cy, 40, a, !aberto);
+    if (!aberto) vitrine_no_escuro(cx, cy);
+    fileira_colecao(FIL_AMULETO, i, n_amuletos_jogo(), &cat_a);
 
     int x = 290;
-    gfx_texto(x, 70, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
-    int ex = etiqueta_caixa(x, 118, nome_rar_am(a), cor_rar_am(a)) + 2;
+    gfx_texto(x, 60, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
+    int ex = etiqueta_caixa(x, 104, nome_rar_am(a), cor_rar_am(a)) + 2;
     static const char *const QUANDO[] = { "", "no começo da run", "depois do 1º chefe", "depois do 2º chefe" };
     snprintf(s, sizeof s, "amuleto · %s", QUANDO[RAR_AMULETO[a]]);
-    txt(ex, 119, s, C_TEXTO_M, false);
-    if (NIVEL_AMULETO[a] == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
+    txt(ex, 105, s, C_TEXTO_M, false);
+    if (NIVEL_AMULETO[a] == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
-        txt(x, 139, s, C_VERDE, false);
+        txt(x, 124, s, C_VERDE, false);
     } else {
         quem_abre(NIVEL_AMULETO[a], CH_DONA, -1, s, sizeof s);
-        linha_bloqueio(x, 139, s);
+        linha_bloqueio(x, 124, s);
     }
-    gfx_rect(x, 160, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 170, 320, 6, AMULETO[a].desc, C_MARFIM);
+    gfx_rect(x, 144, 320, 1, C_FELTRO2);
+    quebra_linhas(x, 152, 320, 6, AMULETO[a].desc, C_MARFIM);
 }
 
 // Os adesivos, na ordem em que abrem.
@@ -107,40 +105,41 @@ static void desenha_cat_adesivo(int i)
     char s[96];
     faixas_colecao(i, AD_N - 1);
     bool aberto = adesivo_liberado(a);
-    int cx = 160, cy = CENTRO + 4;
-    gfx_disco(cx, cy, 80, gfx_mistura(C_FELTRO_ESC, d->luz, 45));
-    gfx_disco(cx, cy, 77, C_FELTRO_ESC);
+    // Na vitrine (catalogo.inc): o adesivo flutua na luz, a ponta descolando
+    // de tempos em tempos, e embaixo, no chao, tres dados com ele no lado de
+    // cima; fechado, tudo no escuro.
+    int cx = VIT_X, sobe = vitrine_chao(cx, 50), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
+    if (!aberto) vitrine_guarda(cx, VIT_Y);
     float ciclo = fmodf(t_fase, 3.1f), descola = ciclo < 0.5f ? sinf(ciclo / 0.5f * 3.1416f) : 0;
-    ad_solto_d(cx, cy - 14 + (int)(sinf(t_fase * 2) * 2), a, 6, aberto ? descola : 0);
-    // Num dado: o lado com ele para cima, nos tres jeitos de dado.
     static const int T[3] = { D_D4, D_D6, D_D20 };
     for (int k = 0; k < 3; k++) {
         int v = k == 0 ? 3 : k == 1 ? 6 : 19;
         ad_face = a;
-        desenha_dado((float)(cx - 44 + k * 44), (float)(cy + 50), 14, T[k], 0, 0, v + (a == AD_REMENDO ? 2 : 0), 2, false);
+        desenha_dado((float)(cx - 44 + k * 44), (float)(VIT_CHAO - 10), 14, T[k], 0, 0, v + (a == AD_REMENDO ? 2 : 0), 2, false);
     }
-    if (!aberto) {                                   // fechado: no escuro
-        no_escuro(cx, cy, 76, C_FELTRO_ESC);
-        cadeado(cx + 54, cy - 66, C_VINHO_CLR, 2);
-    }
+    ad_solto_d(cx, cy - 22, a, 6, aberto ? descola : 0);
+    if (!aberto) vitrine_no_escuro(cx, VIT_Y);
+    fileira_colecao(FIL_ADESIVO, i, AD_N - 1, &cat_ad);
     int x = 290;
-    gfx_texto(x, 70, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
+    gfx_texto(x, 60, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
     snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
-    int ex = etiqueta_caixa(x, 118, s, C_OURO) + 2;
-    txt(ex, 119, "adesivo · na loja, um por visita", C_TEXTO_M, false);
-    if (d->nivel == 0) txt(x, 139, "Aberto desde o começo", C_TEXTO_M, false);
+    int ex = etiqueta_caixa(x, 104, s, C_OURO) + 2;
+    txt(ex, 105, "adesivo · na loja, um por visita", C_TEXTO_M, false);
+    if (d->nivel == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
-        txt(x, 139, s, C_VERDE, false);
+        txt(x, 124, s, C_VERDE, false);
     } else {
         quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
-        linha_bloqueio(x, 139, s);
+        linha_bloqueio(x, 124, s);
     }
-    gfx_rect(x, 160, 320, 1, C_FELTRO2);
-    int n = quebra_linhas(x, 170, 320, 5, AD_TEXTO[a], C_MARFIM);
-    quebra_linhas(x, 170 + n * LINHA_FINA + 10, 320, 3, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
-                  C_TEXTO_M);
+    gfx_rect(x, 144, 320, 1, C_FELTRO2);
+    // A regra e, se sobrar lugar acima da fileira, como o adesivo funciona.
+    int n = quebra_linhas(x, 152, 320, 6, AD_TEXTO[a], C_MARFIM), sobra = 7 - n - 1;
+    if (sobra > 0)
+        quebra_linhas(x, 152 + n * LINHA_FINA + 8, 320, sobra, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
+                      C_TEXTO_M);
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }

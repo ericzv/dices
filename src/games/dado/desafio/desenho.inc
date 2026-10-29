@@ -516,3 +516,42 @@ static void desenha_fim_partida_run(void)
         txt(x0, C0 - 70 + alto + 8, q, C_ROSA, false);
     }
 }
+
+// A cena do Modo Desafiante no tutorial: as tres mesas de um salao em fila,
+// com o caminho pontilhado, e a sua ficha andando de uma para a outra; a
+// mesa que fica para tras leva o visto.
+static void tut_cena_desafio(int cx, int cy, float t)
+{
+    static int P[3] = { -1, -1, -1 };
+    static const char *const NOME[3] = { "O COVEIRO", "O LADRÃO", "O CRUPIÊ" };
+    static const char *const TAG[3] = { "Fácil", "Difícil", "Chefe" };
+    for (int i = 0; i < 3; i++)
+        if (P[i] < 0) for (int p = 0; p < N_PERSO; p++) if (!strcmp(PERSO[p].nome, NOME[i])) P[i] = p;
+    float c = fmodf(t, 5.2f);
+    // Onde a ficha esta: parada numa mesa ou andando para a proxima.
+    float pos = c < 1.3f ? 0 : c < 1.9f ? (c - 1.3f) / 0.6f : c < 3.1f ? 1 : c < 3.7f ? 1 + (c - 3.1f) / 0.6f : 2;
+    int w = RT_W * 2, h = RT_H * 2, y = cy - 50;
+    for (int i = 0; i + 1 < 3; i++)                   // o caminho
+        for (int x = cx - 150 + i * 150 + w / 2 + 6; x < cx - 150 + (i + 1) * 150 - w / 2 - 6; x += 6)
+            gfx_rect(x, y + h / 2, 2, 2, x < cx - 150 + pos * 150 ? C_OURO : C_FELTRO2);
+    for (int i = 0; i < 3; i++) {
+        int x = cx - 150 + i * 150;
+        bool chefe = i == 2, feita = pos > i + 0.3f;
+        uint16_t r[4];
+        ui_rampa(chefe ? C_OURO : C_LATAO_ESC, feita, r);
+        ui_contorno(x - w / 2 - 3, y - 3, w + 6, h + 6, C_BARRA);
+        ui_aro(x - w / 2 - 2, y - 2, w + 4, h + 4, 2, r, UI_VIVO);
+        gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+        if (P[i] >= 0) retrato(x - w / 2, y, 2, P[i], t + i * 1.3f, false, 0, RT_H);
+        if (feita) {                                  // vencida: apaga e leva o visto
+            gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
+            gfx_linha_grossa(x - 9, y + h / 2, x - 2, y + h / 2 + 8, 4, C_OURO);
+            gfx_linha_grossa(x - 2, y + h / 2 + 8, x + 12, y + h / 2 - 10, 4, C_OURO);
+        }
+        gfx_texto(x - gfx_largura(TAG[i], GFX_FINO) / 2, y + h + 2, TAG[i], feita ? C_TEXTO_M : cor_no(i == 0 ? NO_FACIL : i == 1 ? NO_DIFICIL : NO_CHEFE),
+                  GFX_FINO, false);
+    }
+    int fx = cx - 150 + (int)(pos * 150), pulo = pos != (int)pos ? (int)(sinf((pos - (int)pos) * 3.1416f) * 8) : 0;
+    ficha(fx - w / 2 - 12, y + h / 2 - pulo, C_LATAO);   // a sua ficha, na frente da mesa da vez
+}
+

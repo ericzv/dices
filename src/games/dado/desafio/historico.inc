@@ -276,47 +276,23 @@ static void hist_resumo(void)
         desenha_dado((float)(x + w - sw - 16), (float)(y + 13), 10, t, 0, 0, TIPO[t].lados, 0, false);
     } else gfx_texto(x + w - gfx_largura("-", 1), y + 4, "-", C_TEXTO_M, 1, true);
 
-    // A run campea, a direita: a bolsa que venceu e os amuletos dela.
+    // A run campea, a direita: a foto tirada no fim dela - a bolsa em leque e
+    // os amuletos, posta no feltro como uma polaroide.
     int px = 330, pw = 288;
-    ui_painel(px, y = HIST_Y0, pw, HIST_H);
-    txt_c(px + pw / 2, y + 8, "Run campeã", C_LATAO, true);
-    if (!hist.camp_tem) {
-        txt_c(px + pw / 2, y + 100, "Vença uma run: a run campeã", C_TEXTO_M, false);
-        txt_c(px + pw / 2, y + 116, "fica guardada aqui.", C_TEXTO_M, false);
+    txt_c(px + pw / 2, HIST_Y0 + 2, "Run campeã", C_LATAO, true);
+    if (!hist.camp_tem) {                     // ainda sem foto: o lugar dela, tracejado
+        for (int i = 0; i < pw; i += 6) { gfx_rect(px + i, HIST_Y0 + 24, 3, 1, C_FELTRO2); gfx_rect(px + i, HIST_Y0 + HIST_H - 1, 3, 1, C_FELTRO2); }
+        for (int j = 24; j < HIST_H; j += 6) { gfx_rect(px, HIST_Y0 + j, 1, 3, C_FELTRO2); gfx_rect(px + pw - 1, HIST_Y0 + j, 1, 3, C_FELTRO2); }
+        txt_c(px + pw / 2, HIST_Y0 + 116, "Vença uma run: a foto da", C_TEXTO_M, false);
+        txt_c(px + pw / 2, HIST_Y0 + 132, "bolsa campeã fica aqui.", C_TEXTO_M, false);
         return;
     }
     int dt = (int)hist.camp_data;
-    if (dt) snprintf(s, sizeof s, "%s  ·  %02d/%02d/%04d  ·  %d moedas", NOME_DIF_CURTO[hist.camp_dif],
+    if (dt) snprintf(s, sizeof s, "%s  ·  %02d/%02d/%04d  ·  %d moedas", nome_dif(hist.camp_dif),
                      dt % 100, dt / 100 % 100, dt / 10000, hist.camp_moedas);
-    else snprintf(s, sizeof s, "%s  ·  %d moedas", NOME_DIF_CURTO[hist.camp_dif], hist.camp_moedas);
-    txt_c(px + pw / 2, y + 30, s, hist.camp_dif ? COR_DIF[hist.camp_dif] : C_MARFIM_S, false);
-    // Os dados guardados (ate 48) numa grade que encolhe; os que passam disso viram "+N".
-    int nc = hist.camp_n < HIST_COL ? hist.camp_n : HIST_COL, mais = hist.camp_n - nc;
-    int alt = mais ? 134 : 150;
-    grade_t g = grade_cabe(nc, 9, 32, alt);
-    int r = (int)(11 * g.f), linhas = (nc + g.por - 1) / g.por;
-    float passo = 30 * g.f, passo_y = 32 * g.f;
-    int topo = y + 56 + (int)((alt - linhas * passo_y) / 2 + passo_y / 2);
-    for (int k = 0; k < nc; k++) {
-        int lin = k / g.por, col = k % g.por;
-        int na = nc - lin * g.por < g.por ? nc - lin * g.por : g.por;
-        int cx = px + pw / 2 + (int)((col - (na - 1) / 2.0f) * passo), cy = topo + (int)(lin * passo_y);
-        peca_parada((float)cx, (float)cy, (float)r, (peca_t){ .tipo = hist.camp_col[k], .fixo = 0 }, 0);
-        dica_zona(cx - r, cy - r, 2 * r, 2 * r, DICA_DADO, hist.camp_col[k]);
-    }
-    if (mais) {
-        snprintf(s, sizeof s, "+%d dados", mais);
-        txt_c(px + pw / 2, topo + (int)((linhas - 1) * passo_y) + r + 6, s, C_TEXTO_M, false);
-    }
+    else snprintf(s, sizeof s, "%s  ·  %d moedas", nome_dif(hist.camp_dif), hist.camp_moedas);
     amul_t am = (amul_t)hist.camp_amul | (amul_t)hist.camp_amul_x << 32;
-    int na = am_conta(am);
-    int ax = px + pw / 2 - (na - 1) * 13, ay = y + HIST_H - 26;
-    for (int a = 0; a < A_N; a++) {
-        if (!(am >> a & 1)) continue;
-        desenha_amuleto(ax, ay, 10, a, false);
-        dica_zona(ax - 10, ay - 10, 20, 20, DICA_AMULETO, a);
-        ax += 26;
-    }
+    foto_da_run(px, HIST_Y0 + 24, pw, HIST_H - 24, NULL, hist.camp_col, hist.camp_n, am, s, 9);   // o leque le so os primeiros
 }
 
 // Pagina dos dados: duas colunas, do mais usado ao menos; cada linha com o

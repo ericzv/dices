@@ -115,12 +115,18 @@ static void reage_lance(int j, int k)
 // A luz da hora da verdade: em volta do dado o feltro como esta; fora do
 // circulo, escurece aos poucos (com o pontilhado de sempre, para a paleta
 // fazer degraus suaves). O circulo aperta enquanto a mesa escurece.
+// Enquanto o dado decide, a luz da cena fica so nele: uma poca clara no
+// feltro embaixo dele, e o circulo pulsa como um coracao (tum-tum, pausa).
 static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
+static void luz_no_feltro(int cx, int cy, int rx, int ry, float tons);   // catalogo.inc
 static void desenha_hora(void)
 {
     if (t_hora <= 0) return;
     float t = t_hora * t_hora * (3 - 2 * t_hora);
-    float raio = 92 + (1 - t) * 280, borda = 110;
+    luz_no_feltro((int)hora_x, (int)hora_y + 16, 64, 24, 2.6f * t);
+    float bate = fmodf(t_relogio * 1.15f, 1.0f);
+    float pulso = bate < 0.08f ? 1 : bate > 0.16f && bate < 0.24f ? 0.6f : 0;
+    float raio = 92 + (1 - t) * 280 + pulso * 6 * t, borda = 110;
     float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo
     uint16_t *fb = display_fb();
     for (int y = 0; y < GFX_H; y++) {

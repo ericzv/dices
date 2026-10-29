@@ -10,6 +10,7 @@ static bool menu_sem_partida(void)
 }
 
 static void menu_passo(float dt);        // as fichas do menu (menus.inc)
+static void foto_clique(float antes, float agora);
 
 void dado_passo(float dt)
 {
@@ -52,7 +53,9 @@ void dado_passo(float dt)
         ev_espera = false;
         if (fase == F_EFEITOS) proximo_evento();
     }
+    float t_antes = t_fase;
     t_fase += dt;
+    if (fase == F_RFIM) foto_clique(t_antes, t_fase);   // a foto da run campea (desafio/desenho.inc)
     mola_passo(dt_real);
     hora_passo(dt, dt_real);
     placar_passo(dt, dt_real);

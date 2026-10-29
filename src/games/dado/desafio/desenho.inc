@@ -351,29 +351,203 @@ static void desenha_bolsa_run(void)
 // ---- Fim da run ---------------------------------------------------------
 static int nov_quantas(void);             // as novidades que a run abriu (novidades.inc)
 static void nov_linha_fim(int y);
-static void desenha_fim_run(void)
+// ---- O fim da run ----------------------------------------------------------
+// A bolsa em leque: os dados num arco aberto para cima, sobrepostos como
+// cartas na mao, cada um saindo do meio no seu tempo (t). O dado do meio fica
+// em (cx, topo) e os das pontas caem; o arco abre o que a bolsa pede, ate
+// abrir de todo no raio R. col: as pecas, com os adesivos; sem elas, so os
+// tipos (a foto do historico). Ate LEQUE_MAX; os outros viram "+N" na ponta.
+#define LEQUE_MAX 21
+static float leque_abre(int n, int R, float r)          // o meio-arco, em radianos
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
-    faixa_run(0);
-    int n = des_venceu_run ? nov_quantas() : 0;
-    painel(CENTRO - 84, n ? 186 : 168, 500);
-    char s[96];
-    if (des_venceu_run) {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "VITÓRIA", C_OURO, 3);
-        txt_c(GFX_W / 2, CENTRO - 6, "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
-    } else {
-        txt_sombra_c(GFX_W / 2, CENTRO - 74, "FIM DA RUN", C_VINHO_CLR, 3);
-        if (des_perdeu_para >= 0)
-            snprintf(s, sizeof s, "%s venceu você no %s.", PERSO[des_perdeu_para].nome, SALAO[des_perdeu_andar]);
-        else snprintf(s, sizeof s, "A casa ficou com a mesa.");
-        txt_c(GFX_W / 2, CENTRO - 6, s, C_MARFIM, true);
+    int m = n < LEQUE_MAX ? n : LEQUE_MAX;
+    return m > 1 ? fminf(1.1f, (m - 1) * 1.7f * r / (2 * R)) : 0;
+}
+static int leque_cai(int n, int R, float r) { return (int)(0.45f * R * (1 - cosf(leque_abre(n, R, r)))); }
+static void leque_da_bolsa(int cx, int topo, int R, float r, const peca_t *col, const uint8_t *tipos, int n, float t)
+{
+    int m = n < LEQUE_MAX ? n : LEQUE_MAX;
+    float abre = leque_abre(n, R, r);
+    for (int i = 0; i < m; i++) {
+        float q = (t - i * 0.04f) / 0.28f;
+        if (q <= 0) continue;
+        if (q > 1) q = 1;
+        float e = q * q * (3 - 2 * q), a = m > 1 ? -abre + 2 * abre * i / (m - 1) : 0;
+        peca_t pc = col ? col[i] : (peca_t){ .tipo = tipos[i] };
+        float x = cx + sinf(a) * R * e, y = topo + (1 - cosf(a)) * R * 0.45f * e;
+        peca_parada(x, y, r, pc, 0);
+        if (q >= 1) dica_peca((int)(x - r), (int)(y - r), (int)(2 * r), (int)(2 * r), &pc);   // o de cima ganha a dica
     }
+    if (n > m && t > m * 0.04f + 0.2f) {
+        char s[12];
+        snprintf(s, sizeof s, "+%d", n - m);
+        gfx_texto(cx + (int)(sinf(abre) * R + r) + 4, topo + leque_cai(n, R, r) - 4, s, C_TEXTO_M, GFX_FINO, false);
+    }
+}
+static void amuletos_fileira(int cx, int y, amul_t am, int r)
+{
+    int na = am_conta(am), x = cx - (na - 1) * (r + 4);
+    for (int a = 0; a < A_N; a++) {
+        if (!(am >> a & 1)) continue;
+        desenha_amuleto(x, y, r, a, false);
+        dica_zona(x - r, y - r, 2 * r, 2 * r, DICA_AMULETO, a);
+        x += 2 * r + 8;
+    }
+}
+
+// O caminho da run: cada salao com o nome na cor dele e as mesas em fila -
+// as vencidas com o visto de ouro, a que parou a run com o X vinho, as que
+// ficaram por jogar so o aro apagado. cx: o meio da fila.
+static void caminho_run(int cx, int y, int ate_andar, int ate_passo, bool perdeu)
+{
+    int ns = com_coringa() || ate_andar >= DES_ANDAR_FINAL ? DES_ANDARES + 1 : DES_ANDARES;
+    int gw[DES_ANDARES + 1], tot = 0;
+    for (int a = 0; a < ns; a++) {
+        int nm = a == DES_ANDAR_FINAL ? 1 : 3, wn = gfx_largura(SALAO[a], GFX_FINO);
+        gw[a] = wn > nm * 18 ? wn : nm * 18;
+        tot += gw[a] + (a ? 28 : 0);
+    }
+    int x = cx - tot / 2;
+    for (int a = 0; a < ns; a++) {
+        int nm = a == DES_ANDAR_FINAL ? 1 : 3, gx = x + gw[a] / 2;
+        gfx_texto(gx - gfx_largura(SALAO[a], GFX_FINO) / 2, y, SALAO[a], a <= ate_andar ? COR_SALAO[a] : C_TEXTO_M, GFX_FINO, false);
+        for (int k = 0; k < nm; k++) {
+            int mx = gx + (k - (nm - 1) / 2.0f) * 18, my = y + 26;
+            bool feita = a < ate_andar || (a == ate_andar && k < ate_passo) || (!perdeu && a == ate_andar);
+            bool parou = perdeu && a == ate_andar && k == ate_passo;
+            if (feita) {
+                gfx_disco(mx, my, 6, C_BARRA); gfx_disco(mx, my, 5, C_OURO);
+                gfx_linha(mx - 3, my, mx - 1, my + 2, C_BARRA); gfx_linha(mx - 1, my + 2, mx + 3, my - 2, C_BARRA);
+            } else if (parou) {
+                gfx_disco(mx, my, 6, C_BARRA); gfx_disco(mx, my, 5, C_VINHO);
+                gfx_linha(mx - 2, my - 2, mx + 2, my + 2, C_ROSA); gfx_linha(mx - 2, my + 2, mx + 2, my - 2, C_ROSA);
+            } else {
+                gfx_disco(mx, my, 6, C_FELTRO2); gfx_disco(mx, my, 4, C_FELTRO_ESC);
+            }
+        }
+        if (a + 1 < ns)                               // o caminho ate o proximo salao
+            for (int d = x + gw[a] + 4; d < x + gw[a] + 24; d += 4) gfx_rect(d, y + 26, 2, 2, a < ate_andar ? C_OURO : C_FELTRO2);
+        x += gw[a] + 28;
+    }
+}
+
+// A foto da run campea: uma polaroide de moldura marfim com a mesa dentro -
+// a bolsa em leque e os amuletos - e a legenda escrita embaixo. A mesma foto
+// vai para o historico (so com os tipos dos dados).
+#define FOTO_BORDA 6
+#define FOTO_BAIXO 20                        // a tira de baixo, a da legenda
+typedef struct { int cx, topo, R, yam; float r, ram; } foto_arranjo_t;
+// Onde o leque e os amuletos ficam numa area de w x h: no meio dela.
+static foto_arranjo_t foto_arranjo(int x, int y, int w, int h, int n, bool amuletos)
+{
+    foto_arranjo_t f = { .cx = x + w / 2, .R = (int)(w * 0.46f), .r = (w > 220 ? 12 : 10) + (h > 160 ? 2 : 0),
+                         .ram = w > 220 ? 8 : 7 };
+    int cai = leque_cai(n, f.R, f.r), em_cima = (int)f.r, embaixo = (int)(f.r + 8 + 2 * f.ram);
+    if (!amuletos) embaixo = (int)f.r;
+    if (cai + (int)f.r > embaixo) embaixo = cai + (int)f.r;
+    f.topo = y + h / 2 - (em_cima + embaixo) / 2 + em_cima;
+    f.yam = f.topo + (int)(f.r + 8 + f.ram);
+    return f;
+}
+static void foto_da_run(int x, int y, int w, int h, const peca_t *col, const uint8_t *tipos, int n, amul_t am,
+                        const char *legenda, float t)
+{
+    int fx = x + FOTO_BORDA, fy = y + FOTO_BORDA, fw = w - 2 * FOTO_BORDA, fh = h - FOTO_BORDA - FOTO_BAIXO;
+    uint16_t rm[4];
+    rampa_de(C_MARFIM, rm);
+    ui_sombra(x, y, w, h);
+    for (int j = 0; j < h; j++)                       // o papel, com a luz de cima
+        for (int i = 0; i < w; i++)
+            gfx_pixel(x + i, y + j, tom_rampa(rm, 0.9f - 0.6f * (i + j) / (float)(w + h), x + i, y + j));
+    ui_contorno(x, y, w, h, C_BARRA);
+    for (int j = 0; j < fh; j++)                      // a mesa na foto: o feltro, mais escuro na beira
+        for (int i = 0; i < fw; i++) {
+            int d = i < j ? i : j, d2 = fw - 1 - i < fh - 1 - j ? fw - 1 - i : fh - 1 - j;
+            if (d2 < d) d = d2;
+            float q = d < 14 ? 1 - d / 14.0f : 0;
+            gfx_pixel(fx + i, fy + j, bayer(fx + i, fy + j) < q ? C_FELTRO_ESC : C_FELTRO);
+        }
+    ui_contorno(fx - 1, fy - 1, fw + 2, fh + 2, C_BARRA);
+    foto_arranjo_t f = foto_arranjo(fx, fy, fw, fh, n, am != 0);
+    leque_da_bolsa(f.cx, f.topo, f.R, f.r, col, tipos, n, t);
+    amuletos_fileira(f.cx, f.yam, am, (int)f.ram);
+    gfx_texto(x + w / 2 - gfx_largura(legenda, GFX_FINO) / 2, y + h - FOTO_BAIXO - 1, legenda, C_EBANO, GFX_FINO, false);
+}
+
+static uint32_t hoje(void);                   // historico.inc
+// A run perdida, num resumo: quem a parou (com a fala dele), o caminho pelos
+// saloes, a bolsa em leque, os amuletos e, na fina, os numeros.
+static void desenha_run_perdida(void)
+{
+    char s[96];
+    txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "FIM DA RUN", C_VINHO_CLR, 2);
+    int p = des_perdeu_para;
+    if (p >= 0) {
+        int esc = 3, w = RT_W * esc, h = RT_H * esc, x = 34, y = MESA_Y0 + 52 + ui_entra(t_fase, 0, UI_ENTRA_CARTAO);
+        uint16_t r[4];
+        ui_rampa(perso_chefe(p) ? C_OURO : C_LATAO, false, r);
+        ui_sombra(x - 3, y - 3, w + 6, h + 6);
+        ui_contorno(x - 3, y - 3, w + 6, h + 6, C_BARRA);
+        ui_aro(x - 2, y - 2, w + 4, h + 4, 2, r, UI_VIVO);
+        gfx_rect(x, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+        retrato(x, y, esc, p, t_fase + p * 1.3f, t_fase > 0.5f && t_fase < 1.4f, 0, RT_H);
+        txt_c(x + w / 2, y + h + 4, PERSO[p].nome, C_ROSA, true);
+        if (t_fase > 0.45f) {                         // a fala de quem ganhou, num balao
+            float q = sai_mola(fminf(1, (t_fase - 0.45f) / 0.2f));
+            const char *f = PERSO[p].fala[FA_GANHA_P][0];
+            balao_em(x + w / 2, y + h + 26, f, f, q);
+        }
+    }
+    int cx = 404;                                     // o resto, a direita do retrato
+    caminho_run(cx, MESA_Y0 + 50, des_perdeu_andar, run.passo, true);
+    int topo = MESA_Y0 + 106;                         // o leque: as pontas nao descem ate o balao
+    leque_da_bolsa(cx, topo, 190, 13, run.col, NULL, run.n_col, t_fase - 0.3f);
+    if (t_fase > 0.9f) amuletos_fileira(cx, topo + leque_cai(run.n_col, 190, 13) + 34, run_amuletos(), 9);
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
-    txt_c(GFX_W / 2, CENTRO + 22, s, C_TEXTO_M, false);
-    if (n) nov_linha_fim(CENTRO + 46);          // o que abriu vem depois, card a card
-    teclas_c(GFX_W / 2, CENTRO + (n ? 76 : 58), n ? "ENTER mostra as novidades"
-                                                  : des_venceu_run ? "ENTER segue" : "ENTER volta ao menu", C_MARFIM_S);
+    gfx_texto(cx - gfx_largura(s, GFX_FINO) / 2, MESA_Y1 - 50, s, C_TEXTO_M, GFX_FINO, false);
+    teclas_c(GFX_W / 2, MESA_Y1 - 20, "ENTER volta ao menu", C_MARFIM_S);
+}
+
+// A run vencida: a bolsa campea posta na mesa, o flash e a foto, que fica
+// guardada no historico.
+#define FOTO_FLASH 1.5f
+static void foto_clique(float antes, float agora)          // o clique da maquina, no flash
+{
+    if (des_venceu_run && antes < FOTO_FLASH && agora >= FOTO_FLASH) som_toca(SOM_TIQUE);
+}
+static void desenha_run_campea(int n)
+{
+    char s[96], leg[64];
+    txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "VITÓRIA", C_OURO, 2);
+    txt_c(GFX_W / 2, MESA_Y0 + 42, run.andar >= DES_ANDAR_FINAL ? "Você venceu O CORINGA e fechou o cassino."
+                                                                 : "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
+    uint32_t d = hoje();
+    snprintf(leg, sizeof leg, "Run campeã  ·  %s  ·  %02u/%02u/%04u", nome_dif(run.dificuldade),
+             (unsigned)(d % 100), (unsigned)(d / 100 % 100), (unsigned)(d / 10000));
+    int fw = 340, fh = 150, fx = GFX_W / 2 - fw / 2, fy = MESA_Y0 + 60;
+    if (t_fase < FOTO_FLASH) {                        // a bolsa vai sendo posta na mesa, ja onde a foto pega
+        foto_arranjo_t f = foto_arranjo(fx + FOTO_BORDA, fy + FOTO_BORDA, fw - 2 * FOTO_BORDA,
+                                        fh - FOTO_BORDA - FOTO_BAIXO, run.n_col, run_amuletos() != 0);
+        leque_da_bolsa(f.cx, f.topo, f.R, f.r, run.col, NULL, run.n_col, t_fase);
+        if (t_fase > 1.0f) amuletos_fileira(f.cx, f.yam, run_amuletos(), (int)f.ram);
+    } else {
+        foto_da_run(fx, fy, fw, fh, run.col, NULL, run.n_col, run_amuletos(), leg, 9);
+        float q = (t_fase - FOTO_FLASH) / 0.35f;      // o flash: a tela clareia e volta
+        if (q < 1) gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_BRANCO, (int)(220 * (1 - q)));
+        else txt_c(GFX_W / 2, fy + fh + 4, "a foto fica no seu histórico", C_TEXTO_M, false);
+    }
+    if (n) nov_linha_fim(MESA_Y1 - 40);               // o que abriu vem depois, card a card
+    snprintf(s, sizeof s, "%s", n ? "ENTER mostra as novidades" : "ENTER segue");
+    teclas_c(GFX_W / 2, MESA_Y1 - 20, s, C_MARFIM_S);
+}
+
+static void desenha_fim_run(void)
+{
+    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    faixa_run(0);
+    if (des_venceu_run) desenha_run_campea(nov_quantas());
+    else desenha_run_perdida();
 }
 
 // Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha
@@ -472,9 +646,13 @@ static void saque_fileira(int y)
 static void desenha_fim_partida_run(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    // O oponente, grande, a esquerda, com o que disse no fim.
+    if (venc_partida < 2) chuva_fichas(venc_partida, t_fase, venc_partida == 0 ? 44 : 30);   // as fichas chovem do lado de quem levou
+    // O oponente, grande, a esquerda, com o que disse no fim. Reage: perdeu,
+    // estremece; ganhou, da uns pulinhos.
     if (fala_perso >= 0) {
         int esc = 3, rx = 22, ry = C0 - 70;
+        if (venc_partida == 0 && t_fase < 0.6f) rx += (int)(sinf(t_fase * 55) * 3 * (1 - t_fase / 0.6f));
+        if (venc_partida == 1 && t_fase < 1.2f) ry -= (int)(fabsf(sinf(t_fase * 8)) * 5 * (1 - t_fase / 1.2f));
         bool chefe = perso_chefe(fala_perso);
         gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
         gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
@@ -484,7 +662,7 @@ static void desenha_fim_partida_run(void)
     }
     int alto = venc_partida == 0 && des_marco >= 0 ? 168 : 150;
     painel(C0 - 70, alto, 460);
-    char s[80];
+    placa_placar(C0 - 70);                                          // o placar final, acima do painel
     if (venc_partida == 0) {
         txt_sombra_c(GFX_W / 2, C0 - 58, "VOCÊ VENCEU", C_LATAO, 3);
         saque_fileira(C0 + 4);
@@ -501,9 +679,7 @@ static void desenha_fim_partida_run(void)
         txt_c(GFX_W / 2, C0 + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
                                      : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
                                                          : "A run termina aqui.", C_MARFIM, true);
-        snprintf(s, sizeof s, "%s %d  x  %d %s", J[0].nome, J[0].fichas, J[1].fichas, J[1].nome);
-        txt_c(GFX_W / 2, C0 + 32, s, C_TEXTO_M, false);
-        teclas_c(GFX_W / 2, C0 + 58, "ENTER segue", C_MARFIM_S);
+        teclas_c(GFX_W / 2, C0 + 46, "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];

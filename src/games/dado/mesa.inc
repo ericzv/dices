@@ -1255,27 +1255,37 @@ static void desenha_fila(int j)
         // um pulinho e acende: dourado subindo, vinho descendo.
         const contador_t *pc = &placar_c[j];
         snprintf(s, sizeof s, "%d", pc->mostra);
-        uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
+        // No resultado o placar fala sozinho: o de quem levou fecha as
+        // cantoneiras e ganha a plaquinha; o zero treme e pisca em vinho; no
+        // empate os dois acendem iguais.
+        bool res = fase == F_RESULTADO, zero = res && zerou == j, empate = res && venc_mao == 2;
+        int sx = zero && t_fase < 0.7f ? (int)(sinf(t_fase * 48) * 3 * (1 - t_fase / 0.7f)) : 0;
+        uint16_t c = (res && venc_mao == j) ? J[j].cor
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
+        if (zero) c = t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_BRANCO : C_VINHO_CLR;
+        if (empate) c = C_MARFIM;
         float calor = placar_calor(pc->mostra), pulso = calor > 0 ? placar_pulso(calor) : 0;
         float q = calor > 1 ? 1 : calor;
         if (q >= 0.45f) c = rampa_ouro(3 + pulso * (q - 0.45f) * 2.2f);   // os numeros: amarelo, pulsando ao branco
         if (pc->pulo > 0) c = gfx_mistura(c, pc->sinal > 0 ? C_OURO : C_VINHO_CLR, (int)(pc->pulo * 80));
-        ui_painel(PLACAR_X - 34, y - 26, 68, 50);
+        ui_painel(PLACAR_X - 34 + sx, y - 26, 68, 50);
+        if (zero) ui_contorno(PLACAR_X - 32 + sx, y - 24, 64, 46, t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_VINHO : C_VINHO_CLR);
+        if (empate) ui_cantos(PLACAR_X - 34, y - 26, 68, 50, C_MARFIM_S);
         if (calor > 0) {                          // esquentando: o filete e a luz em volta
             ui_contorno(PLACAR_X - 32, y - 24, 64, 46, rampa_ouro(1 + q * 2 + pulso * q));
             placar_halo(PLACAR_X - 34, y - 26, 68, 50, calor, pulso);
         }
-        bool vence = vence_j == j && fase != F_RESULTADO;   // passou do alvo: a rodada e dele
+        bool vence = res ? venc_mao == j : vence_j == j;   // passou do alvo (ou levou): a rodada e dele
         if (vence) {                              // as cantoneiras chegam de longe, fecham e respiram
-            int a = t_vence < 0.45f ? (int)((1 - t_vence / 0.45f) * 14) : 0;
+            float tv = res ? t_fase : t_vence;
+            int a = tv < 0.45f ? (int)((1 - tv / 0.45f) * 14) : 0;
             ui_cantos_em(PLACAR_X - 34, y - 26, 68, 50, C_OURO, 3 + a + ui_respira());
             c = C_OURO;
         }
         if (vence)                                // a plaquinha de latao, presa na beira do placar
             ui_plaqueta(PLACAR_X, (j == baixo ? y + 24 : y - 26) - UI_PLAQUETA_H / 2, "VENCE", C_OURO);
         else txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
-        txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
+        txt_c2(PLACAR_X + sx, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
         // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).

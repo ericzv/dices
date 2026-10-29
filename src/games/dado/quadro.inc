@@ -76,9 +76,18 @@ static bool dica_rect(int *r, const dica_t **qual)
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
     int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_ad_altura(d);
-    int x = mouse_x + 14, y = mouse_y + 16;
-    if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
-    if (y + h > GFX_H - 4) y = mouse_y - 12 - h;
+    // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
+    // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
+    // fosse cobrir a propria coisa, vai para o lado dela.
+    int x = d->x + d->w / 2 - w / 2, y = d->y + d->h + 4;
+    if (y + h > GFX_H - 4) {
+        y = GFX_H - 4 - h;
+        if (y < d->y + d->h) {
+            x = d->x + d->w + 6;
+            if (x + w > GFX_W - 4) x = d->x - 6 - w;
+        }
+    }
+    if (x + w > GFX_W - 4) x = GFX_W - 4 - w;
     if (x < 4) x = 4;
     if (y < 4) y = 4;
     r[0] = x; r[1] = y; r[2] = w; r[3] = h;
@@ -112,10 +121,7 @@ static void desenha_dica(const int *r, const dica_t *d)
     for (int i = 0; i < n; i++) {
         int a = ad_no_lado(&d->pc, lados[i]);
         const adesivo_t *ad = &ADESIVO[a];
-        gfx_rect(x, yy + 1, 13, 13, C_BARRA);
-        gfx_rect(x + 1, yy + 2, 11, 11, ad->luz);
-        gfx_rect(x + 2, yy + 3, 9, 9, ad->fundo == AD_SEM_FUNDO ? C_FELTRO_ESC : ad->fundo);
-        ad_icone(x + 3, yy + 4, a, 1, ad->tinta);
+        ad_solto_d(x + 6, yy + 7, a, 1, 0);
         int wn = gfx_texto(x + 18, yy - 3, ad->nome, ad->luz, 1, true);
         char s[24];
         snprintf(s, sizeof s, "· lado %d", lados[i]);

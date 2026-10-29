@@ -51,14 +51,13 @@ static void desenha_anuncio(void)
     }
 }
 
-// A maquina montando a sequencia: so o nome, sem a mao e sem o menu.
+// A maquina montando a sequencia: sem a mao e sem o menu, so os lugares
+// da fila dela, vazios ate ela decidir.
+static int linha_lugares(int j);
+static int lugares_fila(int j, int ry, int lados_cur);
 static void desenha_maquina_monta(void)
 {
-    char t[64];
-    snprintf(t, sizeof t, "%s monta a sequência", J[vez].nome);
-    int y1 = CENTRO - 40;
-    painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(t, 1), 160));
-    txt_c(GFX_W / 2, y1 - 1, t, J[vez].cor, true);
+    lugares_fila(vez, linha_lugares(vez), 0);
 }
 
 static void desenha_avisos(void)

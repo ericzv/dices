@@ -1,7 +1,10 @@
 // ===========================================================================
 // Desenho de dados: poligono por numero de lados
 // ===========================================================================
-static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
+// dens < 1: pontilhado, so os pixels com bayer abaixo de dens pegam a cor (a
+// silhueta de um dado que ainda nao esta ali).
+static float bayer(int x, int y);
+static void poligono_dens(const float *vx, const float *vy, int n, uint16_t cor, float dens)
 {
     float ymin = vy[0], ymax = vy[0];
     for (int i = 1; i < n; i++) {
@@ -23,10 +26,12 @@ static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
             }
         for (int k = 0; k + 1 < nx; k += 2) {
             int x0 = (int)ceilf(xs[k]), x1 = (int)floorf(xs[k + 1]);
-            if (x1 >= x0) gfx_rect(x0, y, x1 - x0 + 1, 1, cor);
+            if (dens >= 1) { if (x1 >= x0) gfx_rect(x0, y, x1 - x0 + 1, 1, cor); }
+            else for (int x = x0; x <= x1; x++) if (bayer(x, y) < dens) gfx_pixel(x, y, cor);
         }
     }
 }
+static void poligono(const float *vx, const float *vy, int n, uint16_t cor) { poligono_dens(vx, vy, n, cor, 1); }
 
 // Embaralha dois inteiros: um acaso que so depende da mesa (o alvo do
 // Laser, do Berserker...).
@@ -184,6 +189,73 @@ static int forma(int lados, float cx, float cy, float r, float ang,
     return n;
 }
 
+// A forma do dado de raio r com as bordas afastadas d pixels (d < 0: para
+// dentro), paralelas as de fora: o aro, o bisel e o corpo saem todos da mesma
+// forma e do mesmo centro, sem escalar (escalar engrossava o aro do d4 nas
+// pontas e o tirava do centro).
+static int forma_d(int lados, float cx, float cy, float r, float ang, float d, float *vx, float *vy)
+{
+    int n = forma(lados, cx, cy, r, ang, vx, vy);
+    if (n < 3 || d == 0) return n;
+    float gx = 0, gy = 0, nx[16], ny[16], c[16];
+    for (int i = 0; i < n; i++) { gx += vx[i]; gy += vy[i]; }
+    gx /= n; gy /= n;
+    for (int i = 0; i < n; i++) {                 // cada aresta: a reta n.p = c, com a normal para fora
+        int k = (i + 1) % n;
+        float ex = vx[k] - vx[i], ey = vy[k] - vy[i], l = sqrtf(ex * ex + ey * ey);
+        if (l < 1e-4f) l = 1e-4f;
+        float a = ey / l, b = -ex / l;
+        if ((vx[i] - gx) * a + (vy[i] - gy) * b < 0) { a = -a; b = -b; }
+        nx[i] = a; ny[i] = b; c[i] = vx[i] * a + vy[i] * b + d;
+    }
+    for (int i = 0; i < n; i++) {                 // o vertice novo: o encontro das duas arestas afastadas
+        int h = (i + n - 1) % n;
+        float det = nx[h] * ny[i] - nx[i] * ny[h];
+        if (fabsf(det) < 1e-5f) { vx[i] += nx[i] * d; vy[i] += ny[i] * d; continue; }
+        vx[i] = (c[h] * ny[i] - c[i] * ny[h]) / det;
+        vy[i] = (nx[h] * c[i] - nx[i] * c[h]) / det;
+    }
+    return n;
+}
+
+// O centro da forma: onde vao o numero e o desenho de dentro (no d4, o
+// meio do triangulo, abaixo do centro do dado).
+static float forma_cy(int lados, float cy, float r) { return lados == 4 ? cy + r * 0.2f : cy; }
+
+// O bisel: o poligono (n > 0) ou o disco (raio R) em dois tons pela direcao
+// em que a beira olha, o claro do lado da luz (de cima, a esquerda).
+static void poligono_bisel(const float *vx, const float *vy, int n, float cx, float cy, int R,
+                           uint16_t claro, uint16_t escuro)
+{
+    int y0, y1;
+    if (n) {
+        float ymin = vy[0], ymax = vy[0];
+        for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
+        y0 = (int)ceilf(ymin); y1 = (int)floorf(ymax);
+    } else { y0 = (int)cy - R; y1 = (int)cy + R; }
+    for (int y = y0; y <= y1; y++) {
+        float xs[16];
+        int nx = 0;
+        if (n) {
+            for (int i = 0; i < n && nx < 16; i++) {
+                int j = (i + 1) % n;
+                float ya = vy[i], yb = vy[j];
+                if ((ya <= y && yb > y) || (yb <= y && ya > y)) xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
+            }
+            for (int a = 1; a < nx; a++)
+                for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
+        } else {
+            int dy = y - (int)cy, w = 0;
+            if (dy * dy > R * R + R) continue;
+            while ((w + 1) * (w + 1) + dy * dy <= R * R + R) w++;
+            xs[0] = (float)((int)cx - w); xs[1] = (float)((int)cx + w); nx = 2;
+        }
+        for (int k = 0; k + 1 < nx; k += 2)
+            for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++)
+                gfx_pixel(x, y, (x - cx) + (y - cy) <= 0 ? claro : escuro);
+    }
+}
+
 // luz: o tom da beira do furo, no modo Pixel (0: o furo liso de sempre).
 static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 {
@@ -279,11 +351,58 @@ static float sombra_alt;                 // altura do dado no ar, em pixels
 static int sr_lado;
 
 // Numero centrado no dado: grande nos dados grandes.
-static void numero(float cx, float cy, float r, const char *s, uint16_t c)
+// Os algarismos sao os da Jersey (a fonte dos titulos), com traco de dois
+// pixels e a sombra escura embaixo, mas o 6 e o 9 abertos - o 6 sem o gancho
+// em cima, o 9 sem o de baixo - para nao se confundirem com o 8. A caixa do
+// algarismo (7x10, o dobro nos dados grandes) fica no centro da forma.
+static const char ALG_CARS[] = "0123456789?+-";
+static const char *const ALG[13][10] = {
+    { ".####..", "######.", "##..##.", "##..##.", "##..##.", "##..##.", "##..##.", "##..##.", "######.", ".####.." },
+    { "###....", "###....", ".##....", ".##....", ".##....", ".##....", ".##....", ".##....", ".##....", ".##...." },
+    { ".#####.", "#######", "##...##", "....###", "...###.", "..###..", ".###...", "###....", "#######", "#######" },
+    { ".#####.", "#######", "##...##", ".....##", "..####.", "..####.", ".....##", "##...##", "#######", ".#####." },
+    { "....##.", "...###.", "..####.", ".##.##.", "##..##.", "##..##.", "######.", "######.", "....##.", "....##." },
+    { "######.", "######.", "##.....", "##.....", "#####..", ".#####.", "....##.", "##..##.", "######.", ".####.." },
+    { "..#####", ".######", "##.....", "##.....", "######.", "#######", "##...##", "##...##", "#######", ".#####." },
+    { "######.", "######.", "....##.", "....##.", "...###.", "..###..", "..###..", "..##...", "..##...", "..##..." },
+    { ".#####.", "#######", "##...##", "##...##", ".#####.", "#######", "##...##", "##...##", "#######", ".#####." },
+    { ".#####.", "#######", "##...##", "##...##", "#######", ".######", ".....##", ".....##", "######.", "#####.." },
+    { ".####..", "######.", "##..##.", "...###.", "..###..", "..##...", "..##...", ".......", "..##...", "..##..." },
+    { ".......", ".......", "..##...", "..##...", "######.", "######.", "..##...", "..##...", ".......", "......." },
+    { ".......", ".......", ".......", ".......", "######.", "######.", ".......", ".......", ".......", "......." }
+};
+#define ALG_H 10
+static void numero_em(float cx, float cy, float r, const char *s, uint16_t c, bool sombra)
 {
-    int e = r >= 34 ? 2 : 1;
-    gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, true);
+    int e = r >= 34 ? 2 : 1, n = 0, g[8], a[8], w[8], W = 0;
+    for (const char *p = s; *p; p++) {            // mede: cada algarismo so nas colunas que usa
+        const char *q = strchr(ALG_CARS, *p);
+        if (!q || n >= 8) {                       // fora dos algarismos: a letra da fonte
+            gfx_texto((int)cx - gfx_largura(s, e) / 2, (int)cy - 12 * e, s, c, e, sombra);
+            return;
+        }
+        int k = (int)(q - ALG_CARS), lo = 7, hi = -1;
+        for (int y = 0; y < ALG_H; y++)
+            for (int x = 0; x < 7; x++)
+                if (ALG[k][y][x] == '#') { if (x < lo) lo = x; if (x > hi) hi = x; }
+        if (hi < lo) lo = hi = 0;
+        g[n] = k; a[n] = lo; w[n] = hi - lo + 1; W += w[n] + (n ? 1 : 0); n++;
+    }
+    // Centrado no pixel do meio da forma: um algarismo de largura impar cai
+    // com tantos pixels de um lado quanto do outro.
+    int x0 = (int)floorf(cx - W * e / 2.0f + 0.5f), y0 = (int)floorf(cy - ALG_H * e / 2.0f + 0.5f);
+    for (int camada = sombra ? 0 : 1; camada < 2; camada++) {   // a sombra primeiro, um pixel abaixo
+        int x = x0, dy = camada ? 0 : e;
+        uint16_t cc = camada ? c : C_BARRA;
+        for (int i = 0; i < n; i++) {
+            for (int y = 0; y < ALG_H; y++)
+                for (int k = 0; k < w[i]; k++)
+                    if (ALG[g[i]][y][a[i] + k] == '#') gfx_rect(x + k * e, y0 + y * e + dy, e, e, cc);
+            x += (w[i] + 1) * e;
+        }
+    }
 }
+static void numero(float cx, float cy, float r, const char *s, uint16_t c) { numero_em(cx, cy, r, s, c, true); }
 
 // As duas protecoes, sempre com o mesmo desenho, em todo lugar: o escudo de
 // aco (nao anulavel) e o cadeado de ouro (nao roubavel), lado a lado a partir
@@ -318,8 +437,8 @@ static void numero_contorno(float cx, float cy, float r, const char *s, uint16_t
 {
     static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
     if (contorno)
-        for (int i = 0; i < 8; i++) numero(cx + D[i][0], cy + D[i][1], r, s, contorno);
-    numero(cx, cy, r, s, c);
+        for (int i = 0; i < 8; i++) numero_em(cx + D[i][0], cy + D[i][1], r, s, contorno, false);
+    numero_em(cx, cy, r, s, c, !contorno);
 }
 
 // Fechado no catalogo: o dado fica apagado como o anulado, mas sem o X.
@@ -1407,6 +1526,11 @@ static uint16_t ceu_cosmico(int tipo, float u, float v, float s, int nivel, uint
 // A luz vem de cima, a esquerda, sempre da tela: o corpo escurece aos poucos
 // para baixo e para a direita, e tem um reflexo suave no alto. Por cima,
 // manchas largas e discretas, do proprio material, que giram com o dado.
+// O desenho de dentro foi feito com o corpo um pouco deslocado do centro (o
+// brilho antigo na aresta de cima): (arte_du, arte_dv), em pixels, e onde o
+// centro do corpo cai nas coordenadas do desenho. Somado depois de girar, o
+// desenho fica preso ao corpo, parado ou girando.
+static float arte_du, arte_dv;
 static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, float dcy, int dr,
                         int tipo, const uint16_t *tons, const uint16_t *cores,
                         float cx, float cy, float ang, float r)
@@ -1443,7 +1567,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
         }
         for (int k = 0; k + 1 < nx; k += 2)
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
-                float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa, v = dx * sa + dy * ca;
+                float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa + arte_du, v = dx * sa + dy * ca + arte_dv;
                 int p = desenho_interno(tipo, u * s, v * s, s);
                 uint16_t c;
                 if (p) c = cores[p];
@@ -2141,27 +2265,43 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
     if (cosmico(tipo) && !zerado)                 // no ceu, a aresta acesa e um tom da propria noite
         brilho = tipo == D_GALAXIA || tipo == D_UNIVERSO ? RGB(102, 74, 138) : tipo == D_BURACO ? RGB(62, 56, 50) : RGB(56, 86, 150);
+    // Tudo em volta do mesmo centro: o aro, o bisel (a aresta de dentro, clara
+    // do lado da luz) e o corpo. O desenho de dentro guarda a sua referencia
+    // (arte_du, arte_dv: onde o corpo caia nas coordenadas dele).
+    float bcy = forma_cy(lados, cy, r);
+    uint16_t sombra_bisel = zerado ? corpo : tons[1];
     if (lados == 2 || lados == 100) {             // a moeda e a esfera do Universo
         int ri = (int)(r - ea);
         if (!zerado) aro_rampa(NULL, NULL, 0, cx, cy, (int)(r + ea), aro);   // o aro em rampa
         else gfx_disco((int)cx, (int)cy, (int)(r + ea), aro);
-        gfx_disco((int)cx, (int)cy, ri, brilho);
-        if (desenha) pinta_corpo(NULL, NULL, 0, cx + 1, cy + 1, ri - 1, tipo, tons, cores, cx, cy, ang, r);
-        else gfx_disco((int)cx + 1, (int)cy + 1, ri - 1, corpo);
+        poligono_bisel(NULL, NULL, 0, cx, cy, ri, brilho, sombra_bisel);
+        arte_du = arte_dv = 1;
+        if (desenha) pinta_corpo(NULL, NULL, 0, cx, cy, ri - 1, tipo, tons, cores, cx, cy, ang, r);
+        else gfx_disco((int)cx, (int)cy, ri - 1, corpo);
+        mcx = cx - (mca - msa); mcy = cy - (msa + mca);
     } else {
-        float vx[12], vy[12], dx = ea * 0.8f;
-        int n = forma(lados, cx, cy, r + ea, ang, vx, vy);
-        if (!zerado) aro_rampa(vx, vy, n, cx, cy, 0, aro);   // o aro em rampa
+        float vx[12], vy[12], dx = ea * 0.8f, d = ea * 0.85f;
+        int n = forma_d(lados, cx, cy, r, ang, d, vx, vy);
+        if (!zerado) aro_rampa(vx, vy, n, cx, bcy, 0, aro);   // o aro em rampa
         else poligono(vx, vy, n, aro);
-        n = forma(lados, cx, cy, r - ea, ang, vx, vy);
-        poligono(vx, vy, n, brilho);
+        n = forma_d(lados, cx, cy, r, ang, -d, vx, vy);
+        poligono_bisel(vx, vy, n, cx, bcy, 0, brilho, sombra_bisel);
+        arte_du = dx;                             // o corpo antigo: dx abaixo e a direita (e o d4, mais abaixo)
+        arte_dv = dx + (lados == 4 ? (r - ea * 1.6f) * 0.2f : 0);
         if (r >= 12) {
-            n = forma(lados, cx + dx, cy + dx, r - ea * 1.6f, ang, vx, vy);
-            if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, tons, cores, cx, cy, ang, r);
+            n = forma_d(lados, cx, cy, r, ang, -d - 1, vx, vy);
+            if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, tons, cores, cx, bcy, ang, r);
             else poligono(vx, vy, n, corpo);
         }
+        // as pecas por cima (marca_por_cima) ficam presas ao corpo como o desenho
+        mcx = cx - (arte_du * mca - arte_dv * msa);
+        mcy = bcy - (arte_du * msa + arte_dv * mca);
     }
+    arte_du = arte_dv = 0;
     marca_por_cima(tipo, r, corpo, zerado);
+    mcx = cx; mcy = cy;
+    float cy0 = cy;                               // a etiqueta do adesivo se mede do centro do dado
+    cy = bcy;                                     // daqui para baixo, o numero e o que vai em cima dele: no centro da forma
 
     char s[12];
     // Vidro que tirou 1: estilhacado, com rachaduras saindo do impacto.
@@ -2211,7 +2351,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         return;
     }
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
-        ad_etiqueta(cx, cy, r, lados, ang, adf, adf_aceso, zerado);
+        ad_etiqueta(cx, cy0, r, lados, ang, adf, adf_aceso, zerado);
         if (ADESIVO[adf].fundo != AD_SEM_FUNDO) {
             tinta = zerado ? gfx_mistura(ADESIVO[adf].tinta, C_FELTRO2, 60) : ADESIVO[adf].tinta;
             // o numero sobre o simbolo ganha um contorno da cor do vinil

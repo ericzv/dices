@@ -36,6 +36,28 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
     }
 }
 
+// Os adesivos de um dado com a peca: os lados que tem adesivo. Com ate dois,
+// cada um vem com a regra; com mais, uma linha so por adesivo.
+#define DICA_AD_LIN 16                   // a linha do nome do adesivo
+#define DICA_AD_W   (260 - 16 - 16)      // a largura da regra, ao lado do simbolo
+static int dica_adesivos(const dica_t *d, int *lados)
+{
+    if (d->tipo != DICA_DADO || !d->com_peca) return 0;
+    int n = 0;
+    for (int l = 1; l <= AD_LADOS; l++) if (ad_no_lado(&d->pc, l)) lados[n++] = l;
+    return n;
+}
+static int dica_ad_altura(const dica_t *d)
+{
+    int lados[AD_LADOS], n = dica_adesivos(d, lados), h = 0;
+    if (!n) return 0;
+    quebra_so_conta = true;
+    for (int i = 0; i < n; i++)
+        h += DICA_AD_LIN + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, 3, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
+    quebra_so_conta = false;
+    return h + 8;                                        // e o filete que separa do dado
+}
+
 // A caixa da dica sob o mouse, se houver. Devolve o retangulo em r.
 static bool dica_rect(int *r, const dica_t **qual)
 {
@@ -53,10 +75,19 @@ static bool dica_rect(int *r, const dica_t **qual)
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
-    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6;
-    int x = mouse_x + 14, y = mouse_y + 16;
-    if (x + w > GFX_W - 4) x = mouse_x - 14 - w;
-    if (y + h > GFX_H - 4) y = mouse_y - 12 - h;
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_ad_altura(d);
+    // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
+    // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
+    // fosse cobrir a propria coisa, vai para o lado dela.
+    int x = d->x + d->w / 2 - w / 2, y = d->y + d->h + 4;
+    if (y + h > GFX_H - 4) {
+        y = GFX_H - 4 - h;
+        if (y < d->y + d->h) {
+            x = d->x + d->w + 6;
+            if (x + w > GFX_W - 4) x = d->x - 6 - w;
+        }
+    }
+    if (x + w > GFX_W - 4) x = GFX_W - 4 - w;
     if (x < 4) x = 4;
     if (y < 4) y = 4;
     r[0] = x; r[1] = y; r[2] = w; r[3] = h;
@@ -79,7 +110,25 @@ static void desenha_dica(const int *r, const dica_t *d)
         int wc = ui_selo(x + w + 9, y + 3, c2, cor_rar(d->id), GFX_MIUDO);
         icone_protecao(x + w + 8 + wc + 6, y + 3, nao_anulavel_t(d->id), nao_roubavel_t(d->id));   // as protecoes dele
     }
-    quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
+    int lin = quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
+    // Os adesivos colados nele: o simbolo no vinil, o nome na cor dele, o lado
+    // e (com ate dois) a regra.
+    int lados[AD_LADOS], n = dica_adesivos(d, lados);
+    if (!n) return;
+    int yy = y + TXT_H + 2 + lin * LINHA_FINA + 4;
+    gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
+    yy += 5;
+    for (int i = 0; i < n; i++) {
+        int a = ad_no_lado(&d->pc, lados[i]);
+        const adesivo_t *ad = &ADESIVO[a];
+        ad_solto_d(x + 6, yy + 7, a, 1, 0);
+        int wn = gfx_texto(x + 18, yy - 3, ad->nome, ad->luz, 1, true);
+        char s[24];
+        snprintf(s, sizeof s, "· lado %d", lados[i]);
+        gfx_texto(x + 18 + wn + 6, yy - 2, s, C_MARFIM_S, GFX_FINO, false);
+        yy += DICA_AD_LIN;
+        if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, 3, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
+    }
 }
 
 void dado_desenha(void)
@@ -100,7 +149,7 @@ void dado_desenha(void)
     if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA || fase == F_LOJA))
         desenha_anuncio();
     balao_oponente();
-    desenha_confete();
+    desenha_confete(true);
     bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
     if (!menu) {
         desenha_detalhe();
@@ -125,6 +174,7 @@ void dado_desenha(void)
 static void desenha_tudo(void)
 {
     mesa();
+    desenha_confete(false);                  // o papel cai por baixo dos paineis
     if (des_desenha()) return;
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
     if (fase == F_TUTORIAL) { desenha_tutorial(); return; }

@@ -349,6 +349,31 @@ static int ui_selo_c(int cx, int y, const char *s, uint16_t cor, int f)
     return ui_selo(cx - w / 2, y, s, cor, f);
 }
 
+// Um desenho miudo de pontos, centrado em (cx, cy): linhas de texto com
+// '#' a cor, '+' o claro, 'o' o escuro e '.' nada, e o contorno escuro em
+// volta, como os dados. espelha: de lado trocado; some (0..1): o quanto ja
+// sumiu, no pontilhado.
+static void sprite_em(int cx, int cy, const char *const *l, int h, uint16_t c1, uint16_t c2, uint16_t c3,
+                      bool espelha, float some)
+{
+    int w = (int)strlen(l[0]), x0 = cx - w / 2, y0 = cy - h / 2;
+#define SP_CHEIO(i, j) ((i) >= 0 && (j) >= 0 && (i) < w && (j) < h && l[j][espelha ? w - 1 - (i) : (i)] != '.')
+    for (int j = -1; j <= h; j++)                  // o contorno: o vazio que encosta no desenho
+        for (int i = -1; i <= w; i++) {
+            if (SP_CHEIO(i, j) || !(SP_CHEIO(i - 1, j) || SP_CHEIO(i + 1, j) || SP_CHEIO(i, j - 1) || SP_CHEIO(i, j + 1)))
+                continue;
+            if (some > 0 && bayer(x0 + i, y0 + j) < some) continue;
+            gfx_pixel(x0 + i, y0 + j, C_BARRA);
+        }
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            char c = l[j][espelha ? w - 1 - i : i];
+            if (c == '.' || (some > 0 && bayer(x0 + i, y0 + j) < some)) continue;
+            gfx_pixel(x0 + i, y0 + j, c == '+' ? c2 : c == 'o' ? c3 : c1);
+        }
+#undef SP_CHEIO
+}
+
 // O botao apertado: um clique (ou o ENTER no botao em foco) afunda o botao
 // que esta naquele ponto por um instante.
 #define UI_APERTO_T 0.16f
@@ -363,7 +388,9 @@ static void ui_aperta(int x, int y) { aperto_x = x; aperto_y = y; t_aperto = UI_
 // desce sobre a espessura. O rotulo vai centrado na face.
 #define UI_FOCO 1
 #define UI_DESLIGADO 2
-static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta, int estado)
+// A face do botao, sem o rotulo: devolve a cor da letra que vai nela e, em
+// *desce, quanto a face desceu (apertado).
+static uint16_t ui_botao_face(int x, int y, int w, int h, uint16_t tinta, int estado, int *desce)
 {
     uint16_t face = estado == UI_DESLIGADO ? C_EBANO : tinta ? tinta : C_EBANO_B;
     uint16_t r[4];
@@ -393,6 +420,13 @@ static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta
     // Face clara (latao, ouro): letra escura.
     int lum = ((face >> 11) & 31) * 2 + ((face >> 5) & 63) + (face & 31);
     if (lum > 85 && estado != UI_DESLIGADO) c = C_BARRA;
+    *desce = d;
+    return c;
+}
+static void ui_botao(int x, int y, int w, int h, const char *rot, uint16_t tinta, int estado)
+{
+    int d;
+    uint16_t c = ui_botao_face(x, y, w, h, tinta, estado, &d);
     int tw = gfx_largura(rot, 1);
     gfx_texto(x + (w - tw) / 2, y + d + (h - 4 - TXT_H) / 2 + 1, rot, c, 1, false);
 }
@@ -434,14 +468,22 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 // Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
 enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO, DICA_ADESIVO };
 #define DICA_EMBRULHO D_N                // o id do dado embrulhado pelo Papai Noel (nao diz qual e)
-typedef struct { int16_t x, y, w, h; uint8_t tipo, id; } dica_t;
+typedef struct { int16_t x, y, w, h; uint8_t tipo, id, com_peca; peca_t pc; } dica_t;
 #define MAX_DICAS 64
 static dica_t dicas[MAX_DICAS];
 static int n_dicas;
 static void dica_zona(int x, int y, int w, int h, int tipo, int id)
 {
     if (n_dicas >= MAX_DICAS) return;
-    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id };
+    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id, 0, { 0 } };
+}
+// A dica de um dado que se tem na mao: com a peca, mostra tambem os adesivos
+// colados nele (os selinhos de baixo sao miudos demais para dizer qual e).
+static void dica_peca(int x, int y, int w, int h, const peca_t *p)
+{
+    if (!p) return;
+    dica_zona(x, y, w, h, DICA_DADO, p->tipo);
+    if (n_dicas > 0 && dicas[n_dicas - 1].id == p->tipo) { dicas[n_dicas - 1].com_peca = 1; dicas[n_dicas - 1].pc = *p; }
 }
 
 static bool mouse_em(int x, int y, int w, int h)

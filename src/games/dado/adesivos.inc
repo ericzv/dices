@@ -274,28 +274,59 @@ static void ad_caixa_borda(int x, int y, int w, int h, uint16_t c)
     gfx_rect(x, y + 1, 1, h - 2, c); gfx_rect(x + w - 1, y + 1, 1, h - 2, c);
 }
 
-// O adesivo solto (loja, tela do lado, voando): vinil recortado, borda branca,
-// sombra e a ponta de baixo descolando. s: o tamanho de cada pixel do simbolo;
-// descola (0..1): o quanto a ponta levanta.
+// O adesivo solto (loja, tela do lado, voando), no mesmo acabamento dos
+// dados: o vinil em rampa da cor dele, claro em cima a esquerda e escuro
+// embaixo a direita, com a passagem pontilhada; a borda branca do recorte
+// tambem em rampa; contorno escuro, sombra pontilhada na mesa e o simbolo
+// com uma sombra de um pixel no vinil. A ponta de baixo descola e mostra o
+// verso. s: o tamanho de cada pixel do simbolo; descola (0..1): o quanto a
+// ponta levanta.
+static float bayer(int x, int y);
+static void rampa_de(uint16_t c, uint16_t *r);
+static uint16_t tom_rampa(const uint16_t *r, float l, int x, int y);
 static void ad_solto_d(int cx, int cy, int a, int s, float descola)
 {
     const adesivo_t *d = &ADESIVO[a];
-    int w = 7 * s + 6 * (s > 1 ? 2 : 1), x = cx - w / 2, y = cy - w / 2;
-    gfx_rect(x + 2, y + 3, w, w, C_SOMBRA);
-    ad_caixa(x - 1, y - 1, w + 2, w + 2, C_BRANCO);
-    if (d->fundo == AD_SEM_FUNDO) {
-        ad_caixa(x + 1, y + 1, w - 2, w - 2, C_FELTRO_ESC);
-        ad_caixa_borda(x + 1, y + 1, w - 2, w - 2, d->luz);
-    } else {
-        ad_caixa(x + 1, y + 1, w - 2, w - 2, d->fundo);
-    }
-    ad_icone(cx - 7 * s / 2, cy - 7 * s / 2, a, s, d->tinta);
-    int p = s + 3 + (int)(descola * (2 * s + 3));   // a ponta descolando
-    for (int i = 0; i < p; i++) gfx_rect(x + w + 1 - p + i, y + w - i, p - i, 1, C_FELTRO);
-    for (int i = 0; i < p; i++) gfx_rect(x + w + 1 - p, y + w + 1 - p + i, i + 1, 1, C_MARFIM_S);
-    if (descola > 0) gfx_linha(x + w + 1 - p, y + w, x + w, y + w + 1 - p, C_BRANCO);
+    int w = 7 * s + 6 * (s > 1 ? 2 : 1), X = cx - w / 2 - 1, Y = cy - w / 2 - 1, W = w + 2;
+    int p = s + 3 + (int)(descola * (2 * s + 3));    // a ponta descolando
+    bool vidro = d->fundo == AD_SEM_FUNDO;
+    uint16_t rb[4], rf[4];
+    rampa_de(C_MARFIM, rb);
+    rampa_de(vidro ? d->luz : d->fundo, rf);
+    ui_sombra(X, Y, W, W);
+    for (int j = 0; j < W; j++)
+        for (int i = 0; i < W; i++) {
+            bool canto = (i == 0 || i == W - 1) && (j == 0 || j == W - 1);
+            if (canto || (W - 1 - i) + (W - 1 - j) < p) continue;   // o canto aparado e a ponta solta
+            float l = 0.8f - 0.7f * (i + j) / (2.0f * (W - 1));      // a luz de cima, a esquerda
+            int px = X + i, py = Y + j;
+            uint16_t c;
+            if (i < 2 || j < 2 || i >= W - 2 || j >= W - 2) c = tom_rampa(rb, l * 0.5f + 0.45f, px, py);   // a borda
+            else if (vidro) c = i == 2 || j == 2 || i == W - 3 || j == W - 3 ? d->luz : C_FELTRO_ESC;
+            else c = tom_rampa(rf, l, px, py);
+            gfx_pixel(px, py, c);
+        }
+    // O contorno escuro em volta do recorte, e na dobra da ponta.
+    gfx_rect(X + 1, Y - 1, W - 2, 1, C_BARRA);
+    gfx_rect(X - 1, Y + 1, 1, W - 2, C_BARRA);
+    gfx_rect(X + 1, Y + W, W - 1 - p, 1, C_BARRA);       // ate onde a ponta solta comeca
+    gfx_rect(X + W, Y + 1, 1, W - 1 - p, C_BARRA);
+    gfx_pixel(X, Y, C_BARRA); gfx_pixel(X + W - 1, Y, C_BARRA); gfx_pixel(X, Y + W - 1, C_BARRA);
+    // O simbolo, com a sombra de um pixel no vinil (o desenho impresso).
+    int ix = cx - 7 * s / 2, iy = cy - 7 * s / 2;
+    if (!vidro) ad_icone(ix + 1, iy + 1, a, s, rf[0]);
+    ad_icone(ix, iy, a, s, d->tinta);
+    // A ponta solta, dobrada sobre o proprio adesivo: o verso do vinil (a
+    // ponta, em cima a esquerda do canto), a dobra clara e, do lado de fora
+    // da dobra, a beira escura sobre a mesa.
+    for (int j = W - p; j < W; j++)
+        for (int i = W - p; i < W; i++) {
+            int t = (i - (W - p)) + (j - (W - p)), px = X + i, py = Y + j;
+            if (t < p - 1) gfx_pixel(px, py, i == W - p || j == W - p ? C_BARRA : tom_rampa(rb, -0.1f - 0.8f * t / p, px, py));
+            else if (t == p - 1) gfx_pixel(px, py, descola > 0 ? C_BRANCO : rb[2]);
+            else if (t == p) gfx_pixel(px, py, C_BARRA);
+        }
 }
-
 
 // Um selinho da borda: a pilula na cor do adesivo com o numero do lado.
 static int ad_pilula_w(int lado)

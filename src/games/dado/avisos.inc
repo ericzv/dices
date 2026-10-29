@@ -47,18 +47,17 @@ static void desenha_anuncio(void)
         int x = GFX_W / 2 + (2 * i - (n - 1)) * passo / 2;
         peca_parada((float)x, (float)(y0 + 52), 18, anuncio_peca[i], anuncio_dono);
         txt_c(x, y0 + 76, TIPO[anuncio_peca[i].tipo].nome, cor_dado(anuncio_peca[i].tipo), false);
-        dica_zona(x - 22, y0 + 30, 44, 44, DICA_DADO, anuncio_peca[i].tipo);
+        dica_peca(x - 22, y0 + 30, 44, 44, &anuncio_peca[i]);
     }
 }
 
-// A maquina montando a sequencia: so o nome, sem a mao e sem o menu.
+// A maquina montando a sequencia: sem a mao e sem o menu, so os lugares
+// da fila dela, vazios ate ela decidir.
+static int linha_lugares(int j);
+static int lugares_fila(int j, int ry, int lados_cur);
 static void desenha_maquina_monta(void)
 {
-    char t[64];
-    snprintf(t, sizeof t, "%s monta a sequência", J[vez].nome);
-    int y1 = CENTRO - 40;
-    painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(t, 1), 160));
-    txt_c(GFX_W / 2, y1 - 1, t, J[vez].cor, true);
+    lugares_fila(vez, linha_lugares(vez), 0);
 }
 
 static void desenha_avisos(void)

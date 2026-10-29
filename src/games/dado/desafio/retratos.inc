@@ -843,20 +843,43 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
             if (rt[j][i]) gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, rt[j][i] == 1 ? contorno : rt[j][i]);
 }
 
-// Balao de fala saindo do retrato (x, y: a ponta do bico). O tamanho vem da
-// fala inteira; o texto, do que ja foi dito.
-static void desenha_balao(int x, int y, const char *s, const char *dito)
+// Balao de fala do retrato: (tx, ty) e a ponta do bico, que aponta para
+// cima, para quem fala. O balao tem cantos redondos, contorno escuro e a
+// sombra pontilhada das placas; entra com um pulinho (cresce do bico e passa
+// um pouco do tamanho) e sai encolhendo de volta para o bico. O tamanho vem
+// da fala inteira; o texto, do que ja foi dito.
+#define BALAO_BICO 6
+static void desenha_balao(int tx, int ty, const char *s, const char *dito)
 {
-    int w = gfx_largura(s, 1) + 16, h = TXT_H + 8;
-    int bx = x + 6, by = y - h / 2;
-    if (bx + w > GFX_W - 6) bx = GFX_W - 6 - w;
-    float a = t_fala < 0.25f ? t_fala / 0.25f : 1;
-    if (a < 0.3f) return;
-    gfx_rect(bx + 2, by + 2, w, h, C_SOMBRA);
-    gfx_rect(bx + 1, by + 1, w - 2, h - 2, C_MARFIM);
-    ui_contorno(bx, by, w, h, C_EBANO_B);
-    for (int i = 0; i < 5; i++) gfx_rect(x + i, y - (5 - i) / 2, 7 - i, 5 - i, C_MARFIM);   // bico
-    txt(bx + 8, by + 3, dito, C_EBANO, false);
+    float e = fala_dur - t_fala, q = 1;               // ha quanto tempo saiu
+    if (e < 0.2f) q = sai_mola(e / 0.2f);
+    if (t_fala < 0.14f) q = t_fala / 0.14f;
+    if (q < 0.15f) return;
+    int W = gfx_largura(s, 1) + 16, H = TXT_H + 8;
+    int w = (int)(W * q + 0.5f), h = (int)(H * q + 0.5f);
+    if (w < 12) w = 12;
+    if (h < 8) h = 8;
+    int x = tx - 8 - (int)((W - w) * 0.1f), y = ty + BALAO_BICO;   // cresce a partir do bico
+    if (x + w > GFX_W - 6) x = GFX_W - 6 - w;
+    ui_sombra(x, y, w, h);
+    gfx_rect(x + 2, y + 1, w - 4, h - 2, C_MARFIM);                 // o miolo, de cantos redondos
+    gfx_rect(x + 1, y + 2, w - 2, h - 4, C_MARFIM);
+    gfx_rect(x + 2, y, w - 4, 1, C_BARRA);                          // o contorno
+    gfx_rect(x + 2, y + h - 1, w - 4, 1, C_BARRA);
+    gfx_rect(x, y + 2, 1, h - 4, C_BARRA);
+    gfx_rect(x + w - 1, y + 2, 1, h - 4, C_BARRA);
+    gfx_pixel(x + 1, y + 1, C_BARRA); gfx_pixel(x + w - 2, y + 1, C_BARRA);
+    gfx_pixel(x + 1, y + h - 2, C_BARRA); gfx_pixel(x + w - 2, y + h - 2, C_BARRA);
+    gfx_rect(x + 2, y + h - 2, w - 4, 1, C_MARFIM_S);              // a beira de baixo, um tom abaixo
+    // O bico: reto do lado esquerdo, para cima, colado na beira de cima.
+    for (int j = 1; j <= BALAO_BICO; j++) {
+        int larg = BALAO_BICO - j;                    // a largura do miolo nessa linha
+        gfx_pixel(tx - 1, y - j, C_BARRA);
+        if (larg > 0) gfx_rect(tx, y - j, larg, 1, C_MARFIM);
+        gfx_pixel(tx + (larg > 0 ? larg : 0), y - j, C_BARRA);
+    }
+    gfx_rect(tx, y, BALAO_BICO, 1, C_MARFIM);                      // abre a beira onde o bico encosta
+    if (q > 0.95f) txt(x + 8, y + 3, dito, C_EBANO, false);
 }
 
 // Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
@@ -877,7 +900,7 @@ static int retrato_faixa(int j, int x, int y0)
     return x + RT_W * esc + 8;
 }
 
-// O trunfo do oponente, numa linha miuda: o nome (em ouro, aceso quando age)
+// O trunfo do oponente, numa linha fina: o nome (em ouro, aceso quando age)
 // e o que ele faz, cortado com "..." se nao couber ate x_max. O mouse em cima
 // mostra o texto inteiro.
 static void trunfo_faixa(int x, int y, int x_max)
@@ -886,21 +909,21 @@ static void trunfo_faixa(int x, int y, int x_max)
     if (!pp->trunfo || !trunfo_ativo(fala_perso)) return;
     bool aceso = false;
     for (int a = 0; a < A_N; a++) if ((pp->amul >> a & 1) && am_brilho[a] > 0) aceso = true;
-    int w = gfx_texto(x, y, pp->trunfo, aceso ? C_AMARELO : C_OURO, GFX_MIUDO, false);
+    int w = gfx_texto(x, y, pp->trunfo, aceso ? C_AMARELO : C_OURO, GFX_FINO, false);
     char r[200];
     snprintf(r, sizeof r, "· %s", pp->regra);
     int livre = x_max - (x + w + 5);
-    if (gfx_largura(r, GFX_MIUDO) > livre) {
+    if (gfx_largura(r, GFX_FINO) > livre) {
         int n = (int)strlen(r);
         while (n > 3) {                          // corta numa palavra e poe "..."
             n--;
             while (n > 3 && r[n] != ' ') n--;
             memcpy(r + n, "...", 4);
-            if (gfx_largura(r, GFX_MIUDO) <= livre) break;
+            if (gfx_largura(r, GFX_FINO) <= livre) break;
         }
     }
-    gfx_texto(x + w + 5, y, r, aceso ? C_MARFIM : C_TEXTO_M, GFX_MIUDO, false);
-    dica_zona(x, y - 3, x_max - x, 12, DICA_TRUNFO, fala_perso);
+    gfx_texto(x + w + 5, y, r, aceso ? C_MARFIM : C_TEXTO_M, GFX_FINO, false);
+    dica_zona(x, y + 4, x_max - x, 14, DICA_TRUNFO, fala_perso);
 }
 
 // O balao do oponente: depois de tudo, por cima da mesa.
@@ -910,8 +933,8 @@ static void balao_oponente(void)
     bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
                 || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
     if (!partida) return;
-    int y = FAIXA_H + 14;
-    desenha_balao(20, y, fala_txt, fala_dita_txt());
+    // O bico sai do meio do retrato da faixa de cima, logo abaixo da moldura.
+    desenha_balao(VOLTAR_X0 - 4 + RT_W, MESA_Y0 + 2, fala_txt, fala_dita_txt());
 }
 
 

@@ -156,29 +156,6 @@ static const poder_anima_t PODER_ANIMA[EF_UNIVERSO + 1] = {
 #undef PA_SP
 #undef PA_SP2
 
-// O desenho centrado em (cx, cy). espelha: de lado trocado; some (0..1): o
-// quanto ja sumiu, no pontilhado.
-static void sprite_em(int cx, int cy, const char *const *l, int h, uint16_t c1, uint16_t c2, uint16_t c3,
-                      bool espelha, float some)
-{
-    int w = (int)strlen(l[0]), x0 = cx - w / 2, y0 = cy - h / 2;
-#define SP_CHEIO(i, j) ((i) >= 0 && (j) >= 0 && (i) < w && (j) < h && l[j][espelha ? w - 1 - (i) : (i)] != '.')
-    for (int j = -1; j <= h; j++)                  // o contorno: o vazio que encosta no desenho
-        for (int i = -1; i <= w; i++) {
-            if (SP_CHEIO(i, j) || !(SP_CHEIO(i - 1, j) || SP_CHEIO(i + 1, j) || SP_CHEIO(i, j - 1) || SP_CHEIO(i, j + 1)))
-                continue;
-            if (some > 0 && bayer(x0 + i, y0 + j) < some) continue;
-            gfx_pixel(x0 + i, y0 + j, C_BARRA);
-        }
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++) {
-            char c = l[j][espelha ? w - 1 - i : i];
-            if (c == '.' || (some > 0 && bayer(x0 + i, y0 + j) < some)) continue;
-            gfx_pixel(x0 + i, y0 + j, c == '+' ? c2 : c == 'o' ? c3 : c1);
-        }
-#undef SP_CHEIO
-}
-
 // Um rotulo miudo (o "x2"), com contorno, centrado em (cx, cy).
 static void rotulo_poder(int cx, int cy, const char *s, uint16_t c)
 {

@@ -112,8 +112,13 @@ static void solta_confete(int n)
         c->giro = frnd(0, 6.28f);
         c->vg = frnd(-14, 14);
         c->cor = COR[i % (int)(sizeof COR / sizeof COR[0])];
+        uint16_t r[4];
+        rampa_de(c->cor, r);
+        c->verso = r[1];
         c->w = (uint8_t)(3 + (i % 3));
         c->h = (uint8_t)(2 + (i % 2));
+        c->caco = 0;
+        c->tela = -1;
     }
 }
 
@@ -131,16 +136,30 @@ static void solta_cacos(int x, int y)
         c->giro = frnd(0, 6.28f);
         c->vg = frnd(-20, 20);
         c->cor = COR[i % 4];
+        c->verso = C_ACO;
         c->w = (uint8_t)(3 + i % 3);
         c->h = (uint8_t)(2 + i % 2);
+        c->caco = 1;
+        c->tela = -1;
     }
+}
+
+// A tela do confete: a partida inteira conta como uma so (as fases dela se
+// sucedem enquanto o papel cai); fora dela, cada fase e uma tela.
+static int tela_confete(void)
+{
+    bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
+                || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
+    return partida ? F_JOGA : fase;
 }
 
 static void passo_confete(float dt)
 {
-    int m = 0;
+    int m = 0, tela = tela_confete();
     for (int i = 0; i < n_confete; i++) {
         confete_t *c = &confete[i];
+        if (c->tela < 0) c->tela = (int8_t)tela;          // a primeira tela em que aparece e a dele
+        else if (c->tela != tela) continue;             // trocou de tela: o confete fica na outra
         c->vy += 520 * dt;
         c->vx *= 1 - 1.4f * dt;
         if (c->vy > 90) c->vy = 90 + (c->vy - 90) * (1 - 3 * dt);   // papel plana ao cair
@@ -152,13 +171,17 @@ static void passo_confete(float dt)
     n_confete = m;
 }
 
-static void desenha_confete(void)
+// O papel (cacos: false) logo depois do feltro, por baixo dos paineis; os
+// cacos (true) por cima de tudo.
+static void desenha_confete(bool cacos)
 {
+    int tela = tela_confete();
     for (int i = 0; i < n_confete; i++) {
         const confete_t *c = &confete[i];
-        float s = fabsf(cosf(c->giro));          // o papel virando no ar
-        int w = (int)(c->w * (0.3f + 0.7f * s)) + 1;
-        gfx_rect((int)c->x - w / 2, (int)c->y, w, c->h, s > 0.5f ? c->cor : gfx_mistura(c->cor, C_BARRA, 35));
+        if (c->caco != cacos || (c->tela >= 0 && c->tela != tela)) continue;
+        float s = cosf(c->giro);                 // o papel virando no ar: a frente, a beira, o verso
+        int w = (int)(c->w * (0.3f + 0.7f * fabsf(s))) + 1;
+        gfx_rect((int)c->x - w / 2, (int)c->y, w, c->h, s > 0.25f ? c->cor : c->verso);
     }
 }
 

@@ -14,17 +14,30 @@ static int aumento_possivel(void)
     return sobe < 0 ? 0 : sobe;
 }
 
+// As opcoes, da esquerda para a direita, por quantas fichas entram: o que
+// nao poe ficha nenhuma (passar; correr, separado) e, a direita, o que sobe.
+// Assim a mao aprende um lado so: apostar 25 e dobrar ficam sempre a direita,
+// e correr nunca cai onde estava o apostar.
 static int opcoes(int *op)
 {
     int n = 0;
     if (!a_pagar) { op[n++] = OP_PASSAR; op[n++] = OP_APOSTAR10; op[n++] = OP_APOSTAR25; }
     else {
+        op[n++] = OP_CORRER;
         op[n++] = OP_PAGAR;
         if (!aumentou && aumento_possivel() > 0)
             op[n++] = OP_AUMENTAR;
-        op[n++] = OP_CORRER;
     }
     return n;
+}
+
+// Onde o cursor comeca: no que nao arrisca nada a mais (passar ou pagar),
+// nunca no correr.
+static int cursor_aposta(void)
+{
+    int op[4], n = opcoes(op);
+    for (int i = 0; i < n; i++) if (op[i] == OP_PASSAR || op[i] == OP_PAGAR) return i;
+    return 0;
 }
 
 static int limite(int quer)
@@ -48,17 +61,18 @@ static void rotulo_op(int op, char *s, int n)
     }
 }
 
-// A cor de cada botao da aposta: passar neutro, apostar em vinho (25 mais
-// forte), pagar em ouro velho, dobrar em vermelho vivo, correr em preto.
+// A cor de cada botao da aposta, da paleta (a face sai na rampa dela):
+// passar cinza, apostar e dobrar em vinho (o 25 em vermelho vivo), pagar em
+// latao e correr no ebano, com o X vermelho.
 static uint16_t tinta_op(int op)
 {
     switch (op) {
-    case OP_PASSAR:    return RGB(44, 66, 58);
-    case OP_APOSTAR10: return RGB(112, 40, 46);
-    case OP_APOSTAR25: return RGB(150, 34, 40);
-    case OP_PAGAR:     return RGB(112, 88, 38);
-    case OP_AUMENTAR:  return RGB(168, 44, 36);
-    default:           return RGB(20, 20, 22);       // correr
+    case OP_PASSAR:    return C_EBANO_B;
+    case OP_APOSTAR10: return C_VINHO;
+    case OP_APOSTAR25: return C_VERMELHO;
+    case OP_PAGAR:     return C_LATAO;
+    case OP_AUMENTAR:  return C_VINHO;
+    default:           return C_EBANO;               // correr
     }
 }
 
@@ -124,5 +138,5 @@ static void executa(int op)
     }
     }
     vez = outro(vez);
-    cursor = 0;
+    cursor = cursor_aposta();
 }

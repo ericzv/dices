@@ -436,6 +436,8 @@ static int ante_da(int r)
 #endif
 }
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
+static float t_sua_vez;                  // > 0: a plaquinha SUA VEZ no painel da sequencia
+#define SUA_VEZ_T 2.0f
 #define ENTRADA_AVISO_T 2.6f
 static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
@@ -474,7 +476,10 @@ static int  tira_i;
 // Roleta do premio: os tres rolos giram e travam um a um no dado que ja
 // foi sorteado. t_slot: tempo desde que abriu (-1: sem roleta).
 static float t_slot = -1, slot_t0, slot_dt;
-typedef struct { float x, y, vx, vy, giro, vg; uint16_t cor; uint8_t w, h; } confete_t;
+// Confete e cacos: papel de duas faces (frente e verso, um tom abaixo) que
+// fica na tela onde apareceu primeiro (tela -1: ainda nao viu nenhuma) e cai
+// por baixo dos paineis; os cacos de vidro voam por cima de tudo.
+typedef struct { float x, y, vx, vy, giro, vg; uint16_t cor, verso; uint8_t w, h, caco; int8_t tela; } confete_t;
 #define MAX_CONFETE 140
 static confete_t confete[MAX_CONFETE];
 static int n_confete;

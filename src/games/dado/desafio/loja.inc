@@ -605,7 +605,7 @@ static void lj_porquinho(void)
         icone_bolsa_em(B_PORCO, cx, cy + pula, 2, 1, t_relogio, 1, 0);
         snprintf(s, sizeof s, "%d", run.porco);
         gfx_texto(cx + 19, cy - 16, s, C_ROSA, 1, true);
-        gfx_texto(cx + 19, cy + 4, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_MIUDO, false);
+        gfx_texto(cx + 19, cy - 2, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_FINO, false);
         if (run.porco) zona_clique(cx - 20, cy - 18, 70, 40, NULL, 0, 'q');
         return;
     }
@@ -718,58 +718,86 @@ static void glifo_grupo(int cx, int cy, int g, uint16_t c, int k)
     }
 }
 
+// Um pedaco do pacote em rampa, no acabamento dos dados: a luz vem de cima,
+// a esquerda, da caixa inteira (bx, by, bw, bh); mais clareia (a tampa) ou
+// escurece (o lado na sombra), e cada tom passa ao vizinho pontilhado.
+static void pac_rampa(int x, int y, int w, int h, const uint16_t *r, float mais, int bx, int by, int bw, int bh)
+{
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            float u = (float)(x + i - bx) / bw, v = (float)(y + j - by) / bh;
+            gfx_pixel(x + i, y + j, tom_rampa(r, 0.75f - 0.35f * (u + v) + mais, x + i, y + j));
+        }
+}
+
 // O pacote: uma caixa embrulhada no papel do grupo, com a fita marfim, o
-// laco em cima e a etiqueta com o simbolo. e: a escala (1 na loja); rasgado:
-// a tampa arrancada e a caixa vazia.
+// laco em cima e a etiqueta com o simbolo - tudo em rampa, com contorno
+// escuro e a sombra pontilhada na mesa, como os dados. e: a escala (1 na
+// loja); rasgado: a tampa arrancada e a caixa vazia.
 static void desenha_pacote(int cx, int cy, float e, int g, bool rasgado)
 {
     const uint16_t *pp = PAPEL_GRUPO[g >= 0 && g <= GR_ADESIVOS ? g : 0];
-    uint16_t luz = pp[0], papel = pp[1], sombra = pp[2];
+    uint16_t rp[4], rl[4], rm[4];
+    rampa_de(pp[1], rp);                                                 // o papel
+    rampa_de(pp[0], rl);                                                 // e a tampa, no tom claro dele
+    rampa_de(C_MARFIM, rm);
     int w = (int)(44 * e), h = (int)(36 * e), x = cx - w / 2, y = cy - h / 2 + (int)(4 * e);
     int tampa = (int)(9 * e), fw = (int)(5 * e) < 3 ? 3 : (int)(5 * e), k = e >= 1.6f ? 2 : 1;
-    gfx_rect(x + 3, y + h, w - 3, (int)(3 * e), C_SOMBRA);               // a sombra na mesa
-    gfx_rect(x, y, w, h, C_BARRA);
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, papel);
-    gfx_rect(x + w - 1 - (int)(6 * e), y + 1, (int)(6 * e), h - 2, sombra);   // o lado na sombra
+    int lado = (int)(6 * e);
+    ui_sombra(x, y, w, h);                                               // a sombra na mesa
+    ui_contorno(x, y, w, h, C_BARRA);
+    gfx_rect(x + 1, y, w - 2, 1, C_BARRA); gfx_rect(x, y + 1, 1, h - 2, C_BARRA);
+    pac_rampa(x + 1, y + 1, w - 2, h - 2, rp, 0, x, y, w, h);
+    pac_rampa(x + w - 1 - lado, y + 1, lado, h - 2, rp, -0.3f, x, y, w, h);   // o lado na sombra
+    gfx_rect(x + w - 1 - lado, y + 1, 1, h - 2, rp[0]);                  // a quina
     if (rasgado) {
-        // A boca aberta, escura, com a borda do papel em dentes.
+        // A boca aberta, escura, com a borda do papel em dentes acesos.
         gfx_rect(x + 2, y + 2, w - 4, tampa + 2, C_BARRA);
-        for (int i = 0; i < w - 4; i += 3 * k) gfx_rect(x + 2 + i, y + tampa + 2, 2 * k, (i / (3 * k)) % 2 ? 2 * k : k, luz);
-        gfx_rect(cx - fw / 2, y + tampa + 4, fw, h - tampa - 6, gfx_mistura(C_MARFIM_S, C_EBANO, 35));
+        for (int i = 0; i < w - 4; i += 3 * k) gfx_rect(x + 2 + i, y + tampa + 2, 2 * k, (i / (3 * k)) % 2 ? 2 * k : k, rp[3]);
+        pac_rampa(cx - fw / 2, y + tampa + 4, fw, h - tampa - 6, rm, -0.7f, x, y, w, h);
         return;
     }
-    gfx_rect(x + 1, y + 1, w - 2, tampa, luz);                         // a tampa
-    gfx_rect(x + 1, y + 1 + tampa, w - 2, k, sombra);
+    pac_rampa(x + 1, y + 1, w - 2, tampa, rl, 0, x, y, w, h);           // a tampa
+    gfx_rect(x + 2, y + 1, w - 4, 1, rl[3]);                             // a luz na beira de cima
+    gfx_rect(x + 1, y + 1 + tampa, w - 2, k, rp[0]);                     // e a sombra embaixo dela
     // Dois riscos de dobra no papel.
-    gfx_rect(x + (int)(6 * e), y + tampa + (int)(6 * e), (int)(8 * e), k, luz);
-    gfx_rect(x + w - (int)(18 * e), y + h - (int)(8 * e), (int)(7 * e), k, luz);
-    // A fita: em pe e deitada, com um fio de luz.
+    gfx_rect(x + (int)(6 * e), y + tampa + (int)(6 * e), (int)(8 * e), k, rp[3]);
+    gfx_rect(x + w - (int)(18 * e), y + h - (int)(8 * e), (int)(7 * e), k, rp[2]);
+    // A fita: em pe e deitada, em rampa marfim, com um fio de luz.
     int fy = y + (int)(h * 0.58f);
-    gfx_rect(cx - fw / 2, y + 1, fw, h - 2, C_MARFIM_S);
-    gfx_rect(x + 1, fy, w - 2, fw, C_MARFIM_S);
-    gfx_rect(cx - fw / 2, y + 1, k, h - 2, C_MARFIM);
-    gfx_rect(x + 1, fy, w - 2, k, C_MARFIM);
-    // O laco de borboleta: duas asas que abrem do no e duas pontas caidas.
+    pac_rampa(cx - fw / 2, y + 1, fw, h - 2, rm, 0, x, y, w, h);
+    pac_rampa(x + 1, fy, w - 2, fw, rm, 0, x, y, w, h);
+    gfx_rect(cx - fw / 2, y + 1, k, h - 2, rm[3]);
+    gfx_rect(x + 1, fy, w - 2, k, rm[3]);
+    gfx_rect(cx + fw / 2, y + 1, 1, h - 2, rm[0]);                       // a fita faz sombra no papel
+    gfx_rect(x + 1, fy + fw, w - 2, 1, rm[0]);
+    // O laco de borboleta: duas asas que abrem do no e duas pontas caidas; a
+    // asa da esquerda pega a luz, a da direita fica na sombra.
     int bw = (int)(10 * e), bh = (int)(6 * e), ly = y - (int)(2 * e);
-    for (int s = -1; s <= 1; s += 2) {
-        gfx_linha_grossa(cx, ly, cx + s * (bw - 2 * k), ly + bh + (int)(3 * e), fw - 1, C_BARRA);
-        gfx_linha_grossa(cx, ly, cx + s * (bw - 2 * k), ly + bh + (int)(3 * e), fw - 3 > 0 ? fw - 3 : 1, C_MARFIM_S);
+    for (int sd = -1; sd <= 1; sd += 2) {
+        gfx_linha_grossa(cx, ly, cx + sd * (bw - 2 * k), ly + bh + (int)(3 * e), fw - 1, C_BARRA);
+        gfx_linha_grossa(cx, ly, cx + sd * (bw - 2 * k), ly + bh + (int)(3 * e), fw - 3 > 0 ? fw - 3 : 1, sd < 0 ? rm[2] : rm[1]);
         for (int d = 0; d <= bw; d++) {
             int hh = bh * d / bw;
-            gfx_rect(cx + s * d - (s < 0), ly - hh - 1, 1, 2 * hh + 3, C_BARRA);
+            gfx_rect(cx + sd * d - (sd < 0), ly - hh - 1, 1, 2 * hh + 3, C_BARRA);
         }
         for (int d = 1; d < bw; d++) {
             int hh = bh * d / bw;
-            gfx_rect(cx + s * d - (s < 0), ly - hh, 1, 2 * hh + 1, d > bw - 3 * k ? C_MARFIM : C_MARFIM_S);
+            for (int q = -hh; q <= hh; q++) {
+                int px = cx + sd * d - (sd < 0), py = ly + q;
+                float l = (sd < 0 ? 0.55f : -0.35f) - 0.5f * q / (bh + 1) + (d > bw - 3 * k ? 0.35f : 0);
+                gfx_pixel(px, py, tom_rampa(rm, l, px, py));
+            }
         }
     }
     gfx_rect(cx - fw / 2 - 1, ly - fw / 2 - 1, fw + 2, fw + 2, C_BARRA);
-    gfx_rect(cx - fw / 2, ly - fw / 2, fw, fw, C_MARFIM);
+    pac_rampa(cx - fw / 2, ly - fw / 2, fw, fw, rm, 0.6f, x, y, w, h);  // o no
     // A etiqueta, presa na fita, com o simbolo do grupo.
     int tw = (int)(16 * e), th = (int)(13 * e), tx = x + w - tw + (int)(4 * e), ty = fy + fw - 1;
+    ui_sombra(tx, ty, tw, th);
     gfx_rect(tx, ty, tw, th, C_BARRA);
-    gfx_rect(tx + 1, ty + 1, tw - 2, th - 2, C_MARFIM_S);
-    glifo_grupo(tx + tw / 2, ty + th / 2, g, papel, k);
+    pac_rampa(tx + 1, ty + 1, tw - 2, th - 2, rm, 0.2f, tx, ty, tw, th);
+    glifo_grupo(tx + tw / 2, ty + th / 2, g, rp[2], k);
 }
 
 // O cartao do pacote na loja: o embrulho (sacudindo de leve, de tempos em
@@ -1083,7 +1111,7 @@ static void lj_cola_lados(void)
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
         if (mostra != lado || t == D_VAZIO) {
             snprintf(s, sizeof s, "%d", lado);
-            gfx_texto(x - gfx_largura(s, GFX_MIUDO) / 2, y + 20, s, C_TEXTO_M, GFX_MIUDO, false);
+            gfx_texto(x - gfx_largura(s, GFX_FINO) / 2, y + 15, s, C_TEXTO_M, GFX_FINO, false);
         }
         zona_clique(x - 21, y - 21, 42, 42, &cursor, c, KEY_ENTER);
     }
@@ -1095,7 +1123,7 @@ static void lj_cola_lados(void)
         float desce = t_lj_cola > 0 ? t_lj_cola / LJ_COLA_BATE : 0;
         int hy = y - 36 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 36);
         if (livre || t_lj_cola > 0) ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
-        else gfx_texto(x - gfx_largura("ocupado", GFX_MIUDO) / 2, y - 36, "ocupado", C_VINHO_CLR, GFX_MIUDO, false);
+        else gfx_texto(x - gfx_largura("ocupado", GFX_FINO) / 2, y - 42, "ocupado", C_VINHO_CLR, GFX_FINO, false);
     }
     lj_lascas();
     int lado = ad_lado_min(t) + (cursor >= 0 && cursor < n ? cursor : 0), ja = ad_no_lado(pc, lado);
@@ -1294,14 +1322,14 @@ static void desenha_loja_run(void)
                 ? gfx_mistura(C_OURO, moedas_cont.sinal > 0 ? C_BRANCO : C_VINHO_CLR, (int)(moedas_cont.pulo * 70)) : C_OURO;
     moeda_ic(MESA_X0 + 30, MESA_Y0 + 24);
     gfx_texto(MESA_X0 + 42, MESA_Y0 + 12 - (moedas_ok && moedas_cont.pulo > 0.4f ? 1 : 0), s, cm, 1, true);
-    gfx_texto(MESA_X0 + 22, MESA_Y0 + 36, "moedas", C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(MESA_X0 + 18, MESA_Y0 + 30, "moedas", C_TEXTO_M, GFX_FINO, false);
     lj_porquinho();
 
     int nv = n_vitrine(), cw = lj_cw();
-    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 11, "VITRINE", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 11, "PACOTE", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 11, "ADESIVO", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_sx() + 4, LJ_Y - 11, "SERVIÇOS", C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 20, "VITRINE", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 20, "ADESIVO", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_sx() + 4, LJ_Y - 20, "SERVIÇOS", C_TEXTO_M, GFX_FINO, false);
     for (int i = 0; i < nv; i++) lj_cartao_dado(i);
     lj_cartao_pacote();
     lj_cartao_adesivo();

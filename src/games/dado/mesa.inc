@@ -105,7 +105,12 @@ static void desenha_lance(void)
         bool caixa = abre && t_fase < PRESENTE_ABRE * PRESENTE_RASGA;
         if (TIPO[v->tipo].lados == 2 && !v->parado && !descartado && !caixa) {
             float c = cosf(v->giro * 1.6f);            // moeda gira no ar
-            moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, c >= 0 ? v->face : 3 - v->face);
+            int lado = c >= 0 ? v->face : 3 - v->face;
+            if (!v->fantasma) {                        // o adesivo do lado que esta a vista, aceso, como nos dados
+                int a = ad_no_lado(peca_fila(v->dono, v->slot), lado);
+                if (a) { ad_face = a; ad_face_aceso = true; }
+            }
+            moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, lado);
             if (abre) presente_abre(v->x, v->y, t_fase / PRESENTE_ABRE);
             sombra_alt = 0;
             continue;
@@ -315,7 +320,7 @@ static void faixa_jogador(int j)
     gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, cima ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
-    // O oponente do Desafiante: o trunfo dele fica numa linha miuda embaixo
+    // O oponente do Desafiante: o trunfo dele fica numa linha fina embaixo
     // do nome, sempre a vista; o resto da faixa sobe um pouco.
     bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0 && trunfo_ativo(fala_perso);
     if (com_trunfo) ty -= 5;
@@ -362,7 +367,7 @@ static void faixa_jogador(int j)
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem. Clicar
     // abre o pop-up com os dados dela (bolsa.inc), a sua ou a do oponente.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
-    if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
+    if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 22, bx - 12);
     bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
     if (modo == M_DESAFIO && p == &J[0]) icone_da_run(bx + 8, by - em);   // a bolsa que voce escolheu
     else icone_bolsa(bx + 8, by - em);
@@ -637,32 +642,37 @@ static void brilho_poder(float cx, float cy, float r, int tipo, float ang, bool 
     uint16_t fraca = gfx_mistura(c, C_FELTRO, (int)(85 - 30 * pulso));   // o halo de fora
     int lados = TIPO[tipo].lados;
     float fase_luz = fmodf(t_relogio * 0.55f, 1.0f);
+    float ea = r < 12 ? 1 : r / 10;                    // a borda de fora do aro do dado (desenho_dado.inc)
     if (lados == 2 || tipo == D_FOGO || tipo == D_TUDO_NADA) {   // moeda e fichas: anel
         for (int o = 1; o >= 0; o--) {
-            int rr = (int)(r + 3 + o * 2);
+            float rr = r + ea + 3 + o * 2;
             for (int a = 0; a < 96; a++) {
                 float an = a * 0.06545f;
-                gfx_rect((int)(cx + cosf(an) * rr), (int)(cy + sinf(an) * rr), 1 + !o, 1 + !o, o ? fraca : forte);
+                gfx_rect((int)lroundf(cx + cosf(an) * rr) - !o / 2, (int)lroundf(cy + sinf(an) * rr) - !o / 2, 1 + !o, 1 + !o,
+                         o ? fraca : forte);
             }
         }
         float an = fase_luz * 6.2832f;
-        gfx_rect((int)(cx + cosf(an) * (r + 3)) - 1, (int)(cy + sinf(an) * (r + 3)) - 1, 3, 3, claro);
+        gfx_rect((int)lroundf(cx + cosf(an) * (r + ea + 3)) - 1, (int)lroundf(cy + sinf(an) * (r + ea + 3)) - 1, 3, 3, claro);
         return;
     }
+    // A mesma forma do dado, com as bordas afastadas por igual (forma_d): a luz
+    // corre paralela ao aro, no mesmo centro.
     float vx[12], vy[12];
     int n = 0;
     for (int o = 1; o >= 0; o--) {
-        n = forma(lados, cx, cy, r + 3.5f + o * 2, ang, vx, vy);
+        n = forma_d(lados, cx, cy, r, ang, ea * 0.85f + 2.5f + o * 2, vx, vy);
         for (int i = 0; i < n; i++) {
             int k = (i + 1) % n;
-            gfx_linha_grossa((int)vx[i], (int)vy[i], (int)vx[k], (int)vy[k], o ? 1 : 2, o ? fraca : forte);
+            gfx_linha_grossa((int)lroundf(vx[i]), (int)lroundf(vy[i]), (int)lroundf(vx[k]), (int)lroundf(vy[k]),
+                             o ? 1 : 2, o ? fraca : forte);
         }
     }
     if (n < 2) return;
     float q = fase_luz * n;                            // o ponto claro, de lado em lado
     int i = (int)q % n, k = (i + 1) % n;
     float u = q - (int)q;
-    int px = (int)(vx[i] + (vx[k] - vx[i]) * u), py = (int)(vy[i] + (vy[k] - vy[i]) * u);
+    int px = (int)lroundf(vx[i] + (vx[k] - vx[i]) * u), py = (int)lroundf(vy[i] + (vy[k] - vy[i]) * u);
     gfx_rect(px - 1, py - 1, 3, 3, claro);
 }
 
@@ -846,7 +856,9 @@ static void desenha_fila(int j)
             if (k < f->lancados && fase == F_VEREDITO && j == vez && t_fase < 0.6f) aro(x, y, C_OURO);
             continue;
         }
-        dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, j == 0 && k >= f->lancados && f->idx[k] == embrulho ? DICA_EMBRULHO : t);
+        if (j == 0 && k >= f->lancados && f->idx[k] == embrulho) dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, DICA_EMBRULHO);
+        else if (peca_fila(j, k)) dica_peca(x - R, y - R, 2 * R, 2 * R, peca_fila(j, k));
+        else dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {                  // ainda vai sair: o dado menor, sem nada atras
             marca_nivel = f->fixo[k];
             caixa_fechada = j == 0 && f->idx[k] == embrulho;
@@ -1243,27 +1255,37 @@ static void desenha_fila(int j)
         // um pulinho e acende: dourado subindo, vinho descendo.
         const contador_t *pc = &placar_c[j];
         snprintf(s, sizeof s, "%d", pc->mostra);
-        uint16_t c = (fase == F_RESULTADO && venc_mao == j) ? J[j].cor
+        // No resultado o placar fala sozinho: o de quem levou fecha as
+        // cantoneiras e ganha a plaquinha; o zero treme e pisca em vinho; no
+        // empate os dois acendem iguais.
+        bool res = fase == F_RESULTADO, zero = res && zerou == j, empate = res && venc_mao == 2;
+        int sx = zero && t_fase < 0.7f ? (int)(sinf(t_fase * 48) * 3 * (1 - t_fase / 0.7f)) : 0;
+        uint16_t c = (res && venc_mao == j) ? J[j].cor
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
+        if (zero) c = t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_BRANCO : C_VINHO_CLR;
+        if (empate) c = C_MARFIM;
         float calor = placar_calor(pc->mostra), pulso = calor > 0 ? placar_pulso(calor) : 0;
         float q = calor > 1 ? 1 : calor;
         if (q >= 0.45f) c = rampa_ouro(3 + pulso * (q - 0.45f) * 2.2f);   // os numeros: amarelo, pulsando ao branco
         if (pc->pulo > 0) c = gfx_mistura(c, pc->sinal > 0 ? C_OURO : C_VINHO_CLR, (int)(pc->pulo * 80));
-        ui_painel(PLACAR_X - 34, y - 26, 68, 50);
+        ui_painel(PLACAR_X - 34 + sx, y - 26, 68, 50);
+        if (zero) ui_contorno(PLACAR_X - 32 + sx, y - 24, 64, 46, t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_VINHO : C_VINHO_CLR);
+        if (empate) ui_cantos(PLACAR_X - 34, y - 26, 68, 50, C_MARFIM_S);
         if (calor > 0) {                          // esquentando: o filete e a luz em volta
             ui_contorno(PLACAR_X - 32, y - 24, 64, 46, rampa_ouro(1 + q * 2 + pulso * q));
             placar_halo(PLACAR_X - 34, y - 26, 68, 50, calor, pulso);
         }
-        bool vence = vence_j == j && fase != F_RESULTADO;   // passou do alvo: a rodada e dele
+        bool vence = res ? venc_mao == j : vence_j == j;   // passou do alvo (ou levou): a rodada e dele
         if (vence) {                              // as cantoneiras chegam de longe, fecham e respiram
-            int a = t_vence < 0.45f ? (int)((1 - t_vence / 0.45f) * 14) : 0;
+            float tv = res ? t_fase : t_vence;
+            int a = tv < 0.45f ? (int)((1 - tv / 0.45f) * 14) : 0;
             ui_cantos_em(PLACAR_X - 34, y - 26, 68, 50, C_OURO, 3 + a + ui_respira());
             c = C_OURO;
         }
         if (vence)                                // a plaquinha de latao, presa na beira do placar
             ui_plaqueta(PLACAR_X, (j == baixo ? y + 24 : y - 26) - UI_PLAQUETA_H / 2, "VENCE", C_OURO);
         else txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
-        txt_c2(PLACAR_X, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
+        txt_c2(PLACAR_X + sx, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
         // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).

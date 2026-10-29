@@ -143,7 +143,7 @@ void dado_desenha(void)
     if (t_anuncio > 0 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA || fase == F_LOJA))
         desenha_anuncio();
     balao_oponente();
-    desenha_confete();
+    desenha_confete(true);
     bool menu = fase == F_CATALOGO || fase == F_TUTORIAL || fase == F_ONLINE || fase == F_ABERTURA;
     if (!menu) {
         desenha_detalhe();
@@ -168,6 +168,7 @@ void dado_desenha(void)
 static void desenha_tudo(void)
 {
     mesa();
+    desenha_confete(false);                  // o papel cai por baixo dos paineis
     if (des_desenha()) return;
     if (fase == F_CATALOGO) { desenha_catalogo(); return; }
     if (fase == F_TUTORIAL) { desenha_tutorial(); return; }

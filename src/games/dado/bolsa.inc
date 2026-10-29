@@ -76,7 +76,8 @@ static void desenha_bolsa_pop(void)
         char r2[200];
         if (run.bolsa == B_PANO) snprintf(r2, sizeof r2, "Sem regra.");
         else snprintf(r2, sizeof r2, "%s %s", bo->ganho, bo->custo);
-        gfx_texto(GFX_W / 2 - gfx_largura(r2, GFX_MIUDO) / 2, y0 + 62, r2, C_TEXTO_M, GFX_MIUDO, false);
+        int f = gfx_largura(r2, GFX_FINO) <= 560 ? GFX_FINO : GFX_MIUDO;
+        gfx_texto(GFX_W / 2 - gfx_largura(r2, f) / 2, y0 + (f == GFX_FINO ? 56 : 62), r2, C_TEXTO_M, f, false);
     } else {
         snprintf(s, sizeof s, "%d dados", n);
         txt_c(GFX_W / 2, y0 + 44, s, C_MARFIM_S, false);

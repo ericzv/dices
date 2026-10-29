@@ -433,7 +433,7 @@ static void des_bolsa_nova(void)
     ui_cartao_aceso(x, y, w, h, true, BOLSA[bolsa_nova].cor);
     ficha_bolsa(x + 22, y + h / 2, 15, bolsa_nova, 0, t * 2, false, false, 1, t, -1);
     txt(x + 44, y + 3, s, C_OURO, true);
-    gfx_texto(x + 44, y + 23, "escolha no começo de uma run", C_MARFIM_S, GFX_MIUDO, false);
+    gfx_texto(x + 44, y + 17, "escolha no começo de uma run", C_MARFIM_S, GFX_FINO, false);
 }
 
 // ---- Caixa de Fosforos: a mao que o oponente comprou -------------------------

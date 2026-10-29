@@ -261,7 +261,7 @@ static void desenha_online(void)
     faixas_menu("ONLINE", NULL, "ESC volta ao menu");
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
     if (!rede_disponivel()) {
-        txt_c2(GFX_W / 2, 84, "Jogar online", C_LATAO);
+        txt_c2(GFX_W / 2, 84, "JOGAR ONLINE", C_LATAO);
         txt_c(GFX_W / 2, 140, "O modo online funciona na versão do jogo para o navegador:", C_MARFIM, false);
         txt_sombra_c(GFX_W / 2, 176, URL_WEB, C_OURO, 2);
         txt_c(GFX_W / 2, 236, "Abra esse endereço, escolha Online e crie uma sala.", C_MARFIM_S, false);
@@ -269,7 +269,7 @@ static void desenha_online(void)
         return;
     }
     int st = rede_estado();
-    txt_c2(GFX_W / 2, 64, "Jogar online", C_LATAO);
+    txt_c2(GFX_W / 2, 64, "JOGAR ONLINE", C_LATAO);
     if (st == REDE_ERRO) {
         txt_c(GFX_W / 2, 130, "Não deu para conectar:", C_VINHO_CLR, true);
         txt_c(GFX_W / 2, 156, rede_erro(), C_MARFIM, false);

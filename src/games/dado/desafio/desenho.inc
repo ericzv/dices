@@ -250,7 +250,7 @@ static void salao_mesa(int p)
     uint16_t cn = feita ? C_TEXTO_M : cor_no(no->tipo);
     nome_no_cartao(x, SALAO_BASE + 6, PERSO[no->perso].nome, cn, 130);
     const char *tag = NOME_NO[no->tipo];
-    if (!feita) gfx_texto(x - gfx_largura(tag, GFX_MIUDO) / 2, SALAO_BASE + 26, tag, cn, GFX_MIUDO, false);
+    if (!feita) gfx_texto(x - gfx_largura(tag, GFX_FINO) / 2, SALAO_BASE + 22, tag, cn, GFX_FINO, false);
     // Quanto paga: a moeda e o numero (o fim da run nao paga).
     int vale = moedas_mesa(p);
     if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale = 0;

@@ -1,7 +1,10 @@
 // ===========================================================================
 // Desenho de dados: poligono por numero de lados
 // ===========================================================================
-static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
+// dens < 1: pontilhado, so os pixels com bayer abaixo de dens pegam a cor (a
+// silhueta de um dado que ainda nao esta ali).
+static float bayer(int x, int y);
+static void poligono_dens(const float *vx, const float *vy, int n, uint16_t cor, float dens)
 {
     float ymin = vy[0], ymax = vy[0];
     for (int i = 1; i < n; i++) {
@@ -23,10 +26,12 @@ static void poligono(const float *vx, const float *vy, int n, uint16_t cor)
             }
         for (int k = 0; k + 1 < nx; k += 2) {
             int x0 = (int)ceilf(xs[k]), x1 = (int)floorf(xs[k + 1]);
-            if (x1 >= x0) gfx_rect(x0, y, x1 - x0 + 1, 1, cor);
+            if (dens >= 1) { if (x1 >= x0) gfx_rect(x0, y, x1 - x0 + 1, 1, cor); }
+            else for (int x = x0; x <= x1; x++) if (bayer(x, y) < dens) gfx_pixel(x, y, cor);
         }
     }
 }
+static void poligono(const float *vx, const float *vy, int n, uint16_t cor) { poligono_dens(vx, vy, n, cor, 1); }
 
 // Embaralha dois inteiros: um acaso que so depende da mesa (o alvo do
 // Laser, do Berserker...).

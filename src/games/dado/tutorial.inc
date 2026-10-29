@@ -3,35 +3,35 @@
 // ---------------------------------------------------------------------------
 typedef struct { const char *titulo; const char *par[3]; } pagina_t;
 static const pagina_t TUTORIAL[] = {
-    { "O jogo", {
+    { "O JOGO", {
         "Cada jogador começa com 100 fichas. São 15 rodadas; a entrada de cada uma vai para o pote: 5 fichas, 10 a partir da 6ª rodada e 15 a partir da 11ª.",
         "Quem faz mais pontos na rodada leva o pote. No fim, ganha quem tiver mais fichas.",
         NULL } },
-    { "A bolsa e a sequência", {
+    { "A BOLSA E A SEQUÊNCIA", {
         "Cada jogador tem uma bolsa de dados. A cada rodada, você compra 7 dados dela (a sua mão) e escolhe até 4 para a sua sequência, na ordem que quiser.",
         "Depois joga os dados da sequência um por um, do primeiro ao último.",
         NULL } },
-    { "A regra da sequência", {
+    { "A REGRA DA SEQUÊNCIA", {
         "O primeiro dado é sempre válido. Cada dado seguinte precisa ser IGUAL OU MAIOR que o último dado válido.",
         "Se sair menor, ele e o último dado válido são anulados juntos. Por isso a ordem importa: dados pequenos na frente, grandes no fim.",
         NULL } },
-    { "Parar ou arriscar", {
+    { "PARAR OU ARRISCAR", {
         "Depois de cada dado: jogar o próximo ou parar com os pontos que tem. O botão jogar mostra o risco de o próximo dado ser anulado (some nas dificuldades altas).",
         "Quem venceu a rodada anterior joga primeiro, no escuro. Quem joga depois já sabe o alvo: o botão parar mostra por quanto perde (ou se empata), e, passando do alvo, o turno acaba sozinho.",
         NULL } },
-    { "Apostas", {
+    { "APOSTAS", {
         "Entre os dois turnos, com os pontos de quem jogou primeiro na mesa, dá para apostar 10 ou 25 fichas.",
         "O outro escolhe: pagar para ver, dobrar a aposta ou correr. Quem corre entrega o pote na hora.",
         "Se quem abriu termina com 0, nem tem aposta: ele perde a rodada, e o outro leva o pote sem jogar." } },
-    { "Loja, prêmios e dados especiais", {
+    { "LOJA, PRÊMIOS E DADOS ESPECIAIS", {
         "A loja do começo vende dados especiais. Quem vence uma rodada escolhe um prêmio: um dado novo ou tirar um fraco da bolsa.",
         "São %d dados, cada um com um poder: veja todos em Dados da casa.",
         NULL } },
-    { "Modo Desafiante", {
+    { "MODO DESAFIANTE", {
         "Em 1 jogador: uma run por 3 salões do cassino, cada um com dois oponentes e o chefe, todos à vista desde o começo. Antes, você escolhe a bolsa: os dados do começo e uma regra (as outras abrem jogando).",
         "Cada partida tem 8 rodadas e 50 fichas de cada lado. Venceu: algumas moedas e uma loja pequena (comprar, abrir um pacote, colar um adesivo, trocar a vitrine, tirar dados). Perdeu (ou saiu no meio da partida), a run acaba.",
         "Cada chefe vencido abre coisas novas, e vencer a run abre a dificuldade seguinte (do Nível 5, o Coringa espera depois do Barão). Cada perfil guarda o seu progresso e a sua run." } },
-    { "Teclas", {
+    { "TECLAS", {
         "Setas movem  ·  ENTER escolhe e joga  ·  TAB/CTRL confirma ou para  ·  BACKSPACE tira  ·  I mostra o dado escolhido",
         "Mouse e toque também jogam: clique no que quiser. O < no alto volta ou sai da partida.",
         "X recusa  ·  ESC duas vezes: menu  ·  M som  ·  N música  ·  V velocidade  ·  T tremor da tela  ·  F11 tela cheia  ·  - e + tamanho da mesa.  Boa sorte!" } },

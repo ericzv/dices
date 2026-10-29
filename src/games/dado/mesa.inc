@@ -320,7 +320,7 @@ static void faixa_jogador(int j)
     gfx_rect(0, y0, GFX_W, FAIXA_H, C_BARRA);
     gfx_rect(0, cima ? FAIXA_H - 2 : y0, GFX_W, 2, C_LATAO_ESC);
     int ty = y0 + (FAIXA_H - TXT_H) / 2 - 2;
-    // O oponente do Desafiante: o trunfo dele fica numa linha miuda embaixo
+    // O oponente do Desafiante: o trunfo dele fica numa linha fina embaixo
     // do nome, sempre a vista; o resto da faixa sobe um pouco.
     bool com_trunfo = cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0 && trunfo_ativo(fala_perso);
     if (com_trunfo) ty -= 5;
@@ -367,7 +367,7 @@ static void faixa_jogador(int j)
     // A bolsa: quantos ainda estao nela, de quantos o jogador tem. Clicar
     // abre o pop-up com os dados dela (bolsa.inc), a sua ou a do oponente.
     int bx = GFX_W - 118, by = y0 + FAIXA_H / 2;
-    if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 15, bx - 12);
+    if (com_trunfo) trunfo_faixa(xn, y0 + FAIXA_H - 22, bx - 12);
     bool em = bolsa_pop < 0 && mouse_em(bx - 2, y0 + 4, GFX_W - bx, FAIXA_H - 8);
     if (modo == M_DESAFIO && p == &J[0]) icone_da_run(bx + 8, by - em);   // a bolsa que voce escolheu
     else icone_bolsa(bx + 8, by - em);

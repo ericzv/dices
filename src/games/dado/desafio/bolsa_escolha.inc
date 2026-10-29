@@ -283,8 +283,8 @@ static void desenha_bolsas(void)
             bs_linha(y + 18, bo->custo, cc, false, gfx_mistura(C_VINHO_CLR, C_FELTRO, (int)((1 - qa) * 100)));
         }
     }
-    // Os dados do comeco: os de numero juntos (D6 x6), e os de poder, depois
-    // do "+", com o nome embaixo. Entram um de cada vez.
+    // Os dados do comeco, depois do rotulo: os de numero juntos (D6 x6), e os
+    // de poder, depois do "+", com o nome embaixo. Entram um de cada vez.
     int tipos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
     for (int i = 0; i < n; i++) {
         int g = 0;
@@ -298,14 +298,16 @@ static void desenha_bolsas(void)
         bool poder = TIPO[tipos[g]].efeito != EF_NADA;
         char xn[8];
         snprintf(xn, sizeof xn, "x%d", conta[g]);
-        larg[g] = poder ? 26 > gfx_largura(TIPO[tipos[g]].nome, GFX_MIUDO) + 4 ? 26 : gfx_largura(TIPO[tipos[g]].nome, GFX_MIUDO) + 4
-                        : 24 + (conta[g] > 1 ? gfx_largura(xn, GFX_MIUDO) + 2 : 0);
+        int wn = gfx_largura(TIPO[tipos[g]].nome, GFX_FINO) + 4;
+        larg[g] = poder ? (wn > 26 ? wn : 26) : 24 + (conta[g] > 1 ? gfx_largura(xn, GFX_FINO) + 2 : 0);
         if (poder && !mais_antes) { w += 14; mais_antes = true; }   // o "+"
         w += larg[g] + 6;
     }
     if (bo->mais[0]) w += gfx_largura(bo->mais, GFX_FINO) + 8;
-    int x = GFX_W / 2 - w / 2;
-    gfx_texto(GFX_W / 2 - gfx_largura("começa com", GFX_MIUDO) / 2, dy - 24, "começa com", C_TEXTO_M, GFX_MIUDO, false);
+    int wr = gfx_largura("começa com", GFX_FINO) + 10;   // o rotulo, na frente da fila
+    int x = GFX_W / 2 - (w + wr) / 2;
+    gfx_texto(x, dy - 11, "começa com", C_TEXTO_M, GFX_FINO, false);
+    x += wr;
     mais_antes = false;
     for (int g = 0; g < ng; g++) {
         float q = (t - 0.2f - g * 0.05f) / 0.16f;
@@ -326,8 +328,8 @@ static void desenha_bolsas(void)
             snprintf(xn, sizeof xn, "x%d", conta[g]);
             if (poder) {
                 const char *nm = TIPO[tipos[g]].nome;
-                gfx_texto(cx - gfx_largura(nm, GFX_MIUDO) / 2, dy + 12, nm, fechada ? C_TEXTO_M : cor_dado(tipos[g]), GFX_MIUDO, false);
-            } else if (conta[g] > 1) gfx_texto(x + 24, dy - 2, xn, fechada ? C_TEXTO_M : C_MARFIM_S, GFX_MIUDO, false);
+                gfx_texto(cx - gfx_largura(nm, GFX_FINO) / 2, dy + 8, nm, fechada ? C_TEXTO_M : cor_dado(tipos[g]), GFX_FINO, false);
+            } else if (conta[g] > 1) gfx_texto(x + 24, dy - 8, xn, fechada ? C_TEXTO_M : C_MARFIM_S, GFX_FINO, false);
         }
         x += larg[g] + 6;
     }

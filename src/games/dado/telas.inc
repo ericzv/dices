@@ -82,8 +82,77 @@ static void botoes(int y, const char **rot, const bool *ativo, int n, const uint
     }
 }
 
+// Os botoes de decisao (aposta, pronto): altura e icones, em sprite_em.
+#define BOTAO_AP_H 28
+static const char *const IC_FICHAS[] = { ".#######.", "#+++++++#", ".#######.", "#o#o#o#o#", ".#######.", "#o#o#o#o#", ".#######." };
+static const char *const IC_SETA[] = { "...#...", "..###..", ".#####.", "###.###", "##...##" };
+static const char *const IC_X[] = { "##...##", "###.###", ".#####.", "..###..", ".#####.", "###.###", "##...##" };
+static const char *const IC_VISTO[] = { "......##", ".....##.", "##..##..", ".####...", "..##...." };
+
+// A posicao na sequencia, numa plaquinha de metal com o algarismo gravado: a
+// mesma embaixo dos lugares do painel e em cima do dado da mao que ja tem
+// lugar. cx, cy e o meio; grande: 15 px com o algarismo de 7x11, senao 11 px
+// com o de 5x7.
+static void plaqueta_num(int cx, int cy, int k, uint16_t cor, uint16_t letra, bool grande)
+{
+    uint16_t r[4];
+    rampa_de(cor, r);
+    int s = grande ? 15 : 11, x = cx - s / 2, y = cy - s / 2;
+    gfx_rect(x + 1, y + 1, s - 2, s - 2, r[2]);
+    gfx_rect(x + 2, y + 1, s - 4, 1, r[3]);              // a luz na beira de cima
+    gfx_rect(x + 1, y + s - 2, s - 2, 1, r[1]);          // e a sombra na de baixo
+    ui_contorno(x, y, s, s, C_BARRA);
+    char o[2] = { (char)('1' + k), 0 };
+    numero(x + s / 2.0f, y + s / 2.0f, grande ? 13 : 10, o, letra);
+}
+
+// SUA VEZ: a plaquinha de ouro que desce na beira de cima do painel da
+// sequencia quando chega a vez de uma pessoa (com um pulinho), fica um pouco
+// e sai virando de lado, como placa que gira no prego. Com duas pessoas na
+// mesa, diz de quem e a vez.
+static float sai_mola(float q);          // desafio/desenho.inc
+static void plaqueta_sua_vez(int cx, int y_beira)
+{
+    if (t_sua_vez <= 0 || fase != F_ORDEM) return;
+    float e = SUA_VEZ_T - t_sua_vez - 0.12f;            // espera a mao chegar
+    if (e < 0) return;
+    char s[40];
+    if (modo == M_DOIS) snprintf(s, sizeof s, "VEZ DE %s", J[vez].nome);
+    else snprintf(s, sizeof s, "SUA VEZ");
+    int f = fonte_de(true), W = gfx_largura(s, f) + 22, h = UI_PLAQUETA_H + 2;
+    float q = t_sua_vez < 0.22f ? t_sua_vez / 0.22f : 1;
+    int w = (int)(W * q);
+    if (w < 4) return;
+    int dy = e < 0.3f ? (int)((1 - sai_mola(e / 0.3f)) * -14) : 0;
+    int x = cx - w / 2, y = y_beira - h / 2 - 2 + dy;
+    uint16_t r[4];
+    rampa_de(C_OURO, r);
+    ui_sombra(x, y, w, h);
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, r[2]);
+    gfx_rect(x + 2, y + 1, w - 4, 1, r[3]);              // a luz na beira de cima
+    gfx_rect(x + 1, y + h - 2, w - 2, 1, r[1]);          // e a sombra na de baixo
+    ui_contorno(x, y, w, h, C_BARRA);
+    if (q < 1) return;
+    gfx_rect(x + 4, y + h / 2 - 1, 2, 2, r[0]);          // os pregos
+    gfx_rect(x + w - 6, y + h / 2 - 1, 2, 2, r[0]);
+    gfx_texto(x + 11, y - 1, s, C_BARRA, f, true);
+}
+
+// O lugar de um dado que ainda nao chegou: a silhueta dele pontilhada, com a
+// beira cheia.
+static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, float dens)
+{
+    float vx[16], vy[16];
+    int n = forma(lados == 2 ? 100 : lados, cx, cy, r, 0, vx, vy);
+    poligono_dens(vx, vy, n, cor, dens);
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        gfx_linha((int)lroundf(vx[i]), (int)lroundf(vy[i]), (int)lroundf(vx[j]), (int)lroundf(vy[j]), cor);
+    }
+}
+
 // Montagem da fila: a mao comprada aparece na linha do jogador, um dado de
-// cada vez saindo da bolsa. O numero dourado e a posicao na fila.
+// cada vez saindo da bolsa. A plaquinha dourada e a posicao na fila.
 static void desenha_ordem(void)
 {
     jogador_t *p = &J[vez];
@@ -105,12 +174,7 @@ static void desenha_ordem(void)
         caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
-        if (ordem >= 0) {
-            char o[2] = { (char)('1' + ordem), 0 };
-            gfx_disco(x + 16, y - 17 + rs, 9, C_OURO);
-            gfx_disco(x + 16, y - 17 + rs, 7, C_AMARELO);
-            txt_c(x + 16, y - 27 + rs, o, C_BARRA, true);
-        }
+        if (ordem >= 0) plaqueta_num(x + 16, y - 17 + rs, ordem, C_OURO, C_BARRA, true);
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         if (cosmo_recem[vez][p->mao[i]]) cosmo_chegou(x, y + dy + rs, p->col[p->mao[i]].tipo, t_fase - cosmo_chega(p, i));   // evoluiu: o nome novo
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
@@ -128,19 +192,30 @@ static void desenha_ordem(void)
     if (f->n >= cabe) { if (gfx_largura(cheia, 1) > w) w = gfx_largura(cheia, 1); }
     else if (n && larg_dado_e_poder(p->col[p->mao[cursor]].tipo, false) > w)
         w = larg_dado_e_poder(p->col[p->mao[cursor]].tipo, false);
-    painel(y1 - 5, 3 * TXT_H + 34, larg_painel(w, 300));
+    // O "pronto" mora no painel, a direita dos lugares: o painel abre o
+    // bastante para os dois sem encostar.
+    const char *pr = "pronto";
+    int wp = 10 + 8 + 6 + gfx_largura(pr, 1) + 12, fw = (cabe - 1) * 36 + 24;
+    if (fw + 2 * (wp + 14) > w) w = fw + 2 * (wp + 14);
+    int pw = larg_painel(w, 300), ph = 3 * TXT_H + 40;
+    painel(y1 - 5, ph, pw);
     txt_c(GFX_W / 2, y1, t, p->cor, true);
     if (f->n >= cabe) {
         txt_c(GFX_W / 2, y1 + 24, cheia, C_OURO, true);
     } else if (n) {
         dado_e_poder(y1 + 20, p->col[p->mao[cursor]].tipo, false);
     }
-    // Rodape: so a fila como vai ser jogada, 1 » 2 » 3 » 4, no centro.
-    int ry = y1 + 3 * TXT_H + 10, fx = GFX_W / 2 - (cabe - 1) * 36 / 2;
+    // Embaixo: a fila como vai ser jogada, 1 » 2 » 3 » 4, no centro. Cada
+    // lugar tem a plaquinha com a posicao; o vazio, a silhueta pontilhada -
+    // o da vez mostra, em ouro, o dado que o ENTER poe ali.
+    int ry = y1 + 3 * TXT_H + 7, fx = GFX_W / 2 - (cabe - 1) * 36 / 2;
+    int no_cur = n && cursor < n ? p->mao[cursor] : -1;
+    for (int k = 0; k < f->n; k++) if (f->idx[k] == no_cur) no_cur = -1;   // ja na fila: o ENTER tira
     for (int k = 0; k < cabe; k++) {
         int x = fx + k * 36;
         if (k) txt_c(x - 18, ry - 11, "»", C_FELTRO2, false);
-        if (k < f->n) {
+        bool feito = k < f->n, proximo = k == f->n;
+        if (feito) {
             const peca_t *pf = peca_fila(vez, k);    // a da bolsa (com os adesivos); a carta do Coringa nao tem
             peca_t pc = pf ? *pf : (peca_t){ .tipo = f->tipo[k], .fixo = f->fixo[k] };
             pc.fixo = f->fixo[k];
@@ -148,14 +223,23 @@ static void desenha_ordem(void)
             // Clicar num dado da sequencia tira ele dela.
             for (int i = 0; i < n; i++)
                 if (p->mao[i] == f->idx[k]) zona_clique(x - 14, ry - 14, 28, 28, &cursor, i, KEY_ENTER);
-        } else {
-            gfx_disco(x, ry, 11, k == f->n ? C_OURO : C_FELTRO2);
-            gfx_disco(x, ry, 9, C_FELTRO_ESC);
-            char o[2] = { (char)('1' + k), 0 };
-            txt_c(x, ry - 10, o, k == f->n ? C_OURO : C_FELTRO2, false);
-        }
+        } else if (proximo && no_cur >= 0) {
+            float pulsa = 0.3f + 0.12f * sinf(t_fase * 5);
+            bool embrulhado = p == &J[0] && no_cur == embrulho;   // o embrulho nao entrega a forma
+            silhueta_dado((float)x, (float)ry, 10, embrulhado ? 6 : TIPO[p->col[no_cur].tipo].lados, C_OURO, pulsa);
+        } else silhueta_dado((float)x, (float)ry, 10, 6, proximo ? C_OURO : C_FELTRO2, 0.22f);
+        plaqueta_num(x, ry + 18, k, feito ? C_LATAO : proximo ? C_OURO : C_EBANO_B,
+                     feito || proximo ? C_BARRA : C_TEXTO_M, false);
     }
-    if (f->n) botao_clique(GFX_W / 2 + 225, ry - 12, "pronto", KEY_TAB);
+    if (f->n) {                                  // o pronto, preso a beira direita do painel
+        int bx = GFX_W / 2 + pw / 2 - 12 - wp, by = ry - 6, d;
+        bool em = mouse_em(bx, by, wp, BOTAO_H);
+        uint16_t c = ui_botao_face(bx, by, wp, BOTAO_H, C_VERDE, em ? UI_FOCO : 0, &d);
+        sprite_em(bx + 10 + 4, by + d + (BOTAO_H - 4) / 2, IC_VISTO, 5, C_MARFIM, C_BRANCO, C_MARFIM, false, 0);
+        gfx_texto(bx + 10 + 8 + 6, by + d + (BOTAO_H - 4 - TXT_H) / 2 + 1, pr, c, 1, false);
+        zona_clique(bx, by, wp, BOTAO_H, NULL, 0, KEY_TAB);
+    }
+    plaqueta_sua_vez(GFX_W / 2, y1 - 5);
 }
 
 // Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o
@@ -269,13 +353,8 @@ static void desenha_joga(void)
 // sua cor, para nao errar no clique ligeiro. Passar: o visto. Pagar: as
 // fichas. Apostar 10 e dobrar: as fichas e uma seta. Apostar 25: as fichas e
 // tres setas. Correr: o X vermelho no ebano, afastado dos outros.
-#define BOTAO_AP_H 28
 #define AP_VAO     14                    // entre um botao e outro
 #define AP_LONGE   34                    // e do correr para o vizinho
-static const char *const IC_FICHAS[] = { ".#######.", "#+++++++#", ".#######.", "#o#o#o#o#", ".#######.", "#o#o#o#o#", ".#######." };
-static const char *const IC_SETA[] = { "...#...", "..###..", ".#####.", "###.###", "##...##" };
-static const char *const IC_X[] = { "##...##", "###.###", ".#####.", "..###..", ".#####.", "###.###", "##...##" };
-static const char *const IC_VISTO[] = { "......##", ".....##.", "##..##..", ".####...", "..##...." };
 static int icone_aposta_w(int op)
 {
     return op == OP_PASSAR ? 8 : op == OP_CORRER ? 7 : op == OP_PAGAR ? 9 : 9 + 2 + 7;

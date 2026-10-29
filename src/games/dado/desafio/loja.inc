@@ -605,7 +605,7 @@ static void lj_porquinho(void)
         icone_bolsa_em(B_PORCO, cx, cy + pula, 2, 1, t_relogio, 1, 0);
         snprintf(s, sizeof s, "%d", run.porco);
         gfx_texto(cx + 19, cy - 16, s, C_ROSA, 1, true);
-        gfx_texto(cx + 19, cy + 4, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_MIUDO, false);
+        gfx_texto(cx + 19, cy - 2, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_FINO, false);
         if (run.porco) zona_clique(cx - 20, cy - 18, 70, 40, NULL, 0, 'q');
         return;
     }
@@ -1083,7 +1083,7 @@ static void lj_cola_lados(void)
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
         if (mostra != lado || t == D_VAZIO) {
             snprintf(s, sizeof s, "%d", lado);
-            gfx_texto(x - gfx_largura(s, GFX_MIUDO) / 2, y + 20, s, C_TEXTO_M, GFX_MIUDO, false);
+            gfx_texto(x - gfx_largura(s, GFX_FINO) / 2, y + 15, s, C_TEXTO_M, GFX_FINO, false);
         }
         zona_clique(x - 21, y - 21, 42, 42, &cursor, c, KEY_ENTER);
     }
@@ -1095,7 +1095,7 @@ static void lj_cola_lados(void)
         float desce = t_lj_cola > 0 ? t_lj_cola / LJ_COLA_BATE : 0;
         int hy = y - 36 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 36);
         if (livre || t_lj_cola > 0) ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
-        else gfx_texto(x - gfx_largura("ocupado", GFX_MIUDO) / 2, y - 36, "ocupado", C_VINHO_CLR, GFX_MIUDO, false);
+        else gfx_texto(x - gfx_largura("ocupado", GFX_FINO) / 2, y - 42, "ocupado", C_VINHO_CLR, GFX_FINO, false);
     }
     lj_lascas();
     int lado = ad_lado_min(t) + (cursor >= 0 && cursor < n ? cursor : 0), ja = ad_no_lado(pc, lado);
@@ -1294,14 +1294,14 @@ static void desenha_loja_run(void)
                 ? gfx_mistura(C_OURO, moedas_cont.sinal > 0 ? C_BRANCO : C_VINHO_CLR, (int)(moedas_cont.pulo * 70)) : C_OURO;
     moeda_ic(MESA_X0 + 30, MESA_Y0 + 24);
     gfx_texto(MESA_X0 + 42, MESA_Y0 + 12 - (moedas_ok && moedas_cont.pulo > 0.4f ? 1 : 0), s, cm, 1, true);
-    gfx_texto(MESA_X0 + 22, MESA_Y0 + 36, "moedas", C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(MESA_X0 + 18, MESA_Y0 + 30, "moedas", C_TEXTO_M, GFX_FINO, false);
     lj_porquinho();
 
     int nv = n_vitrine(), cw = lj_cw();
-    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 11, "VITRINE", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 11, "PACOTE", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 11, "ADESIVO", C_TEXTO_M, GFX_MIUDO, false);
-    gfx_texto(lj_sx() + 4, LJ_Y - 11, "SERVIÇOS", C_TEXTO_M, GFX_MIUDO, false);
+    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 20, "VITRINE", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 20, "ADESIVO", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(lj_sx() + 4, LJ_Y - 20, "SERVIÇOS", C_TEXTO_M, GFX_FINO, false);
     for (int i = 0; i < nv; i++) lj_cartao_dado(i);
     lj_cartao_pacote();
     lj_cartao_adesivo();

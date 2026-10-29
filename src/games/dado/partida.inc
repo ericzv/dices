@@ -159,6 +159,13 @@ static void embrulha_um(void)
     }
 }
 
+// A vez de uma pessoa na mesa (nao a maquina, nem o outro computador): a
+// plaquinha SUA VEZ desce no painel da sequencia.
+static void avisa_sua_vez(void)
+{
+    t_sua_vez = !(cpu >> vez & 1) && !(remoto >> vez & 1) ? SUA_VEZ_T : 0;
+}
+
 static void nova_rodada(void)
 {
     rodada++;
@@ -243,6 +250,7 @@ static void nova_rodada(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    avisa_sua_vez();
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
 }
 
@@ -650,6 +658,7 @@ static void comeca_segundo(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    avisa_sua_vez();
 }
 
 // O que os adesivos deixam depois da rodada: o Fermento cresce (no dado, a

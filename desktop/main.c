@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include <time.h>
 
@@ -227,7 +228,7 @@ static const char *const AMPLIA_FS = GLSL_CAB
     "    SAI = TEX(texture0, (base + f) / tam) * fragColor;\n"
     "}\n";
 static Shader amplia;
-static int amplia_esc = -1;
+static int amplia_esc = -1, amplia_tam = -1;
 static bool amplia_ok;
 
 static void prepara_ampliacao(void)
@@ -236,7 +237,8 @@ static void prepara_ampliacao(void)
     amplia_ok = amplia.id != 0 && amplia.id != rlGetShaderIdDefault();
     if (amplia_ok) {
         float tam[2] = { (float)GFX_W, (float)GFX_H };
-        SetShaderValue(amplia, GetShaderLocation(amplia, "tam"), tam, SHADER_UNIFORM_VEC2);
+        amplia_tam = GetShaderLocation(amplia, "tam");
+        SetShaderValue(amplia, amplia_tam, tam, SHADER_UNIFORM_VEC2);
         amplia_esc = GetShaderLocation(amplia, "esc");
         SetTextureFilter(tela, TEXTURE_FILTER_BILINEAR);
     } else {
@@ -430,6 +432,55 @@ static void poe_cursor(void)
     if (c != atual) { SetMouseCursor(c); atual = c; }
 }
 
+// O salao em volta da mesa: com a mesa menor que a janela (o - e o +) ou a
+// janela fora de 16:9, sobra margem, e o jogo pinta ali a parede do salao,
+// a luz e a fumaca (dado_salao), no mesmo tamanho de pixel da mesa. A
+// textura e refeita umas 12 vezes por segundo (a fumaca anda devagar).
+static Texture2D salao;
+static uint16_t *salao_px;
+static int salao_w, salao_h;
+static float salao_falta;
+#define SALAO_MAX (2000 * 1200)              // pixels do jogo: numa janela enorme, nao passa disso
+static void desenha_salao(Rectangle area, float dt)
+{
+    float k = area.width / GFX_W;
+    if (area.x < k && area.y < k) return;    // a mesa enche a janela: nao ha margem
+    int ox = (int)ceilf(area.x / k), oy = (int)ceilf(area.y / k);
+    int w = 2 * ox + GFX_W + 1, h = 2 * oy + GFX_H + 1;
+    if ((long)w * h > SALAO_MAX) return;
+    if (w != salao_w || h != salao_h) {
+        uint16_t *n = realloc(salao_px, (size_t)w * h * sizeof(uint16_t));
+        if (!n) return;
+        salao_px = n;
+        if (salao_w) UnloadTexture(salao);
+        salao_w = w; salao_h = h;
+        Image img = { .data = salao_px, .width = w, .height = h, .mipmaps = 1, .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5 };
+        dado_salao(salao_px, w, h, ox, oy);
+        salao = LoadTextureFromImage(img);
+        SetTextureFilter(salao, amplia_ok ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
+        SetTextureWrap(salao, TEXTURE_WRAP_CLAMP);
+        salao_falta = 0;
+    }
+    if ((salao_falta -= dt) <= 0) {
+        dado_salao(salao_px, w, h, ox, oy);
+        UpdateTexture(salao, salao_px);
+        salao_falta = 1 / 12.0f;
+    }
+    Rectangle dst = { area.x - ox * k, area.y - oy * k, w * k, h * k };
+    if (amplia_ok) {
+        float tam[2] = { (float)w, (float)h };
+        SetShaderValue(amplia, amplia_tam, tam, SHADER_UNIFORM_VEC2);
+        SetShaderValue(amplia, amplia_esc, &k, SHADER_UNIFORM_FLOAT);
+        BeginShaderMode(amplia);
+    }
+    DrawTexturePro(salao, (Rectangle){ 0, 0, (float)w, (float)h }, dst, (Vector2){ 0, 0 }, 0, WHITE);
+    if (amplia_ok) {
+        EndShaderMode();
+        float tam[2] = { (float)GFX_W, (float)GFX_H };
+        SetShaderValue(amplia, amplia_tam, tam, SHADER_UNIFORM_VEC2);
+    }
+}
+
 // Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
@@ -454,6 +505,7 @@ static void quadro(void)
 #endif
     ClearBackground(C_FAIXA);
     Rectangle area = area_do_jogo();
+    desenha_salao(area, dt);
     if (amplia_ok) {
         float esc = area.width / GFX_W;
         SetShaderValue(amplia, amplia_esc, &esc, SHADER_UNIFORM_FLOAT);

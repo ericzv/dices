@@ -97,6 +97,7 @@
 #include "dado/desafio.inc"       // o Modo Desafiante
 #include "dado/bolsa.inc"         // o pop-up da bolsa: os dados de um jogador
 #include "dado/quadro.inc"        // o quadro de cada fase
+#include "dado/salao.inc"         // o salao em volta da mesa (a margem da janela)
 #include "dado/teclado.inc"       // teclado e mouse
 
 int dado_vencedor(void) { return fase == F_FIM ? venc_partida : -1; }

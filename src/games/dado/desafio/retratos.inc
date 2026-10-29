@@ -128,6 +128,7 @@ static void enfeite_natal(int perso, int hy)
     else tiara_rena(hy);
 }
 
+static int avatar_retrato(void);         // desafio/telas.inc: o perso do avatar do perfil
 // Desenha as linhas l0..l0+nl-1 do retrato em (x, y).
 static void retrato(int x, int y, int esc, int perso, float t, bool falando, int l0, int nl)
 {
@@ -140,8 +141,11 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     int boca = falando ? ((int)(t / 0.22f) % 2) : 0;
     int hy = 3 + dy;
     bool bravo = modo == M_DESAFIO && perso == perso_virado;   // o chefe virou
-    // O oponente reagindo ao que acabou de acontecer na mesa.
-    int rex = modo == M_DESAFIO && perso == fala_perso && t_reacao > 0 ? reacao_expr : -1;
+    // O oponente reagindo ao que acabou de acontecer na mesa; fora disso, o
+    // humor da rodada (o dele e o seu, no avatar).
+    int lado = modo != M_DESAFIO ? -1 : perso == fala_perso ? 1 : perso == avatar_retrato() ? 0 : -1;
+    int rex = lado == 1 && t_reacao > 0 ? reacao_expr : lado >= 0 ? humor[lado] : -1;
+    if (lado >= 0 && t_humor_pisca[lado] > 0) pisca = true;
     rosto_ex = rex;
     const uint16_t PRETO = RGB(34, 30, 32), MARROM = RGB(104, 66, 40),
                    GRISALHO = RGB(178, 176, 172), RUIVO = RGB(196, 84, 46);
@@ -882,22 +886,27 @@ static void desenha_balao(int tx, int ty, const char *s, const char *dito)
     if (q > 0.95f) txt(x + 8, y + 3, dito, C_EBANO, false);
 }
 
-// Na faixa do oponente: o retrato (cortado no peito) e, se ele falou, o
-// balao logo abaixo. Devolve onde o nome comeca.
-static int avatar_retrato(void);
+// Na faixa: o retrato inteiro num porta-retrato de latao pendurado na borda
+// da mesa - passa da faixa e entra um pouco no canto do feltro. O do
+// oponente fica em cima (o do chefe em ouro), o seu embaixo. Devolve onde o
+// nome comeca.
+#define PR_W (RT_W * 2 + 6)
+#define PR_H (RT_H * 2 + 6)
 static int retrato_faixa(int j, int x, int y0)
 {
     int perso = j == 1 ? fala_perso : avatar_retrato();
     if (perso < 0) return x + 12;
-    int esc = 2, corte = 3;                     // em cima so tem a ponta da cartola
-    int y = j == 1 ? y0 : y0 + 2;
-    gfx_rect(x - 2, y, RT_W * esc + 4, FAIXA_H - 2, gfx_mistura(C_FELTRO_ESC, C_BARRA, 40));
-    retrato(x, y, esc, perso, t_fase + perso * 1.3f, j == 1 && fala_digitando(), corte, (FAIXA_H - 2) / esc);
-    if (j == 1) {
-        gfx_rect(x - 2, y0 + FAIXA_H - 2, RT_W * esc + 4, 2, C_LATAO_ESC);
-        dica_zona(x, y0, RT_W * esc, FAIXA_H, DICA_TRUNFO, fala_perso);
-    }
-    return x + RT_W * esc + 8;
+    int esc = 2, w = RT_W * esc, h = RT_H * esc;
+    int fy = j == 1 ? 2 : GFX_H - 2 - PR_H, px = x, py = fy + 3;
+    uint16_t r[4];
+    ui_rampa(j == 1 && perso_chefe(perso) ? C_OURO : C_LATAO, false, r);
+    ui_sombra(px - 3, fy, PR_W, PR_H);
+    ui_contorno(px - 3, fy, PR_W, PR_H, C_BARRA);
+    ui_aro(px - 2, fy + 1, PR_W - 2, PR_H - 2, 2, r, UI_VIVO);
+    gfx_rect(px, py, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(px, py, esc, perso, t_fase + perso * 1.3f, j == 1 && fala_digitando(), 0, RT_H);
+    if (j == 1) dica_zona(px, py, w, h, DICA_TRUNFO, fala_perso);
+    return x + w + 9;
 }
 
 // O trunfo do oponente, numa linha fina: o nome (em ouro, aceso quando age)
@@ -933,8 +942,8 @@ static void balao_oponente(void)
     bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
                 || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
     if (!partida) return;
-    // O bico sai do meio do retrato da faixa de cima, logo abaixo da moldura.
-    desenha_balao(VOLTAR_X0 - 4 + RT_W, MESA_Y0 + 2, fala_txt, fala_dita_txt());
+    // O bico sai de baixo do porta-retrato de cima, no meio dele.
+    desenha_balao(VOLTAR_X0 - 4 + RT_W, 2 + PR_H + 1, fala_txt, fala_dita_txt());
 }
 
 

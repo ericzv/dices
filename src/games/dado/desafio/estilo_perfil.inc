@@ -148,8 +148,7 @@ static const char *es_nome(int lin, int k)
 
 static void desenha_estilo(void)
 {
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     int tx = botao_voltar(KEY_ESC);
     txt(tx, ty, "ESTILO", C_LATAO, true);

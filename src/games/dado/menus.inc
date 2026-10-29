@@ -226,12 +226,10 @@ static void desenha_abertura(void)
 static void faixas_menu(const char *titulo, const char *dir, const char *rodape)
 {
     int ty = (FAIXA_H - TXT_H) / 2 - 2, yb = GFX_H - FAIXA_H;
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     txt(botao_voltar(KEY_ESC), ty, titulo, C_LATAO, true);
     if (dir) txt(GFX_W - 18 - gfx_largura(dir, 1), ty, dir, C_TEXTO_M, false);
-    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(yb);
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, rodape, C_TEXTO_M);
 }
 

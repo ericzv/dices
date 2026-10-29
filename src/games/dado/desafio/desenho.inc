@@ -47,8 +47,7 @@ static uint16_t cor_dif(int d);
 // voltar: a tecla do botao "<" (0: sem botao).
 static void faixa_run(int voltar)
 {
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     int x0 = voltar ? botao_voltar(voltar) : 18;
     txt(x0, ty, "MODO DESAFIANTE", C_LATAO, true);
@@ -92,8 +91,7 @@ static void faixa_run(int voltar)
 static void rodape_run(const char *s)
 {
     int yb = GFX_H - FAIXA_H;
-    gfx_rect(0, yb, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, yb, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(yb);
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, s, C_TEXTO_M);
 }
 

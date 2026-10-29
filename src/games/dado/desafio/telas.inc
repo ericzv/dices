@@ -169,8 +169,7 @@ static void moldura_retrato(int x, int y, int esc, int av, float t, bool cur)
 
 static void faixa_titulo(const char *s)
 {
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(botao_voltar(KEY_ESC), ty, "MODO DESAFIANTE", C_LATAO, true);
     txt_c(GFX_W / 2, ty, s, C_MARFIM, true);

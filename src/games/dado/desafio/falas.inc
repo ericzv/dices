@@ -130,6 +130,32 @@ static const char *const CURTA_CHEFE[3][3][2] = {     // [chefe][passou, caiu o 
     { { "Hmpf.", "Insolente." }, { "Inadmissível.", "Hmpf!" }, { "Insolente!", "Impossível!" } },
 };
 
+// O humor que dura a rodada, decidido no comeco dela pela diferenca de
+// fichas (do ponto de vista de cada um) e pelo jeito de quem: folgado na
+// frente, confiante (o chefe, com desdem); parelho, o rosto de sempre;
+// atras, preocupado; muito atras, os esquentados ficam bravos. As reacoes de
+// um instante (rival_reage) continuam passando por cima.
+static int humor_de(int j)
+{
+    if (modo != M_DESAFIO) return -1;
+    int d = J[j].fichas - J[outro(j)].fichas;
+    bool rival = j == 1 && fala_perso >= 0;
+    bool chefe = rival && perso_chefe(fala_perso);
+    bool quente = rival && fala_perso < (int)sizeof TEMPERAMENTO && TEMPERAMENTO[fala_perso] == TP_ESQUENTADO;
+    if (d >= 8) return chefe ? EX_DESDEM : EX_ALEGRE;
+    if (d <= -20) return quente || chefe ? EX_BRAVA : EX_PREOCUPADA;
+    if (d <= -8) return EX_PREOCUPADA;
+    return -1;
+}
+static void humor_da_rodada(void)
+{
+    for (int j = 0; j < 2; j++) {
+        int h = humor_de(j);
+        if (h != humor[j]) t_humor_pisca[j] = 0.18f;          // mudou: uma piscada
+        humor[j] = h;
+    }
+}
+
 static void rival_reage(int m)
 {
     if (modo != M_DESAFIO || fala_perso < 0 || fala_perso >= (int)sizeof TEMPERAMENTO || m < 0 || m >= RM_N) return;

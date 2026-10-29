@@ -363,8 +363,7 @@ static void hist_dados(void)
 static void desenha_historico(void)
 {
     gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
-    gfx_rect(0, 0, GFX_W, FAIXA_H, C_BARRA);
-    gfx_rect(0, FAIXA_H - 2, GFX_W, 2, C_LATAO_ESC);
+    faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     int tx = botao_voltar(KEY_ESC);
     txt(tx, ty, "HISTÓRICO", C_LATAO, true);

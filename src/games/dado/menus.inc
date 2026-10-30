@@ -213,7 +213,7 @@ static void desenha_abertura(void)
           menu_cur == 1 && menu_tela == MT_DESAFIO ? C_VINHO_CLR : C_TEXTO_M, false);
     teclas_c(GFX_W / 2, GFX_H - FAIXA_H + 14, menu_tela
              ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
-             : "M som  ·  N música  ·  F11 tela cheia  ·  - e + tamanho da mesa",
+             : "M som  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
              C_TEXTO_M);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
     char ver[32];

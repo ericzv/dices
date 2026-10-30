@@ -3503,9 +3503,9 @@ static void px_degrau(uint16_t *fb, int x, int y, float s)
 static int chance_cair(int j);              // telas.inc
 static bool mostra_chance(void);
 static const uint16_t RISCO_COR[3][3] = {
-    { RGB(40, 84, 62), RGB(88, 152, 84), RGB(130, 204, 112) },      // verde
+    { RGB(88, 152, 84), RGB(88, 152, 84), RGB(130, 204, 112) },     // verde
     { RGB(106, 86, 44), RGB(150, 122, 62), RGB(190, 156, 86) },     // latao
-    { RGB(66, 18, 24), RGB(118, 30, 38), RGB(190, 56, 60) },        // vinho
+    { RGB(118, 30, 38), RGB(190, 56, 60), RGB(208, 98, 108) },      // vinho
 };
 static int luz_risco_x = -1, luz_risco_y;
 #define LUZ_RISCO_RX 30
@@ -3526,8 +3526,8 @@ static void luz_do_risco(uint16_t *fb)
     uint16_t rampa[9];
     for (int k = 0; k < 4; k++) rampa[k] = feltro_tons[k];
     for (int k = 4; k < 9; k++) rampa[k] = RISCO_COR[i][k - 4 < 2 ? k - 4 : 2];
-    if (i == 0) rampa[4] = feltro_tons[5];               // o verde: o feltro mais claro antes
-    float pulso = 0.5f + 0.5f * sinf(t_relogio * 6.2832f * 0.7f), forca = 1.9f + 0.8f * pulso;
+    // Discreta: no fraco do pulso quase some; no forte, so uns pontos da cor.
+    float pulso = 0.5f + 0.5f * sinf(t_relogio * 6.2832f * 0.7f), forca = 0.05f + 1.1f * pulso * pulso;
     int cx = SLOT_X(f->lancados), cy = zona(vez) + 5, rx = LUZ_RISCO_RX, ry = LUZ_RISCO_RY;
     luz_risco_x = cx; luz_risco_y = cy;
     for (int y = cy - ry < MESA_Y0 ? MESA_Y0 : cy - ry; y <= cy + ry && y < MESA_Y1; y++)
@@ -3537,15 +3537,15 @@ static void luz_do_risco(uint16_t *fb)
             uint16_t *p = &fb[y * GFX_W + x];
             int k = px_lut[*p];
             if (k == 0xFF) continue;
-            // Perto do dado, a luz da cor; na beira, pontilhado, a da poca.
+            // Perto do dado, a luz da cor; na beira, pontilhado, a da poca. O
+            // ponto que nao chega a acender na cor fica com a luz da poca.
             float lp = poca_luz(x, y);
-            if (bayer(x + 2, y + 1) >= (1 - q) * 1.7f) {
-                int kn = k + (int)floorf(lp + bayer(x, y));
-                *p = px_rampa[kn < 0 ? 0 : kn > 8 ? 8 : kn];
-                continue;
+            if (bayer(x + 2, y + 1) < (1 - q) * 1.7f) {
+                int kc = (k > 3 ? 3 : k) + (int)floorf(forca * (1 - q) * (1 - q * 0.3f) + bayer(x, y));
+                if (kc > 3) { *p = rampa[kc > 8 ? 8 : kc]; continue; }
             }
-            k = (k > 3 ? 3 : k) + (int)floorf(forca * (1 - q) * (1 - q * 0.3f) + lp * 0.5f + bayer(x, y));
-            if (k > 3) *p = rampa[k > 8 ? 8 : k];
+            int kn = k + (int)floorf(lp + bayer(x, y));
+            *p = px_rampa[kn < 0 ? 0 : kn > 8 ? 8 : kn];
         }
 }
 // A vinheta, uma vez, na mesa pintada.

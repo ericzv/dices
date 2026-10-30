@@ -104,21 +104,12 @@ static void desenha_poeira(void)
         }
     }
 }
-// O achatado do pouso: bate (largo e baixo), volta passando um pouco do
-// ponto (alto e fino) e assenta. t: desde que deitou.
-#define ACHATA_T 0.26f
-static float achata_mola(float t)
-{
-    if (t <= 0 || t >= ACHATA_T) return 0;
-    return expf(-t / 0.07f) * cosf(t * 6.2832f / 0.16f);
-}
-
 static void desenha_lance(void)
 {
     desenha_poeira();
     for (int i = n_voo - 1; i >= 0; i--) {
         voo_t *v = &voo[i];
-        float r = R_DADO;
+        float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
         if (hora && !v->fantasma) {              // a hora da verdade: a camera chega perto
             float z = t_hora;
             if (fase == F_ARRUMA) z *= 1 - fminf(1, fmaxf(0, t_fase - junta_t()) / 0.45f);
@@ -217,14 +208,10 @@ static void desenha_lance(void)
         // a do Revolver ja com a bala deste lance), como na mao e na mesa.
         marca_nivel = v->slot < N_FILA ? F[v->dono].fixo[v->slot] : -1;
         bala_lancada = v->tipo == D_REVOLVER;
-        // No pouso: achata contra o feltro e o numero aparece com um pulo.
-        float k = !v->fantasma && v->t_assenta > 0 ? achata_mola(v->t_assenta) : 0;
-        achata_x = 1 + 0.16f * k;
-        achata_y = 1 - 0.22f * k;
+        // No pouso, o numero aparece com um pulo.
         num_cresce = !v->fantasma && v->t_assenta > 0.03f && v->t_assenta < 0.11f && mostra < 10
                      && TIPO[tv].lados != 4;                   // no triangulo o numero grande nao cabe
         desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
-        achata_x = achata_y = 1;
         num_cresce = 0;
         marca_nivel = -1;
         bala_lancada = false;
@@ -889,33 +876,6 @@ static void desenha_jingle_copias(void)
 
 static void rachadura(int x, int y, int r, float q);
 static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
-// O risco do proximo dado, no lugar dele: um aro tracejado que gira devagar,
-// na cor do risco - verde sem risco, latao ate 40%, vinho dali para cima.
-static int chance_cair(int j);                     // telas.inc
-static bool mostra_chance(void);
-static void aro_risco(int cx, int cy, int c)
-{
-    uint16_t cor = c <= 0 ? C_VERDE : c < 40 ? C_LATAO : C_VINHO_CLR;
-    int n = 44, rr = R_DADO + 3;
-    float gira = t_relogio * 0.9f;
-    for (int a = 0; a < n; a++) {
-        if (a % 4 >= 2) continue;                    // tracos de dois, vaos de dois
-        float an = a * 6.2832f / n + gira;
-        int px = cx + (int)lroundf(cosf(an) * rr), py = cy + (int)lroundf(sinf(an) * rr);
-        gfx_rect(px - 1, py - 1, 2, 2, cor);
-    }
-}
-// O tombo do dado anulado pela sequencia (t: desde que caiu): treme ate
-// TOMBA_T0, deita de lado com um quique curto e fica (1: deitado).
-#define TOMBA_T0   0.28f
-#define TOMBA_GIRO 0.42f                           // quanto ele inclina, em radianos
-static float tombo(float t)
-{
-    if (t < TOMBA_T0) return 0;
-    float q = (t - TOMBA_T0) / 0.2f;
-    if (q >= 1) return 1;
-    return q * q * (3 - 2 * q) + sinf(q * 3.1416f) * 0.12f;
-}
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -965,8 +925,6 @@ static void desenha_fila(int j)
             // montando a sequencia, cada dado na sua cor.
             if (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO)
                 acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);
-            if (fase == F_JOGA && j == vez && k == f->lancados && k > 0 && mostra_chance())
-                aro_risco(x, y, chance_cair(j));     // o proximo: o risco de cair, na mesa
             continue;
         }
         uint8_t est = no_desfecho ? vis_est[j][k] : f->est[k];
@@ -1012,13 +970,12 @@ static void desenha_fila(int j)
         // O que segurou a queda treme no lugar, como quem balanca a cabeca.
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
             x += ((int)(t_fase * 28) % 2) ? 4 : -4;
-        if (recente && t_fase < TOMBA_T0) x += (int)(sinf(t_fase * 60) * 3);   // treme antes de tombar
+        if (recente && t_fase < 0.5f) x += (int)(sinf(t_fase * 60) * 3);   // treme enquanto o X entra
         if (e && e->tipo == EV_CAVALO && e->de_j == j && e->de_k == k && p < 0.3f)
             x += (int)(sinf(t_fase * 70) * 3);                      // o Cavalo treme e se abre
-        // Anulado: pela sequencia, tomba de lado e fica apagado; por um
-        // ataque no fim da rodada, fica de pe e racha na cor de quem atacou.
+        // Anulado: pela sequencia, apaga e o X vinho entra em dois tracos; por
+        // um ataque no fim da rodada, sem o X: racha na cor de quem atacou.
         uint16_t golpe = anul && no_desfecho ? vis_golpe_cor[j][k] : 0;
-        float tomba = anul && !golpe && !(no_desfecho && vis_gelo[j][k]) ? tombo(recente ? t_fase : 9) : 0;
         // Alvo de anulacao agora: pisca antes de cair.
         bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || e->ad == AD_RATOEIRA))) && e->alvo_j == j && e->alvo_k == k;
         bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
@@ -1084,18 +1041,11 @@ static void desenha_fila(int j)
         patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
         bala_lancada = t == D_REVOLVER;            // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
-        float lado = (k + j) % 2 ? 1 : -1;                   // para que lado tomba
-        if (tomba > 0 && giro == 0) {
-            giro = lado * TOMBA_GIRO * tomba;
-            achata_y = 1 - 0.16f * tomba;
-            achata_x = 1 + 0.05f * tomba;
-            x += (int)(lado * 3 * tomba);
-            pulo -= 2 * tomba;
-        }
-        so_apagado = anul && !(no_desfecho && vis_gelo[j][k]);   // sem o X: o tombo e a trinca ja dizem
+        if (recente) risca_anima(t_fase);
+        sem_risca = golpe != 0;                              // a trinca ja diz
         desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
-        so_apagado = false;
-        achata_x = achata_y = 1;
+        sem_risca = false;
+        risca_anima(9);
         if (golpe && giro < 0.5f) {                           // as trincas crescem do meio
             float qg = (t_relogio - vis_golpe_t[j][k]) / 0.22f;
             rachadura_em(x, (int)(y - pulo), R, qg < 0 || qg > 1 ? 1 : qg, golpe, C_BARRA);

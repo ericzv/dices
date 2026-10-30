@@ -631,7 +631,7 @@ static bool ad_etapa_passo(float dt)
         voo_t *w = &voo[i];
         if (w->fantasma && !v->menor2) continue;
         w->parado = false;
-        w->t_assenta = 0;
+        w->pouso = w->t_assenta = 0;
         w->t_face = 0;
         w->vx = frnd(-260, 260);
         w->vy = (w->y > CENTRO ? -1 : 1) * frnd(240, 360);

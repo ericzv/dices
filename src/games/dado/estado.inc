@@ -63,8 +63,8 @@ typedef struct {
     float ox, oy;
     uint8_t dono, slot, tipo;
     int valor, face;
-    float t_face;
-    float t_assenta;                 // desde que assentou no feltro (0: ainda no ar)
+    float t_face, pouso;
+    float t_assenta;                 // desde que assentou no feltro (0: ainda no ar): a poeira, o numero
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
     uint8_t lado;                    // o lado que fica para cima (os adesivos)

@@ -282,6 +282,11 @@ void dado_inicia(int n_partidas)
             for (int v = 0; v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) velocidade = v;
         rapido_lido = true;
     }
+    if (!letra_lida) {                   // a letra maior (tecla L)
+        char b[8];
+        gfx_letra_maior(salva_le("letra", b, sizeof b) > 0 && b[0] == '1');
+        letra_lida = true;
+    }
     if (!tremor_lido) {                  // e se o tremor da tela foi desligado
         char b[8];
         tremor_off = salva_le("tremor", b, sizeof b) > 0 && b[0] == '0';

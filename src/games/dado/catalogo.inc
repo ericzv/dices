@@ -29,7 +29,7 @@ static int faces_de(int tipo, int *f)
 }
 
 // Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
-#define LINHA_FINA 14                     // passo das linhas do texto corrido (fonte fina)
+#define LINHA_FINA (gfx_letra_e_maior() ? 16 : 14)   // passo das linhas do texto corrido (fonte fina)
 static bool quebra_so_conta;                     // so mede: quantas linhas daria
 static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {

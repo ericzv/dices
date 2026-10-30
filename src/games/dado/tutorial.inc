@@ -251,7 +251,7 @@ static void ilustra_tutorial(int pag, float t)
     default: {                                       // as teclas, em duas colunas
         static const char *const K[2][4] = {
             { "setas movem", "ENTER escolhe e joga", "TAB confirma ou para", "BACKSPACE tira" },
-            { "I mostra o dado", "X recusa", "ESC duas vezes: menu", "V velocidade  ·  M som" } };
+            { "I mostra o dado", "X recusa", "ESC duas vezes: menu", "V velocidade  ·  M som  ·  L letra" } };
         for (int col = 0; col < 2; col++)
             for (int i = 0; i < 4; i++) linha_teclas(TUT_X + 40 + col * 250, TUT_Y + 16 + i * 26, K[col][i], C_MARFIM_S, true);
         break;

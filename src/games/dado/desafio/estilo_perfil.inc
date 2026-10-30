@@ -146,6 +146,13 @@ static const char *es_nome(int lin, int k)
     return lin == 0 ? FELTROS[k].nome : lin == 1 ? MATERIAL[k].nome : MESAS[k].nome;
 }
 
+// O nome curto de uma amostra, para a legenda: "Mogno e cobre" cabe so "Mogno".
+static void es_curto(int lin, int k, char *s, int n)
+{
+    snprintf(s, (size_t)n, "%s", es_nome(lin, k));
+    char *e = strstr(s, " e ");
+    if (e) *e = 0;
+}
 static void desenha_estilo(void)
 {
     faixa_madeira(0);
@@ -182,19 +189,24 @@ static void desenha_estilo(void)
             txt(GFX_W - 31 - gfx_largura(">", 1), y + 38, ">", C_OURO, true);
             zona_clique(GFX_W - 42, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini + ve, 'v');
         }
+        // As legendas: com a letra maior, se alguma da fileira nao couber no
+        // vao, a fileira inteira fica no tamanho de antes.
+        int fl = GFX_MIUDO;
+        for (int k = ini; k < ini + ve; k++) {
+            char curto[20];
+            es_curto(lin, k, curto, sizeof curto);
+            if (fonte_que_cabe(curto, GFX_MIUDO, vao - 4) != GFX_MIUDO) fl = GFX_MIUDO_FIXO;
+        }
         for (int k = ini; k < ini + ve; k++) {
             int cx = x0 + (k - ini) * vao, cy = y + 44;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
             if (k == em_uso[lin]) ui_marca(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
             if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
             es_amostra(lin, k, cx, cy, aberto);
-            const char *nm = es_nome(lin, k);
             char curto[20];
-            snprintf(curto, sizeof curto, "%s", nm);
-            char *e = strstr(curto, " e ");                      // "Mogno e cobre" cabe so "Mogno"
-            if (e) *e = 0;
-            gfx_texto(cx - gfx_largura(curto, GFX_MIUDO) / 2, y + 62, curto,
-                      k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, GFX_MIUDO, false);
+            es_curto(lin, k, curto, sizeof curto);
+            gfx_texto(cx - gfx_largura(curto, fl) / 2, y + 62, curto,
+                      k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, fl, false);
             zona_clique(cx - sw / 2, y + 25, sw, 50, &es_foco, lin * ES_LIN + k, 'u');
         }
     }

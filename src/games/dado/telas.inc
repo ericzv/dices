@@ -429,104 +429,163 @@ static void desenha_efeitos(void)
     desenha_evento();
 }
 
-// O registro do fim da rodada, a esquerda da mesa: os pontos de cada um no
-// comeco, cada efeito numa linha (com a cor de quem agiu) a medida que
-// acontece, e os pontos no fim. Miudo e apagado: e para conferir.
-#define LOG_X0  (MESA_X0 + 10)
-#define LOG_W   156                      // ate onde o aviso do meio nao chega
-#define LOG_Y0  (LINHA_CIMA + R_DADO + 14)
-#define LOG_Y1  (LINHA_BAIXO - R_DADO - 14)
-#define LOG_LIN 10
-// Quebra s em linhas de no maximo w pixels. Devolve quantas; com desenha,
-// escreve a partir de (x, y).
-static int log_quebra(const char *s, int x, int y, int w, uint16_t c, bool desenha)
+// O registro do fim da rodada, a esquerda das filas: uma fita de eventos
+// para reler o que aconteceu. Em cima e embaixo, os pontos de cada um (no
+// comeco e no fim); cada efeito numa linha, a medida que acontece, com o
+// desenho de quem agiu (o poder do dado, o adesivo), o nome dele em negrito
+// na cor do dono, os ganhos em ouro, as perdas em vinho e os nomes dos
+// jogadores na cor deles. O que acabou de entrar desliza e fica claro; no
+// fim, a linha que decidiu a rodada ganha a estrela e o filete de latao.
+#define LOG_X0  (MESA_X0 + 8)
+#define LOG_X1  (SLOT_X(0) - R_DADO - 12)  // ate as filas
+#define LOG_Y0  (MESA_Y0 + 50)             // abaixo do retrato e do balao de cima
+#define LOG_Y1  (MESA_Y1 - 12)             // acima do retrato de baixo
+#define LOG_LIN (gfx_letra_e_maior() ? 16 : 11)   // a linha da fonte fina, apertada (a letra maior pede mais)
+#define LOG_TXT (LOG_X0 + 16)              // o texto, depois do icone
+#define LOG_GAP 5                          // o respiro entre dois efeitos
+#define LOG_ICO (gfx_letra_e_maior() ? 2 : 4)   // o meio do icone, abaixo do alto da linha
+
+// O nome no comeco do texto: ate os dois-pontos (se vierem cedo) ou a
+// primeira palavra. Devolve quantos caracteres.
+static int log_nome(const char *s)
 {
-    char linha[64];
-    int n = 0;
-    while (*s) {
-        int cabe = 0, i = 0;
-        while (s[i]) {
-            int fim = i;
-            while (s[fim] == ' ') fim++;
-            while (s[fim] && s[fim] != ' ') fim++;
-            if (fim >= (int)sizeof linha) break;
-            memcpy(linha, s, (size_t)fim);
-            linha[fim] = 0;
-            if (gfx_largura(linha, GFX_MIUDO) > w && cabe) break;
-            cabe = i = fim;
+    const char *dp = strchr(s, ':');
+    if (dp && dp - s <= 24) return (int)(dp - s);
+    const char *sp = strchr(s, ' ');
+    return sp ? (int)(sp - s) : (int)strlen(s);
+}
+// O texto de um efeito, palavra por palavra, quebrando em w pixels a partir
+// de x (as linhas seguintes tambem em x). Devolve quantas linhas; com
+// desenha, escreve em (x, y) com as cores de cada pedaco.
+static int log_fita(const char *s, int x, int y, int w, int dono, uint16_t resto, bool desenha)
+{
+    int nome = log_nome(s), esp = gfx_largura(" ", GFX_FINO), cx = x, n = 1;
+    const char *p = s;
+    while (*p) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        // A palavra (ou o nome de um jogador inteiro, que pode ter espaco).
+        int len = 0, quem = -1;
+        for (int j = 0; j < 2 && quem < 0; j++) {
+            int nl = (int)strlen(J[j].nome);
+            if (nl && !strncmp(p, J[j].nome, (size_t)nl) && (p[nl] == 0 || p[nl] == ' ' || p[nl] == ':' || p[nl] == ',' || p[nl] == '.')) { len = nl; quem = j; }
         }
-        if (!cabe) cabe = (int)strlen(s) < (int)sizeof linha - 1 ? (int)strlen(s) : (int)sizeof linha - 1;
-        memcpy(linha, s, (size_t)cabe);
-        linha[cabe] = 0;
-        if (desenha) gfx_texto(x, y + n * LOG_LIN, linha, c, GFX_MIUDO, false);
-        n++;
-        s += cabe;
-        while (*s == ' ') s++;
+        if (quem < 0) while (p[len] && p[len] != ' ') len++;
+        char pal[48];
+        int m = len < (int)sizeof pal - 1 ? len : (int)sizeof pal - 1;
+        memcpy(pal, p, (size_t)m);
+        pal[m] = 0;
+        int pw = gfx_largura(pal, GFX_FINO);
+        if (cx > x && cx + pw > x + w) { cx = x; n++; }
+        if (desenha) {
+            bool no_nome = p - s < nome;
+            uint16_t c = resto;
+            if (no_nome) c = J[dono].cor;
+            else if (quem >= 0) c = J[quem].cor;
+            else if ((pal[0] == '+' || pal[0] == '-') && pal[1] >= '0' && pal[1] <= '9') c = pal[0] == '+' ? C_OURO : C_VINHO_CLR;
+            gfx_texto(cx, y + (n - 1) * LOG_LIN - 8, pal, c, GFX_FINO, no_nome);
+        }
+        cx += pw + esp;
+        p += len;
     }
     return n;
 }
-
-// "JOGADOR 1 17  ·  JOGADOR 2 14": os dois placares numa linha.
-static void log_placar(int y, const char *rot, const int *pts)
+// O desenho de quem agiu, centrado em (cx, cy): o adesivo, o simbolo do
+// poder ou o proprio dado, miudinho; sem nada disso, a cor do dono.
+static bool icone_poder(int cx, int cy, int tipo);
+static void log_icone(const evento_t *e, int cx, int cy)
+{
+    if (e->tipo == EV_ADESIVO && e->ad) { ad_solto_d(cx, cy, e->ad, 1, 0); return; }
+    if (e->de_j < 2 && e->de_k < N_FILA) {
+        int t = F[e->de_j].tipo[e->de_k];
+        int ef = TIPO[t].efeito;
+        if (ef > 0 && ef <= EF_UNIVERSO && (PODER_ANIMA[ef].sp || ef == EF_ESPELHO || ef == EF_DOBRO)) { icone_poder(cx, cy, t); return; }
+        uint16_t r[4];                                          // sem simbolo: uma pastilha na cor do dado
+        rampa_de(cor_dado(t), r);
+        gfx_rect(cx - 3, cy - 4, 7, 9, C_BARRA);
+        gfx_rect(cx - 4, cy - 3, 9, 7, C_BARRA);
+        gfx_rect(cx - 2, cy - 3, 5, 7, r[2]);
+        gfx_rect(cx - 3, cy - 2, 7, 5, r[2]);
+        gfx_rect(cx - 2, cy - 2, 2, 1, r[3]);
+        gfx_rect(cx - 1, cy + 2, 4, 1, r[1]);
+        return;
+    }
+    gfx_rect(cx - 2, cy - 2, 5, 5, C_BARRA);
+    gfx_rect(cx - 1, cy - 1, 3, 3, J[e->de_j < 2 ? e->de_j : 0].cor);
+}
+// "inicio  [] 17  [] 14": os pontos de cada um, o de cima primeiro, cada um
+// com a ficha na cor dele.
+static void log_placar(int y, const char *rot, const int *pts, int vence)
 {
     int x = LOG_X0;
-    x += gfx_texto(x, y, rot, C_TEXTO_M, GFX_MIUDO, false) + 6;
+    x += gfx_texto(x, y - 8, rot, C_TEXTO_M, GFX_FINO, false) + 8;
     for (int o = 0; o < 2; o++) {
-        int j = o == 0 ? outro(baixo) : baixo;   // na ordem da mesa: o de cima primeiro
-        char s[40];
-        snprintf(s, sizeof s, "%s %d", J[j].nome, pts[j]);
-        gfx_rect(x, y + 3, 3, 3, J[j].cor);
-        x += 6 + gfx_texto(x + 6, y, s, C_TEXTO_M, GFX_MIUDO, false) + 10;
+        int j = o == 0 ? outro(baixo) : baixo;
+        char s[16];
+        snprintf(s, sizeof s, "%d", pts[j]);
+        gfx_rect(x, y + LOG_ICO - 3, 6, 6, C_BARRA);
+        gfx_rect(x + 1, y + LOG_ICO - 2, 4, 4, J[j].cor);
+        x += 10 + gfx_texto(x + 10, y - 8, s, j == vence ? C_OURO : C_MARFIM_S, GFX_FINO, j == vence) + 10;
     }
 }
+static int log_linhas(const evento_t *e) { return log_fita(e->txt, LOG_TXT, 0, LOG_X1 - LOG_TXT, e->de_j < 2 ? e->de_j : 0, 0, false); }
 
 static void desenha_log(void)
 {
     if (!n_ev || (fase != F_EFEITOS && fase != F_RESULTADO)) return;
     int ate = fase == F_EFEITOS ? ev_i : n_ev - 1;             // o ultimo que ja aparece
     bool fim = fase == F_RESULTADO;
-    // Quantas linhas cada efeito ocupa; se nao couberem todos, ficam os
-    // ultimos, com uma linha de "..." no lugar dos de antes (e, se a decisiva
-    // ficou la, duas linhas embaixo para repeti-la).
-    int de = ate;
-    for (int reserva = 0; reserva <= 3; reserva += 3) {
-        int livres = (LOG_Y1 - LOG_Y0) / LOG_LIN - 1 - fim - reserva;   // tirando os placares
-        for (int corta = 0; corta < 2; corta++) {
-            int usadas = 0;
-            de = ate;
-            for (int i = ate; i >= 0; i--) {
-                int n = log_quebra(ev[i].txt, 0, 0, LOG_W - 8, 0, false);
-                if (usadas + n > livres - corta) break;
-                usadas += n;
-                de = i;
-            }
-            if (de == 0) break;
+    // Quanto cada efeito ocupa; se nao couberem todos, ficam os ultimos, com
+    // "..." no lugar dos de antes (e, se a decisiva ficou la, ela e repetida
+    // embaixo).
+    int de = ate, livre = LOG_Y1 - LOG_Y0 - 2 * (LOG_LIN + 6) - (fim ? 0 : 0);
+    for (int reserva = 0; reserva <= 2 * LOG_LIN + LOG_GAP; reserva += 2 * LOG_LIN + LOG_GAP) {
+        int usado = 0;
+        de = ate;
+        for (int i = ate; i >= 0; i--) {
+            int h = log_linhas(&ev[i]) * LOG_LIN + LOG_GAP;
+            if (usado + h > livre - reserva - (i > 0 ? LOG_LIN : 0)) break;
+            usado += h;
+            de = i;
         }
         if (!(fim && ev_decisivo >= 0 && ev_decisivo < de)) break;
     }
     int y = LOG_Y0;
-    log_placar(y, "início", log_base);
-    y += LOG_LIN + 2;
+    log_placar(y, "início", log_base, -1);
+    y += LOG_LIN + 6;
     if (de > 0) {
-        gfx_texto(LOG_X0 + 8, y, "...", C_TEXTO_M, GFX_MIUDO, false);
+        gfx_texto(LOG_TXT, y - 8, "...", C_TEXTO_M, GFX_FINO, false);
         y += LOG_LIN;
     }
     for (int i = de; i <= ate; i++) {
         const evento_t *e = &ev[i];
-        bool decide = fim && i == ev_decisivo;   // no fim, a linha que decidiu a rodada, em ouro
-        uint16_t c = decide ? C_OURO : i == ate && !fim ? C_BRANCO : C_MARFIM_S;
-        if (decide) estrela4(LOG_X0 + 1, y + 4, 2, C_BRANCO, C_OURO, C_LATAO);
-        else gfx_rect(LOG_X0, y + 3, 3, 3, J[e->de_j].cor);
-        y += LOG_LIN * log_quebra(e->txt, LOG_X0 + 8, y, LOG_W - 8, c, true);
+        int dono = e->de_j < 2 ? e->de_j : 0;
+        bool decide = fim && i == ev_decisivo;
+        bool novo = !fim && i == ate;                           // o que acabou de entrar
+        int dx = 0;
+        if (novo && t_fase < 0.18f) dx = -(int)((1 - t_fase / 0.18f) * (1 - t_fase / 0.18f) * 10);
+        int n = log_linhas(e);
+        if (decide) {                                           // a que decidiu: o filete e a estrela
+            gfx_rect(LOG_X0 - 4, y - 1, 2, n * LOG_LIN + 1, C_LATAO);
+            estrela4(LOG_X0 + 5, y + LOG_ICO, 2, C_BRANCO, C_OURO, C_LATAO);
+        } else log_icone(e, LOG_X0 + 5 + dx, y + LOG_ICO);
+        uint16_t resto = decide ? C_OURO : novo ? C_MARFIM : fim ? C_MARFIM_S : C_TEXTO_M;
+        log_fita(e->txt, LOG_TXT + dx, y, LOG_X1 - LOG_TXT, dono, resto, true);
+        y += n * LOG_LIN;
+        if (i < ate)                                            // o pontilhado entre um e outro
+            for (int x = LOG_TXT; x < LOG_X1; x += 3) gfx_pixel(x, y + LOG_GAP / 2, C_FELTRO2);
+        y += LOG_GAP;
     }
     if (fim) {
         int tot[2] = { F[0].total, F[1].total };
-        log_placar(y + 2, "final", tot);
+        int vence = venc_mao == 0 || venc_mao == 1 ? venc_mao : -1;
+        log_placar(y + 2, "final", tot, vence);
         if (ev_decisivo >= 0 && ev_decisivo < de) {          // a decisiva ficou no "...": repete embaixo
-            char s[96];
-            snprintf(s, sizeof s, "decidiu: %s", ev[ev_decisivo].txt);
-            estrela4(LOG_X0 + 1, y + LOG_LIN + 8, 2, C_BRANCO, C_OURO, C_LATAO);
-            log_quebra(s, LOG_X0 + 8, y + LOG_LIN + 4, LOG_W - 8, C_OURO, true);
+            const evento_t *e = &ev[ev_decisivo];
+            int yy = y + LOG_LIN + 10;
+            gfx_rect(LOG_X0 - 4, yy - 1, 2, log_linhas(e) * LOG_LIN + 1, C_LATAO);
+            estrela4(LOG_X0 + 5, yy + LOG_ICO, 2, C_BRANCO, C_OURO, C_LATAO);
+            log_fita(e->txt, LOG_TXT, yy, LOG_X1 - LOG_TXT, e->de_j < 2 ? e->de_j : 0, C_OURO, true);
         }
     }
 }

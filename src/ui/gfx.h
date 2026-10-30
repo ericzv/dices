@@ -30,6 +30,15 @@ uint16_t gfx_mistura(uint16_t a, uint16_t b, int pct);   // pct 0 = a, 100 = b
 #define GFX_FINO  (-1)
 int gfx_texto(int x, int y, const char *s, uint16_t c, int esc, bool negrito);
 int gfx_largura(const char *s, int esc);
+// A letra maior (para tela pequena ou vista cansada): cada fonte sobe um
+// degrau - a miuda vira a fina e a fina vira a Jersey -, com a base da linha
+// onde ficaria a de antes. As outras (a Jersey, 2x, 3x) ficam como estao.
+// GFX_MIUDO_FIXO e GFX_FINO_FIXO ficam sempre no tamanho delas: para onde a
+// letra maior nao cabe.
+void gfx_letra_maior(bool ligada);
+bool gfx_letra_e_maior(void);
+#define GFX_MIUDO_FIXO (-2)
+#define GFX_FINO_FIXO  (-3)
 
 // Paleta fechada: depois de gfx_paleta, gfx_quantiza troca cada pixel do
 // quadro pela cor mais proxima da paleta (pela distancia "redmean", que pesa

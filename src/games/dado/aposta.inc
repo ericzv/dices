@@ -76,16 +76,21 @@ static uint16_t tinta_op(int op)
     }
 }
 
+// O lance de j, na etiqueta junto do placar dele.
+static void lance_marca(int j, const char *fmt, int v)
+{
+    snprintf(lance_txt[j], sizeof lance_txt[j], fmt, v);
+    t_lance[j] = LANCE_T;
+}
 static void executa(int op)
 {
     jogador_t *p = &J[vez];
-    bool maquina = anuncia_maquina();
     if (op != OP_PASSAR && op != OP_CORRER) som_toca(SOM_FICHA);
     if (vez == 0 && (op == OP_APOSTAR10 || op == OP_APOSTAR25 || op == OP_AUMENTAR)) rival_reage(RM_APOSTA);
     else if (vez == 0 && op == OP_CORRER) rival_reage(RM_CORREU);
     switch (op) {
     case OP_PASSAR:
-        if (maquina) anuncia("%s passou", p->nome, 0);
+        lance_marca(vez, "passou", 0);
         if (++passes >= 2) { comeca_segundo(); return; }
         break;
     case OP_APOSTAR10:
@@ -93,13 +98,13 @@ static void executa(int op)
         int b = limite(op == OP_APOSTAR10 ? 10 : 25);
         if (b <= 0) { comeca_segundo(); return; }
         p->fichas -= b; pote += b; a_pagar = b;
-        if (maquina) anuncia("%s apostou %d", p->nome, b);
+        lance_marca(vez, "apostou %d", b);
         break;
     }
     case OP_PAGAR: {
         int b = a_pagar < p->fichas ? a_pagar : p->fichas;
         p->fichas -= b; pote += b;
-        if (maquina) anuncia("%s pagou %d", p->nome, b);
+        lance_marca(vez, "pagou %d", b);
         comeca_segundo();
         return;
     }
@@ -107,10 +112,10 @@ static void executa(int op)
         // Cobre a aposta e sobe o mesmo tanto, ate onde as fichas dos dois
         // alcancam. O rival paga so o que de fato subiu.
         int sobe = aumento_possivel();
+        lance_marca(vez, sobe < a_pagar ? "subiu %d" : "dobrou", sobe);   // sem fichas para dobrar, diz quanto subiu
         p->fichas -= a_pagar + sobe; pote += a_pagar + sobe;
         a_pagar = sobe;
         aumentou = true;
-        if (maquina) anuncia("%s pagou e aumentou %d", p->nome, sobe);
         break;
     }
     case OP_CORRER: {

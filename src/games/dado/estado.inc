@@ -184,6 +184,11 @@ static char aviso[96], veredito[96], nota[48];
 static char anuncio[64];
 static uint16_t anuncio_cor;
 static float t_anuncio, anuncio_dur;   // o anuncio da maquina: quanto falta, e quanto dura
+// O lance de aposta de cada um (passou, apostou 10, pagou 10, dobrou): uma
+// etiqueta curta junto do placar dele, que sobe e some (mesa.inc).
+#define LANCE_T 1.6f
+static char  lance_txt[2][24];
+static float t_lance[2];
 // Na loja e no premio, o anuncio mostra tambem os dados que ela levou.
 static peca_t anuncio_peca[5];
 static int n_anuncio_peca, anuncio_dono;

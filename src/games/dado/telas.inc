@@ -3,15 +3,6 @@
 // e fim
 // ===========================================================================
 // Uma linha: "VOCÊ joga  ·  Moeda [comum]", e embaixo o que o dado faz.
-static int larg_quem_e_dado(const char *quem, int tipo)
-{
-    char c[32];
-    classe(tipo, c, sizeof c);
-    int a = gfx_largura(quem, 1) + 20 + gfx_largura(TIPO[tipo].nome, 1) + 12 + gfx_largura(c, 1) + 10;
-    int b = gfx_largura(TIPO[tipo].desc, 1);
-    return a > b ? a : b;
-}
-
 static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
 {
     char c[32];
@@ -314,12 +305,10 @@ static void desenha_joga(void)
         pote_mesa();
         return;
     }
+    // Sem quadro, como a aposta: quem joga, o dado da vez e os botoes, direto
+    // sobre o feltro.
     bool prox = fase == F_JOGA && f->lancados < f->n;     // o proximo dado da fila, junto do nome
     bool menu = fase == F_JOGA && !anuncia_maquina();     // a maquina joga sem botoes
-    int w = prox ? larg_quem_e_dado(t, tipo_de(vez, f->lancados)) : gfx_largura(t, 1);
-    if (menu && larg_botoes(rot, 2) > w) w = larg_botoes(rot, 2);
-    int h = fase == F_JOGA ? (prox ? 2 * TXT_H : TXT_H) + (menu ? BOTAO_H + 12 : 4) : 2 * TXT_H + 4;
-    painel(y1 - 5, h, larg_painel(w, 220));
 
     if (prox) quem_e_dado(y1, t, p->cor, tipo_de(vez, f->lancados));
     else txt_c(GFX_W / 2, y1, t, p->cor, true);
@@ -375,30 +364,29 @@ static void botoes_aposta(int y, const int *op, int n, char rot[][24])
     }
 }
 
+// A aposta sem quadro: so a pergunta, grande, sobre o feltro, com uma linha
+// curta do que aconteceu em cima dela e os botoes embaixo. A maquina decide
+// sem nada na mesa: o lance dela aparece junto do placar (desenha_lances).
 static void desenha_aposta(void)
 {
-    char t[64], q[64];
-    int y1 = CENTRO - 36 + ui_entra(t_fase, 0, UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    // Uma linha so: quem fez quantos pontos e a pergunta, cada um na sua cor.
-    snprintf(t, sizeof t, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
-    if (a_pagar)            snprintf(q, sizeof q, "%s paga %d para ver?", vez == primeiro ? "" : J[vez].nome, a_pagar);
-    else if (vez == primeiro) snprintf(q, sizeof q, "aposta?");
-    else                    snprintf(q, sizeof q, "%s aposta?", J[vez].nome);
-    const char *qq = q[0] == ' ' ? q + 1 : q;
-    int wt = gfx_largura(t, 1), wq = gfx_largura(qq, 1), sep = 20;
-
-    int op[4], n = opcoes(op), wb[4];
+    if (anuncia_maquina()) { pote_mesa(); return; }
+    char ctx[96], q[48];
+    int y1 = CENTRO - 30 + ui_entra(t_fase, 0, UI_ENTRA_PLACA);   // entra como as placas (interface.inc)
+    // O contexto: quem fez quantos pontos e o lance que esta na mesa.
+    int n = snprintf(ctx, sizeof ctx, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
+    int quem = outro(vez);                        // quem fez o lance que esta valendo
+    if (a_pagar) {
+        if (quem == primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? " e dobrou" : " e apostou %d", a_pagar);
+        else snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? "  ·  %s dobrou" : "  ·  %s apostou %d", J[quem].nome, a_pagar);
+    } else if (vez != primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, " e passou");
+    if (a_pagar) snprintf(q, sizeof q, "Pagar %d para ver?", a_pagar);
+    else snprintf(q, sizeof q, "Apostar?");
+    txt_c(GFX_W / 2, y1 - 16, ctx, C_MARFIM_S, false);
+    txt_sombra_c(GFX_W / 2, y1, q, J[vez].cor, 1);
+    int op[4], no = opcoes(op);
     char r[4][24];
-    for (int i = 0; i < n; i++) rotulo_op(op[i], r[i], sizeof r[i]);
-    bool menu = !anuncia_maquina();              // a maquina decide sem botoes
-    int w = wt + sep + wq;
-    if (menu && larg_aposta(op, n, r, wb) > w) w = larg_aposta(op, n, r, wb);
-    painel(y1 - 5, menu ? TXT_H + BOTAO_AP_H + 22 : TXT_H + 8, larg_painel(w, 220));
-    int x = GFX_W / 2 - (wt + sep + wq) / 2;
-    gfx_texto(x, y1, t, J[primeiro].cor, 1, true);
-    txt_c(x + wt + sep / 2, y1, "·", C_TEXTO_M, false);
-    gfx_texto(x + wt + sep, y1, qq, J[vez].cor, 1, false);
-    if (menu) botoes_aposta(y1 + TXT_H + 6, op, n, r);
+    for (int i = 0; i < no; i++) rotulo_op(op[i], r[i], sizeof r[i]);
+    botoes_aposta(y1 + TXT_H + 6, op, no, r);
     pote_mesa();
 }
 

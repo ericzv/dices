@@ -248,6 +248,7 @@ static void desenha_tudo(void)
     case F_FIM:    if (modo == M_DESAFIO) desenha_fim_partida_run(); else desenha_fim(); break;
     case F_ORDEM:
         desenha_fila(outro(vez));
+        desenha_lances();                        // o ultimo lance de aposta de cada um
         if (t_anuncio > 0) break;                // o anuncio vem por cima, no fim
         if (anuncia_maquina()) {                 // a maquina monta sem menu
             desenha_fila(vez);
@@ -259,6 +260,7 @@ static void desenha_tudo(void)
     default:
         desenha_fila(outro(vez));
         desenha_fila(vez);
+        if (fase == F_APOSTA || fase == F_JOGA) desenha_lances();
         desenha_devolvidos();
         desenha_jingle_copias();                 // as copias dos Jingle Bells voando para a bolsa
         desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado

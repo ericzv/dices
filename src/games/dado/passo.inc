@@ -64,6 +64,7 @@ void dado_passo(float dt)
     des_contadores_passo(dt, dt_real);
     bolsas_passo(dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
+    for (int j = 0; j < 2; j++) if (t_lance[j] > 0) t_lance[j] -= dt_real;
     flutua_passo(dt);
     poeira_passo(dt);
     tiro_passo(dt);

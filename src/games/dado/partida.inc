@@ -1586,8 +1586,6 @@ static void termina_turno(void)
         desfecho();
         return;
     }
-    if (anuncia_maquina() && vez == primeiro)
-        anuncia("%s parou com %d pontos", J[vez].nome, F[vez].pontos);
     if (vez == primeiro) {
         a_pagar = 0; passes = 0; aumentou = false;
         cursor = cursor_aposta();

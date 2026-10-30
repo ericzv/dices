@@ -64,6 +64,7 @@ typedef struct {
     uint8_t dono, slot, tipo;
     int valor, face;
     float t_face, pouso;
+    float t_assenta;                 // desde que assentou no feltro (0: ainda no ar): a poeira, o numero
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
     uint8_t lado;                    // o lado que fica para cima (os adesivos)
@@ -165,6 +166,7 @@ static float t_respiro = -1;             // a pausa entre um efeito e o seguinte
 // placar de cada fila e, no Desafiante, as moedas.
 typedef struct { float vis, pulo; int mostra, sinal, n_som; } contador_t;
 static contador_t placar_c[2];
+static contador_t pote_c, faixa_c[2];   // o pote e as fichas de cada faixa, contando tambem
 static float t_tique_placar;             // os tiques da contagem nao se amontoam
 #define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
@@ -201,6 +203,10 @@ static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
 static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
+// Anulado por um ataque no desfecho (e nao pela sequencia): racha, com as
+// trincas na cor de quem atacou (0: nao foi ataque) e desde quando (t_relogio).
+static uint16_t vis_golpe_cor[2][N_FILA];
+static float vis_golpe_t[2][N_FILA];
 static uint8_t vis_selo[2][2];                   // posicoes na fila: [0] o lacre do Selo ja rompeu; [1] ja lacrou
 static uint8_t vis_fragil[2];            // o Fragil anulado ja rachou (quebra no fim da rodada)
 static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami

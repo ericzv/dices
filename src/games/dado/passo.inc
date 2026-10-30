@@ -11,6 +11,7 @@ static bool menu_sem_partida(void)
 
 static void menu_passo(float dt);        // as fichas do menu (menus.inc)
 static void foto_clique(float antes, float agora);
+static void poeira_passo(float dt);       // o pouso: a poeira e o achatado (mesa.inc)
 
 void dado_passo(float dt)
 {
@@ -63,6 +64,7 @@ void dado_passo(float dt)
     bolsas_passo(dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
     flutua_passo(dt);
+    poeira_passo(dt);
     tiro_passo(dt);
     cosmo_passo(dt);
     passo_slot(dt);

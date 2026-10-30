@@ -592,7 +592,8 @@ static void reage_evento(const evento_t *e)
 }
 
 // ---------------------------------------------------------------------------
-// Numeros que contam: o placar de cada fila e as moedas do Desafiante sobem
+// Numeros que contam: o placar de cada fila, o pote, as fichas das faixas e
+// as moedas do Desafiante sobem
 // (ou descem) contando ate o valor de verdade, rapido de longe e devagar no
 // fim, nunca menos que vmin por segundo (k: o quanto da distancia anda por
 // segundo). Cada vez que o numero muda, ele da um pulinho (pulo, 1 -> 0).
@@ -631,8 +632,15 @@ static int placar_real(int j)
 
 // No fim da rodada a contagem faz tique, subindo de tom ate meia oitava; no
 // jogo, quem fala e o arpejo do dado que vale.
+static int fichas_vis(int j);           // telas.inc: no resultado, as fichas chegando com o pote
 static void placar_passo(float dt, float dt_real)
 {
+    if (rodada == 0) {                       // a partida montando: as fichas ja nascem certas
+        contador_fixa(&pote_c, pote);
+        for (int j = 0; j < 2; j++) contador_fixa(&faixa_c[j], J[j].fichas);
+    }
+    contador_passo(&pote_c, pote, dt_real, dt_real, 10, 30);
+    for (int j = 0; j < 2; j++) contador_passo(&faixa_c[j], fichas_vis(j), dt_real, dt_real, 10, 30);
     bool desfecho_agora = fase == F_EFEITOS || fase == F_RESULTADO;
     if (t_tique_placar > 0) t_tique_placar -= dt_real;
     for (int j = 0; j < 2; j++) {

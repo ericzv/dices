@@ -372,9 +372,10 @@ static const char *const ALG[13][10] = {
     { ".......", ".......", ".......", ".......", "######.", "######.", ".......", ".......", ".......", "......." }
 };
 #define ALG_H 10
+static int num_cresce;                     // o "pop" do numero no pouso: uma escala a mais
 static void numero_em(float cx, float cy, float r, const char *s, uint16_t c, bool sombra)
 {
-    int e = r >= 34 ? 2 : 1, n = 0, g[8], a[8], w[8], W = 0;
+    int e = (r >= 34 ? 2 : 1) + num_cresce, n = 0, g[8], a[8], w[8], W = 0;
     for (const char *p = s; *p; p++) {            // mede: cada algarismo so nas colunas que usa
         const char *q = strchr(ALG_CARS, *p);
         if (!q || n >= 8) {                       // fora dos algarismos: a letra da fonte
@@ -445,12 +446,46 @@ static void numero_contorno(float cx, float cy, float r, const char *s, uint16_t
 static bool so_apagado;
 
 // X grosso em vinho sobre o dado anulado.
+// O X do dado anulado: dois tracos de tinta vinho, cada um com o contorno
+// escuro e tres tons - a beira de cima clara (a luz vem de cima), o meio e a
+// de baixo escura. O segundo passa por cima do primeiro. Entrando (risca_q de
+// 0 a 2), cada traco cresce da ponta de cima, um depois do outro; quando
+// fecha, da um estalo (risca_pop: o traco engrossa e acende, 1 -> 0).
+static float risca_q = 2, risca_pop;
+static bool sem_risca;                     // anulado por ataque: a trinca no lugar do X
+static void risca_anima(float t)           // t: desde que caiu (9: ja estava)
+{
+    risca_q = fminf(2, fmaxf(0, (t - 0.08f) / 0.12f));
+    risca_pop = t >= 0.32f && t < 0.46f ? 1 - (t - 0.32f) / 0.14f : 0;
+}
+static void risca_traco(float ax, float ay, float bx, float by, float q, float hw, bool pop)
+{
+    if (q <= 0) return;
+    float dx = bx - ax, dy = by - ay, len = sqrtf(dx * dx + dy * dy), ux = dx / len, uy = dy / len;
+    float nx = -uy, ny = ux;                     // a normal que aponta para cima
+    if (ny > 0) { nx = -nx; ny = -ny; }
+    float ate = len * fminf(1, q);
+    uint16_t claro = pop ? C_ROSA : C_VINHO_CLR, meio = pop ? C_VINHO_CLR : C_VERMELHO, escuro = RGB(118, 30, 38);
+    int x0 = (int)floorf(fminf(ax, bx) - hw - 2), x1 = (int)ceilf(fmaxf(ax, bx) + hw + 2);
+    int y0 = (int)floorf(fminf(ay, by) - hw - 2), y1 = (int)ceilf(fmaxf(ay, by) + hw + 2);
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++) {
+            float px = x + 0.5f - ax, py = y + 0.5f - ay, t = px * ux + py * uy;
+            float tc = t < 0 ? 0 : t > ate ? ate : t;            // o ponto mais perto no traco (pontas redondas)
+            float ex = px - ux * tc, ey = py - uy * tc, d = sqrtf(ex * ex + ey * ey);
+            if (d > hw + 1) continue;
+            if (d > hw) { gfx_pixel(x, y, C_BARRA); continue; }     // o contorno
+            float lado = ex * nx + ey * ny;                         // > 0: a beira de cima
+            gfx_pixel(x, y, lado > hw * 0.4f ? claro : lado < -hw * 0.4f ? escuro : meio);
+        }
+}
 static void risca(float cx, float cy, float r)
 {
-    if (so_apagado) return;
-    int e = r < 12 ? 2 : (int)(r / 6);
-    gfx_linha_grossa((int)(cx - r), (int)(cy - r), (int)(cx + r), (int)(cy + r), e, C_VINHO_CLR);
-    gfx_linha_grossa((int)(cx - r), (int)(cy + r), (int)(cx + r), (int)(cy - r), e, C_VINHO_CLR);
+    if (so_apagado || sem_risca) return;
+    float L = r * 0.8f, hw = (r < 12 ? 1.1f : r / 11) + risca_pop * 0.7f;
+    bool pop = risca_pop > 0;
+    risca_traco(cx - L, cy - L, cx + L, cy + L, risca_q, hw, pop);          // de cima a esquerda para baixo
+    risca_traco(cx + L, cy - L, cx - L, cy + L, risca_q - 1, hw, pop);      // de cima a direita para baixo
 }
 
 // O corpo de um dado sempre numa cor da paleta, escolhida entre as que servem
@@ -2478,6 +2513,16 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo), C_SOMBRA, 30));
 }
 
+// O dado deitou no feltro: o pulinho do pouso, o relogio dele (o numero) e
+// o anel de poeira no lugar (mesa.inc).
+static void poeira_solta(float x, float y);
+static void assenta(voo_t *v)
+{
+    v->pouso = 0.18f;
+    v->t_assenta = 0.001f;
+    if (!v->fantasma) poeira_solta(v->x, v->y);
+}
+
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
 static void estala(float forca, int som)
 {
@@ -2531,7 +2576,7 @@ static bool fisica(float dt)
         }
         if (vel < 36 || t_fase > 6.0f) {
             v->parado = true;
-            v->pouso = 0.18f;
+            assenta(v);
             v->face = v->valor;
             som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
         }
@@ -3451,6 +3496,58 @@ static void px_degrau(uint16_t *fb, int x, int y, float s)
     k += st;
     *p = px_rampa[k < 0 ? 0 : k > 8 ? 8 : k];
 }
+// O risco do proximo dado, na sua vez: uma luz no feltro atras do lugar
+// dele, na cor do risco (a do botao) - verde sem risco, latao ate 40%, vinho
+// dali para cima -, pulsando devagar. Do feltro do meio para cima, os tons
+// ja sao os da cor; ali a poca de quem joga nao entra (luz_risco_*).
+static int chance_cair(int j);              // telas.inc
+static bool mostra_chance(void);
+static const uint16_t RISCO_COR[3][3] = {
+    { RGB(88, 152, 84), RGB(88, 152, 84), RGB(130, 204, 112) },     // verde
+    { RGB(106, 86, 44), RGB(150, 122, 62), RGB(190, 156, 86) },     // latao
+    { RGB(118, 30, 38), RGB(190, 56, 60), RGB(208, 98, 108) },      // vinho
+};
+static int luz_risco_x = -1, luz_risco_y;
+#define LUZ_RISCO_RX 30
+#define LUZ_RISCO_RY 24
+static float poca_cx, poca_cy, poca_rx, poca_ry;      // a poca de quem joga (0 de raio: nenhuma)
+static float poca_luz(int x, int y)                  // quanto a poca sobe o feltro em (x, y)
+{
+    if (poca_rx <= 0) return 0;
+    float qx = (x - poca_cx) / poca_rx, qy = (y - poca_cy) / poca_ry, q = qx * qx + qy * qy;
+    return q < 1 ? 1.8f * (1 - q) * (1 - q * 0.5f) : 0;
+}
+static void luz_do_risco(uint16_t *fb)
+{
+    const fila_t *f = &F[vez];
+    luz_risco_x = -1;
+    if (fase != F_JOGA || f->lancados <= 0 || f->lancados >= f->n || !mostra_chance()) return;
+    int c = chance_cair(vez), i = c <= 0 ? 0 : c < 40 ? 1 : 2;
+    uint16_t rampa[9];
+    for (int k = 0; k < 4; k++) rampa[k] = feltro_tons[k];
+    for (int k = 4; k < 9; k++) rampa[k] = RISCO_COR[i][k - 4 < 2 ? k - 4 : 2];
+    // Discreta: no fraco do pulso quase some; no forte, so uns pontos da cor.
+    float pulso = 0.5f + 0.5f * sinf(t_relogio * 6.2832f * 0.7f), forca = 0.05f + 1.1f * pulso * pulso;
+    int cx = SLOT_X(f->lancados), cy = zona(vez) + 5, rx = LUZ_RISCO_RX, ry = LUZ_RISCO_RY;
+    luz_risco_x = cx; luz_risco_y = cy;
+    for (int y = cy - ry < MESA_Y0 ? MESA_Y0 : cy - ry; y <= cy + ry && y < MESA_Y1; y++)
+        for (int x = cx - rx < MESA_X0 ? MESA_X0 : cx - rx; x <= cx + rx && x < MESA_X1; x++) {
+            float qx = (x - cx) / (float)rx, qy = (y - cy) / (float)ry, q = qx * qx + qy * qy;
+            if (q >= 1) continue;
+            uint16_t *p = &fb[y * GFX_W + x];
+            int k = px_lut[*p];
+            if (k == 0xFF) continue;
+            // Perto do dado, a luz da cor; na beira, pontilhado, a da poca. O
+            // ponto que nao chega a acender na cor fica com a luz da poca.
+            float lp = poca_luz(x, y);
+            if (bayer(x + 2, y + 1) < (1 - q) * 1.7f) {
+                int kc = (k > 3 ? 3 : k) + (int)floorf(forca * (1 - q) * (1 - q * 0.3f) + bayer(x, y));
+                if (kc > 3) { *p = rampa[kc > 8 ? 8 : kc]; continue; }
+            }
+            int kn = k + (int)floorf(lp + bayer(x, y));
+            *p = px_rampa[kn < 0 ? 0 : kn > 8 ? 8 : kn];
+        }
+}
 // A vinheta, uma vez, na mesa pintada.
 static void px_vinheta(uint16_t *fb)
 {
@@ -3474,14 +3571,24 @@ static bool luz_de_cena(void)
     bool poca = fase == F_ORDEM || fase == F_APOSTA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_JOGA
              || fase == F_VEREDITO;
     bool pulso = t_px_pulso >= 0 && t_px_pulso < PX_PULSO_T;
-    if (poca) {                                           // a poca, embaixo da fila de quem joga
+    luz_risco_x = -1;
+    poca_rx = 0;
+    if (poca) {
         int n = max_fila(vez);
-        float pcx = (SLOT_X(0) + SLOT_X(n - 1)) * 0.5f, pcy = (float)zona(vez);
-        float prx = (SLOT_X(n - 1) - SLOT_X(0)) * 0.5f + 64, pry = 46;
+        poca_cx = (SLOT_X(0) + SLOT_X(n - 1)) * 0.5f; poca_cy = (float)zona(vez);
+        poca_rx = (SLOT_X(n - 1) - SLOT_X(0)) * 0.5f + 64; poca_ry = 46;
+        luz_do_risco(fb);                                 // antes da poca, que nao entra nela
+    }
+    if (poca) {                                           // a poca, embaixo da fila de quem joga
+        float pcx = poca_cx, pcy = poca_cy, prx = poca_rx, pry = poca_ry;
         int x0 = (int)(pcx - prx), x1 = (int)(pcx + prx), y0 = (int)(pcy - pry), y1 = (int)(pcy + pry);
         for (int y = y0 < MESA_Y0 ? MESA_Y0 : y0; y <= y1 && y < MESA_Y1; y++)
             for (int x = x0 < MESA_X0 ? MESA_X0 : x0; x <= x1 && x < MESA_X1; x++) {
                 float qx = (x - pcx) / prx, qy = (y - pcy) / pry, q = qx * qx + qy * qy;
+                if (luz_risco_x >= 0) {                   // a luz do risco e so dela
+                    float rx2 = (x - luz_risco_x) / (float)LUZ_RISCO_RX, ry2 = (y - luz_risco_y) / (float)LUZ_RISCO_RY;
+                    if (rx2 * rx2 + ry2 * ry2 < 1) continue;
+                }
                 if (q < 1) px_degrau(fb, x, y, 1.8f * (1 - q) * (1 - q * 0.5f));
             }
     }

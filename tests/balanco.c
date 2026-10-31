@@ -51,6 +51,16 @@ int som_volume_de(int c) { (void)c; return SOM_NIVEIS; }
 
 #include "salva_mem.h"
 
+// O primeiro adesivo da loja que da para comprar agora (e colar), ou -1.
+static int adesivo_a_comprar(void)
+{
+    for (int k = 0; k < n_adesivos_loja(); k++) {
+        int a = ad_loja(k);
+        if (a && !ad_loja_vendido(k) && run.moedas >= preco_adesivo(a) && lj_algum_lado(a)) return k;
+    }
+    return -1;
+}
+
 static uint32_t est = 99991;
 static uint32_t rnd_t(void) { est ^= est << 13; est ^= est >> 17; est ^= est << 5; return est; }
 
@@ -207,7 +217,7 @@ static void loja_passo_robo(int *compras)
         for (int q = 0; q < 60 && t_lj_tira > 0; q++) dado_passo(1.0f / 60);
         return;
     }
-    int nv = n_vitrine(), b = -1;
+    int nv = n_vitrine(), b = -1, ka;
     if (jeito_compra == 0) {
         for (int i = 0; i < nv; i++) {
             int t = run.vitrine[i].tipo;
@@ -220,11 +230,10 @@ static void loja_passo_robo(int *compras)
     if (b >= 0) { cursor = b; trata_tecla(KEY_ENTER); (*compras)++; }
     else if (jeito_compra != 2 && run.pac_estado == PAC_VENDA && tem_pacote() && run.moedas >= preco_pacote()
              && (!pacote_de_adesivos() || (adesivos_robo && lj_algum_lado_livre()))) {
-        cursor = nv;                             // sobrou: abre o pacote
+        cursor = lj_item_pacote();               // sobrou: abre o pacote
         trata_tecla(KEY_ENTER);
     }
-    else if (jeito_compra != 2 && adesivos_robo && run.adesivo && !run.ad_vendido && run.moedas >= preco_adesivo(run.adesivo)
-             && lj_algum_lado()) { cursor = lj_item_adesivo(); trata_tecla(KEY_ENTER); }
+    else if (jeito_compra != 2 && adesivos_robo && (ka = adesivo_a_comprar()) >= 0) { cursor = lj_item_adesivo(ka); trata_tecla(KEY_ENTER); }
     else if (jeito_compra != 2 && moeda && run.moedas >= preco_remove() + 3) { cursor = lj_item_tira(); trata_tecla(KEY_ENTER); }
     else if (jeito_compra != 2 && !run.trocas && run.moedas >= 6) { cursor = lj_item_troca(); trata_tecla(KEY_ENTER); }
     else trata_tecla(KEY_TAB);

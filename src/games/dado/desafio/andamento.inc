@@ -122,7 +122,8 @@ static void run_de_13(run_t *r, const run13_t *v)
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
 // para tras. A de antes dos adesivos de um byte abre convertida, a de antes
 // do Presente (sem o ultimo byte) abre com ele em 0, a de antes das bolsas
-// com o Saco de Pano e a de antes da loja sem repeticao, sem nada visto.
+// com o Saco de Pano, a de antes da loja sem repeticao, sem nada visto, e a
+// de antes da loja de dois adesivos, com a loja dela (1 adesivo).
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
@@ -136,10 +137,12 @@ static bool des_carrega(run_t *r)
     } else {
         size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente)
                    : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA
-                   : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS : sizeof *r;
+                   : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS
+                   : n == (int)(2 * RUN_TAM_SEM_LOJA2) ? RUN_TAM_SEM_LOJA2 : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
         if (tam <= RUN_TAM_SEM_BOLSA) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
-        if (tam < sizeof *r) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
+        if (tam < RUN_TAM_SEM_LOJA2) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
+        if (tam < sizeof *r) r->dois_adesivos = r->adesivo2 = r->ad_vendido2 = 0;   // a loja de 1 adesivo
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
@@ -147,8 +150,9 @@ static bool des_carrega(run_t *r)
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N || r->pac_op[i].ad[0] >= AD_N) return false;
-    if ((r->pacote > GR_ADESIVOS && r->pacote != GR_NENHUM) || r->pac_estado > PAC_USADO) return false;
-    if (r->adesivo >= AD_N) return false;
+    if ((r->pacote > PAC_ADESIVOS && r->pacote != PAC_NENHUM) || r->pac_estado > PAC_USADO) return false;
+    if (r->adesivo >= AD_N || r->adesivo2 >= AD_N) return false;
+    if (r->dois_adesivos > 1) r->dois_adesivos = 0;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->bolsa >= B_N) r->bolsa = B_PANO;
     if (r->porco_quebrou > 1) r->porco_quebrou = 1;

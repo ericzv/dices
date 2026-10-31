@@ -65,7 +65,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   |---|---|---|---|
   | Saco de Pano | os dados de sempre | sem regra | desde o começo |
   | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
-  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | a vitrine mostra 1 dado a menos | ter 3 adesivos colados |
+  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados da 7ª rodada em diante; vem com o Trevo | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro | toda rodada começa com -4 | vencer 3 rodadas de uma partida com 4 dados válidos |
@@ -95,14 +95,21 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
-  terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
-  dados (3, 4, 6 ou 9 moedas, pela raridade; cada dado, e cada adesivo da
-  loja, aparece à venda uma vez só na run, e só os pacotes repetem), um pacote (4 moedas: dados
-  embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
-  mostra 3 do grupo e você leva 1 ou pula; em metade das lojas, o pacote é
-  de adesivos: 3 adesivos, você leva 1 e já cola), um adesivo (2 a 6 moedas), trocar
-  a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
-  na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
+  terceiro, este só do nível 5), e abre uma loja pequena: 2 dados e 1
+  adesivo, ou 1 dado e 2 adesivos, meio a meio (os dados custam 3, 4, 6 ou 9
+  moedas, pela raridade, e os adesivos, 2 a 6; cada dado e cada adesivo
+  aparece à venda uma vez só na run, e só os pacotes repetem), um pacote
+  (de dados ou de adesivos, meio a meio; o de dados vem numa caixa de um de
+  quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 3 moedas,
+  quase todos comuns; Prata, 5, quase todos incomuns; Ouro, 8, quase todos
+  raros e às vezes um lendário; Diamante, 12, raros e lendários - e a cada
+  oponente vencido os melhores aparecem mais, do Bronze em 3 de cada 4
+  lojas depois do primeiro ao Diamante em 6 de cada 10 depois do oitavo; o
+  de adesivos, 4 moedas, é um pacotinho de figurinhas com 3 adesivos; os
+  dois abrem na hora e você leva 1 ou pula, e o adesivo você já cola),
+  trocar a loja (sorteia tudo de novo: os dados, os adesivos e o pacote; 1,
+  depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
+  inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 28, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
@@ -119,8 +126,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados) e
   ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada); sete
   desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
-  uma raridade, como os dados, e o da loja sai com os mesmos pesos da
-  vitrine: no primeiro salão, os lendários quase não aparecem.
+  uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
+  dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)

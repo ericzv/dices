@@ -3745,23 +3745,61 @@ int main(void)
         joga(1, D_D4, 3);
         d = fim();
         adesivos_ficam(0, &d);
-        CONFERE(!d.fragil[0] && J[0].col[3].tipo == D_D6, "com a capa, o Fragil anulado nao quebra");
+        bool ev_frag = false;
+        for (int i = 0; i < n_ev; i++) ev_frag |= ev_tipo_ad(i, AD_FRAGIL) && ev[i].bloqueado;
+        CONFERE(!d.fragil[0] && J[0].col[3].tipo == D_D6 && ev_frag, "com a capa, o Fragil anulado nao quebra (e o evento diz)");
         limpa();                                  // com a capa, o evento nao se repete
         joga_ad(0, 3, 6);
         d = fim();
         ev_capa = false;
         for (int i = 0; i < n_ev; i++) ev_capa |= ev_tipo_ad(i, AD_IMPERMEAVEL);
         CONFERE(!ev_capa && !d.capa[0], "a capa nao se repete");
-        // A Ficha Fogo queima o maior que pode queimar: o de capa fica.
+        // A Ficha Fogo mira o maior, como sempre: o de capa nao queima, e o
+        // fogo nao passa para outro (o evento diz que ele esta protegido).
         J[0].col[6] = (peca_t){ .tipo = D_FOGO };
         limpa();
         joga_ad(0, 6, 2); joga_ad(0, 2, 4); joga_ad(0, 3, 5);   // o 5: um lado sem adesivo, mas com a capa de antes
         d = fim();
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[2] == V_VALIDO && !d.queima[0][2] && d.queima[0][1],
-                "a Ficha Fogo pula o de capa e queima o 4 (%d %d)", d.queima[0][1], d.queima[0][2]);
+        int ev_fogo = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_FOGO) ev_fogo = i;
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[2] == V_VALIDO && !d.queima[0][2] && !d.queima[0][1]
+                && ev_fogo >= 0 && ev[ev_fogo].alvo_k == 2 && ev[ev_fogo].bloqueado == 4 && d.total[0] == 2 + 4 + 5 + 10,
+                "a Ficha Fogo no de capa: bloqueado, nada queima (%d %d, total %d)", d.queima[0][1], d.queima[0][2], d.total[0]);
         J[0].col[3].capa = 0;                     // sem a capa, queima o 5
         d = fim();
         CONFERE(d.queima[0][2] && !d.queima[0][1], "sem a capa, a Ficha Fogo queima o 5");
+        J[0].col[3].capa = 1;
+        // Duas Fichas Fogo: a primeira no de capa (bloqueada), a segunda no
+        // seguinte - o mesmo de sempre, sem capa ou com ela.
+        J[0].col[7] = (peca_t){ .tipo = D_FOGO };
+        limpa();
+        joga_ad(0, 6, 1); joga_ad(0, 7, 2); joga_ad(0, 2, 4); joga_ad(0, 3, 5);
+        d = fim();
+        CONFERE(!d.queima[0][3] && d.queima[0][2], "duas Fichas Fogo: o de capa fica, o 4 queima (%d %d)", d.queima[0][2], d.queima[0][3]);
+        J[0].col[7] = (peca_t){ .tipo = D_D8 };
+        // A Medusa: o de capa nao vira pedra.
+        J[0].col[6] = (peca_t){ .tipo = D_MEDUSA };
+        limpa();
+        joga_ad(0, 2, 3); joga_ad(0, 3, 5); joga_ad(0, 6, 6);
+        d = fim();
+        int ev_med = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MEDUSA) ev_med = i;
+        CONFERE(d.medusa[0] && ev_med >= 0 && !(ev[ev_med].mascara >> 1 & 1) && (ev[ev_med].mascara & 1)
+                && ev[ev_med].bloqueado == 2, "Medusa: o de capa fora da pedra (mascara %d, bloqueado %d)",
+                ev_med >= 0 ? ev[ev_med].mascara : -1, ev_med >= 0 ? ev[ev_med].bloqueado : -1);
+        resolvido = d;
+        medusa_petrifica(0, &d);
+        CONFERE(J[0].col[3].tipo == D_D6 && J[0].col[2].tipo == D_QUEBRADO, "Medusa: o de capa segue um d6");
+        J[0].col[2] = (peca_t){ .tipo = D_D6 };
+        // A Autofagia ia comer o de capa: bloqueia tudo (nao anula nem come).
+        J[0].col[6] = (peca_t){ .tipo = D_AUTOFAGIA };
+        limpa();
+        joga_ad(0, 3, 2); joga_ad(0, 2, 4); joga_ad(0, 6, 6);   // o menor que vale e o 2, com a capa
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && !d.come[0], "Autofagia no de capa: bloqueada (est %d, come %d)", d.est[0][0], d.come[0]);
+        J[0].col[3].capa = 0;
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.come[0] == 1, "Autofagia sem a capa: come o 2 (est %d, come %d)", d.est[0][0], d.come[0]);
         J[0].col[3].capa = 1;
         // A capa e so da partida.
         peca_t cp = { .tipo = D_D6, .capa = 1 };

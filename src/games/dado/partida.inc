@@ -244,6 +244,7 @@ static void nova_rodada(void)
     memset(vis_bonus, 0, sizeof vis_bonus);
     memset(vis_mult, 0, sizeof vis_mult);
     memset(vis_queima, 0, sizeof vis_queima);
+    memset(vis_capa_t, 0, sizeof vis_capa_t);
     memset(vis_espelho, 0, sizeof vis_espelho);
     memset(vis_curinga, 0, sizeof vis_curinga);
     memset(vis_tremor, 0, sizeof vis_tremor);
@@ -928,7 +929,7 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0;
     // Os Jingle Bells lancados deixam uma copia na bolsa: tiradas antes que
     // os dados que saem mudem as posicoes da bolsa.
     peca_t sino[2][N_FILA];
@@ -951,8 +952,9 @@ static void recolhe_quebrados(void)
             if (vidro_quebra(j, k)) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
             if (j == 0 && !some && coringa_destroi() && F[j].tipo[k] != D_FANTASMA
-                && F[0].est[k] == V_ANULADO && !impermeavel(j, k)) {   // o estado final (no desfecho, ja com os ataques)
-                F[j].quebra[k] = true; some = true; n_coringa++;
+                && F[0].est[k] == V_ANULADO) {         // o estado final (no desfecho, ja com os ataques)
+                if (impermeavel(j, k)) n_capa++;      // com a capa, fica
+                else { F[j].quebra[k] = true; some = true; n_coringa++; }
             }
             if (some && F[j].idx[k] >= 0) saem[n++] = F[j].idx[k];   // a copia do Coringa nao e da bolsa
         }
@@ -997,6 +999,8 @@ static void recolhe_quebrados(void)
         }
     if (n_coringa)
         snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);
+    else if (n_capa)
+        snprintf(nota, sizeof nota, "o Impermeável protege o dado do Coringa");
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga
@@ -1131,7 +1135,7 @@ static int som_do_evento(int i)
     case EV_AGIOTA:  return SOM_FICHA;
     case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_ADESIVO:                     // a copia brilha com o som do Holografico; o Fragil quebrando, vidro
-        if (e->ad == AD_FRAGIL && !e->valor) return SOM_VIDRO;
+        if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
         if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
@@ -1391,7 +1395,7 @@ static void flutua_evento(const evento_t *e)
             else if (e->tipo == EV_BONUS && e->por_dado[k] < 0)             // Tudo ou Nada com 1
                 flutua_em(dj, k, C_VINHO_CLR, k * 0.06f, "%d", e->por_dado[k]);
         break;
-    case EV_ANULA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+    case EV_ANULA:   if (!(e->bloqueado >> ak & 1)) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_TIRA:    flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_PIRATA:
         flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor);
@@ -1438,7 +1442,9 @@ static void flutua_evento(const evento_t *e)
                 if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "+%d", e->por_dado[k]);
             if (e->valor) flutua_em(dj, N_FILA, C_OURO, 0.1f, "+%d", e->valor);
             break;
-        case AD_FRAGIL:     flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor); break;
+        case AD_FRAGIL:
+            if (!e->bloqueado) flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor);
+            break;
         case AD_LENTICULAR:
             if (e->valor > 0) flutua_em(dj, dk, C_OURO, 0, "x%d", e->por_dado[dk < N_FILA ? dk : 0]);
             else flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "%d", e->valor);
@@ -1468,8 +1474,17 @@ static void aplica_evento(int i)
 {
     evento_t *e = &ev[i];
     flutua_evento(e);
+    // O Impermeavel segurou o efeito nos dados com a capa: o guarda-chuva
+    // abre neles, "protegido", e o efeito nao pega.
+    for (int k = 0; k < N_FILA && e->alvo_j < 2; k++) {
+        if (!(e->bloqueado >> k & 1)) continue;
+        flutua_em(e->alvo_j, k, C_VENTO, k * 0.05f, "protegido", 0);
+        vis_capa_t[e->alvo_j][k] = t_relogio;
+    }
+    if (e->bloqueado && e->tipo != EV_ADESIVO) som_toca(som_adesivo(AD_IMPERMEAVEL));
     switch (e->tipo) {
     case EV_ANULA:
+        if (e->bloqueado >> e->alvo_k & 1) break;
         vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
         golpe_marca(e->alvo_j, e->alvo_k, aro_de(F[e->de_j].tipo[e->de_k]));
         if (F[e->de_j].tipo[e->de_k] == D_BONECO) vis_gelo[e->alvo_j][e->alvo_k] = 1;   // fica congelado
@@ -1509,7 +1524,10 @@ static void aplica_evento(int i)
     case EV_MULT:
         for (int k = 0; k < N_FILA; k++) vis_mult[e->de_j][k] = e->por_dado[k];
         break;
-    case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
+    case EV_FOGO:
+        if (!(e->bloqueado >> e->alvo_k & 1)) vis_queima[e->alvo_j][e->alvo_k] = 1;
+        vis_semente[e->de_j] += e->valor;
+        break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE:
         vis_semente[e->de_j] += e->valor;
         break;
@@ -1536,9 +1554,9 @@ static void aplica_evento(int i)
             if (e->valor > 0) { for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k]; }
             else vis_delta[e->de_j] += e->valor;
             break;
-        case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim)
+        case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim; com a capa, nao)
             vis_semente[e->de_j] += e->valor;
-            if (!e->valor && e->de_k < N_FILA) vis_fragil[e->de_j] |= (uint8_t)(1 << e->de_k);
+            if (!e->valor && !e->bloqueado && e->de_k < N_FILA) vis_fragil[e->de_j] |= (uint8_t)(1 << e->de_k);
             break;
         case AD_SELO:                   // o lacre rompeu (pagando) ou fechou
             vis_semente[e->de_j] += e->valor;

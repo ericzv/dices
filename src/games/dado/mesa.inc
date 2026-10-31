@@ -997,6 +997,7 @@ static void desenha_jingle_copias(void)
 
 static void rachadura(int x, int y, int r, float q);
 static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
+static void escudo_capa(int x, int y, float abre, float q, uint16_t c);   // o guarda-chuva do Impermeavel (abaixo)
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -1202,6 +1203,9 @@ static void desenha_fila(int j)
         else desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
         if (face_capa && giro < 0.5f) gota_capa((int)(x - R * 0.78f), (int)(y - pulo - R * 0.55f), 3);   // com a capa
         face_capa = false;
+        float tc = t_relogio - vis_capa_t[j][k];                // acabou de segurar um efeito: o guarda-chuva fecha
+        if (no_desfecho && vis_capa_t[j][k] > 0 && tc >= 0 && tc < 0.45f && giro < 0.5f)
+            escudo_capa(x, (int)(y - pulo), 1 - tc / 0.45f, 0, C_VENTO);
         sem_risca = false;
         face_curinga = false;
         digital_q = 1;
@@ -1433,7 +1437,7 @@ static void desenha_fila(int j)
         }
         // Marcado pelo fogo: aro em brasa ate o fim da rodada.
         if (no_desfecho && (vis_queima[j][k] ||
-            (e && e->tipo == EV_FOGO && e->alvo_j == j && e->alvo_k == k && p > 0.35f)))
+            (e && e->tipo == EV_FOGO && e->alvo_j == j && e->alvo_k == k && p > 0.35f && !(e->bloqueado >> k & 1))))
             aro(x, y, ((int)(t_fase * 10) % 2) ? C_FOGO : C_BRASA);
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
@@ -1546,6 +1550,41 @@ static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t 
     }
 }
 
+// O guarda-chuva do Impermeavel: a copa (meia elipse de raio rw x rh, com o
+// meio da beira em cx, cy) em gomos amarelos, a beira azul, o brilho do
+// plastico e o cabo descendo 'cabo' pixels.
+static void guarda_chuva(int cx, int cy, int rw, int rh, int cabo)
+{
+    if (rw < 2 || rh < 2) return;
+    uint16_t capa = ADESIVO[AD_IMPERMEAVEL].fundo;
+    gfx_linha_grossa(cx, cy, cx, cy + cabo, 2, C_EBANO);       // o cabo
+    for (int y = -rh - 1; y <= 1; y++) {                      // o contorno da copa
+        int w = (int)((rw + 1) * sqrtf(fmaxf(0, 1 - (float)(y * y) / ((rh + 1) * (rh + 1)))));
+        gfx_rect(cx - w, cy + y, 2 * w + 1, 1, C_BARRA);
+    }
+    for (int y = -rh; y <= 0; y++) {                          // os gomos, em duas cores
+        int w = (int)(rw * sqrtf(1 - (float)(y * y) / (rh * rh)));
+        for (int x = -w; x <= w; x++)
+            gfx_pixel(cx + x, cy + y, y == 0 ? C_AZUL : ((x + 64) / 5) & 1 ? capa : RGB(228, 194, 106));
+    }
+    if (rw > 8) gfx_rect(cx - rw / 2, cy - rh + 2, 2, 1, C_BRANCO);   // o brilho
+}
+// O Impermeavel segurando um efeito no dado em (x, y): o guarda-chuva abre
+// por cima dele (abre: 0 fechado, 1 aberto) e o que chega (fogo ou agua, na
+// cor c) espirra para os lados da copa. q: o tempo do espirro (0..1).
+static void escudo_capa(int x, int y, float abre, float q, uint16_t c)
+{
+    if (abre <= 0) return;
+    int rw = (int)(4 + abre * (R_DADO + 3)), rh = (int)(3 + abre * 9), cy = y - R_DADO - 3;
+    guarda_chuva(x, cy, rw, rh, R_DADO - 2);
+    for (int i = 0; i < 8 && q > 0 && q < 1; i++) {           // o espirro, dos dois lados
+        int lado = i % 2 ? 1 : -1;
+        float t = fmodf(q * 1.6f + i * 0.13f, 1.0f);
+        int px = x + lado * (rw + 1 + (int)(t * 12)), py = cy - 2 + (int)(t * t * 22) - (int)(sinf(t * 3.1416f) * 6);
+        gfx_rect(px, py, 2, 2, i % 3 ? c : C_BRANCO);
+    }
+}
+
 static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 {
     int a = e->ad, j = e->de_j, dir = j == baixo ? -1 : 1;     // para o meio da mesa
@@ -1580,7 +1619,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 int bx = ax - R_DADO + (int)(q * 2 * R_DADO) + i;
                 gfx_linha(bx - 6, ay + 8, bx + 6, ay - 8, i ? gfx_mistura(C_BRANCO, fundo, 50) : C_BRANCO);
             }
-        } else {                                                // anulado: racha e solta lascas
+        } else if (!e->bloqueado) {                             // anulado: racha e solta lascas (com a capa, nao)
             rachadura(ax, ay, R_DADO, fminf(1, p / 0.45f));
             for (int i = 0; i < 7 && p > 0.4f && p < 0.95f; i++) {
                 float q = (p - 0.4f) / 0.55f;
@@ -1614,24 +1653,33 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
-    case AD_NEON: {                                             // um tubo de luz acende em volta do dado, um pedaco por adesivo, piscando como luminoso
-        int n = e->valor / NEON_CADA;
+    case AD_NEON: {                                             // o luminoso acende em volta do dado, um pedaco por adesivo,
+        int n = e->valor / NEON_CADA;                           // piscando como luminoso; aceso, pulsa e uma luz corre nele
         if (n < 1) n = 1;
         if (n > 20) n = 20;
         int rr = R_DADO + 7;
+        float pulso = 0.5f + 0.5f * sinf(t_fase * 13), corre = t_fase * 7;
         for (int i = 0; i < n && p < 0.95f; i++) {
-            float liga = p - 0.08f - i * (0.5f / n);
+            float liga = p - 0.06f - i * (0.4f / n);
             if (liga < 0) continue;
             bool pisca = liga < 0.12f && (int)(liga * 60) % 3 == 0;   // o luminoso pisca ao ligar
             if (pisca) continue;
             float a0 = -1.5708f + i * 6.2832f / n, a1 = a0 + 6.2832f / n - 0.18f;
+            int g = pulso > 0.5f ? 2 : 1;                       // o brilho respira
             for (float an = a0; an < a1; an += 0.05f) {
                 int px = ax + (int)(cosf(an) * rr), py = ay + (int)(sinf(an) * rr);
-                gfx_rect(px - 1, py - 1, 3, 3, C_VINHO);         // o brilho em volta do tubo
+                gfx_rect(px - g, py - g, 2 * g + 1, 2 * g + 1, pulso > 0.75f ? C_VINHO_CLR : C_VINHO);
             }
+            if (pulso > 0.6f)                                   // no pico, um anel de brilho mais largo, pontilhado
+                for (float an = a0; an < a1; an += 0.09f) {
+                    int px = ax + (int)(cosf(an) * (rr + 5)), py = ay + (int)(sinf(an) * (rr + 5));
+                    if (((px + py) & 1) == 0) gfx_pixel(px, py, C_VINHO);
+                }
             for (float an = a0; an < a1; an += 0.04f) {
                 int px = ax + (int)(cosf(an) * rr), py = ay + (int)(sinf(an) * rr);
-                gfx_pixel(px, py, (int)(an * 20) % 4 ? C_ROSA : C_BRANCO);
+                float d = fabsf(fmodf(an - corre + 62.832f, 6.2832f) - 3.1416f);   // a luz que corre
+                gfx_pixel(px, py, d > 2.9f ? C_BRANCO : pulso > 0.7f && (int)(an * 20) % 3 == 0 ? C_BRANCO : C_ROSA);
+                if (d > 2.9f) gfx_rect(px - 1, py - 1, 2, 2, C_BRANCO);
             }
         }
         break;
@@ -1639,19 +1687,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
     case AD_IMPERMEAVEL: {                                      // o guarda-chuva abre em cima do dado e a chuva escorre pelos lados
         float q = fminf(1, p / 0.3f), s = q * q * (3 - 2 * q);
         int cx = ax - 7, cy = ay - R_DADO - 10, rw = (int)(4 + s * 15), rh = (int)(3 + s * 8);
-        if (p < 0.92f) {
-            gfx_linha_grossa(cx, cy, cx, ay - 4, 2, C_EBANO);          // o cabo
-            for (int y = -rh - 1; y <= 1; y++) {                      // o contorno da copa
-                int w = (int)((rw + 1) * sqrtf(fmaxf(0, 1 - (float)(y * y) / ((rh + 1) * (rh + 1)))));
-                gfx_rect(cx - w, cy + y, 2 * w + 1, 1, C_BARRA);
-            }
-            for (int y = -rh; y <= 0; y++) {                          // a copa: meia elipse, os gomos em duas cores
-                int w = (int)(rw * sqrtf(1 - (float)(y * y) / (rh * rh)));
-                for (int x = -w; x <= w; x++)
-                    gfx_pixel(cx + x, cy + y, y == 0 ? C_AZUL : ((x + 64) / 5) & 1 ? d->fundo : RGB(228, 194, 106));
-            }
-            if (s > 0.6f) gfx_rect(cx - rw / 2, cy - rh + 2, 2, 1, C_BRANCO);   // o brilho do plastico
-        }
+        if (p < 0.92f) guarda_chuva(cx, cy, rw, rh, ay - 4 - cy);
         for (int i = 0; i < 14 && p > 0.25f && p < 0.95f; i++) {         // a chuva: cai, bate na copa e escorre para fora
             float g = fmodf((p - 0.25f) * 2.2f + i * 0.071f, 1.0f);
             int x0 = cx - rw - 8 + (i * 29) % (2 * rw + 16);
@@ -2016,11 +2052,8 @@ static void desenha_falha(void)
 
 // O que o evento em curso desenha por cima da mesa: o traco do ataque, os
 // pontos que saem de um placar e entram no outro.
-static void desenha_evento(void)
+static void desenha_evento_dentro(const evento_t *e, float p)
 {
-    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
-    const evento_t *e = &ev[ev_i];
-    float p = t_fase / duracao_evento(ev_i);
     if (e->tipo == EV_AVISO) return;             // so o texto (e o amuleto acende na faixa)
     if (e->tipo == EV_VAMPIRO) {                 // gotas saem dos dados do oponente e vao ate o Vampiro
         int bx = SLOT_X(e->de_k), by = zona(e->de_j);
@@ -2402,7 +2435,7 @@ static void desenha_evento(void)
         int ex = ax + (int)((bx - ax) * q), ey = ay + (int)((by - ay) * q);
         uint16_t c = ((int)(t_fase * 16) % 2) ? C_FOGO : C_AMARELO;
         gfx_linha_grossa(ax, ay, ex, ey + ((int)(t_fase * 20) % 3) - 1, 5, c);
-        if (p > 0.35f)
+        if (p > 0.35f && !(e->bloqueado >> e->alvo_k & 1))
             for (int i = 0; i < 10; i++) {
                 int px = bx - 18 + (i * 7) % 36;
                 int py = by - 24 - ((int)(t_fase * 70) + i * 9) % 40;
@@ -2784,6 +2817,26 @@ static void desenha_evento(void)
             ficha(PLACAR_X + 46, fy, C_OURO);
             if (q >= 1) txt_sombra_c(PLACAR_X - 64, zona(e->de_j) - 28, "+4", C_OURO, 1);
         }
+    }
+}
+
+// O evento da vez; e, nos dados com a capa do Impermeavel que ele atingiu,
+// o guarda-chuva abrindo quando o efeito chega (a onda da Medusa, em cada um
+// quando ela passa). O efeito vai ate eles e espirra para os lados.
+static void desenha_evento(void)
+{
+    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
+    const evento_t *e = &ev[ev_i];
+    float p = t_fase / duracao_evento(ev_i);
+    desenha_evento_dentro(e, p);
+    if (!e->bloqueado || e->alvo_j > 1) return;
+    uint16_t c = e->tipo == EV_FOGO ? C_FOGO : e->tipo == EV_MEDUSA ? C_CINZA : C_VENTO;
+    for (int k = 0; k < N_FILA; k++) {
+        if (!(e->bloqueado >> k & 1)) continue;
+        float chega = e->tipo == EV_MEDUSA ? 0.1f + 0.45f * abs(k - e->de_k) / 3.0f : e->tipo == EV_FOGO ? 0.35f : 0.38f;
+        if (p < chega) continue;
+        float q = (p - chega) / (1 - chega);
+        escudo_capa(SLOT_X(k), zona(e->alvo_j), fminf(1, q / 0.2f), q, c);
     }
 }
 

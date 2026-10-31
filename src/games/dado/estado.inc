@@ -118,6 +118,8 @@ typedef struct {
     amul_t  am;                      // amuletos que acendem quando ele toca
     uint8_t ad;                      // EV_ADESIVO: o adesivo
     uint8_t copia;                   // EV_ADESIVO: o Holografico copiando o 'ad' (o dado e o dele)
+    uint8_t bloqueado;               // dados do alvo (bit k: alvo_j, k) com a capa do Impermeavel: o
+                                     // efeito chega, mas nao pega (nem passa para outro dado)
     int     antes;                   // EV_TREMOR: o que o dado sacudido tinha tirado
     char txt[64];
 } evento_t;
@@ -223,6 +225,7 @@ static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
+static float vis_capa_t[2][N_FILA];             // quando o Impermeavel bloqueou um efeito neste dado (o escudo)
 static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
 // Anulado por um ataque no desfecho (e nao pela sequencia): racha, com as
 // trincas na cor de quem atacou (0: nao foi ataque) e desde quando (t_relogio).

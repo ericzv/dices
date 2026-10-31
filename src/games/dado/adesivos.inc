@@ -130,13 +130,13 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_BOMBA]        = { "Papel Bomba", "tirando este lado: rola", "de novo e soma os dois", 4, 1,
                           RGB(204, 194, 172), RGB(252, 248, 236), RGB(36, 32, 29),
                           { "#..#..#", ".#.#.#.", "..###..", "###.###", "..###..", ".#.#.#.", "#..#..#" } },
-    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: não quebra,", "não queima nem é comido", 3, 2,
+    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da", "partida, não pode ser destruído", 3, 2,
                           RGB(246, 222, 132), RGB(96, 134, 196), RGB(56, 86, 150),
                           { "...#...", ".#####.", "#######", "#..#..#", "...#...", ".#.#...", "..##..." } },
     [AD_LENTICULAR]   = { "Lenticular", "tirando este lado: válido, x2;", "anulado, -4 no seu placar", 3, 3,
                           RGB(150, 112, 160), RGB(206, 180, 218), C_BRANCO,
                           { ".......", "..###..", ".#...#.", "#.###.#", ".#...#.", "..###..", "......." } },
-    [AD_NEON]         = { "Néon", "tirando este lado, se válido:", "+2 por adesivo neste dado", 5, 7,
+    [AD_NEON]         = { "Neon", "tirando este lado, se válido:", "+2 por adesivo neste dado", 5, 7,
                           RGB(24, 22, 20), RGB(208, 98, 108), RGB(226, 164, 168),
                           { ".##.##.", "#..#..#", "#.....#", "#.....#", ".#...#.", "..#.#..", "...#..." } },
 };
@@ -324,7 +324,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_NOTA_DEZ]     = "Tirando este lado, o dado vira e fica com o lado mais alto para cima: no d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
     [AD_CARBONO]      = "Tirando este lado, o dado fica com o número do seu último dado válido da sequência. Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
     [AD_BOMBA]        = "Tirando este lado, o dado rola de novo e pontua a soma dos dois lances. Explode uma vez só: o adesivo do lado que ficou para cima no segundo lance age no fim da rodada, mas não faz rolar de novo.",
-    [AD_IMPERMEAVEL]  = "Tirando este lado, válido ou anulado, o dado fica protegido até o fim da partida: não quebra (nem pelo Frágil, nem como Vidro, nem pela Medusa ou pelo Coringa), não queima (a Ficha Fogo queima outro) e não é comido (a Autofagia só o anula).",
+    [AD_IMPERMEAVEL]  = "Tirando este lado, válido ou anulado, o dado fica protegido até o fim da partida: nada pode destruí-lo. O que tentar chega até ele, mas é bloqueado (e não passa para outro dado).",
     [AD_LENTICULAR]   = "Tirando este lado: se o dado terminar válido, pontua x2 no fim da rodada (soma com os outros multiplicadores); se terminar anulado, -4 no seu placar.",
     [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12).",
 };
@@ -347,11 +347,15 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
     static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
                                       RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
     bool cores = c == ADESIVO[a].tinta;
-    // O Neon grande brilha: um halo do tubo em volta de cada ponto, antes.
-    if (cores && a == AD_NEON && s >= 2)
+    // O Neon grande brilha: um halo do tubo em volta de cada ponto, antes, que
+    // respira - cresce e acende, encolhe e escurece.
+    float neon = 0.5f + 0.5f * sinf(t_relogio * 4.2f);
+    if (cores && a == AD_NEON && s >= 2) {
+        int e = neon > 0.45f ? 2 : 1;
         for (int j = 0; j < 7; j++)
             for (int i = 0; i < 7; i++)
-                if (ADESIVO[a].ic[j][i] == '#') gfx_rect(x + i * s - 1, y + j * s - 1, s + 2, s + 2, ADESIVO[a].luz);
+                if (ADESIVO[a].ic[j][i] == '#') gfx_rect(x + i * s - e, y + j * s - e, s + 2 * e, s + 2 * e, neon > 0.7f ? C_VINHO_CLR : C_VINHO);
+    }
     for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
             if (ADESIVO[a].ic[j][i] != '#') continue;
@@ -366,8 +370,9 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             else if (cores && a == AD_IMPERMEAVEL && j >= 3 && !(j == 3 && i != 3)) k = C_EBANO;   // o cabo
             else if (cores && a == AD_LENTICULAR && j == 3 && i >= 2 && i <= 4) k = i == 3 ? C_EBANO : C_AZUL;   // a iris
             else if (cores && a == AD_NOTA_DEZ && i >= 4) k = C_AMARELO;                       // o zero, de ouro
+            else if (cores && a == AD_NEON && neon < 0.25f) k = C_VINHO_CLR;                  // o tubo no fundo do pulso
             gfx_rect(x + i * s, y + j * s, s, s, k);
-            if (cores && a == AD_NEON && s >= 3) gfx_rect(x + i * s + s / 2, y + j * s + s / 2 - 1, 1, 1, C_BRANCO);   // o filamento
+            if (cores && a == AD_NEON && s >= 3 && neon > 0.3f) gfx_rect(x + i * s + s / 2, y + j * s + s / 2 - 1, 1, 1, C_BRANCO);   // o filamento
         }
 }
 

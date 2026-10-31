@@ -128,9 +128,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
   Carbono (copia o número do seu último dado válido: igual não cai), o Papel
   Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
-  partida, o dado não quebra, não queima e não é comido), o Lenticular
-  (valendo, x2; anulado, -4 no seu placar) e o Néon (valendo, +2 por adesivo
-  colado no dado); sete desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
+  partida, o dado não pode ser destruído: o que tentar é bloqueado nele), o
+  Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
+  por adesivo colado no dado); sete desde o começo, os outros abrem nos
+  níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
@@ -203,7 +204,7 @@ Raspadinha, Lobo, Gorjeta, Frágil e Velcro; incomuns: Confete, Reflexivo,
 Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha,
 Imantado, Papel Bomba, Impermeável e Lenticular; raros: Eletrônico,
 Transparente, Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel
-Carbono e Néon; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
+Carbono e Neon; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
 Dez). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.

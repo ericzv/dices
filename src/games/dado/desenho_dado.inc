@@ -2216,11 +2216,18 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (fr(d / 5) < 0.28f) return (ix + iy) & 1 ? RGB(206, 180, 218) : fundo;
         return fundo;
     }
-    case AD_NEON: {                               // o tubo de luz na parede escura: o brilho em volta, e um piscar de vez em quando
-        float p = fr(t / 6 + fase);
+    case AD_NEON: {                               // o tubo de luz na parede escura, respirando: o brilho em volta cresce e
+                                                  // encolhe, o tubo fica branco no pico; de vez em quando pisca e apaga
+        float p = fr(t / 6 + fase), pulso = 0.5f + 0.5f * sinf(t * 4.2f + fase * 6.3f);
         bool apaga = (p > 0.02f && p < 0.035f) || (p > 0.05f && p < 0.06f);
-        if (de >= 2.2f && de < 3.2f) return apaga ? C_VINHO : ((ix + iy) % 5 ? C_ROSA : C_BRANCO);
-        if ((de >= 1.2f && de < 2.2f) || (de >= 3.2f && de < 4.4f)) return !apaga && (ix + iy) & 1 ? C_VINHO : fundo;
+        if (de >= 2.2f && de < 3.2f) {                       // o tubo: de vermelho apagado a branco
+            if (apaga) return C_VINHO;
+            if (pulso < 0.25f) return C_VINHO_CLR;
+            return pulso > 0.65f && (ix + iy) & 1 ? C_BRANCO : C_ROSA;
+        }
+        float fora = de < 2.2f ? 2.2f - de : de - 3.2f, alcance = 1.0f + 3.8f * pulso;
+        if (!apaga && fora < alcance && bayer(ix, iy) < (1 - fora / alcance) * (0.35f + 0.65f * pulso))
+            return fora < 1.6f && pulso > 0.5f ? C_VINHO_CLR : C_VINHO;
         int linha = (int)floorf((Y + 100) / 4);
         if (fr((Y + 100) / 4) < 0.22f || fr((X + 100 + (linha & 1) * 3) / 6) < 0.15f) return C_EBANO;   // os tijolos
         return fundo;

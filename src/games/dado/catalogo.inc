@@ -7,7 +7,9 @@
 static void moeda_girando(int cx, int cy, int tipo, float t)
 {
     float c = cosf(t * 1.4f), e = 0.34f + 0.66f * fabsf(c);
-    moeda_girando_arte((float)cx, (float)cy, 44, tipo, 0, c >= 0 ? e : -e, c >= 0 ? 1 : 2);
+    face_curinga = tipo == D_FICHA_CORINGA && c >= 0;   // a Ficha Coringa: o curinga de um lado, o numero que virou do outro
+    moeda_girando_arte((float)cx, (float)cy, 44, tipo, 0, c >= 0 ? e : -e, tipo == D_FICHA_CORINGA ? 7 : c >= 0 ? 1 : 2);
+    face_curinga = false;
 }
 
 // Faces que o dado pode mostrar, na ordem em que o catalogo as percorre.
@@ -265,7 +267,11 @@ static void desenha_catalogo(void)
         float ang = sinf(t_fase * 0.9f) * 0.3f;           // balanca devagar
         if (d->efeito && st != 2) brilho_poder((float)cx, (float)cy, r, tipo, ang, true);
         so_apagado = true;
+        peca_t am = adesivado_amostra();                 // o Adesivado mostra os adesivos de uma amostra
+        if (tipo == D_ADESIVADO) ad_face = ad_no_lado(&am, f[i]);
+        if (tipo == D_DIGITAL && dentro < DIGITAL_ACENDE) digital_q = dentro / DIGITAL_ACENDE;   // o visor acende a cada numero
         desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, f[i], 2, st == 2);
+        if (tipo == D_ADESIVADO) ad_selos((float)cx, (float)cy, r, &am, 0);
         so_apagado = false;
         if (d->efeito && st != 2) anima_poder(cx, cy, (int)r, tipo, 0);
         if (tipo == D_TREVO && f[i] == 4) {
@@ -334,6 +340,7 @@ static void desenha_detalhe(void)
             if (d < 1 && bayer(cx + x, cy + 40 + y) < (1 - d) * 1.4f) gfx_pixel(cx + x, cy + 40 + y, C_BARRA);
         }
     peca_t pc = { .tipo = (uint8_t)tipo, .fixo = 0 };               // nova_peca sortearia: aqui so se olha
+    if (tipo == D_ADESIVADO) pc = adesivado_amostra();
     peca_parada((float)cx, (float)cy, 32, pc, 0);
     int x = x0 + 160;
     gfx_texto(x, y0 + 16, TIPO[tipo].nome, cor_dado(tipo), 1, true);

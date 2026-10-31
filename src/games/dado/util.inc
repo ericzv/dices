@@ -22,7 +22,7 @@ static int rola_v(int lados) { return 1 + (int)(rnd_v() % (uint32_t)lados); }
 // Face que pisca enquanto o dado rola: so as que ele pode mostrar.
 static int face_v(int tipo, int valor)
 {
-    if (tipo == D_QUEBRADO || tipo == D_FANTASMA || tipo == D_PREVISIVEL) return valor;
+    if (tipo == D_QUEBRADO || tipo == D_FANTASMA || tipo == D_PREVISIVEL || tipo == D_RELOGIO) return valor;
     if (tipo == D_VAZIO) return 0;
     if (tipo == D_LASTRO)   return 3 + rola_v(9);
     return rola_v(TIPO[tipo].lados);
@@ -78,10 +78,15 @@ static int tipo_de(int j, int k)
     return F[j].tipo[k];
 }
 
+// O Relogio tira o numero da rodada (de 1 ate o maior lado dele).
+static int relogio_valor(void) { return rodada < 1 ? 1 : rodada > RELOGIO_MAX ? RELOGIO_MAX : rodada; }
+
+static void adesiva(peca_t *p, int (*r)(int), bool desafio);
 static peca_t nova_peca(int tipo)
 {
     peca_t p = { .tipo = (uint8_t)tipo, .fixo = 0 };
     if (tipo == D_QUEBRADO) p.fixo = (uint8_t)rola(8);
+    if (tipo == D_ADESIVADO) adesiva(&p, rola, modo == M_DESAFIO);   // ja vem com os adesivos
     return p;
 }
 

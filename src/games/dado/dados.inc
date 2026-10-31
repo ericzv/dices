@@ -17,7 +17,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_PACTO, EF_ASSOMBRA, EF_FICHA_VELHA, EF_SANGUESSUGA,
        EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
        EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER,
-       EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO };
+       EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO,
+       EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -54,7 +55,10 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_TRENO, D_BONECO, D_JINGLE, D_FURIA, D_ONDA, D_TSUNAMI, D_PATINHOS,
        D_PRESENTE, D_PANETONE, D_PISCA, D_MEIA, D_ESTRELA, D_RENA, D_REVOLVER,
        // O ciclo cosmico: a Estrela (D_ASTRO; a de Natal e a D_ESTRELA) e o que ela vira.
-       D_ASTRO, D_CONSTELACAO, D_GALAXIA, D_BURACO, D_UNIVERSO, D_N };
+       D_ASTRO, D_CONSTELACAO, D_GALAXIA, D_BURACO, D_UNIVERSO,
+       // Os mais novos: a ficha que vira o do oponente, o que sacode a mesa
+       // dele, o visor que acende +1, o que marca a rodada e o cheio de adesivos.
+       D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -94,6 +98,12 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define MEIA_MAX    99
 // A Estrela de Belem, por ultimo: o que rende por dado valendo abaixo dela.
 #define ESTRELA_PTS 2
+// O Terremoto sacode a mesa do oponente tirando de tanto para cima; o
+// Relogio marca a rodada, ate o maior lado dele; o Adesivado vem com tantos
+// adesivos.
+#define TERREMOTO_DE 7
+#define RELOGIO_MAX  20
+#define ADESIVADO_N  3
 // O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
 static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
@@ -272,6 +282,11 @@ static const tipo_t TIPO[D_N] = {
     { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
     { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "14 a 20: anula os vizinhos, e evolui" },
     { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · nada interfere nele" },
+    { "Ficha Coringa",    2, EF_FICHA_CORINGA, RAR_LENDA,   0, "No fim, vira o último dado do oponente" },
+    { "Terremoto",        8, EF_TERREMOTO,    RAR_RARO,     0, "Com 7 ou 8: rola de novo o último dado do oponente" },
+    { "Digital",          6, EF_DIGITAL,      RAR_LENDA,    0, "Acende o último dado da sequência +1" },
+    { "Relógio",         20, EF_RELOGIO,      RAR_RARO,     0, "Tira o número da rodada: 1, 2, 3..." },
+    { "Adesivado",        6, EF_ADESIVADO,    RAR_INCOMUM,  0, "Já vem com 3 adesivos ao acaso" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -390,6 +405,11 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
     [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
     [D_UNIVERSO]        = "Só pode ser lançado sozinho. Nada interfere nele: pontua exatamente o que tirar.",
+    [D_FICHA_CORINGA]   = "Fica fora da sequência até o fim da rodada; então vira o último dado válido do oponente.",
+    [D_TERREMOTO]       = "Se terminar válido com 7 ou 8, no fim rola de novo o último dado válido do oponente.",
+    [D_DIGITAL]         = "Não é sorteado: acende o número do último dado válido da sequência +1, e nunca cai.",
+    [D_RELOGIO]         = "Não é sorteado: tira o número da rodada - 1 na primeira, 2 na segunda, 7 na sétima.",
+    [D_ADESIVADO]       = "Já vem com 3 adesivos diferentes, sorteados, colados em 3 lados ao acaso.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -616,6 +636,20 @@ static const char *TEXTO_CAT[D_N] = {
     [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Nada interfere nele: "
                           "nenhum dado, adesivo, amuleto ou trunfo, seu ou do oponente, o anula, rouba, copia ou muda o que "
                           "ele tira. A cada partida, recomeça como Estrela.",
+    [D_FICHA_CORINGA]   = "Uma ficha. Lançada, fica com o curinga para cima e fora da sequência: o dado seguinte se "
+                          "compara com o de antes dela. No fim da rodada, vira o último dado válido do oponente e entra "
+                          "na sequência com esse número - aí pode cair, ou derrubar o seguinte. Não copia o Universo.",
+    [D_TERREMOTO]       = "Oito lados. Se terminar válido com 7 ou 8, no fim da rodada o chão do oponente treme: o "
+                          "último dado válido dele rola de novo, como ele rola, e a sequência dele é refeita com o "
+                          "número novo - menor que o de antes, ele cai e leva junto o anterior. O Universo não treme.",
+    [D_DIGITAL]         = "Seis lados, mas não é sorteado: o visor só acende quando ele entra na sequência, com o "
+                          "número do último dado válido +1, seja ele qual for (depois de um 20, acende 21). Por isso "
+                          "nunca cai. Primeiro da sequência, acende 1.",
+    [D_RELOGIO]         = "Vinte lados, mas não é sorteado: tira o número da rodada - 1 na primeira, 2 na segunda, "
+                          "7 na sétima, até 20. O mostrador enche um pouco a cada rodada.",
+    [D_ADESIVADO]       = "Seis lados. Sai da loja, do prêmio ou da bolsa com 3 adesivos diferentes, sorteados, em 3 "
+                          "lados sorteados. Os adesivos agem como qualquer outro, cada um quando o lado dele fica "
+                          "para cima.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -830,6 +864,16 @@ static const visual_t VISUAL[D_N] = {
     [D_GALAXIA]     = { V_AMEIXA, 0, 0,         V_LILAS, 100,   V_AMEIXA, 100, V_ROXO, 100 },
     [D_BURACO]      = { V_FOGO,   0, 0,         V_TRIGO, 100,   V_AMBAR, 100,  V_FOGO, 100 },
     [D_UNIVERSO]    = { V_AMEIXA, 0, 0,         V_BRANCO, 100,  V_ROXO, 100,   V_VINHO, 100 },
+    // A Ficha Coringa: a ficha de cassino roxa, com as listras de marfim na beira e o anel de ouro.
+    [D_FICHA_CORINGA] = { V_AMEIXA, V_ROXO, 62, V_BRANCO, 100,  V_OURO, 100,   RGB(54, 36, 74), 100 },
+    // O Terremoto: a pedra rachada, com a lava acesa na falha.
+    [D_TERREMOTO]   = { V_FOGO,   V_PEDRA, 52,  V_BARRO, 100,   V_FOGO, 100,   V_AMBAR, 100 },
+    // O Digital: o aparelho escuro, o visor de cristal e os segmentos apagados.
+    [D_DIGITAL]     = { V_LIMA,   V_CHUMBO, 82, RGB(34, 76, 44), 100, V_BREU, 70, RGB(48, 98, 58), 100 },
+    // O Relogio: o mostrador de marfim, os tracos das horas e o arco das rodadas.
+    [D_RELOGIO]     = { V_LATAO,  0, 0,         V_BREU, 80,     V_LATAO_E, 100, V_VERM, 100 },
+    // O Adesivado: o marfim coberto de pedacos de adesivo nos cantos.
+    [D_ADESIVADO]   = { V_ROSA,   0, 0,         V_ROSA, 100,    V_CIANO, 100,  V_TRIGO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

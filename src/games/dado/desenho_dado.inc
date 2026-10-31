@@ -325,6 +325,8 @@ static bool caixa_fechada;
 // As frutas do Panetone na fatia desta vez (-1: na mao, ainda nao cortada;
 // mostra as tres).
 static int frutas_desta = -1;
+// O Relogio: as horas que o mostrador marca (o arco enche ate elas).
+static int relogio_desta = 1;
 // O Pisca-pisca aceso? Na mao, como vem no proximo lance; na fila, como veio.
 static bool pisca_desta(void) { return marca_nivel < 0 || pisca_aceso(marca_nivel); }
 // A Meia na Lareira: o que ela guardou (na colecao, um pouco).
@@ -1298,6 +1300,63 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float px = (fr(fx) - 0.5f) * 0.15f, py = (fr(fy) - 0.5f) * 0.13f;
         return fabsf(py) < 0.045f && fabsf(px - py * 0.45f) < s * 0.6f;
     }
+    case D_FICHA_CORINGA: {                       // a ficha de cassino: seis listras de marfim na beira, o anel de ouro, o miolo liso
+        if (ro > 0.60f) {
+            if (fabsf(fr(atan2f(v, u) / 6.2832f * 6 + 0.25f) - 0.5f) < 0.15f) return 1;
+            return ro > 0.86f - l ? 3 : 0;                                    // a beira escura entre as listras
+        }
+        return fabsf(ro - 0.54f) < l * 1.3f + 0.015f ? 2 : 0;
+    }
+    case D_TERREMOTO: {                           // a pedra rachada: uma falha com lava embaixo a esquerda, outra seca no alto a direita
+        static const float LAVA[6][2] = { {-0.94f,0.02f}, {-0.64f,0.14f}, {-0.58f,0.36f}, {-0.32f,0.44f}, {-0.24f,0.66f}, {0.02f,0.94f} };
+        static const float SECA[5][2] = { {0.02f,-0.94f}, {0.20f,-0.70f}, {0.42f,-0.66f}, {0.50f,-0.44f}, {0.80f,-0.22f} };
+        float d = 9, g = 9;
+        for (int i = 0; i < 5; i++) { float q = dist_seg(u, v, LAVA[i][0], LAVA[i][1], LAVA[i + 1][0], LAVA[i + 1][1]); if (q < d) d = q; }
+        for (int i = 0; i < 4; i++) { float q = dist_seg(u, v, SECA[i][0], SECA[i][1], SECA[i + 1][0], SECA[i + 1][1]); if (q < g) g = q; }
+        float w = 0.05f + l;
+        if (d < w * 0.5f) return 3;                                           // o miolo aceso da lava
+        if (d < w) return 2;                                                  // a lava
+        if (d < w + s * 1.2f || g < s * 0.8f + 0.012f) return 1;              // a beira da falha, e a falha seca
+        float pu = u - 0.46f, pv = v - 0.52f;                                 // duas pedrinhas soltas embaixo a direita
+        if (pu * pu + pv * pv < 0.06f * 0.06f || (u + 0.48f) * (u + 0.48f) + (v + 0.40f) * (v + 0.40f) < 0.045f * 0.045f) return 1;
+        return 0;
+    }
+    case D_DIGITAL: {                             // o aparelho: o visor de cristal com a moldura, dois botoes e a luz de ligado
+        float au = fabsf(u), av = fabsf(v + 0.06f);
+        if (au < 0.60f && av < 0.40f) return au > 0.60f - s * 1.4f || av > 0.40f - s * 1.4f ? 2 : 1;
+        float bu = au - 0.22f, bv = v - 0.58f;
+        if (bu * bu + bv * bv < 0.075f * 0.075f) return 2;                    // os botoes
+        float lu = u + 0.52f, lv = v + 0.62f;
+        if (lu * lu + lv * lv < 0.045f * 0.045f) return 3;                    // a luz de ligado
+        return 0;
+    }
+    case D_RELOGIO: {                             // o mostrador: os tracos das horas, o aro, o arco das rodadas e o ponteiro
+        float an = atan2f(u, -v);                                             // 0 no meio-dia, no sentido do relogio
+        if (an < 0) an += 6.2832f;
+        int h = (relogio_desta - 1) % 12 + 1;
+        float fim = h * 0.5236f;
+        if (ro > 0.76f && ro < 0.86f && an <= fim + 0.02f) return 3;          // o arco que enche a cada rodada
+        if (fabsf(ro - 0.72f) < l + 0.008f) return 2;                         // o aro do mostrador
+        float hm = an / 0.5236f, dh = fabsf(hm - roundf(hm)) * 0.5236f * ro;  // a distancia ao traco da hora mais perto
+        bool grande = ((int)roundf(hm) % 3) == 0;
+        if (ro > (grande ? 0.52f : 0.58f) && ro < 0.68f && dh < (grande ? 0.04f : 0.022f) + l * 0.6f) return 1;
+        float pa = (h % 12) * 0.5236f, px = sinf(pa), py = -cosf(pa);          // o ponteiro, para fora do numero
+        if (dist_seg(u, v, px * 0.40f, py * 0.40f, px * 0.62f, py * 0.62f) < 0.035f + l * 0.6f) return 3;
+        return 0;
+    }
+    case D_ADESIVADO: {                           // pedacos de adesivo tortos nos cantos, em volta do numero
+        static const float A[5][5] = { {-0.50f,-0.50f,0.20f,0.13f,0.50f}, {0.52f,-0.46f,0.17f,0.12f,-0.60f},
+                                       {-0.48f,0.52f,0.16f,0.13f,-0.30f}, {0.50f,0.52f,0.21f,0.12f,0.35f},
+                                       {0.04f,-0.68f,0.12f,0.07f,0.10f} };
+        for (int i = 0; i < 5; i++) {
+            float c = cosf(A[i][4]), sn = sinf(A[i][4]);
+            float x = (u - A[i][0]) * c + (v - A[i][1]) * sn, y = -(u - A[i][0]) * sn + (v - A[i][1]) * c;
+            if (fabsf(x) >= A[i][2] || fabsf(y) >= A[i][3]) continue;
+            if (x + y > A[i][2] + A[i][3] - 0.09f) return 0;                  // o canto que descolou
+            return 1 + i % 3;
+        }
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;
@@ -1851,6 +1910,13 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
 // vista 2: pousado, mostra o valor final (e riscado se zerou).
 // O Oculto ainda virado: a face mostra "?" no lugar do numero.
 static bool face_escondida;
+// A Ficha Coringa ainda sem numero: o curinga para cima (quem desenha avisa;
+// na mao e no ar, sempre).
+static bool face_curinga;
+// O visor do Digital: -1 apagado (ainda fora da sequencia: so os tracos),
+// de 0 a 1 acendendo (acabou de entrar), 1 aceso. Quem desenha avisa antes;
+// volta a 1 depois de cada dado.
+static float digital_q = 1;
 
 // O adesivo do lado que esta para cima: quem desenha o dado na mesa avisa
 // antes (como o brilho de passagem), e a etiqueta vai na face, por baixo do
@@ -2175,6 +2241,86 @@ static void furia_selo(float cx, float cy, float r, int b, bool ouro)
     gfx_texto(x + 3, y - 2, t, ouro ? C_OURO : b > 0 ? C_AMARELO : C_VINHO_CLR, GFX_MIUDO, false);
 }
 
+// Um desenho de pontos (como sprite_em) em escala esc: cada ponto um bloco,
+// e o contorno escuro de 1 pixel em volta.
+static void sprite_esc(int cx, int cy, const char *const *l, int h, int esc, uint16_t c1, uint16_t c2, uint16_t c3)
+{
+    int w = (int)strlen(l[0]), x0 = cx - w * esc / 2, y0 = cy - h * esc / 2;
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++)
+            if (l[j][i] != '.') gfx_rect(x0 + i * esc - 1, y0 + j * esc - 1, esc + 2, esc + 2, C_BARRA);
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            char c = l[j][i];
+            if (c != '.') gfx_rect(x0 + i * esc, y0 + j * esc, esc, esc, c == '+' ? c2 : c == 'o' ? c3 : c1);
+        }
+}
+// O curinga da Ficha Coringa: o chapeu de bobo da corte, tres pontas com os
+// guizos de ouro, as de fora vermelhas e a do meio de marfim.
+static const char *const CHAPEU_CURINGA[] = { "+....+....+", "#....o....#", "##..ooo..##", ".##.ooo.##.",
+                                              ".###ooo###.", "..##ooo##..", "..#ooooo#..", ".+++++++++.",
+                                              ".+o+o+o+o+." };
+static void curinga_face(float cx, float cy, float r, bool zerado)
+{
+    int esc = r >= 15 ? (int)(r / 9) : 1;
+    if (esc < 1) esc = 1;
+    if (zerado) sprite_esc((int)cx, (int)cy, CHAPEU_CURINGA, 9, esc, C_EBANO_B, C_CINZA, C_MARFIM_S);
+    else sprite_esc((int)cx, (int)cy, CHAPEU_CURINGA, 9, esc, C_VERMELHO, C_OURO, C_MARFIM);
+}
+
+// O visor do Digital: algarismos de sete segmentos (a, b, c, d, e, f, g nos
+// bits 0 a 6; 10 e o traco), os acesos em lima sobre o cristal escuro e os
+// apagados quase sumindo.
+static const uint8_t SEG7[11] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x40 };
+static void seg7(int x, int y, int e, int k, int hl, uint8_t m, uint16_t aceso, uint16_t apagado)
+{
+    int w = 2 * e + hl, gy = e + k;
+    const int S[7][4] = { { x + e, y, hl, e }, { x + w - e, y + e, e, k }, { x + w - e, y + gy + e, e, k },
+                          { x + e, y + 2 * gy, hl, e }, { x, y + gy + e, e, k }, { x, y + e, e, k }, { x + e, y + gy, hl, e } };
+    for (int i = 0; i < 7; i++)
+        if ((m >> i & 1) || apagado) gfx_rect(S[i][0], S[i][1], S[i][2], S[i][3], (m >> i & 1) ? aceso : apagado);
+}
+// O que o visor mostra: o numero (v), "+1" (na mao: o que ele faz) ou os
+// tracos (q < 0: ainda fora da sequencia). q de 0 a 1: acendendo - os
+// segmentos piscam ao acaso, acendem todos ("88") e entao o numero, num
+// clarao. zerado: anulado, o numero apagado.
+static void visor_digital(float cx, float cy, float r, int v, bool mais_um, float q, bool zerado)
+{
+    int e = r >= 24 ? (int)(r / 12) : r >= 14 ? 2 : 1, k = (int)(r * 0.19f), hl = (int)(r * 0.24f);
+    if (k < 1) k = 1;
+    if (hl < 2) hl = 2;
+    int w = 2 * e + hl, h = 3 * e + 2 * k, gap = e + 1;
+    uint16_t apagado = RGB(36, 32, 29), aceso = zerado ? C_EBANO_B : C_LASER;
+    uint8_t m[2] = { SEG7[10], SEG7[10] };       // os tracos
+    int n = 2;
+    if (mais_um) { m[0] = 0; m[1] = SEG7[1]; }
+    else if (q >= 0) {
+        int vv = v < 0 ? 0 : v > 99 ? 99 : v;
+        if (vv < 10) { n = 1; m[0] = SEG7[vv]; }
+        else { m[0] = SEG7[vv / 10]; m[1] = SEG7[vv % 10]; }
+    }
+    if (q >= 0 && q < 0.30f) {                   // ligando: pisca ao acaso
+        uint32_t hs = hash2((int)(t_relogio * 24), (int)cx);
+        m[0] = (uint8_t)(hs & 0x7F); m[1] = (uint8_t)(hs >> 7 & 0x7F); n = 2;
+        aceso = C_VERDE;
+    } else if (q >= 0.30f && q < 0.50f) { m[0] = m[1] = 0x7F; n = 2; aceso = C_LASER; }   // "88"
+    else if (q >= 0.50f && q < 0.62f) aceso = C_BRANCO;                   // o clarao do numero
+    if (q < 0 && (int)(t_relogio * 3) % 2) aceso = C_VERDE;              // os tracos piscando devagar
+    int x0 = (int)cx - (n * w + (n - 1) * gap) / 2, y0 = (int)cy - h / 2 - 1;
+    for (int i = 0; i < n; i++) seg7(x0 + i * (w + gap), y0, e, k, hl, m[i], aceso, apagado);
+    if (mais_um) {                               // o "+" no lugar do primeiro algarismo
+        int px = x0 + w / 2, py = y0 + h / 2;
+        gfx_rect(px - hl / 2 - e + 1, py - e / 2, hl + 2 * e - 2, e, aceso);
+        gfx_rect(px - e / 2, py - hl / 2 - e + 1, e, hl + 2 * e - 2, aceso);
+    }
+}
+// O dado esta numa partida (o Relogio mostra a rodada; fora dela, gira).
+static bool na_partida(void)
+{
+    return rodada >= 1 && (fase == F_ORDEM || fase == F_APOSTA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_RESULTADO
+                           || fase == F_JOGA || fase == F_VEREDITO || fase == F_EFEITOS || fase == F_PREMIO || fase == F_LOJA);
+}
+
 static bool px_sem_sombra;               // o modo Pixel faz a sombra (pontilhada) por fora
 static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
                               float ang, int valor, int vista, bool zerado)
@@ -2183,7 +2329,14 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     brilho_passa = -1;
     bool caixa = caixa_fechada && tipo == D_PRESENTE;
     caixa_fechada = false;
-    int adf = vista && valor != SO_CORPO && !face_escondida ? ad_face : 0;   // a etiqueta e so deste dado
+    bool curinga = tipo == D_FICHA_CORINGA && (face_curinga || vista < 2);   // na mao e no ar, sempre o curinga
+    face_curinga = false;
+    float dq = digital_q;
+    digital_q = 1;
+    if (tipo == D_RELOGIO)                        // as horas do mostrador: as que tirou; na mao, as da rodada
+        relogio_desta = vista == 2 && valor >= 1 && valor != SO_CORPO ? valor
+                      : na_partida() ? relogio_valor() : 1 + (int)(t_relogio * 1.2f) % 12;
+    int adf = vista && valor != SO_CORPO && !face_escondida && !curinga && tipo != D_DIGITAL ? ad_face : 0;   // a etiqueta e so deste dado
     bool adf_aceso = ad_face_aceso;
     ad_face = 0;
     ad_face_aceso = false;
@@ -2215,7 +2368,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         tinta = C_MARFIM;
     }
     if (tipo == D_VICIADO) tinta = C_VERMELHO;   // pontos de cassino
-    if (tipo == D_SACRIFICIO) tinta = C_MARFIM;   // o corpo vinho pede a tinta clara
+    if (tipo == D_SACRIFICIO || tipo == D_FICHA_CORINGA) tinta = C_MARFIM;   // o corpo vinho (e o roxo da ficha) pede a tinta clara
     if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)
         corpo = tipo == D_GALAXIA ? RGB(54, 36, 74) : tipo == D_BURACO ? RGB(14, 14, 12) : RGB(26, 34, 62);
         tinta = tipo == D_ASTRO ? RGB(26, 34, 62) : C_MARFIM;   // na Estrela, o numero escuro sobre a luz
@@ -2355,6 +2508,17 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     // O ciclo cosmico: o numero sobre o ceu desenhado ganha o contorno do
     // corpo (na Estrela, nao: o numero escuro fica sobre a luz).
     uint16_t contorno = cosmico(tipo) && tipo != D_ASTRO && !zerado && r >= 12 ? corpo : 0;
+    if (tipo == D_FICHA_CORINGA && !zerado && r >= 12) contorno = RGB(54, 36, 74);
+    if (curinga && valor != SO_CORPO) {          // a Ficha Coringa: o curinga, ate virar
+        curinga_face(cx, cy, r, zerado);
+        if (zerado && vista) risca(cx, cy, r);
+        return;
+    }
+    if (tipo == D_DIGITAL && valor != SO_CORPO) {   // o visor: "+1" na mao, os tracos no ar, o numero na sequencia
+        visor_digital(cx, cy, r, valor, vista == 0, vista == 1 ? -1 : dq, zerado);
+        if (zerado && vista) risca(cx, cy, r);
+        return;
+    }
     if (vista == 0) {
         // Parado na mao mostra quantos lados tem - ou, no Quebrado, o numero
         // gravado nele, que e o que ele vai valer.
@@ -2370,6 +2534,11 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             return;
         }
         if (tipo == D_VAZIO) { numero(cx, cy, r, "0", tinta); return; }
+        if (tipo == D_RELOGIO && na_partida()) {  // o numero que ele vai tirar: o da rodada
+            snprintf(s, sizeof s, "%d", relogio_valor());
+            numero(cx, cy, r, s, tinta);
+            return;
+        }
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se
         // confunde com um valor tirado, que vem na tinta cheia.
         snprintf(s, sizeof s, "%d", lados);
@@ -2394,6 +2563,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         }
     }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && TIPO[tipo].efeito != EF_ASTRO
+        && tipo != D_ADESIVADO
         && valor >= 1 && valor <= 6 && (!zerado || so_apagado)) {
         uint16_t luz = cor_de_dado(gfx_mistura(tinta, corpo, 45));   // o furo com relevo
         pips_luz((int)cx, (int)cy, valor, (int)r, tinta, luz == tinta ? 0 : luz);

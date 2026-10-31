@@ -125,7 +125,7 @@ static bool melhor_lance(int j, peca_t *out)
     const fila_t *f = &F[j];
     int b = -1;
     for (int k = 0; k < f->lancados && k < f->n; k++)
-        if (!f->escondido[k] && f->tipo[k] != D_UNIVERSO && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto ainda nao mostrou; o Universo nao se copia
+        if (!f->escondido[k] && !f->curinga[k] && f->tipo[k] != D_UNIVERSO && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto e a Ficha Coringa ainda nao mostraram; o Universo nao se copia
     if (b < 0) return false;
     *out = (peca_t){ .tipo = f->tipo[b], .fixo = f->fixo[b] };
     return true;
@@ -245,6 +245,8 @@ static void nova_rodada(void)
     memset(vis_mult, 0, sizeof vis_mult);
     memset(vis_queima, 0, sizeof vis_queima);
     memset(vis_espelho, 0, sizeof vis_espelho);
+    memset(vis_curinga, 0, sizeof vis_curinga);
+    memset(vis_tremor, 0, sizeof vis_tremor);
     memset(vis_semente, 0, sizeof vis_semente);
     aviso[0] = veredito[0] = nota[0] = 0;
     vez = primeiro;
@@ -390,6 +392,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
     case EF_QUEBRADO: *lado = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
     case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
     case EF_PREVISIVEL: *lado = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
+    case EF_RELOGIO:  *lado = relogio_valor(); break;              // o numero da rodada
     case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
     default: break;
     }
@@ -412,7 +415,8 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     int ef = TIPO[t].efeito;
     int x0 = primeiro_lance(t, r);
     *antes = 0;
-    if (p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL) {
+    if (p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL && ef != EF_RELOGIO
+        && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA) {          // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
         int ch[AD_LADOS], n = 0;
         for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
         // Um Chumbo: metade das vezes; dois (o maximo), cada um a metade.
@@ -1073,6 +1077,8 @@ static int som_do_evento(int i)
         default:        return SOM_ANULA;
         }
     case EV_ONDA:    return SOM_ONDA;
+    case EV_TREMOR:  return SOM_FORTE;            // a mesa ronca; o dado bate depois (passo.inc)
+    case EV_CORINGA: return SOM_MOEDA_BATE;       // a ficha gira; e pousa depois
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
@@ -1103,7 +1109,7 @@ static int som_do_evento(int i)
 // A voz de cada poder, quando o som do evento seria o comum (efeito, anula,
 // tira): um som da casa que lembre o que o dado faz e o tom dele, para uma
 // cadeia de efeitos nao soar como a mesma nota repetida. som 0: sem voz.
-static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_UNIVERSO + 1] = {
+static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_CARRASCO] = { SOM_ANULA, -5 },        [EF_INVEJOSO] = { SOM_ANULA, 3 },
     [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
     [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
@@ -1132,6 +1138,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_UNIVERSO + 1] = {
     [EF_RANCOR] = { SOM_EFEITO, -9 },         [EF_MEDIA] = { SOM_EFEITO, -4 },
     [EF_JINGLE] = { SOM_SINO, 0 },            [EF_PANETONE] = { SOM_PRESENTE, 0 },
     [EF_JACKPOT] = { SOM_FICHA, 4 },
+    [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons
@@ -1145,7 +1152,7 @@ static void toca_evento(int i)
     const evento_t *e = &ev[i];
     int ef = e->tipo != EV_ADESIVO && e->de_j < 2 && e->de_k < N_FILA ? TIPO[F[e->de_j].tipo[e->de_k]].efeito : 0;
     bool comum = s == SOM_EFEITO || s == SOM_ANULA || s == SOM_TIRA || s == SOM_FICHA;
-    if (comum && ef > 0 && ef <= EF_UNIVERSO && VOZ_PODER[ef].som) som_toca_tom(VOZ_PODER[ef].som, VOZ_PODER[ef].tom);
+    if (comum && ef > 0 && ef < EF_N && VOZ_PODER[ef].som) som_toca_tom(VOZ_PODER[ef].som, VOZ_PODER[ef].tom);
     else if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
     else som_toca(s);
     for (int a = 0; a < A_N; a++) if (ev[i].am >> a & 1) am_acende(a);   // o amuleto que agiu acende
@@ -1216,13 +1223,23 @@ static void desfecho(void)
         memset(vis_tsunami[j], 0, N_FILA);
         memset(vis_espelho[j], 0, N_FILA);
         memset(vis_oculto[j], 0, N_FILA);
+        memset(vis_curinga[j], 0, N_FILA);
+        memset(vis_tremor[j], 0, N_FILA);
     }
-    for (int i = 0; i < n_ev; i++)
-        if (ev[i].tipo == EV_ESPELHO || ev[i].tipo == EV_REVELA) {
-            if (ev[i].tipo == EV_ESPELHO) vis_espelho[ev[i].de_j][ev[i].de_k] = 1;
-            else vis_oculto[ev[i].de_j][ev[i].de_k] = 1;
-            memcpy(vis_est[ev[i].de_j], est_pre_espelho[ev[i].de_j], N_FILA);
-        }
+    // O que se refez no comeco do desfecho (o Espelho, o Oculto, o tremor, a
+    // Ficha Coringa) aparece na mesa so quando o evento de cada um chega.
+    for (int i = 0; i < n_ev; i++) {
+        const evento_t *e = &ev[i];
+        int q = e->tipo == EV_TREMOR ? e->alvo_j : e->de_j;
+        if (e->tipo == EV_ESPELHO) vis_espelho[e->de_j][e->de_k] = 1;
+        else if (e->tipo == EV_REVELA) vis_oculto[e->de_j][e->de_k] = 1;
+        else if (e->tipo == EV_CORINGA) vis_curinga[e->de_j][e->de_k] = 1;
+        else if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA && !vis_tremor[q][e->alvo_k]) {
+            vis_tremor[q][e->alvo_k] = 1;                 // o primeiro tremor no dado: o que ele tinha
+            vis_tremor_de[q][e->alvo_k] = e->antes;
+        } else continue;
+        memcpy(vis_est[q], est_pre_espelho[q], N_FILA);
+    }
     n_voo = 0;
     ev_i = 0;
     t_fase = 0;
@@ -1243,6 +1260,16 @@ static void proximo_evento(void)
     else { toca_evento(ev_i); reage_evento(&ev[ev_i]); }
 }
 
+// Os tempos de dentro do tremor e da Ficha Coringa (fracoes do evento): a
+// falha corre, o dado salta e pousa; a ficha sobe, vira e cai. E o visor do
+// Digital, que acende (segundos) quando ele entra na sequencia.
+#define TREMOR_RACHA  0.06f
+#define TREMOR_SALTA  0.40f
+#define TREMOR_POUSA  0.80f
+#define CORINGA_SOBE  0.30f
+#define CORINGA_POUSA 0.74f
+#define CORINGA_VIRA  ((CORINGA_SOBE + CORINGA_POUSA) / 2)
+#define DIGITAL_ACENDE 0.55f
 static float duracao_evento(int i)
 {
     switch (ev[i].tipo) {
@@ -1259,6 +1286,8 @@ static float duracao_evento(int i)
     case EV_ONDA:    return 2.1f;
     case EV_GARIMPO: return 1.7f;
     case EV_REVELA:  return 1.4f;
+    case EV_CORINGA: return 1.9f;
+    case EV_TREMOR:  return 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
     case EV_AVISO:   return 1.5f;
@@ -1407,9 +1436,15 @@ static void aplica_evento(int i)
     }
     case EV_ESPELHO:                    // virou: a sequencia refeita aparece
     case EV_REVELA:                     // o Oculto mostrou: idem
+    case EV_CORINGA:                    // a Ficha Coringa virou: idem
         vis_espelho[e->de_j][e->de_k] = 0;
         vis_oculto[e->de_j][e->de_k] = 0;
+        vis_curinga[e->de_j][e->de_k] = 0;
         memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
+        break;
+    case EV_TREMOR:                     // o dado sacudido pousou: a sequencia do oponente refeita
+        if (e->alvo_k < N_FILA) vis_tremor[e->alvo_j][e->alvo_k] = 0;
+        memcpy(vis_est[e->alvo_j], F[e->alvo_j].est, N_FILA);
         break;
     case EV_VAMPIRO:
         for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->alvo_j][k] -= (int8_t)e->valor;
@@ -1524,14 +1559,14 @@ static void descarta_sobras(int j)
 }
 
 // Quem abriu a rodada terminou com 0, e nada mais muda isso: sem Espelho
-// esperando o outro, sem Oculto escondido, sem a carta do Coringa, e 0 tambem
-// depois dos efeitos do fim. Qualquer dado do outro ja venceria: a rodada
-// acaba aqui.
+// esperando o outro, sem Oculto escondido, sem Ficha Coringa por virar, sem a
+// carta do Coringa, e 0 tambem depois dos efeitos do fim. Qualquer dado do
+// outro ja venceria: a rodada acaba aqui.
 static bool zerou_de_vez(int j)
 {
     if (carta_posta(j)) return false;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        if (F[j].espera[k] || F[j].escondido[k]) return false;
+        if (F[j].espera[k] || F[j].escondido[k] || F[j].curinga[k]) return false;
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.bruto[j] + lapis_pena(j) <= 0;      // os dados fizeram 0 (o -4 do Estojo de Lapis nao conta)
@@ -1539,11 +1574,13 @@ static bool zerou_de_vez(int j)
 
 // Quem joga em segundo ja passou do alvo: com o que esta na mesa, parar agora
 // vence (a previa do fim da rodada, a mesma do botao "parar"). So quando
-// nada ainda vai mudar sozinho: sem Oculto escondido e sem a carta do Coringa
-// por virar. Jogar mais so poderia perder: a vez acaba ali.
+// nada ainda vai mudar sozinho: sem Oculto escondido, sem a carta do Coringa
+// por virar e sem Terremoto por sacudir. Jogar mais so poderia perder: a vez
+// acaba ali.
 static bool ja_vence(int j)
 {
     if (j == primeiro || !F[j].lancados || carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1)) return false;
+    if (tremor_na_mesa()) return false;          // o Terremoto ainda vai sacudir: nada certo
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.total[j] > d.total[outro(j)];

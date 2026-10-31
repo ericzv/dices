@@ -269,7 +269,7 @@ static const perso_t PERSO[] = {
     // ...e o chefe do salao final, depois do Barao, do Nivel 5 em diante. A
     // regra cresce no 7 (veja regra_perso).
     { "O CORINGA",       "Ri de tudo. Principalmente de você.", 0.7f,
-      { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO, D_D20, D_CHECKPOINT },
+      { D_D20, D_ESCUDO, D_LASER, D_CAPITAO, D_TEIMOSO, D_FOGO, D_FICHA_CORINGA, D_CHECKPOINT },
       "Carta na manga", "Seu dado que tirou mais vira o 4º dele (\"?\" se ele abre).",
       0, REG_CORINGA,
       { { "Hahaha! Achou que o Barão era o último?", "Vamos brincar com os SEUS dados." },

@@ -53,6 +53,8 @@ typedef struct {
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
     uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
     bool    evolui[N_FILA];          // o ciclo cosmico tirou a faixa de cima: no fim da rodada, evolui
+    bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
+    uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     char    tag[N_FILA][14];
     int     pontos;
     int     total;
@@ -93,7 +95,9 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_VAMPIRO,                   // o Vampiro: -1 em cada dado do oponente que vale
        EV_AVISO,                     // so o texto (a Saideira avisa que tudo vai de novo)
        EV_ADESIVO,                   // um adesivo do lado que ficou para cima (ad: qual)
-       EV_ONDA };                    // a Onda juntou 9: vira Tsunami
+       EV_ONDA,                      // a Onda juntou 9: vira Tsunami
+       EV_CORINGA,                   // a Ficha Coringa vira o ultimo dado do oponente
+       EV_TREMOR };                  // o Terremoto: o ultimo dado do oponente rola de novo
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
@@ -105,6 +109,7 @@ typedef struct {
     amul_t  am;                      // amuletos que acendem quando ele toca
     uint8_t ad;                      // EV_ADESIVO: o adesivo
     uint8_t copia;                   // EV_ADESIVO: o Holografico copiando o 'ad' (o dado e o dele)
+    int     antes;                   // EV_TREMOR: o que o dado sacudido tinha tirado
     char txt[64];
 } evento_t;
 #define MAX_EV 64                    // a Saideira repete a cadeia inteira
@@ -220,7 +225,12 @@ static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
 static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
-static uint8_t est_pre_espelho[2][N_FILA];   // a sequencia antes do Espelho virar (para a animacao)   // Espelho que ja virou na conta, mas cuja vez de mostrar nao chegou
+static uint8_t vis_curinga[2][N_FILA];       // Ficha Coringa que ja virou na conta, mas ainda com "?" na mesa
+static uint8_t vis_tremor[2][N_FILA];        // dado que o Terremoto ja sacudiu na conta, mas ainda parado na mesa
+static int vis_tremor_de[2][N_FILA];         // e o que ele tinha tirado, que a mesa mostra ate la
+// A sequencia antes do Espelho, do Oculto, do Terremoto e da Ficha Coringa a
+// refazerem no comeco do desfecho (para a animacao).
+static uint8_t est_pre_espelho[2][N_FILA];
 static int  vis_semente[2];
 
 #define N_LOJA 5

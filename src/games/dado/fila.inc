@@ -105,11 +105,44 @@ static int maior_do_rival(int j)
     const fila_t *r = &F[outro(j)];
     int vale = 0, qualquer = 0;
     for (int i = 0; i < r->lancados; i++) {
-        if (r->escondido[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto ainda nao mostrou; o Universo, ninguem copia
+        if (r->escondido[i] || r->curinga[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto e a Ficha Coringa ainda nao mostraram; o Universo, ninguem copia
         if (r->valor[i] > qualquer) qualquer = r->valor[i];
         if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
     }
     return vale ? vale : qualquer;
+}
+// O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente
+// (sem nenhum valendo, o ultimo que ele lancou). Nao copia o Universo, nem o
+// Oculto ainda virado, nem outra Ficha Coringa esperando. A posicao na fila
+// do oponente, ou -1 se nao ha o que copiar.
+static int alvo_curinga(int j)
+{
+    const fila_t *r = &F[outro(j)];
+    int qualquer = -1;
+    for (int i = r->lancados - 1; i >= 0; i--) {
+        if (r->escondido[i] || r->curinga[i] || r->tipo[i] == D_UNIVERSO) continue;
+        if (r->est[i] == V_VALIDO) return i;
+        if (qualquer < 0) qualquer = i;
+    }
+    return qualquer;
+}
+// Alguma Ficha Coringa de j ainda com o curinga para cima?
+static bool tem_curinga(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (F[j].curinga[k]) return true;
+    return false;
+}
+// O Calibre valendo logo antes do dado k: o que ele tira sobe 1.
+static bool calibre_antes(int j, int k)
+{
+    return k > 0 && tipo_de(j, k - 1) == D_CALIBRE && F[j].est[k - 1] == V_VALIDO;
+}
+// O numero que o Digital acende depois do dado l (-1: nenhum antes): o dele
+// +1, seja qual for (o Calibre antes soma mais 1).
+static int digital_acende(int j, int k, int l)
+{
+    int base = l >= 0 && F[j].valor[l] > 0 ? F[j].valor[l] : 0;
+    return base + 1 + (F[j].calibre[k] ? 1 : 0);
 }
 // Algum Egoista valendo antes do dado k?
 static int egoista_antes(int j, int k)
@@ -208,6 +241,15 @@ static void aplica_regra(int j, int k)
         f->pontos = soma(j, f->est);
         return;
     }
+    // A Ficha Coringa lancada: o curinga para cima, fora da sequencia como o
+    // Oculto, ate virar no fim no ultimo dado do oponente.
+    if (f->curinga[k]) {
+        f->est[k] = V_ESPERA;
+        snprintf(veredito, sizeof veredito, "Ficha Coringa: no fim, vira o último do oponente");
+        ver_tipo = 0;
+        f->pontos = soma(j, f->est);
+        return;
+    }
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
@@ -232,6 +274,11 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = f->valor[l];
         lado_vira(j, k, v);
         snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+    }
+    // Digital: acende o ultimo dado que vale +1 (primeiro da sequencia, 1). Nunca cai.
+    if (ef == EF_DIGITAL) {
+        v = f->valor[k] = digital_acende(j, k, l);
+        lado_vira(j, k, v);
     }
     // Eco: tira o mesmo do primeiro dado que vale (ate 6); sendo ele o primeiro,
     // ou passando de 6, fica com o que rolou.
@@ -489,6 +536,14 @@ static void aplica_regra(int j, int k)
             else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", f->fixo[k] + 1, REVOLVER_BALAS);
         } else if (ef == EF_UNIVERSO) {
             snprintf(veredito, sizeof veredito, "BIG BANG! O Universo pontua %d", vale);
+        } else if (ef == EF_DIGITAL) {
+            if (l >= 0) snprintf(veredito, sizeof veredito, "Digital acende %d: o %d +%d", v, f->valor[l] > 0 ? f->valor[l] : 0,
+                                 v - (f->valor[l] > 0 ? f->valor[l] : 0));
+            else snprintf(veredito, sizeof veredito, "Digital acende %d: o primeiro da sequência", v);
+        } else if (ef == EF_RELOGIO) {
+            snprintf(veredito, sizeof veredito, "Relógio marca %d: pontua %d", f->cru[k], vale);
+        } else if (ef == EF_TERREMOTO && v >= TERREMOTO_DE) {
+            snprintf(veredito, sizeof veredito, "Terremoto tirou %d: no fim, o chão do oponente treme", v);
         } else if (ef == EF_BURACO && f->evolui[k]) {
             snprintf(veredito, sizeof veredito, "Buraco Negro tirou %d: no fim, anula os vizinhos e evolui", v);
         } else if (cosmico(t) && f->evolui[k]) {
@@ -583,7 +638,12 @@ static bool tem_escondido(int j)
 static void pousa(int j, int k, int (*r)(int))
 {
     fila_t *f = &F[j];
-    f->escondido[k] = TIPO[f->tipo[k]].efeito == EF_OCULTO;    // o Oculto cai virado
+    int ef0 = TIPO[f->tipo[k]].efeito;
+    f->escondido[k] = ef0 == EF_OCULTO;                          // o Oculto cai virado
+    f->curinga[k] = ef0 == EF_FICHA_CORINGA;                     // a Ficha Coringa, com o curinga para cima
+    // O Terremoto ja traz a semente do lance que o tremor dara no fim: a
+    // previa e a IA nao a usam, e o fim de verdade e o mesmo dos dois lados.
+    f->abalo[k] = ef0 == EF_TERREMOTO ? (uint32_t)r(0x7FFFFFFF) : 0;
     bool voltou = false;
     int tirou = f->valor[k];
     if (f->tipo[k] == D_BUMERANGUE && tirou <= 2) {          // volta e rola de novo, uma vez
@@ -595,7 +655,9 @@ static void pousa(int j, int k, int (*r)(int))
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
     int mira = f->valor[k];
     f->calibre[k] = false;
-    if (k > 0 && tipo_de(j, k - 1) == D_CALIBRE && f->est[k - 1] == V_VALIDO && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
+    if ((ef0 == EF_DIGITAL || ef0 == EF_FICHA_CORINGA) && calibre_antes(j, k))
+        f->calibre[k] = true;                                    // o +1 vai no numero que eles acendem ou viram
+    else if (calibre_antes(j, k) && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
         int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
         if (mira < teto) {
             f->cru[k] = f->valor[k] = mira + 1;
@@ -610,8 +672,9 @@ static void pousa(int j, int k, int (*r)(int))
             ver_comum = false;
         }
         if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
-        if (f->calibre[k] && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
-        if (f->calibre[k] && ver_tipo == 0 && !voltou) {
+        bool sobe = f->calibre[k] && ef0 != EF_DIGITAL && ef0 != EF_FICHA_CORINGA;   // nesses, o +1 ja esta no numero deles
+        if (sobe && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
+        if (sobe && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
             ver_comum = false;
         }

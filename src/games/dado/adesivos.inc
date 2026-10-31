@@ -195,6 +195,48 @@ static bool ad_cabe_o(const peca_t *p, int a)
     return ad_cabe(p) && (a != AD_CHUMBO || ad_conta(p, AD_CHUMBO) < CHUMBO_MAX);
 }
 
+// O Adesivado ja vem com ADESIVADO_N adesivos diferentes, sorteados pela
+// raridade (com os pesos do premio), em lados sorteados. No Desafiante, so
+// os ja abertos (o Dourado entre eles); fora dele, os que saem no premio. r
+// sorteia de 1 a n: o da partida ou o da run.
+static bool adesivo_liberado(int a);
+static bool adesivado_pode(int a, const uint8_t *ja, int n, bool desafio)
+{
+    for (int i = 0; i < n; i++) if (ja[i] == a) return false;
+    return desafio ? adesivo_liberado(a) : ad_no_premio(a);
+}
+static void adesiva(peca_t *p, int (*r)(int), bool desafio)
+{
+    static const int PESO[4] = { 8, 4, 2, 1 };
+    uint8_t ja[ADESIVADO_N] = { 0 };
+    for (int n = 0; n < ADESIVADO_N; n++) {
+        int total = 0;
+        for (int a = AD_NADA + 1; a < AD_N; a++) total += adesivado_pode(a, ja, n, desafio) ? PESO[RAR_ADESIVO[a]] : 0;
+        int livres[AD_LADOS], nl = 0;
+        for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo) && l <= AD_LADOS; l++)
+            if (!ad_no_lado(p, l)) livres[nl++] = l;
+        if (!total || !nl) return;
+        int x = r(total) - 1, a = AD_NADA + 1;
+        for (; a < AD_N; a++) {
+            if (!adesivado_pode(a, ja, n, desafio)) continue;
+            if ((x -= PESO[RAR_ADESIVO[a]]) < 0) break;
+        }
+        if (a >= AD_N) return;
+        ad_cola(p, livres[r(nl) - 1], a);
+        ja[n] = (uint8_t)a;
+    }
+}
+
+// O Adesivado de amostra, para a colecao e o detalhe (la nao se sorteia).
+static peca_t adesivado_amostra(void)
+{
+    peca_t p = { .tipo = D_ADESIVADO };
+    ad_cola(&p, 2, AD_CONFETE);
+    ad_cola(&p, 4, AD_ELETRONICO);
+    ad_cola(&p, 5, AD_LOBO);
+    return p;
+}
+
 // ---------------------------------------------------------------------------
 // O desenho: o simbolo, o adesivo solto e os selinhos da borda
 // ---------------------------------------------------------------------------

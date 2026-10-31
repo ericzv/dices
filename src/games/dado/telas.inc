@@ -410,6 +410,7 @@ static void desenha_efeitos(void)
     int tipo = e->tipo != EV_ADESIVO && e->de_j < 2 && e->de_k < N_FILA ? F[e->de_j].tipo[e->de_k] : -1;
     int f = gfx_largura(e->txt, 1) > 300 ? GFX_FINO : 1;   // o texto comprido fica no fino
     int wt = gfx_largura(e->txt, f), wi = tipo >= 0 && TIPO[tipo].efeito ? 20 : 0;
+    desenha_falha();                                     // a falha do Terremoto corre por baixo do letreiro
     painel(CENTRO - 15, TXT_H + 8, larg_painel(wt + wi, 160));
     int x = GFX_W / 2 - (wt + wi) / 2;
     if (wi && !icone_poder(x + 6, CENTRO - 15 + (TXT_H + 8) / 2, tipo)) x += wi / 2, wi = 0;
@@ -487,7 +488,7 @@ static void log_icone(const evento_t *e, int cx, int cy)
     if (e->de_j < 2 && e->de_k < N_FILA) {
         int t = F[e->de_j].tipo[e->de_k];
         int ef = TIPO[t].efeito;
-        if (ef > 0 && ef <= EF_UNIVERSO && (PODER_ANIMA[ef].sp || ef == EF_ESPELHO || ef == EF_DOBRO)) { icone_poder(cx, cy, t); return; }
+        if (ef > 0 && ef < EF_N && (PODER_ANIMA[ef].sp || ef == EF_ESPELHO || ef == EF_DOBRO)) { icone_poder(cx, cy, t); return; }
         uint16_t r[4];                                          // sem simbolo: uma pastilha na cor do dado
         rampa_de(cor_dado(t), r);
         gfx_rect(cx - 3, cy - 4, 7, 9, C_BARRA);

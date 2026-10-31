@@ -177,7 +177,9 @@ static void desenha_lance(void)
                 int a = ad_no_lado(peca_fila(v->dono, v->slot), lado);
                 if (a) { ad_face = a; ad_face_aceso = true; }
             }
+            face_curinga = v->tipo == D_FICHA_CORINGA;   // a Ficha Coringa gira com o curinga dos dois lados
             moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, lado);
+            face_curinga = false;
             if (abre) presente_abre(v->x, v->y, t_fase / PRESENTE_ABRE);
             sombra_alt = 0;
             continue;
@@ -226,7 +228,11 @@ static void desenha_lance(void)
         // No pouso, o numero aparece com um pulo.
         num_cresce = !v->fantasma && v->t_assenta > 0.03f && v->t_assenta < 0.11f && mostra < 10
                      && TIPO[tv].lados != 4;                   // no triangulo o numero grande nao cabe
+        face_curinga = tv == D_FICHA_CORINGA;                  // o curinga ate o fim da rodada
+        if (tv == D_DIGITAL) digital_q = -1;                   // o visor so acende na sequencia
         desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        face_curinga = false;
+        digital_q = 1;
         num_cresce = 0;
         marca_nivel = -1;
         bala_lancada = false;
@@ -1022,6 +1028,33 @@ static void desenha_fila(int j)
         // assenta no numero novo.
         int face = ainda ? f->cru[k] : f->valor[k];
         float giro = 0;
+        // O dado que o Terremoto sacode: o numero de antes ate pousar de novo;
+        // no evento, treme, salta rodopiando e cai no numero novo.
+        bool tremendo = e && e->tipo == EV_TREMOR && e->alvo_j == j && e->alvo_k == k;
+        if (no_desfecho && vis_tremor[j][k] && !(tremendo && p >= TREMOR_POUSA)) face = vis_tremor_de[j][k];
+        if (tremendo && p < TREMOR_SALTA) x += (int)(sinf(t_fase * 70) * 3 * p / TREMOR_SALTA);
+        else if (tremendo && p < TREMOR_POUSA) {
+            float q = (p - TREMOR_SALTA) / (TREMOR_POUSA - TREMOR_SALTA);
+            pulo += sinf(q * 3.1416f) * 26;
+            giro = (1 - q) * 11 + 0.6f;
+            if (q < 0.85f) face = face_v(t, f->valor[k]);
+        }
+        // O Terremoto que age: treme no lugar enquanto a falha corre.
+        if (e && e->tipo == EV_TREMOR && e->de_j == j && e->de_k == k && p < TREMOR_SALTA)
+            x += (int)(sinf(t_fase * 90) * 3);
+        // A Ficha Coringa: o curinga ate o evento dela; no evento, sobe girando
+        // e cai com o numero novo para cima.
+        bool virando = e && e->tipo == EV_CORINGA && e->de_j == j && e->de_k == k;
+        face_curinga = f->curinga[k] || (no_desfecho && vis_curinga[j][k] && !(virando && p > CORINGA_VIRA));
+        float giro_ficha = -1;                   // a largura aparente da ficha girando (-1: deitada)
+        if (virando && p > CORINGA_SOBE && p < CORINGA_POUSA) {
+            float q = (p - CORINGA_SOBE) / (CORINGA_POUSA - CORINGA_SOBE);
+            pulo += sinf(q * 3.1416f) * 22;
+            giro_ficha = cosf(q * 5 * 3.1416f);   // duas voltas e meia: cai do outro lado
+        }
+        // O Digital que acabou de entrar: o visor acende.
+        if (t == D_DIGITAL && fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_fase < DIGITAL_ACENDE)
+            digital_q = t_fase / DIGITAL_ACENDE;
         if (engolido) {                          // puxado pelo Buraco Negro: gira e chega mais perto
             giro = p * p * 9;
             x += (int)((SLOT_X(e->de_k) - x) * 0.25f * (p < 0.75f ? p / 0.75f : 1));
@@ -1062,8 +1095,11 @@ static void desenha_fila(int j)
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
         if (recente) risca_anima(t_fase);
         sem_risca = golpe != 0;                              // a trinca ja diz
-        desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        if (giro_ficha > -1) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, giro_ficha, face);
+        else desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
         sem_risca = false;
+        face_curinga = false;
+        digital_q = 1;
         risca_anima(9);
         if (golpe && giro < 0.5f) {                           // as trincas crescem do meio
             float qg = (t_relogio - vis_golpe_t[j][k]) / 0.22f;
@@ -1742,6 +1778,62 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
     }
 }
 
+// Terremoto: a falha corre pelo feltro, do Terremoto ate o dado do
+// oponente, em zigue-zague, com a lava acesa dentro e pedrinhas saltando na
+// frente; o dado salta dela, e no fim ela se fecha. Por baixo do letreiro.
+static void desenha_falha(void)
+{
+    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
+    const evento_t *e = &ev[ev_i];
+    float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA) {
+        int ax = SLOT_X(e->de_k), ay = zona(e->de_j), bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        int y0 = ay + (by > ay ? R_DADO + 4 : -R_DADO - 4), y1 = by + (by > ay ? -R_DADO - 2 : R_DADO + 2);
+        float q = (p - TREMOR_RACHA) / (TREMOR_SALTA - TREMOR_RACHA);
+        float fecha = p > TREMOR_POUSA ? (p - TREMOR_POUSA) / (1 - TREMOR_POUSA) : 0;
+        if (q > 0 && fecha < 1) {
+            if (q > 1) q = 1;
+            enum { N = 14 };
+            float px[N + 1], py[N + 1];
+            float dx = (float)(bx - ax), dy = (float)(y1 - y0), len = sqrtf(dx * dx + dy * dy);
+            float nx = len > 0 ? -dy / len : 0, ny = len > 0 ? dx / len : 0;
+            for (int i = 0; i <= N; i++) {
+                float t = i / (float)N, off = (i == 0 || i == N) ? 0 : (float)((int)(hash2(i, e->de_k * 7 + e->alvo_k) % 15) - 7) * 1.4f;
+                px[i] = ax + dx * t + nx * off;
+                py[i] = y0 + dy * t + ny * off;
+            }
+            float frente = q * N;
+            int w = (int)lroundf(4 * (1 - fecha));
+            for (int pass = 0; pass < 3; pass++) {           // a beira escura, a lava e o miolo aceso
+                int ww = pass == 0 ? w + 2 : pass == 1 ? w : w - 2;
+                if (ww < 1) continue;
+                uint16_t c = pass == 0 ? C_BARRA : pass == 1 ? C_FOGO : ((int)(t_fase * 14) % 2 ? C_AMARELO : RGB(238, 162, 74));
+                for (int i = 0; i < N && i < frente; i++) {
+                    float f = frente - i < 1 ? frente - i : 1;
+                    gfx_linha_grossa((int)px[i], (int)py[i], (int)(px[i] + (px[i + 1] - px[i]) * f),
+                                     (int)(py[i] + (py[i + 1] - py[i]) * f), ww, c);
+                }
+            }
+            for (int i = 3; i < N && i < frente && fecha < 0.5f; i += 4) {   // os galhos, secos
+                int s2 = (i / 4) % 2 ? 1 : -1;
+                gfx_linha_grossa((int)px[i], (int)py[i], (int)(px[i] + nx * 9 * s2 + dx / len * 4),
+                                 (int)(py[i] + ny * 9 * s2 + dy / len * 4), 1, C_BARRA);
+            }
+            if (q < 1) {                                      // pedrinhas na frente da falha
+                int fi = (int)frente < N ? (int)frente : N - 1;
+                float fx = px[fi] + (px[fi + 1] - px[fi]) * (frente - fi), fy = py[fi] + (py[fi + 1] - py[fi]) * (frente - fi);
+                for (int k2 = 0; k2 < 5; k2++) {
+                    float tt = fmodf(t_fase * 4 + k2 * 0.21f, 1.0f);
+                    int rx = (int)(fx + ((int)(hash2(k2, 3) % 13) - 6) * tt * 1.6f);
+                    int ry = (int)(fy - sinf(tt * 3.1416f) * (8 + k2 * 2));
+                    gfx_rect(rx - 1, ry - 1, 3, 3, C_BARRA);
+                    gfx_rect(rx, ry, 2, 2, k2 % 2 ? C_CINZA : C_TERRA);
+                }
+            }
+        }
+    }
+}
+
 // O que o evento em curso desenha por cima da mesa: o traco do ataque, os
 // pontos que saem de um placar e entram no outro.
 static void desenha_evento(void)
@@ -2075,6 +2167,45 @@ static void desenha_evento(void)
             if (e->mascara >> k & 1) projetil(ox, oy, SLOT_X(k), by, (p - 0.22f - 0.07f * n++) / 0.4f, C_TERRA);
         for (int i = 0; i < vis_nroubo[e->alvo_j]; i++)         // e nos que ele tinha roubado
             if (i != eu) projetil(ox, oy, ROUBO_X(i), by, (p - 0.22f - 0.07f * n++) / 0.4f, C_TERRA);
+    }
+    // Terremoto: a falha corre por baixo do letreiro (desenha_falha); aqui,
+    // o dado arranca do chao com estilhacos em volta.
+    if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA) {
+        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        float sq = (p - TREMOR_SALTA) / 0.16f;                // o dado arranca do chao: estilhacos em volta
+        if (sq > 0 && sq < 1)
+            for (int k2 = 0; k2 < 10; k2++) {
+                float an = k2 * 0.628f + 0.3f, rr = R_DADO * 0.6f + sq * 26;
+                int rx = bx + (int)(cosf(an) * rr), ry = by + (int)(sinf(an) * rr * 0.6f) - (int)(sinf(sq * 3.1416f) * 10);
+                gfx_rect(rx - 1, ry - 1, 3, 3, C_BARRA);
+                gfx_rect(rx, ry, 2, 2, k2 % 3 ? C_TERRA : C_FOGO);
+            }
+    }
+    // Ficha Coringa: os naipes saem do dado do oponente que ela copia e
+    // chegam nela em arco; ela brilha, sobe girando e cai virada (desenha_fila).
+    if (e->tipo == EV_CORINGA && e->alvo_k < N_FILA) {
+        static const char *const NAIPE[4][5] = {
+            { "..#..", ".###.", "#####", "..#..", ".###." },  // espadas
+            { ".#.#.", "#####", "#####", ".###.", "..#.." },  // copas
+            { "..#..", ".###.", "#####", ".###.", "..#.." },  // ouros
+            { "..#..", ".###.", "#.#.#", "#####", "..#.." } };  // paus
+        int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+        if (p < 0.34f) aro(bx, by, ((int)(t_fase * 12) % 2) ? C_OURO : C_REAL);   // o que ela vai copiar acende
+        for (int i = 0; i < 4; i++) {
+            float q = (p - i * 0.05f) / 0.24f;
+            if (q < 0 || q > 1) continue;
+            float s2 = q * q * (3 - 2 * q), arco = -46.0f - i * 9;
+            int x = bx + (int)((ax - bx) * s2 + sinf(s2 * 6.28f + i) * 6 * (1 - s2));
+            int y = by + (int)((ay - by) * s2 + arco * 4 * s2 * (1 - s2));
+            sprite_em(x, y, NAIPE[i], 5, i % 2 ? C_VERMELHO : C_MARFIM, C_BRANCO, C_EBANO, false, q > 0.85f ? (q - 0.85f) / 0.15f : 0);
+        }
+        float c = (p - 0.26f) / 0.14f;                       // chegaram: um anel de brilho na ficha
+        if (c > 0 && c < 1)
+            for (int a2 = 0; a2 < 24; a2++) {
+                float an = a2 * 0.2618f, rr = R_DADO + 2 + c * 14;
+                if (bayer(a2 * 3, (int)(c * 9)) < c) continue;
+                gfx_rect(ax + (int)(cosf(an) * rr), ay + (int)(sinf(an) * rr), 2, 2, a2 % 2 ? C_OURO : C_AMARELO);
+            }
     }
     // Espelho: um reflexo sai do maior dado do rival e chega nele.
     if (e->tipo == EV_ESPELHO) {

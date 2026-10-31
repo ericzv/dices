@@ -587,8 +587,29 @@ static void desenha_buraco_suga(void)
 static void reage_evento(const evento_t *e)
 {
     if (e->tipo == EV_JACKPOT && e->de_j == 0) { rival_reage(RM_COMBO); hist_jackpot(); }
-    else if ((e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_TIRA || e->tipo == EV_PIRATA)
+    else if ((e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_TIRA || e->tipo == EV_PIRATA || e->tipo == EV_TREMOR)
              && e->de_j == 1 && e->alvo_j == 0) rival_reage(RM_ATACOU);
+    if (e->tipo == EV_TREMOR) treme(3, 0.95f);   // o chao ronca enquanto a falha corre
+}
+
+// O meio dos eventos que tem tempo proprio, entre t0 e t1: o dado que o
+// Terremoto sacudiu bate no feltro (poeira, baque, um tremor curto); a
+// Ficha Coringa cai deitada.
+static void evento_no_meio(float t0, float t1)
+{
+    if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
+    const evento_t *e = &ev[ev_i];
+    float d = duracao_evento(ev_i), a = t0 / d, b = t1 / d;
+    if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA && a < TREMOR_POUSA && b >= TREMOR_POUSA) {
+        som_toca(SOM_BATE);
+        poeira_solta((float)SLOT_X(e->alvo_k), (float)zona(e->alvo_j));
+        treme(2, 0.25f);
+    }
+    if (e->tipo == EV_TREMOR && a < TREMOR_SALTA && b >= TREMOR_SALTA) som_toca_tom(SOM_BATE_DADO, -5);   // o dado salta do chao
+    if (e->tipo == EV_CORINGA && a < CORINGA_POUSA && b >= CORINGA_POUSA) {
+        som_toca(SOM_MOEDA_POUSA);
+        poeira_solta((float)SLOT_X(e->de_k), (float)zona(e->de_j));
+    }
 }
 
 // ---------------------------------------------------------------------------

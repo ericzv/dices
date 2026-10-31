@@ -16,10 +16,12 @@ static int sorteia_raridade(const float w[4])
     return D_D8;
 }
 
+static int rola_r(int n) { return 1 + sorte_r(n); }
 static peca_t peca_r(int t)
 {
     peca_t p = { .tipo = (uint8_t)t, .fixo = 0 };
     if (t == D_QUEBRADO) p.fixo = (uint8_t)(1 + sorte_r(8));
+    if (t == D_ADESIVADO) adesiva(&p, rola_r, true);   // os adesivos dele, dos abertos
     return p;
 }
 
@@ -151,11 +153,12 @@ static int grupo_do_dado(int t)
     case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
     case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
     case D_FURIA: case D_ONDA: case D_PATINHOS: case D_PRESENTE: case D_PANETONE: case D_PISCA: case D_MEIA:
-    case D_REVOLVER: case D_ASTRO:
+    case D_REVOLVER: case D_ASTRO: case D_RELOGIO: case D_ADESIVADO:
         return GR_NUMEROS;
     case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
     case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
     case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO: case D_BONECO:
+    case D_TERREMOTO: case D_FICHA_CORINGA:
         return GR_ATAQUE;
     case D_ESCUDO: case D_TEIMOSO: case D_SENTINELA: case D_SEGURANCA: case D_ANCORA: case D_PONTE:
     case D_FENIX: case D_MARTIR: case D_MISERICORDIOSO: case D_FICHA_VELHA: case D_SANGUESSUGA: case D_VAZIO:
@@ -165,7 +168,7 @@ static int grupo_do_dado(int t)
     case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
     case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
     case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
-    case D_TRENO: case D_JINGLE: case D_ESTRELA: case D_RENA:
+    case D_TRENO: case D_JINGLE: case D_ESTRELA: case D_RENA: case D_DIGITAL:
         return GR_COMBO;
     default:
         return GR_NENHUM;                        // os de saida e os que nao saem em sorteio

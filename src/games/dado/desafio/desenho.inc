@@ -101,14 +101,14 @@ static void nome_no_cartao(int cx, int y, const char *s, uint16_t c, int w)
 // jogador anda pelo tapete ate ela.
 #define PL_X0     24                     // a planta, por fora das paredes
 #define PL_X1     616
-#define PL_Y0     58
-#define PL_Y1     214
+#define PL_Y0     54
+#define PL_Y1     216
 #define PL_PAREDE 4
-#define TAP_Y0    188                    // o tapete
-#define TAP_Y1    204
+#define TAP_Y0    194                    // o tapete
+#define TAP_Y1    208
 #define TAP_MEIO  ((TAP_Y0 + TAP_Y1) / 2)
-#define PORTA_Y0  (TAP_Y0 - 5)           // o vao da porta, na parede da esquerda
-#define PORTA_Y1  (TAP_Y1 + 5)
+#define PORTA_Y0  (TAP_Y0 - 4)           // o vao da porta, na parede da esquerda
+#define PORTA_Y1  (TAP_Y1 + 2)
 #define ESTRADO_W 192                    // o estrado do chefe
 
 static bool salao_chefe(int p) { return run.no[p].tipo == NO_CHEFE; }
@@ -123,24 +123,26 @@ static int salao_x(int p)
     int k = n - 1, x0 = 64, x1 = estrado_cx() - ESTRADO_W / 2 - 8;   // as outras, entre a porta e o estrado
     return x0 + (x1 - x0) * (2 * p + 1) / (2 * k);
 }
-// A mesa de cima: o meio e os raios; o retrato senta atras, com a moldura
-// encostada na beira de tras; o nome e o valor ficam na frente.
-static int mesa_y(int p)  { return salao_chefe(p) ? 138 : 130; }
-static int mesa_rx(int p) { return salao_chefe(p) ? 50 : 36; }
-static int mesa_ry(int p) { return salao_chefe(p) ? 18 : 15; }
-static int salao_topo(int p) { return salao_chefe(p) ? 64 : 74; }
+// O quadro de quem senta, inteiro, e logo abaixo dele a mesa de cima, menor:
+// a beira de tras so cobre o filete de baixo da moldura. O nome e o valor
+// ficam na frente da mesa. O chefe, ao fundo, fica mais alto.
+static int salao_topo(int p) { return salao_chefe(p) ? 61 : 82; }
+static int mesa_rx(int p) { return salao_chefe(p) ? 40 : 28; }
+static int mesa_ry(int p) { return salao_chefe(p) ? 11 : 10; }
+static int mesa_y(int p)  { return salao_topo(p) + RT_H * salao_esc(p) + mesa_ry(p); }
 static int rotulo_y(int p) { return mesa_y(p) + mesa_ry(p) - 2; }   // a fonte fina desce 6 px do y
 // Onde o tapete acaba: logo depois da mesa do fundo, com a franja.
 static int tapete_fim(void) { return estrado_cx() + 34; }
 
 // O piso de cada salao, em quatro tons (o 1 e a base; a luz sobe e desce
 // dali): taco no Verde, ladrilho no Vermelho, marmore com filete de latao no
-// Dourado, arlequim no do Coringa.
+// Dourado, arlequim no do Coringa. Discreto, como visto contra o escuro: as
+// rampas comecam no quase preto, e o desenho so marca metade dos pixels.
 static const uint16_t PISO[DES_ANDARES + 1][4] = {
-    { RGB(36, 32, 29), RGB(56, 32, 20), RGB(78, 46, 30), RGB(120, 78, 50) },
+    { RGB(14, 14, 12), RGB(36, 32, 29), RGB(56, 32, 20), RGB(78, 46, 30) },
     { RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50) },
-    { RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50), RGB(96, 88, 80) },
-    { RGB(24, 22, 20), RGB(54, 36, 74), RGB(102, 74, 138), RGB(150, 112, 160) },
+    { RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50) },
+    { RGB(14, 14, 12), RGB(24, 22, 20), RGB(54, 36, 74), RGB(102, 74, 138) },
 };
 static const uint16_t TAPETE[4] = { RGB(66, 18, 24), RGB(118, 30, 38), RGB(150, 62, 80), RGB(190, 56, 60) };
 #define PL_FILETE 9                      // o tom do filete de latao (no marmore e na barra do tapete)
@@ -184,8 +186,8 @@ static int tapete_tom(int x, int r, int fim)
     if (r == 0 || r == h - 1) return 0;
     if (r == 1 || r == h - 2) return 2;
     if (r == 2 || r == h - 3) return PL_FILETE;
-    int d = abs(x % 16 - 8) + abs(r - h / 2);
-    return d == 5 ? 2 : d <= 1 ? 3 : 1;
+    int d = abs(2 * (x % 14) - 13) + abs(2 * r - (h - 1));   // em meios pixels: o losango centrado no campo
+    return d == 9 ? 2 : d <= 3 ? 3 : 1;
 }
 
 // Uma poca de luz (s > 0) ou de sombra (s < 0) no chao.
@@ -222,7 +224,9 @@ static void pl_chao(const poca_t *pc, int np)
             int n = (int)floorf(luz[x - PL_X0] + bayer(x, y)), k = tap ? tapete_tom(x, y - TAP_Y0, fim) : -1;
             if (k == -1) {
                 k = piso_tom(a, x, y);
-                lin[x] = k == PL_FILETE ? rl[tom_de(n)] : pr[tom_de(k + n)];
+                if (k != 1 && bayer(x + 2, y + 1) >= 0.5f) k = 1;     // o desenho, pela metade
+                if (k == PL_FILETE) lin[x] = n <= 0 ? pr[tom_de(2 + n)] : rl[tom_de(n - 1)];   // o latao so brilha na luz
+                else lin[x] = pr[tom_de(k + n)];
             } else lin[x] = k == PL_FILETE ? rl[tom_de(2 + n)] : TAPETE[tom_de(k + n)];
         }
     }
@@ -531,7 +535,7 @@ static void salao_mesa(int p)
     retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
     if (feita) {                                 // vencida: apaga e leva o visto, no que aparece do retrato
         gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
-        int vy = y + (my - ry - y) / 2;
+        int vy = y + h / 2;
         gfx_linha_grossa(x - 9, vy, x - 2, vy + 8, 4, C_OURO);
         gfx_linha_grossa(x - 2, vy + 8, x + 12, vy - 10, 4, C_OURO);
     }
@@ -555,7 +559,7 @@ static void salao_mesa(int p)
         texto_no_chao(vx, ty, v, vale ? C_OURO : C_ROSA, GFX_FINO);
     }
     // A selecao: as cantoneiras em volta da mesa inteira, do retrato ao valor.
-    int bx = x - rx - 18, bw = 2 * (rx + 18), by = y - 7, bh = ty + 19 - by;
+    int meia = chefe ? 62 : 50, bx = x - meia, bw = 2 * meia, by = y - 6, bh = ty + 19 - by;
     if (p == des_cur) ui_cantos_em(bx, by, bw, bh, C_OURO, ui_respira());
     zona_clique(bx, by, bw, bh, &des_cur, p, da_vez ? KEY_ENTER : 0);
 }
@@ -573,9 +577,9 @@ static void desenha_mapa(void)
     for (int p = 0; p < n; p++) {
         int x = salao_x(p), y = mesa_y(p), rx = mesa_rx(p), ry = mesa_ry(p);
         if (p >= run.passo) {
-            float s = salao_chefe(p) ? 3.0f : 2.7f;
+            float s = salao_chefe(p) ? 2.6f : 2.4f;
             if (p == run.passo) s += 0.5f * (0.5f + 0.5f * sinf(t_fase * 4));
-            pc[np++] = (poca_t){ x, y + 4, rx + 46, ry + 40, s };
+            pc[np++] = (poca_t){ x, y - 6, salao_chefe(p) ? 96 : 80, salao_chefe(p) ? 62 : 54, s };
         }
         pc[np++] = (poca_t){ x + 4, y + 5, rx + 6, ry + 5, -1.6f };
     }

@@ -14,13 +14,13 @@ instrumentos.
 - **Baixo elétrico e sax-alto**: amostras da [Karoryfer](https://www.karoryfer.com/karoryfer-samples),
   na coleção [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
   de Nicholaus Brosowsky. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
-- **Vibrafone, celesta, glockenspiel, contrabaixo acústico, tímpano, marimba e
-  sinos tubulares**: banco FluidR3 GM, de Frank Wen, na versão do projeto
+- **Vibrafone, celesta, glockenspiel, contrabaixo acústico, tímpano, marimba,
+  sinos tubulares, cordas em trêmolo e agogô**: banco FluidR3 GM, de Frank Wen, na versão do projeto
   [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts), de
   Benjamin Gleitzman. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Laser, ventania, vassourinha e shaker da trilha, o chiado do fogo, as asas
-  do Vampiro, o assobio do Sabotador e a areia da Ampulheta**: sintetizados no
-  próprio projeto.
+  do Vampiro, o assobio do Sabotador, a areia da Ampulheta, o surdo da mesa do
+  chefe e o sopro da troca de tela**: sintetizados no próprio projeto.
 
 As composições (a trilha e as vinhetas) são do jogo.
 

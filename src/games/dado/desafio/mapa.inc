@@ -32,8 +32,10 @@ static peca_t peca_r(int t)
 // a mesma loja, sorteada de novo, mostra o mesmo.
 static bool dado_visto(int t) { return run.vistos[t >> 3] >> (t & 7) & 1; }
 static void marca_visto(int t) { if (t >= 0 && t < D_N) run.vistos[t >> 3] |= (uint8_t)(1u << (t & 7)); }
-static bool adesivo_visto(int a) { return run.ad_vistos[a >> 3] >> (a & 7) & 1; }
-static void marca_adesivo_visto(int a) { if (a > AD_NADA && a < AD_N) run.ad_vistos[a >> 3] |= (uint8_t)(1u << (a & 7)); }
+// (os adesivos de 32 em diante, no segundo campo: o primeiro so tinha 32 bits)
+static uint8_t *ad_visto_byte(int a) { return a < 32 ? &run.ad_vistos[a >> 3] : &run.ad_vistos2[(a - 32) >> 3]; }
+static bool adesivo_visto(int a) { return a > AD_NADA && a < AD_N && (*ad_visto_byte(a) >> (a & 7) & 1); }
+static void marca_adesivo_visto(int a) { if (a > AD_NADA && a < AD_N) *ad_visto_byte(a) |= (uint8_t)(1u << (a & 7)); }
 
 // Um dado da vitrine: pela raridade, entre os abertos que ainda nao
 // estiveram a venda na run.
@@ -70,9 +72,11 @@ static void sorteia_distintos(peca_t *out, int n, const float w[4])
 
 // ---------------------------------------------------------------------------
 // A loja: depois de cada mesa vencida, com as poucas moedas que ela rendeu.
-// A vitrine mostra 2 dados (3 com a Cartola; 1 a menos com a Lata de Biscoito); trocar a vitrine custa 1, 2, 3...
-// na mesma loja; tirar um dado da bolsa custa 3, 5, 7... na run inteira. O
-// Cupom tira 1 de cada preco (nunca abaixo de 1).
+// A venda: 2 dados e 1 adesivo, ou 1 dado e 2 adesivos (meio a meio), e 1
+// pacote. A Cartola poe 1 dado a mais; a Lata de Biscoito, 1 a menos.
+// Trocar a loja (tudo: dados, adesivos e o pacote) custa 1, 2, 3... na mesma
+// loja; tirar um dado da bolsa custa 3, 5, 7... na run inteira. O Cupom tira
+// 1 de cada preco (nunca abaixo de 1).
 // ---------------------------------------------------------------------------
 #define BOLSA_MIN 5                      // a bolsa nao fica com menos que isto
 static int preco_ajusta(int p)
@@ -87,153 +91,160 @@ static int preco_run(int t)
 }
 static int preco_troca(void)  { return preco_ajusta(1 + run.trocas); }
 static int preco_remove(void) { return preco_ajusta(3 + 2 * run.remocoes); }
-static int n_vitrine(void)    { return ((run_amuletos() >> A_CARTOLA & 1) ? 3 : 2) - (run.bolsa == B_LATA); }
+// Os dados a venda: 2 (1 na loja de dois adesivos), +1 com a Cartola, -1 com a Lata.
+static int n_vitrine(void)
+{
+    int n = (run.dois_adesivos ? 1 : 2) + ((run_amuletos() >> A_CARTOLA & 1) ? 1 : 0) - (run.bolsa == B_LATA);
+    return n < 0 ? 0 : n > VITRINE_MAX ? VITRINE_MAX : n;
+}
+// Os adesivos a venda: 1, ou 2 na loja de dois adesivos.
+static int n_adesivos_loja(void) { return run.dois_adesivos ? 2 : 1; }
+static int ad_loja(int k) { return k == 0 ? run.adesivo : k == 1 && run.dois_adesivos ? run.adesivo2 : AD_NADA; }
+static bool ad_loja_vendido(int k) { return k == 0 ? run.ad_vendido : run.ad_vendido2; }
 
 // A vitrine sai da semente da run, da loja e de quantas vezes ja trocou:
 // sair e voltar mostra a mesma. Os saloes de cima trazem mais raros.
 static const float PESO_VITRINE[DES_ANDARES][4] = {
     { 3, 4, 2.0f, 0.4f }, { 1.5f, 4, 3.5f, 0.8f }, { 0.5f, 3, 4.0f, 1.5f } };
 static const float *peso_do_salao(void) { return PESO_VITRINE[run.andar < DES_ANDARES ? run.andar : DES_ANDARES - 1]; }
+// A semente de cada parte da loja (a vitrine, os adesivos, o pacote): a da
+// run, a da loja e a das trocas.
+static void semente_loja(uint32_t parte)
+{
+    rs = run.semente ^ (parte * (uint32_t)(run.lojas * 16 + run.trocas + 1));
+    rnd_r();
+}
 
-// A vitrine que sai (trocada, ou a loja acabou): os dados dela nao voltam.
-static void vitrine_vista(void)
+// A loja que sai (trocada, ou a loja acabou): os dados e os adesivos dela
+// nao voltam na run.
+static void loja_vista(void)
 {
     for (int i = 0; i < n_vitrine(); i++) if (!so_inicial(run.vitrine[i].tipo)) marca_visto(run.vitrine[i].tipo);
+    for (int k = 0; k < n_adesivos_loja(); k++) marca_adesivo_visto(ad_loja(k));
 }
 static void monta_vitrine(void)
 {
-    rs = run.semente ^ (0x51ED27u * (uint32_t)(run.lojas * 16 + run.trocas + 1));
-    rnd_r();
+    semente_loja(0x51ED27u);
     sorteia_distintos(run.vitrine, VITRINE_MAX, peso_do_salao());
     memset(run.levou, 0, sizeof run.levou);
 }
 
 // ---------------------------------------------------------------------------
-// Os pacotes: dados embrulhados, um por loja, de um grupo. So se ve o que tem
-// dentro depois de abrir (3 dados do grupo, sorteados pela raridade do
-// salao, e leva 1), por isso custa menos que a vitrine. Os grupos sao largos
-// de proposito: um grupo pequeno deixaria escolher o dado sem depender da
-// sorte. So entra na loja o grupo que ja tem pelo menos 3 dados abertos.
+// Os pacotes: um por loja, de dados ou de adesivos (meio a meio). So se ve o
+// que tem dentro depois de abrir: 3, e leva 1. O de adesivos sorteia como o
+// adesivo da loja. O de dados, 3 dados quaisquer entre os abertos, pela
+// raridade do nivel do pacote - Bronze, Prata, Ouro ou Diamante -, e o nivel
+// sai da mesa: a cada oponente vencido na run, os pacotes melhores aparecem
+// mais.
 // ---------------------------------------------------------------------------
-enum { GR_NUMEROS, GR_ATAQUE, GR_DEFESA, GR_COMBO, GR_N, GR_NENHUM = 0xFF };
-// O pacote de adesivos: metade das lojas, no lugar do de dados. As cartas
-// guardam o adesivo em pac_op[i].ad[0] (a run salva fica como era).
-#define GR_ADESIVOS GR_N
+enum { PN_BRONZE, PN_PRATA, PN_OURO, PN_DIAMANTE, PN_N };
+#define PAC_ADESIVOS PN_N                // o pacote de adesivos (as cartas guardam o adesivo em pac_op[i].ad[0])
+#define PAC_NENHUM   0xFF
 enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
-#define PRECO_PACOTE 4
-static const char *const NOME_GRUPO[GR_N + 1] = { "Números", "Ataque", "Defesa", "Combo", "Adesivos" };
-static const char *const DESC_GRUPO[GR_N + 1] = {
-    "Números grandes e dados que pontuam muito (ou nada) sozinhos.",
-    "Dados que tiram pontos, anulam ou roubam do oponente.",
-    "Dados que não são anulados, protegem a sequência ou ganham quando são anulados.",
-    "Dados que ganham com os outros dados da sua sequência.",
-    "Adesivos para colar num lado de um dado seu." };
-// A cor de cada grupo (texto e moldura) e o papel do embrulho: a luz da
-// tampa, a frente e o lado na sombra, todos da paleta.
-static const uint16_t PAPEL_GRUPO[GR_N + 1][3] = {
-    { RGB(228, 194, 106), RGB(190, 156, 86), RGB(150, 122, 62) },     // ouro
-    { RGB(208, 98, 108), RGB(190, 56, 60), RGB(118, 30, 38) },        // vermelho
-    { RGB(96, 134, 196), RGB(56, 86, 150), RGB(26, 34, 62) },         // azul
-    { RGB(150, 112, 160), RGB(102, 74, 138), RGB(54, 36, 74) },       // roxo
-    { RGB(130, 204, 112), RGB(72, 150, 138), RGB(26, 34, 62) } };     // os adesivos: verde-agua
-static uint16_t cor_grupo(int g)
+#define PRECO_PAC_ADESIVOS 4
+static const uint8_t PRECO_NIVEL[PN_N] = { 3, 5, 8, 12 };
+static const char *const NOME_PACOTE[PN_N + 1] = { "Bronze", "Prata", "Ouro", "Diamante", "Adesivos" };
+// A chance (%) de cada raridade dentro de cada nivel [comum, incomum, raro, lendario].
+static const uint8_t RAR_NIVEL[PN_N][4] = { { 75, 20, 5, 0 }, { 20, 65, 15, 0 }, { 0, 25, 65, 10 }, { 0, 0, 65, 35 } };
+static const char *const DESC_NIVEL[PN_N] = { "3 dados ao acaso, quase todos comuns.", "3 dados ao acaso, quase todos incomuns.",
+                                              "3 dados ao acaso, quase todos raros; às vezes um lendário.",
+                                              "3 dados ao acaso, raros e lendários." };
+// A chance (%) de cada nivel [Bronze, Prata, Ouro, Diamante] na loja depois do
+// 1o, 2o... 8o oponente vencido na run (a da entrada, como a do 1o).
+#define PN_MESAS 8
+static const uint8_t CHANCE_NIVEL[PN_MESAS][PN_N] = {
+    { 75, 20, 4, 1 }, { 62, 26, 9, 3 }, { 48, 30, 15, 7 }, { 34, 30, 22, 14 },
+    { 22, 27, 28, 23 }, { 12, 22, 31, 35 }, { 5, 15, 32, 48 }, { 0, 10, 30, 60 } };
+static const uint8_t *chance_nivel(void)
 {
-    static const uint16_t C[GR_N + 1] = { C_OURO, C_VINHO_CLR, RGB(96, 134, 196), RGB(150, 112, 160), RGB(130, 204, 112) };
-    return g >= 0 && g <= GR_ADESIVOS ? C[g] : C_LATAO;
+    int m = run.vitorias < 1 ? 0 : run.vitorias > PN_MESAS ? PN_MESAS - 1 : run.vitorias - 1;
+    return CHANCE_NIVEL[m];
 }
-static bool tem_pacote(void) { return run.pacote <= GR_ADESIVOS; }
-static bool pacote_de_adesivos(void) { return run.pacote == GR_ADESIVOS; }
+// A cor de cada pacote (o nome, a moldura do cartao) e o papel do embrulho:
+// a luz da tampa, a frente e o lado na sombra, todos da paleta.
+static const uint16_t PAPEL_PACOTE[PN_N + 1][3] = {
+    { RGB(200, 142, 104), RGB(156, 106, 64), RGB(120, 78, 50) },      // bronze
+    { RGB(184, 194, 208), RGB(140, 150, 164), RGB(104, 112, 124) },   // prata
+    { RGB(246, 222, 132), RGB(228, 194, 106), RGB(150, 122, 62) },    // ouro
+    { RGB(252, 248, 236), RGB(168, 204, 230), RGB(96, 134, 196) },    // diamante
+    { RGB(168, 204, 230), RGB(96, 182, 198), RGB(72, 150, 138) } };   // os adesivos: a folha metalizada
+static uint16_t cor_pacote(int g)
+{
+    static const uint16_t C[PN_N + 1] = { RGB(238, 162, 74), C_PRATA, C_OURO, RGB(168, 204, 230), RGB(96, 182, 198) };
+    return g >= 0 && g <= PAC_ADESIVOS ? C[g] : C_LATAO;
+}
+static bool tem_pacote(void) { return run.pacote <= PAC_ADESIVOS; }
+static bool pacote_de_adesivos(void) { return run.pacote == PAC_ADESIVOS; }
 static int pac_ad(int i) { return i >= 0 && i < PAC_OPCOES && run.pac_op[i].ad[0] < AD_N ? run.pac_op[i].ad[0] : AD_NADA; }
 
-static int grupo_do_dado(int t)
-{
-    switch (t) {
-    case D_D8: case D_D12: case D_D20: case D_LASTRO: case D_VICIADO: case D_EXPLOSIVO: case D_DESAFIANTE:
-    case D_ACUMULADOR: case D_PREVISIVEL: case D_PACTO: case D_EGOISTA: case D_BERSERKER: case D_AUTOFAGIA:
-    case D_BUMERANGUE: case D_VIDRO: case D_QUEBRADO: case D_RANCOR: case D_AMPULHETA: case D_POTE_QUENTE:
-    case D_ESPERANCA: case D_TREVO: case D_TUDO_NADA: case D_SORTE_REVES: case D_MALDITO: case D_FOGO:
-    case D_FURIA: case D_ONDA: case D_PATINHOS: case D_PRESENTE: case D_PANETONE: case D_PISCA: case D_MEIA:
-    case D_REVOLVER: case D_ASTRO: case D_RELOGIO: case D_ADESIVADO:
-        return GR_NUMEROS;
-    case D_CARRASCO: case D_MARTELO: case D_PIRATA: case D_GATUNO: case D_INVEJOSO: case D_CARIDOSO:
-    case D_MALDICAO: case D_LASER: case D_SABOTADOR: case D_VAMPIRO: case D_ASSOMBRACAO: case D_CAVALO:
-    case D_OURICO: case D_AGIOTA: case D_ESPELHO: case D_COVEIRO: case D_BONECO:
-    case D_TERREMOTO: case D_FICHA_CORINGA:
-        return GR_ATAQUE;
-    case D_ESCUDO: case D_TEIMOSO: case D_SENTINELA: case D_SEGURANCA: case D_ANCORA: case D_PONTE:
-    case D_FENIX: case D_MARTIR: case D_MISERICORDIOSO: case D_FICHA_VELHA: case D_SANGUESSUGA: case D_VAZIO:
-    case D_OCULTO: case D_VIUVA: case D_AZARAO: case D_FICHAS: case D_COBRADOR:
-        return GR_DEFESA;
-    case D_DOBRO: case D_PAR: case D_FARTURA: case D_SORTE: case D_SEMENTE: case D_JACKPOT: case D_COPIADOR:
-    case D_VENTANIA: case D_SOLITARIO: case D_FERREIRO: case D_GEMEO: case D_PRISMA: case D_CAPITAO:
-    case D_CHECKPOINT: case D_ECO: case D_DOMINO: case D_PUXA_FILA: case D_HEXA: case D_CALIBRE:
-    case D_SACRIFICIO: case D_MEDIA: case D_COLECIONADOR: case D_GARIMPEIRO: case D_TRONO: case D_MEDUSA:
-    case D_TRENO: case D_JINGLE: case D_ESTRELA: case D_RENA: case D_DIGITAL:
-        return GR_COMBO;
-    default:
-        return GR_NENHUM;                        // os de saida e os que nao saem em sorteio
-    }
-}
-
-static bool no_grupo(int t, int g) { return !so_inicial(t) && dado_liberado(t) && grupo_do_dado(t) == g; }
-static int dados_no_grupo(int g)
-{
-    int n = 0;
-    for (int t = 0; t < D_N; t++) n += no_grupo(t, g);
-    return n;
-}
+// Os dados que um pacote pode trazer: os que a vitrine sorteia.
+static bool no_pacote(int t) { return !so_inicial(t) && dado_liberado(t); }
 // A Lata de Biscoito: o pacote de adesivos, como o adesivo, 1 mais barato.
-static int preco_pacote(void) { return preco_ajusta(PRECO_PACOTE - (run.bolsa == B_LATA && run.pacote == GR_ADESIVOS)); }
-
-// Um dado do grupo g, pela raridade (w), que ainda nao esta em out[0..n).
-static peca_t sorteia_do_grupo(int g, const float w[4], const peca_t *out, int n)
+static int preco_pacote(void)
 {
-    float total = 0;
+    if (!tem_pacote()) return 0;
+    return preco_ajusta(pacote_de_adesivos() ? PRECO_PAC_ADESIVOS - (run.bolsa == B_LATA) : PRECO_NIVEL[run.pacote]);
+}
+
+// Um dado do pacote de nivel nv que ainda nao esta em out[0..n): primeiro a
+// raridade, pela chance do nivel (entre as que tem dado), depois um dado
+// dela, todos com a mesma chance.
+static peca_t sorteia_do_nivel(int nv, const peca_t *out, int n)
+{
+    int quantos[4] = { 0, 0, 0, 0 };
     for (int t = 0; t < D_N; t++) {
         bool ja = false;
         for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
-        if (no_grupo(t, g) && !ja) total += w[TIPO[t].raridade];
+        if (no_pacote(t) && !ja) quantos[TIPO[t].raridade]++;
     }
-    float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
+    int total = 0;
+    for (int r = 0; r < 4; r++) if (quantos[r]) total += RAR_NIVEL[nv][r];
+    int rar = -1;
+    if (total > 0) {
+        int x = sorte_r(total);
+        for (int r = 0; r < 4 && rar < 0; r++)
+            if (quantos[r] && (x -= RAR_NIVEL[nv][r]) < 0) rar = r;
+    }
+    if (rar < 0)                                 // o nivel nao tem nenhuma das raridades dele: a mais perto que tiver
+        for (int d = 0; d < 4 && rar < 0; d++)
+            for (int r = 0; r < 4 && rar < 0; r++)
+                if (quantos[r] && RAR_NIVEL[nv][r] == 0 && abs(r - (nv < 2 ? 0 : 3)) == d) rar = r;
+    if (rar < 0) return peca_r(D_D8);
+    int q = sorte_r(quantos[rar]);
     for (int t = 0; t < D_N; t++) {
         bool ja = false;
         for (int k = 0; k < n; k++) ja |= out[k].tipo == t;
-        if (!no_grupo(t, g) || ja) continue;
-        x -= w[TIPO[t].raridade];
-        if (x < 0) return peca_r(t);
+        if (no_pacote(t) && !ja && TIPO[t].raridade == rar && q-- == 0) return peca_r(t);
     }
-    for (int t = D_N - 1; t >= 0; t--) if (no_grupo(t, g)) return peca_r(t);
     return peca_r(D_D8);
 }
 
-// O pacote desta loja: o grupo, ao acaso entre os que tem dados bastantes,
-// e o que vem dentro (da semente: sair e voltar mostra o mesmo).
+// O pacote desta loja: de adesivos (com 3 abertos, pelo menos) ou de dados,
+// meio a meio; o de dados, no nivel sorteado pela mesa. O que vem dentro sai
+// da semente: sair e voltar mostra o mesmo.
 static int sorteia_adesivo_loja(const uint8_t *fora, int n, bool so_novos);
 static int adesivos_abertos(void);
 static void monta_pacote(void)
 {
-    rs = run.semente ^ (0xBA6E1u * (uint32_t)(run.lojas + 1));
-    rnd_r();
-    int pode[GR_N], n = 0;
-    for (int g = 0; g < GR_N; g++) if (dados_no_grupo(g) >= PAC_OPCOES) pode[n++] = g;
+    semente_loja(0xBA6E1u);
     run.pac_estado = PAC_VENDA;
     memset(run.pac_op, 0, sizeof run.pac_op);
-    // Metade das lojas traz o pacote de adesivos (com 3 abertos, pelo menos).
-    if (adesivos_abertos() >= PAC_OPCOES && (!n || sorte_r(2))) {
-        run.pacote = GR_ADESIVOS;
+    if (adesivos_abertos() >= PAC_OPCOES && sorte_r(2)) {
+        run.pacote = PAC_ADESIVOS;
         uint8_t ja[PAC_OPCOES];
         for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i].ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i, false);
         return;
     }
-    if (!n) { run.pacote = GR_NENHUM; run.pac_estado = PAC_USADO; return; }
-    run.pacote = (uint8_t)pode[sorte_r(n)];
-    for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_grupo(run.pacote, peso_do_salao(), run.pac_op, i);
+    const uint8_t *ch = chance_nivel();
+    int x = sorte_r(100), nv = 0;
+    while (nv < PN_N - 1 && (x -= ch[nv]) >= 0) nv++;
+    run.pacote = (uint8_t)nv;
+    for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_nivel(nv, run.pac_op, i);
 }
 
-// O adesivo da loja (adesivos.inc): um por loja, entre os que o perfil ja
-// abriu (o Crupie abre o de cada nivel), sorteado pela raridade com os pesos
-// da vitrine: no primeiro salao, os lendarios quase nao saem. Trocar a
-// vitrine nao muda o adesivo.
+// Os adesivos da loja (adesivos.inc): entre os que o perfil ja abriu (o
+// Crupie abre o de cada nivel), sorteados pela raridade com os pesos da
+// vitrine: no primeiro salao, os lendarios quase nao saem.
 static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco - (run.bolsa == B_LATA) : 0); }
 static int adesivos_abertos(void)
@@ -268,25 +279,30 @@ static int sorteia_adesivo_loja(const uint8_t *fora, int n, bool so_novos)
     }
     return AD_NADA;
 }
-static void monta_adesivo(void)
+// Os adesivos desta loja: meio a meio, um ou dois (e entao 1 dado a menos).
+static void monta_adesivos(void)
 {
-    rs = run.semente ^ (0xAD5E1u * (uint32_t)(run.lojas + 1));
-    rnd_r();
-    run.adesivo = (uint8_t)sorteia_adesivo_loja(NULL, 0, true);
-    run.ad_vendido = 0;
+    semente_loja(0xAD5E1u);
+    run.dois_adesivos = (uint8_t)(adesivos_abertos() >= 2 && sorte_r(2));
+    uint8_t ja[1];
+    run.adesivo = ja[0] = (uint8_t)sorteia_adesivo_loja(NULL, 0, true);
+    run.adesivo2 = run.dois_adesivos ? (uint8_t)sorteia_adesivo_loja(ja, 1, true) : AD_NADA;
+    run.ad_vendido = run.ad_vendido2 = 0;
 }
 
-static void monta_loja_run(void)
+// A loja inteira: na abertura e a cada troca.
+static void sorteia_loja(void)
 {
-    if (run.lojas) {                             // o que a loja de antes mostrou nao volta
-        vitrine_vista();
-        marca_adesivo_visto(run.adesivo);
-    }
-    if (run.lojas < 255) run.lojas++;
-    run.trocas = 0;
+    monta_adesivos();                            // (decide quantos dados a vitrine mostra)
     monta_vitrine();
     monta_pacote();
-    monta_adesivo();
+}
+static void monta_loja_run(void)
+{
+    if (run.lojas) loja_vista();                 // o que a loja de antes mostrou nao volta
+    if (run.lojas < 255) run.lojas++;
+    run.trocas = 0;
+    sorteia_loja();
 }
 
 // ---------------------------------------------------------------------------

@@ -115,7 +115,7 @@ static void desenha_cat_adesivo(int i)
     gfx_texto(x, 60, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
     snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
     int ex = etiqueta_caixa(x, 104, s, C_OURO) + 2;
-    txt(ex, 105, "adesivo · na loja, um por visita", C_TEXTO_M, false);
+    txt(ex, 105, "adesivo · na loja e no pacote de adesivos", C_TEXTO_M, false);
     if (d->nivel == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);

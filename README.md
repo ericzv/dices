@@ -65,7 +65,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   |---|---|---|---|
   | Saco de Pano | os dados de sempre | sem regra | desde o começo |
   | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
-  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | a vitrine mostra 1 dado a menos | ter 3 adesivos colados |
+  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados da 7ª rodada em diante; vem com o Trevo | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro | toda rodada começa com -4 | vencer 3 rodadas de uma partida com 4 dados válidos |
@@ -95,16 +95,23 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
-  terceiro, este só do nível 5), e abre uma loja pequena: a vitrine com 2
-  dados (3, 4, 6 ou 9 moedas, pela raridade; cada dado, e cada adesivo da
-  loja, aparece à venda uma vez só na run, e só os pacotes repetem), um pacote (4 moedas: dados
-  embrulhados de um grupo, Números, Ataque, Defesa ou Combo; abre na hora,
-  mostra 3 do grupo e você leva 1 ou pula; em metade das lojas, o pacote é
-  de adesivos: 3 adesivos, você leva 1 e já cola), um adesivo (2 a 6 moedas), trocar
-  a vitrine (1, depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7...
-  na run inteira). O adesivo vai num lado de um dado da sua bolsa (um por
+  terceiro, este só do nível 5), e abre uma loja pequena: 2 dados e 1
+  adesivo, ou 1 dado e 2 adesivos, meio a meio (os dados custam 3, 4, 6 ou 9
+  moedas, pela raridade, e os adesivos, 2 a 6; cada dado e cada adesivo
+  aparece à venda uma vez só na run, e só os pacotes repetem), um pacote
+  (de dados ou de adesivos, meio a meio; o de dados vem numa caixa de um de
+  quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 3 moedas,
+  quase todos comuns; Prata, 5, quase todos incomuns; Ouro, 8, quase todos
+  raros e às vezes um lendário; Diamante, 12, raros e lendários - e a cada
+  oponente vencido os melhores aparecem mais, do Bronze em 3 de cada 4
+  lojas depois do primeiro ao Diamante em 6 de cada 10 depois do oitavo; o
+  de adesivos, 4 moedas, é um pacotinho de figurinhas com 3 adesivos; os
+  dois abrem na hora e você leva 1 ou pula, e o adesivo você já cola),
+  trocar a loja (sorteia tudo de novo: os dados, os adesivos e o pacote; 1,
+  depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
+  inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 28, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  lado para cima: são 34, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
   um sai metade das vezes), ao Bis (2 dados a mais na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
@@ -116,11 +123,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   (+2, +4, +6... crescendo a cada vez que age), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
   Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
-  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados) e
-  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada); sete
-  desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
-  uma raridade, como os dados, e o da loja sai com os mesmos pesos da
-  vitrine: no primeiro salão, os lendários quase não aparecem.
+  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados),
+  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada) e aos
+  de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
+  Carbono (copia o número do seu último dado válido: igual não cai), o Papel
+  Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
+  partida, o dado não pode ser destruído: o que tentar é bloqueado nele), o
+  Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
+  por adesivo colado no dado); sete desde o começo, os outros abrem nos
+  níveis 1 a 10. Cada adesivo tem
+  uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
+  dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
@@ -188,10 +201,11 @@ incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
 lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
 um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
 Raspadinha, Lobo, Gorjeta, Frágil e Velcro; incomuns: Confete, Reflexivo,
-Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha e
-Imantado; raros: Eletrônico, Transparente, Fermento, Purpurina, Figurinha,
-Patinho Feio e Etiqueta; lendários: Chumbo, Mira, Holográfico e Bilhete
-Premiado). Levando o adesivo, você escolhe o dado da sua
+Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha,
+Imantado, Papel Bomba, Impermeável e Lenticular; raros: Eletrônico,
+Transparente, Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel
+Carbono e Neon; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
+Dez). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 
@@ -274,6 +288,17 @@ ctest --test-dir build --output-on-failure
 `balanco` também mede cada dado e cada amuleto numa mesa só e o recomeço de
 partida (veja o começo de `tests/balanco.c`).
 
+No Linux, o ctest também passa pelas telas principais (o menu, o
+Desafiante, o mapa de cada salão, a loja, a mesa, o catálogo, o painel do
+som...) e compara cada uma com a referência guardada em
+`tests/telas_ref.txt`: a cor média de cada bloco de 20 x 20, com folga para o
+arredondamento de outro compilador. Mudou uma tela de propósito:
+
+```sh
+./build/telas tests/telas_ref.txt --fotos /tmp/telas   # as telas, para conferir
+./build/telas tests/telas_ref.txt --atualiza           # a referência nova
+```
+
 ### Versão do navegador
 
 Precisa do [Emscripten](https://emscripten.org/):
@@ -315,7 +340,7 @@ src/          o jogo
 desktop/      a plataforma PC: janela, teclado, som e ícone
   sons/           a trilha e os efeitos (OGG), embutidos no executável no build
 web/          a página do navegador e a rede do modo online (MQTT)
-tests/        simulador de partidas, regras, Desafiante e conferência dos sons
+tests/        simulador de partidas, regras, Desafiante, telas e conferência dos sons
 tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
 docs/         o guia de estilo (estilo.md): paleta, rampas, kit de interface e ícones
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC

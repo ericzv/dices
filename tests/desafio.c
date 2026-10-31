@@ -22,10 +22,21 @@ void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
+void som_chefe(bool on) { (void)on; }
 void som_volume(int c, int n) { (void)c; (void)n; }
 int som_volume_de(int c) { (void)c; return SOM_NIVEIS; }
 
 #include "salva_mem.h"
+
+// O primeiro adesivo da loja que da para comprar agora (e colar), ou -1.
+static int adesivo_a_comprar(void)
+{
+    for (int k = 0; k < n_adesivos_loja(); k++) {
+        int a = ad_loja(k);
+        if (a && !ad_loja_vendido(k) && run.moedas >= preco_adesivo(a) && lj_algum_lado(a)) return k;
+    }
+    return -1;
+}
 
 static uint32_t est = 99991;
 static uint32_t rnd_t(void) { est ^= est << 13; est ^= est >> 17; est ^= est << 5; return est; }
@@ -271,7 +282,7 @@ int main(int argc, char **argv)
                     trata_tecla(KEY_ENTER);
                     CONFERE(ad_no_lado(pc, c) == a && ad_quantos(pc) == n0 + 1
                             && (do_pacote ? run.moedas == m0 && run.pac_estado == PAC_USADO
-                                          : run.moedas == m0 - preco_adesivo(a) && run.ad_vendido), "colar: o adesivo nao entrou");
+                                          : run.moedas == m0 - preco_adesivo(a) && ad_loja_vendido(lj_ad_k)), "colar: o adesivo nao entrou");
                     adesivos++;
                     break;
                 }
@@ -308,7 +319,7 @@ int main(int argc, char **argv)
                 // que um D4); com sobra, tira um dado fraco; uma troca de vitrine
                 // por loja, com folga.
                 // Enxuto (estrategia 1): so incomum ou melhor, e tira os fracos antes.
-                int nv = n_vitrine(), b = -1;
+                int nv = n_vitrine(), b = -1, ka;
                 for (int i = 0; i < nv; i++) {
                     int t = run.vitrine[i].tipo;
                     if (run.levou[i] || run.moedas < preco_run(t) || t == D_QUEBRADO) continue;
@@ -328,13 +339,13 @@ int main(int argc, char **argv)
                 } else if (run.pac_estado == PAC_VENDA && tem_pacote() && run.moedas >= preco_pacote()
                            && (!pacote_de_adesivos() || lj_algum_lado_livre())) {
                     int m0 = run.moedas;
-                    cursor = nv;                 // sobrou: abre o pacote
+                    cursor = lj_item_pacote();   // sobrou: abre o pacote
                     trata_tecla(KEY_ENTER);
                     CONFERE(lj_pac && run.moedas == m0 - preco_pacote(), "o pacote nao abriu");
-                } else if (run.adesivo && !run.ad_vendido && run.moedas >= preco_adesivo(run.adesivo) && lj_algum_lado()) {
-                    cursor = lj_item_adesivo();  // sobrou mais: o adesivo
+                } else if ((ka = adesivo_a_comprar()) >= 0) {
+                    cursor = lj_item_adesivo(ka); // sobrou mais: um adesivo
                     trata_tecla(KEY_ENTER);
-                    CONFERE(lj_colando == 1, "o adesivo nao abriu");
+                    CONFERE(lj_colando == 1 && lj_ad_k == ka, "o adesivo nao abriu");
                 } else if (fraco && run.n_col > 8 && run.moedas >= preco_remove()) {
                     cursor = lj_item_tira();
                     trata_tecla(KEY_ENTER);

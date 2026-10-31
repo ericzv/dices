@@ -16,6 +16,15 @@ static int ultimo_da_regra(int j, const uint8_t *est, int antes)
     return -1;
 }
 
+// O Papel Carbono do lado de cima do dado k de j copia o numero do ultimo
+// valido? Nao nos que nao valem o que rolam (como o Avesso), nem no Universo.
+static bool carbono_age(int j, int k)
+{
+    int ef = TIPO[tipo_de(j, k)].efeito;
+    return ad_fila(j, k) == AD_CARBONO && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL
+        && ef != EF_RELOGIO && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA && ef != EF_UNIVERSO;
+}
+
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
 // O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
@@ -52,6 +61,15 @@ static const peca_t *peca_fila(int j, int k)
 // A Onda no lugar k veio da bolsa (a copia do Coringa nao vira Tsunami).
 static bool onda_da_bolsa(int j, int k) { const peca_t *p = peca_fila(j, k); return p && p->tipo == D_ONDA; }
 static int ad_fila(int j, int k) { return ad_no_lado(peca_fila(j, k), F[j].lado[k]); }
+// O Impermeavel: o dado k de j esta com a capa? Tirou o lado dele nesta
+// rodada, ou numa de antes desta partida. Nao quebra, nao queima, nao e comido.
+static bool impermeavel(int j, int k)
+{
+    const peca_t *p = peca_fila(j, k);
+    return p && (p->capa || ad_no_lado(p, F[j].lado[k]) == AD_IMPERMEAVEL);
+}
+// O Vidro que tirou 1 se estilhaca (com a capa, nao).
+static bool vidro_quebra(int j, int k) { return F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1 && !impermeavel(j, k); }
 // O Panetone, a cada lance: a fatia vem com 0 a 3 frutas.
 static void fatia(int j, int k, int (*r)(int))
 {
@@ -255,6 +273,15 @@ static void aplica_regra(int j, int k)
         return;
     }
 
+    // O Papel Carbono: tirando o lado dele, o dado fica com o numero do
+    // ultimo valido da sequencia - igual, nao cai. O primeiro da sequencia
+    // nao tem o que copiar e fica com o que tirou.
+    f->copiou[k] = carbono_age(j, k) && l >= 0;
+    if (f->copiou[k]) {
+        v = f->cru[k] = f->valor[k] = f->valor[l];
+        snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+    }
+
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
     // vale como esta, sem cair.
@@ -296,7 +323,9 @@ static void aplica_regra(int j, int k)
         }
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
-    if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
+    // O Papel Bomba: os dois lances que ele somou ("4+5").
+    if (f->bomba[k] && !f->copiou[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d+%d", f->bomba1[k], v - f->bomba1[k]);
+    else if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
     if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_UNIVERSO) {
@@ -312,7 +341,7 @@ static void aplica_regra(int j, int k)
 
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
     // antes, como na queda; no fim da rodada sai da bolsa.
-    if (ef == EF_VIDRO && v == 1) {
+    if (ef == EF_VIDRO && v == 1 && !impermeavel(j, k)) {
         f->est[k] = V_ANULADO;
         anulou_b = k;
         if (l >= 0 && !firme(j, l)) {             // e derruba o anterior, como na queda
@@ -552,6 +581,12 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Buraco Negro tirou %d: no fim, anula os vizinhos e evolui", v);
         } else if (cosmico(t) && f->evolui[k]) {
             snprintf(veredito, sizeof veredito, "%s tirou %d: pontua %d (+%d) e evolui!", TIPO[t].nome, v, vale, cosmo_bonus(t));
+        } else if (ef == EF_VIDRO && v == 1) {          // (so com a capa chega aqui)
+            snprintf(veredito, sizeof veredito, "o Vidro tirou 1, mas é Impermeável: não quebra");
+        } else if (f->copiou[k]) {
+            snprintf(veredito, sizeof veredito, "Papel Carbono copia o %d: pontua %d", v, vale);
+        } else if (f->bomba[k]) {
+            snprintf(veredito, sizeof veredito, "Papel Bomba! %d+%d pontua %d", f->bomba1[k], v - f->bomba1[k], vale);
         } else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
@@ -655,6 +690,7 @@ static void pousa(int j, int k, int (*r)(int))
         int x = r(6);
         f->lado[k] = (uint8_t)x;
         f->cru[k] = f->valor[k] = remenda(peca_fila(j, k), x);   // o Remendo vale no segundo lance tambem
+        f->bomba[k] = false;
         voltou = true;
     }
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
@@ -692,10 +728,11 @@ static void pousa(int j, int k, int (*r)(int))
         return;
     }
     int i = 0;                                                   // o primeiro da sequencia
-    if (!(f->tipo[i] == D_VIDRO && f->cru[i] == 1)) {           // vidro quebrado nao volta
+    if (!vidro_quebra(j, i)) {                                  // vidro quebrado nao volta
         int menor, lado, antes;
         f->cru[i] = f->valor[i] = sorteia_peca(f->tipo[i], f->fixo[i], peca_fila(j, i), r, &menor, &lado, &antes);
         f->lado[i] = (uint8_t)lado;
+        f->bomba[i] = false;
         fatia(j, i, r);
         f->descarte[i] = (uint8_t)menor;
         f->espera[i] = false;

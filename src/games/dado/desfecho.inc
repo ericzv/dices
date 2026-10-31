@@ -25,6 +25,7 @@ typedef struct {
     uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
+    uint8_t capa[2];                 // o Impermeavel que agiu: a capa fica ate o fim da partida
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
@@ -118,7 +119,13 @@ static void treme_dado(int r, int a, uint32_t semente_abalo)
     const peca_t *p = peca_fila(r, a);
     int t = f->tipo[a], menor, lado, antes;
     int x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
-    if (ad_no_lado(p, lado) == AD_REFLEXIVO) x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+    int a1 = ad_no_lado(p, lado);
+    f->bomba[a] = a1 == AD_BOMBA;                // o Papel Bomba: rola de novo e soma
+    if (a1 == AD_REFLEXIVO || a1 == AD_BOMBA) {
+        int x1 = x;
+        x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+        if (f->bomba[a]) { f->bomba1[a] = (int8_t)x1; x += x1; }
+    }
     int teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
     if (f->calibre[a] && x < teto) { x++; if (lado && lado < ad_lado_max(t)) lado++; }
     f->cru[a] = f->valor[a] = x;
@@ -393,21 +400,29 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) n_far++;
     // Ficha de Fogo: com 2, +10; com 1, nada. Nos dois casos o maior dado seu
     // que pontua (sem contar ela) queima no fim. Duas fichas queimam dois
-    // dados diferentes.
+    // dados diferentes. O dado com a capa do Impermeavel e alvo como os
+    // outros, mas nao queima - e o fogo nao passa para outro.
+    uint8_t mirado[N_FILA] = { 0 };
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FOGO) continue;
         int a = -1;
         for (int i = 0; i < f->lancados; i++) {
-            if (i == k || est[i] != V_VALIDO || d->queima[j][i]) continue;
+            if (i == k || est[i] != V_VALIDO || mirado[i]) continue;
             if (TIPO[tipo_de(j, i)].efeito == EF_FOGO) continue;
             if (a < 0 || f->valor[i] > f->valor[a]) a = i;
         }
         if (a < 0) continue;
-        d->queima[j][a] = 1;
+        mirado[a] = 1;
+        bool capa = impermeavel(j, a);
+        if (!capa) d->queima[j][a] = 1;
+        evento_t *e;
         if (f->cru[k] == 2) {
             d->semente[j] += 10;
-            evento(gera, EV_FOGO, j, k, j, a, 10, "Ficha Fogo deu 2: +10, e o %d vira cinza", f->valor[a]);
-        } else evento(gera, EV_FOGO, j, k, j, a, 0, "Ficha Fogo deu 1: o %d vira cinza", f->valor[a]);
+            e = evento(gera, EV_FOGO, j, k, j, a, 10, capa ? "Ficha Fogo deu 2: +10, mas o %d está protegido"
+                                                           : "Ficha Fogo deu 2: +10, e o %d vira cinza", f->valor[a]);
+        } else e = evento(gera, EV_FOGO, j, k, j, a, 0, capa ? "Ficha Fogo deu 1: o %d está protegido"
+                                                             : "Ficha Fogo deu 1: o %d vira cinza", f->valor[a]);
+        if (e && capa) e->bloqueado = (uint8_t)(1 << a);
     }
 
     // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
@@ -667,8 +682,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
             d->medusa[j] = 1;
             evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua sequência vira pedra");
-            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
-                if (est[i] != V_ROUBADO) e->mascara |= (uint8_t)(1 << i);
+            for (int i = 0; e && i < f->lancados && i < N_FILA; i++) {
+                if (est[i] == V_ROUBADO) continue;
+                if (impermeavel(j, i)) e->bloqueado |= (uint8_t)(1 << i);   // com a capa, nao vira pedra
+                else e->mascara |= (uint8_t)(1 << i);
+            }
         } else if (ef == EF_RANCOR && J[j].perdidas > 0) {   // +1 por rodada perdida na partida
             int n = J[j].perdidas;
             d->semente[j] += n;
@@ -995,9 +1013,14 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             for (int i = 0; i < F[j].lancados; i++)
                 if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)
                     && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-            if (b >= 0) {
+            bool pode = b >= 0 && !d->come[j] && autofagia_come_pode(j, k, b);
+            if (b >= 0 && pode && impermeavel(j, b)) {    // ia comer o de capa: o Impermeavel bloqueia tudo
+                evento_t *e = evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Autofagia tenta comer o %d: está protegido",
+                                     F[j].valor[b]);
+                if (e) e->bloqueado = (uint8_t)(1 << b);
+            } else if (b >= 0) {
                 d->est[j][b] = V_ANULADO;
-                bool come = !d->come[j] && autofagia_come_pode(j, k, b);
+                bool come = pode;
                 if (come) { d->come[j] = (uint8_t)(b + 1); d->come_de[j] = (uint8_t)(k + 1); }
                 if (come) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                                  "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
@@ -1179,12 +1202,13 @@ static int etiquetas_de(int j)
 }
 
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
-// Avesso, o Remendo, o Post-it), ou na regra da fila (o Transparente, o
-// Corretivo): no fim da rodada so contam para a Purpurina.
+// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
+// fila (o Transparente, o Corretivo, o Papel Carbono): no fim da rodada so
+// contam para a Purpurina.
 static bool ad_do_pouso(int a)
 {
     return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
-        || a == AD_CORRETIVO || a == AD_POSTIT;
+        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO;
 }
 
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
@@ -1248,10 +1272,13 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         d->velcro[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sVelcro: volta para a mão", pre);
         break;
-    case AD_FRAGIL:                              // valendo, +6; anulado, quebra
+    case AD_FRAGIL:                              // valendo, +6; anulado, quebra (com a capa, nao)
         if (vale) {
             d->semente[j] += FRAGIL_PONTOS;
             e = evento(gera, EV_ADESIVO, j, k, j, k, FRAGIL_PONTOS, "%sFrágil: +%d", pre, FRAGIL_PONTOS);
+        } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k) && impermeavel(j, k)) {
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, mas o dado está protegido", pre);
+            if (e) e->bloqueado = bit;
         } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k)) {
             d->fragil[j] |= bit;
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
@@ -1291,6 +1318,31 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         int n = etiquetas_de(j);
         d->semente[j] += n;
         e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sEtiqueta: %d na bolsa, +%d", pre, n, n);
+        break;
+    }
+    case AD_LENTICULAR:                          // valendo, x2; anulado, -4 no seu placar
+        if (vale) {
+            d->mult[j][k] = (int8_t)(d->mult[j][k] + 2);
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 2, "%sLenticular: x2 no %d", pre, F[j].valor[k]);
+            if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
+        } else if (d->est[j][k] == V_ANULADO) {
+            d->delta[j] -= LENTICULAR_PERDE;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, -LENTICULAR_PERDE, "%sLenticular: anulado, -%d", pre, LENTICULAR_PERDE);
+        } else return false;
+        break;
+    case AD_NEON: {                              // valendo: +2 por adesivo no dado (o deste lado junto)
+        const peca_t *pn = peca_fila(j, k);
+        if (!vale || !pn) return false;
+        int n = ad_quantos(pn);
+        d->semente[j] += NEON_CADA * n;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNeon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
+        break;
+    }
+    case AD_IMPERMEAVEL: {                       // valendo ou nao: a capa, ate o fim da partida
+        const peca_t *pc = peca_fila(j, k);
+        if (!pc || pc->capa) return false;       // ja estava com a capa
+        d->capa[j] |= bit;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: o dado não pode ser destruído", pre);
         break;
     }
     case AD_PATINHO: {                           // valendo: no lado dele, -2; caindo em outro, +2

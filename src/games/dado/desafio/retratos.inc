@@ -985,8 +985,9 @@ typedef struct {
 // Tudo o que a run guarda. Vai para o salvamento como esta (em hexadecimal);
 // a marca muda quando a estrutura muda, e a run salva de antes nao abre mais.
 #define RUN_MARCA "DES5"
-#define VITRINE_MAX 3                    // a vitrine da loja: 2 dados (3 com a Cartola)
-#define PAC_OPCOES  3                    // o pacote mostra 3 dados do grupo: leva 1
+#define VITRINE_MAX 3                    // os dados da loja: ate 2 (3 com a Cartola)
+#define AD_LOJA_MAX 2                    // os adesivos da loja: 1 ou 2
+#define PAC_OPCOES  3                    // o pacote mostra 3 dados (ou adesivos): leva 1
 typedef struct {
     char     marca[4];                   // RUN_MARCA
     uint8_t  andar, passo, estado, vitorias;
@@ -1003,10 +1004,10 @@ typedef struct {
     uint8_t  ganho, juros, taca;         // a ultima vitoria: a mesa, o Cofre e a Taca
     peca_t   vitrine[VITRINE_MAX];       // a loja aberta agora
     uint8_t  levou[VITRINE_MAX];
-    uint8_t  trocas;                     // vitrines trocadas nesta loja (o preco sobe)
+    uint8_t  trocas;                     // vezes que a loja foi trocada (o preco sobe)
     uint8_t  remocoes;                   // dados tirados na run (o preco sobe)
     uint8_t  lojas;                      // lojas abertas na run (o sorteio de cada uma)
-    uint8_t  pacote;                     // o grupo do pacote desta loja (GR_*; 0xFF: nenhum)
+    uint8_t  pacote;                     // o pacote desta loja: PN_* (de dados) ou PAC_ADESIVOS; 0xFF: nenhum
     uint8_t  pac_estado;                 // PAC_*: a venda, aberto (escolhendo) ou usado
     peca_t   pac_op[PAC_OPCOES];         // o que tem dentro
     uint8_t  adesivo;                    // o adesivo desta loja (AD_*; AD_NADA: nenhum)
@@ -1027,12 +1028,24 @@ typedef struct {
     // o que ja apareceu a venda na run, para nao aparecer de novo.
     uint8_t  vistos[16];                 // bit t: o dado t ja esteve na vitrine
     uint8_t  ad_vistos[4];               // bit a: o adesivo a ja esteve a venda
+    // Depois da loja de dois adesivos (a run salva de antes abre com a loja
+    // dela, de 1 adesivo; o pacote de dados de um grupo vira um de Bronze a
+    // Diamante, na ordem dos grupos):
+    uint8_t  dois_adesivos;              // esta loja vende 2 adesivos (e 1 dado a menos)
+    uint8_t  adesivo2, ad_vendido2;      // o segundo adesivo
+    // Depois dos adesivos de papel (a run salva de antes abre com eles nunca
+    // vistos): os bits dos adesivos de 32 em diante.
+    uint8_t  ad_vistos2[4];              // bit a - 32: o adesivo a ja esteve a venda
 } run_t;
-typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 4 ? 1 : -1];
+typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
 // O tamanho da run salva de antes das bolsas (ate o presente, com a folga) e
 // o de antes da loja sem repeticao (ate o porquinho, com a folga).
 #define RUN_TAM_SEM_BOLSA (offsetof(run_t, presente) + 2)
 #define RUN_TAM_SEM_VISTOS ((offsetof(run_t, porco_quebrou) + 4) & ~(size_t)3)
+// E o de antes da loja de dois adesivos (ate os vistos, com a folga), e o de
+// antes dos adesivos de papel (ate o segundo adesivo, com a folga).
+#define RUN_TAM_SEM_LOJA2 ((offsetof(run_t, dois_adesivos) + 3) & ~(size_t)3)
+#define RUN_TAM_SEM_VISTOS2 ((offsetof(run_t, ad_vistos2) + 3) & ~(size_t)3)
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
 // campo, com a peca de 13 bytes. Abre convertida (des_carrega).

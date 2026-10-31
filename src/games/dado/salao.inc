@@ -18,6 +18,13 @@ static int salao_andar(void)
     return run.andar < DES_ANDARES + 1 ? run.andar : 0;
 }
 
+// O som da cena (a cada passo, painel_som.inc): na mesa do chefe a batucada
+// entra na trilha.
+static void som_da_cena(void)
+{
+    som_chefe(salao_andar() >= 0 && na_partida() && run.no[run.passo].tipo == NO_CHEFE);
+}
+
 // A rampa de cada parede, do escuro ao claro, so com cores da paleta (a
 // rampa automatica de algumas destas cai num cinza no tom de baixo).
 static const uint16_t SAL_RAMPA[4][4] = {

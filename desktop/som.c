@@ -6,6 +6,11 @@
 //    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
 //    com o rufo, na cadeia de efeitos do fim da rodada, na hora da verdade e
 //    nos climax (Jackpot, fim, premio).
+//  - Camadas da trilha, do tamanho dela e no mesmo compasso: na mesa do
+//    chefe entra a batucada (surdo, agogo, o aro e as cordas); na hora da
+//    verdade a bossa some e ficam as cordas em tremolo no Do grave. As tres
+//    vem decodificadas na memoria e um callback do audio as mistura amostra
+//    a amostra: nunca saem do compasso, nem se o jogo engasgar.
 //  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
 //    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
@@ -53,6 +58,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_HOLOGRAFICO] = "ad_holografico", [SOM_AD_PURPURINA] = "ad_purpurina", [SOM_AD_VELCRO] = "ad_velcro",
     [SOM_AD_RATOEIRA] = "ad_ratoeira", [SOM_AD_FIGURINHA] = "ad_figurinha",
     [SOM_AD_PATINHO] = "ad_patinho", [SOM_AD_ETIQUETA] = "ad_etiqueta", [SOM_AD_BILHETE] = "ad_bilhete",
+    [SOM_AD_NOTA_DEZ] = "ad_nota_dez", [SOM_AD_CARBONO] = "ad_carbono", [SOM_AD_BOMBA] = "ad_bomba",
+    [SOM_AD_IMPERMEAVEL] = "ad_impermeavel", [SOM_AD_LENTICULAR] = "ad_lenticular", [SOM_AD_NEON] = "ad_neon",
     [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
     [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
     [SOM_BOLSA_ESPIA] = "bolsa_espia",
@@ -62,6 +69,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_EVOLUI] = "cosmo_evolui", [SOM_BURACO] = "buraco_negro", [SOM_BIG_BANG] = "big_bang",
     [SOM_VAMPIRO] = "vampiro",   [SOM_SABOTADOR] = "sabotador", [SOM_COVEIRO] = "coveiro",
     [SOM_AUTOFAGIA] = "autofagia", [SOM_AMPULHETA] = "ampulheta",
+    [SOM_TRANSICAO] = "transicao",
 };
 
 typedef struct {
@@ -72,10 +80,20 @@ typedef struct {
 static efeito_t ef[SOM_N];
 static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
-static Music trilha;
 static bool  pronto, falhou, ligado = true;
-static bool  rufando, girando, suspense, cadeia;
+static bool  rufando, girando, suspense, cadeia, chefe;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
+#define VOL_TRILHA 0.35f                     // a trilha no volume 10
+
+// A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
+enum { CAM_TRILHA, CAM_CHEFE, CAM_TENSAO, CAMADAS };
+static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe", "trilha_tensao" };
+static Wave  cam[CAMADAS];
+static unsigned cam_n, cam_pos;              // o tamanho do loop e onde ele esta (so o callback mexe)
+static AudioStream banda;
+static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
+static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
+static float v_chefe, v_tensao;              // quanto cada camada entrou (0..1)
 
 // O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
 // volume que se ouve); o 10 e o volume de sempre.
@@ -83,6 +101,7 @@ static float ganho(int c) { return nivel[c] <= 0 ? 0 : powf((float)nivel[c] / SO
 static int canal_de(int s)
 {
     return s == SOM_TIQUE || s == SOM_PASSA || s == SOM_MENU_PASSA || s == SOM_MENU_ESCOLHE || s == SOM_BOLSA_ESPIA
+                   || s == SOM_TRANSICAO
                ? SOM_CANAL_INTERFACE : SOM_CANAL_EFEITOS;
 }
 static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
@@ -103,6 +122,48 @@ static Sound carrega(const som_arquivo_t *a)
     s = LoadSoundFromWave(w);
     UnloadWave(w);
     return s;
+}
+
+// O callback do audio (na thread dele): soma as camadas, cada uma no seu
+// volume, deslizando ao longo do bloco do volume de antes ao pedido agora
+// (nada de degrau). Escreve float estereo.
+static void mistura_banda(void *saida, unsigned int quadros)
+{
+    float *o = saida;
+    memset(o, 0, quadros * 2 * sizeof *o);
+    for (int c = 0; c < CAMADAS; c++) {
+        float v0 = cam_vol[c], v1 = cam_alvo[c];
+        cam_vol[c] = v1;
+        if (!cam[c].data || (v0 <= 0 && v1 <= 0)) continue;
+        const short *x = cam[c].data;
+        float g = v0 / 32768.0f, dg = (v1 - v0) / 32768.0f / quadros;
+        unsigned p = cam_pos;
+        for (unsigned k = 0; k < quadros; k++, g += dg) {
+            o[2 * k] += x[2 * p] * g;
+            o[2 * k + 1] += x[2 * p + 1] * g;
+            if (++p == cam_n) p = 0;
+        }
+    }
+    cam_pos = (cam_pos + quadros) % cam_n;
+}
+
+// A banda: as camadas na memoria e o stream que as toca. Uma camada de outro
+// tamanho que a trilha sairia do compasso: fica de fora.
+static void monta_banda(void)
+{
+    for (int c = 0; c < CAMADAS; c++) {
+        const som_arquivo_t *a = acha(CAM_ARQ[c]);
+        if (!a) continue;
+        cam[c] = LoadWaveFromMemory(".ogg", a->dados, a->tam);
+        if (cam[c].data) WaveFormat(&cam[c], 44100, 16, 2);
+    }
+    if (!cam[CAM_TRILHA].data || !cam[CAM_TRILHA].frameCount) return;
+    cam_n = cam[CAM_TRILHA].frameCount;
+    for (int c = 1; c < CAMADAS; c++)
+        if (cam[c].data && cam[c].frameCount != cam_n) { UnloadWave(cam[c]); cam[c] = (Wave){ 0 }; }
+    banda = LoadAudioStream(44100, 32, 2);
+    SetAudioStreamCallback(banda, mistura_banda);
+    PlayAudioStream(banda);
 }
 
 static void monta_efeito(int s)
@@ -128,14 +189,7 @@ void som_inicia(void)
     rufo = carrega(acha("rufo"));
     moeda_rola = carrega(acha("moeda_rola"));
     giro = carrega(acha("giro"));
-    const som_arquivo_t *t = acha("trilha");
-    if (t) {
-        // O raylib le o OGG aos poucos, direto da memoria do executavel.
-        trilha = LoadMusicStreamFromMemory(".ogg", t->dados, t->tam);
-        trilha.looping = true;
-        SetMusicVolume(trilha, 0.35f);
-        PlayMusicStream(trilha);
-    }
+    monta_banda();
     pronto = true;
 }
 
@@ -150,7 +204,8 @@ void som_encerra(void)
     UnloadSound(rufo);
     UnloadSound(moeda_rola);
     UnloadSound(giro);
-    UnloadMusicStream(trilha);
+    if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
+    for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
     pronto = false;
 }
 
@@ -180,8 +235,15 @@ void som_atualiza(float dt)
     if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
-    SetMusicVolume(trilha, 0.35f * duck * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0));
-    UpdateMusicStream(trilha);
+    // As camadas: a do chefe entra em uns 2 s e sai em 1,5; as cordas da
+    // hora da verdade chegam em meio segundo e saem junto com a bossa
+    // voltando.
+    v_chefe += ((chefe ? 1 : 0) - v_chefe) * fminf(1, dt / (chefe ? 0.7f : 0.5f));
+    v_tensao += ((suspense ? 1 : 0) - v_tensao) * fminf(1, dt / (suspense ? 0.18f : 0.4f));
+    float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
+    cam_alvo[CAM_TRILHA] = m * duck;
+    cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
+    cam_alvo[CAM_TENSAO] = m * v_tensao;
 }
 
 // Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que
@@ -257,6 +319,7 @@ void som_giro(bool on)
 
 void som_suspense(bool on) { suspense = on; }
 void som_cadeia(bool on)   { cadeia = on; }
+void som_chefe(bool on)    { chefe = on; }
 
 void som_volume(int c, int n)
 {
@@ -266,5 +329,10 @@ int som_volume_de(int c) { return c >= 0 && c < SOM_CANAIS ? nivel[c] : 0; }
 
 bool som_liga(bool on)  { ligado = on && pronto; return ligado; }
 // Ligado: o aparelho tem som e algum canal se ouve.
-bool som_ligado(void)   { return ligado && (nivel[0] || nivel[1] || nivel[2]); }
+bool som_ligado(void)
+{
+    for (int c = 0; c < SOM_CANAIS; c++)
+        if (nivel[c]) return ligado;
+    return false;
+}
 bool som_falhou(void)   { return falhou; }

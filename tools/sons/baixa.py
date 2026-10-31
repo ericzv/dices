@@ -44,7 +44,7 @@ def tarefas():
     # FluidR3: so os instrumentos e as faixas que as receitas usam
     for inst, lo, hi in (('glockenspiel', 84, 108), ('vibraphone', 72, 90), ('celesta', 72, 94),
                          ('acoustic_bass', 36, 48), ('timpani', 36, 41), ('marimba', 48, 52),
-                         ('tubular_bells', 82, 86)):
+                         ('tubular_bells', 82, 86), ('tremolo_strings', 36, 79), ('agogo', 72, 86)):
         for m in range(lo, hi + 1):
             n = NOTA_FL[m % 12] + str(m // 12 - 1) + '.mp3'
             yield FL + inst + '-mp3/' + n, os.path.join('fluidr3', inst, n)

@@ -47,6 +47,7 @@ enum {
     SOM_AD_FRAGIL, SOM_AD_ESTRELINHA, SOM_AD_CORRETIVO, SOM_AD_IMANTADO, SOM_AD_POSTIT, SOM_AD_HOLOGRAFICO,
     SOM_AD_PURPURINA, SOM_AD_VELCRO, SOM_AD_RATOEIRA, SOM_AD_FIGURINHA,
     SOM_AD_PATINHO, SOM_AD_ETIQUETA, SOM_AD_BILHETE,
+    SOM_AD_NOTA_DEZ, SOM_AD_CARBONO, SOM_AD_BOMBA, SOM_AD_IMPERMEAVEL, SOM_AD_LENTICULAR, SOM_AD_NEON,
     SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
     SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)
@@ -67,6 +68,7 @@ enum {
     SOM_COVEIRO,     // duas pazadas de terra e o sino grave
     SOM_AUTOFAGIA,   // a dentada, o engolir e o +1
     SOM_AMPULHETA,   // a ampulheta virada, a areia escorrendo e o sininho
+    SOM_TRANSICAO,   // a troca de tela: o pano da cortina passando da esquerda para a direita
     SOM_N
 };
 
@@ -80,6 +82,7 @@ void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e um
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide
 void som_cadeia(bool on);    // a cadeia de efeitos do fim da rodada: a trilha abaixa enquanto ela corre
+void som_chefe(bool on);     // a mesa do chefe: a batucada entra na trilha
 
 // O volume de cada canal, de 0 (mudo) a SOM_NIVEIS: a trilha, os efeitos da
 // mesa e os da interface (o cursor e os menus). O 10 e o volume de sempre.

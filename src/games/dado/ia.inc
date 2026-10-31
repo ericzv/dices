@@ -139,6 +139,8 @@ static void sim_lanca(int j)
     menor = l.menor;
     f->cru[k] = f->valor[k] = x;
     f->lado[k] = (uint8_t)l.lado;
+    f->bomba[k] = l.bomba;
+    f->bomba1[k] = (int8_t)l.x1;
     f->descarte[k] = (uint8_t)menor;
     fatia(j, k, rola_ia);
     f->lancados = k + 1;

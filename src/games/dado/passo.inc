@@ -176,7 +176,7 @@ void dado_passo(float dt)
             if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
             cosmo_pousa(j, k);                    // o ciclo cosmico que tirou a faixa de cima: evolui (o Universo: Big Bang)
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
-            else if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) {
+            else if (vidro_quebra(j, k)) {
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
             } else if (ver_tipo == 0) {             // valendo: uma nota acima a cada posicao

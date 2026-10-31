@@ -244,6 +244,7 @@ static void nova_rodada(void)
     memset(vis_bonus, 0, sizeof vis_bonus);
     memset(vis_mult, 0, sizeof vis_mult);
     memset(vis_queima, 0, sizeof vis_queima);
+    memset(vis_capa_t, 0, sizeof vis_capa_t);
     memset(vis_espelho, 0, sizeof vis_espelho);
     memset(vis_curinga, 0, sizeof vis_curinga);
     memset(vis_tremor, 0, sizeof vis_tremor);
@@ -412,10 +413,11 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 
 // O lance de um dado da bolsa, com os adesivos dele (p; NULL: sem). O Chumbo
 // puxa o primeiro lance para o lado dele metade das vezes (com mais de um,
-// para um deles); caindo no Avesso, o dado vira do avesso; o Remendo soma 2
-// ao lado que ficou para cima (em sorteia_valor_de, antes dos poderes). 'lado'
-// recebe o lado de cima (0: fora dos lados do dado); 'antes', o lado do
-// Avesso de onde ele virou (0: nao virou).
+// para um deles); caindo no Avesso, o dado vira do avesso; na Nota Dez, vira
+// o lado mais alto (uma vez so: o lado de la nao faz virar de novo); o
+// Remendo soma 2 ao lado que ficou para cima (em sorteia_valor_de, antes dos
+// poderes). 'lado' recebe o lado de cima (0: fora dos lados do dado);
+// 'antes', o lado do Avesso ou da Nota Dez de onde ele virou (0: nao virou).
 static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *menor, int *lado, int *antes)
 {
     int ef = TIPO[t].efeito;
@@ -428,7 +430,9 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
         // Um Chumbo: metade das vezes; dois (o maximo), cada um a metade.
         if (n == 1 && r(2) == 1) x0 = ch[0];
         else if (n > 1) x0 = ch[r(n) - 1];
-        if (ad_no_lado(p, x0) == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
+        int a0 = ad_no_lado(p, x0);
+        if (a0 == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
+        else if (a0 == AD_NOTA_DEZ && x0 != ad_lado_max(t)) { *antes = x0; x0 = ad_lado_max(t); }
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
     if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
@@ -473,16 +477,23 @@ static int desembrulha(int j, int k, int (*r)(int))
 
 // Um lance inteiro de uma peca, com os adesivos que agem no sorteio: x1 e o
 // que ela tira primeiro (com o Avesso, antes1 e o lado de onde virou); com o
-// Reflexivo, rola de novo e vale o segundo (x).
-typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete; } lance_t;
+// Reflexivo, rola de novo e vale o segundo (x); com o Papel Bomba, rola de
+// novo e vale a soma dos dois. Um dos dois por lance: o lado do segundo lance
+// nao faz rolar de novo.
+typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba; } lance_t;
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;
     int antes;
     l.x = l.x1 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
     l.menor1 = l.menor; l.lado1 = l.lado; l.antes1 = antes;
-    l.reflete = ad_no_lado(pc, l.lado) == AD_REFLEXIVO;
-    if (l.reflete) l.x = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
+    int a = ad_no_lado(pc, l.lado);
+    l.reflete = a == AD_REFLEXIVO || a == AD_BOMBA;
+    l.bomba = a == AD_BOMBA;
+    if (l.reflete) {
+        int x2 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
+        l.x = l.bomba ? l.x1 + x2 : x2;
+    }
     return l;
 }
 
@@ -541,6 +552,12 @@ static void lanca_proximo(void)
     f->cru[k] = x;
     f->valor[k] = x;
     f->lado[k] = (uint8_t)lado;
+    f->bomba[k] = l.bomba;
+    f->bomba1[k] = (int8_t)l.x1;
+    // O Papel Carbono do lado de cima: no pouso, o numero vira o do ultimo
+    // valido da sequencia (a regra o copia de novo quando o dado entra).
+    int lr = ultimo_da_regra(vez, f->est, k);
+    bool copia = carbono_age(vez, k) && lr >= 0;
     fatia(vez, k, rola);
     // O Previsivel sobe a cada lance, valendo ou nao (ate 12).
     if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 11)
@@ -554,19 +571,26 @@ static void lanca_proximo(void)
     bool sr = TIPO[t].efeito == EF_SORTE_REVES;
     v->valor = sr ? x1 + menor1 : x1;        // no ar, o da Sorte
     v->lado = (uint8_t)lado1;
-    if (antes1) {                            // pousa no Avesso e vira
+    if (antes1) {                            // pousa no Avesso (ou na Nota Dez) e vira
         v->etapa = 1;
+        v->ad_vira = (uint8_t)ad_no_lado(pc, antes1);
         v->valor_v = v->valor;
         v->lado_v = (uint8_t)lado1;
         v->valor = antes1;
         v->lado = (uint8_t)antes1;
     }
-    if (reflete) {                           // e depois (ou so) o Reflexivo
+    if (reflete) {                           // e depois (ou so) o Reflexivo, ou o Papel Bomba
         v->reflete = true;
+        v->ad_rola = l.bomba ? AD_BOMBA : AD_REFLEXIVO;
         if (!v->etapa) v->etapa = 2;
         v->valor2 = sr ? x + menor : x;
         v->menor2 = menor;
         v->lado2 = (uint8_t)lado;
+    }
+    if (copia) {                             // e por ultimo o Papel Carbono copia
+        v->copia = true;
+        v->valor_c = f->valor[lr];
+        if (!v->etapa) v->etapa = 3;
     }
     v->x = GFX_W / 2 + frnd(-110, 110);
     v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
@@ -614,17 +638,22 @@ static void lanca_proximo(void)
 }
 
 // O adesivo que age no pouso, antes de o dado ir para a fila: o Avesso
-// mostra o lado dele aceso, pula e vira; o Reflexivo mostra o dele e o dado
-// sai rolando de novo. Devolve true enquanto isso dura.
+// mostra o lado dele aceso, pula e vira (a Nota Dez tambem, e o lado mais
+// alto chega com um brilho de ouro); o Reflexivo mostra o dele e o dado sai
+// rolando de novo (o Papel Bomba estoura antes); o Papel Carbono passa a
+// folha por cima e o numero sai copiado. Devolve true enquanto isso dura.
 #define AD_MOSTRA 0.32f                  // o adesivo aceso antes de agir
 #define AD_VIRA   0.30f                  // o pulo do Avesso
+#define AD_COPIA  0.42f                  // a folha do Papel Carbono passando
+static void estoura(float x, float y);   // o estouro do Papel Bomba (mesa.inc)
 static bool ad_etapa_passo(float dt)
 {
     voo_t *v = &voo[0];
     if (!n_voo || !v->etapa) return false;
     float t0 = v->t_etapa;
     v->t_etapa += dt;
-    if (t0 < 0.01f && v->t_etapa >= 0.01f) som_toca(som_adesivo(v->etapa == 1 ? AD_AVESSO : AD_REFLEXIVO));
+    if (t0 < 0.01f && v->t_etapa >= 0.01f)
+        som_toca(som_adesivo(v->etapa == 1 ? v->ad_vira : v->etapa == 2 ? v->ad_rola : AD_CARBONO));
     if (v->etapa == 1) {
         float q = (v->t_etapa - AD_MOSTRA) / AD_VIRA;
         if (q >= 0.5f && !v->virou) {            // no alto do pulo, o outro lado
@@ -636,10 +665,19 @@ static bool ad_etapa_passo(float dt)
         som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA);
         assenta(v);
         v->t_etapa = 0;
-        v->etapa = v->reflete ? 2 : 0;
+        v->etapa = v->reflete ? 2 : v->copia ? 3 : 0;
         return v->etapa != 0;
     }
+    if (v->etapa == 3) {
+        float q = (v->t_etapa - AD_MOSTRA) / AD_COPIA;
+        if (q >= 0.5f && v->valor != v->valor_c) v->valor = v->face = v->valor_c;   // a folha no meio: o numero copiado
+        if (q < 1) return true;
+        v->etapa = 0;
+        v->copia = false;
+        return false;
+    }
     if (v->t_etapa < AD_MOSTRA) return true;
+    if (v->ad_rola == AD_BOMBA) estoura(v->x, v->y);   // o papel estoura e o dado sai voando
     // O Reflexivo: o dado (e o fantasma do Viciado ou do Reves) sai rolando de
     // novo; o lance que o Post-it descartou fica onde parou.
     for (int i = 0; i < n_voo; i++) {
@@ -657,7 +695,8 @@ static bool ad_etapa_passo(float dt)
     v->valor = v->valor2;
     v->lado = v->lado2;
     if (n_voo > 1 && v->menor2) voo[1].valor = v->menor2;
-    v->etapa = 0;
+    v->etapa = v->copia ? 3 : 0;             // caindo no Papel Carbono, ele copia quando parar
+    v->t_etapa = 0;
     v->reflete = false;
     t_fase = 0;
     if (TIPO[v->tipo].lados == 2) som_rufo_moeda(); else som_rufo(true);
@@ -694,6 +733,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;
+        if (d->capa[j] >> k & 1) p->col[i].capa = 1;      // o Impermeavel: ate o fim da partida
         if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
@@ -783,7 +823,8 @@ static void medusa_petrifica(int j, const desfecho_t *d)
     fila_t *f = &F[j];
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (d->est[j][k] == V_ROUBADO || f->tipo[k] == D_QUEBRADO || f->tipo[k] == D_FANTASMA || vis_queima[j][k]) continue;
-        if (f->tipo[k] == D_VIDRO && f->cru[k] == 1) continue;              // estilhacado: ja sai
+        if (vidro_quebra(j, k)) continue;                                  // estilhacado: ja sai
+        if (impermeavel(j, k)) continue;                                   // com a capa, nao vira pedra
         if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
         int v = f->valor[k] > 99 ? 99 : f->valor[k] < -99 ? -99 : f->valor[k] ? f->valor[k] : 1;
         J[j].col[f->idx[k]] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)v };    // o Reves negativo vira pedra negativa
@@ -888,7 +929,7 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0;
     // Os Jingle Bells lancados deixam uma copia na bolsa: tiradas antes que
     // os dados que saem mudem as posicoes da bolsa.
     peca_t sino[2][N_FILA];
@@ -908,11 +949,12 @@ static void recolhe_quebrados(void)
                 continue;
             }
             if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
-            if (F[j].tipo[k] == D_VIDRO && F[j].cru[k] == 1) { F[j].quebra[k] = true; some = true; n_vidro++; }
+            if (vidro_quebra(j, k)) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
             if (j == 0 && !some && coringa_destroi() && F[j].tipo[k] != D_FANTASMA
                 && F[0].est[k] == V_ANULADO) {         // o estado final (no desfecho, ja com os ataques)
-                F[j].quebra[k] = true; some = true; n_coringa++;
+                if (impermeavel(j, k)) n_capa++;      // com a capa, fica
+                else { F[j].quebra[k] = true; some = true; n_coringa++; }
             }
             if (some && F[j].idx[k] >= 0) saem[n++] = F[j].idx[k];   // a copia do Coringa nao e da bolsa
         }
@@ -957,6 +999,8 @@ static void recolhe_quebrados(void)
         }
     if (n_coringa)
         snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);
+    else if (n_capa)
+        snprintf(nota, sizeof nota, "o Impermeável protege o dado do Coringa");
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga
@@ -1091,7 +1135,8 @@ static int som_do_evento(int i)
     case EV_AGIOTA:  return SOM_FICHA;
     case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_ADESIVO:                     // a copia brilha com o som do Holografico; o Fragil quebrando, vidro
-        if (e->ad == AD_FRAGIL && !e->valor) return SOM_VIDRO;
+        if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
+        if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
@@ -1350,7 +1395,7 @@ static void flutua_evento(const evento_t *e)
             else if (e->tipo == EV_BONUS && e->por_dado[k] < 0)             // Tudo ou Nada com 1
                 flutua_em(dj, k, C_VINHO_CLR, k * 0.06f, "%d", e->por_dado[k]);
         break;
-    case EV_ANULA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+    case EV_ANULA:   if (!(e->bloqueado >> ak & 1)) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_TIRA:    flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_PIRATA:
         flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor);
@@ -1397,7 +1442,14 @@ static void flutua_evento(const evento_t *e)
                 if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "+%d", e->por_dado[k]);
             if (e->valor) flutua_em(dj, N_FILA, C_OURO, 0.1f, "+%d", e->valor);
             break;
-        case AD_FRAGIL:     flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor); break;
+        case AD_FRAGIL:
+            if (!e->bloqueado) flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "quebra", e->valor);
+            break;
+        case AD_LENTICULAR:
+            if (e->valor > 0) flutua_em(dj, dk, C_OURO, 0, "x%d", e->por_dado[dk < N_FILA ? dk : 0]);
+            else flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "%d", e->valor);
+            break;
+        case AD_IMPERMEAVEL: flutua_em(dj, dk, C_VENTO, 0, "protegido", 0); break;
         case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++)
                 if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "x%d", e->por_dado[k]);
@@ -1422,8 +1474,17 @@ static void aplica_evento(int i)
 {
     evento_t *e = &ev[i];
     flutua_evento(e);
+    // O Impermeavel segurou o efeito nos dados com a capa: o guarda-chuva
+    // abre neles, "protegido", e o efeito nao pega.
+    for (int k = 0; k < N_FILA && e->alvo_j < 2; k++) {
+        if (!(e->bloqueado >> k & 1)) continue;
+        flutua_em(e->alvo_j, k, C_VENTO, k * 0.05f, "protegido", 0);
+        vis_capa_t[e->alvo_j][k] = t_relogio;
+    }
+    if (e->bloqueado && e->tipo != EV_ADESIVO) som_toca(som_adesivo(AD_IMPERMEAVEL));
     switch (e->tipo) {
     case EV_ANULA:
+        if (e->bloqueado >> e->alvo_k & 1) break;
         vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
         golpe_marca(e->alvo_j, e->alvo_k, aro_de(F[e->de_j].tipo[e->de_k]));
         if (F[e->de_j].tipo[e->de_k] == D_BONECO) vis_gelo[e->alvo_j][e->alvo_k] = 1;   // fica congelado
@@ -1463,7 +1524,10 @@ static void aplica_evento(int i)
     case EV_MULT:
         for (int k = 0; k < N_FILA; k++) vis_mult[e->de_j][k] = e->por_dado[k];
         break;
-    case EV_FOGO:    vis_queima[e->alvo_j][e->alvo_k] = 1; vis_semente[e->de_j] += e->valor; break;
+    case EV_FOGO:
+        if (!(e->bloqueado >> e->alvo_k & 1)) vis_queima[e->alvo_j][e->alvo_k] = 1;
+        vis_semente[e->de_j] += e->valor;
+        break;
     case EV_SEMENTE: case EV_JACKPOT: case EV_EXTRA: case EV_CHEFE:
         vis_semente[e->de_j] += e->valor;
         break;
@@ -1483,12 +1547,16 @@ static void aplica_evento(int i)
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
-        case AD_ETIQUETA: case AD_PATINHO:
+        case AD_ETIQUETA: case AD_PATINHO: case AD_NEON:
             vis_semente[e->de_j] += e->valor;
             break;
-        case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim)
+        case AD_LENTICULAR:             // valendo, o x2; anulado, os pontos que perde
+            if (e->valor > 0) { for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k]; }
+            else vis_delta[e->de_j] += e->valor;
+            break;
+        case AD_FRAGIL:                 // valendo paga; anulado, racha (e quebra no fim; com a capa, nao)
             vis_semente[e->de_j] += e->valor;
-            if (!e->valor && e->de_k < N_FILA) vis_fragil[e->de_j] |= (uint8_t)(1 << e->de_k);
+            if (!e->valor && !e->bloqueado && e->de_k < N_FILA) vis_fragil[e->de_j] |= (uint8_t)(1 << e->de_k);
             break;
         case AD_SELO:                   // o lacre rompeu (pagando) ou fechou
             vis_semente[e->de_j] += e->valor;

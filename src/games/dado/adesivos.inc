@@ -8,6 +8,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
        AD_LOBO, AD_REMENDO, AD_RASPADINHA, AD_FERMENTO, AD_BIS, AD_MIRA, AD_AVESSO, AD_GORJETA,
        AD_SELO, AD_FRAGIL, AD_ESTRELINHA, AD_CORRETIVO, AD_IMANTADO, AD_POSTIT, AD_HOLOGRAFICO,
        AD_PURPURINA, AD_VELCRO, AD_RATOEIRA, AD_FIGURINHA, AD_PATINHO, AD_ETIQUETA, AD_BILHETE,
+       AD_NOTA_DEZ, AD_CARBONO, AD_BOMBA, AD_IMPERMEAVEL, AD_LENTICULAR, AD_NEON,
        AD_N };                                   // um byte por lado (peca_t.ad)
 #define AD_BIT_VELHO 0x80                       // o bit de cima (de uma versao de teste): ignorado
 
@@ -21,6 +22,8 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define ESTRELINHA_PONTOS 6                     // a Estrelinha com a sequencia cheia
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define BIS_DADOS 2                             // o Bis: dados a mais na proxima compra
+#define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
+#define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7.
@@ -115,6 +118,27 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_BILHETE]      = { "Bilhete Premiado", "tirando este lado, se válido: o", "bônus dos seus dados em dobro", 6, 10,
                           RGB(54, 36, 74), RGB(150, 112, 160), RGB(246, 222, 132),
                           { "#######", "#..#..#", ".#####.", "..###..", ".##.##.", "#.....#", "#######" } },
+    // Os de papel, plastico e tinta que vieram depois: a estrelinha de nota
+    // da escola, a folha de copia, a etiqueta explosiva, a capa de chuva, o
+    // cromo 3D que muda com o angulo e o tubo de luz.
+    [AD_NOTA_DEZ]     = { "Nota Dez", "tirando este lado:", "vira o lado mais alto", 6, 8,
+                          RGB(208, 98, 108), RGB(246, 222, 132), C_BRANCO,
+                          { ".#..###", "##..#.#", ".#..#.#", ".#..#.#", ".#..#.#", ".#..#.#", "###.###" } },
+    [AD_CARBONO]      = { "Papel Carbono", "tirando este lado: copia o", "número do último válido", 5, 5,
+                          RGB(26, 34, 62), RGB(96, 134, 196), RGB(168, 204, 230),
+                          { "#####..", "#...#..", "#.#####", "#.#...#", "###...#", "..#...#", "..#####" } },
+    [AD_BOMBA]        = { "Papel Bomba", "tirando este lado: rola", "de novo e soma os dois", 4, 1,
+                          RGB(204, 194, 172), RGB(252, 248, 236), RGB(36, 32, 29),
+                          { "#..#..#", ".#.#.#.", "..###..", "###.###", "..###..", ".#.#.#.", "#..#..#" } },
+    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da", "partida, não pode ser destruído", 3, 2,
+                          RGB(246, 222, 132), RGB(96, 134, 196), RGB(56, 86, 150),
+                          { "...#...", ".#####.", "#######", "#..#..#", "...#...", ".#.#...", "..##..." } },
+    [AD_LENTICULAR]   = { "Lenticular", "tirando este lado: válido, x2;", "anulado, -4 no seu placar", 3, 3,
+                          RGB(150, 112, 160), RGB(206, 180, 218), C_BRANCO,
+                          { ".......", "..###..", ".#...#.", "#.###.#", ".#...#.", "..###..", "......." } },
+    [AD_NEON]         = { "Neon", "tirando este lado, se válido:", "+2 por adesivo neste dado", 5, 7,
+                          RGB(24, 22, 20), RGB(208, 98, 108), RGB(226, 164, 168),
+                          { ".##.##.", "#..#..#", "#.....#", "#.....#", ".#...#.", "..#.#..", "...#..." } },
 };
 
 // A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
@@ -130,6 +154,8 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_ELETRONICO] = RAR_RARO, [AD_TRANSPARENTE] = RAR_RARO, [AD_DOURADO] = RAR_RARO, [AD_FERMENTO] = RAR_RARO,
     [AD_PURPURINA] = RAR_RARO,
     [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
+    [AD_BOMBA] = RAR_INCOMUM, [AD_IMPERMEAVEL] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
+    [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
 };
 // Fora do Desafiante nao ha moedas: o Dourado nao sai no premio.
 static bool ad_no_premio(int a) { return a > AD_NADA && a < AD_N && a != AD_DOURADO; }
@@ -295,6 +321,12 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_PATINHO]      = "Se o dado terminar válido: tirando o lado do Patinho Feio, -2 pontos; tirando qualquer outro lado, +2 pontos.",
     [AD_ETIQUETA]     = "Tirando este lado, se o dado terminar válido: +1 ponto por Etiqueta nos dados da sua bolsa, ela junto (num dado só ou em vários, sem limite).",
     [AD_BILHETE]      = "Tirando este lado, se o dado terminar válido: no fim da rodada, os pontos de bônus dos seus dados válidos (dos poderes e dos adesivos, não o número que tiraram) valem em dobro.",
+    [AD_NOTA_DEZ]     = "Tirando este lado, o dado vira e fica com o lado mais alto para cima: no d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
+    [AD_CARBONO]      = "Tirando este lado, o dado fica com o número do seu último dado válido da sequência. Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
+    [AD_BOMBA]        = "Tirando este lado, o dado rola de novo e pontua a soma dos dois lances. Explode uma vez só: o adesivo do lado que ficou para cima no segundo lance age no fim da rodada, mas não faz rolar de novo.",
+    [AD_IMPERMEAVEL]  = "Tirando este lado, válido ou anulado, o dado fica protegido até o fim da partida: nada pode destruí-lo. O que tentar chega até ele, mas é bloqueado (e não passa para outro dado).",
+    [AD_LENTICULAR]   = "Tirando este lado: se o dado terminar válido, pontua x2 no fim da rodada (soma com os outros multiplicadores); se terminar anulado, -4 no seu placar.",
+    [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12).",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
@@ -315,6 +347,15 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
     static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
                                       RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
     bool cores = c == ADESIVO[a].tinta;
+    // O Neon grande brilha: um halo do tubo em volta de cada ponto, antes, que
+    // respira - cresce e acende, encolhe e escurece.
+    float neon = 0.5f + 0.5f * sinf(t_relogio * 4.2f);
+    if (cores && a == AD_NEON && s >= 2) {
+        int e = neon > 0.45f ? 2 : 1;
+        for (int j = 0; j < 7; j++)
+            for (int i = 0; i < 7; i++)
+                if (ADESIVO[a].ic[j][i] == '#') gfx_rect(x + i * s - e, y + j * s - e, s + 2 * e, s + 2 * e, neon > 0.7f ? C_VINHO_CLR : C_VINHO);
+    }
     for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
             if (ADESIVO[a].ic[j][i] != '#') continue;
@@ -325,7 +366,13 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             else if (cores && a == AD_RATOEIRA && j < 5) k = RGB(246, 222, 132);
             else if (cores && a == AD_FIGURINHA && j >= 2 && j <= 4 && i >= 2 && i <= 4) k = RGB(190, 56, 60);
             else if (cores && a == AD_PATINHO && j == 2 && i < 2) k = RGB(238, 162, 74);     // o bico
+            else if (cores && a == AD_BOMBA && abs(i - 3) <= 1 && abs(j - 3) <= 1) k = C_FOGO;   // o estouro
+            else if (cores && a == AD_IMPERMEAVEL && j >= 3 && !(j == 3 && i != 3)) k = C_EBANO;   // o cabo
+            else if (cores && a == AD_LENTICULAR && j == 3 && i >= 2 && i <= 4) k = i == 3 ? C_EBANO : C_AZUL;   // a iris
+            else if (cores && a == AD_NOTA_DEZ && i >= 4) k = C_AMARELO;                       // o zero, de ouro
+            else if (cores && a == AD_NEON && neon < 0.25f) k = C_VINHO_CLR;                  // o tubo no fundo do pulso
             gfx_rect(x + i * s, y + j * s, s, s, k);
+            if (cores && a == AD_NEON && s >= 3 && neon > 0.3f) gfx_rect(x + i * s + s / 2, y + j * s + s / 2 - 1, 1, 1, C_BRANCO);   // o filamento
         }
 }
 
@@ -467,6 +514,25 @@ static void lacre_cera(int x, int y, int r, int lado)
         }
 }
 
+// A gota da capa do Impermeavel: o dado esta protegido ate o fim da partida.
+// Uma gota azul com o brilho, de raio r (2 a 4), com a ponta para cima e o
+// meio da parte redonda em (x, y).
+static void gota_capa(int x, int y, int r)
+{
+    for (int pass = 0; pass < 2; pass++)
+        for (int dy = -2 * r - 1; dy <= r + 1; dy++)
+            for (int dx = -r - 1; dx <= r + 1; dx++) {
+                int e = pass ? 0 : 1;                    // a primeira passada: o contorno escuro, um pixel maior
+                bool dentro = dy >= 0 ? dx * dx + dy * dy <= (r + e) * (r + e)
+                                      : abs(dx) * 2 * r <= (dy + 2 * r + e) * (r + e);
+                if (!dentro) continue;
+                uint16_t c = C_BARRA;
+                if (pass) c = dx < 0 && dy <= 0 && dx >= -r + 1 ? C_VENTO : dx + dy > r - 1 ? C_AZUL : RGB(96, 134, 196);
+                if (pass && dx == -r / 2 - (r > 2) && dy == -(r > 2)) c = C_BRANCO;   // o brilho
+                gfx_pixel(x + dx, y + dy, c);
+            }
+}
+
 // O som de colar um adesivo na loja, e o de cada um quando age.
 static int som_cola(void) { return SOM_AD_COLA; }
 static int som_adesivo(int a)
@@ -481,7 +547,9 @@ static int som_adesivo(int a)
         [AD_IMANTADO] = SOM_AD_IMANTADO, [AD_POSTIT] = SOM_AD_POSTIT, [AD_HOLOGRAFICO] = SOM_AD_HOLOGRAFICO,
         [AD_PURPURINA] = SOM_AD_PURPURINA, [AD_VELCRO] = SOM_AD_VELCRO, [AD_RATOEIRA] = SOM_AD_RATOEIRA,
         [AD_FIGURINHA] = SOM_AD_FIGURINHA, [AD_PATINHO] = SOM_AD_PATINHO, [AD_ETIQUETA] = SOM_AD_ETIQUETA,
-        [AD_BILHETE] = SOM_AD_BILHETE,
+        [AD_BILHETE] = SOM_AD_BILHETE, [AD_NOTA_DEZ] = SOM_AD_NOTA_DEZ, [AD_CARBONO] = SOM_AD_CARBONO,
+        [AD_BOMBA] = SOM_AD_BOMBA, [AD_IMPERMEAVEL] = SOM_AD_IMPERMEAVEL, [AD_LENTICULAR] = SOM_AD_LENTICULAR,
+        [AD_NEON] = SOM_AD_NEON,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

@@ -18,7 +18,6 @@ void som_giro(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
 void som_chefe(bool on) { (void)on; }
-void som_ambiente(int a) { (void)a; }
 void som_volume(int c, int n) { (void)c; (void)n; }
 int som_volume_de(int c) { (void)c; return SOM_NIVEIS; }
 
@@ -2215,7 +2214,7 @@ int main(void)
             for (int tr = 0; tr < 3; tr++) {
                 if (tr) { loja_vista(); run.trocas++; sorteia_loja(); }   // trocar a loja: tudo novo
                 for (int i = 0; i < n_vitrine(); i++) { rep += visto[run.vitrine[i].tipo]++ > 0; mostrou++; }
-                if (l < 4)                       // (os adesivos sao 28: 4 lojas cabem sem repetir)
+                if (l < 4)                       // (os adesivos sao 34: 4 lojas cabem sem repetir)
                     for (int k = 0; k < n_adesivos_loja(); k++) { rep_ad += ad_visto[ad_loja(k)]++ > 0; ad_mostrou++; }
             }
         }
@@ -2224,6 +2223,7 @@ int main(void)
         // Os pacotes repetem; acabados os novos, a vitrine volta a sortear entre todos.
         memset(run.vistos, 0xFF, sizeof run.vistos);
         memset(run.ad_vistos, 0xFF, sizeof run.ad_vistos);
+        memset(run.ad_vistos2, 0xFF, sizeof run.ad_vistos2);
         monta_loja_run();
         CONFERE(dado_liberado(run.vitrine[0].tipo) && run.vitrine[0].tipo != run.vitrine[1].tipo && run.adesivo != AD_NADA,
                 "acabados os novos: vitrine %d %d, adesivo %d", run.vitrine[0].tipo, run.vitrine[1].tipo, run.adesivo);
@@ -2240,6 +2240,19 @@ int main(void)
         salva_grava(chave_run(), buf);
         CONFERE(des_carrega(&r) && !r.dois_adesivos && !r.adesivo2 && !r.ad_vendido2 && r.vistos[0] == 0x5A,
                 "a run de antes da loja de dois adesivos");
+        // E a de antes dos adesivos de papel abre com eles nunca vistos (a
+        // loja de dois adesivos dela fica).
+        CONFERE(RUN_TAM_SEM_VISTOS2 < sizeof(run_t) && RUN_TAM_SEM_VISTOS2 > RUN_TAM_SEM_LOJA2, "os tamanhos da run salva");
+        memset(run.ad_vistos2, 0, sizeof run.ad_vistos2);
+        marca_adesivo_visto(AD_NEON);
+        CONFERE(adesivo_visto(AD_NEON) && !adesivo_visto(AD_LENTICULAR) && run.ad_vistos2[0], "o Neon visto, no segundo campo");
+        hex_de(&run, RUN_TAM_SEM_VISTOS2, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(des_carrega(&r) && r.dois_adesivos && r.adesivo2 == AD_LOBO && !r.ad_vistos2[0],
+                "a run de antes dos adesivos de papel");
+        hex_de(&run, sizeof run, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(des_carrega(&r) && r.ad_vistos2[0] == run.ad_vistos2[0], "a run de agora guarda os vistos de 32 em diante");
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
@@ -3599,6 +3612,196 @@ int main(void)
         salva_limpa_tudo();
         memset(perfis, 0, sizeof perfis);
         perfil_atual = -1;
+        modo = modo_antes;
+        memset(J, 0, sizeof J);
+        limpa();
+    }
+
+    // ---- Os adesivos de papel: Nota Dez, Papel Carbono, Papel Bomba,
+    // Impermeavel, Lenticular e Neon ------------------------------------------
+    {
+        int modo_antes = modo;
+        modo = M_DESAFIO;
+        memset(J, 0, sizeof J);
+        J[0].n_col = 8; J[1].n_col = 4;
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        for (int i = 0; i < 4; i++) J[1].col[i] = (peca_t){ .tipo = D_D4 };
+        int menor, lado, antes, x;
+        desfecho_t d;
+        // A Nota Dez: vira o lado mais alto (com o Remendo la, 2 a mais),
+        // uma vez so (o Avesso do lado mais alto nao vira de volta); no
+        // proprio lado mais alto, nao vira.
+        peca_t p = { .tipo = D_D6 };
+        ad_cola(&p, 1, AD_NOTA_DEZ);
+        x = sorteia_peca(D_D6, 0, &p, sempre_um, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && antes == 1, "Nota Dez no 1 do d6: %d (lado %d, de %d)", x, lado, antes);
+        ad_cola(&p, 6, AD_REMENDO);
+        x = sorteia_peca(D_D6, 0, &p, sempre_um, &menor, &lado, &antes);
+        CONFERE(x == 8 && lado == 6, "Nota Dez com o Remendo no 6: %d (lado %d)", x, lado);
+        ad_cola(&p, 6, AD_AVESSO);
+        x = sorteia_peca(D_D6, 0, &p, sempre_um, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6, "Nota Dez vira uma vez so (o Avesso do 6 nao vira de volta): %d (lado %d)", x, lado);
+        peca_t v20 = { .tipo = D_D20 };
+        ad_cola(&v20, 3, AD_NOTA_DEZ);
+        x = sorteia_peca(D_D20, 0, &v20, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 20 && lado == 20 && antes == 3, "Nota Dez no 3 do d20: %d (lado %d, de %d)", x, lado, antes);
+        p = (peca_t){ .tipo = D_D6 };
+        ad_cola(&p, 6, AD_NOTA_DEZ);
+        lances_seq[0] = 6; li_seq = 0;
+        x = sorteia_peca(D_D6, 0, &p, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && !antes, "Nota Dez no proprio 6 nao vira: %d (de %d)", x, antes);
+        peca_t lastro = { .tipo = D_LASTRO };
+        ad_cola(&lastro, 5, AD_NOTA_DEZ);
+        lances_seq[0] = 1; lances_seq[1] = 2; li_seq = 0;   // o Lastro: o lance de 12 e descartado; 3 + 2 = o lado 5
+        x = sorteia_peca(D_LASTRO, 0, &lastro, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 12 && lado == 12 && antes == 5, "Nota Dez no Lastro: %d (lado %d)", x, lado);
+
+        // O Papel Bomba: rola de novo e soma os dois; o lado do segundo lance
+        // nao faz rolar de novo (nem o Reflexivo, nem outro Papel Bomba).
+        p = (peca_t){ .tipo = D_D6 };
+        for (int l = 1; l <= 6; l++) ad_cola(&p, l, AD_BOMBA);
+        lances_seq[0] = 2; lances_seq[1] = 5; lances_seq[2] = 4; li_seq = 0;
+        lance_t lb = lanca_peca(D_D6, 0, &p, rola_seq);
+        CONFERE(lb.x == 7 && lb.bomba && lb.reflete && lb.x1 == 2 && lb.lado == 5 && li_seq == 2,
+                "Papel Bomba: 2 + 5 = %d (lado %d, %d lances)", lb.x, lb.lado, li_seq);
+        ad_cola(&p, 5, AD_REFLEXIVO);
+        lances_seq[0] = 2; lances_seq[1] = 5; li_seq = 0;
+        lb = lanca_peca(D_D6, 0, &p, rola_seq);
+        CONFERE(lb.x == 7 && li_seq == 2, "Papel Bomba e depois o Reflexivo: so um lance a mais (%d, %d lances)", lb.x, li_seq);
+        ad_cola(&p, 2, AD_REFLEXIVO);
+        lances_seq[0] = 2; lances_seq[1] = 4; li_seq = 0;
+        lb = lanca_peca(D_D6, 0, &p, rola_seq);
+        CONFERE(lb.x == 4 && !lb.bomba && lb.reflete, "o Reflexivo nao soma: %d", lb.x);
+        // Na fila: a etiqueta "2+5", pontua 7; no Explosivo, a etiqueta e a do Papel Bomba.
+        J[0].col[0] = (peca_t){ .tipo = D_D6 };
+        for (int l = 1; l <= 6; l++) ad_cola(&J[0].col[0], l, AD_BOMBA);
+        limpa();
+        F[0].idx[0] = 0; F[0].tipo[0] = D_D6; F[0].n = 1; F[0].lancados = 1;
+        F[0].cru[0] = F[0].valor[0] = 7; F[0].lado[0] = 5; F[0].bomba[0] = true; F[0].bomba1[0] = 2;
+        aplica_regra(0, 0);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(F[0].est[0] == V_VALIDO && !strcmp(F[0].tag[0], "2+5") && d.total[0] == 7 && strstr(veredito, "Papel Bomba") == NULL,
+                "Papel Bomba na fila: %s, %d", F[0].tag[0], d.total[0]);
+        limpa();
+        F[0].idx[0] = 0; F[0].tipo[0] = D_D6; F[0].n = 1; F[0].lancados = 1;
+        F[0].cru[0] = F[0].valor[0] = 7; F[0].lado[0] = 5; F[0].bomba[0] = true; F[0].bomba1[0] = 2;
+        aplica_regra(0, 0);
+        CONFERE(strstr(veredito, "Papel Bomba! 2+5 pontua 7") != NULL, "o veredito do Papel Bomba: %s", veredito);
+
+        // O Papel Carbono: copia o ultimo valido da sequencia (igual, nao
+        // cai); o primeiro da sequencia fica com o que tirou.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        for (int l = 1; l <= 6; l++) ad_cola(&J[0].col[1], l, AD_CARBONO);
+        J[0].col[2] = (peca_t){ .tipo = D_D6 };
+        limpa();
+        joga_ad(0, 2, 5);
+        joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[1] == 5 && F[0].cru[1] == 5 && F[0].copiou[1] && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO
+                && !strcmp(F[0].tag[1], "=5") && strstr(veredito, "Papel Carbono copia o 5") != NULL,
+                "Papel Carbono depois de um 5: %d (%s, %s)", F[0].valor[1], F[0].tag[1], veredito);
+        limpa();
+        joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[0] == 2 && !F[0].copiou[0] && F[0].est[0] == V_VALIDO, "Papel Carbono primeiro: fica com o 2");
+        limpa();                                  // depois da sequencia zerada, tambem nao copia
+        joga_ad(0, 2, 5); joga_ad(0, 0, 3); joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[2] == 2 && !F[0].copiou[2], "Papel Carbono sem valido antes: %d", F[0].valor[2]);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };   // o Corretivo nao conta: copia o de antes dele
+        ad_cola(&J[0].col[3], 6, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 2, 4); joga_ad(0, 3, 6); joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[2] == 4 && F[0].est[2] == V_VALIDO, "Papel Carbono depois do Corretivo: copia o 4 (%d)", F[0].valor[2]);
+
+        // O Impermeavel: o Vidro com 1 e com ele em cima nao se estilhaca (e
+        // so cai pela sequencia, como um 1 comum).
+        J[0].col[4] = (peca_t){ .tipo = D_VIDRO };
+        ad_cola(&J[0].col[4], 1, AD_IMPERMEAVEL);
+        limpa();
+        joga_ad(0, 4, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && !vidro_quebra(0, 0) && impermeavel(0, 0), "Vidro impermeavel com 1: valido, inteiro");
+        limpa();
+        joga_ad(0, 2, 3); joga_ad(0, 4, 1);
+        CONFERE(F[0].est[1] == V_ANULADO && !vidro_quebra(0, 1), "Vidro impermeavel com 1 depois de um 3: cai, mas inteiro");
+        J[0].col[5] = (peca_t){ .tipo = D_VIDRO };
+        limpa();
+        joga_ad(0, 5, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && vidro_quebra(0, 0), "o Vidro comum com 1 se estilhaca");
+        // Agindo, a capa fica na peca ate o fim da partida: um Fragil anulado
+        // depois nao quebra.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_IMPERMEAVEL);
+        ad_cola(&J[0].col[3], 2, AD_FRAGIL);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        bool ev_capa = false;
+        for (int i = 0; i < n_ev; i++) ev_capa |= ev_tipo_ad(i, AD_IMPERMEAVEL);
+        CONFERE(d.capa[0] == 1 && ev_capa && d.total[0] == 6, "Impermeavel: a capa (bits %d), o evento", d.capa[0]);
+        adesivos_ficam(0, &d);
+        CONFERE(J[0].col[3].capa, "a capa ficou no dado");
+        limpa();
+        joga_ad(0, 2, 4); joga_ad(0, 3, 2);       // o Fragil anulado, com a capa
+        joga(1, D_D4, 3);
+        d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(!d.fragil[0] && J[0].col[3].tipo == D_D6, "com a capa, o Fragil anulado nao quebra");
+        limpa();                                  // com a capa, o evento nao se repete
+        joga_ad(0, 3, 6);
+        d = fim();
+        ev_capa = false;
+        for (int i = 0; i < n_ev; i++) ev_capa |= ev_tipo_ad(i, AD_IMPERMEAVEL);
+        CONFERE(!ev_capa && !d.capa[0], "a capa nao se repete");
+        // A Ficha Fogo queima o maior que pode queimar: o de capa fica.
+        J[0].col[6] = (peca_t){ .tipo = D_FOGO };
+        limpa();
+        joga_ad(0, 6, 2); joga_ad(0, 2, 4); joga_ad(0, 3, 5);   // o 5: um lado sem adesivo, mas com a capa de antes
+        d = fim();
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[2] == V_VALIDO && !d.queima[0][2] && d.queima[0][1],
+                "a Ficha Fogo pula o de capa e queima o 4 (%d %d)", d.queima[0][1], d.queima[0][2]);
+        J[0].col[3].capa = 0;                     // sem a capa, queima o 5
+        d = fim();
+        CONFERE(d.queima[0][2] && !d.queima[0][1], "sem a capa, a Ficha Fogo queima o 5");
+        J[0].col[3].capa = 1;
+        // A capa e so da partida.
+        peca_t cp = { .tipo = D_D6, .capa = 1 };
+        zera_acumuladores(&cp, 1);
+        CONFERE(!cp.capa, "a capa sai no fim da partida");
+
+        // O Lenticular: valendo, x2; anulado, -4 no seu placar.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_LENTICULAR);
+        ad_cola(&J[0].col[3], 1, AD_LENTICULAR);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 12, "Lenticular valendo: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 2, 5); joga_ad(0, 7, 6); joga_ad(0, 3, 1);   // o 1 cai e leva o 6; o 5 fica
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 5 - LENTICULAR_PERDE && d.delta[0] == -LENTICULAR_PERDE, "Lenticular anulado: %d", d.total[0]);
+
+        // O Neon: valendo, +2 por adesivo no dado (ele junto).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_NEON);
+        ad_cola(&J[0].col[3], 1, AD_CONFETE); ad_cola(&J[0].col[3], 2, AD_LOBO);
+        ad_cola(&J[0].col[3], 3, AD_REMENDO); ad_cola(&J[0].col[3], 4, AD_BIS);
+        limpa();
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6 + 5 * NEON_CADA, "Neon com 5 adesivos: %d", d.total[0]);
+        limpa();
+        joga_ad(0, 2, 5); joga_ad(0, 7, 6); joga_ad(0, 0, 2); joga_ad(0, 3, 6);   // o 2 cai e leva o 6; o Neon depois vale
+        d = fim();
+        CONFERE(d.total[0] == 5 + 6 + 5 * NEON_CADA, "Neon depois da queda: %d", d.total[0]);
+
+        // Todos abrem e tem desenho, som, texto e raridade.
+        for (int a = AD_NOTA_DEZ; a <= AD_NEON; a++)
+            CONFERE(ADESIVO[a].nome && AD_TEXTO[a] && ADESIVO[a].ic[0] && ADESIVO[a].nivel >= 1 && ADESIVO[a].nivel <= N_NIVEIS
+                    && som_adesivo(a) != SOM_EFEITO && ADESIVO[a].preco > 0, "o adesivo %d completo", a);
         modo = modo_antes;
         memset(J, 0, sizeof J);
         limpa();

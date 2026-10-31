@@ -25,6 +25,7 @@ typedef struct {
     uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
+    uint8_t capa[2];                 // o Impermeavel que agiu: a capa fica ate o fim da partida
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
@@ -118,7 +119,13 @@ static void treme_dado(int r, int a, uint32_t semente_abalo)
     const peca_t *p = peca_fila(r, a);
     int t = f->tipo[a], menor, lado, antes;
     int x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
-    if (ad_no_lado(p, lado) == AD_REFLEXIVO) x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+    int a1 = ad_no_lado(p, lado);
+    f->bomba[a] = a1 == AD_BOMBA;                // o Papel Bomba: rola de novo e soma
+    if (a1 == AD_REFLEXIVO || a1 == AD_BOMBA) {
+        int x1 = x;
+        x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+        if (f->bomba[a]) { f->bomba1[a] = (int8_t)x1; x += x1; }
+    }
     int teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
     if (f->calibre[a] && x < teto) { x++; if (lado && lado < ad_lado_max(t)) lado++; }
     f->cru[a] = f->valor[a] = x;
@@ -399,7 +406,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         int a = -1;
         for (int i = 0; i < f->lancados; i++) {
             if (i == k || est[i] != V_VALIDO || d->queima[j][i]) continue;
-            if (TIPO[tipo_de(j, i)].efeito == EF_FOGO) continue;
+            if (TIPO[tipo_de(j, i)].efeito == EF_FOGO || impermeavel(j, i)) continue;   // com a capa, nao queima
             if (a < 0 || f->valor[i] > f->valor[a]) a = i;
         }
         if (a < 0) continue;
@@ -997,7 +1004,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                     && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
             if (b >= 0) {
                 d->est[j][b] = V_ANULADO;
-                bool come = !d->come[j] && autofagia_come_pode(j, k, b);
+                bool come = !d->come[j] && autofagia_come_pode(j, k, b) && !impermeavel(j, b);   // com a capa, nao e comido
                 if (come) { d->come[j] = (uint8_t)(b + 1); d->come_de[j] = (uint8_t)(k + 1); }
                 if (come) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                                  "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
@@ -1179,12 +1186,13 @@ static int etiquetas_de(int j)
 }
 
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
-// Avesso, o Remendo, o Post-it), ou na regra da fila (o Transparente, o
-// Corretivo): no fim da rodada so contam para a Purpurina.
+// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
+// fila (o Transparente, o Corretivo, o Papel Carbono): no fim da rodada so
+// contam para a Purpurina.
 static bool ad_do_pouso(int a)
 {
     return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
-        || a == AD_CORRETIVO || a == AD_POSTIT;
+        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO;
 }
 
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
@@ -1248,10 +1256,12 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         d->velcro[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sVelcro: volta para a mão", pre);
         break;
-    case AD_FRAGIL:                              // valendo, +6; anulado, quebra
+    case AD_FRAGIL:                              // valendo, +6; anulado, quebra (com a capa, nao)
         if (vale) {
             d->semente[j] += FRAGIL_PONTOS;
             e = evento(gera, EV_ADESIVO, j, k, j, k, FRAGIL_PONTOS, "%sFrágil: +%d", pre, FRAGIL_PONTOS);
+        } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k) && impermeavel(j, k)) {
+            return false;
         } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k)) {
             d->fragil[j] |= bit;
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
@@ -1291,6 +1301,31 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         int n = etiquetas_de(j);
         d->semente[j] += n;
         e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sEtiqueta: %d na bolsa, +%d", pre, n, n);
+        break;
+    }
+    case AD_LENTICULAR:                          // valendo, x2; anulado, -4 no seu placar
+        if (vale) {
+            d->mult[j][k] = (int8_t)(d->mult[j][k] + 2);
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 2, "%sLenticular: x2 no %d", pre, F[j].valor[k]);
+            if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
+        } else if (d->est[j][k] == V_ANULADO) {
+            d->delta[j] -= LENTICULAR_PERDE;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, -LENTICULAR_PERDE, "%sLenticular: anulado, -%d", pre, LENTICULAR_PERDE);
+        } else return false;
+        break;
+    case AD_NEON: {                              // valendo: +2 por adesivo no dado (o deste lado junto)
+        const peca_t *pn = peca_fila(j, k);
+        if (!vale || !pn) return false;
+        int n = ad_quantos(pn);
+        d->semente[j] += NEON_CADA * n;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNéon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
+        break;
+    }
+    case AD_IMPERMEAVEL: {                       // valendo ou nao: a capa, ate o fim da partida
+        const peca_t *pc = peca_fila(j, k);
+        if (!pc || pc->capa) return false;       // ja estava com a capa
+        d->capa[j] |= bit;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: não quebra, não queima e não é comido", pre);
         break;
     }
     case AD_PATINHO: {                           // valendo: no lado dele, -2; caindo em outro, +2

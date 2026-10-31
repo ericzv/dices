@@ -1033,14 +1033,19 @@ typedef struct {
     // Diamante, na ordem dos grupos):
     uint8_t  dois_adesivos;              // esta loja vende 2 adesivos (e 1 dado a menos)
     uint8_t  adesivo2, ad_vendido2;      // o segundo adesivo
+    // Depois dos adesivos de papel (a run salva de antes abre com eles nunca
+    // vistos): os bits dos adesivos de 32 em diante.
+    uint8_t  ad_vistos2[4];              // bit a - 32: o adesivo a ja esteve a venda
 } run_t;
-typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 4 ? 1 : -1];
+typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
 // O tamanho da run salva de antes das bolsas (ate o presente, com a folga) e
 // o de antes da loja sem repeticao (ate o porquinho, com a folga).
 #define RUN_TAM_SEM_BOLSA (offsetof(run_t, presente) + 2)
 #define RUN_TAM_SEM_VISTOS ((offsetof(run_t, porco_quebrou) + 4) & ~(size_t)3)
-// E o de antes da loja de dois adesivos (ate os vistos, com a folga).
+// E o de antes da loja de dois adesivos (ate os vistos, com a folga), e o de
+// antes dos adesivos de papel (ate o segundo adesivo, com a folga).
 #define RUN_TAM_SEM_LOJA2 ((offsetof(run_t, dois_adesivos) + 3) & ~(size_t)3)
+#define RUN_TAM_SEM_VISTOS2 ((offsetof(run_t, ad_vistos2) + 3) & ~(size_t)3)
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
 // campo, com a peca de 13 bytes. Abre convertida (des_carrega).

@@ -1958,6 +1958,8 @@ static void ficha_de_fogo(float cx, float cy, float r, float ea, float ang, int 
 // vista 2: pousado, mostra o valor final (e riscado se zerou).
 // O Oculto ainda virado: a face mostra "?" no lugar do numero.
 static bool face_escondida;
+// O dado com a capa do Impermeavel: o Vidro com 1 nao aparece estilhacado.
+static bool face_capa;
 // A Ficha Coringa ainda sem numero: o curinga para cima (quem desenha avisa;
 // na mao e no ar, sempre).
 static bool face_curinga;
@@ -2162,6 +2164,65 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     case AD_BILHETE: {                            // o picote do canhoto, e um po de ouro
         if (fabsf(X - 0.42f * r) < 0.6f && (iy & 1)) return C_REAL;
         if (h % 23 == 0) return RGB(150, 122, 62);
+        return fundo;
+    }
+    case AD_NOTA_DEZ: {                           // a roseta de nota: a beira de ouro em ondinhas, e estrelinhas piscando
+        float an = atan2f(Y, X), onda = de - 0.9f * (0.5f + 0.5f * sinf(an * 9));
+        if (onda >= 1.0f && onda < 2.4f) return (ix + iy) & 1 ? C_AMARELO : C_OURO;
+        int cxl = (int)floorf(X / 6), cyl = (int)floorf(Y / 6);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 4) return fundo;
+        int px = cxl * 6 + 2 + (int)(q >> 4) % 3, py = cyl * 6 + 2 + (int)(q >> 6) % 3;
+        if (ix == px && iy == py) return C_AMARELO;
+        if (sinf(t * 2.6f + (q >> 8) % 19) > 0.55f && abs(ix - px) + abs(iy - py) == 1) return C_ROSA;
+        return fundo;
+    }
+    case AD_CARBONO: {                            // a folha de copia: a letra que passou, linha por linha, e o brilho da cera
+        float p = fr(t / 5 + fase) * 5, pos = -1.8f * r + p / 0.6f * 3.6f * r;
+        if (p < 0.6f && fabsf(X - 0.5f * Y - pos) < 1.0f) return RGB(96, 134, 196);   // o brilho passando
+        int linha = (int)floorf((Y + 100) / 5), dy = iy + 100 - linha * 5;
+        int palavra = (int)floorf((X + 100 + linha * 7) / 6);
+        if (hash2(palavra, linha) % 4 == 0 || ((int)floorf(X + 100 + linha * 7) % 6) == 5) return fundo;   // entre as palavras
+        int sobe = (ix + linha) & 2 ? 1 : 0;      // a letra corrida: sobe e desce um pixel
+        if (dy == 2 - sobe || (dy == 1 && (hash2(ix + 64, linha) % 7) == 0)) return C_AZUL;
+        return fundo;
+    }
+    case AD_BOMBA: {                              // o papel da etiqueta: a moldura vermelha, as fibras e, de vez em quando, o pavio correndo
+        if (de >= 1.6f && de < 2.6f) {
+            float an = atan2f(Y, X) / 6.2832f + 0.5f, q = fr(t / 3.5f + fase) * 3.5f;   // o fogo da a volta em 1 s
+            float d = fabsf(an - q);
+            if (q < 1 && d < 0.035f) return (h & 1) ? C_AMARELO : C_FOGO;
+            if (q < 1 && an < q && q - an < 0.14f) return (h & 1) ? C_EBANO_B : C_BRASA;   // o rastro queimado
+            return C_VERMELHO;
+        }
+        uint32_t q = hash2((int)floorf(X / 3) + 64, iy + 64) % 15;
+        if (q == 0) return RGB(166, 154, 132);
+        if (q == 1) return C_BRANCO;
+        return fundo;
+    }
+    case AD_IMPERMEAVEL: {                        // o plastico da capa: gotas que escorrem devagar, com o brilho de cada uma
+        float yy = Y - t * 1.4f;
+        int cxl = (int)floorf(X / 6), cyl = (int)floorf(yy / 7);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 3) return fundo;
+        float bx = cxl * 6 + 2.5f + (q >> 4) % 2, by = cyl * 7 + 3 + (q >> 6) % 2, dx = X - bx, dy = yy - by;
+        if (dx * dx + dy * dy < 1.6f) return dx < -0.3f && dy < -0.3f ? C_BRANCO : RGB(96, 134, 196);
+        if (fabsf(dx) < 0.5f && dy < -1.2f && dy > -3.5f && (q >> 9 & 1)) return RGB(228, 194, 106);   // o rastro da gota
+        return fundo;
+    }
+    case AD_LENTICULAR: {                         // as lentes em listras finas; os aneis de baixo pulam quando o angulo muda
+        if (((ix % 3) + 3) % 3 == 0) return RGB(102, 74, 138);
+        float d = dist + (sinf(mov * 2.4f + fase * 6) > 0 ? 2.2f : 0.0f);
+        if (fr(d / 5) < 0.28f) return (ix + iy) & 1 ? RGB(206, 180, 218) : fundo;
+        return fundo;
+    }
+    case AD_NEON: {                               // o tubo de luz na parede escura: o brilho em volta, e um piscar de vez em quando
+        float p = fr(t / 6 + fase);
+        bool apaga = (p > 0.02f && p < 0.035f) || (p > 0.05f && p < 0.06f);
+        if (de >= 2.2f && de < 3.2f) return apaga ? C_VINHO : ((ix + iy) % 5 ? C_ROSA : C_BRANCO);
+        if ((de >= 1.2f && de < 2.2f) || (de >= 3.2f && de < 4.4f)) return !apaga && (ix + iy) & 1 ? C_VINHO : fundo;
+        int linha = (int)floorf((Y + 100) / 4);
+        if (fr((Y + 100) / 4) < 0.22f || fr((X + 100 + (linha & 1) * 3) / 6) < 0.15f) return C_EBANO;   // os tijolos
         return fundo;
     }
     default: return fundo;
@@ -2541,7 +2602,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
 
     char s[12];
     // Vidro que tirou 1: estilhacado, com rachaduras saindo do impacto.
-    if (tipo == D_VIDRO && vista == 2 && valor == 1 && zerado) {
+    if (tipo == D_VIDRO && vista == 2 && valor == 1 && zerado && !face_capa) {
         int e = r < 12 ? 1 : (int)(r / 11);
         static const float RA[6][2] = { {-0.9f,-0.3f}, {-0.2f,-0.95f}, {0.7f,-0.6f}, {0.95f,0.25f}, {0.2f,0.9f}, {-0.6f,0.7f} };
         float ix = cx + r * 0.15f, iy = cy - r * 0.1f;

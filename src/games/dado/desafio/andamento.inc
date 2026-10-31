@@ -138,11 +138,13 @@ static bool des_carrega(run_t *r)
         size_t tam = n == (int)(2 * offsetof(run_t, presente)) ? offsetof(run_t, presente)
                    : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA
                    : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS
-                   : n == (int)(2 * RUN_TAM_SEM_LOJA2) ? RUN_TAM_SEM_LOJA2 : sizeof *r;
+                   : n == (int)(2 * RUN_TAM_SEM_LOJA2) ? RUN_TAM_SEM_LOJA2
+                   : n == (int)(2 * RUN_TAM_SEM_VISTOS2) ? RUN_TAM_SEM_VISTOS2 : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
         if (tam <= RUN_TAM_SEM_BOLSA) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
         if (tam < RUN_TAM_SEM_LOJA2) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
-        if (tam < sizeof *r) r->dois_adesivos = r->adesivo2 = r->ad_vendido2 = 0;   // a loja de 1 adesivo
+        if (tam < RUN_TAM_SEM_VISTOS2) r->dois_adesivos = r->adesivo2 = r->ad_vendido2 = 0;   // a loja de 1 adesivo
+        if (tam < sizeof *r) memset(r->ad_vistos2, 0, sizeof r->ad_vistos2);
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
@@ -452,6 +454,7 @@ static void zera_acumuladores(peca_t *col, int n)
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
+        col[i].capa = 0;                         // e a capa do Impermeavel tambem
         if (cosmico(col[i].tipo) && col[i].tipo != D_ASTRO) cosmo_vira(&col[i], D_ASTRO, false);   // o ciclo cosmico recomeca
     }
 }

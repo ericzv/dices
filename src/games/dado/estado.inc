@@ -6,9 +6,10 @@
 // que o Fermento dela ja cresceu e duas marcas: o lacre do Selo (o proximo
 // lance dela, valendo, pontua mais) e o Velcro (ela volta para a mao na
 // rodada seguinte). A run salva de antes, com os adesivos em meio byte
-// (peca13_t), abre convertida (des_carrega).
+// (peca13_t), abre convertida (des_carrega). A capa: o Impermeavel ja agiu
+// nesta partida (no bit de cima do Fermento, que nunca passa de 20).
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento; uint8_t selo : 1, velcro : 1, figurinha : 6; } peca_t;
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento : 7, capa : 1; uint8_t selo : 1, velcro : 1, figurinha : 6; } peca_t;
 typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca13_t;
 _Static_assert(sizeof(peca_t) == 4 + AD_LADOS && sizeof(peca13_t) == 13, "a peca vai assim para a run salva");
 
@@ -48,6 +49,9 @@ typedef struct {
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
+    bool    bomba[N_FILA];           // o Papel Bomba explodiu: o numero e a soma de dois lances
+    int8_t  bomba1[N_FILA];          // e o primeiro deles
+    bool    copiou[N_FILA];          // o Papel Carbono copiou o ultimo valido
     bool    carta;                   // Coringa: o 4o e a carta em suspensao ("?"), que so vira depois do seu turno
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
@@ -71,9 +75,13 @@ typedef struct {
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
     uint8_t lado;                    // o lado que fica para cima (os adesivos)
-    int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso vira; 2 o Reflexivo rola de novo
+    int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso (ou a Nota Dez) vira; 2 o Reflexivo
+                                     // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia
     bool virou;                      // o Avesso ja virou
     bool reflete;                    // depois (ou sem) o Avesso, o Reflexivo
+    uint8_t ad_vira, ad_rola;        // quem vira (Avesso, Nota Dez) e quem rola de novo (Reflexivo, Papel Bomba)
+    bool copia;                      // e no fim o Papel Carbono copia: o numero vira valor_c
+    int valor_c;
     bool chumbou;                    // ja deu o baque do Chumbo
     float t_etapa;
     int valor_v; uint8_t lado_v;     // depois de virar do avesso

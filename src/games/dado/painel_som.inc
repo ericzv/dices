@@ -1,13 +1,11 @@
 // ===========================================================================
 // O painel do som (tecla M)
 // ===========================================================================
-// Quatro volumes, de 0 (mudo) a 10, cada um guardado: a musica, o ambiente
-// dos saloes, os efeitos da mesa e a interface (o cursor e os menus). As
-// setas escolhem a linha e mudam o volume, que se ouve na hora: a trilha
-// sobe e desce, o efeito toca uma ficha, a interface um tique e o ambiente
-// toca enquanto a linha dele esta escolhida (fora da run, o do Salao Verde).
-// O mouse clica direto no degrau. N liga e desliga so a musica, voltando ao
-// volume de antes.
+// Tres volumes, de 0 (mudo) a 10, cada um guardado: a musica, os efeitos da
+// mesa e a interface (o cursor e os menus). As setas escolhem a linha e
+// mudam o volume, que se ouve na hora: a trilha sobe e desce, o efeito toca
+// uma ficha, a interface um tique. O mouse clica direto no degrau. N liga e
+// desliga so a musica, voltando ao volume de antes.
 static bool  som_aberto;
 static int   som_cur;                          // a linha escolhida
 static float t_som;                            // ha quanto tempo o painel abriu
@@ -15,27 +13,26 @@ static int   som_escada_x;                     // onde comeca a escada (o clique
 static int   som_musica_antes = SOM_NIVEIS;    // o volume da musica antes do N
 #define TECLA_SOM  0x201                       // o clique numa linha do painel (val: a linha)
 #define SOM_DEGRAU 13                          // um degrau da escada, com o vao
-static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface", "Ambiente" };
-// As linhas do painel: o que toca o tempo todo (a musica e o ambiente) em cima.
-static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_AMBIENTE, SOM_CANAL_EFEITOS,
-                                           SOM_CANAL_INTERFACE };
+static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface" };
+// As linhas do painel, de cima para baixo.
+static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE };
 
-// Guardados na ordem dos canais (um "som" de antes do ambiente tem tres).
 static void som_grava(void)
 {
     char s[32];
-    snprintf(s, sizeof s, "%d,%d,%d,%d", som_volume_de(SOM_CANAL_MUSICA), som_volume_de(SOM_CANAL_EFEITOS),
-             som_volume_de(SOM_CANAL_INTERFACE), som_volume_de(SOM_CANAL_AMBIENTE));
+    snprintf(s, sizeof s, "%d,%d,%d", som_volume_de(SOM_CANAL_MUSICA), som_volume_de(SOM_CANAL_EFEITOS),
+             som_volume_de(SOM_CANAL_INTERFACE));
     salva_grava("som", s);
 }
 
-// Os volumes da ultima vez (dado_inicia).
+// Os volumes da ultima vez (dado_inicia). Um "som" com um quarto numero (o
+// ambiente dos saloes, que saiu) le os tres primeiros.
 static void som_le_volumes(void)
 {
     char b[32];
-    int v[SOM_CANAIS], n;
-    if (salva_le("som", b, sizeof b) > 0 && (n = sscanf(b, "%d,%d,%d,%d", &v[0], &v[1], &v[2], &v[3])) >= 3)
-        for (int c = 0; c < n; c++) som_volume(c, v[c]);
+    int v[SOM_CANAIS];
+    if (salva_le("som", b, sizeof b) > 0 && sscanf(b, "%d,%d,%d", &v[0], &v[1], &v[2]) == SOM_CANAIS)
+        for (int c = 0; c < SOM_CANAIS; c++) som_volume(c, v[c]);
     if (som_volume_de(SOM_CANAL_MUSICA) > 0) som_musica_antes = som_volume_de(SOM_CANAL_MUSICA);
 }
 
@@ -83,8 +80,8 @@ static void som_tecla(int k)
 }
 
 // O tempo do painel, a trilha abaixando enquanto a cadeia de efeitos corre e
-// o som da cena (a mesa do chefe, o ambiente do salao). Devolve se o painel
-// esta aberto: fora do online, a partida espera por ele.
+// o som da cena (a mesa do chefe). Devolve se o painel esta aberto: fora do
+// online, a partida espera por ele.
 static void som_da_cena(void);                   // salao.inc
 static bool som_passo(float dt_real)
 {

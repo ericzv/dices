@@ -11,11 +11,8 @@
 //    verdade a bossa some e ficam as cordas em tremolo no Do grave. As tres
 //    vem decodificadas na memoria e um callback do audio as mistura amostra
 //    a amostra: nunca saem do compasso, nem se o jogo engasgar.
-//  - Ambiente: o cassino em volta, um loop por salao do Desafiante (gente
-//    conversando ao longe, fichas, dados e o detalhe de cada salao). Troca
-//    de um salao para o outro cruzando devagar; some na hora da verdade.
-//  - Volumes: quatro canais, de 0 a 10 (o painel do som, tecla M): a trilha,
-//    os efeitos da mesa, os da interface (o cursor e os menus) e o ambiente.
+//  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
+//    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
 //    moeda tem o seu: a beirada tocando o feltro a cada volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
@@ -61,6 +58,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_HOLOGRAFICO] = "ad_holografico", [SOM_AD_PURPURINA] = "ad_purpurina", [SOM_AD_VELCRO] = "ad_velcro",
     [SOM_AD_RATOEIRA] = "ad_ratoeira", [SOM_AD_FIGURINHA] = "ad_figurinha",
     [SOM_AD_PATINHO] = "ad_patinho", [SOM_AD_ETIQUETA] = "ad_etiqueta", [SOM_AD_BILHETE] = "ad_bilhete",
+    [SOM_AD_NOTA_DEZ] = "ad_nota_dez", [SOM_AD_CARBONO] = "ad_carbono", [SOM_AD_BOMBA] = "ad_bomba",
+    [SOM_AD_IMPERMEAVEL] = "ad_impermeavel", [SOM_AD_LENTICULAR] = "ad_lenticular", [SOM_AD_NEON] = "ad_neon",
     [SOM_NOVIDADE] = "novidade", [SOM_NOVIDADE_LENDA] = "novidade_lenda",
     [SOM_MENU_PASSA] = "menu_passa", [SOM_MENU_ESCOLHE] = "menu_escolhe",
     [SOM_BOLSA_ESPIA] = "bolsa_espia",
@@ -83,8 +82,8 @@ static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
 static bool  rufando, girando, suspense, cadeia, chefe;
-static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
-#define VOL_TRILHA 0.35f                     // a trilha (e o ambiente) no volume 10
+static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
+#define VOL_TRILHA 0.35f                     // a trilha no volume 10
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
 enum { CAM_TRILHA, CAM_CHEFE, CAM_TENSAO, CAMADAS };
@@ -95,14 +94,6 @@ static AudioStream banda;
 static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
 static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
 static float v_chefe, v_tensao;              // quanto cada camada entrou (0..1)
-
-// O ambiente de cada salao: um stream cada, que pausa quando ninguem ouve.
-#define AMBIENTES 4
-static Music amb[AMBIENTES];
-static float amb_v[AMBIENTES];               // o volume de cada um, cruzando na troca de salao
-static bool  amb_comecou[AMBIENTES];         // ja tocou uma vez: depois de pausar, continua de onde parou
-static int   amb_quer = -1;                  // o salao de agora (-1: nenhum)
-static float amb_baixa = 1;                  // a sala calando na hora da verdade
 
 // O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
 // volume que se ouve); o 10 e o volume de sempre.
@@ -175,19 +166,6 @@ static void monta_banda(void)
     PlayAudioStream(banda);
 }
 
-static void monta_ambiente(void)
-{
-    for (int a = 0; a < AMBIENTES; a++) {
-        char nome[24];
-        snprintf(nome, sizeof nome, "ambiente_%d", a);
-        const som_arquivo_t *f = acha(nome);
-        if (!f) continue;
-        // O raylib le o OGG aos poucos, direto da memoria do executavel.
-        amb[a] = LoadMusicStreamFromMemory(".ogg", f->dados, f->tam);
-        amb[a].looping = true;
-    }
-}
-
 static void monta_efeito(int s)
 {
     efeito_t *e = &ef[s];
@@ -212,7 +190,6 @@ void som_inicia(void)
     moeda_rola = carrega(acha("moeda_rola"));
     giro = carrega(acha("giro"));
     monta_banda();
-    monta_ambiente();
     pronto = true;
 }
 
@@ -229,8 +206,6 @@ void som_encerra(void)
     UnloadSound(giro);
     if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
     for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
-    for (int a = 0; a < AMBIENTES; a++)
-        if (amb[a].frameCount) UnloadMusicStream(amb[a]);
     pronto = false;
 }
 
@@ -269,28 +244,6 @@ void som_atualiza(float dt)
     cam_alvo[CAM_TRILHA] = m * duck;
     cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
     cam_alvo[CAM_TENSAO] = m * v_tensao;
-    // O ambiente: o salao de agora entra em 1,5 s, o outro sai em 1 s (os
-    // dois cruzam); na hora da verdade a sala quase se cala.
-    float ab = suspense ? 0.25f : 1;
-    amb_baixa += (ab - amb_baixa) * fminf(1, dt / (ab < amb_baixa ? 0.15f : 0.6f));
-    float sala = VOL_TRILHA * ganho(SOM_CANAL_AMBIENTE) * (ligado ? 1 : 0);
-    for (int a = 0; a < AMBIENTES; a++) {
-        if (!amb[a].frameCount) continue;
-        float alvo = a == amb_quer && sala > 0 ? 1 : 0;
-        amb_v[a] += (alvo - amb_v[a]) * fminf(1, dt / (alvo > amb_v[a] ? 0.5f : 0.35f));
-        if (alvo == 0 && amb_v[a] < 0.003f) {   // ninguem ouve: pausa (e volta de onde parou)
-            amb_v[a] = 0;
-            if (IsMusicStreamPlaying(amb[a])) PauseMusicStream(amb[a]);
-            continue;
-        }
-        if (!IsMusicStreamPlaying(amb[a])) {
-            if (amb_comecou[a]) ResumeMusicStream(amb[a]);
-            else PlayMusicStream(amb[a]);
-            amb_comecou[a] = true;
-        }
-        SetMusicVolume(amb[a], sala * amb_v[a] * amb_baixa);
-        UpdateMusicStream(amb[a]);
-    }
 }
 
 // Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que
@@ -367,7 +320,6 @@ void som_giro(bool on)
 void som_suspense(bool on) { suspense = on; }
 void som_cadeia(bool on)   { cadeia = on; }
 void som_chefe(bool on)    { chefe = on; }
-void som_ambiente(int salao) { amb_quer = salao >= 0 && salao < AMBIENTES ? salao : -1; }
 
 void som_volume(int c, int n)
 {

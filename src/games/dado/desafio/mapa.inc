@@ -32,8 +32,10 @@ static peca_t peca_r(int t)
 // a mesma loja, sorteada de novo, mostra o mesmo.
 static bool dado_visto(int t) { return run.vistos[t >> 3] >> (t & 7) & 1; }
 static void marca_visto(int t) { if (t >= 0 && t < D_N) run.vistos[t >> 3] |= (uint8_t)(1u << (t & 7)); }
-static bool adesivo_visto(int a) { return run.ad_vistos[a >> 3] >> (a & 7) & 1; }
-static void marca_adesivo_visto(int a) { if (a > AD_NADA && a < AD_N) run.ad_vistos[a >> 3] |= (uint8_t)(1u << (a & 7)); }
+// (os adesivos de 32 em diante, no segundo campo: o primeiro so tinha 32 bits)
+static uint8_t *ad_visto_byte(int a) { return a < 32 ? &run.ad_vistos[a >> 3] : &run.ad_vistos2[(a - 32) >> 3]; }
+static bool adesivo_visto(int a) { return a > AD_NADA && a < AD_N && (*ad_visto_byte(a) >> (a & 7) & 1); }
+static void marca_adesivo_visto(int a) { if (a > AD_NADA && a < AD_N) *ad_visto_byte(a) |= (uint8_t)(1u << (a & 7)); }
 
 // Um dado da vitrine: pela raridade, entre os abertos que ainda nao
 // estiveram a venda na run.

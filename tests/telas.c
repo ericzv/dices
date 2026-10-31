@@ -35,8 +35,7 @@ void som_giro(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
 void som_chefe(bool on) { (void)on; }
-void som_ambiente(int a) { (void)a; }
-static int volume_[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
+static int volume_[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 void som_volume(int c, int n) { if (c >= 0 && c < SOM_CANAIS) volume_[c] = n < 0 ? 0 : n > SOM_NIVEIS ? SOM_NIVEIS : n; }
 int som_volume_de(int c) { return c >= 0 && c < SOM_CANAIS ? volume_[c] : 0; }
 

@@ -31,7 +31,6 @@ caindo).
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
 | Camadas da música | `trilha_chefe` (a mesa do chefe), `trilha_tensao` (a hora da verdade) | do tamanho exato da trilha e na mesma harmonia, para tocar junto dela: a batucada (surdo sintetizado, agogô, o aro num dado batendo na madeira, cordas e o rolo de tímpano no fim de cada frase); as cordas em trêmolo no Dó grave com a terça e a sétima de cada acorde |
-| Ambiente | `ambiente_0`…`ambiente_3` (um por salão) | loops de 24 s: gente conversando ao longe (vozes sintetizadas: sílabas de vogais na altura de cada pessoa), fichas, dados e o detalhe de cada salão: taças no Verde e no Dourado, a roleta no Vermelho, cartas e risadas no do Coringa |
 | Troca de tela | `transicao` | um sopro de pano que anda da esquerda para a direita junto com a varredura |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |
@@ -43,8 +42,7 @@ a anterior, e com um pouco de variação de tom.
 As camadas da música são medidas na `trilha.ogg` do repositório (o volume e
 o tamanho): o `som.c` as mistura amostra a amostra com ela, e o teste `sons`
 confere que as três têm o mesmo número de quadros. Uma camada de outro
-tamanho fica fora do jogo. O ambiente não anda junto da trilha, então não
-leva nada com altura definida que dure (brigaria com o acorde).
+tamanho fica fora do jogo.
 
 O volume de cada som foi igualado ao do som sintetizado que ele substituiu
 (`VOLUME` no `gera.py`); `GANHO_DB` guarda os ajustes pedidos depois

@@ -320,7 +320,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
                           "-5.",
     [D_MALDITO]         = "Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído.",
-    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu válido.",
+    [D_GATUNO]          = "Se terminar válido, rouba um dado do oponente (o menor) para cada 1 tirado por outro dado seu válido (o 1 dele não conta).",
     [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
     [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
                           "dados.",
@@ -450,8 +450,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MALDITO]         = "Vinte lados. Se tirar 7 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 8 ou "
                           "mais, pontua normalmente.",
     [D_GATUNO]          = "Seis lados. Se terminar válido, rouba um dado do oponente para cada 1 tirado por outro dado válido "
-                          "da sua sequência (o anulado não conta): o menor, depois o menor que sobrou, e assim por diante. Os "
-                          "pontos dos roubados passam para você.",
+                          "da sua sequência (o anulado e o 1 do próprio Gatuno não contam): o menor, depois o menor que sobrou, "
+                          "e assim por diante. Os pontos dos roubados passam para você.",
     [D_QUEBRADO]        = "Oito lados, mas não é sorteado: pontua sempre o número gravado nele. Depois de lançado, quebra e sai "
                           "da sua bolsa.",
     [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "

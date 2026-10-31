@@ -111,7 +111,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
   inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 28, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  lado para cima: são 34, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
   um sai metade das vezes), ao Bis (2 dados a mais na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
@@ -123,9 +123,14 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   (+2, +4, +6... crescendo a cada vez que age), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
   Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
-  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados) e
-  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada); sete
-  desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
+  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados),
+  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada) e aos
+  de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
+  Carbono (copia o número do seu último dado válido: igual não cai), o Papel
+  Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
+  partida, o dado não quebra, não queima e não é comido), o Lenticular
+  (valendo, x2; anulado, -4 no seu placar) e o Néon (valendo, +2 por adesivo
+  colado no dado); sete desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
@@ -195,10 +200,11 @@ incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
 lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
 um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
 Raspadinha, Lobo, Gorjeta, Frágil e Velcro; incomuns: Confete, Reflexivo,
-Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha e
-Imantado; raros: Eletrônico, Transparente, Fermento, Purpurina, Figurinha,
-Patinho Feio e Etiqueta; lendários: Chumbo, Mira, Holográfico e Bilhete
-Premiado). Levando o adesivo, você escolhe o dado da sua
+Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha,
+Imantado, Papel Bomba, Impermeável e Lenticular; raros: Eletrônico,
+Transparente, Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel
+Carbono e Néon; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
+Dez). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 
@@ -241,7 +247,7 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, do ambiente dos salões, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |

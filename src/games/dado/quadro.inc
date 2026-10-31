@@ -135,8 +135,9 @@ static void desenha_dica(const int *r, const dica_t *d)
 // Transicao entre telas: ao trocar de tela, o ultimo quadro da velha fica
 // guardado e a nova entra por cima dele numa varredura em diagonal, da
 // esquerda para a direita, com a beira pontilhada (o Bayer em blocos de 2x2,
-// o mesmo grao dos dados), em TRANS_T segundos. A partida inteira conta como
-// uma tela so: as fases dela se sucedem na mesma mesa.
+// o mesmo grao dos dados), em TRANS_T segundos, com o sopro de pano que anda
+// junto (SOM_TRANSICAO). A partida inteira conta como uma tela so: as fases
+// dela se sucedem na mesma mesa.
 // ---------------------------------------------------------------------------
 #define TRANS_T    0.3f
 #define TRANS_BEIRA 0.16f                    // a largura da beira pontilhada (0..1 da tela)
@@ -161,7 +162,10 @@ static void transicao(void)
 {
     uint16_t *fb = display_fb();
     int tela = tela_atual();
-    if (trans_tela >= 0 && tela != trans_tela) t_trans = 0;   // trocou: a velha esta em trans_buf
+    if (trans_tela >= 0 && tela != trans_tela) {             // trocou: a velha esta em trans_buf
+        t_trans = 0;
+        som_toca(SOM_TRANSICAO);                              // e a cortina passa, da esquerda para a direita
+    }
     trans_tela = tela;
     if (t_trans >= 0 && t_trans >= TRANS_T) t_trans = -1;
     if (t_trans >= 0) {

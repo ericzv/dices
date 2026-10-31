@@ -17,9 +17,25 @@ int main(int argc, char **argv)
             erros++;
         }
     }
-    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha" };
-    for (int i = 0; i < 4; i++)
+    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha", "trilha_chefe", "trilha_tensao",
+                                         "ambiente_0", "ambiente_1", "ambiente_2", "ambiente_3" };
+    for (int i = 0; i < (int)(sizeof LOOPS / sizeof *LOOPS); i++)
         if (!acha(LOOPS[i])) { printf("falta %s\n", LOOPS[i]); erros++; }
+    // As camadas tocam junto com a trilha, amostra a amostra: do mesmo tamanho
+    // dela (senao o som.c as deixa de fora).
+    unsigned n_trilha = 0;
+    for (int c = 0; c < CAMADAS; c++) {
+        const som_arquivo_t *a = acha(CAM_ARQ[c]);
+        if (!a) continue;
+        Wave w = LoadWaveFromMemory(".ogg", a->dados, a->tam);
+        if (c == CAM_TRILHA) n_trilha = w.frameCount;
+        else if (w.frameCount != n_trilha) {
+            printf("%s: %u quadros, a trilha tem %u\n", CAM_ARQ[c], w.frameCount, n_trilha);
+            erros++;
+        }
+        if (w.channels != 2 || w.sampleRate != 44100) { printf("%s: nao e estereo a 44100 Hz\n", CAM_ARQ[c]); erros++; }
+        UnloadWave(w);
+    }
 
     for (int i = 0; i < SONS_N; i++) {
         const som_arquivo_t *a = &SONS_ARQ[i];

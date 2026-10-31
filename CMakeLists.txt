@@ -160,6 +160,16 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     if (UNIX)
         target_link_libraries(balanco PRIVATE m)
     endif()
+    # Teste visual: as telas principais contra a referencia (tests/telas_ref.txt).
+    # So no Linux: em outros sistemas a conta em float da fisica e das curvas
+    # sai um pouco diferente. Mudou uma tela de proposito: build/telas
+    # tests/telas_ref.txt --atualiza.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_executable(telas tests/telas.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+        target_include_directories(telas PRIVATE src desktop)
+        target_link_libraries(telas PRIVATE m)
+        add_test(NAME telas COMMAND telas ${CMAKE_CURRENT_SOURCE_DIR}/tests/telas_ref.txt)
+    endif()
     # Confere que todo som do jogo tem gravacao e que todas decodificam;
     # exporta tudo em WAV, para ouvir fora do jogo.
     add_executable(exporta_som tests/exporta_som.c)

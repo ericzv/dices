@@ -23,7 +23,13 @@ As receitas:
     (Rhodes Mark I 1977, jRhodes3d) e baixo eletrico (Karoryfer, CC BY 3.0);
     o 4o "valendo" tem um sax-alto (Karoryfer, CC BY 3.0);
   - poderes e roleta: gravacoes e instrumentos do FluidR3 GM (CC BY 3.0);
-  - laser, ventania e o chiado do fogo: sintetizados aqui mesmo.
+  - laser, ventania e o chiado do fogo: sintetizados aqui mesmo;
+  - as camadas da trilha (a mesa do chefe e a hora da verdade): cordas em
+    tremolo, agogo e timpano do FluidR3, o aro num dado batendo na madeira e
+    o surdo sintetizado, do tamanho exato da trilha;
+  - o ambiente dos saloes: vozes sintetizadas (silabas de vogais), fichas e
+    dados gravados, tacas, cartas e a roleta sintetizadas;
+  - a troca de tela: um sopro sintetizado que anda da esquerda para a direita.
 """
 import os, sys, random, shutil, subprocess, tempfile, wave, zlib
 import numpy as np
@@ -1084,6 +1090,23 @@ MELODIA = [(0,0,1.5,69),(0,1.5,.5,72),(0,2,2,76),(1,0,1,74),(1,1,1,72),(1,2,2,69
     (12,0,1.5,82),(12,1.5,.5,81),(12,2,1,79),(12,3,1,74),(13,0,1,76),(13,1,1,79),(13,2,1,82),(13,3,.5,76),(13,3.5,.5,79),
     (14,0,1.5,81),(14,1.5,.5,79),(14,2,2,77),(15,0,1,76),(15,1,1,72)]
 
+def ir_trilha(semente):
+    """A sala da trilha: ruido que cai em 1,6 s, um pouco escuro."""
+    g = np.random.default_rng(semente)
+    n = int(1.6 * SR)
+    r = g.standard_normal(n) * np.exp(-np.arange(n) / (0.35 * SR))
+    r = pb(r, 4000); r[:int(0.02 * SR)] = 0
+    return r / np.sqrt((r ** 2).sum())
+
+def circ(x, h):
+    """Convolucao circular: a sala da a volta no loop."""
+    H = np.fft.rfft(np.pad(h, (0, len(x) - len(h))))
+    return np.fft.irfft(np.fft.rfft(x) * H, len(x))
+
+def sala_da_trilha(L, R, mistura=0.30):
+    M = (L + R) * 0.5
+    return np.stack([L + mistura * circ(M, ir_trilha(1)), R + mistura * circ(M, ir_trilha(2))], 1)
+
 def trilha():
     pistas = {k: (np.zeros(NT), np.zeros(NT)) for k in
               ('ep', 'baixo', 'vibra', 'bateria', 'teclado', 'baixo_novo', 'melodia')}
@@ -1179,17 +1202,7 @@ def trilha():
     L = sum(pistas[p][0] for p in ('teclado', 'baixo_novo', 'melodia', 'bateria'))
     R = sum(pistas[p][1] for p in ('teclado', 'baixo_novo', 'melodia', 'bateria'))
 
-    def ir(semente):
-        g = np.random.default_rng(semente)
-        n = int(1.6 * SR)
-        r = g.standard_normal(n) * np.exp(-np.arange(n) / (0.35 * SR))
-        r = pb(r, 4000); r[:int(0.02 * SR)] = 0
-        return r / np.sqrt((r ** 2).sum())
-    def circ(x, h):                                   # convolucao circular: a sala da a volta no loop
-        H = np.fft.rfft(np.pad(h, (0, NT - len(h))))
-        return np.fft.irfft(np.fft.rfft(x) * H, NT)
-    M = (L + R) * 0.5
-    x = np.stack([L + 0.30 * circ(M, ir(1)), R + 0.30 * circ(M, ir(2))], 1)
+    x = sala_da_trilha(L, R)
     for _ in range(3):                                # o volume da trilha antiga, segurando os picos
         x = x * (VOLUME['trilha'] / max(volume(x.mean(1)), 1e-9))
         a = np.abs(x).max(1)
@@ -1197,6 +1210,405 @@ def trilha():
         x = x * (limita(a, 0.9) / np.maximum(a, 1e-9))[:, None]
     p = np.abs(x).max()
     return x * (0.97 / p) if p > 0.97 else x
+
+# ---------------------------------------------------------------------------
+# As camadas da trilha: do tamanho dela, no mesmo andamento e na mesma
+# harmonia, para tocar junto, amostra a amostra (o som.c mistura as tres).
+# A do chefe e a batucada entrando na bossa; a da hora da verdade, as cordas
+# em tremolo segurando o Do grave (o pedal da dominante, que cabe em todos os
+# acordes da trilha) com a terca e a setima de cada acorde por cima.
+# ---------------------------------------------------------------------------
+REF_TRILHA = os.path.join(SAIDA, 'trilha.ogg')    # a trilha aprovada: o volume das camadas e medido nela
+
+def camada():
+    """As duas pistas de uma camada, do tamanho do loop, e o poe que da a volta."""
+    L, R = np.zeros(NT), np.zeros(NT)
+    def poe(bat, y, pan=0.0, g=1.0):
+        idx = (np.arange(len(y)) + int(bat * BAT * SR)) % NT
+        np.add.at(L, idx, g * y * (1 - pan) * 0.5)
+        np.add.at(R, idx, g * y * (1 + pan) * 0.5)
+    return L, R, poe
+
+def nivela(x, db):
+    """x (estereo) db decibeis abaixo da trilha, no RMS do loop inteiro sem
+    os graves de baixo de 120 Hz (que o ouvido quase nao conta)."""
+    ref = le(REF_TRILHA) if os.path.exists(REF_TRILHA) else trilha().mean(1)
+    alvo = np.sqrt(np.mean(pa(ref, 120) ** 2)) * 10 ** (db / 20)
+    x = x * (alvo / max(np.sqrt(np.mean(pa(x.mean(1), 120) ** 2)), 1e-12))
+    p = np.abs(x).max()
+    return x * (0.97 / p) if p > 0.97 else x
+
+def estica(x, n, a0, a1, pedaco=1.0, cruza=0.25):
+    """Uma nota sustentada do tamanho que for: depois de a1, pedacos do trecho
+    a0..a1 da gravacao, sorteados e cruzados (potencia constante)."""
+    if n <= a1: return x[:n].copy()
+    y = np.zeros(n + int(pedaco * SR))
+    y[:a1] = x[:a1]
+    c, p = int(cruza * SR), int(pedaco * SR)
+    q = np.linspace(0, np.pi / 2, c)
+    pos = a1 - c
+    while pos < n:
+        ini = int(rng.integers(a0, a1 - p))
+        seg = x[ini:ini + p].copy()
+        seg[:c] *= np.sin(q)
+        y[pos:pos + c] *= np.cos(q)
+        y[pos:pos + p] += seg
+        pos += p - c
+    return y[:n]
+
+def cordas(m, dur, vel=0.6, ataque=0.3, solta=0.5):
+    """As cordas em tremolo do FluidR3, segurando dur segundos: entram em
+    'ataque' e saem em 'solta'."""
+    x = nota('tremolo_strings', m)
+    n = int((dur + solta) * SR)
+    y = estica(x, n, int(0.5 * SR), int(2.9 * SR))
+    t = np.arange(n) / SR
+    y *= np.minimum(1, t / ataque) ** 1.5
+    k = int(dur * SR)
+    y[k:] *= np.cos(np.linspace(0, np.pi / 2, n - k))
+    return y * vel
+
+def surdo(aberto=True):
+    """O surdo: a pele grave baixando a altura; aberto ressoa, abafado e
+    so a pancada (com a mao em cima)."""
+    n = int(0.9 * SR); t = np.arange(n) / SR
+    f = 56 + 38 * np.exp(-t / 0.03)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / (0.30 if aberto else 0.06))
+    x += 0.25 * pb(rng.standard_normal(n), 500) * np.exp(-t / 0.010)       # a maceta de feltro
+    return pb(x * np.minimum(1, t / 0.002), 1200)
+
+def agogo(m):
+    return pa(nota('agogo', m, 0.25, 0.08), 400)
+
+def aro():
+    """O aro da caixa, o clave da bossa: um dado batendo na madeira, seco."""
+    x = batida('dicehit_wood%d' % rnd.choice((1, 3, 5, 7, 9)))
+    return pa(pb(tom(x, rnd.uniform(-1, 1)), 6000), 300)[:int(0.12 * SR)]
+
+def timpano(m, dur, solta):
+    """Uma nota de timpano: as gravacoes vao do Do2 ao Fa2; fora disso, a
+    mais perto, afinada (no maximo uma terca)."""
+    base = min(max(m, 36), 41)
+    return tom(nota('timpani', base, dur, solta), m - base)
+
+def rolo(poe, bat, dur, m, g0, g1):
+    """Um rolo de timpano de dur batidas, de g0 a g1, e a pancada no fim."""
+    t = 0.0
+    while t < dur:
+        q = t / dur
+        poe(bat + t, pb(timpano(m, 0.12, 0.6), 900), 0, (g0 + (g1 - g0) * q) * rnd.uniform(0.7, 1))
+        t += rnd.uniform(0.10, 0.13)
+    poe(bat + dur, pb(timpano(m, 1.5, 0.8), 1200), 0, g1 * 1.6)
+
+def raiz_timpano(r):
+    """A raiz na oitava do timpano (do La1 ao Sol#2)."""
+    while r > 44: r -= 12
+    while r < 33: r += 12
+    return r
+
+def trilha_chefe():
+    """A mesa do chefe: a batucada entra na bossa. O surdo marca (abafado no
+    1, aberto no 3), o agogo responde a batida do teclado, o aro da o clave
+    da bossa (3 + 2), as cordas seguram a raiz e a quinta e, no fim de cada
+    frase de quatro compassos, o timpano rola para o acorde que vem."""
+    L, R, poe = camada()
+    for c in range(COMP):
+        b0 = c * 4.0
+        h = HARMONIA[c]
+        poe(b0 + 0.0, surdo(False), 0, 0.30)
+        poe(b0 + 2.0, surdo(True), 0, 0.55)
+        poe(b0 + 3.5, surdo(False), 0, 0.20)
+        alto, grave = ((0, 1.5, 2.5), (3.0, 3.5)) if c % 2 == 0 else ((0, 1.5, 3.5), (2.5, 3.0))
+        for b in alto: poe(b0 + b + rnd.uniform(0, 0.004), agogo(84), 0.35, 0.9 * rnd.uniform(0.85, 1))
+        for b in grave: poe(b0 + b + rnd.uniform(0, 0.004), agogo(79), 0.35, 0.75 * rnd.uniform(0.85, 1))
+        for b in ((0, 1.5, 3.0) if c % 2 == 0 else (1.0, 2.5)):
+            poe(b0 + b, aro(), -0.3, 0.55)
+        for meio, (raiz, tipo) in enumerate(h):
+            if meio and h[1] == h[0]: continue
+            dur = 2.0 if h[0] != h[1] else 4.0
+            r = raiz
+            while r < 43: r += 12
+            while r >= 55: r -= 12
+            for mm, v in ((r, 0.30), (r + 7, 0.20)):
+                poe(b0 + meio * 2.0, cordas(mm, dur * BAT + 0.15, v, 0.25, 0.35), -0.15 if mm == r else 0.15)
+    for c in (3, 7, 11, 15):                          # o fim de cada frase
+        prox = HARMONIA[(c + 1) % COMP][0][0]
+        rolo(poe, c * 4 + 3.0, 1.0, raiz_timpano(prox), 0.10, 0.35)
+    return nivela(sala_da_trilha(L, R), -7.0)
+
+def trilha_tensao():
+    """A hora da verdade: cordas em tremolo. O Do grave segura em duas
+    oitavas e, por cima, a terca e a setima de cada acorde, abertas e
+    andando o minimo de uma para a outra; um rolo de timpano no Do, bem
+    baixinho, o tempo todo."""
+    L, R, poe = camada()
+    n = NT + int(1.0 * SR)                            # o pedal: um loop sem emenda
+    for mm, v, pan in ((36, 0.55, -0.1), (48, 0.40, 0.1)):
+        y = estica(nota('tremolo_strings', mm), n, int(0.5 * SR), int(2.9 * SR))
+        c = n - NT
+        q = np.linspace(0, np.pi / 2, c)
+        y[:c] = y[:c] * np.sin(q) + y[NT:] * np.cos(q)
+        poe(0, y[:NT], pan, v)
+    # Os acordes, em pedacos de meio compasso juntados enquanto nao mudam.
+    trechos = []
+    for c in range(COMP):
+        for meio in range(2):
+            ac = HARMONIA[c][meio]
+            if trechos and trechos[-1][2] == ac: trechos[-1][1] += 2.0
+            else: trechos.append([c * 4.0 + meio * 2.0, 2.0, ac])
+    voz = (64, 70)
+    for bat, dur, (raiz, tipo) in trechos:
+        alvos = [raiz + INTERV[tipo][1], raiz + INTERV[tipo][3]]
+        notas = []
+        for k, a in enumerate(alvos):                 # cada voz vai a nota mais perto de onde estava
+            cand = [a + 12 * o for o in range(-2, 4) if 60 <= a + 12 * o <= 76]
+            notas.append(min(cand, key=lambda m_: abs(m_ - voz[k])))
+        voz = tuple(sorted(notas))
+        for k, mm in enumerate(voz):
+            poe(bat, cordas(mm, dur * BAT + 0.25, 0.32 - 0.04 * k, 0.35, 0.45), -0.35 if k == 0 else 0.35)
+    t = 0.0
+    while t < COMP * 4:                               # o rolo, sem fim
+        poe(t, pb(timpano(36, 0.10, 0.5), 700), 0, 0.10 * rnd.uniform(0.6, 1))
+        t += rnd.uniform(0.11, 0.15)
+    return nivela(sala_da_trilha(L, R, 0.40), -4.0)
+
+# ---------------------------------------------------------------------------
+# O ambiente dos saloes: o cassino em volta da mesa, um loop de AMB_T
+# segundos por salao. Gente conversando ao longe (vozes sintetizadas: cada
+# pessoa com a sua altura, falando frases de silabas, cada silaba uma vogal,
+# abafadas pela distancia e pela sala grande), fichas e dados de outras
+# mesas e o detalhe de cada salao. Nada com altura definida que dure: o
+# ambiente nao anda junto da trilha, entao nao pode brigar com o acorde.
+# ---------------------------------------------------------------------------
+AMB_T = 24.0
+# As tres formantes (Hz) de sete vogais
+VOGAIS = ((730, 1090, 2440), (530, 1840, 2480), (270, 2290, 3010), (570, 840, 2410),
+          (300, 870, 2240), (660, 1720, 2410), (440, 1020, 2240))
+
+class Roda:
+    """Mixer estereo que da a volta: o que passa do fim entra pelo comeco."""
+    def __init__(self, dur):
+        self.n = int(dur * SR)
+        self.L, self.R = np.zeros(self.n), np.zeros(self.n)
+    def poe(self, t, y, g=1.0, pan=0.0):
+        if len(y) > self.n:                            # mais longo que o loop: dobra antes
+            z = np.zeros(self.n)
+            for i in range(0, len(y), self.n): z[:len(y[i:i + self.n])] += y[i:i + self.n]
+            y = z
+        idx = (np.arange(len(y)) + int(t * SR)) % self.n
+        self.L[idx] += g * y * (1 - pan) * 0.5
+        self.R[idx] += g * y * (1 + pan) * 0.5
+
+def ir_salao(semente, dur):
+    """A sala grande do cassino: ruido que cai em dur segundos, escuro."""
+    g = np.random.default_rng(semente)
+    n = int(dur * 1.6 * SR)
+    r = g.standard_normal(n) * np.exp(-np.arange(n) / (dur / 6.9 * SR))
+    r = pb(r, 2500); r[:int(0.03 * SR)] = 0
+    return r / np.sqrt((r ** 2).sum())
+
+def fala(dur, f0):
+    """Uma pessoa conversando por dur segundos: frases de silabas e pausas.
+    A voz e um dente de serra na altura dela (com tremor e a frase caindo no
+    fim) passando pelas tres formantes da vogal de cada silaba; umas silabas
+    comecam com um chiado de consoante."""
+    n = int(dur * SR)
+    out = np.zeros(n)
+    t = rng.uniform(0, 2.0)
+    while t < dur - 0.5:
+        frase = min(rng.uniform(0.9, 3.4), dur - t)
+        m = int(frase * SR); tt = np.arange(m) / SR
+        contorno = 1 + 0.10 * np.sin(2 * np.pi * tt / frase * rng.uniform(0.5, 1.5) + rng.uniform(0, 6)) - 0.12 * tt / frase
+        treme = 1 + 0.6 * pb(rng.standard_normal(m), 8)
+        f = f0 * contorno * treme
+        fonte = 2 * ((np.cumsum(f) / SR) % 1) - 1
+        fonte = pb(fonte + 0.06 * rng.standard_normal(m), 3200)
+        voz = np.zeros(m)
+        s = 0.0
+        while s < frase - 0.08:
+            sil = rng.uniform(0.09, 0.26)
+            a, b = int(s * SR), min(m, int((s + sil + 0.04) * SR))
+            seg = fonte[a:b]
+            F = VOGAIS[rng.integers(len(VOGAIS))]
+            k = 1.0 if f0 < 160 else 1.15
+            y = sum(g_ * banda(seg, F_ * k * 0.85, F_ * k * 1.15) for F_, g_ in zip(F, (1.0, 0.55, 0.25)))
+            e = np.sin(np.pi * np.linspace(0, 1, len(seg))) ** 0.8 * rng.uniform(0.45, 1.0)
+            if rng.random() < 0.4:                     # a consoante: um chiado curto no comeco
+                c = min(len(seg), int(rng.uniform(0.02, 0.05) * SR))
+                y[:c] += 0.25 * banda(rng.standard_normal(c), 2500, 7000) * np.hanning(c)
+            voz[a:b] += y * e
+            s += sil
+        out[int(t * SR):int(t * SR) + m] += voz[:max(0, min(m, n - int(t * SR)))]
+        t += frase + rng.uniform(0.35, 2.6)
+    return out
+
+def murmurio(r, vozes, dur, longe=2400, grave=1.0):
+    """Gente conversando em volta: 'vozes' pessoas, cada uma num lugar do
+    salao (o lado, a distancia), todas abafadas; as tres primeiras, numa
+    mesa mais perto, se ouvem melhor."""
+    for v in range(vozes):
+        mulher = rng.random() < 0.45
+        f0 = (rng.uniform(175, 235) if mulher else rng.uniform(92, 140)) * grave
+        perto = rng.uniform(0.75, 1.0) if v < 3 else rng.uniform(0.3, 0.7)
+        y = pb(fala(dur + 3.0, f0), longe * (0.5 + 0.6 * perto))
+        r.poe(rng.uniform(0, dur), pa(y, 140), 0.55 * perto, rng.uniform(-0.85, 0.85))
+
+def longe(y, corte=3500):
+    return pb(pa(y, 120), corte)
+
+def fichas_ao_longe(r, t, n, g):
+    """Alguem pondo fichas na mesa, em outra mesa: n cliques no monte."""
+    pan = rng.uniform(-0.9, 0.9)
+    for k in range(n):
+        tk = t + k * rng.uniform(0.04, 0.09)
+        r.poe(tk, longe(ficha_clique(rnd.uniform(-5, -2)), 3800), g * rng.uniform(0.6, 1) * (1 - 0.4 * k / n), pan)
+
+def fichas_na_mao(r, t, g):
+    """Fichas embaralhadas na mao: um tremular de cliques miudos."""
+    pan = rng.uniform(-0.9, 0.9)
+    tk = t
+    for k in range(int(rng.integers(8, 15))):
+        r.poe(tk, longe(ficha_clique(rnd.uniform(-2, 1)), 4200), g * rng.uniform(0.4, 0.9), pan)
+        tk += rng.uniform(0.025, 0.04)
+
+def dados_ao_longe(r, t, g):
+    """Um lance em outra mesa: o dado batendo no feltro e parando."""
+    pan = rng.uniform(-0.9, 0.9)
+    tk, passo, gk = t, rng.uniform(0.07, 0.1), g
+    for k in range(int(rng.integers(4, 7))):
+        r.poe(tk, longe(superficie(rnd.choice(FELTRO)), 3000), gk, pan)
+        if rnd.random() < 0.5: r.poe(tk + 0.01, longe(batida(rnd.choice(PLASTICO)), 3000), gk * 0.4, pan)
+        tk += passo; passo *= 1.25; gk *= 0.75
+
+def tacas(r, t, g):
+    """Duas tacas brindando: o tim de vidro, duas vezes."""
+    pan = rng.uniform(-0.8, 0.8)
+    f = rng.uniform(1300, 1800)
+    for k in range(2):
+        n = int(1.2 * SR); tt = np.arange(n) / SR
+        y = sum(a * np.sin(2 * np.pi * f * p * tt) * np.exp(-tt / d)
+                for p, a, d in ((1.0, 1.0, 0.45), (2.32, 0.5, 0.25), (4.25, 0.25, 0.12), (6.63, 0.12, 0.06)))
+        y *= np.minimum(1, tt / 0.001)
+        r.poe(t + k * rng.uniform(0.09, 0.14), longe(y, 6000), g * (1 - 0.3 * k), pan)
+
+def roleta(r, t, g):
+    """A roleta ao longe: a bolinha correndo na pista (cada vez mais devagar),
+    pulando nas casas e caindo numa."""
+    pan = rng.uniform(-0.7, 0.7)
+    n = int(3.2 * SR); tt = np.arange(n) / SR
+    volta = np.cumsum(2.6 * np.exp(-tt / 2.4)) / SR
+    y = banda(rng.standard_normal(n), 1500, 5000) * (0.6 + 0.4 * np.abs(np.sin(np.pi * volta)) ** 4)
+    y *= np.minimum(1, tt / 0.3) * np.exp(-tt / 2.2)
+    r.poe(t, longe(y, 5000), g * 0.15, pan)
+    tk, passo, gk = t + 3.0, 0.07, g * 0.9
+    for k in range(int(rng.integers(6, 10))):
+        r.poe(tk, longe(tom(batida(rnd.choice(METAL)), rnd.uniform(10, 14)), 6000), gk, pan)
+        tk += passo; passo *= rng.uniform(0.95, 1.35); gk *= 0.72
+
+def cartas(r, t, g):
+    """Um baralho embaralhado: o folhear rapido das cartas e o assentar."""
+    pan = rng.uniform(-0.8, 0.8)
+    tk = t
+    for k in range(int(rng.integers(28, 40))):
+        c = int(0.004 * SR)
+        y = banda(rng.standard_normal(c), 2500, 8000) * np.hanning(c)
+        r.poe(tk, y, g * rng.uniform(0.4, 1.0), pan)
+        tk += rng.uniform(0.011, 0.018)
+    w = int(0.08 * SR)
+    r.poe(tk + 0.02, banda(rng.standard_normal(w), 600, 4000) * np.hanning(w), g * 0.6, pan)
+
+def niquel(r, t, g):
+    """Um caca-niquel pagando ao longe: o sininho batendo depressa."""
+    pan = rng.uniform(-0.8, 0.8)
+    for k in range(int(rng.integers(10, 16))):
+        r.poe(t + k * 0.075, longe(nota('glockenspiel', 96, 0.05, 0.12), 5000), g * (0.6 + 0.4 * (k % 2)), pan)
+
+def risada(r, t, g):
+    """Uma risada ao longe: 'ha' repetido, a altura subindo e caindo."""
+    pan = rng.uniform(-0.8, 0.8)
+    f0 = rng.uniform(150, 230)
+    n_ = int(rng.integers(4, 7))
+    for k in range(n_):
+        d = rng.uniform(0.09, 0.13)
+        m = int(d * SR); tt = np.arange(m) / SR
+        f = f0 * (1.15 - 0.3 * k / n_) * (1 + 0.05 * np.sin(2 * np.pi * 6 * tt))
+        fonte = pb(2 * ((np.cumsum(f) / SR) % 1) - 1 + 0.4 * rng.standard_normal(m), 3000)
+        y = banda(fonte, 600, 900) + 0.5 * banda(fonte, 1050, 1350)
+        r.poe(t + k * 0.16, longe(y * np.sin(np.pi * tt / d), 2600), g * (1 - 0.1 * k), pan)
+
+def soprao(r, dur, g):
+    """O ar parado do salao do Coringa: um sopro grave que vai e volta."""
+    n = int(dur * SR); tt = np.arange(n) / SR
+    y = pb(pa(rng.standard_normal(n), 90), 520)
+    lfo = 0.65 + 0.35 * np.sin(2 * np.pi * tt / dur * 3 + 1.3) * np.sin(2 * np.pi * tt / dur * 2)
+    r.poe(0, y * lfo, g, 0.0)
+
+def espalha(r, quando, faz, dur):
+    """faz(r, t) em instantes ao acaso, de 'quando' em 'quando' segundos (em media)."""
+    t = rng.uniform(0, quando)
+    while t < dur:
+        faz(r, t)
+        t += rng.uniform(0.5, 1.5) * quando
+
+def ambiente(salao):
+    r = Roda(AMB_T)
+    if salao == 0:        # Verde: o salao de entrada, de madeira; pouca gente
+        murmurio(r, 7, AMB_T)
+        espalha(r, 3.2, lambda r, t: fichas_ao_longe(r, t, int(rng.integers(2, 5)), 0.35), AMB_T)
+        espalha(r, 6.0, lambda r, t: dados_ao_longe(r, t, 0.30), AMB_T)
+        espalha(r, 11.0, lambda r, t: tacas(r, t, 0.10), AMB_T)
+        espalha(r, 9.0, lambda r, t: cartas(r, t, 0.10), AMB_T)
+        mistura, db = 0.30, -15.0
+    elif salao == 1:      # Vermelho: cheio, fichas para todo lado, a roleta girando
+        murmurio(r, 13, AMB_T)
+        espalha(r, 1.8, lambda r, t: fichas_ao_longe(r, t, int(rng.integers(2, 6)), 0.35), AMB_T)
+        espalha(r, 3.5, lambda r, t: fichas_na_mao(r, t, 0.22), AMB_T)
+        espalha(r, 5.0, lambda r, t: dados_ao_longe(r, t, 0.30), AMB_T)
+        roleta(r, rng.uniform(2, 8), 0.35)
+        roleta(r, rng.uniform(13, 18), 0.25)
+        espalha(r, 9.0, lambda r, t: risada(r, t, 0.12), AMB_T)
+        mistura, db = 0.35, -12.0
+    elif salao == 2:      # Dourado: gente fina, conversa baixa, tacas e fichas na mao
+        murmurio(r, 9, AMB_T, 1900)
+        espalha(r, 4.0, lambda r, t: fichas_na_mao(r, t, 0.25), AMB_T)
+        espalha(r, 4.5, lambda r, t: fichas_ao_longe(r, t, int(rng.integers(3, 7)), 0.3), AMB_T)
+        espalha(r, 5.0, lambda r, t: tacas(r, t, 0.14), AMB_T)
+        espalha(r, 10.0, lambda r, t: cartas(r, t, 0.12), AMB_T)
+        niquel(r, rng.uniform(6, 18), 0.07)
+        mistura, db = 0.38, -14.0
+    else:                 # Coringa: quase vazio, o ar parado, cartas e uma risada
+        soprao(r, AMB_T, 0.5)
+        murmurio(r, 4, AMB_T, 1600, 0.85)
+        espalha(r, 6.0, lambda r, t: cartas(r, t, 0.16), AMB_T)
+        espalha(r, 7.0, lambda r, t: fichas_ao_longe(r, t, int(rng.integers(2, 4)), 0.25), AMB_T)
+        risada(r, rng.uniform(3, 9), 0.14)
+        risada(r, rng.uniform(14, 20), 0.10)
+        mistura, db = 0.55, -14.0
+    M = (r.L + r.R) * 0.5
+    x = np.stack([r.L + mistura * circ(M, ir_salao(11, 1.5)), r.R + mistura * circ(M, ir_salao(12, 1.5))], 1)
+    return nivela(x, db)
+
+# ---------------------------------------------------------------------------
+# A troca de tela (a varredura da C1): a sombra da cortina passando, da
+# esquerda para a direita, em 0,3 s - um sopro de pano que abre e fecha,
+# andando de um lado para o outro, e um toque de feltro no fim.
+# ---------------------------------------------------------------------------
+def transicao():
+    n = int(0.45 * SR); tt = np.arange(n) / SR
+    q = np.clip(tt / 0.3, 0, 1)
+    w = rng.standard_normal(n)
+    centro = np.log(700) + (np.log(2600) - np.log(700)) * np.sin(np.pi * q) ** 1.5   # a banda sobe e volta
+    y = np.zeros(n)
+    for f in (500, 800, 1250, 2000, 3200, 5000):
+        g = np.exp(-0.5 * ((np.log(f) - centro) / 0.45) ** 2)
+        y += banda(w, f * 0.75, f * 1.33) * g
+    y *= np.sin(np.pi * q) ** 1.6
+    pan = -0.75 + 1.5 * q
+    L, R = y * (1 - pan) * 0.5, y * (1 + pan) * 0.5
+    toque = pb(superficie('surface_felt3'), 2500)[:int(0.1 * SR)]
+    k = int(0.27 * SR); m = min(len(toque), n - k)
+    L[k:k + m] += toque[:m] * 0.07; R[k:k + m] += toque[:m] * 0.28
+    return np.stack([L, R], 1)
 
 # ---------------------------------------------------------------------------
 # Os dados de Natal e os mais novos
@@ -1534,6 +1946,8 @@ VOLUME.update({'cosmo_evolui': VOLUME['efeito'] * 1.05, 'buraco_negro': VOLUME['
 # ataque; os que somam, de um poder.
 VOLUME.update({'vampiro': VOLUME['tira'], 'sabotador': VOLUME['efeito'] * 0.9, 'coveiro': VOLUME['efeito'],
                'autofagia': VOLUME['anula'] * 0.9, 'ampulheta': VOLUME['efeito'] * 0.9})
+# A troca de tela: um sopro, abaixo do cursor do menu.
+VOLUME.update({'transicao': VOLUME['tique'] * 0.5})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1558,7 +1972,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
-             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta'):
+             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')
@@ -1570,11 +1984,22 @@ for v in range(3):
     SONS['moeda_bate_%d' % v] = ((lambda v=v: moeda_bate(v)), 'moeda_bate')
     SONS['moeda_pousa_%d' % v] = ((lambda v=v: moeda_pousa(v)), 'moeda_pousa')
 
+# Os loops estereo que tocam o tempo todo: as camadas da trilha (do tamanho
+# dela) e o ambiente de cada salao. nome -> (receita, qualidade do OGG)
+LOOPS = {'trilha': (trilha, 5), 'trilha_chefe': (trilha_chefe, 4), 'trilha_tensao': (trilha_tensao, 3)}
+for k in range(4):
+    LOOPS['ambiente_%d' % k] = ((lambda k=k: ambiente(k)), 1)
+
 def gera(nome, saida):
     semeia(nome)
-    if nome == 'trilha':
-        x = trilha()
-        grava_ogg(os.path.join(saida, 'trilha.ogg'), x, 5)
+    if nome in LOOPS:
+        receita, q = LOOPS[nome]
+        x = receita()
+        grava_ogg(os.path.join(saida, nome + '.ogg'), x, q)
+    elif nome == 'transicao':                         # estereo: o sopro anda de um lado para o outro
+        x = SONS[nome][0]()
+        x = x * (VOLUME['transicao'] / max(volume(x.mean(1)), 1e-9))
+        grava_ogg(os.path.join(saida, nome + '.ogg'), x)
     else:
         receita, ref = SONS[nome]
         x = receita()
@@ -1590,9 +2015,9 @@ def main():
     if '--saida' in args:
         i = args.index('--saida'); saida = args[i + 1]; del args[i:i + 2]
     os.makedirs(saida, exist_ok=True)
-    nomes = args or (list(SONS) + ['trilha'])
+    nomes = args or (list(SONS) + list(LOOPS))
     for n in nomes:
-        if n != 'trilha' and n not in SONS: sys.exit('nao conheco o som "%s"' % n)
+        if n not in LOOPS and n not in SONS: sys.exit('nao conheco o som "%s"' % n)
     for n in nomes:
         gera(n, saida)
 

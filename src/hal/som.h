@@ -67,6 +67,7 @@ enum {
     SOM_COVEIRO,     // duas pazadas de terra e o sino grave
     SOM_AUTOFAGIA,   // a dentada, o engolir e o +1
     SOM_AMPULHETA,   // a ampulheta virada, a areia escorrendo e o sininho
+    SOM_TRANSICAO,   // a troca de tela: o pano da cortina passando da esquerda para a direita
     SOM_N
 };
 
@@ -80,10 +81,13 @@ void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e um
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide
 void som_cadeia(bool on);    // a cadeia de efeitos do fim da rodada: a trilha abaixa enquanto ela corre
+void som_chefe(bool on);     // a mesa do chefe: a batucada entra na trilha
+void som_ambiente(int salao); // o cassino em volta: o ambiente do salao (0..3) ou nenhum (-1)
 
 // O volume de cada canal, de 0 (mudo) a SOM_NIVEIS: a trilha, os efeitos da
-// mesa e os da interface (o cursor e os menus). O 10 e o volume de sempre.
-enum { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE, SOM_CANAIS };
+// mesa, os da interface (o cursor e os menus) e o ambiente dos saloes. O 10
+// e o volume de sempre.
+enum { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE, SOM_CANAL_AMBIENTE, SOM_CANAIS };
 #define SOM_NIVEIS 10
 void som_volume(int canal, int nivel);
 int  som_volume_de(int canal);

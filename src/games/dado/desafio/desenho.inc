@@ -502,7 +502,7 @@ static void luz_escuro(void)
     }
     uint16_t *fb = display_fb();
     for (int y = PL_Y0; y < PL_Y1; y++) {
-        float dyp = (y - TAP_MEIO) / 40.0f, dyt = fabsf(y - TAP_MEIO) / 22.0f;
+        float dyp = (y - TAP_MEIO) / 40.0f, dyt = abs(y - TAP_MEIO) / 22.0f;
         for (int x = PL_X0; x < PL_X1; x++) {
             float L = amb, dx = (x - PL_X0) / 70.0f, d = dx * dx + dyp * dyp;
             if (d < 1) L = fmaxf(L, (1 - d) * 1.4f * porta);

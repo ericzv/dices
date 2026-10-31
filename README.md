@@ -234,7 +234,7 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, do ambiente dos salões, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
@@ -273,6 +273,17 @@ ctest --test-dir build --output-on-failure
 
 `balanco` também mede cada dado e cada amuleto numa mesa só e o recomeço de
 partida (veja o começo de `tests/balanco.c`).
+
+No Linux, o ctest também passa pelas telas principais (o menu, o
+Desafiante, o mapa de cada salão, a loja, a mesa, o catálogo, o painel do
+som...) e compara cada uma com a referência guardada em
+`tests/telas_ref.txt`: a cor média de cada bloco de 20 x 20, com folga para o
+arredondamento de outro compilador. Mudou uma tela de propósito:
+
+```sh
+./build/telas tests/telas_ref.txt --fotos /tmp/telas   # as telas, para conferir
+./build/telas tests/telas_ref.txt --atualiza           # a referência nova
+```
 
 ### Versão do navegador
 
@@ -315,7 +326,7 @@ src/          o jogo
 desktop/      a plataforma PC: janela, teclado, som e ícone
   sons/           a trilha e os efeitos (OGG), embutidos no executável no build
 web/          a página do navegador e a rede do modo online (MQTT)
-tests/        simulador de partidas, regras, Desafiante e conferência dos sons
+tests/        simulador de partidas, regras, Desafiante, telas e conferência dos sons
 tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
 docs/         o guia de estilo (estilo.md): paleta, rampas, kit de interface e ícones
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC

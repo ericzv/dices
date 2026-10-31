@@ -2,6 +2,21 @@
 // Desenho da mesa: o lance, as faixas dos jogadores, as filas, os
 // ataques e o pote
 // ===========================================================================
+// O lance de aposta de j (passou, apostou 10...), junto do placar dele: do
+// lado de dentro da mesa, sobe um pouco ao entrar e some no fim.
+static void desenha_lances(void)
+{
+    for (int j = 0; j < 2; j++) {
+        if (t_lance[j] <= 0 || !lance_txt[j][0]) continue;
+        float e = LANCE_T - t_lance[j], q = e < 0.18f ? e / 0.18f : 1;
+        if (t_lance[j] < 0.12f && (int)(t_lance[j] * 40) % 2) continue;      // pisca ao sair
+        bool cima = j != baixo;
+        int y = cima ? zona(j) + 30 + (int)((1 - q) * -6) : zona(j) - 46 + (int)((1 - q) * 6);
+        int f = fonte_de(true), w = gfx_largura(lance_txt[j], f);
+        gfx_texto(PLACAR_X - w / 2, y, lance_txt[j], J[j].cor, f, true);
+    }
+}
+
 // A cor de um numero que conta: no pulinho de cada passo, acende dourado
 // subindo e vinho descendo (o que ja e dourado acende para o branco).
 static uint16_t conta_cor(const contador_t *c, uint16_t base)
@@ -915,15 +930,19 @@ static void desenha_fila(int j)
         else if (peca_fila(j, k)) dica_peca(x - R, y - R, 2 * R, 2 * R, peca_fila(j, k));
         else dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_DADO, t);
         if (k >= f->lancados) {                  // ainda vai sair: o dado menor, sem nada atras
+            // O proximo a sair, na vez de jogar: quase do tamanho cheio, na
+            // cor dele, respirando devagar.
+            bool prox = fase == F_JOGA && j == vez && k == f->lancados;
+            float rp = prox ? R - 3 + sinf(t_relogio * 4.2f) * 1.2f : R - 6;
             marca_nivel = f->fixo[k];
             caixa_fechada = j == 0 && f->idx[k] == embrulho;
-            desenha_dado((float)x, (float)y, R - 6, t, j, 0, f->fixo[k], 0, false);
+            desenha_dado((float)x, (float)y, rp, t, j, 0, f->fixo[k], 0, false);
             marca_nivel = -1;
             const peca_t *pc = peca_fila(j, k);
-            if (pc) ad_selos((float)x, (float)y, R - 6, pc, 0);
+            if (pc) ad_selos((float)x, (float)y, rp, pc, 0);
             // Na hora de lancar, o que ainda nao foi jogado fica cinza;
             // montando a sequencia, cada dado na sua cor.
-            if (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO)
+            if (!prox && (fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_VEREDITO))
                 acinzenta(x - R, y - R, 2 * R + 6, 2 * R + 6, 80);
             continue;
         }

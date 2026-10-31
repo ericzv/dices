@@ -185,9 +185,27 @@ static void glifo(int x, int y, const uint16_t *g, int alt, uint16_t c, int e)
 // e encorpada, o destaque fica por conta dela (engrossar junta as letras).
 #define SOMBRA_TEXTO 0x0841
 
+static bool letra_maior;
+void gfx_letra_maior(bool ligada) { letra_maior = ligada; }
+bool gfx_letra_e_maior(void) { return letra_maior; }
+// O degrau de cima, e quanto a linha sobe para a base ficar no lugar (a base
+// da miuda fica 6 px acima da da fina; a da fina, 1 px acima da da Jersey).
+static int degrau(int e, int *dy)
+{
+    *dy = 0;
+    if (e == GFX_MIUDO_FIXO) return GFX_MIUDO;
+    if (e == GFX_FINO_FIXO) return GFX_FINO;
+    if (!letra_maior) return e;
+    if (e == GFX_MIUDO) { *dy = -6; return GFX_FINO; }
+    if (e == GFX_FINO) { *dy = -1; return 1; }
+    return e;
+}
+
 int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 {
-    int x0 = x;
+    int x0 = x, dy;
+    e = degrau(e, &dy);
+    y += dy;
     while (*s) {
         int ch = gfx_proximo_car(&s) - FONTE_PRIM;
         if (e == GFX_FINO) {
@@ -210,7 +228,8 @@ int gfx_texto(int x, int y, const char *s, uint16_t c, int e, bool negrito)
 
 int gfx_largura(const char *s, int e)
 {
-    int n = 0;
+    int n = 0, dy;
+    e = degrau(e, &dy);
     while (*s) {
         int ch = gfx_proximo_car(&s) - FONTE_PRIM;
         n += e == GFX_FINO ? FINO_AV[ch] : e == GFX_MIUDO ? MIUDA_AV[ch] : FONTE_AV[ch] * e;

@@ -331,6 +331,14 @@ static void ui_etiqueta(int x, int y, int w, int h, uint16_t cor)
     ui_contorno(x - 1, y - 1, w + 2, h + 2, C_BARRA);
 }
 
+// A fonte f, ou - com a letra maior, se o texto nao couber em w pixels - a
+// mesma fonte no tamanho de antes (fixa).
+static int fonte_que_cabe(const char *s, int f, int w)
+{
+    if (!gfx_letra_e_maior() || gfx_largura(s, f) <= w) return f;
+    return f == GFX_MIUDO ? GFX_MIUDO_FIXO : f == GFX_FINO ? GFX_FINO_FIXO : f;
+}
+
 // O selo de raridade (ou de tipo: "D8 · raro", "adesivo · comum"), igual em
 // todo o jogo: a etiqueta e o nome na cor do metal da raridade. y e o do
 // texto, como no gfx_texto; f e a fonte (GFX_MIUDO nos cartoes, GFX_FINO nas

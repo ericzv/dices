@@ -896,7 +896,7 @@ static void lj_servico(int s)
     if (s == 0) snprintf(sub, sizeof sub, "outros dados");
     else if (pode) snprintf(sub, sizeof sub, "bolsa: %d dados", run.n_col - bolsa_voando);
     else snprintf(sub, sizeof sub, "bolsa no mínimo (%d)", BOLSA_MIN);
-    gfx_texto(x0 + dx + 54, y0 + 30, sub, C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(x0 + dx + 54, y0 + 30, sub, C_TEXTO_M, fonte_que_cabe(sub, GFX_FINO, LJ_SW - 54 - 30), false);
     int pr = s == 0 ? preco_troca() : preco_remove();
     if (pode) lj_preco(x0 + LJ_SW - 22, y0 + 27, pr, run.moedas >= pr, nega);
     zona_clique(sx, y0, LJ_SW, LJ_SH, &cursor, item, KEY_ENTER);
@@ -1326,10 +1326,12 @@ static void desenha_loja_run(void)
     lj_porquinho();
 
     int nv = n_vitrine(), cw = lj_cw();
-    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 20, "VITRINE", C_TEXTO_M, GFX_FINO, false);
-    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO, false);
-    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 20, "ADESIVO", C_TEXTO_M, GFX_FINO, false);
-    gfx_texto(lj_sx() + 4, LJ_Y - 20, "SERVIÇOS", C_TEXTO_M, GFX_FINO, false);
+    // Os rotulos das secoes ficam na fina mesmo com a letra maior: a linha
+    // da proxima mesa, logo acima, ja cresceu.
+    gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 20, "VITRINE", C_TEXTO_M, GFX_FINO_FIXO, false);
+    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO_FIXO, false);
+    gfx_texto(lj_card_x(nv + 1) - cw / 2 + 4, LJ_Y - 20, "ADESIVO", C_TEXTO_M, GFX_FINO_FIXO, false);
+    gfx_texto(lj_sx() + 4, LJ_Y - 20, "SERVIÇOS", C_TEXTO_M, GFX_FINO_FIXO, false);
     for (int i = 0; i < nv; i++) lj_cartao_dado(i);
     lj_cartao_pacote();
     lj_cartao_adesivo();

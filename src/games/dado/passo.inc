@@ -31,6 +31,7 @@ void dado_passo(float dt)
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_universo > 0) t_aviso_universo -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
+    if (t_aviso_letra > 0) t_aviso_letra -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_sua_vez > 0) t_sua_vez -= dt_real;
@@ -63,6 +64,7 @@ void dado_passo(float dt)
     des_contadores_passo(dt, dt_real);
     bolsas_passo(dt_real);
     if (t_anuncio > 0) t_anuncio -= dt;
+    for (int j = 0; j < 2; j++) if (t_lance[j] > 0) t_lance[j] -= dt_real;
     flutua_passo(dt);
     poeira_passo(dt);
     tiro_passo(dt);

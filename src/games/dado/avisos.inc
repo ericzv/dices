@@ -75,6 +75,7 @@ static void desenha_avisos(void)
         msg = VEL_AVISO[velocidade];
     }
     else if (t_aviso_tremor > 0) msg = tremor_off ? "Tremor da tela: desligado  (T troca)" : "Tremor da tela: ligado  (T troca)";
+    else if (t_aviso_letra > 0) msg = gfx_letra_e_maior() ? "Letra: maior  (L troca)" : "Letra: normal  (L troca)";
     if (!msg) return;
     int w = gfx_largura(msg, 1) + 40;
     ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);

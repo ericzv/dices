@@ -70,6 +70,8 @@ static const char *const SP_EXCLAMA[] = { "##", "##", "##", "..", "##" };
 static const char *const SP_SETAS[] = { "#...#..", ".#...#.", "..#...#", ".#...#.", "#...#.." };
 static const char *const SP_PRISMA[] = { "...#...", "..#+#..", ".#+++#.", "#######" };
 static const char *const SP_PANETONE[] = { ".###.", "#+o+#", "#o+o#", "#####" };
+static const char *const SP_CARTA_V[] = { "#####", "#o+o#", "#+o+#", "#o+o#", "#+o+#", "#o+o#", "#####" };
+static const char *const SP_FALHA[] = { "#......", ".#.....", ".##....", "...#...", "...##..", ".....#.", "......#" };
 
 enum { MV_FLUTUA, MV_PULSA, MV_BATIDA, MV_VARRE, MV_SOBE, MV_CAI, MV_BATE, MV_BALANCA, MV_TREME,
        MV_QUADROS, MV_PISCADA, MV_CHAMA, MV_ESPECIAL };
@@ -82,7 +84,7 @@ typedef struct {
 
 #define PA_SP(a) a, NULL, sizeof a / sizeof a[0], 0
 #define PA_SP2(a, b) a, b, sizeof a / sizeof a[0], sizeof b / sizeof b[0]
-static const poder_anima_t PODER_ANIMA[EF_UNIVERSO + 1] = {
+static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_CARIDOSO]     = { PA_SP2(SP_CORACAO, SP_CORACAO_G), MV_BATIDA, C_VINHO_CLR, C_ROSA, C_VINHO },
     [EF_LASER]        = { PA_SP(SP_MIRA), MV_ESPECIAL, C_LASER, C_BRANCO, C_LASER },
     [EF_FERREIRO]     = { PA_SP(SP_MARTELO), MV_BATE, C_FERRO, C_PRATA, C_TERRA },
@@ -152,6 +154,8 @@ static const poder_anima_t PODER_ANIMA[EF_UNIVERSO + 1] = {
     [EF_VAMPIRO]      = { PA_SP2(SP_MORCEGO, SP_MORCEGO_B), MV_QUADROS, C_VIOLETA, C_REAL, C_VERMELHO },
     [EF_FICHA_VELHA]  = { PA_SP(SP_FICHA_V), MV_PULSA, C_TERRA, C_OURO, C_MADEIRA },
     [EF_REVOLVER]     = { PA_SP(SP_TAMBOR), MV_ESPECIAL, C_FERRO, C_PRATA, C_EBANO },
+    [EF_FICHA_CORINGA] = { PA_SP2(SP_CARTA, SP_CARTA_V), MV_QUADROS, C_MARFIM, C_BRANCO, C_VERMELHO },   // a carta virando
+    [EF_TERREMOTO]    = { PA_SP(SP_FALHA), MV_TREME, C_FOGO, C_AMARELO, C_TERRA },                   // a falha tremendo
 };
 #undef PA_SP
 #undef PA_SP2
@@ -170,7 +174,7 @@ static void rotulo_poder(int cx, int cy, const char *s, uint16_t c)
 static void anima_poder(int x, int y, int R, int tipo, float fase)
 {
     int ef = TIPO[tipo].efeito;
-    if (ef < 0 || ef > EF_UNIVERSO) return;
+    if (ef < 0 || ef >= EF_N) return;
     const poder_anima_t *a = &PODER_ANIMA[ef];
     if (!a->sp && a->mv != MV_ESPECIAL) return;
     float t = t_relogio + fase;
@@ -417,7 +421,7 @@ static bool icone_poder(int cx, int cy, int tipo)
 {
     if (tipo < 0 || tipo >= D_N) return false;
     int ef = TIPO[tipo].efeito;
-    if (ef <= 0 || ef > EF_UNIVERSO) return false;
+    if (ef <= 0 || ef >= EF_N) return false;
     const poder_anima_t *a = &PODER_ANIMA[ef];
     if (a->sp) { sprite_em(cx, cy, a->sp, a->h, a->c1, a->c2, a->c3, false, 0); return true; }
     if (a->mv != MV_ESPECIAL) return false;

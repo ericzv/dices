@@ -177,19 +177,21 @@ static int nivel_do_dado(int t)
     case D_AMPULHETA: case D_MALDICAO: case D_DESAFIANTE: case D_VAZIO:         return 2;
     case D_CARRASCO: case D_LASER: case D_AGIOTA: case D_ACUMULADOR:
     case D_MEDIA: case D_COLECIONADOR: case D_CALIBRE: case D_MARTIR:
-    case D_REVOLVER:                                                            return 3;
+    case D_REVOLVER: case D_ADESIVADO:                                          return 3;
     case D_CARIDOSO: case D_GATUNO: case D_VAMPIRO: case D_QUEBRADO:
-    case D_VIDRO: case D_PONTE: case D_RANCOR: case D_FICHA_VELHA:              return 4;
+    case D_VIDRO: case D_PONTE: case D_RANCOR: case D_FICHA_VELHA:
+    case D_RELOGIO:                                                             return 4;
     case D_INVEJOSO: case D_FARTURA: case D_SORTE: case D_PUXA_FILA:
-    case D_COVEIRO: case D_SACRIFICIO: case D_SANGUESSUGA: case D_PATINHOS:     return 5;
+    case D_COVEIRO: case D_SACRIFICIO: case D_SANGUESSUGA: case D_PATINHOS:
+    case D_TERREMOTO:                                                           return 5;
     case D_ESPELHO: case D_VENTANIA: case D_FERREIRO: case D_MISERICORDIOSO:
     case D_GEMEO: case D_ECO: case D_FURIA:                                     return 6;
     case D_VIUVA: case D_PRISMA: case D_CHECKPOINT: case D_POTE_QUENTE:
     case D_OURICO: case D_ANCORA: case D_ONDA:                                  return 7;
     case D_CAPITAO: case D_ESPERANCA: case D_SABOTADOR: case D_FENIX:
-    case D_TUDO_NADA: case D_EGOISTA: case D_ASTRO:                             return 8;
+    case D_TUDO_NADA: case D_EGOISTA: case D_ASTRO: case D_DIGITAL:             return 8;
     case D_FOGO: case D_SORTE_REVES: case D_OCULTO: case D_PACTO:
-    case D_ASSOMBRACAO: case D_CAVALO:                                          return 9;
+    case D_ASSOMBRACAO: case D_CAVALO: case D_FICHA_CORINGA:                    return 9;
     case D_MALDITO: case D_GARIMPEIRO: case D_AUTOFAGIA: case D_BERSERKER:      // Agouro
     case D_TRONO: case D_MEDUSA:                                                return 10;
     default:                                                                    return 0;

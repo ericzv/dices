@@ -1518,6 +1518,160 @@ int main(void)
                 while (cb < N_PERSO - 1 && strcmp(PERSO[cb].nome, "O CAUBÓI")) cb++;
                 CONFERE(PERSO[cb].nucleo[0] == D_REVOLVER && PERSO[cb].fav[0] == D_REVOLVER, "o Revolver e do Caubói");
             }
+            // Digital: acende o ultimo valido +1, seja qual for; primeiro, 1. Nunca cai.
+            limpa(); joga(0, D_D6, 4); joga(0, D_DIGITAL, 1); d = fim();
+            CONFERE(F[0].valor[1] == 5 && d.est[0][1] == V_VALIDO && d.total[0] == 9, "Digital depois do 4: 5, deu %d (%d)", F[0].valor[1], d.total[0]);
+            limpa(); joga(0, D_DIGITAL, 6); d = fim();
+            CONFERE(F[0].valor[0] == 1 && d.total[0] == 1, "Digital primeiro: 1, deu %d", F[0].valor[0]);
+            limpa(); joga(0, D_D20, 20); joga(0, D_DIGITAL, 3);
+            CONFERE(F[0].valor[1] == 21 && F[0].est[1] == V_VALIDO, "Digital depois do 20: 21, deu %d", F[0].valor[1]);
+            limpa(); joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D6, 2); joga(0, D_DIGITAL, 6);
+            CONFERE(F[0].valor[3] == 4 && F[0].est[3] == V_VALIDO, "Digital depois de uma queda: o 3 +1, deu %d", F[0].valor[3]);
+            limpa(); joga(0, D_D6, 4); joga(0, D_PONTE, 1); joga(0, D_DIGITAL, 1);
+            CONFERE(F[0].valor[2] == 5, "Digital passa por cima da Ponte: 5, deu %d", F[0].valor[2]);
+            limpa(); joga(0, D_D6, 3); joga(0, D_CALIBRE, 4); joga_com(0, D_DIGITAL, 1, sempre_dois);
+            CONFERE(F[0].valor[2] == 6 && F[0].calibre[2], "Digital com o Calibre antes: 4 +1 +1, deu %d", F[0].valor[2]);
+            limpa(); joga(0, D_D12, 11); F[0].n = 2; F[0].tipo[1] = D_DIGITAL;
+            CONFERE(risco(0) == 0, "Digital nunca cai: risco %d", risco(0));
+            // Relogio: tira o numero da rodada (de 1 a 20), sem sorteio.
+            {
+                int r0 = rodada, menor;
+                rodada = 7;
+                CONFERE(sorteia_valor(D_RELOGIO, 0, sempre_dois, &menor) == 7, "Relogio na 7a rodada: 7");
+                rodada = 1;
+                CONFERE(sorteia_valor(D_RELOGIO, 0, sempre_dois, &menor) == 1, "Relogio na 1a rodada: 1");
+                rodada = 33;
+                CONFERE(sorteia_valor(D_RELOGIO, 0, sempre_dois, &menor) == RELOGIO_MAX, "Relogio para no 20");
+                rodada = 3;
+                limpa(); joga(0, D_D6, 5); F[0].n = 2; F[0].tipo[1] = D_RELOGIO;
+                CONFERE(risco(0) == 100, "Relogio com 3 depois do 5: cai com certeza (%d)", risco(0));
+                rodada = r0;
+            }
+            // Ficha Coringa: fora da sequencia ate o fim; ai vira o ultimo valido do oponente.
+            limpa(); joga(1, D_D6, 3); joga(1, D_D8, 7);
+            joga(0, D_D6, 4); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); joga(0, D_D8, 8);
+            CONFERE(F[0].est[1] == V_ESPERA && F[0].est[2] == V_VALIDO && poder_armado(0, 1) == 1 && F[0].pontos == 12,
+                    "Coringa esperando: fora da sequencia (%d, %d)", F[0].est[1], F[0].pontos);
+            calcula_desfecho(&d, false);
+            CONFERE(d.total[0] == 19 && F[0].curinga[1] && F[0].est[1] == V_ESPERA, "previa: 4 + 7 + 8, e a ficha segue esperando (%d)", d.total[0]);
+            d = fim();
+            CONFERE(F[0].valor[1] == 7 && !F[0].curinga[1] && d.est[0][1] == V_VALIDO && d.total[0] == 19,
+                    "Coringa vira o 7: 19, deu %d", d.total[0]);
+            CONFERE(n_ev >= 1 && ev[0].tipo == EV_CORINGA && ev[0].alvo_k == 1, "o evento da Coringa aponta o 7");
+            limpa(); joga(1, D_D8, 7); joga(0, D_D6, 4); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); joga(0, D_D6, 5); d = fim();
+            CONFERE(F[0].valor[1] == 7 && d.est[0][1] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 4,
+                    "Coringa vira 7 antes do 5: os dois caem, fica 4 (%d)", d.total[0]);
+            limpa(); joga(1, D_D6, 6); joga(1, D_D6, 2); joga(0, D_D6, 1); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); joga(0, D_D6, 3);
+            calcula_desfecho(&d, false);
+            CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 4 && F[0].curinga[1], "previa: sem valido do oponente, a ficha cai (%d)", d.total[0]);
+            d = fim();
+            CONFERE(d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO && d.est[0][2] == V_VALIDO && d.total[0] == 4
+                    && F[0].curinga_nada[1] && n_ev >= 1 && ev[0].tipo == EV_CORINGA && ev[0].alvo_k == 0xFF,
+                    "sem valido do oponente: so a ficha e anulada, os outros ficam (%d)", d.total[0]);
+            limpa(); joga(1, D_UNIVERSO, 40); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == 0, "so o Universo do outro lado: nada a copiar, anulada");
+            limpa(); joga(1, D_D6, 5); joga_com(1, D_FICHA_CORINGA, 1, sempre_dois);
+            joga(0, D_D6, 3); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); d = fim();
+            CONFERE(F[0].valor[1] == 5 && F[1].valor[1] == 3, "duas Coringas: cada uma vira o ultimo do outro (%d, %d)", F[0].valor[1], F[1].valor[1]);
+            limpa(); joga(1, D_D6, 4); joga(1, D_UNIVERSO, 77); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); d = fim();
+            CONFERE(F[0].valor[0] == 4, "Coringa nao copia o Universo: 4, deu %d", F[0].valor[0]);
+            limpa(); joga(1, D_D6, 5); joga(0, D_D6, 2); joga(0, D_CALIBRE, 3); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); d = fim();
+            CONFERE(F[0].valor[2] == 6, "Coringa com o Calibre antes: 5 +1, deu %d", F[0].valor[2]);
+            limpa(); joga(1, D_D6, 5); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); F[0].n = 2; F[0].tipo[1] = D_D6;
+            CONFERE(risco(0) == 0 && F[0].pontos == 0, "depois da Coringa, o seguinte nao tem com quem comparar");
+            // Terremoto: valendo com 7 ou 8, o ultimo valido do oponente rola de novo (pela semente do pouso).
+            {
+                uint32_t um = 0, seis = 0;               // sementes que dao 1 e 6 num d6
+                for (uint32_t sd = 1; sd < 5000 && (!um || !seis); sd++) {
+                    abalo_s = sd;
+                    int x = rola_abalo(6);
+                    if (x == 1 && !um) um = sd;
+                    if (x == 6 && !seis) seis = sd;
+                }
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 5); F[1].idx[0] = F[1].idx[1] = -1;
+                joga(0, D_TERREMOTO, 8); F[0].abalo[0] = um;
+                CONFERE(poder_armado(0, 0) == 1, "Terremoto com 8 armado");
+                calcula_desfecho(&d, false);
+                CONFERE(d.total[1] == 7 && F[1].valor[1] == 5, "previa sem o tremor: 7 (%d)", d.total[1]);
+                d = fim();
+                CONFERE(F[1].valor[1] == 1 && d.est[1][1] == V_ANULADO && d.est[1][0] == V_ANULADO && d.total[1] == 0,
+                        "tremor: o 5 vira 1 e derruba o 2, fica 0 (%d)", d.total[1]);
+                CONFERE(n_ev >= 1 && ev[0].tipo == EV_TREMOR && ev[0].antes == 5 && ev[0].valor == 1, "o evento do tremor: 5 vira 1");
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 5); F[1].idx[0] = F[1].idx[1] = -1;
+                joga(0, D_TERREMOTO, 7); F[0].abalo[0] = seis; d = fim();
+                CONFERE(F[1].valor[1] == 6 && d.total[1] == 8, "tremor para cima: 2 + 6 (%d)", d.total[1]);
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 5); F[1].idx[0] = F[1].idx[1] = -1;
+                joga(0, D_TERREMOTO, 6); F[0].abalo[0] = um; d = fim();
+                CONFERE(F[1].valor[1] == 5 && d.total[1] == 7 && poder_armado(0, 0) == 0, "Terremoto com 6 nao treme");
+                limpa(); joga(1, D_D6, 2); joga(1, D_UNIVERSO, 40); F[1].idx[0] = F[1].idx[1] = -1;
+                joga(0, D_TERREMOTO, 8); F[0].abalo[0] = um; d = fim();
+                CONFERE(F[1].valor[1] == 40 && F[1].valor[0] == 1, "o Universo nao treme: treme o 2 (%d)", F[1].valor[0]);
+                limpa(); joga(1, D_D6, 2); joga(1, D_D6, 5); joga(1, D_D6, 3); F[1].idx[0] = F[1].idx[1] = F[1].idx[2] = -1;
+                joga(0, D_D4, 1); joga(0, D_TERREMOTO, 8); F[0].abalo[1] = seis;
+                {
+                    uint8_t mira[2];
+                    miras_agora(mira);
+                    CONFERE(mira[1] == 1, "a mira do tremor: o ultimo valido do oponente (%02x)", mira[1]);
+                }
+                d = fim();
+                CONFERE(F[1].valor[0] == 6 && d.est[1][0] == V_ANULADO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO
+                        && d.total[1] == 3, "tremor no 2 (o 5 e o 3 tinham caido): vira 6, o 5 derruba os dois e o 3 fica (%d)", d.total[1]);
+            }
+            // Adesivado: sempre 3 adesivos diferentes, em 3 lados de 1 a 6; fora do Desafiante, sem o Dourado.
+            {
+                int m0 = modo, ok = 1, lados[7] = { 0 }, tipos = 0;
+                bool viu[AD_N] = { false };
+                modo = M_UM;
+                for (int i = 0; i < 200; i++) {
+                    peca_t p = nova_peca(D_ADESIVADO);
+                    int n = 0, ruim = 0;
+                    for (int l = 1; l <= AD_LADOS; l++) {
+                        int a = ad_no_lado(&p, l);
+                        if (!a) continue;
+                        n++;
+                        if (l <= 6) lados[l]++;
+                        if (!viu[a]) { viu[a] = true; tipos++; }
+                        ruim |= l > 6 || a == AD_DOURADO || ad_conta(&p, a) != 1;
+                    }
+                    if (n != ADESIVADO_N || ruim) ok = 0;
+                }
+                CONFERE(ok, "Adesivado: 3 adesivos diferentes nos lados 1 a 6");
+                for (int l = 1; l <= 6; l++) CONFERE(lados[l] > 50, "Adesivado: o lado %d quase nunca tem adesivo (%d)", l, lados[l]);
+                CONFERE(tipos >= 15, "Adesivado: so %d adesivos diferentes em 200", tipos);
+                // O segredo: com os seis lados cheios, vira o Mais Adesivado (d8, os oito adesivos fixos).
+                peca_t m = nova_peca(D_MAIS_ADESIVADO);
+                bool fixos = m.tipo == D_MAIS_ADESIVADO && TIPO[m.tipo].lados == 8 && ad_quantos(&m) == 8;
+                for (int l = 1; l <= 8; l++) fixos &= ad_no_lado(&m, l) == MAIS_ADESIVADO[l - 1];
+                CONFERE(fixos && ad_no_lado(&m, 1) == AD_AVESSO && ad_no_lado(&m, 8) == AD_ELETRONICO && !ad_cabe(&m),
+                        "Mais Adesivado: Avesso no 1 ... Eletronico no 8, sem lado livre");
+                CONFERE(sem_sorteio(D_MAIS_ADESIVADO) && !no_catalogo(D_MAIS_ADESIVADO) && !dado_liberado(D_MAIS_ADESIVADO)
+                        && no_catalogo(D_ADESIVADO), "Mais Adesivado: segredo, fora do sorteio e da colecao");
+                peca_t ad = { .tipo = D_ADESIVADO };
+                for (int l = 1; l <= 5; l++) ad_cola(&ad, l, AD_CONFETE + l);
+                CONFERE(!vira_mais_adesivado(&ad) && ad.tipo == D_ADESIVADO, "Adesivado com 5: ainda nao vira");
+                ad_cola(&ad, 6, AD_LOBO);
+                CONFERE(vira_mais_adesivado(&ad) && ad.tipo == D_MAIS_ADESIVADO && ad_quantos(&ad) == 8, "Adesivado cheio vira");
+                peca_t d6 = { .tipo = D_D6 };
+                for (int l = 1; l <= 6; l++) ad_cola(&d6, l, AD_LOBO);
+                CONFERE(!vira_mais_adesivado(&d6) && d6.tipo == D_D6, "um D6 cheio continua D6");
+                // Pela loja do Desafiante: o sexto adesivo colado vira o dado na bolsa (e salva).
+                {
+                    run_t r0 = run;
+                    run.n_col = 1;
+                    run.col[0] = (peca_t){ .tipo = D_ADESIVADO };
+                    for (int l = 1; l <= 5; l++) ad_cola(&run.col[0], l, AD_CONFETE + l);
+                    run.adesivo = AD_LOBO; run.ad_vendido = 0; run.moedas = 99;
+                    cola_premio = false; cola_pac = -1; t_lj_cola = 0; lj_vira = false;
+                    lj_colando = 2; lj_cola_dado = 0;
+                    cola_escolhe_lado(5);
+                    CONFERE(run.col[0].tipo == D_MAIS_ADESIVADO && lj_vira && ad_no_lado(&lj_vira_de, 6) == AD_LOBO
+                            && lj_vira_de.tipo == D_ADESIVADO, "loja: o sexto adesivo vira o Mais Adesivado");
+                    for (int f = 0; f < 400 && (t_lj_cola > 0 || t_lj_vira > 0); f++) cola_passo(1 / 60.0f);
+                    CONFERE(!lj_vira && t_lj_vira == 0 && lj_colando == 0, "loja: a virada acaba e a loja volta");
+                    run = r0;
+                }
+                modo = m0;
+            }
             // O ciclo cosmico: na faixa de cima, valendo ou nao, evolui; valendo, o bonus.
             limpa(); joga(0, D_ASTRO, 4); d = fim();
             CONFERE(d.total[0] == 4 && !F[0].evolui[0], "Estrela com 4: 4, sem evoluir (%d)", d.total[0]);
@@ -1798,7 +1952,8 @@ int main(void)
             // Liberacao: no maximo LIB_DADOS por nivel, e todos os novos abrem em algum nivel.
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
                                          D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
-                                         D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER, D_ASTRO };
+                                         D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER, D_ASTRO,
+                                         D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
@@ -1810,7 +1965,7 @@ int main(void)
         CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0;
-            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t);
+            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t);
             CONFERE(vis == n_catalogo(), "a colecao devia ter %d dados (tem %d)", vis, n_catalogo());
             for (int i = 0; i < n_catalogo(); i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
             for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");

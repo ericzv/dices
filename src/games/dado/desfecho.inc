@@ -85,6 +85,49 @@ static int alvo_vizinho(const uint8_t *est, int j, int k)
     return -1;
 }
 
+// O Terremoto k de j vai sacudir a mesa do oponente: terminou valendo com 7 ou 8.
+static bool tremor_armado(int j, int k)
+{
+    return TIPO[tipo_de(j, k)].efeito == EF_TERREMOTO && F[j].est[k] == V_VALIDO && F[j].valor[k] >= TERREMOTO_DE;
+}
+static bool tremor_na_mesa(void)
+{
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (tremor_armado(j, k)) return true;
+    return false;
+}
+// O dado de r que o tremor sacode: o ultimo valido (o Universo nao treme).
+static int alvo_tremor(const uint8_t *est, int r)
+{
+    for (int i = F[r].lancados - 1; i >= 0; i--) if (est[i] == V_VALIDO && !universo(r, i)) return i;
+    return -1;
+}
+// O dado a de r rola de novo, como ele rola (com os adesivos dele: o Chumbo,
+// o Avesso, o Remendo, o Reflexivo), pelo sorteio que vem da semente do
+// Terremoto. O Calibre que tinha subido o lance sobe este tambem.
+static uint32_t abalo_s;
+static int rola_abalo(int lados)
+{
+    abalo_s ^= abalo_s << 13; abalo_s ^= abalo_s >> 17; abalo_s ^= abalo_s << 5;
+    return 1 + (int)(abalo_s % (uint32_t)lados);
+}
+static void treme_dado(int r, int a, uint32_t semente_abalo)
+{
+    fila_t *f = &F[r];
+    abalo_s = semente_abalo ? semente_abalo : 0x9E3779B9u;
+    const peca_t *p = peca_fila(r, a);
+    int t = f->tipo[a], menor, lado, antes;
+    int x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+    if (ad_no_lado(p, lado) == AD_REFLEXIVO) x = sorteia_peca(t, f->fixo[a], p, rola_abalo, &menor, &lado, &antes);
+    int teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
+    if (f->calibre[a] && x < teto) { x++; if (lado && lado < ad_lado_max(t)) lado++; }
+    f->cru[a] = f->valor[a] = x;
+    f->lado[a] = (uint8_t)lado;
+    f->descarte[a] = (uint8_t)menor;
+    f->espera[a] = false;
+    fatia(r, a, rola_abalo);
+}
+
 // Um evento novo no fim da lista (so quando gera). Devolve o evento, para
 // completar a mascara e os numeros de cada dado, ou NULL.
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
@@ -702,6 +745,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
+    if (ef == EF_FICHA_CORINGA) return f->curinga[k];          // com o curinga para cima: vira no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
         for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
@@ -736,6 +780,7 @@ static int poder_armado(int j, int k)
     case EF_JACKPOT:      return mesmo_numero(j, f->est, 2, NULL) != 0;
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
+    case EF_TERREMOTO:    return v >= TERREMOTO_DE;
     case EF_FERREIRO:     return v >= 3;
     case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
@@ -848,6 +893,10 @@ static void miras_agora(uint8_t mira[2])
                 break;
             case EF_LASER:   if (!couraca) a = alvo_ultimo(F[r].est, r); break;
             case EF_TSUNAMI: if (!couraca) a = alvo_primeiro(F[r].est, r); break;
+            case EF_TERREMOTO:                   // sacode o ultimo valido do oponente (sem desvio)
+                if (!couraca) a = alvo_tremor(F[r].est, r);
+                desvia = false;
+                break;
             case EF_BONECO:
                 if (!couraca && F[r].lancados > 3 && F[r].est[3] == V_VALIDO && !firme(r, 3)) a = 3;
                 break;
@@ -1417,6 +1466,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
                 revelados[j] |= (uint8_t)(1 << k);
                 evento(gera, EV_REVELA, j, k, j, k, F[j].valor[k], "Oculto: tirou %d", F[j].valor[k]);
             }
+    bool pre[2] = { false, false };              // a sequencia de antes de cada um ja guardada (animacao)
     for (int j = 0; j < 2; j++) {
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
@@ -1431,9 +1481,65 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         }
         if (!virados && !revelados[j]) continue;
         if (gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
             if (quais >> k & 1) snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+        virou = true;
+    }
+    // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
+    // valido dele rola de novo e a sequencia dele e refeita com o numero
+    // novo (menor que o de antes, cai e leva o anterior). So no fim de
+    // verdade: a previa e a IA nao sabem o que o tremor vai dar. A Couraca
+    // do oponente segura a mesa dele.
+    for (int o = 0; gera && o < 2; o++) {
+        int j = o ? outro(primeiro) : primeiro, r = outro(j);
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!tremor_armado(j, k)) continue;
+            if (tem_am(r, A_COURACA)) { am_acende(A_COURACA); continue; }
+            int a = alvo_tremor(F[r].est, r);
+            if (a < 0) continue;
+            int antes = F[r].valor[a];
+            if (!pre[r]) memcpy(est_pre_espelho[r], F[r].est, N_FILA);
+            pre[r] = true;
+            treme_dado(r, a, F[j].abalo[k]);
+            refaz_sequencia(r, F[r].lancados);
+            evento_t *e;
+            if (F[r].valor[a] == antes) e = evento(gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);
+            else e = evento(gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d", antes, J[r].nome, F[r].valor[a]);
+            if (e) e->antes = antes;
+            virou = true;
+        }
+    }
+    // A Ficha Coringa vira: passa a ter o numero do ultimo dado valido do
+    // oponente (depois do tremor) e entra na sequencia do dono com ele - ai
+    // pode cair, ou derrubar o seguinte. Sem nenhum valido do oponente, ela e
+    // anulada. As dos dois lados viram juntas, cada uma olhando a mesa do
+    // outro antes de qualquer uma virar. Na previa tambem (nada ao acaso), e
+    // a mesa volta no fim.
+    int c_alvo[2], c_val[2];
+    for (int j = 0; j < 2; j++) {
+        c_alvo[j] = alvo_curinga(j);
+        c_val[j] = c_alvo[j] >= 0 ? F[outro(j)].valor[c_alvo[j]] : 0;
+    }
+    for (int j = 0; j < 2; j++) {
+        if (!tem_curinga(j)) continue;
+        if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!F[j].curinga[k]) continue;
+            F[j].curinga[k] = false;
+            if (c_alvo[j] < 0) {
+                F[j].curinga_nada[k] = true;
+                evento(gera, EV_CORINGA, j, k, outro(j), 0xFF, 0, "Ficha Coringa: %s não tem dado válido, anulada", J[outro(j)].nome);
+                continue;
+            }
+            int v = c_val[j] + (F[j].calibre[k] ? 1 : 0);
+            F[j].valor[k] = v;
+            lado_vira(j, k, v);
+            evento(gera, EV_CORINGA, j, k, outro(j), c_alvo[j], v, "Ficha Coringa vira o %d de %s", c_val[j], J[outro(j)].nome);
+        }
+        refaz_sequencia(j, F[j].lancados);
         virou = true;
     }
     memcpy(veredito, ver_antes, sizeof veredito);
@@ -1473,8 +1579,10 @@ static int total_visivel(int j)
     for (int i = 0; i < vis_nroubo[j]; i++) if (!vis_roubo[j][i].anulado) t += vis_roubo[j][i].valor;
     // Espelho cujo evento ainda nao tocou: na tela, ainda com o que tirou.
     // (Esses eventos vem antes de todos, sem bonus nem multiplicador ainda.)
-    for (int k = 0; k < F[j].lancados; k++)
+    for (int k = 0; k < F[j].lancados; k++) {
         if (vis_espelho[j][k] && vis_est[j][k] == V_VALIDO) t -= F[j].valor[k] - F[j].cru[k];
+        if (vis_tremor[j][k] && vis_est[j][k] == V_VALIDO) t -= F[j].valor[k] - vis_tremor_de[j][k];   // o sacudido, ainda parado
+    }
     return t < 0 ? 0 : t;
 }
 
@@ -1490,11 +1598,14 @@ static int risco(int j)
     int L = l >= 0 ? f->valor[l] : 0;
     const peca_t *p = peca_fila(j, k);       // cada lado com o numero que tira (o Remendo soma 2)
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
+    if (ef == EF_FICHA_CORINGA) return 0;                     // fica de fora ate o fim
+    if (ef == EF_RELOGIO) return l >= 0 && cai_depois(j, remenda(p, relogio_valor()), L) ? 100 : 0;
     if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12), L) ? 100 : 0;
     if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, remenda(p, (int8_t)f->fixo[k]), L) ? 100 : 0;
     if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] ? (int8_t)f->fixo[k] : 1), L) ? 100 : 0;
     if (ef == EF_EGOISTA || ef == EF_UNIVERSO) return 0;              // nao anulaveis: nao caem
     if (egoista_antes(j, k) >= 0 && !nao_anulavel_t(t)) return 100;   // cai com certeza
+    if (ef == EF_DIGITAL) return 0;                           // acende sempre um acima
     int ruins = 0, total = 0;
     if (ef == EF_VICIADO || ef == EF_SORTE_REVES) {
         for (int a = 1; a <= lados; a++)

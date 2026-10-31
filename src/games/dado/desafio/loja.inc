@@ -66,6 +66,14 @@ static int   lj_cola_dado;               // o dado escolhido (posicao na bolsa)
 static int   lj_cola_lado;               // o lado onde colou (a animacao)
 static float t_lj_cola;                  // > 0: colou; o adesivo assenta e a loja volta
 static float t_lj_ad_carimbo;            // o carimbo de colado no cartao do adesivo
+// O segredo do Adesivado: a colagem que encheu os seis lados. Ele ja virou
+// o Mais Adesivado na bolsa (e salvo); a tela mostra o de antes (lj_vira_de)
+// recebendo o adesivo e, depois, virando (t_lj_vira).
+static bool  lj_vira;
+static peca_t lj_vira_de;
+static float t_lj_vira;                  // > 0: virando
+#define LJ_VIRA_T     3.0f
+#define LJ_VIRA_TROCA 1.0f                // o estouro: dali em diante, o Mais Adesivado
 // Onde o adesivo vai: na loja, na bolsa da run, comprado; no premio do modo de
 // 2 jogadores (cola_premio), na bolsa de quem venceu a rodada, de graca.
 // Do pacote de adesivos (cola_pac: a carta), tambem de graca: o pacote ja foi pago.
@@ -121,6 +129,8 @@ static void loja_abriu(void)
     cola_premio = false;
     cola_pac = -1;
     t_lj_cola = t_lj_ad_carimbo = 0;
+    lj_vira = false;
+    t_lj_vira = 0;
     // Saiu com o pacote aberto: volta nele, rasgado, com as mesmas cartas.
     lj_pac = run.pac_estado == PAC_ABERTO;
     t_pac = PAC_RASGA;
@@ -191,8 +201,26 @@ static void lj_voa(int slot, peca_t p, int x, int y)
 }
 
 // O adesivo colado: desce, assenta com um estalo, e a loja volta (o premio:
-// segue para a proxima rodada). As lascas voam e caem.
+// segue para a proxima rodada). As lascas voam e caem. Se ele encheu o
+// Adesivado, antes de voltar o Adesivado vira o Mais Adesivado.
 static void lj_lascas_passo(float dt);
+static void lj_vira_estoura(void);
+// Devolve true quando a tela da colagem acabou de vez (o premio segue a partida).
+static bool cola_termina(void)
+{
+    lj_colando = 0;
+    if (cola_premio) { cola_premio = false; nova_rodada(); return true; }
+    if (cola_pac >= 0) {                         // o pacote de adesivos: acabou, volta a loja
+        cola_pac = -1;
+        lj_pac = false;
+        cursor = lj_item_pacote();
+        t_pac_carimbo = 0.001f;
+        return true;
+    }
+    cursor = lj_item_adesivo();
+    t_lj_ad_carimbo = 0.001f;
+    return false;
+}
 static void cola_passo(float dt)
 {
     if (t_lj_cola > 0) {
@@ -201,17 +229,18 @@ static void cola_passo(float dt)
         if (antes < LJ_COLA_BATE && t_lj_cola >= LJ_COLA_BATE) lj_cola_estala();
         if (t_lj_cola >= LJ_COLA_FIM) {
             t_lj_cola = 0;
-            lj_colando = 0;
-            if (cola_premio) { cola_premio = false; nova_rodada(); return; }
-            if (cola_pac >= 0) {                 // o pacote de adesivos: acabou, volta a loja
-                cola_pac = -1;
-                lj_pac = false;
-                cursor = lj_item_pacote();
-                t_pac_carimbo = 0.001f;
-                return;
-            }
-            cursor = lj_item_adesivo();
-            t_lj_ad_carimbo = 0.001f;
+            if (lj_vira) { t_lj_vira = 0.001f; som_toca(SOM_SUSPENSE); }   // encheu: treme antes de virar
+            else if (cola_termina()) return;
+        }
+    }
+    if (t_lj_vira > 0) {
+        float antes = t_lj_vira;
+        t_lj_vira += dt;
+        if (antes < LJ_VIRA_TROCA && t_lj_vira >= LJ_VIRA_TROCA) lj_vira_estoura();
+        if (t_lj_vira >= LJ_VIRA_T) {
+            t_lj_vira = 0;
+            lj_vira = false;
+            if (cola_termina()) return;
         }
     }
     if (cola_premio) {
@@ -441,6 +470,9 @@ static void cola_escolhe_lado(int c)
     lj_cola_lado = lado;
     t_lj_cola = 0.001f;
     som_toca(SOM_FICHA);
+    lj_vira_de = *p;                             // o segredo: os seis lados cheios
+    lj_vira = vira_mais_adesivado(p);
+    if (lj_vira && !cola_premio) des_salva();
 }
 
 static void loja_troca(void)
@@ -535,7 +567,7 @@ static bool pacote_tecla(int k, int e)
 static int lj_lados_por(int n) { return n <= 12 ? n : 10; }
 static bool cola_tecla(int k, int e)
 {
-    if (t_lj_cola > 0) return true;
+    if (t_lj_cola > 0 || t_lj_vira > 0) return true;
     bool volta = k == KEY_BKSP || k == 'x' || k == KEY_TAB;
     if (lj_colando == 1) {
         int nc = cola_n(), por = grade_lj_tira(nc).por;
@@ -1025,6 +1057,20 @@ static void lj_cola_estala(void)
     mola_chuta();
 }
 
+// O segredo: o Adesivado cheio estoura em lascas de todos os adesivos dele e
+// volta Mais Adesivado, com confete.
+static void lj_vira_estoura(void)
+{
+    for (int l = 1; l <= 6; l++) {
+        int a = ad_no_lado(&lj_vira_de, l);
+        uint16_t cores[3] = { ADESIVO[a].fundo == AD_SEM_FUNDO ? ADESIVO[a].luz : ADESIVO[a].fundo, C_BRANCO, ADESIVO[a].luz };
+        lj_lascas_de(64, LJ_LADO_Y, cores, 8, 1.4f);
+    }
+    solta_confete(70);
+    som_toca(SOM_NOVIDADE_LENDA);
+    mola_chuta();
+}
+
 // O titulo das duas telas: o adesivo, o nome e o que ele faz.
 static void lj_cola_titulo(const char *pergunta)
 {
@@ -1083,12 +1129,22 @@ static void lj_cola_dados(void)
 // ja tem; o novo paira sobre o lado da vez e, escolhido, desce e assenta.
 static void lj_cola_lados(void)
 {
-    const peca_t *pc = &cola_col()[lj_cola_dado];
+    // Enchendo o Adesivado: ate o estouro, o de antes (com o adesivo novo).
+    bool antes = lj_vira && t_lj_vira < LJ_VIRA_TROCA;
+    const peca_t *pc = antes ? &lj_vira_de : &cola_col()[lj_cola_dado];
     int t = pc->tipo, n = ad_n_lados(t), a = cola_ad();
     char s[96];
-    snprintf(s, sizeof s, "em qual lado do %s?", TIPO[t].nome);
+    snprintf(s, sizeof s, "em qual lado do %s?", TIPO[lj_vira ? D_ADESIVADO : t].nome);
     lj_cola_titulo(s);
-    peca_parada(64, LJ_LADO_Y, 22, *pc, cola_dono());      // o dado, com os selinhos
+    float vx = 0, vr = 22;                                  // virando: treme cada vez mais; virou, cresce e assenta
+    if (lj_vira && t_lj_vira > 0 && t_lj_vira < LJ_VIRA_TROCA) vx = sinf(t_lj_vira * 70) * 4 * t_lj_vira / LJ_VIRA_TROCA;
+    if (lj_vira && t_lj_vira >= LJ_VIRA_TROCA) {
+        float q = (t_lj_vira - LJ_VIRA_TROCA) / 0.5f;
+        vr = 22 + (q < 1 ? sinf(q * 3.1416f) * 12 : 0);
+        if (q < 1) brilho_passa = q;
+    }
+    if (lj_vira && t_lj_vira >= LJ_VIRA_TROCA) brilho_poder(64 + vx, LJ_LADO_Y, vr, t, 0, true);
+    peca_parada(64 + vx, LJ_LADO_Y, vr, *pc, cola_dono());      // o dado, com os selinhos
     txt_c(64, LJ_LADO_Y + 32, TIPO[t].nome, cor_dado(t), true);
     for (int c = 0; c < n; c++) {
         int lado = ad_lado_min(t) + c, x, y, ja = ad_no_lado(pc, lado);
@@ -1099,12 +1155,20 @@ static void lj_cola_lados(void)
             float q = (t_lj_cola - LJ_COLA_BATE) / 0.25f;
             if (q < 1) pulo = -sinf(q * 3.1416f) * 4;
         }
-        if (cur) ui_selecao(x - 22, y - 22, 44, 44, ADESIVO[a].luz);
+        if (cur && !lj_vira) ui_selecao(x - 22, y - 22, 44, 44, ADESIVO[a].luz);
         int mostra = lado + (ja == AD_REMENDO ? 2 : 0);
         if (colando && t_lj_cola >= LJ_COLA_BATE) {
             ja = a;
             mostra = lado + (a == AD_REMENDO ? 2 : 0);
             ad_face_aceso = t_lj_cola < LJ_COLA_BATE + 0.5f && (int)(t_lj_cola * 14) % 2 == 0;
+        }
+        if (lj_vira && t_lj_vira > 0)                // virando: os adesivos acendem um depois do outro
+            ad_face_aceso = (int)(t_lj_vira * 10 + c * 3) % 4 == 0 || (t_lj_vira >= LJ_VIRA_TROCA && t_lj_vira < LJ_VIRA_TROCA + 0.4f);
+        if (lj_vira && t_lj_vira > 0 && t_lj_vira < LJ_VIRA_TROCA) pulo += sinf(t_lj_vira * 50 + c) * 2 * t_lj_vira / LJ_VIRA_TROCA;
+        if (lj_vira && t_lj_vira >= LJ_VIRA_TROCA) {    // os lados novos caem um depois do outro
+            float q = (t_lj_vira - LJ_VIRA_TROCA - c * 0.07f) / 0.3f;
+            if (q < 0) { ad_face_aceso = false; continue; }
+            if (q < 1) pulo += (1 - q) * (1 - q) * 30;
         }
         ad_face = ja;
         desenha_dado((float)x, y - pulo, 17, t, cola_dono(), 0, mostra, 2, false);
@@ -1116,7 +1180,7 @@ static void lj_cola_lados(void)
         zona_clique(x - 21, y - 21, 42, 42, &cursor, c, KEY_ENTER);
     }
     // O adesivo novo: paira sobre o lado da vez; colando, desce ate ele.
-    if (cursor >= 0 && cursor < n && (!t_lj_cola || t_lj_cola < LJ_COLA_BATE)) {
+    if (cursor >= 0 && cursor < n && !lj_vira && (!t_lj_cola || t_lj_cola < LJ_COLA_BATE)) {
         int x, y;
         lj_lado_pos(t_lj_cola > 0 ? lj_cola_lado - ad_lado_min(t) : cursor, n, &x, &y);
         bool livre = !ad_no_lado(pc, ad_lado_min(t) + cursor);
@@ -1128,7 +1192,16 @@ static void lj_cola_lados(void)
     lj_lascas();
     int lado = ad_lado_min(t) + (cursor >= 0 && cursor < n ? cursor : 0), ja = ad_no_lado(pc, lado);
     int ty = LJ_LADO_Y + ((n + lj_lados_por(n) - 1) / lj_lados_por(n) - 1) * LJ_LADO_DY + 34;
-    if (t_lj_cola > 0) {
+    if (lj_vira && t_lj_vira > 0) {                       // o segredo: o letreiro
+        if (t_lj_vira < LJ_VIRA_TROCA) {
+            txt_c(GFX_W / 2, ty, "Os seis lados cheios... não cabe mais nada!", (int)(t_lj_vira * 8) % 2 ? C_OURO : C_AMARELO, true);
+        } else {
+            float q = (t_lj_vira - LJ_VIRA_TROCA) / 0.35f;
+            int sobe = q < 1 ? (int)((1 - q) * (1 - q) * 14) : 0;
+            txt_c2(GFX_W / 2, ty - 8 + sobe, "MAIS ADESIVADO!", (int)(t_lj_vira * 6) % 2 ? C_OURO : C_AMARELO);
+            if (q > 0.6f) txt_c(GFX_W / 2, ty + 34, "o Adesivado virou um d8, com um adesivo em cada lado", C_MARFIM_S, false);
+        }
+    } else if (t_lj_cola > 0) {
         snprintf(s, sizeof s, "%s no lado %d", ADESIVO[a].nome, lj_cola_lado);
         txt_c(GFX_W / 2, ty, s, ADESIVO[a].luz, true);
     } else if (ja) {
@@ -1167,7 +1240,8 @@ static bool premio_cola_comeca(int i)
     cola_premio_ad = oferta_ad[i];
     cola_premio_slot = i;
     lj_colando = 1;
-    t_lj_cola = t_lj_aviso = 0;
+    t_lj_cola = t_lj_aviso = t_lj_vira = 0;
+    lj_vira = false;
     n_lasca = 0;
     cursor = 0;
     while (cursor < J[vez].n_col - 1 && !ad_cabe_o(&J[vez].col[cursor], cola_premio_ad)) cursor++;

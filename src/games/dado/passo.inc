@@ -67,6 +67,7 @@ void dado_passo(float dt)
     for (int j = 0; j < 2; j++) if (t_lance[j] > 0) t_lance[j] -= dt_real;
     flutua_passo(dt);
     poeira_passo(dt);
+    evento_no_meio(t_antes, t_fase);
     tiro_passo(dt);
     cosmo_passo(dt);
     passo_slot(dt);
@@ -180,6 +181,8 @@ void dado_passo(float dt)
                 som_toca(SOM_POS[k < N_FILA ? k : N_FILA - 1]);
                 px_pulsa(SLOT_X(k), zona(j));          // o modo Pixel: a luz pulsa embaixo dele
             } else som_toca(SOM_ANULA);
+            if (F[j].tipo[k] == D_DIGITAL) som_toca(SOM_AD_ELETRONICO);       // o visor liga
+            else if (F[j].tipo[k] == D_RELOGIO) som_toca_tom(SOM_CARREGA, 5); // o tique do relogio
             if (j == 0 && ver_tipo == 1) fala_evento(FA_CAI);
             flutua_pouso(j, k);
             reage_lance(j, k);

@@ -642,22 +642,49 @@ static void saque_fileira(int y)
     txt(bx + ws + 26, y + 24, b, C_MARFIM_S, false);
 }
 
+// O nome do oponente embaixo do retrato, numa coluna de largura w, na fina
+// (do tamanho de sempre, mesmo com a letra maior): numa linha ou, se nao
+// couber, em duas, quebrando onde as duas linhas ficam mais parelhas.
+static void nome_na_coluna(int cx, int y, const char *s, int w, uint16_t c)
+{
+    const int f = GFX_FINO_FIXO;
+    int n = (int)strlen(s), corte = -1, pior = 0;
+    char a[48];
+    if (gfx_largura(s, f) > w)
+        for (int i = 1; i < n && i < (int)sizeof a; i++) {
+            if (s[i] != ' ') continue;
+            snprintf(a, sizeof a, "%.*s", i, s);
+            int la = gfx_largura(a, f), lb = gfx_largura(s + i + 1, f), m = la > lb ? la : lb;
+            if (corte < 0 || m < pior) { corte = i; pior = m; }
+        }
+    if (corte < 0) { gfx_texto(cx - gfx_largura(s, f) / 2, y, s, c, f, false); return; }
+    snprintf(a, sizeof a, "%.*s", corte, s);
+    gfx_texto(cx - gfx_largura(a, f) / 2, y, a, c, f, false);
+    gfx_texto(cx - gfx_largura(s + corte + 1, f) / 2, y + 13, s + corte + 1, c, f, false);
+}
+
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
+#define FIM_PAINEL_W 460
 static void desenha_fim_partida_run(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    // O oponente, grande, a esquerda, com o que disse no fim.
-    if (fala_perso >= 0) {
-        int esc = 3, rx = 22, ry = C0 - 70;
-        bool chefe = perso_chefe(fala_perso);
-        gfx_rect(rx - 2, ry - 2, RT_W * esc + 4, RT_H * esc + 4, chefe ? C_OURO : C_LATAO_ESC);
-        gfx_rect(rx, ry, RT_W * esc, RT_H * esc, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
-        retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, fala_digitando(), 0, RT_H);
-        dica_zona(rx, ry, RT_W * esc, RT_H * esc, DICA_TRUNFO, fala_perso);
-        if (fala_txt[0]) txt_c(rx + RT_W * esc / 2, ry + RT_H * esc + 6, PERSO[fala_perso].nome, C_ROSA, true);
-    }
     int alto = venc_partida == 0 && des_marco >= 0 ? 168 : 150;
-    painel(C0 - 70, alto, 460);
+    painel(C0 - 70, alto, FIM_PAINEL_W);
+    // O oponente, grande, na margem a esquerda do painel (o da faixa sai
+    // nesta tela: e o mesmo), com o nome embaixo, sem passar do painel.
+    if (fala_perso >= 0) {
+        int esc = 3, w = RT_W * esc, h = RT_H * esc;
+        int borda = GFX_W / 2 - FIM_PAINEL_W / 2 - 5, rx = MESA_X0 + (borda - MESA_X0 - w) / 2, ry = C0 - 70;
+        uint16_t r[4];
+        ui_rampa(perso_chefe(fala_perso) ? C_OURO : C_LATAO, false, r);
+        ui_sombra(rx - 3, ry - 3, w + 6, h + 6);
+        ui_contorno(rx - 3, ry - 3, w + 6, h + 6, C_BARRA);
+        ui_aro(rx - 2, ry - 2, w + 4, h + 4, 2, r, UI_VIVO);
+        gfx_rect(rx, ry, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+        retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, fala_digitando(), 0, RT_H);
+        dica_zona(rx, ry, w, h, DICA_TRUNFO, fala_perso);
+        nome_na_coluna(rx + w / 2, ry + h + 7, PERSO[fala_perso].nome, borda - MESA_X0 - 2, C_ROSA);
+    }
     placa_placar(C0 - 70);                                          // o placar final, acima do painel
     if (venc_partida == 0) {
         txt_sombra_c(GFX_W / 2, C0 - 58, "VOCÊ VENCEU", C_LATAO, 3);

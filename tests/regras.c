@@ -3721,13 +3721,14 @@ int main(void)
         CONFERE(F[0].est[0] == V_VALIDO && !vidro_quebra(0, 0) && impermeavel(0, 0), "Vidro impermeavel com 1: valido, inteiro");
         limpa();
         joga_ad(0, 2, 3); joga_ad(0, 4, 1);
-        CONFERE(F[0].est[1] == V_ANULADO && !vidro_quebra(0, 1), "Vidro impermeavel com 1 depois de um 3: cai, mas inteiro");
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO && !vidro_quebra(0, 1) && strstr(veredito, "protegido"),
+                "Vidro impermeavel com 1 depois de um 3: ele fica, o 3 cai (%s)", veredito);
         J[0].col[5] = (peca_t){ .tipo = D_VIDRO };
         limpa();
         joga_ad(0, 5, 1);
         CONFERE(F[0].est[0] == V_ANULADO && vidro_quebra(0, 0), "o Vidro comum com 1 se estilhaca");
-        // Agindo, a capa fica na peca ate o fim da partida: um Fragil anulado
-        // depois nao quebra.
+        // Agindo, a capa fica na peca ate o fim da partida: depois, nem a
+        // sequencia o anula (o Fragil dele nunca quebra).
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_IMPERMEAVEL);
         ad_cola(&J[0].col[3], 2, AD_FRAGIL);
@@ -3741,13 +3742,47 @@ int main(void)
         adesivos_ficam(0, &d);
         CONFERE(J[0].col[3].capa, "a capa ficou no dado");
         limpa();
-        joga_ad(0, 2, 4); joga_ad(0, 3, 2);       // o Fragil anulado, com a capa
+        joga_ad(0, 2, 4); joga_ad(0, 3, 2);       // o 2 do Fragil depois de um 4: com a capa, fica (o 4 cai)
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO && strstr(veredito, "protegido"),
+                "com a capa, a sequencia nao anula o 2 (%s)", veredito);
         joga(1, D_D4, 3);
         d = fim();
         adesivos_ficam(0, &d);
-        bool ev_frag = false;
-        for (int i = 0; i < n_ev; i++) ev_frag |= ev_tipo_ad(i, AD_FRAGIL) && ev[i].bloqueado;
-        CONFERE(!d.fragil[0] && J[0].col[3].tipo == D_D6 && ev_frag, "com a capa, o Fragil anulado nao quebra (e o evento diz)");
+        CONFERE(!d.fragil[0] && J[0].col[3].tipo == D_D6 && d.total[0] == 2 + FRAGIL_PONTOS,
+                "com a capa, o Fragil vale e nao quebra: %d", d.total[0]);
+        limpa();                                  // e o dado de antes, de capa, segura a queda do seguinte
+        joga_ad(0, 3, 5); joga_ad(0, 2, 3);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && strstr(veredito, "o 5 está protegido"),
+                "o 3 depois do 5 de capa: so o 3 cai (%s)", veredito);
+        // Os ataques do oponente miram nele como sempre e batem na capa: o
+        // Carrasco com 4 (o maior), o Laser com 6 (o ultimo) - e nao passam
+        // para outro dado.
+        J[1].col[0] = (peca_t){ .tipo = D_CARRASCO }; J[1].col[1] = (peca_t){ .tipo = D_LASER };
+        J[1].n_col = 4;
+        limpa();
+        joga_ad(0, 2, 3); joga_ad(0, 3, 5);
+        joga_ad(1, 0, 4);
+        d = fim();
+        int ev_atk = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_ANULA && ev[i].de_j == 1) ev_atk = i;
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && ev_atk >= 0 && ev[ev_atk].alvo_k == 1 && ev[ev_atk].bloqueado == 2,
+                "o Carrasco bate na capa do 5 e nao pega o 3");
+        limpa();
+        joga_ad(0, 3, 5); joga_ad(0, 2, 6);       // agora o de capa e o primeiro; o Laser mira o ultimo (o 6)
+        joga_ad(1, 1, 6);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO, "o Laser no ultimo, sem capa: anula o 6");
+        limpa();
+        joga_ad(0, 2, 3); joga_ad(0, 3, 5);       // o de capa e o ultimo: bloqueado, o 3 fica
+        joga_ad(1, 1, 6);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO, "o Laser bate na capa do ultimo");
+        // O Egoista que chega anula os outros - menos o de capa.
+        J[0].col[7] = (peca_t){ .tipo = D_EGOISTA };
+        limpa();
+        joga_ad(0, 2, 2); joga_ad(0, 3, 4); joga_ad(0, 7, 6);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO, "o Egoista nao anula o de capa");
+        J[0].col[7] = (peca_t){ .tipo = D_D8 };
         limpa();                                  // com a capa, o evento nao se repete
         joga_ad(0, 3, 6);
         d = fim();

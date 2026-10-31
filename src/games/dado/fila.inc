@@ -114,7 +114,11 @@ static bool universo(int j, int k) { return tipo_de(j, k) == D_UNIVERSO; }
 static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
 // Nao anulavel agora: pelo tipo, preso pela Ancora ou com o Transparente no
 // lado de cima.
-static bool firme(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
+static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
+// Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os
+// ataques do fim da rodada continuam mirando nele (firme_sem_capa) e batem na
+// capa: o efeito nao pega e nao passa para outro dado.
+static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, k); }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -431,7 +435,9 @@ static void aplica_regra(int j, int k)
         else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: só a Sentinela é anulada", v, f->valor[l]);
         else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro mantém o %d válido", v, f->valor[l], f->valor[l]);
         else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede mantém o %d válido", v, f->valor[l], f->valor[l]);
+        else if (esc_l && !firme_sem_capa(j, l)) snprintf(veredito, sizeof veredito, "%d < %d: o %d está protegido", v, f->valor[l], f->valor[l]);
         else if (esc_l) snprintf(veredito, sizeof veredito, "%d < %d: %s continua válido", v, f->valor[l], TIPO[tipo_de(j, l)].nome);
+        else if (esc_k && !firme_sem_capa(j, k)) snprintf(veredito, sizeof veredito, "%d < %d: o %d está protegido, o %d é anulado", v, f->valor[l], v, f->valor[l]);
         else if (esc_k) snprintf(veredito, sizeof veredito, "%d < %d: %s continua válido, o %d é anulado", v, f->valor[l], TIPO[t].nome, f->valor[l]);
         else            snprintf(veredito, sizeof veredito, "%d é menor que %d: anulou os dois", v, f->valor[l]);
         ver_tipo = (esc_l || esc_k) ? 2 : 1;

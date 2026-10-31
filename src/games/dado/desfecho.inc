@@ -46,7 +46,7 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
     if (!maior && tem_am(j, A_IMA)) return -1;      // Ima: ninguem rouba
     for (int i = 0; i < F[j].lancados; i++) {
         if (i == exceto || est[i] != V_VALIDO) continue;
-        if (maior ? firme(j, i) : nao_roubavel(j, i)) continue;
+        if (maior ? firme_sem_capa(j, i) : nao_roubavel(j, i)) continue;
         if (a < 0 || (maior ? F[j].valor[i] > F[j].valor[a] : F[j].valor[i] < F[j].valor[a]))
             a = i;
     }
@@ -54,10 +54,12 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 }
 
 // Seguranca: um ataque ao dado a da fila de j cai no Seguranca dele, se houver
-// um valendo (e nao for o proprio alvo).
+// um valendo (e nao for o proprio alvo). O alvo com a capa do Impermeavel nao
+// precisa dele: o ataque bate na capa.
+static bool impermeavel(int j, int k);
 static int desvia_seguranca(const uint8_t *est, int j, int a)
 {
-    if (a < 0) return a;
+    if (a < 0 || impermeavel(j, a)) return a;
     for (int i = 0; i < F[j].lancados; i++)
         if (i != a && est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_SEGURANCA) return i;
     return a;
@@ -69,19 +71,19 @@ static int desvia_seguranca(const uint8_t *est, int j, int a)
 // de depois).
 static int alvo_ultimo(const uint8_t *est, int r)
 {
-    for (int i = F[r].lancados - 1; i >= 0; i--) if (est[i] == V_VALIDO && !firme(r, i)) return i;
+    for (int i = F[r].lancados - 1; i >= 0; i--) if (est[i] == V_VALIDO && !firme_sem_capa(r, i)) return i;
     return -1;
 }
 static int alvo_primeiro(const uint8_t *est, int r)
 {
-    for (int i = 0; i < F[r].lancados; i++) if (est[i] == V_VALIDO && !firme(r, i)) return i;
+    for (int i = 0; i < F[r].lancados; i++) if (est[i] == V_VALIDO && !firme_sem_capa(r, i)) return i;
     return -1;
 }
 static int alvo_vizinho(const uint8_t *est, int j, int k)
 {
     for (int s = -1; s <= 1; s += 2) {
         int i = k + s;
-        if (i >= 0 && i < F[j].lancados && est[i] == V_VALIDO && !firme(j, i)) return i;
+        if (i >= 0 && i < F[j].lancados && est[i] == V_VALIDO && !firme_sem_capa(j, i)) return i;
     }
     return -1;
 }
@@ -139,6 +141,20 @@ static void treme_dado(int r, int a, uint32_t semente_abalo)
 // completar a mascara e os numeros de cada dado, ou NULL.
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                         const char *fmt, ...) __attribute__((format(printf, 8, 9)));
+// O ataque do dado k de j chegou no dado a de r, que esta com a capa do
+// Impermeavel: vai ate ele e nada pega - nem passa para outro dado. quem: o
+// nome de quem ataca; ad: o adesivo que ataca (Mira, Ratoeira), ou 0.
+static evento_t *capa_ev;                   // o evento do ultimo bloqueio (NULL sem gerar)
+static bool bloqueia_capa(bool gera, int j, int k, int r, int a, const char *quem, int ad)
+{
+    if (a < 0 || !impermeavel(r, a)) return false;
+    capa_ev = evento(gera, ad ? EV_ADESIVO : EV_ANULA, j, k, r, a, F[r].valor[a], "%s: o %d está protegido",
+                     quem, F[r].valor[a]);
+    if (capa_ev) { capa_ev->bloqueado = (uint8_t)(1 << a); capa_ev->ad = (uint8_t)ad; }
+    return true;
+}
+static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
+                        const char *fmt, ...) __attribute__((format(printf, 8, 9)));
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                         const char *fmt, ...)
 {
@@ -174,9 +190,9 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
     }
     int b = -1;
     for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-        if (d->est[j][i] == V_VALIDO && !firme(j, i) && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
+        if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
     b = desvia_seguranca(d->est[j], j, b);
-    if (b < 0) return;
+    if (b < 0 || bloqueia_capa(gera, r, a, j, b, "Ratoeira", AD_RATOEIRA)) return;
     d->est[j][b] = V_ANULADO;
     d->atacados[j]++;
     evento_t *e = evento(gera, EV_ADESIVO, r, a, j, b, F[j].valor[b], "Ratoeira: anula o %d de %s", F[j].valor[b], J[j].nome);
@@ -192,10 +208,11 @@ static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
         if (gera) am_acende(A_COURACA);
         return;
     }
-    uint8_t mask = 0;
+    uint8_t mask = 0, capa = 0;
     int8_t perde[N_FILA] = { 0 };
     for (int i = 0; i < F[j].lancados; i++)
-        if (d->est[j][i] == V_VALIDO && !firme(j, i)) {
+        if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)) {
+            if (impermeavel(j, i)) { capa |= (uint8_t)(1 << i); continue; }   // bate na capa
             perde[i] = (int8_t)contribui(j, i);
             d->est[j][i] = V_ANULADO;
             mask |= (uint8_t)(1 << i);
@@ -203,9 +220,9 @@ static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
         }
     int roubado = d->roubo_val[j];
     d->roubo_val[j] = 0;
-    if (!mask && !roubado) return;
+    if (!mask && !roubado && !capa) return;
     evento_t *e = evento(gera, EV_CAVALO, r, a, j, 0, roubado, "Cavalo de Troia: anula os de %s", J[j].nome);
-    if (e) { e->mascara = mask; memcpy(e->por_dado, perde, sizeof perde); }
+    if (e) { e->mascara = mask; memcpy(e->por_dado, perde, sizeof perde); e->bloqueado = capa; }
 }
 
 // A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
@@ -837,12 +854,12 @@ static int poder_armado(int j, int k)
     case EF_BERSERKER:    return alvo_vizinho(f->est, j, k) >= 0 ? 2 : 0;
     case EF_AUTOFAGIA:
         for (int i = 0; i < f->lancados; i++)
-            if (i != k && f->est[i] == V_VALIDO && !firme(j, i)) return 2;
+            if (i != k && f->est[i] == V_VALIDO && !firme_sem_capa(j, i)) return 2;
         return 0;
     case EF_COLECIONADOR: return v == 6;
     case EF_BURACO:                                          // vai engolir um vizinho seu
         for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
-            if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme(j, k + s)) return 2;
+            if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
         return 0;
     case EF_BONECO:       return v >= 8;
     case EF_TSUNAMI:      return v >= 9;
@@ -881,7 +898,7 @@ static void mira_menores(uint8_t *est, int j, int n, int exceto, uint8_t *masc)
     for (int q = 0; q < n; q++) {                // os n menores que podem ser anulados, um de cada vez
         int b = -1;
         for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-            if (i != exceto && est[i] == V_VALIDO && !firme(j, i) && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+            if (i != exceto && est[i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
         if (b < 0) return;
         est[b] = V_ANULADO;
         *masc |= (uint8_t)(1 << b);
@@ -916,7 +933,7 @@ static void miras_agora(uint8_t mira[2])
                 desvia = false;
                 break;
             case EF_BONECO:
-                if (!couraca && F[r].lancados > 3 && F[r].est[3] == V_VALIDO && !firme(r, 3)) a = 3;
+                if (!couraca && F[r].lancados > 3 && F[r].est[3] == V_VALIDO && !firme_sem_capa(r, 3)) a = 3;
                 break;
             case EF_SABOTADOR:                   // corta o maior do oponente (sem desvio)
                 for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
@@ -945,7 +962,7 @@ static void miras_agora(uint8_t mira[2])
             case EF_AUTOFAGIA: mira_menores(est, j, 1, k, &mira[j]); break;
             case EF_BURACO:
                 for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
-                    if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme(j, k + s))
+                    if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s))
                         mira[j] |= (uint8_t)(1 << (k + s));
                 break;
             default: break;
@@ -971,9 +988,10 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
             int b = d->est[j][k] == V_VALIDO ? k : -1;
             for (int i = 0; i < F[j].lancados; i++)
-                if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)
+                if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
                     && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-            if (b == k) {
+            if (bloqueia_capa(gera, j, k, j, b, "Carrasco tirou 1", 0)) {
+            } else if (b == k) {
                 d->est[j][b] = V_ANULADO;
                 evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Carrasco tirou 1: anula a si mesmo");
             } else if (b >= 0) {
@@ -996,7 +1014,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         // o logo depois).
         if (ef == EF_BERSERKER) {
             int b = alvo_vizinho(d->est[j], j, k);
-            if (b >= 0) {
+            if (b >= 0 && !bloqueia_capa(gera, j, k, j, b, "Berserker", 0)) {
                 d->est[j][b] = V_ANULADO;
                 evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                        "Berserker: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
@@ -1011,13 +1029,10 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         if (ef == EF_AUTOFAGIA) {
             int b = -1;
             for (int i = 0; i < F[j].lancados; i++)
-                if (i != k && d->est[j][i] == V_VALIDO && !firme(j, i)
+                if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
                     && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
             bool pode = b >= 0 && !d->come[j] && autofagia_come_pode(j, k, b);
-            if (b >= 0 && pode && impermeavel(j, b)) {    // ia comer o de capa: o Impermeavel bloqueia tudo
-                evento_t *e = evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Autofagia tenta comer o %d: está protegido",
-                                     F[j].valor[b]);
-                if (e) e->bloqueado = (uint8_t)(1 << b);
+            if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) {   // o de capa: nem anula, nem come
             } else if (b >= 0) {
                 d->est[j][b] = V_ANULADO;
                 bool come = pode;
@@ -1035,7 +1050,8 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         if (ef == EF_BURACO) {
             for (int s = -1; s <= 1 && F[j].evolui[k]; s += 2) {
                 int b = k + s;
-                if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme(j, b)) continue;
+                if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme_sem_capa(j, b)) continue;
+                if (bloqueia_capa(gera, j, k, j, b, "Buraco Negro", 0)) continue;
                 d->est[j][b] = V_ANULADO;
                 evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                        "Buraco Negro engole o %d do próprio %s", F[j].valor[b], J[j].nome);
@@ -1050,7 +1066,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
         if (ef == EF_CARRASCO && v == 4) {
             int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-            if (a >= 0) {
+            if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Carrasco", 0)) {
                 d->est[r][a] = V_ANULADO;
                 if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
@@ -1065,7 +1081,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             {
                 int a0 = couraca ? -1 : ef == EF_LASER ? alvo_ultimo(d->est[r], r) : alvo_primeiro(d->est[r], r);
                 int a = desvia_seguranca(d->est[r], r, a0);
-                if (a >= 0) {
+                if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, nome, 0)) {
                     d->est[r][a] = V_ANULADO;
                     if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                         "%s: o Segurança de %s leva no lugar", nome, J[r].nome);
@@ -1078,9 +1094,9 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 }
             }
         } else if (ef == EF_BONECO && v >= 8) {     // Boneco de Neve com 8: congela o 4o do oponente
-            int a0 = !couraca && F[r].lancados > 3 && d->est[r][3] == V_VALIDO && !firme(r, 3) ? 3 : -1;
+            int a0 = !couraca && F[r].lancados > 3 && d->est[r][3] == V_VALIDO && !firme_sem_capa(r, 3) ? 3 : -1;
             int a = desvia_seguranca(d->est[r], r, a0);
-            if (a >= 0) {
+            if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Boneco de Neve", 0)) {
                 d->est[r][a] = V_ANULADO;
                 if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Boneco de Neve: o Segurança de %s leva no lugar", J[r].nome);
@@ -1091,7 +1107,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             }
         } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
             int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-            if (a >= 0) {
+            if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Invejoso", 0)) {
                 d->est[r][a] = V_ANULADO;
                 if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
@@ -1101,12 +1117,15 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 cavalo_abre(d, j, r, a, gera);
             }
         } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
+            uint8_t ja = 0;                              // (o de capa e um dos dois: bate nela e fica)
             for (int n = 0; n < 2; n++) {
                 int b = -1;
                 for (int i = 0; i < F[j].lancados; i++)
-                    if (d->est[j][i] == V_VALIDO && !firme(j, i)
+                    if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i) && !(ja >> i & 1)
                         && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
                 if (b < 0) break;
+                ja |= (uint8_t)(1 << b);
+                if (bloqueia_capa(gera, j, k, j, b, "Invejoso", 0)) continue;
                 d->est[j][b] = V_ANULADO;
                 if (b == k) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Invejoso tirou %d: anula a si mesmo", v);
                 else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
@@ -1338,11 +1357,11 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNeon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
         break;
     }
-    case AD_IMPERMEAVEL: {                       // valendo ou nao: a capa, ate o fim da partida
+    case AD_IMPERMEAVEL: {                       // a capa, ate o fim da partida (nem anulado ele fica)
         const peca_t *pc = peca_fila(j, k);
         if (!pc || pc->capa) return false;       // ja estava com a capa
         d->capa[j] |= bit;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: o dado não pode ser destruído", pre);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: não pode ser anulado nem destruído", pre);
         break;
     }
     case AD_PATINHO: {                           // valendo: no lado dele, -2; caindo em outro, +2
@@ -1359,9 +1378,13 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (couraca && gera) am_acende(A_COURACA);
         int a0 = -1;
         for (int i = 0; i < F[r].lancados && !couraca; i++)
-            if (d->est[r][i] == V_VALIDO && !firme(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
+            if (d->est[r][i] == V_VALIDO && !firme_sem_capa(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
+        if (bloqueia_capa(gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : "Mira", AD_MIRA)) {
+            if (capa_ev) capa_ev->copia = copia;
+            return true;
+        }
         d->est[r][alvo] = V_ANULADO;
         d->atacados[r]++;
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);

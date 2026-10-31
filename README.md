@@ -234,8 +234,8 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Liga e desliga todo o som |
-| N | Liga e desliga só a música |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
+| N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
 | F11 ou Alt+Enter | Tela cheia |

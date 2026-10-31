@@ -72,6 +72,9 @@ void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
     if (k >= 'A' && k <= 'Z') k += 32;
+    if (som_aberto) { som_tecla(k); return; }       // o painel do som fica com as teclas
+    if (k == 'm' && !dado_digitando()) { som_abre(); return; }
+    if (k == 'n' && !dado_digitando()) { som_alterna_musica(); return; }
     if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
     if (k == 'b' && !dado_digitando() && bolsa_abre_tecla()) return;   // B: a sua bolsa
 
@@ -106,12 +109,6 @@ void dado_tecla(const key_event_t *ev_)
         t_aviso_letra = 1.6f;
         t_aviso_vel = t_aviso_tremor = 0;
         som_toca(SOM_TIQUE);
-        return;
-    }
-    if (k == 'm' && !dado_digitando()) {
-        bool on = som_liga(!som_ligado());
-        if (!on && som_falhou()) snprintf(nota, sizeof nota, "sem saída de som neste computador");
-        if (on) som_toca(SOM_FICHA);
         return;
     }
     // Detalhes do dado (tecla I): so da tela local, nunca vai para o rival.
@@ -183,6 +180,7 @@ void dado_mouse(int x, int y, int acao)
     const zona_clique_t *z = NULL;
     for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0 && !z; i--)
         if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) z = &zonas[i];
+    if (som_aberto && acao == 1 && !z) { som_aberto = false; return; }   // o clique fora fecha o painel do som
     // Uma bolsa (a sua ou a do oponente): so olhar, vale ate na vez dos outros.
     if (z && z->tecla == TECLA_BOLSA) {
         if (acao == 1) bolsa_abre(z->val);

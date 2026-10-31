@@ -62,6 +62,11 @@ enum {
     SOM_EVOLUI,      // o ciclo cosmico evoluindo (cada estagio um tom acima)
     SOM_BURACO,      // o Buraco Negro engolindo um dado
     SOM_BIG_BANG,    // o Universo explodindo e voltando a ser Estrela
+    SOM_VAMPIRO,     // o morcego: asas, a mordida e o sangue sugado
+    SOM_SABOTADOR,   // a catraca, a mola e o dado murchando pela metade
+    SOM_COVEIRO,     // duas pazadas de terra e o sino grave
+    SOM_AUTOFAGIA,   // a dentada, o engolir e o +1
+    SOM_AMPULHETA,   // a ampulheta virada, a areia escorrendo e o sininho
     SOM_N
 };
 
@@ -74,3 +79,11 @@ void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola (false p
 void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e uma moeda
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide
+void som_cadeia(bool on);    // a cadeia de efeitos do fim da rodada: a trilha abaixa enquanto ela corre
+
+// O volume de cada canal, de 0 (mudo) a SOM_NIVEIS: a trilha, os efeitos da
+// mesa e os da interface (o cursor e os menus). O 10 e o volume de sempre.
+enum { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE, SOM_CANAIS };
+#define SOM_NIVEIS 10
+void som_volume(int canal, int nivel);
+int  som_volume_de(int canal);

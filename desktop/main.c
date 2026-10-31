@@ -155,7 +155,6 @@ static void le_teclado(void)
     // Letras, numeros e pontuacao chegam ja traduzidos pelo layout do
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
-        if ((c == 'n' || c == 'N') && !dado_digitando()) { som_musica(!som_musica_ligada()); continue; }
         if ((c == '-' || c == '_') && !dado_digitando()) { muda_zoom(-5); continue; }
         if ((c == '+' || c == '=') && !dado_digitando()) { muda_zoom(5); continue; }
         if (c >= 0x20 && c < 0x7F) tecla(c);

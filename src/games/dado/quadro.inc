@@ -214,7 +214,8 @@ void dado_desenha(void)
     } else bolsa_pop = -1;
     int r[4];
     const dica_t *d = NULL;
-    bool tem_dica = !menu && dica_rect(r, &d);
+    desenha_som();                                       // o painel do som, por cima de tudo
+    bool tem_dica = !menu && !som_aberto && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
     desenha_fantasma_voo();
     desenha_misterio();

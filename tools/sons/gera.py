@@ -1390,6 +1390,104 @@ def big_bang():
     return sala(m.x, 0.42)
 
 # ---------------------------------------------------------------------------
+# Os poderes que tomavam emprestado o som de um adesivo
+# ---------------------------------------------------------------------------
+def asas(m, t0, n, g0, passo=0.055):
+    """Um bater de asas: sopros curtos e graves, um atras do outro."""
+    for k in range(n):
+        d = int(0.05 * SR); q = np.linspace(0, 1, d)
+        sopro = banda(rng.standard_normal(d), 180, 1400) * np.sin(np.pi * q) ** 1.2
+        m.poe(t0 + k * passo + rng.uniform(0, 0.006), sopro, g0 * (1 - 0.15 * k))
+
+def vampiro():
+    """O Vampiro: o bater de asas do morcego, a mordida (as duas presas) e o
+    sangue sendo sugado - um tom que escorre para baixo, tremendo, e o
+    chupar -, com um re menor grave no Rhodes por baixo."""
+    m = Mix(1.5)
+    asas(m, 0.0, 4, 0.5)
+    T = 0.24
+    m.poe(T, pa(tom(batida('dicehit_plastic5'), 5), 1200), 0.55)          # as presas
+    m.poe(T + 0.018, pa(tom(batida('dicehit_plastic13'), 7), 1500), 0.4)
+    n = int(0.75 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 620 * 2 ** (-1.6 * q) * (1 + 0.025 * np.sin(2 * np.pi * 7 * t))   # escorrendo, com tremor
+    m.poe(T + 0.03, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.02, 0.35), 0.16)
+    chupa = banda(rng.standard_normal(n), 300, 1600) * (1 - q) ** 1.5 * (0.6 + 0.4 * np.sin(2 * np.pi * 9 * t))
+    m.poe(T + 0.03, chupa, 0.10)
+    for n_ in (38, 41, 45, 46):                                           # re menor com a sexta menor: escuro
+        m.poe(T + 0.06, tecla(n_, 0.7, 0.45, 0.4), 0.30)
+    return sala(m.x, 0.28)
+
+def sabotador():
+    """O Sabotador: a chave de catraca apertando (cliques de metal), a mola
+    que escapa e o maior dado do oponente murchando pela metade: um assobio
+    que desce duas oitavas, o ar saindo e um baque mole."""
+    m = Mix(1.1)
+    for k in range(5):                                                    # a catraca
+        e = pa(tom(batida(METAL[k % len(METAL)]), 9 + rng.uniform(-0.5, 0.5)), 2500)
+        m.poe(k * 0.035, e, 0.45 * (0.7 + 0.3 * (k % 2)))
+    T = 0.2
+    n = int(0.12 * SR); t = np.arange(n) / SR
+    f = 330 + 120 * np.sin(2 * np.pi * 26 * t) * np.exp(-t / 0.05)       # a mola: boing
+    m.poe(T, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.002, 0.05), 0.3)
+    n = int(0.5 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    m.poe(T + 0.06, np.sin(2 * np.pi * np.cumsum(1300 * 2 ** (-2 * q)) / SR) * (1 - q) ** 0.8, 0.14)
+    m.poe(T + 0.06, banda(rng.standard_normal(n), 800, 5000) * (1 - q) ** 2, 0.08)   # o ar saindo
+    m.poe(T + 0.52, pb(tom(superficie('surface_felt3'), -5), 1500), 0.6)            # o baque mole
+    return sala(m.x, 0.15)
+
+def pazada(m, t0, g0):
+    """Uma pazada: a lamina raspando e entrando na terra, e os torroes caindo."""
+    n = int(0.16 * SR); q = np.linspace(0, 1, n)
+    raspa = banda(rng.standard_normal(n), 500, 4000) * (0.3 + 0.7 * rng.random(n) ** 2) * np.sin(np.pi * q ** 0.6)
+    m.poe(t0, raspa, 0.35 * g0)
+    m.poe(t0 + 0.13, pb(tom(superficie('surface_felt1'), -7), 900), 0.8 * g0)   # entra na terra
+    t = t0 + 0.2
+    while t < t0 + 0.55:                                                  # os torroes
+        m.poe(t, pb(estalinho(rng.uniform(0.003, 0.008), 300), 2200), rng.uniform(0.15, 0.4) * g0)
+        t += rng.exponential(0.025)
+
+def coveiro():
+    """O Coveiro: duas pazadas de terra e o sino grave, uma vez, la longe."""
+    m = Mix(2.0)
+    pazada(m, 0.0, 1.0)
+    pazada(m, 0.42, 0.85)
+    m.poe(0.95, tom(nota('tubular_bells', 82, 0.9, 0.6), -12), 0.22)
+    return sala(m.x, 0.25)
+
+def autofagia():
+    """A Autofagia comendo o menor dado: duas dentadas (o estalo e a
+    trituracao), o engolir (uma bolha que desce) e duas notas de marimba
+    subindo: o +1."""
+    m = Mix(1.0)
+    for k, t in enumerate((0.0, 0.11)):
+        m.poe(t, tom(batida(PLASTICO[k * 3 % len(PLASTICO)]), -3), 0.6)   # a dentada
+        c = t + 0.01
+        while c < t + 0.09:                                               # triturando
+            d = int(0.006 * SR)
+            m.poe(c, banda(rng.standard_normal(d), 1500, 6000) * env(d, 0.0003, 0.002), rng.uniform(0.25, 0.6))
+            c += rng.exponential(0.008)
+    m.poe(0.3, bolha(420, 150, 0.14), 0.45)                               # o engolir
+    m.poe(0.3, pb(tom(superficie('surface_felt2'), -10), 700), 0.4)
+    m.poe(0.5, marimba(72, 0.1, 0.15), 0.45)                              # +1
+    m.poe(0.6, marimba(79, 0.18, 0.2), 0.45)
+    return sala(m.x, 0.15)
+
+def ampulheta():
+    """A Ampulheta: virada na mesa (o toque de madeira), a areia escorrendo
+    fininha, grao a grao, e um sininho quando o ultimo grao cai."""
+    m = Mix(1.5)
+    m.poe(0, superficie('surface_wood_table4'), 0.7)
+    m.poe(0.04, tom(batida('dicehit_wood3'), -2), 0.4)
+    n = int(0.8 * SR); q = np.linspace(0, 1, n); t = np.arange(n) / SR
+    graos = (rng.random(n) < 0.006) * rng.uniform(0.3, 1, n)            # uns 260 graos por segundo
+    escorre = 0.75 + 0.25 * np.sin(2 * np.pi * 5.5 * t + rng.uniform(0, 6))   # o fio de areia ondulando
+    areia = banda(graos, 2500, 10000) * 6 + 0.05 * banda(rng.standard_normal(n), 4000, 9000)
+    m.poe(0.12, areia * escorre * np.minimum(1, q * 8) * (1 - q) ** 0.7, 0.22)
+    m.poe(0.95, nota('celesta', 84, 0.4, 0.4), 0.35)
+    m.poe(0.95, nota('glockenspiel', 96, 0.3, 0.3), 0.18)
+    return sala(m.x, 0.22)
+
+# ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
 VOLUME = {
@@ -1432,6 +1530,10 @@ VOLUME.update({'revolver_carrega': VOLUME['ficha'] * 0.7, 'revolver_tiro': VOLUM
 # ataque; o Big Bang, o maior de todos.
 VOLUME.update({'cosmo_evolui': VOLUME['efeito'] * 1.05, 'buraco_negro': VOLUME['anula'] * 1.05,
                'big_bang': VOLUME['vitoria'] * 1.35})
+# Os poderes com som proprio: os que tiram do oponente, na altura de um
+# ataque; os que somam, de um poder.
+VOLUME.update({'vampiro': VOLUME['tira'], 'sabotador': VOLUME['efeito'] * 0.9, 'coveiro': VOLUME['efeito'],
+               'autofagia': VOLUME['anula'] * 0.9, 'ampulheta': VOLUME['efeito'] * 0.9})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -1455,7 +1557,8 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
-             'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang'):
+             'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
+             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

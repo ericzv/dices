@@ -4,7 +4,10 @@
 //
 //  - Trilha: a bossa de 16 compassos do jogo, tocada por teclado (um Rhodes
 //    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
-//    com o rufo, na hora da verdade e nos climax (Jackpot, fim, premio).
+//    com o rufo, na cadeia de efeitos do fim da rodada, na hora da verdade e
+//    nos climax (Jackpot, fim, premio).
+//  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
+//    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
 //    moeda tem o seu: a beirada tocando o feltro a cada volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
@@ -57,6 +60,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_PRESENTE] = "presente", [SOM_ESTRELA] = "estrela",
     [SOM_CARREGA] = "revolver_carrega", [SOM_TIRO] = "revolver_tiro",
     [SOM_EVOLUI] = "cosmo_evolui", [SOM_BURACO] = "buraco_negro", [SOM_BIG_BANG] = "big_bang",
+    [SOM_VAMPIRO] = "vampiro",   [SOM_SABOTADOR] = "sabotador", [SOM_COVEIRO] = "coveiro",
+    [SOM_AUTOFAGIA] = "autofagia", [SOM_AMPULHETA] = "ampulheta",
 };
 
 typedef struct {
@@ -68,8 +73,18 @@ static efeito_t ef[SOM_N];
 static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static Music trilha;
-static bool  pronto, falhou, ligado = true, musica = true;
-static bool  rufando, girando, suspense;
+static bool  pronto, falhou, ligado = true;
+static bool  rufando, girando, suspense, cadeia;
+static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
+
+// O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
+// volume que se ouve); o 10 e o volume de sempre.
+static float ganho(int c) { return nivel[c] <= 0 ? 0 : powf((float)nivel[c] / SOM_NIVEIS, 1.7f); }
+static int canal_de(int s)
+{
+    return s == SOM_TIQUE || s == SOM_PASSA || s == SOM_MENU_PASSA || s == SOM_MENU_ESCOLHE || s == SOM_BOLSA_ESPIA
+               ? SOM_CANAL_INTERFACE : SOM_CANAL_EFEITOS;
+}
 static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
 static float t_climax;                       // > 0: um climax tocando (a trilha abaixa ate ele acabar)
 
@@ -146,23 +161,26 @@ void som_atualiza(float dt)
     float alvo = rufando && ligado ? 1 : 0;
     vol_rufo += (alvo - vol_rufo) * fminf(1, dt / (rufando ? 0.06f : 0.12f));
     if (IsSoundPlaying(*rolando)) {
-        SetSoundVolume(*rolando, vol_rufo * 0.8f);
+        SetSoundVolume(*rolando, vol_rufo * 0.8f * ganho(SOM_CANAL_EFEITOS));
         if (!rufando && vol_rufo < 0.01f) StopSound(*rolando);
     }
     // O giro entra na hora e sai em 80 ms, quando o ultimo rolo trava.
     float ag = girando && ligado ? 1 : 0;
     vol_giro += (ag - vol_giro) * fminf(1, dt / (girando ? 0.02f : 0.08f));
     if (IsSoundPlaying(giro)) {
-        SetSoundVolume(giro, vol_giro);
+        SetSoundVolume(giro, vol_giro * ganho(SOM_CANAL_EFEITOS));
         if (!girando && vol_giro < 0.01f) StopSound(giro);
     }
-    // Na hora da verdade a trilha quase some; nos climax (Jackpot, fim da
+    // Na cadeia de efeitos do fim da rodada a trilha abaixa, para cada poder
+    // se ouvir; na hora da verdade quase some; nos climax (Jackpot, fim da
     // partida, premio) abaixa enquanto eles tocam. Depois volta sem pressa.
     if (t_climax > 0) t_climax -= dt;
-    float d = suspense ? 0.08f : (rufando || girando ? 0.45f : 1);
+    float d = cadeia ? 0.5f : 1;
+    if (rufando || girando) d = fminf(d, 0.45f);
+    if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
-    duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.4f ? 0.9f : 0.25f));
-    SetMusicVolume(trilha, 0.35f * duck * (ligado && musica ? 1 : 0));
+    duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
+    SetMusicVolume(trilha, 0.35f * duck * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0));
     UpdateMusicStream(trilha);
 }
 
@@ -179,6 +197,7 @@ static void toca(int s, float tom)
     }
     Sound voz = e->voz[v][e->prox++ % VOZES];
     SetSoundPitch(voz, tom);
+    SetSoundVolume(voz, ganho(canal_de(s)));
     PlaySound(voz);
     if (s == SOM_JACKPOT || s == SOM_FIM || s == SOM_DERROTA || s == SOM_PREMIO) {
         float dur = voz.stream.sampleRate ? (float)voz.frameCount / voz.stream.sampleRate / tom : 1;
@@ -188,7 +207,7 @@ static void toca(int s, float tom)
 
 void som_toca(int s)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n || !nivel[canal_de(s)]) return;
     // Batidas, pousos e fichas variam um pouco de tom.
     bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
                  s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA;
@@ -198,7 +217,7 @@ void som_toca(int s)
 // Um semitom e a raiz duodecima de 2: doze sobem uma oitava.
 void som_toca_tom(int s, int semitons)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n) return;
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n || !nivel[canal_de(s)]) return;
     toca(s, powf(2.0f, semitons / 12.0f));
 }
 
@@ -237,10 +256,15 @@ void som_giro(bool on)
 }
 
 void som_suspense(bool on) { suspense = on; }
+void som_cadeia(bool on)   { cadeia = on; }
+
+void som_volume(int c, int n)
+{
+    if (c >= 0 && c < SOM_CANAIS) nivel[c] = n < 0 ? 0 : n > SOM_NIVEIS ? SOM_NIVEIS : n;
+}
+int som_volume_de(int c) { return c >= 0 && c < SOM_CANAIS ? nivel[c] : 0; }
 
 bool som_liga(bool on)  { ligado = on && pronto; return ligado; }
-bool som_ligado(void)   { return ligado; }
+// Ligado: o aparelho tem som e algum canal se ouve.
+bool som_ligado(void)   { return ligado && (nivel[0] || nivel[1] || nivel[2]); }
 bool som_falhou(void)   { return falhou; }
-
-bool som_musica(bool on) { musica = on; return musica; }
-bool som_musica_ligada(void) { return musica; }

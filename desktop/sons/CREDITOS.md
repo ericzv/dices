@@ -18,8 +18,9 @@ instrumentos.
   sinos tubulares**: banco FluidR3 GM, de Frank Wen, na versão do projeto
   [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts), de
   Benjamin Gleitzman. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
-- **Laser, ventania, vassourinha e shaker da trilha, e o chiado do fogo**:
-  sintetizados no próprio projeto.
+- **Laser, ventania, vassourinha e shaker da trilha, o chiado do fogo, as asas
+  do Vampiro, o assobio do Sabotador e a areia da Ampulheta**: sintetizados no
+  próprio projeto.
 
 As composições (a trilha e as vinhetas) são do jogo.
 

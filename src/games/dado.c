@@ -94,6 +94,7 @@
 #include "dado/menus.inc"         // a abertura e os menus
 #include "dado/tutorial.inc"      // como jogar
 #include "dado/avisos.inc"        // os avisos sobre a mesa
+#include "dado/painel_som.inc"    // o painel do som: os volumes (tecla M)
 #include "dado/desafio.inc"       // o Modo Desafiante
 #include "dado/bolsa.inc"         // o pop-up da bolsa: os dados de um jogador
 #include "dado/quadro.inc"        // o quadro de cada fase

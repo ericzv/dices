@@ -32,6 +32,7 @@ caindo).
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |
+| Poderes com som próprio | `vampiro`, `sabotador`, `coveiro`, `autofagia`, `ampulheta` | asas e presas, catraca e assobio murchando, pazadas e sino, dentada e marimba, areia grão a grão e celesta |
 
 Quem tem variantes (`bate_0`…`bate_3` etc.) é sorteado no jogo, sem repetir
 a anterior, e com um pouco de variação de tom.

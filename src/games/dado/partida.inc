@@ -269,6 +269,7 @@ static void poe_nomes(void)
 }
 
 static void abre_loja(void);
+static void som_le_volumes(void);        // painel_som.inc
 
 void dado_inicia(int n_partidas)
 {
@@ -288,6 +289,11 @@ void dado_inicia(int n_partidas)
         char b[8];
         gfx_letra_maior(salva_le("letra", b, sizeof b) > 0 && b[0] == '1');
         letra_lida = true;
+    }
+    static bool som_lido;
+    if (!som_lido) {                     // os volumes do painel do som (tecla M)
+        som_le_volumes();
+        som_lido = true;
     }
     if (!tremor_lido) {                  // e se o tremor da tela foi desligado
         char b[8];
@@ -1114,8 +1120,8 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
     [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
     [EF_MARTELO] = { SOM_TIRA, 2 },           [EF_PIRATA] = { SOM_TIRA, -3 },
-    [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_AD_LOBO, 0 },
-    [EF_OURICO] = { SOM_TIRA, 5 },            [EF_SABOTADOR] = { SOM_AD_CORRETIVO, 0 },
+    [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_VAMPIRO, 0 },
+    [EF_OURICO] = { SOM_TIRA, 5 },            [EF_SABOTADOR] = { SOM_SABOTADOR, 0 },
     [EF_FICHAS] = { SOM_FICHA, 0 },           [EF_COBRADOR] = { SOM_FICHA, -2 },
     [EF_POTE] = { SOM_FICHA, 3 },             [EF_FICHA_VELHA] = { SOM_MOEDA_POUSA, 0 },
     [EF_SORTE] = { SOM_MOEDA_BATE, 0 },       [EF_TREVO] = { SOM_AD_ESTRELINHA, 0 },
@@ -1127,13 +1133,13 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_ESPELHO] = { SOM_AD_REFLEXIVO, 0 },   [EF_TRONO] = { SOM_AD_DOURADO, 0 },
     [EF_DESAFIANTE] = { SOM_AD_DOURADO, 3 },  [EF_CAPITAO] = { SOM_VALIDO2, 0 },
     [EF_CHECKPOINT] = { SOM_VALIDO3, 0 },     [EF_PUXA] = { SOM_VALIDO2, 4 },
-    [EF_COVEIRO] = { SOM_AD_CHUMBO, 0 },      [EF_MISERICORDIA] = { SOM_ESTRELA, 0 },
+    [EF_COVEIRO] = { SOM_COVEIRO, 0 },        [EF_MISERICORDIA] = { SOM_ESTRELA, 0 },
     [EF_MARTIR] = { SOM_ESTRELA, -4 },        [EF_PRISMA] = { SOM_AD_PURPURINA, 0 },
     [EF_SEGURANCA] = { SOM_BATE_DADO, 0 },    [EF_DOMINO] = { SOM_BATE_DADO, 3 },
-    [EF_COLECIONADOR] = { SOM_AD_FIGURINHA, 0 }, [EF_AUTOFAGIA] = { SOM_AD_RATOEIRA, 0 },
+    [EF_COLECIONADOR] = { SOM_AD_FIGURINHA, 0 }, [EF_AUTOFAGIA] = { SOM_AUTOFAGIA, 0 },
     [EF_ASSOMBRA] = { SOM_AD_TRANSPARENTE, 0 }, [EF_PACTO] = { SOM_AD_TRANSPARENTE, -3 },
     [EF_TRENO] = { SOM_SINO, -4 },            [EF_REVOLVER] = { SOM_TIRO, 0 },
-    [EF_AMPULHETA] = { SOM_AD_RASPADINHA, 0 }, [EF_PAR] = { SOM_VALIDO3, 3 },
+    [EF_AMPULHETA] = { SOM_AMPULHETA, 0 },    [EF_PAR] = { SOM_VALIDO3, 3 },
     [EF_SOLITARIO] = { SOM_EFEITO, -7 },      [EF_HEXA] = { SOM_EFEITO, 5 },
     [EF_RANCOR] = { SOM_EFEITO, -9 },         [EF_MEDIA] = { SOM_EFEITO, -4 },
     [EF_JINGLE] = { SOM_SINO, 0 },            [EF_PANETONE] = { SOM_PRESENTE, 0 },

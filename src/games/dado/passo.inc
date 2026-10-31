@@ -12,6 +12,7 @@ static bool menu_sem_partida(void)
 static void menu_passo(float dt);        // as fichas do menu (menus.inc)
 static void foto_clique(float antes, float agora);
 static void poeira_passo(float dt);       // o pouso: a poeira e o achatado (mesa.inc)
+static bool som_passo(float dt_real);     // o painel do som e a trilha na cadeia (painel_som.inc)
 
 void dado_passo(float dt)
 {
@@ -19,6 +20,7 @@ void dado_passo(float dt)
     t_relogio = fmodf(t_relogio + dt_real, 1000.0f);
     if (t_trans >= 0) t_trans += dt_real;            // a transicao entre telas (quadro.inc)
     t_detalhe += dt_real;
+    bool som_espera = som_passo(dt_real);
     if (t_aperto > 0) t_aperto -= dt_real;
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     float vel = modo != M_ONLINE && !menu_sem_partida() ? VEL_FATOR[velocidade] : 1;
@@ -27,6 +29,7 @@ void dado_passo(float dt)
         t_bolsa_pop += dt_real;
         if (modo != M_ONLINE) dt = 0;
     }
+    if (som_espera && modo != M_ONLINE) dt = 0;   // e o painel do som tambem
     if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_universo > 0) t_aviso_universo -= dt_real;

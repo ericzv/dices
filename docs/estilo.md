@@ -99,6 +99,25 @@ A moeda e a ficha usam o disco das fichas (`ficha_disco`).
 - Moedas maiores (a fileira do saque) usam `moeda_r` com o raio que
   precisarem, no mesmo material.
 
+### Amuletos
+
+- Cada amuleto é um medalhão (`desenha_amuleto`) com três partes:
+  - o aro de latão em rampa;
+  - o campo afundado no escuro da cor dele (`tinta_escura`);
+  - o símbolo em pixels.
+- O símbolo é desenhado à mão numa grade de 11 x 11 (`AM_DESENHO`, em
+  `desafio/amuletos.inc`). Cada letra é uma cor da paleta (`AM_CHAVE`): por
+  exemplo `j`/`J` madeira, `o`/`O`/`y` latão e ouro, `r`/`R` vermelho,
+  `u`/`U` azul, `w`/`W` marfim e `K` o quase preto. O `.` é vazio.
+- A luz vem de cima, à esquerda: a beira de cima e a da esquerda num tom
+  acima, a de baixo e a da direita num tom abaixo.
+- O contorno não se desenha: ele sai sozinho, com 1 px na tela e os cantos
+  aparados.
+- O símbolo cresce em degraus inteiros (1x na faixa, 2x e 3x na escolha, 4x
+  na vitrine).
+- Abaixo de r = 8 (no canto dos dados), vai só o símbolo, sem medalhão.
+- Apagado (o que ainda está fechado), tudo passa para os tons do feltro.
+
 ## 6. Texto
 
 | Fonte                   | Constante              | Uso |

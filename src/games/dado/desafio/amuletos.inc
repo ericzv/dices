@@ -92,365 +92,231 @@ static void sorteia_amuletos(uint8_t *out, int n, unsigned rar)
     }
 }
 
-// O medalhao: aro de latao, fundo escuro na cor do amuleto e o simbolo.
+// O medalhao: o aro de latao em rampa (a luz de cima a esquerda), o campo
+// afundado no escuro da cor do amuleto e o simbolo em pixels, desenhado a
+// mao numa grade de 11 x 11 so com cores da paleta, com o contorno escuro
+// em volta. O simbolo cresce em degraus inteiros (1x na faixa, 2x e 3x na
+// escolha, 4x na vitrine); pequeno demais para o aro (r < 8), vai so o
+// simbolo. Apagado: tudo nos tons do feltro, pelo claro e escuro de cada pixel.
+#define AM_PX 11
+// As cores do desenho: cada letra e um tom da paleta (docs/estilo.md).
+static const char AM_CHAVE[] = "KeEzZcCsSWwmngGhHjJlLoOyqQprRPfFbBuUaAiIvVtT";
+static const uint16_t AM_COR[] = { RGB(14, 14, 12), RGB(36, 32, 29), RGB(62, 56, 50), RGB(96, 88, 80), RGB(128, 120, 112), RGB(70, 76, 88), RGB(104, 112, 124), RGB(140, 150, 164), RGB(184, 194, 208), RGB(252, 248, 236), RGB(238, 230, 212), RGB(204, 194, 172), RGB(166, 154, 132), RGB(88, 152, 84), RGB(130, 204, 112), RGB(56, 32, 20), RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64), RGB(106, 86, 44), RGB(150, 122, 62), RGB(190, 156, 86), RGB(228, 194, 106), RGB(246, 222, 132), RGB(66, 18, 24), RGB(118, 30, 38), RGB(150, 62, 80), RGB(190, 56, 60), RGB(208, 98, 108), RGB(226, 164, 168), RGB(214, 112, 44), RGB(238, 162, 74), RGB(26, 34, 62), RGB(56, 86, 150), RGB(96, 134, 196), RGB(168, 204, 230), RGB(72, 150, 138), RGB(96, 182, 198), RGB(54, 36, 74), RGB(102, 74, 138), RGB(150, 112, 160), RGB(206, 180, 218), RGB(240, 200, 164), RGB(200, 142, 104) };
+static const char *const AM_DESENHO[A_N][AM_PX] = {
+    [A_LUVA] = {
+        "..Jj.Jj.Jj.", "..Jj.Jj.Jj.", "..Jj.Jj.Jj.", "..JjjJjjJjj",
+        "J.Jjjjjjjjj", "JJjjjjjjjjH", ".JjjjjjjjjH", "..jjjjjjjjH",
+        "..HHHHHHHHh", "..hohohohoh", "..hhhhhhhhh",
+    },
+    [A_REDE] = {
+        "y.........O", "oU.......UL", "o.UUUUUUU.L", "oU.U.U.U.UL",
+        "o.U.U.U.U.L", "ou.u.u.u.uL", "o.u.u.u.u.L", "o..u.u.u..L",
+        "o...uuu...L", "o.........L", "o.........L",
+    },
+    [A_BOLSA] = {
+        "..J.J.J.J..", "..JjJjJjJ..", "...jjjjj...", "..yOOOOOL..",
+        "..JjjjjjH..", ".JJjjjjjjH.", ".Jjjjjjjjjh", "JJjjjjjjjjh",
+        "Jjjjjjjjjhh", ".jjjjjjjhh.", "..hhhhhhh..",
+    },
+    [A_OURO] = {
+        ".yyyyyyyyy.", "yyOOOOOOOOo", "yOOOOOOllOo", "yOOOOOOllOo",
+        "yOOOOOOOOOo", "yOOOOllOOOo", "yOOOOllOOOo", "yOOOOOOOOOo",
+        "yOllOOOOOOo", "yOllOOOOOOo", ".ooooooooo.",
+    },
+    [A_PENA] = {
+        "..........w", ".......VVw.", "......Vvwv.", ".....VvwvI.",
+        "....VvwvI..", "...VvwvI...", "...vwvI....", "..vwvI.....",
+        "..wv.......", ".w.........", "w..........",
+    },
+    [A_CONTRATO] = {
+        "wwwwwwww...", "wmmmmmmmn..", "wmEEEEEmn..", "wmmmmmmmn..",
+        "wmEEEEmmn..", "wmmmmJjmn..", "wmEEJjjjn..", "wmmmmjjmn..",
+        "wmmmmmmmnhJ", "wmzEzzEmhJ.", "nnnnnnnnj..",
+    },
+    [A_IMA] = {
+        ".SS.....SS.", ".Ss.....Ss.", ".Rr.....rQ.", ".Rr.....rQ.",
+        ".Rr.....rQ.", ".Rr.....rQ.", ".Rrr...rrQ.", "..Rrrrrrrq.",
+        "...rrrrrq..", "....QQQq...", "...........",
+    },
+    [A_COURACA] = {
+        "SSSSSSsssss", "SWWWWWsssCc", "SWSSSSsssCc", "SWSSSSsssCc",
+        "SWSSSSsssCc", ".SSSSSsssc.", ".SSSSSsssc.", "..SSSSssc..",
+        "...SSSsc...", "....SSc....", ".....c.....",
+    },
+    [A_COFRE] = {
+        "SSSSSSSSSSc", "SCCCCCCCCCc", "SC.......Cc", "SC.SSSs..Cc",
+        "SC.SKsc.oCc", "SC.ssCc.oCc", "SC..cc...Cc", "SC.......Cc",
+        "SCCCCCCCCCc", "Scccccccccc", ".c.......c.",
+    },
+    [A_RESERVA] = {
+        "...........", "...RRRRR...", ".RRPRwRRRr.", ".RRRRRRRRr.",
+        "..rrrrrrr..", ".QwQQwQQwQq", ".gGwGGwGGgg", ".ggggggggg.",
+        ".BuBBuBBuBb", ".BBBBBBBBB.", "...........",
+    },
+    [A_POTE] = {
+        "...yO.yO...", "..yOoyOoO..", ".yOoOyOoOo.", "JJJJJJJJJJj",
+        ".Jjjjjjjjh.", "Jjjjjjjjjjh", "Jjjjjjjjjjh", "Jjjjjjjjjjh",
+        ".jjjjjjjjh.", "..hhhhhhh..", "..h.....h..",
+    },
+    [A_FURADO] = {
+        "..Z.Z.Z.Z..", "..ZzZzZzZ..", "...zzzzz...", "..yOOOOOL..",
+        "..ZzzzzzE..", ".ZZzzzzzzE.", ".ZzzzzzzzzE", "ZZzzzzzzzzE",
+        "ZzzzzzKKzEE", ".zzzzzKKE..", "..EEEE...Ww",
+    },
+    [A_FERRADURA] = {
+        ".SS.....Ss.", "SSs.....sCC", "SKs.....sKC", "SSs.....sCC",
+        "SKs.....sKC", "SSs.....sCc", "SSSs...sCCc", ".SKSsssKCc.",
+        "..SSssCCc..", "...sCCCc...", "...........",
+    },
+    [A_PESADO] = {
+        "ssssssssC..", "sCCCCCCCCc.", "sCwCCCwCCcc", "sCCCCCCCCcc",
+        "sCwCCCwCCcc", "sCCCCCCCCcc", "sCwCCCwCCcc", "sCCCCCCCCcc",
+        "Ccccccccccc", ".cccccccccc", "...........",
+    },
+    [A_RELOGIO] = {
+        "....OyL....", ".....o.....", "...yyyyO...", "..yywnwOO..",
+        ".yywwKwwOL.", ".ywwwKwwmL.", ".ynwwrKKnL.", ".ywwwwmmmL.",
+        ".OOwwmmmLL.", "..OOmnmLL..", "...LLLLL...",
+    },
+    [A_CARTOLA] = {
+        "...EEEEEe..", "...Eeeeee..", "...Eeeeee..", "...Eeeeee..",
+        "...Eeeeee..", "...Eeeeee..", "...VvvvvI..", "...IIIIIi..",
+        "EEEEEEEEEEe", ".eeeeeeeee.", "...........",
+    },
+    [A_COROA] = {
+        "...........", ".y...y.....", ".O..yOy.yy.", ".OO.OoOOo..",
+        ".OOoOoOoO..", ".OOOOOOOOo.", ".OrOOuOOrL.", ".OOOOOOOOL.",
+        ".LLLLLLLLl.", "...........", "...........",
+    },
+    [A_CUPOM] = {
+        "...........", "AAAAAAAAAAa", "AWWWWWWWWWa", "AWaaWWWaWWa",
+        ".WaaWWaWWW.", ".WWWWaWWWW.", ".WWWaWWaaW.", "AWWaWWWaaWa",
+        "AWWWWWWWWWa", "Aaaaaaaaaaa", "...........",
+    },
+    [A_PRENSA] = {
+        "SSSSSSSSSs.", "....Ss.....", "CCCCCCCCCCc", "Scccccccccc",
+        "..wwwwwwm..", "..wKwwwwm..", "..wwwKwwm..", "..wwwwwKm..",
+        "..mmmmmmm..", "SSSSSSSSSSc", "cc.......cc",
+    },
+    [A_TACA] = {
+        "..yOOOOOL..", "o.yOOOOOL.L", "o.yOOOOOL.L", ".oyOOOOOLL.",
+        "...yOOOL...", "....OOL....", ".....o.....", ".....o.....",
+        "...yOOOL...", "..LLLLLLL..", "...........",
+    },
+    [A_CORINGA] = {
+        ".wwwwwwwwm.", ".wRwwwwwwm.", ".wwwwrwwwm.", ".wwwwrwwwm.",
+        ".wrrrrrrrm.", ".wwrrrrrwm.", ".wwwrrrwwm.", ".wwrrwrrwm.",
+        ".wrwwwwwrm.", ".wwwwwwwRm.", ".mmmmmmmmm.",
+    },
+    [A_DUPLA] = {
+        "WWWWWw.....", "WKwwwm.....", "Wwwwwm.....", "WwwwKm.....",
+        "Wwwwwm.....", "wmmmKWWWWWw", ".....WKwwwm", ".....Wwwwwm",
+        ".....WwwwKm", ".....Wwwwwm", ".....wmmmmm",
+    },
+    [A_SELO] = {
+        "...........", "wwwwwwwwwn.", "wmmmmmmmmn.", "wmzzzzzmmn.",
+        "wmmmmmmmmn.", "wmzzzzRRrn.", "wmmmmRPRrQ.", "wmzzzRRrrQ.",
+        "nnnnnrrrQQ.", ".....QQQQ..", "...........",
+    },
+    [A_PEDAGIO] = {
+        "Fy.........", "Ff.........", "Zz.........", "ZzwwRRwwRRw",
+        "ZzwwrrwwrrW", "ZzQQQQQQQQq", "Zz.........", "Zz.........",
+        "Zz.........", "Zz.........", "zEE........",
+    },
+    [A_DESFORRA] = {
+        "........FFF", ".........FF", "F.......FfF", "FF.....Ff.f",
+        ".FF...Ff...", "..FF.Ff....", "...FFf.....", "....f......",
+        "...........", "...........", "...........",
+    },
+    [A_MAU_OLHADO] = {
+        "....uuu....", "..uuuuuuB..", ".uuuWWWBBB.", ".uuWUUUwBB.",
+        "uuWUWbUAwBB", "uuWUbbbAwBB", "uuWUUbAAwBB", ".uBwAAAwBB.",
+        ".BBBwwwBBB.", "..BBBBBBB..", "....BBB....",
+    },
+    [A_CRISANTEMO] = {
+        "....O.y....", "..yyOyyOO..", ".O.yOyyO.y.", ".OOyyyOyyO.",
+        "yyyOyyoyooo", ".yyyyLoOOO.", "OOOyooooOOO", ".yyyOOOOoo.",
+        ".y.OOOoO.o.", "..OoOOoOO..", "....O.o....",
+    },
+    [A_TRINCA] = {
+        ".....A.....", "....UAa....", "...AAaaa...", "....aaa....",
+        "....aaa....", "...aa.aa...", "..Aa...aA..", ".UAa...UAa.",
+        "AAaaaaAAaaa", ".aaa...aaa.", "..a.....a..",
+    },
+    [A_PIRAMIDE] = {
+        ".....y.....", "....FyF....", "....FyFf...", "...FFyFf...",
+        "...FFyfff..", "..FFFyfff..", "..FFFyffff.", ".FFFFyffff.",
+        ".FFFFyfffjj", "FFFFFyfjjj.", "jjjjjjjj...",
+    },
+    [A_ABRE_ALAS] = {
+        "..BBBBBB...", "..BbbbbbB..", "UUUUUUbbB..", "UuuuuBbbB..",
+        "UuWuuBbbB..", "UuuuuBbB...", "UuuWuB.....", "UuuuuB.UuB.",
+        "BBBBBB.uWB.", ".......BBB.", "...........",
+    },
+    [A_SAIDEIRA] = {
+        ".WwWwWwW...", "WWwWwWwWw..", "SwwwwwwmS..", "SyOOOOOoSSS",
+        "SyOOyOOoS.S", "SyOOOOOoS.S", "SyOyOOOoS.S", "SyOOOOyoSSS",
+        "SyOOOOOoS..", "SoooooooS..", "SSSSSSSSS..",
+    },
+    [A_CORRIMAO] = {
+        "y..........", "OOy........", "L.OOy......", "L...OOy....",
+        "AAA.L.OOy..", "aaa.L...OOy", "aaaAAA.L..O", "aaaaaa.L...",
+        "aaaaaaAAA..", "aaaaaaaaa..", "aaaaaaaaaAA",
+    },
+    [A_COLAR] = {
+        "W.........W", "m.........m", "W.........W", ".m.......m.",
+        ".W.......W.", "..m.....m..", "..WmWmWmW..", ".....m.....",
+        "....WWw....", "....Wwm....", ".....m.....",
+    },
+};
+
+static uint16_t am_tom(char c, bool apagado)
+{
+    const char *p = strchr(AM_CHAVE, c);
+    uint16_t k = p ? AM_COR[p - AM_CHAVE] : C_BARRA;
+    if (!apagado) return k;
+    int b = brilho_de(k), i = 1 + b * 4 / 256;           // o claro e o escuro, no feltro
+    return feltro_tons[i > 4 ? 4 : i];
+}
+
+// O simbolo do amuleto a com o centro em (cx, cy), cada pixel do desenho
+// em e x e. O contorno e sempre de 1 px na tela, do lado de fora de cada
+// beira do desenho; nos cantos de fora ele nao se fecha (o canto aparado).
+static void am_simbolo(int cx, int cy, int e, int a, bool apagado)
+{
+    const char *const *d = AM_DESENHO[a];
+    int x0 = cx - AM_PX * e / 2, y0 = cy - AM_PX * e / 2;
+#define AM_CHEIO(x, y) ((x) >= 0 && (y) >= 0 && (x) < AM_PX && (y) < AM_PX && d[y][x] != '.')
+    for (int y = 0; y < AM_PX; y++)
+        for (int x = 0; x < AM_PX; x++) {
+            if (!AM_CHEIO(x, y)) continue;
+            int px = x0 + x * e, py = y0 + y * e;
+            gfx_rect(px, py, e, e, am_tom(d[y][x], apagado));
+            if (!AM_CHEIO(x - 1, y)) gfx_rect(px - 1, py, 1, e, C_BARRA);
+            if (!AM_CHEIO(x + 1, y)) gfx_rect(px + e, py, 1, e, C_BARRA);
+            if (!AM_CHEIO(x, y - 1)) gfx_rect(px, py - 1, e, 1, C_BARRA);
+            if (!AM_CHEIO(x, y + 1)) gfx_rect(px, py + e, e, 1, C_BARRA);
+        }
+#undef AM_CHEIO
+}
+
 static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
 {
-    uint16_t cor = AMULETO[a].cor;
-    if (apagado) cor = gfx_mistura(cor, C_FELTRO, 60);
-    float u = r / 10.0f;
-    int U = (int)(u + 0.5f) > 0 ? (int)(u + 0.5f) : 1;
-    gfx_disco(x + 1, y + 2, r, C_SOMBRA);
-    gfx_disco(x, y, r, apagado ? C_FELTRO2 : C_LATAO_ESC);
-    gfx_disco(x, y, r - 1, apagado ? C_FELTRO2 : C_LATAO);
-    // O fundo: a cor do amuleto no escuro (a Saideira, no roxo da noite, para nao
-    // se confundir com o Abre-Alas).
-    uint16_t medalha = a == A_SAIDEIRA && !apagado ? RGB(54, 36, 74) : gfx_mistura(cor, C_BARRA, 78);
-    gfx_disco(x, y, r - (r > 10 ? 3 : 2), medalha);
-    uint16_t claro = apagado ? C_FELTRO2 : C_MARFIM, esc = gfx_mistura(cor, C_BARRA, 45);
-#define PX(v) (x + (int)lroundf((v) * u))
-#define PY(v) (y + (int)lroundf((v) * u))
-    switch (a) {
-    case A_LUVA:                                       // luva de couro: palma, dedos e polegar
-        gfx_rect(PX(-3), PY(-1), 6 * U, 5 * U, cor);
-        for (int i = 0; i < 4; i++) gfx_rect(PX(-3 + i * 1.6f), PY(-5 + (i == 0 || i == 3 ? 1 : 0)), U + 1, 4 * U, cor);
-        gfx_linha_grossa(PX(-3), PY(2), PX(-5.2f), PY(-0.5f), U + 1, cor);
-        gfx_rect(PX(-3), PY(3), 6 * U, U, esc);                           // punho
-        break;
-    case A_REDE:                                       // malha de rede num aro
-        for (int i = -1; i <= 1; i++) {
-            int h = (int)(sqrtf(25 - i * 3 * i * 3) * u);
-            gfx_rect(PX(i * 3), y - h, 1, 2 * h, claro);
-            gfx_rect(x - h, PY(i * 3), 2 * h, 1, claro);
+    if (r < 8) { am_simbolo(x, y, 1, a, apagado); return; }
+    int aro = r >= 30 ? 5 : r >= 16 ? 3 : 2, ri = r - aro;
+    ficha_sombra(x + 1, y + 2, r);
+    ficha_disco(x, y, r, r, apagado ? C_FELTRO2 : C_LATAO);     // o aro, com o contorno e a luz
+    // O campo, afundado: a beira de cima a esquerda na sombra do aro.
+    uint16_t campo = apagado ? C_FELTRO_ESC : tinta_escura(AMULETO[a].cor);
+    for (int j = -ri; j <= ri; j++)
+        for (int i = -ri; i <= ri; i++) {
+            float d = sqrtf((float)(i * i + j * j));
+            if (d > ri + 0.5f) continue;
+            bool labio = d > ri - (aro > 2 ? 1.5f : 0.7f) && i + j < -ri / 3;
+            gfx_pixel(x + i, y + j, labio ? C_BARRA : campo);
         }
-        for (int i = 0; i < 24; i++) {
-            float an = i * 0.2618f;
-            gfx_rect(x + (int)(cosf(an) * 5 * u), y + (int)(sinf(an) * 5 * u), U, U, cor);
-        }
-        break;
-    case A_BOLSA: case A_FURADO: {                     // saco de couro amarrado (furado: perdendo um dado)
-        uint16_t c = a == A_BOLSA ? cor : gfx_mistura(cor, C_EBANO_B, 25);
-        uint16_t dobra = gfx_mistura(c, C_BARRA, 35), luz = gfx_mistura(c, C_BRANCO, 30);
-        gfx_disco(x, PY(1.6f), (int)(4.0f * u + 0.5f), c);                     // fundo cheio
-        float vx[4] = { (float)PX(-1.0f), (float)PX(1.0f), (float)PX(3.7f), (float)PX(-3.7f) };
-        float vy[4] = { (float)PY(-2.8f), (float)PY(-2.8f), (float)PY(0.8f), (float)PY(0.8f) };
-        poligono(vx, vy, 4, c);                                                  // ombros
-        // boca franzida, abrindo para fora acima do cordao
-        float bx[7] = { (float)PX(-1.0f), (float)PX(1.0f), (float)PX(3.0f), (float)PX(1.5f), (float)x, (float)PX(-1.5f), (float)PX(-3.0f) };
-        float by[7] = { (float)PY(-2.9f), (float)PY(-2.9f), (float)PY(-5.0f), (float)PY(-4.3f), (float)PY(-5.2f), (float)PY(-4.3f), (float)PY(-5.0f) };
-        poligono(bx, by, 7, luz);
-        gfx_rect(PX(-1.5f), PY(-3.2f), (int)(3.0f * u) + 1, U + 1, C_OURO);    // cordao
-        gfx_disco(PX(1.9f), PY(-2.4f), U, C_OURO);                             // ponta do laco
-        gfx_linha_grossa(PX(-0.6f), PY(-1.2f), PX(-1.4f), PY(3.6f), 1, dobra);  // dobras do couro
-        gfx_linha_grossa(PX(1.0f), PY(-0.8f), PX(1.6f), PY(3.2f), 1, dobra);
-        gfx_disco(PX(-1.8f), PY(0.4f), U, luz);
-        if (a == A_FURADO) {
-            gfx_disco(PX(1.4f), PY(4.4f), U, C_BARRA);                         // o furo
-            gfx_rect(PX(2.6f), PY(5.6f), U + 1, U + 1, C_MARFIM);              // um dado escapando
-        }
-        break;
-    }
-    case A_OURO:                                       // um d6 de ouro mostrando 3
-        gfx_rect(PX(-3.6f), PY(-3.6f), (int)(7.2f * u) + 1, (int)(7.2f * u) + 1, C_LATAO_ESC);
-        gfx_rect(PX(-3.2f), PY(-3.2f), (int)(6.4f * u) + 1, (int)(6.4f * u) + 1, C_OURO);
-        for (int i = -1; i <= 1; i++) gfx_disco(PX(i * 1.8f), PY(-i * 1.8f), (int)(0.7f * u + 0.5f), C_LATAO_ESC);
-        break;
-    case A_PENA: {                                     // pena na diagonal
-        float vx[6] = { (float)PX(-4), (float)PX(-1), (float)PX(3), (float)PX(4.2f), (float)PX(1.5f), (float)PX(-2.5f) };
-        float vy[6] = { (float)PY(4), (float)PY(-1.5f), (float)PY(-4.5f), (float)PY(-4.2f), (float)PY(0), (float)PY(3.2f) };
-        poligono(vx, vy, 6, cor);
-        gfx_linha_grossa(PX(-4.6f), PY(4.6f), PX(3.6f), PY(-3.6f), 1, claro);
-        break;
-    }
-    case A_CONTRATO:                                   // papel escrito e o lacre
-        gfx_rect(PX(-3.4f), PY(-4.4f), (int)(6.8f * u) + 1, (int)(8.8f * u) + 1, claro);
-        for (int i = 0; i < 3; i++) gfx_rect(PX(-2.4f), PY(-3 + i * 1.8f), (int)((i == 2 ? 3 : 4.8f) * u), 1, C_EBANO_B);
-        gfx_disco(PX(1.8f), PY(2.8f), (int)(1.6f * u + 0.5f), cor);
-        break;
-    case A_IMA:                                        // ima de ferradura
-        gfx_disco(x, PY(1), (int)(4.2f * u), cor);
-        gfx_disco(x, PY(1), (int)(1.8f * u), gfx_mistura(cor, C_BARRA, 78));
-        gfx_rect(PX(-1.8f), PY(-4.4f), (int)(3.6f * u) + 1, (int)(5.4f * u), gfx_mistura(cor, C_BARRA, 78));
-        gfx_rect(PX(-4.2f), PY(-4.4f), (int)(2.4f * u) + 1, (int)(5.4f * u), cor);
-        gfx_rect(PX(1.8f), PY(-4.4f), (int)(2.4f * u) + 1, (int)(5.4f * u), cor);
-        gfx_rect(PX(-4.2f), PY(-4.4f), (int)(2.4f * u) + 1, (int)(1.4f * u) + 1, C_PRATA);
-        gfx_rect(PX(1.8f), PY(-4.4f), (int)(2.4f * u) + 1, (int)(1.4f * u) + 1, C_PRATA);
-        break;
-    case A_COURACA: {                                  // escudo de aco
-        float vx[5] = { (float)PX(-4), (float)PX(4), (float)PX(4), (float)x, (float)PX(-4) };
-        float vy[5] = { (float)PY(-4.4f), (float)PY(-4.4f), (float)PY(0.5f), (float)PY(5), (float)PY(0.5f) };
-        poligono(vx, vy, 5, cor);
-        gfx_rect(x, PY(-3.6f), U, (int)(7.6f * u), gfx_mistura(cor, C_BRANCO, 40));
-        gfx_rect(PX(-3.2f), PY(-1.2f), (int)(6.4f * u) + 1, U, gfx_mistura(cor, C_BRANCO, 40));
-        break;
-    }
-    case A_COFRE:                                      // cofre com segredo
-        gfx_rect(PX(-4.2f), PY(-4.2f), (int)(8.4f * u) + 1, (int)(8.4f * u) + 1, gfx_mistura(cor, C_BARRA, 30));
-        gfx_rect(PX(-3.6f), PY(-3.6f), (int)(7.2f * u) + 1, (int)(7.2f * u) + 1, C_CHUMBO);
-        gfx_disco(x, y, (int)(2.4f * u + 0.5f), C_PRATA);
-        gfx_disco(x, y, (int)(1.2f * u + 0.5f), C_CHUMBO);
-        gfx_rect(x, PY(-2.4f), 1, U + 1, C_BARRA);
-        break;
-    case A_RESERVA:                                    // tres fichas empilhadas de lado
-        for (int i = 0; i < 3; i++) {
-            int fx = PX(-2.2f + i * 2.2f), fy = PY(2.2f - i * 2.2f), fr = (int)(2.8f * u + 0.5f);
-            uint16_t c = i == 0 ? C_VERMELHO : (i == 1 ? cor : C_AZUL);
-            gfx_disco(fx, fy, fr + 1, C_BARRA);
-            gfx_disco(fx, fy, fr, c);
-            gfx_disco(fx, fy, fr > 3 ? fr - 2 : 1, gfx_mistura(c, C_BRANCO, 35));
-            gfx_disco(fx, fy, fr > 4 ? fr - 3 : 1, c);
-        }
-        break;
-    case A_POTE: {                                     // panela de bronze cheia de moedas
-        uint16_t bronze = gfx_mistura(cor, C_BARRA, 30), borda = gfx_mistura(cor, C_BRANCO, 20);
-        gfx_disco(x, PY(1.4f), (int)(3.8f * u + 0.5f), bronze);                // bojo
-        gfx_rect(PX(-3.8f), PY(-1.4f), (int)(7.6f * u) + 1, (int)(2.8f * u), bronze);
-        static const float M[5][2] = { {-2.2f,-2.0f}, {0,-2.6f}, {2.2f,-2.0f}, {-1.1f,-3.6f}, {1.1f,-3.6f} };
-        for (int i = 0; i < 5; i++) {                                          // moedas por cima
-            int mr = (int)(1.3f * u + 0.5f);
-            gfx_disco(PX(M[i][0]), PY(M[i][1]), mr, C_LATAO_ESC);
-            gfx_disco(PX(M[i][0]), PY(M[i][1]), mr > 1 ? mr - 1 : 1, C_OURO);
-        }
-        gfx_rect(PX(-4.4f), PY(-1.6f), (int)(8.8f * u) + 1, U + 1, borda);       // aba da panela
-        gfx_rect(PX(-3.0f), PY(4.8f), U + 1, U, bronze);                       // pezinhos
-        gfx_rect(PX(2.0f), PY(4.8f), U + 1, U, bronze);
-        break;
-    }
-    case A_FERRADURA: {                                // ferradura aberta para cima, com os cravos
-        uint16_t fundo = gfx_mistura(cor, C_BARRA, 78), som = gfx_mistura(cor, C_BARRA, 35);
-        gfx_disco(x, PY(0.8f), (int)(4.6f * u + 0.5f), cor);
-        gfx_disco(x, PY(0.8f), (int)(2.2f * u + 0.5f), fundo);
-        gfx_rect(PX(-2.2f), PY(-5.0f), (int)(4.4f * u) + 1, (int)(5.8f * u), fundo);
-        gfx_rect(PX(-4.6f), PY(-3.6f), (int)(2.4f * u) + 1, (int)(4.4f * u), cor);
-        gfx_rect(PX(2.2f), PY(-3.6f), (int)(2.4f * u) + 1, (int)(4.4f * u), cor);
-        gfx_rect(PX(-5.0f), PY(-4.4f), (int)(3.0f * u) + 1, (int)(1.2f * u) + 1, som);    // as pontas viradas
-        gfx_rect(PX(2.0f), PY(-4.4f), (int)(3.0f * u) + 1, (int)(1.2f * u) + 1, som);
-        static const float C[6][2] = { {-3.4f,-1.8f}, {-3.4f,1.2f}, {-1.4f,3.8f}, {1.4f,3.8f}, {3.4f,1.2f}, {3.4f,-1.8f} };
-        for (int i = 0; i < 6; i++) gfx_rect(PX(C[i][0]) - (U > 1), PY(C[i][1]) - (U > 1), U, U, C_EBANO_B);
-        break;
-    }
-    case A_PESADO: {                                   // d6 de ferro, grosso, mostrando 6
-        int l = (int)(7.0f * u) + 1, d = U + 1;
-        int x0 = PX(-4.0f), y0 = PY(-3.4f);
-        gfx_rect(x0 + d, y0 + d, l, l, gfx_mistura(cor, C_BARRA, 55));        // a espessura
-        gfx_rect(x0, y0, l, l, gfx_mistura(cor, C_BRANCO, 30));
-        gfx_rect(x0, y0, l, U, gfx_mistura(cor, C_BRANCO, 60));
-        for (int i = 0; i < 3; i++) {
-            gfx_rect(PX(-2.4f), PY(-2.0f + i * 2.0f), U, U, C_EBANO_B);
-            gfx_rect(PX(0.8f), PY(-2.0f + i * 2.0f), U, U, C_EBANO_B);
-        }
-        break;
-    }
-    case A_RELOGIO:                                    // relogio de bolso com a coroa em cima
-        gfx_rect(PX(-0.8f), PY(-5.4f), (int)(1.6f * u) + 1, (int)(1.4f * u) + 1, cor);
-        gfx_disco(x, PY(0.6f), (int)(4.4f * u + 0.5f), cor);
-        gfx_disco(x, PY(0.6f), (int)(3.4f * u + 0.5f), claro);
-        for (int i = 0; i < 4; i++) {
-            float an = i * 1.5708f;
-            gfx_rect(x + (int)(cosf(an) * 2.7f * u), PY(0.6f) + (int)(sinf(an) * 2.7f * u), 1, 1, esc);
-        }
-        gfx_linha_grossa(x, PY(0.6f), x, PY(-1.8f), 1, C_EBANO_B);
-        gfx_linha_grossa(x, PY(0.6f), PX(1.8f), PY(1.4f), 1, C_EBANO_B);
-        break;
-    case A_CARTOLA:                                    // cartola preta com fita
-        gfx_rect(PX(-4.8f), PY(2.6f), (int)(9.6f * u) + 1, (int)(1.4f * u) + 1, C_EBANO_B);
-        gfx_rect(PX(-2.8f), PY(-4.4f), (int)(5.6f * u) + 1, (int)(7.2f * u), C_EBANO_B);
-        gfx_rect(PX(-2.8f), PY(0.6f), (int)(5.6f * u) + 1, (int)(1.4f * u) + 1, cor);
-        gfx_rect(PX(-2.2f), PY(-3.8f), U, (int)(3.6f * u), gfx_mistura(C_EBANO_B, C_BRANCO, 25));
-        break;
-    case A_COROA: {                                    // coroa amassada: uma ponta torta
-        float vx[9] = { (float)PX(-4.2f), (float)PX(-4.2f), (float)PX(-2.4f), (float)PX(-1.2f), (float)x,
-                        (float)PX(1.4f), (float)PX(4.0f), (float)PX(4.2f), (float)PX(4.2f) };
-        float vy[9] = { (float)PY(3.2f), (float)PY(-3.8f), (float)PY(-0.6f), (float)PY(-4.4f), (float)PY(-0.6f),
-                        (float)PY(-0.4f), (float)PY(-2.6f), (float)PY(0), (float)PY(3.2f) };
-        poligono(vx, vy, 9, cor);
-        gfx_rect(PX(-4.2f), PY(1.6f), (int)(8.4f * u) + 1, U, esc);
-        gfx_rect(PX(-2.6f), PY(2.4f), U, U, C_VERMELHO);
-        gfx_rect(PX(1.8f), PY(2.4f), U, U, C_AZUL);
-        break;
-    }
-    case A_CUPOM:                                      // tiquete com recortes e o sinal de %
-        gfx_rect(PX(-4.6f), PY(-3.0f), (int)(9.2f * u) + 1, (int)(6.0f * u) + 1, claro);
-        gfx_disco(PX(-4.6f), y, (int)(1.2f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
-        gfx_disco(PX(4.6f), y, (int)(1.2f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
-        gfx_linha_grossa(PX(1.6f), PY(-1.8f), PX(-1.6f), PY(1.8f), 1, cor);
-        gfx_rect(PX(-1.8f), PY(-1.8f), U + 1, U + 1, cor);
-        gfx_rect(PX(1.0f), PY(1.0f), U + 1, U + 1, cor);
-        break;
-    case A_PRENSA: {                                   // prensa apertando um dado que mostra 3
-        uint16_t ferro = gfx_mistura(cor, C_BARRA, 25);
-        gfx_rect(PX(-3.0f), PY(-5.4f), (int)(6.0f * u) + 1, U, esc);              // manivela
-        gfx_rect(PX(-0.5f), PY(-5.0f), U, (int)(2.0f * u), esc);                  // fuso
-        gfx_rect(PX(-4.2f), PY(-3.2f), (int)(8.4f * u) + 1, (int)(1.2f * u) + 1, ferro);
-        gfx_rect(PX(-4.2f), PY(3.4f), (int)(8.4f * u) + 1, (int)(1.2f * u) + 1, ferro);
-        int l = (int)(5.0f * u) + 1;
-        gfx_rect(PX(-2.5f), PY(-1.8f), l, l, C_MARFIM);
-        for (int i = -1; i <= 1; i++) gfx_rect(PX(i * 1.4f) - U / 2, PY(0.7f - i * 1.4f) - U / 2, U, U, C_EBANO_B);
-        break;
-    }
-    case A_TACA:                                       // taca com alcas, haste e base
-        gfx_disco(x, PY(-2.4f), (int)(3.4f * u + 0.5f), cor);
-        gfx_rect(PX(-3.4f), PY(-4.6f), (int)(6.8f * u) + 1, (int)(2.2f * u), cor);
-        gfx_disco(PX(-3.8f), PY(-2.6f), (int)(1.4f * u + 0.5f), esc);
-        gfx_disco(PX(3.8f), PY(-2.6f), (int)(1.4f * u + 0.5f), esc);
-        gfx_disco(PX(-3.8f), PY(-2.6f), (int)(0.6f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
-        gfx_disco(PX(3.8f), PY(-2.6f), (int)(0.6f * u + 0.5f), gfx_mistura(cor, C_BARRA, 78));
-        gfx_disco(x, PY(-2.4f), (int)(3.4f * u + 0.5f), cor);
-        gfx_rect(PX(-0.6f), PY(0.8f), (int)(1.2f * u) + 1, (int)(2.4f * u), esc);
-        gfx_rect(PX(-2.6f), PY(3.2f), (int)(5.2f * u) + 1, (int)(1.4f * u) + 1, cor);
-        gfx_rect(PX(-1.8f), PY(-4.0f), U, (int)(2.6f * u), gfx_mistura(cor, C_BRANCO, 45));
-        break;
-    case A_CORINGA: {                                  // carta com a estrela do coringa
-        gfx_rect(PX(-3.2f), PY(-4.6f), (int)(6.4f * u) + 1, (int)(9.2f * u) + 1, claro);
-        float vx[10], vy[10];
-        for (int i = 0; i < 10; i++) {
-            float an = -1.5708f + i * 0.6283f, rr = (i & 1 ? 1.1f : 2.6f) * u;
-            vx[i] = x + cosf(an) * rr; vy[i] = y + sinf(an) * rr;
-        }
-        poligono(vx, vy, 10, cor);
-        gfx_rect(PX(-2.6f), PY(-4.0f), U, U, cor);
-        gfx_rect(PX(1.8f), PY(3.2f), U, U, cor);
-        break;
-    }
-    case A_SELO: {                                     // nota promissoria com o lacre de cera
-        gfx_rect(PX(-4.2f), PY(-4.0f), (int)(7.4f * u) + 1, (int)(7.0f * u) + 1, claro);
-        for (int i = 0; i < 3; i++) gfx_rect(PX(-3.2f), PY(-2.8f + i * 1.6f), (int)((i == 2 ? 2.6f : 5.2f) * u), 1, C_EBANO_B);
-        int sr = (int)(2.2f * u + 0.5f);
-        gfx_disco(PX(2.0f), PY(2.2f), sr + 1, gfx_mistura(cor, C_BARRA, 40));
-        gfx_disco(PX(2.0f), PY(2.2f), sr, cor);
-        uint16_t rl[4];
-        rampa_de(gfx_na_paleta(cor), rl);
-        gfx_disco(PX(2.0f), PY(2.2f), sr > 2 ? sr - 2 : 1, rl[1]);   // o miolo do lacre, um tom abaixo
-        gfx_disco(PX(1.5f), PY(1.6f), U > 1 ? U - 1 : 1, gfx_mistura(cor, C_BRANCO, 45));
-        break;
-    }
-    case A_PEDAGIO: {                                  // cancela listrada, baixada, presa no poste
-        gfx_rect(PX(-4.4f), PY(-2.0f), (int)(1.6f * u) + 1, (int)(6.6f * u), gfx_mistura(cor, C_BARRA, 35));   // poste
-        gfx_rect(PX(-4.8f), PY(4.2f), (int)(2.4f * u) + 1, U, gfx_mistura(cor, C_BARRA, 50));
-        int y0 = PY(-2.0f), h = (int)(2.4f * u) + 1;
-        for (int i = 0; i < 4; i++)                                        // braco: vermelho e branco
-            gfx_rect(PX(-2.8f + i * 1.9f), y0, (int)(1.9f * u) + 1, h, i & 1 ? C_MARFIM : C_VERMELHO);
-        gfx_disco(PX(-3.6f), PY(-0.8f), U + 1, C_EBANO_B);                // o eixo
-        gfx_disco(PX(-3.6f), PY(-3.4f), U, cor);                          // a lampada
-        break;
-    }
-    case A_DESFORRA: {                                 // a volta: desce curto, sobe longo, com a ponta
-        int g = U + 1;
-        gfx_linha_grossa(PX(-4.2f), PY(-1.6f), PX(-1.6f), PY(2.8f), g, gfx_mistura(cor, C_BARRA, 30));
-        gfx_linha_grossa(PX(-1.6f), PY(2.8f), PX(3.0f), PY(-3.0f), g, cor);
-        float vx[3] = { (float)PX(4.4f), (float)PX(0.6f), (float)PX(4.0f) };
-        float vy[3] = { (float)PY(-4.6f), (float)PY(-3.6f), (float)PY(-0.6f) };
-        poligono(vx, vy, 3, cor);
-        gfx_disco(PX(-1.6f), PY(2.8f), U, claro);                        // o ponto mais baixo
-        break;
-    }
-    case A_MAU_OLHADO:                                 // o olho turco: aneis concentricos
-        gfx_disco(x, y, (int)(4.8f * u + 0.5f), cor);
-        gfx_disco(x, y, (int)(3.4f * u + 0.5f), claro);
-        gfx_disco(x, y, (int)(2.3f * u + 0.5f), gfx_mistura(cor, C_BRANCO, 45));
-        gfx_disco(x, y, (int)(1.2f * u + 0.5f), C_EBANO_B);
-        gfx_rect(PX(-0.9f), PY(-1.0f), U, U, C_BRANCO);
-        break;
-    case A_CRISANTEMO: {                               // o brasao do crisantemo: petalas de ponta redonda
-        uint16_t fundo = gfx_mistura(cor, C_BARRA, 40);
-        float r1 = 1.5f * u, r2 = 4.0f * u;
-        int g = (int)(0.8f * u) > 1 ? (int)(0.8f * u) : 1, rp = (int)(0.6f * u + 0.5f);
-        for (int i = 0; i < 12; i++) {
-            float an = i * 0.5236f + 0.2618f;
-            uint16_t c = i & 1 ? gfx_mistura(cor, C_BARRA, 22) : cor;
-            int px = x + (int)lroundf(cosf(an) * r2), py = y + (int)lroundf(sinf(an) * r2);
-            gfx_linha_grossa(x + (int)lroundf(cosf(an) * r1), y + (int)lroundf(sinf(an) * r1), px, py, g, c);
-            if (rp > 0) gfx_disco(px, py, rp, c);
-        }
-        gfx_disco(x, y, (int)(1.8f * u + 0.5f), fundo);
-        gfx_disco(x, y, (int)(1.1f * u + 0.5f), claro);
-        break;
-    }
-    case A_TRINCA: {                                   // tres circulos em triangulo, ligados
-        static const float T[3][2] = { { 0, -2.6f }, { -2.8f, 2.2f }, { 2.8f, 2.2f } };
-        int cr = (int)(1.9f * u + 0.5f);
-        for (int i = 0; i < 3; i++)
-            gfx_linha_grossa(PX(T[i][0]), PY(T[i][1]), PX(T[(i + 1) % 3][0]), PY(T[(i + 1) % 3][1]), U, esc);
-        for (int i = 0; i < 3; i++) {
-            gfx_disco(PX(T[i][0]), PY(T[i][1]), cr + 1, esc);
-            gfx_disco(PX(T[i][0]), PY(T[i][1]), cr, cor);
-            gfx_disco(PX(T[i][0] - 0.5f), PY(T[i][1] - 0.5f), cr > 3 ? cr / 3 : 1, gfx_mistura(cor, C_BRANCO, 50));
-        }
-        break;
-    }
-    case A_PIRAMIDE: {                                 // o tetraedro do d4: uma face na luz, outra na sombra
-        float lx[3] = { (float)x, (float)PX(-4.6f), (float)PX(0.8f) }, ly[3] = { (float)PY(-4.8f), (float)PY(3.0f), (float)PY(4.6f) };
-        float rx[3] = { (float)x, (float)PX(0.8f), (float)PX(4.6f) }, ry[3] = { (float)PY(-4.8f), (float)PY(4.6f), (float)PY(3.0f) };
-        poligono(lx, ly, 3, gfx_mistura(cor, C_BRANCO, 22));
-        poligono(rx, ry, 3, gfx_mistura(cor, C_BARRA, 38));
-        gfx_linha_grossa(x, PY(-4.8f), PX(0.8f), PY(4.6f), 1, claro);          // a aresta da frente
-        break;
-    }
-    case A_ABRE_ALAS: {                                // a fila: o primeiro grande, com o dobro atras; os outros miudos
-        int l = (int)(4.2f * u) + 1, m = (int)(2.2f * u) + 1;
-        uint16_t meio = gfx_mistura(cor, C_BARRA, 30);
-        gfx_rect(PX(-3.4f), PY(-3.8f), l, l, meio);                            // o dobro, atras
-        gfx_rect(PX(-3.4f), PY(-3.8f), l, U, cor);
-        gfx_rect(PX(-4.8f), PY(-2.4f), l, l, cor);                             // o primeiro
-        gfx_rect(PX(-4.8f), PY(-2.4f), l, U, gfx_mistura(cor, C_BRANCO, 45));
-        gfx_rect(PX(0.8f), PY(-0.2f), m, m, meio);                             // os que vem depois
-        gfx_rect(PX(3.4f), PY(-0.2f), m, m, meio);
-        break;
-    }
-    case A_SAIDEIRA: {                                 // o copo da ultima: chope com colarinho
-        float gx[4] = { (float)PX(-3.2f), (float)PX(3.2f), (float)PX(2.3f), (float)PX(-2.3f) };
-        float gy[4] = { (float)PY(-4.4f), (float)PY(-4.4f), (float)PY(4.8f), (float)PY(4.8f) };
-        poligono(gx, gy, 4, C_PRATA);                                          // o vidro
-        float bx[4] = { (float)PX(-2.6f), (float)PX(2.6f), (float)PX(1.8f), (float)PX(-1.8f) };
-        float by[4] = { (float)PY(-1.4f), (float)PY(-1.4f), (float)PY(4.0f), (float)PY(4.0f) };
-        poligono(bx, by, 4, C_OURO);                                           // o chope
-        gfx_rect(PX(-2.8f), PY(-3.8f), (int)(5.6f * u) + 1, (int)(2.6f * u) + 1, C_MARFIM);   // o colarinho
-        for (int i = -1; i <= 1; i++) gfx_disco(PX(i * 1.8f), PY(-3.9f), (int)(1.0f * u + 0.5f), C_BRANCO);
-        gfx_rect(PX(-0.6f), PY(1.2f), U, U, C_AMARELO);                        // bolhas
-        gfx_rect(PX(0.8f), PY(2.6f), U, U, C_AMARELO);
-        gfx_rect(PX(-1.4f), PY(-1.0f), U, (int)(4.6f * u), gfx_mistura(C_OURO, C_BRANCO, 40));   // a luz no vidro
-        break;
-    }
-    case A_CORRIMAO: {                                 // a escada descendo e o corrimao por cima
-        for (int i = 0; i < 3; i++) {
-            int dx = PX(-4.6f + i * 3.0f), dy = PY(-0.6f + i * 1.6f);
-            gfx_rect(dx, dy, (int)(3.0f * u) + 1, PY(4.4f) - dy, i ? gfx_mistura(cor, C_BARRA, 20 * i) : cor);
-            gfx_rect(dx, dy, (int)(3.0f * u) + 1, U, gfx_mistura(cor, C_BRANCO, 45));   // a quina do degrau
-            int px = PX(-3.1f + i * 3.0f);
-            gfx_rect(px, PY(-3.1f + i * 1.6f), U, dy - PY(-3.1f + i * 1.6f), C_LATAO);  // o balaustre
-        }
-        gfx_linha_grossa(PX(-4.8f), PY(-4.0f), PX(4.4f), PY(0.9f), U, C_OURO);    // o corrimao, de latao
-        break;
-    }
-    case A_COLAR: {                                    // o fio de perolas em U e a maior pendurada
-        uint16_t perola = apagado ? C_FELTRO2 : RGB(238, 234, 244), aro = gfx_mistura(cor, C_BARRA, 72);
-        int ip = (int)(0.85f * u + 0.5f) > 0 ? (int)(0.85f * u + 0.5f) : 1;
-        for (int i = 0; i < 7; i++) {
-            float an = 0.22f + i * (3.1416f - 0.44f) / 6;           // de uma ponta a outra, por baixo
-            int px = PX(cosf(an) * 4.6f), py = PY(-3.4f + sinf(an) * 5.0f);
-            gfx_disco(px, py, ip + 1, aro);                        // o aro escuro separa as perolas
-            gfx_disco(px, py, ip, perola);
-            if (ip >= 2 && !apagado) gfx_rect(px - ip / 2, py - ip / 2, 1, 1, C_BRANCO);
-        }
-        int gr = (int)(1.5f * u + 0.5f) > 1 ? (int)(1.5f * u + 0.5f) : 1;
-        gfx_disco(x, PY(3.7f), gr + 1, aro);
-        gfx_disco(x, PY(3.7f), gr, perola);
-        if (!apagado) gfx_rect(x - gr / 2, PY(3.7f) - gr / 2, U, U, C_BRANCO);   // o brilho
-        break;
-    }
-    case A_DUPLA:                                      // dois dados iguais, mostrando 2
-        for (int i = 0; i < 2; i++) {
-            int lado = (int)(4.6f * u) + 1;
-            int dx = i ? PX(0.2f) : PX(-4.8f), dy = i ? PY(-0.6f) : PY(-3.8f);
-            gfx_rect(dx, dy, lado, lado, C_EBANO_B);
-            gfx_rect(dx + 1, dy + 1, lado - 2, lado - 2, C_MARFIM);
-            int m = lado / 4 + (U > 1);
-            gfx_rect(dx + m, dy + m, U, U, C_EBANO_B);
-            gfx_rect(dx + lado - m - U, dy + lado - m - U, U, U, C_EBANO_B);
-        }
-        break;
-    }
-#undef PX
-#undef PY
+    int e = (int)((1.5f * (ri + 1) - 2) / AM_PX);           // o maior degrau que nao invade muito o aro
+    am_simbolo(x, y, e < 1 ? 1 : e, a, apagado);
 }
 
 // Os amuletos da run, miudos, numa linha (na faixa da partida): os que
@@ -462,9 +328,11 @@ static void amuletos_faixa(int j, int x, int y)
     for (int a = 0; a < A_N && n < 9; a++) {
         if (!(amul[j] >> a & 1) || (j == 1 && a != op_amul_extra)) continue;
         int cx = x + n * 19;
-        if (am_brilho[a] > 0) {
-            int rr = 10 + (int)((1.2f - am_brilho[a]) * 6);
-            gfx_disco(cx, y, rr, gfx_mistura(C_OURO, C_BARRA, (int)((1.2f - am_brilho[a]) * 70)));
+        if (am_brilho[a] > 0) {                // o halo de quem agiu: abre e apaga, descendo na rampa do ouro
+            static const uint16_t HALO[4] = { C_AMARELO, C_OURO, C_LATAO, C_LATAO_ESC };
+            float q = 1.2f - am_brilho[a];
+            int rr = 10 + (int)(q * 6), k = (int)(q * 3.3f);
+            gfx_disco(cx, y, rr, HALO[k > 3 ? 3 : k]);
         }
         desenha_amuleto(cx, y + respira(n + 2 * j), 8, a, false);   // respira, cada um no seu tempo
         dica_zona(cx - 9, y - 9, 18, 18, DICA_AMULETO, a);

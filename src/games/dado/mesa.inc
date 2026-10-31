@@ -454,10 +454,10 @@ static void faixa_jogador(int j)
 }
 
 // Saquinho de couro fechado por um cordao dourado; (cx, cy) e o meio dele.
+// Como os outros icones: o contorno escuro e o couro em tons da paleta.
 static void icone_bolsa(int cx, int cy)
 {
-    const uint16_t borda = RGB(58, 36, 20), couro = RGB(150, 98, 54);
-    const uint16_t claro = RGB(186, 132, 80), escuro = RGB(116, 72, 38);
+    const uint16_t borda = C_BARRA, couro = C_TERRA, claro = RGB(200, 142, 104), escuro = C_MADEIRA_CLR;
     gfx_disco(cx, cy + 3, 7, borda);                        // o bojo
     gfx_disco(cx, cy + 3, 6, couro);
     gfx_disco(cx + 1, cy + 5, 4, escuro);                   // sombra embaixo, a direita
@@ -2288,12 +2288,12 @@ static void desenha_evento(void)
                 gfx_disco(lx, ly, 2, C_BRANCO);
             }
         } else if (t == D_SOLITARIO) {
-            // Um facho de luz de cima, so nele.
+            // Um facho de luz de cima, so nele: o feltro sobe na rampa.
             float q = p < 0.3f ? p / 0.3f : (p > 0.8f ? (1 - p) / 0.2f : 1);
             int topo = ay - 70, base = ay + R_DADO;
             for (int yy = topo; yy < base; yy += 2) {
                 int meia = 6 + (yy - topo) * 22 / (base - topo);
-                gfx_rect_alfa(ax - meia, yy, 2 * meia, 2, C_HALO, (int)(40 * q));
+                ui_clareia(ax - meia, yy, 2 * meia, 2, 1.6f * q);
             }
         } else if (t == D_CAPITAO && e->mascara) {
             // Um galao dourado sai dele em arco e vai pousar em cada dado

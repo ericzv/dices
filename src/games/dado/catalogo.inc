@@ -119,11 +119,6 @@ static void faixas_colecao(int atual, int total)
 #define VIT_X   160
 #define VIT_Y   (CENTRO - 22)
 #define VIT_CHAO (VIT_Y + 56)                   // onde fica a poca de luz
-static int feltro_idx(uint16_t c)
-{
-    for (int i = 0; i < 6; i++) if (feltro_tons[i] == c) return i;
-    return -1;
-}
 static void luz_no_feltro(int cx, int cy, int rx, int ry, float tons)
 {
     uint16_t *fb = display_fb();
@@ -331,7 +326,7 @@ static void desenha_detalhe(void)
     if (fase != detalhe_fase) { detalhe = -1; return; }   // a partida andou
     int tipo = detalhe;
     const int x0 = 70, y0 = 70 + ui_entra(t_detalhe, 0, UI_ENTRA_CARTAO / 2), w = GFX_W - 140, h = 220;
-    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 140);
+    ui_escurece(0, 0, GFX_W, GFX_H, 140);
     ui_cartao_aceso(x0, y0, w, h, true, cor_rar(tipo));
     int cx = x0 + 78, cy = y0 + 96;
     for (int y = -7; y <= 7; y++)                                    // a sombra no cartao, pontilhada

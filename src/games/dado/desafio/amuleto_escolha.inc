@@ -60,7 +60,7 @@ static void desenha_troca_amuleto(void)
 
 static void desenha_amuleto_run(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_run(0);
     if (run.am_novo) { desenha_troca_amuleto(); return; }
     bool selo = run.am_volta == AV_SELO;

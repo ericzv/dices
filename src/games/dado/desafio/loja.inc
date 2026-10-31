@@ -652,7 +652,7 @@ static void lj_porquinho(void)
         float q = (t - i * 0.05f) / 0.45f;
         if (q <= 0 || q >= 1) continue;
         int x = cx + (int)((MESA_X0 + 30 - cx) * q), y = cy - (int)(sinf(q * 3.1416f) * 22) + (int)((MESA_Y0 + 24 - cy) * q);
-        moeda_r(x, y, 5);
+        moeda_r(x, y, ICONE_P);
     }
     if (t < 0.9f) {
         snprintf(s, sizeof s, "+%d", porco_saiu);
@@ -681,7 +681,7 @@ static void lj_carimbo(int cx, int cy, float t, const char *s)
     int w = gfx_largura(s, 1) + 16 + 2 * cresce, h = TXT_H + 6 + cresce;
     int x = cx - w / 2, y = cy - h / 2;
     for (int k = 0; k < 2; k++) gfx_moldura(x + k * 2 - 1, y + k - 1, w, h, 2, k ? C_VINHO_CLR : C_SOMBRA);
-    gfx_rect_alfa(x + 2, y + 2, w - 4, h - 4, C_SOMBRA, 120);
+    ui_escurece(x + 2, y + 2, w - 4, h - 4, 120);
     txt_c(cx + 1, y + 3 + cresce / 2, s, C_VINHO_CLR, true);
 }
 
@@ -708,7 +708,7 @@ static void lj_cartao_dado(int i)
     nome_no_cartao(x + dx, y + 68, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, cw - 8);
     ui_selo_c(x + dx, y + 84, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
     if (ja) {
-        gfx_rect_alfa(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, C_SOMBRA, 110);
+        ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 22, t_lj_vendido[i] > 0 ? t_lj_vendido[i] : 1, "VENDIDO");   // ja vendido: assentado
     } else lj_preco(x, y + LJ_CH - 24, pr, da, nega);
     zona_clique(x - cw / 2, LJ_Y, cw, LJ_CH, &cursor, i, KEY_ENTER);
@@ -857,7 +857,7 @@ static void lj_cartao_pacote(void)
     txt_c(x + dx, y + 62, "Pacote", cur ? C_MARFIM : C_MARFIM_S, false);
     txt_c(x + dx, y + 75, NOME_GRUPO[g], cor_grupo(g), true);
     if (usado) {
-        gfx_rect_alfa(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, C_SOMBRA, 110);
+        ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 17, t_pac_carimbo > 0 ? t_pac_carimbo : 1, "ABERTO");
     } else lj_preco(x, y + LJ_CH - 24, preco_pacote(), run.moedas >= preco_pacote(), nega);
 }
@@ -889,7 +889,7 @@ static void lj_cartao_adesivo(void)
     if (gfx_largura(nome, 1) <= cw - 8) txt_c(x + dx, y + 75, nome, ADESIVO[a].luz, true);
     else nome_no_cartao(x + dx, y + 78, nome, ADESIVO[a].luz, cw - 6);
     if (usado) {
-        gfx_rect_alfa(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, C_SOMBRA, 110);
+        ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 17, t_lj_ad_carimbo > 0 ? t_lj_ad_carimbo : 1, "COLADO");
     } else lj_preco(x, y + LJ_CH - 24, preco_adesivo(a), run.moedas >= preco_adesivo(a), nega);
 }
@@ -920,7 +920,7 @@ static void lj_servico(int s)
         gfx_linha_grossa(ix - 8, iy - 10, ix - 1, iy - 2, 2, C_BARRA);
         gfx_linha_grossa(ix - 1, iy - 2, ix - 5, iy + 4, 2, C_BARRA);
         gfx_linha_grossa(ix - 5, iy + 4, ix + 4, iy + 11, 2, C_BARRA);
-        if (!pode) gfx_rect_alfa(ix - 16, iy - 16, 32, 32, C_SOMBRA, 120);
+        if (!pode) ui_escurece(ix - 16, iy - 16, 32, 32, 120);
     }
     const char *nome = s == 0 ? "Trocar a vitrine" : "Tirar um dado";
     txt(x0 + dx + 54, y0 + 8, nome, cur ? C_MARFIM : C_MARFIM_S, true);
@@ -1105,7 +1105,7 @@ static void lj_cola_dados(void)
         if (cur) ui_selecao(x - sel, y - sel, 2 * sel, 2 * sel, ADESIVO[a].luz);
         if (cur && cabe) brilho_passa = mola_brilho();
         peca_parada((float)x, (float)(y - (cur ? mola_px() : 0)), 17 * f, col[i], cola_dono());
-        if (!cabe) gfx_rect_alfa(x - sel, y - sel, 2 * sel, 2 * sel, C_SOMBRA, 150);
+        if (!cabe) ui_escurece(x - sel, y - sel, 2 * sel, 2 * sel, 150);
         if (cur) gfx_rect(x - meio, y + (int)(23 * f), 2 * meio, 3, ADESIVO[a].luz);
         else marca_rar(x, y + (int)(23 * f), col[i].tipo);
         zona_clique(x - sel, y - sel, 2 * sel, 2 * sel, &cursor, i, KEY_ENTER);
@@ -1379,7 +1379,7 @@ static void lj_desenha_pacote(void)
 
 static void desenha_loja_run(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 90);
     faixa_run(0);
     if (lj_tirando) { lj_desenha_tirando(); return; }
     if (lj_colando == 1) { lj_cola_dados(); return; }

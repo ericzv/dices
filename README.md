@@ -317,8 +317,13 @@ desktop/      a plataforma PC: janela, teclado, som e ícone
 web/          a página do navegador e a rede do modo online (MQTT)
 tests/        simulador de partidas, regras, Desafiante e conferência dos sons
 tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
+docs/         o guia de estilo (estilo.md): paleta, rampas, kit de interface e ícones
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC
 ```
+
+Antes de desenhar uma tela, um dado ou um ícone novo, veja `docs/estilo.md`:
+a paleta fechada, a luz de cima à esquerda, o pontilhado, o kit de interface
+e os tamanhos dos ícones pequenos.
 
 A versão do Cardputer (tela 240x135) ficou em `cardputer/dado.c`: tem as
 mesmas regras e a IA, com o desenho do aparelho. Uma regra nova precisa ir

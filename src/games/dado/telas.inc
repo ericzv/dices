@@ -687,7 +687,7 @@ static void desenha_premio(void)
 {
     jogador_t *p = &J[vez];
     char t[64];
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     if (premio_colando()) { premio_cola_desenha(); return; }   // o adesivo ganho: o dado e o lado
 
     if (removendo) {
@@ -845,7 +845,7 @@ static void fichas_c(int cx, int y, int valor, const char *sufixo, uint16_t c)
 static void desenha_loja(void)
 {
     jogador_t *p = &J[vez];
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 90);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "LOJA DA CASA", C_LATAO);
     char t[64];
     snprintf(t, sizeof t, " fichas  ·  %s compra", p->nome);
@@ -863,7 +863,7 @@ static void desenha_loja(void)
         peca_parada((float)x, yb + 32 + bob, 22, loja[i], vez);
         if (ja) {
             txt_c(x, yb + 64, "comprado", C_TEXTO_M, false);
-            gfx_rect_alfa(x - 47, yb + 1, 94, 90, C_SOMBRA, 120);
+            ui_escurece(x - 47, yb + 1, 94, 90, 120);
         } else {
             fichas_c(x, yb + 64, pr, "", da ? C_OURO : C_VINHO_CLR);
         }

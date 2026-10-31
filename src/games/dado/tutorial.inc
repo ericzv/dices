@@ -267,10 +267,10 @@ static void desenha_tutorial(void)
                 ? "< anterior  ·  ENTER ou > próxima  ·  ESC menu"
                 : "< anterior  ·  ENTER volta ao menu");
     // O escuro da pagina em volta da mini-mesa, que fica com o feltro aceso.
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, TUT_Y - 3 - MESA_Y0, C_SOMBRA, 110);
-    gfx_rect_alfa(MESA_X0, TUT_Y + TUT_H + 3, MESA_X1 - MESA_X0, MESA_Y1 - TUT_Y - TUT_H - 3, C_SOMBRA, 110);
-    gfx_rect_alfa(MESA_X0, TUT_Y - 3, TUT_X - 3 - MESA_X0, TUT_H + 6, C_SOMBRA, 110);
-    gfx_rect_alfa(TUT_X + TUT_W + 3, TUT_Y - 3, MESA_X1 - TUT_X - TUT_W - 3, TUT_H + 6, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, TUT_Y - 3 - MESA_Y0, 110);
+    ui_escurece(MESA_X0, TUT_Y + TUT_H + 3, MESA_X1 - MESA_X0, MESA_Y1 - TUT_Y - TUT_H - 3, 110);
+    ui_escurece(MESA_X0, TUT_Y - 3, TUT_X - 3 - MESA_X0, TUT_H + 6, 110);
+    ui_escurece(TUT_X + TUT_W + 3, TUT_Y - 3, MESA_X1 - TUT_X - TUT_W - 3, TUT_H + 6, 110);
     uint16_t rm[4];
     rampa_de(C_LATAO, rm);
     ui_contorno(TUT_X - 3, TUT_Y - 3, TUT_W + 6, TUT_H + 6, C_BARRA);

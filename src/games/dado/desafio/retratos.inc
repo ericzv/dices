@@ -16,7 +16,14 @@ static void rp(int x, int y, uint16_t c)
 static void rr(int x, int y, int w, int h, uint16_t c) { for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) rp(x + i, y + j, c); }
 
 static uint16_t sombra(uint16_t c) { return gfx_mistura(c, C_BARRA, 28); }
-static uint16_t luz(uint16_t c)    { return gfx_mistura(c, C_BRANCO, 22); }
+// O brilho: o tom de cima na rampa da cor como ela sai na paleta (misturar
+// com branco e arredondar perdia o brilho, ou levava a pele para o dourado).
+static uint16_t luz(uint16_t c)
+{
+    uint16_t r[4];
+    rampa_de(gfx_na_paleta(c), r);
+    return r[3];
+}
 
 // Rosto: oval da linha hy em diante, orelhas, olhos, sobrancelhas, nariz e
 // boca. expr: EX_* (falas.inc) - calma, brava, alegre, preocupada; e as de

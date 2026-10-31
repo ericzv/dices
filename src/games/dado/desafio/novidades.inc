@@ -390,7 +390,7 @@ static void nov_resumo(float desde)
 
 static void desenha_novidades(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 130);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 130);
     faixa_run(0);
     float q;
     int etapa, i = nov_atual(&etapa, &q), cx = GFX_W / 2;

@@ -32,16 +32,6 @@ static float sai_mola(float q)
     return 1 + 2.70158f * u * u * u + 1.70158f * u * u;
 }
 
-static void pontilhado(int x0, int y0, int x1, int y1, uint16_t c, int esp, int passo)
-{
-    float dx = (float)(x1 - x0), dy = (float)(y1 - y0);
-    int n = (int)(sqrtf(dx * dx + dy * dy) / passo);
-    for (int i = 0; i <= n; i++) {
-        int x = x0 + (int)(dx * i / (n ? n : 1)), y = y0 + (int)(dy * i / (n ? n : 1));
-        gfx_rect(x - esp / 2, y - esp / 2, esp, esp, c);
-    }
-}
-
 static const char *nome_dif(int d);
 static uint16_t cor_dif(int d);
 // voltar: a tecla do botao "<" (0: sem botao).
@@ -103,21 +93,260 @@ static void nome_no_cartao(int cx, int y, const char *s, uint16_t c, int w)
     else gfx_texto(cx - gfx_largura(s, GFX_MIUDO) / 2, y + 2, s, c, GFX_MIUDO, false);
 }
 
-// As quatro mesas do salao em fila, da esquerda para a direita: o retrato de
-// quem senta em cada uma, a dificuldade e quanto ela paga. As vencidas
-// apagam, com o visto; a da vez pulsa, e a ficha do jogador anda ate ela.
-static const int SALAO_X[DES_PASSOS] = { 104, 248, 392, 536 };
-static const int SALAO_X3[3] = { 150, 320, 490 };   // o salao de tres mesas
-#define SALAO_BASE 139                   // onde os retratos assentam
-#define SALAO_LINHA 112                  // a altura do caminho entre eles
+// A planta do salao, vista de cima: o piso de cada andar, o tapete vermelho
+// que entra pela porta e vai ate o chefe, e as mesas, cada uma com a poca de
+// luz da luminaria dela. Quem joga senta atras da mesa (a moldura do retrato
+// faz o espaldar da cadeira); o chefe fica ao fundo, numa mesa maior, no
+// estrado. A vencida apaga a luz e leva o visto; a da vez pulsa, e a ficha do
+// jogador anda pelo tapete ate ela.
+#define PL_X0     24                     // a planta, por fora das paredes
+#define PL_X1     616
+#define PL_Y0     54
+#define PL_Y1     216
+#define PL_PAREDE 4
+#define TAP_Y0    194                    // o tapete
+#define TAP_Y1    208
+#define TAP_MEIO  ((TAP_Y0 + TAP_Y1) / 2)
+#define PORTA_Y0  (TAP_Y0 - 4)           // o vao da porta, na parede da esquerda
+#define PORTA_Y1  (TAP_Y1 + 2)
+#define ESTRADO_W 192                    // o estrado do chefe
 
+static bool salao_chefe(int p) { return run.no[p].tipo == NO_CHEFE; }
+static int salao_esc(int p) { return salao_chefe(p) ? 3 : 2; }
+// O meio do estrado, ao fundo, a direita (no salao do Coringa, o tapete
+// atravessa o salao vazio ate ele).
+static int estrado_cx(void) { return PL_X1 - ESTRADO_W / 2 - 4; }
 static int salao_x(int p)
 {
-    if (run.andar == DES_ANDAR_FINAL) return GFX_W / 2;
-    return mesas_do_salao() == 3 && p < 3 ? SALAO_X3[p] : SALAO_X[p];
+    int n = mesas_do_salao();
+    if (salao_chefe(p) || n == 1) return estrado_cx();
+    int k = n - 1, x0 = 64, x1 = estrado_cx() - ESTRADO_W / 2 - 8;   // as outras, entre a porta e o estrado
+    return x0 + (x1 - x0) * (2 * p + 1) / (2 * k);
 }
-static int salao_esc(int p) { return run.no[p].tipo == NO_CHEFE ? 3 : 2; }
-static int salao_topo(int p) { return SALAO_BASE - RT_H * salao_esc(p); }
+// O quadro de quem senta, inteiro, e logo abaixo dele a mesa de cima, menor:
+// a beira de tras so cobre o filete de baixo da moldura. O nome e o valor
+// ficam na frente da mesa. O chefe, ao fundo, fica mais alto.
+static int salao_topo(int p) { return salao_chefe(p) ? 61 : 82; }
+static int mesa_rx(int p) { return salao_chefe(p) ? 40 : 28; }
+static int mesa_ry(int p) { return salao_chefe(p) ? 11 : 10; }
+static int mesa_y(int p)  { return salao_topo(p) + RT_H * salao_esc(p) + mesa_ry(p); }
+static int rotulo_y(int p) { return mesa_y(p) + mesa_ry(p) - 2; }   // a fonte fina desce 6 px do y
+// Onde o tapete acaba: logo depois da mesa do fundo, com a franja.
+static int tapete_fim(void) { return estrado_cx() + 34; }
+
+// O piso de cada salao, em quatro tons (o 1 e a base; a luz sobe e desce
+// dali): taco no Verde, ladrilho no Vermelho, marmore com filete de latao no
+// Dourado, arlequim no do Coringa. Discreto, como visto contra o escuro: as
+// rampas comecam no quase preto, e o desenho so marca metade dos pixels.
+static const uint16_t PISO[DES_ANDARES + 1][4] = {
+    { RGB(14, 14, 12), RGB(36, 32, 29), RGB(56, 32, 20), RGB(78, 46, 30) },
+    { RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50) },
+    { RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(62, 56, 50) },
+    { RGB(14, 14, 12), RGB(24, 22, 20), RGB(54, 36, 74), RGB(102, 74, 138) },
+};
+static const uint16_t TAPETE[4] = { RGB(66, 18, 24), RGB(118, 30, 38), RGB(150, 62, 80), RGB(190, 56, 60) };
+#define PL_FILETE 9                      // o tom do filete de latao (no marmore e na barra do tapete)
+
+static int piso_tom(int a, int x, int y)
+{
+    switch (a) {
+    case 1:                                      // ladrilho em xadrez, com a junta
+        if (x % 14 == 0 || y % 14 == 0) return 0;
+        return ((x / 14 + y / 14) & 1) ? 2 : 1;
+    case 2: {                                    // marmore: placas com filete, e o veio em diagonal
+        int u = x % 30, v = y % 30;
+        if (u == 0 || v == 0) return PL_FILETE;
+        uint32_t h = ruido_xy(x / 30, y / 30);
+        int veio = ((h & 1 ? u : 30 - u) + v * 2 + (int)(h >> 4) % 30) % 37;
+        if (veio == 0) return 2;
+        return ((x / 30 + y / 30) & 1) && bayer(x, y) < 0.25f ? 2 : 1;
+    }
+    case 3: {                                    // arlequim: losangos alternados, com a costura
+        int a3 = x * 3 + y * 4, b3 = x * 3 - y * 4 + 4800;
+        if (a3 % 48 < 2 || b3 % 48 < 2) return 0;
+        return ((a3 / 48 + b3 / 48) & 1) ? 2 : 1;
+    }
+    default: {                                   // taco: tabuas compridas, desencontradas, com o veio
+        int fila = y / 5, u = x + (int)(ruido_xy(7, fila) % 44);
+        if (y % 5 == 0 || u % 44 == 0) return 0;
+        uint32_t h = ruido_xy(u / 44, fila);
+        if (h % 4 == 0) return bayer(x, y) < 0.3f ? 2 : 1;   // umas tabuas mais claras, outras mais escuras
+        if (h % 4 == 1) return bayer(x, y) < 0.3f ? 0 : 1;
+        return ruido_xy(x / 4, y) % 13 == 0 ? 0 : 1;
+    }
+    }
+}
+
+// O tapete (r: a linha dele, de 0 a TAP_Y1 - TAP_Y0 - 1): a beira escura, a
+// barra de latao e o campo com losangos; depois do fim, a franja.
+static int tapete_tom(int x, int r, int fim)
+{
+    int h = TAP_Y1 - TAP_Y0;
+    if (x >= fim) return (r & 1) && r > 1 && r < h - 2 ? PL_FILETE : -1;
+    if (r == 0 || r == h - 1) return 0;
+    if (r == 1 || r == h - 2) return 2;
+    if (r == 2 || r == h - 3) return PL_FILETE;
+    int d = abs(2 * (x % 14) - 13) + abs(2 * r - (h - 1));   // em meios pixels: o losango centrado no campo
+    return d == 9 ? 2 : d <= 3 ? 3 : 1;
+}
+
+// Uma poca de luz (s > 0) ou de sombra (s < 0) no chao.
+typedef struct { int x, y, rx, ry; float s; } poca_t;
+static int tom_de(int k) { return k < 0 ? 0 : k > 3 ? 3 : k; }
+
+// O chao inteiro da planta: o piso, o estrado (um tom acima) e o tapete, com
+// as pocas de luz das mesas e as sombras delas. O tom sobe e desce pela luz,
+// com o pontilhado na passagem.
+static void pl_chao(const poca_t *pc, int np)
+{
+    uint16_t *fb = display_fb(), rl[4];
+    rampa_de(C_LATAO, rl);
+    int a = run.andar <= DES_ANDARES ? run.andar : 0, fim = tapete_fim();
+    int ex0 = estrado_cx() - ESTRADO_W / 2, ex1 = ex0 + ESTRADO_W;
+    const uint16_t *pr = PISO[a];
+    const int xa = PL_X0 + PL_PAREDE, xb = PL_X1 - PL_PAREDE;
+    float luz[PL_X1 - PL_X0];                    // a luz da linha: a base, e cada poca so onde alcanca
+    for (int y = PL_Y0 + PL_PAREDE; y < PL_Y1 - PL_PAREDE; y++) {
+        for (int x = xa; x < xb; x++) luz[x - PL_X0] = x >= ex0 && x < ex1 ? -0.5f : -0.9f;
+        for (int i = 0; i < np; i++) {
+            float dy = (y - pc[i].y) / (float)pc[i].ry, dy2 = dy * dy;
+            if (dy2 >= 1) continue;
+            float meia = pc[i].rx * sqrtf(1 - dy2), inv = 1.0f / pc[i].rx;
+            int x0 = pc[i].x - (int)meia, x1 = pc[i].x + (int)meia;
+            for (int x = x0 < xa ? xa : x0; x <= x1 && x < xb; x++) {
+                float dx = (x - pc[i].x) * inv, d = dx * dx + dy2;
+                if (d < 1) luz[x - PL_X0] += pc[i].s * (1 - d);
+            }
+        }
+        bool tap = y >= TAP_Y0 && y < TAP_Y1;
+        uint16_t *lin = fb + y * GFX_W;
+        for (int x = xa; x < xb; x++) {
+            int n = (int)floorf(luz[x - PL_X0] + bayer(x, y)), k = tap ? tapete_tom(x, y - TAP_Y0, fim) : -1;
+            if (k == -1) {
+                k = piso_tom(a, x, y);
+                if (k != 1 && bayer(x + 2, y + 1) >= 0.5f) k = 1;     // o desenho, pela metade
+                if (k == PL_FILETE) lin[x] = n <= 0 ? pr[tom_de(2 + n)] : rl[tom_de(n - 1)];   // o latao so brilha na luz
+                else lin[x] = pr[tom_de(k + n)];
+            } else lin[x] = k == PL_FILETE ? rl[tom_de(2 + n)] : TAPETE[tom_de(k + n)];
+        }
+    }
+    // A beira do estrado: o degrau escuro e a quina de latao, que pega a luz.
+    int y0 = PL_Y0 + PL_PAREDE, h = PL_Y1 - PL_Y0 - 2 * PL_PAREDE;
+    gfx_rect(ex0 - 1, y0, 1, h, C_BARRA);
+    gfx_rect(ex0, y0, 1, h, C_LATAO);
+    gfx_rect(ex0 + 1, y0, 1, h, C_LATAO_ESC);
+}
+
+// As paredes, em planta: madeira entre dois filetes escuros, com o vao da
+// porta na da esquerda (por onde o tapete entra) e a folha aberta, com o arco.
+static void pl_paredes(void)
+{
+    static const uint16_t P[PL_PAREDE] = { C_BARRA, C_MADEIRA_CLR, C_MADEIRA, C_BARRA };
+    int w = PL_X1 - PL_X0, h = PL_Y1 - PL_Y0;
+    for (int i = 0; i < PL_PAREDE; i++) {
+        gfx_rect(PL_X0 + i, PL_Y0 + i, w - 2 * i, 1, P[i]);
+        gfx_rect(PL_X0 + i, PL_Y1 - 1 - i, w - 2 * i, 1, P[i]);
+        gfx_rect(PL_X1 - 1 - i, PL_Y0 + i, 1, h - 2 * i, P[i]);
+        gfx_rect(PL_X0 + i, PL_Y0 + i, 1, PORTA_Y0 - PL_Y0 - i, P[i]);
+        gfx_rect(PL_X0 + i, PORTA_Y1, 1, PL_Y1 - i - PORTA_Y1, P[i]);
+    }
+    int hx = PL_X0 + PL_PAREDE, r = PORTA_Y1 - PORTA_Y0;      // a dobradica, em cima
+    for (int k = 0; k <= 12; k++) {                            // o arco da folha, pontilhado
+        float a = k * (3.1416f / 2) / 12;
+        gfx_rect(hx + (int)(cosf(a) * r), PORTA_Y0 + (int)(sinf(a) * r), 1, 1, C_LATAO);
+    }
+    gfx_rect(hx, PORTA_Y0 - 2, r + 1, 4, C_BARRA);            // a folha, aberta para dentro
+    gfx_rect(hx, PORTA_Y0 - 1, r, 2, C_MADEIRA_CLR);
+    gfx_rect(hx, PORTA_Y0, r, 1, C_MADEIRA);
+    gfx_rect(PL_X0, PORTA_Y0 - 2, PL_PAREDE, 2, C_LATAO);     // os batentes
+    gfx_rect(PL_X0, PORTA_Y1, PL_PAREDE, 2, C_LATAO);
+}
+
+// Um vaso com planta, visto de cima: a borda do vaso e as folhas em leque.
+static void pl_planta(int x, int y)
+{
+    gfx_disco(x + 2, y + 3, 11, C_BARRA);
+    gfx_disco(x, y, 9, C_BARRA);
+    gfx_disco(x, y, 8, C_TERRA);
+    gfx_disco(x, y, 6, C_MADEIRA_ESC);
+    for (int k = 0; k < 7; k++) {                 // as folhas: a roseta, com o contorno
+        float a = k * 0.8976f + 0.3f;
+        gfx_disco(x + (int)(cosf(a) * 7), y + (int)(sinf(a) * 6), 4, C_BARRA);
+    }
+    for (int k = 0; k < 7; k++) {
+        float a = k * 0.8976f + 0.3f;
+        int fx = x + (int)(cosf(a) * 7), fy = y + (int)(sinf(a) * 6);
+        gfx_disco(fx, fy, 3, k & 1 ? C_VERDE : RGB(130, 204, 112));
+        gfx_pixel(fx - 1, fy - 1, k & 1 ? RGB(130, 204, 112) : C_BRANCO);
+    }
+    gfx_disco(x, y, 3, C_VERDE);
+    gfx_pixel(x - 1, y - 1, RGB(130, 204, 112));
+}
+
+// Uma cadeira vazia, de cima: o assento estofado e o encosto do lado de
+// fora (lado: -1 a esquerda da mesa, 1 a direita).
+static void pl_cadeira(int x, int y, int lado)
+{
+    gfx_rect(x - 5, y - 5, 11, 11, C_BARRA);
+    gfx_rect(x - 4, y - 4, 9, 9, C_MADEIRA);
+    gfx_rect(x - 3, y - 3, 7, 7, TAPETE[1]);
+    gfx_rect(x - 3, y - 3, 7, 1, TAPETE[2]);
+    int ex = lado < 0 ? x - 7 : x + 4;            // o encosto
+    gfx_rect(ex, y - 6, 4, 13, C_BARRA);
+    gfx_rect(ex + 1, y - 5, 2, 11, C_MADEIRA_CLR);
+}
+
+// O tampo da mesa, de cima: a borda de madeira com a luz de cima a esquerda,
+// o filete escuro e o feltro, mais claro no meio quando a luminaria esta
+// acesa. Em cima, um par de dados e umas fichas.
+static void pl_mesa(int x, int y, int rx, int ry, bool acesa, bool chefe)
+{
+    uint16_t *fb = display_fb(), rm[4];
+    rampa_de(C_MADEIRA, rm);
+    for (int j = -ry - 1; j <= ry + 1; j++) {
+        int py = y + j;
+        if (py < 0 || py >= GFX_H) continue;
+        for (int i = -rx - 1; i <= rx + 1; i++) {
+            int px = x + i;
+            float u = i / (rx + 1.2f), v = j / (ry + 1.2f);
+            if (u * u + v * v > 1) continue;
+            u = i / (float)rx; v = j / (float)ry;
+            float d = u * u + v * v, ui = i / (float)(rx - 4), vi = j / (float)(ry - 3), di = ui * ui + vi * vi;
+            uint16_t c;
+            if (d > 1) c = C_BARRA;
+            else if (di > 1.12f) c = tom_rampa(rm, -(u + v) * 0.6f + (acesa ? 0.3f : -0.6f), px, py);
+            else if (di > 1) c = C_BARRA;
+            else {
+                float q = acesa ? (1 - di) * 2.4f : 0;
+                int k = 2 + (int)floorf(q + bayer(px, py));
+                c = feltro_tons[k > 5 ? 5 : k];
+            }
+            fb[py * GFX_W + px] = c;
+        }
+    }
+    static const uint16_t FICHA[3] = { C_VINHO_CLR, C_AZUL, C_MARFIM_S };
+    int nf = chefe ? 3 : 2;
+    for (int f = 0; f < nf; f++) {                 // as fichas, em pilhas
+        int fx = x - rx / 2 + f * (rx / 2) + (f & 1) * 3, fy = y + (f & 1 ? -3 : 2);
+        gfx_disco(fx, fy, 4, C_BARRA);
+        gfx_disco(fx, fy, 3, chefe ? C_OURO : FICHA[f]);
+        gfx_pixel(fx - 1, fy - 1, C_BRANCO);
+    }
+    for (int k = 0; k < 2; k++) {                  // o par de dados
+        int dx = x - 7 + k * 9, dy = y - 4 + k * 3;
+        gfx_rect(dx - 1, dy - 1, 7, 7, C_BARRA);
+        gfx_rect(dx, dy, 5, 5, C_MARFIM);
+        gfx_pixel(dx + 2, dy + 2, C_BARRA);
+        if (k) { gfx_pixel(dx + 1, dy + 1, C_BARRA); gfx_pixel(dx + 3, dy + 3, C_BARRA); }
+    }
+}
+
+// Texto no chao: o contorno escuro em volta, para ler em qualquer piso.
+static void texto_no_chao(int x, int y, const char *s, uint16_t c, int f)
+{
+    for (int k = 0; k < 4; k++) gfx_texto(x + (k == 0) - (k == 1), y + (k == 2) - (k == 3), s, C_BARRA, f, false);
+    gfx_texto(x, y, s, c, f, false);
+}
 
 // O quadro de baixo, em colunas separadas por filetes: quem e (com as
 // etiquetas e quanto paga), o trunfo (nome e regra) e a bolsa dele, com os
@@ -222,76 +451,164 @@ static void ficha_jogador(int x, int y)
     gfx_pixel(x - 1, y - 1, C_BRANCO);
 }
 
-// Uma mesa do salao: o retrato na moldura, o nome, a dificuldade e quanto paga.
+// O salao acendendo: no salao novo, a luz entra pela porta e corre o tapete
+// ate o fundo; cada luminaria acende (pisca e firma) quando a luz chega nela,
+// a do chefe por ultimo; no fim, o resto do salao clareia.
+#define LUZ_ONDA0 0.3f                   // quando a luz sai da porta
+#define LUZ_ONDA  1.2f                   // e quanto leva ate o fim do tapete
+static float luz_acende(int p)
+{
+    float q = (salao_x(p) - PL_X0) / (float)(tapete_fim() - PL_X0);
+    return LUZ_ONDA0 + LUZ_ONDA * q + (salao_chefe(p) ? 0.15f : 0);
+}
+// A luminaria da mesa p esta acesa agora? Ao acender, ela pisca uma vez.
+static bool luz_mesa(int p)
+{
+    if (t_luz <= 0) return true;
+    float e = LUZ_T - t_luz - luz_acende(p);
+    return e >= 0 && !(e > 0.05f && e < 0.12f);
+}
+// O estalo de cada luminaria, um tom acima da outra; a do chefe, o "dim".
+static void luz_sons(float antes, float agora)
+{
+    for (int p = 0, n = mesas_do_salao(); p < n; p++) {
+        float e = luz_acende(p);
+        if (antes < e && agora >= e) {
+            if (salao_chefe(p)) som_toca(SOM_VALIDO);
+            else som_toca_tom(SOM_MENU_PASSA, 3 * p);
+        }
+    }
+}
+static float luz_q(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+// O escuro do salao enquanto acende: claro onde a luz ja chegou (a porta, o
+// tapete atras da frente, as mesas acesas, com o retrato e o nome), e o
+// resto clareia no fim. Pontilhado, para a paleta fazer os degraus.
+static void luz_escuro(void)
+{
+    if (t_luz <= 0) return;
+    float e = LUZ_T - t_luz, amb = luz_q((e - (LUZ_T - 0.5f)) / 0.5f), porta = luz_q((e - 0.08f) / 0.25f);
+    float frente = PL_X0 + (tapete_fim() + 8 - PL_X0) * luz_q((e - LUZ_ONDA0) / LUZ_ONDA);
+    poca_t pc[DES_PASSOS];
+    int np = 0;
+    for (int p = 0, n = mesas_do_salao(); p < n; p++) {
+        if (!luz_mesa(p)) continue;
+        int y0 = salao_topo(p) - 8, y1 = rotulo_y(p) + 28;
+        pc[np++] = (poca_t){ salao_x(p), (y0 + y1) / 2, mesa_rx(p) + 48, (y1 - y0) / 2 + 18, 1.8f };
+    }
+    uint16_t *fb = display_fb();
+    for (int y = PL_Y0; y < PL_Y1; y++) {
+        float dyp = (y - TAP_MEIO) / 40.0f, dyt = fabsf(y - TAP_MEIO) / 22.0f;
+        for (int x = PL_X0; x < PL_X1; x++) {
+            float L = amb, dx = (x - PL_X0) / 70.0f, d = dx * dx + dyp * dyp;
+            if (d < 1) L = fmaxf(L, (1 - d) * 1.4f * porta);
+            if (dyt < 1 && x < frente) L = fmaxf(L, (1 - dyt) * 0.9f * fminf(1, (frente - x) / 24));
+            for (int i = 0; i < np && L < 1; i++) {
+                float u = (x - pc[i].x) / (float)pc[i].rx, v = (y - pc[i].y) / (float)pc[i].ry, q = u * u + v * v;
+                if (q < 1) L = fmaxf(L, (1 - q) * pc[i].s);
+            }
+            if (L >= 1) continue;
+            int a = (int)((1 - L) * 92 + (bayer(x, y) - 0.5f) * 26);
+            if (a <= 0) continue;
+            uint16_t *px = &fb[y * GFX_W + x];
+            *px = gfx_mistura(*px, C_BARRA, a > 100 ? 100 : a);
+        }
+    }
+}
+
+// Uma mesa do salao: as cadeiras vazias dos lados, quem joga sentado atras
+// (o retrato na moldura), o tampo e, na frente, o nome, a dificuldade e
+// quanto paga.
 static void salao_mesa(int p)
 {
     const no_t *no = &run.no[p];
     int x = salao_x(p), esc = salao_esc(p), w = RT_W * esc, h = RT_H * esc, y = salao_topo(p);
-    bool feita = p < run.passo, da_vez = p == run.passo, chefe = no->tipo == NO_CHEFE;
+    int my = mesa_y(p), rx = mesa_rx(p), ry = mesa_ry(p), ly = rotulo_y(p);
+    bool feita = p < run.passo, da_vez = p == run.passo, chefe = salao_chefe(p);
+    pl_cadeira(x - rx - 9, my + 1, -1);
+    pl_cadeira(x + rx + 9, my + 1, 1);
     uint16_t moldura = chefe ? C_OURO : (feita ? C_FELTRO2 : C_LATAO_ESC);
-    if (da_vez) {                                // a da vez: um aro que pulsa
-        int b = 4 + (int)(sinf(t_fase * 5) * 1.5f + 1.5f);
-        gfx_rect(x - w / 2 - b, y - b, w + 2 * b, h + 2 * b, gfx_mistura(COR_SALAO[run.andar], C_FELTRO, 35));
-    }
-    if (p == des_cur) ui_selecao(x - w / 2 - 9, y - 9, w + 18, h + 74, C_OURO);
     uint16_t rm[4];                              // a moldura: metal em rampa, com contorno
     ui_rampa(moldura, feita, rm);
     ui_contorno(x - w / 2 - 3, y - 3, w + 6, h + 6, C_BARRA);
     ui_aro(x - w / 2 - 2, y - 2, w + 4, h + 4, 2, rm, UI_VIVO);
     gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
-    if (feita) {                                 // vencida: apaga e leva o visto
+    if (feita) {                                 // vencida: apaga e leva o visto, no que aparece do retrato
         gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
-        gfx_linha_grossa(x - 9, y + h / 2, x - 2, y + h / 2 + 8, 4, C_OURO);
-        gfx_linha_grossa(x - 2, y + h / 2 + 8, x + 12, y + h / 2 - 10, 4, C_OURO);
+        int vy = y + h / 2;
+        gfx_linha_grossa(x - 9, vy, x - 2, vy + 8, 4, C_OURO);
+        gfx_linha_grossa(x - 2, vy + 8, x + 12, vy - 10, 4, C_OURO);
     }
+    pl_mesa(x, my, rx, ry, !feita && luz_mesa(p), chefe);
+    // O nome; embaixo, a dificuldade e quanto paga (o fim da run nao paga).
     uint16_t cn = feita ? C_TEXTO_M : cor_no(no->tipo);
-    nome_no_cartao(x, SALAO_BASE + 6, PERSO[no->perso].nome, cn, 130);
-    const char *tag = NOME_NO[no->tipo];
-    if (!feita) gfx_texto(x - gfx_largura(tag, GFX_FINO) / 2, SALAO_BASE + 22, tag, cn, GFX_FINO, false);
-    // Quanto paga: a moeda e o numero (o fim da run nao paga).
+    const char *nome = PERSO[no->perso].nome;
+    int f = gfx_largura(nome, GFX_FINO) <= 2 * rx + 40 ? GFX_FINO : GFX_MIUDO;
+    texto_no_chao(x - gfx_largura(nome, f) / 2, ly + (f == GFX_MIUDO ? 2 : 0), nome, cn, f);
     int vale = moedas_mesa(p);
     if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale = 0;
-    char v[16];
-    if (feita) snprintf(v, sizeof v, "vencida");
-    else if (vale) snprintf(v, sizeof v, "+%d", vale);
-    else snprintf(v, sizeof v, "final");
-    int wv = gfx_largura(v, 1) + (vale && !feita ? 14 : 0), vx = x - wv / 2;
-    if (vale && !feita) { moeda_ic(vx + 6, SALAO_BASE + 52); vx += 14; }
-    txt(vx, SALAO_BASE + (feita ? 26 : 42), v, feita ? C_TEXTO_M : (vale ? C_OURO : C_ROSA), !feita);
-    zona_clique(x - w / 2 - 8, y - 8, w + 16, h + 72, &des_cur, p, da_vez ? KEY_ENTER : 0);
+    char v[16] = "";
+    const char *tag = feita ? "vencida" : NOME_NO[no->tipo];
+    if (!feita) snprintf(v, sizeof v, vale ? "+%d" : "final", vale);
+    int wt = gfx_largura(tag, GFX_FINO), wv = v[0] ? gfx_largura(v, GFX_FINO) + (vale ? 12 : 0) + 8 : 0;
+    int tx = x - (wt + wv) / 2, ty = ly + 12;
+    texto_no_chao(tx, ty, tag, cn, GFX_FINO);
+    if (v[0]) {
+        int vx = tx + wt + 8;
+        if (vale) { moeda_r(vx + 4, ty + 10, 5); vx += 12; }
+        texto_no_chao(vx, ty, v, vale ? C_OURO : C_ROSA, GFX_FINO);
+    }
+    // A selecao: as cantoneiras em volta da mesa inteira, do retrato ao valor.
+    int meia = chefe ? 62 : 50, bx = x - meia, bw = 2 * meia, by = y - 6, bh = ty + 19 - by;
+    if (p == des_cur) ui_cantos_em(bx, by, bw, bh, C_OURO, ui_respira());
+    zona_clique(bx, by, bw, bh, &des_cur, p, da_vez ? KEY_ENTER : 0);
 }
 
 static void desenha_mapa(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 50);
     faixa_run(KEY_ESC);
     rodape_run("setas veem as mesas  ·  ENTER senta à mesa  ·  TAB bolsa  ·  ESC menu");
     int n = mesas_do_salao();
-    // O caminho entre as mesas: dourado no que ja foi andado.
-    for (int p = 0; p + 1 < n; p++) {
-        int x0 = salao_x(p) + RT_W * salao_esc(p) / 2 + 6, x1 = salao_x(p + 1) - RT_W * salao_esc(p + 1) / 2 - 6;
-        bool feito = p + 1 <= run.passo;
-        pontilhado(x0, SALAO_LINHA, x1, SALAO_LINHA, feito ? C_OURO : C_TEXTO_M, feito ? 3 : 2, 6);
+    // As pocas do chao: a luz que entra pela porta, a de cada luminaria acesa
+    // (a da vez pulsa; a vencida apagou) e a sombra de cada mesa.
+    poca_t pc[2 * DES_PASSOS + 1];
+    int np = 0;
+    pc[np++] = (poca_t){ PL_X0, TAP_MEIO, 54, 34, 0.9f };
+    for (int p = 0; p < n; p++) {
+        int x = salao_x(p), y = mesa_y(p), rx = mesa_rx(p), ry = mesa_ry(p);
+        if (p >= run.passo) {
+            float s = salao_chefe(p) ? 2.6f : 2.4f;
+            if (p == run.passo) s += 0.5f * (0.5f + 0.5f * sinf(t_fase * 4));
+            pc[np++] = (poca_t){ x, y - 6, salao_chefe(p) ? 96 : 80, salao_chefe(p) ? 62 : 54, s };
+        }
+        pc[np++] = (poca_t){ x + 4, y + 5, rx + 6, ry + 5, -1.6f };
     }
+    pl_chao(pc, np);
+    pl_paredes();
+    int ex = estrado_cx();
+    pl_planta(ex - ESTRADO_W / 2 + 18, PL_Y0 + 20);
+    pl_planta(ex + ESTRADO_W / 2 - 18, PL_Y0 + 20);
     for (int p = 0; p < n; p++) salao_mesa(p);
-    // A ficha do jogador: no caminho, logo antes da mesa da vez; vindo da
-    // vencida, anda pelo caminho em dois pulos.
-    int px = salao_x(run.passo) - RT_W * salao_esc(run.passo) / 2 - 14, py = SALAO_LINHA;
-    if (t_mapa_anda > 0 && run.passo > 0) {
+    // A ficha do jogador, no tapete, na frente da mesa da vez. Vindo da
+    // vencida (ou da porta, no salao novo, depois que ele acende), anda pelo
+    // tapete em dois pulos.
+    int px = salao_x(run.passo), py = TAP_MEIO;
+    if (t_luz > 0) px = PL_X0 + 14;
+    else if (t_mapa_anda > 0) {
         float q = 1 - t_mapa_anda / 0.7f;
         if (q < 0) q = 0;
-        int ax = salao_x(run.passo - 1) + RT_W * salao_esc(run.passo - 1) / 2 + 14;
+        int ax = run.passo > 0 ? salao_x(run.passo - 1) : PL_X0 + 14;
         float s = q * q * (3 - 2 * q);
         px = ax + (int)((px - ax) * s);
         py -= (int)(fabsf(sinf(q * 6.2832f)) * 16);
     } else py += (int)(sinf(t_fase * 4) * 2) - 1;
     ficha_jogador(px, py);
+    luz_escuro();
     info_mesa(des_cur);
     // Os amuletos da run, no canto de cima.
     for (int a = 0, k = 0; a < A_N; a++)
         if (run_amuletos() >> a & 1) {
-            int ax = 30 + k * 19, ay = 66;
+            int ax = PL_X0 + 15 + k * 19, ay = PL_Y0 + 15;
             desenha_amuleto(ax, ay, 8, a, false);
             dica_zona(ax - 9, ay - 9, 18, 18, DICA_AMULETO, a);
             k++;

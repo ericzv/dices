@@ -24,6 +24,11 @@ static float t_bolsa_pulo;
 static int   faixa_bolsa_x = GFX_W - 120, faixa_bolsa_y = FAIXA_H / 2;
 static void loja_passo(float dt);
 static float t_mapa_anda;                    // > 0: a ficha do jogador anda ate a mesa da vez
+#define LUZ_T 2.1f
+static float t_luz;                          // > 0: o salao novo acendendo (desenho.inc)
+static void luz_sons(float antes, float agora);
+// Pular o salao acendendo (qualquer tecla): a luz firma e a ficha entra.
+static void luz_pula(void) { t_luz = 0; t_mapa_anda = 0.7f; }
 
 // O saque, no fim de uma partida vencida: as moedas entram uma a uma na
 // fileira (a da mesa, depois as do Cofre e as da Taca, cada grupo acendendo o
@@ -50,6 +55,12 @@ static void des_contadores_passo(float dt, float dt_real)
     contador_passo(&moedas_cont, run.moedas, dt_real, dt_real, 6, 12);
     if (t_bolsa_pulo > 0) t_bolsa_pulo -= dt_real / 0.35f;
     if (t_mapa_anda > 0 && fase == F_MAPA && (t_mapa_anda -= dt_real) <= 0) som_toca(SOM_FICHA);   // a ficha assenta
+    if (t_luz > 0 && fase == F_MAPA) {          // o salao novo acendendo; aceso, a ficha entra pela porta
+        float antes = LUZ_T - t_luz;
+        t_luz -= dt_real;
+        luz_sons(antes, LUZ_T - fmaxf(t_luz, 0));
+        if (t_luz <= 0) luz_pula();
+    }
     loja_passo(dt_real);
     nov_passo();
 
@@ -181,6 +192,7 @@ static void abre_mapa(void)
     run.estado = R_MAPA;
     des_cur = run.passo;
     t_fase = 0;
+    t_luz = 0;
     fase = F_MAPA;
 }
 
@@ -239,6 +251,7 @@ static void avanca_passo(void)
     des_salva();
     abre_mapa();
     t_mapa_anda = run.passo ? 0.7f : 0;          // o marcador sai da mesa vencida
+    if (!run.passo) t_luz = LUZ_T;               // o salao novo acende
 }
 
 // De onde veio o amuleto da tela de escolha (run.am_volta), e para onde ela segue.

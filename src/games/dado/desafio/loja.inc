@@ -542,7 +542,7 @@ static void loja_sai(void)
 {
     if (run.moedas >= PORCO_ABRE) abre_bolsa(B_PORCO);   // guardou: abre o Porquinho
     bolsa_voando = 0;
-    if (run.estado == R_LOJA_INI) { run.estado = R_MAPA; des_salva(); abre_mapa(); }
+    if (run.estado == R_LOJA_INI) { run.estado = R_MAPA; des_salva(); abre_mapa(); t_luz = LUZ_T; }   // o primeiro salao acende
     else avanca_passo();
 }
 

@@ -76,6 +76,7 @@ void dado_tecla(const key_event_t *ev_)
     if (k == 'b' && !dado_digitando() && bolsa_abre_tecla()) return;   // B: a sua bolsa
 
     if (t_elev > 0) { t_elev = 0; return; }        // qualquer tecla pula o elevador
+    if (t_luz > 0 && fase == F_MAPA) { luz_pula(); return; }   // e o salao acendendo
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
     if (t_misterio > 0) {                          // a vinheta do Dado Misterioso: espera um pouco
         if (t_misterio > MIST_ESPERA + MIST_MIN) t_misterio = 0;
@@ -173,6 +174,10 @@ void dado_mouse(int x, int y, int acao)
     }
     if (bolsa_pop >= 0) {                               // e o pop-up da bolsa
         if (acao == 1) bolsa_fecha();
+        return;
+    }
+    if (t_luz > 0 && fase == F_MAPA) {                  // o salao acendendo: um clique pula
+        if (acao == 1) luz_pula();
         return;
     }
     const zona_clique_t *z = NULL;

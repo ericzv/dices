@@ -26,7 +26,8 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
-// cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7.
+// cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7 ("#": a
+// tinta; "o": o vidro da bolha do Impermeavel, so no simbolo colorido).
 typedef struct {
     const char *nome, *l1, *l2;
     uint8_t preco, nivel;
@@ -119,7 +120,7 @@ static const adesivo_t ADESIVO[AD_N] = {
                           RGB(54, 36, 74), RGB(150, 112, 160), RGB(246, 222, 132),
                           { "#######", "#..#..#", ".#####.", "..###..", ".##.##.", "#.....#", "#######" } },
     // Os de papel, plastico e tinta que vieram depois: a estrelinha de nota
-    // da escola, a folha de copia, a etiqueta explosiva, a capa de chuva, o
+    // da escola, a folha de copia, a etiqueta explosiva, a bolha de plastico, o
     // cromo 3D que muda com o angulo e o tubo de luz.
     [AD_NOTA_DEZ]     = { "Nota Dez", "tirando este lado:", "vira o lado mais alto", 6, 8,
                           RGB(208, 98, 108), RGB(246, 222, 132), C_BRANCO,
@@ -130,9 +131,9 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_BOMBA]        = { "Papel Bomba", "tirando este lado: rola", "de novo e soma os dois", 4, 1,
                           RGB(204, 194, 172), RGB(252, 248, 236), RGB(36, 32, 29),
                           { "#..#..#", ".#.#.#.", "..###..", "###.###", "..###..", ".#.#.#.", "#..#..#" } },
-    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da", "partida, não pode ser destruído", 3, 2,
+    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da partida,", "não pode ser anulado nem destruído", 5, 2,
                           RGB(246, 222, 132), RGB(96, 134, 196), RGB(56, 86, 150),
-                          { "...#...", ".#####.", "#######", "#..#..#", "...#...", ".#.#...", "..##..." } },
+                          { "..###..", ".#ooo#.", "#o#ooo#", "#o#ooo#", "#ooooo#", ".#ooo#.", "..###.." } },
     [AD_LENTICULAR]   = { "Lenticular", "tirando este lado: válido, x2;", "anulado, -4 no seu placar", 3, 3,
                           RGB(150, 112, 160), RGB(206, 180, 218), C_BRANCO,
                           { ".......", "..###..", ".#...#.", "#.###.#", ".#...#.", "..###..", "......." } },
@@ -154,8 +155,8 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_ELETRONICO] = RAR_RARO, [AD_TRANSPARENTE] = RAR_RARO, [AD_DOURADO] = RAR_RARO, [AD_FERMENTO] = RAR_RARO,
     [AD_PURPURINA] = RAR_RARO,
     [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
-    [AD_BOMBA] = RAR_INCOMUM, [AD_IMPERMEAVEL] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
-    [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
+    [AD_BOMBA] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
+    [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_IMPERMEAVEL] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
 };
 // Fora do Desafiante nao ha moedas: o Dourado nao sai no premio.
 static bool ad_no_premio(int a) { return a > AD_NADA && a < AD_N && a != AD_DOURADO; }
@@ -324,7 +325,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_NOTA_DEZ]     = "Tirando este lado, o dado vira e fica com o lado mais alto para cima: no d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
     [AD_CARBONO]      = "Tirando este lado, o dado fica com o número do seu último dado válido da sequência. Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
     [AD_BOMBA]        = "Tirando este lado, o dado rola de novo e pontua a soma dos dois lances. Explode uma vez só: o adesivo do lado que ficou para cima no segundo lance age no fim da rodada, mas não faz rolar de novo.",
-    [AD_IMPERMEAVEL]  = "Tirando este lado, válido ou anulado, o dado fica protegido até o fim da partida: nada pode destruí-lo. O que tentar chega até ele, mas é bloqueado (e não passa para outro dado).",
+    [AD_IMPERMEAVEL]  = "Tirando este lado, o dado ganha uma bolha de proteção até o fim da partida: não pode ser anulado nem destruído (nem pela sequência). Um ataque que mire nele bate na bolha e é bloqueado - e não passa para outro dado. Ainda pode ser roubado.",
     [AD_LENTICULAR]   = "Tirando este lado: se o dado terminar válido, pontua x2 no fim da rodada (soma com os outros multiplicadores); se terminar anulado, -4 no seu placar.",
     [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12).",
 };
@@ -358,7 +359,10 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
     }
     for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
-            if (ADESIVO[a].ic[j][i] != '#') continue;
+            if (ADESIVO[a].ic[j][i] != '#') {
+                if (cores && ADESIVO[a].ic[j][i] == 'o') gfx_rect(x + i * s, y + j * s, s, s, C_VENTO);   // o vidro da bolha
+                continue;
+            }
             uint16_t k = c;
             if (cores && a == AD_HOLOGRAFICO) k = ARCO[(i + j) % 6];
             else if (cores && a == AD_PURPURINA) k = j <= 2 && i <= 2 ? RGB(246, 222, 132) : j <= 3 ? C_BRANCO : i <= 3 ? RGB(226, 164, 168) : RGB(246, 222, 132);
@@ -367,7 +371,7 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             else if (cores && a == AD_FIGURINHA && j >= 2 && j <= 4 && i >= 2 && i <= 4) k = RGB(190, 56, 60);
             else if (cores && a == AD_PATINHO && j == 2 && i < 2) k = RGB(238, 162, 74);     // o bico
             else if (cores && a == AD_BOMBA && abs(i - 3) <= 1 && abs(j - 3) <= 1) k = C_FOGO;   // o estouro
-            else if (cores && a == AD_IMPERMEAVEL && j >= 3 && !(j == 3 && i != 3)) k = C_EBANO;   // o cabo
+            else if (cores && a == AD_IMPERMEAVEL && i == 2 && j >= 2 && j <= 3) k = C_BRANCO;   // o brilho da bolha
             else if (cores && a == AD_LENTICULAR && j == 3 && i >= 2 && i <= 4) k = i == 3 ? C_EBANO : C_AZUL;   // a iris
             else if (cores && a == AD_NOTA_DEZ && i >= 4) k = C_AMARELO;                       // o zero, de ouro
             else if (cores && a == AD_NEON && neon < 0.25f) k = C_VINHO_CLR;                  // o tubo no fundo do pulso
@@ -514,23 +518,56 @@ static void lacre_cera(int x, int y, int r, int lado)
         }
 }
 
-// A gota da capa do Impermeavel: o dado esta protegido ate o fim da partida.
-// Uma gota azul com o brilho, de raio r (2 a 4), com a ponta para cima e o
-// meio da parte redonda em (x, y).
-static void gota_capa(int x, int y, int r)
+// A capa do Impermeavel: uma bolha de protecao em volta do dado de raio r,
+// nas cores do adesivo - o aro amarelo (o vinil) com a borda azul pontilhada
+// por fora (a borda dele), o vidro azul pontilhado por dentro, mais cheio
+// junto do aro e com os pontinhos claros do vidro, os dois brilhos de bolha
+// (um arco em cima a esquerda, um risco embaixo a direita) e um reflexo que
+// da a volta devagar. cresce (0..1): a bolha se formando, do tamanho do dado
+// ate o dela, pontilhada no comeco; forte (0..1): segurando um golpe agora -
+// o aro engrossa e fica branco, o vidro acende em amarelo; onda (0..1): a
+// onda do golpe abrindo para fora.
+static float capa_raio(float r) { return r + (r >= 15 ? 7.0f : 3.5f); }   // a bolha cheia, do meio do dado
+static void capa_aura(int cx, int cy, float r, float cresce, float forte, float onda)
 {
-    for (int pass = 0; pass < 2; pass++)
-        for (int dy = -2 * r - 1; dy <= r + 1; dy++)
-            for (int dx = -r - 1; dx <= r + 1; dx++) {
-                int e = pass ? 0 : 1;                    // a primeira passada: o contorno escuro, um pixel maior
-                bool dentro = dy >= 0 ? dx * dx + dy * dy <= (r + e) * (r + e)
-                                      : abs(dx) * 2 * r <= (dy + 2 * r + e) * (r + e);
-                if (!dentro) continue;
-                uint16_t c = C_BARRA;
-                if (pass) c = dx < 0 && dy <= 0 && dx >= -r + 1 ? C_VENTO : dx + dy > r - 1 ? C_AZUL : RGB(96, 134, 196);
-                if (pass && dx == -r / 2 - (r > 2) && dy == -(r > 2)) c = C_BRANCO;   // o brilho
-                gfx_pixel(x + dx, y + dy, c);
+    if (cresce <= 0) return;
+    const uint16_t AZUL_CAPA = RGB(96, 134, 196);
+    float q = fminf(1, cresce), sobe = 1 - (1 - q) * (1 - q);
+    float cheio = capa_raio(r), rr = r + 1 + (cheio - r - 1) * sobe;
+    float aro = 0.55f + 0.9f * forte, hr = rr - (r >= 15 ? 2.4f : 1.6f);
+    float corre = t_relogio * 1.3f, respira = 0.85f + 0.15f * sinf(t_relogio * 2.1f);
+    int lim = (int)(rr + 3 + (onda > 0 ? 14 : 0));
+    for (int y = -lim; y <= lim; y++)
+        for (int x = -lim; x <= lim; x++) {
+            float d = sqrtf((float)(x * x + y * y)), fora = d - rr;
+            int px = cx + x, py = cy + y;
+            float b = bayer(px, py);
+            uint16_t c = 0;
+            if (fabsf(fora) < aro) {                              // o aro
+                if (b < 0.3f + 0.7f * q) {
+                    float an = atan2f((float)y, (float)x), dc = an - corre;
+                    dc -= 6.2832f * floorf((dc + 3.1416f) / 6.2832f);   // ate o reflexo que corre
+                    c = forte > 0.45f || fabsf(dc) < 0.22f ? C_BRANCO : C_AMARELO;
+                }
+            } else if (fora > 0 && fora < aro + 1) {               // a borda de fora, azul e pontilhada
+                if (b < 0.5f * q) c = forte > 0.45f ? C_AMARELO : AZUL_CAPA;
+            } else if (fora < 0 && d > r + 1.2f) {                 // o vidro, so fora do dado
+                float an = atan2f((float)y, (float)x);
+                bool arco = fabsf(d - hr) < (r >= 15 ? 1.0f : 0.6f) && an > -2.8f && an < -1.9f;   // o brilho de cima
+                bool risco = fabsf(d - hr) < 0.6f && an > 0.6f && an < 0.92f;                      // e o de baixo
+                if (q > 0.7f && (arco || risco)) {
+                    bool ponta = arco && (an < -2.62f || an > -2.08f);
+                    if (!ponta || ((px + py) & 1) == 0) c = C_BRANCO;
+                } else {
+                    float dens = (0.55f * expf((fora + aro) * 0.5f) * respira + 0.55f * forte) * q;
+                    if (b < dens) c = forte > 0.3f ? C_AMARELO : AZUL_CAPA;
+                    else if (b > 1 - 0.05f * q) c = C_VENTO;           // os pontinhos claros do vidro
+                }
             }
+            if (c) gfx_pixel(px, py, c);
+            else if (onda > 0 && onda < 1 && fabsf(d - (rr + 2 + onda * 12)) < 0.6f && ((px + py) & 1) == 0)
+                gfx_pixel(px, py, onda < 0.5f ? C_AMARELO : C_OURO);   // a onda do golpe
+        }
 }
 
 // O som de colar um adesivo na loja, e o de cada um quando age.

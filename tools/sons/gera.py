@@ -1013,22 +1013,24 @@ def ad_bomba():
     return sala(m.x, 0.18)
 
 def ad_impermeavel():
-    """O Impermeavel: o guarda-chuva abrindo (o tecido estalando, o clique da
-    trava) e a chuva batendo em cima, gota por gota, sem molhar."""
-    m = Mix(1.2)
-    n = int(0.14 * SR); q = np.linspace(0, 1, n)
-    m.poe(0, banda(rng.standard_normal(n), 400, 2500) * q ** 2 * np.sin(np.pi * q) ** 0.3, 0.5)   # abrindo
-    m.poe(0.13, pa(tom(batida('dicehit_plastic7'), 4), 1200), 0.55)                    # a trava
-    for k in range(13):                                                 # as gotas: um plic que sobe
-        n = int(0.025 * SR); t = np.arange(n) / SR
-        f0 = rnd.uniform(700, 1300)
-        f = f0 * (1 + 1.4 * t / t[-1])
-        m.poe(0.2 + k * 0.055 + rnd.uniform(0, 0.03), np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.001, 0.008),
-              rnd.uniform(0.15, 0.3))
-    w = ruido(0.8, 3000, 9000)
-    m.poe(0.18, w * env(len(w), 0.1, 0.3), 0.04)                        # a chuva fininha
-    m.poe(0.3, nota('celesta', 79, 0.4, 0.4), 0.25)
-    return sala(m.x, 0.18)
+    """O Impermeavel: a bolha de protecao se fechando em volta do dado - dois
+    "bloops" que sobem (a bolha enchendo), a celesta subindo e o vidro que
+    fica tinindo, com um sopro de ar por baixo. O mesmo som quando ela segura
+    um golpe."""
+    m = Mix(1.3)
+    for t0, f0, f1, dur, g in ((0.0, 260, 820, 0.09, 0.55), (0.07, 420, 1300, 0.06, 0.3)):   # os bloops
+        n = int(dur * SR); t = np.arange(n) / SR
+        f = f0 * (f1 / f0) ** (t / t[-1])
+        m.poe(t0, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.004, dur * 0.55), g)
+    for k, nt in enumerate((79, 84, 88, 91)):                           # a celesta subindo
+        m.poe(0.06 + k * 0.05, nota('celesta', nt, 0.35, 0.5), 0.32 - k * 0.04)
+    n = int(0.9 * SR); t = np.arange(n) / SR                            # o vidro tinindo, batendo devagar
+    vidro = (np.sin(2 * np.pi * 2093 * t) + np.sin(2 * np.pi * 2099 * t) + 0.5 * np.sin(2 * np.pi * 3141 * t))
+    vidro *= env(n, 0.01, 0.32) * np.minimum(1, (n - np.arange(n)) / (0.15 * SR))   # e some sem estalar
+    m.poe(0.2, vidro, 0.05)
+    w = ruido(0.5, 2500, 8000); q = np.linspace(0, 1, len(w))            # o ar da bolha fechando
+    m.poe(0.0, w * np.sin(np.pi * q) ** 2, 0.05)
+    return sala(m.x, 0.22)
 
 def ad_lenticular():
     """O Lenticular: o cromo 3D virando de um lado e do outro (cliques que vao

@@ -2200,14 +2200,13 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (q == 1) return C_BRANCO;
         return fundo;
     }
-    case AD_IMPERMEAVEL: {                        // o plastico da capa: gotas que escorrem devagar, com o brilho de cada uma
-        float yy = Y - t * 1.4f;
-        int cxl = (int)floorf(X / 6), cyl = (int)floorf(yy / 7);
-        uint32_t q = hash2(cxl + 64, cyl + 64);
-        if (q % 3) return fundo;
-        float bx = cxl * 6 + 2.5f + (q >> 4) % 2, by = cyl * 7 + 3 + (q >> 6) % 2, dx = X - bx, dy = yy - by;
-        if (dx * dx + dy * dy < 1.6f) return dx < -0.3f && dy < -0.3f ? C_BRANCO : RGB(96, 134, 196);
-        if (fabsf(dx) < 0.5f && dy < -1.2f && dy > -3.5f && (q >> 9 & 1)) return RGB(228, 194, 106);   // o rastro da gota
+    case AD_IMPERMEAVEL: {                        // o plastico da capa, liso como a bolha: de tempos em tempos um
+                                                  // reflexo passa na diagonal, de cima a esquerda para baixo
+        float p = fr(t / 3.6f + fase);
+        if (p > 0.4f) return fundo;
+        float pos = (p / 0.4f * 2.6f - 1.3f) * r, d = (X + Y) * 0.7071f - pos;
+        if (fabsf(d) < 0.8f || fabsf(d + 2.6f) < 0.45f) return C_BRANCO;   // o reflexo e o risco fino atras dele
+        if (fabsf(d) < 1.6f && ((ix + iy) & 1)) return C_BRANCO;
         return fundo;
     }
     case AD_LENTICULAR: {                         // as lentes em listras finas; os aneis de baixo pulam quando o angulo muda

@@ -1429,12 +1429,12 @@ static void flutua_evento(const evento_t *e)
         switch (e->ad) {
         case AD_ELETRONICO: flutua_em(dj, dk, C_OURO, 0, "x%d", e->por_dado[dk < N_FILA ? dk : 0]); break;
         case AD_LOBO:       flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
-        case AD_MIRA:       flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+        case AD_MIRA:       if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_GORJETA:    flutua_em(dj, dk, C_OURO, 0, "+%d fichas", e->valor); break;
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
         case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dados", e->valor); break;
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
-        case AD_RATOEIRA:   flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+        case AD_RATOEIRA:   if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
         case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
         case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro
@@ -1474,14 +1474,14 @@ static void aplica_evento(int i)
 {
     evento_t *e = &ev[i];
     flutua_evento(e);
-    // O Impermeavel segurou o efeito nos dados com a capa: o guarda-chuva
-    // abre neles, "protegido", e o efeito nao pega.
+    // O Impermeavel segurou o efeito nos dados com a capa: a bolha acende
+    // neles, "protegido", e o efeito nao pega.
     for (int k = 0; k < N_FILA && e->alvo_j < 2; k++) {
         if (!(e->bloqueado >> k & 1)) continue;
         flutua_em(e->alvo_j, k, C_VENTO, k * 0.05f, "protegido", 0);
         vis_capa_t[e->alvo_j][k] = t_relogio;
     }
-    if (e->bloqueado && e->tipo != EV_ADESIVO) som_toca(som_adesivo(AD_IMPERMEAVEL));
+    if (e->bloqueado && !(e->tipo == EV_ADESIVO && e->ad == AD_FRAGIL)) som_toca(som_adesivo(AD_IMPERMEAVEL));
     switch (e->tipo) {
     case EV_ANULA:
         if (e->bloqueado >> e->alvo_k & 1) break;
@@ -1571,6 +1571,7 @@ static void aplica_evento(int i)
             break;
         case AD_LOBO: vis_delta[e->alvo_j] -= e->valor; break;
         case AD_MIRA: case AD_RATOEIRA:
+            if (e->bloqueado) break;    // bateu na capa
             vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
             golpe_marca(e->alvo_j, e->alvo_k, ADESIVO[e->ad].fundo == AD_SEM_FUNDO ? ADESIVO[e->ad].tinta : ADESIVO[e->ad].fundo);
             break;

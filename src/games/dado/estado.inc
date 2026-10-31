@@ -225,7 +225,7 @@ static int8_t vis_bonus[2][N_FILA], vis_mult[2][N_FILA];
 static uint8_t vis_queima[2][N_FILA];
 static uint8_t vis_corte[2][N_FILA];            // cortado pelo Sabotador: vale metade
 static uint8_t vis_pedra[2][N_FILA];            // petrificado pela Medusa: vira Quebrado no fim
-static float vis_capa_t[2][N_FILA];             // quando o Impermeavel bloqueou um efeito neste dado (o escudo)
+static float vis_capa_t[2][N_FILA];             // quando o Impermeavel bloqueou um efeito neste dado (a bolha apaga)
 static uint8_t vis_gelo[2][N_FILA];             // congelado pelo Boneco de Neve
 // Anulado por um ataque no desfecho (e nao pela sequencia): racha, com as
 // trincas na cor de quem atacou (0: nao foi ataque) e desde quando (t_relogio).

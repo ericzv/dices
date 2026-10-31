@@ -901,7 +901,7 @@ static void balao_em(int tx, int ty, const char *s, const char *dito, float q)
 static int retrato_faixa(int j, int x, int y0)
 {
     int perso = j == 1 ? fala_perso : avatar_retrato();
-    if (perso < 0) return x + 12;
+    if (perso < 0 || (j == 1 && fase == F_FIM)) return x + 12;   // no fim da partida, o oponente desce para a mesa (grande)
     int esc = 2, w = RT_W * esc, h = RT_H * esc;
     int fy = j == 1 ? 2 : GFX_H - 2 - PR_H, px = x, py = fy + 3;
     uint16_t r[4];

@@ -257,7 +257,7 @@ static void casas_codigo(int y, const char *cod, bool cursor_pisca)
 static void desenha_online(void)
 {
     faixas_menu("ONLINE", NULL, "ESC volta ao menu");
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 90);
     if (!rede_disponivel()) {
         txt_c2(GFX_W / 2, 84, "JOGAR ONLINE", C_LATAO);
         txt_c(GFX_W / 2, 140, "O modo online funciona na versão do jogo para o navegador:", C_MARFIM, false);

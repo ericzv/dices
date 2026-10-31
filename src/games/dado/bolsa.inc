@@ -54,7 +54,7 @@ static void desenha_bolsa_pop(void)
     bool sua = modo == M_DESAFIO && (bolsa_pop == BOLSA_RUN || bolsa_pop == 0);   // a da run: a regra dela
 
     float q = fminf(1, t_bolsa_pop / 0.16f);
-    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, (int)(150 * q));
+    ui_escurece(0, 0, GFX_W, GFX_H, (int)(150 * q));
     grade_t g = grade_cabe(no, 14, 36, 168);
     float f = g.f;
     int linhas = no ? (no + g.por - 1) / g.por : 1, passo = (int)(36 * f);

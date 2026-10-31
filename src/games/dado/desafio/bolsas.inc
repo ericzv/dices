@@ -235,12 +235,6 @@ static const icone_bolsa_t ICONE_BOLSA[B_N] = {
               "KrrrrrrrrrrrrrK.", ".KKKKKKKKKKKKK.." } },
 };
 
-// O cadeado das fichas que ainda nao abriram, 12x14.
-static const char *const CADEADO[14] = {
-    "...KKKKKK...", "..KSSSSSSK..", ".KSK....KSK.", ".KSK....KSK.", ".KSK....KSK.", "KKKKKKKKKKKK",
-    "KYYYYYYYYYYK", "KYyyyyyyyyYK", "KYyyyKKyyyYK", "KYyyyKKyyyYK", "KYyyyyKyyyYK", "KYyyyyyyyyYK",
-    "KYYYYYYYYYYK", "KKKKKKKKKKKK" };
-
 // O jeito de cada um se mexer, pixel a pixel: o deslocamento, a cor e se
 // some. est: o Saco de Sementes na partida (0 semente, 1 broto, 2 em flor).
 static void ic_anima(int b, int x, int y, char c, float t, int est, int *dx, int *dy, uint16_t *cor, bool *some)
@@ -334,15 +328,8 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
 
 static void cadeado_em(int cx, int cy, int e, float t)
 {
-    static const char CH[] = "KSYy";
-    const uint16_t COR[4] = { RGB(36, 22, 16), C_ACO, C_LATAO, C_LATAO_ESC };
-    int dx = t >= 0 ? (int)lroundf(sinf(t * 50) * 1.4f) : 0;
-    for (int y = 0; y < 14; y++)
-        for (int x = 0; x < 12; x++) {
-            const char *p = strchr(CH, CADEADO[y][x]);
-            if (CADEADO[y][x] == '.' || !p) continue;
-            gfx_rect(cx + (x - 6) * e + dx, cy + (y - 7) * e, e, e, COR[p - CH]);
-        }
+    int dx = t >= 0 ? (int)lroundf(sinf(t * 50) * 1.4f) : 0;   // tremendo: a ficha nao abre
+    icone_cadeado(cx + dx, cy, e, C_LATAO);
 }
 
 // O estagio do Saco de Sementes agora: na partida, pela rodada.
@@ -409,7 +396,9 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
         }
     }
     int rc = grande ? r - 12 : r - 3;
-    elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, gfx_mistura(cor, C_BARRA, 30));
+    uint16_t rf[4];
+    rampa_de(gfx_na_paleta(cor), rf);
+    elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, rf[1]);   // o aro do centro, um tom abaixo
     if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, C_EBANO);
     else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
     int e = rc >= 19 ? 2 : 1;
@@ -466,8 +455,8 @@ static void desenha_fosforo(void)
     float acende = fminf(1, t_fosf / 0.35f);
     float treme = 0.85f + 0.15f * sinf(t_relogio * 17) * sinf(t_relogio * 5.3f);
     int alfa = (int)(70 * acende * treme);
-    gfx_rect_alfa(x0 - passo / 2 - 22, y - 10, w + 30, 20, C_FOGO, alfa / 2);   // a luz quente
-    gfx_rect_alfa(x0 - passo / 2 - 14, y - 8, w + 14, 16, C_AMARELO, alfa / 3);
+    ui_clareia(x0 - passo / 2 - 22, y - 10, w + 30, 20, alfa / 70.0f * 0.7f);   // a luz da chama no feltro
+    ui_clareia(x0 - passo / 2 - 14, y - 8, w + 14, 16, alfa / 70.0f * 0.6f);
     // O fosforo, de pe a esquerda, com a chama.
     int fx = x0 - passo / 2 - 12;
     gfx_rect(fx, y - 3, 2, 10, RGB(240, 200, 164));
@@ -486,7 +475,7 @@ static void desenha_fosforo(void)
         float r = 7 * (q < 1 ? sai_mola(q) : 1);
         peca_t p = { .tipo = fosf_tipo[i], .fixo = fosf_fixo[i] };
         peca_parada((float)x, (float)y, r, p, j);
-        if (foi) gfx_rect_alfa(x - 9, y - 9, 19, 19, C_SOMBRA, 150);
+        if (foi) ui_escurece(x - 9, y - 9, 19, 19, 150);
         dica_zona(x - 8, y - 8, 16, 16, DICA_DADO, fosf_tipo[i]);
     }
 }

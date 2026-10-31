@@ -1,17 +1,8 @@
 // ---------------------------------------------------------------------------
 // Colecao: o que esta aberto e o que esta fechado no Desafiante
 // ---------------------------------------------------------------------------
-// Cadeado: (x, y) e o meio do topo do corpo; e = escala (1 ou 2).
-static void cadeado(int x, int y, uint16_t c, int e)
-{
-    for (int i = 0; i <= 12; i++) {                      // a alca
-        float a = 3.1416f + i * 0.2618f;
-        gfx_rect(x + (int)(cosf(a) * 3 * e), y + (int)(sinf(a) * 3.5f * e), e, e, c);
-    }
-    gfx_rect(x - 4 * e, y, 9 * e, 7 * e, c);             // o corpo
-    gfx_rect(x - 4 * e, y, 9 * e, e, gfx_mistura(c, C_BRANCO, 30));
-    gfx_rect(x, y + 2 * e, e, 3 * e, C_BARRA);           // a fechadura
-}
+// Cadeado: (x, y) e o meio do topo do corpo; e = escala (1 ou 2); o corpo na cor c.
+static void cadeado(int x, int y, uint16_t c, int e) { icone_cadeado(x, y + e, e, c); }
 
 // O que vem com o nivel: o chefe c (CH_*) o abre na dificuldade de baixo.
 static void quem_abre(int nivel, int c, int marco, char *s, int n)
@@ -154,7 +145,7 @@ static void des_elevador(void)
     int d = run.dificuldade;
     const int w = 250, h = 150, x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 - 4;
     const int cx = GFX_W / 2, cy = y0 + 106, R = 64;
-    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, 150);
+    ui_escurece(0, 0, GFX_W, GFX_H, 150);
     ui_painel(x0, y0, w, h);
     for (int i = 0; i <= 60; i++) {              // o arco do mostrador
         float a = 3.1416f * (0.08f + 0.84f * i / 60.0f);
@@ -200,7 +191,7 @@ static void des_virada_anuncio(void)
     float e = 2.4f - t_virada;
     n_zonas = 0;
     int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
-    gfx_rect_alfa(0, 0, GFX_W, GFX_H, C_SOMBRA, alfa);
+    ui_escurece(0, 0, GFX_W, GFX_H, alfa);
     static const uint16_t COR[3] = { RGB(46, 120, 84), RGB(150, 30, 46), RGB(150, 36, 40) };
     float q = e / 0.3f;
     if (q > 1) q = 1;

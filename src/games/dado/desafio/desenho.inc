@@ -1,27 +1,32 @@
 // ---------------------------------------------------------------------------
 // Desenho
 // ---------------------------------------------------------------------------
-// Moeda de ouro: nao e ficha. Disco dourado com borda escura e um brilho.
-static void moeda_ic(int x, int y)
-{
-    gfx_disco(x + 1, y + 2, 7, C_SOMBRA);
-    gfx_disco(x, y, 7, C_LATAO_ESC);
-    gfx_disco(x, y, 6, C_OURO);
-    gfx_disco(x, y, 4, gfx_mistura(C_OURO, C_LATAO_ESC, 30));
-    gfx_disco(x - 2, y - 2, 1, gfx_mistura(C_OURO, C_BRANCO, 60));
-}
-
-// A mesma moeda em qualquer tamanho (a que acabou de entrar na fileira pula).
+// Moeda de ouro: nao e ficha, mas e do mesmo material dos icones pequenos
+// (docs/estilo.md): contorno escuro, beira em rampa com a luz de cima a
+// esquerda, a sombra pontilhada embaixo e o brilho. A grande leva o aro
+// gravado no meio. Dois tamanhos de icone: ICONE_M (13 px, junto dos numeros
+// grandes: faixa, precos) e ICONE_P (9 px, junto do texto fino).
+#define ICONE_M 6                         // os raios: 2 * r + 1 de lado
+#define ICONE_P 4
 static void moeda_r(int x, int y, float r)
 {
     int R = (int)(r + 0.5f);
-    if (R < 1) return;
-    gfx_disco(x + 1, y + 2, R, C_SOMBRA);
-    gfx_disco(x, y, R, C_LATAO_ESC);
-    gfx_disco(x, y, R - 1, C_OURO);
-    if (R > 3) gfx_disco(x, y, R - 3, gfx_mistura(C_OURO, C_LATAO_ESC, 30));
-    gfx_disco(x - R / 3, y - R / 3, R > 5 ? 1 : 0, gfx_mistura(C_OURO, C_BRANCO, 60));
+    if (R < 2) return;
+    uint16_t o[4];
+    rampa_de(C_OURO, o);
+    ficha_sombra(x + 1, y + 2, R);
+    ficha_disco(x, y, R, R, C_OURO);
+    if (R >= 6) {                                // o aro gravado: escuro do lado da luz, claro do outro
+        int a = R / 2;
+        for (int j = -a - 1; j <= a + 1; j++)
+            for (int i = -a - 1; i <= a + 1; i++) {
+                float d = sqrtf((float)(i * i + j * j));
+                if (fabsf(d - a) < 0.5f) gfx_pixel(x + i, y + j, i + j < 0 ? o[1] : o[3]);
+            }
+    }
+    gfx_pixel(x - R / 2 - 1, y - R / 2 - 1, o[3]);   // o brilho
 }
+static void moeda_ic(int x, int y) { moeda_r(x, y, ICONE_M); }
 
 // A mola de saida: passa um pouco do lugar e volta (0 -> 1).
 static float sai_mola(float q)
@@ -388,7 +393,7 @@ static void info_mesa(int p)
         char v[32];
         if (paga) {
             snprintf(v, sizeof v, "vale %d", vale);
-            moeda_ic(xa + 6, cy + 54);
+            moeda_r(xa + 5, cy + 54, ICONE_P);
             txt(xa + 16, cy + 44, v, C_OURO, false);
         } else txt(xa, cy + 44, "a última mesa da run", C_TEXTO_M, false);
     }
@@ -534,7 +539,7 @@ static void salao_mesa(int p)
     gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
     if (feita) {                                 // vencida: apaga e leva o visto, no que aparece do retrato
-        gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
+        ui_escurece(x - w / 2, y, w, h, 150);
         int vy = y + h / 2;
         gfx_linha_grossa(x - 9, vy, x - 2, vy + 8, 4, C_OURO);
         gfx_linha_grossa(x - 2, vy + 8, x + 12, vy - 10, 4, C_OURO);
@@ -555,7 +560,7 @@ static void salao_mesa(int p)
     texto_no_chao(tx, ty, tag, cn, GFX_FINO);
     if (v[0]) {
         int vx = tx + wt + 8;
-        if (vale) { moeda_r(vx + 4, ty + 10, 5); vx += 12; }
+        if (vale) { moeda_r(vx + 4, ty + 10, ICONE_P); vx += 12; }
         texto_no_chao(vx, ty, v, vale ? C_OURO : C_ROSA, GFX_FINO);
     }
     // A selecao: as cantoneiras em volta da mesa inteira, do retrato ao valor.
@@ -621,7 +626,7 @@ static void desenha_mapa(void)
 static grade_t grade_bolsa(int n) { return grade_cabe(n, 12, 40, 120); }
 static void desenha_bolsa_run(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_run(KEY_TAB);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, "SUA BOLSA", C_LATAO);
     char s[64];
@@ -861,7 +866,7 @@ static void desenha_run_campea(int n)
 
 static void desenha_fim_run(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 90);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 90);
     faixa_run(0);
     if (des_venceu_run) desenha_run_campea(nov_quantas());
     else desenha_run_perdida();
@@ -882,7 +887,7 @@ static void desenha_creditos(void)
         { "Jersey 10, Tiny5 e Bitcount Prop Single (SIL Open Font License)", 2 },
         { "Obrigado por jogar.", 3 },
     };
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_run(0);
     const int y0 = MESA_Y0 + 6;                                 // cabe todo dentro do feltro
     painel(y0, MESA_Y1 - 6 - y0, 520);
@@ -1058,7 +1063,7 @@ static void tut_cena_desafio(int cx, int cy, float t)
         gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
         if (P[i] >= 0) retrato(x - w / 2, y, 2, P[i], t + i * 1.3f, false, 0, RT_H);
         if (feita) {                                  // vencida: apaga e leva o visto
-            gfx_rect_alfa(x - w / 2, y, w, h, C_SOMBRA, 150);
+            ui_escurece(x - w / 2, y, w, h, 150);
             gfx_linha_grossa(x - 9, y + h / 2, x - 2, y + h / 2 + 8, 4, C_OURO);
             gfx_linha_grossa(x - 2, y + h / 2 + 8, x + 12, y + h / 2 - 10, 4, C_OURO);
         }

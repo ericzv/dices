@@ -317,7 +317,9 @@ static void desenha_amuleto(int x, int y, int r, int a, bool apagado)
         int sr = (int)(2.2f * u + 0.5f);
         gfx_disco(PX(2.0f), PY(2.2f), sr + 1, gfx_mistura(cor, C_BARRA, 40));
         gfx_disco(PX(2.0f), PY(2.2f), sr, cor);
-        gfx_disco(PX(2.0f), PY(2.2f), sr > 2 ? sr - 2 : 1, gfx_mistura(cor, C_BARRA, 25));
+        uint16_t rl[4];
+        rampa_de(gfx_na_paleta(cor), rl);
+        gfx_disco(PX(2.0f), PY(2.2f), sr > 2 ? sr - 2 : 1, rl[1]);   // o miolo do lacre, um tom abaixo
         gfx_disco(PX(1.5f), PY(1.6f), U > 1 ? U - 1 : 1, gfx_mistura(cor, C_BRANCO, 45));
         break;
     }

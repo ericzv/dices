@@ -12,6 +12,88 @@
 #define C_PLACA_LUZ RGB(36, 32, 29)
 static float bayer(int x, int y);                 // desenho_dado.inc: o pontilhado
 static void rampa_de(uint16_t c, uint16_t *r);    // e a rampa de 4 tons de uma cor
+static uint16_t tinta_escura(uint16_t c);         // e o fundo escuro tingido dela
+
+// Cores: tudo sai da paleta (cores.inc). Um fundo tingido ou um veu nao
+// misturam cores e deixam o arredondamento decidir (a mistura volta para o
+// tom de partida, ou cai noutra familia): escolhem o tom da rampa, e o
+// pontilhado faz a passagem. Ver docs/estilo.md.
+
+// O tom do feltro (0 o mais escuro, 5 o realce), ou -1 fora dele.
+static int feltro_idx(uint16_t c)
+{
+    for (int i = 0; i < 6; i++) if (feltro_tons[i] == c) return i;
+    return -1;
+}
+
+// O veu de sombra (alfa 0..255, como um gfx_rect_alfa de C_SOMBRA): o feltro
+// desce na propria rampa, para o tom principal nao voltar a ele mesmo na
+// paleta. O resto (dados, cartas, madeira) escurece misturado; se a mistura
+// voltaria ao mesmo tom, desce um tom na rampa dele (pontilhado, com pouco veu).
+static void ui_escurece(int x, int y, int w, int h, int alfa)
+{
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > GFX_W) w = GFX_W - x;
+    if (y + h > GFX_H) h = GFX_H - y;
+    if (w <= 0 || h <= 0 || alfa <= 0) return;
+    uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
+    float fica = 1 - alfa / 255.0f, meio = alfa >= 128 ? 1 : alfa / 128.0f;
+    int pct = alfa * 100 / 255;
+    // Cada cor so e calculada uma vez: o tom de baixo do feltro (inteiro e a
+    // fracao, para o pontilhado) ou a mistura e o tom da rampa de baixo.
+    struct { uint16_t cor, um, outro; uint8_t usado; float frac; } m[256];
+    for (int k = 0; k < 256; k++) m[k].usado = 0;
+    for (int j = y; j < y + h; j++) {
+        uint16_t *p = fb + j * GFX_W;
+        for (int i = x; i < x + w; i++) {
+            uint16_t c = p[i];
+            int h8 = (c ^ (c >> 8) ^ (c >> 13)) & 255;
+            if (!m[h8].usado || m[h8].cor != c) {
+                m[h8].usado = 1;
+                m[h8].cor = c;
+                int f = feltro_idx(c);
+                if (f >= 0) {                    // o feltro: entre dois tons da rampa dele
+                    float alvo = f * fica;
+                    int k = (int)alvo;
+                    m[h8].um = feltro_tons[k];
+                    m[h8].outro = feltro_tons[k + 1 < 6 ? k + 1 : k];
+                    m[h8].frac = alvo - k;
+                } else {                         // o resto: a mistura, ou o tom de baixo se ela nao muda nada
+                    uint16_t r[4], q = gfx_na_paleta(c), mist = gfx_mistura(c, C_SOMBRA, pct);
+                    rampa_de(q, r);
+                    bool perde = gfx_na_paleta(mist) == q;
+                    m[h8].um = mist;
+                    m[h8].outro = perde ? r[1] : mist;
+                    m[h8].frac = perde ? meio : 0;
+                }
+            }
+            p[i] = bayer(i, j) < m[h8].frac ? m[h8].outro : m[h8].um;
+        }
+    }
+}
+
+// A luz no feltro: sobe 'tons' na rampa dele (fracao pelo pontilhado); o que
+// nao e feltro fica como esta.
+static void ui_clareia(int x, int y, int w, int h, float tons)
+{
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > GFX_W) w = GFX_W - x;
+    if (y + h > GFX_H) h = GFX_H - y;
+    if (w <= 0 || h <= 0 || tons <= 0) return;
+    uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
+    for (int j = y; j < y + h; j++) {
+        uint16_t *p = fb + j * GFX_W;
+        for (int i = x; i < x + w; i++) {
+            int k = feltro_idx(p[i]);
+            if (k < 0) continue;
+            int n = (int)tons;
+            if (bayer(i, j) < tons - n) n++;
+            p[i] = feltro_tons[k + n > 5 ? 5 : k + n];
+        }
+    }
+}
 
 // Contorno de um pixel com os quatro cantos aparados.
 static void ui_contorno(int x, int y, int w, int h, uint16_t c)
@@ -300,19 +382,20 @@ static void teclas_c(int cx, int y, const char *s, uint16_t cor)
     linha_teclas(cx - w / 2, y, s, cor, true);
 }
 
-// Selecao de uma peca numa grade: fundo levemente aceso e as cantoneiras
-// na cor, rentes a caixa (as pecas da grade ficam perto umas das outras).
+// Selecao de uma peca numa grade: fundo aceso (o realce do feltro, o mesmo
+// para qualquer cor) e as cantoneiras na cor, rentes a caixa (as pecas da
+// grade ficam perto umas das outras).
 static void ui_selecao(int x, int y, int w, int h, uint16_t cor)
 {
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_FELTRO, cor, 22));
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, feltro_tons[5]);
     ui_cantos_em(x, y, w, h, cor, ui_respira());
 }
 
-// A peca marcada (a que esta em uso), que nao e o cursor: fundo aceso e
-// contorno fino na cor, parado.
+// A peca marcada (a que esta em uso), que nao e o cursor: fundo um tom
+// acima do feltro (menos que a selecao) e contorno fino na cor, parado.
 static void ui_marca(int x, int y, int w, int h, uint16_t cor)
 {
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_FELTRO, cor, 22));
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, C_FELTRO2);
     ui_contorno(x, y, w, h, cor);
 }
 
@@ -323,7 +406,7 @@ static void ui_etiqueta(int x, int y, int w, int h, uint16_t cor)
 {
     uint16_t r[4];
     rampa_de(cor, r);
-    gfx_rect(x + 1, y + 1, w - 2, h - 2, gfx_mistura(C_PLACA, cor, 22));
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, tinta_escura(cor));
     gfx_rect(x + 1, y, w - 2, 1, cor);
     gfx_rect(x, y + 1, 1, h - 2, cor);
     gfx_rect(x + w - 1, y + 1, 1, h - 2, r[1]);

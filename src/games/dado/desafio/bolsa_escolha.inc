@@ -181,7 +181,7 @@ static void bs_seta(int x, int y, bool sobe, uint16_t c)
 
 static void desenha_bolsas(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Escolha a bolsa da run");
     {                                                     // a dificuldade, a direita da faixa
         int ty = (FAIXA_H - TXT_H) / 2 - 2;
@@ -191,8 +191,8 @@ static void desenha_bolsas(void)
     // A luz no feltro, embaixo da ficha em foco.
     if (t_fase > BS_CAI(bs_cur)) {
         int lx = bs_x(bs_cur);
-        gfx_rect_alfa(lx - 40, BS_Y - 46, 80, 92, C_FELTRO2, 50);
-        gfx_rect_alfa(lx - 30, BS_Y - 40, 60, 80, C_FELTRO2, 40);
+        ui_clareia(lx - 40, BS_Y - 46, 80, 92, 0.6f);
+        ui_clareia(lx - 30, BS_Y - 40, 60, 80, 0.6f);
     }
     for (int b = 0; b < B_N; b++) {
         float q = (t_fase - BS_CAI(b)) / BS_QUEDA;
@@ -322,7 +322,7 @@ static void desenha_bolsas(void)
             peca_t p = { .tipo = (uint8_t)tipos[g] };
             float r = (poder ? 11 : 10) * (q < 1 ? sai_mola(q) : 1);
             peca_parada((float)cx, (float)dy, r, p, 0);
-            if (fechada) gfx_rect_alfa(cx - 12, dy - 12, 25, 25, C_SOMBRA, 120);
+            if (fechada) ui_escurece(cx - 12, dy - 12, 25, 25, 120);
             dica_zona(cx - 11, dy - 11, 22, 22, DICA_DADO, tipos[g]);
             char xn[8];
             snprintf(xn, sizeof xn, "x%d", conta[g]);

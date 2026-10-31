@@ -177,7 +177,7 @@ static void faixa_titulo(const char *s)
 
 static void desenha_perfis(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Quem vai jogar?");
     for (int i = 0; i < N_PERFIS; i++) {
         const perfil_t *p = &perfis[i];
@@ -229,7 +229,7 @@ static void desenha_perfis(void)
 
 static void desenha_cria_perfil(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Novo perfil");
     int esc = 4, rx = GFX_W / 2 - RT_W * esc / 2, ry = 58;
     moldura_retrato(rx, ry, esc, pf_avatar, t_fase, true);
@@ -262,7 +262,7 @@ static void desenha_cria_perfil(void)
 
 static void desenha_dificuldade(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Dificuldade da run");
     int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;
     int x0 = 28, y0 = 54;

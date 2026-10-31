@@ -338,7 +338,7 @@ static void hist_dados(void)
 
 static void desenha_historico(void)
 {
-    gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_SOMBRA, 110);
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     int tx = botao_voltar(KEY_ESC);

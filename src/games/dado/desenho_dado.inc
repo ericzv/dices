@@ -55,7 +55,7 @@ static float bayer(int x, int y) { return (BAYER4[y & 3][x & 3] + 0.5f) / 16; }
 // dele, do escuro ao claro, dois tons abaixo e um acima; faltando tom, entra
 // a familia mais perto (os escuros quentes embaixo, o marfim em cima).
 static const uint8_t PX_FAMILIA[][2] = { { 0, 6 }, { 6, 10 }, { 10, 14 }, { 21, 23 }, { 23, 27 }, { 27, 32 },
-                                         { 32, 38 }, { 38, 40 }, { 40, 44 }, { 44, 46 }, { 46, 50 } };
+                                         { 32, 38 }, { 38, 40 }, { 40, 44 }, { 44, 46 }, { 46, 50 }, { 50, 52 } };
 static uint16_t cor_de_dado(uint16_t c);
 static int brilho_de(uint16_t c);
 static void rampa_de(uint16_t c, uint16_t *r)
@@ -84,6 +84,22 @@ static void rampa_de(uint16_t c, uint16_t *r)
     r[1] = L[j - 1 >= 0 ? j - 1 : 0];
     r[2] = L[j];
     r[3] = L[j + 1 < nl ? j + 1 : nl - 1];
+}
+
+// O fundo escuro tingido de uma cor (etiquetas, selos): o tom escuro da
+// familia dela na paleta, para a tinta nao se perder no arredondamento. As
+// familias sem um escuro com tinta (pardos, cinzas, marfim) ficam na placa.
+static uint16_t tinta_escura(uint16_t c)
+{
+    int n = (int)(sizeof PALETA / sizeof PALETA[0]), i = 0;
+    uint16_t q = gfx_na_paleta(c);
+    while (i < n && PALETA[i] != c && PALETA[i] != q) i++;
+    if (i < 14 || i >= n) return RGB(36, 32, 29);        // escuros, cinzas e marfim: a placa clara
+    if (i < 23) return feltro_tons[2];                   // feltro e verdes
+    if (i < 32 || (i >= 38 && i < 40) || i >= 50) return RGB(56, 32, 20);   // madeira, latao, fogo e pele
+    if (i < 38) return RGB(66, 18, 24);                  // vinho e vermelho
+    if (i < 46) return RGB(26, 34, 62);                  // azuis e agua
+    return RGB(54, 36, 74);                              // roxos
 }
 
 // Um tom da rampa de 4 pela luz l (-1 de costas, 1 de frente para a luz de
@@ -428,6 +444,24 @@ static int icone_protecao(int x, int y, bool anula, bool rouba)
     }
     return w ? w - 1 : 0;
 }
+// O cadeado, o mesmo em todo lugar (bolsa fechada, dado e estilo ainda
+// fechados): 9 x 11 pixels em escala e, centrado em (cx, cy), com o contorno
+// escuro, a alca de aco e o corpo na cor, com a luz de cima a esquerda.
+static void icone_cadeado(int cx, int cy, int e, uint16_t cor)
+{
+    static const char *const M[11] = { "..KKKKK..", ".KSSSSsK.", ".KSK.KsK.", ".KSK.KsK.", "KKKKKKKKK", "KYYYYYYDK",
+                                       "KYyyKyyDK", "KYyyKyyDK", "KYyyyyyDK", "KDDDDDDDK", "KKKKKKKKK" };
+    uint16_t r[4];
+    rampa_de(gfx_na_paleta(cor), r);
+    for (int y = 0; y < 11; y++)
+        for (int x = 0; x < 9; x++) {
+            char c = M[y][x];
+            if (c == '.') continue;
+            uint16_t k = c == 'K' ? C_BARRA : c == 'S' ? C_PRATA : c == 's' ? C_ACO : c == 'Y' ? r[3] : c == 'y' ? r[2] : r[1];
+            gfx_rect(cx + (x - 4) * e, cy + (y - 5) * e, e, e, k);
+        }
+}
+
 // No canto de cima, a esquerda, de um dado de raio r em (cx, cy).
 static void marca_protecao(float cx, float cy, float r, bool anula, bool rouba)
 {

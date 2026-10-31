@@ -54,6 +54,7 @@ typedef struct {
     uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
     bool    evolui[N_FILA];          // o ciclo cosmico tirou a faixa de cima: no fim da rodada, evolui
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
+    bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     char    tag[N_FILA][14];
     int     pontos;

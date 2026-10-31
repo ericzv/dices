@@ -111,20 +111,16 @@ static int maior_do_rival(int j)
     }
     return vale ? vale : qualquer;
 }
-// O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente
-// (sem nenhum valendo, o ultimo que ele lancou). Nao copia o Universo, nem o
-// Oculto ainda virado, nem outra Ficha Coringa esperando. A posicao na fila
-// do oponente, ou -1 se nao ha o que copiar.
+// O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente.
+// Nao copia o Universo, nem o Oculto ainda virado, nem outra Ficha Coringa
+// esperando. A posicao na fila do oponente, ou -1 se nao ha nenhum valido
+// para copiar (e ela e anulada).
 static int alvo_curinga(int j)
 {
     const fila_t *r = &F[outro(j)];
-    int qualquer = -1;
-    for (int i = r->lancados - 1; i >= 0; i--) {
-        if (r->escondido[i] || r->curinga[i] || r->tipo[i] == D_UNIVERSO) continue;
-        if (r->est[i] == V_VALIDO) return i;
-        if (qualquer < 0) qualquer = i;
-    }
-    return qualquer;
+    for (int i = r->lancados - 1; i >= 0; i--)
+        if (r->est[i] == V_VALIDO && !r->escondido[i] && !r->curinga[i] && r->tipo[i] != D_UNIVERSO) return i;
+    return -1;
 }
 // Alguma Ficha Coringa de j ainda com o curinga para cima?
 static bool tem_curinga(int j)
@@ -247,6 +243,14 @@ static void aplica_regra(int j, int k)
         f->est[k] = V_ESPERA;
         snprintf(veredito, sizeof veredito, "Ficha Coringa: no fim, vira o último do oponente");
         ver_tipo = 0;
+        f->pontos = soma(j, f->est);
+        return;
+    }
+    // A que virou sem nada valido do oponente para copiar: so ela, anulada.
+    if (f->curinga_nada[k]) {
+        f->est[k] = V_ANULADO;
+        snprintf(veredito, sizeof veredito, "Ficha Coringa sem nada para virar: anulada");
+        ver_tipo = 1;
         f->pontos = soma(j, f->est);
         return;
     }
@@ -641,6 +645,7 @@ static void pousa(int j, int k, int (*r)(int))
     int ef0 = TIPO[f->tipo[k]].efeito;
     f->escondido[k] = ef0 == EF_OCULTO;                          // o Oculto cai virado
     f->curinga[k] = ef0 == EF_FICHA_CORINGA;                     // a Ficha Coringa, com o curinga para cima
+    f->curinga_nada[k] = false;
     // O Terremoto ja traz a semente do lance que o tremor dara no fim: a
     // previa e a IA nao a usam, e o fim de verdade e o mesmo dos dois lados.
     f->abalo[k] = ef0 == EF_TERREMOTO ? (uint32_t)r(0x7FFFFFFF) : 0;

@@ -86,7 +86,7 @@ static peca_t nova_peca(int tipo)
 {
     peca_t p = { .tipo = (uint8_t)tipo, .fixo = 0 };
     if (tipo == D_QUEBRADO) p.fixo = (uint8_t)rola(8);
-    if (tipo == D_ADESIVADO) adesiva(&p, rola, modo == M_DESAFIO);   // ja vem com os adesivos
+    if (tipo == D_ADESIVADO || tipo == D_MAIS_ADESIVADO) adesiva(&p, rola, modo == M_DESAFIO);   // ja vem com os adesivos
     return p;
 }
 

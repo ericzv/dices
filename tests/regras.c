@@ -1561,8 +1561,15 @@ int main(void)
             limpa(); joga(1, D_D8, 7); joga(0, D_D6, 4); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); joga(0, D_D6, 5); d = fim();
             CONFERE(F[0].valor[1] == 7 && d.est[0][1] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 4,
                     "Coringa vira 7 antes do 5: os dois caem, fica 4 (%d)", d.total[0]);
-            limpa(); joga(1, D_D6, 6); joga(1, D_D6, 2); joga(0, D_D6, 1); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); d = fim();
-            CONFERE(F[0].valor[1] == 2 && d.total[0] == 3, "sem valido do oponente: o ultimo que ele lancou (%d)", F[0].valor[1]);
+            limpa(); joga(1, D_D6, 6); joga(1, D_D6, 2); joga(0, D_D6, 1); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); joga(0, D_D6, 3);
+            calcula_desfecho(&d, false);
+            CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 4 && F[0].curinga[1], "previa: sem valido do oponente, a ficha cai (%d)", d.total[0]);
+            d = fim();
+            CONFERE(d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO && d.est[0][2] == V_VALIDO && d.total[0] == 4
+                    && F[0].curinga_nada[1] && n_ev >= 1 && ev[0].tipo == EV_CORINGA && ev[0].alvo_k == 0xFF,
+                    "sem valido do oponente: so a ficha e anulada, os outros ficam (%d)", d.total[0]);
+            limpa(); joga(1, D_UNIVERSO, 40); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois); d = fim();
+            CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == 0, "so o Universo do outro lado: nada a copiar, anulada");
             limpa(); joga(1, D_D6, 5); joga_com(1, D_FICHA_CORINGA, 1, sempre_dois);
             joga(0, D_D6, 3); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); d = fim();
             CONFERE(F[0].valor[1] == 5 && F[1].valor[1] == 3, "duas Coringas: cada uma vira o ultimo do outro (%d, %d)", F[0].valor[1], F[1].valor[1]);
@@ -1631,6 +1638,38 @@ int main(void)
                 CONFERE(ok, "Adesivado: 3 adesivos diferentes nos lados 1 a 6");
                 for (int l = 1; l <= 6; l++) CONFERE(lados[l] > 50, "Adesivado: o lado %d quase nunca tem adesivo (%d)", l, lados[l]);
                 CONFERE(tipos >= 15, "Adesivado: so %d adesivos diferentes em 200", tipos);
+                // O segredo: com os seis lados cheios, vira o Mais Adesivado (d8, os oito adesivos fixos).
+                peca_t m = nova_peca(D_MAIS_ADESIVADO);
+                bool fixos = m.tipo == D_MAIS_ADESIVADO && TIPO[m.tipo].lados == 8 && ad_quantos(&m) == 8;
+                for (int l = 1; l <= 8; l++) fixos &= ad_no_lado(&m, l) == MAIS_ADESIVADO[l - 1];
+                CONFERE(fixos && ad_no_lado(&m, 1) == AD_AVESSO && ad_no_lado(&m, 8) == AD_ELETRONICO && !ad_cabe(&m),
+                        "Mais Adesivado: Avesso no 1 ... Eletronico no 8, sem lado livre");
+                CONFERE(sem_sorteio(D_MAIS_ADESIVADO) && !no_catalogo(D_MAIS_ADESIVADO) && !dado_liberado(D_MAIS_ADESIVADO)
+                        && no_catalogo(D_ADESIVADO), "Mais Adesivado: segredo, fora do sorteio e da colecao");
+                peca_t ad = { .tipo = D_ADESIVADO };
+                for (int l = 1; l <= 5; l++) ad_cola(&ad, l, AD_CONFETE + l);
+                CONFERE(!vira_mais_adesivado(&ad) && ad.tipo == D_ADESIVADO, "Adesivado com 5: ainda nao vira");
+                ad_cola(&ad, 6, AD_LOBO);
+                CONFERE(vira_mais_adesivado(&ad) && ad.tipo == D_MAIS_ADESIVADO && ad_quantos(&ad) == 8, "Adesivado cheio vira");
+                peca_t d6 = { .tipo = D_D6 };
+                for (int l = 1; l <= 6; l++) ad_cola(&d6, l, AD_LOBO);
+                CONFERE(!vira_mais_adesivado(&d6) && d6.tipo == D_D6, "um D6 cheio continua D6");
+                // Pela loja do Desafiante: o sexto adesivo colado vira o dado na bolsa (e salva).
+                {
+                    run_t r0 = run;
+                    run.n_col = 1;
+                    run.col[0] = (peca_t){ .tipo = D_ADESIVADO };
+                    for (int l = 1; l <= 5; l++) ad_cola(&run.col[0], l, AD_CONFETE + l);
+                    run.adesivo = AD_LOBO; run.ad_vendido = 0; run.moedas = 99;
+                    cola_premio = false; cola_pac = -1; t_lj_cola = 0; lj_vira = false;
+                    lj_colando = 2; lj_cola_dado = 0;
+                    cola_escolhe_lado(5);
+                    CONFERE(run.col[0].tipo == D_MAIS_ADESIVADO && lj_vira && ad_no_lado(&lj_vira_de, 6) == AD_LOBO
+                            && lj_vira_de.tipo == D_ADESIVADO, "loja: o sexto adesivo vira o Mais Adesivado");
+                    for (int f = 0; f < 400 && (t_lj_cola > 0 || t_lj_vira > 0); f++) cola_passo(1 / 60.0f);
+                    CONFERE(!lj_vira && t_lj_vira == 0 && lj_colando == 0, "loja: a virada acaba e a loja volta");
+                    run = r0;
+                }
                 modo = m0;
             }
             // O ciclo cosmico: na faixa de cima, valendo ou nao, evolui; valendo, o bonus.
@@ -1926,7 +1965,7 @@ int main(void)
         CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0;
-            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t);
+            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t);
             CONFERE(vis == n_catalogo(), "a colecao devia ter %d dados (tem %d)", vis, n_catalogo());
             for (int i = 0; i < n_catalogo(); i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
             for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");

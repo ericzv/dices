@@ -606,7 +606,7 @@ static void evento_no_meio(float t0, float t1)
         treme(2, 0.25f);
     }
     if (e->tipo == EV_TREMOR && a < TREMOR_SALTA && b >= TREMOR_SALTA) som_toca_tom(SOM_BATE_DADO, -5);   // o dado salta do chao
-    if (e->tipo == EV_CORINGA && a < CORINGA_POUSA && b >= CORINGA_POUSA) {
+    if (e->tipo == EV_CORINGA && e->alvo_k < N_FILA && a < CORINGA_POUSA && b >= CORINGA_POUSA) {
         som_toca(SOM_MOEDA_POUSA);
         poeira_solta((float)SLOT_X(e->de_k), (float)zona(e->de_j));
     }

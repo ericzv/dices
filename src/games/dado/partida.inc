@@ -1078,7 +1078,7 @@ static int som_do_evento(int i)
         }
     case EV_ONDA:    return SOM_ONDA;
     case EV_TREMOR:  return SOM_FORTE;            // a mesa ronca; o dado bate depois (passo.inc)
-    case EV_CORINGA: return SOM_MOEDA_BATE;       // a ficha gira; e pousa depois
+    case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;

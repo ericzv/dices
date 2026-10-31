@@ -205,8 +205,15 @@ static bool adesivado_pode(int a, const uint8_t *ja, int n, bool desafio)
     for (int i = 0; i < n; i++) if (ja[i] == a) return false;
     return desafio ? adesivo_liberado(a) : ad_no_premio(a);
 }
+// O Mais Adesivado: um adesivo em cada um dos 8 lados, sempre os mesmos.
+static const uint8_t MAIS_ADESIVADO[8] = { AD_AVESSO, AD_TRANSPARENTE, AD_PATINHO, AD_ETIQUETA,
+                                           AD_SELO, AD_REMENDO, AD_CONFETE, AD_ELETRONICO };
 static void adesiva(peca_t *p, int (*r)(int), bool desafio)
 {
+    if (p->tipo == D_MAIS_ADESIVADO) {
+        for (int l = 1; l <= 8; l++) ad_cola(p, l, MAIS_ADESIVADO[l - 1]);
+        return;
+    }
     static const int PESO[4] = { 8, 4, 2, 1 };
     uint8_t ja[ADESIVADO_N] = { 0 };
     for (int n = 0; n < ADESIVADO_N; n++) {
@@ -225,6 +232,24 @@ static void adesiva(peca_t *p, int (*r)(int), bool desafio)
         ad_cola(p, livres[r(nl) - 1], a);
         ja[n] = (uint8_t)a;
     }
+}
+
+// O segredo do Adesivado: com os seis lados cheios (a colagem que encheu o
+// ultimo), ele vira o Mais Adesivado - um d8 novo, com os oito adesivos dele
+// no lugar dos que tinha. Devolve se virou.
+static bool adesivado_cheio(const peca_t *p)
+{
+    if (p->tipo != D_ADESIVADO) return false;
+    for (int l = 1; l <= 6; l++) if (!ad_no_lado(p, l)) return false;
+    return true;
+}
+static bool vira_mais_adesivado(peca_t *p)
+{
+    if (!adesivado_cheio(p)) return false;
+    peca_t n = { .tipo = D_MAIS_ADESIVADO };
+    adesiva(&n, NULL, false);
+    *p = n;
+    return true;
 }
 
 // O Adesivado de amostra, para a colecao e o detalhe (la nao se sorteia).

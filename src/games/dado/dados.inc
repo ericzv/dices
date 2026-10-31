@@ -58,7 +58,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_ASTRO, D_CONSTELACAO, D_GALAXIA, D_BURACO, D_UNIVERSO,
        // Os mais novos: a ficha que vira o do oponente, o que sacode a mesa
        // dele, o visor que acende +1, o que marca a rodada e o cheio de adesivos.
-       D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO, D_N };
+       D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO,
+       // O segredo do Adesivado: com os 6 lados cheios, vira este d8.
+       D_MAIS_ADESIVADO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -149,7 +151,11 @@ static bool oculto(int t) { return t == D_MISTERIOSO; }
 // O ciclo cosmico depois da Estrela so nasce dela: nao sai em sorteio nem
 // aparece na colecao (e surpresa).
 static bool cosmo_oculto(int t) { return t >= D_CONSTELACAO && t <= D_UNIVERSO; }
-static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t) || cosmo_oculto(t); }
+// O Mais Adesivado so nasce de um Adesivado com os 6 lados cheios: nao sai em
+// sorteio nem aparece na colecao (e o segredo dele).
+static bool adesivado_secreto(int t) { return t == D_MAIS_ADESIVADO; }
+static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t) || cosmo_oculto(t)
+                                        || adesivado_secreto(t); }
 static bool so_desafio(int t)
 {
     switch (t) {
@@ -287,6 +293,7 @@ static const tipo_t TIPO[D_N] = {
     { "Digital",          6, EF_DIGITAL,      RAR_LENDA,    0, "Acende o último dado da sequência +1" },
     { "Relógio",         20, EF_RELOGIO,      RAR_RARO,     0, "Tira o número da rodada: 1, 2, 3..." },
     { "Adesivado",        6, EF_ADESIVADO,    RAR_INCOMUM,  0, "Já vem com 3 adesivos ao acaso" },
+    { "Mais Adesivado",   8, EF_ADESIVADO,    RAR_LENDA,    0, "Oito lados, um adesivo em cada" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -405,11 +412,12 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
     [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
     [D_UNIVERSO]        = "Só pode ser lançado sozinho. Nada interfere nele: pontua exatamente o que tirar.",
-    [D_FICHA_CORINGA]   = "Fica fora da sequência até o fim da rodada; então vira o último dado válido do oponente.",
+    [D_FICHA_CORINGA]   = "Fica fora da sequência até o fim da rodada; então vira o último dado válido do oponente (sem nenhum, é anulada).",
     [D_TERREMOTO]       = "Se terminar válido com 7 ou 8, no fim rola de novo o último dado válido do oponente.",
     [D_DIGITAL]         = "Não é sorteado: acende o número do último dado válido da sequência +1, e nunca cai.",
     [D_RELOGIO]         = "Não é sorteado: tira o número da rodada - 1 na primeira, 2 na segunda, 7 na sétima.",
     [D_ADESIVADO]       = "Já vem com 3 adesivos diferentes, sorteados, colados em 3 lados ao acaso.",
+    [D_MAIS_ADESIVADO]  = "Oito lados, um adesivo em cada: Avesso, Transparente, Patinho Feio, Etiqueta, Selo, Remendo, Confete e Eletrônico.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -638,7 +646,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "ele tira. A cada partida, recomeça como Estrela.",
     [D_FICHA_CORINGA]   = "Uma ficha. Lançada, fica com o curinga para cima e fora da sequência: o dado seguinte se "
                           "compara com o de antes dela. No fim da rodada, vira o último dado válido do oponente e entra "
-                          "na sequência com esse número - aí pode cair, ou derrubar o seguinte. Não copia o Universo.",
+                          "na sequência com esse número - aí pode cair, ou derrubar o seguinte. Sem nenhum válido para "
+                          "copiar, é anulada.",
     [D_TERREMOTO]       = "Oito lados. Se terminar válido com 7 ou 8, no fim da rodada o chão do oponente treme: o "
                           "último dado válido dele rola de novo, como ele rola, e a sequência dele é refeita com o "
                           "número novo - menor que o de antes, ele cai e leva junto o anterior. O Universo não treme.",
@@ -649,7 +658,10 @@ static const char *TEXTO_CAT[D_N] = {
                           "7 na sétima, até 20. O mostrador enche um pouco a cada rodada.",
     [D_ADESIVADO]       = "Seis lados. Sai da loja, do prêmio ou da bolsa com 3 adesivos diferentes, sorteados, em 3 "
                           "lados sorteados. Os adesivos agem como qualquer outro, cada um quando o lado dele fica "
-                          "para cima.",
+                          "para cima. Dizem que, com os seis lados cheios, ele vira outra coisa.",
+    [D_MAIS_ADESIVADO]  = "O Adesivado que encheu os seis lados. Oito lados, um adesivo em cada, sempre os mesmos: "
+                          "1 Avesso, 2 Transparente, 3 Patinho Feio, 4 Etiqueta, 5 Selo, 6 Remendo, 7 Confete e "
+                          "8 Eletrônico. Não sai em sorteio nenhum.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -690,7 +702,7 @@ static void classe(int tipo, char *s, int n)
 
 // O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
 // fora da epoca, os de Natal.
-static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t); }
+static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t); }
 static int n_catalogo(void)
 {
     int n = 0;
@@ -874,6 +886,8 @@ static const visual_t VISUAL[D_N] = {
     [D_RELOGIO]     = { V_LATAO,  0, 0,         V_BREU, 80,     V_LATAO_E, 100, V_VERM, 100 },
     // O Adesivado: o marfim coberto de pedacos de adesivo nos cantos.
     [D_ADESIVADO]   = { V_ROSA,   0, 0,         V_ROSA, 100,    V_CIANO, 100,  V_TRIGO, 100 },
+    // O Mais Adesivado: o marfim quase todo coberto, e o aro de ouro.
+    [D_MAIS_ADESIVADO] = { V_OURO, 0, 0,        V_ROSA, 100,    V_CIANO, 100,  V_TRIGO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

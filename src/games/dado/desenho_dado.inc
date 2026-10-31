@@ -1357,6 +1357,20 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
+    case D_MAIS_ADESIVADO: {                      // o losango quase todo coberto: oito pedacos tortos, uns por cima dos outros
+        static const float A[8][5] = { {0.00f,-0.66f,0.17f,0.11f,0.30f}, {0.40f,-0.38f,0.18f,0.12f,-0.70f},
+                                       {0.66f,0.02f,0.16f,0.12f,0.20f},  {0.40f,0.42f,0.19f,0.11f,0.75f},
+                                       {0.02f,0.68f,0.17f,0.12f,-0.25f}, {-0.40f,0.40f,0.18f,0.12f,-0.80f},
+                                       {-0.66f,-0.02f,0.16f,0.12f,-0.15f}, {-0.38f,-0.40f,0.19f,0.11f,0.65f} };
+        for (int i = 0; i < 8; i++) {
+            float c = cosf(A[i][4]), sn = sinf(A[i][4]);
+            float x = (u - A[i][0]) * c + (v - A[i][1]) * sn, y = -(u - A[i][0]) * sn + (v - A[i][1]) * c;
+            if (fabsf(x) >= A[i][2] || fabsf(y) >= A[i][3]) continue;
+            if (x - y > A[i][2] + A[i][3] - 0.08f) return 0;                  // o canto que descolou
+            return 1 + i % 3;
+        }
+        return 0;
+    }
     case D_SORTE_REVES:                           // metade sorte, metade reves, com o meio livre
         if (fabsf(ro - 0.58f) < l * 1.2f) return 2;   // o anel de ouro em volta do numero
         if (ro < 0.58f) return 0;

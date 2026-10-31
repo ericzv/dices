@@ -1045,9 +1045,11 @@ static void desenha_fila(int j)
         // A Ficha Coringa: o curinga ate o evento dela; no evento, sobe girando
         // e cai com o numero novo para cima.
         bool virando = e && e->tipo == EV_CORINGA && e->de_j == j && e->de_k == k;
-        face_curinga = f->curinga[k] || (no_desfecho && vis_curinga[j][k] && !(virando && p > CORINGA_VIRA));
+        bool vira_vazia = virando && e->alvo_k >= N_FILA;   // sem nada valido para copiar: treme e e anulada
+        face_curinga = f->curinga[k] || f->curinga_nada[k] || (no_desfecho && vis_curinga[j][k] && !(virando && p > CORINGA_VIRA));
+        if (vira_vazia && p > 0.2f) x += (int)(sinf(t_fase * 60) * 2 * (1 - p));
         float giro_ficha = -1;                   // a largura aparente da ficha girando (-1: deitada)
-        if (virando && p > CORINGA_SOBE && p < CORINGA_POUSA) {
+        if (virando && !vira_vazia && p > CORINGA_SOBE && p < CORINGA_POUSA) {
             float q = (p - CORINGA_SOBE) / (CORINGA_POUSA - CORINGA_SOBE);
             pulo += sinf(q * 3.1416f) * 22;
             giro_ficha = cosf(q * 5 * 3.1416f);   // duas voltas e meia: cai do outro lado

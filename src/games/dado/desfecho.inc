@@ -1513,9 +1513,10 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     }
     // A Ficha Coringa vira: passa a ter o numero do ultimo dado valido do
     // oponente (depois do tremor) e entra na sequencia do dono com ele - ai
-    // pode cair, ou derrubar o seguinte. As dos dois lados viram juntas, cada
-    // uma olhando a mesa do outro antes de qualquer uma virar. Na previa
-    // tambem (nada ao acaso), e a mesa volta no fim.
+    // pode cair, ou derrubar o seguinte. Sem nenhum valido do oponente, ela e
+    // anulada. As dos dois lados viram juntas, cada uma olhando a mesa do
+    // outro antes de qualquer uma virar. Na previa tambem (nada ao acaso), e
+    // a mesa volta no fim.
     int c_alvo[2], c_val[2];
     for (int j = 0; j < 2; j++) {
         c_alvo[j] = alvo_curinga(j);
@@ -1529,7 +1530,8 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (!F[j].curinga[k]) continue;
             F[j].curinga[k] = false;
             if (c_alvo[j] < 0) {
-                evento(gera, EV_CORINGA, j, k, outro(j), 0xFF, F[j].valor[k], "Ficha Coringa: nada para virar, fica com %d", F[j].valor[k]);
+                F[j].curinga_nada[k] = true;
+                evento(gera, EV_CORINGA, j, k, outro(j), 0xFF, 0, "Ficha Coringa: %s não tem dado válido, anulada", J[outro(j)].nome);
                 continue;
             }
             int v = c_val[j] + (F[j].calibre[k] ? 1 : 0);

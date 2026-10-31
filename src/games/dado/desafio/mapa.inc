@@ -21,7 +21,7 @@ static peca_t peca_r(int t)
 {
     peca_t p = { .tipo = (uint8_t)t, .fixo = 0 };
     if (t == D_QUEBRADO) p.fixo = (uint8_t)(1 + sorte_r(8));
-    if (t == D_ADESIVADO) adesiva(&p, rola_r, true);   // os adesivos dele, dos abertos
+    if (t == D_ADESIVADO || t == D_MAIS_ADESIVADO) adesiva(&p, rola_r, true);   // os adesivos dele, dos abertos
     return p;
 }
 

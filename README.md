@@ -215,15 +215,33 @@ moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 
 **https://ericzv.github.io/dices/** — abre direto no navegador, sem instalar.
 
-Para jogar online com um amigo: os dois abrem o endereço, escolhem **Online**;
-um clica em **Criar sala** e passa o código de 4 letras; o outro clica em
-**Entrar com código** e digita. Cada um se vê embaixo da mesa.
+Para jogar online com um amigo: abra o endereço, escolha **Online** e
+**Criar sala**. A sala mostra o código de 4 letras e o **convite**, um link
+como `ericzv.github.io/dices/?sala=K7QM` (o endereço da página já vira ele;
+**Copiar convite**, ou a tecla C, copia; no celular abre o compartilhar).
+Quem abre o convite entra direto na sala; sem o link, o amigo escolhe
+**Online → Entrar com código** e digita o código. Cada um se vê embaixo da
+mesa.
 
 As jogadas passam por um servidor MQTT público e gratuito (HiveMQ, com EMQX
 e Mosquitto de reserva), que só repassa as mensagens da sala. Os dois
 navegadores rodam a mesma partida com a mesma semente; só viajam as teclas
-de quem está na vez. Serve bem para jogar entre amigos — não é um servidor
-com garantia nem privacidade (quem souber o código vê as jogadas).
+de quem está na vez. O que segura a partida quando a rede falha:
+
+- cada tecla vai numerada e fica guardada; o sinal de vida (a cada 3 s) diz
+  quantas chegaram e o outro lado manda de novo as que faltam. Uma queda
+  curta da internet não perde nada;
+- quem entra diz a versão do jogo: versões diferentes (uma página aberta
+  antes de uma atualização) não jogam juntas, e o aviso pede para os dois
+  recarregarem;
+- o site de teste (`/teste/`) tem salas separadas das do site principal;
+- o jogo resume o estado das regras a cada rodada e a cada turno (os
+  marcos); se o resumo de um lado não bater com o do outro, a partida para
+  com o aviso, em vez de seguir com dois placares diferentes;
+- sem notícia do rival por 25 s, ou se ele sai, a partida para com o aviso.
+
+Serve bem para jogar entre amigos — não é um servidor com garantia nem
+privacidade (quem souber o código vê as jogadas).
 
 ## Jogar no computador
 
@@ -290,6 +308,13 @@ ctest --test-dir build --output-on-failure
 `balanco` também mede cada dado e cada amuleto numa mesa só e o recomeço de
 partida (veja o começo de `tests/balanco.c`).
 
+O ctest também joga o online: `online` (Linux e macOS) põe duas cópias do
+jogo em dois processos, uma a 60 quadros por segundo e a outra variando de
+30 a 144, trocando as teclas da vez; os marcos dos dois lados têm que sair
+iguais. `rede` (com o Node instalado) roda a rede da página
+(`web/shell.html`) num servidor de mentira que perde, repete e embaralha
+mensagens, derruba a conexão, mistura versões e confere o convite.
+
 No Linux, o ctest também passa pelas telas principais (o menu, o
 Desafiante, o mapa de cada salão, a loja, a mesa, o catálogo, o painel do
 som...) e compara cada uma com a referência guardada em
@@ -342,7 +367,7 @@ src/          o jogo
 desktop/      a plataforma PC: janela, teclado, som e ícone
   sons/           a trilha e os efeitos (OGG), embutidos no executável no build
 web/          a página do navegador e a rede do modo online (MQTT)
-tests/        simulador de partidas, regras, Desafiante, telas e conferência dos sons
+tests/        simulador de partidas, regras, Desafiante, telas, online, rede e conferência dos sons
 tools/        geradores da fonte, do ícone e dos sons (tools/sons/)
 docs/         o guia de estilo (estilo.md): paleta, rampas, kit de interface e ícones
 cardputer/    o firmware do Cardputer (ESP-IDF), fora do build do PC

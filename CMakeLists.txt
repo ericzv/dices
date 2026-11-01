@@ -113,7 +113,7 @@ if (EMSCRIPTEN)
     set_target_properties(dado PROPERTIES OUTPUT_NAME "index" SUFFIX ".html")
     target_link_options(dado PRIVATE
         -sUSE_GLFW=3 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=64MB
-        "-sEXPORTED_FUNCTIONS=_main,_dado_online_comeca,_dado_rede_tecla,_dado_dbg_fichas,_dado_dbg_rodada,_dado_dbg_fase,_dado_dbg_vez,_dado_dbg_pote"
+        "-sEXPORTED_FUNCTIONS=_main,_dado_online_comeca,_dado_rede_tecla,_dado_online_abre,_dado_dbg_fichas,_dado_dbg_rodada,_dado_dbg_fase,_dado_dbg_vez,_dado_dbg_pote"
         "-sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE=$stringToUTF8,$UTF8ToString"
         "-sEXPORTED_RUNTIME_METHODS=HEAPF32,HEAP8,HEAPU8,HEAP16,HEAP32"   # o miniaudio le Module.HEAPF32
         --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
@@ -169,6 +169,22 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_include_directories(telas PRIVATE src desktop)
         target_link_libraries(telas PRIVATE m)
         add_test(NAME telas COMMAND telas ${CMAKE_CURRENT_SOURCE_DIR}/tests/telas_ref.txt)
+    endif()
+    # O online: duas copias do jogo em dois processos, em ritmos de quadro
+    # diferentes, trocando as teclas da vez; os marcos da partida (o estado
+    # das regras a cada rodada e a cada turno) tem que bater nos dois lados.
+    if (UNIX)
+        add_executable(online tests/online.c src/ui/gfx.c src/ui/fonte.c)
+        target_include_directories(online PRIVATE src desktop)
+        target_link_libraries(online PRIVATE m)
+        add_test(NAME online COMMAND online 2)
+    endif()
+    # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
+    # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.
+    find_program(NODE_EXE node)
+    if (NODE_EXE)
+        add_test(NAME rede COMMAND ${NODE_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/rede.js
+                 ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html)
     endif()
     # Confere que todo som do jogo tem gravacao e que todas decodificam;
     # exporta tudo em WAV, para ouvir fora do jogo.

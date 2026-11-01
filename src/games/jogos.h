@@ -22,6 +22,7 @@ int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
 // A plataforma avisa o jogo:
 void dado_online_comeca(uint32_t semente, int eu);   // eu: 0 cria a sala, 1 entra
 void dado_rede_tecla(int k);                         // tecla que o rival apertou
+void dado_online_abre(void);                         // abre a tela do online (quem chega por um convite)
 bool dado_digitando(void);                           // campo de texto aberto: letras sao dele
 // e o jogo pede a plataforma (cada uma implementa as suas):
 enum { REDE_PARADA, REDE_CONECTANDO, REDE_ESPERANDO, REDE_JOGANDO, REDE_ERRO };
@@ -33,6 +34,12 @@ void rede_sai(void);
 int  rede_estado(void);
 const char *rede_codigo(void);           // o codigo da sala aberta
 const char *rede_erro(void);             // por que parou, quando REDE_ERRO
+// Um marco da partida: o estado das regras num instante que os dois lados
+// atravessam igual (indice 1, 2, 3...). A rede compara com o do rival.
+void rede_marco(int indice, uint32_t hash);
+const char *rede_convite(void);          // o link de convite da sala aberta ("": sem link)
+void rede_copia_convite(void);           // copia o link (no celular, abre o compartilhar)
+int  rede_convite_copiado(void);         // 1 copiou, -1 nao deu, 0 ainda nada
 
 // Espiadas no estado, para os testes de host.
 int  dado_dbg_fase(void);

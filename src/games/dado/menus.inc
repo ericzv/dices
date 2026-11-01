@@ -268,22 +268,41 @@ static void desenha_online(void)
     }
     int st = rede_estado();
     txt_c2(GFX_W / 2, 64, "JOGAR ONLINE", C_LATAO);
+    char t[64];
     if (st == REDE_ERRO) {
-        txt_c(GFX_W / 2, 130, "Não deu para conectar:", C_VINHO_CLR, true);
+        txt_c(GFX_W / 2, 130, "Não deu para jogar online:", C_VINHO_CLR, true);
         txt_c(GFX_W / 2, 156, rede_erro(), C_MARFIM, false);
         teclas_c(GFX_W / 2, 202, "ENTER tenta de novo  ·  ESC volta", C_TEXTO_M);
     } else if (st == REDE_CONECTANDO) {
-        char t[32];
-        snprintf(t, sizeof t, "conectando%.*s", (int)(t_fase * 3) % 4, "...");
-        txt_c(GFX_W / 2, 150, t, C_MARFIM, true);
+        const char *cod = rede_codigo();
+        snprintf(t, sizeof t, "%s%.*s", cod[0] ? "conectando" : "abrindo a sala", (int)(t_fase * 3) % 4, "...");
+        if (cod[0]) {                                     // entrando na sala de alguem (pelo codigo ou pelo convite)
+            txt_c(GFX_W / 2, 116, "Entrando na sala do seu amigo:", C_MARFIM, true);
+            casas_codigo(146, cod, false);
+            txt_c(GFX_W / 2, 222, t, C_OURO, false);
+        } else txt_c(GFX_W / 2, 150, t, C_MARFIM, true);
     } else if (st == REDE_ESPERANDO) {
-        txt_c(GFX_W / 2, 116, "Sala criada! Passe este código para o seu amigo:", C_MARFIM, true);
-        casas_codigo(146, rede_codigo(), false);
-        char t[48];
+        // A sala aberta: o codigo, o link de convite (o endereco da pagina ja
+        // e ele) e o botao que copia; quem abre o link entra direto.
+        txt_c(GFX_W / 2, 104, "Sala criada! Mande o convite para o seu amigo:", C_MARFIM, true);
+        casas_codigo(126, rede_codigo(), false);
+        const char *link = rede_convite();
+        if (!strncmp(link, "https://", 8)) link += 8;
+        else if (!strncmp(link, "http://", 7)) link += 7;
+        if (link[0]) {
+            int f = gfx_largura(link, 1) <= MESA_X1 - MESA_X0 - 40 ? 1 : GFX_FINO;
+            gfx_texto(GFX_W / 2 - gfx_largura(link, f) / 2, 188, link, C_OURO, f, f == 1);
+            botao_menu(212, 200, "Copiar convite", true);
+            zona_clique(GFX_W / 2 - 100, 212, 200, 26, NULL, 0, 'c');
+            int cp = rede_convite_copiado();
+            txt_c(GFX_W / 2, 244, cp > 0 ? "Copiado! Cole na conversa com o seu amigo."
+                                : cp < 0 ? "Não deu para copiar: mande o endereço desta página."
+                                         : "Quem abre o convite entra direto na sala.  (C copia)",
+                  cp > 0 ? RGB(130, 204, 112) : cp < 0 ? C_VINHO_CLR : C_TEXTO_M, false);
+        } else
+            txt_c(GFX_W / 2, 214, "Ele escolhe Online > Entrar com código e digita o código.", C_TEXTO_M, false);
         snprintf(t, sizeof t, "esperando o amigo entrar%.*s", (int)(t_fase * 3) % 4, "...");
-        txt_c(GFX_W / 2, 222, t, C_OURO, false);
-        txt_c(GFX_W / 2, 250, "Ele abre o jogo, escolhe Online > Entrar com código e digita o código.",
-              C_TEXTO_M, false);
+        txt_c(GFX_W / 2, 268, t, C_OURO, false);
     } else if (digitando) {
         txt_c(GFX_W / 2, 116, "Digite o código da sala do seu amigo:", C_MARFIM, true);
         casas_codigo(146, codigo_dig, true);
@@ -291,7 +310,7 @@ static void desenha_online(void)
               strlen(codigo_dig) == 4 ? C_OURO : C_TEXTO_M, false);
         txt_c(GFX_W / 2, 250, "BACKSPACE apaga  ·  ESC volta", C_TEXTO_M, false);
     } else {
-        txt_c(GFX_W / 2, 112, "Cada um no seu computador: um cria a sala, o outro entra com o código.",
+        txt_c(GFX_W / 2, 112, "Cada um no seu computador: um cria a sala e manda o convite.",
               C_MARFIM_S, false);
         botao_menu(150, 240, "Criar sala", online_cur == 0);
         botao_menu(186, 240, "Entrar com código", online_cur == 1);

@@ -22,6 +22,33 @@ void dado_rede_tecla(int k)
     rede_fim = prox_i;
 }
 
+// Os marcos da partida online. A cada rodada que comeca e a cada vez que
+// alguem para, o estado das regras - o sorteio, as fichas, o pote, as bolsas
+// e as sequencias - vira um numero, e a rede manda o ultimo ao rival no sinal
+// de vida. Os dois lados passam pelos mesmos marcos na mesma ordem, cada um
+// no seu tempo; se o numero de um marco diferir, as duas mesas sairam do
+// compasso e a partida para com o aviso, em vez de seguir com dois placares.
+static int n_marco;
+static uint32_t hash_partida(void)
+{
+    uint32_t h = 2166136261u;
+#define MIX(v) (h = (h ^ (uint32_t)(v)) * 16777619u)
+    MIX(semente); MIX(partidas); MIX(rodada); MIX(vez); MIX(primeiro); MIX(pote);
+    for (int j = 0; j < 2; j++) {
+        MIX(J[j].fichas);
+        MIX(J[j].n_col);
+        for (int i = 0; i < J[j].n_col; i++) { MIX(J[j].col[i].tipo); MIX(J[j].col[i].fixo); }
+        MIX(F[j].n);
+        for (int k = 0; k < F[j].n; k++) { MIX(F[j].tipo[k]); MIX(F[j].valor[k]); MIX(F[j].est[k]); }
+    }
+#undef MIX
+    return h;
+}
+static void marca_online(void)
+{
+    if (modo == M_ONLINE) rede_marco(++n_marco, hash_partida());
+}
+
 void dado_online_comeca(uint32_t sem, int eu)
 {
     modo = M_ONLINE;
@@ -30,8 +57,23 @@ void dado_online_comeca(uint32_t sem, int eu)
     remoto = 1 << outro(eu);
     semente_online = sem;
     rede_ini = rede_fim = 0;
+    n_marco = 0;
     digitando = false;
     dado_inicia(0);
+}
+
+// Quem abre um link de convite cai direto na tela do online; a plataforma
+// entra na sala logo em seguida (a tela mostra "entrando na sala").
+void dado_online_abre(void)
+{
+    if (modo == M_ONLINE && fase != F_ONLINE) return;   // ja numa partida online
+    menu_tela = MT_PRINCIPAL;
+    abertura_pronta = true;
+    online_cur = 1;
+    digitando = false;
+    codigo_dig[0] = 0;
+    t_fase = 0;
+    fase = F_ONLINE;
 }
 
 // Uma tecla do rival por quadro: da para ver o cursor dele andando.

@@ -173,8 +173,10 @@ static void avisa_sua_vez(void)
     t_sua_vez = !(cpu >> vez & 1) && !(remoto >> vez & 1) ? SUA_VEZ_T : 0;
 }
 
+static void marca_online(void);             // online.inc: o marco da partida para o rival conferir
 static void nova_rodada(void)
 {
+    marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
     plano_rodada = -1;                       // a IA monta outra fila
@@ -1702,6 +1704,7 @@ static void devolve_mao(int j)
 
 static void termina_turno(void)
 {
+    marca_online();
     som_toca(SOM_TURNO);
     if (carta_virando) {                     // a carta do Coringa ja foi lancada: o fim
         carta_virando = false;

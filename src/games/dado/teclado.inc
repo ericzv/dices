@@ -330,6 +330,11 @@ static void trata_tecla(int k)
         }
         int st = rede_estado();
         if (st == REDE_ERRO) { if (k == KEY_ENTER) rede_sai(); return; }
+        if (st == REDE_ESPERANDO && (k == 'c' || k == KEY_ENTER)) {   // copia o convite
+            rede_copia_convite();
+            som_toca(SOM_TIQUE);
+            return;
+        }
         if (st != REDE_PARADA) return;
         if (digitando) {
             int n = (int)strlen(codigo_dig);

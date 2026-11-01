@@ -37,30 +37,112 @@
 // publico e gratuito; o servidor so repassa mensagens, nao guarda nada.
 // Quem cria a sala sorteia a semente da partida e manda para quem entra;
 // depois disso so viajam as teclas de quem esta na vez.
+//
+// O que segura a partida quando a rede falha:
+// - cada tecla vai numerada e fica guardada; o sinal de vida (a cada 3 s)
+//   diz quantas chegaram, e o outro lado manda de novo as que faltam. Uma
+//   tecla que chega antes da vez dela espera a que falta;
+// - quem entra diz a versao do jogo; versoes diferentes nao jogam juntas;
+// - o site de teste (/teste/) usa salas separadas das do site principal;
+// - o jogo marca o estado das regras a cada rodada e a cada turno
+//   (rede_marco); o sinal de vida leva o ultimo marco, e se os dois lados
+//   tiverem numeros diferentes para o mesmo marco, a partida para com o aviso.
+// O convite: o endereco da pagina de quem cria a sala ganha ?sala=CODIGO;
+// quem abre esse endereco entra direto na sala.
+// criaRede recebe o mundo de fora (amb) para o teste (tests/rede.js) poder
+// rodar duas salas num servidor de mentira.
 // ---------------------------------------------------------------------------
-var DadoRede = (function () {
-  var params = new URLSearchParams(location.search);
+/* rede: inicio */
+function criaRede(amb) {
+  var params = new URLSearchParams(amb.endereco.search);
   var SERVIDORES = params.get('servidor') ? [params.get('servidor')] : [
     'wss://broker.hivemq.com:8884/mqtt',
     'wss://broker.emqx.io:8084/mqtt',
     'wss://test.mosquitto.org:8081/mqtt',
   ];
+  var TESTE = amb.endereco.pathname.indexOf('/teste/') >= 0;
+  var PREFIXO = 'dadoemcasa/v2/' + (TESTE ? 'teste/' : '');
   // Sem letras que se confundem (0/O, 1/I). A primeira letra do codigo diz
   // qual servidor a sala usa, para os dois irem ao mesmo.
   var ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   var PARADA = 0, CONECTANDO = 1, ESPERANDO = 2, JOGANDO = 3, ERRO = 4;
+  var VIDA_MS = 3000, SILENCIO_MS = 25000, REENVIO_MS = 1500, PEDIDO_MS = 300, MARCOS = 64;
+  var GUARDA_SALA = 'dadoemcasa_sala_minha';
+  var MSG = {
+    servidor: 'Sem conexão com o servidor. Confira a internet.',
+    invalido: 'Código inválido.',
+    versao: 'Versões diferentes do jogo: recarreguem a página os dois.',
+    saiu: 'O oponente saiu da partida.',
+    sumiu: 'O oponente parou de responder.',
+    compasso: 'As duas mesas ficaram diferentes: criem uma sala nova.',
+  };
+  function nao_achei(cod) { return 'Não achei a sala ' + cod + '. Confira o código ou recarregue a página.'; }
 
-  var r = { estado: PARADA, codigo: '', erro: '' };
+  var r = { estado: PARADA, codigo: '', erro: '', convite: '', copiado: 0 };
   var cliente = null, topico = '', eu = '', rival = '', anfitriao = false;
-  var semente = 0, n_env = 0, n_rec = 0, ultimo = 0, timers = [];
+  var semente = 0, ultimo = 0, timers = [], sessao = 0;
+  // As teclas que mandei (com a hora do ultimo envio de cada uma), quantas
+  // chegaram do rival em ordem e as que chegaram antes da vez delas.
+  var enviadas = [], hora_env = [], n_rec = 0, guardadas = {}, pedido_em = -1e9;
+  // Os marcos, encadeados (cada um mistura o anterior: uma diferenca em
+  // qualquer ponto aparece em todos os seguintes): os meus (os ultimos 64) e
+  // os do rival que eu ainda nao alcancei.
+  var meus = {}, dele = {}, ultimo_marco = null, cadeia = 2166136261;
+  var copiando = false, copiado_em = -1e9;
 
-  function id() { return Math.random().toString(36).slice(2, 10); }
-  function limpa() {
-    timers.forEach(clearInterval); timers = [];
-    if (cliente) { try { cliente.end(true); } catch (e) {} }
-    cliente = null; rival = ''; n_env = n_rec = 0;
+  function id() { return amb.aleatorio().toString(36).slice(2, 10); }
+  function valido(cod) {
+    if (cod.length !== 4) return false;
+    for (var i = 0; i < 4; i++) if (ALFABETO.indexOf(cod[i]) < 0) return false;
+    return true;
   }
-  function falha(msg) { limpa(); r.estado = ERRO; r.erro = msg; }
+  function guarda(k, v) { try { if (v) amb.guarda.setItem(k, v); else amb.guarda.removeItem(k); } catch (e) {} }
+  function guardado(k) { try { return amb.guarda.getItem(k) || ''; } catch (e) { return ''; } }
+
+  // O endereco da pagina: o link de convite (com ?sala=) e o de sempre.
+  function link(cod) {
+    var p = new URLSearchParams(amb.endereco.search);
+    p.set('sala', cod);
+    return amb.endereco.origin + amb.endereco.pathname + '?' + p.toString();
+  }
+  function tira_convite() {
+    var p = new URLSearchParams(amb.endereco.search);
+    if (!p.has('sala')) return;
+    p.delete('sala');
+    var q = p.toString();
+    amb.troca_endereco(amb.endereco.origin + amb.endereco.pathname + (q ? '?' + q : ''));
+  }
+
+  function zera() {
+    timers.forEach(function (t) { amb.clearInterval(t); });
+    timers = []; rival = '';
+    enviadas = []; hora_env = []; n_rec = 0; guardadas = {}; pedido_em = -1e9;
+    meus = {}; dele = {}; ultimo_marco = null; cadeia = 2166136261;
+  }
+  function limpa() {
+    sessao++;
+    zera();
+    if (cliente) { try { cliente.end(true); } catch (e) {} }
+    cliente = null;
+  }
+  // Fecha a conexao sem cortar a ultima mensagem (o aviso ao rival).
+  function solta() {
+    var c = cliente;
+    cliente = null;
+    if (c) amb.setTimeout(function () { try { c.end(); } catch (e) {} }, 300);
+  }
+  function falha(msg) {
+    limpa();
+    r.estado = ERRO; r.erro = msg;
+    tira_convite();
+    guarda(GUARDA_SALA, '');
+  }
+  // Para a partida dizendo o motivo ao rival, para os dois verem o mesmo aviso.
+  function encerra(msg, aviso) {
+    if (aviso) manda(aviso);
+    solta();
+    falha(msg);
+  }
   function manda(obj) {
     if (!cliente) return;
     obj.de = eu;
@@ -68,68 +150,154 @@ var DadoRede = (function () {
   }
 
   function conecta(url, aoConectar, aoFalhar) {
-    var c = mqtt.connect(url, { clientId: 'dado_' + id(), connectTimeout: 8000,
-                                reconnectPeriod: 2000, clean: true });
+    var minha = sessao;
+    var c = amb.mqtt.connect(url, { clientId: 'dado_' + id(), connectTimeout: 8000,
+                                    reconnectPeriod: 2000, clean: true });
     var ok = false;
-    var desiste = setTimeout(function () { if (!ok) { c.end(true); aoFalhar(); } }, 9000);
+    var desiste = amb.setTimeout(function () {
+      if (ok) return;
+      try { c.end(true); } catch (e) {}
+      if (minha === sessao) aoFalhar();
+    }, 9000);
     c.on('connect', function () {
-      if (ok) return;                     // reconexao: ja estava inscrito
-      ok = true; clearTimeout(desiste);
-      c.subscribe(topico, { qos: 1 }, function () { aoConectar(c); });
+      if (minha !== sessao) { try { c.end(true); } catch (e) {} return; }
+      if (ok) { vida(); return; }         // voltou depois de cair: diz logo o que ja chegou
+      ok = true; amb.clearTimeout(desiste);
+      c.subscribe(topico, { qos: 1 }, function () {
+        if (minha === sessao) aoConectar(c);
+        else { try { c.end(true); } catch (e) {} }
+      });
     });
     c.on('message', function (_t, dados) {
+      if (minha !== sessao) return;
       var m; try { m = JSON.parse(dados.toString()); } catch (e) { return; }
       if (!m || m.de === eu) return;     // o proprio eco
       recebe(m);
     });
   }
 
+  function comeca(lado) {
+    r.estado = JOGANDO;
+    ultimo = amb.agora();
+    tira_convite();
+    guarda(GUARDA_SALA, '');
+    amb.jogo()._dado_online_comeca(semente >>> 0, lado);
+  }
+
   function recebe(m) {
     if (rival && m.de !== rival && m.t !== 'oi') return;
-    ultimo = Date.now();
-    if (m.t === 'oi' && anfitriao) {
-      if (rival && m.de !== rival) return;          // sala cheia
+    if (m.t === 'oi') {
+      if (!anfitriao || (rival && m.de !== rival)) return;        // sala cheia
+      if (m.v !== amb.versao) {
+        encerra(MSG.versao, { t: 'versao', para: m.de, v: amb.versao });
+        return;
+      }
       var novo = !rival;
       rival = m.de;
-      manda({ t: 'comeca', para: rival, semente: semente });
-      if (novo) { r.estado = JOGANDO; Module._dado_online_comeca(semente >>> 0, 0); }
-    } else if (m.t === 'comeca' && !anfitriao && m.para === eu && r.estado !== JOGANDO) {
+      ultimo = amb.agora();
+      manda({ t: 'comeca', para: rival, semente: semente, v: amb.versao });
+      if (novo) comeca(0);
+      return;
+    }
+    if (m.t === 'comeca') {
+      if (anfitriao || m.para !== eu || r.estado === JOGANDO) return;
+      if (m.v !== amb.versao) { encerra(MSG.versao, null); return; }
       rival = m.de;
-      r.estado = JOGANDO;
-      Module._dado_online_comeca(m.semente >>> 0, 1);
-    } else if (m.t === 'k' && r.estado === JOGANDO) {
-      if (m.n !== n_rec) return;                    // repetida (qos 1)
-      n_rec++;
-      Module._dado_rede_tecla(m.k);
-    } else if (m.t === 'tchau' && r.estado === JOGANDO) {
-      falha('O oponente saiu da partida.');
+      semente = m.semente >>> 0;
+      comeca(1);
+      return;
+    }
+    if (m.t === 'versao') { if (m.para === eu) falha(MSG.versao); return; }
+    if (r.estado !== JOGANDO) return;
+    ultimo = amb.agora();
+    if (m.t === 'k') chega_tecla(m.n, m.k);
+    else if (m.t === 're') reenvia(m.r, PEDIDO_MS);
+    else if (m.t === 'p') {
+      reenvia(m.r, REENVIO_MS);
+      if (m.m) marco_dele(m.m[0], m.m[1]);
+    } else if (m.t === 'fim') falha(MSG[m.motivo] || MSG.saiu);
+  }
+
+  // ---- As teclas -------------------------------------------------------
+  function aplica(k) { n_rec++; amb.jogo()._dado_rede_tecla(k); }
+  function chega_tecla(n, k) {
+    if (typeof n !== 'number' || n < n_rec) return;              // repetida
+    if (n > n_rec) { guardadas[n] = k; pede(); return; }        // passou na frente da que falta
+    aplica(k);
+    while (Object.prototype.hasOwnProperty.call(guardadas, n_rec)) {
+      var g = guardadas[n_rec];
+      delete guardadas[n_rec];
+      aplica(g);
     }
   }
-
-  // Sinal de vida: sem noticia do rival por 25 s, a conexao caiu.
-  function vigia() {
-    ultimo = Date.now();
-    timers.push(setInterval(function () {
-      if (r.estado !== JOGANDO) return;
-      manda({ t: 'p' });
-      if (Date.now() - ultimo > 25000) falha('O oponente parou de responder.');
-    }, 3000));
+  function pede() {                                                // "faltou a tecla n_rec"
+    var agora = amb.agora();
+    if (agora - pedido_em < 1000) return;
+    pedido_em = agora;
+    manda({ t: 're', r: n_rec });
+  }
+  // O rival ja tem as teclas ate 'desde': manda de novo as seguintes que
+  // sairam ha mais de 'idade' ms (as mais novas ainda podem estar a caminho).
+  function reenvia(desde, idade) {
+    if (typeof desde !== 'number' || desde < 0) return;
+    var agora = amb.agora();
+    for (var i = desde; i < enviadas.length && i < desde + 64; i++)
+      if (agora - hora_env[i] >= idade) { hora_env[i] = agora; manda({ t: 'k', n: i, k: enviadas[i] }); }
   }
 
+  // ---- O sinal de vida e os marcos -------------------------------------
+  function vida() {
+    if (r.estado === JOGANDO) manda({ t: 'p', r: n_rec, m: ultimo_marco });
+  }
+  function vigia() {
+    ultimo = amb.agora();
+    timers.push(amb.setInterval(function () {
+      if (r.estado !== JOGANDO) return;
+      vida();
+      if (amb.agora() - ultimo > SILENCIO_MS) falha(MSG.sumiu);
+    }, VIDA_MS));
+  }
+  function dessincronizou() { encerra(MSG.compasso, { t: 'fim', motivo: 'compasso' }); }
+  function marco_dele(c, h) {
+    if (typeof c !== 'number') return;
+    h = h >>> 0;
+    if (Object.prototype.hasOwnProperty.call(meus, c)) { if (meus[c] !== h) dessincronizou(); return; }
+    if (ultimo_marco && c <= ultimo_marco[0]) return;            // ja saiu da minha lista: nao da para conferir
+    dele[c] = h;
+    var ks = Object.keys(dele);
+    if (ks.length > MARCOS) delete dele[ks[0]];
+  }
+  r.marco = function (c, h) {
+    if (r.estado !== JOGANDO) return;
+    h = cadeia = (Math.imul(cadeia ^ (h >>> 0), 16777619) + c) >>> 0;
+    meus[c] = h;
+    delete meus[c - MARCOS];
+    ultimo_marco = [c, h];
+    if (Object.prototype.hasOwnProperty.call(dele, c)) {
+      var d = dele[c];
+      delete dele[c];
+      if (d !== h) dessincronizou();
+    }
+  };
+
+  // ---- A sala ----------------------------------------------------------
   r.cria = function () {
     limpa(); anfitriao = true; eu = id();
-    semente = (Math.random() * 4294967296) >>> 0;
-    r.estado = CONECTANDO;
+    semente = (amb.aleatorio() * 4294967296) >>> 0;
+    r.estado = CONECTANDO; r.erro = ''; r.codigo = ''; r.convite = ''; r.copiado = 0;
     var i = 0;
     (function tenta() {
-      if (i >= SERVIDORES.length) { falha('Sem conexão com o servidor. Confira a internet.'); return; }
+      if (i >= SERVIDORES.length) { falha(MSG.servidor); return; }
       var s = i++;
       var cod = '';
-      do { cod = ''; for (var k = 0; k < 4; k++) cod += ALFABETO[Math.floor(Math.random() * 32)]; }
+      do { cod = ''; for (var k = 0; k < 4; k++) cod += ALFABETO[Math.floor(amb.aleatorio() * 32)]; }
       while (ALFABETO.indexOf(cod[0]) % SERVIDORES.length !== s);
-      topico = 'dadoemcasa/v1/' + cod;
+      topico = PREFIXO + cod;
       conecta(SERVIDORES[s], function (c) {
         cliente = c; r.codigo = cod; r.estado = ESPERANDO; vigia();
+        r.convite = link(cod);
+        guarda(GUARDA_SALA, cod);                 // recarregar esta aba nao entra na propria sala
+        amb.troca_endereco(r.convite);           // o endereco da pagina ja e o convite
       }, tenta);
     })();
   };
@@ -137,39 +305,105 @@ var DadoRede = (function () {
   r.entra = function (cod) {
     limpa(); anfitriao = false; eu = id();
     cod = String(cod).toUpperCase();
-    if (cod.length !== 4 || ALFABETO.indexOf(cod[0]) < 0) { falha('Código inválido.'); return; }
+    r.erro = ''; r.convite = ''; r.copiado = 0;
+    if (!valido(cod)) { falha(MSG.invalido); return; }
     r.codigo = cod; r.estado = CONECTANDO;
-    topico = 'dadoemcasa/v1/' + cod;
+    topico = PREFIXO + cod;
     var s = ALFABETO.indexOf(cod[0]) % SERVIDORES.length;
     conecta(SERVIDORES[s], function (c) {
       cliente = c; vigia();
       var tentativas = 0;
-      manda({ t: 'oi' });
-      timers.push(setInterval(function () {
-        if (r.estado === JOGANDO) return;
-        if (++tentativas > 10) { falha('Não achei a sala ' + cod + '. Confira o código.'); return; }
-        manda({ t: 'oi' });
+      manda({ t: 'oi', v: amb.versao });
+      timers.push(amb.setInterval(function () {
+        if (r.estado !== CONECTANDO) return;
+        if (++tentativas > 10) { falha(nao_achei(cod)); return; }
+        manda({ t: 'oi', v: amb.versao });
       }, 1500));
-    }, function () { falha('Sem conexão com o servidor. Confira a internet.'); });
+    }, function () { falha(MSG.servidor); });
   };
 
   r.envia = function (k) {
     if (r.estado !== JOGANDO) return;
-    manda({ t: 'k', n: n_env++, k: k });
+    var n = enviadas.length;
+    enviadas.push(k);
+    hora_env.push(amb.agora());
+    manda({ t: 'k', n: n, k: k });
   };
 
   r.sai = function () {
-    if (r.estado === JOGANDO) manda({ t: 'tchau' });
-    var c = cliente;
-    cliente = null;
-    setTimeout(function () { if (c) try { c.end(); } catch (e) {} }, 300);
-    timers.forEach(clearInterval); timers = [];
-    rival = ''; r.estado = PARADA; r.codigo = ''; r.erro = '';
+    if (r.estado === JOGANDO) manda({ t: 'fim', motivo: 'saiu' });
+    solta();
+    limpa();
+    r.estado = PARADA; r.codigo = ''; r.erro = ''; r.convite = ''; r.copiado = 0;
+    tira_convite();
+    guarda(GUARDA_SALA, '');
   };
 
-  window.addEventListener('beforeunload', function () { if (r.estado === JOGANDO) r.sai(); });
+  // ---- O convite -------------------------------------------------------
+  // O codigo do convite com que a pagina abriu ("" sem convite). Se a sala
+  // era desta mesma aba (recarregou com o convite no endereco), nao vale.
+  r.convite_pendente = function () {
+    var cod = (params.get('sala') || '').toUpperCase();
+    if (!valido(cod)) { tira_convite(); return ''; }
+    if (guardado(GUARDA_SALA) === cod) { guarda(GUARDA_SALA, ''); tira_convite(); return ''; }
+    return cod;
+  };
+  // Copia o link (no celular, abre o compartilhar). Duas chamadas seguidas
+  // (a tecla C na pagina e no jogo) copiam uma vez so.
+  r.copia = function () {
+    if (!r.convite) { r.copiado = -1; return; }
+    if (copiando || amb.agora() - copiado_em < 1500) return;
+    var p = null;
+    try { p = amb.compartilha ? amb.compartilha(r.convite) : null; } catch (e) { p = null; }
+    if (!p) { try { p = amb.copia(r.convite); } catch (e) { p = null; } }
+    if (!p) { r.copiado = -1; return; }
+    copiando = true;
+    p.then(function () { copiando = false; copiado_em = amb.agora(); r.copiado = 1; },
+           function (e) { copiando = false; r.copiado = e && e.name === 'AbortError' ? 0 : -1; });
+  };
+
+  r.topico = function () { return topico; };     // para o teste
   return r;
-})();
+}
+/* rede: fim */
+
+// No navegador: o servidor MQTT de verdade, o endereco da pagina e a area de
+// transferencia.
+var DadoRede = criaRede({
+  mqtt: window.mqtt,
+  jogo: function () { return Module; },
+  endereco: location,
+  troca_endereco: function (url) { try { history.replaceState(null, '', url); } catch (e) {} },
+  guarda: (function () { try { return window.sessionStorage; } catch (e) { return null; } })(),
+  versao: '__VERSAO__',
+  agora: function () { return Date.now(); },
+  aleatorio: Math.random,
+  setTimeout: function (f, ms) { return setTimeout(f, ms); },
+  clearTimeout: function (t) { clearTimeout(t); },
+  setInterval: function (f, ms) { return setInterval(f, ms); },
+  clearInterval: function (t) { clearInterval(t); },
+  // No celular, o compartilhar do sistema (WhatsApp, Telegram...); no computador, copiar.
+  compartilha: navigator.share && window.matchMedia && matchMedia('(pointer: coarse)').matches
+    ? function (url) { return navigator.share({ title: 'Dado em Casa', text: 'Vem jogar Dado em Casa comigo!', url: url }); }
+    : null,
+  copia: function (texto) {
+    function velho() {                       // sem a API nova: o jeito antigo, numa caixa de texto escondida
+      return new Promise(function (ok, nao) {
+        var t = document.createElement('textarea');
+        t.value = texto; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-9999px;top:0';
+        document.body.appendChild(t); t.select();
+        var deu = false;
+        try { deu = document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(t);
+        if (deu) ok(); else nao(new Error('copia'));
+      });
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      return navigator.clipboard.writeText(texto).catch(velho);
+    return velho();
+  },
+});
+window.addEventListener('beforeunload', function () { if (DadoRede.estado === 3) DadoRede.sai(); });
 
 // ---------------------------------------------------------------------------
 // O jogo (WebAssembly). O navegador so libera o som depois de um clique, e o
@@ -188,6 +422,11 @@ if (location.pathname.indexOf('/teste/') >= 0) {
 // A publicacao troca __VERSAO__ por ?v=<commit>: cada versao nova tem
 // enderecos novos, e o navegador nao reaproveita o jogo antigo do cache.
 var VERSAO = '__VERSAO__'.indexOf('__') === 0 ? '' : '__VERSAO__';
+// Abriu por um link de convite (?sala=CODIGO): o clique da capa ja entra na sala.
+var CONVITE = DadoRede.convite_pendente();
+if (CONVITE) document.querySelector('#capa .dica').innerHTML =
+  'Seu amigo chamou você para uma partida online, na sala <b>' + CONVITE + '</b>.<br>' +
+  'Jogue com o mouse ou com o teclado: setas, ENTER, TAB e BACKSPACE.';
 var Module = {
   canvas: document.getElementById('canvas'),
   locateFile: function (p) { return p + VERSAO; },
@@ -195,7 +434,7 @@ var Module = {
   printErr: function (t) { console.warn(t); },
   onRuntimeInitialized: function () {
     capa.classList.add('pronto');
-    botao.textContent = 'clique para jogar';
+    botao.textContent = CONVITE ? 'clique para entrar na sala ' + CONVITE : 'clique para jogar';
   },
 };
 capa.addEventListener('click', function () {
@@ -210,10 +449,19 @@ capa.addEventListener('click', function () {
     if (window.miniaudio && window.miniaudio.devices)
       window.miniaudio.devices.forEach(function (d) { if (d) acorda(d.webaudio); });
   } } catch (e) {}
+  if (CONVITE) {                         // o convite: a tela do online, ja entrando na sala
+    Module._dado_online_abre();
+    DadoRede.entra(CONVITE);
+    CONVITE = '';
+  }
 });
 window.addEventListener('keydown', function (e) {
   // TAB, BACKSPACE e as setas sao do jogo, nao da pagina.
   if ([8, 9, 32, 37, 38, 39, 40].indexOf(e.keyCode) >= 0) e.preventDefault();
+  // C na sala esperando: copia o convite aqui, ainda dentro do toque na tecla
+  // (alguns navegadores so deixam copiar assim); o jogo tambem pede e a rede
+  // copia uma vez so.
+  if (DadoRede.estado === 2 && (e.key === 'c' || e.key === 'C')) DadoRede.copia();
 }, { passive: false });
 </script>
 {{{ SCRIPT }}}

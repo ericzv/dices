@@ -435,8 +435,8 @@ static bool tem_bolsa(int j, int b);     // so voce, so no Desafiante
 #define LAPIS_PENA 3
 static int lapis_pena(int j) { return tem_bolsa(j, B_LAPIS) ? LAPIS_PENA : 0; }
 #define DES_RODADAS 8                // rodadas de cada partida da run
-// Saco de Sementes: seus dados pontuam -1 na 1a rodada e +1 na ultima.
-static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 1 ? -1 : rodada >= DES_RODADAS ? 1 : 0; }
+// Saco de Sementes: seus dados pontuam -1 nas duas primeiras rodadas e +1 nas duas ultimas.
+static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 2 ? -1 : rodada >= DES_RODADAS - 1 ? 1 : 0; }
 // Caixa de Fosforos: cada partida comeca com 5 fichas a menos.
 #define FOSFORO_FICHAS 5
 

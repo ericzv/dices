@@ -67,7 +67,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
   | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Par | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
-  | Saco de Sementes | +1 nos seus dados na última rodada; vem com o Trevo e a Semente | -1 na 1ª rodada | vencer uma partida começando a 7ª rodada atrás em fichas |
+  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com o Trevo, a Semente e um D8 (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -3 | vencer 3 rodadas de uma partida com 4 dados válidos |
   | Bauzinho | começa com 2 amuletos; vem com um D8 | cabem só 4 amuletos | ter 5 amuletos |
   | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |

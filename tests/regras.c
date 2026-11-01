@@ -616,25 +616,25 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 0, "Misericordioso anulado: esperava 0, deu %d", d.total[0]);
 
-        // Solitario: +4 se nao ha dado valendo logo antes nem logo depois.
+        // Solitario: +5 se nao ha dado valendo logo antes nem logo depois.
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
-        CONFERE(d.total[0] == 2 + SOLITARIO_PTS && SOLITARIO_PTS == 4, "Solitario sem vizinhos: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + SOLITARIO_PTS && SOLITARIO_PTS == 5, "Solitario sem vizinhos: esperava 7, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
         CONFERE(d.total[0] == 3, "Solitario com vizinho: esperava 3, deu %d", d.total[0]);
-        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +4.
+        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +5.
         limpa();
         joga(0, D_SOLITARIO, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
         d = fim();
-        CONFERE(d.total[0] == 2 + 4, "Solitario na ponta: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 5, "Solitario na ponta: esperava 7, deu %d", d.total[0]);
         // Um dado valendo mais longe (nao vizinho) nao atrapalha.
         limpa();
         joga(0, D_D4, 1); joga(0, D_D4, 3); joga(0, D_D4, 2); joga(0, D_SOLITARIO, 4);
         d = fim();
-        CONFERE(d.total[0] == 1 + 4 + 4, "Solitario com dado longe: esperava 9, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 1 + 4 + 5, "Solitario com dado longe: esperava 10, deu %d", d.total[0]);
 
         // Desafiante: +4 se for o maior dado da rodada (empate nao conta).
         limpa();
@@ -2326,14 +2326,19 @@ int main(void)
         CONFERE(run.moedas == m + PORCO_GUARDA && !run.porco && run.porco_quebrou && !porco_inteiro(), "Porquinho quebrado: %d", run.moedas - m);
         porco_quebra();
         CONFERE(run.moedas == m + PORCO_GUARDA, "o Porquinho so quebra uma vez");
-        // Saco de Sementes: -1 na 1a rodada, +1 na ultima; vem com o Trevo e a Semente.
+        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 nas duas ultimas; vem com Trevo, Semente e D8, e uma Moeda so.
         des_bolsa = B_SEMENTES; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int sb[9];
         for (int r = 1; r <= 8; r++) { rodada = r; sb[r] = sementes_bonus(0); }
-        int sem = 0;
-        for (int i = 0; i < run.n_col; i++) sem += run.col[i].tipo == D_SEMENTE;
-        CONFERE(sb[1] == -1 && sb[2] == 0 && sb[3] == 0 && sb[6] == 0 && sb[7] == 0 && sb[8] == 1 && !sementes_bonus(1) && sem == 1,
-                "Sementes: %d %d %d %d %d (%d Sementes)", sb[1], sb[2], sb[3], sb[7], sb[8], sem);
+        int sem = 0, trevo = 0, s_d8 = 0, s_d2 = 0;
+        for (int i = 0; i < run.n_col; i++) {
+            sem += run.col[i].tipo == D_SEMENTE; trevo += run.col[i].tipo == D_TREVO;
+            s_d8 += run.col[i].tipo == D_D8; s_d2 += run.col[i].tipo == D_D2;
+        }
+        CONFERE(sb[1] == -1 && sb[2] == -1 && sb[3] == 0 && sb[6] == 0 && sb[7] == 1 && sb[8] == 1 && !sementes_bonus(1),
+                "Sementes: %d %d %d %d %d", sb[1], sb[2], sb[3], sb[7], sb[8]);
+        CONFERE(sem == 1 && trevo == 1 && s_d8 == 1 && s_d2 == 1 && run.n_col == 14,
+                "Sementes: %d Semente, %d Trevo, %d D8, %d Moeda, %d dados", sem, trevo, s_d8, s_d2, run.n_col);
         rodada = 1;
         limpa(); joga(0, D_D6, 4);
         CONFERE(F[0].pontos == 3, "Sementes na rodada 1: o 4 pontua %d", F[0].pontos);
@@ -2614,7 +2619,7 @@ int main(void)
         for (int a = 0; a < A_N; a++) CONFERE(amuleto_no_jogo(a), "amuleto %d sem raridade", a);
         CONFERE(RAR_AMULETO[A_FERRADURA] == AMR_RARO && RAR_AMULETO[A_COROA] == AMR_INCOMUM
                 && RAR_AMULETO[A_PRENSA] == AMR_INCOMUM && RAR_AMULETO[A_CUPOM] == AMR_COMUM
-                && RAR_AMULETO[A_TACA] == AMR_COMUM && RAR_AMULETO[A_CORINGA] == AMR_COMUM
+                && RAR_AMULETO[A_TACA] == AMR_COMUM && RAR_AMULETO[A_CORINGA] == AMR_INCOMUM
                 && RAR_AMULETO[A_DUPLA] == AMR_COMUM, "raridade dos que voltaram");
         // Os de nivel so saem depois de abertos: no Normal, nem a Ferradura nem a Dupla.
         run_poe_amuletos(0);
@@ -3269,24 +3274,24 @@ int main(void)
         adesivos_ficam(0, &d);
         CONFERE(J[0].col[3].tipo == D_QUEBRADO && (int8_t)J[0].col[3].fixo == 2 && !ad_quantos(&J[0].col[3]),
                 "Fragil: o dado quebrou num Quebrado de %d", (int8_t)J[0].col[3].fixo);
-        // A Estrelinha: com os 4 dados valendo, +6; com 3, nada.
+        // A Estrelinha: +2 por dado valendo da sequencia, ele incluido (anulado, conta os outros).
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_ESTRELINHA);
         limpa();
         joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 6, 5); joga_ad(0, 3, 6);
         joga(1, D_D4, 3);
         d = fim();
-        CONFERE(d.total[0] == 16 + ESTRELINHA_PONTOS, "Estrelinha com os 4: %d", d.total[0]);
+        CONFERE(d.total[0] == 16 + 4 * ESTRELINHA_CADA && ESTRELINHA_CADA == 2, "Estrelinha com os 4: %d", d.total[0]);
         limpa();
         joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 3, 6);
         joga(1, D_D4, 3);
         d = fim();
-        CONFERE(d.total[0] == 11, "Estrelinha com 3 dados: %d", d.total[0]);
+        CONFERE(d.total[0] == 11 + 3 * 2, "Estrelinha com 3 dados: %d", d.total[0]);
         limpa();
         joga_ad(0, 4, 2); joga_ad(0, 5, 3); joga_ad(0, 3, 6); joga_ad(0, 6, 1);   // o 1 cai e leva o 6
         joga(1, D_D4, 3);
         d = fim();
-        CONFERE(d.total[0] == 5, "Estrelinha anulada: %d", d.total[0]);
+        CONFERE(d.total[0] == 5 + 2 * 2, "Estrelinha anulada, os 2 que valem: %d", d.total[0]);
         // O Corretivo: o dado pontua, mas o seguinte compara com o de antes dele.
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_CORRETIVO);

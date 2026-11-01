@@ -1303,12 +1303,16 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
         } else return false;
         break;
-    case AD_ESTRELINHA: {                        // a sequencia cheia, os 4 (ou 5) valendo
+    case AD_ESTRELINHA: {                        // +2 por dado valendo da sequencia, ele incluido
         int n = 0;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++) n += d->est[j][i] == V_VALIDO;
-        if (F[j].lancados < FILA_NORMAL || n < F[j].lancados) return false;
-        d->semente[j] += ESTRELINHA_PONTOS;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, ESTRELINHA_PONTOS, "%sEstrelinha: os %d válidos, +%d", pre, n, ESTRELINHA_PONTOS);
+        uint8_t m = 0;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+            if (d->est[j][i] == V_VALIDO) { n++; m |= (uint8_t)(1 << i); }
+        if (!n) return false;
+        d->semente[j] += ESTRELINHA_CADA * n;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, ESTRELINHA_CADA * n, "%sEstrelinha: %d válido%s, +%d", pre, n, n > 1 ? "s" : "",
+                   ESTRELINHA_CADA * n);
+        if (e) { e->mascara = m; for (int i = 0; i < N_FILA; i++) e->por_dado[i] = (int8_t)(m >> i & 1 ? ESTRELINHA_CADA : 0); }
         break;
     }
     case AD_IMANTADO: {                          // o vizinho (o seguinte ou o anterior) tirou o mesmo numero: x2 nos dois

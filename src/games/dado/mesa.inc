@@ -1697,8 +1697,9 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
-    case AD_ESTRELINHA:                                         // uma estrelinha pula em cima de cada dado
+    case AD_ESTRELINHA:                                         // uma estrelinha pula em cima de cada dado valendo
         for (int k = 0; k < N_FILA && p < 0.95f; k++) {
+            if (!(e->mascara >> k & 1)) continue;
             float q = (p - 0.1f - k * 0.1f) / 0.35f;
             if (q <= 0) continue;
             if (q > 1) q = 1;

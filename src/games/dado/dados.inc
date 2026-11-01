@@ -99,7 +99,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define MEIA_GUARDA 4
 #define MEIA_MAX    99
 // O Solitario sem vizinhos valendo, e o que cada ataque ao Ourico custa ao oponente.
-#define SOLITARIO_PTS 4
+#define SOLITARIO_PTS 5
 #define OURICO_PTS    5
 // A Estrela de Belem, por ultimo: o que rende por dado valendo abaixo dela.
 #define ESTRELA_PTS 2
@@ -220,7 +220,7 @@ static const tipo_t TIPO[D_N] = {
     { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula o último dado do oponente" },
     { "Ventania",         8, EF_VENTANIA,     RAR_RARO,    10, "Rola de novo o seu primeiro dado" },
     { "Misericordioso",   4, EF_MISERICORDIA, RAR_INCOMUM, 13, "Válido: +2 por dado seu anulado" },
-    { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "Sem vizinho válido: +4" },
+    { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "Sem vizinho válido: +5" },
     { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "Anulado pela sequência: só ele é anulado" },
     { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "Não pontua · 3 ou 4: o próximo dado +6" },
     { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "Oponente com mais fichas: +4" },
@@ -342,7 +342,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_LASER]           = "Se terminar válido com 5 ou 6, anula o último dado válido do oponente.",
     [D_VENTANIA]        = "Ao ser lançado, rola de novo o primeiro dado da sua sequência.",
     [D_MISERICORDIOSO]  = "Se terminar válido, pontua +2 por dado seu anulado na rodada.",
-    [D_SOLITARIO]       = "Se terminar válido, sem dado válido logo antes nem logo depois dele: +4.",
+    [D_SOLITARIO]       = "Se terminar válido, sem dado válido logo antes nem logo depois dele: +5.",
     [D_SENTINELA]       = "Se for anulado pela sequência, só ele é anulado: o dado anterior continua válido.",
     [D_FERREIRO]        = "Não pontua. Tirando 3 ou 4, o próximo dado pontua +6, se os dois terminarem válidos.",
     [D_COBRADOR]        = "Se o oponente começou a rodada com mais fichas que você: +4.",
@@ -486,7 +486,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "dados podem ser anulados ou voltar a ser válidos. Se for o primeiro da sequência, não faz nada.",
     [D_MISERICORDIOSO]  = "Quatro lados. Se terminar válido, pontua +2 no fim da rodada para cada dado seu anulado.",
     [D_SOLITARIO]       = "Quatro lados. Se terminar válido e os dados vizinhos dele na sequência (o anterior e o seguinte) não "
-                          "forem válidos, pontua +4 no fim da rodada. Na ponta da sequência, só conta o vizinho que existe.",
+                          "forem válidos, pontua +5 no fim da rodada. Na ponta da sequência, só conta o vizinho que existe.",
     [D_SENTINELA]       = "Quatro lados. Se tirar menos que o último dado válido, só ele é anulado: o dado anterior continua "
                           "válido.",
     [D_FERREIRO]        = "Quatro lados. Não pontua, mas conta na sequência com o número que tirou. Tirando 3 ou 4, o próximo "

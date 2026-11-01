@@ -19,9 +19,9 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PATINHO_PONTOS 2                        // o Patinho Feio: -2 no lado dele, +2 em outro
 #define SELO_PONTOS 5                           // o que o lacre do Selo paga no proximo lance valendo
 #define FRAGIL_PONTOS 6                         // o Fragil valendo
-#define ESTRELINHA_PONTOS 6                     // a Estrelinha com a sequencia cheia
+#define ESTRELINHA_PONTOS 8                     // a Estrelinha com a sequencia cheia
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
-#define BIS_DADOS 2                             // o Bis: dados a mais na proxima compra
+#define BIS_DADOS 3                             // o Bis: dados a mais na proxima compra
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
 
@@ -65,7 +65,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_FERMENTO]     = { "Fermento", "tirando este lado, se válido:", "+2, +4, +6... crescendo a cada vez", 5, 6,
                           RGB(238, 162, 74), RGB(246, 222, 132), RGB(56, 32, 20),
                           { "...#...", "..###..", ".#####.", "...#...", "..###..", ".#####.", "#######" } },
-    [AD_BIS]          = { "Bis", "tirando este lado: 2 dados", "a mais na próxima rodada", 4, 2,
+    [AD_BIS]          = { "Bis", "tirando este lado: 3 dados", "a mais na próxima rodada", 4, 2,
                           RGB(102, 74, 138), RGB(150, 112, 160), C_BRANCO,
                           { "####...", "#..#...", "#..####", "####..#", "...#..#", "...####", "......." } },
     [AD_MIRA]         = { "Mira", "tirando este lado, se terminar", "válido: anula o menor do oponente", 6, 8,
@@ -83,13 +83,13 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_FRAGIL]       = { "Frágil", "tirando este lado: válido, +6;", "anulado, o dado quebra", 3, 1,
                           RGB(214, 112, 44), RGB(238, 162, 74), RGB(252, 248, 236),
                           { "#######", "#.....#", ".#.#.#.", "..###..", "...#...", "...#...", "..###.." } },
-    [AD_ESTRELINHA]   = { "Estrelinha", "tirando este lado: com os 4", "dados válidos no fim, +6", 3, 3,
+    [AD_ESTRELINHA]   = { "Estrelinha", "tirando este lado: com os 4", "dados válidos no fim, +8", 3, 3,
                           RGB(96, 134, 196), RGB(168, 204, 230), RGB(246, 222, 132),
                           { "...#...", "..###..", "#######", ".#####.", "..###..", ".##.##.", ".#...#." } },
     [AD_CORRETIVO]    = { "Corretivo", "tirando este lado, o dado", "não sobe a régua da sequência", 4, 5,
                           RGB(252, 248, 236), RGB(184, 194, 208), RGB(70, 76, 88),
                           { "..###..", "..###..", "...#...", ".#####.", "##...##", "##...##", ".#####." } },
-    [AD_IMANTADO]     = { "Imantado", "tirando este lado: se o próximo", "tirar igual, os dois x2", 3, 4,
+    [AD_IMANTADO]     = { "Imantado", "tirando este lado: vizinho que", "tirar igual, os dois x2", 3, 4,
                           RGB(26, 34, 62), RGB(96, 134, 196), RGB(190, 56, 60),
                           { "##...##", "##...##", "#.....#", "#.....#", "#.....#", ".#...#.", "..###.." } },
     [AD_POSTIT]       = { "Post-it", "tirando este lado: o próximo", "rola 2 vezes e fica o maior", 4, 6,
@@ -304,15 +304,15 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_REMENDO]      = "Este lado tem 2 a mais, e o dado tira esse número: um 3 vira 5, e o 5 conta na sequência e nos poderes do dado (no Explosivo, o 6 vira 8 e explode).",
     [AD_RASPADINHA]   = "Tirando este lado, se o dado terminar válido: +10 pontos no fim da rodada, e o adesivo sai do dado.",
     [AD_FERMENTO]     = "Tirando este lado, se o dado terminar válido: +2 na primeira vez, +4 na segunda, +6 na terceira, e assim por diante. O dado guarda o quanto cresceu, a run inteira.",
-    [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 2 dados a mais na próxima rodada.",
+    [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 3 dados a mais na próxima rodada.",
     [AD_MIRA]         = "Tirando este lado, se o dado terminar válido: anula o menor dado válido do oponente.",
     [AD_AVESSO]       = "Tirando este lado, o dado vira e fica com o lado oposto para cima (no d6, o 1 vira 6; no d20, o 1 vira 20).",
     [AD_GORJETA]      = "Tirando este lado, válido ou anulado: o oponente te paga 2 fichas, fora do pote.",
     [AD_SELO]         = "Tirando este lado, válido ou anulado, o dado fica lacrado. Na próxima vez que ele for lançado, caia no lado que cair, se terminar válido: +5 pontos no fim da rodada. Lançado, o lacre se rompe, valendo ou não; tirando o Selo de novo, lacra outra vez.",
     [AD_FRAGIL]       = "Tirando este lado: se o dado terminar válido, +6 pontos no fim da rodada; se terminar anulado, ele quebra e vira um Quebrado com o número que tirou (pontua esse número uma vez e sai da bolsa).",
-    [AD_ESTRELINHA]   = "Tirando este lado: se a sua sequência terminar com os 4 dados válidos, +6 pontos no fim da rodada.",
+    [AD_ESTRELINHA]   = "Tirando este lado: se a sua sequência terminar com os 4 dados válidos, +8 pontos no fim da rodada.",
     [AD_CORRETIVO]    = "Tirando este lado, o dado pontua mas não sobe a régua: o próximo só precisa ser igual ou maior que o dado válido de antes dele. Como a Ponte, mas o dado com o Corretivo ainda cai se sair menor.",
-    [AD_IMANTADO]     = "Tirando este lado: se o próximo dado da sequência tirar o mesmo número, os dois pontuam x2 no fim da rodada (soma com os outros multiplicadores).",
+    [AD_IMANTADO]     = "Tirando este lado: se o dado anterior ou o próximo da sequência tirar o mesmo número, os dois pontuam x2 no fim da rodada (soma com os outros multiplicadores). Com os dois vizinhos iguais, os três pontuam x2.",
     [AD_POSTIT]       = "Tirando este lado, o próximo dado da sequência rola duas vezes e fica com o maior resultado. O Viciado rola os dois dados duas vezes e fica com o maior de todos.",
     [AD_HOLOGRAFICO]  = "Tirando este lado, copia os adesivos dos seus outros dados que agiram no fim da rodada, como se fossem dele: o Confete dá +4, o Eletrônico dobra este dado, o Selo lacra este dado. Não copia os que agem no pouso (Chumbo, Reflexivo, Avesso, Remendo, Transparente, Corretivo, Post-it), nem a Ratoeira.",
     [AD_PURPURINA]    = "Tirando este lado, se o dado terminar válido: +3 pontos por adesivo seu que agiu na rodada, ela junto. Os que agem no pouso também contam.",

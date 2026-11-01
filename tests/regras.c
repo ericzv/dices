@@ -616,25 +616,25 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 0, "Misericordioso anulado: esperava 0, deu %d", d.total[0]);
 
-        // Solitario: +6 se nao ha dado valendo logo antes nem logo depois.
+        // Solitario: +4 se nao ha dado valendo logo antes nem logo depois.
         limpa();
         joga(0, D_D6, 5); joga(0, D_D4, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
-        CONFERE(d.total[0] == 2 + 6, "Solitario sem vizinhos: esperava 8, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + SOLITARIO_PTS && SOLITARIO_PTS == 4, "Solitario sem vizinhos: esperava 6, deu %d", d.total[0]);
         limpa();
         joga(0, D_D6, 1); joga(0, D_SOLITARIO, 2);
         d = fim();
         CONFERE(d.total[0] == 3, "Solitario com vizinho: esperava 3, deu %d", d.total[0]);
-        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +6.
+        // Primeiro da fila; o segundo cai com o terceiro: sem vizinhos, +4.
         limpa();
         joga(0, D_SOLITARIO, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
         d = fim();
-        CONFERE(d.total[0] == 2 + 6, "Solitario na ponta: esperava 8, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 4, "Solitario na ponta: esperava 6, deu %d", d.total[0]);
         // Um dado valendo mais longe (nao vizinho) nao atrapalha.
         limpa();
         joga(0, D_D4, 1); joga(0, D_D4, 3); joga(0, D_D4, 2); joga(0, D_SOLITARIO, 4);
         d = fim();
-        CONFERE(d.total[0] == 1 + 4 + 6, "Solitario com dado longe: esperava 11, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 1 + 4 + 4, "Solitario com dado longe: esperava 9, deu %d", d.total[0]);
 
         // Desafiante: +4 se for o maior dado da rodada (empate nao conta).
         limpa();
@@ -730,7 +730,13 @@ int main(void)
         amul[0] = 1 << A_CONTRATO;
         CONFERE(max_fila(0) == 3 && max_fila(1) == FILA_NORMAL, "Contrato: sequencia de %d", max_fila(0));
         amul[0] = 1 << A_BOLSA | 1 << A_FURADO;
-        CONFERE(tam_mao(0) == 8 && tam_mao(1) == 6, "Bolsa/Saco: maos %d e %d", tam_mao(0), tam_mao(1));
+        CONFERE(tam_mao(0) == 9 && tam_mao(1) == 5, "Bolsa/Saco: maos %d e %d", tam_mao(0), tam_mao(1));
+        // Os trunfos feitos deles (o Mao grande, a Dona do Salao) mexem 1 so; o amuleto da Cobertura, 2.
+        amul[0] = 0; amul[1] = 1 << A_BOLSA | 1 << A_FURADO;
+        CONFERE(tam_mao(1) == 8 && tam_mao(0) == 6, "trunfos Bolsa/Saco: maos %d e %d", tam_mao(1), tam_mao(0));
+        op_amul_extra = A_FURADO;
+        CONFERE(tam_mao(0) == 5, "Saco Furado da Cobertura: mao %d", tam_mao(0));
+        op_amul_extra = -1; amul[1] = 0;
         amul[0] = 0;
         modo = modo_antes;
     }
@@ -794,11 +800,15 @@ int main(void)
         joga(0, D_D6, 4); joga(0, D_D8, 5);
         d = fim();
         CONFERE(d.total[0] == 6 + 5, "Coringa: esperava 11, deu %d", d.total[0]);
-        // Contrato Sujo: +2 em cada dado que vale; a sequencia leva 3.
+        // Contrato Sujo: +4 no terceiro dado, se vale; a sequencia leva 3.
         limpa(); amul[0] = 1u << A_CONTRATO;
         joga(0, D_D6, 3); joga(0, D_D8, 5);
         d = fim();
-        CONFERE(d.total[0] == 5 + 7 && max_fila(0) == 3, "Contrato: esperava 12 e fila de 3, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3 + 5 && max_fila(0) == 3, "Contrato com 2 dados: esperava 8 e fila de 3, deu %d", d.total[0]);
+        limpa();
+        joga(0, D_D6, 3); joga(0, D_D8, 5); joga(0, D_D6, 6);
+        d = fim();
+        CONFERE(d.total[0] == 3 + 5 + 6 + CONTRATO_PTS && CONTRATO_PTS == 4, "Contrato no terceiro: esperava 18, deu %d", d.total[0]);
         // Dupla: +2 em cada um dos que repetem o numero.
         limpa(); amul[0] = 1u << A_DUPLA;
         joga(0, D_D6, 3); joga(0, D_D8, 3); joga(0, D_D8, 5);
@@ -1444,13 +1454,13 @@ int main(void)
                 CONFERE(J[0].col[n0].fixo == 4, "Furia guarda o 4 mesmo caida (fixo %d)", J[0].col[n0].fixo);
                 J[0].n_col--;
             }
-            // Onda: nao pontua; valendo, guarda o que tirou; com 9, vira Tsunami.
+            // Onda: pontua o que tirou; valendo, guarda; com 9, vira Tsunami.
             {
                 int n0 = J[0].n_col;
                 J[0].col[n0] = (peca_t){ .tipo = D_ONDA, .fixo = 4 };
                 J[0].n_col++;
                 limpa(); F[0].fixo[0] = 4; joga_ad(0, n0, 3); d = fim();
-                CONFERE(d.total[0] == 0 && !strcmp(F[0].tag[0], "7/9") && !d.onda[0], "Onda: pontua 0 e guarda (tag %s)", F[0].tag[0]);
+                CONFERE(d.total[0] == 3 && !strcmp(F[0].tag[0], "7/9") && !d.onda[0], "Onda: pontua 3 e guarda (tag %s, %d)", F[0].tag[0], d.total[0]);
                 contadores_ficam(0, &d);
                 CONFERE(J[0].col[n0].tipo == D_ONDA && J[0].col[n0].fixo == 7, "Onda guardou 7 (%d)", J[0].col[n0].fixo);
                 limpa(); F[0].fixo[0] = 7; joga_ad(0, n0, 2); d = fim();
@@ -1473,7 +1483,7 @@ int main(void)
             CONFERE(d.est[1][0] == V_VALIDO, "Tsunami com 8 nao anula");
             CONFERE(sem_sorteio(D_TSUNAMI) && peso_dado(D_TSUNAMI) == 0 && !dado_liberado(D_TSUNAMI) && no_catalogo(D_TSUNAMI),
                     "Tsunami: so da Onda, mas na colecao");
-            // Tres Patinhos: na 3a, 6a... vez valendo, x3; a contagem fica no dado.
+            // Tres Patinhos: na 3a, 6a... vez lancados, x3 se valem; a contagem fica no dado.
             limpa(); joga(0, D_PATINHOS, 3); d = fim();
             CONFERE(d.total[0] == 3, "Patinhos na 1a vez: 3, deu %d", d.total[0]);
             limpa(); F[0].fixo[0] = 2; joga(0, D_PATINHOS, 3); d = fim();
@@ -1489,32 +1499,32 @@ int main(void)
                 CONFERE(J[0].col[n0].fixo == 2, "Patinhos valendo contam mais um");
                 limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 2; joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 2, "Patinhos caidos nao contam");
+                CONFERE(J[0].col[n0].fixo == 3, "Patinhos caidos tambem contam (%d)", J[0].col[n0].fixo);
                 J[0].n_col--;
             }
-            // Revolver: cada lance carrega uma bala; o sexto dispara, +12, e o tambor esvazia.
+            // Revolver: cada lance carrega uma bala; o quarto dispara, +8, e o tambor esvazia.
             limpa(); joga(0, D_REVOLVER, 4); d = fim();
             CONFERE(d.total[0] == 4 && !F[0].tag[0][0], "Revolver com 1 bala: 4, deu %d", d.total[0]);
-            limpa(); F[0].fixo[0] = 4; joga(0, D_REVOLVER, 4); d = fim();
-            CONFERE(d.total[0] == 4, "Revolver com 5 balas: 4, deu %d", d.total[0]);
-            limpa(); F[0].fixo[0] = 5; joga(0, D_REVOLVER, 4); d = fim();
-            CONFERE(d.total[0] == 4 + REVOLVER_TIRO && !strcmp(F[0].tag[0], "+12"), "Revolver na 6a: 16, deu %d", d.total[0]);
-            limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 5; joga(0, D_REVOLVER, 2); d = fim();
+            limpa(); F[0].fixo[0] = 2; joga(0, D_REVOLVER, 4); d = fim();
+            CONFERE(d.total[0] == 4, "Revolver com 3 balas: 4, deu %d", d.total[0]);
+            limpa(); F[0].fixo[0] = 3; joga(0, D_REVOLVER, 4); d = fim();
+            CONFERE(d.total[0] == 4 + REVOLVER_TIRO && REVOLVER_TIRO == 8 && !strcmp(F[0].tag[0], "+8"), "Revolver na 4a: 12, deu %d", d.total[0]);
+            limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 3; joga(0, D_REVOLVER, 2); d = fim();
             CONFERE(d.total[0] == REVOLVER_TIRO && d.est[0][1] == V_ANULADO && poder_armado(0, 1) == 1,
-                    "Revolver anulado na 6a: o tiro ja saiu, +12 no fim, deu %d", d.total[0]);
+                    "Revolver anulado na 4a: o tiro ja saiu, +8 no fim, deu %d", d.total[0]);
             {
                 int n0 = J[0].n_col;
-                J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 3 };
+                J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 1 };
                 J[0].n_col++;
-                limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 2); d = fim();
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 4, "Revolver: mais uma bala (%d)", J[0].col[n0].fixo);
-                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 4; joga_ad(0, n0, 2); d = fim();
+                CONFERE(J[0].col[n0].fixo == 2, "Revolver: mais uma bala (%d)", J[0].col[n0].fixo);
+                limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 2; joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(d.est[0][1] == V_ANULADO && J[0].col[n0].fixo == 5, "Revolver anulado tambem carrega (%d)", J[0].col[n0].fixo);
-                limpa(); F[0].fixo[0] = 5; joga_ad(0, n0, 3); d = fim();
+                CONFERE(d.est[0][1] == V_ANULADO && J[0].col[n0].fixo == 3, "Revolver anulado tambem carrega (%d)", J[0].col[n0].fixo);
+                limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 3); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(d.total[0] == 15 && J[0].col[n0].fixo == 0, "Revolver: disparou e esvaziou (%d, %d)", d.total[0], J[0].col[n0].fixo);
+                CONFERE(d.total[0] == 11 && J[0].col[n0].fixo == 0, "Revolver: disparou e esvaziou (%d, %d)", d.total[0], J[0].col[n0].fixo);
                 J[0].n_col--;
             }
             {
@@ -1791,7 +1801,7 @@ int main(void)
                 limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 4; joga_ad(0, n0, 2); d = fim();
                 CONFERE(d.total[0] == 0 && n_ev == 1 && ev[0].valor == 0 && poder_armado(0, 1) == 1, "Meia anulada avisa que guarda");
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 6, "Meia anulada guardou 6 (%d)", J[0].col[n0].fixo);
+                CONFERE(J[0].col[n0].fixo == 4 + MEIA_GUARDA && MEIA_GUARDA == 4, "Meia anulada guardou 8 (%d)", J[0].col[n0].fixo);
                 limpa(); F[0].fixo[0] = 6; joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(d.total[0] == 8 && J[0].col[n0].fixo == 0, "Meia valendo paga e esvazia");
@@ -2286,12 +2296,12 @@ int main(void)
         CONFERE(run.bolsa == B_COPO && run.n_col == 13 && !d2 && d8 == 2 && vic == 1 && tam_mao(0) == 6 && J[0].n_mao == 6,
                 "Copo: %d dados, mao %d", run.n_col, J[0].n_mao);
         CONFERE(perfis[0].bolsa_ult == B_COPO, "a ultima escolhida, o Copo: %d", perfis[0].bolsa_ult);
-        // Lata de Biscoito: dois adesivos ja colados, a vitrine com 1 e o adesivo 1 mais barato.
+        // Lata de Biscoito: sem adesivos colados, a vitrine com 1 e o adesivo 1 mais barato.
         des_bolsa = B_LATA; des_nova_run();
         int ad = 0;
         for (int i = 0; i < run.n_col; i++) ad += ad_quantos(&run.col[i]);
         run.dois_adesivos = 0;
-        CONFERE(ad == 2 && n_vitrine() == 1 && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
+        CONFERE(ad == 0 && n_vitrine() == 1 && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
                 "Lata: %d adesivos, vitrine %d, Lobo %d", ad, n_vitrine(), preco_adesivo(AD_LOBO));
         run.dois_adesivos = 1;
         CONFERE(n_vitrine() == 0 && n_adesivos_loja() == 2 && lj_item_pacote() == 2, "Lata na loja de dois adesivos: %d dados",
@@ -2316,27 +2326,31 @@ int main(void)
         CONFERE(run.moedas == m + PORCO_GUARDA && !run.porco && run.porco_quebrou && !porco_inteiro(), "Porquinho quebrado: %d", run.moedas - m);
         porco_quebra();
         CONFERE(run.moedas == m + PORCO_GUARDA, "o Porquinho so quebra uma vez");
-        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 da 7a em diante.
+        // Saco de Sementes: -1 na 1a rodada, +1 na ultima; vem com o Trevo e a Semente.
         des_bolsa = B_SEMENTES; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int sb[9];
         for (int r = 1; r <= 8; r++) { rodada = r; sb[r] = sementes_bonus(0); }
-        CONFERE(sb[1] == -1 && sb[2] == -1 && sb[3] == 0 && sb[6] == 0 && sb[7] == 1 && sb[8] == 1 && !sementes_bonus(1),
-                "Sementes: %d %d %d %d %d", sb[1], sb[2], sb[3], sb[7], sb[8]);
+        int sem = 0;
+        for (int i = 0; i < run.n_col; i++) sem += run.col[i].tipo == D_SEMENTE;
+        CONFERE(sb[1] == -1 && sb[2] == 0 && sb[3] == 0 && sb[6] == 0 && sb[7] == 0 && sb[8] == 1 && !sementes_bonus(1) && sem == 1,
+                "Sementes: %d %d %d %d %d (%d Sementes)", sb[1], sb[2], sb[3], sb[7], sb[8], sem);
         rodada = 1;
         limpa(); joga(0, D_D6, 4);
         CONFERE(F[0].pontos == 3, "Sementes na rodada 1: o 4 pontua %d", F[0].pontos);
-        // Estojo de Lapis: 5 na sequencia (4 com o Contrato Sujo), e a rodada comeca com -4.
+        // Estojo de Lapis: 5 na sequencia (4 com o Contrato Sujo), a rodada comeca com -3, e vem a Moeda sorte.
         des_bolsa = B_LAPIS; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
-        CONFERE(max_fila(0) == 5 && max_fila(1) == 4, "Lapis: fila de %d", max_fila(0));
+        int sorte = 0;
+        for (int i = 0; i < run.n_col; i++) sorte += run.col[i].tipo == D_SORTE;
+        CONFERE(max_fila(0) == 5 && max_fila(1) == 4 && LAPIS_PENA == 3 && sorte == 1, "Lapis: fila de %d", max_fila(0));
         limpa();
         for (int k = 0; k < 5; k++) joga(0, D_D6, k + 1);
         desfecho_t d;
         calcula_desfecho(&d, false);
         CONFERE(F[0].lancados == 5 && d.total[0] == 15 - LAPIS_PENA && F[0].pontos == 15 - LAPIS_PENA,
-                "Lapis: 1+2+3+4+5 - 4 = %d (%d)", d.total[0], F[0].pontos);
+                "Lapis: 1+2+3+4+5 - 3 = %d (%d)", d.total[0], F[0].pontos);
         limpa(); joga(0, D_D6, 3);
         primeiro = 0;
-        CONFERE(!zerou_de_vez(0), "Lapis: 3 - 4 nao conta como zerar");
+        CONFERE(!zerou_de_vez(0), "Lapis: 3 - 3 nao conta como zerar");
         run_poe_amuleto(A_CONTRATO); amul[0] = run_amuletos();
         CONFERE(max_fila(0) == 4, "Lapis com o Contrato Sujo: %d", max_fila(0));
         // Bauzinho: escolhe 2 dos 3 do comeco, e cabem 4.
@@ -2347,10 +2361,23 @@ int main(void)
                 && run.am_oferta[0] < A_N && run.am_oferta[2] < A_N, "Bauzinho: o segundo, dos dois que sobraram");
         amuleto_escolhido(2);
         CONFERE(fase == F_RLOJA && am_conta(run_amuletos()) == 2, "Bauzinho: 2 amuletos (%d)", am_conta(run_amuletos()));
+        {
+            int d8 = 0, d12 = 0;
+            for (int i = 0; i < run.n_col; i++) { d8 += run.col[i].tipo == D_D8; d12 += run.col[i].tipo == D_D12; }
+            CONFERE(d8 == 1 && !d12, "Bauzinho: vem com um D8 (%d D8, %d D12)", d8, d12);
+        }
         // Caixa de Fosforos: 45 fichas e a mao dele a vista.
         des_bolsa = B_FOSFORO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         CONFERE(J[0].fichas + ante_da(1) == DES_FICHAS - FOSFORO_FICHAS && fosf_n == J[1].n_mao && fosf_n > 0,
                 "Fosforos: %d fichas, ve %d de %d", J[0].fichas, fosf_n, J[1].n_mao);
+        {   // e os dois Quebrados, com o 4 e o 6 gravados
+            int q4 = 0, q6 = 0;
+            for (int i = 0; i < run.n_col; i++) {
+                q4 += run.col[i].tipo == D_QUEBRADO && run.col[i].fixo == 4;
+                q6 += run.col[i].tipo == D_QUEBRADO && run.col[i].fixo == 6;
+            }
+            CONFERE(q4 == 1 && q6 == 1 && run.n_col == 15, "Fosforos: Quebrados 4 (%d) e 6 (%d), %d dados", q4, q6, run.n_col);
+        }
         // O que abre cada uma: adesivos, amuletos, a loja com 12, a virada,
         // as rodadas cheias.
         perfis[0].bolsas = 0;
@@ -3267,6 +3294,18 @@ int main(void)
         joga(1, D_D4, 3);
         d = fim();
         CONFERE(d.total[0] == 9, "Imantado, 4 e 5: %d", d.total[0]);
+        // ... e o anterior tambem: o 4 antes do Imantado com 4 (igual nao anula na sequencia).
+        limpa();
+        joga_ad(0, 5, 4); joga_ad(0, 3, 4);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 16, "Imantado com o anterior, 4 e 4: %d", d.total[0]);
+        // Os dois vizinhos iguais: os tres x2, e o dele uma vez so.
+        limpa();
+        joga_ad(0, 5, 4); joga_ad(0, 3, 4); joga_ad(0, 6, 4);
+        joga(1, D_D4, 3);
+        d = fim();
+        CONFERE(d.total[0] == 24, "Imantado no meio de tres 4: %d", d.total[0]);
         // O Holografico: repete cada adesivo que agiu nos seus dados.
         J[0].col[4] = (peca_t){ .tipo = D_D4 };
         ad_cola(&J[0].col[4], 2, AD_CONFETE);
@@ -3441,10 +3480,10 @@ int main(void)
         J[0].col[7] = (peca_t){ .tipo = D_D8 };
         limpa();
 
-        // O Bis: a proxima compra leva dois dados a mais.
+        // O Bis: a proxima compra leva tres dados a mais.
         memset(bis_extra, 0, sizeof bis_extra);
         bis_extra[0] = BIS_DADOS;
-        CONFERE(BIS_DADOS == 2 && tam_mao(0) == MAO_NORMAL + 2, "o Bis: %d", tam_mao(0));
+        CONFERE(BIS_DADOS == 3 && tam_mao(0) == MAO_NORMAL + 3, "o Bis: %d", tam_mao(0));
         memset(bis_extra, 0, sizeof bis_extra);
         memset(J, 0, sizeof J);
         limpa();
@@ -4030,7 +4069,7 @@ int main(void)
             CONFERE(J[0].n_col == antes + 1 && J[0].col[antes].tipo == D_FANTASMA && J[0].onde[antes] == NA_BOLSA
                     && J[0].perdidas >= 1 && J[0].perdeu_ultima && fantasma_para == 0,
                     "Bruxaria: devia por um Fantasma na sua bolsa");
-            // O seu Mau-Olhado: rodada vencida por voce, um Fantasma na bolsa dele.
+            // O seu Mau-Olhado: rodada vencida por voce, dois Fantasmas na bolsa dele.
             amul[1] = 0; amul[0] = 1u << A_MAU_OLHADO;
             int antes1 = J[1].n_col;
             limpa();
@@ -4038,8 +4077,8 @@ int main(void)
             resolvido.total[0] = 9; resolvido.total[1] = 3;
             J[0].fichas = J[1].fichas = 40; pote = 10;
             conclui_rodada();
-            CONFERE(J[1].n_col == antes1 + 1 && J[1].col[antes1].tipo == D_FANTASMA && fantasma_para == 1
-                    && J[0].n_col == antes + 1, "Mau-Olhado: devia por um Fantasma na bolsa dele");
+            CONFERE(J[1].n_col == antes1 + 2 && J[1].col[antes1].tipo == D_FANTASMA && J[1].col[antes1 + 1].tipo == D_FANTASMA
+                    && fantasma_para == 1 && J[0].n_col == antes + 1, "Mau-Olhado: devia por dois Fantasmas na bolsa dele");
             amul[0] = 0;
             int menor = 0;
             CONFERE(sorteia_valor(D_FANTASMA, 1, sempre_dois, &menor) == 1, "Fantasma vale sempre 1");

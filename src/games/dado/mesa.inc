@@ -1207,7 +1207,7 @@ static void desenha_fila(int j)
         int td = t;
         if (t == D_ONDA && no_desfecho && (vis_tsunami[j][k] || (e && e->tipo == EV_ONDA && e->de_j == j && e->de_k == k && p > 0.48f)))
             td = D_TSUNAMI;
-        patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
+        patos_pousou = t == D_PATINHOS;            // na mesa, valendo ou nao: esta vez ja conta
         bala_lancada = t == D_REVOLVER;            // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
         if (recente) risca_anima(t_fase);

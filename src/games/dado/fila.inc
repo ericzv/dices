@@ -31,7 +31,7 @@ static bool carbono_age(int j, int k)
 static int valor_pontos(int j, int k)
 {
     if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
-    if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO || F[j].tipo[k] == D_ONDA) return 0;
+    if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO) return 0;
     if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
 }
@@ -43,8 +43,8 @@ static int furia_depois(int g, int v)
     int b = (int8_t)g + (v == 4 ? FURIA_GANHA : v == 1 ? -FURIA_PERDE : 0);
     return b > FURIA_MAX ? FURIA_MAX : b < -FURIA_MAX ? -FURIA_MAX : b;
 }
-// Os Tres Patinhos ja terminaram valendo c vezes: valendo agora, e a 3a (6a,
-// 9a...) vez, e pontuam x3.
+// Os Tres Patinhos ja foram lancados c vezes: agora e a 3a (6a, 9a...) vez,
+// e pontuam x3 se valerem.
 static bool patinhos_ativo(int c) { return (c + 1) % PATINHOS_CADA == 0; }
 // A Meia na Lareira que guardou g e terminou anulada: o quanto fica.
 static int meia_depois(int g) { return g + MEIA_GUARDA > MEIA_MAX ? MEIA_MAX : g + MEIA_GUARDA; }
@@ -472,7 +472,7 @@ static void aplica_regra(int j, int k)
             snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
         }
         if (ef == EF_FERREIRO || ef == EF_SACRIFICIO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
-        // Onda: nao pontua; a etiqueta diz quanto ela tera guardado se ficar.
+        // Onda: a etiqueta diz quanto ela tera guardado se ficar.
         if (ef == EF_ONDA) snprintf(f->tag[k], sizeof f->tag[k], "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
         if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) snprintf(f->tag[k], sizeof f->tag[k], "x3");
         // Panetone: as frutas da fatia somam no que ele tirou.
@@ -507,7 +507,7 @@ static void aplica_regra(int j, int k)
             if (tem_am(j, A_OURO) && v == TIPO[t].lados) { am_b += 2; am_disparou |= AM_BIT(A_OURO); }
             if (tem_am(j, A_PENA) && (TIPO[t].lados == 2 || TIPO[t].lados == 4)) { am_b += 1; am_disparou |= AM_BIT(A_PENA); }
             if (tem_am(j, A_PESADO) && TIPO[t].lados == 6) { am_b += 1; am_disparou |= AM_BIT(A_PESADO); }
-            if (tem_am(j, A_CONTRATO)) { am_b += 2; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo
+            if (tem_am(j, A_CONTRATO) && k == CONTRATO_LUGAR) { am_b += CONTRATO_PTS; am_disparou |= AM_BIT(A_CONTRATO); }   // Contrato Sujo: o terceiro
             if (tem_am(j, A_COROA) && fichas_ini[j] < fichas_ini[outro(j)]) { am_b += 1; am_disparou |= AM_BIT(A_COROA); }
             if (j == 1 && rodada >= 6 && tem_reg(REG_FOLEGO)) am_b += 1;              // a Maratonista
             if (j == 1 && k == 0 && tem_reg(REG_SAQUE)) am_b += 1;                    // o Caubói
@@ -558,7 +558,7 @@ static void aplica_regra(int j, int k)
         } else if (ef == EF_ONDA) {
             int g = onda_depois(f->fixo[k], v);
             if (g >= ONDA_VIRA) snprintf(veredito, sizeof veredito, "Onda chega a %d: se ficar, vira Tsunami!", ONDA_VIRA);
-            else snprintf(veredito, sizeof veredito, "Onda: não pontua, guarda %d (%d de %d)", v, g, ONDA_VIRA);
+            else snprintf(veredito, sizeof veredito, "Onda pontua %d e guarda (%d de %d)", v, g, ONDA_VIRA);
         } else if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) {
             snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", f->fixo[k] + 1);
         } else if (ef == EF_PANETONE) {

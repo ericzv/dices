@@ -29,27 +29,27 @@ static const bolsa_t BOLSA[B_N] = {
                      "Vença o Crupiê.", RGB(150, 62, 80),
                      { X6(D_D6), X4(D_D4), D_D8, D_D8, D_VICIADO, 0xFF } },
     [B_LATA]     = { "Lata de Biscoito", "Adesivos e pacotes de adesivos custam 1 moeda a menos.",
-                     "As lojas vendem 1 dado a menos.", "e 2 adesivos já colados",
+                     "As lojas vendem 1 dado a menos.", "",
                      "Tenha 3 adesivos colados na bolsa.", RGB(56, 86, 150),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_PAR, 0xFF } },
     [B_PORCO]    = { "Porquinho", "Cada mesa vencida põe 2 moedas no porquinho: na loja, quebre-o quando quiser.",
                      "Até quebrar, cada mesa paga 1 moeda a menos.", "",
                      "Saia de uma loja com 12 moedas ou mais.", RGB(226, 164, 168),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_FICHAS, D_COBRADOR, 0xFF } },
-    [B_SEMENTES] = { "Saco de Sementes", "Da 7ª rodada em diante, seus dados pontuam +1.",
-                     "Nas rodadas 1 e 2, seus dados pontuam -1.", "",
+    [B_SEMENTES] = { "Saco de Sementes", "Na última rodada, seus dados pontuam +1.",
+                     "Na 1ª rodada, seus dados pontuam -1.", "",
                      "Vença uma partida começando a 7ª rodada atrás em fichas.", RGB(88, 152, 84),
-                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_TREVO, 0xFF } },
-    [B_LAPIS]    = { "Estojo de Lápis", "+1 dado na sequência.", "Toda rodada começa com -4.", "",
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_TREVO, D_SEMENTE, 0xFF } },
+    [B_LAPIS]    = { "Estojo de Lápis", "+1 dado na sequência.", "Toda rodada começa com -3.", "",
                      "Vença 3 rodadas de uma partida com 4 dados válidos.", RGB(228, 194, 106),
-                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_DOBRO, 0xFF } },
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_DOBRO, D_SORTE, 0xFF } },
     [B_BAU]      = { "Bauzinho", "Começa com 2 amuletos.", "Cabem só 4 amuletos.", "",
                      "Tenha 5 amuletos ao mesmo tempo.", RGB(102, 74, 138),
-                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_D12, 0xFF } },
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_D8, 0xFF } },
     [B_FOSFORO]  = { "Caixa de Fósforos", "Você vê os dados que o oponente comprou na rodada.",
                      "Cada partida começa com 45 fichas, 5 a menos.", "",
                      "Vença uma run.", RGB(214, 112, 44),
-                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_ESCUDO, 0xFF } },
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_ESCUDO, D_QUEBRADO, D_QUEBRADO, 0xFF } },
 };
 #undef X6
 #undef X4
@@ -59,6 +59,17 @@ static int bolsa_n_dados(int b)
     int n = 0;
     while (n < BOLSA_DADOS && BOLSA[b].dados[n] != 0xFF) n++;
     return n;
+}
+
+// Os Quebrados de uma bolsa vem com o numero gravado (os da Caixa de
+// Fosforos: 4 e 6); os outros dados, com nada guardado.
+static uint8_t bolsa_fixo(int b, int i)
+{
+    static const uint8_t GRAVADO[] = { 4, 6 };
+    if (BOLSA[b].dados[i] != D_QUEBRADO) return 0;
+    int nq = 0;
+    for (int q = 0; q < i; q++) nq += BOLSA[b].dados[q] == D_QUEBRADO;
+    return GRAVADO[nq % 2];
 }
 
 static bool tem_bolsa(int j, int b) { return modo == M_DESAFIO && j == 0 && run.bolsa == b; }
@@ -116,23 +127,7 @@ static void bolsa_monta_run(int b)
 {
     run.bolsa = (uint8_t)b;
     run.n_col = 0;
-    for (int i = 0; i < bolsa_n_dados(b); i++) run.col[run.n_col++] = (peca_t){ .tipo = BOLSA[b].dados[i] };
-    if (b != B_LATA) return;
-    // A Lata: dois D6 com um adesivo cada, sorteados entre os abertos.
-    rs = run.semente ^ 0x1A7AB15Cu;
-    rnd_r();
-    int abertos[AD_N], na = 0;
-    for (int a = AD_NADA + 1; a < AD_N; a++)
-        if (adesivo_liberado(a) && a != AD_CHUMBO) abertos[na++] = a;
-    for (int k = 0, d6 = 0; k < 2 && na; d6++) {
-        if (d6 >= run.n_col) break;
-        if (run.col[d6].tipo != D_D6) continue;
-        int q = sorte_r(na), lado = 1 + sorte_r(6);
-        ad_cola(&run.col[d6], lado, abertos[q]);
-        abertos[q] = abertos[--na];              // dois diferentes
-        k++;
-        d6 += 2;                                 // nao no D6 vizinho
-    }
+    for (int i = 0; i < bolsa_n_dados(b); i++) run.col[run.n_col++] = (peca_t){ .tipo = BOLSA[b].dados[i], .fixo = bolsa_fixo(b, i) };
 }
 
 // ---- O Porquinho ---------------------------------------------------------

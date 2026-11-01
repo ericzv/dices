@@ -316,10 +316,10 @@ static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 // guardado (-1: nao sabe). E o mesmo para quem guarda alguma coisa: o bonus da
 // Furia, a agua da Onda, os patinhos acesos dos Tres Patinhos.
 static int marca_nivel = -1;
-// Os Tres Patinhos pousados valendo na mesa: esta vez ja conta (um patinho a
-// mais aceso; os tres acesos, x3).
+// Os Tres Patinhos pousados na mesa, valendo ou nao: esta vez ja conta (um
+// patinho a mais aceso; os tres acesos, x3).
 static bool patos_pousou;
-// Quantos patinhos acesos: os da contagem e, pousado valendo, mais um.
+// Quantos patinhos acesos: os da contagem e, pousado, mais um.
 static int patos_acesos(void)
 {
     if (marca_nivel < 0) return 2;                 // so o desenho (a colecao): dois de tres
@@ -327,8 +327,8 @@ static int patos_acesos(void)
 }
 // O Revolver lancado (no ar ou ja na mesa): este lance ja carregou a bala dele.
 static bool bala_lancada;
-// Quantas balas no tambor: as de antes e, lancado, mais uma (com seis, ele
-// dispara). Na colecao, meio tambor.
+// Quantas balas no tambor: as de antes e, lancado, mais uma (com o tambor
+// cheio, ele dispara). Na colecao, meio tambor.
 static int balas_desta(void)
 {
     if (marca_nivel < 0) return REVOLVER_BALAS / 2;
@@ -1256,18 +1256,19 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_REVOLVER: {                            // o tambor: seis camaras em volta do numero, as carregadas com a bala
+    case D_REVOLVER: {                            // o tambor: as camaras em volta do numero, as carregadas com a bala
         float rt = 0.74f;
         if (ro > rt + l) return 0;
         int balas = balas_desta();
         for (int i = 0; i < REVOLVER_BALAS; i++) {
-            float a = -1.0472f + i * 1.0472f, cx = cosf(a) * 0.5f, cy = sinf(a) * 0.5f;   // nenhuma em cima nem embaixo do numero
+            const float passo = 6.2832f / REVOLVER_BALAS;                          // nas diagonais: nenhuma em cima nem embaixo do numero
+            float a = passo * (i + 0.5f), cx = cosf(a) * 0.5f, cy = sinf(a) * 0.5f;
             float d = sqrtf((u - cx) * (u - cx) + (v - cy) * (v - cy));
             if (d < 0.155f) {
                 if (i >= balas) return d < 0.115f ? 3 : 1;                    // vazia: o buraco, com a beira
                 return d < 0.03f + l ? 1 : 2;                                 // a bala: o latao, e a espoleta
             }
-            float fa = a + 0.5236f, fx = cosf(fa) * rt, fy = sinf(fa) * rt;    // o sulco entre duas camaras, na beira
+            float fa = a + passo / 2, fx = cosf(fa) * rt, fy = sinf(fa) * rt;  // o sulco entre duas camaras, na beira
             if ((u - fx) * (u - fx) + (v - fy) * (v - fy) < 0.11f * 0.11f) return 0;
         }
         if (ro > rt - 0.05f - l) return 3;                                     // a beira do tambor

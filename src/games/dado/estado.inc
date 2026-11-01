@@ -295,6 +295,7 @@ enum { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_CONTRATO, A_IMA, A_COURACA,
 static int am_lugares(void);         // os de agora (desafio/bolsas.inc)
 #define A_BASICOS A_FERRADURA
 static amul_t amul[2];
+static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou (o resto de amul[1] e o trunfo)
 static amul_t am_disparou;           // amuletos que acabaram de agir (a faixa acende)
 static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
@@ -430,14 +431,18 @@ static void am_acende(int a) { am_brilho[a] = 1.2f; }
 // os dados de saida e uma regra que melhora uma coisa e piora outra.
 enum { B_PANO, B_COPO, B_LATA, B_PORCO, B_SEMENTES, B_LAPIS, B_BAU, B_FOSFORO, B_N };
 static bool tem_bolsa(int j, int b);     // so voce, so no Desafiante
-// Estojo de Lapis: toda rodada comeca com -4.
-#define LAPIS_PENA 4
+// Estojo de Lapis: toda rodada comeca com -3.
+#define LAPIS_PENA 3
 static int lapis_pena(int j) { return tem_bolsa(j, B_LAPIS) ? LAPIS_PENA : 0; }
-// Saco de Sementes: seus dados pontuam -1 nas rodadas 1 e 2 e +1 da 7a em diante.
-static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 2 ? -1 : rodada >= 7 ? 1 : 0; }
+#define DES_RODADAS 8                // rodadas de cada partida da run
+// Saco de Sementes: seus dados pontuam -1 na 1a rodada e +1 na ultima.
+static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 1 ? -1 : rodada >= DES_RODADAS ? 1 : 0; }
 // Caixa de Fosforos: cada partida comeca com 5 fichas a menos.
 #define FOSFORO_FICHAS 5
 
+// O Contrato Sujo: o lugar da sequencia que ganha o bonus (o terceiro) e quanto.
+#define CONTRATO_LUGAR 2
+#define CONTRATO_PTS   4
 // Quantos dados cabem na sequencia de j: 4; o Contrato Sujo tira 1 e o
 // Estojo de Lapis poe 1. O Coringa monta 3: o quarto e a copia do seu dado
 // que mais tirou (partida.inc).
@@ -454,7 +459,6 @@ static int slot_x(int k)
 }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.
-#define DES_RODADAS 8                // rodadas de cada partida da run
 #define DES_EXTRAS  3                // rodadas extras se terminar empatado
 
 // A entrada sobe ao longo da partida, para que abrir vantagem e so correr de

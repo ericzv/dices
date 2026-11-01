@@ -285,11 +285,12 @@ static void desenha_bolsas(void)
     }
     // Os dados do comeco, depois do rotulo: os de numero juntos (D6 x6), e os
     // de poder, depois do "+", com o nome embaixo. Entram um de cada vez.
-    int tipos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
+    // Os Quebrados, cada um com o numero gravado, ficam separados.
+    int tipos[BOLSA_DADOS], fixos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
     for (int i = 0; i < n; i++) {
-        int g = 0;
-        while (g < ng && tipos[g] != bo->dados[i]) g++;
-        if (g == ng) { tipos[ng] = bo->dados[i]; conta[ng++] = 0; }
+        int g = 0, fx = bolsa_fixo(b, i);
+        while (g < ng && (tipos[g] != bo->dados[i] || fixos[g] != fx)) g++;
+        if (g == ng) { tipos[ng] = bo->dados[i]; fixos[ng] = fx; conta[ng++] = 0; }
         conta[g]++;
     }
     int larg[BOLSA_DADOS], w = 0;
@@ -319,7 +320,7 @@ static void desenha_bolsas(void)
         }
         if (q > 0) {
             int cx = poder ? x + larg[g] / 2 : x + 12;
-            peca_t p = { .tipo = (uint8_t)tipos[g] };
+            peca_t p = { .tipo = (uint8_t)tipos[g], .fixo = (uint8_t)fixos[g] };
             float r = (poder ? 11 : 10) * (q < 1 ? sai_mola(q) : 1);
             peca_parada((float)cx, (float)dy, r, p, 0);
             if (fechada) ui_escurece(cx - 12, dy - 12, 25, 25, 120);

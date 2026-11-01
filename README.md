@@ -30,13 +30,13 @@ escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas
 Lareira e Pinho com fita), e nove dados de Natal entram no jogo, nos dois
 modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus dados
 válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
-e anula o 4º dado do oponente), o **Jingle Bell** (d6: lançado, deixa uma
+e anula o 4º dado do oponente), o **Jingle Bell** (d6: válido, deixa uma
 cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
 um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
 pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
 0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
-apagado, 0), a **Meia na Lareira** (d4, guarda +2 cada vez que é anulada e
+apagado, 0), a **Meia na Lareira** (d4, guarda +4 cada vez que é anulada e
 paga tudo quando termina válida), a **Estrela de Belém** (d8, por último na
 sequência: +2 por dado válido abaixo dela) e a **Rena** (d6, +1 nos dados
 válidos ao lado dela). **Em dezembro**, o **Papai Noel** senta no lugar do
@@ -65,12 +65,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   |---|---|---|---|
   | Saco de Pano | os dados de sempre | sem regra | desde o começo |
   | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
-  | Lata de Biscoito | 2 adesivos já colados; adesivo e pacote de adesivos custam 1 a menos | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
+  | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Par | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
-  | Saco de Sementes | +1 nos seus dados da 7ª rodada em diante; vem com o Trevo | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
-  | Estojo de Lápis | +1 dado na sequência; vem com o Dobro | toda rodada começa com -4 | vencer 3 rodadas de uma partida com 4 dados válidos |
-  | Bauzinho | começa com 2 amuletos; vem com um D12 | cabem só 4 amuletos | ter 5 amuletos |
-  | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo | cada partida começa com 45 fichas | vencer uma run |
+  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com o Trevo, a Semente e um D8 (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
+  | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -3 | vencer 3 rodadas de uma partida com 4 dados válidos |
+  | Bauzinho | começa com 2 amuletos; vem com um D8 | cabem só 4 amuletos | ter 5 amuletos |
+  | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |
 
   A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
   nível mais alto em que você venceu uma run com ela. Na partida, abrir uma
@@ -113,7 +113,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 34, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
-  um sai metade das vezes), ao Bis (2 dados a mais na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
+  um sai metade das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
@@ -175,11 +175,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
-  carrega uma bala a cada lance, valendo ou não, e na sexta dispara, +12
+  carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +8
   mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
-  cada 3 vezes válidos, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
-  cada 1, no 6; a Onda, que não pontua e guarda o que tira até virar um
+  cada 3 vezes lançados, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
+  cada 1, no 6; a Onda, que pontua e guarda o que tira até virar um
   Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
   evolui e volta para a mão na rodada seguinte - e o que ela vira é
   surpresa, que a coleção não mostra -, no 8; o Adesivado, um d6 que já

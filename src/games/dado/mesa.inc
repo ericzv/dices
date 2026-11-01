@@ -978,7 +978,7 @@ static void sanguessuga_gotas(int xa, int xs, int y, float t)
     }
 }
 
-// O fim da rodada: de cada Jingle Bell lancado sai a copia, que voa em arco
+// O fim da rodada: de cada Jingle Bell que terminou valendo sai a copia, que voa em arco
 // para a bolsa de quem o jogou; a bolsa acende quando ela chega.
 static void desenha_jingle_copias(void)
 {
@@ -1207,7 +1207,7 @@ static void desenha_fila(int j)
         int td = t;
         if (t == D_ONDA && no_desfecho && (vis_tsunami[j][k] || (e && e->tipo == EV_ONDA && e->de_j == j && e->de_k == k && p > 0.48f)))
             td = D_TSUNAMI;
-        patos_pousou = t == D_PATINHOS && !anul;   // valendo na mesa: esta vez ja conta
+        patos_pousou = t == D_PATINHOS;            // na mesa, valendo ou nao: esta vez ja conta
         bala_lancada = t == D_REVOLVER;            // na mesa, valendo ou nao: a bala desta vez ja entrou
         frutas_desta = t == D_PANETONE ? f->fruta[k] : -1;
         if (recente) risca_anima(t_fase);
@@ -1697,8 +1697,9 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
-    case AD_ESTRELINHA:                                         // uma estrelinha pula em cima de cada dado
+    case AD_ESTRELINHA:                                         // uma estrelinha pula em cima de cada dado valendo
         for (int k = 0; k < N_FILA && p < 0.95f; k++) {
+            if (!(e->mascara >> k & 1)) continue;
             float q = (p - 0.1f - k * 0.1f) / 0.35f;
             if (q <= 0) continue;
             if (q > 1) q = 1;
@@ -1968,10 +1969,11 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
         break;
     }
-    case AD_BIS: {                                              // dois dados fantasmas vao para a sua bolsa
-        int bx = GFX_W - 110, by = (j != baixo ? 0 : GFX_H - FAIXA_H) + FAIXA_H / 2;
+    case AD_BIS: {                                              // um lugar fantasma voa para depois do ultimo da sequencia
+        int nf = max_fila(j) < N_FILA ? max_fila(j) : N_FILA - 1;
+        int bx = SLOT_X(nf), by = zona(j);
         float q = 0;
-        for (int f = 0; f < BIS_DADOS; f++) {
+        for (int f = 0; f < 1; f++) {
             q = (p - 0.15f - f * 0.12f) / 0.5f;
             if (q <= 0 || q >= 1) continue;
             float s = q * q * (3 - 2 * q);
@@ -1982,7 +1984,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         if (q >= 1 && p < 0.95f) {
             char t[8];
-            snprintf(t, sizeof t, "+%d", BIS_DADOS);
+            snprintf(t, sizeof t, "+1");
             txt_sombra_c(bx, by - 26 - (int)((p - 0.77f) * 20), t, d->luz, 1);
         }
         break;

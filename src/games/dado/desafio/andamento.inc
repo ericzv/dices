@@ -521,7 +521,8 @@ static void des_comeca_partida(void)
                          : run.andar == 1 && dificil ? MAT_OSSO : MAT_MARFIM);
     ousadia_jog[1] = PERSO[no->perso].ousadia;
     rodada = 0;
-    memset(bis_extra, 0, sizeof bis_extra);
+    memset(bis_fila, 0, sizeof bis_fila);
+    memset(bis_vem, 0, sizeof bis_vem);
     memset(ad_moedas, 0, sizeof ad_moedas);
     pote = 0;
     primeiro = (int)(rnd() & 1);

@@ -17,7 +17,7 @@ int main(int argc, char **argv)
             erros++;
         }
     }
-    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha", "trilha_chefe", "trilha_tensao" };
+    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha", "trilha_chefe" };
     for (int i = 0; i < (int)(sizeof LOOPS / sizeof *LOOPS); i++)
         if (!acha(LOOPS[i])) { printf("falta %s\n", LOOPS[i]); erros++; }
     // As camadas tocam junto com a trilha, amostra a amostra: do mesmo tamanho

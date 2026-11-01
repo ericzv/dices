@@ -30,7 +30,7 @@ caindo).
 | Momentos | `suspense` (a hora da verdade), `forte` (a vitória grande do crescendo) | o coração em tímpano abafado com o baixo por baixo; a vitória com acorde cheio, sax-alto, prato de vassourinha e mais fichas |
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
-| Camadas da música | `trilha_chefe` (a mesa do chefe), `trilha_tensao` (a hora da verdade) | do tamanho exato da trilha e na mesma harmonia, para tocar junto dela: a batucada (surdo sintetizado, agogô, o aro num dado batendo na madeira, cordas e o rolo de tímpano no fim de cada frase); as cordas em trêmolo no Dó grave com a terça e a sétima de cada acorde |
+| Camada da música | `trilha_chefe` (a mesa do chefe) | do tamanho exato da trilha e na mesma harmonia, para tocar junto dela: a batucada (surdo sintetizado, agogô, o aro num dado batendo na madeira, cordas e o rolo de tímpano no fim de cada frase) |
 | Troca de tela | `transicao` | um sopro de pano que anda da esquerda para a direita junto com a varredura |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |

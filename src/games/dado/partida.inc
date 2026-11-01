@@ -45,16 +45,20 @@ static void descarta_mao(jogador_t *p)
 
 // Compra ate 7 da bolsa, ao acaso. Se a bolsa esvazia no meio, tudo o que
 // esta fora volta para ela - menos o que ja esta na mao - e a compra segue.
-// Quantos j compra por rodada: 7; 8 com a Bolsa Funda; 6 se o oponente tem
-// o Saco Furado ou com o Copo de Couro.
-static int bis_extra[2];                 // dados a mais na proxima compra (o adesivo Bis)
+// Quantos j compra por rodada: 7; 9 com a Bolsa Funda; 5 se o oponente tem
+// o Saco Furado; 6 com o Copo de Couro. Os trunfos feitos desses amuletos
+// (o Mao grande, com 8; a Dona do Salao, que deixa voce com 6) mexem 1 so.
 static int ad_moedas[2];                 // moedas do Dourado nesta partida
+// Quantos dados a Bolsa Funda (a mais) ou o Saco Furado (a menos, no outro)
+// de j mexem: o amuleto, 2; o trunfo do oponente feito dele, 1.
+#define AM_MAO 2
+static int am_mao(int j, int a) { return j == 0 || op_amul_extra == a ? AM_MAO : 1; }
 static int tam_mao(int j)
 {
-    int n = MAO_NORMAL + bis_extra[j];
-    if (tem_am(j, A_BOLSA)) n++;
+    int n = MAO_NORMAL;
+    if (tem_am(j, A_BOLSA)) n += am_mao(j, A_BOLSA);
     if (tem_bolsa(j, B_COPO)) n--;                      // o Copo de Couro: dados maiores, mao menor
-    if (tem_am(j ^ 1, A_FURADO)) n--;
+    if (tem_am(j ^ 1, A_FURADO)) n -= am_mao(j ^ 1, A_FURADO);
     if (j == 1 && op_nervoso && tem_reg(REG_NERVOSO)) n--;
     if (j == 0 && virada_forca(0) == 2) n--;            // o Crupie forte: voce compra 1 a menos
     return n;
@@ -65,7 +69,9 @@ static void compra(jogador_t *p)
     p->embaralhou = false;
     int quer = tam_mao((int)(p - J));
     if (quer > MAO) quer = MAO;
-    bis_extra[p - J] = 0;                        // o Bis vale para uma compra
+    int jb = (int)(p - J);                       // o Bis da rodada passada: 1 lugar a mais nesta
+    bis_fila[jb] = bis_vem[jb];
+    bis_vem[jb] = 0;
     while (p->n_mao < quer) {
         int n = na_bolsa(p);
         if (!n) {
@@ -319,7 +325,8 @@ void dado_inicia(int n_partidas)
     }
     rodada = 0;
     pote = 0;
-    memset(bis_extra, 0, sizeof bis_extra);
+    memset(bis_fila, 0, sizeof bis_fila);
+    memset(bis_vem, 0, sizeof bis_vem);
     memset(ad_moedas, 0, sizeof ad_moedas);
     primeiro = partidas % 2;
     venc_partida = -1;
@@ -435,6 +442,13 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
         else if (a0 == AD_NOTA_DEZ && x0 != ad_lado_max(t)) { *antes = x0; x0 = ad_lado_max(t); }
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
+    // O Previsivel nao rola, mas o lado da escada que ficou para cima vira
+    // com o Avesso (o 1 vira 12) e com a Nota Dez, como os outros.
+    if (p && ef == EF_PREVISIVEL && *lado >= ad_lado_min(t) && *lado <= ad_lado_max(t)) {
+        int a = ad_no_lado(p, *lado);
+        if (a == AD_AVESSO) { *antes = *lado; *lado = ad_oposto(t, *lado); x = remenda(p, *lado); }
+        else if (a == AD_NOTA_DEZ && *lado != ad_lado_max(t)) { *antes = *lado; *lado = ad_lado_max(t); x = remenda(p, *lado); }
+    }
     if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
     return x;
 }
@@ -491,7 +505,10 @@ static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
     l.reflete = a == AD_REFLEXIVO || a == AD_BOMBA;
     l.bomba = a == AD_BOMBA;
     if (l.reflete) {
-        int x2 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
+        // O Previsivel rola de novo de verdade: como um d12 comum, com os
+        // adesivos (a escada segue contando do mesmo jeito).
+        int t2 = TIPO[t].efeito == EF_PREVISIVEL ? D_D12 : t;
+        int x2 = sorteia_peca(t2, fixo, pc, r, &l.menor, &l.lado, &antes);
         l.x = l.bomba ? l.x1 + x2 : x2;
     }
     return l;
@@ -741,7 +758,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
             p->col[i] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)v };
         }
     }
-    bis_extra[j] += d->bis[j];
+    if (d->bis[j]) bis_vem[j] = 1;
     ad_moedas[j] += d->moedas[j];
 }
 
@@ -769,7 +786,7 @@ static void cosmo_ficam(int j)
 
 // O que os dados guardam da rodada, na peca da bolsa: a Furia, o que o lance
 // mexeu no bonus (valendo ou nao); a Onda valendo, o que tirou - e com 9 vira
-// Tsunami, de vez; os Tres Patinhos valendo, mais uma vez; o Revolver, valendo
+// Tsunami, de vez; os Tres Patinhos, valendo ou nao, mais uma vez; o Revolver, valendo
 // ou nao, mais uma bala (e o tambor vazio depois do tiro); e o ciclo cosmico
 // evolui (cosmo_ficam).
 static void contadores_ficam(int j, const desfecho_t *d)
@@ -783,9 +800,9 @@ static void contadores_ficam(int j, const desfecho_t *d)
         else if (p->tipo == D_ONDA && vale) {
             if (d->onda[j] >> k & 1) { p->tipo = D_TSUNAMI; p->fixo = 0; }
             else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
-        } else if (p->tipo == D_PATINHOS && vale && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);
+        } else if (p->tipo == D_PATINHOS && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);   // lancado, vale ou nao
         else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
-        else if (p->tipo == D_REVOLVER)                                              // mais uma bala; com a sexta, disparou
+        else if (p->tipo == D_REVOLVER)                                              // mais uma bala; com a quarta, disparou
             p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
         else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
@@ -884,6 +901,20 @@ static bool poe_fantasma(int j, bool avisa)
     return true;
 }
 
+// Quem venceu a rodada, w, tem o Mau-Olhado: o amuleto poe 2 Fantasmas na
+// bolsa do outro; a Bruxaria da Bruxa (o trunfo feito dele), 1.
+#define MAU_OLHADO_N 2
+static void mau_olhado(int w)
+{
+    if (!tem_am(w, A_MAU_OLHADO)) return;
+    int r = outro(w), n = w == 0 || op_amul_extra == A_MAU_OLHADO ? MAU_OLHADO_N : 1, postos = 0;
+    for (int i = 0; i < n; i++) postos += poe_fantasma(r, false);
+    if (!postos) return;
+    size_t m = strlen(aviso);
+    if (postos > 1) snprintf(aviso + m, sizeof aviso - m, r == 0 ? "  ·  %d Fantasmas entram na sua bolsa" : "  ·  %d Fantasmas entram na bolsa dele", postos);
+    else snprintf(aviso + m, sizeof aviso - m, r == 0 ? "  ·  um Fantasma entra na sua bolsa" : "  ·  um Fantasma entra na bolsa dele");
+}
+
 // A copia de um Jingle Bell: a mesma peca, adesivos e tudo, marcada (fixo 1)
 // para sumir no fim da partida.
 static bool copia_jingle(const peca_t *pc) { return pc->tipo == D_JINGLE && pc->fixo; }
@@ -930,8 +961,8 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 static void recolhe_quebrados(void)
 {
     int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0;
-    // Os Jingle Bells lancados deixam uma copia na bolsa: tiradas antes que
-    // os dados que saem mudem as posicoes da bolsa.
+    // Os Jingle Bells que terminam valendo deixam uma copia na bolsa: tiradas
+    // antes que os dados que saem mudem as posicoes da bolsa.
     peca_t sino[2][N_FILA];
     for (int j = 0; j < 2; j++)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -982,7 +1013,7 @@ static void recolhe_quebrados(void)
     for (int j = 0; j < 2; j++) {
         jingle_copias[j] = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-            if (F[j].tipo[k] == D_JINGLE && poe_copia_jingle(j, &sino[j][k])) {
+            if (F[j].tipo[k] == D_JINGLE && F[j].est[k] == V_VALIDO && poe_copia_jingle(j, &sino[j][k])) {   // so o que termina valendo
                 jingle_copias[j] |= (uint8_t)(1 << k);
                 n_sino++;
             }
@@ -1058,7 +1089,7 @@ static void conclui_rodada(void)
         }
         if (w == 0) seu_pote = pote;
         pote = 0;
-        if (tem_am(w, A_MAU_OLHADO)) poe_fantasma(outro(w), true);   // Mau-Olhado, a Bruxaria
+        mau_olhado(w);                                                // Mau-Olhado, a Bruxaria
         // Rodada grande: a vitoria vem mais cheia, e a mesa treme.
         if (F[w].total >= RODADA_GRANDE) { som_toca(SOM_FORTE); golpe(w, 1u << N_FILA); crescendo(w, 3); }
         else som_toca(SOM_VITORIA);

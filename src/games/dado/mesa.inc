@@ -978,7 +978,7 @@ static void sanguessuga_gotas(int xa, int xs, int y, float t)
     }
 }
 
-// O fim da rodada: de cada Jingle Bell lancado sai a copia, que voa em arco
+// O fim da rodada: de cada Jingle Bell que terminou valendo sai a copia, que voa em arco
 // para a bolsa de quem o jogou; a bolsa acende quando ela chega.
 static void desenha_jingle_copias(void)
 {

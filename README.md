@@ -30,7 +30,7 @@ escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas
 Lareira e Pinho com fita), e nove dados de Natal entram no jogo, nos dois
 modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus dados
 válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
-e anula o 4º dado do oponente), o **Jingle Bell** (d6: lançado, deixa uma
+e anula o 4º dado do oponente), o **Jingle Bell** (d6: válido, deixa uma
 cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
 um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,

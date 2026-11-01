@@ -1416,8 +1416,8 @@ int main(void)
             CONFERE(d.total[0] == 2, "um Jingle so valendo (o outro caiu) nao toca: deu %d", d.total[0]);
             limpa(); joga(0, D_JINGLE, 4); d = fim();
             CONFERE(d.total[0] == 4 && poder_armado(0, 0) == 0, "um Jingle sozinho nao toca");
-            // Lancado, valendo ou nao, deixa uma copia (com os adesivos) na
-            // bolsa ate o fim da partida.
+            // Terminando valendo, deixa uma copia (com os adesivos) na bolsa
+            // ate o fim da partida; caido, nao deixa.
             {
                 for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
                 int n0 = J[0].n_col;
@@ -1425,7 +1425,13 @@ int main(void)
                 ad_cola(&J[0].col[n0], 2, AD_CONFETE);
                 J[0].onde[n0] = NA_MAO;
                 J[0].n_col++;
-                limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2);        // caiu: copia do mesmo jeito
+                limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2);        // caiu: sem copia
+                CONFERE(F[0].est[1] != V_VALIDO, "Jingle depois do 6: caiu");
+                recolhe_quebrados();
+                CONFERE(J[0].n_col == n0 + 1 && !jingle_copias[0], "Jingle caido: sem copia (%d dados)", J[0].n_col);
+                J[0].onde[n0] = NA_MAO;
+                limpa(); joga(0, D_D6, 1); joga_ad(0, n0, 2);        // valendo: a copia
+                CONFERE(F[0].est[1] == V_VALIDO, "Jingle depois do 1: vale");
                 recolhe_quebrados();
                 CONFERE(J[0].n_col == n0 + 2 && J[0].col[n0 + 1].tipo == D_JINGLE && J[0].col[n0 + 1].fixo == 1
                         && ad_no_lado(&J[0].col[n0 + 1], 2) == AD_CONFETE && J[0].onde[n0 + 1] == NA_BOLSA

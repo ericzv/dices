@@ -283,7 +283,7 @@ static int amostras_ia(int cheio, int pouco)
 // O que os dados lancados por j guardam para as proximas rodadas, em pontos:
 // a bala do Revolver (o tiro dividido pelo tambor), a Meia anulada que
 // guarda, os Tres Patinhos andando para o x3, a Onda valendo que enche para
-// virar Tsunami, a copia do Jingle Bell que entra na bolsa. Nada disso
+// virar Tsunami, a copia do Jingle Bell valendo que entra na bolsa. Nada disso
 // aparece no placar da rodada, entao entra so na margem: entre jogadas que
 // vencem igual, a IA prefere a que deixa alguma coisa guardada (e usa esses
 // dados, em vez de um d6 comum que vale o mesmo agora).
@@ -298,7 +298,7 @@ static float ia_futuro(int j)
         case EF_MEIA:     if (!vale) b += MEIA_GUARDA; break;
         case EF_PATINHOS: if (!patinhos_ativo(f->fixo[k])) b += 1.5f; break;
         case EF_ONDA:     if (vale) b += 0.5f * f->valor[k]; break;
-        case EF_JINGLE:   b += 1.0f; break;
+        case EF_JINGLE:   if (vale) b += 1.0f; break;
         default: break;
         }
     }

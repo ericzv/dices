@@ -961,8 +961,8 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 static void recolhe_quebrados(void)
 {
     int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0;
-    // Os Jingle Bells lancados deixam uma copia na bolsa: tiradas antes que
-    // os dados que saem mudem as posicoes da bolsa.
+    // Os Jingle Bells que terminam valendo deixam uma copia na bolsa: tiradas
+    // antes que os dados que saem mudem as posicoes da bolsa.
     peca_t sino[2][N_FILA];
     for (int j = 0; j < 2; j++)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -1013,7 +1013,7 @@ static void recolhe_quebrados(void)
     for (int j = 0; j < 2; j++) {
         jingle_copias[j] = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-            if (F[j].tipo[k] == D_JINGLE && poe_copia_jingle(j, &sino[j][k])) {
+            if (F[j].tipo[k] == D_JINGLE && F[j].est[k] == V_VALIDO && poe_copia_jingle(j, &sino[j][k])) {   // so o que termina valendo
                 jingle_copias[j] |= (uint8_t)(1 << k);
                 n_sino++;
             }

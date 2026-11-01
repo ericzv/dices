@@ -32,7 +32,7 @@ modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus dados
 válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
 e anula o 4º dado do oponente), o **Jingle Bell** (d6: lançado, deixa uma
 cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
-um no outro e cada um rende +6), o **Presente** (d6: lançado, desembrulha e
+um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
 pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
 0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
@@ -113,7 +113,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
   lado para cima: são 34, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
-  um sai metade das vezes), ao Bis (3 dados a mais na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
+  um sai metade das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo

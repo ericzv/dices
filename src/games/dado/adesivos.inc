@@ -21,7 +21,6 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define FRAGIL_PONTOS 6                         // o Fragil valendo
 #define ESTRELINHA_CADA 2                       // a Estrelinha: por dado valido seu (ele incluido)
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
-#define BIS_DADOS 3                             // o Bis: dados a mais na proxima compra
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
 
@@ -65,7 +64,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_FERMENTO]     = { "Fermento", "tirando este lado, se válido:", "+2, +4, +6... crescendo a cada vez", 5, 6,
                           RGB(238, 162, 74), RGB(246, 222, 132), RGB(56, 32, 20),
                           { "...#...", "..###..", ".#####.", "...#...", "..###..", ".#####.", "#######" } },
-    [AD_BIS]          = { "Bis", "tirando este lado: 3 dados", "a mais na próxima rodada", 4, 2,
+    [AD_BIS]          = { "Bis", "tirando este lado: a próxima", "rodada leva +1 dado na sequência", 4, 2,
                           RGB(102, 74, 138), RGB(150, 112, 160), C_BRANCO,
                           { "####...", "#..#...", "#..####", "####..#", "...#..#", "...####", "......." } },
     [AD_MIRA]         = { "Mira", "tirando este lado, se terminar", "válido: anula o menor do oponente", 6, 8,
@@ -304,7 +303,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_REMENDO]      = "Este lado tem 2 a mais, e o dado tira esse número: um 3 vira 5, e o 5 conta na sequência e nos poderes do dado (no Explosivo, o 6 vira 8 e explode).",
     [AD_RASPADINHA]   = "Tirando este lado, se o dado terminar válido: +10 pontos no fim da rodada, e o adesivo sai do dado.",
     [AD_FERMENTO]     = "Tirando este lado, se o dado terminar válido: +2 na primeira vez, +4 na segunda, +6 na terceira, e assim por diante. O dado guarda o quanto cresceu, a run inteira.",
-    [AD_BIS]          = "Tirando este lado, válido ou anulado: você compra 3 dados a mais na próxima rodada.",
+    [AD_BIS]          = "Tirando este lado, válido ou anulado: na próxima rodada, a sua sequência leva 1 dado a mais (com o Estojo de Lápis, 6). Dois Bis na mesma rodada ainda dão 1 só.",
     [AD_MIRA]         = "Tirando este lado, se o dado terminar válido: anula o menor dado válido do oponente.",
     [AD_AVESSO]       = "Tirando este lado, o dado vira e fica com o lado oposto para cima (no d6, o 1 vira 6; no d20, o 1 vira 20).",
     [AD_GORJETA]      = "Tirando este lado, válido ou anulado: o oponente te paga 2 fichas, fora do pote.",

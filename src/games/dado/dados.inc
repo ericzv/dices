@@ -76,7 +76,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
 #define ESPERANCA_FICHAS 15
 // O que cada Jingle Bell valendo rende no fim, com outro valendo junto.
-#define JINGLE_PTS 6
+#define JINGLE_PTS 4
 // A Furia: o que guarda tirando 4, o que perde tirando 1, e o teto (dos dois lados).
 #define FURIA_GANHA 2
 #define FURIA_PERDE 1
@@ -274,7 +274,7 @@ static const tipo_t TIPO[D_N] = {
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
     { "Trenó",            8, EF_TRENO,        RAR_RARO,     0, "Válido: +1, +2, +3 nos seus dados antes dele" },
     { "Boneco de Neve",   8, EF_BONECO,       RAR_RARO,     0, "Tirou 8: congela e anula o 4º do oponente" },
-    { "Jingle Bell",      6, EF_JINGLE,       RAR_RARO,     0, "Lançado: cópia na bolsa · 2 ou mais válidos: +6 cada" },
+    { "Jingle Bell",      6, EF_JINGLE,       RAR_RARO,     0, "Lançado: cópia na bolsa · 2 ou mais válidos: +4 cada" },
     { "Fúria",            4, EF_FURIA,        RAR_RARO,     0, "Tirou 4: guarda +2 · tirou 1: perde 1" },
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Válido: pontua e guarda o que tirou; 9 vira Tsunami" },
     { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula o primeiro dado do oponente" },
@@ -398,7 +398,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SANGUESSUGA]     = "Ao ser lançado, anula o dado anterior na sequência. Este dado não pode ser anulado.",
     [D_TRENO]           = "Se terminar válido, os seus dados válidos antes dele pontuam +1, +2 e +3, do primeiro ao último.",
     [D_BONECO]          = "Se terminar válido tirando 8, congela e anula o 4º dado da sequência do oponente.",
-    [D_JINGLE]          = "Lançado, uma cópia dele entra na sua bolsa. Com 2 ou mais válidos na sequência: +6 em cada um.",
+    [D_JINGLE]          = "Lançado, uma cópia dele entra na sua bolsa. Com 2 ou mais válidos na sequência: +4 em cada um.",
     [D_FURIA]           = "Tirando 4, guarda +2 de bônus; tirando 1, perde 1. O bônus soma no que ele tira, até negativo.",
     [D_ONDA]            = "Pontua o que tirou. Cada vez que termina válido, também guarda esse número; ao juntar 9, vira um Tsunami.",
     [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula o primeiro dado válido do oponente.",
@@ -600,7 +600,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_JINGLE]          = "Seis lados. Cada vez que é lançado, válido ou não, uma cópia dele (com os mesmos adesivos) entra na "
                           "sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
-                          "cada um pontua +6 no fim, fora dos multiplicadores. Só aparece de 20 de outubro a 6 de janeiro.",
+                          "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_FURIA]           = "Quatro lados. Cada vez que tira 4, guarda +2 de bônus; cada vez que tira 1, perde 1. O bônus "
                           "guardado, já com o lance de agora, soma no que ele tira, de rodada em rodada, sem limite, e pode "
                           "ficar negativo. Recomeça a cada partida.",

@@ -20,7 +20,7 @@ typedef struct {
     uint8_t meia[2];                 // posicoes das Meias anuladas que ja avisaram que guardam
     // Os adesivos (adesivos_de): o que fica depois da rodada.
     uint8_t moedas[2];               // Dourado: moedas para a run
-    uint8_t bis[2];                  // Bis: dados a mais na proxima compra
+    uint8_t bis[2];                  // Bis: 1 lugar a mais na sequencia da proxima rodada
     int gorjeta[2];                  // Gorjeta: fichas do rival para o dono, fora do pote
     uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
@@ -1280,8 +1280,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sDourado: +1 moeda", pre);
         break;
     case AD_BIS:
-        d->bis[j] += BIS_DADOS;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, BIS_DADOS, "%sBis: %d dados a mais na próxima rodada", pre, BIS_DADOS);
+        d->bis[j] = 1;                           // dois Bis na mesma rodada: ainda 1 lugar so
+        e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sBis: +1 dado na sequência da próxima rodada", pre);
         break;
     case AD_SELO:
         d->selo_lacra[j] |= bit;

@@ -2356,6 +2356,9 @@ int main(void)
         limpa(); joga(0, D_D6, 3);
         primeiro = 0;
         CONFERE(!zerou_de_vez(0), "Lapis: 3 - 3 nao conta como zerar");
+        bis_fila[0] = 1;                     // o Estojo com o Bis: 6 na sequencia, e os lugares mais juntos
+        CONFERE(max_fila(0) == 6 && N_FILA >= 6 && slot_x(5) == 202 + 52 * 5, "Lapis com o Bis: fila de %d", max_fila(0));
+        bis_fila[0] = 0;
         run_poe_amuleto(A_CONTRATO); amul[0] = run_amuletos();
         CONFERE(max_fila(0) == 4, "Lapis com o Contrato Sujo: %d", max_fila(0));
         // Bauzinho: escolhe 2 dos 3 do comeco, e cabem 4.
@@ -3188,7 +3191,12 @@ int main(void)
             for (int i = 0; i < n_ev; i++) ev |= ev_tipo_ad(i, C[c].ad);
             CONFERE(ev == (C[c].valendo || C[c].ad == AD_LOBO), "%s: o evento", ADESIVO[C[c].ad].nome);
             if (C[c].ad == AD_DOURADO) CONFERE(d.moedas[0] == 1, "Dourado: %d moedas", d.moedas[0]);
-            if (C[c].ad == AD_BIS) CONFERE(d.bis[0] == BIS_DADOS, "Bis: %d", d.bis[0]);
+            if (C[c].ad == AD_BIS) {             // a proxima rodada leva 1 lugar a mais na sequencia
+                memset(bis_vem, 0, sizeof bis_vem);
+                adesivos_ficam(0, &d);
+                CONFERE(d.bis[0] == 1 && bis_vem[0] == 1 && !bis_vem[1], "Bis: %d (vem %d)", d.bis[0], bis_vem[0]);
+                memset(bis_vem, 0, sizeof bis_vem);
+            }
             if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == 2, "Gorjeta: %d", d.gorjeta[0]);
             if (C[c].ad == AD_FERMENTO) {        // depois da rodada, ele cresceu
                 resolvido = d;
@@ -3507,11 +3515,12 @@ int main(void)
         J[0].col[7] = (peca_t){ .tipo = D_D8 };
         limpa();
 
-        // O Bis: a proxima compra leva tres dados a mais.
-        memset(bis_extra, 0, sizeof bis_extra);
-        bis_extra[0] = BIS_DADOS;
-        CONFERE(BIS_DADOS == 3 && tam_mao(0) == MAO_NORMAL + 3, "o Bis: %d", tam_mao(0));
-        memset(bis_extra, 0, sizeof bis_extra);
+        // O Bis: na rodada em que vale, a sequencia leva 1 dado a mais; a mao nao muda.
+        memset(bis_fila, 0, sizeof bis_fila);
+        bis_fila[0] = 1;
+        CONFERE(max_fila(0) == FILA_NORMAL + 1 && max_fila(1) == FILA_NORMAL && tam_mao(0) == MAO_NORMAL
+                && slot_x(4) == 210 + 60 * 4, "o Bis: fila de %d, mao %d", max_fila(0), tam_mao(0));
+        memset(bis_fila, 0, sizeof bis_fila);
         memset(J, 0, sizeof J);
         limpa();
 

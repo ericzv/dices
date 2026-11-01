@@ -48,7 +48,6 @@ static void descarta_mao(jogador_t *p)
 // Quantos j compra por rodada: 7; 9 com a Bolsa Funda; 5 se o oponente tem
 // o Saco Furado; 6 com o Copo de Couro. Os trunfos feitos desses amuletos
 // (o Mao grande, com 8; a Dona do Salao, que deixa voce com 6) mexem 1 so.
-static int bis_extra[2];                 // dados a mais na proxima compra (o adesivo Bis)
 static int ad_moedas[2];                 // moedas do Dourado nesta partida
 // Quantos dados a Bolsa Funda (a mais) ou o Saco Furado (a menos, no outro)
 // de j mexem: o amuleto, 2; o trunfo do oponente feito dele, 1.
@@ -56,7 +55,7 @@ static int ad_moedas[2];                 // moedas do Dourado nesta partida
 static int am_mao(int j, int a) { return j == 0 || op_amul_extra == a ? AM_MAO : 1; }
 static int tam_mao(int j)
 {
-    int n = MAO_NORMAL + bis_extra[j];
+    int n = MAO_NORMAL;
     if (tem_am(j, A_BOLSA)) n += am_mao(j, A_BOLSA);
     if (tem_bolsa(j, B_COPO)) n--;                      // o Copo de Couro: dados maiores, mao menor
     if (tem_am(j ^ 1, A_FURADO)) n -= am_mao(j ^ 1, A_FURADO);
@@ -70,7 +69,9 @@ static void compra(jogador_t *p)
     p->embaralhou = false;
     int quer = tam_mao((int)(p - J));
     if (quer > MAO) quer = MAO;
-    bis_extra[p - J] = 0;                        // o Bis vale para uma compra
+    int jb = (int)(p - J);                       // o Bis da rodada passada: 1 lugar a mais nesta
+    bis_fila[jb] = bis_vem[jb];
+    bis_vem[jb] = 0;
     while (p->n_mao < quer) {
         int n = na_bolsa(p);
         if (!n) {
@@ -324,7 +325,8 @@ void dado_inicia(int n_partidas)
     }
     rodada = 0;
     pote = 0;
-    memset(bis_extra, 0, sizeof bis_extra);
+    memset(bis_fila, 0, sizeof bis_fila);
+    memset(bis_vem, 0, sizeof bis_vem);
     memset(ad_moedas, 0, sizeof ad_moedas);
     primeiro = partidas % 2;
     venc_partida = -1;
@@ -756,7 +758,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
             p->col[i] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)v };
         }
     }
-    bis_extra[j] += d->bis[j];
+    if (d->bis[j]) bis_vem[j] = 1;
     ad_moedas[j] += d->moedas[j];
 }
 

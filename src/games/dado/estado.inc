@@ -443,19 +443,25 @@ static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada
 // O Contrato Sujo: o lugar da sequencia que ganha o bonus (o terceiro) e quanto.
 #define CONTRATO_LUGAR 2
 #define CONTRATO_PTS   4
-// Quantos dados cabem na sequencia de j: 4; o Contrato Sujo tira 1 e o
+// O Bis: o lado dele, tirado numa rodada, poe 1 lugar a mais na sequencia da
+// rodada seguinte (bis_vem: ganho nesta rodada; bis_fila: valendo nesta).
+static int bis_fila[2], bis_vem[2];
+// Quantos dados cabem na sequencia de j: 4; o Contrato Sujo tira 1, o Bis poe 1 e o
 // Estojo de Lapis poe 1. O Coringa monta 3: o quarto e a copia do seu dado
 // que mais tirou (partida.inc).
 static int max_fila(int j)
 {
     if (j == 1 && tem_reg(REG_CORINGA)) return 3;
-    return FILA_NORMAL - tem_am(j, A_CONTRATO) + tem_bolsa(j, B_LAPIS);
+    int n = FILA_NORMAL - tem_am(j, A_CONTRATO) + tem_bolsa(j, B_LAPIS) + (bis_fila[j & 1] ? 1 : 0);
+    return n > N_FILA ? N_FILA : n;
 }
 // Onde fica o lugar k da fila na mesa. Com uma fila de 5 (o Estojo de
-// Lapis), os lugares chegam mais perto, para caber antes do placar.
+// Lapis ou o Bis) os lugares chegam mais perto, e com 6 (os dois) mais
+// ainda, para caber antes do placar.
 static int slot_x(int k)
 {
-    return max_fila(0) > FILA_NORMAL || max_fila(1) > FILA_NORMAL ? 210 + 60 * k : 218 + 68 * k;
+    int n = max_fila(0) > max_fila(1) ? max_fila(0) : max_fila(1);
+    return n >= 6 ? 202 + 52 * k : n == 5 ? 210 + 60 * k : 218 + 68 * k;
 }
 
 // Modo Desafiante: o resto mora em desafio.inc, incluido mais abaixo.

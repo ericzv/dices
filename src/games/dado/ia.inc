@@ -280,6 +280,32 @@ static int amostras_ia(int cheio, int pouco)
     return cheio;
 }
 
+// O que os dados lancados por j guardam para as proximas rodadas, em pontos:
+// a bala do Revolver (o tiro dividido pelo tambor), a Meia anulada que
+// guarda, os Tres Patinhos andando para o x3, a Onda valendo que enche para
+// virar Tsunami, a copia do Jingle Bell que entra na bolsa. Nada disso
+// aparece no placar da rodada, entao entra so na margem: entre jogadas que
+// vencem igual, a IA prefere a que deixa alguma coisa guardada (e usa esses
+// dados, em vez de um d6 comum que vale o mesmo agora).
+static float ia_futuro(int j)
+{
+    const fila_t *f = &F[j];
+    float b = 0;
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
+        bool vale = f->est[k] == V_VALIDO;
+        switch (TIPO[f->tipo[k]].efeito) {
+        case EF_REVOLVER: if (!revolver_dispara(f->fixo[k])) b += (float)REVOLVER_TIRO / REVOLVER_BALAS; break;
+        case EF_MEIA:     if (!vale) b += MEIA_GUARDA; break;
+        case EF_PATINHOS: if (!patinhos_ativo(f->fixo[k])) b += 1.5f; break;
+        case EF_ONDA:     if (vale) b += 0.5f * f->valor[k]; break;
+        case EF_JINGLE:   b += 1.0f; break;
+        default: break;
+        }
+    }
+    return b;
+}
+static float ia_futuro_nota(int j) { return ia_sem_margem[j & 1] ? 0 : IA_MARGEM * ia_futuro(j); }
+
 // ---- A fila ----------------------------------------------------------------
 // Testa toda ordem de ate quatro dados da mao, jogando cada uma varias vezes
 // contra filas imaginadas do rival (ou contra a fila que ele ja jogou). Assim
@@ -303,6 +329,7 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
         f->n = L;
         if (L == 3) coringa_completa(j);       // o quarto do Coringa: a copia, ou a carta
         s += sim_resto(j, true);
+        s += ia_futuro_nota(j);
     }
     return s / (float)amostras;
 }
@@ -419,11 +446,11 @@ static bool ia_continua(void)
         volta_mesa(&m);
         semeia_ia(base, a);
         F[j].n = F[j].lancados;              // parar: a fila acaba aqui
-        parar += sim_resto(j, true);
+        parar += sim_resto(j, true) + ia_futuro_nota(j);
         volta_mesa(&m);
         semeia_ia(base, a);
         sim_lanca(j);
-        seguir += sim_resto(j, true);
+        seguir += sim_resto(j, true) + ia_futuro_nota(j);
     }
     volta_mesa(&m);
     parar /= (float)amostras;

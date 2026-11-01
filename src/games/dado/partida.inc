@@ -440,6 +440,13 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
         else if (a0 == AD_NOTA_DEZ && x0 != ad_lado_max(t)) { *antes = x0; x0 = ad_lado_max(t); }
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
+    // O Previsivel nao rola, mas o lado da escada que ficou para cima vira
+    // com o Avesso (o 1 vira 12) e com a Nota Dez, como os outros.
+    if (p && ef == EF_PREVISIVEL && *lado >= ad_lado_min(t) && *lado <= ad_lado_max(t)) {
+        int a = ad_no_lado(p, *lado);
+        if (a == AD_AVESSO) { *antes = *lado; *lado = ad_oposto(t, *lado); x = remenda(p, *lado); }
+        else if (a == AD_NOTA_DEZ && *lado != ad_lado_max(t)) { *antes = *lado; *lado = ad_lado_max(t); x = remenda(p, *lado); }
+    }
     if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
     return x;
 }
@@ -496,7 +503,10 @@ static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
     l.reflete = a == AD_REFLEXIVO || a == AD_BOMBA;
     l.bomba = a == AD_BOMBA;
     if (l.reflete) {
-        int x2 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
+        // O Previsivel rola de novo de verdade: como um d12 comum, com os
+        // adesivos (a escada segue contando do mesmo jeito).
+        int t2 = TIPO[t].efeito == EF_PREVISIVEL ? D_D12 : t;
+        int x2 = sorteia_peca(t2, fixo, pc, r, &l.menor, &l.lado, &antes);
         l.x = l.bomba ? l.x1 + x2 : x2;
     }
     return l;

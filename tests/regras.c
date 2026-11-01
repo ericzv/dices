@@ -3033,6 +3033,28 @@ int main(void)
         ad_cola(&d6, 3, AD_REMENDO);
         x = sorteia_peca(D_D6, 0, &d6, sempre_tres, &menor, &lado, &antes);
         CONFERE(x == 5 && lado == 3 && !antes, "o Remendo no 3 vale 5: %d (lado %d)", x, lado);
+        // O Previsivel nao rola, mas o lado da escada vira: Avesso no 1 (vira 12), Nota Dez no 2 (vira 12).
+        peca_t prev = { .tipo = D_PREVISIVEL };
+        ad_cola(&prev, 1, AD_AVESSO);
+        ad_cola(&prev, 2, AD_NOTA_DEZ);
+        x = sorteia_peca(D_PREVISIVEL, 0, &prev, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 12 && lado == 12 && antes == 1, "Previsivel com Avesso no 1 vira 12: %d (lado %d, de %d)", x, lado, antes);
+        x = sorteia_peca(D_PREVISIVEL, 1, &prev, sempre_tres, &menor, &lado, &antes);
+        CONFERE(x == 12 && lado == 12 && antes == 2, "Previsivel com Nota Dez no 2 vira 12: %d (lado %d, de %d)", x, lado, antes);
+        x = sorteia_peca(D_PREVISIVEL, 2, &prev, sempre_um, &menor, &lado, &antes);
+        CONFERE(x == 3 && lado == 3 && !antes, "Previsivel sem adesivo no 3: %d", x);
+        // Reflexivo no lado da escada: rola de novo de verdade, como um d12.
+        prev = (peca_t){ .tipo = D_PREVISIVEL };
+        ad_cola(&prev, 1, AD_REFLEXIVO);
+        {
+            lance_t l = lanca_peca(D_PREVISIVEL, 0, &prev, sempre_tres);
+            CONFERE(l.reflete && l.x1 == 1 && l.x == 3 && l.lado == 3, "Previsivel com Reflexivo no 1 rola de novo: %d (%d)", l.x, l.x1);
+            int vistos = 0;
+            for (int i = 0; i < 400; i++) { l = lanca_peca(D_PREVISIVEL, 0, &prev, rola); vistos |= 1 << l.x; }
+            CONFERE(vistos == 0x1FFE, "Previsivel com Reflexivo sai de 1 a 12 (%x)", vistos);
+            l = lanca_peca(D_PREVISIVEL, 1, &prev, sempre_tres);
+            CONFERE(!l.reflete && l.x == 2, "Previsivel no 2, sem Reflexivo: %d", l.x);
+        }
         peca_t vazio = { .tipo = D_VAZIO };
         ad_cola(&vazio, 3, AD_REMENDO);
         x = sorteia_peca(D_VAZIO, 0, &vazio, sempre_tres, &menor, &lado, &antes);

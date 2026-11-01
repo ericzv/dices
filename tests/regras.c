@@ -1909,8 +1909,11 @@ int main(void)
                         && !no_catalogo(D_TRENO) && !estilo_aberto(0, ABRE_FELTRO[FT_NATAL]), "fora do Natal: nada de Natal");
                 natal_forcado = 1; le_epoca();
                 rodada = 12;                                         // o premio dos raros
-                CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_JINGLE) > 0 && dado_liberado(D_BONECO)
+                CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_TRENO) > 0 && dado_liberado(D_BONECO)
                         && n_catalogo() == fora + 9 && estilo_aberto(-1, ABRE_FELTRO[FT_NATAL]), "no Natal: tudo aberto");
+                rodada = 8;                                          // o Jingle Bell e incomum: no premio do meio
+                CONFERE(peso_dado(D_JINGLE) > 0 && TIPO[D_JINGLE].raridade == RAR_INCOMUM, "no Natal: o Jingle Bell (incomum) no premio");
+                rodada = 12;
                 CONFERE(nivel_do_dado(D_TRENO) == 0 && no_pacote(D_TRENO) && no_pacote(D_BONECO) && no_pacote(D_JINGLE),
                         "os de Natal: sem nivel, nos pacotes");
                 rodada = 1;

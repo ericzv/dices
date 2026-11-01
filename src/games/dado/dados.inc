@@ -274,7 +274,7 @@ static const tipo_t TIPO[D_N] = {
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
     { "Trenó",            8, EF_TRENO,        RAR_RARO,     0, "Válido: +1, +2, +3 nos seus dados antes dele" },
     { "Boneco de Neve",   8, EF_BONECO,       RAR_RARO,     0, "Tirou 8: congela e anula o 4º do oponente" },
-    { "Jingle Bell",      6, EF_JINGLE,       RAR_RARO,     0, "Válido: cópia na bolsa · 2 ou mais válidos: +4 cada" },
+    { "Jingle Bell",      6, EF_JINGLE,       RAR_INCOMUM,  0, "Válido: cópia na bolsa · 2 ou mais válidos: +4 cada" },
     { "Fúria",            4, EF_FURIA,        RAR_RARO,     0, "Tirou 4: guarda +2 · tirou 1: perde 1" },
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Válido: pontua e guarda o que tirou; 9 vira Tsunami" },
     { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula o primeiro dado do oponente" },

@@ -6,11 +6,11 @@
 //    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
 //    com o rufo, na cadeia de efeitos do fim da rodada, na hora da verdade e
 //    nos climax (Jackpot, fim, premio).
-//  - Camadas da trilha, do tamanho dela e no mesmo compasso: na mesa do
-//    chefe entra a batucada (surdo, agogo, o aro e as cordas); na hora da
-//    verdade a bossa some e ficam as cordas em tremolo no Do grave. As tres
-//    vem decodificadas na memoria e um callback do audio as mistura amostra
-//    a amostra: nunca saem do compasso, nem se o jogo engasgar.
+//  - A camada da trilha, do tamanho dela e no mesmo compasso: na mesa do
+//    chefe entra a batucada (surdo, agogo, o aro e as cordas). As duas vem
+//    decodificadas na memoria e um callback do audio as mistura amostra a
+//    amostra: nunca saem do compasso, nem se o jogo engasgar. Na hora da
+//    verdade a trilha so quase some, e o coracao (o suspense) toca sozinho.
 //  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
 //    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
@@ -86,14 +86,14 @@ static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 #define VOL_TRILHA 0.35f                     // a trilha no volume 10
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
-enum { CAM_TRILHA, CAM_CHEFE, CAM_TENSAO, CAMADAS };
-static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe", "trilha_tensao" };
+enum { CAM_TRILHA, CAM_CHEFE, CAMADAS };
+static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe" };
 static Wave  cam[CAMADAS];
 static unsigned cam_n, cam_pos;              // o tamanho do loop e onde ele esta (so o callback mexe)
 static AudioStream banda;
 static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
 static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
-static float v_chefe, v_tensao;              // quanto cada camada entrou (0..1)
+static float v_chefe;                        // quanto a camada do chefe entrou (0..1)
 
 // O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
 // volume que se ouve); o 10 e o volume de sempre.
@@ -235,15 +235,11 @@ void som_atualiza(float dt)
     if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
-    // As camadas: a do chefe entra em uns 2 s e sai em 1,5; as cordas da
-    // hora da verdade chegam em meio segundo e saem junto com a bossa
-    // voltando.
+    // A camada do chefe entra em uns 2 s e sai em 1,5.
     v_chefe += ((chefe ? 1 : 0) - v_chefe) * fminf(1, dt / (chefe ? 0.7f : 0.5f));
-    v_tensao += ((suspense ? 1 : 0) - v_tensao) * fminf(1, dt / (suspense ? 0.18f : 0.4f));
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
     cam_alvo[CAM_TRILHA] = m * duck;
     cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
-    cam_alvo[CAM_TENSAO] = m * v_tensao;
 }
 
 // Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que

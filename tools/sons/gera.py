@@ -1311,11 +1311,10 @@ def trilha():
     return x * (0.97 / p) if p > 0.97 else x
 
 # ---------------------------------------------------------------------------
-# As camadas da trilha: do tamanho dela, no mesmo andamento e na mesma
-# harmonia, para tocar junto, amostra a amostra (o som.c mistura as tres).
-# A do chefe e a batucada entrando na bossa; a da hora da verdade, as cordas
-# em tremolo segurando o Do grave (o pedal da dominante, que cabe em todos os
-# acordes da trilha) com a terca e a setima de cada acorde por cima.
+# A camada da trilha: do tamanho dela, no mesmo andamento e na mesma
+# harmonia, para tocar junto, amostra a amostra (o som.c mistura as duas).
+# A do chefe e a batucada entrando na bossa. (Na hora da verdade a trilha so
+# abaixa, sem camada propria.)
 # ---------------------------------------------------------------------------
 REF_TRILHA = os.path.join(SAIDA, 'trilha.ogg')    # a trilha aprovada: o volume das camadas e medido nela
 
@@ -1435,47 +1434,6 @@ def trilha_chefe():
         rolo(poe, c * 4 + 3.0, 1.0, raiz_timpano(prox), 0.10, 0.35)
     return nivela(sala_da_trilha(L, R), -7.0)
 
-def trilha_tensao():
-    """A hora da verdade: cordas em tremolo. O Do grave segura em duas
-    oitavas e, por cima, a terca e a setima de cada acorde, abertas e
-    andando o minimo de uma para a outra; um rolo de timpano no Do, bem
-    baixinho, o tempo todo."""
-    L, R, poe = camada()
-    n = NT + int(1.0 * SR)                            # o pedal: um loop sem emenda
-    for mm, v, pan in ((36, 0.55, -0.1), (48, 0.40, 0.1)):
-        y = estica(nota('tremolo_strings', mm), n, int(0.5 * SR), int(2.9 * SR))
-        c = n - NT
-        q = np.linspace(0, np.pi / 2, c)
-        y[:c] = y[:c] * np.sin(q) + y[NT:] * np.cos(q)
-        poe(0, y[:NT], pan, v)
-    # Os acordes, em pedacos de meio compasso juntados enquanto nao mudam.
-    trechos = []
-    for c in range(COMP):
-        for meio in range(2):
-            ac = HARMONIA[c][meio]
-            if trechos and trechos[-1][2] == ac: trechos[-1][1] += 2.0
-            else: trechos.append([c * 4.0 + meio * 2.0, 2.0, ac])
-    voz = (64, 70)
-    for bat, dur, (raiz, tipo) in trechos:
-        alvos = [raiz + INTERV[tipo][1], raiz + INTERV[tipo][3]]
-        notas = []
-        for k, a in enumerate(alvos):                 # cada voz vai a nota mais perto de onde estava
-            cand = [a + 12 * o for o in range(-2, 4) if 60 <= a + 12 * o <= 76]
-            notas.append(min(cand, key=lambda m_: abs(m_ - voz[k])))
-        voz = tuple(sorted(notas))
-        for k, mm in enumerate(voz):
-            poe(bat, cordas(mm, dur * BAT + 0.25, 0.32 - 0.04 * k, 0.35, 0.45), -0.35 if k == 0 else 0.35)
-    t = 0.0
-    while t < COMP * 4:                               # o rolo, sem fim
-        poe(t, pb(timpano(36, 0.10, 0.5), 700), 0, 0.10 * rnd.uniform(0.6, 1))
-        t += rnd.uniform(0.11, 0.15)
-    return nivela(sala_da_trilha(L, R, 0.40), -4.0)
-
-# ---------------------------------------------------------------------------
-# A troca de tela (a varredura da C1): a sombra da cortina passando, da
-# esquerda para a direita, em 0,3 s - um sopro de pano que abre e fecha,
-# andando de um lado para o outro, e um toque de feltro no fim.
-# ---------------------------------------------------------------------------
 def transicao():
     n = int(0.45 * SR); tt = np.arange(n) / SR
     q = np.clip(tt / 0.3, 0, 1)
@@ -1873,7 +1831,7 @@ for v in range(3):
 
 # Os loops estereo que tocam o tempo todo: a trilha e as camadas dela (do
 # tamanho dela). nome -> (receita, qualidade do OGG)
-LOOPS = {'trilha': (trilha, 5), 'trilha_chefe': (trilha_chefe, 4), 'trilha_tensao': (trilha_tensao, 3)}
+LOOPS = {'trilha': (trilha, 5), 'trilha_chefe': (trilha_chefe, 4)}
 
 def gera(nome, saida):
     semeia(nome)

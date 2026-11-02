@@ -174,8 +174,8 @@ static void le_teclado(void)
 // Controles (Xbox, PlayStation e os parecidos), ate dois: os botoes viram as
 // teclas do jogo. O A (a cruz) confirma, o B (a bola) volta ou desfaz, o Y
 // (o triangulo) segue, o X (o quadrado) abre os detalhes; START (OPTIONS)
-// e o ESC, VIEW (SHARE) abre a bolsa, LB/L1 recusa e RB/R1 muda a
-// velocidade. O direcional e o analogico esquerdo andam, repetindo quando
+// e o ESC, VIEW (SHARE) abre a bolsa, LB/L1 recusa, RB/R1 muda a
+// velocidade, LT/L2 mostra o que faz cada botao e RT/R2 abre o som. O direcional e o analogico esquerdo andam, repetindo quando
 // segurados. No modo 2 jogadores, com os dois ligados, cada um joga na sua
 // vez (o primeiro e o JOGADOR 1).
 #define CONTROLES 2
@@ -190,6 +190,8 @@ static void le_controles(void)
         { GAMEPAD_BUTTON_MIDDLE_LEFT, 'b', false },
         { GAMEPAD_BUTTON_LEFT_TRIGGER_1, 'x', true },
         { GAMEPAD_BUTTON_RIGHT_TRIGGER_1, 'v', false },
+        { GAMEPAD_BUTTON_LEFT_TRIGGER_2, 'k', false },     // LT/L2: o quadro dos controles
+        { GAMEPAD_BUTTON_RIGHT_TRIGGER_2, 'm', false },    // RT/R2: o painel do som
     };
     static const struct { int bt, jogo; } DIRECAO[] = {
         { GAMEPAD_BUTTON_LEFT_FACE_UP, J_UP }, { GAMEPAD_BUTTON_LEFT_FACE_DOWN, J_DOWN },

@@ -288,6 +288,7 @@ Não precisa instalar nada: é um executável só.
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
+| K | Mostra o que faz cada botão do controle |
 | B, ou clicar numa bolsa | Mostra os dados da bolsa (a sua ou, na partida, a do oponente); a partida espera |
 | ESC (duas vezes) | Sai da partida e volta ao menu |
 
@@ -297,7 +298,8 @@ Dá para jogar com controle de Xbox, de PlayStation e os parecidos (até
 dois), no computador e no navegador — inclusive no iPhone e no iPad, com o
 controle pareado por Bluetooth. No navegador, o controle aparece depois do
 primeiro botão apertado. Jogando com controle, as dicas da tela mostram os
-botões dele.
+botões dele. O botão **controles**, no alto do menu (ou o LT/L2, ou a tecla
+K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
 
 | Xbox | PlayStation | O que faz |
 |---|---|---|
@@ -310,6 +312,8 @@ botões dele.
 | View | Share | Mostra a sua bolsa (o B) |
 | LB | L1 | Recusa (o X) |
 | RB | R1 | Velocidade (o V) |
+| LT | L2 | Mostra o que faz cada botão (o K) |
+| RT | R2 | O painel do som (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.

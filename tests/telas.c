@@ -138,6 +138,9 @@ static void passeio(void)
     hist_abre(0); passa(40); tela("historico");
     des_bolsa = B_PANO; des_nova_run(); t_elev = 0; amuleto_escolhido(1); des_comeca_partida();
     encerra_run(false); passa(90); tela("fim_da_run");
+    // Por ultimo, para nao mexer no relogio das outras: o quadro dos controles.
+    fase = F_ABERTURA; menu_tela = MT_PRINCIPAL; t_fase = 0; passa(150);
+    ctrl_abre(); passa(30); tela("controles"); ctrl_aberto = false;
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

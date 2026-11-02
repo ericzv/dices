@@ -372,6 +372,8 @@ static int botao_da_tecla(const char *rot, int n, const char **nome)
     else if (n == 1 && rot[0] == 'B') *nome = xbox ? "VIEW" : "SHARE";
     else if (n == 1 && rot[0] == 'X') *nome = xbox ? "LB" : "L1";
     else if (n == 1 && rot[0] == 'V') *nome = xbox ? "RB" : "R1";
+    else if (n == 1 && rot[0] == 'K') *nome = xbox ? "LT" : "L2";
+    else if (n == 1 && rot[0] == 'M') *nome = xbox ? "RT" : "R2";
     return *nome ? 5 : -1;
 }
 

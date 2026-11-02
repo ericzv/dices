@@ -199,6 +199,18 @@ int main(void)
         passa(90);                               // a troca de tela (a varredura)
         confere(menu_tela != tela_antes || fase != fase_antes, "menu: um toque abre a opcao");
     }
+    // O botao "controles" do menu: um toque abre o quadro; outro, fora das setas, fecha.
+    fase = F_ABERTURA; menu_tela = MT_PRINCIPAL; t_fase = 0; passa(150);
+    z = acha_zona('k', false, false, 0);
+    confere(z != NULL, "menu: o botao 'controles' vale com um toque");
+    if (z) {
+        zona_clique_t bt = *z;
+        toca(&bt, 3);
+        confere(ctrl_aberto, "menu: um toque em 'controles' abre o quadro");
+        dado_mouse(GFX_W / 2, GFX_H - 4, 3);
+        passa(3);
+        confere(!ctrl_aberto, "controles: um toque fora fecha o quadro");
+    }
     if (falhas) { printf("\n%d falha(s)\n", falhas); return 1; }
     printf("\ntudo ok\n");
     return 0;

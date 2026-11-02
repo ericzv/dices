@@ -219,7 +219,8 @@ void dado_desenha(void)
     int r[4];
     const dica_t *d = NULL;
     desenha_som();                                       // o painel do som, por cima de tudo
-    bool tem_dica = !menu && !som_aberto && dica_rect(r, &d);
+    desenha_controles();                                 // e o quadro dos controles
+    bool tem_dica = !menu && !som_aberto && !ctrl_aberto && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
     desenha_armada();                                    // o toque esperando o segundo
     desenha_fantasma_voo();

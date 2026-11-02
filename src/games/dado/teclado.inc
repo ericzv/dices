@@ -73,7 +73,9 @@ void dado_tecla(const key_event_t *ev_)
     int k = ev_->key;
     if (!armando) armada.ativo = false;
     if (k >= 'A' && k <= 'Z') k += 32;
+    if (ctrl_aberto) { ctrl_tecla(k); return; }     // o quadro dos controles fica com as teclas
     if (som_aberto) { som_tecla(k); return; }       // o painel do som fica com as teclas
+    if (k == 'k' && !dado_digitando()) { ctrl_abre(); return; }
     if (k == 'm' && !dado_digitando()) { som_abre(); return; }
     if (k == 'n' && !dado_digitando()) { som_alterna_musica(); return; }
     if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
@@ -165,6 +167,13 @@ void dado_mouse(int x, int y, int acao)
     bool toque = acao == 3;
     if (toque) acao = 1;
     if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (ctrl_aberto) {                                  // o quadro dos controles: as setas trocam, o resto fecha
+        if (acao != 1) return;
+        for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0; i--)
+            if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) { manda_tecla(zonas[i].tecla); return; }
+        ctrl_aberto = false;
+        return;
+    }
     if (t_misterio > 0) {                               // a vinheta: um clique fecha
         if (acao == 1) manda_tecla(KEY_ENTER);
         return;

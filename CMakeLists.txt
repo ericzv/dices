@@ -170,6 +170,17 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(telas PRIVATE m)
         add_test(NAME telas COMMAND telas ${CMAKE_CURRENT_SOURCE_DIR}/tests/telas_ref.txt)
     endif()
+    # O toque (celular, tablet): as acoes do jogo pedem dois toques; o mouse,
+    # os menus, voltar e olhar a bolsa, um so.
+    add_executable(toque tests/toque.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(toque PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(toque PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(toque PRIVATE m)
+    endif()
+    add_test(NAME toque COMMAND toque)
     # O online: duas copias do jogo em dois processos, em ritmos de quadro
     # diferentes, trocando as teclas da vez; os marcos da partida (o estado
     # das regras a cada rodada e a cada turno) tem que bater nos dois lados.

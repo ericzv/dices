@@ -71,8 +71,11 @@ static bool aperto_do_mouse;            // o clique ja disse qual botao afunda
 void dado_tecla(const key_event_t *ev_)
 {
     int k = ev_->key;
+    if (!armando) armada.ativo = false;
     if (k >= 'A' && k <= 'Z') k += 32;
+    if (ctrl_aberto) { ctrl_tecla(k); return; }     // o quadro dos controles fica com as teclas
     if (som_aberto) { som_tecla(k); return; }       // o painel do som fica com as teclas
+    if (k == 'k' && !dado_digitando()) { ctrl_abre(); return; }
     if (k == 'm' && !dado_digitando()) { som_abre(); return; }
     if (k == 'n' && !dado_digitando()) { som_alterna_musica(); return; }
     if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
@@ -155,12 +158,22 @@ bool dado_mouse_clicavel(void)
 }
 
 // Mouse, ja nas coordenadas da tela do jogo. acao: 0 moveu, 1 clique
-// esquerdo, 2 clique direito (o mesmo que BACKSPACE: volta ou desfaz).
+// esquerdo, 2 clique direito (o mesmo que BACKSPACE: volta ou desfaz), 3 um
+// toque na tela (como o clique, mas as acoes do jogo pedem dois toques).
 void dado_mouse(int x, int y, int acao)
 {
     mouse_x = x;
     mouse_y = y;
+    bool toque = acao == 3;
+    if (toque) acao = 1;
     if (acao == 2) { manda_tecla(KEY_BKSP); return; }
+    if (ctrl_aberto) {                                  // o quadro dos controles: as setas trocam, o resto fecha
+        if (acao != 1) return;
+        for (int i = zonas_fase == fase ? n_zonas - 1 : -1; i >= 0; i--)
+            if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) { manda_tecla(zonas[i].tecla); return; }
+        ctrl_aberto = false;
+        return;
+    }
     if (t_misterio > 0) {                               // a vinheta: um clique fecha
         if (acao == 1) manda_tecla(KEY_ENTER);
         return;
@@ -198,10 +211,31 @@ void dado_mouse(int x, int y, int acao)
         // que vao para o rival: la so o clique vale.
         if (z && z->var && *z->var != z->val && modo != M_ONLINE) {
             *z->var = z->val;
-            if (fase != F_ABERTURA) som_toca(SOM_PASSA);   // mais curto e baixo que o de escolher
+            if (fase != F_ABERTURA) { som_toca(SOM_PASSA); passa_em = t_relogio; }   // mais curto e baixo que o de escolher
         }
         return;
     }
+    if (z && toque && z->confirma && !zona_armada(z)) {
+        // O primeiro toque: escolhe (o cursor vai para la e a dica aparece),
+        // e espera o segundo.
+        armando = true;
+        if (z->var && modo == M_ONLINE) {
+            for (int i = 0; i < 64 && *z->var != z->val; i++) manda_tecla(KEY_RIGHT);
+        } else if (z->var && *z->var != z->val) {
+            *z->var = z->val;
+        }
+        armando = false;
+        armada.ativo = !z->var || *z->var == z->val;
+        armada.fase = fase;
+        armada.cx = z->x + z->w / 2;
+        armada.cy = z->y + z->h / 2;
+        armada.var = z->var;
+        armada.val = z->val;
+        armada.tecla = z->tecla;
+        if (t_relogio - passa_em > 0.05f) som_toca(SOM_PASSA);   // se o cursor nao acabou de tocar o dele
+        return;
+    }
+    armada.ativo = false;
     if (z) {
         if (z->var && modo == M_ONLINE) {
             for (int i = 0; i < 64 && *z->var != z->val; i++) manda_tecla(KEY_RIGHT);

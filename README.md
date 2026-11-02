@@ -243,6 +243,19 @@ de quem está na vez. O que segura a partida quando a rede falha:
 Serve bem para jogar entre amigos — não é um servidor com garantia nem
 privacidade (quem souber o código vê as jogadas).
 
+### No celular e no tablet
+
+No toque, as ações do jogo pedem **dois toques**: o primeiro escolhe a coisa
+e mostra o que ela faz (o lembrete "toque de novo" aparece em cima), e o
+segundo confirma. Vale para pôr e tirar dados da sequência, jogar, apostar,
+correr, comprar, re-sortear a loja, tirar dado, colar adesivo, seguir para
+o mapa, sentar à mesa, levar o amuleto e escolher a bolsa. Os menus,
+voltar, olhar uma bolsa e o painel do som seguem com um toque só. Com
+mouse, um clique basta como sempre.
+
+Para digitar (o nome do perfil, o código da sala), um toque na tela abre o
+teclado do aparelho.
+
 ## Jogar no computador
 
 Baixe o arquivo do seu sistema na página de
@@ -275,8 +288,35 @@ Não precisa instalar nada: é um executável só.
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
+| K | Mostra o que faz cada botão do controle |
 | B, ou clicar numa bolsa | Mostra os dados da bolsa (a sua ou, na partida, a do oponente); a partida espera |
 | ESC (duas vezes) | Sai da partida e volta ao menu |
+
+### Controles
+
+Dá para jogar com controle de Xbox, de PlayStation e os parecidos (até
+dois), no computador e no navegador — inclusive no iPhone e no iPad, com o
+controle pareado por Bluetooth. No navegador, o controle aparece depois do
+primeiro botão apertado. Jogando com controle, as dicas da tela mostram os
+botões dele. O botão **controles**, no alto do menu (ou o LT/L2, ou a tecla
+K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
+
+| Xbox | PlayStation | O que faz |
+|---|---|---|
+| Direcional ou analógico esquerdo | Direcional ou analógico esquerdo | Move o cursor (segurado, repete) |
+| A | ✕ | Escolhe / joga o próximo dado (o Enter) |
+| B | ○ | Volta / tira o último dado da sequência (o Backspace) |
+| Y | △ | Confirma a sequência / segue (o Tab) |
+| X | □ | Mostra tudo sobre o dado escolhido (o I) |
+| Start | Options | O ESC |
+| View | Share | Mostra a sua bolsa (o B) |
+| LB | L1 | Recusa (o X) |
+| RB | R1 | Velocidade (o V) |
+| LT | L2 | Mostra o que faz cada botão (o K) |
+| RT | R2 | O painel do som (o M) |
+
+No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
+(o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.
 
 A ficha **Tutorial** do menu explica as regras.
 
@@ -314,6 +354,10 @@ jogo em dois processos, uma a 60 quadros por segundo e a outra variando de
 iguais. `rede` (com o Node instalado) roda a rede da página
 (`web/shell.html`) num servidor de mentira que perde, repete e embaralha
 mensagens, derruba a conexão, mistura versões e confere o convite.
+
+O `toque` confere os dois toques: na loja, o primeiro toque não compra e o
+segundo compra; o clique do mouse compra com um; o "seguir", a mesa do mapa
+e a sequência da partida pedem dois; a bolsa e o menu, um.
 
 No Linux, o ctest também passa pelas telas principais (o menu, o
 Desafiante, o mapa de cada salão, a loja, a mesa, o catálogo, o painel do

@@ -180,6 +180,7 @@ static void desenha_abertura(void)
     gfx_texto(x0, 70, parcial, C_LATAO, 3, true);
     if (t_fase < 0.75f) return;
     if (menu_tela) botao_voltar(KEY_ESC);
+    botao_clique(GFX_W - 10, (FAIXA_H - TXT_H - 4) / 2, "controles", 'k');   // o que faz cada botao do controle
     gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
     txt_c(GFX_W / 2, 140, menu_tela ? "Modo Desafiante" : "Criado por ERICZ", menu_tela ? C_LATAO : C_TEXTO_M,
           menu_tela != 0);
@@ -213,6 +214,7 @@ static void desenha_abertura(void)
           menu_cur == 1 && menu_tela == MT_DESAFIO ? C_VINHO_CLR : C_TEXTO_M, false);
     teclas_c(GFX_W / 2, GFX_H - FAIXA_H + 14, menu_tela
              ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
+             : controle_estilo ? "setas escolhem  ·  ENTER confirma  ·  M som  ·  K controles"
              : "M som  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
              C_TEXTO_M);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto.

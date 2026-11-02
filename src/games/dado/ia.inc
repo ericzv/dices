@@ -12,6 +12,9 @@ static bool fase_de_escolha(void)
         || fase == F_APOSTA || fase == F_PREMIO;
 }
 
+// No modo 2 jogadores, com dois controles, cada um so escolhe na sua vez.
+int dado_vez_do_controle(void) { return modo == M_DOIS && fase_de_escolha() ? vez : -1; }
+
 static bool ia_na_vez(void)
 {
     return (cpu >> vez & 1) && fase_de_escolha();

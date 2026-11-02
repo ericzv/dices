@@ -113,6 +113,8 @@ static void muda_zoom(int d)
     salva_grava("tela", b);
 }
 
+static bool campo_focado;               // navegador: o teclado do aparelho, num campo escondido
+
 static void le_teclado(void)
 {
     static const struct { int rl, jogo; } ESPECIAL[] = {
@@ -133,6 +135,7 @@ static void le_teclado(void)
     // A fila de teclas do raylib guarda cada toque, mesmo o que aperta e
     // solta entre dois quadros: nada se perde num computador lento.
     for (int k = GetKeyPressed(); k; k = GetKeyPressed()) {
+        dado_controle(CONTROLE_NENHUM);           // as dicas voltam a mostrar as teclas
         if (k == KEY_F11 || (alt && (k == KEY_ENTER || k == KEY_KP_ENTER))) {
             alterna_tela_cheia();
             continue;
@@ -143,21 +146,93 @@ static void le_teclado(void)
             TakeScreenshot(nome);
             continue;
         }
-        for (unsigned i = 0; i < n; i++) if (ESPECIAL[i].rl == k) tecla(ESPECIAL[i].jogo);
+        for (unsigned i = 0; i < n; i++)
+            if (ESPECIAL[i].rl == k) {
+                int jg = ESPECIAL[i].jogo;
+                // Com o campo em foco, ENTER, apagar e o espaco vem dele (web_tecla).
+                if (campo_focado && (jg == J_ENTER || jg == J_BKSP || jg == ' ')) continue;
+                tecla(jg);
+            }
     }
     // Setas e BACKSPACE seguradas repetem; ENTER, TAB e CTRL nao (segurar nao
     // deve jogar tres dados de uma vez).
     for (unsigned i = 0; i < n; i++) {
         int jg = ESPECIAL[i].jogo;
         bool repete = jg == J_UP || jg == J_DOWN || jg == J_LEFT || jg == J_RIGHT || jg == J_BKSP;
-        if (repete && IsKeyPressedRepeat(ESPECIAL[i].rl)) tecla(jg);
+        if (repete && IsKeyPressedRepeat(ESPECIAL[i].rl) && !(campo_focado && jg == J_BKSP)) tecla(jg);
     }
     // Letras, numeros e pontuacao chegam ja traduzidos pelo layout do
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
+        if (campo_focado) continue;           // as letras vem do campo (web_tecla)
         if ((c == '-' || c == '_') && !dado_digitando()) { muda_zoom(-5); continue; }
         if ((c == '+' || c == '=') && !dado_digitando()) { muda_zoom(5); continue; }
         if (c >= 0x20 && c < 0x7F) tecla(c);
+    }
+}
+
+// Controles (Xbox, PlayStation e os parecidos), ate dois: os botoes viram as
+// teclas do jogo. O A (a cruz) confirma, o B (a bola) volta ou desfaz, o Y
+// (o triangulo) segue, o X (o quadrado) abre os detalhes; START (OPTIONS)
+// e o ESC, VIEW (SHARE) abre a bolsa, LB/L1 recusa, RB/R1 muda a
+// velocidade, LT/L2 mostra o que faz cada botao e RT/R2 abre o som. O direcional e o analogico esquerdo andam, repetindo quando
+// segurados. No modo 2 jogadores, com os dois ligados, cada um joga na sua
+// vez (o primeiro e o JOGADOR 1).
+#define CONTROLES 2
+static void le_controles(void)
+{
+    static const struct { int bt, jogo; bool so_da_vez; } BOTAO[] = {
+        { GAMEPAD_BUTTON_RIGHT_FACE_DOWN, J_ENTER, true },
+        { GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, J_BKSP, true },
+        { GAMEPAD_BUTTON_RIGHT_FACE_UP, J_TAB, true },
+        { GAMEPAD_BUTTON_RIGHT_FACE_LEFT, 'i', false },
+        { GAMEPAD_BUTTON_MIDDLE_RIGHT, J_ESC, false },
+        { GAMEPAD_BUTTON_MIDDLE_LEFT, 'b', false },
+        { GAMEPAD_BUTTON_LEFT_TRIGGER_1, 'x', true },
+        { GAMEPAD_BUTTON_RIGHT_TRIGGER_1, 'v', false },
+        { GAMEPAD_BUTTON_LEFT_TRIGGER_2, 'k', false },     // LT/L2: o quadro dos controles
+        { GAMEPAD_BUTTON_RIGHT_TRIGGER_2, 'm', false },    // RT/R2: o painel do som
+    };
+    static const struct { int bt, jogo; } DIRECAO[] = {
+        { GAMEPAD_BUTTON_LEFT_FACE_UP, J_UP }, { GAMEPAD_BUTTON_LEFT_FACE_DOWN, J_DOWN },
+        { GAMEPAD_BUTTON_LEFT_FACE_LEFT, J_LEFT }, { GAMEPAD_BUTTON_LEFT_FACE_RIGHT, J_RIGHT },
+    };
+    static float segura[CONTROLES][4];        // ha quanto tempo cada direcao esta apertada
+    static float proxima[CONTROLES][4];       // quando ela repete
+    int ligados = 0;
+    for (int g = 0; g < CONTROLES; g++) ligados += IsGamepadAvailable(g);
+    float dt = GetFrameTime();
+    for (int g = 0; g < CONTROLES; g++) {
+        if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); continue; }
+        int vez = ligados > 1 ? dado_vez_do_controle() : -1;
+        bool outro = vez >= 0 && vez != g;    // a vez e do outro controle
+        const char *nome = GetGamepadName(g);
+        int estilo = CONTROLE_XBOX;
+        if (nome && (strstr(nome, "PS") || strstr(nome, "Sony") || strstr(nome, "DualS") || strstr(nome, "PLAYSTATION")
+                     || strstr(nome, "054c") || !strcmp(nome, "Wireless Controller")))
+            estilo = CONTROLE_PS;
+        for (unsigned i = 0; i < sizeof BOTAO / sizeof BOTAO[0]; i++)
+            if (IsGamepadButtonPressed(g, BOTAO[i].bt)) {
+                dado_controle(estilo);
+                bool letra = BOTAO[i].jogo < 0x80 && BOTAO[i].jogo >= 'a';
+                if (letra && dado_digitando()) continue;     // escrevendo um nome: o botao nao vira letra
+                if (!(outro && BOTAO[i].so_da_vez)) tecla(BOTAO[i].jogo);
+            }
+        // O direcional ou o analogico: anda ao apertar e, segurado, repete.
+        float ax = GetGamepadAxisMovement(g, GAMEPAD_AXIS_LEFT_X), ay = GetGamepadAxisMovement(g, GAMEPAD_AXIS_LEFT_Y);
+        bool dir[4] = { ay < -0.55f, ay > 0.55f, ax < -0.55f, ax > 0.55f };
+        for (int d = 0; d < 4; d++) {
+            dir[d] |= IsGamepadButtonDown(g, DIRECAO[d].bt);
+            if (!dir[d]) { segura[g][d] = 0; continue; }
+            bool anda = segura[g][d] == 0;
+            segura[g][d] += dt;
+            if (anda) proxima[g][d] = 0.40f;
+            else if (segura[g][d] >= proxima[g][d]) { anda = true; proxima[g][d] += 0.11f; }
+            if (anda) {
+                dado_controle(estilo);
+                if (!outro) tecla(DIRECAO[d].jogo);
+            }
+        }
     }
 }
 
@@ -326,28 +401,53 @@ EM_JS(void, web_teclado_inicia, (int enter, int apaga), {
                       'font-size:16px;border:0;padding:0;';
     document.body.appendChild(e);
     Module.dadoCampo = e;
-    // As teclas do campo nao chegam ao raylib (senao cada letra viria duas
-    // vezes): o texto vem pelo evento 'input'; ENTER e apagar, daqui.
+    // Com o campo em foco, o texto vem so dele: pelo evento 'input' (e ENTER
+    // e apagar, pelo keydown dele). O raylib tambem ve as teclas (a GLFW
+    // escuta a janela antes do campo), e o le_teclado as ignora enquanto o
+    // campo tem o foco - senao, no iPhone e no iPad, cada letra vinha duas.
     var deixa = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Escape', 'Tab'];
     e.addEventListener('keydown', function (ev) {
+        if (ev.isComposing) return;
         if (ev.key === 'Enter') { Module._web_tecla(enter); ev.preventDefault(); }
         else if (ev.key === 'Backspace' && !e.value) { Module._web_tecla(apaga); ev.preventDefault(); }
         if (deixa.indexOf(ev.key) < 0) ev.stopPropagation();
     });
     e.addEventListener('keypress', function (ev) { ev.stopPropagation(); });
     e.addEventListener('keyup', function (ev) { if (deixa.indexOf(ev.key) < 0) ev.stopPropagation(); });
-    e.addEventListener('input', function (ev) {
-        if (ev.inputType === 'deleteContentBackward') Module._web_tecla(apaga);
-        else for (var i = 0; i < e.value.length; i++) {
-            var c = e.value.charCodeAt(i);
-            if (c >= 32 && c < 127) Module._web_tecla(c);
-        }
-        e.value = "";
+    // O que ja foi para o jogo do texto que esta no campo. Fora de uma
+    // composicao (o teclado do Android monta a palavra antes de soltar), o
+    // campo e esvaziado a cada letra; dentro dela, so manda a diferenca.
+    var mandado = '', compondo = false;
+    function so_ascii(s) {
+        var r = '';
+        for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i); if (c >= 32 && c < 127) r += s.charAt(i); }
+        return r;
+    }
+    function sincroniza() {
+        var v = so_ascii(e.value), k = 0;
+        while (k < mandado.length && k < v.length && mandado[k] === v[k]) k++;
+        for (var i = mandado.length; i > k; i--) Module._web_tecla(apaga);
+        for (var i = k; i < v.length; i++) Module._web_tecla(v.charCodeAt(i));
+        mandado = v;
+    }
+    function esvazia() { e.value = ''; mandado = ''; }
+    e.addEventListener('compositionstart', function () { compondo = true; });
+    e.addEventListener('compositionend', function () {   // o Safari ainda manda um 'input' depois
+        compondo = false;
+        sincroniza();
+        setTimeout(function () { if (!compondo) esvazia(); }, 0);
     });
+    e.addEventListener('input', function (ev) {
+        sincroniza();
+        if (!compondo && !ev.isComposing) esvazia();
+    });
+    e.addEventListener('blur', function () { compondo = false; esvazia(); });
     Module.canvas.addEventListener('pointerup', function (ev) {
         if (ev.pointerType !== 'mouse' && Module._web_digitando()) e.focus();
     });
 });
+// O campo esta com o foco (o teclado do aparelho aberto)?
+EM_JS(int, web_campo_focado, (void), { return Module.dadoCampo && document.activeElement === Module.dadoCampo ? 1 : 0; });
 // Fora das telas de digitar, o campo solta o foco (e o teclado do aparelho fecha).
 EM_JS(void, web_teclado_confere, (int digitando), {
     var e = Module.dadoCampo;
@@ -366,9 +466,13 @@ EM_JS(void, web_mouse_inicia, (void), {
         Module.dadoMouse.y = (e.clientY - r.top) * c.height / r.height;
     }
     c.addEventListener('pointermove', pos);
+    // Um dedo (ou caneta) na tela e um toque (3): nas acoes do jogo, o
+    // primeiro escolhe e o segundo confirma.
     c.addEventListener('pointerdown', function (e) {
         pos(e);
-        if (e.button === 0 || e.button === 2)
+        if (e.pointerType && e.pointerType !== 'mouse') {
+            if (e.isPrimary !== false) Module.dadoMouse.cliques.push([3, Module.dadoMouse.x, Module.dadoMouse.y]);
+        } else if (e.button === 0 || e.button === 2)
             Module.dadoMouse.cliques.push([e.button === 0 ? 1 : 2, Module.dadoMouse.x, Module.dadoMouse.y]);
     });
 });
@@ -410,6 +514,7 @@ static void le_mouse(void)
     for (int b; (b = web_clique(&cx, &cy)) != 0; )
         if (no_jogo(cx, cy, &x, &y)) {
             if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
+            dado_controle(CONTROLE_NENHUM);
             dado_mouse(x, y, b);
         }
 #else
@@ -418,7 +523,7 @@ static void le_mouse(void)
     Vector2 m = GetMousePosition();
     if (!no_jogo(m.x, m.y, &x, &y)) return;
     if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
-    for (int i = 0; i < n; i++) dado_mouse(x, y, cliques[i]);
+    for (int i = 0; i < n; i++) { dado_controle(CONTROLE_NENHUM); dado_mouse(x, y, cliques[i]); }
 #endif
 }
 
@@ -483,8 +588,12 @@ static void desenha_salao(Rectangle area, float dt)
 // Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
+#ifdef __EMSCRIPTEN__
+    campo_focado = web_campo_focado();
+#endif
     le_teclado();
     le_mouse();
+    le_controles();
     float dt = GetFrameTime();
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     dado_passo(dt);

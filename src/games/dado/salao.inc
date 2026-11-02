@@ -19,10 +19,21 @@ static int salao_andar(void)
 }
 
 // O som da cena (a cada passo, painel_som.inc): na mesa do chefe a batucada
-// entra na trilha.
+// entra na trilha, com a voz dele; com ele como a proxima mesa (o mapa e a
+// loja de antes), a banda dele toca abafada, na sala ao lado.
 static void som_da_cena(void)
 {
-    som_chefe(salao_andar() >= 0 && na_partida() && run.no[run.passo].tipo == NO_CHEFE);
+    int qual = -1, onde = SOM_CHEFE_LONGE;
+    int m = salao_andar() >= 0 ? mesas_do_salao() : 0;
+    if (m > 0 && run.no[m - 1].tipo == NO_CHEFE) {
+        int p = run.no[m - 1].perso;
+        qual = p == PERSO_CORINGA ? SOM_CHEFE_CORINGA : p == PERSO_NOEL ? SOM_CHEFE_NOEL
+             : chefe_idx(p) == 1 ? SOM_CHEFE_DONA : chefe_idx(p) == 2 ? SOM_CHEFE_BARAO : SOM_CHEFE_CRUPIE;
+        if (na_partida() && run.no[run.passo].tipo == NO_CHEFE) onde = SOM_CHEFE_NA_MESA;
+        else if ((fase == F_MAPA && run.passo == m - 1) || (fase == F_RLOJA && run.passo == m - 2))
+            onde = SOM_CHEFE_AO_LADO;
+    }
+    som_chefe(qual, onde);
 }
 
 // A rampa de cada parede, do escuro ao claro, so com cores da paleta (a

@@ -82,7 +82,14 @@ void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e um
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide
 void som_cadeia(bool on);    // a cadeia de efeitos do fim da rodada: a trilha abaixa enquanto ela corre
-void som_chefe(bool on);     // a mesa do chefe: a batucada entra na trilha
+// O chefe do salao: na mesa dele a batucada entra na trilha, com a voz dele
+// por cima (o Crupie, so a batucada). qual: SOM_CHEFE_*, ou -1 fora da run (a
+// voz do salao vai sendo carregada antes de precisar). onde: longe, na sala ao
+// lado (o mapa e a loja com ele como a proxima mesa: a banda dele abafada,
+// atras da parede) ou na mesa.
+enum { SOM_CHEFE_CRUPIE, SOM_CHEFE_DONA, SOM_CHEFE_BARAO, SOM_CHEFE_CORINGA, SOM_CHEFE_NOEL, SOM_CHEFES };
+enum { SOM_CHEFE_LONGE, SOM_CHEFE_AO_LADO, SOM_CHEFE_NA_MESA };
+void som_chefe(int qual, int onde);
 
 // O volume de cada canal, de 0 (mudo) a SOM_NIVEIS: a trilha, os efeitos da
 // mesa e os da interface (o cursor e os menus). O 10 e o volume de sempre.

@@ -22,7 +22,7 @@ void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
-void som_chefe(bool on) { (void)on; }
+void som_chefe(int q, bool t) { (void)q; (void)t; }
 void som_volume(int c, int n) { (void)c; (void)n; }
 int som_volume_de(int c) { (void)c; return SOM_NIVEIS; }
 

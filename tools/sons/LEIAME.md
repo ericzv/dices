@@ -31,6 +31,7 @@ caindo).
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
 | Camada da música | `trilha_chefe` (a mesa do chefe) | do tamanho exato da trilha e na mesma harmonia, para tocar junto dela: a batucada (surdo sintetizado, agogô, o aro num dado batendo na madeira, cordas e o rolo de tímpano no fim de cada frase) |
+| A voz de cada chefe | `trilha_dona`, `trilha_barao`, `trilha_coringa`, `trilha_noel` | por cima da batucada, também do tamanho da trilha (o Crupiê fica só com a batucada): o sax-alto da Dona segurando as notas-guia e respondendo nos respiros da melodia; duas trompas do Barão e o chamado delas no fim de cada frase; a caixinha de música do Coringa imitando a melodia uma batida atrás; os guizos do Papai Noel e o "jin-gle bells" no glockenspiel |
 | Troca de tela | `transicao` | um sopro de pano que anda da esquerda para a direita junto com a varredura |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |
@@ -41,8 +42,9 @@ a anterior, e com um pouco de variação de tom.
 
 As camadas da música são medidas na `trilha.ogg` do repositório (o volume e
 o tamanho): o `som.c` as mistura amostra a amostra com ela, e o teste `sons`
-confere que as três têm o mesmo número de quadros. Uma camada de outro
-tamanho fica fora do jogo.
+confere que todas têm o mesmo número de quadros. Uma camada de outro
+tamanho fica fora do jogo. A batucada fica na memória desde o começo; a voz
+é só a do chefe do salão, decodificada aos poucos quando o salão muda.
 
 O volume de cada som foi igualado ao do som sintetizado que ele substituiu
 (`VOLUME` no `gera.py`); `GANHO_DB` guarda os ajustes pedidos depois

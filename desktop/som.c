@@ -6,11 +6,15 @@
 //    gravado) e baixo eletrico, com vassourinha e shaker; em loop. Abaixa
 //    com o rufo, na cadeia de efeitos do fim da rodada, na hora da verdade e
 //    nos climax (Jackpot, fim, premio).
-//  - A camada da trilha, do tamanho dela e no mesmo compasso: na mesa do
-//    chefe entra a batucada (surdo, agogo, o aro e as cordas). As duas vem
-//    decodificadas na memoria e um callback do audio as mistura amostra a
-//    amostra: nunca saem do compasso, nem se o jogo engasgar. Na hora da
-//    verdade a trilha so quase some, e o coracao (o suspense) toca sozinho.
+//  - As camadas da trilha, do tamanho dela e no mesmo compasso: na mesa do
+//    chefe entra a batucada (surdo, agogo, o aro e as cordas) e, por cima, a
+//    voz do chefe (o sax da Dona, as trompas do Barao, a caixinha do Coringa,
+//    os guizos do Papai Noel; o Crupie fica so com a batucada), e ja no mapa
+//    e na loja de antes dela. Todas vem decodificadas na memoria e um callback
+//    do audio as mistura amostra a amostra: nunca saem do compasso, nem se o
+//    jogo engasgar. A voz e so a do chefe do salao, decodificada aos poucos
+//    (um pedaco por quadro) quando o salao muda. Na hora da verdade a trilha
+//    so quase some, e o coracao (o suspense) toca sozinho.
 //  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
 //    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
@@ -81,19 +85,49 @@ static efeito_t ef[SOM_N];
 static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
-static bool  rufando, girando, suspense, cadeia, chefe;
+static bool  rufando, girando, suspense, cadeia;
+static int   chefe_qual = -1;              // o som_chefe de agora
+static bool  chefe_toca;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 #define VOL_TRILHA 0.35f                     // a trilha no volume 10
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
-enum { CAM_TRILHA, CAM_CHEFE, CAMADAS };
-static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe" };
+// A trilha e a batucada ficam na memoria desde o comeco; a voz e a do chefe
+// do salao (voz_buf), trocada quando ele muda.
+enum { CAM_TRILHA, CAM_CHEFE, CAM_VOZ, CAMADAS };
+static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe", NULL };
+static const char *const VOZ_ARQ[SOM_CHEFES] = {
+    [SOM_CHEFE_DONA] = "trilha_dona", [SOM_CHEFE_BARAO] = "trilha_barao",
+    [SOM_CHEFE_CORINGA] = "trilha_coringa", [SOM_CHEFE_NOEL] = "trilha_noel",
+};
 static Wave  cam[CAMADAS];
 static unsigned cam_n, cam_pos;              // o tamanho do loop e onde ele esta (so o callback mexe)
 static AudioStream banda;
 static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
 static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
-static float v_chefe;                        // quanto a camada do chefe entrou (0..1)
+static float v_chefe, v_voz;                 // quanto a batucada e a voz entraram (0..1)
+
+// A voz do chefe e decodificada aos poucos, para nao engasgar a tela: o
+// stb_vorbis que vem dentro do raylib (raudio.c), um pedaco por quadro.
+typedef struct stb_vorbis stb_vorbis;
+typedef struct { char *alloc_buffer; int alloc_buffer_length_in_bytes; } stb_vorbis_alloc;
+stb_vorbis *stb_vorbis_open_memory(const unsigned char *data, int len, int *error, const stb_vorbis_alloc *alloc);
+int stb_vorbis_get_samples_short_interleaved(stb_vorbis *f, int channels, short *buffer, int num_shorts);
+void stb_vorbis_close(stb_vorbis *f);
+unsigned int stb_vorbis_stream_length_in_samples(stb_vorbis *f);
+typedef struct {
+    unsigned int sample_rate;
+    int channels;
+    unsigned int setup_memory_required, setup_temp_memory_required, temp_memory_required;
+    int max_frame_size;
+} stb_vorbis_info;
+stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f);
+#define VOZ_PEDACO 32768                     // quadros decodificados por quadro do jogo (~0,7 s de som)
+static short *voz_buf;                       // cam_n quadros estereo
+static int voz_qual = -1;                    // a voz que esta (ou vai ficando) no voz_buf
+static stb_vorbis *voz_dec;                  // != NULL: decodificando
+static unsigned voz_lidos;
+static volatile bool voz_ok;                 // inteira no voz_buf: o callback pode tocar
 
 // O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
 // volume que se ouve); o 10 e o volume de sempre.
@@ -131,11 +165,12 @@ static void mistura_banda(void *saida, unsigned int quadros)
 {
     float *o = saida;
     memset(o, 0, quadros * 2 * sizeof *o);
+    const short *dados[CAMADAS] = { cam[CAM_TRILHA].data, cam[CAM_CHEFE].data, voz_ok ? voz_buf : NULL };
     for (int c = 0; c < CAMADAS; c++) {
         float v0 = cam_vol[c], v1 = cam_alvo[c];
-        cam_vol[c] = v1;
-        if (!cam[c].data || (v0 <= 0 && v1 <= 0)) continue;
-        const short *x = cam[c].data;
+        cam_vol[c] = dados[c] ? v1 : 0;      // a voz que chegar entra do zero
+        if (!dados[c] || (v0 <= 0 && v1 <= 0)) continue;
+        const short *x = dados[c];
         float g = v0 / 32768.0f, dg = (v1 - v0) / 32768.0f / quadros;
         unsigned p = cam_pos;
         for (unsigned k = 0; k < quadros; k++, g += dg) {
@@ -147,12 +182,56 @@ static void mistura_banda(void *saida, unsigned int quadros)
     cam_pos = (cam_pos + quadros) % cam_n;
 }
 
+// Uma barreira com o callback: o raylib o chama com a trava do audio presa, e
+// SetAudioStreamCallback pega a mesma trava. Na volta, nenhuma mistura que
+// comecou antes ainda esta rodando, e as proximas veem tudo que foi escrito
+// antes daqui.
+static void espera_o_callback(void)
+{
+    if (cam_n) SetAudioStreamCallback(banda, mistura_banda);
+}
+
+// A voz do chefe q no voz_buf, um pedaco por chamada. Troca so com a voz de
+// antes calada; ate a nova ficar inteira, nenhuma toca.
+static void carrega_voz(int q)
+{
+    if (!cam_n) return;
+    if (q != voz_qual && (q >= 0 || voz_dec)) {
+        if (voz_ok && (v_voz > 0.001f || cam_vol[CAM_VOZ] > 0)) return;   // espera a de antes calar
+        voz_ok = false;
+        espera_o_callback();
+        if (voz_dec) { stb_vorbis_close(voz_dec); voz_dec = NULL; }
+        voz_qual = q;
+        voz_lidos = 0;
+        const som_arquivo_t *a = q >= 0 && q < SOM_CHEFES && VOZ_ARQ[q] ? acha(VOZ_ARQ[q]) : NULL;
+        if (!a) return;
+        if (!voz_buf) voz_buf = MemAlloc(cam_n * 2 * sizeof *voz_buf);
+        int erro = 0;
+        if (voz_buf) voz_dec = stb_vorbis_open_memory(a->dados, (int)a->tam, &erro, NULL);
+        // De outro tamanho (ou outra taxa) que a trilha sairia do compasso: fica de fora.
+        if (voz_dec && (stb_vorbis_get_info(voz_dec).sample_rate != 44100
+                        || stb_vorbis_stream_length_in_samples(voz_dec) != cam_n)) {
+            stb_vorbis_close(voz_dec);
+            voz_dec = NULL;
+        }
+        return;                                // o primeiro pedaco, no proximo quadro
+    }
+    if (!voz_dec) return;
+    unsigned falta = cam_n - voz_lidos, n = falta < VOZ_PEDACO ? falta : VOZ_PEDACO;
+    int lidos = n ? stb_vorbis_get_samples_short_interleaved(voz_dec, 2, voz_buf + 2 * voz_lidos, (int)n * 2) : 0;
+    voz_lidos += lidos > 0 ? (unsigned)lidos : 0;
+    if (lidos > 0 && voz_lidos < cam_n) return;
+    stb_vorbis_close(voz_dec);
+    voz_dec = NULL;
+    if (voz_lidos == cam_n) { espera_o_callback(); voz_ok = true; }
+}
+
 // A banda: as camadas na memoria e o stream que as toca. Uma camada de outro
 // tamanho que a trilha sairia do compasso: fica de fora.
 static void monta_banda(void)
 {
     for (int c = 0; c < CAMADAS; c++) {
-        const som_arquivo_t *a = acha(CAM_ARQ[c]);
+        const som_arquivo_t *a = CAM_ARQ[c] ? acha(CAM_ARQ[c]) : NULL;
         if (!a) continue;
         cam[c] = LoadWaveFromMemory(".ogg", a->dados, a->tam);
         if (cam[c].data) WaveFormat(&cam[c], 44100, 16, 2);
@@ -206,6 +285,9 @@ void som_encerra(void)
     UnloadSound(giro);
     if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
     for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
+    if (voz_dec) stb_vorbis_close(voz_dec);
+    MemFree(voz_buf);
+    voz_dec = NULL; voz_buf = NULL; voz_ok = false; voz_qual = -1;
     pronto = false;
 }
 
@@ -235,11 +317,17 @@ void som_atualiza(float dt)
     if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
-    // A camada do chefe entra em uns 2 s e sai em 1,5.
-    v_chefe += ((chefe ? 1 : 0) - v_chefe) * fminf(1, dt / (chefe ? 0.7f : 0.5f));
+    // A banda do chefe entra em uns 2 s e sai em 1,5.
+    carrega_voz(chefe_qual);
+    float alvo_v = chefe_toca ? 1 : 0;
+    v_chefe += (alvo_v - v_chefe) * fminf(1, dt / (chefe_toca ? 0.7f : 0.5f));
+    float alvo_voz = voz_ok && voz_qual == chefe_qual ? alvo_v : 0;
+    v_voz += (alvo_voz - v_voz) * fminf(1, dt / (alvo_voz > v_voz ? 0.7f : 0.5f));
+    if (v_voz < 0.001f && alvo_voz == 0) v_voz = 0;
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
     cam_alvo[CAM_TRILHA] = m * duck;
     cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
+    cam_alvo[CAM_VOZ] = m * duck * v_voz;
 }
 
 // Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que
@@ -315,7 +403,7 @@ void som_giro(bool on)
 
 void som_suspense(bool on) { suspense = on; }
 void som_cadeia(bool on)   { cadeia = on; }
-void som_chefe(bool on)    { chefe = on; }
+void som_chefe(int qual, bool toca) { chefe_qual = qual; chefe_toca = qual >= 0 && toca; }
 
 void som_volume(int c, int n)
 {

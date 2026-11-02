@@ -15,7 +15,7 @@ instrumentos.
   na coleção [tonejs-instruments](https://github.com/nbrosowsky/tonejs-instruments),
   de Nicholaus Brosowsky. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Vibrafone, celesta, glockenspiel, contrabaixo acústico, tímpano, marimba,
-  sinos tubulares, cordas em trêmolo e agogô**: banco FluidR3 GM, de Frank Wen, na versão do projeto
+  sinos tubulares, cordas em trêmolo, agogô, trompa e caixinha de música**: banco FluidR3 GM, de Frank Wen, na versão do projeto
   [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts), de
   Benjamin Gleitzman. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Laser, ventania, vassourinha e shaker da trilha, o chiado do fogo, as asas

@@ -24,9 +24,11 @@ As receitas:
     o 4o "valendo" tem um sax-alto (Karoryfer, CC BY 3.0);
   - poderes e roleta: gravacoes e instrumentos do FluidR3 GM (CC BY 3.0);
   - laser, ventania e o chiado do fogo: sintetizados aqui mesmo;
-  - as camadas da trilha (a mesa do chefe e a hora da verdade): cordas em
-    tremolo, agogo e timpano do FluidR3, o aro num dado batendo na madeira e
-    o surdo sintetizado, do tamanho exato da trilha;
+  - as camadas da trilha (a mesa do chefe): cordas em tremolo, agogo e
+    timpano do FluidR3, o aro num dado batendo na madeira e o surdo
+    sintetizado, do tamanho exato da trilha; e a voz de cada chefe por cima
+    (o sax-alto da Dona, as trompas do Barao e a caixinha de musica do
+    Coringa, do FluidR3, e os guizos do Papai Noel);
   - a troca de tela: um sopro sintetizado que anda da esquerda para a direita.
 """
 import os, sys, random, shutil, subprocess, tempfile, wave, zlib
@@ -1327,12 +1329,17 @@ def camada():
         np.add.at(R, idx, g * y * (1 + pan) * 0.5)
     return L, R, poe
 
-def nivela(x, db):
+def nivela(x, db, teto=None):
     """x (estereo) db decibeis abaixo da trilha, no RMS do loop inteiro sem
-    os graves de baixo de 120 Hz (que o ouvido quase nao conta)."""
+    os graves de baixo de 120 Hz (que o ouvido quase nao conta). Com teto, os
+    picos acima dele sao segurados (para os guizos, que sao quase so pico)."""
     ref = le(REF_TRILHA) if os.path.exists(REF_TRILHA) else trilha().mean(1)
     alvo = np.sqrt(np.mean(pa(ref, 120) ** 2)) * 10 ** (db / 20)
-    x = x * (alvo / max(np.sqrt(np.mean(pa(x.mean(1), 120) ** 2)), 1e-12))
+    for _ in range(3 if teto else 1):
+        x = x * (alvo / max(np.sqrt(np.mean(pa(x.mean(1), 120) ** 2)), 1e-12))
+        if teto:
+            a = np.abs(x).max(1)
+            x = x * (limita(a, teto) / np.maximum(a, 1e-9))[:, None]
     p = np.abs(x).max()
     return x * (0.97 / p) if p > 0.97 else x
 
@@ -1433,6 +1440,99 @@ def trilha_chefe():
         prox = HARMONIA[(c + 1) % COMP][0][0]
         rolo(poe, c * 4 + 3.0, 1.0, raiz_timpano(prox), 0.10, 0.35)
     return nivela(sala_da_trilha(L, R), -7.0)
+
+# ---------------------------------------------------------------------------
+# A voz de cada chefe: mais uma camada, por cima da batucada (o Crupie fica so
+# com ela). Do mesmo tamanho da trilha e na harmonia dela; o som.c toca a do
+# chefe do salao.
+# ---------------------------------------------------------------------------
+def acorde_em(bat):
+    """O acorde (raiz, tipo) que soa na batida bat do loop."""
+    bat %= COMP * 4
+    c = int(bat // 4)
+    return HARMONIA[c][0 if bat - c * 4 < 2 else 1]
+
+def notas_do_acorde(ac):
+    raiz, tipo = ac
+    return {(raiz + i) % 12 for i in INTERV[tipo]}
+
+def trilha_dona():
+    """A Dona do Salao: um sax-alto de fundo de bar. Segura as notas-guia (a
+    terca e a setima de cada acorde) embaixo da melodia, entrando de mansinho,
+    e responde nos dois respiros da melodia (o fim do compasso 7 e o do 15)."""
+    L, R, poe = camada()
+    #       compasso, batida, duracao (batidas), nota
+    FUNDO = [(0, .5, 3.2, 64), (1, .5, 3.2, 65), (2, .5, 3.2, 65), (3, .5, 3.2, 64),
+             (4, .5, 3.2, 64), (5, .5, 3.2, 65), (6, .5, 1.4, 65), (6, 2.0, 1.7, 64),
+             (7, .5, 2.3, 64),
+             (8, 0, 3.6, 69), (9, .5, 3.2, 67), (10, .5, 3.2, 67), (11, .5, 3.2, 66),
+             (12, .5, 3.2, 65), (13, .5, 3.2, 64), (14, .5, 3.2, 64), (15, .5, 1.4, 65)]
+    for c, b, d, m in FUNDO:
+        poe(c * 4 + b, sax(m, d * BAT, rnd.uniform(0.30, 0.36), 0.28, 0.45, 0.3), -0.35)
+    RESPOSTA = [(7, 3.0, .5, 65), (7, 3.5, .6, 67),                       # sobe para o Si bemol
+                (15, 2.0, .5, 74), (15, 2.5, .5, 72), (15, 3.0, .5, 70), (15, 3.5, .9, 67)]
+    for c, b, d, m in RESPOSTA:
+        poe(c * 4 + b + rnd.uniform(0, 0.02), sax(m, d * BAT, 0.46, 0.03, 0.18, 1.0), -0.35)
+    return nivela(sala_da_trilha(L, R), -14.0)
+
+def trompa(m, dur, vel, ataque=0.35, solta=0.45):
+    """Trompa do FluidR3, crescendo em 'ataque' (o fundo) ou marcada (ataque curto)."""
+    x = nota('french_horn', m, dur, solta)
+    t = np.arange(len(x)) / SR
+    return x * np.minimum(1, t / ataque) ** 1.3 * vel
+
+def trilha_barao():
+    """O Barao: duas trompas seguram as notas-guia, graves e quentes, e no fim
+    de cada frase de quatro compassos (junto do rolo do timpano) tocam um
+    chamado que cai no acorde seguinte."""
+    L, R, poe = camada()
+    GUIAS = [((52, 57),), ((53, 60),), ((53, 58),), ((52, 58),),
+             ((52, 57),), ((53, 60),), ((53, 58), (52, 58)), ((52, 57),),
+             ((57, 62),), ((55, 61),), ((55, 60),), ((54, 60),),
+             ((53, 58),), ((52, 58),), ((52, 57),), ((53, 58), (52, 58))]
+    for c, metades in enumerate(GUIAS):
+        dur = 4.0 / len(metades)
+        for k, par in enumerate(metades):
+            for i, m in enumerate(par):
+                poe(c * 4 + k * dur + rnd.uniform(0, 0.015), trompa(m, dur * BAT + 0.05, 0.62 if i else 0.55),
+                    0.25 if i else 0.05)
+    CHAMADO = {3: (60, 64, 67, 65), 7: (60, 65, 69, 70), 11: (57, 62, 66, 67), 15: (60, 64, 67, 65)}
+    for c, (x, y, z, w) in CHAMADO.items():
+        for b, d, m, v in ((2.5, .45, x, 0.55), (3.0, .45, y, 0.6), (3.5, .45, z, 0.68), (4.0, 1.4, w, 0.75)):
+            poe(c * 4 + b, trompa(m, d * BAT, v, 0.02, 0.3), 0.3)
+    return nivela(sala_da_trilha(L, R), -13.0)
+
+def trilha_coringa():
+    """O Coringa: uma caixinha de musica imita a melodia uma batida atras,
+    uma oitava acima, do outro lado da mesa. Se a copia cai noutro acorde,
+    vai para a nota dele mais perto (imita, mas nunca desafina)."""
+    L, R, poe = camada()
+    for c, b, d, m in MELODIA:
+        t0 = c * 4 + b
+        m2 = m + 12
+        ac = acorde_em(t0 + 1)
+        if ac != acorde_em(t0):
+            tons = notas_do_acorde(ac)
+            m2 = min((x for x in range(m2 - 4, m2 + 5) if x % 12 in tons), key=lambda x: (abs(x - m2), x))
+        y = nota('music_box', min(max(m2, 72), 98), min(d * BAT + 0.5, 2.5), 0.3)
+        poe(t0 + 1 + rnd.uniform(0, 0.01), pa(y, 300), -0.45, rnd.uniform(0.75, 0.95))
+    return nivela(sala_da_trilha(L, R, 0.38), -15.0)
+
+def trilha_noel():
+    """O Papai Noel: guizos chacoalhando a cada batida (mais longo no 1 e no
+    3) e, no fim de cada frase, o 'jin-gle bells' no glockenspiel."""
+    L, R, poe = camada()
+    for b in range(COMP * 4):
+        m = Mix(0.5)
+        guizos(m, 0.0, 9 if b % 2 == 0 else 5, 0.5, 0.20 if b % 2 == 0 else 0.10)
+        poe(b + rnd.uniform(0, 0.01), m.x, 0.4, 0.9 if b % 2 == 0 else 0.6)
+        m = Mix(0.2)
+        guizos(m, 0.0, 3, 0.4, 0.05)
+        poe(b + 0.5, m.x, 0.4, 0.35)
+    for c in (3, 7, 11, 15):
+        for b, d in ((2.0, .5), (2.5, .5), (3.0, 1.0)):
+            poe(c * 4 + b, nota('glockenspiel', 93, d * BAT, 0.6), -0.3, 0.8)
+    return nivela(sala_da_trilha(L, R), -16.0, 0.45)
 
 def transicao():
     n = int(0.45 * SR); tt = np.arange(n) / SR
@@ -1831,7 +1931,9 @@ for v in range(3):
 
 # Os loops estereo que tocam o tempo todo: a trilha e as camadas dela (do
 # tamanho dela). nome -> (receita, qualidade do OGG)
-LOOPS = {'trilha': (trilha, 5), 'trilha_chefe': (trilha_chefe, 4)}
+LOOPS = {'trilha': (trilha, 5), 'trilha_chefe': (trilha_chefe, 4),
+         'trilha_dona': (trilha_dona, 3), 'trilha_barao': (trilha_barao, 3),
+         'trilha_coringa': (trilha_coringa, 3), 'trilha_noel': (trilha_noel, 3)}
 
 def gera(nome, saida):
     semeia(nome)

@@ -267,7 +267,9 @@ static void nova_rodada(void)
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
 }
 
-// Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2).
+// Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2). E as
+// cores: com dois na mesma mesa, azul e rosa, para saber de quem e a vez de
+// relance; nos outros modos, quem joga aqui fica no latao.
 static void poe_nomes(void)
 {
     switch (modo) {
@@ -275,6 +277,8 @@ static void poe_nomes(void)
     case M_DOIS:   J[0].nome = "JOGADOR 1"; J[1].nome = "JOGADOR 2";  break;
     default:       J[baixo].nome = "VOCÊ";  J[outro(baixo)].nome = "OPONENTE"; break;
     }
+    J[0].cor = modo == M_DOIS ? C_CELESTE : C_LATAO;
+    J[1].cor = C_ROSA;
 }
 
 static void abre_loja(void);
@@ -317,8 +321,6 @@ void dado_inicia(int n_partidas)
     som_rufo(false);
     for (int i = 0; i < 8; i++) rnd();
     memset(J, 0, sizeof J);
-    J[0].cor = C_LATAO;
-    J[1].cor = C_ROSA;
     poe_nomes();
     materiais_da_partida(MAT_MARFIM);
     for (int j = 0; j < 2; j++) {

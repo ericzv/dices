@@ -144,6 +144,80 @@ static void desenha_hora(void)
     }
 }
 
+// ---------------------------------------------------------------------------
+// De quem e a vez, no modo 2 jogadores: a luz da mesa fica do lado de quem
+// tem que responder. O outro lado escurece aos poucos (como na hora da
+// verdade, com o mesmo pontilhado) - os dados de quem espera ficam na
+// meia-luz, ainda a vista -, e quando a vez troca a luz atravessa a mesa ate
+// o outro. O menu e desenhado por cima, sempre aceso.
+// ---------------------------------------------------------------------------
+#define VEZ_LUZ_RX     330.0f            // a luz: uma elipse deitada, no meio da fila de quem joga
+#define VEZ_LUZ_RY     96.0f
+#define VEZ_LUZ_BORDA  0.5f              // em raios: o quanto leva para escurecer de vez
+#define VEZ_LUZ_ESCURO 56.0f             // % de escuro, no maximo, no lado de quem espera
+static float vez_luz_y = -1;             // o meio da luz agora (-1: ainda nao acendeu)
+static float vez_luz_forca;              // 0..1: acende na vez e apaga no fim da rodada
+
+// As telas em que alguem da mesa tem que responder (e o dado dele rolando,
+// entre uma resposta e outra: a luz nao pisca a cada dado).
+static bool vez_luz_na_fase(void)
+{
+    return fase == F_ORDEM || fase == F_APOSTA || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
+        || fase == F_VEREDITO || fase == F_LOJA || fase == F_PREMIO;
+}
+
+static void vez_luz_passo(float dt_real)
+{
+    bool liga = modo == M_DOIS && vez_luz_na_fase();
+    float alvo = (float)zona(vez);
+    if (vez_luz_y < 0 || vez_luz_forca < 0.02f) vez_luz_y = alvo;    // apagada: ja acende no lugar certo
+    vez_luz_y += (alvo - vez_luz_y) * fminf(1, dt_real / 0.11f);      // a vez trocou: a luz atravessa
+    vez_luz_forca += ((liga ? 1.0f : 0.0f) - vez_luz_forca) * fminf(1, dt_real / 0.18f);
+}
+
+// O escuro de cada pixel do feltro (0..100, com o pontilhado), guardado: so
+// se refaz quando a luz anda ou acende - parada, cada quadro so aplica.
+#define VEZ_LUZ_W (MESA_X1 - MESA_X0)
+#define VEZ_LUZ_H (MESA_Y1 - MESA_Y0)
+static uint8_t vez_luz_escuro[VEZ_LUZ_H][VEZ_LUZ_W];
+static int vez_luz_feita_y = -9999, vez_luz_feita_forte = -1;
+
+static void vez_luz_monta(int cy, int forte)
+{
+    float cx = GFX_W / 2.0f;
+    for (int y = MESA_Y0; y < MESA_Y1; y++) {
+        uint8_t *m = vez_luz_escuro[y - MESA_Y0];
+        float qy = (y - cy) / VEZ_LUZ_RY, qy2 = qy * qy;
+        for (int x = MESA_X0; x < MESA_X1; x++) {
+            float qx = (x - cx) / VEZ_LUZ_RX, d2 = qx * qx + qy2;
+            int a = 0;
+            if (d2 > 1) {
+                float s = (sqrtf(d2) - 1) / VEZ_LUZ_BORDA;
+                if (s > 1) s = 1;
+                a = (int)(s * forte + (BAYER[y & 3][x & 3] - 7.5f) * 1.6f);
+            }
+            m[x - MESA_X0] = (uint8_t)(a <= 0 ? 0 : a > 100 ? 100 : a);
+        }
+    }
+    vez_luz_feita_y = cy;
+    vez_luz_feita_forte = forte;
+}
+
+static void desenha_vez_luz(void)
+{
+    float f = vez_luz_forca * (1 - t_hora);  // a hora da verdade escurece a mesa do jeito dela
+    int cy = (int)lroundf(vez_luz_y), forte = (int)lroundf(VEZ_LUZ_ESCURO * f);
+    if (forte <= 0) return;
+    if (cy != vez_luz_feita_y || forte != vez_luz_feita_forte) vez_luz_monta(cy, forte);
+    uint16_t *fb = display_fb();
+    for (int y = 0; y < VEZ_LUZ_H; y++) {
+        uint16_t *p = fb + (MESA_Y0 + y) * GFX_W + MESA_X0;
+        const uint8_t *m = vez_luz_escuro[y];
+        for (int x = 0; x < VEZ_LUZ_W; x++)
+            if (m[x]) p[x] = gfx_mistura(p[x], C_BARRA, m[x]);
+    }
+}
+
 // Corre com o tempo do jogo: a luz entra enquanto o dado decide e sai depois
 // do veredito; a onda e o tremor do crescendo se acalmam.
 static void hora_passo(float dt, float dt_real)

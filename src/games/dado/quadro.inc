@@ -247,15 +247,19 @@ static void desenha_tudo(void)
     faixa_jogador(0);
     if (modo == M_DESAFIO) desenha_fosforo();    // a Caixa de Fosforos: a mao dele na luz
 
+    // Dois na mesma mesa: a selecao dos botoes fica na cor de quem decide.
+    ui_foco_cor = modo == M_DOIS && vez_luz_na_fase() ? J[vez].cor : 0;
     switch (fase) {
     // A loja e o premio da maquina contra uma pessoa nao aparecem: so a
-    // mesa, e o anuncio do que ela levou por cima.
-    case F_LOJA:   if (!anuncia_maquina() && t_anuncio <= 0) desenha_loja();   break;
-    case F_PREMIO: if (!anuncia_maquina()) desenha_premio(); break;
+    // mesa, e o anuncio do que ela levou por cima. Com dois na mesa, a luz
+    // da vez fica no feltro, por baixo dos cartoes.
+    case F_LOJA:   desenha_vez_luz(); if (!anuncia_maquina() && t_anuncio <= 0) desenha_loja();   break;
+    case F_PREMIO: desenha_vez_luz(); if (!anuncia_maquina()) desenha_premio(); break;
     case F_FIM:    if (modo == M_DESAFIO) desenha_fim_partida_run(); else desenha_fim(); break;
     case F_ORDEM:
         desenha_fila(outro(vez));
         desenha_lances();                        // o ultimo lance de aposta de cada um
+        desenha_vez_luz();                       // dois na mesa: a luz do lado de quem monta
         if (t_anuncio > 0) break;                // o anuncio vem por cima, no fim
         if (anuncia_maquina()) {                 // a maquina monta sem menu
             desenha_fila(vez);
@@ -270,6 +274,7 @@ static void desenha_tudo(void)
         if (fase == F_APOSTA || fase == F_JOGA) desenha_lances();
         desenha_devolvidos();
         desenha_jingle_copias();                 // as copias dos Jingle Bells voando para a bolsa
+        desenha_vez_luz();                       // dois na mesa: a luz do lado de quem responde
         desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
@@ -279,4 +284,5 @@ static void desenha_tudo(void)
         if (fase == F_ROLANDO || fase == F_ARRUMA) desenha_lance();
         break;
     }
+    ui_foco_cor = 0;
 }

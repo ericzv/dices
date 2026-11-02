@@ -141,6 +141,11 @@ static void passeio(void)
     // Por ultimo, para nao mexer no relogio das outras: o quadro dos controles.
     fase = F_ABERTURA; menu_tela = MT_PRINCIPAL; t_fase = 0; passa(150);
     ctrl_abre(); passa(30); tela("controles"); ctrl_aberto = false;
+    // E dois na mesma mesa: a vez do primeiro a montar a sequencia, com a luz
+    // do lado dele, a plaquinha do nome e as cores (azul e rosa).
+    modo = M_DOIS; cpu = 0; remoto = 0; baixo = 0; poe_nomes(); abre_loja();
+    for (int i = 0; i < 40 && fase == F_LOJA; i++) { passa(30); manda_tecla(KEY_TAB); }
+    passa(120); tela("dois_jogadores");
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

@@ -9,9 +9,8 @@
 //  - As camadas da trilha, do tamanho dela e no mesmo compasso: na mesa do
 //    chefe entra a batucada (surdo, agogo, o aro e as cordas) e, por cima, a
 //    voz do chefe (o sax da Dona, as trompas do Barao, a caixinha do Coringa,
-//    os guizos do Papai Noel; o Crupie fica so com a batucada). Com o chefe
-//    como a proxima mesa, a banda dele toca abafada, como na sala ao lado, e
-//    abre quando voce senta. Todas vem decodificadas na memoria e um callback
+//    os guizos do Papai Noel; o Crupie fica so com a batucada), e ja no mapa
+//    e na loja de antes dela. Todas vem decodificadas na memoria e um callback
 //    do audio as mistura amostra a amostra: nunca saem do compasso, nem se o
 //    jogo engasgar. A voz e so a do chefe do salao, decodificada aos poucos
 //    (um pedaco por quadro) quando o salao muda. Na hora da verdade a trilha
@@ -87,7 +86,8 @@ static Sound rufo, moeda_rola, giro;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
 static bool  rufando, girando, suspense, cadeia;
-static int   chefe_qual = -1, chefe_onde;   // o som_chefe de agora
+static int   chefe_qual = -1;              // o som_chefe de agora
+static bool  chefe_toca;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 #define VOL_TRILHA 0.35f                     // a trilha no volume 10
 
@@ -106,9 +106,6 @@ static AudioStream banda;
 static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
 static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
 static float v_chefe, v_voz;                 // quanto a batucada e a voz entraram (0..1)
-static float abafa;                          // a banda do chefe atras da parede: 1 abafada, 0 aberta
-static volatile float abafa_cb;              // o mesmo, para o callback
-static float fb1[2], fb2[2];                 // o filtro da parede (dois polos), na thread do audio
 
 // A voz do chefe e decodificada aos poucos, para nao engasgar a tela: o
 // stb_vorbis que vem dentro do raylib (raudio.c), um pedaco por quadro.
@@ -163,61 +160,24 @@ static Sound carrega(const som_arquivo_t *a)
 
 // O callback do audio (na thread dele): soma as camadas, cada uma no seu
 // volume, deslizando ao longo do bloco do volume de antes ao pedido agora
-// (nada de degrau). A banda do chefe (batucada e voz) passa antes pelo filtro
-// da parede. Escreve float estereo.
-static void soma_camada(float *o, unsigned quadros, const short *x, unsigned p, float v0, float v1)
-{
-    float g = v0 / 32768.0f, dg = (v1 - v0) / 32768.0f / quadros;
-    for (unsigned k = 0; k < quadros; k++, g += dg) {
-        o[2 * k] += x[2 * p] * g;
-        o[2 * k + 1] += x[2 * p + 1] * g;
-        if (++p == cam_n) p = 0;
-    }
-}
-
-#define BLOCO_BANDA 1024
-static void mistura_trecho(float *o, unsigned quadros, unsigned pos, const float *v0, const float *v1)
-{
-    static float chefe[2 * BLOCO_BANDA];
-    const short *dados[CAMADAS] = { cam[CAM_TRILHA].data, cam[CAM_CHEFE].data, voz_ok ? voz_buf : NULL };
-    if (dados[CAM_TRILHA] && (v0[CAM_TRILHA] > 0 || v1[CAM_TRILHA] > 0))
-        soma_camada(o, quadros, dados[CAM_TRILHA], pos, v0[CAM_TRILHA], v1[CAM_TRILHA]);
-    memset(chefe, 0, quadros * 2 * sizeof *chefe);
-    bool tem = false;
-    for (int c = CAM_CHEFE; c < CAMADAS; c++)
-        if (dados[c] && (v0[c] > 0 || v1[c] > 0)) { soma_camada(chefe, quadros, dados[c], pos, v0[c], v1[c]); tem = true; }
-    float ab = abafa_cb;
-    if (!tem || ab <= 0.001f) {              // aberta: direto (o filtro acompanha, para nao estalar se fechar)
-        for (unsigned k = 0; k < 2 * quadros; k++) o[k] += chefe[k];
-        if (quadros) for (int ch = 0; ch < 2; ch++) fb1[ch] = fb2[ch] = chefe[2 * (quadros - 1) + ch];
-        return;
-    }
-    // Dois polos, com o corte de 320 Hz (abafada) a 20 kHz (aberta).
-    float q = 1 - ab, fc = 320.0f * powf(20000.0f / 320.0f, q * q);
-    float a = 1 - expf(-6.2831853f * fc / 44100.0f);
-    for (unsigned k = 0; k < quadros; k++)
-        for (int ch = 0; ch < 2; ch++) {
-            fb1[ch] += a * (chefe[2 * k + ch] - fb1[ch]);
-            fb2[ch] += a * (fb1[ch] - fb2[ch]);
-            o[2 * k + ch] += fb2[ch];
-        }
-}
-
+// (nada de degrau). Escreve float estereo.
 static void mistura_banda(void *saida, unsigned int quadros)
 {
     float *o = saida;
     memset(o, 0, quadros * 2 * sizeof *o);
-    float v0[CAMADAS], v1[CAMADAS];
-    for (int c = 0; c < CAMADAS; c++) { v0[c] = cam_vol[c]; v1[c] = cam_alvo[c]; cam_vol[c] = v1[c]; }
-    if (!voz_ok) cam_vol[CAM_VOZ] = 0;       // a voz que chegar entra do zero
-    for (unsigned k0 = 0; k0 < quadros; k0 += BLOCO_BANDA) {
-        unsigned n = quadros - k0 < BLOCO_BANDA ? quadros - k0 : BLOCO_BANDA;
-        float a[CAMADAS], b[CAMADAS];
-        for (int c = 0; c < CAMADAS; c++) {
-            a[c] = v0[c] + (v1[c] - v0[c]) * k0 / quadros;
-            b[c] = v0[c] + (v1[c] - v0[c]) * (k0 + n) / quadros;
+    const short *dados[CAMADAS] = { cam[CAM_TRILHA].data, cam[CAM_CHEFE].data, voz_ok ? voz_buf : NULL };
+    for (int c = 0; c < CAMADAS; c++) {
+        float v0 = cam_vol[c], v1 = cam_alvo[c];
+        cam_vol[c] = dados[c] ? v1 : 0;      // a voz que chegar entra do zero
+        if (!dados[c] || (v0 <= 0 && v1 <= 0)) continue;
+        const short *x = dados[c];
+        float g = v0 / 32768.0f, dg = (v1 - v0) / 32768.0f / quadros;
+        unsigned p = cam_pos;
+        for (unsigned k = 0; k < quadros; k++, g += dg) {
+            o[2 * k] += x[2 * p] * g;
+            o[2 * k + 1] += x[2 * p + 1] * g;
+            if (++p == cam_n) p = 0;
         }
-        mistura_trecho(o + 2 * k0, n, (cam_pos + k0) % cam_n, a, b);
     }
     cam_pos = (cam_pos + quadros) % cam_n;
 }
@@ -357,18 +317,13 @@ void som_atualiza(float dt)
     if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
-    // A banda do chefe entra em uns 2 s e sai em 1,5; da sala ao lado, mais
-    // baixa e abafada, e abre em uns 1,5 s quando voce senta na mesa dele.
+    // A banda do chefe entra em uns 2 s e sai em 1,5.
     carrega_voz(chefe_qual);
-    float alvo_v = chefe_onde == SOM_CHEFE_NA_MESA ? 1 : chefe_onde == SOM_CHEFE_AO_LADO ? 0.55f : 0;
-    v_chefe += (alvo_v - v_chefe) * fminf(1, dt / (alvo_v > v_chefe ? 0.7f : 0.5f));
+    float alvo_v = chefe_toca ? 1 : 0;
+    v_chefe += (alvo_v - v_chefe) * fminf(1, dt / (chefe_toca ? 0.7f : 0.5f));
     float alvo_voz = voz_ok && voz_qual == chefe_qual ? alvo_v : 0;
     v_voz += (alvo_voz - v_voz) * fminf(1, dt / (alvo_voz > v_voz ? 0.7f : 0.5f));
     if (v_voz < 0.001f && alvo_voz == 0) v_voz = 0;
-    float alvo_a = chefe_onde == SOM_CHEFE_AO_LADO ? 1 : 0;
-    if (v_chefe < 0.02f) abafa = alvo_a;       // de longe: ja entra como deve
-    else abafa += (alvo_a - abafa) * fminf(1, dt / 0.5f);
-    abafa_cb = abafa;
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
     cam_alvo[CAM_TRILHA] = m * duck;
     cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
@@ -448,7 +403,7 @@ void som_giro(bool on)
 
 void som_suspense(bool on) { suspense = on; }
 void som_cadeia(bool on)   { cadeia = on; }
-void som_chefe(int qual, int onde) { chefe_qual = qual; chefe_onde = qual >= 0 ? onde : SOM_CHEFE_LONGE; }
+void som_chefe(int qual, bool toca) { chefe_qual = qual; chefe_toca = qual >= 0 && toca; }
 
 void som_volume(int c, int n)
 {

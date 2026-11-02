@@ -30,7 +30,7 @@ void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
-void som_chefe(int q, int o) { (void)q; (void)o; }
+void som_chefe(int q, bool t) { (void)q; (void)t; }
 static int volume_[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 void som_volume(int c, int n) { if (c >= 0 && c < SOM_CANAIS) volume_[c] = n; }
 int som_volume_de(int c) { return c >= 0 && c < SOM_CANAIS ? volume_[c] : 0; }

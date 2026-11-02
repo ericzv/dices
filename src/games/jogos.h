@@ -10,8 +10,15 @@ void dado_inicia(int n_partidas);        // n_partidas decide quem abre
 void dado_passo(float dt);               // avanca a animacao dt segundos
 void dado_desenha(void);                 // pinta o quadro inteiro no framebuffer
 void dado_tecla(const key_event_t *ev);
-void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito
+void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito, 3 toque
 bool dado_mouse_clicavel(void);           // mouse sobre um botao ou opcao
+// Controles: com que se joga agora (as dicas de tecla da tela mostram os
+// botoes dele) - 0 teclado e mouse, 1 controle do Xbox (e parecidos), 2 do
+// PlayStation. E, no modo 2 jogadores, quem escolhe agora (0 ou 1; -1:
+// qualquer um), para cada controle so jogar na sua vez.
+enum { CONTROLE_NENHUM, CONTROLE_XBOX, CONTROLE_PS };
+void dado_controle(int estilo);
+int  dado_vez_do_controle(void);
 // O salao em volta da mesa, para a margem da janela: px tem w x h pixels do
 // jogo, com o quadro de GFX_W x GFX_H em (ox, oy).
 void dado_salao(uint16_t *px, int w, int h, int ox, int oy);

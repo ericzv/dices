@@ -221,6 +221,7 @@ void dado_desenha(void)
     desenha_som();                                       // o painel do som, por cima de tudo
     bool tem_dica = !menu && !som_aberto && dica_rect(r, &d);
     if (tem_dica) desenha_dica(r, d);
+    desenha_armada();                                    // o toque esperando o segundo
     desenha_fantasma_voo();
     desenha_misterio();
     desenha_clarao();                                    // o golpe: o clarao de quem acertou

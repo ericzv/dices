@@ -300,9 +300,95 @@ static bool eh_tecla(const char *p, int n)
     return letra;
 }
 
+// Jogando com controle, as dicas mostram os botoes dele no lugar das teclas
+// (jogos.h): os quatro da direita como no controle - o A, B, X e Y coloridos
+// do Xbox, ou a cruz, a bola, o quadrado e o triangulo do PlayStation -, o
+// direcional no lugar das setas e o nome dos outros.
+static int controle_estilo;
+void dado_controle(int estilo) { controle_estilo = estilo; }
+enum { BT_BAIXO, BT_DIREITA, BT_ESQUERDA, BT_CIMA };
+
+static void desenha_botao_face(int cx, int cy, int qual)
+{
+    gfx_disco(cx, cy + 1, 8, C_BARRA);                              // a sombra
+    gfx_disco(cx, cy, 8, C_BARRA);                                  // o contorno
+    if (controle_estilo == CONTROLE_PS) {
+        static const uint16_t COR[4] = { RGB(124, 160, 220), RGB(214, 92, 96), RGB(226, 164, 168), RGB(112, 196, 150) };
+        uint16_t c = COR[qual];
+        gfx_disco(cx, cy, 7, C_EBANO_B);
+        gfx_rect(cx - 4, cy - 6, 8, 1, C_CINZA);                    // luz
+        switch (qual) {
+        case BT_BAIXO:                                              // a cruz
+            gfx_linha(cx - 3, cy - 3, cx + 3, cy + 3, c); gfx_linha(cx - 2, cy - 3, cx + 3, cy + 2, c);
+            gfx_linha(cx + 3, cy - 3, cx - 3, cy + 3, c); gfx_linha(cx + 2, cy - 3, cx - 3, cy + 2, c);
+            break;
+        case BT_DIREITA:                                            // a bola
+            gfx_disco(cx, cy, 4, c); gfx_disco(cx, cy, 2, C_EBANO_B);
+            break;
+        case BT_ESQUERDA:                                           // o quadrado
+            gfx_moldura(cx - 3, cy - 3, 7, 7, 1, c);
+            break;
+        default:                                                    // o triangulo
+            gfx_linha(cx, cy - 4, cx - 4, cy + 3, c); gfx_linha(cx, cy - 4, cx + 4, cy + 3, c);
+            gfx_linha(cx - 4, cy + 3, cx + 4, cy + 3, c);
+            break;
+        }
+        return;
+    }
+    static const uint16_t COR[4] = { RGB(88, 152, 84), RGB(190, 56, 60), RGB(56, 86, 150), RGB(228, 194, 106) };
+    static const char *const LETRA[4] = { "A", "B", "X", "Y" };
+    gfx_disco(cx, cy + 1, 9, C_BARRA);                              // um pouco maior: a letra e a da tecla
+    gfx_disco(cx, cy, 9, C_BARRA);
+    gfx_disco(cx, cy, 8, COR[qual]);
+    int w = gfx_largura(LETRA[qual], 1);
+    gfx_texto(cx - w / 2, cy - 11, LETRA[qual], qual == BT_CIMA ? C_BARRA : C_BRANCO, 1, false);
+}
+
+// O direcional: a cruz, com as quatro pontas.
+static void desenha_direcional(int x, int y)
+{
+    gfx_rect(x + 6, y, 6, 17, C_BARRA);
+    gfx_rect(x, y + 5, 18, 7, C_BARRA);
+    gfx_rect(x + 7, y + 1, 4, 15, C_EBANO_B);
+    gfx_rect(x + 1, y + 6, 16, 5, C_EBANO_B);
+    gfx_rect(x + 8, y + 2, 2, 2, C_MARFIM);                          // as pontas
+    gfx_rect(x + 8, y + 13, 2, 2, C_MARFIM);
+    gfx_rect(x + 2, y + 7, 2, 2, C_MARFIM);
+    gfx_rect(x + 14, y + 7, 2, 2, C_MARFIM);
+}
+
+// A tecla de rot (n letras) no controle: o botao de face (0..3), o direcional
+// (4), ou o nome do botao em 'nome'; -1: o controle nao tem (fica a tecla).
+static int botao_da_tecla(const char *rot, int n, const char **nome)
+{
+    bool xbox = controle_estilo != CONTROLE_PS;
+    *nome = NULL;
+    if (n == 5 && !strncmp(rot, "ENTER", 5)) return BT_BAIXO;
+    if (n == 9 && !strncmp(rot, "BACKSPACE", 9)) return BT_DIREITA;
+    if (n == 3 && !strncmp(rot, "TAB", 3)) return BT_CIMA;
+    if (n == 1 && rot[0] == 'I') return BT_ESQUERDA;
+    if (n == 5 && !strncmp(rot, "setas", 5)) return 4;
+    if (n == 3 && !strncmp(rot, "ESC", 3)) *nome = xbox ? "START" : "OPTIONS";
+    else if (n == 1 && rot[0] == 'B') *nome = xbox ? "VIEW" : "SHARE";
+    else if (n == 1 && rot[0] == 'X') *nome = xbox ? "LB" : "L1";
+    else if (n == 1 && rot[0] == 'V') *nome = xbox ? "RB" : "R1";
+    return *nome ? 5 : -1;
+}
+
 // Uma tecla: face de ebano com espessura embaixo. 'setas' vira duas setinhas.
 static int tecla(int x, int y, const char *rot, int n, bool desenha)
 {
+    const char *nome = NULL;
+    int bt = controle_estilo ? botao_da_tecla(rot, n, &nome) : -1;
+    if (bt >= 0 && bt < 4) {
+        if (desenha) desenha_botao_face(x + 9, y + 8, bt);
+        return 19;
+    }
+    if (bt == 4) {
+        if (desenha) desenha_direcional(x, y);
+        return 18;
+    }
+    if (nome) { rot = nome; n = (int)strlen(nome); }
     bool setas = n == 5 && !strncmp(rot, "setas", 5);
     char s[16];
     snprintf(s, sizeof s, "%.*s", n < 15 ? n : 15, rot);
@@ -560,17 +646,76 @@ static int ui_entra(float t, int i, int dist)
 // Mouse: cada tela, ao se desenhar, marca as areas que aceitam clique. Passar
 // o mouse por cima poe o cursor na opcao; clicar e o mesmo que apertar a
 // tecla da area (quase sempre ENTER).
+//
+// No toque (celular, tablet) nao ha "passar por cima": nas telas de jogo
+// (a partida, a loja, o mapa, os amuletos, a escolha da bolsa) as areas que
+// fazem alguma coisa pedem dois toques - o primeiro escolhe e mostra o que e,
+// o segundo confirma. Voltar, olhar a bolsa, o som, a velocidade e os menus
+// seguem com um toque so.
 // ---------------------------------------------------------------------------
-typedef struct { int16_t x, y, w, h; int *var; int val; int tecla; } zona_clique_t;
+typedef struct { int16_t x, y, w, h; int *var; int val; int tecla; bool confirma; } zona_clique_t;
 #define MAX_ZONAS 64
 static zona_clique_t zonas[MAX_ZONAS];
 static int n_zonas, zonas_fase;            // zonas_fase: a tela que as marcou
 static int mouse_x = -1, mouse_y = -1;
 
+static bool fase_de_acao(void)
+{
+    switch (fase) {
+    case F_ORDEM: case F_APOSTA: case F_ARRUMA: case F_JOGA: case F_LOJA: case F_PREMIO:
+    case F_MAPA: case F_RLOJA: case F_RAMULETO: case F_RBOLSAS:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla)
 {
     if (n_zonas >= MAX_ZONAS) return;
-    zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla };
+    // So olhar (ou voltar) nao pede confirmacao: setas, ESC, BACKSPACE, a
+    // bolsa e o som (>= 0x200), a velocidade e os detalhes.
+    bool so_olha = !tecla || tecla == KEY_BKSP || tecla == KEY_ESC || tecla >= KEY_UP || tecla == 'v' || tecla == 'i';
+    zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla,
+                                        fase_de_acao() && !so_olha };
+}
+// A ultima zona marcada vale com um toque so (abre uma tela de olhar).
+static void zona_sem_confirmar(void) { if (n_zonas > 0) zonas[n_zonas - 1].confirma = false; }
+
+// A zona escolhida pelo primeiro toque, esperando o segundo. Qualquer tecla,
+// outra tela ou outro toque desarma (teclado.inc).
+static struct { bool ativo; int fase, cx, cy, val, tecla; int *var; } armada;
+static bool armando;                    // as teclas que o primeiro toque manda (online) nao desarmam
+static float passa_em;                  // quando o cursor tocou o SOM_PASSA (para nao tocar dois juntos)
+
+static bool zona_armada(const zona_clique_t *z)
+{
+    if (!armada.ativo || armada.fase != fase || armada.tecla != z->tecla || armada.var != z->var || armada.val != z->val)
+        return false;
+    // Sem cursor, a mesma zona e a do mesmo lugar (os cartoes balancam um pouco).
+    int dx = z->x + z->w / 2 - armada.cx, dy = z->y + z->h / 2 - armada.cy;
+    return z->var || (dx * dx + dy * dy <= 16 * 16);
+}
+
+// Depois do primeiro toque: um lembrete em cima da zona escolhida (e, num
+// botao, que nao tem cursor, as cantoneiras da selecao em volta).
+static void desenha_armada(void)
+{
+    if (!armada.ativo || armada.fase != fase || zonas_fase != fase) return;
+    for (int i = n_zonas - 1; i >= 0; i--) {
+        const zona_clique_t *z = &zonas[i];
+        if (!zona_armada(z)) continue;
+        if (!z->var) ui_cantos(z->x, z->y, z->w, z->h, 0);
+        const char *s = "toque de novo";
+        int w = gfx_largura(s, 1) + 12, h = TXT_H + 5;
+        int x = z->x + z->w / 2 - w / 2, y = z->y - h - 5;
+        if (y < 2) y = z->y + z->h + 5;
+        if (x < 4) x = 4;
+        if (x + w > GFX_W - 4) x = GFX_W - 4 - w;
+        ui_etiqueta(x, y, w, h, C_OURO);
+        txt(x + 6, y + 2, s, C_OURO, false);
+        return;
+    }
 }
 
 // Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.

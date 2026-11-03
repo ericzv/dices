@@ -429,21 +429,42 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 // Remendo soma 2 ao lado que ficou para cima (em sorteia_valor_de, antes dos
 // poderes). 'lado' recebe o lado de cima (0: fora dos lados do dado);
 // 'antes', o lado do Avesso ou da Nota Dez de onde ele virou (0: nao virou).
+// Um pouso do dado t, com os adesivos dele: o Chumbo puxa o lance x para o
+// lado dele (um: metade das vezes; dois, o maximo: cada um a metade); caindo
+// no Avesso, vira o lado oposto; na Nota Dez, o mais alto (uma vez so: o lado
+// de la nao faz virar de novo). 'antes': o lado de onde virou (0: nao virou).
+static int pousa_lado(int t, const peca_t *p, int x, int (*r)(int), int *antes)
+{
+    int ch[AD_LADOS], n = 0;
+    for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
+    if (n == 1 && r(2) == 1) x = ch[0];
+    else if (n > 1) x = ch[r(n) - 1];
+    *antes = 0;
+    int a = ad_no_lado(p, x);
+    if (a == AD_AVESSO) { *antes = x; x = ad_oposto(t, x); }
+    else if (a == AD_NOTA_DEZ && x != ad_lado_max(t)) { *antes = x; x = ad_lado_max(t); }
+    return x;
+}
+
 static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *menor, int *lado, int *antes)
 {
     int ef = TIPO[t].efeito;
     int x0 = primeiro_lance(t, r);
     *antes = 0;
-    if (p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL && ef != EF_RELOGIO
-        && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA) {          // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
-        int ch[AD_LADOS], n = 0;
-        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
-        // Um Chumbo: metade das vezes; dois (o maximo), cada um a metade.
-        if (n == 1 && r(2) == 1) x0 = ch[0];
-        else if (n > 1) x0 = ch[r(n) - 1];
-        int a0 = ad_no_lado(p, x0);
-        if (a0 == AD_AVESSO) { *antes = x0; x0 = ad_oposto(t, x0); }
-        else if (a0 == AD_NOTA_DEZ && x0 != ad_lado_max(t)) { *antes = x0; x0 = ad_lado_max(t); }
+    bool pousa = p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL && ef != EF_RELOGIO
+              && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA;   // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
+    if (pousa) x0 = pousa_lado(t, p, x0, r, antes);
+    if (pousa && ef == EF_VICIADO) {
+        // O Viciado rola duas vezes, e cada lance e um pouso de verdade: o
+        // segundo tambem passa pelo Chumbo, pelo Avesso e pela Nota Dez. Fica o
+        // maior (com o Remendo); 'antes' e o do que ficou.
+        int b, y = pousa_lado(t, p, r(TIPO[t].lados), r, &b);
+        int vx = remenda(p, x0), vy = remenda(p, y);
+        if (vy > vx) { *lado = y; *menor = vx; *antes = b; }
+        else         { *lado = x0; *menor = vy; }
+        int x = vy > vx ? vy : vx;
+        if (*lado < ad_lado_min(t) || *lado > ad_lado_max(t)) *lado = 0;
+        return x;
     }
     int x = sorteia_valor_de(t, fixo, x0, p, r, menor, lado);
     // O Previsivel nao rola, mas o lado da escada que ficou para cima vira

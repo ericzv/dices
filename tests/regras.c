@@ -3145,6 +3145,29 @@ int main(void)
         lances_seq[0] = 6; lances_seq[1] = 5; li_seq = 0;
         x = sorteia_peca(D_VICIADO, 0, &vi, rola_seq, &menor, &lado, &antes);
         CONFERE(x == 7 && lado == 5 && menor == 6, "Viciado 6 e 5 (remendado: 7): fica o 7 (%d, lado %d, descarta %d)", x, lado, menor);
+        // Cada lance do Viciado pousa de verdade: o Avesso, a Nota Dez e o
+        // Chumbo agem tambem no segundo.
+        peca_t va = { .tipo = D_VICIADO };
+        ad_cola(&va, 1, AD_AVESSO);
+        lances_seq[0] = 3; lances_seq[1] = 1; li_seq = 0;      // 3, e o 1 vira 6
+        x = sorteia_peca(D_VICIADO, 0, &va, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && menor == 3 && antes == 1, "Viciado 3 e 1 (Avesso: 6): fica o 6 (%d, lado %d, descarta %d, antes %d)", x, lado, menor, antes);
+        lances_seq[0] = 1; lances_seq[1] = 3; li_seq = 0;      // o 1 vira 6, e o 3
+        x = sorteia_peca(D_VICIADO, 0, &va, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && menor == 3 && antes == 1, "Viciado 1 (Avesso: 6) e 3: fica o 6 (%d, lado %d, descarta %d, antes %d)", x, lado, menor, antes);
+        lances_seq[0] = 1; lances_seq[1] = 1; li_seq = 0;      // os dois viram 6
+        x = sorteia_peca(D_VICIADO, 0, &va, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 6 && menor == 6, "Viciado 1 e 1, com o Avesso: 6 e 6 (%d, descarta %d)", x, menor);
+        peca_t vn = { .tipo = D_VICIADO };
+        ad_cola(&vn, 2, AD_NOTA_DEZ);
+        lances_seq[0] = 4; lances_seq[1] = 2; li_seq = 0;      // 4, e o 2 vira 6
+        x = sorteia_peca(D_VICIADO, 0, &vn, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 6 && lado == 6 && menor == 4 && antes == 2, "Viciado 4 e 2 (Nota Dez: 6): fica o 6 (%d, descarta %d)", x, menor);
+        peca_t vc = { .tipo = D_VICIADO };
+        ad_cola(&vc, 5, AD_CHUMBO);
+        lances_seq[0] = 2; lances_seq[1] = 2; lances_seq[2] = 3; lances_seq[3] = 1; li_seq = 0;   // 2 (o Chumbo nao puxa); 3, puxado ao 5
+        x = sorteia_peca(D_VICIADO, 0, &vc, rola_seq, &menor, &lado, &antes);
+        CONFERE(x == 5 && lado == 5 && menor == 2, "Viciado com Chumbo no 5: o segundo lance tambem e puxado (%d, descarta %d)", x, menor);
         J[0].col[3] = (peca_t){ .tipo = D_TREVO };
         ad_cola(&J[0].col[3], 2, AD_REMENDO);
         lances_seq[0] = 2; li_seq = 0;

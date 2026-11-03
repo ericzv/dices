@@ -283,8 +283,9 @@ static void desenha_bolsas(void)
             bs_linha(y + 18, bo->custo, cc, false, gfx_mistura(C_VINHO_CLR, C_FELTRO, (int)((1 - qa) * 100)));
         }
     }
-    // Os dados do comeco, depois do rotulo: os de numero juntos (D6 x6), e os
-    // de poder, depois do "+", com o nome embaixo. Entram um de cada vez.
+    // Os dados do comeco, depois do rotulo: os de base juntos (D6 x6), e os
+    // que vem a mais (o D8 e os de poder), depois do "+", com o nome
+    // embaixo. Entram um de cada vez.
     // Os Quebrados, cada um com o numero gravado, ficam separados.
     int tipos[BOLSA_DADOS], fixos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
     for (int i = 0; i < n; i++) {
@@ -296,7 +297,7 @@ static void desenha_bolsas(void)
     int larg[BOLSA_DADOS], w = 0;
     bool mais_antes = false;
     for (int g = 0; g < ng; g++) {
-        bool poder = TIPO[tipos[g]].efeito != EF_NADA;
+        bool poder = bolsa_extra(tipos[g]);
         char xn[8];
         snprintf(xn, sizeof xn, "x%d", conta[g]);
         int wn = gfx_largura(TIPO[tipos[g]].nome, GFX_FINO) + 4;
@@ -312,7 +313,7 @@ static void desenha_bolsas(void)
     mais_antes = false;
     for (int g = 0; g < ng; g++) {
         float q = (t - 0.2f - g * 0.05f) / 0.16f;
-        bool poder = TIPO[tipos[g]].efeito != EF_NADA;
+        bool poder = bolsa_extra(tipos[g]);
         if (poder && !mais_antes) {
             mais_antes = true;
             if (q > 0) txt(x + 2, dy - 10, "+", fechada ? C_TEXTO_M : C_OURO, true);
@@ -320,7 +321,7 @@ static void desenha_bolsas(void)
         }
         if (q > 0) {
             int cx = poder ? x + larg[g] / 2 : x + 12;
-            peca_t p = { .tipo = (uint8_t)tipos[g], .fixo = (uint8_t)fixos[g] };
+            peca_t p = tipos[g] == D_ADESIVADO ? adesivado_amostra() : (peca_t){ .tipo = (uint8_t)tipos[g], .fixo = (uint8_t)fixos[g] };
             float r = (poder ? 11 : 10) * (q < 1 ? sai_mola(q) : 1);
             peca_parada((float)cx, (float)dy, r, p, 0);
             if (fechada) ui_escurece(cx - 12, dy - 12, 25, 25, 120);

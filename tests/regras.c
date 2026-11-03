@@ -2289,7 +2289,7 @@ int main(void)
         // Fechada: a run comeca com o Saco de Pano. O Copo abre com o
         // Crupie vencido e os Fosforos com uma run vencida, ja de antes.
         des_bolsa = B_LAPIS; des_nova_run();
-        CONFERE(run.bolsa == B_PANO && run.n_col == 12, "bolsa fechada: o Saco de Pano (%d)", run.bolsa);
+        CONFERE(run.bolsa == B_PANO && run.n_col == 13, "bolsa fechada: o Saco de Pano (%d)", run.bolsa);
         CONFERE(bolsa_aberta(B_PANO) && !bolsa_aberta(B_COPO) && !bolsa_aberta(B_FOSFORO), "so o Saco de Pano aberto");
         perfis[0].marcos = 1;
         CONFERE(bolsa_aberta(B_COPO), "o Crupie vencido abre o Copo");
@@ -2298,20 +2298,25 @@ int main(void)
         perfis[0].venceu[3] = 0;
         CONFERE(perfis[0].bolsa_ult == B_PANO, "a ultima escolhida: %d", perfis[0].bolsa_ult);
         perfis[0].bolsas = 0xFF;
-        // Copo de Couro: sem os D2, com dois D8 e o Viciado; compra 6.
+        // Copo de Couro: sem os D2, com um D8 e o Viciado; compra 6.
         des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int d2 = 0, d8 = 0, vic = 0;
         for (int i = 0; i < run.n_col; i++) { d2 += run.col[i].tipo == D_D2; d8 += run.col[i].tipo == D_D8; vic += run.col[i].tipo == D_VICIADO; }
-        CONFERE(run.bolsa == B_COPO && run.n_col == 13 && !d2 && d8 == 2 && vic == 1 && tam_mao(0) == 6 && J[0].n_mao == 6,
+        CONFERE(run.bolsa == B_COPO && run.n_col == 12 && !d2 && d8 == 1 && vic == 1 && tam_mao(0) == 6 && J[0].n_mao == 6,
                 "Copo: %d dados, mao %d", run.n_col, J[0].n_mao);
         CONFERE(perfis[0].bolsa_ult == B_COPO, "a ultima escolhida, o Copo: %d", perfis[0].bolsa_ult);
-        // Lata de Biscoito: sem adesivos colados, a vitrine com 1 e o adesivo 1 mais barato.
+        // Lata de Biscoito: o Adesivado (ja com 3 adesivos) no lugar do Par, a
+        // vitrine com 1 e o adesivo 1 mais barato.
         des_bolsa = B_LATA; des_nova_run();
-        int ad = 0;
-        for (int i = 0; i < run.n_col; i++) ad += ad_quantos(&run.col[i]);
+        int ad = 0, adesivado = 0, par = 0;
+        for (int i = 0; i < run.n_col; i++) {
+            ad += ad_quantos(&run.col[i]);
+            adesivado += run.col[i].tipo == D_ADESIVADO; par += run.col[i].tipo == D_PAR;
+        }
         run.dois_adesivos = 0;
-        CONFERE(ad == 0 && n_vitrine() == 1 && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
-                "Lata: %d adesivos, vitrine %d, Lobo %d", ad, n_vitrine(), preco_adesivo(AD_LOBO));
+        CONFERE(adesivado == 1 && !par && ad == 3 && run.n_col == 13 && n_vitrine() == 1
+                && preco_adesivo(AD_LOBO) == ADESIVO[AD_LOBO].preco - 1,
+                "Lata: %d Adesivado, %d adesivos, vitrine %d, Lobo %d", adesivado, ad, n_vitrine(), preco_adesivo(AD_LOBO));
         run.dois_adesivos = 1;
         CONFERE(n_vitrine() == 0 && n_adesivos_loja() == 2 && lj_item_pacote() == 2, "Lata na loja de dois adesivos: %d dados",
                 n_vitrine());
@@ -2323,8 +2328,18 @@ int main(void)
                 pac_ad, preco_pacote());
         run_poe_amuleto(A_CARTOLA);
         CONFERE(n_vitrine() == 2, "Lata com a Cartola: %d", n_vitrine());
-        // Porquinho: a mesa paga 1 a menos e poe 2 nele; quebrar leva tudo.
-        des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0); loja_sai();
+        // Porquinho: vem com Fichas, Cobrador e Agiota; a mesa paga 1 a menos e
+        // poe 2 nele; quebrar leva tudo.
+        des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0);
+        {
+            int fi = 0, co = 0, ag = 0;
+            for (int i = 0; i < run.n_col; i++) {
+                fi += run.col[i].tipo == D_FICHAS; co += run.col[i].tipo == D_COBRADOR; ag += run.col[i].tipo == D_AGIOTA;
+            }
+            CONFERE(fi == 1 && co == 1 && ag == 1 && run.n_col == 15, "Porquinho: %d Fichas, %d Cobrador, %d Agiota, %d dados",
+                    fi, co, ag, run.n_col);
+        }
+        loja_sai();
         des_comeca_partida();
         int m = run.moedas;
         venc_partida = 0; des_resultado();
@@ -2335,19 +2350,19 @@ int main(void)
         CONFERE(run.moedas == m + PORCO_GUARDA && !run.porco && run.porco_quebrou && !porco_inteiro(), "Porquinho quebrado: %d", run.moedas - m);
         porco_quebra();
         CONFERE(run.moedas == m + PORCO_GUARDA, "o Porquinho so quebra uma vez");
-        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 nas duas ultimas; vem com Trevo, Semente e D8, e uma Moeda so.
+        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 nas duas ultimas; vem com Trevo, Semente e Par, e uma Moeda so.
         des_bolsa = B_SEMENTES; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int sb[9];
         for (int r = 1; r <= 8; r++) { rodada = r; sb[r] = sementes_bonus(0); }
-        int sem = 0, trevo = 0, s_d8 = 0, s_d2 = 0;
+        int sem = 0, trevo = 0, s_par = 0, s_d8 = 0, s_d2 = 0;
         for (int i = 0; i < run.n_col; i++) {
-            sem += run.col[i].tipo == D_SEMENTE; trevo += run.col[i].tipo == D_TREVO;
+            sem += run.col[i].tipo == D_SEMENTE; trevo += run.col[i].tipo == D_TREVO; s_par += run.col[i].tipo == D_PAR;
             s_d8 += run.col[i].tipo == D_D8; s_d2 += run.col[i].tipo == D_D2;
         }
         CONFERE(sb[1] == -1 && sb[2] == -1 && sb[3] == 0 && sb[6] == 0 && sb[7] == 1 && sb[8] == 1 && !sementes_bonus(1),
                 "Sementes: %d %d %d %d %d", sb[1], sb[2], sb[3], sb[7], sb[8]);
-        CONFERE(sem == 1 && trevo == 1 && s_d8 == 1 && s_d2 == 1 && run.n_col == 14,
-                "Sementes: %d Semente, %d Trevo, %d D8, %d Moeda, %d dados", sem, trevo, s_d8, s_d2, run.n_col);
+        CONFERE(sem == 1 && trevo == 1 && s_par == 1 && !s_d8 && s_d2 == 1 && run.n_col == 14,
+                "Sementes: %d Semente, %d Trevo, %d Par, %d D8, %d Moeda, %d dados", sem, trevo, s_par, s_d8, s_d2, run.n_col);
         rodada = 1;
         limpa(); joga(0, D_D6, 4);
         CONFERE(F[0].pontos == 3, "Sementes na rodada 1: o 4 pontua %d", F[0].pontos);
@@ -2379,9 +2394,12 @@ int main(void)
         amuleto_escolhido(2);
         CONFERE(fase == F_RLOJA && am_conta(run_amuletos()) == 2, "Bauzinho: 2 amuletos (%d)", am_conta(run_amuletos()));
         {
-            int d8 = 0, d12 = 0;
-            for (int i = 0; i < run.n_col; i++) { d8 += run.col[i].tipo == D_D8; d12 += run.col[i].tipo == D_D12; }
-            CONFERE(d8 == 1 && !d12, "Bauzinho: vem com um D8 (%d D8, %d D12)", d8, d12);
+            int d8 = 0, d12 = 0, fv = 0;
+            for (int i = 0; i < run.n_col; i++) {
+                d8 += run.col[i].tipo == D_D8; d12 += run.col[i].tipo == D_D12; fv += run.col[i].tipo == D_FICHA_VELHA;
+            }
+            CONFERE(d8 == 1 && !d12 && fv == 1 && run.n_col == 14, "Bauzinho: vem com um D8 e a Ficha Velha (%d D8, %d D12, %d Ficha Velha)",
+                    d8, d12, fv);
         }
         // Caixa de Fosforos: 45 fichas e a mao dele a vista.
         des_bolsa = B_FOSFORO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
@@ -2460,12 +2478,12 @@ int main(void)
         perfil_atual = 0; perfis_lidos = true;
         des_dif = 0;
         des_nova_run();
-        int d2 = 0, d4 = 0, d6 = 0;
+        int d2 = 0, d4 = 0, d6 = 0, d8 = 0;
         for (int i = 0; i < run.n_col; i++) {
-            d2 += run.col[i].tipo == D_D2; d4 += run.col[i].tipo == D_D4; d6 += run.col[i].tipo == D_D6;
+            d2 += run.col[i].tipo == D_D2; d4 += run.col[i].tipo == D_D4; d6 += run.col[i].tipo == D_D6; d8 += run.col[i].tipo == D_D8;
         }
-        CONFERE(run.n_col == 12 && d2 == 2 && d4 == 4 && d6 == 6 && run.moedas == DES_MOEDAS,
-                "run nova: %d dados (%d, %d, %d), %d moedas", run.n_col, d2, d4, d6, run.moedas);
+        CONFERE(run.n_col == 13 && d2 == 2 && d4 == 4 && d6 == 6 && d8 == 1 && run.moedas == DES_MOEDAS,
+                "run nova: %d dados (%d, %d, %d, %d), %d moedas", run.n_col, d2, d4, d6, d8, run.moedas);
         // As moedas do comeco: 4 no terreo, e uma a mais a cada andar (14 na Cobertura).
         CONFERE(moedas_iniciais(0) == 4 && moedas_iniciais(1) == 5 && moedas_iniciais(2) == 6
                 && moedas_iniciais(N_NIVEIS) == 4 + N_NIVEIS, "moedas do comeco: %d %d %d ... %d",

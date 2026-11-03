@@ -63,13 +63,13 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 
   | Bolsa | Melhora | Piora | Abre quando |
   |---|---|---|---|
-  | Saco de Pano | os dados de sempre | sem regra | desde o começo |
-  | Copo de Couro | dois D8 e o Viciado no lugar dos D2 | compra 6 dados por rodada | vencer o Crupiê |
-  | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Par | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
-  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas e Cobrador | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
-  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com o Trevo, a Semente e um D8 (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
+  | Saco de Pano | os dados de sempre; vem com um D8 | sem regra | desde o começo |
+  | Copo de Couro | o Viciado no lugar dos D2; vem com um D8 | compra 6 dados por rodada | vencer o Crupiê |
+  | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Adesivado (já com 3 adesivos) | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
+  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas, Cobrador e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
+  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com o Trevo, a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -3 | vencer 3 rodadas de uma partida com 4 dados válidos |
-  | Bauzinho | começa com 2 amuletos; vem com um D8 | cabem só 4 amuletos | ter 5 amuletos |
+  | Bauzinho | começa com 2 amuletos; vem com um D8 e a Ficha Velha | cabem só 4 amuletos | ter 5 amuletos |
   | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |
 
   A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
@@ -97,7 +97,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   sem dizer por quanto vence ou perde - o mesmo com um Oculto escondido, um
   Terremoto por sacudir, um Espelho esperando ou uma Ficha Coringa por virar
   (vencendo de vez, a vez acaba sozinha). Você começa com os dados da
-  bolsa que escolheu (o Saco de Pano: 12 dados simples, 6 D6, 4 D4 e 2 moedas) e 4 moedas
+  bolsa que escolheu (o Saco de Pano: 13 dados simples, 6 D6, 4 D4, 2 moedas e um D8) e 4 moedas
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
   de cada lado; vencer paga poucas moedas, que sobem a cada mesa e a cada

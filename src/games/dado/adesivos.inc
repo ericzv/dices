@@ -130,7 +130,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_BOMBA]        = { "Papel Bomba", "tirando este lado: rola", "de novo e soma os dois", 4, 1,
                           RGB(204, 194, 172), RGB(252, 248, 236), RGB(36, 32, 29),
                           { "#..#..#", ".#.#.#.", "..###..", "###.###", "..###..", ".#.#.#.", "#..#..#" } },
-    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da partida,", "não pode ser anulado nem destruído", 5, 2,
+    [AD_IMPERMEAVEL]  = { "Impermeável", "tirando este lado: até o fim da partida,", "não pode ser anulado nem destruído", 7, 2,
                           RGB(246, 222, 132), RGB(96, 134, 196), RGB(56, 86, 150),
                           { "..###..", ".#ooo#.", "#o#ooo#", "#o#ooo#", "#ooooo#", ".#ooo#.", "..###.." } },
     [AD_LENTICULAR]   = { "Lenticular", "tirando este lado: válido, x2;", "anulado, -4 no seu placar", 3, 3,

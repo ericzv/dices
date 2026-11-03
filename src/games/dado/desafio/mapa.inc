@@ -149,7 +149,7 @@ enum { PN_BRONZE, PN_PRATA, PN_OURO, PN_DIAMANTE, PN_N };
 #define PAC_NENHUM   0xFF
 enum { PAC_VENDA, PAC_ABERTO, PAC_USADO };
 #define PRECO_PAC_ADESIVOS 4
-static const uint8_t PRECO_NIVEL[PN_N] = { 3, 5, 8, 12 };
+static const uint8_t PRECO_NIVEL[PN_N] = { 2, 4, 7, 10 };   // (eram 3, 5, 8, 12: caros demais para arriscar)
 static const char *const NOME_PACOTE[PN_N + 1] = { "Bronze", "Prata", "Ouro", "Diamante", "Adesivos" };
 // A chance (%) de cada raridade dentro de cada nivel [comum, incomum, raro, lendario].
 static const uint8_t RAR_NIVEL[PN_N][4] = { { 75, 20, 5, 0 }, { 20, 65, 15, 0 }, { 0, 25, 65, 10 }, { 0, 0, 65, 35 } };

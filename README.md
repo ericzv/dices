@@ -112,12 +112,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
   terceiro, este só do nível 5), e abre uma loja pequena: 2 dados e 1
   adesivo, ou 1 dado e 2 adesivos, meio a meio (os dados custam 3, 4, 6 ou 9
-  moedas, pela raridade, e os adesivos, 2 a 6; cada dado e cada adesivo
+  moedas, pela raridade, e os adesivos, 2 a 7; cada dado e cada adesivo
   aparece à venda uma vez só na run, e só os pacotes repetem), um pacote
   (de dados ou de adesivos, meio a meio; o de dados vem numa caixa de um de
-  quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 3 moedas,
-  quase todos comuns; Prata, 5, quase todos incomuns; Ouro, 8, quase todos
-  raros e às vezes um lendário; Diamante, 12, raros e lendários - e a cada
+  quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 2 moedas,
+  quase todos comuns; Prata, 4, quase todos incomuns; Ouro, 7, quase todos
+  raros e às vezes um lendário; Diamante, 10, raros e lendários - e a cada
   oponente vencido os melhores aparecem mais, do Bronze em 3 de cada 4
   lojas depois do primeiro ao Diamante em 6 de cada 10 depois do oitavo; o
   de adesivos, 4 moedas, é um pacotinho de figurinhas com 3 adesivos; os

@@ -4224,6 +4224,17 @@ int main(void)
                     rotulo_parar(s, sizeof s);
                     CONFERE(!strcmp(s, "parar"), "parar com %s por virar: '%s'", QUAL[q], s);
                 }
+                // O risco do "jogar" aparece sempre, em toda dificuldade - menos na
+                // vez do computador, que nem tem botao.
+                {
+                    int modo0 = modo, cpu0 = cpu, dif0 = run.dificuldade;
+                    modo = M_DESAFIO; cpu = 2;
+                    bool todas = true;
+                    for (int dd = 0; dd <= N_NIVEIS; dd++) { run.dificuldade = (uint8_t)dd; vez = 0; todas &= mostra_chance(); }
+                    vez = 1;
+                    CONFERE(todas && !mostra_chance(), "o risco devia aparecer em toda dificuldade (e nao na vez do computador)");
+                    modo = modo0; cpu = cpu0; run.dificuldade = (uint8_t)dif0;
+                }
                 vez = vez0;
             }
             // Da 5a rodada, dado seu anulado e destruido (antes, nao), do Nivel 7.

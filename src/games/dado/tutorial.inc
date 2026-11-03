@@ -25,7 +25,7 @@ static const pagina_t TUTORIAL[] = {
         "Depois de cada dado: jogar o próximo ou parar.",
         "Jogar mostra o risco de anular; parar, quanto falta.",
         "Quem joga depois sabe o alvo: passou, a rodada é sua." },
-        "Quem venceu a rodada anterior abre a próxima, no escuro. O risco some nas dificuldades altas." },
+        "Quem venceu a rodada anterior abre a próxima, no escuro." },
     { "APOSTAS", {
         "Entre os turnos, dá para apostar 10 ou 25 fichas.",
         "O outro paga para ver, aumenta ou corre:",

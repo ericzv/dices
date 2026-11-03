@@ -624,7 +624,7 @@ static void desenha_mapa(void)
 // ---- O aviso: ainda falta um --------------------------------------------
 // Do Nivel 5, vencido o Barao: a mesa apaga, sobra uma luz no meio, alguem
 // espera nela - so a silhueta, com a beira acesa - e a frase vem letra a
-// letra (os tres pontos, devagar). Nao diz quem. ENTER mostra tudo; de
+// letra (os tres pontos, devagar). So a frase: nao diz quem. ENTER mostra tudo; de
 // novo, segue para o amuleto do Barao e a loja.
 static const char AVISO_FRASE[] = "Um último oponente o aguarda...";
 #define AVISO_ESCURO 0.7f                    // a mesa apagando, antes da frase
@@ -710,8 +710,6 @@ static void desenha_aviso(void)
         gfx_texto(x + 2, y + 2, s, C_SOMBRA, 2, true);
         gfx_texto(x, y, s, C_MARFIM, 2, true);
     }
-    if (t > pronto + 0.4f)
-        txt_c(GFX_W / 2, sy + RT_H * esc + 52, "A run ainda não acabou.", C_TEXTO_M, false);
     rodape_run(t >= pronto ? "ENTER continua" : "ENTER mostra tudo");
 }
 

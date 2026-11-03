@@ -2297,6 +2297,34 @@ int main(void)
         CONFERE(bolsa_aberta(B_FOSFORO), "uma run vencida abre os Fosforos");
         perfis[0].venceu[3] = 0;
         CONFERE(perfis[0].bolsa_ult == B_PANO, "a ultima escolhida: %d", perfis[0].bolsa_ult);
+        // So o Saco de Pano aberto: a escolha nem abre, a run comeca com ele.
+        {
+            int runs = perfis[0].runs;
+            des_bolsa = B_LAPIS; fase = F_RDIFIC;
+            abre_bolsas();
+            CONFERE(fase == F_RAMULETO && perfis[0].runs == runs + 1 && run.bolsa == B_PANO,
+                    "so o Pano: a run comeca sem a escolha (fase %d, bolsa %d)", fase, run.bolsa);
+        }
+        // A vitrine: as abertas primeiro e as fechadas no fim; as setas param
+        // nas pontas; o clique numa ficha do lado (ou num pontinho) e os
+        // numeros vao pelo lugar na fila.
+        perfis[0].bolsas = (1u << B_COPO) | (1u << B_PRESENTE);
+        perfis[0].bolsas_vistas = perfis[0].bolsas;
+        abre_bolsas();
+        CONFERE(fase == F_RBOLSAS && bs_cur == B_PANO && bs_ordem[0] == B_PANO && bs_ordem[1] == B_COPO
+                && bs_ordem[2] == B_PRESENTE && bs_ordem[3] == B_LATA && bs_ordem[B_N - 1] == B_MALETA,
+                "vitrine: abertas primeiro (%d %d %d %d ... %d)", bs_ordem[0], bs_ordem[1], bs_ordem[2], bs_ordem[3], bs_ordem[B_N - 1]);
+        bs_tecla(KEY_LEFT, -1);
+        CONFERE(bs_cur == B_PANO, "vitrine: a seta para na primeira (%d)", bs_cur);
+        bs_tecla(KEY_RIGHT, 1); bs_tecla(KEY_RIGHT, 1);
+        CONFERE(bs_cur == B_PRESENTE, "vitrine: duas para a direita, a Sacola de Presente (%d)", bs_cur);
+        bs_tecla(TECLA_BS_VAI + 3, 0);
+        CONFERE(bs_cur == B_LATA && bs_fechada(B_LATA), "vitrine: o clique vai ate a quarta, fechada (%d)", bs_cur);
+        bs_tecla('2', 0);
+        CONFERE(bs_cur == B_COPO, "vitrine: o 2 e a segunda da fila (%d)", bs_cur);
+        for (int i = 0; i < B_N + 2; i++) bs_tecla(KEY_RIGHT, 1);
+        CONFERE(bs_cur == B_MALETA, "vitrine: a seta para na ultima (%d)", bs_cur);
+        perfis[0].bolsas_vistas = 0;
         perfis[0].bolsas = 0xFF;
         // Copo de Couro: sem os D2, com um D8 e o Viciado; compra 6.
         des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
@@ -2350,7 +2378,7 @@ int main(void)
         CONFERE(run.moedas == m + PORCO_GUARDA && !run.porco && run.porco_quebrou && !porco_inteiro(), "Porquinho quebrado: %d", run.moedas - m);
         porco_quebra();
         CONFERE(run.moedas == m + PORCO_GUARDA, "o Porquinho so quebra uma vez");
-        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 nas duas ultimas; vem com Trevo, Semente e Par, e uma Moeda so.
+        // Saco de Sementes: -1 nas rodadas 1 e 2, +1 nas duas ultimas; vem com a Semente e o Par, e uma Moeda so.
         des_bolsa = B_SEMENTES; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int sb[9];
         for (int r = 1; r <= 8; r++) { rodada = r; sb[r] = sementes_bonus(0); }
@@ -2361,7 +2389,7 @@ int main(void)
         }
         CONFERE(sb[1] == -1 && sb[2] == -1 && sb[3] == 0 && sb[6] == 0 && sb[7] == 1 && sb[8] == 1 && !sementes_bonus(1),
                 "Sementes: %d %d %d %d %d", sb[1], sb[2], sb[3], sb[7], sb[8]);
-        CONFERE(sem == 1 && trevo == 1 && s_par == 1 && !s_d8 && s_d2 == 1 && run.n_col == 14,
+        CONFERE(sem == 1 && !trevo && s_par == 1 && !s_d8 && s_d2 == 1 && run.n_col == 13,
                 "Sementes: %d Semente, %d Trevo, %d Par, %d D8, %d Moeda, %d dados", sem, trevo, s_par, s_d8, s_d2, run.n_col);
         rodada = 1;
         limpa(); joga(0, D_D6, 4);
@@ -2413,6 +2441,127 @@ int main(void)
             }
             CONFERE(q4 == 1 && q6 == 1 && run.n_col == 15, "Fosforos: Quebrados 4 (%d) e 6 (%d), %d dados", q4, q6, run.n_col);
         }
+        // As bolsas da loja: a Carteira, a Caixa de Ferramentas, a Caixa de
+        // Papelao, a Sacola de Feira, a Maleta do Apostador e a Sacola de Presente.
+        perfis[0].bolsas = BOLSAS_TODAS;
+        {   // Carteira: comeca sem moedas, com a Moeda sorte e o Cobrador; o chefe paga 10 a mais.
+            des_bolsa = B_CARTEIRA; des_nova_run();
+            int sorte = 0, cob = 0;
+            for (int i = 0; i < run.n_col; i++) { sorte += run.col[i].tipo == D_SORTE; cob += run.col[i].tipo == D_COBRADOR; }
+            CONFERE(run.bolsa == B_CARTEIRA && run.moedas == 0 && fase == F_RAMULETO && sorte == 1 && cob == 1 && run.n_col == 14,
+                    "Carteira: %d moedas, %d dados", run.moedas, run.n_col);
+            amuleto_escolhido(0);
+            run.andar = 0; gera_andar(); run.passo = 0;
+            des_comeca_partida(); venc_partida = 0; des_resultado();
+            CONFERE(!run.bolsa_ganho && run.ganho == moedas_mesa(0), "Carteira: a mesa comum paga o de sempre (%d a mais)", run.bolsa_ganho);
+            run.passo = (uint8_t)(mesas_do_salao() - 1);
+            int m = run.moedas;
+            des_comeca_partida(); venc_partida = 0; des_resultado();
+            CONFERE(run.bolsa_ganho == CARTEIRA_CHEFE && run.ganho == moedas_mesa(run.passo) && run.moedas == m + saque_total()
+                    && saque_total() >= moedas_mesa(run.passo) + CARTEIRA_CHEFE, "Carteira: o chefe paga %d a mais", run.bolsa_ganho);
+        }
+        {   // Caixa de Ferramentas: 20 dados; um tirado de graca por loja (sem
+            // subir o preco dos outros); cada mesa paga 1 a menos.
+            des_bolsa = B_FERRAMENTAS; des_nova_run(); amuleto_escolhido(0);
+            int fe = 0, so = 0, se = 0, ca = 0;
+            for (int i = 0; i < run.n_col; i++) {
+                fe += run.col[i].tipo == D_FERREIRO; so += run.col[i].tipo == D_SOLITARIO;
+                se += run.col[i].tipo == D_SEGURANCA; ca += run.col[i].tipo == D_CALIBRE;
+            }
+            CONFERE(run.n_col == 20 && fe == 1 && so == 1 && se == 1 && ca == 1 && run.estado == R_LOJA_INI && preco_remove() == 0,
+                    "Ferramentas: %d dados, tirar custa %d", run.n_col, preco_remove());
+            run.moedas = 10;
+            lj_tira_i = 0; lj_tira_confirma();
+            CONFERE(run.n_col == 19 && run.moedas == 10 && run.tirou_gratis && !run.remocoes && run.tirados == 1
+                    && preco_remove() == preco_ajusta(3), "Ferramentas: o de graca (%d moedas, o proximo custa %d)", run.moedas, preco_remove());
+            lj_tira_i = 0; lj_tira_confirma();
+            CONFERE(run.n_col == 18 && run.moedas == 10 - preco_ajusta(3) && run.remocoes == 1 && run.tirados == 2,
+                    "Ferramentas: o segundo e pago (%d moedas)", run.moedas);
+            monta_loja_run();
+            CONFERE(preco_remove() == 0, "Ferramentas: a loja seguinte tem outro de graca");
+            run.andar = 0; gera_andar(); run.passo = 0;
+            des_comeca_partida(); venc_partida = 0; des_resultado();
+            CONFERE(run.ganho == moedas_mesa(0) - 1 && !run.bolsa_ganho, "Ferramentas: a mesa paga %d (de %d)", run.ganho, moedas_mesa(0));
+        }
+        {   // Caixa de Papelao: o pacote com 4 cartas, todas diferentes, e
+            // nenhum adesivo avulso na loja.
+            des_bolsa = B_PAPELAO; des_nova_run(); amuleto_escolhido(0);
+            int co = 0, oc = 0;
+            for (int i = 0; i < run.n_col; i++) { co += run.col[i].tipo == D_COLECIONADOR; oc += run.col[i].tipo == D_OCULTO; }
+            CONFERE(co == 1 && oc == 1 && run.n_col == 14 && pac_n() == 4 && !n_adesivos_loja() && run.adesivo == AD_NADA
+                    && lj_n_cartoes() == n_vitrine() + 1 && n_vitrine() == 2, "Papelao: %d dados, pacote de %d, %d adesivos, %d dados a venda",
+                    run.n_col, pac_n(), n_adesivos_loja(), n_vitrine());
+            bool distintos = true, de_dados = false;
+            for (int k = 0; k < 24; k++) {
+                monta_loja_run();
+                for (int i = 0; i < 4; i++)
+                    for (int j2 = 0; j2 < i; j2++)
+                        distintos &= pacote_de_adesivos() ? pac_carta_p(i)->ad[0] && pac_carta_p(i)->ad[0] != pac_carta_p(j2)->ad[0]
+                                                          : pac_carta_p(i)->tipo != pac_carta_p(j2)->tipo;
+                if (!pacote_de_adesivos()) { de_dados = true; break; }
+            }
+            CONFERE(distintos && de_dados, "Papelao: as 4 cartas do pacote sao diferentes");
+            run.moedas = 50;
+            run.pac_estado = PAC_VENDA;
+            loja_pacote();
+            int n0 = run.n_col;
+            pacote_escolhe(3);                           // a quarta carta, a que fica no fim da run
+            CONFERE(run.pacotes == 1 && run.n_col == n0 + 1 && run.col[run.n_col - 1].tipo == run.pac_op_mais[0].tipo
+                    && run.pac_estado == PAC_USADO, "Papelao: leva a quarta carta");
+            lj_pac = false; t_pac_fim = 0;
+        }
+        {   // Sacola de Feira: sem pacote; a primeira troca de cada loja de graca.
+            des_bolsa = B_FEIRA; des_nova_run(); amuleto_escolhido(0);
+            int fa = 0;
+            for (int i = 0; i < run.n_col; i++) fa += run.col[i].tipo == D_FARTURA;
+            CONFERE(fa == 1 && run.n_col == 13 && !tem_pacote() && !n_pacote_loja() && lj_n_cartoes() == n_vitrine() + n_adesivos_loja()
+                    && lj_item_troca() == lj_item_pacote() && preco_troca() == 0, "Feira: %d dados, pacote %d, trocar custa %d",
+                    run.n_col, run.pacote, preco_troca());
+            run.moedas = 10;
+            loja_troca();
+            CONFERE(run.moedas == 10 && run.trocas == 1 && !tem_pacote() && preco_troca() == preco_ajusta(1),
+                    "Feira: a troca de graca (%d moedas, a proxima custa %d)", run.moedas, preco_troca());
+            loja_troca();
+            CONFERE(run.moedas == 10 - preco_ajusta(1) && run.trocas == 2, "Feira: a segunda paga (%d moedas)", run.moedas);
+            monta_loja_run();
+            CONFERE(preco_troca() == 0, "Feira: a loja seguinte troca de graca de novo");
+        }
+        {   // Maleta do Apostador: 45 fichas; cada mesa paga 2 a mais; o
+            // Jackpot, o Vidro, o Carrasco e o Trevo.
+            des_bolsa = B_MALETA; des_nova_run(); amuleto_escolhido(0);
+            int jk = 0, vi = 0, ca = 0, tr = 0;
+            for (int i = 0; i < run.n_col; i++) {
+                jk += run.col[i].tipo == D_JACKPOT; vi += run.col[i].tipo == D_VIDRO;
+                ca += run.col[i].tipo == D_CARRASCO; tr += run.col[i].tipo == D_TREVO;
+            }
+            CONFERE(jk == 1 && vi == 1 && ca == 1 && tr == 1 && run.n_col == 16, "Maleta: %d dados", run.n_col);
+            run.andar = 0; gera_andar(); run.passo = 0;
+            des_comeca_partida();
+            CONFERE(J[0].fichas + ante_da(1) == DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0) - FOSFORO_FICHAS,
+                    "Maleta: %d fichas", J[0].fichas + ante_da(1));
+            venc_partida = 0; des_resultado();
+            CONFERE(run.bolsa_ganho == MALETA_MESA && run.ganho == moedas_mesa(0), "Maleta: a mesa paga %d a mais", run.bolsa_ganho);
+        }
+        {   // Sacola de Presente: sem amuleto, direto a loja da entrada; 3
+            // Presentes; o chefe (o que nao fecha a run) deixa um dado raro.
+            des_bolsa = B_PRESENTE; des_nova_run();
+            int pr = 0;
+            for (int i = 0; i < run.n_col; i++) pr += run.col[i].tipo == D_PRESENTE;
+            CONFERE(fase == F_RLOJA && run.estado == R_LOJA_INI && !run_amuletos() && pr == 3 && run.n_col == 15,
+                    "Presente: fase %d, %d amuletos, %d Presentes", fase, am_conta(run_amuletos()), pr);
+            run.andar = 0; gera_andar(); run.passo = (uint8_t)(mesas_do_salao() - 1);
+            des_comeca_partida();
+            int n0 = run.n_col;
+            venc_partida = 0; des_resultado();
+            int t = run.col[run.n_col - 1].tipo;
+            CONFERE(run.n_col == n0 + 1 && des_presente == t && TIPO[t].raridade == RAR_RARO && no_pacote(t),
+                    "Presente: o chefe deixou %s", TIPO[t].nome);
+            run.passo = 0;
+            des_comeca_partida();
+            n0 = run.n_col;
+            venc_partida = 0; des_resultado();
+            CONFERE(run.n_col == n0 && des_presente < 0, "Presente: a mesa comum nao deixa nada");
+        }
         // O que abre cada uma: adesivos, amuletos, a loja com 12, a virada,
         // as rodadas cheias.
         perfis[0].bolsas = 0;
@@ -2429,10 +2578,40 @@ int main(void)
         des_comeca_partida();
         des_rod_cheias = LAPIS_ABRE - 1;
         limpa(); for (int k = 0; k < 4; k++) joga(0, D_D6, k + 1);
-        des_rodada_vencida();
+        des_rodada_vencida(0);
         CONFERE(bolsa_aberta(B_LAPIS), "rodadas cheias abrem o Estojo de Lapis");
         des_atras7 = true; venc_partida = 0; des_resultado();
         CONFERE(bolsa_aberta(B_SEMENTES), "a virada abre o Saco de Sementes");
+        // As da loja: gastar 25, tirar 5, abrir 5 pacotes, trocar 3 vezes na
+        // mesma loja, levar um pote de 60 e ter 3 dados raros.
+        des_bolsa = B_PANO; des_nova_run(); amuleto_escolhido(0);
+        run.moedas = 200;
+        loja_paga(CARTEIRA_ABRE - 1);
+        CONFERE(!bolsa_aberta(B_CARTEIRA), "24 moedas gastas nao abrem a Carteira");
+        loja_paga(1);
+        CONFERE(bolsa_aberta(B_CARTEIRA) && run.gasto == CARTEIRA_ABRE, "25 moedas gastas abrem a Carteira");
+        for (int k = 0; k < FERRAMENTAS_ABRE - 1; k++) { lj_tira_i = 0; lj_tira_confirma(); }
+        CONFERE(!bolsa_aberta(B_FERRAMENTAS), "4 tirados nao abrem a Caixa de Ferramentas");
+        lj_tira_i = 0; lj_tira_confirma();
+        CONFERE(bolsa_aberta(B_FERRAMENTAS) && run.tirados == FERRAMENTAS_ABRE, "5 tirados abrem a Caixa de Ferramentas");
+        for (int k = 0; k < PAPELAO_ABRE; k++) { run.pacote = PN_BRONZE; run.pac_estado = PAC_VENDA; loja_pacote(); }
+        lj_pac = false;
+        CONFERE(bolsa_aberta(B_PAPELAO) && run.pacotes == PAPELAO_ABRE, "5 pacotes abertos abrem a Caixa de Papelao");
+        monta_loja_run();
+        for (int k = 0; k < FEIRA_ABRE - 1; k++) loja_troca();
+        CONFERE(!bolsa_aberta(B_FEIRA), "2 trocas nao abrem a Sacola de Feira");
+        loja_troca();
+        CONFERE(bolsa_aberta(B_FEIRA), "3 trocas na mesma loja abrem a Sacola de Feira");
+        des_rodada_vencida(MALETA_ABRE - 1);
+        CONFERE(!bolsa_aberta(B_MALETA), "um pote de 59 nao abre a Maleta");
+        des_rodada_vencida(MALETA_ABRE);
+        CONFERE(bolsa_aberta(B_MALETA), "um pote de 60 abre a Maleta do Apostador");
+        for (int k = 0; k < PRESENTE_RAROS - 1; k++) run.col[k] = (peca_t){ .tipo = D_ESCUDO };
+        des_salva();
+        CONFERE(!bolsa_aberta(B_PRESENTE), "2 dados raros nao abrem a Sacola de Presente");
+        run.col[PRESENTE_RAROS - 1] = (peca_t){ .tipo = D_D20 };   // o lendario conta
+        des_salva();
+        CONFERE(bolsa_aberta(B_PRESENTE), "3 dados raros abrem a Sacola de Presente");
         // A run salva de antes das bolsas abre com o Saco de Pano; a desta, com a dela.
         {
             static char buf[2 * sizeof(run_t) + 1];
@@ -2444,6 +2623,23 @@ int main(void)
             hex_de(&run, RUN_TAM_SEM_BOLSA, buf);
             salva_grava(chave_run(), buf);
             CONFERE(des_carrega(&r) && r.bolsa == B_PANO && !r.porco && r.n_col == run.n_col, "a run de antes das bolsas (%d)", r.bolsa);
+        }
+        // A run salva de antes das bolsas da loja abre com a bolsa dela e
+        // nada contado; a desta guarda o que conta.
+        {
+            static char buf[2 * sizeof(run_t) + 1];
+            perfis[0].bolsas = BOLSAS_TODAS;
+            des_bolsa = B_PAPELAO; des_nova_run();
+            run.gasto = 9; run.pacotes = 2; run.tirados = 1; run.pac_op_mais[0].tipo = D_D8;
+            hex_de(&run, RUN_TAM_SEM_BOLSAS2, buf);
+            salva_grava(chave_run(), buf);
+            run_t r;
+            CONFERE(des_carrega(&r) && r.bolsa == B_PAPELAO && !r.gasto && !r.pacotes && !r.tirados && !r.pac_op_mais[0].tipo
+                    && r.n_col == run.n_col, "a run de antes das bolsas da loja (%d gastas)", r.gasto);
+            hex_de(&run, sizeof run, buf);
+            salva_grava(chave_run(), buf);
+            CONFERE(des_carrega(&r) && r.gasto == 9 && r.pacotes == 2 && r.tirados == 1 && r.pac_op_mais[0].tipo == D_D8,
+                    "a run desta guarda o que as bolsas contam");
         }
         // Os perfis de antes das bolsas ("PER5") abrem com tudo e so o Saco de Pano.
         {
@@ -2459,6 +2655,29 @@ int main(void)
             perfil_atual = 1;
             CONFERE(!strcmp(perfis[1].nome, "VELHO") && perfis[1].nivel == 4 && perfis[1].chefes[2] == 5 && perfis[1].runs == 7
                     && !perfis[1].bolsas && bolsa_aberta(B_COPO) && !bolsa_aberta(B_LATA), "perfil PER5 convertido");
+            perfil_atual = 0;
+        }
+        // Os de antes das bolsas da loja ("PER6", as 8 bolsas em 8 bits) abrem
+        // com o que tinham; salvos de novo, vao em "PER7" e guardam as novas.
+        {
+            perfil_6_t v[N_PERFIS];
+            memset(v, 0, sizeof v);
+            snprintf(v[2].nome, sizeof v[2].nome, "SEIS");
+            v[2].nivel = 3; v[2].runs = 11; v[2].bolsas = 0x16; v[2].bolsas_vistas = 0x06; v[2].bolsa_ult = 4; v[2].bolsa_rec[4] = 3;
+            v[2].chefes[1] = 2;
+            static char buf[16 + 2 * sizeof v];
+            memcpy(buf, "PER62", 5);
+            hex_de(v, sizeof v, buf + 5);
+            salva_grava("perfis", buf);
+            perfis_lidos = false; perfis_le();
+            CONFERE(perfil_atual == 2 && !strcmp(perfis[2].nome, "SEIS") && perfis[2].nivel == 3 && perfis[2].runs == 11
+                    && perfis[2].chefes[1] == 2 && perfis[2].bolsas == 0x16 && perfis[2].bolsas_vistas == 0x06 && perfis[2].bolsa_ult == 4
+                    && perfis[2].bolsa_rec[4] == 3 && !perfis[2].bolsa_rec[B_CARTEIRA], "perfil PER6 convertido");
+            perfis[2].bolsas |= (uint32_t)1 << B_PRESENTE;
+            perfis_salva();
+            perfis_lidos = false; perfis_le();
+            CONFERE(perfil_atual == 2 && (perfis[2].bolsas >> B_PRESENTE & 1) && perfis[2].bolsa_rec[4] == 3,
+                    "perfil PER7: a bolsa nova fica salva");
             perfil_atual = 0;
         }
         des_bolsa = B_PANO;

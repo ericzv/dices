@@ -4,11 +4,19 @@
 // Pano; as outras abrem jogando, cada uma por um feito que ensina o jeito
 // dela. Escolher e na tela de fichas (bolsa_escolha.inc).
 // ---------------------------------------------------------------------------
-#define BOLSA_DADOS 16                   // os dados do comeco de cada uma (0xFF: acabou)
+#define BOLSA_DADOS 24                   // os dados do comeco de cada uma (0xFF: acabou)
 #define PORCO_GUARDA 2                   // Porquinho: o que cada mesa vencida poe nele
 #define PORCO_ABRE   12                  // sair de uma loja com isto (ou mais) abre o Porquinho
 #define LATA_ABRE    3                   // adesivos colados na bolsa que abrem a Lata
 #define LAPIS_ABRE   3                   // rodadas cheias numa partida que abrem o Estojo
+#define CARTEIRA_CHEFE 10                // Carteira: o que cada chefe vencido paga a mais
+#define CARTEIRA_ABRE  25                // moedas gastas numa run que abrem a Carteira
+#define FERRAMENTAS_ABRE 5               // dados tirados da bolsa numa run que abrem a Caixa de Ferramentas
+#define PAPELAO_ABRE   5                 // pacotes abertos numa run que abrem a Caixa de Papelao
+#define FEIRA_ABRE     3                 // trocas na mesma loja que abrem a Sacola de Feira
+#define MALETA_MESA    2                 // Maleta do Apostador: o que cada mesa vencida paga a mais
+#define MALETA_ABRE    60                // o pote levado numa rodada que abre a Maleta
+#define PRESENTE_RAROS 3                 // dados raros (ou lendarios) ao mesmo tempo que abrem a Sacola de Presente
 typedef struct {
     const char *nome;
     const char *ganho, *custo;           // a regra: o que melhora e o que piora
@@ -20,6 +28,7 @@ typedef struct {
 
 #define X6(t) t, t, t, t, t, t
 #define X4(t) t, t, t, t
+#define X3(t) t, t, t
 static const bolsa_t BOLSA[B_N] = {
     [B_PANO]     = { "Saco de Pano", "Os dados de sempre.", "Sem regra nenhuma.", "",
                      "Aberta desde o começo.", RGB(120, 78, 50),
@@ -39,7 +48,7 @@ static const bolsa_t BOLSA[B_N] = {
     [B_SEMENTES] = { "Saco de Sementes", "Nas duas últimas rodadas, seus dados pontuam +1.",
                      "Nas rodadas 1 e 2, seus dados pontuam -1.", "",
                      "Vença uma partida começando a 7ª rodada atrás em fichas.", RGB(88, 152, 84),
-                     { X6(D_D6), X4(D_D4), D_D2, D_TREVO, D_SEMENTE, D_PAR, 0xFF } },
+                     { X6(D_D6), X4(D_D4), D_D2, D_SEMENTE, D_PAR, 0xFF } },
     [B_LAPIS]    = { "Estojo de Lápis", "+1 dado na sequência.", "Toda rodada começa com -3.", "",
                      "Vença 3 rodadas de uma partida com 4 dados válidos.", RGB(228, 194, 106),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_DOBRO, D_SORTE, 0xFF } },
@@ -50,9 +59,33 @@ static const bolsa_t BOLSA[B_N] = {
                      "Cada partida começa com 45 fichas, 5 a menos.", "",
                      "Vença uma run.", RGB(214, 112, 44),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_ESCUDO, D_QUEBRADO, D_QUEBRADO, 0xFF } },
+    [B_CARTEIRA] = { "Carteira", "Cada chefe vencido paga 10 moedas a mais.", "A run começa sem moedas (0 em vez de 4 ou mais).", "",
+                     "Gaste 25 moedas numa run.", RGB(130, 204, 112),
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_SORTE, D_COBRADOR, 0xFF } },
+    // A de limpar a bolsa: 20 dados, muitos fracos, e as ferramentas.
+    [B_FERRAMENTAS] = { "Caixa de Ferramentas", "Tirar um dado da bolsa é de graça uma vez por loja.",
+                     "Cada mesa paga 1 moeda a menos.", "",
+                     "Tire 5 dados da bolsa numa run.", RGB(190, 56, 60),
+                     { X6(D_D6), X6(D_D4), X4(D_D2), D_FERREIRO, D_SOLITARIO, D_SEGURANCA, D_CALIBRE, 0xFF } },
+    [B_PAPELAO]  = { "Caixa de Papelão", "Os pacotes de dados e de adesivos mostram 4 opções, em vez de 3.",
+                     "As lojas não vendem adesivo avulso, só pacotes.", "",
+                     "Abra 5 pacotes numa run.", RGB(190, 156, 86),
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_COLECIONADOR, D_OCULTO, 0xFF } },
+    [B_FEIRA]    = { "Sacola de Feira", "Trocar a loja é de graça uma vez por loja.",
+                     "As lojas não vendem pacotes, só dados e adesivos avulsos.", "",
+                     "Troque a loja 3 vezes na mesma loja.", RGB(72, 150, 138),
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_FARTURA, 0xFF } },
+    [B_MALETA]   = { "Maleta do Apostador", "Cada mesa vencida paga 2 moedas a mais.",
+                     "Cada partida começa com 45 fichas, 5 a menos.", "",
+                     "Leve um pote de 60 fichas ou mais.", RGB(140, 150, 164),
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, D_JACKPOT, D_VIDRO, D_CARRASCO, D_TREVO, 0xFF } },
+    [B_PRESENTE] = { "Sacola de Presente", "Cada chefe vencido deixa também um dado raro.", "A run começa sem amuleto.", "",
+                     "Tenha 3 dados raros na bolsa ao mesmo tempo.", RGB(150, 112, 160),
+                     { X6(D_D6), X4(D_D4), D_D2, D_D2, X3(D_PRESENTE), 0xFF } },
 };
 #undef X6
 #undef X4
+#undef X3
 
 static int bolsa_n_dados(int b)
 {
@@ -94,7 +127,7 @@ static bool bolsa_aberta(int b)
 static void abre_bolsa(int b)
 {
     if (perfil_atual < 0 || b <= B_PANO || b >= B_N || bolsa_aberta(b)) return;
-    perfis[perfil_atual].bolsas |= (uint8_t)(1u << b);
+    perfis[perfil_atual].bolsas |= (uint32_t)1 << b;
     perfis_salva();
     bolsa_nova = b;
     t_bolsa_nova = 0;
@@ -102,22 +135,28 @@ static void abre_bolsa(int b)
 }
 
 // O que da para conferir a qualquer hora (des_salva chama): os adesivos
-// colados na bolsa e os amuletos.
+// colados na bolsa, os amuletos e os dados raros (ou lendarios) da bolsa.
 static void bolsas_confere(void)
 {
     if (perfil_atual < 0) return;
-    int ad = 0;
-    for (int i = 0; i < run.n_col; i++) ad += ad_quantos(&run.col[i]);
+    int ad = 0, raros = 0;
+    for (int i = 0; i < run.n_col; i++) {
+        ad += ad_quantos(&run.col[i]);
+        raros += run.col[i].tipo < D_N && TIPO[run.col[i].tipo].raridade >= RAR_RARO;
+    }
     if (ad >= LATA_ABRE) abre_bolsa(B_LATA);
     if (am_conta(run_amuletos()) >= AM_LUGARES) abre_bolsa(B_BAU);
+    if (raros >= PRESENTE_RAROS) abre_bolsa(B_PRESENTE);
 }
 
-// Rodada vencida (partida.inc): as com 4 dados validos abrem o Estojo de Lapis.
-static void des_rodada_vencida(void)
+// Rodada vencida (partida.inc): as com 4 dados validos abrem o Estojo de
+// Lapis; um pote de 60 fichas ou mais, a Maleta do Apostador.
+static void des_rodada_vencida(int pote_levado)
 {
     int n = 0;
     for (int k = 0; k < F[0].lancados && k < N_FILA; k++) n += F[0].est[k] == V_VALIDO;
     if (n >= FILA_NORMAL && ++des_rod_cheias >= LAPIS_ABRE) abre_bolsa(B_LAPIS);
+    if (pote_levado >= MALETA_ABRE) abre_bolsa(B_MALETA);
 }
 
 // ---- A run comeca com a bolsa ----------------------------------------------
@@ -161,7 +200,10 @@ static void porco_quebra(void)
 // desenho vai na faixa (1 pixel por pixel) e na ficha (2). Cada um tem um
 // jeito de se mexer (t >= 0): o pingente do saco balanca, o copo chacoalha
 // e o dado pula, a tampa da lata salta, a moeda cai no porquinho, o broto
-// balanca, o lapis escreve, o bau brilha e o fogo do fosforo tremula.
+// balanca, o lapis escreve, o bau brilha, o fogo do fosforo tremula, a nota
+// afunda na carteira, a alca da caixa de ferramentas balanca, a tampa do
+// papelao bate, as folhas da feira balancam, a maleta entreabre com a luz do
+// ouro e o papel de seda do presente tremula.
 typedef struct { const char *chaves; uint16_t cores[14]; const char *m[16]; } icone_bolsa_t;
 static const icone_bolsa_t ICONE_BOLSA[B_N] = {
     [B_PANO] = { "KlmdGge", { RGB(36, 22, 16), RGB(186, 132, 80), RGB(150, 98, 54), RGB(116, 72, 38), RGB(228, 194, 106), RGB(150, 122, 62), RGB(78, 46, 30) },
@@ -236,6 +278,60 @@ static const icone_bolsa_t ICONE_BOLSA[B_N] = {
               "KYYYYYYYYYYYYYK.", "KRRRRRRRRRRRRYKK",
               "KRwwRbbbbRwwRYKK", "KRRRRRRRRRRRRyKK",
               "KrrrrrrrrrrrrrK.", ".KKKKKKKKKKKKK.." } },
+    [B_CARTEIRA] = { "KGgLMsDYy", { RGB(36, 22, 16), RGB(130, 204, 112), RGB(88, 152, 84), RGB(156, 106, 64), RGB(120, 78, 50), RGB(190, 156, 86), RGB(78, 46, 30), RGB(246, 222, 132), RGB(190, 156, 86) },
+              { "................", ".....KKKKKK.....",
+              "....KGGGGGGK....", "....KGgGGgGK....",
+              "....KGGggGGK....", ".KKKKKKKKKKKKKK.",
+              "KLLLLLLLLLLLLLLK", "KLMsMMsMMsMMsMDK",
+              "KLMMMMMMMMKKKKKK", "KLMMMMMMMKDDDDDK",
+              "KLMMMMMMMKDDYyDK", "KLMMMMMMMKDDyyDK",
+              "KLMMMMMMMKDDDDDK", "KLMMMMMMMMKKKKKK",
+              "KDDDDDDDDDDDDDDK", ".KKKKKKKKKKKKKK." } },
+    [B_FERRAMENTAS] = { "KSsoRrYy", { RGB(36, 22, 16), RGB(184, 194, 208), RGB(140, 150, 164), RGB(208, 98, 108), RGB(190, 56, 60), RGB(118, 30, 38), RGB(246, 222, 132), RGB(190, 156, 86) },
+              { "................", "................",
+              "......KKKK......", ".....KSSSSK.....",
+              ".....KsKKsK.....", "..KKKKsKKsKKKK..",
+              ".KooooooooooooK.", ".KoRRRRRRRRRRrK.",
+              "KKKKKKKYYKKKKKKK", "KoRRRRRYyRRRRRrK",
+              "KoRRRRRRRRRRRRrK", "KoRRRRRRRRRRRRrK",
+              "KoRRRRRRRRRRRRrK", "KrrrrrrrrrrrrrrK",
+              ".KKKKKKKKKKKKKK.", "................" } },
+    [B_PAPELAO] = { "KLTMtDWw", { RGB(36, 22, 16), RGB(190, 156, 86), RGB(238, 230, 212), RGB(150, 122, 62), RGB(204, 194, 172), RGB(106, 86, 44), RGB(252, 248, 236), RGB(166, 154, 132) },
+              { "................", "................",
+              "...KKKKKKKKKK...", "..KLLLLTTLLLLK..",
+              "..KLLLLTTLLLLK..", ".KKKKKKTTKKKKKK.",
+              ".KLMMMMTtMMMMDK.", ".KLMMMMTtMMMMDK.",
+              ".KLMMMMTtMMMMDK.", ".KLMMMMMMMMMMDK.",
+              ".KLWWWWMMMMMMDK.", ".KLwwwWMMMMMMDK.",
+              ".KLWWWWMMMMMMDK.", ".KDDDDDDDDDDDDK.",
+              ".KKKKKKKKKKKKKK.", "................" } },
+    [B_FEIRA] = { "gGOKoRwrhTt", { RGB(88, 152, 84), RGB(130, 204, 112), RGB(214, 112, 44), RGB(36, 22, 16), RGB(238, 162, 74), RGB(190, 56, 60), RGB(252, 248, 236), RGB(118, 30, 38), RGB(168, 204, 230), RGB(96, 182, 198), RGB(72, 150, 138) },
+              { "........gG......", ".......gGg......",
+              "......gGOg......", "...KKKKOoKKKK...",
+              "..K..KOoKRRK.K..", "..K.KOoKRwRrK.K.",
+              ".KKKKoKKRRRrKKK.", ".KhTTKTTKrrKTtK.",
+              ".KhTTTTTTTTTTtK.", ".KhTTwTTwTTwTtK.",
+              ".KhTTTTTTTTTTtK.", ".KhTwTTwTTwTTtK.",
+              ".KhTTTTTTTTTTtK.", ".KttttttttttttK.",
+              "..KKKKKKKKKKKK..", "................" } },
+    [B_MALETA] = { "KaSwsYyL", { RGB(36, 22, 16), RGB(104, 112, 124), RGB(184, 194, 208), RGB(252, 248, 236), RGB(140, 150, 164), RGB(246, 222, 132), RGB(190, 156, 86), RGB(36, 22, 16) },
+              { "................", "................",
+              "......KKKK......", ".....KKaaKK.....",
+              ".....KK..KK.....", ".KKKKKKKKKKKKKK.",
+              "KSwSSSSSSSSSSSsK", "KSYYSSSSSSSSYYsK",
+              "KSyySSSSSSSSyysK", "KLLLLLLLLLLLLLLK",
+              "KSSSSSSSSSSSSSsK", "KSSSSSSSSSSSSSsK",
+              "KSSSSSSSSSSSSSsK", "KssssssssssssssK",
+              ".KKKKKKKKKKKKKK.", "................" } },
+    [B_PRESENTE] = { "WRwrKpPdYyD", { RGB(252, 248, 236), RGB(226, 164, 168), RGB(238, 230, 212), RGB(208, 98, 108), RGB(36, 22, 16), RGB(206, 180, 218), RGB(150, 112, 160), RGB(102, 74, 138), RGB(246, 222, 132), RGB(190, 156, 86), RGB(54, 36, 74) },
+              { "................", ".....W..R.W.....",
+              "....WwWRrRwW....", "....KWwRRWwK....",
+              "...K.KWwWwK.K...", "...K.K....K.K...",
+              ".KKKKKKKKKKKKKK.", ".KpPPPPPPPPPPdK.",
+              ".KpPPPPYYPPPPdK.", ".KpPPPYyyYPPPdK.",
+              ".KpPPPPYYPPPPdK.", ".KpPPPPyyPPPPdK.",
+              ".KpPPPPPPPPPPdK.", ".KdddddddddddDK.",
+              "..KKKKKKKKKKKK..", "................" } },
 };
 
 // O jeito de cada um se mexer, pixel a pixel: o deslocamento, a cor e se
@@ -297,8 +393,49 @@ static void ic_anima(int b, int x, int y, char c, float t, int est, int *dx, int
             if (y <= 1) *dx = f == 0 ? -1 : f == 2 ? 1 : 0;
         }
         break;
+    case B_CARTEIRA: {                                    // a nota afunda (a carteira a cobre) e volta
+        float q = fmodf(t, 2.6f);
+        if (y <= 4 && q < 0.5f) *dy = (int)lroundf(sinf(q / 0.5f * 3.1416f) * 2);
+        if (c == 'Y' && q >= 1.3f && q < 1.45f) *cor = RGB(252, 248, 236);   // o botao brilha
+        break;
+    }
+    case B_FERRAMENTAS:                                   // a alca balanca; a trava brilha
+        if (y >= 2 && y <= 4) *dx = (int)lroundf(sinf(t * 2.4f) * 1);
+        if (c == 'Y' && fmodf(t, 2.2f) < 0.15f) *cor = RGB(252, 248, 236);
+        break;
+    case B_PAPELAO: {                                     // algo bate dentro: a tampa pula duas vezes
+        float q = fmodf(t, 2.5f);
+        if (y <= 4 && (q < 0.12f || (q >= 0.24f && q < 0.36f))) *dy = -1;
+        break;
+    }
+    case B_FEIRA:                                         // as folhas da cenoura balancam
+        if (y <= 2 && (c == 'g' || c == 'G')) *dx = (int)lroundf(sinf(t * 2.2f + y * 0.6f) * 1.1f);
+        break;
+    case B_MALETA: {                                      // entreabre: a tampa sobe e o ouro brilha na fresta
+        float q = fmodf(t, 3.0f);
+        bool abre = q < 0.6f;
+        if (abre && y <= 8) *dy = -1;
+        if (abre && c == 'L') *cor = RGB(246, 222, 132);
+        break;
+    }
+    case B_PRESENTE:                                      // o papel de seda tremula
+        if (y <= 4 && (c == 'W' || c == 'w' || c == 'R' || c == 'r')) *dx = (int)lroundf(sinf(t * 5 + y * 1.3f) * 0.8f);
+        if ((c == 'Y' || c == 'y') && fmodf(t, 2.4f) < 0.15f) *cor = RGB(252, 248, 236);   // o laco brilha
+        break;
     }
 }
+
+// A cor c sem cor: o cinza do mesmo brilho (um pouco mais escuro), misturado
+// q (0..100). A ficha fora de foco na escolha da bolsa.
+static uint16_t cor_cinza(uint16_t c, int q)
+{
+    int r = ((c >> 11) & 31) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
+    int l = (r * 299 + g * 587 + b * 114) / 1000 * 80 / 100;
+    return gfx_mistura(c, RGB(l, l, l), q);
+}
+static int ic_cinza;                     // 0..100: o icone sem cor (a ficha fora de foco)
+static int fb_apaga;                     // 0..100: a ficha inteira misturada no feltro (o fundo da vitrine)
+static uint16_t fb_ap(uint16_t c) { return fb_apaga ? gfx_mistura(c, C_FELTRO_ESC, fb_apaga) : c; }
 
 // O icone da bolsa b com o centro em (cx, cy), e pixels de e x e, estreitado
 // na horizontal por sx (a ficha virando). apaga: 0..100, misturado no escuro.
@@ -317,7 +454,9 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
             bool some = false;
             ic_anima(b, x, y, c, t, est, &dx, &dy, &cor, &some);
             if (some) continue;
+            if (ic_cinza) cor = cor_cinza(cor, ic_cinza);
             if (apaga) cor = gfx_mistura(cor, C_BARRA, apaga);
+            cor = fb_ap(cor);
             float x0 = (x - 8 + dx) * e * sx, x1 = (x - 7 + dx) * e * sx;
             int px = cx + (int)floorf(x0), pw = (int)floorf(x1) - (int)floorf(x0);
             gfx_rect(px, cy + (y - 8 + dy) * e, pw > 0 ? pw : 1, e, cor);
@@ -332,7 +471,7 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
 static void cadeado_em(int cx, int cy, int e, float t)
 {
     int dx = t >= 0 ? (int)lroundf(sinf(t * 50) * 1.4f) : 0;   // tremendo: a ficha nao abre
-    icone_cadeado(cx + dx, cy, e, C_LATAO);
+    icone_cadeado(cx + dx, cy, e, fb_ap(C_LATAO));
 }
 
 // O estagio do Saco de Sementes agora: na partida, pela rodada.
@@ -352,7 +491,8 @@ static void icone_da_run(int cx, int cy)
 // Uma ficha de bolsa, vista de cima (como as do menu): a cor da bolsa, as
 // listras de marfim na borda e o icone no centro. sobe: o cursor a ergue;
 // giro: o angulo das listras; sx: 1 de frente, perto de 0 de lado (virando);
-// fechada: escura, com o cadeado (t_cad >= 0: o cadeado treme).
+// fechada: escura, com o cadeado (t_cad >= 0: o cadeado treme); viva: 1 com a
+// cor, 0 acinzentada (fora de foco na escolha da bolsa).
 static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
 {
     if (rx < 1) rx = 1;
@@ -362,18 +502,22 @@ static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
         gfx_rect(cx - w, cy + y, 2 * w + 1, 1, c);
     }
 }
-static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
-                        float sx, float t_ic, float t_cad)
+static void ficha_bolsa_viva(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
+                             float sx, float t_ic, float t_cad, float viva)
 {
     uint16_t cor = BOLSA[b].cor;
+    int cinza = viva >= 1 ? 0 : (int)lroundf((1 - (viva < 0 ? 0 : viva)) * 100);
     if (fechada) cor = gfx_mistura(cor, C_BARRA, 72);
+    else if (cinza) cor = cor_cinza(cor, cinza);
+    cor = fb_ap(cor);
+    uint16_t listra = fb_ap(fechada ? C_EBANO_B : C_MARFIM_S);
     int y = cy - (int)lroundf(sobe * 6);
     int rx = (int)lroundf(r * sx);
     if (sx > 0.95f) ficha_sombra(cx + 2, cy + 4, r - (int)lroundf(sobe * 2));   // a sombra no feltro
     else elipse(cx + 2, cy + 4, rx - (int)lroundf(sobe * 2), r - (int)lroundf(sobe * 2), C_SOMBRA);
     if (sx < 0.25f) {                                     // de lado: so a borda, com as listras
         elipse(cx, y, rx + 1, r, gfx_mistura(cor, C_BARRA, 45));
-        for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, fechada ? C_EBANO_B : C_MARFIM_S);
+        for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, listra);
         return;
     }
     if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
@@ -385,7 +529,7 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
                         cx + cosf(a + d) * (r - 1.5f) * sx, cx + cosf(a + d) * (r - 7) * sx };
         float vy[4] = { y + sinf(a - d) * (r - 7), y + sinf(a - d) * (r - 1.5f),
                         y + sinf(a + d) * (r - 1.5f), y + sinf(a + d) * (r - 7) };
-        poligono(vx, vy, 4, fechada ? C_EBANO_B : C_MARFIM_S);
+        poligono(vx, vy, 4, listra);
     }
     if (grande) {
         uint16_t rc[4];
@@ -395,20 +539,29 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
         for (int k = 0; k < 26; k++) {                    // o pontilhado em volta do centro
             float a = giro * 0.5f + k * 0.2417f;
             gfx_rect(cx + (int)lroundf(cosf(a) * (r - 10.5f) * sx), y + (int)lroundf(sinf(a) * (r - 10.5f)), 1, 1,
-                     gfx_mistura(cor, fechada ? C_EBANO_B : C_MARFIM, 55));
+                     gfx_mistura(cor, fb_ap(fechada ? C_EBANO_B : C_MARFIM), 55));
         }
     }
     int rc = grande ? r - 12 : r - 3;
     uint16_t rf[4];
     rampa_de(gfx_na_paleta(cor), rf);
     elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, rf[1]);   // o aro do centro, um tom abaixo
-    if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, C_EBANO);
-    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
+    if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, fb_ap(C_EBANO));
+    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, fb_ap(cinza > 50 ? RGB(204, 194, 172) : C_MARFIM), false, cx, y, rc);   // o marfim, com a luz
     int e = rc >= 19 ? 2 : 1;
     if (fechada) {
         icone_bolsa_em(b, cx, y, e, sx, -1, 1, 88);       // a silhueta, quase apagada
         cadeado_em(cx, y + 2, 1, t_cad);
-    } else icone_bolsa_em(b, cx, y, e, sx, t_ic, 1, 0);
+    } else {
+        ic_cinza = cinza;
+        icone_bolsa_em(b, cx, y, e, sx, t_ic, 1, cinza / 4);
+        ic_cinza = 0;
+    }
+}
+static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
+                        float sx, float t_ic, float t_cad)
+{
+    ficha_bolsa_viva(cx, cy, r, b, sobe, giro, foco, fechada, sx, t_ic, t_cad, 1);
 }
 
 // ---- O aviso: abriu uma bolsa nova -----------------------------------------

@@ -38,7 +38,7 @@ static void luz_pula(void) { t_luz = 0; t_mapa_anda = 0.7f; }
 static int   saque_n;                       // moedas ja na fileira
 static float t_saque;
 static bool  saque_pronto;
-static int saque_total(void) { return run.ganho + run.colar + run.juros + run.taca + run.dourado; }
+static int saque_total(void) { return run.ganho + run.colar + run.juros + run.taca + run.dourado + run.bolsa_ganho; }
 // O intervalo entre uma moeda e a outra: as poucas sem pressa; as 20 do
 // Barao, em pouco mais de um segundo e meio.
 static float saque_passo(void) { int n = saque_total(); return n <= 6 ? 0.16f : 1.7f / n; }
@@ -139,12 +139,18 @@ static bool des_carrega(run_t *r)
                    : n == (int)(2 * RUN_TAM_SEM_BOLSA) ? RUN_TAM_SEM_BOLSA
                    : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS
                    : n == (int)(2 * RUN_TAM_SEM_LOJA2) ? RUN_TAM_SEM_LOJA2
-                   : n == (int)(2 * RUN_TAM_SEM_VISTOS2) ? RUN_TAM_SEM_VISTOS2 : sizeof *r;
+                   : n == (int)(2 * RUN_TAM_SEM_VISTOS2) ? RUN_TAM_SEM_VISTOS2
+                   : n == (int)(2 * RUN_TAM_SEM_BOLSAS2) ? RUN_TAM_SEM_BOLSAS2 : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
         if (tam <= RUN_TAM_SEM_BOLSA) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
         if (tam < RUN_TAM_SEM_LOJA2) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
         if (tam < RUN_TAM_SEM_VISTOS2) r->dois_adesivos = r->adesivo2 = r->ad_vendido2 = 0;   // a loja de 1 adesivo
-        if (tam < sizeof *r) memset(r->ad_vistos2, 0, sizeof r->ad_vistos2);
+        if (tam < RUN_TAM_SEM_BOLSAS2) memset(r->ad_vistos2, 0, sizeof r->ad_vistos2);
+        if (tam < sizeof *r) {                   // de antes das bolsas da loja: nada contado ainda
+            r->gasto = 0;
+            r->pacotes = r->tirados = r->tirou_gratis = r->bolsa_ganho = 0;
+            memset(r->pac_op_mais, 0, sizeof r->pac_op_mais);
+        }
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)
@@ -152,12 +158,15 @@ static bool des_carrega(run_t *r)
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
     for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N || r->pac_op[i].ad[0] >= AD_N) return false;
+    for (int i = 0; i < PAC_MAX - PAC_OPCOES; i++)
+        if (r->pac_op_mais[i].tipo >= D_N || r->pac_op_mais[i].ad[0] >= AD_N) return false;
     if ((r->pacote > PAC_ADESIVOS && r->pacote != PAC_NENHUM) || r->pac_estado > PAC_USADO) return false;
     if (r->adesivo >= AD_N || r->adesivo2 >= AD_N) return false;
     if (r->dois_adesivos > 1) r->dois_adesivos = 0;
     if (r->dificuldade > N_NIVEIS) return false;
     if (r->bolsa >= B_N) r->bolsa = B_PANO;
     if (r->porco_quebrou > 1) r->porco_quebrou = 1;
+    if (r->tirou_gratis > 1) r->tirou_gratis = 1;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > 1) r->colar = 0;
@@ -437,8 +446,14 @@ static void des_nova_run(void)
     // A bolsa do comeco: dados simples, muitos fracos (tirar os fracos, na
     // loja, e parte da run), e o que a bolsa escolhida traz.
     bolsa_monta_run(des_bolsa);
+    if (des_bolsa == B_CARTEIRA) run.moedas = 0;   // a Carteira: comeca vazia
     gera_andar();
-    oferece_amuleto(AV_INICIO);                  // a run comeca com um amuleto
+    if (des_bolsa == B_PRESENTE) {               // a Sacola de Presente: sem amuleto, direto a loja da entrada
+        run.estado = R_LOJA_INI;
+        monta_loja_run();
+        des_salva();
+        abre_loja_run();
+    } else oferece_amuleto(AV_INICIO);           // a run comeca com um amuleto
     t_elev = ELEV_T;                             // e o elevador sobe ate o andar
     moedas_ok = false;                           // as moedas da faixa nascem certas
 }
@@ -499,7 +514,8 @@ static void des_comeca_partida(void)
     t_fala = 0;
     t_reacao = t_curta = 0;
     fala_e_curta = false;
-    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0) - (tem_bolsa(0, B_FOSFORO) ? FOSFORO_FICHAS : 0);
+    J[0].fichas = DES_FICHAS + (tem_am(0, A_RESERVA) ? 10 : 0)
+                - (tem_bolsa(0, B_FOSFORO) || tem_bolsa(0, B_MALETA) ? FOSFORO_FICHAS : 0);
     J[0].n_col = run.n_col;
     memcpy(J[0].col, run.col, sizeof run.col);
     for (int i = 0; i < J[0].n_col; i++) J[0].col[i].velcro = 0;   // o Velcro so segura de uma rodada para a outra
@@ -534,6 +550,25 @@ static void des_comeca_partida(void)
     detalhe = -1;
     nova_rodada();
     fala_evento(FA_INICIO);
+}
+
+// A Sacola de Presente: o chefe vencido (que nao fecha a run) deixa um dado
+// raro na bolsa, sorteado entre os abertos pela semente da run.
+static void presente_do_chefe(void)
+{
+    if (run.n_col >= MAX_COL) return;
+    rs = run.semente ^ (0x9E5E77u * (uint32_t)(run.andar * 8 + run.passo + 1));
+    rnd_r();
+    int n = 0;
+    for (int t = 0; t < D_N; t++) n += no_pacote(t) && TIPO[t].raridade == RAR_RARO;
+    if (!n) return;
+    int q = sorte_r(n);
+    for (int t = 0; t < D_N; t++)
+        if (no_pacote(t) && TIPO[t].raridade == RAR_RARO && q-- == 0) {
+            run.col[run.n_col++] = peca_r(t);
+            des_presente = t;
+            return;
+        }
 }
 
 // Fim de uma partida da run (chamado assim que ela acaba, para que sair na
@@ -583,15 +618,21 @@ static void des_resultado(void)
         perfis_salva();
     }
     // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Colar
-    // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3) e a Taca (1 a cada 3
-    // rodadas vencidas na partida).
-    run.ganho = run.colar = run.juros = run.taca = run.dourado = 0;
+    // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3), a Taca (1 a cada 3
+    // rodadas vencidas na partida) e o que a bolsa paga a mais (a Carteira, 10
+    // por chefe; a Maleta do Apostador, 2 por mesa).
+    run.ganho = run.colar = run.juros = run.taca = run.dourado = run.bolsa_ganho = 0;
+    des_presente = -1;
     if (!fim_da_run()) {
         run.ganho = (uint8_t)moedas_mesa(run.passo);
         if (porco_inteiro()) {                   // o Porquinho: 1 a menos na mao, 2 nele
             if (run.ganho) run.ganho--;
             run.porco = (uint8_t)(run.porco + PORCO_GUARDA < 250 ? run.porco + PORCO_GUARDA : 250);
         }
+        if (run.bolsa == B_FERRAMENTAS && run.ganho) run.ganho--;   // a Caixa de Ferramentas: 1 a menos
+        if (run.bolsa == B_CARTEIRA && no->tipo == NO_CHEFE) run.bolsa_ganho = CARTEIRA_CHEFE;
+        if (run.bolsa == B_MALETA) run.bolsa_ganho = MALETA_MESA;
+        if (run.bolsa == B_PRESENTE && no->tipo == NO_CHEFE) presente_do_chefe();
         if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
         if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);

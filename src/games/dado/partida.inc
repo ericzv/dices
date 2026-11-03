@@ -1164,7 +1164,7 @@ static void conclui_rodada(void)
     }
     op_nervoso = venc_mao == 0;
     if (venc_mao == 0) des_rod_vencidas++;
-    if (venc_mao == 0 && modo == M_DESAFIO) des_rodada_vencida();
+    if (venc_mao == 0 && modo == M_DESAFIO) des_rodada_vencida(seu_pote);
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);

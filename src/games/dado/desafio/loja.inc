@@ -24,7 +24,7 @@
 #define PAC_CRESCE 0.22f
 #define PAC_RASGA  0.62f                 // o papel rasga
 #define PAC_VOA    0.30f                 // cada carta ate o lugar
-#define PAC_PRONTO (PAC_RASGA + 0.16f + PAC_VOA)   // a ultima pousou: escolhe
+#define PAC_PRONTO (PAC_RASGA + 0.08f * (pac_n() - 1) + PAC_VOA)   // a ultima pousou: escolhe
 #define PAC_FIM    0.8f                  // depois de escolher (ou pular), ate voltar a loja
 #define PAC_CW     112                   // as cartas do pacote aberto
 #define PAC_PASSO  134
@@ -89,13 +89,15 @@ static int   cola_n(void) { return cola_premio ? J[vez].n_col : run.n_col; }
 static int   cola_ad(void) { return cola_premio ? cola_premio_ad : cola_pac >= 0 ? pac_ad(cola_pac) : ad_loja(lj_ad_k); }
 static int   cola_dono(void) { return cola_premio ? vez : 0; }
 
-// Os itens, na ordem das setas: os dados, os adesivos, o pacote e os dois servicos.
+// Os itens, na ordem das setas: os dados, os adesivos, o pacote e os dois
+// servicos. A Caixa de Papelao nao tem adesivo; a Sacola de Feira, pacote.
 static int lj_item_adesivo(int k) { return n_vitrine() + k; }
 static int lj_item_pacote(void) { return n_vitrine() + n_adesivos_loja(); }
-static int lj_item_troca(void) { return lj_item_pacote() + 1; }
-static int lj_item_tira(void) { return lj_item_pacote() + 2; }
-static int lj_n_itens(void) { return lj_item_pacote() + 3; }
-static int lj_n_cartoes(void) { return lj_item_pacote() + 1; }
+static bool lj_e_pacote(int i) { return n_pacote_loja() && i == lj_item_pacote(); }
+static int lj_item_troca(void) { return lj_item_pacote() + n_pacote_loja(); }
+static int lj_item_tira(void) { return lj_item_troca() + 1; }
+static int lj_n_itens(void) { return lj_item_troca() + 2; }
+static int lj_n_cartoes(void) { return lj_item_troca(); }
 // Cinco cartoes (a Cartola): todos um pouco mais estreitos; tres, mais largos.
 static int lj_cw(void) { int n = lj_n_cartoes(); return n >= 5 ? 76 : n == 4 ? 86 : 92; }
 static int lj_vao(void) { return lj_n_cartoes() >= 5 ? 6 : 8; }
@@ -104,7 +106,7 @@ static int lj_vao(void) { return lj_n_cartoes() >= 5 ? 6 : 8; }
 static int lj_grupo(int i) { return i < n_vitrine() ? 0 : i < lj_item_pacote() ? 1 : 2; }
 static int lj_x0(void)
 {
-    int nc = lj_n_cartoes(), grupos = (n_vitrine() > 0) + 2;
+    int nc = lj_n_cartoes(), grupos = (n_vitrine() > 0) + (n_adesivos_loja() > 0) + n_pacote_loja();
     int total = nc * lj_cw() + (nc - grupos) * lj_vao() + (grupos - 1) * LJ_SEC + LJ_SEC + LJ_SW;
     return (MESA_X0 + MESA_X1) / 2 - total / 2;
 }
@@ -114,9 +116,11 @@ static int lj_card_x(int i)
     for (int k = 1; k <= i; k++) x += lj_cw() + (lj_grupo(k) != lj_grupo(k - 1) ? LJ_SEC : lj_vao());
     return x;
 }
-static int lj_sx(void) { return lj_card_x(lj_item_pacote()) + lj_cw() / 2 + LJ_SEC; }
+static int lj_sx(void) { return lj_card_x(lj_n_cartoes() - 1) + lj_cw() / 2 + LJ_SEC; }
 static int lj_serv_y(int s) { return LJ_Y + s * (LJ_SH + 8); }
-static int pac_carta_x(int i) { return PAC_CX + (i - 1) * PAC_PASSO; }
+// As cartas do pacote aberto, centradas: 3, ou 4 (a Caixa de Papelao) mais juntas.
+static int pac_passo(void) { return pac_n() > PAC_OPCOES ? 124 : PAC_PASSO; }
+static int pac_carta_x(int i) { return PAC_CX + (int)lroundf((i - (pac_n() - 1) / 2.0f) * pac_passo()); }
 
 static void loja_abriu(void)
 {
@@ -298,7 +302,7 @@ static void loja_passo(float dt)
                 som_toca_tom(SOM_BATE_DADO, -6 + 2 * k);
             }
         if (antes < PAC_RASGA && t_pac >= PAC_RASGA) pac_rasga();
-        for (int i = 0; i < PAC_OPCOES; i++) {
+        for (int i = 0; i < pac_n(); i++) {
             float q = (t_pac - PAC_RASGA - i * 0.08f) / PAC_VOA;
             if (q >= 0.8f && !(pac_caiu >> i & 1)) { pac_caiu |= (uint8_t)(1 << i); som_toca_tom(SOM_BATE_DADO, 2 + 3 * i); }
         }
@@ -341,13 +345,21 @@ static void lj_lascas_passo(float dt)
 }
 
 // ---- As acoes ---------------------------------------------------------------
+// Paga pr: o que a run ja gastou na loja conta (25 abrem a Carteira).
+static void loja_paga(int pr)
+{
+    run.moedas -= pr;
+    run.gasto = (uint16_t)(run.gasto + pr < 60000 ? run.gasto + pr : 60000);
+    if (run.gasto >= CARTEIRA_ABRE) abre_bolsa(B_CARTEIRA);
+}
+
 static void loja_compra(int i)
 {
     int pr = preco_run(run.vitrine[i].tipo);
     if (run.levou[i]) { lj_nega(i, "Esse já foi para a sua bolsa."); return; }
     if (run.moedas < pr) { lj_nega(i, "Moedas insuficientes."); return; }
     if (run.n_col >= MAX_COL) { lj_nega(i, "A bolsa está cheia."); return; }
-    run.moedas -= pr;
+    loja_paga(pr);
     run.col[run.n_col++] = run.vitrine[i];
     run.levou[i] = 1;
     des_salva();
@@ -377,8 +389,10 @@ static void loja_pacote(void)
         lj_nega(it, pacote_de_adesivos() ? "Nenhum dado da bolsa tem lado livre." : "A bolsa está cheia.");
         return;
     }
-    run.moedas -= pr;
+    loja_paga(pr);
     run.pac_estado = PAC_ABERTO;
+    if (run.pacotes < 255) run.pacotes++;
+    if (run.pacotes >= PAPELAO_ABRE) abre_bolsa(B_PAPELAO);   // 5 pacotes abertos: a Caixa de Papelao
     des_salva();
     lj_pac = true;
     t_pac = 0;
@@ -394,7 +408,7 @@ static void loja_pacote(void)
 static void pacote_escolhe(int i)
 {
     if (!lj_pac || t_pac_fim > 0 || run.pac_estado != PAC_ABERTO) return;
-    if (i >= 0 && i < PAC_OPCOES && pacote_de_adesivos()) {   // o adesivo: escolhe o dado e o lado
+    if (i >= 0 && i < pac_n() && pacote_de_adesivos()) {   // o adesivo: escolhe o dado e o lado
         if (!pac_ad(i)) return;
         cola_pac = i;
         lj_colando = 1;
@@ -404,10 +418,10 @@ static void pacote_escolhe(int i)
         som_toca(SOM_TIQUE);
         return;
     }
-    if (i >= 0 && i < PAC_OPCOES) {
+    if (i >= 0 && i < pac_n()) {
         if (run.n_col >= MAX_COL) { lj_nega(-1, "A bolsa está cheia."); return; }
-        run.col[run.n_col++] = run.pac_op[i];
-        lj_voa(VITRINE_MAX, run.pac_op[i], pac_carta_x(i), LJ_Y + 40);
+        run.col[run.n_col++] = *pac_carta_p(i);
+        lj_voa(VITRINE_MAX, *pac_carta_p(i), pac_carta_x(i), LJ_Y + 40);
         mola_chuta();
         som_toca(SOM_VALIDO);
     } else som_toca(SOM_CORREU);
@@ -471,7 +485,7 @@ static void cola_escolhe_lado(int c)
         des_salva();
     } else {
         if (run.moedas < pr || ad_loja_vendido(lj_ad_k)) return;
-        run.moedas -= pr;
+        loja_paga(pr);
         ad_cola(p, lado, a);
         if (lj_ad_k) run.ad_vendido2 = 1;
         else run.ad_vendido = 1;
@@ -490,9 +504,10 @@ static void loja_troca(void)
 {
     int it = lj_item_troca(), pr = preco_troca();
     if (run.moedas < pr) { lj_nega(it, "Moedas insuficientes."); return; }
-    run.moedas -= pr;
+    loja_paga(pr);
     loja_vista();                                // o que sai nao volta na run
     if (run.trocas < 255) run.trocas++;
+    if (run.trocas >= FEIRA_ABRE) abre_bolsa(B_FEIRA);   // 3 trocas na mesma loja: a Sacola de Feira
     sorteia_loja();
     des_salva();
     t_lj_entra = 0;                              // os cartoes novos caem, girando
@@ -501,7 +516,7 @@ static void loja_troca(void)
     memset(t_lj_ad_carimbo, 0, sizeof t_lj_ad_carimbo);
     t_pac_carimbo = 0;
     cursor = lj_item_troca();                    // (a quantidade de cartoes pode mudar)
-    lj_flutua((float)(lj_sx() + LJ_SW - 26), (float)(lj_serv_y(0) - 4), C_VINHO_CLR, "-%d", pr);
+    if (pr) lj_flutua((float)(lj_sx() + LJ_SW - 26), (float)(lj_serv_y(0) - 4), C_VINHO_CLR, "-%d", pr);
     som_toca(SOM_FICHA);
 }
 
@@ -533,12 +548,16 @@ static void lj_tira_confirma(void)
     int i = lj_tira_i, pr = preco_remove();
     lj_tira_i = -1;
     if (i < 0 || i >= run.n_col || run.n_col <= BOLSA_MIN || run.moedas < pr) return;
-    run.moedas -= pr;
+    bool gratis = tira_gratis();
+    loja_paga(pr);
     for (int m = i; m + 1 < run.n_col; m++) run.col[m] = run.col[m + 1];
     run.n_col--;
-    if (run.remocoes < 255) run.remocoes++;
+    if (gratis) run.tirou_gratis = 1;            // a Caixa de Ferramentas: o de graca desta loja
+    else if (run.remocoes < 255) run.remocoes++;   // (o de graca nao sobe o preco)
+    if (run.tirados < 255) run.tirados++;
+    if (run.tirados >= FERRAMENTAS_ABRE) abre_bolsa(B_FERRAMENTAS);   // 5 tirados: a Caixa de Ferramentas
     des_salva();
-    lj_flutua((float)lj_tira_x, (float)(lj_tira_y - 30), C_VINHO_CLR, "-%d", pr);
+    if (pr) lj_flutua((float)lj_tira_x, (float)(lj_tira_y - 30), C_VINHO_CLR, "-%d", pr);
 }
 
 // O dado i vai sair: treme e racha (lj_tira_confirma, quando estoura).
@@ -569,10 +588,11 @@ static bool pacote_tecla(int k, int e)
         if (k == KEY_ENTER) t_pac = t_pac < PAC_RASGA ? PAC_RASGA - 0.01f : PAC_PRONTO;
         return true;
     }
-    if (e) { cursor = (cursor + e + PAC_OPCOES + 1) % (PAC_OPCOES + 1); som_toca(SOM_TIQUE); return true; }
-    if (k == KEY_BKSP || k == 'x' || k == KEY_TAB) { cursor = PAC_OPCOES; som_toca(SOM_TIQUE); return true; }
-    if (k >= '1' && k < '1' + PAC_OPCOES) { cursor = k - '1'; pacote_escolhe(cursor); return true; }
-    if (k == KEY_ENTER) pacote_escolhe(cursor < PAC_OPCOES ? cursor : -1);
+    int np = pac_n();
+    if (e) { cursor = (cursor + e + np + 1) % (np + 1); som_toca(SOM_TIQUE); return true; }
+    if (k == KEY_BKSP || k == 'x' || k == KEY_TAB) { cursor = np; som_toca(SOM_TIQUE); return true; }
+    if (k >= '1' && k < '1' + np) { cursor = k - '1'; pacote_escolhe(cursor); return true; }
+    if (k == KEY_ENTER) pacote_escolhe(cursor < np ? cursor : -1);
     return true;
 }
 
@@ -627,7 +647,7 @@ static bool loja_tecla(int k, int e)
     if (k == KEY_ENTER || (k >= '1' && k < '1' + nc)) {
         if (cursor < nv) loja_compra(cursor);
         else if (cursor < lj_item_pacote()) loja_adesivo(cursor - nv);
-        else if (cursor == lj_item_pacote()) loja_pacote();
+        else if (lj_e_pacote(cursor)) loja_pacote();
         else if (cursor == lj_item_troca()) loja_troca();
         else loja_tira_abre();
         return true;
@@ -674,9 +694,15 @@ static void lj_porquinho(void)
     }
 }
 
-// O preco: a moeda e o numero; tremendo e vermelho quando nao deu.
+// O preco: a moeda e o numero; tremendo e vermelho quando nao deu. De graca
+// (a Sacola de Feira, a Caixa de Ferramentas): "grátis", sem moeda.
+#define LJ_GRATIS "grátis"
 static void lj_preco(int cx, int y, int pr, bool da, float nega)
 {
+    if (pr <= 0) {                               // (so os servicos: alinhado a direita do cartao)
+        txt(cx + 12 - gfx_largura(LJ_GRATIS, 1), y, LJ_GRATIS, C_LASER, true);
+        return;
+    }
     char s[12];
     snprintf(s, sizeof s, "%d", pr);
     int dx = nega > 0 ? (int)(sinf(nega * 70) * 3 * (nega / 0.4f) + 0.5f) : 0;
@@ -1044,11 +1070,12 @@ static void lj_servico(int s)
     const char *nome = s == 0 ? "Trocar a loja" : "Tirar um dado";
     txt(x0 + dx + 54, y0 + 8, nome, cur ? C_MARFIM : C_MARFIM_S, true);
     char sub[48];
-    if (s == 0) snprintf(sub, sizeof sub, "tudo novo");
-    else if (pode) snprintf(sub, sizeof sub, "bolsa: %d dados", run.n_col - bolsa_voando);
-    else snprintf(sub, sizeof sub, "bolsa no mínimo (%d)", BOLSA_MIN);
-    gfx_texto(x0 + dx + 54, y0 + 30, sub, C_TEXTO_M, fonte_que_cabe(sub, GFX_FINO, LJ_SW - 54 - 30), false);
     int pr = s == 0 ? preco_troca() : preco_remove();
+    if (s == 0) snprintf(sub, sizeof sub, "tudo novo");
+    else if (pode) snprintf(sub, sizeof sub, pr > 0 ? "bolsa: %d dados" : "%d dados", run.n_col - bolsa_voando);   // de graca: mais curto
+    else snprintf(sub, sizeof sub, "bolsa no mínimo (%d)", BOLSA_MIN);
+    int lugar_preco = pr > 0 ? 30 : gfx_largura(LJ_GRATIS, 1) + 14;   // o "grátis" e mais largo que o preco
+    gfx_texto(x0 + dx + 54, y0 + 30, sub, C_TEXTO_M, fonte_que_cabe(sub, GFX_FINO, LJ_SW - 54 - lugar_preco), false);
     if (pode) lj_preco(x0 + LJ_SW - 22, y0 + 27, pr, run.moedas >= pr, nega);
     zona_clique(sx, y0, LJ_SW, LJ_SH, &cursor, item, KEY_ENTER);
 }
@@ -1397,7 +1424,7 @@ static void pac_carta(int i)
     int cx = (int)(PAC_CX + (x1 - PAC_CX) * m), cy = (int)(PAC_CY + (y1 + LJ_CH / 2 - PAC_CY) * m);
     int w = (int)(PAC_CW * esc), h = (int)(LJ_CH * esc), x = cx - w / 2, y = cy - h / 2;
     if (w < 8 || h < 8) return;
-    peca_t pc = run.pac_op[i];
+    peca_t pc = *pac_carta_p(i);
     bool pronto = t_pac >= PAC_PRONTO && t_pac_fim <= 0, cur = pronto && i == cursor;
     int a = pacote_de_adesivos() ? pac_ad(i) : AD_NADA;
     if (a) {                                         // a carta do adesivo: ele solto, o nome e a raridade
@@ -1453,9 +1480,11 @@ static void lj_desenha_pacote(void)
     char s[64];
     snprintf(s, sizeof s, "PACOTE DE %s", MAI[g]);
     txt_c2(GFX_W / 2, MESA_Y0 + 2, s, cor_pacote(g));
-    txt_c(GFX_W / 2, MESA_Y0 + 36, t_pac < PAC_RASGA ? (g == PAC_ADESIVOS ? "3 adesivos ao acaso, entre os abertos." : DESC_NIVEL[g])
-          : g == PAC_ADESIVOS ? "Escolha 1 dos 3 adesivos e cole num dado  ·  ou pule o pacote"
-          : "Escolha 1 dos 3 dados  ·  ou pule o pacote", C_MARFIM_S, false);
+    char sub[96];
+    if (t_pac < PAC_RASGA) desc_pacote(g, sub, sizeof sub);
+    else if (g == PAC_ADESIVOS) snprintf(sub, sizeof sub, "Escolha 1 dos %d adesivos e cole num dado  ·  ou pule o pacote", pac_n());
+    else snprintf(sub, sizeof sub, "Escolha 1 dos %d dados  ·  ou pule o pacote", pac_n());
+    txt_c(GFX_W / 2, MESA_Y0 + 36, sub, C_MARFIM_S, false);
     if (t_pac < PAC_RASGA) {
         // Cresce do cartao da loja ate o meio da mesa e sacode cada vez mais.
         float qc = t_pac / PAC_CRESCE;
@@ -1472,28 +1501,30 @@ static void lj_desenha_pacote(void)
         desenha_pacote(cx, cy, g == PAC_ADESIVOS ? e * 0.82f : e, g, false);
     } else {
         pac_clarao();
-        for (int i = 0; i < PAC_OPCOES; i++) pac_carta(i);
+        for (int i = 0; i < pac_n(); i++) pac_carta(i);
     }
     lj_lascas();
     // O que a carta em foco faz; ou o que e pular.
     bool pronto = t_pac >= PAC_PRONTO && t_pac_fim <= 0;
-    if (pronto && cursor < PAC_OPCOES && pacote_de_adesivos()) {   // o adesivo em foco: o que ele faz
+    int np = pac_n();
+    if (pronto && cursor < np && pacote_de_adesivos()) {   // o adesivo em foco: o que ele faz
         int a = pac_ad(cursor);
         char l[112];
         snprintf(l, sizeof l, "Adesivo %s", ADESIVO[a].nome);
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, l, ADESIVO[a].luz, true);
         snprintf(l, sizeof l, "%s %s", ADESIVO[a].l1, ADESIVO[a].l2);
         txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, l, C_MARFIM_S, false);
-    } else if (pronto && cursor < PAC_OPCOES) dado_e_poder(LJ_DESC_Y + 6, run.pac_op[cursor].tipo, true);
+    } else if (pronto && cursor < np) dado_e_poder(LJ_DESC_Y + 6, pac_carta_p(cursor)->tipo, true);
     else if (pronto) {
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, "Pular o pacote", C_LATAO, true);
-        txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, "Fica sem nenhum dos três. As moedas não voltam.", C_MARFIM_S, false);
+        txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, np > PAC_OPCOES ? "Fica sem nenhum dos quatro. As moedas não voltam."
+                                                             : "Fica sem nenhum dos três. As moedas não voltam.", C_MARFIM_S, false);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, LJ_DESC_Y + 6 + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);
     if (pronto) {
         int w = gfx_largura("pular", 1) + 20, h = TXT_H + 4, x = MESA_X1 - 10 - w, y = MESA_Y0 + 8;
-        ui_botao(x, y, w, h, "pular", 0, cursor == PAC_OPCOES ? UI_FOCO : 0);
-        zona_clique(x, y, w, h, &cursor, PAC_OPCOES, KEY_ENTER);
+        ui_botao(x, y, w, h, "pular", 0, cursor == np ? UI_FOCO : 0);
+        zona_clique(x, y, w, h, &cursor, np, KEY_ENTER);
     }
     lj_voos();
     lj_flutuantes();
@@ -1527,25 +1558,27 @@ static void desenha_loja_run(void)
     // Os rotulos das secoes ficam na fina mesmo com a letra maior: a linha
     // da proxima mesa, logo acima, ja cresceu.
     if (nv) gfx_texto(lj_card_x(0) - cw / 2 + 4, LJ_Y - 20, "DADOS", C_TEXTO_M, GFX_FINO_FIXO, false);
-    gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, na > 1 ? "ADESIVOS" : "ADESIVO", C_TEXTO_M, GFX_FINO_FIXO, false);
-    gfx_texto(lj_card_x(lj_item_pacote()) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO_FIXO, false);
+    if (na) gfx_texto(lj_card_x(nv) - cw / 2 + 4, LJ_Y - 20, na > 1 ? "ADESIVOS" : "ADESIVO", C_TEXTO_M, GFX_FINO_FIXO, false);
+    if (n_pacote_loja()) gfx_texto(lj_card_x(lj_item_pacote()) - cw / 2 + 4, LJ_Y - 20, "PACOTE", C_TEXTO_M, GFX_FINO_FIXO, false);
     gfx_texto(lj_sx() + 4, LJ_Y - 20, "SERVIÇOS", C_TEXTO_M, GFX_FINO_FIXO, false);
     for (int i = 0; i < nv; i++) lj_cartao_dado(i);
     for (int k = 0; k < na; k++) lj_cartao_adesivo(k);
-    lj_cartao_pacote();
+    if (n_pacote_loja()) lj_cartao_pacote();
     for (int k = 0; k < 2; k++) lj_servico(k);
 
     // O que o item em foco faz (ou por que nao deu).
     if (cursor < nv) dado_e_poder(LJ_DESC_Y, run.vitrine[cursor].tipo, true);
-    else if (cursor == lj_item_pacote()) {
+    else if (lj_e_pacote(cursor)) {
         int g = run.pacote;
         if (!tem_pacote()) txt_c(GFX_W / 2, LJ_DESC_Y, "Sem pacote nesta loja", C_LATAO, true);
         else {
             snprintf(s, sizeof s, "Pacote de %s", NOME_PACOTE[g]);
             txt_c(GFX_W / 2, LJ_DESC_Y, s, cor_pacote(g), true);
+            char dp[96];
+            if (g == PAC_ADESIVOS) snprintf(dp, sizeof dp, "%d adesivos ao acaso: abre na hora, você leva 1 e já cola num dado.", pac_n());
+            else desc_pacote(g, dp, sizeof dp);
             txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.pac_estado != PAC_VENDA ? "Já aberto. Troque a loja ou espere a próxima para outro pacote."
-                  : g == PAC_ADESIVOS ? "3 adesivos ao acaso: abre na hora, você leva 1 e já cola num dado." : DESC_NIVEL[g],
-                  C_MARFIM_S, false);
+                  : dp, C_MARFIM_S, false);
             if (run.pac_estado == PAC_VENDA && t_lj_aviso <= 0 && g < PN_N) {
                 // As chances do nivel, so as raridades que ele traz.
                 static const char *const RAR_PAC[4] = { "comum", "incomum", "raro", "lendário" };
@@ -1574,11 +1607,15 @@ static void desenha_loja_run(void)
         }
     } else if (cursor == lj_item_troca()) {
         txt_c(GFX_W / 2, LJ_DESC_Y, "Trocar a loja", C_LATAO, true);
-        txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, "Sorteia tudo de novo: os dados, os adesivos e o pacote. Cada troca nesta loja custa 1 a mais.",
-              C_MARFIM_S, false);
+        const char *d = run.bolsa == B_FEIRA ? "Sorteia tudo de novo. A primeira troca de cada loja é de graça; depois, cada uma custa 1 a mais."
+                      : run.bolsa == B_PAPELAO ? "Sorteia tudo de novo: os dados e o pacote. Cada troca nesta loja custa 1 a mais."
+                      : "Sorteia tudo de novo: os dados, os adesivos e o pacote. Cada troca nesta loja custa 1 a mais.";
+        txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, d, C_MARFIM_S, false);
     } else {
         txt_c(GFX_W / 2, LJ_DESC_Y, "Tirar um dado da bolsa", C_VINHO_CLR, true);
-        txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, "Bolsa menor: os seus melhores dados vêm mais vezes. Cada um tirado na run custa 2 a mais.",
+        txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.bolsa == B_FERRAMENTAS
+              ? "Bolsa menor: os seus melhores dados vêm mais vezes. Um por loja é de graça; os outros custam 2 a mais."
+              : "Bolsa menor: os seus melhores dados vêm mais vezes. Cada um tirado na run custa 2 a mais.",
               C_MARFIM_S, false);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);

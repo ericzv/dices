@@ -157,6 +157,11 @@ static void passeio(void)
     des_dif = 4; des_bolsa = B_PANO; des_nova_run(); t_elev = 0; amuleto_escolhido(1);
     run.andar = DES_ANDARES - 1; perfis[0].nivel = 4;
     encerra_run(true); passa(150); tela("run_campea");
+    // E a escolha da bolsa com todas abertas, a vitrine girada ate a ultima
+    // (a Sacola de Presente): as fichas novas e os pontinhos embaixo.
+    perfis[0].bolsas = perfis[0].bolsas_vistas = BOLSAS_TODAS;
+    abre_bolsas(); passa(120);
+    bs_cur = B_PRESENTE; passa(90); tela("bolsas_novas");
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

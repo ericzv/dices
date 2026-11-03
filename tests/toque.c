@@ -211,6 +211,34 @@ int main(void)
         passa(3);
         confere(!ctrl_aberto, "controles: um toque fora fecha o quadro");
     }
+    // A escolha da bolsa: um toque numa ficha do lado gira a vitrine ate ela;
+    // a do meio pede dois. Escolhida, o dedo (ou o mouse) passando pelos
+    // pontinhos nao troca mais a bolsa da run.
+    ctrl_aberto = false;
+    perfis[0].bolsas = perfis[0].bolsas_vistas = BOLSAS_TODAS;
+    perfis[0].bolsa_ult = B_COPO;
+    abre_bolsas(); passa(90);
+    z = acha_zona(TECLA_BS_VAI + bs_pos(B_COPO) + 1, false, false, 0);
+    confere(z != NULL, "bolsas: a ficha do lado vale com um toque");
+    if (z) {
+        zona_clique_t lado = *z;
+        toca(&lado, 3);
+        confere(bs_cur == B_LATA, "bolsas: um toque na do lado vai ate ela");
+    }
+    passa(40);
+    z = acha_zona(KEY_ENTER, true, true, 0);
+    confere(z != NULL && z->val == B_LATA, "bolsas: a do meio pede dois toques");
+    if (z) {
+        zona_clique_t meio = *z;
+        toca(&meio, 3);
+        confere(t_bs_clique < 0, "bolsas: o primeiro toque na do meio nao escolhe");
+        toca(&meio, 3);
+        confere(t_bs_clique >= 0, "bolsas: o segundo toque escolhe");
+        int x0 = GFX_W / 2 - (B_N - 1) * BS_PT_VAO / 2;
+        for (int i = 0; i < B_N; i++) { dado_mouse(x0 + i * BS_PT_VAO, BS_PT_Y, 0); passa(3); }
+        passa(120);
+        confere(fase != F_RBOLSAS && run.bolsa == B_LATA, "bolsas: escolhida, o mouse nos pontinhos nao troca a bolsa");
+    }
     if (falhas) { printf("\n%d falha(s)\n", falhas); return 1; }
     printf("\ntudo ok\n");
     return 0;

@@ -78,9 +78,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Maleta do Apostador | cada mesa vencida paga 2 moedas a mais; vem com o Jackpot, o Vidro, o Carrasco e o Trevo | cada partida começa com 45 fichas | levar um pote de 60 fichas ou mais |
   | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
 
-  Na tela das bolsas aparecem 8 fichas de cada vez: com mais, a fileira
-  desliza quando o cursor chega na beira (as setinhas dos lados dizem que
-  tem mais). A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
+  Na tela das bolsas todas aparecem juntas, pequenas e acinzentadas; a
+  escolhida (pelas setas ou com o mouse em cima) cresce, ganha a cor e
+  empurra as vizinhas. A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
   nível mais alto em que você venceu uma run com ela. Na partida, abrir uma
   bolsa (a sua ou a do oponente) mostra todos os dados dela, sem dizer quais
   já saíram: só a Caixa de Fósforos vê o que ele comprou.

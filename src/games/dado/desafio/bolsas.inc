@@ -425,6 +425,16 @@ static void ic_anima(int b, int x, int y, char c, float t, int est, int *dx, int
     }
 }
 
+// A cor c sem cor: o cinza do mesmo brilho (um pouco mais escuro), misturado
+// q (0..100). A ficha fora de foco na escolha da bolsa.
+static uint16_t cor_cinza(uint16_t c, int q)
+{
+    int r = ((c >> 11) & 31) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
+    int l = (r * 299 + g * 587 + b * 114) / 1000 * 80 / 100;
+    return gfx_mistura(c, RGB(l, l, l), q);
+}
+static int ic_cinza;                     // 0..100: o icone sem cor (a ficha fora de foco)
+
 // O icone da bolsa b com o centro em (cx, cy), e pixels de e x e, estreitado
 // na horizontal por sx (a ficha virando). apaga: 0..100, misturado no escuro.
 static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int est, int apaga)
@@ -442,6 +452,7 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
             bool some = false;
             ic_anima(b, x, y, c, t, est, &dx, &dy, &cor, &some);
             if (some) continue;
+            if (ic_cinza) cor = cor_cinza(cor, ic_cinza);
             if (apaga) cor = gfx_mistura(cor, C_BARRA, apaga);
             float x0 = (x - 8 + dx) * e * sx, x1 = (x - 7 + dx) * e * sx;
             int px = cx + (int)floorf(x0), pw = (int)floorf(x1) - (int)floorf(x0);
@@ -477,7 +488,8 @@ static void icone_da_run(int cx, int cy)
 // Uma ficha de bolsa, vista de cima (como as do menu): a cor da bolsa, as
 // listras de marfim na borda e o icone no centro. sobe: o cursor a ergue;
 // giro: o angulo das listras; sx: 1 de frente, perto de 0 de lado (virando);
-// fechada: escura, com o cadeado (t_cad >= 0: o cadeado treme).
+// fechada: escura, com o cadeado (t_cad >= 0: o cadeado treme); viva: 1 com a
+// cor, 0 acinzentada (fora de foco na escolha da bolsa).
 static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
 {
     if (rx < 1) rx = 1;
@@ -487,11 +499,13 @@ static void elipse(int cx, int cy, int rx, int ry, uint16_t c)
         gfx_rect(cx - w, cy + y, 2 * w + 1, 1, c);
     }
 }
-static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
-                        float sx, float t_ic, float t_cad)
+static void ficha_bolsa_viva(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
+                             float sx, float t_ic, float t_cad, float viva)
 {
     uint16_t cor = BOLSA[b].cor;
+    int cinza = viva >= 1 ? 0 : (int)lroundf((1 - (viva < 0 ? 0 : viva)) * 100);
     if (fechada) cor = gfx_mistura(cor, C_BARRA, 72);
+    else if (cinza) cor = cor_cinza(cor, cinza);
     int y = cy - (int)lroundf(sobe * 6);
     int rx = (int)lroundf(r * sx);
     if (sx > 0.95f) ficha_sombra(cx + 2, cy + 4, r - (int)lroundf(sobe * 2));   // a sombra no feltro
@@ -528,12 +542,21 @@ static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bo
     rampa_de(gfx_na_paleta(cor), rf);
     elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, rf[1]);   // o aro do centro, um tom abaixo
     if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, C_EBANO);
-    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
+    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, cinza > 50 ? RGB(204, 194, 172) : C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
     int e = rc >= 19 ? 2 : 1;
     if (fechada) {
         icone_bolsa_em(b, cx, y, e, sx, -1, 1, 88);       // a silhueta, quase apagada
         cadeado_em(cx, y + 2, 1, t_cad);
-    } else icone_bolsa_em(b, cx, y, e, sx, t_ic, 1, 0);
+    } else {
+        ic_cinza = cinza;
+        icone_bolsa_em(b, cx, y, e, sx, t_ic, 1, cinza / 4);
+        ic_cinza = 0;
+    }
+}
+static void ficha_bolsa(int cx, int cy, int r, int b, float sobe, float giro, bool foco, bool fechada,
+                        float sx, float t_ic, float t_cad)
+{
+    ficha_bolsa_viva(cx, cy, r, b, sobe, giro, foco, fechada, sx, t_ic, t_cad, 1);
 }
 
 // ---- O aviso: abriu uma bolsa nova -----------------------------------------

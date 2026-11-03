@@ -5,7 +5,9 @@
 // letra do titulo), a regra e os dados com que ela comeca. A que ainda nao
 // abriu fica escura, com o cadeado, e diz o que a abre; a que acabou de
 // abrir chega fechada e o cadeado estoura. Escolhida, a ficha assenta e os
-// dados saltam dela; a run comeca.
+// dados saltam dela; a run comeca. Com mais de BS_VIS bolsas, a fileira mostra
+// BS_VIS de cada vez, do mesmo tamanho, e desliza quando o cursor chega na
+// beira (as que saem viram de lado; as setinhas dizem que tem mais).
 // ---------------------------------------------------------------------------
 #define BS_Y      116                    // o centro das fichas
 #define BS_R      32
@@ -15,22 +17,42 @@
 #define BS_VIRA   0.26f                  // a ficha em foco vira (de lado e de volta)
 #define BS_REVELA 0.95f                  // o cadeado da nova: treme e estoura
 #define BS_CLIQUE_T 1.15f                // escolhida: ate a run comecar
+#define BS_VIS    8                      // as fichas a vista de cada vez
 static int   bs_cur;
+static int   bs_jan, bs_jan0;            // a primeira ficha a vista (e a de quando a tela abriu: a ordem da queda)
+static float bs_rolo;                    // onde a fileira esta, deslizando ate bs_jan
 static int   bs_ant = -1;
 static float t_bs_troca = 9;             // desde que o foco mudou
 static float bs_sobe[B_N], bs_giro[B_N];
 static float t_bs_clique = -1;
 static float t_bs_nega = -1;             // fechada: treme e o "para abrir" pisca
-static uint8_t bs_novas;                 // as que chegam abertas agora (a festa)
-static uint8_t bs_caiu, bs_estourou;     // os sons que ja tocaram
-static int bs_x(int i) { return GFX_W / 2 + (2 * i - (B_N - 1)) * BS_DX / 2; }
+static uint32_t bs_novas;                // as que chegam abertas agora (a festa)
+static uint32_t bs_caiu, bs_estourou;    // os sons que ja tocaram
+static int bs_n_vis(void) { return B_N < BS_VIS ? B_N : BS_VIS; }
+// O centro da ficha i: na janela da fileira, com o espaco de sempre.
+static float bs_xf(int i) { return GFX_W / 2 + (2 * (i - bs_rolo) - (bs_n_vis() - 1)) * BS_DX / 2.0f; }
+static int bs_x(int i) { return (int)lroundf(bs_xf(i)); }
+// A ficha i a vista na janela (nao deslizando para fora)?
+static bool bs_a_vista(int i) { return i >= bs_jan && i < bs_jan + bs_n_vis(); }
+// Quando a ficha i cai: pela ordem na janela de quando a tela abriu.
+static float bs_cai(int i) { return BS_CAI(i - bs_jan0 < 0 ? 0 : i - bs_jan0); }
+// A janela anda o minimo para b ficar a vista, com uma vizinha de cada lado
+// sempre que der.
+static void bs_mostra(int b)
+{
+    int nv = bs_n_vis();
+    if (b < bs_jan + 1) bs_jan = b - 1;
+    if (b > bs_jan + nv - 2) bs_jan = b - nv + 2;
+    if (bs_jan > B_N - nv) bs_jan = B_N - nv;
+    if (bs_jan < 0) bs_jan = 0;
+}
 
 // Quando o cadeado da nova estoura: depois que todas cairam, uma de cada vez.
 static float bs_revela(int b)
 {
     int k = 0;
     for (int i = 0; i < b; i++) k += bs_novas >> i & 1;
-    return BS_CAI(B_N) + BS_QUEDA + 0.25f + k * (BS_REVELA + 0.15f);
+    return BS_CAI(bs_n_vis()) + BS_QUEDA + 0.25f + k * (BS_REVELA + 0.15f);
 }
 static bool bs_fechada(int b)
 {
@@ -43,9 +65,13 @@ static void abre_bolsas(void)
     const perfil_t *p = perfil();
     bs_novas = 0;
     for (int b = 1; b < B_N; b++)
-        if (bolsa_aberta(b) && !(p->bolsas_vistas >> b & 1)) bs_novas |= (uint8_t)(1u << b);
+        if (bolsa_aberta(b) && !(p->bolsas_vistas >> b & 1)) bs_novas |= (uint32_t)1 << b;
     bs_cur = p->bolsa_ult < B_N && bolsa_aberta(p->bolsa_ult) ? p->bolsa_ult : B_PANO;
     for (int b = 0; b < B_N; b++) if (bs_novas >> b & 1) { bs_cur = b; break; }   // a nova chama
+    bs_jan = 0;
+    bs_mostra(bs_cur);
+    bs_jan0 = bs_jan;
+    bs_rolo = (float)bs_jan;
     bs_ant = -1;
     t_bs_troca = 9;
     t_bs_clique = t_bs_nega = -1;
@@ -67,7 +93,7 @@ static void bs_marca_vistas(void)
 static void bs_escolhe(void)
 {
     if (t_bs_clique >= 0) return;
-    if (t_fase < BS_CAI(bs_cur) + BS_QUEDA) { t_fase = BS_CAI(B_N) + BS_QUEDA; return; }   // ENTER adianta a queda
+    if (t_fase < bs_cai(bs_cur) + BS_QUEDA) { t_fase = BS_CAI(bs_n_vis()) + BS_QUEDA; return; }   // ENTER adianta a queda
     if (bs_fechada(bs_cur)) {
         t_bs_nega = 0;
         som_toca_tom(SOM_TIQUE, -7);
@@ -104,17 +130,24 @@ static void bolsas_passo(float dt)
     }
     t_bs_troca += dt;
     if (t_bs_nega >= 0 && (t_bs_nega += dt) > 0.6f) t_bs_nega = -1;
+    // A fileira: a nova abrindo fica a vista; depois, a do cursor.
+    int mostra = bs_cur;
+    for (int b = 0; b < B_N; b++)
+        if ((bs_novas >> b & 1) && t_fase >= bs_revela(b) - 0.35f && t_fase < bs_revela(b) + BS_REVELA) mostra = b;
+    bs_mostra(mostra);
+    bs_rolo += (bs_jan - bs_rolo) * fminf(1, dt * 10);
+    if (fabsf(bs_jan - bs_rolo) < 0.01f) bs_rolo = (float)bs_jan;
     float a = fminf(1, dt * 12);
     for (int b = 0; b < B_N; b++) {
         bool foco = b == bs_cur;
         bs_sobe[b] += ((foco ? 1.0f : 0.0f) - bs_sobe[b]) * a;
         if (foco) bs_giro[b] += dt * 0.8f;
-        if (!(bs_caiu >> b & 1) && t_fase >= BS_CAI(b) + BS_QUEDA * 0.8f) {   // a ficha bate no feltro
-            bs_caiu |= (uint8_t)(1u << b);
-            som_toca_tom(SOM_FICHA, b - 3);
+        if (!(bs_caiu >> b & 1) && t_fase >= bs_cai(b) + BS_QUEDA * 0.8f) {   // a ficha bate no feltro
+            bs_caiu |= (uint32_t)1 << b;
+            if (bs_a_vista(b)) som_toca_tom(SOM_FICHA, b - bs_jan - 3);
         }
         if ((bs_novas >> b & 1) && !(bs_estourou >> b & 1) && t_fase >= bs_revela(b) + BS_REVELA * 0.55f) {
-            bs_estourou |= (uint8_t)(1u << b);   // o cadeado estoura
+            bs_estourou |= (uint32_t)1 << b;     // o cadeado estoura
             som_toca(SOM_NOVIDADE_LENDA);
             solta_confete(40);
             if (bs_estourou == bs_novas) bs_marca_vistas();
@@ -178,6 +211,23 @@ static void bs_seta(int x, int y, bool sobe, uint16_t c)
         gfx_rect(x - w, y + i, 2 * w + 1, 1, c);
     }
 }
+// A da beira da fileira (tem mais bolsas para o lado): a ponta em x, para
+// a esquerda (lado < 0) ou para a direita, com a sombra embaixo.
+static void bs_seta_lado(int x, int y, int lado, uint16_t c)
+{
+    for (int i = 0; i < 5; i++) {
+        int px = lado < 0 ? x + i : x - i;
+        gfx_rect(px, y - i + 1, 1, 2 * i + 1, C_SOMBRA);
+        gfx_rect(px, y - i, 1, 2 * i + 1, c);
+    }
+}
+// O quanto a ficha em x cabe na mesa: 1 inteira; perto da beira, vira de lado
+// (a fileira deslizando) ate sumir, sem passar da madeira.
+static float bs_na_mesa(float x)
+{
+    float d = fminf(x - (MESA_X0 + 4), (MESA_X1 - 4) - x) / (BS_R + 6);
+    return d < 0 ? 0 : d > 1 ? 1 : d;
+}
 
 static void desenha_bolsas(void)
 {
@@ -189,16 +239,16 @@ static void desenha_bolsas(void)
         txt(MESA_X1 - 8 - gfx_largura(dn, 1), ty, dn, COR_DIF[des_dif], true);
     }
     // A luz no feltro, embaixo da ficha em foco.
-    if (t_fase > BS_CAI(bs_cur)) {
+    if (t_fase > bs_cai(bs_cur) && bs_na_mesa(bs_xf(bs_cur)) >= 1) {
         int lx = bs_x(bs_cur);
         ui_clareia(lx - 40, BS_Y - 46, 80, 92, 0.6f);
         ui_clareia(lx - 30, BS_Y - 40, 60, 80, 0.6f);
     }
     for (int b = 0; b < B_N; b++) {
-        float q = (t_fase - BS_CAI(b)) / BS_QUEDA;
-        if (q <= 0) continue;
+        float q = (t_fase - bs_cai(b)) / BS_QUEDA, cabe = bs_na_mesa(bs_xf(b));
+        if (q <= 0 || cabe < 0.06f) continue;
         int cx = bs_x(b), cy = BS_Y - (q < 1 ? (int)((1 - sai_mola(q)) * 70) : 0);
-        bool foco = b == bs_cur, fechada = bs_fechada(b);
+        bool foco = b == bs_cur, fechada = bs_fechada(b), inteira = cabe >= 1;
         float sx = 1, t_cad = -1;
         if (foco && t_bs_troca < BS_VIRA && q >= 1)           // virando: de lado e de volta
             sx = fabsf(cosf(t_bs_troca / BS_VIRA * 3.1416f));
@@ -208,6 +258,7 @@ static void desenha_bolsas(void)
             float v = (r - BS_REVELA * 0.45f) / 0.2f;         // e ela vira, aberta
             if (v > 0 && v < 1) sx = fabsf(cosf(v * 3.1416f));
         }
+        sx *= cabe;                                           // saindo da fileira: de lado
         if (foco && t_bs_nega >= 0) { cx += (int)(sinf(t_bs_nega * 60) * 3 * (1 - t_bs_nega / 0.6f)); t_cad = t_bs_nega; }
         float aperta = foco && t_bs_clique >= 0 ? sinf(fminf(t_bs_clique / 0.35f, 1) * 3.1416f) : 0;
         cy += (int)lroundf(aperta * 3);
@@ -229,6 +280,7 @@ static void desenha_bolsas(void)
                 gfx_rect(px, py, 2, 2, k % 2 ? C_LATAO : C_ACO);
             }
         }
+        if (!inteira) continue;                              // deslizando: so a ficha
         if ((bs_novas >> b & 1) && !fechada) {               // a etiqueta de nova, em cima
             int ny = cy - BS_R - 13 - (int)lroundf(bs_sobe[b] * 6) + (int)(sinf(t_relogio * 4 + b) * 1.5f);
             int w = gfx_largura("NOVA", GFX_MIUDO) + 6;
@@ -245,6 +297,19 @@ static void desenha_bolsas(void)
             gfx_texto(mx - gfx_largura(nv, GFX_MIUDO) / 2, my - 6, nv, C_BARRA, GFX_MIUDO, false);
         }
         zona_clique(cx - BS_R, BS_Y - BS_R - 6, 2 * BS_R, 2 * BS_R + 10, &bs_cur, b, KEY_ENTER);
+    }
+    // Tem mais bolsas para o lado: as setinhas na beira, balancando para fora
+    // (o clique vai para a primeira que esta escondida).
+    if (B_N > bs_n_vis() && t_fase > BS_CAI(bs_n_vis())) {
+        int bal = (int)lroundf((sinf(t_relogio * 4) + 1) * 1.2f);
+        if (bs_jan > 0) {
+            bs_seta_lado(MESA_X0 + 8 - bal, BS_Y, -1, C_LATAO);
+            zona_clique(MESA_X0 + 2, BS_Y - 18, 20, 36, &bs_cur, bs_jan - 1, 0);
+        }
+        if (bs_jan + bs_n_vis() < B_N) {
+            bs_seta_lado(MESA_X1 - 9 + bal, BS_Y, 1, C_LATAO);
+            zona_clique(MESA_X1 - 22, BS_Y - 18, 20, 36, &bs_cur, bs_jan + bs_n_vis(), 0);
+        }
     }
 
     // A escolhida: os dados saltam da ficha, giram e caem fora da mesa.
@@ -267,7 +332,7 @@ static void desenha_bolsas(void)
     int b = bs_cur;
     const bolsa_t *bo = &BOLSA[b];
     bool fechada = bs_fechada(b);
-    if (t_fase < BS_CAI(b) + BS_QUEDA * 0.5f) { rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta"); return; }
+    if (t_fase < bs_cai(b) + BS_QUEDA * 0.5f) { rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta"); return; }
     float t = t_bs_troca;
     uint16_t cn = fechada ? C_TEXTO_M : (b == B_PANO ? C_LATAO : bo->cor);
     bs_nome(GFX_W / 2, 148, bo->nome, cn, t);
@@ -285,7 +350,7 @@ static void desenha_bolsas(void)
     }
     // Os dados do comeco, depois do rotulo: os de base juntos (D6 x6), e os
     // que vem a mais (o D8 e os de poder), depois do "+", com o nome
-    // embaixo. Entram um de cada vez.
+    // embaixo (repetidos, com o x3 ao lado). Entram um de cada vez.
     // Os Quebrados, cada um com o numero gravado, ficam separados.
     int tipos[BOLSA_DADOS], fixos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
     for (int i = 0; i < n; i++) {
@@ -300,8 +365,8 @@ static void desenha_bolsas(void)
         bool poder = bolsa_extra(tipos[g]);
         char xn[8];
         snprintf(xn, sizeof xn, "x%d", conta[g]);
-        int wn = gfx_largura(TIPO[tipos[g]].nome, GFX_FINO) + 4;
-        larg[g] = poder ? (wn > 26 ? wn : 26) : 24 + (conta[g] > 1 ? gfx_largura(xn, GFX_FINO) + 2 : 0);
+        int wn = gfx_largura(TIPO[tipos[g]].nome, GFX_FINO) + 4, wx = conta[g] > 1 ? gfx_largura(xn, GFX_FINO) + 2 : 0;
+        larg[g] = poder ? (wn > 26 + wx ? wn : 26 + wx) : 24 + wx;
         if (poder && !mais_antes) { w += 14; mais_antes = true; }   // o "+"
         w += larg[g] + 6;
     }
@@ -320,7 +385,8 @@ static void desenha_bolsas(void)
             x += 14;
         }
         if (q > 0) {
-            int cx = poder ? x + larg[g] / 2 : x + 12;
+            int wx = conta[g] > 1 ? gfx_largura("x0", GFX_FINO) + 2 : 0;
+            int cx = poder ? x + (larg[g] - wx) / 2 : x + 12;
             peca_t p = tipos[g] == D_ADESIVADO ? adesivado_amostra() : (peca_t){ .tipo = (uint8_t)tipos[g], .fixo = (uint8_t)fixos[g] };
             float r = (poder ? 11 : 10) * (q < 1 ? sai_mola(q) : 1);
             peca_parada((float)cx, (float)dy, r, p, 0);
@@ -330,7 +396,9 @@ static void desenha_bolsas(void)
             snprintf(xn, sizeof xn, "x%d", conta[g]);
             if (poder) {
                 const char *nm = TIPO[tipos[g]].nome;
-                gfx_texto(cx - gfx_largura(nm, GFX_FINO) / 2, dy + 8, nm, fechada ? C_TEXTO_M : cor_dado(tipos[g]), GFX_FINO, false);
+                gfx_texto(x + larg[g] / 2 - gfx_largura(nm, GFX_FINO) / 2, dy + 8, nm, fechada ? C_TEXTO_M : cor_dado(tipos[g]),
+                          GFX_FINO, false);
+                if (conta[g] > 1) gfx_texto(cx + 12, dy - 8, xn, fechada ? C_TEXTO_M : C_MARFIM_S, GFX_FINO, false);
             } else if (conta[g] > 1) gfx_texto(x + 24, dy - 8, xn, fechada ? C_TEXTO_M : C_MARFIM_S, GFX_FINO, false);
         }
         x += larg[g] + 6;

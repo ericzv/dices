@@ -302,7 +302,7 @@ static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta roda
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
 static int des_rod_cheias;           // as vencidas com 4 dados validos (abre o Estojo de Lapis)
 static bool des_atras7;              // comecou a 7a rodada atras em fichas (abre o Saco de Sementes)
-static void des_rodada_vencida(void);    // desafio/bolsas.inc
+static void des_rodada_vencida(int pote_levado);   // desafio/bolsas.inc
 static float am_brilho[A_N];
 static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
@@ -429,8 +429,13 @@ static int virada_forca(int c)
 static void am_acende(int a) { am_brilho[a] = 1.2f; }
 
 // As bolsas do comeco da run (desafio/bolsas.inc): a que voce escolhe traz
-// os dados de saida e uma regra que melhora uma coisa e piora outra.
-enum { B_PANO, B_COPO, B_LATA, B_PORCO, B_SEMENTES, B_LAPIS, B_BAU, B_FOSFORO, B_N };
+// os dados de saida e uma regra que melhora uma coisa e piora outra. Sempre
+// no fim da lista: o numero de cada uma vai no salvamento.
+enum { B_PANO, B_COPO, B_LATA, B_PORCO, B_SEMENTES, B_LAPIS, B_BAU, B_FOSFORO,
+       B_CARTEIRA, B_FERRAMENTAS, B_PAPELAO, B_FEIRA, B_MALETA, B_PRESENTE, B_N };
+#define B_MAX 32                         // o lugar das bolsas no perfil: as novas cabem sem mudar o salvamento
+typedef char bolsas_cabem[B_N <= B_MAX ? 1 : -1];
+#define BOLSAS_TODAS ((uint32_t)((1ull << B_N) - 1))   // os bits de todas as bolsas
 static bool tem_bolsa(int j, int b);     // so voce, so no Desafiante
 // Estojo de Lapis: toda rodada comeca com -3.
 #define LAPIS_PENA 3
@@ -438,7 +443,7 @@ static int lapis_pena(int j) { return tem_bolsa(j, B_LAPIS) ? LAPIS_PENA : 0; }
 #define DES_RODADAS 8                // rodadas de cada partida da run
 // Saco de Sementes: seus dados pontuam -1 nas duas primeiras rodadas e +1 nas duas ultimas.
 static int sementes_bonus(int j) { return !tem_bolsa(j, B_SEMENTES) ? 0 : rodada <= 2 ? -1 : rodada >= DES_RODADAS - 1 ? 1 : 0; }
-// Caixa de Fosforos: cada partida comeca com 5 fichas a menos.
+// Caixa de Fosforos e Maleta do Apostador: cada partida comeca com 5 fichas a menos.
 #define FOSFORO_FICHAS 5
 
 // O Contrato Sujo: o lugar da sequencia que ganha o bonus (o terceiro) e quanto.

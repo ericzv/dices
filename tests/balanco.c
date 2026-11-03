@@ -78,7 +78,7 @@ static void perfil_teste(int nivel, bool tudo)
     perfil_atual = 0;
     perfis_lidos = true;
     des_dif = nivel;
-    perfis[0].bolsas = 0xFF;                     // todas abertas: BOLSA=b escolhe a da run
+    perfis[0].bolsas = BOLSAS_TODAS;             // todas abertas: BOLSA=b escolhe a da run
     des_bolsa = getenv("BOLSA") ? atoi(getenv("BOLSA")) : B_PANO;
 }
 
@@ -198,9 +198,9 @@ static void loja_passo_robo(int *compras)
     if (lj_pac) {                                // o pacote aberto: leva o mais raro (dado ou adesivo)
         if (t_pac < PAC_PRONTO || t_pac_fim > 0) { dado_passo(1.0f / 60); return; }
         int b = 0;
-        for (int i = 1; i < PAC_OPCOES; i++)
+        for (int i = 1; i < pac_n(); i++)
             if (pacote_de_adesivos() ? RAR_ADESIVO[pac_ad(i)] > RAR_ADESIVO[pac_ad(b)]
-                                     : TIPO[run.pac_op[i].tipo].raridade > TIPO[run.pac_op[b].tipo].raridade) b = i;
+                                     : TIPO[pac_carta_p(i)->tipo].raridade > TIPO[pac_carta_p(b)->tipo].raridade) b = i;
         cursor = b;
         trata_tecla(KEY_ENTER);
         (*compras)++;

@@ -67,12 +67,20 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Copo de Couro | o Viciado no lugar dos D2; vem com um D8 | compra 6 dados por rodada | vencer o Crupiê |
   | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Adesivado (já com 3 adesivos) | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas, Cobrador e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
-  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com o Trevo, a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
+  | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -3 | vencer 3 rodadas de uma partida com 4 dados válidos |
   | Bauzinho | começa com 2 amuletos; vem com um D8 e a Ficha Velha | cabem só 4 amuletos | ter 5 amuletos |
   | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |
+  | Carteira | cada chefe vencido paga 10 moedas a mais; vem com a Moeda sorte e o Cobrador | a run começa sem moedas | gastar 25 moedas numa run |
+  | Caixa de Ferramentas | tirar um dado da bolsa é de graça uma vez por loja (o de graça não sobe o preço dos outros); vem com 20 dados: 6 D6, 6 D4, 4 moedas, o Ferreiro, o Solitário, o Segurança e o Calibre | cada mesa paga 1 moeda a menos | tirar 5 dados da bolsa numa run |
+  | Caixa de Papelão | os pacotes de dados e de adesivos mostram 4 opções, em vez de 3; vem com o Colecionador e o Oculto | as lojas não vendem adesivo avulso, só pacotes | abrir 5 pacotes numa run |
+  | Sacola de Feira | trocar a loja é de graça uma vez por loja (depois, 1, 2, 3...); vem com a Fartura | as lojas não vendem pacotes | trocar a loja 3 vezes na mesma loja |
+  | Maleta do Apostador | cada mesa vencida paga 2 moedas a mais; vem com o Jackpot, o Vidro, o Carrasco e o Trevo | cada partida começa com 45 fichas | levar um pote de 60 fichas ou mais |
+  | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
 
-  A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
+  Na tela das bolsas aparecem 8 fichas de cada vez: com mais, a fileira
+  desliza quando o cursor chega na beira (as setinhas dos lados dizem que
+  tem mais). A bolsa nova chega fechada na tela e o cadeado estoura; cada uma guarda o
   nível mais alto em que você venceu uma run com ela. Na partida, abrir uma
   bolsa (a sua ou a do oponente) mostra todos os dados dela, sem dizer quais
   já saíram: só a Caixa de Fósforos vê o que ele comprou.

@@ -89,16 +89,23 @@ static int preco_run(int t)
     static const int P[4] = { 3, 4, 6, 9 };
     return preco_ajusta(P[TIPO[t].raridade]);
 }
-static int preco_troca(void)  { return preco_ajusta(1 + run.trocas); }
-static int preco_remove(void) { return preco_ajusta(3 + 2 * run.remocoes); }
+// A Sacola de Feira troca a loja de graca uma vez em cada loja (depois, 1, 2,
+// 3...); a Caixa de Ferramentas tira um dado de graca uma vez em cada loja (o
+// de graca nao sobe o preco dos outros).
+static bool troca_gratis(void) { return run.bolsa == B_FEIRA && run.trocas == 0; }
+static bool tira_gratis(void) { return run.bolsa == B_FERRAMENTAS && !run.tirou_gratis; }
+static int preco_troca(void)  { return troca_gratis() ? 0 : preco_ajusta(run.bolsa == B_FEIRA ? run.trocas : 1 + run.trocas); }
+static int preco_remove(void) { return tira_gratis() ? 0 : preco_ajusta(3 + 2 * run.remocoes); }
 // Os dados a venda: 2 (1 na loja de dois adesivos), +1 com a Cartola, -1 com a Lata.
 static int n_vitrine(void)
 {
     int n = (run.dois_adesivos ? 1 : 2) + ((run_amuletos() >> A_CARTOLA & 1) ? 1 : 0) - (run.bolsa == B_LATA);
     return n < 0 ? 0 : n > VITRINE_MAX ? VITRINE_MAX : n;
 }
-// Os adesivos a venda: 1, ou 2 na loja de dois adesivos.
-static int n_adesivos_loja(void) { return run.dois_adesivos ? 2 : 1; }
+// Os adesivos a venda: 1, ou 2 na loja de dois adesivos; a Caixa de Papelao, nenhum.
+static int n_adesivos_loja(void) { return run.bolsa == B_PAPELAO ? 0 : run.dois_adesivos ? 2 : 1; }
+// O pacote a venda: 1; a Sacola de Feira, nenhum (nem o cartao).
+static int n_pacote_loja(void) { return run.bolsa == B_FEIRA ? 0 : 1; }
 static int ad_loja(int k) { return k == 0 ? run.adesivo : k == 1 && run.dois_adesivos ? run.adesivo2 : AD_NADA; }
 static bool ad_loja_vendido(int k) { return k == 0 ? run.ad_vendido : run.ad_vendido2; }
 
@@ -146,9 +153,8 @@ static const uint8_t PRECO_NIVEL[PN_N] = { 3, 5, 8, 12 };
 static const char *const NOME_PACOTE[PN_N + 1] = { "Bronze", "Prata", "Ouro", "Diamante", "Adesivos" };
 // A chance (%) de cada raridade dentro de cada nivel [comum, incomum, raro, lendario].
 static const uint8_t RAR_NIVEL[PN_N][4] = { { 75, 20, 5, 0 }, { 20, 65, 15, 0 }, { 0, 25, 65, 10 }, { 0, 0, 65, 35 } };
-static const char *const DESC_NIVEL[PN_N] = { "3 dados ao acaso, quase todos comuns.", "3 dados ao acaso, quase todos incomuns.",
-                                              "3 dados ao acaso, quase todos raros; às vezes um lendário.",
-                                              "3 dados ao acaso, raros e lendários." };
+static const char *const DESC_NIVEL[PN_N] = { "quase todos comuns.", "quase todos incomuns.",
+                                              "quase todos raros; às vezes um lendário.", "raros e lendários." };
 // A chance (%) de cada nivel [Bronze, Prata, Ouro, Diamante] na loja depois do
 // 1o, 2o... 8o oponente vencido na run (a da entrada, como a do 1o).
 #define PN_MESAS 8
@@ -175,7 +181,17 @@ static uint16_t cor_pacote(int g)
 }
 static bool tem_pacote(void) { return run.pacote <= PAC_ADESIVOS; }
 static bool pacote_de_adesivos(void) { return run.pacote == PAC_ADESIVOS; }
-static int pac_ad(int i) { return i >= 0 && i < PAC_OPCOES && run.pac_op[i].ad[0] < AD_N ? run.pac_op[i].ad[0] : AD_NADA; }
+// Quantas cartas o pacote traz: 3, ou 4 com a Caixa de Papelao (a quarta
+// fica no fim da run: a run salva de antes abre igual).
+static int pac_n(void) { return run.bolsa == B_PAPELAO ? PAC_MAX : PAC_OPCOES; }
+static peca_t *pac_carta_p(int i) { return i < PAC_OPCOES ? &run.pac_op[i] : &run.pac_op_mais[i - PAC_OPCOES]; }
+static int pac_ad(int i) { return i >= 0 && i < pac_n() && pac_carta_p(i)->ad[0] < AD_N ? pac_carta_p(i)->ad[0] : AD_NADA; }
+// "3 dados ao acaso, quase todos comuns." (o nivel g, com as cartas do pacote).
+static void desc_pacote(int g, char *s, int n)
+{
+    if (g == PAC_ADESIVOS) snprintf(s, (size_t)n, "%d adesivos ao acaso, entre os abertos.", pac_n());
+    else snprintf(s, (size_t)n, "%d dados ao acaso, %s", pac_n(), DESC_NIVEL[g >= 0 && g < PN_N ? g : 0]);
+}
 
 // Os dados que um pacote pode trazer: os que a vitrine sorteia.
 static bool no_pacote(int t) { return !so_inicial(t) && dado_liberado(t); }
@@ -229,17 +245,22 @@ static void monta_pacote(void)
     semente_loja(0xBA6E1u);
     run.pac_estado = PAC_VENDA;
     memset(run.pac_op, 0, sizeof run.pac_op);
-    if (adesivos_abertos() >= PAC_OPCOES && sorte_r(2)) {
+    memset(run.pac_op_mais, 0, sizeof run.pac_op_mais);
+    if (run.bolsa == B_FEIRA) { run.pacote = PAC_NENHUM; return; }   // a Sacola de Feira: sem pacote
+    int np = pac_n();
+    if (adesivos_abertos() >= np && sorte_r(2)) {
         run.pacote = PAC_ADESIVOS;
-        uint8_t ja[PAC_OPCOES];
-        for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i].ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i, false);
+        uint8_t ja[PAC_MAX];
+        for (int i = 0; i < np; i++) pac_carta_p(i)->ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i, false);
         return;
     }
     const uint8_t *ch = chance_nivel();
     int x = sorte_r(100), nv = 0;
     while (nv < PN_N - 1 && (x -= ch[nv]) >= 0) nv++;
     run.pacote = (uint8_t)nv;
-    for (int i = 0; i < PAC_OPCOES; i++) run.pac_op[i] = sorteia_do_nivel(nv, run.pac_op, i);
+    peca_t op[PAC_MAX];
+    for (int i = 0; i < np; i++) op[i] = sorteia_do_nivel(nv, op, i);
+    for (int i = 0; i < np; i++) *pac_carta_p(i) = op[i];
 }
 
 // Os adesivos da loja (adesivos.inc): entre os que o perfil ja abriu (o
@@ -282,6 +303,12 @@ static int sorteia_adesivo_loja(const uint8_t *fora, int n, bool so_novos)
 // Os adesivos desta loja: meio a meio, um ou dois (e entao 1 dado a menos).
 static void monta_adesivos(void)
 {
+    if (run.bolsa == B_PAPELAO) {                // a Caixa de Papelao: adesivo, so em pacote
+        run.dois_adesivos = 0;
+        run.adesivo = run.adesivo2 = AD_NADA;
+        run.ad_vendido = run.ad_vendido2 = 0;
+        return;
+    }
     semente_loja(0xAD5E1u);
     run.dois_adesivos = (uint8_t)(adesivos_abertos() >= 2 && sorte_r(2));
     uint8_t ja[1];
@@ -302,6 +329,7 @@ static void monta_loja_run(void)
     if (run.lojas) loja_vista();                 // o que a loja de antes mostrou nao volta
     if (run.lojas < 255) run.lojas++;
     run.trocas = 0;
+    run.tirou_gratis = 0;                        // a Caixa de Ferramentas: um de graca por loja
     sorteia_loja();
 }
 

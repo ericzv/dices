@@ -1013,13 +1013,15 @@ static void saque_fileira(int y)
         txt_c(GFX_W / 2, y - 6, "A última mesa da run.", C_MARFIM, true);
         return;
     }
-    int sp = tot > 22 ? 14 : 17, gap = 10;
-    int grupos[5] = { run.ganho, run.colar, run.juros, run.taca, run.dourado };
-    int ng = (run.colar > 0) + (run.juros > 0) + (run.taca > 0) + (run.dourado > 0);
+    int sp = tot > 30 ? 12 : tot > 22 ? 14 : 17, gap = 10;
+    int grupos[6] = { run.ganho, run.colar, run.juros, run.taca, run.dourado, run.bolsa_ganho };
+    int ng = (run.colar > 0) + (run.juros > 0) + (run.taca > 0) + (run.dourado > 0) + (run.bolsa_ganho > 0);
     int larg = tot * sp + ng * gap, x = GFX_W / 2 - larg / 2 + sp / 2, i = 0;
-    static const char *const ROT[5] = { "mesa", "Colar", "Cofre", "Taça", "Dourado" };
-    uint16_t cor_rot[5] = { C_OURO, AMULETO[A_COLAR].cor, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz };
-    for (int g = 0; g < 5; g++) {
+    // O que a bolsa paga a mais (a Carteira, a Maleta), com o nome curto dela.
+    const char *ROT[6] = { "mesa", "Colar", "Cofre", "Taça", "Dourado", run.bolsa == B_MALETA ? "Maleta" : "Carteira" };
+    uint16_t cor_rot[6] = { C_OURO, AMULETO[A_COLAR].cor, AMULETO[A_COFRE].cor, AMULETO[A_TACA].cor, ADESIVO[AD_DOURADO].luz,
+                            BOLSA[run.bolsa < B_N ? run.bolsa : 0].cor };
+    for (int g = 0; g < 6; g++) {
         if (!grupos[g]) continue;
         int x0 = x;
         for (int k = 0; k < grupos[g]; k++, i++, x += sp) {
@@ -1085,7 +1087,7 @@ static void nome_na_coluna(int cx, int y, const char *s, int w, uint16_t c)
 static void desenha_fim_partida_run(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    int alto = venc_partida == 0 && des_marco >= 0 ? 168 : 150;
+    int alto = 150 + (venc_partida == 0 && des_marco >= 0 ? 18 : 0) + (venc_partida == 0 && des_presente >= 0 ? 18 : 0);
     painel(C0 - 70, alto, FIM_PAINEL_W);
     // O oponente, grande, na margem a esquerda do painel (o da faixa sai
     // nesta tela: e o mesmo), com o nome embaixo, sem passar do painel.
@@ -1108,10 +1110,20 @@ static void desenha_fim_partida_run(void)
         saque_fileira(C0 + 4);
         const char *dica = fim_da_run() ? "ENTER segue" : des_marco >= 0 ? "ENTER mostra a novidade"
                          : chefe_deixa_amuleto() ? "ENTER: o chefe deixa um amuleto" : "ENTER vai à loja";
-        int yd = C0 + 56;
+        int yd = C0 + 56, yl = C0 + 46;
+        if (des_presente >= 0 && des_presente < D_N) {   // a Sacola de Presente: o dado raro do chefe, ja na bolsa
+            char l[64];
+            snprintf(l, sizeof l, "Deixou também: %s", TIPO[des_presente].nome);
+            int wl = gfx_largura(l, 1), lx = GFX_W / 2 - (wl + 22) / 2;
+            peca_parada((float)(lx + 8), (float)(yl + 9), 8, (peca_t){ .tipo = (uint8_t)des_presente }, 0);
+            dica_zona(lx, yl + 1, 16, 16, DICA_DADO, des_presente);
+            txt(lx + 22, yl, l, cor_dado(des_presente), true);
+            yl += 18;
+            yd += 18;
+        }
         if (des_marco >= 0) {                      // primeira vitoria contra este chefe: o card vem depois
-            txt_c(GFX_W / 2, C0 + 46, "Abriu uma novidade para as próximas runs", C_OURO, true);
-            yd = C0 + 72;
+            txt_c(GFX_W / 2, yl, "Abriu uma novidade para as próximas runs", C_OURO, true);
+            yd += 16;
         }
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {

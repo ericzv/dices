@@ -996,6 +996,7 @@ typedef struct {
 #define VITRINE_MAX 3                    // os dados da loja: ate 2 (3 com a Cartola)
 #define AD_LOJA_MAX 2                    // os adesivos da loja: 1 ou 2
 #define PAC_OPCOES  3                    // o pacote mostra 3 dados (ou adesivos): leva 1
+#define PAC_MAX     4                    // a Caixa de Papelao: 4 (a quarta carta fica no fim da run)
 typedef struct {
     char     marca[4];                   // RUN_MARCA
     uint8_t  andar, passo, estado, vitorias;
@@ -1044,6 +1045,14 @@ typedef struct {
     // Depois dos adesivos de papel (a run salva de antes abre com eles nunca
     // vistos): os bits dos adesivos de 32 em diante.
     uint8_t  ad_vistos2[4];              // bit a - 32: o adesivo a ja esteve a venda
+    // Depois das bolsas da loja (a run salva de antes abre com tudo em 0): o
+    // que abre cada uma e o que cada uma guarda.
+    uint16_t gasto;                      // moedas gastas na loja na run (25 abrem a Carteira)
+    uint8_t  pacotes;                    // pacotes abertos na run (5 abrem a Caixa de Papelao)
+    uint8_t  tirados;                    // dados tirados da bolsa na run, pagos ou nao (5 abrem a Caixa de Ferramentas)
+    uint8_t  tirou_gratis;               // Caixa de Ferramentas: o dado de graca desta loja ja saiu
+    uint8_t  bolsa_ganho;                // a ultima vitoria: o que a bolsa pagou a mais (a Carteira, a Maleta)
+    peca_t   pac_op_mais[PAC_MAX - PAC_OPCOES];   // a quarta carta do pacote (a Caixa de Papelao)
 } run_t;
 typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
 // O tamanho da run salva de antes das bolsas (ate o presente, com a folga) e
@@ -1054,6 +1063,8 @@ typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
 // antes dos adesivos de papel (ate o segundo adesivo, com a folga).
 #define RUN_TAM_SEM_LOJA2 ((offsetof(run_t, dois_adesivos) + 3) & ~(size_t)3)
 #define RUN_TAM_SEM_VISTOS2 ((offsetof(run_t, ad_vistos2) + 3) & ~(size_t)3)
+// E o de antes das bolsas da loja (ate os adesivos de papel, com a folga).
+#define RUN_TAM_SEM_BOLSAS2 ((offsetof(run_t, gasto) + 3) & ~(size_t)3)
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
 // campo, com a peca de 13 bytes. Abre convertida (des_carrega).
@@ -1082,6 +1093,7 @@ static int   des_dif;                    // dificuldade escolhida para a proxima
 static int   des_marco = -1;             // dado que a ultima vitoria abriu (chefe vencido pela 1a vez)
 static bool  des_chefe_novo;             // o chefe vencido abriu o pedaco dele (perfis.inc) agora
 static int   des_chefe_c;                // e qual chefe (CH_*)
+static int   des_presente = -1;          // a ultima vitoria: o dado raro que o chefe deixou (a Sacola de Presente)
 static int   des_perdeu_para = -1;       // quem encerrou a run (indice em PERSO)
 static int   des_perdeu_andar;
 

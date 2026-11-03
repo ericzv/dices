@@ -16,12 +16,24 @@ typedef struct {
     uint16_t partidas;                   // partidas jogadas no Desafiante
     uint8_t  marcos;                     // bit c: ja venceu o chefe do salao c (abre dados)
     uint8_t  chefes[N_NIVEIS + 1];       // bit CH_*: os chefes ja vencidos em cada dificuldade
-    // As bolsas do comeco da run (desafio/bolsas.inc):
-    uint8_t  bolsas;                     // bit b: a bolsa b abriu (o Saco de Pano, sempre)
-    uint8_t  bolsas_vistas;              // bit b: ja apareceu aberta na escolha (a nova chega com festa)
+    // As bolsas do comeco da run (desafio/bolsas.inc), com lugar para B_MAX
+    // (as que vierem depois cabem sem mudar o salvamento):
     uint8_t  bolsa_ult;                  // a ultima escolhida (a escolha comeca nela)
-    uint8_t  bolsa_rec[B_N];             // o maior nivel vencido com cada uma, +1 (0: nenhum)
+    uint8_t  bolsa_rec[B_MAX];           // o maior nivel vencido com cada uma, +1 (0: nenhum)
+    uint32_t bolsas;                     // bit b: a bolsa b abriu (o Saco de Pano, sempre)
+    uint32_t bolsas_vistas;              // bit b: ja apareceu aberta na escolha (a nova chega com festa)
 } perfil_t;
+typedef struct {                         // "PER6": as 8 primeiras bolsas, em 8 bits; lido e convertido
+    char     nome[12];
+    uint8_t  avatar, nivel;
+    uint8_t  venceu[N_NIVEIS + 1];
+    uint16_t runs;
+    uint16_t partidas;
+    uint8_t  marcos;
+    uint8_t  chefes[N_NIVEIS + 1];
+    uint8_t  bolsas, bolsas_vistas, bolsa_ult;
+    uint8_t  bolsa_rec[8];
+} perfil_6_t;
 typedef struct {                         // "PER5": de antes das bolsas, lido e convertido
     char     nome[12];
     uint8_t  avatar, nivel;
@@ -84,11 +96,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER6" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER7" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER6", 4);
+    memcpy(buf, "PER7", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -148,12 +160,33 @@ static void perfis_le(void)
             lido[i].marcos = v[i].marcos;
             memcpy(lido[i].chefes, v[i].chefes, sizeof lido[i].chefes);
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER6", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
+    } else if (n == 5 + (int)(2 * sizeof(perfil_6_t[N_PERFIS])) && !memcmp(buf, "PER6", 4)) {
+        // Os de antes das bolsas novas: tudo igual, as bolsas (8) em 8 bits.
+        perfil_6_t v[N_PERFIS];
+        if (!de_hex(buf + 5, v, sizeof v)) return;
+        memset(lido, 0, sizeof lido);
+        for (int i = 0; i < N_PERFIS; i++) {
+            memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
+            lido[i].avatar = v[i].avatar;
+            lido[i].nivel = v[i].nivel;
+            memcpy(lido[i].venceu, v[i].venceu, sizeof lido[i].venceu);
+            lido[i].runs = v[i].runs;
+            lido[i].partidas = v[i].partidas;
+            lido[i].marcos = v[i].marcos;
+            memcpy(lido[i].chefes, v[i].chefes, sizeof lido[i].chefes);
+            lido[i].bolsas = v[i].bolsas;
+            lido[i].bolsas_vistas = v[i].bolsas_vistas;
+            lido[i].bolsa_ult = v[i].bolsa_ult;
+            memcpy(lido[i].bolsa_rec, v[i].bolsa_rec, sizeof v[i].bolsa_rec);
+        }
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER7", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
         if (lido[i].nivel > N_NIVEIS) lido[i].nivel = N_NIVEIS;
         if (lido[i].bolsa_ult >= B_N) lido[i].bolsa_ult = B_PANO;
+        lido[i].bolsas &= BOLSAS_TODAS;               // so as que existem
+        lido[i].bolsas_vistas &= BOLSAS_TODAS;
     }
     memcpy(perfis, lido, sizeof perfis);
     int a = buf[4] - '0';

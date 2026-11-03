@@ -294,7 +294,7 @@ static void bs_pontinhos(void)
         if (foco) bs_ponto(x, BS_PT_Y, 3, fechada ? C_MARFIM_S : c, !fechada);
         else bs_ponto(x, BS_PT_Y, 2, c, !fechada);
         if (foco && !fechada) gfx_pixel(x - 1, BS_PT_Y - 1, C_MARFIM);   // o brilho da escolhida
-        zona_clique(x - BS_PT_VAO / 2, BS_PT_Y - 6, BS_PT_VAO, 12, &bs_cur, b, TECLA_BS_VAI + i);
+        if (t_bs_clique < 0) zona_clique(x - BS_PT_VAO / 2, BS_PT_Y - 6, BS_PT_VAO, 12, &bs_cur, b, TECLA_BS_VAI + i);
     }
 }
 
@@ -389,6 +389,9 @@ static void desenha_bolsas(void)
             gfx_rect(cx - w / 2, ny, w, 10, C_VINHO);
             gfx_texto(cx - w / 2 + 3, ny - 2, "NOVA", C_BRANCO, GFX_MIUDO, false);
         }
+        // Escolhida, nada mais e clicavel: o mouse passando nao troca a bolsa
+        // antes da run comecar.
+        if (t_bs_clique >= 0) continue;
         if (foco) zona_clique(cx - r - 4, BS_Y - BS_R - 6, 2 * r + 8, 2 * BS_R + 8, &bs_cur, b, KEY_ENTER);
         else if (ad < BS_LADO + 0.4f) zona_clique(zx, zy, zw, zh, NULL, i, TECLA_BS_VAI + i);
     }

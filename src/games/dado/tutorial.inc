@@ -40,7 +40,7 @@ static const pagina_t TUTORIAL[] = {
         "Uma run por 3 salões: dois oponentes e o chefe.",
         "Venceu a mesa: moedas e a loja. Perdeu: a run acaba.",
         "Chefes vencidos abrem bolsas, dados e dificuldades." },
-        "8 rodadas e 50 fichas por partida. Antes, você escolhe a bolsa. Cada perfil guarda o seu progresso." },
+        "8 rodadas e 50 fichas por partida. Abrindo outras bolsas, você escolhe a da run. Cada perfil guarda o seu progresso." },
     { "TECLAS", {
         "Mouse e toque também jogam: clique no que quiser.",
         "O < no alto volta, ou sai da partida.",

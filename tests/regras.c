@@ -2297,6 +2297,34 @@ int main(void)
         CONFERE(bolsa_aberta(B_FOSFORO), "uma run vencida abre os Fosforos");
         perfis[0].venceu[3] = 0;
         CONFERE(perfis[0].bolsa_ult == B_PANO, "a ultima escolhida: %d", perfis[0].bolsa_ult);
+        // So o Saco de Pano aberto: a escolha nem abre, a run comeca com ele.
+        {
+            int runs = perfis[0].runs;
+            des_bolsa = B_LAPIS; fase = F_RDIFIC;
+            abre_bolsas();
+            CONFERE(fase == F_RAMULETO && perfis[0].runs == runs + 1 && run.bolsa == B_PANO,
+                    "so o Pano: a run comeca sem a escolha (fase %d, bolsa %d)", fase, run.bolsa);
+        }
+        // A vitrine: as abertas primeiro e as fechadas no fim; as setas param
+        // nas pontas; o clique numa ficha do lado (ou num pontinho) e os
+        // numeros vao pelo lugar na fila.
+        perfis[0].bolsas = (1u << B_COPO) | (1u << B_PRESENTE);
+        perfis[0].bolsas_vistas = perfis[0].bolsas;
+        abre_bolsas();
+        CONFERE(fase == F_RBOLSAS && bs_cur == B_PANO && bs_ordem[0] == B_PANO && bs_ordem[1] == B_COPO
+                && bs_ordem[2] == B_PRESENTE && bs_ordem[3] == B_LATA && bs_ordem[B_N - 1] == B_MALETA,
+                "vitrine: abertas primeiro (%d %d %d %d ... %d)", bs_ordem[0], bs_ordem[1], bs_ordem[2], bs_ordem[3], bs_ordem[B_N - 1]);
+        bs_tecla(KEY_LEFT, -1);
+        CONFERE(bs_cur == B_PANO, "vitrine: a seta para na primeira (%d)", bs_cur);
+        bs_tecla(KEY_RIGHT, 1); bs_tecla(KEY_RIGHT, 1);
+        CONFERE(bs_cur == B_PRESENTE, "vitrine: duas para a direita, a Sacola de Presente (%d)", bs_cur);
+        bs_tecla(TECLA_BS_VAI + 3, 0);
+        CONFERE(bs_cur == B_LATA && bs_fechada(B_LATA), "vitrine: o clique vai ate a quarta, fechada (%d)", bs_cur);
+        bs_tecla('2', 0);
+        CONFERE(bs_cur == B_COPO, "vitrine: o 2 e a segunda da fila (%d)", bs_cur);
+        for (int i = 0; i < B_N + 2; i++) bs_tecla(KEY_RIGHT, 1);
+        CONFERE(bs_cur == B_MALETA, "vitrine: a seta para na ultima (%d)", bs_cur);
+        perfis[0].bolsas_vistas = 0;
         perfis[0].bolsas = 0xFF;
         // Copo de Couro: sem os D2, com um D8 e o Viciado; compra 6.
         des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();

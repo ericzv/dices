@@ -434,6 +434,8 @@ static uint16_t cor_cinza(uint16_t c, int q)
     return gfx_mistura(c, RGB(l, l, l), q);
 }
 static int ic_cinza;                     // 0..100: o icone sem cor (a ficha fora de foco)
+static int fb_apaga;                     // 0..100: a ficha inteira misturada no feltro (o fundo da vitrine)
+static uint16_t fb_ap(uint16_t c) { return fb_apaga ? gfx_mistura(c, C_FELTRO_ESC, fb_apaga) : c; }
 
 // O icone da bolsa b com o centro em (cx, cy), e pixels de e x e, estreitado
 // na horizontal por sx (a ficha virando). apaga: 0..100, misturado no escuro.
@@ -454,6 +456,7 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
             if (some) continue;
             if (ic_cinza) cor = cor_cinza(cor, ic_cinza);
             if (apaga) cor = gfx_mistura(cor, C_BARRA, apaga);
+            cor = fb_ap(cor);
             float x0 = (x - 8 + dx) * e * sx, x1 = (x - 7 + dx) * e * sx;
             int px = cx + (int)floorf(x0), pw = (int)floorf(x1) - (int)floorf(x0);
             gfx_rect(px, cy + (y - 8 + dy) * e, pw > 0 ? pw : 1, e, cor);
@@ -468,7 +471,7 @@ static void icone_bolsa_em(int b, int cx, int cy, int e, float sx, float t, int 
 static void cadeado_em(int cx, int cy, int e, float t)
 {
     int dx = t >= 0 ? (int)lroundf(sinf(t * 50) * 1.4f) : 0;   // tremendo: a ficha nao abre
-    icone_cadeado(cx + dx, cy, e, C_LATAO);
+    icone_cadeado(cx + dx, cy, e, fb_ap(C_LATAO));
 }
 
 // O estagio do Saco de Sementes agora: na partida, pela rodada.
@@ -506,13 +509,15 @@ static void ficha_bolsa_viva(int cx, int cy, int r, int b, float sobe, float gir
     int cinza = viva >= 1 ? 0 : (int)lroundf((1 - (viva < 0 ? 0 : viva)) * 100);
     if (fechada) cor = gfx_mistura(cor, C_BARRA, 72);
     else if (cinza) cor = cor_cinza(cor, cinza);
+    cor = fb_ap(cor);
+    uint16_t listra = fb_ap(fechada ? C_EBANO_B : C_MARFIM_S);
     int y = cy - (int)lroundf(sobe * 6);
     int rx = (int)lroundf(r * sx);
     if (sx > 0.95f) ficha_sombra(cx + 2, cy + 4, r - (int)lroundf(sobe * 2));   // a sombra no feltro
     else elipse(cx + 2, cy + 4, rx - (int)lroundf(sobe * 2), r - (int)lroundf(sobe * 2), C_SOMBRA);
     if (sx < 0.25f) {                                     // de lado: so a borda, com as listras
         elipse(cx, y, rx + 1, r, gfx_mistura(cor, C_BARRA, 45));
-        for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, fechada ? C_EBANO_B : C_MARFIM_S);
+        for (int k = -r + 3; k < r - 2; k += 6) gfx_rect(cx - rx, y + k, 2 * rx + 1, 2, listra);
         return;
     }
     if (foco) ui_cantos(cx - r, y - r, 2 * r + 1, 2 * r + 1, C_OURO);
@@ -524,7 +529,7 @@ static void ficha_bolsa_viva(int cx, int cy, int r, int b, float sobe, float gir
                         cx + cosf(a + d) * (r - 1.5f) * sx, cx + cosf(a + d) * (r - 7) * sx };
         float vy[4] = { y + sinf(a - d) * (r - 7), y + sinf(a - d) * (r - 1.5f),
                         y + sinf(a + d) * (r - 1.5f), y + sinf(a + d) * (r - 7) };
-        poligono(vx, vy, 4, fechada ? C_EBANO_B : C_MARFIM_S);
+        poligono(vx, vy, 4, listra);
     }
     if (grande) {
         uint16_t rc[4];
@@ -534,15 +539,15 @@ static void ficha_bolsa_viva(int cx, int cy, int r, int b, float sobe, float gir
         for (int k = 0; k < 26; k++) {                    // o pontilhado em volta do centro
             float a = giro * 0.5f + k * 0.2417f;
             gfx_rect(cx + (int)lroundf(cosf(a) * (r - 10.5f) * sx), y + (int)lroundf(sinf(a) * (r - 10.5f)), 1, 1,
-                     gfx_mistura(cor, fechada ? C_EBANO_B : C_MARFIM, 55));
+                     gfx_mistura(cor, fb_ap(fechada ? C_EBANO_B : C_MARFIM), 55));
         }
     }
     int rc = grande ? r - 12 : r - 3;
     uint16_t rf[4];
     rampa_de(gfx_na_paleta(cor), rf);
     elipse(cx, y, (int)lroundf((rc + 1) * sx), rc + 1, rf[1]);   // o aro do centro, um tom abaixo
-    if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, C_EBANO);
-    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, cinza > 50 ? RGB(204, 194, 172) : C_MARFIM, false, cx, y, rc);   // o marfim, com a luz
+    if (fechada) elipse(cx, y, (int)lroundf(rc * sx), rc, fb_ap(C_EBANO));
+    else ficha_disco_em(cx, y, (int)lroundf(rc * sx), rc, fb_ap(cinza > 50 ? RGB(204, 194, 172) : C_MARFIM), false, cx, y, rc);   // o marfim, com a luz
     int e = rc >= 19 ? 2 : 1;
     if (fechada) {
         icone_bolsa_em(b, cx, y, e, sx, -1, 1, 88);       // a silhueta, quase apagada

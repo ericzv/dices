@@ -105,7 +105,7 @@ static void plaqueta_sua_vez(int cx, int y_beira)
     int dy = e < 0.3f ? (int)((1 - sai_mola(e / 0.3f)) * -14) : 0;
     int x = cx - w / 2, y = y_beira - h / 2 - 2 + dy;
     uint16_t r[4];
-    rampa_de(C_OURO, r);
+    rampa_de(modo == M_DOIS ? J[vez].cor : C_OURO, r);   // com dois na mesa, na cor de quem joga
     ui_sombra(x, y, w, h);
     gfx_rect(x + 1, y + 1, w - 2, h - 2, r[2]);
     gfx_rect(x + 2, y + 1, w - 4, 1, r[3]);              // a luz na beira de cima
@@ -262,13 +262,27 @@ static bool mostra_chance(void)
     return true;
 }
 
+// Com dois na mesma mesa, o menu do meio chega um pouco para o lado de quem
+// decide: mais para baixo na vez de quem senta embaixo, mais para cima na de
+// quem senta em cima (ali cabe menos, entre a fila de cima e o meio). Anda
+// junto com a luz da vez (hora.inc), quando ela atravessa a mesa.
+static int menu_da_vez(void)
+{
+    if (modo != M_DOIS) return 0;
+    float t = vez_luz_y < 0 ? (vez == baixo ? 0.0f : 1.0f)
+            : (vez_luz_y - zona(baixo)) / (float)(zona(outro(baixo)) - zona(baixo));   // 0 embaixo, 1 em cima
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+    return (int)lroundf(10 - 22 * t);
+}
+
 static void desenha_joga(void)
 {
     jogador_t *p = &J[vez];
     fila_t *f = &F[vez];
     char t[64];
     snprintf(t, sizeof t, "%s joga", p->nome);
-    int y1 = CENTRO - 40;
+    int y1 = CENTRO - 40 + menu_da_vez();
 
     // Os botoes primeiro: a largura do painel depende deles.
     char parar[40] = "parar", jogar[40] = "jogar";
@@ -371,7 +385,7 @@ static void desenha_aposta(void)
 {
     if (anuncia_maquina()) { pote_mesa(); return; }
     char ctx[96], q[48];
-    int y1 = CENTRO - 30 + ui_entra(t_fase, 0, UI_ENTRA_PLACA);   // entra como as placas (interface.inc)
+    int y1 = CENTRO - 30 + ui_entra(t_fase, 0, UI_ENTRA_PLACA) + menu_da_vez();   // entra como as placas (interface.inc)
     // O contexto: quem fez quantos pontos e o lance que esta na mesa.
     int n = snprintf(ctx, sizeof ctx, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
     int quem = outro(vez);                        // quem fez o lance que esta valendo
@@ -379,7 +393,11 @@ static void desenha_aposta(void)
         if (quem == primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? " e dobrou" : " e apostou %d", a_pagar);
         else snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? "  ·  %s dobrou" : "  ·  %s apostou %d", J[quem].nome, a_pagar);
     } else if (vez != primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, " e passou");
-    if (a_pagar) snprintf(q, sizeof q, "Pagar %d para ver?", a_pagar);
+    // Com dois na mesa, a pergunta diz a quem e (na cor dele).
+    if (modo == M_DOIS) {
+        if (a_pagar) snprintf(q, sizeof q, "%s, pagar %d para ver?", J[vez].nome, a_pagar);
+        else snprintf(q, sizeof q, "%s, apostar?", J[vez].nome);
+    } else if (a_pagar) snprintf(q, sizeof q, "Pagar %d para ver?", a_pagar);
     else snprintf(q, sizeof q, "Apostar?");
     txt_c(GFX_W / 2, y1 - 16, ctx, C_MARFIM_S, false);
     txt_sombra_c(GFX_W / 2, y1, q, J[vez].cor, 1);

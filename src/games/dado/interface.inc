@@ -569,6 +569,7 @@ static void ui_aperta(int x, int y) { aperto_x = x; aperto_y = y; t_aperto = UI_
 #define UI_DESLIGADO 2
 // A face do botao, sem o rotulo: devolve a cor da letra que vai nela e, em
 // *desce, quanto a face desceu (apertado).
+static uint16_t ui_foco_cor;            // a cor da selecao dos botoes (0: o ouro de sempre)
 static uint16_t ui_botao_face(int x, int y, int w, int h, uint16_t tinta, int estado, int *desce)
 {
     uint16_t face = estado == UI_DESLIGADO ? C_EBANO : tinta ? tinta : C_EBANO_B;
@@ -594,7 +595,7 @@ static uint16_t ui_botao_face(int x, int y, int w, int h, uint16_t tinta, int es
     }
     if (estado != UI_DESLIGADO) gfx_rect(x + 2, y + 1 + d, w - 4, 1, r[3]);   // a luz na beira de cima
     ui_contorno(x, y + d, w, h - d, C_BARRA);
-    if (estado == UI_FOCO && !baixo) ui_cantos(x, y, w, h + 1, C_OURO);
+    if (estado == UI_FOCO && !baixo) ui_cantos(x, y, w, h + 1, ui_foco_cor ? ui_foco_cor : C_OURO);
     uint16_t c = estado == UI_DESLIGADO ? C_EBANO_B : estado == UI_FOCO ? C_BRANCO : C_MARFIM;
     // Face clara (latao, ouro): letra escura.
     int lum = ((face >> 11) & 31) * 2 + ((face >> 5) & 63) + (face & 31);

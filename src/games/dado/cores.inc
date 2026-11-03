@@ -33,6 +33,7 @@ static uint16_t feltro_tons[7] = { RGB(8, 24, 17), RGB(11, 33, 24), RGB(15, 41, 
 #define C_PRATA      RGB(184, 194, 208)
 #define C_MARFIM_D   RGB(238, 230, 212)      // corpo dos dados de quem joga embaixo
 #define C_AZUL       RGB(56, 86, 150)
+#define C_CELESTE    RGB(168, 204, 230)      // o JOGADOR 1 do modo 2 jogadores (o 2 e rosa)
 #define C_VERMELHO   RGB(190, 56, 60)
 #define C_BRANCO     RGB(252, 248, 236)
 #define C_CHUMBO     RGB(70, 76, 88)

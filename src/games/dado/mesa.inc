@@ -26,10 +26,23 @@ static uint16_t conta_cor(const contador_t *c, uint16_t base)
     return gfx_mistura(base, acende, (int)(c->pulo * 75));
 }
 
-// O nome do jogador na faixa.
-static int txt_nome(int x, int y, int j)
+// O nome do jogador na faixa. Com dois na mesma mesa, o nome de quem esta na
+// vez vira uma plaquinha na cor dele (a letra escura gravada), e o do outro
+// fica so escrito: da para ver de longe de quem e a vez.
+static int txt_nome(int x, int y, int j, bool vez_dele)
 {
-    return gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
+    if (!(vez_dele && modo == M_DOIS)) return gfx_texto(x, y, J[j].nome, J[j].cor, 1, true);
+    int w = gfx_largura(J[j].nome, 1);
+    uint16_t r[4];
+    rampa_de(J[j].cor, r);
+    int px = x - 5, py = y + 2, pw = w + 10, ph = TXT_H + 1;
+    ui_sombra(px, py, pw, ph);
+    gfx_rect(px + 1, py + 1, pw - 2, ph - 2, r[2]);
+    gfx_rect(px + 2, py + 1, pw - 4, 1, r[3]);                       // a luz na beira de cima
+    gfx_rect(px + 1, py + ph - 2, pw - 2, 1, r[1]);                  // e a sombra na de baixo
+    ui_contorno(px, py, pw, ph, C_BARRA);
+    gfx_texto(x, y, J[j].nome, C_BARRA, 1, false);
+    return w;
 }
 
 // O laco do Presente, com o no em (x, y): marca o dado que saiu de um.
@@ -512,8 +525,8 @@ static void faixa_jogador(int j)
     // no celular nao ha tecla.
     int x0 = cima ? botao_voltar(KEY_ESC) - 4 : 6;
     int xn = modo == M_DESAFIO ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
-    int x = xn + txt_nome(xn, ty, j);
-    ficha(x + 22, y0 + FAIXA_H / 2, j == 0 ? C_LATAO : C_ROSA);
+    int x = xn + txt_nome(xn, ty, j, da_vez);
+    ficha(x + 22, y0 + FAIXA_H / 2, p->cor);
     ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
     char s[48];
     snprintf(s, sizeof s, "%d", faixa_c[j].mostra);        // contando: dourado subindo, vinho descendo

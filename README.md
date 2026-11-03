@@ -194,6 +194,20 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto e qual chefe abre o que falta.
 
+## 2 jogadores na mesma mesa: de quem é a vez
+
+Cada um tem a sua cor: **azul** o JOGADOR 1 (embaixo) e **rosa** o JOGADOR 2
+(em cima). Na vez de alguém responder (montar a sequência, jogar, apostar,
+comprar, escolher o prêmio):
+
+- a luz da mesa fica do lado dele e o lado de quem espera escurece (os dados
+  dele ficam na meia-luz, ainda à vista); quando a vez troca, a luz
+  atravessa a mesa;
+- o nome dele na faixa vira uma plaquinha na cor dele;
+- o menu do meio chega para o lado dele (mais para baixo na vez do JOGADOR
+  1, mais para cima na do JOGADOR 2), a pergunta diz a quem é ("JOGADOR 2,
+  apostar?") e a seleção dos botões fica na cor dele.
+
 ## 2 jogadores e online: o prêmio da rodada
 
 Quem vence a rodada (ou fica com o pote porque o outro correu) escolhe um

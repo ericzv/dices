@@ -65,6 +65,7 @@ void dado_passo(float dt)
     if (fase == F_RFIM) foto_clique(t_antes, t_fase);   // a foto da run campea (desafio/desenho.inc)
     mola_passo(dt_real);
     hora_passo(dt, dt_real);
+    vez_luz_passo(dt_real);
     placar_passo(dt, dt_real);
     des_contadores_passo(dt, dt_real);
     bolsas_passo(dt_real);

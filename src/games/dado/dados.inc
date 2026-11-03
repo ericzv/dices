@@ -227,7 +227,7 @@ static const tipo_t TIPO[D_N] = {
     { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO,    13, "Maior dado da rodada: +4" },
     { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "Tirou 1: quebra e anula o dado anterior" },
     { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO,    16, "Guarda +1 cada vez que entra válido" },
-    { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "Recebe os ataques do oponente · válido: +2" },
+    { "Segurança",        4, EF_SEGURANCA,    RAR_INCOMUM,  7, "Recebe os ataques do oponente · todos válidos: +2" },
     { "Bumerangue",       6, EF_BUMERANGUE,   RAR_COMUM,    0, "1 ou 2: volta e rola de novo" },
     { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "Tira o mesmo do último dado válido (até 6)" },
     { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado válido (d2, d4, d6...)" },
@@ -349,7 +349,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_DESAFIANTE]      = "Se for o maior dado válido da rodada, seu ou do oponente: +4 no fim.",
     [D_VIDRO]           = "Se tirar 1, quebra: é anulado, anula o dado anterior e sai da bolsa.",
     [D_ACUMULADOR]      = "Cada vez que entra válido na sequência, guarda +1 de bônus para as próximas vezes (até +6).",
-    [D_SEGURANCA]       = "Se estiver válido, é anulado ou roubado no lugar dos seus outros dados. Válido no fim: +2.",
+    [D_SEGURANCA]       = "Se estiver válido, é anulado ou roubado no lugar dos seus outros dados. Sequência inteira válida no fim: +2.",
     [D_BUMERANGUE]      = "Se tirar 1 ou 2, volta e rola de novo, uma vez.",
     [D_GEMEO]           = "Tira o mesmo número do último dado válido da sequência, até 6 (senão, rola normalmente).",
     [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo de dado entre os seus válidos: d2, d4, d6, d8, d12, d20.",
@@ -499,8 +499,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_ACUMULADOR]      = "Oito lados. Cada vez que entra válido na sequência, guarda +1 de bônus para as próximas vezes, até "
                           "+6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar válido.",
     [D_SEGURANCA]       = "Quatro lados. Se o oponente anular ou roubar um dado seu e o Segurança estiver válido, quem é "
-                          "anulado ou roubado é o Segurança, e o outro dado fica. Se terminar válido, pontua +2 no fim da "
-                          "rodada.",
+                          "anulado ou roubado é o Segurança, e o outro dado fica. Se ele e todos os outros dados da sua "
+                          "sequência terminarem válidos, pontua +2 no fim da rodada.",
     [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
                           "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",

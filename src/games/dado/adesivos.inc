@@ -112,7 +112,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_PATINHO]      = { "Patinho Feio", "se válido: tirando este lado, -2;", "tirando outro lado, +2", 5, 4,
                           RGB(168, 204, 230), RGB(252, 248, 236), RGB(128, 120, 112),
                           { "...##..", "..#.##.", "######.", "...##..", ".######", "#######", ".#####." } },
-    [AD_ETIQUETA]     = { "Etiqueta", "tirando este lado, se válido: +1", "por Etiqueta nos seus dados", 5, 6,
+    [AD_ETIQUETA]     = { "Etiqueta", "tirando este lado, se válido: +1", "por Etiqueta nos seus dados", 2, 6,
                           RGB(150, 122, 62), RGB(190, 156, 86), RGB(252, 248, 236),
                           { ".......", "..#####", ".######", "##.####", ".######", "..#####", "......." } },
     [AD_BILHETE]      = { "Bilhete Premiado", "tirando este lado, se válido: o", "bônus dos seus dados em dobro", 6, 10,

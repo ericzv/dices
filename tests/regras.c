@@ -3620,7 +3620,8 @@ int main(void)
         CONFERE(c1 > 5 * l1 && l3 > 2 * c3, "raridade dos adesivos na loja: 1o salao comum %.0f lendario %.0f; 3o comum %.0f lendario %.0f",
                 c1, l1, c3, l3);
         perfis[0].nivel = 0;
-        CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
+        CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2 && preco_adesivo(AD_ETIQUETA) == 2,
+                "precos dos adesivos");
         monta_loja_run();
         run.dois_adesivos = 0;
         run.adesivo = AD_ELETRONICO;
@@ -4275,11 +4276,18 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][1] == V_VALIDO,
                 "Seguranca com dois ataques");
-        // Valendo no fim, o Seguranca ganha +2.
+        // A sequencia inteira valendo no fim: o Seguranca ganha +2.
         limpa();
         joga(0, D_D4, 1); joga(0, D_SEGURANCA, 3);
         d = fim();
         CONFERE(d.total[0] == 1 + 3 + 2, "Seguranca valendo: esperava 6, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 1) == 1, "Seguranca com todos valendo: armado");
+        // Ele valendo, mas outro dado seu caiu: sem o +2.
+        limpa();
+        joga(0, D_SEGURANCA, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2, "Seguranca com um caido: esperava 2, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 0) == 0, "Seguranca com um caido: desarmado");
         // Sem Seguranca, o Carrasco anula o maior, como sempre.
         limpa();
         joga(0, D_D4, 2); joga(0, D_D8, 7);

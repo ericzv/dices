@@ -152,6 +152,11 @@ static void passeio(void)
     des_dif = 5; des_bolsa = B_PANO; des_nova_run(); t_elev = 0; amuleto_escolhido(1);
     run.andar = DES_ANDARES - 1; gera_andar(); run.passo = (uint8_t)(mesas_do_salao() - 1); run.estado = R_VENCEU;
     des_pos_vitoria(); passa(240); tela("aviso_coringa");
+    // E a run campea no Nivel 4: a foto da bolsa, o aviso do historico e o
+    // nivel que abriu, sem um texto por cima do outro.
+    des_dif = 4; des_bolsa = B_PANO; des_nova_run(); t_elev = 0; amuleto_escolhido(1);
+    run.andar = DES_ANDARES - 1; perfis[0].nivel = 4;
+    encerra_run(true); passa(150); tela("run_campea");
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

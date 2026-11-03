@@ -935,12 +935,14 @@ static void desenha_run_campea(int n)
 {
     char s[96], leg[64];
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "VITÓRIA", C_OURO, 2);
-    txt_c(GFX_W / 2, MESA_Y0 + 42, run.andar >= DES_ANDAR_FINAL ? "Você venceu O CORINGA e fechou o cassino."
+    txt_c(GFX_W / 2, MESA_Y0 + 40, run.andar >= DES_ANDAR_FINAL ? "Você venceu O CORINGA e fechou o cassino."
                                                                  : "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
     uint32_t d = hoje();
     snprintf(leg, sizeof leg, "Run campeã  ·  %s  ·  %02u/%02u/%04u", nome_dif(run.dificuldade),
              (unsigned)(d % 100), (unsigned)(d / 100 % 100), (unsigned)(d / 10000));
-    int fw = 340, fh = 150, fx = GFX_W / 2 - fw / 2, fy = MESA_Y0 + 60;
+    // De cima para baixo, sem um texto por cima do outro: a foto, o aviso do
+    // historico logo embaixo dela, o nivel que abriu e as teclas.
+    int fw = 340, fh = 134, fx = GFX_W / 2 - fw / 2, fy = MESA_Y0 + 58;
     if (t_fase < FOTO_FLASH) {                        // a bolsa vai sendo posta na mesa, ja onde a foto pega
         foto_arranjo_t f = foto_arranjo(fx + FOTO_BORDA, fy + FOTO_BORDA, fw - 2 * FOTO_BORDA,
                                         fh - FOTO_BORDA - FOTO_BAIXO, run.n_col, run_amuletos() != 0);
@@ -950,9 +952,9 @@ static void desenha_run_campea(int n)
         foto_da_run(fx, fy, fw, fh, run.col, NULL, run.n_col, run_amuletos(), leg, 9);
         float q = (t_fase - FOTO_FLASH) / 0.35f;      // o flash: a tela clareia e volta
         if (q < 1) gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_BRANCO, (int)(220 * (1 - q)));
-        else txt_c(GFX_W / 2, fy + fh + 4, "a foto fica no seu histórico", C_TEXTO_M, false);
+        else txt_c(GFX_W / 2, fy + fh + 3, "a foto fica no seu histórico", C_TEXTO_M, false);
     }
-    if (n) nov_linha_fim(MESA_Y1 - 40);               // o que abriu vem depois, card a card
+    if (n) nov_linha_fim(MESA_Y1 - 42);               // o que abriu vem depois, card a card
     snprintf(s, sizeof s, "%s", n ? "ENTER mostra as novidades" : "ENTER segue");
     teclas_c(GFX_W / 2, MESA_Y1 - 20, s, C_MARFIM_S);
 }

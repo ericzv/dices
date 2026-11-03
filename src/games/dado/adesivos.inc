@@ -214,6 +214,35 @@ static int ad_conta(const peca_t *p, int a)
     for (int l = 1; l <= AD_LADOS; l++) n += ad_no_lado(p, l) == a;
     return n;
 }
+// Numa bolsa (onde: o lugar de cada dado na partida; NULL fora dela), as
+// figurinhas juntadas nos dados com Figurinha (cada um comeca com 1) e as
+// Etiquetas coladas: o que a Figurinha e a Etiqueta pagam. O dado comido
+// pela Autofagia nao conta.
+static int conta_figurinhas(const peca_t *col, const uint8_t *onde, int n)
+{
+    int s = 0;
+    for (int i = 0; i < n; i++)
+        if ((!onde || onde[i] != COMIDO) && ad_conta(&col[i], AD_FIGURINHA)) s += 1 + col[i].figurinha;
+    return s;
+}
+static int conta_etiquetas(const peca_t *col, const uint8_t *onde, int n)
+{
+    int s = 0;
+    for (int i = 0; i < n; i++) if (!onde || onde[i] != COMIDO) s += ad_conta(&col[i], AD_ETIQUETA);
+    return s;
+}
+// O quanto vale agora um adesivo que cresce, para quem olha antes de lancar:
+// o Fermento (o quanto este dado ja cresceu), a Figurinha e a Etiqueta (o que
+// a bolsa col junta; col NULL: a bolsa e desconhecida). -1: nao cresce, ou
+// nao se sabe.
+static int ad_vale_agora(int a, const peca_t *p, const peca_t *col, const uint8_t *onde, int n)
+{
+    if (a == AD_FERMENTO) return FERMENTO_CADA * (p->fermento + 1);
+    if (!col) return -1;
+    if (a == AD_FIGURINHA) return conta_figurinhas(col, onde, n);
+    if (a == AD_ETIQUETA) return conta_etiquetas(col, onde, n);
+    return -1;
+}
 // Cabe o adesivo a nele? Um por lado, e no maximo dois Chumbos por dado.
 #define CHUMBO_MAX 2
 static bool ad_cabe_o(const peca_t *p, int a)
@@ -591,16 +620,16 @@ static int som_adesivo(int a)
 }
 
 // Os adesivos de um dado numa linha so (a tela da bolsa): o selinho de cada
-// lado e o nome; o Fermento com o quanto ja cresceu. Nao cabendo, "+N".
-static void ad_linha(int cx, int y, const peca_t *p)
+// lado e o nome; os que crescem (Fermento, Figurinha, Etiqueta) com o quanto
+// valem agora, na bolsa col. Nao cabendo, "+N".
+static void ad_linha(int cx, int y, const peca_t *p, const peca_t *col, int n_col)
 {
     int lados[AD_LADOS], n = 0, ws[AD_LADOS], tot = 0, m = 0;
     char nomes[AD_LADOS][24];
     for (int l = 1; l <= AD_LADOS; l++) if (ad_no_lado(p, l)) lados[n++] = l;
     for (int i = 0; i < n; i++) {
-        int a = ad_no_lado(p, lados[i]);
-        if (a == AD_FERMENTO && p->fermento) snprintf(nomes[i], sizeof nomes[i], "%s +%d", ADESIVO[a].nome, FERMENTO_CADA * (p->fermento + 1));
-        else if (a == AD_FIGURINHA) snprintf(nomes[i], sizeof nomes[i], "%s %d", ADESIVO[a].nome, 1 + p->figurinha);
+        int a = ad_no_lado(p, lados[i]), v = ad_vale_agora(a, p, col, NULL, n_col);
+        if (v >= 0) snprintf(nomes[i], sizeof nomes[i], "%s +%d", ADESIVO[a].nome, v);
         else if (a == AD_SELO && p->selo) snprintf(nomes[i], sizeof nomes[i], "%s lacrado", ADESIVO[a].nome);
         else snprintf(nomes[i], sizeof nomes[i], "%s", ADESIVO[a].nome);
         ws[i] = ad_pilula_w(lados[i]) + 3 + gfx_largura(nomes[i], GFX_MIUDO);

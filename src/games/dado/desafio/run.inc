@@ -330,4 +330,4 @@ static const perso_t PERSO[] = {
 _Static_assert(N_PERSO == PERSO_RENA + 1, "os de dezembro no fim da lista");
 static bool perso_chefe(int p) { return (p >= PERSO_CHEFE0 && p < PERSO_CHEFE0 + DES_ANDARES) || p == PERSO_NOEL; }
 // Os de dezembro: so aparecem no Desafiante nesse mes.
-static bool perso_natal(int p) { return p >= PERSO_NOEL && p <= PERSO_RENA; }
+static inline bool perso_natal(int p) { return p >= PERSO_NOEL && p <= PERSO_RENA; }

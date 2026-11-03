@@ -142,9 +142,9 @@ static bool des_tecla(int k, int e)
         return estilo_tecla(k);
 
     case F_RDIFIC: {
-        int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;
-        if (e) { dif_cur = (dif_cur + e + ult + 1) % (ult + 1); som_toca(SOM_TIQUE); return true; }
-        if (k == KEY_ENTER && dif_cur <= nv) {
+        int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
+        if (e) { dif_cur = (dif_cur + e + nv + 1) % (nv + 1); som_toca(SOM_TIQUE); return true; }
+        if (k == KEY_ENTER && dif_cur >= 0 && dif_cur <= nv) {
             som_toca(SOM_FICHA);
             des_dif = dif_cur;
             abre_bolsas();                       // e a bolsa da run

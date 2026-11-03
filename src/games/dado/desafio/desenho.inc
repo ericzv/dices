@@ -53,7 +53,8 @@ static void faixa_run(int voltar)
     }
     char s[48];
     if (run.andar >= DES_ANDARES) snprintf(s, sizeof s, "%s  ·  final", SALAO[run.andar]);
-    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
+    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1,
+                  com_coringa() ? DES_ANDARES + 1 : DES_ANDARES);     // do Nivel 5, o salao do Coringa conta
     int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
     if (cx - meio < fim + 18) cx = fim + 18 + meio;
     txt_c(cx, ty, s, COR_SALAO[run.andar], true);
@@ -384,9 +385,11 @@ static void info_mesa(int p)
     gfx_texto(xa, cy, pe->nome, cor_no(no->tipo), 1, true);
     int xt = etiqueta_caixa(xa, cy + 21, NOME_NO[no->tipo], cor_no(no->tipo));
     etiqueta_caixa(xt, cy + 21, NIVEL_IA[nivel_mesa(no)], C_ACO);
+    int xr = xa;                                 // onde termina a linha de baixo
     if (no->tipo == NO_CHEFE && virada_de(no->perso)) {   // a virada: os detalhes na dica dela
         int xv = etiqueta_caixa(xa, cy + 42, "Virada", C_VINHO_CLR);
         dica_zona(xa, cy + 42, xv - xa, 20, DICA_TRUNFO, no->perso);
+        xr = xv;
     } else {
         int vale = moedas_mesa(p);
         bool paga = vale && !(run.andar == DES_ANDARES - 1 && no->tipo == NO_CHEFE && !com_coringa());
@@ -395,7 +398,15 @@ static void info_mesa(int p)
             snprintf(v, sizeof v, "vale %d", vale);
             moeda_r(xa + 5, cy + 54, ICONE_P);
             txt(xa + 16, cy + 44, v, C_OURO, false);
+            xr = xa + 16 + gfx_largura(v, fonte_de(false)) + 6;
         } else txt(xa, cy + 44, "a última mesa da run", C_TEXTO_M, false);
+    }
+    if (chefe_antes_do_coringa(p)) {             // do Nivel 5, ele nao fecha a run: ainda vem mais um chefe
+        const char *e = "não é o último";
+        int f = fonte_que_cabe(e, GFX_FINO, xa + wa - 4 - xr - 10);
+        int w = gfx_largura(e, f) + 10;
+        ui_etiqueta(xr, cy + 44, w, 16, C_REAL);
+        gfx_texto(xr + 5, cy + 41, e, C_REAL, f, false);
     }
     info_divisa(xa + wa);
 
@@ -665,7 +676,7 @@ static void desenha_bolsa_run(void)
     if (run.n_col && cursor < run.n_col) {
         bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
         dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
-        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor]);
+        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor], run.col, run.n_col);
     }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
 }

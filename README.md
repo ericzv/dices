@@ -89,7 +89,14 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   diante, depois do Barão ainda há o salão do Coringa, o chefe especial, que
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
-  o que quiser e ganha um amuleto, como todos. Você começa com os dados da
+  o que quiser e ganha um amuleto, como todos. A run avisa que o Barão não é
+  o último: a faixa de cima conta 4 salões, a ficha dele no mapa diz "não é o
+  último", e a loja antes dele, o amuleto que ele deixa e a loja depois
+  lembram que ainda vem mais um (o nome, só depois de vencer o Coringa uma
+  vez). Quando ele abre a rodada, a carta ainda vai virar e rolar: o botão
+  "parar" não promete o placar, mostra a chance de vencer (até o nível 5; do
+  6, só "a carta ainda vira"). O mesmo vale com um Oculto escondido ou um
+  Terremoto por sacudir. Você começa com os dados da
   bolsa que escolheu (o Saco de Pano: 12 dados simples, 6 D6, 4 D4 e 2 moedas) e 4 moedas
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
@@ -120,7 +127,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
   rodada seguinte), à Ratoeira (anulada pelo oponente, o maior dele cai), ao
   Holográfico (repete os adesivos que agiram nos seus dados), ao Fermento
-  (+2, +4, +6... crescendo a cada vez que age), à Figurinha (cada uma junta
+  (+2, +4, +6... crescendo a cada vez que age; o Fermento, a Figurinha e a
+  Etiqueta mostram na dica do dado quanto valem agora), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
   Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
   lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados),
@@ -146,7 +154,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)
   abre o estilo do andar e a dificuldade seguinte. Os cards aparecem logo
   depois da partida, na primeira vitória contra cada chefe naquela
-  dificuldade. A tela da dificuldade mostra o que cada chefe abre ali. Até 3
+  dificuldade. A tela da dificuldade mostra só os níveis já abertos, em
+  poucas linhas: "inimigos mais fortes" (o detalhe se descobre jogando), do
+  nível 5 que depois do Barão ainda vem um chefe, as moedas do começo e o que
+  cada chefe desbloqueia ali. Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,

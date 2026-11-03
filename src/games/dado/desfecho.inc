@@ -93,6 +93,9 @@ static bool tremor_armado(int j, int k)
 {
     return TIPO[tipo_de(j, k)].efeito == EF_TERREMOTO && F[j].est[k] == V_VALIDO && F[j].valor[k] >= TERREMOTO_DE;
 }
+// Na conta do botao "parar" (telas.inc), o tremor tambem sacode, com uma
+// semente imaginada no lugar da do dado (que ninguem ve).
+static bool imagina_tremor;
 static bool tremor_na_mesa(void)
 {
     for (int j = 0; j < 2; j++)
@@ -1207,19 +1210,8 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
 
 // As figurinhas juntadas nos dados de j com Figurinha (cada um comeca com 1),
 // e as Etiquetas coladas nos dados dele: o que a Figurinha e a Etiqueta pagam.
-static int figurinhas_de(int j)
-{
-    int n = 0;
-    for (int i = 0; i < J[j].n_col; i++)
-        if (J[j].onde[i] != COMIDO && ad_conta(&J[j].col[i], AD_FIGURINHA)) n += 1 + J[j].col[i].figurinha;
-    return n;
-}
-static int etiquetas_de(int j)
-{
-    int n = 0;
-    for (int i = 0; i < J[j].n_col; i++) if (J[j].onde[i] != COMIDO) n += ad_conta(&J[j].col[i], AD_ETIQUETA);
-    return n;
-}
+static int figurinhas_de(int j) { return conta_figurinhas(J[j].col, J[j].onde, J[j].n_col); }
+static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J[j].n_col); }
 
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
 // Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
@@ -1575,17 +1567,18 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
     // valido dele rola de novo e a sequencia dele e refeita com o numero
     // novo (menor que o de antes, cai e leva o anterior). So no fim de
-    // verdade: a previa e a IA nao sabem o que o tremor vai dar. A Couraca
-    // do oponente segura a mesa dele.
-    for (int o = 0; gera && o < 2; o++) {
+    // verdade: a previa e a IA nao sabem o que o tremor vai dar (a conta do
+    // "parar" imagina um, com a semente trocada). A Couraca do oponente
+    // segura a mesa dele.
+    for (int o = 0; (gera || imagina_tremor) && o < 2; o++) {
         int j = o ? outro(primeiro) : primeiro, r = outro(j);
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!tremor_armado(j, k)) continue;
-            if (tem_am(r, A_COURACA)) { am_acende(A_COURACA); continue; }
+            if (tem_am(r, A_COURACA)) { if (gera) am_acende(A_COURACA); continue; }
             int a = alvo_tremor(F[r].est, r);
             if (a < 0) continue;
             int antes = F[r].valor[a];
-            if (!pre[r]) memcpy(est_pre_espelho[r], F[r].est, N_FILA);
+            if (gera && !pre[r]) memcpy(est_pre_espelho[r], F[r].est, N_FILA);
             pre[r] = true;
             treme_dado(r, a, F[j].abalo[k]);
             refaz_sequencia(r, F[r].lancados);

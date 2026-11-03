@@ -724,22 +724,29 @@ static void desenha_armada(void)
 // Dicas: areas que, com o mouse parado em cima, mostram o que a coisa faz.
 enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO, DICA_ADESIVO };
 #define DICA_EMBRULHO D_N                // o id do dado embrulhado pelo Papai Noel (nao diz qual e)
-typedef struct { int16_t x, y, w, h; uint8_t tipo, id, com_peca; peca_t pc; } dica_t;
+// dono: de quem e a bolsa do dado (0 e 1, os jogadores; 2, a bolsa da run
+// fora da partida; -1, nao se sabe), para os adesivos que contam a bolsa.
+typedef struct { int16_t x, y, w, h; uint8_t tipo, id, com_peca; int8_t dono; peca_t pc; } dica_t;
 #define MAX_DICAS 64
 static dica_t dicas[MAX_DICAS];
 static int n_dicas;
 static void dica_zona(int x, int y, int w, int h, int tipo, int id)
 {
     if (n_dicas >= MAX_DICAS) return;
-    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id, 0, { 0 } };
+    dicas[n_dicas++] = (dica_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (uint8_t)tipo, (uint8_t)id, 0, -1, { 0 } };
 }
+static int dono_da_peca(const peca_t *p);        // quadro.inc: a bolsa onde a peca esta
 // A dica de um dado que se tem na mao: com a peca, mostra tambem os adesivos
 // colados nele (os selinhos de baixo sao miudos demais para dizer qual e).
 static void dica_peca(int x, int y, int w, int h, const peca_t *p)
 {
     if (!p) return;
     dica_zona(x, y, w, h, DICA_DADO, p->tipo);
-    if (n_dicas > 0 && dicas[n_dicas - 1].id == p->tipo) { dicas[n_dicas - 1].com_peca = 1; dicas[n_dicas - 1].pc = *p; }
+    if (n_dicas > 0 && dicas[n_dicas - 1].id == p->tipo) {
+        dicas[n_dicas - 1].com_peca = 1;
+        dicas[n_dicas - 1].pc = *p;
+        dicas[n_dicas - 1].dono = (int8_t)dono_da_peca(p);
+    }
 }
 
 static bool mouse_em(int x, int y, int w, int h)

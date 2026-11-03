@@ -68,23 +68,11 @@ static void desenha_amuleto_run(void)
     txt_c2(GFX_W / 2, MESA_Y0 + 2, selo ? "O SELO DE DÍVIDA COBRA MAIS UM"
                                  : run.am_volta == AV_CHEFE ? "O CHEFE DEIXOU UM AMULETO"
                                  : bau2 ? "O BAUZINHO: MAIS UM" : "ESCOLHA UM AMULETO", C_OURO);
-    // O Barao, do Nivel 5, nao fecha a run: quem escolhe aqui precisa saber
-    // que o Coringa ainda vem.
-    bool coringa_vem = run.am_volta == AV_CHEFE && run.andar == DES_ANDARES - 1 && com_coringa();
-    char s[112];
-    uint16_t cs = C_MARFIM_S;
+    char s[96];
     if (selo) snprintf(s, sizeof s, "Sorteado entre os comuns e os incomuns.");
-    else if (!am_lugar() && coringa_vem) {
-        snprintf(s, sizeof s, "Lugares cheios: para levar, um dos seus sai. A run continua: o Coringa espera.");
-        cs = C_OURO;
-    } else if (!am_lugar()) {
-        snprintf(s, sizeof s, "Seus %d lugares estão cheios: para levar, um dos seus sai.", am_lugares());
-        cs = C_OURO;
-    } else if (coringa_vem) {
-        snprintf(s, sizeof s, "A run continua: lá em cima, o Coringa espera.");
-        cs = C_OURO;
-    } else snprintf(s, sizeof s, "Ele vale a run inteira.");
-    txt_c(GFX_W / 2, MESA_Y0 + 44, s, cs, false);
+    else if (!am_lugar()) snprintf(s, sizeof s, "Seus %d lugares estão cheios: para levar, um dos seus sai.", am_lugares());
+    else snprintf(s, sizeof s, "Ele vale a run inteira.");
+    txt_c(GFX_W / 2, MESA_Y0 + 44, s, am_lugar() || selo ? C_MARFIM_S : C_OURO, false);
     for (int i = 0; i < 3; i++) {
         int a = run.am_oferta[i];
         if (a >= A_N) continue;

@@ -291,6 +291,9 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
             case F_NOVIDADES:
                 trata_tecla(KEY_TAB);
                 break;
+            case F_RAVISO:                       // vencido o Barao do Nivel 5: o aviso
+                trata_tecla(KEY_ENTER);
+                break;
             default:
                 partida_passo();
                 break;

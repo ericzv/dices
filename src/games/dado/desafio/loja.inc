@@ -1110,10 +1110,6 @@ static uint16_t lj_proxima(char *s, int n)
     const no_t *no = &run.no[p];
     snprintf(s, (size_t)n, "Próxima mesa: %s  ·  vale %d %s", PERSO[no->perso].nome,
              moedas_mesa(p), moedas_mesa(p) == 1 ? "moeda" : "moedas");
-    if (chefe_antes_do_coringa(p)) {             // do Nivel 5, ele nao fecha a run
-        int l = (int)strlen(s);
-        snprintf(s + l, (size_t)(n - l), "  ·  depois dele, %s", depois_do_barao());
-    }
     return C_MARFIM_S;
 }
 

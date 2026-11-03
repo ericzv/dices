@@ -2661,6 +2661,8 @@ int main(void)
             run_poe_amuletos(0);
             des_apos_fim();
             if (fase == F_NOVIDADES) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
+            CONFERE(fase == F_RAVISO, "Barao do Nivel %d: antes do amuleto, o aviso (fase %d)", dif, fase);
+            for (int i = 0; i < 2 && fase == F_RAVISO; i++) des_tecla(KEY_ENTER, 0);   // a frase toda, e segue
             CONFERE(fase == F_RAMULETO && RAR_AMULETO[run.am_oferta[0]] == AMR_RARO, "Barao do Nivel %d: raro", dif);
             amuleto_escolhido(cursor);
             CONFERE(fase == F_RLOJA, "Barao do Nivel %d: a loja", dif);
@@ -4184,46 +4186,45 @@ int main(void)
             // Sem nada seu lancado, a carta sai da fila.
             limpa(); F[1].n = 4; F[1].carta = true; F[1].lancados = 4;
             CONFERE(!vira_carta(1) && F[1].n == 3 && !F[1].carta, "Coringa: sem o que copiar, a carta sai");
-            // O botao "parar" de quem joga em segundo, com a carta posta: o fim
-            // ainda depende dela, e a previa nao pode prometer o placar.
+            // O botao "parar" de quem joga em segundo: com a carta posta, o fim ainda
+            // depende dela - e so "parar", sem vence nem perde por tanto (e a vez
+            // nao acaba sozinha). O mesmo com um Oculto, um Espelho esperando ou
+            // uma Ficha Coringa por virar.
             {
-                int modo0 = modo, cpu0 = cpu, dif0 = run.dificuldade, vez0 = vez;
-                modo = M_DESAFIO; cpu = 2; vez = 0; run.dificuldade = 5;
+                int vez0 = vez;
+                vez = 0;
                 char s[40];
                 limpa(); primeiro = 1;
                 F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
                 coringa_completa(1);
                 joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D6, 5); F[1].n = 4;
                 sim_lanca(1);
-                joga(0, D_D6, 6); joga(0, D_D8, 7);   // 13 x 10; a carta vira o D8: de 5 a 8 ele passa, abaixo cai
-                fila_t f0[2];
-                memcpy(f0, F, sizeof F);
-                uint32_t s0 = semente_ia;
+                joga(0, D_D6, 6); joga(0, D_D8, 7);       // 13 x 10, e a carta ainda vira
                 rotulo_parar(s, sizeof s);
-                int pc = -1;
-                CONFERE(sscanf(s, "parar: %d%% de vencer", &pc) == 1 && pc >= 40 && pc <= 60,
-                        "parar com a carta posta: devia dar a chance (perto de 50%%), deu '%s'", s);
-                CONFERE(!memcmp(f0, F, sizeof F) && semente_ia == s0, "parar: a conta nao devia mexer na mesa");
-                run.dificuldade = 6;                   // sem a dica: so que a carta ainda vira
-                rotulo_parar(s, sizeof s);
-                CONFERE(!strcmp(s, "parar: a carta ainda vira"), "parar sem dica, com a carta: '%s'", s);
-                run.dificuldade = 5;
-                // Uma folga que carta nenhuma tira: vence, sem dizer por quanto.
-                limpa(); primeiro = 1;
-                F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
-                coringa_completa(1);
-                joga(1, D_D6, 1); joga(1, D_D6, 1); joga(1, D_D6, 1); F[1].n = 4;
-                sim_lanca(1);
-                joga(0, D_D6, 6); joga(0, D_D6, 6); joga(0, D_D6, 6);
-                rotulo_parar(s, sizeof s);
-                CONFERE(!strcmp(s, "parar: vence"), "parar com folga, com a carta: '%s'", s);
+                CONFERE(!strcmp(s, "parar") && !ja_vence(0), "parar com a carta posta: '%s'", s);
                 // Sem a carta, a previa e certa, como sempre.
                 limpa(); primeiro = 1;
                 joga(1, D_D6, 2); joga(1, D_D6, 3);
                 joga(0, D_D6, 4); joga(0, D_D8, 5);
                 rotulo_parar(s, sizeof s);
-                CONFERE(!strcmp(s, "parar: vence por 4"), "parar sem carta: '%s'", s);
-                modo = modo0; cpu = cpu0; run.dificuldade = (uint8_t)dif0; vez = vez0;
+                CONFERE(!strcmp(s, "parar: vence por 4") && ja_vence(0), "parar sem carta, vencendo: '%s'", s);
+                limpa(); primeiro = 1;
+                joga(1, D_D6, 2); joga(1, D_D6, 3);
+                joga(0, D_D4, 1); joga(0, D_D4, 2);
+                rotulo_parar(s, sizeof s);
+                CONFERE(!strcmp(s, "parar: perde por 2"), "parar sem carta, perdendo: '%s'", s);
+                static const char *const QUAL[3] = { "Oculto", "Espelho", "Ficha Coringa" };
+                for (int q = 0; q < 3; q++) {             // a mesma mesa, com algo por virar no fim
+                    limpa(); primeiro = 1;
+                    joga(1, D_D6, 2); joga(1, D_D6, 3);
+                    joga(0, D_D4, 1); joga(0, D_D4, 2);
+                    if (q == 0) F[1].escondido[0] = true;
+                    else if (q == 1) F[1].espera[0] = true;
+                    else F[1].curinga[1] = true;
+                    rotulo_parar(s, sizeof s);
+                    CONFERE(!strcmp(s, "parar"), "parar com %s por virar: '%s'", QUAL[q], s);
+                }
+                vez = vez0;
             }
             // Da 5a rodada, dado seu anulado e destruido (antes, nao), do Nivel 7.
             int dif_c = run.dificuldade;
@@ -4309,29 +4310,36 @@ int main(void)
                 CONFERE(maior == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
                 fase = f0; dif_cur = dc0;
             }
-            // Do Nivel 5, o Barao nao fecha a run: o mapa e a loja avisam que ainda
-            // vem mais um chefe (o nome, so depois de vencer o Coringa uma vez).
+            // Do Nivel 5, o Barao nao fecha a run: vencido ele, a tela do aviso
+            // (sem dizer quem) vem antes do amuleto dele e da loja. Antes dele,
+            // a loja nao avisa nada; depois, diz quem vem.
             {
                 run_t r0 = run;
+                int f0 = fase;
                 char s[112];
-                memset(perfis[0].venceu, 0, sizeof perfis[0].venceu);
-                memset(perfis[0].chefes, 0, sizeof perfis[0].chefes);
-                perfis[0].nivel = CORINGA_DESDE;
                 run.dificuldade = CORINGA_DESDE; run.andar = DES_ANDARES - 1; gera_andar();
                 int chefe = mesas_do_salao() - 1;
-                CONFERE(chefe_antes_do_coringa(chefe) && !chefe_antes_do_coringa(0), "Nivel 5: o Barao devia avisar que nao e o ultimo");
+                CONFERE(chefe_antes_do_coringa(chefe) && !chefe_antes_do_coringa(0), "Nivel 5: o Barao nao fecha a run");
                 run.estado = R_LOJA; run.passo = (uint8_t)(chefe - 1);
                 lj_proxima(s, sizeof s);
-                CONFERE(strstr(s, "depois dele, mais um chefe") != NULL, "loja antes do Barao: '%s'", s);
-                perfis[0].nivel = CORINGA_DESDE + 1;
-                lj_proxima(s, sizeof s);
-                CONFERE(strstr(s, "depois dele, o Coringa") != NULL, "loja antes do Barao, com o Coringa conhecido: '%s'", s);
+                CONFERE(!strstr(s, "depois"), "loja antes do Barao, sem aviso: '%s'", s);
                 run.passo = (uint8_t)chefe;
                 CONFERE(lj_proxima(s, sizeof s) == C_REAL && strstr(s, "CORINGA") != NULL, "loja depois do Barao: '%s'", s);
-                run.dificuldade = CORINGA_DESDE - 1; run.passo = (uint8_t)(chefe - 1);
-                lj_proxima(s, sizeof s);
-                CONFERE(!strstr(s, "depois dele") && !chefe_antes_do_coringa(chefe), "Nivel 4: o Barao fecha a run: '%s'", s);
-                run = r0;
+                run.estado = R_VENCEU;
+                des_pos_vitoria();
+                CONFERE(fase == F_RAVISO && n_confete == 0, "vencido o Barao no Nivel 5: o aviso (fase %d)", fase);
+                manda_tecla(KEY_ENTER);                  // o primeiro ENTER: a frase toda
+                CONFERE(fase == F_RAVISO && t_fase >= aviso_pronto(), "aviso: o primeiro ENTER mostra a frase toda");
+                manda_tecla(KEY_ENTER);                  // o segundo: o amuleto do Barao
+                CONFERE(fase == F_RAMULETO && run.am_volta == AV_CHEFE, "aviso: depois, o amuleto do Barao (fase %d)", fase);
+                // A Dona, no Nivel 5: sem aviso, direto ao amuleto.
+                run.andar = 1; gera_andar(); run.passo = (uint8_t)(mesas_do_salao() - 1); run.estado = R_VENCEU;
+                des_pos_vitoria();
+                CONFERE(fase == F_RAMULETO, "a Dona nao avisa nada (fase %d)", fase);
+                // No Nivel 4, o Barao fecha a run: nada de aviso.
+                run.dificuldade = CORINGA_DESDE - 1; run.andar = DES_ANDARES - 1; gera_andar();
+                CONFERE(!chefe_antes_do_coringa(mesas_do_salao() - 1), "Nivel 4: o Barao fecha a run");
+                run = r0; fase = f0;
             }
             perfis[0] = p0; perfil_atual = pa0; perfis_lidos = pl0;
             run.dificuldade = (uint8_t)dif0;

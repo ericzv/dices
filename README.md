@@ -90,13 +90,13 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
   o que quiser e ganha um amuleto, como todos. A run avisa que o Barão não é
-  o último: a faixa de cima conta 4 salões, a ficha dele no mapa diz "não é o
-  último", e a loja antes dele, o amuleto que ele deixa e a loja depois
-  lembram que ainda vem mais um (o nome, só depois de vencer o Coringa uma
-  vez). Quando ele abre a rodada, a carta ainda vai virar e rolar: o botão
-  "parar" não promete o placar, mostra a chance de vencer (até o nível 5; do
-  6, só "a carta ainda vira"). O mesmo vale com um Oculto escondido ou um
-  Terremoto por sacudir. Você começa com os dados da
+  o último: a faixa de cima conta 4 salões e, vencido ele, uma tela de
+  suspense mostra só a silhueta de quem espera ("Um último oponente o
+  aguarda..."), antes do amuleto dele e da loja. Quando o Coringa abre a
+  rodada, a carta ainda vai virar e rolar: o botão "parar" fica só "parar",
+  sem dizer por quanto vence ou perde - o mesmo com um Oculto escondido, um
+  Terremoto por sacudir, um Espelho esperando ou uma Ficha Coringa por virar
+  (vencendo de vez, a vez acaba sozinha). Você começa com os dados da
   bolsa que escolheu (o Saco de Pano: 12 dados simples, 6 D6, 4 D4 e 2 moedas) e 4 moedas
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
   no 2, até 14 na Cobertura (o Nível 10). Cada partida tem 8 rodadas e 50 fichas
@@ -156,7 +156,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois da partida, na primeira vitória contra cada chefe naquela
   dificuldade. A tela da dificuldade mostra só os níveis já abertos, em
   poucas linhas: "inimigos mais fortes" (o detalhe se descobre jogando), do
-  nível 5 que depois do Barão ainda vem um chefe, as moedas do começo e o que
+  nível 5 que um novo chefe surge após o Barão, as moedas do começo e o que
   cada chefe desbloqueia ali. Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o

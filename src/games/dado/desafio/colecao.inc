@@ -217,6 +217,7 @@ static bool des_desenha(void)
     case F_CREDITOS: desenha_creditos(); return true;
     case F_NOVIDADES: desenha_novidades(); return true;
     case F_RAMULETO: desenha_amuleto_run(); return true;
+    case F_RAVISO: desenha_aviso();     return true;
     case F_PERFIS: desenha_perfis();    return true;
     case F_PCRIA:  desenha_cria_perfil(); return true;
     case F_RDIFIC: desenha_dificuldade(); return true;

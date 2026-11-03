@@ -146,6 +146,12 @@ static void passeio(void)
     modo = M_DOIS; cpu = 0; remoto = 0; baixo = 0; poe_nomes(); abre_loja();
     for (int i = 0; i < 40 && fase == F_LOJA; i++) { passa(30); manda_tecla(KEY_TAB); }
     passa(120); tela("dois_jogadores");
+    // E o aviso do Desafiante: vencido o Barao no Nivel 5, um ultimo oponente
+    // espera - a silhueta na luz e a frase inteira.
+    modo = M_DESAFIO; cpu = 2; remoto = 0; baixo = 0;
+    des_dif = 5; des_bolsa = B_PANO; des_nova_run(); t_elev = 0; amuleto_escolhido(1);
+    run.andar = DES_ANDARES - 1; gera_andar(); run.passo = (uint8_t)(mesas_do_salao() - 1); run.estado = R_VENCEU;
+    des_pos_vitoria(); passa(240); tela("aviso_coringa");
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

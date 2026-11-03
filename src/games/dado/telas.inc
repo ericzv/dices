@@ -262,83 +262,20 @@ static bool mostra_chance(void)
     return true;
 }
 
-// Parando agora, como fica a rodada para j: quantas vezes vence, empata e
-// perde, e a menor e a maior diferenca. Com tudo certo na mesa, e a previa
-// do fim (uma conta so). Se o fim ainda depende da sorte (a carta do
-// Coringa, um Oculto, um Terremoto), imagina o que falta muitas vezes numa
-// copia da mesa: a carta vira a copia e e lancada, o Oculto tira um numero,
-// o Terremoto sacode. O sorteio e o da IA, guardado e devolvido.
-typedef struct { int vence, empata, perde, dmin, dmax; } parada_t;
-static void conta_parada(parada_t *p, int dif, bool primeira)
-{
-    p->vence += dif > 0; p->empata += dif == 0; p->perde += dif < 0;
-    if (primeira || dif < p->dmin) p->dmin = dif;
-    if (primeira || dif > p->dmax) p->dmax = dif;
-}
-static parada_t como_para(int j)
-{
-    static fila_t c_f[2];                       // a mesa da ultima conta: so refaz se mudou
-    static int c_j = -1, c_rodada = -1, c_prim = -1;
-    static parada_t c_p;
-    parada_t p = { 0, 0, 0, 0, 0 };
-    desfecho_t d;
-    if (!fim_incerto()) {
-        calcula_desfecho(&d, false);
-        conta_parada(&p, d.total[j] - d.total[outro(j)], true);
-        return p;
-    }
-    if (c_j == j && c_rodada == rodada && c_prim == primeiro && !memcmp(c_f, F, sizeof c_f)) return c_p;
-    memcpy(c_f, F, sizeof c_f);
-    int c = carta_posta(primeiro) ? primeiro : -1;
-    mesa_t m;
-    guarda_mesa(&m);
-    uint32_t sem = semente_ia;
-    const int N = 1000;
-    for (int a = 0; a < N; a++) {
-        semeia_ia(0xB0A7u + (uint32_t)rodada * 37u, a);
-        imagina_ocultos();                                  // antes da carta: o que o Oculto tirou ninguem sabe
-        if (c >= 0 && vira_carta(c)) sim_lanca(c);          // a carta vira e e lancada, antes do fim
-        for (int q = 0; q < 2; q++)                         // o tremor, com outra semente
-            for (int k = 0; k < F[q].lancados && k < N_FILA; k++)
-                if (tremor_armado(q, k)) F[q].abalo[k] = (uint32_t)rola_ia(0x7FFFFFFF);
-        imagina_tremor = true;
-        calcula_desfecho(&d, false);
-        imagina_tremor = false;
-        conta_parada(&p, d.total[j] - d.total[outro(j)], a == 0);
-        volta_mesa(&m);
-    }
-    semente_ia = sem;
-    c_j = j; c_rodada = rodada; c_prim = primeiro;
-    c_p = p;
-    return p;
-}
-
-// O que o botao "parar" diz a quem joga em segundo. O que da para saber, ele
-// diz: vence, empata ou perde (e por quanto, se for sempre o mesmo). Se ainda
-// depende da sorte, a chance de vencer (so para quem esta aprendendo, como o
-// risco do "jogar"); senao, o que ainda falta acontecer.
+// O que o botao "parar" diz a quem joga em segundo: com a mesa certa, a
+// previa do fim (vence, empata ou perde, e por quanto). Se algo ainda vira
+// sozinho no fim (a carta do Coringa, um Oculto, um Terremoto, um Espelho
+// esperando, uma Ficha Coringa), e so "parar". (Vencendo de vez, a vez ja
+// acaba sozinha: ja_vence.)
 static void rotulo_parar(char *s, int n)
 {
-    parada_t p = como_para(vez);
-    int tot = p.vence + p.empata + p.perde;
-    if (p.vence == tot) {
-        if (p.dmin == p.dmax) snprintf(s, (size_t)n, "parar: vence por %d", p.dmin);
-        else                  snprintf(s, (size_t)n, "parar: vence");
-    } else if (p.perde == tot) {
-        if (p.dmin == p.dmax) snprintf(s, (size_t)n, "parar: perde por %d", -p.dmin);
-        else                  snprintf(s, (size_t)n, "parar: perde");
-    } else if (p.empata == tot) {
-        snprintf(s, (size_t)n, "parar: empata");
-    } else if (mostra_chance()) {
-        int c = (p.vence * 100 + tot / 2) / tot;
-        snprintf(s, (size_t)n, "parar: %d%% de vencer", c < 1 ? 1 : c > 99 ? 99 : c);
-    } else if (carta_posta(primeiro)) {
-        snprintf(s, (size_t)n, "parar: a carta ainda vira");
-    } else if (tem_escondido(0) || tem_escondido(1)) {
-        snprintf(s, (size_t)n, "parar: o Oculto ainda vira");
-    } else {
-        snprintf(s, (size_t)n, "parar: o Terremoto ainda treme");
-    }
+    if (fim_em_aberto()) { snprintf(s, (size_t)n, "parar"); return; }
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    int dif = d.total[vez] - d.total[outro(vez)];
+    if (dif > 0)      snprintf(s, (size_t)n, "parar: vence por %d", dif);
+    else if (dif < 0) snprintf(s, (size_t)n, "parar: perde por %d", -dif);
+    else              snprintf(s, (size_t)n, "parar: empata");
 }
 
 // Com dois na mesma mesa, o menu do meio chega um pouco para o lado de quem

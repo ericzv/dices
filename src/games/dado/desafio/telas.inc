@@ -265,10 +265,9 @@ static void desenha_dificuldade(void)
     } else txt(px + 24, ly, PENA_DIF[0], C_MARFIM, false);
     ly += 19;
     bool conhece_coringa = chefe_abriu(CORINGA_DESDE, CH_CORINGA);   // ja venceu o Coringa uma vez
-    if (d >= CORINGA_DESDE) {                        // a run segue depois do Barao (sem dizer quem, na primeira vez)
+    if (d >= CORINGA_DESDE) {                        // a run segue depois do Barao (sem dizer quem)
         char s[64];
-        snprintf(s, sizeof s, "Depois %s, ainda vem %s.", dezembro ? "do Papai Noel" : "do Barão",
-                 conhece_coringa ? "o Coringa" : "um último chefe");
+        snprintf(s, sizeof s, "Um novo chefe surge após %s.", dezembro ? "o Papai Noel" : "o Barão");
         txt(px + 12, ly, "+", C_REAL, true);
         txt(px + 24, ly, s, C_REAL, false);
         ly += 19;

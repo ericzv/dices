@@ -132,7 +132,8 @@ enum { F_ORDEM, F_APOSTA, F_ROLANDO, F_ARRUMA, F_RESULTADO, F_PREMIO, F_FIM,
        F_ONLINE, F_TUTORIAL,
        F_MAPA, F_RLOJA, F_RBOLSA, F_RFIM, F_RAMULETO,       // Modo Desafiante
        F_PERFIS, F_PCRIA, F_RDIFIC, F_CREDITOS, F_HIST, F_ESTILO, F_NOVIDADES,
-       F_RBOLSAS };                                          // a escolha da bolsa, no comeco da run
+       F_RBOLSAS,                                            // a escolha da bolsa, no comeco da run
+       F_RAVISO };                                           // vencido o Barao, do Nivel 5: ainda falta um
 
 static jogador_t J[2];
 static fila_t F[2];

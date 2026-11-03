@@ -866,6 +866,17 @@ static bool fim_incerto(void)
 {
     return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa();
 }
+// Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
+// Espelho esperando o maior do outro e a Ficha Coringa com o curinga para
+// cima. O botao "parar" entao e so "parar": nem vence, nem perde por tanto.
+static bool fim_em_aberto(void)
+{
+    if (fim_incerto()) return true;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            if (F[j].espera[k] || F[j].curinga[k]) return true;
+    return false;
+}
 // A fila do Coringa ficou pronta com tres dados: o quarto e a copia, ou a
 // carta (fora da bolsa dele: idx -1).
 static void coringa_completa(int j)

@@ -70,6 +70,13 @@ static bool des_tecla(int k, int e)
     case F_NOVIDADES:
         return nov_tecla(k);
 
+    case F_RAVISO:                               // o aviso: ENTER mostra a frase toda; de novo, segue
+        if (k != KEY_ENTER) return true;
+        if (t_fase < aviso_pronto()) { t_fase = aviso_pronto(); return true; }
+        som_toca(SOM_FICHA);
+        des_pos_aviso();
+        return true;
+
     case F_CREDITOS:
         if (k == KEY_ENTER) volta_ao_menu();
         return true;

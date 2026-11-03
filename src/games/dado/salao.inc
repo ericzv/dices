@@ -31,6 +31,12 @@ static void som_da_cena(void)
              : chefe_idx(p) == 1 ? SOM_CHEFE_DONA : chefe_idx(p) == 2 ? SOM_CHEFE_BARAO : SOM_CHEFE_CRUPIE;
         toca = (na_partida() && run.no[run.passo].tipo == NO_CHEFE)
             || (fase == F_MAPA && run.passo == m - 1) || (fase == F_RLOJA && run.passo == m - 2);
+        // Vencido o Barao, do Nivel 5: o aviso, o amuleto dele e a loja ja
+        // sao de antes do Coringa - a voz dele entra.
+        if (chefe_antes_do_coringa(run.passo) && (fase == F_RAVISO || fase == F_RAMULETO || fase == F_RLOJA)) {
+            qual = SOM_CHEFE_CORINGA;
+            toca = true;
+        }
     }
     som_chefe(qual, toca);
 }

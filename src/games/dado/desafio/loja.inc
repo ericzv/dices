@@ -1092,20 +1092,25 @@ static void lj_lascas(void)
     }
 }
 
-// A proxima mesa, para comprar pensando nela.
-static void lj_proxima(char *s, int n)
+// A proxima mesa, para comprar pensando nela. Devolve a cor da linha: a do
+// salao do Coringa quando e ele que vem.
+static uint16_t lj_proxima(char *s, int n)
 {
     int p = run.estado == R_LOJA_INI ? run.passo : run.passo + 1;
     if (run.estado != R_LOJA_INI && p >= mesas_do_salao()) {
         int a = run.andar + 1;
-        if (a == DES_ANDAR_FINAL && com_coringa()) snprintf(s, (size_t)n, "A seguir: O CORINGA");
-        else if (a < DES_ANDARES) snprintf(s, (size_t)n, "A seguir: o %s", SALAO[a]);
+        if (a == DES_ANDAR_FINAL && com_coringa()) {
+            snprintf(s, (size_t)n, "A seguir: O CORINGA, o último chefe");
+            return C_REAL;
+        }
+        if (a < DES_ANDARES) snprintf(s, (size_t)n, "A seguir: o %s", SALAO[a]);
         else s[0] = 0;
-        return;
+        return C_MARFIM_S;
     }
     const no_t *no = &run.no[p];
     snprintf(s, (size_t)n, "Próxima mesa: %s  ·  vale %d %s", PERSO[no->perso].nome,
              moedas_mesa(p), moedas_mesa(p) == 1 ? "moeda" : "moedas");
+    return C_MARFIM_S;
 }
 
 static void lj_desenha_tirando(void)
@@ -1506,9 +1511,9 @@ static void desenha_loja_run(void)
     if (lj_pac) { lj_desenha_pacote(); return; }
     bool ini = run.estado == R_LOJA_INI;
     txt_c2(GFX_W / 2, MESA_Y0 + 2, ini ? "LOJA DA ENTRADA" : "LOJA", C_OURO);
-    char s[96];
-    lj_proxima(s, sizeof s);
-    txt_c(GFX_W / 2, MESA_Y0 + 36, s, C_MARFIM_S, false);
+    char s[112];
+    uint16_t cp = lj_proxima(s, sizeof s);
+    txt_c(GFX_W / 2, MESA_Y0 + 36, s, cp, false);
     // As moedas, grandes, no canto: contam quando gasta.
     snprintf(s, sizeof s, "%d", moedas_vis());
     uint16_t cm = moedas_ok && moedas_cont.pulo > 0

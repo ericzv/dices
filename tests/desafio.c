@@ -375,6 +375,7 @@ int main(int argc, char **argv)
                 break;
             }
             case F_RESULTADO:
+            case F_RAVISO:                   // vencido o Barao do Nivel 5: o aviso (ENTER mostra tudo, ENTER segue)
                 trata_tecla(KEY_ENTER);
                 break;
             case F_RBOLSA:

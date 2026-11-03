@@ -36,6 +36,27 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
     }
 }
 
+// A bolsa onde a peca p esta: a de um jogador (0, 1), a da run fora da
+// partida (2), ou nenhuma (-1: uma copia).
+static bool peca_em(const peca_t *p, const peca_t *col, int n)
+{
+    uintptr_t a = (uintptr_t)p, b = (uintptr_t)col;
+    return n > 0 && a >= b && a < b + (uintptr_t)n * sizeof *col && (a - b) % sizeof *col == 0;
+}
+static int dono_da_peca(const peca_t *p)
+{
+    for (int j = 0; j < 2; j++) if (peca_em(p, J[j].col, J[j].n_col)) return j;
+    if (peca_em(p, run.col, run.n_col)) return 2;
+    return -1;
+}
+// O quanto vale agora o adesivo a do dado da dica (veja ad_vale_agora).
+static int dica_vale(const dica_t *d, int a)
+{
+    if (d->dono == 2) return ad_vale_agora(a, &d->pc, run.col, NULL, run.n_col);
+    if (d->dono == 0 || d->dono == 1) return ad_vale_agora(a, &d->pc, J[d->dono].col, J[d->dono].onde, J[d->dono].n_col);
+    return ad_vale_agora(a, &d->pc, NULL, NULL, 0);
+}
+
 // Os adesivos de um dado com a peca: os lados que tem adesivo. Com ate dois,
 // cada um vem com a regra; com mais, uma linha so por adesivo.
 #define DICA_AD_LIN 16                   // a linha do nome do adesivo
@@ -125,7 +146,12 @@ static void desenha_dica(const int *r, const dica_t *d)
         int wn = gfx_texto(x + 18, yy - 3, ad->nome, ad->luz, 1, true);
         char s[24];
         snprintf(s, sizeof s, "· lado %d", lados[i]);
-        gfx_texto(x + 18 + wn + 6, yy - 2, s, C_MARFIM_S, GFX_FINO, false);
+        int wl = gfx_texto(x + 18 + wn + 6, yy - 2, s, C_MARFIM_S, GFX_FINO, false);
+        int v = dica_vale(d, a);                         // os que crescem: quanto valem agora
+        if (v >= 0) {
+            snprintf(s, sizeof s, "· vale +%d", v);
+            gfx_texto(x + 18 + wn + 6 + wl + 4, yy - 2, s, C_OURO, GFX_FINO, false);
+        }
         yy += DICA_AD_LIN;
         if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, 3, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
     }

@@ -252,14 +252,24 @@ static int chance_cair(int j)
 }
 
 
-// A dica so para quem esta aprendendo: some no Dificil da partida rapida e do
-// Nivel 6 do Desafiante em diante.
-static bool mostra_chance(void)
+// O risco do proximo dado (no botao "jogar" e na luz atras dele): sempre,
+// em toda dificuldade, para quem joga - na vez do computador nem ha botao.
+static bool mostra_chance(void) { return !(cpu >> vez & 1); }
+
+// O que o botao "parar" diz a quem joga em segundo: com a mesa certa, a
+// previa do fim (vence, empata ou perde, e por quanto). Se algo ainda vira
+// sozinho no fim (a carta do Coringa, um Oculto, um Terremoto, um Espelho
+// esperando, uma Ficha Coringa), e so "parar". (Vencendo de vez, a vez ja
+// acaba sozinha: ja_vence.)
+static void rotulo_parar(char *s, int n)
 {
-    if (cpu >> vez & 1) return false;            // vez do computador
-    if (modo == M_DESAFIO) return des_dificuldade() < 6;
-    if (cpu >> outro(vez) & 1) return nivel_jog[outro(vez)] < 2;
-    return true;
+    if (fim_em_aberto()) { snprintf(s, (size_t)n, "parar"); return; }
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    int dif = d.total[vez] - d.total[outro(vez)];
+    if (dif > 0)      snprintf(s, (size_t)n, "parar: vence por %d", dif);
+    else if (dif < 0) snprintf(s, (size_t)n, "parar: perde por %d", -dif);
+    else              snprintf(s, (size_t)n, "parar: empata");
 }
 
 // Com dois na mesma mesa, o menu do meio chega um pouco para o lado de quem
@@ -289,14 +299,7 @@ static void desenha_joga(void)
     const char *rot[2] = { jogar, parar };
     if (fase == F_JOGA) {
         // Para quem joga em segundo, o botao ja diz o que parar significa.
-        if (vez != primeiro && f->lancados) {
-            desfecho_t d;
-            calcula_desfecho(&d, false);
-            int dif = d.total[vez] - d.total[outro(vez)];
-            if (dif > 0)      snprintf(parar, sizeof parar, "parar: vence por %d", dif);
-            else if (dif < 0) snprintf(parar, sizeof parar, "parar: perde por %d", -dif);
-            else              snprintf(parar, sizeof parar, "parar: empata");
-        }
+        if (vez != primeiro && f->lancados) rotulo_parar(parar, sizeof parar);
         if (f->lancados == 0) snprintf(parar, sizeof parar, "voltar à sequência");
         if (f->lancados && f->lancados < f->n && mostra_chance()) {
             int c = chance_cair(vez);

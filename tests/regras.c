@@ -2661,6 +2661,8 @@ int main(void)
             run_poe_amuletos(0);
             des_apos_fim();
             if (fase == F_NOVIDADES) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
+            CONFERE(fase == F_RAVISO, "Barao do Nivel %d: antes do amuleto, o aviso (fase %d)", dif, fase);
+            for (int i = 0; i < 2 && fase == F_RAVISO; i++) des_tecla(KEY_ENTER, 0);   // a frase toda, e segue
             CONFERE(fase == F_RAMULETO && RAR_AMULETO[run.am_oferta[0]] == AMR_RARO, "Barao do Nivel %d: raro", dif);
             amuleto_escolhido(cursor);
             CONFERE(fase == F_RLOJA, "Barao do Nivel %d: a loja", dif);
@@ -3430,6 +3432,20 @@ int main(void)
                 && J[0].col[3].figurinha == 2 && J[0].col[5].figurinha == 3,
                 "Figurinha: %d %d %d %d (juntadas %d e %d)", fig[0], fig[1], fig[2], fig[3],
                 1 + J[0].col[3].figurinha, 1 + J[0].col[5].figurinha);
+        // Antes de lancar, a dica ja diz quanto vale: as figurinhas da bolsa (3 + 4).
+        CONFERE(ad_vale_agora(AD_FIGURINHA, &J[0].col[3], J[0].col, J[0].onde, J[0].n_col) == 7
+                && ad_vale_agora(AD_FIGURINHA, &J[0].col[3], NULL, NULL, 0) == -1,
+                "Figurinha: o valor de antes do lance (%d)", ad_vale_agora(AD_FIGURINHA, &J[0].col[3], J[0].col, J[0].onde, J[0].n_col));
+        {
+            int nd0 = n_dicas;
+            peca_t copia = J[0].col[3];
+            dica_peca(0, 0, 10, 10, &J[0].col[3]);
+            dica_peca(0, 0, 10, 10, &copia);
+            CONFERE(n_dicas == nd0 + 2 && dicas[nd0].dono == 0 && dica_vale(&dicas[nd0], AD_FIGURINHA) == 7
+                    && dicas[nd0 + 1].dono == -1 && dica_vale(&dicas[nd0 + 1], AD_FIGURINHA) == -1,
+                    "dica: o dado da bolsa sabe o dono (%d), a copia nao (%d)", dicas[nd0].dono, dicas[nd0 + 1].dono);
+            n_dicas = nd0;
+        }
         zera_acumuladores(J[0].col, J[0].n_col);             // o comeco e o fim de cada partida do Desafiante
         CONFERE(J[0].col[3].figurinha == 0 && J[0].col[5].figurinha == 0 && ad_conta(&J[0].col[3], AD_FIGURINHA) == 2,
                 "Figurinha: as juntadas zeram na partida nova (%d e %d)", J[0].col[3].figurinha, J[0].col[5].figurinha);
@@ -3439,6 +3455,8 @@ int main(void)
         int fer[3];
         for (int i = 0; i < 3; i++) { limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim(); fer[i] = d.total[0] - 6; adesivos_ficam(0, &d); }
         CONFERE(fer[0] == 2 && fer[1] == 4 && fer[2] == 6, "Fermento: +%d, +%d, +%d", fer[0], fer[1], fer[2]);
+        CONFERE(ad_vale_agora(AD_FERMENTO, &J[0].col[3], NULL, NULL, 0) == 8,
+                "Fermento: antes do 4o lance, a dica devia dizer +8 (%d)", ad_vale_agora(AD_FERMENTO, &J[0].col[3], NULL, NULL, 0));
         // O Patinho Feio: valendo, no lado dele -2; em outro lado, +2 (por Patinho).
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_PATINHO);
@@ -3455,6 +3473,8 @@ int main(void)
         ad_cola(&J[0].col[6], 1, AD_ETIQUETA);
         limpa(); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
         CONFERE(d.total[0] == 6 + 3, "Etiqueta com 3 na bolsa: %d", d.total[0]);
+        CONFERE(ad_vale_agora(AD_ETIQUETA, &J[0].col[3], J[0].col, J[0].onde, J[0].n_col) == 3,
+                "Etiqueta: antes do lance, a dica devia dizer +3");
         J[0].col[6] = (peca_t){ .tipo = D_D6 };
         // O Bilhete Premiado: o bonus dos dados validos (poderes e adesivos) em dobro; o numero, nao.
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
@@ -3620,7 +3640,8 @@ int main(void)
         CONFERE(c1 > 5 * l1 && l3 > 2 * c3, "raridade dos adesivos na loja: 1o salao comum %.0f lendario %.0f; 3o comum %.0f lendario %.0f",
                 c1, l1, c3, l3);
         perfis[0].nivel = 0;
-        CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2, "precos dos adesivos");
+        CONFERE(preco_adesivo(AD_CHUMBO) == 6 && preco_adesivo(AD_RASPADINHA) == 2 && preco_adesivo(AD_ETIQUETA) == 2,
+                "precos dos adesivos");
         monta_loja_run();
         run.dois_adesivos = 0;
         run.adesivo = AD_ELETRONICO;
@@ -4165,6 +4186,57 @@ int main(void)
             // Sem nada seu lancado, a carta sai da fila.
             limpa(); F[1].n = 4; F[1].carta = true; F[1].lancados = 4;
             CONFERE(!vira_carta(1) && F[1].n == 3 && !F[1].carta, "Coringa: sem o que copiar, a carta sai");
+            // O botao "parar" de quem joga em segundo: com a carta posta, o fim ainda
+            // depende dela - e so "parar", sem vence nem perde por tanto (e a vez
+            // nao acaba sozinha). O mesmo com um Oculto, um Espelho esperando ou
+            // uma Ficha Coringa por virar.
+            {
+                int vez0 = vez;
+                vez = 0;
+                char s[40];
+                limpa(); primeiro = 1;
+                F[1].n = 3; F[1].tipo[0] = F[1].tipo[1] = F[1].tipo[2] = D_D6;
+                coringa_completa(1);
+                joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D6, 5); F[1].n = 4;
+                sim_lanca(1);
+                joga(0, D_D6, 6); joga(0, D_D8, 7);       // 13 x 10, e a carta ainda vira
+                rotulo_parar(s, sizeof s);
+                CONFERE(!strcmp(s, "parar") && !ja_vence(0), "parar com a carta posta: '%s'", s);
+                // Sem a carta, a previa e certa, como sempre.
+                limpa(); primeiro = 1;
+                joga(1, D_D6, 2); joga(1, D_D6, 3);
+                joga(0, D_D6, 4); joga(0, D_D8, 5);
+                rotulo_parar(s, sizeof s);
+                CONFERE(!strcmp(s, "parar: vence por 4") && ja_vence(0), "parar sem carta, vencendo: '%s'", s);
+                limpa(); primeiro = 1;
+                joga(1, D_D6, 2); joga(1, D_D6, 3);
+                joga(0, D_D4, 1); joga(0, D_D4, 2);
+                rotulo_parar(s, sizeof s);
+                CONFERE(!strcmp(s, "parar: perde por 2"), "parar sem carta, perdendo: '%s'", s);
+                static const char *const QUAL[3] = { "Oculto", "Espelho", "Ficha Coringa" };
+                for (int q = 0; q < 3; q++) {             // a mesma mesa, com algo por virar no fim
+                    limpa(); primeiro = 1;
+                    joga(1, D_D6, 2); joga(1, D_D6, 3);
+                    joga(0, D_D4, 1); joga(0, D_D4, 2);
+                    if (q == 0) F[1].escondido[0] = true;
+                    else if (q == 1) F[1].espera[0] = true;
+                    else F[1].curinga[1] = true;
+                    rotulo_parar(s, sizeof s);
+                    CONFERE(!strcmp(s, "parar"), "parar com %s por virar: '%s'", QUAL[q], s);
+                }
+                // O risco do "jogar" aparece sempre, em toda dificuldade - menos na
+                // vez do computador, que nem tem botao.
+                {
+                    int modo0 = modo, cpu0 = cpu, dif0 = run.dificuldade;
+                    modo = M_DESAFIO; cpu = 2;
+                    bool todas = true;
+                    for (int dd = 0; dd <= N_NIVEIS; dd++) { run.dificuldade = (uint8_t)dd; vez = 0; todas &= mostra_chance(); }
+                    vez = 1;
+                    CONFERE(todas && !mostra_chance(), "o risco devia aparecer em toda dificuldade (e nao na vez do computador)");
+                    modo = modo0; cpu = cpu0; run.dificuldade = (uint8_t)dif0;
+                }
+                vez = vez0;
+            }
             // Da 5a rodada, dado seu anulado e destruido (antes, nao), do Nivel 7.
             int dif_c = run.dificuldade;
             for (int k = 0; k < 4; k++) {
@@ -4240,6 +4312,46 @@ int main(void)
                     CONFERE(fechado < 0 && tipos <= 2, "%s no Normal: %d tipos especiais, fechado %d", PERSO[pp].nome, tipos, fechado);
                 }
             }
+            // A escolha da dificuldade: so as abertas (a de cima aparece quando
+            // abrir), e o cursor nao passa da ultima aberta.
+            {
+                int f0 = fase, dc0 = dif_cur, maior = 0;
+                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0;
+                for (int i = 0; i < 8; i++) { manda_tecla(KEY_DOWN); if (dif_cur > maior) maior = dif_cur; }
+                CONFERE(maior == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                fase = f0; dif_cur = dc0;
+            }
+            // Do Nivel 5, o Barao nao fecha a run: vencido ele, a tela do aviso
+            // (sem dizer quem) vem antes do amuleto dele e da loja. Antes dele,
+            // a loja nao avisa nada; depois, diz quem vem.
+            {
+                run_t r0 = run;
+                int f0 = fase;
+                char s[112];
+                run.dificuldade = CORINGA_DESDE; run.andar = DES_ANDARES - 1; gera_andar();
+                int chefe = mesas_do_salao() - 1;
+                CONFERE(chefe_antes_do_coringa(chefe) && !chefe_antes_do_coringa(0), "Nivel 5: o Barao nao fecha a run");
+                run.estado = R_LOJA; run.passo = (uint8_t)(chefe - 1);
+                lj_proxima(s, sizeof s);
+                CONFERE(!strstr(s, "depois"), "loja antes do Barao, sem aviso: '%s'", s);
+                run.passo = (uint8_t)chefe;
+                CONFERE(lj_proxima(s, sizeof s) == C_REAL && strstr(s, "CORINGA") != NULL, "loja depois do Barao: '%s'", s);
+                run.estado = R_VENCEU;
+                des_pos_vitoria();
+                CONFERE(fase == F_RAVISO && n_confete == 0, "vencido o Barao no Nivel 5: o aviso (fase %d)", fase);
+                manda_tecla(KEY_ENTER);                  // o primeiro ENTER: a frase toda
+                CONFERE(fase == F_RAVISO && t_fase >= aviso_pronto(), "aviso: o primeiro ENTER mostra a frase toda");
+                manda_tecla(KEY_ENTER);                  // o segundo: o amuleto do Barao
+                CONFERE(fase == F_RAMULETO && run.am_volta == AV_CHEFE, "aviso: depois, o amuleto do Barao (fase %d)", fase);
+                // A Dona, no Nivel 5: sem aviso, direto ao amuleto.
+                run.andar = 1; gera_andar(); run.passo = (uint8_t)(mesas_do_salao() - 1); run.estado = R_VENCEU;
+                des_pos_vitoria();
+                CONFERE(fase == F_RAMULETO, "a Dona nao avisa nada (fase %d)", fase);
+                // No Nivel 4, o Barao fecha a run: nada de aviso.
+                run.dificuldade = CORINGA_DESDE - 1; run.andar = DES_ANDARES - 1; gera_andar();
+                CONFERE(!chefe_antes_do_coringa(mesas_do_salao() - 1), "Nivel 4: o Barao fecha a run");
+                run = r0; fase = f0;
+            }
             perfis[0] = p0; perfil_atual = pa0; perfis_lidos = pl0;
             run.dificuldade = (uint8_t)dif0;
             run.andar = (uint8_t)andar0;
@@ -4275,11 +4387,18 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][1] == V_VALIDO,
                 "Seguranca com dois ataques");
-        // Valendo no fim, o Seguranca ganha +2.
+        // A sequencia inteira valendo no fim: o Seguranca ganha +2.
         limpa();
         joga(0, D_D4, 1); joga(0, D_SEGURANCA, 3);
         d = fim();
         CONFERE(d.total[0] == 1 + 3 + 2, "Seguranca valendo: esperava 6, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 1) == 1, "Seguranca com todos valendo: armado");
+        // Ele valendo, mas outro dado seu caiu: sem o +2.
+        limpa();
+        joga(0, D_SEGURANCA, 2); joga(0, D_D4, 3); joga(0, D_D6, 1);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2, "Seguranca com um caido: esperava 2, deu %d", d.total[0]);
+        CONFERE(poder_armado(0, 0) == 0, "Seguranca com um caido: desarmado");
         // Sem Seguranca, o Carrasco anula o maior, como sempre.
         limpa();
         joga(0, D_D4, 2); joga(0, D_D8, 7);

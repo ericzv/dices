@@ -603,12 +603,26 @@ static void des_resultado(void)
 }
 
 // Depois da mesa vencida: o fim da run, o amuleto do chefe ou a loja.
-static void des_pos_vitoria(void)
+// Depois da vitoria (e do aviso): o amuleto do chefe, ou direto a loja.
+static void des_pos_aviso(void)
 {
-    if (fim_da_run()) { encerra_run(true); return; }
     run.am_selo = 0;
     if (chefe_deixa_amuleto()) oferece_amuleto(AV_CHEFE);
     else abre_loja_pos();
+}
+static void des_pos_vitoria(void)
+{
+    if (fim_da_run()) { encerra_run(true); return; }
+    // Do Nivel 5, o Barao nao fecha a run: antes do amuleto dele e da loja, a
+    // tela do aviso - um ultimo oponente espera (sem dizer quem).
+    if (chefe_antes_do_coringa(run.passo)) {
+        t_fase = 0;
+        fase = F_RAVISO;
+        n_confete = 0;                           // a festa acaba de repente
+        som_toca(SOM_SUSPENSE);
+        return;
+    }
+    des_pos_aviso();
 }
 
 // Sair no meio de uma partida da run (ESC duas vezes) conta como derrota:
@@ -617,7 +631,7 @@ static void des_pos_vitoria(void)
 // decidida: termina com o resultado de verdade.
 static bool des_abandono(void)
 {
-    return modo == M_DESAFIO && fase != F_FIM && fase != F_RAMULETO && fase != F_NOVIDADES;
+    return modo == M_DESAFIO && fase != F_FIM && fase != F_RAMULETO && fase != F_NOVIDADES && fase != F_RAVISO;
 }
 
 static void segue_do_resultado(void);

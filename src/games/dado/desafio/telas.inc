@@ -18,7 +18,7 @@ static const char *const PENA_DIF[N_NIVEIS + 1] = {
     "Os salões como sempre; só os chefes têm trunfo.",
     "O Crupiê passa a virar na 5ª rodada.",
     "A Dona também vira na 5ª rodada.",
-    "A loja fica 25% mais cara.",
+    "Mais oponentes trazem o trunfo.",
     "O Barão também vira na 5ª rodada.",
     "As mesas difíceis pensam mais.",
     "Oponentes trazem 1 dado raro a mais.",
@@ -42,37 +42,6 @@ static int coringa_txt(int d, char *s, int n)
                     : d > CORINGA_SOME ? "; da 5ª rodada, seu dado anulado some" : "");
 }
 
-// O nome do oponente sem o artigo e so com a inicial maiuscula ("Caubói").
-static void nome_curto(const char *nome, char *s, int n)
-{
-    if ((nome[0] == 'O' || nome[0] == 'A') && nome[1] == ' ') nome += 2;
-    int k = 0;
-    for (int i = 0; nome[i] && k < n - 1; i++) {
-        unsigned char c = (unsigned char)nome[i];
-        if (i > 0 && c >= 'A' && c <= 'Z') c += 32;
-        else if (i > 0 && c >= 0x80 && c <= 0x9E && (unsigned char)nome[i - 1] == 0xC3) c += 0x20;   // Á, Ã, Ó...
-        s[k++] = (char)c;
-    }
-    s[k] = 0;
-}
-
-// Os oponentes comuns que passam a trazer o trunfo na dificuldade d:
-// "Cautelosa, Apostador e Caubói". Devolve quantos.
-static int trunfos_do_nivel(int d, char *s, int n)
-{
-    int q = 0, tot = 0;
-    for (int p = 0; p < N_PERSO; p++) tot += !perso_chefe(p) && !perso_natal(p) && PERSO[p].andar_trunfo == d;
-    s[0] = 0;
-    for (int p = 0; p < N_PERSO; p++) {
-        if (perso_chefe(p) || perso_natal(p) || PERSO[p].andar_trunfo != d) continue;
-        char nm[24];
-        nome_curto(PERSO[p].nome, nm, sizeof nm);
-        int l = (int)strlen(s);
-        snprintf(s + l, (size_t)(n - l), "%s%s", q == 0 ? "" : q == tot - 1 ? " e " : ", ", nm);
-        q++;
-    }
-    return q;
-}
 static uint16_t cor_dif(int d) { return COR_DIF[d <= N_NIVEIS ? d : 0]; }
 
 static int  pf_cur;                      // card em foco na tela de perfis
@@ -264,59 +233,44 @@ static void desenha_dificuldade(void)
 {
     ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Dificuldade da run");
-    int nv = perfil()->nivel, ult = nv < N_NIVEIS ? nv + 1 : N_NIVEIS;
+    // So as abertas: a de cima aparece quando abrir.
+    int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
     int x0 = 28, y0 = 54;
-    for (int d = 0; d <= ult; d++) {
-        bool aberta = d <= nv, cur = d == dif_cur;
+    for (int d = 0; d <= nv; d++) {
+        bool cur = d == dif_cur;
         int y = y0 + d * 22;
         ui_cartao(x0, y, 150, 20, cur, 0);
-        uint16_t c = aberta ? COR_DIF[d] : C_FELTRO2;
-        gfx_disco(x0 + 14, y + 10, 6, gfx_mistura(c, C_BARRA, 30));
-        gfx_disco(x0 + 14, y + 10, 4, c);
-        txt(x0 + 28, y, NOME_DIF_CURTO[d], aberta ? c : C_TEXTO_M, true);
+        gfx_disco(x0 + 14, y + 10, 6, gfx_mistura(COR_DIF[d], C_BARRA, 30));
+        gfx_disco(x0 + 14, y + 10, 4, COR_DIF[d]);
+        txt(x0 + 28, y, NOME_DIF_CURTO[d], COR_DIF[d], true);
         if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
             gfx_disco(x0 + 134, y + 10, 5, C_LATAO_ESC);
             gfx_disco(x0 + 134, y + 10, 4, C_OURO);
             gfx_disco(x0 + 133, y + 9, 1, C_BRANCO);
         }
-        if (aberta) zona_clique(x0, y, 150, 20, &dif_cur, d, KEY_ENTER);
-        else zona_clique(x0, y, 150, 20, &dif_cur, d, 0);
+        zona_clique(x0, y, 150, 20, &dif_cur, d, KEY_ENTER);
     }
-    // O que vale na escolhida: o que ela acrescenta, em destaque, e o que vem
-    // de baixo, miudo.
+    // O que vale na escolhida, curto: o que muda nos oponentes fica num
+    // "inimigos mais fortes" (o detalhe se descobre jogando); do Nivel 5, que
+    // a run nao acaba no Barao; e as moedas do comeco.
     int px = 194, py = 54;
     ui_painel(px, py, 416, 254);
-    int d = dif_cur;
+    int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
     int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
     txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
-    int ly = py + 30;
-    if (d > nv) {
-        char s[64];
-        snprintf(s, sizeof s, "Vença %s no %s para abrir.", d - 1 >= CORINGA_DESDE ? "o Coringa" : nome_chefe(2),
-                 NOME_DIF_CURTO[d - 1]);
-        txt(px + 12, ly, s, C_VINHO_CLR, false);
-        ly += 20;
-    }
-    txt(px + 12, ly, "+", COR_DIF[d], true);
-    txt(px + 24, ly, PENA_DIF[d], C_MARFIM, false);
+    int ly = py + 32;
+    if (d > 0) {
+        txt(px + 12, ly, "+", COR_DIF[d], true);
+        txt(px + 24, ly, "Inimigos mais fortes.", C_MARFIM, false);
+    } else txt(px + 24, ly, PENA_DIF[0], C_MARFIM, false);
     ly += 19;
-    for (int k = d - 1, i = 0; k >= 1; k--, i++)    // as de baixo, da mais recente, em duas colunas
-        gfx_texto(px + 26 + (i % 2) * 196, ly + 2 + (i / 2) * 11, PENA_DIF[k], C_TEXTO_M, GFX_MIUDO, false);
-    if (d > 1) ly += (d / 2) * 11 + 4;
-    if (d > 0) {                                     // quem passa a trazer o trunfo
-        char nomes[96], t[128];
-        if (trunfos_do_nivel(d, nomes, sizeof nomes)) {
-            snprintf(t, sizeof t, "Com trunfo agora: %s.", nomes);
-            txt(px + 24, ly, t, C_ROSA, false);
-            ly += 17;
-        }
-    }
-    {
-        char cj[96];                                 // o Coringa, do Nivel 5
-        if (coringa_txt(d, cj, sizeof cj)) {
-            txt(px + 24, ly, cj, C_REAL, false);
-            ly += 17;
-        }
+    bool conhece_coringa = chefe_abriu(CORINGA_DESDE, CH_CORINGA);   // ja venceu o Coringa uma vez
+    if (d >= CORINGA_DESDE) {                        // a run segue depois do Barao (sem dizer quem)
+        char s[64];
+        snprintf(s, sizeof s, "Um novo chefe surge após %s.", dezembro ? "o Papai Noel" : "o Barão");
+        txt(px + 12, ly, "+", C_REAL, true);
+        txt(px + 24, ly, s, C_REAL, false);
+        ly += 19;
     }
     {
         char m[64];                                  // o mesmo comeco em todo andar
@@ -327,16 +281,21 @@ static void desenha_dificuldade(void)
     // O que os chefes desta dificuldade abrem, chefe a chefe: aceso o que ja
     // abriu, apagado (com o nome do chefe apagado) o que falta.
     ly += 4;
-    txt(px + 12, ly, "Os chefes deste nível abrem:", C_TEXTO_M, false);
+    txt(px + 12, ly, "Os chefes deste nível desbloqueiam:", C_TEXTO_M, false);
     ly += 18;
     static const char *const CURTO[CH_N] = { "Crupiê", "Dona", "Barão", "Coringa" };
-    const char *curto_c[CH_N] = { CURTO[0], CURTO[1], dezembro ? "Noel" : CURTO[2], CURTO[3] };
+    const char *curto_c[CH_N] = { CURTO[0], CURTO[1], dezembro ? "Noel" : CURTO[2], conhece_coringa ? CURTO[3] : "???" };
+    int col = 60;                                    // a coluna dos nomes: cabe o maior (com a letra maior tambem)
+    for (int c = 0; c < chefes_de(d); c++) {
+        int w = gfx_largura(curto_c[c], GFX_FINO) + 14;
+        if (w > col) col = w;
+    }
     for (int c = 0; c < chefes_de(d); c++) {
         novidade_t it[PEDACO_MAX];
         int ni = pedaco(d, c, it);
         if (!ni) continue;
         bool ab = chefe_abriu(d, c);
-        int ix = px + 84, iy = ly + 9;
+        int ix = px + 24 + col, iy = ly + 9;
         gfx_texto(px + 24, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
         for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
             int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
@@ -350,7 +309,7 @@ static void desenha_dificuldade(void)
                 default:         estilo_parte_nome(lin[q], k[q], nome, sizeof nome); break;
                 }
                 int wi = 13 + gfx_largura(nome, GFX_FINO) + 12;
-                if (ix + wi > px + 410) { ix = px + 84; iy += 19; }
+                if (ix + wi > px + 410) { ix = px + 24 + col; iy += 19; }
                 uint16_t cn = C_TEXTO_M;
                 switch (it[i].k) {
                 case NV_DIF: {

@@ -337,6 +337,12 @@ static const char *regra_perso(int p)
 
 // O Coringa vem depois do Barao nesta run?
 static bool com_coringa(void) { return run.dificuldade >= CORINGA_DESDE; }
+// A mesa p do salao de agora e o Barao que nao fecha a run (do Nivel 5, o
+// Coringa vem depois)? Vencido ele, a tela do aviso (andamento.inc).
+static bool chefe_antes_do_coringa(int p)
+{
+    return com_coringa() && run.andar == DES_ANDARES - 1 && p >= 0 && p < DES_PASSOS && run.no[p].tipo == NO_CHEFE;
+}
 // Quantos dados o Coringa traz na dificuldade d: 13 no Nivel 5, um a mais por nivel.
 static int coringa_bolsa(int d) { return 13 + (d > N_NIVEIS ? N_NIVEIS : d) - CORINGA_DESDE; }
 

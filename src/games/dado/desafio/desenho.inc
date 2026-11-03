@@ -53,7 +53,8 @@ static void faixa_run(int voltar)
     }
     char s[48];
     if (run.andar >= DES_ANDARES) snprintf(s, sizeof s, "%s  ·  final", SALAO[run.andar]);
-    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1, DES_ANDARES);
+    else snprintf(s, sizeof s, "%s  ·  %d de %d", SALAO[run.andar], run.andar + 1,
+                  com_coringa() ? DES_ANDARES + 1 : DES_ANDARES);     // do Nivel 5, o salao do Coringa conta
     int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
     if (cx - meio < fim + 18) cx = fim + 18 + meio;
     txt_c(cx, ty, s, COR_SALAO[run.andar], true);
@@ -620,6 +621,98 @@ static void desenha_mapa(void)
         }
 }
 
+// ---- O aviso: ainda falta um --------------------------------------------
+// Do Nivel 5, vencido o Barao: a mesa apaga, sobra uma luz no meio, alguem
+// espera nela - so a silhueta, com a beira acesa - e a frase vem letra a
+// letra (os tres pontos, devagar). So a frase: nao diz quem. ENTER mostra tudo; de
+// novo, segue para o amuleto do Barao e a loja.
+static const char AVISO_FRASE[] = "Um último oponente o aguarda...";
+#define AVISO_ESCURO 0.7f                    // a mesa apagando, antes da frase
+#define AVISO_LETRA  0.06f
+#define AVISO_PONTO  0.34f                   // cada um dos tres pontos
+// Quando a letra i da frase aparece (contando letras, nao bytes); com i =
+// todas, quando a frase termina.
+static float aviso_letra_t(int i)
+{
+    float t = AVISO_ESCURO;
+    int n = 0;
+    for (const unsigned char *p = (const unsigned char *)AVISO_FRASE; *p && n < i; p++) {
+        if ((*p & 0xC0) == 0x80) continue;           // o meio de uma letra acentuada
+        t += *p == '.' ? AVISO_PONTO : AVISO_LETRA;
+        n++;
+    }
+    return t;
+}
+static int aviso_letras(void)
+{
+    int n = 0;
+    for (const unsigned char *p = (const unsigned char *)AVISO_FRASE; *p; p++) n += (*p & 0xC0) != 0x80;
+    return n;
+}
+static float aviso_pronto(void) { return aviso_letra_t(aviso_letras()); }
+
+// Em volta de (cx, cy), fora do raio, a mesa escurece aos poucos ate forte%
+// (o pontilhado da hora da verdade). So o feltro: as faixas ficam acesas.
+static void escuro_em_volta(int cx, int cy, float raio, float borda, float forte)
+{
+    if (forte <= 0) return;
+    uint16_t *fb = display_fb();
+    for (int y = MESA_Y0; y < MESA_Y1; y++) {
+        float dy = (y - cy) * 1.25f;
+        for (int x = MESA_X0; x < MESA_X1; x++) {
+            float dx = (float)(x - cx), d2 = dx * dx + dy * dy;
+            if (d2 <= raio * raio) continue;
+            float s = (sqrtf(d2) - raio) / borda;
+            if (s > 1) s = 1;
+            int a = (int)(s * forte + (BAYER[y & 3][x & 3] - 7.5f) * 1.6f);
+            if (a <= 0) continue;
+            uint16_t *p = &fb[y * GFX_W + x];
+            *p = gfx_mistura(*p, C_BARRA, a > 100 ? 100 : a);
+        }
+    }
+}
+
+static void desenha_aviso(void)
+{
+    faixa_run(0);
+    float t = t_fase, pronto = aviso_pronto();
+    float q = t / AVISO_ESCURO;
+    if (q > 1) q = 1;
+    float e = q * q * (3 - 2 * q);                   // a mesa apagando
+    const int esc = 4, sx = GFX_W / 2 - RT_W * esc / 2, sy = 74;
+    luz_no_feltro(GFX_W / 2, sy + RT_H * esc - 8, 78, 16, 2.6f * e);   // a poca de luz aos pes dele
+    // A silhueta: a beira acende devagar, pelos tons da rampa purpura (a
+    // paleta e fechada: a mistura cairia no cinza) e, com a frase pronta, respira.
+    float b = (t - 0.25f) / 0.9f;
+    if (b < 0) b = 0;
+    if (b > 1) b = 1;
+    float v = b * (t > pronto ? 0.75f + 0.25f * sinf((t - pronto) * 2.2f) : 1);
+    uint16_t roxo[4];
+    rampa_de(C_REAL, roxo);
+    rt_sil = true;
+    rt_sil_beira = v < 0.25f ? C_BARRA : v < 0.55f ? roxo[0] : v < 0.85f ? roxo[1] : roxo[2];
+    retrato(sx, sy, esc, PERSO_CORINGA, 0, false, 0, RT_H);   // parado: so a forma
+    rt_sil = false;
+    escuro_em_volta(GFX_W / 2, sy + RT_H * esc / 2 + 10, 84, 120, 94 * e);
+    // A frase, letra a letra.
+    int n = 0, m = aviso_letras();
+    while (n < m && aviso_letra_t(n) <= t) n++;
+    if (n > 0) {
+        char s[sizeof AVISO_FRASE];
+        int k = 0, c = 0;
+        for (const char *p = AVISO_FRASE; *p; p++) {
+            if ((*p & 0xC0) != 0x80 && c++ == n) break;   // a letra n (e o resto) ainda nao
+            s[k++] = *p;
+        }
+        s[k] = 0;
+        int w = gfx_largura(AVISO_FRASE, 2);             // a frase inteira: as letras nao andam
+        int x = GFX_W / 2 - w / 2, y = sy + RT_H * esc + 16;
+        gfx_texto(x + 2, y + 2, s, C_SOMBRA, 2, true);
+        gfx_texto(x, y, s, C_MARFIM, 2, true);
+    }
+    rodape_run(t >= pronto ? "ENTER continua" : "ENTER mostra tudo");
+}
+
 // ---- A bolsa ------------------------------------------------------------
 // 12 por linha, tres linhas antes de encolher.
 #define BOLSA_Y 118                  // o alto da grade
@@ -665,7 +758,7 @@ static void desenha_bolsa_run(void)
     if (run.n_col && cursor < run.n_col) {
         bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
         dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
-        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor]);
+        if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor], run.col, run.n_col);
     }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
 }

@@ -7,6 +7,10 @@
 #define RT_H 27
 #define RT_TOPO 3                        // folga em cima para chapeus e coques
 static uint16_t rt[RT_H][RT_W];          // 0 = vazio (1 px de margem em volta)
+// A silhueta (a tela do aviso, antes do ultimo chefe): o retrato todo escuro,
+// so a beira acesa na cor rt_sil_beira, e sem o fundo dos quadros.
+static bool rt_sil;
+static uint16_t rt_sil_beira;
 
 static void rp(int x, int y, uint16_t c)
 {
@@ -813,7 +817,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
                       || (j > 0 && rt[j - 1][i] > 1) || (j + 1 < RT_H && rt[j + 1][i] > 1);
             if (perto) rt[j][i] = 1;                           // 1 = contorno
         }
-    if (fundo) {
+    if (fundo && !rt_sil) {
         int fase_c = (int)(t / 1.4f) % 4;                      // o ceu ondula devagar
         for (int j = 0; j < RT_H; j++)
             for (int i = 0; i < RT_W; i++) {
@@ -850,8 +854,12 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
             }
     }
     for (int j = l0; j < l0 + nl && j < RT_H; j++)
-        for (int i = 0; i < RT_W; i++)
-            if (rt[j][i]) gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, rt[j][i] == 1 ? contorno : rt[j][i]);
+        for (int i = 0; i < RT_W; i++) {
+            if (!rt[j][i]) continue;
+            uint16_t c = rt[j][i] == 1 ? contorno : rt[j][i];
+            if (rt_sil) c = rt[j][i] == 1 ? rt_sil_beira : C_BARRA;
+            gfx_rect(x + i * esc, y + (j - l0) * esc, esc, esc, c);
+        }
 }
 
 // Balao de fala do retrato: (tx, ty) e a ponta do bico, que aponta para

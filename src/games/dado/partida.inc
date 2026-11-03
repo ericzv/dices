@@ -859,6 +859,24 @@ static void medusa_petrifica(int j, const desfecho_t *d)
 // copia e e lancada, com a regra da sequencia valendo para ela.
 static bool coringa_joga(int j) { return j == 1 && tem_reg(REG_CORINGA); }
 static bool carta_posta(int j) { return F[j].carta && F[j].lancados > 3; }
+// O fim da rodada ainda depende da sorte, mesmo que ninguem jogue mais: a
+// carta do Coringa por virar (e ser lancada), um Oculto escondido, um
+// Terremoto por sacudir. A previa do fim nao sabe o que vai dar.
+static bool fim_incerto(void)
+{
+    return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa();
+}
+// Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
+// Espelho esperando o maior do outro e a Ficha Coringa com o curinga para
+// cima. O botao "parar" entao e so "parar": nem vence, nem perde por tanto.
+static bool fim_em_aberto(void)
+{
+    if (fim_incerto()) return true;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            if (F[j].espera[k] || F[j].curinga[k]) return true;
+    return false;
+}
 // A fila do Coringa ficou pronta com tres dados: o quarto e a copia, ou a
 // carta (fora da bolsa dele: idx -1).
 static void coringa_completa(int j)
@@ -1689,8 +1707,7 @@ static bool zerou_de_vez(int j)
 // acaba ali.
 static bool ja_vence(int j)
 {
-    if (j == primeiro || !F[j].lancados || carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1)) return false;
-    if (tremor_na_mesa()) return false;          // o Terremoto ainda vai sacudir: nada certo
+    if (j == primeiro || !F[j].lancados || fim_incerto()) return false;
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.total[j] > d.total[outro(j)];

@@ -446,7 +446,8 @@ static void des_nova_run(void)
     // A bolsa do comeco: dados simples, muitos fracos (tirar os fracos, na
     // loja, e parte da run), e o que a bolsa escolhida traz.
     bolsa_monta_run(des_bolsa);
-    if (des_bolsa == B_CARTEIRA) run.moedas = 0;   // a Carteira: comeca vazia
+    if (des_bolsa == B_CARTEIRA)                 // a Carteira: comeca com menos (nunca abaixo de zero)
+        run.moedas = run.moedas > CARTEIRA_MENOS ? run.moedas - CARTEIRA_MENOS : 0;
     gera_andar();
     if (des_bolsa == B_PRESENTE) {               // a Sacola de Presente: sem amuleto, direto a loja da entrada
         run.estado = R_LOJA_INI;

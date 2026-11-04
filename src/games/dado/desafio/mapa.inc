@@ -543,7 +543,5 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         col[n++] = peca_r(tudo || dado_liberado(t) ? t : coringa ? D_D12 : D_D6);
     }
     if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);
-    // O Revolver dele ja chega com balas no tambor (o seu vem vazio da loja).
-    for (int i = 0; i < n; i++) if (col[i].tipo == D_REVOLVER) col[i].fixo = (uint8_t)sorte_r(REVOLVER_BALAS);
     return n;
 }

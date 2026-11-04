@@ -244,6 +244,28 @@ static void bs_seta(int x, int y, bool sobe, uint16_t c)
         gfx_rect(x - w, y + i, 2 * w + 1, 1, c);
     }
 }
+// As setas dos lados da vitrine: botoes de ebano com a ponta da seta, como
+// o "<" de voltar. O mouse por cima so acende; so o clique gira a vitrine.
+// Na ponta da fila, a seta daquele lado fica apagada.
+#define BS_SETA_DX 214                           // do meio da mesa ao meio da seta
+#define BS_SETA_W  24
+#define BS_SETA_H  30
+static void bs_setas(void)
+{
+    int p = bs_pos(bs_cur);
+    for (int lado = -1; lado <= 1; lado += 2) {
+        int x = GFX_W / 2 + lado * BS_SETA_DX - BS_SETA_W / 2, y = BS_Y - BS_SETA_H / 2;
+        bool pode = lado < 0 ? p > 0 : p < B_N - 1, livre = pode && t_bs_clique < 0;
+        bool em = livre && mouse_em(x - 4, y - 6, BS_SETA_W + 8, BS_SETA_H + 12);
+        int d;
+        uint16_t c = ui_botao_face(x, y, BS_SETA_W, BS_SETA_H, 0, pode ? (em ? UI_FOCO : 0) : UI_DESLIGADO, &d);
+        int cx = x + BS_SETA_W / 2 - lado, cy = y + d + (BS_SETA_H - 4) / 2;
+        gfx_linha_grossa(cx - 3 * lado, cy - 6, cx + 3 * lado, cy, 3, c);   // so a ponta: < ou >
+        gfx_linha_grossa(cx + 3 * lado, cy, cx - 3 * lado, cy + 6, 3, c);
+        if (livre) zona_clique(x - 4, y - 6, BS_SETA_W + 8, BS_SETA_H + 12, NULL, lado, lado < 0 ? KEY_LEFT : KEY_RIGHT);
+    }
+}
+
 // As do fundo somem no feltro pelo pontilhado: guarda o que esta embaixo da
 // ficha antes de desenha-la e, depois, devolve os pontos que ja sumiram.
 #define BS_GUARDA 72
@@ -270,10 +292,11 @@ static void bs_some(float q)
 }
 
 // Embaixo da vitrine, um pontinho por bolsa, na ordem da fila: as abertas
-// cheias, na cor delas; as fechadas, so o aro; a do cursor, maior. Passar o
-// mouse por eles tambem escolhe.
+// cheias, na cor delas; as fechadas, so o aro; a do cursor, maior; a nova
+// (a da etiqueta NOVA), com um aro dourado e um brilho dando a volta nele.
+// Passar o mouse por eles tambem escolhe.
 #define BS_PT_Y   150
-#define BS_PT_VAO 10
+#define BS_PT_VAO 11
 static void bs_ponto(int x, int y, int r, uint16_t c, bool cheio)
 {
     for (int j = -r; j <= r; j++)
@@ -282,6 +305,18 @@ static void bs_ponto(int x, int y, int r, uint16_t c, bool cheio)
             if (d > r * r + r - 1) continue;                  // o redondo de pixel: sem as quinas
             if (!cheio && d <= (r - 1) * (r - 1) + (r - 1) - 1 && r > 1) continue;
             gfx_pixel(x + i, y + j, c);
+        }
+}
+static void bs_aro_novo(int x, int y, int R, int b)
+{
+    float brilho = fmodf(t_relogio * 4.2f + b * 1.3f, 6.2832f);      // o brilho dando a volta
+    for (int j = -R; j <= R; j++)
+        for (int i = -R; i <= R; i++) {
+            int d = i * i + j * j;
+            if (d < R * R - R + 1 || d > R * R + R) continue;        // so o aro, de um pixel
+            float a = atan2f((float)j, (float)i) + 3.1416f, dist = fabsf(a - brilho);
+            if (dist > 3.1416f) dist = 6.2832f - dist;
+            gfx_pixel(x + i, y + j, dist < 0.45f ? C_BRANCO : dist < 1.3f ? C_OURO : C_LATAO);
         }
 }
 static void bs_pontinhos(void)
@@ -294,6 +329,7 @@ static void bs_pontinhos(void)
         if (foco) bs_ponto(x, BS_PT_Y, 3, fechada ? C_MARFIM_S : c, !fechada);
         else bs_ponto(x, BS_PT_Y, 2, c, !fechada);
         if (foco && !fechada) gfx_pixel(x - 1, BS_PT_Y - 1, C_MARFIM);   // o brilho da escolhida
+        if ((bs_novas >> b & 1) && !fechada) bs_aro_novo(x, BS_PT_Y, (foco ? 3 : 2) + 2, b);
         if (t_bs_clique < 0) zona_clique(x - BS_PT_VAO / 2, BS_PT_Y - 6, BS_PT_VAO, 12, &bs_cur, b, TECLA_BS_VAI + i);
     }
 }
@@ -395,7 +431,7 @@ static void desenha_bolsas(void)
         if (foco) zona_clique(cx - r - 4, BS_Y - BS_R - 6, 2 * r + 8, 2 * BS_R + 8, &bs_cur, b, KEY_ENTER);
         else if (ad < BS_LADO + 0.4f) zona_clique(zx, zy, zw, zh, NULL, i, TECLA_BS_VAI + i);
     }
-    if (t_fase > BS_CAI(BS_LADO)) bs_pontinhos();
+    if (t_fase > BS_CAI(BS_LADO)) { bs_pontinhos(); bs_setas(); }
 
     // A escolhida: os dados saltam da ficha, giram e caem fora da mesa.
     if (t_bs_clique >= 0.3f) {

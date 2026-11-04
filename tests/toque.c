@@ -226,6 +226,22 @@ int main(void)
         confere(bs_cur == B_LATA, "bolsas: um toque na do lado vai ate ela");
     }
     passa(40);
+    // Os botoes < e >: o mouse por cima nao gira; o clique (ou um toque) gira.
+    z = acha_zona(KEY_RIGHT, false, false, 0);
+    confere(z != NULL, "bolsas: o botao > vale com um toque");
+    if (z) {
+        zona_clique_t seta = *z;
+        dado_mouse(seta.x + seta.w / 2, seta.y + seta.h / 2, 0);
+        passa(10);
+        confere(bs_cur == B_LATA, "bolsas: o mouse no > nao gira a vitrine");
+        toca(&seta, 3);
+        confere(bs_cur == B_PORCO, "bolsas: um toque no > vai para a proxima");
+        z = acha_zona(KEY_LEFT, false, false, 0);
+        if (z) { zona_clique_t volta = *z; toca(&volta, 1); }
+        confere(bs_cur == B_LATA, "bolsas: um clique no < volta para a anterior");
+        dado_mouse(-1, -1, 0);
+    }
+    passa(40);
     z = acha_zona(KEY_ENTER, true, true, 0);
     confere(z != NULL && z->val == B_LATA, "bolsas: a do meio pede dois toques");
     if (z) {

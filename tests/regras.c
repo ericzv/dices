@@ -4098,6 +4098,29 @@ int main(void)
         limpa();
         joga_ad(0, 5, 1);
         CONFERE(F[0].est[0] == V_ANULADO && vidro_quebra(0, 0), "o Vidro comum com 1 se estilhaca");
+        // O Quebrado mostra sempre o numero gravado: com o Impermeavel nesse
+        // lado, ganha a capa e nao se desfaz no fim da rodada; sem, se desfaz.
+        {
+            jogador_t guarda = J[0];
+            J[0].n_col = 12;
+            for (int i = 0; i < J[0].n_col; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+            J[0].col[6] = (peca_t){ .tipo = D_QUEBRADO, .fixo = 5 };
+            ad_cola(&J[0].col[6], 5, AD_IMPERMEAVEL);
+            J[0].col[7] = (peca_t){ .tipo = D_QUEBRADO, .fixo = 3 };
+            limpa();
+            memset(vis_queima, 0, sizeof vis_queima);
+            joga_ad(0, 6, 5);
+            CONFERE(impermeavel(0, 0), "Quebrado com o Impermeavel no 5: com a capa");
+            recolhe_quebrados();
+            CONFERE(J[0].n_col == 12 && J[0].col[6].tipo == D_QUEBRADO && !F[0].quebra[0],
+                    "Quebrado de capa: nao se desfaz (%d dados)", J[0].n_col);
+            limpa();
+            memset(vis_queima, 0, sizeof vis_queima);
+            joga_ad(0, 7, 3);
+            recolhe_quebrados();
+            CONFERE(J[0].n_col == 11 && F[0].quebra[0], "Quebrado comum: se desfaz (%d dados)", J[0].n_col);
+            J[0] = guarda;
+        }
         // Agindo, a capa fica na peca ate o fim da partida: depois, nem a
         // sequencia o anula (o Fragil dele nunca quebra).
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
@@ -4558,6 +4581,24 @@ int main(void)
                 int n = monta_oponente(&no, a, col), eco = 0, gemeo = 0;
                 for (int i = 0; i < n; i++) { eco += col[i].tipo == D_ECO; gemeo += col[i].tipo == D_GEMEO; }
                 CONFERE(eco >= 1 && (a == 0 || gemeo >= 1), "nucleo do Rival no salao %d: eco %d gemeo %d", a, eco, gemeo);
+            }
+            // O Revolver do oponente chega vazio, como o seu: o primeiro tiro
+            // so sai no 4o lance dele (nunca na 1a ou 2a rodada).
+            {
+                int cb = 0, revs = 0, cheios = 0;
+                while (cb < N_PERSO - 1 && strcmp(PERSO[cb].nome, "O CAUBÓI")) cb++;
+                no_t nc = { 0 };
+                nc.perso = (uint8_t)cb;
+                for (int sd = 1; sd <= 40; sd++)
+                    for (int a = 0; a < 3; a++) {
+                        peca_t col[MAX_COL];
+                        nc.tipo = (uint8_t)(sd % 3); nc.semente = (uint32_t)(sd * 104729 + a);
+                        run.andar = (uint8_t)a;
+                        int n = monta_oponente(&nc, a, col);
+                        for (int i = 0; i < n; i++)
+                            if (col[i].tipo == D_REVOLVER) { revs++; cheios += col[i].fixo != 0; }
+                    }
+                CONFERE(revs > 0 && !cheios, "o Revolver do Cauboi chega vazio (%d de %d com balas)", cheios, revs);
             }
             // No Normal, a mesa facil do primeiro salao: nada fechado e no maximo
             // dois tipos de dado especial, para qualquer oponente.

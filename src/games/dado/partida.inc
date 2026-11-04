@@ -1003,7 +1003,7 @@ static bool coringa_destroi(void) { return tem_reg(REG_CORINGA) && rodada >= VIR
 
 static void recolhe_quebrados(void)
 {
-    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0;
+    int n_quebra = 0, n_cinza = 0, n_vidro = 0, n_mist = 0, n_coringa = 0, n_capa = 0, n_inteiro = 0;
     // Os Jingle Bells que terminam valendo deixam uma copia na bolsa: tiradas
     // antes que os dados que saem mudem as posicoes da bolsa.
     peca_t sino[2][N_FILA];
@@ -1022,7 +1022,10 @@ static void recolhe_quebrados(void)
                 n_mist++;
                 continue;
             }
-            if (F[j].tipo[k] == D_QUEBRADO) { F[j].quebra[k] = true; some = true; n_quebra++; }
+            if (F[j].tipo[k] == D_QUEBRADO) {       // com a capa do Impermeavel, nao se desfaz
+                if (impermeavel(j, k)) n_inteiro++;
+                else { F[j].quebra[k] = true; some = true; n_quebra++; }
+            }
             if (vidro_quebra(j, k)) { F[j].quebra[k] = true; some = true; n_vidro++; }
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
             if (j == 0 && !some && coringa_destroi() && F[j].tipo[k] != D_FANTASMA
@@ -1050,6 +1053,7 @@ static void recolhe_quebrados(void)
     if (n_cinza && n_quebra) snprintf(nota, sizeof nota, "um dado vira cinza, outro se quebra");
     else if (n_cinza)        snprintf(nota, sizeof nota, n_cinza > 1 ? "os dados queimados viram cinza" : "o dado queimado vira cinza");
     else if (n_quebra)       snprintf(nota, sizeof nota, n_quebra > 1 ? "Quebrados se desfazem" : "o Quebrado se desfaz");
+    else if (n_inteiro)      snprintf(nota, sizeof nota, "o Impermeável segura o Quebrado inteiro");
     if (n_vidro && !n_cinza && !n_quebra) snprintf(nota, sizeof nota, "cacos de vidro saem da mesa");
     else if (n_vidro)        snprintf(nota, sizeof nota, "dados se desfazem, e o vidro também");
     int n_sino = 0;

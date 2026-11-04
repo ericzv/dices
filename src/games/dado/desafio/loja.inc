@@ -459,13 +459,22 @@ static void cola_escolhe_dado(int i)
 {
     peca_t *col = cola_col();
     if (i < 0 || i >= cola_n()) return;
-    if (!ad_cabe(&col[i])) { lj_nega(-1, "Todos os lados desse dado já têm adesivo."); return; }
+    if (!ad_cabe(&col[i])) {
+        char s[64];
+        int g = (int8_t)col[i].fixo;
+        if (col[i].tipo != D_QUEBRADO) snprintf(s, sizeof s, "Todos os lados desse dado já têm adesivo.");
+        else if (g < ad_lado_min(D_QUEBRADO) || g > ad_lado_max(D_QUEBRADO)) snprintf(s, sizeof s, "Esse Quebrado não mostra lado nenhum.");
+        else snprintf(s, sizeof s, "O lado do %d (o gravado) já tem adesivo.", g);
+        lj_nega(-1, s);
+        return;
+    }
     if (!ad_cabe_o(&col[i], cola_ad())) { lj_nega(-1, "Esse dado já tem dois Chumbos, o máximo."); return; }
     lj_cola_dado = i;
     lj_colando = 2;
     int t = col[i].tipo;
     cursor = 0;
-    while (cursor < ad_n_lados(t) - 1 && ad_no_lado(&col[i], ad_lado_min(t) + cursor)) cursor++;
+    while (cursor < ad_n_lados(t) - 1 && (ad_no_lado(&col[i], ad_lado_min(t) + cursor) || !ad_lado_serve(&col[i], ad_lado_min(t) + cursor)))
+        cursor++;
     som_toca(SOM_TIQUE);
 }
 
@@ -476,6 +485,12 @@ static void cola_escolhe_lado(int c)
     peca_t *p = &cola_col()[lj_cola_dado];
     int lado = ad_lado_min(p->tipo) + c, a = cola_ad(), pr = preco_adesivo(a);
     if (c < 0 || lado > ad_lado_max(p->tipo)) return;
+    if (!ad_lado_serve(p, lado)) {               // o Quebrado: so o lado do numero gravado
+        char s[64];
+        snprintf(s, sizeof s, "O Quebrado mostra sempre o %d: só esse lado.", (int8_t)p->fixo);
+        lj_nega(-1, s);
+        return;
+    }
     if (ad_no_lado(p, lado)) { lj_nega(-1, "Esse lado já tem adesivo."); return; }
     if (cola_premio) ad_cola(p, lado, a);       // o premio: de graca, so ate o fim da partida
     else if (cola_pac >= 0) {                   // o pacote ja pago: cola e o pacote acaba
@@ -618,10 +633,17 @@ static bool cola_tecla(int k, int e)
         if (k == KEY_ENTER) cola_escolhe_dado(cursor);
         return true;
     }
-    int n = ad_n_lados(cola_col()[lj_cola_dado].tipo), por = lj_lados_por(n);
-    if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por) cursor -= por; return true; }
-    if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < n) cursor += por; return true; }
-    if (e) { cursor = (cursor + e + n) % n; som_toca(SOM_TIQUE); return true; }
+    const peca_t *pc = &cola_col()[lj_cola_dado];
+    int n = ad_n_lados(pc->tipo), por = lj_lados_por(n), l0 = ad_lado_min(pc->tipo);
+    if (k == 'w' || k == ';' || k == KEY_UP)   { if (cursor >= por && ad_lado_serve(pc, l0 + cursor - por)) cursor -= por; return true; }
+    if (k == 's' || k == '.' || k == KEY_DOWN) { if (cursor + por < n && ad_lado_serve(pc, l0 + cursor + por)) cursor += por; return true; }
+    if (e) {                                     // pula os lados que nunca ficam para cima (o Quebrado)
+        int c = cursor;
+        for (int i = 0; i < n; i++) { c = (c + e + n) % n; if (ad_lado_serve(pc, l0 + c)) break; }
+        if (c != cursor) som_toca(SOM_TIQUE);
+        cursor = c;
+        return true;
+    }
     if (volta) { lj_colando = 1; cursor = lj_cola_dado; return true; }
     if (k == KEY_ENTER) cola_escolhe_lado(cursor);
     return true;
@@ -1264,9 +1286,13 @@ static void lj_cola_dados(void)
     int linhas = (nc + g.por - 1) / g.por, ty = LJ_TIRA_Y + (int)(linhas * 52 * f) + 22;
     if (ty < 236) ty = 236;
     const peca_t *pc = &col[cursor < nc ? cursor : 0];
-    int livres = ad_n_lados(pc->tipo) - ad_quantos(pc);
+    int livres = ad_livres(pc), gr = (int8_t)pc->fixo;
     txt_c(GFX_W / 2, ty, TIPO[pc->tipo].nome, cor_dado(pc->tipo), true);
-    if (livres) snprintf(s, sizeof s, "%d %s de %d", livres, livres == 1 ? "lado livre" : "lados livres", ad_n_lados(pc->tipo));
+    if (pc->tipo == D_QUEBRADO) {                // so o lado do numero gravado leva adesivo
+        if (gr < ad_lado_min(D_QUEBRADO) || gr > ad_lado_max(D_QUEBRADO)) snprintf(s, sizeof s, "não mostra lado nenhum");
+        else if (livres) snprintf(s, sizeof s, "só o lado do %d (o número gravado)", gr);
+        else snprintf(s, sizeof s, "o lado do %d (o gravado) já tem adesivo", gr);
+    } else if (livres) snprintf(s, sizeof s, "%d %s de %d", livres, livres == 1 ? "lado livre" : "lados livres", ad_n_lados(pc->tipo));
     else snprintf(s, sizeof s, "todos os lados já têm adesivo");
     if (livres && !ad_cabe_o(pc, a)) { snprintf(s, sizeof s, "já tem dois Chumbos, o máximo"); livres = 0; }
     txt_c(GFX_W / 2, ty + 22, s, livres ? C_MARFIM_S : C_VINHO_CLR, false);
@@ -1328,6 +1354,10 @@ static void lj_cola_lados(void)
             snprintf(s, sizeof s, "%d", lado);
             gfx_texto(x - gfx_largura(s, GFX_FINO) / 2, y + 15, s, C_TEXTO_M, GFX_FINO, false);
         }
+        if (!ad_lado_serve(pc, lado)) {            // o Quebrado: os lados que nunca ficam para cima, apagados
+            ui_escurece(x - 21, y - 21, 42, 42, 150);
+            continue;
+        }
         zona_clique(x - 21, y - 21, 42, 42, &cursor, c, KEY_ENTER);
     }
     // O adesivo novo: paira sobre o lado da vez; colando, desce ate ele.
@@ -1371,6 +1401,10 @@ static void lj_cola_lados(void)
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, ty + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);
+    else if (t == D_QUEBRADO && !lj_vira && !t_lj_cola) {   // por que so um lado
+        snprintf(s, sizeof s, "o Quebrado não rola: mostra sempre o %d, e só esse lado vale", (int8_t)pc->fixo);
+        txt_c(GFX_W / 2, ty + 2 * TXT_H, s, C_MARFIM_S, false);
+    }
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "voltar", KEY_BKSP);
     cola_rodape("setas escolhem  ·  ENTER cola  ·  BACKSPACE volta ao dado");
 }

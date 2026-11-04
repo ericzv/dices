@@ -11,6 +11,7 @@
 #define LAPIS_ABRE   3                   // rodadas cheias numa partida que abrem o Estojo
 #define CARTEIRA_CHEFE 10                // Carteira: o que cada chefe vencido paga a mais
 #define CARTEIRA_ABRE  25                // moedas gastas numa run que abrem a Carteira
+#define CARTEIRA_MENOS 4                 // Carteira: as moedas a menos no comeco da run
 #define FERRAMENTAS_ABRE 5               // dados tirados da bolsa numa run que abrem a Caixa de Ferramentas
 #define PAPELAO_ABRE   5                 // pacotes abertos numa run que abrem a Caixa de Papelao
 #define FEIRA_ABRE     3                 // trocas na mesma loja que abrem a Sacola de Feira
@@ -59,7 +60,7 @@ static const bolsa_t BOLSA[B_N] = {
                      "Cada partida começa com 45 fichas, 5 a menos.", "",
                      "Vença uma run.", RGB(214, 112, 44),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_ESCUDO, D_QUEBRADO, D_QUEBRADO, 0xFF } },
-    [B_CARTEIRA] = { "Carteira", "Cada chefe vencido paga 10 moedas a mais.", "A run começa sem moedas (0 em vez de 4 ou mais).", "",
+    [B_CARTEIRA] = { "Carteira", "Cada chefe vencido paga 10 moedas a mais.", "A run começa com 4 moedas a menos.", "",
                      "Gaste 25 moedas numa run.", RGB(130, 204, 112),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_SORTE, D_COBRADOR, 0xFF } },
     // A de limpar a bolsa: 20 dados, muitos fracos, e as ferramentas.

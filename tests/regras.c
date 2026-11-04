@@ -2444,11 +2444,17 @@ int main(void)
         // As bolsas da loja: a Carteira, a Caixa de Ferramentas, a Caixa de
         // Papelao, a Sacola de Feira, a Maleta do Apostador e a Sacola de Presente.
         perfis[0].bolsas = BOLSAS_TODAS;
-        {   // Carteira: comeca sem moedas, com a Moeda sorte e o Cobrador; o chefe paga 10 a mais.
-            des_bolsa = B_CARTEIRA; des_nova_run();
+        {   // Carteira: comeca com 4 moedas a menos (nunca abaixo de zero), com a
+            // Moeda sorte e o Cobrador; o chefe paga 10 a mais.
+            int dif_antes = des_dif;
+            des_dif = 2; des_bolsa = B_CARTEIRA; des_nova_run();
+            CONFERE(run.moedas == moedas_iniciais(2) - CARTEIRA_MENOS, "Carteira no nivel 2: %d moedas (de %d)", run.moedas,
+                    moedas_iniciais(2));
+            des_dif = dif_antes; des_bolsa = B_CARTEIRA; des_nova_run();
             int sorte = 0, cob = 0;
             for (int i = 0; i < run.n_col; i++) { sorte += run.col[i].tipo == D_SORTE; cob += run.col[i].tipo == D_COBRADOR; }
-            CONFERE(run.bolsa == B_CARTEIRA && run.moedas == 0 && fase == F_RAMULETO && sorte == 1 && cob == 1 && run.n_col == 14,
+            CONFERE(run.bolsa == B_CARTEIRA && run.moedas == (moedas_iniciais(des_dif) > CARTEIRA_MENOS ? moedas_iniciais(des_dif) - CARTEIRA_MENOS : 0)
+                    && fase == F_RAMULETO && sorte == 1 && cob == 1 && run.n_col == 14,
                     "Carteira: %d moedas, %d dados", run.moedas, run.n_col);
             amuleto_escolhido(0);
             run.andar = 0; gera_andar(); run.passo = 0;

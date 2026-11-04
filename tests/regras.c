@@ -4120,6 +4120,16 @@ int main(void)
             recolhe_quebrados();
             CONFERE(J[0].n_col == 11 && F[0].quebra[0], "Quebrado comum: se desfaz (%d dados)", J[0].n_col);
             J[0] = guarda;
+            // Na loja, so o lado do numero gravado leva adesivo: os outros
+            // nunca ficam para cima. A pedra negativa nao leva nenhum.
+            peca_t q5 = { .tipo = D_QUEBRADO, .fixo = 5 }, qn = { .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)-3 };
+            CONFERE(ad_livres(&q5) == 1 && ad_lado_serve(&q5, 5) && !ad_lado_serve(&q5, 4) && ad_cabe(&q5),
+                    "Quebrado 5: so o lado 5 (%d livres)", ad_livres(&q5));
+            ad_cola(&q5, 5, AD_LOBO);
+            CONFERE(!ad_cabe(&q5) && !ad_livres(&q5), "Quebrado 5 com o lado 5 ocupado: nao cabe mais");
+            CONFERE(!ad_cabe(&qn), "a pedra negativa nao leva adesivo");
+            peca_t d6 = { .tipo = D_D6 };
+            CONFERE(ad_livres(&d6) == 6 && ad_cabe(&d6), "o d6 segue com os 6 lados");
         }
         // Agindo, a capa fica na peca ate o fim da partida: depois, nem a
         // sequencia o anula (o Fragil dele nunca quebra).

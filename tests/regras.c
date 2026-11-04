@@ -3884,7 +3884,7 @@ int main(void)
         // no terceiro, bem menos.
         uint32_t sem0 = run.semente;
         int por_rar[DES_ANDARES][4] = { { 0 } }, n_rar[4] = { 0 };
-        for (int a = 1; a < AD_N; a++) n_rar[RAR_ADESIVO[a]]++;
+        for (int a = 1; a < AD_N; a++) if (ad_a_venda(a)) n_rar[RAR_ADESIVO[a]]++;
         for (int an = 0; an < DES_ANDARES; an += 2) {
             run.andar = (uint8_t)an;
             for (int sm = 0; sm < 20; sm++)
@@ -3897,9 +3897,9 @@ int main(void)
                 }
         }
         run.semente = sem0; run.andar = 0;
-        int todos = 0;
-        for (int a = 1; a < AD_N; a++) todos += viu[a];
-        CONFERE(todos == AD_N - 1, "no ultimo nivel, todos os adesivos: %d de %d", todos, AD_N - 1);
+        int todos = 0, a_venda = 0;
+        for (int a = 1; a < AD_N; a++) { todos += viu[a]; a_venda += ad_a_venda(a); }
+        CONFERE(todos == a_venda && !viu[AD_SUJEIRA], "no ultimo nivel, todos os adesivos a venda: %d de %d (e a Sujeira nunca)", todos, a_venda);
         // Por adesivo: [comum, lendario] no 1o salao ~ 3 : 0,4; no 3o, 0,5 : 1,5.
         float c1 = (float)por_rar[0][RAR_COMUM] / n_rar[RAR_COMUM], l1 = (float)por_rar[0][RAR_LENDA] / n_rar[RAR_LENDA];
         float c3 = (float)por_rar[2][RAR_COMUM] / n_rar[RAR_COMUM], l3 = (float)por_rar[2][RAR_LENDA] / n_rar[RAR_LENDA];
@@ -4275,8 +4275,87 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 5 + 6 + 5 * NEON_CADA, "Neon depois da queda: %d", d.total[0]);
 
+        // ---- O Infectado, o Barro e a Sujeira ----------------------------------
+        {
+            jogador_t g0 = J[0], g1 = J[1];
+            for (int q = 0; q < 2; q++) {
+                J[q].n_col = 10;
+                for (int i = 0; i < 10; i++) { J[q].col[i] = (peca_t){ .tipo = D_D6 }; J[q].onde[i] = NA_BOLSA; }
+            }
+            // O Infectado no 4: tirando 4, +2, e um Infectado novo num lado livre da bolsa.
+            ad_cola(&J[0].col[0], 4, AD_INFECTADO);
+            limpa();
+            joga_ad(0, 0, 4); joga(1, D_D4, 3);
+            d = fim();
+            CONFERE(d.total[0] == 4 + INFECTADO_PONTOS && d.n_pega == 1 && d.pega[0].de == 0 && d.pega[0].para == 0
+                    && d.pega[0].ad == AD_INFECTADO && !ad_no_lado(&J[0].col[d.pega[0].i], d.pega[0].lado),
+                    "Infectado: +2 e pega num lado livre (%d, %d pegas)", d.total[0], d.n_pega);
+            int ip = d.pega[0].i, lp = d.pega[0].lado;
+            uint32_t s0 = semente;
+            desfecho_t d2 = fim();                    // o mesmo desfecho escolhe o mesmo lugar, sem gastar o sorteio
+            CONFERE(d2.pega[0].i == ip && d2.pega[0].lado == lp && semente == s0, "Infectado: o mesmo lugar de novo");
+            adesivos_ficam(0, &d);
+            int inf = 0;
+            for (int i = 0; i < J[0].n_col; i++) inf += ad_conta(&J[0].col[i], AD_INFECTADO);
+            CONFERE(inf == 2 && ad_no_lado(&J[0].col[ip], lp) == AD_INFECTADO, "Infectado: agora sao dois (%d), no dado %d", inf, ip);
+            // Anulado tambem age: +2 e espalha.
+            limpa();
+            joga(0, D_D6, 6); joga_ad(0, 0, 4);
+            d = fim();
+            CONFERE(d.est[0][1] == V_ANULADO && d.semente[0] == INFECTADO_PONTOS && d.n_pega == 1, "Infectado anulado: +2 e espalha");
+            // Sem lado livre na bolsa: so os +2.
+            for (int i = 0; i < J[0].n_col; i++)
+                for (int l = 1; l <= 6; l++) if (!ad_no_lado(&J[0].col[i], l)) ad_cola(&J[0].col[i], l, AD_LOBO);
+            limpa();
+            joga_ad(0, 0, 4);
+            d = fim();
+            CONFERE(d.n_pega == 0 && d.semente[0] == INFECTADO_PONTOS, "Infectado sem lado livre: so os +2 (%d)", d.n_pega);
+            // O Adesivado nao pega o Infectado: so sobra o proprio dado.
+            for (int i = 0; i < J[0].n_col; i++) J[0].col[i] = (peca_t){ .tipo = i ? D_ADESIVADO : D_D6 };
+            ad_cola(&J[0].col[0], 4, AD_INFECTADO);
+            limpa();
+            joga_ad(0, 0, 4);
+            d = fim();
+            CONFERE(d.n_pega == 1 && d.pega[0].i == 0 && d.pega[0].lado != 4, "Infectado: o Adesivado nao pega (%d)", d.pega[0].i);
+            // O Barro: tres lados livres de um dado do oponente viram Sujeira.
+            for (int q = 0; q < 2; q++)
+                for (int i = 0; i < 10; i++) J[q].col[i] = (peca_t){ .tipo = D_D6 };
+            ad_cola(&J[0].col[1], 2, AD_BARRO);
+            limpa();
+            joga_ad(0, 1, 2); joga(1, D_D4, 3);
+            d = fim();
+            bool ok = d.n_pega == BARRO_LADOS && d.total[1] == 3;
+            for (int n = 0; n < d.n_pega; n++)
+                ok &= d.pega[n].de == 0 && d.pega[n].para == 1 && d.pega[n].ad == AD_SUJEIRA && d.pega[n].i == d.pega[0].i
+                      && (n == 0 || d.pega[n].lado != d.pega[n - 1].lado);
+            CONFERE(ok, "Barro: %d lados de um dado do oponente", d.n_pega);
+            int bi = d.pega[0].i, ls = d.pega[0].lado;
+            adesivos_ficam(0, &d);
+            CONFERE(ad_conta(&J[1].col[bi], AD_SUJEIRA) == BARRO_LADOS, "Barro: o dado %d dele com %d Sujeiras", bi,
+                    ad_conta(&J[1].col[bi], AD_SUJEIRA));
+            // A Sujeira: tirando o lado sujo, -2 no placar dele, valendo ou nao.
+            limpa();
+            joga(0, D_D4, 3); joga_ad(1, bi, ls);
+            d = fim();
+            CONFERE(d.bruto[1] == ls - SUJEIRA_PONTOS, "Sujeira: o %d sujo vale %d", ls, d.bruto[1]);
+            // Nao e adesivo dele: o Neon nao conta a Sujeira.
+            int ln = 1;
+            while (ad_no_lado(&J[1].col[bi], ln)) ln++;
+            ad_cola(&J[1].col[bi], ln, AD_NEON);
+            limpa();
+            joga_ad(1, bi, ln);
+            d = fim();
+            CONFERE(d.total[1] == ln + NEON_CADA, "Neon com 3 Sujeiras no dado: so ele conta (%d)", d.total[1]);
+            // No fim da partida, a Sujeira sai; nao se vende nem se ganha.
+            zera_acumuladores(J[1].col, J[1].n_col);
+            CONFERE(!ad_conta(&J[1].col[bi], AD_SUJEIRA) && ad_no_lado(&J[1].col[bi], ln) == AD_NEON, "a Sujeira sai no fim da partida");
+            CONFERE(!ad_a_venda(AD_SUJEIRA) && !ad_no_premio(AD_SUJEIRA) && !adesivo_liberado(AD_SUJEIRA)
+                    && ad_a_venda(AD_BARRO) && ad_a_venda(AD_INFECTADO), "a Sujeira nao se vende");
+            J[0] = g0; J[1] = g1;
+        }
+
         // Todos abrem e tem desenho, som, texto e raridade.
-        for (int a = AD_NOTA_DEZ; a <= AD_NEON; a++)
+        for (int a = AD_NOTA_DEZ; a <= AD_BARRO; a++)
             CONFERE(ADESIVO[a].nome && AD_TEXTO[a] && ADESIVO[a].ic[0] && ADESIVO[a].nivel >= 1 && ADESIVO[a].nivel <= N_NIVEIS
                     && som_adesivo(a) != SOM_EFEITO && ADESIVO[a].preco > 0, "o adesivo %d completo", a);
         modo = modo_antes;

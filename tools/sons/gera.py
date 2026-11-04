@@ -1066,6 +1066,82 @@ def ad_neon():
     m.poe(0.3, nota('glockenspiel', 100, 0.2, 0.3), 0.16)
     return sala(m.x, 0.14)
 
+def gota(f0, f1, dur, ataque=0.002):
+    """Uma gota (ou bolha) d'agua: o seno que desliza de f0 a f1, curtinho."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    f = f0 * (f1 / f0) ** (t / t[-1])
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, ataque, dur / 3)
+
+def lama(dur, corte=700, tremor=24):
+    """O barro sendo amassado: o ruido escuro tremendo, molhado."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    x = pb(rng.standard_normal(n), corte, 3) * (0.55 + 0.45 * np.sin(2 * np.pi * tremor * t + 3 * np.sin(2 * np.pi * 7 * t)))
+    return x * env(n, 0.008, dur / 2.5)
+
+def ad_infectado():
+    """O Infectado: dois "glups" molhados, a tosse que solta os esporos,
+    bolhinhas estourando no ar, um assobio torto que sobe enquanto eles voam e
+    o "ploc" quando o germe pega no dado da bolsa, com dois toques de celesta
+    meio desafinados (o contagio, travesso)."""
+    m = Mix(1.5)
+    m.poe(0.00, gota(190, 620, 0.06), 0.5)                              # glup, glup
+    m.poe(0.08, gota(240, 760, 0.05), 0.4)
+    m.poe(0.00, lama(0.12, 500, 30), 0.35)
+    n = int(0.16 * SR); t = np.arange(n) / SR                           # a tosse: o sopro curto que gargareja
+    tosse = banda(rng.standard_normal(n), 350, 2600) * env(n, 0.006, 0.05) * (0.6 + 0.4 * np.sin(2 * np.pi * 32 * t))
+    m.poe(0.14, tosse, 0.75)
+    for k in range(9):                                                  # as bolhinhas
+        f0 = rnd.uniform(700, 1300)
+        m.poe(0.2 + k * 0.055 + rnd.uniform(0, 0.03), gota(f0, f0 * rnd.uniform(1.8, 2.6), rnd.uniform(0.012, 0.022)),
+              rnd.uniform(0.12, 0.25) * (1 - k / 14))
+    n = int(0.42 * SR); t = np.arange(n) / SR                           # o assobio que sobe, com o vibrato torto
+    f = 520 * 2 ** (t / t[-1] * 0.9) * (1 + 0.03 * np.sin(2 * np.pi * 9 * t))
+    m.poe(0.3, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / t[-1]) ** 1.5, 0.12)
+    m.poe(0.74, gota(420, 140, 0.07), 0.6)                              # ploc: pegou
+    m.poe(0.74, pb(superficie('surface_felt5'), 1800), 0.5)
+    m.poe(0.78, nota('celesta', 84, 0.25, 0.35), 0.3)
+    m.poe(0.86, nota('celesta', 90, 0.35, 0.45), 0.24)                  # o tritono: o germe rindo baixinho
+    m.poe(0.86, nota('vibraphone', 78, 0.4, 0.4), 0.12)
+    return sala(m.x, 0.16)
+
+def ad_barro():
+    """O Barro: a mao amassando a lama, o vento da bola voando, o SPLASH
+    (o baque grave, o estalo molhado e os respingos crepitando em volta) e
+    uns pingos caindo depois."""
+    m = Mix(1.4)
+    m.poe(0.0, lama(0.2, 600, 20), 0.8)                                 # amassando
+    m.poe(0.04, gota(260, 90, 0.08), 0.35)
+    n = int(0.42 * SR); q = np.linspace(0, 1, n)                        # o voo: o sopro que passa
+    m.poe(0.14, banda(rng.standard_normal(n), 300, 2400) * np.sin(np.pi * q) ** 2 * (0.6 + 0.4 * q), 0.22)
+    t0 = 0.56                                                           # SPLASH
+    n = int(0.3 * SR)
+    m.poe(t0, pb(rng.standard_normal(n), 900, 3) * env(n, 0.001, 0.07), 1.5)
+    m.poe(t0, gota(130, 45, 0.18, 0.001), 0.9)                          # o baque grave
+    m.poe(t0, pb(tom(superficie('surface_felt3'), -7), 1500), 0.7)
+    n = int(0.22 * SR)                                                  # os respingos crepitando
+    crepita = pa((rng.random(n) < 0.035) * rng.uniform(0.3, 1, n), 1800) * np.exp(-np.arange(n) / (0.07 * SR))
+    m.poe(t0 + 0.01, crepita, 0.9)
+    for k, (f0, dt) in enumerate(((1100, 0.78), (900, 0.92), (1250, 1.04))):   # os pingos
+        m.poe(dt, gota(f0, f0 * 0.45, 0.03), 0.22 - 0.04 * k)
+    return sala(m.x, 0.14)
+
+def ad_sujeira():
+    """A Sujeira: o dado cai no lado sujo - o "chlep" da lama, o "o-ou"
+    grave do baixo descendo, dois pingos, e uma mosquinha que passa zumbindo."""
+    m = Mix(1.2)
+    m.poe(0.0, lama(0.18, 650, 26), 0.9)                                # chlep
+    m.poe(0.0, gota(210, 70, 0.12, 0.001), 0.6)
+    m.poe(0.12, baixo(43, 0.18, 0.7, 0.08), 0.42)                       # o-ou
+    m.poe(0.3, baixo(38, 0.3, 0.7, 0.15, desliza=(0, -1)), 0.42)
+    m.poe(0.5, gota(800, 360, 0.03), 0.18)
+    m.poe(0.64, gota(700, 300, 0.03), 0.14)
+    n = int(0.5 * SR); t = np.arange(n) / SR                            # a mosca: o serrote fininho, indo e voltando
+    f = 240 * (1 + 0.06 * np.sin(2 * np.pi * 5 * t) + 0.02 * np.sin(2 * np.pi * 31 * t))
+    serra = 2 * ((np.cumsum(f) / SR) % 1) - 1
+    zum = pa(pb(serra, 3000), 300) * np.sin(np.pi * t / t[-1]) ** 2 * (0.6 + 0.4 * np.sin(2 * np.pi * 3 * t))
+    m.poe(0.42, zum, 0.07)
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1871,7 +1947,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_etiqueta': VOLUME['efeito'] * 0.85, 'ad_bilhete': VOLUME['efeito'] * 1.1,
                'ad_nota_dez': VOLUME['efeito'], 'ad_carbono': VOLUME['efeito'] * 0.8,
                'ad_bomba': VOLUME['anula'], 'ad_impermeavel': VOLUME['efeito'] * 0.85,
-               'ad_lenticular': VOLUME['efeito'] * 0.9, 'ad_neon': VOLUME['efeito'] * 0.9})
+               'ad_lenticular': VOLUME['efeito'] * 0.9, 'ad_neon': VOLUME['efeito'] * 0.9,
+               'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1915,6 +1992,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
+             'ad_infectado', 'ad_barro', 'ad_sujeira',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao'):

@@ -2400,6 +2400,39 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (fr((Y + 100) / 4) < 0.22f || fr((X + 100 + (linha & 1) * 3) / 6) < 0.15f) return C_EBANO;   // os tijolos
         return fundo;
     }
+    case AD_INFECTADO: {                          // o germe: manchas roxas que incham e murcham, cada uma no seu tempo,
+                                                  // e de vez em quando um esporo claro acende
+        int cxl = (int)floorf(X / 6), cyl = (int)floorf(Y / 6);
+        uint32_t q = hash2(cxl + 64, cyl + 64);
+        if (q % 3 != 1) {
+            float px = cxl * 6 + 2.0f + (int)(q >> 4) % 3, py = cyl * 6 + 2.0f + (int)(q >> 6) % 3;
+            float dd = sqrtf((X - px) * (X - px) + (Y - py) * (Y - py));
+            float rr = 0.8f + 1.0f * (0.5f + 0.5f * sinf(t * 2.4f + (q >> 8) % 13 + fase * 6.3f));
+            if (dd < rr) return dd < rr - 0.9f ? RGB(102, 74, 138) : RGB(150, 112, 160);
+        }
+        if (h % 41 == 0 && sinf(t * 3.1f + (h >> 8) % 17) > 0.75f) return RGB(206, 180, 218);
+        return fundo;
+    }
+    case AD_BARRO: {                              // o barro fresco: o grao, torroes escuros e o brilho molhado que passa
+        uint32_t q = hash2((int)floorf(X / 2) + 64, (int)floorf(Y / 2) + 64) % 11;
+        float p = fr(t / 4.6f + fase);
+        if (p < 0.3f && fabsf(X - Y * 0.4f - (p / 0.3f * 2.4f - 1.2f) * r) < 0.7f) return RGB(204, 194, 172);
+        if (q == 0) return RGB(120, 78, 50);
+        if (q == 1) return RGB(190, 156, 86);
+        if (q == 2 && (h & 1)) return RGB(78, 46, 30);
+        return fundo;
+    }
+    case AD_SUJEIRA: {                            // a lama que o oponente jogou: manchas escuras e dois pingos escorrendo
+        for (int c = 0; c < 2; c++) {
+            float colx = (c ? 0.22f : -0.28f) * r, yy = -0.45f * r + fr(t / 2.6f + fase + c * 0.5f) * 0.95f * r;
+            if (fabsf(X - colx) < 1.0f && Y < yy && Y > yy - 3.5f) return RGB(56, 32, 20);   // o pingo e o rastro
+            if (fabsf(X - colx) < 1.6f && fabsf(Y - yy) < 1.2f) return RGB(56, 32, 20);
+        }
+        uint32_t q = hash2((int)floorf(X / 3) + 64, (int)floorf(Y / 3) + 64) % 7;
+        if (q == 0) return RGB(78, 46, 30);
+        if (q == 1 && (h & 1)) return RGB(156, 106, 64);
+        return fundo;
+    }
     default: return fundo;
     }
 }

@@ -95,7 +95,7 @@ static void desenha_cat_adesivo(int i)
     const adesivo_t *d = &ADESIVO[a];
     char s[96];
     faixas_colecao(i, AD_N - 1);
-    bool aberto = adesivo_liberado(a);
+    bool aberto = adesivo_aberto(a);             // a Sujeira vem com o Barro
     // Na vitrine (catalogo.inc): o adesivo flutua na luz, a ponta descolando
     // de tempos em tempos, e embaixo, no chao, tres dados com ele no lado de
     // cima; fechado, tudo no escuro.
@@ -113,9 +113,14 @@ static void desenha_cat_adesivo(int i)
     fileira_colecao(FIL_ADESIVO, i, AD_N - 1, &cat_ad);
     int x = 290;
     gfx_texto(x, 60, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
-    snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
-    int ex = etiqueta_caixa(x, 104, s, C_OURO) + 2;
-    txt(ex, 105, "adesivo · na loja e no pacote de adesivos", C_TEXTO_M, false);
+    if (!ad_a_venda(a)) {                        // a Sujeira: so pelo Barro do oponente
+        int ex = etiqueta_caixa(x, 104, "não se vende", C_TEXTO_M) + 2;
+        txt(ex, 105, "vem do Barro do oponente", C_TEXTO_M, false);
+    } else {
+        snprintf(s, sizeof s, "%d %s", d->preco, d->preco == 1 ? "moeda" : "moedas");
+        int ex = etiqueta_caixa(x, 104, s, C_OURO) + 2;
+        txt(ex, 105, "adesivo · na loja e no pacote de adesivos", C_TEXTO_M, false);
+    }
     if (d->nivel == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
     else if (aberto) {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
@@ -126,9 +131,10 @@ static void desenha_cat_adesivo(int i)
         linha_bloqueio(x, 124, s);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    // A regra e, se sobrar lugar acima da fileira, como o adesivo funciona.
+    // A regra e, se couber inteiro acima da fileira, como o adesivo funciona
+    // (a Sujeira nao: e o oponente que a cola).
     int n = quebra_linhas(x, 152, 320, 6, AD_TEXTO[a], C_MARFIM), sobra = 7 - n - 1;
-    if (sobra > 0)
+    if (sobra >= 2 && ad_a_venda(a))
         quebra_linhas(x, 152 + n * LINHA_FINA + 8, 320, sobra, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
                       C_TEXTO_M);
 }

@@ -785,6 +785,14 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     }
     if (d->bis[j]) bis_vem[j] = 1;
     ad_moedas[j] += d->moedas[j];
+    // O Infectado que se espalhou (na bolsa de j) e o Barro que respingou (na
+    // do oponente): os lados novos.
+    for (int n = 0; n < d->n_pega; n++) {
+        const pega_t *g = &d->pega[n];
+        if (g->de != j || g->para > 1 || g->i >= J[g->para].n_col) continue;
+        peca_t *alvo = &J[g->para].col[g->i];
+        if (!ad_no_lado(alvo, g->lado)) ad_cola(alvo, g->lado, g->ad);
+    }
 }
 
 // O ciclo cosmico: a peca vira o estagio t, sem os adesivos. Evoluindo, volta
@@ -1422,7 +1430,7 @@ static float duracao_evento(int i)
     case EV_AVISO:   return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
-    case EV_ADESIVO: return 1.5f;
+    case EV_ADESIVO: return ev[i].ad == AD_INFECTADO || ev[i].ad == AD_BARRO ? 2.0f : 1.5f;   // o germe e o barro viajam
     default:       return 1.3f;
     }
 }
@@ -1528,6 +1536,8 @@ static void flutua_evento(const evento_t *e)
             else flutua_em(dj, N_FILA, C_VINHO_CLR, 0, "%d", e->valor);
             break;
         case AD_IMPERMEAVEL: flutua_em(dj, dk, C_VENTO, 0, "protegido", 0); break;
+        case AD_BARRO:      break;                  // o rotulo vai junto do dado que ele sujou (mesa.inc)
+        case AD_SUJEIRA:    flutua_em(dj, dk, C_VINHO_CLR, 0, "%d", e->valor); break;
         case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++)
                 if (e->mascara >> k & 1) flutua_em(dj, k, C_OURO, k * 0.08f, "x%d", e->por_dado[k]);
@@ -1625,9 +1635,10 @@ static void aplica_evento(int i)
     case EV_ADESIVO:                    // o adesivo agiu: pontos, x2, o ataque ao rival
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
-        case AD_ETIQUETA: case AD_PATINHO: case AD_NEON:
+        case AD_ETIQUETA: case AD_PATINHO: case AD_NEON: case AD_INFECTADO:
             vis_semente[e->de_j] += e->valor;
             break;
+        case AD_SUJEIRA: vis_delta[e->de_j] += e->valor; break;   // o barro do oponente: -2 no seu placar
         case AD_LENTICULAR:             // valendo, o x2; anulado, os pontos que perde
             if (e->valor > 0) { for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k]; }
             else vis_delta[e->de_j] += e->valor;

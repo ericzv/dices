@@ -1560,6 +1560,49 @@ static void desenha_fila(int j)
     }
 }
 
+// O Infectado e o Barro pegam num dado da bolsa: ele pula dela para a beira
+// da mesa (a esquerda do placar, sem cobrir nada), com o lado que pegou para
+// cima, e volta para dentro no fim. vida 0..1 (sobe com a mola, fica e
+// afunda); cola: o adesivo novo (ad) ja esta no lado, piscando; pulo: o tapa
+// (o barro chegando), em pixels. (*ox, *oy): onde ele fica, mesmo antes de
+// aparecer.
+#define PEGA_DX   40                         // a esquerda da bolsa
+#define PEGA_SOBE 48                         // e o quanto ele sobe dela
+static int pega_lado(uint32_t m) { int l = 0; while (l < 31 && !(m >> l & 1)) l++; return l; }
+static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, float pulo, int *ox, int *oy)
+{
+    int dir = q == baixo ? -1 : 1, bx = bolsa_x() - PEGA_DX, by = bolsa_y(q);
+    float s = vida < 0.18f ? sai_mola(vida / 0.18f) : vida > 0.86f ? fmaxf(0, 1 - (vida - 0.86f) / 0.14f) : 1;
+    *ox = bx;
+    *oy = by + dir * PEGA_SOBE;
+    if (vida <= 0 || s <= 0.04f || i < 0 || i >= J[q].n_col) return;
+    const peca_t *pc = &J[q].col[i];
+    int y = by + dir * (int)(14 + (PEGA_SOBE - 14) * s) + (int)pulo;
+    float r = 4 + 10 * s;
+    if (vida < 0.22f) {                                       // a boca da bolsa solta um sopro de poeira
+        float q2 = vida / 0.22f;
+        for (int k = 0; k < 8; k++) {
+            float an = k * 0.785f + 0.4f, d = 6 + q2 * 14;
+            if ((k + (int)(q2 * 6)) % 3 == 0) continue;
+            gfx_rect(bx + (int)(cosf(an) * d), by + dir * 10 + (int)(sinf(an) * d * 0.5f), 2, 2,
+                     q2 < 0.6f ? C_TEXTO_M : C_SOMBRA);
+        }
+    }
+    gfx_disco(bx + 2, y + (int)r - 1, (int)(r * 0.8f), C_SOMBRA);
+    ad_face = cola ? ad : ad_no_lado(pc, l);
+    ad_face_aceso = cola && (int)(t_fase * 8) % 2 == 0;
+    desenha_dado((float)bx, (float)y, r, pc->tipo, q, 0, pc->tipo == D_QUEBRADO ? (int8_t)pc->fixo : l, 2, false);
+}
+// O que aconteceu com o dado da bolsa, a esquerda dele, na letra dos
+// numeros (q: 0..1, sobe um nadinha e some no fim).
+static void pega_rotulo(int ox, int oy, float q, const char *t, uint16_t c)
+{
+    if (q <= 0 || q >= 1) return;
+    int x = ox - 20 - gfx_largura(t, 1), y = oy - 11 - (int)(q * 4);
+    gfx_texto(x + 1, y + 1, t, C_SOMBRA, 1, true);
+    gfx_texto(x, y, t, c, 1, true);
+}
+
 // Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
 // dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
 // A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1). Com
@@ -1707,6 +1750,194 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             int b = (int)(t_fase * 10 + i) % 3 ? 1 : 2;
             gfx_rect(px - b, py, 2 * b + 1, 1, C_BRANCO);
             gfx_rect(px, py - b, 1, 2 * b + 1, C_BRANCO);
+        }
+        break;
+    }
+    case AD_INFECTADO: {                                        // o germe: o dado tosse uma nuvem de esporos, que voa
+        static const uint16_t VERDE[3] = { RGB(130, 204, 112), RGB(206, 180, 218), RGB(150, 112, 160) };   // ate a bolsa
+        int bi = e->bolsa_i, l = pega_lado(e->bolsa_lados), tx, ty;                                       // e pega num dado de la
+        float vida = (p - 0.42f) / 0.58f;
+        bool pegou = bi != 0xFF, colou = pegou && p > 0.6f;
+        pega_mostra(j, pegou ? bi : -1, l, AD_INFECTADO, vida, colou, 0, &tx, &ty);
+        if (p < 0.3f) {                                         // o dado adoece: o verde pulsa em volta dele
+            float g = sinf(p / 0.3f * 3.1416f);
+            for (int i = 0; i < 24; i++) {
+                float an = i * 0.2618f + t_fase * 2;
+                int rr = R_DADO + 2 + (int)(g * 4 + sinf(an * 3 + t_fase * 9) * 1.5f);
+                if ((i + (int)(t_fase * 14)) % 3) gfx_rect(ax + (int)(cosf(an) * rr), ay + (int)(sinf(an) * rr), 2, 2, VERDE[i % 3 ? 0 : 2]);
+            }
+        }
+        for (int s = 0; s < 20 && p < 0.97f; s++) {             // a tosse espalha os esporos; depois eles voam juntos
+            float a0 = s * 0.3142f + 0.2f;
+            float q1 = fminf(1, fmaxf(0, (p - 0.06f) / 0.2f)), q2 = (p - 0.26f - (s % 8) * 0.018f) / 0.3f;
+            if (q1 <= 0 || q2 >= 1) continue;
+            float ex = ax + cosf(a0) * (R_DADO + 5 + (12 + s % 3 * 4) * q1), ey = ay + sinf(a0) * (R_DADO + 3 + (8 + s % 4 * 3) * q1);
+            float x = ex, y = ey;
+            if (q2 > 0) {
+                float s2 = q2 * q2 * (3 - 2 * q2);
+                x = ex + (tx - ex) * s2 + sinf(q2 * 11 + s) * 4 * (1 - s2);
+                y = ey + (ty - ey) * s2 - sinf(s2 * 3.1416f) * (26 + (s % 3) * 9);
+            } else {
+                x += sinf(t_fase * 7 + s) * 1.5f;               // boiando no ar, antes de ir
+                y += cosf(t_fase * 6 + s * 2) * 1.5f;
+            }
+            int px = (int)x, py = (int)y;
+            if (s % 5 == 0) {                                   // os germes grandes: bolinha com olhos e cilios mexendo
+                int m = (int)(t_fase * 10 + s) % 2;
+                gfx_disco(px + 1, py + 1, 4, C_SOMBRA);
+                gfx_disco(px, py, 3, VERDE[0]);
+                gfx_pixel(px - 3 - m, py - 3, VERDE[2]); gfx_pixel(px + 3 + m, py - 3, VERDE[2]);
+                gfx_pixel(px - 4, py + 2 + m, VERDE[2]); gfx_pixel(px + 4, py + 2 - m, VERDE[2]);
+                gfx_pixel(px - 1, py - 1, C_BRANCO); gfx_pixel(px + 1, py - 1, C_BRANCO);
+                gfx_pixel(px - 1, py, C_SOMBRA); gfx_pixel(px + 1, py, C_SOMBRA);
+            } else {
+                int rr = s % 2 ? 2 : 1;
+                gfx_disco(px, py + 1, rr + 1, C_SOMBRA);
+                gfx_disco(px, py - 1, rr, VERDE[s % 3]);
+                if (rr > 1) gfx_pixel(px - 1, py - 2, C_BRANCO);
+            }
+        }
+        if (p > 0.56f && p < 0.95f) {                           // pegou: os aneis do contagio abrem e o rotulo sobe
+            float q = (p - 0.56f) / 0.39f;
+            for (int a = 0; a < 2; a++) {
+                float qa = q * 1.6f - a * 0.25f;
+                if (qa <= 0 || qa >= 1) continue;
+                int rr = 8 + (int)(qa * 22);
+                for (int i = 0; i < 18; i++) {
+                    float an = i * 0.349f + a * 0.17f;
+                    gfx_rect(tx + (int)(cosf(an) * rr), ty + (int)(sinf(an) * rr * 0.8f), 2, 2, a ? VERDE[1] : VERDE[0]);
+                }
+            }
+            char t[32];
+            if (pegou) snprintf(t, sizeof t, "pegou no %s", TIPO[bi < J[j].n_col ? J[j].col[bi].tipo : D_D6].nome);
+            else snprintf(t, sizeof t, "sem lado livre");
+            pega_rotulo(tx, ty, q, t, pegou ? VERDE[0] : C_TEXTO_M);
+        }
+        break;
+    }
+    case AD_BARRO: {                                            // a bola de barro: junta no dado, voa num arco e espirra
+        static const uint16_t LAMA[4] = { RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64), RGB(190, 156, 86) };
+        int r = e->alvo_j, bi = e->bolsa_i, l = pega_lado(e->bolsa_lados), tx, ty, dr = r == baixo ? -1 : 1;
+        bool pegou = bi != 0xFF;
+        float bate = 0.56f, vida = (p - 0.36f) / 0.64f;
+        float tapa = p > bate && p < bate + 0.08f ? sinf((p - bate) / 0.08f * 3.1416f) * 4 * -dr : 0;
+        pega_mostra(r, pegou ? bi : -1, l, AD_SUJEIRA, vida, pegou && p > bate, tapa, &tx, &ty);
+        if (!pegou) { tx = bolsa_x(); ty = bolsa_y(r); }
+        if (p > 0.05f && p < bate) {                            // a bola: junta em cima do dado e voa
+            float q1 = fminf(1, (p - 0.05f) / 0.18f), q2 = (p - 0.25f) / (bate - 0.25f);
+            int rr = (int)(2 + 6 * q1);
+            float x = ax, y = ay + dir * (R_DADO + 7) - (int)(sinf(t_fase * 12) * (1 - q1) * 2);
+            if (q2 > 0) {
+                float s2 = q2;
+                x = ax + (tx - ax) * s2;
+                y = (ay + dir * (R_DADO + 7)) + (ty - ay - dir * (R_DADO + 7)) * s2 - sinf(s2 * 3.1416f) * 70;
+                for (int g = 1; g <= 5; g++) {                  // os pingos que ficam no caminho, caindo
+                    float sg = s2 - g * 0.05f;
+                    if (sg < 0) continue;
+                    int gx = ax + (int)((tx - ax) * sg), gy = (ay + dir * (R_DADO + 7)) + (int)((ty - ay - dir * (R_DADO + 7)) * sg - sinf(sg * 3.1416f) * 70) + g * g;
+                    int gt = g < 3 ? 3 : 2;
+                    gfx_rect(gx + 1, gy + 1, gt, gt, C_SOMBRA);
+                    gfx_rect(gx, gy, gt, gt, LAMA[g % 3]);
+                }
+            }
+            int bx = (int)x, by = (int)y;
+            float gi = t_fase * 14;                             // girando: os calombos e o brilho molhado dao a volta
+            gfx_disco(bx + 2, by + 3, rr, C_SOMBRA);
+            gfx_disco(bx, by, rr + 1, LAMA[0]);
+            for (int c = 0; c < 3 && rr > 3; c++) {
+                float an = gi * 0.5f + c * 2.094f;
+                gfx_disco(bx + (int)(cosf(an) * (rr - 1)), by + (int)(sinf(an) * (rr - 1)), 2, LAMA[0]);
+            }
+            gfx_disco(bx, by, rr, LAMA[1]);
+            gfx_disco(bx - 1, by - 1, rr - 2 > 0 ? rr - 2 : 1, LAMA[2]);
+            gfx_pixel(bx + (int)(cosf(gi) * (rr - 2)), by + (int)(sinf(gi) * (rr - 2)), LAMA[3]);
+            gfx_rect(bx - rr / 2, by - rr / 2, 2, 2, LAMA[3]);
+            gfx_pixel(bx + (int)(cosf(gi + 2.5f) * (rr - 1)), by + (int)(sinf(gi + 2.5f) * (rr - 1)), LAMA[0]);
+        }
+        if (p >= bate && p < 0.96f) {                           // SPLAT: o barro achata, os respingos voam e escorrem
+            float q = (p - bate) / (0.96f - bate);
+            if (q < 0.22f) {                                    // a panqueca de lama no instante do tapa
+                float qs = q / 0.22f;
+                int w = 10 + (int)(qs * 14), h = 4 + (int)(qs * 3);
+                for (int yy = -h; yy <= h; yy++) {
+                    int ww = (int)(w * sqrtf(1 - (float)(yy * yy) / (float)((h + 1) * (h + 1))));
+                    gfx_rect(tx - ww, ty + yy, 2 * ww + 1, 1, yy < -h / 2 ? LAMA[2] : LAMA[1]);
+                }
+            }
+            for (int i = 0; i < 24; i++) {
+                float an = i * 0.2618f + 0.2f, v = 18 + (i * 37) % 24;
+                float qq = fminf(1, q * 2.2f);
+                int x = tx + (int)(cosf(an) * v * qq), y = ty + (int)(sinf(an) * v * qq * 0.75f + 32 * qq * qq);
+                if (q > 0.7f && i % 2) continue;
+                int sz = i % 4 == 0 ? 4 : i % 3 ? 2 : 3;
+                gfx_rect(x + 1, y + 1, sz, sz, C_SOMBRA);
+                gfx_rect(x, y, sz, sz, LAMA[i % 3]);
+                if (sz == 4) gfx_pixel(x, y, LAMA[3]);
+            }
+            for (int g = 0; g < 3 && pegou; g++) {              // os pingos escorrendo do dado
+                float c = fmodf(q * 1.8f + g * 0.31f, 1.0f);
+                int x = tx - 8 + g * 8, y = ty + 11 + (int)(c * 14);
+                gfx_rect(x, y - 3, 2, 3 + (int)(c * 3), LAMA[0]);
+                gfx_rect(x, y, 2, 2, LAMA[1]);
+            }
+            char t[32];
+            if (pegou) snprintf(t, sizeof t, "sujou %d lado%s", e->valor, e->valor > 1 ? "s" : "");
+            else snprintf(t, sizeof t, "não grudou");
+            pega_rotulo(tx, ty, q < 0.9f ? q : 0, t, pegou ? LAMA[3] : C_TEXTO_M);
+        }
+        break;
+    }
+    case AD_SUJEIRA: {                                          // a lama borbulha, respinga e pinga; sobe o cheiro e chega a mosca
+        static const uint16_t LAMA[4] = { RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64), RGB(190, 156, 86) };
+        static const uint16_t FEDOR[2] = { RGB(130, 204, 112), RGB(88, 152, 84) };
+        if (p < 0.3f) {                                         // ploc: duas bolhas de lama crescem na face e estouram
+            for (int b = 0; b < 2; b++) {
+                float qb = (p - b * 0.09f) / 0.18f;
+                if (qb <= 0 || qb >= 1) continue;
+                int bx = ax - 5 + b * 9, by = ay - 3 + b * 5, rb = 1 + (int)(qb * 4);
+                if (qb < 0.8f) {
+                    gfx_disco(bx, by, rb, LAMA[1]);
+                    gfx_disco(bx - 1, by - 1, rb - 1 > 0 ? rb - 1 : 1, LAMA[2]);
+                    gfx_pixel(bx - rb / 2, by - rb / 2, LAMA[3]);
+                } else
+                    for (int k = 0; k < 6; k++) {               // estourou: os pingos da bolha
+                        float an = k * 1.047f + b;
+                        gfx_rect(bx + (int)(cosf(an) * 7), by + (int)(sinf(an) * 6), 2, 2, LAMA[k % 2 + 1]);
+                    }
+            }
+        }
+        float q = fminf(1, p / 0.25f);
+        for (int i = 0; i < 12 && p < 0.95f; i++) {             // a lama respinga na volta do dado
+            float an = i * 0.5236f + 0.26f, v = R_DADO + 1 + q * (3 + (i * 5) % 4);
+            int bx = ax + (int)(cosf(an) * v), by = ay + (int)(sinf(an) * v * 0.9f);
+            int b = (int)(q * (1 + (i * 7) % 3));
+            if (b > 0) { gfx_disco(bx + 1, by + 1, b, C_SOMBRA); gfx_disco(bx, by, b, LAMA[i % 2]); gfx_pixel(bx - 1, by - 1, LAMA[2]); }
+        }
+        for (int g = 0; g < 4 && p > 0.15f && p < 0.95f; g++) { // os pingos caindo da beira de baixo
+            float c = fmodf((p - 0.15f) * 2.2f + g * 0.27f, 1.0f);
+            int x = ax - 9 + g * 6, y = ay + R_DADO - 1 + (int)(c * c * 18);
+            gfx_rect(x + 1, y + 1, 2, 2 + (int)(c * 2), C_SOMBRA);
+            gfx_rect(x, y, 2, 2 + (int)(c * 2), LAMA[g % 2]);
+        }
+        for (int w = 0; w < 3 && p > 0.25f && p < 0.95f; w++) { // o cheiro: tres fumacinhas tortas subindo
+            float c = fmodf((p - 0.25f) * 1.4f + w * 0.33f, 1.0f);
+            int x0 = ax - 9 + w * 9, y0 = ay - R_DADO - 3 - (int)(c * 24);
+            for (int s = 0; s < 8; s++) {
+                int x = x0 + (int)(sinf(c * 9 + s * 0.8f + w * 2) * 3), y = y0 - s * 2;
+                if ((s + w) % 3 == 2) continue;
+                gfx_rect(x, y, 2, 2, c < 0.6f ? FEDOR[0] : FEDOR[1]);
+            }
+        }
+        if (p > 0.2f && p < 0.97f) {                            // a mosca: chega rodando o dado num oito, as asas batendo
+            float t = (p - 0.2f) * 9, chega = fminf(1, (p - 0.2f) / 0.15f);
+            int fx = ax + (int)((sinf(t) * (R_DADO + 9)) * chega + (1 - chega) * 50);
+            int fy = ay - R_DADO / 2 + (int)(sinf(t * 2) * 8 * chega - (1 - chega) * 30);
+            bool asa = (int)(t_fase * 30) % 2, frente = cosf(t) > 0;
+            gfx_rect(fx + 1, fy + 3, 4, 2, C_SOMBRA);
+            gfx_rect(fx, fy, 4, 3, C_EBANO);
+            gfx_rect(fx + (frente ? 3 : 0), fy, 1, 2, C_VERMELHO);        // os olhos vermelhos, na frente
+            gfx_rect(fx - 1, fy - (asa ? 3 : 1), 2, asa ? 3 : 2, C_PRATA);   // as asas batendo
+            gfx_rect(fx + 3, fy - (asa ? 3 : 1), 2, asa ? 3 : 2, C_PRATA);
         }
         break;
     }

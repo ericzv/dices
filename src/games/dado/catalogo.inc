@@ -186,7 +186,7 @@ static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, 
 static int cat_amuleto(int i);               // desafio/colecao.inc
 static int cat_adesivo(int i);
 static bool amuleto_liberado(int a);
-static bool adesivo_liberado(int a);
+static bool adesivo_aberto(int a);
 static void fileira_colecao(int sec, int atual, int total, int *var)
 {
     int i0 = atual / FIL_N * FIL_N, n = total - i0 < FIL_N ? total - i0 : FIL_N;
@@ -210,7 +210,7 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
             else desenha_amuleto(x, y, 10, a, false);
         } else {
             int a = cat_adesivo(i);
-            fechado = !adesivo_liberado(a);
+            fechado = !adesivo_aberto(a);
             if (fechado) silhueta_dado((float)x, (float)y, 9, 6, C_SOMBRA, 0.85f);
             else ad_solto_d(x, y, a, 1, 0);
         }

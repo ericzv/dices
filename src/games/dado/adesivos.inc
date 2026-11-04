@@ -9,6 +9,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
        AD_SELO, AD_FRAGIL, AD_ESTRELINHA, AD_CORRETIVO, AD_IMANTADO, AD_POSTIT, AD_HOLOGRAFICO,
        AD_PURPURINA, AD_VELCRO, AD_RATOEIRA, AD_FIGURINHA, AD_PATINHO, AD_ETIQUETA, AD_BILHETE,
        AD_NOTA_DEZ, AD_CARBONO, AD_BOMBA, AD_IMPERMEAVEL, AD_LENTICULAR, AD_NEON,
+       AD_INFECTADO, AD_BARRO, AD_SUJEIRA,      // a Sujeira nao se vende: e o Barro do oponente
        AD_N };                                   // um byte por lado (peca_t.ad)
 #define AD_BIT_VELHO 0x80                       // o bit de cima (de uma versao de teste): ignorado
 
@@ -23,6 +24,9 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
+#define INFECTADO_PONTOS 2                      // o Infectado: +2, e passa para outro lado da sua bolsa
+#define BARRO_LADOS 3                           // o Barro: os lados do dado do oponente que ficam sujos
+#define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7 ("#": a
@@ -139,6 +143,19 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_NEON]         = { "Neon", "tirando este lado, se válido:", "+2 por adesivo neste dado", 5, 7,
                           RGB(24, 22, 20), RGB(208, 98, 108), RGB(226, 164, 168),
                           { ".##.##.", "#..#..#", "#.....#", "#.....#", ".#...#.", "..#.#..", "...#..." } },
+    // Os que passam de dado em dado: o germe que se espalha na sua bolsa, e o
+    // barro que voce joga nos dados do oponente (la, cada respingo vira uma
+    // Sujeira, ate o fim da partida). O germe e uma bolinha de espinhos com
+    // dois olhos; "w": o branco do olho, so no colorido.
+    [AD_INFECTADO]    = { "Infectado", "tirando este lado: +2, e infecta", "um lado livre de um dado seu", 6, 6,
+                          RGB(130, 204, 112), RGB(206, 180, 218), RGB(102, 74, 138),
+                          { "#..#..#", "..###..", ".#####.", "##w#w##", ".#####.", "..###..", "#..#..#" } },
+    [AD_BARRO]        = { "Barro", "tirando este lado: suja 3 lados", "de um dado do oponente (-2 lá)", 3, 3,
+                          RGB(156, 106, 64), RGB(190, 156, 86), RGB(78, 46, 30),
+                          { "#...#..", "..###.#", ".#####.", "######.", ".#####.", "#.###..", "...#..#" } },
+    [AD_SUJEIRA]      = { "Sujeira", "tirando este lado: -2 no seu", "placar; sai no fim da partida", 0, 3,
+                          RGB(120, 78, 50), RGB(156, 106, 64), RGB(56, 32, 20),
+                          { ".#####.", "#######", "#######", "##.###.", ".#.#.#.", ".#...#.", ".....#." } },
 };
 
 // A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
@@ -156,9 +173,12 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
     [AD_BOMBA] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
     [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_IMPERMEAVEL] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
+    [AD_BARRO] = RAR_COMUM, [AD_INFECTADO] = RAR_RARO, [AD_SUJEIRA] = RAR_COMUM,
 };
+// A Sujeira nao se vende nem se ganha: so chega pelo Barro do oponente.
+static bool ad_a_venda(int a) { return a > AD_NADA && a < AD_N && a != AD_SUJEIRA; }
 // Fora do Desafiante nao ha moedas: o Dourado nao sai no premio.
-static bool ad_no_premio(int a) { return a > AD_NADA && a < AD_N && a != AD_DOURADO; }
+static bool ad_no_premio(int a) { return ad_a_venda(a) && a != AD_DOURADO; }
 
 // O adesivo do lado 'lado' (0: nenhum).
 static int ad_no_lado(const peca_t *p, int lado)
@@ -367,7 +387,10 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_BOMBA]        = "Tirando este lado, o dado rola de novo e pontua a soma dos dois lances. Explode uma vez só: o adesivo do lado que ficou para cima no segundo lance age no fim da rodada, mas não faz rolar de novo.",
     [AD_IMPERMEAVEL]  = "Tirando este lado, o dado ganha uma bolha de proteção até o fim da partida: não pode ser anulado nem destruído (nem pela sequência). Um ataque que mire nele bate na bolha e é bloqueado - e não passa para outro dado. Ainda pode ser roubado.",
     [AD_LENTICULAR]   = "Tirando este lado: se o dado terminar válido, pontua x2 no fim da rodada (soma com os outros multiplicadores); se terminar anulado, -4 no seu placar.",
-    [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12).",
+    [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12). A Sujeira não conta.",
+    [AD_INFECTADO]    = "Tirando este lado, válido ou anulado: +2 pontos, e ele se espalha: um Infectado novo gruda num lado livre de um dado sorteado da sua bolsa (até neste). Os novos ficam para sempre e também se espalham; não pegam no Adesivado. Sem lado livre, só os +2.",
+    [AD_BARRO]        = "Tirando este lado, válido ou anulado: joga barro num dado sorteado da bolsa do oponente. O barro gruda em até 3 lados livres dele como Sujeira: até o fim da partida, cada vez que o oponente tirar um lado sujo, -2 no placar dele.",
+    [AD_SUJEIRA]      = "O barro que o oponente jogou nos seus dados. Tirando este lado, válido ou anulado: -2 no seu placar. Sai no fim da partida: a bolsa volta limpa. Não conta como adesivo seu (nem para o Neon, a Purpurina ou o Holográfico).",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
@@ -401,6 +424,7 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
         for (int i = 0; i < 7; i++) {
             if (ADESIVO[a].ic[j][i] != '#') {
                 if (cores && ADESIVO[a].ic[j][i] == 'o') gfx_rect(x + i * s, y + j * s, s, s, C_VENTO);   // o vidro da bolha
+                if (cores && ADESIVO[a].ic[j][i] == 'w') gfx_rect(x + i * s, y + j * s, s, s, C_BRANCO);  // o olho do germe
                 continue;
             }
             uint16_t k = c;
@@ -415,6 +439,9 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             else if (cores && a == AD_LENTICULAR && j == 3 && i >= 2 && i <= 4) k = i == 3 ? C_EBANO : C_AZUL;   // a iris
             else if (cores && a == AD_NOTA_DEZ && i >= 4) k = C_AMARELO;                       // o zero, de ouro
             else if (cores && a == AD_NEON && neon < 0.25f) k = C_VINHO_CLR;                  // o tubo no fundo do pulso
+            else if (cores && a == AD_INFECTADO && (i % 6 == 0 || j % 6 == 0)) k = C_REAL;    // as pontas dos espinhos, mais claras
+            else if (cores && a == AD_BARRO && ((i == 2 && j == 2) || (i == 3 && j == 3))) k = RGB(190, 156, 86);   // o barro molhado brilha
+            else if (cores && a == AD_SUJEIRA && j >= 4) k = RGB(78, 46, 30);                 // os pingos escorrendo
             gfx_rect(x + i * s, y + j * s, s, s, k);
             if (cores && a == AD_NEON && s >= 3 && neon > 0.3f) gfx_rect(x + i * s + s / 2, y + j * s + s / 2 - 1, 1, 1, C_BRANCO);   // o filamento
         }
@@ -626,7 +653,8 @@ static int som_adesivo(int a)
         [AD_FIGURINHA] = SOM_AD_FIGURINHA, [AD_PATINHO] = SOM_AD_PATINHO, [AD_ETIQUETA] = SOM_AD_ETIQUETA,
         [AD_BILHETE] = SOM_AD_BILHETE, [AD_NOTA_DEZ] = SOM_AD_NOTA_DEZ, [AD_CARBONO] = SOM_AD_CARBONO,
         [AD_BOMBA] = SOM_AD_BOMBA, [AD_IMPERMEAVEL] = SOM_AD_IMPERMEAVEL, [AD_LENTICULAR] = SOM_AD_LENTICULAR,
-        [AD_NEON] = SOM_AD_NEON,
+        [AD_NEON] = SOM_AD_NEON, [AD_INFECTADO] = SOM_AD_INFECTADO, [AD_BARRO] = SOM_AD_BARRO,
+        [AD_SUJEIRA] = SOM_AD_SUJEIRA,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

@@ -294,7 +294,7 @@ static int pedaco(int d, int c, novidade_t *out)
                 out[n++] = (novidade_t){ NV_DADO, (uint8_t)t };
     if (c == CH_CRUPIE)
         for (int a = AD_NADA + 1; a < AD_N && n < PEDACO_MAX; a++)
-            if (ADESIVO[a].nivel == nv) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a };
+            if (ADESIVO[a].nivel == nv && ad_a_venda(a)) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a };
     char es[96];
     if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d };
     return n;

@@ -266,7 +266,9 @@ static void monta_pacote(void)
 // Os adesivos da loja (adesivos.inc): entre os que o perfil ja abriu (o
 // Crupie abre o de cada nivel), sorteados pela raridade com os pesos da
 // vitrine: no primeiro salao, os lendarios quase nao saem.
-static bool adesivo_liberado(int a) { return a > AD_NADA && a < AD_N && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
+static bool adesivo_liberado(int a) { return ad_a_venda(a) && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
+// Na colecao: a Sujeira (que nao se vende) abre junto com o Barro.
+static bool adesivo_aberto(int a) { return adesivo_liberado(a == AD_SUJEIRA ? AD_BARRO : a); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco - (run.bolsa == B_LATA) : 0); }
 static int adesivos_abertos(void)
 {

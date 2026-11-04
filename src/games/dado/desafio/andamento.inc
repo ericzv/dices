@@ -471,6 +471,8 @@ static void zera_acumuladores(peca_t *col, int n)
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
         col[i].capa = 0;                         // e a capa do Impermeavel tambem
+        for (int l = 1; l <= AD_LADOS; l++)      // e a Sujeira do oponente sai: a bolsa volta limpa
+            if (ad_no_lado(&col[i], l) == AD_SUJEIRA) ad_cola(&col[i], l, AD_NADA);
         if (cosmico(col[i].tipo) && col[i].tipo != D_ASTRO) cosmo_vira(&col[i], D_ASTRO, false);   // o ciclo cosmico recomeca
     }
 }

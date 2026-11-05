@@ -3771,13 +3771,20 @@ int main(void)
         joga_ad(0, 4, 3); joga_ad(0, 3, 6);
         joga_ad(1, 0, 2); joga_ad(1, 1, 5);
         d = fim();
-        CONFERE(d.est[1][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 3 && d.total[1] == 5,
-                "Ratoeira: a Mira anula o 2 e a Ratoeira, o 6 (%d x %d)", d.total[0], d.total[1]);
+        CONFERE(d.est[1][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 3
+                && d.total[1] == 5 + RATOEIRA_PONTOS,
+                "Ratoeira: a Mira anula o 2 e a Ratoeira, o 6; e o queijo fica, +4 (%d x %d)", d.total[0], d.total[1]);
         limpa();
         joga_ad(0, 4, 3);
-        joga_ad(1, 0, 2); joga_ad(1, 1, 1);       // anulada pela propria sequencia: nao desarma
+        joga_ad(1, 0, 2); joga_ad(1, 1, 1);       // anulada pela propria sequencia: nao desarma, mas o queijo fica
         d = fim();
-        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 3, "Ratoeira: so o oponente desarma");
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 3 && d.est[1][0] == V_ANULADO && d.total[1] == RATOEIRA_PONTOS,
+                "Ratoeira: so o oponente desarma; a sequencia so deixa o queijo (%d)", d.total[1]);
+        limpa();
+        joga_ad(0, 4, 3);
+        joga_ad(1, 0, 2); joga_ad(1, 1, 5);       // valendo: nada
+        d = fim();
+        CONFERE(d.total[1] == 2 + 5 && d.total[0] == 3, "Ratoeira valendo: nada (%d)", d.total[1]);
         memset(&J[1], 0, sizeof J[1]);
         // O Post-it: o seguinte rola duas vezes e fica o maior (o Viciado, o maior de quatro).
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
@@ -4393,10 +4400,61 @@ int main(void)
             J[0] = g0; J[1] = g1;
         }
 
+        // ---- O Chiclete: o dado gruda e abre a proxima sequencia ----------------
+        {
+            jogador_t g0 = J[0];
+            J[0].n_col = 4;
+            for (int i = 0; i < 4; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6 }; J[0].onde[i] = NA_BOLSA; }
+            ad_cola(&J[0].col[1], 3, AD_CHICLETE);
+            ad_cola(&J[0].col[2], 5, AD_CHICLETE);
+            limpa();
+            joga_ad(0, 1, 3); joga_ad(0, 2, 5);          // dois Chicletes: so o primeiro gruda
+            d = fim();
+            CONFERE(d.chiclete[0] == 1, "Chiclete: so o primeiro gruda (%d)", d.chiclete[0]);
+            limpa();
+            joga(0, D_D6, 6); joga_ad(0, 1, 3);          // anulado tambem gruda
+            d = fim();
+            CONFERE(d.est[0][1] == V_ANULADO && d.chiclete[0] == 2, "Chiclete anulado: gruda tambem (%d)", d.chiclete[0]);
+            limpa();
+            joga_ad(0, 1, 3); joga(1, D_D4, 2);
+            d = fim();
+            adesivos_ficam(0, &d);
+            CONFERE(J[0].col[1].chiclete && !J[0].col[2].chiclete && chic_valor[0] == 3 && chic_lado[0] == 3,
+                    "Chiclete: o dado grudou com o 3");
+            // A rodada seguinte: ele volta para a mao e ja abre a sequencia, pousado
+            // com o 3, sem rolar - e nao sai dela.
+            descarta_mao(&J[0]);
+            CONFERE(J[0].n_mao == 1 && J[0].mao[0] == 1 && J[0].onde[1] == NA_MAO, "Chiclete: volta para a mao");
+            limpa();
+            uint32_t s0 = semente;
+            gruda_chiclete(0);
+            CONFERE(F[0].n == 1 && F[0].lancados == 1 && F[0].idx[0] == 1 && F[0].valor[0] == 3 && F[0].lado[0] == 3
+                    && F[0].est[0] == V_VALIDO && F[0].grudado && !J[0].col[1].chiclete && semente == s0,
+                    "Chiclete: abre a sequencia ja com o 3, sem rolar");
+            int vez0 = vez; vez = 0;
+            poe_na_fila(0);                              // tentar tirar o grudado: nao sai
+            vez = vez0;
+            CONFERE(F[0].n == 1 && F[0].idx[0] == 1, "Chiclete: o grudado nao sai da sequencia");
+            joga_ad(0, 3, 2);                            // menor que o 3: a sequencia derruba os dois
+            d = fim();
+            CONFERE(d.chiclete[0] == 0 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO,
+                    "Chiclete: grudado, nao gruda de novo; a sequencia derruba os dois");
+            // Comido pela Autofagia, nao volta; e o fim da partida desgruda.
+            J[0].col[1].chiclete = 1; J[0].onde[1] = COMIDO;
+            descarta_mao(&J[0]);
+            CONFERE(J[0].n_mao == 0 && !J[0].col[1].chiclete, "Chiclete: o comido nao volta para a mao");
+            J[0].col[2].chiclete = 1;
+            zera_acumuladores(J[0].col, J[0].n_col);
+            CONFERE(!J[0].col[2].chiclete, "Chiclete: o fim da partida desgruda");
+            J[0] = g0;
+            limpa();
+        }
+
         // Todos abrem e tem desenho, som, texto e raridade.
-        for (int a = AD_NOTA_DEZ; a <= AD_BARRO; a++)
-            CONFERE(ADESIVO[a].nome && AD_TEXTO[a] && ADESIVO[a].ic[0] && ADESIVO[a].nivel >= 1 && ADESIVO[a].nivel <= N_NIVEIS
-                    && som_adesivo(a) != SOM_EFEITO && ADESIVO[a].preco > 0, "o adesivo %d completo", a);
+        for (int a = AD_NOTA_DEZ; a < AD_N; a++)
+            if (ad_a_venda(a))
+                CONFERE(ADESIVO[a].nome && AD_TEXTO[a] && ADESIVO[a].ic[0] && ADESIVO[a].nivel >= 1 && ADESIVO[a].nivel <= N_NIVEIS
+                        && som_adesivo(a) != SOM_EFEITO && ADESIVO[a].preco > 0, "o adesivo %d completo", a);
         modo = modo_antes;
         memset(J, 0, sizeof J);
         limpa();
@@ -5487,6 +5545,51 @@ int main(void)
         mao[5].tipo = D_D2; mao[6].tipo = D_D2;          // o Dobro entre os de maior media
         int ordem[N_FILA], q = fila_simples(mao, 7, ordem);
         CONFERE(q >= 2 && mao[ordem[q - 1]].tipo != D_DOBRO, "IA facil pos o Dobro por ultimo");
+        ia_esforco = 1;
+        ia_nivel = 2;
+    }
+
+    // ---- IA: o Chiclete que ainda vai grudar ------------------------------
+    // Quem joga depois responde a aposta antes da vez: a IA pesa a fila ja com
+    // o grudado na frente, sem mexer na mesa, e na vez de verdade monta a fila
+    // com ele no primeiro lugar - sem tentar tira-lo (o que travaria a vez).
+    {
+        static const int T[7] = { D_D6, D_D8, D_D4, D_D6, D_D12, D_D20, D_D8 };
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        J[0].n_col = 0;
+        for (int i = 0; i < 7; i++) {
+            J[0].col[i] = (peca_t){ .tipo = (uint8_t)T[i] };
+            J[0].onde[i] = NA_MAO;
+            J[0].mao[i] = (int8_t)i;
+            J[0].n_col++;
+        }
+        J[0].n_mao = 7;
+        rodada = 2;
+        ia_esforco = 0;
+        for (int niv = 0; niv <= 2; niv++) {
+            limpa();
+            primeiro = 1;
+            joga(1, D_D6, 4);                            // quem abriu ja jogou
+            vez = 0;
+            ia_nivel = niv;
+            int g = 4;                                   // o que grudou: um que a IA poria no meio da fila
+            if (niv) { plano_rodada = -1; ia_planeja(); if (plano_n >= 2) g = plano[1]; }
+            J[0].col[g].chiclete = 1; chic_valor[0] = 2; chic_lado[0] = 2;   // grudou com o 2
+            plano_rodada = -1;
+            float p = niv ? ia_chance() : 0.5f;
+            CONFERE(p >= 0 && p <= 1 && F[0].n == 0 && !F[0].grudado && J[0].col[g].chiclete,
+                    "IA nivel %d: pesar a aposta nao gruda o Chiclete", niv);
+            gruda_chiclete(0);
+            int voltas = 0, i;
+            while (voltas < 10 && (i = niv ? ia_proximo_da_fila() : facil_proximo_da_fila()) >= 0) { poe_na_fila(i); voltas++; }
+            bool rep = false;
+            for (int a = 0; a < F[0].n; a++)
+                for (int b = a + 1; b < F[0].n; b++) rep |= F[0].idx[a] == F[0].idx[b];
+            CONFERE(voltas < 10 && !rep && F[0].grudado && F[0].idx[0] == g && F[0].n >= 2 && F[0].n <= max_fila(0),
+                    "IA nivel %d: o grudado abre a fila e o resto entra (fila de %d, %d voltas)", niv, F[0].n, voltas);
+            J[0].col[g].chiclete = 0;
+        }
+        limpa();
         ia_esforco = 1;
         ia_nivel = 2;
     }

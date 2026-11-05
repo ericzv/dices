@@ -1023,6 +1023,7 @@ static void desenha_jingle_copias(void)
 
 static void rachadura(int x, int y, int r, float q);
 static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
+static void chiclete_goma(int x, int y, int r, float q);   // a goma do Chiclete (mais abaixo)
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -1129,7 +1130,8 @@ static void desenha_fila(int j)
         uint16_t golpe = anul && no_desfecho ? vis_golpe_cor[j][k] : 0;
         // Alvo de anulacao agora: pisca antes de cair (com a capa, nao: a
         // bolha segura o golpe e ele fica onde esta).
-        bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || e->ad == AD_RATOEIRA))) && e->alvo_j == j && e->alvo_k == k
+        bool alvo = e && (e->tipo == EV_ANULA || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || (e->ad == AD_RATOEIRA && e->alvo_j != e->de_j))))
+                    && e->alvo_j == j && e->alvo_k == k
                     && !(e->bloqueado >> k & 1);
         bool congela = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BONECO;   // o gelo prende: nao pisca
         bool engolido = alvo && e->tipo == EV_ANULA && F[e->de_j].tipo[e->de_k] == D_BURACO;  // o Buraco Negro puxa: gira
@@ -1238,6 +1240,7 @@ static void desenha_fila(int j)
             if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.6f) { forte = 1 - t_fase / 0.6f; onda = t_fase / 0.6f; }
             capa_aura(x, (int)(y - pulo), R, cresce, forte, onda);
         }
+        if (k == 0 && f->grudado && giro < 0.5f) chiclete_goma(x, (int)(y - pulo), R, 1);   // grudado pelo Chiclete
         face_capa = false;
         sem_risca = false;
         face_curinga = false;
@@ -1605,6 +1608,38 @@ static void pega_rotulo(int ox, int oy, float q, const char *t, uint16_t c)
     gfx_texto(x, y, t, c, 1, true);
 }
 
+// O Chiclete: a goma que prende o dado (em x, y, de raio r) na mesa - a poca
+// rosa em volta da base (so fora do dado) e os fios esticados dos lados ate
+// ela, balancando. q (0..1): a goma escorrendo ate grudar.
+static void chiclete_goma(int x, int y, int r, float q)
+{
+    if (q <= 0) return;
+    int cy = y + r - 2, ax = (int)((r + 7) * q), ay = 2 + (int)(4 * q);
+    for (int yy = -ay; yy <= ay; yy++)
+        for (int xx = -ax; xx <= ax; xx++) {
+            float e = (float)(xx * xx) / (float)(ax * ax + 1) + (float)(yy * yy) / (float)(ay * ay + 1);
+            if (e > 1) continue;
+            int px = x + xx, py = cy + yy, dx = px - x, dy = py - y;
+            if (dx * dx + dy * dy < (r - 1) * (r - 1)) continue;           // o dado por cima
+            uint16_t c = e > 0.62f ? C_VINHO_CLR : C_ROSA;
+            if (yy == -ay / 2 && (px + (int)(t_relogio * 3)) % 5 == 0) c = C_BRANCO;   // o brilho da goma
+            gfx_pixel(px, py, c);
+        }
+    if (q < 0.4f) return;
+    float ba = sinf(t_relogio * 2.2f) * 1.5f;
+    for (int s = -1; s <= 1; s += 2) {                                     // os fios, um de cada lado
+        int x0 = x + s * (r - 3), y0 = y + r / 3, x1 = x + s * (r + 4), y1 = cy + 1;
+        for (int i = 0; i <= 8; i++) {
+            float u = i / 8.0f;
+            int px = x0 + (int)((x1 - x0) * u + sinf(u * 3.1416f) * (s * 2 + ba)), py = y0 + (int)((y1 - y0) * u);
+            gfx_pixel(px, py + 1, C_VINHO);
+            gfx_pixel(px, py, C_ROSA);
+        }
+    }
+    gfx_disco(x + r - 4, y + r - 4, 2, C_ROSA);                           // e um pingo de goma na quina
+    gfx_pixel(x + r - 5, y + r - 5, C_BRANCO);
+}
+
 // Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
 // dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
 // A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1). Com
@@ -1904,6 +1939,30 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
+    case AD_CHICLETE: {                                         // a bola de chiclete enche, estoura, e a goma gruda o dado na mesa
+        int bx = ax + 5, by = ay - R_DADO + 3;                  // a bola sai da quina de cima do dado
+        if (p < 0.52f) {
+            float q = p / 0.52f, rb = 3 + q * q * 13;           // enchendo, e no fim treme de tao cheia
+            int rr = (int)rb + (q > 0.8f ? (int)(t_fase * 40) % 2 : 0), cyb = by - rr + 2;
+            gfx_disco(bx + 2, cyb + 2, rr, C_SOMBRA);
+            gfx_disco(bx, cyb, rr, C_VINHO_CLR);
+            gfx_disco(bx, cyb, rr - 1 > 0 ? rr - 1 : 1, C_ROSA);
+            gfx_disco(bx + rr / 3, cyb + rr / 3, rr / 3 > 0 ? rr / 3 : 1, C_VINHO_CLR);   // a sombra dentro, embaixo
+            gfx_disco(bx + rr / 3, cyb + rr / 3 - 1, rr / 3 > 0 ? rr / 3 : 1, C_ROSA);
+            gfx_rect(bx - rr / 2, cyb - rr / 2, 2, 2, C_BRANCO);                // o brilho
+            if (rr > 8) gfx_pixel(bx - rr / 2 + 3, cyb - rr / 2 + 1, C_BRANCO);
+        } else if (p < 0.66f) {                                 // PLOC: os pedacos de goma voam
+            float q = (p - 0.52f) / 0.14f;
+            for (int i = 0; i < 14; i++) {
+                float an = i * 0.449f + 0.2f, v = 8 + (i * 29) % 9 + q * 14;
+                int px = bx + (int)(cosf(an) * v), py = by - 12 + (int)(sinf(an) * v * 0.8f + q * q * 10);
+                gfx_rect(px + 1, py + 1, 3, 2, C_SOMBRA);
+                gfx_rect(px, py, 3, 2, i % 3 ? C_ROSA : C_VINHO_CLR);
+            }
+        }
+        if (p > 0.55f) chiclete_goma(ax, ay, R_DADO, fminf(1, (p - 0.55f) / 0.3f));   // a goma escorre e gruda
+        break;
+    }
     case AD_SUJEIRA: {                                          // a lama borbulha, respinga e pinga; sobe o cheiro e chega a mosca
         static const uint16_t LAMA[4] = { RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64), RGB(190, 156, 86) };
         static const uint16_t FEDOR[2] = { RGB(130, 204, 112), RGB(88, 152, 84) };
@@ -2088,6 +2147,33 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         break;
     }
     case AD_RATOEIRA: {                                         // a mola estala no dado e a barra vai ate o maior dele
+        if (e->alvo_j == e->de_j && e->alvo_k == e->de_k) {     // anulado: a ratoeira fecha no vazio e o queijo fica
+            float q = fminf(1, p / 0.18f), an = 3.1416f * (1 - q * q);
+            if (p < 0.4f) gfx_linha_grossa(ax, ay, ax + (int)(cosf(an) * (R_DADO + 4)), ay - (int)(sinf(an) * (R_DADO + 4)), 3, C_PRATA);
+            for (int i = 0; i < 8 && p > 0.18f && p < 0.34f; i++) {   // o estalo
+                float a2 = i * 0.785f, rr = R_DADO + 3 + (p - 0.18f) * 60;
+                gfx_rect(ax + (int)(cosf(a2) * rr), ay + (int)(sinf(a2) * rr), 2, 2, C_PRATA);
+            }
+            if (p > 0.22f && p < 0.95f) {                       // o queijo sobe do dado, balancando
+                float s = fminf(1, (p - 0.22f) / 0.2f), ss = s * s * (3 - 2 * s);
+                int cx = ax + (int)(sinf(t_fase * 5) * 2), cy = ay - (int)(ss * (R_DADO + 10));
+                int w = 7, h = 5;
+                gfx_disco(cx + 1, cy + h + 3, 4, C_SOMBRA);
+                for (int y = -h; y <= h; y++) {                 // a fatia de lado: o corte reto a direita
+                    int x0 = cx + w - (y + h) * w / h;
+                    gfx_rect(x0, cy + y, cx + w - x0 + 1, 1, C_AMARELO);
+                    gfx_pixel(x0, cy + y, C_OURO);             // a casca
+                }
+                gfx_rect(cx - w, cy + h, 2 * w + 1, 1, C_OURO);
+                gfx_rect(cx + w, cy - h, 1, 2 * h + 1, C_LATAO);
+                gfx_disco(cx + 3, cy + 1, 1, C_OURO); gfx_pixel(cx - 1, cy + 3, C_OURO); gfx_pixel(cx + 5, cy - 2, C_OURO);   // os furos
+                for (int i = 0; i < 3 && s >= 1; i++) {        // e brilha
+                    int fx = cx - 9 + i * 9, fy = cy - h - 4 - (int)(fmodf(t_fase * 20 + i * 7, 6));
+                    if ((int)(t_fase * 8 + i) % 3) { gfx_pixel(fx, fy, C_BRANCO); gfx_pixel(fx - 1, fy, C_AMARELO); gfx_pixel(fx + 1, fy, C_AMARELO); }
+                }
+            }
+            break;
+        }
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         float q = fminf(1, p / 0.15f);
         float an = 3.1416f * (1 - q);                           // a barra gira por cima do dado

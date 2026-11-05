@@ -10,13 +10,14 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
        AD_PURPURINA, AD_VELCRO, AD_RATOEIRA, AD_FIGURINHA, AD_PATINHO, AD_ETIQUETA, AD_BILHETE,
        AD_NOTA_DEZ, AD_CARBONO, AD_BOMBA, AD_IMPERMEAVEL, AD_LENTICULAR, AD_NEON,
        AD_INFECTADO, AD_BARRO, AD_SUJEIRA,      // a Sujeira nao se vende: e o Barro do oponente
+       AD_CHICLETE,
        AD_N };                                   // um byte por lado (peca_t.ad)
 #define AD_BIT_VELHO 0x80                       // o bit de cima (de uma versao de teste): ignorado
 
 #define AD_SEM_FUNDO 1                          // o Transparente: so o contorno de vidro
 #define FERMENTO_MAX 20
 #define FERMENTO_CADA 2                         // o Fermento: +2, +4, +6... a cada vez
-#define FIGURINHA_MAX 63                        // as figurinhas que um dado junta (peca_t.figurinha)
+#define FIGURINHA_MAX 31                        // as figurinhas que um dado junta (peca_t.figurinha; uma por rodada)
 #define PATINHO_PONTOS 2                        // o Patinho Feio: -2 no lado dele, +2 em outro
 #define SELO_PONTOS 5                           // o que o lacre do Selo paga no proximo lance valendo
 #define FRAGIL_PONTOS 6                         // o Fragil valendo
@@ -27,6 +28,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 (e, valendo ou nao, passa para outro lado da sua bolsa)
 #define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
+#define RATOEIRA_PONTOS 4                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7 ("#": a
@@ -107,7 +109,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_VELCRO]       = { "Velcro", "tirando este lado: o dado volta", "para a mão na próxima rodada", 3, 2,
                           RGB(36, 32, 29), RGB(96, 88, 80), RGB(166, 154, 132),
                           { "#.#.#.#", "#.#.#.#", "#######", ".......", "#######", ".#.#.#.", ".#.#.#." } },
-    [AD_RATOEIRA]     = { "Ratoeira", "tirando este lado: anulado pelo", "oponente, o maior dele cai", 4, 8,
+    [AD_RATOEIRA]     = { "Ratoeira", "tirando este lado: anulado, +4;", "por ataque, o maior dele cai", 4, 8,
                           RGB(120, 78, 50), RGB(156, 106, 64), RGB(204, 194, 172),
                           { ".......", "....##.", "..####.", ".##.###", "#######", ".......", "#######" } },
     [AD_FIGURINHA]    = { "Figurinha", "tirando este lado, se válido: +1 por", "figurinha juntada nos seus dados", 5, 9,
@@ -156,6 +158,11 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_SUJEIRA]      = { "Sujeira", "tirando este lado: -2 no seu", "placar; não sai mais", 0, 3,
                           RGB(120, 78, 50), RGB(156, 106, 64), RGB(56, 32, 20),
                           { ".#####.", "#######", "#######", "##.###.", ".#.#.#.", ".#...#.", ".....#." } },
+    // O Chiclete: o dado gruda na mesa e abre a proxima sequencia com o mesmo
+    // numero. A bola de chiclete com o brilho ("w") e o fio pendurado.
+    [AD_CHICLETE]     = { "Chiclete", "tirando este lado: o dado gruda e", "abre a próxima com esse número", 3, 4,
+                          RGB(226, 164, 168), RGB(226, 164, 168), RGB(150, 62, 80),
+                          { "..###..", ".#####.", "#ww####", "#w#####", "#######", ".#####.", "...#..." } },
 };
 
 // A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
@@ -173,7 +180,7 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_CHUMBO] = RAR_LENDA, [AD_MIRA] = RAR_LENDA, [AD_HOLOGRAFICO] = RAR_LENDA,
     [AD_BOMBA] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
     [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_IMPERMEAVEL] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
-    [AD_BARRO] = RAR_COMUM, [AD_INFECTADO] = RAR_RARO, [AD_SUJEIRA] = RAR_COMUM,
+    [AD_BARRO] = RAR_COMUM, [AD_INFECTADO] = RAR_RARO, [AD_SUJEIRA] = RAR_COMUM, [AD_CHICLETE] = RAR_COMUM,
 };
 // A Sujeira nao se vende nem se ganha: so chega pelo Barro do oponente.
 static bool ad_a_venda(int a) { return a > AD_NADA && a < AD_N && a != AD_SUJEIRA; }
@@ -377,7 +384,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_HOLOGRAFICO]  = "Tirando este lado, copia os adesivos dos seus outros dados que agiram no fim da rodada, como se fossem dele: o Confete dá +4, o Eletrônico dobra este dado, o Selo lacra este dado. Não copia os que agem no pouso (Chumbo, Reflexivo, Avesso, Remendo, Transparente, Corretivo, Post-it), nem a Ratoeira.",
     [AD_PURPURINA]    = "Tirando este lado, se o dado terminar válido: +3 pontos por adesivo seu que agiu na rodada, ela junto. Os que agem no pouso também contam.",
     [AD_VELCRO]       = "Tirando este lado, válido ou anulado, o dado gruda: na rodada seguinte ele volta direto para a sua mão (e conta como um dos dados da compra), em vez de ir para fora.",
-    [AD_RATOEIRA]     = "Tirando este lado: se o oponente anular este dado com um poder (não a sequência), o maior dado válido dele também é anulado.",
+    [AD_RATOEIRA]     = "Tirando este lado, se o dado terminar anulado (até pela sequência), o queijo fica: +4 pontos. E se foi o oponente que o anulou com um poder, a ratoeira também fecha: o maior dado válido dele é anulado.",
     [AD_FIGURINHA]    = "Cada dado com Figurinha junta figurinhas: começa com 1. Tirando este lado, se o dado terminar válido, ativa todas: +1 por figurinha juntada em todos os seus dados com Figurinha, e este dado junta mais uma. A cada partida, recomeça do 1.",
     [AD_PATINHO]      = "Se o dado terminar válido: tirando o lado do Patinho Feio, -2 pontos; tirando qualquer outro lado, +2 pontos.",
     [AD_ETIQUETA]     = "Tirando este lado, se o dado terminar válido: +1 ponto por Etiqueta nos dados da sua bolsa, ela junto (num dado só ou em vários, sem limite).",
@@ -391,6 +398,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_INFECTADO]    = "Tirando este lado, válido ou anulado, ele se espalha: um Infectado novo gruda num lado livre de um dado sorteado da sua bolsa (pode ser este). Os novos ficam para sempre e também se espalham. Se o dado terminar válido, +2 pontos.",
     [AD_BARRO]        = "Tirando este lado, válido ou anulado: joga barro num dado sorteado da bolsa do oponente, e um lado livre dele vira Sujeira para sempre - cada vez que ele tirar esse lado, -2 no placar dele. Se o dado sorteado estiver com a bolha do Impermeável, o barro não gruda.",
     [AD_SUJEIRA]      = "O barro que o oponente jogou nos seus dados. Tirando este lado, válido ou anulado: -2 no seu placar. Não sai mais: fica no dado para sempre. O Neon conta a Sujeira como um adesivo do dado; a Purpurina e o Holográfico, não.",
+    [AD_CHICLETE]     = "Tirando este lado, válido ou anulado, o dado gruda na mesa: na próxima rodada ele já abre a sua sequência com o mesmo número, sem rolar (o primeiro é sempre válido). Um número baixo é um começo seguro; um alto vale mais, mas sobe a régua para os outros. Grudado, ele não gruda de novo, e só um dado gruda por rodada.",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
@@ -654,7 +662,7 @@ static int som_adesivo(int a)
         [AD_BILHETE] = SOM_AD_BILHETE, [AD_NOTA_DEZ] = SOM_AD_NOTA_DEZ, [AD_CARBONO] = SOM_AD_CARBONO,
         [AD_BOMBA] = SOM_AD_BOMBA, [AD_IMPERMEAVEL] = SOM_AD_IMPERMEAVEL, [AD_LENTICULAR] = SOM_AD_LENTICULAR,
         [AD_NEON] = SOM_AD_NEON, [AD_INFECTADO] = SOM_AD_INFECTADO, [AD_BARRO] = SOM_AD_BARRO,
-        [AD_SUJEIRA] = SOM_AD_SUJEIRA,
+        [AD_SUJEIRA] = SOM_AD_SUJEIRA, [AD_CHICLETE] = SOM_AD_CHICLETE,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

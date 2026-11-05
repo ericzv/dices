@@ -146,7 +146,11 @@ static int lugares_fila(int j, int ry, int lados_cur)
         int x = lugar_x(cabe, k);
         if (k) txt_c(x - LUGAR_PASSO / 2, ry - 11, "»", C_FELTRO2, false);
         bool feito = k < f->n, proximo = k == f->n;
-        if (feito) {
+        if (feito && k == 0 && f->grudado) {         // grudado pelo Chiclete: ja pousado, com o numero e a goma
+            ad_face = ad_fila(j, 0);
+            desenha_dado((float)x, (float)ry, LUGAR_R, f->tipo[0], j, 0, f->valor[0], 2, false);
+            chiclete_goma(x, ry, LUGAR_R, 1);
+        } else if (feito) {
             const peca_t *pf = peca_fila(j, k);      // a da bolsa (com os adesivos); a carta do Coringa nao tem
             peca_t pc = pf ? *pf : (peca_t){ .tipo = f->tipo[k], .fixo = f->fixo[k] };
             pc.fixo = f->fixo[k];
@@ -182,6 +186,7 @@ static void desenha_ordem(void)
         if (cur) brilho_passa = mola_brilho();          // pulou: o brilho passa junto
         int rs = respira(i);                     // esperando na mao: respira
         caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
+        if (ordem == 0 && f->grudado) chiclete_goma(x, y + dy + rs, 17, 1);   // o grudado: a goma por baixo dele (e dos adesivos)
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) plaqueta_num(x + 16, y - 17 + rs, ordem, C_OURO, C_BARRA, true);

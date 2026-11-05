@@ -29,18 +29,64 @@ static int em_jogo(const jogador_t *p)
 }
 
 // A mao da rodada anterior sai da mesa.
-// O dado do Velcro gruda: em vez de sair, volta para a mao (e desgruda).
+// O dado do Velcro gruda: em vez de sair, volta para a mao (e desgruda). O do
+// Chiclete tambem volta, e fica marcado ate abrir a sequencia (gruda_chiclete).
 static void descarta_mao(jogador_t *p)
 {
     p->n_mao = 0;
     for (int i = 0; i < p->n_col; i++) {
-        if (p->col[i].velcro && p->onde[i] != COMIDO && p->n_mao < MAO) {
-            p->col[i].velcro = 0;
+        if ((p->col[i].velcro || p->col[i].chiclete) && p->onde[i] != COMIDO && p->n_mao < MAO) {
             p->onde[i] = NA_MAO;
             p->mao[p->n_mao++] = (int8_t)i;
-        } else if (p->onde[i] == NA_MAO) p->onde[i] = FORA;
+        } else {
+            if (p->onde[i] == NA_MAO) p->onde[i] = FORA;
+            p->col[i].chiclete = 0;
+        }
         p->col[i].velcro = 0;
     }
+}
+
+// O Chiclete: o numero (e o lado) com que o dado grudou, para abrir a
+// sequencia seguinte de cada um.
+static int chic_valor[2];
+static uint8_t chic_lado[2];
+// Na vez de j, o dado que grudou ja abre a sequencia: no primeiro lugar, ja
+// pousado com o mesmo numero, sem rolar (o primeiro e sempre valido). Ele nao
+// sai da fila, e o Chiclete dele nao gruda de novo.
+// O dado da mao de j que vai grudar (o lugar dele na bolsa), ou -1.
+static int chiclete_na_mao(int j)
+{
+    const jogador_t *p = &J[j];
+    for (int m = 0; m < p->n_mao; m++)
+        if (p->col[p->mao[m]].chiclete) return p->mao[m];
+    return -1;
+}
+// Poe o dado i (da bolsa de j) grudado no primeiro lugar da fila. A IA usa
+// sozinho tambem, numa copia da mesa, para pesar a aposta antes da vez.
+static void poe_grudado(int j, int i)
+{
+    const jogador_t *p = &J[j];
+    fila_t *f = &F[j];
+    f->idx[0] = (int8_t)i;
+    f->tipo[0] = p->col[i].tipo;
+    f->fixo[0] = p->col[i].fixo;
+    f->n = 1;
+    f->grudado = true;
+    f->cru[0] = f->valor[0] = chic_valor[j];
+    f->lado[0] = chic_lado[j];
+    f->lancados = 1;
+    aplica_regra(j, 0);
+    f->pontos = soma(j, f->est);
+    veredito[0] = 0;
+}
+static void gruda_chiclete(int j)
+{
+    if (F[j].n || F[j].lancados) return;         // ja montou (voltou para a fila)
+    int i = chiclete_na_mao(j);
+    if (i < 0) return;
+    J[j].col[i].chiclete = 0;
+    poe_grudado(j, i);
+    plano_rodada = -1;                           // a IA monta a fila de novo, com ele no primeiro lugar
 }
 
 // Compra ate 7 da bolsa, ao acaso. Se a bolsa esvazia no meio, tudo o que
@@ -262,6 +308,7 @@ static void nova_rodada(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    gruda_chiclete(vez);
     avisa_sua_vez();
     humor_da_rodada();
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
@@ -756,6 +803,7 @@ static void comeca_segundo(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    gruda_chiclete(vez);
     avisa_sua_vez();
 }
 
@@ -777,6 +825,11 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;
         if (d->capa[j] >> k & 1) p->col[i].capa = 1;      // o Impermeavel: ate o fim da partida
         if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
+        if (d->chiclete[j] == k + 1) {           // o Chiclete: abre a proxima com este numero
+            p->col[i].chiclete = 1;
+            chic_valor[j] = F[j].valor[k];
+            chic_lado[j] = F[j].lado[k];
+        }
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
@@ -1520,8 +1573,12 @@ static void flutua_evento(const evento_t *e)
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
         case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dados", e->valor); break;
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
-        case AD_RATOEIRA:   if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+        case AD_RATOEIRA:                           // o queijo (no dado dela) ou a armadilha (no maior dele)
+            if (aj == dj) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+            else if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor);
+            break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
+        case AD_CHICLETE:   flutua_em(dj, dk, C_ROSA, 0, "gruda", 0); break;
         case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
         case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro
             for (int k = 0; k < N_FILA; k++)
@@ -1661,6 +1718,7 @@ static void aplica_evento(int i)
             break;
         case AD_LOBO: vis_delta[e->alvo_j] -= e->valor; break;
         case AD_MIRA: case AD_RATOEIRA:
+            if (e->ad == AD_RATOEIRA && e->alvo_j == e->de_j) { vis_semente[e->de_j] += e->valor; break; }   // o queijo: +4
             if (e->bloqueado) break;    // bateu na capa
             vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
             golpe_marca(e->alvo_j, e->alvo_k, ADESIVO[e->ad].fundo == AD_SEM_FUNDO ? ADESIVO[e->ad].tinta : ADESIVO[e->ad].fundo);

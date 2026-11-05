@@ -35,6 +35,7 @@ typedef struct {
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
     uint8_t n_pega;                  // o Infectado e o Barro: os lados que ganham adesivo (adesivos_ficam)
+    uint8_t chiclete[2];             // o dado que grudou pelo Chiclete (a posicao + 1; 0: nenhum)
     pega_t  pega[PEGA_MAX];
 } desfecho_t;
 
@@ -1457,6 +1458,16 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (e) { e->bolsa_i = (uint8_t)(i >= 0 ? i : 0xFF); e->bolsa_lados = m; e->bolsa_capa = capa; }
         break;
     }
+    case AD_CHICLETE:                            // o dado gruda: abre a proxima sequencia com o mesmo numero
+        if (copia || (k == 0 && F[j].grudado) || d->chiclete[j] || !peca_fila(j, k)) return false;   // um por rodada, e nao gruda de novo
+        d->chiclete[j] = (uint8_t)(k + 1);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, F[j].valor[k], "%sChiclete: o %d gruda e abre a próxima", pre, F[j].valor[k]);
+        break;
+    case AD_RATOEIRA:                            // anulado, ate pela sequencia: o queijo fica (o ataque fecha a armadilha: ratoeira_desarma)
+        if (vale) return false;
+        d->semente[j] += RATOEIRA_PONTOS;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, RATOEIRA_PONTOS, "%sRatoeira: anulado, o queijo fica: +%d", pre, RATOEIRA_PONTOS);
+        break;
     case AD_SUJEIRA:                             // o barro do oponente: -2 no seu placar
         d->delta[j] -= SUJEIRA_PONTOS;
         e = evento(gera, EV_ADESIVO, j, k, j, k, -SUJEIRA_PONTOS, "%sSujeira: -%d no placar", pre, SUJEIRA_PONTOS);
@@ -1528,14 +1539,17 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int a = ad_fila(j, k);
-        if (!a || d->est[j][k] == V_ROUBADO || a == AD_HOLOGRAFICO || a == AD_PURPURINA || a == AD_RATOEIRA) continue;
+        if (!a || d->est[j][k] == V_ROUBADO || a == AD_HOLOGRAFICO || a == AD_PURPURINA) continue;
         if (a == AD_SUJEIRA) { ad_age(d, j, k, k, a, gera, false); continue; }   // o barro do oponente: nao e adesivo seu
         if (ad_do_pouso(a)) { agiram++; continue; }
         if (a == AD_BILHETE) {                   // o Bilhete age no fim de tudo (bilhete_de)
             if (d->est[j][k] == V_VALIDO) { d->bilhete[j] |= (uint8_t)(1 << k); agiram++; }
             continue;
         }
-        if (ad_age(d, j, k, k, a, gera, false)) { agiram++; fonte[n_fonte] = k; qual[n_fonte++] = a; }
+        if (ad_age(d, j, k, k, a, gera, false)) {
+            if (a != AD_RATOEIRA || !(d->rato_bits[j] >> k & 1)) agiram++;   // a que desarmou ja contou
+            fonte[n_fonte] = k; qual[n_fonte++] = a;
+        }
     }
     // O Patinho Feio dos outros lados do dado: caiu em outro lado, +2.
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {

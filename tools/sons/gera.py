@@ -1142,6 +1142,31 @@ def ad_sujeira():
     m.poe(0.42, zum, 0.07)
     return sala(m.x, 0.12)
 
+def ad_chiclete():
+    """O Chiclete: o sopro enchendo a bola (o tom de borracha subindo, com o
+    tremido da goma), o PLOC dela estourando, e a goma esticando e grudando
+    na mesa (o "nhec" pegajoso e um rangido curtinho)."""
+    m = Mix(1.2)
+    n = int(0.72 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 170 * 2 ** (q * 1.6) * (1 + 0.035 * np.sin(2 * np.pi * (7 + 5 * q) * t))   # a borracha esticando
+    fase = 2 * np.pi * np.cumsum(f) / SR
+    borracha = (np.sin(fase) + 0.35 * np.sin(2 * fase) + 0.15 * np.sin(3 * fase)) * q ** 1.4
+    m.poe(0.0, pb(borracha, 1800) * env(n, 0.05, 0.6), 0.5)
+    sopro = banda(rng.standard_normal(n), 500, 3200) * (0.3 + 0.7 * q) * env(n, 0.08, 0.5)
+    m.poe(0.0, sopro, 0.10)
+    t0 = 0.74                                                           # PLOC
+    n = int(0.06 * SR)
+    m.poe(t0, pa(rng.standard_normal(n), 900) * env(n, 0.0005, 0.012), 0.9)
+    m.poe(t0, gota(520, 120, 0.09, 0.001), 0.8)
+    m.poe(t0 + 0.005, pb(superficie('surface_felt5'), 2200), 0.35)
+    n = int(0.24 * SR); t = np.arange(n) / SR                          # a goma: o nhec pegajoso, tremendo
+    nhec = pb(rng.standard_normal(n), 1400, 2) * (0.5 + 0.5 * np.sin(2 * np.pi * 38 * t)) * env(n, 0.01, 0.1)
+    m.poe(t0 + 0.07, nhec, 0.5)
+    n = int(0.07 * SR); t = np.arange(n) / SR                          # e o rangido curtinho da goma esticada
+    f = 900 + 700 * t / t[-1]
+    m.poe(t0 + 0.2, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.004, 0.03), 0.08)
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1948,7 +1973,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_nota_dez': VOLUME['efeito'], 'ad_carbono': VOLUME['efeito'] * 0.8,
                'ad_bomba': VOLUME['anula'], 'ad_impermeavel': VOLUME['efeito'] * 0.85,
                'ad_lenticular': VOLUME['efeito'] * 0.9, 'ad_neon': VOLUME['efeito'] * 0.9,
-               'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95})
+               'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95,
+               'ad_chiclete': VOLUME['efeito']})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -1992,7 +2018,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao'):

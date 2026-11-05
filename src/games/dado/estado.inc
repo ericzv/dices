@@ -9,7 +9,9 @@
 // (peca13_t), abre convertida (des_carrega). A capa: o Impermeavel ja agiu
 // nesta partida (no bit de cima do Fermento, que nunca passa de 20).
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento : 7, capa : 1; uint8_t selo : 1, velcro : 1, figurinha : 6; } peca_t;
+// chiclete: o dado grudou (o Chiclete) e abre a proxima sequencia (o bit era o de cima das
+// figurinhas, sempre 0 na run salva: elas so valem dentro da partida).
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento : 7, capa : 1; uint8_t selo : 1, velcro : 1, figurinha : 5, chiclete : 1; } peca_t;
 typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca13_t;
 _Static_assert(sizeof(peca_t) == 4 + AD_LADOS && sizeof(peca13_t) == 13, "a peca vai assim para a run salva");
 
@@ -48,6 +50,7 @@ typedef struct {
     uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
+    bool    grudado;                 // o primeiro veio grudado pelo Chiclete: ja na mesa, sem rolar
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    bomba[N_FILA];           // o Papel Bomba explodiu: o numero e a soma de dois lances
     int8_t  bomba1[N_FILA];          // e o primeiro deles
@@ -366,6 +369,7 @@ static int velocidade = VEL_MEDIA;
 static bool rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
 static float t_aviso_universo;           // > 0: o aviso de que o Universo so vai sozinho
+static float t_aviso_grudado;            // > 0: o aviso de que o dado do Chiclete nao sai da sequencia
 static bool cosmo_recem[2][MAX_COL];     // o ciclo cosmico que evoluiu na rodada passada: chega na mao com o nome novo
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).

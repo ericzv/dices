@@ -35,6 +35,7 @@ void dado_passo(float dt)
     if (fase == F_EFEITOS) dt *= ritmo_efeitos(vel);   // a cadeia do fim da rodada acelera
     if (t_aviso_vel > 0) t_aviso_vel -= dt_real;
     if (t_aviso_universo > 0) t_aviso_universo -= dt_real;
+    if (t_aviso_grudado > 0) t_aviso_grudado -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_letra > 0) t_aviso_letra -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;

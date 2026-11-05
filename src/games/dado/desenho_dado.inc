@@ -2433,6 +2433,22 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (q == 1 && (h & 1)) return RGB(156, 106, 64);
         return fundo;
     }
+    case AD_CHICLETE: {                           // a goma rosa: uma bola enchendo e estourando, e os fios grudados
+        float ciclo = fr(t / 2.4f + fase), rb = ciclo < 0.8f ? 0.18f * r + ciclo / 0.8f * 0.32f * r : 0;
+        float bx = 0.12f * r, by = -0.1f * r, db = sqrtf((X - bx) * (X - bx) + (Y - by) * (Y - by));
+        if (rb > 0 && db < rb) {                  // a bola: rosa clara, com o brilho em cima a esquerda
+            float lx = X - (bx - rb * 0.4f), ly = Y - (by - rb * 0.4f);
+            if (lx * lx + ly * ly < rb * rb * 0.08f) return C_BRANCO;
+            return db > rb - 1.2f ? C_VINHO_CLR : C_ROSA;
+        }
+        if (ciclo >= 0.8f && ciclo < 0.9f && (h % 3) == 0 && db < 0.5f * r) return C_VINHO_CLR;   // estourou: os pedacos
+        for (int c = 0; c < 3; c++) {             // os fios esticados, de cima a baixo, ondulando
+            float fx = (-0.5f + c * 0.42f) * r + sinf(Y * 0.4f + t * 2 + c * 2) * 1.2f;
+            if (fabsf(X - fx) < 0.6f && (c != 1 || Y > 0.2f * r)) return C_VINHO_CLR;
+        }
+        uint32_t q = hash2((int)floorf(X / 2) + 32, (int)floorf(Y / 2) + 32) % 9;
+        return q == 0 ? C_VINHO_CLR : fundo;
+    }
     default: return fundo;
     }
 }

@@ -1,10 +1,16 @@
 // Balanco do Modo Desafiante: a IA joga pela pessoa, runs inteiras ou uma
 // mesa so, e mede o quanto cada coisa e dificil. Nao e teste de passar ou
-// falhar (fica fora do ctest): imprime numeros para comparar versoes.
+// falhar (fica fora do ctest): imprime numeros para comparar versoes. Tudo
+// vem do codigo do jogo (as bolsas, a IA, os trunfos e as viradas dos
+// oponentes, a loja, as regras): os numeros acompanham o jogo como ele esta.
+//
+// A run: 3 saloes de 3 mesas (o oponente facil, o dificil e o chefe - o
+// Crupie, a Dona, o Barao) e, do Nivel 5 (CORINGA_DESDE), o salao do Coringa.
 //
 //   balanco curva <runs> <nivel> [ia] [aposta] [compra] [recomecos] [imortal] [semente]
 //       chance de vencer cada mesa para quem chegou nela (MESA), onde as runs
-//       param (PAROU) e cada oponente por salao e mesa (PERSO salao mesa perso jogos vitorias).
+//       param (PAROU: uma coluna por mesa, a ultima = venceu a run) e cada
+//       oponente por salao e mesa (PERSO salao mesa jogos vitorias nome).
 //       aposta: 0 a IA do jogo, 1 nunca aposta e sempre paga, 2 sempre 25 e
 //         sempre dobra, 3 a IA mas nunca corre, 4 nunca aposta e corre de
 //         tudo, 5 blefa 25 sempre que abre.
@@ -12,20 +18,31 @@
 //         melhor, 2 nada.
 //       recomecos: perdeu a partida, tenta sair com ESC ESC (ate n vezes por
 //         mesa): sair no meio conta como derrota, entao nao salva nada.
-//       imortal: perder nao acaba a run (mede todas as mesas por igual).
+//       imortal: perder nao acaba a run (mede todas as mesas por igual; a
+//         derrota paga como vitoria) e a linha RUN da a chance de vencer a
+//         run inteira pelo produto das mesas.
+//   balanco inimigos [nivel] [amostras]
+//       a progressao dos oponentes: em cada mesa da run, a IA (0 a simples, 1
+//       a atenta, 2 a afiada; 0.3: a simples, pensando como a atenta em 30%
+//       das decisoes), o trunfo, a virada da 5a rodada (chefes), o
+//       amuleto a mais da Cobertura e a bolsa media (dados, especiais por
+//       raridade, o valor dos 4 melhores de uma mao). Sem o nivel, do Normal
+//       ao 10. ("bolsas" e o mesmo.)
 //   balanco dados <partidas> <nivel> <salao> <mesa> <copias> [primeiro] [ultimo]
 //       a bolsa do comeco com copias de cada dado, numa mesa so (salao 1 a 3,
-//       4 o do Coringa; mesa 1 a 4, a 4 e o chefe). primeiro/ultimo: os
-//       tipos de dado (D_*) de um pedaco, para rodar em paralelo.
+//       4 o do Coringa, do Nivel 5; mesa 1 o facil, 2 o dificil, 3 o chefe).
+//       primeiro/ultimo: os tipos de dado (D_*) de um pedaco, para rodar em
+//       paralelo. Os oponentes so trazem o que o nivel ja abriu, como no jogo.
 //   balanco amuletos <partidas> <nivel> <salao> <mesa> [primeiro] [ultimo]
 //       um amuleto so, com a bolsa do comeco e dados da vitrine.
-//   balanco bolsas <nivel>
-//       a bolsa media dos oponentes de cada mesa.
 //   balanco recomeca
 //       mostra que sair no meio conta como derrota (antes recomecava a mesa).
 //
 // ESFORCO=0 no ambiente faz a IA pensar pouco (bem mais rapido); o jogo usa 1.
-// ADESIVOS=0: o robo nao compra adesivos (para comparar).
+// ADESIVOS=0: o robo nao compra adesivos (para comparar). BOLSA=b: a bolsa da
+// run (B_*; o Saco de Pano se nao der). NATAL=2: como em dezembro (o Papai
+// Noel no lugar do Barao, os oponentes de Natal); sem ele, fora de dezembro,
+// qualquer que seja a data.
 #include <stdio.h>
 #include <stdlib.h>
 #include "../src/games/dado.c"
@@ -189,8 +206,8 @@ static void loja_passo_robo(int *compras)
         const peca_t *pc = &run.col[lj_cola_dado];
         int t = pc->tipo, a = cola_ad(), c = -1;
         bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
-        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
-            if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
+        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)  // (o Quebrado: so o lado gravado)
+            if (!ad_no_lado(pc, l) && ad_lado_serve(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
         cursor = c - ad_lado_min(t);
         trata_tecla(KEY_ENTER);
         return;
@@ -239,7 +256,21 @@ static void loja_passo_robo(int *compras)
 }
 
 // ---- Runs inteiras ----
-#define N_MESAS (DES_ANDARES * DES_PASSOS + 1)   // + a do Coringa
+// As mesas da run, em ordem: as tres de cada salao (o facil, o dificil e o
+// chefe) e, por ultimo, a do Coringa.
+#define N_MESAS (DES_ANDARES * DES_MESAS + 1)
+static int mesa_idx(int andar, int passo) { return andar >= DES_ANDARES ? N_MESAS - 1 : andar * DES_MESAS + passo; }
+static const char *nome_mesa(int i)
+{
+    static const char *const CHEFE[DES_ANDARES] = { "Crupie", "Dona", "Barao" };   // (em dezembro, o Noel no lugar do Barao)
+    static char s[N_MESAS][24];
+    if (i < 0 || i >= N_MESAS) return "?";
+    if (i == N_MESAS - 1) return "S4 chefe (Coringa)";
+    int a = i / DES_MESAS, p = i % DES_MESAS;
+    if (p == DES_MESAS - 1) snprintf(s[i], sizeof s[i], "S%d chefe (%s)", a + 1, CHEFE[a]);
+    else snprintf(s[i], sizeof s[i], "S%d %s", a + 1, p == 0 ? "facil" : "dificil");
+    return s[i];
+}
 static int chegou[N_MESAS], venceu[N_MESAS], parou[N_MESAS + 1];
 static long margem[N_MESAS], bolsa[N_MESAS];
 static int pj[DES_ANDARES + 1][4][N_PERSO], pv[DES_ANDARES + 1][4][N_PERSO];
@@ -271,7 +302,7 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
             case F_MAPA:
                 trata_tecla(KEY_ENTER);
                 if (fase == F_ORDEM || fase == F_JOGA) {
-                    mesa = run.andar >= DES_ANDARES ? N_MESAS - 1 : run.andar * DES_PASSOS + run.passo;
+                    mesa = mesa_idx(run.andar, run.passo);
                     chegou[mesa]++;
                     bolsa[mesa] += run.n_col;
                     recomecou = 0;
@@ -308,17 +339,22 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
     printf("RUNS %d nivel %d: vencidas %d (%.1f%%)  compras %.1f tirados %.1f dados_fim %.1f recomecos %d salvas %d\n",
            runs, nivel, vencidas, 100.0 * vencidas / runs, (double)compras / runs, (double)tirados / runs,
            (double)dados_fim / runs, total_recomecos, salvas);
-    printf("MESA n chegou venceu %% margem bolsa\n");
+    printf("MESA n chegou venceu %% margem bolsa  mesa\n");
+    double run_toda = 1;
     for (int i = 0; i < N_MESAS; i++)
-        if (chegou[i]) printf("MESA %2d %6d %6d %5.1f %6.1f %5.1f\n", i, chegou[i], venceu[i], 100.0 * venceu[i] / chegou[i],
-                              (double)margem[i] / chegou[i], (double)bolsa[i] / chegou[i]);
+        if (chegou[i]) {
+            printf("MESA %2d %6d %6d %5.1f %6.1f %5.1f  %s\n", i, chegou[i], venceu[i], 100.0 * venceu[i] / chegou[i],
+                   (double)margem[i] / chegou[i], (double)bolsa[i] / chegou[i], nome_mesa(i));
+            run_toda *= (double)venceu[i] / chegou[i];
+        }
+    if (imortal) printf("RUN vencida, pelo produto das mesas: %.1f%%\n", 100.0 * run_toda);
     printf("PAROU");
     for (int i = 0; i <= N_MESAS; i++) printf(" %d", parou[i]);
     putchar('\n');
     for (int a = 0; a <= DES_ANDARES; a++)
         for (int t = 0; t < 4; t++)
             for (int p = 0; p < N_PERSO; p++)
-                if (pj[a][t][p]) printf("PERSO %d %d %d %d %d\n", a, t, p, pj[a][t][p], pv[a][t][p]);
+                if (pj[a][t][p]) printf("PERSO %d %d %d %d %s\n", a, t, pj[a][t][p], pv[a][t][p], PERSO[p].nome);
 }
 
 // ---- Uma mesa so ----
@@ -331,6 +367,7 @@ static bool duelo(const peca_t *b, int nb, uint32_t am, int nivel, int salao, in
     run.semente = rnd_t() | 1;
     run.dificuldade = (uint8_t)nivel;
     run.andar = (uint8_t)salao;
+    run.bolsa = (uint8_t)(des_bolsa >= 0 && des_bolsa < B_N ? des_bolsa : B_PANO);   // a regra da bolsa vale na mesa
     if (salao >= DES_ANDARES) gera_salao_final();
     else { gera_andar(); run.passo = (uint8_t)mesa; }
     run.n_col = (uint8_t)nb;
@@ -345,17 +382,24 @@ static bool duelo(const peca_t *b, int nb, uint32_t am, int nivel, int salao, in
     return venc_partida == 0;
 }
 
+// Os dados de saida da bolsa da run (BOLSA=b; o Saco de Pano se nao der),
+// como bolsa_monta_run: os Quebrados com o numero gravado, o Adesivado da
+// Lata ja com os adesivos.
 static int bolsa_inicio(peca_t *b)
 {
-    for (int i = 0; i < bolsa_n_dados(B_PANO); i++) b[i] = (peca_t){ .tipo = BOLSA[B_PANO].dados[i], .fixo = 0 };
-    return bolsa_n_dados(B_PANO);
+    int q = des_bolsa >= 0 && des_bolsa < B_N ? des_bolsa : B_PANO;
+    for (int i = 0; i < bolsa_n_dados(q); i++) {
+        b[i] = (peca_t){ .tipo = BOLSA[q].dados[i], .fixo = bolsa_fixo(q, i) };
+        if (b[i].tipo == D_ADESIVADO) adesiva(&b[i], rola_r, true);
+    }
+    return bolsa_n_dados(q);
 }
 
 // Cada dado com as mesmas sementes: a diferenca e so o dado. A primeira
 // linha (+D6) e a bolsa do comeco com D6 a mais.
 static void dados(int n, int nivel, int salao, int mesa, int copias, int t0, int t1)
 {
-    perfil_teste(nivel, true);
+    perfil_teste(nivel, false);                  // os oponentes so com o que o nivel abriu (o dado medido entra direto)
     for (int t = t0; t < t1 && t < D_N; t++) {
         if (t >= 0 && (so_inicial(t) || sem_sorteio(t) || t == D_QUEBRADO)) continue;
         int tt = t < 0 ? D_D6 : t;
@@ -376,7 +420,7 @@ static void dados(int n, int nivel, int salao, int mesa, int copias, int t0, int
 // (os mesmos para todos). A primeira linha e sem amuleto.
 static void amuletos(int n, int nivel, int salao, int mesa, int a0, int a1)
 {
-    perfil_teste(nivel, true);
+    perfil_teste(nivel, false);                  // como no jogo: oponentes e vitrine com o que o nivel abriu
     for (int a = a0; a < a1 && a < A_N; a++) {
         if (a >= 0 && !amuleto_no_jogo(a)) continue;
         est = 4243;
@@ -425,28 +469,52 @@ static float melhores4(const peca_t *col, int n)
     return s / 200;
 }
 
-static void bolsas(int nivel)
+// ---- A progressao dos oponentes ----
+// Num nivel, mesa a mesa da run, como o jogo monta (gera_andar,
+// monta_oponente, nivel_mesa, trunfo_ativo, virada_de): a IA (0 a simples,
+// 1 a media, 2 a forte); o trunfo (os comuns sao sorteados por run: em
+// quantas amostras o dele ja vale); a virada da 5a rodada dos chefes (0
+// nenhuma, 1, 2 a forte; a do Coringa: o seu dado anulado some); o amuleto
+// a mais da Cobertura; e a bolsa media - quantos dados, os especiais por
+// raridade e o valor dos 4 melhores de uma mao (a media da IA por dado).
+static void inimigos(int nivel, int amostras)
 {
     perfil_teste(nivel, false);
     peca_t b[MAX_COL];
     int nb = bolsa_inicio(b);
-    printf("jogador no comeco: %d dados, 4 melhores %.1f\n", nb, melhores4(b, nb));
-    for (int a = 0; a <= (nivel >= N_NIVEIS ? DES_ANDARES : DES_ANDARES - 1); a++)
-        for (int t = 0; t < (a == DES_ANDARES ? 1 : DES_PASSOS); t++) {
-            float sn = 0, se = 0, sm = 0;
-            for (int i = 0; i < 300; i++) {
+    printf("NIVEL %d (%s): %d moedas no comeco; a sua bolsa: %d dados, 4 melhores %.1f\n", nivel, NOME_DIF[nivel],
+           moedas_iniciais(nivel), nb, melhores4(b, nb));
+    printf("INIM %-18s %4s %6s %6s %7s %6s %9s  %-22s %6s\n", "mesa", "IA", "trunfo", "virada", "amuleto", "dados",
+           "especiais", "(com inc rar len)", "4melh");
+    int saloes = nivel >= CORINGA_DESDE ? DES_ANDARES + 1 : DES_ANDARES;
+    for (int a = 0; a < saloes; a++)
+        for (int t = 0; t < (a == DES_ANDARES ? 1 : DES_MESAS); t++) {
+            double sn = 0, sm = 0, ia = 0, tr = 0, vi = 0, am = 0, rar[4] = { 0 };
+            for (int i = 0; i < amostras; i++) {
                 memset(&run, 0, sizeof run);
                 run.semente = rnd_t() | 1;
                 run.dificuldade = (uint8_t)nivel;
                 run.andar = (uint8_t)a;
                 if (a == DES_ANDARES) gera_salao_final(); else gera_andar();
+                const no_t *no = &run.no[t];
                 peca_t col[MAX_COL];
-                int n = monta_oponente(&run.no[t], a, col);
-                for (int k = 0; k < n; k++) se += !so_numero(col[k].tipo);
+                int n = monta_oponente(no, a, col);
+                for (int k = 0; k < n; k++) {
+                    int r = TIPO[col[k].tipo].raridade;
+                    if (!so_numero(col[k].tipo) && r >= 0 && r < 4) rar[r]++;
+                }
                 sn += n;
                 sm += melhores4(col, n);
+                ia += nivel_mesa(no) + pensa_mesa(no) / 100.0;   // 0.3: simples, 30% das decisoes como a atenta
+                tr += trunfo_ativo(no->perso);
+                vi += no->perso == PERSO_CORINGA ? nivel >= CORINGA_SOME : virada_de(no->perso);
+                am += nivel >= N_NIVEIS && chefe_idx(no->perso) != 2;   // na Cobertura, todos menos o Barao
             }
-            printf("BOLSA salao %d mesa %d: %.1f dados, %.1f especiais, 4 melhores %.1f\n", a + 1, t + 1, sn / 300, se / 300, sm / 300);
+            double q = amostras, esp = rar[0] + rar[1] + rar[2] + rar[3];
+            char r4[40];
+            snprintf(r4, sizeof r4, "(%.1f %.1f %.1f %.1f)", rar[0] / q, rar[1] / q, rar[2] / q, rar[3] / q);
+            printf("INIM %-18s %4.1f %5.0f%% %6.1f %6.0f%% %6.1f %9.1f  %-22s %6.1f\n", nome_mesa(mesa_idx(a, t)), ia / q,
+                   100 * tr / q, vi / q, 100 * am / q, sn / q, esp / q, r4, sm / q);
         }
 }
 
@@ -469,28 +537,46 @@ static void recomeca(void)
            des_tem_run() ? "sim" : "nao");
 }
 
+// A mesa pedida existe? Salao 0 a 2 com as mesas 0 a 2 (2: o chefe); o 3 e o
+// do Coringa, so do Nivel 5, com uma mesa so.
+static bool mesa_existe(int nivel, int salao, int *mesa)
+{
+    if (nivel < 0 || nivel > N_NIVEIS || salao < 0 || salao > DES_ANDARES) return false;
+    if (salao == DES_ANDARES) { *mesa = 0; return nivel >= CORINGA_DESDE; }
+    return *mesa >= 0 && *mesa < DES_MESAS;
+}
+
 int main(int argc, char **argv)
 {
     #define ARG(i, d) (argc > (i) ? atoi(argv[i]) : (d))
     ia_esforco = getenv("ESFORCO") ? atoi(getenv("ESFORCO")) : 1;
     adesivos_robo = getenv("ADESIVOS") ? atoi(getenv("ADESIVOS")) : 1;
+    natal_forcado = getenv("NATAL") ? atoi(getenv("NATAL")) : 0;   // fora de dezembro, qualquer que seja a data
     const char *m = argc > 1 ? argv[1] : "";
     if (!strcmp(m, "curva")) {
+        int nivel = ARG(3, 0);
+        if (nivel < 0 || nivel > N_NIVEIS) { printf("nivel 0 (Normal) a %d\n", N_NIVEIS); return 1; }
         ia_jog = ARG(4, 2);
         jeito_aposta = ARG(5, 0);
         jeito_compra = ARG(6, 0);
         recomecos = ARG(7, 0);
-        curva(ARG(2, 100), ARG(3, 0), ARG(8, 0), (uint32_t)ARG(9, 1) * 2654435761u | 1);
-    } else if (!strcmp(m, "dados")) {
-        dados(ARG(2, 100), ARG(3, 4), ARG(4, 2) - 1, ARG(5, 2) - 1, ARG(6, 2), ARG(7, -1), ARG(8, D_N));
-    } else if (!strcmp(m, "amuletos")) {
-        amuletos(ARG(2, 100), ARG(3, 4), ARG(4, 2) - 1, ARG(5, 2) - 1, ARG(6, -1), ARG(7, A_N));
-    } else if (!strcmp(m, "bolsas")) {
-        bolsas(ARG(2, 0));
+        curva(ARG(2, 100), nivel, ARG(8, 0), (uint32_t)ARG(9, 1) * 2654435761u | 1);
+    } else if (!strcmp(m, "dados") || !strcmp(m, "amuletos")) {
+        int nivel = ARG(3, 4), salao = ARG(4, 2) - 1, mesa = ARG(5, 2) - 1;
+        if (!mesa_existe(nivel, salao, &mesa)) {
+            printf("salao 1 a 3 (4: o do Coringa, do Nivel %d) e mesa 1 a %d (%d: o chefe)\n", CORINGA_DESDE, DES_MESAS, DES_MESAS);
+            return 1;
+        }
+        if (m[0] == 'd') dados(ARG(2, 100), nivel, salao, mesa, ARG(6, 2), ARG(7, -1), ARG(8, D_N));
+        else amuletos(ARG(2, 100), nivel, salao, mesa, ARG(6, -1), ARG(7, A_N));
+    } else if (!strcmp(m, "inimigos") || !strcmp(m, "bolsas")) {
+        int nivel = ARG(2, -1), amostras = ARG(3, 200);
+        if (nivel > N_NIVEIS) { printf("nivel 0 (Normal) a %d\n", N_NIVEIS); return 1; }
+        for (int n = nivel < 0 ? 0 : nivel; n <= (nivel < 0 ? N_NIVEIS : nivel); n++) inimigos(n, amostras);
     } else if (!strcmp(m, "recomeca")) {
         recomeca();
     } else {
-        printf("uso: balanco curva|dados|amuletos|bolsas|recomeca ... (veja o comeco de tests/balanco.c)\n");
+        printf("uso: balanco curva|inimigos|dados|amuletos|recomeca ... (veja o comeco de tests/balanco.c)\n");
         return 1;
     }
     return 0;

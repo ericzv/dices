@@ -1274,7 +1274,11 @@ static void desenha_fila(int j)
             if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.6f) { forte = 1 - t_fase / 0.6f; onda = t_fase / 0.6f; }
             capa_aura(x, (int)(y - pulo), R, cresce, forte, onda);
         }
-        if (k == 0 && f->grudado && giro < 0.5f) chiclete_goma(x, (int)(y - pulo), R, 1);   // grudado pelo Chiclete
+        // Grudado pelo Chiclete: o que abriu a sequencia, e o que grudou nesta
+        // rodada para abrir a proxima (depois que a bola estoura: desenha_pouso).
+        bool goma_pousando = n_pouso && pouso_q[0].ad == AD_CHICLETE && pouso_q[0].j == j && pouso_q[0].k == k;
+        if (((k == 0 && f->grudado) || (f->chiclete == k + 1 && !goma_pousando)) && giro < 0.5f)
+            chiclete_goma(x, (int)(y - pulo), R, 1);
         face_capa = false;
         sem_risca = false;
         face_curinga = false;

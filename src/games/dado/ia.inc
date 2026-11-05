@@ -298,6 +298,13 @@ static int ia_esforco = 1;                   // o simulador pede menos para anda
 // imagina jogadas, mas pensando pouco: erra de vez em quando), 2 dificil.
 static int ia_nivel = 2;
 static int nivel_jog[2] = { 2, 2 };          // o nivel de cada lado (so conta onde ha IA; declarado em estado.inc)
+// No Desafiante, o oponente do comeco da run pensa um nivel acima numa parte
+// das decisoes (pensa_mesa): pensa_jog, de 0 a 99 (%). O sorteio de cada
+// decisao sai de um contador da partida e da mesa, sem gastar o sorteio do
+// jogo (os lances ficam os mesmos).
+static int pensa_jog[2];
+static uint32_t ia_conta;                    // as decisoes da partida
+static bool ia_sobe;                         // esta decisao, um nivel acima
 static float ousadia_jog[2];
 // Ousadia nas apostas, de -1 (cautela) a +1 (aposta alto): o jeito de cada
 // oponente do Modo Desafiante. 0 na partida rapida.
@@ -715,7 +722,13 @@ static void ia_passo(float dt)
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
         ia_fase = fase; ia_vez = vez;
         t_ia = fase == F_ORDEM && !anuncia_maquina() ? -0.4f : 0;
+        int p = modo == M_DESAFIO ? pensa_jog[vez & 1] : 0;
+        uint32_t h = ++ia_conta * 2654435761u ^ (uint32_t)rodada * 40503u ^ (uint32_t)fase * 9973u
+                   ^ (uint32_t)(F[vez].lancados * 16 + F[vez].n) * 131u ^ (uint32_t)J[vez].fichas * 7919u;
+        h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+        ia_sobe = p > 0 && (int)(h % 100u) < p;
     }
+    if (ia_sobe && ia_nivel < 2) ia_nivel++;
     t_ia += dt;
     // Contra uma pessoa, a loja e o premio da maquina nao tem tela: ela
     // decide na hora, e o anuncio mostra o que levou.

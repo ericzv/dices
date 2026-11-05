@@ -216,7 +216,10 @@ int main(int argc, char **argv)
     }
 
     int jog[DES_ANDARES + 1][4] = { { 0 } }, ven[DES_ANDARES + 1][4] = { { 0 } };   // + o salao do Coringa
-    int vitorias = 0, chegou[DES_ANDARES * DES_PASSOS + 1] = { 0 }, partidas = 0, ganhas = 0;
+    // Onde a run parou: as tres mesas de cada salao (facil, dificil, chefe), o
+    // Coringa e, por ultimo, venceu a run.
+    enum { PAROU_CORINGA = DES_ANDARES * DES_MESAS, PAROU_VENCEU, PAROU_N };
+    int vitorias = 0, chegou[PAROU_N] = { 0 }, partidas = 0, ganhas = 0;
     long soma_dados = 0, soma_moedas = 0, soma_compras = 0, amuletos_tidos = 0, soma_tiradas = 0, soma_trocas = 0, soma_pacotes = 0, soma_adesivos = 0;
     for (int r = 0; r < runs && !falhas; r++) {
         relogio = 7919LL * (r + 1) * 1000003LL;
@@ -405,9 +408,9 @@ int main(int argc, char **argv)
             CONFERE(perfis[0].venceu[dific] == 1 && perfis[0].nivel == (dific < N_NIVEIS ? dific + 1 : dific),
                     "vitoria nao abriu a dificuldade seguinte");
         }
-        int ate = des_venceu_run ? DES_ANDARES * DES_PASSOS
-                : run.andar >= DES_ANDARES ? DES_ANDARES * DES_PASSOS - 1     // parou no Coringa
-                : run.andar * DES_PASSOS + run.passo;
+        int ate = des_venceu_run ? PAROU_VENCEU
+                : run.andar >= DES_ANDARES ? PAROU_CORINGA
+                : run.andar * DES_MESAS + run.passo;
         chegou[ate]++;
         soma_dados += run.n_col;
         soma_moedas += run.moedas;
@@ -427,12 +430,13 @@ int main(int argc, char **argv)
     for (int a = 0; a <= DES_ANDARES; a++) {
         if (a == DES_ANDARES && !jog[a][3]) break;
         printf("salao %d:", a + 1);
-        for (int t = 0; t < 4; t++) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);
+        for (int t = 0; t < 4; t++)
+            if (t != NO_MEDIO) printf("  %s %d/%d", NOME_NO[t], ven[a][t], jog[a][t]);   // a media nao existe mais
         putchar('\n');
     }
     printf("amuletos por run: %.1f\n", (double)amuletos_tidos / runs);
-    printf("onde parou (mesa 1..%d, %d = venceu):", DES_ANDARES * DES_PASSOS, DES_ANDARES * DES_PASSOS);
-    for (int i = 0; i <= DES_ANDARES * DES_PASSOS; i++) printf(" %d", chegou[i]);
+    printf("onde parou (mesa 1..%d, %d = o Coringa, %d = venceu):", PAROU_CORINGA, PAROU_CORINGA + 1, PAROU_VENCEU + 1);
+    for (int i = 0; i < PAROU_N; i++) printf(" %d", chegou[i]);
     putchar('\n');
     return 0;
 }

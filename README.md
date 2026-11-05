@@ -95,7 +95,20 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
-  bolsa cresce a cada mesa e a cada salão. São 21 oponentes, cada um com seu
+  bolsa cresce a cada mesa e a cada salão. A cada nível, o primeiro salão sobe
+  bem aos poucos: alguns D4 e D6 viram incomuns de 4 e 6 lados (o Viciado, o
+  Teimoso, o Par, o Trevo... e, mais acima, o Jackpot, o Copiador, a Fartura,
+  o Dobro e o Hexa; nenhum de ataque) - no Crupiê desde o nível 1, no difícil
+  desde o 2 e no fácil desde o 4, e o segundo 4 níveis depois (no máximo 2 por
+  mesa). A cabeça dos oponentes do começo da run também sobe aos poucos: eles
+  pensam como a IA atenta numa parte das jogadas, 3% a mais a cada nível - o
+  Crupiê desde o nível 1, os difíceis do primeiro e do segundo salão desde o
+  2, o fácil do segundo desde o 3 e o do primeiro desde o 4 (no nível 10, o
+  Crupiê pensa como a atenta em 30% das jogadas). No mapa, a mesa mostra a IA
+  dela: simples, atenta ou afiada. A Dona é atenta e fica afiada no 9, os do
+  terceiro salão são atentos (o difícil, afiado do 5) e o Barão é afiado (o
+  Coringa, do 7). São 21
+  oponentes, cada um com seu
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
   chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o
@@ -139,10 +152,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
   dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
-  rodada seguinte), ao Chiclete (funciona em ciclos: válido ou anulado, o
-  dado gruda; na rodada seguinte ele já abre a sua sequência com o mesmo
-  número, sem rolar, e desgruda - depois volta a rolar normal e pode grudar
-  de novo; um por rodada), à Ratoeira (anulado, até pela sequência, o queijo
+  rodada seguinte), ao Chiclete (funciona em ciclos: assim que cai, válido
+  ou anulado, o dado gruda - mesmo se alguém correr depois; na rodada
+  seguinte ele já abre a sua sequência com o mesmo número, sem rolar, e
+  desgruda - depois volta a rolar normal e pode grudar de novo; um por
+  rodada), à Ratoeira (anulado, até pela sequência, o queijo
   fica: +2; e se foi o oponente que o anulou com um poder, o maior dele
   também cai), ao
   Holográfico (repete os adesivos que agiram nos seus dados), ao Fermento

@@ -4479,29 +4479,54 @@ int main(void)
             J[0] = g0; J[1] = g1;
         }
 
-        // ---- O Chiclete: o dado gruda e abre a proxima sequencia ----------------
+        // ---- O Chiclete: no pouso, o dado gruda e abre a proxima sequencia ------
         {
-            jogador_t g0 = J[0];
+            jogador_t g0 = J[0], g1 = J[1];
+            pouso_ad_t o[2];
             J[0].n_col = 4;
             for (int i = 0; i < 4; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6 }; J[0].onde[i] = NA_BOLSA; }
             ad_cola(&J[0].col[1], 3, AD_CHICLETE);
             ad_cola(&J[0].col[2], 5, AD_CHICLETE);
             limpa();
-            joga_ad(0, 1, 3); joga_ad(0, 2, 5);          // dois Chicletes: so o primeiro gruda
+            joga_ad(0, 1, 3);
+            int pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && o[0].ad == AD_CHICLETE && o[0].i == 1 && F[0].chiclete == 1 && J[0].col[1].chiclete
+                    && chic_valor[0] == 3 && chic_lado[0] == 3, "Chiclete: gruda assim que cai, com o 3 (%d)", pegou);
+            joga_ad(0, 2, 5);                            // dois Chicletes: so o primeiro gruda
+            pegou = adesivos_no_pouso(0, 1, o, 2);
+            CONFERE(pegou == 0 && F[0].chiclete == 1 && !J[0].col[2].chiclete && chic_valor[0] == 3,
+                    "Chiclete: so o primeiro gruda (%d)", pegou);
+            // A Purpurina conta o que grudou; o segundo, que nao grudou, nao.
+            ad_cola(&J[0].col[3], 6, AD_PURPURINA);
+            joga_ad(0, 3, 6);
             d = fim();
-            CONFERE(d.chiclete[0] == 1, "Chiclete: so o primeiro gruda (%d)", d.chiclete[0]);
+            CONFERE(d.semente[0] == PURPURINA_CADA * 2, "Chiclete: a Purpurina conta o que grudou, e so ele (%d)", d.semente[0]);
+            J[0].col[3] = (peca_t){ .tipo = D_D6 };
+            J[0].col[1].chiclete = 0;
             limpa();
-            joga(0, D_D6, 6); joga_ad(0, 1, 3);          // anulado tambem gruda
-            d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && d.chiclete[0] == 2, "Chiclete anulado: gruda tambem (%d)", d.chiclete[0]);
-            limpa();
-            joga_ad(0, 1, 3); joga(1, D_D4, 2);
-            d = fim();
-            adesivos_ficam(0, &d);
-            CONFERE(J[0].col[1].chiclete && !J[0].col[2].chiclete && chic_valor[0] == 3 && chic_lado[0] == 3,
-                    "Chiclete: o dado grudou com o 3");
+            joga(0, D_D6, 6); joga_ad(0, 1, 3);          // anulado pela sequencia: gruda tambem
+            pegou = adesivos_no_pouso(0, 1, o, 2);
+            CONFERE(F[0].est[1] == V_ANULADO && pegou == 1 && F[0].chiclete == 2 && J[0].col[1].chiclete,
+                    "Chiclete anulado: gruda tambem (%d)", pegou);
+            J[0].col[1].chiclete = 0;
+            // O lance de verdade: gruda no pouso e a mesa mostra; se alguem corre
+            // depois - o oponente ou ele mesmo -, ele fica grudado do mesmo jeito.
+            for (int quem = 1; quem >= 0; quem--) {
+                limpa(); n_pouso = 0;
+                joga_ad(0, 1, 3);
+                adesivos_pousou(0, 0);
+                CONFERE(n_pouso == 1 && pouso_q[0].ad == AD_CHICLETE && pouso_q[0].k == 0 && J[0].col[1].chiclete,
+                        "Chiclete no lance: gruda na hora e a mesa mostra (%d)", n_pouso);
+                int pote0 = pote;
+                pote = 10; vez = quem; fase = F_APOSTA;
+                executa(OP_CORRER);
+                CONFERE(J[0].col[1].chiclete && chic_valor[0] == 3 && chic_lado[0] == 3 && fase == F_RESULTADO,
+                        "Chiclete: %s correu, e ele fica grudado", quem ? "o oponente" : "ele mesmo");
+                pote = pote0; n_pouso = 0;
+                J[0].fichas = g0.fichas; J[1].fichas = g1.fichas;
+            }
             // A rodada seguinte: ele volta para a mao e ja abre a sequencia, pousado
-            // com o 3, sem rolar - e nao sai dela.
+            // com o 3, sem rolar - e nao sai dela, nem gruda de novo.
             descarta_mao(&J[0]);
             CONFERE(J[0].n_mao == 1 && J[0].mao[0] == 1 && J[0].onde[1] == NA_MAO, "Chiclete: volta para a mao");
             limpa();
@@ -4510,13 +4535,14 @@ int main(void)
             CONFERE(F[0].n == 1 && F[0].lancados == 1 && F[0].idx[0] == 1 && F[0].valor[0] == 3 && F[0].lado[0] == 3
                     && F[0].est[0] == V_VALIDO && F[0].grudado && !J[0].col[1].chiclete && semente == s0,
                     "Chiclete: abre a sequencia ja com o 3, sem rolar");
+            CONFERE(n_pouso == 0 && F[0].chiclete == 0, "Chiclete: o grudado chega no lado dele e nao gruda de novo");
             int vez0 = vez; vez = 0;
             poe_na_fila(0);                              // tentar tirar o grudado: nao sai
             vez = vez0;
             CONFERE(F[0].n == 1 && F[0].idx[0] == 1, "Chiclete: o grudado nao sai da sequencia");
             joga_ad(0, 3, 2);                            // menor que o 3: a sequencia derruba os dois
             d = fim();
-            CONFERE(d.chiclete[0] == 0 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO,
+            CONFERE(F[0].chiclete == 0 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO,
                     "Chiclete: grudado, nao gruda de novo; a sequencia derruba os dois");
             // Em ciclos: usado grudado, ele desgruda e sai da mao como os outros;
             // a proxima vez que rolar e cair no Chiclete, gruda de novo (na mesma
@@ -4526,10 +4552,18 @@ int main(void)
             CONFERE(!J[0].col[1].chiclete && J[0].n_mao == 0 && J[0].onde[1] == FORA, "Chiclete: usado grudado, desgruda");
             limpa();
             joga_ad(0, 1, 3);                            // rolou normal e caiu no Chiclete outra vez
-            d = fim();
-            adesivos_ficam(0, &d);
-            CONFERE(d.chiclete[0] == 1 && J[0].col[1].chiclete && chic_valor[0] == 3, "Chiclete: desgrudado, gruda de novo (%d)", d.chiclete[0]);
+            pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && J[0].col[1].chiclete && chic_valor[0] == 3, "Chiclete: desgrudado, gruda de novo (%d)", pegou);
             J[0].col[1].chiclete = 0;
+            // Pela Dupla Face (o Chiclete embaixo) gruda tambem, com o lado de cima.
+            J[0].col[2] = (peca_t){ .tipo = D_D6 };
+            ad_cola(&J[0].col[2], 2, AD_DUPLA); ad_cola(&J[0].col[2], 5, AD_CHICLETE);
+            limpa();
+            joga_ad(0, 2, 2);
+            pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && J[0].col[2].chiclete && chic_valor[0] == 2 && chic_lado[0] == 2,
+                    "Chiclete pela Dupla Face: gruda com o 2 (%d)", pegou);
+            J[0].col[2].chiclete = 0;
             // Comido pela Autofagia, nao volta; e o fim da partida desgruda.
             J[0].col[1].chiclete = 1; J[0].onde[1] = COMIDO;
             descarta_mao(&J[0]);
@@ -4537,7 +4571,7 @@ int main(void)
             J[0].col[2].chiclete = 1;
             zera_acumuladores(J[0].col, J[0].n_col);
             CONFERE(!J[0].col[2].chiclete, "Chiclete: o fim da partida desgruda");
-            J[0] = g0;
+            J[0] = g0; J[1] = g1;
             limpa();
         }
 
@@ -5241,6 +5275,50 @@ int main(void)
                     }
                     CONFERE(fechado < 0 && tipos <= 2, "%s no Normal: %d tipos especiais, fechado %d", PERSO[pp].nome, tipos, fechado);
                 }
+            }
+            // O comeco da run sobe com o nivel, aos poucos: a IA das mesas (0
+            // simples, 1 atenta, 2 afiada) e os incomuns de 4 e 6 lados no 1o
+            // salao. No Normal, como sempre foi.
+            {
+                static const struct { uint8_t nv, andar, tipo, ia, pensa; } IA[] = {
+                    { 0, 0, NO_FACIL, 0, 0 }, { 0, 0, NO_DIFICIL, 0, 0 }, { 0, 0, NO_CHEFE, 0, 0 },
+                    { 1, 0, NO_CHEFE, 0, 3 }, { 5, 0, NO_CHEFE, 0, 15 }, { 10, 0, NO_CHEFE, 0, 30 },
+                    { 1, 0, NO_DIFICIL, 0, 0 }, { 2, 0, NO_DIFICIL, 0, 3 }, { 10, 0, NO_DIFICIL, 0, 27 },
+                    { 3, 0, NO_FACIL, 0, 0 }, { 4, 0, NO_FACIL, 0, 3 }, { 10, 0, NO_FACIL, 0, 21 },
+                    { 0, 1, NO_FACIL, 0, 0 }, { 2, 1, NO_FACIL, 0, 0 }, { 3, 1, NO_FACIL, 0, 3 }, { 10, 1, NO_FACIL, 0, 24 },
+                    { 1, 1, NO_DIFICIL, 0, 0 }, { 2, 1, NO_DIFICIL, 0, 3 }, { 10, 1, NO_DIFICIL, 0, 27 },
+                    { 0, 1, NO_CHEFE, 1, 0 }, { 8, 1, NO_CHEFE, 1, 0 }, { 9, 1, NO_CHEFE, 2, 0 },
+                    { 0, 2, NO_FACIL, 1, 0 }, { 10, 2, NO_FACIL, 1, 0 }, { 4, 2, NO_DIFICIL, 1, 0 }, { 5, 2, NO_DIFICIL, 2, 0 },
+                    { 0, 2, NO_CHEFE, 2, 0 },
+                };
+                for (int i = 0; i < (int)(sizeof IA / sizeof IA[0]); i++) {
+                    no_t nn = { 0 };
+                    nn.tipo = IA[i].tipo;
+                    nn.nivel = NIVEL_NO[IA[i].andar][IA[i].tipo];
+                    run.dificuldade = IA[i].nv; run.andar = IA[i].andar;
+                    CONFERE(nivel_mesa(&nn) == IA[i].ia && pensa_mesa(&nn) == IA[i].pensa,
+                            "IA do salao %d mesa %d no nivel %d: %d e %d%% acima, devia %d e %d%%", IA[i].andar + 1, IA[i].tipo,
+                            IA[i].nv, nivel_mesa(&nn), pensa_mesa(&nn), IA[i].ia, IA[i].pensa);
+                }
+                CONFERE(incomuns_s1(3, 0) == 0 && incomuns_s1(3, 1) == 1 && incomuns_s1(3, 4) == 1 && incomuns_s1(3, 5) == 2
+                        && incomuns_s1(3, 10) == 2 && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2
+                        && incomuns_s1(2, 10) == 2 && incomuns_s1(0, 3) == 0 && incomuns_s1(0, 4) == 1 && incomuns_s1(0, 8) == 2
+                        && incomuns_s1(0, 10) == 2, "incomuns do 1o salao por nivel");
+                // Na bolsa: o Crupie do Nivel 10 (tudo aberto) com 2 deles; no Normal, nenhum a mais.
+                for (int nv = 0; nv <= N_NIVEIS; nv += N_NIVEIS) {
+                    perfis[0].nivel = (uint8_t)nv; run.dificuldade = (uint8_t)nv; run.andar = 0;
+                    no_t nn = { 0 };
+                    nn.tipo = NO_CHEFE; nn.perso = PERSO_CHEFE0; nn.semente = 4242;
+                    peca_t col[MAX_COL], col0[MAX_COL];
+                    int n = monta_oponente(&nn, 0, col), inc = 0;
+                    for (int k = 0; k < n; k++)
+                        for (int j = 0; j < (int)sizeof INCOMUM_S1; j++) inc += col[k].tipo == INCOMUM_S1[j];
+                    monta_oponente(&nn, 0, col0);
+                    CONFERE(!memcmp(col, col0, sizeof(peca_t) * (size_t)n), "a bolsa do oponente sai igual da mesma semente");
+                    if (nv) CONFERE(inc >= 2, "o Crupie do Nivel 10 com 2 incomuns de 4 e 6 lados (%d)", inc);
+                    else CONFERE(inc <= 1, "o Crupie do Normal sem incomuns a mais (%d)", inc);
+                }
+                perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0;
             }
             // A escolha da dificuldade: so as abertas (a de cima aparece quando
             // abrir), e o cursor nao passa da ultima aberta.

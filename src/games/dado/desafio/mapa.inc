@@ -461,6 +461,39 @@ static int poucos_tipos(peca_t *col, int n, const perso_t *pe, int lim)
     return n;
 }
 
+// O 1o salao sobe bem aos poucos com a dificuldade: dados de numero viram
+// incomuns de 4 e 6 lados - no chefe desde o Nivel 1, no dificil desde o 2,
+// no facil desde o 4, e o segundo 4 niveis depois; no maximo 2 por mesa. A
+// lista vai dos mais simples aos mais chatos, sem os de ataque, e abre com o
+// nivel (no nivel n, os 2 + n primeiros); metade das vezes vem um do tema do
+// oponente, se ele tiver. So os ja abertos.
+static const uint8_t INCOMUM_S1[] = { D_VICIADO, D_TEIMOSO, D_PAR, D_TREVO, D_CALIBRE, D_JACKPOT,
+                                      D_COPIADOR, D_FARTURA, D_DOBRO, D_HEXA };
+static int incomuns_s1(int tier, int nivel)
+{
+    int k = nivel - (tier >= 3 ? 1 : tier == 2 ? 2 : 4);
+    return k < 0 ? 0 : k < 4 ? 1 : 2;
+}
+static void poe_incomum_s1(peca_t *col, int n, const perso_t *pe, int nivel)
+{
+    int cand[sizeof INCOMUM_S1], nc = 0, abre = 2 + nivel;
+    for (int j = 0; j < (int)sizeof INCOMUM_S1 && j < abre; j++)
+        for (int i = 0; i < 8 && pe->fav[i] != 0xFF; i++)
+            if (pe->fav[i] == INCOMUM_S1[j] && dado_liberado(INCOMUM_S1[j])) { cand[nc++] = INCOMUM_S1[j]; break; }
+    if (!nc || sorte_r(2)) {
+        nc = 0;
+        for (int j = 0; j < (int)sizeof INCOMUM_S1 && j < abre; j++)
+            if (dado_liberado(INCOMUM_S1[j])) cand[nc++] = INCOMUM_S1[j];
+    }
+    if (!nc) return;
+    int t = cand[sorte_r(nc)], alvo = -1;
+    for (int k = 0; k < n && alvo < 0; k++)          // no lugar de um dado de numero do mesmo tamanho
+        if (so_numero(col[k].tipo) && TIPO[col[k].tipo].lados == TIPO[t].lados) alvo = k;
+    for (int k = 0; k < n && alvo < 0; k++)          // ou de um D4/D6 qualquer
+        if (col[k].tipo == D_D4 || col[k].tipo == D_D6) alvo = k;
+    if (alvo >= 0) col[alvo] = peca_r(t);
+}
+
 static int monta_oponente(const no_t *no, int andar, peca_t *col)
 {
     rs = no->semente;
@@ -544,6 +577,8 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
               : RECHEIO[sorte_r((int)sizeof RECHEIO)];
         col[n++] = peca_r(tudo || dado_liberado(t) ? t : coringa ? D_D12 : D_D6);
     }
+    if (andar == 0 && !coringa)
+        for (int q = incomuns_s1(tier, run.dificuldade); q > 0; q--) poe_incomum_s1(col, n, pe, run.dificuldade);
     if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);
     return n;
 }

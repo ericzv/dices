@@ -206,8 +206,8 @@ static void loja_passo_robo(int *compras)
         const peca_t *pc = &run.col[lj_cola_dado];
         int t = pc->tipo, a = cola_ad(), c = -1;
         bool baixo = a == AD_REFLEXIVO || a == AD_AVESSO;
-        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)
-            if (!ad_no_lado(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
+        for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++)  // (o Quebrado: so o lado gravado)
+            if (!ad_no_lado(pc, l) && ad_lado_serve(pc, l) && (c < 0 || (baixo ? l < c : l > c))) c = l;
         cursor = c - ad_lado_min(t);
         trata_tecla(KEY_ENTER);
         return;

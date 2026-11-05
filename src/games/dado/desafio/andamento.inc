@@ -2,18 +2,27 @@
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
 // A IA da mesa sobe com a dificuldade: os dados fracos do comeco da run nao
-// ficam tambem com a cabeca mais simples em todo andar. [salao][mesa] = o
-// nivel a partir do qual ela fica atenta (1) e afiada (2) (NIVEL_IA); 0, ja
-// desde o Normal (NIVEL_NO); 99, nunca. Ficar atenta pesa muito numa mesa
-// (no simulador, de 12 a 30 pontos a menos de vitoria, mais nos niveis
-// altos), entao no comeco da run sao so duas: o Crupie no Nivel 1 e o
-// dificil do 2o salao no 3; as outras mesas do comeco sobem pelos dados
-// (incomuns_s1). A Dona fica afiada no 9, a dificil do 3o salao no 5. O
-// Coringa: o do salao final (gera_salao_final).
+// ficam tambem com a cabeca mais simples em todo andar. Ficar atenta de vez
+// pesa muito numa mesa (no simulador, de 12 a 30 pontos a menos de vitoria),
+// entao o comeco da run sobe aos poucos: a mesa pensa como a atenta numa
+// parte das decisoes, 6% a mais a cada nivel (pensa_mesa), e os dados fazem
+// o resto (incomuns_s1). [salao][mesa] = o nivel em que essa parte comeca
+// (99, nunca): o Crupie no Nivel 1, os dificeis do 1o e do 2o salao no 2, o
+// facil do 2o no 3, o do 1o no 4 - no 10, o Crupie pensa como a atenta em
+// 60% das decisoes. Os degraus inteiros (IA_SOBE: o nivel em que a mesa fica
+// atenta e afiada, NIVEL_IA; 0, desde o Normal, NIVEL_NO): a Dona afiada no
+// 9, a dificil do 3o salao no 5. O Coringa: o do salao final.
+#define PENSA_CADA 6
+static const uint8_t PENSA_DESDE[DES_ANDARES][4] = {
+    //  facil (medio) dificil chefe
+    {   4,    4,      2,      1 },                       // 1o salao: o Crupie
+    {   3,    3,      2,      99 },                      // 2o salao: a Dona
+    {   99,   99,     99,     99 },                      // 3o salao: o Barao
+};
 static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
     //  facil       (medio)     dificil     chefe
-    { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 1, 99 } },  // 1o salao: o Crupie
-    { { 99, 99 }, { 99, 99 }, { 3, 99 },  { 0, 9 } },   // 2o salao: a Dona
+    { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 99, 99 } }, // 1o salao: o Crupie
+    { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 0, 9 } },   // 2o salao: a Dona
     { { 0, 99 },  { 0, 99 },  { 0, 5 },   { 0, 0 } },   // 3o salao: o Barao
 };
 static int nivel_mesa(const no_t *no)
@@ -23,6 +32,13 @@ static int nivel_mesa(const no_t *no)
         for (int k = 0; k < 2; k++)
             if (run.dificuldade >= IA_SOBE[run.andar][no->tipo][k] && ia < k + 1) ia = k + 1;
     return ia;
+}
+// Em quantos % das decisoes a mesa pensa um nivel acima do dela.
+static int pensa_mesa(const no_t *no)
+{
+    if (run.andar >= DES_ANDARES || no->tipo > NO_CHEFE || nivel_mesa(no) >= 2) return 0;
+    int k = run.dificuldade - PENSA_DESDE[run.andar][no->tipo] + 1;
+    return k <= 0 ? 0 : k * PENSA_CADA > 99 ? 99 : k * PENSA_CADA;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,6 +565,8 @@ static void des_comeca_partida(void)
     for (int j = 0; j < 2; j++)
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
     nivel_jog[1] = nivel_mesa(no);
+    pensa_jog[0] = 0; pensa_jog[1] = pensa_mesa(no);    // parte das decisoes um nivel acima
+    ia_conta = no->semente;
     // O material do oponente, pelo nivel da mesa: a maioria de marfim; osso
     // nas dificeis do 2o salao e no 3o; jade nas dificeis do 3o; os chefes,
     // de obsidiana.

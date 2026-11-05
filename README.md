@@ -100,12 +100,14 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Teimoso, o Par, o Trevo... e, mais acima, o Jackpot, o Copiador, a Fartura,
   o Dobro e o Hexa; nenhum de ataque) - no Crupiê desde o nível 1, no difícil
   desde o 2 e no fácil desde o 4, e o segundo 4 níveis depois (no máximo 2 por
-  mesa). A cabeça dos oponentes também sobe (o mapa mostra: IA simples, atenta
-  ou afiada): no Normal, o primeiro salão e os comuns do segundo jogam pela IA
-  simples; o Crupiê fica atento no nível 1 e o difícil do segundo salão no 3
-  (ficar atento pesa muito numa mesa, então as outras do começo sobem só pelos
-  dados). A Dona é atenta e fica afiada no 9, os do terceiro salão são atentos
-  (o difícil, afiado do 5) e o Barão é afiado (o Coringa, do 7). São 21
+  mesa). A cabeça dos oponentes do começo da run também sobe aos poucos: eles
+  pensam como a IA atenta numa parte das jogadas, 6% a mais a cada nível - o
+  Crupiê desde o nível 1, os difíceis do primeiro e do segundo salão desde o
+  2, o fácil do segundo desde o 3 e o do primeiro desde o 4 (no nível 10, o
+  Crupiê pensa como a atenta em 60% das jogadas). No mapa, a mesa mostra a IA
+  dela: simples, atenta ou afiada. A Dona é atenta e fica afiada no 9, os do
+  terceiro salão são atentos (o difícil, afiado do 5) e o Barão é afiado (o
+  Coringa, do 7). São 21
   oponentes, cada um com seu
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os

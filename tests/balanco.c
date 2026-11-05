@@ -23,7 +23,8 @@
 //         run inteira pelo produto das mesas.
 //   balanco inimigos [nivel] [amostras]
 //       a progressao dos oponentes: em cada mesa da run, a IA (0 a simples, 1
-//       a media, 2 a forte), o trunfo, a virada da 5a rodada (chefes), o
+//       a atenta, 2 a afiada; 0.3: a simples, pensando como a atenta em 30%
+//       das decisoes), o trunfo, a virada da 5a rodada (chefes), o
 //       amuleto a mais da Cobertura e a bolsa media (dados, especiais por
 //       raridade, o valor dos 4 melhores de uma mao). Sem o nivel, do Normal
 //       ao 10. ("bolsas" e o mesmo.)
@@ -504,7 +505,7 @@ static void inimigos(int nivel, int amostras)
                 }
                 sn += n;
                 sm += melhores4(col, n);
-                ia += nivel_mesa(no);
+                ia += nivel_mesa(no) + pensa_mesa(no) / 100.0;   // 0.3: simples, 30% das decisoes como a atenta
                 tr += trunfo_ativo(no->perso);
                 vi += no->perso == PERSO_CORINGA ? nivel >= CORINGA_SOME : virada_de(no->perso);
                 am += nivel >= N_NIVEIS && chefe_idx(no->perso) != 2;   // na Cobertura, todos menos o Barao

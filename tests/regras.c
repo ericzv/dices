@@ -5246,22 +5246,25 @@ int main(void)
             // simples, 1 atenta, 2 afiada) e os incomuns de 4 e 6 lados no 1o
             // salao. No Normal, como sempre foi.
             {
-                static const struct { uint8_t nv, andar, tipo, ia; } IA[] = {
-                    { 0, 0, NO_FACIL, 0 }, { 0, 0, NO_DIFICIL, 0 }, { 0, 0, NO_CHEFE, 0 }, { 1, 0, NO_CHEFE, 1 },
-                    { 10, 0, NO_CHEFE, 1 }, { 10, 0, NO_DIFICIL, 0 }, { 10, 0, NO_FACIL, 0 },
-                    { 0, 1, NO_FACIL, 0 }, { 0, 1, NO_DIFICIL, 0 }, { 0, 1, NO_CHEFE, 1 }, { 2, 1, NO_DIFICIL, 0 },
-                    { 3, 1, NO_DIFICIL, 1 }, { 10, 1, NO_DIFICIL, 1 }, { 10, 1, NO_FACIL, 0 }, { 8, 1, NO_CHEFE, 1 },
-                    { 9, 1, NO_CHEFE, 2 },
-                    { 0, 2, NO_FACIL, 1 }, { 4, 2, NO_DIFICIL, 1 }, { 5, 2, NO_DIFICIL, 2 }, { 10, 2, NO_FACIL, 1 },
-                    { 0, 2, NO_CHEFE, 2 },
+                static const struct { uint8_t nv, andar, tipo, ia, pensa; } IA[] = {
+                    { 0, 0, NO_FACIL, 0, 0 }, { 0, 0, NO_DIFICIL, 0, 0 }, { 0, 0, NO_CHEFE, 0, 0 },
+                    { 1, 0, NO_CHEFE, 0, 6 }, { 5, 0, NO_CHEFE, 0, 30 }, { 10, 0, NO_CHEFE, 0, 60 },
+                    { 1, 0, NO_DIFICIL, 0, 0 }, { 2, 0, NO_DIFICIL, 0, 6 }, { 10, 0, NO_DIFICIL, 0, 54 },
+                    { 3, 0, NO_FACIL, 0, 0 }, { 4, 0, NO_FACIL, 0, 6 }, { 10, 0, NO_FACIL, 0, 42 },
+                    { 0, 1, NO_FACIL, 0, 0 }, { 2, 1, NO_FACIL, 0, 0 }, { 3, 1, NO_FACIL, 0, 6 }, { 10, 1, NO_FACIL, 0, 48 },
+                    { 1, 1, NO_DIFICIL, 0, 0 }, { 2, 1, NO_DIFICIL, 0, 6 }, { 10, 1, NO_DIFICIL, 0, 54 },
+                    { 0, 1, NO_CHEFE, 1, 0 }, { 8, 1, NO_CHEFE, 1, 0 }, { 9, 1, NO_CHEFE, 2, 0 },
+                    { 0, 2, NO_FACIL, 1, 0 }, { 10, 2, NO_FACIL, 1, 0 }, { 4, 2, NO_DIFICIL, 1, 0 }, { 5, 2, NO_DIFICIL, 2, 0 },
+                    { 0, 2, NO_CHEFE, 2, 0 },
                 };
                 for (int i = 0; i < (int)(sizeof IA / sizeof IA[0]); i++) {
                     no_t nn = { 0 };
                     nn.tipo = IA[i].tipo;
                     nn.nivel = NIVEL_NO[IA[i].andar][IA[i].tipo];
                     run.dificuldade = IA[i].nv; run.andar = IA[i].andar;
-                    CONFERE(nivel_mesa(&nn) == IA[i].ia, "IA do salao %d mesa %d no nivel %d: %d, devia %d", IA[i].andar + 1,
-                            IA[i].tipo, IA[i].nv, nivel_mesa(&nn), IA[i].ia);
+                    CONFERE(nivel_mesa(&nn) == IA[i].ia && pensa_mesa(&nn) == IA[i].pensa,
+                            "IA do salao %d mesa %d no nivel %d: %d e %d%% acima, devia %d e %d%%", IA[i].andar + 1, IA[i].tipo,
+                            IA[i].nv, nivel_mesa(&nn), pensa_mesa(&nn), IA[i].ia, IA[i].pensa);
                 }
                 CONFERE(incomuns_s1(3, 0) == 0 && incomuns_s1(3, 1) == 1 && incomuns_s1(3, 4) == 1 && incomuns_s1(3, 5) == 2
                         && incomuns_s1(3, 10) == 2 && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2

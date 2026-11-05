@@ -229,10 +229,12 @@ static void ad_pouso_efeito(const voo_t *v, float x, float y, float r)
     }
 }
 
+static void casca_no_lance(bool cima);
 static void desenha_lance(void)
 {
     desenha_poeira();
     desenha_estouro();
+    casca_no_lance(false);                   // a Casca do oponente no feltro, embaixo do dado que escorrega
     for (int i = n_voo - 1; i >= 0; i--) {
         voo_t *v = &voo[i];
         float r = R_DADO + (v->pouso > 0 ? v->pouso * 16 : 0);
@@ -358,6 +360,7 @@ static void desenha_lance(void)
         sombra_alt = 0;
     }
     sombra_alt = 0;
+    casca_no_lance(true);                    // e a casca voando ate ele, por cima
 }
 
 static void peca_parada(float x, float y, float r, peca_t p, int dono)
@@ -1160,17 +1163,25 @@ static void desenha_fila(int j)
         float giro = 0;
         // O dado que o Terremoto sacode: o numero de antes ate pousar de novo;
         // no evento, treme, salta rodopiando e cai no numero novo.
-        bool tremendo = e && e->tipo == EV_TREMOR && e->alvo_j == j && e->alvo_k == k;
+        // A Casca de Banana: o dado pisa na casca, desliza de lado, sai voando
+        // girando e cai de novo no lugar (com a bolha do Impermeavel, nada).
+        bool tremendo = e && e->tipo == EV_TREMOR && e->alvo_j == j && e->alvo_k == k && !e->bloqueado;
+        bool escorrega = tremendo && e->ad == AD_CASCA;
         if (no_desfecho && vis_tremor[j][k] && !(tremendo && p >= TREMOR_POUSA)) face = vis_tremor_de[j][k];
-        if (tremendo && p < TREMOR_SALTA) x += (int)(sinf(t_fase * 70) * 3 * p / TREMOR_SALTA);
+        if (escorrega && p < TREMOR_SALTA) {
+            float q = fmaxf(0, (p - CASCA_PISA) / (TREMOR_SALTA - CASCA_PISA));
+            x += (int)(q * q * CASCA_DESLIZA);
+            giro = q * 0.45f;
+        } else if (tremendo && p < TREMOR_SALTA) x += (int)(sinf(t_fase * 70) * 3 * p / TREMOR_SALTA);
         else if (tremendo && p < TREMOR_POUSA) {
             float q = (p - TREMOR_SALTA) / (TREMOR_POUSA - TREMOR_SALTA);
-            pulo += sinf(q * 3.1416f) * 26;
+            pulo += sinf(q * 3.1416f) * (escorrega ? 32 : 26);
             giro = (1 - q) * 11 + 0.6f;
+            if (escorrega) x += (int)((1 - q) * CASCA_DESLIZA);   // no ar, volta para o lugar dele
             if (q < 0.85f) face = face_v(t, f->valor[k]);
         }
         // O Terremoto que age: treme no lugar enquanto a falha corre.
-        if (e && e->tipo == EV_TREMOR && e->de_j == j && e->de_k == k && p < TREMOR_SALTA)
+        if (e && e->tipo == EV_TREMOR && e->ad != AD_CASCA && e->de_j == j && e->de_k == k && p < TREMOR_SALTA)
             x += (int)(sinf(t_fase * 90) * 3);
         // A Ficha Coringa: o curinga ate o evento dela; no evento, sobe girando
         // e cai com o numero novo para cima.
@@ -1217,6 +1228,25 @@ static void desenha_fila(int j)
             // O Post-it aceso enquanto o dado seguinte rola as duas vezes.
             if (ad_face == AD_POSTIT && (fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].dono == j && voo[0].slot == k + 1)
                 ad_face_aceso = true;
+            // A Casca acesa enquanto o lance do oponente escorrega nela.
+            if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
+                && k == casca_dado(j, F[outro(j)].escorregou - 1))
+                ad_face_aceso = true;
+        }
+        // A Dupla Face agindo: o dado vira (achata na horizontal ate mostrar o
+        // lado de baixo, com o adesivo dele), fica assim enquanto o de baixo
+        // age, e no fim desvira.
+        float vira = 1;
+        if (e && e->tipo == EV_ADESIVO && e->modo == EVM_DUPLA && e->de_j == j && e->de_k == k && !ainda && giro < 0.5f) {
+            const peca_t *pv = peca_fila(j, k);
+            float tot = duracao_de(e) + ev_intro(e), tq = p * tot;   // os segundos desde o comeco do evento
+            float ang = tq < 0.42f ? tq / 0.42f * 3.1416f : tq > tot - 0.32f ? 3.1416f * (1 + (tq - (tot - 0.32f)) / 0.32f) : 3.1416f;
+            vira = cosf(ang);
+            if (vira < 0 && pv) {
+                int lo = ad_oposto(pv->tipo, f->lado[k]);
+                ad_face = ad_no_lado(pv, lo);
+                face = remenda(pv, lo);
+            }
         }
         // A Onda que juntou 9 vira Tsunami no meio do evento dela (e fica).
         int td = t;
@@ -1229,6 +1259,7 @@ static void desenha_fila(int j)
         sem_risca = golpe != 0;                              // a trinca ja diz
         face_capa = impermeavel(j, k);
         if (giro_ficha > -1) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, giro_ficha, face);
+        else if (fabsf(vira) < 0.995f) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, vira, face);   // a Dupla Face virando
         else desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
         if (face_capa && giro < 0.5f) {                     // a bolha da capa em volta
             const peca_t *pc = peca_fila(j, k);
@@ -1640,6 +1671,290 @@ static void chiclete_goma(int x, int y, int r, float q)
     gfx_pixel(x + r - 5, y + r - 5, C_BRANCO);
 }
 
+// A Casca de Banana caida no feltro, com o pe (x, y) no meio de baixo: o
+// cabinho marrom, o miolo da casca e as tres tiras abertas no chao -
+// amarelas por fora, a beira de baixo no tom escuro, o branco de dentro e as
+// pontas marrons -, com a sombra pontilhada. esmagada (0..1): pisada,
+// achatando; espelho: virada para o outro lado.
+static void casca_desenha(int x, int y, float esmagada, bool espelho)
+{
+    static const uint16_t AM[3] = { RGB(246, 222, 132), RGB(228, 194, 106), RGB(190, 156, 86) };
+    int s = espelho ? -1 : 1;
+    float h = 1 - 0.45f * esmagada;
+    for (int dy = -2; dy <= 3; dy++)                                       // a sombra pontilhada no feltro
+        for (int dx = -17; dx <= 18; dx++)
+            if (((x + dx + y + dy) & 1) == 0 && abs(dx) < 17 - dy * 3) gfx_pixel(x + dx + 2, y + dy + 2, C_SOMBRA);
+    // as tiras (do miolo ate a ponta): a de tras, as dos lados e a do meio, mais curta
+    static const int8_t TIRA[4][5] = { { 0, -9, 3, -14, 1 }, { -2, -8, -16, 1, 0 }, { 2, -8, 16, 1, 0 }, { 0, -7, 4, 3, 2 } };
+    for (int t = 0; t < 4; t++) {
+        int x0 = x + s * TIRA[t][0], y0 = y + (int)(TIRA[t][1] * h), x1 = x + s * TIRA[t][2], y1 = y + (int)(TIRA[t][3] * h);
+        uint16_t c = AM[TIRA[t][4] == 1 ? 2 : TIRA[t][4] == 2 ? 1 : 0];
+        gfx_linha_grossa(x0, y0 + 1, x1, y1 + 1, 5, C_BARRA);              // o contorno
+        gfx_linha_grossa(x0, y0, x1, y1, 4, c);
+        gfx_linha_grossa(x0, y0 + 1, x1, y1 + 1, 1, AM[2]);                // a beira de baixo, na sombra
+        if (t) gfx_linha(x0 + (x1 - x0) / 4, y0 - 1 + (y1 - y0) / 4, x0 + (x1 - x0) * 2 / 3, y0 - 1 + (y1 - y0) * 2 / 3, C_MARFIM);   // o branco de dentro
+        gfx_rect(x1 - 1, y1 - 1, 3, 3, C_BARRA);                           // a ponta marrom
+        gfx_rect(x1 - 1, y1 - 1, 2, 2, RGB(106, 86, 44));
+    }
+    int cy = y - (int)(10 * h);                                            // o miolo e o cabinho
+    gfx_disco(x, cy, 5, C_BARRA);
+    gfx_disco(x, cy, 4, AM[0]);
+    gfx_disco(x + s, cy + 1, 2, AM[1]);
+    gfx_rect(x - 2 * s - (s < 0 ? 1 : 0), cy - 2, 2, 2, C_BRANCO);         // o brilho
+    gfx_rect(x - 1, cy - 9, 4, 5, C_BARRA);
+    gfx_rect(x, cy - 8, 2, 4, RGB(106, 86, 44));
+    gfx_pixel(x, cy - 8, RGB(150, 122, 62));
+}
+// O escorregao do fim da rodada: a casca sai do dado dela (de) num arco e
+// cai no feltro junto do dado do oponente (alvo); ele pisa, desliza (os
+// riscos do deslize atras), voa girando e cai de novo no lugar (desenha_fila).
+// Com a bolha do Impermeavel, a casca bate nela e espirra para longe.
+static void capa_segura(int x, int y, float q, uint16_t c);
+static void casca_no_evento(const evento_t *e, float p)
+{
+    if (e->alvo_k >= N_FILA) return;
+    int ox = SLOT_X(e->de_k), oy = zona(e->de_j), bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
+    int dir = e->de_j == baixo ? -1 : 1;
+    int cx = bx - R_DADO + 2, cy = by + R_DADO + 1;                       // onde a casca cai: no pe do dado
+    float sobe = fminf(1, p / 0.12f);
+    if (p < 0.5f) ad_solto_d(ox + R_DADO - 2, oy + dir * (R_DADO + (int)((2 - sobe) * sobe * 9)), AD_CASCA, 1, 0);
+    if (p < CASCA_PISA) {                                                  // voando ate la, girando
+        float q = p / CASCA_PISA;
+        int x = ox + (int)((cx - ox) * q), y = oy + (int)((cy - oy) * q) - (int)(sinf(q * 3.1416f) * 34);
+        casca_desenha(x, y, 0, (int)(q * 8) % 2);
+        return;
+    }
+    if (e->bloqueado) {                                                    // a bolha segura: a casca espirra para fora
+        float q = (p - CASCA_PISA) / (1 - CASCA_PISA);
+        capa_segura(bx, by, q, RGB(246, 222, 132));
+        int x = cx - (int)(q * 46), y = cy + (int)(q * 8) - (int)(sinf(fminf(1, q * 2) * 3.1416f) * 12);
+        if (q < 0.7f) casca_desenha(x, y, 0, (int)(q * 10) % 2);
+        return;
+    }
+    float esm = p < TREMOR_SALTA ? fminf(1, (p - CASCA_PISA) / 0.06f) : 1;
+    if (p < 0.92f) casca_desenha(cx + (p < TREMOR_SALTA ? (int)(fmaxf(0, p - CASCA_PISA) * 10) : 3), cy, esm, false);
+    if (p > CASCA_PISA && p < TREMOR_SALTA + 0.05f) {                      // os riscos do deslize, atras do dado
+        float q = (p - CASCA_PISA) / (TREMOR_SALTA - CASCA_PISA);
+        int dx = (int)(fminf(1, q) * fminf(1, q) * CASCA_DESLIZA);
+        for (int i = 0; i < 4; i++) {
+            int y = by - R_DADO / 2 + i * R_DADO / 3, l = 5 + (i * 7) % 6, x = bx + dx - R_DADO - 3 - (i % 2) * 3;
+            gfx_rect(x - l, y, l, 1, i % 2 ? C_MARFIM_S : C_BRANCO);
+        }
+    }
+    if (p > TREMOR_SALTA && p < TREMOR_SALTA + 0.2f) {                     // o susto: pinguinhos saltando do dado
+        float q = (p - TREMOR_SALTA) / 0.2f;
+        for (int i = 0; i < 3; i++) {
+            float an = -2.3f + i * 0.8f;
+            int x = bx + (int)(cosf(an) * (R_DADO + 4 + q * 8)), y = by - 18 + (int)(sinf(an) * (R_DADO + 4 + q * 8));
+            gfx_rect(x, y, 2, 3, C_CELESTE);
+            gfx_pixel(x, y - 1, C_BRANCO);
+        }
+    }
+}
+
+// O aviso curto junto do dado que rola (s: desde que apareceu), por cima de
+// tudo, com o contorno escuro: "escorrega!", "protegido".
+static void aviso_no_dado(const voo_t *v, const char *m, uint16_t cor, float s)
+{
+    if (s > 0.75f) return;
+    int y = (int)v->y - R_DADO - 15 - (int)(fminf(1, s * 5) * 5), x = (int)v->x - gfx_largura(m, 1) / 2;
+    static const int8_t CONT[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+    for (int d = 0; d < 8; d++) gfx_texto(x + CONT[d][0], y + CONT[d][1], m, C_BARRA, 1, true);
+    gfx_texto(x, y, m, s < 0.6f ? cor : gfx_mistura(cor, C_FELTRO, 45), 1, true);
+}
+// A Casca de Banana do oponente no lance que escorrega nela: sai do dado
+// dela num arco ate o dado rolando; ele pisa, escorrega (a guinada vem de
+// casca_pisa), e ela sai deslizando para tras dele, girando, deixando o
+// rastro no feltro, e fica la ate o dado ir para a fila. Com a bolha do
+// Impermeavel, bate nela e espirra para tras; com o Post-it, as duas se
+// anulam num puf. cima: o que passa por cima dos dados (o voo, a bolha, o
+// puf, o aviso); senao, o que fica no feltro, embaixo deles.
+static void casca_no_lance(bool cima)
+{
+    if (!n_voo || !voo[0].casca || (fase != F_ROLANDO && fase != F_ARRUMA)) return;
+    const voo_t *v = &voo[0];
+    int r = outro(v->dono), kc = casca_dado(r, F[v->dono].escorregou - 1);
+    if (kc < 0) return;
+    float t = fase == F_ROLANDO ? t_fase : 9;                              // arrumando, a casca ja fez tudo
+    int ox = SLOT_X(kc), oy = zona(r), tx = (int)v->x, ty = (int)v->y + CASCA_PE;
+    if (!v->casca_caiu) {                                                  // voando ate o dado, girando
+        if (!cima) return;
+        float q = fminf(1, t / CASCA_VOA);
+        int x = ox + (int)((tx - ox) * q), y = oy + (int)((ty - oy) * q) - (int)(sinf(q * 3.1416f) * 40);
+        casca_desenha(x, y, 0, (int)(q * 8) % 2);
+        return;
+    }
+    float s = t - CASCA_VOA;                                               // desde que chegou nele
+    int bx = (int)v->casca_x, by = (int)v->casca_y;                        // onde ela bateu
+    if (v->casca == 2) {                                                   // a bolha (ou o Universo) segura: espirra
+        if (!cima) return;
+        const peca_t *pc = peca_fila(v->dono, v->slot);
+        float q = s / 0.5f;
+        if (pc && pc->capa && q < 1) capa_segura(tx, (int)v->y, q, C_AMARELO);
+        if (q < 0.8f) {                                                    // quica para tras, girando, e some
+            float e = 1 - (1 - q) * (1 - q);
+            casca_desenha(bx + (int)(v->casca_vx * 40 * e), by + (int)(v->casca_vy * 40 * e) - (int)(sinf(fminf(1, q * 1.4f) * 3.1416f) * 16),
+                          0, (int)(q * 12) % 2);
+        }
+        aviso_no_dado(v, "protegido", C_VENTO, s);
+        return;
+    }
+    if (v->casca == 3) {                                                   // o Post-it e a casca se anulam: puf
+        if (!cima) return;
+        float a = s / 0.4f;
+        if (a < 1) {
+            int w = a < 0.5f ? 3 : 2;
+            for (int i = 0; i < 10; i++) {
+                float an = i * 0.628f + 0.2f, d = 5 + a * 18;
+                gfx_rect(bx + (int)(cosf(an) * d), by - 8 + (int)(sinf(an) * d * 0.7f), w, w, i % 2 ? C_MARFIM : C_AMARELO);
+            }
+            if (a < 0.35f) casca_desenha(bx, by, a / 0.35f, false);
+        }
+        aviso_no_dado(v, "se anulam", C_MARFIM, s);
+        return;
+    }
+    if (cima) { aviso_no_dado(v, "escorrega!", C_AMARELO, s); return; }
+    // ate onde ela desliza: 46 pixels para tras, sem entrar nas filas
+    float e = 1 - expf(-s * 4.5f);
+    int ya = zona(0) < zona(1) ? zona(0) : zona(1), yb = zona(0) < zona(1) ? zona(1) : zona(0);
+    float fx = fminf(GFX_W - 40, fmaxf(40, v->casca_x + v->casca_vx * 46));
+    float fy = fminf(yb - R_DADO - 6, fmaxf(ya + R_DADO + 26, v->casca_y + v->casca_vy * 46));
+    float dx = (fx - v->casca_x) * e, dy = (fy - v->casca_y) * e;
+    if (s < 0.9f)                                                          // o rastro dela no feltro
+        for (int i = 1; i < 7; i++) {
+            float f = (float)i / 7;
+            gfx_rect((int)(v->casca_x + dx * f), (int)(v->casca_y - 2 + dy * f), 2, 1, i % 2 ? C_MARFIM_S : C_AMARELO);
+        }
+    if (s < 0.3f && !v->parado) {                                          // os riscos do escorregao, atras do dado
+        float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+        if (vel > 20) {
+            float ux = -v->vx / vel, uy = -v->vy / vel;
+            for (int i = -1; i <= 1; i++) {
+                float qx = v->x + ux * (R_DADO + 2) - uy * i * 7, qy = v->y + uy * (R_DADO + 2) + ux * i * 7;
+                int l = i ? 10 : 15;
+                gfx_linha((int)qx, (int)qy, (int)(qx + ux * l), (int)(qy + uy * l), i ? C_MARFIM_S : C_BRANCO);
+            }
+        }
+    }
+    casca_desenha((int)(v->casca_x + dx), (int)(v->casca_y + dy), 0.3f, e < 0.85f && (int)(s * 14) % 2);
+}
+
+// A Massinha: uma bolota de massinha de modelar de tres cores torcidas (o
+// vermelho, o amarelo e o azul), em (x, y), com os raios rx e ry (achatada:
+// rx maior), girando a torcida em 'gira'. A luz vem de cima a esquerda: o
+// brilho la, e cada cor no tom escuro dela embaixo a direita; a sombra
+// pontilhada na mesa, por baixo. (As cores: MASSA, em adesivos.inc.)
+static void massinha_bola(int x, int y, float rx, float ry, float gira)
+{
+    if (rx < 0.6f || ry < 0.6f) return;
+    int X0 = (int)ceilf(rx) + 1, Y0 = (int)ceilf(ry) + 1;
+    for (int dy = -Y0; dy <= Y0 + 2; dy++)                       // a sombra, um pouco abaixo e a direita
+        for (int dx = -X0; dx <= X0 + 1; dx++) {
+            float ux = (dx - 1) / rx, uy = (dy - 2) / ry;
+            if (ux * ux + uy * uy <= 1 && ((x + dx + y + dy) & 1) == 0) gfx_pixel(x + dx, y + dy, C_SOMBRA);
+        }
+    for (int dy = -Y0; dy <= Y0; dy++)
+        for (int dx = -X0; dx <= X0; dx++) {
+            float ux = dx / rx, uy = dy / ry, e2 = ux * ux + uy * uy;
+            if (e2 > 1) continue;
+            float an = atan2f(uy, ux) + sqrtf(e2) * 2.4f + gira;   // a torcida: as faixas giram para dentro
+            int b = (int)floorf(an / 2.0944f) % 3;
+            if (b < 0) b += 3;
+            uint16_t c = MASSA[b][ux + uy > 0.5f || e2 > 0.82f];
+            if (ux < -0.12f && uy < -0.12f && e2 > 0.1f && e2 < 0.36f && rx >= 2.5f) c = C_BRANCO;   // o brilho
+            gfx_pixel(x + dx, y + dy, c);
+        }
+}
+
+// O Carimbo: o carimbo de borracha visto de lado, com a base em (x, y) -
+// a bola do cabo e o pescoco de madeira (luz a esquerda), o bloco e a
+// borracha vermelha embaixo, molhada de tinta. aperta (0..1): a borracha
+// achatando na batida.
+static void carimbo_desenha(int x, int y, float aperta)
+{
+    static const uint16_t MAD[3] = { RGB(156, 106, 64), RGB(120, 78, 50), RGB(78, 46, 30) };
+    int ab = (int)(aperta * 2 + 0.5f);
+    for (int dy = 0; dy < 26; dy++)                                        // a sombra na mesa, pontilhada
+        for (int dx = -12; dx <= 13; dx++)
+            if (((x + dx + y + dy) & 1) == 0 && dy > 20) gfx_pixel(x + dx + 2, y + dy - 20, C_SOMBRA);
+    gfx_rect(x - 12, y - 4 + ab, 25, 5 - ab, C_BARRA);                     // a borracha, com a beira escura
+    gfx_rect(x - 11, y - 3 + ab, 23, 3 - ab > 1 ? 3 - ab : 1, RGB(118, 30, 38));
+    gfx_rect(x - 11, y - 3 + ab, 23, 1, RGB(190, 56, 60));                 // a tinta fresca brilhando
+    gfx_rect(x - 11, y - 12, 23, 9 + ab, C_BARRA);                         // o bloco de madeira
+    gfx_rect(x - 10, y - 11, 21, 7 + ab, MAD[1]);
+    gfx_rect(x - 10, y - 11, 21, 2, MAD[0]);
+    gfx_rect(x + 6, y - 9, 4, 5 + ab, MAD[2]);
+    for (int k = 0; k < 3; k++) gfx_rect(x - 7 + k * 6, y - 8, 3, 1, MAD[2]);   // os veios da madeira
+    gfx_rect(x - 3, y - 20, 7, 9, C_BARRA);                                // o pescoco
+    gfx_rect(x - 2, y - 19, 5, 8, MAD[1]);
+    gfx_rect(x - 2, y - 19, 2, 8, MAD[0]);
+    gfx_disco(x, y - 25, 6, C_BARRA);                                      // e a bola do cabo
+    gfx_disco(x, y - 25, 5, MAD[1]);
+    gfx_disco(x + 1, y - 24, 3, MAD[2]);
+    gfx_disco(x - 1, y - 26, 3, MAD[1]);
+    gfx_rect(x - 3, y - 28, 2, 2, MAD[0]);
+    gfx_pixel(x - 2, y - 29, C_BRANCO);
+}
+// A marca de tinta que o Carimbo deixa no dado (x, y) de raio r: um anel
+// vermelho falhado em volta da face, como de cartorio, e o selinho "2x" no
+// canto de baixo. forca (0..1): a tinta, fresca ou ja secando.
+static void carimbo_marca(int x, int y, int r, float forca)
+{
+    if (forca <= 0) return;
+    uint16_t c = forca > 0.55f ? RGB(190, 56, 60) : RGB(150, 62, 80);
+    int n = 8 * r;
+    for (int i = 0; i < n; i++) {                                          // o anel, com as falhas da tinta
+        float an = i * 6.2832f / n;
+        if (hash2(i, 5) % 6 == 0 || (forca < 0.6f && hash2(i, 9) % 3 == 0)) continue;
+        gfx_pixel(x + (int)lroundf(cosf(an) * r), y + (int)lroundf(sinf(an) * r), c);
+        if (hash2(i, 7) % 3) gfx_pixel(x + (int)lroundf(cosf(an) * (r - 1)), y + (int)lroundf(sinf(an) * (r - 1)), c);
+    }
+    int bx = x - r - 3, by = y + r - 7;                                    // o selinho 2x
+    gfx_rect(bx - 1, by - 1, 15, 10, C_BARRA);
+    gfx_rect(bx, by, 13, 8, c);
+    gfx_texto(bx + 2, by - 3, "2x", C_BRANCO, GFX_MIUDO, false);
+}
+// O que vem antes do adesivo agir de novo (q: 0..1 da introducao do evento):
+// o Carimbo do dado de antes (o lugar de - 1) solta o carimbo, que vem num
+// arco e bate no dado (ax, ay), e a tinta fica; na Dupla Face o dado vira e
+// mostra o lado de baixo (desenha_fila), com a seta de virar em volta.
+static void intro_adesivo(const evento_t *e, float q, int ax, int ay)
+{
+    int dir = e->de_j == baixo ? -1 : 1;
+    if (e->modo & EVM_CARIMBO) {
+        int k0 = e->de_k > 0 ? e->de_k - 1 : 0, ox = SLOT_X(k0), oy = ay;
+        float sobe = fminf(1, q / 0.18f);
+        if (q < 0.5f) ad_solto_d(ox + R_DADO - 2, oy + dir * (R_DADO + (int)((2 - sobe) * sobe * 9)), AD_CARIMBO, 1, 0);
+        if (q >= 0.4f) carimbo_marca(ax, ay, R_DADO - 3, 1);              // a tinta que fica, por baixo do carimbo
+        if (q > 0.08f && q < 0.74f) {
+            float v = fminf(1, (q - 0.08f) / 0.28f);                       // o voo do carimbo ate o dado, em arco
+            int bx = ox + (int)((ax - ox) * v), by = ay - R_DADO - 6 - (int)(sinf(v * 3.1416f) * 24) - (int)((1 - v) * 8);
+            float aperta = 0;
+            if (q >= 0.36f && q < 0.39f) by = ay - R_DADO + 2 + (int)((q - 0.36f) / 0.03f * (R_DADO - 2));   // desce
+            else if (q >= 0.39f && q < 0.5f) { by = ay + 2; aperta = 1 - (q - 0.39f) / 0.11f; }   // TUM: a borracha no dado
+            else if (q >= 0.5f) by = ay + 2 - (int)((q - 0.5f) / 0.24f * 34);                     // e sobe
+            carimbo_desenha(bx, by, aperta);
+            if (q >= 0.39f && q < 0.5f) {                                  // o baque: o anel de ar e os pingos de tinta
+                float b = (q - 0.39f) / 0.11f;
+                anel(ax, ay + 2, (int)(R_DADO + 2 + b * 10), 1, b < 0.5f ? C_BRANCO : C_MARFIM_S);
+                for (int i = 0; i < 10; i++) {
+                    float an = i * 0.628f + 0.3f, d2 = R_DADO + 2 + b * 10;
+                    gfx_rect(ax + (int)(cosf(an) * d2), ay + 2 + (int)(sinf(an) * d2 * 0.55f), 2, 1, RGB(190, 56, 60));
+                }
+            }
+        }
+        return;
+    }
+    // A Dupla Face: o dado vira na fila (desenha_fila); aqui, a seta de virar
+    // que corre em volta dele, e o lado de baixo chegando com um brilho.
+    for (int i = 0; i < 12 && q < 0.95f; i++) {
+        float an = -1.5708f + q * 7.5f - i * 0.2f;
+        int px = ax + (int)(cosf(an) * (R_DADO + 6)), py = ay + (int)(sinf(an) * (R_DADO + 5));
+        gfx_rect(px, py, 2, 2, i == 0 ? C_BRANCO : i < 4 ? C_MARFIM : i < 8 ? C_MARFIM_S : C_EBANO_B);
+    }
+    if (q > 0.55f && q < 0.95f) anel(ax, ay, (int)(R_DADO + 2 + (q - 0.55f) / 0.4f * 8), 1, q < 0.75f ? C_BRANCO : C_MARFIM_S);
+}
+
 // Um adesivo agindo no fim da rodada: o adesivo sai do dado e faz o gesto
 // dele. p vai de 0 a 1 no tempo do evento; (ax, ay) e o dado.
 // A rachadura do Fragil anulado, crescendo do meio do dado (q: 0..1). Com
@@ -1680,6 +1995,16 @@ static void capa_segura(int x, int y, float q, uint16_t c)
 
 static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 {
+    float in = ev_intro(e);
+    if (in > 0) {                                              // o Carimbo (ou a Dupla Face) antes, e depois o adesivo
+        float q = in / (in + duracao_de(e));
+        if (p < q) { intro_adesivo(e, p / q, ax, ay); return; }
+        evento_t e2 = *e;
+        e2.modo = 0;
+        if (e->modo & EVM_CARIMBO) carimbo_marca(ax, ay, R_DADO - 3, 1 - 0.6f * (p - q) / (1 - q));   // a tinta secando
+        desenha_adesivo_agindo(&e2, (p - q) / (1 - q), ax, ay);
+        return;
+    }
     int a = e->ad, j = e->de_j, dir = j == baixo ? -1 : 1;     // para o meio da mesa
     const adesivo_t *d = &ADESIVO[a];
     int salta = e->copia ? AD_HOLOGRAFICO : a;                 // o Holografico copiando: e ele que pula
@@ -1961,6 +2286,48 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             }
         }
         if (p > 0.55f) chiclete_goma(ax, ay, R_DADO, fminf(1, (p - 0.55f) / 0.3f));   // a goma escorre e gruda
+        break;
+    }
+    case AD_MASSINHA: {                                         // a bolota sai do adesivo, cai na beira do dado, o
+        int tx = ax - R_DADO / 2 + 2, ty = ay + R_DADO;         // dedo amassa e ela vira o Remendo do lado mais baixo
+        if (p > 0.06f && p < 0.42f) {                           // sai do adesivo crescendo e vai num pulo ate a beira
+            float q = (p - 0.06f) / 0.36f, s = q < 0.3f ? q / 0.3f : 1, k = q < 0.3f ? 0 : (q - 0.3f) / 0.7f;
+            int bx = sx + (int)((tx - sx) * k), by = sy + (int)((ty - 3 - sy) * k) - (int)(sinf(k * 3.1416f) * 22);
+            float r0 = 2 + 5 * s, bate = 0.12f * sinf(q * 21);
+            massinha_bola(bx, by, r0 * (1 - bate), r0 * (1 + bate), q * 8);
+        } else if (p >= 0.42f && p < 0.82f) {                   // SPLAT: achata na beira; o dedo aperta (a digital) e
+            float q = (p - 0.42f) / 0.4f;                       // ela amassa e desamassa, encolhendo para o remendo
+            float am = q < 0.12f ? q / 0.12f : 1 - 0.5f * fabsf(sinf((q - 0.12f) * 12)) * (1 - q);
+            float enc = q > 0.62f ? 1 - (q - 0.62f) / 0.38f : 1;
+            float rx = (6 + 6 * am) * enc, ry = (6 - 3 * am) * (0.35f + 0.65f * enc);
+            massinha_bola(tx, ty - 2, rx, ry, 4.2f + q * 1.5f);
+            if (q > 0.2f && q < 0.7f && rx > 5)                 // a digital do dedo que apertou: arcos escuros
+                for (int a2 = 0; a2 < 3; a2++)
+                    for (int s2 = -4; s2 <= 4; s2++) {
+                        float an = 3.6f + s2 * 0.16f;
+                        int px = tx + 1 + (int)(cosf(an) * (2 + a2 * 2) * rx / 8), py = ty - 1 + (int)(sinf(an) * (1 + a2) * ry / 5);
+                        if ((s2 + a2) % 3) gfx_pixel(px, py, C_EBANO_B);
+                    }
+            for (int i = 0; i < 9 && q < 0.3f; i++) {           // os respingos de massinha da batida
+                float an = 3.4f + i * 0.33f, v = 7 + q / 0.3f * 12 + (i % 3) * 3;
+                int px = tx + (int)(cosf(an) * v), py = ty - 2 + (int)(sinf(an) * v * 0.55f) + (int)(q * q * 50);
+                gfx_rect(px + 1, py + 1, 2, 2, C_SOMBRA);
+                gfx_rect(px, py, 2 + (i % 2), 2, MASSA[i % 3][0]);
+            }
+        }
+        if (p > 0.74f) {                                        // o Remendo no lado: a pilula verde com o numero,
+            ad_pilula(tx, ty + 1, AD_REMENDO, e->valor, p < 0.8f);   // acesa ao chegar, e o pesponto correndo em volta
+            int w = ad_pilula_w(e->valor), n = (int)(fminf(1, (p - 0.76f) / 0.18f) * 16);
+            int x0 = tx - w / 2 - 3, y0 = ty + 1 - 7, ww = w + 6, hh = 14;
+            for (int i = 0; i < n; i++) {                       // os pontos de costura, de dois em dois pixels
+                int per = 2 * (ww + hh), d2 = i * per / 16, px, py;
+                if (d2 < ww) { px = x0 + d2; py = y0; }
+                else if (d2 < ww + hh) { px = x0 + ww; py = y0 + d2 - ww; }
+                else if (d2 < 2 * ww + hh) { px = x0 + ww - (d2 - ww - hh); py = y0 + hh; }
+                else { px = x0; py = y0 + hh - (d2 - 2 * ww - hh); }
+                gfx_rect(px, py, 2, 1, C_BRANCO);
+            }
+        }
         break;
     }
     case AD_SUJEIRA: {                                          // a lama borbulha, respinga e pinga; sobe o cheiro e chega a mosca
@@ -2348,6 +2715,7 @@ static void desenha_falha(void)
     if (fase != F_EFEITOS || ev_i >= n_ev || t_respiro >= 0) return;
     const evento_t *e = &ev[ev_i];
     float p = t_fase / duracao_evento(ev_i);
+    if (e->tipo == EV_TREMOR && e->ad == AD_CASCA) return;   // a casca nao abre falha: ela voa (casca_no_evento)
     if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA) {
         int ax = SLOT_X(e->de_k), ay = zona(e->de_j), bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         int y0 = ay + (by > ay ? R_DADO + 4 : -R_DADO - 4), y1 = by + (by > ay ? -R_DADO - 2 : R_DADO + 2);
@@ -2734,6 +3102,7 @@ static void desenha_evento_dentro(const evento_t *e, float p)
     }
     // Terremoto: a falha corre por baixo do letreiro (desenha_falha); aqui,
     // o dado arranca do chao com estilhacos em volta.
+    if (e->tipo == EV_TREMOR && e->ad == AD_CASCA) { casca_no_evento(e, p); return; }
     if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA) {
         int bx = SLOT_X(e->alvo_k), by = zona(e->alvo_j);
         float sq = (p - TREMOR_SALTA) / 0.16f;                // o dado arranca do chao: estilhacos em volta

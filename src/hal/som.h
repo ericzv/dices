@@ -49,6 +49,7 @@ enum {
     SOM_AD_PATINHO, SOM_AD_ETIQUETA, SOM_AD_BILHETE,
     SOM_AD_NOTA_DEZ, SOM_AD_CARBONO, SOM_AD_BOMBA, SOM_AD_IMPERMEAVEL, SOM_AD_LENTICULAR, SOM_AD_NEON,
     SOM_AD_INFECTADO, SOM_AD_BARRO, SOM_AD_SUJEIRA, SOM_AD_CHICLETE,
+    SOM_AD_MASSINHA, SOM_AD_CARIMBO, SOM_AD_DUPLA, SOM_AD_CASCA,
     SOM_NOVIDADE,    // fim da run: um card do que abriu vira (cada um um semitom acima)
     SOM_NOVIDADE_LENDA, // o card grande: a dificuldade nova, um lendario
     SOM_MENU_PASSA,  // o menu de fichas: o cursor chega numa ficha (cada uma um tom acima)

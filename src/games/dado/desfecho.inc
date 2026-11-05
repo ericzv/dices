@@ -32,7 +32,9 @@ typedef struct {
     uint8_t capa[2];                 // o Impermeavel que agiu: a capa fica ate o fim da partida
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
+    uint8_t fermento2[2], fig_cresce2[2];   // e a segunda vez, carimbadas: crescem de novo
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
+    uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
     uint8_t n_pega;                  // o Infectado e o Barro: os lados que ganham adesivo (adesivos_ficam)
     uint8_t chiclete[2];             // o dado que grudou pelo Chiclete (a posicao + 1; 0: nenhum)
@@ -209,7 +211,7 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
 
 static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
 {
-    if (a >= 0 && a < N_FILA && d->est[r][a] == V_ANULADO && ad_fila(r, a) == AD_RATOEIRA) ratoeira_desarma(d, j, r, a, gera);
+    if (a >= 0 && a < N_FILA && d->est[r][a] == V_ANULADO && ad_fila_tem(r, a, AD_RATOEIRA)) ratoeira_desarma(d, j, r, a, gera);
     if (TIPO[tipo_de(r, a)].efeito != EF_CAVALO) return;
     if (tem_am(j, A_COURACA)) {
         if (gera) am_acende(A_COURACA);
@@ -1282,15 +1284,22 @@ static void pega_anota(desfecho_t *d, int de, int para, int i, int lado, int a)
     d->pega[d->n_pega++] = (pega_t){ (uint8_t)de, (uint8_t)para, (uint8_t)i, (uint8_t)lado, (uint8_t)a };
 }
 
+// Como o adesivo age agora (adesivos_de): EVM_CARIMBO, a segunda vez dele,
+// carimbado pelo dado de antes - o que multiplica sobe so um degrau (x2 vira
+// x3), e o que so marca o dado (Bis, Selo, Velcro, Chiclete, Impermeavel, o
+// Fragil que quebra) nao repete; EVM_DUPLA, o do lado oposto, pela Dupla Face.
+static int age_modo;
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
 // Holografico (no dado k) copiando o do dado ko (copia: nada sai nem cresce
 // no dado de la; o Fermento paga o que pagou la). Devolve se agiu.
 static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool copia)
 {
     int r = outro(j);
-    bool vale = d->est[j][k] == V_VALIDO;
+    bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
-    const char *pre = copia ? "Holográfico, como " : "";
+    int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
+    const char *pre = copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
+                    : de_novo ? "Carimbo » " : age_modo & EVM_DUPLA ? "Dupla Face » " : "";
     evento_t *e = NULL;
     switch (a) {
     case AD_CONFETE:
@@ -1307,16 +1316,16 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     case AD_FERMENTO: {
         const peca_t *po = peca_fila(j, ko);
         if (!vale || !po) return false;
-        int n = FERMENTO_CADA * (po->fermento + 1);
+        int n = FERMENTO_CADA * (po->fermento + 1 + (de_novo ? 1 : 0));   // carimbado: ja o degrau seguinte
         d->semente[j] += n;
-        if (!copia) d->fermento[j] |= bit;
+        if (!copia) { if (de_novo) d->fermento2[j] |= bit; else d->fermento[j] |= bit; }
         e = evento(gera, EV_ADESIVO, j, k, j, k, n, copia ? "%sFermento: +%d" : "%sFermento: +%d, e cresce", pre, n);
         break;
     }
     case AD_ELETRONICO:
         if (!vale) return false;
-        d->mult[j][k] = (int8_t)(d->mult[j][k] + 2);
-        e = evento(gera, EV_ADESIVO, j, k, j, k, 2, "%sEletrônico: x2 no %d", pre, F[j].valor[k]);
+        d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sEletrônico: x3 no %d" : "%sEletrônico: x2 no %d", pre, F[j].valor[k]);
         if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
     case AD_LOBO:
@@ -1332,14 +1341,17 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sDourado: +1 moeda", pre);
         break;
     case AD_BIS:
+        if (de_novo) return false;
         d->bis[j] = 1;                           // dois Bis na mesma rodada: ainda 1 lugar so
         e = evento(gera, EV_ADESIVO, j, k, j, k, 1, "%sBis: +1 dado na sequência da próxima rodada", pre);
         break;
     case AD_SELO:
+        if (de_novo) return false;
         d->selo_lacra[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sSelo: lacrado até o próximo lance", pre);
         break;
     case AD_VELCRO:
+        if (de_novo) return false;
         d->velcro[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sVelcro: volta para a mão", pre);
         break;
@@ -1347,7 +1359,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (vale) {
             d->semente[j] += FRAGIL_PONTOS;
             e = evento(gera, EV_ADESIVO, j, k, j, k, FRAGIL_PONTOS, "%sFrágil: +%d", pre, FRAGIL_PONTOS);
-        } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k) && impermeavel(j, k)) {
+        } else if (de_novo) return false;         // quebrar, quebra uma vez so
+        else if (d->est[j][k] == V_ANULADO && peca_fila(j, k) && impermeavel(j, k)) {
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, mas o dado está protegido", pre);
             if (e) e->bloqueado = bit;
         } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k)) {
@@ -1375,10 +1388,10 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             bool vale2 = d->est[j][p] == V_VALIDO;
             if (!vale2 && (!vale || ele)) continue;
             uint8_t m = 0;
-            if (vale && !ele) { d->mult[j][k] = (int8_t)(d->mult[j][k] + 2); m |= bit; ele = true; }
-            if (vale2) { d->mult[j][p] = (int8_t)(d->mult[j][p] + 2); m |= (uint8_t)(1 << p); }
-            e = evento(gera, EV_ADESIVO, j, k, j, p, 2, "%sImantado: dois %d, x2", pre, F[j].valor[k]);
-            if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); e->ad = (uint8_t)a; e->copia = copia; }
+            if (vale && !ele) { d->mult[j][k] = (int8_t)(d->mult[j][k] + mx); m |= bit; ele = true; }
+            if (vale2) { d->mult[j][p] = (int8_t)(d->mult[j][p] + mx); m |= (uint8_t)(1 << p); }
+            e = evento(gera, EV_ADESIVO, j, k, j, p, mx, de_novo ? "%sImantado: dois %d, x3" : "%sImantado: dois %d, x2", pre, F[j].valor[k]);
+            if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
             agiu = true;
         }
         if (!agiu) return false;
@@ -1388,7 +1401,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (!vale) return false;
         int n = figurinhas_de(j);
         d->semente[j] += n;
-        if (!copia) d->fig_cresce[j] |= bit;
+        if (!copia) { if (de_novo) d->fig_cresce2[j] |= bit; else d->fig_cresce[j] |= bit; }
         e = evento(gera, EV_ADESIVO, j, k, j, k, n, copia ? "%sFigurinha: %d figurinhas, +%d"
                                                          : "%sFigurinha: %d figurinhas, +%d, e junta mais uma", pre, n, n);
         break;
@@ -1402,8 +1415,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     }
     case AD_LENTICULAR:                          // valendo, x2; anulado, -4 no seu placar
         if (vale) {
-            d->mult[j][k] = (int8_t)(d->mult[j][k] + 2);
-            e = evento(gera, EV_ADESIVO, j, k, j, k, 2, "%sLenticular: x2 no %d", pre, F[j].valor[k]);
+            d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
+            e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sLenticular: x3 no %d" : "%sLenticular: x2 no %d", pre, F[j].valor[k]);
             if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         } else if (d->est[j][k] == V_ANULADO) {
             d->delta[j] -= LENTICULAR_PERDE;
@@ -1459,10 +1472,22 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         break;
     }
     case AD_CHICLETE:                            // o dado gruda: abre a proxima sequencia com o mesmo numero
-        if (copia || (k == 0 && F[j].grudado) || d->chiclete[j] || !peca_fila(j, k)) return false;   // um por rodada, e nao gruda de novo
+        if (copia || de_novo || (k == 0 && F[j].grudado) || d->chiclete[j] || !peca_fila(j, k)) return false;   // um por rodada, e nao gruda de novo
         d->chiclete[j] = (uint8_t)(k + 1);
         e = evento(gera, EV_ADESIVO, j, k, j, k, F[j].valor[k], "%sChiclete: o %d gruda e abre a próxima", pre, F[j].valor[k]);
         break;
+    case AD_MASSINHA: {                          // molda o dado: o lado mais baixo dele sem adesivo ganha um Remendo
+        int i = F[j].idx[k];
+        if (!peca_fila(j, k) || i < 0 || i >= J[j].n_col) return false;
+        uint8_t lados[AD_LADOS];
+        int n = pega_lados(d, j, i, lados);
+        if (!n) return false;                    // todos os lados cheios: nada
+        int l = lados[0];                        // pega_lados vem do mais baixo
+        pega_anota(d, j, j, i, l, AD_REMENDO);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, l, "%sMassinha: o lado %d ganha um Remendo (tira %d)", pre, l, l + 2);
+        if (e) { e->bolsa_i = (uint8_t)i; e->bolsa_lados = 1u << l; }
+        break;
+    }
     case AD_RATOEIRA:                            // anulado, ate pela sequencia: o queijo fica (o ataque fecha a armadilha: ratoeira_desarma)
         if (vale) return false;
         d->semente[j] += RATOEIRA_PONTOS;
@@ -1474,7 +1499,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         break;
     case AD_IMPERMEAVEL: {                       // a capa, ate o fim da partida (nem anulado ele fica)
         const peca_t *pc = peca_fila(j, k);
-        if (!pc || pc->capa) return false;       // ja estava com a capa
+        if (!pc || pc->capa || de_novo || (d->capa[j] & bit)) return false;   // ja estava com a capa
         d->capa[j] |= bit;
         e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: não pode ser anulado nem destruído", pre);
         break;
@@ -1496,21 +1521,21 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             if (d->est[r][i] == V_VALIDO && !firme_sem_capa(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
-        if (bloqueia_capa(gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : "Mira", AD_MIRA)) {
-            if (capa_ev) capa_ev->copia = copia;
+        if (bloqueia_capa(gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
+            if (capa_ev) { capa_ev->copia = copia; capa_ev->modo = (uint8_t)age_modo; }
             return true;
         }
         d->est[r][alvo] = V_ANULADO;
         d->atacados[r]++;
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: anula o %d de %s", pre, F[r].valor[alvo], J[r].nome);
-        if (e) { e->ad = (uint8_t)a; e->copia = copia; }
+        if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
         cavalo_abre(d, j, r, alvo, gera);
         return true;
     }
     default: return false;
     }
-    if (e) { e->ad = (uint8_t)a; e->copia = copia; }
+    if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
     return true;
 }
 
@@ -1522,7 +1547,38 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
 // num lance de antes: este lance o rompe, e valendo paga. Depois dos outros,
 // o Holografico (repete cada um que agiu, como se fosse dele) e por ultimo a
 // Purpurina (+3 por adesivo que agiu, ela junto; a Ratoeira conta se
-// desarmou nos ataques).
+// desarmou nos ataques). A Dupla Face faz agir tambem o adesivo do lado
+// oposto do dado; o Carimbo faz o adesivo do dado seguinte agir duas vezes
+// (os dois contam uma vez cada para a Purpurina, quando fazem agir).
+
+// O dado k de j foi carimbado: o dado de antes dele (que nao foi roubado)
+// tirou o Carimbo, ou a Dupla Face com o Carimbo do outro lado.
+static bool carimbado(const desfecho_t *d, int j, int k)
+{
+    return k > 0 && k < N_FILA && d->est[j][k - 1] != V_ROUBADO && ad_fila_tem(j, k - 1, AD_CARIMBO);
+}
+// Um adesivo a do dado k de j agindo no fim (primeira: nao e a repeticao do
+// Carimbo; so a primeira conta para a Purpurina e serve ao Holografico).
+static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
+                   int *fonte, int *qual, int *n_fonte, int *agiram)
+{
+    uint8_t bit = (uint8_t)(1 << k);
+    if (a == AD_HOLOGRAFICO || a == AD_PURPURINA || a == AD_CARIMBO || a == AD_DUPLA) return false;   // agem depois (ou por outro)
+    if (a == AD_SUJEIRA) return ad_age(d, j, k, k, a, gera, false);   // o barro do oponente: nao e adesivo seu
+    if (ad_do_pouso(a)) { if (primeira) (*agiram)++; return false; }
+    if (a == AD_BILHETE) {                       // o Bilhete age no fim de tudo (bilhete_de)
+        if (d->est[j][k] != V_VALIDO) return false;
+        if (primeira) { d->bilhete[j] |= bit; (*agiram)++; }
+        else d->bil_carimbo[j] |= bit;
+        return true;
+    }
+    if (!ad_age(d, j, k, k, a, gera, false)) return false;
+    if (primeira) {
+        if (a != AD_RATOEIRA || !(d->rato_bits[j] >> k & 1)) (*agiram)++;   // a que desarmou ja contou
+        fonte[*n_fonte] = k; qual[(*n_fonte)++] = a;
+    }
+    return true;
+}
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     int agiram = d->ratoeira[j];
@@ -1539,17 +1595,21 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int a = ad_fila(j, k);
-        if (!a || d->est[j][k] == V_ROUBADO || a == AD_HOLOGRAFICO || a == AD_PURPURINA) continue;
-        if (a == AD_SUJEIRA) { ad_age(d, j, k, k, a, gera, false); continue; }   // o barro do oponente: nao e adesivo seu
-        if (ad_do_pouso(a)) { agiram++; continue; }
-        if (a == AD_BILHETE) {                   // o Bilhete age no fim de tudo (bilhete_de)
-            if (d->est[j][k] == V_VALIDO) { d->bilhete[j] |= (uint8_t)(1 << k); agiram++; }
-            continue;
+        if (!a || d->est[j][k] == V_ROUBADO) continue;
+        bool carimbo = carimbado(d, j, k), duplo = false, carimbou = false;
+        int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
+        for (int q = 0; q < 2; q++) {            // o de cima e, pela Dupla Face, o de baixo
+            int x = q ? b : a;
+            if (!x) continue;
+            for (int c = 0; c < (carimbo ? 2 : 1); c++) {   // e carimbado, outra vez
+                age_modo = (q ? EVM_DUPLA : 0) | (c ? EVM_CARIMBO : 0);
+                bool agiu = age_um(d, j, k, x, gera, c == 0, fonte, qual, &n_fonte, &agiram);
+                duplo |= agiu && q;
+                carimbou |= agiu && c;
+            }
         }
-        if (ad_age(d, j, k, k, a, gera, false)) {
-            if (a != AD_RATOEIRA || !(d->rato_bits[j] >> k & 1)) agiram++;   // a que desarmou ja contou
-            fonte[n_fonte] = k; qual[n_fonte++] = a;
-        }
+        age_modo = 0;
+        agiram += duplo + carimbou;              // a Dupla Face e o Carimbo de antes, quando fizeram agir
     }
     // O Patinho Feio dos outros lados do dado: caiu em outro lado, +2.
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -1561,24 +1621,39 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     }
     int holo[N_FILA], n_holo = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
-        if (ad_fila(j, k) != AD_HOLOGRAFICO || d->est[j][k] == V_ROUBADO) continue;
+        if (!ad_fila_tem(j, k, AD_HOLOGRAFICO) || d->est[j][k] == V_ROUBADO) continue;
+        bool carimbo = carimbado(d, j, k), algum = false;
+        int md = ad_fila(j, k) == AD_HOLOGRAFICO ? 0 : EVM_DUPLA;
         holo[n_holo++] = k;
-        bool algum = false;
-        for (int c = 0; c < n_fonte; c++) algum |= ad_age(d, j, k, fonte[c], qual[c], gera, true);
-        if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
-            for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
-            algum = true;
+        for (int c = 0; c < (carimbo ? 2 : 1); c++) {
+            age_modo = md | (c ? EVM_CARIMBO : 0);
+            bool esta = false;
+            for (int f = 0; f < n_fonte; f++) esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
+            if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
+                for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
+                esta = true;
+            }
+            if (esta && c) agiram++;             // o Carimbo de antes
+            algum |= esta;
         }
-        if (algum) agiram++;
+        age_modo = 0;
+        if (algum) agiram += 1 + (md != 0);      // ele, e a Dupla Face que o fez agir
     }
-    int purp[N_FILA], n_purp = 0;
-    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        if (ad_fila(j, k) == AD_PURPURINA && d->est[j][k] == V_VALIDO) purp[n_purp++] = k;
-    int cada = PURPURINA_CADA * (agiram + n_purp);
+    int purp[2 * N_FILA], n_purp = 0, n_purp_ad = 0;
+    uint8_t purp_md[2 * N_FILA];
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        if (!ad_fila_tem(j, k, AD_PURPURINA) || d->est[j][k] != V_VALIDO) continue;
+        int md = ad_fila(j, k) == AD_PURPURINA ? 0 : EVM_DUPLA;
+        purp_md[n_purp] = (uint8_t)md; purp[n_purp++] = k; n_purp_ad += 1 + (md != 0);
+        if (carimbado(d, j, k)) { purp_md[n_purp] = (uint8_t)(md | EVM_CARIMBO); purp[n_purp++] = k; n_purp_ad++; }
+    }
+    int cada = PURPURINA_CADA * (agiram + n_purp_ad);
     for (int i = 0; i < n_purp; i++) {
         d->semente[j] += cada;
-        evento_t *e = evento(gera, EV_ADESIVO, j, purp[i], j, purp[i], cada, "Purpurina: %d adesivo%s, +%d", agiram + n_purp, agiram + n_purp > 1 ? "s" : "", cada);
-        if (e) e->ad = AD_PURPURINA;
+        const char *pre = purp_md[i] & EVM_CARIMBO ? "Carimbo » " : purp_md[i] & EVM_DUPLA ? "Dupla Face » " : "";
+        evento_t *e = evento(gera, EV_ADESIVO, j, purp[i], j, purp[i], cada, "%sPurpurina: %d adesivo%s, +%d", pre,
+                             agiram + n_purp_ad, agiram + n_purp_ad > 1 ? "s" : "", cada);
+        if (e) { e->ad = AD_PURPURINA; e->modo = purp_md[i]; }
     }
     for (int h = 0; h < n_holo && n_purp; h++) {       // o Holografico valendo copia a Purpurina tambem
         if (d->est[j][holo[h]] != V_VALIDO) continue;
@@ -1595,7 +1670,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
 // somaram em cada dado e os pontos a parte (a semente: os dos adesivos e dos
 // poderes que pontuam por fora). O numero que cada dado tirou, nao. Com dois
 // Bilhetes, dobra duas vezes; o Holografico copia cada um, e dobra de novo.
-static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia)
+static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool carimbo)
 {
     int8_t por[N_FILA] = { 0 };
     uint8_t m = 0;
@@ -1603,6 +1678,7 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia)
     for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
         if (d->est[j][i] != V_VALIDO) continue;
         int b = F[j].bonus[i] + d->bonus[j][i];
+        if (carimbo) b /= 2;                     // carimbado: o x2 vira x3 (mais a metade do ja dobrado)
         if (b <= 0) continue;
         if (d->bonus[j][i] + b > 127) b = 127 - d->bonus[j][i];
         d->bonus[j][i] = (int8_t)(d->bonus[j][i] + b);
@@ -1611,20 +1687,24 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia)
         extra += b * (d->mult[j][i] > 0 ? d->mult[j][i] : 1);
     }
     int sem = d->semente[j] > 0 ? d->semente[j] : 0;
+    if (carimbo) sem /= 2;
     d->semente[j] += sem;
     extra += sem;
-    const char *nome = copia ? "Holográfico, como Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
-    evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? "%s: bônus em dobro, +%d"
+    const char *nome = copia ? "Holográfico, como Bilhete" : carimbo ? "Carimbo » Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
+    evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? (carimbo ? "%s: bônus x3, +%d" : "%s: bônus em dobro, +%d")
                                                                  : "%s: nenhum bônus para dobrar", nome, extra);
-    if (e) { e->ad = AD_BILHETE; e->copia = copia; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
+    if (e) { e->ad = AD_BILHETE; e->copia = copia; e->modo = carimbo ? EVM_CARIMBO : 0; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
 }
 
 static void bilhete_de(desfecho_t *d, int j, bool gera)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        if (d->bilhete[j] >> k & 1) dobra_bonus(d, j, k, gera, false);
+        if (d->bilhete[j] >> k & 1) {
+            dobra_bonus(d, j, k, gera, false, false);
+            if (d->bil_carimbo[j] >> k & 1) dobra_bonus(d, j, k, gera, false, true);
+        }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true);
+        for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true, false);
 }
 
 // Saideira (amuleto): na ultima rodada da partida (a 8a e as extras), os
@@ -1702,6 +1782,43 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (F[r].valor[a] == antes) e = evento(gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);
             else e = evento(gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d", antes, J[r].nome, F[r].valor[a]);
             if (e) e->antes = antes;
+            virou = true;
+        }
+    }
+    // A Casca de Banana que sobrou (o oponente ja tinha jogado, ou parou antes
+    // de escorregar em todas): o ultimo dado valido dele rola de novo e fica o
+    // menor dos dois - menor que o de antes, a sequencia derruba os dois. Como
+    // o tremor, so no fim de verdade (a previa e a IA nao sabem o que vai dar),
+    // pelo sorteio que vem da mesa. A Couraca e a bolha do Impermeavel seguram.
+    for (int o = 0; gera && o < 2; o++) {
+        int r = o ? outro(primeiro) : primeiro, t = outro(r);   // r: o dono das cascas; t: quem escorrega
+        int lista[2 * N_FILA], nl = 0;
+        for (int k = 0; k < F[r].lancados && k < N_FILA; k++)
+            if (ad_fila_tem(r, k, AD_CASCA))
+                for (int c = 0; c < 1 + (k > 0 && ad_fila_tem(r, k - 1, AD_CARIMBO)); c++) lista[nl++] = k;
+        for (int n = F[t].escorregou; n < nl; n++) {
+            int kc = lista[n];
+            if (tem_am(t, A_COURACA)) { am_acende(A_COURACA); continue; }
+            int a = alvo_tremor(F[t].est, t);
+            if (a < 0) continue;
+            int antes = F[t].valor[a];
+            evento_t *e;
+            if (!pre[t]) memcpy(est_pre_espelho[t], F[t].est, N_FILA);
+            pre[t] = true;
+            if (impermeavel(t, a)) {
+                e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s está protegido", antes, J[t].nome);
+                if (e) { e->antes = antes; e->ad = AD_CASCA; e->bloqueado = (uint8_t)(1 << a); }
+                continue;
+            }
+            static fila_t guarda;
+            guarda = F[t];
+            treme_dado(t, a, pega_semente(d, r, kc) ^ (0x5CA1AB1Eu * (uint32_t)(n + 1)));
+            bool fica = F[t].valor[a] >= antes;
+            if (fica) F[t] = guarda;                 // caiu de novo no mesmo, ou maior: fica o de antes
+            else refaz_sequencia(t, F[t].lancados);
+            if (fica) e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s escorrega e fica", antes, J[t].nome);
+            else e = evento(gera, EV_TREMOR, r, kc, t, a, F[t].valor[a], "Casca de Banana: o %d de %s escorrega: %d", antes, J[t].nome, F[t].valor[a]);
+            if (e) { e->antes = antes; e->ad = AD_CASCA; }
             virou = true;
         }
     }

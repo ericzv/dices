@@ -134,9 +134,19 @@ static void sim_lanca(int j)
     // Com os adesivos do dado, como no lance de verdade (o Reflexivo rola de novo).
     const peca_t *pc = peca_fila(j, k);
     lance_t l = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
-    if (k > 0 && ad_fila(j, k - 1) == AD_POSTIT) {   // o Post-it: duas vezes, o maior
+    bool postit = k > 0 && ad_fila(j, k - 1) == AD_POSTIT;
+    int casca = 0;                                   // a Casca do oponente, como no lance de verdade
+    if (casca_pega(j, k)) {
+        f->escorregou++;
+        casca = (pc && pc->capa) || f->tipo[k] == D_UNIVERSO ? 2 : postit ? 3 : 1;
+        if (casca == 3) postit = false;
+    }
+    if (postit) {                                    // o Post-it: duas vezes, o maior
         lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
         if (l2.x > l.x) l = l2;
+    } else if (casca == 1) {                         // escorregou: duas vezes, o menor
+        lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
+        if (l2.x < l.x) l = l2;
     }
     int x = l.x;
     menor = l.menor;

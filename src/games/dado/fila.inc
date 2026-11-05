@@ -61,6 +61,44 @@ static const peca_t *peca_fila(int j, int k)
 // A Onda no lugar k veio da bolsa (a copia do Coringa nao vira Tsunami).
 static bool onda_da_bolsa(int j, int k) { const peca_t *p = peca_fila(j, k); return p && p->tipo == D_ONDA; }
 static int ad_fila(int j, int k) { return ad_no_lado(peca_fila(j, k), F[j].lado[k]); }
+// A Dupla Face no lado de cima do dado k de j: o adesivo do lado oposto (o de
+// baixo, virado para a mesa) tambem age. Devolve qual (0: nenhum - ou um que
+// ela nao faz agir: os do pouso e da regra da fila, o Patinho Feio, que ja age
+// dos outros lados, e outra Dupla Face).
+static bool ad_do_pouso(int a);
+static int ad_oposto_fila(int j, int k)
+{
+    const peca_t *p = peca_fila(j, k);
+    if (!p || ad_no_lado(p, F[j].lado[k]) != AD_DUPLA) return AD_NADA;
+    int b = ad_no_lado(p, ad_oposto(p->tipo, F[j].lado[k]));
+    return b == AD_DUPLA || b == AD_PATINHO || ad_do_pouso(b) ? AD_NADA : b;
+}
+// O adesivo a age no dado k de j: o do lado de cima, ou o de baixo pela Dupla Face.
+static bool ad_fila_tem(int j, int k, int a) { return a && (ad_fila(j, k) == a || ad_oposto_fila(j, k) == a); }
+// A Casca de Banana: quantas o jogador r tem na mesa (a de baixo da Dupla Face
+// conta; carimbada, duas). Cada uma faz um lance do oponente escorregar.
+static int cascas_de(int r)
+{
+    int n = 0;
+    for (int k = 0; k < F[r].lancados && k < N_FILA; k++)
+        if (ad_fila_tem(r, k, AD_CASCA)) n += 1 + (k > 0 && ad_fila_tem(r, k - 1, AD_CARIMBO));
+    return n;
+}
+// O lance k de j escorrega agora na casca do oponente? Do 2o dado em diante
+// (o primeiro nunca cai: escorregar so o deixaria mais baixo), uma casca por
+// lance; as que sobrarem agem no fim da rodada (desfecho).
+static bool casca_pega(int j, int k) { return k >= 1 && F[j].escorregou < cascas_de(outro(j)); }
+// O dado de r com a casca de numero n (0: a primeira, na ordem da fila; a
+// carimbada conta duas); -1: nenhum.
+static int casca_dado(int r, int n)
+{
+    for (int k = 0; k < F[r].lancados && k < N_FILA && n >= 0; k++)
+        if (ad_fila_tem(r, k, AD_CASCA)) {
+            n -= 1 + (k > 0 && ad_fila_tem(r, k - 1, AD_CARIMBO));
+            if (n < 0) return k;
+        }
+    return -1;
+}
 // O Impermeavel: o dado k de j esta com a capa? Tirou o lado dele nesta
 // rodada, ou numa de antes desta partida. Nao quebra, nao queima, nao e comido.
 static bool impermeavel(int j, int k)

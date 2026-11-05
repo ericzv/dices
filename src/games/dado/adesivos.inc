@@ -11,6 +11,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
        AD_NOTA_DEZ, AD_CARBONO, AD_BOMBA, AD_IMPERMEAVEL, AD_LENTICULAR, AD_NEON,
        AD_INFECTADO, AD_BARRO, AD_SUJEIRA,      // a Sujeira nao se vende: e o Barro do oponente
        AD_CHICLETE,
+       AD_MASSINHA, AD_CARIMBO, AD_DUPLA, AD_CASCA,
        AD_N };                                   // um byte por lado (peca_t.ad)
 #define AD_BIT_VELHO 0x80                       // o bit de cima (de uma versao de teste): ignorado
 
@@ -28,7 +29,8 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 (e, valendo ou nao, passa para outro lado da sua bolsa)
 #define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
-#define RATOEIRA_PONTOS 4                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
+#define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
+#define MASSINHA_REMENDA 1                      // a Massinha: os lados que ganham Remendo por vez
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7 ("#": a
@@ -109,7 +111,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_VELCRO]       = { "Velcro", "tirando este lado: o dado volta", "para a mão na próxima rodada", 3, 2,
                           RGB(36, 32, 29), RGB(96, 88, 80), RGB(166, 154, 132),
                           { "#.#.#.#", "#.#.#.#", "#######", ".......", "#######", ".#.#.#.", ".#.#.#." } },
-    [AD_RATOEIRA]     = { "Ratoeira", "tirando este lado: anulado, +4;", "por ataque, o maior dele cai", 4, 8,
+    [AD_RATOEIRA]     = { "Ratoeira", "tirando este lado: anulado, +2;", "por ataque, o maior dele cai", 4, 8,
                           RGB(120, 78, 50), RGB(156, 106, 64), RGB(204, 194, 172),
                           { ".......", "....##.", "..####.", ".##.###", "#######", ".......", "#######" } },
     [AD_FIGURINHA]    = { "Figurinha", "tirando este lado, se válido: +1 por", "figurinha juntada nos seus dados", 5, 9,
@@ -163,6 +165,25 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_CHICLETE]     = { "Chiclete", "tirando este lado: o dado gruda e", "abre a próxima com esse número", 3, 4,
                           RGB(226, 164, 168), RGB(226, 164, 168), RGB(150, 62, 80),
                           { "..###..", ".#####.", "#ww####", "#w#####", "#######", ".#####.", "...#..." } },
+    // Os que mexem no dado e na fila: a massinha de modelar que molda o
+    // proprio dado (o lado mais baixo sem adesivo ganha um Remendo; a bolota
+    // torcida de tres cores, "w": o brilho), o carimbo de borracha que faz o
+    // adesivo do proximo dado agir duas vezes (o cabo de madeira, a borracha e
+    // a marca de tinta), a Dupla Face que faz agir o adesivo do lado oposto
+    // (o 1 e o 6 lado a lado, como num domino; no colorido o vinil tambem e de
+    // duas cores) e a casca de banana em que o dado do oponente escorrega.
+    [AD_MASSINHA]     = { "Massinha", "tirando este lado: o menor lado", "livre do dado ganha um Remendo", 4, 4,
+                          RGB(206, 180, 218), RGB(252, 248, 236), RGB(54, 36, 74),
+                          { "..##...", ".####..", "##w###.", "#######", "#######", ".#####.", "......." } },
+    [AD_CARIMBO]      = { "Carimbo", "tirando este lado: o adesivo do", "próximo dado age duas vezes", 6, 9,
+                          RGB(190, 156, 86), RGB(246, 222, 132), RGB(118, 30, 38),
+                          { "..###..", "..###..", "...#...", ".#####.", "#######", ".......", "#.#.#.#" } },
+    [AD_DUPLA]        = { "Dupla Face", "tirando este lado: o adesivo do", "lado oposto também age", 5, 6,
+                          RGB(36, 32, 29), RGB(204, 194, 172), RGB(238, 230, 212),
+                          { "###....", "###.#.#", "###....", "#.#.#.#", "###....", "###.#.#", "###...." } },
+    [AD_CASCA]        = { "Casca de Banana", "tirando este lado: o dado do", "oponente escorrega e fica o menor", 4, 5,
+                          RGB(72, 150, 138), RGB(96, 182, 198), RGB(246, 222, 132),
+                          { "...#...", "..###..", ".##w##.", ".#w#w#.", "##.#.##", "#..#..#", "#.....#" } },
 };
 
 // A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
@@ -181,6 +202,7 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_BOMBA] = RAR_INCOMUM, [AD_LENTICULAR] = RAR_INCOMUM,
     [AD_CARBONO] = RAR_RARO, [AD_NEON] = RAR_RARO, [AD_IMPERMEAVEL] = RAR_RARO, [AD_NOTA_DEZ] = RAR_LENDA,
     [AD_BARRO] = RAR_COMUM, [AD_INFECTADO] = RAR_RARO, [AD_SUJEIRA] = RAR_COMUM, [AD_CHICLETE] = RAR_COMUM,
+    [AD_MASSINHA] = RAR_INCOMUM, [AD_CASCA] = RAR_INCOMUM, [AD_DUPLA] = RAR_RARO, [AD_CARIMBO] = RAR_LENDA,
 };
 // A Sujeira nao se vende nem se ganha: so chega pelo Barro do oponente.
 static bool ad_a_venda(int a) { return a > AD_NADA && a < AD_N && a != AD_SUJEIRA; }
@@ -384,7 +406,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_HOLOGRAFICO]  = "Tirando este lado, copia os adesivos dos seus outros dados que agiram no fim da rodada, como se fossem dele: o Confete dá +4, o Eletrônico dobra este dado, o Selo lacra este dado. Não copia os que agem no pouso (Chumbo, Reflexivo, Avesso, Remendo, Transparente, Corretivo, Post-it), nem a Ratoeira.",
     [AD_PURPURINA]    = "Tirando este lado, se o dado terminar válido: +3 pontos por adesivo seu que agiu na rodada, ela junto. Os que agem no pouso também contam.",
     [AD_VELCRO]       = "Tirando este lado, válido ou anulado, o dado gruda: na rodada seguinte ele volta direto para a sua mão (e conta como um dos dados da compra), em vez de ir para fora.",
-    [AD_RATOEIRA]     = "Tirando este lado, se o dado terminar anulado (até pela sequência), o queijo fica: +4 pontos. E se foi o oponente que o anulou com um poder, a ratoeira também fecha: o maior dado válido dele é anulado.",
+    [AD_RATOEIRA]     = "Tirando este lado, se o dado terminar anulado (até pela sequência), o queijo fica: +2 pontos. E se foi o oponente que o anulou com um poder, a ratoeira também fecha: o maior dado válido dele é anulado.",
     [AD_FIGURINHA]    = "Cada dado com Figurinha junta figurinhas: começa com 1. Tirando este lado, se o dado terminar válido, ativa todas: +1 por figurinha juntada em todos os seus dados com Figurinha, e este dado junta mais uma. A cada partida, recomeça do 1.",
     [AD_PATINHO]      = "Se o dado terminar válido: tirando o lado do Patinho Feio, -2 pontos; tirando qualquer outro lado, +2 pontos.",
     [AD_ETIQUETA]     = "Tirando este lado, se o dado terminar válido: +1 ponto por Etiqueta nos dados da sua bolsa, ela junto (num dado só ou em vários, sem limite).",
@@ -398,8 +420,17 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_INFECTADO]    = "Tirando este lado, válido ou anulado, ele se espalha: um Infectado novo gruda num lado livre de um dado sorteado da sua bolsa (pode ser este). Os novos ficam para sempre e também se espalham. Se o dado terminar válido, +2 pontos.",
     [AD_BARRO]        = "Tirando este lado, válido ou anulado: joga barro num dado sorteado da bolsa do oponente, e um lado livre dele vira Sujeira para sempre - cada vez que ele tirar esse lado, -2 no placar dele. Se o dado sorteado estiver com a bolha do Impermeável, o barro não gruda.",
     [AD_SUJEIRA]      = "O barro que o oponente jogou nos seus dados. Tirando este lado, válido ou anulado: -2 no seu placar. Não sai mais: fica no dado para sempre. O Neon conta a Sujeira como um adesivo do dado; a Purpurina e o Holográfico, não.",
-    [AD_CHICLETE]     = "Tirando este lado, válido ou anulado, o dado gruda na mesa: na próxima rodada ele já abre a sua sequência com o mesmo número, sem rolar (o primeiro é sempre válido). Um número baixo é um começo seguro; um alto vale mais, mas sobe a régua para os outros. Grudado, ele não gruda de novo, e só um dado gruda por rodada.",
+    [AD_CHICLETE]     = "Tirando este lado, válido ou anulado, o dado gruda na mesa: na próxima rodada ele já abre a sua sequência com o mesmo número, sem rolar (o primeiro é sempre válido). Depois ele desgruda e volta a rolar normal - e pode grudar de novo. Um número baixo é um começo seguro; um alto vale mais, mas sobe a régua. Só um dado gruda por rodada.",
+    [AD_MASSINHA]     = "Tirando este lado, válido ou anulado, a massinha molda o dado: o lado mais baixo dele que ainda não tem adesivo ganha um Remendo, para sempre (um 1 passa a tirar 3). Com todos os lados cheios, não faz nada.",
+    [AD_CARIMBO]      = "Tirando este lado, o adesivo do próximo dado da sequência age duas vezes, cada vez com a regra dele (o Confete dá +8 se o dado terminar válido; o Barro suja 2 lados). O que multiplica sobe um degrau: o Eletrônico fica x3. Os que agem no pouso (Chumbo, Avesso, Post-it...) não repetem.",
+    [AD_DUPLA]        = "Tirando este lado, o adesivo do lado oposto do dado também age no fim da rodada, como se estivesse para cima (no d6: o 1 e o 6, o 2 e o 5, o 3 e o 4). Os que agem no pouso (Chumbo, Avesso, Remendo, Post-it...) e o Patinho Feio, não.",
+    [AD_CASCA]        = "Tirando este lado, válido ou anulado, o oponente escorrega: se ele ainda vai jogar, o 2º dado dele rola duas vezes e fica o menor (o Post-it dele anula a casca); se já jogou, ou parou antes, no fim o último válido dele rola de novo e fica o menor - menor que o de antes, derruba os dois. A bolha do Impermeável segura a casca.",
 };
+
+// As tres massinhas de modelar da Massinha (o simbolo, a face e a bolota
+// que voa): o vermelho, o amarelo e o azul, cada um com o tom escuro.
+static const uint16_t MASSA[3][2] = { { RGB(190, 56, 60), RGB(118, 30, 38) }, { RGB(246, 222, 132), RGB(228, 194, 106) },
+                                      { RGB(96, 134, 196), RGB(56, 86, 150) } };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.
 static void ad_icone(int x, int y, int a, int s, uint16_t c)
@@ -433,6 +464,7 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             if (ADESIVO[a].ic[j][i] != '#') {
                 if (cores && ADESIVO[a].ic[j][i] == 'o') gfx_rect(x + i * s, y + j * s, s, s, C_VENTO);   // o vidro da bolha
                 if (cores && ADESIVO[a].ic[j][i] == 'w') gfx_rect(x + i * s, y + j * s, s, s, C_BRANCO);  // o olho do germe
+                if (cores && a == AD_DUPLA && i <= 2 && ADESIVO[a].ic[j][i] == '.') gfx_rect(x + i * s, y + j * s, s, s, C_MARFIM);   // o pip do 1
                 continue;
             }
             uint16_t k = c;
@@ -450,6 +482,14 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
             else if (cores && a == AD_INFECTADO && (i % 6 == 0 || j % 6 == 0)) k = C_REAL;    // as pontas dos espinhos, mais claras
             else if (cores && a == AD_BARRO && ((i == 2 && j == 2) || (i == 3 && j == 3))) k = RGB(190, 156, 86);   // o barro molhado brilha
             else if (cores && a == AD_SUJEIRA && j >= 4) k = RGB(78, 46, 30);                 // os pingos escorrendo
+            else if (cores && a == AD_MASSINHA) k = MASSA[((i + j + 1) / 2) % 3][i + j > 7];  // a massinha torcida
+            else if (cores && a == AD_CASCA && (j == 0 || j == 6 || (j == 5 && i == 3))) k = RGB(106, 86, 44);   // o cabinho e as pontas
+            else if (cores && a == AD_CASCA && j >= 4) k = RGB(228, 194, 106);                  // as tiras, na sombra
+            else if (cores && a == AD_CARIMBO && j <= 2) k = RGB(120, 78, 50);                  // o cabo de madeira
+            else if (cores && a == AD_DUPLA) {                // o 1 no preto e o 6 no marfim
+                if (i <= 2) continue;
+                k = C_EBANO;
+            }
             gfx_rect(x + i * s, y + j * s, s, s, k);
             if (cores && a == AD_NEON && s >= 3 && neon > 0.3f) gfx_rect(x + i * s + s / 2, y + j * s + s / 2 - 1, 1, 1, C_BRANCO);   // o filamento
         }
@@ -483,9 +523,10 @@ static void ad_solto_d(int cx, int cy, int a, int s, float descola)
     int w = 7 * s + 6 * (s > 1 ? 2 : 1), X = cx - w / 2 - 1, Y = cy - w / 2 - 1, W = w + 2;
     int p = s + 3 + (int)(descola * (2 * s + 3));    // a ponta descolando
     bool vidro = d->fundo == AD_SEM_FUNDO;
-    uint16_t rb[4], rf[4];
+    uint16_t rb[4], rf[4], rf2[4];
     rampa_de(C_MARFIM, rb);
     rampa_de(vidro ? d->luz : d->fundo, rf);
+    rampa_de(C_MARFIM_S, rf2);                          // a Dupla Face: a outra metade
     ui_sombra(X, Y, W, W);
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
@@ -496,7 +537,7 @@ static void ad_solto_d(int cx, int cy, int a, int s, float descola)
             uint16_t c;
             if (i < 2 || j < 2 || i >= W - 2 || j >= W - 2) c = tom_rampa(rb, l * 0.5f + 0.45f, px, py);   // a borda
             else if (vidro) c = i == 2 || j == 2 || i == W - 3 || j == W - 3 ? d->luz : C_FELTRO_ESC;
-            else c = tom_rampa(rf, l, px, py);
+            else c = tom_rampa(a == AD_DUPLA && i >= W / 2 ? rf2 : rf, a == AD_DUPLA && i >= W / 2 ? l + 0.25f : l, px, py);
             gfx_pixel(px, py, c);
         }
     // O contorno escuro em volta do recorte, e na dobra da ponta.
@@ -663,6 +704,7 @@ static int som_adesivo(int a)
         [AD_BOMBA] = SOM_AD_BOMBA, [AD_IMPERMEAVEL] = SOM_AD_IMPERMEAVEL, [AD_LENTICULAR] = SOM_AD_LENTICULAR,
         [AD_NEON] = SOM_AD_NEON, [AD_INFECTADO] = SOM_AD_INFECTADO, [AD_BARRO] = SOM_AD_BARRO,
         [AD_SUJEIRA] = SOM_AD_SUJEIRA, [AD_CHICLETE] = SOM_AD_CHICLETE,
+        [AD_MASSINHA] = SOM_AD_MASSINHA, [AD_CARIMBO] = SOM_AD_CARIMBO, [AD_DUPLA] = SOM_AD_DUPLA, [AD_CASCA] = SOM_AD_CASCA,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

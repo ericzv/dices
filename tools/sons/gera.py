@@ -1167,6 +1167,74 @@ def ad_chiclete():
     m.poe(t0 + 0.2, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.004, 0.03), 0.08)
     return sala(m.x, 0.12)
 
+def ad_massinha():
+    """A Massinha: a massinha puxada do adesivo (o esticar molhado), o SPLAT
+    dela batendo na beira do dado, o dedo amassando (tres nhocs), o tim do
+    remendo pronto e o pesponto correndo (o tique-tique da agulha)."""
+    m = Mix(2.0)
+    n = int(0.22 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    puxa = banda(rng.standard_normal(n), 300, 1800) * np.sin(np.pi * q) ** 1.2   # o esticar
+    f = 220 * 2 ** (q * 0.8)
+    puxa = puxa + 0.35 * np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * q)
+    m.poe(0.04, pb(puxa, 1600), 0.35)
+    t0 = 0.80                                                            # SPLAT
+    n = int(0.09 * SR); t = np.arange(n) / SR
+    m.poe(t0, np.sin(2 * np.pi * np.cumsum(130 * np.exp(-t * 18) + 55) / SR) * env(n, 0.001, 0.05), 0.8)
+    m.poe(t0, pb(rng.standard_normal(n), 1100, 3) * env(n, 0.0008, 0.03), 0.9)
+    m.poe(t0 + 0.01, lama(0.16, 900, 30), 0.45)
+    for i, tt in enumerate((0.98, 1.13, 1.27)):                           # o dedo amassando
+        m.poe(tt, lama(0.09, 700 - i * 80, 34), 0.38 - i * 0.05)
+        m.poe(tt, gota(260 - i * 30, 140, 0.05, 0.003), 0.18)
+    m.poe(1.42, nota('celesta', 84, 0.3, 0.4), 0.35)                     # o remendo pronto
+    m.poe(1.42, estalinho(0.01, 2200), 0.3)
+    for i in range(6):                                                    # e o pesponto: a agulha
+        m.poe(1.48 + i * 0.05, estalinho(0.006, 4500), 0.12 + 0.02 * (i % 2))
+    return sala(m.x, 0.12)
+
+def ad_carimbo():
+    """O Carimbo: o carimbo desce (um sopro curto), o TUM da borracha batendo
+    no dado (o baque do cabo de madeira), e a borracha descolando da tinta
+    quando ele sobe."""
+    m = Mix(0.9)
+    n = int(0.22 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.08, banda(rng.standard_normal(n), 400, 2500) * q ** 2, 0.18)        # descendo
+    t0 = 0.30
+    n = int(0.12 * SR); t = np.arange(n) / SR
+    m.poe(t0, np.sin(2 * np.pi * np.cumsum(180 * np.exp(-t * 25) + 70) / SR) * env(n, 0.0008, 0.045), 0.9)   # o TUM
+    m.poe(t0, pb(superficie('surface_wood_table3'), 2200), 0.55)              # o cabo de madeira
+    m.poe(t0, estalinho(0.018, 1500), 0.4)
+    n = int(0.12 * SR); t = np.arange(n) / SR                                # a borracha descolando
+    m.poe(t0 + 0.2, pb(rng.standard_normal(n), 2500) * (0.5 + 0.5 * np.sin(2 * np.pi * 45 * t)) * env(n, 0.01, 0.04), 0.25)
+    m.poe(t0 + 0.22, gota(900, 1400, 0.03, 0.002), 0.12)
+    return sala(m.x, 0.1)
+
+def ad_dupla():
+    """A Dupla Face: o dado vira como uma carta (o sopro que sobe e desce e o
+    estalo dele deitando), e as duas faces soam: duas notas de vibrafone, a de
+    cima e a de baixo."""
+    m = Mix(1.0)
+    n = int(0.3 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.05, banda(rng.standard_normal(n), 900, 5000) * np.sin(np.pi * q) ** 2, 0.25)   # a virada
+    m.poe(0.33, estalinho(0.012, 2600), 0.3)
+    m.poe(0.36, nota('vibraphone', 79, 0.5, 0.5), 0.4)
+    m.poe(0.41, nota('vibraphone', 72, 0.5, 0.5), 0.35)
+    return sala(m.x, 0.16)
+
+def ad_casca():
+    """A Casca de Banana: o dado pisa na casca e escorrega - o assobio de
+    desenho animado descendo (ziiiu), o guincho da casca molhada no feltro e
+    o chiado do deslize."""
+    m = Mix(0.9)
+    n = int(0.42 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 1900 * 2 ** (-q * 2.2) * (1 + 0.02 * np.sin(2 * np.pi * 9 * t))  # o assobio descendo
+    m.poe(0.02, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * q) ** 0.6, 0.3)
+    n = int(0.12 * SR); t = np.arange(n) / SR                            # o guincho da casca
+    gu = np.sin(2 * np.pi * np.cumsum(1100 + 300 * np.sin(2 * np.pi * 30 * t)) / SR) * env(n, 0.005, 0.05)
+    m.poe(0.05, pa(gu, 600), 0.2)
+    n = int(0.3 * SR)                                                    # o deslize no feltro
+    m.poe(0.04, banda(rng.standard_normal(n), 2000, 7000) * env(n, 0.01, 0.12), 0.1)
+    return sala(m.x, 0.1)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -1974,7 +2042,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_bomba': VOLUME['anula'], 'ad_impermeavel': VOLUME['efeito'] * 0.85,
                'ad_lenticular': VOLUME['efeito'] * 0.9, 'ad_neon': VOLUME['efeito'] * 0.9,
                'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95,
-               'ad_chiclete': VOLUME['efeito']})
+               'ad_chiclete': VOLUME['efeito'], 'ad_massinha': VOLUME['efeito'], 'ad_carimbo': VOLUME['efeito'],
+               'ad_dupla': VOLUME['efeito'], 'ad_casca': VOLUME['efeito']})
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -2018,7 +2087,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao'):

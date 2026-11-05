@@ -1283,6 +1283,31 @@ static void pega_anota(desfecho_t *d, int de, int para, int i, int lado, int a)
     if (d->n_pega >= PEGA_MAX) return;
     d->pega[d->n_pega++] = (pega_t){ (uint8_t)de, (uint8_t)para, (uint8_t)i, (uint8_t)lado, (uint8_t)a };
 }
+// O Infectado que acabou de cair (no dado k de j, para cima ou embaixo da
+// Dupla Face) se espalha na hora, valendo ou nao: um germe (carimbado, dois)
+// gruda num lado livre de um dado sorteado da bolsa de j (pode ser este),
+// para sempre. No pouso, e nao no fim da rodada: vale mesmo se o oponente
+// correr. O sorteio vem da mesa (o online tira o mesmo). Devolve quantos
+// pegaram, e onde (qi, ql), ate max.
+static int infecta_no_pouso(int j, int k, int *qi, uint8_t *ql, int max)
+{
+    static const desfecho_t nada;                // ainda nada pegou nesta conta
+    if (k < 0 || k >= F[j].lancados || !ad_fila_tem(j, k, AD_INFECTADO)) return 0;
+    int n = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), pegou = 0;
+    for (int g = 0; g < n && pegou < max; g++) {
+        uint32_t h = pega_semente(&nada, j, k) ^ (0x1F3C7E5Du * (uint32_t)(g + 1));
+        int i = pega_dado(&nada, j, h);
+        if (i < 0) break;                        // nenhum lado livre na bolsa
+        uint8_t lados[AD_LADOS];
+        int nl = pega_lados(&nada, j, i, lados);
+        int l = lados[(h >> 16) % (uint32_t)nl];
+        ad_cola(&J[j].col[i], l, AD_INFECTADO);
+        qi[pegou] = i;
+        ql[pegou] = (uint8_t)l;
+        pegou++;
+    }
+    return pegou;
+}
 
 // Como o adesivo age agora (adesivos_de): EVM_CARIMBO, a segunda vez dele,
 // carimbado pelo dado de antes - o que multiplica sobe so um degrau (x2 vira
@@ -1431,23 +1456,12 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNeon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
         break;
     }
-    case AD_INFECTADO: {                         // o germe pega num lado livre de um dado seu; valendo, +2
-        uint32_t h = pega_semente(d, j, k);
-        int i = pega_dado(d, j, h), l = 0, pts = vale ? INFECTADO_PONTOS : 0;
-        if (i < 0 && !vale) return false;        // anulado e sem lado livre: nada
-        d->semente[j] += pts;
-        if (i >= 0) {
-            uint8_t lados[AD_LADOS];
-            int n = pega_lados(d, j, i, lados);
-            l = lados[(h >> 16) % (uint32_t)n];
-            pega_anota(d, j, j, i, l, AD_INFECTADO);
-            const char *nome = TIPO[J[j].col[i].tipo].nome;
-            if (vale) e = evento(gera, EV_ADESIVO, j, k, j, k, pts, "%sInfectado: +%d e pega no dado %s", pre, pts, nome);
-            else e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sInfectado: anulado, mas pega no dado %s", pre, nome);
-        } else e = evento(gera, EV_ADESIVO, j, k, j, k, pts, "%sInfectado: +%d (sem lado livre)", pre, pts);
-        if (e) { e->bolsa_i = (uint8_t)(i >= 0 ? i : 0xFF); e->bolsa_lados = i >= 0 ? 1u << l : 0; }
+    case AD_INFECTADO:                           // valendo, +2 (o germe ja pegou na bolsa no pouso: infecta_no_pouso)
+        if (!vale) return false;
+        d->semente[j] += INFECTADO_PONTOS;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, INFECTADO_PONTOS, "%sInfectado: +%d", pre, INFECTADO_PONTOS);
+        if (e) e->bolsa_i = 0xFF;
         break;
-    }
     case AD_BARRO: {                             // o barro num dado do oponente: um lado livre dele suja, para sempre
         uint32_t h = pega_semente(d, j, k), m = 0;
         int i = pega_dado(d, r, h), n = 0, l1 = 0;

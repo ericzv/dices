@@ -1228,6 +1228,9 @@ static void desenha_fila(int j)
             // O Post-it aceso enquanto o dado seguinte rola as duas vezes.
             if (ad_face == AD_POSTIT && (fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].dono == j && voo[0].slot == k + 1)
                 ad_face_aceso = true;
+            // O Infectado aceso enquanto o germe dele voa ate a bolsa.
+            if (n_infecta && infecta_q[0].j == j && infecta_q[0].k == k && (t_infecta > 0.25f || (int)(t_fase * 12) % 2 == 0))
+                ad_face_aceso = true;
             // A Casca acesa enquanto o lance do oponente escorrega nela.
             if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
                 && k == casca_dado(j, casca_no_dado(outro(j), voo[0].slot)))
@@ -1624,7 +1627,7 @@ static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, floa
         }
     }
     gfx_disco(bx + 2, y + (int)r - 1, (int)(r * 0.8f), C_SOMBRA);
-    ad_face = cola ? ad : ad_no_lado(pc, l);
+    ad_face = cola ? ad : ad_no_lado(pc, l) == ad ? AD_NADA : ad_no_lado(pc, l);   // (o Infectado do pouso ja esta colado)
     ad_face_aceso = cola && (int)(t_fase * 8) % 2 == 0;
     desenha_dado((float)bx, (float)y, r, pc->tipo, q, 0, pc->tipo == D_QUEBRADO ? (int8_t)pc->fixo : l, 2, false);
     if (capa >= 0) capa_aura(bx, y, r, s, capa, onda);
@@ -2120,8 +2123,11 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         int bi = e->bolsa_i, l = pega_lado(e->bolsa_lados), tx, ty;                                       // e pega num dado de la
         float vida = (p - 0.42f) / 0.58f;
         bool pegou = bi != 0xFF, colou = pegou && p > 0.6f;
-        pega_mostra(j, pegou ? bi : -1, l, AD_INFECTADO, vida, colou, 0, -1, 0, &tx, &ty);
-        if (p < 0.3f) {                                         // o dado adoece: o verde pulsa em volta dele
+        // No fim da rodada (sem bolsa_i) ele so paga: o verde pulsa e o +2
+        // sobe; o germe ja tinha voado ate a bolsa quando o dado caiu.
+        if (pegou) pega_mostra(j, bi, l, AD_INFECTADO, vida, colou, 0, -1, 0, &tx, &ty);
+        if (p < 0.3f || (!pegou && p < 0.6f)) {                 // o dado adoece: o verde pulsa em volta dele
+            if (!pegou) p *= 0.5f;
             float g = sinf(p / 0.3f * 3.1416f);
             for (int i = 0; i < 24; i++) {
                 float an = i * 0.2618f + t_fase * 2;
@@ -2129,6 +2135,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 if ((i + (int)(t_fase * 14)) % 3) gfx_rect(ax + (int)(cosf(an) * rr), ay + (int)(sinf(an) * rr), 2, 2, VERDE[i % 3 ? 0 : 2]);
             }
         }
+        if (!pegou) break;
         for (int s = 0; s < 20 && p < 0.97f; s++) {             // a tosse espalha os esporos; depois eles voam juntos
             float a0 = s * 0.3142f + 0.2f;
             float q1 = fminf(1, fmaxf(0, (p - 0.06f) / 0.2f)), q2 = (p - 0.26f - (s % 8) * 0.018f) / 0.3f;
@@ -2171,9 +2178,8 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 }
             }
             char t[32];
-            if (pegou) snprintf(t, sizeof t, "pegou no lado %d", l);
-            else snprintf(t, sizeof t, "sem lado livre");
-            pega_rotulo(tx, ty, q, t, pegou ? VERDE[0] : C_TEXTO_M);
+            snprintf(t, sizeof t, "pegou no lado %d", l);
+            pega_rotulo(tx, ty, q, t, VERDE[0]);
         }
         break;
     }
@@ -2705,6 +2711,23 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
     }
     default: break;
     }
+}
+
+// O Infectado que acabou de cair: o germe voa ate a bolsa e pega no dado de
+// la (infecta_pousou), por cima da mesa, com o adesivo do dado aceso.
+static void desenha_infecta(void)
+{
+    if (!n_infecta || fase == F_EFEITOS) return;
+    const infecta_t *q = &infecta_q[0];
+    if (q->k < 0 || q->k >= N_FILA) return;
+    evento_t e = { 0 };
+    e.tipo = EV_ADESIVO;
+    e.ad = AD_INFECTADO;
+    e.de_j = e.alvo_j = (uint8_t)q->j;
+    e.de_k = e.alvo_k = (uint8_t)q->k;
+    e.bolsa_i = (uint8_t)q->i;
+    e.bolsa_lados = 1u << q->l;
+    desenha_adesivo_agindo(&e, fminf(1, t_infecta / INFECTA_T), SLOT_X(q->k), zona(q->j));
 }
 
 // Terremoto: a falha corre pelo feltro, do Terremoto ate o dado do

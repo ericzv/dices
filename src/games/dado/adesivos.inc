@@ -26,7 +26,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
-#define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 (e, valendo ou nao, passa para outro lado da sua bolsa)
+#define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 no fim (e, ao cair, valendo ou nao, passa para outro lado da sua bolsa)
 #define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 #define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
@@ -460,7 +460,7 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_IMPERMEAVEL]  = "A bolha fica até o fim da partida. Nem pela sequência. Um ataque que mire nele bate na bolha e não passa para outro dado; o Barro e a Casca de Banana do oponente não pegam nele. Ainda pode ser roubado.",
     [AD_LENTICULAR]   = "O x2 soma com os outros multiplicadores.",
     [AD_NEON]         = "Ele junto: com 6 adesivos, +12. A Sujeira também conta.",
-    [AD_INFECTADO]    = "Espalha válido ou anulado: um Infectado novo gruda num lado livre de um dado sorteado (pode ser este). Os novos ficam para sempre e também se espalham.",
+    [AD_INFECTADO]    = "Espalha assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um Infectado novo gruda num lado livre de um dado sorteado (pode ser este). Os novos ficam para sempre e também se espalham. Os +2 vêm no fim da rodada.",
     [AD_BARRO]        = "Válido ou anulado, num lado livre de um dado sorteado da bolsa dele: a Sujeira fica para sempre. Com a bolha do Impermeável, o barro não gruda.",
     [AD_SUJEIRA]      = "Válido ou anulado. Não sai mais do dado. O Neon conta a Sujeira como adesivo do dado; a Purpurina e o Holográfico, não.",
     [AD_CHICLETE]     = "Gruda válido ou anulado e entra sem rolar; o primeiro é sempre válido. Depois ele desgruda e volta a rolar normal, e pode grudar de novo. Só um dado gruda por rodada. Um número baixo é um começo seguro; um alto vale mais, mas sobe a régua.",

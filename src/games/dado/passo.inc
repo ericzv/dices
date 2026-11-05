@@ -77,6 +77,7 @@ void dado_passo(float dt)
     evento_no_meio(t_antes, t_fase);
     tiro_passo(dt);
     cosmo_passo(dt);
+    infecta_passo(dt);                   // o germe do Infectado voando ate a bolsa
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
@@ -169,6 +170,7 @@ void dado_passo(float dt)
             som_rufo(false);
             am_disparou = 0;
             pousa(j, k, rola);
+            infecta_pousou(j, k);                 // o Infectado que caiu espalha na hora, mesmo se o oponente correr
             // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
             if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
                 && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
@@ -210,7 +212,7 @@ void dado_passo(float dt)
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
         if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)
-                     + (vence_j == vez ? 0.5f : 0) && !cosmo_segura()) {
+                     + (vence_j == vez ? 0.5f : 0) && !cosmo_segura() && !n_infecta) {
             if (F[vez].lancados >= F[vez].n || vence_j == vez) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }

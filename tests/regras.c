@@ -4289,49 +4289,80 @@ int main(void)
                 J[q].n_col = 10;
                 for (int i = 0; i < 10; i++) { J[q].col[i] = (peca_t){ .tipo = D_D6 }; J[q].onde[i] = NA_BOLSA; }
             }
-            // O Infectado no 4: tirando 4, +2, e um Infectado novo num lado livre da bolsa.
+            // O Infectado no 4: tirando 4, na hora do pouso um Infectado novo
+            // gruda num lado livre da bolsa; no fim, valendo, so os +2.
             ad_cola(&J[0].col[0], 4, AD_INFECTADO);
             limpa();
             joga_ad(0, 0, 4); joga(1, D_D4, 3);
-            d = fim();
-            CONFERE(d.total[0] == 4 + INFECTADO_PONTOS && d.n_pega == 1 && d.pega[0].de == 0 && d.pega[0].para == 0
-                    && d.pega[0].ad == AD_INFECTADO && !ad_no_lado(&J[0].col[d.pega[0].i], d.pega[0].lado),
-                    "Infectado: +2 e pega num lado livre (%d, %d pegas)", d.total[0], d.n_pega);
-            int ip = d.pega[0].i, lp = d.pega[0].lado;
-            uint32_t s0 = semente;
-            desfecho_t d2 = fim();                    // o mesmo desfecho escolhe o mesmo lugar, sem gastar o sorteio
-            CONFERE(d2.pega[0].i == ip && d2.pega[0].lado == lp && semente == s0, "Infectado: o mesmo lugar de novo");
-            adesivos_ficam(0, &d);
-            int inf = 0;
+            int qi[2];
+            uint8_t ql[2];
+            int pegou = infecta_no_pouso(0, 0, qi, ql, 2), inf = 0;
             for (int i = 0; i < J[0].n_col; i++) inf += ad_conta(&J[0].col[i], AD_INFECTADO);
-            CONFERE(inf == 2 && ad_no_lado(&J[0].col[ip], lp) == AD_INFECTADO, "Infectado: agora sao dois (%d), no dado %d", inf, ip);
-            // Anulado tambem espalha, mas sem os +2.
+            CONFERE(pegou == 1 && inf == 2 && ad_no_lado(&J[0].col[qi[0]], ql[0]) == AD_INFECTADO,
+                    "Infectado: no pouso, pega num lado livre (%d, %d)", pegou, inf);
+            d = fim();
+            CONFERE(d.total[0] == 4 + INFECTADO_PONTOS && d.n_pega == 0, "Infectado: no fim, so os +2 (%d, %d pegas)", d.total[0], d.n_pega);
+            int ip = qi[0], lp = ql[0];
+            J[0].col[ip].ad[lp - 1] = AD_NADA;      // a mesma mesa escolhe o mesmo lugar, sem gastar o sorteio
+            uint32_t s0 = semente;
+            pegou = infecta_no_pouso(0, 0, qi, ql, 2);
+            CONFERE(pegou == 1 && qi[0] == ip && ql[0] == lp && semente == s0, "Infectado: o mesmo lugar de novo");
+            // O lance de verdade: espalha no pouso, e o germe voa (o veredito
+            // espera); se o oponente corre depois, o Infectado novo fica.
+            J[0].col[ip].ad[lp - 1] = AD_NADA;
+            limpa(); n_infecta = 0;
+            joga_ad(0, 0, 4);
+            infecta_pousou(0, 0);
+            CONFERE(n_infecta == 1 && infecta_q[0].i == ip && ad_no_lado(&J[0].col[ip], lp) == AD_INFECTADO,
+                    "Infectado no lance: pega na hora e a mesa mostra (%d)", n_infecta);
+            int pote0 = pote;
+            pote = 10; vez = 1; fase = F_APOSTA;
+            executa(OP_CORRER);
+            CONFERE(ad_no_lado(&J[0].col[ip], lp) == AD_INFECTADO && fase == F_RESULTADO, "Infectado: o oponente correu, e ele fica");
+            pote = pote0; n_infecta = 0;
+            // A IA, imaginando o lance, nao espalha nada.
+            {
+                jogador_t g = J[0];
+                limpa();
+                for (int l = 1; l <= 6; l++) ad_cola(&J[0].col[5], l, AD_INFECTADO);
+                jogador_t antes = J[0];
+                F[0].idx[0] = 5; F[0].tipo[0] = D_D6; F[0].n = 1;
+                sim_lanca(0);
+                CONFERE(!memcmp(&antes.col, &J[0].col, sizeof antes.col), "Infectado: a IA imaginando o lance nao espalha");
+                J[0] = g;
+            }
+            // Anulado tambem espalha (no pouso), mas sem os +2; carimbado, dois germes.
             limpa();
             joga(0, D_D6, 6); joga_ad(0, 0, 4);
+            pegou = infecta_no_pouso(0, 1, qi, ql, 2);
             d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && d.semente[0] == 0 && d.n_pega == 1, "Infectado anulado: espalha, sem os +2 (%d)",
+            CONFERE(d.est[0][1] == V_ANULADO && pegou == 1 && d.semente[0] == 0, "Infectado anulado: espalha, sem os +2 (%d)",
                     d.semente[0]);
-            // Sem lado livre na bolsa: valendo, so os +2; anulado, nada.
+            ad_cola(&J[0].col[3], 2, AD_CARIMBO);
+            limpa();
+            joga_ad(0, 3, 2); joga_ad(0, 0, 4);
+            pegou = infecta_no_pouso(0, 1, qi, ql, 2);
+            CONFERE(pegou == 2 && (qi[0] != qi[1] || ql[0] != ql[1]), "Infectado carimbado: dois germes (%d)", pegou);
+            // Sem lado livre na bolsa: nada pega; valendo, os +2; anulado, nada.
             for (int i = 0; i < J[0].n_col; i++)
                 for (int l = 1; l <= 6; l++) if (!ad_no_lado(&J[0].col[i], l)) ad_cola(&J[0].col[i], l, AD_LOBO);
             limpa();
             joga_ad(0, 0, 4);
+            pegou = infecta_no_pouso(0, 0, qi, ql, 2);
             d = fim();
-            CONFERE(d.n_pega == 0 && d.semente[0] == INFECTADO_PONTOS, "Infectado sem lado livre: so os +2 (%d)", d.n_pega);
+            CONFERE(pegou == 0 && d.semente[0] == INFECTADO_PONTOS, "Infectado sem lado livre: so os +2 (%d)", pegou);
             limpa();
             joga(0, D_D6, 6); joga_ad(0, 0, 4);
             d = fim();
-            CONFERE(d.n_pega == 0 && d.semente[0] == 0 && n_ev == 0, "Infectado anulado e sem lado livre: nada (%d eventos)", n_ev);
+            CONFERE(d.semente[0] == 0 && n_ev == 0, "Infectado anulado e sem lado livre: nada (%d eventos)", n_ev);
             // Pega em qualquer dado: o Adesivado (que, cheio, vira o Mais
             // Adesivado no fim da partida) e o que a Autofagia comeu.
             J[0].col[1] = (peca_t){ .tipo = D_ADESIVADO };
             for (int l = 1; l <= 5; l++) ad_cola(&J[0].col[1], l, AD_CONFETE);
             limpa();
             joga_ad(0, 0, 4);
-            d = fim();
-            CONFERE(d.n_pega == 1 && d.pega[0].i == 1 && d.pega[0].lado == 6, "Infectado: pega no Adesivado (%d, lado %d)",
-                    d.pega[0].i, d.pega[0].lado);
-            adesivos_ficam(0, &d);
+            pegou = infecta_no_pouso(0, 0, qi, ql, 2);
+            CONFERE(pegou == 1 && qi[0] == 1 && ql[0] == 6, "Infectado: pega no Adesivado (%d, lado %d)", qi[0], ql[0]);
             zera_acumuladores(J[0].col, J[0].n_col);
             CONFERE(J[0].col[1].tipo == D_MAIS_ADESIVADO, "o Adesivado que o Infectado encheu vira o Mais Adesivado");
             J[0].col[2] = (peca_t){ .tipo = D_D6 };
@@ -4339,8 +4370,8 @@ int main(void)
             J[0].onde[2] = COMIDO;
             limpa();
             joga_ad(0, 0, 4);
-            d = fim();
-            CONFERE(d.n_pega == 1 && d.pega[0].i == 2 && d.pega[0].lado == 6, "Infectado: pega no dado comido (%d)", d.pega[0].i);
+            pegou = infecta_no_pouso(0, 0, qi, ql, 2);
+            CONFERE(pegou == 1 && qi[0] == 2 && ql[0] == 6, "Infectado: pega no dado comido (%d)", qi[0]);
             J[0].onde[2] = NA_BOLSA;
             // O Barro: um lado livre de um dado do oponente vira Sujeira.
             for (int q = 0; q < 2; q++)

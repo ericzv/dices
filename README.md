@@ -160,9 +160,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dado, e nem o Barro gruda nele), o
   Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
   por adesivo colado no dado, a Sujeira também), e aos que passam de dado em
-  dado: o Infectado (válido ou anulado, um Infectado novo gruda num lado
-  livre de um dado sorteado da sua bolsa, qualquer um, para sempre, e também
-  se espalha; valendo, +2; o Adesivado que ele encher vira o Mais Adesivado
+  dado: o Infectado (assim que o dado cai, válido ou anulado, e mesmo se o
+  oponente correr, um Infectado novo gruda num lado livre de um dado
+  sorteado da sua bolsa, qualquer um, para sempre, e também se espalha;
+  valendo, +2 no fim da rodada; o Adesivado que ele encher vira o Mais Adesivado
   no fim da partida) e o Barro (válido ou anulado, suja um lado livre de um
   dado sorteado da bolsa do oponente: a Sujeira, que não sai mais e dá -2 no
   placar de quem tirar esse lado; se o dado sorteado estiver com a bolha do

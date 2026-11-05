@@ -79,6 +79,29 @@ static void poe_grudado(int j, int i)
     f->pontos = soma(j, f->est);
     veredito[0] = 0;
 }
+// O Infectado que caiu espalha na hora (infecta_no_pouso), e a mesa mostra o
+// germe voando ate a bolsa e pegando no dado de la, um de cada vez; o
+// veredito espera (passo.inc).
+#define INFECTA_T 1.6f
+typedef struct { int8_t j, k, i; uint8_t l; } infecta_t;
+static infecta_t infecta_q[4];
+static int n_infecta;
+static float t_infecta;
+static void infecta_pousou(int j, int k)
+{
+    int is[2];
+    uint8_t ls[2];
+    int n = infecta_no_pouso(j, k, is, ls, 2), antes = n_infecta;
+    for (int g = 0; g < n && n_infecta < 4; g++) infecta_q[n_infecta++] = (infecta_t){ (int8_t)j, (int8_t)k, (int8_t)is[g], ls[g] };
+    if (!antes && n_infecta) { t_infecta = 0; som_toca(SOM_AD_INFECTADO); }
+}
+static void infecta_passo(float dt)
+{
+    if (!n_infecta || (t_infecta += dt) < INFECTA_T) return;
+    memmove(infecta_q, infecta_q + 1, (size_t)(--n_infecta) * sizeof infecta_q[0]);
+    t_infecta = 0;
+    if (n_infecta) som_toca(SOM_AD_INFECTADO);
+}
 static void gruda_chiclete(int j)
 {
     if (F[j].n || F[j].lancados) return;         // ja montou (voltou para a fila)
@@ -86,6 +109,7 @@ static void gruda_chiclete(int j)
     if (i < 0) return;
     J[j].col[i].chiclete = 0;
     poe_grudado(j, i);
+    infecta_pousou(j, 0);                        // grudado com o Infectado para cima: espalha ao chegar
     plano_rodada = -1;                           // a IA monta a fila de novo, com ele no primeiro lugar
 }
 
@@ -222,6 +246,7 @@ static void avisa_sua_vez(void)
 static void marca_online(void);             // online.inc: o marco da partida para o rival conferir
 static void nova_rodada(void)
 {
+    n_infecta = 0;                               // o germe que ainda voava da rodada de antes
     marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
@@ -1549,7 +1574,7 @@ static float duracao_de(const evento_t *e)
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
     case EV_ADESIVO:                                // o germe e o barro viajam; a massinha voa, amassa e vira remendo
-        return e->ad == AD_INFECTADO || e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : 1.5f;
+        return e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : 1.5f;
     default:       return 1.3f;
     }
 }

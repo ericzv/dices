@@ -46,10 +46,6 @@ static void descarta_mao(jogador_t *p)
     }
 }
 
-// O Chiclete: o numero (e o lado) com que o dado grudou, para abrir a
-// sequencia seguinte de cada um.
-static int chic_valor[2];
-static uint8_t chic_lado[2];
 // Na vez de j, o dado que grudou ja abre a sequencia: no primeiro lugar, ja
 // pousado com o mesmo numero, sem rolar (o primeiro e sempre valido). Ele nao
 // sai da fila, e o Chiclete dele nao gruda de novo.
@@ -79,10 +75,11 @@ static void poe_grudado(int j, int i)
     f->pontos = soma(j, f->est);
     veredito[0] = 0;
 }
-// Os adesivos que agem no pouso (adesivos_no_pouso: o Infectado, o Barro e
-// a Massinha) mexem na bolsa na hora, e a mesa mostra cada um, por vez - o
-// germe voando ate a bolsa, a bola de barro no dado do oponente, a massinha
-// virando o Remendo; o veredito espera (passo.inc).
+// Os adesivos que agem no pouso (adesivos_no_pouso: o Infectado, o Barro, a
+// Massinha e o Chiclete) mexem na bolsa na hora, e a mesa mostra cada um, por
+// vez - o germe voando ate a bolsa, a bola de barro no dado do oponente, a
+// massinha virando o Remendo, a bola de chiclete estourando e a goma
+// prendendo o dado; o veredito espera (passo.inc).
 #define POUSO_MAX 4
 static pouso_ad_t pouso_q[POUSO_MAX];
 static int n_pouso;
@@ -97,6 +94,7 @@ static void pouso_toca(const pouso_ad_t *p)
         while (l < AD_LADOS && !(p->lados >> l & 1)) l++;
         flutua_em(p->j, p->k, RGB(130, 204, 112), 1.05f, "+2 no %d", l);
     }
+    if (p->ad == AD_CHICLETE) flutua_em(p->j, p->k, C_ROSA, 0.85f, "gruda", 0);   // quando a bola estoura e a goma prende o dado
 }
 static void adesivos_pousou(int j, int k)
 {
@@ -119,7 +117,7 @@ static void gruda_chiclete(int j)
     if (i < 0) return;
     J[j].col[i].chiclete = 0;
     poe_grudado(j, i);
-    adesivos_pousou(j, 0);                       // grudado com o Infectado (o Barro, a Massinha) para cima: age ao chegar
+    adesivos_pousou(j, 0);                       // grudado com o Infectado (o Barro, a Massinha) para cima: age ao chegar (o Chiclete, nao)
     plano_rodada = -1;                           // a IA monta a fila de novo, com ele no primeiro lugar
 }
 
@@ -877,11 +875,6 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (d->capa[j] >> k & 1) p->col[i].capa = 1;      // o Impermeavel: ate o fim da partida
         if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
         if ((d->fig_cresce2[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;
-        if (d->chiclete[j] == k + 1) {           // o Chiclete: abre a proxima com este numero
-            p->col[i].chiclete = 1;
-            chic_valor[j] = F[j].valor[k];
-            chic_lado[j] = F[j].lado[k];
-        }
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
@@ -1680,7 +1673,6 @@ static void flutua_evento_(const evento_t *e)
             else if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor);
             break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
-        case AD_CHICLETE:   flutua_em(dj, dk, C_ROSA, 0, "gruda", 0); break;
         case AD_MASSINHA:   flutua_em(dj, dk, RGB(130, 204, 112), 1.05f, "+2 no %d", e->valor); break;   // quando vira o Remendo
         case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
         case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro

@@ -32,7 +32,6 @@ typedef struct {
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
     uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
-    uint8_t chiclete[2];             // o dado que grudou pelo Chiclete (a posicao + 1; 0: nenhum)
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -1285,18 +1284,30 @@ static bool bolsa_impermeavel(int q, int i)
 // n: quantos lados pegaram; capa: a bolha do Impermeavel segurou (o Barro).
 typedef struct { int8_t j, k, q, i; uint8_t ad, capa, n; uint32_t lados; } pouso_ad_t;
 // Os adesivos que agem no pouso do dado (o do lado de cima, ou o de baixo
-// pela Dupla Face), valendo ou nao - e por isso mesmo se o oponente correr:
+// pela Dupla Face), valendo ou nao - e por isso mesmo se alguem correr:
 // o Infectado (um germe num lado livre de um dado sorteado da sua bolsa), o
 // Barro (um lado livre de um dado sorteado da bolsa do oponente vira Sujeira;
 // com a bolha do Impermeavel, nao gruda) e a Massinha (o lado mais baixo sem
-// adesivo do proprio dado ganha um Remendo). Carimbados, duas vezes. Tudo
-// para sempre. O sorteio vem da mesa (o online tira o mesmo). Devolve
+// adesivo do proprio dado ganha um Remendo), carimbados duas vezes e para
+// sempre; e o Chiclete (o dado gruda: abre a proxima sequencia com o mesmo
+// numero - um so por rodada, uma vez mesmo carimbado, e o que ja veio grudado
+// nao gruda de novo). O sorteio vem da mesa (o online tira o mesmo). Devolve
 // quantas vezes agiram (ate max), e como, em o.
 static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
 {
     if (k < 0 || k >= F[j].lancados || k >= N_FILA) return 0;
     int a = ad_fila(j, k), r = outro(j);
     if (a == AD_DUPLA) a = ad_oposto_fila(j, k);
+    if (a == AD_CHICLETE) {
+        int i = F[j].idx[k];
+        if (max < 1 || !peca_fila(j, k) || F[j].chiclete || (k == 0 && F[j].grudado)) return 0;
+        J[j].col[i].chiclete = 1;
+        chic_valor[j] = F[j].valor[k];
+        chic_lado[j] = F[j].lado[k];
+        F[j].chiclete = (uint8_t)(k + 1);
+        o[0] = (pouso_ad_t){ (int8_t)j, (int8_t)k, (int8_t)j, (int8_t)i, AD_CHICLETE, 0, 1, 0 };
+        return 1;
+    }
     if (a != AD_INFECTADO && a != AD_BARRO && a != AD_MASSINHA) return 0;
     int vezes = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), n = 0;
     for (int g = 0; g < vezes && n < max; g++) {
@@ -1484,14 +1495,10 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, INFECTADO_PONTOS, "%sInfectado: +%d", pre, INFECTADO_PONTOS);
         if (e) e->bolsa_i = 0xFF;
         break;
-    case AD_BARRO:                               // o Barro e a Massinha ja agiram no pouso (adesivos_no_pouso)
+    case AD_BARRO:                               // o Barro, a Massinha e o Chiclete ja agiram no pouso (adesivos_no_pouso)
     case AD_MASSINHA:
+    case AD_CHICLETE:
         return false;
-    case AD_CHICLETE:                            // o dado gruda: abre a proxima sequencia com o mesmo numero
-        if (copia || de_novo || (k == 0 && F[j].grudado) || d->chiclete[j] || !peca_fila(j, k)) return false;   // um por rodada, e nao gruda de novo
-        d->chiclete[j] = (uint8_t)(k + 1);
-        e = evento(gera, EV_ADESIVO, j, k, j, k, F[j].valor[k], "%sChiclete: o %d gruda e abre a próxima", pre, F[j].valor[k]);
-        break;
     case AD_RATOEIRA:                            // anulado, ate pela sequencia: o queijo fica (o ataque fecha a armadilha: ratoeira_desarma)
         if (vale) return false;
         d->semente[j] += RATOEIRA_PONTOS;
@@ -1575,6 +1582,13 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
     // e o Carimbo e a Dupla Face que os fizeram agir tambem. O Infectado
     // valendo ainda paga os +2 (ad_age).
     if (a == AD_BARRO || a == AD_MASSINHA || (a == AD_INFECTADO && d->est[j][k] != V_VALIDO)) {
+        if (primeira) (*agiram)++;
+        return true;
+    }
+    // O Chiclete que grudou no pouso conta tambem (uma vez: carimbado, ele
+    // nao gruda duas); o que nao grudou (outro ja tinha grudado), nao.
+    if (a == AD_CHICLETE) {
+        if (F[j].chiclete != k + 1 || (age_modo & EVM_CARIMBO)) return false;
         if (primeira) (*agiram)++;
         return true;
     }

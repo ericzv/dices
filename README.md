@@ -152,10 +152,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
   dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
-  rodada seguinte), ao Chiclete (funciona em ciclos: válido ou anulado, o
-  dado gruda; na rodada seguinte ele já abre a sua sequência com o mesmo
-  número, sem rolar, e desgruda - depois volta a rolar normal e pode grudar
-  de novo; um por rodada), à Ratoeira (anulado, até pela sequência, o queijo
+  rodada seguinte), ao Chiclete (funciona em ciclos: assim que cai, válido
+  ou anulado, o dado gruda - mesmo se alguém correr depois; na rodada
+  seguinte ele já abre a sua sequência com o mesmo número, sem rolar, e
+  desgruda - depois volta a rolar normal e pode grudar de novo; um por
+  rodada), à Ratoeira (anulado, até pela sequência, o queijo
   fica: +2; e se foi o oponente que o anulou com um poder, o maior dele
   também cai), ao
   Holográfico (repete os adesivos que agiram nos seus dados), ao Fermento

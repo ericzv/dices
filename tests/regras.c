@@ -4479,29 +4479,54 @@ int main(void)
             J[0] = g0; J[1] = g1;
         }
 
-        // ---- O Chiclete: o dado gruda e abre a proxima sequencia ----------------
+        // ---- O Chiclete: no pouso, o dado gruda e abre a proxima sequencia ------
         {
-            jogador_t g0 = J[0];
+            jogador_t g0 = J[0], g1 = J[1];
+            pouso_ad_t o[2];
             J[0].n_col = 4;
             for (int i = 0; i < 4; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6 }; J[0].onde[i] = NA_BOLSA; }
             ad_cola(&J[0].col[1], 3, AD_CHICLETE);
             ad_cola(&J[0].col[2], 5, AD_CHICLETE);
             limpa();
-            joga_ad(0, 1, 3); joga_ad(0, 2, 5);          // dois Chicletes: so o primeiro gruda
+            joga_ad(0, 1, 3);
+            int pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && o[0].ad == AD_CHICLETE && o[0].i == 1 && F[0].chiclete == 1 && J[0].col[1].chiclete
+                    && chic_valor[0] == 3 && chic_lado[0] == 3, "Chiclete: gruda assim que cai, com o 3 (%d)", pegou);
+            joga_ad(0, 2, 5);                            // dois Chicletes: so o primeiro gruda
+            pegou = adesivos_no_pouso(0, 1, o, 2);
+            CONFERE(pegou == 0 && F[0].chiclete == 1 && !J[0].col[2].chiclete && chic_valor[0] == 3,
+                    "Chiclete: so o primeiro gruda (%d)", pegou);
+            // A Purpurina conta o que grudou; o segundo, que nao grudou, nao.
+            ad_cola(&J[0].col[3], 6, AD_PURPURINA);
+            joga_ad(0, 3, 6);
             d = fim();
-            CONFERE(d.chiclete[0] == 1, "Chiclete: so o primeiro gruda (%d)", d.chiclete[0]);
+            CONFERE(d.semente[0] == PURPURINA_CADA * 2, "Chiclete: a Purpurina conta o que grudou, e so ele (%d)", d.semente[0]);
+            J[0].col[3] = (peca_t){ .tipo = D_D6 };
+            J[0].col[1].chiclete = 0;
             limpa();
-            joga(0, D_D6, 6); joga_ad(0, 1, 3);          // anulado tambem gruda
-            d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && d.chiclete[0] == 2, "Chiclete anulado: gruda tambem (%d)", d.chiclete[0]);
-            limpa();
-            joga_ad(0, 1, 3); joga(1, D_D4, 2);
-            d = fim();
-            adesivos_ficam(0, &d);
-            CONFERE(J[0].col[1].chiclete && !J[0].col[2].chiclete && chic_valor[0] == 3 && chic_lado[0] == 3,
-                    "Chiclete: o dado grudou com o 3");
+            joga(0, D_D6, 6); joga_ad(0, 1, 3);          // anulado pela sequencia: gruda tambem
+            pegou = adesivos_no_pouso(0, 1, o, 2);
+            CONFERE(F[0].est[1] == V_ANULADO && pegou == 1 && F[0].chiclete == 2 && J[0].col[1].chiclete,
+                    "Chiclete anulado: gruda tambem (%d)", pegou);
+            J[0].col[1].chiclete = 0;
+            // O lance de verdade: gruda no pouso e a mesa mostra; se alguem corre
+            // depois - o oponente ou ele mesmo -, ele fica grudado do mesmo jeito.
+            for (int quem = 1; quem >= 0; quem--) {
+                limpa(); n_pouso = 0;
+                joga_ad(0, 1, 3);
+                adesivos_pousou(0, 0);
+                CONFERE(n_pouso == 1 && pouso_q[0].ad == AD_CHICLETE && pouso_q[0].k == 0 && J[0].col[1].chiclete,
+                        "Chiclete no lance: gruda na hora e a mesa mostra (%d)", n_pouso);
+                int pote0 = pote;
+                pote = 10; vez = quem; fase = F_APOSTA;
+                executa(OP_CORRER);
+                CONFERE(J[0].col[1].chiclete && chic_valor[0] == 3 && chic_lado[0] == 3 && fase == F_RESULTADO,
+                        "Chiclete: %s correu, e ele fica grudado", quem ? "o oponente" : "ele mesmo");
+                pote = pote0; n_pouso = 0;
+                J[0].fichas = g0.fichas; J[1].fichas = g1.fichas;
+            }
             // A rodada seguinte: ele volta para a mao e ja abre a sequencia, pousado
-            // com o 3, sem rolar - e nao sai dela.
+            // com o 3, sem rolar - e nao sai dela, nem gruda de novo.
             descarta_mao(&J[0]);
             CONFERE(J[0].n_mao == 1 && J[0].mao[0] == 1 && J[0].onde[1] == NA_MAO, "Chiclete: volta para a mao");
             limpa();
@@ -4510,13 +4535,14 @@ int main(void)
             CONFERE(F[0].n == 1 && F[0].lancados == 1 && F[0].idx[0] == 1 && F[0].valor[0] == 3 && F[0].lado[0] == 3
                     && F[0].est[0] == V_VALIDO && F[0].grudado && !J[0].col[1].chiclete && semente == s0,
                     "Chiclete: abre a sequencia ja com o 3, sem rolar");
+            CONFERE(n_pouso == 0 && F[0].chiclete == 0, "Chiclete: o grudado chega no lado dele e nao gruda de novo");
             int vez0 = vez; vez = 0;
             poe_na_fila(0);                              // tentar tirar o grudado: nao sai
             vez = vez0;
             CONFERE(F[0].n == 1 && F[0].idx[0] == 1, "Chiclete: o grudado nao sai da sequencia");
             joga_ad(0, 3, 2);                            // menor que o 3: a sequencia derruba os dois
             d = fim();
-            CONFERE(d.chiclete[0] == 0 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO,
+            CONFERE(F[0].chiclete == 0 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO,
                     "Chiclete: grudado, nao gruda de novo; a sequencia derruba os dois");
             // Em ciclos: usado grudado, ele desgruda e sai da mao como os outros;
             // a proxima vez que rolar e cair no Chiclete, gruda de novo (na mesma
@@ -4526,10 +4552,18 @@ int main(void)
             CONFERE(!J[0].col[1].chiclete && J[0].n_mao == 0 && J[0].onde[1] == FORA, "Chiclete: usado grudado, desgruda");
             limpa();
             joga_ad(0, 1, 3);                            // rolou normal e caiu no Chiclete outra vez
-            d = fim();
-            adesivos_ficam(0, &d);
-            CONFERE(d.chiclete[0] == 1 && J[0].col[1].chiclete && chic_valor[0] == 3, "Chiclete: desgrudado, gruda de novo (%d)", d.chiclete[0]);
+            pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && J[0].col[1].chiclete && chic_valor[0] == 3, "Chiclete: desgrudado, gruda de novo (%d)", pegou);
             J[0].col[1].chiclete = 0;
+            // Pela Dupla Face (o Chiclete embaixo) gruda tambem, com o lado de cima.
+            J[0].col[2] = (peca_t){ .tipo = D_D6 };
+            ad_cola(&J[0].col[2], 2, AD_DUPLA); ad_cola(&J[0].col[2], 5, AD_CHICLETE);
+            limpa();
+            joga_ad(0, 2, 2);
+            pegou = adesivos_no_pouso(0, 0, o, 2);
+            CONFERE(pegou == 1 && J[0].col[2].chiclete && chic_valor[0] == 2 && chic_lado[0] == 2,
+                    "Chiclete pela Dupla Face: gruda com o 2 (%d)", pegou);
+            J[0].col[2].chiclete = 0;
             // Comido pela Autofagia, nao volta; e o fim da partida desgruda.
             J[0].col[1].chiclete = 1; J[0].onde[1] = COMIDO;
             descarta_mao(&J[0]);
@@ -4537,7 +4571,7 @@ int main(void)
             J[0].col[2].chiclete = 1;
             zera_acumuladores(J[0].col, J[0].n_col);
             CONFERE(!J[0].col[2].chiclete, "Chiclete: o fim da partida desgruda");
-            J[0] = g0;
+            J[0] = g0; J[1] = g1;
             limpa();
         }
 

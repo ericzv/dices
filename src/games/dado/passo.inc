@@ -77,7 +77,7 @@ void dado_passo(float dt)
     evento_no_meio(t_antes, t_fase);
     tiro_passo(dt);
     cosmo_passo(dt);
-    pouso_passo(dt);                     // o Infectado, o Barro e a Massinha agindo no pouso
+    pouso_passo(dt);                     // o Infectado, o Barro, a Massinha e o Chiclete agindo no pouso
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
     if (t_fala > 0) t_fala -= dt_real;
@@ -170,7 +170,7 @@ void dado_passo(float dt)
             som_rufo(false);
             am_disparou = 0;
             pousa(j, k, rola);
-            adesivos_pousou(j, k);                // o Infectado, o Barro e a Massinha agem na hora, mesmo se o oponente correr
+            adesivos_pousou(j, k);                // o Infectado, o Barro, a Massinha e o Chiclete agem na hora, mesmo se alguem correr
             // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
             if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
                 && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)

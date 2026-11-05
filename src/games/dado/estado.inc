@@ -51,6 +51,7 @@ typedef struct {
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    grudado;                 // o primeiro veio grudado pelo Chiclete: ja na mesa, sem rolar
+    uint8_t chiclete;                // o dado que grudou nesta rodada pelo Chiclete, no pouso (a posicao + 1; 0: nenhum)
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    bomba[N_FILA];           // o Papel Bomba explodiu: o numero e a soma de dois lances
     int8_t  bomba1[N_FILA];          // e o primeiro deles
@@ -205,6 +206,10 @@ static float t_tique_placar;             // os tiques da contagem nao se amontoa
 #define RODADA_GRANDE 30                 // pontos de quem leva para a mesa vibrar no fim
 static int  venc_mao, venc_partida;
 static int  correu_venc = -1;        // quem levou o pote porque o outro correu
+// O Chiclete: o numero (e o lado) com que o dado grudou, para abrir a
+// sequencia seguinte de cada um.
+static int chic_valor[2];
+static uint8_t chic_lado[2];
 static int  zerou = -1;              // quem abriu a rodada e ficou com 0: perdeu na hora
 static int  vence_j = -1;            // quem joga em segundo e ja passou do alvo: a vez acabou
 static float t_vence;                // desde quando (o placar dele acende)

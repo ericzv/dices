@@ -463,7 +463,9 @@ static void des_nova_run(void)
 // recomecada (quem saiu no meio e voltou), sorteia do mesmo jeito.
 // O Acumulador (e a Furia) guarda o bonus so dentro de uma partida: a cada
 // partida da run ele recomeca do zero; o ciclo cosmico recomeca da Estrela. A Onda e os Tres Patinhos levam a
-// contagem de uma partida para a outra.
+// contagem de uma partida para a outra. O Adesivado que se encheu na partida
+// (o Infectado e o Barro tambem colam nele) vira o Mais Adesivado, como na
+// loja.
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++) {
@@ -471,6 +473,7 @@ static void zera_acumuladores(peca_t *col, int n)
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
         col[i].capa = 0;                         // e a capa do Impermeavel tambem
+        vira_mais_adesivado(&col[i]);            // o Adesivado que o Infectado (ou o Barro) encheu
         if (cosmico(col[i].tipo) && col[i].tipo != D_ASTRO) cosmo_vira(&col[i], D_ASTRO, false);   // o ciclo cosmico recomeca
     }
 }

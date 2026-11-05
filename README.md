@@ -132,7 +132,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
   inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 34, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  lado para cima: são 36, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
   um sai metade das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
@@ -152,10 +152,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
   partida, o dado fica numa bolha de proteção e não pode ser anulado nem
   destruído: um ataque que mire nele bate na bolha e não passa para outro
-  dado), o
+  dado, e nem o Barro gruda nele), o
   Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
-  por adesivo colado no dado); sete desde o começo, os outros abrem nos
-  níveis 1 a 10. Cada adesivo tem
+  por adesivo colado no dado, a Sujeira também), e aos que passam de dado em
+  dado: o Infectado (válido ou anulado, um Infectado novo gruda num lado
+  livre de um dado sorteado da sua bolsa, qualquer um, para sempre, e também
+  se espalha; valendo, +2; o Adesivado que ele encher vira o Mais Adesivado
+  no fim da partida) e o Barro (válido ou anulado, suja um lado livre de um
+  dado sorteado da bolsa do oponente: a Sujeira, que não sai mais e dá -2 no
+  placar de quem tirar esse lado; se o dado sorteado estiver com a bolha do
+  Impermeável, o barro não gruda; a Sujeira não se vende); sete desde o
+  começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
@@ -241,11 +248,11 @@ da bolsa. A raridade sobe com a partida: da 1ª à 5ª rodada, comuns e
 incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
 lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
 um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
-Raspadinha, Lobo, Gorjeta, Frágil e Velcro; incomuns: Confete, Reflexivo,
+Raspadinha, Lobo, Gorjeta, Frágil, Velcro e Barro; incomuns: Confete, Reflexivo,
 Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha,
 Imantado, Papel Bomba e Lenticular; raros: Eletrônico, Transparente,
-Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel Carbono, Neon e
-Impermeável; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
+Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel Carbono, Neon,
+Impermeável e Infectado; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
 Dez). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.

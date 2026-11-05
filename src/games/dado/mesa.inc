@@ -1564,12 +1564,13 @@ static void desenha_fila(int j)
 // da mesa (a esquerda do placar, sem cobrir nada), com o lado que pegou para
 // cima, e volta para dentro no fim. vida 0..1 (sobe com a mola, fica e
 // afunda); cola: o adesivo novo (ad) ja esta no lado, piscando; pulo: o tapa
-// (o barro chegando), em pixels. (*ox, *oy): onde ele fica, mesmo antes de
-// aparecer.
+// (o barro chegando), em pixels; capa: a bolha do Impermeavel em volta dele
+// (< 0: sem bolha; 0..1: o quanto ela acende segurando o golpe, com a onda).
+// (*ox, *oy): onde ele fica, mesmo antes de aparecer.
 #define PEGA_DX   40                         // a esquerda da bolsa
 #define PEGA_SOBE 48                         // e o quanto ele sobe dela
 static int pega_lado(uint32_t m) { int l = 0; while (l < 31 && !(m >> l & 1)) l++; return l; }
-static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, float pulo, int *ox, int *oy)
+static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, float pulo, float capa, float onda, int *ox, int *oy)
 {
     int dir = q == baixo ? -1 : 1, bx = bolsa_x() - PEGA_DX, by = bolsa_y(q);
     float s = vida < 0.18f ? sai_mola(vida / 0.18f) : vida > 0.86f ? fmaxf(0, 1 - (vida - 0.86f) / 0.14f) : 1;
@@ -1592,6 +1593,7 @@ static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, floa
     ad_face = cola ? ad : ad_no_lado(pc, l);
     ad_face_aceso = cola && (int)(t_fase * 8) % 2 == 0;
     desenha_dado((float)bx, (float)y, r, pc->tipo, q, 0, pc->tipo == D_QUEBRADO ? (int8_t)pc->fixo : l, 2, false);
+    if (capa >= 0) capa_aura(bx, y, r, s, capa, onda);
 }
 // O que aconteceu com o dado da bolsa, a esquerda dele, na letra dos
 // numeros (q: 0..1, sobe um nadinha e some no fim).
@@ -1758,7 +1760,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         int bi = e->bolsa_i, l = pega_lado(e->bolsa_lados), tx, ty;                                       // e pega num dado de la
         float vida = (p - 0.42f) / 0.58f;
         bool pegou = bi != 0xFF, colou = pegou && p > 0.6f;
-        pega_mostra(j, pegou ? bi : -1, l, AD_INFECTADO, vida, colou, 0, &tx, &ty);
+        pega_mostra(j, pegou ? bi : -1, l, AD_INFECTADO, vida, colou, 0, -1, 0, &tx, &ty);
         if (p < 0.3f) {                                         // o dado adoece: o verde pulsa em volta dele
             float g = sinf(p / 0.3f * 3.1416f);
             for (int i = 0; i < 24; i++) {
@@ -1809,7 +1811,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 }
             }
             char t[32];
-            if (pegou) snprintf(t, sizeof t, "pegou no %s", TIPO[bi < J[j].n_col ? J[j].col[bi].tipo : D_D6].nome);
+            if (pegou) snprintf(t, sizeof t, "pegou no lado %d", l);
             else snprintf(t, sizeof t, "sem lado livre");
             pega_rotulo(tx, ty, q, t, pegou ? VERDE[0] : C_TEXTO_M);
         }
@@ -1818,10 +1820,12 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
     case AD_BARRO: {                                            // a bola de barro: junta no dado, voa num arco e espirra
         static const uint16_t LAMA[4] = { RGB(78, 46, 30), RGB(120, 78, 50), RGB(156, 106, 64), RGB(190, 156, 86) };
         int r = e->alvo_j, bi = e->bolsa_i, l = pega_lado(e->bolsa_lados), tx, ty, dr = r == baixo ? -1 : 1;
-        bool pegou = bi != 0xFF;
+        bool pegou = bi != 0xFF, capa = pegou && e->bolsa_capa;    // capa: a bolha do Impermeavel segura o barro
         float bate = 0.56f, vida = (p - 0.36f) / 0.64f;
-        float tapa = p > bate && p < bate + 0.08f ? sinf((p - bate) / 0.08f * 3.1416f) * 4 * -dr : 0;
-        pega_mostra(r, pegou ? bi : -1, l, AD_SUJEIRA, vida, pegou && p > bate, tapa, &tx, &ty);
+        float tapa = !capa && p > bate && p < bate + 0.08f ? sinf((p - bate) / 0.08f * 3.1416f) * 4 * -dr : 0;
+        float golpe = capa && p >= bate ? (p - bate) / 0.3f : -1;  // o barro batendo na bolha: acende e a onda abre
+        pega_mostra(r, pegou ? bi : -1, l, AD_SUJEIRA, vida, pegou && !capa && p > bate, tapa,
+                    !capa ? -1 : golpe < 0 ? 0 : fmaxf(0, 1 - golpe * 1.4f), golpe > 0 && golpe < 1 ? golpe : 0, &tx, &ty);
         if (!pegou) { tx = bolsa_x(); ty = bolsa_y(r); }
         if (p > 0.05f && p < bate) {                            // a bola: junta em cima do dado e voa
             float q1 = fminf(1, (p - 0.05f) / 0.18f), q2 = (p - 0.25f) / (bate - 0.25f);
@@ -1854,7 +1858,19 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             gfx_rect(bx - rr / 2, by - rr / 2, 2, 2, LAMA[3]);
             gfx_pixel(bx + (int)(cosf(gi + 2.5f) * (rr - 1)), by + (int)(sinf(gi + 2.5f) * (rr - 1)), LAMA[0]);
         }
-        if (p >= bate && p < 0.96f) {                           // SPLAT: o barro achata, os respingos voam e escorrem
+        if (capa && p >= bate && p < 0.96f) {                   // a bolha segura: o barro espirra para fora dela
+            float q = (p - bate) / (0.96f - bate), qq = fminf(1, q * 2.0f);
+            for (int i = 0; i < 18; i++) {
+                float an = i * 0.349f + 0.2f, v = 14 + (i * 37) % 18;
+                int x = tx + (int)(cosf(an) * (capa_raio(14) + v * qq)), y = ty + (int)(sinf(an) * (capa_raio(14) + v * qq * 0.7f) + 34 * qq * qq);
+                if (q > 0.7f && i % 2) continue;
+                int sz = i % 4 == 0 ? 3 : 2;
+                gfx_rect(x + 1, y + 1, sz, sz, C_SOMBRA);
+                gfx_rect(x, y, sz, sz, LAMA[i % 3]);
+            }
+            pega_rotulo(tx, ty, q < 0.9f ? q : 0, "protegido", C_VENTO);
+        }
+        if (!capa && p >= bate && p < 0.96f) {                  // SPLAT: o barro achata, os respingos voam e escorrem
             float q = (p - bate) / (0.96f - bate);
             if (q < 0.22f) {                                    // a panqueca de lama no instante do tapa
                 float qs = q / 0.22f;
@@ -1881,7 +1897,8 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 gfx_rect(x, y, 2, 2, LAMA[1]);
             }
             char t[32];
-            if (pegou) snprintf(t, sizeof t, "sujou %d lado%s", e->valor, e->valor > 1 ? "s" : "");
+            if (pegou && e->valor == 1) snprintf(t, sizeof t, "sujou o lado %d", l);
+            else if (pegou) snprintf(t, sizeof t, "sujou %d lados", e->valor);
             else snprintf(t, sizeof t, "não grudou");
             pega_rotulo(tx, ty, q < 0.9f ? q : 0, t, pegou ? LAMA[3] : C_TEXTO_M);
         }

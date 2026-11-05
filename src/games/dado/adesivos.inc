@@ -24,8 +24,8 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
-#define INFECTADO_PONTOS 2                      // o Infectado: +2, e passa para outro lado da sua bolsa
-#define BARRO_LADOS 3                           // o Barro: os lados do dado do oponente que ficam sujos
+#define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 (e, valendo ou nao, passa para outro lado da sua bolsa)
+#define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
@@ -144,16 +144,16 @@ static const adesivo_t ADESIVO[AD_N] = {
                           RGB(24, 22, 20), RGB(208, 98, 108), RGB(226, 164, 168),
                           { ".##.##.", "#..#..#", "#.....#", "#.....#", ".#...#.", "..#.#..", "...#..." } },
     // Os que passam de dado em dado: o germe que se espalha na sua bolsa, e o
-    // barro que voce joga nos dados do oponente (la, cada respingo vira uma
-    // Sujeira, ate o fim da partida). O germe e uma bolinha de espinhos com
+    // barro que voce joga nos dados do oponente (la, o respingo vira uma
+    // Sujeira, para sempre). O germe e uma bolinha de espinhos com
     // dois olhos; "w": o branco do olho, so no colorido.
-    [AD_INFECTADO]    = { "Infectado", "tirando este lado: +2, e infecta", "um lado livre de um dado seu", 6, 6,
+    [AD_INFECTADO]    = { "Infectado", "tirando este lado: infecta outro", "lado seu; se válido, +2", 6, 6,
                           RGB(130, 204, 112), RGB(206, 180, 218), RGB(102, 74, 138),
                           { "#..#..#", "..###..", ".#####.", "##w#w##", ".#####.", "..###..", "#..#..#" } },
-    [AD_BARRO]        = { "Barro", "tirando este lado: suja 3 lados", "de um dado do oponente (-2 lá)", 3, 3,
+    [AD_BARRO]        = { "Barro", "tirando este lado: suja 1 lado", "de um dado do oponente (-2 lá)", 3, 3,
                           RGB(156, 106, 64), RGB(190, 156, 86), RGB(78, 46, 30),
                           { "#...#..", "..###.#", ".#####.", "######.", ".#####.", "#.###..", "...#..#" } },
-    [AD_SUJEIRA]      = { "Sujeira", "tirando este lado: -2 no seu", "placar; sai no fim da partida", 0, 3,
+    [AD_SUJEIRA]      = { "Sujeira", "tirando este lado: -2 no seu", "placar; não sai mais", 0, 3,
                           RGB(120, 78, 50), RGB(156, 106, 64), RGB(56, 32, 20),
                           { ".#####.", "#######", "#######", "##.###.", ".#.#.#.", ".#...#.", ".....#." } },
 };
@@ -385,12 +385,12 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_NOTA_DEZ]     = "Tirando este lado, o dado vira e fica com o lado mais alto para cima: no d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
     [AD_CARBONO]      = "Tirando este lado, o dado fica com o número do seu último dado válido da sequência. Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
     [AD_BOMBA]        = "Tirando este lado, o dado rola de novo e pontua a soma dos dois lances. Explode uma vez só: o adesivo do lado que ficou para cima no segundo lance age no fim da rodada, mas não faz rolar de novo.",
-    [AD_IMPERMEAVEL]  = "Tirando este lado, o dado ganha uma bolha de proteção até o fim da partida: não pode ser anulado nem destruído (nem pela sequência). Um ataque que mire nele bate na bolha e é bloqueado - e não passa para outro dado. Ainda pode ser roubado.",
+    [AD_IMPERMEAVEL]  = "Tirando este lado, o dado ganha uma bolha de proteção até o fim da partida: não pode ser anulado nem destruído (nem pela sequência). Um ataque que mire nele bate na bolha e é bloqueado - e não passa para outro dado; nem o Barro do oponente gruda nele. Ainda pode ser roubado.",
     [AD_LENTICULAR]   = "Tirando este lado: se o dado terminar válido, pontua x2 no fim da rodada (soma com os outros multiplicadores); se terminar anulado, -4 no seu placar.",
-    [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12). A Sujeira não conta.",
-    [AD_INFECTADO]    = "Tirando este lado, válido ou anulado: +2 pontos, e ele se espalha: um Infectado novo gruda num lado livre de um dado sorteado da sua bolsa (até neste). Os novos ficam para sempre e também se espalham; não pegam no Adesivado. Sem lado livre, só os +2.",
-    [AD_BARRO]        = "Tirando este lado, válido ou anulado: joga barro num dado sorteado da bolsa do oponente. O barro gruda em até 3 lados livres dele como Sujeira: até o fim da partida, cada vez que o oponente tirar um lado sujo, -2 no placar dele.",
-    [AD_SUJEIRA]      = "O barro que o oponente jogou nos seus dados. Tirando este lado, válido ou anulado: -2 no seu placar. Sai no fim da partida: a bolsa volta limpa. Não conta como adesivo seu (nem para o Neon, a Purpurina ou o Holográfico).",
+    [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado, ele junto (com 6 adesivos, +12). A Sujeira também conta.",
+    [AD_INFECTADO]    = "Tirando este lado, válido ou anulado, ele se espalha: um Infectado novo gruda num lado livre de um dado sorteado da sua bolsa (pode ser este). Os novos ficam para sempre e também se espalham. Se o dado terminar válido, +2 pontos.",
+    [AD_BARRO]        = "Tirando este lado, válido ou anulado: joga barro num dado sorteado da bolsa do oponente, e um lado livre dele vira Sujeira para sempre - cada vez que ele tirar esse lado, -2 no placar dele. Se o dado sorteado estiver com a bolha do Impermeável, o barro não gruda.",
+    [AD_SUJEIRA]      = "O barro que o oponente jogou nos seus dados. Tirando este lado, válido ou anulado: -2 no seu placar. Não sai mais: fica no dado para sempre. O Neon conta a Sujeira como um adesivo do dado; a Purpurina e o Holográfico, não.",
 };
 
 // O simbolo em pixels de s x s; o Confete sao pontinhos de cores.

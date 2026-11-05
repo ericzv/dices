@@ -152,16 +152,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
   partida, o dado fica numa bolha de proteção e não pode ser anulado nem
   destruído: um ataque que mire nele bate na bolha e não passa para outro
-  dado), o
+  dado, e nem o Barro gruda nele), o
   Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
-  por adesivo colado no dado), e aos que passam de dado em dado: o Infectado
-  (válido ou anulado, +2, e um Infectado novo gruda num lado livre de um dado
-  sorteado da sua bolsa, para sempre, e também se espalha; não pega no
-  Adesivado) e o Barro (válido ou anulado, suja até 3 lados livres de um dado
-  sorteado da bolsa do oponente; cada lado sujo é uma Sujeira, que dá -2 no
-  placar de quem tirar esse lado, até o fim da partida; a Sujeira não se
-  vende e não conta como adesivo de quem a carrega); sete desde o começo, os
-  outros abrem nos níveis 1 a 10. Cada adesivo tem
+  por adesivo colado no dado, a Sujeira também), e aos que passam de dado em
+  dado: o Infectado (válido ou anulado, um Infectado novo gruda num lado
+  livre de um dado sorteado da sua bolsa, qualquer um, para sempre, e também
+  se espalha; valendo, +2; o Adesivado que ele encher vira o Mais Adesivado
+  no fim da partida) e o Barro (válido ou anulado, suja um lado livre de um
+  dado sorteado da bolsa do oponente: a Sujeira, que não sai mais e dá -2 no
+  placar de quem tirar esse lado; se o dado sorteado estiver com a bolha do
+  Impermeável, o barro não gruda; a Sujeira não se vende); sete desde o
+  começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro

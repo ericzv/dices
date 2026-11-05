@@ -1537,6 +1537,7 @@ static void flutua_evento(const evento_t *e)
             break;
         case AD_IMPERMEAVEL: flutua_em(dj, dk, C_VENTO, 0, "protegido", 0); break;
         case AD_BARRO:      break;                  // o rotulo vai junto do dado que ele sujou (mesa.inc)
+        case AD_INFECTADO:  if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor); break;   // anulado, so espalha
         case AD_SUJEIRA:    flutua_em(dj, dk, C_VINHO_CLR, 0, "%d", e->valor); break;
         case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++)

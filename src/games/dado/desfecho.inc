@@ -1226,12 +1226,13 @@ static bool ad_do_pouso(int a)
         || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO;
 }
 
-// O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q. O
-// sorteio sai do que esta na mesa (a rodada, quem age, o que tirou), sem
-// gastar o sorteio da partida: a IA imaginando a rodada, a previa e os dois
-// lados do online escolhem sempre o mesmo lugar. Os lados que ja pegaram
-// nesta rodada ficam de fora. O Infectado nao pega no Adesivado (o segredo
-// dele, os seis lados cheios, fica para voce colar).
+// O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q -
+// qualquer dado (no Quebrado, so o lado do numero gravado; os estagios
+// escondidos do ciclo cosmico nao levam adesivo). O sorteio sai do que esta
+// na mesa (a rodada, quem age, o que tirou), sem gastar o sorteio da
+// partida: a IA imaginando a rodada, a previa e os dois lados do online
+// escolhem sempre o mesmo lugar. Os lados que ja pegaram nesta rodada ficam
+// de fora.
 static uint32_t pega_mistura(uint32_t h, uint32_t v) { return h ^ (v + 0x9E3779B9u + (h << 6) + (h >> 2)); }
 static uint32_t pega_semente(const desfecho_t *d, int j, int k)
 {
@@ -1245,11 +1246,10 @@ static uint32_t pega_semente(const desfecho_t *d, int j, int k)
     h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
     return h;
 }
-static int pega_lados(const desfecho_t *d, int q, int i, int a, uint8_t *lados)
+static int pega_lados(const desfecho_t *d, int q, int i, uint8_t *lados)
 {
     const peca_t *p = &J[q].col[i];
-    if (J[q].onde[i] == COMIDO || cosmo_oculto(p->tipo)) return 0;
-    if (a == AD_INFECTADO && (p->tipo == D_ADESIVADO || p->tipo == D_MAIS_ADESIVADO)) return 0;
+    if (cosmo_oculto(p->tipo)) return 0;
     int n = 0;
     for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo) && l <= AD_LADOS; l++) {
         if (!ad_lado_serve(p, l) || ad_no_lado(p, l)) continue;
@@ -1259,12 +1259,21 @@ static int pega_lados(const desfecho_t *d, int q, int i, int a, uint8_t *lados)
     }
     return n;
 }
-static int pega_dado(const desfecho_t *d, int q, int a, uint32_t h)
+static int pega_dado(const desfecho_t *d, int q, uint32_t h)
 {
     int cand[MAX_COL], n = 0;
     uint8_t lados[AD_LADOS];
-    for (int i = 0; i < J[q].n_col && i < MAX_COL; i++) if (pega_lados(d, q, i, a, lados)) cand[n++] = i;
+    for (int i = 0; i < J[q].n_col && i < MAX_COL; i++) if (pega_lados(d, q, i, lados)) cand[n++] = i;
     return n ? cand[h % (uint32_t)n] : -1;
+}
+// O dado i da bolsa de q esta com a bolha do Impermeavel: de antes, nesta
+// partida, ou porque caiu no lado dele nesta rodada (como nos ataques).
+static bool bolsa_impermeavel(int q, int i)
+{
+    if (J[q].col[i].capa) return true;
+    for (int k = 0; k < F[q].lancados && k < N_FILA; k++)
+        if (F[q].idx[k] == i && impermeavel(q, k)) return true;
+    return false;
 }
 static void pega_anota(desfecho_t *d, int de, int para, int i, int lado, int a)
 {
@@ -1400,46 +1409,52 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             e = evento(gera, EV_ADESIVO, j, k, j, k, -LENTICULAR_PERDE, "%sLenticular: anulado, -%d", pre, LENTICULAR_PERDE);
         } else return false;
         break;
-    case AD_NEON: {                              // valendo: +2 por adesivo no dado (o deste lado junto; a Sujeira nao)
+    case AD_NEON: {                              // valendo: +2 por adesivo no dado (o deste lado junto, e a Sujeira tambem)
         const peca_t *pn = peca_fila(j, k);
         if (!vale || !pn) return false;
-        int n = ad_quantos(pn) - ad_conta(pn, AD_SUJEIRA);
+        int n = ad_quantos(pn);
         d->semente[j] += NEON_CADA * n;
         e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNeon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
         break;
     }
-    case AD_INFECTADO: {                         // +2, e o germe pega num lado livre de um dado seu
-        d->semente[j] += INFECTADO_PONTOS;
+    case AD_INFECTADO: {                         // o germe pega num lado livre de um dado seu; valendo, +2
         uint32_t h = pega_semente(d, j, k);
-        int i = pega_dado(d, j, a, h), l = 0;
+        int i = pega_dado(d, j, h), l = 0, pts = vale ? INFECTADO_PONTOS : 0;
+        if (i < 0 && !vale) return false;        // anulado e sem lado livre: nada
+        d->semente[j] += pts;
         if (i >= 0) {
             uint8_t lados[AD_LADOS];
-            int n = pega_lados(d, j, i, a, lados);
+            int n = pega_lados(d, j, i, lados);
             l = lados[(h >> 16) % (uint32_t)n];
             pega_anota(d, j, j, i, l, AD_INFECTADO);
-            e = evento(gera, EV_ADESIVO, j, k, j, k, INFECTADO_PONTOS, "%sInfectado: +%d, e pega no %s", pre,
-                       INFECTADO_PONTOS, TIPO[J[j].col[i].tipo].nome);
-        } else e = evento(gera, EV_ADESIVO, j, k, j, k, INFECTADO_PONTOS, "%sInfectado: +%d (sem lado livre)", pre, INFECTADO_PONTOS);
+            const char *nome = TIPO[J[j].col[i].tipo].nome;
+            if (vale) e = evento(gera, EV_ADESIVO, j, k, j, k, pts, "%sInfectado: +%d e pega no dado %s", pre, pts, nome);
+            else e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sInfectado: anulado, mas pega no dado %s", pre, nome);
+        } else e = evento(gera, EV_ADESIVO, j, k, j, k, pts, "%sInfectado: +%d (sem lado livre)", pre, pts);
         if (e) { e->bolsa_i = (uint8_t)(i >= 0 ? i : 0xFF); e->bolsa_lados = i >= 0 ? 1u << l : 0; }
         break;
     }
-    case AD_BARRO: {                             // o barro num dado do oponente: ate 3 lados livres dele sujam
+    case AD_BARRO: {                             // o barro num dado do oponente: um lado livre dele suja, para sempre
         uint32_t h = pega_semente(d, j, k), m = 0;
-        int i = pega_dado(d, r, a, h), n = 0;
+        int i = pega_dado(d, r, h), n = 0, l1 = 0;
+        bool capa = i >= 0 && bolsa_impermeavel(r, i);   // com a bolha do Impermeavel, o barro escorre
         if (i >= 0) {
             uint8_t lados[AD_LADOS];
-            int nl = pega_lados(d, r, i, a, lados);
-            for (int c = 0; c < BARRO_LADOS && nl > 0; c++, n++) {   // sorteia sem repetir
+            int nl = pega_lados(d, r, i, lados);
+            for (int c = 0; c < BARRO_LADOS && nl > 0; c++) {   // sorteia sem repetir
                 int s = (int)((h >> (8 + c * 5)) % (uint32_t)nl);
-                pega_anota(d, j, r, i, lados[s], AD_SUJEIRA);
+                if (!capa) { pega_anota(d, j, r, i, lados[s], AD_SUJEIRA); n++; }
+                if (!c) l1 = lados[s];
                 m |= 1u << lados[s];
                 lados[s] = lados[--nl];
             }
         }
-        if (n) e = evento(gera, EV_ADESIVO, j, k, r, 0, n, "%sBarro: suja %d lado%s do %s de %s", pre, n, n > 1 ? "s" : "",
-                          TIPO[J[r].col[i].tipo].nome, J[r].nome);
+        const char *nome = i >= 0 ? TIPO[J[r].col[i].tipo].nome : "";
+        if (capa) e = evento(gera, EV_ADESIVO, j, k, r, 0, 0, "%sBarro: o dado %s está protegido", pre, nome);
+        else if (n == 1) e = evento(gera, EV_ADESIVO, j, k, r, 0, n, "%sBarro: suja o %d do dado %s", pre, l1, nome);
+        else if (n) e = evento(gera, EV_ADESIVO, j, k, r, 0, n, "%sBarro: suja %d lados do dado %s", pre, n, nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, 0, 0, "%sBarro: não gruda em nada de %s", pre, J[r].nome);
-        if (e) { e->bolsa_i = (uint8_t)(i >= 0 ? i : 0xFF); e->bolsa_lados = m; }
+        if (e) { e->bolsa_i = (uint8_t)(i >= 0 ? i : 0xFF); e->bolsa_lados = m; e->bolsa_capa = capa; }
         break;
     }
     case AD_SUJEIRA:                             // o barro do oponente: -2 no seu placar

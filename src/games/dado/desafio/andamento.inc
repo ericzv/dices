@@ -4,15 +4,18 @@
 // A IA da mesa sobe com a dificuldade, aos poucos: os dados fracos do comeco
 // da run nao ficam tambem com a cabeca mais simples em todo andar. [salao]
 // [mesa] = o nivel a partir do qual ela fica atenta (1) e afiada (2)
-// (NIVEL_IA); 0, ja desde o Normal (NIVEL_NO); 99, nunca. O 1o salao e os
-// comuns do 2o sobem devagar (a facil do 1o nunca fica afiada); a Dona fica
+// (NIVEL_IA); 0, ja desde o Normal (NIVEL_NO); 99, nunca. Ficar atenta pesa
+// muito numa mesa (no simulador, de 12 a 22 pontos a menos de vitoria),
+// entao no comeco da run e uma mesa de cada vez e so ate atenta: o Crupie
+// no Nivel 1 (afiado so no 9), o dificil do 2o salao no 3, o dificil do 1o
+// no 6, o facil do 2o no 8; o facil do 1o fica sempre simples. A Dona fica
 // afiada no 9, a dificil do 3o salao no 5. O Coringa: o do salao final
 // (gera_salao_final).
 static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
-    //  facil      (medio)    dificil    chefe
-    { { 4, 99 }, { 4, 99 }, { 2, 8 },  { 1, 6 } },      // 1o salao: o Crupie
-    { { 3, 9 },  { 3, 9 },  { 1, 6 },  { 0, 9 } },      // 2o salao: a Dona
-    { { 0, 99 }, { 0, 99 }, { 0, 5 },  { 0, 0 } },      // 3o salao: o Barao
+    //  facil       (medio)     dificil     chefe
+    { { 99, 99 }, { 99, 99 }, { 6, 99 },  { 1, 9 } },   // 1o salao: o Crupie
+    { { 8, 99 },  { 8, 99 },  { 3, 99 },  { 0, 9 } },   // 2o salao: a Dona
+    { { 0, 99 },  { 0, 99 },  { 0, 5 },   { 0, 0 } },   // 3o salao: o Barao
 };
 static int nivel_mesa(const no_t *no)
 {

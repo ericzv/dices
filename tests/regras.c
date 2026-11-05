@@ -5247,13 +5247,14 @@ int main(void)
             // salao. No Normal, como sempre foi.
             {
                 static const struct { uint8_t nv, andar, tipo, ia; } IA[] = {
-                    { 0, 0, NO_FACIL, 0 }, { 0, 0, NO_DIFICIL, 0 }, { 0, 0, NO_CHEFE, 0 },
-                    { 1, 0, NO_CHEFE, 1 }, { 1, 0, NO_DIFICIL, 0 }, { 2, 0, NO_DIFICIL, 1 }, { 3, 0, NO_FACIL, 0 },
-                    { 4, 0, NO_FACIL, 1 }, { 6, 0, NO_CHEFE, 2 }, { 8, 0, NO_DIFICIL, 2 }, { 10, 0, NO_FACIL, 1 },
-                    { 0, 1, NO_FACIL, 0 }, { 0, 1, NO_DIFICIL, 0 }, { 0, 1, NO_CHEFE, 1 }, { 1, 1, NO_DIFICIL, 1 },
-                    { 3, 1, NO_FACIL, 1 }, { 6, 1, NO_DIFICIL, 2 }, { 8, 1, NO_CHEFE, 1 }, { 9, 1, NO_FACIL, 2 },
-                    { 9, 1, NO_CHEFE, 2 }, { 0, 2, NO_FACIL, 1 }, { 4, 2, NO_DIFICIL, 1 }, { 5, 2, NO_DIFICIL, 2 },
-                    { 10, 2, NO_FACIL, 1 }, { 0, 2, NO_CHEFE, 2 },
+                    { 0, 0, NO_FACIL, 0 }, { 0, 0, NO_DIFICIL, 0 }, { 0, 0, NO_CHEFE, 0 }, { 1, 0, NO_CHEFE, 1 },
+                    { 8, 0, NO_CHEFE, 1 }, { 9, 0, NO_CHEFE, 2 }, { 5, 0, NO_DIFICIL, 0 }, { 6, 0, NO_DIFICIL, 1 },
+                    { 10, 0, NO_DIFICIL, 1 }, { 10, 0, NO_FACIL, 0 },
+                    { 0, 1, NO_FACIL, 0 }, { 0, 1, NO_DIFICIL, 0 }, { 0, 1, NO_CHEFE, 1 }, { 2, 1, NO_DIFICIL, 0 },
+                    { 3, 1, NO_DIFICIL, 1 }, { 10, 1, NO_DIFICIL, 1 }, { 7, 1, NO_FACIL, 0 }, { 8, 1, NO_FACIL, 1 },
+                    { 8, 1, NO_CHEFE, 1 }, { 9, 1, NO_CHEFE, 2 },
+                    { 0, 2, NO_FACIL, 1 }, { 4, 2, NO_DIFICIL, 1 }, { 5, 2, NO_DIFICIL, 2 }, { 10, 2, NO_FACIL, 1 },
+                    { 0, 2, NO_CHEFE, 2 },
                 };
                 for (int i = 0; i < (int)(sizeof IA / sizeof IA[0]); i++) {
                     no_t nn = { 0 };
@@ -5264,8 +5265,8 @@ int main(void)
                             IA[i].tipo, IA[i].nv, nivel_mesa(&nn), IA[i].ia);
                 }
                 CONFERE(incomuns_s1(3, 0) == 0 && incomuns_s1(3, 1) == 1 && incomuns_s1(3, 5) == 2 && incomuns_s1(3, 9) == 3
-                        && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2 && incomuns_s1(0, 2) == 0
-                        && incomuns_s1(0, 3) == 1 && incomuns_s1(0, 7) == 2 && incomuns_s1(0, 10) == 2,
+                        && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2 && incomuns_s1(2, 10) == 3
+                        && incomuns_s1(0, 3) == 0 && incomuns_s1(0, 4) == 1 && incomuns_s1(0, 8) == 2 && incomuns_s1(0, 10) == 2,
                         "incomuns do 1o salao por nivel");
                 // Na bolsa: o Crupie do Nivel 10 (tudo aberto) com 3 deles; no Normal, nenhum a mais.
                 for (int nv = 0; nv <= N_NIVEIS; nv += N_NIVEIS) {

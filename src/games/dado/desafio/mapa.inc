@@ -463,14 +463,14 @@ static int poucos_tipos(peca_t *col, int n, const perso_t *pe, int lim)
 
 // O 1o salao sobe bem aos poucos com a dificuldade: dados de numero viram
 // incomuns de 4 e 6 lados - no chefe desde o Nivel 1, no dificil desde o 2,
-// no facil desde o 3, e mais um a cada 4 niveis. A lista vai dos mais simples
+// no facil desde o 4, e mais um a cada 4 niveis. A lista vai dos mais simples
 // aos mais chatos e abre com o nivel (no nivel n, os 2 + n primeiros); metade
 // das vezes vem um do tema do oponente, se ele tiver. So os ja abertos.
 static const uint8_t INCOMUM_S1[] = { D_VICIADO, D_TEIMOSO, D_PAR, D_TREVO, D_CALIBRE, D_JACKPOT,
                                       D_COPIADOR, D_FARTURA, D_DOBRO, D_HEXA, D_CARRASCO, D_SABOTADOR };
 static int incomuns_s1(int tier, int nivel)
 {
-    int k = nivel - (tier >= 3 ? 1 : tier == 2 ? 2 : 3);
+    int k = nivel - (tier >= 3 ? 1 : tier == 2 ? 2 : 4);
     return k < 0 ? 0 : 1 + k / 4;
 }
 static void poe_incomum_s1(peca_t *col, int n, const perso_t *pe, int nivel)

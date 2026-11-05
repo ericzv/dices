@@ -630,12 +630,12 @@ static void lanca_proximo(void)
     lance_t l = lanca_peca(t, f->fixo[k], pc, rola);
     int postit = -1;                         // o lance que o Post-it (ou a Casca) descartou
     bool tem_postit = k > 0 && ad_fila(vez, k - 1) == AD_POSTIT;
-    // A Casca de Banana do oponente: este lance escorrega - rola duas vezes e
-    // fica o menor. A bolha do Impermeavel segura a casca; o Post-it dele e a
-    // casca se anulam (rola uma vez so). Nos dois casos a casca se gasta.
+    // A Casca de Banana do oponente: no 4o dado (com mais cascas, do 3o, do
+    // 2o, do 1o), o lance escorrega - rola duas vezes e fica o menor. A bolha
+    // do Impermeavel segura a casca; o Post-it dele e a casca se anulam (rola
+    // uma vez so).
     int casca = 0;
     if (casca_pega(vez, k)) {
-        f->escorregou++;
         casca = (pc && pc->capa) || t == D_UNIVERSO ? 2 : tem_postit ? 3 : 1;
         if (casca == 3) tem_postit = false;   // (o som vem quando ela chega no dado: casca_pisa)
     }
@@ -961,9 +961,17 @@ static bool coringa_joga(int j) { return j == 1 && tem_reg(REG_CORINGA); }
 static bool carta_posta(int j) { return F[j].carta && F[j].lancados > 3; }
 // O fim da rodada ainda depende da sorte, mesmo que ninguem jogue mais: a
 // carta do Coringa por virar (e ser lancada), um Oculto escondido, um
-// Terremoto por sacudir, uma Casca de Banana que sobrou (o dado do outro
-// ainda vai escorregar). A previa do fim nao sabe o que vai dar.
-static bool casca_no_fim(void) { return cascas_de(0) > F[1].escorregou || cascas_de(1) > F[0].escorregou; }
+// Terremoto por sacudir, a Casca de Banana de quem joga depois (o 4o dado
+// de quem abriu ainda vai escorregar). A previa do fim nao sabe o que vai dar.
+static bool casca_no_fim(void)
+{
+    int n = cascas_de(outro(primeiro));
+    for (int i = 0; i < n; i++) {
+        int a = CASCA_DADO + 1 - n + i;
+        if (a < F[primeiro].lancados && F[primeiro].est[a] == V_VALIDO) return true;
+    }
+    return false;
+}
 static bool fim_incerto(void)
 {
     return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim();

@@ -173,12 +173,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   cada vez com a regra dele; o que multiplica sobe só um degrau, e os do
   pouso não repetem), a Dupla Face (o adesivo do lado oposto do dado também
   age no fim da rodada; os do pouso e o Patinho Feio, não) e a Casca de
-  Banana (válido ou anulado, o oponente escorrega: se ele ainda vai jogar, o
-  2º dado dele rola duas vezes e fica o menor - o Post-it dele e a casca se
-  anulam; se ele já jogou, ou parou antes, no fim da rodada o último dado
-  válido dele rola de novo e fica o menor, e menor que o de antes a
-  sequência derruba os dois; a bolha do Impermeável segura a casca); sete
-  desde o começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
+  Banana (válido ou anulado, o 4º dado do oponente escorrega: rola duas
+  vezes e fica o menor; com duas cascas, o 3º também, com três o 2º, com
+  quatro o 1º; se ele ainda vai jogar, escorrega no lance - o Post-it dele e
+  a casca se anulam -, e se já jogou, o dado rola de novo no fim da rodada;
+  sem o 4º dado, nada; a bolha do Impermeável segura a casca); sete desde o
+  começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro

@@ -76,18 +76,26 @@ static int ad_oposto_fila(int j, int k)
 // O adesivo a age no dado k de j: o do lado de cima, ou o de baixo pela Dupla Face.
 static bool ad_fila_tem(int j, int k, int a) { return a && (ad_fila(j, k) == a || ad_oposto_fila(j, k) == a); }
 // A Casca de Banana: quantas o jogador r tem na mesa (a de baixo da Dupla Face
-// conta; carimbada, duas). Cada uma faz um lance do oponente escorregar.
+// conta; carimbada, duas), no maximo quatro. A primeira faz o 4o dado do
+// oponente escorregar; a segunda, o 3o tambem; a terceira, o 2o; a quarta, o 1o.
+#define CASCA_DADO 3                 // o 4o dado: e nele que a casca age sempre
 static int cascas_de(int r)
 {
     int n = 0;
     for (int k = 0; k < F[r].lancados && k < N_FILA; k++)
         if (ad_fila_tem(r, k, AD_CASCA)) n += 1 + (k > 0 && ad_fila_tem(r, k - 1, AD_CARIMBO));
-    return n;
+    return n > CASCA_DADO + 1 ? CASCA_DADO + 1 : n;
 }
-// O lance k de j escorrega agora na casca do oponente? Do 2o dado em diante
-// (o primeiro nunca cai: escorregar so o deixaria mais baixo), uma casca por
-// lance; as que sobrarem agem no fim da rodada (desfecho).
-static bool casca_pega(int j, int k) { return k >= 1 && F[j].escorregou < cascas_de(outro(j)); }
+// Em qual casca do oponente o dado k de j escorrega (0: a primeira, na ordem
+// da fila do dono; -1: nenhuma). Com n cascas, escorregam do (5 - n)o ao 4o.
+static int casca_no_dado(int j, int k)
+{
+    int i = k - (CASCA_DADO + 1 - cascas_de(outro(j)));
+    return k <= CASCA_DADO && i >= 0 ? i : -1;
+}
+// O lance k de j escorrega agora? So quando o dono da casca ja jogou (as
+// dele so contam na mesa); se ele joga depois, ela age no fim da rodada.
+static bool casca_pega(int j, int k) { return casca_no_dado(j, k) >= 0; }
 // O dado de r com a casca de numero n (0: a primeira, na ordem da fila; a
 // carimbada conta duas); -1: nenhum.
 static int casca_dado(int r, int n)

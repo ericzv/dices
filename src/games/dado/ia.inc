@@ -137,7 +137,6 @@ static void sim_lanca(int j)
     bool postit = k > 0 && ad_fila(j, k - 1) == AD_POSTIT;
     int casca = 0;                                   // a Casca do oponente, como no lance de verdade
     if (casca_pega(j, k)) {
-        f->escorregou++;
         casca = (pc && pc->capa) || f->tipo[k] == D_UNIVERSO ? 2 : postit ? 3 : 1;
         if (casca == 3) postit = false;
     }

@@ -51,7 +51,6 @@ typedef struct {
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
     bool    grudado;                 // o primeiro veio grudado pelo Chiclete: ja na mesa, sem rolar
-    uint8_t escorregou;              // os lances dele que ja escorregaram na Casca de Banana do oponente
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    bomba[N_FILA];           // o Papel Bomba explodiu: o numero e a soma de dois lances
     int8_t  bomba1[N_FILA];          // e o primeiro deles

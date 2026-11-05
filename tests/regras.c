@@ -4618,117 +4618,166 @@ int main(void)
             limpa();
         }
 
-        // ---- A Casca de Banana: um lance do oponente escorrega ------------------
+        // ---- A Casca de Banana: o 4o dado do oponente escorrega -------------------
         {
             jogador_t g0 = J[0], g1 = J[1];
-            J[0].n_col = J[1].n_col = 6;
-            for (int i = 0; i < 6; i++) {
+            J[0].n_col = J[1].n_col = 8;
+            for (int i = 0; i < 8; i++) {
                 J[0].col[i] = J[1].col[i] = (peca_t){ .tipo = D_D6 };
                 J[0].onde[i] = J[1].onde[i] = NA_BOLSA;
             }
-            ad_cola(&J[1].col[0], 4, AD_CASCA);
-            // J1 abre com a casca na mesa; J0 lanca tres dados: so o 2o escorrega
-            // (o menor de dois: media 2,53), o 1o e o 3o rolam normal (3,5).
-            // Com a bolha do Impermeavel, ou com o Post-it no dado de antes, nada.
-            for (int caso = 0; caso < 3; caso++) {
-                J[0].col[1] = J[0].col[0] = (peca_t){ .tipo = D_D6 };
-                if (caso == 1) J[0].col[1].capa = 1;
-                if (caso == 2) ad_cola(&J[0].col[0], 1, AD_POSTIT), ad_cola(&J[0].col[0], 2, AD_POSTIT),
-                               ad_cola(&J[0].col[0], 3, AD_POSTIT), ad_cola(&J[0].col[0], 4, AD_POSTIT),
-                               ad_cola(&J[0].col[0], 5, AD_POSTIT), ad_cola(&J[0].col[0], 6, AD_POSTIT);
-                int soma[3] = { 0 }, N2 = 4000, gastas = 0;
+            for (int i = 0; i < 5; i++) ad_cola(&J[1].col[i], 4, AD_CASCA);
+            // J1 abre com c cascas na mesa; J0 lanca quatro dados (cinco com o
+            // Bis): com uma, so o 4o escorrega (o menor de dois: media 2,53); com
+            // duas, o 3o tambem; com quatro, todos; a quinta nao faz nada.
+            for (int c = 0; c <= 5; c++) {
+                int soma[5] = { 0 }, N2 = 3000;
+                for (int i = 0; i < N2; i++) {
+                    limpa(); primeiro = 1;
+                    for (int q = 0; q < c; q++) joga_ad(1, q, 4);
+                    for (int k = 0; k < 5; k++) { F[0].idx[k] = (int8_t)k; F[0].tipo[k] = D_D6; }
+                    F[0].n = 5;
+                    for (int k = 0; k < 5; k++) { sim_lanca(0); soma[k] += F[0].valor[k]; }
+                }
+                int ruins = 0;
+                for (int k = 0; k < 5; k++) {
+                    float m = (float)soma[k] / N2;
+                    bool escorrega = k <= CASCA_DADO && k >= CASCA_DADO + 1 - (c > 4 ? 4 : c);
+                    ruins += escorrega ? !(m > 2.4f && m < 2.67f) : !(m > 3.35f && m < 3.65f);
+                }
+                CONFERE(ruins == 0, "Casca: com %d, escorregam os certos (%d errados)", c, ruins);
+            }
+            // Com a bolha do Impermeavel no 4o, ou o Post-it no 3o, nada.
+            for (int caso = 0; caso < 2; caso++) {
+                J[0].col[2] = J[0].col[3] = (peca_t){ .tipo = D_D6 };
+                if (caso == 0) J[0].col[3].capa = 1;
+                else for (int l = 1; l <= 6; l++) ad_cola(&J[0].col[2], l, AD_POSTIT);
+                int soma = 0, N2 = 3000;
                 for (int i = 0; i < N2; i++) {
                     limpa(); primeiro = 1;
                     joga_ad(1, 0, 4);
-                    for (int k = 0; k < 3; k++) { F[0].idx[k] = (int8_t)k; F[0].tipo[k] = D_D6; }
-                    F[0].n = 3;
-                    for (int k = 0; k < 3; k++) { sim_lanca(0); soma[k] += F[0].valor[k]; }
-                    gastas += F[0].escorregou;
+                    for (int k = 0; k < 4; k++) { F[0].idx[k] = (int8_t)k; F[0].tipo[k] = D_D6; }
+                    F[0].n = 4;
+                    for (int k = 0; k < 4; k++) sim_lanca(0);
+                    soma += F[0].valor[3];
                 }
-                float m0 = (float)soma[0] / N2, m1 = (float)soma[1] / N2, m2 = (float)soma[2] / N2;
-                bool escorrega = caso == 0;
-                CONFERE(m0 > 3.35f && m0 < 3.65f && m2 > 3.35f && m2 < 3.65f && gastas == N2
-                        && (escorrega ? m1 > 2.4f && m1 < 2.67f : m1 > 3.35f && m1 < 3.65f),
-                        "Casca (%s): medias %.2f %.2f %.2f, gastas %d", caso == 0 ? "escorrega" : caso == 1 ? "bolha" : "Post-it", m0, m1, m2, gastas);
+                float m = (float)soma / N2;
+                CONFERE(m > 3.35f && m < 3.65f, "Casca %s: o 4o rola normal (%.2f)", caso ? "e o Post-it se anulam" : "na bolha", m);
             }
-            J[0].col[0] = J[0].col[1] = (peca_t){ .tipo = D_D6 };
-            // O lance de verdade: o descartado (o maior) fica de fantasma, e a
-            // casca se gasta. Sem casca do oponente na mesa, nada.
-            int fant = 0, gasta = 0;
+            J[0].col[2] = J[0].col[3] = (peca_t){ .tipo = D_D6 };
+            // O lance de verdade: o 4o escorrega, o descartado (o maior) fica de
+            // fantasma; o 2o e o 3o nao. Sem casca na mesa, nada.
+            int fant = 0, normal = 0;
             for (int i = 0; i < 200; i++) {
                 limpa(); primeiro = 1; vez = 0;
                 joga_ad(1, 0, 4);
-                joga_ad(0, 2, 1);
-                F[0].idx[1] = 1; F[0].tipo[1] = D_D6; F[0].n = 2;
+                joga_ad(0, 4, 1); joga_ad(0, 5, 1); joga_ad(0, 6, 1);
+                F[0].idx[3] = 3; F[0].tipo[3] = D_D6; F[0].n = 4;
                 lanca_proximo();
-                fant += voo[0].casca == 1 && n_voo == 2 && voo[1].fantasma && voo[1].valor >= F[0].valor[1];
-                gasta += F[0].escorregou == 1 && !casca_pega(0, 2);
+                fant += voo[0].casca == 1 && n_voo == 2 && voo[1].fantasma && voo[1].valor >= F[0].valor[3];
+                limpa(); primeiro = 1; vez = 0;
+                joga_ad(1, 0, 4);
+                joga_ad(0, 4, 1);
+                F[0].idx[1] = 1; F[0].tipo[1] = D_D6; F[0].n = 4;
+                lanca_proximo();
+                normal += voo[0].casca == 0 && n_voo == 1;
             }
-            CONFERE(fant == 200 && gasta == 200, "Casca no lance: o maior fica de fantasma (%d, %d de 200)", fant, gasta);
+            CONFERE(fant == 200 && normal == 200, "Casca no lance: so o 4o, e o maior fica de fantasma (%d, %d de 200)", fant, normal);
             limpa(); primeiro = 1; vez = 0;
-            joga_ad(1, 1, 4);
-            joga_ad(0, 2, 1);
-            F[0].idx[1] = 1; F[0].tipo[1] = D_D6; F[0].n = 2;
+            joga_ad(1, 7, 4);
+            joga_ad(0, 4, 1); joga_ad(0, 5, 1); joga_ad(0, 6, 1);
+            F[0].idx[3] = 3; F[0].tipo[3] = D_D6; F[0].n = 4;
             lanca_proximo();
-            CONFERE(voo[0].casca == 0 && n_voo == 1 && F[0].escorregou == 0, "Casca: sem ela na mesa, o lance e normal");
+            CONFERE(voo[0].casca == 0 && n_voo == 1, "Casca: sem ela na mesa, o lance e normal");
             n_voo = 0;
-            // Carimbada, sao duas cascas: o 2o e o 3o escorregam. A de baixo da
-            // Dupla Face tambem conta.
-            ad_cola(&J[1].col[1], 2, AD_CARIMBO);
+            // Carimbada, sao duas; a de baixo da Dupla Face tambem conta.
+            ad_cola(&J[1].col[6], 2, AD_CARIMBO);
             limpa(); primeiro = 1;
-            joga_ad(1, 1, 2); joga_ad(1, 0, 4);
-            CONFERE(cascas_de(1) == 2 && casca_dado(1, 0) == 1 && casca_dado(1, 1) == 1 && casca_dado(1, 2) == -1,
-                    "Casca carimbada: duas (%d)", cascas_de(1));
-            ad_cola(&J[1].col[2], 3, AD_DUPLA); ad_cola(&J[1].col[2], 4, AD_CASCA);
+            joga_ad(1, 6, 2); joga_ad(1, 0, 4);
+            CONFERE(cascas_de(1) == 2 && casca_dado(1, 0) == 1 && casca_dado(1, 1) == 1 && casca_dado(1, 2) == -1
+                    && casca_pega(0, 2) && casca_pega(0, 3) && !casca_pega(0, 1) && casca_no_dado(0, 2) == 0 && casca_no_dado(0, 3) == 1,
+                    "Casca carimbada: duas, no 3o e no 4o (%d)", cascas_de(1));
+            ad_cola(&J[1].col[7], 3, AD_DUPLA); ad_cola(&J[1].col[7], 4, AD_CASCA);
             limpa(); primeiro = 1;
-            joga_ad(1, 2, 3);
-            CONFERE(cascas_de(1) == 1 && casca_pega(0, 1) && !casca_pega(0, 0), "Casca de baixo da Dupla Face conta (%d)", cascas_de(1));
-            // A que sobrou: J0 abre e para; J1 (depois, com a casca) ainda tem uma.
-            // No fim, o ultimo valido de J0 rola de novo e fica o menor; menor
-            // que o de antes, a sequencia derruba os dois.
-            int baixou = 0, derrubou = 0, viu = 0, ruins = 0;
-            for (int v0 = 1; v0 <= 6; v0++)
-                for (int v1 = v0; v1 <= 6; v1++) {
-                    limpa(); primeiro = 0;
-                    joga(0, D_D6, v0); joga(0, D_D6, v1);
-                    joga_ad(1, 0, 4);
-                    CONFERE(fim_incerto(), "Casca que sobrou: o fim ainda muda");
-                    d = fim();
-                    int e = -1;
-                    for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA) e = i;
-                    if (e < 0 || ev[e].alvo_j != 0 || ev[e].alvo_k != 1 || ev[e].de_j != 1 || ev[e].de_k != 0) { ruins++; continue; }
-                    viu++;
-                    int depois = F[0].valor[1];
-                    if (depois > v1) ruins++;
-                    if (depois < v1) baixou++;
-                    if (depois < v0) derrubou += d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO;
-                    else if (d.est[0][0] != V_VALIDO || d.est[0][1] != V_VALIDO) ruins++;
-                }
-            CONFERE(viu == 21 && ruins == 0 && baixou > 0 && derrubou > 0,
-                    "Casca no fim: o ultimo valido escorrega (%d vistos, %d baixaram, %d derrubados, %d errados)", viu, baixou, derrubou, ruins);
-            // A bolha segura; quem ja escorregou nela no lance nao escorrega de novo.
-            limpa(); primeiro = 0;
-            J[0].col[3].capa = 1;
-            joga(0, D_D6, 2); joga_ad(0, 3, 5);
-            joga_ad(1, 0, 4);
-            d = fim();
-            int prot = 0, outros = 0;
-            for (int i = 0; i < n_ev; i++)
-                if (ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA) { if (ev[i].bloqueado == (1 << 1)) prot++; else outros++; }
-            CONFERE(prot == 1 && outros == 0 && F[0].valor[1] == 5, "Casca no fim: a bolha segura (%d, %d)", prot, outros);
+            joga_ad(1, 7, 3);
+            CONFERE(cascas_de(1) == 1 && casca_pega(0, 3) && !casca_pega(0, 2) && !casca_pega(0, 4),
+                    "Casca de baixo da Dupla Face conta, no 4o (%d)", cascas_de(1));
+            // Quem abre com a casca nao muda o fim: o 4o de quem joga depois ja
+            // escorregou no lance - ou ele nao jogou o 4o, e nada.
             limpa(); primeiro = 1;
             joga_ad(1, 0, 4);
-            joga(0, D_D6, 2); joga(0, D_D6, 5);
-            F[0].escorregou = 1;
-            CONFERE(!casca_no_fim(), "Casca gasta no lance: o fim nao muda mais");
+            joga(0, D_D6, 2); joga(0, D_D6, 3); joga(0, D_D6, 5);
+            CONFERE(!casca_no_fim(), "Casca de quem abriu: o fim nao muda");
             d = fim();
             int sobra = 0;
             for (int i = 0; i < n_ev; i++) sobra += ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA;
-            CONFERE(sobra == 0 && F[0].valor[1] == 5, "Casca gasta no lance: nada no fim (%d)", sobra);
+            CONFERE(sobra == 0, "Casca de quem abriu, sem o 4o: nada no fim (%d)", sobra);
+            // A de quem joga depois: no fim, o 4o de quem abriu rola de novo e
+            // fica o menor; menor que o de antes, a sequencia derruba os dois.
+            int baixou = 0, derrubou = 0, viu = 0, ruins = 0, rodada0 = rodada;
+            for (rodada = 1; rodada <= 12; rodada++)         // o sorteio do fim vem da mesa e da rodada
+            for (int v2 = 1; v2 <= 6; v2++)
+                for (int v3 = v2; v3 <= 6; v3++) {
+                    limpa(); primeiro = 0;
+                    joga(0, D_D6, 1); joga(0, D_D6, 1); joga(0, D_D6, v2); joga(0, D_D6, v3);
+                    joga_ad(1, 0, 4);
+                    CONFERE(fim_incerto(), "Casca de quem joga depois: o fim ainda muda");
+                    d = fim();
+                    int e = -1;
+                    for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA) e = i;
+                    if (e < 0 || ev[e].alvo_j != 0 || ev[e].alvo_k != 3 || ev[e].de_j != 1 || ev[e].de_k != 0) { ruins++; continue; }
+                    viu++;
+                    int depois = F[0].valor[3];
+                    if (depois > v3) ruins++;
+                    if (depois < v3) baixou++;
+                    if (depois < v2) derrubou += d.est[0][2] == V_ANULADO && d.est[0][3] == V_ANULADO;
+                    else if (d.est[0][2] != V_VALIDO || d.est[0][3] != V_VALIDO) ruins++;
+                }
+            rodada = rodada0;
+            CONFERE(viu == 21 * 12 && ruins == 0 && baixou > 21 && derrubou > 0,
+                    "Casca no fim: o 4o escorrega (%d vistos, %d baixaram, %d derrubados, %d errados)", viu, baixou, derrubou, ruins);
+            // Quem abriu com tres dados: sem o 4o, nada.
+            limpa(); primeiro = 0;
+            joga(0, D_D6, 2); joga(0, D_D6, 3); joga(0, D_D6, 5);
+            joga_ad(1, 0, 4);
+            CONFERE(!casca_no_fim(), "Casca sem o 4o: o fim nao muda");
+            d = fim();
+            sobra = 0;
+            for (int i = 0; i < n_ev; i++) sobra += ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA;
+            CONFERE(sobra == 0 && F[0].valor[2] == 5, "Casca sem o 4o: nada no fim (%d)", sobra);
+            // Duas cascas no fim: o 3o e o 4o. A bolha segura o dela.
+            limpa(); primeiro = 0;
+            J[0].col[3].capa = 1;
+            joga(0, D_D6, 1); joga(0, D_D6, 2); joga(0, D_D6, 4); joga_ad(0, 3, 6);
+            joga_ad(1, 6, 2); joga_ad(1, 0, 4);
+            d = fim();
+            int alvos = 0, prot = 0;
+            for (int i = 0; i < n_ev; i++)
+                if (ev[i].tipo == EV_TREMOR && ev[i].ad == AD_CASCA) {
+                    alvos |= 1 << ev[i].alvo_k;
+                    prot += ev[i].bloqueado == (1 << 3);
+                }
+            CONFERE(alvos == ((1 << 2) | (1 << 3)) && prot == 1 && F[0].valor[3] == 6,
+                    "Casca no fim: duas, no 3o e no 4o; a bolha segura (alvos %x, %d)", alvos, prot);
             J[0] = g0; J[1] = g1;
             limpa();
         }
 
+        // Os textos cabem: o curto em 3 linhas na dica do mouse (e em 4 na
+        // colecao), e os detalhes inteiros embaixo dele, nos dois tamanhos de letra.
+        for (int lm = 0; lm < 2; lm++) {
+            gfx_letra_maior(lm);
+            for (int a = 1; a < AD_N; a++) {
+                quebra_so_conta = true;
+                int nd = quebra_linhas(0, 0, DICA_AD_W, 99, AD_TEXTO[a], 0), nt = quebra_linhas(0, 0, 320, 99, AD_TEXTO[a], 0);
+                int ndet = AD_DETALHE[a] ? quebra_linhas_em(0, 0, 320, 99, AD_DETALHE[a], 0, GFX_MIUDO, LINHA_MIUDA) : 0;
+                quebra_so_conta = false;
+                int y = 152 + nt * LINHA_FINA + 5;
+                CONFERE(nd <= 3 && nt <= 4 && y + ndet * LINHA_MIUDA <= 268, "o texto do adesivo %s cabe (letra %s: %d, %d, %d)",
+                        ADESIVO[a].nome, lm ? "maior" : "normal", nd, nt, ndet);
+            }
+        }
+        gfx_letra_maior(false);
         // Todos abrem e tem desenho, som, texto e raridade.
         for (int a = AD_NOTA_DEZ; a < AD_N; a++)
             if (ad_a_venda(a))

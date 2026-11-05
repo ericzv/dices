@@ -1230,7 +1230,7 @@ static void desenha_fila(int j)
                 ad_face_aceso = true;
             // A Casca acesa enquanto o lance do oponente escorrega nela.
             if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
-                && k == casca_dado(j, F[outro(j)].escorregou - 1))
+                && k == casca_dado(j, casca_no_dado(outro(j), voo[0].slot)))
                 ad_face_aceso = true;
         }
         // A Dupla Face agindo: o dado vira (achata na horizontal ate mostrar o
@@ -1773,7 +1773,7 @@ static void casca_no_lance(bool cima)
 {
     if (!n_voo || !voo[0].casca || (fase != F_ROLANDO && fase != F_ARRUMA)) return;
     const voo_t *v = &voo[0];
-    int r = outro(v->dono), kc = casca_dado(r, F[v->dono].escorregou - 1);
+    int r = outro(v->dono), kc = casca_dado(r, casca_no_dado(v->dono, v->slot));
     if (kc < 0) return;
     float t = fase == F_ROLANDO ? t_fase : 9;                              // arrumando, a casca ja fez tudo
     int ox = SLOT_X(kc), oy = zona(r), tx = (int)v->x, ty = (int)v->y + CASCA_PE;

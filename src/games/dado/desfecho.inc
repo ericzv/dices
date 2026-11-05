@@ -1785,22 +1785,20 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             virou = true;
         }
     }
-    // A Casca de Banana que sobrou (o oponente ja tinha jogado, ou parou antes
-    // de escorregar em todas): o ultimo dado valido dele rola de novo e fica o
-    // menor dos dois - menor que o de antes, a sequencia derruba os dois. Como
-    // o tremor, so no fim de verdade (a previa e a IA nao sabem o que vai dar),
-    // pelo sorteio que vem da mesa. A Couraca e a bolha do Impermeavel seguram.
-    for (int o = 0; gera && o < 2; o++) {
-        int r = o ? outro(primeiro) : primeiro, t = outro(r);   // r: o dono das cascas; t: quem escorrega
-        int lista[2 * N_FILA], nl = 0;
-        for (int k = 0; k < F[r].lancados && k < N_FILA; k++)
-            if (ad_fila_tem(r, k, AD_CASCA))
-                for (int c = 0; c < 1 + (k > 0 && ad_fila_tem(r, k - 1, AD_CARIMBO)); c++) lista[nl++] = k;
-        for (int n = F[t].escorregou; n < nl; n++) {
-            int kc = lista[n];
+    // A Casca de Banana de quem jogou depois (a de quem abriu age no lance,
+    // partida.inc): o oponente ja tinha jogado, e o 4o dado dele (com mais
+    // cascas, o 3o, o 2o, o 1o) rola de novo e fica o menor dos dois - menor
+    // que o de antes, a sequencia derruba os dois. Sem esse dado (ou ja
+    // anulado), nada. Como o tremor, so no fim de verdade (a previa e a IA nao
+    // sabem o que vai dar), pelo sorteio que vem da mesa. A Couraca e a bolha
+    // do Impermeavel seguram.
+    if (gera) {
+        int r = outro(primeiro), t = primeiro;   // r: o dono das cascas; t: quem escorrega
+        int nc = cascas_de(r);
+        for (int n = 0; n < nc; n++) {
+            int kc = casca_dado(r, n), a = CASCA_DADO + 1 - nc + n;
+            if (a >= F[t].lancados || F[t].est[a] != V_VALIDO || universo(t, a)) continue;
             if (tem_am(t, A_COURACA)) { am_acende(A_COURACA); continue; }
-            int a = alvo_tremor(F[t].est, t);
-            if (a < 0) continue;
             int antes = F[t].valor[a];
             evento_t *e;
             if (!pre[t]) memcpy(est_pre_espelho[t], F[t].est, N_FILA);

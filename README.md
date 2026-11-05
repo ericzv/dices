@@ -101,10 +101,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   o Dobro e o Hexa; nenhum de ataque) - no Crupiê desde o nível 1, no difícil
   desde o 2 e no fácil desde o 4, e o segundo 4 níveis depois (no máximo 2 por
   mesa). A cabeça dos oponentes do começo da run também sobe aos poucos: eles
-  pensam como a IA atenta numa parte das jogadas, 6% a mais a cada nível - o
+  pensam como a IA atenta numa parte das jogadas, 3% a mais a cada nível - o
   Crupiê desde o nível 1, os difíceis do primeiro e do segundo salão desde o
   2, o fácil do segundo desde o 3 e o do primeiro desde o 4 (no nível 10, o
-  Crupiê pensa como a atenta em 60% das jogadas). No mapa, a mesa mostra a IA
+  Crupiê pensa como a atenta em 30% das jogadas). No mapa, a mesa mostra a IA
   dela: simples, atenta ou afiada. A Dona é atenta e fica afiada no 9, os do
   terceiro salão são atentos (o difícil, afiado do 5) e o Barão é afiado (o
   Coringa, do 7). São 21

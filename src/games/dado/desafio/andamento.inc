@@ -5,14 +5,14 @@
 // ficam tambem com a cabeca mais simples em todo andar. Ficar atenta de vez
 // pesa muito numa mesa (no simulador, de 12 a 30 pontos a menos de vitoria),
 // entao o comeco da run sobe aos poucos: a mesa pensa como a atenta numa
-// parte das decisoes, 6% a mais a cada nivel (pensa_mesa), e os dados fazem
+// parte das decisoes, 3% a mais a cada nivel (pensa_mesa), e os dados fazem
 // o resto (incomuns_s1). [salao][mesa] = o nivel em que essa parte comeca
 // (99, nunca): o Crupie no Nivel 1, os dificeis do 1o e do 2o salao no 2, o
 // facil do 2o no 3, o do 1o no 4 - no 10, o Crupie pensa como a atenta em
-// 60% das decisoes. Os degraus inteiros (IA_SOBE: o nivel em que a mesa fica
+// 30% das decisoes. Os degraus inteiros (IA_SOBE: o nivel em que a mesa fica
 // atenta e afiada, NIVEL_IA; 0, desde o Normal, NIVEL_NO): a Dona afiada no
 // 9, a dificil do 3o salao no 5. O Coringa: o do salao final.
-#define PENSA_CADA 6
+#define PENSA_CADA 3
 static const uint8_t PENSA_DESDE[DES_ANDARES][4] = {
     //  facil (medio) dificil chefe
     {   4,    4,      2,      1 },                       // 1o salao: o Crupie

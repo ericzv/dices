@@ -5282,11 +5282,11 @@ int main(void)
             {
                 static const struct { uint8_t nv, andar, tipo, ia, pensa; } IA[] = {
                     { 0, 0, NO_FACIL, 0, 0 }, { 0, 0, NO_DIFICIL, 0, 0 }, { 0, 0, NO_CHEFE, 0, 0 },
-                    { 1, 0, NO_CHEFE, 0, 6 }, { 5, 0, NO_CHEFE, 0, 30 }, { 10, 0, NO_CHEFE, 0, 60 },
-                    { 1, 0, NO_DIFICIL, 0, 0 }, { 2, 0, NO_DIFICIL, 0, 6 }, { 10, 0, NO_DIFICIL, 0, 54 },
-                    { 3, 0, NO_FACIL, 0, 0 }, { 4, 0, NO_FACIL, 0, 6 }, { 10, 0, NO_FACIL, 0, 42 },
-                    { 0, 1, NO_FACIL, 0, 0 }, { 2, 1, NO_FACIL, 0, 0 }, { 3, 1, NO_FACIL, 0, 6 }, { 10, 1, NO_FACIL, 0, 48 },
-                    { 1, 1, NO_DIFICIL, 0, 0 }, { 2, 1, NO_DIFICIL, 0, 6 }, { 10, 1, NO_DIFICIL, 0, 54 },
+                    { 1, 0, NO_CHEFE, 0, 3 }, { 5, 0, NO_CHEFE, 0, 15 }, { 10, 0, NO_CHEFE, 0, 30 },
+                    { 1, 0, NO_DIFICIL, 0, 0 }, { 2, 0, NO_DIFICIL, 0, 3 }, { 10, 0, NO_DIFICIL, 0, 27 },
+                    { 3, 0, NO_FACIL, 0, 0 }, { 4, 0, NO_FACIL, 0, 3 }, { 10, 0, NO_FACIL, 0, 21 },
+                    { 0, 1, NO_FACIL, 0, 0 }, { 2, 1, NO_FACIL, 0, 0 }, { 3, 1, NO_FACIL, 0, 3 }, { 10, 1, NO_FACIL, 0, 24 },
+                    { 1, 1, NO_DIFICIL, 0, 0 }, { 2, 1, NO_DIFICIL, 0, 3 }, { 10, 1, NO_DIFICIL, 0, 27 },
                     { 0, 1, NO_CHEFE, 1, 0 }, { 8, 1, NO_CHEFE, 1, 0 }, { 9, 1, NO_CHEFE, 2, 0 },
                     { 0, 2, NO_FACIL, 1, 0 }, { 10, 2, NO_FACIL, 1, 0 }, { 4, 2, NO_DIFICIL, 1, 0 }, { 5, 2, NO_DIFICIL, 2, 0 },
                     { 0, 2, NO_CHEFE, 2, 0 },

@@ -5242,6 +5242,47 @@ int main(void)
                     CONFERE(fechado < 0 && tipos <= 2, "%s no Normal: %d tipos especiais, fechado %d", PERSO[pp].nome, tipos, fechado);
                 }
             }
+            // O comeco da run sobe com o nivel, aos poucos: a IA das mesas (0
+            // simples, 1 atenta, 2 afiada) e os incomuns de 4 e 6 lados no 1o
+            // salao. No Normal, como sempre foi.
+            {
+                static const struct { uint8_t nv, andar, tipo, ia; } IA[] = {
+                    { 0, 0, NO_FACIL, 0 }, { 0, 0, NO_DIFICIL, 0 }, { 0, 0, NO_CHEFE, 0 },
+                    { 1, 0, NO_CHEFE, 1 }, { 1, 0, NO_DIFICIL, 0 }, { 2, 0, NO_DIFICIL, 1 }, { 3, 0, NO_FACIL, 0 },
+                    { 4, 0, NO_FACIL, 1 }, { 6, 0, NO_CHEFE, 2 }, { 8, 0, NO_DIFICIL, 2 }, { 10, 0, NO_FACIL, 1 },
+                    { 0, 1, NO_FACIL, 0 }, { 0, 1, NO_DIFICIL, 0 }, { 0, 1, NO_CHEFE, 1 }, { 1, 1, NO_DIFICIL, 1 },
+                    { 3, 1, NO_FACIL, 1 }, { 6, 1, NO_DIFICIL, 2 }, { 8, 1, NO_CHEFE, 1 }, { 9, 1, NO_FACIL, 2 },
+                    { 9, 1, NO_CHEFE, 2 }, { 0, 2, NO_FACIL, 1 }, { 4, 2, NO_DIFICIL, 1 }, { 5, 2, NO_DIFICIL, 2 },
+                    { 10, 2, NO_FACIL, 1 }, { 0, 2, NO_CHEFE, 2 },
+                };
+                for (int i = 0; i < (int)(sizeof IA / sizeof IA[0]); i++) {
+                    no_t nn = { 0 };
+                    nn.tipo = IA[i].tipo;
+                    nn.nivel = NIVEL_NO[IA[i].andar][IA[i].tipo];
+                    run.dificuldade = IA[i].nv; run.andar = IA[i].andar;
+                    CONFERE(nivel_mesa(&nn) == IA[i].ia, "IA do salao %d mesa %d no nivel %d: %d, devia %d", IA[i].andar + 1,
+                            IA[i].tipo, IA[i].nv, nivel_mesa(&nn), IA[i].ia);
+                }
+                CONFERE(incomuns_s1(3, 0) == 0 && incomuns_s1(3, 1) == 1 && incomuns_s1(3, 5) == 2 && incomuns_s1(3, 9) == 3
+                        && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2 && incomuns_s1(0, 2) == 0
+                        && incomuns_s1(0, 3) == 1 && incomuns_s1(0, 7) == 2 && incomuns_s1(0, 10) == 2,
+                        "incomuns do 1o salao por nivel");
+                // Na bolsa: o Crupie do Nivel 10 (tudo aberto) com 3 deles; no Normal, nenhum a mais.
+                for (int nv = 0; nv <= N_NIVEIS; nv += N_NIVEIS) {
+                    perfis[0].nivel = (uint8_t)nv; run.dificuldade = (uint8_t)nv; run.andar = 0;
+                    no_t nn = { 0 };
+                    nn.tipo = NO_CHEFE; nn.perso = PERSO_CHEFE0; nn.semente = 4242;
+                    peca_t col[MAX_COL], col0[MAX_COL];
+                    int n = monta_oponente(&nn, 0, col), inc = 0;
+                    for (int k = 0; k < n; k++)
+                        for (int j = 0; j < (int)sizeof INCOMUM_S1; j++) inc += col[k].tipo == INCOMUM_S1[j];
+                    monta_oponente(&nn, 0, col0);
+                    CONFERE(!memcmp(col, col0, sizeof(peca_t) * (size_t)n), "a bolsa do oponente sai igual da mesma semente");
+                    if (nv) CONFERE(inc >= 3, "o Crupie do Nivel 10 com 3 incomuns de 4 e 6 lados (%d)", inc);
+                    else CONFERE(inc <= 1, "o Crupie do Normal sem incomuns a mais (%d)", inc);
+                }
+                perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0;
+            }
             // A escolha da dificuldade: so as abertas (a de cima aparece quando
             // abrir), e o cursor nao passa da ultima aberta.
             {

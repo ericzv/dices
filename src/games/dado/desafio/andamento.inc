@@ -1,12 +1,26 @@
 // ---------------------------------------------------------------------------
 // Salvamento: a estrutura da run em hexadecimal
 // ---------------------------------------------------------------------------
-// A IA da mesa: do Nivel 5, a mesa dificil do 3o salao pensa mais; do 9, os
-// chefes do 2o e do 3o (o primeiro salao fica sempre o mais simples).
+// A IA da mesa sobe com a dificuldade, aos poucos: os dados fracos do comeco
+// da run nao ficam tambem com a cabeca mais simples em todo andar. [salao]
+// [mesa] = o nivel a partir do qual ela fica atenta (1) e afiada (2)
+// (NIVEL_IA); 0, ja desde o Normal (NIVEL_NO); 99, nunca. O 1o salao e os
+// comuns do 2o sobem devagar (a facil do 1o nunca fica afiada); a Dona fica
+// afiada no 9, a dificil do 3o salao no 5. O Coringa: o do salao final
+// (gera_salao_final).
+static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
+    //  facil      (medio)    dificil    chefe
+    { { 4, 99 }, { 4, 99 }, { 2, 8 },  { 1, 6 } },      // 1o salao: o Crupie
+    { { 3, 9 },  { 3, 9 },  { 1, 6 },  { 0, 9 } },      // 2o salao: a Dona
+    { { 0, 99 }, { 0, 99 }, { 0, 5 },  { 0, 0 } },      // 3o salao: o Barao
+};
 static int nivel_mesa(const no_t *no)
 {
-    bool pensa = (run.dificuldade >= 5 && no->tipo == NO_DIFICIL && run.andar >= 2) || (run.dificuldade >= 9 && no->tipo == NO_CHEFE && run.andar >= 1);
-    return no->nivel + (pensa && no->nivel < 2 ? 1 : 0);
+    int ia = no->nivel;
+    if (run.andar < DES_ANDARES && no->tipo <= NO_CHEFE)
+        for (int k = 0; k < 2; k++)
+            if (run.dificuldade >= IA_SOBE[run.andar][no->tipo][k] && ia < k + 1) ia = k + 1;
+    return ia;
 }
 
 // ---------------------------------------------------------------------------

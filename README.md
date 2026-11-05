@@ -95,7 +95,18 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
-  bolsa cresce a cada mesa e a cada salão. São 21 oponentes, cada um com seu
+  bolsa cresce a cada mesa e a cada salão. A cada nível, o primeiro salão sobe
+  bem aos poucos: alguns D4 e D6 viram incomuns de 4 e 6 lados (o Viciado, o
+  Teimoso, o Par, o Trevo... e, mais acima, o Carrasco e o Sabotador) - no
+  Crupiê desde o nível 1, no difícil desde o 2, no fácil desde o 3, e um a mais
+  a cada 4 níveis. A cabeça dos oponentes também sobe com o nível (o mapa
+  mostra: IA simples, atenta ou afiada): no Normal, o primeiro salão e os
+  comuns do segundo jogam pela IA simples; o Crupiê fica atento no nível 1 e
+  afiado no 6, o difícil do primeiro salão no 2 e no 8, o fácil do primeiro
+  atento no 4, o difícil do segundo no 1 e no 6, o fácil do segundo no 3 e no
+  9; a Dona é atenta e fica afiada no 9, os do terceiro salão são atentos (o
+  difícil, afiado do 5) e o Barão é afiado (o Coringa, do 7). São 21
+  oponentes, cada um com seu
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
   chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o

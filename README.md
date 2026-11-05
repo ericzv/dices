@@ -97,16 +97,16 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
   bolsa cresce a cada mesa e a cada salão. A cada nível, o primeiro salão sobe
   bem aos poucos: alguns D4 e D6 viram incomuns de 4 e 6 lados (o Viciado, o
-  Teimoso, o Par, o Trevo... e, mais acima, o Carrasco e o Sabotador) - no
-  Crupiê desde o nível 1, no difícil desde o 2, no fácil desde o 4, e um a
-  mais a cada 4 níveis. A cabeça dos oponentes também sobe com o nível, uma
-  mesa de cada vez (o mapa mostra: IA simples, atenta ou afiada): no Normal, o
-  primeiro salão e os comuns do segundo jogam pela IA simples; o Crupiê fica
-  atento no nível 1 (e afiado no 9), o difícil do segundo salão no 3, o
-  difícil do primeiro no 6 e o fácil do segundo no 8; o fácil do primeiro fica
-  sempre na simples. A Dona é atenta e fica afiada no 9, os do terceiro salão
-  são atentos (o difícil, afiado do 5) e o Barão é afiado (o Coringa, do 7).
-  São 21 oponentes, cada um com seu
+  Teimoso, o Par, o Trevo... e, mais acima, o Jackpot, o Copiador, a Fartura,
+  o Dobro e o Hexa; nenhum de ataque) - no Crupiê desde o nível 1, no difícil
+  desde o 2 e no fácil desde o 4, e o segundo 4 níveis depois (no máximo 2 por
+  mesa). A cabeça dos oponentes também sobe (o mapa mostra: IA simples, atenta
+  ou afiada): no Normal, o primeiro salão e os comuns do segundo jogam pela IA
+  simples; o Crupiê fica atento no nível 1 e o difícil do segundo salão no 3
+  (ficar atento pesa muito numa mesa, então as outras do começo sobem só pelos
+  dados). A Dona é atenta e fica afiada no 9, os do terceiro salão são atentos
+  (o difícil, afiado do 5) e o Barão é afiado (o Coringa, do 7). São 21
+  oponentes, cada um com seu
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
   chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o

@@ -132,14 +132,19 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
   inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 36, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  lado para cima: são 41, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
   um sai metade das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
   dado rola duas vezes e fica o maior), ao Velcro (o dado volta para a mão na
-  rodada seguinte), à Ratoeira (anulada pelo oponente, o maior dele cai), ao
+  rodada seguinte), ao Chiclete (funciona em ciclos: válido ou anulado, o
+  dado gruda; na rodada seguinte ele já abre a sua sequência com o mesmo
+  número, sem rolar, e desgruda - depois volta a rolar normal e pode grudar
+  de novo; um por rodada), à Ratoeira (anulado, até pela sequência, o queijo
+  fica: +2; e se foi o oponente que o anulou com um poder, o maior dele
+  também cai), ao
   Holográfico (repete os adesivos que agiram nos seus dados), ao Fermento
   (+2, +4, +6... crescendo a cada vez que age; o Fermento, a Figurinha e a
   Etiqueta mostram na dica do dado quanto valem agora), à Figurinha (cada uma junta
@@ -155,13 +160,28 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dado, e nem o Barro gruda nele), o
   Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
   por adesivo colado no dado, a Sujeira também), e aos que passam de dado em
-  dado: o Infectado (válido ou anulado, um Infectado novo gruda num lado
-  livre de um dado sorteado da sua bolsa, qualquer um, para sempre, e também
-  se espalha; valendo, +2; o Adesivado que ele encher vira o Mais Adesivado
-  no fim da partida) e o Barro (válido ou anulado, suja um lado livre de um
-  dado sorteado da bolsa do oponente: a Sujeira, que não sai mais e dá -2 no
-  placar de quem tirar esse lado; se o dado sorteado estiver com a bolha do
-  Impermeável, o barro não gruda; a Sujeira não se vende); sete desde o
+  dado: o Infectado (assim que o dado cai, válido ou anulado, e mesmo se o
+  oponente correr, um Infectado novo gruda num lado livre de um dado
+  sorteado da sua bolsa, qualquer um, para sempre, e também se espalha;
+  valendo, +2 no fim da rodada; o Adesivado que ele encher vira o Mais Adesivado
+  no fim da partida) e o Barro (assim que o dado cai, válido ou anulado, e
+  mesmo se o oponente correr, suja um lado livre de um dado sorteado da bolsa
+  do oponente: a Sujeira, que não sai mais e dá -2 no placar de quem tirar
+  esse lado; se o dado sorteado estiver com a bolha do Impermeável, o barro
+  não gruda; a Sujeira não se vende) - nos dois, o lado virado para cima de
+  um dado que já caiu na rodada fica de fora -, e aos que mexem com os outros
+  adesivos e com o lance: a Massinha (assim que o dado cai, válido ou anulado,
+  o lado mais baixo do dado que ainda não tem adesivo ganha um Remendo, para
+  sempre; ela, o Barro e o Infectado contam para a Purpurina), o Carimbo (o
+  adesivo do próximo dado da sequência age duas vezes,
+  cada vez com a regra dele; o que multiplica sobe só um degrau, e os que
+  mexem no lance não repetem), a Dupla Face (o adesivo do lado oposto do
+  dado também age; os que mexem no lance e o Patinho Feio, não) e a Casca de
+  Banana (válido ou anulado, o 4º dado do oponente escorrega: rola duas
+  vezes e fica o menor; com duas cascas, o 3º também, com três o 2º, com
+  quatro o 1º; se ele ainda vai jogar, escorrega no lance - o Post-it dele e
+  a casca se anulam -, e se já jogou, o dado rola de novo no fim da rodada;
+  sem o 4º dado, nada; a bolha do Impermeável segura a casca); sete desde o
   começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
@@ -248,12 +268,13 @@ da bolsa. A raridade sobe com a partida: da 1ª à 5ª rodada, comuns e
 incomuns; da 6ª à 10ª, incomuns e raros; da 11ª em diante, raros e
 lendários. No modo de **2 jogadores**, cada cartão tem 20% de chance de ser
 um **adesivo** em vez de um dado, sorteado na mesma raridade (comuns:
-Raspadinha, Lobo, Gorjeta, Frágil, Velcro e Barro; incomuns: Confete, Reflexivo,
+Raspadinha, Lobo, Gorjeta, Frágil, Velcro, Barro e Chiclete; incomuns: Confete, Reflexivo,
 Remendo, Bis, Avesso, Corretivo, Post-it, Ratoeira, Selo, Estrelinha,
-Imantado, Papel Bomba e Lenticular; raros: Eletrônico, Transparente,
-Fermento, Purpurina, Figurinha, Patinho Feio, Etiqueta, Papel Carbono, Neon,
-Impermeável e Infectado; lendários: Chumbo, Mira, Holográfico, Bilhete Premiado e Nota
-Dez). Levando o adesivo, você escolhe o dado da sua
+Imantado, Papel Bomba, Lenticular, Massinha e Casca de Banana; raros:
+Eletrônico, Transparente, Fermento, Purpurina, Figurinha, Patinho Feio,
+Etiqueta, Papel Carbono, Neon, Impermeável, Infectado e Dupla Face;
+lendários: Chumbo, Mira, Holográfico, Bilhete Premiado, Nota Dez e
+Carimbo). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 

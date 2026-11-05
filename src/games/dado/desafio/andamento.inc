@@ -473,6 +473,7 @@ static void zera_acumuladores(peca_t *col, int n)
             || col[i].tipo == D_FURIA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
         col[i].capa = 0;                         // e a capa do Impermeavel tambem
+        col[i].chiclete = 0;                     // e o Chiclete: so gruda de uma rodada para a outra
         vira_mais_adesivado(&col[i]);            // o Adesivado que o Infectado (ou o Barro) encheu
         if (cosmico(col[i].tipo) && col[i].tipo != D_ASTRO) cosmo_vira(&col[i], D_ASTRO, false);   // o ciclo cosmico recomeca
     }

@@ -29,18 +29,98 @@ static int em_jogo(const jogador_t *p)
 }
 
 // A mao da rodada anterior sai da mesa.
-// O dado do Velcro gruda: em vez de sair, volta para a mao (e desgruda).
+// O dado do Velcro gruda: em vez de sair, volta para a mao (e desgruda). O do
+// Chiclete tambem volta, e fica marcado ate abrir a sequencia (gruda_chiclete).
 static void descarta_mao(jogador_t *p)
 {
     p->n_mao = 0;
     for (int i = 0; i < p->n_col; i++) {
-        if (p->col[i].velcro && p->onde[i] != COMIDO && p->n_mao < MAO) {
-            p->col[i].velcro = 0;
+        if ((p->col[i].velcro || p->col[i].chiclete) && p->onde[i] != COMIDO && p->n_mao < MAO) {
             p->onde[i] = NA_MAO;
             p->mao[p->n_mao++] = (int8_t)i;
-        } else if (p->onde[i] == NA_MAO) p->onde[i] = FORA;
+        } else {
+            if (p->onde[i] == NA_MAO) p->onde[i] = FORA;
+            p->col[i].chiclete = 0;
+        }
         p->col[i].velcro = 0;
     }
+}
+
+// O Chiclete: o numero (e o lado) com que o dado grudou, para abrir a
+// sequencia seguinte de cada um.
+static int chic_valor[2];
+static uint8_t chic_lado[2];
+// Na vez de j, o dado que grudou ja abre a sequencia: no primeiro lugar, ja
+// pousado com o mesmo numero, sem rolar (o primeiro e sempre valido). Ele nao
+// sai da fila, e o Chiclete dele nao gruda de novo.
+// O dado da mao de j que vai grudar (o lugar dele na bolsa), ou -1.
+static int chiclete_na_mao(int j)
+{
+    const jogador_t *p = &J[j];
+    for (int m = 0; m < p->n_mao; m++)
+        if (p->col[p->mao[m]].chiclete) return p->mao[m];
+    return -1;
+}
+// Poe o dado i (da bolsa de j) grudado no primeiro lugar da fila. A IA usa
+// sozinho tambem, numa copia da mesa, para pesar a aposta antes da vez.
+static void poe_grudado(int j, int i)
+{
+    const jogador_t *p = &J[j];
+    fila_t *f = &F[j];
+    f->idx[0] = (int8_t)i;
+    f->tipo[0] = p->col[i].tipo;
+    f->fixo[0] = p->col[i].fixo;
+    f->n = 1;
+    f->grudado = true;
+    f->cru[0] = f->valor[0] = chic_valor[j];
+    f->lado[0] = chic_lado[j];
+    f->lancados = 1;
+    aplica_regra(j, 0);
+    f->pontos = soma(j, f->est);
+    veredito[0] = 0;
+}
+// Os adesivos que agem no pouso (adesivos_no_pouso: o Infectado, o Barro e
+// a Massinha) mexem na bolsa na hora, e a mesa mostra cada um, por vez - o
+// germe voando ate a bolsa, a bola de barro no dado do oponente, a massinha
+// virando o Remendo; o veredito espera (passo.inc).
+#define POUSO_MAX 4
+static pouso_ad_t pouso_q[POUSO_MAX];
+static int n_pouso;
+static float t_pouso;
+static float pouso_dura(const pouso_ad_t *p) { return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : 1.6f; }
+static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v);
+static void pouso_toca(const pouso_ad_t *p)
+{
+    som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));
+    if (p->ad == AD_MASSINHA) {                  // quando a massinha vira o Remendo: o lado que ganhou +2
+        int l = 1;
+        while (l < AD_LADOS && !(p->lados >> l & 1)) l++;
+        flutua_em(p->j, p->k, RGB(130, 204, 112), 1.05f, "+2 no %d", l);
+    }
+}
+static void adesivos_pousou(int j, int k)
+{
+    pouso_ad_t o[2];
+    int n = adesivos_no_pouso(j, k, o, 2), antes = n_pouso;
+    for (int g = 0; g < n && n_pouso < POUSO_MAX; g++) pouso_q[n_pouso++] = o[g];
+    if (!antes && n_pouso) { t_pouso = 0; pouso_toca(&pouso_q[0]); }
+}
+static void pouso_passo(float dt)
+{
+    if (!n_pouso || (t_pouso += dt) < pouso_dura(&pouso_q[0])) return;
+    memmove(pouso_q, pouso_q + 1, (size_t)(--n_pouso) * sizeof pouso_q[0]);
+    t_pouso = 0;
+    if (n_pouso) pouso_toca(&pouso_q[0]);
+}
+static void gruda_chiclete(int j)
+{
+    if (F[j].n || F[j].lancados) return;         // ja montou (voltou para a fila)
+    int i = chiclete_na_mao(j);
+    if (i < 0) return;
+    J[j].col[i].chiclete = 0;
+    poe_grudado(j, i);
+    adesivos_pousou(j, 0);                       // grudado com o Infectado (o Barro, a Massinha) para cima: age ao chegar
+    plano_rodada = -1;                           // a IA monta a fila de novo, com ele no primeiro lugar
 }
 
 // Compra ate 7 da bolsa, ao acaso. Se a bolsa esvazia no meio, tudo o que
@@ -176,6 +256,7 @@ static void avisa_sua_vez(void)
 static void marca_online(void);             // online.inc: o marco da partida para o rival conferir
 static void nova_rodada(void)
 {
+    n_pouso = 0;                                 // o que ainda voava no pouso da rodada de antes
     marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
@@ -262,6 +343,7 @@ static void nova_rodada(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    gruda_chiclete(vez);
     avisa_sua_vez();
     humor_da_rodada();
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
@@ -581,12 +663,26 @@ static void lanca_proximo(void)
     // acontece duas vezes e fica o maior: o outro cai ao lado, fantasma.
     const peca_t *pc = peca_fila(vez, k);
     lance_t l = lanca_peca(t, f->fixo[k], pc, rola);
-    int postit = -1;                         // o lance que o Post-it descartou
-    if (k > 0 && ad_fila(vez, k - 1) == AD_POSTIT) {
+    int postit = -1;                         // o lance que o Post-it (ou a Casca) descartou
+    bool tem_postit = k > 0 && ad_fila(vez, k - 1) == AD_POSTIT;
+    // A Casca de Banana do oponente: no 4o dado (com mais cascas, do 3o, do
+    // 2o, do 1o), o lance escorrega - rola duas vezes e fica o menor. A bolha
+    // do Impermeavel segura a casca; o Post-it dele e a casca se anulam (rola
+    // uma vez so).
+    int casca = 0;
+    if (casca_pega(vez, k)) {
+        casca = (pc && pc->capa) || t == D_UNIVERSO ? 2 : tem_postit ? 3 : 1;
+        if (casca == 3) tem_postit = false;   // (o som vem quando ela chega no dado: casca_pisa)
+    }
+    if (tem_postit) {
         lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
         if (l2.x > l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
         som_toca(som_adesivo(AD_POSTIT));
+    } else if (casca == 1) {
+        lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
+        if (l2.x < l.x) { lance_t c = l; l = l2; l2 = c; }
+        postit = l2.x;
     }
     int x = l.x, menor = l.menor, lado = l.lado;
     int x1 = l.x1, lado1 = l.lado1, antes1 = l.antes1, menor1 = l.menor1;
@@ -610,6 +706,7 @@ static void lanca_proximo(void)
     v->dono = (uint8_t)vez;
     v->slot = (uint8_t)k;
     v->tipo = (uint8_t)t;
+    v->casca = (uint8_t)casca;
     bool sr = TIPO[t].efeito == EF_SORTE_REVES;
     v->valor = sr ? x1 + menor1 : x1;        // no ar, o da Sorte
     v->lado = (uint8_t)lado1;
@@ -756,6 +853,7 @@ static void comeca_segundo(void)
     cursor = 0;
     t_fase = 0;
     fase = F_ORDEM;
+    gruda_chiclete(vez);
     avisa_sua_vez();
 }
 
@@ -771,12 +869,19 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         int i = F[j].idx[k];
         if (i < 0 || i >= p->n_col) continue;
         if ((d->fermento[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;
+        if ((d->fermento2[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;   // carimbado: cresce de novo
         if (d->raspa[j] >> k & 1) ad_cola(&p->col[i], F[j].lado[k], AD_NADA);
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;
         if (d->capa[j] >> k & 1) p->col[i].capa = 1;      // o Impermeavel: ate o fim da partida
         if ((d->fig_cresce[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;   // junta mais uma
+        if ((d->fig_cresce2[j] >> k & 1) && p->col[i].figurinha < FIGURINHA_MAX) p->col[i].figurinha++;
+        if (d->chiclete[j] == k + 1) {           // o Chiclete: abre a proxima com este numero
+            p->col[i].chiclete = 1;
+            chic_valor[j] = F[j].valor[k];
+            chic_lado[j] = F[j].lado[k];
+        }
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
@@ -785,14 +890,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     }
     if (d->bis[j]) bis_vem[j] = 1;
     ad_moedas[j] += d->moedas[j];
-    // O Infectado que se espalhou (na bolsa de j) e o Barro que respingou (na
-    // do oponente): os lados novos.
-    for (int n = 0; n < d->n_pega; n++) {
-        const pega_t *g = &d->pega[n];
-        if (g->de != j || g->para > 1 || g->i >= J[g->para].n_col) continue;
-        peca_t *alvo = &J[g->para].col[g->i];
-        if (!ad_no_lado(alvo, g->lado)) ad_cola(alvo, g->lado, g->ad);
-    }
+    // (O Infectado, o Barro e a Massinha ja mexeram nas bolsas no pouso.)
 }
 
 // O ciclo cosmico: a peca vira o estagio t, sem os adesivos. Evoluindo, volta
@@ -890,10 +988,20 @@ static bool coringa_joga(int j) { return j == 1 && tem_reg(REG_CORINGA); }
 static bool carta_posta(int j) { return F[j].carta && F[j].lancados > 3; }
 // O fim da rodada ainda depende da sorte, mesmo que ninguem jogue mais: a
 // carta do Coringa por virar (e ser lancada), um Oculto escondido, um
-// Terremoto por sacudir. A previa do fim nao sabe o que vai dar.
+// Terremoto por sacudir, a Casca de Banana de quem joga depois (o 4o dado
+// de quem abriu ainda vai escorregar). A previa do fim nao sabe o que vai dar.
+static bool casca_no_fim(void)
+{
+    int n = cascas_de(outro(primeiro));
+    for (int i = 0; i < n; i++) {
+        int a = CASCA_DADO + 1 - n + i;
+        if (a < F[primeiro].lancados && F[primeiro].est[a] == V_VALIDO) return true;
+    }
+    return false;
+}
 static bool fim_incerto(void)
 {
-    return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa();
+    return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim();
 }
 // Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
 // Espelho esperando o maior do outro e a Ficha Coringa com o curinga para
@@ -1213,7 +1321,9 @@ static int som_do_evento(int i)
         default:        return SOM_ANULA;
         }
     case EV_ONDA:    return SOM_ONDA;
-    case EV_TREMOR:  return SOM_FORTE;            // a mesa ronca; o dado bate depois (passo.inc)
+    case EV_TREMOR:                      // a mesa ronca; o dado bate depois (passo.inc). A casca: o escorregao
+        if (e->ad == AD_CASCA) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_AD_CASCA;
+        return SOM_FORTE;
     case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
@@ -1221,6 +1331,8 @@ static int som_do_evento(int i)
     case EV_AGIOTA:  return SOM_FICHA;
     case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_ADESIVO:                     // a copia brilha com o som do Holografico; o Fragil quebrando, vidro
+        if (e->modo & EVM_CARIMBO) return SOM_AD_CARIMBO;   // o carimbo bate; o do adesivo vem depois (evento_no_meio)
+        if (e->modo & EVM_DUPLA) return SOM_AD_DUPLA;       // o dado vira; idem
         if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
         if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
@@ -1403,18 +1515,51 @@ static void proximo_evento(void)
 #define TREMOR_RACHA  0.06f
 #define TREMOR_SALTA  0.40f
 #define TREMOR_POUSA  0.80f
+#define CASCA_PISA    0.16f                  // a Casca: o dado pisa nela (e desliza ate o salto)
+#define CASCA_DESLIZA 14                     // os pixels do deslize
+#define CASCA_VOA     0.30f                  // no lance: os segundos da casca voando ate o dado rolando
+#define CASCA_PE      (R_DADO - 2)           // o pe da casca, abaixo do meio do dado
+// A casca do oponente chega no dado rolando: ele pisa nela e escorrega (da
+// uma guinada de lado, girando mais), e ela sai deslizando para tras dele.
+static void casca_pisa(voo_t *v)
+{
+    if (!v->casca || v->casca_caiu) return;   // (a bolha e o Post-it: so marca onde ela bateu)
+    v->casca_caiu = true;
+    som_toca(som_adesivo(v->casca == 2 ? AD_IMPERMEAVEL : v->casca == 3 ? AD_POSTIT : AD_CASCA));
+    v->casca_x = v->x;
+    v->casca_y = v->y + CASCA_PE;
+    float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+    v->casca_vx = vel > 1 ? -v->vx / vel : 0;
+    v->casca_vy = vel > 1 ? -v->vy / vel : 1;
+    if (v->casca != 1 || v->parado) return;
+    float a = v->vx >= 0 ? 0.6f : -0.6f, c = cosf(a), s = sinf(a);
+    float vx = v->vx * c - v->vy * s, vy = v->vx * s + v->vy * c;
+    v->vx = vx * 1.1f;
+    v->vy = vy * 1.1f;
+    v->spin += a > 0 ? 9 : -9;
+}
 #define CORINGA_SOBE  0.30f
 #define CORINGA_POUSA 0.74f
 #define CORINGA_VIRA  ((CORINGA_SOBE + CORINGA_POUSA) / 2)
 #define DIGITAL_ACENDE 0.55f
-static float duracao_evento(int i)
+// O Carimbo e a Dupla Face vem antes do adesivo agir de novo: o carimbo
+// descendo no dado (e a tinta que fica), ou o dado virando para mostrar o lado
+// de baixo. Depois, o gesto do adesivo, como sempre.
+#define CARIMBO_T 0.78f
+#define DUPLA_T   0.72f
+static float ev_intro(const evento_t *e)
 {
-    switch (ev[i].tipo) {
+    if (e->tipo != EV_ADESIVO) return 0;
+    return e->modo & EVM_CARIMBO ? CARIMBO_T : e->modo & EVM_DUPLA ? DUPLA_T : 0;
+}
+static float duracao_de(const evento_t *e)
+{
+    switch (e->tipo) {
     case EV_ROUBA: return 1.6f;
     case EV_MULT:  return 1.7f;
     case EV_FOGO:  return 1.6f;
     case EV_SEMENTE: return 1.6f;
-    case EV_EXTRA:   return ev[i].mascara ? 1.9f : 1.6f;    // o Capitao passa por cada dado
+    case EV_EXTRA:   return e->mascara ? 1.9f : 1.6f;    // o Capitao passa por cada dado
     case EV_CHEFE:   return 1.6f;
     case EV_CAVALO:  return 2.0f;
     case EV_CORTA:   return 1.5f;
@@ -1424,16 +1569,19 @@ static float duracao_evento(int i)
     case EV_GARIMPO: return 1.7f;
     case EV_REVELA:  return 1.4f;
     case EV_CORINGA: return 1.9f;
-    case EV_TREMOR:  return 2.2f;
+    case EV_TREMOR:  return e->ad == AD_CASCA ? 2.0f : 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
     case EV_AVISO:   return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
-    case EV_ADESIVO: return ev[i].ad == AD_INFECTADO || ev[i].ad == AD_BARRO ? 2.0f : 1.5f;   // o germe e o barro viajam
+    case EV_ADESIVO:                                // o germe e o barro viajam; a massinha voa, amassa e vira remendo
+        return e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : 1.5f;
     default:       return 1.3f;
     }
 }
+static float duracao_base(int i) { return duracao_de(&ev[i]); }
+static float duracao_evento(int i) { return duracao_base(i) + ev_intro(&ev[i]); }
 
 // Onde sai o numero flutuante de um dado (k < N_FILA) ou do placar de j: da
 // beira do lado do meio da mesa.
@@ -1444,9 +1592,10 @@ static int flut_y(int j, int k)
     int r = k < N_FILA ? R_DADO + 3 : 30;
     return j == baixo ? zona(j) - r : zona(j) + r;
 }
+static float flut_extra;                    // o evento com o Carimbo ou a Dupla Face antes: o numero espera
 static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v)
 {
-    flutua(flut_x(k), flut_y(j, k), flut_d(j), cor, atraso, fmt, v);
+    flutua(flut_x(k), flut_y(j, k), flut_d(j), cor, atraso + flut_extra, fmt, v);
 }
 
 // O dado k de j acabou de pousar: o que ele vale sobe dele; o que caiu com
@@ -1470,7 +1619,9 @@ static void flutua_pouso(int j, int k)
 }
 
 // Os numeros de um evento do fim da rodada, quando ele se aplica.
-static void flutua_evento(const evento_t *e)
+static void flutua_evento_(const evento_t *e);
+static void flutua_evento(const evento_t *e) { flut_extra = ev_intro(e); flutua_evento_(e); flut_extra = 0; }
+static void flutua_evento_(const evento_t *e)
 {
     int dj = e->de_j, dk = e->de_k < N_FILA ? e->de_k : N_FILA, aj = e->alvo_j, ak = e->alvo_k;
     switch (e->tipo) {
@@ -1511,6 +1662,10 @@ static void flutua_evento(const evento_t *e)
         for (int k = 0; k < N_FILA; k++)
             if (e->mascara >> k & 1) flutua_em(aj, k, C_VINHO_CLR, 0.25f + k * 0.08f, "-%d", e->valor);
         break;
+    case EV_TREMOR:                     // a Casca: o quanto o dado perdeu escorregando (protegido: aplica_evento)
+        if (e->ad == AD_CASCA && !e->bloqueado && ak < N_FILA)
+            flutua_em(aj, ak, e->antes > e->valor ? C_VINHO_CLR : C_LATAO, 0, e->antes > e->valor ? "-%d" : "fica", e->antes - e->valor);
+        break;
     case EV_ADESIVO:
         switch (e->ad) {
         case AD_ELETRONICO: flutua_em(dj, dk, C_OURO, 0, "x%d", e->por_dado[dk < N_FILA ? dk : 0]); break;
@@ -1520,8 +1675,13 @@ static void flutua_evento(const evento_t *e)
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
         case AD_BIS:        flutua_em(dj, dk, C_OURO, 0, "+%d dados", e->valor); break;
         case AD_SELO:       flutua_em(dj, dk, e->valor ? C_OURO : C_VINHO_CLR, 0, e->valor ? "+%d" : "lacrado", e->valor); break;
-        case AD_RATOEIRA:   if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+        case AD_RATOEIRA:                           // o queijo (no dado dela) ou a armadilha (no maior dele)
+            if (aj == dj) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+            else if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor);
+            break;
         case AD_VELCRO:     flutua_em(dj, dk, C_OURO, 0, "gruda", 0); break;
+        case AD_CHICLETE:   flutua_em(dj, dk, C_ROSA, 0, "gruda", 0); break;
+        case AD_MASSINHA:   flutua_em(dj, dk, RGB(130, 204, 112), 1.05f, "+2 no %d", e->valor); break;   // quando vira o Remendo
         case AD_PATINHO:    flutua_em(dj, dk, e->valor < 0 ? C_VINHO_CLR : C_OURO, 0, e->valor < 0 ? "%d" : "+%d", e->valor); break;
         case AD_BILHETE:                        // o bonus de cada dado e o de fora, em dobro
             for (int k = 0; k < N_FILA; k++)
@@ -1661,6 +1821,7 @@ static void aplica_evento(int i)
             break;
         case AD_LOBO: vis_delta[e->alvo_j] -= e->valor; break;
         case AD_MIRA: case AD_RATOEIRA:
+            if (e->ad == AD_RATOEIRA && e->alvo_j == e->de_j) { vis_semente[e->de_j] += e->valor; break; }   // o queijo: +4
             if (e->bloqueado) break;    // bateu na capa
             vis_est[e->alvo_j][e->alvo_k] = V_ANULADO;
             golpe_marca(e->alvo_j, e->alvo_k, ADESIVO[e->ad].fundo == AD_SEM_FUNDO ? ADESIVO[e->ad].tinta : ADESIVO[e->ad].fundo);

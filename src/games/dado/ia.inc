@@ -134,9 +134,18 @@ static void sim_lanca(int j)
     // Com os adesivos do dado, como no lance de verdade (o Reflexivo rola de novo).
     const peca_t *pc = peca_fila(j, k);
     lance_t l = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
-    if (k > 0 && ad_fila(j, k - 1) == AD_POSTIT) {   // o Post-it: duas vezes, o maior
+    bool postit = k > 0 && ad_fila(j, k - 1) == AD_POSTIT;
+    int casca = 0;                                   // a Casca do oponente, como no lance de verdade
+    if (casca_pega(j, k)) {
+        casca = (pc && pc->capa) || f->tipo[k] == D_UNIVERSO ? 2 : postit ? 3 : 1;
+        if (casca == 3) postit = false;
+    }
+    if (postit) {                                    // o Post-it: duas vezes, o maior
         lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
         if (l2.x > l.x) l = l2;
+    } else if (casca == 1) {                         // escorregou: duas vezes, o menor
+        lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
+        if (l2.x < l.x) l = l2;
     }
     int x = l.x;
     menor = l.menor;
@@ -237,20 +246,38 @@ static void fila_imaginada(int r, bool toda)
 {
     jogador_t *p = &J[r];
     peca_t pool[MAX_COL];
-    int n = 0;
+    int8_t de[MAX_COL];                          // o lugar de cada um na bolsa (os adesivos dele)
+    int n = 0, gi = -1;
+    for (int i = 0; i < p->n_col; i++) if (p->col[i].chiclete && p->onde[i] != COMIDO) gi = i;   // o grudado abre a fila dele
     for (int i = 0; i < p->n_col; i++)
-        if (p->onde[i] != COMIDO && (toda || p->onde[i] != FORA)) pool[n++] = p->col[i];
-    if (n < FILA_NORMAL) { n = 0; for (int i = 0; i < p->n_col; i++) pool[n++] = p->col[i]; }
+        if (i != gi && p->onde[i] != COMIDO && (toda || p->onde[i] != FORA)) { de[n] = (int8_t)i; pool[n++] = p->col[i]; }
+    if (n < FILA_NORMAL) { n = 0; for (int i = 0; i < p->n_col; i++) if (i != gi) { de[n] = (int8_t)i; pool[n++] = p->col[i]; } }
     int m = n < tam_mao(r) ? n : tam_mao(r);
     for (int i = 0; i < m; i++) {
         int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
         peca_t t = pool[i]; pool[i] = pool[k]; pool[k] = t;
+        int8_t d = de[i]; de[i] = de[k]; de[k] = d;
     }
     int ordem[N_FILA], q = fila_simples(pool, m, ordem);
     fila_t *f = &F[r];
     memset(f, 0, sizeof *f);
-    for (int k = 0; k < q; k++) { f->tipo[k] = pool[ordem[k]].tipo; f->fixo[k] = pool[ordem[k]].fixo; }
-    f->n = q;
+    int o = 0;
+    if (gi >= 0) {                               // o Chiclete: ja na mesa, com o numero dele
+        f->idx[0] = (int8_t)gi; f->tipo[0] = p->col[gi].tipo; f->fixo[0] = p->col[gi].fixo;
+        f->cru[0] = f->valor[0] = chic_valor[r];
+        f->lado[0] = chic_lado[r];
+        f->grudado = true;
+        f->lancados = 1;
+        aplica_regra(r, 0);
+        o = 1;
+        if (q > max_fila(r) - 1) q = max_fila(r) - 1;
+    }
+    for (int k = 0; k < q; k++) {
+        f->idx[k + o] = de[ordem[k]];
+        f->tipo[k + o] = pool[ordem[k]].tipo;
+        f->fixo[k + o] = pool[ordem[k]].fixo;
+    }
+    f->n = q + o;
 }
 
 // Termina a rodada de mentira do ponto de vista de j e devolve o placar dele
@@ -323,9 +350,11 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
         volta_mesa(m);
         semeia_ia(base, a);
         fila_t *f = &F[j];
-        memset(f, 0, sizeof *f);
-        for (int k = 0; k < L; k++) {
+        int k0 = f->grudado ? 1 : 0;             // o grudado ja esta pousado no primeiro lugar
+        if (!k0) memset(f, 0, sizeof *f);
+        for (int k = k0; k < L; k++) {
             peca_t pc = J[j].col[J[j].mao[seq[k]]];
+            f->idx[k] = J[j].mao[seq[k]];
             f->tipo[k] = pc.tipo;
             f->fixo[k] = pc.fixo;
         }
@@ -346,6 +375,8 @@ static void ia_planeja(void)
     int n = p->n_mao, L = n < max_fila(j) ? n : max_fila(j);
     plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
     if (L <= 0) return;
+    int gm = -1;                                 // o grudado pelo Chiclete: o primeiro de toda fila
+    for (int m = 0; m < n && F[j].grudado; m++) if (p->mao[m] == F[j].idx[0]) gm = m;
 
     static int8_t cand[MAX_CAND][N_FILA];
     static float nota_c[MAX_CAND];
@@ -361,7 +392,7 @@ static void ia_planeja(void)
         if (s[nivel] >= n) { nivel--; continue; }
         bool rep = false;
         for (int i = 0; i < nivel; i++) if (s[i] == s[nivel]) rep = true;
-        if (rep) continue;
+        if (rep || (gm >= 0 && (nivel == 0) != (s[nivel] == gm))) continue;   // o grudado so no primeiro lugar
         if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
         // Dobro por ultimo nao dobra nada: a IA nem considera. O Universo so
         // vai sozinho: entra no fim, como fila de um dado so.
@@ -410,8 +441,9 @@ static void ia_planeja(void)
         if (v > nota_m + 0.01f) { nota_m = v; curta = q; }
     }
     if (melhor >= 0) { memcpy(plano, cand[melhor], N_FILA); plano_n = curta; }
-    // O Universo, sozinho, contra a melhor fila sem ele.
-    for (int i = 0; i < n && L >= 2; i++) {
+    // O Universo, sozinho, contra a melhor fila sem ele (com um grudado na
+    // mesa, nao da: ele so vai sozinho).
+    for (int i = 0; i < n && L >= 2 && gm < 0; i++) {
         if (p->col[p->mao[i]].tipo != D_UNIVERSO) continue;
         int8_t so[N_FILA] = { (int8_t)i };
         float v = avalia_fila(j, so, 1, a2, base ^ 0x5bd1e995u, &m);
@@ -468,7 +500,22 @@ static bool ia_continua(void)
 static float ia_chance(void)
 {
     int j = vez;
-    if (F[j].lancados == 0) { ia_planeja(); return plano_p; }   // ainda vai jogar
+    if (F[j].lancados == 0) {                    // ainda vai jogar
+        // O Chiclete dele so gruda quando a vez chega (a aposta vem antes):
+        // pesa a fila ja com ele no primeiro lugar, numa copia da mesa, e
+        // na vez de verdade a fila e planejada de novo.
+        int g = F[j].n ? -1 : chiclete_na_mao(j);
+        if (g < 0) { ia_planeja(); return plano_p; }
+        mesa_t m;
+        guarda_mesa(&m);
+        poe_grudado(j, g);
+        plano_rodada = -1;
+        ia_planeja();
+        float p = plano_p;
+        volta_mesa(&m);
+        plano_rodada = -1;
+        return p;
+    }
     mesa_t m;
     guarda_mesa(&m);
     int amostras = amostras_ia(IA_AMOSTRAS, 24);
@@ -591,10 +638,13 @@ static int facil_proximo_da_fila(void)
 {
     jogador_t *p = &J[vez];
     peca_t mao[MAO];
-    for (int i = 0; i < p->n_mao; i++) mao[i] = p->col[p->mao[i]];
-    int ordem[N_FILA], q = fila_simples(mao, p->n_mao, ordem);
-    int k = F[vez].n;
-    return k < q ? ordem[k] : -1;
+    int de[MAO], n = 0, o = F[vez].grudado ? 1 : 0;   // sem o grudado, que ja abriu a fila
+    for (int i = 0; i < p->n_mao; i++)
+        if (!o || p->mao[i] != F[vez].idx[0]) { de[n] = i; mao[n++] = p->col[p->mao[i]]; }
+    int ordem[N_FILA], q = fila_simples(mao, n, ordem);
+    if (q > max_fila(vez) - o) q = max_fila(vez) - o;
+    int k = F[vez].n - o;
+    return k >= 0 && k < q ? de[ordem[k]] : -1;
 }
 
 static bool facil_continua(void)

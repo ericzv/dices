@@ -40,6 +40,11 @@ static void poe_na_fila(int i)
     int c = p->mao[i];
     int ja = -1;
     for (int k = 0; k < f->n; k++) if (f->idx[k] == c) ja = k;
+    if (ja == 0 && f->grudado) {                  // grudado pelo Chiclete: ja abriu a sequencia, nao sai
+        t_aviso_grudado = 1.6f;
+        if (!anuncia_maquina()) som_toca(SOM_BATE_DADO);
+        return;
+    }
     if (ja >= 0) {
         for (int k = ja; k + 1 < f->n; k++) {
             f->idx[k] = f->idx[k + 1];
@@ -439,7 +444,7 @@ static void trata_tecla(int k)
         if (e) { cursor = (cursor + e + p->n_mao) % p->n_mao; return; }
         if (k >= '1' && k <= '8' && k - '1' < p->n_mao) { cursor = k - '1'; poe_na_fila(cursor); return; }
         if (k == KEY_ENTER) { poe_na_fila(cursor); return; }
-        if (k == KEY_BKSP && f->n) { f->n--; return; }
+        if (k == KEY_BKSP && f->n > (f->grudado ? 1 : 0)) { f->n--; return; }   // o grudado fica
         if ((k == KEY_TAB || k == 'x') && f->n >= 1) { coringa_completa(vez); cursor = 0; fase = F_JOGA; }
         return;
     }

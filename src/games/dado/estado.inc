@@ -9,7 +9,9 @@
 // (peca13_t), abre convertida (des_carrega). A capa: o Impermeavel ja agiu
 // nesta partida (no bit de cima do Fermento, que nunca passa de 20).
 #define AD_LADOS 20
-typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento : 7, capa : 1; uint8_t selo : 1, velcro : 1, figurinha : 6; } peca_t;
+// chiclete: o dado grudou (o Chiclete) e abre a proxima sequencia (o bit era o de cima das
+// figurinhas, sempre 0 na run salva: elas so valem dentro da partida).
+typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS]; uint8_t fermento : 7, capa : 1; uint8_t selo : 1, velcro : 1, figurinha : 5, chiclete : 1; } peca_t;
 typedef struct { uint8_t tipo, fixo; uint8_t ad[AD_LADOS / 2]; uint8_t fermento : 7, selo : 1; } peca13_t;
 _Static_assert(sizeof(peca_t) == 4 + AD_LADOS && sizeof(peca13_t) == 13, "a peca vai assim para a run salva");
 
@@ -48,6 +50,7 @@ typedef struct {
     uint8_t descarte[N_FILA];        // Viciado: o menor dos dois lances
     bool    espera[N_FILA];          // Espelho que so vira no fim (o rival nao tinha jogado)
     bool    ancora[N_FILA];          // preso pela Ancora de antes: nao cai nem e roubado
+    bool    grudado;                 // o primeiro veio grudado pelo Chiclete: ja na mesa, sem rolar
     bool    calibre[N_FILA];         // o Calibre de antes somou 1 no que ele tirou
     bool    bomba[N_FILA];           // o Papel Bomba explodiu: o numero e a soma de dois lances
     int8_t  bomba1[N_FILA];          // e o primeiro deles
@@ -74,6 +77,11 @@ typedef struct {
     float t_assenta;                 // desde que assentou no feltro (0: ainda no ar): a poeira, o numero
     bool parado;
     bool fantasma;                   // o segundo lance do Viciado, que e descartado
+    uint8_t casca;                   // escorregou na Casca do oponente (1: rolou duas vezes; 2: a bolha segurou;
+                                     // 3: o Post-it dele e a casca se anularam)
+    bool casca_caiu;                 // e ele ja pisou nela: em (casca_x, casca_y), e ela saiu deslizando para
+    float casca_x, casca_y;          // (casca_vx, casca_vy), para tras dele
+    float casca_vx, casca_vy;
     uint8_t lado;                    // o lado que fica para cima (os adesivos)
     int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso (ou a Nota Dez) vira; 2 o Reflexivo
                                      // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia
@@ -110,6 +118,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
+#define EVM_CARIMBO 1
+#define EVM_DUPLA   2
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;
@@ -118,6 +128,8 @@ typedef struct {
     amul_t  am;                      // amuletos que acendem quando ele toca
     uint8_t ad;                      // EV_ADESIVO: o adesivo
     uint8_t copia;                   // EV_ADESIVO: o Holografico copiando o 'ad' (o dado e o dele)
+    uint8_t modo;                    // EV_ADESIVO: EVM_CARIMBO (o 'ad' agindo a segunda vez, carimbado
+                                     // pelo dado de antes) e EVM_DUPLA (o 'ad' do lado oposto, pela Dupla Face)
     uint8_t bloqueado;               // dados do alvo (bit k: alvo_j, k) com a capa do Impermeavel: o
                                      // efeito chega, mas nao pega (nem passa para outro dado)
     int     antes;                   // EV_TREMOR: o que o dado sacudido tinha tirado
@@ -366,6 +378,7 @@ static int velocidade = VEL_MEDIA;
 static bool rapido_lido;
 static float t_aviso_vel;                // > 0: o aviso da velocidade esta na mesa
 static float t_aviso_universo;           // > 0: o aviso de que o Universo so vai sozinho
+static float t_aviso_grudado;            // > 0: o aviso de que o dado do Chiclete nao sai da sequencia
 static bool cosmo_recem[2][MAX_COL];     // o ciclo cosmico que evoluiu na rodada passada: chega na mao com o nome novo
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).

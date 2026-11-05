@@ -221,6 +221,7 @@ void dado_desenha(void)
     zonas_fase = fase;
     bolsas_vistas = 0;
     desenha_tudo();
+    desenha_pouso();                     // o Infectado, o Barro e a Massinha que acabaram de cair
     desenha_tiro();
     desenha_evolui();
     desenha_buraco_suga();

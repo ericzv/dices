@@ -30,10 +30,12 @@ static int faces_de(int tipo, int *f)
     return n;
 }
 
-// Quebra o texto em linhas de ate max_w pixels, sempre nos espacos.
+// Quebra o texto em linhas de ate max_w pixels, sempre nos espacos, na
+// fonte f com as linhas a cada passo pixels (quebra_linhas: a fonte fina).
 #define LINHA_FINA (gfx_letra_e_maior() ? 16 : 14)   // passo das linhas do texto corrido (fonte fina)
+#define LINHA_MIUDA (gfx_letra_e_maior() ? 14 : 10)  // e da miuda (com a letra maior, ela vira a fina)
 static bool quebra_so_conta;                     // so mede: quantas linhas daria
-static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
+static int quebra_linhas_em(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c, int f, int passo)
 {
     char linha[200];
     int lin = 0;
@@ -48,19 +50,23 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
             if (fim >= (int)sizeof linha) break;
             memcpy(linha, p, (size_t)fim);
             linha[fim] = 0;
-            if (gfx_largura(linha, GFX_FINO) > max_w && cabe) break;
+            if (gfx_largura(linha, f) > max_w && cabe) break;
             cabe = n = fim;
             if (!p[n]) break;
         }
         if (!cabe) cabe = (int)strlen(p) < (int)sizeof linha - 1 ? (int)strlen(p) : (int)sizeof linha - 1;
         memcpy(linha, p, (size_t)cabe);
         linha[cabe] = 0;
-        if (!quebra_so_conta) txt(x, y + lin * LINHA_FINA, linha, c, false);
+        if (!quebra_so_conta) gfx_texto(x, y + lin * passo, linha, c, f, false);
         lin++;
         p += cabe;
         while (*p == ' ') p++;
     }
     return lin;
+}
+static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
+{
+    return quebra_linhas_em(x, y, max_w, max_lin, txt_, c, GFX_FINO, LINHA_FINA);
 }
 
 // Etiquetas ao lado do tipo e da raridade; as de protecao com o icone dela

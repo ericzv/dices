@@ -131,12 +131,18 @@ static void desenha_cat_adesivo(int i)
         linha_bloqueio(x, 124, s);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    // A regra e, se couber inteiro acima da fileira, como o adesivo funciona
-    // (a Sujeira nao: e o oponente que a cola).
-    int n = quebra_linhas(x, 152, 320, 6, AD_TEXTO[a], C_MARFIM), sobra = 7 - n - 1;
-    if (sobra >= 2 && ad_a_venda(a))
-        quebra_linhas(x, 152 + n * LINHA_FINA + 8, 320, sobra, "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.",
-                      C_TEXTO_M);
+    // O que o adesivo faz, curto, na fonte do texto; embaixo, menores e
+    // apagados, os detalhes e os casos especiais e, se couber inteiro acima da
+    // fileira, como os adesivos funcionam (a Sujeira nao: e o oponente que a cola).
+    const int ATE = 268;                         // a fileira de baixo
+    int y = 152 + quebra_linhas(x, 152, 320, 4, AD_TEXTO[a], C_MARFIM) * LINHA_FINA + 5;
+    if (AD_DETALHE[a] && ATE - y >= LINHA_MIUDA)
+        y += quebra_linhas_em(x, y, 320, (ATE - y) / LINHA_MIUDA, AD_DETALHE[a], C_TEXTO_M, GFX_MIUDO, LINHA_MIUDA) * LINHA_MIUDA + 5;
+    static const char *const COMO = "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.";
+    quebra_so_conta = true;
+    int nc = quebra_linhas_em(x, 0, 320, 9, COMO, 0, GFX_MIUDO, LINHA_MIUDA);
+    quebra_so_conta = false;
+    if (ad_a_venda(a) && y + nc * LINHA_MIUDA <= ATE) quebra_linhas_em(x, y, 320, nc, COMO, gfx_mistura(C_TEXTO_M, C_FELTRO, 50), GFX_MIUDO, LINHA_MIUDA);
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }

@@ -2433,6 +2433,74 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (q == 1 && (h & 1)) return RGB(156, 106, 64);
         return fundo;
     }
+    case AD_CHICLETE: {                           // a goma rosa: uma bola enchendo e estourando, e os fios grudados
+        float ciclo = fr(t / 2.4f + fase), rb = ciclo < 0.8f ? 0.18f * r + ciclo / 0.8f * 0.32f * r : 0;
+        float bx = 0.12f * r, by = -0.1f * r, db = sqrtf((X - bx) * (X - bx) + (Y - by) * (Y - by));
+        if (rb > 0 && db < rb) {                  // a bola: rosa clara, com o brilho em cima a esquerda
+            float lx = X - (bx - rb * 0.4f), ly = Y - (by - rb * 0.4f);
+            if (lx * lx + ly * ly < rb * rb * 0.08f) return C_BRANCO;
+            return db > rb - 1.2f ? C_VINHO_CLR : C_ROSA;
+        }
+        if (ciclo >= 0.8f && ciclo < 0.9f && (h % 3) == 0 && db < 0.5f * r) return C_VINHO_CLR;   // estourou: os pedacos
+        for (int c = 0; c < 3; c++) {             // os fios esticados, de cima a baixo, ondulando
+            float fx = (-0.5f + c * 0.42f) * r + sinf(Y * 0.4f + t * 2 + c * 2) * 1.2f;
+            if (fabsf(X - fx) < 0.6f && (c != 1 || Y > 0.2f * r)) return C_VINHO_CLR;
+        }
+        uint32_t q = hash2((int)floorf(X / 2) + 32, (int)floorf(Y / 2) + 32) % 9;
+        return q == 0 ? C_VINHO_CLR : fundo;
+    }
+    case AD_CARIMBO: {                            // a folha de ouro carimbada: a moldura de tinta rente a beira, falhada
+                                                  // como de carimbo, uns respingos de tinta e o brilho do ouro passando
+        uint32_t qa = hash2((int)floorf(atan2f(Y, X) * 7) + 64, 3);
+        if (de >= 1.0f && de < 2.3f && qa % 5 && (h % 7)) return RGB(118, 30, 38);
+        if (de >= 2.3f && de < 3.0f && qa % 3 == 0) return RGB(150, 62, 80);
+        if (h % 41 == 0) return RGB(150, 62, 80);
+        float pp = fr(t / 5 + fase) * 5, pos = -1.7f * r + pp / 0.6f * 3.4f * r, f = X + Y - pos;
+        if (pp < 0.6f && fabsf(f) < 1) return C_AMARELO;
+        if (h % 17 == 0) return RGB(228, 194, 106);
+        if (h % 19 == 1) return RGB(150, 122, 62);
+        return fundo;
+    }
+    case AD_DUPLA: {                              // as duas faces: a metade de baixo, na diagonal, num preto mais claro,
+                                                  // e nas quinas opostas as duas setas de virar, girando
+        if (X + Y > 0.15f * r * sinf(t * 1.3f + fase * 6.3f)) {
+            if ((ix + iy) % 5 == 0 && (h & 1)) return C_EBANO;
+            fundo = C_EBANO_B;
+        }
+        for (int c = 0; c < 2; c++) {
+            float cx2 = (c ? 0.5f : -0.5f) * r, cy2 = (c ? -0.5f : 0.5f) * r, dx = X - cx2, dy = Y - cy2;
+            float d2 = sqrtf(dx * dx + dy * dy), a2 = atan2f(dy, dx) - t * 2.2f * (c ? 1 : -1) + c * 3.1416f;
+            a2 -= 6.2832f * floorf(a2 / 6.2832f);
+            if (fabsf(d2 - 0.17f * r) < 0.6f && a2 < 4.4f) return a2 > 3.7f ? C_BRANCO : C_MARFIM_S;   // a seta: o arco e a ponta
+        }
+        return fundo;
+    }
+    case AD_CASCA: {                              // o escorregao: riscos de velocidade correndo na diagonal, e de vez em
+                                                  // quando uma gota de casca amarela passando
+        float u = X * 0.95f + Y * 0.31f, w = -X * 0.31f + Y * 0.95f;
+        for (int c = 0; c < 3; c++) {
+            float faixa = (-0.42f + c * 0.42f) * r;
+            if (fabsf(w - faixa) > 0.8f) continue;
+            float fz = fr((u + t * (13 + c * 3) + c * 7 + fase * 31) / (11 + c * 2));
+            if (fz < 0.3f) return fz < 0.08f ? C_BRANCO : RGB(96, 182, 198);
+        }
+        float pq = fr(t / 3.1f + fase), gx = -r + pq * 2.4f * r, gy = 0.55f * r - pq * 0.3f * r;
+        if (pq < 0.5f && fabsf(X - gx) < 1.3f && fabsf(Y - gy) < 0.8f) return C_AMARELO;
+        return fundo;
+    }
+    case AD_MASSINHA: {                           // massinha misturada: tres veios de cor na diagonal, ondulando e se
+                                                  // amassando devagar (cada um com o tom escuro por baixo)
+        float u = (X + Y) * 0.7071f, w = (X - Y) * 0.7071f;
+        for (int c = 0; c < 3; c++) {
+            float off = (-0.4f + c * 0.4f) * r;
+            float vv = off + sinf(w * 0.3f + t * 0.8f + c * 2.1f + fase * 6.3f) * 0.11f * r
+                     + sinf(w * 0.09f - t * 0.45f + c * 1.3f) * 0.07f * r;
+            float dd = u - vv, larg = 1.1f + 0.6f * sinf(w * 0.2f + c + t * 0.6f);
+            if (fabsf(dd) < larg) return MASSA[c][0];
+            if (dd > 0 && dd < larg + 1.0f && ((ix + iy) & 1)) return MASSA[c][1];
+        }
+        return fundo;
+    }
     default: return fundo;
     }
 }
@@ -2542,6 +2610,7 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
     gfx_rect(x + 1, y + 2, 11, 11, C_SOMBRA);
     ad_caixa(x, y, 11, 11, zerado ? C_FELTRO2 : C_BRANCO);
     ad_caixa(x + 1, y + 1, 9, 9, f2);
+    if (a == AD_DUPLA) gfx_rect(x + 5, y + 1, 5, 9, zerado ? gfx_mistura(C_MARFIM, C_FELTRO2, 60) : C_MARFIM);   // as duas cores
     ad_icone(x + 2, y + 2, a, 1, zerado ? gfx_mistura(d->tinta, C_FELTRO2, 60) : d->tinta);
 }
 

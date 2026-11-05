@@ -79,28 +79,38 @@ static void poe_grudado(int j, int i)
     f->pontos = soma(j, f->est);
     veredito[0] = 0;
 }
-// O Infectado que caiu espalha na hora (infecta_no_pouso), e a mesa mostra o
-// germe voando ate a bolsa e pegando no dado de la, um de cada vez; o
-// veredito espera (passo.inc).
-#define INFECTA_T 1.6f
-typedef struct { int8_t j, k, i; uint8_t l; } infecta_t;
-static infecta_t infecta_q[4];
-static int n_infecta;
-static float t_infecta;
-static void infecta_pousou(int j, int k)
+// Os adesivos que agem no pouso (adesivos_no_pouso: o Infectado, o Barro e
+// a Massinha) mexem na bolsa na hora, e a mesa mostra cada um, por vez - o
+// germe voando ate a bolsa, a bola de barro no dado do oponente, a massinha
+// virando o Remendo; o veredito espera (passo.inc).
+#define POUSO_MAX 4
+static pouso_ad_t pouso_q[POUSO_MAX];
+static int n_pouso;
+static float t_pouso;
+static float pouso_dura(const pouso_ad_t *p) { return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : 1.6f; }
+static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v);
+static void pouso_toca(const pouso_ad_t *p)
 {
-    int is[2];
-    uint8_t ls[2];
-    int n = infecta_no_pouso(j, k, is, ls, 2), antes = n_infecta;
-    for (int g = 0; g < n && n_infecta < 4; g++) infecta_q[n_infecta++] = (infecta_t){ (int8_t)j, (int8_t)k, (int8_t)is[g], ls[g] };
-    if (!antes && n_infecta) { t_infecta = 0; som_toca(SOM_AD_INFECTADO); }
+    som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));
+    if (p->ad == AD_MASSINHA) {                  // quando a massinha vira o Remendo: o lado que ganhou +2
+        int l = 1;
+        while (l < AD_LADOS && !(p->lados >> l & 1)) l++;
+        flutua_em(p->j, p->k, RGB(130, 204, 112), 1.05f, "+2 no %d", l);
+    }
 }
-static void infecta_passo(float dt)
+static void adesivos_pousou(int j, int k)
 {
-    if (!n_infecta || (t_infecta += dt) < INFECTA_T) return;
-    memmove(infecta_q, infecta_q + 1, (size_t)(--n_infecta) * sizeof infecta_q[0]);
-    t_infecta = 0;
-    if (n_infecta) som_toca(SOM_AD_INFECTADO);
+    pouso_ad_t o[2];
+    int n = adesivos_no_pouso(j, k, o, 2), antes = n_pouso;
+    for (int g = 0; g < n && n_pouso < POUSO_MAX; g++) pouso_q[n_pouso++] = o[g];
+    if (!antes && n_pouso) { t_pouso = 0; pouso_toca(&pouso_q[0]); }
+}
+static void pouso_passo(float dt)
+{
+    if (!n_pouso || (t_pouso += dt) < pouso_dura(&pouso_q[0])) return;
+    memmove(pouso_q, pouso_q + 1, (size_t)(--n_pouso) * sizeof pouso_q[0]);
+    t_pouso = 0;
+    if (n_pouso) pouso_toca(&pouso_q[0]);
 }
 static void gruda_chiclete(int j)
 {
@@ -109,7 +119,7 @@ static void gruda_chiclete(int j)
     if (i < 0) return;
     J[j].col[i].chiclete = 0;
     poe_grudado(j, i);
-    infecta_pousou(j, 0);                        // grudado com o Infectado para cima: espalha ao chegar
+    adesivos_pousou(j, 0);                       // grudado com o Infectado (o Barro, a Massinha) para cima: age ao chegar
     plano_rodada = -1;                           // a IA monta a fila de novo, com ele no primeiro lugar
 }
 
@@ -246,7 +256,7 @@ static void avisa_sua_vez(void)
 static void marca_online(void);             // online.inc: o marco da partida para o rival conferir
 static void nova_rodada(void)
 {
-    n_infecta = 0;                               // o germe que ainda voava da rodada de antes
+    n_pouso = 0;                                 // o que ainda voava no pouso da rodada de antes
     marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
@@ -880,15 +890,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
     }
     if (d->bis[j]) bis_vem[j] = 1;
     ad_moedas[j] += d->moedas[j];
-    // O Infectado que se espalhou (na bolsa de j), o Barro que respingou (na
-    // do oponente) e o Remendo da Massinha: os lados novos (no dado que o
-    // Fragil quebrou agora, so o lado do numero gravado).
-    for (int n = 0; n < d->n_pega; n++) {
-        const pega_t *g = &d->pega[n];
-        if (g->de != j || g->para > 1 || g->i >= J[g->para].n_col) continue;
-        peca_t *alvo = &J[g->para].col[g->i];
-        if (!ad_no_lado(alvo, g->lado) && ad_lado_serve(alvo, g->lado)) ad_cola(alvo, g->lado, g->ad);
-    }
+    // (O Infectado, o Barro e a Massinha ja mexeram nas bolsas no pouso.)
 }
 
 // O ciclo cosmico: a peca vira o estagio t, sem os adesivos. Evoluindo, volta

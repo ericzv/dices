@@ -164,16 +164,19 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   oponente correr, um Infectado novo gruda num lado livre de um dado
   sorteado da sua bolsa, qualquer um, para sempre, e também se espalha;
   valendo, +2 no fim da rodada; o Adesivado que ele encher vira o Mais Adesivado
-  no fim da partida) e o Barro (válido ou anulado, suja um lado livre de um
-  dado sorteado da bolsa do oponente: a Sujeira, que não sai mais e dá -2 no
-  placar de quem tirar esse lado; se o dado sorteado estiver com a bolha do
-  Impermeável, o barro não gruda; a Sujeira não se vende), e aos que mexem
-  com os outros adesivos e com o lance: a Massinha (válido ou anulado, o
-  lado mais baixo do dado que ainda não tem adesivo ganha um Remendo, para
-  sempre), o Carimbo (o adesivo do próximo dado da sequência age duas vezes,
-  cada vez com a regra dele; o que multiplica sobe só um degrau, e os do
-  pouso não repetem), a Dupla Face (o adesivo do lado oposto do dado também
-  age no fim da rodada; os do pouso e o Patinho Feio, não) e a Casca de
+  no fim da partida) e o Barro (assim que o dado cai, válido ou anulado, e
+  mesmo se o oponente correr, suja um lado livre de um dado sorteado da bolsa
+  do oponente: a Sujeira, que não sai mais e dá -2 no placar de quem tirar
+  esse lado; se o dado sorteado estiver com a bolha do Impermeável, o barro
+  não gruda; a Sujeira não se vende) - nos dois, o lado virado para cima de
+  um dado que já caiu na rodada fica de fora -, e aos que mexem com os outros
+  adesivos e com o lance: a Massinha (assim que o dado cai, válido ou anulado,
+  o lado mais baixo do dado que ainda não tem adesivo ganha um Remendo, para
+  sempre; ela, o Barro e o Infectado contam para a Purpurina), o Carimbo (o
+  adesivo do próximo dado da sequência age duas vezes,
+  cada vez com a regra dele; o que multiplica sobe só um degrau, e os que
+  mexem no lance não repetem), a Dupla Face (o adesivo do lado oposto do
+  dado também age; os que mexem no lance e o Patinho Feio, não) e a Casca de
   Banana (válido ou anulado, o 4º dado do oponente escorrega: rola duas
   vezes e fica o menor; com duas cascas, o 3º também, com três o 2º, com
   quatro o 1º; se ele ainda vai jogar, escorrega no lance - o Post-it dele e

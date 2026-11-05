@@ -1228,8 +1228,8 @@ static void desenha_fila(int j)
             // O Post-it aceso enquanto o dado seguinte rola as duas vezes.
             if (ad_face == AD_POSTIT && (fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].dono == j && voo[0].slot == k + 1)
                 ad_face_aceso = true;
-            // O Infectado aceso enquanto o germe dele voa ate a bolsa.
-            if (n_infecta && infecta_q[0].j == j && infecta_q[0].k == k && (t_infecta > 0.25f || (int)(t_fase * 12) % 2 == 0))
+            // O adesivo que agiu no pouso, aceso enquanto a mesa mostra.
+            if (n_pouso && pouso_q[0].j == j && pouso_q[0].k == k && (t_pouso > 0.25f || (int)(t_fase * 12) % 2 == 0))
                 ad_face_aceso = true;
             // A Casca acesa enquanto o lance do oponente escorrega nela.
             if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
@@ -2713,21 +2713,24 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
     }
 }
 
-// O Infectado que acabou de cair: o germe voa ate a bolsa e pega no dado de
-// la (infecta_pousou), por cima da mesa, com o adesivo do dado aceso.
-static void desenha_infecta(void)
+// O adesivo que agiu no pouso (adesivos_pousou): o mesmo gesto do fim da
+// rodada, por cima da mesa, com o adesivo do dado aceso.
+static void desenha_pouso(void)
 {
-    if (!n_infecta || fase == F_EFEITOS) return;
-    const infecta_t *q = &infecta_q[0];
+    if (!n_pouso || fase == F_EFEITOS) return;
+    const pouso_ad_t *q = &pouso_q[0];
     if (q->k < 0 || q->k >= N_FILA) return;
     evento_t e = { 0 };
     e.tipo = EV_ADESIVO;
-    e.ad = AD_INFECTADO;
-    e.de_j = e.alvo_j = (uint8_t)q->j;
+    e.ad = q->ad;
+    e.de_j = (uint8_t)q->j;
     e.de_k = e.alvo_k = (uint8_t)q->k;
+    e.alvo_j = (uint8_t)q->q;
     e.bolsa_i = (uint8_t)q->i;
-    e.bolsa_lados = 1u << q->l;
-    desenha_adesivo_agindo(&e, fminf(1, t_infecta / INFECTA_T), SLOT_X(q->k), zona(q->j));
+    e.bolsa_lados = q->lados;
+    e.bolsa_capa = q->capa;
+    e.valor = q->ad == AD_MASSINHA ? pega_lado(q->lados) : q->n;
+    desenha_adesivo_agindo(&e, fminf(1, t_pouso / pouso_dura(q)), SLOT_X(q->k), zona(q->j));
 }
 
 // Terremoto: a falha corre pelo feltro, do Terremoto ate o dado do

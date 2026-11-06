@@ -295,6 +295,39 @@ static void antes_depois(void)
     grava("antes_depois");
 }
 
+// Os soltos (a loja, a colecao, o registro): os 42 no tamanho do cartao da
+// loja (s 3) e, embaixo de cada um, descolando; e os miudos (s 1 e 2).
+static void soltos(const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    ad_estilo = ADE_NOVO;
+    t_relogio = 1.7f;
+    gfx_texto(4, 3, "soltos: s 3, descolando, s 2 e s 1", C_MARFIM, GFX_FINO, false);
+    for (int a = 1; a < AD_N; a++) {
+        int i = a - 1, cx = 23 + (i % 14) * 45, cy = 36 + (i / 14) * 112;
+        ad_solto_d(cx, cy, a, 3, 0);
+        ad_solto_d(cx, cy + 40, a, 3, 0.8f);
+        ad_solto_d(cx - 8, cy + 74, a, 2, 0);
+        ad_solto_d(cx + 13, cy + 74, a, 1, 0);
+    }
+    ad_estilo = ADE_ATUAL;
+    grava(nome);
+}
+// Os grandes (a vitrine da colecao, s 6): 21 por pagina.
+static void soltos_grandes(int a0, const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    ad_estilo = ADE_NOVO;
+    t_relogio = 1.7f;
+    for (int i = 0; i < 21 && a0 + i < AD_N; i++) {
+        int a = a0 + i, cx = 46 + (i % 7) * 91, cy = 14 + (i / 7) * 115;
+        gfx_texto(cx - 42, cy, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM_S : ADESIVO[a].luz, GFX_FINO, false);
+        ad_solto_d(cx, cy + 56, a, 6, i % 3 == 1 ? 0.6f : 0);
+    }
+    ad_estilo = ADE_ATUAL;
+    grava(nome);
+}
+
 int main(int argc, char **argv)
 {
     if (argc > 1) dir = argv[1];
@@ -310,6 +343,9 @@ int main(int argc, char **argv)
         grade_grande(ADE_NOVO, 1, false, "novo_grande_1");
         grade_grande(ADE_NOVO, 22, false, "novo_grande_2");
         miudos(ADE_NOVO, "novo_miudos");
+        soltos("novo_soltos");
+        soltos_grandes(1, "novo_soltos_grandes_1");
+        soltos_grandes(22, "novo_soltos_grandes_2");
         antes_depois();
         mesas();
         printf("adesivo novo em %s\n", dir);

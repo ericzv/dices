@@ -29,7 +29,7 @@
 enum { ADE_ATUAL, ADE_MATERIAL, ADE_RECORTE, ADE_MOLDURA, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2, ADE_NOVO, ADE_N };
 static const char *const ADE_NOME[ADE_N] = { "atual", "material", "recorte", "moldura", "relevo",
                                              "recorte em relevo", "relevo grande", "adesivo novo" };
-static int ad_estilo = ADE_ATUAL;
+static int ad_estilo = ADE_NOVO;        // a exploracao: o adesivo novo ja de saida (J troca)
 static float t_aviso_adesivo;            // > 0: o aviso do estilo (tecla J) esta na mesa
 
 // As familias de efeito (a moldura e a ativacao falam por elas).

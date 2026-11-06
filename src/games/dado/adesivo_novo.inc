@@ -940,6 +940,14 @@ static bool an_lustroso(int m)
         || m == MN_CERA || m == MN_BORRACHA || m == MN_LENTE || m == MN_CETIM || m == MN_NEON;
 }
 
+// ---- As bordas finas (em teste: a tecla J liga e desliga) ---------------------
+// Nos dados pequenos as duas bordas brancas - a margem do recorte e o
+// contorno do numero - comiam o desenho. Finas: o contorno do numero e o aro
+// dos pontos so em cruz (sem as quinas), e a margem branca um pixel mais
+// fina do lado da sombra (embaixo, a direita): com 1 pixel, so do lado da
+// luz; la o contorno escuro encosta no desenho.
+static bool an_borda_fina = true;
+
 // ---- O recorte desenhado, no dado ou solto ----------------------------------
 typedef struct {
     float R, th, mais, dobra, brilho, onda, fase, mov;
@@ -974,6 +982,7 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
     int C = P > 0 ? smax - P : 1 << 20;
     enum { AC_NADA, AC_CONTORNO, AC_MARGEM, AC_DENTRO, AC_VERSO, AC_SOMBRA };
     static uint8_t cl[AN_G * AN_G];
+    bool fina = an_borda_fina;
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
             int k = j * W + i, sg = i + j;
@@ -987,8 +996,15 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
                 if (d2 < marg) c = AC_VERSO;
                 else if (d2 < marg + 1) c = AC_CONTORNO;
                 else if (dd < 0) c = d2 < marg + 2.5f ? AC_SOMBRA : AC_DENTRO;
-                else if (dd < marg) c = AC_MARGEM;
-                else if (dd < marg + 1) c = AC_CONTORNO;
+                else if (dd < marg + 1) {
+                    float mg = marg;
+                    if (fina) {                                         // a beira que olha para a sombra: a margem um pixel mais fina
+                        float gx = an_dd[k + (i < W - 1)] - an_dd[k - (i > 0)], gy = an_dd[k + (j < W - 1) * W] - an_dd[k - (j > 0) * W];
+                        float gl = sqrtf(gx * gx + gy * gy);
+                        if (gl > 1e-6f && (gx + gy) / gl > 0.45f) mg = marg - 1;
+                    }
+                    c = dd < mg ? AC_MARGEM : dd < mg + 1 ? AC_CONTORNO : AC_NADA;
+                }
             }
             cl[k] = c;
         }

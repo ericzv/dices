@@ -274,6 +274,7 @@ static void poligono_bisel(const float *vx, const float *vy, int n, float cx, fl
 
 // luz: o tom da beira do furo, no modo Pixel (0: o furo liso de sempre).
 static uint16_t pips_aro;                // != 0: cada ponto com um aro dessa cor (o numero sobre o adesivo recortado)
+static bool aro_cruz;                    // o aro dos pontos e o contorno do numero so em cruz: mais finos
 static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 {
     int o = r * 5 / 11;
@@ -287,7 +288,9 @@ static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
     for (int i = 0; i < v; i++) {
         int x = cx + P[v][i][0] * o, y = cy + P[v][i][1] * o;
         if (r < 12) { gfx_rect(x - 1, y - 1, 3, 3, c); continue; }
-        if (pips_aro) gfx_disco(x, y, pr + 1, pips_aro);
+        if (pips_aro && aro_cruz)                 // fino: o proprio ponto um pixel para cada lado, sem as quinas
+            for (int d = 0; d < 4; d++) gfx_disco(x + (d == 0) - (d == 1), y + (d == 2) - (d == 3), pr, pips_aro);
+        else if (pips_aro) gfx_disco(x, y, pr + 1, pips_aro);
         gfx_disco(x, y, pr, c);
         if (luz) {                                // o furo com relevo: a luz bate na beira de baixo, a direita
             gfx_pixel(x + pr - 1, y + pr - 1, luz);
@@ -475,8 +478,8 @@ static void marca_protecao(float cx, float cy, float r, bool anula, bool rouba)
 static void numero_contorno(float cx, float cy, float r, const char *s, uint16_t c, uint16_t contorno)
 {
     static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
-    if (contorno)
-        for (int i = 0; i < 8; i++) numero_em(cx + D[i][0], cy + D[i][1], r, s, contorno, false);
+    if (contorno)                                 // fino (aro_cruz): so em cruz, sem as quinas
+        for (int i = 0; i < (aro_cruz ? 4 : 8); i++) numero_em(cx + D[i][0], cy + D[i][1], r, s, contorno, false);
     numero_em(cx, cy, r, s, c, !contorno);
 }
 
@@ -3021,6 +3024,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         if (ad_estilo == ADE_RECREL || ad_estilo == ADE_NOVO) {   // o recorte: o numero do dado, com o aro branco do papel
             if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
             pips_aro = contorno;
+            aro_cruz = ad_estilo == ADE_NOVO && an_borda_fina;
         } else if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
             uint16_t ti = ad_tinta_estilo(adf), fu = ad_fundo_estilo(adf);
             tinta = zerado ? gfx_mistura(ti, C_FELTRO2, 60) : ti;
@@ -3039,6 +3043,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         else numero_contorno(cx, cy, r, s, tinta, contorno);
     }
     pips_aro = 0;
+    aro_cruz = false;
     if (zerado) risca(cx, cy, r);
 }
 

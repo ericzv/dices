@@ -335,6 +335,7 @@ static bool golpe_passo(float dt_real)
 static bool evento_grande(const evento_t *e)
 {
     if (e->tipo == EV_JACKPOT) return true;
+    if (e->tipo == EV_RESSUSCITA && e->valor >= 3) return true;   // o Agnus levantando tres ou mais
     if (e->tipo == EV_EXTRA && F[e->de_j].tipo[e->de_k] == D_CAPITAO) {
         int n = 0;
         for (int k = 0; k < N_FILA; k++) n += e->mascara >> k & 1;

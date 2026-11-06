@@ -71,6 +71,7 @@ static const char *const SP_SETAS[] = { "#...#..", ".#...#.", "..#...#", ".#...#
 static const char *const SP_PRISMA[] = { "...#...", "..#+#..", ".#+++#.", "#######" };
 static const char *const SP_PANETONE[] = { ".###.", "#+o+#", "#o+o#", "#####" };
 static const char *const SP_CARTA_V[] = { "#####", "#o+o#", "#+o+#", "#o+o#", "#+o+#", "#o+o#", "#####" };
+static const char *const SP_GLORIA[] = { "#..#..#", ".#.#.#.", ".......", ".#####.", "#.....#", ".+++++." };
 static const char *const SP_FALHA[] = { "#......", ".#.....", ".##....", "...#...", "...##..", ".....#.", "......#" };
 
 enum { MV_FLUTUA, MV_PULSA, MV_BATIDA, MV_VARRE, MV_SOBE, MV_CAI, MV_BATE, MV_BALANCA, MV_TREME,
@@ -156,6 +157,7 @@ static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_REVOLVER]     = { PA_SP(SP_TAMBOR), MV_ESPECIAL, C_FERRO, C_PRATA, C_EBANO },
     [EF_FICHA_CORINGA] = { PA_SP2(SP_CARTA, SP_CARTA_V), MV_QUADROS, C_MARFIM, C_BRANCO, C_VERMELHO },   // a carta virando
     [EF_TERREMOTO]    = { PA_SP(SP_FALHA), MV_TREME, C_FOGO, C_AMARELO, C_TERRA },                   // a falha tremendo
+    [EF_AGNUS]        = { SP_GLORIA, NULL, 6, 0, MV_ESPECIAL, C_AMARELO, C_BRANCO, C_OURO },         // a gloria em cima do cordeiro
 };
 #undef PA_SP
 #undef PA_SP2
@@ -402,6 +404,32 @@ static void anima_poder(int x, int y, int R, int tipo, float fase)
             for (int i = 0; i < 3; i++)
                 for (int k = 0; k < 4; k++)
                     if ((k + f) % 4 != 3) gfx_pixel(ax + 1 + k, ay - 1 + i, ARCO[i]);
+            break;
+        }
+        case EF_AGNUS: {                           // a gloria: a aureola flutuando, os raios acendendo um a um
+            int cy = ay + 2 + (int)lroundf(sinf(t * 1.7f) * 1.2f);   // e uma luz que sobe do dado ate ela
+            for (int i = 0; i < 36; i++) {
+                float an = i * 0.1745f;
+                int px = ax + (int)lroundf(cosf(an) * 5.5f), py = cy + (int)lroundf(sinf(an) * 1.7f);
+                gfx_pixel(px, py + 1, C_BARRA);
+            }
+            for (int i = 0; i < 36; i++) {
+                float an = i * 0.1745f;
+                int px = ax + (int)lroundf(cosf(an) * 5.5f), py = cy + (int)lroundf(sinf(an) * 1.7f);
+                gfx_pixel(px, py, an < 3.1416f ? a->c2 : a->c3);      // a frente, mais clara
+            }
+            static const int8_t RAIO[3][4] = { { -5, -3, -7, -6 }, { 0, -3, 0, -7 }, { 5, -3, 7, -6 } };
+            int f = (int)(t * 2.4f) % 4;
+            for (int k = 0; k < 3; k++) {
+                bool aceso = f == k || f == 3;
+                gfx_linha(ax + RAIO[k][0], cy + RAIO[k][1], ax + RAIO[k][2], cy + RAIO[k][3], aceso ? a->c2 : a->c3);
+                if (aceso) gfx_pixel(ax + RAIO[k][2], cy + RAIO[k][3], C_BRANCO);
+            }
+            float q = fmodf(t * 0.55f, 1.0f);          // a luz subindo do dado para a aureola
+            if (q < 0.8f) {
+                int my = y - R + 2 - (int)(q / 0.8f * (y - R + 2 - cy));
+                if (bayer(ax, my) >= q * 0.9f) { gfx_pixel(ax, my, a->c1); gfx_pixel(ax, my - 1, C_BRANCO); }
+            }
             break;
         }
         case EF_REVOLVER: {                        // o tambor gira um dente de cada vez

@@ -478,7 +478,7 @@ int main(void)
             for (int k = 0; k < n; k++) {
                 int t = (int)(teste_rnd() % D_N);
                 int v = 1 + (int)(teste_rnd() % TIPO[t].lados);
-                F[j].fixo[F[j].lancados] = (uint8_t)v;
+                if (F[j].lancados < N_FILA) F[j].fixo[F[j].lancados] = (uint8_t)v;
                 joga(j, t, v);
             }
         }
@@ -1978,7 +1978,7 @@ int main(void)
             static const int NOVOS[] = { D_PREVISIVEL, D_OCULTO, D_SACRIFICIO, D_VAZIO, D_MEDIA, D_VAMPIRO,
                                          D_COLECIONADOR, D_PACTO, D_ASSOMBRACAO, D_FICHA_VELHA, D_SANGUESSUGA,
                                          D_FURIA, D_ONDA, D_PATINHOS, D_REVOLVER, D_ASTRO,
-                                         D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO };
+                                         D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO, D_AGNUS };
             for (unsigned i = 0; i < sizeof NOVOS / sizeof NOVOS[0]; i++)
                 CONFERE(nivel_do_dado(NOVOS[i]) >= 1 && nivel_do_dado(NOVOS[i]) <= N_NIVEIS && TEXTO_CAT[NOVOS[i]] && TEXTO_MEDIO[NOVOS[i]],
                         "%s: nivel %d", TIPO[NOVOS[i]].nome, nivel_do_dado(NOVOS[i]));
@@ -5538,6 +5538,91 @@ int main(void)
         limpa();
         joga(0, D_CARIDOSO, 2);
         CONFERE(poder_armado(0, 0) == 0, "Caridoso 2 nao arma");
+    }
+
+    // ---- Agnus: com 7 (valendo ou nao), no fim os anulados do dono voltam ----
+    {
+        desfecho_t d;
+        int ag;
+        // a sequencia derrubou dois (3 < 5: os dois caem); o Agnus com 7 os levanta
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D6, 3); joga(0, D_AGNUS, 7);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_VALIDO, "Agnus: a queda antes dele");
+        CONFERE(poder_armado(0, 2) == 1, "Agnus com 7 brilha");
+        d = fim();
+        ag = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_RESSUSCITA) ag = i;
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 5 + 3 + 7,
+                "Agnus: os dois anulados voltam e pontuam (esperava 15, deu %d)", d.total[0]);
+        CONFERE(ag >= 0 && ev[ag].mascara == 0x3 && ev[ag].valor == 2 && ev[ag].de_k == 2
+                && ev[ag].por_dado[0] == 5 && ev[ag].por_dado[1] == 3 && ev[ag].por_dado[2] == 0,
+                "Agnus: um evento so, com os dois na mascara");
+        {
+            desfecho_t d2;
+            calcula_desfecho(&d2, false);
+            CONFERE(!memcmp(d.est, d2.est, sizeof d.est) && d2.total[0] == d.total[0], "Agnus: a previa ve o mesmo");
+        }
+        // anulado junto pela sequencia, ele mesmo se levanta
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_AGNUS, 7); joga(0, D_D8, 3);
+        CONFERE(F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO && poder_armado(0, 1) == 1, "Agnus anulado com 7 brilha");
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO && d.total[0] == 2 + 7 + 3,
+                "Agnus anulado: volta com os outros (esperava 12, deu %d)", d.total[0]);
+        // sem o 7, nada
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D6, 3); joga(0, D_AGNUS, 6);
+        CONFERE(poder_armado(0, 2) == 0, "Agnus com 6 nao brilha");
+        d = fim();
+        ag = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_RESSUSCITA) ag = i;
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 6 && ag < 0, "Agnus com 6: ninguem volta");
+        // o que o ataque do oponente anulou tambem volta (o Laser no ultimo valido)
+        limpa();
+        joga(1, D_LASER, 6);
+        joga(0, D_D6, 2); joga(0, D_D8, 4); joga(0, D_AGNUS, 7); joga(0, D_D12, 9);
+        d = fim();
+        CONFERE(d.est[0][3] == V_VALIDO && d.total[0] == 2 + 4 + 7 + 9, "Agnus: o anulado pelo Laser volta (deu %d)", d.total[0]);
+        limpa();
+        joga(1, D_LASER, 6);
+        joga(0, D_D6, 2); joga(0, D_AGNUS, 7);           // o Laser no proprio Agnus: ele se levanta
+        d = fim();
+        CONFERE(d.est[0][1] == V_VALIDO && d.total[0] == 9, "Agnus anulado pelo Laser: volta (deu %d)", d.total[0]);
+        // o roubado nao volta; e o Agnus roubado nao levanta ninguem
+        limpa();
+        joga(1, D_D2, 1); joga(1, D_GATUNO, 3);
+        joga(0, D_D6, 2); joga(0, D_AGNUS, 7);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ROUBADO && d.total[0] == 7, "Agnus: o roubado nao volta (deu %d)", d.total[0]);
+        limpa();
+        joga(1, D_D2, 1); joga(1, D_GATUNO, 3);
+        joga(0, D_D6, 5); joga(0, D_D6, 3); joga(0, D_AGNUS, 7);
+        d = fim();
+        CONFERE(d.est[0][2] == V_ROUBADO && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 0,
+                "Agnus roubado: os anulados ficam (deu %d)", d.total[0]);
+        // o Agnus do oponente nao levanta os seus
+        limpa();
+        joga(1, D_AGNUS, 7);
+        joga(0, D_D6, 5); joga(0, D_D6, 3);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 0, "Agnus do oponente: os seus ficam");
+        // sem ninguem anulado, nem evento
+        limpa();
+        joga(0, D_D6, 2); joga(0, D_AGNUS, 7);
+        d = fim();
+        ag = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_RESSUSCITA) ag = i;
+        CONFERE(ag < 0 && d.total[0] == 9, "Agnus sem anulados: nada acontece");
+        // a IA que abre: com o Agnus armado, segue lancando (o que cair volta)
+        limpa();
+        joga(0, D_AGNUS, 7); joga(0, D_D12, 11);
+        F[0].n = 4; F[0].tipo[2] = D_D4; F[0].tipo[3] = D_D4;
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && abre_continua(0),
+                "IA: com o Agnus armado, o d4 depois do 11 nao assusta");
+        F[0].valor[0] = F[0].cru[0] = 6; refaz_sequencia(0, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && !abre_continua(0), "IA: sem o 7, o d4 depois do 11 assusta");
+        CONFERE(TIPO[D_AGNUS].lados == 8 && TIPO[D_AGNUS].raridade == RAR_LENDA && nivel_do_dado(D_AGNUS) == 8
+                && no_catalogo(D_AGNUS) && !sem_sorteio(D_AGNUS), "Agnus: d8 lendario, no nivel 8, na colecao");
     }
 
     // ---- Cavalo de Troia: anulado ou roubado pelo oponente, anula os dele ---

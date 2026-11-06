@@ -64,7 +64,9 @@ typedef struct {
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
-    char    tag[N_FILA][14];
+    char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
+    char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
+    char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "$+4")
     int     pontos;
     int     total;
 } fila_t;
@@ -103,6 +105,7 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
+       EV_RESSUSCITA,                // o Agnus tirou 7: os anulados dele voltam (mascara: quais)
        EV_CHEFE,                     // pontos direto no placar (virada do Barao, Crisantemo, Velorio)
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade

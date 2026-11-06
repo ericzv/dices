@@ -1028,7 +1028,7 @@ static bool vira_carta(int j)
     peca_t c;
     f->carta = false;
     f->lancados = 3;
-    f->est[3] = V_ESPERA; f->tag[3][0] = 0;
+    f->est[3] = V_ESPERA; tira_tag(f, 3);
     if (!melhor_lance(outro(j), &c)) { f->n = 3; return false; }
     f->tipo[3] = c.tipo; f->fixo[3] = c.fixo;
     return true;
@@ -1331,6 +1331,7 @@ static int som_do_evento(int i)
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
+    case EV_RESSUSCITA: return SOM_AGNUS;
     case EV_EXTRA:
         if (e->de_k >= N_FILA) return SOM_EFEITO;
         switch (F[e->de_j].tipo[e->de_k]) {
@@ -1565,6 +1566,7 @@ static float duracao_de(const evento_t *e)
     case EV_TREMOR:  return e->ad == AD_CASCA ? 2.0f : 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
+    case EV_RESSUSCITA: return AGNUS_LUZ_0 + AGNUS_LUZ_PASSO * (e->valor > 1 ? e->valor - 1 : 0) + 1.3f;   // a luz desce em cada um
     case EV_AVISO:   return 1.5f;
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
@@ -1643,6 +1645,13 @@ static void flutua_evento_(const evento_t *e)
         break;
     case EV_FOGO: case EV_SEMENTE: case EV_JACKPOT: case EV_RENASCE:
         if (e->valor) flutua_em(dj, dk, C_OURO, 0, "+%d", e->valor);
+        break;
+    case EV_RESSUSCITA:                 // o que cada um que se levantou pontua, um atras do outro
+        for (int k = 0, i = 0; k < N_FILA; k++)
+            if (e->mascara >> k & 1) {
+                if (e->por_dado[k]) flutua_em(dj, k, C_OURO, i * 0.08f, "+%d", e->por_dado[k]);
+                i++;
+            }
         break;
     case EV_CAVALO:
         for (int k = 0; k < N_FILA; k++)
@@ -1773,6 +1782,9 @@ static void aplica_evento(int i)
         vis_semente[e->de_j] += e->valor;
         break;
     case EV_RENASCE: vis_est[e->de_j][e->de_k] = V_VALIDO; break;
+    case EV_RESSUSCITA:                 // (a mesa os levanta um a um, com a luz: agnus_levantou)
+        for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_est[e->de_j][k] = V_VALIDO;
+        break;
     case EV_CORTA:   vis_bonus[e->alvo_j][e->alvo_k] -= (int8_t)e->valor; vis_corte[e->alvo_j][e->alvo_k] = 1; break;
     case EV_MEDUSA:
         for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_pedra[e->de_j][k] = 1;
@@ -1869,7 +1881,7 @@ static void descarta_sobras(int j)
                 break;
             }
         devolvidos[n_devolvidos++] = (devolvido_t){ (float)SLOT_X(k), (float)zona(j), f->tipo[k], (uint8_t)j, f->fixo[k] };
-        f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; f->tag[k][0] = 0;
+        f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; tira_tag(f, k);
     }
     if (f->n > f->lancados) f->n = f->lancados;
     if (f->lancados <= 3) f->carta = false;      // parou antes da carta do Coringa

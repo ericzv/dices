@@ -173,6 +173,7 @@ static bool abre_continua(int j)
         return l < 0 || f->valor[l] <= 10;
     }
     if (tipo_de(j, f->lancados) == D_EGOISTA) return f->pontos < 6;
+    if (agnus_armado(j) >= 0) return true;      // o Agnus com 7: o que cair agora volta no fim
     int r = risco(j);
     if (f->lancados == 1 || f->pontos < 10) return r < 85;
     return r < 40 || (r < 60 && f->pontos < 14);

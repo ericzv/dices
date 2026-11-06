@@ -35,7 +35,7 @@ caindo).
 | Troca de tela | `transicao` | um sopro de pano que anda da esquerda para a direita junto com a varredura |
 | Poderes | `laser`, `vento`, `vidro`, `fogo`, `tira`, `rouba`, `zera`, `bigorna`, `jackpot` | gravações, instrumentos do FluidR3 e sínteses |
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |
-| Poderes com som próprio | `vampiro`, `sabotador`, `coveiro`, `autofagia`, `ampulheta` | asas e presas, catraca e assobio murchando, pazadas e sino, dentada e marimba, areia grão a grão e celesta |
+| Poderes com som próprio | `vampiro`, `sabotador`, `coveiro`, `autofagia`, `ampulheta`, `agnus` | asas e presas, catraca e assobio murchando, pazadas e sino, dentada e marimba, areia grão a grão e celesta, e o sino de capela com o coro de cordas e a celesta subindo (o Agnus ressuscitando) |
 
 Quem tem variantes (`bate_0`…`bate_3` etc.) é sorteado no jogo, sem repetir
 a anterior, e com um pouco de variação de tom.

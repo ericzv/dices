@@ -437,15 +437,61 @@ static void aro(int x, int y, uint16_t c)
     ui_cantos_em(x - m, y - m, 2 * m, 2 * m, c, ui_respira());
 }
 
-// Etiqueta no canto do dado (x2, +8, =9), com fundo para ler sobre o feltro.
-static void etiqueta(int x, int y, const char *s)
+// ---------------------------------------------------------------------------
+// As marcas de um dado na fila, cada tipo no seu lugar, sem caixa: o texto
+// miudo com o contorno escuro em volta, como os numeros que sobem da mesa.
+//  - em cima, a esquerda: o que fez o numero (=5, =?, 4+5, 12-5, 3>4, 5/9);
+//  - em cima, a direita: os pontos a mais (+6, -1, $+4); havendo dois - o do
+//    proprio dado e o que vem de outros no fim -, um em cima do outro;
+//  - embaixo: o multiplicador (x2, x3...).
+// O que so vem no fim da rodada (a previa) sai no tom apagado da mesma cor.
+// ---------------------------------------------------------------------------
+#define C_MARCA_VALOR    C_MARFIM
+#define C_MARCA_MULT     RGB(238, 162, 74)       // o fogo claro: o multiplicador
+#define C_MARCA_MULT_FIM C_FOGO
+#define C_MARCA_SOMA_FIM RGB(150, 122, 62)       // o latao do meio
+#define C_MARCA_MENOS_FIM C_VINHO
+
+// As linhas da cifra na fonte das marcas: da 9 a 14 na fina; na letra maior
+// (a Jersey, 1 px acima), da 4 a 13.
+static int marca_topo(void) { return gfx_letra_e_maior() ? 4 : 9; }
+static int marca_base(void) { return gfx_letra_e_maior() ? 13 : 14; }
+
+// O texto de uma marca com o contorno escuro; (x, y) e o canto de cima a
+// esquerda das cifras (nao da linha).
+static void marca_texto(int x, int y, const char *s, uint16_t c)
 {
-    int w = gfx_largura(s, 1) + 8;
-    int ex = x + R_DADO - 8, ey = y - R_DADO - 14;
-    uint16_t c = s[0] == '-' ? C_VINHO_CLR : C_OURO;
-    gfx_rect(ex + 1, ey + 1, w - 2, TXT_H, C_PLACA);
-    ui_contorno(ex, ey, w, TXT_H + 2, c);
-    txt(ex + 4, ey + 1, s, c, false);
+    static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+    y -= marca_topo();
+    for (int i = 0; i < 8; i++) gfx_texto(x + D[i][0], y + D[i][1], s, C_BARRA, GFX_FINO, false);
+    gfx_texto(x, y, s, c, GFX_FINO, false);
+}
+
+// As marcas de um dado em (x, y). valor, soma[0..1], mult: "" quando nao ha;
+// fim_*: ainda vem no fim da rodada (apagado). alto: o canto de cima a
+// esquerda tem a protecao (o escudo, o cadeado) ou a carta do Coringa: o
+// "=5" sobe acima dela. pe: os medalhoes dos amuletos no pe: o "x2" desce.
+static void marcas_dado(int x, int y, const char *valor, const char soma[2][12], const bool fim_soma[2],
+                        const char *mult, bool fim_mult, bool alto, bool pe)
+{
+    const int R = R_DADO, h = marca_base() - marca_topo() + 1;
+    if (valor[0]) {
+        int w = gfx_largura(valor, GFX_FINO) - 1, vx = x - R + 5 - w;   // o espelho dos pontos, do outro lado
+        if (vx < x - R - 8) vx = x - R - 8;              // comprido ("(8+8+3)"): nao invade o vizinho
+        marca_texto(vx, y - R - 1 - h - (alto ? 4 : 0), valor, C_MARCA_VALOR);
+    }
+    int sy = y - R - 1 - h;
+    for (int i = 0; i < 2; i++) {
+        if (!soma[i][0]) continue;
+        bool menos = soma[i][0] == '-';
+        uint16_t c = fim_soma[i] ? (menos ? C_MARCA_MENOS_FIM : C_MARCA_SOMA_FIM) : (menos ? C_VINHO_CLR : C_OURO);
+        marca_texto(x + R - 5, sy, soma[i], c);
+        sy -= h + 3;
+    }
+    if (mult[0]) {
+        int w = gfx_largura(mult, GFX_FINO) - 1;
+        marca_texto(x - w / 2, y + R + 4 + (pe ? 3 : 0), mult, fim_mult ? C_MARCA_MULT_FIM : C_MARCA_MULT);
+    }
 }
 
 // Painel escuro e translucido atras de um bloco de texto no meio da mesa.
@@ -1024,6 +1070,53 @@ static void desenha_jingle_copias(void)
     }
 }
 
+// O Agnus ressuscitando (EV_RESSUSCITA): quando, em segundos do evento, a
+// luz sai da gloria para o dado k de j (o i-esimo da mascara); -1: nao e dele.
+static float agnus_sai(const evento_t *e, int j, int k)
+{
+    if (!e || e->tipo != EV_RESSUSCITA || e->de_j != j || k >= N_FILA || !(e->mascara >> k & 1)) return -1;
+    int i = 0;
+    for (int q = 0; q < k; q++) i += e->mascara >> q & 1;
+    return AGNUS_LUZ_0 + AGNUS_LUZ_PASSO * i;
+}
+// O quanto o dado k de j ja se levantou: -1, ainda caido (ou nao e dele);
+// de 0 a 1, levantando; mais, de pe.
+static float agnus_levanta(const evento_t *e, int j, int k)
+{
+    float t0 = agnus_sai(e, j, k);
+    if (t0 < 0) return -1;
+    float q = (t_fase - t0 - AGNUS_LEVANTA) / 0.42f;
+    return q < 0 ? -1 : q;
+}
+// Um ponto de luz em (x, y), forca de 0 a 1: o miolo branco e a beira dourada,
+// pontilhados conforme a forca.
+static void luz_ponto(int x, int y, float f)
+{
+    if (f <= 0) return;
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+            bool miolo = !dx && !dy;
+            float q = miolo ? f * 1.4f : f * 0.8f;
+            if (bayer(x + dx, y + dy) >= q) continue;
+            gfx_pixel(x + dx, y + dy, miolo && f > 0.45f ? C_BRANCO : C_AMARELO);
+        }
+}
+// A aureola miuda sobre um dado anulado que o Agnus armado vai levantar.
+static void aureola_miuda(int x, int y, float fase)
+{
+    int cy = y + (int)lroundf(sinf(t_relogio * 1.9f + fase) * 1.0f);
+    for (int i = 0; i < 24; i++) {
+        float an = i * 0.2618f;
+        int px = x + (int)lroundf(cosf(an) * 3.6f), py = cy + (int)lroundf(sinf(an) * 1.1f);
+        gfx_pixel(px, py + 1, C_BARRA);
+    }
+    for (int i = 0; i < 24; i++) {
+        float an = i * 0.2618f;
+        int px = x + (int)lroundf(cosf(an) * 3.6f), py = cy + (int)lroundf(sinf(an) * 1.1f);
+        gfx_pixel(px, py, an < 3.1416f ? C_AMARELO : C_LATAO);
+    }
+}
+
 static void rachadura(int x, int y, int r, float q);
 static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
 static void chiclete_goma(int x, int y, int r, float q);   // a goma do Chiclete (mais abaixo)
@@ -1083,6 +1176,8 @@ static void desenha_fila(int j)
             continue;
         }
         uint8_t est = no_desfecho ? vis_est[j][k] : f->est[k];
+        float levanta = agnus_levanta(e, j, k);  // o Agnus: a luz chegou, ele se levanta
+        if (levanta >= 0) est = V_VALIDO;
 
         // Dado sendo roubado agora: sai do lugar e atravessa a mesa.
         if (e && e->tipo == EV_ROUBA && e->alvo_j == j && e->alvo_k == k && p > 0.25f) {
@@ -1146,6 +1241,12 @@ static void desenha_fila(int j)
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && ver_tipo == 0 && t_fase < 0.25f)
             pulo = sinf(t_fase / 0.25f * 3.1416f) * 8;
         if (!anul) pulo += onda_pulo(j, k);
+        if (levanta >= 0 && levanta < 1) {      // levantando: sobe, brilha e assenta
+            pulo += sinf(levanta * 3.1416f) * 7;
+            brilho_passa = levanta;
+        }
+        if (e && e->tipo == EV_RESSUSCITA && e->de_j == j && e->de_k == k && t_fase < 0.45f)
+            pulo += sinf(t_fase / 0.45f * 3.1416f) * 3;   // o Agnus: um pulinho quando a gloria acende
         // Os Jingle Bells tocando: sobem, batem um no outro e voltam.
         if (sinos_agora(e) && e->de_j == j && (e->mascara >> k & 1)) {
             int sx, sy;
@@ -1291,6 +1392,7 @@ static void desenha_fila(int j)
         bool goma_pousando = n_pouso && pouso_q[0].ad == AD_CHICLETE && pouso_q[0].j == j && pouso_q[0].k == k;
         if (((k == 0 && f->grudado) || (f->chiclete == k + 1 && !goma_pousando)) && giro < 0.5f)
             chiclete_goma(x, (int)(y - pulo), R, 1);
+        bool escondida = face_escondida || face_curinga;     // o "?" ou o curinga para cima: as marcas esperam
         face_capa = false;
         sem_risca = false;
         face_curinga = false;
@@ -1334,6 +1436,9 @@ static void desenha_fila(int j)
             && !(fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_evolui >= 0 && t_evolui < EVOLUI_CLARAO))
             cosmo_orbita(x, (int)(y - pulo), R, t);
         if ((mira[j] >> k & 1) && !anul && giro < 0.5f) mira_sobre(x, (int)(y - pulo), R);
+        // O Agnus armado: cada anulado do dono ganha a aureola miuda (vai voltar no fim).
+        if (anul && !no_desfecho && fase != F_FIM && giro < 0.5f && !poder_armado(j, k) && agnus_armado(j) >= 0)
+            aureola_miuda(x, (int)(y - pulo) - R - 4, k * 0.9f);
         // As protecoes de agora: lancado, conta a Ancora e o Transparente.
         if (!anul && giro < 0.5f && vis_est[j][k] != V_ROUBADO) {
             bool la = k < f->lancados;
@@ -1366,7 +1471,7 @@ static void desenha_fila(int j)
         // Acabou de pousar: o Eco faz ondas do primeiro dado ate ele; o Calibre
         // mostra a mira sobre o dado que ele subiu.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_fase < 0.7f) {
-            if (t == D_ECO && !strncmp(f->tag[k], "=", 1)) {
+            if (t == D_ECO && f->tag_num[k][0] == '=') {
                 int p0 = 0;
                 while (p0 < k && f->est[p0] != V_VALIDO) p0++;
                 for (int o = 0; o < 3; o++) {
@@ -1430,25 +1535,31 @@ static void desenha_fila(int j)
             if (tem_am(j, A_COURACA)) desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_COURACA, false);
             if (tem_am(j, A_IMA))     desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_IMA, false);
         }
-        // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
-        // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
-        char tg[16] = "";
-        if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
-        else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "%+d", vis_bonus[j][k]);
-        else if (ainda) snprintf(tg, sizeof tg, "=?");
-        else if (f->tag[k][0] && td == t) snprintf(tg, sizeof tg, "%s", f->tag[k]);   // a Onda que virou Tsunami ja nao guarda
-        // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
-        // Dobro e o +2 do Copiador ficam por conta dela.
-        int extra = 0;
-        if (previa && f->est[k] == V_VALIDO) {
-            int base = valor_pontos(j, k) + f->bonus[k];
-            int m = pv.mult[j][k] > 0 ? pv.mult[j][k] : 1;
-            int fim = pv.est[j][k] == V_VALIDO ? (base + pv.bonus[j][k]) * m : 0;
-            extra = fim - base;
+        // As marcas (marcas_dado). Do proprio dado, as etiquetas dele, cada
+        // tipo no seu lugar (fila.inc: tag_num e tag_mais); o multiplicador
+        // dele (o x2 do Dobro, o x3 dos Patinhos) e o +2 do Copiador e o +6
+        // do Ferreiro so valem no fim e vem com o que os outros dao. Esse
+        // vem da previa (apagado: o que ja esta na mesa promete, como o +1 da
+        // Rena e o x2 do Eletronico; valendo agora mas caindo no fim, por um
+        // ataque do rival, o que ele perde) ou, no desfecho, de quando
+        // acontece (aceso, e assim fica ate o fim da partida).
+        bool propria = td == t && !escondida;    // a Onda que virou Tsunami ja nao guarda; o Oculto virado nao conta nada
+        char m_valor[16] = "", m_soma[2][12] = { "", "" }, m_mult[8] = "";
+        bool m_soma_fim[2] = { false, false }, m_mult_fim = false;
+        if (ainda) snprintf(m_valor, sizeof m_valor, "=?");
+        else if (propria) snprintf(m_valor, sizeof m_valor, "%s", f->tag_num[k]);
+        if (propria) snprintf(m_soma[0], sizeof m_soma[0], "%s", f->tag_mais[k]);
+        int b_fim = 0, m_fim = 0;
+        if (previa && f->est[k] == V_VALIDO && !escondida) {
+            if (pv.est[j][k] == V_VALIDO) { b_fim = pv.bonus[j][k]; m_fim = pv.mult[j][k]; }
+            else b_fim = -(valor_pontos(j, k) + f->bonus[k]);
+        } else if (no_desfecho || fase == F_FIM) { b_fim = vis_bonus[j][k]; m_fim = vis_mult[j][k]; }
+        if (b_fim) {
+            int i = m_soma[0][0] ? 1 : 0;
+            snprintf(m_soma[i], sizeof m_soma[i], "%+d", b_fim);
+            m_soma_fim[i] = previa;
         }
-        bool do_fim = (!strcmp(tg, "x2") && f->dobra[k]) || (!strcmp(tg, "+2") && copia_antes(j, k))
-                      || (!strcmp(tg, "+6") && k > 0 && tipo_de(j, k - 1) == D_FERREIRO);
-        if (previa && do_fim) tg[0] = 0;
+        if (m_fim > 1) { snprintf(m_mult, sizeof m_mult, "x%d", m_fim); m_mult_fim = previa; }
         // Egoista chegando: uma onda purpura se abre dele e derruba os outros.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_EGOISTA
             && anulou_masc && t_fase < 0.9f) {
@@ -1528,16 +1639,11 @@ static void desenha_fila(int j)
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
         if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && !sino) aro(x, y, cor_dado(t));
-        if (tg[0] && !anul) etiqueta(x, y, tg);        // por cima dos aros
-        // O bonus, miudo e apagado, no canto de cima a direita (depois da
-        // etiqueta, se houver uma).
-        if (extra && !anul) {
-            char b[8];
-            snprintf(b, sizeof b, "%+d", extra);
-            int bx = tg[0] ? x + R + 3 + gfx_largura(tg, 1) : x + R - 4, by = y - R - 10;
-            uint16_t cb = extra > 0 ? gfx_mistura(C_MARFIM_S, C_FELTRO, 35)
-                                    : gfx_mistura(C_VINHO_CLR, C_FELTRO, 30);
-            gfx_texto(bx, by, b, cb, GFX_MIUDO, false);
+        if (!anul) {                                       // por cima dos aros
+            bool alto = (giro < 0.5f && vis_est[j][k] != V_ROUBADO && (firme(j, k) || nao_roubavel(j, k)))
+                        || (coringa_joga(j) && k == 3 && f->idx[k] < 0);
+            bool pe = modo == M_DESAFIO && (tem_am(j, A_COURACA) || tem_am(j, A_IMA));
+            marcas_dado(x, (int)(y - pulo), m_valor, m_soma, m_soma_fim, m_mult, m_mult_fim, alto, pe);
         }
     }
     // Rajadas da Ventania saindo dela e passando ate o primeiro dado.
@@ -2849,6 +2955,60 @@ static void desenha_evento_dentro(const evento_t *e, float p)
     }
     int ax = SLOT_X(e->de_k), ay = zona(e->de_j);
     if (e->tipo == EV_ADESIVO) { desenha_adesivo_agindo(e, p, ax, ay); return; }
+    if (e->tipo == EV_RESSUSCITA) {
+        // O Agnus: a gloria acende em cima dele (a aureola abrindo, os raios
+        // crescendo) e, de la, uma luz desce em arco ate cada anulado, um
+        // depois do outro; quando chega, o dado se levanta (desenha_fila) e a
+        // luz se abre num anel e apaga. No fim, a gloria apaga.
+        float t = t_fase, dur = duracao_evento(ev_i);
+        float g = fminf(fminf(1, t / 0.30f), fmaxf(0, (dur - t) / 0.40f));
+        int gx = ax, gy = ay - R_DADO - 13;
+        if (g > 0) {
+            float rx = 3 + 5 * g, ry = 1 + 1.2f * g;
+            for (int pass = 0; pass < 2; pass++)
+                for (int i = 0; i < 44; i++) {
+                    float an = i * 0.1428f;
+                    int px = gx + (int)lroundf(cosf(an) * rx), py = gy + (int)lroundf(sinf(an) * ry);
+                    if (!pass) gfx_pixel(px, py + 1, C_BARRA);
+                    else gfx_pixel(px, py, an < 3.1416f ? C_BRANCO : C_AMARELO);
+                }
+            for (int k = 0; k < 7; k++) {           // os raios, em leque, crescendo e piscando
+                float an = -3.1416f * (0.15f + 0.7f * k / 6.0f), cmp = (4 + 4 * g) * (k % 2 ? 0.7f : 1);
+                bool aceso = ((int)(t * 7) + k) % 3 != 0;
+                int x0 = gx + (int)lroundf(cosf(an) * (rx + 1)), y0 = gy + (int)lroundf(sinf(an) * (ry + 1));
+                int x1 = gx + (int)lroundf(cosf(an) * (rx + 1 + cmp)), y1 = gy + (int)lroundf(sinf(an) * (ry + 1 + cmp * 0.8f));
+                gfx_linha(x0, y0, x1, y1, aceso ? C_AMARELO : C_OURO);
+                if (aceso) gfx_pixel(x1, y1, C_BRANCO);
+            }
+        }
+        for (int k = 0; k < N_FILA; k++) {
+            float t0 = agnus_sai(e, e->de_j, k);
+            if (t0 < 0 || t < t0) continue;
+            float q = (t - t0) / AGNUS_LEVANTA;     // a luz indo, 0..1; depois, apagando
+            int bx = SLOT_X(k), by = ay - R_DADO + 3;
+            float mx = (gx + bx) * 0.5f, my = fminf(gy, by) - 16;
+            float apaga = q > 1 ? fmaxf(0, 1 - (q - 1) * AGNUS_LEVANTA / 0.5f) : 1;
+            float ate = fminf(q, 1);
+            for (int i = 0; i <= 26; i++) {         // o arco de luz, da gloria ate onde ela ja chegou
+                float s2 = ate * i / 26.0f, a1 = 1 - s2;
+                int px = (int)lroundf(a1 * a1 * gx + 2 * a1 * s2 * mx + s2 * s2 * bx);
+                int py = (int)lroundf(a1 * a1 * (gy + 2) + 2 * a1 * s2 * my + s2 * s2 * by);
+                float cauda = q < 1 ? 0.35f + 0.65f * (float)i / 26 : 0.55f;   // mais forte na frente
+                luz_ponto(px, py, cauda * apaga);
+            }
+            if (q >= 1 && apaga > 0) {              // chegou: o anel de luz se abre no dado
+                float aq = 1 - apaga;
+                int rr = (int)(R_DADO * (0.6f + 0.9f * aq));
+                for (int i = 0; i < 40; i++) {
+                    float an = i * 0.157f;
+                    int px = bx + (int)lroundf(cosf(an) * rr), py = ay + (int)lroundf(sinf(an) * rr * 0.9f);
+                    if (bayer(px, py) < apaga) gfx_pixel(px, py, i % 2 ? C_AMARELO : C_BRANCO);
+                }
+            }
+            if (q >= 1 && q * AGNUS_LEVANTA < 1.0f) faiscas(bx, ay, t - t0, C_AMARELO);   // e as faiscas subindo
+        }
+        return;
+    }
     // Ataques: um projetil em arco do dado que age ate o alvo (o dado, ou o
     // placar do rival), com rastro, e um anel de impacto quando chega.
     if (e->tipo == EV_ANULA || e->tipo == EV_TIRA) {

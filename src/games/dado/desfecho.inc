@@ -768,6 +768,14 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     }
 }
 
+#define AGNUS_NUMERO 7                 // o Agnus: o numero que ressuscita
+// O evento dele na mesa: a gloria acende sobre o Agnus e, a partir de
+// AGNUS_LUZ_0 segundos, uma luz sai dela para cada anulado, um a cada
+// AGNUS_LUZ_PASSO; ela leva AGNUS_LEVANTA para chegar, e o dado se levanta.
+#define AGNUS_LUZ_0     0.45f
+#define AGNUS_LUZ_PASSO 0.32f
+#define AGNUS_LEVANTA   0.22f
+
 // O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
 // agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
 // 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker, Autofagia).
@@ -779,6 +787,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARRASCO && f->cru[k] == 1) return 2;          // valendo ou nao
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
+    if (ef == EF_AGNUS) return v == AGNUS_NUMERO;               // com 7, valendo ou nao: ressuscita os anulados no fim
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
@@ -1205,6 +1214,33 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
             d->est[j][k] = V_VALIDO;
             evento(gera, EV_RENASCE, j, k, j, k, F[j].valor[k], "Fênix renasce e pontua %d", F[j].valor[k]);
         }
+}
+
+// Agnus: tirando 7 (valendo ou nao; roubado, nao), no fim todos os dados
+// anulados do dono nesta rodada ressuscitam - os que a sequencia derrubou e
+// os que os ataques anularam, ele mesmo incluido - e pontuam o que tiraram.
+// Os roubados nao voltam. Um evento so, com todos (mascara).
+static int agnus_armado(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (TIPO[tipo_de(j, k)].efeito == EF_AGNUS && F[j].valor[k] == AGNUS_NUMERO) return k;
+    return -1;
+}
+static void agnus_de(desfecho_t *d, int j, bool gera)
+{
+    int ag = agnus_armado(j);
+    if (ag < 0 || d->est[j][ag] == V_ROUBADO) return;
+    uint8_t m = 0;
+    int n = 0;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        if (d->est[j][k] == V_ANULADO) { d->est[j][k] = V_VALIDO; m |= (uint8_t)(1 << k); n++; }
+    if (!m) return;
+    evento_t *e = evento(gera, EV_RESSUSCITA, j, ag, j, ag, n, n == 1 ? "Agnus: o anulado ressuscita"
+                                                                      : "Agnus: %d anulados ressuscitam", n);
+    if (!e) return;
+    e->mascara = m;
+    for (int k = 0; k < N_FILA; k++)              // o que cada um tirou
+        e->por_dado[k] = (int8_t)(m >> k & 1 ? (F[j].valor[k] > 127 ? 127 : F[j].valor[k]) : 0);
 }
 
 // As figurinhas juntadas nos dados de j com Figurinha (cada um comeca com 1),
@@ -1784,7 +1820,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         pre[j] = true;
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
-            if (quais >> k & 1) snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+            if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
         virou = true;
     }
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
@@ -1885,6 +1921,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
     ranzinza_corta(d, gera);
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
+    for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) {
@@ -1894,6 +1931,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         if (e) e->am = AM_BIT(A_SAIDEIRA);
         poderes_de(d, j, gera);
         fenix_de(d, j, gera);
+        agnus_de(d, j, gera);
         efeitos_do_fim(d, j, gera);
         if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: nem o aviso
     }

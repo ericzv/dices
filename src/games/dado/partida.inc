@@ -1028,7 +1028,7 @@ static bool vira_carta(int j)
     peca_t c;
     f->carta = false;
     f->lancados = 3;
-    f->est[3] = V_ESPERA; f->tag[3][0] = 0;
+    f->est[3] = V_ESPERA; tira_tag(f, 3);
     if (!melhor_lance(outro(j), &c)) { f->n = 3; return false; }
     f->tipo[3] = c.tipo; f->fixo[3] = c.fixo;
     return true;
@@ -1881,7 +1881,7 @@ static void descarta_sobras(int j)
                 break;
             }
         devolvidos[n_devolvidos++] = (devolvido_t){ (float)SLOT_X(k), (float)zona(j), f->tipo[k], (uint8_t)j, f->fixo[k] };
-        f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; f->tag[k][0] = 0;
+        f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; tira_tag(f, k);
     }
     if (f->n > f->lancados) f->n = f->lancados;
     if (f->lancados <= 3) f->carta = false;      // parou antes da carta do Coringa

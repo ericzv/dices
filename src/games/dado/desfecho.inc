@@ -1820,7 +1820,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         pre[j] = true;
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
-            if (quais >> k & 1) snprintf(F[j].tag[k], sizeof F[j].tag[k], "=%d", alvo);
+            if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
         virou = true;
     }
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado

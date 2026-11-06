@@ -437,15 +437,61 @@ static void aro(int x, int y, uint16_t c)
     ui_cantos_em(x - m, y - m, 2 * m, 2 * m, c, ui_respira());
 }
 
-// Etiqueta no canto do dado (x2, +8, =9), com fundo para ler sobre o feltro.
-static void etiqueta(int x, int y, const char *s)
+// ---------------------------------------------------------------------------
+// As marcas de um dado na fila, cada tipo no seu lugar, sem caixa: o texto
+// miudo com o contorno escuro em volta, como os numeros que sobem da mesa.
+//  - em cima, a esquerda: o que fez o numero (=5, =?, 4+5, 12-5, 3>4, 5/9);
+//  - em cima, a direita: os pontos a mais (+6, -1, $+4); havendo dois - o do
+//    proprio dado e o que vem de outros no fim -, um em cima do outro;
+//  - embaixo: o multiplicador (x2, x3...).
+// O que so vem no fim da rodada (a previa) sai no tom apagado da mesma cor.
+// ---------------------------------------------------------------------------
+#define C_MARCA_VALOR    C_MARFIM
+#define C_MARCA_MULT     RGB(238, 162, 74)       // o fogo claro: o multiplicador
+#define C_MARCA_MULT_FIM C_FOGO
+#define C_MARCA_SOMA_FIM RGB(150, 122, 62)       // o latao do meio
+#define C_MARCA_MENOS_FIM C_VINHO
+
+// As linhas da cifra na fonte das marcas: da 9 a 14 na fina; na letra maior
+// (a Jersey, 1 px acima), da 4 a 13.
+static int marca_topo(void) { return gfx_letra_e_maior() ? 4 : 9; }
+static int marca_base(void) { return gfx_letra_e_maior() ? 13 : 14; }
+
+// O texto de uma marca com o contorno escuro; (x, y) e o canto de cima a
+// esquerda das cifras (nao da linha).
+static void marca_texto(int x, int y, const char *s, uint16_t c)
 {
-    int w = gfx_largura(s, 1) + 8;
-    int ex = x + R_DADO - 8, ey = y - R_DADO - 14;
-    uint16_t c = s[0] == '-' ? C_VINHO_CLR : C_OURO;
-    gfx_rect(ex + 1, ey + 1, w - 2, TXT_H, C_PLACA);
-    ui_contorno(ex, ey, w, TXT_H + 2, c);
-    txt(ex + 4, ey + 1, s, c, false);
+    static const int8_t D[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+    y -= marca_topo();
+    for (int i = 0; i < 8; i++) gfx_texto(x + D[i][0], y + D[i][1], s, C_BARRA, GFX_FINO, false);
+    gfx_texto(x, y, s, c, GFX_FINO, false);
+}
+
+// As marcas de um dado em (x, y). valor, soma[0..1], mult: "" quando nao ha;
+// fim_*: ainda vem no fim da rodada (apagado). alto: o canto de cima a
+// esquerda tem a protecao (o escudo, o cadeado) ou a carta do Coringa: o
+// "=5" sobe acima dela. pe: os medalhoes dos amuletos no pe: o "x2" desce.
+static void marcas_dado(int x, int y, const char *valor, const char soma[2][12], const bool fim_soma[2],
+                        const char *mult, bool fim_mult, bool alto, bool pe)
+{
+    const int R = R_DADO, h = marca_base() - marca_topo() + 1;
+    if (valor[0]) {
+        int w = gfx_largura(valor, GFX_FINO) - 1, vx = x - R + 5 - w;   // o espelho dos pontos, do outro lado
+        if (vx < x - R - 8) vx = x - R - 8;              // comprido ("(8+8+3)"): nao invade o vizinho
+        marca_texto(vx, y - R - 1 - h - (alto ? 4 : 0), valor, C_MARCA_VALOR);
+    }
+    int sy = y - R - 1 - h;
+    for (int i = 0; i < 2; i++) {
+        if (!soma[i][0]) continue;
+        bool menos = soma[i][0] == '-';
+        uint16_t c = fim_soma[i] ? (menos ? C_MARCA_MENOS_FIM : C_MARCA_SOMA_FIM) : (menos ? C_VINHO_CLR : C_OURO);
+        marca_texto(x + R - 5, sy, soma[i], c);
+        sy -= h + 3;
+    }
+    if (mult[0]) {
+        int w = gfx_largura(mult, GFX_FINO) - 1;
+        marca_texto(x - w / 2, y + R + 4 + (pe ? 3 : 0), mult, fim_mult ? C_MARCA_MULT_FIM : C_MARCA_MULT);
+    }
 }
 
 // Painel escuro e translucido atras de um bloco de texto no meio da mesa.
@@ -1346,6 +1392,7 @@ static void desenha_fila(int j)
         bool goma_pousando = n_pouso && pouso_q[0].ad == AD_CHICLETE && pouso_q[0].j == j && pouso_q[0].k == k;
         if (((k == 0 && f->grudado) || (f->chiclete == k + 1 && !goma_pousando)) && giro < 0.5f)
             chiclete_goma(x, (int)(y - pulo), R, 1);
+        bool escondida = face_escondida || face_curinga;     // o "?" ou o curinga para cima: as marcas esperam
         face_capa = false;
         sem_risca = false;
         face_curinga = false;
@@ -1424,7 +1471,7 @@ static void desenha_fila(int j)
         // Acabou de pousar: o Eco faz ondas do primeiro dado ate ele; o Calibre
         // mostra a mira sobre o dado que ele subiu.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_fase < 0.7f) {
-            if (t == D_ECO && !strncmp(f->tag[k], "=", 1)) {
+            if (t == D_ECO && f->tag_num[k][0] == '=') {
                 int p0 = 0;
                 while (p0 < k && f->est[p0] != V_VALIDO) p0++;
                 for (int o = 0; o < 3; o++) {
@@ -1488,25 +1535,31 @@ static void desenha_fila(int j)
             if (tem_am(j, A_COURACA)) desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_COURACA, false);
             if (tem_am(j, A_IMA))     desenha_amuleto(x + R - 1 - 13 * n++, (int)(y - pulo) + R - 2, 6, A_IMA, false);
         }
-        // Etiqueta: no desfecho, o multiplicador somado (x4) ou o bonus da
-        // Moeda (+2); antes, o aviso do que vem (x2 do Dobro, +8, =9).
-        char tg[16] = "";
-        if (no_desfecho && vis_mult[j][k] > 1) snprintf(tg, sizeof tg, "x%d", vis_mult[j][k]);
-        else if (no_desfecho && vis_bonus[j][k]) snprintf(tg, sizeof tg, "%+d", vis_bonus[j][k]);
-        else if (ainda) snprintf(tg, sizeof tg, "=?");
-        else if (f->tag[k][0] && td == t) snprintf(tg, sizeof tg, "%s", f->tag[k]);   // a Onda que virou Tsunami ja nao guarda
-        // Bonus que este dado ja recebeu de outros, pela previa. O x2 do
-        // Dobro e o +2 do Copiador ficam por conta dela.
-        int extra = 0;
-        if (previa && f->est[k] == V_VALIDO) {
-            int base = valor_pontos(j, k) + f->bonus[k];
-            int m = pv.mult[j][k] > 0 ? pv.mult[j][k] : 1;
-            int fim = pv.est[j][k] == V_VALIDO ? (base + pv.bonus[j][k]) * m : 0;
-            extra = fim - base;
+        // As marcas (marcas_dado). Do proprio dado, as etiquetas dele, cada
+        // tipo no seu lugar (fila.inc: tag_num e tag_mais); o multiplicador
+        // dele (o x2 do Dobro, o x3 dos Patinhos) e o +2 do Copiador e o +6
+        // do Ferreiro so valem no fim e vem com o que os outros dao. Esse
+        // vem da previa (apagado: o que ja esta na mesa promete, como o +1 da
+        // Rena e o x2 do Eletronico; valendo agora mas caindo no fim, por um
+        // ataque do rival, o que ele perde) ou, no desfecho, de quando
+        // acontece (aceso, e assim fica ate o fim da partida).
+        bool propria = td == t && !escondida;    // a Onda que virou Tsunami ja nao guarda; o Oculto virado nao conta nada
+        char m_valor[16] = "", m_soma[2][12] = { "", "" }, m_mult[8] = "";
+        bool m_soma_fim[2] = { false, false }, m_mult_fim = false;
+        if (ainda) snprintf(m_valor, sizeof m_valor, "=?");
+        else if (propria) snprintf(m_valor, sizeof m_valor, "%s", f->tag_num[k]);
+        if (propria) snprintf(m_soma[0], sizeof m_soma[0], "%s", f->tag_mais[k]);
+        int b_fim = 0, m_fim = 0;
+        if (previa && f->est[k] == V_VALIDO && !escondida) {
+            if (pv.est[j][k] == V_VALIDO) { b_fim = pv.bonus[j][k]; m_fim = pv.mult[j][k]; }
+            else b_fim = -(valor_pontos(j, k) + f->bonus[k]);
+        } else if (no_desfecho || fase == F_FIM) { b_fim = vis_bonus[j][k]; m_fim = vis_mult[j][k]; }
+        if (b_fim) {
+            int i = m_soma[0][0] ? 1 : 0;
+            snprintf(m_soma[i], sizeof m_soma[i], "%+d", b_fim);
+            m_soma_fim[i] = previa;
         }
-        bool do_fim = (!strcmp(tg, "x2") && f->dobra[k]) || (!strcmp(tg, "+2") && copia_antes(j, k))
-                      || (!strcmp(tg, "+6") && k > 0 && tipo_de(j, k - 1) == D_FERREIRO);
-        if (previa && do_fim) tg[0] = 0;
+        if (m_fim > 1) { snprintf(m_mult, sizeof m_mult, "x%d", m_fim); m_mult_fim = previa; }
         // Egoista chegando: uma onda purpura se abre dele e derruba os outros.
         if (fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_EGOISTA
             && anulou_masc && t_fase < 0.9f) {
@@ -1586,16 +1639,11 @@ static void desenha_fila(int j)
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
         if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && !sino) aro(x, y, cor_dado(t));
-        if (tg[0] && !anul) etiqueta(x, y, tg);        // por cima dos aros
-        // O bonus, miudo e apagado, no canto de cima a direita (depois da
-        // etiqueta, se houver uma).
-        if (extra && !anul) {
-            char b[8];
-            snprintf(b, sizeof b, "%+d", extra);
-            int bx = tg[0] ? x + R + 3 + gfx_largura(tg, 1) : x + R - 4, by = y - R - 10;
-            uint16_t cb = extra > 0 ? gfx_mistura(C_MARFIM_S, C_FELTRO, 35)
-                                    : gfx_mistura(C_VINHO_CLR, C_FELTRO, 30);
-            gfx_texto(bx, by, b, cb, GFX_MIUDO, false);
+        if (!anul) {                                       // por cima dos aros
+            bool alto = (giro < 0.5f && vis_est[j][k] != V_ROUBADO && (firme(j, k) || nao_roubavel(j, k)))
+                        || (coringa_joga(j) && k == 3 && f->idx[k] < 0);
+            bool pe = modo == M_DESAFIO && (tem_am(j, A_COURACA) || tem_am(j, A_IMA));
+            marcas_dado(x, (int)(y - pulo), m_valor, m_soma, m_soma_fim, m_mult, m_mult_fim, alto, pe);
         }
     }
     // Rajadas da Ventania saindo dela e passando ate o primeiro dado.

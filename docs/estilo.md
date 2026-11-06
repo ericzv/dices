@@ -149,6 +149,18 @@ A moeda e a ficha usam o disco das fichas (`ficha_disco`).
   - a animação do poder armado em `anima_poder.inc`, se tiver.
 - Adesivos (`adesivos.inc`): ícone em pixels com contorno escuro, no mesmo
   tamanho dos outros.
+- As marcas de um dado na mesa (`marcas_dado`, em `mesa.inc`) vão sem caixa,
+  na fonte fina com contorno escuro, e cada tipo tem o seu lugar:
+
+  | Lugar                 | O que                                         | Cor |
+  |-----------------------|-----------------------------------------------|-----|
+  | em cima, à esquerda   | o que fez o número: `=5`, `=?`, `4+5`, `12-5` | marfim |
+  | em cima, à direita    | os pontos a mais: `+6`, `-1`, `$+4`; o do dado e o que vem de outro no fim, um em cima do outro | ouro (menos: vinho claro) |
+  | embaixo               | o multiplicador: `x2`, `x3`                   | fogo claro |
+
+  O que só vem no fim da rodada (a prévia) sai no tom mais escuro da mesma
+  cor; no desfecho, acende quando acontece. As etiquetas do próprio dado
+  passam por `poe_tag` (`fila.inc`), que guarda a última de cada tipo.
 
 ## 8. Retratos
 

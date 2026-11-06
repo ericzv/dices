@@ -478,7 +478,7 @@ int main(void)
             for (int k = 0; k < n; k++) {
                 int t = (int)(teste_rnd() % D_N);
                 int v = 1 + (int)(teste_rnd() % TIPO[t].lados);
-                F[j].fixo[F[j].lancados] = (uint8_t)v;
+                if (F[j].lancados < N_FILA) F[j].fixo[F[j].lancados] = (uint8_t)v;
                 joga(j, t, v);
             }
         }

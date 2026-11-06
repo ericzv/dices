@@ -7,6 +7,40 @@ static bool cai_depois(int j, int v, int L) { return v < L && !(tem_am(j, A_CORR
 
 static int ad_fila(int j, int k);
 
+// As etiquetas do dado. f->tag e a ultima que ele ganhou; a mesa mostra cada
+// tipo no seu lugar (mesa.inc, marcas_dado), entao a ultima de cada tipo fica
+// guardada a parte: a que diz o numero (tag_num: "=5", "4+5", "12-5", "3>4",
+// "5/9") e a dos pontos a mais do proprio dado (tag_mais: "+6", "-1", "$+4").
+// O multiplicador ("x2") e os pontos que so vem no fim (poe_tag_fim: o +2 do
+// Copiador, o +6 do Ferreiro) a mesa tira da previa e do desfecho.
+enum { MARCA_VALOR, MARCA_SOMA, MARCA_MULT };
+static int marca_tipo(const char *s)
+{
+    if (s[0] == 'x') return MARCA_MULT;
+    if (s[0] == '$') return MARCA_SOMA;
+    if (s[0] != '+' && s[0] != '-') return MARCA_VALOR;
+    for (const char *p = s + 1; *p; p++) if (*p < '0' || *p > '9') return MARCA_VALOR;
+    return s[1] ? MARCA_SOMA : MARCA_VALOR;
+}
+static void poe_tag_fim(fila_t *f, int k, const char *fmt, ...)
+{
+    va_list a;
+    va_start(a, fmt);
+    vsnprintf(f->tag[k], sizeof f->tag[k], fmt, a);
+    va_end(a);
+}
+static void poe_tag(fila_t *f, int k, const char *fmt, ...)
+{
+    va_list a;
+    va_start(a, fmt);
+    vsnprintf(f->tag[k], sizeof f->tag[k], fmt, a);
+    va_end(a);
+    int t = marca_tipo(f->tag[k]);
+    if (t == MARCA_VALOR) memcpy(f->tag_num[k], f->tag[k], sizeof f->tag_num[k]);
+    else if (t == MARCA_SOMA) memcpy(f->tag_mais[k], f->tag[k], sizeof f->tag_mais[k]);
+}
+static void tira_tag(fila_t *f, int k) { f->tag[k][0] = f->tag_num[k][0] = f->tag_mais[k][0] = 0; }
+
 // O ultimo que vale e que a regra da fila enxerga: a Ponte e o dado no lado
 // do Corretivo ficam de fora (o dado depois compara com o de antes deles).
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
@@ -329,7 +363,7 @@ static void aplica_regra(int j, int k)
     f->copiou[k] = carbono_age(j, k) && l >= 0;
     if (f->copiou[k]) {
         v = f->cru[k] = f->valor[k] = f->valor[l];
-        snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+        poe_tag(f, k, "=%d", v);
     }
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
@@ -340,12 +374,12 @@ static void aplica_regra(int j, int k)
         if (alvo > 0) {
             v = f->valor[k] = alvo;
             lado_vira(j, k, v);
-            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+            poe_tag(f, k, "=%d", v);
             espelhou = true;
         } else {
             espera = true;
             f->espera[k] = true;
-            snprintf(f->tag[k], sizeof f->tag[k], "=?");
+            poe_tag(f, k, "=?");
         }
     }
 
@@ -354,7 +388,7 @@ static void aplica_regra(int j, int k)
     if (ef == EF_GEMEO && l >= 0 && f->valor[l] <= TIPO[t].lados) {
         v = f->valor[k] = f->valor[l];
         lado_vira(j, k, v);
-        snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+        poe_tag(f, k, "=%d", v);
     }
     // Digital: acende o ultimo dado que vale +1 (primeiro da sequencia, 1). Nunca cai.
     if (ef == EF_DIGITAL) {
@@ -369,19 +403,23 @@ static void aplica_regra(int j, int k)
         if (p0 >= 0 && f->valor[p0] <= TIPO[t].lados) {
             v = f->valor[k] = f->valor[p0];
             lado_vira(j, k, v);
-            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v);
+            poe_tag(f, k, "=%d", v);
         }
     }
     // Explosivo que explodiu: no dado o total; na etiqueta, os lances ("(8+7)").
     // O Papel Bomba: os dois lances que ele somou ("4+5").
-    if (f->bomba[k] && !f->copiou[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d+%d", f->bomba1[k], v - f->bomba1[k]);
-    else if (ef == EF_EXPLODE && v > TIPO[t].lados) lances_explosivo(f->tag[k], sizeof f->tag[k], v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
+    if (f->bomba[k] && !f->copiou[k]) poe_tag(f, k, "%d+%d", f->bomba1[k], v - f->bomba1[k]);
+    else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
+        char lances[14];
+        lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
+        poe_tag(f, k, "%s", lances);
+    }
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
-    if (ef == EF_SORTE_REVES && f->descarte[k]) snprintf(f->tag[k], sizeof f->tag[k], "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
+    if (ef == EF_SORTE_REVES && f->descarte[k]) poe_tag(f, k, "%d-%d", (uint8_t)(v + f->descarte[k]), f->descarte[k]);
     if (v == 1 && tem_am(j, A_PRENSA) && ef != EF_UNIVERSO) {
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
-        snprintf(f->tag[k], sizeof f->tag[k], "=3");
+        poe_tag(f, k, "=3");
         am_disparou |= AM_BIT(A_PRENSA);
     }
 
@@ -492,58 +530,58 @@ static void aplica_regra(int j, int k)
         f->est[k] = V_VALIDO;
         if (ef == EF_PAR && l >= 0 && v == f->valor[l]) {
             f->bonus[k] = 6;
-            snprintf(f->tag[k], sizeof f->tag[k], "+6");
+            poe_tag(f, k, "+6");
         }
         // Dobro: so o dado logo depois dele na sequencia (com o Dobro valendo).
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_DOBRO && f->valor[l] <= 3) {
             f->dobra[k] = 1;
-            snprintf(f->tag[k], sizeof f->tag[k], "x2");
+            poe_tag(f, k, "x2");
         }
         // Ferreiro com 3 ou 4 valendo logo antes: +6 no fim, se os dois ficarem.
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO && f->valor[l] >= 3)
-            snprintf(f->tag[k], sizeof f->tag[k], "+6");
+            poe_tag_fim(f, k, "+6");
         if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
             || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
             f->bonus[k] = 4;
-            snprintf(f->tag[k], sizeof f->tag[k], "$+4");
+            poe_tag(f, k, "$+4");
         }
         if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->fixo[k]) {
             int teto = ef == EF_AUTOFAGIA ? AUTO_MAX : ACUM_MAX;
             f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            poe_tag(f, k, "+%d", f->bonus[k]);
         }
         // Furia: o bonus guardado, ja com este lance (4 guarda +2, 1 perde 1).
         if (ef == EF_FURIA && furia_depois(f->fixo[k], v)) {
             f->bonus[k] = (int8_t)furia_depois(f->fixo[k], v);
-            snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
+            poe_tag(f, k, "%+d", f->bonus[k]);
         }
-        if (ef == EF_FERREIRO || ef == EF_SACRIFICIO) snprintf(f->tag[k], sizeof f->tag[k], "=0");
+        if (ef == EF_FERREIRO || ef == EF_SACRIFICIO) poe_tag(f, k, "=0");
         // Onda: a etiqueta diz quanto ela tera guardado se ficar.
-        if (ef == EF_ONDA) snprintf(f->tag[k], sizeof f->tag[k], "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
-        if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) snprintf(f->tag[k], sizeof f->tag[k], "x3");
+        if (ef == EF_ONDA) poe_tag(f, k, "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
+        if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) poe_tag(f, k, "x3");
         // Panetone: as frutas da fatia somam no que ele tirou.
         if (ef == EF_PANETONE && f->fruta[k]) {
             f->bonus[k] = (int8_t)(f->bonus[k] + f->fruta[k]);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        if (ef == EF_PISCA) snprintf(f->tag[k], sizeof f->tag[k], pisca_aceso(f->fixo[k]) ? "x2" : "=0");
+        if (ef == EF_PISCA) poe_tag(f, k, pisca_aceso(f->fixo[k]) ? "x2" : "=0");
         // Revolver: com a sexta bala, o tiro soma no que ele tirou.
         if (ef == EF_REVOLVER && revolver_dispara(f->fixo[k])) {
             f->bonus[k] = (int8_t)(f->bonus[k] + REVOLVER_TIRO);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        if (ef == EF_MEIA && f->fixo[k]) snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->fixo[k]);
+        if (ef == EF_MEIA && f->fixo[k]) poe_tag(f, k, "+%d", f->fixo[k]);
         // O ciclo cosmico: quem vai evoluir pontua o bonus do estagio.
         if (f->evolui[k] && cosmo_bonus(t)) {
             f->bonus[k] = (int8_t)(f->bonus[k] + cosmo_bonus(t));
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            poe_tag(f, k, "+%d", f->bonus[k]);
         }
         // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
         if (ef == EF_COLECIONADOR && v == 6) {
             int tem = 0;
             for (int i = 0; i < J[j].n_col; i++) tem += J[j].onde[i] != COMIDO;
             f->bonus[k] = (int8_t)(f->bonus[k] + tem / 2);
-            snprintf(f->tag[k], sizeof f->tag[k], "+%d", f->bonus[k]);
+            poe_tag(f, k, "+%d", f->bonus[k]);
         }
         // Amuletos: Dado de Ouro (+2 no numero maximo), Peso Pena (+1 nos de
         // 2 e 4 lados).
@@ -567,11 +605,11 @@ static void aplica_regra(int j, int k)
         if (corrimao) am_disparou |= AM_BIT(A_CORRIMAO);
         if (am_b) {
             f->bonus[k] = (int8_t)(f->bonus[k] + am_b);
-            snprintf(f->tag[k], sizeof f->tag[k], "%+d", f->bonus[k]);
+            poe_tag(f, k, "%+d", f->bonus[k]);
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
-            snprintf(f->tag[k], sizeof f->tag[k], "=%d", v == 4 ? 10 : 0);
+            poe_tag(f, k, "=%d", v == 4 ? 10 : 0);
             if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo pontua 10");
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: pontua 0", v);
         } else if (ef == EF_MALDICAO) {
@@ -579,7 +617,7 @@ static void aplica_regra(int j, int k)
         } else if (ef == EF_COPIADOR) {
             snprintf(veredito, sizeof veredito, "Copiador tirou %d: cada %d seu ganha +2", v, v);
         } else if (copia_antes(j, k)) {
-            snprintf(f->tag[k], sizeof f->tag[k], "+2");
+            poe_tag_fim(f, k, "+2");
             snprintf(veredito, sizeof veredito, "pontua %d, igual ao Copiador: +2", vale);
         } else if (ef == EF_SACRIFICIO) {
             snprintf(veredito, sizeof veredito, "Sacrifício: não pontua; no fim, x2 no seu menor");
@@ -708,7 +746,7 @@ static void refaz_sequencia(int j, int n)
         f->est[i] = V_ESPERA;
         f->bonus[i] = 0;
         f->dobra[i] = 0;
-        f->tag[i][0] = 0;
+        tira_tag(f, i);
     }
     int lanc = f->lancados;
     for (int i = 0; i < n; i++) { f->lancados = i + 1; aplica_regra(j, i); }
@@ -764,9 +802,9 @@ static void pousa(int j, int k, int (*r)(int))
             snprintf(veredito, sizeof veredito, "o Bumerangue voltou: %d", f->valor[k]);
             ver_comum = false;
         }
-        if (voltou) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
+        if (voltou) poe_tag(f, k, "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
         bool sobe = f->calibre[k] && ef0 != EF_DIGITAL && ef0 != EF_FICHA_CORINGA;   // nesses, o +1 ja esta no numero deles
-        if (sobe && !f->tag[k][0]) snprintf(f->tag[k], sizeof f->tag[k], "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
+        if (sobe && !f->tag[k][0]) poe_tag(f, k, "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
         if (sobe && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);
             ver_comum = false;

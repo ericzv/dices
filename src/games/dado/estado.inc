@@ -64,7 +64,9 @@ typedef struct {
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
-    char    tag[N_FILA][14];
+    char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
+    char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
+    char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "$+4")
     int     pontos;
     int     total;
 } fila_t;

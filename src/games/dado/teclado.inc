@@ -111,9 +111,8 @@ void dado_tecla(const key_event_t *ev_)
         som_toca(SOM_TIQUE);
         return;
     }
-    if (k == 'j' && !dado_digitando()) {            // em teste: as bordas finas do adesivo (adesivo_novo.inc)
-        if (ad_estilo == ADE_NOVO) an_borda_fina = !an_borda_fina;
-        else ad_estilo = (ad_estilo + 1) % ADE_N;
+    if (k == 'j' && !dado_digitando()) {            // exploracao: o padrao do adesivo colado (adesivo_estilo.inc)
+        ad_estilo = (ad_estilo + 1) % ADE_N;
         t_aviso_adesivo = 1.6f;
         t_aviso_vel = t_aviso_tremor = t_aviso_letra = 0;
         som_toca(SOM_TIQUE);

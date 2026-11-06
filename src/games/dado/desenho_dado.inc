@@ -3229,7 +3229,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         if (ad_estilo == ADE_RECREL || ad_estilo == ADE_NOVO) {   // o recorte: o numero do dado, com o aro branco do papel
             if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
             pips_aro = contorno;
-            aro_cruz = ad_estilo == ADE_NOVO && an_borda_fina;
+            aro_cruz = ad_estilo == ADE_NOVO;                   // as bordas finas do adesivo novo
         } else if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
             uint16_t ti = ad_tinta_estilo(adf), fu = ad_fundo_estilo(adf);
             tinta = zerado ? gfx_mistura(ti, C_FELTRO2, 60) : ti;

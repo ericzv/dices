@@ -2787,6 +2787,8 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     bool adf_aceso = ad_face_aceso;
     ad_face = 0;
     ad_face_aceso = false;
+    an_fx_t fx = an_fx;                           // o que se anima no adesivo: so deste dado
+    an_fx_zera();
     int lados = TIPO[tipo].lados;
     if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
     const visual_t *vi = &VISUAL[tipo];
@@ -3013,7 +3015,9 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         return;
     }
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
+        an_fx = fx;
         ad_etiqueta(cx, cy0, r, lados, ang, adf, adf_aceso, zerado);
+        an_fx_zera();
         if (ad_estilo == ADE_RECREL || ad_estilo == ADE_NOVO) {   // o recorte: o numero do dado, com o aro branco do papel
             if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
             pips_aro = contorno;

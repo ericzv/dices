@@ -1235,6 +1235,18 @@ static void desenha_fila(int j)
             if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
                 && k == casca_dado(j, casca_no_dado(outro(j), voo[0].slot)))
                 ad_face_aceso = true;
+            // O adesivo novo agindo (no fim e no pouso): a ponta descola do dado, o
+            // brilho passa no material dele, fica erguido e no fim volta e assenta.
+            if (ad_estilo == ADE_NOVO && e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k) {
+                float in = ev_intro(e), q0 = in > 0 ? in / (in + duracao_de(e)) : 0;   // o Carimbo (a Dupla) vem antes
+                float pa = p < q0 ? 0 : (p - q0) / (1 - q0);
+                ad_face_aceso = p >= q0 && pa < 0.9f;
+                if (p >= q0) an_fx_agindo(pa, e->ad == AD_RASPADINHA && !e->copia);
+            } else if (ad_estilo == ADE_NOVO && n_pouso && pouso_q[0].j == j && pouso_q[0].k == k) {
+                float pa = fminf(1, t_pouso / pouso_dura(&pouso_q[0]));
+                ad_face_aceso = pa < 0.9f;
+                an_fx_agindo(pa, false);
+            }
         }
         // A Dupla Face agindo: o dado vira (achata na horizontal ate mostrar o
         // lado de baixo, com o adesivo dele), fica assim enquanto o de baixo
@@ -2026,13 +2038,26 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         sy += dir * (int)(q * 30) - (int)(sinf(q * 3.1416f) * 20);
     }
     bool rompe = a == AD_SELO && e->valor;                     // o lacre de antes: so ele age, sem o adesivo
-    if (p < 0.9f && !rompe) ad_solto_d(sx, sy, salta, 1, a == AD_RASPADINHA && !e->copia ? fminf(1, p * 2) : 0);
+    bool novo = ad_estilo == ADE_NOVO;
+    if (novo) {
+        // O adesivo novo age no proprio dado (an_fx_agindo, em desenha_fila):
+        // daqui so sai a Raspadinha, que descola inteira e vai embora, e o
+        // adesivo que o Holografico copia, saltando de dentro dele.
+        if (a == AD_RASPADINHA && !e->copia && p > 0.55f && p < 0.95f) {
+            float q = (p - 0.55f) / 0.4f;
+            int fx = ax + (int)(q * 70), fy = ay + dir * (int)(q * 26) - (int)(sinf(q * 3.1416f) * 26);
+            ad_novo_solto_r((float)fx, (float)fy, a, R_DADO * AD_NOVO[a].tam / 100.0f, 0.7f - 0.4f * q, 2, 3);
+        }
+        if (e->copia && p < 0.9f) ad_solto_d(sx, sy, a, 2, 0);
+        sx = e->copia ? sx : ax;                                // a Massinha sai do recorte no dado
+        sy = e->copia ? sy : ay;
+    } else if (p < 0.9f && !rompe) ad_solto_d(sx, sy, salta, 1, a == AD_RASPADINHA && !e->copia ? fminf(1, p * 2) : 0);
     if (e->copia && p < 0.85f) {                                // o brilho que muda de cor em volta dele
         static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
                                           RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
-        for (int i = 0; i < 10; i++) {
-            float an = i * 0.628f + t_fase * 3;
-            int rr = 9 + (int)(fminf(1, p / 0.2f) * 4);
+        for (int i = 0; i < (novo ? 14 : 10); i++) {
+            float an = i * (novo ? 0.4488f : 0.628f) + t_fase * 3;
+            int rr = (novo ? 16 : 9) + (int)(fminf(1, p / 0.2f) * 4);
             gfx_rect(sx + (int)(cosf(an) * rr), sy + (int)(sinf(an) * rr), 2, 2, ARCO[(i + (int)(t_fase * 10)) % 6]);
         }
     }

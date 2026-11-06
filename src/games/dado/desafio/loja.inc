@@ -34,6 +34,8 @@
 // Colando o adesivo: ele desce sobre o lado escolhido e assenta.
 #define LJ_COLA_BATE 0.22f               // encosta no dado (o estalo)
 #define LJ_COLA_FIM  1.0f                // depois disso, a loja volta
+// No adesivo novo, o papel cai antes e ele desce girando: encosta mais tarde.
+static float lj_cola_bate(void) { return ad_estilo == ADE_NOVO ? CN_BATE : LJ_COLA_BATE; }
 #define LJ_LADO_Y    158                 // a primeira fileira de lados
 #define LJ_LADO_DY   70                  // entre uma fileira e a outra
 
@@ -239,7 +241,7 @@ static void cola_passo(float dt)
     if (t_lj_cola > 0) {
         float antes = t_lj_cola;
         t_lj_cola += dt;
-        if (antes < LJ_COLA_BATE && t_lj_cola >= LJ_COLA_BATE) lj_cola_estala();
+        if (antes < lj_cola_bate() && t_lj_cola >= lj_cola_bate()) lj_cola_estala();
         if (t_lj_cola >= LJ_COLA_FIM) {
             t_lj_cola = 0;
             if (lj_vira) { t_lj_vira = 0.001f; som_toca(SOM_SUSPENSE); }   // encheu: treme antes de virar
@@ -1225,7 +1227,7 @@ static void lj_cola_estala(void)
     int a = cola_ad(), t = cola_col()[lj_cola_dado].tipo, n = ad_n_lados(t), x, y;
     lj_lado_pos(lj_cola_lado - ad_lado_min(t), n, &x, &y);
     uint16_t cores[3] = { ADESIVO[a].fundo == AD_SEM_FUNDO ? ADESIVO[a].luz : ADESIVO[a].fundo, C_BRANCO, ADESIVO[a].luz };
-    lj_lascas_de(x, y, cores, 18, 0.8f);
+    if (ad_estilo != ADE_NOVO) lj_lascas_de(x, y, cores, 18, 0.8f);   // no novo, o ar escapa pela beira (cn_em_volta)
     som_toca(som_cola());
     mola_chuta();
 }
@@ -1327,17 +1329,19 @@ static void lj_cola_lados(void)
         int lado = ad_lado_min(t) + c, x, y, ja = ad_no_lado(pc, lado);
         lj_lado_pos(c, n, &x, &y);
         bool cur = c == cursor, colando = t_lj_cola > 0 && lado == lj_cola_lado;
-        float pulo = cur && !t_lj_cola ? mola_px() : 0;
-        if (colando && t_lj_cola >= LJ_COLA_BATE) {      // assentou: o lado afunda e volta
-            float q = (t_lj_cola - LJ_COLA_BATE) / 0.25f;
+        float pulo = cur && !t_lj_cola ? mola_px() : 0, bate = lj_cola_bate();
+        if (colando && t_lj_cola < bate) ja = AD_NADA;   // ja colou na bolsa, mas na tela ainda esta descendo
+        if (colando && t_lj_cola >= bate) {              // assentou: o lado afunda e volta
+            float q = (t_lj_cola - bate) / 0.25f;
             if (q < 1) pulo = -sinf(q * 3.1416f) * 4;
         }
         if (cur && !lj_vira) ui_selecao(x - 22, y - 22, 44, 44, ADESIVO[a].luz);
         int mostra = lado + (ja == AD_REMENDO ? 2 : 0);
-        if (colando && t_lj_cola >= LJ_COLA_BATE) {
+        if (colando && t_lj_cola >= bate) {
             ja = a;
             mostra = lado + (a == AD_REMENDO ? 2 : 0);
-            ad_face_aceso = t_lj_cola < LJ_COLA_BATE + 0.5f && (int)(t_lj_cola * 14) % 2 == 0;
+            if (ad_estilo == ADE_NOVO) cn_assenta(t_lj_cola - bate);   // aperta, o ar sai e o brilho passa
+            else ad_face_aceso = t_lj_cola < LJ_COLA_BATE + 0.5f && (int)(t_lj_cola * 14) % 2 == 0;
         }
         if (lj_vira && t_lj_vira > 0)                // virando: os adesivos acendem um depois do outro
             ad_face_aceso = (int)(t_lj_vira * 10 + c * 3) % 4 == 0 || (t_lj_vira >= LJ_VIRA_TROCA && t_lj_vira < LJ_VIRA_TROCA + 0.4f);
@@ -1349,6 +1353,7 @@ static void lj_cola_lados(void)
         }
         ad_face = ja;
         desenha_dado((float)x, y - pulo, 17, t, cola_dono(), 0, mostra, 2, false);
+        if (colando && t_lj_cola >= bate && ad_estilo == ADE_NOVO) cn_em_volta(x, (int)(y - pulo), 17, a, t_lj_cola - bate);
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
         if (mostra != lado || t == D_VAZIO) {
             snprintf(s, sizeof s, "%d", lado);
@@ -1361,14 +1366,15 @@ static void lj_cola_lados(void)
         zona_clique(x - 21, y - 21, 42, 42, &cursor, c, KEY_ENTER);
     }
     // O adesivo novo: paira sobre o lado da vez; colando, desce ate ele.
-    if (cursor >= 0 && cursor < n && !lj_vira && (!t_lj_cola || t_lj_cola < LJ_COLA_BATE)) {
+    if (cursor >= 0 && cursor < n && !lj_vira && (!t_lj_cola || t_lj_cola < lj_cola_bate())) {
         int x, y;
         lj_lado_pos(t_lj_cola > 0 ? lj_cola_lado - ad_lado_min(t) : cursor, n, &x, &y);
         bool livre = !ad_no_lado(pc, ad_lado_min(t) + cursor);
         float desce = t_lj_cola > 0 ? t_lj_cola / LJ_COLA_BATE : 0;
         int hy = y - 36 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 36);
-        if (livre || t_lj_cola > 0) ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
-        else gfx_texto(x - gfx_largura("ocupado", GFX_FINO) / 2, y - 42, "ocupado", C_VINHO_CLR, GFX_FINO, false);
+        if (!livre && t_lj_cola <= 0) gfx_texto(x - gfx_largura("ocupado", GFX_FINO) / 2, y - 42, "ocupado", C_VINHO_CLR, GFX_FINO, false);
+        else if (ad_estilo == ADE_NOVO) cn_paira_desce(x, y, t, 17, a, t_lj_cola);   // no papel; o papel cai e ele desce
+        else ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
     }
     lj_lascas();
     int lado = ad_lado_min(t) + (cursor >= 0 && cursor < n ? cursor : 0), ja = ad_no_lado(pc, lado);

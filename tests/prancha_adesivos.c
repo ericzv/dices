@@ -328,6 +328,48 @@ static void soltos_grandes(int a0, const char *nome)
     grava(nome);
 }
 
+// As animacoes do adesivo novo, quadro a quadro: a colagem (na folha, o
+// papel cai, desce, encosta, o ar sai, o brilho passa) e a ativacao (a
+// ponta levanta, o brilho passa no material, erguido, volta e assenta).
+static void animacoes(const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    ad_estilo = ADE_NOVO;
+    static const uint8_t A[3] = { AD_LOBO, AD_HOLOGRAFICO, AD_DOURADO };
+    static const float TC[8] = { 0, 0.05f, 0.14f, 0.22f, 0.30f, 0.40f, 0.62f, 0.80f };
+    static const char *const TT[8] = { "na folha", "o papel cai", "desce", "desce", "encosta", "o ar sai",
+                                       "o brilho", "assenta" };
+    static const float PA[8] = { 0, 0.06f, 0.20f, 0.30f, 0.50f, 0.88f, 0.93f, 1 };
+    static const char *const TA[8] = { "parado", "levanta", "brilho", "brilho", "agindo", "volta", "o ar sai", "assenta" };
+    for (int k = 0; k < 8; k++) {
+        gfx_texto(52 + k * 76 - gfx_largura(TT[k], GFX_FINO) / 2, 2, TT[k], C_MARFIM_S, GFX_FINO, false);
+        gfx_texto(52 + k * 76 - gfx_largura(TA[k], GFX_FINO) / 2, 196, TA[k], C_MARFIM_S, GFX_FINO, false);
+    }
+    for (int i = 0; i < 3; i++) {
+        int a = A[i];
+        for (int k = 0; k < 8; k++) {
+            int x = 52 + k * 76, y = 66 + i * 44;
+            t_relogio = 1.7f; t_fase = 1.0f;
+            float tc = TC[k];
+            if (tc < CN_BATE) {                    // ainda no ar: o lado vazio e ele em cima
+                desenha_dado((float)x, (float)y, 17, D_D6, 0, 0, 4, 2, false);
+                cn_paira_desce(x, y, D_D6, 17, a, tc);
+            } else {
+                cn_assenta(tc - CN_BATE);
+                ad_face = a;
+                desenha_dado((float)x, (float)y, 17, D_D6, 0, 0, 4, 2, false);
+                cn_em_volta(x, y, 17, a, tc - CN_BATE);
+            }
+            int ya = 236 + i * 44;                  // a ativacao do mesmo adesivo
+            an_fx_agindo(PA[k], false);
+            ad_face = a; ad_face_aceso = PA[k] > 0 && PA[k] < 0.9f;
+            desenha_dado((float)x, (float)ya, R_DADO, D_D6, 0, 0, 5, 2, false);
+        }
+    }
+    ad_estilo = ADE_ATUAL;
+    grava(nome);
+}
+
 int main(int argc, char **argv)
 {
     if (argc > 1) dir = argv[1];
@@ -347,6 +389,7 @@ int main(int argc, char **argv)
         soltos_grandes(1, "novo_soltos_grandes_1");
         soltos_grandes(22, "novo_soltos_grandes_2");
         antes_depois();
+        animacoes("novo_animacoes");
         mesas();
         printf("adesivo novo em %s\n", dir);
         return 0;

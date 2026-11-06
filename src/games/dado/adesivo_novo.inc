@@ -919,72 +919,58 @@ static void an_grade(int a, int W, float ox, float oy, float ca, float sa, float
         }
 }
 
-// O adesivo colado no lado de cima do dado (r: o raio do dado).
-static void ad_novo(float cx, float cy, float r, int a, bool aceso, bool zerado, float ang, int lados)
+// ---- O que se anima no recorte (a colagem e a ativacao) ---------------------
+// Quem anima poe aqui antes de desenhar o dado e tira depois (an_fx_zera):
+// o dado le no adesivo de cima.
+typedef struct {
+    float escala;      // 1: o tamanho de sempre (apertando, um nada maior)
+    float dobra;       // 0..1: a ponta de baixo, a direita, levantada e dobrada (1: ele inteiro)
+    float brilho;      // < 0: nada; 0..1: a faixa de luz passando na diagonal, no material dele
+    float onda;        // < 0: nada; 0..1: o ar saindo do meio para a beira (apertado no dado)
+    bool  some;        // nao esta no dado (descolou e foi embora)
+} an_fx_t;
+static const an_fx_t AN_FX_NADA = { 1, 0, -1, -1, false };
+static an_fx_t an_fx = { 1, 0, -1, -1, false };
+static void an_fx_zera(void) { an_fx = AN_FX_NADA; }
+
+// Os materiais que brilham (a faixa de luz tem miolo branco); os outros so clareiam.
+static bool an_lustroso(int m)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
-    const adesivo_t *d = &ADESIVO[a];
-    float R = r * v->tam / 100.0f * (lados == 4 ? 0.78f : 1.0f);   // o raio do recorte, em pixels
-    float th = ang + v->giro * 0.017453f, ca = cosf(-th), sa = sinf(-th);
-    int marg = r >= 26 ? 2 : 1;                   // a margem branca, em pixels
-    int sob = aceso ? 2 : 1, lev = aceso ? 1 : 0;   // a sombra no dado (agindo: descola um nada)
-    float fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f, mov = ang * 0.8f + (cx + cy) * 0.02f;
-    int m = (int)(R * 1.35f) + 4;
-    if (2 * m + 1 > AN_G) m = (AN_G - 1) / 2;
-    int W = 2 * m + 1, x0 = (int)cx - m, y0 = (int)cy - m;
-    bool vidro = v->material == MN_VIDRO, liso = r < 12;
-    uint16_t branco = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO, escuro = zerado ? C_FELTRO2 : C_EBANO_B;
-    float ox = x0 - cx + 0.5f, oy = y0 - cy + lev + 0.5f;
-    an_grade(a, W, ox, oy, ca, sa, R);
-    // 1) a sombra no dado (e, agindo, o brilho da cor dele em volta)
-    for (int j = 0; j < W; j++)
-        for (int i = 0; i < W; i++) {
-            int si = i - sob, sj = j - sob;
-            if (an_dd[j * W + i] < marg + 1) continue;     // o proprio adesivo cobre (e o vidro mostra o dado limpo)
-            if (si >= 0 && sj >= 0 && an_dd[sj * W + si] < marg + 1) gfx_pixel(x0 + i, y0 + j, C_SOMBRA);
-            if (aceso && an_dd[j * W + i] < marg + 2) gfx_pixel(x0 + i, y0 + j, d->luz);
-        }
-    // 2) o contorno, a margem e o adesivo
-    for (int j = 0; j < W; j++)
-        for (int i = 0; i < W; i++) {
-            int k = j * W + i, x = x0 + i, y = y0 + j;
-            float dd = an_dd[k];
-            if (dd >= marg + 1.0f) continue;
-            if (dd >= marg) { gfx_pixel(x, y, escuro); continue; }
-            if (dd >= 0) { gfx_pixel(x, y, vidro ? (zerado ? C_FELTRO2 : v->cor) : branco); continue; }
-            an_ponto(a, k, i, j, W, x, y, ox + i, oy + j, ca, sa, R, -dd, fase, mov, aceso ? 0.22f : 0, zerado, liso);
-        }
-    if (!zerado && !liso) an_extras(a, cx, cy - lev, R, th, W, x0, y0, marg, fase);
+    return m == MN_BRILHO || m == MN_METAL || m == MN_OURO || m == MN_CROMO || m == MN_RESINA || m == MN_VIDRO
+        || m == MN_CERA || m == MN_BORRACHA || m == MN_LENTE || m == MN_CETIM || m == MN_NEON;
 }
 
-// O adesivo solto (a loja, o pacote, a colecao, o registro, voando): o mesmo
-// recorte, sem o dado e sem o numero, do tamanho do adesivo de antes (s: o
-// pixel do simbolo de antes; a caixa dele: 7s + 8, ou 7s + 14 de s 2 em
-// diante). A sombra na mesa e, descolando (descola 0..1), a ponta de baixo, a
-// direita, dobrada sobre ele mostrando o verso.
-static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
+// ---- O recorte desenhado, no dado ou solto ----------------------------------
+typedef struct {
+    float R, th, mais, dobra, brilho, onda, fase, mov;
+    int marg, sx, sy, lev;                 // a margem branca; a sombra (deslocada sx, sy; 0: nenhuma); o quanto sobe
+    uint16_t escuro, sombra, aro;          // o contorno, a sombra e (agindo, != 0) o aro aceso em volta
+    bool zerado, liso;
+} an_op_t;
+static void an_desenha(float cx, float cy, int a, const an_op_t *o)
 {
     const ad_novo_t *v = &AD_NOVO[a];
-    int caixa = 7 * s + 6 * (s > 1 ? 2 : 1) + 2, marg = s >= 4 ? 2 : 1;
-    float f = v->tam / 80.0f;
-    f = f < 0.85f ? 0.85f : f > 1.15f ? 1.15f : f;
-    float R = (caixa * 0.5f - marg - 1) * f * 1.12f;
-    float th = v->giro * 0.017453f, ca = cosf(-th), sa = sinf(-th);
-    float fase = (hash2(cx >> 4, cy >> 4) & 255) / 256.0f;
-    bool vidro = v->material == MN_VIDRO, liso = R < 7;
-    int m = (int)(R * 1.25f) + marg + 3;
+    float R = o->R, ca = cosf(-o->th), sa = sinf(-o->th);
+    int marg = o->marg, m = (int)(R * 1.35f) + marg + 4;
     if (2 * m + 1 > AN_G) m = (AN_G - 1) / 2;
-    int W = 2 * m + 1, x0 = cx - m, y0 = cy - m;
-    float ox = -m + 0.5f, oy = -m + 0.5f;
+    int W = 2 * m + 1, x0 = (int)floorf(cx) - m, y0 = (int)floorf(cy) - m;
+    float ox = x0 - cx + 0.5f, oy = y0 - cy + o->lev + 0.5f;
+    bool vidro = v->material == MN_VIDRO;
     an_grade(a, W, ox, oy, ca, sa, R);
     // A dobra: a reta i + j = C, P passos antes da ponta de baixo a direita.
-    // Do lado de la, o adesivo levantou; do lado de ca, o pedaco dobrado
-    // (o espelho do que levantou) cobre, com o verso para cima.
-    int smax = -1;
+    // Do lado de la, o adesivo levantou; do lado de ca, o pedaco dobrado (o
+    // espelho do que levantou) cobre, com o verso para cima.
+    int smax = -1, smin = 1 << 20;
+    float emax = 1;
     for (int j = 0; j < W; j++)
-        for (int i = 0; i < W; i++)
-            if (an_dd[j * W + i] < marg + 1 && i + j > smax) smax = i + j;
-    int P = descola > 0 ? (int)lroundf((0.08f + 0.40f * descola) * R * 1.4142f) + 2 : 0;   // parado, sem dobra
+        for (int i = 0; i < W; i++) {
+            float dd = an_dd[j * W + i];
+            if (dd >= marg + 1) continue;
+            if (i + j > smax) smax = i + j;
+            if (i + j < smin) smin = i + j;
+            if (-dd > emax) emax = -dd;
+        }
+    int P = o->dobra > 0 && smax > smin ? (int)lroundf(o->dobra * (smax - smin)) + 2 : 0;
     int C = P > 0 ? smax - P : 1 << 20;
     enum { AC_NADA, AC_CONTORNO, AC_MARGEM, AC_DENTRO, AC_VERSO, AC_SOMBRA };
     static uint8_t cl[AN_G * AN_G];
@@ -1006,37 +992,118 @@ static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
             }
             cl[k] = c;
         }
-    // A sombra na mesa: a forma toda, um pouco para baixo e para a direita.
-    int sx = s >= 2 ? 2 : 1, sy = s >= 2 ? 3 : 1;
+    // A sombra embaixo (no dado ou na mesa) e, agindo, o aro aceso em volta.
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
-            int si = i - sx, sj = j - sy;
-            if (cl[j * W + i] == AC_NADA && si >= 0 && sj >= 0 && cl[sj * W + si] != AC_NADA)
-                gfx_pixel(x0 + i, y0 + j, C_SOMBRA);
+            int k = j * W + i, si = i - o->sx, sj = j - o->sy;
+            if (cl[k] != AC_NADA) continue;
+            if (o->aro && an_dd[k] >= marg + 1 && an_dd[k] < marg + 2 && i + j <= C) gfx_pixel(x0 + i, y0 + j, o->aro);
+            else if ((o->sx || o->sy) && si >= 0 && sj >= 0 && cl[sj * W + si] != AC_NADA) gfx_pixel(x0 + i, y0 + j, o->sombra);
         }
     uint16_t rv[4];
     rampa_de(C_MARFIM, rv);
+    uint16_t branco = o->zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
             int k = j * W + i, x = x0 + i, y = y0 + j;
             switch (cl[k]) {
-            case AC_CONTORNO: gfx_pixel(x, y, C_BARRA); break;
-            case AC_MARGEM: gfx_pixel(x, y, vidro ? v->cor : C_BRANCO); break;
+            case AC_CONTORNO: gfx_pixel(x, y, o->escuro); break;
+            case AC_MARGEM: gfx_pixel(x, y, vidro ? (o->zerado ? C_FELTRO2 : v->cor) : branco); break;
             case AC_VERSO: {                        // o verso: claro na curva da dobra, mais escuro na ponta
                 float t = (float)(C - (i + j)) / P;
-                if (descola > 0 && i + j >= C - 1) { gfx_pixel(x, y, C_BRANCO); break; }
+                if (i + j >= C - 1 && !o->zerado) { gfx_pixel(x, y, C_BRANCO); break; }
                 uint16_t c = tom_rampa(rv, 0.55f - 0.95f * t, x, y);
-                gfx_pixel(x, y, vidro ? gfx_mistura(an_le(x, y), C_CELESTE, 45) : c);
+                if (vidro) c = gfx_mistura(an_le(x, y), C_CELESTE, 45);
+                gfx_pixel(x, y, o->zerado ? gfx_mistura(c, C_FELTRO2, 60) : c);
                 break;
             }
-            case AC_DENTRO: case AC_SOMBRA:
-                an_ponto(a, k, i, j, W, x, y, ox + i, oy + j, ca, sa, R, -an_dd[k], fase, 0,
-                         cl[k] == AC_SOMBRA ? -0.55f : 0, false, liso);
+            case AC_DENTRO: case AC_SOMBRA: {
+                float e = -an_dd[k], dx = ox + i, dy = oy + j, mais = o->mais + (cl[k] == AC_SOMBRA ? -0.55f : 0);
+                if (!o->zerado && o->onda >= 0 && o->onda <= 1) {      // o ar saindo: a onda clara do meio para a beira
+                    float pr = e / emax, cen = 1 - o->onda, dq = fabsf(pr - cen);
+                    if (dq < 0.17f) mais += 0.75f * (1 - dq / 0.17f);
+                }
+                if (!o->zerado && o->brilho >= 0 && o->brilho <= 1) {  // a faixa de luz na diagonal
+                    float dg = (dx + dy) * 0.7071f / R, c = -1.5f + 3.0f * o->brilho, dq = fabsf(dg - c);
+                    if (dq < 0.24f) {
+                        int mt = v->material;
+                        uint32_t h = hash2(x + 17, y + 5);
+                        if (mt == MN_HOLO) { gfx_pixel(x, y, AN_ARCO[((int)floorf(dg * 9 + 40)) % 6]); break; }
+                        if ((mt == MN_GLITTER || mt == MN_PURPURINA) && h % 3 == 0) { gfx_pixel(x, y, h & 8 ? C_BRANCO : C_AMARELO); break; }
+                        if (an_lustroso(mt) && dq < 0.07f) { gfx_pixel(x, y, C_BRANCO); break; }
+                        mais += 0.75f * (1 - dq / 0.24f);
+                    }
+                }
+                an_ponto(a, k, i, j, W, x, y, dx, dy, ca, sa, R, e, o->fase, o->mov, mais, o->zerado, o->liso);
                 break;
+            }
             default: break;
             }
         }
-    if (!liso) an_extras(a, (float)cx, (float)cy, R, th, W, x0, y0, marg, fase);
+    if (!o->zerado && !o->liso && P == 0) an_extras(a, cx, cy - o->lev, R, o->th, W, x0, y0, marg, o->fase);
+}
+
+// O adesivo colado no lado de cima do dado (r: o raio do dado). O que se
+// anima vem de an_fx.
+static void ad_novo(float cx, float cy, float r, int a, bool aceso, bool zerado, float ang, int lados)
+{
+    const ad_novo_t *v = &AD_NOVO[a];
+    if (an_fx.some) return;
+    an_op_t o = { 0 };
+    o.R = r * v->tam / 100.0f * (lados == 4 ? 0.78f : 1.0f) * an_fx.escala;   // o raio do recorte, em pixels
+    o.th = ang + v->giro * 0.017453f;
+    o.marg = r >= 26 ? 2 : 1;                   // a margem branca, em pixels
+    o.sx = o.sy = aceso ? 2 : 1;                // a sombra no dado (agindo: descola um nada)
+    o.lev = aceso ? 1 : 0;
+    o.mais = aceso ? 0.22f : 0;
+    o.aro = aceso ? ADESIVO[a].luz : 0;
+    o.escuro = zerado ? C_FELTRO2 : C_EBANO_B;
+    o.sombra = C_SOMBRA;
+    o.dobra = zerado ? 0 : an_fx.dobra;
+    o.brilho = an_fx.brilho;
+    o.onda = an_fx.onda;
+    o.fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f;
+    o.mov = ang * 0.8f + (cx + cy) * 0.02f;
+    o.zerado = zerado;
+    o.liso = r < 12;
+    an_desenha(cx, cy, a, &o);
+}
+
+// O raio do recorte solto no tamanho s do adesivo de antes (s: o pixel do
+// simbolo de antes; a caixa dele: 7s + 8, ou 7s + 14 de s 2 em diante).
+static float an_raio_solto(int a, int s)
+{
+    int caixa = 7 * s + 6 * (s > 1 ? 2 : 1) + 2, marg = s >= 4 ? 2 : 1;
+    float f = AD_NOVO[a].tam / 80.0f;
+    f = f < 0.85f ? 0.85f : f > 1.15f ? 1.15f : f;
+    return (caixa * 0.5f - marg - 1) * f * 1.12f;
+}
+
+// O adesivo solto de raio R (a colagem desce com ele mudando de tamanho):
+// descola 0..1, a ponta levantando; (sx, sy), a sombra na mesa.
+static void ad_novo_solto_r(float cx, float cy, int a, float R, float descola, int sx, int sy)
+{
+    an_op_t o = { 0 };
+    o.R = R;
+    o.th = AD_NOVO[a].giro * 0.017453f;
+    o.marg = R >= 20 ? 2 : 1;
+    o.sx = sx; o.sy = sy;
+    o.escuro = C_BARRA;
+    o.sombra = C_SOMBRA;
+    o.dobra = descola > 0 ? 0.04f + 0.20f * descola : 0;
+    o.brilho = o.onda = -1;
+    o.fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f;
+    o.liso = R < 7;
+    an_desenha(cx, cy, a, &o);
+}
+
+// O adesivo solto (a loja, o pacote, a colecao, o registro, voando): o mesmo
+// recorte, sem o dado e sem o numero, do tamanho do adesivo de antes. A
+// sombra na mesa e, descolando (descola 0..1), a ponta de baixo, a direita,
+// dobrada sobre ele mostrando o verso.
+static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
+{
+    ad_novo_solto_r((float)cx, (float)cy, a, an_raio_solto(a, s), descola, s >= 2 ? 2 : 1, s >= 2 ? 3 : 1);
 }
 
 // A silhueta do recorte solto, numa cor so (o que ainda nao abriu, na
@@ -1044,10 +1111,8 @@ static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
 static void ad_novo_silhueta(int cx, int cy, int a, int s, uint16_t cor)
 {
     const ad_novo_t *v = &AD_NOVO[a];
-    int caixa = 7 * s + 6 * (s > 1 ? 2 : 1) + 2, marg = s >= 4 ? 2 : 1;
-    float f = v->tam / 80.0f;
-    f = f < 0.85f ? 0.85f : f > 1.15f ? 1.15f : f;
-    float R = (caixa * 0.5f - marg - 1) * f * 1.12f, th = v->giro * 0.017453f;
+    float R = an_raio_solto(a, s), th = v->giro * 0.017453f;
+    int marg = R >= 20 ? 2 : 1;
     int m = (int)(R * 1.25f) + marg + 3;
     if (2 * m + 1 > AN_G) m = (AN_G - 1) / 2;
     int W = 2 * m + 1;
@@ -1076,4 +1141,121 @@ static bool ad_solto_novo(int cx, int cy, int a, int s, float descola)
     if (ad_estilo != ADE_NOVO || a <= AD_NADA || a >= AD_N) return false;
     ad_novo_solto(cx, cy, a, s < 1 ? 1 : s, descola);
     return true;
+}
+
+// ---- A ativacao: o adesivo agindo no fim da rodada (e no pouso) -------------
+// p (0..1): o evento. A ponta descola do dado e ele da um pulinho; a faixa de
+// luz passa no material dele; fica erguido enquanto age; no fim volta, aperta
+// e o ar sai do meio para a beira. vai_embora: a Raspadinha, que descola
+// inteira e sai voando (o voo e de desenha_adesivo_agindo).
+static void an_fx_agindo(float p, bool vai_embora)
+{
+    if (ad_estilo != ADE_NOVO) return;
+    float lev = p < 0.14f ? sinf(p / 0.14f * 1.5708f) : p < 0.84f ? 1 : p < 0.96f ? 1 - (p - 0.84f) / 0.12f : 0;
+    an_fx.dobra = 0.13f * lev + (p >= 0.14f && p < 0.84f ? 0.015f * sinf(t_relogio * 7) : 0);
+    an_fx.escala = p < 0.12f ? 1 + 0.12f * sinf(p / 0.12f * 3.1416f) : 1;
+    an_fx.brilho = p >= 0.10f && p < 0.46f ? (p - 0.10f) / 0.36f : -1;
+    an_fx.onda = p >= 0.86f ? (p - 0.86f) / 0.14f : -1;
+    if (vai_embora) {                              // a Raspadinha: descola inteira e vai
+        an_fx.onda = -1;
+        if (p >= 0.40f) an_fx.dobra = 0.13f + 0.80f * fminf(1, (p - 0.40f) / 0.15f);
+        an_fx.some = p >= 0.55f;
+    }
+}
+
+// ---- A colagem: a loja e o premio ------------------------------------------
+// O recorte paira sobre o lado ainda no papel dele (a folha de adesivos);
+// escolhido o lado, o papel cai (CN_PAPEL), ele desce girando ate a face
+// (CN_BATE), aperta - o dado afunda e o ar escapa pela beira -, a onda de ar
+// corre do meio para a beira e o brilho da raridade passa.
+#define CN_PAPEL 0.10f
+#define CN_BATE  0.30f
+static void estrela4(int x, int y, int b, uint16_t miolo, uint16_t braco, uint16_t ponta);
+
+// O papel de tras, um pouco maior que o recorte, de cantos redondos; cai (q
+// 0..1) girando um nada e some pontilhado.
+static void an_papel(float cx, float cy, float R, float q)
+{
+    if (q >= 1) return;
+    float w = R * 1.02f + 5, th = q * 0.6f, c = cosf(th), s = sinf(th), ox = cx - q * 12, oy = cy + q * q * 50;
+    int m = (int)(w * 1.5f) + 3;
+    if (q <= 0) ui_sombra((int)(ox - w), (int)(oy - w), (int)(2 * w), (int)(2 * w));
+    for (int j = -m; j <= m; j++)
+        for (int i = -m; i <= m; i++) {
+            float px = i + 0.5f, py = j + 0.5f, u = px * c + py * s, v = -px * s + py * c;
+            float d = sdn_caixa(u, v, w, w, 3);
+            int x = (int)ox + i, y = (int)oy + j;
+            if (d >= 1 || (q > 0 && bayer(x, y) < q * 1.2f - 0.15f)) continue;
+            if (d >= 0) { gfx_pixel(x, y, C_BARRA); continue; }
+            float l = 0.45f - (u + v) / w * 0.25f;
+            uint16_t r4[4];
+            rampa_de(C_MARFIM_S, r4);
+            gfx_pixel(x, y, d > -1.2f && u + v < 0 ? C_MARFIM : tom_rampa(r4, l, x, y));
+        }
+}
+
+// O recorte paira ou desce sobre o lado em (x, y) do dado tipo de raio rd:
+// tc, o tempo desde a escolha (0: ainda escolhendo).
+static void cn_paira_desce(int x, int y, int tipo, float rd, int a, float tc)
+{
+    float R0 = an_raio_solto(a, 2), hy = y - 36 + sinf(t_fase * 3) * 2;
+    bool d4 = TIPO[tipo].lados == 4;
+    float R1 = rd * AD_NOVO[a].tam / 100.0f * (d4 ? 0.78f : 1), y1 = y + (d4 ? rd * 0.12f : 0);
+    if (tc <= 0) {                                 // na folha, a ponta querendo sair
+        an_papel((float)x, hy + 1, R0, 0);
+        ad_novo_solto_r((float)x, hy, a, R0, 0.30f + 0.10f * sinf(t_fase * 4), 2, 3);
+        return;
+    }
+    if (tc < CN_PAPEL) {                           // o papel cai; ele fica no ar
+        float q = tc / CN_PAPEL;
+        an_papel((float)x, hy + 1, R0, q);
+        ad_novo_solto_r((float)x, hy, a, R0, 0.30f * (1 - q) + 0.08f, 2, 3);
+        return;
+    }
+    float u = fminf(1, (tc - CN_PAPEL) / (CN_BATE - CN_PAPEL)), e = u * u;   // desce acelerando
+    int sh = (int)lroundf(3 - 2 * e);
+    ad_novo_solto_r((float)x, hy + (y1 - hy) * e, a, R0 + (R1 - R0) * e, 0.08f * (1 - u), sh - 1 > 0 ? sh - 1 : 1, sh);
+}
+
+// Depois de encostar (dt desde o estalo): o que o recorte no dado anima.
+static void cn_assenta(float dt)
+{
+    an_fx.escala = dt < 0.14f ? 1 + 0.10f * (1 - dt / 0.14f) : 1;
+    an_fx.onda = dt >= 0.02f && dt < 0.34f ? (dt - 0.02f) / 0.32f : -1;
+    an_fx.brilho = dt >= 0.28f && dt < 0.64f ? (dt - 0.28f) / 0.36f : -1;
+}
+
+// Em volta do lado em (x, y): o ar escapando pela beira no aperto e as
+// faiscas da raridade quando o brilho passa (dt desde o estalo).
+static void cn_em_volta(int x, int y, float rd, int a, float dt)
+{
+    float R = rd * AD_NOVO[a].tam / 100.0f;
+    if (dt < 0.22f) {                              // o sopro: oito fiapos brancos saindo da beira
+        float q = dt / 0.22f;
+        for (int i = 0; i < 8; i++) {
+            float an = i * 0.7854f + 0.39f, d = R + 2 + q * 7;
+            for (int f = 0; f < 3; f++) {          // o fiapo: tres pixels ao longo do sopro, o da frente mais claro
+                float df = d - f * (1.2f - q * 0.6f);
+                int px = x + (int)lroundf(cosf(an) * df), py = y + (int)lroundf(sinf(an) * df);
+                if (df > R + 1 && bayer(px, py) < 1.05f - q) gfx_pixel(px, py, f == 0 ? C_BRANCO : C_MARFIM_S);
+            }
+        }
+    }
+    float q = (dt - 0.30f) / 0.40f;
+    if (q <= 0 || q >= 1) return;
+    int rar = RAR_ADESIVO[a];
+    static const uint16_t BRILHO_RAR[4][2] = { { RGB(204, 194, 172), RGB(128, 120, 112) },
+                                               { RGB(238, 162, 74), RGB(156, 106, 64) },
+                                               { RGB(252, 248, 236), RGB(184, 194, 208) },
+                                               { RGB(246, 222, 132), RGB(228, 194, 106) } };
+    int n = 2 + rar, b = rar >= RAR_RARO ? 3 : 2;
+    for (int i = 0; i < n; i++) {                  // cada faisca acende e apaga no seu tempo
+        float fi = q * 1.6f - i * 0.12f;
+        if (fi <= 0 || fi >= 1) continue;
+        float an = -2.2f + i * (4.4f / n) + 0.3f;
+        int px = x + (int)(cosf(an) * (R + 8)), py = y + (int)(sinf(an) * (R + 6));
+        int bb = fi < 0.5f ? (int)(b * fi * 2 + 0.5f) : (int)(b * (1 - fi) * 2 + 0.5f);
+        if (bb < 1) bb = 1;
+        estrela4(px, py, bb, C_BRANCO, BRILHO_RAR[rar][0], BRILHO_RAR[rar][1]);
+    }
 }

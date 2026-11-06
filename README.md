@@ -252,7 +252,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   vem com 3 adesivos sorteados, no 3; o Relógio, um d20 que tira o número
   da rodada, no 4; o Terremoto, um d8 que com 7 ou 8 faz o último dado
   válido do oponente rolar de novo no fim, no 5; o Digital, cujo visor
-  acende o último da sequência +1 e nunca cai, no 8; e a Ficha Coringa,
+  acende o último da sequência +1 e nunca cai, no 8; o Agnus, um d8 lendário
+  de lã de cordeiro e chifres de carneiro que, tirando 7, valendo ou não,
+  ressuscita no fim da rodada todos os seus dados anulados (os da sequência
+  e os dos poderes do oponente, ele mesmo incluído; os roubados, não), no
+  8; e a Ficha Coringa,
   que fica fora da sequência e no fim vira o último dado válido do
   oponente, no 9). Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O

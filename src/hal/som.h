@@ -71,6 +71,7 @@ enum {
     SOM_AUTOFAGIA,   // a dentada, o engolir e o +1
     SOM_AMPULHETA,   // a ampulheta virada, a areia escorrendo e o sininho
     SOM_TRANSICAO,   // a troca de tela: o pano da cortina passando da esquerda para a direita
+    SOM_AGNUS,       // o Agnus ressuscitando os anulados: o sino, o coro e a celesta subindo
     SOM_N
 };
 

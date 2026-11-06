@@ -423,7 +423,7 @@ static void desenha_efeitos(void)
     uint16_t c = e->tipo == EV_ADESIVO ? ADESIVO[e->ad].luz
                : e->tipo == EV_FOGO ? C_FOGO
                : e->tipo == EV_SEMENTE ? C_VERDE
-               : e->tipo == EV_JACKPOT ? C_AMARELO
+               : e->tipo == EV_JACKPOT || e->tipo == EV_RESSUSCITA ? C_AMARELO
                : e->tipo == EV_BONUS && e->por_dado[0] + e->por_dado[1] + e->por_dado[2] + e->por_dado[3] < 0 ? C_VINHO_CLR
                : (e->tipo == EV_ROUBA || e->tipo == EV_BONUS || e->tipo == EV_MULT || e->tipo == EV_EXTRA
                   || e->tipo == EV_AVISO || (e->tipo == EV_CHEFE && e->de_j == 0)) ? C_OURO

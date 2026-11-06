@@ -18,7 +18,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
        EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER,
        EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO,
-       EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_N };
+       EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -60,7 +60,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // dele, o visor que acende +1, o que marca a rodada e o cheio de adesivos.
        D_FICHA_CORINGA, D_TERREMOTO, D_DIGITAL, D_RELOGIO, D_ADESIVADO,
        // O segredo do Adesivado: com os 6 lados cheios, vira este d8.
-       D_MAIS_ADESIVADO, D_N };
+       D_MAIS_ADESIVADO,
+       // O cordeiro: tirando 7, ressuscita os seus anulados da rodada.
+       D_AGNUS, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -297,6 +299,7 @@ static const tipo_t TIPO[D_N] = {
     { "Relógio",         20, EF_RELOGIO,      RAR_RARO,     0, "Tira o número da rodada: 1, 2, 3..." },
     { "Adesivado",        6, EF_ADESIVADO,    RAR_INCOMUM,  0, "Já vem com 3 adesivos ao acaso" },
     { "Mais Adesivado",   8, EF_ADESIVADO,    RAR_LENDA,    0, "Oito lados, um adesivo em cada" },
+    { "Agnus",            8, EF_AGNUS,        RAR_LENDA,    0, "Com 7: seus anulados ressuscitam" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -421,6 +424,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_RELOGIO]         = "Não é sorteado: tira o número da rodada - 1 na primeira, 2 na segunda, 7 na sétima.",
     [D_ADESIVADO]       = "Já vem com 3 adesivos diferentes, sorteados, colados em 3 lados ao acaso.",
     [D_MAIS_ADESIVADO]  = "Oito lados, um adesivo em cada: Avesso, Transparente, Patinho Feio, Etiqueta, Selo, Remendo, Confete e Eletrônico.",
+    [D_AGNUS]           = "Se tirar 7, no fim da rodada todos os seus dados anulados ressuscitam e pontuam.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -665,6 +669,10 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MAIS_ADESIVADO]  = "O Adesivado que encheu os seis lados. Oito lados, um adesivo em cada, sempre os mesmos: "
                           "1 Avesso, 2 Transparente, 3 Patinho Feio, 4 Etiqueta, 5 Selo, 6 Remendo, 7 Confete e "
                           "8 Eletrônico. Não sai em sorteio nenhum.",
+    [D_AGNUS]           = "Oito lados, de lã de cordeiro e chifres de carneiro. Se tirar 7, valendo ou não, no fim da "
+                          "rodada, logo depois dos poderes, todos os seus dados anulados ressuscitam - os que a sequência "
+                          "derrubou e os que os poderes do oponente anularam, ele mesmo incluído - e pontuam o número que "
+                          "tiraram. Os roubados não voltam.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -891,6 +899,9 @@ static const visual_t VISUAL[D_N] = {
     [D_ADESIVADO]   = { V_ROSA,   0, 0,         V_ROSA, 100,    V_CIANO, 100,  V_TRIGO, 100 },
     // O Mais Adesivado: o marfim quase todo coberto, e o aro de ouro.
     [D_MAIS_ADESIVADO] = { V_OURO, 0, 0,        V_ROSA, 100,    V_CIANO, 100,  V_TRIGO, 100 },
+    // O Agnus: a la de cordeiro vem do corpo (la_agnus); aqui, o aro de ouro e os
+    // chifres (o couro, o terra e o brilho de latao).
+    [D_AGNUS]       = { V_OURO,   0, 0,         V_COURO, 100,   V_TERRA, 100,  V_LATAO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

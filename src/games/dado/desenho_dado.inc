@@ -273,6 +273,7 @@ static void poligono_bisel(const float *vx, const float *vy, int n, float cx, fl
 }
 
 // luz: o tom da beira do furo, no modo Pixel (0: o furo liso de sempre).
+static uint16_t pips_aro;                // != 0: cada ponto com um aro dessa cor (o numero sobre o adesivo recortado)
 static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 {
     int o = r * 5 / 11;
@@ -286,6 +287,7 @@ static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
     for (int i = 0; i < v; i++) {
         int x = cx + P[v][i][0] * o, y = cy + P[v][i][1] * o;
         if (r < 12) { gfx_rect(x - 1, y - 1, 3, 3, c); continue; }
+        if (pips_aro) gfx_disco(x, y, pr + 1, pips_aro);
         gfx_disco(x, y, pr, c);
         if (luz) {                                // o furo com relevo: a luz bate na beira de baixo, a direita
             gfx_pixel(x + pr - 1, y + pr - 1, luz);
@@ -2573,6 +2575,10 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
         ad_recorte(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado);
         return;
     }
+    if (ad_estilo == ADE_RECREL && lados != 2) {     // exploracao: o recorte em relevo, o numero por cima
+        ad_recrel(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado);
+        return;
+    }
     bool novo = ad_estilo != ADE_ATUAL;            // os estilos novos: sem a miniatura, e a ponta levanta
     if (zerado) {
         fundo = gfx_mistura(fundo, C_FELTRO2, 60);
@@ -2627,6 +2633,12 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
         if (textura) ad_vinil(vx, vy, n, 0, a, fundo, cx, cy + oy, ang, r);
         else poligono(vx, vy, n, fundo);
         if (aceso) ad_ponta(cx, cy + oy, r * (k + 0.16f) / 0.62f * 0.62f, 1, d->luz);
+        return;
+    } else if (ad_estilo == ADE_RELEVO2) {        // exploracao: o relevo grande
+        n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
+        n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
+        ad_relevo2(cx, cy + oy, r, a, aceso, zerado, vx, vy, n);
         return;
     } else if (ad_estilo == ADE_RELEVO) {         // exploracao: o vinil liso e o simbolo em relevo
         n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
@@ -2996,7 +3008,10 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     }
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
         ad_etiqueta(cx, cy0, r, lados, ang, adf, adf_aceso, zerado);
-        if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
+        if (ad_estilo == ADE_RECREL) {             // o recorte em relevo: o numero do dado, com o aro branco do papel
+            if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
+            pips_aro = contorno;
+        } else if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
             uint16_t ti = ad_tinta_estilo(adf), fu = ad_fundo_estilo(adf);
             tinta = zerado ? gfx_mistura(ti, C_FELTRO2, 60) : ti;
             // o numero sobre o simbolo ganha um contorno da cor do vinil
@@ -3008,6 +3023,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         && valor >= 1 && valor <= 6 && (!zerado || so_apagado)) {
         uint16_t luz = cor_de_dado(gfx_mistura(tinta, corpo, 45));   // o furo com relevo
         pips_luz((int)cx, (int)cy, valor, (int)r, tinta, luz == tinta ? 0 : luz);
+        pips_aro = 0;
     } else {
         snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
         if (tipo == D_D2 && !zerado && r >= 16 && !adf) numero_cunhado(cx, cy, r, s, tinta);

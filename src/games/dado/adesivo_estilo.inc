@@ -14,9 +14,17 @@
 //             familia do efeito (pontos, multiplica, mexe no dado, protege,
 //             ataca, fica para depois, dinheiro).
 //   RELEVO    o vinil liso, com o simbolo em relevo no meio, como numa medalha.
+//   RECREL    recorte em relevo: o adesivo e a silhueta do simbolo, recortada,
+//             com a margem branca, e o desenho dele em relevo no proprio vinil;
+//             o dado fica a vista em volta e o numero vai por cima, com o
+//             contorno do vinil (o recorte de cima esbarrava no numero).
+//   RELEVO2   relevo grande: o vinil na forma da face, o simbolo grande em
+//             relevo (a luz certa: claro em cima a esquerda, a sombra dele
+//             embaixo a direita) e o numero por cima.
 // Nos novos, o adesivo que age nao acende um halo: a ponta dele levanta.
-enum { ADE_ATUAL, ADE_MATERIAL, ADE_RECORTE, ADE_MOLDURA, ADE_RELEVO, ADE_N };
-static const char *const ADE_NOME[ADE_N] = { "atual", "material", "recorte", "moldura", "relevo" };
+enum { ADE_ATUAL, ADE_MATERIAL, ADE_RECORTE, ADE_MOLDURA, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2, ADE_N };
+static const char *const ADE_NOME[ADE_N] = { "atual", "material", "recorte", "moldura", "relevo",
+                                             "recorte em relevo", "relevo grande" };
 static int ad_estilo = ADE_ATUAL;
 static float t_aviso_adesivo;            // > 0: o aviso do estilo (tecla J) esta na mesa
 
@@ -276,11 +284,12 @@ static bool ic_tinta(int a, int i, int j)
 // A mascara do simbolo em escala s, alargada um ponto e com os buracos
 // cheios (o vinil); em volta, a margem branca e o contorno escuro.
 #define REC_MAX 48
-static void ad_recorte(float cx, float cy, float r, int a, bool aceso, bool zerado)
+// A mascara: 1 a tinta do simbolo, 2 o vinil (o simbolo alargado um ponto,
+// com os buracos de dentro cheios), 3 a margem branca, 4 o contorno.
+static uint8_t M[REC_MAX][REC_MAX];
+static int rec_mascara(int a, int s)
 {
-    const adesivo_t *d = &ADESIVO[a];
-    int s = r >= 16 ? 2 : 1, w = 7 * s, m = 3, W = w + 2 * m;
-    static uint8_t M[REC_MAX][REC_MAX];
+    int w = 7 * s, m = 3, W = w + 2 * m;
     memset(M, 0, sizeof M);
     for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
@@ -307,6 +316,12 @@ static void ad_recorte(float cx, float cy, float r, int a, bool aceso, bool zera
         if (np < REC_MAX * REC_MAX - 4) { pilha[np++] = p + 1; pilha[np++] = p - 1; pilha[np++] = p + W; pilha[np++] = p - W; }
     }
     for (int y = 0; y < W; y++) for (int x = 0; x < W; x++) if (!fora[y][x] && !M[y][x]) M[y][x] = 2;
+    return W;
+}
+static void ad_recorte(float cx, float cy, float r, int a, bool aceso, bool zerado)
+{
+    const adesivo_t *d = &ADESIVO[a];
+    int s = r >= 16 ? 2 : 1, m = 3, W = rec_mascara(a, s);
     int x0 = (int)cx - W / 2, y0 = (int)cy - W / 2 + (aceso ? -1 : 0);
     uint16_t vin = d->fundo == AD_SEM_FUNDO ? RGB(168, 204, 230) : d->fundo, marg = C_BRANCO, cont = C_EBANO_B;
     if (zerado) { vin = gfx_mistura(vin, C_FELTRO2, 60); marg = gfx_mistura(marg, C_FELTRO2, 60); cont = C_FELTRO2; }
@@ -356,5 +371,81 @@ static void ad_relevo(float cx, float cy, float r, int a, bool aceso, bool zerad
             if (!zerado) c = ad_acaba(a, x, y, x - cx, y - cy, r, fase, c);
             gfx_pixel(x, y, c);
         }
+    if (aceso) ad_ponta(cx, cy, r * 0.95f, 1, d->luz);
+}
+
+// ---- RECREL: o recorte em relevo --------------------------------------------
+// A silhueta do simbolo, recortada (a mascara do recorte), no vinil: claro em
+// cima a esquerda e mais escuro embaixo; o desenho em relevo, no tom claro,
+// com a beira de baixo escura e a sombra dele no vinil; a margem branca, o
+// contorno e a sombra do papel no dado. Agindo, o desenho acende e a ponta
+// levanta. O numero vem por cima (desenha_dado_base), com o contorno do vinil.
+static void ad_recrel(float cx, float cy, float r, int a, bool aceso, bool zerado)
+{
+    const adesivo_t *d = &ADESIVO[a];
+    int s = r >= 26 ? 3 : r >= 16 ? 2 : 1, W = rec_mascara(a, s);
+    int x0 = (int)cx - W / 2, y0 = (int)cy - W / 2 - (aceso ? 1 : 0), so = aceso ? 2 : 1;   // agindo, descola um nada
+    uint16_t vin = d->fundo == AD_SEM_FUNDO ? RGB(168, 204, 230) : d->fundo, rmp[4], marg = C_BRANCO, cont = C_EBANO_B;
+    rampa_de(vin, rmp);                                   // [0] o escuro ... [3] o claro
+    if (zerado) {
+        for (int i = 0; i < 4; i++) rmp[i] = gfx_mistura(rmp[i], C_FELTRO2, 60);
+        marg = gfx_mistura(marg, C_FELTRO2, 60); cont = C_FELTRO2;
+    }
+    float fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f;
+    for (int y = 0; y < W; y++)                           // a sombra do papel no dado, abaixo e a direita
+        for (int x = 0; x < W; x++)
+            if (M[y][x] && (x + so >= W || y + so >= W || !M[y + so][x + so])) gfx_pixel(x0 + x + so, y0 + y + so, C_SOMBRA);
+    for (int y = 0; y < W; y++)
+        for (int x = 0; x < W; x++) {
+            int v = M[y][x];
+            if (!v) continue;
+            int X = x0 + x, Y = y0 + y;
+            uint16_t c;
+            if (v == 4) c = cont;
+            else if (v == 3) c = marg;
+            else {
+                float g = (float)(x + y) / (2 * W);           // 0 em cima a esquerda, 1 embaixo a direita
+                c = g < 0.34f ? (bayer(X, Y) < 0.45f ? rmp[3] : rmp[2]) : g > 0.70f ? (bayer(X, Y) < 0.5f ? rmp[1] : rmp[2]) : rmp[2];
+                if (v == 1) {                                  // o desenho, alto: claro, com a beira de baixo escura
+                    bool baixo = x + 1 < W && y + 1 < W && M[y + 1][x + 1] != 1 && M[y + 1][x] != 1;
+                    c = aceso ? (baixo ? rmp[1] : (d->luz == C_BRANCO ? C_BRANCO : d->luz)) : baixo ? rmp[1] : rmp[3];
+                } else if (x > 0 && y > 0 && M[y - 1][x - 1] == 1) c = c == rmp[1] ? rmp[0] : rmp[1];   // a sombra do desenho no vinil
+                if (!zerado) c = ad_acaba(a, X, Y, (float)(x - W / 2), (float)(y - W / 2), r, fase, c);
+            }
+            gfx_pixel(X, Y, c);
+        }
+    if (aceso) ad_ponta((float)(x0 + W / 2), (float)(y0 + W / 2), (float)W * 0.62f, 1, d->luz);
+}
+
+// ---- RELEVO2: o relevo grande ----------------------------------------------
+// O vinil na forma da face, com a luz da mesa (claro em cima a esquerda); o
+// simbolo grande, quase a face toda, em relevo: alto e claro, a beira de
+// baixo escura e a sombra dele no vinil. O numero vem por cima.
+static void ad_relevo2(float cx, float cy, float r, int a, bool aceso, bool zerado, float *vx, float *vy, int n)
+{
+    const adesivo_t *d = &ADESIVO[a];
+    uint16_t base = d->fundo == AD_SEM_FUNDO ? RGB(168, 204, 230) : d->fundo, rmp[4];
+    rampa_de(base, rmp);                                  // [0] o escuro ... [3] o claro
+    if (zerado) for (int i = 0; i < 4; i++) rmp[i] = gfx_mistura(rmp[i], C_FELTRO2, 60);
+    float fase = (hash2((int)cx >> 4, (int)cy >> 4) & 255) / 256.0f;
+    int s = r >= 26 ? 4 : r >= 16 ? 3 : 2, w = 7 * s, ox = (int)cx - w / 2, oy = (int)cy - w / 2;
+    float ymin = 1e9f, ymax = -1e9f, xmin = 1e9f, xmax = -1e9f;
+    for (int i = 0; i < n; i++) { ymin = fminf(ymin, vy[i]); ymax = fmaxf(ymax, vy[i]); xmin = fminf(xmin, vx[i]); xmax = fmaxf(xmax, vx[i]); }
+#define EM(ix, iy) ((ix) >= 0 && (iy) >= 0 && (ix) < w && (iy) < w && ic_tinta(a, (ix) / s, (iy) / s))
+    for (int y = (int)ymin; y <= (int)ymax; y++)
+        for (int x = (int)xmin; x <= (int)xmax; x++) {
+            if (!dentro_poli(x + 0.5f, y + 0.5f, vx, vy, n)) continue;
+            float g = ((x - cx) + (y - cy)) / (2 * r) + 0.5f;   // 0 em cima a esquerda, 1 embaixo a direita
+            uint16_t c = g < 0.36f ? (bayer(x, y) < 0.5f ? rmp[3] : rmp[2]) : g > 0.70f ? (bayer(x, y) < 0.5f ? rmp[1] : rmp[2]) : rmp[2];
+            int ix = x - ox, iy = y - oy;
+            if (EM(ix, iy)) {                              // o simbolo, alto
+                bool baixo = !EM(ix + 1, iy + 1) && (!EM(ix + 1, iy) || !EM(ix, iy + 1));
+                bool cima = !EM(ix - 1, iy - 1) && (!EM(ix - 1, iy) || !EM(ix, iy - 1));
+                c = baixo ? rmp[1] : cima ? (aceso ? C_BRANCO : rmp[3]) : (aceso ? (d->luz == C_BRANCO ? rmp[3] : d->luz) : rmp[3]);
+            } else if (EM(ix - 1, iy - 1)) c = rmp[0];           // a sombra dele no vinil
+            if (!zerado) c = ad_acaba(a, x, y, x - cx, y - cy, r, fase, c);
+            gfx_pixel(x, y, c);
+        }
+#undef EM
     if (aceso) ad_ponta(cx, cy, r * 0.95f, 1, d->luz);
 }

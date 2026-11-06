@@ -77,8 +77,8 @@ static void pagina(int a0, int q)
         int a = a0 + i, y = 40 + i * 54, v = a == AD_REMENDO ? 6 : 4;
         gfx_texto(6, y - 8, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM : ADESIVO[a].luz, GFX_FINO, false);
         gfx_texto(6, y + 2, AF_NOME[AD_FAMILIA[a]], C_TEXTO_M, GFX_FINO, false);
-        for (int e = 0; e < ADE_N; e++) dado_com(e, 108 + e * 58, y, R_DADO, D_D6, a, v, false, false, 1.3f + i * 0.4f);
-        for (int e = 1; e < ADE_N; e++) dado_com(e, 108 + (4 + e) * 58, y, R_DADO, D_D6, a, v, true, false, 1.3f + i * 0.4f);
+        for (int e = 0; e < ADE_RECREL; e++) dado_com(e, 108 + e * 58, y, R_DADO, D_D6, a, v, false, false, 1.3f + i * 0.4f);
+        for (int e = 1; e < ADE_RECREL; e++) dado_com(e, 108 + (4 + e) * 58, y, R_DADO, D_D6, a, v, true, false, 1.3f + i * 0.4f);
     }
     char nome[32];
     snprintf(nome, sizeof nome, "estilos_%d", q);
@@ -196,6 +196,48 @@ static void colagem(void)
     grava("colagem");
 }
 
+// A grade: os 42 adesivos num estilo, cada um num d6 com 5 (o ponto do meio)
+// e num d8 com 7 (o algarismo): onde o adesivo e o numero brigam.
+static void grade(int e, bool aceso, const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    char tit[64];
+    snprintf(tit, sizeof tit, "%s%s", ADE_NOME[e], aceso ? " - agindo" : "");
+    gfx_texto(4, 3, tit, C_MARFIM, GFX_FINO, false);
+    for (int a = 1; a < AD_N; a++) {
+        int i = a - 1, cx = (i % 7) * 91, cy = 14 + (i / 7) * 57;
+        gfx_texto(cx + 4, cy, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM_S : ADESIVO[a].luz, GFX_FINO, false);
+        float t = 1.3f + i * 0.37f;
+        dado_com(e, (float)(cx + 24), (float)(cy + 31), R_DADO, D_D6, a, a == AD_REMENDO ? 6 : 5, aceso, false, t);
+        dado_com(e, (float)(cx + 67), (float)(cy + 31), R_DADO, D_D8, a, 7, aceso, false, t);
+    }
+    grava(nome);
+}
+
+// O recorte de antes, o recorte em relevo e o relevo grande lado a lado, no
+// d6 com 1 e com 5 e no d8 com 7: o que muda quando o numero cai em cima.
+static void compara(void)
+{
+    gfx_clear(C_FELTRO);
+    static const int E[3] = { ADE_RECORTE, ADE_RECREL, ADE_RELEVO2 };
+    static const uint8_t A[6] = { AD_CHUMBO, AD_CONFETE, AD_ELETRONICO, AD_MIRA, AD_DOURADO, AD_VELCRO };
+    for (int e = 0; e < 3; e++) {
+        const char *t = ADE_NOME[E[e]];
+        gfx_texto(170 + e * 168 - gfx_largura(t, GFX_FINO) / 2, 4, t, C_MARFIM, GFX_FINO, false);
+    }
+    for (int i = 0; i < 6; i++) {
+        int a = A[i], y = 38 + i * 54;
+        gfx_texto(6, y - 4, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM : ADESIVO[a].luz, GFX_FINO, false);
+        for (int e = 0; e < 3; e++) {
+            int x0 = 116 + e * 168;
+            dado_com(E[e], (float)x0, (float)y, R_DADO, D_D6, a, 1, false, false, 1.3f + i * 0.4f);
+            dado_com(E[e], (float)(x0 + 50), (float)y, R_DADO, D_D6, a, 5, false, false, 1.3f + i * 0.4f);
+            dado_com(E[e], (float)(x0 + 104), (float)y, R_DADO, D_D8, a, 7, false, false, 1.3f + i * 0.4f);
+        }
+    }
+    grava("compara");
+}
+
 int main(int argc, char **argv)
 {
     if (argc > 1) dir = argv[1];
@@ -210,6 +252,15 @@ int main(int argc, char **argv)
     acabamentos();
     colagem();
     mesas();
-    printf("%d paginas, acabamento e %d mesas em %s\n", q, ADE_N, dir);
+    compara();
+    static const int G[] = { ADE_ATUAL, ADE_RECORTE, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2 };
+    for (unsigned g = 0; g < sizeof G / sizeof G[0]; g++) {
+        char nm[48];
+        snprintf(nm, sizeof nm, "grade_%u_%s", g, ADE_NOME[G[g]]);
+        for (char *c = nm; *c; c++) if (*c == ' ') *c = '_';
+        grade(G[g], false, nm);
+        if (G[g] >= ADE_RECREL) { strcat(nm, "_agindo"); grade(G[g], true, nm); }
+    }
+    printf("%d paginas, acabamento, %d mesas e as grades em %s\n", q, ADE_N, dir);
     return 0;
 }

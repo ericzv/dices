@@ -103,6 +103,7 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_JACKPOT, EV_ESPELHO,
        EV_EXTRA,                     // bonus fixo do fim (Misericordioso, Solitario, Desafiante, Capitao)
        EV_RENASCE,                   // a Fenix volta a valer
+       EV_RESSUSCITA,                // o Agnus tirou 7: os anulados dele voltam (mascara: quais)
        EV_CHEFE,                     // pontos direto no placar (virada do Barao, Crisantemo, Velorio)
        EV_CAVALO,                    // o Cavalo de Troia se abre: anula os dados de quem o atingiu
        EV_CORTA,                     // o Sabotador: o maior do rival passa a valer metade

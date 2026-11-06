@@ -657,6 +657,126 @@ static float borda_d4(float u, float v, float *t)
     return g;
 }
 
+// ---------------------------------------------------------------------------
+// O Agnus e a propria la de cordeiro, com dois chifres de carneiro. A la:
+// tufos miudos e fofos, uns por cima dos outros (cada celula de uma grade
+// torta, um tufo redondo, de raio e altura sorteados: o mais alto cobre o
+// vizinho e faz sombra nele, embaixo a direita). Os chifres: saem do alto,
+// de baixo do topete de la, descem rente as beiras de cima com os aneis do
+// chifre e se enrolam nas pontas do lado, por cima do aro. Tudo nas
+// coordenadas do corpo (0 no meio do dado, onde fica o numero), em raios.
+// ---------------------------------------------------------------------------
+static float arte_du, arte_dv;           // onde o corpo cai nas coordenadas do desenho (pinta_corpo)
+#define LA_CEL 0.22f                     // o espaco entre dois tufos, em raios
+// O tufo de cima no ponto (u, v): devolve 0 se nenhum cobre (o vao fundo
+// entre eles); senao, em (du, dv), onde o ponto esta no tufo (1 na beira);
+// em h, o sorteio do tufo; em sombra, o quanto um tufo mais alto, logo acima
+// a esquerda, faz sombra aqui.
+static bool la_tufo(float u, float v, float *du, float *dv, uint32_t *h, float *sombra)
+{
+    float gu = u / LA_CEL, gv = v / LA_CEL, bz = -1;
+    int iv = (int)floorf(gv);
+    float cu[9], cv[9], cr[9], cz[9];
+    int n = 0;
+    for (int j = iv - 1; j <= iv + 1; j++) {
+        float desl = (j & 1) ? 0.5f : 0;                     // as fileiras alternadas, meio tufo para o lado
+        int iu = (int)floorf(gu - desl);
+        for (int i = iu - 1; i <= iu + 1; i++, n++) {
+            uint32_t q = hash2(i + 401, j + 977);
+            cu[n] = i + desl + 0.5f + ((q & 255) / 255.0f - 0.5f) * 0.40f;
+            cv[n] = j + 0.5f + ((q >> 8 & 255) / 255.0f - 0.5f) * 0.40f;
+            cr[n] = 0.60f + (q >> 16 & 63) / 63.0f * 0.22f;
+            cz[n] = (q >> 22 & 1023) / 1023.0f;
+            float x = (gu - cu[n]) / cr[n], y = (gv - cv[n]) / cr[n];
+            if (x * x + y * y < 1 && cz[n] > bz) { bz = cz[n]; *du = x; *dv = y; *h = q; }
+        }
+    }
+    *sombra = 0;
+    if (bz < 0) return false;
+    for (int k = 0; k < n; k++) {                            // um mais alto, logo acima a esquerda: a sombra dele
+        if (cz[k] <= bz) continue;
+        float x = (gu - 0.16f - cu[k]) / cr[k], y = (gv - 0.16f - cv[k]) / cr[k];
+        if (x * x + y * y < 1) { *sombra = 1; break; }
+    }
+    return true;
+}
+// A linha do meio do chifre da direita (o da esquerda e o espelho), da base
+// ate a ponta: os pontos de controle, suavizados (Catmull-Rom) em
+// CHIFRE_PTS segmentos; ch_a, o comprimento ate cada ponto.
+#define CHIFRE_PTS 60
+static float ch_u[CHIFRE_PTS + 1], ch_v[CHIFRE_PTS + 1], ch_a[CHIFRE_PTS + 1], ch_len;
+static void chifre_monta(void)
+{
+    if (ch_len > 0) return;
+    static const float P[13][2] = { {0.05f,-0.70f}, {0.20f,-0.61f}, {0.38f,-0.47f}, {0.54f,-0.31f}, {0.67f,-0.105f},
+                                    {0.917f,-0.083f}, {1.01f,0.12f}, {0.893f,0.28f}, {0.72f,0.258f}, {0.665f,0.12f},
+                                    {0.745f,0.025f}, {0.845f,0.042f}, {0.869f,0.08f} };
+    const int np = 13;
+    for (int i = 0; i <= CHIFRE_PTS; i++) {
+        float f = (float)i / CHIFRE_PTS * (np - 1);
+        int k = (int)f;
+        if (k > np - 2) k = np - 2;
+        float t = f - k, t2 = t * t, t3 = t2 * t;
+        const float *p0 = P[k ? k - 1 : 0], *p1 = P[k], *p2 = P[k + 1], *p3 = P[k + 2 < np ? k + 2 : np - 1];
+        for (int c = 0; c < 2; c++) {
+            float x = 0.5f * (2 * p1[c] + (p2[c] - p0[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2
+                              + (3 * p1[c] - p0[c] - 3 * p2[c] + p3[c]) * t3);
+            if (c) ch_v[i] = x; else ch_u[i] = x;
+        }
+        ch_a[i] = i ? ch_a[i - 1] + hypotf(ch_u[i] - ch_u[i - 1], ch_v[i] - ch_v[i - 1]) : 0;
+    }
+    ch_len = ch_a[CHIFRE_PTS];
+}
+// O ponto (u, v) num dos chifres: devolve quanto falta ate a beira dele
+// (negativo: dentro); em t, o quanto do chifre ja andou (0 na base, 1 na
+// ponta); em a, o comprimento ate ali; em w, a meia largura; e (nu, nv), a
+// normal (da linha do meio para o ponto).
+static float chifre_agnus(float u, float v, float *t, float *a, float *w, float *nu, float *nv)
+{
+    float au = fabsf(u);
+    if (au > 1.16f || v < -0.86f || v > 0.44f) return 9;
+    if (v < -0.16f && fabsf(au - v - 0.80f) > 0.34f) return 9;   // longe da faixa rente a beira
+    if (v >= -0.16f && au < 0.50f) return 9;
+    chifre_monta();
+    float best = 9, bq = 0, bx = 0, by = -1;
+    int bi = 0;
+    for (int i = 0; i < CHIFRE_PTS; i++) {
+        float ex = ch_u[i + 1] - ch_u[i], ey = ch_v[i + 1] - ch_v[i];
+        float q = ((au - ch_u[i]) * ex + (v - ch_v[i]) * ey) / (ex * ex + ey * ey);
+        q = q < 0 ? 0 : q > 1 ? 1 : q;
+        float dx = au - ch_u[i] - q * ex, dy = v - ch_v[i] - q * ey, d = dx * dx + dy * dy;
+        if (d < best) { best = d; bi = i; bq = q; bx = dx; by = dy; }
+    }
+    float d = sqrtf(best);
+    *a = ch_a[bi] + bq * (ch_a[bi + 1] - ch_a[bi]);
+    *t = *a / ch_len;
+    *w = 0.034f + 0.085f * powf(1 - *t, 0.85f);
+    if (d > 1e-4f) { bx /= d; by /= d; } else { bx = 0; by = -1; }
+    *nu = u < 0 ? -bx : bx;                  // o da esquerda: o espelho
+    *nv = by;
+    return d - *w;
+}
+// O topete: tres tufos grandes de la no alto, por cima da base dos chifres.
+// Devolve o quanto o ponto (u, v) esta dentro (0: fora; 1: no meio do tufo
+// mais alto), e em (du, dv), onde ele esta nesse tufo (1 na beira).
+static float topete(float u, float v, float *du, float *dv)
+{
+    static const float T[3][3] = { { 0.0f, -0.72f, 0.17f }, { -0.15f, -0.63f, 0.125f }, { 0.15f, -0.63f, 0.125f } };
+    float melhor = 0;
+    for (int i = 0; i < 3; i++) {
+        float x = (u - T[i][0]) / T[i][2], y = (v - T[i][1]) / T[i][2], q = 1 - (x * x + y * y);
+        if (q > melhor) { melhor = q; *du = x; *dv = y; }
+    }
+    return melhor;
+}
+// O topete cobre o ponto (u, v) do chifre?
+static bool chifre_coberto(float u, float v, float t)
+{
+    if (t > 0.2f) return false;
+    float du, dv;
+    return t < 0.08f || topete(u, v, &du, &dv) > 0;     // a ponta da base, sempre por baixo
+}
+
 // O desenho de dentro de cada dado especial, no ponto (u, v) do dado em
 // raios (o centro e 0; a borda do corpo fica perto de 0.84), ja girado com
 // ele. s e o tamanho de um pixel em raios. Devolve 0 (o corpo) ou o tom
@@ -1661,6 +1781,88 @@ static uint16_t neve_boneco(float u, float v, float s, int nivel, uint16_t c, ui
     return c;
 }
 
+// A la do Agnus no ponto (u, v) do dado, em raios, girando com ele (x, y: o
+// pixel, para o pontilhado). Os sete tons vao do vao mais fundo ao alto do
+// tufo, todos do marfim (o corpo dos dados e a paleta). Cada tufo e um domo,
+// claro em cima a esquerda e mais escuro na beira de baixo; o de cima faz
+// sombra no de baixo; entre eles, o vao fundo; perto do numero, mais rasos.
+// Grande, cada tufo mostra a volta do fio, um cachinho. Rente aos chifres,
+// embaixo a direita deles, a sombra que eles fazem. Apagado, so os vaos,
+// num cinza so.
+static const uint16_t LA_TOM[7] = { RGB(166, 154, 132), RGB(204, 194, 172), RGB(218, 208, 186), RGB(229, 220, 199),
+                                    RGB(238, 230, 212), RGB(245, 239, 223), RGB(252, 248, 236) };
+static uint16_t la_agnus(float u, float v, float s, int x, int y, uint16_t c, uint16_t cinza)
+{
+    float U = u - arte_du * s, V = v - arte_dv * s;       // no corpo (o numero no meio)
+    float du = 0, dv = 0, sombra;
+    uint32_t h = 0;
+    float tp = topete(U, V, &du, &dv);
+    if (tp > 0) {                                         // o topete, no alto: tres tufos grandes, bem claros
+        if (corpo_apagado) return tp < 0.12f ? cinza : c;
+        float luz = 5.0f - (du + dv) * 1.3f - (tp < 0.14f ? (s < 0.05f ? 1.6f : 0.8f) : 0);   // a beira (pequeno, mais leve)
+        int k = (int)floorf(luz + bayer(x, y) - 0.5f);
+        return LA_TOM[k < 0 ? 0 : k > 6 ? 6 : k];
+    }
+    bool tufo = la_tufo(U, V, &du, &dv, &h, &sombra);
+    if (corpo_apagado) return !tufo || sombra > 0 ? cinza : c;
+    float ro = sqrtf(U * U + V * V), calmo = ro < 0.44f ? 1 - ro / 0.44f : 0;
+    float relevo = 1 - 0.6f * calmo;                      // perto do numero, mais raso
+    float luz = 4.1f - (U + V) * 0.8f;                    // a luz de cima a esquerda, no dado todo
+    if (!tufo) luz -= 2.8f * relevo;                      // o vao entre os tufos
+    else {
+        float b2 = du * du + dv * dv;
+        luz -= (du + dv) * 1.45f * relevo;                // o domo: claro em cima a esquerda
+        if (b2 > 0.62f && du + dv > -0.3f) luz -= (b2 - 0.62f) * 3.2f * relevo;   // a beira que foge da luz
+        luz -= sombra * 1.5f * relevo;                    // a sombra do tufo de cima
+        if (LA_CEL * 0.7f / s > 4.2f) {                   // grande: o cachinho do fio, um C aberto para a luz
+            float an = atan2f(dv, du), rr = sqrtf(b2);
+            if (rr > 0.34f && rr < 0.54f && an > -0.6f && an < 2.9f) luz -= 1.0f * relevo;
+        }
+    }
+    float t, a, w, nu, nv;                                // a sombra dos chifres, embaixo a direita deles
+    float e = chifre_agnus(U, V, &t, &a, &w, &nu, &nv);
+    if (e > -0.02f && e < 0.09f && nu + nv > 0.15f && !chifre_coberto(U, V, t)) luz -= 1.6f * (1 - e / 0.09f);
+    {                                                     // e a do topete, logo abaixo dele
+        float tu, tv;
+        if (topete(U - 0.05f, V - 0.07f, &tu, &tv) > 0) luz -= 1.3f;
+    }
+    int k = (int)floorf(luz + bayer(x, y) - 0.5f);
+    return LA_TOM[k < 0 ? 0 : k > 6 ? 6 : k];
+}
+
+// Os chifres do Agnus, por cima do corpo e do aro (eles se enrolam nas pontas
+// do lado, por cima do aro): cada pixel perto da forma, pela linha do meio
+// do chifre. O chifre e um tubo de couro com a luz de cima a esquerda, os
+// aneis (sulcos escuros, e a crista clara logo depois), a ponta mais clara,
+// um fio de brilho de latao no lado da luz e o contorno escuro do lado da
+// sombra. Na base, o topete de la por cima. Apagado, num tom so.
+static void chifres_agnus(float cx, float cy, float r, float ang, const uint16_t *cores, bool zerado)
+{
+    if (r < 9) return;
+    float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
+    int m = (int)(r * 1.3f) + 2;
+    for (int y = (int)cy - m; y <= (int)cy + m; y++)
+        for (int x = (int)cx - m; x <= (int)cx + m; x++) {
+            float dx = x - cx, dy = y - cy, U = (dx * ca - dy * sa) * s, V = (dx * sa + dy * ca) * s;
+            float t, a, w, nu, nv;
+            float e = chifre_agnus(U, V, &t, &a, &w, &nu, &nv);
+            if (e > s * 0.35f || chifre_coberto(U, V, t)) continue;
+            if (zerado) { gfx_pixel(x, y, cores[1]); continue; }
+            float lado = -(nu + nv) * 0.7071f;            // 1: a beira que olha para a luz (de cima, a esquerda)
+            float c = fmaxf(0, (e + w) / w);              // 0 na linha do meio, 1 na beira
+            float P = fmaxf(0.10f, 3.4f * s), g = fr(a / P);   // os aneis, da base a ponta (pequeno, mais espacados)
+            bool sulco = g < 0.30f && t < 0.94f && (r >= 24 || c < 0.75f);
+            float tu, tv, sob = topete(U - 0.04f, V - 0.06f, &tu, &tv) > 0 ? 0.55f : 0;   // a sombra do topete
+            float l;
+            int ci = 1;
+            if (-e < s * 1.0f && lado < 0.3f) l = -1;     // o contorno, do lado da sombra
+            else if (!sulco && !sob && lado > 0.35f && c > 0.25f && c < 0.75f) { ci = 3; l = 0.35f; }   // o brilho de latao
+            else l = 0.12f + lado * 0.85f * c - (sulco ? (r >= 24 ? 0.45f : 0.32f) : 0) + (g < 0.55f && !sulco ? 0.18f : 0)
+                     + (t > 0.86f ? 0.25f : 0) - sob;
+            gfx_pixel(x, y, rampas_ok ? tom_rampa(rampas_desta[ci], l, x, y) : cores[ci]);
+        }
+}
+
 // O ciclo cosmico e o proprio ceu, pintado ponto a ponto no corpo de noite
 // (girando com o dado): a Estrela, um ponto de luz grande no meio, com o halo
 // e os raios; a Constelacao, estrelas ligadas por fios; a Galaxia, dois
@@ -1797,8 +1999,8 @@ static uint16_t ceu_cosmico(int tipo, float u, float v, float s, int nivel, uint
 // O desenho de dentro foi feito com o corpo um pouco deslocado do centro (o
 // brilho antigo na aresta de cima): (arte_du, arte_dv), em pixels, e onde o
 // centro do corpo cai nas coordenadas do desenho. Somado depois de girar, o
-// desenho fica preso ao corpo, parado ou girando.
-static float arte_du, arte_dv;
+// desenho fica preso ao corpo, parado ou girando. (arte_du e arte_dv estao
+// declarados mais acima, com o Agnus, que tambem os usa.)
 static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, float dcy, int dr,
                         int tipo, const uint16_t *tons, const uint16_t *cores,
                         float cx, float cy, float ang, float r)
@@ -1911,6 +2113,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     if (corpo_desta == D_PANETONE) c = miolo_panetone(u * s, v * s, s, nivel, c, cores[1]);
                     else if (corpo_desta == D_BONECO) c = neve_boneco(u * s, v * s, s, nivel, c, cores[1]);
                     else if (cosmico(corpo_desta)) c = ceu_cosmico(corpo_desta, u * s, v * s, s, nivel, c, cores[1]);
+                    else if (corpo_desta == D_AGNUS) c = la_agnus(u * s, v * s, s, x, y, c, cores[1]);
                 }
                 if (brilho > -5) {
                     float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
@@ -2797,7 +3000,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
-    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || cosmico(tipo) ? tipo : 0;
+    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || tipo == D_AGNUS || cosmico(tipo) ? tipo : 0;
     corpo_apagado = zerado;
     uint16_t corpo = mt->tons[2];
     uint16_t tinta = mt->tinta;
@@ -2939,6 +3142,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, tons, cores, cx, bcy, ang, r);
             else poligono(vx, vy, n, corpo);
         }
+        if (tipo == D_AGNUS) chifres_agnus(cx, bcy, r, ang, cores, zerado);   // por cima do aro
         // as pecas por cima (marca_por_cima) ficam presas ao corpo como o desenho
         mcx = cx - (arte_du * mca - arte_dv * msa);
         mcy = bcy - (arte_du * msa + arte_dv * mca);
@@ -2968,6 +3172,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     uint16_t contorno = cosmico(tipo) && tipo != D_ASTRO && !zerado && r >= 12 ? corpo : 0;
     if (tipo == D_FICHA_CORINGA && !zerado && r >= 12) contorno = RGB(54, 36, 74);
     if (tipo == D_INVEJOSO && !zerado && r >= 12) contorno = RGB(14, 14, 12);
+    if (tipo == D_AGNUS && !zerado && r >= 12) contorno = C_BRANCO;   // o numero recortado na la
     if (curinga && valor != SO_CORPO) {          // a Ficha Coringa: o curinga, ate virar
         curinga_face(cx, cy, r, zerado);
         if (zerado && vista) risca(cx, cy, r);

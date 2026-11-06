@@ -2009,6 +2009,26 @@ def ampulheta():
     m.poe(0.95, nota('glockenspiel', 96, 0.3, 0.3), 0.18)
     return sala(m.x, 0.22)
 
+def agnus():
+    """O Agnus ressuscitando os anulados: o sino grave de capela, as cordas
+    em tremolo subindo devagar como um coro (re maior) e a celesta subindo
+    em arpejo, nota a nota, como os dados que se levantam; no alto, um
+    brilho de glockenspiel e o ar claro, que fica."""
+    m = Mix(2.4)
+    m.poe(0, tom(nota('tubular_bells', 86, 1.4, 0.8), -12), 0.30)             # o sino, uma oitava abaixo
+    m.poe(0.02, tom(nota('tubular_bells', 86, 1.0, 0.6), -24), 0.10)          # e o corpo dele, mais fundo
+    for k, n_ in enumerate((50, 57, 62, 66, 69)):                          # o coro: re, la, re, fa#, la
+        y = nota('tremolo_strings', n_, 1.5, 0.6)
+        q = np.arange(len(y)) / SR
+        y = y * np.minimum(1, q / 0.55) ** 1.6                              # entra devagar, sem ataque
+        m.poe(0.08 + k * 0.03, pb(y, 3200), 0.11 if n_ > 55 else 0.08)
+    for k, n_ in enumerate((74, 78, 81, 86, 90, 93)):                      # os dados se levantando
+        m.poe(0.30 + k * 0.09, nota('celesta', n_, 0.30 if k < 5 else 0.9, 0.45), 0.30 + 0.03 * k)
+    m.poe(0.30 + 6 * 0.09, nota('glockenspiel', 98, 0.6, 0.5), 0.16)        # o brilho no alto
+    n = int(1.3 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.55, banda(rng.standard_normal(n), 5500, 12000) * np.sin(np.pi * q) ** 2, 0.022)   # o ar claro
+    return sala(m.x, 0.32)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -2064,6 +2084,8 @@ VOLUME.update({'vampiro': VOLUME['tira'], 'sabotador': VOLUME['efeito'] * 0.9, '
                'autofagia': VOLUME['anula'] * 0.9, 'ampulheta': VOLUME['efeito'] * 0.9})
 # A troca de tela: um sopro, abaixo do cursor do menu.
 VOLUME.update({'transicao': VOLUME['tique'] * 0.5})
+# O Agnus ressuscitando: um pouco acima de um poder, como a Estrela.
+VOLUME.update({'agnus': VOLUME['efeito'] * 1.05})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2090,7 +2112,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
-             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao'):
+             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

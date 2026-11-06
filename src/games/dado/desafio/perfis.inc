@@ -222,7 +222,8 @@ static int nivel_do_dado(int t)
     case D_VIUVA: case D_PRISMA: case D_CHECKPOINT: case D_POTE_QUENTE:
     case D_OURICO: case D_ANCORA: case D_ONDA:                                  return 7;
     case D_CAPITAO: case D_ESPERANCA: case D_SABOTADOR: case D_FENIX:
-    case D_TUDO_NADA: case D_EGOISTA: case D_ASTRO: case D_DIGITAL:             return 8;
+    case D_TUDO_NADA: case D_EGOISTA: case D_ASTRO: case D_DIGITAL:
+    case D_AGNUS:                                                               return 8;
     case D_FOGO: case D_SORTE_REVES: case D_OCULTO: case D_PACTO:
     case D_ASSOMBRACAO: case D_CAVALO: case D_FICHA_CORINGA:                    return 9;
     case D_MALDITO: case D_GARIMPEIRO: case D_AUTOFAGIA: case D_BERSERKER:      // Agouro

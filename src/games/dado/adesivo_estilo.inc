@@ -21,10 +21,14 @@
 //   RELEVO2   relevo grande: o vinil na forma da face, o simbolo grande em
 //             relevo (a luz certa: claro em cima a esquerda, a sombra dele
 //             embaixo a direita) e o numero por cima.
+//   NOVO      adesivo novo (adesivo_novo.inc): cada um no recorte com a forma
+//             dele, a margem branca e a sombra, a textura e o material dele
+//             (fosco, brilhante, metal, ouro, cromo, holografico, purpurina,
+//             papel, tecido, vidro, neon, cera...), e o numero por cima.
 // Nos novos, o adesivo que age nao acende um halo: a ponta dele levanta.
-enum { ADE_ATUAL, ADE_MATERIAL, ADE_RECORTE, ADE_MOLDURA, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2, ADE_N };
+enum { ADE_ATUAL, ADE_MATERIAL, ADE_RECORTE, ADE_MOLDURA, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2, ADE_NOVO, ADE_N };
 static const char *const ADE_NOME[ADE_N] = { "atual", "material", "recorte", "moldura", "relevo",
-                                             "recorte em relevo", "relevo grande" };
+                                             "recorte em relevo", "relevo grande", "adesivo novo" };
 static int ad_estilo = ADE_ATUAL;
 static float t_aviso_adesivo;            // > 0: o aviso do estilo (tecla J) esta na mesa
 

@@ -238,6 +238,63 @@ static void compara(void)
     grava("compara");
 }
 
+// A grade grande: 21 adesivos por pagina, num d6 e num d8 maiores, para ver
+// o material de perto (parado e, embaixo de cada um, o d6 anulado).
+static void grade_grande(int e, int a0, bool aceso, const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    char tit[64];
+    snprintf(tit, sizeof tit, "%s%s", ADE_NOME[e], aceso ? " - agindo" : "");
+    gfx_texto(4, 3, tit, C_MARFIM, GFX_FINO, false);
+    for (int i = 0; i < 21 && a0 + i < AD_N; i++) {
+        int a = a0 + i, cx = (i % 7) * 91, cy = 14 + (i / 7) * 115;
+        gfx_texto(cx + 4, cy, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM_S : ADESIVO[a].luz, GFX_FINO, false);
+        float t = 1.3f + i * 0.37f;
+        dado_com(e, (float)(cx + 24), (float)(cy + 38), 22, D_D6, a, a == AD_REMENDO ? 6 : 5, aceso, false, t);
+        dado_com(e, (float)(cx + 67), (float)(cy + 38), 22, D_D8, a, 7, aceso, false, t);
+        dado_com(e, (float)(cx + 24), (float)(cy + 88), 20, D_D6, a, 3, false, true, t);
+        dado_com(e, (float)(cx + 67), (float)(cy + 88), 20, D_D4, a, 3, false, false, t);
+    }
+    grava(nome);
+}
+
+// Os miudos: os 42 adesivos em dados pequenos (a mao, a bolsa): r 11 (so a
+// silhueta) e r 14, e o d2 (a moeda).
+static void miudos(int e, const char *nome)
+{
+    gfx_clear(C_FELTRO);
+    gfx_texto(4, 3, "miudos: r 11, r 14 e o d2", C_MARFIM, GFX_FINO, false);
+    for (int a = 1; a < AD_N; a++) {
+        int i = a - 1, cx = 22 + (i % 14) * 44, cy = 34 + (i / 14) * 106;
+        float t = 1.3f + i * 0.37f;
+        dado_com(e, (float)cx, (float)cy, 11, D_D6, a, 4, false, false, t);
+        dado_com(e, (float)cx, (float)(cy + 34), 14, D_D6, a, 2, false, false, t);
+        dado_com(e, (float)cx, (float)(cy + 70), 16, D_D2, a, 1, false, false, t);
+    }
+    grava(nome);
+}
+
+// Antes e depois: os que o recorte em relevo descaracterizava, no padrao de
+// hoje, no recorte em relevo e no adesivo novo, num dado grande (r 26).
+static void antes_depois(void)
+{
+    gfx_clear(C_FELTRO);
+    static const int E[3] = { ADE_ATUAL, ADE_RECREL, ADE_NOVO };
+    static const char *const T[3] = { "hoje", "recorte em relevo", "adesivo novo" };
+    static const uint8_t A[5] = { AD_LOBO, AD_CHICLETE, AD_CORRETIVO, AD_IMPERMEAVEL, AD_BOMBA };
+    for (int e = 0; e < 3; e++) gfx_texto(150 + e * 170 - gfx_largura(T[e], GFX_FINO) / 2, 2, T[e], C_MARFIM, GFX_FINO, false);
+    for (int i = 0; i < 5; i++) {
+        int a = A[i], y = 50 + i * 66;
+        gfx_texto(6, y - 6, ADESIVO[a].nome, ADESIVO[a].luz == C_BRANCO ? C_MARFIM : ADESIVO[a].luz, GFX_FINO, false);
+        for (int e = 0; e < 3; e++) {
+            int x0 = 118 + e * 170;
+            dado_com(E[e], (float)x0, (float)y, 26, D_D6, a, 5, false, false, 1.3f + i * 0.4f);
+            dado_com(E[e], (float)(x0 + 64), (float)y, 26, D_D8, a, 7, false, false, 1.3f + i * 0.4f);
+        }
+    }
+    grava("antes_depois");
+}
+
 int main(int argc, char **argv)
 {
     if (argc > 1) dir = argv[1];
@@ -247,13 +304,24 @@ int main(int argc, char **argv)
     snprintf(perfis[0].nome, sizeof perfis[0].nome, "TESTE");
     perfis[0].nivel = 10; perfis[0].marcos = 3; perfil_atual = 0; perfis_lidos = true;
     modo = M_DESAFIO;
+    if (argc > 2 && !strcmp(argv[2], "novo")) {   // so o adesivo novo: as grades e a mesa
+        grade(ADE_NOVO, false, "novo_grade");
+        grade(ADE_NOVO, true, "novo_grade_agindo");
+        grade_grande(ADE_NOVO, 1, false, "novo_grande_1");
+        grade_grande(ADE_NOVO, 22, false, "novo_grande_2");
+        miudos(ADE_NOVO, "novo_miudos");
+        antes_depois();
+        mesas();
+        printf("adesivo novo em %s\n", dir);
+        return 0;
+    }
     int q = 0;
     for (int a0 = 1; a0 < AD_N; a0 += 6) pagina(a0, q++);
     acabamentos();
     colagem();
     mesas();
     compara();
-    static const int G[] = { ADE_ATUAL, ADE_RECORTE, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2 };
+    static const int G[] = { ADE_ATUAL, ADE_RECORTE, ADE_RELEVO, ADE_RECREL, ADE_RELEVO2, ADE_NOVO };
     for (unsigned g = 0; g < sizeof G / sizeof G[0]; g++) {
         char nm[48];
         snprintf(nm, sizeof nm, "grade_%u_%s", g, ADE_NOME[G[g]]);

@@ -2564,6 +2564,8 @@ static void ad_vinil(const float *vx, const float *vy, int n, int rr, int a, uin
     }
 }
 
+#include "adesivo_novo.inc"             // exploracao: o adesivo no recorte com a forma e o material dele
+
 // A etiqueta: o vinil na forma do dado, com borda branca, e o adesivo da loja
 // em miniatura no canto. Anulado, apagada como o dado.
 static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a, bool aceso, bool zerado)
@@ -2577,6 +2579,10 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
     }
     if (ad_estilo == ADE_RECREL && lados != 2) {     // exploracao: o recorte em relevo, o numero por cima
         ad_recrel(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado);
+        return;
+    }
+    if (ad_estilo == ADE_NOVO) {                     // exploracao: o adesivo novo, o numero por cima
+        ad_novo(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado, ang, lados);
         return;
     }
     bool novo = ad_estilo != ADE_ATUAL;            // os estilos novos: sem a miniatura, e a ponta levanta
@@ -3008,7 +3014,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     }
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
         ad_etiqueta(cx, cy0, r, lados, ang, adf, adf_aceso, zerado);
-        if (ad_estilo == ADE_RECREL) {             // o recorte em relevo: o numero do dado, com o aro branco do papel
+        if (ad_estilo == ADE_RECREL || ad_estilo == ADE_NOVO) {   // o recorte: o numero do dado, com o aro branco do papel
             if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
             pips_aro = contorno;
         } else if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
@@ -3023,12 +3029,12 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         && valor >= 1 && valor <= 6 && (!zerado || so_apagado)) {
         uint16_t luz = cor_de_dado(gfx_mistura(tinta, corpo, 45));   // o furo com relevo
         pips_luz((int)cx, (int)cy, valor, (int)r, tinta, luz == tinta ? 0 : luz);
-        pips_aro = 0;
     } else {
         snprintf(s, sizeof s, sr_lado ? (sr_lado == 1 ? "+%d" : "-%d") : "%d", valor);
         if (tipo == D_D2 && !zerado && r >= 16 && !adf) numero_cunhado(cx, cy, r, s, tinta);
         else numero_contorno(cx, cy, r, s, tinta, contorno);
     }
+    pips_aro = 0;
     if (zerado) risca(cx, cy, r);
 }
 

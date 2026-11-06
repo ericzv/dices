@@ -273,6 +273,7 @@ static void poligono_bisel(const float *vx, const float *vy, int n, float cx, fl
 }
 
 // luz: o tom da beira do furo, no modo Pixel (0: o furo liso de sempre).
+static uint16_t pips_aro;                // != 0: cada ponto com um aro dessa cor (o numero sobre o adesivo recortado)
 static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
 {
     int o = r * 5 / 11;
@@ -286,6 +287,7 @@ static void pips_luz(int cx, int cy, int v, int r, uint16_t c, uint16_t luz)
     for (int i = 0; i < v; i++) {
         int x = cx + P[v][i][0] * o, y = cy + P[v][i][1] * o;
         if (r < 12) { gfx_rect(x - 1, y - 1, 3, 3, c); continue; }
+        if (pips_aro) gfx_disco(x, y, pr + 1, pips_aro);
         gfx_disco(x, y, pr, c);
         if (luz) {                                // o furo com relevo: a luz bate na beira de baixo, a direita
             gfx_pixel(x + pr - 1, y + pr - 1, luz);
@@ -2144,6 +2146,8 @@ static float digital_q = 1;
 static int  ad_face;
 static bool ad_face_aceso;
 
+#include "adesivo_estilo.inc"           // exploracao: outros padroes do adesivo colado
+
 // O vinil de cada adesivo nao e so a cor: tem uma textura discreta, sempre
 // nas cores vizinhas da paleta e em poucos pontos, para o numero (que tem o
 // contorno da cor do vinil) continuar lendo bem. (X, Y): o ponto em pixels a
@@ -2551,10 +2555,16 @@ static void ad_vinil(const float *vx, const float *vy, int n, int rr, int a, uin
                 float dx = x - cx, dy = y - cy, de = 1e9f;
                 if (n) for (int i = 0; i < n; i++) de = fminf(de, hs[i] - dx * nxs[i] - dy * nys[i]);
                 else de = rr - sqrtf(dx * dx + dy * dy);
-                gfx_pixel(x, y, ad_textura(a, dx * ca - dy * sa, dx * sa + dy * ca, de, r, fase, mov, fundo));
+                float X = dx * ca - dy * sa, Y = dx * sa + dy * ca;
+                uint16_t c = 0;
+                if (ad_estilo == ADE_MATERIAL && ad_redesenhado(a)) c = ad_textura_nova(a, X, Y, de, r, fase, fundo);
+                if (!c) c = ad_estilo == ADE_MATERIAL && ad_redesenhado(a) ? fundo : ad_textura(a, X, Y, de, r, fase, mov, fundo);
+                gfx_pixel(x, y, ad_acaba(a, x, y, X, Y, r, fase, c));
             }
     }
 }
+
+#include "adesivo_novo.inc"             // exploracao: o adesivo no recorte com a forma e o material dele
 
 // A etiqueta: o vinil na forma do dado, com borda branca, e o adesivo da loja
 // em miniatura no canto. Anulado, apagada como o dado.
@@ -2562,7 +2572,20 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
 {
     const adesivo_t *d = &ADESIVO[a];
     bool vidro = d->fundo == AD_SEM_FUNDO;
-    uint16_t fundo = vidro ? 0 : d->fundo, borda = vidro ? d->luz : C_BRANCO, halo = d->luz;
+    uint16_t fundo = vidro ? 0 : ad_fundo_estilo(a), borda = vidro ? d->luz : C_BRANCO, halo = d->luz;
+    if (ad_estilo == ADE_RECORTE && lados != 2) {    // exploracao: o simbolo recortado no meio da face
+        ad_recorte(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado);
+        return;
+    }
+    if (ad_estilo == ADE_RECREL && lados != 2) {     // exploracao: o recorte em relevo, o numero por cima
+        ad_recrel(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado);
+        return;
+    }
+    if (ad_estilo == ADE_NOVO) {                     // exploracao: o adesivo novo, o numero por cima
+        ad_novo(cx, cy + (lados == 4 ? r * 0.12f : 0), r, a, aceso && !zerado, zerado, ang, lados);
+        return;
+    }
+    bool novo = ad_estilo != ADE_ATUAL;            // os estilos novos: sem a miniatura, e a ponta levanta
     if (zerado) {
         fundo = gfx_mistura(fundo, C_FELTRO2, 60);
         borda = gfx_mistura(borda, C_FELTRO2, 60);
@@ -2593,15 +2616,53 @@ static void ad_etiqueta(float cx, float cy, float r, int lados, float ang, int a
                 gfx_linha((int)vx[i], (int)vy[i], (int)vx[(i + 1) % n], (int)vy[(i + 1) % n], q ? C_BRANCO : borda);
         }
         gfx_linha((int)(cx - r * 0.38f), (int)(cy - r * 0.05f), (int)(cx - r * 0.05f), (int)(cy - r * 0.38f), borda);
+    } else if (ad_estilo == ADE_MOLDURA) {        // exploracao: a borda da familia, e a textura de hoje dentro
+        float vo[12], wo[12];
+        int no = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.16f), ang, vo, wo);
+        poligono(vo, wo, no, C_SOMBRA);
+        no = forma(lados, cx, cy + oy, r * (k + 0.16f), ang, vo, wo);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
+        int fam = zerado ? AF_SUJO : AD_FAMILIA[a];
+        for (int yy = (int)(cy - r); yy <= (int)(cy + r); yy++)
+            for (int xx = (int)(cx - r); xx <= (int)(cx + r); xx++) {
+                if (!dentro_poli(xx + 0.5f, yy + 0.5f, vo, wo, no) || dentro_poli(xx + 0.5f, yy + 0.5f, vx, vy, n)) continue;
+                float de = 1e9f;                       // os pixels ate a beira de dentro
+                for (int i = 0; i < n; i++) {
+                    int j = (i + 1) % n;
+                    float ex = vx[j] - vx[i], ey = vy[j] - vy[i], l = sqrtf(ex * ex + ey * ey);
+                    float dd = fabsf((xx + 0.5f - vx[i]) * ey - (yy + 0.5f - vy[i]) * ex) / l;
+                    de = fminf(de, dd);
+                }
+                if (zerado) gfx_pixel(xx, yy, borda);
+                else ad_moldura_px(fam, xx, yy, cx, cy + oy, de, d->luz);
+            }
+        if (textura) ad_vinil(vx, vy, n, 0, a, fundo, cx, cy + oy, ang, r);
+        else poligono(vx, vy, n, fundo);
+        if (aceso) ad_ponta(cx, cy + oy, r * (k + 0.16f) / 0.62f * 0.62f, 1, d->luz);
+        return;
+    } else if (ad_estilo == ADE_RELEVO2) {        // exploracao: o relevo grande
+        n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
+        n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
+        ad_relevo2(cx, cy + oy, r, a, aceso, zerado, vx, vy, n);
+        return;
+    } else if (ad_estilo == ADE_RELEVO) {         // exploracao: o vinil liso e o simbolo em relevo
+        n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
+        n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
+        n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
+        ad_relevo(cx, cy + oy, r, a, aceso, zerado, vx, vy, n);
+        return;
     } else {
-        if (aceso) { n = forma(lados, cx, cy + oy, r * (k + 0.2f), ang, vx, vy); poligono(vx, vy, n, halo); }
+        if (aceso && !novo) { n = forma(lados, cx, cy + oy, r * (k + 0.2f), ang, vx, vy); poligono(vx, vy, n, halo); }
+        if (aceso && novo) { n = forma(lados, cx, cy + oy, r * (k + 0.13f), ang, vx, vy); poligono(vx, vy, n, halo); }
         n = forma(lados, cx + 1, cy + oy + 1, r * (k + 0.06f), ang, vx, vy); poligono(vx, vy, n, gfx_mistura(fundo, C_BARRA, 45));
         n = forma(lados, cx, cy + oy, r * (k + 0.08f), ang, vx, vy); poligono(vx, vy, n, borda);
         n = forma(lados, cx, cy + oy, r * k, ang, vx, vy);
         if (textura) ad_vinil(vx, vy, n, 0, a, fundo, cx, cy + oy, ang, r);
         else poligono(vx, vy, n, fundo);
+        if (aceso && novo) ad_ponta(cx, cy + oy, r * (k + 0.08f), 1, d->luz);
     }
-    if (r < 12) return;
+    if (r < 12 || novo) return;
     // O adesivo da loja em miniatura, no canto da face: diz qual e.
     int x = (int)(cx - r * 0.88f), y = (int)(cy - r * 0.88f);
     if (lados == 4) { x = (int)cx - 5; y = (int)(cy - r * 0.98f); }
@@ -2726,6 +2787,8 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     bool adf_aceso = ad_face_aceso;
     ad_face = 0;
     ad_face_aceso = false;
+    an_fx_t fx = an_fx;                           // o que se anima no adesivo: so deste dado
+    an_fx_zera();
     int lados = TIPO[tipo].lados;
     if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
     const visual_t *vi = &VISUAL[tipo];
@@ -2952,11 +3015,17 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         return;
     }
     if (adf) {                           // o adesivo do lado de cima: a etiqueta, e o numero na tinta dela
+        an_fx = fx;
         ad_etiqueta(cx, cy0, r, lados, ang, adf, adf_aceso, zerado);
-        if (ADESIVO[adf].fundo != AD_SEM_FUNDO) {
-            tinta = zerado ? gfx_mistura(ADESIVO[adf].tinta, C_FELTRO2, 60) : ADESIVO[adf].tinta;
+        an_fx_zera();
+        if (ad_estilo == ADE_RECREL || ad_estilo == ADE_NOVO) {   // o recorte: o numero do dado, com o aro branco do papel
+            if (r >= 12) contorno = zerado ? gfx_mistura(C_BRANCO, C_FELTRO2, 60) : C_BRANCO;
+            pips_aro = contorno;
+        } else if (ADESIVO[adf].fundo != AD_SEM_FUNDO && ad_estilo != ADE_RECORTE) {
+            uint16_t ti = ad_tinta_estilo(adf), fu = ad_fundo_estilo(adf);
+            tinta = zerado ? gfx_mistura(ti, C_FELTRO2, 60) : ti;
             // o numero sobre o simbolo ganha um contorno da cor do vinil
-            if (r >= 12) contorno = zerado ? gfx_mistura(ADESIVO[adf].fundo, C_FELTRO2, 60) : ADESIVO[adf].fundo;
+            if (r >= 12) contorno = zerado ? gfx_mistura(fu, C_FELTRO2, 60) : fu;
         }
     }
     if (lados == 6 && TIPO[tipo].efeito != EF_ESPELHO && TIPO[tipo].efeito != EF_REVOLVER && TIPO[tipo].efeito != EF_ASTRO
@@ -2969,6 +3038,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         if (tipo == D_D2 && !zerado && r >= 16 && !adf) numero_cunhado(cx, cy, r, s, tinta);
         else numero_contorno(cx, cy, r, s, tinta, contorno);
     }
+    pips_aro = 0;
     if (zerado) risca(cx, cy, r);
 }
 

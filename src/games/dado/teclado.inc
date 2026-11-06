@@ -111,6 +111,13 @@ void dado_tecla(const key_event_t *ev_)
         som_toca(SOM_TIQUE);
         return;
     }
+    if (k == 'j' && !dado_digitando()) {            // exploracao: o padrao do adesivo colado (adesivo_estilo.inc)
+        ad_estilo = (ad_estilo + 1) % ADE_N;
+        t_aviso_adesivo = 1.6f;
+        t_aviso_vel = t_aviso_tremor = t_aviso_letra = 0;
+        som_toca(SOM_TIQUE);
+        return;
+    }
     if (k == 'l' && !dado_digitando()) {            // a letra maior (gfx.c)
         gfx_letra_maior(!gfx_letra_e_maior());
         salva_grava("letra", gfx_letra_e_maior() ? "1" : "0");

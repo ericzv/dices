@@ -217,8 +217,9 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
         } else {
             int a = cat_adesivo(i);
             fechado = !adesivo_aberto(a);
-            if (fechado) silhueta_dado((float)x, (float)y, 9, 6, C_SOMBRA, 0.85f);
-            else ad_solto_d(x, y, a, 1, 0);
+            if (fechado && ad_estilo == ADE_NOVO) ad_novo_silhueta(x, y, a, 2, C_SOMBRA);   // a forma dele, no escuro
+            else if (fechado) silhueta_dado((float)x, (float)y, 9, 6, C_SOMBRA, 0.85f);
+            else ad_solto_d(x, y, a, ad_estilo == ADE_NOVO ? 2 : 1, 0);   // o recorte pede uns pixels a mais
         }
         zona_clique(x - FIL_PASSO / 2, FIL_Y - 18, FIL_PASSO, 36, var, i, 0);
     }

@@ -560,8 +560,10 @@ static void ad_caixa_borda(int x, int y, int w, int h, uint16_t c)
 static float bayer(int x, int y);
 static void rampa_de(uint16_t c, uint16_t *r);
 static uint16_t tom_rampa(const uint16_t *r, float l, int x, int y);
+static bool ad_solto_novo(int cx, int cy, int a, int s, float descola);   // o recorte do estilo novo (adesivo_novo.inc)
 static void ad_solto_d(int cx, int cy, int a, int s, float descola)
 {
+    if (ad_solto_novo(cx, cy, a, s, descola)) return;
     const adesivo_t *d = &ADESIVO[a];
     int w = 7 * s + 6 * (s > 1 ? 2 : 1), X = cx - w / 2 - 1, Y = cy - w / 2 - 1, W = w + 2;
     int p = s + 3 + (int)(descola * (2 * s + 3));    // a ponta descolando
@@ -612,17 +614,20 @@ static int ad_pilula_w(int lado)
     snprintf(s, sizeof s, "%d", lado);
     return gfx_largura(s, GFX_MIUDO) + 5;
 }
+static bool ad_pilula_nova(int a, uint16_t *borda, uint16_t *fundo, uint16_t *tinta);   // adesivo_novo.inc
 static void ad_pilula(int cx, int cy, int a, int lado, bool aceso)
 {
     const adesivo_t *d = &ADESIVO[a];
     char s[4];
     snprintf(s, sizeof s, "%d", lado);
     int w = ad_pilula_w(lado), h = 9, x = cx - w / 2, y = cy - h / 2;
+    uint16_t borda = d->luz, fundo = d->fundo == AD_SEM_FUNDO ? C_FELTRO_ESC : d->fundo, tinta = d->tinta;
+    ad_pilula_nova(a, &borda, &fundo, &tinta);
     gfx_rect(x + 1, y + 2, w, h, C_SOMBRA);
     if (aceso) ad_caixa(x - 1, y - 1, w + 2, h + 2, C_BRANCO);
-    ad_caixa(x, y, w, h, d->luz);
-    ad_caixa(x + 1, y + 1, w - 2, h - 2, d->fundo == AD_SEM_FUNDO ? C_FELTRO_ESC : d->fundo);
-    gfx_texto(x + 3, y - 2, s, d->tinta, GFX_MIUDO, false);
+    ad_caixa(x, y, w, h, borda);
+    ad_caixa(x + 1, y + 1, w - 2, h - 2, fundo);
+    gfx_texto(x + 3, y - 2, s, tinta, GFX_MIUDO, false);
 }
 
 // Os selinhos de um dado parado (mao, bolsa, loja): em fila na beira de

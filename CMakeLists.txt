@@ -160,6 +160,15 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     if (UNIX)
         target_link_libraries(balanco PRIVATE m)
     endif()
+    # Prancha dos adesivos (exploracao de adesivo_estilo.inc): fora do ctest.
+    add_executable(prancha_adesivos tests/prancha_adesivos.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(prancha_adesivos PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(prancha_adesivos PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(prancha_adesivos PRIVATE m)
+    endif()
     # Teste visual: as telas principais contra a referencia (tests/telas_ref.txt).
     # So no Linux: em outros sistemas a conta em float da fisica e das curvas
     # sai um pouco diferente. Mudou uma tela de proposito: build/telas

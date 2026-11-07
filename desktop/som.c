@@ -76,6 +76,16 @@ static const char *const NOME[SOM_N] = {
     [SOM_VAMPIRO] = "vampiro",   [SOM_SABOTADOR] = "sabotador", [SOM_COVEIRO] = "coveiro",
     [SOM_AUTOFAGIA] = "autofagia", [SOM_AMPULHETA] = "ampulheta",
     [SOM_TRANSICAO] = "transicao", [SOM_AGNUS] = "agnus",
+    [SOM_AG_RASPADINHA] = "ag_raspadinha", [SOM_CL_CORRETIVO] = "cl_corretivo", [SOM_CL_CARIMBO] = "cl_carimbo", [SOM_CL_SELO] = "cl_selo",
+    [SOM_CL_NOTA_DEZ] = "cl_nota_dez", [SOM_CL_CHICLETE] = "cl_chiclete", [SOM_CL_MASSINHA] = "cl_massinha",
+    [SOM_CL_BARRO] = "cl_barro", [SOM_CL_INFECTADO] = "cl_infectado", [SOM_CL_FERMENTO] = "cl_fermento",
+    [SOM_CL_CHUMBO] = "cl_chumbo", [SOM_CL_REFLEXIVO] = "cl_reflexivo", [SOM_CL_ELETRONICO] = "cl_eletronico",
+    [SOM_CL_TRANSPARENTE] = "cl_transparente", [SOM_CL_REMENDO] = "cl_remendo", [SOM_CL_GORJETA] = "cl_gorjeta",
+    [SOM_CL_IMANTADO] = "cl_imantado", [SOM_CL_RATOEIRA] = "cl_ratoeira", [SOM_CL_MIRA] = "cl_mira", [SOM_CL_NEON]
+    = "cl_neon", [SOM_CL_VELCRO] = "cl_velcro", [SOM_CL_PATINHO] = "cl_patinho", [SOM_CL_CASCA] = "cl_casca",
+    [SOM_CL_BOMBA] = "cl_bomba", [SOM_CL_LOBO] = "cl_lobo", [SOM_CL_DOURADO] = "cl_dourado", [SOM_CL_FRAGIL] =
+    "cl_fragil", [SOM_CL_DUPLA] = "cl_dupla", [SOM_CL_POSTIT] = "cl_postit", [SOM_CL_CARBONO] = "cl_carbono",
+    [SOM_CL_CONFETE] = "cl_confete", [SOM_CL_PURPURINA] = "cl_purpurina", [SOM_CL_IMPERMEAVEL] = "cl_impermeavel",
 };
 
 typedef struct {

@@ -1328,6 +1328,7 @@ static int som_do_evento(int i)
         if (e->modo & EVM_DUPLA) return SOM_AD_DUPLA;       // o dado vira; idem
         if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
         if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
+        if (e->ad == AD_RASPADINHA && !e->copia && ad_v2(AD_RASPADINHA)) return SOM_AG_RASPADINHA;   // a proposta: raspada inteira
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;

@@ -3967,7 +3967,7 @@ int main(void)
         run_t r;
         CONFERE(des_carrega(&r) && ad_no_lado(&r.col[1], 1) == AD_ELETRONICO && ad_no_lado(&r.col[1], 6) == AD_CONFETE
                 && r.ad_vendido, "o adesivo colado nao ficou salvo");
-        loja_passo(LJ_COLA_FIM + 0.01f);
+        loja_passo(lj_cola_fim() + 0.01f);
         CONFERE(!lj_colando && cursor == lj_item_adesivo(0), "depois de colar, a loja volta");
         loja_tecla(KEY_ENTER, 0);
         CONFERE(!lj_colando && run.moedas == 15, "colou duas vezes");
@@ -3988,7 +3988,7 @@ int main(void)
                 && run.moedas == 15 - preco_adesivo(AD_LOBO), "o segundo adesivo: %d moedas", run.moedas);
         CONFERE(des_carrega(&r) && r.dois_adesivos && r.ad_vendido2 && ad_no_lado(&r.col[2], 1) == AD_LOBO,
                 "o segundo adesivo nao ficou salvo");
-        loja_passo(LJ_COLA_FIM + 0.01f);
+        loja_passo(lj_cola_fim() + 0.01f);
         CONFERE(!lj_colando && cursor == lj_item_adesivo(1), "depois de colar o segundo, a loja volta nele");
         run.dois_adesivos = 0;
         // A partida leva os adesivos e devolve como ficaram.

@@ -2030,6 +2030,419 @@ def agnus():
     return sala(m.x, 0.32)
 
 # ---------------------------------------------------------------------------
+# A colagem da proposta dos adesivos (cl_*): cada um com a sua ferramenta, no
+# tempo da animacao (adesivo_v2_anima.inc: o 0 e a escolha do lado).
+# ---------------------------------------------------------------------------
+def chacoalha(m, t0, n, passo, semi=10, g=0.35):
+    """A bolinha batendo dentro do frasco: cliques de plastico, bem agudos."""
+    for k in range(n):
+        m.poe(max(0, t0 + k * passo + rnd.uniform(-0.006, 0.006)), pa(tom(batida('dicehit_plastic%d' % (3 + k % 5)), semi), 2200), g * rnd.uniform(0.7, 1))
+
+def pincelada(dur, lo=900, hi=3800, molhada=1.0):
+    """O pincel passando: o chiado dos pelos, crescendo e sumindo, e o molhado estalando."""
+    n = int(dur * SR); q = np.linspace(0, 1, n)
+    x = banda(rng.standard_normal(n), lo, hi) * np.sin(np.pi * q) ** 0.8
+    gotas = pb((rng.random(n) < 0.004) * rng.uniform(0.4, 1, n), 1800)
+    return x * (0.7 + 3.0 * molhada * gotas)
+
+def risca(dur, lo=2200, hi=7000, vai=22):
+    """A ponta (caneta, lapis) riscando: o chiado agudo tremendo no vai e vem."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    am = 0.55 + 0.45 * np.sin(2 * np.pi * vai * t + 2 * np.sin(2 * np.pi * 3 * t))
+    return banda(rng.standard_normal(n), lo, hi) * am * env(n, 0.01, dur)
+
+def sopro(dur, lo=400, hi=3000):
+    """O ar passando: o ruido que sobe e desce (algo caindo, voando)."""
+    n = int(dur * SR); q = np.linspace(0, 1, n)
+    return banda(rng.standard_normal(n), lo, hi) * np.sin(np.pi * q) ** 2
+
+def baque(semi=-6, corte=1500, madeira=0.3):
+    """O que cai no dado: o feltro e um pouco da madeira, mais grave."""
+    x = pb(tom(superficie('surface_felt%d' % rnd.randint(1, 7)), semi), corte)
+    return x + madeira * tom(superficie('surface_wood_table%d' % rnd.randint(1, 7)), semi - 2)
+
+def metal(semi=0, g=1.0):
+    return g * tom(batida('dicehit_metal%d' % rnd.randint(1, 12)), semi)
+
+def chiado(dur, lo=3000, hi=10000, ataque=0.02):
+    """O chiado continuo (o spray, o pavio, a solda)."""
+    n = int(dur * SR)
+    return banda(rng.standard_normal(n), lo, hi) * env(n, ataque, dur * 2) * np.linspace(1, 0.3, n)
+
+def zumbido(dur, f=120, brilho=2500):
+    """O neon: o zumbido da rede eletrica (as harmonicas de 120 Hz) e um chiado fino."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    x = sum(np.sin(2 * np.pi * f * k * t) / k for k in range(1, 12))
+    return banda(x + 0.3 * rng.standard_normal(n), 150, brilho)
+
+def cl_corretivo():
+    """O frasco chacoalhando (a bolinha dentro), a tampa saindo com o pincel,
+    as tres pinceladas de ida e volta e a tampa fechando."""
+    m = Mix(1.9)
+    chacoalha(m, 0.0, 5, 0.032)
+    m.poe(0.18, gota(1500, 900, 0.05), 0.12)                             # a tampa desrosqueando
+    m.poe(0.20, risca(0.16, 900, 2500, 40), 0.08)
+    for k in range(3):                                                    # as pinceladas (0.285 s cada)
+        m.poe(0.42 + k * 0.285, pincelada(0.30, 800 + 200 * (k & 1), 3600), 0.30)
+    m.poe(1.28, pincelada(0.12, 1200, 4000, 0.3), 0.15)                  # o pingo escorrendo
+    m.poe(1.62, pa(tom(batida('dicehit_plastic4'), 6), 1500), 0.40)      # a tampa fecha
+    return sala(m.x, 0.10)
+
+def cl_carimbo():
+    """O carimbo: sobe um nada, desce no ar e TUM na borracha; descola da tinta subindo."""
+    m = Mix(1.4)
+    m.poe(0.20, sopro(0.26, 300, 2200), 0.16)
+    n = int(0.12 * SR); t = np.arange(n) / SR
+    m.poe(0.46, np.sin(2 * np.pi * np.cumsum(180 * np.exp(-t * 25) + 70) / SR) * env(n, 0.0008, 0.045), 0.9)   # o TUM
+    m.poe(0.46, pb(superficie('surface_wood_table3'), 2200), 0.55)
+    m.poe(0.46, estalinho(0.018, 1500), 0.4)
+    n = int(0.12 * SR); t = np.arange(n) / SR                            # a borracha descolando
+    m.poe(0.62, pb(rng.standard_normal(n), 2500) * (0.5 + 0.5 * np.sin(2 * np.pi * 45 * t)) * env(n, 0.01, 0.04), 0.25)
+    m.poe(0.66, gota(900, 1400, 0.03, 0.002), 0.12)
+    return sala(m.x, 0.10)
+
+def cl_selo():
+    """O lacre: a chama acende no bastao, a cera pinga (plic, plic, chiando), o
+    sinete desce e aperta, e a fumacinha sai quando ele sobe."""
+    m = Mix(2.2)
+    m.poe(0.00, chiado(0.30, 1200, 5000, 0.05), 0.10)                    # a chama
+    m.poe(0.02, estalinho(0.02, 2000), 0.25)
+    for k in range(7):                                                    # os pingos de cera
+        tk = 0.36 + k * 0.125
+        m.poe(tk, gota(rnd.uniform(500, 700), rnd.uniform(220, 300), 0.06), 0.35)
+        m.poe(tk + 0.01, chiado(0.10, 4000, 9000), 0.05)
+    m.poe(1.10, sopro(0.14, 300, 1800), 0.12)                            # o sinete descendo
+    m.poe(1.24, pb(superficie('surface_wood_table5'), 1800), 0.7)        # e apertando
+    m.poe(1.24, metal(-14, 0.25))
+    m.poe(1.26, lama(0.18, 600, 30), 0.25)                               # a cera amassando
+    m.poe(1.50, chiado(0.45, 2500, 7000, 0.05), 0.07)                    # a fumacinha
+    return sala(m.x, 0.12)
+
+def cl_nota_dez():
+    """A caneta: a tampa estala, a volta riscada no papel, o 10 em dois tracos,
+    o sublinhado ligeiro e o 'muito bem' de sininho."""
+    m = Mix(1.8)
+    m.poe(0.04, estalinho(0.012, 2500), 0.5)                             # a tampa
+    m.poe(0.05, pa(tom(batida('dicehit_plastic2'), 12), 2000), 0.25)
+    m.poe(0.30, risca(0.63, 2600, 7500, 18), 0.22)                       # a volta
+    m.poe(0.96, risca(0.08, 2600, 7500, 30), 0.20)                       # o 1
+    m.poe(1.06, risca(0.10, 2600, 7500, 30), 0.20)                       # o 0
+    m.poe(1.19, risca(0.14, 2000, 6500, 12), 0.25)                       # o sublinhado
+    m.poe(1.36, nota('glockenspiel', 96, 0.3, 0.4), 0.30)
+    m.poe(1.42, nota('glockenspiel', 100, 0.3, 0.4), 0.25)
+    return sala(m.x, 0.12)
+
+def cl_chiclete():
+    """A bola de chiclete: o sopro enchendo (a borracha esticando, subindo), o
+    PLOC do estouro e a goma grudando no dado."""
+    m = Mix(1.6)
+    n = int(0.55 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 140 + 260 * q ** 1.5 + 6 * np.sin(2 * np.pi * 9 * t)
+    m.poe(0.00, np.sin(2 * np.pi * np.cumsum(f) / SR) * q * 0.4 + banda(rng.standard_normal(n), 300, 2000) * q * 0.25, 0.30)
+    m.poe(0.55, estalinho(0.03, 900), 0.9)                               # PLOC
+    m.poe(0.55, gota(600, 160, 0.06), 0.4)
+    m.poe(0.62, lama(0.20, 900, 40), 0.45)                               # grudou
+    n = int(0.4 * SR); t = np.arange(n) / SR                             # os fios esticando
+    m.poe(0.80, banda(rng.standard_normal(n), 500, 2500) * (0.5 + 0.5 * np.sin(2 * np.pi * 14 * t)) * env(n, 0.05, 0.12), 0.12)
+    return sala(m.x, 0.10)
+
+def cl_massinha():
+    """A massinha: cai (plof mole), e o dedao aperta (o squish) e solta."""
+    m = Mix(1.4)
+    m.poe(0.10, sopro(0.22, 500, 2500), 0.08)
+    m.poe(0.34, lama(0.16, 500, 18), 0.6)                                # plof
+    m.poe(0.34, pb(superficie('surface_felt2'), 900), 0.5)
+    m.poe(0.48, lama(0.24, 800, 36), 0.45)                               # o dedao apertando
+    m.poe(0.70, gota(300, 700, 0.05), 0.15)                              # e soltando
+    return sala(m.x, 0.10)
+
+def cl_barro():
+    """A bola de barro: atirada (o sopro), o SPLAT molhado e os respingos caindo."""
+    m = Mix(1.2)
+    m.poe(0.02, sopro(0.28, 300, 2400), 0.18)
+    m.poe(0.30, lama(0.22, 900, 22), 0.9)                                # SPLAT
+    m.poe(0.30, pb(superficie('surface_felt4'), 1200), 0.6)
+    for k in range(5):                                                    # os respingos
+        m.poe(0.36 + k * 0.05 + rnd.uniform(0, 0.02), gota(rnd.uniform(350, 600), 200, 0.04), 0.18)
+    return sala(m.x, 0.10)
+
+def cl_infectado():
+    """O germe: gorgoleja no ar, cai (squelch) e as veias correm pela face
+    (um estalar viscoso); os esporos sobem em bolhinhas."""
+    m = Mix(1.6)
+    m.poe(0.04, gota(240, 520, 0.08), 0.30)
+    m.poe(0.36, lama(0.16, 800, 30), 0.7)
+    n = int(0.8 * SR)
+    m.poe(0.48, pb((rng.random(n) < 0.02) * rng.uniform(0.3, 1, n), 2000) * np.linspace(1, 0.3, n), 1.2)   # as veias
+    for k in range(5):
+        m.poe(0.55 + k * 0.14, gota(rnd.uniform(400, 700), rnd.uniform(900, 1300), 0.04), 0.12)
+    return sala(m.x, 0.12)
+
+def cl_fermento():
+    """O fermento: a massa cai murcha (plof) e cresce, as bolhas estourando cada vez mais agudas."""
+    m = Mix(1.8)
+    m.poe(0.30, lama(0.14, 600, 14), 0.6)
+    m.poe(0.30, pb(superficie('surface_felt5'), 900), 0.4)
+    for k in range(9):
+        tk = 0.42 + k * 0.11
+        m.poe(tk, gota(180 + 40 * k, 420 + 70 * k, 0.05), 0.22)
+    return sala(m.x, 0.12)
+
+def cl_chumbo():
+    """O Chumbo: cai pesado (o feltro bem grave e o tambor), e duas marteladas nos rebites."""
+    m = Mix(1.4)
+    m.poe(0.04, sopro(0.20, 200, 1200), 0.10)
+    m.poe(0.24, pb(tom(superficie('surface_felt3'), -9), 1200), 1.0)
+    m.poe(0.24, pb(nota('timpani', 36, 0.25, 0.2), 300), 0.55)
+    m.poe(0.24, tom(superficie('surface_wood_table5'), -12), 0.35)
+    for tk in (0.725, 0.96):                                             # as marteladas
+        m.poe(tk, metal(4, 0.55))
+        m.poe(tk, pb(superficie('surface_wood_table2'), 3000), 0.25)
+    return sala(m.x, 0.10)
+
+def cl_reflexivo():
+    """O espelho: desce, encosta (o vidro) e o clarao passa num brilho."""
+    m = Mix(1.1)
+    m.poe(0.34, pa(tom(superficie('surface_metal3'), 6), 1500), 0.35)
+    for k, nn in enumerate((96, 103)):
+        m.poe(0.42 + k * 0.08, nota('glockenspiel', nn, 0.25, 0.35), 0.25)
+    w = ruido(0.3, 5000, 11000)
+    m.poe(0.40, w * env(len(w), 0.04, 0.1), 0.05)
+    return sala(m.x, 0.14)
+
+def cl_eletronico():
+    """O chip: encosta (o plastico), cada perninha soldada (tss e o estalo) e o LED acende (bip bip)."""
+    m = Mix(1.6)
+    m.poe(0.30, pa(tom(batida('dicehit_plastic7'), 4), 800), 0.45)
+    for k in range(4):
+        tk = 0.48 + k * 0.17
+        m.poe(tk, chiado(0.09, 3500, 10000, 0.002), 0.22)
+        m.poe(tk, estalinho(0.008, 5000), 0.25)
+    for k in range(2):
+        n = int(0.06 * SR); t = np.arange(n) / SR
+        m.poe(1.18 + k * 0.10, np.sign(np.sin(2 * np.pi * 1760 * t)) * env(n, 0.002, 0.03), 0.10)
+    return sala(m.x, 0.08)
+
+def cl_transparente():
+    """O vidro: desliza no dado (o chiado liso) e encaixa com o clique de vidro."""
+    m = Mix(1.0)
+    m.poe(0.08, banda(rng.standard_normal(int(0.32 * SR)), 2500, 8000) * np.linspace(0.3, 1, int(0.32 * SR)), 0.08)
+    m.poe(0.40, pa(tom(superficie('surface_metal5'), 9), 2500), 0.35)
+    m.poe(0.42, nota('glockenspiel', 101, 0.2, 0.3), 0.20)
+    return sala(m.x, 0.12)
+
+def cl_remendo():
+    """O remendo: o pano cai mole, e a agulha costura em volta (o furinho e a linha puxada)."""
+    m = Mix(1.8)
+    m.poe(0.30, pb(superficie('surface_felt6'), 1500), 0.5)
+    for k in range(12):
+        tk = 0.42 + k * 0.083
+        m.poe(tk, estalinho(0.005, 4500), 0.12)
+        m.poe(tk + 0.02, banda(rng.standard_normal(int(0.05 * SR)), 1500, 5000) * np.hanning(int(0.05 * SR)), 0.07)
+    return sala(m.x, 0.10)
+
+def cl_gorjeta():
+    """A ficha: tirada no polegar (o tim), girando no ar, e cai rodando ate deitar."""
+    m = Mix(1.3)
+    m.poe(0.00, tom(batida('dicehit_coin2'), 3), 0.5)
+    n = int(0.45 * SR); t = np.arange(n) / SR                            # girando no ar
+    m.poe(0.05, banda(rng.standard_normal(n), 2000, 6000) * (0.5 + 0.5 * np.sin(2 * np.pi * 18 * t)) * np.sin(np.pi * t / t[-1]), 0.06)
+    m.poe(0.52, ficha_clique(-2), 0.8)
+    for k in range(5):                                                    # rodando ate deitar, cada vez mais rapido
+        m.poe(0.60 + 0.16 * (1 - 0.72 ** k), ficha_clique(-4 + k), 0.35 * 0.8 ** k)
+    return sala(m.x, 0.10)
+
+def cl_imantado():
+    """O ima: vem puxado (o zumbido subindo), CLAC no dado e as limalhas tilintando."""
+    m = Mix(1.1)
+    n = int(0.30 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    m.poe(0.00, np.sin(2 * np.pi * np.cumsum(90 + 260 * q ** 2) / SR) * q * 0.5, 0.25)
+    m.poe(0.30, metal(-6, 0.9))
+    m.poe(0.30, pb(superficie('surface_metal2'), 3000), 0.5)
+    for k in range(6):
+        m.poe(0.34 + k * 0.03 + rnd.uniform(0, 0.02), metal(14 + rnd.randint(0, 6), 0.10))
+    return sala(m.x, 0.10)
+
+def cl_ratoeira():
+    """A ratoeira: a madeira no dado, a mola puxada para tras (rangendo) e o clique de armada."""
+    m = Mix(1.1)
+    m.poe(0.30, pb(superficie('surface_wood_tray3'), 2500), 0.55)
+    n = int(0.18 * SR); t = np.arange(n) / SR                            # a mola rangendo
+    saw = 2 * (t * 330 % 1) - 1
+    m.poe(0.52, banda(saw * (0.6 + 0.4 * np.sin(2 * np.pi * 37 * t)), 400, 3000) * np.sin(np.pi * t / t[-1]), 0.10)
+    m.poe(0.70, metal(8, 0.45))
+    m.poe(0.70, estalinho(0.01, 3000), 0.3)
+    return sala(m.x, 0.10)
+
+def cl_mira():
+    """A luneta: a lente encosta e o aro gira em dois cliques de foco."""
+    m = Mix(1.1)
+    m.poe(0.32, pa(tom(superficie('surface_metal6'), 4), 1200), 0.35)
+    for tk in (0.55, 0.75):
+        m.poe(tk, pa(tom(batida('dicehit_metal4'), 10), 3000), 0.35)
+        m.poe(tk + 0.012, pa(tom(batida('dicehit_metal7'), 12), 3000), 0.20)
+    return sala(m.x, 0.10)
+
+def cl_neon():
+    """O neon: a plaquinha encosta e o tubo pisca ate acender, zumbindo, com os estalos de ligar."""
+    m = Mix(1.5)
+    m.poe(0.30, pa(tom(batida('dicehit_plastic9'), 0), 800), 0.4)
+    z = zumbido(1.0)
+    porta = np.zeros(len(z)); t = np.arange(len(z)) / SR
+    for a0, a1 in ((0.17, 0.25), (0.38, 0.44), (0.59, 1.0)):            # quando liga (a 0.30 + q * 0.95)
+        porta[(t >= a0) & (t < a1)] = 1
+    porta = pb(porta, 60)
+    m.poe(0.30, z * porta * np.linspace(1, 0.6, len(z)), 0.20)
+    for tk in (0.47, 0.68, 0.89):
+        m.poe(tk, estalinho(0.006, 4000), 0.25)
+    return sala(m.x, 0.10)
+
+def cl_velcro():
+    """O velcro: encosta, e a luva aperta (os ganchinhos pegando, um crepitar)."""
+    m = Mix(1.1)
+    m.poe(0.30, pb(superficie('surface_felt1'), 1500), 0.4)
+    n = int(0.36 * SR)
+    m.poe(0.36, pa(rng.standard_normal(n), 1500) * ((rng.random(n) < 0.05) * 1.0 + 0.15) * np.hanning(n), 0.18)
+    return sala(m.x, 0.10)
+
+def cl_patinho():
+    """O patinho: cai na agua (splash), boia e da o quack de borracha."""
+    m = Mix(1.2)
+    m.poe(0.32, pb(rng.standard_normal(int(0.15 * SR)), 2500) * env(int(0.15 * SR), 0.002, 0.04), 0.6)   # splash
+    for k in range(4):
+        m.poe(0.34 + k * 0.04, gota(rnd.uniform(500, 900), rnd.uniform(1100, 1600), 0.035), 0.20)
+    n = int(0.16 * SR); t = np.arange(n) / SR                            # o quack
+    f = 950 + 350 * np.sin(np.pi * t / t[-1]) + 30 * np.sin(2 * np.pi * 40 * t)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    m.poe(0.60, banda(np.sin(ph) + 0.6 * np.sin(2 * ph) + 0.4 * np.sin(3 * ph), 600, 4000) * env(n, 0.01, 0.07), 0.25)
+    return sala(m.x, 0.12)
+
+def cl_casca():
+    """A casca de banana: atirada (o sopro) e cai mole, esparramando (flop)."""
+    m = Mix(1.1)
+    m.poe(0.08, sopro(0.26, 300, 2000), 0.15)
+    m.poe(0.36, lama(0.12, 1200, 50), 0.6)
+    m.poe(0.36, pb(superficie('surface_felt7'), 1500), 0.4)
+    return sala(m.x, 0.10)
+
+def cl_bomba():
+    """A bombinha: o papel no dado, o pavio chiando e soltando faiscas, e apaga (pfff)."""
+    m = Mix(1.3)
+    m.poe(0.30, pb(superficie('surface_felt2'), 2000), 0.35)
+    n = int(0.42 * SR)
+    m.poe(0.42, (banda(rng.standard_normal(n), 2500, 9000) + 2 * pa((rng.random(n) < 0.01) * 1.0, 3000)) * np.linspace(1, 0.6, n), 0.12)
+    m.poe(0.85, sopro(0.18, 500, 3000), 0.12)                            # pfff, apagou
+    return sala(m.x, 0.10)
+
+def cl_lobo():
+    """A garra: o rosnado curto e o rasgo (o risco que arranha fundo)."""
+    m = Mix(1.0)
+    n = int(0.22 * SR); t = np.arange(n) / SR
+    rosna = pb(rng.standard_normal(n) * (0.5 + 0.5 * np.sin(2 * np.pi * 34 * t)), 500) * env(n, 0.03, 0.12)
+    m.poe(0.00, rosna, 0.5)
+    m.poe(0.18, risca(0.16, 1200, 6000, 60), 0.45)
+    m.poe(0.18, pa(superficie('surface_wood_table6'), 2000), 0.3)
+    return sala(m.x, 0.12)
+
+def cl_dourado():
+    """A folha de ouro: desce flutuando (um brilho de ar, os sininhos descendo),
+    encosta de leve e o pincel macio alisa; umas lascas tilintam."""
+    m = Mix(1.6)
+    for k, nn in enumerate((103, 100, 96, 93)):
+        m.poe(0.05 + k * 0.16, nota('glockenspiel', nn, 0.3, 0.4), 0.12)
+    w = ruido(0.7, 4000, 10000)
+    m.poe(0.02, w * np.sin(np.pi * np.linspace(0, 1, len(w))), 0.03)
+    m.poe(0.72, pb(superficie('surface_felt3'), 2500), 0.15)
+    m.poe(0.80, pincelada(0.52, 1500, 5000, 0.2), 0.12)
+    for k in range(4):
+        m.poe(0.95 + k * 0.08, nota('glockenspiel', 105 + (k % 2) * 3, 0.1, 0.2), 0.06)
+    return sala(m.x, 0.15)
+
+def cl_fragil():
+    """A fita de embalagem: o ZZZIP desenrolando (o grito da cola) e o corte."""
+    m = Mix(1.1)
+    n = int(0.50 * SR); t = np.arange(n) / SR
+    f = 55 + 40 * t / t[-1]
+    am = 0.35 + 0.65 * (np.sin(2 * np.pi * np.cumsum(f) / SR) > 0)
+    m.poe(0.12, banda(rng.standard_normal(n), 900, 5000) * am * np.sin(np.pi * t / t[-1]) ** 0.4, 0.40)
+    m.poe(0.64, estalinho(0.012, 2500), 0.5)                             # o corte no dente
+    return sala(m.x, 0.08)
+
+def cl_dupla():
+    """A fita dupla face: encosta e a luva aperta a espuma (um fff macio e o grude)."""
+    m = Mix(1.1)
+    m.poe(0.30, pb(superficie('surface_felt5'), 1800), 0.35)
+    m.poe(0.40, sopro(0.30, 400, 2000), 0.12)
+    m.poe(0.55, lama(0.12, 1500, 50), 0.15)
+    return sala(m.x, 0.10)
+
+def cl_postit():
+    """O post-it: o papel no dado, a luva aperta a cola e a ponta de baixo bate (flap flap)."""
+    m = Mix(1.1)
+    m.poe(0.30, pa(superficie('surface_felt1'), 800), 0.35)
+    for k in range(3):
+        m.poe(0.44 + k * 0.11, banda(rng.standard_normal(int(0.03 * SR)), 800, 4000) * np.hanning(int(0.03 * SR)), 0.20 * 0.7 ** k)
+    return sala(m.x, 0.10)
+
+def cl_carbono():
+    """O papel carbono: a folha no dado e o lapis riscando por cima (o grafite no papel)."""
+    m = Mix(1.3)
+    m.poe(0.30, pa(superficie('surface_felt4'), 900), 0.30)
+    m.poe(0.44, risca(0.56, 1500, 6000, 10), 0.28)
+    return sala(m.x, 0.10)
+
+def cl_confete():
+    """O lanca-confete: chacoalha, POW, e o papel picado chovendo (chiado leve, uns tiques)."""
+    m = Mix(1.5)
+    m.poe(0.02, banda(rng.standard_normal(int(0.2 * SR)), 1500, 6000) * np.hanning(int(0.2 * SR)), 0.06)
+    m.poe(0.24, estalinho(0.04, 600), 1.0)                              # POW
+    m.poe(0.24, pb(rng.standard_normal(int(0.1 * SR)), 3000) * env(int(0.1 * SR), 0.001, 0.03), 0.5)
+    n = int(0.85 * SR)
+    m.poe(0.32, banda(rng.standard_normal(n), 3000, 9000) * np.linspace(1, 0.2, n), 0.05)   # a chuva
+    for k in range(10):
+        m.poe(0.45 + rnd.uniform(0, 0.6), estalinho(0.004, 5000), 0.06)
+    return sala(m.x, 0.12)
+
+def cl_purpurina():
+    """A purpurina: a cola espremida (um squish), o potinho chacoalhando e os brilhos caindo, e o sopro."""
+    m = Mix(1.8)
+    m.poe(0.22, lama(0.32, 1500, 40), 0.25)                              # a cola
+    n = int(0.62 * SR); t = np.arange(n) / SR                            # o potinho
+    m.poe(0.52, banda(rng.standard_normal(n), 3000, 9000) * (0.5 + 0.5 * np.sin(2 * np.pi * 9 * t)) ** 2, 0.10)
+    for k in range(6):
+        m.poe(0.60 + k * 0.10, nota('glockenspiel', rnd.choice((96, 100, 103, 108)), 0.15, 0.3), 0.08)
+    m.poe(1.22, sopro(0.30, 800, 5000), 0.18)                            # o sopro
+    return sala(m.x, 0.14)
+
+def cl_impermeavel():
+    """O verniz: a lata chacoalhando (a bolinha), o PSSST do spray e o brilho passando."""
+    m = Mix(1.5)
+    chacoalha(m, 0.0, 4, 0.045, semi=4, g=0.30)
+    m.poe(0.20, chiado(0.64, 3500, 11000, 0.02), 0.22)
+    for k, (ins, nn) in enumerate((('vibraphone', 84), ('vibraphone', 88), ('glockenspiel', 96))):
+        m.poe(0.90 + k * 0.07, nota(ins, nn, 0.3, 0.4), 0.18)
+    return sala(m.x, 0.14)
+
+def ag_raspadinha():
+    """A Raspadinha da proposta (2,1 s): a moeda raspa a prata em quatro
+    fileiras de ida e volta, o premio aparece (os sininhos e as moedas), e a
+    moeda raspa o cartao inteiro, mais aspero, em cinco fileiras ate sair."""
+    m = Mix(2.3)
+    def raspa(t0, dur, lo, hi, g):
+        n = int(dur * SR); q = np.linspace(0, 1, n)
+        w = banda(rng.standard_normal(n), lo, hi) * np.sin(np.pi * q) ** 0.6
+        m.poe(t0, w * (0.7 + 0.3 * np.sin(2 * np.pi * 31 * q * dur)), g)
+    for k in range(4):                                                    # a prata: 0 a 0.71 s
+        raspa(k * 0.178, 0.17, 1800, 7000, 0.32)
+    for k, nn in enumerate((91, 96, 100)):                                # o premio
+        m.poe(0.74 + k * 0.06, nota('glockenspiel', nn, 0.25, 0.4), 0.45)
+    moedas(m, 0.80, 1.05, 5, 0.3)
+    for k in range(5):                                                    # o cartao: 1.05 a 1.81 s, mais aspero
+        raspa(1.05 + k * 0.151, 0.145, 900, 5000, 0.36)
+    m.poe(1.82, banda(rng.standard_normal(int(0.25 * SR)), 2000, 8000) * np.linspace(1, 0, int(0.25 * SR)), 0.05)   # o po saindo
+    return sala(m.x, 0.15)
+
+# ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
 VOLUME = {
@@ -2086,6 +2499,15 @@ VOLUME.update({'vampiro': VOLUME['tira'], 'sabotador': VOLUME['efeito'] * 0.9, '
 VOLUME.update({'transicao': VOLUME['tique'] * 0.5})
 # O Agnus ressuscitando: um pouco acima de um poder, como a Estrela.
 VOLUME.update({'agnus': VOLUME['efeito'] * 1.05})
+# A colagem da proposta dos adesivos: na altura da colagem de hoje (uma ficha), os pesados como o pouso.
+CL_NOMES = ('cl_corretivo', 'cl_carimbo', 'cl_selo', 'cl_nota_dez', 'cl_chiclete', 'cl_massinha', 'cl_barro',
+            'cl_infectado', 'cl_fermento', 'cl_chumbo', 'cl_reflexivo', 'cl_eletronico', 'cl_transparente',
+            'cl_remendo', 'cl_gorjeta', 'cl_imantado', 'cl_ratoeira', 'cl_mira', 'cl_neon', 'cl_velcro',
+            'cl_patinho', 'cl_casca', 'cl_bomba', 'cl_lobo', 'cl_dourado', 'cl_fragil', 'cl_dupla', 'cl_postit',
+            'cl_carbono', 'cl_confete', 'cl_purpurina', 'cl_impermeavel')
+VOLUME.update({n: VOLUME['ficha'] * 1.15 for n in CL_NOMES})
+VOLUME.update({'ag_raspadinha': VOLUME['efeito']})
+VOLUME.update({'cl_chumbo': VOLUME['pousa'] * 0.8, 'cl_carimbo': VOLUME['ficha'] * 1.4, 'cl_confete': VOLUME['ficha'] * 1.4})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2112,7 +2534,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
-             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):
+             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus', 'ag_raspadinha') + CL_NOMES:
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

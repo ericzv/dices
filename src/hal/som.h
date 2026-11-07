@@ -72,6 +72,14 @@ enum {
     SOM_AMPULHETA,   // a ampulheta virada, a areia escorrendo e o sininho
     SOM_TRANSICAO,   // a troca de tela: o pano da cortina passando da esquerda para a direita
     SOM_AGNUS,       // o Agnus ressuscitando os anulados: o sino, o coro e a celesta subindo
+    // Exploracao: a colagem da proposta de cada adesivo, no tempo da ferramenta (adesivo_v2_anima.inc)
+    SOM_AG_RASPADINHA, // a proposta: a moeda raspando a prata, o premio e o cartao inteiro saindo
+    SOM_CL_CORRETIVO, SOM_CL_CARIMBO, SOM_CL_SELO, SOM_CL_NOTA_DEZ, SOM_CL_CHICLETE, SOM_CL_MASSINHA,
+    SOM_CL_BARRO, SOM_CL_INFECTADO, SOM_CL_FERMENTO, SOM_CL_CHUMBO, SOM_CL_REFLEXIVO, SOM_CL_ELETRONICO,
+    SOM_CL_TRANSPARENTE, SOM_CL_REMENDO, SOM_CL_GORJETA, SOM_CL_IMANTADO, SOM_CL_RATOEIRA, SOM_CL_MIRA,
+    SOM_CL_NEON, SOM_CL_VELCRO, SOM_CL_PATINHO, SOM_CL_CASCA, SOM_CL_BOMBA, SOM_CL_LOBO, SOM_CL_DOURADO,
+    SOM_CL_FRAGIL, SOM_CL_DUPLA, SOM_CL_POSTIT, SOM_CL_CARBONO, SOM_CL_CONFETE, SOM_CL_PURPURINA,
+    SOM_CL_IMPERMEAVEL,
     SOM_N
 };
 

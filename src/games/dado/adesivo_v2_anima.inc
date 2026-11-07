@@ -684,57 +684,43 @@ static void cn2_tela(float u, float w, float cx, float cy, float R, float th, in
 static bool cn2_passou(float t0, float t1, float t) { return t0 < t && t1 >= t; }
 static void cn2_sons(int a, float t0, float t1)
 {
-    switch (a) {
-    case AD_CORRETIVO:
-        if (cn2_passou(t0, t1, 0.02f)) som_toca(SOM_AD_CORRETIVO);   // o frasco chacoalhando e o pincel
-        break;
-    case AD_CARIMBO:
-        if (cn2_passou(t0, t1, 0.16f)) som_toca(SOM_AD_CARIMBO);     // o TUM cai em 0.46
-        break;
-    case AD_SELO:
-        if (cn2_passou(t0, t1, 0.34f)) som_toca(SOM_AD_FERMENTO);    // a cera pingando
-        if (cn2_passou(t0, t1, 1.24f)) som_toca(SOM_AD_SELO);        // o sinete
-        break;
-    case AD_NOTA_DEZ:
-        if (cn2_passou(t0, t1, 0.30f)) som_toca(SOM_AD_CARBONO);     // a caneta riscando
-        if (cn2_passou(t0, t1, 1.36f)) som_toca(SOM_AD_NOTA_DEZ);
-        break;
-    case AD_CHICLETE: if (cn2_passou(t0, t1, 0.02f)) som_toca(SOM_AD_CHICLETE); break;
-    case AD_MASSINHA: if (cn2_passou(t0, t1, 0.30f)) som_toca(SOM_AD_MASSINHA); break;
-    case AD_BARRO: case AD_SUJEIRA: if (cn2_passou(t0, t1, 0.10f)) som_toca(SOM_AD_BARRO); break;
-    case AD_INFECTADO: if (cn2_passou(t0, t1, 0.30f)) som_toca(SOM_AD_INFECTADO); break;
-    case AD_FERMENTO: if (cn2_passou(t0, t1, 0.28f)) som_toca(SOM_AD_FERMENTO); break;
-    case AD_CHUMBO:
-        if (cn2_passou(t0, t1, 0.24f)) som_toca(SOM_AD_CHUMBO);
-        if (cn2_passou(t0, t1, 0.62f) || cn2_passou(t0, t1, 0.86f)) som_toca(SOM_TIQUE);   // as marteladas
-        break;
-    case AD_ELETRONICO:
-        for (int i = 0; i < 4; i++) if (cn2_passou(t0, t1, 0.48f + i * 0.17f)) som_toca(SOM_TIQUE);   // cada perninha soldada
-        if (cn2_passou(t0, t1, 1.18f)) som_toca(SOM_AD_ELETRONICO);
-        break;
-    case AD_REMENDO: if (cn2_passou(t0, t1, 0.36f)) som_toca(SOM_AD_REMENDO); break;
-    case AD_NEON: if (cn2_passou(t0, t1, 0.36f)) som_toca(SOM_AD_NEON); break;
-    case AD_BOMBA: if (cn2_passou(t0, t1, 0.40f)) som_toca(SOM_AD_BOMBA); break;
-    case AD_GORJETA: if (cn2_passou(t0, t1, 0.02f)) som_toca(SOM_AD_GORJETA); break;
-    case AD_IMANTADO: if (cn2_passou(t0, t1, 0.28f)) som_toca(SOM_AD_IMANTADO); break;
-    case AD_VELCRO: if (cn2_passou(t0, t1, 0.34f)) som_toca(SOM_AD_VELCRO); break;
-    case AD_RATOEIRA: if (cn2_passou(t0, t1, 0.62f)) som_toca(SOM_AD_RATOEIRA); break;
-    case AD_PATINHO: if (cn2_passou(t0, t1, 0.30f)) som_toca(SOM_AD_PATINHO); break;
-    case AD_CASCA: if (cn2_passou(t0, t1, 0.34f)) som_toca(SOM_AD_CASCA); break;
-    case AD_LOBO: if (cn2_passou(t0, t1, 0.10f)) som_toca(SOM_AD_LOBO); break;
-    case AD_DOURADO: if (cn2_passou(t0, t1, 0.70f)) som_toca(SOM_AD_DOURADO); break;
-    case AD_FRAGIL: if (cn2_passou(t0, t1, 0.10f)) som_toca(SOM_AD_FRAGIL); break;
-    case AD_DUPLA: if (cn2_passou(t0, t1, 0.10f)) som_toca(SOM_AD_DUPLA); break;
-    case AD_POSTIT: if (cn2_passou(t0, t1, 0.28f)) som_toca(SOM_AD_POSTIT); break;
-    case AD_CARBONO: if (cn2_passou(t0, t1, 0.46f)) som_toca(SOM_AD_CARBONO); break;
-    case AD_REFLEXIVO: case AD_MIRA: case AD_TRANSPARENTE:
-        if (cn2_passou(t0, t1, cn2_toca(a) - 0.02f)) som_toca(som_adesivo(a));
-        break;
-    case AD_CONFETE: if (cn2_passou(t0, t1, 0.24f)) som_toca(SOM_AD_CONFETE); break;
-    case AD_PURPURINA: if (cn2_passou(t0, t1, 0.70f)) som_toca(SOM_AD_PURPURINA); break;
-    case AD_IMPERMEAVEL: if (cn2_passou(t0, t1, 0.16f)) som_toca(SOM_AD_IMPERMEAVEL); break;
-    default: break;
-    }
+    // Um som so, do comeco ao fim, feito no tempo da animacao (tools/sons/gera.py, cl_*).
+    static const uint16_t CL[AD_N] = {
+        [AD_CORRETIVO] = SOM_CL_CORRETIVO,
+        [AD_CARIMBO] = SOM_CL_CARIMBO,
+        [AD_SELO] = SOM_CL_SELO,
+        [AD_NOTA_DEZ] = SOM_CL_NOTA_DEZ,
+        [AD_CHICLETE] = SOM_CL_CHICLETE,
+        [AD_MASSINHA] = SOM_CL_MASSINHA,
+        [AD_BARRO] = SOM_CL_BARRO,
+        [AD_INFECTADO] = SOM_CL_INFECTADO,
+        [AD_FERMENTO] = SOM_CL_FERMENTO,
+        [AD_CHUMBO] = SOM_CL_CHUMBO,
+        [AD_REFLEXIVO] = SOM_CL_REFLEXIVO,
+        [AD_ELETRONICO] = SOM_CL_ELETRONICO,
+        [AD_TRANSPARENTE] = SOM_CL_TRANSPARENTE,
+        [AD_REMENDO] = SOM_CL_REMENDO,
+        [AD_GORJETA] = SOM_CL_GORJETA,
+        [AD_IMANTADO] = SOM_CL_IMANTADO,
+        [AD_RATOEIRA] = SOM_CL_RATOEIRA,
+        [AD_MIRA] = SOM_CL_MIRA,
+        [AD_NEON] = SOM_CL_NEON,
+        [AD_VELCRO] = SOM_CL_VELCRO,
+        [AD_PATINHO] = SOM_CL_PATINHO,
+        [AD_CASCA] = SOM_CL_CASCA,
+        [AD_BOMBA] = SOM_CL_BOMBA,
+        [AD_LOBO] = SOM_CL_LOBO,
+        [AD_DOURADO] = SOM_CL_DOURADO,
+        [AD_FRAGIL] = SOM_CL_FRAGIL,
+        [AD_DUPLA] = SOM_CL_DUPLA,
+        [AD_POSTIT] = SOM_CL_POSTIT,
+        [AD_CARBONO] = SOM_CL_CARBONO,
+        [AD_CONFETE] = SOM_CL_CONFETE,
+        [AD_PURPURINA] = SOM_CL_PURPURINA,
+        [AD_IMPERMEAVEL] = SOM_CL_IMPERMEAVEL,
+        [AD_SUJEIRA] = SOM_CL_BARRO,
+    };
+    if (cn2_passou(t0, t1, 0.005f) && CL[a]) som_toca(CL[a]);
 }
 
 // Antes de encostar: a ferramenta paira sobre o lado da vez (tc 0) e, colando,

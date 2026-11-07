@@ -149,7 +149,7 @@ enum { FO_CIRCULO, FO_QUADRADO, FO_RETANGULO, FO_HEXAGONO, FO_LOSANGO, FO_ESTREL
        FO_PUFE, FO_LACRE, FO_RESPINGO, FO_ESCORRIDO, FO_CHIP, FO_FERRADURA, FO_DESCOLA, FO_DUPLO, FO_FOLHAS,
        FO_CANTO, FO_ETIQUETA, FO_INGRESSO, FO_LOBO, FO_EXPLOSAO, FO_CASCA, FO_PATO, FO_FITA, FO_RACHADO,
        FO_FELPUDO, FO_MIRA, FO_TABUA, FO_CARTA, FO_ROSETA, FO_VIRUS, FO_GOMA, FO_MASSA, FO_METADES,
-       FO_PESO, FO_BRILHO4, FO_DINAMITE };
+       FO_PESO, FO_BRILHO4, FO_DINAMITE, FO_COLEIRA, FO_TIQUETE };
 // MN_IGUAL: (so na segunda parte) o mesmo material da primeira.
 enum { MN_IGUAL, MN_FOSCO, MN_VINIL, MN_BRILHO, MN_METAL, MN_OURO, MN_CROMO, MN_HOLO, MN_GLITTER, MN_PAPEL,
        MN_TECIDO, MN_VIDRO, MN_NEON, MN_CERA, MN_BORRACHA, MN_MADEIRA, MN_LAMA, MN_CETIM, MN_LENTE, MN_CHUMBO,
@@ -207,6 +207,8 @@ static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_MOLDURA]      = { FO_QUADRADO,  MN_OURO,      0,         76,   0, RGB(228, 194, 106), RGB(150, 122, 62) },
     [AD_ALBUM]        = { FO_RETANGULO, MN_BRILHO,    0,         74,   4, RGB(130, 204, 112), 0 },
     [AD_XEROX]        = { FO_FOLHAS,    MN_PAPEL,     MN_PAPEL,  70,  -6, RGB(238, 230, 212), RGB(252, 248, 236) },
+    [AD_COLEIRA]      = { FO_COLEIRA,   MN_VINIL,     MN_OURO,   82,   0, RGB(176, 52, 48),   RGB(228, 194, 106) },
+    [AD_TIQUETE]      = { FO_TIQUETE,   MN_PAPEL,     MN_FOSCO,  86,  -8, RGB(236, 214, 140), RGB(66, 40, 24) },
 };
 
 // A forma de cima (a aba dobrada, a folha da frente, a agua sobre o pato...):
@@ -445,6 +447,18 @@ static float an_forma(int a, float x, float y, int *parte)
         float pv = fminf(sdn_seg(x, y, 0.0f, -0.50f, 0.10f, -0.78f), sdn_seg(x, y, 0.10f, -0.78f, 0.34f, -0.90f)) - 0.07f;
         if (pv < d) *parte = 1;
         return fminf(d, pv);
+    }
+    case FO_COLEIRA: {                             // a coleira: o anel de couro e o pingente de ouro pendurado
+        float ro = sqrtf(x * x + (y + 0.14f) * (y + 0.14f)), anel = fabsf(ro - 0.54f) - 0.17f;
+        float pin = sqrtf(x * x + (y - 0.70f) * (y - 0.70f)) - 0.24f;
+        if (pin < anel) *parte = 1;
+        return fminf(anel, pin);
+    }
+    case FO_TIQUETE: {                             // o bilhete do metro: o cartao, a tarja magnetica e o furo da catraca
+        float d = sdn_caixa(x, y, 0.95f, 0.60f, 0.10f);
+        d = fmaxf(d, -(sqrtf((x - 0.66f) * (x - 0.66f) + (y + 0.30f) * (y + 0.30f)) - 0.10f));
+        if (y > 0.14f && y < 0.38f) *parte = 1;
+        return d;
     }
     case FO_PESO: {                                // o Chumbo: o peso de ferro de balanca, com a alca em cima
         float d = sdn_trap(x, y - 0.30f, 0.86f, 0.54f, 0.50f) - 0.08f;
@@ -877,6 +891,33 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         if (m > 0.56f) return (x + y < 0) ? RGB(246, 222, 132) : (m > 0.71f ? RGB(190, 156, 86) : RGB(228, 194, 106));
         if (m > 0.48f) return RGB(66, 40, 24);
         return (x + y < -0.3f) ? RGB(150, 40, 46) : RGB(118, 30, 38);
+    }
+    case AD_COLEIRA: {                             // o couro com a costura, a fivela de ouro e o pingente gravado
+        if (parte == 1) {
+            float yy = y - 0.70f;
+            if (x * x + yy * yy > 0.18f * 0.18f && x * x + yy * yy < 0.21f * 0.21f) return RGB(150, 122, 62);   // a beira
+            if (fabsf(x) < 0.06f && fabsf(yy) < 0.08f) return RGB(150, 122, 62);   // a patinha gravada
+            return x + yy < -0.1f ? RGB(246, 222, 132) : v->cor2;
+        }
+        float yy = y + 0.14f, ro = sqrtf(x * x + yy * yy), an = atan2f(yy, x);
+        if (x < -0.40f && fabsf(yy) < 0.16f) return fabsf(yy) > 0.10f || x < -0.66f ? RGB(228, 194, 106) : RGB(118, 30, 38);   // a fivela
+        if (fabsf(ro - 0.54f) < fmaxf(s * 0.6f, 0.03f) && ((int)floorf((an + 3.1416f) * 6) & 1)) return RGB(238, 162, 140);   // a costura
+        if (ro < 0.46f) return RGB(118, 30, 38);       // a beira de dentro, na sombra
+        return ro > 0.64f && yy < 0 ? RGB(208, 98, 108) : cor;
+    }
+    case AD_TIQUETE: {                             // o papel do bilhete: o M da linha, a seta e o picote; a tarja escura
+        if (parte == 1) return ((int)floorf((x + 1) / fmaxf(s * 2.5f, 0.06f)) % 5) == 0 ? RGB(120, 78, 50) : v->cor2;
+        float cx = x + 0.58f, cy = y + 0.20f;
+        if (cx * cx + cy * cy < 0.20f * 0.20f) {       // o selo da linha, com o M
+            float mx = cx / 0.20f, my = cy / 0.20f;
+            if (my > -0.55f && my < 0.55f && (fabsf(mx + 0.45f) < 0.16f || fabsf(mx - 0.45f) < 0.16f
+                || (my < 0.25f && fabsf(fabsf(mx) - (0.45f - (my + 0.55f) * 0.56f)) < 0.14f))) return RGB(252, 248, 236);
+            return RGB(56, 86, 150);
+        }
+        if (y > -0.30f && y < -0.18f && x > -0.30f && x < 0.40f) return RGB(56, 86, 150);   // a seta
+        if (y > -0.40f && y < -0.08f && x > 0.40f && x < 0.40f + (0.16f - fabsf(y + 0.24f))) return RGB(56, 86, 150);
+        if (y > 0.44f && ((int)floorf((x + 1) / fmaxf(s * 3, 0.08f)) & 1)) return RGB(214, 158, 102);   // o picote
+        return cor;
     }
     case AD_XEROX: {                               // a copia: as linhas do texto na folha da frente
         if (parte == 1) return v->cor2;

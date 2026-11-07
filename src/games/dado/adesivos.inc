@@ -14,6 +14,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
        AD_MASSINHA, AD_CARIMBO, AD_DUPLA, AD_CASCA,
        // os que combam: com a ordem da fila, os numeros, o dado coberto e a bolsa
        AD_CORRENTE, AD_DINAMITE, AD_ESCADINHA, AD_BUSSOLA, AD_MOLDURA, AD_ALBUM, AD_XEROX,
+       AD_COLEIRA, AD_TIQUETE,                  // contra o roubo; e a sequencia cheia
        AD_N };                                   // um byte por lado (peca_t.ad)
 #define AD_BIT_VELHO 0x80                       // o bit de cima (de uma versao de teste): ignorado
 
@@ -28,6 +29,9 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
+#define COLEIRA_PERDE 4                         // a Coleira: quem tenta roubar o dado perde 4
+#define TIQUETE_VALIDOS 4                       // o Tiquete de Metro: com 4 dados validos na sequencia,
+#define TIQUETE_PONTOS 5                        // +5
 #define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 no fim (e, ao cair, valendo ou nao, passa para outro lado da sua bolsa)
 #define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
@@ -210,6 +214,12 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_XEROX]        = { "Xerox", "tirando este lado: copia o adesivo", "do lado oposto em outro dado seu", 6, 7,
                           RGB(238, 230, 212), RGB(252, 248, 236), RGB(36, 32, 29),
                           { "####...", "#..#...", "#.####.", "#.#..#.", "###..#.", "..#..#.", "..####." } },
+    [AD_COLEIRA]      = { "Coleira", "tirando este lado: não pode ser", "roubado; quem tenta perde 4", 4, 6,
+                          RGB(176, 52, 48), RGB(226, 120, 108), RGB(246, 222, 132),
+                          { ".#####.", "#.....#", "#.....#", ".#...#.", "..###..", "..#.#..", "..###.." } },
+    [AD_TIQUETE]      = { "Tíquete de Metrô", "tirando este lado: com 4 dados", "válidos na sequência, +5", 3, 3,
+                          RGB(236, 214, 140), RGB(250, 238, 186), RGB(36, 32, 29),
+                          { ".......", "#######", "#.....#", "#######", "#.#.#.#", "#######", "......." } },
 };
 
 // A raridade de cada um, na mesma escala dos dados: pesa no adesivo da loja
@@ -231,6 +241,7 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_MASSINHA] = RAR_INCOMUM, [AD_CASCA] = RAR_INCOMUM, [AD_DUPLA] = RAR_RARO, [AD_CARIMBO] = RAR_LENDA,
     [AD_CORRENTE] = RAR_INCOMUM, [AD_DINAMITE] = RAR_COMUM, [AD_ESCADINHA] = RAR_INCOMUM, [AD_BUSSOLA] = RAR_INCOMUM,
     [AD_MOLDURA] = RAR_RARO, [AD_ALBUM] = RAR_RARO, [AD_XEROX] = RAR_RARO,
+    [AD_COLEIRA] = RAR_INCOMUM, [AD_TIQUETE] = RAR_COMUM,
 };
 // A Sujeira nao se vende nem se ganha: so chega pelo Barro do oponente.
 // Os que sairam do jogo: o numero fica reservado (o salvamento guarda o adesivo
@@ -358,6 +369,11 @@ static bool adesivado_pode(int a, const uint8_t *ja, int n, bool desafio)
 // O Mais Adesivado: um adesivo em cada um dos 8 lados, sempre os mesmos.
 static const uint8_t MAIS_ADESIVADO[8] = { AD_AVESSO, AD_TRANSPARENTE, AD_PATINHO, AD_ETIQUETA,
                                            AD_SELO, AD_REMENDO, AD_CONFETE, AD_ELETRONICO };
+// A Colcha de Retalhos vem com um Remendo em cada um dos tres lados baixos.
+static void colcha_remenda(peca_t *p)
+{
+    for (int l = 1; l <= 3; l++) ad_cola(p, l, AD_REMENDO);
+}
 static void adesiva(peca_t *p, int (*r)(int), bool desafio)
 {
     if (p->tipo == D_MAIS_ADESIVADO) {
@@ -465,6 +481,8 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_BUSSOLA]      = "Tirando este lado, o próximo dado sem adesivo rola de novo: fica o 2º se cair em adesivo ou for maior.",
     [AD_MOLDURA]      = "Tirando este lado, os adesivos dos lados vizinhos (o número de baixo e o de cima) também agem.",
     [AD_XEROX]        = "Tirando este lado, o adesivo do lado oposto ganha uma cópia, para sempre, em outro dado seu.",
+    [AD_COLEIRA]      = "Tirando este lado, o dado não pode ser roubado: quem tentar roubar perde 4.",
+    [AD_TIQUETE]      = "Tirando este lado, se a sua sequência tiver 4 dados válidos: +5.",
 };
 // Os detalhes, as excecoes e os casos especiais: na colecao, embaixo do
 // texto, na fonte miuda e apagada (NULL: nada a mais).
@@ -511,6 +529,8 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_BUSSOLA]      = "Qualquer adesivo serve, mesmo com número menor. Se o 2º lance cair sem adesivo e for menor, fica o 1º. Só age se o próximo dado tiver adesivo em algum lado. O lance que não fica cai ao lado. A Casca de Banana do oponente vence a Bússola.",
     [AD_MOLDURA]      = "No d6, o 4 faz agir o 3 e o 5. Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...), o Patinho Feio e outra Moldura, não.",
     [AD_XEROX]        = "Copia assim que o dado cai, válido ou anulado. Copia o que houver lá, até a Sujeira do oponente. Sem adesivo do outro lado, ou sem lado livre na bolsa, nada. Não copia outro Xerox.",
+    [AD_COLEIRA]      = "Vale contra o Caridoso e o Gatuno do oponente: o roubo não acontece, o dado fica e quem tentou perde 4 no placar (e para de roubar nesta rodada).",
+    [AD_TIQUETE]      = "Conta todos os seus dados válidos no fim da rodada, este incluído. Com o Bis (5 dados), bastam 4 valendo.",
     [AD_CASCA]        = "Válido ou anulado. Com duas cascas, o 3º também; com três, o 2º; com quatro, o 1º. Se ele ainda vai jogar, escorrega no lance (o Post-it dele anula a casca); se já jogou, rola de novo no fim da rodada. Sem o 4º dado, nada. A bolha do Impermeável segura a casca.",
 };
 
@@ -799,6 +819,7 @@ static int som_adesivo(int a)
         [AD_MASSINHA] = SOM_AD_MASSINHA, [AD_CARIMBO] = SOM_AD_CARIMBO, [AD_DUPLA] = SOM_AD_DUPLA, [AD_CASCA] = SOM_AD_CASCA,
         [AD_CORRENTE] = SOM_AD_CORRENTE, [AD_DINAMITE] = SOM_AD_DINAMITE,
         [AD_BUSSOLA] = SOM_AD_BUSSOLA, [AD_MOLDURA] = SOM_AD_MOLDURA, [AD_XEROX] = SOM_AD_XEROX,
+        [AD_COLEIRA] = SOM_AD_COLEIRA, [AD_TIQUETE] = SOM_AD_TIQUETE,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

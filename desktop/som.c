@@ -79,6 +79,9 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_CORRENTE] = "ad_corrente", [SOM_AD_DINAMITE] = "ad_dinamite",
     [SOM_AD_BUSSOLA] = "ad_bussola", [SOM_AD_MOLDURA] = "ad_moldura", [SOM_AD_XEROX] = "ad_xerox",
     [SOM_AD_DINAMITE_APAGA] = "ad_dinamite_apaga",
+    [SOM_PIAO] = "piao", [SOM_GELATINA] = "gelatina", [SOM_MATRIOSKA] = "matrioska", [SOM_PANELA] = "panela",
+    [SOM_LEQUE] = "leque", [SOM_PAPAGAIO] = "papagaio", [SOM_RETRATO] = "retrato", [SOM_ESTILINGUE] = "estilingue",
+    [SOM_AD_COLEIRA] = "ad_coleira", [SOM_AD_TIQUETE] = "ad_tiquete",
 };
 
 typedef struct {

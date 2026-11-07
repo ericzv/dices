@@ -684,7 +684,8 @@ static void evento_no_meio(float t0, float t1)
     if (e->tipo == EV_TREMOR && !casca && a < TREMOR_SALTA && b >= TREMOR_SALTA) som_toca_tom(SOM_BATE_DADO, -5);   // o dado salta do chao
     if (casca && !e->bloqueado && a < TREMOR_SALTA && b >= TREMOR_SALTA) som_toca_tom(SOM_BATE_DADO, 4);   // escorregou: o dado voa
     float in = ev_intro(e) / d;                  // depois do carimbo (ou da virada), o som do adesivo agindo
-    if (in > 0 && a < in && b >= in) som_toca(som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad));
+    if (in > 0 && a < in && b >= in)
+        som_toca(som_adesivo(e->copia && !(e->modo & (EVM_PAPAGAIO | EVM_RETRATO)) ? AD_HOLOGRAFICO : e->ad));
     if (e->tipo == EV_ADESIVO && (e->modo & EVM_CARIMBO) && a < in * 0.39f && b >= in * 0.39f) treme(2, 0.22f);   // o TUM do carimbo
     if (e->tipo == EV_CORINGA && e->alvo_k < N_FILA && a < CORINGA_POUSA && b >= CORINGA_POUSA) {
         som_toca(SOM_MOEDA_POUSA);

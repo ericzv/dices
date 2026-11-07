@@ -449,9 +449,16 @@ static void abre_loja(void)
     fase = F_LOJA;
 }
 
+// O Estilingue de antes tirou 1: este lance sai no lado mais alto (sem o
+// Chumbo, o Avesso e a Nota Dez mexerem). O lance_peca o liga e desliga.
+static bool lance_no_maximo;
+// As bonecas que a Matrioska abriu no ultimo lance: quantas (0 a 3) e o que
+// cada uma tirou (o d6, o d4 e o d2). Empacotado: 2 bits de quantas, 3+3+2 dos numeros.
+static uint16_t bonecas_ult;
 // O primeiro lance de um dado: um lado ao acaso (o Lastro, de 4 a 12).
 static int primeiro_lance(int t, int (*r)(int))
 {
+    if (lance_no_maximo) return TIPO[t].lados;
     int x = r(TIPO[t].lados);
     if (TIPO[t].efeito == EF_LASTRO) x = 3 + r(9);    // 4 a 12, 1 em 9 cada
     return x;
@@ -485,6 +492,19 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
         x = n;
         while (n >= lados && g++ < 3) { n = r(lados); x += n; }
         return x;
+    }
+    case EF_MATRIOSKA: {                     // abre: o d8 com 6 a 8 solta um d6; o d6 com 5 ou 6, um d4; o d4 com 4, um d2
+        static const uint8_t DENTRO[3] = { 6, 4, 2 }, ABRE[3] = { 6, 5, 4 };
+        int n = remenda(p, x), soma = n, nb = 0;
+        uint16_t b = 0;
+        while (nb < 3 && n >= ABRE[nb]) {
+            n = r(DENTRO[nb]);
+            soma += n;
+            b |= (uint16_t)(nb == 0 ? n << 2 : nb == 1 ? n << 5 : n << 8);
+            nb++;
+        }
+        bonecas_ult = (uint16_t)(b | nb);
+        return soma;
     }
     // Os de numero fixo nao rolam: o lado e o numero, e so o Remendo age.
     case EF_QUEBRADO: *lado = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
@@ -531,8 +551,10 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     int ef = TIPO[t].efeito;
     int x0 = primeiro_lance(t, r);
     *antes = 0;
+    bonecas_ult = 0;
     bool pousa = p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL && ef != EF_RELOGIO
-              && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA;   // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
+              && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA   // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
+              && !lance_no_maximo;                            // nem no lance do Estilingue
     if (pousa) x0 = pousa_lado(t, p, x0, r, antes);
     if (pousa && ef == EF_VICIADO) {
         // O Viciado rola duas vezes, e cada lance e um pouso de verdade: o
@@ -599,12 +621,16 @@ static int desembrulha(int j, int k, int (*r)(int))
 // Reflexivo, rola de novo e vale o segundo (x); com o Papel Bomba, rola de
 // novo e vale a soma dos dois. Um dos dois por lance: o lado do segundo lance
 // nao faz rolar de novo.
-typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba; } lance_t;
+typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba;
+                 uint8_t giros; bool quicou; uint16_t bonecas; } lance_t;
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;
     int antes;
+    l.giros = 0;
+    l.quicou = false;
     l.x = l.x1 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
+    l.bonecas = bonecas_ult;
     l.menor1 = l.menor; l.lado1 = l.lado; l.antes1 = antes;
     int a = ad_no_lado(pc, l.lado);
     l.reflete = a == AD_REFLEXIVO || a == AD_BOMBA;
@@ -615,7 +641,46 @@ static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
         int t2 = TIPO[t].efeito == EF_PREVISIVEL ? D_D12 : t;
         int x2 = sorteia_peca(t2, fixo, pc, r, &l.menor, &l.lado, &antes);
         l.x = l.bomba ? l.x1 + x2 : x2;
+        l.bonecas = bonecas_ult;
     }
+    return l;
+}
+
+// O Estilingue logo antes do dado k de j tirou 1: este sai no numero mais alto.
+static bool estilingue_armado(int j, int k)
+{
+    return k > 0 && k < N_FILA && TIPO[tipo_de(j, k - 1)].efeito == EF_ESTILINGUE && F[j].valor[k - 1] == 1;
+}
+// O lance inteiro do dado k de j, com os poderes dele que mexem no lance (o
+// da mesa e o que a IA imagina usam este): o Estilingue de antes armado poe
+// no maximo; o Piao caido num lado sem adesivo (e com algum) gira de novo,
+// ate PIAO_GIROS vezes, e fica o primeiro lado com adesivo ou o ultimo giro;
+// a Gelatina que tirou menos que o de antes (o que derrubaria a sequencia)
+// quica e rola mais uma vez, e fica o maior. *fora: o lance descartado (o
+// que cai ao lado), ou -1.
+#define PIAO_GIROS 2
+static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, int (*r)(int), int *fora)
+{
+    lance_no_maximo = estilingue_armado(j, k);
+    lance_t l = lanca_peca(t, fixo, pc, r);
+    *fora = -1;
+    int ef = TIPO[t].efeito;
+    if (ef == EF_PIAO && pc && ad_quantos(pc) > 0 && !lance_no_maximo)
+        for (int g = 0; g < PIAO_GIROS && !ad_no_lado(pc, l.lado); g++) {
+            *fora = l.x;
+            l = lanca_peca(t, fixo, pc, r);
+            l.giros = (uint8_t)(g + 1);
+        }
+    if (ef == EF_GELATINA && !lance_no_maximo && k > 0) {
+        int lr = ultimo_da_regra(j, F[j].est, k);
+        if (lr >= 0 && cai_depois(j, l.x, F[j].valor[lr])) {
+            lance_t l2 = lanca_peca(t, fixo, pc, r);
+            if (l2.x > l.x) { *fora = l.x; l = l2; }
+            else *fora = l2.x;
+            l.quicou = true;
+        }
+    }
+    lance_no_maximo = false;
     return l;
 }
 
@@ -623,7 +688,7 @@ static void lanca_proximo(void)
 {
     fila_t *f = &F[vez];
     int k = f->lancados;
-    int t = tipo_de(vez, k), lados = TIPO[t].lados;
+    int t = f->tipo[k], lados = TIPO[t].lados;   // o tipo de verdade: o Camaleao rola o proprio d8
     if (f->carta && k == 3) {                // a carta do Coringa: posta, sem rolar
         f->lancados = 4;
         f->est[3] = V_ESPERA;
@@ -646,7 +711,7 @@ static void lanca_proximo(void)
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
-    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA || t == D_PREVISIVEL) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA || t == D_PREVISIVEL || t == D_PANELA) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
         f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
@@ -660,7 +725,8 @@ static void lanca_proximo(void)
     // Com o Post-it no lado de cima do dado de antes, o lance inteiro
     // acontece duas vezes e fica o maior: o outro cai ao lado, fantasma.
     const peca_t *pc = peca_fila(vez, k);
-    lance_t l = lanca_peca(t, f->fixo[k], pc, rola);
+    int fora;                                // o giro do Piao (ou o quique da Gelatina) que ficou de fora
+    lance_t l = lanca_do_dado(vez, k, t, f->fixo[k], pc, rola, &fora);
     int postit = -1;                         // o lance que o Post-it (ou a Casca) descartou
     bool tem_postit = k > 0 && ad_fila(vez, k - 1) == AD_POSTIT;
     // A Casca de Banana do oponente: no 4o dado (com mais cascas, do 3o, do
@@ -677,21 +743,24 @@ static void lanca_proximo(void)
     // nao, o maior dos dois. O outro cai ao lado.
     bool tem_bussola = k > 0 && ad_fila(vez, k - 1) == AD_BUSSOLA && pc && ad_quantos(pc) > 0
                     && !ad_no_lado(pc, l.lado);
+    int fora2;
     if (tem_postit) {
-        lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
+        lance_t l2 = lanca_do_dado(vez, k, t, f->fixo[k], pc, rola, &fora2);
         if (l2.x > l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
         som_toca(som_adesivo(AD_POSTIT));
     } else if (tem_bussola && casca != 1) {
-        lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
+        lance_t l2 = lanca_do_dado(vez, k, t, f->fixo[k], pc, rola, &fora2);
         if (ad_no_lado(pc, l2.lado) || l2.x > l.x) { postit = l.x; l = l2; }
         else postit = l2.x;
         som_toca(som_adesivo(AD_BUSSOLA));
     } else if (casca == 1) {
-        lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
+        lance_t l2 = lanca_do_dado(vez, k, t, f->fixo[k], pc, rola, &fora2);
         if (l2.x < l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
     }
+    if (postit < 0 && fora >= 0) postit = fora;  // o giro (ou o quique) de fora cai ao lado, como o do Post-it
+    f->bonecas[k] = l.bonecas;
     int x = l.x, menor = l.menor, lado = l.lado;
     // A Dinamite: lancado sem cair nela, o pavio do dado queima mais um pouco.
     if (pc && ad_conta(pc, AD_DINAMITE) && ad_no_lado(pc, lado) != AD_DINAMITE) {
@@ -720,6 +789,11 @@ static void lanca_proximo(void)
     v->slot = (uint8_t)k;
     v->tipo = (uint8_t)t;
     v->casca = (uint8_t)casca;
+    v->giros = l.giros;
+    v->quicou = l.quicou;
+    v->bonecas = l.bonecas;
+    v->estilingue = estilingue_armado(vez, k);
+    if (v->estilingue) som_toca(SOM_ESTILINGUE);   // a pedra do Estilingue sai atras dele
     bool sr = TIPO[t].efeito == EF_SORTE_REVES;
     v->valor = sr ? x1 + menor1 : x1;        // no ar, o da Sorte
     v->lado = (uint8_t)lado1;
@@ -929,6 +1003,8 @@ static void cosmo_ficam(int j)
 // Tsunami, de vez; os Tres Patinhos, valendo ou nao, mais uma vez; o Revolver, valendo
 // ou nao, mais uma bala (e o tambor vazio depois do tiro); e o ciclo cosmico
 // evolui (cosmo_ficam).
+// A Panela de Pressao junta PANELA_CADA por rodada fora da fila (ou anulada), ate PANELA_MAX.
+static int panela_enche(int g) { return g + PANELA_CADA > PANELA_MAX ? PANELA_MAX : g + PANELA_CADA; }
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -946,6 +1022,17 @@ static void contadores_ficam(int j, const desfecho_t *d)
             p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
         else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
+        else if (p->tipo == D_PANELA && (d->panela[j] >> k & 1)) p->fixo = 0;       // soltou o vapor: esvazia
+        else if (p->tipo == D_PANELA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)panela_enche(F[j].fixo[k]);
+    }
+    // A Panela de Pressao que ficou fora da fila nesta rodada (na bolsa ou na
+    // mao) junta pressao tambem.
+    for (int i = 0; i < J[j].n_col; i++) {
+        peca_t *p = &J[j].col[i];
+        if (p->tipo != D_PANELA || J[j].onde[i] == COMIDO) continue;
+        bool lancada = false;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) lancada |= F[j].idx[k] == i;
+        if (!lancada) p->fixo = (uint8_t)panela_enche(p->fixo);
     }
     cosmo_ficam(j);
 }
@@ -1343,6 +1430,8 @@ static int som_do_evento(int i)
     case EV_MEDUSA:  return SOM_BIGORNA;
     case EV_ADESIVO:                     // a copia brilha com o som do Holografico; o Fragil quebrando, vidro
         if (e->modo & EVM_CARIMBO) return SOM_AD_CARIMBO;   // o carimbo bate; o do adesivo vem depois (evento_no_meio)
+        if (e->modo & EVM_PAPAGAIO) return SOM_PAPAGAIO;    // o papagaio grita; idem
+        if (e->modo & EVM_RETRATO) return SOM_RETRATO;      // a foto; idem
         if (e->modo & EVM_DUPLA) return SOM_AD_DUPLA;       // o dado vira; idem
         if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
         if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
@@ -1357,6 +1446,8 @@ static int som_do_evento(int i)
         case D_JINGLE:  return SOM_SINO;
         case D_ESTRELA: return SOM_ESTRELA;
         case D_MEIA:    return e->valor ? SOM_AD_DOURADO : SOM_MOEDA_POUSA;   // paga; ou guarda mais uma
+        case D_LEQUE:   return SOM_LEQUE;
+        case D_PANELA:  return SOM_PANELA;
         default:        return SOM_EFEITO;
         }
     case EV_BONUS:
@@ -1403,6 +1494,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_JACKPOT] = { SOM_FICHA, 4 },
     [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
     [EF_MOSAICO] = { SOM_AD_FIGURINHA, -2 },
+    [EF_LEQUE] = { SOM_LEQUE, 0 },            [EF_PANELA] = { SOM_PANELA, 0 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons
@@ -1566,10 +1658,15 @@ static void casca_pisa(voo_t *v)
 // de baixo. Depois, o gesto do adesivo, como sempre.
 #define CARIMBO_T 0.78f
 #define DUPLA_T   0.72f
+// O Papagaio grita e o balao mostra o adesivo que ele repete; o Porta-Retrato
+// tira a foto e ela voa ate o dado de antes. Depois, o adesivo age.
+#define PAPAGAIO_T 0.80f
+#define RETRATO_T  0.80f
 static float ev_intro(const evento_t *e)
 {
     if (e->tipo != EV_ADESIVO) return 0;
-    return e->modo & EVM_CARIMBO ? CARIMBO_T : e->modo & EVM_DUPLA ? DUPLA_T : 0;
+    return e->modo & EVM_CARIMBO ? CARIMBO_T : e->modo & EVM_DUPLA ? DUPLA_T
+         : e->modo & EVM_PAPAGAIO ? PAPAGAIO_T : e->modo & EVM_RETRATO ? RETRATO_T : 0;
 }
 static float duracao_de(const evento_t *e)
 {
@@ -1696,7 +1793,7 @@ static void flutua_evento_(const evento_t *e)
     case EV_ADESIVO:
         switch (e->ad) {
         case AD_ELETRONICO: flutua_em(dj, dk, C_OURO, 0, "x%d", e->por_dado[dk < N_FILA ? dk : 0]); break;
-        case AD_LOBO:       flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
+        case AD_LOBO: case AD_COLEIRA: flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_MIRA:       if (!e->bloqueado) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
         case AD_GORJETA:    flutua_em(dj, dk, C_OURO, 0, "+%d fichas", e->valor); break;
         case AD_DOURADO:    flutua_em(dj, dk, C_OURO, 0, "+%d moeda", e->valor); break;
@@ -1848,7 +1945,8 @@ static void aplica_evento(int i)
         case AD_ELETRONICO: case AD_IMANTADO:
             for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_mult[e->de_j][k] = e->por_dado[k];
             break;
-        case AD_LOBO: vis_delta[e->alvo_j] -= e->valor; break;
+        case AD_LOBO: case AD_COLEIRA: vis_delta[e->alvo_j] -= e->valor; break;   // a Coleira: no placar de quem tentou roubar
+        case AD_TIQUETE: vis_semente[e->de_j] += e->valor; break;
         case AD_MIRA: case AD_RATOEIRA:
             if (e->ad == AD_RATOEIRA && e->alvo_j == e->de_j) { vis_semente[e->de_j] += e->valor; break; }   // o queijo: +4
             if (e->bloqueado) break;    // bateu na capa

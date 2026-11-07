@@ -141,8 +141,9 @@ void dado_passo(float dt)
         if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
         bool parou = fisica(dt * lento);
         ad_pousou();                         // pousou no Chumbo (o baque) ou no Remendo
+        pouso_novos_passo(&voo[0]);          // as bonecas da Matrioska saindo
         if (t_fase >= CASCA_VOA) casca_pisa(&voo[0]);   // a casca do oponente chegou nele: escorrega
-        if (parou && t_fase > (ia && !ultimo ? 0.25f : 0.5f)) {
+        if (parou && t_fase > (ia && !ultimo ? 0.25f : 0.5f) && pouso_pronto(&voo[0])) {
             if (ad_etapa_passo(dt)) break;       // o adesivo age no pouso (Avesso, Reflexivo)
             if (hora) som_rufo(false);           // o som segura: silencio ate o veredito
             for (int i = 0; i < n_voo; i++) { voo[i].ox = voo[i].x; voo[i].oy = voo[i].y; }

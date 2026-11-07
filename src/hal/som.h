@@ -75,6 +75,17 @@ enum {
     // os adesivos que combam
     SOM_AD_CORRENTE, SOM_AD_DINAMITE, SOM_AD_BUSSOLA, SOM_AD_MOLDURA, SOM_AD_XEROX,
     SOM_AD_DINAMITE_APAGA,   // a Dinamite anulada: o pavio chia, engasga e apaga numa fumacinha
+    // os dados da quarta leva
+    SOM_PIAO,        // o Piao girando de novo: o zumbido de madeira e o toc quando deita
+    SOM_GELATINA,    // a Gelatina quicando: o bloop de borracha que treme
+    SOM_MATRIOSKA,   // a Matrioska abrindo uma boneca: a madeira desenroscando e o toc oco
+    SOM_PANELA,      // a Panela de Pressao soltando o vapor: a valvula, o chiado e o apito
+    SOM_LEQUE,       // o Leque abrindo: as varetas estalando e o abano
+    SOM_PAPAGAIO,    // o Papagaio repetindo: dois gritinhos e as asas
+    SOM_RETRATO,     // o Porta-Retrato: o flash carregando e o clique da camera
+    SOM_ESTILINGUE,  // o Estilingue: a borracha esticando, o estalo e a pedra zunindo
+    SOM_AD_COLEIRA,  // a Coleira: o sininho do pingente, o tranco e um latido curto
+    SOM_AD_TIQUETE,  // o Tiquete de Metro: o bip da catraca e ela girando
     SOM_N
 };
 

@@ -63,15 +63,17 @@ static bool carbono_age(int j, int k)
 // O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
 static const peca_t *peca_fila(int j, int k);
+static int tipo_de(int j, int k);
 static int valor_pontos(int j, int k)
 {
-    if (F[j].tipo[k] == D_TELA) {                // a Tela em Branco: o lado sem adesivo pontua 0
+    int t = F[j].tipo[k] == D_CAMALEAO ? tipo_de(j, k) : F[j].tipo[k];   // o Camaleao pontua como o que copiou
+    if (t == D_TELA) {                           // a Tela em Branco: o lado sem adesivo pontua 0
         const peca_t *p = peca_fila(j, k);
         if (!p || !ad_no_lado(p, F[j].lado[k])) return 0;
     }
-    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? TREVO_SORTE : 0;
-    if (F[j].tipo[k] == D_SACRIFICIO) return 0;
-    if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
+    if (t == D_TREVO) return F[j].valor[k] == 4 ? TREVO_SORTE : 0;
+    if (t == D_SACRIFICIO) return 0;
+    if (t == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
 }
 
@@ -318,6 +320,16 @@ static void lances_explosivo(char *s, size_t n, int v, int lados, int lance1)
     if (p < n) snprintf(s + p, n - p, "%d)", v);
 }
 
+// As bonecas da Matrioska, de fora para dentro: "7+5+2" (a de fora e o
+// total menos as de dentro: o Remendo fica nela).
+static void lances_matrioska(char *s, size_t n, int v, uint16_t b)
+{
+    int nb = BONECAS_N(b), dentro = 0;
+    for (int i = 0; i < nb; i++) dentro += BONECA_V(b, i);
+    size_t p = (size_t)snprintf(s, n, "%d", v - dentro);
+    for (int i = 0; i < nb && p < n; i++) p += (size_t)snprintf(s + p, n - p, "+%d", BONECA_V(b, i));
+}
+
 // Aplica a regra ao dado k que acabou de pousar. O veredito e curto: diz o
 // que aconteceu, nao o porque em detalhe.
 static void aplica_regra(int j, int k)
@@ -417,6 +429,12 @@ static void aplica_regra(int j, int k)
     else if (ef == EF_EXPLODE && v > TIPO[t].lados) {
         char lances[14];
         lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
+        poe_tag(f, k, "%s", lances);
+    }
+    // Matrioska que abriu: na etiqueta, as bonecas ("7+5+2").
+    else if (ef == EF_MATRIOSKA && BONECAS_N(f->bonecas[k])) {
+        char lances[16];
+        lances_matrioska(lances, sizeof lances, v, f->bonecas[k]);
         poe_tag(f, k, "%s", lances);
     }
     // Sorte/Reves: na etiqueta, os dois lances ("12-5").
@@ -692,6 +710,10 @@ static void aplica_regra(int j, int k)
             char lances[24];
             lances_explosivo(lances, sizeof lances, v, TIPO[t].lados, remenda(peca_fila(j, k), f->lado[k]));
             snprintf(veredito, sizeof veredito, "Explosivo! %s pontua %d", lances, vale);
+        } else if (ef == EF_MATRIOSKA && BONECAS_N(f->bonecas[k])) {
+            char lances[16];
+            lances_matrioska(lances, sizeof lances, v, f->bonecas[k]);
+            snprintf(veredito, sizeof veredito, "Matrioska abre: %s pontua %d", lances, vale);
         } else if (espelhou)          snprintf(veredito, sizeof veredito, "Espelho vira %d e é válido", v);
         else if (espera)       snprintf(veredito, sizeof veredito, "Espelho espera: no fim vira o maior do oponente");
         else if (corrimao)     snprintf(veredito, sizeof veredito, "%d, 1 abaixo do %d: o Corrimão mantém os dois válidos", v, f->valor[l]);

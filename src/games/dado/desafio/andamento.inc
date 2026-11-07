@@ -37,7 +37,8 @@ static int nivel_mesa(const no_t *no)
 static int pensa_mesa(const no_t *no)
 {
     if (run.andar >= DES_ANDARES || no->tipo > NO_CHEFE || nivel_mesa(no) >= 2) return 0;
-    int k = run.dificuldade - PENSA_DESDE[run.andar][no->tipo] + 1;
+    int dif = run.andar == 0 && run.dificuldade > S1_TETO ? S1_TETO : run.dificuldade;   // o 1o salao: ate o Nivel 3
+    int k = dif - PENSA_DESDE[run.andar][no->tipo] + 1;
     return k <= 0 ? 0 : k * PENSA_CADA > 99 ? 99 : k * PENSA_CADA;
 }
 
@@ -522,11 +523,54 @@ static void des_nova_run(void)
 // contagem de uma partida para a outra. O Adesivado que se encheu na partida
 // (o Infectado e o Barro tambem colam nele) vira o Mais Adesivado, como na
 // loja.
+// O Camelo arma a banca no comeco da partida: cada lado vazio ganha um
+// adesivo sorteado entre os abertos, pela raridade (como o Adesivado: os
+// ruins tambem). Cada Camelo armado guarda no fixo a vaga dele (1 a
+// CAMELO_MAX) em camelo_lados, os lados que ele encheu - a bolsa pode mudar
+// de posicao no meio da partida, o fixo vai junto. No fim da partida, esses
+// lados esvaziam; os adesivos colados de verdade ficam.
+#define CAMELO_MAX 8
+static uint32_t camelo_lados[2][CAMELO_MAX];
+static void camelo_arma(int j)
+{
+    static const int PESO[4] = { 8, 4, 2, 1 };
+    int total = 0, vaga = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (ad_a_venda(a) && adesivo_liberado(a)) total += PESO[RAR_ADESIVO[a]];
+    for (int i = 0; i < J[j].n_col; i++) {
+        peca_t *p = &J[j].col[i];
+        if (p->tipo != D_CAMELO) continue;
+        p->fixo = 0;
+        if (!total || vaga >= CAMELO_MAX) continue;
+        camelo_lados[j][vaga] = 0;
+        for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo); l++) {
+            if (ad_no_lado(p, l)) continue;
+            int x = sorte(total), a = AD_NADA + 1;
+            for (; a < AD_N; a++) {
+                if (!ad_a_venda(a) || !adesivo_liberado(a)) continue;
+                if ((x -= PESO[RAR_ADESIVO[a]]) < 0) break;
+            }
+            if (a >= AD_N) continue;
+            ad_cola(p, l, a);
+            camelo_lados[j][vaga] |= 1u << l;
+        }
+        p->fixo = (uint8_t)(++vaga);
+    }
+}
+static void camelo_desarma(peca_t *col, int n, int j)
+{
+    for (int i = 0; i < n; i++) {
+        peca_t *p = &col[i];
+        if (p->tipo != D_CAMELO || p->fixo < 1 || p->fixo > CAMELO_MAX) continue;
+        uint32_t m = camelo_lados[j][p->fixo - 1];
+        for (int l = 1; l < 32; l++) if (m >> l & 1) ad_cola(p, l, AD_NADA);
+        p->fixo = 0;
+    }
+}
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++) {
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
-            || col[i].tipo == D_FURIA) col[i].fixo = 0;
+            || col[i].tipo == D_FURIA || col[i].tipo == D_PANELA) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
         col[i].capa = 0;                         // e a capa do Impermeavel tambem
         col[i].chiclete = 0;                     // e o Chiclete: so gruda de uma rodada para a outra
@@ -589,6 +633,7 @@ static void des_comeca_partida(void)
     for (int j = 0; j < 2; j++) {
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
         memset(J[j].pavio, 0, sizeof J[j].pavio);   // a Dinamite: o pavio comeca apagado a cada partida
+        camelo_arma(j);                              // e o Camelo arma a banca
     }
     nivel_jog[1] = nivel_mesa(no);
     pensa_jog[0] = 0; pensa_jog[1] = pensa_mesa(no);    // parte das decisoes um nivel acima
@@ -645,6 +690,7 @@ static void des_resultado(void)
     // A bolsa volta para a run como terminou: o Quebrado e o que o Fogo
     // queimou nao voltam (e o embrulho do Papai Noel, desfeito).
     desfaz_embrulho();
+    camelo_desarma(J[0].col, J[0].n_col, 0);     // os adesivos da banca do Camelo saem
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);

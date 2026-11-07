@@ -66,6 +66,7 @@ typedef struct {
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)
+    uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
     char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
     char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
     char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "$+4")
@@ -73,6 +74,10 @@ typedef struct {
     int     total;
 } fila_t;
 
+// As bonecas que a Matrioska abriu: quantas (0 a 3) e o que cada uma tirou (o
+// d6, o d4 e o d2), empacotadas em 2 + 3 + 3 + 2 bits.
+#define BONECAS_N(b)    ((b) & 3)
+#define BONECA_V(b, i)  ((i) == 0 ? ((b) >> 2) & 7 : (i) == 1 ? ((b) >> 5) & 7 : ((b) >> 8) & 3)
 typedef struct {
     float x, y, vx, vy, giro, spin;
     float ox, oy;
@@ -100,6 +105,11 @@ typedef struct {
     int valor_v; uint8_t lado_v;     // depois de virar do avesso
     int valor2, menor2; uint8_t lado2;   // o segundo lance, do Reflexivo
     float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
+    uint8_t giros;                   // o Piao: quantas vezes girou de novo (o rastro em espiral no pouso)
+    bool quicou;                     // a Gelatina quicou (treme mais no pouso)
+    uint16_t bonecas;                // a Matrioska: as bonecas que saem dela no pouso
+    uint8_t bonecas_vistas;          // e quantas ja sairam (o som de cada uma)
+    bool estilingue;                 // o Estilingue de antes atirou: este sai no maximo (a pedra vem nele)
 } voo_t;
 
 // Eventos do desfecho, tocados um a um.
@@ -127,6 +137,8 @@ typedef uint64_t amul_t;
 #define EVM_CARIMBO 1
 #define EVM_DUPLA   2
 #define EVM_MOLDURA 4                    // o do lado vizinho, pela Moldura
+#define EVM_PAPAGAIO 8                   // o Papagaio repetindo o ultimo adesivo que agiu
+#define EVM_RETRATO 16                   // o adesivo do Porta-Retrato agindo no dado de antes
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;

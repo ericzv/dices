@@ -372,6 +372,13 @@ static float sombra_alt;                 // altura do dado no ar, em pixels
 // O Sorte/Reves no ar sao dois dados: 1 o d12 da Sorte (marfim, aro de ouro,
 // "+"), 2 o d8 do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
 static int sr_lado;
+// As bonecas de dentro da Matrioska (mesa.inc): o desenho dela num d6, num d4
+// ou na moeda. 0: a Matrioska inteira, o d8.
+static int boneca_lados;
+// O Camaleao na fila toma a cor do dado de antes, o que ele copia (mesa.inc).
+static int camaleao_de;
+static void panela_valvula(float cx, float cy, float r, float ang, bool zerado);   // a valvula e o vapor da Panela
+static void panela_vapor(float cx, float cy, float r, float ang);
 
 // Numero centrado no dado: grande nos dados grandes.
 // Os algarismos sao os da Jersey (a fonte dos titulos), com traco de dois
@@ -799,6 +806,98 @@ static int desenho_interno(int tipo, float u, float v, float s)
 {
     float ro = sqrtf(u * u + v * v), l = s * 0.6f;          // l: meio traco de um pixel
     switch (tipo) {
+    case D_PIAO: {                                // as listras torneadas em volta, a ponta de metal e a cabecinha
+        float a = fabsf(v);
+        if (a > 0.50f && a < 0.64f) return 1;     // a listra vermelha, em cima e embaixo
+        if (a > 0.44f && a <= 0.50f) return 2;    // o friso creme junto dela
+        if (v > 0.72f && fabsf(u) < 0.08f + (v - 0.72f) * -0.3f) return 3;   // a ponta, embaixo
+        if (v < -0.70f && fabsf(u) < 0.13f) return 3;   // a cabecinha, em cima
+        return 0;
+    }
+    case D_CAMELO: {                              // as bugigangas miudas da banca, em volta do numero
+        static const float BX[8] = { -0.56f, -0.22f, 0.22f, 0.56f, -0.56f, -0.22f, 0.22f, 0.56f };
+        static const float BY[8] = { -0.56f, -0.66f, -0.66f, -0.56f, 0.56f, 0.66f, 0.66f, 0.56f };
+        for (int i = 0; i < 8; i++)
+            if (fabsf(u - BX[i]) < 0.085f && fabsf(v - BY[i]) < 0.065f) return 1 + (i * 5 % 3);
+        if (fabsf(v) > 0.44f && fabsf(v) < 0.44f + 2 * l && fabsf(u) < 0.66f) return 3;   // a beira da lona
+        return 0;
+    }
+    case D_LEQUE: {                               // o leque aberto: as varetas, o papel e a onda azul na beira
+        float x = u, y = v - 0.92f, r = sqrtf(x * x + y * y), an = atan2f(x, -y);   // an 0: para cima
+        if (r < 0.50f || r > 1.50f || fabsf(an) > 1.05f) return 0;
+        if (r > 1.26f) return fr(an * 6 + r * 4) < 0.5f ? 2 : 0;                  // a onda pintada, na beira
+        if (fabsf(fr(an / 0.21f + 0.5f) - 0.5f) * 0.21f * r < l) return 3;         // as varetas de bambu
+        return 0;
+    }
+    case D_RETRATO: {                             // a moldura de prata, as cantoneiras e a foto em sepia
+        float m = fmaxf(fabsf(u), fabsf(v));
+        if (m > 0.60f && m < 0.70f) return 1;
+        if (m >= 0.70f && m < 0.70f + 2 * l) return 3;
+        if (fabsf(u) > 0.50f && fabsf(v) > 0.50f && m <= 0.60f) return 1;   // as cantoneiras
+        if (m < 0.58f && m > 0.46f && fr((u + v) / (3 * s)) < 0.5f) return 2;   // a sepia, longe do numero
+        return 0;
+    }
+    case D_ESTILINGUE: {                          // a forquilha, o elastico vermelho e a pedrinha
+        float w = 0.085f;
+        if (fabsf(u) < w && v > 0.16f && v < 0.80f) return 1;                    // o cabo
+        if (dist_seg(u, v, 0, 0.20f, -0.50f, -0.52f) < w || dist_seg(u, v, 0, 0.20f, 0.50f, -0.52f) < w) return 1;
+        if ((u * u + (v + 0.26f) * (v + 0.26f)) < 0.10f * 0.10f) return 3;       // a pedra no couro
+        if (dist_seg(u, v, -0.50f, -0.56f, -0.08f, -0.28f) < 1.3f * l || dist_seg(u, v, 0.50f, -0.56f, 0.08f, -0.28f) < 1.3f * l)
+            return 2;                                                             // o elastico esticado
+        return 0;
+    }
+    case D_CAMALEAO: {                            // as escamas em losango, a cor que muda na beira e o olho
+        float ex = u - 0.50f, ey = v + 0.50f, e2 = ex * ex + ey * ey;
+        if (e2 < 0.15f * 0.15f) return e2 < 0.06f * 0.06f ? 1 : 3;
+        if (ro < 0.40f) return 0;
+        float a = (u + v) / 0.28f, b = (u - v) / 0.28f;
+        if (fabsf(fr(a) - 0.5f) > 0.40f || fabsf(fr(b) - 0.5f) > 0.40f) return 1;   // o vao entre as escamas
+        if (ro > 0.64f && (((int)floorf(a) + (int)floorf(b)) & 1)) return 2;       // a beira mudando de cor
+        return 0;
+    }
+    case D_PANELA: {                              // de leve: o aluminio escovado e a valvulinha em cima
+        if (v < -0.56f && v > -0.62f && fabsf(u) < 0.50f) return 2;   // a beira da tampa (a valvula: panela_valvula)
+        if (fabsf(v) > 0.42f && fr(v / (4 * s)) < 0.25f) return 1;   // os riscos do escovado, longe do numero
+        return 0;
+    }
+    case D_PAPAGAIO: {                            // as penas em escama (verde, a ponta amarela) e o bico curvo no canto
+        float bx = u + 0.48f, by = v + 0.52f;
+        if (bx * bx + by * by < 0.17f * 0.17f && bx + by > -0.08f) return 3;   // o bico
+        if (ro < 0.40f) return 0;
+        float row = floorf(v / 0.30f), du = fr((u + (fmodf(fabsf(row), 2) ? 0.15f : 0)) / 0.30f) - 0.5f;
+        float dv = fr(v / 0.30f), d = sqrtf(du * du + (dv - 0.12f) * (dv - 0.12f));
+        if (d > 0.40f && d < 0.50f) return 1;                      // a beira de cada pena
+        if (dv > 0.64f && d < 0.40f) return 2;                     // a ponta amarela
+        return 0;
+    }
+    case D_MATRIOSKA: {                           // o lenco e o avental da boneca, as flores brancas e o friso dourado
+        if (ro > 0.56f && ro < 0.56f + 2.2f * l) return 3;
+        for (int i = 0; i < 4; i++) {
+            float a = 0.785f + i * 1.5708f, fx = u - cosf(a) * 0.74f, fy = v - sinf(a) * 0.74f;
+            if (fx * fx + fy * fy < 0.10f * 0.10f) return fx * fx + fy * fy < 0.035f * 0.035f ? 3 : 2;
+        }
+        if (ro > 0.62f && fabsf(v) > 0.36f) return 1;
+        return 0;
+    }
+    case D_COLCHA: {                              // os retalhos (xadrez, bolinha e listra) e o pesponto entre eles
+        float c = 0.52f, gu = fr(u / c + 0.5f), gv = fr(v / c + 0.5f);
+        if ((gu < 0.05f || gv < 0.05f) && fr((u + v) / (4 * s)) < 0.5f) return 3;   // o pesponto, tracejado
+        if (ro < 0.34f) return 0;                // o meio limpo, para o numero
+        int iu = (int)floorf(u / c + 0.5f) + 4, iv = (int)floorf(v / c + 0.5f) + 4, q = (iu * 2 + iv) % 3;
+        if (q == 0) return (((int)floorf(u / (3 * s)) + (int)floorf(v / (3 * s))) & 1) ? 1 : 0;
+        if (q == 1) { float du = fr(u / 0.17f) - 0.5f, dv = fr(v / 0.17f) - 0.5f; return du * du + dv * dv < 0.07f ? 2 : 0; }
+        return fr((u - v) / 0.15f) < 0.4f ? 1 : 0;
+    }
+    case D_GELATINA: {                            // o brilho de cima, a esquerda, e as bolhinhas presas
+        float hx = u + 0.40f, hy = v + 0.44f, al = hx * 0.8f - hy * 0.6f, tr = hx * 0.6f + hy * 0.8f;
+        if (fabsf(tr) < 0.065f && fabsf(al) < 0.24f) return 1;
+        static const float BX[3] = { 0.44f, -0.36f, 0.30f }, BY[3] = { 0.40f, 0.52f, -0.50f }, BR[3] = { 0.07f, 0.05f, 0.045f };
+        for (int i = 0; i < 3; i++) {
+            float dx = u - BX[i], dy = v - BY[i];
+            if (dx * dx + dy * dy < BR[i] * BR[i]) return dx + dy < 0 ? 1 : 2;
+        }
+        return 0;
+    }
     case D_TELA:                                  // a trama do linho: os fios de 4 em 4 pixels, de leve
         return fr(u / (4 * s) + 0.5f) < 0.25f || fr(v / (4 * s) + 0.5f) < 0.25f;
     case D_MOSAICO: {                             // os azulejos, com o rejunte claro entre eles
@@ -1803,6 +1902,27 @@ static uint16_t neve_boneco(float u, float v, float s, int nivel, uint16_t c, ui
 // num cinza so.
 static const uint16_t LA_TOM[7] = { RGB(166, 154, 132), RGB(204, 194, 172), RGB(218, 208, 186), RGB(229, 220, 199),
                                     RGB(238, 230, 212), RGB(245, 239, 223), RGB(252, 248, 236) };
+// A Gelatina: o corpo translucido - o tom da luz tingido de morango, com o
+// feltro de baixo aparecendo (mais no meio, onde a gelatina e fina; menos na
+// beira, mais funda e escura). Anulada, fica no cinza de sempre.
+static uint16_t gelatina_fundo(int x, int y)
+{
+    uint16_t *b = gfx_alvo();
+    if (!b) b = display_fb();
+    if (x < 0 || y < 0 || x >= GFX_W || y >= GFX_H) return C_FELTRO;
+    return b[y * GFX_W + x];
+}
+static uint16_t gelatina_corpo(float u, float v, int x, int y, uint16_t c, uint16_t cinza)
+{
+    float ro = sqrtf(u * u + v * v);
+    if (corpo_apagado) return ro > 0.80f ? cinza : c;
+    uint16_t g = gfx_mistura(c, RGB(208, 98, 108), 72);
+    if (ro > 0.76f) g = gfx_mistura(g, RGB(118, 30, 38), 40 + (int)((ro - 0.76f) * 120));   // a beira, funda
+    else if (u + v < -0.5f) g = gfx_mistura(g, RGB(246, 196, 190), 30);                       // a luz entrando em cima
+    int pct = ro < 0.45f ? 36 : ro < 0.70f ? 24 : 10;                                          // quanto do feltro aparece
+    if (bayer(x, y) < 0.5f) pct += 6;
+    return gfx_mistura(g, gelatina_fundo(x, y), pct);
+}
 static uint16_t la_agnus(float u, float v, float s, int x, int y, uint16_t c, uint16_t cinza)
 {
     float U = u - arte_du * s, V = v - arte_dv * s;       // no corpo (o numero no meio)
@@ -2126,6 +2246,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     else if (corpo_desta == D_BONECO) c = neve_boneco(u * s, v * s, s, nivel, c, cores[1]);
                     else if (cosmico(corpo_desta)) c = ceu_cosmico(corpo_desta, u * s, v * s, s, nivel, c, cores[1]);
                     else if (corpo_desta == D_AGNUS) c = la_agnus(u * s, v * s, s, x, y, c, cores[1]);
+                    else if (corpo_desta == D_GELATINA) c = gelatina_corpo(u * s, v * s, x, y, c, cores[1]);
                 }
                 if (brilho > -5) {
                     float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
@@ -3006,18 +3127,21 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     an_fx_zera();
     int lados = TIPO[tipo].lados;
     if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
+    if (tipo == D_MATRIOSKA && boneca_lados) lados = boneca_lados;  // uma boneca de dentro
     const visual_t *vi = &VISUAL[tipo];
     // Os dados comuns no material de quem joga com eles; os especiais (e a
     // moeda) tem um desenho so, sobre o marfim, para os dois lados.
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
-    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || tipo == D_AGNUS || cosmico(tipo) ? tipo : 0;
+    corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || tipo == D_AGNUS || tipo == D_GELATINA || cosmico(tipo) ? tipo : 0;
     corpo_apagado = zerado;
     uint16_t corpo = mt->tons[2];
     uint16_t tinta = mt->tinta;
     uint16_t aro = aro_de(tipo);
     if (vi->tom) corpo = cor_de_dado(gfx_mistura(corpo, vi->tom, vi->pct));
+    if (tipo == D_CAMALEAO && camaleao_de > 0 && camaleao_de < D_N && VISUAL[camaleao_de].tom)   // a cor de quem ele copia
+        corpo = cor_de_dado(gfx_mistura(corpo, VISUAL[camaleao_de].tom, 55));
     if (tipo == D_D2) {                           // a moeda de latao (moeda_corpo), com o numero cunhado em pardo
         corpo = C_LATAO;
         tinta = RGB(56, 32, 20);
@@ -3155,6 +3279,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             else poligono(vx, vy, n, corpo);
         }
         if (tipo == D_AGNUS) chifres_agnus(cx, bcy, r, ang, cores, zerado);   // por cima do aro
+        if (tipo == D_PANELA && r >= 9) panela_valvula(cx, bcy, r, ang, zerado);
         // as pecas por cima (marca_por_cima) ficam presas ao corpo como o desenho
         mcx = cx - (arte_du * mca - arte_dv * msa);
         mcy = bcy - (arte_du * msa + arte_dv * mca);
@@ -3222,7 +3347,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         else numero_contorno(cx, cy, r, s, gfx_mistura(tinta, corpo, 38), contorno);
         if (tipo == D_FURIA && marca_nivel >= 0 && (int8_t)marca_nivel && !zerado && r >= 12)
             furia_selo(cx, cy, r, (int8_t)marca_nivel, false);
-        if (tipo == D_MEIA && marca_nivel > 0 && !zerado && r >= 12) furia_selo(cx, cy, r, marca_nivel, true);
+        if ((tipo == D_MEIA || tipo == D_PANELA) && marca_nivel > 0 && !zerado && r >= 12) furia_selo(cx, cy, r, marca_nivel, true);
         return;
     }
     if (valor == SO_CORPO) return;       // so o corpo: o catalogo escreve grande
@@ -3337,6 +3462,58 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             uint16_t c = px_buf[y * GFX_W + x];
             if (c != CHAVE) fb[y * GFX_W + x] = c;
         }
+    if (tipo == D_PANELA && !zerado && r >= 9) panela_vapor(cx, cy, r, ang);   // o vapor, por cima
+}
+
+// A valvula da Panela de Pressao, em cima, presa ao corpo (gira com ele): a
+// haste e o pino. Com pressao guardada (marca_nivel), o pino treme - de vez em
+// quando no comeco, sem parar perto do maximo.
+static void panela_ponta(float cx, float cy, float r, float ang, float u, float v, int *x, int *y)
+{
+    float ca = cosf(-ang), sa = sinf(-ang);
+    *x = (int)lroundf(cx + u * r * ca + v * r * sa);
+    *y = (int)lroundf(cy - u * r * sa + v * r * ca);
+}
+static float r_treme = 13;
+static float panela_treme(void)
+{
+    int n = marca_nivel;
+    if (n <= 0) return 0;
+    bool agora = n >= PANELA_MAX * 6 / 10 || fmodf(t_relogio * 0.8f, 1.0f) < 0.10f + 0.06f * n;
+    if (!agora) return 0;
+    return ((int)(t_relogio * (8 + 3 * n)) % 2 ? 1.0f : -1.0f) / r_treme;
+}
+static void panela_valvula(float cx, float cy, float r, float ang, bool zerado)
+{
+    r_treme = r;
+    float du = panela_treme();
+    int hx0, hy0, hx1, hy1, px, py;
+    panela_ponta(cx, cy, r, ang, 0, -0.80f, &hx0, &hy0);
+    panela_ponta(cx, cy, r, ang, du, -1.02f, &hx1, &hy1);
+    panela_ponta(cx, cy, r, ang, du, -1.14f, &px, &py);
+    uint16_t haste = zerado ? C_CINZA : C_ACO, pino = zerado ? C_CINZA : C_FERRO;
+    gfx_linha_grossa(hx0, hy0, hx1, hy1, r >= 16 ? 2 : 1, haste);
+    int b = r >= 16 ? 2 : 1;
+    gfx_rect(px - b, py - b, 2 * b + 1, 2 * b, pino);
+    if (!zerado) gfx_pixel(px - b + 1, py - b, C_PRATA);
+}
+// E o vapor saindo dela, mais e mais alto conforme a pressao: por cima de
+// tudo (sem contorno nem sombra), sobe reto e apaga pontilhado.
+static void panela_vapor(float cx, float cy, float r, float ang)
+{
+    int n = marca_nivel;
+    if (n <= 0) return;
+    int px, py;
+    panela_ponta(cx, cy, r, ang, 0, -1.20f, &px, &py);
+    int np = 1 + n * 4 / PANELA_MAX;
+    float vel = 0.55f + 0.09f * n, alto = 7 + n * 1.1f;
+    for (int i = 0; i < np; i++) {
+        float q = fmodf(t_relogio * vel + i / (float)np + cx * 0.013f, 1.0f);
+        int x = px + (int)lroundf(sinf(t_relogio * 3 + i * 1.7f) * q * 3), y = py - 2 - (int)(q * alto);
+        if (bayer(x, y) < q * 0.9f) continue;
+        int t = q < 0.35f ? 2 : 1;
+        gfx_rect(x, y, t, t, q < 0.5f ? C_BRANCO : C_MARFIM_S);
+    }
 }
 
 // Moeda girando no ar: a arte de verdade da ficha (desenhada num rascunho)
@@ -3370,6 +3547,38 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo), C_SOMBRA, 30));
 }
 
+// A Gelatina balancando: o desenho de verdade (no rascunho) colado esticado,
+// ex na largura e ey na altura, preso no chao (a base do dado fica onde esta).
+static void dado_esticado(float cx, float cy, float r, int tipo, int dono, float ang, int valor, float ex, float ey)
+{
+    int caixa = (int)(r * 1.7f) + 8, x0 = (int)cx - caixa, y0 = (int)cy - caixa, x1 = (int)cx + caixa, y1 = (int)cy + caixa;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > GFX_W - 1) x1 = GFX_W - 1;
+    if (y1 > GFX_H - 1) y1 = GFX_H - 1;
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++) rascunho[y * GFX_W + x] = CHAVE;
+    gfx_desvia(rascunho);
+    desenha_dado(cx, cy, r, tipo, dono, ang, valor, 2, false);
+    gfx_desvia(NULL);
+    float base = cy + r * 0.92f;                       // o chao, embaixo do dado
+    int ox0 = (int)(cx - (cx - x0) * ex) - 1, ox1 = (int)(cx + (x1 - cx) * ex) + 1;
+    int oy0 = (int)(base - (base - y0) * ey) - 1, oy1 = (int)(base + (y1 - base) * ey) + 1;
+    uint16_t *fb = display_fb();
+    for (int y = oy0; y <= oy1; y++) {
+        if (y < 0 || y >= GFX_H) continue;
+        int sy = (int)lroundf(base + (y - base) / ey);
+        if (sy < y0 || sy > y1) continue;
+        for (int x = ox0; x <= ox1; x++) {
+            if (x < 0 || x >= GFX_W) continue;
+            int sx = (int)lroundf(cx + (x - cx) / ex);
+            if (sx < x0 || sx > x1) continue;
+            uint16_t c = rascunho[sy * GFX_W + sx];
+            if (c != CHAVE) fb[y * GFX_W + x] = c;
+        }
+    }
+}
+
 // O dado deitou no feltro: o pulinho do pouso, o relogio dele (o numero) e
 // o anel de poeira no lugar (mesa.inc).
 static void poeira_solta(float x, float y);
@@ -3378,6 +3587,41 @@ static void assenta(voo_t *v)
     v->pouso = 0.18f;
     v->t_assenta = 0.001f;
     if (!v->fantasma) poeira_solta(v->x, v->y);
+    if (!v->fantasma && fase == F_ROLANDO) {         // a Gelatina faz bloop; o Piao que girou de novo zune
+        if (v->tipo == D_GELATINA) som_toca(SOM_GELATINA);
+        else if (v->tipo == D_PIAO && v->giros) som_toca(SOM_PIAO);
+    }
+}
+
+// Os dados da quarta leva no pouso (a arte em mesa.inc, desenha_lance): o
+// Piao que girou de novo ainda roda no lugar ate deitar; a Gelatina que
+// quicou da um pulinho e balanca de novo; a Matrioska abre as bonecas, uma a
+// uma, ao lado dela. O dado so vai para a fila depois disso.
+#define PIAO_RODA   0.62f            // o Piao rodando no lugar
+#define GEL_PULO_0  0.05f            // o pulinho da Gelatina que quicou
+#define GEL_PULO_1  0.27f
+#define MAT_T0      0.16f            // a primeira boneca sai
+#define MAT_CADA    0.30f            // e cada uma depois
+#define MAT_POP     0.24f            // o voo de cada uma
+#define MAT_OLHA    0.45f            // e o tempo de ler a soma
+static bool pouso_pronto(const voo_t *v)
+{
+    if (v->fantasma || v->t_assenta <= 0) return true;
+    float t = v->t_assenta;
+    if (v->tipo == D_PIAO && v->giros) return t >= PIAO_RODA;
+    if (v->tipo == D_GELATINA && v->quicou) return t >= GEL_PULO_1 + 0.12f;
+    int nb = BONECAS_N(v->bonecas);
+    return !nb || t >= MAT_T0 + (nb - 1) * MAT_CADA + MAT_POP + MAT_OLHA;
+}
+// O som de cada boneca saindo, cada uma (menor) mais aguda.
+static void pouso_novos_passo(voo_t *v)
+{
+    if (v->fantasma || v->t_assenta <= 0) return;
+    int nb = BONECAS_N(v->bonecas);
+    while (v->bonecas_vistas < nb && v->t_assenta >= MAT_T0 + v->bonecas_vistas * MAT_CADA) {
+        som_toca_tom(SOM_MATRIOSKA, 3 * v->bonecas_vistas);
+        v->bonecas_vistas++;
+    }
 }
 
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).

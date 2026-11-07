@@ -19,7 +19,9 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER,
        EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO,
        EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS,
-       EF_TELA, EF_PINCEL, EF_MOSAICO, EF_N };
+       EF_TELA, EF_PINCEL, EF_MOSAICO,
+       EF_PIAO, EF_CAMELO, EF_LEQUE, EF_RETRATO, EF_ESTILINGUE, EF_CAMALEAO, EF_PANELA,
+       EF_PAPAGAIO, EF_MATRIOSKA, EF_COLCHA, EF_GELATINA, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -63,7 +65,10 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // O segredo do Adesivado: com os 6 lados cheios, vira este d8.
        D_MAIS_ADESIVADO,
        // O cordeiro: tirando 7, ressuscita os seus anulados da rodada.
-       D_AGNUS, D_TELA, D_PINCEL, D_MOSAICO, D_N };
+       D_AGNUS, D_TELA, D_PINCEL, D_MOSAICO,
+       // Os que vivem dos adesivos e da fila (a leva do relatorio de builds).
+       D_PIAO, D_CAMELO, D_LEQUE, D_RETRATO, D_ESTILINGUE, D_CAMALEAO, D_PANELA,
+       D_PAPAGAIO, D_MATRIOSKA, D_COLCHA, D_GELATINA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -86,6 +91,10 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
 #define ESPERANCA_FICHAS 40     // (era 15: quase nunca valia)
 #define AGIOTA_FICHAS 3          // o Agiota leva isto do oponente (eram 2)
+#define LEQUE_PTS     2          // o Leque: por dado seu valendo que caiu num lado com adesivo
+#define PANELA_SOLTA  7          // a Panela de Pressao solta a pressao com 7 ou 8
+#define PANELA_CADA   2          // e guarda isto por rodada fora da fila ou anulada
+#define PANELA_MAX    10
 // O que cada Jingle Bell valendo rende no fim, com outro valendo junto.
 #define JINGLE_PTS 4
 // A Furia: o que guarda tirando 4, o que perde tirando 1, e o teto (dos dois lados).
@@ -187,6 +196,7 @@ static bool so_desafio(int t)
 {
     switch (t) {
     case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA: case D_GARIMPEIRO:
+    case D_PIAO: case D_CAMELO: case D_LEQUE: case D_RETRATO: case D_PAPAGAIO: case D_COLCHA:   // os de adesivo
         return true;
     default:
         return false;
@@ -325,6 +335,17 @@ static const tipo_t TIPO[D_N] = {
     { "Tela em Branco",   6, EF_TELA,         RAR_INCOMUM,  0, "Adesivos nele agem 2x; lado vazio: 0" },
     { "Pincel",           4, EF_PINCEL,       RAR_COMUM,    0, "(fora do jogo)" },
     { "Mosaico",          8, EF_MOSAICO,      RAR_RARO,     0, "Válido: +1 por adesivo nos lançados" },
+    { "Pião",             6, EF_PIAO,         RAR_COMUM,    0, "Sem adesivo: gira de novo (até 2x)" },
+    { "Camelô",          12, EF_CAMELO,       RAR_RARO,     0, "Na partida, um adesivo em cada lado" },
+    { "Leque",            8, EF_LEQUE,        RAR_RARO,     0, "Válido: +2 por dado seu no adesivo" },
+    { "Porta-Retrato",    6, EF_RETRATO,      RAR_INCOMUM,  0, "Válido: o adesivo age no de antes" },
+    { "Estilingue",       6, EF_ESTILINGUE,   RAR_COMUM,    0, "Com 1: o próximo tira o máximo" },
+    { "Camaleão",         8, EF_CAMALEAO,     RAR_RARO,     0, "Tem o poder do dado de antes" },
+    { "Panela de Pressão", 8, EF_PANELA,      RAR_INCOMUM,  0, "Guarda +2; com 7 ou 8, solta" },
+    { "Papagaio",         8, EF_PAPAGAIO,     RAR_INCOMUM,  0, "Válido: repete o último adesivo" },
+    { "Matrioska",        8, EF_MATRIOSKA,    RAR_LENDA,    0, "Abre bonecas menores e soma" },
+    { "Colcha de Retalhos", 6, EF_COLCHA,     RAR_COMUM,    0, "Remendo no 1, no 2 e no 3" },
+    { "Gelatina",         6, EF_GELATINA,     RAR_INCOMUM,  0, "Abaixo do de antes: quica de novo" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -452,6 +473,17 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_AGNUS]           = "Se tirar 7, no fim da rodada todos os seus dados anulados ressuscitam e pontuam. Se tirar 8 e valer, a luz anula o maior dado do oponente.",
     [D_TELA]            = "Os adesivos colados nele agem duas vezes. Caindo num lado sem adesivo, pontua 0.",
     [D_MOSAICO]         = "Se terminar válido: +1 por adesivo nos seus dados lançados na rodada, ele incluído.",
+    [D_PIAO]            = "Caindo num lado sem adesivo, gira de novo, até 2 vezes: fica o primeiro lado com adesivo.",
+    [D_CAMELO]          = "No começo da partida, cada lado vazio ganha um adesivo sorteado. No fim, eles saem.",
+    [D_LEQUE]           = "Se terminar válido: +2 por outro dado seu válido que caiu num lado com adesivo.",
+    [D_RETRATO]         = "Se terminar válido, o adesivo do lado dele age também no dado de antes, se ele valer.",
+    [D_ESTILINGUE]      = "Se tirar 1, o próximo dado da sua sequência tira o número mais alto dele.",
+    [D_CAMALEAO]        = "Tem o poder do dado logo antes dele na sequência, como se fosse ele.",
+    [D_PANELA]          = "Fora da fila ou anulada, guarda +2 por rodada (até +10). Válida com 7 ou 8, solta tudo.",
+    [D_PAPAGAIO]        = "Se terminar válido, o último adesivo seu que agiu na rodada age de novo nele.",
+    [D_MATRIOSKA]       = "Tirando 6 a 8, abre um d6; com 5 ou 6, um d4; com 4, um d2. Vale a soma de todos.",
+    [D_COLCHA]          = "Já vem com um Remendo no 1, no 2 e no 3: os lados baixos tiram 3, 4 e 5.",
+    [D_GELATINA]        = "Se tirar menos que o dado de antes, quica: rola de novo uma vez e fica o maior.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -711,6 +743,36 @@ static const char *TEXTO_CAT[D_N] = {
                           "sem adesivo, ele pontua 0 (ainda entra na sequência com o número que tirou).",
     [D_MOSAICO]         = "Oito lados de azulejo. Se terminar válido: +1 no fim para cada adesivo colado nos seus dados "
                           "lançados na rodada, ele incluído, valendo ou não, agindo ou não. Um dado cheio vale muito.",
+    [D_PIAO]            = "Um pião de madeira torneada. Caindo num lado sem adesivo, gira de novo, até duas vezes, e "
+                          "fica o primeiro lado com adesivo (ou o último giro). Cada giro é um número novo: pode trocar "
+                          "um 6 por um 1. Sem adesivo nenhum, é um d6 comum.",
+    [D_CAMELO]          = "Doze lados de banca de feira. No começo de cada partida, cada lado vazio ganha um adesivo "
+                          "sorteado entre os que você já abriu, bons e ruins. No fim da partida, os sorteados saem; os "
+                          "que você colou nele ficam.",
+    [D_LEQUE]           = "Um leque de papel aberto. Se terminar válido: +2 no fim por outro dado seu válido que caiu "
+                          "num lado com adesivo. Conta o lado que caiu, não o dado inteiro: paga quem força o lado "
+                          "(Chumbo, Bússola, Nota Dez, Pião).",
+    [D_RETRATO]         = "A moldura de prata com a foto de um dado. Se terminar válido, o adesivo do lado em que ele "
+                          "caiu age também no dado logo antes dele, se esse dado valer: um Confete paga duas vezes, um "
+                          "Eletrônico dobra os dois.",
+    [D_ESTILINGUE]      = "A forquilha com o elástico esticado. Se tirar 1, valendo ou não, o próximo dado da sua "
+                          "sequência sai com o número mais alto dele: um d12 tira 12. O 1 dele, fora do começo, "
+                          "costuma cair pela sequência.",
+    [D_CAMALEAO]        = "Escamas que mudam de cor. Tem o poder do dado logo antes dele na sequência, como se fosse "
+                          "ele: atrás de um Pirata, é outro Pirata; atrás de um Laser, outro Laser. Rola o próprio d8. "
+                          "Atrás de um dado sem poder, é um d8 comum.",
+    [D_PANELA]          = "A panela que vai juntando pressão. Cada rodada fora da fila, ou anulada, ela guarda +2 (até "
+                          "+10). Terminando válida com 7 ou 8, solta tudo de uma vez nos pontos dela e esvazia. Válida "
+                          "com 1 a 6, segura o que guardou.",
+    [D_PAPAGAIO]        = "Penas verdes e o bico curvo. Se terminar válido, o último adesivo seu que agiu na rodada age "
+                          "de novo nele, como se fosse dele: mais um Confete, mais um x2. Repete também o que é ruim.",
+    [D_MATRIOSKA]       = "A boneca russa de madeira. Tirando 6 a 8, abre e sai um d6; o d6, com 5 ou 6, abre um d4; o "
+                          "d4, com 4, abre um d2, a menor de todas. As de dentro não anulam ninguém: a Matrioska vale a "
+                          "soma de todas e sobe a régua da sequência.",
+    [D_COLCHA]          = "Retalhos de pano costurados. Já vem com três Remendos colados, no 1, no 2 e no 3: os lados "
+                          "baixos tiram 3, 4 e 5. Conta três adesivos para o Neon e o Mosaico, e sobra pouco lado livre.",
+    [D_GELATINA]        = "Um dado de gelatina que treme. Se tirar menos que o dado de antes (o que derrubaria a "
+                          "sequência), quica: rola de novo uma vez e fica o maior. O segundo lance também pode cair.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -944,6 +1006,28 @@ static const visual_t VISUAL[D_N] = {
     [D_TELA]        = { V_TERRA,  0, 0,         V_TRIGO, 45 },
     // O Mosaico: os azulejos de tres cores com o rejunte claro.
     [D_MOSAICO]     = { V_CIANO,  0, 0,         V_CIANO, 100,   V_ROSA, 100,   V_TRIGO, 100 },
+    // O Piao: a madeira torneada com as listras vermelha e creme em volta.
+    [D_PIAO]        = { V_TERRA,  V_TRIGO, 30,  V_VERM, 100,    V_BRANCO, 100, V_MADEIRA, 100 },
+    // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
+    [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
+    // O Leque: o papel de arroz, as varetas de bambu e a onda azul pintada.
+    [D_LEQUE]       = { V_TERRA,  V_TRIGO, 25,  V_TRIGO, 100,   V_NOITE, 100,  V_COURO, 100 },
+    // O Porta-Retrato: a moldura de prata e a foto em sepia.
+    [D_RETRATO]     = { V_PRATA,  0, 0,         V_PRATA, 100,   V_COURO, 70,   V_TERRA, 100 },
+    // O Estilingue: a forquilha de madeira, o elastico vermelho e a pedrinha.
+    [D_ESTILINGUE]  = { V_COURO,  0, 0,         V_COURO, 100,   V_VERM, 100,   V_PEDRA, 100 },
+    // O Camaleao: as escamas verdes, a borda mudando de cor e o olho.
+    [D_CAMALEAO]    = { V_VERDE,  V_LIMA, 35,   V_VERDE, 100,   V_LIMA, 100,   V_TRIGO, 100 },
+    // A Panela de Pressao: o aluminio fosco e a valvula escura em cima.
+    [D_PANELA]      = { V_ACO,    V_PRATA, 30,  V_FERRO, 100,   V_CHUMBO, 100, V_PRATA, 100 },
+    // O Papagaio: as penas verdes, a ponta amarela e o bico.
+    [D_PAPAGAIO]    = { V_LIMA,   V_LIMA, 30,   V_VERDE, 100,   V_TRIGO, 100,  V_PEDRA, 100 },
+    // A Matrioska: a boneca vermelha com o rosto redondo e o dourado.
+    [D_MATRIOSKA]   = { V_OURO,   V_VERM, 35,   V_VERM, 100,    V_BRANCO, 100, V_OURO, 100 },
+    // A Colcha: os retalhos (xadrez, bolinha, listra) e o pesponto.
+    [D_COLCHA]      = { V_AMEIXA, 0, 0,         V_ROSA, 100,    V_CEU, 100,    V_TRIGO, 100 },
+    // A Gelatina: o corpo vem de gelatina_corpo; aqui, o aro e o brilho.
+    [D_GELATINA]    = { V_ROSA,   0, 0,         V_BRANCO, 100,  V_ROSA, 100,   V_VERM, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

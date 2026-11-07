@@ -121,6 +121,19 @@ static float luz_de(float dx, float dy)
 
 // O aro do modo Pixel: o poligono (n > 0) ou o disco (n == 0, raio R) cheio,
 // cada pixel no tom da rampa pela direcao em que a borda olha.
+// Exploracao (P troca, junto com os adesivos): no tamanho de jogo, o aro e a
+// face em faixas limpas, sem o pontilhado (que la vira pixel solto), e o
+// desenho de cada especial mais forte. Grande (a colecao), o de sempre.
+static int px_proposta = 1;
+static float px_r_desta = 18;            // o raio do dado que se desenha agora
+static bool px_limpo(float r) { return px_proposta && r < 24; }
+static uint16_t tom_faixa(const uint16_t *r, float l)
+{
+    int k = (int)floorf((l + 1) * 1.5f + 0.5f);
+    return r[k < 0 ? 0 : k > 3 ? 3 : k];
+}
+static int px_pct(int p) { return px_proposta && p && p < 60 ? (p * 3 / 2 + 10 > 100 ? 100 : p * 3 / 2 + 10) : p; }
+
 static void aro_rampa(const float *vx, const float *vy, int n, float cx, float cy, int R, uint16_t aro)
 {
     uint16_t r[4];
@@ -148,9 +161,10 @@ static void aro_rampa(const float *vx, const float *vy, int n, float cx, float c
             while ((w + 1) * (w + 1) + dy * dy <= R * R + R) w++;
             xs[0] = (float)((int)cx - w); xs[1] = (float)((int)cx + w); nx = 2;
         }
+        bool limpo = px_limpo(px_r_desta);
         for (int k = 0; k + 1 < nx; k += 2)
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++)
-                gfx_pixel(x, y, tom_rampa(r, luz_de(x - cx, y - cy), x, y));
+                gfx_pixel(x, y, limpo ? tom_faixa(r, luz_de(x - cx, y - cy)) : tom_rampa(r, luz_de(x - cx, y - cy), x, y));
     }
 }
 
@@ -2065,12 +2079,12 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                         luz += 0.42f * ruido(u * s / 0.3f + desvio, v * s / 0.3f);
                     } else if (mat_desta == MAT_VELUDO) {                     // o pelo: miudo, e a beira mais clara
                         luz += 0.30f * ruido(u * s / 0.08f + desvio, v * s / 0.08f) + 0.9f * fmaxf(0, (dx * dx + dy * dy) * s * s - 0.62f);
-                    } else {
-                        luz += 0.16f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
-                             + 0.07f * ruido(u * s / 0.15f, v * s / 0.15f + desvio);
+                    } else {                                                  // (na proposta, o grao mais leve: sem pixel solto)
+                        luz += (px_limpo(r) ? 0.45f : 1) * (0.16f * ruido(u * s / 0.34f + desvio, v * s / 0.34f)
+                             + 0.07f * ruido(u * s / 0.15f, v * s / 0.15f + desvio));
                     }
                     if (padrao(tex, u, v, r / 22)) luz -= 1;
-                    int nivel = (int)floorf(luz + bayer(x, y));   // o tom pelo limiar: entre os dois vizinhos, pontilhado
+                    int nivel = (int)floorf(luz + (px_limpo(r) ? 0.5f : bayer(x, y)));   // o tom pelo limiar: entre os dois vizinhos, pontilhado (na proposta, em faixas)
                     nivel = nivel < -2 ? -2 : nivel > 2 ? 2 : nivel;
                     c = tons[nivel + 2];
                     if (perola && (nivel == 0 || nivel == 1)) {               // o furta-cor, em faixas
@@ -2978,6 +2992,7 @@ static bool px_sem_sombra;               // o modo Pixel faz a sombra (pontilhad
 static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
                               float ang, int valor, int vista, bool zerado)
 {
+    px_r_desta = r;
     brilho_desta = brilho_passa;                  // o brilho de passagem e so deste dado
     brilho_passa = -1;
     bool caixa = caixa_fechada && tipo == D_PRESENTE;
@@ -3062,9 +3077,9 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             cores[3] = cor_de_dado(gfx_mistura(corpo, tinta, 55));
         }
     } else {
-        cores[1] = tom_desenho(corpo, vi->c1, vi->p1);
-        cores[2] = tom_desenho(corpo, vi->c2, vi->p2);
-        cores[3] = tom_desenho(corpo, vi->c3, vi->p3);
+        cores[1] = tom_desenho(corpo, vi->c1, px_pct(vi->p1));   // a proposta: o desenho mais forte
+        cores[2] = tom_desenho(corpo, vi->c2, px_pct(vi->p2));
+        cores[3] = tom_desenho(corpo, vi->c3, px_pct(vi->p3));
         for (int i = 1; i < 4; i++) rampa_de(cores[i], rampas_desta[i]);   // os tons com luz (LUZ)
         if (comum) memcpy(tons, mt->tons, sizeof tons);
         else tons_do_corpo(corpo, tons);
@@ -3371,6 +3386,52 @@ static void assenta(voo_t *v)
     if (!v->fantasma) poeira_solta(v->x, v->y);
 }
 
+// A proposta (P): o som pelo material do dado, o mesmo que se ve. Os comuns
+// no material de quem joga com eles; dos especiais, os que tem o corpo de
+// outra coisa (o chumbo, o ferro, o vidro, a pedra, a madeira, a la e o pao).
+// A resina (marfim, osso, perola e quase todos os especiais) e a de hoje.
+enum { TB_RESINA, TB_MADEIRA, TB_METAL, TB_PEDRA, TB_VIDRO, TB_MACIO, TB_N };
+static int timbre_de(int tipo, int dono)
+{
+    if (!px_proposta) return TB_RESINA;
+    if (TIPO[tipo].efeito == EF_NADA && TIPO[tipo].lados != 2 && tipo != D_MISTERIOSO)
+        switch (material_j[dono & 1]) {
+        case MAT_MADEIRA: case MAT_EBANO:                                      return TB_MADEIRA;
+        case MAT_BRONZE:                                                       return TB_METAL;
+        case MAT_JADE: case MAT_OBSIDIANA: case MAT_MARMORE: case MAT_LAPIS:   return TB_PEDRA;
+        case MAT_GELO: case MAT_BOLA:                                          return TB_VIDRO;
+        case MAT_VELUDO: case MAT_BISCOITO:                                    return TB_MACIO;
+        default:                                                               return TB_RESINA;
+        }
+    switch (tipo) {
+    case D_LASTRO: case D_FERREIRO: case D_ESCUDO: case D_REVOLVER: case D_JINGLE: return TB_METAL;
+    case D_VIDRO: case D_ESPELHO: case D_PRISMA:                                   return TB_VIDRO;
+    case D_SENTINELA: case D_COVEIRO: case D_VIUVA:                                return TB_PEDRA;
+    case D_CAVALO:                                                                 return TB_MADEIRA;
+    case D_AGNUS: case D_PANETONE: case D_MEIA: case D_BONECO:                     return TB_MACIO;
+    default:                                                                       return TB_RESINA;
+    }
+}
+static const uint16_t SOM_BATE_TB[TB_N] = { SOM_BATE, SOM_BATE_MADEIRA, SOM_BATE_METAL, SOM_BATE_PEDRA,
+                                            SOM_BATE_VIDRO, SOM_BATE_MACIO };
+static const uint16_t SOM_POUSA_TB[TB_N] = { SOM_POUSA, SOM_POUSA_MADEIRA, SOM_POUSA_METAL, SOM_POUSA_PEDRA,
+                                             SOM_POUSA_VIDRO, SOM_POUSA_MACIO };
+static int som_bate_de(int tipo, int dono)        // na borda de madeira
+{
+    return TIPO[tipo].lados == 2 ? SOM_MOEDA_BATE : SOM_BATE_TB[timbre_de(tipo, dono)];
+}
+static int som_pousa_de(int tipo, int dono)       // deitando no feltro
+{
+    return TIPO[tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA_TB[timbre_de(tipo, dono)];
+}
+static int som_choque(int ta, int da, int tb, int db)   // um dado no outro: o material mais duro manda
+{
+    if (TIPO[ta].lados == 2 || TIPO[tb].lados == 2) return SOM_MOEDA_BATE;
+    static const uint8_t DURO[TB_N] = { 1, 2, 5, 4, 3, 0 };   // resina, madeira, metal, pedra, vidro, macio
+    int a = timbre_de(ta, da), b = timbre_de(tb, db), t = DURO[a] >= DURO[b] ? a : b;
+    return t == TB_RESINA ? SOM_BATE_DADO : SOM_BATE_TB[t];
+}
+
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
 static void estala(float forca, int som)
 {
@@ -3394,8 +3455,7 @@ static bool fisica(float dt)
         v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
 
         const float r = R_DADO + 2;
-        bool moeda = TIPO[v->tipo].lados == 2;     // moeda tem os sons dela, mais leves
-        int borda = moeda ? SOM_MOEDA_BATE : SOM_BATE;
+        int borda = som_bate_de(v->tipo, v->dono);   // a moeda tem os dela, mais leves; na proposta, o material
         if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
         if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
         if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
@@ -3426,7 +3486,7 @@ static bool fisica(float dt)
             v->parado = true;
             assenta(v);
             v->face = v->valor;
-            som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
+            som_toca(som_pousa_de(v->tipo, v->dono));
         }
     }
     // Dados se empurram quando se encontram.
@@ -3443,7 +3503,7 @@ static bool fisica(float dt)
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
             if (rv < 0) {
                 float imp = -rv * 0.8f;
-                estala(imp, TIPO[p->tipo].lados == 2 || TIPO[q->tipo].lados == 2 ? SOM_MOEDA_BATE : SOM_BATE_DADO);
+                estala(imp, som_choque(p->tipo, p->dono, q->tipo, q->dono));
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }

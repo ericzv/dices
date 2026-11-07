@@ -86,6 +86,10 @@ static const char *const NOME[SOM_N] = {
     [SOM_CL_BOMBA] = "cl_bomba", [SOM_CL_LOBO] = "cl_lobo", [SOM_CL_DOURADO] = "cl_dourado", [SOM_CL_FRAGIL] =
     "cl_fragil", [SOM_CL_DUPLA] = "cl_dupla", [SOM_CL_POSTIT] = "cl_postit", [SOM_CL_CARBONO] = "cl_carbono",
     [SOM_CL_CONFETE] = "cl_confete", [SOM_CL_PURPURINA] = "cl_purpurina", [SOM_CL_IMPERMEAVEL] = "cl_impermeavel",
+    [SOM_BATE_MADEIRA] = "bate_madeira", [SOM_BATE_METAL] = "bate_metal", [SOM_BATE_PEDRA] = "bate_pedra",
+    [SOM_BATE_VIDRO] = "bate_vidro", [SOM_BATE_MACIO] = "bate_macio",
+    [SOM_POUSA_MADEIRA] = "pousa_madeira", [SOM_POUSA_METAL] = "pousa_metal", [SOM_POUSA_PEDRA] = "pousa_pedra",
+    [SOM_POUSA_VIDRO] = "pousa_vidro", [SOM_POUSA_MACIO] = "pousa_macio",
 };
 
 typedef struct {

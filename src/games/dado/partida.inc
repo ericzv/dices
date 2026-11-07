@@ -799,7 +799,7 @@ static bool ad_etapa_passo(float dt)
             v->lado = v->lado_v;
         }
         if (q < 1) return true;
-        som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA);
+        som_toca(som_pousa_de(v->tipo, v->dono));
         assenta(v);
         v->t_etapa = 0;
         v->etapa = v->reflete ? 2 : v->copia ? 3 : 0;

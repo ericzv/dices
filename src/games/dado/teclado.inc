@@ -121,6 +121,7 @@ void dado_tecla(const key_event_t *ev_)
     }
     if (k == 'p' && !dado_digitando()) {            // exploracao: a proposta de cada adesivo ou a de hoje (adesivo_v2.inc)
         ad_versao = !ad_versao;
+        px_proposta = ad_versao;                    // e o desenho proposto dos dados
         t_aviso_adesivo = 1.6f;
         aviso_versao = true;
         t_aviso_vel = t_aviso_tremor = t_aviso_letra = 0;

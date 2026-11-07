@@ -326,6 +326,106 @@ def moeda_pousa(v):
         k += 1
     return sala(m.x, 0.1)
 
+# A proposta dos dados (P no jogo): o som pelo material do dado, o mesmo que
+# se ve. A resina (marfim, osso, perola e quase todos os especiais) segue com
+# o de hoje; madeira, metal, pedra, vidro e o macio (veludo, la, pao, neve)
+# tem a batida (na borda e num dado) e o pouso no feltro de cada um.
+MAD_BOA = ['dicehit_wood%d' % i for i in (1, 2, 3, 6, 9)]          # as inteiras
+MET_BOA = ['dicehit_metal%d' % i for i in (1, 2, 3, 4, 8, 10, 11)]
+PLA_CORPO = ['dicehit_plastic%d' % i for i in (8, 9, 10, 11, 12, 13)]   # as de corpo mais longo
+
+def tinido(parciais, dur):
+    """Parciais de seno que caem, cada uma no seu tempo: o canto do vidro e
+    o do metal. parciais: (frequencia, ganho, queda em s)."""
+    n = int(dur * SR); t = np.arange(n) / SR
+    y = np.zeros(n)
+    for f, a, q in parciais:
+        y += a * np.sin(2 * np.pi * f * t + rnd.uniform(0, 6.28)) * np.exp(-t / q)
+    k = int(0.0015 * SR)
+    y[:k] *= np.linspace(0, 1, k)
+    return y
+
+def corta(x, dur, queda):
+    n = min(len(x), int(dur * SR))
+    return x[:n] * env(n, 0.0004, queda)
+
+def bate_madeira(v):
+    """O toc oco: a batida de madeira, mais grave, e o corpo dela soando."""
+    m = Mix(0.25)
+    m.poe(0, tom(batida(MAD_BOA[v % len(MAD_BOA)]), -2 + rnd.uniform(-1, 1)), 1.0)
+    f = rnd.uniform(560, 700)
+    m.poe(0.001, tinido(((f, 1, 0.022), (f * 2.7, 0.4, 0.012)), 0.12), 0.16)
+    return sala(m.x, 0.08)
+
+def pousa_madeira(v):
+    """O baque no feltro com o toc da madeira por cima; e o dado assenta."""
+    m = Mix(0.4)
+    m.poe(0, pb(superficie(FELTRO[v % len(FELTRO)]), 2400), 0.8)
+    m.poe(0.004, pb(tom(batida(MAD_BOA[(v + 2) % len(MAD_BOA)]), -4), 3200), 0.55)
+    m.poe(0.07 + 0.01 * v, pb(tom(batida(MAD_BOA[(v + 4) % len(MAD_BOA)]), -5), 2600), 0.16)
+    return sala(m.x, 0.10)
+
+def bate_metal(v):
+    """O metal: o clique e o anel que fica, curto e inarmonico."""
+    m = Mix(0.4)
+    m.poe(0, tom(batida(MET_BOA[v % len(MET_BOA)]), -3 + rnd.uniform(-1, 1)), 1.0)
+    f = rnd.uniform(1900, 2300)
+    m.poe(0.001, tinido(((f, 1, 0.09), (f * 2.41, 0.5, 0.05), (f * 3.93, 0.25, 0.03)), 0.35), 0.07)
+    return sala(m.x, 0.10)
+
+def pousa_metal(v):
+    """O peso: o baque mais fundo no feltro, o clique abafado e o anel baixinho."""
+    m = Mix(0.5)
+    m.poe(0, pb(superficie(FELTRO[v % len(FELTRO)]), 1300), 1.0)
+    m.poe(0.003, pb(tom(batida(MET_BOA[(v + 3) % len(MET_BOA)]), -6), 5000), 0.5)
+    f = rnd.uniform(1700, 2000)
+    m.poe(0.004, tinido(((f, 1, 0.12), (f * 2.41, 0.4, 0.06)), 0.4), 0.035)
+    return sala(m.x, 0.10)
+
+def bate_pedra(v):
+    """A pedra: um clique seco e denso, sem corpo nenhum."""
+    m = Mix(0.2)
+    m.poe(0, corta(tom(batida(PLA_CORPO[v % len(PLA_CORPO)]), -5 + rnd.uniform(-1, 1)), 0.05, 0.012), 1.0)
+    m.poe(0, corta(pa(tom(batida(MAD_BOA[(v + 1) % len(MAD_BOA)]), -7), 900), 0.04, 0.008), 0.6)
+    return sala(m.x, 0.07)
+
+def pousa_pedra(v):
+    """O baque pesado e o clique seco da pedra assentando (e o segundo, menor)."""
+    m = Mix(0.4)
+    m.poe(0, pb(superficie(FELTRO[v % len(FELTRO)]), 1500), 1.05)
+    m.poe(0.003, corta(tom(batida(PLA_CORPO[(v + 2) % len(PLA_CORPO)]), -6), 0.05, 0.012), 0.75)
+    m.poe(0.045 + 0.008 * v, corta(tom(batida(PLA_CORPO[(v + 4) % len(PLA_CORPO)]), -7), 0.04, 0.010), 0.3)
+    return sala(m.x, 0.09)
+
+def bate_vidro(v):
+    """O vidro: o tic agudo e o canto limpo que fica no ar."""
+    m = Mix(0.5)
+    m.poe(0, pa(tom(batida(PLASTICO[v % len(PLASTICO)]), 4 + rnd.uniform(-1, 1)), 1500), 0.8)
+    f = rnd.uniform(2900, 3400)
+    m.poe(0.001, tinido(((f, 1, 0.12), (f * 1.55, 0.6, 0.09), (f * 2.36, 0.35, 0.06)), 0.45), 0.22)
+    return sala(m.x, 0.12)
+
+def pousa_vidro(v):
+    """O baque leve e o vidro cantando baixinho no pouso."""
+    m = Mix(0.5)
+    m.poe(0, pb(superficie(FELTRO[v % len(FELTRO)]), 2600), 0.7)
+    m.poe(0.003, pa(tom(batida(PLASTICO[(v + 3) % len(PLASTICO)]), 3), 1500), 0.3)
+    f = rnd.uniform(2700, 3100)
+    m.poe(0.004, tinido(((f, 1, 0.10), (f * 1.55, 0.5, 0.07)), 0.35), 0.10)
+    return sala(m.x, 0.12)
+
+def bate_macio(v):
+    """O macio: um tum abafado, sem clique."""
+    m = Mix(0.25)
+    m.poe(0, pb(superficie(FELTRO[(v + 1) % len(FELTRO)]), 900), 1.0)
+    m.poe(0.002, pb(tom(batida(MAD_BOA[v % len(MAD_BOA)]), -8), 1400), 0.45)
+    return sala(m.x, 0.06)
+
+def pousa_macio(v):
+    """Cai fofo: o feltro bem abafado, mais longo, e nada mais."""
+    x = pb(superficie(FELTRO[v % len(FELTRO)]), 700)
+    return sala(x, 0.06)
+
 def turno():
     m = Mix(0.5)
     m.poe(0, superficie('surface_wood_table3'), 1.0)
@@ -2509,6 +2609,8 @@ VOLUME.update({n: VOLUME['ficha'] * 1.15 for n in CL_NOMES})
 VOLUME.update({'ag_raspadinha': VOLUME['efeito']})
 VOLUME.update({'cl_chumbo': VOLUME['pousa'] * 0.8, 'cl_carimbo': VOLUME['ficha'] * 1.4, 'cl_confete': VOLUME['ficha'] * 1.4})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
+for _v in range(3):                           # o macio, mais baixo; o metal, um pouco mais forte
+    GANHO_DB.update({'bate_macio_%d' % _v: -4.0, 'pousa_macio_%d' % _v: -3.0, 'pousa_metal_%d' % _v: 1.0, 'bate_metal_%d' % _v: 0.5})
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
 SONS = {
@@ -2542,6 +2644,11 @@ for v in range(4):
     SONS['ficha_%d' % v] = ((lambda v=v: ficha(v)), 'ficha')
 for v in range(5):
     SONS['pousa_%d' % v] = ((lambda v=v: pousa(v)), 'pousa')
+TIMBRES = ('madeira', 'metal', 'pedra', 'vidro', 'macio')
+for tb in TIMBRES:
+    for v in range(3):
+        SONS['bate_%s_%d' % (tb, v)] = ((lambda tb=tb, v=v: globals()['bate_' + tb](v)), 'bate')
+        SONS['pousa_%s_%d' % (tb, v)] = ((lambda tb=tb, v=v: globals()['pousa_' + tb](v)), 'pousa')
 for v in range(3):
     SONS['moeda_bate_%d' % v] = ((lambda v=v: moeda_bate(v)), 'moeda_bate')
     SONS['moeda_pousa_%d' % v] = ((lambda v=v: moeda_pousa(v)), 'moeda_pousa')

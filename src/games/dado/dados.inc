@@ -18,7 +18,8 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_TRENO, EF_BONECO, EF_JINGLE, EF_FURIA, EF_ONDA, EF_TSUNAMI, EF_PATINHOS,
        EF_PRESENTE, EF_PANETONE, EF_PISCA, EF_MEIA, EF_ESTRELA, EF_RENA, EF_REVOLVER,
        EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO,
-       EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS, EF_N };
+       EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS,
+       EF_TELA, EF_PINCEL, EF_MOSAICO, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -62,7 +63,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // O segredo do Adesivado: com os 6 lados cheios, vira este d8.
        D_MAIS_ADESIVADO,
        // O cordeiro: tirando 7, ressuscita os seus anulados da rodada.
-       D_AGNUS, D_N };
+       D_AGNUS, D_TELA, D_PINCEL, D_MOSAICO, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -300,6 +301,9 @@ static const tipo_t TIPO[D_N] = {
     { "Adesivado",        6, EF_ADESIVADO,    RAR_INCOMUM,  0, "Já vem com 3 adesivos ao acaso" },
     { "Mais Adesivado",   8, EF_ADESIVADO,    RAR_LENDA,    0, "Oito lados, um adesivo em cada" },
     { "Agnus",            8, EF_AGNUS,        RAR_LENDA,    0, "Com 7: seus anulados ressuscitam" },
+    { "Tela em Branco",   6, EF_TELA,         RAR_INCOMUM,  0, "Adesivos nele agem 2x; lado vazio: 0" },
+    { "Pincel",           4, EF_PINCEL,       RAR_COMUM,    0, "Válido: pinta um Remendo noutro dado" },
+    { "Mosaico",          8, EF_MOSAICO,      RAR_RARO,     0, "Válido: +1 por adesivo nos lançados" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -425,6 +429,9 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ADESIVADO]       = "Já vem com 3 adesivos diferentes, sorteados, colados em 3 lados ao acaso.",
     [D_MAIS_ADESIVADO]  = "Oito lados, um adesivo em cada: Avesso, Transparente, Patinho Feio, Etiqueta, Selo, Remendo, Confete e Eletrônico.",
     [D_AGNUS]           = "Se tirar 7, no fim da rodada todos os seus dados anulados ressuscitam e pontuam.",
+    [D_TELA]            = "Os adesivos colados nele agem duas vezes. Caindo num lado sem adesivo, pontua 0.",
+    [D_PINCEL]          = "Se terminar válido, pinta um Remendo no lado livre mais baixo de outro dado seu.",
+    [D_MOSAICO]         = "Se terminar válido: +1 por adesivo nos seus dados lançados na rodada, ele incluído.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -673,6 +680,14 @@ static const char *TEXTO_CAT[D_N] = {
                           "rodada, logo depois dos poderes, todos os seus dados anulados ressuscitam - os que a sequência "
                           "derrubou e os que os poderes do oponente anularam, ele mesmo incluído - e pontuam o número que "
                           "tiraram. Os roubados não voltam.",
+    [D_TELA]            = "Seis lados em branco, de linho esticado, esperando a sua colagem. Cada adesivo colado nele "
+                          "age duas vezes, como carimbado: o Confete dá +8, o Eletrônico fica x3. Mas caindo num lado "
+                          "sem adesivo, ele pontua 0 (ainda entra na sequência com o número que tirou).",
+    [D_PINCEL]          = "Um d4 de pintor. Se terminar válido, no fim da rodada pinta um Remendo (aquele lado passa a "
+                          "valer 2 a mais, para sempre) no lado livre mais baixo de outro dado seu, sorteado. Enche a "
+                          "bolsa de adesivo para o Neon, o Álbum Completo e o Mosaico.",
+    [D_MOSAICO]         = "Oito lados de azulejo. Se terminar válido: +1 no fim para cada adesivo colado nos seus dados "
+                          "lançados na rodada, ele incluído, valendo ou não, agindo ou não. Um dado cheio vale muito.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -902,6 +917,12 @@ static const visual_t VISUAL[D_N] = {
     // O Agnus: a la de cordeiro vem do corpo (la_agnus); aqui, o aro de ouro e os
     // chifres (o couro, o terra e o brilho de latao).
     [D_AGNUS]       = { V_OURO,   0, 0,         V_COURO, 100,   V_TERRA, 100,  V_LATAO, 100 },
+    // A Tela em Branco: o linho cru, a trama, e o chassi de madeira no aro.
+    [D_TELA]        = { V_TERRA,  0, 0,         V_TRIGO, 45 },
+    // O Pincel: a pincelada de tres cores atravessando a face, no aro de latao.
+    [D_PINCEL]      = { V_LATAO,  0, 0,         V_VERM, 100,    V_CIANO, 100,  V_TRIGO, 100 },
+    // O Mosaico: os azulejos de tres cores com o rejunte claro.
+    [D_MOSAICO]     = { V_CIANO,  0, 0,         V_CIANO, 100,   V_ROSA, 100,   V_TRIGO, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

@@ -14,6 +14,7 @@ typedef struct {
     int atacados[2];                 // dados de cada um que poderes do outro anularam ou roubaram (Ourico)
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
+    uint8_t pincel[2];               // os Pinceis que valeram (posicoes): cada um pinta um Remendo noutro dado
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
     uint8_t garimpo[2];              // o Garimpeiro valeu: posicoes dos outros validos que voltam para a bolsa
     uint8_t onda[2];                 // posicoes das Ondas que juntaram 9: viram Tsunami
@@ -699,6 +700,19 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             int r = outro(j), n = d->atacados[j];
             d->delta[r] -= OURICO_PTS * n;
             evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "", 4 * n, J[r].nome);
+        } else if (ef == EF_MOSAICO) {                    // +1 por adesivo nos seus dados lancados, ele incluido
+            int n = 0;
+            for (int i = 0; i < f->lancados && i < N_FILA; i++) {
+                const peca_t *pm = est[i] == V_ROUBADO ? NULL : peca_fila(j, i);
+                if (pm) n += ad_quantos(pm);
+            }
+            if (n) {
+                d->semente[j] += n;
+                evento(gera, EV_EXTRA, j, k, j, 0, n, "Mosaico: %d adesivo%s nos lançados, +%d", n, n > 1 ? "s" : "", n);
+            }
+        } else if (ef == EF_PINCEL && !(d->pincel[j] >> k & 1)) {   // pinta um Remendo noutro dado (partida.inc)
+            d->pincel[j] |= (uint8_t)(1 << k);
+            evento(gera, EV_EXTRA, j, k, j, 0, 0, "Pincel: pinta um Remendo noutro dado");
         } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
             d->medusa[j] = 1;
             evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua sequência vira pedra");
@@ -846,6 +860,8 @@ static int poder_armado(int j, int k)
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
     case EF_MEDUSA:       return 1;
+    case EF_PINCEL:       return 1;
+    case EF_MOSAICO:      return 1;
     case EF_RANCOR:       return J[j].perdidas > 0;
     case EF_ESPERANCA:    return fichas_ini[j] <= ESPERANCA_FICHAS;
     case EF_POTE:         return pote >= 25;
@@ -1351,7 +1367,7 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
         if (!px || max < 1) return 0;
         int b = ad_no_lado(px, ad_oposto(px->tipo, F[j].lado[k]));
         if (!b || b == AD_XEROX) return 0;
-        int vezes = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), n = 0;
+        int vezes = 1 + ((k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)) || F[j].tipo[k] == D_TELA), n = 0;
         for (int g = 0; g < vezes && n < max; g++) {
             uint32_t h = pega_semente(j, k) ^ (0x5A17C3E9u * (uint32_t)(g + 1));
             int i = pega_dado(j, h);
@@ -1367,7 +1383,7 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
         return n;
     }
     if (a != AD_INFECTADO && a != AD_BARRO && a != AD_MASSINHA) return 0;
-    int vezes = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), n = 0;
+    int vezes = 1 + ((k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)) || F[j].tipo[k] == D_TELA), n = 0;
     for (int g = 0; g < vezes && n < max; g++) {
         uint32_t h = pega_semente(j, k) ^ (0x1F3C7E5Du * (uint32_t)(g + 1));
         pouso_ad_t p = { (int8_t)j, (int8_t)k, (int8_t)(a == AD_BARRO ? r : j), -1, (uint8_t)a, 0, 0, 0 };
@@ -1409,6 +1425,8 @@ static int corrente_antes;                       // a Corrente: os adesivos que 
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
 // Holografico (no dado k) copiando o do dado ko (copia: nada sai nem cresce
 // no dado de la; o Fermento paga o que pagou la). Devolve se agiu.
+// O dado de antes de k tirou o Carimbo (a segunda vez e dele, nao da Tela em Branco).
+static bool carimbado_ja(int j, int k) { return k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO); }
 static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool copia)
 {
     int r = outro(j);
@@ -1416,7 +1434,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
     const char *pre = copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
-                    : de_novo ? "Carimbo » " : age_modo & EVM_DUPLA ? "Dupla Face » "
+                    : de_novo ? (F[j].tipo[k] == D_TELA && !carimbado_ja(j, k) ? "Tela em Branco » " : "Carimbo » ")
+                    : age_modo & EVM_DUPLA ? "Dupla Face » "
                     : age_modo & EVM_MOLDURA ? "Moldura » " : "";
     evento_t *e = NULL;
     switch (a) {
@@ -1750,7 +1769,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int a = ad_fila(j, k);
         if (!a || d->est[j][k] == V_ROUBADO) continue;
-        bool carimbo = carimbado(d, j, k), duplo = false, carimbou = false;
+        bool carimbo = carimbado(d, j, k) || F[j].tipo[k] == D_TELA, duplo = false, carimbou = false;   // a Tela: duas vezes
         int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
         int viz[2];                              // a Moldura: os dos lados vizinhos
         moldura_fila(j, k, viz);

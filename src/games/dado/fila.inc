@@ -62,8 +62,13 @@ static bool carbono_age(int j, int k)
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
 // O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
 // resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
+static const peca_t *peca_fila(int j, int k);
 static int valor_pontos(int j, int k)
 {
+    if (F[j].tipo[k] == D_TELA) {                // a Tela em Branco: o lado sem adesivo pontua 0
+        const peca_t *p = peca_fila(j, k);
+        if (!p || !ad_no_lado(p, F[j].lado[k])) return 0;
+    }
     if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
     if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO) return 0;
     if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;

@@ -799,6 +799,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
 {
     float ro = sqrtf(u * u + v * v), l = s * 0.6f;          // l: meio traco de um pixel
     switch (tipo) {
+    case D_TELA:                                  // a trama do linho: os fios de 4 em 4 pixels, de leve
+        return fr(u / (4 * s) + 0.5f) < 0.25f || fr(v / (4 * s) + 0.5f) < 0.25f;
+    case D_PINCEL: {                              // a pincelada na diagonal, de tres cores, com a ponta seca
+        float al = (u - v) * 0.7071f, tr = (u + v) * 0.7071f;
+        if (fabsf(tr) > 0.22f + 0.05f * sinf(al * 9) || fabsf(al) > 0.82f) return 0;
+        if (fabsf(al) > 0.70f && fr(tr * 9) < 0.5f) return 0;   // as cerdas na ponta
+        return al < -0.25f ? 1 : al < 0.25f ? 2 : 3;
+    }
+    case D_MOSAICO: {                             // os azulejos, com o rejunte claro entre eles
+        float c = 0.34f;
+        float gu = fr(u / c + 0.5f), gv = fr(v / c + 0.5f);
+        if (gu < 0.14f || gv < 0.14f) return 0;
+        int iu = (int)floorf(u / c + 0.5f) + 8, iv = (int)floorf(v / c + 0.5f) + 8;
+        return 1 + (int)(((unsigned)(iu * 7 + iv * 13)) % 3u);
+    }
     case D_DOBRO: {                               // >> : passa o dobro ao seguinte
         float d = u + 0.75f * fabsf(v);
         if (fabsf(v) > 0.46f) return 0;

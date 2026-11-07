@@ -971,6 +971,21 @@ static void garimpa(int j, const desfecho_t *d)
     }
 }
 
+// O Pincel valeu: pinta um Remendo no lado livre mais baixo de outro dado
+// de j, sorteado pela mesa (o online tira o mesmo).
+static void pincel_pinta(int j, const desfecho_t *d)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        if (!(d->pincel[j] >> k & 1)) continue;
+        uint32_t h = pega_semente(j, k) ^ 0x2C9E51A7u;
+        int i = pega_dado(j, h);
+        if (i == F[j].idx[k]) i = pega_dado(j, h * 2654435761u);   // de preferencia, outro dado
+        if (i < 0 || i >= J[j].n_col) continue;
+        uint8_t lados[AD_LADOS];
+        if (pega_lados(j, i, lados)) ad_cola(&J[j].col[i], lados[0], AD_REMENDO);
+    }
+}
+
 // A Medusa valeu: cada dado lancado por j (menos os roubados e os que ja
 // saem da bolsa) vira um Quebrado com o numero que tirou.
 static void medusa_petrifica(int j, const desfecho_t *d)
@@ -1305,6 +1320,7 @@ static void conclui_rodada(void)
         contadores_ficam(j, &resolvido);
         autofagia_come(j, &resolvido);
         medusa_petrifica(j, &resolvido);
+        pincel_pinta(j, &resolvido);
         garimpa(j, &resolvido);
     }
     recolhe_quebrados();
@@ -1397,6 +1413,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_JINGLE] = { SOM_SINO, 0 },            [EF_PANETONE] = { SOM_PRESENTE, 0 },
     [EF_JACKPOT] = { SOM_FICHA, 4 },
     [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
+    [EF_PINCEL] = { SOM_AD_MASSINHA, 3 },     [EF_MOSAICO] = { SOM_AD_FIGURINHA, -2 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons

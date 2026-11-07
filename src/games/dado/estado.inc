@@ -30,6 +30,7 @@ typedef struct {
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
     bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
+    uint8_t pavio[MAX_COL];      // a Dinamite: o que o pavio de cada dado guardou nesta partida
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -64,6 +65,8 @@ typedef struct {
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
+    uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)
+    uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
     char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
     char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
     char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "$+4")
@@ -71,6 +74,10 @@ typedef struct {
     int     total;
 } fila_t;
 
+// As bonecas que a Matrioska abriu: quantas (0 a 3) e o que cada uma tirou (o
+// d6, o d4 e o d2), empacotadas em 2 + 3 + 3 + 2 bits.
+#define BONECAS_N(b)    ((b) & 3)
+#define BONECA_V(b, i)  ((i) == 0 ? ((b) >> 2) & 7 : (i) == 1 ? ((b) >> 5) & 7 : ((b) >> 8) & 3)
 typedef struct {
     float x, y, vx, vy, giro, spin;
     float ox, oy;
@@ -87,7 +94,8 @@ typedef struct {
     float casca_vx, casca_vy;
     uint8_t lado;                    // o lado que fica para cima (os adesivos)
     int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso (ou a Nota Dez) vira; 2 o Reflexivo
-                                     // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia
+                                     // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia; 5 o Piao
+                                     // gira (a Gelatina quica) de novo
     bool virou;                      // o Avesso ja virou
     bool reflete;                    // depois (ou sem) o Avesso, o Reflexivo
     uint8_t ad_vira, ad_rola;        // quem vira (Avesso, Nota Dez) e quem rola de novo (Reflexivo, Papel Bomba)
@@ -98,6 +106,15 @@ typedef struct {
     int valor_v; uint8_t lado_v;     // depois de virar do avesso
     int valor2, menor2; uint8_t lado2;   // o segundo lance, do Reflexivo
     float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
+    uint8_t giros;                   // o Piao: quantas vezes girou de novo (o rastro em espiral no pouso)
+    // O Piao e a Gelatina rolando de novo (etapa 5): os lances que ainda vem
+    // (rr_v, rr_l; rr_i ja mostrados) e a etapa dos adesivos do ultimo.
+    uint8_t rr_n, rr_i; int rr_v[3]; uint8_t rr_l[3]; int8_t rr_etapa;
+    bool quicou;                     // a Gelatina quicou (treme mais no pouso)
+    uint16_t bonecas;                // a Matrioska: as bonecas que saem dela no pouso
+    uint8_t bonecas_vistas;          // e quantas ja sairam (o som de cada uma)
+    uint8_t bonecas_pousadas;        // e quantas ja pousaram com o numero
+    bool estilingue;                 // o Estilingue de antes atirou: este sai no maximo (a pedra vem nele)
 } voo_t;
 
 // Eventos do desfecho, tocados um a um.
@@ -124,6 +141,9 @@ typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
 #define EVM_CARIMBO 1
 #define EVM_DUPLA   2
+#define EVM_MOLDURA 4                    // o do lado vizinho, pela Moldura
+#define EVM_PAPAGAIO 8                   // o Papagaio repetindo o ultimo adesivo que agiu
+#define EVM_RETRATO 16                   // o adesivo do Porta-Retrato agindo no dado de antes
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;

@@ -3,6 +3,9 @@
 // ---------------------------------------------------------------------------
 // Pesos por dado de cada raridade [comum, incomum, raro, lendario]. Os dados
 // iniciais (moeda, D4, D6) nunca saem, como no premio da partida normal.
+// O D20 nao se vende (nem na vitrine, nem nos pacotes): so sai de um
+// Presente e do dado que a Sacola de Presente ganha de cada chefe.
+static bool fora_da_loja(int t) { return t == D_D20; }
 static int sorteia_raridade(const float w[4])
 {
     float total = 0;
@@ -22,6 +25,7 @@ static peca_t peca_r(int t)
     peca_t p = { .tipo = (uint8_t)t, .fixo = 0 };
     if (t == D_QUEBRADO) p.fixo = (uint8_t)(1 + sorte_r(8));
     if (t == D_ADESIVADO || t == D_MAIS_ADESIVADO) adesiva(&p, rola_r, true);   // os adesivos dele, dos abertos
+    if (t == D_COLCHA) colcha_remenda(&p);       // os tres Remendos de fabrica
     return p;
 }
 
@@ -44,11 +48,11 @@ static int sorteia_vitrine(const float w[4])
     for (int todos = 0; todos < 2; todos++) {
         float total = 0;
         for (int t = 0; t < D_N; t++)
-            if (!so_inicial(t) && dado_liberado(t) && (todos || !dado_visto(t))) total += w[TIPO[t].raridade];
+            if (!so_inicial(t) && !fora_da_loja(t) && dado_liberado(t) && (todos || !dado_visto(t))) total += w[TIPO[t].raridade];
         if (total <= 0) continue;
         float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
         for (int t = 0; t < D_N; t++) {
-            if (so_inicial(t) || !dado_liberado(t) || (!todos && dado_visto(t))) continue;
+            if (so_inicial(t) || fora_da_loja(t) || !dado_liberado(t) || (!todos && dado_visto(t))) continue;
             x -= w[TIPO[t].raridade];
             if (x < 0) return t;
         }
@@ -84,10 +88,14 @@ static int preco_ajusta(int p)
     if (run_amuletos() >> A_CUPOM & 1) p--;
     return p < 1 ? 1 : p;
 }
+#define LISO_A_MAIS 2                 // o D8 e o D12 na loja
 static int preco_run(int t)
 {
     static const int P[4] = { 3, 4, 6, 9 };
-    return preco_ajusta(P[TIPO[t].raridade]);
+    // Os lisos de muitos lados (D8 e D12) custam 2 a mais: na fila crescente,
+    // numero alto passa quase todos os especiais da raridade deles. (O D20
+    // nem se vende: fora_da_loja.)
+    return preco_ajusta(P[TIPO[t].raridade] + (t == D_D8 || t == D_D12 ? LISO_A_MAIS : 0));
 }
 // A Sacola de Feira troca a loja de graca uma vez em cada loja (depois, 1, 2,
 // 3...); a Caixa de Ferramentas tira um dado de graca uma vez em cada loja (o
@@ -194,7 +202,7 @@ static void desc_pacote(int g, char *s, int n)
 }
 
 // Os dados que um pacote pode trazer: os que a vitrine sorteia.
-static bool no_pacote(int t) { return !so_inicial(t) && dado_liberado(t); }
+static bool no_pacote(int t) { return !so_inicial(t) && !fora_da_loja(t) && dado_liberado(t); }
 // A Lata de Biscoito: o pacote de adesivos, como o adesivo, 1 mais barato.
 static int preco_pacote(void)
 {
@@ -494,6 +502,10 @@ static void poe_incomum_s1(peca_t *col, int n, const perso_t *pe, int nivel)
     if (alvo >= 0) col[alvo] = peca_r(t);
 }
 
+// O 1o salao para de subir no Nivel 3: dali em diante, a dificuldade cresce
+// do 2o salao em diante (a bolsa e a IA do 1o ficam as do Nivel 3).
+#define S1_TETO 3
+static int dif_salao(int andar) { return andar == 0 && run.dificuldade > S1_TETO ? S1_TETO : run.dificuldade; }
 static int monta_oponente(const no_t *no, int andar, peca_t *col)
 {
     rs = no->semente;
@@ -578,7 +590,7 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
         col[n++] = peca_r(tudo || dado_liberado(t) ? t : coringa ? D_D12 : D_D6);
     }
     if (andar == 0 && !coringa)
-        for (int q = incomuns_s1(tier, run.dificuldade); q > 0; q--) poe_incomum_s1(col, n, pe, run.dificuldade);
-    if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + run.dificuldade / 4);
+        for (int q = incomuns_s1(tier, dif_salao(andar)); q > 0; q--) poe_incomum_s1(col, n, pe, dif_salao(andar));
+    if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + dif_salao(andar) / 4);
     return n;
 }

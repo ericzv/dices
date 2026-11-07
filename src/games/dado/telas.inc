@@ -442,6 +442,7 @@ static void desenha_efeitos(void)
     if (wi && !icone_poder(x + 6, CENTRO - 15 + (TXT_H + 8) / 2, tipo)) x += wi / 2, wi = 0;
     gfx_texto(x + wi, CENTRO - 11 - (f == 1), e->txt, c, f, f == 1);
     desenha_evento();
+    desenha_combo();
 }
 
 // O registro do fim da rodada, a esquerda das filas: uma fita de eventos

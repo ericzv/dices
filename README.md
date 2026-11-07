@@ -76,7 +76,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Caixa de Papelão | os pacotes de dados e de adesivos mostram 4 opções, em vez de 3; vem com o Colecionador e o Oculto | as lojas não vendem adesivo avulso, só pacotes | abrir 5 pacotes numa run |
   | Sacola de Feira | trocar a loja é de graça uma vez por loja (depois, 1, 2, 3...); vem com a Fartura | as lojas não vendem pacotes | trocar a loja 3 vezes na mesma loja |
   | Maleta do Apostador | cada mesa vencida paga 2 moedas a mais; vem com o Jackpot, o Vidro, o Carrasco e o Trevo | cada partida começa com 45 fichas | levar um pote de 60 fichas ou mais |
-  | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
+  | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro ou especial (o D20) na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
 
   A tela das bolsas é uma vitrine: a escolhida fica no meio, no tamanho cheio
   e com a cor, e duas de cada lado, menores e mais apagadas quanto mais longe;
@@ -95,16 +95,16 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
   todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
-  bolsa cresce a cada mesa e a cada salão. A cada nível, o primeiro salão sobe
-  bem aos poucos: alguns D4 e D6 viram incomuns de 4 e 6 lados (o Viciado, o
-  Teimoso, o Par, o Trevo... e, mais acima, o Jackpot, o Copiador, a Fartura,
-  o Dobro e o Hexa; nenhum de ataque) - no Crupiê desde o nível 1, no difícil
-  desde o 2 e no fácil desde o 4, e o segundo 4 níveis depois (no máximo 2 por
-  mesa). A cabeça dos oponentes do começo da run também sobe aos poucos: eles
-  pensam como a IA atenta numa parte das jogadas, 3% a mais a cada nível - o
-  Crupiê desde o nível 1, os difíceis do primeiro e do segundo salão desde o
-  2, o fácil do segundo desde o 3 e o do primeiro desde o 4 (no nível 10, o
-  Crupiê pensa como a atenta em 30% das jogadas). No mapa, a mesa mostra a IA
+  bolsa cresce a cada mesa e a cada salão. Até o nível 3, o primeiro salão
+  sobe bem aos poucos: um D4 ou D6 vira um incomum de 4 ou 6 lados (o Viciado,
+  o Teimoso, o Par, o Trevo...; nenhum de ataque) no Crupiê desde o nível 1 e
+  no difícil desde o 2, e os oponentes de lá pensam como a IA atenta numa
+  parte das jogadas, 3% a mais a cada nível (o Crupiê desde o 1, o difícil
+  desde o 2). Do nível 4 em diante, o primeiro salão fica como no 3 (o Crupiê
+  pensa como a atenta em 9% das jogadas, o difícil em 6% e o fácil em
+  nenhuma) e a dureza vem dos salões de cima: no segundo, o difícil pensa
+  como a atenta desde o nível 2 e o fácil desde o 3, 3% a mais a cada nível
+  (no nível 10, 27% e 24% das jogadas). No mapa, a mesa mostra a IA
   dela: simples, atenta ou afiada. A Dona é atenta e fica afiada no 9, os do
   terceiro salão são atentos (o difícil, afiado do 5) e o Barão é afiado (o
   Coringa, do 7). São 21
@@ -131,7 +131,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
   terceiro, este só do nível 5), e abre uma loja pequena: 2 dados e 1
   adesivo, ou 1 dado e 2 adesivos, meio a meio (os dados custam 3, 4, 6 ou 9
-  moedas, pela raridade, e os adesivos, 2 a 7; cada dado e cada adesivo
+  moedas, pela raridade - o D8 e o D12, que são lisos, 2 a mais; o D20, o
+  dado especial, não se vende: só sai de um Presente e do dado que a Sacola
+  de Presente ganha de cada chefe -, e os adesivos, 2 a 7; cada dado e cada adesivo
   aparece à venda uma vez só na run, e só os pacotes repetem), um pacote
   (de dados ou de adesivos, meio a meio; o de dados vem numa caixa de um de
   quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 2 moedas,
@@ -145,9 +147,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
   inteira). O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 41, do Confete (+4) e do Eletrônico (x2) ao Chumbo
-  (sai nesse lado metade das vezes; no máximo dois por dado, e com dois cada
-  um sai metade das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
+  lado para cima: são 48, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  (sai nesse lado um terço das vezes; no máximo dois por dado, e com dois cada
+  um sai um terço das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde
   cair, valendo, +5), ao Frágil (valendo, +6; anulado, o dado quebra), ao
   Corretivo (o dado não sobe a régua da sequência), ao Post-it (o próximo
@@ -195,14 +197,24 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   vezes e fica o menor; com duas cascas, o 3º também, com três o 2º, com
   quatro o 1º; se ele ainda vai jogar, escorrega no lance - o Post-it dele e
   a casca se anulam -, e se já jogou, o dado rola de novo no fim da rodada;
-  sem o 4º dado, nada; a bolha do Impermeável segura a casca); sete desde o
+  sem o 4º dado, nada; a bolha do Impermeável segura a casca), e aos que
+  combam com a fila e com a bolsa: a Corrente (valendo, +2 por elo: ela e
+  cada adesivo seu que agiu antes dela), a Dinamite (cada lance que não cai
+  nela põe +3 no pavio; tirando o lado dela, valendo, paga o pavio), a
+  Bússola (o próximo dado, caindo sem adesivo, rola de novo e fica o 2º se
+  cair em adesivo ou for maior), a Moldura (os adesivos dos lados vizinhos
+  também agem), o Xerox (o adesivo do lado oposto ganha uma cópia, para
+  sempre, em outro dado seu), a Coleira (o dado não pode ser roubado: o
+  Caridoso ou o Gatuno que tentar perde 4 no placar e para de roubar) e o
+  Tíquete de Metrô (com 4 dados válidos na sequência, +5); sete desde o
   começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
-  rende 1 moeda a cada mesa vencida.
+  rende 2 moedas a cada mesa vencida, e o Cofre, 1 moeda a cada 3 que você
+  tem, sem limite.
   Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
   abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
   comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
@@ -244,8 +256,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +8
   mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
-  cada 3 vezes lançados, no 5; a Fúria, que guarda +2 a cada 4 e perde 1 a
-  cada 1, no 6; a Onda, que pontua e guarda o que tira até virar um
+  cada 3 vezes lançados, no 5; a Fúria, um d6 que guarda +2 a cada 4, 5 ou
+  6, nada no 3 e perde 1 no 1 e no 2, no 6; a Onda, que pontua e guarda o que tira até virar um
   Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
   evolui e volta para a mão na rodada seguinte - e o que ela vira é
   surpresa, que a coleção não mostra -, no 8; o Adesivado, um d6 que já
@@ -255,10 +267,29 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   acende o último da sequência +1 e nunca cai, no 8; o Agnus, um d8 lendário
   de lã de cordeiro e chifres de carneiro que, tirando 7, valendo ou não,
   ressuscita no fim da rodada todos os seus dados anulados (os da sequência
-  e os dos poderes do oponente, ele mesmo incluído; os roubados, não), no
-  8; e a Ficha Coringa,
+  e os dos poderes do oponente, ele mesmo incluído; os roubados, não), e,
+  tirando 8 valendo, manda uma luz que anula o maior dado válido do
+  oponente, no 8; e a Ficha Coringa,
   que fica fora da sequência e no fim vira o último dado válido do
-  oponente, no 9). Os oponentes só usam o
+  oponente, no 9). E a quarta leva, a dos dados que combam com os
+  adesivos e com a fila: o Estilingue (d6: com 1, valendo ou não, o próximo
+  dado sai no maior lado), no 2; o Pião (d6: caindo num lado sem adesivo,
+  gira de novo, até 2 vezes - precisa de algum adesivo) e a Gelatina (d6:
+  caindo abaixo do dado de antes, quica e rola de novo, valendo o segundo
+  lance), no 3; a
+  Colcha de Retalhos (d6 com um Remendo no 1, no 2 e no 3), no 4; o Leque
+  (d8: valendo, +2 por outro dado seu valendo caído num lado com adesivo),
+  no 5; o Balão (d8: enche +2 a cada rodada fora da fila ou anulado, sem
+  limite, o látex clareando e o brilho crescendo até +10, e com 7 ou 8
+  valendo estoura e soma tudo) e o Papagaio (d8: valendo, repete o último adesivo
+  seu que agiu na rodada), no 6; o Camaleão (d8 com o poder - e a cor - do
+  dado de antes) e o Porta-Retrato (d6: valendo, o adesivo dele age também
+  no dado de antes, se ele valer), no 7; o Camelô (d12: em cada partida,
+  um adesivo sorteado em cada lado vazio, entre os abertos, todos com a
+  mesma chance), no 8; e a Matrioska (d8
+  lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
+  com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
+  a soma de todas), no 9. Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

@@ -1235,6 +1235,87 @@ def ad_casca():
     m.poe(0.04, banda(rng.standard_normal(n), 2000, 7000) * env(n, 0.01, 0.12), 0.1)
     return sala(m.x, 0.1)
 
+# Os adesivos que combam (o pedido de 7/nov): cada um com o som da coisa que ele e.
+def ad_corrente():
+    """A Corrente: os elos batendo um no outro, cada um um pouco mais agudo,
+    e a corrente esticando de uma vez no fim (o tranco e o anel do metal)."""
+    m = Mix(1.0)
+    for k in range(5):
+        t = 0.03 + k * 0.085
+        m.poe(t, tom(batida(METAL[(k * 3) % len(METAL)]), -6 + k * 2), 0.55 - k * 0.05)
+    n = int(0.06 * SR)
+    m.poe(0.5, banda(rng.standard_normal(n), 800, 4000) * env(n, 0.002, 0.02), 0.3)   # o tranco
+    m.poe(0.5, tom(batida(METAL[1]), -9), 0.8)
+    m.poe(0.52, nota('vibraphone', 74, 0.4, 0.4), 0.25)
+    return sala(m.x, 0.12)
+
+def ad_dinamite():
+    """A Dinamite: o pavio chiando e estalando, e o BUM - o grave que cai, o
+    estouro do ar e o cascalho caindo na mesa."""
+    m = Mix(1.4)
+    n = int(0.34 * SR); t = np.arange(n) / SR
+    chia = pa(rng.standard_normal(n), 3000) * (0.6 + 0.4 * np.sin(2 * np.pi * 23 * t)) * env(n, 0.01, 0.2)
+    m.poe(0.0, chia, 0.16)
+    for k in range(6):
+        m.poe(0.02 + k * 0.05 + rnd.uniform(0, 0.02), estalinho(0.006, 3500), 0.18)
+    t0 = 0.36
+    n = int(0.5 * SR); t = np.arange(n) / SR
+    m.poe(t0, np.sin(2 * np.pi * np.cumsum(110 * np.exp(-t * 6) + 38) / SR) * env(n, 0.002, 0.22), 1.0)   # o grave
+    m.poe(t0, pb(rng.standard_normal(n), 1800) * env(n, 0.001, 0.12), 0.7)                                # o ar
+    for k in range(8):
+        m.poe(t0 + 0.18 + k * 0.07 + rnd.uniform(0, 0.03), tom(batida(PLASTICO[k % len(PLASTICO)]), rnd.uniform(-8, -2)), 0.25 * (1 - k / 9))
+    return sala(m.x, 0.2)
+
+def ad_dinamite_apaga():
+    """A Dinamite anulada: o pavio chia, engasga e apaga - e o sopro da
+    fumacinha subindo."""
+    m = Mix(1.0)
+    n = int(0.45 * SR); t = np.arange(n) / SR
+    chia = pa(rng.standard_normal(n), 3200) * (0.55 + 0.45 * np.sin(2 * np.pi * 17 * t)) * np.exp(-t * 5.5) * env(n, 0.01, 0.3)
+    m.poe(0.0, chia, 0.16)
+    for k in range(4):                                       # os engasgos, cada vez mais espacados
+        m.poe(0.03 + k * 0.07 + k * k * 0.025 + rnd.uniform(0, 0.015), estalinho(0.005, 3200), 0.16 * (1 - k / 5))
+    n = int(0.4 * SR)
+    m.poe(0.42, banda(rng.standard_normal(n), 250, 1300) * env(n, 0.04, 0.16), 0.24)   # o sopro da fumaca
+    return sala(m.x, 0.16)
+
+def ad_bussola():
+    """A Bussola: a agulha gira e vai parando (a catraca de metal, cada vez
+    mais devagar) e o ding de quando ela aponta."""
+    m = Mix(1.0)
+    t, passo = 0.02, 0.028
+    while passo < 0.12 and t < 0.62:
+        m.poe(t, pa(tom(batida(METAL[int(t * 100) % len(METAL)]), 5), 2500), 0.22)
+        t += passo; passo *= 1.22
+    m.poe(t + 0.02, nota('glockenspiel', 93, 0.35, 0.4), 0.3)
+    m.poe(t + 0.02, nota('vibraphone', 81, 0.35, 0.4), 0.2)
+    return sala(m.x, 0.14)
+
+def ad_moldura():
+    """A Moldura: o brilho correndo no dourado e um toque de cada lado - as
+    duas vizinhas que tambem agem, a de baixo e a de cima."""
+    m = Mix(1.0)
+    n = int(0.36 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.02, banda(rng.standard_normal(n), 3500, 9000) * np.sin(np.pi * q) ** 2, 0.12)   # o brilho
+    m.poe(0.12, nota('vibraphone', 76, 0.45, 0.45), 0.3)
+    m.poe(0.2, nota('vibraphone', 79, 0.45, 0.45), 0.3)
+    m.poe(0.3, nota('glockenspiel', 88, 0.4, 0.45), 0.28)
+    return sala(m.x, 0.16)
+
+def ad_xerox():
+    """O Xerox: a luz da copiadora passando (o zumbido que vai e volta), o
+    clunc do mecanismo e a folha saindo."""
+    m = Mix(1.2)
+    n = int(0.45 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    zum = np.sin(2 * np.pi * 120 * t) * 0.5 + np.sin(2 * np.pi * 240 * t) * 0.25
+    m.poe(0.02, zum * np.sin(np.pi * q) * (0.7 + 0.3 * np.sin(2 * np.pi * 3 * t)), 0.18)
+    m.poe(0.02, banda(rng.standard_normal(n), 2500, 6000) * np.sin(np.pi * q) ** 2, 0.06)
+    m.poe(0.5, tom(batida(PLASTICO[2]), -7), 0.5)                                         # o clunc
+    m.poe(0.5, pb(superficie('surface_wood_table2'), 1500), 0.35)
+    n = int(0.25 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.62, banda(rng.standard_normal(n), 1500, 5000) * np.sin(np.pi * q), 0.16)     # a folha saindo
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -2029,6 +2110,154 @@ def agnus():
     m.poe(0.55, banda(rng.standard_normal(n), 5500, 12000) * np.sin(np.pi * q) ** 2, 0.022)   # o ar claro
     return sala(m.x, 0.32)
 
+def ad_coleira():
+    """A Coleira: o sininho do pingente, o tranco do couro esticando e um
+    latido curto (o au de um cachorro pequeno, sintetizado)."""
+    m = Mix(1.0)
+    m.poe(0.0, nota('glockenspiel', 98, 0.25, 0.3), 0.85)
+    m.poe(0.05, tom(batida(METAL[2]), 14), 0.70)
+    n = int(0.05 * SR)
+    m.poe(0.30, banda(rng.standard_normal(n), 300, 2600) * env(n, 0.001, 0.012), 0.55)   # o tranco
+    m.poe(0.30, tom(batida('dicehit_wood2'), -6), 0.45)
+    n = int(0.16 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 520 * (1 - 0.42 * q) * (1 + 0.04 * np.sin(2 * np.pi * 55 * t))        # o au: o tom cai
+    fase = 2 * np.pi * np.cumsum(f) / SR
+    au = (np.sin(fase) + 0.7 * np.sin(2 * fase) + 0.5 * np.sin(3 * fase) + 0.3 * np.sin(4 * fase))
+    au = banda(au + 0.6 * rng.standard_normal(n), 450, 2600) * np.sin(np.pi * np.minimum(1, q * 1.4)) ** 0.8
+    m.poe(0.46, au, 0.16)
+    return sala(m.x, 0.14)
+
+def ad_tiquete():
+    """O Tiquete de Metro: o bip da catraca lendo o bilhete e ela girando um
+    terco de volta (a catraca de metal e o baque no fim)."""
+    m = Mix(1.0)
+    n = int(0.11 * SR); t = np.arange(n) / SR
+    bip = np.sign(np.sin(2 * np.pi * 1760 * t)) * 0.5 + np.sin(2 * np.pi * 1760 * t)
+    m.poe(0.02, pb(bip, 5000) * env(n, 0.002, 0.08), 0.18)
+    for k in range(5):                                         # a catraca girando
+        m.poe(0.22 + k * 0.045, pb(pa(tom(batida(METAL[(k * 2) % len(METAL)]), 2), 600), 6000), 0.9)
+    m.poe(0.48, tom(batida(METAL[5]), -5), 1.2)                # e o baque do braco
+    return sala(m.x, 0.12)
+
+# Os dados novos da quarta leva
+def piao():
+    """O Piao girando de novo: o zumbido de madeira rodando (o tom treme a
+    cada volta e cai conforme ele perde forca), a ponta raspando no feltro e
+    o toc quando ele deita."""
+    m = Mix(1.0)
+    n = int(0.72 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = 260 * (1 + 0.10 * np.sin(np.pi * np.minimum(1, q * 1.6))) * (1 - 0.30 * q ** 2)
+    volta = 0.55 + 0.45 * np.sin(2 * np.pi * np.cumsum(26 * (1 - 0.6 * q)) / SR)   # cada volta, um pulso
+    fase = 2 * np.pi * np.cumsum(f) / SR
+    zum = (np.sin(fase) + 0.35 * np.sin(2 * fase) + 0.15 * np.sin(3 * fase)) * volta
+    m.poe(0.0, pb(zum, 1800) * env(n, 0.03, 0.5) * (1 - q) ** 0.6, 0.30)
+    m.poe(0.0, banda(rng.standard_normal(n), 1800, 5200) * volta * env(n, 0.02, 0.3), 0.05)   # a ponta no feltro
+    m.poe(0.70, tom(batida('dicehit_wood3'), 2), 0.6)
+    return sala(m.x, 0.14)
+
+def gelatina():
+    """A Gelatina quicando: um bloop de borracha que estica e volta (o tom
+    sobe e treme como a gelatina balancando) e um segundo bloop, menor."""
+    m = Mix(0.8)
+    for t0, g, f0 in ((0.0, 1.0, 150), (0.24, 0.55, 190)):
+        n = int(0.30 * SR); t = np.arange(n) / SR
+        f = f0 * (1 + 0.9 * np.exp(-t * 18)) * (1 + 0.12 * np.sin(2 * np.pi * 11 * t) * np.exp(-t * 7))
+        y = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.004, 0.09)
+        m.poe(t0, pb(y + 0.25 * np.sign(y) * np.abs(y) ** 2, 1400), g * 0.6)
+        k = int(0.05 * SR)
+        m.poe(t0, banda(rng.standard_normal(k), 300, 1500) * env(k, 0.002, 0.015), g * 0.12)   # o chape
+    return sala(m.x, 0.12)
+
+def matrioska():
+    """A Matrioska abrindo uma boneca: a madeira desenroscando (um rangido
+    curto) e o toc oco da metade de cima saindo."""
+    m = Mix(0.45)
+    n = int(0.10 * SR); t = np.arange(n) / SR
+    rangido = banda(rng.standard_normal(n), 700, 3500) * (0.5 + 0.5 * np.sin(2 * np.pi * 70 * t)) ** 3
+    m.poe(0.0, rangido * env(n, 0.01, 0.06), 0.22)
+    m.poe(0.10, tom(batida('dicehit_wood6'), 4), 0.55)
+    m.poe(0.10, marimba(72, 0.25, 0.2), 0.45)                                # o oco da boneca
+    return sala(m.x, 0.14)
+
+def balao():
+    """O Balao estourando: a borracha rangendo, esticada ate o limite (um
+    guincho aspero, aos trancos, que sobe), o estalo seco - o chiado de uma
+    vez e o baque grave - e as tiras de latex caindo no feltro. O estalo
+    cai em 0,25 s, quando o clarao aparece na mesa."""
+    m = Mix(0.9)
+    n = int(0.22 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = (380 + 420 * q ** 1.6) * (1 + 0.02 * np.sin(2 * np.pi * 23 * t))
+    fase = 2 * np.pi * np.cumsum(f) / SR
+    y = 0.6 * np.sign(np.sin(fase)) + np.sin(fase) + 0.4 * np.sin(3 * fase)   # aspero: o dedo na borracha
+    trancos = (0.5 + 0.5 * np.sin(2 * np.pi * (26 + 30 * q) * t)) ** 3
+    m.poe(0.02, banda(y * trancos, 450, 3800) * np.sin(np.pi * np.minimum(1, q * 1.1)) ** 0.5 * (0.4 + 0.6 * q), 0.16)
+    n = int(0.12 * SR)
+    m.poe(0.25, pa(rng.standard_normal(n), 700) * env(n, 0.0002, 0.016), 1.0)          # o estalo
+    m.poe(0.25, banda(rng.standard_normal(n), 1800, 7000) * env(n, 0.0001, 0.006), 0.6)
+    n = int(0.18 * SR); t = np.arange(n) / SR
+    m.poe(0.25, np.sin(2 * np.pi * np.cumsum(55 + 140 * np.exp(-t / 0.025)) / SR) * env(n, 0.0005, 0.045), 0.75)
+    for k, t0 in enumerate((0.47, 0.56, 0.63, 0.70)):                                 # as tiras caindo
+        n = int(0.03 * SR)
+        m.poe(t0, banda(rng.standard_normal(n), 300, 1600) * env(n, 0.001, 0.007), 0.08 - 0.015 * k)
+    return sala(m.x, 0.22)
+
+def leque():
+    """O Leque abrindo: as varetas estalando uma a uma (um tr-r-r de papel e
+    madeira), o sopro do abano e um brilho de glockenspiel."""
+    m = Mix(0.9)
+    for k in range(7):
+        m.poe(k * 0.026, tom(batida('dicehit_wood%d' % (1 + k % 6)), 8 + k), 0.30)
+        m.poe(k * 0.026, estalinho(0.004, 3000), 0.12)
+    n = int(0.42 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.16, banda(rng.standard_normal(n), 300, 2400) * np.sin(np.pi * q) ** 2, 0.35)   # o abano
+    m.poe(0.30, nota('glockenspiel', 91, 0.3, 0.3), 0.20)
+    return sala(m.x, 0.14)
+
+def papagaio():
+    """O Papagaio repetindo: dois gritinhos anasalados (um chirp que sobe e
+    desce) e as asas batendo."""
+    m = Mix(0.8)
+    for t0, f0, g in ((0.0, 1300, 1.0), (0.15, 1500, 0.85)):
+        n = int(0.11 * SR); t = np.arange(n) / SR; q = t / t[-1]
+        f = f0 * (1 + 0.55 * np.sin(np.pi * q) - 0.15 * q) * (1 + 0.03 * np.sin(2 * np.pi * 60 * t))
+        fase = 2 * np.pi * np.cumsum(f) / SR
+        y = np.sin(fase) + 0.6 * np.sin(2 * fase) + 0.4 * np.sin(3 * fase) + 0.2 * np.sin(5 * fase)
+        y = banda(y, 1100, 5200) * np.sin(np.pi * q) ** 0.7
+        m.poe(t0, y, 0.28 * g)
+    for k in range(3):                                          # as asas
+        n = int(0.06 * SR)
+        m.poe(0.33 + k * 0.075, pb(rng.standard_normal(n), 900) * env(n, 0.008, 0.025), 0.30 - 0.06 * k)
+    return sala(m.x, 0.14)
+
+def retrato():
+    """O Porta-Retrato: o flash carregando num assobio agudo, o clique do
+    obturador (abre e fecha) e o brilho da foto."""
+    m = Mix(0.8)
+    n = int(0.26 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    m.poe(0.0, np.sin(2 * np.pi * np.cumsum(2400 + 4200 * q ** 1.3) / SR) * q * 0.6, 0.07)   # o flash carregando
+    m.poe(0.27, pa(tom(batida('dicehit_plastic2'), 9), 1800), 0.50)          # o obturador abre
+    m.poe(0.27, estalinho(0.004, 4000), 0.25)
+    m.poe(0.31, pa(tom(batida('dicehit_plastic5'), 7), 1500), 0.40)          # e fecha
+    m.poe(0.33, nota('glockenspiel', 96, 0.25, 0.35), 0.16)
+    n = int(0.3 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.31, banda(rng.standard_normal(n), 5000, 11000) * (1 - q) ** 2, 0.04)
+    return sala(m.x, 0.12)
+
+def estilingue():
+    """O Estilingue: a borracha esticando (um rangido que sobe), o estalo da
+    soltura e o assobio da pedra indo embora."""
+    m = Mix(0.9)
+    n = int(0.26 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    pulsos = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(30 + 90 * q) / SR)) ** 4
+    m.poe(0.0, banda(rng.standard_normal(n), 400, 2200) * pulsos * (0.3 + 0.7 * q), 0.22)   # a borracha
+    m.poe(0.27, estalinho(0.006, 2500), 0.45)                                  # o estalo
+    k = int(0.09 * SR); tk = np.arange(k) / SR
+    m.poe(0.27, np.sin(2 * np.pi * np.cumsum(140 * np.exp(-tk * 30) + 60) / SR) * env(k, 0.001, 0.03), 0.5)
+    n = int(0.32 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    zuni = banda(rng.standard_normal(n), 900, 4200) * np.sin(np.pi * q) ** 2
+    m.poe(0.29, zuni, 0.16)                                                    # a pedra zunindo
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -2064,6 +2293,9 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95,
                'ad_chiclete': VOLUME['efeito'], 'ad_massinha': VOLUME['efeito'], 'ad_carimbo': VOLUME['efeito'],
                'ad_dupla': VOLUME['efeito'], 'ad_casca': VOLUME['efeito']})
+VOLUME.update({n: VOLUME['efeito'] for n in ('ad_corrente', 'ad_bussola', 'ad_moldura', 'ad_xerox')})
+VOLUME['ad_dinamite'] = VOLUME['efeito'] * 1.15
+VOLUME['ad_dinamite_apaga'] = VOLUME['efeito'] * 0.8
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -2086,6 +2318,13 @@ VOLUME.update({'vampiro': VOLUME['tira'], 'sabotador': VOLUME['efeito'] * 0.9, '
 VOLUME.update({'transicao': VOLUME['tique'] * 0.5})
 # O Agnus ressuscitando: um pouco acima de um poder, como a Estrela.
 VOLUME.update({'agnus': VOLUME['efeito'] * 1.05})
+# Os dados da quarta leva: na altura de um poder; o pouso (Piao, Gelatina e
+# Matrioska) um pouco abaixo, para nao cobrir o dado assentando.
+VOLUME.update({'ad_coleira': VOLUME['efeito'], 'ad_tiquete': VOLUME['efeito'] * 0.9})
+VOLUME.update({'piao': VOLUME['efeito'] * 0.8, 'gelatina': VOLUME['efeito'] * 0.8,
+               'matrioska': VOLUME['efeito'] * 0.85, 'balao': VOLUME['efeito'],
+               'leque': VOLUME['efeito'] * 0.9, 'papagaio': VOLUME['efeito'] * 0.95,
+               'retrato': VOLUME['efeito'] * 0.9, 'estilingue': VOLUME['efeito'] * 0.95})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2109,10 +2348,12 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_dinamite_apaga', 'ad_bussola', 'ad_moldura', 'ad_xerox',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
-             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):
+             'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
+             'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
+             'ad_coleira', 'ad_tiquete'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

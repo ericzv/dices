@@ -114,11 +114,10 @@ static void disco_pontilhado(int cx, int cy, int r, uint16_t c, float dens)
             if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r && bayer(x, y) < dens
                 && x >= MESA_X0 && x < MESA_X1 && y >= MESA_Y0 && y < MESA_Y1) gfx_pixel(x, y, c);
 }
-static void desenha_estouro(void)
+// A explosao em (cx, cy), q de 0 a 1: o clarao, a fumaca subindo e as brasas
+// e os pedacos de papel voando (o estouro do dado e a Dinamite).
+static void explosao_em(int cx, int cy, float q)
 {
-    if (estouro_fx.t <= 0) return;
-    float q = estouro_fx.t / ESTOURO_T;
-    int cx = (int)estouro_fx.x, cy = (int)estouro_fx.y;
     if (q < 0.3f) {                                        // o clarao: abre e apaga de fora para dentro
         float s = q / 0.3f;
         disco_pontilhado(cx, cy, (int)(R_DADO + 14 + s * 6), C_BRASA, 0.9f - s * 0.8f);
@@ -144,6 +143,11 @@ static void desenha_estouro(void)
             gfx_rect(px, py, b, b, q < 0.25f ? C_AMARELO : q < 0.55f ? C_FOGO : C_BRASA);
         }
     }
+}
+static void desenha_estouro(void)
+{
+    if (estouro_fx.t <= 0) return;
+    explosao_em((int)estouro_fx.x, (int)estouro_fx.y, estouro_fx.t / ESTOURO_T);
 }
 static void poeira_passo(float dt)
 {
@@ -226,6 +230,147 @@ static void ad_pouso_efeito(const voo_t *v, float x, float y, float r)
         char n[8];
         snprintf(n, sizeof n, "%d", v->valor_c);
         txt_c(fx + w / 2, fy + h / 2 - 7, n, C_VENTO, true);                                   // o numero que ela copia
+    }
+}
+
+// O Balao estourando (p: 0..1 do evento), no dado em (x, y): o latex
+// esticando ate o limite (os risquinhos tremendo em volta), o estalo (o
+// clarao em estrela e o anel) e os pedacos de borracha voando e caindo.
+#define BALAO_ESTALO 0.16f
+static void balao_estouro(int x, int y, float p)
+{
+    if (p < BALAO_ESTALO) {
+        float q = p / BALAO_ESTALO;
+        int rr = R_DADO + 3 + (int)(q * 4), f = (int)(p * 50) % 2;
+        for (int i = 0; i < 12; i++) {
+            if (i % 2 != f) continue;
+            float an = i * 0.5236f + 0.26f;
+            gfx_linha(x + (int)lroundf(cosf(an) * rr), y + (int)lroundf(sinf(an) * rr),
+                      x + (int)lroundf(cosf(an) * (rr + 3)), y + (int)lroundf(sinf(an) * (rr + 3)), C_MARFIM);
+        }
+        return;
+    }
+    float q = (p - BALAO_ESTALO) / (1 - BALAO_ESTALO);
+    if (q < 0.14f) {                                      // o clarao: a estrela de raios
+        float b = q / 0.14f;
+        for (int i = 0; i < 8; i++) {
+            float an = i * 0.7854f + 0.39f;
+            int d0 = R_DADO + 1 + (int)(b * 6), d1 = R_DADO + 8 + (int)(b * 14);
+            gfx_linha_grossa(x + (int)(cosf(an) * d0), y + (int)(sinf(an) * d0), x + (int)(cosf(an) * d1),
+                             y + (int)(sinf(an) * d1), i % 2 ? 1 : 2, b < 0.5f ? C_BRANCO : C_AMARELO);
+        }
+    }
+    if (q < 0.40f) anel(x, y, R_DADO + 3 + (int)(q / 0.40f * 26), 1, q < 0.16f ? C_BRANCO : C_MARFIM_S);   // o anel do estalo
+    for (int i = 0; i < 11; i++) {                        // os pedacos de borracha, girando e caindo
+        float an = i * 0.5712f + 0.35f * sinf(i * 2.1f), vel = 64 + 22 * (i % 3), tt = q * 1.1f;
+        float px = x + cosf(an) * (R_DADO * 0.8f + vel * tt);
+        float py = y + sinf(an) * R_DADO * 0.8f + (sinf(an) * vel - 46) * tt + 170 * tt * tt;
+        if (bayer((int)px, (int)py) < q * q * 1.3f) continue;   // e somem, pontilhados
+        bool deitado = ((int)(tt * 14) + i) % 2;         // a tira de latex, ora deitada, ora em pe
+        int w = deitado ? 4 : 2, h = deitado ? 2 : 4, X = (int)px - w / 2, Y = (int)py - h / 2;
+        gfx_rect(X, Y, w, h, RGB(190, 56, 60));
+        gfx_rect(deitado ? X : X + 1, deitado ? Y + 1 : Y, deitado ? w : 1, deitado ? 1 : h, RGB(118, 30, 38));
+    }
+}
+
+// A pedra do Estilingue: sai dele (o lugar de antes na fila) e vem em arco
+// ate o dado que esta rolando (x, y); q de 0 a 1 no voo, e o baque depois.
+static void estilingue_pedra(int x0, int y0, float x, float y, float q)
+{
+    if (q < 1) {
+        float s = q * (2 - q);
+        int px = x0 + (int)((x - x0) * s), py = y0 + (int)((y - y0) * s) - (int)(sinf(q * 3.1416f) * 22);
+        for (int i = 1; i <= 4; i++) {                    // o rastro
+            float qa = q - i * 0.06f;
+            if (qa < 0) break;
+            float sa = qa * (2 - qa);
+            int tx = x0 + (int)((x - x0) * sa), ty = y0 + (int)((y - y0) * sa) - (int)(sinf(qa * 3.1416f) * 22);
+            if (bayer(tx, ty) < 0.85f - i * 0.15f) gfx_rect(tx - 1, ty - 1, 3, 3, i < 2 ? C_MARFIM : C_MARFIM_S);
+        }
+        gfx_rect(px - 3, py - 3, 7, 7, C_BARRA);
+        gfx_rect(px - 2, py - 2, 5, 5, C_CINZA);
+        gfx_rect(px - 2, py - 2, 2, 2, C_BRANCO);
+    } else if (q < 1.5f) {                                // o baque: o anel e as lascas
+        float b = (q - 1) / 0.5f;
+        anel((int)x, (int)y, (int)(R_DADO + 2 + b * 12), 1, b < 0.4f ? C_BRANCO : C_MARFIM_S);
+        for (int i = 0; i < 6; i++) {
+            float an = i * 1.047f + 0.5f, d = R_DADO + 3 + b * 14;
+            gfx_rect((int)(x + cosf(an) * d), (int)(y + sinf(an) * d), 2, 2, i % 2 ? C_OURO : C_AMARELO);
+        }
+    }
+}
+
+// O rastro do Piao rodando no lugar (q: 0 quando deita, 1 quando para): os
+// arcos de velocidade girando em volta dele - a cabeca clara e a cauda
+// apagando -, que somem conforme ele perde forca.
+static void piao_rastro(float x, float y, float r, float q, int giros)
+{
+    float forca = (1 - q) * (1 - q);
+    static const uint16_t COR[4] = { C_BRANCO, C_MARFIM, C_MARFIM_S, C_EBANO_B };
+    int n = 2 + (giros > 1);
+    float d = r + 4 + 3 * q;
+    for (int b = 0; b < n; b++) {
+        float base = -t_relogio * 15 + b * 6.2832f / n;
+        for (int i = 0; i < 14; i++) {
+            float an = base + i * 0.075f;
+            int px = (int)(x + cosf(an) * d), py = (int)(y + sinf(an) * d * 0.92f);
+            int c = (i < 3 ? 0 : i < 7 ? 1 : i < 11 ? 2 : 3) + (forca < 0.45f) + (forca < 0.15f);
+            if (c > 3 || (i > 7 && bayer(px, py) > forca * 2.5f)) continue;
+            gfx_rect(px, py, 2, 2, COR[c]);
+        }
+    }
+}
+
+// As bonecas da Matrioska saindo, uma a uma e cada uma menor (o d6, o d4 e a
+// moeda de dentro): cada uma sai de dentro da anterior (a primeira, do
+// dado), rola um instante trocando de numero e pousa em fila ao lado com o
+// que tirou; depois de uma pausa, a de onde sai a proxima treme e abre.
+// Quando o dado vai para a fila, elas voltam para dentro dele.
+static void matrioska_bonecas(const voo_t *v, float x, float y, float r)
+{
+    int nb = BONECAS_N(v->bonecas);
+    if (!nb || v->t_assenta <= 0) return;
+    static const uint8_t LADOS[3] = { 6, 4, 2 };
+    static const float TAM[3] = { 0.74f, 0.58f, 0.46f };
+    int lado = x < GFX_W / 2 ? 1 : -1;
+    float volta = fase == F_ARRUMA ? fminf(1, t_fase / 0.24f) : 0;   // voltando para dentro
+    if (volta >= 1) return;
+    float pos = r + 2, ox = x, oy = y, orr = r;      // de onde sai a proxima: o dado, depois cada boneca
+    for (int i = 0; i < nb; i++) {
+        float ri = r * TAM[i], fim = x + lado * (pos + ri);
+        pos += 2 * ri + 2;
+        float t = v->t_assenta - MAT_T0 - i * MAT_CADA;
+        float q = t / MAT_POP;
+        if (q <= 0) break;                          // as de dentro ainda nao sairam
+        float e = fminf(1, q), s = e * e * (3 - 2 * e);
+        float bx = ox + (fim - ox) * s, by = oy - sinf(e * 3.1416f) * (12 + 3 * i);
+        float rr = ri * (0.6f + 0.4f * s), ang = 0;
+        int face = BONECA_V(v->bonecas, i);
+        float rola = (t - MAT_POP) / MAT_ROLA;      // rolando no lugar, trocando de numero, ate pousar
+        if (q <= 1 || rola < 1) {
+            float w = q <= 1 ? 1 : 1 - rola;
+            ang = sinf(t * 19) * 0.45f * w;
+            int passo = (int)(t * (8 + 22 * w));    // a face troca cada vez mais devagar
+            face = 1 + (int)((uint32_t)(passo * 2654435761u + i * 97u) >> 7) % LADOS[i];
+            bx += sinf(t * 31) * 1.5f * w;
+        } else {
+            float p = rola - 1;                      // o pulinho de quem pousa
+            rr *= 1 + 0.14f * expf(-p * 4) * sinf(p * 9);
+        }
+        // A de onde sai a proxima treme antes de abrir (a do dado, em mesa.inc).
+        float ate = v->t_assenta - MAT_T0 - (i + 1) * MAT_CADA;
+        if (i + 1 < nb && ate > -MAT_TREME && ate <= 0) bx += ((int)(v->t_assenta * 40) % 2 ? 1.5f : -1.5f);
+        if (volta > 0) {                            // entrando de novo, por baixo dela
+            float k = volta * (2 - volta);
+            bx += (x - bx) * k;
+            by += (y - by) * k;
+            rr *= 1 - 0.6f * k;
+        }
+        if (q < 0.35f) anel((int)ox, (int)(oy - orr * 0.2f), (int)(orr * (0.5f + q * 1.6f)), 1, q < 0.18f ? C_BRANCO : C_MARFIM_S);
+        boneca_lados = LADOS[i];
+        desenha_dado(bx, by, rr, D_MATRIOSKA, v->dono, ang, face, 2, false);
+        boneca_lados = 0;
+        ox = fim; oy = y; orr = ri;
     }
 }
 
@@ -312,17 +457,86 @@ static void desenha_lance(void)
             bob = -alto;
             sombra_alt = alto * 0.6f;
         }
+        // O pouso dos dados da quarta leva (pouso_pronto): o Piao que girou de
+        // novo roda no lugar, com o rastro em espiral, e deita; a Gelatina
+        // balanca, achatando e esticando (a que quicou da um pulinho e balanca
+        // de novo).
+        float estx = 1, esty = 1;
+        bool pouso_novo = !v->fantasma && !descartado && v->parado && v->t_assenta > 0 && fase != F_ABERTURA;
+        if (v->estilingue && !v->fantasma && !descartado && v->slot > 0 && fase == F_ROLANDO && t_fase < 0.45f)
+            estilingue_pedra(SLOT_X(v->slot - 1), zona(v->dono), ex, ey, t_fase / 0.30f);
+        if (pouso_novo && v->tipo == D_PIAO && v->giros && v->t_assenta < PIAO_RODA) {
+            float q = v->t_assenta / PIAO_RODA, s = (1 - q) * (1 - q);
+            piao_rastro(ex, ey, r, q, v->giros);
+            ang += s * s * (6 + 3 * v->giros);
+            dx += sinf(v->t_assenta * 42) * 1.6f * s;       // a ponta tremendo
+            if (q < 0.82f) mostra = 1 + (int)(v->t_assenta * 24 + v->slot * 3) % TIPO[v->tipo].lados;
+        }
+        // A Matrioska aberta mostra o que ela mesma tirou (as bonecas, o
+        // delas); quando elas voltam para dentro, a soma.
+        if (pouso_novo && v->tipo == D_MATRIOSKA && BONECAS_N(v->bonecas) && !(fase == F_ARRUMA && t_fase > 0.14f)) {
+            int dentro = 0;
+            for (int b = 0; b < BONECAS_N(v->bonecas); b++) dentro += BONECA_V(v->bonecas, b);
+            if (v->valor - dentro >= 1) mostra = v->valor - dentro;
+            float ate = v->t_assenta - MAT_T0;          // treme antes de abrir
+            if (ate > -MAT_TREME && ate <= 0) dx += (int)(v->t_assenta * 40) % 2 ? 1.5f : -1.5f;
+        }
+        if (pouso_novo && v->tipo == D_GELATINA && v->t_assenta < 1.3f) {
+            float t = v->t_assenta, a = 0.13f;
+            if (v->quicou) {
+                a = 0.2f;
+                if (t >= GEL_PULO_0 && t < GEL_PULO_1) {
+                    float q = sinf((t - GEL_PULO_0) / (GEL_PULO_1 - GEL_PULO_0) * 3.1416f);
+                    bob -= q * 13;                       // o pulinho: esticada no ar
+                    sombra_alt = q * 7;
+                    estx = 1 - 0.08f * q;
+                    esty = 1 + 0.12f * q;
+                    a = 0;
+                } else if (t >= GEL_PULO_1) {
+                    t -= GEL_PULO_1;                     // e balanca de novo
+                    a = 0.16f;
+                }
+            }
+            if (a > 0) {
+                float w = a * expf(-t * 5.0f) * sinf(t * 30);
+                estx = 1 + w;
+                esty = 1 - w;
+            }
+        }
+        // O Piao girando de novo no lugar, com o rastro, e a Gelatina quicando
+        // no lugar: a re-rolagem de verdade (ad_etapa_passo, etapa 5), com a
+        // face trocando ate deitar no lance seguinte.
+        bool rerolando = !v->fantasma && !descartado && v->parado && v->etapa == 5 && v->t_etapa >= RE_MOSTRA;
+        if (rerolando) {
+            int lados = TIPO[v->tipo].lados;
+            if (v->tipo == D_PIAO) {
+                float q = fminf(1, (v->t_etapa - RE_MOSTRA) / RE_GIRO), s = 1 - q;
+                piao_rastro(ex, ey, r, q, 2);
+                ang += s * s * s * 14;
+                dx += sinf(v->t_etapa * 42) * 1.6f * s;
+                if (q < 0.85f) mostra = 1 + (int)(v->t_etapa * (10 + 20 * s) + v->slot * 3) % lados;
+            } else {
+                float q = fminf(1, (v->t_etapa - RE_MOSTRA) / RE_QUIQUE), h = sinf(q * 3.1416f);
+                bob -= h * 16;
+                sombra_alt = h * 8;
+                estx = 1 - 0.08f * h;
+                esty = 1 + 0.12f * h;
+                ang += h * 0.6f;
+                if (q < 0.8f) mostra = 1 + (int)(v->t_etapa * 22 + v->slot * 3) % lados;
+            }
+        }
         // Os adesivos: rolando, a etiqueta aparece (acesa) cada vez que passa
         // pelo lado dela; parado, a do lado de cima, acesa enquanto age (o
         // Avesso pula e vira; o Reflexivo pisca e sai rolando).
         if (!v->fantasma && !descartado) {
             const peca_t *pc = peca_fila(v->dono, v->slot);
-            int t = v->tipo, lv = v->parado ? v->lado : (mostra >= ad_lado_min(t) && mostra <= ad_lado_max(t) ? mostra : 0);
+            bool fixo_l = v->parado && !rerolando;
+            int t = v->tipo, lv = fixo_l ? v->lado : (mostra >= ad_lado_min(t) && mostra <= ad_lado_max(t) ? mostra : 0);
             int a = ad_no_lado(pc, lv);
             if (a) {
                 ad_face = a;
-                ad_face_aceso = !v->parado || (v->etapa && (int)(v->t_etapa * 12) % 2 == 0);
-                if (!v->parado && a == AD_REMENDO) mostra += 2;
+                ad_face_aceso = !fixo_l || (v->etapa && (int)(v->t_etapa * 12) % 2 == 0);
+                if (!fixo_l && a == AD_REMENDO) mostra += 2;
             }
             if (v->etapa == 1 && v->t_etapa > AD_MOSTRA) {    // o Avesso: pula girando meia volta
                 float q = fminf(1, (v->t_etapa - AD_MOSTRA) / AD_VIRA), s = sinf(q * 3.1416f);
@@ -343,7 +557,16 @@ static void desenha_lance(void)
                      && TIPO[tv].lados != 4;                   // no triangulo o numero grande nao cabe
         face_curinga = tv == D_FICHA_CORINGA;                  // o curinga ate o fim da rodada
         if (tv == D_DIGITAL) digital_q = -1;                   // o visor so acende na sequencia
-        desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        bool bonecas = !v->fantasma && !descartado && BONECAS_N(v->bonecas);
+        if (bonecas && fase == F_ARRUMA) matrioska_bonecas(v, ex + dx, ey + bob, r);   // voltando: por baixo
+        if (estx != 1 || esty != 1) dado_esticado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, estx, esty);
+        else desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        if (bonecas && fase != F_ARRUMA) matrioska_bonecas(v, ex + dx, ey + bob, r);
+        if (v->estilingue && pouso_novo && v->t_assenta < 0.55f) {   // saiu no maximo: o ouro acende no pouso
+            float b = v->t_assenta / 0.55f;
+            anel((int)(ex + dx), (int)(ey + bob), (int)(r + 3 + b * 6), 1, b < 0.5f ? C_AMARELO : C_OURO);
+            estrela4((int)(ex + dx + r * 0.8f), (int)(ey + bob - r * 0.8f), b < 0.5f ? 3 : 2, C_BRANCO, C_AMARELO, C_OURO);
+        }
         if (!v->fantasma && !descartado) {
             ad_pouso_efeito(v, ex + dx, ey + bob, r);
             const peca_t *pv = peca_fila(v->dono, v->slot);   // com a capa de antes: a bolha vai junto
@@ -1146,7 +1369,8 @@ static void desenha_fila(int j)
         bool voando = n_voo && (fase == F_ROLANDO || fase == F_ARRUMA)
                       && voo[0].dono == j && voo[0].slot == k;
         if (voando) continue;
-        int t = tipo_de(j, k);
+        int t = tipo_de(j, k), t_poder = t;
+        if (f->tipo[k] == D_CAMALEAO && !(j == calado_j && k == calado_k)) t = D_CAMALEAO;   // ele mesmo, com o poder do de antes
         if (f->carta && k == 3) {                // a carta do Coringa: na fila ou posta
             if (fala_perso >= 0) dica_zona(x - R, y - R, 2 * R, 2 * R, DICA_TRUNFO, fala_perso);
             desenha_carta(x, y, k < f->lancados);
@@ -1338,7 +1562,8 @@ static void desenha_fila(int j)
                 ad_face_aceso = true;
             // O adesivo novo agindo (no fim e no pouso): a ponta descola do dado, o
             // brilho passa no material dele, fica erguido e no fim volta e assenta.
-            if (ad_estilo == ADE_NOVO && e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k) {
+            if (ad_estilo == ADE_NOVO && e && e->tipo == EV_ADESIVO && e->de_j == j && e->de_k == k
+                && !(e->modo & (EVM_PAPAGAIO | EVM_RETRATO))) {
                 float in = ev_intro(e), q0 = in > 0 ? in / (in + duracao_de(e)) : 0;   // o Carimbo (a Dupla) vem antes
                 float pa = p < q0 ? 0 : (p - q0) / (1 - q0);
                 ad_face_aceso = p >= q0 && pa < 0.9f;
@@ -1376,7 +1601,11 @@ static void desenha_fila(int j)
         face_capa = impermeavel(j, k);
         if (giro_ficha > -1) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, giro_ficha, face);
         else if (fabsf(vira) < 0.995f) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, vira, face);   // a Dupla Face virando
-        else desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
+        else {
+            camaleao_de = t == D_CAMALEAO && t_poder != D_CAMALEAO && k < f->lancados ? t_poder : 0;
+            desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
+            camaleao_de = 0;
+        }
         if (face_capa && giro < 0.5f) {                     // a bolha da capa em volta
             const peca_t *pc = peca_fila(j, k);
             float cresce = 1, forte = 0, onda = 0;
@@ -1428,7 +1657,9 @@ static void desenha_fila(int j)
             int arm = poder_armado(j, k);
             if (arm) {
                 brilho_poder((float)x, y - pulo, R, t, giro, arm == 1);
-                anima_poder(x, (int)(y - pulo), R, t, k * 0.37f + j * 0.19f);   // e o desenho do que ele vai fazer
+                anima_fixo = f->fixo[k];
+                anima_poder(x, (int)(y - pulo), R, t_poder, k * 0.37f + j * 0.19f);   // e o desenho do que ele vai fazer
+                anima_fixo = -1;
             }
         }
         // O ciclo cosmico que vai evoluir: uma estrelinha gira em volta dele.
@@ -1506,9 +1737,9 @@ static void desenha_fila(int j)
                     }
                 }
             }
-            // A Furia: tirou 4, as chamas sobem dela; tirou 1, solta fumaca.
-            if (t == D_FURIA && (f->valor[k] == 4 || f->valor[k] == 1)) {
-                bool brava = f->valor[k] == 4;
+            // A Furia: tirou 4 a 6, as chamas sobem dela; tirou 1 ou 2, solta fumaca.
+            if (t == D_FURIA && (f->valor[k] >= FURIA_DE || f->valor[k] <= FURIA_ATE)) {
+                bool brava = f->valor[k] >= FURIA_DE;
                 for (int i = 0; i < 14; i++) {
                     float q = fmodf(t_fase * 1.8f + i * 0.09f, 1.0f);
                     int px = x - R + 2 + (i * 29) % (2 * R - 4) + (int)(sinf(t_fase * 9 + i) * 2);
@@ -1607,7 +1838,8 @@ static void desenha_fila(int j)
         // Martir, Hexa e Domino: os dados que recebem acendem quando a luz chega.
         if (e && e->tipo == EV_EXTRA && e->de_j == j && (e->mascara >> k & 1)) {
             int td = F[j].tipo[e->de_k];
-            float chega = td == D_MARTIR ? 0.6f + k * 0.06f : td == D_DOMINO ? 0.45f : td == D_HEXA ? 0.38f : 2;
+            float chega = td == D_MARTIR ? 0.6f + k * 0.06f : td == D_DOMINO ? 0.45f : td == D_HEXA ? 0.38f
+                        : td == D_LEQUE ? LEQUE_ABRE + 0.06f + 0.05f * abs(k - e->de_k) : 2;
             if (p > chega) { aro(x, y, C_OURO); faiscas(x, y, t_fase + k * 0.3f, C_AMARELO); }
         }
         if (e && e->tipo == EV_EXTRA && e->de_j == j && F[j].tipo[e->de_k] == D_PUXA_FILA
@@ -2043,9 +2275,67 @@ static void carimbo_marca(int x, int y, int r, float forca)
 // o Carimbo do dado de antes (o lugar de - 1) solta o carimbo, que vem num
 // arco e bate no dado (ax, ay), e a tinta fica; na Dupla Face o dado vira e
 // mostra o lado de baixo (desenha_fila), com a seta de virar em volta.
+// O Papagaio (q: 0..1 da introducao): a cabeca dele sobe do dado e grita (o
+// bico abre e fecha), e o balao com o adesivo que ele repete sai do bico.
+static void papagaio_intro(const evento_t *e, float q, int ax, int ay, int dir)
+{
+    float sobe = fminf(1, q / 0.2f);
+    int hx = ax - 6, hy = ay + dir * (R_DADO + 6 + (int)(sobe * 6));
+    bool grita = q > 0.2f && fmodf(q * 7, 1.0f) < 0.5f;
+    sprite_esc(hx, hy, grita ? SP_PAPAGAIO_B : SP_PAPAGAIO, 6, 2, C_VERDE, C_AMARELO, C_EBANO);
+    if (q > 0.2f && q < 0.8f && grita)                    // os gritos: dois arcos na frente do bico
+        for (int i = 0; i < 2; i++) {
+            int gx = hx + 9 + i * 4;
+            gfx_rect(gx, hy - 3 - i, 1, 2, C_BRANCO); gfx_rect(gx + 1, hy - 1, 1, 3 + i, C_BRANCO); gfx_rect(gx, hy + 2 + i, 1, 2, C_BRANCO);
+        }
+    if (q > 0.32f) {
+        float b = fminf(1, (q - 0.32f) / 0.14f);          // o balao crescendo
+        int bx = hx + 30, by = hy - 6, w = (int)(26 * b), h = (int)(24 * b);
+        if (q < 0.92f && w > 4) {
+            gfx_rect(bx - w / 2 - 1, by - h / 2 - 1, w + 2, h + 2, C_BARRA);
+            gfx_rect(bx - w / 2, by - h / 2, w, h, C_BRANCO);
+            for (int i = 0; i < 4; i++) gfx_rect(bx - w / 2 - 2 - i * 2, by + h / 2 - 3 + i, 3, 1, i < 3 ? C_BRANCO : C_BARRA);   // o rabinho
+            if (b >= 1) ad_solto_d(bx, by, e->ad, 1, 0);
+        } else if (q >= 0.92f) anel(bx, by, 10 + (int)((q - 0.92f) / 0.08f * 8), 1, C_BRANCO);   // e estoura
+    }
+}
+// O Porta-Retrato: o flash nele (o lugar seguinte na fila), a foto do
+// adesivo saindo e voando ate o dado de antes (ax, ay), e as cantoneiras de
+// foto em volta dele quando ela chega.
+static void retrato_intro(const evento_t *e, float q, int ax, int ay, int dir)
+{
+    int rk = e->de_k + 1 < N_FILA ? e->de_k + 1 : e->de_k, rx = SLOT_X(rk), ry = ay;
+    if (q < 0.24f) {
+        float f = q / 0.24f;
+        ui_clareia(rx - R_DADO - 8, ry - R_DADO - 8, 2 * R_DADO + 16, 2 * R_DADO + 16, 1.4f * (1 - f));
+        anel(rx, ry, R_DADO + 2 + (int)(f * 14), 2, f < 0.4f ? C_BRANCO : C_MARFIM_S);
+        estrela4(rx + 4, ry - R_DADO - 3, f < 0.5f ? 4 : 2, C_BRANCO, C_AMARELO, C_AMARELO);
+    }
+    if (q > 0.18f && q < 0.84f) {                         // a foto voando, em arco
+        float v = fminf(1, (q - 0.18f) / 0.56f), s = v * v * (3 - 2 * v);
+        int fx = rx + (int)((ax - rx) * s), fy = ry + dir * (R_DADO + 14) - (int)(sinf(s * 3.1416f) * 20);
+        gfx_rect(fx - 11, fy - 12, 22, 26, C_BARRA);
+        gfx_rect(fx - 10, fy - 11, 20, 24, C_BRANCO);
+        gfx_rect(fx - 8, fy - 9, 16, 16, C_EBANO_B);
+        ad_solto_d(fx, fy - 1, e->ad, 1, 0);
+    }
+    if (q >= 0.76f) {                                     // as cantoneiras, chegando
+        float c = fminf(1, (q - 0.76f) / 0.2f);
+        int d = R_DADO + 4 + (int)((1 - c) * 6);
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2) {
+                int cx = ax + sx * d, cy = ay + sy * d;
+                gfx_rect(cx - (sx > 0 ? 4 : 0), cy - (sy > 0 ? 1 : 0), 5, 2, C_OURO);
+                gfx_rect(cx - (sx > 0 ? 1 : 0), cy - (sy > 0 ? 4 : 0), 2, 5, C_OURO);
+            }
+    }
+}
+
 static void intro_adesivo(const evento_t *e, float q, int ax, int ay)
 {
     int dir = e->de_j == baixo ? -1 : 1;
+    if (e->modo & EVM_PAPAGAIO) { papagaio_intro(e, q, ax, ay, dir); return; }
+    if (e->modo & EVM_RETRATO) { retrato_intro(e, q, ax, ay, dir); return; }
     if (e->modo & EVM_CARIMBO) {
         int k0 = e->de_k > 0 ? e->de_k - 1 : 0, ox = SLOT_X(k0), oy = ay;
         float sobe = fminf(1, q / 0.18f);
@@ -2118,6 +2408,7 @@ static void capa_segura(int x, int y, float q, uint16_t c)
     }
 }
 
+static int copia_de;                     // o Papagaio (ou o Porta-Retrato) copiando: o enfeite e dele
 static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 {
     float in = ev_intro(e);
@@ -2127,7 +2418,9 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         evento_t e2 = *e;
         e2.modo = 0;
         if (e->modo & EVM_CARIMBO) carimbo_marca(ax, ay, R_DADO - 3, 1 - 0.6f * (p - q) / (1 - q));   // a tinta secando
+        copia_de = e->modo & (EVM_PAPAGAIO | EVM_RETRATO);
         desenha_adesivo_agindo(&e2, (p - q) / (1 - q), ax, ay);
+        copia_de = 0;
         return;
     }
     int a = e->ad, j = e->de_j, dir = j == baixo ? -1 : 1;     // para o meio da mesa
@@ -2158,7 +2451,25 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         sx = e->copia ? sx : ax;                                // a Massinha sai do recorte no dado
         sy = e->copia ? sy : ay;
     } else if (p < 0.9f && !rompe) ad_solto_d(sx, sy, salta, 1, a == AD_RASPADINHA && !e->copia ? fminf(1, p * 2) : 0);
-    if (e->copia && p < 0.85f) {                                // o brilho que muda de cor em volta dele
+    if (e->copia && p < 0.85f && (copia_de & EVM_PAPAGAIO)) {   // o Papagaio: as penas voando em volta
+        static const uint16_t PENA[3] = { C_VERDE, C_AMARELO, C_VERMELHO };
+        for (int i = 0; i < 9; i++) {
+            float an = i * 0.698f + t_fase * 2.2f, rr = 14 + fminf(1, p / 0.2f) * 4 + (i % 3) * 2;
+            int px = sx + (int)(cosf(an) * rr), py = sy + (int)(sinf(an) * rr * 0.8f) + (int)(p * 10);
+            gfx_rect(px - 1, py, 3, 1, PENA[i % 3]);
+            gfx_pixel(px + (i % 2 ? 1 : -1), py - 1, PENA[i % 3]);
+        }
+    } else if (e->copia && p < 0.85f && (copia_de & EVM_RETRATO)) {   // o Porta-Retrato: a moldura de foto em volta
+        int w = 26;
+        gfx_rect(sx - w / 2 - 1, sy - w / 2 - 1, w + 2, 2, C_BARRA);
+        gfx_rect(sx - w / 2 - 1, sy + w / 2 - 1, w + 2, 2, C_BARRA);
+        gfx_rect(sx - w / 2 - 1, sy - w / 2, 2, w, C_BARRA);
+        gfx_rect(sx + w / 2 - 1, sy - w / 2, 2, w, C_BARRA);
+        for (int i = 0; i < 4; i++) {
+            int cx = sx + (i % 2 ? w / 2 - 3 : -w / 2), cy = sy + (i / 2 ? w / 2 - 3 : -w / 2);
+            gfx_rect(cx, cy, 4, 4, C_OURO);
+        }
+    } else if (e->copia && p < 0.85f) {                         // o brilho que muda de cor em volta dele
         static const uint16_t ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(88, 152, 84),
                                           RGB(96, 182, 198), RGB(96, 134, 196), RGB(150, 112, 160) };
         for (int i = 0; i < (novo ? 14 : 10); i++) {
@@ -2402,6 +2713,56 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             else if (pegou) snprintf(t, sizeof t, "sujou %d lados", e->valor);
             else snprintf(t, sizeof t, "não grudou");
             pega_rotulo(tx, ty, q < 0.9f ? q : 0, t, pegou ? LAMA[3] : C_TEXTO_M);
+        }
+        break;
+    }
+    case AD_DINAMITE: {                                         // o pavio queima ate o dado e BUM; anulada, apaga numa fumacinha
+        int fx = ax + 2, fy = ay - R_DADO + 5;                  // o pavio sai do alto do dado e sobe torto
+        float pb = 0.36f / duracao_de(e);                       // o BUM: junto com o grave do som
+        float queima = e->valor > 0 ? fminf(1, p / pb) : fminf(1, p / 0.5f) * 0.45f;   // anulada: queima um pouco e morre
+        int n = 18, ate = (int)lroundf((1 - queima) * n);
+        int tx = fx, ty = fy;
+        for (int pass = 0; pass < 2; pass++)                    // o cordao, do dado ate a ponta: o contorno, depois a corda
+            for (int i = 0; i <= ate; i++) {                    // (o que ja queimou nao se desenha)
+                float s2 = (float)i / n;
+                int px = fx + (int)lroundf(s2 * 14 + sinf(s2 * 6.0f) * 4), py = fy - (int)lroundf(s2 * (R_DADO + 16));
+                if (!pass) { gfx_rect(px - 1, py - 1, 5, 5, C_BARRA); continue; }
+                if (i == ate) { tx = px + 1; ty = py + 1; }
+                gfx_rect(px, py, 3, 3, (i & 1) ? RGB(66, 40, 24) : RGB(120, 78, 50));
+                gfx_pixel(px, py, RGB(156, 106, 64));           // o brilho da corda torcida
+            }
+        bool vivo = e->valor > 0 ? p < pb : p < 0.5f;
+        if (vivo) {                                             // a faisca na ponta, chiando, e as fagulhas pulando
+            int b = (int)(t_fase * 20) % 3 ? 3 : 4;
+            uint16_t c = (int)(t_fase * 26) % 2 ? C_AMARELO : C_BRANCO;
+            disco_pontilhado(tx, ty, 6, C_FOGO, 0.45f + 0.2f * sinf(t_fase * 40));   // o clarao da chama
+            gfx_rect(tx - b, ty, 2 * b + 1, 1, c);
+            gfx_rect(tx, ty - b, 1, 2 * b + 1, c);
+            gfx_rect(tx - 1, ty - 1, 3, 3, C_BRANCO);
+            for (int i = 0; i < 6; i++) {
+                float f = fmodf(t_fase * 3.1f + i * 0.17f, 1.0f), an = i * 1.05f + t_fase * 4;
+                int px = tx + (int)(cosf(an) * f * 9), py = ty - (int)(sinf(an) * f * 7) + (int)(f * f * 8);
+                gfx_rect(px, py, 1 + (f < 0.4f), 1 + (f < 0.4f), i % 2 ? C_FOGO : C_AMARELO);
+            }
+        }
+        if (e->valor > 0 && p >= pb) {                          // BUM: o clarao, a fumaca e os pedacos do papel
+            float q = (p - pb) / (1 - pb);
+            explosao_em(ax, ay, q);
+            if (q < 0.55f) {                                    // e a placa do estrondo, pulando
+                const char *bum = "BUM!";
+                int w = gfx_largura(bum, 1) + 12, by = (zona(j) < CENTRO ? ay + R_DADO + 12 : ay - R_DADO - 34)
+                                                     - (int)(sinf(fminf(1, q / 0.2f) * 3.1416f) * 4);
+                gfx_rect(ax - w / 2, by - 2, w, TXT_H + 4, C_BARRA);
+                txt_c(ax, by, bum, (int)(t_fase * 16) % 2 ? C_AMARELO : C_FOGO, true);
+            }
+        } else if (e->valor == 0 && p >= 0.45f && p < 0.98f) {  // anulada: um fio de fumaca sobe de onde a faisca morreu
+            float q = (p - 0.45f) / 0.53f;
+            for (int i = 0; i < 4; i++) {
+                float f = q - i * 0.12f;
+                if (f < 0) continue;
+                int px = tx + (int)(sinf(f * 7 + i) * 3), py = ty - (int)(f * 22);
+                disco_pontilhado(px, py, 2 + (int)(f * 3), i % 2 ? RGB(96, 88, 80) : C_CINZA, (1 - f) * 0.7f);
+            }
         }
         break;
     }
@@ -2781,6 +3142,60 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             }
         break;
     }
+    case AD_COLEIRA: {                                          // a guia sai da coleira, laca o ladrao e da o tranco
+        int tx = SLOT_X(e->alvo_k < N_FILA ? e->alvo_k : 0), ty = zona(e->alvo_j);
+        float vai = fminf(1, p / 0.34f), tranco = p < 0.34f ? 0 : p < 0.46f ? (p - 0.34f) / 0.12f : 1;
+        float volta = p > 0.70f ? fminf(1, (p - 0.70f) / 0.25f) : 0;
+        float alcance = vai * (1 - volta);
+        if (alcance > 0.02f) {
+            float ex = ax + (tx - ax) * alcance, ey = ay + (ty - ay) * alcance;
+            float bamba = (1 - tranco) * 18 * alcance;          // a guia bamba, que estica de uma vez no tranco
+            int n = 24, px = ax, py = ay;
+            for (int i = 1; i <= n; i++) {
+                float q = i / (float)n;
+                int x = ax + (int)((ex - ax) * q), y = ay + (int)((ey - ay) * q + sinf(q * 3.1416f) * bamba);
+                gfx_linha_grossa(px + 1, py + 1, x + 1, y + 1, 2, C_BARRA);
+                gfx_linha_grossa(px, py, x, y, 2, i % 3 ? d->fundo : d->luz);
+                px = x; py = y;
+            }
+            if (tranco > 0 && tranco < 1) {                     // o tranco: o laco aperta no dado do ladrao
+                anel(tx, ty, R_DADO + 2 + (int)(tranco * 8), 2, tranco < 0.5f ? C_BRANCO : d->luz);
+                for (int i = 0; i < 6; i++) {
+                    float an = i * 1.047f + 0.3f, r = R_DADO + 4 + tranco * 10;
+                    gfx_rect(tx + (int)(cosf(an) * r), ty + (int)(sinf(an) * r), 2, 2, C_AMARELO);
+                }
+            }
+        }
+        if (p > 0.40f && p < 0.80f) {                           // o pingente balancando: o sininho
+            float b = sinf((p - 0.40f) * 40) * (0.80f - p) * 6;
+            int sx = ax + (int)b, sy = ay + R_DADO + 4;
+            gfx_rect(sx - 3, sy - 2, 7, 6, C_BARRA);
+            gfx_rect(sx - 2, sy - 1, 5, 4, C_OURO);
+            gfx_pixel(sx - 1, sy, C_AMARELO);
+        }
+        break;
+    }
+    case AD_TIQUETE: {                                          // a catraca gira um terco de volta e a luz verde pisca
+        int cx = ax, cy = ay - R_DADO - 16;
+        float giro = p < 0.25f ? 0 : p < 0.60f ? (p - 0.25f) / 0.35f : 1;
+        giro = giro * giro * (3 - 2 * giro);
+        if (p < 0.92f) {
+            gfx_rect(cx - 9, cy + 6, 19, 5, C_BARRA);            // o pe da catraca
+            gfx_rect(cx - 8, cy + 7, 17, 3, C_ACO);
+            for (int b = 0; b < 3; b++) {                        // os tres bracos
+                float an = -1.5708f + b * 2.0944f + giro * 2.0944f;
+                int bx = cx + (int)(cosf(an) * 11), by = cy + (int)(sinf(an) * 6);
+                gfx_linha_grossa(cx + 1, cy + 1, bx + 1, by + 1, 2, C_BARRA);
+                gfx_linha_grossa(cx, cy, bx, by, 2, C_PRATA);
+            }
+            gfx_rect(cx - 2, cy - 2, 5, 5, C_BARRA);
+            gfx_rect(cx - 1, cy - 1, 3, 3, C_FERRO);
+            bool bip = (p > 0.12f && p < 0.24f) || (p > 0.62f && p < 0.80f && (int)(p * 40) % 2);
+            gfx_rect(cx + 7, cy - 9, 4, 4, C_BARRA);
+            gfx_rect(cx + 8, cy - 8, 2, 2, bip ? RGB(130, 204, 112) : RGB(36, 60, 40));
+        }
+        break;
+    }
     case AD_LOBO: {                                             // tres garras no placar do rival
         int px = PLACAR_X, py = zona(e->alvo_j);
         for (int g = 0; g < 3; g++) {
@@ -3040,6 +3455,50 @@ static void desenha_evento_dentro(const evento_t *e, float p)
                     gfx_rect(bx + (int)(cosf(an) * rr) - 1, by + (int)(sinf(an) * rr) - 1, 3, 3,
                              gfx_mistura(C_LASER, C_FELTRO, (int)(tt * 80)));
                 }
+            }
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_AGNUS) {
+            // Agnus com 8: a gloria acende em cima dele e desce dela um raio de
+            // luz reto ate o alvo (com a capa, para na bolha); quando chega, a
+            // luz se abre num anel, as faiscas sobem e a gloria apaga.
+            int gx = ax, gy = ay - R_DADO - 13;
+            float g = fminf(1, p / 0.12f) * fminf(1, fmaxf(0, (0.92f - p) / 0.22f));
+            if (g > 0) {
+                float rx = 3 + 5 * g, ry = 1 + 1.2f * g;
+                for (int pass = 0; pass < 2; pass++)
+                    for (int i = 0; i < 44; i++) {
+                        float an = i * 0.1428f;
+                        int px = gx + (int)lroundf(cosf(an) * rx), py = gy + (int)lroundf(sinf(an) * ry);
+                        if (!pass) gfx_pixel(px, py + 1, C_BARRA);
+                        else gfx_pixel(px, py, an < 3.1416f ? C_BRANCO : C_AMARELO);
+                    }
+            }
+            int lx = bx, ly = by;
+            if (bate) ate_a_bolha(gx, gy, &lx, &ly);
+            float q = (p - 0.12f) / 0.16f;           // o raio descendo: 0..1, depois aceso e apagando
+            if (q > 0) {
+                float ate = fminf(q, 1), forca = q < 1 ? 1 : fmaxf(0, 1 - (p - 0.28f) / 0.3f);
+                float dx = (float)(lx - gx), dy = (float)(ly - gy), l = sqrtf(dx * dx + dy * dy);
+                int n = (int)(l * ate / 2) + 1;
+                float nx = l > 0 ? -dy / l : 0, ny = l > 0 ? dx / l : 0;   // o lado do raio, para a largura
+                int larg = q < 1 ? 1 : 2;
+                for (int i = 0; i <= n && forca > 0; i++) {
+                    float s2 = ate * i / n;
+                    int px = gx + (int)lroundf(dx * s2), py = gy + (int)lroundf(dy * s2);
+                    float frente = q < 1 ? 0.45f + 0.55f * (float)i / n : 0.8f;
+                    for (int w = -larg; w <= larg; w++)
+                        luz_ponto(px + (int)lroundf(nx * w * 2), py + (int)lroundf(ny * w * 2),
+                                  frente * forca * (w ? 0.55f : 1));
+                }
+            }
+            float tt = (p - 0.28f) / 0.42f;          // chegou: o anel de luz abre no alvo
+            if (tt > 0 && tt < 1 && !bate) {
+                int rr = (int)(R_DADO * (0.6f + 0.9f * tt));
+                for (int i = 0; i < 40; i++) {
+                    float an = i * 0.157f;
+                    int px = bx + (int)lroundf(cosf(an) * rr), py = by + (int)lroundf(sinf(an) * rr * 0.9f);
+                    if (bayer(px, py) < 1 - tt) gfx_pixel(px, py, i % 2 ? C_AMARELO : C_BRANCO);
+                }
+                faiscas(bx, by, p - 0.28f, C_AMARELO);
             }
         } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_AUTOFAGIA) {
             // Autofagia: a cobra sai do dado, desliza rente a fila ate o mais
@@ -3456,6 +3915,27 @@ static void desenha_evento_dentro(const evento_t *e, float p)
                 int gy = ay - R_DADO + (int)((by - (ay - R_DADO)) * s) - (int)(sinf(s * 3.1416f) * 26);
                 galao(gx, gy);
             }
+        } else if (t == D_LEQUE) {
+            // O Leque se abre em cima dele e abana; o vento corre ate cada dado
+            // seu no adesivo, que acende quando ele chega (desenha_fila).
+            float q = fminf(1, p / LEQUE_ABRE), fecha = p > 0.82f ? (1 - p) / 0.18f : 1;
+            leque_aberto(ax, ay - R_DADO + 2, 24, q * q * (3 - 2 * q) * fecha, q >= 1 ? sinf(t_fase * 10) * 0.16f : 0);
+            for (int k = 0; k < N_FILA; k++) {
+                if (!(e->mascara >> k & 1)) continue;
+                float w = (p - LEQUE_ABRE) / (0.06f + 0.05f * abs(k - e->de_k) + 0.02f);
+                if (w < 0 || w > 1.3f) continue;
+                int bx = SLOT_X(k);
+                for (int i = 0; i < 3; i++) {                // tres riscos de vento ondulando
+                    float wi = w - i * 0.12f;
+                    if (wi < 0 || wi > 1) continue;
+                    int sx = ax + (int)((bx - ax) * wi), sy = ay - 8 + i * 8;
+                    for (int d = 0; d < 9; d++)
+                        gfx_pixel(sx - d * (bx > ax ? 1 : -1), sy + (int)lroundf(sinf((sx - d) * 0.45f + i) * 1.5f),
+                                  d < 3 ? C_BRANCO : d < 6 ? C_VENTO : C_MARFIM_S);
+                }
+            }
+        } else if (t == D_BALAO) {
+            balao_estouro(ax, ay, p);                        // o ar guardado saindo de uma vez: estoura
         } else if (t == D_CHECKPOINT) {
             // A bandeira quadriculada sobe do dado e tremula: daqui em diante, +3.
             float q = p / 0.3f;
@@ -3774,6 +4254,39 @@ static void desenha_evento(void)
         if (p < chega) continue;
         capa_segura(SLOT_X(k), zona(e->alvo_j), (p - chega) / (1 - chega), c);
     }
+}
+
+// O combo: os efeitos seguidos de um lado na cadeia do fim da rodada. Do 2o
+// em diante, a plaquinha "COMBO xN" ao lado do placar dele: pula a cada elo
+// novo e esquenta de cor (o marfim, o ouro, o fogo, o vermelho). Acabada a
+// cadeia, fica no ultimo numero enquanto o placar conta.
+static int combo_de(int j, int ate)
+{
+    int n = 0;
+    for (int i = 0; i <= ate && i < n_ev; i++) if (ev[i].de_j == j) n++;
+    return n;
+}
+static void desenha_combo(void)
+{
+    if (fase != F_EFEITOS || !n_ev) return;
+    int i = ev_i < n_ev ? ev_i : n_ev - 1;
+    int j = ev[i].de_j;
+    if (j > 1) return;
+    int n = combo_de(j, i);
+    if (n < 2) return;
+    float t = ev_i < n_ev && t_respiro < 0 ? t_fase : 1;
+    int pulo = t < 0.16f ? (int)lroundf(4 * sinf(t / 0.16f * 3.1416f)) : 0;
+    uint16_t c = n >= 6 ? C_VERMELHO : n >= 4 ? C_FOGO : n >= 3 ? C_OURO : C_MARFIM_S;
+    char s[16];
+    snprintf(s, sizeof s, "x%d", n);
+    int x = PLACAR_X - 60, y = zona(j) + (j == baixo ? -30 : 14) - pulo;
+    txt_c(x, y, "COMBO", t < 0.1f ? C_BRANCO : C_TEXTO_M, false);
+    txt_sombra_c(x, y + 9, s, t < 0.08f ? C_BRANCO : c, 2);
+    if (n >= 4 && t < 0.25f)                      // do 4o elo, as faiscas em volta do numero
+        for (int k = 0; k < 6; k++) {
+            float an = k * 1.047f + t * 9, d = 12 + t * 40;
+            gfx_rect(x + (int)(cosf(an) * d), y + 16 + (int)(sinf(an) * d * 0.6f), 2, 2, k & 1 ? C_OURO : c);
+        }
 }
 
 static void pote_mesa(void)

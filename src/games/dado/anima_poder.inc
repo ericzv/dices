@@ -72,6 +72,17 @@ static const char *const SP_PRISMA[] = { "...#...", "..#+#..", ".#+++#.", "#####
 static const char *const SP_PANETONE[] = { ".###.", "#+o+#", "#o+o#", "#####" };
 static const char *const SP_CARTA_V[] = { "#####", "#o+o#", "#+o+#", "#o+o#", "#+o+#", "#o+o#", "#####" };
 static const char *const SP_GLORIA[] = { "#..#..#", ".#.#.#.", ".......", ".#####.", "#.....#", ".+++++." };
+static const char *const SP_LEQUE_A[] = { "..#####..", ".#+#+#+#.", "#+#+#+#+#", ".#+#+#+#.", "..#+#+#..", "...#+#...", "....o...." };
+// O Balao em tres tamanhos (o ar que guardou): o brilho em cima a
+// esquerda, a sombra embaixo a direita e o no.
+static const char *const SP_BALAO_P[] = { ".###.", "#+###", "####o", ".##o.", "..o.." };
+static const char *const SP_BALAO_M[] = { "..###..", ".#+###.", "#++####", "#+####o", ".####o.", "..##o..", "...o..." };
+static const char *const SP_BALAO_G[] = { "..#####..", ".#++####.", "#++######", "#+#######", "########o",
+                                          ".######o.", "..####o..", "...#o#...", "....o...." };
+static const char *const SP_PAPAGAIO[] = { ".###...", "#####..", "#o###++", "######+", "####...", ".###..." };
+static const char *const SP_PAPAGAIO_B[] = { ".###...", "#####.+", "#o###+.", "######.", "####.++", ".###..." };
+static const char *const SP_CAMERA[] = { "..##...", "#######", "##ooo##", "#o+++o#", "##ooo##", "#######" };
+static const char *const SP_ESTILINGUE[] = { "#.....#", "#.....#", ".#...#.", "..###..", "...#...", "...#...", "...#..." };
 static const char *const SP_FALHA[] = { "#......", ".#.....", ".##....", "...#...", "...##..", ".....#.", "......#" };
 
 enum { MV_FLUTUA, MV_PULSA, MV_BATIDA, MV_VARRE, MV_SOBE, MV_CAI, MV_BATE, MV_BALANCA, MV_TREME,
@@ -158,6 +169,11 @@ static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_FICHA_CORINGA] = { PA_SP2(SP_CARTA, SP_CARTA_V), MV_QUADROS, C_MARFIM, C_BRANCO, C_VERMELHO },   // a carta virando
     [EF_TERREMOTO]    = { PA_SP(SP_FALHA), MV_TREME, C_FOGO, C_AMARELO, C_TERRA },                   // a falha tremendo
     [EF_AGNUS]        = { SP_GLORIA, NULL, 6, 0, MV_ESPECIAL, C_AMARELO, C_BRANCO, C_OURO },         // a gloria em cima do cordeiro
+    [EF_LEQUE]        = { PA_SP(SP_LEQUE_A), MV_ESPECIAL, C_VINHO_CLR, C_ROSA, C_MADEIRA },          // o leque abanando
+    [EF_BALAO]        = { PA_SP(SP_BALAO_M), MV_ESPECIAL, RGB(190, 56, 60), C_BRANCO, RGB(118, 30, 38) },   // a bexiga que vai estourar
+    [EF_PAPAGAIO]     = { PA_SP2(SP_PAPAGAIO, SP_PAPAGAIO_B), MV_QUADROS, C_VERDE, C_AMARELO, C_EBANO },   // o bico abrindo
+    [EF_RETRATO]      = { PA_SP(SP_CAMERA), MV_ESPECIAL, C_EBANO_B, C_VENTO, C_PRATA },               // a camera e o flash
+    [EF_ESTILINGUE]   = { PA_SP(SP_ESTILINGUE), MV_ESPECIAL, C_MADEIRA, C_MADEIRA_CLR, C_MADEIRA_ESC }, // o elastico puxado
 };
 #undef PA_SP
 #undef PA_SP2
@@ -170,6 +186,37 @@ static void rotulo_poder(int cx, int cy, const char *s, uint16_t c)
     for (int i = 0; i < 8; i++) gfx_texto(x + D[i][0], y + D[i][1], s, C_BARRA, GFX_MIUDO, false);
     gfx_texto(x, y, s, c, GFX_MIUDO, false);
 }
+
+// O Leque aberto em (cx, cy), raio R: as varetas em leque para cima, o
+// papel em gomos de duas cores, a beira de ouro. abre (0..1): o quanto abriu;
+// balanco: o abano (o leque inteiro inclina um nada de um lado para o outro).
+#define LEQUE_ABRE 0.30f                 // o leque abre ate aqui no evento; depois, o vento
+static void leque_aberto(int cx, int cy, float R, float abre, float balanco)
+{
+    if (abre <= 0.02f) return;
+    int n = R < 12 ? 5 : 8;
+    float meio = -1.5708f + balanco, span = abre * 2.7f;
+    for (int i = 0; i < n; i++) {
+        float a0 = meio - span / 2 + span * i / n, a1 = meio - span / 2 + span * (i + 1) / n;
+        float vx[3] = { (float)cx, cx + cosf(a0) * R, cx + cosf(a1) * R };
+        float vy[3] = { (float)cy, cy + sinf(a0) * R, cy + sinf(a1) * R };
+        float wx[3] = { (float)cx, cx + cosf(a0) * (R + 1.5f), cx + cosf(a1) * (R + 1.5f) };
+        float wy[3] = { (float)cy, cy + sinf(a0) * (R + 1.5f), cy + sinf(a1) * (R + 1.5f) };
+        poligono(wx, wy, 3, C_BARRA);
+        poligono(vx, vy, 3, i % 2 ? C_ROSA : C_VINHO_CLR);
+    }
+    for (int i = 0; i <= n; i++) {                        // as varetas e a beira de ouro
+        float a = meio - span / 2 + span * i / n;
+        gfx_linha((int)(cx + cosf(a) * 3), (int)(cy + sinf(a) * 3), (int)(cx + cosf(a) * (R - 1)), (int)(cy + sinf(a) * (R - 1)), C_MADEIRA_ESC);
+        gfx_rect((int)(cx + cosf(a) * R) - 1, (int)(cy + sinf(a) * R) - 1, 2, 2, C_OURO);
+    }
+    gfx_rect(cx - 2, cy - 2, 5, 5, C_BARRA);              // o pino
+    gfx_rect(cx - 1, cy - 1, 3, 3, C_OURO);
+}
+
+// O que o dado guarda (o ar do Balao), para a animacao dele; -1 fora
+// da mesa (a colecao, o tutorial).
+static int anima_fixo = -1;
 
 // A animacao do poder do dado (x, y) de raio R, armado. fase: para os dados
 // lado a lado nao baterem juntos.
@@ -429,6 +476,54 @@ static void anima_poder(int x, int y, int R, int tipo, float fase)
             if (q < 0.8f) {
                 int my = y - R + 2 - (int)(q / 0.8f * (y - R + 2 - cy));
                 if (bayer(ax, my) >= q * 0.9f) { gfx_pixel(ax, my, a->c1); gfx_pixel(ax, my - 1, C_BRANCO); }
+            }
+            break;
+        }
+        case EF_LEQUE: {                           // o leque abrindo e fechando, abanando
+            float q = 0.5f + 0.5f * sinf(t * 2.6f);
+            leque_aberto(ax, ay + 4, 9, 0.35f + 0.65f * q, sinf(t * 5.2f) * 0.15f);
+            break;
+        }
+        case EF_BALAO: {                           // a bexiga boiando, do tamanho do ar que guardou, e o que vai estourar
+            int n = anima_fixo < 0 ? 2 * BALAO_CADA : anima_fixo;
+            const char *const *sp = n < 4 ? SP_BALAO_P : n < 8 ? SP_BALAO_M : SP_BALAO_G;
+            int h = n < 4 ? 5 : n < 8 ? 7 : 9;
+            int by = ay - 2 + (int)lroundf(sinf(t * 2.2f) * 1.5f), bx = ax;
+            if (n >= BALAO_CHEIO * 8 / 10 && (int)(t * 14) % 2 && fmodf(t * 0.9f, 1.0f) < 0.45f) bx++;   // cheio: treme
+            for (int k = 0; k < 5; k++)            // o barbante, ondulando
+                gfx_pixel(bx + (int)lroundf(sinf(t * 4.0f + k * 1.1f) * 0.8f), by + h / 2 + 1 + k, C_MARFIM_S);
+            sprite_em(bx, by, sp, h, a->c1, a->c2, a->c3, false, 0);
+            char s[12];
+            snprintf(s, sizeof s, "+%d", n);
+            bool bate = fmodf(t * 1.6f, 1.0f) < 0.25f;
+            rotulo_poder(ax, by - h / 2 - 5 - bate, s, bate ? C_BRANCO : C_AMARELO);
+            break;
+        }
+        case EF_RETRATO: {                         // a camera e, de vez em quando, o flash
+            sprite_em(ax, ay, a->sp, a->h, a->c1, a->c2, a->c3, false, 0);
+            float q = fmodf(t * 0.8f, 1.0f);
+            if (q < 0.14f) {
+                estrela4(ax + 2, ay - 4, q < 0.07f ? 3 : 2, C_BRANCO, C_AMARELO, C_AMARELO);
+                anel(ax, ay, 6 + (int)(q * 40), 1, q < 0.07f ? C_BRANCO : C_MARFIM_S);
+            }
+            break;
+        }
+        case EF_ESTILINGUE: {                      // o elastico puxando a pedra para tras, e soltando
+            sprite_em(ax, ay, a->sp, a->h, a->c1, a->c2, a->c3, false, 0);
+            float q = fmodf(t * 0.75f, 1.0f);
+            float puxa = q < 0.7f ? q / 0.7f : 1 - (q - 0.7f) / 0.06f;
+            if (puxa < 0) puxa = 0;
+            int px = ax - (int)lroundf(puxa * 5), py = ay - 1 + (int)lroundf(puxa * 2);   // a pedra no couro, puxada
+            gfx_linha(ax - 3, ay - 3, px, py, C_VINHO_CLR);
+            gfx_linha(ax + 3, ay - 3, px, py, C_VINHO_CLR);
+            if (q < 0.76f) {
+                gfx_rect(px - 1, py - 1, 3, 3, C_BARRA);
+                gfx_pixel(px, py, C_CINZA);
+            } else {                               // e a pedra vai para o dado seguinte
+                int sx = ax + (int)((q - 0.76f) / 0.24f * 18);
+                gfx_rect(sx - 1, ay - 3, 3, 3, C_BARRA);
+                gfx_pixel(sx, ay - 2, C_CINZA);
+                for (int i = 1; i <= 3; i++) if (bayer(sx - i * 2, ay - 2) < 0.7f - i * 0.18f) gfx_pixel(sx - i * 2, ay - 2, C_MARFIM_S);
             }
             break;
         }

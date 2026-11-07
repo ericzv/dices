@@ -37,7 +37,8 @@ static int nivel_mesa(const no_t *no)
 static int pensa_mesa(const no_t *no)
 {
     if (run.andar >= DES_ANDARES || no->tipo > NO_CHEFE || nivel_mesa(no) >= 2) return 0;
-    int k = run.dificuldade - PENSA_DESDE[run.andar][no->tipo] + 1;
+    int dif = run.andar == 0 && run.dificuldade > S1_TETO ? S1_TETO : run.dificuldade;   // o 1o salao: ate o Nivel 3
+    int k = dif - PENSA_DESDE[run.andar][no->tipo] + 1;
     return k <= 0 ? 0 : k * PENSA_CADA > 99 ? 99 : k * PENSA_CADA;
 }
 
@@ -151,6 +152,29 @@ static void run_de_13(run_t *r, const run13_t *v)
     r->amuletos_x = v->amuletos_x; r->colar = v->colar; r->presente = v->presente;
 }
 
+// O que saiu do jogo, numa run salva de antes: o dado vira o liso do mesmo
+// tamanho (o Pincel, um d4) e o adesivo da loja, um Confete (os colados nos
+// dados ja somem pelo ad_no_lado).
+static void aposenta_peca(peca_t *p)
+{
+    if (p->tipo < D_N && aposentado(p->tipo)) p->tipo = D_D4;
+}
+static void aposenta_run(run_t *r)
+{
+    for (int i = 0; i < MAX_COL; i++) aposenta_peca(&r->col[i]);
+    for (int i = 0; i < VITRINE_MAX; i++) aposenta_peca(&r->vitrine[i]);
+    for (int i = 0; i < PAC_OPCOES; i++) {
+        aposenta_peca(&r->pac_op[i]);
+        if (ad_aposentado(r->pac_op[i].ad[0])) r->pac_op[i].ad[0] = AD_CONFETE;
+    }
+    for (int i = 0; i < PAC_MAX - PAC_OPCOES; i++) {
+        aposenta_peca(&r->pac_op_mais[i]);
+        if (ad_aposentado(r->pac_op_mais[i].ad[0])) r->pac_op_mais[i].ad[0] = AD_CONFETE;
+    }
+    if (ad_aposentado(r->adesivo)) r->adesivo = AD_CONFETE;
+    if (ad_aposentado(r->adesivo2)) r->adesivo2 = AD_CONFETE;
+}
+
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
 // para tras. A de antes dos adesivos de um byte abre convertida, a de antes
 // do Presente (sem o ultimo byte) abre com ele em 0, a de antes das bolsas
@@ -189,6 +213,7 @@ static bool des_carrega(run_t *r)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
+    aposenta_run(r);
     for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N || r->pac_op[i].ad[0] >= AD_N) return false;
     for (int i = 0; i < PAC_MAX - PAC_OPCOES; i++)
         if (r->pac_op_mais[i].tipo >= D_N || r->pac_op_mais[i].ad[0] >= AD_N) return false;
@@ -201,7 +226,7 @@ static bool des_carrega(run_t *r)
     if (r->tirou_gratis > 1) r->tirou_gratis = 1;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
-    if (r->colar > 1) r->colar = 0;
+    if (r->colar > COLAR_MOEDAS) r->colar = 0;
     r->presente = 0;                             // sem uso (todo Presente fica agora)
     return true;
 }
@@ -498,11 +523,53 @@ static void des_nova_run(void)
 // contagem de uma partida para a outra. O Adesivado que se encheu na partida
 // (o Infectado e o Barro tambem colam nele) vira o Mais Adesivado, como na
 // loja.
+// O Camelo arma a banca no comeco da partida: cada lado vazio ganha um
+// adesivo sorteado entre os abertos, todos com a mesma chance (um lendario
+// sai tanto quanto um comum; os ruins tambem). Cada Camelo armado guarda no
+// fixo a vaga dele (1 a CAMELO_MAX) em camelo_lados, os lados que ele encheu
+// - a bolsa pode mudar de posicao no meio da partida, o fixo vai junto. No
+// fim da partida, esses lados esvaziam; os adesivos colados de verdade ficam.
+#define CAMELO_MAX 8
+static uint32_t camelo_lados[2][CAMELO_MAX];
+static void camelo_arma(int j)
+{
+    int total = 0, vaga = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (ad_a_venda(a) && adesivo_liberado(a)) total++;
+    for (int i = 0; i < J[j].n_col; i++) {
+        peca_t *p = &J[j].col[i];
+        if (p->tipo != D_CAMELO) continue;
+        p->fixo = 0;
+        if (!total || vaga >= CAMELO_MAX) continue;
+        camelo_lados[j][vaga] = 0;
+        for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo); l++) {
+            if (ad_no_lado(p, l)) continue;
+            int x = sorte(total), a = AD_NADA + 1;
+            for (; a < AD_N; a++) {
+                if (!ad_a_venda(a) || !adesivo_liberado(a)) continue;
+                if (x-- == 0) break;
+            }
+            if (a >= AD_N) continue;
+            ad_cola(p, l, a);
+            camelo_lados[j][vaga] |= 1u << l;
+        }
+        p->fixo = (uint8_t)(++vaga);
+    }
+}
+static void camelo_desarma(peca_t *col, int n, int j)
+{
+    for (int i = 0; i < n; i++) {
+        peca_t *p = &col[i];
+        if (p->tipo != D_CAMELO || p->fixo < 1 || p->fixo > CAMELO_MAX) continue;
+        uint32_t m = camelo_lados[j][p->fixo - 1];
+        for (int l = 1; l < 32; l++) if (m >> l & 1) ad_cola(p, l, AD_NADA);
+        p->fixo = 0;
+    }
+}
 static void zera_acumuladores(peca_t *col, int n)
 {
     for (int i = 0; i < n; i++) {
         if (col[i].tipo == D_ACUMULADOR || col[i].tipo == D_AUTOFAGIA || col[i].tipo == D_PREVISIVEL
-            || col[i].tipo == D_FURIA) col[i].fixo = 0;
+            || col[i].tipo == D_FURIA || col[i].tipo == D_BALAO) col[i].fixo = 0;
         col[i].figurinha = 0;                    // as figurinhas juntadas so valem na partida
         col[i].capa = 0;                         // e a capa do Impermeavel tambem
         col[i].chiclete = 0;                     // e o Chiclete: so gruda de uma rodada para a outra
@@ -562,8 +629,11 @@ static void des_comeca_partida(void)
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
-    for (int j = 0; j < 2; j++)
+    for (int j = 0; j < 2; j++) {
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
+        memset(J[j].pavio, 0, sizeof J[j].pavio);   // a Dinamite: o pavio comeca apagado a cada partida
+        camelo_arma(j);                              // e o Camelo arma a banca
+    }
     nivel_jog[1] = nivel_mesa(no);
     pensa_jog[0] = 0; pensa_jog[1] = pensa_mesa(no);    // parte das decisoes um nivel acima
     ia_conta = no->semente;
@@ -592,18 +662,23 @@ static void des_comeca_partida(void)
 }
 
 // A Sacola de Presente: o chefe vencido (que nao fecha a run) deixa um dado
-// raro na bolsa, sorteado entre os abertos pela semente da run.
+// raro ou especial (o D20, que nao se vende) na bolsa, sorteado entre os
+// abertos pela semente da run, todos com a mesma chance.
+static bool do_presente_do_chefe(int t)
+{
+    return t == D_D20 ? dado_liberado(t) : no_pacote(t) && TIPO[t].raridade == RAR_RARO;
+}
 static void presente_do_chefe(void)
 {
     if (run.n_col >= MAX_COL) return;
     rs = run.semente ^ (0x9E5E77u * (uint32_t)(run.andar * 8 + run.passo + 1));
     rnd_r();
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += no_pacote(t) && TIPO[t].raridade == RAR_RARO;
+    for (int t = 0; t < D_N; t++) n += do_presente_do_chefe(t);
     if (!n) return;
     int q = sorte_r(n);
     for (int t = 0; t < D_N; t++)
-        if (no_pacote(t) && TIPO[t].raridade == RAR_RARO && q-- == 0) {
+        if (do_presente_do_chefe(t) && q-- == 0) {
             run.col[run.n_col++] = peca_r(t);
             des_presente = t;
             return;
@@ -619,6 +694,7 @@ static void des_resultado(void)
     // A bolsa volta para a run como terminou: o Quebrado e o que o Fogo
     // queimou nao voltam (e o embrulho do Papai Noel, desfeito).
     desfaz_embrulho();
+    camelo_desarma(J[0].col, J[0].n_col, 0);     // os adesivos da banca do Camelo saem
     run.n_col = (uint8_t)J[0].n_col;
     memcpy(run.col, J[0].col, sizeof run.col);
     zera_acumuladores(run.col, run.n_col);
@@ -657,7 +733,7 @@ static void des_resultado(void)
         perfis_salva();
     }
     // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Colar
-    // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3), a Taca (1 a cada 3
+    // (2), o Cofre (1 a cada 3 que voce ja tinha, sem limite), a Taca (1 a cada 3
     // rodadas vencidas na partida) e o que a bolsa paga a mais (a Carteira, 10
     // por chefe; a Maleta do Apostador, 2 por mesa).
     run.ganho = run.colar = run.juros = run.taca = run.dourado = run.bolsa_ganho = 0;
@@ -672,9 +748,9 @@ static void des_resultado(void)
         if (run.bolsa == B_CARTEIRA && no->tipo == NO_CHEFE) run.bolsa_ganho = CARTEIRA_CHEFE;
         if (run.bolsa == B_MALETA) run.bolsa_ganho = MALETA_MESA;
         if (run.bolsa == B_PRESENTE && no->tipo == NO_CHEFE) presente_do_chefe();
-        if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
+        if (run_amuletos() >> A_COLAR & 1) run.colar = COLAR_MOEDAS;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
-        if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
+        if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / COFRE_CADA < 255 ? run.moedas / COFRE_CADA : 255);
         if (run_amuletos() >> A_TACA & 1) run.taca = (uint8_t)(des_rod_vencidas / 3);
     }
     run.moedas += saque_total();

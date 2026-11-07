@@ -206,6 +206,15 @@ static int nivel_do_dado(int t)
     switch (t) {
     case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_DOMINO:
     case D_HEXA: case D_SENTINELA: case D_PIRATA: case D_COPIADOR:              return 1;
+    case D_MOSAICO: case D_COLCHA:                                              return 4;
+    case D_ESTILINGUE:                                                          return 2;
+    case D_PIAO: case D_GELATINA:                                               return 3;
+    case D_LEQUE:                                                               return 5;
+    case D_BALAO: case D_PAPAGAIO:                                              return 6;
+    case D_CAMALEAO: case D_RETRATO:                                            return 7;   // o Porta-Retrato: ja habituado aos adesivos
+    case D_CAMELO:                                                              return 8;
+    case D_MATRIOSKA:                                                           return 9;
+    case D_TELA:                                                                return 5;
     case D_JACKPOT: case D_SEMENTE: case D_SEGURANCA: case D_AZARAO:
     case D_AMPULHETA: case D_MALDICAO: case D_DESAFIANTE: case D_VAZIO:         return 2;
     case D_CARRASCO: case D_LASER: case D_AGIOTA: case D_ACUMULADOR:

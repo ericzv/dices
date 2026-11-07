@@ -12,7 +12,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_CONTRATO] = { "Contrato Sujo", "O terceiro dado da sua sequência pontua +4, mas a sequência leva 1 dado a menos.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
     [A_COURACA]  = { "Couraça",       "Os dados do oponente não podem anular os seus.", C_ACO },
-    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 5 que você tem (até 3).", C_LATAO },
+    [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 3 que você tem.", C_LATAO },
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
     [A_FURADO]   = { "Saco Furado",   "O oponente compra só 5 dados por rodada, em vez de 7.", RGB(170, 160, 150) },
@@ -35,7 +35,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_PIRAMIDE] = { "Pirâmide",      "Seus dados de 4 lados pontuam x2 no fim.", RGB(238, 162, 74) },
     [A_ABRE_ALAS]= { "Abre-Alas",     "O primeiro dado da sua sequência pontua x2 no fim.", RGB(96, 134, 196) },
     [A_SAIDEIRA] = { "Saideira",      "Na última rodada da partida, os poderes de fim de rodada dos seus dados agem duas vezes.", RGB(150, 112, 160) },
-    [A_COLAR]    = { "Colar de Pérolas", "Ao vencer uma mesa, rende 1 moeda.", RGB(226, 220, 236) },
+    [A_COLAR]    = { "Colar de Pérolas", "Ao vencer uma mesa, rende 2 moedas.", RGB(226, 220, 236) },
     [A_CORRIMAO] = { "Corrimão",      "Se o seu dado for só 1 menor que o anterior, a sequência não anula nenhum dos dois.", RGB(96, 182, 198) },
 };
 // Raridade de cada um, que diz em que momento da run ele aparece: comuns no
@@ -75,6 +75,11 @@ static void run_tira_amuleto(int a) { run_poe_amuletos(run_amuletos() & ~AM_BIT(
 static bool am_lugar(void) { return am_conta(run_amuletos()) < am_lugares(); }
 static bool amuleto_liberado(int a);
 static bool dado_liberado(int t);
+
+// O que o Colar de Perolas rende por mesa vencida, e o Cofre: 1 moeda a
+// cada COFRE_CADA que voce tem, sem limite.
+#define COLAR_MOEDAS 2
+#define COFRE_CADA   3
 
 // Sorteia n amuletos diferentes que a run ainda nao tem, das raridades em
 // rar (AMR(...)); 0xFF se faltar.

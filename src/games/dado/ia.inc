@@ -30,8 +30,10 @@ static float media(peca_t p)
     case EF_LASTRO:   return 8.0f;
     case EF_VICIADO:  return 4.47f;
     case EF_EXPLODE:  return 5.1f;
+    case EF_MATRIOSKA: return 6.2f;                      // o d8 e as bonecas que abrem (6 a 8: d6; 5 ou 6: d4; 4: d2)
+    case EF_COLCHA:   return 4.5f;                       // o 1, o 2 e o 3 remendados
     case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
-    case EF_PREVISIVEL: return p.fixo + 1 < 12 ? p.fixo + 1 : 12;   // o proximo da escada
+    case EF_PREVISIVEL: return previsivel_valor(p.fixo);   // o proximo da escada
     case EF_RELOGIO:  return relogio_valor();            // o numero da rodada
     case EF_DIGITAL:  return 21.0f;                      // o de antes +1: vai por ultimo
     case EF_FICHA_CORINGA: return 6.0f;                  // o ultimo do oponente, em geral um dos maiores
@@ -133,7 +135,8 @@ static void sim_lanca(int j)
     if (f->carta && k == 3) { f->lancados = 4; f->est[3] = V_ESPERA; return; }   // a carta: so posta
     // Com os adesivos do dado, como no lance de verdade (o Reflexivo rola de novo).
     const peca_t *pc = peca_fila(j, k);
-    lance_t l = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
+    int fora;
+    lance_t l = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
     bool postit = k > 0 && ad_fila(j, k - 1) == AD_POSTIT;
     int casca = 0;                                   // a Casca do oponente, como no lance de verdade
     if (casca_pega(j, k)) {
@@ -141,12 +144,13 @@ static void sim_lanca(int j)
         if (casca == 3) postit = false;
     }
     if (postit) {                                    // o Post-it: duas vezes, o maior
-        lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
+        lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x > l.x) l = l2;
     } else if (casca == 1) {                         // escorregou: duas vezes, o menor
-        lance_t l2 = lanca_peca(f->tipo[k], f->fixo[k], pc, rola_ia);
+        lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x < l.x) l = l2;
     }
+    f->bonecas[k] = l.bonecas;
     int x = l.x;
     menor = l.menor;
     f->cru[k] = f->valor[k] = x;
@@ -184,6 +188,7 @@ static bool abre_continua(int j)
 // vencem igual, a IA prefere a que vence com folga, em vez de uma fila de
 // moedas que so ganha porque o rival fez pouco.
 #define IA_MARGEM 0.005f
+#define IA_FICHAS 0.01f                 // cada ficha do Agiota e da Gorjeta, na nota da mao
 static bool ia_sem_margem[2];                // so para medir a IA antiga nos testes
 // O que ainda nao se ve na mesa, a IA imagina: o Oculto de cada lado tira um
 // numero ao acaso (nem o dono sabe o dele) e entra na sequencia.
@@ -221,6 +226,10 @@ static float nota_mesa(int j, bool margem)
     if (margem && !ia_sem_margem[j & 1]) {
         int m = a - b < -20 ? -20 : a - b > 20 ? 20 : a - b;
         r += IA_MARGEM * (float)m;
+        // E as fichas que a rodada paga por fora (o Agiota e a Gorjeta), com
+        // peso pequeno: so desempatam maos de margem parecida.
+        int o = outro(j);
+        r += IA_FICHAS * (float)(d.agiota[j] + d.gorjeta[j] - d.agiota[o] - d.gorjeta[o]);
     }
     return r;
 }
@@ -336,6 +345,7 @@ static float ia_futuro(int j)
         case EF_MEIA:     if (!vale) b += MEIA_GUARDA; break;
         case EF_PATINHOS: if (!patinhos_ativo(f->fixo[k])) b += 1.5f; break;
         case EF_ONDA:     if (vale) b += 0.5f * f->valor[k]; break;
+        case EF_BALAO:    if (!vale && f->tipo[k] == D_BALAO) b += BALAO_CADA; break;   // anulado, enche mais
         case EF_JINGLE:   if (vale) b += 1.0f; break;
         default: break;
         }
@@ -404,7 +414,7 @@ static void ia_planeja(void)
         if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
         // Dobro por ultimo nao dobra nada: a IA nem considera. O Universo so
         // vai sozinho: entra no fim, como fila de um dado so.
-        if (L >= 2 && (p->col[p->mao[s[L - 1]]].tipo == D_DOBRO || p->col[p->mao[s[L - 1]]].tipo == D_FERREIRO)) continue;
+        if (L >= 2 && p->col[p->mao[s[L - 1]]].tipo == D_DOBRO) continue;   // (o Ferreiro pontua: por ultimo ainda vale)
         bool uni = false;
         for (int k = 0; k < L && L >= 2; k++) uni |= p->col[p->mao[s[k]]].tipo == D_UNIVERSO;
         if (uni) continue;

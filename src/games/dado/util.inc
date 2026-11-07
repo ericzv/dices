@@ -75,6 +75,12 @@ static int tipo_comum(int lados)
 static int tipo_de(int j, int k)
 {
     if (j == calado_j && k == calado_k) return tipo_comum(TIPO[F[j].tipo[k]].lados);
+    // O Camaleao tem o poder do dado logo antes dele, como se fosse ele (rola o
+    // proprio d8: o lance usa F.tipo). Atras de um dado sem poder, e um d8.
+    if (F[j].tipo[k] == D_CAMALEAO && k > 0 && k < N_FILA) {
+        int a = tipo_de(j, k - 1);
+        if (TIPO[a].efeito != EF_NADA) return a;
+    }
     return F[j].tipo[k];
 }
 
@@ -82,11 +88,13 @@ static int tipo_de(int j, int k)
 static int relogio_valor(void) { return rodada < 1 ? 1 : rodada > RELOGIO_MAX ? RELOGIO_MAX : rodada; }
 
 static void adesiva(peca_t *p, int (*r)(int), bool desafio);
+static void colcha_remenda(peca_t *p);
 static peca_t nova_peca(int tipo)
 {
     peca_t p = { .tipo = (uint8_t)tipo, .fixo = 0 };
     if (tipo == D_QUEBRADO) p.fixo = (uint8_t)rola(8);
     if (tipo == D_ADESIVADO || tipo == D_MAIS_ADESIVADO) adesiva(&p, rola, modo == M_DESAFIO);   // ja vem com os adesivos
+    if (tipo == D_COLCHA) colcha_remenda(&p);    // e a Colcha, com os tres Remendos
     return p;
 }
 

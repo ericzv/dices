@@ -149,7 +149,7 @@ enum { FO_CIRCULO, FO_QUADRADO, FO_RETANGULO, FO_HEXAGONO, FO_LOSANGO, FO_ESTREL
        FO_PUFE, FO_LACRE, FO_RESPINGO, FO_ESCORRIDO, FO_CHIP, FO_FERRADURA, FO_DESCOLA, FO_DUPLO, FO_FOLHAS,
        FO_CANTO, FO_ETIQUETA, FO_INGRESSO, FO_LOBO, FO_EXPLOSAO, FO_CASCA, FO_PATO, FO_FITA, FO_RACHADO,
        FO_FELPUDO, FO_MIRA, FO_TABUA, FO_CARTA, FO_ROSETA, FO_VIRUS, FO_GOMA, FO_MASSA, FO_METADES,
-       FO_PESO, FO_BRILHO4 };
+       FO_PESO, FO_BRILHO4, FO_DINAMITE, FO_COLEIRA, FO_TIQUETE };
 // MN_IGUAL: (so na segunda parte) o mesmo material da primeira.
 enum { MN_IGUAL, MN_FOSCO, MN_VINIL, MN_BRILHO, MN_METAL, MN_OURO, MN_CROMO, MN_HOLO, MN_GLITTER, MN_PAPEL,
        MN_TECIDO, MN_VIDRO, MN_NEON, MN_CERA, MN_BORRACHA, MN_MADEIRA, MN_LAMA, MN_CETIM, MN_LENTE, MN_CHUMBO,
@@ -200,6 +200,15 @@ static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_CARIMBO]      = { FO_RETANGULO, MN_PAPEL,     0,         76,  -8, RGB(238, 230, 212), RGB(190, 56, 60) },
     [AD_DUPLA]        = { FO_METADES,   MN_VINIL,     0,         70, -10, RGB(36, 32, 29),    RGB(238, 230, 212) },
     [AD_CASCA]        = { FO_CASCA,     MN_BRILHO,    MN_FOSCO,  90,   0, RGB(246, 222, 132), RGB(120, 78, 50) },
+    [AD_CORRENTE]     = { FO_CIRCULO,   MN_METAL,     0,         68,   0, RGB(56, 62, 74),    0 },
+    [AD_DINAMITE]     = { FO_DINAMITE,  MN_PAPEL,     MN_FOSCO,  76, -12, RGB(190, 56, 60),   RGB(66, 40, 24) },
+    [AD_ESCADINHA]    = { FO_RETANGULO, MN_MADEIRA,   0,         78,  90, RGB(156, 106, 64),  0 },
+    [AD_BUSSOLA]      = { FO_CIRCULO,   MN_OURO,      0,         68,   0, RGB(226, 186, 70),  RGB(150, 122, 62) },
+    [AD_MOLDURA]      = { FO_QUADRADO,  MN_OURO,      0,         76,   0, RGB(228, 194, 106), RGB(150, 122, 62) },
+    [AD_ALBUM]        = { FO_RETANGULO, MN_BRILHO,    0,         74,   4, RGB(130, 204, 112), 0 },
+    [AD_XEROX]        = { FO_FOLHAS,    MN_PAPEL,     MN_PAPEL,  70,  -6, RGB(238, 230, 212), RGB(252, 248, 236) },
+    [AD_COLEIRA]      = { FO_COLEIRA,   MN_VINIL,     MN_OURO,   82,   0, RGB(176, 52, 48),   RGB(228, 194, 106) },
+    [AD_TIQUETE]      = { FO_TIQUETE,   MN_PAPEL,     MN_FOSCO,  86,  -8, RGB(236, 214, 140), RGB(66, 40, 24) },
 };
 
 // A forma de cima (a aba dobrada, a folha da frente, a agua sobre o pato...):
@@ -431,6 +440,25 @@ static float an_forma(int a, float x, float y, int *parte)
         float q = sdn_caixa(x, y, 0.80f, 0.80f, 0.22f);
         if (x + y > 0) *parte = 1;
         return fmaxf(q, -(fabsf(x + y) * 0.7071f - 0.04f));
+    }
+    case FO_DINAMITE: {                            // tres bananas em pe, lado a lado, e o pavio torto saindo da do meio
+        float d = 9;
+        for (int i = -1; i <= 1; i++) d = fminf(d, sdn_caixa(x - i * 0.50f, y - 0.16f, 0.26f, 0.70f, 0.12f));
+        float pv = fminf(sdn_seg(x, y, 0.0f, -0.50f, 0.10f, -0.78f), sdn_seg(x, y, 0.10f, -0.78f, 0.34f, -0.90f)) - 0.07f;
+        if (pv < d) *parte = 1;
+        return fminf(d, pv);
+    }
+    case FO_COLEIRA: {                             // a coleira: o anel de couro e o pingente de ouro pendurado
+        float ro = sqrtf(x * x + (y + 0.14f) * (y + 0.14f)), anel = fabsf(ro - 0.54f) - 0.17f;
+        float pin = sqrtf(x * x + (y - 0.70f) * (y - 0.70f)) - 0.24f;
+        if (pin < anel) *parte = 1;
+        return fminf(anel, pin);
+    }
+    case FO_TIQUETE: {                             // o bilhete do metro: o cartao, a tarja magnetica e o furo da catraca
+        float d = sdn_caixa(x, y, 0.95f, 0.60f, 0.10f);
+        d = fmaxf(d, -(sqrtf((x - 0.66f) * (x - 0.66f) + (y + 0.30f) * (y + 0.30f)) - 0.10f));
+        if (y > 0.14f && y < 0.38f) *parte = 1;
+        return d;
     }
     case FO_PESO: {                                // o Chumbo: o peso de ferro de balanca, com a alca em cima
         float d = sdn_trap(x, y - 0.30f, 0.86f, 0.54f, 0.50f) - 0.08f;
@@ -816,6 +844,87 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         if ((1 - c) * 0.30f * 0.866f < s * 0.55f) return RGB(228, 194, 106);
         return cor;
     }
+    // Os que combam: o simbolo de cada um desenhado na forma, em poucos tons.
+    case AD_CORRENTE: {                            // dois elos de aco engatados, na diagonal
+        float c = 0.7071f, w = fmaxf(s * 1.6f, 0.13f);
+        for (int q = 1; q >= 0; q--) {           // o de cima (q = 0) por cima do outro
+            float ox = q ? 0.22f : -0.22f, oy = q ? 0.22f : -0.22f;
+            float u = ((x - ox) + (y - oy)) * c, vv = (-(x - ox) + (y - oy)) * c;
+            if (q) { float tt = u; u = vv; vv = tt; }   // o segundo elo atravessado
+            float d = sqrtf((u / 0.44f) * (u / 0.44f) + (vv / 0.26f) * (vv / 0.26f));
+            if (fabsf(d - 1) * 0.34f < w * 0.5f) return (q ? vv > 0 : vv < 0) ? RGB(238, 240, 246) : RGB(150, 158, 170);
+        }
+        return cor;
+    }
+    case AD_DINAMITE: {                            // as tres bananas: cilindros de papel vermelho, a fita e o pavio
+        if (parte == 1) {                              // o cordao do pavio, torcido
+            return ((X + Y) & 3) == 0 ? RGB(120, 78, 50) : v->cor2;
+        }
+        int i = x < -0.25f ? -1 : x > 0.25f ? 1 : 0;
+        float u = (x - i * 0.50f) / 0.26f;             // -1..1 atravessando a banana
+        if (fabsf(u) > 1 - s * 2.2f) return RGB(66, 22, 26);   // o vao entre uma e outra
+        float yy = y - 0.16f;
+        if (fabsf(yy - 0.06f) < 0.15f) {               // a fita amarela que amarra as tres
+            if (fabsf(yy - 0.06f) > 0.15f - s * 1.6f) return RGB(150, 122, 62);
+            return u < -0.35f ? RGB(252, 240, 180) : u > 0.5f ? RGB(190, 156, 86) : RGB(246, 222, 132);
+        }
+        if (fabsf(yy) > 0.56f) return u < -0.3f ? RGB(208, 98, 108) : RGB(150, 40, 46);   // as pontas do papel, dobradas
+        if (u < -0.45f) return RGB(226, 120, 120);     // a luz do cilindro
+        if (u > 0.55f) return RGB(118, 30, 38);         // a sombra
+        return cor;
+    }
+    case AD_BUSSOLA: {                             // a rosa dos ventos: o aro, a agulha (vermelha ao norte) e o pino
+        float ro = sqrtf(x * x + y * y);
+        if (ro > 0.80f) return x + y < 0 ? RGB(246, 222, 132) : RGB(150, 122, 62);
+        if (ro > 0.72f) return RGB(66, 40, 24);
+        float an = 0.45f + 0.35f * sinf(t * 0.9f + fase * 6.28f), ca = cosf(an), sa = sinf(an);
+        float u = x * ca + y * sa, vv = -x * sa + y * ca;           // vv: ao longo da agulha
+        if (fabsf(u) / 0.16f + fabsf(vv) / 0.62f < 1) return vv < 0 ? C_VERMELHO : RGB(56, 62, 74);   // o sul em aco
+        if (fabsf(u) / (0.16f + s * 1.1f) + fabsf(vv) / (0.62f + s * 1.1f) < 1) return RGB(36, 32, 29);  // o contorno
+        if (ro < s * 1.6f) return RGB(36, 32, 29);
+        if (fabsf(x) < s * 0.5f || fabsf(y) < s * 0.5f) return RGB(190, 156, 86);   // a cruz das direcoes
+        return RGB(252, 248, 236);
+    }
+    case AD_MOLDURA: {                             // a moldura dourada com o veludo vinho de dentro
+        float m = fmaxf(fabsf(x), fabsf(y));
+        if (m > 0.86f) return RGB(120, 78, 50);
+        if (m > 0.56f) return (x + y < 0) ? RGB(246, 222, 132) : (m > 0.71f ? RGB(190, 156, 86) : RGB(228, 194, 106));
+        if (m > 0.48f) return RGB(66, 40, 24);
+        return (x + y < -0.3f) ? RGB(150, 40, 46) : RGB(118, 30, 38);
+    }
+    case AD_COLEIRA: {                             // o couro com a costura, a fivela de ouro e o pingente gravado
+        if (parte == 1) {
+            float yy = y - 0.70f;
+            if (x * x + yy * yy > 0.18f * 0.18f && x * x + yy * yy < 0.21f * 0.21f) return RGB(150, 122, 62);   // a beira
+            if (fabsf(x) < 0.06f && fabsf(yy) < 0.08f) return RGB(150, 122, 62);   // a patinha gravada
+            return x + yy < -0.1f ? RGB(246, 222, 132) : v->cor2;
+        }
+        float yy = y + 0.14f, ro = sqrtf(x * x + yy * yy), an = atan2f(yy, x);
+        if (x < -0.40f && fabsf(yy) < 0.16f) return fabsf(yy) > 0.10f || x < -0.66f ? RGB(228, 194, 106) : RGB(118, 30, 38);   // a fivela
+        if (fabsf(ro - 0.54f) < fmaxf(s * 0.6f, 0.03f) && ((int)floorf((an + 3.1416f) * 6) & 1)) return RGB(238, 162, 140);   // a costura
+        if (ro < 0.46f) return RGB(118, 30, 38);       // a beira de dentro, na sombra
+        return ro > 0.64f && yy < 0 ? RGB(208, 98, 108) : cor;
+    }
+    case AD_TIQUETE: {                             // o papel do bilhete: o M da linha, a seta e o picote; a tarja escura
+        if (parte == 1) return ((int)floorf((x + 1) / fmaxf(s * 2.5f, 0.06f)) % 5) == 0 ? RGB(120, 78, 50) : v->cor2;
+        float cx = x + 0.58f, cy = y + 0.20f;
+        if (cx * cx + cy * cy < 0.20f * 0.20f) {       // o selo da linha, com o M
+            float mx = cx / 0.20f, my = cy / 0.20f;
+            if (my > -0.55f && my < 0.55f && (fabsf(mx + 0.45f) < 0.16f || fabsf(mx - 0.45f) < 0.16f
+                || (my < 0.25f && fabsf(fabsf(mx) - (0.45f - (my + 0.55f) * 0.56f)) < 0.14f))) return RGB(252, 248, 236);
+            return RGB(56, 86, 150);
+        }
+        if (y > -0.30f && y < -0.18f && x > -0.30f && x < 0.40f) return RGB(56, 86, 150);   // a seta
+        if (y > -0.40f && y < -0.08f && x > 0.40f && x < 0.40f + (0.16f - fabsf(y + 0.24f))) return RGB(56, 86, 150);
+        if (y > 0.44f && ((int)floorf((x + 1) / fmaxf(s * 3, 0.08f)) & 1)) return RGB(214, 158, 102);   // o picote
+        return cor;
+    }
+    case AD_XEROX: {                               // a copia: as linhas do texto na folha da frente
+        if (parte == 1) return v->cor2;
+        if (fabsf(x) < 0.52f) for (int l = 0; l < 4; l++)
+            if (fabsf(y - (-0.42f + l * 0.26f)) < fmaxf(s * 0.55f, 0.05f) && (l < 3 || x < 0.15f)) return RGB(36, 32, 29);
+        return cor;
+    }
     default:
         if (parte == 1 && v->cor2) return v->cor2;
         return 0;
@@ -893,6 +1002,24 @@ static void an_extras(int a, float cx, float cy, float R, float th, int W, int x
         float X1 = cx + (ex * ct - ey * st) * R, Y1 = cy + (ex * st + ey * ct) * R;
         gfx_linha((int)X0, (int)Y0, (int)X1, (int)Y1, RGB(204, 194, 172));
         gfx_linha((int)X0 + 1, (int)Y0, (int)X1 + 1, (int)Y1, RGB(150, 122, 62));
+    } else if (a == AD_DINAMITE) {                 // a faisca na ponta do pavio, chiando
+        float fx = 0.39f, fy = -0.93f;
+        int X0 = (int)lroundf(cx + (fx * ct - fy * st) * R), Y0 = (int)lroundf(cy + (fx * st + fy * ct) * R);
+        int q = (int)(t_relogio * 16 + fase * 7) % 4, b = (R >= 30 ? 3 : R >= 14 ? 2 : 1) + (q == 0 && R >= 14);
+        uint16_t c = q == 0 ? C_BRANCO : q == 3 ? C_FOGO : C_AMARELO;
+        if (R >= 14)                                      // o brilho alaranjado em volta, em x
+            for (int d = 1; d <= b - 1; d++) {
+                gfx_pixel(X0 - d, Y0 - d, C_FOGO); gfx_pixel(X0 + d, Y0 - d, C_FOGO);
+                gfx_pixel(X0 - d, Y0 + d, C_FOGO); gfx_pixel(X0 + d, Y0 + d, C_FOGO);
+            }
+        gfx_rect(X0 - b, Y0, 2 * b + 1, 1, c);
+        gfx_rect(X0, Y0 - b, 1, 2 * b + 1, c);
+        gfx_pixel(X0, Y0, C_BRANCO);
+        for (int i = 0; i < 2 && R >= 14; i++) {          // duas fagulhas pulando
+            float f = fmodf(t_relogio * 2.4f + i * 0.5f + fase, 1.0f);
+            int px = X0 + (int)((i ? 1 : -1) * f * 4), py = Y0 - (int)(f * 5) + (int)(f * f * 6);
+            if (f < 0.8f) gfx_pixel(px, py, i ? C_AMARELO : C_FOGO);
+        }
     } else if (v->material == MN_NEON) {           // o brilho do neon em volta, respirando
         float pulso = 0.5f + 0.5f * sinf(t_relogio * 4.2f + fase * 6.3f), alc = (2.0f + 3.0f * pulso) * fminf(1, R / 15);
         for (int j = 0; j < W; j++)

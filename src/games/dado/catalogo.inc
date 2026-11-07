@@ -16,6 +16,7 @@ static void moeda_girando(int cx, int cy, int tipo, float t)
 static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
+    if (tipo == D_FANTASMA) { f[0] = 1; return 1; }     // o Fantasma nao e sorteado: e sempre o 1
     if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -7 a 11, de 2 em 2
         for (int v = -7; v <= 11; v += 2) f[n++] = v;
         return n;
@@ -265,7 +266,7 @@ static void desenha_catalogo(void)
         int f[24], nf = faces_de(tipo, f);
         int i = (int)(t_fase / 0.9f) % nf;
         float dentro = fmodf(t_fase, 0.9f);
-        float r = 46 + (dentro < 0.08f ? 3 : 0);          // pulinho a cada face
+        float r = 46 + (dentro < 0.08f && nf > 1 ? 3 : 0);   // pulinho a cada face (com uma so, fica parado)
         float ang = sinf(t_fase * 0.9f) * 0.3f;           // balanca devagar
         if (d->efeito && st != 2) brilho_poder((float)cx, (float)cy, r, tipo, ang, true);
         so_apagado = true;
@@ -293,6 +294,7 @@ static void desenha_catalogo(void)
     if (so_desafio(tipo)) txt(xt + 2, 105, "só no Desafiante", C_TEXTO_M, false);
     if (de_natal(tipo)) txt(xt + 2, 105, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
     if (tipo == D_TSUNAMI) txt(xt + 2, 105, "nasce da Onda", C_TEXTO_M, false);
+    if (tipo == D_D20) txt(xt + 2, 105, "sai do Presente e da Sacola de Presente", C_TEXTO_M, false);
     if (st == 2) {
         linha_bloqueio(x, 124, trava);
     } else if (st == 1) {

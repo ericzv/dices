@@ -489,7 +489,7 @@ static void anima_poder(int x, int y, int R, int tipo, float fase)
             const char *const *sp = n < 4 ? SP_BALAO_P : n < 8 ? SP_BALAO_M : SP_BALAO_G;
             int h = n < 4 ? 5 : n < 8 ? 7 : 9;
             int by = ay - 2 + (int)lroundf(sinf(t * 2.2f) * 1.5f), bx = ax;
-            if (n >= BALAO_MAX * 8 / 10 && (int)(t * 14) % 2 && fmodf(t * 0.9f, 1.0f) < 0.45f) bx++;   // cheio: treme
+            if (n >= BALAO_CHEIO * 8 / 10 && (int)(t * 14) % 2 && fmodf(t * 0.9f, 1.0f) < 0.45f) bx++;   // cheio: treme
             for (int k = 0; k < 5; k++)            // o barbante, ondulando
                 gfx_pixel(bx + (int)lroundf(sinf(t * 4.0f + k * 1.1f) * 0.8f), by + h / 2 + 1 + k, C_MARFIM_S);
             sprite_em(bx, by, sp, h, a->c1, a->c2, a->c3, false, 0);

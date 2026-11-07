@@ -896,7 +896,7 @@ static int desenho_interno(int tipo, float u, float v, float s)
         // ar: o que ele guardou (0 a 1). Mais ar, mais esticado: o latex
         // clareia e o brilho cresce. A luz (L) vai de -2 a 2, redonda em volta
         // de um ponto em cima a esquerda: o corpo parece cheio, nao facetado.
-        float ar = marca_nivel > 0 ? (float)marca_nivel / BALAO_MAX : 0;
+        float ar = marca_nivel > 0 ? (float)marca_nivel / BALAO_CHEIO : 0;
         if (ar > 1) ar = 1;
         float x = u - 0.08f, y = v - 0.08f;
         float hx = x + 0.36f, hy = y + 0.36f;                     // o brilho: o risco curvo, em cima a esquerda
@@ -3637,8 +3637,8 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
 
 // O no do Balao, na ponta de baixo, preso ao corpo (gira com ele): o
 // gargalo apertado, o no e a beirinha que sobra. Com ar guardado
-// (marca_nivel), ele balanca - de vez em quando no comeco, sem parar perto
-// do maximo.
+// (marca_nivel), a beirinha balanca devagar, de leve (menos de um pixel
+// para cada lado; um pouco mais quando ele esta cheio).
 static void balao_ponta(float cx, float cy, float r, float ang, float u, float v, float *x, float *y)
 {
     float ca = cosf(-ang), sa = sinf(-ang);
@@ -3650,9 +3650,8 @@ static float balao_treme(void)
 {
     int n = marca_nivel;
     if (n <= 0) return 0;
-    bool agora = n >= BALAO_MAX * 6 / 10 || fmodf(t_relogio * 0.8f, 1.0f) < 0.10f + 0.06f * n;
-    if (!agora) return 0;
-    return ((int)(t_relogio * (8 + 3 * n)) % 2 ? 1.0f : -1.0f) / r_treme;
+    float cheio = fminf(1, (float)n / BALAO_CHEIO);
+    return sinf(t_relogio * 2.4f) * (0.35f + 0.3f * cheio) / r_treme;
 }
 static void balao_no(float cx, float cy, float r, float ang, bool zerado)
 {
@@ -3691,7 +3690,7 @@ static void estilingue_elastico(float cx, float cy, float r, float ang, bool zer
 static void balao_brilho(float cx, float cy, float r, float ang)
 {
     int n = marca_nivel;
-    if (n * 2 < BALAO_MAX || r < 12) return;
+    if (n * 2 < BALAO_CHEIO || r < 12) return;
     float q = fmodf(t_relogio * (0.45f + 0.05f * n) + cx * 0.011f, 1.0f);
     if (q > 0.16f) return;
     float x, y;
@@ -3780,14 +3779,19 @@ static void assenta(voo_t *v)
 // Os dados da quarta leva no pouso (a arte em mesa.inc, desenha_lance): o
 // Piao que girou de novo ainda roda no lugar ate deitar; a Gelatina que
 // quicou da um pulinho e balanca de novo; a Matrioska abre as bonecas, uma a
-// uma, ao lado dela. O dado so vai para a fila depois disso.
+// uma, ao lado dela: cada boneca sai de dentro da anterior, rola um instante
+// trocando de numero e pousa; depois de uma pausa, a de onde sai a proxima
+// treme e abre. O dado so vai para a fila depois disso.
 #define PIAO_RODA   0.62f            // o Piao rodando no lugar
 #define GEL_PULO_0  0.05f            // o pulinho da Gelatina que quicou
 #define GEL_PULO_1  0.27f
-#define MAT_T0      0.16f            // a primeira boneca sai
-#define MAT_CADA    0.30f            // e cada uma depois
-#define MAT_POP     0.24f            // o voo de cada uma
-#define MAT_OLHA    0.45f            // e o tempo de ler a soma
+#define MAT_T0      0.40f            // a primeira boneca sai (antes, o numero da Matrioska)
+#define MAT_POP     0.26f            // o voo de cada uma, saindo de dentro da anterior
+#define MAT_ROLA    0.55f            // e rolando, trocando de numero, ate pousar
+#define MAT_ESPERA  0.50f            // a pausa antes da proxima (a de fora treme no fim)
+#define MAT_TREME   0.22f
+#define MAT_CADA    (MAT_POP + MAT_ROLA + MAT_ESPERA)
+#define MAT_OLHA    0.50f            // e o tempo de ler a soma
 static bool pouso_pronto(const voo_t *v)
 {
     if (v->fantasma || v->t_assenta <= 0) return true;
@@ -3795,9 +3799,10 @@ static bool pouso_pronto(const voo_t *v)
     if (v->tipo == D_PIAO && v->giros) return t >= PIAO_RODA;
     if (v->tipo == D_GELATINA && v->quicou) return t >= GEL_PULO_1 + 0.12f;
     int nb = BONECAS_N(v->bonecas);
-    return !nb || t >= MAT_T0 + (nb - 1) * MAT_CADA + MAT_POP + MAT_OLHA;
+    return !nb || t >= MAT_T0 + (nb - 1) * MAT_CADA + MAT_POP + MAT_ROLA + MAT_OLHA;
 }
-// O som de cada boneca saindo, cada uma (menor) mais aguda.
+// O som de cada boneca saindo, cada uma (menor) mais aguda, e o toc de
+// quando ela pousa com o numero dela.
 static void pouso_novos_passo(voo_t *v)
 {
     if (v->fantasma || v->t_assenta <= 0) return;
@@ -3805,6 +3810,10 @@ static void pouso_novos_passo(voo_t *v)
     while (v->bonecas_vistas < nb && v->t_assenta >= MAT_T0 + v->bonecas_vistas * MAT_CADA) {
         som_toca_tom(SOM_MATRIOSKA, 3 * v->bonecas_vistas);
         v->bonecas_vistas++;
+    }
+    while (v->bonecas_pousadas < nb && v->t_assenta >= MAT_T0 + v->bonecas_pousadas * MAT_CADA + MAT_POP + MAT_ROLA) {
+        som_toca(SOM_BATE_DADO);
+        v->bonecas_pousadas++;
     }
 }
 

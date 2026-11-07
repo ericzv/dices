@@ -622,14 +622,24 @@ static int desembrulha(int j, int k, int (*r)(int))
 // Reflexivo, rola de novo e vale o segundo (x); com o Papel Bomba, rola de
 // novo e vale a soma dos dois. Um dos dois por lance: o lado do segundo lance
 // nao faz rolar de novo.
+// O Piao e a Gelatina rolam de novo de verdade: n_re lances de antes (re_x,
+// re_lado), que o dado mostra um a um antes do que fica; a Gelatina que
+// ficou com o primeiro (o segundo saiu menor) pousa no segundo (volta_x) e
+// volta para ele.
 typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba;
-                 uint8_t giros; bool quicou; uint16_t bonecas; } lance_t;
+                 uint8_t giros; bool quicou; uint16_t bonecas;
+                 uint8_t n_re; int re_x[2]; uint8_t re_lado[2];   // (ate PIAO_GIROS)
+                 bool volta; int volta_x; uint8_t volta_lado; } lance_t;
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;
     int antes;
     l.giros = 0;
     l.quicou = false;
+    l.n_re = 0;
+    l.volta = false;
+    l.volta_x = 0;
+    l.volta_lado = 0;
     l.x = l.x1 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
     l.bonecas = bonecas_ult;
     l.menor1 = l.menor; l.lado1 = l.lado; l.antes1 = antes;
@@ -657,8 +667,8 @@ static bool estilingue_armado(int j, int k)
 // no maximo; o Piao caido num lado sem adesivo (e com algum) gira de novo,
 // ate PIAO_GIROS vezes, e fica o primeiro lado com adesivo ou o ultimo giro;
 // a Gelatina que tirou menos que o de antes (o que derrubaria a sequencia)
-// quica e rola mais uma vez, e fica o maior. *fora: o lance descartado (o
-// que cai ao lado), ou -1.
+// quica e rola mais uma vez, e fica o maior. *fora: o lance descartado, ou
+// -1. Na mesa, o mesmo dado mostra os lances de antes e rola de novo (re_x).
 #define PIAO_GIROS 2
 static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, int (*r)(int), int *fora)
 {
@@ -666,21 +676,32 @@ static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, in
     lance_t l = lanca_peca(t, fixo, pc, r);
     *fora = -1;
     int ef = TIPO[t].efeito;
+    int rx[PIAO_GIROS], rl[PIAO_GIROS], nre = 0;
     if (ef == EF_PIAO && pc && ad_quantos(pc) > 0 && !lance_no_maximo)
         for (int g = 0; g < PIAO_GIROS && !ad_no_lado(pc, l.lado); g++) {
-            *fora = l.x;
+            *fora = rx[nre] = l.x;
+            rl[nre++] = l.lado;
             l = lanca_peca(t, fixo, pc, r);
             l.giros = (uint8_t)(g + 1);
         }
+    bool volta = false;
+    int vx = 0, vl = 0;
     if (ef == EF_GELATINA && !lance_no_maximo && k > 0) {
         int lr = ultimo_da_regra(j, F[j].est, k);
         if (lr >= 0 && cai_depois(j, l.x, F[j].valor[lr])) {
             lance_t l2 = lanca_peca(t, fixo, pc, r);
+            rx[nre] = l.x;
+            rl[nre++] = l.lado;
             if (l2.x > l.x) { *fora = l.x; l = l2; }
-            else *fora = l2.x;
+            else { *fora = l2.x; volta = true; vx = l2.x; vl = l2.lado; }   // fica o primeiro
             l.quicou = true;
         }
     }
+    l.n_re = (uint8_t)nre;
+    for (int i = 0; i < nre; i++) { l.re_x[i] = rx[i]; l.re_lado[i] = (uint8_t)rl[i]; }
+    l.volta = volta;
+    l.volta_x = vx;
+    l.volta_lado = (uint8_t)vl;
     lance_no_maximo = false;
     return l;
 }
@@ -726,7 +747,7 @@ static void lanca_proximo(void)
     // Com o Post-it no lado de cima do dado de antes, o lance inteiro
     // acontece duas vezes e fica o maior: o outro cai ao lado, fantasma.
     const peca_t *pc = peca_fila(vez, k);
-    int fora;                                // o giro do Piao (ou o quique da Gelatina) que ficou de fora
+    int fora;                                // o giro do Piao (ou o quique da Gelatina) que ficou de fora (so na IA)
     lance_t l = lanca_do_dado(vez, k, t, f->fixo[k], pc, rola, &fora);
     int postit = -1;                         // o lance que o Post-it (ou a Casca) descartou
     bool tem_postit = k > 0 && ad_fila(vez, k - 1) == AD_POSTIT;
@@ -760,7 +781,6 @@ static void lanca_proximo(void)
         if (l2.x < l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
     }
-    if (postit < 0 && fora >= 0) postit = fora;  // o giro (ou o quique) de fora cai ao lado, como o do Post-it
     f->bonecas[k] = l.bonecas;
     int x = l.x, menor = l.menor, lado = l.lado;
     // A Dinamite: lancado sem cair nela, o pavio do dado queima mais um pouco.
@@ -819,6 +839,32 @@ static void lanca_proximo(void)
         v->valor_c = f->valor[lr];
         if (!v->etapa) v->etapa = 3;
     }
+    // O Piao e a Gelatina rolam de novo de verdade: o dado pousa no lance de
+    // antes, para um instante e gira no lugar (o Piao) ou quica (a Gelatina)
+    // ate o seguinte; no ultimo, seguem os adesivos dele. A Gelatina que fica
+    // com o primeiro pousa no segundo e pula de volta (a etapa do Avesso).
+    if (l.n_re) {
+        int fv = v->valor;
+        uint8_t fl = v->lado;
+        int8_t fe = v->etapa;
+        v->giros = 0;                        // (o giro e o quique agora sao lances de verdade)
+        v->quicou = false;
+        v->rr_n = v->rr_i = 0;
+        for (int i = 1; i < l.n_re; i++) { v->rr_v[v->rr_n] = l.re_x[i]; v->rr_l[v->rr_n++] = l.re_lado[i]; }
+        if (l.volta) {
+            v->rr_v[v->rr_n] = l.volta_x; v->rr_l[v->rr_n++] = l.volta_lado;
+            v->valor_v = l.x; v->lado_v = (uint8_t)l.lado;
+            v->ad_vira = 0; v->virou = false;
+            v->reflete = false;
+            v->rr_etapa = 1;
+        } else {
+            v->rr_v[v->rr_n] = fv; v->rr_l[v->rr_n++] = fl;
+            v->rr_etapa = fe;
+        }
+        v->valor = l.re_x[0];
+        v->lado = l.re_lado[0];
+        v->etapa = 5;
+    }
     v->x = GFX_W / 2 + frnd(-110, 110);
     v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
     v->vx = frnd(-300, 300);
@@ -872,6 +918,9 @@ static void lanca_proximo(void)
 #define AD_MOSTRA 0.32f                  // o adesivo aceso antes de agir
 #define AD_VIRA   0.30f                  // o pulo do Avesso
 #define AD_COPIA  0.42f                  // a folha do Papel Carbono passando
+#define RE_MOSTRA 0.40f                  // o Piao e a Gelatina parados no lance de antes
+#define RE_GIRO   0.62f                  // o Piao girando de novo no lugar
+#define RE_QUIQUE 0.42f                  // a Gelatina no ar, quicando
 static void estoura(float x, float y);   // o estouro do Papel Bomba (mesa.inc)
 static bool ad_etapa_passo(float dt)
 {
@@ -879,8 +928,20 @@ static bool ad_etapa_passo(float dt)
     if (!n_voo || !v->etapa) return false;
     float t0 = v->t_etapa;
     v->t_etapa += dt;
-    if (t0 < 0.01f && v->t_etapa >= 0.01f)
+    if (t0 < 0.01f && v->t_etapa >= 0.01f && v->etapa <= 3 && !(v->etapa == 1 && !v->ad_vira))
         som_toca(som_adesivo(v->etapa == 1 ? v->ad_vira : v->etapa == 2 ? v->ad_rola : AD_CARBONO));
+    if (v->etapa == 5) {                     // o Piao gira de novo no lugar; a Gelatina quica
+        float dur = v->tipo == D_PIAO ? RE_GIRO : RE_QUIQUE;
+        if (t0 < RE_MOSTRA && v->t_etapa >= RE_MOSTRA && v->tipo == D_PIAO) som_toca(SOM_PIAO);   // (a Gelatina: o bloop no pouso)
+        if (v->t_etapa < RE_MOSTRA + dur) return true;
+        v->valor = v->face = v->rr_v[v->rr_i];
+        v->lado = v->rr_l[v->rr_i];
+        v->rr_i++;
+        assenta(v);                          // deita no lance novo (a Gelatina faz bloop)
+        v->t_etapa = 0;
+        v->etapa = v->rr_i < v->rr_n ? 5 : v->rr_etapa;
+        return true;
+    }
     if (v->etapa == 1) {
         float q = (v->t_etapa - AD_MOSTRA) / AD_VIRA;
         if (q >= 0.5f && !v->virou) {            // no alto do pulo, o outro lado
@@ -1004,8 +1065,9 @@ static void cosmo_ficam(int j)
 // Tsunami, de vez; os Tres Patinhos, valendo ou nao, mais uma vez; o Revolver, valendo
 // ou nao, mais uma bala (e o tambor vazio depois do tiro); e o ciclo cosmico
 // evolui (cosmo_ficam).
-// O Balao enche BALAO_CADA por rodada fora da fila (ou anulado), ate BALAO_MAX.
-static int balao_enche(int g) { return g + BALAO_CADA > BALAO_MAX ? BALAO_MAX : g + BALAO_CADA; }
+// O Balao enche BALAO_CADA por rodada fora da fila (ou anulado), sem limite
+// (so o que cabe no fixo, BALAO_GUARDA).
+static int balao_enche(int g) { return g + BALAO_CADA > BALAO_GUARDA ? BALAO_GUARDA : g + BALAO_CADA; }
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {

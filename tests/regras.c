@@ -3803,8 +3803,10 @@ int main(void)
             joga(1, D_D4, 3);
             d = fim();
             contadores_ficam(0, &d);
-            CONFERE(J[0].col[3].fixo == 6 && J[0].col[5].fixo == BALAO_MAX, "Balao enche: anulado %d, fora %d",
+            CONFERE(J[0].col[3].fixo == 6 && J[0].col[5].fixo == 11, "Balao enche sem limite: anulado %d, fora %d",
                     J[0].col[3].fixo, J[0].col[5].fixo);
+            CONFERE(balao_enche(30) == 32 && balao_enche(BALAO_GUARDA) == BALAO_GUARDA, "Balao: %d, %d",
+                    balao_enche(30), balao_enche(BALAO_GUARDA));
             J[0].col[5] = (peca_t){ .tipo = D_D6 };
             // O Camaleao: o poder do dado de antes (o Pirata tira 4 duas vezes).
             limpa();

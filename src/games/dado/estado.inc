@@ -94,7 +94,8 @@ typedef struct {
     float casca_vx, casca_vy;
     uint8_t lado;                    // o lado que fica para cima (os adesivos)
     int8_t etapa;                    // adesivo agindo no pouso: 1 o Avesso (ou a Nota Dez) vira; 2 o Reflexivo
-                                     // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia
+                                     // (ou o Papel Bomba) rola de novo; 3 o Papel Carbono copia; 5 o Piao
+                                     // gira (a Gelatina quica) de novo
     bool virou;                      // o Avesso ja virou
     bool reflete;                    // depois (ou sem) o Avesso, o Reflexivo
     uint8_t ad_vira, ad_rola;        // quem vira (Avesso, Nota Dez) e quem rola de novo (Reflexivo, Papel Bomba)
@@ -106,9 +107,13 @@ typedef struct {
     int valor2, menor2; uint8_t lado2;   // o segundo lance, do Reflexivo
     float hesita, giro_h;            // hora da verdade: quanto ainda hesita na quina, e o angulo dela
     uint8_t giros;                   // o Piao: quantas vezes girou de novo (o rastro em espiral no pouso)
+    // O Piao e a Gelatina rolando de novo (etapa 5): os lances que ainda vem
+    // (rr_v, rr_l; rr_i ja mostrados) e a etapa dos adesivos do ultimo.
+    uint8_t rr_n, rr_i; int rr_v[3]; uint8_t rr_l[3]; int8_t rr_etapa;
     bool quicou;                     // a Gelatina quicou (treme mais no pouso)
     uint16_t bonecas;                // a Matrioska: as bonecas que saem dela no pouso
     uint8_t bonecas_vistas;          // e quantas ja sairam (o som de cada uma)
+    uint8_t bonecas_pousadas;        // e quantas ja pousaram com o numero
     bool estilingue;                 // o Estilingue de antes atirou: este sai no maximo (a pedra vem nele)
 } voo_t;
 

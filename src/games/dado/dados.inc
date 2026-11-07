@@ -94,7 +94,8 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define LEQUE_PTS     2          // o Leque: por dado seu valendo que caiu num lado com adesivo
 #define BALAO_ESTOURA 7          // o Balao estoura (e soma o ar guardado) com 7 ou 8
 #define BALAO_CADA    2          // e enche isto por rodada fora da fila ou anulado
-#define BALAO_MAX     10
+#define BALAO_CHEIO   10         // daqui o desenho nao cresce mais (o ar guardado segue enchendo)
+#define BALAO_GUARDA  254        // o que cabe no fixo: na pratica, sem limite (127 rodadas)
 // O que cada Jingle Bell valendo rende no fim, com outro valendo junto.
 #define JINGLE_PTS 4
 // A Furia: o que guarda tirando 4, o que perde tirando 1, e o teto (dos dois lados).
@@ -479,7 +480,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_RETRATO]         = "Se terminar válido, o adesivo do lado dele age também no dado de antes, se ele valer.",
     [D_ESTILINGUE]      = "Se tirar 1, o próximo dado da sua sequência tira o número mais alto dele.",
     [D_CAMALEAO]        = "Tem o poder do dado logo antes dele na sequência, como se fosse ele.",
-    [D_BALAO]           = "Fora da fila ou anulado, enche +2 por rodada (até +10). Válido com 7 ou 8, estoura e soma tudo.",
+    [D_BALAO]           = "Fora da fila ou anulado, enche +2 por rodada, sem limite. Válido com 7 ou 8, estoura e soma tudo.",
     [D_PAPAGAIO]        = "Se terminar válido, o último adesivo seu que agiu na rodada age de novo nele.",
     [D_MATRIOSKA]       = "Tirando 6 a 8, abre um d6; com 5 ou 6, um d4; com 4, um d2. Vale a soma de todos.",
     [D_COLCHA]          = "Já vem com um Remendo no 1, no 2 e no 3: os lados baixos tiram 3, 4 e 5.",
@@ -763,7 +764,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "ele: atrás de um Pirata, é outro Pirata; atrás de um Laser, outro Laser. Rola o próprio d8. "
                           "Atrás de um dado sem poder, é um d8 comum.",
     [D_BALAO]           = "O balão de festa que vai enchendo. Cada rodada fora da fila, ou anulado, ele ganha +2 de ar "
-                          "(até +10). Terminando válido com 7 ou 8, estoura: soma tudo de uma vez nos pontos dele e volta "
+                          "sem limite. Terminando válido com 7 ou 8, estoura: soma tudo de uma vez nos pontos dele e volta "
                           "vazio. Válido com 1 a 6, segura o ar que guardou.",
     [D_PAPAGAIO]        = "Penas verdes e o bico curvo. Se terminar válido, o último adesivo seu que agiu na rodada age "
                           "de novo nele, como se fosse dele: mais um Confete, mais um x2. Repete também o que é ruim.",

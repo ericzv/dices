@@ -321,9 +321,11 @@ static void piao_rastro(float x, float y, float r, float q, int giros)
     }
 }
 
-// As bonecas da Matrioska saindo do dado, uma a uma e cada uma menor (o d6, o
-// d4 e a moeda de dentro), e ficando em fila ao lado dela com o que tiraram;
-// quando o dado vai para a fila, elas voltam para dentro dele.
+// As bonecas da Matrioska saindo, uma a uma e cada uma menor (o d6, o d4 e a
+// moeda de dentro): cada uma sai de dentro da anterior (a primeira, do
+// dado), rola um instante trocando de numero e pousa em fila ao lado com o
+// que tirou; depois de uma pausa, a de onde sai a proxima treme e abre.
+// Quando o dado vai para a fila, elas voltam para dentro dele.
 static void matrioska_bonecas(const voo_t *v, float x, float y, float r)
 {
     int nb = BONECAS_N(v->bonecas);
@@ -333,26 +335,42 @@ static void matrioska_bonecas(const voo_t *v, float x, float y, float r)
     int lado = x < GFX_W / 2 ? 1 : -1;
     float volta = fase == F_ARRUMA ? fminf(1, t_fase / 0.24f) : 0;   // voltando para dentro
     if (volta >= 1) return;
-    float pos = r + 2;
+    float pos = r + 2, ox = x, oy = y, orr = r;      // de onde sai a proxima: o dado, depois cada boneca
     for (int i = 0; i < nb; i++) {
         float ri = r * TAM[i], fim = x + lado * (pos + ri);
         pos += 2 * ri + 2;
-        float q = (v->t_assenta - MAT_T0 - i * MAT_CADA) / MAT_POP;
+        float t = v->t_assenta - MAT_T0 - i * MAT_CADA;
+        float q = t / MAT_POP;
         if (q <= 0) break;                          // as de dentro ainda nao sairam
         float e = fminf(1, q), s = e * e * (3 - 2 * e);
-        float bx = x + (fim - x) * s, by = y - sinf(e * 3.1416f) * (12 + 3 * i);
-        float rr = ri * (0.6f + 0.4f * s);
-        if (q > 1) rr *= 1 + 0.14f * expf(-(q - 1) * 4) * sinf((q - 1) * 9);   // o pulinho de quem chega
+        float bx = ox + (fim - ox) * s, by = oy - sinf(e * 3.1416f) * (12 + 3 * i);
+        float rr = ri * (0.6f + 0.4f * s), ang = 0;
+        int face = BONECA_V(v->bonecas, i);
+        float rola = (t - MAT_POP) / MAT_ROLA;      // rolando no lugar, trocando de numero, ate pousar
+        if (q <= 1 || rola < 1) {
+            float w = q <= 1 ? 1 : 1 - rola;
+            ang = sinf(t * 19) * 0.45f * w;
+            int passo = (int)(t * (8 + 22 * w));    // a face troca cada vez mais devagar
+            face = 1 + (int)((uint32_t)(passo * 2654435761u + i * 97u) >> 7) % LADOS[i];
+            bx += sinf(t * 31) * 1.5f * w;
+        } else {
+            float p = rola - 1;                      // o pulinho de quem pousa
+            rr *= 1 + 0.14f * expf(-p * 4) * sinf(p * 9);
+        }
+        // A de onde sai a proxima treme antes de abrir (a do dado, em mesa.inc).
+        float ate = v->t_assenta - MAT_T0 - (i + 1) * MAT_CADA;
+        if (i + 1 < nb && ate > -MAT_TREME && ate <= 0) bx += ((int)(v->t_assenta * 40) % 2 ? 1.5f : -1.5f);
         if (volta > 0) {                            // entrando de novo, por baixo dela
             float k = volta * (2 - volta);
             bx += (x - bx) * k;
             by += (y - by) * k;
             rr *= 1 - 0.6f * k;
         }
-        if (q < 0.35f) anel((int)x, (int)(y - r * 0.2f), (int)(r * (0.5f + q * 1.6f)), 1, q < 0.18f ? C_BRANCO : C_MARFIM_S);
+        if (q < 0.35f) anel((int)ox, (int)(oy - orr * 0.2f), (int)(orr * (0.5f + q * 1.6f)), 1, q < 0.18f ? C_BRANCO : C_MARFIM_S);
         boneca_lados = LADOS[i];
-        desenha_dado(bx, by, rr, D_MATRIOSKA, v->dono, 0, BONECA_V(v->bonecas, i), 2, false);
+        desenha_dado(bx, by, rr, D_MATRIOSKA, v->dono, ang, face, 2, false);
         boneca_lados = 0;
+        ox = fim; oy = y; orr = ri;
     }
 }
 
@@ -460,6 +478,8 @@ static void desenha_lance(void)
             int dentro = 0;
             for (int b = 0; b < BONECAS_N(v->bonecas); b++) dentro += BONECA_V(v->bonecas, b);
             if (v->valor - dentro >= 1) mostra = v->valor - dentro;
+            float ate = v->t_assenta - MAT_T0;          // treme antes de abrir
+            if (ate > -MAT_TREME && ate <= 0) dx += (int)(v->t_assenta * 40) % 2 ? 1.5f : -1.5f;
         }
         if (pouso_novo && v->tipo == D_GELATINA && v->t_assenta < 1.3f) {
             float t = v->t_assenta, a = 0.13f;
@@ -483,17 +503,40 @@ static void desenha_lance(void)
                 esty = 1 - w;
             }
         }
+        // O Piao girando de novo no lugar, com o rastro, e a Gelatina quicando
+        // no lugar: a re-rolagem de verdade (ad_etapa_passo, etapa 5), com a
+        // face trocando ate deitar no lance seguinte.
+        bool rerolando = !v->fantasma && !descartado && v->parado && v->etapa == 5 && v->t_etapa >= RE_MOSTRA;
+        if (rerolando) {
+            int lados = TIPO[v->tipo].lados;
+            if (v->tipo == D_PIAO) {
+                float q = fminf(1, (v->t_etapa - RE_MOSTRA) / RE_GIRO), s = 1 - q;
+                piao_rastro(ex, ey, r, q, 2);
+                ang += s * s * s * 14;
+                dx += sinf(v->t_etapa * 42) * 1.6f * s;
+                if (q < 0.85f) mostra = 1 + (int)(v->t_etapa * (10 + 20 * s) + v->slot * 3) % lados;
+            } else {
+                float q = fminf(1, (v->t_etapa - RE_MOSTRA) / RE_QUIQUE), h = sinf(q * 3.1416f);
+                bob -= h * 16;
+                sombra_alt = h * 8;
+                estx = 1 - 0.08f * h;
+                esty = 1 + 0.12f * h;
+                ang += h * 0.6f;
+                if (q < 0.8f) mostra = 1 + (int)(v->t_etapa * 22 + v->slot * 3) % lados;
+            }
+        }
         // Os adesivos: rolando, a etiqueta aparece (acesa) cada vez que passa
         // pelo lado dela; parado, a do lado de cima, acesa enquanto age (o
         // Avesso pula e vira; o Reflexivo pisca e sai rolando).
         if (!v->fantasma && !descartado) {
             const peca_t *pc = peca_fila(v->dono, v->slot);
-            int t = v->tipo, lv = v->parado ? v->lado : (mostra >= ad_lado_min(t) && mostra <= ad_lado_max(t) ? mostra : 0);
+            bool fixo_l = v->parado && !rerolando;
+            int t = v->tipo, lv = fixo_l ? v->lado : (mostra >= ad_lado_min(t) && mostra <= ad_lado_max(t) ? mostra : 0);
             int a = ad_no_lado(pc, lv);
             if (a) {
                 ad_face = a;
-                ad_face_aceso = !v->parado || (v->etapa && (int)(v->t_etapa * 12) % 2 == 0);
-                if (!v->parado && a == AD_REMENDO) mostra += 2;
+                ad_face_aceso = !fixo_l || (v->etapa && (int)(v->t_etapa * 12) % 2 == 0);
+                if (!fixo_l && a == AD_REMENDO) mostra += 2;
             }
             if (v->etapa == 1 && v->t_etapa > AD_MOSTRA) {    // o Avesso: pula girando meia volta
                 float q = fminf(1, (v->t_etapa - AD_MOSTRA) / AD_VIRA), s = sinf(q * 3.1416f);

@@ -85,7 +85,8 @@ static void desenha_avisos(void)
     else if (t_aviso_letra > 0) msg = gfx_letra_e_maior() ? "Letra: maior  (L troca)" : "Letra: normal  (L troca)";
     else if (t_aviso_adesivo > 0) {
         static char m[48];
-        snprintf(m, sizeof m, "Adesivos: %s  (J troca)", ADE_NOME[ad_estilo]);
+        if (aviso_versao) snprintf(m, sizeof m, ad_versao ? "Adesivos: a proposta nova  (P troca)" : "Adesivos: como estão hoje  (P troca)");
+        else snprintf(m, sizeof m, "Adesivos: %s  (J troca)", ADE_NOME[ad_estilo]);
         msg = m;
     }
     if (!msg) return;

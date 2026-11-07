@@ -1342,11 +1342,13 @@ static void desenha_fila(int j)
                 float in = ev_intro(e), q0 = in > 0 ? in / (in + duracao_de(e)) : 0;   // o Carimbo (a Dupla) vem antes
                 float pa = p < q0 ? 0 : (p - q0) / (1 - q0);
                 ad_face_aceso = p >= q0 && pa < 0.9f;
-                if (p >= q0) an_fx_agindo(pa, e->ad == AD_RASPADINHA && !e->copia);
+                if (p >= q0 && ag2_tem(e->ad)) ag2_fx(e->ad, pa, e);     // a proposta: o gesto dele
+                else if (p >= q0) an_fx_agindo(pa, e->ad == AD_RASPADINHA && !e->copia);
             } else if (ad_estilo == ADE_NOVO && n_pouso && pouso_q[0].j == j && pouso_q[0].k == k) {
                 float pa = fminf(1, t_pouso / pouso_dura(&pouso_q[0]));
                 ad_face_aceso = pa < 0.9f;
-                an_fx_agindo(pa, false);
+                if (ag2_tem(ad_face)) ag2_fx(ad_face, pa, NULL);
+                else an_fx_agindo(pa, false);
             }
         }
         // A Dupla Face agindo: o dado vira (achata na horizontal ate mostrar o
@@ -2149,12 +2151,13 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         // O adesivo novo age no proprio dado (an_fx_agindo, em desenha_fila):
         // daqui so sai a Raspadinha, que descola inteira e vai embora, e o
         // adesivo que o Holografico copia, saltando de dentro dele.
-        if (a == AD_RASPADINHA && !e->copia && p > 0.55f && p < 0.95f) {
+        if (a == AD_RASPADINHA && !e->copia && p > 0.55f && p < 0.95f && !ag2_tem(a)) {
             float q = (p - 0.55f) / 0.4f;
             int fx = ax + (int)(q * 70), fy = ay + dir * (int)(q * 26) - (int)(sinf(q * 3.1416f) * 26);
-            ad_novo_solto_r((float)fx, (float)fy, a, R_DADO * AD_NOVO[a].tam / 100.0f, 0.7f - 0.4f * q, 2, 3);
+            ad_novo_solto_r((float)fx, (float)fy, a, R_DADO * an_ficha(a)->tam / 100.0f, 0.7f - 0.4f * q, 2, 3);
         }
         if (e->copia && p < 0.9f) ad_solto_d(sx, sy, a, 2, 0);
+        if (ag2_tem(a)) ag2_desenha(e, p, ax, ay);              // a proposta: a moeda raspando, os cacos do lacre
         sx = e->copia ? sx : ax;                                // a Massinha sai do recorte no dado
         sy = e->copia ? sy : ay;
     } else if (p < 0.9f && !rompe) ad_solto_d(sx, sy, salta, 1, a == AD_RASPADINHA && !e->copia ? fminf(1, p * 2) : 0);

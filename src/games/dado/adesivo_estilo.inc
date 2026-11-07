@@ -31,6 +31,7 @@ static const char *const ADE_NOME[ADE_N] = { "atual", "material", "recorte", "mo
                                              "recorte em relevo", "relevo grande", "adesivo novo" };
 static int ad_estilo = ADE_NOVO;        // a exploracao: o adesivo novo ja de saida (J troca)
 static float t_aviso_adesivo;            // > 0: o aviso do estilo (tecla J) esta na mesa
+static bool aviso_versao;                // o aviso e o da proposta (tecla P), nao o do estilo
 
 // As familias de efeito (a moldura e a ativacao falam por elas).
 enum { AF_PONTOS, AF_MULT, AF_DADO, AF_PROTEGE, AF_ATACA, AF_FICA, AF_DINHEIRO, AF_SUJO, AF_N };

@@ -1571,6 +1571,7 @@ static float duracao_de(const evento_t *e)
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
     case EV_ADESIVO:                                // o germe e o barro viajam; a massinha voa, amassa e vira remendo
+        if (ag2_dura(e) > 0) return ag2_dura(e);    // a proposta: o tempo do gesto dele (a Raspadinha raspada)
         return e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : 1.5f;
     default:       return 1.3f;
     }

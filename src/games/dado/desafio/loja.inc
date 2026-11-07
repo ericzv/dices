@@ -35,7 +35,10 @@
 #define LJ_COLA_BATE 0.22f               // encosta no dado (o estalo)
 #define LJ_COLA_FIM  1.0f                // depois disso, a loja volta
 // No adesivo novo, o papel cai antes e ele desce girando: encosta mais tarde.
-static float lj_cola_bate(void) { return ad_estilo == ADE_NOVO ? CN_BATE : LJ_COLA_BATE; }
+// Na proposta (adesivo_v2.inc), cada um com a sua ferramenta e o seu tempo.
+static int cola_ad(void);
+static float lj_cola_bate(void) { return cn2_tem(cola_ad()) ? cn2_toca(cola_ad()) : ad_estilo == ADE_NOVO ? CN_BATE : LJ_COLA_BATE; }
+static float lj_cola_fim(void) { return cn2_tem(cola_ad()) ? cn2_dura(cola_ad()) : LJ_COLA_FIM; }
 #define LJ_LADO_Y    158                 // a primeira fileira de lados
 #define LJ_LADO_DY   70                  // entre uma fileira e a outra
 
@@ -88,7 +91,7 @@ static int   cola_premio_slot;            // de qual cartao do premio ele veio
 static int   cola_pac = -1;               // colando a carta do pacote de adesivos (-1: nao)
 static peca_t *cola_col(void) { return cola_premio ? J[vez].col : run.col; }
 static int   cola_n(void) { return cola_premio ? J[vez].n_col : run.n_col; }
-static int   cola_ad(void) { return cola_premio ? cola_premio_ad : cola_pac >= 0 ? pac_ad(cola_pac) : ad_loja(lj_ad_k); }
+static int cola_ad(void) { return cola_premio ? cola_premio_ad : cola_pac >= 0 ? pac_ad(cola_pac) : ad_loja(lj_ad_k); }
 static int   cola_dono(void) { return cola_premio ? vez : 0; }
 
 // Os itens, na ordem das setas: os dados, os adesivos, o pacote e os dois
@@ -242,7 +245,8 @@ static void cola_passo(float dt)
         float antes = t_lj_cola;
         t_lj_cola += dt;
         if (antes < lj_cola_bate() && t_lj_cola >= lj_cola_bate()) lj_cola_estala();
-        if (t_lj_cola >= LJ_COLA_FIM) {
+        if (cn2_tem(cola_ad())) cn2_sons(cola_ad(), antes, t_lj_cola);   // a proposta: os sons da ferramenta
+        if (t_lj_cola >= lj_cola_fim()) {
             t_lj_cola = 0;
             if (lj_vira) { t_lj_vira = 0.001f; som_toca(SOM_SUSPENSE); }   // encheu: treme antes de virar
             else if (cola_termina()) return;
@@ -1228,7 +1232,7 @@ static void lj_cola_estala(void)
     lj_lado_pos(lj_cola_lado - ad_lado_min(t), n, &x, &y);
     uint16_t cores[3] = { ADESIVO[a].fundo == AD_SEM_FUNDO ? ADESIVO[a].luz : ADESIVO[a].fundo, C_BRANCO, ADESIVO[a].luz };
     if (ad_estilo != ADE_NOVO) lj_lascas_de(x, y, cores, 18, 0.8f);   // no novo, o ar escapa pela beira (cn_em_volta)
-    som_toca(som_cola());
+    if (!cn2_tem(a)) som_toca(som_cola());                           // a proposta: os sons sao da ferramenta (cn2_sons)
     mola_chuta();
 }
 
@@ -1340,7 +1344,8 @@ static void lj_cola_lados(void)
         if (colando && t_lj_cola >= bate) {
             ja = a;
             mostra = lado + (a == AD_REMENDO ? 2 : 0);
-            if (ad_estilo == ADE_NOVO) cn_assenta(t_lj_cola - bate);   // aperta, o ar sai e o brilho passa
+            if (cn2_tem(a)) cn2_fx(a, t_lj_cola);                     // a proposta: aparecendo do jeito dele
+            else if (ad_estilo == ADE_NOVO) cn_assenta(t_lj_cola - bate);   // aperta, o ar sai e o brilho passa
             else ad_face_aceso = t_lj_cola < LJ_COLA_BATE + 0.5f && (int)(t_lj_cola * 14) % 2 == 0;
         }
         if (lj_vira && t_lj_vira > 0)                // virando: os adesivos acendem um depois do outro
@@ -1353,7 +1358,8 @@ static void lj_cola_lados(void)
         }
         ad_face = ja;
         desenha_dado((float)x, y - pulo, 17, t, cola_dono(), 0, mostra, 2, false);
-        if (colando && t_lj_cola >= bate && ad_estilo == ADE_NOVO) cn_em_volta(x, (int)(y - pulo), 17, a, t_lj_cola - bate);
+        if (colando && t_lj_cola >= bate && cn2_tem(a)) cn2_depois(x, (int)(y - pulo), 17, a, t_lj_cola);   // a ferramenta trabalhando
+        else if (colando && t_lj_cola >= bate && ad_estilo == ADE_NOVO) cn_em_volta(x, (int)(y - pulo), 17, a, t_lj_cola - bate);
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
         if (mostra != lado || t == D_VAZIO) {
             snprintf(s, sizeof s, "%d", lado);
@@ -1373,6 +1379,7 @@ static void lj_cola_lados(void)
         float desce = t_lj_cola > 0 ? t_lj_cola / LJ_COLA_BATE : 0;
         int hy = y - 36 + (int)(sinf(t_fase * 3) * 2) + (int)(desce * desce * 36);
         if (!livre && t_lj_cola <= 0) gfx_texto(x - gfx_largura("ocupado", GFX_FINO) / 2, y - 42, "ocupado", C_VINHO_CLR, GFX_FINO, false);
+        else if (cn2_tem(a)) cn2_antes(x, y, t, 17, a, t_lj_cola);   // a proposta: a ferramenta paira e vai
         else if (ad_estilo == ADE_NOVO) cn_paira_desce(x, y, t, 17, a, t_lj_cola);   // no papel; o papel cai e ele desce
         else ad_solto_d(x + 2, hy, a, desce > 0.5f ? 1 : 2, 0.4f * (1 - desce));
     }

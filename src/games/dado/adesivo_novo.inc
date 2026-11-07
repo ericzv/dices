@@ -149,14 +149,20 @@ enum { FO_CIRCULO, FO_QUADRADO, FO_RETANGULO, FO_HEXAGONO, FO_LOSANGO, FO_ESTREL
        FO_PUFE, FO_LACRE, FO_RESPINGO, FO_ESCORRIDO, FO_CHIP, FO_FERRADURA, FO_DESCOLA, FO_DUPLO, FO_FOLHAS,
        FO_CANTO, FO_ETIQUETA, FO_INGRESSO, FO_LOBO, FO_EXPLOSAO, FO_CASCA, FO_PATO, FO_FITA, FO_RACHADO,
        FO_FELPUDO, FO_MIRA, FO_TABUA, FO_CARTA, FO_ROSETA, FO_VIRUS, FO_GOMA, FO_MASSA, FO_METADES,
-       FO_PESO, FO_BRILHO4 };
+       FO_PESO, FO_BRILHO4,
+       // a proposta (adesivo_v2.inc)
+       FO_PINCEL, FO_CARIMBO, FO_CERA, FO_CANETA };
 // MN_IGUAL: (so na segunda parte) o mesmo material da primeira.
 enum { MN_IGUAL, MN_FOSCO, MN_VINIL, MN_BRILHO, MN_METAL, MN_OURO, MN_CROMO, MN_HOLO, MN_GLITTER, MN_PAPEL,
        MN_TECIDO, MN_VIDRO, MN_NEON, MN_CERA, MN_BORRACHA, MN_MADEIRA, MN_LAMA, MN_CETIM, MN_LENTE, MN_CHUMBO,
-       MN_PELO, MN_RESINA, MN_PURPURINA };
+       MN_PELO, MN_RESINA, MN_PURPURINA,
+       // a proposta (adesivo_v2.inc): a tinta grossa e a tinta rala
+       MN_TINTA, MN_TINTA_FINA };
 // forma, material, o material da segunda parte, o tamanho (% do raio do dado), o giro (graus),
 // a cor e a segunda cor (as pontas do ima, o queijo, o verso, a agua do Patinho...).
-typedef struct { uint8_t forma, material, mat2, tam; int8_t giro; uint16_t cor, cor2; } ad_novo_t;
+// acab, rev e alto: so a proposta (adesivo_v2.inc) usa; a de hoje fica no
+// recorte (0), aparece inteira (0) e na altura de sempre (0).
+typedef struct { uint8_t forma, material, mat2, tam; int8_t giro; uint16_t cor, cor2; uint8_t acab, rev, alto; } ad_novo_t;
 static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_CHUMBO]       = { FO_PESO,      MN_CHUMBO,    MN_METAL,  80,   0, RGB(70, 76, 88),    RGB(104, 112, 124) },
     [AD_REFLEXIVO]    = { FO_CIRCULO,   MN_CROMO,     0,         70,   0, RGB(184, 194, 208), 0 },
@@ -202,6 +208,8 @@ static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_CASCA]        = { FO_CASCA,     MN_BRILHO,    MN_FOSCO,  90,   0, RGB(246, 222, 132), RGB(120, 78, 50) },
 };
 
+#include "adesivo_v2.inc"              // exploracao: a proposta de cada adesivo (K troca com a de hoje)
+
 // A forma de cima (a aba dobrada, a folha da frente, a agua sobre o pato...):
 // an_forma deixa aqui a distancia ate a beira dela; perto dela, por fora, a
 // sombra que ela faz na de baixo.
@@ -219,9 +227,14 @@ static const float AN_ABA[3][6] = { { -0.14f, 0.00f, -0.56f, 0.16f, -0.88f, 0.62
 // o queijo, o verso, a agua...; 2 o miolo claro da casca).
 static float an_forma(int a, float x, float y, int *parte)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     *parte = 0;
     an_vinco = 9;
+    an_ordem = -1;
+    if (ad_v2(a)) {                                // a proposta: as formas novas
+        float d;
+        if (an2_forma(a, x, y, parte, &d)) return d;
+    }
     switch (v->forma) {
     case FO_CIRCULO: return sqrtf(x * x + y * y) - 0.92f;
     case FO_QUADRADO: return sdn_caixa(x, y, 0.82f, 0.82f, 0.22f);
@@ -574,6 +587,8 @@ static float an_luz(int m, float x, float y, float e, float nx, float ny, float 
         return 0.20f + bisel * 0.7f + g;
     }
     case MN_NEON: return 0.33f + bisel * 0.3f;
+    case MN_TINTA: return 0.36f + bisel * 0.80f + g * 0.45f + grao * 0.05f;   // a tinta grossa: a beira em relevo, a luz mole
+    case MN_TINTA_FINA: return 0.33f + g * 0.25f;                              // a tinta rala: chapada
     default: return 0.33f + bisel * 0.6f + g;
     }
 }
@@ -597,7 +612,7 @@ static float an_colmeia(float x, float y, float tam)
 static uint16_t an_textura(int a, int parte, float x, float y, float e, float s, int X, int Y, float fase,
                            float mov, uint16_t cor)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     float t = t_relogio;
     uint32_t h = hash2(X + 64, Y + 64);
     switch (a) {
@@ -826,7 +841,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
 // A forma vai primeiro para uma grade (a distancia em pixels): a sombra, a
 // normal da beira e o brilho do neon leem dela, sem medir de novo.
 #define AN_G 168
-static float an_dd[AN_G * AN_G], an_vc[AN_G * AN_G];
+static float an_dd[AN_G * AN_G], an_vc[AN_G * AN_G], an_or[AN_G * AN_G];
 static uint8_t an_pt[AN_G * AN_G];
 static uint16_t an_le(int x, int y)                // o que ja esta pintado embaixo (o dado, pelo vidro)
 {
@@ -837,7 +852,7 @@ static uint16_t an_le(int x, int y)                // o que ja esta pintado emba
 }
 static uint16_t an_cor(int a)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     return v->cor ? v->cor : ADESIVO[a].fundo == AD_SEM_FUNDO ? C_CELESTE : ADESIVO[a].fundo;
 }
 
@@ -850,12 +865,14 @@ static uint16_t an_cor(int a)
 static void an_ponto(int a, int k, int i, int j, int W, int x, int y, float dx, float dy, float ca, float sa, float R,
                      float e, float fase, float mov, float mais, bool zerado, bool liso)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     int pt = an_pt[k];
     float s = 1 / R, u = (dx * ca - dy * sa) * s, w = (dx * sa + dy * ca) * s, tux = dx * s, tuy = dy * s;
     uint16_t base = pt == 1 && v->cor2 ? v->cor2 : an_cor(a);
     float gx = an_dd[k + (i < W - 1)] - an_dd[k - (i > 0)], gy = an_dd[k + (j < W - 1) * W] - an_dd[k - (j > 0) * W];
     float gl = sqrtf(gx * gx + gy * gy), nx = gl > 1e-6f ? gx / gl : 0, ny = gl > 1e-6f ? gy / gl : -1;
+    an_dd_gx = nx;
+    an_dd_gy = ny;
     if (v->material == MN_VIDRO) {                 // o vidro: o que esta embaixo, tingido; a beira e os reflexos
         if (e < 1.5f) { gfx_pixel(x, y, zerado ? C_FELTRO2 : v->cor); return; }
         float f = (tux + tuy) * 0.7071f + 0.25f;
@@ -866,11 +883,16 @@ static void an_ponto(int a, int k, int i, int j, int W, int x, int y, float dx, 
     }
     an_mat_px = -1;
     an_vinco_px = an_vc[k];
-    uint16_t c = an_textura(a, pt, u, w, e, s, x, y, fase, mov, base);
-    if (!c) c = liso ? base : ad_textura(a, u * R, w * R, e, R / 0.70f, fase, mov, base);
+    an_final = 0;
+    an_pula = false;
+    bool v2 = ad_v2(a);
+    uint16_t c = v2 ? an2_textura(a, pt, u, w, e, s, x, y, fase, mov, base) : an_textura(a, pt, u, w, e, s, x, y, fase, mov, base);
+    if (an_pula) return;                          // a proposta: aqui nao tem (a tinta falhou, ja raspou)
+    if (!c) c = liso || v2 ? base : ad_textura(a, u * R, w * R, e, R / 0.70f, fase, mov, base);
     int mat = an_mat_px >= 0 ? an_mat_px : pt && v->mat2 ? v->mat2 : v->material;
     an_mat_px = -1;
-    if (zerado) { gfx_pixel(x, y, gfx_mistura(c, C_FELTRO2, 60)); return; }
+    if (zerado) { gfx_pixel(x, y, gfx_mistura(an_final ? an_final : c, C_FELTRO2, 60)); return; }
+    if (an_final) { gfx_pixel(x, y, an_final); return; }   // a proposta: a cor ja pronta (a tinta sobre o dado)
     float l;
     uint16_t sobre = 0;
     if (liso) l = 0.40f - (tux + tuy) * 0.30f + (e < 1.2f ? -(nx + ny) * 0.30f : 0);
@@ -885,7 +907,7 @@ static void an_ponto(int a, int k, int i, int j, int W, int x, int y, float dx, 
 // pela grade de W de lado em (x0, y0).
 static void an_extras(int a, float cx, float cy, float R, float th, int W, int x0, int y0, int marg, float fase)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     float ct = cosf(th), st = sinf(th);
     if (v->forma == FO_ETIQUETA) {                 // o barbante saindo do furo
         float fx = 0.70f, fy = 0, ex = 1.18f, ey = -0.66f;
@@ -911,11 +933,12 @@ static void an_grade(int a, int W, float ox, float oy, float ca, float sa, float
     float s = 1 / R;
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
-            float dx = ox + i, dy = oy + j;
+            float dx = ox + i, dy = oy + j, u = (dx * ca - dy * sa) * s, w = (dx * sa + dy * ca) * s;
             int pt;
-            an_dd[j * W + i] = an_forma(a, (dx * ca - dy * sa) * s, (dx * sa + dy * ca) * s, &pt) * R;
+            an_dd[j * W + i] = an_forma(a, u, w, &pt) * R;
             an_pt[j * W + i] = (uint8_t)pt;
             an_vc[j * W + i] = an_vinco * R;
+            an_or[j * W + i] = an_ordem_de(a, u, w);
         }
 }
 
@@ -928,9 +951,12 @@ typedef struct {
     float brilho;      // < 0: nada; 0..1: a faixa de luz passando na diagonal, no material dele
     float onda;        // < 0: nada; 0..1: o ar saindo do meio para a beira (apertado no dado)
     bool  some;        // nao esta no dado (descolou e foi embora)
+    float revela;      // a proposta: < 0, inteiro; 0..1, so o que ja apareceu (a ordem de cada pixel)
+    float apaga;       // a proposta: < 0, nada; 0..1, o que ja saiu (a Raspadinha raspada)
+    float p2;          // a proposta: o que cada um anima por dentro (0: parado, como fica)
 } an_fx_t;
-static const an_fx_t AN_FX_NADA = { 1, 0, -1, -1, false };
-static an_fx_t an_fx = { 1, 0, -1, -1, false };
+static const an_fx_t AN_FX_NADA = { 1, 0, -1, -1, false, -1, -1, 0 };
+static an_fx_t an_fx = { 1, 0, -1, -1, false, -1, -1, 0 };
 static void an_fx_zera(void) { an_fx = AN_FX_NADA; }
 
 // Os materiais que brilham (a faixa de luz tem miolo branco); os outros so clareiam.
@@ -953,12 +979,15 @@ typedef struct {
     int marg, sx, sy, lev;                 // a margem branca; a sombra (deslocada sx, sy; 0: nenhuma); o quanto sobe
     uint16_t escuro, sombra, aro;          // o contorno, a sombra e (agindo, != 0) o aro aceso em volta
     bool zerado, liso;
+    bool revelando, apagando;              // a proposta: aparecendo (ate revela) e saindo (ate apaga)
+    float revela, apaga;
 } an_op_t;
 static void an_desenha(float cx, float cy, int a, const an_op_t *o)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     float R = o->R, ca = cosf(-o->th), sa = sinf(-o->th);
-    int marg = o->marg, m = (int)(R * 1.35f) + marg + 4;
+    int acab = an_acab(a);                         // a proposta: so o recorte tem a margem branca
+    int marg = acab == ACAB_RECORTE ? o->marg : 0, m = (int)(R * 1.35f) + marg + 4;
     if (2 * m + 1 > AN_G) m = (AN_G - 1) / 2;
     int W = 2 * m + 1, x0 = (int)floorf(cx) - m, y0 = (int)floorf(cy) - m;
     float ox = x0 - cx + 0.5f, oy = y0 - cy + o->lev + 0.5f;
@@ -994,6 +1023,8 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
                 if (d2 < marg) c = AC_VERSO;
                 else if (d2 < marg + 1) c = AC_CONTORNO;
                 else if (dd < 0) c = d2 < marg + 2.5f ? AC_SOMBRA : AC_DENTRO;
+                else if (dd < marg + 1 && acab != ACAB_RECORTE)        // a proposta: o contorno so no objeto e na massa
+                    c = dd < 1 && (acab == ACAB_OBJETO || acab == ACAB_GOSMA) ? AC_CONTORNO : AC_NADA;
                 else if (dd < marg + 1) {
                     float mg = marg;                                    // a beira que olha para a sombra: a margem um pixel mais fina
                     float gx = an_dd[k + (i < W - 1)] - an_dd[k - (i > 0)], gy = an_dd[k + (j < W - 1) * W] - an_dd[k - (j > 0) * W];
@@ -1002,15 +1033,28 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
                     c = dd < mg ? AC_MARGEM : dd < mg + 1 ? AC_CONTORNO : AC_NADA;
                 }
             }
+            if (c != AC_NADA && o->revelando && an_or[k] > o->revela) c = AC_NADA;   // ainda nao apareceu
+            if (c != AC_NADA && o->apagando) {                          // ja saiu
+                float dx = ox + i, dy = oy + j;
+                if (an2_sai(a, (dx * ca - dy * sa) / R, (dx * sa + dy * ca) / R) < o->apaga) c = AC_NADA;
+            }
             cl[k] = c;
         }
+    // A sombra: a tinta grossa e os pedacinhos so escurecem o dado em 1
+    // pixel; a tinta rala, nenhuma; o objeto e a massa, a de sempre e a altura.
+    int ssx = o->sx, ssy = o->sy;
+    bool sombra_leve = acab == ACAB_TINTA || acab == ACAB_PECAS;
+    if (sombra_leve) ssx = ssy = 1;
+    else if (acab == ACAB_TINTA_FINA) ssx = ssy = 0;
+    else if (acab != ACAB_RECORTE && (ssx || ssy)) { ssx += v->alto; ssy += v->alto; }
     // A sombra embaixo (no dado ou na mesa) e, agindo, o aro aceso em volta.
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
-            int k = j * W + i, si = i - o->sx, sj = j - o->sy;
+            int k = j * W + i, si = i - ssx, sj = j - ssy;
             if (cl[k] != AC_NADA) continue;
             if (o->aro && an_dd[k] >= marg + 1 && an_dd[k] < marg + 2 && i + j <= C) gfx_pixel(x0 + i, y0 + j, o->aro);
-            else if ((o->sx || o->sy) && si >= 0 && sj >= 0 && cl[sj * W + si] != AC_NADA) gfx_pixel(x0 + i, y0 + j, o->sombra);
+            else if ((ssx || ssy) && si >= 0 && sj >= 0 && cl[sj * W + si] != AC_NADA)
+                gfx_pixel(x0 + i, y0 + j, sombra_leve ? gfx_mistura(an_le(x0 + i, y0 + j), C_SOMBRA, 45) : o->sombra);
         }
     uint16_t rv[4];
     rampa_de(C_MARFIM, rv);
@@ -1019,7 +1063,9 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
         for (int i = 0; i < W; i++) {
             int k = j * W + i, x = x0 + i, y = y0 + j;
             switch (cl[k]) {
-            case AC_CONTORNO: gfx_pixel(x, y, o->escuro); break;
+            case AC_CONTORNO:                       // a massa: o contorno no escuro da cor dela
+                gfx_pixel(x, y, acab == ACAB_GOSMA && !o->zerado ? an_rampa_de(an_cor(a))[1] : o->escuro);
+                break;
             case AC_MARGEM: gfx_pixel(x, y, vidro ? (o->zerado ? C_FELTRO2 : v->cor) : branco); break;
             case AC_VERSO: {                        // o verso: claro na curva da dobra, mais escuro na ponta
                 float t = (float)(C - (i + j)) / P;
@@ -1031,6 +1077,9 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
             }
             case AC_DENTRO: case AC_SOMBRA: {
                 float e = -an_dd[k], dx = ox + i, dy = oy + j, mais = o->mais + (cl[k] == AC_SOMBRA ? -0.55f : 0);
+                if (acab == ACAB_TINTA_FINA && v->forma != FO_CANETA && e < 0.7f && bayer(x, y) < 0.35f) break;   // a tinta rala falha na beira
+                if (o->revelando && !o->zerado && (acab == ACAB_TINTA || acab == ACAB_GOSMA) && an_or[k] > o->revela - 0.06f)
+                    mais += 0.45f;                                      // a beira ainda molhada, chegando
                 if (!o->zerado && o->onda >= 0 && o->onda <= 1) {      // o ar saindo: a onda clara do meio para a beira
                     float pr = e / emax, cen = 1 - o->onda, dq = fabsf(pr - cen);
                     if (dq < 0.17f) mais += 0.75f * (1 - dq / 0.17f);
@@ -1059,7 +1108,7 @@ static void an_desenha(float cx, float cy, int a, const an_op_t *o)
 // anima vem de an_fx.
 static void ad_novo(float cx, float cy, float r, int a, bool aceso, bool zerado, float ang, int lados)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     if (an_fx.some) return;
     an_op_t o = { 0 };
     o.R = r * v->tam / 100.0f * (lados == 4 ? 0.78f : 1.0f) * an_fx.escala;   // o raio do recorte, em pixels
@@ -1078,6 +1127,10 @@ static void ad_novo(float cx, float cy, float r, int a, bool aceso, bool zerado,
     o.mov = ang * 0.8f + (cx + cy) * 0.02f;
     o.zerado = zerado;
     o.liso = r < 12;
+    o.revelando = an_fx.revela >= 0;            // a proposta: aparecendo e saindo
+    o.revela = an_fx.revela;
+    o.apagando = an_fx.apaga >= 0;
+    o.apaga = an_fx.apaga;
     an_desenha(cx, cy, a, &o);
 }
 
@@ -1086,7 +1139,7 @@ static void ad_novo(float cx, float cy, float r, int a, bool aceso, bool zerado,
 static float an_raio_solto(int a, int s)
 {
     int caixa = 7 * s + 6 * (s > 1 ? 2 : 1) + 2, marg = s >= 4 ? 2 : 1;
-    float f = AD_NOVO[a].tam / 80.0f;
+    float f = an_ficha(a)->tam / 80.0f;
     f = f < 0.85f ? 0.85f : f > 1.15f ? 1.15f : f;
     return (caixa * 0.5f - marg - 1) * f * 1.12f;
 }
@@ -1097,7 +1150,7 @@ static void ad_novo_solto_r(float cx, float cy, int a, float R, float descola, i
 {
     an_op_t o = { 0 };
     o.R = R;
-    o.th = AD_NOVO[a].giro * 0.017453f;
+    o.th = an_ficha(a)->giro * 0.017453f;
     o.marg = R >= 20 ? 2 : 1;
     o.sx = sx; o.sy = sy;
     o.escuro = C_BARRA;
@@ -1122,7 +1175,7 @@ static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
 // prateleira da colecao).
 static void ad_novo_silhueta(int cx, int cy, int a, int s, uint16_t cor)
 {
-    const ad_novo_t *v = &AD_NOVO[a];
+    const ad_novo_t *v = an_ficha(a);
     float R = an_raio_solto(a, s), th = v->giro * 0.017453f;
     int marg = R >= 20 ? 2 : 1;
     int m = (int)(R * 1.25f) + marg + 3;
@@ -1212,7 +1265,7 @@ static void cn_paira_desce(int x, int y, int tipo, float rd, int a, float tc)
 {
     float R0 = an_raio_solto(a, 2), hy = y - 36 + sinf(t_fase * 3) * 2;
     bool d4 = TIPO[tipo].lados == 4;
-    float R1 = rd * AD_NOVO[a].tam / 100.0f * (d4 ? 0.78f : 1), y1 = y + (d4 ? rd * 0.12f : 0);
+    float R1 = rd * an_ficha(a)->tam / 100.0f * (d4 ? 0.78f : 1), y1 = y + (d4 ? rd * 0.12f : 0);
     if (tc <= 0) {                                 // na folha, a ponta querendo sair
         an_papel((float)x, hy + 1, R0, 0);
         ad_novo_solto_r((float)x, hy, a, R0, 0.30f + 0.10f * sinf(t_fase * 4), 2, 3);
@@ -1241,7 +1294,7 @@ static void cn_assenta(float dt)
 // faiscas da raridade quando o brilho passa (dt desde o estalo).
 static void cn_em_volta(int x, int y, float rd, int a, float dt)
 {
-    float R = rd * AD_NOVO[a].tam / 100.0f;
+    float R = rd * an_ficha(a)->tam / 100.0f;
     if (dt < 0.22f) {                              // o sopro: oito fiapos brancos saindo da beira
         float q = dt / 0.22f;
         for (int i = 0; i < 8; i++) {
@@ -1271,3 +1324,5 @@ static void cn_em_volta(int x, int y, float rd, int a, float dt)
         estrela4(px, py, bb, C_BRANCO, BRILHO_RAR[rar][0], BRILHO_RAR[rar][1]);
     }
 }
+
+#include "adesivo_v2_anima.inc"        // exploracao: a textura, a colagem e a acao de cada um na proposta

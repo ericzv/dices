@@ -114,6 +114,15 @@ void dado_tecla(const key_event_t *ev_)
     if (k == 'j' && !dado_digitando()) {            // exploracao: o padrao do adesivo colado (adesivo_estilo.inc)
         ad_estilo = (ad_estilo + 1) % ADE_N;
         t_aviso_adesivo = 1.6f;
+        aviso_versao = false;
+        t_aviso_vel = t_aviso_tremor = t_aviso_letra = 0;
+        som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == 'p' && !dado_digitando()) {            // exploracao: a proposta de cada adesivo ou a de hoje (adesivo_v2.inc)
+        ad_versao = !ad_versao;
+        t_aviso_adesivo = 1.6f;
+        aviso_versao = true;
         t_aviso_vel = t_aviso_tremor = t_aviso_letra = 0;
         som_toca(SOM_TIQUE);
         return;

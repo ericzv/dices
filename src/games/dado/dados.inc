@@ -313,7 +313,7 @@ static const tipo_t TIPO[D_N] = {
     { "Onda",             4, EF_ONDA,         RAR_INCOMUM,  0, "Válido: pontua e guarda o que tirou; 9 vira Tsunami" },
     { "Tsunami",         12, EF_TSUNAMI,      RAR_RARO,     0, "9 a 12: anula o primeiro dado do oponente" },
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que é lançado: x3" },
-    { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ao acaso" },
+    { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ou especial" },
     { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
     { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Uma vez aceso (x2), outra apagado (0)" },
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +4 · válida: paga tudo" },
@@ -452,7 +452,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ONDA]            = "Pontua o que tirou. Cada vez que termina válido, também guarda esse número; ao juntar 9, vira um Tsunami.",
     [D_TSUNAMI]         = "Se terminar válido tirando de 9 a 12, anula o primeiro dado válido do oponente.",
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que é lançado, pontua x3 se ficar válido. Os patinhos marcam a contagem.",
-    [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ao acaso, que fica no lugar dele na bolsa.",
+    [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ou especial ao acaso, que fica no lugar dele na bolsa.",
     [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
     [D_PISCA]           = "Lançado aceso, pontua x2; na vez seguinte, apagado, pontua 0. O dado mostra como vem.",
     [D_MEIA]            = "Cada vez que termina anulada, guarda +4. Válida, paga tudo o que guardou e esvazia.",
@@ -492,7 +492,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_D6]              = "Seis lados, de 1 a 6.",
     [D_D8]              = "Oito lados, de 1 a 8.",
     [D_D12]             = "Doze lados, de 1 a 12.",
-    [D_D20]             = "Vinte lados, de 1 a 20.",
+    [D_D20]             = "Vinte lados, de 1 a 20. Não se vende: no Desafiante, só sai de um Presente e do dado que a "
+                          "Sacola de Presente ganha de cada chefe.",
     [D_DOBRO]           = "Seis lados. Se terminar válido, tirando de 1 a 3: o próximo dado da sequência pontua x2 no fim da "
                           "rodada, se também terminar válido. Tirando de 4 a 6, pontua normalmente.",
     [D_VICIADO]         = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
@@ -680,7 +681,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PATINHOS]        = "Quatro lados. Conta as vezes que é lançado, válido ou não: na 3ª, na 6ª, na 9ª... pontua x3 no fim da "
                           "rodada, se ficar válido. Os três patinhos no dado marcam a contagem; com os três acesos, ele está ativo. A "
                           "contagem fica com ele.",
-    [D_PRESENTE]        = "Seis lados, embrulhado. Ao ser lançado, desembrulha e vira um dado raro sorteado (no Desafiante, "
+    [D_PRESENTE]        = "Seis lados, embrulhado. Ao ser lançado, desembrulha e vira um dado raro ou o D20, sorteado (no Desafiante, "
                           "só entre os que você já abriu): o Presente sai e o dado novo fica no lugar dele na bolsa - no "
                           "Desafiante, pela run inteira; nas outras partidas, até o fim da partida. Só aparece de 20 de "
                           "outubro a 6 de janeiro.",
@@ -747,8 +748,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "fica o primeiro lado com adesivo (ou o último giro). Cada giro é um número novo: pode trocar "
                           "um 6 por um 1. Sem adesivo nenhum, é um d6 comum.",
     [D_CAMELO]          = "Doze lados de banca de feira. No começo de cada partida, cada lado vazio ganha um adesivo "
-                          "sorteado entre os que você já abriu, bons e ruins. No fim da partida, os sorteados saem; os "
-                          "que você colou nele ficam.",
+                          "sorteado entre os que você já abriu, bons e ruins, todos com a mesma chance. No fim da "
+                          "partida, os sorteados saem; os que você colou nele ficam.",
     [D_LEQUE]           = "Um leque de papel aberto. Se terminar válido: +2 no fim por outro dado seu válido que caiu "
                           "num lado com adesivo. Conta o lado que caiu, não o dado inteiro: paga quem força o lado "
                           "(Chumbo, Bússola, Nota Dez, Pião).",
@@ -803,12 +804,16 @@ static bool igual_sem_caixa(const char *a, const char *b)
     return *a == *b;
 }
 
+// A raridade escrita: o D20, que nao se vende (so sai do Presente e da
+// Sacola de Presente), e "especial".
+static const char *nome_raridade(int tipo) { return tipo == D_D20 ? "especial" : RARIDADE[TIPO[tipo].raridade]; }
+
 // "D8 · raro", na cor da raridade.
 static void classe(int tipo, char *s, int n)
 {
     // O dado comum ja se chama pelo tipo ("D6"): a etiqueta diz so a raridade.
-    if (igual_sem_caixa(TIPO[tipo].nome, nome_tipo(tipo))) snprintf(s, (size_t)n, "%s", RARIDADE[TIPO[tipo].raridade]);
-    else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), RARIDADE[TIPO[tipo].raridade]);
+    if (igual_sem_caixa(TIPO[tipo].nome, nome_tipo(tipo))) snprintf(s, (size_t)n, "%s", nome_raridade(tipo));
+    else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), nome_raridade(tipo));
 }
 
 // O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
@@ -1022,8 +1027,8 @@ static const visual_t VISUAL[D_N] = {
     [D_BALAO]       = { V_SANGUE, V_VERM, 100,  V_VINHO, 100,   RGB(226, 164, 168), 100, V_BRANCO, 100 },
     // O Papagaio: as penas verdes, a ponta amarela e o bico.
     [D_PAPAGAIO]    = { V_LIMA,   V_LIMA, 30,   V_VERDE, 100,   V_TRIGO, 100,  V_PEDRA, 100 },
-    // A Matrioska: a boneca vermelha com o rosto redondo e o dourado.
-    [D_MATRIOSKA]   = { V_OURO,   V_VERM, 35,   V_VERM, 100,    V_BRANCO, 100, V_OURO, 100 },
+    // A Matrioska: a laca vermelha, o friso preto e o ouro das contas e das folhinhas.
+    [D_MATRIOSKA]   = { V_OURO,   V_VERM, 100,  V_ROSA, 100,    V_OURO, 100,   V_SANGUE, 100 },
     // A Colcha: os retalhos (xadrez, bolinha, listra) e o pesponto.
     [D_COLCHA]      = { V_AMEIXA, 0, 0,         V_ROSA, 100,    V_CEU, 100,    V_TRIGO, 100 },
     // A Gelatina: o corpo vem de gelatina_corpo; aqui, o aro e o brilho.

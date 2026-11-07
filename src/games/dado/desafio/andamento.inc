@@ -226,7 +226,7 @@ static bool des_carrega(run_t *r)
     if (r->tirou_gratis > 1) r->tirou_gratis = 1;
     if (r->am_novo > A_N || r->estado != R_AMULETO) r->am_novo = 0;   // so a troca usa
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
-    if (r->colar > 1) r->colar = 0;
+    if (r->colar > COLAR_MOEDAS) r->colar = 0;
     r->presente = 0;                             // sem uso (todo Presente fica agora)
     return true;
 }
@@ -524,18 +524,17 @@ static void des_nova_run(void)
 // (o Infectado e o Barro tambem colam nele) vira o Mais Adesivado, como na
 // loja.
 // O Camelo arma a banca no comeco da partida: cada lado vazio ganha um
-// adesivo sorteado entre os abertos, pela raridade (como o Adesivado: os
-// ruins tambem). Cada Camelo armado guarda no fixo a vaga dele (1 a
-// CAMELO_MAX) em camelo_lados, os lados que ele encheu - a bolsa pode mudar
-// de posicao no meio da partida, o fixo vai junto. No fim da partida, esses
-// lados esvaziam; os adesivos colados de verdade ficam.
+// adesivo sorteado entre os abertos, todos com a mesma chance (um lendario
+// sai tanto quanto um comum; os ruins tambem). Cada Camelo armado guarda no
+// fixo a vaga dele (1 a CAMELO_MAX) em camelo_lados, os lados que ele encheu
+// - a bolsa pode mudar de posicao no meio da partida, o fixo vai junto. No
+// fim da partida, esses lados esvaziam; os adesivos colados de verdade ficam.
 #define CAMELO_MAX 8
 static uint32_t camelo_lados[2][CAMELO_MAX];
 static void camelo_arma(int j)
 {
-    static const int PESO[4] = { 8, 4, 2, 1 };
     int total = 0, vaga = 0;
-    for (int a = AD_NADA + 1; a < AD_N; a++) if (ad_a_venda(a) && adesivo_liberado(a)) total += PESO[RAR_ADESIVO[a]];
+    for (int a = AD_NADA + 1; a < AD_N; a++) if (ad_a_venda(a) && adesivo_liberado(a)) total++;
     for (int i = 0; i < J[j].n_col; i++) {
         peca_t *p = &J[j].col[i];
         if (p->tipo != D_CAMELO) continue;
@@ -547,7 +546,7 @@ static void camelo_arma(int j)
             int x = sorte(total), a = AD_NADA + 1;
             for (; a < AD_N; a++) {
                 if (!ad_a_venda(a) || !adesivo_liberado(a)) continue;
-                if ((x -= PESO[RAR_ADESIVO[a]]) < 0) break;
+                if (x-- == 0) break;
             }
             if (a >= AD_N) continue;
             ad_cola(p, l, a);
@@ -663,18 +662,23 @@ static void des_comeca_partida(void)
 }
 
 // A Sacola de Presente: o chefe vencido (que nao fecha a run) deixa um dado
-// raro na bolsa, sorteado entre os abertos pela semente da run.
+// raro ou especial (o D20, que nao se vende) na bolsa, sorteado entre os
+// abertos pela semente da run, todos com a mesma chance.
+static bool do_presente_do_chefe(int t)
+{
+    return t == D_D20 ? dado_liberado(t) : no_pacote(t) && TIPO[t].raridade == RAR_RARO;
+}
 static void presente_do_chefe(void)
 {
     if (run.n_col >= MAX_COL) return;
     rs = run.semente ^ (0x9E5E77u * (uint32_t)(run.andar * 8 + run.passo + 1));
     rnd_r();
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += no_pacote(t) && TIPO[t].raridade == RAR_RARO;
+    for (int t = 0; t < D_N; t++) n += do_presente_do_chefe(t);
     if (!n) return;
     int q = sorte_r(n);
     for (int t = 0; t < D_N; t++)
-        if (no_pacote(t) && TIPO[t].raridade == RAR_RARO && q-- == 0) {
+        if (do_presente_do_chefe(t) && q-- == 0) {
             run.col[run.n_col++] = peca_r(t);
             des_presente = t;
             return;
@@ -729,7 +733,7 @@ static void des_resultado(void)
         perfis_salva();
     }
     // As moedas da mesa (o fim da run nao paga: nao ha mais loja), o Colar
-    // (1), o Cofre (1 a cada 5 que voce ja tinha, ate 3), a Taca (1 a cada 3
+    // (2), o Cofre (1 a cada 3 que voce ja tinha, sem limite), a Taca (1 a cada 3
     // rodadas vencidas na partida) e o que a bolsa paga a mais (a Carteira, 10
     // por chefe; a Maleta do Apostador, 2 por mesa).
     run.ganho = run.colar = run.juros = run.taca = run.dourado = run.bolsa_ganho = 0;
@@ -744,9 +748,9 @@ static void des_resultado(void)
         if (run.bolsa == B_CARTEIRA && no->tipo == NO_CHEFE) run.bolsa_ganho = CARTEIRA_CHEFE;
         if (run.bolsa == B_MALETA) run.bolsa_ganho = MALETA_MESA;
         if (run.bolsa == B_PRESENTE && no->tipo == NO_CHEFE) presente_do_chefe();
-        if (run_amuletos() >> A_COLAR & 1) run.colar = 1;
+        if (run_amuletos() >> A_COLAR & 1) run.colar = COLAR_MOEDAS;
         run.dourado = (uint8_t)(ad_moedas[0] < 255 ? ad_moedas[0] : 255);   // o adesivo Dourado, na partida
-        if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / 5 < 3 ? run.moedas / 5 : 3);
+        if (run_amuletos() >> A_COFRE & 1) run.juros = (uint8_t)(run.moedas / COFRE_CADA < 255 ? run.moedas / COFRE_CADA : 255);
         if (run_amuletos() >> A_TACA & 1) run.taca = (uint8_t)(des_rod_vencidas / 3);
     }
     run.moedas += saque_total();

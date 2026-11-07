@@ -1877,18 +1877,22 @@ int main(void)
             CONFERE(d.total[0] == 3 && poder_armado(0, 0) == 0, "Rena sem vizinho valendo: 3, deu %d", d.total[0]);
             limpa(); joga(0, D_RENA, 2); joga(0, D_RENA, 3); d = fim();
             CONFERE(d.total[0] == 2 + 3 + 2, "duas Renas puxam uma a outra: 7, deu %d", d.total[0]);
-            // Presente: desembrulha um raro ao acaso, que fica no lugar dele na
-            // bolsa (no Desafiante, pela run; nas outras, ate o fim da partida).
+            // Presente: desembrulha um raro ao acaso (ou o D20, o especial), que
+            // fica no lugar dele na bolsa (no Desafiante, pela run; nas outras,
+            // ate o fim da partida).
             {
                 int modo0 = modo;
                 modo = M_DOIS;
+                bool viu20 = false;
                 for (int q = 1; q <= 40; q++) {
                     lance_fixo = q;
                     limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = -1;
                     int t = desembrulha(0, 0, lance_q);
-                    CONFERE(TIPO[t].raridade == RAR_RARO && !sem_sorteio(t) && !so_desafio(t) && t != D_PRESENTE
+                    viu20 |= t == D_D20;
+                    CONFERE((TIPO[t].raridade == RAR_RARO || t == D_D20) && !sem_sorteio(t) && !so_desafio(t) && t != D_PRESENTE
                             && F[0].tipo[0] == t && F[0].presente[0], "Presente vira um raro (%s)", TIPO[t].nome);
                 }
+                CONFERE(viu20, "Presente tambem vira o D20");
                 for (int m = 0; m < 2; m++) {            // nos dois modos, e para os dois lados
                     modo = m ? M_DESAFIO : M_DOIS;
                     for (int j = 0; j < 2; j++) {
@@ -2610,13 +2614,29 @@ int main(void)
             int n0 = run.n_col;
             venc_partida = 0; des_resultado();
             int t = run.col[run.n_col - 1].tipo;
-            CONFERE(run.n_col == n0 + 1 && des_presente == t && TIPO[t].raridade == RAR_RARO && no_pacote(t),
+            CONFERE(run.n_col == n0 + 1 && des_presente == t && do_presente_do_chefe(t),
                     "Presente: o chefe deixou %s", TIPO[t].nome);
             run.passo = 0;
             des_comeca_partida();
             n0 = run.n_col;
             venc_partida = 0; des_resultado();
             CONFERE(run.n_col == n0 && des_presente < 0, "Presente: a mesa comum nao deixa nada");
+        }
+        {   // O D20 nao se vende (nem a vitrine nem os pacotes o trazem); sai
+            // do Presente e do dado que a Sacola de Presente ganha do chefe.
+            perfil_t *pf = &perfis[perfil_atual >= 0 ? perfil_atual : 0];
+            uint8_t marcos0 = pf->marcos;
+            pf->marcos |= 1;                             // o Crupie vencido: o D20 aberto
+            bool viu = false;
+            for (int i = 0; i < 3000 && !viu; i++) viu = sorteia_vitrine(peso_do_salao()) == D_D20;
+            peca_t pac[3];
+            for (int i = 0; i < 400 && !viu; i++) { pac[0] = sorteia_do_nivel(i % PN_N, pac, 0); viu = pac[0].tipo == D_D20; }
+            CONFERE(dado_liberado(D_D20) && !no_pacote(D_D20) && do_presente_do_chefe(D_D20) && !viu,
+                    "D20 fora da loja e dos pacotes, mas no presente do chefe");
+            char cl[32];
+            classe(D_D20, cl, sizeof cl);
+            CONFERE(strcmp(cl, "especial") == 0, "D20 na colecao: \"%s\"", cl);
+            pf->marcos = marcos0;
         }
         // O que abre cada uma: adesivos, amuletos, a loja com 12, a virada,
         // as rodadas cheias.
@@ -2810,29 +2830,29 @@ int main(void)
                 "depois do Crupie, o Salao Vermelho (andar %d)", run.andar);
         CONFERE(perfis[0].partidas == 3 && (perfis[0].marcos & 1) && dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
                 "vencer o Crupie devia abrir o D20 (partidas %d)", perfis[0].partidas);
-        // Cofre (1 a cada 5 moedas, ate 3) e Taca (1 a cada 3 rodadas vencidas).
+        // Cofre (1 a cada 3 moedas, sem limite) e Taca (1 a cada 3 rodadas vencidas).
         run_poe_amuletos(1u << A_COFRE | 1u << A_TACA);
         des_comeca_partida();
         run.moedas = 12; des_rod_vencidas = 7; venc_partida = 0;
         des_resultado();
-        CONFERE(run.ganho == 5 && run.juros == 2 && run.taca == 2 && run.moedas == 12 + 9,
+        CONFERE(run.ganho == 5 && run.juros == 4 && run.taca == 2 && run.moedas == 12 + 11,
                 "Cofre e Taca: mesa %d, Cofre %d, Taca %d", run.ganho, run.juros, run.taca);
         run.moedas = 40; des_comeca_partida(); venc_partida = 0; des_resultado();
-        CONFERE(run.juros == 3, "Cofre ate 3: %d", run.juros);
-        // Colar de Perolas (o amuleto 33: alem dos 32 bits): 1 moeda por mesa
+        CONFERE(run.juros == 13, "Cofre sem limite: 40 moedas rendem %d", run.juros);
+        // Colar de Perolas (o amuleto 33: alem dos 32 bits): 2 moedas por mesa
         // vencida, e a run salva o guarda.
         run_poe_amuletos(AM_BIT(A_COLAR) | AM_BIT(A_COFRE));
         CONFERE(run.amuletos_x == 1 && (run_amuletos() >> A_COLAR & 1) && am_conta(run_amuletos()) == 2,
                 "Colar no bit 32: %d", run.amuletos_x);
         run.moedas = 12; des_comeca_partida(); venc_partida = 0; des_resultado();
-        CONFERE(run.ganho == 5 && run.colar == 1 && run.juros == 2 && run.moedas == 12 + 8 && saque_total() == 8,
+        CONFERE(run.ganho == 5 && run.colar == 2 && run.juros == 4 && run.moedas == 12 + 11 && saque_total() == 11,
                 "Colar: mesa %d, Colar %d, Cofre %d (moedas %d)", run.ganho, run.colar, run.juros, run.moedas);
         CONFERE((amul[0] >> A_COLAR & 1) && NIVEL_AMULETO[A_COLAR] == 0 && RAR_AMULETO[A_COLAR] == AMR_COMUM
                 && amuleto_liberado(A_COLAR), "Colar: na partida, comum e aberto desde o comeco");
         {
             run_t r;
             des_salva();
-            CONFERE(des_carrega(&r) && (amul_t)r.amuletos_x << 32 == AM_BIT(A_COLAR) && r.colar == 1,
+            CONFERE(des_carrega(&r) && (amul_t)r.amuletos_x << 32 == AM_BIT(A_COLAR) && r.colar == 2,
                     "Colar salvo e carregado (x %d, colar %d)", r.amuletos_x, r.colar);
         }
         run_poe_amuletos(0); des_comeca_partida(); venc_partida = 0; des_resultado();
@@ -3109,10 +3129,11 @@ int main(void)
         run_poe_amuletos(0);
         CONFERE(fase == F_RLOJA && n_vitrine() == (run.dois_adesivos ? 1 : 2) && n_vitrine() + n_adesivos_loja() == 3,
                 "a loja da entrada: %d dados e %d adesivos", n_vitrine(), n_adesivos_loja());
-        // Precos: 3, 4, 6 e 9 pela raridade; os lisos de muitos lados (D8, D12, D20), 2 a mais.
+        // Precos: 3, 4, 6 e 9 pela raridade; os lisos de muitos lados (D8 e D12), 2 a mais
+        // (o D20 nao se vende).
         CONFERE(preco_run(D_FICHAS) == 3 && preco_run(D_PAR) == 4 && preco_run(D_D12) == 6 + LISO_A_MAIS
-                && preco_run(D_D20) == 9 + LISO_A_MAIS,
-                "precos %d %d %d %d", preco_run(D_FICHAS), preco_run(D_PAR), preco_run(D_D12), preco_run(D_D20));
+                && preco_run(D_D8) == 4 + LISO_A_MAIS,
+                "precos %d %d %d %d", preco_run(D_FICHAS), preco_run(D_PAR), preco_run(D_D12), preco_run(D_D8));
         // Sem moedas: nada sai, e o cartao treme.
         int n = run.n_col;
         run.moedas = 0;
@@ -3170,8 +3191,8 @@ int main(void)
         CONFERE(n_vitrine() == 3, "Cartola: vitrine de %d", n_vitrine());
         run_poe_amuleto(A_CUPOM);
         run.trocas = 0;
-        CONFERE(preco_run(D_FICHAS) == 2 && preco_run(D_D20) == 8 + LISO_A_MAIS && preco_troca() == 1,
-                "Cupom: %d %d %d", preco_run(D_FICHAS), preco_run(D_D20), preco_troca());
+        CONFERE(preco_run(D_FICHAS) == 2 && preco_run(D_D12) == 5 + LISO_A_MAIS && preco_troca() == 1,
+                "Cupom: %d %d %d", preco_run(D_FICHAS), preco_run(D_D12), preco_troca());
         // ---- O pacote: de dados (Bronze a Diamante) ou de adesivos, meio a meio; 3 dentro, leva 1 ----
         {
             int de_adesivos = 0, por_nivel[2][PN_N] = { { 0 } };
@@ -3859,6 +3880,20 @@ int main(void)
             camelo_desarma(J[0].col, J[0].n_col, 0);
             CONFERE(ad_quantos(&J[0].col[3]) == 1 && ad_no_lado(&J[0].col[3], 5) == AD_CONFETE && !J[0].col[3].fixo,
                     "Camelo desarma: fica o Confete colado");
+            {   // e o sorteio da banca e por adesivo, sem o peso da raridade: um lendario sai tanto quanto um comum
+                int saiu[4] = { 0 }, abertos[4] = { 0 };
+                for (int a = AD_NADA + 1; a < AD_N; a++) if (ad_a_venda(a) && adesivo_liberado(a)) abertos[RAR_ADESIVO[a]]++;
+                for (int vez = 0; vez < 400; vez++) {
+                    camelo_arma(0);
+                    for (int l = 1; l <= 12; l++) if (l != 5) saiu[RAR_ADESIVO[ad_no_lado(&J[0].col[3], l)]]++;
+                    camelo_desarma(J[0].col, J[0].n_col, 0);
+                }
+                int rm = 3;                              // a raridade mais alta que esta aberta
+                while (rm > 1 && !abertos[rm]) rm--;
+                float comum = abertos[0] ? (float)saiu[0] / abertos[0] : 0, alto = abertos[rm] ? (float)saiu[rm] / abertos[rm] : 0;
+                CONFERE(abertos[0] && abertos[rm] && alto > comum * 0.7f && alto < comum * 1.4f,
+                        "Camelo: cada adesivo de raridade %d sai como cada comum (%.1f e %.1f por adesivo)", rm, alto, comum);
+            }
             perfis[perfil_atual].nivel = (uint8_t)nv0;
             perfil_atual = pa0;
             J[0].col[3] = (peca_t){ .tipo = D_D6 };

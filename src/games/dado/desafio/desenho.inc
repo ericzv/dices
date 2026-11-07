@@ -1016,6 +1016,8 @@ static void saque_fileira(int y)
     int sp = tot > 30 ? 12 : tot > 22 ? 14 : 17, gap = 10;
     int grupos[6] = { run.ganho, run.colar, run.juros, run.taca, run.dourado, run.bolsa_ganho };
     int ng = (run.colar > 0) + (run.juros > 0) + (run.taca > 0) + (run.dourado > 0) + (run.bolsa_ganho > 0);
+    int cabe = GFX_W - 48 - ng * gap;            // muitas moedas (o Cofre nao tem teto): a fileira aperta e as moedas se encostam
+    if (tot * sp > cabe) sp = cabe / tot > 3 ? cabe / tot : 3;
     int larg = tot * sp + ng * gap, x = GFX_W / 2 - larg / 2 + sp / 2, i = 0;
     // O que a bolsa paga a mais (a Carteira, a Maleta), com o nome curto dela.
     const char *ROT[6] = { "mesa", "Colar", "Cofre", "Taça", "Dourado", run.bolsa == B_MALETA ? "Maleta" : "Carteira" };

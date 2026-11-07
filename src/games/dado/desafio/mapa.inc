@@ -3,6 +3,9 @@
 // ---------------------------------------------------------------------------
 // Pesos por dado de cada raridade [comum, incomum, raro, lendario]. Os dados
 // iniciais (moeda, D4, D6) nunca saem, como no premio da partida normal.
+// O D20 nao se vende (nem na vitrine, nem nos pacotes): so sai de um
+// Presente e do dado que a Sacola de Presente ganha de cada chefe.
+static bool fora_da_loja(int t) { return t == D_D20; }
 static int sorteia_raridade(const float w[4])
 {
     float total = 0;
@@ -45,11 +48,11 @@ static int sorteia_vitrine(const float w[4])
     for (int todos = 0; todos < 2; todos++) {
         float total = 0;
         for (int t = 0; t < D_N; t++)
-            if (!so_inicial(t) && dado_liberado(t) && (todos || !dado_visto(t))) total += w[TIPO[t].raridade];
+            if (!so_inicial(t) && !fora_da_loja(t) && dado_liberado(t) && (todos || !dado_visto(t))) total += w[TIPO[t].raridade];
         if (total <= 0) continue;
         float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
         for (int t = 0; t < D_N; t++) {
-            if (so_inicial(t) || !dado_liberado(t) || (!todos && dado_visto(t))) continue;
+            if (so_inicial(t) || fora_da_loja(t) || !dado_liberado(t) || (!todos && dado_visto(t))) continue;
             x -= w[TIPO[t].raridade];
             if (x < 0) return t;
         }
@@ -85,13 +88,14 @@ static int preco_ajusta(int p)
     if (run_amuletos() >> A_CUPOM & 1) p--;
     return p < 1 ? 1 : p;
 }
-#define LISO_A_MAIS 2                 // o D8, o D12 e o D20 na loja
+#define LISO_A_MAIS 2                 // o D8 e o D12 na loja
 static int preco_run(int t)
 {
     static const int P[4] = { 3, 4, 6, 9 };
-    // Os lisos de muitos lados (D8, D12 e D20) custam 2 a mais: na fila
-    // crescente, numero alto passa quase todos os especiais da raridade deles.
-    return preco_ajusta(P[TIPO[t].raridade] + (t == D_D8 || t == D_D12 || t == D_D20 ? LISO_A_MAIS : 0));
+    // Os lisos de muitos lados (D8 e D12) custam 2 a mais: na fila crescente,
+    // numero alto passa quase todos os especiais da raridade deles. (O D20
+    // nem se vende: fora_da_loja.)
+    return preco_ajusta(P[TIPO[t].raridade] + (t == D_D8 || t == D_D12 ? LISO_A_MAIS : 0));
 }
 // A Sacola de Feira troca a loja de graca uma vez em cada loja (depois, 1, 2,
 // 3...); a Caixa de Ferramentas tira um dado de graca uma vez em cada loja (o
@@ -198,7 +202,7 @@ static void desc_pacote(int g, char *s, int n)
 }
 
 // Os dados que um pacote pode trazer: os que a vitrine sorteia.
-static bool no_pacote(int t) { return !so_inicial(t) && dado_liberado(t); }
+static bool no_pacote(int t) { return !so_inicial(t) && !fora_da_loja(t) && dado_liberado(t); }
 // A Lata de Biscoito: o pacote de adesivos, como o adesivo, 1 mais barato.
 static int preco_pacote(void)
 {

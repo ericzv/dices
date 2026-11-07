@@ -923,14 +923,35 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (dv > 0.64f && d < 0.40f) return 2;                     // a ponta amarela
         return 0;
     }
-    case D_MATRIOSKA: {                           // o lenco e o avental da boneca, as flores brancas e o friso dourado
-        if (ro > 0.56f && ro < 0.56f + 2.2f * l) return 3;
-        for (int i = 0; i < 4; i++) {
-            float a = 0.785f + i * 1.5708f, fx = u - cosf(a) * 0.74f, fy = v - sinf(a) * 0.74f;
-            if (fx * fx + fy * fy < 0.10f * 0.10f) return fx * fx + fy * fy < 0.035f * 0.035f ? 3 : 2;
+    case D_MATRIOSKA: {                           // o dado todo e a madeira laqueada da boneca: o verniz e o friso de ouro
+        // A laca vermelha, com o brilho do verniz em cima a esquerda; perto
+        // da beira, o friso preto com as contas e as folhinhas de ouro (como
+        // na khokhloma) e um fio de ouro por dentro. Vale para as bonecas de
+        // dentro tambem (d6, d4 e a moeda): a beira segue a forma de cada uma.
+        int lados = boneca_lados ? boneca_lados : 8;
+        float x = u - 0.08f, y = v - 0.08f, ax = fabsf(x), ay = fabsf(y), g, t = 0;
+        if (lados == 4) { g = borda_d4(u, v, &t); t = (t + 1) * 1.5f; }
+        else {
+            g = lados == 6 ? fmaxf(fmaxf(ax, ay) / 0.78f, (ax + ay) / 1.284f)
+              : lados == 2 ? sqrtf(x * x + y * y) / 0.86f : (ax + ay) / 0.98f;
+            t = (atan2f(y, x) / 6.2832f + 1) * (lados == 2 ? 14 : 16);
         }
-        if (ro > 0.62f && fabsf(v) > 0.36f) return 1;
-        return 0;
+        float largo = 0.20f, gb = 1 - largo;                                    // o friso: de gb ate a beira
+        if (g > gb) {
+            float q = (g - gb) / largo, ft = fr(t) - 0.5f;                       // q: 0 por dentro, 1 na beira
+            int k = (int)floorf(t);
+            float dq = q - 0.5f;
+            if (k & 1) {                                                         // a folhinha, deitada no friso
+                float a = (ft * 0.9f + dq * 0.5f) / 0.42f, b = (dq - ft * 0.7f) / 0.20f;
+                if (a * a + b * b < 1) return LUZ(2, 0.6f - a * 0.5f);
+            } else if (ft * ft + dq * dq * 0.7f < 0.055f) return LUZ(2, 0.8f - (ft + dq) * 1.5f);   // a conta de ouro
+            return LUZ(3, -0.75f);                                               // a laca preta do friso
+        }
+        if (g > gb - 2.2f * l / 0.5f * (lados == 4 ? 0.5f : 1) && g <= gb) return LUZ(2, 0.3f);   // o fio de ouro por dentro
+        float hx = x + 0.34f, hy = y + 0.34f;                                    // o brilho do verniz
+        float a = (hx - hy) * 0.7071f, b = (hx + hy) * 0.7071f;
+        if (a * a / 0.040f + b * b / 0.0022f < 1) return LUZ(1, 0.9f);
+        return 0;                                                                // a laca vermelha
     }
     case D_COLCHA: {                              // os retalhos (xadrez, bolinha e listra) e o pesponto entre eles
         float c = 0.52f, gu = fr(u / c + 0.5f), gv = fr(v / c + 0.5f);
@@ -3299,6 +3320,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_TSUNAMI) { corpo = RGB(44, 78, 136); tinta = C_MARFIM; }       // a agua funda
     if (tipo == D_BALAO) tinta = C_MARFIM;       // o numero claro, impresso no latex
     if (tipo == D_ESTILINGUE) tinta = C_MARFIM;  // os pontos claros no couro
+    if (tipo == D_MATRIOSKA) tinta = C_MARFIM;   // o numero claro na laca vermelha
     if (tipo == D_INVEJOSO) tinta = C_MARFIM;    // o numero claro na pupila escura
     if (tipo == D_SACRIFICIO || tipo == D_FICHA_CORINGA) tinta = C_MARFIM;   // o corpo vinho (e o roxo da ficha) pede a tinta clara
     if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)

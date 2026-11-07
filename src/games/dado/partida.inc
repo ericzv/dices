@@ -580,8 +580,9 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     return x;
 }
 
-// O Presente desembrulha no lance: um dado raro ao acaso (no Desafiante, os
-// seus so entre os que voce ja abriu), que sai dele e fica no lugar dele na
+// O Presente desembrulha no lance: um dado raro ao acaso, ou o D20 (o dado
+// especial, que nao se vende) - no Desafiante, os seus so entre os que voce
+// ja abriu -, que sai dele e fica no lugar dele na
 // bolsa - no Desafiante, pela run (a bolsa volta para a run como terminou a
 // partida); nas outras, ate o fim da partida.
 static int desembrulha(int j, int k, int (*r)(int))
@@ -598,7 +599,7 @@ static int desembrulha(int j, int k, int (*r)(int))
     }
     int ok[D_N], n = 0;
     for (int t = 0; t < D_N; t++) {
-        if (TIPO[t].raridade != RAR_RARO || sem_sorteio(t) || t == D_PRESENTE) continue;
+        if ((TIPO[t].raridade != RAR_RARO && t != D_D20) || sem_sorteio(t) || t == D_PRESENTE) continue;
         if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : so_desafio(t)) continue;
         ok[n++] = t;
     }

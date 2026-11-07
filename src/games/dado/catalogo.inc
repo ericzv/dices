@@ -293,6 +293,7 @@ static void desenha_catalogo(void)
     if (so_desafio(tipo)) txt(xt + 2, 105, "só no Desafiante", C_TEXTO_M, false);
     if (de_natal(tipo)) txt(xt + 2, 105, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
     if (tipo == D_TSUNAMI) txt(xt + 2, 105, "nasce da Onda", C_TEXTO_M, false);
+    if (tipo == D_D20) txt(xt + 2, 105, "sai do Presente e da Sacola de Presente", C_TEXTO_M, false);
     if (st == 2) {
         linha_bloqueio(x, 124, trava);
     } else if (st == 1) {

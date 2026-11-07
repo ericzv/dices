@@ -76,7 +76,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Caixa de Papelão | os pacotes de dados e de adesivos mostram 4 opções, em vez de 3; vem com o Colecionador e o Oculto | as lojas não vendem adesivo avulso, só pacotes | abrir 5 pacotes numa run |
   | Sacola de Feira | trocar a loja é de graça uma vez por loja (depois, 1, 2, 3...); vem com a Fartura | as lojas não vendem pacotes | trocar a loja 3 vezes na mesma loja |
   | Maleta do Apostador | cada mesa vencida paga 2 moedas a mais; vem com o Jackpot, o Vidro, o Carrasco e o Trevo | cada partida começa com 45 fichas | levar um pote de 60 fichas ou mais |
-  | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
+  | Sacola de Presente | cada chefe vencido (que não fecha a run) deixa também um dado raro ou especial (o D20) na bolsa; vem com 3 Presentes | a run começa sem amuleto | ter 3 dados raros (ou lendários) na bolsa ao mesmo tempo |
 
   A tela das bolsas é uma vitrine: a escolhida fica no meio, no tamanho cheio
   e com a cor, e duas de cada lado, menores e mais apagadas quanto mais longe;
@@ -131,8 +131,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   salão (3, 5 e 6 no primeiro; 5, 7 e 11 no segundo; 8, 10 e 21 no
   terceiro, este só do nível 5), e abre uma loja pequena: 2 dados e 1
   adesivo, ou 1 dado e 2 adesivos, meio a meio (os dados custam 3, 4, 6 ou 9
-  moedas, pela raridade - o D8, o D12 e o D20, que são lisos, 2 a mais -, e os
-  adesivos, 2 a 7; cada dado e cada adesivo
+  moedas, pela raridade - o D8 e o D12, que são lisos, 2 a mais; o D20, o
+  dado especial, não se vende: só sai de um Presente e do dado que a Sacola
+  de Presente ganha de cada chefe -, e os adesivos, 2 a 7; cada dado e cada adesivo
   aparece à venda uma vez só na run, e só os pacotes repetem), um pacote
   (de dados ou de adesivos, meio a meio; o de dados vem numa caixa de um de
   quatro níveis, com 3 dados quaisquer entre os abertos: Bronze, 2 moedas,
@@ -212,7 +213,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
-  rende 1 moeda a cada mesa vencida.
+  rende 2 moedas a cada mesa vencida, e o Cofre, 1 moeda a cada 3 que você
+  tem, sem limite.
   Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
   abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
   comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
@@ -282,7 +284,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   seu que agiu na rodada), no 6; o Camaleão (d8 com o poder - e a cor - do
   dado de antes) e o Porta-Retrato (d6: valendo, o adesivo dele age também
   no dado de antes, se ele valer), no 7; o Camelô (d12: em cada partida,
-  um adesivo sorteado em cada lado vazio), no 8; e a Matrioska (d8
+  um adesivo sorteado em cada lado vazio, entre os abertos, todos com a
+  mesma chance), no 8; e a Matrioska (d8
   lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
   com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
   a soma de todas), no 9. Os oponentes só usam o

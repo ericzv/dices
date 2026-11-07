@@ -80,7 +80,7 @@ static const bolsa_t BOLSA[B_N] = {
                      "Cada partida começa com 45 fichas, 5 a menos.", "",
                      "Leve um pote de 60 fichas ou mais.", RGB(140, 150, 164),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_JACKPOT, D_VIDRO, D_CARRASCO, D_TREVO, 0xFF } },
-    [B_PRESENTE] = { "Sacola de Presente", "Cada chefe vencido deixa também um dado raro.", "A run começa sem amuleto.", "",
+    [B_PRESENTE] = { "Sacola de Presente", "Cada chefe vencido deixa também um dado raro ou especial.", "A run começa sem amuleto.", "",
                      "Tenha 3 dados raros na bolsa ao mesmo tempo.", RGB(150, 112, 160),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, X3(D_PRESENTE), 0xFF } },
 };

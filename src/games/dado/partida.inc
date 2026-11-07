@@ -673,7 +673,8 @@ static void lanca_proximo(void)
         if (casca == 3) tem_postit = false;   // (o som vem quando ela chega no dado: casca_pisa)
     }
     // A Bussola no dado de antes: este, caindo num lado sem adesivo (e tendo
-    // algum), rola de novo uma vez e fica o segundo; o primeiro cai ao lado.
+    // algum), rola de novo uma vez: fica o segundo se ele cair num adesivo; se
+    // nao, o maior dos dois. O outro cai ao lado.
     bool tem_bussola = k > 0 && ad_fila(vez, k - 1) == AD_BUSSOLA && pc && ad_quantos(pc) > 0
                     && !ad_no_lado(pc, l.lado);
     if (tem_postit) {
@@ -683,8 +684,8 @@ static void lanca_proximo(void)
         som_toca(som_adesivo(AD_POSTIT));
     } else if (tem_bussola && casca != 1) {
         lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
-        postit = l.x;
-        l = l2;
+        if (ad_no_lado(pc, l2.lado) || l2.x > l.x) { postit = l.x; l = l2; }
+        else postit = l2.x;
         som_toca(som_adesivo(AD_BUSSOLA));
     } else if (casca == 1) {
         lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);

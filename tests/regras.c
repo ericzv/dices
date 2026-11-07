@@ -3449,6 +3449,19 @@ int main(void)
         F[0].lado[0] = (uint8_t)lado;
         d = fim();
         CONFERE(x == 4 && lado == 2 && d.total[0] == 12, "Trevo com Remendo no 2: tira 4, SORTE (%d, lado %d, total %d)", x, lado, d.total[0]);
+        // Corrente: +3 por elo, ela e cada adesivo que agiu antes dela.
+        {
+            peca_t s0 = J[0].col[0], s1 = J[0].col[1];
+            J[0].col[0] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[0], 3, AD_CONFETE);
+            J[0].col[1] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[1], 4, AD_CORRENTE);
+            limpa(); joga_ad(0, 1, 4);
+            desfecho_t dc = fim();
+            CONFERE(dc.total[0] == 4 + 3, "Corrente sozinha: 4 e um elo (+3), deu %d", dc.total[0]);
+            limpa(); joga_ad(0, 0, 3); joga_ad(0, 1, 4);
+            dc = fim();
+            CONFERE(dc.total[0] == 3 + 4 + 4 + 6, "Corrente depois do Confete: dois elos (+6), deu %d", dc.total[0]);
+            J[0].col[0] = s0; J[0].col[1] = s1;
+        }
         J[0].col[4] = ex;                         // o Remendo no 8: na etiqueta, o 10 e o que rolou de novo
         limpa();
         joga_ad(0, 4, 13);

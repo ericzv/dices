@@ -1609,12 +1609,14 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, pts, cima ? "%sPatinho Feio: caiu nele, %d" : "%sPatinho Feio: +%d", pre, pts);
         break;
     }
-    case AD_CORRENTE: {                          // +2 por adesivo seu que agiu nos dados antes dele
-        if (!vale || corrente_antes <= 0) return false;
-        int n = CORRENTE_CADA * corrente_antes;
+    case AD_CORRENTE: {                          // +3 por elo: ela e cada adesivo seu que agiu nos dados antes dela
+        if (!vale) return false;
+        int elos = corrente_antes + 1, n = CORRENTE_CADA * elos;
         d->semente[j] += n;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: %d elo%s antes, +%d", pre, corrente_antes,
-                   corrente_antes > 1 ? "s" : "", n);
+        if (corrente_antes > 0)
+            e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: %d elos, +%d", pre, elos, n);
+        else
+            e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: um elo, +%d", pre, n);
         break;
     }
     case AD_ESCADINHA: {                         // os validos de 1 em 1 com ele: +2 por degrau em cada um

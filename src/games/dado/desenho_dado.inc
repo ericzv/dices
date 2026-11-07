@@ -3211,7 +3211,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         }
         if (tipo == D_MISTERIOSO || caixa) { numero(cx, cy, r, "?", tinta); return; }
         if (tipo == D_PREVISIVEL) {               // o proximo da escada: o que ele vai tirar
-            snprintf(s, sizeof s, "%d", valor + 1 < 12 ? valor + 1 : 12);
+            snprintf(s, sizeof s, "%d", previsivel_valor(valor));
             numero(cx, cy, r, s, tinta);
             return;
         }

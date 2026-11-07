@@ -103,7 +103,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define COSMO_GALAXIA 5
 // O Revolver: as balas do tambor (uma por lance) e o que o tiro vale, na ultima.
 #define REVOLVER_BALAS 4
-#define REVOLVER_TIRO  8
+#define REVOLVER_TIRO  12        // (era 8: o dado valia um d6)
 // A Meia na Lareira: o que guarda a cada vez que termina anulada, e o teto.
 #define MEIA_GUARDA 4
 #define MEIA_MAX    99
@@ -123,6 +123,12 @@ static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
 // mais uma, e com a sexta ele dispara.
 static bool revolver_dispara(int fixo) { return fixo + 1 >= REVOLVER_BALAS; }
+// O Previsivel tira isto no primeiro lance da partida, e +1 a cada lance (ate 12). Era 1.
+#define PREVISIVEL_COMECA 3
+static int previsivel_valor(int fixo) { int v = fixo + PREVISIVEL_COMECA; return v < 12 ? v : 12; }
+// O Colecionador arma com isto ou mais (era so o 6); a Assombracao poe tantos Fantasmas (era 1).
+#define COLECIONADOR_DE 5
+#define ASSOMBRA_FANTASMAS 2
 static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
 // O que ele vira, e a partir de que numero (o Universo: sempre, no Big Bang).
 static int cosmo_proximo(int t) { return t == D_UNIVERSO ? D_ASTRO : t + 1; }
@@ -270,15 +276,15 @@ static const tipo_t TIPO[D_N] = {
     { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "Válido: os outros válidos voltam à bolsa, +1 cada" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
     { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "Pontua sempre 1; some no fim da partida" },
-    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "Tira 1, depois 2, 3... (+1 a cada lance)" },
+    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "Tira 3, depois 4, 5... (+1 a cada lance)" },
     { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "O número fica escondido até o fim da rodada" },
     { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "Não pontua · válido: x2 no seu menor dado" },
     { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "Pontua 0 e nunca é anulado" },
     { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "Válido: + o total da sequência ÷ 4" },
     { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "Válido: -1 em cada dado do oponente" },
-    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 6: + metade dos seus dados" },
+    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 5 ou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_RARO,     0, "Lançado: um Fantasma na sua bolsa" },
-    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: um Fantasma na bolsa do oponente" },
+    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: 2 Fantasmas na bolsa do oponente" },
     { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "Anulado: +4 no fim" },
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
     { "Trenó",            8, EF_TRENO,        RAR_RARO,     0, "Válido: +1, +2, +3 nos seus dados antes dele" },
@@ -294,7 +300,7 @@ static const tipo_t TIPO[D_N] = {
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +4 · válida: paga tudo" },
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
-    { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 4ª: +8" },
+    { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 4ª: +12" },
     { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "5 ou 6: +1, e evolui" },
     { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "6 a 8: +3, e evolui" },
     { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
@@ -397,16 +403,16 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GARIMPEIRO]      = "Se terminar válido, no fim os outros dados válidos seus voltam direto para a bolsa, e ele pontua +1 por cada um.",
     [D_POTE_QUENTE]     = "Se terminar válido: +1 a cada 25 fichas no pote, no fim da rodada.",
     [D_FANTASMA]        = "Pontua sempre o número marcado (1). Não quebra ao ser lançado: só some no fim da partida.",
-    [D_PREVISIVEL]      = "Não é sorteado: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
+    [D_PREVISIVEL]      = "Não é sorteado: tira 3 na primeira vez, 4 na segunda, e assim até 12. Recomeça a cada partida.",
     [D_OCULTO]          = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência e pode ser anulado ou "
                           "anular.",
     [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
     [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
     [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
     [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
-    [D_COLECIONADOR]    = "Tirando 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
+    [D_COLECIONADOR]    = "Tirando 5 ou 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
-    [D_ASSOMBRACAO]     = "Se terminar válido, no fim um Fantasma (pontua 1) entra na bolsa do oponente.",
+    [D_ASSOMBRACAO]     = "Se terminar válido, no fim dois Fantasmas (pontuam 1) entram na bolsa do oponente.",
     [D_FICHA_VELHA]     = "Se terminar a rodada anulado (pela sequência ou por outro dado), pontua +4 no fim.",
     [D_SANGUESSUGA]     = "Ao ser lançado, anula o dado anterior na sequência. Este dado não pode ser anulado.",
     [D_TRENO]           = "Se terminar válido, os seus dados válidos antes dele pontuam +1, +2 e +3, do primeiro ao último.",
@@ -422,7 +428,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MEIA]            = "Cada vez que termina anulada, guarda +4. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
-    [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 4ª vez, o tambor cheio dispara: +8, e esvazia.",
+    [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 4ª vez, o tambor cheio dispara: +12, e esvazia.",
     [D_ASTRO]           = "Tirando 5 ou 6, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +1.",
     [D_CONSTELACAO]     = "Tirando 6, 7 ou 8, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +3.",
     [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
@@ -585,8 +591,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_POTE_QUENTE]     = "Oito lados. Se terminar válido, pontua +1 no fim da rodada a cada 25 fichas no pote.",
     [D_FANTASMA]        = "Seis lados, mas não é sorteado: pontua sempre o número marcado nele (1). Não quebra ao ser lançado: "
                           "volta para a bolsa como os outros e só some no fim da partida.",
-    [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 1, na segunda 2, e "
-                          "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 1 a cada partida.",
+    [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 3, na segunda 4, e "
+                          "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 3 a cada partida.",
     [D_OCULTO]          = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto isso "
                           "não é anulado, não anula nenhum dado e não conta na sequência: o dado seguinte compara com o dado "
                           "anterior a ele. No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o "
@@ -599,11 +605,11 @@ static const char *TEXTO_CAT[D_N] = {
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
                           "perde 1 ponto.",
-    [D_COLECIONADOR]    = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
+    [D_COLECIONADOR]    = "Seis lados. Tirando 5 ou 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
                           "Fantasmas que entraram na sua bolsa contam.",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "
                           "até o fim da partida.",
-    [D_ASSOMBRACAO]     = "Seis lados. Se terminar válido, no fim da rodada um Fantasma (pontua sempre 1) entra na bolsa do "
+    [D_ASSOMBRACAO]     = "Seis lados. Se terminar válido, no fim da rodada dois Fantasmas (pontuam sempre 1) entram na bolsa do "
                           "oponente até o fim da partida.",
     [D_FICHA_VELHA]     = "Uma ficha gasta, de 1 ou 2. Se terminar válido, pontua o que tirou, como uma moeda. Se terminar a "
                           "rodada anulado, pela sequência ou por um dado do oponente, pontua +4 no fim, fora dos "
@@ -648,8 +654,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
                           "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_REVOLVER]        = "Seis lados. Cada vez que é lançado, termine válido ou anulado, carrega uma bala no tambor (as "
-                          "balas aparecem no dado). Na quarta vez, com o tambor cheio, dispara: +8 - somado no que tirou, "
-                          "se ficar válido; anulado, o tiro já saiu e os +8 vêm no fim da rodada. Depois o tambor esvazia "
+                          "balas aparecem no dado). Na quarta vez, com o tambor cheio, dispara: +12 - somado no que tirou, "
+                          "se ficar válido; anulado, o tiro já saiu e os +12 vêm no fim da rodada. Depois o tambor esvazia "
                           "para a próxima volta. As balas ficam com ele.",
     [D_ASTRO]           = "Seis lados. Tirando 5 ou 6, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
                           "(e os adesivos dela caem). Se ficar válida, ainda pontua +1 no que tirou. A cada partida, "

@@ -891,7 +891,7 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !firme_sem_capa(j, i)) return 2;
         return 0;
-    case EF_COLECIONADOR: return v == 6;
+    case EF_COLECIONADOR: return v >= COLECIONADOR_DE;
     case EF_BURACO:                                          // vai engolir um vizinho seu
         for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
             if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
@@ -2094,7 +2094,7 @@ static int risco(int j)
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
     if (ef == EF_FICHA_CORINGA) return 0;                     // fica de fora ate o fim
     if (ef == EF_RELOGIO) return l >= 0 && cai_depois(j, remenda(p, relogio_valor()), L) ? 100 : 0;
-    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] + 1 < 12 ? f->fixo[k] + 1 : 12), L) ? 100 : 0;
+    if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, previsivel_valor(f->fixo[k])), L) ? 100 : 0;
     if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, remenda(p, (int8_t)f->fixo[k]), L) ? 100 : 0;
     if (ef == EF_FANTASMA) return l >= 0 && cai_depois(j, remenda(p, f->fixo[k] ? (int8_t)f->fixo[k] : 1), L) ? 100 : 0;
     if (ef == EF_EGOISTA || ef == EF_UNIVERSO) return 0;              // nao anulaveis: nao caem

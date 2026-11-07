@@ -585,8 +585,8 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = (int8_t)(f->bonus[k] + cosmo_bonus(t));
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        // Colecionador com 6: a metade dos dados que o dono tem (os Fantasmas contam).
-        if (ef == EF_COLECIONADOR && v == 6) {
+        // Colecionador com 5 ou 6: a metade dos dados que o dono tem (os Fantasmas contam).
+        if (ef == EF_COLECIONADOR && v >= COLECIONADOR_DE) {
             int tem = 0;
             for (int i = 0; i < J[j].n_col; i++) tem += J[j].onde[i] != COMIDO;
             f->bonus[k] = (int8_t)(f->bonus[k] + tem / 2);
@@ -632,10 +632,10 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Sacrifício: não pontua; no fim, x2 no seu menor");
         } else if (ef == EF_VAZIO) {
             snprintf(veredito, sizeof veredito, "Vazio: pontua 0; depois dele, qualquer número é válido");
-        } else if (ef == EF_COLECIONADOR && v == 6) {
-            snprintf(veredito, sizeof veredito, "Colecionador tirou 6: +%d", f->bonus[k]);
+        } else if (ef == EF_COLECIONADOR && v >= COLECIONADOR_DE) {
+            snprintf(veredito, sizeof veredito, "Colecionador tirou %d: +%d", v, f->bonus[k]);
         } else if (ef == EF_FERREIRO) {
-            if (v >= 3) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
+            if (v >= FERREIRO_ARMA) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);

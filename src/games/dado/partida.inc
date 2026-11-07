@@ -489,7 +489,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
     // Os de numero fixo nao rolam: o lado e o numero, e so o Remendo age.
     case EF_QUEBRADO: *lado = (int8_t)fixo; break;   // sem sorteio (a pedra de um Reves fica negativa)
     case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
-    case EF_PREVISIVEL: *lado = fixo + 1 < 12 ? fixo + 1 : 12; break;   // 1, 2, 3... ate 12
+    case EF_PREVISIVEL: *lado = (int8_t)previsivel_valor(fixo); break;   // 3, 4, 5... ate 12
     case EF_RELOGIO:  *lado = relogio_valor(); break;              // o numero da rodada
     case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
     default: break;
@@ -710,7 +710,7 @@ static void lanca_proximo(void)
     bool copia = carbono_age(vez, k) && lr >= 0;
     fatia(vez, k, rola);
     // O Previsivel sobe a cada lance, valendo ou nao (ate 12).
-    if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 11)
+    if (t == D_PREVISIVEL && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col && J[vez].col[f->idx[k]].fixo < 12 - PREVISIVEL_COMECA)
         J[vez].col[f->idx[k]].fixo++;
 
     voo_t *v = &voo[0];
@@ -1211,8 +1211,10 @@ static void recolhe_quebrados(void)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int q = F[j].tipo[k] == D_PACTO ? j
                   : F[j].tipo[k] == D_ASSOMBRACAO && F[j].est[k] == V_VALIDO ? outro(j) : -1;
-            if (q >= 0 && poe_fantasma(q, false))
-                snprintf(nota, sizeof nota, "%s ganha um Fantasma (%s)", J[q].nome, TIPO[F[j].tipo[k]].nome);
+            int quantos = F[j].tipo[k] == D_ASSOMBRACAO ? ASSOMBRA_FANTASMAS : 1, pos = 0;
+            for (int n = 0; q >= 0 && n < quantos; n++) pos += poe_fantasma(q, false);
+            if (pos > 1) snprintf(nota, sizeof nota, "%s ganha %d Fantasmas (%s)", J[q].nome, pos, TIPO[F[j].tipo[k]].nome);
+            else if (pos) snprintf(nota, sizeof nota, "%s ganha um Fantasma (%s)", J[q].nome, TIPO[F[j].tipo[k]].nome);
         }
     if (n_coringa)
         snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);

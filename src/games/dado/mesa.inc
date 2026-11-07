@@ -114,11 +114,10 @@ static void disco_pontilhado(int cx, int cy, int r, uint16_t c, float dens)
             if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r && bayer(x, y) < dens
                 && x >= MESA_X0 && x < MESA_X1 && y >= MESA_Y0 && y < MESA_Y1) gfx_pixel(x, y, c);
 }
-static void desenha_estouro(void)
+// A explosao em (cx, cy), q de 0 a 1: o clarao, a fumaca subindo e as brasas
+// e os pedacos de papel voando (o estouro do dado e a Dinamite).
+static void explosao_em(int cx, int cy, float q)
 {
-    if (estouro_fx.t <= 0) return;
-    float q = estouro_fx.t / ESTOURO_T;
-    int cx = (int)estouro_fx.x, cy = (int)estouro_fx.y;
     if (q < 0.3f) {                                        // o clarao: abre e apaga de fora para dentro
         float s = q / 0.3f;
         disco_pontilhado(cx, cy, (int)(R_DADO + 14 + s * 6), C_BRASA, 0.9f - s * 0.8f);
@@ -144,6 +143,11 @@ static void desenha_estouro(void)
             gfx_rect(px, py, b, b, q < 0.25f ? C_AMARELO : q < 0.55f ? C_FOGO : C_BRASA);
         }
     }
+}
+static void desenha_estouro(void)
+{
+    if (estouro_fx.t <= 0) return;
+    explosao_em((int)estouro_fx.x, (int)estouro_fx.y, estouro_fx.t / ESTOURO_T);
 }
 static void poeira_passo(float dt)
 {
@@ -2402,6 +2406,56 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             else if (pegou) snprintf(t, sizeof t, "sujou %d lados", e->valor);
             else snprintf(t, sizeof t, "não grudou");
             pega_rotulo(tx, ty, q < 0.9f ? q : 0, t, pegou ? LAMA[3] : C_TEXTO_M);
+        }
+        break;
+    }
+    case AD_DINAMITE: {                                         // o pavio queima ate o dado e BUM; anulada, apaga numa fumacinha
+        int fx = ax + 2, fy = ay - R_DADO + 5;                  // o pavio sai do alto do dado e sobe torto
+        float pb = 0.36f / duracao_de(e);                       // o BUM: junto com o grave do som
+        float queima = e->valor > 0 ? fminf(1, p / pb) : fminf(1, p / 0.5f) * 0.45f;   // anulada: queima um pouco e morre
+        int n = 18, ate = (int)lroundf((1 - queima) * n);
+        int tx = fx, ty = fy;
+        for (int pass = 0; pass < 2; pass++)                    // o cordao, do dado ate a ponta: o contorno, depois a corda
+            for (int i = 0; i <= ate; i++) {                    // (o que ja queimou nao se desenha)
+                float s2 = (float)i / n;
+                int px = fx + (int)lroundf(s2 * 14 + sinf(s2 * 6.0f) * 4), py = fy - (int)lroundf(s2 * (R_DADO + 16));
+                if (!pass) { gfx_rect(px - 1, py - 1, 5, 5, C_BARRA); continue; }
+                if (i == ate) { tx = px + 1; ty = py + 1; }
+                gfx_rect(px, py, 3, 3, (i & 1) ? RGB(66, 40, 24) : RGB(120, 78, 50));
+                gfx_pixel(px, py, RGB(156, 106, 64));           // o brilho da corda torcida
+            }
+        bool vivo = e->valor > 0 ? p < pb : p < 0.5f;
+        if (vivo) {                                             // a faisca na ponta, chiando, e as fagulhas pulando
+            int b = (int)(t_fase * 20) % 3 ? 3 : 4;
+            uint16_t c = (int)(t_fase * 26) % 2 ? C_AMARELO : C_BRANCO;
+            disco_pontilhado(tx, ty, 6, C_FOGO, 0.45f + 0.2f * sinf(t_fase * 40));   // o clarao da chama
+            gfx_rect(tx - b, ty, 2 * b + 1, 1, c);
+            gfx_rect(tx, ty - b, 1, 2 * b + 1, c);
+            gfx_rect(tx - 1, ty - 1, 3, 3, C_BRANCO);
+            for (int i = 0; i < 6; i++) {
+                float f = fmodf(t_fase * 3.1f + i * 0.17f, 1.0f), an = i * 1.05f + t_fase * 4;
+                int px = tx + (int)(cosf(an) * f * 9), py = ty - (int)(sinf(an) * f * 7) + (int)(f * f * 8);
+                gfx_rect(px, py, 1 + (f < 0.4f), 1 + (f < 0.4f), i % 2 ? C_FOGO : C_AMARELO);
+            }
+        }
+        if (e->valor > 0 && p >= pb) {                          // BUM: o clarao, a fumaca e os pedacos do papel
+            float q = (p - pb) / (1 - pb);
+            explosao_em(ax, ay, q);
+            if (q < 0.55f) {                                    // e a placa do estrondo, pulando
+                const char *bum = "BUM!";
+                int w = gfx_largura(bum, 1) + 12, by = (zona(j) < CENTRO ? ay + R_DADO + 12 : ay - R_DADO - 34)
+                                                     - (int)(sinf(fminf(1, q / 0.2f) * 3.1416f) * 4);
+                gfx_rect(ax - w / 2, by - 2, w, TXT_H + 4, C_BARRA);
+                txt_c(ax, by, bum, (int)(t_fase * 16) % 2 ? C_AMARELO : C_FOGO, true);
+            }
+        } else if (e->valor == 0 && p >= 0.45f && p < 0.98f) {  // anulada: um fio de fumaca sobe de onde a faisca morreu
+            float q = (p - 0.45f) / 0.53f;
+            for (int i = 0; i < 4; i++) {
+                float f = q - i * 0.12f;
+                if (f < 0) continue;
+                int px = tx + (int)(sinf(f * 7 + i) * 3), py = ty - (int)(f * 22);
+                disco_pontilhado(px, py, 2 + (int)(f * 3), i % 2 ? RGB(96, 88, 80) : C_CINZA, (1 - f) * 0.7f);
+            }
         }
         break;
     }

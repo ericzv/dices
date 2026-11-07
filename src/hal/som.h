@@ -74,6 +74,7 @@ enum {
     SOM_AGNUS,       // o Agnus ressuscitando os anulados: o sino, o coro e a celesta subindo
     // os adesivos que combam
     SOM_AD_CORRENTE, SOM_AD_DINAMITE, SOM_AD_BUSSOLA, SOM_AD_MOLDURA, SOM_AD_XEROX,
+    SOM_AD_DINAMITE_APAGA,   // a Dinamite anulada: o pavio chia, engasga e apaga numa fumacinha
     SOM_N
 };
 

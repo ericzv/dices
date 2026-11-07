@@ -1266,6 +1266,19 @@ def ad_dinamite():
         m.poe(t0 + 0.18 + k * 0.07 + rnd.uniform(0, 0.03), tom(batida(PLASTICO[k % len(PLASTICO)]), rnd.uniform(-8, -2)), 0.25 * (1 - k / 9))
     return sala(m.x, 0.2)
 
+def ad_dinamite_apaga():
+    """A Dinamite anulada: o pavio chia, engasga e apaga - e o sopro da
+    fumacinha subindo."""
+    m = Mix(1.0)
+    n = int(0.45 * SR); t = np.arange(n) / SR
+    chia = pa(rng.standard_normal(n), 3200) * (0.55 + 0.45 * np.sin(2 * np.pi * 17 * t)) * np.exp(-t * 5.5) * env(n, 0.01, 0.3)
+    m.poe(0.0, chia, 0.16)
+    for k in range(4):                                       # os engasgos, cada vez mais espacados
+        m.poe(0.03 + k * 0.07 + k * k * 0.025 + rnd.uniform(0, 0.015), estalinho(0.005, 3200), 0.16 * (1 - k / 5))
+    n = int(0.4 * SR)
+    m.poe(0.42, banda(rng.standard_normal(n), 250, 1300) * env(n, 0.04, 0.16), 0.24)   # o sopro da fumaca
+    return sala(m.x, 0.16)
+
 def ad_bussola():
     """A Bussola: a agulha gira e vai parando (a catraca de metal, cada vez
     mais devagar) e o ding de quando ela aponta."""
@@ -2134,6 +2147,7 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_dupla': VOLUME['efeito'], 'ad_casca': VOLUME['efeito']})
 VOLUME.update({n: VOLUME['efeito'] for n in ('ad_corrente', 'ad_bussola', 'ad_moldura', 'ad_xerox')})
 VOLUME['ad_dinamite'] = VOLUME['efeito'] * 1.15
+VOLUME['ad_dinamite_apaga'] = VOLUME['efeito'] * 0.8
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -2179,7 +2193,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_bussola', 'ad_moldura', 'ad_xerox',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_dinamite_apaga', 'ad_bussola', 'ad_moldura', 'ad_xerox',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):

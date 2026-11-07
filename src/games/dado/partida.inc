@@ -1346,6 +1346,7 @@ static int som_do_evento(int i)
         if (e->modo & EVM_DUPLA) return SOM_AD_DUPLA;       // o dado vira; idem
         if (e->ad == AD_FRAGIL && !e->valor) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_VIDRO;
         if (e->ad == AD_LENTICULAR && e->valor < 0) return SOM_TIRA;   // anulado: o desenho triste, e perde
+        if (e->ad == AD_DINAMITE && !e->valor) return SOM_AD_DINAMITE_APAGA;   // anulada: o pavio apaga, sem o BUM
         return som_adesivo(e->copia ? AD_HOLOGRAFICO : e->ad);
     case EV_GARIMPO: return SOM_BOLSA;
     case EV_FOGO: case EV_RENASCE: return SOM_FOGO;
@@ -1595,7 +1596,7 @@ static float duracao_de(const evento_t *e)
     case EV_JACKPOT: return 2.4f;
     case EV_BONUS: return 1.4f;
     case EV_ADESIVO:                                // o germe e o barro viajam; a massinha voa, amassa e vira remendo
-        return e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : 1.5f;
+        return e->ad == AD_BARRO ? 2.0f : e->ad == AD_MASSINHA ? 1.9f : e->ad == AD_DINAMITE && e->valor ? 1.8f : 1.5f;
     default:       return 1.3f;
     }
 }

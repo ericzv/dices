@@ -151,7 +151,8 @@ enum { FO_CIRCULO, FO_QUADRADO, FO_RETANGULO, FO_HEXAGONO, FO_LOSANGO, FO_ESTREL
        FO_FELPUDO, FO_MIRA, FO_TABUA, FO_CARTA, FO_ROSETA, FO_VIRUS, FO_GOMA, FO_MASSA, FO_METADES,
        FO_PESO, FO_BRILHO4,
        // a proposta (adesivo_v2.inc)
-       FO_PINCEL, FO_CARIMBO, FO_CERA, FO_CANETA };
+       FO_PINCEL, FO_CARIMBO, FO_CERA, FO_CANETA, FO_GERME, FO_GARRAS, FO_BOMBINHA, FO_FOLHA, FO_FITA2, FO_ESPUMA,
+       FO_CONFETE, FO_PURPURINA, FO_PRECO };
 // MN_IGUAL: (so na segunda parte) o mesmo material da primeira.
 enum { MN_IGUAL, MN_FOSCO, MN_VINIL, MN_BRILHO, MN_METAL, MN_OURO, MN_CROMO, MN_HOLO, MN_GLITTER, MN_PAPEL,
        MN_TECIDO, MN_VIDRO, MN_NEON, MN_CERA, MN_BORRACHA, MN_MADEIRA, MN_LAMA, MN_CETIM, MN_LENTE, MN_CHUMBO,
@@ -208,7 +209,6 @@ static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_CASCA]        = { FO_CASCA,     MN_BRILHO,    MN_FOSCO,  90,   0, RGB(246, 222, 132), RGB(120, 78, 50) },
 };
 
-#include "adesivo_v2.inc"              // exploracao: a proposta de cada adesivo (K troca com a de hoje)
 
 // A forma de cima (a aba dobrada, a folha da frente, a agua sobre o pato...):
 // an_forma deixa aqui a distancia ate a beira dela; perto dela, por fora, a
@@ -221,6 +221,8 @@ static int an_mat_px = -1;               // != -1: o material so deste pixel (a 
 static const float AN_ABA[3][6] = { { -0.14f, 0.00f, -0.56f, 0.16f, -0.88f, 0.62f },
                                     {  0.00f, 0.08f,  0.02f, 0.50f,  0.12f, 0.92f },
                                     {  0.14f, 0.00f,  0.54f, 0.12f,  0.88f, 0.54f } };
+
+#include "adesivo_v2.inc"              // exploracao: a proposta de cada adesivo (P troca com a de hoje)
 
 // A forma do adesivo a no ponto (x, y) do recorte (raio 1): a distancia com
 // sinal, e em *parte, a parte (0 o corpo; 1 a segunda cor: as pontas do ima,
@@ -892,7 +894,10 @@ static void an_ponto(int a, int k, int i, int j, int W, int x, int y, float dx, 
     int mat = an_mat_px >= 0 ? an_mat_px : pt && v->mat2 ? v->mat2 : v->material;
     an_mat_px = -1;
     if (zerado) { gfx_pixel(x, y, gfx_mistura(an_final ? an_final : c, C_FELTRO2, 60)); return; }
-    if (an_final) { gfx_pixel(x, y, an_final); return; }   // a proposta: a cor ja pronta (a tinta sobre o dado)
+    if (an_final) {                               // a proposta: a cor ja pronta (a tinta sobre o dado); o brilho passando a clareia
+        gfx_pixel(x, y, mais > 0.45f ? tom_rampa(an_rampa_de(an_final), 0.95f, x, y) : an_final);
+        return;
+    }
     float l;
     uint16_t sobre = 0;
     if (liso) l = 0.40f - (tux + tuy) * 0.30f + (e < 1.2f ? -(nx + ny) * 0.30f : 0);

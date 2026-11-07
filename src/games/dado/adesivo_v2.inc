@@ -35,6 +35,48 @@ static const ad_novo_t AD_NOVO2[AD_N] = {
     [AD_SELO]       = { FO_CERA,      MN_CERA,       0,         72,   0, RGB(118, 30, 38),   RGB(66, 18, 24),    ACAB_GOSMA,      REV_FORMA,  1 },
     [AD_RASPADINHA] = { FO_RETANGULO, MN_PAPEL,      0,         78,  -5, RGB(206, 180, 218), RGB(184, 194, 208), ACAB_RECORTE,    REV_TUDO,   0 },
     [AD_NOTA_DEZ]   = { FO_CANETA,    MN_TINTA_FINA, 0,         86,   0, RGB(190, 56, 60),   RGB(118, 30, 38),   ACAB_TINTA_FINA, REV_FORMA,  0 },
+    // as massas moles: sem margem, o contorno no escuro da cor delas
+    [AD_CHICLETE]   = { FO_GOMA,      MN_BORRACHA,   0,         78,   0, RGB(226, 164, 168), RGB(208, 98, 108),  ACAB_GOSMA,      REV_RADIAL, 1 },
+    [AD_MASSINHA]   = { FO_MASSA,     MN_FOSCO,      0,         76,  12, RGB(206, 180, 218), RGB(150, 112, 160), ACAB_GOSMA,      REV_TUDO,   1 },
+    [AD_BARRO]      = { FO_RESPINGO,  MN_LAMA,       0,         78,   0, RGB(156, 106, 64),  RGB(120, 78, 50),   ACAB_GOSMA,      REV_RADIAL, 0 },
+    [AD_SUJEIRA]    = { FO_ESCORRIDO, MN_LAMA,       0,         76,   0, RGB(120, 78, 50),   RGB(78, 46, 30),    ACAB_GOSMA,      REV_CIMA,   0 },
+    [AD_INFECTADO]  = { FO_GERME,     MN_BORRACHA,   0,         74,   0, RGB(130, 204, 112), RGB(88, 152, 84),   ACAB_GOSMA,      REV_FORMA,  0 },
+    [AD_FERMENTO]   = { FO_PUFE,      MN_FOSCO,      0,         74,   0, RGB(246, 222, 132), RGB(238, 162, 74),  ACAB_GOSMA,      REV_TUDO,   1 },
+    // os objetos presos no dado: sem margem, o contorno e a sombra (os grossos, mais alta)
+    [AD_CHUMBO]     = { FO_PESO,      MN_CHUMBO,     MN_METAL,  80,   0, RGB(70, 76, 88),    RGB(104, 112, 124), ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_REFLEXIVO]  = { FO_CIRCULO,   MN_CROMO,      0,         72,   0, RGB(184, 194, 208), RGB(104, 112, 124), ACAB_OBJETO,     REV_TUDO,   0 },
+    [AD_ELETRONICO] = { FO_CHIP,      MN_BRILHO,     MN_METAL,  64,   0, RGB(36, 32, 29),    RGB(184, 194, 208), ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_TRANSPARENTE] = { FO_QUADRADO, MN_VIDRO,     0,         74,  -6, RGB(168, 204, 230), 0,                  ACAB_PECAS,      REV_ESQ,    0 },
+    [AD_REMENDO]    = { FO_QUADRADO,  MN_TECIDO,     0,         72,  10, RGB(88, 152, 84),   RGB(130, 204, 112), ACAB_OBJETO,     REV_TUDO,   0 },
+    [AD_GORJETA]    = { FO_CIRCULO,   MN_BRILHO,     0,         66,   0, RGB(56, 86, 150),   RGB(238, 230, 212), ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_IMANTADO]   = { FO_FERRADURA, MN_BRILHO,     MN_METAL,  80,   0, RGB(190, 56, 60),   RGB(184, 194, 208), ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_RATOEIRA]   = { FO_TABUA,     MN_MADEIRA,    MN_FOSCO,  76,   0, RGB(120, 78, 50),   RGB(246, 222, 132), ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_MIRA]       = { FO_MIRA,      MN_LENTE,      0,         64,   0, RGB(66, 18, 24),    RGB(208, 98, 108),  ACAB_OBJETO,     REV_TUDO,   0 },
+    [AD_NEON]       = { FO_CORACAO,   MN_NEON,       0,         78,   0, RGB(36, 32, 29),    0,                  ACAB_OBJETO,     REV_TUDO,   0 },
+    [AD_VELCRO]     = { FO_FELPUDO,   MN_TECIDO,     0,         74,   0, RGB(36, 32, 29),    0,                  ACAB_OBJETO,     REV_ESQ,    0 },
+    [AD_PATINHO]    = { FO_PATO,      MN_FOSCO,      MN_BRILHO, 88,   0, RGB(128, 120, 112), RGB(168, 204, 230), ACAB_OBJETO,     REV_TUDO,   0 },
+    [AD_CASCA]      = { FO_CASCA,     MN_BRILHO,     MN_FOSCO,  92,   0, RGB(246, 222, 132), RGB(120, 78, 50),   ACAB_OBJETO,     REV_TUDO,   1 },
+    [AD_BOMBA]      = { FO_BOMBINHA,  MN_PAPEL,      0,         86, -26, RGB(190, 56, 60),   RGB(246, 222, 132), ACAB_OBJETO,     REV_TUDO,   1 },
+    // as marcas e as coisas finas: as garras rasgadas, a folha de ouro, as fitas e os papeis
+    [AD_LOBO]       = { FO_GARRAS,    MN_FOSCO,      0,         86,   0, RGB(66, 18, 24),    RGB(118, 30, 38),   ACAB_TINTA_FINA, REV_FORMA,  0 },
+    [AD_DOURADO]    = { FO_FOLHA,     MN_OURO,       0,         74,   8, RGB(228, 194, 106), RGB(150, 122, 62),  ACAB_PECAS,      REV_TUDO,   0 },
+    [AD_POSTIT]     = { FO_CANTO,     MN_PAPEL,      0,         74,  -5, RGB(246, 222, 132), RGB(228, 194, 106), ACAB_GOSMA,      REV_TUDO,   0 },
+    [AD_FRAGIL]     = { FO_FITA2,     MN_VINIL,      0,         98, -24, RGB(214, 112, 44),  RGB(118, 30, 38),   ACAB_GOSMA,      REV_ESQ,    0 },
+    [AD_DUPLA]      = { FO_ESPUMA,    MN_FOSCO,      MN_BRILHO, 72, -10, RGB(238, 230, 212), RGB(190, 56, 60),   ACAB_GOSMA,      REV_TUDO,   1 },
+    [AD_CARBONO]    = { FO_FOLHAS,    MN_VINIL,      MN_PAPEL,  70,  -4, RGB(26, 34, 62),    RGB(252, 248, 236), ACAB_GOSMA,      REV_TUDO,   0 },
+    // os soltos (o confete, a purpurina) e o verniz do Impermeavel
+    [AD_CONFETE]    = { FO_CONFETE,   MN_PAPEL,      0,         92,   0, RGB(252, 248, 236), 0,                  ACAB_PECAS,      REV_FORMA,  0 },
+    [AD_PURPURINA]  = { FO_PURPURINA, MN_PURPURINA,  0,         86,   0, RGB(150, 62, 80),   0,                  ACAB_PECAS,      REV_RADIAL, 0 },
+    [AD_IMPERMEAVEL] = { FO_CIRCULO,  MN_RESINA,     0,         86,   0, RGB(246, 222, 132), 0,                  ACAB_TINTA,      REV_PONTOS, 0 },
+    // os adesivos de verdade: o recorte, com a margem branca do papel, e o desenho de cada um
+    [AD_ESTRELINHA] = { FO_ESTRELA,   MN_OURO,       0,         88,   0, RGB(228, 194, 106), RGB(150, 122, 62),  ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_HOLOGRAFICO] = { FO_LOSANGO,  MN_HOLO,       0,         86,   0, RGB(184, 194, 208), 0,                  ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_FIGURINHA]  = { FO_CARTA,     MN_BRILHO,     0,         78,   6, RGB(130, 204, 112), RGB(88, 152, 84),   ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_BILHETE]    = { FO_INGRESSO,  MN_PAPEL,      0,         80,   6, RGB(238, 230, 212), RGB(190, 56, 60),   ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_LENTICULAR] = { FO_RETANGULO, MN_BRILHO,     0,         76,   0, RGB(102, 74, 138),  RGB(190, 56, 60),   ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_BIS]        = { FO_INGRESSO,  MN_VINIL,      0,         80,   0, RGB(102, 74, 138),  RGB(246, 222, 132), ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_AVESSO]     = { FO_DESCOLA,   MN_PAPEL,      MN_VINIL,  78, -35, RGB(238, 230, 212), RGB(72, 150, 138),  ACAB_RECORTE,    REV_TUDO,   0 },
+    [AD_ETIQUETA]   = { FO_PRECO,     MN_PAPEL,      0,         80,  -8, RGB(252, 248, 236), RGB(190, 56, 60),   ACAB_RECORTE,    REV_TUDO,   0 },
 };
 
 static bool ad_v2(int a) { return ad_versao && ad_estilo == ADE_NOVO && a > AD_NADA && a < AD_N && AD_NOVO2[a].tam; }
@@ -175,6 +217,105 @@ static bool an2_forma(int a, float x, float y, int *parte, float *dist)
         if (dz < d && dz < 0) { d = dz; *parte = 1; ord = 0.62f + 0.22f * fminf(1, fmaxf(0, (x + 0.27f) / 0.54f)); }
         an_ordem = ord;
         *dist = d;
+        return true;
+    }
+    case FO_GERME: {                               // o Infectado: a gosma com bolhas e as veias correndo pela face
+        float d = sdn_bolha(x, y, 0.50f, 0.16f, 2.6f, 11);
+        static const float V[6][4] = { { 0.38f, -0.30f, 0.86f, -0.62f }, { -0.42f, -0.22f, -0.90f, -0.44f }, { 0.20f, 0.44f, 0.46f, 0.92f },
+                                       { -0.30f, 0.36f, -0.70f, 0.82f }, { 0.48f, 0.12f, 0.96f, 0.22f }, { -0.04f, -0.48f, 0.10f, -0.96f } };
+        float ord = fminf(1, sqrtf(x * x + y * y) / 0.55f) * 0.45f;
+        for (int i = 0; i < 6; i++) {                                // a veia afina para a ponta, e se divide no meio
+            float mx = (V[i][0] + V[i][2]) * 0.5f + (V[i][3] - V[i][1]) * 0.12f, my = (V[i][1] + V[i][3]) * 0.5f - (V[i][2] - V[i][0]) * 0.12f;
+            float dv = fminf(sdn_ponta(x, y, V[i][0], V[i][1], mx, my, 0.075f, 0.05f), sdn_ponta(x, y, mx, my, V[i][2], V[i][3], 0.05f, 0.02f));
+            if (dv < d) {
+                d = dv; *parte = 1;
+                float L = sqrtf((x - V[i][0]) * (x - V[i][0]) + (y - V[i][1]) * (y - V[i][1]));
+                ord = 0.45f + 0.55f * fminf(1, L / 0.62f);
+            }
+        }
+        an_ordem = ord;
+        *dist = d;
+        return true;
+    }
+    case FO_GARRAS: {                              // o Lobo: tres rasgos de garra, curvos, finos nas pontas
+        float d = 9, ord = 1;
+        for (int i = 0; i < 3; i++) {
+            float ox = (i - 1) * 0.36f, oy = (i == 1) * -0.06f;
+            float ax = ox + 0.44f, ay = -0.80f + oy, mx = ox + 0.06f, my = 0.0f + oy, bx = ox - 0.36f, by = 0.82f + oy;
+            float d1 = sdn_ponta(x, y, ax, ay, mx, my, 0.04f, 0.16f), d2 = sdn_ponta(x, y, mx, my, bx, by, 0.16f, 0.03f);
+            float di = fminf(d1, d2);
+            if (di < d) {
+                d = di;
+                float t = d1 < d2 ? 0.5f * fminf(1, fmaxf(0, (y - ay) / (my - ay))) : 0.5f + 0.5f * fminf(1, fmaxf(0, (y - my) / (by - my)));
+                ord = t * 0.82f + i * 0.09f;
+            }
+        }
+        an_ordem = ord;
+        *dist = d;
+        return true;
+    }
+    case FO_BOMBINHA: {                            // o Papel Bomba: o canudo de papel e o pavio torto saindo da ponta
+        float d = sdn_caixa(x, y, 0.74f, 0.32f, 0.16f);
+        float p1 = sdn_ponta(x, y, 0.70f, -0.06f, 0.86f, -0.36f, 0.045f, 0.04f), p2 = sdn_ponta(x, y, 0.86f, -0.36f, 0.80f, -0.62f, 0.04f, 0.035f);
+        float pv = fminf(p1, p2);
+        if (pv < d) { d = pv; *parte = 2; }
+        *dist = d;
+        return true;
+    }
+    case FO_FOLHA: {                               // o Dourado: a folha de ouro, a beira rasgada e as lascas soltas em volta
+        float d = sdn_caixa(x, y, 0.74f, 0.70f, 0.08f) + 0.07f * ruido(x * 7 + 3, y * 7 + 1);
+        static const float L[5][3] = { { 0.88f, -0.52f, 0.07f }, { -0.86f, 0.62f, 0.06f }, { 0.70f, 0.86f, 0.05f }, { -0.62f, -0.88f, 0.05f }, { 0.94f, 0.30f, 0.04f } };
+        for (int i = 0; i < 5; i++) d = fminf(d, sdn_caixa(x - L[i][0], y - L[i][1], L[i][2], L[i][2] * 0.8f, 0.01f));
+        *dist = d;
+        return true;
+    }
+    case FO_FITA2: {                               // o Fragil: a fita de embalagem atravessando a face, as pontas picotadas
+        float d = sdn_caixa(x, y, 1.06f, 0.30f, 0.02f);
+        float dente = fabsf(fr(y * 5.0f + 0.5f) - 0.5f) * 0.16f;
+        *dist = fmaxf(d, fabsf(x) - 0.98f - dente);
+        return true;
+    }
+    case FO_ESPUMA: {                              // a Dupla Face: a espuma branca e o filme vermelho, a ponta descascada
+        float d = sdn_caixa(x, y, 0.80f, 0.80f, 0.08f);
+        if (x + y < 0.86f) *parte = 1;             // o filme cobre tudo menos a quina de baixo, a direita
+        an_vinco = x + y - 0.86f;
+        *dist = d;
+        return true;
+    }
+    case FO_CONFETE: {                             // o papel picado: doze pedacinhos soltos, cada um do seu jeito
+        float d = 9;
+        int pi = 0;
+        for (int i = 0; i < 12; i++) {
+            uint32_t h = hash2(i * 7 + 3, 91);
+            float an = i * 2.39996f + 0.4f, rr = 0.22f + 0.70f * sqrtf((i + 0.5f) / 12);
+            float px = cosf(an) * rr, py = sinf(an) * rr, gi = (h % 628) / 100.0f, c = cosf(gi), sn = sinf(gi);
+            float lx = (x - px) * c + (y - py) * sn, ly = -(x - px) * sn + (y - py) * c, di;
+            switch ((h >> 10) & 3) {
+            case 0: di = sdn_caixa(lx, ly, 0.14f, 0.065f, 0.01f); break;                 // a tirinha
+            case 1: di = sqrtf(lx * lx + ly * ly) - 0.085f; break;                       // a bolinha
+            case 2: di = sdn_caixa(lx, ly, 0.085f, 0.085f, 0.01f); break;                // o quadradinho
+            default: di = sdn_tri(lx, ly, -0.11f, 0.08f, 0.11f, 0.08f, 0, -0.11f); break;   // o triangulo
+            }
+            if (di < d) { d = di; pi = i; }
+        }
+        *parte = pi;
+        an_ordem = (hash2(pi + 17, 5) % 100) / 100.0f;            // caem um de cada vez, fora de ordem
+        *dist = d;
+        return true;
+    }
+    case FO_PURPURINA: {                           // a mancha de cola coberta de purpurina e uns graos soltos em volta
+        float d = sdn_bolha(x, y, 0.56f, 0.18f, 2.0f, 5);
+        for (int i = 0; i < 14; i++) {
+            float an = i * 2.39996f + 0.5f, rr = 0.66f + 0.28f * fr(i * 0.618f);
+            float di = sdn_caixa(x - cosf(an) * rr, y - sinf(an) * rr, 0.045f, 0.045f, 0);
+            if (di < d) { d = di; *parte = 1; }
+        }
+        *dist = d;
+        return true;
+    }
+    case FO_PRECO: {                               // a Etiqueta de preco: o papel com a beira de cima e a de baixo serrilhadas
+        float dente = fabsf(fr(x * 4.2f + 0.5f) - 0.5f) * 0.14f;
+        *dist = fmaxf(fabsf(x) - 0.92f, fabsf(y) - 0.52f - dente);
         return true;
     }
     default: return false;

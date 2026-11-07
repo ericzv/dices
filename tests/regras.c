@@ -3357,6 +3357,18 @@ int main(void)
         joga_ad(0, 0, 5);
         joga_ad(0, 1, 2);
         CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO, "o Transparente no 2 nao cai (cai o 5): %d %d", F[0].est[0], F[0].est[1]);
+        // O Trevo com 4 que o Transparente segura vale 10, e a etiqueta diz.
+        J[0].col[3] = (peca_t){ .tipo = D_TREVO };
+        ad_cola(&J[0].col[3], lado_do_lance(D_TREVO, 4, 0), AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 5);
+        joga_ad(0, 3, 4);
+        {
+            desfecho_t dt = fim();
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO && dt.total[0] == 10
+                    && !strcmp(F[0].tag[1], "=10") && !strcmp(F[0].tag_num[1], "=10"),
+                    "o Trevo com 4 seguro pelo Transparente: vale 10 e mostra =10 (%d, tag %s)", dt.total[0], F[0].tag[1]);
+        }
         J[0].col[2] = (peca_t){ .tipo = D_GEMEO };
         ad_cola(&J[0].col[2], 2, AD_CONFETE);
         limpa();

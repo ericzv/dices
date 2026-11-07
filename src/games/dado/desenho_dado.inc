@@ -125,14 +125,15 @@ static float luz_de(float dx, float dy)
 // face em faixas limpas, sem o pontilhado (que la vira pixel solto), e o
 // desenho de cada especial mais forte. Grande (a colecao), o de sempre.
 static int px_proposta = 1;
+static int px_partes = 0xF;              // as partes da proposta: 1 as faixas, 2 o desenho forte, 4 o tombo, 8 o som
 static float px_r_desta = 18;            // o raio do dado que se desenha agora
-static bool px_limpo(float r) { return px_proposta && r < 24; }
+static bool px_limpo(float r) { return px_proposta && (px_partes & 1) && r < 24; }
 static uint16_t tom_faixa(const uint16_t *r, float l)
 {
     int k = (int)floorf((l + 1) * 1.5f + 0.5f);
     return r[k < 0 ? 0 : k > 3 ? 3 : k];
 }
-static int px_pct(int p) { return px_proposta && p && p < 60 ? (p * 3 / 2 + 10 > 100 ? 100 : p * 3 / 2 + 10) : p; }
+static int px_pct(int p) { return px_proposta && (px_partes & 2) && p && p < 60 ? (p * 3 / 2 + 10 > 100 ? 100 : p * 3 / 2 + 10) : p; }
 
 static void aro_rampa(const float *vx, const float *vy, int n, float cx, float cy, int R, uint16_t aro)
 {
@@ -3291,6 +3292,31 @@ static void sombra_px(uint16_t *buf, int cx, int cy, int R)
         }
 }
 
+// A proposta (P): o dado no ar deforma por um instante: achata na direcao em
+// que rola quando tomba de uma face para a outra, e amassa quando bate. Quem
+// chama poe a escala (su no eixo de (c, s), sv no outro) e a deformacao vale
+// para o proximo desenho so. Feita antes do contorno e da sombra, que seguem
+// a silhueta nova; cada pixel e um pixel do desenho (nada de cor nova).
+static bool px_def;
+static float px_def_su = 1, px_def_sv = 1, px_def_c = 1, px_def_s;
+#define PX_DEF_LADO 160                   // a caixa maior que se deforma (o dado no ar cabe com folga)
+static uint16_t px_def_buf[PX_DEF_LADO * PX_DEF_LADO];
+static void px_deforma(float cx, float cy, int x0, int y0, int x1, int y1)
+{
+    int w = x1 - x0 + 1, h = y1 - y0 + 1;
+    if (w > PX_DEF_LADO || h > PX_DEF_LADO) return;
+    float c = px_def_c, s = px_def_s, iu = 1 / px_def_su, iv = 1 / px_def_sv;
+    for (int y = y0; y <= y1; y++)
+        for (int x = x0; x <= x1; x++) {
+            float dx = x - cx, dy = y - cy;
+            float u = (dx * c + dy * s) * iu, v = (-dx * s + dy * c) * iv;
+            int sx = (int)lroundf(cx + u * c - v * s), sy = (int)lroundf(cy + u * s + v * c);
+            px_def_buf[(y - y0) * w + (x - x0)] = sx < x0 || sx > x1 || sy < y0 || sy > y1 ? CHAVE : px_buf[sy * GFX_W + sx];
+        }
+    for (int y = y0; y <= y1; y++)
+        memcpy(&px_buf[y * GFX_W + x0], &px_def_buf[(y - y0) * w], (size_t)w * sizeof(uint16_t));
+}
+
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
@@ -3313,6 +3339,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado);
     px_dentro = px_sem_sombra = false;
     gfx_desvia(alvo);
+    if (px_def) { px_deforma(cx, cy, x0, y0, x1, y1); px_def = false; }
     // O contorno: o fundo que encosta na silhueta, em cruz.
     int nb = 0, max_b = (int)(sizeof px_borda / sizeof px_borda[0]);
     for (int y = y0; y <= y1; y++)
@@ -3376,11 +3403,26 @@ static void moeda_girando_arte(float cx, float cy, float r, int tipo, int dono, 
         gfx_rect((int)cx - 1, (int)(cy - r), 3, (int)(2 * r), gfx_mistura(aro_de(tipo), C_SOMBRA, 30));
 }
 
+// O que so se ve do dado no ar (fora do estado da partida): quanto dura a
+// face de agora (o tombo) e a ultima batida (o amasso: quando, de que lado e
+// com que forca).
+typedef struct { float t_int, t_bate, forca, nx, ny; } voo_fx_t;
+static voo_fx_t voo_fx[2] = { { 1, 1, 0, 1, 0 }, { 1, 1, 0, 1, 0 } };
+static void voo_bateu(int i, float nx, float ny, float vel)
+{
+    voo_fx_t *f = &voo_fx[i];
+    float forca = fminf(1, vel / 520);
+    if (forca < 0.15f) return;
+    if (f->t_bate < 0.05f && forca < f->forca) return;     // segue o amasso mais forte
+    f->t_bate = 0; f->forca = forca; f->nx = nx; f->ny = ny;
+}
+
 // O dado deitou no feltro: o pulinho do pouso, o relogio dele (o numero) e
 // o anel de poeira no lugar (mesa.inc).
 static void poeira_solta(float x, float y);
 static void assenta(voo_t *v)
 {
+    voo_fx[v - voo].t_bate = 1;               // pousou: nada de amasso velho no proximo lance
     v->pouso = 0.18f;
     v->t_assenta = 0.001f;
     if (!v->fantasma) poeira_solta(v->x, v->y);
@@ -3393,7 +3435,7 @@ static void assenta(voo_t *v)
 enum { TB_RESINA, TB_MADEIRA, TB_METAL, TB_PEDRA, TB_VIDRO, TB_MACIO, TB_N };
 static int timbre_de(int tipo, int dono)
 {
-    if (!px_proposta) return TB_RESINA;
+    if (!px_proposta || !(px_partes & 8)) return TB_RESINA;
     if (TIPO[tipo].efeito == EF_NADA && TIPO[tipo].lados != 2 && tipo != D_MISTERIOSO)
         switch (material_j[dono & 1]) {
         case MAT_MADEIRA: case MAT_EBANO:                                      return TB_MADEIRA;
@@ -3456,10 +3498,11 @@ static bool fisica(float dt)
 
         const float r = R_DADO + 2;
         int borda = som_bate_de(v->tipo, v->dono);   // a moeda tem os dela, mais leves; na proposta, o material
-        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
-        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
+        voo_fx[i].t_bate += dt;
+        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); voo_bateu(i, 1, 0, fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); voo_bateu(i, 1, 0, fabsf(v->vx)); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
+        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); voo_bateu(i, 0, 1, fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
+        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); voo_bateu(i, 0, 1, fabsf(v->vy)); v->vy = -v->vy * 0.62f; }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         v->t_face -= dt;
@@ -3473,14 +3516,14 @@ static bool fisica(float dt)
             v->giro = v->giro_h + 0.2f * q * sinf((1 - q) * 22);
             if (v->t_face <= 0) {
                 v->face = face_v(v->tipo, v->valor);
-                v->t_face = 0.025f + (1 - q) * 0.08f;
+                v->t_face = voo_fx[i].t_int = 0.025f + (1 - q) * 0.08f;
             }
             if (v->hesita > 0) continue;
             v->hesita = -1;
         }
         if (v->t_face <= 0) {
             v->face = face_v(v->tipo, v->valor);
-            v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
+            v->t_face = voo_fx[i].t_int = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
         }
         if (vel < 36 || t_fase > 6.0f) {
             v->parado = true;
@@ -3504,6 +3547,7 @@ static bool fisica(float dt)
             if (rv < 0) {
                 float imp = -rv * 0.8f;
                 estala(imp, som_choque(p->tipo, p->dono, q->tipo, q->dono));
+                voo_bateu(a, nx, ny, imp); voo_bateu(b, nx, ny, imp);
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }

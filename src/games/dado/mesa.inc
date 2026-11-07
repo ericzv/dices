@@ -229,6 +229,29 @@ static void ad_pouso_efeito(const voo_t *v, float x, float y, float r)
     }
 }
 
+// A proposta (P): o dado no ar tomba e amassa (desenho_dado.inc). Bateu ha
+// pouco: amassa contra a batida e espicha do outro lado, e volta. Rolando:
+// a cada face, achata na direcao em que vai, e a face troca no mais fino,
+// como se passasse por cima da aresta.
+static void voo_deforma(int i, const voo_t *v)
+{
+    const voo_fx_t *f = &voo_fx[i];
+    float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+    if (f->t_bate < 0.11f) {
+        float q = f->t_bate / 0.11f, k = (1 - q) * (1 - q) * f->forca;
+        px_def_c = f->nx; px_def_s = f->ny;
+        px_def_su = 1 - 0.30f * k; px_def_sv = 1 + 0.12f * k;
+    } else {
+        float amp = fminf(1, vel / 300);
+        if (amp < 0.1f || f->t_int <= 0) return;
+        float p = 1 - fmaxf(0, v->t_face) / f->t_int, k = 1 - sinf(fminf(1, fmaxf(0, p)) * 3.1416f);
+        k = k * k * amp;
+        px_def_c = v->vx / vel; px_def_s = v->vy / vel;
+        px_def_su = 1 - 0.36f * k; px_def_sv = 1;
+    }
+    px_def = px_def_su < 0.985f || px_def_sv > 1.015f;
+}
+
 static void casca_no_lance(bool cima);
 static void desenha_lance(void)
 {
@@ -343,7 +366,9 @@ static void desenha_lance(void)
                      && TIPO[tv].lados != 4;                   // no triangulo o numero grande nao cabe
         face_curinga = tv == D_FICHA_CORINGA;                  // o curinga ate o fim da rodada
         if (tv == D_DIGITAL) digital_q = -1;                   // o visor so acende na sequencia
+        if (px_proposta && (px_partes & 4) && !v->parado && !descartado && !caixa) voo_deforma(i, v);
         desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        px_def = false;                          // a deformacao e so deste desenho
         if (!v->fantasma && !descartado) {
             ad_pouso_efeito(v, ex + dx, ey + bob, r);
             const peca_t *pv = peca_fila(v->dono, v->slot);   // com a capa de antes: a bolha vai junto

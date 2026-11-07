@@ -1431,6 +1431,10 @@ static void toca_evento(int i)
     else if (s == SOM_EFEITO || s == SOM_FICHA || s == SOM_TIRA) som_toca_tom(s, i < ESCADA_MAX ? i : ESCADA_MAX);
     else som_toca(s);
     for (int a = 0; a < A_N; a++) if (ev[i].am >> a & 1) am_acende(a);   // o amuleto que agiu acende
+    // O combo: do 3o efeito seguido do mesmo lado, um tique por cima, cada vez mais agudo.
+    int nc = 0;
+    for (int q = 0; q <= i; q++) nc += ev[q].de_j == e->de_j;
+    if (nc >= 3) som_toca_tom(SOM_TIQUE, nc * 2 > 16 ? 16 : nc * 2);
 }
 
 // E acelera de leve: cada efeito corre 5% mais depressa que o anterior (o

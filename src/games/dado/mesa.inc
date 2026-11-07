@@ -3776,6 +3776,39 @@ static void desenha_evento(void)
     }
 }
 
+// O combo: os efeitos seguidos de um lado na cadeia do fim da rodada. Do 2o
+// em diante, a plaquinha "COMBO xN" ao lado do placar dele: pula a cada elo
+// novo e esquenta de cor (o marfim, o ouro, o fogo, o vermelho). Acabada a
+// cadeia, fica no ultimo numero enquanto o placar conta.
+static int combo_de(int j, int ate)
+{
+    int n = 0;
+    for (int i = 0; i <= ate && i < n_ev; i++) if (ev[i].de_j == j) n++;
+    return n;
+}
+static void desenha_combo(void)
+{
+    if (fase != F_EFEITOS || !n_ev) return;
+    int i = ev_i < n_ev ? ev_i : n_ev - 1;
+    int j = ev[i].de_j;
+    if (j > 1) return;
+    int n = combo_de(j, i);
+    if (n < 2) return;
+    float t = ev_i < n_ev && t_respiro < 0 ? t_fase : 1;
+    int pulo = t < 0.16f ? (int)lroundf(4 * sinf(t / 0.16f * 3.1416f)) : 0;
+    uint16_t c = n >= 6 ? C_VERMELHO : n >= 4 ? C_FOGO : n >= 3 ? C_OURO : C_MARFIM_S;
+    char s[16];
+    snprintf(s, sizeof s, "x%d", n);
+    int x = PLACAR_X - 60, y = zona(j) + (j == baixo ? -30 : 14) - pulo;
+    txt_c(x, y, "COMBO", t < 0.1f ? C_BRANCO : C_TEXTO_M, false);
+    txt_sombra_c(x, y + 9, s, t < 0.08f ? C_BRANCO : c, 2);
+    if (n >= 4 && t < 0.25f)                      // do 4o elo, as faiscas em volta do numero
+        for (int k = 0; k < 6; k++) {
+            float an = k * 1.047f + t * 9, d = 12 + t * 40;
+            gfx_rect(x + (int)(cosf(an) * d), y + 16 + (int)(sinf(an) * d * 0.6f), 2, 2, k & 1 ? C_OURO : c);
+        }
+}
+
 static void pote_mesa(void)
 {
     int n = pote_c.mostra / 10 + 1;

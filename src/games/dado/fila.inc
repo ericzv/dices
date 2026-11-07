@@ -70,7 +70,7 @@ static int valor_pontos(int j, int k)
         if (!p || !ad_no_lado(p, F[j].lado[k])) return 0;
     }
     if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? TREVO_SORTE : 0;
-    if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO) return 0;
+    if (F[j].tipo[k] == D_SACRIFICIO) return 0;
     if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
 }
@@ -79,7 +79,7 @@ static int valor_pontos(int j, int k)
 // tinha (g), o que fica depois de tirar v - e e o que ela soma agora.
 static int furia_depois(int g, int v)
 {
-    int b = (int8_t)g + (v == 4 ? FURIA_GANHA : v == 1 ? -FURIA_PERDE : 0);
+    int b = (int8_t)g + (v >= FURIA_DE ? FURIA_GANHA : v <= FURIA_ATE ? -FURIA_PERDE : 0);
     return b > FURIA_MAX ? FURIA_MAX : b < -FURIA_MAX ? -FURIA_MAX : b;
 }
 // Os Tres Patinhos ja foram lancados c vezes: agora e a 3a (6a, 9a...) vez,
@@ -481,7 +481,7 @@ static void aplica_regra(int j, int k)
     }
 
     bool condenou = ef == EF_TUDO_NADA && v == 1;    // -5 em cada dado seu no fim
-    if (ef == EF_MALDITO && v <= 7) {          // Agouro: 7 ou menos derruba a sequencia
+    if (ef == EF_MALDITO && v <= AGOURO_ATE) {   // Agouro: 5 ou menos derruba a sequencia
         anula_fila(j);
         f->est[k] = V_ANULADO;
         anulou_a = k;
@@ -499,6 +499,7 @@ static void aplica_regra(int j, int k)
         return;
     }
 
+    f->guarda[k] = 0;
     bool corrimao = !espera && l >= 0 && v == f->valor[l] - 1 && tem_am(j, A_CORRIMAO);
     if (!espera && ef != EF_PONTE && ef != EF_VAZIO && ef != EF_SANGUESSUGA && l >= 0 && cai_depois(j, v, f->valor[l])) {
         // (a Ponte, o Vazio e a Sanguessuga nunca caem)
@@ -517,11 +518,12 @@ static void aplica_regra(int j, int k)
         bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
+        if (sentinela && !esc_k) f->guarda[k] = (uint8_t)(l + 1);   // caiu protegendo: no fim, +2 nele
         anulou_a = esc_l ? -1 : l;
         anulou_b = esc_k ? -1 : k;
         resistiu = esc_l ? l : (esc_k ? k : -1);
         if (ferr && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Ferradura mantém o %d válido", v, f->valor[l], f->valor[l]);
-        else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: só a Sentinela é anulada", v, f->valor[l]);
+        else if (sentinela && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Sentinela cai protegendo o %d", v, f->valor[l], f->valor[l]);
         else if (luva && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Luva de Couro mantém o %d válido", v, f->valor[l], f->valor[l]);
         else if (rede && !esc_k) snprintf(veredito, sizeof veredito, "%d < %d: a Rede mantém o %d válido", v, f->valor[l], f->valor[l]);
         else if (esc_l && !firme_sem_capa(j, l)) snprintf(veredito, sizeof veredito, "%d < %d: o %d está protegido", v, f->valor[l], f->valor[l]);
@@ -546,9 +548,9 @@ static void aplica_regra(int j, int k)
             f->dobra[k] = 1;
             poe_tag(f, k, "x2");
         }
-        // Ferreiro com 3 ou 4 valendo logo antes: +6 no fim, se os dois ficarem.
+        // Ferreiro com 4 valendo logo antes: +4 no fim, se os dois ficarem.
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO && f->valor[l] >= FERREIRO_ARMA)
-            poe_tag_fim(f, k, "+6");
+            poe_tag_fim(f, k, "+%d", FERREIRO_FORJA);
         if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
             || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
             f->bonus[k] = 4;
@@ -559,12 +561,12 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        // Furia: o bonus guardado, ja com este lance (4 guarda +2, 1 perde 1).
+        // Furia: o bonus guardado, ja com este lance (4 a 6 guarda +2, 1 ou 2 perde 1).
         if (ef == EF_FURIA && furia_depois(f->fixo[k], v)) {
             f->bonus[k] = (int8_t)furia_depois(f->fixo[k], v);
             poe_tag(f, k, "%+d", f->bonus[k]);
         }
-        if (ef == EF_FERREIRO || ef == EF_SACRIFICIO) poe_tag(f, k, "=0");
+        if (ef == EF_SACRIFICIO) poe_tag(f, k, "=0");
         // Onda: a etiqueta diz quanto ela tera guardado se ficar.
         if (ef == EF_ONDA) poe_tag(f, k, "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
         if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) poe_tag(f, k, "x3");
@@ -635,17 +637,17 @@ static void aplica_regra(int j, int k)
         } else if (ef == EF_COLECIONADOR && v >= COLECIONADOR_DE) {
             snprintf(veredito, sizeof veredito, "Colecionador tirou %d: +%d", v, f->bonus[k]);
         } else if (ef == EF_FERREIRO) {
-            if (v >= FERREIRO_ARMA) snprintf(veredito, sizeof veredito, "Ferreiro: não pontua, forja +6 no próximo");
-            else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: não pontua nem forja", v);
+            if (v >= FERREIRO_ARMA) snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: forja +%d no próximo", v, FERREIRO_FORJA);
+            else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: pontua, sem forjar", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Fichas rende: pontua %d (+4)", vale);
         } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
-        } else if (ef == EF_FURIA && (v == 4 || v == 1)) {
-            if (v == 4) snprintf(veredito, sizeof veredito, "Fúria! guarda +%d: pontua %d (%+d)", FURIA_GANHA, vale, f->bonus[k]);
-            else        snprintf(veredito, sizeof veredito, "Fúria tirou 1: perde %d, pontua %d (%+d)", FURIA_PERDE, vale, f->bonus[k]);
+        } else if (ef == EF_FURIA && (v >= FURIA_DE || v <= FURIA_ATE)) {
+            if (v >= FURIA_DE) snprintf(veredito, sizeof veredito, "Fúria! guarda +%d: pontua %d (%+d)", FURIA_GANHA, vale, f->bonus[k]);
+            else        snprintf(veredito, sizeof veredito, "Fúria tirou %d: perde %d, pontua %d (%+d)", v, FURIA_PERDE, vale, f->bonus[k]);
         } else if (ef == EF_FURIA && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Fúria pontua %d (%+d guardado)", vale, f->bonus[k]);
         } else if (ef == EF_ONDA) {

@@ -510,15 +510,15 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 // poderes). 'lado' recebe o lado de cima (0: fora dos lados do dado);
 // 'antes', o lado do Avesso ou da Nota Dez de onde ele virou (0: nao virou).
 // Um pouso do dado t, com os adesivos dele: o Chumbo puxa o lance x para o
-// lado dele (um: metade das vezes; dois, o maximo: cada um a metade); caindo
+// lado dele (um: um terco das vezes; dois, o maximo: cada um um terco); caindo
 // no Avesso, vira o lado oposto; na Nota Dez, o mais alto (uma vez so: o lado
 // de la nao faz virar de novo). 'antes': o lado de onde virou (0: nao virou).
 static int pousa_lado(int t, const peca_t *p, int x, int (*r)(int), int *antes)
 {
     int ch[AD_LADOS], n = 0;
     for (int l = ad_lado_min(t); l <= ad_lado_max(t); l++) if (ad_no_lado(p, l) == AD_CHUMBO) ch[n++] = l;
-    if (n == 1 && r(2) == 1) x = ch[0];
-    else if (n > 1) x = ch[r(n) - 1];
+    if (n == 1 && r(3) == 1) x = ch[0];
+    else if (n > 1) { int q = r(3); if (q <= n) x = ch[q - 1]; }
     *antes = 0;
     int a = ad_no_lado(p, x);
     if (a == AD_AVESSO) { *antes = x; x = ad_oposto(t, x); }
@@ -1373,6 +1373,7 @@ static int som_do_evento(int i)
 static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_CARRASCO] = { SOM_ANULA, -5 },        [EF_INVEJOSO] = { SOM_ANULA, 3 },
     [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
+    [EF_AGNUS] = { SOM_AGNUS, 4 },
     [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
     [EF_MARTELO] = { SOM_TIRA, 2 },           [EF_PIRATA] = { SOM_TIRA, -3 },
     [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_VAMPIRO, 0 },

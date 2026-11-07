@@ -404,7 +404,7 @@ static void ia_planeja(void)
         if (nivel + 1 < L) { nivel++; s[nivel] = -1; continue; }
         // Dobro por ultimo nao dobra nada: a IA nem considera. O Universo so
         // vai sozinho: entra no fim, como fila de um dado so.
-        if (L >= 2 && (p->col[p->mao[s[L - 1]]].tipo == D_DOBRO || p->col[p->mao[s[L - 1]]].tipo == D_FERREIRO)) continue;
+        if (L >= 2 && p->col[p->mao[s[L - 1]]].tipo == D_DOBRO) continue;   // (o Ferreiro pontua: por ultimo ainda vale)
         bool uni = false;
         for (int k = 0; k < L && L >= 2; k++) uni |= p->col[p->mao[s[k]]].tipo == D_UNIVERSO;
         if (uni) continue;

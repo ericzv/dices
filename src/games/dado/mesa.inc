@@ -1506,9 +1506,9 @@ static void desenha_fila(int j)
                     }
                 }
             }
-            // A Furia: tirou 4, as chamas sobem dela; tirou 1, solta fumaca.
-            if (t == D_FURIA && (f->valor[k] == 4 || f->valor[k] == 1)) {
-                bool brava = f->valor[k] == 4;
+            // A Furia: tirou 4 a 6, as chamas sobem dela; tirou 1 ou 2, solta fumaca.
+            if (t == D_FURIA && (f->valor[k] >= FURIA_DE || f->valor[k] <= FURIA_ATE)) {
+                bool brava = f->valor[k] >= FURIA_DE;
                 for (int i = 0; i < 14; i++) {
                     float q = fmodf(t_fase * 1.8f + i * 0.09f, 1.0f);
                     int px = x - R + 2 + (i * 29) % (2 * R - 4) + (int)(sinf(t_fase * 9 + i) * 2);
@@ -3040,6 +3040,50 @@ static void desenha_evento_dentro(const evento_t *e, float p)
                     gfx_rect(bx + (int)(cosf(an) * rr) - 1, by + (int)(sinf(an) * rr) - 1, 3, 3,
                              gfx_mistura(C_LASER, C_FELTRO, (int)(tt * 80)));
                 }
+            }
+        } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_AGNUS) {
+            // Agnus com 8: a gloria acende em cima dele e desce dela um raio de
+            // luz reto ate o alvo (com a capa, para na bolha); quando chega, a
+            // luz se abre num anel, as faiscas sobem e a gloria apaga.
+            int gx = ax, gy = ay - R_DADO - 13;
+            float g = fminf(1, p / 0.12f) * fminf(1, fmaxf(0, (0.92f - p) / 0.22f));
+            if (g > 0) {
+                float rx = 3 + 5 * g, ry = 1 + 1.2f * g;
+                for (int pass = 0; pass < 2; pass++)
+                    for (int i = 0; i < 44; i++) {
+                        float an = i * 0.1428f;
+                        int px = gx + (int)lroundf(cosf(an) * rx), py = gy + (int)lroundf(sinf(an) * ry);
+                        if (!pass) gfx_pixel(px, py + 1, C_BARRA);
+                        else gfx_pixel(px, py, an < 3.1416f ? C_BRANCO : C_AMARELO);
+                    }
+            }
+            int lx = bx, ly = by;
+            if (bate) ate_a_bolha(gx, gy, &lx, &ly);
+            float q = (p - 0.12f) / 0.16f;           // o raio descendo: 0..1, depois aceso e apagando
+            if (q > 0) {
+                float ate = fminf(q, 1), forca = q < 1 ? 1 : fmaxf(0, 1 - (p - 0.28f) / 0.3f);
+                float dx = (float)(lx - gx), dy = (float)(ly - gy), l = sqrtf(dx * dx + dy * dy);
+                int n = (int)(l * ate / 2) + 1;
+                float nx = l > 0 ? -dy / l : 0, ny = l > 0 ? dx / l : 0;   // o lado do raio, para a largura
+                int larg = q < 1 ? 1 : 2;
+                for (int i = 0; i <= n && forca > 0; i++) {
+                    float s2 = ate * i / n;
+                    int px = gx + (int)lroundf(dx * s2), py = gy + (int)lroundf(dy * s2);
+                    float frente = q < 1 ? 0.45f + 0.55f * (float)i / n : 0.8f;
+                    for (int w = -larg; w <= larg; w++)
+                        luz_ponto(px + (int)lroundf(nx * w * 2), py + (int)lroundf(ny * w * 2),
+                                  frente * forca * (w ? 0.55f : 1));
+                }
+            }
+            float tt = (p - 0.28f) / 0.42f;          // chegou: o anel de luz abre no alvo
+            if (tt > 0 && tt < 1 && !bate) {
+                int rr = (int)(R_DADO * (0.6f + 0.9f * tt));
+                for (int i = 0; i < 40; i++) {
+                    float an = i * 0.157f;
+                    int px = bx + (int)lroundf(cosf(an) * rr), py = by + (int)lroundf(sinf(an) * rr * 0.9f);
+                    if (bayer(px, py) < 1 - tt) gfx_pixel(px, py, i % 2 ? C_AMARELO : C_BRANCO);
+                }
+                faiscas(bx, by, p - 0.28f, C_AMARELO);
             }
         } else if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_AUTOFAGIA) {
             // Autofagia: a cobra sai do dado, desliza rente a fila ate o mais

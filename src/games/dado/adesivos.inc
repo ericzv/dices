@@ -33,7 +33,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 #define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
 #define MASSINHA_REMENDA 1                      // a Massinha: os lados que ganham Remendo por vez
-#define CORRENTE_CADA 3                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela; era +2 so pelos de antes)
+#define CORRENTE_CADA 2                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela)
 #define DINAMITE_CADA 3                         // a Dinamite: o que o pavio guarda a cada lance que nao cai nela
 #define DINAMITE_MAX 30
 
@@ -48,7 +48,7 @@ typedef struct {
 } adesivo_t;
 
 static const adesivo_t ADESIVO[AD_N] = {
-    [AD_CHUMBO]       = { "Chumbo", "sai neste lado", "metade das vezes", 6, 7,
+    [AD_CHUMBO]       = { "Chumbo", "sai neste lado", "um terço das vezes", 6, 7,
                           RGB(70, 76, 88), RGB(140, 150, 164), C_BRANCO,
                           { ".......", "######.", ".######", "..###..", "..###..", ".#####.", "#######" } },
     [AD_REFLEXIVO]    = { "Reflexivo", "tirando este lado,", "rola de novo (1 vez)", 4, 0,
@@ -189,7 +189,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_CASCA]        = { "Casca de Banana", "tirando este lado: o 4º dado do", "oponente escorrega e fica o menor", 4, 5,
                           RGB(72, 150, 138), RGB(96, 182, 198), RGB(246, 222, 132),
                           { "...#...", "..###..", ".##w##.", ".#w#w#.", "##.#.##", "#..#..#", "#.....#" } },
-    [AD_CORRENTE]     = { "Corrente", "tirando este lado, se válido: +3", "por elo: ela e os adesivos de antes", 4, 1,
+    [AD_CORRENTE]     = { "Corrente", "tirando este lado, se válido: +2", "por elo: ela e os adesivos de antes", 4, 1,
                           RGB(120, 128, 140), RGB(184, 194, 208), RGB(36, 32, 29),
                           { "##.....", "#.#....", ".###...", "..#.#..", "...###.", "....#.#", ".....##" } },
     [AD_DINAMITE]     = { "Dinamite", "lance sem cair aqui: +3 no pavio;", "tirando este lado, válido: paga", 3, 2,
@@ -418,7 +418,7 @@ static peca_t adesivado_amostra(void)
 // O que o adesivo faz, curto: na colecao (na fonte do texto), na dica do
 // mouse e no card de novidade.
 static const char *const AD_TEXTO[AD_N] = {
-    [AD_CHUMBO]       = "O dado tira o lado do Chumbo metade das vezes.",
+    [AD_CHUMBO]       = "O dado tira o lado do Chumbo um terço das vezes.",
     [AD_REFLEXIVO]    = "Tirando este lado, o dado rola de novo e pontua o segundo lance.",
     [AD_CONFETE]      = "Tirando este lado, se o dado terminar válido: +4 pontos.",
     [AD_ELETRONICO]   = "Tirando este lado, se o dado terminar válido: pontua x2.",
@@ -460,7 +460,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_CARIMBO]      = "Tirando este lado, o adesivo do próximo dado da sequência age duas vezes.",
     [AD_DUPLA]        = "Tirando este lado, o adesivo do lado oposto do dado também age.",
     [AD_CASCA]        = "Tirando este lado, o 4º dado do oponente escorrega: rola duas vezes e fica o menor.",
-    [AD_CORRENTE]     = "Tirando este lado, se o dado terminar válido: +3 por elo, ela e cada adesivo que agiu antes dela.",
+    [AD_CORRENTE]     = "Tirando este lado, se o dado terminar válido: +2 por elo, ela e cada adesivo que agiu antes dela.",
     [AD_DINAMITE]     = "Cada lance que não cai aqui põe +3 no pavio. Tirando este lado, se terminar válido: paga o pavio.",
     [AD_BUSSOLA]      = "Tirando este lado, o próximo dado, caindo sem adesivo, rola de novo: fica o adesivo ou o maior.",
     [AD_MOLDURA]      = "Tirando este lado, os adesivos dos lados vizinhos (o número de baixo e o de cima) também agem.",
@@ -469,7 +469,7 @@ static const char *const AD_TEXTO[AD_N] = {
 // Os detalhes, as excecoes e os casos especiais: na colecao, embaixo do
 // texto, na fonte miuda e apagada (NULL: nada a mais).
 static const char *const AD_DETALHE[AD_N] = {
-    [AD_CHUMBO]       = "Na outra metade, rola normal (e ainda pode tirar esse lado). No máximo dois Chumbos por dado: com dois, cada um sai metade das vezes.",
+    [AD_CHUMBO]       = "Nos outros dois terços, rola normal (e ainda pode tirar esse lado). No máximo dois Chumbos por dado: com dois, cada um sai um terço das vezes.",
     [AD_REFLEXIVO]    = "Rola de novo uma vez só.",
     [AD_ELETRONICO]   = "Soma com os outros multiplicadores.",
     [AD_TRANSPARENTE] = "Nem pela sequência, nem por outro dado. Ainda pode ser roubado.",
@@ -506,7 +506,7 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_MASSINHA]     = "Molda assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um 1 passa a tirar 3. Com todos os lados cheios, não faz nada.",
     [AD_CARIMBO]      = "Cada vez com a regra dele: o Confete dá +8 se o dado terminar válido; o Barro suja 2 lados. O que multiplica sobe um degrau: o Eletrônico fica x3. Os que mexem no lance (Chumbo, Avesso, Post-it...) não repetem.",
     [AD_DUPLA]        = "Age como se estivesse para cima (no d6: o 1 e o 6, o 2 e o 5, o 3 e o 4). Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...) e o Patinho Feio, não.",
-    [AD_CORRENTE]     = "Sozinha, +3. Ponha no fim da fila: no 4º dado, conta tudo o que agiu nos três de antes. O que o Carimbo e a Dupla Face fizeram agir de novo também conta.",
+    [AD_CORRENTE]     = "Sozinha, +2. Ponha no fim da fila: no 4º dado, conta tudo o que agiu nos três de antes. O que o Carimbo e a Dupla Face fizeram agir de novo também conta.",
     [AD_DINAMITE]     = "O pavio vale a partida (até +30) e é um por dado. Tirando este lado e anulado, o pavio apaga sem pagar. No d2 explode quase sempre, com pouco; no d20, raramente, com muito.",
     [AD_BUSSOLA]      = "Só vale se o próximo dado tiver algum adesivo. O segundo lance fica se cair num adesivo; se não, fica o maior dos dois. Com o Post-it no mesmo dado, vale o Post-it.",
     [AD_MOLDURA]      = "No d6, o 4 faz agir o 3 e o 5. Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...), o Patinho Feio e outra Moldura, não.",

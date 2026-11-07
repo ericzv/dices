@@ -705,6 +705,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                 evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n,
                        n > 1 ? "s" : "", OURICO_PTS * n, J[r].nome);
             }
+        } else if (ef == EF_ASSOMBRA) {                   // valendo, o susto: +2 (os Fantasmas vao no fim da rodada)
+            d->semente[j] += ASSOMBRA_PTS;
+            evento(gera, EV_EXTRA, j, k, j, 0, ASSOMBRA_PTS, "Assombração: o susto, +%d", ASSOMBRA_PTS);
         } else if (ef == EF_MOSAICO) {                    // +1 por adesivo nos seus dados lancados, ele incluido
             int n = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++) {

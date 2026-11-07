@@ -1357,6 +1357,16 @@ int main(void)
             recolhe_quebrados();
             CONFERE(J[1].n_col == c1 + 2 && J[1].col[c1].tipo == D_FANTASMA && J[1].col[c1 + 1].tipo == D_FANTASMA,
                     "Assombracao valendo: dois Fantasmas na bolsa dele");
+            {
+                int nc = J[1].n_col;
+                limpa(); joga(0, D_ASSOMBRACAO, 4);
+                desfecho_t da = fim();
+                CONFERE(da.total[0] == 4 + ASSOMBRA_PTS && ASSOMBRA_PTS == 2, "Assombracao valendo: o susto, +2 (deu %d)", da.total[0]);
+                limpa(); joga(0, D_D6, 6); joga(0, D_ASSOMBRACAO, 2);
+                da = fim();
+                CONFERE(da.total[0] == 0, "Assombracao caida: sem susto (deu %d)", da.total[0]);
+                J[1].n_col = nc;
+            }
             limpa(); joga(0, D_D6, 6); joga(0, D_ASSOMBRACAO, 2);
             recolhe_quebrados();
             CONFERE(J[1].n_col == c1 + 2, "Assombracao caida nao assombra");

@@ -129,6 +129,7 @@ static int previsivel_valor(int fixo) { int v = fixo + PREVISIVEL_COMECA; return
 // O Colecionador arma com isto ou mais (era so o 6); a Assombracao poe tantos Fantasmas (era 1).
 #define COLECIONADOR_DE 5
 #define ASSOMBRA_FANTASMAS 2
+#define ASSOMBRA_PTS 2            // a Assombracao valendo: o susto vale isto
 static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
 // O que ele vira, e a partir de que numero (o Universo: sempre, no Big Bang).
 static int cosmo_proximo(int t) { return t == D_UNIVERSO ? D_ASTRO : t + 1; }
@@ -284,7 +285,7 @@ static const tipo_t TIPO[D_N] = {
     { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "Válido: -1 em cada dado do oponente" },
     { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 5 ou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_RARO,     0, "Lançado: um Fantasma na sua bolsa" },
-    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: 2 Fantasmas na bolsa do oponente" },
+    { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: +2 e 2 Fantasmas na bolsa dele" },
     { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "Anulado: +4 no fim" },
     { "Sanguessuga",      8, EF_SANGUESSUGA,  RAR_INCOMUM,  0, "Anula o dado anterior; nada o anula" },
     { "Trenó",            8, EF_TRENO,        RAR_RARO,     0, "Válido: +1, +2, +3 nos seus dados antes dele" },
@@ -412,7 +413,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
     [D_COLECIONADOR]    = "Tirando 5 ou 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
-    [D_ASSOMBRACAO]     = "Se terminar válido, no fim dois Fantasmas (pontuam 1) entram na bolsa do oponente.",
+    [D_ASSOMBRACAO]     = "Se terminar válido: +2, e no fim dois Fantasmas (pontuam 1) entram na bolsa do oponente.",
     [D_FICHA_VELHA]     = "Se terminar a rodada anulado (pela sequência ou por outro dado), pontua +4 no fim.",
     [D_SANGUESSUGA]     = "Ao ser lançado, anula o dado anterior na sequência. Este dado não pode ser anulado.",
     [D_TRENO]           = "Se terminar válido, os seus dados válidos antes dele pontuam +1, +2 e +3, do primeiro ao último.",
@@ -609,8 +610,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "Fantasmas que entraram na sua bolsa contam.",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "
                           "até o fim da partida.",
-    [D_ASSOMBRACAO]     = "Seis lados. Se terminar válido, no fim da rodada dois Fantasmas (pontuam sempre 1) entram na bolsa do "
-                          "oponente até o fim da partida.",
+    [D_ASSOMBRACAO]     = "Seis lados. Se terminar válido, pontua +2 e, no fim da rodada, dois Fantasmas (pontuam sempre 1) entram "
+                          "na bolsa do oponente até o fim da partida.",
     [D_FICHA_VELHA]     = "Uma ficha gasta, de 1 ou 2. Se terminar válido, pontua o que tirou, como uma moeda. Se terminar a "
                           "rodada anulado, pela sequência ou por um dado do oponente, pontua +4 no fim, fora dos "
                           "multiplicadores.",

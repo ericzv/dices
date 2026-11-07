@@ -3225,9 +3225,9 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
         }
         break;
     }
-    case AD_GORJETA: {                                          // duas fichas do rival para voce
+    case AD_GORJETA: {                                          // as fichas do rival para voce
         int r = e->alvo_j;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < e->valor && i < 6; i++) {
             float q = p / 0.55f - i * 0.14f;
             if (q < 0 || q > 1) continue;
             float s = q * q * (3 - 2 * q);
@@ -3235,8 +3235,11 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
             int y = ficha_py[r] + (int)((ficha_py[j] - ficha_py[r]) * s) - (int)(sinf(s * 3.1416f) * 40);
             ficha(x, y, d->luz);
         }
-        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, "-2", C_VINHO_CLR, 1);
-        if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
+        char sm[8], sp[8];
+        snprintf(sm, sizeof sm, "-%d", e->valor);
+        snprintf(sp, sizeof sp, "+%d", e->valor);
+        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, sm, C_VINHO_CLR, 1);
+        if (p > 0.6f) txt_sombra_c(ficha_px[j] + 46, ficha_py[j] - 4 - (int)((p - 0.6f) * 16), sp, C_OURO, 1);
         break;
     }
     case AD_BIS: {                                              // um lugar fantasma voa para depois do ultimo da sequencia

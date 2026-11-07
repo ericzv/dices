@@ -27,6 +27,7 @@ typedef struct {
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
     uint8_t capa[2];                 // o Impermeavel que agiu: a capa fica ate o fim da partida
     uint8_t ratoeira[2], rato_bits[2];   // Ratoeiras que desarmaram (quantas e quais posicoes)
+    uint8_t coleira_bits[2];             // as Coleiras que ja cobraram (quais posicoes)
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
     uint8_t fermento2[2], fig_cresce2[2];   // e a segunda vez, carimbadas: crescem de novo
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
@@ -183,7 +184,7 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
 // A Ratoeira (posicao a de r, com o lado dela para cima) foi anulada por um
 // poder de j: desarma e anula o maior dado valendo de j (o Seguranca dele
 // leva no lugar; a Couraca protege). Uma vez por dado e por rodada.
-static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera);
+static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera);
 static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
 {
     uint8_t bit = (uint8_t)(1 << a);
@@ -203,11 +204,27 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
     d->atacados[j]++;
     evento_t *e = evento(gera, EV_ADESIVO, r, a, j, b, F[j].valor[b], "Ratoeira: anula o %d de %s", F[j].valor[b], J[j].nome);
     if (e) e->ad = AD_RATOEIRA;
-    cavalo_abre(d, r, j, b, gera);               // o dado dele que caiu pode ser um Cavalo
+    cavalo_abre(d, r, a, j, b, gera);               // o dado dele que caiu pode ser um Cavalo
 }
 
-static void cavalo_abre(desfecho_t *d, int j, int r, int a, bool gera)
+// A Coleira: o dado dela (no lado de cima) foi roubado ou anulado por um
+// ataque do oponente j (o dado k dele). O ataque vale; quem fez perde
+// COLEIRA_PERDE no placar - uma vez por dado.
+static void coleira_cobra(desfecho_t *d, int j, int k, int r, int a, bool gera)
 {
+    uint8_t bit = (uint8_t)(1 << a);
+    if (j == r || !ad_fila_tem(r, a, AD_COLEIRA) || (d->coleira_bits[r] & bit)) return;
+    d->coleira_bits[r] |= bit;
+    d->delta[j] -= COLEIRA_PERDE;
+    evento_t *e = evento(gera, EV_ADESIVO, r, a, j, k, COLEIRA_PERDE, "Coleira: %s %s e perde %d", J[j].nome,
+                         d->est[r][a] == V_ROUBADO ? "rouba" : "anula", COLEIRA_PERDE);
+    if (e) e->ad = AD_COLEIRA;
+}
+// Depois de um ataque do dado k de j que pegou o dado a de r: a Coleira cobra,
+// a Ratoeira desarma, o Cavalo de Troia abre.
+static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera)
+{
+    if (a >= 0 && a < N_FILA && (d->est[r][a] == V_ANULADO || d->est[r][a] == V_ROUBADO)) coleira_cobra(d, j, k, r, a, gera);
     if (a >= 0 && a < N_FILA && d->est[r][a] == V_ANULADO && ad_fila_tem(r, a, AD_RATOEIRA)) ratoeira_desarma(d, j, r, a, gera);
     if (TIPO[tipo_de(r, a)].efeito != EF_CAVALO) return;
     if (tem_am(j, A_COURACA)) {
@@ -1113,7 +1130,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Berserker anula o %d de %s", F[r].valor[a], J[r].nome);
                     d->atacados[r]++;
-                    cavalo_abre(d, j, r, a, gera);
+                    cavalo_abre(d, j, k, r, a, gera);
                 }
                 continue;
             }
@@ -1177,7 +1194,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, r, a, gera);
+                cavalo_abre(d, j, k, r, a, gera);
             }
         } else if ((ef == EF_LASER && v >= 5) || (ef == EF_TSUNAMI && v >= 9)) {
             // O Laser (5 ou 6) pega o ultimo dado do oponente que pode ser
@@ -1194,7 +1211,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                     else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
                     d->atacados[r]++;
-                    cavalo_abre(d, j, r, a, gera);
+                    cavalo_abre(d, j, k, r, a, gera);
                 }
             }
         } else if (ef == EF_BONECO && v >= 8) {     // Boneco de Neve com 8: congela o 4o do oponente
@@ -1207,7 +1224,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Boneco de Neve congela o 4º de %s", J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, r, a, gera);
+                cavalo_abre(d, j, k, r, a, gera);
             }
         } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
             int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
@@ -1218,7 +1235,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, r, a, gera);
+                cavalo_abre(d, j, k, r, a, gera);
             }
         } else if (ef == EF_AGNUS && v == AGNUS_RAIO) {   // Agnus com 8: a luz anula o maior do oponente
             int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
@@ -1229,7 +1246,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Agnus: a luz anula o %d de %s", F[r].valor[a], J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, r, a, gera);
+                cavalo_abre(d, j, k, r, a, gera);
             }
         } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
             uint8_t ja = 0;                              // (o de capa e um dos dois: bate nela e fica)
@@ -1283,14 +1300,6 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
             for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
                 int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
                 if (a < 0) break;
-                if (ad_fila_tem(r, a, AD_COLEIRA)) {      // a Coleira segura: o dado fica e quem tentou perde 4
-                    d->delta[j] -= COLEIRA_PERDE;
-                    d->atacados[r]++;
-                    evento_t *ec = evento(gera, EV_ADESIVO, r, a, j, k, COLEIRA_PERDE, "Coleira: %s tenta roubar e perde %d",
-                                          nome, COLEIRA_PERDE);
-                    if (ec) ec->ad = AD_COLEIRA;
-                    break;
-                }
                 int vale = contribui(r, a);
                 d->est[r][a] = V_ROUBADO;
                 d->roubo_val[j] += vale;
@@ -1299,7 +1308,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
                 else evento(gera, EV_ROUBA, j, k, r, a, vale,
                             "%s rouba o %d de %s", nome, vale, J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, r, a, gera);
+                cavalo_abre(d, j, k, r, a, gera);
             }
         }
     }
@@ -1580,8 +1589,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, r, 0, 2, "%sLobo: -2 para %s", pre, J[r].nome);
         break;
     case AD_GORJETA:
-        d->gorjeta[j] += 2;
-        e = evento(gera, EV_ADESIVO, j, k, r, 0, 2, "%sGorjeta: %s paga 2 fichas", pre, J[r].nome);
+        d->gorjeta[j] += GORJETA_FICHAS;
+        e = evento(gera, EV_ADESIVO, j, k, r, 0, GORJETA_FICHAS, "%sGorjeta: %s paga %d fichas", pre, J[r].nome, GORJETA_FICHAS);
         break;
     case AD_DOURADO:
         d->moedas[j]++;
@@ -1763,7 +1772,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: anula o %d de %s", pre, F[r].valor[alvo], J[r].nome);
         if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
-        cavalo_abre(d, j, r, alvo, gera);
+        cavalo_abre(d, j, k, r, alvo, gera);
         return true;
     }
     default: return false;

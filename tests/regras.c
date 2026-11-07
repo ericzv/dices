@@ -1448,7 +1448,7 @@ int main(void)
             CONFERE(d.est[1][3] == V_VALIDO && d.total[1] == 11, "Boneco com 7 nao congela");
             limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(0, D_BONECO, 8); d = fim();
             CONFERE(d.total[1] == 6, "Boneco: sem 4o dado, nada");
-            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_ESCUDO, 5); joga(0, D_BONECO, 8); d = fim();
+            limpa(); joga(1, D_D4, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_ESCUDO, 4); joga(0, D_BONECO, 8); d = fim();
             CONFERE(d.est[1][3] == V_VALIDO, "o Escudo no 4o resiste ao Boneco");
             limpa(); joga(1, D_SEGURANCA, 1); joga(1, D_D4, 2); joga(1, D_D6, 3); joga(1, D_D8, 5); joga(0, D_BONECO, 8); d = fim();
             CONFERE(d.est[1][0] == V_ANULADO && d.est[1][3] == V_VALIDO, "Boneco: o Seguranca leva no lugar do 4o");
@@ -3511,10 +3511,10 @@ int main(void)
             J[0].col[1] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[1], 4, AD_CORRENTE);
             limpa(); joga_ad(0, 1, 4);
             desfecho_t dc = fim();
-            CONFERE(dc.total[0] == 4 + 2, "Corrente sozinha: 4 e um elo (+2), deu %d", dc.total[0]);
+            CONFERE(dc.total[0] == 4 + CORRENTE_CADA, "Corrente sozinha: 4 e um elo (+3), deu %d", dc.total[0]);
             limpa(); joga_ad(0, 0, 3); joga_ad(0, 1, 4);
             dc = fim();
-            CONFERE(dc.total[0] == 3 + 4 + 4 + 4, "Corrente depois do Confete: dois elos (+4), deu %d", dc.total[0]);
+            CONFERE(dc.total[0] == 3 + 4 + 4 + 2 * CORRENTE_CADA, "Corrente depois do Confete: dois elos (+6), deu %d", dc.total[0]);
             J[0].col[0] = s0; J[0].col[1] = s1;
         }
         J[0].col[4] = ex;                         // o Remendo no 8: na etiqueta, o 10 e o que rolou de novo
@@ -3571,7 +3571,7 @@ int main(void)
                 CONFERE(d.bis[0] == 1 && bis_vem[0] == 1 && !bis_vem[1], "Bis: %d (vem %d)", d.bis[0], bis_vem[0]);
                 memset(bis_vem, 0, sizeof bis_vem);
             }
-            if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == 2, "Gorjeta: %d", d.gorjeta[0]);
+            if (C[c].ad == AD_GORJETA) CONFERE(d.gorjeta[0] == GORJETA_FICHAS && GORJETA_FICHAS == 4, "Gorjeta: %d", d.gorjeta[0]);
             if (C[c].ad == AD_FERMENTO) {        // depois da rodada, ele cresceu
                 resolvido = d;
                 adesivos_ficam(0, &d);
@@ -5917,9 +5917,9 @@ int main(void)
         // Escudo e Teimoso resistem.
         limpa();
         joga(0, D_CAVALO, 6);
-        joga(1, D_CARRASCO, 4); joga(1, D_ESCUDO, 5); joga(1, D_TEIMOSO, 6);
+        joga(1, D_CARRASCO, 4); joga(1, D_ESCUDO, 4); joga(1, D_TEIMOSO, 6);
         d = fim();
-        CONFERE(d.est[1][0] == V_ANULADO && d.total[1] == 11, "Cavalo: Escudo e Teimoso deviam ficar (%d)", d.total[1]);
+        CONFERE(d.est[1][0] == V_ANULADO && d.total[1] == 10, "Cavalo: Escudo e Teimoso deviam ficar (%d)", d.total[1]);
         // Roubado: quem roubou perde os dados e o que roubou na rodada.
         limpa();
         joga(0, D_D4, 1); joga(0, D_CAVALO, 5); joga(0, D_D8, 6);
@@ -6262,7 +6262,7 @@ int main(void)
     d = fim();
     CONFERE(d.est[1][0] == V_VALIDO, "Caridoso com 1 nao devia roubar");
     limpa();
-    joga(1, D_ESCUDO, 5);
+    joga(1, D_ESCUDO, 4);
     joga(0, D_CARIDOSO, 2);
     d = fim();
     CONFERE(d.est[1][0] == V_VALIDO, "Escudo e nao roubavel: nao devia ser roubado");
@@ -6308,10 +6308,16 @@ int main(void)
     d = fim();
     CONFERE(d.est[1][0] == V_VALIDO, "Gatuno com o 1 dele mesmo nao rouba");
 
-    // ---- Coleira: tirando o lado dela, o dado nao e roubado e quem tenta perde 4 ----
+    // ---- Coleira: tirando o lado dela, o oponente que roubar ou anular o
+    // dado (por ataque) perde 4; o ataque acontece ----
     {
         peca_t c1 = J[1].col[0], c0 = J[0].col[5];
         J[1].col[0] = (peca_t){ .tipo = D_D6 };
+        limpa();                                   // sem a Coleira: o Gatuno rouba, a conta de base
+        joga_ad(1, 0, 4);
+        joga(0, D_D2, 1); joga(0, D_D6, 2); joga(0, D_GATUNO, 3);
+        d = fim();
+        int base0 = d.total[0], base1 = d.total[1];
         ad_cola(&J[1].col[0], 4, AD_COLEIRA);
         limpa();
         joga_ad(1, 0, 4);
@@ -6319,19 +6325,39 @@ int main(void)
         d = fim();
         bool puxou = false;
         for (int i = 0; i < n_ev; i++) puxou |= ev_tipo_ad(i, AD_COLEIRA) && ev[i].alvo_j == 0 && ev[i].valor == COLEIRA_PERDE;
-        CONFERE(d.est[1][0] == V_VALIDO && puxou, "Coleira: o Gatuno nao rouba (%d) e perde %d", d.est[1][0], COLEIRA_PERDE);
-        CONFERE(d.total[0] == 1 + 2 + 3 - COLEIRA_PERDE, "Coleira: o ladrao perde 4, esperava 2, deu %d", d.total[0]);
-        CONFERE(d.total[1] == 4, "Coleira: o dado fica com o dono (%d)", d.total[1]);
-        limpa();                                   // caindo em outro lado, a coleira nao segura
+        CONFERE(d.est[1][0] == V_ROUBADO && puxou, "Coleira: o Gatuno rouba (%d) e perde %d", d.est[1][0], COLEIRA_PERDE);
+        CONFERE(d.total[0] == base0 - COLEIRA_PERDE && d.total[1] == base1, "Coleira: o ladrao perde 4 (%d, sem ela %d; o dono %d e %d)",
+                d.total[0], base0, d.total[1], base1);
+        limpa();                                   // caindo em outro lado, a coleira nao cobra
         joga_ad(1, 0, 5);
         joga(0, D_D2, 1); joga(0, D_D6, 2); joga(0, D_GATUNO, 3);
         d = fim();
-        CONFERE(d.est[1][0] == V_ROUBADO, "Coleira em outro lado: o Gatuno rouba (%d)", d.est[1][0]);
-        limpa();                                   // o Caridoso com 3 tambem esbarra nela
+        puxou = false;
+        for (int i = 0; i < n_ev; i++) puxou |= ev_tipo_ad(i, AD_COLEIRA);
+        CONFERE(d.est[1][0] == V_ROUBADO && !puxou, "Coleira em outro lado: o Gatuno rouba sem pagar (%d)", d.est[1][0]);
+        limpa();                                   // o Caridoso com 3 tambem paga
         joga_ad(1, 0, 4);
         joga(0, D_CARIDOSO, 3);
         d = fim();
-        CONFERE(d.est[1][0] == V_VALIDO, "Coleira: o Caridoso nao rouba (%d)", d.est[1][0]);
+        puxou = false;
+        for (int i = 0; i < n_ev; i++) puxou |= ev_tipo_ad(i, AD_COLEIRA) && ev[i].alvo_j == 0;
+        CONFERE(d.est[1][0] == V_ROUBADO && puxou, "Coleira: o Caridoso rouba e paga (%d)", d.est[1][0]);
+        // E anular: o Laser com 5 anula o ultimo valido do oponente - a Coleira cobra 4.
+        J[1].col[0] = (peca_t){ .tipo = D_D6 };
+        limpa();
+        joga_ad(1, 0, 4);
+        joga(0, D_D2, 1); joga(0, D_LASER, 5);
+        d = fim();
+        base0 = d.total[0];
+        ad_cola(&J[1].col[0], 4, AD_COLEIRA);
+        limpa();
+        joga_ad(1, 0, 4);
+        joga(0, D_D2, 1); joga(0, D_LASER, 5);
+        d = fim();
+        puxou = false;
+        for (int i = 0; i < n_ev; i++) puxou |= ev_tipo_ad(i, AD_COLEIRA) && ev[i].alvo_j == 0 && ev[i].valor == COLEIRA_PERDE;
+        CONFERE(d.est[1][0] == V_ANULADO && puxou && d.total[0] == base0 - COLEIRA_PERDE,
+                "Coleira: o Laser anula (%d) e perde 4 (%d, sem ela %d)", d.est[1][0], d.total[0], base0);
         // ---- Tiquete de Metro: com 4 dados validos na sequencia, +5 ----
         J[0].col[5] = (peca_t){ .tipo = D_D8 };
         ad_cola(&J[0].col[5], 5, AD_TIQUETE);

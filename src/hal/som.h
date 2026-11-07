@@ -79,7 +79,7 @@ enum {
     SOM_PIAO,        // o Piao girando de novo: o zumbido de madeira e o toc quando deita
     SOM_GELATINA,    // a Gelatina quicando: o bloop de borracha que treme
     SOM_MATRIOSKA,   // a Matrioska abrindo uma boneca: a madeira desenroscando e o toc oco
-    SOM_PANELA,      // a Panela de Pressao soltando o vapor: a valvula, o chiado e o apito
+    SOM_BALAO,       // o Balao estourando: a borracha rangendo, o estalo e as tiras caindo
     SOM_LEQUE,       // o Leque abrindo: as varetas estalando e o abano
     SOM_PAPAGAIO,    // o Papagaio repetindo: dois gritinhos e as asas
     SOM_RETRATO,     // o Porta-Retrato: o flash carregando e o clique da camera

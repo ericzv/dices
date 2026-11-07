@@ -276,9 +276,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   caindo abaixo do dado de antes, quica de novo e fica o maior), no 3; a
   Colcha de Retalhos (d6 com um Remendo no 1, no 2 e no 3), no 4; o Leque
   (d8: valendo, +2 por outro dado seu valendo caído num lado com adesivo),
-  no 5; a Panela de Pressão (d8: guarda +2 a cada rodada fora da fila ou
-  anulada, até +10, saindo um vaporzinho cada vez maior, e com 7 ou 8
-  valendo solta tudo) e o Papagaio (d8: valendo, repete o último adesivo
+  no 5; o Balão (d8: enche +2 a cada rodada fora da fila ou anulado, até
+  +10, o látex clareando e o brilho crescendo, e com 7 ou 8 valendo estoura
+  e soma tudo) e o Papagaio (d8: valendo, repete o último adesivo
   seu que agiu na rodada), no 6; o Camaleão (d8 com o poder - e a cor - do
   dado de antes) e o Porta-Retrato (d6: valendo, o adesivo dele age também
   no dado de antes, se ele valer), no 7; o Camelô (d12: em cada partida,

@@ -345,7 +345,7 @@ static float ia_futuro(int j)
         case EF_MEIA:     if (!vale) b += MEIA_GUARDA; break;
         case EF_PATINHOS: if (!patinhos_ativo(f->fixo[k])) b += 1.5f; break;
         case EF_ONDA:     if (vale) b += 0.5f * f->valor[k]; break;
-        case EF_PANELA:   if (!vale && f->tipo[k] == D_PANELA) b += PANELA_CADA; break;   // anulada, junta pressao
+        case EF_BALAO:    if (!vale && f->tipo[k] == D_BALAO) b += BALAO_CADA; break;   // anulado, enche mais
         case EF_JINGLE:   if (vale) b += 1.0f; break;
         default: break;
         }

@@ -233,31 +233,43 @@ static void ad_pouso_efeito(const voo_t *v, float x, float y, float r)
     }
 }
 
-// A Panela soltando o vapor (p: 0..1 do evento), da valvula em (x, y): o
-// jato sobe em espiral, as nuvenzinhas crescem e apagam pontilhadas; no
-// comeco, os risquinhos do apito em volta da valvula.
-static void panela_jato(int x, int y, float p)
+// O Balao estourando (p: 0..1 do evento), no dado em (x, y): o latex
+// esticando ate o limite (os risquinhos tremendo em volta), o estalo (o
+// clarao em estrela e o anel) e os pedacos de borracha voando e caindo.
+#define BALAO_ESTALO 0.16f
+static void balao_estouro(int x, int y, float p)
 {
-    for (int i = 0; i < 24; i++) {
-        float q = (p - 0.06f) / 0.78f - i * 0.028f;
-        if (q <= 0 || q >= 1) continue;
-        float an = q * 8 + i * 0.9f, d = 3 + q * 15;
-        int px = x + (int)(cosf(an) * d), py = y - 3 - (int)(q * 72);
-        int rr = 2 + (int)(q * 6);
-        for (int dy = -rr; dy <= rr; dy++)
-            for (int dx = -rr; dx <= rr; dx++) {
-                if (dx * dx + dy * dy > rr * rr) continue;
-                int X = px + dx, Y = py + dy;
-                if (X < 0 || Y < 0 || X >= GFX_W || Y >= GFX_H || bayer(X, Y) < q * 0.9f) continue;
-                gfx_pixel(X, Y, dx * dx + dy * dy < rr * rr / 3 && q < 0.6f ? C_BRANCO : C_MARFIM_S);
-            }
-    }
-    if (p < 0.42f) {                                      // o apito: risquinhos saindo da valvula
-        int f = (int)(p * 30);
-        for (int i = 0; i < 4; i++) {
-            float an = -2.4f + i * 0.55f + (f % 2) * 0.12f;
-            gfx_linha(x + (int)(cosf(an) * 5), y + (int)(sinf(an) * 5), x + (int)(cosf(an) * 9), y + (int)(sinf(an) * 9), C_BRANCO);
+    if (p < BALAO_ESTALO) {
+        float q = p / BALAO_ESTALO;
+        int rr = R_DADO + 3 + (int)(q * 4), f = (int)(p * 50) % 2;
+        for (int i = 0; i < 12; i++) {
+            if (i % 2 != f) continue;
+            float an = i * 0.5236f + 0.26f;
+            gfx_linha(x + (int)lroundf(cosf(an) * rr), y + (int)lroundf(sinf(an) * rr),
+                      x + (int)lroundf(cosf(an) * (rr + 3)), y + (int)lroundf(sinf(an) * (rr + 3)), C_MARFIM);
         }
+        return;
+    }
+    float q = (p - BALAO_ESTALO) / (1 - BALAO_ESTALO);
+    if (q < 0.14f) {                                      // o clarao: a estrela de raios
+        float b = q / 0.14f;
+        for (int i = 0; i < 8; i++) {
+            float an = i * 0.7854f + 0.39f;
+            int d0 = R_DADO + 1 + (int)(b * 6), d1 = R_DADO + 8 + (int)(b * 14);
+            gfx_linha_grossa(x + (int)(cosf(an) * d0), y + (int)(sinf(an) * d0), x + (int)(cosf(an) * d1),
+                             y + (int)(sinf(an) * d1), i % 2 ? 1 : 2, b < 0.5f ? C_BRANCO : C_AMARELO);
+        }
+    }
+    if (q < 0.40f) anel(x, y, R_DADO + 3 + (int)(q / 0.40f * 26), 1, q < 0.16f ? C_BRANCO : C_MARFIM_S);   // o anel do estalo
+    for (int i = 0; i < 11; i++) {                        // os pedacos de borracha, girando e caindo
+        float an = i * 0.5712f + 0.35f * sinf(i * 2.1f), vel = 64 + 22 * (i % 3), tt = q * 1.1f;
+        float px = x + cosf(an) * (R_DADO * 0.8f + vel * tt);
+        float py = y + sinf(an) * R_DADO * 0.8f + (sinf(an) * vel - 46) * tt + 170 * tt * tt;
+        if (bayer((int)px, (int)py) < q * q * 1.3f) continue;   // e somem, pontilhados
+        bool deitado = ((int)(tt * 14) + i) % 2;         // a tira de latex, ora deitada, ora em pe
+        int w = deitado ? 4 : 2, h = deitado ? 2 : 4, X = (int)px - w / 2, Y = (int)py - h / 2;
+        gfx_rect(X, Y, w, h, RGB(190, 56, 60));
+        gfx_rect(deitado ? X : X + 1, deitado ? Y + 1 : Y, deitado ? w : 1, deitado ? 1 : h, RGB(118, 30, 38));
     }
 }
 
@@ -3879,8 +3891,8 @@ static void desenha_evento_dentro(const evento_t *e, float p)
                                   d < 3 ? C_BRANCO : d < 6 ? C_VENTO : C_MARFIM_S);
                 }
             }
-        } else if (t == D_PANELA) {
-            panela_jato(ax, ay - R_DADO - 3, p);              // o vapor guardado saindo de uma vez
+        } else if (t == D_BALAO) {
+            balao_estouro(ax, ay, p);                        // o ar guardado saindo de uma vez: estoura
         } else if (t == D_CHECKPOINT) {
             // A bandeira quadriculada sobe do dado e tremula: daqui em diante, +3.
             float q = p / 0.3f;

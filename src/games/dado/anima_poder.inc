@@ -73,7 +73,12 @@ static const char *const SP_PANETONE[] = { ".###.", "#+o+#", "#o+o#", "#####" };
 static const char *const SP_CARTA_V[] = { "#####", "#o+o#", "#+o+#", "#o+o#", "#+o+#", "#o+o#", "#####" };
 static const char *const SP_GLORIA[] = { "#..#..#", ".#.#.#.", ".......", ".#####.", "#.....#", ".+++++." };
 static const char *const SP_LEQUE_A[] = { "..#####..", ".#+#+#+#.", "#+#+#+#+#", ".#+#+#+#.", "..#+#+#..", "...#+#...", "....o...." };
-static const char *const SP_PANELA[] = { "...o...", ".#####.", "#######", "o#+++#o", ".#####.", ".#####." };
+// O Balao em tres tamanhos (o ar que guardou): o brilho em cima a
+// esquerda, a sombra embaixo a direita e o no.
+static const char *const SP_BALAO_P[] = { ".###.", "#+###", "####o", ".##o.", "..o.." };
+static const char *const SP_BALAO_M[] = { "..###..", ".#+###.", "#++####", "#+####o", ".####o.", "..##o..", "...o..." };
+static const char *const SP_BALAO_G[] = { "..#####..", ".#++####.", "#++######", "#+#######", "########o",
+                                          ".######o.", "..####o..", "...#o#...", "....o...." };
 static const char *const SP_PAPAGAIO[] = { ".###...", "#####..", "#o###++", "######+", "####...", ".###..." };
 static const char *const SP_PAPAGAIO_B[] = { ".###...", "#####.+", "#o###+.", "######.", "####.++", ".###..." };
 static const char *const SP_CAMERA[] = { "..##...", "#######", "##ooo##", "#o+++o#", "##ooo##", "#######" };
@@ -165,7 +170,7 @@ static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_TERREMOTO]    = { PA_SP(SP_FALHA), MV_TREME, C_FOGO, C_AMARELO, C_TERRA },                   // a falha tremendo
     [EF_AGNUS]        = { SP_GLORIA, NULL, 6, 0, MV_ESPECIAL, C_AMARELO, C_BRANCO, C_OURO },         // a gloria em cima do cordeiro
     [EF_LEQUE]        = { PA_SP(SP_LEQUE_A), MV_ESPECIAL, C_VINHO_CLR, C_ROSA, C_MADEIRA },          // o leque abanando
-    [EF_PANELA]       = { PA_SP(SP_PANELA), MV_ESPECIAL, C_ACO, C_PRATA, C_FERRO },                   // a pressao que vai soltar
+    [EF_BALAO]        = { PA_SP(SP_BALAO_M), MV_ESPECIAL, RGB(190, 56, 60), C_BRANCO, RGB(118, 30, 38) },   // a bexiga que vai estourar
     [EF_PAPAGAIO]     = { PA_SP2(SP_PAPAGAIO, SP_PAPAGAIO_B), MV_QUADROS, C_VERDE, C_AMARELO, C_EBANO },   // o bico abrindo
     [EF_RETRATO]      = { PA_SP(SP_CAMERA), MV_ESPECIAL, C_EBANO_B, C_VENTO, C_PRATA },               // a camera e o flash
     [EF_ESTILINGUE]   = { PA_SP(SP_ESTILINGUE), MV_ESPECIAL, C_MADEIRA, C_MADEIRA_CLR, C_MADEIRA_ESC }, // o elastico puxado
@@ -209,7 +214,7 @@ static void leque_aberto(int cx, int cy, float R, float abre, float balanco)
     gfx_rect(cx - 1, cy - 1, 3, 3, C_OURO);
 }
 
-// O que o dado guarda (a pressao da Panela), para a animacao dele; -1 fora
+// O que o dado guarda (o ar do Balao), para a animacao dele; -1 fora
 // da mesa (a colecao, o tutorial).
 static int anima_fixo = -1;
 
@@ -479,18 +484,19 @@ static void anima_poder(int x, int y, int R, int tipo, float fase)
             leque_aberto(ax, ay + 4, 9, 0.35f + 0.65f * q, sinf(t * 5.2f) * 0.15f);
             break;
         }
-        case EF_PANELA: {                          // a tampa chacoalhando, o vapor saindo e o que ela vai soltar
-            int n = anima_fixo < 0 ? 2 * PANELA_CADA : anima_fixo, f = (int)(t * 16);
-            sprite_em(ax + (f % 2), ay + 2, a->sp, a->h, a->c1, a->c2, a->c3, false, 0);
-            for (int i = 0; i < 4; i++) {
-                float q = fmodf(t * 1.4f + i * 0.25f, 1.0f);
-                int vx = ax + (i % 2 ? 3 : -3) + (int)lroundf(sinf(t * 5 + i * 2) * 1.5f), vy = ay - 2 - (int)(q * 9);
-                if (bayer(vx, vy) >= q) gfx_rect(vx, vy, q < 0.4f ? 2 : 1, q < 0.4f ? 2 : 1, q < 0.5f ? C_BRANCO : C_MARFIM_S);
-            }
+        case EF_BALAO: {                           // a bexiga boiando, do tamanho do ar que guardou, e o que vai estourar
+            int n = anima_fixo < 0 ? 2 * BALAO_CADA : anima_fixo;
+            const char *const *sp = n < 4 ? SP_BALAO_P : n < 8 ? SP_BALAO_M : SP_BALAO_G;
+            int h = n < 4 ? 5 : n < 8 ? 7 : 9;
+            int by = ay - 2 + (int)lroundf(sinf(t * 2.2f) * 1.5f), bx = ax;
+            if (n >= BALAO_MAX * 8 / 10 && (int)(t * 14) % 2 && fmodf(t * 0.9f, 1.0f) < 0.45f) bx++;   // cheio: treme
+            for (int k = 0; k < 5; k++)            // o barbante, ondulando
+                gfx_pixel(bx + (int)lroundf(sinf(t * 4.0f + k * 1.1f) * 0.8f), by + h / 2 + 1 + k, C_MARFIM_S);
+            sprite_em(bx, by, sp, h, a->c1, a->c2, a->c3, false, 0);
             char s[12];
             snprintf(s, sizeof s, "+%d", n);
             bool bate = fmodf(t * 1.6f, 1.0f) < 0.25f;
-            rotulo_poder(ax, ay - 9 - bate, s, bate ? C_BRANCO : C_AMARELO);
+            rotulo_poder(ax, by - h / 2 - 5 - bate, s, bate ? C_BRANCO : C_AMARELO);
             break;
         }
         case EF_RETRATO: {                         // a camera e, de vez em quando, o flash

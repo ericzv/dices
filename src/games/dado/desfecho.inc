@@ -31,7 +31,7 @@ typedef struct {
     uint8_t fermento2[2], fig_cresce2[2];   // e a segunda vez, carimbadas: crescem de novo
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
     uint8_t dinamite[2];             // as Dinamites que estouraram ou apagaram: o pavio zera
-    uint8_t panela[2];               // as Panelas de Pressao que soltaram o vapor: a pressao zera
+    uint8_t balao[2];                // os Baloes que estouraram: o ar zera
     uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
 } desfecho_t;
@@ -736,11 +736,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                                      n, n > 1 ? "s" : "", LEQUE_PTS * n);
                 for (int i = 0; e && i < N_FILA; i++) if (m >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = LEQUE_PTS; }
             }
-        } else if (ef == EF_PANELA && f->valor[k] >= PANELA_SOLTA && f->fixo[k] > 0 && F[j].tipo[k] == D_PANELA) {
-            int n = f->fixo[k];                           // com 7 ou 8, solta a pressao guardada de uma vez
+        } else if (ef == EF_BALAO && f->valor[k] >= BALAO_ESTOURA && f->fixo[k] > 0 && F[j].tipo[k] == D_BALAO) {
+            int n = f->fixo[k];                           // com 7 ou 8, estoura: o ar guardado entra de uma vez
             d->semente[j] += n;
-            d->panela[j] |= (uint8_t)(1 << k);
-            evento(gera, EV_EXTRA, j, k, j, 0, n, "Panela de Pressão solta o vapor: +%d", n);
+            d->balao[j] |= (uint8_t)(1 << k);
+            evento(gera, EV_EXTRA, j, k, j, 0, n, "Balão estoura: +%d", n);
         } else if (ef == EF_MOSAICO) {                    // +1 por adesivo nos seus dados lancados, ele incluido
             int n = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++) {
@@ -913,7 +913,7 @@ static int poder_armado(int j, int k)
     case EF_LEQUE:                                           // um outro seu valendo no lado com adesivo
         for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && ad_fila(j, i)) return 1;
         return 0;
-    case EF_PANELA:       return f->fixo[k] > 0 && v >= PANELA_SOLTA && f->tipo[k] == D_PANELA;
+    case EF_BALAO:        return f->fixo[k] > 0 && v >= BALAO_ESTOURA && f->tipo[k] == D_BALAO;
     case EF_PAPAGAIO:     return 1;
     case EF_RETRATO:      return k > 0 && ad_fila(j, k) && f->est[k - 1] == V_VALIDO;
     case EF_RANCOR:       return J[j].perdidas > 0;

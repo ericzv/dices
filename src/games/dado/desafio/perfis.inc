@@ -210,7 +210,7 @@ static int nivel_do_dado(int t)
     case D_ESTILINGUE:                                                          return 2;
     case D_PIAO: case D_GELATINA:                                               return 3;
     case D_LEQUE:                                                               return 5;
-    case D_PANELA: case D_PAPAGAIO:                                             return 6;
+    case D_BALAO: case D_PAPAGAIO:                                              return 6;
     case D_CAMALEAO: case D_RETRATO:                                            return 7;   // o Porta-Retrato: ja habituado aos adesivos
     case D_CAMELO:                                                              return 8;
     case D_MATRIOSKA:                                                           return 9;

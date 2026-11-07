@@ -711,7 +711,7 @@ static void lanca_proximo(void)
 
     // Acumulador: entra com o bonus que guardou (ele cresce em passo.inc,
     // cada vez que pousa valendo).
-    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA || t == D_PREVISIVEL || t == D_PANELA) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
+    if ((t == D_ACUMULADOR || t == D_AUTOFAGIA || t == D_PREVISIVEL || t == D_BALAO) && f->idx[k] >= 0 && f->idx[k] < J[vez].n_col)
         f->fixo[k] = J[vez].col[f->idx[k]].fixo;
     hora_comeca(dado_decisivo(vez, k));      // antes do sorteio: so olha as faces possiveis
     if (modo == M_DESAFIO) {                 // para o oponente saber quem passou quem
@@ -1003,8 +1003,8 @@ static void cosmo_ficam(int j)
 // Tsunami, de vez; os Tres Patinhos, valendo ou nao, mais uma vez; o Revolver, valendo
 // ou nao, mais uma bala (e o tambor vazio depois do tiro); e o ciclo cosmico
 // evolui (cosmo_ficam).
-// A Panela de Pressao junta PANELA_CADA por rodada fora da fila (ou anulada), ate PANELA_MAX.
-static int panela_enche(int g) { return g + PANELA_CADA > PANELA_MAX ? PANELA_MAX : g + PANELA_CADA; }
+// O Balao enche BALAO_CADA por rodada fora da fila (ou anulado), ate BALAO_MAX.
+static int balao_enche(int g) { return g + BALAO_CADA > BALAO_MAX ? BALAO_MAX : g + BALAO_CADA; }
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -1022,17 +1022,17 @@ static void contadores_ficam(int j, const desfecho_t *d)
             p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
         else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
-        else if (p->tipo == D_PANELA && (d->panela[j] >> k & 1)) p->fixo = 0;       // soltou o vapor: esvazia
-        else if (p->tipo == D_PANELA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)panela_enche(F[j].fixo[k]);
+        else if (p->tipo == D_BALAO && (d->balao[j] >> k & 1)) p->fixo = 0;        // estourou: volta vazio
+        else if (p->tipo == D_BALAO && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)balao_enche(F[j].fixo[k]);
     }
-    // A Panela de Pressao que ficou fora da fila nesta rodada (na bolsa ou na
-    // mao) junta pressao tambem.
+    // O Balao que ficou fora da fila nesta rodada (na bolsa ou na mao)
+    // enche tambem.
     for (int i = 0; i < J[j].n_col; i++) {
         peca_t *p = &J[j].col[i];
-        if (p->tipo != D_PANELA || J[j].onde[i] == COMIDO) continue;
+        if (p->tipo != D_BALAO || J[j].onde[i] == COMIDO) continue;
         bool lancada = false;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) lancada |= F[j].idx[k] == i;
-        if (!lancada) p->fixo = (uint8_t)panela_enche(p->fixo);
+        if (!lancada) p->fixo = (uint8_t)balao_enche(p->fixo);
     }
     cosmo_ficam(j);
 }
@@ -1447,7 +1447,7 @@ static int som_do_evento(int i)
         case D_ESTRELA: return SOM_ESTRELA;
         case D_MEIA:    return e->valor ? SOM_AD_DOURADO : SOM_MOEDA_POUSA;   // paga; ou guarda mais uma
         case D_LEQUE:   return SOM_LEQUE;
-        case D_PANELA:  return SOM_PANELA;
+        case D_BALAO:   return SOM_BALAO;
         default:        return SOM_EFEITO;
         }
     case EV_BONUS:
@@ -1494,7 +1494,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_JACKPOT] = { SOM_FICHA, 4 },
     [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
     [EF_MOSAICO] = { SOM_AD_FIGURINHA, -2 },
-    [EF_LEQUE] = { SOM_LEQUE, 0 },            [EF_PANELA] = { SOM_PANELA, 0 },
+    [EF_LEQUE] = { SOM_LEQUE, 0 },            [EF_BALAO] = { SOM_BALAO, 0 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons

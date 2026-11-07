@@ -2179,22 +2179,27 @@ def matrioska():
     m.poe(0.10, marimba(72, 0.25, 0.2), 0.45)                                # o oco da boneca
     return sala(m.x, 0.14)
 
-def panela():
-    """A Panela de Pressao soltando o vapor: a valvula chacoalhando, o
-    chiado forte saindo de uma vez, o apito subindo por cima e o vapor
-    diminuindo ate parar."""
-    m = Mix(1.4)
-    for k in range(5):                                         # a valvula chacoalhando
-        m.poe(k * 0.045, pa(tom(batida(METAL[k % len(METAL)]), 5), 900), 0.9 + 0.1 * k)
-    n = int(1.1 * SR); t = np.arange(n) / SR; q = t / t[-1]
-    vapor = banda(rng.standard_normal(n), 1800, 7500) * np.minimum(1, t / 0.05) * (1 - q) ** 1.4
-    m.poe(0.2, vapor, 0.40)
-    m.poe(0.2, banda(rng.standard_normal(n), 500, 2000) * np.minimum(1, t / 0.08) * (1 - q) ** 2, 0.12)
-    n = int(0.8 * SR); t = np.arange(n) / SR; q = t / t[-1]
-    f = 1500 + 900 * np.minimum(1, q * 2.5) + 25 * np.sin(2 * np.pi * 7 * t)   # o apito subindo
-    apito = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * q) ** 1.5
-    m.poe(0.25, apito, 0.10)
-    return sala(m.x, 0.18)
+def balao():
+    """O Balao estourando: a borracha rangendo, esticada ate o limite (um
+    guincho aspero, aos trancos, que sobe), o estalo seco - o chiado de uma
+    vez e o baque grave - e as tiras de latex caindo no feltro. O estalo
+    cai em 0,25 s, quando o clarao aparece na mesa."""
+    m = Mix(0.9)
+    n = int(0.22 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    f = (380 + 420 * q ** 1.6) * (1 + 0.02 * np.sin(2 * np.pi * 23 * t))
+    fase = 2 * np.pi * np.cumsum(f) / SR
+    y = 0.6 * np.sign(np.sin(fase)) + np.sin(fase) + 0.4 * np.sin(3 * fase)   # aspero: o dedo na borracha
+    trancos = (0.5 + 0.5 * np.sin(2 * np.pi * (26 + 30 * q) * t)) ** 3
+    m.poe(0.02, banda(y * trancos, 450, 3800) * np.sin(np.pi * np.minimum(1, q * 1.1)) ** 0.5 * (0.4 + 0.6 * q), 0.16)
+    n = int(0.12 * SR)
+    m.poe(0.25, pa(rng.standard_normal(n), 700) * env(n, 0.0002, 0.016), 1.0)          # o estalo
+    m.poe(0.25, banda(rng.standard_normal(n), 1800, 7000) * env(n, 0.0001, 0.006), 0.6)
+    n = int(0.18 * SR); t = np.arange(n) / SR
+    m.poe(0.25, np.sin(2 * np.pi * np.cumsum(55 + 140 * np.exp(-t / 0.025)) / SR) * env(n, 0.0005, 0.045), 0.75)
+    for k, t0 in enumerate((0.47, 0.56, 0.63, 0.70)):                                 # as tiras caindo
+        n = int(0.03 * SR)
+        m.poe(t0, banda(rng.standard_normal(n), 300, 1600) * env(n, 0.001, 0.007), 0.08 - 0.015 * k)
+    return sala(m.x, 0.22)
 
 def leque():
     """O Leque abrindo: as varetas estalando uma a uma (um tr-r-r de papel e
@@ -2317,7 +2322,7 @@ VOLUME.update({'agnus': VOLUME['efeito'] * 1.05})
 # Matrioska) um pouco abaixo, para nao cobrir o dado assentando.
 VOLUME.update({'ad_coleira': VOLUME['efeito'], 'ad_tiquete': VOLUME['efeito'] * 0.9})
 VOLUME.update({'piao': VOLUME['efeito'] * 0.8, 'gelatina': VOLUME['efeito'] * 0.8,
-               'matrioska': VOLUME['efeito'] * 0.85, 'panela': VOLUME['efeito'],
+               'matrioska': VOLUME['efeito'] * 0.85, 'balao': VOLUME['efeito'],
                'leque': VOLUME['efeito'] * 0.9, 'papagaio': VOLUME['efeito'] * 0.95,
                'retrato': VOLUME['efeito'] * 0.9, 'estilingue': VOLUME['efeito'] * 0.95})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
@@ -2347,7 +2352,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
-             'piao', 'gelatina', 'matrioska', 'panela', 'leque', 'papagaio', 'retrato', 'estilingue',
+             'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
              'ad_coleira', 'ad_tiquete'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):

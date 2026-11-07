@@ -20,7 +20,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_ASTRO, EF_CONSTELACAO, EF_GALAXIA, EF_BURACO, EF_UNIVERSO,
        EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS,
        EF_TELA, EF_PINCEL, EF_MOSAICO,
-       EF_PIAO, EF_CAMELO, EF_LEQUE, EF_RETRATO, EF_ESTILINGUE, EF_CAMALEAO, EF_PANELA,
+       EF_PIAO, EF_CAMELO, EF_LEQUE, EF_RETRATO, EF_ESTILINGUE, EF_CAMALEAO, EF_BALAO,
        EF_PAPAGAIO, EF_MATRIOSKA, EF_COLCHA, EF_GELATINA, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
@@ -67,7 +67,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        // O cordeiro: tirando 7, ressuscita os seus anulados da rodada.
        D_AGNUS, D_TELA, D_PINCEL, D_MOSAICO,
        // Os que vivem dos adesivos e da fila (a leva do relatorio de builds).
-       D_PIAO, D_CAMELO, D_LEQUE, D_RETRATO, D_ESTILINGUE, D_CAMALEAO, D_PANELA,
+       D_PIAO, D_CAMELO, D_LEQUE, D_RETRATO, D_ESTILINGUE, D_CAMALEAO, D_BALAO,
        D_PAPAGAIO, D_MATRIOSKA, D_COLCHA, D_GELATINA, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
@@ -92,9 +92,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ESPERANCA_FICHAS 40     // (era 15: quase nunca valia)
 #define AGIOTA_FICHAS 3          // o Agiota leva isto do oponente (eram 2)
 #define LEQUE_PTS     2          // o Leque: por dado seu valendo que caiu num lado com adesivo
-#define PANELA_SOLTA  7          // a Panela de Pressao solta a pressao com 7 ou 8
-#define PANELA_CADA   2          // e guarda isto por rodada fora da fila ou anulada
-#define PANELA_MAX    10
+#define BALAO_ESTOURA 7          // o Balao estoura (e soma o ar guardado) com 7 ou 8
+#define BALAO_CADA    2          // e enche isto por rodada fora da fila ou anulado
+#define BALAO_MAX     10
 // O que cada Jingle Bell valendo rende no fim, com outro valendo junto.
 #define JINGLE_PTS 4
 // A Furia: o que guarda tirando 4, o que perde tirando 1, e o teto (dos dois lados).
@@ -341,7 +341,7 @@ static const tipo_t TIPO[D_N] = {
     { "Porta-Retrato",    6, EF_RETRATO,      RAR_INCOMUM,  0, "Válido: o adesivo age no de antes" },
     { "Estilingue",       6, EF_ESTILINGUE,   RAR_COMUM,    0, "Com 1: o próximo tira o máximo" },
     { "Camaleão",         8, EF_CAMALEAO,     RAR_RARO,     0, "Tem o poder do dado de antes" },
-    { "Panela de Pressão", 8, EF_PANELA,      RAR_INCOMUM,  0, "Guarda +2; com 7 ou 8, solta" },
+    { "Balão",            8, EF_BALAO,        RAR_INCOMUM,  0, "Enche +2; com 7 ou 8, estoura" },
     { "Papagaio",         8, EF_PAPAGAIO,     RAR_INCOMUM,  0, "Válido: repete o último adesivo" },
     { "Matrioska",        8, EF_MATRIOSKA,    RAR_LENDA,    0, "Abre bonecas menores e soma" },
     { "Colcha de Retalhos", 6, EF_COLCHA,     RAR_COMUM,    0, "Remendo no 1, no 2 e no 3" },
@@ -479,7 +479,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_RETRATO]         = "Se terminar válido, o adesivo do lado dele age também no dado de antes, se ele valer.",
     [D_ESTILINGUE]      = "Se tirar 1, o próximo dado da sua sequência tira o número mais alto dele.",
     [D_CAMALEAO]        = "Tem o poder do dado logo antes dele na sequência, como se fosse ele.",
-    [D_PANELA]          = "Fora da fila ou anulada, guarda +2 por rodada (até +10). Válida com 7 ou 8, solta tudo.",
+    [D_BALAO]           = "Fora da fila ou anulado, enche +2 por rodada (até +10). Válido com 7 ou 8, estoura e soma tudo.",
     [D_PAPAGAIO]        = "Se terminar válido, o último adesivo seu que agiu na rodada age de novo nele.",
     [D_MATRIOSKA]       = "Tirando 6 a 8, abre um d6; com 5 ou 6, um d4; com 4, um d2. Vale a soma de todos.",
     [D_COLCHA]          = "Já vem com um Remendo no 1, no 2 e no 3: os lados baixos tiram 3, 4 e 5.",
@@ -755,15 +755,15 @@ static const char *TEXTO_CAT[D_N] = {
     [D_RETRATO]         = "A moldura de prata com a foto de um dado. Se terminar válido, o adesivo do lado em que ele "
                           "caiu age também no dado logo antes dele, se esse dado valer: um Confete paga duas vezes, um "
                           "Eletrônico dobra os dois.",
-    [D_ESTILINGUE]      = "A forquilha com o elástico esticado. Se tirar 1, valendo ou não, o próximo dado da sua "
+    [D_ESTILINGUE]      = "O couro do estilingue, com o elástico. Se tirar 1, valendo ou não, o próximo dado da sua "
                           "sequência sai com o número mais alto dele: um d12 tira 12. O 1 dele, fora do começo, "
                           "costuma cair pela sequência.",
     [D_CAMALEAO]        = "Escamas que mudam de cor. Tem o poder do dado logo antes dele na sequência, como se fosse "
                           "ele: atrás de um Pirata, é outro Pirata; atrás de um Laser, outro Laser. Rola o próprio d8. "
                           "Atrás de um dado sem poder, é um d8 comum.",
-    [D_PANELA]          = "A panela que vai juntando pressão. Cada rodada fora da fila, ou anulada, ela guarda +2 (até "
-                          "+10). Terminando válida com 7 ou 8, solta tudo de uma vez nos pontos dela e esvazia. Válida "
-                          "com 1 a 6, segura o que guardou.",
+    [D_BALAO]           = "O balão de festa que vai enchendo. Cada rodada fora da fila, ou anulado, ele ganha +2 de ar "
+                          "(até +10). Terminando válido com 7 ou 8, estoura: soma tudo de uma vez nos pontos dele e volta "
+                          "vazio. Válido com 1 a 6, segura o ar que guardou.",
     [D_PAPAGAIO]        = "Penas verdes e o bico curvo. Se terminar válido, o último adesivo seu que agiu na rodada age "
                           "de novo nele, como se fosse dele: mais um Confete, mais um x2. Repete também o que é ruim.",
     [D_MATRIOSKA]       = "A boneca russa de madeira. Tirando 6 a 8, abre e sai um d6; o d6, com 5 ou 6, abre um d4; o "
@@ -895,7 +895,7 @@ static const visual_t VISUAL[D_N] = {
     [D_MARTELO]    = { V_VINHO,   0, 0,         V_ROSA, 100 },
     [D_PIRATA]     = { V_VINHO,   V_TERRA, 26,  V_MADEIRA, 30,  V_BREU, 85 },
     [D_ESPELHO]    = { V_PRATA,   V_PRATA, 55,  V_ACO, 28,      V_BRANCO, 55 },
-    [D_FICHAS]     = { V_OURO,    0, 0,         V_LATAO, 75,    V_BRANCO, 90,  V_LATAO_E, 85 },
+    [D_FICHAS]     = { V_VERM,    0, 0,         V_VERM, 100,    V_BRANCO, 100, V_SANGUE, 100 },
     [D_TUDO_NADA]  = { V_OURO },                // a moeda de ouro, desenhada a parte
     [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(54, 36, 74), 45, V_LILAS, 40 },
     [D_GATUNO]     = { V_CHUMBO,  0, 0,         V_BREU, 18 },
@@ -910,16 +910,16 @@ static const visual_t VISUAL[D_N] = {
     [D_MALDICAO]   = { V_ROXO,    V_ROXO, 20,   V_ROXO, 65 },
     [D_TREVO]      = { V_VERDE,   0, 0,         V_LIMA, 70 },
     [D_JACKPOT]    = { V_OURO,    V_OURO, 16 },  // os tres setes vem por baixo
-    [D_COPIADOR]   = { V_CIANO,   V_CIANO, 18,  V_CIANO, 75 },
+    [D_COPIADOR]   = { V_CIANO,   V_CIANO, 10,  V_CIANO, 100 },
     [D_EGOISTA]    = { V_AMEIXA,  V_AMEIXA, 18, V_OURO, 55 },
     [D_LASER]      = { V_LIMA,    V_CHUMBO, 34, V_LIMA, 60 },
     [D_VENTANIA]   = { V_CEU,     V_CEU, 35,    V_NOITE, 45 },
     [D_MISERICORDIOSO] = { V_PRATA, V_PRATA, 20, V_LATAO, 100 },
-    [D_SOLITARIO]  = { V_NOITE,   V_AZUL, 25,   RGB(246, 222, 132), 90 },
+    [D_SOLITARIO]  = { V_NOITE,   V_NOITE, 40,  RGB(246, 222, 132), 100, V_CEU, 100, RGB(30, 40, 70), 100 },
     [D_SENTINELA]  = { V_TERRA,   V_PEDRA, 46,  V_BARRO, 35,    V_BRANCO, 18 },
     [D_FERREIRO]   = { V_FERRO,   V_FERRO, 30,  V_BREU, 22 },
     [D_COBRADOR]   = { V_TERRA,   V_TERRA, 16,  V_TERRA, 35,    V_VINHO, 45 },
-    [D_DESAFIANTE] = { V_VERM,    V_VERM, 35,   V_VERM, 65 },
+    [D_DESAFIANTE] = { V_VERM,    0, 0,         V_OURO, 100,    V_VERM, 100,   V_SANGUE, 100 },
     [D_VIDRO]      = { V_CEU,     V_CEU, 52,    V_BRANCO, 85 },
     [D_ACUMULADOR] = { V_AMBAR,   V_AMBAR, 20 }, // as seis casas vem por cima
     [D_SEGURANCA]  = { V_NOITE,   0, 0,         V_AZUL, 50 },
@@ -931,7 +931,7 @@ static const visual_t VISUAL[D_N] = {
     [D_CAVALO]     = { V_TERRA,   V_TERRA, 30,  V_MADEIRA, 40 },
     [D_BERSERKER]  = { V_VINHO,   0, 0,         V_SANGUE, 50 },
     [D_VIUVA]      = { V_ACO,     0, 0,         V_ACO, 45 },
-    [D_CAPITAO]    = { V_AZUL,    V_AZUL, 14,   V_LATAO_E, 100 },
+    [D_CAPITAO]    = { V_AZUL,    V_AZUL, 22,   V_BRANCO, 100,  V_OURO, 100,   RGB(30, 34, 52), 100 },
     [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_BREU, 85,     V_BRANCO, 100 },
     [D_SORTE_REVES] = { V_AMEIXA, 0, 0,         V_BREU, 84,     V_OURO, 100 },
     [D_AUTOFAGIA]  = { V_AGUA,    V_AGUA, 10,   V_VERDE, 100,   V_BREU, 100,   RGB(34, 76, 44), 100 },
@@ -947,7 +947,7 @@ static const visual_t VISUAL[D_N] = {
     [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_ACO, 100,     V_LATAO, 100,  V_BREU, 90 },    // a engrenagem, a chave
     [D_AZARAO]     = { V_VERDE,   V_VERDE, 12,  V_VERDE, 85 },
     [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 18,  V_AMBAR, 55,    V_AMBAR, 95,   V_MADEIRA, 90 },
-    [D_AGIOTA]     = { V_OURO,    V_OURO, 18,   V_LATAO_E, 85,  V_OURO, 100 },
+    [D_AGIOTA]     = { V_OURO,    0, 0,         RGB(64, 72, 70), 100, V_VERM, 100, V_OURO, 100 },
     [D_MEDUSA]     = { V_VERDE,   V_PEDRA, 34,  V_VERDE, 100,   V_BREU, 80,    V_LIMA, 100 },
     [D_MISTERIOSO] = { RGB(40, 36, 34) },          // o corpo preto e o "?" vem do desenho
     [D_RANCOR]     = { V_SANGUE,  V_VINHO, 8,   V_VINHO, 100,   V_SANGUE, 100, V_BREU, 85 },
@@ -955,7 +955,7 @@ static const visual_t VISUAL[D_N] = {
     [D_PONTE]      = { V_AGUA,    V_CEU, 14,    V_AGUA, 100,    V_CIANO, 100,  V_CEU, 40 },
     [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
     [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
-    [D_FANTASMA]   = { V_CIANO,   V_CEU, 62,    V_CIANO, 38,    V_BRANCO, 45,  V_AZUL, 70 },
+    [D_FANTASMA]   = { V_CIANO,   V_CEU, 22,    V_BRANCO, 100,  V_CEU, 100,    RGB(44, 58, 96), 100 },
     [D_PREVISIVEL] = { V_CIANO,   V_CEU, 16,    V_AZUL, 70,     V_AGUA, 100,   V_BRANCO, 85 },
     [D_OCULTO]     = { V_FERRO,   0, 0,         V_FERRO, 45,    V_BREU, 60,    V_PRATA, 60 },
     [D_SACRIFICIO] = { V_VINHO,   V_SANGUE, 78, V_BREU, 45,     V_AMBAR, 95,   V_OURO, 100 },
@@ -964,7 +964,7 @@ static const visual_t VISUAL[D_N] = {
     [D_VAMPIRO]    = { V_BREU,    V_VINHO, 30,  V_SANGUE, 100,  V_VINHO, 90,   V_BRANCO, 70 },
     [D_COLECIONADOR] = { V_NOITE, V_NOITE, 30,  V_AZUL, 70,     V_OURO, 100,   V_CEU, 85 },
     [D_PACTO]      = { V_ROXO,    V_SANGUE, 22, V_SANGUE, 90,   V_AMEIXA, 100, V_OURO, 100 },
-    [D_ASSOMBRACAO] = { V_AMEIXA, V_LILAS, 24,  V_LILAS, 100,   V_ROXO, 80,    V_BRANCO, 80 },
+    [D_ASSOMBRACAO] = { V_AMEIXA,  V_AMEIXA, 0,  RGB(150, 126, 180), 100, RGB(176, 156, 202), 100, RGB(86, 66, 112), 100 },
     [D_FICHA_VELHA] = { V_COURO,  V_TERRA, 46,  V_VINHO, 80,    V_ROSA, 55,    V_MADEIRA, 95 },
     [D_SANGUESSUGA] = { V_VERDE,  V_VERDE, 16,  V_VERDE, 100,   V_AMBAR, 100,  V_SANGUE, 100 }, // o corpo, as pintas e o sangue
     [D_TRENO]      = { V_VERM,    V_VERM, 16,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
@@ -972,7 +972,7 @@ static const visual_t VISUAL[D_N] = {
     [D_JINGLE]     = { V_OURO,    V_OURO, 12,   V_OURO, 100,    V_LATAO_E, 100, V_VERM, 80 },
     [D_FURIA]      = { V_FOGO,    V_SANGUE, 16, V_FOGO, 95,     V_AMBAR, 100,  V_BREU, 85 },
     [D_ONDA]       = { V_CIANO,   V_CEU, 14,    V_AZUL, 75,     V_CIANO, 100,  V_BRANCO, 90 },
-    [D_TSUNAMI]    = { V_AZUL,    V_NOITE, 44,  V_AZUL, 100,    V_CIANO, 100,  V_BRANCO, 100 },
+    [D_TSUNAMI]    = { V_AZUL,    V_AZUL, 0,    RGB(30, 52, 100), 100, RGB(96, 160, 200), 100, V_BRANCO, 100 },
     [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
     [D_PRESENTE]   = { V_VERM,    0, 0,         V_ROSA, 40,     V_LATAO, 100 },
     [D_PANETONE]   = { V_TERRA }, // o miolo e as frutas vem do corpo (miolo_panetone)
@@ -1010,16 +1010,16 @@ static const visual_t VISUAL[D_N] = {
     [D_PIAO]        = { V_TERRA,  V_TRIGO, 30,  V_VERM, 100,    V_BRANCO, 100, V_MADEIRA, 100 },
     // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
     [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
-    // O Leque: o papel de arroz, as varetas de bambu e a onda azul pintada.
-    [D_LEQUE]       = { V_TERRA,  V_TRIGO, 25,  V_TRIGO, 100,   V_NOITE, 100,  V_COURO, 100 },
+    // O Leque: o papel rosa em gomos, o vinco vinho e o ouro do fio, das florzinhas e do pino.
+    [D_LEQUE]       = { V_OURO,   V_ROSA, 100,  RGB(226, 164, 168), 100, V_VINHO, 100, V_OURO, 100 },
     // O Porta-Retrato: a moldura de prata e a foto em sepia.
     [D_RETRATO]     = { V_PRATA,  0, 0,         V_PRATA, 100,   V_COURO, 70,   V_TERRA, 100 },
-    // O Estilingue: a forquilha de madeira, o elastico vermelho e a pedrinha.
-    [D_ESTILINGUE]  = { V_COURO,  0, 0,         V_COURO, 100,   V_VERM, 100,   V_PEDRA, 100 },
+    // O Estilingue: o couro caramelo, o elastico vermelho e o latao dos ilhoses e da linha.
+    [D_ESTILINGUE]  = { V_COURO,  V_TERRA, 100, V_COURO, 100,   V_VERM, 100,   V_LATAO, 100 },
     // O Camaleao: as escamas verdes, a borda mudando de cor e o olho.
     [D_CAMALEAO]    = { V_VERDE,  V_LIMA, 35,   V_VERDE, 100,   V_LIMA, 100,   V_TRIGO, 100 },
-    // A Panela de Pressao: o aluminio fosco e a valvula escura em cima.
-    [D_PANELA]      = { V_ACO,    V_PRATA, 30,  V_FERRO, 100,   V_CHUMBO, 100, V_PRATA, 100 },
+    // O Balao: o latex vermelho (a sombra no vinho, a luz no rosa) e o brilho branco.
+    [D_BALAO]       = { V_SANGUE, V_VERM, 100,  V_VINHO, 100,   RGB(226, 164, 168), 100, V_BRANCO, 100 },
     // O Papagaio: as penas verdes, a ponta amarela e o bico.
     [D_PAPAGAIO]    = { V_LIMA,   V_LIMA, 30,   V_VERDE, 100,   V_TRIGO, 100,  V_PEDRA, 100 },
     // A Matrioska: a boneca vermelha com o rosto redondo e o dourado.

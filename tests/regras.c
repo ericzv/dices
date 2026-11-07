@@ -3760,29 +3760,29 @@ int main(void)
             CONFERE(ad_no_lado(&co, 1) == AD_REMENDO && ad_no_lado(&co, 2) == AD_REMENDO && ad_no_lado(&co, 3) == AD_REMENDO
                     && !ad_no_lado(&co, 4) && remenda(&co, 1) == 3 && remenda(&co, 3) == 5 && remenda(&co, 4) == 4,
                     "Colcha: Remendo no 1, no 2 e no 3");
-            // A Panela: com 7 ou 8 valendo, solta a pressao; anulada ou fora da fila, guarda +2 (ate 10).
+            // O Balao: com 7 ou 8 valendo, estoura e soma o ar; anulado ou fora da fila, enche +2 (ate 10).
             limpa();
-            joga(0, D_D6, 2); joga(0, D_PANELA, 7);
+            joga(0, D_D6, 2); joga(0, D_BALAO, 7);
             F[0].fixo[1] = 6;
             joga(1, D_D4, 3);
             d = fim();
-            CONFERE(d.total[0] == 2 + 7 + 6 && d.panela[0] == 2, "Panela com 7 solta 6: %d", d.total[0]);
+            CONFERE(d.total[0] == 2 + 7 + 6 && d.balao[0] == 2, "Balao com 7 estoura 6: %d", d.total[0]);
             limpa();
-            joga(0, D_D6, 2); joga(0, D_PANELA, 5);
+            joga(0, D_D6, 2); joga(0, D_BALAO, 5);
             F[0].fixo[1] = 6;
             joga(1, D_D4, 3);
             d = fim();
-            CONFERE(d.total[0] == 2 + 5 && !d.panela[0], "Panela com 5 segura: %d", d.total[0]);
-            J[0].col[3] = (peca_t){ .tipo = D_PANELA, .fixo = 4 };
-            J[0].col[5] = (peca_t){ .tipo = D_PANELA, .fixo = 9 };
+            CONFERE(d.total[0] == 2 + 5 && !d.balao[0], "Balao com 5 segura: %d", d.total[0]);
+            J[0].col[3] = (peca_t){ .tipo = D_BALAO, .fixo = 4 };
+            J[0].col[5] = (peca_t){ .tipo = D_BALAO, .fixo = 9 };
             for (int i = 0; i < J[0].n_col; i++) J[0].onde[i] = NA_BOLSA;
             limpa();
-            joga_ad(0, 4, 4); joga_ad(0, 3, 2);    // a Panela cai pela sequencia
+            joga_ad(0, 4, 4); joga_ad(0, 3, 2);    // o Balao cai pela sequencia
             F[0].fixo[1] = 4;
             joga(1, D_D4, 3);
             d = fim();
             contadores_ficam(0, &d);
-            CONFERE(J[0].col[3].fixo == 6 && J[0].col[5].fixo == PANELA_MAX, "Panela guarda: anulada %d, fora %d",
+            CONFERE(J[0].col[3].fixo == 6 && J[0].col[5].fixo == BALAO_MAX, "Balao enche: anulado %d, fora %d",
                     J[0].col[3].fixo, J[0].col[5].fixo);
             J[0].col[5] = (peca_t){ .tipo = D_D6 };
             // O Camaleao: o poder do dado de antes (o Pirata tira 4 duas vezes).

@@ -3853,7 +3853,10 @@ int main(void)
             joga(0, D_D6, 5);
             seq_n = 0; seq_v[0] = 3; seq_v[1] = 4;
             lp = lanca_do_dado(0, 1, D_GELATINA, 0, NULL, r_seq, &fora);
-            CONFERE(lp.x == 4 && lp.quicou && fora == 3, "Gelatina quica e fica o maior: %d", lp.x);
+            CONFERE(lp.x == 4 && lp.quicou && fora == 3 && lp.n_re == 1 && lp.re_x[0] == 3, "Gelatina quica e vale o segundo: %d", lp.x);
+            seq_n = 0; seq_v[0] = 3; seq_v[1] = 2;
+            lp = lanca_do_dado(0, 1, D_GELATINA, 0, NULL, r_seq, &fora);
+            CONFERE(lp.x == 2 && lp.quicou && fora == 3, "Gelatina: o segundo vale mesmo menor: %d", lp.x);
             seq_n = 0; seq_v[0] = 6;
             lp = lanca_do_dado(0, 1, D_GELATINA, 0, NULL, r_seq, &fora);
             CONFERE(lp.x == 6 && !lp.quicou, "Gelatina acima do de antes nao quica");

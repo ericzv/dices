@@ -275,7 +275,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   adesivos e com a fila: o Estilingue (d6: com 1, valendo ou não, o próximo
   dado sai no maior lado), no 2; o Pião (d6: caindo num lado sem adesivo,
   gira de novo, até 2 vezes - precisa de algum adesivo) e a Gelatina (d6:
-  caindo abaixo do dado de antes, quica de novo e fica o maior), no 3; a
+  caindo abaixo do dado de antes, quica e rola de novo, valendo o segundo
+  lance), no 3; a
   Colcha de Retalhos (d6 com um Remendo no 1, no 2 e no 3), no 4; o Leque
   (d8: valendo, +2 por outro dado seu valendo caído num lado com adesivo),
   no 5; o Balão (d8: enche +2 a cada rodada fora da fila ou anulado, sem

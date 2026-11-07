@@ -484,7 +484,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PAPAGAIO]        = "Se terminar válido, o último adesivo seu que agiu na rodada age de novo nele.",
     [D_MATRIOSKA]       = "Tirando 6 a 8, abre um d6; com 5 ou 6, um d4; com 4, um d2. Vale a soma de todos.",
     [D_COLCHA]          = "Já vem com um Remendo no 1, no 2 e no 3: os lados baixos tiram 3, 4 e 5.",
-    [D_GELATINA]        = "Se tirar menos que o dado de antes, quica: rola de novo uma vez e fica o maior.",
+    [D_GELATINA]        = "Se tirar menos que o dado de antes, quica: rola de novo uma vez e vale o segundo lance.",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -774,7 +774,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_COLCHA]          = "Retalhos de pano costurados. Já vem com três Remendos colados, no 1, no 2 e no 3: os lados "
                           "baixos tiram 3, 4 e 5. Conta três adesivos para o Neon e o Mosaico, e sobra pouco lado livre.",
     [D_GELATINA]        = "Um dado de gelatina que treme. Se tirar menos que o dado de antes (o que derrubaria a "
-                          "sequência), quica: rola de novo uma vez e fica o maior. O segundo lance também pode cair.",
+                          "sequência), quica: rola de novo uma vez e vale o segundo lance, que também pode cair.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };

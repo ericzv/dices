@@ -623,13 +623,10 @@ static int desembrulha(int j, int k, int (*r)(int))
 // novo e vale a soma dos dois. Um dos dois por lance: o lado do segundo lance
 // nao faz rolar de novo.
 // O Piao e a Gelatina rolam de novo de verdade: n_re lances de antes (re_x,
-// re_lado), que o dado mostra um a um antes do que fica; a Gelatina que
-// ficou com o primeiro (o segundo saiu menor) pousa no segundo (volta_x) e
-// volta para ele.
+// re_lado), que o dado mostra um a um antes do que fica.
 typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba;
                  uint8_t giros; bool quicou; uint16_t bonecas;
-                 uint8_t n_re; int re_x[2]; uint8_t re_lado[2];   // (ate PIAO_GIROS)
-                 bool volta; int volta_x; uint8_t volta_lado; } lance_t;
+                 uint8_t n_re; int re_x[2]; uint8_t re_lado[2]; } lance_t;   // (re: ate PIAO_GIROS)
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;
@@ -637,9 +634,6 @@ static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
     l.giros = 0;
     l.quicou = false;
     l.n_re = 0;
-    l.volta = false;
-    l.volta_x = 0;
-    l.volta_lado = 0;
     l.x = l.x1 = sorteia_peca(t, fixo, pc, r, &l.menor, &l.lado, &antes);
     l.bonecas = bonecas_ult;
     l.menor1 = l.menor; l.lado1 = l.lado; l.antes1 = antes;
@@ -667,8 +661,8 @@ static bool estilingue_armado(int j, int k)
 // no maximo; o Piao caido num lado sem adesivo (e com algum) gira de novo,
 // ate PIAO_GIROS vezes, e fica o primeiro lado com adesivo ou o ultimo giro;
 // a Gelatina que tirou menos que o de antes (o que derrubaria a sequencia)
-// quica e rola mais uma vez, e fica o maior. *fora: o lance descartado, ou
-// -1. Na mesa, o mesmo dado mostra os lances de antes e rola de novo (re_x).
+// quica e rola mais uma vez, e vale o segundo lance (que tambem pode cair).
+// *fora: o lance descartado, ou -1. Na mesa, o mesmo dado mostra os lances de antes e rola de novo (re_x).
 #define PIAO_GIROS 2
 static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, int (*r)(int), int *fora)
 {
@@ -684,24 +678,17 @@ static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, in
             l = lanca_peca(t, fixo, pc, r);
             l.giros = (uint8_t)(g + 1);
         }
-    bool volta = false;
-    int vx = 0, vl = 0;
     if (ef == EF_GELATINA && !lance_no_maximo && k > 0) {
         int lr = ultimo_da_regra(j, F[j].est, k);
         if (lr >= 0 && cai_depois(j, l.x, F[j].valor[lr])) {
-            lance_t l2 = lanca_peca(t, fixo, pc, r);
-            rx[nre] = l.x;
+            *fora = rx[nre] = l.x;
             rl[nre++] = l.lado;
-            if (l2.x > l.x) { *fora = l.x; l = l2; }
-            else { *fora = l2.x; volta = true; vx = l2.x; vl = l2.lado; }   // fica o primeiro
+            l = lanca_peca(t, fixo, pc, r);      // vale o segundo
             l.quicou = true;
         }
     }
     l.n_re = (uint8_t)nre;
     for (int i = 0; i < nre; i++) { l.re_x[i] = rx[i]; l.re_lado[i] = (uint8_t)rl[i]; }
-    l.volta = volta;
-    l.volta_x = vx;
-    l.volta_lado = (uint8_t)vl;
     lance_no_maximo = false;
     return l;
 }
@@ -841,8 +828,7 @@ static void lanca_proximo(void)
     }
     // O Piao e a Gelatina rolam de novo de verdade: o dado pousa no lance de
     // antes, para um instante e gira no lugar (o Piao) ou quica (a Gelatina)
-    // ate o seguinte; no ultimo, seguem os adesivos dele. A Gelatina que fica
-    // com o primeiro pousa no segundo e pula de volta (a etapa do Avesso).
+    // ate o seguinte; no ultimo, seguem os adesivos dele.
     if (l.n_re) {
         int fv = v->valor;
         uint8_t fl = v->lado;
@@ -851,16 +837,8 @@ static void lanca_proximo(void)
         v->quicou = false;
         v->rr_n = v->rr_i = 0;
         for (int i = 1; i < l.n_re; i++) { v->rr_v[v->rr_n] = l.re_x[i]; v->rr_l[v->rr_n++] = l.re_lado[i]; }
-        if (l.volta) {
-            v->rr_v[v->rr_n] = l.volta_x; v->rr_l[v->rr_n++] = l.volta_lado;
-            v->valor_v = l.x; v->lado_v = (uint8_t)l.lado;
-            v->ad_vira = 0; v->virou = false;
-            v->reflete = false;
-            v->rr_etapa = 1;
-        } else {
-            v->rr_v[v->rr_n] = fv; v->rr_l[v->rr_n++] = fl;
-            v->rr_etapa = fe;
-        }
+        v->rr_v[v->rr_n] = fv; v->rr_l[v->rr_n++] = fl;
+        v->rr_etapa = fe;
         v->valor = l.re_x[0];
         v->lado = l.re_lado[0];
         v->etapa = 5;
@@ -928,7 +906,7 @@ static bool ad_etapa_passo(float dt)
     if (!n_voo || !v->etapa) return false;
     float t0 = v->t_etapa;
     v->t_etapa += dt;
-    if (t0 < 0.01f && v->t_etapa >= 0.01f && v->etapa <= 3 && !(v->etapa == 1 && !v->ad_vira))
+    if (t0 < 0.01f && v->t_etapa >= 0.01f && v->etapa <= 3)
         som_toca(som_adesivo(v->etapa == 1 ? v->ad_vira : v->etapa == 2 ? v->ad_rola : AD_CARBONO));
     if (v->etapa == 5) {                     // o Piao gira de novo no lugar; a Gelatina quica
         float dur = v->tipo == D_PIAO ? RE_GIRO : RE_QUIQUE;

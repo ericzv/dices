@@ -562,8 +562,10 @@ static void des_comeca_partida(void)
     J[1].fichas = DES_FICHAS + (tem_am(1, A_RESERVA) ? 10 : 0);
     if (no->tipo == NO_CHEFE && tem_am(0, A_PEDAGIO)) J[1].fichas -= 10;         // Pedagio
     J[1].n_col = monta_oponente(no, run.andar, J[1].col);
-    for (int j = 0; j < 2; j++)
+    for (int j = 0; j < 2; j++) {
         for (int i = 0; i < J[j].n_col; i++) J[j].onde[i] = NA_BOLSA;
+        memset(J[j].pavio, 0, sizeof J[j].pavio);   // a Dinamite: o pavio comeca apagado a cada partida
+    }
     nivel_jog[1] = nivel_mesa(no);
     pensa_jog[0] = 0; pensa_jog[1] = pensa_mesa(no);    // parte das decisoes um nivel acima
     ia_conta = no->semente;

@@ -30,6 +30,7 @@ typedef struct {
     uint8_t fig_cresce[2];           // as Figurinhas que ativaram: o dado junta mais uma (posicoes)
     uint8_t fermento2[2], fig_cresce2[2];   // e a segunda vez, carimbadas: crescem de novo
     uint8_t bilhete[2];              // os Bilhetes Premiados que valeram (agem no fim de tudo)
+    uint8_t dinamite[2];             // as Dinamites que estouraram ou apagaram: o pavio zera
     uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
 } desfecho_t;
@@ -1255,7 +1256,8 @@ static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J
 static bool ad_do_pouso(int a)
 {
     return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
-        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO;
+        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO
+        || a == AD_BUSSOLA;
 }
 
 // O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q -
@@ -1344,6 +1346,26 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
         o[0] = (pouso_ad_t){ (int8_t)j, (int8_t)k, (int8_t)j, (int8_t)i, AD_CHICLETE, 0, 1, 0 };
         return 1;
     }
+    if (a == AD_XEROX) {
+        const peca_t *px = peca_fila(j, k);
+        if (!px || max < 1) return 0;
+        int b = ad_no_lado(px, ad_oposto(px->tipo, F[j].lado[k]));
+        if (!b || b == AD_XEROX) return 0;
+        int vezes = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), n = 0;
+        for (int g = 0; g < vezes && n < max; g++) {
+            uint32_t h = pega_semente(j, k) ^ (0x5A17C3E9u * (uint32_t)(g + 1));
+            int i = pega_dado(j, h);
+            if (i < 0 || i == F[j].idx[k]) i = pega_dado(j, h * 2654435761u);   // de preferencia, outro dado
+            if (i < 0 || i >= J[j].n_col) break;
+            uint8_t lados[AD_LADOS];
+            int nl = pega_lados(j, i, lados);
+            if (!nl) break;
+            int l = lados[(h >> 16) % (uint32_t)nl];
+            ad_cola(&J[j].col[i], l, b);
+            o[n++] = (pouso_ad_t){ (int8_t)j, (int8_t)k, (int8_t)j, (int8_t)i, AD_XEROX, 0, 1, 1u << l };
+        }
+        return n;
+    }
     if (a != AD_INFECTADO && a != AD_BARRO && a != AD_MASSINHA) return 0;
     int vezes = 1 + (k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)), n = 0;
     for (int g = 0; g < vezes && n < max; g++) {
@@ -1383,6 +1405,7 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
 // x3), e o que so marca o dado (Bis, Selo, Velcro, Chiclete, Impermeavel, o
 // Fragil que quebra) nao repete; EVM_DUPLA, o do lado oposto, pela Dupla Face.
 static int age_modo;
+static int corrente_antes;                       // a Corrente: os adesivos que agiram nos dados antes deste
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
 // Holografico (no dado k) copiando o do dado ko (copia: nada sai nem cresce
 // no dado de la; o Fermento paga o que pagou la). Devolve se agiu.
@@ -1393,7 +1416,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
     const char *pre = copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
-                    : de_novo ? "Carimbo » " : age_modo & EVM_DUPLA ? "Dupla Face » " : "";
+                    : de_novo ? "Carimbo » " : age_modo & EVM_DUPLA ? "Dupla Face » "
+                    : age_modo & EVM_MOLDURA ? "Moldura » " : "";
     evento_t *e = NULL;
     switch (a) {
     case AD_CONFETE:
@@ -1559,6 +1583,57 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, pts, cima ? "%sPatinho Feio: caiu nele, %d" : "%sPatinho Feio: +%d", pre, pts);
         break;
     }
+    case AD_CORRENTE: {                          // +2 por adesivo seu que agiu nos dados antes dele
+        if (!vale || corrente_antes <= 0) return false;
+        int n = CORRENTE_CADA * corrente_antes;
+        d->semente[j] += n;
+        e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: %d elo%s antes, +%d", pre, corrente_antes,
+                   corrente_antes > 1 ? "s" : "", n);
+        break;
+    }
+    case AD_ESCADINHA: {                         // os validos de 1 em 1 com ele: +2 por degrau em cada um
+        if (!vale) return false;
+        int v[N_FILA], pos[N_FILA], n = 0, eu = -1;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+            if (d->est[j][i] == V_VALIDO) { if (i == k) eu = n; pos[n] = i; v[n++] = F[j].valor[i]; }
+        if (eu < 0) return false;
+        int a0 = eu, a1 = eu;                    // a escada em volta dele, nos validos em ordem
+        while (a0 > 0 && v[a0 - 1] == v[a0] - 1) a0--;
+        while (a1 < n - 1 && v[a1 + 1] == v[a1] + 1) a1++;
+        int degraus = a1 - a0;
+        if (degraus < 1) return false;
+        int cada = ESCADINHA_CADA * degraus * (de_novo ? 1 : 1);
+        uint8_t m = 0;
+        for (int i = a0; i <= a1; i++) m |= (uint8_t)(1 << pos[i]);
+        d->semente[j] += cada * (degraus + 1);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, cada * (degraus + 1), "%sEscadinha: %d degrau%s, +%d em cada", pre,
+                   degraus, degraus > 1 ? "s" : "", cada);
+        if (e) { e->mascara = m; for (int i = 0; i < N_FILA; i++) e->por_dado[i] = (int8_t)(m >> i & 1 ? cada : 0); }
+        break;
+    }
+    case AD_ALBUM: {                             // valendo, com adesivo em todos os lados do dado: x2
+        const peca_t *pa = peca_fila(j, k);
+        if (!vale || !pa || ad_quantos(pa) < ad_n_lados(pa->tipo)) return false;
+        d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sÁlbum Completo: x3 no %d" : "%sÁlbum Completo: x2 no %d",
+                   pre, F[j].valor[k]);
+        if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
+        break;
+    }
+    case AD_DINAMITE: {                          // valendo, paga o pavio; anulado, o pavio apaga
+        int i = F[j].idx[k];
+        if (de_novo || copia || i < 0 || i >= J[j].n_col || (d->dinamite[j] & bit)) return false;
+        int n = J[j].pavio[i];
+        if (vale && n > 0) {
+            d->semente[j] += n;
+            d->dinamite[j] |= bit;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sDinamite: o pavio estoura, +%d", pre, n);
+        } else if (d->est[j][k] == V_ANULADO && n > 0) {
+            d->dinamite[j] |= bit;
+            e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sDinamite: anulada, o pavio apaga (%d)", pre, n);
+        } else return false;
+        break;
+    }
     case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
         if (!vale) return false;
         bool couraca = tem_am(r, A_COURACA);
@@ -1641,6 +1716,23 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
     }
     return true;
 }
+// A Moldura no lado de cima do dado k de j: os adesivos dos lados de numero
+// vizinho (o de baixo e o de cima) tambem agem - menos os do lance, o Patinho
+// Feio, a Dupla Face e outra Moldura (nada emoldura de novo).
+static void moldura_fila(int j, int k, int *viz)
+{
+    viz[0] = viz[1] = AD_NADA;
+    const peca_t *p = peca_fila(j, k);
+    if (!p || ad_no_lado(p, F[j].lado[k]) != AD_MOLDURA) return;
+    for (int q = 0; q < 2; q++) {
+        int l = F[j].lado[k] + (q ? 1 : -1);
+        if (l < ad_lado_min(p->tipo) || l > ad_lado_max(p->tipo)) continue;
+        int b = ad_no_lado(p, l);
+        if (b == AD_MOLDURA || b == AD_DUPLA || b == AD_PATINHO || b == AD_HOLOGRAFICO || b == AD_PURPURINA
+            || b == AD_CARIMBO || ad_do_pouso(b)) continue;
+        viz[q] = b;
+    }
+}
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     int agiram = d->ratoeira[j];
@@ -1660,11 +1752,14 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (!a || d->est[j][k] == V_ROUBADO) continue;
         bool carimbo = carimbado(d, j, k), duplo = false, carimbou = false;
         int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
-        for (int q = 0; q < 2; q++) {            // o de cima e, pela Dupla Face, o de baixo
-            int x = q ? b : a;
+        int viz[2];                              // a Moldura: os dos lados vizinhos
+        moldura_fila(j, k, viz);
+        corrente_antes = agiram;
+        for (int q = 0; q < 4; q++) {            // o de cima, pela Dupla Face o de baixo, pela Moldura os vizinhos
+            int x = q == 0 ? a : q == 1 ? b : viz[q - 2];
             if (!x) continue;
             for (int c = 0; c < (carimbo ? 2 : 1); c++) {   // e carimbado, outra vez
-                age_modo = (q ? EVM_DUPLA : 0) | (c ? EVM_CARIMBO : 0);
+                age_modo = (q == 1 ? EVM_DUPLA : q >= 2 ? EVM_MOLDURA : 0) | (c ? EVM_CARIMBO : 0);
                 bool agiu = age_um(d, j, k, x, gera, c == 0, fonte, qual, &n_fonte, &agiram);
                 duplo |= agiu && q;
                 carimbou |= agiu && c;

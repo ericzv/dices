@@ -1235,6 +1235,97 @@ def ad_casca():
     m.poe(0.04, banda(rng.standard_normal(n), 2000, 7000) * env(n, 0.01, 0.12), 0.1)
     return sala(m.x, 0.1)
 
+# Os adesivos que combam (o pedido de 7/nov): cada um com o som da coisa que ele e.
+def ad_corrente():
+    """A Corrente: os elos batendo um no outro, cada um um pouco mais agudo,
+    e a corrente esticando de uma vez no fim (o tranco e o anel do metal)."""
+    m = Mix(1.0)
+    for k in range(5):
+        t = 0.03 + k * 0.085
+        m.poe(t, tom(batida(METAL[(k * 3) % len(METAL)]), -6 + k * 2), 0.55 - k * 0.05)
+    n = int(0.06 * SR)
+    m.poe(0.5, banda(rng.standard_normal(n), 800, 4000) * env(n, 0.002, 0.02), 0.3)   # o tranco
+    m.poe(0.5, tom(batida(METAL[1]), -9), 0.8)
+    m.poe(0.52, nota('vibraphone', 74, 0.4, 0.4), 0.25)
+    return sala(m.x, 0.12)
+
+def ad_dinamite():
+    """A Dinamite: o pavio chiando e estalando, e o BUM - o grave que cai, o
+    estouro do ar e o cascalho caindo na mesa."""
+    m = Mix(1.4)
+    n = int(0.34 * SR); t = np.arange(n) / SR
+    chia = pa(rng.standard_normal(n), 3000) * (0.6 + 0.4 * np.sin(2 * np.pi * 23 * t)) * env(n, 0.01, 0.2)
+    m.poe(0.0, chia, 0.16)
+    for k in range(6):
+        m.poe(0.02 + k * 0.05 + rnd.uniform(0, 0.02), estalinho(0.006, 3500), 0.18)
+    t0 = 0.36
+    n = int(0.5 * SR); t = np.arange(n) / SR
+    m.poe(t0, np.sin(2 * np.pi * np.cumsum(110 * np.exp(-t * 6) + 38) / SR) * env(n, 0.002, 0.22), 1.0)   # o grave
+    m.poe(t0, pb(rng.standard_normal(n), 1800) * env(n, 0.001, 0.12), 0.7)                                # o ar
+    for k in range(8):
+        m.poe(t0 + 0.18 + k * 0.07 + rnd.uniform(0, 0.03), tom(batida(PLASTICO[k % len(PLASTICO)]), rnd.uniform(-8, -2)), 0.25 * (1 - k / 9))
+    return sala(m.x, 0.2)
+
+def ad_escadinha():
+    """A Escadinha: subindo os degraus - um toque de madeira e uma nota mais
+    aguda a cada degrau, e o brilho de chegar em cima."""
+    m = Mix(1.0)
+    for k, mi in enumerate((84, 86, 88, 91)):
+        t = 0.02 + k * 0.1
+        m.poe(t, pb(superficie('surface_wood_table3'), 2600)[:int(0.05 * SR)], 0.35)
+        m.poe(t, nota('glockenspiel', mi, 0.25, 0.3), 0.32)
+    m.poe(0.44, nota('glockenspiel', 96, 0.4, 0.5), 0.3)
+    return sala(m.x, 0.15)
+
+def ad_bussola():
+    """A Bussola: a agulha gira e vai parando (a catraca de metal, cada vez
+    mais devagar) e o ding de quando ela aponta."""
+    m = Mix(1.0)
+    t, passo = 0.02, 0.028
+    while passo < 0.12 and t < 0.62:
+        m.poe(t, pa(tom(batida(METAL[int(t * 100) % len(METAL)]), 5), 2500), 0.22)
+        t += passo; passo *= 1.22
+    m.poe(t + 0.02, nota('glockenspiel', 93, 0.35, 0.4), 0.3)
+    m.poe(t + 0.02, nota('vibraphone', 81, 0.35, 0.4), 0.2)
+    return sala(m.x, 0.14)
+
+def ad_moldura():
+    """A Moldura: o brilho correndo no dourado e um toque de cada lado - as
+    duas vizinhas que tambem agem, a de baixo e a de cima."""
+    m = Mix(1.0)
+    n = int(0.36 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.02, banda(rng.standard_normal(n), 3500, 9000) * np.sin(np.pi * q) ** 2, 0.12)   # o brilho
+    m.poe(0.12, nota('vibraphone', 76, 0.45, 0.45), 0.3)
+    m.poe(0.2, nota('vibraphone', 79, 0.45, 0.45), 0.3)
+    m.poe(0.3, nota('glockenspiel', 88, 0.4, 0.45), 0.28)
+    return sala(m.x, 0.16)
+
+def ad_album():
+    """O Album Completo: a pagina vira (o sopro do papel) e o album fecha
+    completo - tres notas subindo e o estalo da capa."""
+    m = Mix(1.1)
+    n = int(0.2 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.02, banda(rng.standard_normal(n), 1200, 6000) * np.sin(np.pi * q) ** 1.5, 0.22)   # a pagina
+    for k, mi in enumerate((72, 76, 79)):
+        m.poe(0.22 + k * 0.08, nota('vibraphone', mi, 0.4, 0.4), 0.3)
+    m.poe(0.5, estalinho(0.014, 1800), 0.35)
+    m.poe(0.5, nota('glockenspiel', 91, 0.5, 0.5), 0.25)
+    return sala(m.x, 0.15)
+
+def ad_xerox():
+    """O Xerox: a luz da copiadora passando (o zumbido que vai e volta), o
+    clunc do mecanismo e a folha saindo."""
+    m = Mix(1.2)
+    n = int(0.45 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    zum = np.sin(2 * np.pi * 120 * t) * 0.5 + np.sin(2 * np.pi * 240 * t) * 0.25
+    m.poe(0.02, zum * np.sin(np.pi * q) * (0.7 + 0.3 * np.sin(2 * np.pi * 3 * t)), 0.18)
+    m.poe(0.02, banda(rng.standard_normal(n), 2500, 6000) * np.sin(np.pi * q) ** 2, 0.06)
+    m.poe(0.5, tom(batida(PLASTICO[2]), -7), 0.5)                                         # o clunc
+    m.poe(0.5, pb(superficie('surface_wood_table2'), 1500), 0.35)
+    n = int(0.25 * SR); q = np.linspace(0, 1, n)
+    m.poe(0.62, banda(rng.standard_normal(n), 1500, 5000) * np.sin(np.pi * q), 0.16)     # a folha saindo
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # Novidades (Modo Desafiante): o que abriu, um card de cada vez
 # ---------------------------------------------------------------------------
@@ -2064,6 +2155,8 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95,
                'ad_chiclete': VOLUME['efeito'], 'ad_massinha': VOLUME['efeito'], 'ad_carimbo': VOLUME['efeito'],
                'ad_dupla': VOLUME['efeito'], 'ad_casca': VOLUME['efeito']})
+VOLUME.update({n: VOLUME['efeito'] for n in ('ad_corrente', 'ad_escadinha', 'ad_bussola', 'ad_moldura', 'ad_album', 'ad_xerox')})
+VOLUME['ad_dinamite'] = VOLUME['efeito'] * 1.15
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
 # O menu de fichas: passar, baixinho como o passa; escolher, como uma ficha na mesa.
@@ -2109,7 +2202,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_escadinha', 'ad_bussola', 'ad_moldura', 'ad_album', 'ad_xerox',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):

@@ -30,6 +30,7 @@ typedef struct {
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
     bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
+    uint8_t pavio[MAX_COL];      // a Dinamite: o que o pavio de cada dado guardou nesta partida
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
@@ -124,6 +125,7 @@ typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
 #define EVM_CARIMBO 1
 #define EVM_DUPLA   2
+#define EVM_MOLDURA 4                    // o do lado vizinho, pela Moldura
 typedef struct {
     uint8_t tipo, de_j, de_k, alvo_j, alvo_k;
     int valor;

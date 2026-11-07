@@ -200,6 +200,13 @@ static const ad_novo_t AD_NOVO[AD_N] = {
     [AD_CARIMBO]      = { FO_RETANGULO, MN_PAPEL,     0,         76,  -8, RGB(238, 230, 212), RGB(190, 56, 60) },
     [AD_DUPLA]        = { FO_METADES,   MN_VINIL,     0,         70, -10, RGB(36, 32, 29),    RGB(238, 230, 212) },
     [AD_CASCA]        = { FO_CASCA,     MN_BRILHO,    MN_FOSCO,  90,   0, RGB(246, 222, 132), RGB(120, 78, 50) },
+    [AD_CORRENTE]     = { FO_CIRCULO,   MN_METAL,     0,         68,   0, RGB(56, 62, 74),    0 },
+    [AD_DINAMITE]     = { FO_RETANGULO, MN_PAPEL,     0,         70,  14, RGB(190, 56, 60),   RGB(246, 222, 132) },
+    [AD_ESCADINHA]    = { FO_RETANGULO, MN_MADEIRA,   0,         78,  90, RGB(156, 106, 64),  0 },
+    [AD_BUSSOLA]      = { FO_CIRCULO,   MN_OURO,      0,         68,   0, RGB(226, 186, 70),  RGB(150, 122, 62) },
+    [AD_MOLDURA]      = { FO_QUADRADO,  MN_OURO,      0,         76,   0, RGB(228, 194, 106), RGB(150, 122, 62) },
+    [AD_ALBUM]        = { FO_RETANGULO, MN_BRILHO,    0,         74,   4, RGB(130, 204, 112), 0 },
+    [AD_XEROX]        = { FO_FOLHAS,    MN_PAPEL,     MN_PAPEL,  70,  -6, RGB(238, 230, 212), RGB(252, 248, 236) },
 };
 
 // A forma de cima (a aba dobrada, a folha da frente, a agua sobre o pato...):
@@ -814,6 +821,68 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         float ro2 = x * x + y * y, k = 1 / (0.55f + 0.45f * sqrtf(fmaxf(1 - ro2 / 0.85f, 0)));   // curva com o domo
         float c = an_colmeia(x * k, y * k, 0.30f);
         if ((1 - c) * 0.30f * 0.866f < s * 0.55f) return RGB(228, 194, 106);
+        return cor;
+    }
+    // Os que combam: o simbolo de cada um desenhado na forma, em poucos tons.
+    case AD_CORRENTE: {                            // dois elos de aco engatados, na diagonal
+        float c = 0.7071f, w = fmaxf(s * 1.6f, 0.13f);
+        for (int q = 1; q >= 0; q--) {           // o de cima (q = 0) por cima do outro
+            float ox = q ? 0.22f : -0.22f, oy = q ? 0.22f : -0.22f;
+            float u = ((x - ox) + (y - oy)) * c, vv = (-(x - ox) + (y - oy)) * c;
+            if (q) { float tt = u; u = vv; vv = tt; }   // o segundo elo atravessado
+            float d = sqrtf((u / 0.44f) * (u / 0.44f) + (vv / 0.26f) * (vv / 0.26f));
+            if (fabsf(d - 1) * 0.34f < w * 0.5f) return (q ? vv > 0 : vv < 0) ? RGB(238, 240, 246) : RGB(150, 158, 170);
+        }
+        return cor;
+    }
+    case AD_DINAMITE: {                            // o banana de dinamite: a faixa do rotulo e as pontas
+        if (fabsf(y) < 0.20f) return fabsf(y) > 0.14f ? RGB(118, 30, 38) : RGB(246, 222, 132);
+        if (fabsf(y) > 0.78f) return RGB(118, 30, 38);
+        if (fabsf(x + 0.42f) < s * 0.7f || fabsf(x - 0.42f) < s * 0.7f) return RGB(150, 40, 46);   // os cartuchos
+        if (x < -0.6f) return RGB(226, 120, 120);       // a luz do papel
+        return cor;
+    }
+    case AD_ESCADINHA: {                           // a escada: os dois montantes e tres degraus
+        float w = fmaxf(s * 1.0f, 0.10f);        // deitada na ficha (o giro a poe de pe): montantes em y, degraus em x
+        if (fabsf(fabsf(y) - 0.46f) < w) return y < 0 ? RGB(214, 158, 102) : RGB(120, 78, 50);
+        if (fabsf(y) < 0.46f) for (int d = 0; d < 4; d++)
+            if (fabsf(x - (-0.6f + d * 0.4f)) < w * 0.9f) return RGB(214, 158, 102);
+        return fabsf(y) < 0.46f ? RGB(66, 40, 24) : cor;
+    }
+    case AD_BUSSOLA: {                             // a rosa dos ventos: o aro, a agulha (vermelha ao norte) e o pino
+        float ro = sqrtf(x * x + y * y);
+        if (ro > 0.80f) return x + y < 0 ? RGB(246, 222, 132) : RGB(150, 122, 62);
+        if (ro > 0.72f) return RGB(66, 40, 24);
+        float an = 0.45f + 0.35f * sinf(t * 0.9f + fase * 6.28f), ca = cosf(an), sa = sinf(an);
+        float u = x * ca + y * sa, vv = -x * sa + y * ca;           // vv: ao longo da agulha
+        if (fabsf(u) / 0.16f + fabsf(vv) / 0.62f < 1) return vv < 0 ? C_VERMELHO : RGB(238, 230, 212);
+        if (ro < s * 1.6f) return RGB(36, 32, 29);
+        if (fabsf(x) < s * 0.5f || fabsf(y) < s * 0.5f) return RGB(190, 156, 86);   // a cruz das direcoes
+        return RGB(252, 248, 236);
+    }
+    case AD_MOLDURA: {                             // a moldura dourada com o veludo vinho de dentro
+        float m = fmaxf(fabsf(x), fabsf(y));
+        if (m > 0.86f) return RGB(120, 78, 50);
+        if (m > 0.56f) return (x + y < 0) ? RGB(246, 222, 132) : (m > 0.71f ? RGB(190, 156, 86) : RGB(228, 194, 106));
+        if (m > 0.48f) return RGB(66, 40, 24);
+        return (x + y < -0.3f) ? RGB(150, 40, 46) : RGB(118, 30, 38);
+    }
+    case AD_ALBUM: {                               // a pagina do album: quatro figurinhas e a lombada
+        if (x < -0.70f) return RGB(66, 110, 64);
+        float gx = x + 0.12f, gy = y;
+        int qx = gx < 0, qy = gy < 0;
+        float lx = fabsf(gx) - 0.40f, ly = fabsf(gy) - 0.40f;
+        if (fabsf(lx) < 0.25f && fabsf(ly) < 0.25f) {
+            static const uint16_t FIG[4] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(96, 134, 196), RGB(252, 248, 236) };
+            if (fabsf(lx) > 0.19f || fabsf(ly) > 0.19f) return C_BRANCO;
+            return FIG[qx * 2 + qy];
+        }
+        return cor;
+    }
+    case AD_XEROX: {                               // a copia: as linhas do texto na folha da frente
+        if (parte == 1) return v->cor2;
+        if (fabsf(x) < 0.52f) for (int l = 0; l < 4; l++)
+            if (fabsf(y - (-0.42f + l * 0.26f)) < fmaxf(s * 0.55f, 0.05f) && (l < 3 || x < 0.15f)) return RGB(36, 32, 29);
         return cor;
     }
     default:

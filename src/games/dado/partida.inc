@@ -672,17 +672,31 @@ static void lanca_proximo(void)
         casca = (pc && pc->capa) || t == D_UNIVERSO ? 2 : tem_postit ? 3 : 1;
         if (casca == 3) tem_postit = false;   // (o som vem quando ela chega no dado: casca_pisa)
     }
+    // A Bussola no dado de antes: este, caindo num lado sem adesivo (e tendo
+    // algum), rola de novo uma vez e fica o segundo; o primeiro cai ao lado.
+    bool tem_bussola = k > 0 && ad_fila(vez, k - 1) == AD_BUSSOLA && pc && ad_quantos(pc) > 0
+                    && !ad_no_lado(pc, l.lado);
     if (tem_postit) {
         lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
         if (l2.x > l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
         som_toca(som_adesivo(AD_POSTIT));
+    } else if (tem_bussola && casca != 1) {
+        lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
+        postit = l.x;
+        l = l2;
+        som_toca(som_adesivo(AD_BUSSOLA));
     } else if (casca == 1) {
         lance_t l2 = lanca_peca(t, f->fixo[k], pc, rola);
         if (l2.x < l.x) { lance_t c = l; l = l2; l2 = c; }
         postit = l2.x;
     }
     int x = l.x, menor = l.menor, lado = l.lado;
+    // A Dinamite: lancado sem cair nela, o pavio do dado queima mais um pouco.
+    if (pc && ad_conta(pc, AD_DINAMITE) && ad_no_lado(pc, lado) != AD_DINAMITE) {
+        uint8_t *pv = &J[vez].pavio[f->idx[k]];
+        *pv = (uint8_t)(*pv + DINAMITE_CADA > DINAMITE_MAX ? DINAMITE_MAX : *pv + DINAMITE_CADA);
+    }
     int x1 = l.x1, lado1 = l.lado1, antes1 = l.antes1, menor1 = l.menor1;
     bool reflete = l.reflete;
     f->cru[k] = x;
@@ -869,6 +883,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if ((d->fermento[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;
         if ((d->fermento2[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;   // carimbado: cresce de novo
         if (d->raspa[j] >> k & 1) ad_cola(&p->col[i], F[j].lado[k], AD_NADA);
+        if (d->dinamite[j] >> k & 1) p->pavio[i] = 0;    // estourou ou apagou
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;
         if (d->velcro[j] >> k & 1) p->col[i].velcro = 1;

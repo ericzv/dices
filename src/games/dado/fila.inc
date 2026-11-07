@@ -69,7 +69,7 @@ static int valor_pontos(int j, int k)
         const peca_t *p = peca_fila(j, k);
         if (!p || !ad_no_lado(p, F[j].lado[k])) return 0;
     }
-    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? 10 : 0;
+    if (F[j].tipo[k] == D_TREVO) return F[j].valor[k] == 4 ? TREVO_SORTE : 0;
     if (F[j].tipo[k] == D_FERREIRO || F[j].tipo[k] == D_SACRIFICIO) return 0;
     if (F[j].tipo[k] == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
@@ -547,7 +547,7 @@ static void aplica_regra(int j, int k)
             poe_tag(f, k, "x2");
         }
         // Ferreiro com 3 ou 4 valendo logo antes: +6 no fim, se os dois ficarem.
-        if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO && f->valor[l] >= 3)
+        if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO && f->valor[l] >= FERREIRO_ARMA)
             poe_tag_fim(f, k, "+6");
         if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
             || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende

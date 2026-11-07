@@ -311,7 +311,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
-    // Copiador: +2 em cada outro dado seu com o mesmo numero que ele.
+    // Copiador: +3 em cada outro dado seu com o mesmo numero que ele.
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_COPIADOR) continue;
         uint8_t mask = 0;
@@ -319,9 +319,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
         for (int i = 0; i < nl; i++) {
             if (i == k || est[i] != V_VALIDO || f->valor[i] != f->valor[k]) continue;
-            d->bonus[j][i] += 2; mask |= (uint8_t)(1 << i); por[i] = 2;
+            d->bonus[j][i] += COPIADOR_CADA; mask |= (uint8_t)(1 << i); por[i] = COPIADOR_CADA;
         }
-        evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Copiador %d: +2 em cada %d",
+        evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Copiador %d: +3 em cada %d",
                                     f->valor[k], f->valor[k]) : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
@@ -387,9 +387,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
 
-    // Ferreiro com 3 ou 4: +6 no dado logo depois dele, se os dois terminam valendo.
+    // Ferreiro com 2, 3 ou 4: +6 no dado logo depois dele, se os dois terminam valendo.
     for (int k = 0; k + 1 < f->lancados && k + 1 < N_FILA; k++) {
-        if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FERREIRO || f->valor[k] < 3) continue;
+        if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FERREIRO || f->valor[k] < FERREIRO_ARMA) continue;
         if (est[k + 1] != V_VALIDO) continue;
         d->bonus[j][k + 1] += 6;
         evento_t *e = evento(gera, EV_BONUS, j, k, 0, 0, 0, "Ferreiro forja +6 no %d", f->valor[k + 1]);
@@ -479,7 +479,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             de[MULT_AZARAO] |= bit;
         }
         if (TIPO[tipo_de(j, k)].efeito == EF_ESPERANCA && fichas_ini[j] <= ESPERANCA_FICHAS) {
-            m += 2;                              // comecou a rodada com 15 fichas ou menos
+            m += 2;                              // comecou a rodada com ESPERANCA_FICHAS fichas ou menos
             de[MULT_ESPERANCA] |= bit;
         }
         if (sac[k]) { m += sac[k]; de[MULT_SACRIFICIO] |= bit; }
@@ -513,11 +513,11 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
     }
 
     // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
-    // roubou) somam 14 ou mais, +7 no fim - fora de qualquer multiplicador.
+    // roubou) somam SEMENTE_BROTA ou mais, +7 no fim - fora de qualquer multiplicador.
     int dados = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j];
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SEMENTE) continue;
-        if (dados < 14) continue;
+        if (dados < SEMENTE_BROTA) continue;
         d->semente[j] += 7;
         evento(gera, EV_SEMENTE, j, k, j, 0, 7, "Semente: %d pontos, brota +7", dados);
     }
@@ -670,9 +670,9 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_SEGURANCA && valendo == f->lancados) {
             d->semente[j] += 2;                      // nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: a sequência inteira válida, +2");
-        } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] == f->valor[k]) {
+        } else if (ef == EF_DOMINO && k + 1 < f->lancados && (f->valor[k + 1] == f->valor[k] || f->valor[k + 1] == f->valor[k] + 1)) {
             d->semente[j] += 3;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 3, "Dominó: o seguinte também deu %d, +3", f->valor[k]);
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 3, "Dominó: a peça %d encaixa, +3", f->valor[k + 1]);
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = 3; }   // a peca cai no seguinte
         } else if (ef == EF_PUXA && k == 0 && f->lancados >= FILA_NORMAL && valendo == f->lancados) {
             d->semente[j] += 5;
@@ -696,10 +696,15 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             int n = ampulheta();
             d->semente[j] += n;
             evento(gera, EV_EXTRA, j, k, j, 0, n, "Ampulheta: %d rodadas jogadas, +%d", rodada - 1, n);
-        } else if (ef == EF_OURICO && d->atacados[j]) {   // cada dado seu atacado custa 5 ao oponente
+        } else if (ef == EF_OURICO) {                     // valendo, +2; e cada dado seu atacado custa 5 ao oponente
             int r = outro(j), n = d->atacados[j];
-            d->delta[r] -= OURICO_PTS * n;
-            evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "", 4 * n, J[r].nome);
+            d->semente[j] += OURICO_BASE;
+            evento(gera, EV_EXTRA, j, k, j, 0, OURICO_BASE, "Ouriço: os espinhos em pé, +%d", OURICO_BASE);
+            if (n) {
+                d->delta[r] -= OURICO_PTS * n;
+                evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n,
+                       n > 1 ? "s" : "", OURICO_PTS * n, J[r].nome);
+            }
         } else if (ef == EF_MOSAICO) {                    // +1 por adesivo nos seus dados lancados, ele incluido
             int n = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++) {
@@ -744,11 +749,13 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                 d->garimpo[j] = m;
                 evento_t *e = evento(gera, EV_GARIMPO, j, k, j, 0, 0, "Garimpeiro: %d dado%s volta%s para a bolsa",
                                      n, n > 1 ? "s" : "", n > 1 ? "m" : "");
+                d->semente[j] += n;                        // e +1 por dado que volta
+                evento(gera, EV_EXTRA, j, k, j, 0, n, "Garimpeiro: +%d pela bateia", n);
                 if (e) e->mascara = m;
             }
         } else if (ef == EF_AGIOTA) {
-            d->agiota[j] += 2;
-            evento(gera, EV_AGIOTA, j, k, outro(j), 0, 2, "Agiota: 2 fichas de %s", J[outro(j)].nome);
+            d->agiota[j] += AGIOTA_FICHAS;
+            evento(gera, EV_AGIOTA, j, k, outro(j), 0, AGIOTA_FICHAS, "Agiota: %d fichas de %s", AGIOTA_FICHAS, J[outro(j)].nome);
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
@@ -835,17 +842,17 @@ static int poder_armado(int j, int k)
     case EF_INVEJOSO:     return invejoso_age(v) ? 1 : v <= 2 ? 2 : 0;
     case EF_CARIDOSO:     return v >= 3;
     case EF_FARTURA:      return baixos > 0 || v <= 2;
-    case EF_SEMENTE:      return soma(j, f->est) >= 14;
+    case EF_SEMENTE:      return soma(j, f->est) >= SEMENTE_BROTA;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
     case EF_JACKPOT:      return mesmo_numero(j, f->est, 2, NULL) != 0;
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
     case EF_TERREMOTO:    return v >= TERREMOTO_DE;
-    case EF_FERREIRO:     return v >= 3;
+    case EF_FERREIRO:     return v >= FERREIRO_ARMA;
     case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
-    case EF_DOMINO:       return k + 1 < f->lancados && f->valor[k + 1] == v;
+    case EF_DOMINO:       return k + 1 < f->lancados && (f->valor[k + 1] == v || f->valor[k + 1] == v + 1);
     case EF_ANCORA:       return k == f->lancados - 1 || f->ancora[k + 1];
     case EF_CALIBRE:      return k == f->lancados - 1 || f->calibre[k + 1];
     case EF_PUXA:         return k == 0 && f->lancados >= FILA_NORMAL && outros == f->lancados - 1;

@@ -1282,12 +1282,12 @@ int main(void)
         // Colecionador, Pacto e Assombracao.
         {
             int menor = 0;
-            CONFERE(sorteia_valor(D_PREVISIVEL, 0, sempre_dois, &menor) == 3 && sorteia_valor(D_PREVISIVEL, 4, sempre_dois, &menor) == 7
-                    && sorteia_valor(D_PREVISIVEL, 9, sempre_dois, &menor) == 12 && sorteia_valor(D_PREVISIVEL, 20, sempre_dois, &menor) == 12,
-                    "Previsivel: 3, 4, 5... ate 12");
-            limpa(); joga(0, D_D6, 4); F[0].n = 2; F[0].tipo[1] = D_PREVISIVEL; F[0].fixo[1] = 0;
+            CONFERE(sorteia_valor(D_PREVISIVEL, 0, sempre_dois, &menor) == 1 && sorteia_valor(D_PREVISIVEL, 4, sempre_dois, &menor) == 5
+                    && sorteia_valor(D_PREVISIVEL, 11, sempre_dois, &menor) == 12 && sorteia_valor(D_PREVISIVEL, 20, sempre_dois, &menor) == 12,
+                    "Previsivel: 1, 2, 3... ate 12");
+            limpa(); joga(0, D_D6, 4); F[0].n = 2; F[0].tipo[1] = D_PREVISIVEL; F[0].fixo[1] = 2;
             CONFERE(risco(0) == 100, "Previsivel: o 3 depois de um 4 cai com certeza (%d)", risco(0));
-            F[0].fixo[1] = 1;
+            F[0].fixo[1] = 3;
             CONFERE(risco(0) == 0, "Previsivel: o 4 depois de um 4 vale com certeza (%d)", risco(0));
             // Oculto: escondido nao cai nem derruba; no fim aparece e a sequencia e refeita.
             limpa(); joga(0, D_D8, 5); joga_com(0, D_OCULTO, 3, sempre_dois);
@@ -1339,15 +1339,13 @@ int main(void)
             CONFERE(d.total[1] == 2 + 4 && d.total[0] == 1, "Vampiro: oponente devia ficar com 6, ficou %d", d.total[1]);
             limpa(); joga(1, D_D6, 3); joga(0, D_D4, 4); joga(0, D_VAMPIRO, 2); d = fim();
             CONFERE(d.total[1] == 3, "Vampiro caido nao age");
-            // Colecionador: com 5 ou 6, + metade dos dados que voce tem.
+            // Colecionador: com 6, + metade dos dados que voce tem.
             for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
             int tem = em_jogo(&J[0]);
             limpa(); joga(0, D_COLECIONADOR, 6); d = fim();
             CONFERE(d.total[0] == 6 + tem / 2, "Colecionador com 6: esperava %d, deu %d", 6 + tem / 2, d.total[0]);
             limpa(); joga(0, D_COLECIONADOR, 5); d = fim();
-            CONFERE(d.total[0] == 5 + tem / 2, "Colecionador com 5: esperava %d, deu %d", 5 + tem / 2, d.total[0]);
-            limpa(); joga(0, D_COLECIONADOR, 4); d = fim();
-            CONFERE(d.total[0] == 4, "Colecionador com 4 nao ganha nada");
+            CONFERE(d.total[0] == 5, "Colecionador sem 6 nao ganha nada");
             // Pacto: lancado, um Fantasma na sua bolsa; Assombracao valendo, na do oponente.
             int c0 = J[0].n_col, c1 = J[1].n_col;
             limpa(); joga(0, D_D8, 7); joga(0, D_PACTO, 2);           // o Pacto caiu: cobra do mesmo jeito
@@ -2015,7 +2013,7 @@ int main(void)
         CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0;
-            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t);
+            for (int t = 0; t < D_N; t++) vis += !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t);
             CONFERE(vis == n_catalogo(), "a colecao devia ter %d dados (tem %d)", vis, n_catalogo());
             for (int i = 0; i < n_catalogo(); i++) CONFERE(cat_tipo(i) != D_MISTERIOSO, "Misterioso na colecao");
             for (int i = 0; i < n_basicos(); i++) CONFERE(basico(i) != D_MISTERIOSO, "Misterioso na partida rapida");
@@ -2075,7 +2073,7 @@ int main(void)
         limpa();
         joga(0, D_D6, 5);
         F[0].tipo[1] = D_SORTE_REVES; F[0].n = 2;
-        CONFERE(risco(0) == 54, "Sorte/Reves depois de um 5: esperava 54%% de cair (26 em 48), deu %d", risco(0));
+        CONFERE(risco(0) == 70, "Sorte/Reves depois de um 5: esperava 70%% de cair, deu %d", risco(0));
         // Prisma: +1 por tipo diferente valendo.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
@@ -3322,27 +3320,27 @@ int main(void)
         ad_cola(&d6, 3, AD_REMENDO);
         x = sorteia_peca(D_D6, 0, &d6, sempre_tres, &menor, &lado, &antes);
         CONFERE(x == 5 && lado == 3 && !antes, "o Remendo no 3 vale 5: %d (lado %d)", x, lado);
-        // O Previsivel nao rola, mas o lado da escada vira: Avesso no 3 (vira o 10, o oposto), Nota Dez no 4 (vira 12).
+        // O Previsivel nao rola, mas o lado da escada vira: Avesso no 1 (vira 12), Nota Dez no 2 (vira 12).
         peca_t prev = { .tipo = D_PREVISIVEL };
-        ad_cola(&prev, 3, AD_AVESSO);
-        ad_cola(&prev, 4, AD_NOTA_DEZ);
+        ad_cola(&prev, 1, AD_AVESSO);
+        ad_cola(&prev, 2, AD_NOTA_DEZ);
         x = sorteia_peca(D_PREVISIVEL, 0, &prev, sempre_tres, &menor, &lado, &antes);
-        CONFERE(x == 10 && lado == 10 && antes == 3, "Previsivel com Avesso no 3 vira 10: %d (lado %d, de %d)", x, lado, antes);
+        CONFERE(x == 12 && lado == 12 && antes == 1, "Previsivel com Avesso no 1 vira 12: %d (lado %d, de %d)", x, lado, antes);
         x = sorteia_peca(D_PREVISIVEL, 1, &prev, sempre_tres, &menor, &lado, &antes);
-        CONFERE(x == 12 && lado == 12 && antes == 4, "Previsivel com Nota Dez no 4 vira 12: %d (lado %d, de %d)", x, lado, antes);
+        CONFERE(x == 12 && lado == 12 && antes == 2, "Previsivel com Nota Dez no 2 vira 12: %d (lado %d, de %d)", x, lado, antes);
         x = sorteia_peca(D_PREVISIVEL, 2, &prev, sempre_um, &menor, &lado, &antes);
-        CONFERE(x == 5 && lado == 5 && !antes, "Previsivel sem adesivo no 5: %d", x);
+        CONFERE(x == 3 && lado == 3 && !antes, "Previsivel sem adesivo no 3: %d", x);
         // Reflexivo no lado da escada: rola de novo de verdade, como um d12.
         prev = (peca_t){ .tipo = D_PREVISIVEL };
-        ad_cola(&prev, 3, AD_REFLEXIVO);
+        ad_cola(&prev, 1, AD_REFLEXIVO);
         {
             lance_t l = lanca_peca(D_PREVISIVEL, 0, &prev, sempre_tres);
-            CONFERE(l.reflete && l.x1 == 3 && l.x == 3 && l.lado == 3, "Previsivel com Reflexivo no 3 rola de novo: %d (%d)", l.x, l.x1);
+            CONFERE(l.reflete && l.x1 == 1 && l.x == 3 && l.lado == 3, "Previsivel com Reflexivo no 1 rola de novo: %d (%d)", l.x, l.x1);
             int vistos = 0;
             for (int i = 0; i < 400; i++) { l = lanca_peca(D_PREVISIVEL, 0, &prev, rola); vistos |= 1 << l.x; }
             CONFERE(vistos == 0x1FFE, "Previsivel com Reflexivo sai de 1 a 12 (%x)", vistos);
             l = lanca_peca(D_PREVISIVEL, 1, &prev, sempre_tres);
-            CONFERE(!l.reflete && l.x == 4, "Previsivel no 4, sem Reflexivo: %d", l.x);
+            CONFERE(!l.reflete && l.x == 2, "Previsivel no 2, sem Reflexivo: %d", l.x);
         }
         peca_t vazio = { .tipo = D_VAZIO };
         ad_cola(&vazio, 3, AD_REMENDO);
@@ -4961,6 +4959,7 @@ int main(void)
         for (int lm = 0; lm < 2; lm++) {
             gfx_letra_maior(lm);
             for (int a = 1; a < AD_N; a++) {
+                if (ad_aposentado(a)) continue;
                 quebra_so_conta = true;
                 int nd = quebra_linhas(0, 0, DICA_AD_W, 99, AD_TEXTO[a], 0), nt = quebra_linhas(0, 0, 320, 99, AD_TEXTO[a], 0);
                 int ndet = AD_DETALHE[a] ? quebra_linhas_em(0, 0, 320, 99, AD_DETALHE[a], 0, GFX_MIUDO, LINHA_MIUDA) : 0;

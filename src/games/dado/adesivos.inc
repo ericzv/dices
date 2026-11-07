@@ -36,7 +36,6 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define CORRENTE_CADA 3                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela; era +2 so pelos de antes)
 #define DINAMITE_CADA 3                         // a Dinamite: o que o pavio guarda a cada lance que nao cai nela
 #define DINAMITE_MAX 30
-#define ESCADINHA_CADA 2                        // a Escadinha: por degrau, em cada dado da escada
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
 // cores: o vinil, a borda clara e a tinta do simbolo. O simbolo, 7x7 ("#": a
@@ -234,7 +233,13 @@ static const uint8_t RAR_ADESIVO[AD_N] = {
     [AD_MOLDURA] = RAR_RARO, [AD_ALBUM] = RAR_RARO, [AD_XEROX] = RAR_RARO,
 };
 // A Sujeira nao se vende nem se ganha: so chega pelo Barro do oponente.
-static bool ad_a_venda(int a) { return a > AD_NADA && a < AD_N && a != AD_SUJEIRA; }
+// Os que sairam do jogo: o numero fica reservado (o salvamento guarda o adesivo
+// pelo numero), mas nao se vendem, nao aparecem na colecao e, num dado de uma
+// run salva de antes, o lado fica vazio.
+static bool ad_aposentado(int a) { return a == AD_ESCADINHA || a == AD_ALBUM; }
+#define AD_APOSENTADOS 2
+#define N_AD_COLECAO (AD_N - 1 - AD_APOSENTADOS)   // os da colecao (a Sujeira entra, com o Barro)
+static bool ad_a_venda(int a) { return a > AD_NADA && a < AD_N && a != AD_SUJEIRA && !ad_aposentado(a); }
 // Fora do Desafiante nao ha moedas: o Dourado nao sai no premio.
 static bool ad_no_premio(int a) { return ad_a_venda(a) && a != AD_DOURADO; }
 
@@ -243,7 +248,7 @@ static int ad_no_lado(const peca_t *p, int lado)
 {
     if (!p || lado < 1 || lado > AD_LADOS) return AD_NADA;
     int a = p->ad[lado - 1] & ~AD_BIT_VELHO;
-    return a < AD_N ? a : AD_NADA;
+    return a < AD_N && !ad_aposentado(a) ? a : AD_NADA;
 }
 // O numero que o lado tira: o Remendo soma 2, e e esse o numero que conta,
 // na sequencia e nos poderes do dado (o Trevo com Remendo no 2 tira 4).
@@ -457,10 +462,8 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_CASCA]        = "Tirando este lado, o 4º dado do oponente escorrega: rola duas vezes e fica o menor.",
     [AD_CORRENTE]     = "Tirando este lado, se o dado terminar válido: +3 por elo, ela e cada adesivo que agiu antes dela.",
     [AD_DINAMITE]     = "Cada lance que não cai aqui põe +3 no pavio. Tirando este lado, se terminar válido: paga o pavio.",
-    [AD_ESCADINHA]    = "Tirando este lado, se válido: a escada de 1 em 1 com ele (3, 4, 5...) ganha +2 por degrau em cada.",
     [AD_BUSSOLA]      = "Tirando este lado, o próximo dado, caindo sem adesivo, rola de novo: fica o adesivo ou o maior.",
     [AD_MOLDURA]      = "Tirando este lado, os adesivos dos lados vizinhos (o número de baixo e o de cima) também agem.",
-    [AD_ALBUM]        = "Tirando este lado, se o dado terminar válido: x2 nele, se todos os lados do dado tiverem adesivo.",
     [AD_XEROX]        = "Tirando este lado, o adesivo do lado oposto ganha uma cópia, para sempre, em outro dado seu.",
 };
 // Os detalhes, as excecoes e os casos especiais: na colecao, embaixo do
@@ -505,10 +508,8 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_DUPLA]        = "Age como se estivesse para cima (no d6: o 1 e o 6, o 2 e o 5, o 3 e o 4). Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...) e o Patinho Feio, não.",
     [AD_CORRENTE]     = "Sozinha, +3. Ponha no fim da fila: no 4º dado, conta tudo o que agiu nos três de antes. O que o Carimbo e a Dupla Face fizeram agir de novo também conta.",
     [AD_DINAMITE]     = "O pavio vale a partida (até +30) e é um por dado. Tirando este lado e anulado, o pavio apaga sem pagar. No d2 explode quase sempre, com pouco; no d20, raramente, com muito.",
-    [AD_ESCADINHA]    = "Escada de 2 dados: +2 em cada; de 3: +4 em cada; de 4: +6 em cada. Os válidos contam na ordem da sequência; um anulado no meio não quebra a escada.",
     [AD_BUSSOLA]      = "Só vale se o próximo dado tiver algum adesivo. O segundo lance fica se cair num adesivo; se não, fica o maior dos dois. Com o Post-it no mesmo dado, vale o Post-it.",
     [AD_MOLDURA]      = "No d6, o 4 faz agir o 3 e o 5. Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...), o Patinho Feio e outra Moldura, não.",
-    [AD_ALBUM]        = "Conta qualquer adesivo, até o Remendo da Massinha e a Sujeira do oponente. No d4 bastam 4; no d20, 20. O que multiplica sobe um degrau com o Carimbo: x3.",
     [AD_XEROX]        = "Copia assim que o dado cai, válido ou anulado. Copia o que houver lá, até a Sujeira do oponente. Sem adesivo do outro lado, ou sem lado livre na bolsa, nada. Não copia outro Xerox.",
     [AD_CASCA]        = "Válido ou anulado. Com duas cascas, o 3º também; com três, o 2º; com quatro, o 1º. Se ele ainda vai jogar, escorrega no lance (o Post-it dele anula a casca); se já jogou, rola de novo no fim da rodada. Sem o 4º dado, nada. A bolha do Impermeável segura a casca.",
 };
@@ -796,8 +797,8 @@ static int som_adesivo(int a)
         [AD_NEON] = SOM_AD_NEON, [AD_INFECTADO] = SOM_AD_INFECTADO, [AD_BARRO] = SOM_AD_BARRO,
         [AD_SUJEIRA] = SOM_AD_SUJEIRA, [AD_CHICLETE] = SOM_AD_CHICLETE,
         [AD_MASSINHA] = SOM_AD_MASSINHA, [AD_CARIMBO] = SOM_AD_CARIMBO, [AD_DUPLA] = SOM_AD_DUPLA, [AD_CASCA] = SOM_AD_CASCA,
-        [AD_CORRENTE] = SOM_AD_CORRENTE, [AD_DINAMITE] = SOM_AD_DINAMITE, [AD_ESCADINHA] = SOM_AD_ESCADINHA,
-        [AD_BUSSOLA] = SOM_AD_BUSSOLA, [AD_MOLDURA] = SOM_AD_MOLDURA, [AD_ALBUM] = SOM_AD_ALBUM, [AD_XEROX] = SOM_AD_XEROX,
+        [AD_CORRENTE] = SOM_AD_CORRENTE, [AD_DINAMITE] = SOM_AD_DINAMITE,
+        [AD_BUSSOLA] = SOM_AD_BUSSOLA, [AD_MOLDURA] = SOM_AD_MOLDURA, [AD_XEROX] = SOM_AD_XEROX,
     };
     return a > AD_NADA && a < AD_N ? SOM[a] : SOM_EFEITO;
 }

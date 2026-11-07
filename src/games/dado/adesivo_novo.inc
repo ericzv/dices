@@ -842,13 +842,6 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         if (x < -0.6f) return RGB(226, 120, 120);       // a luz do papel
         return cor;
     }
-    case AD_ESCADINHA: {                           // a escada: os dois montantes e tres degraus
-        float w = fmaxf(s * 1.0f, 0.10f);        // deitada na ficha (o giro a poe de pe): montantes em y, degraus em x
-        if (fabsf(fabsf(y) - 0.46f) < w) return y < 0 ? RGB(214, 158, 102) : RGB(120, 78, 50);
-        if (fabsf(y) < 0.46f) for (int d = 0; d < 4; d++)
-            if (fabsf(x - (-0.6f + d * 0.4f)) < w * 0.9f) return RGB(214, 158, 102);
-        return fabsf(y) < 0.46f ? RGB(66, 40, 24) : cor;
-    }
     case AD_BUSSOLA: {                             // a rosa dos ventos: o aro, a agulha (vermelha ao norte) e o pino
         float ro = sqrtf(x * x + y * y);
         if (ro > 0.80f) return x + y < 0 ? RGB(246, 222, 132) : RGB(150, 122, 62);
@@ -866,18 +859,6 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         if (m > 0.56f) return (x + y < 0) ? RGB(246, 222, 132) : (m > 0.71f ? RGB(190, 156, 86) : RGB(228, 194, 106));
         if (m > 0.48f) return RGB(66, 40, 24);
         return (x + y < -0.3f) ? RGB(150, 40, 46) : RGB(118, 30, 38);
-    }
-    case AD_ALBUM: {                               // a pagina do album: quatro figurinhas e a lombada
-        if (x < -0.70f) return RGB(66, 110, 64);
-        float gx = x + 0.12f, gy = y;
-        int qx = gx < 0, qy = gy < 0;
-        float lx = fabsf(gx) - 0.40f, ly = fabsf(gy) - 0.40f;
-        if (fabsf(lx) < 0.25f && fabsf(ly) < 0.25f) {
-            static const uint16_t FIG[4] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(96, 134, 196), RGB(252, 248, 236) };
-            if (fabsf(lx) > 0.19f || fabsf(ly) > 0.19f) return C_BRANCO;
-            return FIG[qx * 2 + qy];
-        }
-        return cor;
     }
     case AD_XEROX: {                               // a copia: as linhas do texto na folha da frente
         if (parte == 1) return v->cor2;

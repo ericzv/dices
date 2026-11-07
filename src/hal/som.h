@@ -73,7 +73,7 @@ enum {
     SOM_TRANSICAO,   // a troca de tela: o pano da cortina passando da esquerda para a direita
     SOM_AGNUS,       // o Agnus ressuscitando os anulados: o sino, o coro e a celesta subindo
     // os adesivos que combam
-    SOM_AD_CORRENTE, SOM_AD_DINAMITE, SOM_AD_ESCADINHA, SOM_AD_BUSSOLA, SOM_AD_MOLDURA, SOM_AD_ALBUM, SOM_AD_XEROX,
+    SOM_AD_CORRENTE, SOM_AD_DINAMITE, SOM_AD_BUSSOLA, SOM_AD_MOLDURA, SOM_AD_XEROX,
     SOM_N
 };
 

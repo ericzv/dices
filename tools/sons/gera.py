@@ -1266,17 +1266,6 @@ def ad_dinamite():
         m.poe(t0 + 0.18 + k * 0.07 + rnd.uniform(0, 0.03), tom(batida(PLASTICO[k % len(PLASTICO)]), rnd.uniform(-8, -2)), 0.25 * (1 - k / 9))
     return sala(m.x, 0.2)
 
-def ad_escadinha():
-    """A Escadinha: subindo os degraus - um toque de madeira e uma nota mais
-    aguda a cada degrau, e o brilho de chegar em cima."""
-    m = Mix(1.0)
-    for k, mi in enumerate((84, 86, 88, 91)):
-        t = 0.02 + k * 0.1
-        m.poe(t, pb(superficie('surface_wood_table3'), 2600)[:int(0.05 * SR)], 0.35)
-        m.poe(t, nota('glockenspiel', mi, 0.25, 0.3), 0.32)
-    m.poe(0.44, nota('glockenspiel', 96, 0.4, 0.5), 0.3)
-    return sala(m.x, 0.15)
-
 def ad_bussola():
     """A Bussola: a agulha gira e vai parando (a catraca de metal, cada vez
     mais devagar) e o ding de quando ela aponta."""
@@ -1299,18 +1288,6 @@ def ad_moldura():
     m.poe(0.2, nota('vibraphone', 79, 0.45, 0.45), 0.3)
     m.poe(0.3, nota('glockenspiel', 88, 0.4, 0.45), 0.28)
     return sala(m.x, 0.16)
-
-def ad_album():
-    """O Album Completo: a pagina vira (o sopro do papel) e o album fecha
-    completo - tres notas subindo e o estalo da capa."""
-    m = Mix(1.1)
-    n = int(0.2 * SR); q = np.linspace(0, 1, n)
-    m.poe(0.02, banda(rng.standard_normal(n), 1200, 6000) * np.sin(np.pi * q) ** 1.5, 0.22)   # a pagina
-    for k, mi in enumerate((72, 76, 79)):
-        m.poe(0.22 + k * 0.08, nota('vibraphone', mi, 0.4, 0.4), 0.3)
-    m.poe(0.5, estalinho(0.014, 1800), 0.35)
-    m.poe(0.5, nota('glockenspiel', 91, 0.5, 0.5), 0.25)
-    return sala(m.x, 0.15)
 
 def ad_xerox():
     """O Xerox: a luz da copiadora passando (o zumbido que vai e volta), o
@@ -2155,7 +2132,7 @@ VOLUME.update({'ad_cola': VOLUME['ficha'], 'ad_chumbo': VOLUME['pousa'], 'ad_ref
                'ad_infectado': VOLUME['efeito'], 'ad_barro': VOLUME['anula'], 'ad_sujeira': VOLUME['tira'] * 0.95,
                'ad_chiclete': VOLUME['efeito'], 'ad_massinha': VOLUME['efeito'], 'ad_carimbo': VOLUME['efeito'],
                'ad_dupla': VOLUME['efeito'], 'ad_casca': VOLUME['efeito']})
-VOLUME.update({n: VOLUME['efeito'] for n in ('ad_corrente', 'ad_escadinha', 'ad_bussola', 'ad_moldura', 'ad_album', 'ad_xerox')})
+VOLUME.update({n: VOLUME['efeito'] for n in ('ad_corrente', 'ad_bussola', 'ad_moldura', 'ad_xerox')})
 VOLUME['ad_dinamite'] = VOLUME['efeito'] * 1.15
 # As novidades: a comum na altura de um poder, a grande perto da vitoria.
 VOLUME.update({'novidade': VOLUME['efeito'], 'novidade_lenda': VOLUME['vitoria'] * 0.9})
@@ -2202,7 +2179,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'ad_fragil', 'ad_estrelinha', 'ad_corretivo', 'ad_imantado', 'ad_postit', 'ad_holografico', 'ad_purpurina',
              'ad_velcro', 'ad_ratoeira', 'ad_figurinha', 'ad_patinho', 'ad_etiqueta', 'ad_bilhete',
              'ad_nota_dez', 'ad_carbono', 'ad_bomba', 'ad_impermeavel', 'ad_lenticular', 'ad_neon',
-             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_escadinha', 'ad_bussola', 'ad_moldura', 'ad_album', 'ad_xerox',
+             'ad_infectado', 'ad_barro', 'ad_sujeira', 'ad_chiclete', 'ad_massinha', 'ad_carimbo', 'ad_dupla', 'ad_casca', 'ad_corrente', 'ad_dinamite', 'ad_bussola', 'ad_moldura', 'ad_xerox',
              'novidade', 'novidade_lenda', 'menu_passa', 'menu_escolhe', 'bolsa_espia', 'sino', 'gelo', 'onda',
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus'):

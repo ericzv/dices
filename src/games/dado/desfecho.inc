@@ -14,7 +14,6 @@ typedef struct {
     int atacados[2];                 // dados de cada um que poderes do outro anularam ou roubaram (Ourico)
     int agiota[2];                   // fichas que o Agiota de cada um leva do outro, fora do pote
     uint8_t medusa[2];               // a Medusa valeu: a fila vira Quebrados no fim da rodada
-    uint8_t pincel[2];               // os Pinceis que valeram (posicoes): cada um pinta um Remendo noutro dado
     uint8_t come[2], come_de[2];     // a Autofagia comeu: o dado (posicao + 1) e ela (posicao + 1); 0: nada
     uint8_t garimpo[2];              // o Garimpeiro valeu: posicoes dos outros validos que voltam para a bolsa
     uint8_t onda[2];                 // posicoes das Ondas que juntaram 9: viram Tsunami
@@ -718,9 +717,6 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                 d->semente[j] += n;
                 evento(gera, EV_EXTRA, j, k, j, 0, n, "Mosaico: %d adesivo%s nos lançados, +%d", n, n > 1 ? "s" : "", n);
             }
-        } else if (ef == EF_PINCEL && !(d->pincel[j] >> k & 1)) {   // pinta um Remendo noutro dado (partida.inc)
-            d->pincel[j] |= (uint8_t)(1 << k);
-            evento(gera, EV_EXTRA, j, k, j, 0, 0, "Pincel: pinta um Remendo noutro dado");
         } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
             d->medusa[j] = 1;
             evento_t *e = evento(gera, EV_MEDUSA, j, k, j, 0, 0, "Medusa: a sua sequência vira pedra");
@@ -745,16 +741,22 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             evento(gera, EV_EXTRA, j, k, j, 0, n, "Pote Quente: %d fichas no pote, +%d", pote, n);
         } else if (ef == EF_GARIMPEIRO && !d->garimpo[j]) { // os outros validos voltam para a bolsa (so o primeiro age)
             uint8_t m = 0;
-            int n = 0;
+            int n = 0, maior = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++)
-                if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito != EF_GARIMPEIRO) { m |= (uint8_t)(1 << i); n++; }
+                if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito != EF_GARIMPEIRO) {
+                    m |= (uint8_t)(1 << i); n++;
+                    if (F[j].valor[i] > maior) maior = F[j].valor[i];
+                }
             if (m) {
                 d->garimpo[j] = m;
                 evento_t *e = evento(gera, EV_GARIMPO, j, k, j, 0, 0, "Garimpeiro: %d dado%s volta%s para a bolsa",
                                      n, n > 1 ? "s" : "", n > 1 ? "m" : "");
-                d->semente[j] += n;                        // e +1 por dado que volta
-                evento(gera, EV_EXTRA, j, k, j, 0, n, "Garimpeiro: +%d pela bateia", n);
                 if (e) e->mascara = m;
+                int pepita = (maior + 1) / 2;              // a bateia: o maior dos que voltam fica, pela metade
+                if (pepita > 0) {
+                    d->semente[j] += pepita;
+                    evento(gera, EV_EXTRA, j, k, j, 0, pepita, "Garimpeiro: a pepita do %d, +%d", maior, pepita);
+                }
             }
         } else if (ef == EF_AGIOTA) {
             d->agiota[j] += AGIOTA_FICHAS;
@@ -870,7 +872,6 @@ static int poder_armado(int j, int k)
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
     case EF_MEDUSA:       return 1;
-    case EF_PINCEL:       return 1;
     case EF_MOSAICO:      return 1;
     case EF_RANCOR:       return J[j].perdidas > 0;
     case EF_ESPERANCA:    return fichas_ini[j] <= ESPERANCA_FICHAS;
@@ -1620,35 +1621,6 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: %d elos, +%d", pre, elos, n);
         else
             e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: um elo, +%d", pre, n);
-        break;
-    }
-    case AD_ESCADINHA: {                         // os validos de 1 em 1 com ele: +2 por degrau em cada um
-        if (!vale) return false;
-        int v[N_FILA], pos[N_FILA], n = 0, eu = -1;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-            if (d->est[j][i] == V_VALIDO) { if (i == k) eu = n; pos[n] = i; v[n++] = F[j].valor[i]; }
-        if (eu < 0) return false;
-        int a0 = eu, a1 = eu;                    // a escada em volta dele, nos validos em ordem
-        while (a0 > 0 && v[a0 - 1] == v[a0] - 1) a0--;
-        while (a1 < n - 1 && v[a1 + 1] == v[a1] + 1) a1++;
-        int degraus = a1 - a0;
-        if (degraus < 1) return false;
-        int cada = ESCADINHA_CADA * degraus * (de_novo ? 1 : 1);
-        uint8_t m = 0;
-        for (int i = a0; i <= a1; i++) m |= (uint8_t)(1 << pos[i]);
-        d->semente[j] += cada * (degraus + 1);
-        e = evento(gera, EV_ADESIVO, j, k, j, k, cada * (degraus + 1), "%sEscadinha: %d degrau%s, +%d em cada", pre,
-                   degraus, degraus > 1 ? "s" : "", cada);
-        if (e) { e->mascara = m; for (int i = 0; i < N_FILA; i++) e->por_dado[i] = (int8_t)(m >> i & 1 ? cada : 0); }
-        break;
-    }
-    case AD_ALBUM: {                             // valendo, com adesivo em todos os lados do dado: x2
-        const peca_t *pa = peca_fila(j, k);
-        if (!vale || !pa || ad_quantos(pa) < ad_n_lados(pa->tipo)) return false;
-        d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
-        e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sÁlbum Completo: x3 no %d" : "%sÁlbum Completo: x2 no %d",
-                   pre, F[j].valor[k]);
-        if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
     }
     case AD_DINAMITE: {                          // valendo, paga o pavio; anulado, o pavio apaga

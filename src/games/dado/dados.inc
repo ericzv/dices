@@ -71,7 +71,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define FERREIRO_ARMA 2           // o Ferreiro arma com isto ou mais (era 3)
 #define TREVO_SORTE 12            // o 4 do Trevo (era 10)
 #define COPIADOR_CADA 3           // o Copiador, em cada dado igual (era 2)
-#define SR_REVES 4                // o Reves: um d4 (era um d8: o dado valia menos que um d6)
+#define SR_REVES 8                // o Reves: um d8 (o risco e a graca do dado)
 #define SEMENTE_BROTA 11          // a Semente brota com os seus validos somando isto (era 14)
 // O teto do bonus que o Acumulador guarda, e o da Autofagia.
 #define ACUM_MAX 6
@@ -123,11 +123,11 @@ static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
 // mais uma, e com a sexta ele dispara.
 static bool revolver_dispara(int fixo) { return fixo + 1 >= REVOLVER_BALAS; }
-// O Previsivel tira isto no primeiro lance da partida, e +1 a cada lance (ate 12). Era 1.
-#define PREVISIVEL_COMECA 3
+// O Previsivel tira isto no primeiro lance da partida, e +1 a cada lance (ate 12).
+#define PREVISIVEL_COMECA 1
 static int previsivel_valor(int fixo) { int v = fixo + PREVISIVEL_COMECA; return v < 12 ? v : 12; }
-// O Colecionador arma com isto ou mais (era so o 6); a Assombracao poe tantos Fantasmas (era 1).
-#define COLECIONADOR_DE 5
+// O Colecionador arma com isto ou mais; a Assombracao poe tantos Fantasmas (era 1).
+#define COLECIONADOR_DE 6
 #define ASSOMBRA_FANTASMAS 2
 #define ASSOMBRA_PTS 2            // a Assombracao valendo: o susto vale isto
 static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
@@ -173,8 +173,11 @@ static bool cosmo_oculto(int t) { return t >= D_CONSTELACAO && t <= D_UNIVERSO; 
 // O Mais Adesivado so nasce de um Adesivado com os 6 lados cheios: nao sai em
 // sorteio nem aparece na colecao (e o segredo dele).
 static bool adesivado_secreto(int t) { return t == D_MAIS_ADESIVADO; }
+// Os que sairam do jogo: o numero fica reservado (o salvamento guarda o dado pelo
+// numero); numa run salva de antes, viram o dado liso do mesmo tamanho.
+static bool aposentado(int t) { return t == D_PINCEL; }
 static bool sem_sorteio(int t) { return oculto(t) || t == D_FANTASMA || t == D_TSUNAMI || fora_de_epoca(t) || cosmo_oculto(t)
-                                        || adesivado_secreto(t); }
+                                        || adesivado_secreto(t) || aposentado(t); }
 static bool so_desafio(int t)
 {
     switch (t) {
@@ -254,7 +257,7 @@ static const tipo_t TIPO[D_N] = {
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
-    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d4 subtrai" },
+    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d8 subtrai" },
     { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo tira o mesmo ou +1: +3" },
@@ -274,16 +277,16 @@ static const tipo_t TIPO[D_N] = {
     { "Rancor",           4, EF_RANCOR,       RAR_RARO,     0, "+1 por rodada que você perdeu" },
     { "Esperança",        8, EF_ESPERANCA,    RAR_LENDA,    0, "Com 40 fichas ou menos: x2" },
     { "Ponte",            4, EF_PONTE,        RAR_RARO,     0, "Não é anulado pela sequência, que o ignora" },
-    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "Válido: os outros válidos voltam à bolsa, +1 cada" },
+    { "Garimpeiro",       6, EF_GARIMPEIRO,   RAR_RARO,     0, "Válido: outros voltam à bolsa; +metade do maior" },
     { "Pote Quente",      8, EF_POTE,         RAR_RARO,     0, "+1 a cada 25 fichas no pote" },
     { "Fantasma",         6, EF_FANTASMA,     RAR_COMUM,    0, "Pontua sempre 1; some no fim da partida" },
-    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "Tira 3, depois 4, 5... (+1 a cada lance)" },
+    { "Previsível",      12, EF_PREVISIVEL,   RAR_INCOMUM,  0, "Tira 1, depois 2, 3... (+1 a cada lance)" },
     { "Oculto",           8, EF_OCULTO,       RAR_INCOMUM,  0, "O número fica escondido até o fim da rodada" },
     { "Sacrifício",       4, EF_SACRIFICIO,   RAR_INCOMUM,  0, "Não pontua · válido: x2 no seu menor dado" },
     { "Vazio",            6, EF_VAZIO,        RAR_COMUM,    0, "Pontua 0 e nunca é anulado" },
     { "Média",            4, EF_MEDIA,        RAR_INCOMUM,  0, "Válido: + o total da sequência ÷ 4" },
     { "Vampiro",          4, EF_VAMPIRO,      RAR_RARO,     0, "Válido: -1 em cada dado do oponente" },
-    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 5 ou 6: + metade dos seus dados" },
+    { "Colecionador",     6, EF_COLECIONADOR, RAR_RARO,     0, "Tirou 6: + metade dos seus dados" },
     { "Pacto",           12, EF_PACTO,        RAR_RARO,     0, "Lançado: um Fantasma na sua bolsa" },
     { "Assombração",      6, EF_ASSOMBRA,     RAR_INCOMUM,  0, "Válido: +2 e 2 Fantasmas na bolsa dele" },
     { "Ficha Velha",      2, EF_FICHA_VELHA,  RAR_INCOMUM,  0, "Anulado: +4 no fim" },
@@ -315,7 +318,7 @@ static const tipo_t TIPO[D_N] = {
     { "Mais Adesivado",   8, EF_ADESIVADO,    RAR_LENDA,    0, "Oito lados, um adesivo em cada" },
     { "Agnus",            8, EF_AGNUS,        RAR_LENDA,    0, "Com 7: seus anulados ressuscitam" },
     { "Tela em Branco",   6, EF_TELA,         RAR_INCOMUM,  0, "Adesivos nele agem 2x; lado vazio: 0" },
-    { "Pincel",           4, EF_PINCEL,       RAR_COMUM,    0, "Válido: pinta um Remendo noutro dado" },
+    { "Pincel",           4, EF_PINCEL,       RAR_COMUM,    0, "(fora do jogo)" },
     { "Mosaico",          8, EF_MOSAICO,      RAR_RARO,     0, "Válido: +1 por adesivo nos lançados" },
 };
 
@@ -380,7 +383,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
-    [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
+    [D_SORTE_REVES]     = "Rola um d12 que soma e um d8 que subtrai. Pontua a diferença, até negativa.",
     [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
     [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número ou um a mais: +3.",
@@ -401,17 +404,17 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_RANCOR]          = "Se terminar válido: +1 por rodada que você já perdeu nesta partida.",
     [D_ESPERANCA]       = "Se você começou a rodada com 40 fichas ou menos e este dado terminar válido: x2.",
     [D_PONTE]           = "Não pode ser anulado pela sequência, e o dado seguinte compara com o dado anterior a ele.",
-    [D_GARIMPEIRO]      = "Se terminar válido, no fim os outros dados válidos seus voltam direto para a bolsa, e ele pontua +1 por cada um.",
+    [D_GARIMPEIRO]      = "Se terminar válido, os outros válidos voltam para a bolsa e o maior deles é a pepita: +metade do número dele.",
     [D_POTE_QUENTE]     = "Se terminar válido: +1 a cada 25 fichas no pote, no fim da rodada.",
     [D_FANTASMA]        = "Pontua sempre o número marcado (1). Não quebra ao ser lançado: só some no fim da partida.",
-    [D_PREVISIVEL]      = "Não é sorteado: tira 3 na primeira vez, 4 na segunda, e assim até 12. Recomeça a cada partida.",
+    [D_PREVISIVEL]      = "Não é sorteado: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
     [D_OCULTO]          = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência e pode ser anulado ou "
                           "anular.",
     [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
     [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
     [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
     [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
-    [D_COLECIONADOR]    = "Tirando 5 ou 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
+    [D_COLECIONADOR]    = "Tirando 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
     [D_ASSOMBRACAO]     = "Se terminar válido: +2, e no fim dois Fantasmas (pontuam 1) entram na bolsa do oponente.",
     [D_FICHA_VELHA]     = "Se terminar a rodada anulado (pela sequência ou por outro dado), pontua +4 no fim.",
@@ -443,7 +446,6 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MAIS_ADESIVADO]  = "Oito lados, um adesivo em cada: Avesso, Transparente, Patinho Feio, Etiqueta, Selo, Remendo, Confete e Eletrônico.",
     [D_AGNUS]           = "Se tirar 7, no fim da rodada todos os seus dados anulados ressuscitam e pontuam.",
     [D_TELA]            = "Os adesivos colados nele agem duas vezes. Caindo num lado sem adesivo, pontua 0.",
-    [D_PINCEL]          = "Se terminar válido, pinta um Remendo no lado livre mais baixo de outro dado seu.",
     [D_MOSAICO]         = "Se terminar válido: +1 por adesivo nos seus dados lançados na rodada, ele incluído.",
 };
 
@@ -544,7 +546,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "incluído.",
     [D_CHECKPOINT]      = "Oito lados. Se terminar válido, no fim da rodada cada dado seu lançado depois dele que também "
                           "terminar válido pontua +3.",
-    [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d4 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
+    [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
                           "Negativo, tira pontos da sequência, e o dado seguinte só precisa ser maior que ele.",
     [D_AUTOFAGIA]       = "Doze lados. Se terminar válido, no fim da rodada anula o outro dado válido seu de menor número, que "
                           "sai da bolsa até o fim da partida, e a Autofagia ganha +1 nas rodadas seguintes, até +3. Se você "
@@ -588,12 +590,13 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PONTE]           = "Quatro lados. Este dado não pode ser anulado pela sequência, mas pode ser anulado por outro dado. A "
                           "sequência o ignora: o dado seguinte só precisa igualar ou passar o último dado válido antes dele.",
     [D_GARIMPEIRO]      = "Seis lados. Se terminar válido, no fim da rodada os outros dados válidos da sua sequência voltam "
-                          "direto para a bolsa e podem sair de novo já na próxima rodada.",
+                          "direto para a bolsa e podem sair de novo já na próxima rodada. Na bateia fica a pepita: o "
+                          "maior número entre eles, e ele pontua a metade (arredondando para cima). Atrás de um 12, +6.",
     [D_POTE_QUENTE]     = "Oito lados. Se terminar válido, pontua +1 no fim da rodada a cada 25 fichas no pote.",
     [D_FANTASMA]        = "Seis lados, mas não é sorteado: pontua sempre o número marcado nele (1). Não quebra ao ser lançado: "
                           "volta para a bolsa como os outros e só some no fim da partida.",
-    [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 3, na segunda 4, e "
-                          "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 3 a cada partida.",
+    [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 1, na segunda 2, e "
+                          "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 1 a cada partida.",
     [D_OCULTO]          = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto isso "
                           "não é anulado, não anula nenhum dado e não conta na sequência: o dado seguinte compara com o dado "
                           "anterior a ele. No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o "
@@ -606,7 +609,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
                           "perde 1 ponto.",
-    [D_COLECIONADOR]    = "Seis lados. Tirando 5 ou 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
+    [D_COLECIONADOR]    = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
                           "Fantasmas que entraram na sua bolsa contam.",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "
                           "até o fim da partida.",
@@ -696,9 +699,6 @@ static const char *TEXTO_CAT[D_N] = {
     [D_TELA]            = "Seis lados em branco, de linho esticado, esperando a sua colagem. Cada adesivo colado nele "
                           "age duas vezes, como carimbado: o Confete dá +8, o Eletrônico fica x3. Mas caindo num lado "
                           "sem adesivo, ele pontua 0 (ainda entra na sequência com o número que tirou).",
-    [D_PINCEL]          = "Um d4 de pintor. Se terminar válido, no fim da rodada pinta um Remendo (aquele lado passa a "
-                          "valer 2 a mais, para sempre) no lado livre mais baixo de outro dado seu, sorteado. Enche a "
-                          "bolsa de adesivo para o Neon, o Álbum Completo e o Mosaico.",
     [D_MOSAICO]         = "Oito lados de azulejo. Se terminar válido: +1 no fim para cada adesivo colado nos seus dados "
                           "lançados na rodada, ele incluído, valendo ou não, agindo ou não. Um dado cheio vale muito.",
 };
@@ -741,7 +741,7 @@ static void classe(int tipo, char *s, int n)
 
 // O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
 // fora da epoca, os de Natal.
-static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t); }
+static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t); }
 static int n_catalogo(void)
 {
     int n = 0;
@@ -932,8 +932,6 @@ static const visual_t VISUAL[D_N] = {
     [D_AGNUS]       = { V_OURO,   0, 0,         V_COURO, 100,   V_TERRA, 100,  V_LATAO, 100 },
     // A Tela em Branco: o linho cru, a trama, e o chassi de madeira no aro.
     [D_TELA]        = { V_TERRA,  0, 0,         V_TRIGO, 45 },
-    // O Pincel: a pincelada de tres cores atravessando a face, no aro de latao.
-    [D_PINCEL]      = { V_LATAO,  0, 0,         V_VERM, 100,    V_CIANO, 100,  V_TRIGO, 100 },
     // O Mosaico: os azulejos de tres cores com o rejunte claro.
     [D_MOSAICO]     = { V_CIANO,  0, 0,         V_CIANO, 100,   V_ROSA, 100,   V_TRIGO, 100 },
 };

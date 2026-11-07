@@ -151,6 +151,29 @@ static void run_de_13(run_t *r, const run13_t *v)
     r->amuletos_x = v->amuletos_x; r->colar = v->colar; r->presente = v->presente;
 }
 
+// O que saiu do jogo, numa run salva de antes: o dado vira o liso do mesmo
+// tamanho (o Pincel, um d4) e o adesivo da loja, um Confete (os colados nos
+// dados ja somem pelo ad_no_lado).
+static void aposenta_peca(peca_t *p)
+{
+    if (p->tipo < D_N && aposentado(p->tipo)) p->tipo = D_D4;
+}
+static void aposenta_run(run_t *r)
+{
+    for (int i = 0; i < MAX_COL; i++) aposenta_peca(&r->col[i]);
+    for (int i = 0; i < VITRINE_MAX; i++) aposenta_peca(&r->vitrine[i]);
+    for (int i = 0; i < PAC_OPCOES; i++) {
+        aposenta_peca(&r->pac_op[i]);
+        if (ad_aposentado(r->pac_op[i].ad[0])) r->pac_op[i].ad[0] = AD_CONFETE;
+    }
+    for (int i = 0; i < PAC_MAX - PAC_OPCOES; i++) {
+        aposenta_peca(&r->pac_op_mais[i]);
+        if (ad_aposentado(r->pac_op_mais[i].ad[0])) r->pac_op_mais[i].ad[0] = AD_CONFETE;
+    }
+    if (ad_aposentado(r->adesivo)) r->adesivo = AD_CONFETE;
+    if (ad_aposentado(r->adesivo2)) r->adesivo2 = AD_CONFETE;
+}
+
 // A run salva so abre se for desta estrutura (RUN_MARCA): as de antes ficam
 // para tras. A de antes dos adesivos de um byte abre convertida, a de antes
 // do Presente (sem o ultimo byte) abre com ele em 0, a de antes das bolsas
@@ -189,6 +212,7 @@ static bool des_carrega(run_t *r)
         || r->passo >= DES_PASSOS || r->no[r->passo].tipo == NO_VAZIO
         || r->estado > R_AMULETO || r->n_col < 1 || r->n_col > MAX_COL) return false;
     for (int i = 0; i < r->n_col; i++) if (r->col[i].tipo >= D_N) return false;
+    aposenta_run(r);
     for (int i = 0; i < PAC_OPCOES; i++) if (r->pac_op[i].tipo >= D_N || r->pac_op[i].ad[0] >= AD_N) return false;
     for (int i = 0; i < PAC_MAX - PAC_OPCOES; i++)
         if (r->pac_op_mais[i].tipo >= D_N || r->pac_op_mais[i].ad[0] >= AD_N) return false;

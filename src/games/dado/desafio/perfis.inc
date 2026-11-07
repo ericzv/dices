@@ -206,7 +206,6 @@ static int nivel_do_dado(int t)
     switch (t) {
     case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_DOMINO:
     case D_HEXA: case D_SENTINELA: case D_PIRATA: case D_COPIADOR:              return 1;
-    case D_PINCEL:                                                              return 2;
     case D_MOSAICO:                                                             return 4;
     case D_TELA:                                                                return 5;
     case D_JACKPOT: case D_SEMENTE: case D_SEGURANCA: case D_AZARAO:

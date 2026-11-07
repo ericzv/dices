@@ -84,7 +84,7 @@ static int cat_adesivo(int i)
 {
     for (int nv = 0; nv <= N_NIVEIS; nv++)
         for (int a = AD_NADA + 1; a < AD_N; a++)
-            if (ADESIVO[a].nivel == nv && i-- == 0) return a;
+            if (ADESIVO[a].nivel == nv && !ad_aposentado(a) && i-- == 0) return a;
     return AD_CONFETE;
 }
 
@@ -94,7 +94,7 @@ static void desenha_cat_adesivo(int i)
     int a = cat_adesivo(i);
     const adesivo_t *d = &ADESIVO[a];
     char s[96];
-    faixas_colecao(i, AD_N - 1);
+    faixas_colecao(i, N_AD_COLECAO);
     bool aberto = adesivo_aberto(a);             // a Sujeira vem com o Barro
     // Na vitrine (catalogo.inc): o adesivo flutua na luz, a ponta descolando
     // de tempos em tempos, e embaixo, no chao, tres dados com ele no lado de
@@ -110,7 +110,7 @@ static void desenha_cat_adesivo(int i)
     }
     ad_solto_d(cx, cy - 22, a, 6, aberto ? descola : 0);
     if (!aberto) vitrine_no_escuro(cx, VIT_Y);
-    fileira_colecao(FIL_ADESIVO, i, AD_N - 1, &cat_ad);
+    fileira_colecao(FIL_ADESIVO, i, N_AD_COLECAO, &cat_ad);
     int x = 290;
     gfx_texto(x, 60, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
     if (!ad_a_venda(a)) {                        // a Sujeira: so pelo Barro do oponente

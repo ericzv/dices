@@ -55,7 +55,9 @@ static bool arriscado(int tipo)
 // Escolha simples, sem imaginar jogadas: os de maior media, do menor para o
 // maior (assim cada um tem boa chance de passar a barra do anterior), sem os
 // arriscados quando da. E como a IA imagina a fila do rival, e a sua propria
-// quando mede uma compra.
+// quando mede uma compra. Na mesma media, o dado com poder vai antes do liso:
+// as mesmas faces e mais alguma coisa (o Espinhoso no lugar de um d4).
+static bool com_poder(peca_t p) { return TIPO[p.tipo].efeito != EF_NADA; }
 static int fila_simples(const peca_t *pc, int n, int *ordem)
 {
     for (int i = 0; i < n; i++)                  // o Universo so vai sozinho, e vale mais que a fila
@@ -69,7 +71,8 @@ static int fila_simples(const peca_t *pc, int n, int *ordem)
         int b = -1;
         for (int i = 0; i < n; i++) {
             if (esc[i] || (sem_risco && arriscado(pc[i].tipo))) continue;
-            if (b < 0 || media(pc[i]) > media(pc[b])) b = i;
+            float mi = media(pc[i]), mb = b < 0 ? 0 : media(pc[b]);
+            if (b < 0 || mi > mb + 0.001f || (mi > mb - 0.001f && com_poder(pc[i]) && !com_poder(pc[b]))) b = i;
         }
         if (b < 0) break;
         esc[b] = true;

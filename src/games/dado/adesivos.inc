@@ -29,7 +29,8 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define PURPURINA_CADA 3                        // a Purpurina, por adesivo que agiu
 #define LENTICULAR_PERDE 4                      // o Lenticular anulado: -4 no seu placar
 #define NEON_CADA 2                             // o Neon: +2 por adesivo no dado
-#define COLEIRA_PERDE 4                         // a Coleira: quem tenta roubar o dado perde 4
+#define COLEIRA_PERDE 4                         // a Coleira: quem rouba ou anula o dado perde 4
+#define GORJETA_FICHAS 4                        // a Gorjeta: o que o oponente te paga
 #define TIQUETE_VALIDOS 4                       // o Tiquete de Metro: com 4 dados validos na sequencia,
 #define TIQUETE_PONTOS 5                        // +5
 #define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 no fim (e, ao cair, valendo ou nao, passa para outro lado da sua bolsa)
@@ -37,7 +38,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 #define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
 #define MASSINHA_REMENDA 1                      // a Massinha: os lados que ganham Remendo por vez
-#define CORRENTE_CADA 2                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela)
+#define CORRENTE_CADA 3                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela)
 #define DINAMITE_CADA 3                         // a Dinamite: o que o pavio guarda a cada lance que nao cai nela
 #define DINAMITE_MAX 30
 
@@ -90,7 +91,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_AVESSO]       = { "Avesso", "tirando este lado:", "vira o lado oposto", 4, 4,
                           RGB(72, 150, 138), RGB(96, 182, 198), C_BRANCO,
                           { ".#.....", "###....", ".#.....", ".#...#.", ".#...#.", "....###", ".....#." } },
-    [AD_GORJETA]      = { "Gorjeta", "tirando este lado: o oponente", "te paga 2 fichas", 3, 1,
+    [AD_GORJETA]      = { "Gorjeta", "tirando este lado: o oponente", "te paga 4 fichas", 3, 1,
                           RGB(56, 86, 150), RGB(96, 134, 196), RGB(168, 204, 230),
                           { ".#####.", "#.#.#.#", "#######", ".#####.", "#.#.#.#", "#######", "......." } },
     [AD_SELO]         = { "Selo", "tirando este lado: no próximo", "lance, se terminar válido, +5", 3, 0,
@@ -193,7 +194,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_CASCA]        = { "Casca de Banana", "tirando este lado: o 4º dado do", "oponente escorrega e fica o menor", 4, 5,
                           RGB(72, 150, 138), RGB(96, 182, 198), RGB(246, 222, 132),
                           { "...#...", "..###..", ".##w##.", ".#w#w#.", "##.#.##", "#..#..#", "#.....#" } },
-    [AD_CORRENTE]     = { "Corrente", "tirando este lado, se válido: +2", "por elo: ela e os adesivos de antes", 4, 1,
+    [AD_CORRENTE]     = { "Corrente", "tirando este lado, se válido: +3,", "+3 por adesivo que agiu antes dela", 4, 1,
                           RGB(120, 128, 140), RGB(184, 194, 208), RGB(36, 32, 29),
                           { "##.....", "#.#....", ".###...", "..#.#..", "...###.", "....#.#", ".....##" } },
     [AD_DINAMITE]     = { "Dinamite", "lance sem cair aqui: +3 no pavio;", "tirando este lado, válido: paga", 3, 2,
@@ -214,7 +215,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_XEROX]        = { "Xerox", "tirando este lado: copia o adesivo", "do lado oposto em outro dado seu", 6, 7,
                           RGB(238, 230, 212), RGB(252, 248, 236), RGB(36, 32, 29),
                           { "####...", "#..#...", "#.####.", "#.#..#.", "###..#.", "..#..#.", "..####." } },
-    [AD_COLEIRA]      = { "Coleira", "tirando este lado: não pode ser", "roubado; quem tenta perde 4", 4, 6,
+    [AD_COLEIRA]      = { "Coleira", "tirando este lado: quem roubar ou", "anular este dado perde 4", 4, 6,
                           RGB(176, 52, 48), RGB(226, 120, 108), RGB(246, 222, 132),
                           { ".#####.", "#.....#", "#.....#", ".#...#.", "..###..", "..#.#..", "..###.." } },
     [AD_TIQUETE]      = { "Tíquete de Metrô", "tirando este lado: com 4 dados", "válidos na sequência, +5", 3, 3,
@@ -447,7 +448,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_BIS]          = "Tirando este lado: na próxima rodada, a sua sequência leva 1 dado a mais.",
     [AD_MIRA]         = "Tirando este lado, se o dado terminar válido: anula o menor dado válido do oponente.",
     [AD_AVESSO]       = "Tirando este lado, o dado vira para o lado oposto.",
-    [AD_GORJETA]      = "Tirando este lado: o oponente te paga 2 fichas, fora do pote.",
+    [AD_GORJETA]      = "Tirando este lado: o oponente te paga 4 fichas, fora do pote.",
     [AD_SELO]         = "Tirando este lado, o dado fica lacrado: no próximo lance, se terminar válido, +5 pontos.",
     [AD_FRAGIL]       = "Tirando este lado: válido, +6 pontos; anulado, o dado quebra.",
     [AD_ESTRELINHA]   = "Tirando este lado: +2 pontos por dado válido da sua sequência.",
@@ -476,12 +477,12 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_CARIMBO]      = "Tirando este lado, o adesivo do próximo dado da sequência age duas vezes.",
     [AD_DUPLA]        = "Tirando este lado, o adesivo do lado oposto do dado também age.",
     [AD_CASCA]        = "Tirando este lado, o 4º dado do oponente escorrega: rola duas vezes e fica o menor.",
-    [AD_CORRENTE]     = "Tirando este lado, se o dado terminar válido: +2 por elo, ela e cada adesivo que agiu antes dela.",
+    [AD_CORRENTE]     = "Tirando este lado, se válido: +3, e mais +3 por adesivo seu que agiu antes dela.",
     [AD_DINAMITE]     = "Cada lance que não cai aqui põe +3 no pavio. Tirando este lado, se terminar válido: paga o pavio.",
     [AD_BUSSOLA]      = "Tirando este lado, o próximo dado sem adesivo rola de novo: fica o 2º se cair em adesivo ou for maior.",
     [AD_MOLDURA]      = "Tirando este lado, os adesivos dos lados vizinhos (o número de baixo e o de cima) também agem.",
     [AD_XEROX]        = "Tirando este lado, o adesivo do lado oposto ganha uma cópia, para sempre, em outro dado seu.",
-    [AD_COLEIRA]      = "Tirando este lado, o dado não pode ser roubado: quem tentar roubar perde 4.",
+    [AD_COLEIRA]      = "Tirando este lado: se o oponente roubar ou anular este dado, ele perde 4 no placar.",
     [AD_TIQUETE]      = "Tirando este lado, se a sua sequência tiver 4 dados válidos: +5.",
 };
 // Os detalhes, as excecoes e os casos especiais: na colecao, embaixo do
@@ -524,12 +525,12 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_MASSINHA]     = "Molda assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um 1 passa a tirar 3. Com todos os lados cheios, não faz nada.",
     [AD_CARIMBO]      = "Cada vez com a regra dele: o Confete dá +8 se o dado terminar válido; o Barro suja 2 lados. O que multiplica sobe um degrau: o Eletrônico fica x3. Os que mexem no lance (Chumbo, Avesso, Post-it...) não repetem.",
     [AD_DUPLA]        = "Age como se estivesse para cima (no d6: o 1 e o 6, o 2 e o 5, o 3 e o 4). Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...) e o Patinho Feio, não.",
-    [AD_CORRENTE]     = "Sozinha, +2. Ponha no fim da fila: no 4º dado, conta tudo o que agiu nos três de antes. O que o Carimbo e a Dupla Face fizeram agir de novo também conta.",
+    [AD_CORRENTE]     = "Cada adesivo é um elo: com 3 agindo antes dela, +12. Ponha no fim da fila: no 4º dado, conta tudo o que agiu nos três de antes. O que o Carimbo e a Dupla Face fizeram agir de novo também conta.",
     [AD_DINAMITE]     = "O pavio vale a partida (até +30) e é um por dado. Tirando este lado e anulado, o pavio apaga sem pagar. No d2 explode quase sempre, com pouco; no d20, raramente, com muito.",
     [AD_BUSSOLA]      = "Qualquer adesivo serve, mesmo com número menor. Se o 2º lance cair sem adesivo e for menor, fica o 1º. Só age se o próximo dado tiver adesivo em algum lado. O lance que não fica cai ao lado. A Casca de Banana do oponente vence a Bússola.",
     [AD_MOLDURA]      = "No d6, o 4 faz agir o 3 e o 5. Os que mexem no lance (Chumbo, Avesso, Remendo, Post-it...), o Patinho Feio e outra Moldura, não.",
     [AD_XEROX]        = "Copia assim que o dado cai, válido ou anulado. Copia o que houver lá, até a Sujeira do oponente. Sem adesivo do outro lado, ou sem lado livre na bolsa, nada. Não copia outro Xerox.",
-    [AD_COLEIRA]      = "Vale contra o Caridoso e o Gatuno do oponente: o roubo não acontece, o dado fica e quem tentou perde 4 no placar (e para de roubar nesta rodada).",
+    [AD_COLEIRA]      = "Vale contra os ataques do oponente (Caridoso, Gatuno, Laser, Carrasco, Mira...): o ataque acontece, e quem fez perde 4 no placar. Cair pela sequência não conta.",
     [AD_TIQUETE]      = "Conta todos os seus dados válidos no fim da rodada, este incluído. Com o Bis (5 dados), bastam 4 valendo.",
     [AD_CASCA]        = "Válido ou anulado. Com duas cascas, o 3º também; com três, o 2º; com quatro, o 1º. Se ele ainda vai jogar, escorrega no lance (o Post-it dele anula a casca); se já jogou, rola de novo no fim da rodada. Sem o 4º dado, nada. A bolha do Impermeável segura a casca.",
 };

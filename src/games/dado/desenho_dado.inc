@@ -375,6 +375,19 @@ static float onda_cheia(void)
     float q = marca_nivel / (float)ONDA_VIRA;
     return q < 0.08f ? 0.08f : q > 1 ? 1 : q;
 }
+// O pico da Onda, de 0 a 1, em x (do centro do d4): a frente da onda, a
+// direita, mais em pe que as costas.
+static float onda_pico(float x)
+{
+    float d = (x - 0.18f) / (x < 0.18f ? 0.45f : 0.17f);
+    return expf(-d * d);
+}
+// A superficie da Onda em x: sobe com o que ela guardou, e o pico cresce
+// junto (uma marola no comeco, um vagalhao quase cheia).
+static float onda_sup(float x, float cheia)
+{
+    return 0.80f - cheia * 1.50f - (0.03f + 0.17f * cheia) * onda_pico(x) + 0.02f * sinf(x * 14.0f + 0.8f);
+}
 
 static float sombra_alt;                 // altura do dado no ar, em pixels
 // O Sorte/Reves no ar sao dois dados: 1 o d12 da Sorte (marfim, aro de ouro,
@@ -992,10 +1005,12 @@ static int desenho_interno(int tipo, float u, float v, float s)
         return fr(v / (3 * s)) < 0.34f;
     case D_PAR:                                   // =
         return fabsf(v + 0.45f) < s || fabsf(v - 0.47f) < s;
-    case D_ESCUDO: {                              // um brasao por tras dos pontos
-        float w = 0.58f;
-        if (v < -0.64f || fabsf(u) > w) return 0;
-        return v < 0.1f || fabsf(u) < w * (1 - (v - 0.1f) / 0.68f);
+    case D_ESCUDO: {                              // um escudo por tras do numero: topo reto e a ponta embaixo
+        float x = fabsf(u - 0.07f), y = v - 0.24f, w = 0.31f;   // (o centro do d4)
+        if (y < -0.36f || y > 0.42f || x > w) return 0;
+        if (y < 0.04f) return 1;
+        float q = (y - 0.04f) / 0.38f;
+        return x < w * (1 - q * q);
     }
     case D_CARRASCO:                              // o capuz: a ponta de cima escura
         return v < -0.30f;
@@ -1720,12 +1735,36 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (y < 0 || y > alto) return 0;
         return y < alto * 0.55f ? 2 : 1;
     }
-    case D_ONDA: {                                // a agua sobe com o que ela guardou; a crista em cima
-        float cheia = onda_cheia();
-        float fase = u * 8.0f + 0.8f, sup = 0.78f - cheia * 1.55f + 0.06f * sinf(fase);
-        if (v < sup - l * 1.5f) return 0;
-        if (v < sup + 0.05f) return sinf(fase) < -0.55f ? 3 : 2;                         // a crista, com espuma no alto
-        return fr((v - 0.04f * sinf(fase + 1.6f)) / 0.18f) < 0.16f ? 2 : 1;               // a agua, em listras
+    case D_ONDA: {                                // a agua da Tsunami subindo com o que ela guardou: a crista espumando em bolhas
+        float cheia = onda_cheia(), x = u - 0.07f;
+        float fundo = v - onda_sup(x, cheia);                                 // o quanto o ponto esta abaixo da agua
+        if (fundo < 0) return 0;                                              // o ceu: o corpo do dado
+        float pico = onda_pico(x);
+        if (fundo < 0.035f + 0.025f * pico * cheia + 0.015f * sinf(x * 31.0f)) return LUZ(3, 0.5f - x * 0.5f);   // o labio da crista
+        float lim = (0.06f + 0.22f * cheia) * (0.45f + 0.55f * pico);         // a espuma: mais alta no pico e na onda cheia
+        bool numero = fabsf(x) < 0.22f && fabsf(v - 0.24f) < 0.25f;           // a espuma nao cobre o numero
+        if (fundo < lim && !numero) {                                         // as bolhas: grandes junto do labio, miudas mais abaixo
+            const float C = 0.10f;
+            int ci = (int)floorf(u / C + 100), cj = (int)floorf(v / C + 100);
+            for (int a = -1; a <= 1; a++)
+                for (int b = -1; b <= 1; b++) {
+                    uint32_t hh = hash2(ci + a, cj + b);
+                    float bx = (ci + a + 0.2f + 0.6f * (hh % 97) / 97.0f - 100) * C;
+                    float by = (cj + b + 0.2f + 0.6f * (hh / 97 % 89) / 89.0f - 100) * C;
+                    float bf = by - onda_sup(bx - 0.07f, cheia);
+                    if (bf < 0 || bf > lim) continue;
+                    float rb = (0.035f + 0.035f * (hh / 8633 % 100) / 100.0f) * (1 - 0.6f * bf / lim);
+                    float dx = u - bx, dy = v - by, d = sqrtf(dx * dx + dy * dy);
+                    if (d < rb) return d > rb - s * 1.1f && rb > s * 2.5f ? LUZ(2, 0.6f) : LUZ(3, 0.7f - (dx + dy) / rb * 0.5f);
+                }
+        }
+        // a agua: as correntes curvas da Tsunami, cristas claras e vales escuros
+        // sobre o azul dela (o tom do meio da rampa, chapado)
+        float fase = x * 3.4f + 1.4f * sinf(v * 5.5f + x * 2.0f) - v * 2.2f;
+        float f = fr(fase);
+        if (f < 0.09f) return LUZ(2, 0.5f - v * 0.4f);
+        if (f > 0.50f && f < 0.57f) return LUZ(1, -0.25f);
+        return LUZ(1, 0.42f);
     }
     case D_TSUNAMI: {                             // o dado todo de agua revolta; na beira de cima, a crista espumando em bolhas
         float x = u - 0.08f;
@@ -3474,6 +3513,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_FICHA_CORINGA && !zerado && r >= 12) contorno = RGB(54, 36, 74);
     if (tipo == D_INVEJOSO && !zerado && r >= 12) contorno = RGB(14, 14, 12);
     if (tipo == D_AGNUS && !zerado && r >= 12) contorno = C_BRANCO;   // o numero recortado na la
+    if (tipo == D_ONDA && !zerado && r >= 12) contorno = C_MARFIM;    // o numero escuro se le na agua funda
     if (curinga && valor != SO_CORPO) {          // a Ficha Coringa: o curinga, ate virar
         curinga_face(cx, cy, r, zerado);
         if (zerado && vista) risca(cx, cy, r);

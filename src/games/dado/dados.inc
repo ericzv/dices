@@ -229,7 +229,7 @@ static const tipo_t TIPO[D_N] = {
     { "Viciado",          6, EF_VICIADO,      RAR_INCOMUM, 16, "Rola 2 vezes e fica com o maior" },
     { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "Sempre de 4 a 12" },
     { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "Igual ao último dado válido: +6" },
-    { "Escudo",           6, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
+    { "Escudo",           4, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
     { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado." },
     { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "Se tirar 8, rola novamente somando a pontuação" },
     { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "Com 3 ou 4: tira 4 pontos do oponente" },
@@ -500,7 +500,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_VICIADO]         = "Seis lados. Rola duas vezes e fica com o maior resultado. O menor aparece na mesa e é descartado.",
     [D_LASTRO]          = "Doze lados, mas só sai de 4 a 12, cada número com a mesma chance (1 em 9).",
     [D_PAR]             = "Quatro lados. Se tirar o mesmo número do último dado válido da sequência, pontua +6.",
-    [D_ESCUDO]          = "Seis lados. Nunca é anulado. Nunca é roubado.",
+    [D_ESCUDO]          = "Quatro lados. Nunca é anulado. Nunca é roubado.",
     [D_CARRASCO]        = "Quatro lados. Se terminar válido, tirando 4: anula o maior dado do oponente. Tirando 1, mesmo se "
                           "terminar anulado: anula o seu menor dado.",
     [D_EXPLOSIVO]       = "Oito lados. Tirando 8, rola de novo e soma a pontuação da nova rolagem ao 8 que já tinha. Pode rolar "
@@ -977,7 +977,7 @@ static const visual_t VISUAL[D_N] = {
     [D_BONECO]     = { V_CEU,     V_BRANCO, 100 }, // a neve, a cara e o cachecol vem do corpo (neve_boneco)
     [D_JINGLE]     = { V_OURO,    V_OURO, 12,   V_OURO, 100,    V_LATAO_E, 100, V_VERM, 80 },
     [D_FURIA]      = { V_FOGO,    V_SANGUE, 16, V_FOGO, 95,     V_AMBAR, 100,  V_BREU, 85 },
-    [D_ONDA]       = { V_CIANO,   V_CEU, 14,    V_AZUL, 75,     V_CIANO, 100,  V_BRANCO, 90 },
+    [D_ONDA]       = { V_CIANO,   V_CEU, 14,    RGB(44, 78, 136), 100, RGB(96, 160, 200), 100, V_BRANCO, 100 },   // a agua da Tsunami
     [D_TSUNAMI]    = { V_AZUL,    V_AZUL, 0,    RGB(30, 52, 100), 100, RGB(96, 160, 200), 100, V_BRANCO, 100 },
     [D_PATINHOS]   = { V_TRIGO,   V_CEU, 80,    V_TRIGO, 100,   V_FOGO, 100,   V_AGUA, 45 },
     [D_PRESENTE]   = { V_VERM,    0, 0,         V_ROSA, 40,     V_LATAO, 100 },

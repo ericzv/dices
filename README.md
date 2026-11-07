@@ -198,14 +198,14 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   quatro o 1º; se ele ainda vai jogar, escorrega no lance - o Post-it dele e
   a casca se anulam -, e se já jogou, o dado rola de novo no fim da rodada;
   sem o 4º dado, nada; a bolha do Impermeável segura a casca), e aos que
-  combam com a fila e com a bolsa: a Corrente (valendo, +2 por elo: ela e
+  combam com a fila e com a bolsa: a Corrente (valendo, +3 por elo: ela e
   cada adesivo seu que agiu antes dela), a Dinamite (cada lance que não cai
   nela põe +3 no pavio; tirando o lado dela, valendo, paga o pavio), a
   Bússola (o próximo dado, caindo sem adesivo, rola de novo e fica o 2º se
   cair em adesivo ou for maior), a Moldura (os adesivos dos lados vizinhos
   também agem), o Xerox (o adesivo do lado oposto ganha uma cópia, para
-  sempre, em outro dado seu), a Coleira (o dado não pode ser roubado: o
-  Caridoso ou o Gatuno que tentar perde 4 no placar e para de roubar) e o
+  sempre, em outro dado seu), a Coleira (o oponente que roubar ou
+  anular o dado com um ataque perde 4 no placar; o ataque acontece) e o
   Tíquete de Metrô (com 4 dados válidos na sequência, +5); sete desde o
   começo, os outros abrem nos níveis 1 a 10. Cada adesivo tem
   uma raridade, como os dados, e os da loja saem com os mesmos pesos dos

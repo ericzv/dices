@@ -526,6 +526,10 @@ static void aplica_regra(int j, int k)
         else            snprintf(veredito, sizeof veredito, "%d é menor que %d: anulou os dois", v, f->valor[l]);
         ver_tipo = (esc_l || esc_k) ? 2 : 1;
         ver_comum = ver_tipo == 1;
+        // Firme, ele fica valendo: o que ele pontua diferente do numero (o
+        // Trevo com 4 vale 10; o Ferreiro, o Sacrificio e o Pisca apagado, 0)
+        // ganha a etiqueta, como no caminho de sempre.
+        if (esc_k && valor_pontos(j, k) != v) poe_tag(f, k, "=%d", valor_pontos(j, k));
     } else {
         f->est[k] = V_VALIDO;
         if (ef == EF_PAR && l >= 0 && v == f->valor[l]) {

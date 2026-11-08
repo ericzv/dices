@@ -537,7 +537,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "sempre. Tirando 2, ainda pontua +10; tirando 1, nada.",
     [D_MALDICAO]        = "Quatro lados. Se terminar válido, pontua para você e tira do oponente o mesmo número de pontos que "
                           "tirou.",
-    [D_TREVO]           = "Quatro lados. Tirando 4: SORTE, pontua 10. Tirando 1, 2 ou 3, pontua 0. Para a sequência, conta o "
+    [D_TREVO]           = "Quatro lados. Tirando 4: SORTE, pontua 12. Tirando 1, 2 ou 3, pontua 0. Para a sequência, conta o "
                           "número que saiu.",
     [D_JACKPOT]         = "Quatro lados. Se terminar válido e dois dados válidos seus mostrarem o mesmo número (este dado pode "
                           "ser um deles), pontua +4 no fim da rodada; se forem três: JACKPOT, +10.",
@@ -692,10 +692,10 @@ static const char *TEXTO_CAT[D_N] = {
                           "na sequência com o número que tirou). As luzinhas no dado mostram como ele vem na próxima vez. "
                           "Só aparece de 20 de outubro a 6 de janeiro.",
     [D_MEIA]            = "Quatro lados. Cada vez que termina a rodada anulada, guarda +4 na meia. Quando termina válida, "
-                          "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece em "
+                          "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece de "
                           "20 de outubro a 6 de janeiro.",
     [D_ESTRELA]         = "Oito lados. Se terminar válida e for o último dado que você lançou na rodada (a estrela no "
-                          "topo da árvore), pontua +2 no fim para cada dado seu válido abaixo dela. Só aparece em "
+                          "topo da árvore), pontua +2 no fim para cada dado seu válido abaixo dela. Só aparece de "
                           "20 de outubro a 6 de janeiro.",
     [D_RENA]            = "Seis lados. Se terminar válida, o dado seu lançado logo antes e o lançado logo depois dela, "
                           "se terminarem válidos, pontuam +1 cada. Só aparece de 20 de outubro a 6 de janeiro.",

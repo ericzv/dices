@@ -1033,8 +1033,34 @@ static void an_extras(int a, float cx, float cy, float R, float th, int W, int x
 
 // A forma na grade de W de lado: (ox, oy), o meio do pixel (0, 0) em relacao
 // ao meio do recorte.
+// A grade so depende da forma, do tamanho, do angulo e do deslocamento: o
+// dado parado repete tudo a cada quadro. As ultimas ficam guardadas (a chave
+// comparada bit a bit) e voltam copiadas, as mesmas contas de antes.
+#define AN_GUARDA_N 32
+#define AN_GUARDA_W 64
+typedef struct { int a, W; float ox, oy, ca, sa, R; } an_chave_t;
+static struct {
+    an_chave_t ch;
+    bool ok;
+    float dd[AN_GUARDA_W * AN_GUARDA_W], vc[AN_GUARDA_W * AN_GUARDA_W];
+    uint8_t pt[AN_GUARDA_W * AN_GUARDA_W];
+} an_guarda[AN_GUARDA_N];
+static int an_guarda_prox;
 static void an_grade(int a, int W, float ox, float oy, float ca, float sa, float R)
 {
+    an_chave_t ch;
+    memset(&ch, 0, sizeof ch);
+    ch.a = a; ch.W = W; ch.ox = ox; ch.oy = oy; ch.ca = ca; ch.sa = sa; ch.R = R;
+    size_t n = (size_t)W * W;
+    bool cabe = W <= AN_GUARDA_W;
+    if (cabe)
+        for (int g = 0; g < AN_GUARDA_N; g++)
+            if (an_guarda[g].ok && !memcmp(&an_guarda[g].ch, &ch, sizeof ch)) {
+                memcpy(an_dd, an_guarda[g].dd, n * sizeof an_dd[0]);
+                memcpy(an_vc, an_guarda[g].vc, n * sizeof an_vc[0]);
+                memcpy(an_pt, an_guarda[g].pt, n);
+                return;
+            }
     float s = 1 / R;
     for (int j = 0; j < W; j++)
         for (int i = 0; i < W; i++) {
@@ -1044,6 +1070,15 @@ static void an_grade(int a, int W, float ox, float oy, float ca, float sa, float
             an_pt[j * W + i] = (uint8_t)pt;
             an_vc[j * W + i] = an_vinco * R;
         }
+    if (cabe) {
+        int g = an_guarda_prox;
+        an_guarda_prox = (an_guarda_prox + 1) % AN_GUARDA_N;
+        an_guarda[g].ch = ch;
+        an_guarda[g].ok = true;
+        memcpy(an_guarda[g].dd, an_dd, n * sizeof an_dd[0]);
+        memcpy(an_guarda[g].vc, an_vc, n * sizeof an_vc[0]);
+        memcpy(an_guarda[g].pt, an_pt, n);
+    }
 }
 
 // ---- O que se anima no recorte (a colagem e a ativacao) ---------------------

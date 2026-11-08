@@ -3,13 +3,13 @@
 #include <string.h>
 #include "hal/salva.h"
 
-static struct { char chave[16]; char texto[16384]; } salva_mem[8];   // a run salva tem uns 7 KB
+static struct { char chave[16]; char texto[16384]; } salva_mem[16];  // a run salva tem uns 7 KB; os tres perfis cheios usam 10 chaves
 
 static int salva_slot(const char *chave, bool cria)
 {
-    for (int i = 0; i < 8; i++) if (!strcmp(salva_mem[i].chave, chave)) return i;
+    for (int i = 0; i < 16; i++) if (!strcmp(salva_mem[i].chave, chave)) return i;
     if (!cria) return -1;
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 16; i++)
         if (!salva_mem[i].chave[0]) { snprintf(salva_mem[i].chave, sizeof salva_mem[i].chave, "%s", chave); return i; }
     return -1;
 }

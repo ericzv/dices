@@ -23,6 +23,7 @@ typedef struct {
     uint8_t bis[2];                  // Bis: 1 lugar a mais na sequencia da proxima rodada
     int gorjeta[2];                  // Gorjeta: fichas do rival para o dono, fora do pote
     uint8_t fermento[2], raspa[2];   // posicoes na fila: o Fermento que cresce, a Raspadinha que sai
+    uint32_t raspa_lados[2][N_FILA]; // e de que lado ela sai (pela Dupla Face ou pela Moldura, nao e o de cima)
     uint8_t selo_rompe[2], selo_lacra[2];   // e o lacre do Selo que se rompe, e o que se fecha
     uint8_t velcro[2], fragil[2];    // o Velcro que volta para a mao, o Fragil que quebra
     uint8_t capa[2];                 // o Impermeavel que agiu: a capa fica ate o fim da partida
@@ -1458,8 +1459,12 @@ typedef struct { int8_t j, k, q, i; uint8_t ad, capa, n; uint32_t lados; } pouso
 static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
 {
     if (k < 0 || k >= F[j].lancados || k >= N_FILA) return 0;
-    int a = ad_fila(j, k), r = outro(j);
-    if (a == AD_DUPLA) a = ad_oposto_fila(j, k);
+    int a = ad_fila(j, k), r = outro(j), lado_a = F[j].lado[k];   // lado_a: de onde o adesivo age
+    if (a == AD_DUPLA) {                         // o de baixo, pela Dupla Face, como se estivesse para cima
+        a = ad_oposto_fila(j, k);
+        const peca_t *pd = peca_fila(j, k);
+        if (pd) lado_a = ad_oposto(pd->tipo, lado_a);
+    }
     if (a == AD_CHICLETE) {
         int i = F[j].idx[k];
         if (max < 1 || !peca_fila(j, k) || F[j].chiclete || (k == 0 && F[j].grudado)) return 0;
@@ -1473,7 +1478,7 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
     if (a == AD_XEROX) {
         const peca_t *px = peca_fila(j, k);
         if (!px || max < 1) return 0;
-        int b = ad_no_lado(px, ad_oposto(px->tipo, F[j].lado[k]));
+        int b = ad_no_lado(px, ad_oposto(px->tipo, lado_a));   // o do outro lado do Xerox (pela Dupla Face, ela mesma)
         if (!b || b == AD_XEROX) return 0;
         int vezes = 1 + ((k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO)) || F[j].tipo[k] == D_TELA), n = 0;
         for (int g = 0; g < vezes && n < max; g++) {
@@ -1529,6 +1534,7 @@ static int adesivos_no_pouso(int j, int k, pouso_ad_t *o, int max)
 // x3), e o que so marca o dado (Bis, Selo, Velcro, Chiclete, Impermeavel, o
 // Fragil que quebra) nao repete; EVM_DUPLA, o do lado oposto, pela Dupla Face.
 static int age_modo;
+static int age_lado;                             // o lado do adesivo que esta agindo (o de cima, o de baixo, o vizinho)
 static int corrente_antes;                       // a Corrente: os adesivos que agiram nos dados antes deste
 // O que o Papagaio e o Porta-Retrato podem repetir em outro dado: os do fim
 // da rodada (os do pouso, os que agem depois - o Holografico, a Purpurina, o
@@ -1565,7 +1571,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     case AD_RASPADINHA:
         if (!vale) return false;
         d->semente[j] += 10;
-        if (!copia) d->raspa[j] |= bit;
+        if (!copia) { d->raspa[j] |= bit; d->raspa_lados[j][k] |= 1u << age_lado; }
         e = evento(gera, EV_ADESIVO, j, k, j, k, 10, copia ? "%sRaspadinha: +10" : "%sRaspadinha: +10, e o adesivo sai", pre);
         break;
     case AD_FERMENTO: {
@@ -1870,6 +1876,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int a = ad_fila(j, k);
         if (!a || d->est[j][k] == V_ROUBADO) continue;
+        const peca_t *pc = peca_fila(j, k);      // (com adesivo, ha peca)
         bool carimbo = carimbado(d, j, k) || F[j].tipo[k] == D_TELA, duplo = false, carimbou = false;   // a Tela: duas vezes
         int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
         int viz[2];                              // a Moldura: os dos lados vizinhos
@@ -1878,6 +1885,8 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         for (int q = 0; q < 4; q++) {            // o de cima, pela Dupla Face o de baixo, pela Moldura os vizinhos
             int x = q == 0 ? a : q == 1 ? b : viz[q - 2];
             if (!x) continue;
+            int lc = F[j].lado[k];
+            age_lado = q == 0 ? lc : q == 1 ? ad_oposto(pc->tipo, lc) : q == 2 ? lc - 1 : lc + 1;
             for (int c = 0; c < (carimbo ? 2 : 1); c++) {   // e carimbado, outra vez
                 age_modo = (q == 1 ? EVM_DUPLA : q >= 2 ? EVM_MOLDURA : 0) | (c ? EVM_CARIMBO : 0);
                 bool agiu = age_um(d, j, k, x, gera, c == 0, fonte, qual, &n_fonte, &agiram);

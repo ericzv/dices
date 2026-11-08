@@ -243,6 +243,7 @@ void dado_desenha(void)
         des_bolsa_nova();
         desenha_bolsa_pop();
     } else bolsa_pop = -1;
+    desenha_aviso_salvo();
     int r[4];
     const dica_t *d = NULL;
     desenha_som();                                       // o painel do som, por cima de tudo

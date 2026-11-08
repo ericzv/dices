@@ -38,6 +38,7 @@ void dado_passo(float dt)
     if (t_aviso_grudado > 0) t_aviso_grudado -= dt_real;
     if (t_aviso_tremor > 0) t_aviso_tremor -= dt_real;
     if (t_aviso_letra > 0) t_aviso_letra -= dt_real;
+    if (t_aviso_salvo > 0) t_aviso_salvo -= dt_real;
     if (t_aviso_adesivo > 0) t_aviso_adesivo -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
@@ -118,13 +119,8 @@ void dado_passo(float dt)
         if (t_tira > 0) {
             t_tira += dt;
             if (t_tira > 0.7f) {
-                jogador_t *p = &J[vez];
-                for (int m = tira_i; m + 1 < p->n_col; m++) {
-                    p->col[m] = p->col[m + 1];
-                    p->onde[m] = p->onde[m + 1];
-                }
-                p->n_col--;
-                p->n_mao = 0;
+                tira_da_bolsa(vez, tira_i);
+                J[vez].n_mao = 0;
                 t_tira = 0;
                 removendo = false;
                 nova_rodada();

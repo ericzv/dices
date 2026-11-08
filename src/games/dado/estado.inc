@@ -35,6 +35,7 @@ typedef struct {
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
 
+#define IDX_SAIU (-2)            // idx do dado que saiu da bolsa no fim da rodada (-1: a carta do Coringa, que nao e da bolsa)
 typedef struct {
     int8_t  idx[N_FILA];         // posicoes em col, na ordem escolhida
     uint8_t tipo[N_FILA], fixo[N_FILA];
@@ -208,6 +209,8 @@ static float t_tremor, tremor_dur, tremor_px;
 static bool  tremor_off, tremor_lido;
 static float t_aviso_tremor;
 static float t_aviso_letra;              // > 0: o aviso da letra maior (tecla L) esta na mesa
+static float t_aviso_salvo;              // > 0: um salvamento nao abriu (aviso_salvo diz qual)
+static char aviso_salvo[96];
 static bool  letra_lida;
 static void crescendo(int j, int nivel);
 static void reage_evento(const evento_t *e);

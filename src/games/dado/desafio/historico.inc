@@ -63,6 +63,7 @@ static void hist_converte(hist_t *h, const hist1_t *v)
     memcpy(h->reserva, v->reserva, sizeof h->reserva);
 }
 
+static bool hist_le_de(const char *buf, int n, hist_t *saida);
 static void hist_carrega(int i)
 {
     if (hist_de == i) return;
@@ -70,14 +71,20 @@ static void hist_carrega(int i)
     memset(&hist, 0, sizeof hist);
     memcpy(hist.marca, "HIS2", 4);
     static char buf[2 * sizeof(hist_t) + 8];
+    static hist_t h;
+    int n = salva_le(chave_hist(i), buf, (int)sizeof buf);
+    if (hist_le_de(buf, n, &h)) hist = h;
+    else if (n > 0) salvo_estragado(chave_hist(i), buf, "O histórico salvo deste perfil não abriu: uma cópia ficou guardada à parte.");
+}
+static bool hist_le_de(const char *buf, int n, hist_t *saida)
+{
     static hist64_t v64;
     static hist96_t v96;
     static hist1_t v1;
-    hist_t h;
-    int n = salva_le(chave_hist(i), buf, (int)sizeof buf);
+    static hist_t h;
     bool velho = true;
     if (n == (int)(2 * sizeof v96)) {                  // de antes dos 102 tipos: as tres listas cresceram
-        if (!de_hex(buf, &v96, sizeof v96)) return;
+        if (!de_hex(buf, &v96, sizeof v96)) return false;
         velho = false;
         memset(&h, 0, sizeof h);
         memcpy(&h, &v96, offsetof(hist96_t, lancou));
@@ -86,7 +93,7 @@ static void hist_carrega(int i)
         memcpy(h.ganhou, v96.ganhou, sizeof v96.ganhou);
         memcpy(&h.camp_tem, &v96.camp_tem, sizeof v96 - offsetof(hist96_t, camp_tem));
     } else if (n == (int)(2 * sizeof v64)) {                  // de antes dos 69 tipos: as tres listas cresceram
-        if (!de_hex(buf, &v64, sizeof v64)) return;
+        if (!de_hex(buf, &v64, sizeof v64)) return false;
         memset(&v1, 0, sizeof v1);
         memcpy(&v1, &v64, offsetof(hist64_t, lancou));
         memcpy(v1.lancou, v64.lancou, sizeof v64.lancou);
@@ -94,20 +101,21 @@ static void hist_carrega(int i)
         memcpy(v1.ganhou, v64.ganhou, sizeof v64.ganhou);
         memcpy(&v1.camp_tem, &v64.camp_tem, sizeof v64 - offsetof(hist64_t, camp_tem));
     } else if (n == (int)(2 * sizeof v1)) {            // dos 5 niveis
-        if (!de_hex(buf, &v1, sizeof v1)) return;
+        if (!de_hex(buf, &v1, sizeof v1)) return false;
     } else {
         velho = false;
-        if (n != (int)(2 * sizeof h) || !de_hex(buf, &h, sizeof h)) return;
+        if (n != (int)(2 * sizeof h) || !de_hex(buf, &h, sizeof h)) return false;
     }
     if (velho) {
-        if (memcmp(v1.marca, "HIS1", 4)) return;
+        if (memcmp(v1.marca, "HIS1", 4)) return false;
         if (v1.camp_dif > N_NIVEIS_V) v1.camp_tem = 0;
         hist_converte(&h, &v1);
     }
-    if (memcmp(h.marca, "HIS2", 4)) return;
+    if (memcmp(h.marca, "HIS2", 4)) return false;
     if (h.camp_n > MAX_COL || h.camp_dif > N_NIVEIS) h.camp_tem = 0;
     for (int k = 0; h.camp_tem && k < h.camp_n && k < HIST_COL; k++) if (h.camp_col[k] >= D_N) h.camp_tem = 0;
-    hist = h;
+    *saida = h;
+    return true;
 }
 
 static void hist_grava(void)

@@ -1,8 +1,9 @@
 'use strict';
 // Teste da rede do navegador (web/shell.html, criaRede) sem internet: duas
 // paginas num servidor MQTT de mentira, com o relogio na mao. O servidor
-// perde, repete e embaralha mensagens; uma pagina cai e volta; os marcos, a
-// versao, as salas do site de teste e o convite.
+// perde, repete e embaralha mensagens; uma pagina cai e volta (uma vez, ou
+// muitas no ritmo do jogo, com 40% de perda); os marcos, a versao, as salas
+// do site de teste e o convite.
 //
 //   node tests/rede.js [web/shell.html]
 const fs = require('fs');
@@ -295,6 +296,23 @@ const iguais = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     B.rede.entra(A.rede.codigo); anda(600);
     confere(B.cliente().url === A.cliente().url, 'quem entra vai ao mesmo servidor');
     confere(A.rede.estado === JOGANDO && B.rede.estado === JOGANDO, 'os dois jogando');
+  });
+
+  await caso('no ritmo do jogo: 40% perdidas, 25% repetidas, embaralhadas e quedas de ate 15 s: todas chegam, em ordem', () => {
+    const [A, B] = partida();
+    servidor.perde = msg => msg.t !== 'oi' && rnd() < 0.4;
+    servidor.repete = () => rnd() < 0.25;
+    servidor.embaralha = true;
+    for (let i = 0, c = 0; i < 300; i++) {                         // uma tecla a cada segundo, mais ou menos
+      (rnd() < 0.5 ? A : B).manda(0x100 + (i * 13) % 500);
+      if (i % 10 === 0) { c++; A.rede.marco(c, (c * 2654435761) >>> 0); B.rede.marco(c, (c * 2654435761) >>> 0); }
+      if (rnd() < 0.02) cai((rnd() < 0.5 ? A : B).cliente(), 2000 + Math.floor(rnd() * 13000));
+      anda(Math.floor(rnd() * 2000));
+    }
+    anda(60000);
+    confere(iguais(B.jogo.teclas, A.mandadas), 'B recebeu ' + B.jogo.teclas.length + ' de ' + A.mandadas.length + ', na ordem');
+    confere(iguais(A.jogo.teclas, B.mandadas), 'A recebeu ' + A.jogo.teclas.length + ' de ' + B.mandadas.length + ', na ordem');
+    confere(A.rede.estado === JOGANDO && B.rede.estado === JOGANDO, 'a partida segue: ' + A.rede.erro + B.rede.erro);
   });
 
   console.log(falhas ? '\n' + falhas + ' falha(s) em ' + casos + ' casos' : '\n' + casos + ' casos ok');

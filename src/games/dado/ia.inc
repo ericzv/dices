@@ -42,6 +42,12 @@ static float media(peca_t p)
     case EF_PISCA:    return pisca_aceso(p.fixo) ? 5.0f : 0;     // aceso, x2; apagado, nada
     case EF_PANETONE: return 6.0f;                       // o d8 e as frutas (1,5 em media)
     case EF_MEIA:     return 2.5f + p.fixo;              // e o que guardou, se ficar
+    case EF_BUMERANGUE: return 25.0f / 6;                // o 1 e o 2 voltam e rolam de novo: 4 x 4,5 + 2 x 3,5, em 6
+    case EF_TELA: {                                      // so os lados com adesivo pontuam: o vazio da 0
+        float s = 0;
+        for (int l = 1; l <= t->lados; l++) if (ad_no_lado(&p, l)) s += remenda(&p, l);
+        return s / t->lados;
+    }
     default:          return (t->lados + 1) / 2.0f;
     }
 }
@@ -146,9 +152,15 @@ static void sim_lanca(int j)
         casca = (pc && pc->capa) || f->tipo[k] == D_UNIVERSO ? 2 : postit ? 3 : 1;
         if (casca == 3) postit = false;
     }
+    // A Bussola no dado de antes: caindo sem adesivo (e tendo algum), rola de
+    // novo; fica o segundo se cair num adesivo ou for maior.
+    bool bussola = k > 0 && ad_fila(j, k - 1) == AD_BUSSOLA && pc && ad_quantos(pc) > 0 && !ad_no_lado(pc, l.lado);
     if (postit) {                                    // o Post-it: duas vezes, o maior
         lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x > l.x) l = l2;
+    } else if (bussola && casca != 1) {
+        lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
+        if (ad_no_lado(pc, l2.lado) || l2.x > l.x) l = l2;
     } else if (casca == 1) {                         // escorregou: duas vezes, o menor
         lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x < l.x) l = l2;
@@ -388,6 +400,7 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
 }
 
 #define MAX_CAND 2520                        // 7 x 6 x 5 x 4 x 3 (a fila de 5 do Estojo de Lapis)
+_Static_assert(MAO <= 16 && N_FILA * 4 <= 64, "a assinatura da fila: um lugar da mao em 4 bits");
 static void ia_planeja(void)
 {
     int j = vez;
@@ -404,7 +417,16 @@ static void ia_planeja(void)
     static uint64_t assin[MAX_CAND];
     int nc = 0;
     // Todas as sequencias de L posicoes diferentes da mao. Sequencias com os
-    // mesmos dados na mesma ordem (dois d6 trocados) contam uma vez so.
+    // mesmos dados na mesma ordem (dois d6 trocados) contam uma vez so. Igual
+    // e igual de tudo: o tipo, o numero guardado, os adesivos e as marcas
+    // (um d6 com adesivo nao e um d6 liso). Cada lugar da mao fica com o
+    // primeiro igual a ele, e a fila e a lista desses lugares.
+    int8_t igual[MAO];
+    for (int m = 0; m < n; m++) {
+        igual[m] = (int8_t)m;
+        for (int q = 0; q < m; q++)
+            if (!memcmp(&p->col[p->mao[q]], &p->col[p->mao[m]], sizeof(peca_t))) { igual[m] = (int8_t)q; break; }
+    }
     int8_t s[N_FILA] = { 0 };
     int nivel = 0;
     s[0] = -1;
@@ -422,10 +444,7 @@ static void ia_planeja(void)
         for (int k = 0; k < L && L >= 2; k++) uni |= p->col[p->mao[s[k]]].tipo == D_UNIVERSO;
         if (uni) continue;
         uint64_t a = 0;
-        for (int k = 0; k < L; k++) {
-            peca_t pc = p->col[p->mao[s[k]]];
-            a = a * 512 + (uint64_t)(pc.tipo * 9 + pc.fixo);
-        }
+        for (int k = 0; k < L; k++) a = a * 16 + (uint64_t)igual[s[k]];   // MAO < 16
         bool visto = false;
         for (int c = 0; c < nc && !visto; c++) visto = assin[c] == a;
         if (visto || nc >= MAX_CAND) continue;

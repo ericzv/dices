@@ -1644,7 +1644,7 @@ static void desenha_fila(int j)
         face_escondida = false;
         marca_nivel = -1;
         // A copia do Coringa: uma carta de baralho no canto - o dado e seu, nao dele.
-        if (coringa_joga(j) && k == 3 && f->idx[k] < 0) {
+        if (coringa_joga(j) && k == 3 && f->idx[k] == -1) {
             int cx2 = x - R - 2, cy2 = (int)(y - pulo) - R - 4;
             gfx_rect(cx2 - 1, cy2 - 1, 9, 12, C_BARRA);
             gfx_rect(cx2, cy2, 7, 10, C_BRANCO);
@@ -1873,7 +1873,7 @@ static void desenha_fila(int j)
         if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && !sino) aro(x, y, cor_dado(t));
         if (!anul) {                                       // por cima dos aros
             bool alto = (giro < 0.5f && vis_est[j][k] != V_ROUBADO && (firme(j, k) || nao_roubavel(j, k)))
-                        || (coringa_joga(j) && k == 3 && f->idx[k] < 0);
+                        || (coringa_joga(j) && k == 3 && f->idx[k] == -1);
             bool pe = modo == M_DESAFIO && (tem_am(j, A_COURACA) || tem_am(j, A_IMA));
             marcas_dado(x, (int)(y - pulo), m_valor, m_soma, m_soma_fim, m_mult, m_mult_fim, alto, pe);
         }

@@ -99,6 +99,13 @@ int salva_le(const char *chave, char *buf, int n)
     caminho(chave, c, sizeof c);
     buf[0] = 0;
     FILE *f = fopen(c, "rb");
+    if (!f) {
+        // Desligou entre apagar o velho e renomear o novo (salva_grava): o
+        // ".novo" ja esta inteiro (so se apaga o velho depois de fecha-lo).
+        char tmp[1110];
+        snprintf(tmp, sizeof tmp, "%s.novo", c);
+        f = fopen(tmp, "rb");
+    }
     if (!f) return 0;
     int lidos = (int)fread(buf, 1, (size_t)(n - 1), f);
     fclose(f);
@@ -109,8 +116,10 @@ int salva_le(const char *chave, char *buf, int n)
 
 void salva_apaga(const char *chave)
 {
-    char c[1100];
+    char c[1100], tmp[1110];
     caminho(chave, c, sizeof c);
     remove(c);
+    snprintf(tmp, sizeof tmp, "%s.novo", c);
+    remove(tmp);                                 // nada volta pelo ".novo"
 }
 #endif

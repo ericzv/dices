@@ -141,6 +141,13 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(regras PRIVATE m)
     endif()
     add_test(NAME regras COMMAND regras)
+    # O salvamento em arquivo do PC: o ".novo" que sobra de um desligamento abre.
+    add_executable(salva_arquivo tests/salva_arquivo.c)
+    target_include_directories(salva_arquivo PRIVATE src desktop)
+    add_test(NAME salva_arquivo COMMAND salva_arquivo)
+    set(SALVA_TESTE ${CMAKE_CURRENT_BINARY_DIR}/salva_teste)
+    file(MAKE_DIRECTORY "${SALVA_TESTE}/Library/Application Support")
+    set_tests_properties(salva_arquivo PROPERTIES ENVIRONMENT "XDG_DATA_HOME=${SALVA_TESTE};APPDATA=${SALVA_TESTE};HOME=${SALVA_TESTE}")
     # Modo Desafiante: runs inteiras com a IA no lugar da pessoa.
     add_executable(desafio tests/desafio.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(desafio PRIVATE src desktop)
@@ -198,6 +205,9 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_include_directories(online PRIVATE src desktop)
         target_link_libraries(online PRIVATE m)
         add_test(NAME online COMMAND online 2)
+        # E forcado: os dados novos (e os de adesivo, a forca) nas duas bolsas,
+        # as teclas do outro atrasadas ate 2 s, quadros enormes e as teclas locais.
+        add_test(NAME online_forcado COMMAND online 2 150000 2 120 1 3 1)
     endif()
     # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
     # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.

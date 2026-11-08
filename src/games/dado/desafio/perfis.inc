@@ -106,6 +106,24 @@ static void perfis_salva(void)
     salva_grava("perfis", buf);
 }
 
+// Um salvamento que nao abre (estragado, cortado, ou de uma versao que nao se
+// le mais): nada some calado. Uma copia fica guardada a parte (a chave com
+// "_ruim") e a mesa avisa - uma vez por chave na sessao.
+static char salvo_avisado[8][16];                // as chaves ja avisadas nesta sessao
+static void salvo_estragado(const char *chave, const char *texto, const char *msg)
+{
+    int i = 0;
+    while (i < 8 && salvo_avisado[i][0] && strcmp(salvo_avisado[i], chave)) i++;
+    if (i == 8 || salvo_avisado[i][0]) return;   // ja avisada (ou chaves demais: nao repete a cada quadro)
+    snprintf(salvo_avisado[i], sizeof salvo_avisado[i], "%s", chave);
+    char k[24];
+    snprintf(k, sizeof k, "%s_ruim", chave);
+    salva_grava(k, texto);
+    snprintf(aviso_salvo, sizeof aviso_salvo, "%s", msg);
+    t_aviso_salvo = 6.0f;
+}
+
+static bool perfis_le_de(const char *buf, int n);
 static void perfis_le(void)
 {
     if (perfis_lidos) return;
@@ -114,11 +132,19 @@ static void perfis_le(void)
     perfil_atual = -1;
     static char buf[16 + 2 * sizeof perfis];
     int n = salva_le("perfis", buf, (int)sizeof buf);
+    if (n > 0 && !perfis_le_de(buf, n)) {
+        memset(perfis, 0, sizeof perfis);
+        perfil_atual = -1;
+        salvo_estragado("perfis", buf, "Os perfis salvos não abriram: uma cópia ficou guardada à parte.");
+    }
+}
+static bool perfis_le_de(const char *buf, int n)
+{
     perfil_t lido[N_PERFIS];
     if (n == 5 + (int)(2 * sizeof(perfil_v_t[N_PERFIS])) && !memcmp(buf, "PER3", 4)) {
         // Os de antes: o nivel n (de 5) vira 2n (de 10), e a vitoria no n, no 2n.
         perfil_v_t v[N_PERFIS];
-        if (!de_hex(buf + 5, v, sizeof v)) return;
+        if (!de_hex(buf + 5, v, sizeof v)) return false;
         memset(lido, 0, sizeof lido);
         for (int i = 0; i < N_PERFIS; i++) {
             memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
@@ -133,7 +159,7 @@ static void perfis_le(void)
         // Os de antes dos chefes: tudo igual, sem chefe nenhum anotado (o
         // que o nivel ja passou fica aberto do mesmo jeito).
         perfil_4_t v[N_PERFIS];
-        if (!de_hex(buf + 5, v, sizeof v)) return;
+        if (!de_hex(buf + 5, v, sizeof v)) return false;
         memset(lido, 0, sizeof lido);
         for (int i = 0; i < N_PERFIS; i++) {
             memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
@@ -148,7 +174,7 @@ static void perfis_le(void)
         // Os de antes das bolsas: tudo igual, so o Saco de Pano aberto (o
         // Copo e os Fosforos abrem pelo que ja foi vencido).
         perfil_5_t v[N_PERFIS];
-        if (!de_hex(buf + 5, v, sizeof v)) return;
+        if (!de_hex(buf + 5, v, sizeof v)) return false;
         memset(lido, 0, sizeof lido);
         for (int i = 0; i < N_PERFIS; i++) {
             memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
@@ -163,7 +189,7 @@ static void perfis_le(void)
     } else if (n == 5 + (int)(2 * sizeof(perfil_6_t[N_PERFIS])) && !memcmp(buf, "PER6", 4)) {
         // Os de antes das bolsas novas: tudo igual, as bolsas (8) em 8 bits.
         perfil_6_t v[N_PERFIS];
-        if (!de_hex(buf + 5, v, sizeof v)) return;
+        if (!de_hex(buf + 5, v, sizeof v)) return false;
         memset(lido, 0, sizeof lido);
         for (int i = 0; i < N_PERFIS; i++) {
             memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
@@ -179,7 +205,7 @@ static void perfis_le(void)
             lido[i].bolsa_ult = v[i].bolsa_ult;
             memcpy(lido[i].bolsa_rec, v[i].bolsa_rec, sizeof v[i].bolsa_rec);
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER7", 4) || !de_hex(buf + 5, lido, sizeof lido)) return;
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER7", 4) || !de_hex(buf + 5, lido, sizeof lido)) return false;
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -191,6 +217,7 @@ static void perfis_le(void)
     memcpy(perfis, lido, sizeof perfis);
     int a = buf[4] - '0';
     if (a >= 0 && a < N_PERFIS && perfis[a].nome[0]) perfil_atual = a;
+    return true;
 }
 
 // Conteudo liberado: o que vem com cada dificuldade.

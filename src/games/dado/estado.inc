@@ -209,6 +209,8 @@ static float t_tremor, tremor_dur, tremor_px;
 static bool  tremor_off, tremor_lido;
 static float t_aviso_tremor;
 static float t_aviso_letra;              // > 0: o aviso da letra maior (tecla L) esta na mesa
+static float t_aviso_salvo;              // > 0: um salvamento nao abriu (aviso_salvo diz qual)
+static char aviso_salvo[96];
 static bool  letra_lida;
 static void crescendo(int j, int nivel);
 static void reage_evento(const evento_t *e);

@@ -94,6 +94,17 @@ static void desenha_avisos(void)
     txt_c(GFX_W / 2, MESA_Y0 + 12, msg, c, false);
 }
 
+// Um salvamento que nao abriu (perfis, run ou historico): por cima de tudo,
+// nas telas da partida e nos menus, ate o tempo acabar.
+static void desenha_aviso_salvo(void)
+{
+    if (t_aviso_salvo <= 0) return;
+    int w = gfx_largura(aviso_salvo, 1) + 40;
+    if (w > GFX_W - 8) w = GFX_W - 8;
+    ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);
+    txt_c(GFX_W / 2, MESA_Y0 + 12, aviso_salvo, C_VINHO_CLR, false);
+}
+
 // O Dado Misterioso: a pedra negativa se partiu e havia um dado dentro. A mesa
 // escurece, um facho de luz desce do alto, raios giram atras e o d20 preto
 // aparece no meio dele, com um pulo.

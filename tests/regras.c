@@ -2284,10 +2284,18 @@ int main(void)
                     && !perfis[2].venceu[2] && perfis[2].runs == 42 && perfis[2].marcos == 3,
                     "perfil de antes: nivel %d, venceu[4] %d", perfis[2].nivel, perfis[2].venceu[4]);
         }
-        // Salvamento estragado: nenhum perfil, sem quebrar.
+        // Salvamento estragado: nenhum perfil, sem quebrar - e nada some calado:
+        // uma copia fica em "perfis_ruim" e a mesa avisa.
+        memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
         salva_grava("perfis", "PER4zz");
         perfis_lidos = false; perfis_le();
         CONFERE(perfil_atual == -1 && !perfis[0].nome[0] && perfil()->nivel == 0, "perfis estragados");
+        {
+            char b[32];
+            CONFERE(salva_le("perfis_ruim", b, sizeof b) == 6 && !strcmp(b, "PER4zz") && t_aviso_salvo > 0
+                    && strstr(aviso_salvo, "perfis"), "perfis estragados: sem copia (%s) ou sem aviso (%.1f)", b, t_aviso_salvo);
+        }
+        t_aviso_salvo = 0;
         memset(&run, 0, sizeof run);
         run.dificuldade = 3;
         CONFERE(preco_run(D_D8) == 4 + LISO_A_MAIS, "preco do D8: %d", preco_run(D_D8));
@@ -2297,6 +2305,154 @@ int main(void)
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
+    }
+
+    // ---- Salvamentos: a run de cada fase volta igual, nada estragado trava ou some calado ----
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "SALVA");
+        perfis[0].nivel = N_NIVEIS; perfis[0].bolsas = BOLSAS_TODAS;
+        perfil_atual = 0; perfis_lidos = true;
+        des_dif = 4; des_bolsa = B_LATA; des_nova_run();
+        amuleto_escolhido(0);
+        // Cada fase da run, salva e continuada: a run volta igual e cai na tela certa.
+        static const struct { int estado, fase; } FASES[] = {
+            { R_LOJA_INI, F_RLOJA }, { R_MAPA, F_MAPA }, { R_LOJA, F_RLOJA }, { R_AMULETO, F_RAMULETO },
+            { R_PARTIDA, -1 }, { R_VENCEU, -1 } };
+        run.moedas = 23;
+        for (unsigned i = 0; i < sizeof FASES / sizeof FASES[0]; i++) {
+            run.estado = (uint8_t)FASES[i].estado;
+            des_salva();
+            run_t r, antes = run;
+            CONFERE(des_carrega(&r), "a run salva na fase %d nao abriu", FASES[i].estado);
+            antes.presente = 0;                          // (a leitura zera os campos sem uso)
+            if (antes.estado != R_AMULETO) antes.am_novo = 0;
+            CONFERE(!memcmp(&r, &antes, sizeof r), "a run salva na fase %d nao voltou igual", FASES[i].estado);
+            memset(&run, 0, sizeof run);
+            des_continua();
+            CONFERE(modo == M_DESAFIO && run.n_col == antes.n_col && run.dificuldade == 4 && run.bolsa == B_LATA,
+                    "fase %d: a run continuada nao e a salva", FASES[i].estado);
+            if (FASES[i].fase >= 0) CONFERE(fase == FASES[i].fase, "fase %d: continuou na tela %d", FASES[i].estado, fase);
+            for (int q = 0; q < 120; q++) { dado_passo(1 / 30.0f); if (q % 30 == 0) dado_desenha(); }
+            CONFERE(t_aviso_salvo <= 0, "fase %d: aviso de salvamento sem motivo", FASES[i].estado);
+            des_dif = 4; des_bolsa = B_LATA; des_nova_run(); amuleto_escolhido(0); run.moedas = 23;
+        }
+        // A run estragada: nao abre, nao trava, e fica guardada a parte com aviso
+        // (uma vez so: o menu pergunta a cada quadro).
+        des_salva();
+        static char ok[2 * sizeof(run_t) + 8], b[2 * sizeof(run_t) + 8];
+        int n = salva_le(chave_run(), ok, sizeof ok);
+        memcpy(b, ok, (size_t)n + 1);
+        b[n / 2] = 0;                                    // cortada ao meio
+        salva_grava(chave_run(), b);
+        run_t r;
+        CONFERE(!des_carrega(&r) && r.n_col == 0, "a run cortada abriu");
+        static char c[2 * sizeof(run_t) + 8];
+        CONFERE(salva_le("desafio_ruim", c, sizeof c) == n / 2 && !strcmp(c, b) && t_aviso_salvo > 0 && strstr(aviso_salvo, "run"),
+                "a run cortada sem copia ou sem aviso");
+        t_aviso_salvo = 0;
+        salva_grava("desafio_ruim", "x");
+        CONFERE(!des_tem_run() && t_aviso_salvo <= 0 && salva_le("desafio_ruim", c, sizeof c) == 1,
+                "o aviso da run estragada repetiu");
+        des_continua();                                  // continuar a estragada: uma run nova, sem travar
+        CONFERE(modo == M_DESAFIO && run.n_col > 0, "continuar a run estragada");
+        // Cortes e trocas ao acaso numa run boa: o que abre e coerente, e
+        // continuar nunca trava.
+        uint32_t sx = 12345;
+        int abriu = 0, recusou = 0;
+        for (int it = 0; it < 160; it++) {
+            memcpy(b, ok, (size_t)n + 1);
+            sx ^= sx << 13; sx ^= sx >> 17; sx ^= sx << 5;
+            if (it % 3 == 0) b[sx % (uint32_t)n] = 0;                                  // cortada
+            else for (int k = 0; k < 1 + it % 5; k++) {                                // letras trocadas
+                sx ^= sx << 13; sx ^= sx >> 17; sx ^= sx << 5;
+                b[sx % (uint32_t)n] = "0123456789abcdefz"[sx >> 8 & 15 ? (sx >> 4) % 16 : 16];
+            }
+            salva_grava(chave_run(), b);
+            memset(salvo_avisado, 0, sizeof salvo_avisado);
+            if (des_carrega(&r)) {
+                abriu++;
+                bool coerente = r.n_col >= 1 && r.n_col <= MAX_COL && r.estado <= R_AMULETO && r.passo < DES_PASSOS
+                             && r.dificuldade <= N_NIVEIS && r.bolsa < B_N;
+                for (int i = 0; i < r.n_col; i++) coerente = coerente && r.col[i].tipo < D_N;
+                CONFERE(coerente, "a run trocada %d abriu incoerente", it);
+            } else recusou++;
+            if (it % 8 == 0) {
+                des_continua();
+                for (int q = 0; q < 60; q++) { dado_passo(1 / 30.0f); if (q % 30 == 0) dado_desenha(); }
+            }
+        }
+        CONFERE(abriu > 0 && recusou > 0, "cortes e trocas: %d abriram, %d recusadas", abriu, recusou);
+        // O historico estragado: copia e aviso tambem (e nao apaga o resto).
+        memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+        salva_grava(chave_hist(0), "HIS2ff");
+        hist_de = -1; hist_carrega(0);
+        CONFERE(!memcmp(hist.marca, "HIS2", 4) && !hist.partidas && salva_le("hist1_ruim", c, sizeof c) == 6
+                && t_aviso_salvo > 0 && strstr(aviso_salvo, "histórico"), "o historico estragado sem copia ou sem aviso");
+        t_aviso_salvo = 0;
+        hist_de = -1;
+        memset(&run, 0, sizeof run);
+        salva_limpa_tudo();
+        perfil_atual = -1;
+        modo = modo_antes;
+    }
+
+    // ---- Perfis cheios: os tres, no maximo, cada um com a sua run e o seu historico ----
+    {
+        int modo_antes = modo;
+        salva_limpa_tudo();
+        memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+        memset(perfis, 0, sizeof perfis);
+        for (int i = 0; i < N_PERFIS; i++) {
+            perfil_t *p = &perfis[i];
+            snprintf(p->nome, sizeof p->nome, "%.10s", i == 0 ? "ABCDEFGHIJ" : i == 1 ? "ZZZZ ZZZZZ" : "1234567890");
+            p->avatar = (uint8_t)(AV_N - 1); p->nivel = N_NIVEIS;
+            memset(p->venceu, 255, sizeof p->venceu);
+            p->runs = p->partidas = 65535; p->marcos = 0xFF;
+            memset(p->chefes, 0xFF, sizeof p->chefes);
+            p->bolsas = p->bolsas_vistas = BOLSAS_TODAS; p->bolsa_ult = (uint8_t)(B_N - 1);
+            memset(p->bolsa_rec, N_NIVEIS + 1, sizeof p->bolsa_rec);
+        }
+        perfil_atual = 2;
+        perfis_salva();
+        perfil_t copia[N_PERFIS];
+        memcpy(copia, perfis, sizeof copia);
+        memset(perfis, 0, sizeof perfis); perfil_atual = -1; perfis_lidos = false;
+        perfis_le();
+        CONFERE(!memcmp(copia, perfis, sizeof copia) && perfil_atual == 2 && t_aviso_salvo <= 0, "os tres perfis cheios nao voltaram iguais");
+        // Uma run e um historico por perfil, sem misturar.
+        for (int i = 0; i < N_PERFIS; i++) {
+            perfil_atual = i;
+            des_dif = i; des_bolsa = B_PANO; des_nova_run(); amuleto_escolhido(0);
+            run.moedas = (uint8_t)(10 + i);
+            des_salva();
+            hist_de = -1; hist_carrega(i); hist.partidas = (uint16_t)(100 + i); hist_grava();
+        }
+        for (int i = 0; i < N_PERFIS; i++) {
+            perfil_atual = i;
+            run_t r;
+            hist_de = -1; hist_carrega(i);
+            CONFERE(des_carrega(&r) && r.moedas == 10 + i && r.dificuldade == i && hist.partidas == 100 + i,
+                    "perfil %d: a run (%d moedas) ou o historico (%d) de outro", i, r.moedas, hist.partidas);
+        }
+        // Apagar o do meio leva so a run, o historico e o estilo dele.
+        perfil_atual = 1; fase = F_PERFIS; pf_cur = 1; pf_apagando = true;
+        t_elev = t_virada = t_anuncio = t_misterio = 0; bolsa_pop = -1; detalhe = -1;   // (o que a run nova deixou na tela)
+        key_event_t e = { KEY_ENTER };
+        dado_tecla(&e);
+        run_t r;
+        perfil_atual = 1; CONFERE(!des_carrega(&r) && t_aviso_salvo <= 0, "a run do perfil apagado ficou");
+        perfil_atual = 0; CONFERE(des_carrega(&r) && r.moedas == 10, "apagar o perfil 2 levou a run do 1");
+        perfil_atual = 2; CONFERE(des_carrega(&r) && r.moedas == 12, "apagar o perfil 2 levou a run do 3");
+        CONFERE(!perfis[1].nome[0] && perfis[0].nome[0] && perfis[2].nome[0], "apagar o perfil do meio");
+        hist_de = -1;
+        memset(&run, 0, sizeof run);
+        salva_limpa_tudo();
+        perfil_atual = -1;
+        modo = modo_antes;
     }
 
     // ---- A loja nao repete: cada dado e cada adesivo a venda uma vez na run ----

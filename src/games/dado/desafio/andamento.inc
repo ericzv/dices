@@ -180,11 +180,19 @@ static void aposenta_run(run_t *r)
 // do Presente (sem o ultimo byte) abre com ele em 0, a de antes das bolsas
 // com o Saco de Pano, a de antes da loja sem repeticao, sem nada visto, e a
 // de antes da loja de dois adesivos, com a loja dela (1 adesivo).
+static bool des_carrega_de(const char *buf, int n, run_t *r);
 static bool des_carrega(run_t *r)
 {
     static char buf[2 * sizeof(run_t) + 8];
-    static run13_t v;
     int n = salva_le(chave_run(), buf, (int)sizeof buf);
+    if (des_carrega_de(buf, n, r)) return true;
+    memset(r, 0, sizeof *r);                     // nada do meio da leitura fica
+    if (n > 0) salvo_estragado(chave_run(), buf, "A run salva deste perfil não abriu: uma cópia ficou guardada à parte.");
+    return false;
+}
+static bool des_carrega_de(const char *buf, int n, run_t *r)
+{
+    static run13_t v;
     memset(r, 0, sizeof *r);
     memset(&v, 0, sizeof v);
     if (n == (int)(2 * sizeof v) || n == (int)(2 * offsetof(run13_t, presente))) {

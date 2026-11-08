@@ -1554,7 +1554,8 @@ static void desenha_fila(int j)
             if (ad_face == AD_POSTIT && (fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].dono == j && voo[0].slot == k + 1)
                 ad_face_aceso = true;
             // O adesivo que agiu no pouso, aceso enquanto a mesa mostra.
-            if (n_pouso && pouso_q[0].j == j && pouso_q[0].k == k && (t_pouso > 0.25f || (int)(t_fase * 12) % 2 == 0))
+            if (n_pouso && pouso_q[0].j == j && pouso_q[0].k == k && pouso_q[0].ad != AD_DINAMITE   // (a Dinamite nao esta em cima)
+                && (t_pouso > 0.25f || (int)(t_fase * 12) % 2 == 0))
                 ad_face_aceso = true;
             // A Casca acesa enquanto o lance do oponente escorrega nela.
             if ((fase == F_ROLANDO || fase == F_ARRUMA) && n_voo && voo[0].casca && voo[0].dono == outro(j)
@@ -1568,7 +1569,7 @@ static void desenha_fila(int j)
                 float pa = p < q0 ? 0 : (p - q0) / (1 - q0);
                 ad_face_aceso = p >= q0 && pa < 0.9f;
                 if (p >= q0) an_fx_agindo(pa, e->ad == AD_RASPADINHA && !e->copia);
-            } else if (ad_estilo == ADE_NOVO && n_pouso && pouso_q[0].j == j && pouso_q[0].k == k) {
+            } else if (ad_estilo == ADE_NOVO && n_pouso && pouso_q[0].j == j && pouso_q[0].k == k && pouso_q[0].ad != AD_DINAMITE) {
                 float pa = fminf(1, t_pouso / pouso_dura(&pouso_q[0]));
                 ad_face_aceso = pa < 0.9f;
                 an_fx_agindo(pa, false);
@@ -2626,7 +2627,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 }
             }
             char t[32];
-            snprintf(t, sizeof t, "pegou no lado %d", l);
+            snprintf(t, sizeof t, "pegou no lado %d", bi < J[e->de_j].n_col ? lado_mostra(J[e->de_j].col[bi].tipo, l) : l);
             pega_rotulo(tx, ty, q, t, VERDE[0]);
         }
         break;
@@ -2711,7 +2712,7 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
                 gfx_rect(x, y, 2, 2, LAMA[1]);
             }
             char t[32];
-            if (pegou && e->valor == 1) snprintf(t, sizeof t, "sujou o lado %d", l);
+            if (pegou && e->valor == 1) snprintf(t, sizeof t, "sujou o lado %d", bi < J[r].n_col ? lado_mostra(J[r].col[bi].tipo, l) : l);
             else if (pegou) snprintf(t, sizeof t, "sujou %d lados", e->valor);
             else snprintf(t, sizeof t, "não grudou");
             pega_rotulo(tx, ty, q < 0.9f ? q : 0, t, pegou ? LAMA[3] : C_TEXTO_M);
@@ -3270,11 +3271,26 @@ static void desenha_adesivo_agindo(const evento_t *e, float p, int ax, int ay)
 
 // O adesivo que agiu no pouso (adesivos_pousou): o mesmo gesto do fim da
 // rodada, por cima da mesa, com o adesivo do dado aceso.
+// A Dinamite que nao saiu: o adesivo dela salta do dado e fica no ar um
+// instante, com a faisca chiando no pavio (o quanto cresceu sobe do dado:
+// pouso_toca), e volta.
+static void pavio_cresce(const pouso_ad_t *q, float p)
+{
+    int ax = SLOT_X(q->k), ay = zona(q->j), dir = q->j == baixo ? -1 : 1;   // para o meio da mesa
+    float sobe = p < 0.7f ? fminf(1, p / 0.18f) : fmaxf(0, 1 - (p - 0.7f) / 0.3f);
+    int sx = ax + R_DADO - 2, sy = ay + dir * (R_DADO - 4 + (int)lroundf(sobe * (2 - sobe) * 12));
+    if (sobe <= 0) return;
+    if (p > 0.12f && p < 0.6f)                                // o clarao da faisca acendendo
+        disco_pontilhado(sx + 5, sy - 9, 7, C_FOGO, 0.25f + 0.15f * sinf(t_fase * 40));
+    ad_solto_d(sx, sy, AD_DINAMITE, 2, 0);
+}
+
 static void desenha_pouso(void)
 {
     if (!n_pouso || fase == F_EFEITOS) return;
     const pouso_ad_t *q = &pouso_q[0];
     if (q->k < 0 || q->k >= N_FILA) return;
+    if (q->ad == AD_DINAMITE) { pavio_cresce(q, fminf(1, t_pouso / pouso_dura(q))); return; }
     evento_t e = { 0 };
     e.tipo = EV_ADESIVO;
     e.ad = q->ad;

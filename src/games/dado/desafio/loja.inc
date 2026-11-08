@@ -1355,7 +1355,7 @@ static void lj_cola_lados(void)
         desenha_dado((float)x, y - pulo, 17, t, cola_dono(), 0, mostra, 2, false);
         if (colando && t_lj_cola >= bate && ad_estilo == ADE_NOVO) cn_em_volta(x, (int)(y - pulo), 17, a, t_lj_cola - bate);
         // O numero do lado embaixo, quando o dado nao o mostra (o Vazio, o Remendo).
-        if (mostra != lado || t == D_VAZIO) {
+        if (mostra != lado && t != D_VAZIO) {        // (o Vazio mostra o 0, que e o lado dele)
             snprintf(s, sizeof s, "%d", lado);
             gfx_texto(x - gfx_largura(s, GFX_FINO) / 2, y + 15, s, C_TEXTO_M, GFX_FINO, false);
         }
@@ -1389,21 +1389,21 @@ static void lj_cola_lados(void)
             if (q > 0.6f) txt_c(GFX_W / 2, ty + 34, "o Adesivado virou um d8, com um adesivo em cada lado", C_MARFIM_S, false);
         }
     } else if (t_lj_cola > 0) {
-        snprintf(s, sizeof s, "%s no lado %d", ADESIVO[a].nome, lj_cola_lado);
+        snprintf(s, sizeof s, "%s no lado %d", ADESIVO[a].nome, lado_mostra(t, lj_cola_lado));
         txt_c(GFX_W / 2, ty, s, ADESIVO[a].luz, true);
     } else if (ja) {
-        snprintf(s, sizeof s, "O lado %d já tem o %s", lado, ADESIVO[ja].nome);
+        snprintf(s, sizeof s, "O lado %d já tem o %s", lado_mostra(t, lado), ADESIVO[ja].nome);
         txt_c(GFX_W / 2, ty, s, C_VINHO_CLR, true);
         snprintf(s, sizeof s, "%s %s", ADESIVO[ja].l1, ADESIVO[ja].l2);
         txt_c(GFX_W / 2, ty + TXT_H - 1, s, C_MARFIM_S, false);
     } else if (cola_pac >= 0) {
-        snprintf(s, sizeof s, "Lado %d  ·  do pacote", lado);
+        snprintf(s, sizeof s, "Lado %d  ·  do pacote", lado_mostra(t, lado));
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
     } else if (cola_premio) {
-        snprintf(s, sizeof s, "Lado %d  ·  prêmio: fica até o fim da partida", lado);
+        snprintf(s, sizeof s, "Lado %d  ·  prêmio: fica até o fim da partida", lado_mostra(t, lado));
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
     } else {
-        snprintf(s, sizeof s, "Lado %d  ·  custa %d %s", lado, preco_adesivo(a), preco_adesivo(a) == 1 ? "moeda" : "moedas");
+        snprintf(s, sizeof s, "Lado %d  ·  custa %d %s", lado_mostra(t, lado), preco_adesivo(a), preco_adesivo(a) == 1 ? "moeda" : "moedas");
         txt_c(GFX_W / 2, ty, s, C_OURO, true);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, ty + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);

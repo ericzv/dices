@@ -646,8 +646,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "dado anterior.",
     [D_SACRIFICIO]      = "Quatro lados, mas não pontua. Se terminar válido, no fim da rodada o seu dado válido de menor "
                           "número, entre os que pontuam, pontua x2.",
-    [D_VAZIO]           = "Seis lados, mas pontua sempre 0. Nunca é anulado e nunca anula o dado anterior, por maior que ele "
-                          "seja: depois dele, qualquer número é válido. Pode ser roubado.",
+    [D_VAZIO]           = "Um lado só, o 0: cai sempre nele, e o adesivo colado ali age em todo lance. Pontua sempre 0. "
+                          "Nunca é anulado e nunca anula o dado anterior, por maior que ele seja: depois dele, qualquer "
+                          "número é válido. Pode ser roubado.",
     [D_MEDIA]           = "Quatro lados. Se terminar válido, ganha no fim da rodada um bônus igual ao total dos seus dados "
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "

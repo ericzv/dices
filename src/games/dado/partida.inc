@@ -84,10 +84,18 @@ static void poe_grudado(int j, int i)
 static pouso_ad_t pouso_q[POUSO_MAX];
 static int n_pouso;
 static float t_pouso;
-static float pouso_dura(const pouso_ad_t *p) { return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : 1.6f; }
+static uint8_t pavio_mais[2][N_FILA];        // a Dinamite: quanto o pavio do dado k de j cresceu neste lance (a mesa mostra no pouso)
+static float pouso_dura(const pouso_ad_t *p)
+{
+    return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : p->ad == AD_DINAMITE ? 0.9f : 1.6f;
+}
 static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v);
 static void pouso_toca(const pouso_ad_t *p)
 {
+    if (p->ad == AD_DINAMITE) {                  // o pavio cresceu: so o adesivo saltando e o quanto (o som dela e o do BUM)
+        flutua_em(p->j, p->k, C_FOGO, 0.25f, "pavio +%d", p->n);
+        return;
+    }
     som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));
     if (p->ad == AD_MASSINHA) {                  // quando a massinha vira o Remendo: o lado que ganhou +2
         int l = 1;
@@ -101,6 +109,11 @@ static void adesivos_pousou(int j, int k)
     pouso_ad_t o[2];
     int n = adesivos_no_pouso(j, k, o, 2), antes = n_pouso;
     for (int g = 0; g < n && n_pouso < POUSO_MAX; g++) pouso_q[n_pouso++] = o[g];
+    if (k >= 0 && k < N_FILA && pavio_mais[j][k]) {   // a Dinamite que nao saiu: o pavio cresceu
+        if (n_pouso < POUSO_MAX)
+            pouso_q[n_pouso++] = (pouso_ad_t){ (int8_t)j, (int8_t)k, (int8_t)j, F[j].idx[k], AD_DINAMITE, 0, pavio_mais[j][k], 0 };
+        pavio_mais[j][k] = 0;
+    }
     if (!antes && n_pouso) { t_pouso = 0; pouso_toca(&pouso_q[0]); }
 }
 static void pouso_passo(float dt)
@@ -255,6 +268,7 @@ static void marca_online(void);             // online.inc: o marco da partida pa
 static void nova_rodada(void)
 {
     n_pouso = 0;                                 // o que ainda voava no pouso da rodada de antes
+    memset(pavio_mais, 0, sizeof pavio_mais);
     marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
@@ -526,7 +540,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
     case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
     case EF_PREVISIVEL: *lado = (int8_t)previsivel_valor(fixo); break;   // 3, 4, 5... ate 12
     case EF_RELOGIO:  *lado = relogio_valor(); break;              // o numero da rodada
-    case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
+    case EF_VAZIO:    *lado = 1; return ad_no_lado(p, 1) == AD_REMENDO ? 2 : 0;   // um lado so: o do 0
     default: break;
     }
     return remenda(p, *lado);
@@ -786,9 +800,11 @@ static void lanca_proximo(void)
     f->bonecas[k] = l.bonecas;
     int x = l.x, menor = l.menor, lado = l.lado;
     // A Dinamite: lancado sem cair nela, o pavio do dado queima mais um pouco.
+    pavio_mais[vez][k] = 0;
     if (pc && ad_conta(pc, AD_DINAMITE) && ad_no_lado(pc, lado) != AD_DINAMITE) {
-        uint8_t *pv = &J[vez].pavio[f->idx[k]];
+        uint8_t *pv = &J[vez].pavio[f->idx[k]], antes = *pv;
         *pv = (uint8_t)(*pv + DINAMITE_CADA > DINAMITE_MAX ? DINAMITE_MAX : *pv + DINAMITE_CADA);
+        pavio_mais[vez][k] = (uint8_t)(*pv - antes);   // a mesa mostra no pouso (no teto, nada)
     }
     int x1 = l.x1, lado1 = l.lado1, antes1 = l.antes1, menor1 = l.menor1;
     bool reflete = l.reflete;
@@ -1064,22 +1080,44 @@ static void cosmo_ficam(int j, const uint8_t *est)
 // O Balao enche BALAO_CADA por rodada fora da fila (ou anulado), sem limite
 // (so o que cabe no fixo, BALAO_GUARDA).
 static int balao_enche(int g) { return g + BALAO_CADA > BALAO_GUARDA ? BALAO_GUARDA : g + BALAO_CADA; }
+// Os contadores que andam so por terem sido lancados, valendo ou nao: os
+// Tres Patinhos (mais uma vez), o Pisca (alterna) e o Revolver (mais uma
+// bala; com a quarta, disparou e o tambor esvazia). Valem tambem quando a
+// rodada acaba porque alguem correu (contadores_correu).
+static bool conta_lance(peca_t *p, int j, int k)
+{
+    if (p->tipo == D_PATINHOS) { if (F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1); return true; }
+    if (p->tipo == D_PISCA) { p->fixo = (uint8_t)(F[j].fixo[k] ^ 1); return true; }
+    if (p->tipo == D_REVOLVER) { p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1); return true; }
+    return false;
+}
+// A peca da bolsa do dado k da fila de j (NULL se ja nao e ele).
+static peca_t *peca_da_fila(int j, int k)
+{
+    int i = F[j].idx[k];
+    if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) return NULL;
+    return &J[j].col[i];
+}
+// Alguem correu: nao ha fim de rodada, mas o que foi lancado conta.
+static void contadores_correu(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        peca_t *p = peca_da_fila(j, k);
+        if (p) conta_lance(p, j, k);
+    }
+}
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
-        int i = F[j].idx[k];
-        if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
-        peca_t *p = &J[j].col[i];
+        peca_t *p = peca_da_fila(j, k);
+        if (!p) continue;
         bool vale = d->est[j][k] == V_VALIDO;
+        if (conta_lance(p, j, k)) continue;
         if (p->tipo == D_FURIA) p->fixo = (uint8_t)(int8_t)furia_depois(F[j].fixo[k], F[j].valor[k]);
         else if (p->tipo == D_ONDA && vale) {
             if (d->onda[j] >> k & 1) { p->tipo = D_TSUNAMI; p->fixo = 0; }
             else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
-        } else if (p->tipo == D_PATINHOS && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);   // lancado, vale ou nao
-        else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
-        else if (p->tipo == D_REVOLVER)                                              // mais uma bala; com a quarta, disparou
-            p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
-        else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
+        } else if (p->tipo == D_MEIA && vale) p->fixo = 0;                          // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
         else if (p->tipo == D_BALAO && (d->balao[j] >> k & 1)) p->fixo = 0;        // estourou: volta vazio
         else if (p->tipo == D_BALAO && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)balao_enche(F[j].fixo[k]);

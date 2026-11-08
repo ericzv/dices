@@ -136,6 +136,7 @@ static void executa(int op)
         for (int j = 0; j < 2; j++) memcpy(vis_est[j], F[j].est, N_FILA);
         memset(cosmo_recem, 0, sizeof cosmo_recem);   // o ciclo cosmico valendo evolui mesmo assim
         for (int j = 0; j < 2; j++) cosmo_ficam(j, F[j].est);
+        for (int j = 0; j < 2; j++) contadores_correu(j);   // o Revolver que disparou esvazia; o lancado carrega
         recolhe_quebrados();
         t_fase = 0;
         fase = F_RESULTADO;

@@ -487,7 +487,7 @@ static float ia_futuro(int j)
         case AD_XEROX:      b += 0.5f; break;                // uma copia de adesivo para sempre
         default: break;
         }
-        // A Dinamite que nao saiu: o pavio cresce (+3).
+        // A Dinamite que nao saiu: o pavio cresce (+2).
         if (pc && ad != AD_DINAMITE)
             for (int l = 1; l <= AD_LADOS; l++) if (ad_no_lado(pc, l) == AD_DINAMITE) { b += 0.5f; break; }
     }

@@ -34,9 +34,10 @@
 #include "../hal/salva.h"
 #include "jogos.h"
 
-#ifndef DADO_VERSAO                  // o CMake passa o commit; sem ele, "dev"
-#define DADO_VERSAO "dev"
-#endif
+// A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
+// Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
+// mudanca grande sobe o de antes (v2.0).
+#define DADO_VERSAO "v1.0"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())

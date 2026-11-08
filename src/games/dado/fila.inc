@@ -172,7 +172,7 @@ static int lado_do_lance(int t, int x, int menor)
     int ef = TIPO[t].efeito;
     if (ef == EF_SORTE_REVES) x += menor;
     else if (ef == EF_EXPLODE && x > TIPO[t].lados) x = TIPO[t].lados;
-    else if (ef == EF_VAZIO) return 0;
+    else if (ef == EF_VAZIO) return 1;               // o lado unico, o do 0
     return x >= ad_lado_min(t) && x <= ad_lado_max(t) ? x : 0;
 }
 // O numero mudou depois do lance (Gemeo, Eco, Espelho, Prensa, Calibre): o
@@ -180,6 +180,7 @@ static int lado_do_lance(int t, int x, int menor)
 static void lado_vira(int j, int k, int v)
 {
     int t = F[j].tipo[k];
+    if (t == D_VAZIO) { F[j].lado[k] = 1; return; }  // o Vazio nao vira: e sempre o lado do 0
     F[j].lado[k] = (uint8_t)(v >= ad_lado_min(t) && v <= ad_lado_max(t) ? v : 0);
 }
 

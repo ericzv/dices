@@ -200,7 +200,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   sem o 4º dado, nada; a bolha do Impermeável segura a casca), e aos que
   combam com a fila e com a bolsa: a Corrente (valendo, +3 por elo: ela e
   cada adesivo seu que agiu antes dela), a Dinamite (cada lance que não cai
-  nela põe +3 no pavio; tirando o lado dela, valendo, paga o pavio), a
+  nela põe +2 no pavio; tirando o lado dela, valendo, paga o pavio), a
   Bússola (o próximo dado, caindo sem adesivo, rola de novo e fica o 2º se
   cair em adesivo ou for maior), a Moldura (os adesivos dos lados vizinhos
   também agem), o Xerox (o adesivo do lado oposto ganha uma cópia, para
@@ -513,12 +513,17 @@ O zip `DadoEmCasa-web` (em Actions → Artifacts) também pode ser enviado ao
 
 ### Publicar uma versão
 
+O jogo tem um número de versão, que aparece miúdo no canto da tela inicial
+(`v1.0`, `v1.1`...): fica em `src/games/dado.c` (`DADO_VERSAO`). Cada entrega
+nova sobe o número de depois do ponto; uma mudança grande sobe o de antes
+(`v2.0`). O `.zip` do Windows leva o mesmo número no nome.
+
 Cada push compila os três sistemas no GitHub Actions. Para gerar uma Release
-com link de download:
+com link de download, com a tag igual à versão:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0
+git push origin v1.0
 ```
 
 ## Organização

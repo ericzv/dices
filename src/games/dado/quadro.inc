@@ -145,7 +145,7 @@ static void desenha_dica(const int *r, const dica_t *d)
         ad_solto_d(x + 6, yy + 7, a, 1, 0);
         int wn = gfx_texto(x + 18, yy - 3, ad->nome, ad->luz, 1, true);
         char s[24];
-        snprintf(s, sizeof s, "· lado %d", lados[i]);
+        snprintf(s, sizeof s, "· lado %d", lado_mostra(d->pc.tipo, lados[i]));
         int wl = gfx_texto(x + 18 + wn + 6, yy - 2, s, C_MARFIM_S, GFX_FINO, false);
         int v = dica_vale(d, a);                         // os que crescem: quanto valem agora
         if (v >= 0) {

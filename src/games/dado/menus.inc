@@ -219,9 +219,8 @@ static void desenha_abertura(void)
              : controle_estilo ? "setas escolhem  ·  ENTER confirma  ·  M som  ·  K controles"
              : "M som  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
              C_TEXTO_M);
-    // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
-    char ver[32];
-    snprintf(ver, sizeof ver, "versão %s", DADO_VERSAO);
+    // A versao, miuda no canto da mesa: diz qual jogo esta aberto (v1.0, v1.1...).
+    const char *ver = DADO_VERSAO;
     gfx_texto(MESA_X1 - 12 - gfx_largura(ver, GFX_MIUDO), MESA_Y1 - 18, ver,
               gfx_mistura(C_TEXTO_M, C_FELTRO, 35), GFX_MIUDO, false);
 }

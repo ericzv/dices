@@ -1595,6 +1595,33 @@ int main(void)
             limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 3; joga(0, D_REVOLVER, 2); d = fim();
             CONFERE(d.total[0] == REVOLVER_TIRO && d.est[0][1] == V_ANULADO && poder_armado(0, 1) == 1,
                     "Revolver anulado na 4a: o tiro ja saiu, +12 no fim, deu %d", d.total[0]);
+            {   // A Dinamite: cada lance que nao cai nela poe +2 no pavio (ate 30), e a mesa mostra no pouso
+                int n0 = J[0].n_col, cresce = 0, fora = 0, nela = 0, mostra = 0;
+                J[0].col[n0] = nova_peca(D_D6);
+                ad_cola(&J[0].col[n0], 6, AD_DINAMITE);
+                J[0].n_col++;
+                for (int i = 0; i < 120; i++) {
+                    limpa(); primeiro = 0; vez = 0; n_pouso = 0; n_voo = 0;
+                    J[0].pavio[n0] = i % 10 == 9 ? DINAMITE_MAX : 0;     // de vez em quando, ja no teto
+                    int antes = J[0].pavio[n0];
+                    F[0].idx[0] = (int8_t)n0; F[0].tipo[0] = D_D6; F[0].n = 1;
+                    lanca_proximo();
+                    n_voo = 0;
+                    if (F[0].lado[0] == 6) { nela += J[0].pavio[n0] == antes && !pavio_mais[0][0]; continue; }
+                    fora++;
+                    int espera = antes + 2 > DINAMITE_MAX ? DINAMITE_MAX : antes + 2;
+                    cresce += J[0].pavio[n0] == espera && pavio_mais[0][0] == espera - antes;
+                    F[0].lancados = 1;
+                    adesivos_pousou(0, 0);
+                    mostra += espera > antes ? n_pouso == 1 && pouso_q[0].ad == AD_DINAMITE && pouso_q[0].n == 2 && pouso_dura(&pouso_q[0]) < 1
+                                             : n_pouso == 0;
+                    n_pouso = 0;
+                }
+                CONFERE(DINAMITE_CADA == 2 && fora > 60 && cresce == fora && mostra == fora && nela == 120 - fora,
+                        "Dinamite: +2 no pavio por lance fora dela e a mesa mostra (%d/%d/%d de %d)", cresce, mostra, nela, fora);
+                J[0].n_col--;
+                J[0].pavio[n0] = 0;
+            }
             {
                 int n0 = J[0].n_col;
                 J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 1 };
@@ -1608,6 +1635,23 @@ int main(void)
                 limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 3); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(d.total[0] == 3 + REVOLVER_TIRO && J[0].col[n0].fixo == 0, "Revolver: disparou e esvaziou (%d, %d)", d.total[0], J[0].col[n0].fixo);
+                // Disparou e alguem correu: o tambor esvazia do mesmo jeito (antes
+                // ficava cheio e disparava de novo no lance seguinte)
+                for (int quem = 0; quem < 2; quem++) {
+                    J[0].col[n0].fixo = 3;
+                    limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 3);
+                    CONFERE(revolver_dispara(F[0].fixo[0]), "Revolver: a 4a bala dispara");
+                    int pote0 = pote;
+                    pote = 10; vez = quem; fase = F_APOSTA;
+                    executa(OP_CORRER);
+                    CONFERE(fase == F_RESULTADO && J[0].col[n0].fixo == 0,
+                            "Revolver: disparou e %s correu, o tambor esvazia (%d)", quem ? "o oponente" : "ele mesmo", J[0].col[n0].fixo);
+                    pote = pote0;
+                }
+                J[0].col[n0].fixo = 1;
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 5);
+                { int pote0 = pote; pote = 10; vez = 1; fase = F_APOSTA; executa(OP_CORRER); pote = pote0; }
+                CONFERE(J[0].col[n0].fixo == 2, "Revolver: lancado e o oponente correu, carrega a bala (%d)", J[0].col[n0].fixo);
                 J[0].n_col--;
             }
             {
@@ -3632,10 +3676,24 @@ int main(void)
             l = lanca_peca(D_PREVISIVEL, 1, &prev, sempre_tres);
             CONFERE(!l.reflete && l.x == 2, "Previsivel no 2, sem Reflexivo: %d", l.x);
         }
+        // O Vazio tem um lado so (o do 0): cai sempre nele; o Remendo ali vale sempre 2.
         peca_t vazio = { .tipo = D_VAZIO };
-        ad_cola(&vazio, 3, AD_REMENDO);
-        x = sorteia_peca(D_VAZIO, 0, &vazio, sempre_tres, &menor, &lado, &antes);
-        CONFERE(x == 2 && lado == 3, "o Vazio com Remendo no lado 3: %d (lado %d)", x, lado);
+        CONFERE(ad_lado_min(D_VAZIO) == 1 && ad_lado_max(D_VAZIO) == 1 && ad_livres(&vazio) == 1 && lado_mostra(D_VAZIO, 1) == 0
+                && lado_do_lance(D_VAZIO, 5, 0) == 1, "o Vazio tem um lado so, o 0");
+        ad_cola(&vazio, 1, AD_REMENDO);
+        int vz = 0;
+        for (int i = 0; i < 60; i++) { x = sorteia_peca(D_VAZIO, 0, &vazio, rola, &menor, &lado, &antes); vz += x == 2 && lado == 1; }
+        CONFERE(vz == 60 && !ad_cabe(&vazio), "o Vazio com Remendo: sempre 2, sempre no lado dele (%d de 60)", vz);
+        {   // e o adesivo dele age em todo lance (o Confete, valendo)
+            int n0 = J[0].n_col;
+            J[0].col[n0] = (peca_t){ .tipo = D_VAZIO };
+            ad_cola(&J[0].col[n0], 1, AD_CONFETE);
+            J[0].n_col++;
+            limpa(); joga_ad(0, n0, 0); desfecho_t dv = fim();
+            CONFERE(F[0].lado[0] == 1 && ad_fila(0, 0) == AD_CONFETE && dv.total[0] > 0,
+                    "o Vazio: o adesivo do lado dele age (lado %d, total %d)", F[0].lado[0], dv.total[0]);
+            J[0].n_col--;
+        }
         x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);
         lances_sr[0] = 9; lances_sr[1] = 4; li_sr = 0;
         x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);

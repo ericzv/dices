@@ -256,6 +256,13 @@ static void linha_bloqueio(int x, int y, const char *falta)
     gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y, falta, C_TEXTO_M, 1, false);
 }
 
+// A nota ao lado da etiqueta de raridade: inteira se couber ate o fim da
+// coluna; senao (a letra maior), a forma curta.
+static void nota_etiqueta(int x, int fim, const char *longa, const char *curta)
+{
+    txt(x, 105, curta && txt_quebra(longa, fim - x) ? curta : longa, C_TEXTO_M, false);
+}
+
 static void desenha_catalogo(void)
 {
     if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
@@ -306,11 +313,11 @@ static void desenha_catalogo(void)
     gfx_texto(x, 60, d->nome, st == 2 ? C_TEXTO_M : cor_dado(tipo), 2, true);
     classe(tipo, s, sizeof s);
     int xt = etiquetas_protecao(etiqueta_caixa(x, 104, s, cor_rar(tipo)), 104, tipo);
-    if (so_inicial(tipo)) txt(xt + 2, 105, "dado inicial", C_TEXTO_M, false);
-    if (so_desafio(tipo)) txt(xt + 2, 105, "só no Desafiante", C_TEXTO_M, false);
-    if (de_natal(tipo)) txt(xt + 2, 105, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
-    if (tipo == D_TSUNAMI) txt(xt + 2, 105, "nasce da Onda", C_TEXTO_M, false);
-    if (tipo == D_D20) txt(xt + 2, 105, "sai do Presente e da Sacola de Presente", C_TEXTO_M, false);
+    if (so_inicial(tipo)) nota_etiqueta(xt + 2, x + 320, "dado inicial", NULL);
+    if (so_desafio(tipo)) nota_etiqueta(xt + 2, x + 320, "só no Desafiante", NULL);
+    if (de_natal(tipo)) nota_etiqueta(xt + 2, x + 320, "de Natal: de 20 de outubro a 6 de janeiro", "de Natal: 20 out. a 6 jan.");
+    if (tipo == D_TSUNAMI) nota_etiqueta(xt + 2, x + 320, "nasce da Onda", NULL);
+    if (tipo == D_D20) nota_etiqueta(xt + 2, x + 320, "sai do Presente e da Sacola de Presente", "do Presente e da Sacola");
     if (st == 2) {
         linha_bloqueio(x, 124, trava);
     } else if (st == 1) {

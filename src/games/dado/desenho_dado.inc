@@ -929,11 +929,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
     case D_PAPAGAIO: {                            // as penas em escama (verde, a ponta amarela) e o bico curvo no canto
         float bx = u + 0.48f, by = v + 0.52f;
         if (bx * bx + by * by < 0.17f * 0.17f && bx + by > -0.08f) return 3;   // o bico
-        {                                                                     // a beira de baixo a direita, amarela e curva como o bico
-            float x = u - 0.08f, y = v - 0.08f, e = x - y;                    // e: ao longo da beira, de -0.98 (embaixo) a 0.98 (direita)
-            if (x > -0.05f && y > -0.05f && fabsf(e) < 0.98f) {
-                float a = e / 0.98f, w = 0.20f * powf(1 - a * a, 0.6f) * (1 + 0.25f * a);   // mais grosso no meio, a ponta curva
-                float d = 0.98f - (x + y);                                    // a distancia ate a beira
+        {                                                                     // a beira de cima a direita, amarela e curva como o bico
+            float x = u - 0.08f, y = v - 0.08f, e = x + y;                    // e: ao longo da beira, de -0.98 (em cima) a 0.98 (direita)
+            if (x > -0.05f && y < 0.05f && fabsf(e) < 0.98f) {
+                float a = e / 0.98f, w = 0.20f * powf(1 - a * a, 0.6f) * (1 - 0.25f * a);   // mais grosso no meio e em cima, a ponta descendo
+                float d = 0.98f - (x - y);                                    // a distancia ate a beira
                 if (d < w) {
                     if (d > w - 1.3f * s * 1.414f) return LUZ(2, -0.7f);  // a linha que separa o bico das penas
                     return LUZ(2, -0.25f + 0.6f * (d / fmaxf(w, 1e-3f)) - 0.15f * a);
@@ -1262,9 +1262,10 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float w = fmaxf(0.22f, 4.2f * s), q = t / w + 100;
         int lam = (int)floorf(q);
         float f = q - lam;
-        if (f * w < 1.1f * s) return LUZ(2, 0.15f);                           // a cola entre as laminas
-        float veio = 0.08f * sinf(Y * 23.0f + lam * 2.1f) + 0.10f * (ruido(Y / 0.09f + lam * 5, t / 0.05f) - 0.5f);   // o veio, ao longo da lamina
-        return LUZ(1, (lam & 1 ? 0.0f : 0.35f) + veio - f * 0.15f);
+        if (f * w < 1.1f * s) return 3;                                       // a cola entre as laminas, um dourado so um pouco mais escuro
+        if (!(lam & 1)) return 1;                                             // uma lamina na madeira clara, chapada
+        int px = (int)floorf(u / s + 1000), py = (int)floorf(v / s + 1000);   // a outra, ainda mais clara: meio a meio com o creme
+        return (px + py) & 1 ? 1 : 2;
     }
     case D_GEMEO: {                               // dois perfis de rosto, um em cada borda, olhando um para o outro (sombras, sem detalhe)
         // o quanto o rosto entra na face, de cima para baixo: o alto da cabeca, a testa, a sobrancelha, o
@@ -1814,27 +1815,32 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
     case D_JINGLE: {                              // o dado e o proprio guizo: a esfera de ouro e o laco vermelho em cima
         float x = u - 0.08f, y = v - 0.08f;
-        // o laco: duas alcas largas, cheias para os lados, o no no meio e as duas pontas da fita
+        // o laco: duas alcas largas, cheias para os lados, o no no meio e as duas pontas da fita,
+        // em tons de vermelho proximos (discreto sobre o ouro)
         float lx = x, ly = y + 0.65f, ax = fabsf(lx);
         float ea = (ax - 0.24f) / 0.21f, eb = (ly + 0.01f) / 0.12f;
         if (ea * ea + eb * eb < 1) {
             float d = sqrtf(ea * ea + eb * eb);
-            if (d > 1 - 1.4f * s / 0.12f) return LUZ(3, -0.75f);                         // a beira da alca
-            if (fabsf(ly + 0.01f) < 0.8f * s && ax > 0.10f && ax < 0.36f) return LUZ(3, -0.35f);   // a dobra do meio
-            return LUZ(3, 0.45f - eb * 0.45f - (lx > 0 ? 0.25f : 0) - d * 0.2f);
+            if (d > 1 - 1.4f * s / 0.12f) return LUZ(3, 0.05f);                 // a beira da alca, sem contorno escuro
+            if (fabsf(ly + 0.01f) < 0.8f * s && ax > 0.10f && ax < 0.36f) return LUZ(3, 0.2f);   // a dobra do meio
+            return LUZ(3, 0.55f - eb * 0.3f - (lx > 0 ? 0.08f : 0) - d * 0.1f);
         }
-        if (ax < 0.07f && fabsf(ly) < 0.08f) return LUZ(3, ax < 0.06f && fabsf(ly) < 0.07f ? 0.1f : -0.7f);   // o no
+        if (ax < 0.07f && fabsf(ly) < 0.08f) return LUZ(3, ax < 0.06f && fabsf(ly) < 0.07f ? 0.35f : 0.05f);   // o no
         for (int k = -1; k <= 1; k += 2) {                                     // as pontas da fita, caindo dos lados do no
             float px = lx * k - 0.05f, py = ly - 0.05f;
-            if (px > 0 && px < 0.17f && fabsf(py - px * 0.9f) < 0.035f + px * 0.12f && py < 0.22f) return LUZ(3, 0.05f - px);
+            if (px > 0 && px < 0.17f && fabsf(py - px * 0.9f) < 0.035f + px * 0.12f && py < 0.22f) return LUZ(3, 0.30f - px * 0.5f);
         }
-        // a esfera: a luz de cima a esquerda, o brilho e a borda escura
-        float hx = x + 0.30f, hy = y + 0.32f;
-        if (hx * hx * 1.6f + hy * hy < 0.012f) return LUZ(1, 1.0f);
-        float rr = sqrtf(x * x + y * y);
-        float luz = 0.55f - (x + y) * 0.55f - fmaxf(0, rr - 0.62f) * 2.0f;
-        if (fabsf(rr - 0.30f) < 0.9f * s && y < -0.05f) return LUZ(1, luz - 0.45f);   // o friso em volta, em cima
-        return LUZ(1, luz);
+        // a esfera de ouro, vista por fora: a luz de cima a esquerda caindo na
+        // curva (clara no alto, escurecendo para a beira de baixo), o brilho
+        // do metal e, na beira de baixo a direita, o reflexo da mesa
+        const float R = 1.05f;
+        float rr = sqrtf(x * x + y * y), q = fminf(rr / R, 0.995f);
+        float nx = x / R, ny = y / R, nz = sqrtf(1 - q * q);
+        float dif = -0.45f * nx - 0.55f * ny + 0.70f * nz;                    // a luz (ja normalizada) contra a normal
+        float hz = nx * -0.24f + ny * -0.30f + nz * 0.92f;                    // o meio caminho entre a luz e o olho
+        if (hz > 0.98f) return LUZ(1, 1.0f);                                  // o brilho do metal
+        float volta = fmaxf(0, q - 0.72f) / 0.28f * fmaxf(0, (x + y) / fmaxf(rr, 1e-3f));   // o reflexo da mesa na beira de baixo
+        return LUZ(1, -1.05f + 1.85f * dif + 0.5f * volta);
     }
     case D_FURIA: {                               // as chamas subindo da base e as sobrancelhas bravas
         // as sobrancelhas, em V, por cima do numero (so no dado grande: no
@@ -3568,6 +3574,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     float bcy = forma_cy(lados, cy, r);
     uint16_t sombra_bisel = zerado ? corpo : tons[1];
     if (tipo == D_BALAO && !zerado) { brilho = RGB(190, 56, 60); sombra_bisel = RGB(118, 30, 38); }   // o latex, mole: sem aresta
+    if (tipo == D_JINGLE && !zerado) { brilho = RGB(228, 194, 106); sombra_bisel = RGB(150, 122, 62); }   // o guizo e redondo: sem o fio da aresta
     if (tipo == D_D2) {                           // a moeda de latao
         moeda_corpo(cx, cy, r, ea, corpo, zerado);
         mcx = cx - (mca - msa); mcy = cy - (msa + mca);

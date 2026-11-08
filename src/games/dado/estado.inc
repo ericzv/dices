@@ -62,7 +62,7 @@ typedef struct {
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
     uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
-    bool    evolui[N_FILA];          // o ciclo cosmico tirou a faixa de cima: no fim da rodada, evolui
+    bool    faixa[N_FILA];           // o ciclo cosmico tirou a faixa de cima: o bonus (e o Buraco Negro engole os vizinhos)
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim

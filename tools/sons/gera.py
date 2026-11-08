@@ -719,7 +719,7 @@ def ad_eletronico():
     return sala(m.x, 0.12)
 
 def ad_transparente():
-    """O dado segura a queda: um toque de vidro, limpo, sem quebrar."""
+    """A sequencia nao ve o dado: um toque de vidro, limpo, que passa."""
     m = Mix(0.9)
     m.poe(0, tom(batida('dicehit_metal3'), 10), 0.5)
     m.poe(0.005, nota('glockenspiel', 100, 0.3, 0.5), 0.45)

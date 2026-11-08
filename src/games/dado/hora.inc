@@ -447,20 +447,17 @@ static void desenha_tiro_fogo(void)
 }
 
 // ---------------------------------------------------------------------------
-// O ciclo cosmico. O dado que vai evoluir, ao pousar: a luz se junta nele
-// girando, um clarao, um anel e raios abrem e as faiscas sobem (o som, um
-// pouco mais agudo a cada estagio); ate o fim da rodada, uma estrelinha gira
-// em volta dele. O Universo, ao pousar, faz o Big Bang: a mesa escurece e as
-// estrelas sao sugadas para ele, o clarao branco toma a tela, a mesa treme,
-// e aneis e estrelas se espalham. Na rodada seguinte, o dado que evoluiu
-// chega na mao com o brilho e o nome novo.
+// O ciclo cosmico. Enquanto o dado esta valendo na mesa, uma estrelinha gira
+// em volta dele: terminando a rodada assim, evolui (se cair, ela some). O
+// Universo, ao pousar, faz o Big Bang: a mesa escurece e as estrelas sao
+// sugadas para ele, o clarao branco toma a tela, a mesa treme, e aneis e
+// estrelas se espalham. Na rodada seguinte, o dado que evoluiu chega na mao
+// com o brilho, o nome novo e o som do estagio (um pouco mais agudo a cada um).
 // ---------------------------------------------------------------------------
-#define EVOLUI_T      1.2f
-#define EVOLUI_CLARAO 0.30f                  // quando a luz junta e estoura
 #define BANG_T        2.8f
 #define BANG_ESTOURO  0.38f                  // o estouro, junto com o do som
-static float t_evolui = -1, t_bang = -1;
-static int evo_x, evo_y, evo_tipo, bang_j, bang_k;
+static float t_bang = -1;
+static int evo_x, evo_y, bang_j, bang_k;
 static int cosmo_tom(int t) { static const int8_t TOM[5] = { 0, 2, 4, 5, 7 }; return cosmico(t) ? TOM[t - D_ASTRO] : 0; }
 
 // Quando o dado i da mao que evoluiu se revela: depois de chegar, um de
@@ -475,30 +472,22 @@ static float cosmo_chega(const jogador_t *p, int i)
 
 static void cosmo_pousa(int j, int k)
 {
-    int t = F[j].tipo[k];
-    if (!cosmico(t) || !F[j].evolui[k] || F[j].idx[k] < 0) return;   // a copia do Coringa nao evolui
+    if (F[j].tipo[k] != D_UNIVERSO || F[j].idx[k] < 0) return;   // a copia do Coringa nao faz o Big Bang
     evo_x = SLOT_X(k);
     evo_y = zona(j);
-    evo_tipo = t;
-    if (t == D_UNIVERSO) {
-        t_bang = 0;
-        bang_j = j; bang_k = k;
-        som_toca(SOM_BIG_BANG);
-        return;
-    }
-    t_evolui = 0;
-    som_toca_tom(SOM_EVOLUI, cosmo_tom(t));
+    t_bang = 0;
+    bang_j = j; bang_k = k;
+    som_toca(SOM_BIG_BANG);
 }
 
-// O veredito espera a luz estourar (e o Big Bang espalhar) antes de seguir.
+// O veredito espera o Big Bang espalhar antes de seguir.
 static bool cosmo_segura(void)
 {
-    return (t_evolui >= 0 && t_evolui < EVOLUI_CLARAO + 0.35f) || (t_bang >= 0 && t_bang < BANG_ESTOURO + 1.3f);
+    return t_bang >= 0 && t_bang < BANG_ESTOURO + 1.3f;
 }
 
 static void cosmo_passo(float dt)
 {
-    if (t_evolui >= 0 && (t_evolui += dt) > EVOLUI_T) t_evolui = -1;
     if (t_bang >= 0) {
         float antes = t_bang;
         t_bang += dt;
@@ -529,37 +518,6 @@ static void anel(int cx, int cy, int r, int esp, uint16_t c)
     }
 }
 
-static void desenha_evolui(void)
-{
-    if (t_evolui < 0) return;
-    int R = R_DADO, cx = evo_x, cy = evo_y;
-    uint16_t luz = VISUAL[evo_tipo].c1, cor = aro_de(evo_tipo);
-    if (t_evolui < EVOLUI_CLARAO) {               // a luz se junta no dado, girando
-        float q = t_evolui / EVOLUI_CLARAO, e = q * q;
-        for (int i = 0; i < 10; i++) {
-            float a = i * 0.6283f + q * 2.5f, d = (1 - e) * (R + 30) + R * 0.5f;
-            estrela4(cx + (int)(cosf(a) * d), cy + (int)(sinf(a) * d), i % 3 ? 1 : 2, C_BRANCO, luz, cor);
-        }
-        return;
-    }
-    float s = t_evolui - EVOLUI_CLARAO, q = s / (EVOLUI_T - EVOLUI_CLARAO);
-    if (s < 0.06f) gfx_disco(cx, cy, R + 4, C_BRANCO);                       // o clarao, por um instante
-    if (q < 0.7f) anel(cx, cy, R + 3 + (int)(q * 36), q < 0.3f ? 2 : 1, q < 0.3f ? luz : cor);
-    if (q < 0.35f)                                                          // oito raios curtos
-        for (int i = 0; i < 8; i++) {
-            float a = i * 0.7854f + 0.39f, d0 = R + 4 + q * 24, d1 = d0 + 8 + q * 16;
-            gfx_linha(cx + (int)(cosf(a) * d0), cy + (int)(sinf(a) * d0), cx + (int)(cosf(a) * d1), cy + (int)(sinf(a) * d1),
-                      i % 2 ? cor : luz);
-        }
-    for (int i = 0; i < 9; i++) {                                           // as faiscas subindo
-        uint32_t h = hash2(i, 33);
-        float x = cx + ((int)(h % (2 * R)) - R) * 0.9f + sinf(s * 6 + i) * 3;
-        float y = cy + R * 0.3f - s * (38 + (h >> 8) % 30);
-        if (q > 0.7f && ((int)(t_evolui * 20) + i) & 1) continue;
-        estrela4((int)x, (int)y, i % 3 ? 1 : 2, C_BRANCO, luz, cor);
-    }
-}
-
 // A mira de um poder armado sobre o dado que ele vai pegar no fim: um anel
 // vermelho com quatro tracos cruzando, pulsando de leve.
 static void mira_sobre(int x, int y, int R)
@@ -572,7 +530,7 @@ static void mira_sobre(int x, int y, int R)
     }
 }
 
-// A estrelinha que gira em volta do dado que vai evoluir, ate o fim da rodada.
+// A estrelinha que gira em volta do dado do ciclo cosmico valendo (vai evoluir se terminar assim).
 static void cosmo_orbita(int x, int y, int R, int t)
 {
     uint16_t luz = VISUAL[t].c1, cor = aro_de(t);

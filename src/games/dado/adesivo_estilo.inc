@@ -38,7 +38,7 @@ static const char *const AF_NOME[AF_N] = { "pontos", "multiplica", "mexe no dado
                                            "fica para depois", "dinheiro", "sujeira" };
 static const uint8_t AD_FAMILIA[AD_N] = {
     [AD_CHUMBO] = AF_DADO, [AD_REFLEXIVO] = AF_DADO, [AD_CONFETE] = AF_PONTOS, [AD_ELETRONICO] = AF_MULT,
-    [AD_TRANSPARENTE] = AF_PROTEGE, [AD_DOURADO] = AF_DINHEIRO, [AD_LOBO] = AF_ATACA, [AD_REMENDO] = AF_DADO,
+    [AD_TRANSPARENTE] = AF_DADO, [AD_DOURADO] = AF_DINHEIRO, [AD_LOBO] = AF_ATACA, [AD_REMENDO] = AF_DADO,
     [AD_RASPADINHA] = AF_PONTOS, [AD_FERMENTO] = AF_PONTOS, [AD_BIS] = AF_FICA, [AD_MIRA] = AF_ATACA,
     [AD_AVESSO] = AF_DADO, [AD_GORJETA] = AF_DINHEIRO, [AD_SELO] = AF_FICA, [AD_FRAGIL] = AF_PONTOS,
     [AD_ESTRELINHA] = AF_PONTOS, [AD_CORRETIVO] = AF_DADO, [AD_IMANTADO] = AF_MULT, [AD_POSTIT] = AF_DADO,

@@ -146,7 +146,9 @@ static int previsivel_valor(int fixo) { int v = fixo + PREVISIVEL_COMECA; return
 #define ASSOMBRA_FANTASMAS 2
 #define ASSOMBRA_PTS 2            // a Assombracao valendo: o susto tira isto do oponente
 static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
-// O que ele vira, e a partir de que numero (o Universo: sempre, no Big Bang).
+// O que ele vira (evolui quando termina a rodada valendo; o Universo, que
+// nunca cai, sempre: o Big Bang). E a faixa de cima de cada um, a partir da
+// qual o lance ganha o bonus do estagio (o Buraco Negro: engole os vizinhos).
 static int cosmo_proximo(int t) { return t == D_UNIVERSO ? D_ASTRO : t + 1; }
 static int cosmo_faixa(int t)
 {
@@ -158,7 +160,7 @@ static int cosmo_faixa(int t)
     default:            return 1;
     }
 }
-static bool cosmo_evolui(int t, int v) { return cosmico(t) && v >= cosmo_faixa(t); }
+static bool cosmo_na_faixa(int t, int v) { return cosmico(t) && v >= cosmo_faixa(t); }
 static int cosmo_bonus(int t) { return t == D_ASTRO ? COSMO_ESTRELA : t == D_CONSTELACAO ? COSMO_CONSTELACAO : t == D_GALAXIA ? COSMO_GALAXIA : 0; }
 // A epoca do Natal (20 de outubro a 6 de janeiro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
@@ -321,10 +323,10 @@ static const tipo_t TIPO[D_N] = {
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
     { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 4ª: +12" },
-    { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "5 ou 6: +1, e evolui" },
-    { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "6 a 8: +3, e evolui" },
-    { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
-    { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "14 a 20: anula os vizinhos, e evolui" },
+    { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "Termina válida: evolui · 5 ou 6: +1" },
+    { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "Termina válida: evolui · 6 a 8: +3" },
+    { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "Termina válida: evolui · 9 a 12: +5" },
+    { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "Termina válido: evolui · 14 a 20: anula os vizinhos" },
     { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · nada interfere nele" },
     { "Ficha Coringa",    2, EF_FICHA_CORINGA, RAR_LENDA,   0, "No fim, vira o último dado do oponente" },
     { "Terremoto",        8, EF_TERREMOTO,    RAR_RARO,     0, "Com 7 ou 8: rola de novo o último dado do oponente" },
@@ -460,10 +462,10 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
     [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 4ª vez, o tambor cheio dispara: +12, e esvazia.",
-    [D_ASTRO]           = "Tirando 5 ou 6, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +1.",
-    [D_CONSTELACAO]     = "Tirando 6, 7 ou 8, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +3.",
-    [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
-    [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
+    [D_ASTRO]           = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando 5 ou 6, valendo, +1.",
+    [D_CONSTELACAO]     = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando 6, 7 ou 8, valendo, +3.",
+    [D_GALAXIA]         = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando de 9 a 12, valendo, +5.",
+    [D_BURACO]          = "Terminando a rodada válido, evolui e volta para a sua mão na rodada seguinte. Tirando de 14 a 20, valendo, anula os seus dados ao lado dele.",
     [D_UNIVERSO]        = "Só pode ser lançado sozinho. Nada interfere nele: pontua exatamente o que tirar.",
     [D_FICHA_CORINGA]   = "Fica fora da sequência até o fim da rodada; então vira o último dado válido do oponente (sem nenhum, é anulada).",
     [D_TERREMOTO]       = "Se terminar válido com 7 ou 8, no fim rola de novo o último dado válido do oponente.",
@@ -703,16 +705,16 @@ static const char *TEXTO_CAT[D_N] = {
                           "balas aparecem no dado). Na quarta vez, com o tambor cheio, dispara: +12 - somado no que tirou, "
                           "se ficar válido; anulado, o tiro já saiu e os +12 vêm no fim da rodada. Depois o tambor esvazia "
                           "para a próxima volta. As balas ficam com ele.",
-    [D_ASTRO]           = "Seis lados. Tirando 5 ou 6, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
-                          "(e os adesivos dela caem). Se ficar válida, ainda pontua +1 no que tirou. A cada partida, "
-                          "recomeça como Estrela.",
-    [D_CONSTELACAO]     = "Oito lados. Tirando 6, 7 ou 8, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
-    [D_GALAXIA]         = "Doze lados. Tirando de 9 a 12, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
-    [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válido, no fim da rodada ainda anula os seus dados lançados logo antes e logo depois "
-                          "dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
+    [D_ASTRO]           = "Seis lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão "
+                          "(e os adesivos dela caem). Tirando 5 ou 6 e ficando válida, ainda pontua +1 no que tirou. "
+                          "A cada partida, recomeça como Estrela.",
+    [D_CONSTELACAO]     = "Oito lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando 6, 7 ou 8 e ficando válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_GALAXIA]         = "Doze lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando de 9 a 12 e ficando válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_BURACO]          = "Vinte lados. Se terminar a rodada válido, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando de 14 a 20 e ficando válido, no fim da rodada ainda anula os seus dados lançados logo antes "
+                          "e logo depois dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
     [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Nada interfere nele: "
                           "nenhum dado, adesivo, amuleto ou trunfo, seu ou do oponente, o anula, rouba, copia ou muda o que "
                           "ele tira. A cada partida, recomeça como Estrela.",

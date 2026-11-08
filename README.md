@@ -253,12 +253,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
-  carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +8
+  carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +12
   mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
   cada 3 vezes lançados, no 5; a Fúria, um d6 que guarda +2 a cada 4, 5 ou
   6, nada no 3 e perde 1 no 1 e no 2, no 6; a Onda, que pontua e guarda o que tira até virar um
-  Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
+  Tsunami, no 7; a Estrela, um d6 que, terminando a rodada válida,
   evolui e volta para a mão na rodada seguinte - e o que ela vira é
   surpresa, que a coleção não mostra -, no 8; o Adesivado, um d6 que já
   vem com 3 adesivos sorteados, no 3; o Relógio, um d20 que tira o número

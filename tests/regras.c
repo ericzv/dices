@@ -1769,37 +1769,37 @@ int main(void)
                 }
                 modo = m0;
             }
-            // O ciclo cosmico: na faixa de cima, valendo ou nao, evolui; valendo, o bonus.
+            // O ciclo cosmico: na faixa de cima, valendo, o bonus (evoluir, so terminando valendo).
             limpa(); joga(0, D_ASTRO, 4); d = fim();
-            CONFERE(d.total[0] == 4 && !F[0].evolui[0], "Estrela com 4: 4, sem evoluir (%d)", d.total[0]);
+            CONFERE(d.total[0] == 4 && !F[0].faixa[0], "Estrela com 4: 4, sem bonus (%d)", d.total[0]);
             limpa(); joga(0, D_ASTRO, 5); d = fim();
-            CONFERE(d.total[0] == 6 && F[0].evolui[0] && !strcmp(F[0].tag[0], "+1"), "Estrela com 5: 6, e evolui (%d)", d.total[0]);
+            CONFERE(d.total[0] == 6 && F[0].faixa[0] && !strcmp(F[0].tag[0], "+1"), "Estrela com 5: 6 (+1) (%d)", d.total[0]);
             limpa(); joga(0, D_CONSTELACAO, 5); d = fim();
-            CONFERE(d.total[0] == 5 && !F[0].evolui[0], "Constelacao com 5: 5 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 5 && !F[0].faixa[0], "Constelacao com 5: 5 (%d)", d.total[0]);
             limpa(); joga(0, D_CONSTELACAO, 6); d = fim();
-            CONFERE(d.total[0] == 9 && F[0].evolui[0], "Constelacao com 6: 9 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 9 && F[0].faixa[0], "Constelacao com 6: 9 (%d)", d.total[0]);
             limpa(); joga(0, D_GALAXIA, 8); d = fim();
-            CONFERE(d.total[0] == 8 && !F[0].evolui[0], "Galaxia com 8: 8 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 8 && !F[0].faixa[0], "Galaxia com 8: 8 (%d)", d.total[0]);
             limpa(); joga(0, D_GALAXIA, 9); d = fim();
-            CONFERE(d.total[0] == 14 && F[0].evolui[0], "Galaxia com 9: 14 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 14 && F[0].faixa[0], "Galaxia com 9: 14 (%d)", d.total[0]);
             limpa(); joga(0, D_D12, 12); joga(0, D_ASTRO, 6); d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && F[0].evolui[1] && d.total[0] == 0, "Estrela anulada com 6: evolui sem pontuar (%d)", d.total[0]);
+            CONFERE(d.est[0][1] == V_ANULADO && F[0].faixa[1] && d.total[0] == 0, "Estrela anulada com 6: sem bonus (%d)", d.total[0]);
             // O Buraco Negro valendo, de 14 a 20: anula os seus vizinhos (os firmes ficam).
             limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 15); joga(0, D_D20, 18);
             CONFERE(poder_armado(0, 1) == 2, "Buraco Negro com 15: armado contra os seus");
             d = fim();
-            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 15 && F[0].evolui[1],
+            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 15 && F[0].faixa[1],
                     "Buraco Negro com 15: anula os dois vizinhos (%d)", d.total[0]);
             limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 13); joga(0, D_D20, 18); d = fim();
-            CONFERE(d.total[0] == 34 && !F[0].evolui[1], "Buraco Negro com 13: nada (%d)", d.total[0]);
+            CONFERE(d.total[0] == 34 && !F[0].faixa[1], "Buraco Negro com 13: nada (%d)", d.total[0]);
             limpa(); joga(0, D_TEIMOSO, 3); joga(0, D_BURACO, 16); d = fim();
             CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 19, "Buraco Negro: o Teimoso resiste (%d)", d.total[0]);
             limpa(); joga(0, D_D6, 2); joga(0, D_D20, 18); joga(0, D_BURACO, 15); d = fim();
-            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && F[0].evolui[2] && d.total[0] == 2,
-                    "Buraco Negro anulado: evolui, mas nao engole (%d)", d.total[0]);
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && F[0].faixa[2] && d.total[0] == 2,
+                    "Buraco Negro anulado: nao engole (%d)", d.total[0]);
             // O Universo: pontua o que tirou, sempre faz o Big Bang, nao cai nem e atacado.
             limpa(); joga(0, D_UNIVERSO, 77); d = fim();
-            CONFERE(d.total[0] == 77 && F[0].evolui[0], "Universo: 77 e Big Bang (%d)", d.total[0]);
+            CONFERE(d.total[0] == 77 && F[0].faixa[0], "Universo: 77 e Big Bang (%d)", d.total[0]);
             CONFERE(nao_anulavel_t(D_UNIVERSO) && nao_roubavel_t(D_UNIVERSO), "Universo: nao cai nem e roubado");
             limpa(); joga(0, D_UNIVERSO, 40); joga(1, D_LASER, 6); d = fim();
             CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 40, "Universo: o Laser nao alcanca (%d)", d.total[0]);
@@ -1817,17 +1817,29 @@ int main(void)
                 J[0].col[n0] = (peca_t){ .tipo = D_ASTRO };
                 ad_cola(&J[0].col[n0], 2, AD_CHUMBO);
                 J[0].n_col++;
-                limpa(); joga_ad(0, n0, 6); d = fim();
+                // Evolui quem termina a rodada valendo, tire o que tirar; anulado, fica.
+                limpa(); joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(J[0].col[n0].tipo == D_CONSTELACAO && J[0].col[n0].velcro && !ad_quantos(&J[0].col[n0]),
-                        "Estrela evolui: Constelacao, sem os adesivos, e volta para a mao");
+                        "Estrela valendo com 2: evolui (Constelacao, sem os adesivos, e volta para a mao)");
+                limpa(); joga(0, D_D12, 12); joga_ad(0, n0, 8); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.est[0][1] == V_ANULADO && J[0].col[n0].tipo == D_CONSTELACAO, "Constelacao anulada com 8: fica");
                 limpa(); joga_ad(0, n0, 3); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].tipo == D_CONSTELACAO, "Constelacao com 3: fica");
+                CONFERE(J[0].col[n0].tipo == D_GALAXIA, "Constelacao valendo com 3: evolui (Galaxia)");
+                // Anulada no fim, por um poder do oponente: tambem fica.
+                J[0].col[n0] = (peca_t){ .tipo = D_GALAXIA };
+                limpa(); joga_ad(0, n0, 4); joga(1, D_LASER, 6); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.est[0][0] == V_ANULADO && J[0].col[n0].tipo == D_GALAXIA, "Galaxia que o Laser derruba: fica");
                 J[0].col[n0] = (peca_t){ .tipo = D_BURACO };
                 limpa(); joga(0, D_D20, 20); joga_ad(0, n0, 14); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].tipo == D_UNIVERSO && J[0].col[n0].velcro, "Buraco Negro anulado com 14 tambem evolui");
+                CONFERE(J[0].col[n0].tipo == D_BURACO, "Buraco Negro anulado com 14: fica");
+                limpa(); joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_UNIVERSO && J[0].col[n0].velcro, "Buraco Negro valendo com 2: evolui");
                 limpa(); joga_ad(0, n0, 50); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(J[0].col[n0].tipo == D_ASTRO && !J[0].col[n0].velcro, "Big Bang: volta a ser Estrela, sem voltar para a mao");
@@ -3646,7 +3658,8 @@ int main(void)
         CONFERE(!ad_cabe_o(&d6, AD_CHUMBO) && ad_cabe_o(&d6, AD_CONFETE) && ad_conta(&d6, AD_CHUMBO) == 2,
                 "no maximo dois Chumbos por dado");
 
-        // A fila: o Transparente segura a queda; o lado que conta e o de cima no fim.
+        // A fila: a sequencia nao ve o dado no lado do Transparente (como a Ponte);
+        // o lado que conta e o de cima no fim.
         // (Na partida rapida: sem amuletos nem trunfos no meio da conta.)
         modo = M_UM;
         memset(J, 0, sizeof J);
@@ -3657,8 +3670,24 @@ int main(void)
         limpa();
         joga_ad(0, 0, 5);
         joga_ad(0, 1, 2);
-        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO, "o Transparente no 2 nao cai (cai o 5): %d %d", F[0].est[0], F[0].est[1]);
-        // O Trevo com 4 que o Transparente segura vale 12, e a etiqueta diz.
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_VALIDO, "o Transparente no 2: nem cai nem derruba o 5: %d %d", F[0].est[0], F[0].est[1]);
+        joga(0, D_D6, 4);                          // o seguinte compara com o 5, de antes dele
+        CONFERE(F[0].est[2] == V_ANULADO && F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO,
+                "depois do Transparente, o 4 compara com o 5 e cai com ele: %d %d %d", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(risco(0) >= 0, "risco depois do Transparente");
+        limpa();
+        joga_ad(0, 0, 5);
+        joga_ad(0, 1, 2);
+        joga(1, D_LASER, 6);
+        {
+            desfecho_t dl = fim();
+            CONFERE(dl.est[0][1] == V_ANULADO, "o Transparente nao protege de outro dado: o Laser derruba (%d)", dl.est[0][1]);
+        }
+        limpa();
+        joga_ad(0, 0, 5);
+        F[0].n = 2; F[0].idx[1] = 1; F[0].tipo[1] = D_D6;   // o proximo: o d6 com o Transparente no 2
+        CONFERE(risco(0) == 50, "o d6 contra o 5: cai no 1, 3 e 4 (o 2 e o Transparente): risco %d", risco(0));
+        // O Trevo com 4 no lado do Transparente: a sequencia nao o ve, vale 12, e a etiqueta diz.
         J[0].col[3] = (peca_t){ .tipo = D_TREVO };
         ad_cola(&J[0].col[3], lado_do_lance(D_TREVO, 4, 0), AD_TRANSPARENTE);
         limpa();
@@ -3666,9 +3695,9 @@ int main(void)
         joga_ad(0, 3, 4);
         {
             desfecho_t dt = fim();
-            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO && dt.total[0] == 12
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_VALIDO && dt.total[0] == 17
                     && !strcmp(F[0].tag[1], "=12") && !strcmp(F[0].tag_num[1], "=12"),
-                    "o Trevo com 4 seguro pelo Transparente: vale 12 e mostra =12 (%d, tag %s)", dt.total[0], F[0].tag[1]);
+                    "o Trevo com 4 no Transparente: 5 + 12 e mostra =12 (%d, tag %s)", dt.total[0], F[0].tag[1]);
         }
         J[0].col[2] = (peca_t){ .tipo = D_GEMEO };
         ad_cola(&J[0].col[2], 2, AD_CONFETE);

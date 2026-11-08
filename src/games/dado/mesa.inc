@@ -1662,15 +1662,16 @@ static void desenha_fila(int j)
                 anima_fixo = -1;
             }
         }
-        // O ciclo cosmico que vai evoluir: uma estrelinha gira em volta dele.
-        if (f->evolui[k] && t != D_UNIVERSO && f->idx[k] >= 0 && k < f->lancados && fase != F_FIM && giro < 0.5f
-            && !(fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_evolui >= 0 && t_evolui < EVOLUI_CLARAO))
+        // O ciclo cosmico valendo: uma estrelinha gira em volta dele (terminando
+        // a rodada assim, evolui; se cair, ela some).
+        if (cosmico(t) && t != D_UNIVERSO && !anul && est != V_ROUBADO && f->idx[k] >= 0 && k < f->lancados
+            && fase != F_FIM && giro < 0.5f)
             cosmo_orbita(x, (int)(y - pulo), R, t);
         if ((mira[j] >> k & 1) && !anul && giro < 0.5f) mira_sobre(x, (int)(y - pulo), R);
         // O Agnus armado: cada anulado do dono ganha a aureola miuda (vai voltar no fim).
         if (anul && !no_desfecho && fase != F_FIM && giro < 0.5f && !poder_armado(j, k) && agnus_armado(j) >= 0)
             aureola_miuda(x, (int)(y - pulo) - R - 4, k * 0.9f);
-        // As protecoes de agora: lancado, conta a Ancora e o Transparente.
+        // As protecoes de agora: lancado, conta a Ancora.
         if (!anul && giro < 0.5f && vis_est[j][k] != V_ROUBADO) {
             bool la = k < f->lancados;
             marca_protecao((float)x, y - pulo, R, la ? firme(j, k) : nao_anulavel_t(t), la ? nao_roubavel(j, k) : nao_roubavel_t(t));
@@ -1716,17 +1717,18 @@ static void desenha_fila(int j)
                     }
                 }
             }
-            // Depois de uma Ponte (ou de um Corretivo): o arco tracejado sai do
-            // dado com que este se compara e passa por cima dela.
+            // Depois de uma Ponte (ou de um Corretivo, ou de um Transparente): o
+            // arco tracejado sai do dado com que este se compara e passa por cima dela.
             if (k > 0 && t != D_PONTE) {
                 int a = anulou_a >= 0 && anulou_a < k ? anulou_a : ultimo_da_regra(j, f->est, k);
-                bool ponte = false, corretivo = false;
+                bool ponte = false, corretivo = false, transp = false;
                 for (int i = a + 1; a >= 0 && i < k; i++) {
                     ponte |= f->tipo[i] == D_PONTE;
                     corretivo |= f->est[i] == V_VALIDO && ad_fila(j, i) == AD_CORRETIVO;
+                    transp |= f->est[i] == V_VALIDO && sequencia_nao_ve(j, i);
                 }
-                if (ponte || corretivo) {
-                    uint16_t c_arco = ponte ? cor_dado(D_PONTE) : ADESIVO[AD_CORRETIVO].fundo;
+                if (ponte || corretivo || transp) {
+                    uint16_t c_arco = ponte ? cor_dado(D_PONTE) : ADESIVO[corretivo ? AD_CORRETIVO : AD_TRANSPARENTE].fundo;
                     int x0 = SLOT_X(a), yy = (int)(y - pulo) - R - 4;
                     float q = t_fase / 0.35f;
                     for (int d = 0; d <= 24; d++) {

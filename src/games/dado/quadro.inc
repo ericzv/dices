@@ -223,7 +223,6 @@ void dado_desenha(void)
     desenha_tudo();
     desenha_pouso();                     // o Infectado, o Barro e a Massinha que acabaram de cair
     desenha_tiro();
-    desenha_evolui();
     desenha_buraco_suga();
     desenha_flutua();
     desenha_tiro_fogo();

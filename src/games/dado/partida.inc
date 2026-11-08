@@ -1040,16 +1040,17 @@ static void cosmo_vira(peca_t *p, int t, bool volta)
     *p = (peca_t){ .tipo = (uint8_t)t, .velcro = volta };
 }
 
-// O ciclo cosmico que tirou a faixa de cima evolui, valendo ou nao - ate
-// quando a rodada acaba porque alguem correu. Na rodada seguinte, ele chega
-// na mao com o nome novo (menos depois do Big Bang).
-static void cosmo_ficam(int j)
+// O ciclo cosmico que termina a rodada valendo evolui (est: como cada dado
+// terminou; quando alguem corre, como estava na sequencia). Na rodada
+// seguinte, ele chega na mao com o nome novo (menos depois do Big Bang, que
+// o Universo, que nunca cai, sempre faz).
+static void cosmo_ficam(int j, const uint8_t *est)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int i = F[j].idx[k];
         if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
         peca_t *p = &J[j].col[i];
-        if (!cosmico(p->tipo) || !F[j].evolui[k]) continue;
+        if (!cosmico(p->tipo) || est[k] != V_VALIDO) continue;
         cosmo_recem[j][i] = p->tipo != D_UNIVERSO;
         cosmo_vira(p, cosmo_proximo(p->tipo), p->tipo != D_UNIVERSO);
     }
@@ -1092,7 +1093,7 @@ static void contadores_ficam(int j, const desfecho_t *d)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) lancada |= F[j].idx[k] == i;
         if (!lancada) p->fixo = (uint8_t)balao_enche(p->fixo);
     }
-    cosmo_ficam(j);
+    cosmo_ficam(j, d->est[j]);
 }
 
 // A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.

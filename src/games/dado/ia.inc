@@ -458,8 +458,8 @@ static float ia_futuro(int j)
         // Presente vira um raro; a Medusa valendo quebra os seus lancados;
         // o Pacto poe um Fantasma na sua bolsa e a Assombracao valendo, dois
         // na do rival; o Acumulador e a Furia guardam bonus; o Previsivel
-        // sobe a escada; o Quebrado sai da bolsa; o ciclo cosmico evolui e
-        // volta para a mao.
+        // sobe a escada; o Quebrado sai da bolsa; o ciclo cosmico valendo
+        // evolui e volta para a mao.
         case EF_PRESENTE: b += 1.0f; break;
         case EF_MEDUSA:   if (vale) b -= 1.0f * (float)(f->lancados - 1); break;
         case EF_PACTO:    b -= 0.5f; break;
@@ -469,7 +469,7 @@ static float ia_futuro(int j)
         case EF_PREVISIVEL: b += 0.5f; break;
         case EF_QUEBRADO: b -= 0.5f; break;
         default:
-            if (cosmico(f->tipo[k]) && cosmo_evolui(f->tipo[k], f->cru[k])) b += 1.5f;
+            if (cosmico(f->tipo[k]) && vale) b += 1.5f;   // valendo no fim, evolui
             break;
         }
         // E os adesivos do lado que ficou para cima.

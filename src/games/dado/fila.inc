@@ -42,11 +42,14 @@ static void poe_tag(fila_t *f, int k, const char *fmt, ...)
 static void tira_tag(fila_t *f, int k) { f->tag[k][0] = f->tag_num[k][0] = f->tag_mais[k][0] = 0; }
 
 // O ultimo que vale e que a regra da fila enxerga: a Ponte e o dado no lado
-// do Corretivo ficam de fora (o dado depois compara com o de antes deles).
+// do Corretivo ou do Transparente ficam de fora (o dado depois compara com o
+// de antes deles).
+static bool sequencia_nao_ve(int j, int k) { return ad_fila(j, k) == AD_TRANSPARENTE; }   // como a Ponte: nem cai, nem derruba
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO) return k;
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO
+            && !sequencia_nao_ve(j, k)) return k;
     return -1;
 }
 
@@ -199,9 +202,8 @@ static bool nao_roubavel(int j, int k) { return nao_roubavel_t(tipo_de(j, k)) ||
 static bool universo(int j, int k) { return tipo_de(j, k) == D_UNIVERSO; }
 // O Invejoso age com numero impar: 1, 3 ou 5.
 static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
-// Nao anulavel agora: pelo tipo, preso pela Ancora ou com o Transparente no
-// lado de cima.
-static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k] || ad_fila(j, k) == AD_TRANSPARENTE; }
+// Nao anulavel agora: pelo tipo ou preso pela Ancora.
+static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os
 // ataques do fim da rodada continuam mirando nele (firme_sem_capa) e batem na
 // capa: o efeito nao pega e nao passa para outro dado.
@@ -446,9 +448,10 @@ static void aplica_regra(int j, int k)
         am_disparou |= AM_BIT(A_PRENSA);
     }
 
-    // O ciclo cosmico: tirando a faixa de cima, valendo ou nao, evolui no fim
-    // da rodada (o Universo, sempre: e o Big Bang).
-    f->evolui[k] = cosmo_evolui(t, v);
+    // O ciclo cosmico: tirando a faixa de cima, o bonus do estagio (se ficar
+    // valendo); o Buraco Negro, valendo, engole os vizinhos. Evoluir, ele
+    // evolui no fim da rodada se terminar valendo (cosmo_ficam).
+    f->faixa[k] = cosmo_na_faixa(t, v);
 
     // Vidro com 1: se estilhaca na hora. Fica anulado e derruba o dado de
     // antes, como na queda; no fim da rodada sai da bolsa.
@@ -519,8 +522,9 @@ static void aplica_regra(int j, int k)
 
     f->guarda[k] = 0;
     bool corrimao = !espera && l >= 0 && v == f->valor[l] - 1 && tem_am(j, A_CORRIMAO);
-    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && ef != EF_SANGUESSUGA && l >= 0 && cai_depois(j, v, f->valor[l])) {
-        // (a Ponte, o Vazio e a Sanguessuga nunca caem)
+    if (!espera && ef != EF_PONTE && ef != EF_VAZIO && ef != EF_SANGUESSUGA && !sequencia_nao_ve(j, k) && l >= 0
+        && cai_depois(j, v, f->valor[l])) {
+        // (a Ponte, o Vazio, a Sanguessuga e o dado no lado do Transparente nunca caem)
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
         // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
         bool sentinela = ef == EF_SENTINELA;
@@ -552,7 +556,7 @@ static void aplica_regra(int j, int k)
         ver_tipo = (esc_l || esc_k) ? 2 : 1;
         ver_comum = ver_tipo == 1;
         // Firme, ele fica valendo: o que ele pontua diferente do numero (o
-        // Trevo com 4 vale 10; o Ferreiro, o Sacrificio e o Pisca apagado, 0)
+        // Trevo com 4 vale 12; o Ferreiro, o Sacrificio e o Pisca apagado, 0)
         // ganha a etiqueta, como no caminho de sempre.
         if (esc_k && valor_pontos(j, k) != v) poe_tag(f, k, "=%d", valor_pontos(j, k));
     } else {
@@ -600,8 +604,8 @@ static void aplica_regra(int j, int k)
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
         if (ef == EF_MEIA && f->fixo[k]) poe_tag(f, k, "+%d", f->fixo[k]);
-        // O ciclo cosmico: quem vai evoluir pontua o bonus do estagio.
-        if (f->evolui[k] && cosmo_bonus(t)) {
+        // O ciclo cosmico: quem tirou a faixa de cima pontua o bonus do estagio.
+        if (f->faixa[k] && cosmo_bonus(t)) {
             f->bonus[k] = (int8_t)(f->bonus[k] + cosmo_bonus(t));
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
@@ -638,8 +642,8 @@ static void aplica_regra(int j, int k)
         }
         int vale = valor_pontos(j, k) + f->bonus[k];
         if (ef == EF_TREVO) {
-            poe_tag(f, k, "=%d", v == 4 ? 10 : 0);
-            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo pontua 10");
+            poe_tag(f, k, "=%d", v == 4 ? TREVO_SORTE : 0);
+            if (v == 4) snprintf(veredito, sizeof veredito, "SORTE! o Trevo pontua %d", TREVO_SORTE);
             else        snprintf(veredito, sizeof veredito, "Trevo tirou %d: pontua 0", v);
         } else if (ef == EF_MALDICAO) {
             snprintf(veredito, sizeof veredito, "Maldito pontua %d e tira %d do oponente", v, v);
@@ -696,10 +700,10 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Relógio marca %d: pontua %d", f->cru[k], vale);
         } else if (ef == EF_TERREMOTO && v >= TERREMOTO_DE) {
             snprintf(veredito, sizeof veredito, "Terremoto tirou %d: no fim, o chão do oponente treme", v);
-        } else if (ef == EF_BURACO && f->evolui[k]) {
-            snprintf(veredito, sizeof veredito, "Buraco Negro tirou %d: no fim, anula os vizinhos e evolui", v);
-        } else if (cosmico(t) && f->evolui[k]) {
-            snprintf(veredito, sizeof veredito, "%s tirou %d: pontua %d (+%d) e evolui!", TIPO[t].nome, v, vale, cosmo_bonus(t));
+        } else if (ef == EF_BURACO && f->faixa[k]) {
+            snprintf(veredito, sizeof veredito, "Buraco Negro tirou %d: no fim, anula os vizinhos", v);
+        } else if (cosmico(t) && f->faixa[k]) {
+            snprintf(veredito, sizeof veredito, "%s tirou %d: pontua %d (+%d)", TIPO[t].nome, v, vale, cosmo_bonus(t));
         } else if (ef == EF_VIDRO && v == 1) {          // (so com a capa chega aqui)
             snprintf(veredito, sizeof veredito, "o Vidro tirou 1, mas é Impermeável: não quebra");
         } else if (f->copiou[k]) {

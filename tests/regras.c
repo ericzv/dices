@@ -580,6 +580,33 @@ int main(void)
         bool ainda = false;
         for (int i = 0; i < J[0].n_col; i++) if (J[0].col[i].tipo == D_VIDRO) ainda = true;
         CONFERE(J[0].n_col == nc - 1 && !ainda, "Vidro quebrado devia sair da bolsa (%d dados)", J[0].n_col);
+        // Saiu um dado da bolsa: os de depois descem com o pavio da Dinamite,
+        // e a fila segue apontando para cada um (o resultado mostra os adesivos).
+        {
+            limpa();
+            jogador_t *p = &J[0];
+            static const uint8_t T[7] = { D_D4, D_VIDRO, D_D6, D_D6, D_D6, D_D6, D_D6 };
+            p->n_col = 7;
+            for (int i = 0; i < 7; i++) { p->col[i] = nova_peca(T[i]); p->onde[i] = NA_BOLSA; p->pavio[i] = 0; }
+            ad_cola(&p->col[2], 6, AD_DINAMITE);
+            p->pavio[2] = 6;
+            memset(vis_queima, 0, sizeof vis_queima);
+            joga_ad(0, 1, 1); joga_ad(0, 2, 5);
+            recolhe_quebrados();
+            CONFERE(p->n_col == 6 && p->col[1].tipo == D_D6 && ad_conta(&p->col[1], AD_DINAMITE) == 1,
+                    "o Vidro devia sair e a Dinamite descer (%d dados)", p->n_col);
+            CONFERE(p->pavio[1] == 6 && p->pavio[2] == 0, "o pavio devia descer com a Dinamite (%d, %d)", p->pavio[1], p->pavio[2]);
+            CONFERE(peca_fila(0, 1) == &p->col[1] && peca_fila(0, 0) == NULL && F[0].idx[0] == IDX_SAIU,
+                    "a fila devia apontar para a Dinamite (idx %d %d)", F[0].idx[0], F[0].idx[1]);
+            // O premio que tira um dado da bolsa (tira_da_bolsa) tambem.
+            p->pavio[0] = 0; p->pavio[1] = 4;
+            cosmo_recem[0][1] = true;
+            tira_da_bolsa(0, 0);
+            CONFERE(p->n_col == 5 && ad_conta(&p->col[0], AD_DINAMITE) == 1 && p->pavio[0] == 4 && cosmo_recem[0][0]
+                    && !cosmo_recem[0][1], "tirar um dado devia descer o pavio e a marca (%d)", p->pavio[0]);
+            memset(cosmo_recem, 0, sizeof cosmo_recem);
+            memset(p->pavio, 0, sizeof p->pavio);
+        }
         // A Ventania nao conserta o vidro quebrado.
         limpa();
         joga(0, D_VIDRO, 1);

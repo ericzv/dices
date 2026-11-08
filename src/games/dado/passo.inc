@@ -118,13 +118,8 @@ void dado_passo(float dt)
         if (t_tira > 0) {
             t_tira += dt;
             if (t_tira > 0.7f) {
-                jogador_t *p = &J[vez];
-                for (int m = tira_i; m + 1 < p->n_col; m++) {
-                    p->col[m] = p->col[m + 1];
-                    p->onde[m] = p->onde[m + 1];
-                }
-                p->n_col--;
-                p->n_mao = 0;
+                tira_da_bolsa(vez, tira_i);
+                J[vez].n_mao = 0;
                 t_tira = 0;
                 removendo = false;
                 nova_rodada();

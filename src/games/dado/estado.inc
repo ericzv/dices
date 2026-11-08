@@ -35,6 +35,7 @@ typedef struct {
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };
 
+#define IDX_SAIU (-2)            // idx do dado que saiu da bolsa no fim da rodada (-1: a carta do Coringa, que nao e da bolsa)
 typedef struct {
     int8_t  idx[N_FILA];         // posicoes em col, na ordem escolhida
     uint8_t tipo[N_FILA], fixo[N_FILA];

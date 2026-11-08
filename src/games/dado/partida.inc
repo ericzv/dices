@@ -1225,6 +1225,24 @@ static bool poe_copia_jingle(int j, const peca_t *orig)
     return true;
 }
 
+// Tira da bolsa de j o dado i: os de depois descem um lugar, cada um com o
+// que e dele na bolsa - o lugar (onde), o pavio da Dinamite e a marca do
+// ciclo cosmico que acabou de evoluir.
+static void tira_da_bolsa(int j, int i)
+{
+    jogador_t *p = &J[j];
+    if (i < 0 || i >= p->n_col) return;
+    for (int m = i; m + 1 < p->n_col; m++) {
+        p->col[m] = p->col[m + 1];
+        p->onde[m] = p->onde[m + 1];
+        p->pavio[m] = p->pavio[m + 1];
+        cosmo_recem[j][m] = cosmo_recem[j][m + 1];
+    }
+    p->n_col--;
+    p->pavio[p->n_col] = 0;
+    cosmo_recem[j][p->n_col] = false;
+}
+
 // Fim da partida: os Fantasmas e as copias dos Jingle Bells somem das bolsas.
 static void some_fantasmas(void)
 {
@@ -1293,13 +1311,28 @@ static void recolhe_quebrados(void)
                 int t = saem[b]; saem[b] = saem[b - 1]; saem[b - 1] = t;
             }
         jogador_t *p = &J[j];
+        int tirados[N_FILA], nt = 0;
         for (int i = 0; i < n; i++) {
-            if (em_jogo(p) <= FILA_NORMAL) { p->col[saem[i]] = nova_peca(D_D4); continue; }
-            for (int m = saem[i]; m + 1 < p->n_col; m++) {
-                p->col[m] = p->col[m + 1];
-                p->onde[m] = p->onde[m + 1];
+            if (em_jogo(p) <= FILA_NORMAL) {
+                p->col[saem[i]] = nova_peca(D_D4);
+                p->pavio[saem[i]] = 0;
+                cosmo_recem[j][saem[i]] = false;
+                continue;
             }
-            p->n_col--;
+            tira_da_bolsa(j, saem[i]);
+            tirados[nt++] = saem[i];
+        }
+        // A fila segue apontando para a bolsa (o resultado ainda mostra os
+        // adesivos de cada um): os que sairam ficam sem peca e os de depois
+        // descem junto.
+        for (int k = 0; k < F[j].n && k < N_FILA && nt; k++) {
+            int x = F[j].idx[k], novo = x;
+            if (x < 0) continue;
+            for (int i = 0; i < nt; i++) {
+                if (tirados[i] == x) { novo = IDX_SAIU; break; }
+                if (tirados[i] < x) novo--;
+            }
+            F[j].idx[k] = (int8_t)novo;
         }
         p->n_mao = 0;
     }

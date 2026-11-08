@@ -358,7 +358,7 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
 }
 
 // ---- Uma mesa so ----
-static bool duelo(const peca_t *b, int nb, uint32_t am, int nivel, int salao, int mesa, int *marg)
+static bool duelo(const peca_t *b, int nb, amul_t am, int nivel, int salao, int mesa, int *marg)
 {
     relogio += 7777777;
     modo = M_UM;
@@ -439,7 +439,7 @@ static void amuletos(int n, int nivel, int salao, int mesa, int a0, int a1)
                 b[nb++] = run.vitrine[0];
                 b[nb++] = run.vitrine[1];
             }
-            v += duelo(b, nb, a < 0 ? 0 : 1u << a, nivel, salao, mesa, &mg);
+            v += duelo(b, nb, a < 0 ? 0 : AM_BIT(a), nivel, salao, mesa, &mg);   // passam de 32: a mascara e de 64 bits
             m += mg;
         }
         printf("AMUL %-18s %-8s %5.1f%% %6.1f\n", a < 0 ? "(nenhum)" : AMULETO[a].nome, a < 0 ? "" : nome_rar_am(a),

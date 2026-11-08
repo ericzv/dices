@@ -2,9 +2,13 @@
 // Telas da partida: ordem, jogada, aposta, resultado, premio, loja
 // e fim
 // ===========================================================================
-// Uma linha: "VOCÊ joga  ·  Moeda [comum]", e embaixo o que o dado faz.
+// Uma linha: "VOCÊ joga  ·  Moeda [comum]", e embaixo o que o dado faz. Se
+// o que ele faz vai em duas linhas, a de cima sobe meia linha, para a
+// primeira nao passar por cima da etiqueta.
 static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
 {
+    int yd = y + TXT_H - 2;
+    if (txt_quebra(TIPO[tipo].desc, LARG_TEXTO)) y -= txt_passo() / 2;
     char c[32];
     classe(tipo, c, sizeof c);
     int wq = gfx_largura(quem, 1), wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(c, 1) + 10;
@@ -16,12 +20,16 @@ static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
     int xc = x + wn + 12;
     ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
-    txt_c(GFX_W / 2, y + TXT_H - 2, TIPO[tipo].desc, C_MARFIM_S, false);
+    txt_c_duas(GFX_W / 2, yd, TIPO[tipo].desc, C_MARFIM_S, LARG_TEXTO);
 }
 
 static void dado_e_poder(int y, int tipo, bool medio)
 {
-    // Nome e, ao lado, a etiqueta "D8 · raro" na cor da raridade.
+    // Nome e, ao lado, a etiqueta "D8 · raro" na cor da raridade (meia linha
+    // acima se o texto embaixo vai em duas).
+    const char *d = medio ? TEXTO_MEDIO[tipo] : TIPO[tipo].desc;
+    int yd = y + TXT_H - 1;
+    if (txt_quebra(d, LARG_TEXTO)) y -= txt_passo() / 2;
     char c[32];
     classe(tipo, c, sizeof c);
     int wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(c, 1) + 10;
@@ -30,7 +38,7 @@ static void dado_e_poder(int y, int tipo, bool medio)
     int xc = x + wn + 12;
     ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
-    txt_c(GFX_W / 2, y + TXT_H - 1, medio ? TEXTO_MEDIO[tipo] : TIPO[tipo].desc, C_MARFIM_S, false);
+    txt_c_duas(GFX_W / 2, yd, d, C_MARFIM_S, LARG_TEXTO);
 }
 
 // Tracinho discreto na cor da raridade, embaixo de um dado.
@@ -848,10 +856,10 @@ static void desenha_premio(void)
         if (premio_cabe(oferta_ad[cursor])) {
             char l[112];
             snprintf(l, sizeof l, "%s %s", d->l1, d->l2);
-            txt_c(GFX_W / 2, 212, l, C_MARFIM, false);
+            txt_c_duas(GFX_W / 2, 212, l, C_MARFIM, LARG_TEXTO);
         } else txt_c(GFX_W / 2, 212, "nenhum dado seu tem lado livre", C_VINHO_CLR, false);
     } else if (cursor < 3) {
-        txt_c(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, false);
+        txt_c_duas(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, LARG_TEXTO);
     } else {
         txt_c(GFX_W / 2, 212, pode ? "troca o prêmio por tirar um dos seus, para sempre"
                                    : "com 4 dados, nenhum pode sair", C_MARFIM, false);

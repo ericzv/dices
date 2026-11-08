@@ -807,15 +807,17 @@ static void desenha_bolsa_run(void)
         if (idx == cursor) gfx_disco(x, y, 14, C_LATAO);
         desenha_amuleto(x, y, 11, a, false);
         zona_clique(x - 12, y - 12, 24, 24, &cursor, idx, 0);
-        if (idx == cursor) {
-            txt_c(GFX_W / 2, 262, AMULETO[a].nome, AMULETO[a].cor, true);
-            txt_c(GFX_W / 2, 262 + TXT_H + 2, AMULETO[a].desc, C_MARFIM_S, false);
+        if (idx == cursor) {                        // em duas linhas, o nome sobe para nao ficar por baixo delas
+            int yn = 262 - (txt_quebra(AMULETO[a].desc, LARG_TEXTO) ? txt_passo() / 2 + 2 : 0);
+            txt_c(GFX_W / 2, yn, AMULETO[a].nome, AMULETO[a].cor, true);
+            txt_c_duas(GFX_W / 2, 262 + TXT_H + 2, AMULETO[a].desc, C_MARFIM_S, LARG_TEXTO);
         }
         na++;
     }
     if (run.n_col && cursor < run.n_col) {
         bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
-        dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
+        int y = !tem ? 262 : txt_quebra(TEXTO_MEDIO[run.col[cursor].tipo], LARG_TEXTO) ? 252 - txt_passo() / 2 : 252;
+        dado_e_poder(y, run.col[cursor].tipo, true);
         if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor], run.col, run.n_col);
     }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");

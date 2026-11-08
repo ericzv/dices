@@ -76,7 +76,7 @@ static void desenha_cat_amuleto(int i)
         linha_bloqueio(x, 124, s);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 152, 320, 6, AMULETO[a].desc, C_MARFIM);
+    quebra_cabe(x, 152, 320, CAT_TEXTO_H, AMULETO[a].desc, C_MARFIM);
 }
 
 // Os adesivos, na ordem em que abrem.

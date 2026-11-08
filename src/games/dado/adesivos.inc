@@ -112,7 +112,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_POSTIT]       = { "Post-it", "tirando este lado: o próximo", "rola 2 vezes e fica o maior", 4, 6,
                           RGB(246, 222, 132), RGB(252, 248, 236), RGB(150, 122, 62),
                           { "#######", "#.....#", "#.###.#", "#.....#", "#.###.#", "#....#.", "#####.." } },
-    [AD_HOLOGRAFICO]  = { "Holográfico", "tirando este lado: copia os", "adesivos do fim dos seus dados", 6, 9,
+    [AD_HOLOGRAFICO]  = { "Holográfico", "tirando este lado: copia os", "adesivos que agiram na rodada", 6, 9,
                           RGB(184, 194, 208), RGB(252, 248, 236), RGB(102, 74, 138),
                           { "...#...", "..###..", ".#####.", "#######", ".#####.", "..###..", "...#..." } },
     [AD_PURPURINA]    = { "Purpurina", "tirando este lado, se válido:", "+3 por adesivo que agiu", 5, 7,

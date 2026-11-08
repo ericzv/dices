@@ -109,6 +109,34 @@ static void txt_c(int cx, int y, const char *s, uint16_t c, bool bold)
     gfx_texto(cx - gfx_largura(s, fonte_de(bold)) / 2, y, s, c, fonte_de(bold), bold);
 }
 
+// O texto s passa de max_w (e o txt_c_duas o quebra em duas linhas)? E o
+// passo de uma linha para a outra.
+static bool txt_quebra(const char *s, int max_w) { return gfx_largura(s, fonte_de(false)) > max_w; }
+static int txt_passo(void) { return gfx_letra_e_maior() ? 16 : 13; }
+
+// Centrado em cx numa linha ou, se passar de max_w, em duas, quebrando onde
+// as duas ficam mais parelhas; as duas ficam em volta de y (meia linha acima
+// e meia abaixo), para nao invadir o que vem embaixo.
+static void txt_c_duas(int cx, int y, const char *s, uint16_t c, int max_w)
+{
+    const int f = fonte_de(false);
+    int n = (int)strlen(s), corte = -1, pior = 0;
+    char a[200];
+    if (gfx_largura(s, f) > max_w)
+        for (int i = 1; i < n && i < (int)sizeof a; i++) {
+            if (s[i] != ' ') continue;
+            snprintf(a, sizeof a, "%.*s", i, s);
+            int la = gfx_largura(a, f), lb = gfx_largura(s + i + 1, f), m = la > lb ? la : lb;
+            if (corte < 0 || m < pior) { corte = i; pior = m; }
+        }
+    if (corte < 0) { gfx_texto(cx - gfx_largura(s, f) / 2, y, s, c, f, false); return; }
+    int passo = txt_passo();
+    snprintf(a, sizeof a, "%.*s", corte, s);
+    gfx_texto(cx - gfx_largura(a, f) / 2, y - passo / 2, a, c, f, false);
+    gfx_texto(cx - gfx_largura(s + corte + 1, f) / 2, y - passo / 2 + passo, s + corte + 1, c, f, false);
+}
+#define LARG_TEXTO (MESA_X1 - MESA_X0 - 24)    // a linha de texto mais larga que cabe na mesa
+
 static void txt_c2(int cx, int y, const char *s, uint16_t c)
 {
     gfx_texto(cx - gfx_largura(s, 2) / 2, y, s, c, 2, true);

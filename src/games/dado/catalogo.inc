@@ -69,6 +69,21 @@ static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_,
 {
     return quebra_linhas_em(x, y, max_w, max_lin, txt_, c, GFX_FINO, LINHA_FINA);
 }
+// O texto inteiro numa caixa de max_w x max_h: na fina; se nao couber, na
+// miuda (o Agnus); e com a letra maior, se nem a miuda dela (que vira a
+// fina) couber, na miuda de verdade (o Revolver).
+static int quebra_cabe(int x, int y, int max_w, int max_h, const char *txt_, uint16_t c)
+{
+    static const int F[3] = { GFX_FINO, GFX_MIUDO, GFX_MIUDO_FIXO };
+    for (int i = 0; i < 3; i++) {
+        int passo = i == 0 ? LINHA_FINA : i == 1 ? LINHA_MIUDA : 10, dy = i ? 2 : 0;
+        quebra_so_conta = true;
+        int n = quebra_linhas_em(x, y + dy, max_w, 99, txt_, c, F[i], passo);
+        quebra_so_conta = false;
+        if (n * passo <= max_h || i == 2) return quebra_linhas_em(x, y + dy, max_w, max_h / passo, txt_, c, F[i], passo);
+    }
+    return 0;
+}
 
 // Etiquetas ao lado do tipo e da raridade; as de protecao com o icone dela
 // na frente ("não anulável", "não roubável"). Devolve onde a proxima coisa
@@ -188,6 +203,7 @@ static void vitrine_no_escuro(int cx, int cy)
 #define FIL_N     15
 #define FIL_PASSO 38
 #define FIL_Y     (MESA_Y1 - 24)
+#define CAT_TEXTO_H (FIL_Y - 20 - 152)       // o texto da coluna da direita: de y 152 ate a fileira
 enum { FIL_DADO, FIL_AMULETO, FIL_ADESIVO };
 static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, float dens);
 static int cat_amuleto(int i);               // desafio/colecao.inc
@@ -301,7 +317,7 @@ static void desenha_catalogo(void)
         txt(x, 124, trava, C_VERDE, false);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 152, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+    quebra_cabe(x, 152, 320, CAT_TEXTO_H, TEXTO_CAT[tipo], C_MARFIM);   // ate a fileira de baixo (x: a coluna da direita)
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o
@@ -355,6 +371,6 @@ static void desenha_detalhe(void)
     gfx_texto(x + wn + 17, y0 + 16, s, cor_rar(tipo), 1, false);
     etiquetas_protecao(x + wn + 12 + wc + 6, y0 + 17, tipo);
     gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
-    quebra_linhas(x, y0 + 54, w - 180, 6, TEXTO_CAT[tipo], C_MARFIM);
+    quebra_cabe(x, y0 + 54, w - 180, h - 54 - 34, TEXTO_CAT[tipo], C_MARFIM);   // ate o "qualquer tecla fecha"
     txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
 }

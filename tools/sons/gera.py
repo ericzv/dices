@@ -2346,6 +2346,20 @@ def espinhoso():
     m.poe(0.34, nota('acoustic_bass', 38, 0.25, 0.1), 0.35)
     return sala(m.x, 0.15)
 
+def pavio():
+    """A Dinamite que nao saiu: o pavio cresce. Breve e macio, de coisa
+    guardando - um chiado curto, duas fagulhas estalando e um tilintar leve,
+    subindo, como moeda caindo no cofre."""
+    m = Mix(0.55)
+    n = int(0.24 * SR); t = np.arange(n) / SR
+    chia = pa(rng.standard_normal(n), 4500) * (0.65 + 0.35 * np.sin(2 * np.pi * 29 * t)) * env(n, 0.012, 0.14)
+    m.poe(0.0, chia, 0.09)
+    for k in range(2):                                                       # as fagulhas
+        m.poe(0.035 + k * 0.06 + rnd.uniform(0, 0.01), estalinho(0.004, 4200), 0.12)
+    m.poe(0.07, nota('glockenspiel', 91, 0.18, 0.22), 0.11)                  # o tilintar: sol, e o si de cima
+    m.poe(0.12, nota('glockenspiel', 95, 0.22, 0.25), 0.09)
+    return sala(m.x, 0.12)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -2418,6 +2432,7 @@ VOLUME.update({'piao': VOLUME['efeito'] * 0.8, 'gelatina': VOLUME['efeito'] * 0.
 VOLUME.update({'conta': VOLUME['tique'], 'tudo_nada': VOLUME['efeito'], 'tudo_nada_perde': VOLUME['tira'],
                'sentinela': VOLUME['efeito'], 'agiota': VOLUME['efeito'] * 0.9,
                'oculto': VOLUME['efeito'] * 0.9, 'espinhoso': VOLUME['tira']})
+VOLUME['pavio'] = VOLUME['efeito'] * 0.55                                    # o pavio crescendo: baixinho, nao e o BUM
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2447,7 +2462,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
              'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
              'ad_coleira', 'ad_tiquete', 'conta', 'tudo_nada', 'tudo_nada_perde', 'sentinela', 'agiota',
-             'oculto', 'espinhoso'):
+             'oculto', 'espinhoso', 'pavio'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

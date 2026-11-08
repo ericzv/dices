@@ -39,7 +39,7 @@ static float media(peca_t p)
     case EF_FICHA_CORINGA: return 6.0f;                  // o ultimo do oponente, em geral um dos maiores
     case EF_VAZIO: case EF_SACRIFICIO: return 0;   // nao pontuam
     case EF_PRESENTE: return 4.5f;                       // vira um raro: em media, um d8
-    case EF_PISCA:    return pisca_aceso(p.fixo) ? 5.0f : 0;     // aceso, x2; apagado, nada
+    case EF_PISCA:    return pisca_aceso(p.fixo) ? 5.0f : 2.5f;  // aceso, x2; apagado, um d4
     case EF_PANETONE: return 6.0f;                       // o d8 e as frutas (1,5 em media)
     case EF_MEIA:     return 2.5f + p.fixo;              // e o que guardou, se ficar
     case EF_BUMERANGUE: return 25.0f / 6;                // o 1 e o 2 voltam e rolam de novo: 4 x 4,5 + 2 x 3,5, em 6

@@ -318,7 +318,7 @@ static const tipo_t TIPO[D_N] = {
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que é lançado: x3" },
     { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ou especial" },
     { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
-    { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Uma vez aceso (x2), outra apagado (0)" },
+    { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Aceso: x2 · apagado: um d4 comum" },
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +4 · válida: paga tudo" },
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
@@ -457,7 +457,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que é lançado, pontua x3 se ficar válido. Os patinhos marcam a contagem.",
     [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ou especial ao acaso, que fica no lugar dele na bolsa.",
     [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
-    [D_PISCA]           = "Lançado aceso, pontua x2; na vez seguinte, apagado, pontua 0. O dado mostra como vem.",
+    [D_PISCA]           = "Cada vez que vem para a mão, acende ou não, meio a meio. Aceso, pontua x2; apagado, pontua o que tirou.",
     [D_MEIA]            = "Cada vez que termina anulada, guarda +4. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
@@ -691,9 +691,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "outubro a 6 de janeiro.",
     [D_PANETONE]        = "Oito lados. Cada vez que é lançado, a fatia vem com 0, 1, 2 ou 3 frutas cristalizadas, ao acaso: "
                           "esse bônus soma no que ele tirou, se terminar válido. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_PISCA]           = "Quatro lados. Alterna a cada vez que é lançado: aceso, pontua x2; apagado, pontua 0 (mas conta "
-                          "na sequência com o número que tirou). As luzinhas no dado mostram como ele vem na próxima vez. "
-                          "Só aparece de 20 de outubro a 6 de janeiro.",
+    [D_PISCA]           = "Quatro lados. Cada vez que vem da bolsa para a mão, acende ou não, com a mesma chance. Aceso, "
+                          "pontua x2; apagado, pontua o número que tirou, como um d4 comum. As luzinhas no dado mostram "
+                          "como ele veio. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_MEIA]            = "Quatro lados. Cada vez que termina a rodada anulada, guarda +4 na meia. Quando termina válida, "
                           "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece de "
                           "20 de outubro a 6 de janeiro.",

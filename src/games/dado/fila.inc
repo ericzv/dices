@@ -76,7 +76,6 @@ static int valor_pontos(int j, int k)
     }
     if (t == D_TREVO) return F[j].valor[k] == 4 ? TREVO_SORTE : 0;
     if (t == D_SACRIFICIO) return 0;
-    if (t == D_PISCA && !pisca_aceso(F[j].fixo[k])) return 0;
     return F[j].valor[k];
 }
 
@@ -598,7 +597,7 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = (int8_t)(f->bonus[k] + f->fruta[k]);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        if (ef == EF_PISCA) poe_tag(f, k, pisca_aceso(f->fixo[k]) ? "x2" : "=0");
+        if (ef == EF_PISCA && pisca_aceso(f->fixo[k])) poe_tag(f, k, "x2");   // apagado, um d4 comum
         // Revolver: com a sexta bala, o tiro soma no que ele tirou.
         if (ef == EF_REVOLVER && revolver_dispara(f->fixo[k])) {
             f->bonus[k] = (int8_t)(f->bonus[k] + REVOLVER_TIRO);
@@ -685,7 +684,7 @@ static void aplica_regra(int j, int k)
             else snprintf(veredito, sizeof veredito, "Panetone sem frutas: pontua %d", vale);
         } else if (ef == EF_PISCA) {
             if (pisca_aceso(f->fixo[k])) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
-            else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua 0");
+            else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua %d, como um d4", vale);
         } else if (ef == EF_MEIA && f->fixo[k]) {
             snprintf(veredito, sizeof veredito, "Meia na Lareira: se ficar, paga +%d", f->fixo[k]);
         } else if (ef == EF_REVOLVER) {

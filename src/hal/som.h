@@ -93,6 +93,7 @@ enum {
     SOM_AGIOTA,      // o Agiota cobrando: o carimbo, tres fichas e o caixa
     SOM_OCULTO,      // o Oculto mostrando o numero: o pano puxado e a celesta
     SOM_ESPINHOSO,   // o Espinhoso espetando: tres espetadas e o ai grave
+    SOM_PAVIO,       // a Dinamite que nao saiu: o pavio cresce (chiado curto e um tilintar)
     SOM_N
 };
 

@@ -92,8 +92,9 @@ static float pouso_dura(const pouso_ad_t *p)
 static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v);
 static void pouso_toca(const pouso_ad_t *p)
 {
-    if (p->ad == AD_DINAMITE) {                  // o pavio cresceu: so o adesivo saltando e o quanto (o som dela e o do BUM)
+    if (p->ad == AD_DINAMITE) {                  // o pavio cresceu: o adesivo saltando, o quanto e o chiado curtinho (nao o BUM)
         flutua_em(p->j, p->k, C_FOGO, 0.25f, "pavio +%d", p->n);
+        som_toca(SOM_PAVIO);
         return;
     }
     som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));
@@ -178,6 +179,7 @@ static void compra(jogador_t *p)
             if (p->onde[i] == NA_BOLSA && alvo-- == 0) {
                 p->onde[i] = NA_MAO;
                 p->mao[p->n_mao++] = (int8_t)i;
+                if (p->col[i].tipo == D_PISCA) p->col[i].fixo = (uint8_t)(sorte(2) == 0 ? 0 : 1);   // o Pisca: aceso ou nao, meio a meio
                 break;
             }
     }
@@ -1081,13 +1083,13 @@ static void cosmo_ficam(int j, const uint8_t *est)
 // (so o que cabe no fixo, BALAO_GUARDA).
 static int balao_enche(int g) { return g + BALAO_CADA > BALAO_GUARDA ? BALAO_GUARDA : g + BALAO_CADA; }
 // Os contadores que andam so por terem sido lancados, valendo ou nao: os
-// Tres Patinhos (mais uma vez), o Pisca (alterna) e o Revolver (mais uma
-// bala; com a quarta, disparou e o tambor esvazia). Valem tambem quando a
-// rodada acaba porque alguem correu (contadores_correu).
+// Tres Patinhos (mais uma vez) e o Revolver (mais uma bala; com a quarta,
+// disparou e o tambor esvazia). Valem tambem quando a rodada acaba porque
+// alguem correu (contadores_correu). (O Pisca nao alterna: acende ou nao,
+// ao acaso, cada vez que vem para a mao - compra.)
 static bool conta_lance(peca_t *p, int j, int k)
 {
     if (p->tipo == D_PATINHOS) { if (F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1); return true; }
-    if (p->tipo == D_PISCA) { p->fixo = (uint8_t)(F[j].fixo[k] ^ 1); return true; }
     if (p->tipo == D_REVOLVER) { p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1); return true; }
     return false;
 }

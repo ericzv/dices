@@ -1234,6 +1234,55 @@ static void placar_faiscas(int x, int y, int w, int h, float alem)
     }
 }
 
+// O tranco do placar (hora.inc: tranco_passo), na placa (x, y, w, h) de j:
+// as faiscas que espirram do salto, o "+N" pulando do lado de fora e, com o
+// calor dos saltos seguidos, o fogo lambendo a beira de cima.
+static void placar_tranco(int j, int x, int y, int w, int h)
+{
+    float t = tranco_t[j];
+    int n = tranco_n[j];
+    bool forte = n >= TRANCO_FORTE, enorme = n >= TRANCO_ENORME;
+    // O fogo: de TRANCO_FOGO de calor para cima, as linguas na beira de cima.
+    float fogo = (tranco_calor[j] - TRANCO_FOGO) / TRANCO_FOGO;
+    if (fogo > 0) {
+        if (fogo > 1) fogo = 1;
+        static const uint16_t CHAMA[4] = { C_BRANCO, C_AMARELO, C_FOGO, C_VERMELHO };
+        for (int i = 1; i < w - 1; i++) {
+            float onda = 0.5f + 0.5f * sinf(t_relogio * 9 + i * 0.7f) * sinf(t_relogio * 5.3f + i * 0.31f);
+            int alto = (int)lroundf((4 + 11 * onda) * (0.45f + 0.55f * fogo) * (0.6f + 0.4f * ((hash2(i, (int)(t_relogio * 12)) % 5) / 4.0f)));
+            for (int k = 0; k < alto; k++) {
+                int c = k * 4 / (alto + 1);
+                if (k == alto - 1 && (i + (int)(t_relogio * 20)) % 3 == 0) continue;   // a ponta tremula
+                gfx_pixel(x + i, y - 1 - k, CHAMA[c]);
+            }
+        }
+    }
+    if (t >= TRANCO_DURA) return;
+    // As faiscas: do meio da placa para fora, caindo de leve; do salto forte,
+    // mais e mais longe; do enorme, no fogo.
+    if (forte) {
+        int nf = enorme ? 16 : 9;
+        float q = t / TRANCO_DURA;
+        for (int i = 0; i < nf; i++) {
+            uint32_t hh = hash2(tranco_seq * 31 + i, j);
+            float an = (hh % 628) / 100.0f, v = (enorme ? 46 : 32) * (0.6f + (hh / 628 % 40) / 100.0f);
+            int px = x + w / 2 + (int)(cosf(an) * (w / 2 + v * q)), py = y + h / 2 + (int)(sinf(an) * (h / 2 + v * q * 0.7f) + q * q * 14);
+            uint16_t c = q < 0.25f ? C_BRANCO : q < 0.5f ? C_AMARELO : enorme ? (q < 0.75f ? C_FOGO : C_VERMELHO) : C_OURO;
+            if (q < 0.5f) { gfx_rect(px - 1, py, 3, 1, c); gfx_rect(px, py - 1, 1, 3, c); }
+            else gfx_rect(px, py, 1 + (q < 0.75f), 1 + (q < 0.75f), c);
+        }
+    }
+    // O "+N": salta do lado de fora da placa (do lado sem o rotulo), cresce e some.
+    if (forte && t < 0.6f) {
+        char s[12];
+        snprintf(s, sizeof s, "+%d", n);
+        float q = t / 0.6f;
+        int sy = (j == baixo ? y - 32 : y + h + 6) - (int)(sinf(fminf(1, q / 0.25f) * 1.5708f) * 6);
+        uint16_t c = q < 0.15f ? C_BRANCO : enorme ? ((int)(t * 16) % 2 ? C_AMARELO : C_FOGO) : C_OURO;
+        if (q < 0.85f || (int)(t * 30) % 2) txt_sombra_c(x + w / 2, sy, s, c, 2);
+    }
+}
+
 // A Sanguessuga que acabou de pousar sugando o dado de antes (em xa): gotas
 // saem dele, uma atras da outra, e correm em arco ate ela (em xs). Devolve
 // quanto ela incha agora (cada gota que chega e um gole).
@@ -1916,6 +1965,14 @@ static void desenha_fila(int j)
         // empate os dois acendem iguais.
         bool res = fase == F_RESULTADO, zero = res && zerou == j, empate = res && venc_mao == 2;
         int sx = zero && t_fase < 0.7f ? (int)(sinf(t_fase * 48) * 3 * (1 - t_fase / 0.7f)) : 0;
+        // O tranco de um salto grande (hora.inc): treme, mais forte quanto maior.
+        float tranco = tranco_forca(j);
+        int ty = 0;
+        if (tranco > 0 && tranco_n[j] >= TRANCO_FORTE) {
+            float amp = tranco_n[j] >= TRANCO_ENORME ? 4 : 2;
+            sx += (int)lroundf(sinf(tranco_t[j] * 70) * amp * tranco);
+            ty = (int)lroundf(cosf(tranco_t[j] * 53) * amp * 0.6f * tranco);
+        }
         uint16_t c = (res && venc_mao == j) ? J[j].cor
                    : (j == vez && !no_desfecho ? C_MARFIM : C_TEXTO_M);
         if (zero) c = t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_BRANCO : C_VINHO_CLR;
@@ -1924,7 +1981,12 @@ static void desenha_fila(int j)
         float q = calor > 1 ? 1 : calor;
         if (q >= 0.45f) c = rampa_ouro(3 + pulso * (q - 0.45f) * 2.2f);   // os numeros: amarelo, pulsando ao branco
         if (pc->pulo > 0) c = gfx_mistura(c, pc->sinal > 0 ? C_OURO : C_VINHO_CLR, (int)(pc->pulo * 80));
-        ui_painel(PLACAR_X - 34 + sx, y - 26, 68, 50);
+        if (tranco > 0)                           // o clarao do salto: o numero vai ao branco e volta
+            c = gfx_mistura(c, tranco_n[j] >= TRANCO_ENORME && tranco_t[j] > 0.12f ? C_FOGO : C_BRANCO, (int)(tranco * 100));
+        ui_painel(PLACAR_X - 34 + sx, y - 26 + ty, 68, 50);
+        if (tranco > 0.25f)                       // e a moldura acende junto
+            ui_contorno(PLACAR_X - 32 + sx, y - 24 + ty, 64, 46,
+                        tranco_n[j] >= TRANCO_ENORME ? ((int)(tranco_t[j] * 20) % 2 ? C_FOGO : C_AMARELO) : C_BRANCO);
         if (zero) ui_contorno(PLACAR_X - 32 + sx, y - 24, 64, 46, t_fase < 1.2f && (int)(t_fase * 6) % 2 ? C_VINHO : C_VINHO_CLR);
         if (empate) ui_cantos(PLACAR_X - 34, y - 26, 68, 50, C_MARFIM_S);
         if (calor > 0) {                          // esquentando: o filete e a luz em volta
@@ -1941,8 +2003,10 @@ static void desenha_fila(int j)
         if (vence)                                // a plaquinha de latao, presa na beira do placar
             ui_plaqueta(PLACAR_X, (j == baixo ? y + 24 : y - 26) - UI_PLAQUETA_H / 2, "VENCE", C_OURO);
         else txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
-        txt_c2(PLACAR_X + sx, y - 20 - (pc->pulo > 0.4f ? 2 : 0), s, c);
+        int salta = tranco > 0 ? (int)lroundf(tranco * (tranco_n[j] >= TRANCO_ENORME ? 5 : 3)) : 0;   // o numero pula com o salto
+        txt_c2(PLACAR_X + sx, y - 20 + ty - (pc->pulo > 0.4f ? 2 : 0) - salta, s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);
+        placar_tranco(j, PLACAR_X - 34 + sx, y - 26 + ty, 68, 50);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
         // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).
         if (previa && pv.bruto[j] != placar_real(j)) {
@@ -4275,39 +4339,6 @@ static void desenha_evento(void)
         if (p < chega) continue;
         capa_segura(SLOT_X(k), zona(e->alvo_j), (p - chega) / (1 - chega), c);
     }
-}
-
-// O combo: os efeitos seguidos de um lado na cadeia do fim da rodada. Do 2o
-// em diante, a plaquinha "COMBO xN" ao lado do placar dele: pula a cada elo
-// novo e esquenta de cor (o marfim, o ouro, o fogo, o vermelho). Acabada a
-// cadeia, fica no ultimo numero enquanto o placar conta.
-static int combo_de(int j, int ate)
-{
-    int n = 0;
-    for (int i = 0; i <= ate && i < n_ev; i++) if (ev[i].de_j == j) n++;
-    return n;
-}
-static void desenha_combo(void)
-{
-    if (fase != F_EFEITOS || !n_ev) return;
-    int i = ev_i < n_ev ? ev_i : n_ev - 1;
-    int j = ev[i].de_j;
-    if (j > 1) return;
-    int n = combo_de(j, i);
-    if (n < 2) return;
-    float t = ev_i < n_ev && t_respiro < 0 ? t_fase : 1;
-    int pulo = t < 0.16f ? (int)lroundf(4 * sinf(t / 0.16f * 3.1416f)) : 0;
-    uint16_t c = n >= 6 ? C_VERMELHO : n >= 4 ? C_FOGO : n >= 3 ? C_OURO : C_MARFIM_S;
-    char s[16];
-    snprintf(s, sizeof s, "x%d", n);
-    int x = PLACAR_X - 60, y = zona(j) + (j == baixo ? -30 : 14) - pulo;
-    txt_c(x, y, "COMBO", t < 0.1f ? C_BRANCO : C_TEXTO_M, false);
-    txt_sombra_c(x, y + 9, s, t < 0.08f ? C_BRANCO : c, 2);
-    if (n >= 4 && t < 0.25f)                      // do 4o elo, as faiscas em volta do numero
-        for (int k = 0; k < 6; k++) {
-            float an = k * 1.047f + t * 9, d = 12 + t * 40;
-            gfx_rect(x + (int)(cosf(an) * d), y + 16 + (int)(sinf(an) * d * 0.6f), 2, 2, k & 1 ? C_OURO : c);
-        }
 }
 
 static void pote_mesa(void)

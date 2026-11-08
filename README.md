@@ -35,8 +35,8 @@ cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
 um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
 pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
-0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
-apagado, 0), a **Meia na Lareira** (d4, guarda +4 cada vez que é anulada e
+0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4: cada vez que vem para a mão,
+acende ou não, meio a meio; aceso, x2; apagado, um d4 comum), a **Meia na Lareira** (d4, guarda +4 cada vez que é anulada e
 paga tudo quando termina válida), a **Estrela de Belém** (d8, por último na
 sequência: +2 por dado válido abaixo dela) e a **Rena** (d6, +1 nos dados
 válidos ao lado dela). **Em dezembro**, o **Papai Noel** senta no lugar do

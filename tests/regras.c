@@ -1906,11 +1906,11 @@ int main(void)
             limpa(); F[0].tipo[0] = D_PANETONE; fatia(0, 0, sempre_dois);
             F[0].tipo[1] = D_D8; F[0].fruta[1] = 3; fatia(0, 1, sempre_dois);
             CONFERE(F[0].fruta[0] == 1 && F[0].fruta[1] == 0, "a fatia: r(4) - 1, so no Panetone");
-            // Pisca-pisca: aceso, x2; apagado, 0 (mas conta na sequencia); alterna a cada lance.
+            // Pisca-pisca: aceso, x2; apagado, um d4 comum; acende ou nao, meio a meio, ao vir para a mao.
             limpa(); joga(0, D_PISCA, 3); d = fim();
             CONFERE(d.total[0] == 6 && !strcmp(F[0].tag[0], "x2") && poder_armado(0, 0) == 1, "Pisca aceso: 6, deu %d", d.total[0]);
             limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 3); joga(0, D_D6, 5); d = fim();
-            CONFERE(d.total[0] == 5 && !strcmp(F[0].tag[0], "=0") && poder_armado(0, 0) == 0, "Pisca apagado: 0, deu %d", d.total[0]);
+            CONFERE(d.total[0] == 3 + 5 && !F[0].tag[0][0] && poder_armado(0, 0) == 0, "Pisca apagado: pontua o que tirou, deu %d", d.total[0]);
             limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 4); joga(0, D_D4, 2); d = fim();
             CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO, "Pisca apagado ainda derruba quem tira menos");
             {
@@ -1919,11 +1919,19 @@ int main(void)
                 J[0].n_col++;
                 limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 1, "Pisca lancado (mesmo caido) apaga para a proxima");
-                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
-                contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 0, "e acende de novo");
+                CONFERE(J[0].col[n0].fixo == 0, "Pisca lancado nao alterna (%d)", J[0].col[n0].fixo);
                 J[0].n_col--;
+                // Na compra: so ele na bolsa, aceso mais ou menos metade das vezes.
+                jogador_t guarda = J[1];
+                int acesos = 0, N = 400;
+                for (int i = 0; i < N; i++) {
+                    J[1].n_col = 1; J[1].col[0] = (peca_t){ .tipo = D_PISCA, .fixo = (uint8_t)(i & 1) };
+                    J[1].onde[0] = NA_BOLSA; J[1].n_mao = 0;
+                    compra(&J[1]);
+                    acesos += J[1].n_mao == 1 && pisca_aceso(J[1].col[0].fixo);
+                }
+                CONFERE(acesos > N * 4 / 10 && acesos < N * 6 / 10, "Pisca: na compra, aceso meio a meio (%d de %d)", acesos, N);
+                J[1] = guarda;
             }
             // Meia na Lareira: anulada, guarda +2; valendo, paga tudo e esvazia.
             limpa(); F[0].fixo[0] = 6; joga(0, D_MEIA, 3); d = fim();

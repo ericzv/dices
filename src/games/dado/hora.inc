@@ -699,6 +699,41 @@ static int placar_real(int j)
     return F[j].pontos;
 }
 
+// O tranco do placar (como no Balatro): no fim da rodada, cada salto de pontos
+// de uma vez (um bonus, um multiplicador) de TRANCO_MIN para cima sacode o
+// placar - o clarao, a tremida, as faiscas e o "+N" -, mais forte quanto maior
+// o salto (TRANCO_FORTE, TRANCO_ENORME). Os saltos seguidos somam calor
+// (tranco_calor, que esfria sozinho) e, de TRANCO_FOGO para cima, o placar
+// pega fogo. Salto pequeno, nada: so quando a pontuacao sobe de verdade.
+#define TRANCO_MIN    6
+#define TRANCO_FORTE  12
+#define TRANCO_ENORME 24
+#define TRANCO_FOGO   24
+#define TRANCO_DURA   0.7f
+static int   tranco_alvo[2];             // o placar de antes, para ver o salto
+static float tranco_t[2] = { 9, 9 };     // ha quanto tempo foi o ultimo tranco (s)
+static int   tranco_n[2], tranco_seq;     // de quanto foi; e um numero para as faiscas mudarem
+static float tranco_calor[2];          // os saltos recentes, somados, esfriando
+static void tranco_passo(int j, int alvo, bool desfecho_agora, float dt_real)
+{
+    if (tranco_t[j] < 9) tranco_t[j] += dt_real;
+    tranco_calor[j] *= expf(-dt_real / 1.6f);
+    int d = alvo - tranco_alvo[j];
+    tranco_alvo[j] = alvo;
+    if (!desfecho_agora || fase != F_EFEITOS || d < TRANCO_MIN) return;
+    tranco_t[j] = 0;
+    tranco_n[j] = d;
+    tranco_seq++;
+    tranco_calor[j] += (float)d;
+}
+// 0..1: a forca do tranco agora (cai em TRANCO_DURA).
+static float tranco_forca(int j)
+{
+    if (tranco_t[j] >= TRANCO_DURA) return 0;
+    float q = 1 - tranco_t[j] / TRANCO_DURA;
+    return q * q;
+}
+
 // No fim da rodada a contagem faz tique, subindo de tom ate meia oitava; no
 // jogo, quem fala e o arpejo do dado que vale.
 static int fichas_vis(int j);           // telas.inc: no resultado, as fichas chegando com o pote
@@ -714,7 +749,12 @@ static void placar_passo(float dt, float dt_real)
     if (t_tique_placar > 0) t_tique_placar -= dt_real;
     for (int j = 0; j < 2; j++) {
         contador_t *c = &placar_c[j];
-        if (!F[j].lancados && !desfecho_agora) { contador_fixa(c, F[j].pontos); continue; }   // rodada nova
+        if (!F[j].lancados && !desfecho_agora) {   // rodada nova
+            contador_fixa(c, F[j].pontos);
+            tranco_alvo[j] = F[j].pontos; tranco_calor[j] = 0; tranco_t[j] = 9;
+            continue;
+        }
+        tranco_passo(j, placar_real(j), desfecho_agora, dt_real);
         if (contador_passo(c, placar_real(j), dt, dt_real, 10, 25) && desfecho_agora && t_tique_placar <= 0) {
             som_toca_tom(SOM_CONTA, c->n_som / 2 < 6 ? c->n_som / 2 : 6);
             c->n_som++;

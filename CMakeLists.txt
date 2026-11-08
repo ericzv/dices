@@ -205,6 +205,9 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_include_directories(online PRIVATE src desktop)
         target_link_libraries(online PRIVATE m)
         add_test(NAME online COMMAND online 2)
+        # E forcado: os dados novos (e os de adesivo, a forca) nas duas bolsas,
+        # as teclas do outro atrasadas ate 2 s, quadros enormes e as teclas locais.
+        add_test(NAME online_forcado COMMAND online 2 150000 2 120 1 3 1)
     endif()
     # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
     # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.

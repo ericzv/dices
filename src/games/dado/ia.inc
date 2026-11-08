@@ -52,33 +52,118 @@ static float media(peca_t p)
     }
 }
 
+// O que um dado de poder vale de verdade na mao, em decimos de "ponto de
+// dado liso": a chance de vencer com ele na fila (jogando bem, contra a mao
+// do comeco: um d6 a mais e dois d4), convertida na media do dado liso que
+// daria a mesma chance (o d4 vale 2,5, o d8 4,5, o d12 6,5, o d20 10,5).
+// So os que valem mais do que a media das faces diz; o resto fica pela
+// media. Medido com tests de fora do repo (a mao {X, d6 x4, d4 x2}, 600
+// jogadas por fila); refazer quando um poder mudar.
+static const uint8_t VALOR_IA[D_N] = {
+    [D_DOBRO] = 38,           // Dobro: +0.084 (a media diz 3.5)
+    [D_LASTRO] = 104,          // Lastro: +0.395 (a media diz 8.0)
+    [D_PAR] = 29,             // Par: +0.023 (a media diz 2.5)
+    [D_ESCUDO] = 33,          // Escudo: +0.055 (a media diz 2.5)
+    [D_MARTELO] = 32,         // Espinhoso: +0.047 (a media diz 2.5)
+    [D_PIRATA] = 49,          // Pirata: +0.153 (a media diz 4.5)
+    [D_TUDO_NADA] = 34,       // Tudo ou Nada: +0.056 (a media diz 1.5)
+    [D_GATUNO] = 38,          // Gatuno: +0.082 (a media diz 3.5)
+    [D_INVEJOSO] = 40,        // Invejoso: +0.096 (a media diz 3.5)
+    [D_CARIDOSO] = 35,        // Caridoso: +0.065 (a media diz 2.5)
+    [D_FARTURA] = 36,         // Fartura: +0.072 (a media diz 2.5)
+    [D_SORTE] = 42,           // Moeda sorte: +0.111 (a media diz 1.5)
+    [D_TEIMOSO] = 43,         // Teimoso: +0.120 (a media diz 3.5)
+    [D_FOGO] = 58,            // Ficha Fogo: +0.209 (a media diz 1.5)
+    [D_MALDICAO] = 40,        // Maldito: +0.098 (a media diz 2.5)
+    [D_TREVO] = 30,           // Trevo: +0.031 (a media diz 2.5)
+    [D_JACKPOT] = 33,         // Jackpot: +0.052 (a media diz 2.5)
+    [D_LASER] = 42,           // Laser: +0.111 (a media diz 3.5)
+    [D_MISERICORDIOSO] = 46,  // Misericordioso: +0.137 (a media diz 2.5)
+    [D_SOLITARIO] = 40,       // Solitário: +0.101 (a media diz 2.5)
+    [D_SENTINELA] = 31,       // Sentinela: +0.041 (a media diz 2.5)
+    [D_FERREIRO] = 28,        // Ferreiro: +0.018 (a media diz 2.5)
+    [D_DESAFIANTE] = 52,      // Desafiante: +0.172 (a media diz 4.5)
+    [D_SEGURANCA] = 35,       // Segurança: +0.067 (a media diz 2.5)
+    [D_GEMEO] = 56,           // Gêmeo: +0.199 (a media diz 3.5)
+    [D_PRISMA] = 57,          // Prisma: +0.204 (a media diz 4.5)
+    [D_FENIX] = 45,           // Fênix: +0.131 (a media diz 3.5)
+    [D_BERSERKER] = 126,       // Berserker: +0.472 (a media diz 10.5)
+    [D_VIUVA] = 59,           // Viúva Negra: +0.214 (a media diz 4.5)
+    [D_CAPITAO] = 57,         // Capitão: +0.205 (a media diz 4.5)
+    [D_ECO] = 56,             // Eco: +0.199 (a media diz 3.5)
+    [D_ANCORA] = 42,          // Âncora: +0.113 (a media diz 2.5)
+    [D_MARTIR] = 44,          // Mártir: +0.125 (a media diz 2.5)
+    [D_COVEIRO] = 43,         // Coveiro: +0.117 (a media diz 3.5)
+    [D_HEXA] = 42,            // Hexa: +0.114 (a media diz 3.5)
+    [D_CALIBRE] = 33,         // Calibre: +0.054 (a media diz 2.5)
+    [D_PONTE] = 42,           // Ponte: +0.114 (a media diz 2.5)
+    [D_GARIMPEIRO] = 43,      // Garimpeiro: +0.115 (a media diz 3.5)
+    [D_OCULTO] = 57,          // Oculto: +0.205 (a media diz 4.5)
+    [D_SACRIFICIO] = 42,      // Sacrifício: +0.112 (a media diz 0.0)
+    [D_VAZIO] = 40,           // Vazio: +0.101 (a media diz 0.0)
+    [D_MEDIA] = 36,           // Média: +0.073 (a media diz 2.5)
+    [D_VAMPIRO] = 46,         // Vampiro: +0.138 (a media diz 2.5)
+    [D_ASSOMBRACAO] = 42,     // Assombração: +0.109 (a media diz 3.5)
+    [D_FICHA_VELHA] = 27,     // Ficha Velha: +0.016 (a media diz 1.5)
+    [D_TRENO] = 54,           // Trenó: +0.184 (a media diz 4.5)
+    [D_TSUNAMI] = 71,         // Tsunami: +0.273 (a media diz 6.5)
+    [D_ESTRELA] = 58,         // Estrela de Belém: +0.208 (a media diz 4.5)
+    [D_CONSTELACAO] = 54,     // Constelação: +0.187 (a media diz 4.5)
+    [D_GALAXIA] = 74,         // Galáxia: +0.286 (a media diz 6.5)
+    [D_AGNUS] = 51,           // Agnus: +0.167 (a media diz 4.5)
+};
+// O valor do dado para escolher a fila simples: o medido ou a media.
+static float valor_ia(peca_t p)
+{
+    float m = media(p), v = VALOR_IA[p.tipo] / 10.0f;
+    return v > m ? v : m;
+}
+
+// No empate de valor: o dado de poder antes do liso, o com adesivo antes do
+// sem, e o com Sujeira (o barro do oponente, -2 no placar) por ultimo. O
+// Chumbo puxa o dado para o lado dele: so conta a favor num lado acima da
+// media (num lado baixo, conta contra).
+static int preferencia_ia(peca_t p)
+{
+    int s = TIPO[p.tipo].efeito != EF_NADA ? 2 : 0;
+    for (int l = 1; l <= AD_LADOS; l++) {
+        int a = ad_no_lado(&p, l);
+        if (a == AD_SUJEIRA) s -= 2;
+        else if (a == AD_CHUMBO) s += (float)l > media(p) ? 1 : -1;
+        else if (a) s++;
+    }
+    return s;
+}
+
 // Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
 static bool arriscado(int tipo)
 {
     return tipo == D_MALDITO || tipo == D_TUDO_NADA || tipo == D_EGOISTA || tipo == D_SORTE_REVES;
 }
 
-// Escolha simples, sem imaginar jogadas: os de maior media, do menor para o
-// maior (assim cada um tem boa chance de passar a barra do anterior), sem os
-// arriscados quando da. E como a IA imagina a fila do rival, e a sua propria
-// quando mede uma compra. Na mesma media, o dado com poder vai antes do liso:
-// as mesmas faces e mais alguma coisa (o Espinhoso no lugar de um d4).
-static bool com_poder(peca_t p) { return TIPO[p.tipo].efeito != EF_NADA; }
-static int fila_simples(const peca_t *pc, int n, int *ordem)
+// Escolha simples, sem imaginar jogadas: os de maior valor (valor_ia: o
+// medido dos dados de poder, ou a media), do menor para o maior pela media
+// (assim cada um tem boa chance de passar a barra do anterior), sem os
+// arriscados quando da (evita_risco: o nivel facil e a fila imaginada do
+// rival; a compra mede a mao de quem joga bem, e nao evita). E como a IA
+// imagina a fila do rival, e a sua propria quando mede uma compra. No mesmo
+// valor, preferencia_ia: o dado com poder, depois o com adesivo, antes do
+// liso (o Espinhoso no lugar de um d4); o com Sujeira por ultimo.
+static int fila_simples_r(const peca_t *pc, int n, int *ordem, bool evita_risco)
 {
     for (int i = 0; i < n; i++)                  // o Universo so vai sozinho, e vale mais que a fila
         if (pc[i].tipo == D_UNIVERSO) { ordem[0] = i; return 1; }
     int quer = n < FILA_NORMAL ? n : FILA_NORMAL, ok = 0;
     for (int i = 0; i < n; i++) if (!arriscado(pc[i].tipo)) ok++;
-    bool sem_risco = ok >= quer;
+    bool sem_risco = evita_risco && ok >= quer;
     bool esc[MAX_COL + 1] = { false };
     int m = 0;
     for (int q = 0; q < quer; q++) {
         int b = -1;
         for (int i = 0; i < n; i++) {
             if (esc[i] || (sem_risco && arriscado(pc[i].tipo))) continue;
-            float mi = media(pc[i]), mb = b < 0 ? 0 : media(pc[b]);
-            if (b < 0 || mi > mb + 0.001f || (mi > mb - 0.001f && com_poder(pc[i]) && !com_poder(pc[b]))) b = i;
+            float mi = valor_ia(pc[i]), mb = b < 0 ? 0 : valor_ia(pc[b]);
+            if (b < 0 || mi > mb + 0.001f || (mi > mb - 0.001f && preferencia_ia(pc[i]) > preferencia_ia(pc[b]))) b = i;
         }
         if (b < 0) break;
         esc[b] = true;
@@ -95,6 +180,7 @@ static int fila_simples(const peca_t *pc, int n, int *ordem)
         }
     return m;
 }
+static int fila_simples(const peca_t *pc, int n, int *ordem) { return fila_simples_r(pc, n, ordem, true); }
 
 // ---- Rodadas imaginadas -----------------------------------------------------
 // A IA decide jogando de mentira com as mesmas regras (aplica_regra e
@@ -182,7 +268,7 @@ static void sim_lanca(int j)
 // (um dado so, ou menos de 10 pontos) nao segura a rodada: o rival passa
 // facil, entao so para diante de uma queda quase certa. O Egoista trocaria
 // a fila inteira por um d12: so compensa com pouco na mesa.
-static bool abre_continua(int j)
+static bool abre_continua_de(int j, bool facil)
 {
     const fila_t *f = &F[j];
     // A carta do Coringa vira, no fim, o dado seu que mais tirou - em geral
@@ -194,9 +280,15 @@ static bool abre_continua(int j)
     if (tipo_de(j, f->lancados) == D_EGOISTA) return f->pontos < 6;
     if (agnus_armado(j) >= 0) return true;      // o Agnus com 7: o que cair agora volta no fim
     int r = risco(j);
-    if (f->lancados == 1 || f->pontos < 10) return r < 85;
+    if (f->lancados == 1) return r < 85;
+    // O nivel facil, com dois dados ou mais e menos de 10 pontos: o risco que
+    // compensa cai com o que ja esta na mesa (medido: com 7, ate uns 75%; com
+    // 9, ate uns 45%). As rodadas imaginadas seguem a regra de antes.
+    if (f->pontos < 10 && facil) { int lim = 75 - 15 * (f->pontos - 7); return r < (lim > 85 ? 85 : lim); }
+    if (f->pontos < 10) return r < 85;
     return r < 40 || (r < 60 && f->pontos < 14);
 }
+static bool abre_continua(int j) { return abre_continua_de(j, false); }
 
 // Placar de j com a mesa como esta: 1 vence, 0.5 empata, 0 perde. Com a
 // margem, soma um pouco por ponto de diferenca (ate 20): entre jogadas que
@@ -362,8 +454,42 @@ static float ia_futuro(int j)
         case EF_ONDA:     if (vale) b += 0.5f * f->valor[k]; break;
         case EF_BALAO:    if (!vale && f->tipo[k] == D_BALAO) b += BALAO_CADA; break;   // anulado, enche mais
         case EF_JINGLE:   if (vale) b += 1.0f; break;
+        // O que o lance muda na bolsa, para as proximas rodadas (IA-5): o
+        // Presente vira um raro; a Medusa valendo quebra os seus lancados;
+        // o Pacto poe um Fantasma na sua bolsa e a Assombracao valendo, dois
+        // na do rival; o Acumulador e a Furia guardam bonus; o Previsivel
+        // sobe a escada; o Quebrado sai da bolsa; o ciclo cosmico evolui e
+        // volta para a mao.
+        case EF_PRESENTE: b += 1.0f; break;
+        case EF_MEDUSA:   if (vale) b -= 1.0f * (float)(f->lancados - 1); break;
+        case EF_PACTO:    b -= 0.5f; break;
+        case EF_ASSOMBRA: if (vale) b += 1.0f; break;
+        case EF_ACUMULADOR: if (vale) b += 0.5f; break;
+        case EF_FURIA:    b += f->cru[k] >= 4 ? 1.0f : f->cru[k] <= 2 ? -0.5f : 0; break;
+        case EF_PREVISIVEL: b += 0.5f; break;
+        case EF_QUEBRADO: b -= 0.5f; break;
+        default:
+            if (cosmico(f->tipo[k]) && cosmo_evolui(f->tipo[k], f->cru[k])) b += 1.5f;
+            break;
+        }
+        // E os adesivos do lado que ficou para cima.
+        const peca_t *pc = peca_fila(j, k);
+        int ad = pc && f->lado[k] ? ad_no_lado(pc, f->lado[k]) : AD_NADA;
+        switch (ad) {
+        case AD_RASPADINHA: if (vale) b -= 1.0f; break;      // pagou e sai do dado
+        case AD_FRAGIL:     if (!vale) b -= 1.5f; break;     // anulado, o dado quebra
+        case AD_FERMENTO:   if (vale) b += 0.5f; break;      // cresce
+        case AD_FIGURINHA:  if (vale) b += 0.3f; break;      // junta mais uma
+        case AD_SELO:       b += 2.0f; break;                // lacrado: +5 no proximo lance valido
+        case AD_VELCRO:     b += 0.5f; break;                // volta para a mao
+        case AD_BIS:        b += 2.0f; break;                // um dado a mais na proxima fila
+        case AD_MASSINHA:   b += 0.5f; break;                // um Remendo para sempre
+        case AD_XEROX:      b += 0.5f; break;                // uma copia de adesivo para sempre
         default: break;
         }
+        // A Dinamite que nao saiu: o pavio cresce (+3).
+        if (pc && ad != AD_DINAMITE)
+            for (int l = 1; l <= AD_LADOS; l++) if (ad_no_lado(pc, l) == AD_DINAMITE) { b += 0.5f; break; }
     }
     return b;
 }
@@ -375,10 +501,12 @@ static float ia_futuro_nota(int j) { return ia_sem_margem[j & 1] ? 0 : IA_MARGEM
 // as sinergias (Dobro antes do maior, Fartura com dados baixos, Copiador,
 // Jackpot...) aparecem sozinhas, sem regra escrita para cada uma.
 
-static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t base,
-                         const mesa_t *m)
+// *chance (se pedida): so a chance de vencer, sem a margem, as fichas e o
+// futuro que a nota soma - e o que a aposta usa (plano_p).
+static float avalia_fila_c(int j, const int8_t *seq, int L, int amostras, uint32_t base,
+                           const mesa_t *m, float *chance)
 {
-    float s = 0;
+    float s = 0, c = 0;
     for (int a = 0; a < amostras; a++) {
         volta_mesa(m);
         semeia_ia(base, a);
@@ -394,9 +522,15 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
         f->n = L;
         if (L == 3) coringa_completa(j);       // o quarto do Coringa: a copia, ou a carta
         s += sim_resto(j, true);
+        if (chance) c += placar(j);
         s += ia_futuro_nota(j);
     }
+    if (chance) *chance = c / (float)amostras;
     return s / (float)amostras;
+}
+static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t base, const mesa_t *m)
+{
+    return avalia_fila_c(j, seq, L, amostras, base, m, NULL);
 }
 
 #define MAX_CAND 2520                        // 7 x 6 x 5 x 4 x 3 (a fila de 5 do Estojo de Lapis)
@@ -462,23 +596,40 @@ static void ia_planeja(void)
     for (int c = 0; c < nc; c++) nota_c[c] = avalia_fila(j, cand[c], L, a1, base, &m);
     int finalistas = ia_esforco == 0 ? 2 : (ia_nivel == 1 ? 4 : 8);
     int a2 = amostras_ia(IA_AMOSTRAS, 24);
-    int melhor = -1;
-    float nota_m = -1;
+    int melhor = -1, segundo = -1;
+    float nota_m = -1, nota_s = -1, chance_m = 0.5f;
     for (int f = 0; f < finalistas && f < nc; f++) {
         int b = -1;
         for (int c = 0; c < nc; c++) if (nota_c[c] > -1 && (b < 0 || nota_c[c] > nota_c[b])) b = c;
         if (b < 0) break;
         nota_c[b] = -2;                      // ja foi finalista
         float v = avalia_fila(j, cand[b], L, a2, base ^ 0x5bd1e995u, &m);
-        if (v > nota_m) { nota_m = v; melhor = b; }
+        if (v > nota_m) { segundo = melhor; nota_s = nota_m; nota_m = v; melhor = b; }
+        else if (v > nota_s) { segundo = b; nota_s = v; }
+    }
+    // A sorte do vencedor: a melhor das finalistas pode estar na frente so
+    // porque os sorteios dela sairam bons (filas com dados diferentes gastam
+    // o sorteio de jeitos diferentes). A primeira e a segunda jogam de novo,
+    // com sementes novas, e vale essa medida.
+    uint32_t sb = base ^ 0x5bd1e995u;
+    if (melhor >= 0) {
+        sb = base ^ 0x27d4eb2fu;
+        float c1, c2 = 0;
+        nota_m = avalia_fila_c(j, cand[melhor], L, a2, sb, &m, &c1);
+        chance_m = c1;
+        if (segundo >= 0) {
+            float v2 = avalia_fila_c(j, cand[segundo], L, a2, sb, &m, &c2);
+            if (v2 > nota_m) { nota_m = v2; chance_m = c2; melhor = segundo; }
+        }
     }
     // A fila pode ser mais curta: se so o comeco dela ja e melhor (o
     // Solitario sozinho, um dado grande e parar), a IA monta so esse comeco,
     // em vez de por quatro dados na mesa e parar no primeiro.
     int curta = L;
     for (int q = 1; q < L && melhor >= 0; q++) {
-        float v = avalia_fila(j, cand[melhor], q, a2, base ^ 0x5bd1e995u, &m);
-        if (v > nota_m + 0.01f) { nota_m = v; curta = q; }
+        float c;
+        float v = avalia_fila_c(j, cand[melhor], q, a2, sb, &m, &c);
+        if (v > nota_m + 0.01f) { nota_m = v; chance_m = c; curta = q; }
     }
     if (melhor >= 0) { memcpy(plano, cand[melhor], N_FILA); plano_n = curta; }
     // O Universo, sozinho, contra a melhor fila sem ele (com um grudado na
@@ -486,13 +637,16 @@ static void ia_planeja(void)
     for (int i = 0; i < n && L >= 2 && gm < 0; i++) {
         if (p->col[p->mao[i]].tipo != D_UNIVERSO) continue;
         int8_t so[N_FILA] = { (int8_t)i };
-        float v = avalia_fila(j, so, 1, a2, base ^ 0x5bd1e995u, &m);
-        if (melhor < 0 || v > nota_m) { nota_m = v; melhor = i; memcpy(plano, so, N_FILA); plano_n = 1; }
+        float c;
+        float v = avalia_fila_c(j, so, 1, a2, sb, &m, &c);
+        if (melhor < 0 || v > nota_m) { nota_m = v; chance_m = c; melhor = i; memcpy(plano, so, N_FILA); plano_n = 1; }
         break;
     }
     volta_mesa(&m);
     if (melhor < 0) return;
-    plano_p = nota_m < 0 ? 0 : nota_m > 1 ? 1 : nota_m;   // a chance, sem a margem passar de 0 a 1
+    // A aposta usa a chance de vencer, nao a nota (que soma margem, fichas e
+    // o que fica guardado para depois).
+    plano_p = chance_m < 0 ? 0 : chance_m > 1 ? 1 : chance_m;
 }
 
 static int ia_proximo_da_fila(void)
@@ -621,7 +775,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
             int k = i + (int)(rnd_ia() % (uint32_t)(n - i));
             peca_t t = mao[i]; mao[i] = mao[k]; mao[k] = t;
         }
-        int ordem[N_FILA], L = fila_simples(mao, q, ordem);
+        int ordem[N_FILA], L = fila_simples_r(mao, q, ordem, false);   // a mao de quem joga bem (IA-1)
         fila_t *f = &F[j];
         memset(f, 0, sizeof *f);
         for (int k = 0; k < L; k++) { f->tipo[k] = mao[ordem[k]].tipo; f->fixo[k] = mao[ordem[k]].fixo; }
@@ -697,7 +851,7 @@ static bool facil_continua(void)
         calcula_desfecho(&d, false);
         return d.total[vez] <= d.total[outro(vez)];
     }
-    return abre_continua(vez);
+    return abre_continua_de(vez, true);
 }
 
 static int facil_aposta(void)

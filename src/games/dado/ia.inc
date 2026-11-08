@@ -152,9 +152,15 @@ static void sim_lanca(int j)
         casca = (pc && pc->capa) || f->tipo[k] == D_UNIVERSO ? 2 : postit ? 3 : 1;
         if (casca == 3) postit = false;
     }
+    // A Bussola no dado de antes: caindo sem adesivo (e tendo algum), rola de
+    // novo; fica o segundo se cair num adesivo ou for maior.
+    bool bussola = k > 0 && ad_fila(j, k - 1) == AD_BUSSOLA && pc && ad_quantos(pc) > 0 && !ad_no_lado(pc, l.lado);
     if (postit) {                                    // o Post-it: duas vezes, o maior
         lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x > l.x) l = l2;
+    } else if (bussola && casca != 1) {
+        lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
+        if (ad_no_lado(pc, l2.lado) || l2.x > l.x) l = l2;
     } else if (casca == 1) {                         // escorregou: duas vezes, o menor
         lance_t l2 = lanca_do_dado(j, k, f->tipo[k], f->fixo[k], pc, rola_ia, &fora);
         if (l2.x < l.x) l = l2;

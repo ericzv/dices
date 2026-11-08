@@ -997,7 +997,9 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         if (i < 0 || i >= p->n_col) continue;
         if ((d->fermento[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;
         if ((d->fermento2[j] >> k & 1) && p->col[i].fermento < FERMENTO_MAX) p->col[i].fermento++;   // carimbado: cresce de novo
-        if (d->raspa[j] >> k & 1) ad_cola(&p->col[i], F[j].lado[k], AD_NADA);
+        if (d->raspa[j] >> k & 1)                 // a Raspadinha sai do lado de onde agiu (o de cima, ou o da Dupla Face, ou o da Moldura)
+            for (int l = 1; l <= AD_LADOS; l++)
+                if ((d->raspa_lados[j][k] >> l & 1) && ad_no_lado(&p->col[i], l) == AD_RASPADINHA) ad_cola(&p->col[i], l, AD_NADA);
         if (d->dinamite[j] >> k & 1) p->pavio[i] = 0;    // estourou ou apagou
         if (d->selo_rompe[j] >> k & 1) p->col[i].selo = 0;
         if (d->selo_lacra[j] >> k & 1) p->col[i].selo = 1;

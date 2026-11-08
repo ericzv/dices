@@ -6742,6 +6742,192 @@ int main(void)
     F[0].tipo[2] = D_D20; F[0].n = 3;
     CONFERE(dado_decisivo(0, 2) == 0, "Hora: 1 chance em 20 nao devia prender a mesa");
 
+    // ---- Combinacoes perigosas: Dupla Face, Carimbo, Moldura, Tela, Xerox,
+    // Saideira, Espelho e Coringa contra o Universo, e os que nao tinham teste
+    // (Moldura, Xerox, Bussola, Mosaico, Pote Gordo) ---------------------------
+    {
+        jogador_t g0 = J[0], g1 = J[1];
+        int modo0 = modo, rodada0 = rodada;
+        uint64_t am0 = amul[0];
+        desfecho_t d;
+        for (int q = 0; q < 2; q++) {
+            J[q].n_col = 8;
+            for (int i = 0; i < 8; i++) { J[q].col[i] = (peca_t){ .tipo = D_D6 }; J[q].onde[i] = NA_BOLSA; }
+        }
+        // A Moldura no 4: o Confete do 3 e o do 5 agem tambem (+8).
+        ad_cola(&J[0].col[3], 4, AD_MOLDURA); ad_cola(&J[0].col[3], 3, AD_CONFETE); ad_cola(&J[0].col[3], 5, AD_CONFETE);
+        limpa(); joga_ad(0, 3, 4); d = fim();
+        CONFERE(d.total[0] == 4 + 8, "Moldura: os dois Confetes vizinhos (%d)", d.total[0]);
+        // Carimbada (o dado de antes tirou o Carimbo): cada vizinho age duas vezes (+16).
+        ad_cola(&J[0].col[2], 2, AD_CARIMBO);
+        limpa(); joga_ad(0, 2, 2); joga_ad(0, 3, 4); d = fim();
+        CONFERE(d.total[0] == 2 + 4 + 16, "Moldura carimbada: os Confetes duas vezes (%d)", d.total[0]);
+        // Nao emoldura o Patinho Feio nem outra Moldura: so o Patinho de fora (+2).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 4, AD_MOLDURA); ad_cola(&J[0].col[3], 3, AD_PATINHO); ad_cola(&J[0].col[3], 5, AD_MOLDURA);
+        limpa(); joga_ad(0, 3, 4); d = fim();
+        CONFERE(d.total[0] == 4 + PATINHO_PONTOS, "Moldura com Patinho e outra Moldura: so o Patinho de fora (%d)", d.total[0]);
+        // A Dupla Face com outra Dupla Face embaixo: nada age, e nada trava.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 1, AD_DUPLA); ad_cola(&J[0].col[3], 6, AD_DUPLA);
+        limpa(); joga_ad(0, 3, 1); d = fim();
+        CONFERE(d.total[0] == 1, "Dupla Face sobre Dupla Face: nada (%d)", d.total[0]);
+        // A Tela em Branco caindo na Dupla Face: o Confete de baixo age duas vezes.
+        J[0].col[3] = (peca_t){ .tipo = D_TELA };
+        ad_cola(&J[0].col[3], 1, AD_DUPLA); ad_cola(&J[0].col[3], 6, AD_CONFETE);
+        limpa(); joga_ad(0, 3, 1); d = fim();
+        CONFERE(d.total[0] == 1 + 8, "Tela com Dupla Face: o Confete de baixo duas vezes (%d)", d.total[0]);
+        // A Raspadinha que age pela Dupla Face ou pela Moldura: paga e sai ela,
+        // nao o adesivo de cima (antes saia a Dupla Face, ou a Moldura, e a
+        // Raspadinha ficava para sempre).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 1, AD_DUPLA); ad_cola(&J[0].col[3], 6, AD_RASPADINHA);
+        limpa(); joga_ad(0, 3, 1); d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(d.total[0] == 1 + 10 && ad_no_lado(&J[0].col[3], 6) == AD_NADA && ad_no_lado(&J[0].col[3], 1) == AD_DUPLA,
+                "Raspadinha pela Dupla Face: paga e sai ela (%d; 1: %d, 6: %d)", d.total[0],
+                ad_no_lado(&J[0].col[3], 1), ad_no_lado(&J[0].col[3], 6));
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 4, AD_MOLDURA); ad_cola(&J[0].col[3], 5, AD_RASPADINHA);
+        limpa(); joga_ad(0, 3, 4); d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(d.total[0] == 4 + 10 && ad_no_lado(&J[0].col[3], 5) == AD_NADA && ad_no_lado(&J[0].col[3], 4) == AD_MOLDURA,
+                "Raspadinha pela Moldura: paga e sai ela (%d; 4: %d, 5: %d)", d.total[0],
+                ad_no_lado(&J[0].col[3], 4), ad_no_lado(&J[0].col[3], 5));
+        // Carimbada, paga duas vezes e sai uma.
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_RASPADINHA);
+        limpa(); joga_ad(0, 2, 2); joga_ad(0, 3, 6); d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(d.total[0] == 2 + 6 + 20 && ad_no_lado(&J[0].col[3], 6) == AD_NADA, "Raspadinha carimbada: +20 e sai (%d)", d.total[0]);
+        // O Xerox copia o adesivo do lado oposto num lado livre de outro dado
+        // seu; com outro Xerox embaixo, ou nada embaixo, nao copia.
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 1, AD_XEROX); ad_cola(&J[0].col[0], 6, AD_CONFETE);
+        limpa(); joga_ad(0, 0, 1);
+        pouso_ad_t o[2] = { 0 };
+        int n = adesivos_no_pouso(0, 0, o, 2), conf = 0;
+        for (int i = 0; i < J[0].n_col; i++) conf += ad_conta(&J[0].col[i], AD_CONFETE);
+        CONFERE(n == 1 && conf == 2 && o[0].i != 0, "Xerox: copia o Confete em outro dado (%d, %d)", n, conf);
+        ad_cola(&J[0].col[0], 6, AD_XEROX);
+        limpa(); joga_ad(0, 0, 1);
+        CONFERE(adesivos_no_pouso(0, 0, o, 2) == 0, "Xerox sobre Xerox: nada");
+        ad_cola(&J[0].col[0], 6, AD_NADA);
+        limpa(); joga_ad(0, 0, 1);
+        CONFERE(adesivos_no_pouso(0, 0, o, 2) == 0, "Xerox sem nada embaixo: nada");
+        // Pela Dupla Face (caiu na Dupla, o Xerox embaixo), o Xerox age como
+        // se estivesse para cima: copia o que esta do outro lado dele - a
+        // propria Dupla Face. (Antes olhava o lado de baixo, ele mesmo, e nao
+        // copiava nada.)
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 1, AD_DUPLA); ad_cola(&J[0].col[0], 6, AD_XEROX);
+        limpa(); joga_ad(0, 0, 1);
+        n = adesivos_no_pouso(0, 0, o, 2);
+        int duplas = 0;
+        for (int i = 0; i < J[0].n_col; i++) duplas += ad_conta(&J[0].col[i], AD_DUPLA);
+        CONFERE(n == 1 && duplas == 2 && o[0].i != 0, "Xerox pela Dupla Face: copia a Dupla Face (%d, %d)", n, duplas);
+        // O Mosaico: +1 por adesivo nos seus dados lancados, ele incluido.
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 1, AD_LOBO); ad_cola(&J[0].col[0], 2, AD_LOBO);
+        J[0].col[1] = (peca_t){ .tipo = D_MOSAICO };
+        ad_cola(&J[0].col[1], 8, AD_REMENDO);
+        limpa(); joga_ad(0, 0, 3); joga_ad(0, 1, 5); d = fim();
+        CONFERE(d.total[0] == 3 + 5 + 3, "Mosaico: 3 adesivos nos lancados, +3 (%d)", d.total[0]);
+        // A Bussola: o proximo dado, caindo sem adesivo (e tendo algum), rola
+        // de novo; fica o 2o se cair no adesivo ou for maior. Com o Confete so
+        // no 6, o 6 sai 1/6 + 5/6 x 1/6 = 31% das vezes (sem ela, 17%) - no
+        // lance de verdade e no lance que a IA imagina (antes a IA nao via a
+        // Bussola).
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 2, AD_BUSSOLA);
+        ad_cola(&J[0].col[1], 6, AD_CONFETE);
+        for (int ia = 0; ia < 2; ia++) {
+            int seis = 0, N2 = 4000;
+            for (int i = 0; i < N2; i++) {
+                limpa(); vez = 0;
+                joga_ad(0, 0, 2);
+                F[0].idx[1] = 1; F[0].tipo[1] = D_D6; F[0].n = 2;
+                if (ia) sim_lanca(0); else lanca_proximo();
+                seis += F[0].lado[1] == 6;
+            }
+            float p = (float)seis / N2;
+            CONFERE(p > 0.27f && p < 0.35f, "Bussola (%s): o 6 com o Confete sai %.2f das vezes", ia ? "IA" : "lance", p);
+        }
+        n_voo = 0;
+        // Saideira (ultima rodada do Desafiante): os poderes de fim dos dados
+        // agem duas vezes, os adesivos nao. A Raspadinha paga uma vez e sai.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_SAIDEIRA); rodada = DES_RODADAS;
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_RASPADINHA);
+        limpa(); joga_ad(0, 3, 6); d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(d.total[0] == 6 + 10 && ad_no_lado(&J[0].col[3], 6) == AD_NADA, "Saideira com Raspadinha: +10 uma vez (%d)", d.total[0]);
+        // A Medusa vira pedra uma vez so, mesmo com a Saideira.
+        limpa(); joga(0, D_D4, 2); joga(0, D_MEDUSA, 9); d = fim();
+        int pedras = 0;
+        for (int i = 0; i < n_ev; i++) pedras += ev[i].tipo == EV_MEDUSA;
+        CONFERE(pedras == 1, "Saideira com Medusa: vira pedra uma vez (%d)", pedras);
+        amul[0] = am0; rodada = rodada0; modo = modo0;
+        // O Espelho e a Ficha Coringa nao copiam o Universo.
+        limpa();
+        joga(1, D_UNIVERSO, 87);
+        joga(0, D_ESPELHO, 1);
+        CONFERE(maior_do_rival(0) == 0, "Espelho: o Universo nao se copia (%d)", maior_do_rival(0));
+        peca_t pc;
+        CONFERE(!melhor_lance(1, &pc), "Coringa: o Universo nao se copia");
+        // O Papagaio valendo repete o ultimo adesivo que agiu (o Confete, +4);
+        // a Raspadinha repetida paga, mas nao sai de novo (e copia).
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 6, AD_CONFETE);
+        J[0].col[1] = (peca_t){ .tipo = D_PAPAGAIO };
+        limpa(); joga_ad(0, 0, 6); joga_ad(0, 1, 7); d = fim();
+        CONFERE(d.total[0] == 6 + 4 + 7 + 4, "Papagaio repete o Confete (%d)", d.total[0]);
+        ad_cola(&J[0].col[0], 6, AD_RASPADINHA);
+        limpa(); joga_ad(0, 0, 6); joga_ad(0, 1, 7); d = fim();
+        adesivos_ficam(0, &d);
+        CONFERE(d.total[0] == 6 + 10 + 7 + 10 && ad_no_lado(&J[0].col[0], 6) == AD_NADA, "Papagaio repete a Raspadinha (%d)", d.total[0]);
+        // O Porta-Retrato valendo: o Eletronico do lado dele dobra o de antes tambem.
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        J[0].col[1] = (peca_t){ .tipo = D_RETRATO };
+        ad_cola(&J[0].col[1], 5, AD_ELETRONICO);
+        limpa(); joga_ad(0, 0, 4); joga_ad(0, 1, 5); d = fim();
+        CONFERE(d.total[0] == 8 + 10, "Porta-Retrato com Eletronico: dobra os dois (%d)", d.total[0]);
+        // O Leque valendo: +2 por outro dado seu valendo que caiu num adesivo.
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 3, AD_LOBO); ad_cola(&J[0].col[2], 5, AD_LOBO);
+        J[0].col[1] = (peca_t){ .tipo = D_LEQUE };
+        limpa(); joga_ad(0, 0, 3); joga_ad(0, 2, 5); joga_ad(0, 1, 6); joga(1, D_D6, 6); d = fim();
+        CONFERE(d.total[0] == 3 + 5 + 6 + 2 * LEQUE_PTS, "Leque: dois no adesivo, +4 (%d)", d.total[0]);
+        // A Estrelinha: +2 por dado seu valendo (ela junto); o Tiquete: 4
+        // valendo, +5; a Corrente pela Dupla Face conta o que agiu antes.
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_ESTRELINHA);
+        limpa(); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 3, 6); d = fim();
+        CONFERE(d.total[0] == 1 + 2 + 6 + 3 * ESTRELINHA_CADA, "Estrelinha com 3 valendo (%d)", d.total[0]);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_TIQUETE);
+        limpa(); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3); joga_ad(0, 3, 6); d = fim();
+        CONFERE(d.total[0] == 1 + 2 + 3 + 6 + TIQUETE_PONTOS, "Tiquete com 4 valendo (%d)", d.total[0]);
+        limpa(); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 3, 6); d = fim();
+        CONFERE(d.total[0] == 1 + 2 + 6, "Tiquete com 3 valendo: nada (%d)", d.total[0]);
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[0], 2, AD_LOBO);
+        ad_cola(&J[0].col[3], 6, AD_DUPLA); ad_cola(&J[0].col[3], 1, AD_CORRENTE);
+        limpa(); joga_ad(0, 0, 2); joga_ad(0, 3, 6); joga(1, D_D6, 6); d = fim();
+        CONFERE(d.total[0] == 2 + 6 + CORRENTE_CADA * 2, "Corrente pela Dupla Face: ela e o Lobo de antes (%d)", d.total[0]);
+        // O Pote Gordo: vencendo a rodada, 2 fichas a mais (no Desafiante).
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_POTE); reg_op = REG_NADA;
+        limpa();
+        memset(&resolvido, 0, sizeof resolvido);
+        resolvido.total[0] = 9; resolvido.total[1] = 3;
+        J[0].fichas = J[1].fichas = 40; pote = 10;
+        conclui_rodada();
+        CONFERE(venc_mao == 0 && J[0].fichas == 40 + 10 + 2, "Pote Gordo: +2 fichas (%d)", J[0].fichas);
+        amul[0] = am0; modo = modo0;
+        J[0] = g0; J[1] = g1;
+        limpa();
+    }
+
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");
     return 0;

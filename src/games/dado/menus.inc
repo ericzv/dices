@@ -307,6 +307,14 @@ static void desenha_online(void)
             txt_c(GFX_W / 2, 214, "Ele escolhe Online > Entrar com código e digita o código.", C_TEXTO_M, false);
         snprintf(t, sizeof t, "esperando o amigo entrar%.*s", (int)(t_fase * 3) % 4, "...");
         txt_c(GFX_W / 2, 268, t, C_OURO, false);
+    } else if (digitando && tt_ativo()) {       // com o controle: o teclado na tela
+        bool cheio = strlen(codigo_dig) == 4;
+        txt_c(GFX_W / 2, 94, "O código da sala do seu amigo:", C_MARFIM, true);
+        casas_codigo(112, codigo_dig, true);
+        tt_desenha(176, false);
+        ui_botao(GFX_W / 2 - 60, 176 + TT_ALTO + 6, 120, 22, "entrar", C_LATAO,
+                 !cheio ? UI_DESLIGADO : tt_lin == TT_LINHAS ? UI_FOCO : 0);
+        teclas_c(GFX_W / 2, 282, "ENTER escreve  ·  BACKSPACE apaga  ·  TAB entra", C_TEXTO_M);
     } else if (digitando) {
         txt_c(GFX_W / 2, 116, "Digite o código da sala do seu amigo:", C_MARFIM, true);
         casas_codigo(146, codigo_dig, true);

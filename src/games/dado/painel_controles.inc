@@ -71,15 +71,15 @@ static void desenha_controles(void)
         "setas movem o cursor",
         "ENTER escolhe e joga o dado",
         "BACKSPACE volta ou tira o último dado",
-        "TAB segue ou confirma a sequência",
-        "I mostra o dado escolhido",
+        "TAB segue ou confirma; nos perfis, o histórico",
+        "I mostra o dado; nos perfis, o estilo",
     };
     static const char *const DIR[] = {
         "ESC volta ou sai da partida",
         "B a sua bolsa",
         "X recusa",
         "V velocidade",
-        "M o som",
+        "M o som, a letra e o tremor",
         "K este quadro",
     };
     int y0 = y + 62, col1 = x + 22, col2 = x + w / 2 + 16;

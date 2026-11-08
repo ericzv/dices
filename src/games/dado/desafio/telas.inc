@@ -192,7 +192,9 @@ static void desenha_perfis(void)
             ui_botao(bx + 156, 264, 60, 22, "apagar", C_VINHO, 0);
             zona_clique(bx + 156, 264, 60, 22, NULL, 0, 'x');
         }
-        rodape_run("setas escolhem  ·  ENTER entra  ·  E estilo  ·  H histórico  ·  X apaga  ·  ESC volta");
+        rodape_run(controle_estilo   // no controle: o X (I) e o Y (TAB)
+                   ? "setas escolhem  ·  ENTER entra  ·  I estilo  ·  TAB histórico  ·  X apaga  ·  ESC volta"
+                   : "setas escolhem  ·  ENTER entra  ·  E estilo  ·  H histórico  ·  X apaga  ·  ESC volta");
     }
 }
 
@@ -200,8 +202,12 @@ static void desenha_cria_perfil(void)
 {
     ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Novo perfil");
-    int esc = 4, rx = GFX_W / 2 - RT_W * esc / 2, ry = 58;
+    // Com o controle, o teclado na tela entra embaixo do nome: o retrato
+    // fica um pouco menor para caber.
+    bool tt = tt_ativo();
+    int esc = tt ? 3 : 4, rx = GFX_W / 2 - RT_W * esc / 2, ry = tt ? 52 : 58;
     moldura_retrato(rx, ry, esc, pf_avatar, t_fase, true);
+    if (tt && tt_lin < 0) ui_cantos(rx - 6, ry - 6, RT_W * esc + 12, RT_H * esc + 12, C_OURO);   // o foco no retrato
     // Setas para trocar o retrato.
     for (int lado = -1; lado <= 1; lado += 2) {
         int cx = GFX_W / 2 + lado * (RT_W * esc / 2 + 34), cy = ry + RT_H * esc / 2;
@@ -211,10 +217,10 @@ static void desenha_cria_perfil(void)
         poligono(vx, vy, 3, C_LATAO);
         zona_clique(cx - 16, cy - 18, 32, 36, NULL, 0, lado < 0 ? KEY_LEFT : KEY_RIGHT);
     }
-    int y = ry + RT_H * esc + 8;
+    int y = ry + RT_H * esc + (tt ? 4 : 8);
     txt_c(GFX_W / 2, y, NOME_AVATAR[pf_avatar], C_OURO, true);
     // O nome, digitado.
-    int bw = 180, bx = GFX_W / 2 - bw / 2, by = y + 22;
+    int bw = 180, bx = GFX_W / 2 - bw / 2, by = y + (tt ? 19 : 22);
     gfx_rect(bx + 1, by + 1, bw - 2, 18, C_PLACA);
     ui_contorno(bx, by, bw, 20, C_LATAO);
     char s[16];
@@ -224,6 +230,13 @@ static void desenha_cria_perfil(void)
     if (!pf_nome[0] && !pisca) txt_c(GFX_W / 2, by + 2, "seu nome", C_TEXTO_M, false);
     // Botao de criar.
     int ok = pf_nome[0] != 0;
+    if (tt) {                                    // o teclado na tela, e o criar embaixo dele
+        tt_desenha(by + 26, true);
+        int cy = by + 26 + TT_ALTO + 6;
+        ui_botao(GFX_W / 2 - 50, cy, 100, 22, "criar", C_LATAO, !ok ? UI_DESLIGADO : tt_lin == TT_LINHAS ? UI_FOCO : 0);
+        rodape_run("setas escolhem  ·  ENTER escreve  ·  BACKSPACE apaga  ·  TAB cria  ·  ESC volta");
+        return;
+    }
     ui_botao(GFX_W / 2 - 50, by + 28, 100, 24, "criar", C_LATAO, ok ? 0 : UI_DESLIGADO);
     zona_clique(GFX_W / 2 - 50, by + 30, 100, 20, NULL, 0, KEY_ENTER);
     rodape_run("setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta");

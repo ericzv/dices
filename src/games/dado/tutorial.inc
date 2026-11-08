@@ -287,12 +287,14 @@ static void desenha_tutorial(void)
     if (pg->nota) {                                  // o detalhe, na fina e apagado
         char nota[240];                              // "%d": quantos dados ha
         snprintf(nota, sizeof nota, pg->nota, n_basicos());
-        for (char *l = nota; l; ) {                  // ate duas linhas, separadas por \n
+        bool duas = strchr(nota, '\n') != NULL;     // ate duas linhas (\n), mais juntas, acima das bolinhas
+        if (duas) y -= 3;
+        for (char *l = nota; l; ) {
             char *nl = strchr(l, '\n');
             if (nl) *nl = 0;
             int f = gfx_largura(l, GFX_FINO) <= 584 ? GFX_FINO : GFX_MIUDO;
             gfx_texto(GFX_W / 2 - gfx_largura(l, f) / 2, y - 1 + (f == GFX_MIUDO ? 4 : 0), l, C_TEXTO_M, f, false);
-            y += 15;
+            y += 12;
             l = nl ? nl + 1 : NULL;
         }
     }

@@ -1200,7 +1200,7 @@ static void desenha_fim_partida_run(void)
             else snprintf(m, sizeof m, "As %d rodadas acabaram com você atrás: %d fichas contra %d.",
                           DES_RODADAS, J[0].fichas, J[1].fichas);
             txt_c(GFX_W / 2, C0 + 24, m, C_MARFIM_S, false);
-            const char *d = "Dica: sequências maiores pontuam mais. Cabem até 4 dados, dos menores para os maiores.";
+            const char *d = "Dica: sequências maiores pontuam mais. Cabem até 4 dados.";
             int f = gfx_largura(d, GFX_FINO) <= FIM_PAINEL_W - 24 ? GFX_FINO : GFX_MIUDO;
             gfx_texto(GFX_W / 2 - gfx_largura(d, f) / 2, C0 + 42 + (f == GFX_MIUDO ? 3 : 0), d, C_OURO, f, false);
             yt += 30;

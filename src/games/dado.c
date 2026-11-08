@@ -75,6 +75,7 @@
 #include "dado/estado.inc"        // o estado da partida inteira
 #include "dado/util.inc"          // sorteio, quem e quem na mesa, texto centrado
 #include "dado/interface.inc"     // paineis, botoes, numeros flutuantes e o mouse
+#include "dado/teclado_tela.inc"  // o teclado na tela, para quem joga com o controle
 #include "dado/estilo.inc"        // o feltro, a mesa e o material dos dados
 #include "dado/adesivos.inc"      // os adesivos do Desafiante: o que fazem e o desenho
 #include "dado/desenho_dado.inc"  // o desenho de cada dado

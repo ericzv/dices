@@ -104,11 +104,9 @@ void dado_tecla(const key_event_t *ev_)
         return;
     }
     if (k == 't' && !dado_digitando()) {
-        tremor_off = !tremor_off;
-        salva_grava("tremor", tremor_off ? "0" : "1");
+        alterna_tremor();                          // painel_som.inc (o painel tambem troca)
         t_aviso_tremor = 1.6f;
         t_aviso_vel = t_aviso_letra = 0;
-        som_toca(SOM_TIQUE);
         return;
     }
     if (k == 'j' && !dado_digitando()) {            // exploracao: o padrao do adesivo colado (adesivo_estilo.inc)
@@ -118,12 +116,10 @@ void dado_tecla(const key_event_t *ev_)
         som_toca(SOM_TIQUE);
         return;
     }
-    if (k == 'l' && !dado_digitando()) {            // a letra maior (gfx.c)
-        gfx_letra_maior(!gfx_letra_e_maior());
-        salva_grava("letra", gfx_letra_e_maior() ? "1" : "0");
+    if (k == 'l' && !dado_digitando()) {            // a letra maior (gfx.c; o painel do som tambem troca)
+        alterna_letra();
         t_aviso_letra = 1.6f;
         t_aviso_vel = t_aviso_tremor = 0;
-        som_toca(SOM_TIQUE);
         return;
     }
     // Detalhes do dado (tecla I): so da tela local, nunca vai para o rival.
@@ -388,6 +384,15 @@ static void trata_tecla(int k)
         if (st != REDE_PARADA) return;
         if (digitando) {
             int n = (int)strlen(codigo_dig);
+            if (tt_ativo()) {                    // com o controle: o teclado na tela
+                if (tt_anda(k, 0, false)) return;
+                if (k == KEY_TAB) k = KEY_ENTER; // o Y entra
+                else if (k == KEY_ENTER && tt_lin < TT_LINHAS) {
+                    char c = tt_aperta(false);
+                    if (!c) return;
+                    k = c >= 'A' && c <= 'Z' ? c + 32 : c;
+                }
+            }
             if (k == KEY_BKSP) { if (n) codigo_dig[n - 1] = 0; else digitando = false; return; }
             if (k == KEY_ENTER && n == 4) { rede_entra(codigo_dig); return; }
             bool letra = k >= 'a' && k <= 'z', num = k >= '0' && k <= '9';
@@ -401,7 +406,7 @@ static void trata_tecla(int k)
         if (e) { online_cur ^= 1; som_toca(SOM_TIQUE); return; }
         if (k == KEY_ENTER) {
             if (online_cur == 0) rede_cria();
-            else { digitando = true; codigo_dig[0] = 0; }
+            else { digitando = true; codigo_dig[0] = 0; tt_zera(); }
         }
         return;
     }

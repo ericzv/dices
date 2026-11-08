@@ -397,10 +397,11 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior e o tremor da tela (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
+| L | Letra maior ou normal (fica guardada) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
@@ -413,23 +414,28 @@ Não precisa instalar nada: é um executável só.
 Dá para jogar com controle de Xbox, de PlayStation e os parecidos (até
 dois), no computador e no navegador — inclusive no iPhone e no iPad, com o
 controle pareado por Bluetooth. No navegador, o controle aparece depois do
-primeiro botão apertado. Jogando com controle, as dicas da tela mostram os
+primeiro botão apertado. Com o controle ligado, as dicas da tela mostram os
 botões dele. O botão **controles**, no alto do menu (ou o LT/L2, ou a tecla
 K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
+
+Tudo no jogo se faz pelo controle: o nome do perfil e o código da sala online
+se escrevem num teclado na tela (o direcional escolhe a letra, o A escreve,
+o B apaga e o Y confirma); nos perfis, o Y abre o histórico e o X o estilo;
+a letra maior e o tremor da tela ficam no painel do som (o RT).
 
 | Xbox | PlayStation | O que faz |
 |---|---|---|
 | Direcional ou analógico esquerdo | Direcional ou analógico esquerdo | Move o cursor (segurado, repete) |
 | A | ✕ | Escolhe / joga o próximo dado (o Enter) |
 | B | ○ | Volta / tira o último dado da sequência (o Backspace) |
-| Y | △ | Confirma a sequência / segue (o Tab) |
-| X | □ | Mostra tudo sobre o dado escolhido (o I) |
+| Y | △ | Confirma a sequência / segue (o Tab); nos perfis, o histórico |
+| X | □ | Mostra tudo sobre o dado escolhido (o I); nos perfis, o estilo |
 | Start | Options | O ESC |
 | View | Share | Mostra a sua bolsa (o B) |
 | LB | L1 | Recusa (o X) |
 | RB | R1 | Velocidade (o V) |
 | LT | L2 | Mostra o que faz cada botão (o K) |
-| RT | R2 | O painel do som (o M) |
+| RT | R2 | O painel do som, a letra maior e o tremor (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.

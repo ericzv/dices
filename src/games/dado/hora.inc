@@ -119,6 +119,15 @@ static void reage_lance(int j, int k)
 // feltro embaixo dele, e o circulo pulsa como um coracao (tum-tum, pausa).
 static const uint8_t BAYER[4][4] = { { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 } };
 static void luz_no_feltro(int cx, int cy, int rx, int ry, float tons);   // catalogo.inc
+// O gfx_mistura, a mesma conta, para o veu da hora (um por pixel da tela).
+static inline uint16_t hora_mistura(uint16_t a, uint16_t b, int pct)
+{
+    int ra = (a >> 11) & 31, ga = (a >> 5) & 63, ba = a & 31;
+    int rb = (b >> 11) & 31, gb = (b >> 5) & 63, bb = b & 31;
+    int r = ra + (rb - ra) * pct / 100, g = ga + (gb - ga) * pct / 100;
+    int bl = ba + (bb - ba) * pct / 100;
+    return (uint16_t)((r << 11) | (g << 5) | bl);
+}
 static void desenha_hora(void)
 {
     if (t_hora <= 0) return;
@@ -139,7 +148,7 @@ static void desenha_hora(void)
             int a = (int)(s * forte + (BAYER[y & 3][x & 3] - 7.5f) * 1.6f);
             if (a <= 0) continue;
             uint16_t *p = &fb[y * GFX_W + x];
-            *p = gfx_mistura(*p, C_BARRA, a > 100 ? 100 : a);
+            *p = hora_mistura(*p, C_BARRA, a > 100 ? 100 : a);
         }
     }
 }

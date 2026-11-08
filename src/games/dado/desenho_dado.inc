@@ -3642,15 +3642,38 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado);
     px_dentro = px_sem_sombra = false;
     gfx_desvia(alvo);
-    // O contorno: o fundo que encosta na silhueta, em cruz.
+    // Onde ha desenho em cada linha (da moldura de fundo inclusive): fora
+    // disso a linha e so fundo, e o contorno, a sombra e a colagem pulam.
+    static int16_t lin_a[GFX_H], lin_b[GFX_H];          // o primeiro e o ultimo x com desenho (a > b: nada)
+    for (int y = y0 - 1; y <= y1 + 1; y++) {
+        const uint16_t *l = px_buf + y * GFX_W;
+        int a = x0 - 1, b = x1 + 1;
+        while (a <= b && l[a] == CHAVE) a++;
+        while (b >= a && l[b] == CHAVE) b--;
+        lin_a[y] = (int16_t)a; lin_b[y] = (int16_t)b;
+    }
+    // O contorno: o fundo que encosta na silhueta, em cruz. So pode estar a
+    // um pixel do desenho da linha, ou em cima e embaixo do das vizinhas.
+    static int16_t ca[GFX_H], cb[GFX_H];               // o trecho de cada linha onde ha desenho ou contorno
     int nb = 0, max_b = (int)(sizeof px_borda / sizeof px_borda[0]);
-    for (int y = y0; y <= y1; y++)
-        for (int x = x0; x <= x1; x++) {
+    for (int y = y0; y <= y1; y++) {
+        int a = x1 + 1, b = x0 - 1;
+        if (lin_a[y] <= lin_b[y]) { a = lin_a[y] - 1; b = lin_b[y] + 1; }
+        for (int v = -1; v <= 1; v += 2)
+            if (lin_a[y + v] <= lin_b[y + v]) {
+                if (lin_a[y + v] < a) a = lin_a[y + v];
+                if (lin_b[y + v] > b) b = lin_b[y + v];
+            }
+        if (a < x0) a = x0;
+        if (b > x1) b = x1;
+        ca[y] = (int16_t)a; cb[y] = (int16_t)b;
+        for (int x = a; x <= b; x++) {
             int i = y * GFX_W + x;
             if (px_buf[i] != CHAVE) continue;
             if ((px_buf[i - 1] != CHAVE || px_buf[i + 1] != CHAVE || px_buf[i - GFX_W] != CHAVE || px_buf[i + GFX_W] != CHAVE)
                 && nb < max_b) px_borda[nb++] = i;
         }
+    }
     for (int k = 0; k < nb; k++) px_buf[px_borda[k]] = C_BARRA;
     // A sombra: a propria silhueta (com o contorno) deslocada para baixo e a
     // direita, onde o dado nao cobre; o miolo cheio e a beira (o que veio do
@@ -3658,7 +3681,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (sombra) {
         int dx = so + alt, dy = so + 1 + alt;
         for (int y = y0; y <= y1; y++)
-            for (int x = x0; x <= x1; x++) {
+            for (int x = ca[y]; x <= cb[y]; x++) {
                 uint16_t c = px_buf[y * GFX_W + x];
                 int X = x + dx, Y = y + dy;
                 if (c == CHAVE || X > GFX_W - 1 || Y > GFX_H - 1) continue;
@@ -3668,7 +3691,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
             }
     }
     for (int y = y0; y <= y1; y++)                      // cola o que nao e fundo
-        for (int x = x0; x <= x1; x++) {
+        for (int x = ca[y]; x <= cb[y]; x++) {
             uint16_t c = px_buf[y * GFX_W + x];
             if (c != CHAVE) fb[y * GFX_W + x] = c;
         }
@@ -4916,15 +4939,39 @@ static bool luz_de_cena(void)
     if (poca) {                                           // a poca, embaixo da fila de quem joga
         float pcx = poca_cx, pcy = poca_cy, prx = poca_rx, pry = poca_ry;
         int x0 = (int)(pcx - prx), x1 = (int)(pcx + prx), y0 = (int)(pcy - pry), y1 = (int)(pcy + pry);
-        for (int y = y0 < MESA_Y0 ? MESA_Y0 : y0; y <= y1 && y < MESA_Y1; y++)
-            for (int x = x0 < MESA_X0 ? MESA_X0 : x0; x <= x1 && x < MESA_X1; x++) {
-                float qx = (x - pcx) / prx, qy = (y - pcy) / pry, q = qx * qx + qy * qy;
-                if (luz_risco_x >= 0) {                   // a luz do risco e so dela
+        if (x0 < MESA_X0) x0 = MESA_X0;
+        if (y0 < MESA_Y0) y0 = MESA_Y0;
+        if (x1 > MESA_X1 - 1) x1 = MESA_X1 - 1;
+        if (y1 > MESA_Y1 - 1) y1 = MESA_Y1 - 1;
+        // O degrau de cada pixel so muda com a poca (a fila e quem joga): fica
+        // guardado, e cada quadro so aplica no feltro de agora.
+        static int8_t poca_st[GFX_H][GFX_W];
+        static float poca_feita[4] = { -1, -1, -1, -1 };
+        if (poca_feita[0] != pcx || poca_feita[1] != pcy || poca_feita[2] != prx || poca_feita[3] != pry) {
+            poca_feita[0] = pcx; poca_feita[1] = pcy; poca_feita[2] = prx; poca_feita[3] = pry;
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++) {
+                    float qx = (x - pcx) / prx, qy = (y - pcy) / pry, q = qx * qx + qy * qy;
+                    poca_st[y][x] = (int8_t)(q < 1 ? (int)floorf(1.8f * (1 - q) * (1 - q * 0.5f) + bayer(x, y)) : 0);
+                }
+        }
+        for (int y = y0; y <= y1; y++) {
+            const int8_t *sl = poca_st[y];
+            uint16_t *lin = fb + y * GFX_W;
+            bool risco_y = luz_risco_x >= 0 && abs(y - luz_risco_y) <= LUZ_RISCO_RY;
+            for (int x = x0; x <= x1; x++) {
+                int st = sl[x];
+                if (!st) continue;
+                if (risco_y && abs(x - luz_risco_x) <= LUZ_RISCO_RX) {   // a luz do risco e so dela
                     float rx2 = (x - luz_risco_x) / (float)LUZ_RISCO_RX, ry2 = (y - luz_risco_y) / (float)LUZ_RISCO_RY;
                     if (rx2 * rx2 + ry2 * ry2 < 1) continue;
                 }
-                if (q < 1) px_degrau(fb, x, y, 1.8f * (1 - q) * (1 - q * 0.5f));
+                int k = px_lut[lin[x]];
+                if (k == 0xFF) continue;                  // nao e feltro: fica
+                k += st;
+                lin[x] = px_rampa[k < 0 ? 0 : k > 8 ? 8 : k];
             }
+        }
     }
     if (pulso) {                                          // o pulso do dado que pousou valendo
         float f = 1 - t_px_pulso / PX_PULSO_T;
@@ -4986,22 +5033,25 @@ static void ficha_disco_em(int cx, int cy, int rx, int ry, uint16_t cor, bool be
     float ax = rx + 0.5f, ay = ry + 0.5f, bx = rx - 0.5f, by = ry - 0.5f;
     float ia = 1 / (ax * ax), ib = 1 / (ay * ay), ic = 1 / ((ax + 1) * (ax + 1)), id = 1 / ((ay + 1) * (ay + 1));
     float ie = bx > 0 ? 1 / (bx * bx) : 4, ig = by > 0 ? 1 / (by * by) : 4, il = 1.0f / lr;
+    uint16_t *alvo = gfx_alvo() ? gfx_alvo() : display_fb();   // o gfx_pixel, sem a chamada por pixel
+#define FICHA_PX(X, Y, c) do { if ((X) >= 0 && (Y) >= 0 && (X) < GFX_W && (Y) < GFX_H) alvo[(Y) * GFX_W + (X)] = (c); } while (0)
     for (int y = -ry - 1; y <= ry + 1; y++)
         for (int x = -rx - 1; x <= rx + 1; x++) {
             int X = cx + x, Y = cy + y;
             if (x * x * ia + y * y * ib > 1) {            // fora: o contorno, so com beira
-                if (beira && x * x * ic + y * y * id <= 1) gfx_pixel(X, Y, C_BARRA);
+                if (beira && x * x * ic + y * y * id <= 1) FICHA_PX(X, Y, C_BARRA);
                 continue;
             }
             if (beira && x * x * ie + y * y * ig > 1) {   // a beira: o tom pela direcao em que ela olha
-                gfx_pixel(X, Y, tom_rampa(r, luz_de((float)x, (float)y), X, Y));
+                FICHA_PX(X, Y, tom_rampa(r, luz_de((float)x, (float)y), X, Y));
                 continue;
             }
             // A face: na cor, com um toque de luz e de sombra so nos cantos
             // (o tom cheio vai de |s| 0 a 1.15: ali nem precisa da rampa).
             float s = ((X - lx) + (Y - ly)) * il;
-            gfx_pixel(X, Y, s > -1.15f && s < 1.15f ? r[2] : tom_rampa(r, 0.33f - s * 0.16f, X, Y));
+            FICHA_PX(X, Y, s > -1.15f && s < 1.15f ? r[2] : tom_rampa(r, 0.33f - s * 0.16f, X, Y));
         }
+#undef FICHA_PX
 }
 static void ficha_disco(int cx, int cy, int rx, int ry, uint16_t cor)
 {

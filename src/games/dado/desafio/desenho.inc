@@ -203,44 +203,102 @@ static int tom_de(int k) { return k < 0 ? 0 : k > 3 ? 3 : k; }
 // O chao inteiro da planta: o piso, o estrado (um tom acima) e o tapete, com
 // as pocas de luz das mesas e as sombras delas. O tom sobe e desce pela luz,
 // com o pontilhado na passagem.
-static void pl_chao(const poca_t *pc, int np)
+// O chao fica guardado: o desenho (o tom de cada pixel do piso e do tapete)
+// so muda com o salao, e a luz so muda onde mudou uma poca (a da mesa da vez
+// pulsa). Cada quadro refaz so o retangulo das pocas que mudaram, com as
+// mesmas contas do chao inteiro; o resto sai igual do guardado.
+#define CH_X0 (PL_X0 + PL_PAREDE)
+#define CH_X1 (PL_X1 - PL_PAREDE)
+#define CH_Y0 (PL_Y0 + PL_PAREDE)
+#define CH_Y1 (PL_Y1 - PL_PAREDE)
+#define CH_W  (CH_X1 - CH_X0)
+#define CH_H  (CH_Y1 - CH_Y0)
+#define CH_POCAS (2 * DES_PASSOS + 1)
+static uint8_t  chao_k[CH_H][CH_W];          // o desenho: o tom do piso (0..3, 4 o filete) ou 8 + o do tapete
+static uint16_t chao_px[CH_H][CH_W];         // o chao pronto, com a luz
+static int chao_a = -1, chao_fim, chao_np = -1;
+static poca_t chao_pc[CH_POCAS];
+
+static void chao_desenho(int a, int fim)
 {
-    uint16_t *fb = display_fb(), rl[4];
+    for (int y = CH_Y0; y < CH_Y1; y++) {
+        bool tap = y >= TAP_Y0 && y < TAP_Y1;
+        for (int x = CH_X0; x < CH_X1; x++) {
+            int k = tap ? tapete_tom(x, y - TAP_Y0, fim) : -1, c;
+            if (k == -1) {
+                k = piso_tom(a, x, y);
+                if (k != 1 && bayer(x + 2, y + 1) >= 0.5f) k = 1;     // o desenho, pela metade
+                c = k == PL_FILETE ? 4 : k;
+            } else c = 8 + (k == PL_FILETE ? 4 : k);
+            chao_k[y - CH_Y0][x - CH_X0] = (uint8_t)c;
+        }
+    }
+}
+
+// A luz e o tom do chao no retangulo [x0, x1) x [y0, y1).
+static void chao_luz(const poca_t *pc, int np, int a, int x0, int x1, int y0, int y1)
+{
+    uint16_t rl[4];
     rampa_de(C_LATAO, rl);
-    int a = run.andar <= DES_ANDARES ? run.andar : 0, fim = tapete_fim();
     int ex0 = estrado_cx() - ESTRADO_W / 2, ex1 = ex0 + ESTRADO_W;
     const uint16_t *pr = PISO[a];
-    const int xa = PL_X0 + PL_PAREDE, xb = PL_X1 - PL_PAREDE;
-    float luz[PL_X1 - PL_X0];                    // a luz da linha: a base, e cada poca so onde alcanca
-    for (int y = PL_Y0 + PL_PAREDE; y < PL_Y1 - PL_PAREDE; y++) {
-        for (int x = xa; x < xb; x++) luz[x - PL_X0] = x >= ex0 && x < ex1 ? -0.5f : -0.9f;
+    if (x0 < CH_X0) x0 = CH_X0;
+    if (x1 > CH_X1) x1 = CH_X1;
+    if (y0 < CH_Y0) y0 = CH_Y0;
+    if (y1 > CH_Y1) y1 = CH_Y1;
+    float luz[CH_W];                             // a luz da linha: a base, e cada poca so onde alcanca
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) luz[x - CH_X0] = x >= ex0 && x < ex1 ? -0.5f : -0.9f;
         for (int i = 0; i < np; i++) {
             float dy = (y - pc[i].y) / (float)pc[i].ry, dy2 = dy * dy;
             if (dy2 >= 1) continue;
             float meia = pc[i].rx * sqrtf(1 - dy2), inv = 1.0f / pc[i].rx;
-            int x0 = pc[i].x - (int)meia, x1 = pc[i].x + (int)meia;
-            for (int x = x0 < xa ? xa : x0; x <= x1 && x < xb; x++) {
+            int px0 = pc[i].x - (int)meia, px1 = pc[i].x + (int)meia;
+            if (px0 < x0) px0 = x0;
+            for (int x = px0; x <= px1 && x < x1; x++) {
                 float dx = (x - pc[i].x) * inv, d = dx * dx + dy2;
-                if (d < 1) luz[x - PL_X0] += pc[i].s * (1 - d);
+                if (d < 1) luz[x - CH_X0] += pc[i].s * (1 - d);
             }
         }
-        bool tap = y >= TAP_Y0 && y < TAP_Y1;
-        uint16_t *lin = fb + y * GFX_W;
-        for (int x = xa; x < xb; x++) {
-            int n = (int)floorf(luz[x - PL_X0] + bayer(x, y)), k = tap ? tapete_tom(x, y - TAP_Y0, fim) : -1;
-            if (k == -1) {
-                k = piso_tom(a, x, y);
-                if (k != 1 && bayer(x + 2, y + 1) >= 0.5f) k = 1;     // o desenho, pela metade
-                if (k == PL_FILETE) lin[x] = n <= 0 ? pr[tom_de(2 + n)] : rl[tom_de(n - 1)];   // o latao so brilha na luz
-                else lin[x] = pr[tom_de(k + n)];
-            } else lin[x] = k == PL_FILETE ? rl[tom_de(2 + n)] : TAPETE[tom_de(k + n)];
+        const uint8_t *kl = chao_k[y - CH_Y0];
+        uint16_t *lin = chao_px[y - CH_Y0];
+        for (int x = x0; x < x1; x++) {
+            int n = (int)floorf(luz[x - CH_X0] + bayer(x, y)), c = kl[x - CH_X0];
+            uint16_t v;
+            if (c == 4) v = n <= 0 ? pr[tom_de(2 + n)] : rl[tom_de(n - 1)];   // o latao so brilha na luz
+            else if (c == 12) v = rl[tom_de(2 + n)];
+            else if (c < 8) v = pr[tom_de(c + n)];
+            else v = TAPETE[tom_de(c - 8 + n)];
+            lin[x - CH_X0] = v;
         }
     }
+}
+
+static void pl_chao(const poca_t *pc, int np)
+{
+    int a = run.andar <= DES_ANDARES ? run.andar : 0, fim = tapete_fim();
+    if (a != chao_a || fim != chao_fim) {
+        chao_desenho(a, fim);
+        chao_a = a; chao_fim = fim; chao_np = -1;
+    }
+    if (np != chao_np || np > CH_POCAS) chao_luz(pc, np, a, CH_X0, CH_X1, CH_Y0, CH_Y1);
+    else
+        for (int i = 0; i < np; i++) {
+            if (!memcmp(&pc[i], &chao_pc[i], sizeof pc[i])) continue;
+            const poca_t *q = &pc[i], *o = &chao_pc[i];
+            chao_luz(pc, np, a, q->x - q->rx, q->x + q->rx + 1, q->y - q->ry, q->y + q->ry + 1);
+            if (o->x != q->x || o->y != q->y || o->rx != q->rx || o->ry != q->ry)   // mudou de lugar: onde estava
+                chao_luz(pc, np, a, o->x - o->rx, o->x + o->rx + 1, o->y - o->ry, o->y + o->ry + 1);
+        }
+    chao_np = np <= CH_POCAS ? np : -1;
+    if (chao_np >= 0) memcpy(chao_pc, pc, (size_t)np * sizeof pc[0]);
+    uint16_t *fb = display_fb();
+    for (int y = CH_Y0; y < CH_Y1; y++) memcpy(fb + y * GFX_W + CH_X0, chao_px[y - CH_Y0], sizeof chao_px[0]);
     // A beira do estrado: o degrau escuro e a quina de latao, que pega a luz.
-    int y0 = PL_Y0 + PL_PAREDE, h = PL_Y1 - PL_Y0 - 2 * PL_PAREDE;
-    gfx_rect(ex0 - 1, y0, 1, h, C_BARRA);
-    gfx_rect(ex0, y0, 1, h, C_LATAO);
-    gfx_rect(ex0 + 1, y0, 1, h, C_LATAO_ESC);
+    int ex0 = estrado_cx() - ESTRADO_W / 2;
+    gfx_rect(ex0 - 1, CH_Y0, 1, CH_H, C_BARRA);
+    gfx_rect(ex0, CH_Y0, 1, CH_H, C_LATAO);
+    gfx_rect(ex0 + 1, CH_Y0, 1, CH_H, C_LATAO_ESC);
 }
 
 // As paredes, em planta: madeira entre dois filetes escuros, com o vao da

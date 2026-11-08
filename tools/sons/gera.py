@@ -2258,6 +2258,94 @@ def estilingue():
     m.poe(0.29, zuni, 0.16)                                                    # a pedra zunindo
     return sala(m.x, 0.12)
 
+def conta():
+    """O placar contando no fim da rodada: um clique de contador, de
+    plastico, curto e seco (o tique do cursor fica so para a interface)."""
+    x = pa(tom(batida('dicehit_plastic10'), 5), 1500)[:int(0.06 * SR)]
+    return sala(x * env(len(x), 0.0003, 0.014), 0.06)
+
+def moeda_jogada(m, t0, g0):
+    """Uma moeda jogada para cima: o peteleco e o giro no ar (um tinido que
+    pulsa cada vez mais devagar)."""
+    m.poe(t0, pa(tom(batida('dicehit_coin3'), 4), 2000), 0.5 * g0)
+    n = int(0.36 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    giro = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(28 - 14 * q) / SR)) ** 6
+    m.poe(t0 + 0.02, banda(rng.standard_normal(n), 3500, 9000) * giro * (1 - 0.5 * q), 0.10 * g0)
+
+def tudo_nada():
+    """Tudo ou Nada deu 2: a moeda gira no ar, cai, e vem o tudo: o timpano e
+    o agogo, com um acorde maior no vibrafone."""
+    m = Mix(1.4)
+    moeda_jogada(m, 0.0, 1.0)
+    m.poe(0.40, tom(batida('dicehit_coin5'), 1), 0.55)                       # a moeda cai
+    m.poe(0.44, nota('timpani', 41, 0.5, 0.4), 0.6)
+    for k, n_ in enumerate((76, 79, 84)):                                    # mi, sol, do: tudo
+        m.poe(0.46 + k * 0.05, nota('agogo', n_, 0.18, 0.2), 0.30)
+    for n_ in (77, 81, 84):
+        m.poe(0.50, nota('vibraphone', n_, 0.7, 0.4), 0.28)
+    return sala(m.x, 0.2)
+
+def tudo_nada_perde():
+    """Tudo ou Nada deu 1: a moeda gira no ar, cai, e vem o nada: o timpano
+    grave e duas notas que descem."""
+    m = Mix(1.4)
+    moeda_jogada(m, 0.0, 1.0)
+    m.poe(0.40, tom(batida('dicehit_coin2'), -2), 0.55)                      # a moeda cai
+    m.poe(0.44, nota('timpani', 36, 0.7, 0.5), 0.75)
+    m.poe(0.48, nota('acoustic_bass', 43, 0.18, 0.08), 0.6)                  # sol e re: desce
+    m.poe(0.64, nota('acoustic_bass', 38, 0.35, 0.15), 0.6)
+    return sala(m.x, 0.2)
+
+def sentinela():
+    """A Sentinela cai protegendo o de antes: o escudo de metal recebe o
+    golpe e a trompa toca o toque da guarda (sol, do)."""
+    m = Mix(1.3)
+    m.poe(0.0, pb(superficie('surface_metal2'), 6000), 0.55)                 # o escudo
+    m.poe(0.0, pb(tom(batida('dicehit_metal4'), -3), 4000), 0.35)
+    m.poe(0.10, pb(nota('french_horn', 55, 0.16, 0.08), 3500), 0.55)         # sol
+    m.poe(0.28, pb(nota('french_horn', 60, 0.55, 0.3), 3500), 0.6)           # do
+    m.poe(0.28, nota('acoustic_bass', 36, 0.4, 0.2), 0.3)
+    return sala(m.x, 0.22)
+
+def agiota():
+    """O Agiota cobrando: o carimbo no caderno, tres fichas do oponente
+    contadas uma a uma e o tilintar do caixa."""
+    m = Mix(1.1)
+    m.poe(0.0, pb(tom(superficie('surface_wood_table5'), -3), 2500), 0.5)    # o carimbo na conta
+    for k in range(3):                                                       # uma, duas, tres fichas
+        m.poe(0.14 + k * 0.09, ficha_clique(-3 + k), 0.55)
+    m.poe(0.44, nota('glockenspiel', 96, 0.3, 0.3), 0.30)                    # o caixa: plim
+    m.poe(0.47, nota('glockenspiel', 100, 0.5, 0.4), 0.26)
+    moedas(m, 0.46, 0.66, 4, 0.25)
+    return sala(m.x, 0.15)
+
+def oculto():
+    """O Oculto mostra o que tirou: o pano puxado de cima do dado (um sopro
+    que sobe) e o acorde de celesta que aparece (mi, sol, si)."""
+    m = Mix(1.3)
+    n = int(0.28 * SR); t = np.arange(n) / SR; q = t / t[-1]
+    c = np.cumsum(600 + 3500 * q ** 2) / SR                                  # o pano: o chiado sobe
+    sopro = banda(rng.standard_normal(n), 700, 7000) * q ** 1.5 * (0.7 + 0.3 * np.sin(2 * np.pi * c))
+    m.poe(0.0, sopro, 0.22)
+    m.poe(0.27, estalinho(0.004, 2500), 0.25)                                # o pano sai
+    for k, n_ in enumerate((76, 79, 83)):
+        m.poe(0.28 + k * 0.03, nota('celesta', n_, 0.6, 0.4), 0.34)
+    m.poe(0.36, nota('glockenspiel', 95, 0.4, 0.4), 0.14)
+    return sala(m.x, 0.25)
+
+def espinhoso():
+    """O Espinhoso espetando: tres espetadas secas (estalos agudos e
+    asperos) e o ai do oponente, duas notas graves de marimba caindo."""
+    m = Mix(1.0)
+    for k in range(3):                                                       # as espetadas
+        t = k * 0.06
+        m.poe(t, pa(tom(batida(METAL[(k * 3) % len(METAL)]), 10 + k), 3000), 0.45)
+        m.poe(t, estalinho(0.012, 4000), 0.30)
+    m.poe(0.22, marimba(55, 0.12), 0.55)                                     # ai: sol, re
+    m.poe(0.34, marimba(50, 0.30), 0.55)
+    m.poe(0.34, nota('acoustic_bass', 38, 0.25, 0.1), 0.35)
+    return sala(m.x, 0.15)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -2325,6 +2413,11 @@ VOLUME.update({'piao': VOLUME['efeito'] * 0.8, 'gelatina': VOLUME['efeito'] * 0.
                'matrioska': VOLUME['efeito'] * 0.85, 'balao': VOLUME['efeito'],
                'leque': VOLUME['efeito'] * 0.9, 'papagaio': VOLUME['efeito'] * 0.95,
                'retrato': VOLUME['efeito'] * 0.9, 'estilingue': VOLUME['efeito'] * 0.95})
+# A contagem do placar: na altura do tique que ela usava. As vozes dos cinco
+# poderes: na altura do som comum que tocavam (efeito, tira ou ficha).
+VOLUME.update({'conta': VOLUME['tique'], 'tudo_nada': VOLUME['efeito'], 'tudo_nada_perde': VOLUME['tira'],
+               'sentinela': VOLUME['efeito'], 'agiota': VOLUME['efeito'] * 0.9,
+               'oculto': VOLUME['efeito'] * 0.9, 'espinhoso': VOLUME['tira']})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2353,7 +2446,8 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'presente', 'estrela', 'revolver_carrega', 'revolver_tiro', 'cosmo_evolui', 'buraco_negro', 'big_bang',
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
              'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
-             'ad_coleira', 'ad_tiquete'):
+             'ad_coleira', 'ad_tiquete', 'conta', 'tudo_nada', 'tudo_nada_perde', 'sentinela', 'agiota',
+             'oculto', 'espinhoso'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

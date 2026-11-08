@@ -758,7 +758,7 @@ static void placar_passo(float dt, float dt_real)
         contador_t *c = &placar_c[j];
         if (!F[j].lancados && !desfecho_agora) { contador_fixa(c, F[j].pontos); continue; }   // rodada nova
         if (contador_passo(c, placar_real(j), dt, dt_real, 10, 25) && desfecho_agora && t_tique_placar <= 0) {
-            som_toca_tom(SOM_TIQUE, c->n_som / 2 < 6 ? c->n_som / 2 : 6);
+            som_toca_tom(SOM_CONTA, c->n_som / 2 < 6 ? c->n_som / 2 : 6);
             c->n_som++;
             t_tique_placar = 0.05f;
         }

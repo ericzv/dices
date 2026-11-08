@@ -1536,7 +1536,11 @@ static int som_do_evento(int i)
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_RENA) return SOM_SINO;  // os guizos do treno
-        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;   // Tudo ou Nada com 1
+        if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_TUDO_NADA) {              // a moeda: tudo ou nada
+            for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TUDO_NADA_PERDE;
+            return SOM_TUDO_NADA;
+        }
+        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;
         return SOM_EFEITO;
     default:         return SOM_EFEITO;
     }
@@ -1550,7 +1554,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
     [EF_AGNUS] = { SOM_AGNUS, 4 },
     [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
-    [EF_MARTELO] = { SOM_TIRA, 2 },           [EF_PIRATA] = { SOM_TIRA, -3 },
+    [EF_MARTELO] = { SOM_ESPINHOSO, 0 },      [EF_PIRATA] = { SOM_TIRA, -3 },
     [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_VAMPIRO, 0 },
     [EF_OURICO] = { SOM_TIRA, 5 },            [EF_SABOTADOR] = { SOM_SABOTADOR, 0 },
     [EF_FICHAS] = { SOM_FICHA, 0 },           [EF_COBRADOR] = { SOM_FICHA, -2 },
@@ -1578,6 +1582,8 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
     [EF_MOSAICO] = { SOM_AD_FIGURINHA, -2 },
     [EF_LEQUE] = { SOM_LEQUE, 0 },            [EF_BALAO] = { SOM_BALAO, 0 },
+    [EF_SENTINELA] = { SOM_SENTINELA, 0 },    [EF_AGIOTA] = { SOM_AGIOTA, 0 },
+    [EF_OCULTO] = { SOM_OCULTO, 0 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons
@@ -1598,7 +1604,7 @@ static void toca_evento(int i)
     // O combo: do 3o efeito seguido do mesmo lado, um tique por cima, cada vez mais agudo.
     int nc = 0;
     for (int q = 0; q <= i; q++) nc += ev[q].de_j == e->de_j;
-    if (nc >= 3) som_toca_tom(SOM_TIQUE, nc * 2 > 16 ? 16 : nc * 2);
+    if (nc >= 3) som_toca_tom(SOM_CONTA, nc * 2 > 16 ? 16 : nc * 2);
 }
 
 // E acelera de leve: cada efeito corre 5% mais depressa que o anterior (o

@@ -16,6 +16,26 @@ static int   som_musica_antes = SOM_NIVEIS;    // o volume da musica antes do N
 static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface" };
 // As linhas do painel, de cima para baixo.
 static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE };
+// Depois dos volumes, duas opcoes de ver: a letra maior (L) e o tremor da
+// tela (T). Ficam aqui para quem joga com o controle, que nao tem essas
+// teclas: o RT abre o painel e os lados trocam.
+#define SOM_OPCOES 2
+#define SOM_LINHAS (SOM_CANAIS + SOM_OPCOES)
+static const char *const SOM_OPCAO[SOM_OPCOES] = { "Letra", "Tremor da tela" };
+
+static void alterna_letra(void)
+{
+    gfx_letra_maior(!gfx_letra_e_maior());
+    salva_grava("letra", gfx_letra_e_maior() ? "1" : "0");
+    som_toca(SOM_TIQUE);
+}
+
+static void alterna_tremor(void)
+{
+    tremor_off = !tremor_off;
+    salva_grava("tremor", tremor_off ? "0" : "1");
+    som_toca(SOM_TIQUE);
+}
 
 static void som_grava(void)
 {
@@ -26,13 +46,17 @@ static void som_grava(void)
 }
 
 // Os volumes da ultima vez (dado_inicia). Um "som" com um quarto numero (o
-// ambiente dos saloes, que saiu) le os tres primeiros.
+// ambiente dos saloes, que saiu) le os tres primeiros. Estragado: os volumes
+// cheios, uma copia a parte e o aviso.
 static void som_le_volumes(void)
 {
     char b[32];
-    int v[SOM_CANAIS];
-    if (salva_le("som", b, sizeof b) > 0 && sscanf(b, "%d,%d,%d", &v[0], &v[1], &v[2]) == SOM_CANAIS)
+    int v[SOM_CANAIS], n = salva_le("som", b, sizeof b);
+    bool ok = n > 0 && sscanf(b, "%d,%d,%d", &v[0], &v[1], &v[2]) == SOM_CANAIS;
+    for (int c = 0; ok && c < SOM_CANAIS; c++) ok = v[c] >= 0 && v[c] <= SOM_NIVEIS;
+    if (ok)
         for (int c = 0; c < SOM_CANAIS; c++) som_volume(c, v[c]);
+    else if (n > 0) salvo_estragado("som", b, "Os volumes salvos não abriram: uma cópia ficou guardada à parte.");
     if (som_volume_de(SOM_CANAL_MUSICA) > 0) som_musica_antes = som_volume_de(SOM_CANAL_MUSICA);
 }
 
@@ -65,9 +89,18 @@ static void som_abre(void)
 // Com o painel aberto, ele fica com todas as teclas.
 static void som_tecla(int k)
 {
-    int c = SOM_LINHA[som_cur];
     if (k == KEY_UP || k == 'w') { if (som_cur > 0) { som_cur--; som_toca(SOM_TIQUE); } return; }
-    if (k == KEY_DOWN || k == 's') { if (som_cur < SOM_CANAIS - 1) { som_cur++; som_toca(SOM_TIQUE); } return; }
+    if (k == KEY_DOWN || k == 's') { if (som_cur < SOM_LINHAS - 1) { som_cur++; som_toca(SOM_TIQUE); } return; }
+    if (som_cur >= SOM_CANAIS) {                // as opcoes: os lados (ou o clique) trocam
+        if (k == KEY_LEFT || k == KEY_RIGHT || k == 'a' || k == 'd' || k == TECLA_SOM) {
+            if (som_cur == SOM_CANAIS) alterna_letra(); else alterna_tremor();
+            return;
+        }
+        if (k == 'n') { som_alterna_musica(); return; }
+        if (k == 'm' || k == KEY_ESC || k == KEY_ENTER || k == KEY_TAB) som_aberto = false;
+        return;
+    }
+    int c = SOM_LINHA[som_cur];
     if (k == KEY_LEFT || k == 'a') { som_muda(c, som_volume_de(c) - 1); return; }
     if (k == KEY_RIGHT || k == 'd') { som_muda(c, som_volume_de(c) + 1); return; }
     if (k == 'n') { som_alterna_musica(); return; }
@@ -98,7 +131,7 @@ static void desenha_som(void)
 {
     if (!som_aberto) return;
     n_zonas = 0;                                 // nada por baixo responde ao clique
-    const int w = 300, h = 40 + SOM_CANAIS * 24 + (som_falhou() ? 52 : 34), x = GFX_W / 2 - w / 2;
+    const int w = 300, h = 40 + SOM_LINHAS * 24 + 6 + (som_falhou() ? 52 : 34), x = GFX_W / 2 - w / 2;
     int y = CENTRO - h / 2 - 6 + ui_entra(t_som, 0, 14);
     ui_escurece(0, 0, GFX_W, GFX_H, 110);
     ui_painel(x, y, w, h);
@@ -123,6 +156,23 @@ static void desenha_som(void)
         else txt(nx, ly - 2, "mudo", C_VINHO_CLR, false);
         zona_clique(x + 10, ly - 4, w - 20, 22, &som_cur, l, TECLA_SOM);
     }
-    if (som_falhou()) txt_c(GFX_W / 2, y + 40 + SOM_CANAIS * 24 - 2, "sem saída de som neste computador", C_VINHO_CLR, false);
-    teclas_c(GFX_W / 2, y + h - 20, "setas mudam  ·  N música  ·  M fecha", C_TEXTO_M);
+    // As opcoes de ver, depois de um fio.
+    int oy = y + 40 + SOM_CANAIS * 24 + 6;
+    gfx_rect(x + 22, oy - 6, w - 44, 1, C_LATAO_ESC);
+    for (int o = 0; o < SOM_OPCOES; o++) {
+        int l = SOM_CANAIS + o, ly = oy + o * 24;
+        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : !tremor_off;
+        if (cur) ui_cantos(x + 10, ly - 4, w - 20, 22, C_OURO);
+        txt(x + 22, ly - 2, SOM_OPCAO[o], cur ? C_MARFIM : C_MARFIM_S, false);
+        const char *v = o == 0 ? (liga ? "maior" : "normal") : (liga ? "ligado" : "desligado");
+        int vw = gfx_largura(v, 1), vx = x + w - 34 - vw;
+        txt(vx, ly - 2, v, cur ? C_OURO : C_MARFIM_S, cur);
+        for (int i = 0; i < 4 && cur; i++) {          // as setinhas: os lados trocam
+            gfx_rect(vx - 12 + i, ly + 6 - i, 1, 2 * i + 1, C_LATAO);
+            gfx_rect(vx + vw + 11 - i, ly + 6 - i, 1, 2 * i + 1, C_LATAO);
+        }
+        zona_clique(x + 10, ly - 4, w - 20, 22, &som_cur, l, TECLA_SOM);
+    }
+    if (som_falhou()) txt_c(GFX_W / 2, oy + SOM_OPCOES * 24 - 2, "sem saída de som neste computador", C_VINHO_CLR, false);
+    teclas_c(GFX_W / 2, y + h - 20, controle_estilo ? "setas mudam  ·  M fecha" : "setas mudam  ·  N música  ·  M fecha", C_TEXTO_M);
 }

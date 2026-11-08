@@ -102,13 +102,15 @@ static bool des_tecla(int k, int e)
         if (e) { pf_cur = (pf_cur + e + N_PERFIS) % N_PERFIS; som_toca(SOM_TIQUE); return true; }
         if (k >= '1' && k <= '3') { pf_cur = k - '1'; k = KEY_ENTER; cheio = perfis[pf_cur].nome[0] != 0; }
         if ((k == 'x' || k == KEY_BKSP) && cheio) { pf_apagando = true; return true; }
-        if (k == 'h' && cheio) { som_toca(SOM_TIQUE); hist_abre(pf_cur); return true; }
-        if (k == 'e' && cheio) { som_toca(SOM_TIQUE); estilo_abre(pf_cur); return true; }
+        // H e E; no controle, o Y (TAB) e o X (I), que aqui nao fazem outra coisa.
+        if ((k == 'h' || k == KEY_TAB) && cheio) { som_toca(SOM_TIQUE); hist_abre(pf_cur); return true; }
+        if ((k == 'e' || k == 'i') && cheio) { som_toca(SOM_TIQUE); estilo_abre(pf_cur); return true; }
         if (k != KEY_ENTER) return true;
         som_toca(SOM_FICHA);
         if (cheio) { des_entra_perfil(pf_cur); return true; }
         pf_avatar = pf_cur % AV_N;
         pf_nome[0] = 0;
+        tt_zera();                               // o teclado na tela, do controle: na primeira letra
         t_fase = 0;
         fase = F_PCRIA;
         return true;
@@ -116,6 +118,21 @@ static bool des_tecla(int k, int e)
 
     case F_PCRIA: {
         int n = (int)strlen(pf_nome);
+        if (tt_ativo()) {                        // com o controle: o teclado na tela
+            if ((k == KEY_LEFT || k == KEY_RIGHT) && tt_lin < 0) {
+                pf_avatar = (pf_avatar + (k == KEY_LEFT ? AV_N - 1 : 1)) % AV_N;
+                som_toca(SOM_TIQUE);
+                return true;
+            }
+            if (tt_anda(k, -1, true)) return true;
+            if (k == KEY_TAB) k = KEY_ENTER;     // o Y cria
+            else if (k == KEY_ENTER && tt_lin < 0) { tt_lin = 0; som_toca(SOM_TIQUE); return true; }
+            else if (k == KEY_ENTER && tt_lin < TT_LINHAS) {
+                char c = tt_aperta(true);
+                if (!c) return true;
+                k = c >= 'A' && c <= 'Z' ? c + 32 : c;   // escreve como o teclado
+            }
+        }
         if (k == KEY_LEFT || k == KEY_RIGHT) {
             pf_avatar = (pf_avatar + (k == KEY_LEFT ? AV_N - 1 : 1)) % AV_N;
             som_toca(SOM_TIQUE);

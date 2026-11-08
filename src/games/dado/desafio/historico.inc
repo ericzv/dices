@@ -193,6 +193,12 @@ static void hist_partida(int vencedor)
     hist_grava();
 }
 
+// O perfil perdeu uma partida so ate agora (a que acabou de contar)?
+static bool hist_uma_derrota(void)
+{
+    return hist_conta() && hist.partidas - hist.partidas_venc == 1;
+}
+
 // O Barao caiu: a run conta, e vira a campea se for a mais alta.
 static void hist_run_venceu(void)
 {

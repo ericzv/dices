@@ -39,7 +39,7 @@
 // depois disso so viajam as teclas de quem esta na vez.
 //
 // O que segura a partida quando a rede falha:
-// - cada tecla vai numerada e fica guardada; o sinal de vida (a cada 3 s)
+// - cada tecla vai numerada e fica guardada; o sinal de vida (a cada 1 s)
 //   diz quantas chegaram, e o outro lado manda de novo as que faltam. Uma
 //   tecla que chega antes da vez dela espera a que falta;
 // - quem entra diz a versao do jogo; versoes diferentes nao jogam juntas;
@@ -66,7 +66,9 @@ function criaRede(amb) {
   // qual servidor a sala usa, para os dois irem ao mesmo.
   var ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   var PARADA = 0, CONECTANDO = 1, ESPERANDO = 2, JOGANDO = 3, ERRO = 4;
-  var VIDA_MS = 3000, SILENCIO_MS = 25000, REENVIO_MS = 1500, PEDIDO_MS = 300, MARCOS = 64;
+  // O sinal de vida a cada 1 s: com muita perda (60%), uma tecla perdida
+  // levava uns 20 s para chegar com ele a cada 3 s, e uns 9 s assim.
+  var VIDA_MS = 1000, SILENCIO_MS = 25000, REENVIO_MS = 1000, PEDIDO_MS = 300, MARCOS = 64;
   var GUARDA_SALA = 'dadoemcasa_sala_minha';
   var MSG = {
     servidor: 'Sem conexão com o servidor. Confira a internet.',

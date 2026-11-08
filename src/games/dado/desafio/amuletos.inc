@@ -34,7 +34,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_TRINCA]   = { "Trinca",        "Dado seu que tirar 3 pontua +3.", RGB(72, 150, 138) },
     [A_PIRAMIDE] = { "Pirâmide",      "Seus dados de 4 lados pontuam x2 no fim.", RGB(238, 162, 74) },
     [A_ABRE_ALAS]= { "Abre-Alas",     "O primeiro dado da sua sequência pontua x2 no fim.", RGB(96, 134, 196) },
-    [A_SAIDEIRA] = { "Saideira",      "Na última rodada da partida, os poderes de fim de rodada dos seus dados agem duas vezes.", RGB(150, 112, 160) },
+    [A_SAIDEIRA] = { "Saideira",      "Na última rodada da partida, os poderes de fim de rodada dos seus dados agem duas vezes, até os que anulam, comem ou roubam.", RGB(150, 112, 160) },
     [A_COLAR]    = { "Colar de Pérolas", "Ao vencer uma mesa, rende 2 moedas.", RGB(226, 220, 236) },
     [A_CORRIMAO] = { "Corrimão",      "Se o seu dado for só 1 menor que o anterior, a sequência não anula nenhum dos dois.", RGB(96, 182, 198) },
 };

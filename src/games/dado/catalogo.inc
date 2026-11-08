@@ -17,8 +17,8 @@ static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
     if (tipo == D_FANTASMA) { f[0] = 1; return 1; }     // o Fantasma nao e sorteado: e sempre o 1
-    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -7 a 11, de 2 em 2
-        for (int v = -7; v <= 11; v += 2) f[n++] = v;
+    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de 1 - SR_REVES a 11, de 2 em 2
+        for (int v = 1 - SR_REVES; v <= 11; v += 2) f[n++] = v;
         return n;
     }
     int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;
@@ -68,6 +68,21 @@ static int quebra_linhas_em(int x, int y, int max_w, int max_lin, const char *tx
 static int quebra_linhas(int x, int y, int max_w, int max_lin, const char *txt_, uint16_t c)
 {
     return quebra_linhas_em(x, y, max_w, max_lin, txt_, c, GFX_FINO, LINHA_FINA);
+}
+// O texto inteiro numa caixa de max_w x max_h: na fina; se nao couber, na
+// miuda (o Agnus); e com a letra maior, se nem a miuda dela (que vira a
+// fina) couber, na miuda de verdade (o Revolver).
+static int quebra_cabe(int x, int y, int max_w, int max_h, const char *txt_, uint16_t c)
+{
+    static const int F[3] = { GFX_FINO, GFX_MIUDO, GFX_MIUDO_FIXO };
+    for (int i = 0; i < 3; i++) {
+        int passo = i == 0 ? LINHA_FINA : i == 1 ? LINHA_MIUDA : 10, dy = i ? 2 : 0;
+        quebra_so_conta = true;
+        int n = quebra_linhas_em(x, y + dy, max_w, 99, txt_, c, F[i], passo);
+        quebra_so_conta = false;
+        if (n * passo <= max_h || i == 2) return quebra_linhas_em(x, y + dy, max_w, max_h / passo, txt_, c, F[i], passo);
+    }
+    return 0;
 }
 
 // Etiquetas ao lado do tipo e da raridade; as de protecao com o icone dela
@@ -188,6 +203,7 @@ static void vitrine_no_escuro(int cx, int cy)
 #define FIL_N     15
 #define FIL_PASSO 38
 #define FIL_Y     (MESA_Y1 - 24)
+#define CAT_TEXTO_H (FIL_Y - 20 - 152)       // o texto da coluna da direita: de y 152 ate a fileira
 enum { FIL_DADO, FIL_AMULETO, FIL_ADESIVO };
 static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, float dens);
 static int cat_amuleto(int i);               // desafio/colecao.inc
@@ -240,6 +256,13 @@ static void linha_bloqueio(int x, int y, const char *falta)
     gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y, falta, C_TEXTO_M, 1, false);
 }
 
+// A nota ao lado da etiqueta de raridade: inteira se couber ate o fim da
+// coluna; senao (a letra maior), a forma curta.
+static void nota_etiqueta(int x, int fim, const char *longa, const char *curta)
+{
+    txt(x, 105, curta && txt_quebra(longa, fim - x) ? curta : longa, C_TEXTO_M, false);
+}
+
 static void desenha_catalogo(void)
 {
     if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
@@ -290,18 +313,18 @@ static void desenha_catalogo(void)
     gfx_texto(x, 60, d->nome, st == 2 ? C_TEXTO_M : cor_dado(tipo), 2, true);
     classe(tipo, s, sizeof s);
     int xt = etiquetas_protecao(etiqueta_caixa(x, 104, s, cor_rar(tipo)), 104, tipo);
-    if (so_inicial(tipo)) txt(xt + 2, 105, "dado inicial", C_TEXTO_M, false);
-    if (so_desafio(tipo)) txt(xt + 2, 105, "só no Desafiante", C_TEXTO_M, false);
-    if (de_natal(tipo)) txt(xt + 2, 105, "de Natal: de 20 de outubro a 6 de janeiro", C_TEXTO_M, false);
-    if (tipo == D_TSUNAMI) txt(xt + 2, 105, "nasce da Onda", C_TEXTO_M, false);
-    if (tipo == D_D20) txt(xt + 2, 105, "sai do Presente e da Sacola de Presente", C_TEXTO_M, false);
+    if (so_inicial(tipo)) nota_etiqueta(xt + 2, x + 320, "dado inicial", NULL);
+    if (so_desafio(tipo)) nota_etiqueta(xt + 2, x + 320, "só no Desafiante", NULL);
+    if (de_natal(tipo)) nota_etiqueta(xt + 2, x + 320, "de Natal: de 20 de outubro a 6 de janeiro", "de Natal: 20 out. a 6 jan.");
+    if (tipo == D_TSUNAMI) nota_etiqueta(xt + 2, x + 320, "nasce da Onda", NULL);
+    if (tipo == D_D20) nota_etiqueta(xt + 2, x + 320, "sai do Presente e da Sacola de Presente", "do Presente e da Sacola");
     if (st == 2) {
         linha_bloqueio(x, 124, trava);
     } else if (st == 1) {
         txt(x, 124, trava, C_VERDE, false);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_linhas(x, 152, 320, 6, TEXTO_CAT[tipo], C_MARFIM);
+    quebra_cabe(x, 152, 320, CAT_TEXTO_H, TEXTO_CAT[tipo], C_MARFIM);   // ate a fileira de baixo (x: a coluna da direita)
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o
@@ -355,6 +378,6 @@ static void desenha_detalhe(void)
     gfx_texto(x + wn + 17, y0 + 16, s, cor_rar(tipo), 1, false);
     etiquetas_protecao(x + wn + 12 + wc + 6, y0 + 17, tipo);
     gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
-    quebra_linhas(x, y0 + 54, w - 180, 6, TEXTO_CAT[tipo], C_MARFIM);
+    quebra_cabe(x, y0 + 54, w - 180, h - 54 - 34, TEXTO_CAT[tipo], C_MARFIM);   // ate o "qualquer tecla fecha"
     txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
 }

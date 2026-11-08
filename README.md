@@ -35,8 +35,8 @@ cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
 um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
 pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
-0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4, uma vez aceso, x2, outra
-apagado, 0), a **Meia na Lareira** (d4, guarda +4 cada vez que é anulada e
+0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4: cada vez que vem para a mão,
+acende ou não, meio a meio; aceso, x2; apagado, um d4 comum), a **Meia na Lareira** (d4, guarda +4 cada vez que é anulada e
 paga tudo quando termina válida), a **Estrela de Belém** (d8, por último na
 sequência: +2 por dado válido abaixo dela) e a **Rena** (d6, +1 nos dados
 válidos ao lado dela). **Em dezembro**, o **Papai Noel** senta no lugar do
@@ -200,7 +200,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   sem o 4º dado, nada; a bolha do Impermeável segura a casca), e aos que
   combam com a fila e com a bolsa: a Corrente (valendo, +3 por elo: ela e
   cada adesivo seu que agiu antes dela), a Dinamite (cada lance que não cai
-  nela põe +3 no pavio; tirando o lado dela, valendo, paga o pavio), a
+  nela põe +2 no pavio; tirando o lado dela, valendo, paga o pavio), a
   Bússola (o próximo dado, caindo sem adesivo, rola de novo e fica o 2º se
   cair em adesivo ou for maior), a Moldura (os adesivos dos lados vizinhos
   também agem), o Xerox (o adesivo do lado oposto ganha uma cópia, para
@@ -253,12 +253,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a mais por nível), e os chefes abrem dados novos: no
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
-  carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +8
+  carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +12
   mesmo anulado, no 3 - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
   cada 3 vezes lançados, no 5; a Fúria, um d6 que guarda +2 a cada 4, 5 ou
   6, nada no 3 e perde 1 no 1 e no 2, no 6; a Onda, que pontua e guarda o que tira até virar um
-  Tsunami, no 7; a Estrela, um d6 que, tirando 5 ou 6, valendo ou não,
+  Tsunami, no 7; a Estrela, um d6 que, terminando a rodada válida,
   evolui e volta para a mão na rodada seguinte - e o que ela vira é
   surpresa, que a coleção não mostra -, no 8; o Adesivado, um d6 que já
   vem com 3 adesivos sorteados, no 3; o Relógio, um d20 que tira o número
@@ -344,7 +344,7 @@ e Mosquitto de reserva), que só repassa as mensagens da sala. Os dois
 navegadores rodam a mesma partida com a mesma semente; só viajam as teclas
 de quem está na vez. O que segura a partida quando a rede falha:
 
-- cada tecla vai numerada e fica guardada; o sinal de vida (a cada 3 s) diz
+- cada tecla vai numerada e fica guardada; o sinal de vida (a cada 1 s) diz
   quantas chegaram e o outro lado manda de novo as que faltam. Uma queda
   curta da internet não perde nada;
 - quem entra diz a versão do jogo: versões diferentes (uma página aberta
@@ -397,10 +397,11 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10 (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior e o tremor da tela (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
+| L | Letra maior ou normal (fica guardada) |
 | F11 ou Alt+Enter | Tela cheia |
 | – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
@@ -413,23 +414,28 @@ Não precisa instalar nada: é um executável só.
 Dá para jogar com controle de Xbox, de PlayStation e os parecidos (até
 dois), no computador e no navegador — inclusive no iPhone e no iPad, com o
 controle pareado por Bluetooth. No navegador, o controle aparece depois do
-primeiro botão apertado. Jogando com controle, as dicas da tela mostram os
+primeiro botão apertado. Com o controle ligado, as dicas da tela mostram os
 botões dele. O botão **controles**, no alto do menu (ou o LT/L2, ou a tecla
 K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
+
+Tudo no jogo se faz pelo controle: o nome do perfil e o código da sala online
+se escrevem num teclado na tela (o direcional escolhe a letra, o A escreve,
+o B apaga e o Y confirma); nos perfis, o Y abre o histórico e o X o estilo;
+a letra maior e o tremor da tela ficam no painel do som (o RT).
 
 | Xbox | PlayStation | O que faz |
 |---|---|---|
 | Direcional ou analógico esquerdo | Direcional ou analógico esquerdo | Move o cursor (segurado, repete) |
 | A | ✕ | Escolhe / joga o próximo dado (o Enter) |
 | B | ○ | Volta / tira o último dado da sequência (o Backspace) |
-| Y | △ | Confirma a sequência / segue (o Tab) |
-| X | □ | Mostra tudo sobre o dado escolhido (o I) |
+| Y | △ | Confirma a sequência / segue (o Tab); nos perfis, o histórico |
+| X | □ | Mostra tudo sobre o dado escolhido (o I); nos perfis, o estilo |
 | Start | Options | O ESC |
 | View | Share | Mostra a sua bolsa (o B) |
 | LB | L1 | Recusa (o X) |
 | RB | R1 | Velocidade (o V) |
 | LT | L2 | Mostra o que faz cada botão (o K) |
-| RT | R2 | O painel do som (o M) |
+| RT | R2 | O painel do som, a letra maior e o tremor (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.
@@ -507,12 +513,17 @@ O zip `DadoEmCasa-web` (em Actions → Artifacts) também pode ser enviado ao
 
 ### Publicar uma versão
 
+O jogo tem um número de versão, que aparece miúdo no canto da tela inicial
+(`v1.0`, `v1.1`...): fica em `src/games/dado.c` (`DADO_VERSAO`). Cada entrega
+nova sobe o número de depois do ponto; uma mudança grande sobe o de antes
+(`v2.0`). O `.zip` do Windows leva o mesmo número no nome.
+
 Cada push compila os três sistemas no GitHub Actions. Para gerar uma Release
-com link de download:
+com link de download, com a tag igual à versão:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0
+git push origin v1.0
 ```
 
 ## Organização

@@ -176,11 +176,10 @@ void dado_passo(float dt)
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
             if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
             // A Ventania tem o som dela quando rola o primeiro dado.
-            if (resistiu >= 0 && ad_fila(j, resistiu) == AD_TRANSPARENTE)   // o Transparente segurou
-                som_toca(som_adesivo(AD_TRANSPARENTE));
+            if (sequencia_nao_ve(j, k)) som_toca(som_adesivo(AD_TRANSPARENTE));   // o Transparente: a sequencia nao o ve
             // O Revolver com a sexta bala dispara ao pousar, valendo ou nao.
             if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
-            cosmo_pousa(j, k);                    // o ciclo cosmico que tirou a faixa de cima: evolui (o Universo: Big Bang)
+            cosmo_pousa(j, k);                    // o Universo pousando: o Big Bang
             if (k > 0 && F[j].tipo[k] == D_VENTANIA) som_toca(SOM_VENTO);
             else if (vidro_quebra(j, k)) {
                 som_toca(SOM_VIDRO);

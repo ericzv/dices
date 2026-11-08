@@ -84,10 +84,24 @@ static void poe_grudado(int j, int i)
 static pouso_ad_t pouso_q[POUSO_MAX];
 static int n_pouso;
 static float t_pouso;
-static float pouso_dura(const pouso_ad_t *p) { return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : 1.6f; }
+static uint8_t pavio_mais[2][N_FILA];        // a Dinamite: quanto o pavio do dado k de j cresceu neste lance (a mesa mostra no pouso)
+static float pouso_dura(const pouso_ad_t *p)
+{
+    return p->ad == AD_BARRO ? 2.0f : p->ad == AD_MASSINHA ? 1.9f : p->ad == AD_DINAMITE ? 0.9f : 1.6f;
+}
 static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v);
 static void pouso_toca(const pouso_ad_t *p)
 {
+    if (p->ad == AD_DINAMITE) {                  // o pavio cresceu: o adesivo saltando, o quanto e o chiado curtinho (nao o BUM)
+        flutua_em(p->j, p->k, C_FOGO, 0.25f, "pavio +%d", p->n);
+        // Cada pavio a mais, um degrau acima (na escala maior, ate a oitava):
+        // a pilha crescendo soa subindo.
+        static const int8_t DEGRAU[8] = { 0, 2, 4, 5, 7, 9, 11, 12 };
+        int pv = p->i >= 0 && p->i < J[p->j].n_col ? J[p->j].pavio[p->i] : DINAMITE_CADA;
+        int d = pv / DINAMITE_CADA - 1;
+        som_toca_tom(SOM_PAVIO, DEGRAU[d < 0 ? 0 : d > 7 ? 7 : d]);
+        return;
+    }
     som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));
     if (p->ad == AD_MASSINHA) {                  // quando a massinha vira o Remendo: o lado que ganhou +2
         int l = 1;
@@ -101,6 +115,11 @@ static void adesivos_pousou(int j, int k)
     pouso_ad_t o[2];
     int n = adesivos_no_pouso(j, k, o, 2), antes = n_pouso;
     for (int g = 0; g < n && n_pouso < POUSO_MAX; g++) pouso_q[n_pouso++] = o[g];
+    if (k >= 0 && k < N_FILA && pavio_mais[j][k]) {   // a Dinamite que nao saiu: o pavio cresceu
+        if (n_pouso < POUSO_MAX)
+            pouso_q[n_pouso++] = (pouso_ad_t){ (int8_t)j, (int8_t)k, (int8_t)j, F[j].idx[k], AD_DINAMITE, 0, pavio_mais[j][k], 0 };
+        pavio_mais[j][k] = 0;
+    }
     if (!antes && n_pouso) { t_pouso = 0; pouso_toca(&pouso_q[0]); }
 }
 static void pouso_passo(float dt)
@@ -165,6 +184,7 @@ static void compra(jogador_t *p)
             if (p->onde[i] == NA_BOLSA && alvo-- == 0) {
                 p->onde[i] = NA_MAO;
                 p->mao[p->n_mao++] = (int8_t)i;
+                if (p->col[i].tipo == D_PISCA) p->col[i].fixo = (uint8_t)(sorte(2) == 0 ? 0 : 1);   // o Pisca: aceso ou nao, meio a meio
                 break;
             }
     }
@@ -255,6 +275,7 @@ static void marca_online(void);             // online.inc: o marco da partida pa
 static void nova_rodada(void)
 {
     n_pouso = 0;                                 // o que ainda voava no pouso da rodada de antes
+    memset(pavio_mais, 0, sizeof pavio_mais);
     marca_online();
     rodada++;
     if (rodada == 1) memset(cosmo_recem, 0, sizeof cosmo_recem);   // partida nova: ninguem acabou de evoluir
@@ -275,6 +296,7 @@ static void nova_rodada(void)
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
     bool extra = modo == M_DESAFIO && J[0].fichas == J[1].fichas && rodada <= max_r + DES_EXTRAS;
     if (rodada > max_r && !extra) {
+        fim_motivo = FM_RODADAS;
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
     }
@@ -283,6 +305,8 @@ static void nova_rodada(void)
     // com fichas iguais, empate.
     int ante = ante_da(rodada);
     bool sem0 = J[0].fichas < ante, sem1 = J[1].fichas < ante;
+    fim_motivo = FM_FICHAS;
+    fim_rodada = rodada;
     if (sem0 && sem1) {
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
@@ -363,6 +387,7 @@ static void poe_nomes(void)
 
 static void abre_loja(void);
 static void som_le_volumes(void);        // painel_som.inc
+static bool tem_perfil(void);            // desafio/perfis.inc
 
 void dado_inicia(int n_partidas)
 {
@@ -371,16 +396,24 @@ void dado_inicia(int n_partidas)
     if (!paleta_pronta) {                // a paleta, com o feltro e a mesa do perfil
         estilo_do_perfil();
         paleta_pronta = true;
+        char b[4];                       // a primeira vez: o cursor comeca no Tutorial
+        primeira_vez = !tem_perfil() && salva_le("tutorial", b, sizeof b) <= 0;
+        if (primeira_vez) menu_cur = MN_TUTORIAL;
     }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
-        if (salva_le("vel", b, sizeof b) > 0)
-            for (int v = 0; v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) velocidade = v;
+        int n = salva_le("vel", b, sizeof b), achou = -1;
+        for (int v = 0; n == 1 && v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) achou = v;
+        if (achou >= 0) velocidade = achou;
+        else if (n > 0) salvo_estragado("vel", b, "A velocidade salva não abriu: uma cópia ficou guardada à parte.");
         rapido_lido = true;
     }
     if (!letra_lida) {                   // a letra maior (tecla L)
         char b[8];
-        gfx_letra_maior(salva_le("letra", b, sizeof b) > 0 && b[0] == '1');
+        int n = salva_le("letra", b, sizeof b);
+        gfx_letra_maior(n == 1 && b[0] == '1');
+        if (n > 0 && !(n == 1 && (b[0] == '0' || b[0] == '1')))
+            salvo_estragado("letra", b, "A opção da letra maior não abriu: uma cópia ficou guardada à parte.");
         letra_lida = true;
     }
     static bool som_lido;
@@ -390,7 +423,10 @@ void dado_inicia(int n_partidas)
     }
     if (!tremor_lido) {                  // e se o tremor da tela foi desligado
         char b[8];
-        tremor_off = salva_le("tremor", b, sizeof b) > 0 && b[0] == '0';
+        int n = salva_le("tremor", b, sizeof b);
+        tremor_off = n == 1 && b[0] == '0';
+        if (n > 0 && !(n == 1 && (b[0] == '0' || b[0] == '1')))
+            salvo_estragado("tremor", b, "A opção do tremor da tela não abriu: uma cópia ficou guardada à parte.");
         tremor_lido = true;
     }
     partidas = n_partidas;
@@ -482,7 +518,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
         *menor = vy;
         return vx;
     }
-    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
+    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d4 do Reves
         int b = r(SR_REVES);
         *menor = b;
         return remenda(p, x) - b;
@@ -511,7 +547,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
     case EF_FANTASMA: *lado = fixo ? (int8_t)fixo : 1; break;
     case EF_PREVISIVEL: *lado = (int8_t)previsivel_valor(fixo); break;   // 3, 4, 5... ate 12
     case EF_RELOGIO:  *lado = relogio_valor(); break;              // o numero da rodada
-    case EF_VAZIO:    return ad_no_lado(p, x) == AD_REMENDO ? 2 : 0;   // o lado e o que rolou
+    case EF_VAZIO:    *lado = 1; return ad_no_lado(p, 1) == AD_REMENDO ? 2 : 0;   // um lado so: o do 0
     default: break;
     }
     return remenda(p, *lado);
@@ -771,9 +807,11 @@ static void lanca_proximo(void)
     f->bonecas[k] = l.bonecas;
     int x = l.x, menor = l.menor, lado = l.lado;
     // A Dinamite: lancado sem cair nela, o pavio do dado queima mais um pouco.
+    pavio_mais[vez][k] = 0;
     if (pc && ad_conta(pc, AD_DINAMITE) && ad_no_lado(pc, lado) != AD_DINAMITE) {
-        uint8_t *pv = &J[vez].pavio[f->idx[k]];
+        uint8_t *pv = &J[vez].pavio[f->idx[k]], antes = *pv;
         *pv = (uint8_t)(*pv + DINAMITE_CADA > DINAMITE_MAX ? DINAMITE_MAX : *pv + DINAMITE_CADA);
+        pavio_mais[vez][k] = (uint8_t)(*pv - antes);   // a mesa mostra no pouso (no teto, nada)
     }
     int x1 = l.x1, lado1 = l.lado1, antes1 = l.antes1, menor1 = l.menor1;
     bool reflete = l.reflete;
@@ -1025,16 +1063,17 @@ static void cosmo_vira(peca_t *p, int t, bool volta)
     *p = (peca_t){ .tipo = (uint8_t)t, .velcro = volta };
 }
 
-// O ciclo cosmico que tirou a faixa de cima evolui, valendo ou nao - ate
-// quando a rodada acaba porque alguem correu. Na rodada seguinte, ele chega
-// na mao com o nome novo (menos depois do Big Bang).
-static void cosmo_ficam(int j)
+// O ciclo cosmico que termina a rodada valendo evolui (est: como cada dado
+// terminou; quando alguem corre, como estava na sequencia). Na rodada
+// seguinte, ele chega na mao com o nome novo (menos depois do Big Bang, que
+// o Universo, que nunca cai, sempre faz).
+static void cosmo_ficam(int j, const uint8_t *est)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int i = F[j].idx[k];
         if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
         peca_t *p = &J[j].col[i];
-        if (!cosmico(p->tipo) || !F[j].evolui[k]) continue;
+        if (!cosmico(p->tipo) || est[k] != V_VALIDO) continue;
         cosmo_recem[j][i] = p->tipo != D_UNIVERSO;
         cosmo_vira(p, cosmo_proximo(p->tipo), p->tipo != D_UNIVERSO);
     }
@@ -1048,22 +1087,44 @@ static void cosmo_ficam(int j)
 // O Balao enche BALAO_CADA por rodada fora da fila (ou anulado), sem limite
 // (so o que cabe no fixo, BALAO_GUARDA).
 static int balao_enche(int g) { return g + BALAO_CADA > BALAO_GUARDA ? BALAO_GUARDA : g + BALAO_CADA; }
+// Os contadores que andam so por terem sido lancados, valendo ou nao: os
+// Tres Patinhos (mais uma vez) e o Revolver (mais uma bala; com a quarta,
+// disparou e o tambor esvazia). Valem tambem quando a rodada acaba porque
+// alguem correu (contadores_correu). (O Pisca nao alterna: acende ou nao,
+// ao acaso, cada vez que vem para a mao - compra.)
+static bool conta_lance(peca_t *p, int j, int k)
+{
+    if (p->tipo == D_PATINHOS) { if (F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1); return true; }
+    if (p->tipo == D_REVOLVER) { p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1); return true; }
+    return false;
+}
+// A peca da bolsa do dado k da fila de j (NULL se ja nao e ele).
+static peca_t *peca_da_fila(int j, int k)
+{
+    int i = F[j].idx[k];
+    if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) return NULL;
+    return &J[j].col[i];
+}
+// Alguem correu: nao ha fim de rodada, mas o que foi lancado conta.
+static void contadores_correu(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        peca_t *p = peca_da_fila(j, k);
+        if (p) conta_lance(p, j, k);
+    }
+}
 static void contadores_ficam(int j, const desfecho_t *d)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
-        int i = F[j].idx[k];
-        if (i < 0 || i >= J[j].n_col || J[j].col[i].tipo != F[j].tipo[k]) continue;
-        peca_t *p = &J[j].col[i];
+        peca_t *p = peca_da_fila(j, k);
+        if (!p) continue;
         bool vale = d->est[j][k] == V_VALIDO;
+        if (conta_lance(p, j, k)) continue;
         if (p->tipo == D_FURIA) p->fixo = (uint8_t)(int8_t)furia_depois(F[j].fixo[k], F[j].valor[k]);
         else if (p->tipo == D_ONDA && vale) {
             if (d->onda[j] >> k & 1) { p->tipo = D_TSUNAMI; p->fixo = 0; }
             else p->fixo = (uint8_t)onda_depois(F[j].fixo[k], F[j].valor[k]);
-        } else if (p->tipo == D_PATINHOS && F[j].fixo[k] < 255) p->fixo = (uint8_t)(F[j].fixo[k] + 1);   // lancado, vale ou nao
-        else if (p->tipo == D_PISCA) p->fixo = (uint8_t)(F[j].fixo[k] ^ 1);          // lancado: alterna
-        else if (p->tipo == D_REVOLVER)                                              // mais uma bala; com a quarta, disparou
-            p->fixo = revolver_dispara(F[j].fixo[k]) ? 0 : (uint8_t)(F[j].fixo[k] + 1);
-        else if (p->tipo == D_MEIA && vale) p->fixo = 0;                            // pagou: esvazia
+        } else if (p->tipo == D_MEIA && vale) p->fixo = 0;                          // pagou: esvazia
         else if (p->tipo == D_MEIA && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)meia_depois(F[j].fixo[k]);
         else if (p->tipo == D_BALAO && (d->balao[j] >> k & 1)) p->fixo = 0;        // estourou: volta vazio
         else if (p->tipo == D_BALAO && d->est[j][k] == V_ANULADO) p->fixo = (uint8_t)balao_enche(F[j].fixo[k]);
@@ -1077,7 +1138,7 @@ static void contadores_ficam(int j, const desfecho_t *d)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) lancada |= F[j].idx[k] == i;
         if (!lancada) p->fixo = (uint8_t)balao_enche(p->fixo);
     }
-    cosmo_ficam(j);
+    cosmo_ficam(j, d->est[j]);
 }
 
 // A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
@@ -1529,7 +1590,11 @@ static int som_do_evento(int i)
     case EV_BONUS:
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_FERREIRO) return SOM_BIGORNA;
         if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_RENA) return SOM_SINO;  // os guizos do treno
-        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;   // Tudo ou Nada com 1
+        if (e->de_k < N_FILA && F[e->de_j].tipo[e->de_k] == D_TUDO_NADA) {              // a moeda: tudo ou nada
+            for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TUDO_NADA_PERDE;
+            return SOM_TUDO_NADA;
+        }
+        for (int k = 0; k < N_FILA; k++) if (e->por_dado[k] < 0) return SOM_TIRA;
         return SOM_EFEITO;
     default:         return SOM_EFEITO;
     }
@@ -1543,7 +1608,7 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_BERSERKER] = { SOM_ANULA, -2 },       [EF_VIDRO] = { SOM_VIDRO, 0 },
     [EF_AGNUS] = { SOM_AGNUS, 4 },
     [EF_SANGUESSUGA] = { SOM_AD_COLA, -2 },   [EF_EGOISTA] = { SOM_ANULA, -7 },
-    [EF_MARTELO] = { SOM_TIRA, 2 },           [EF_PIRATA] = { SOM_TIRA, -3 },
+    [EF_MARTELO] = { SOM_ESPINHOSO, 0 },      [EF_PIRATA] = { SOM_TIRA, -3 },
     [EF_MALDICAO] = { SOM_TIRA, -6 },         [EF_VAMPIRO] = { SOM_VAMPIRO, 0 },
     [EF_OURICO] = { SOM_TIRA, 5 },            [EF_SABOTADOR] = { SOM_SABOTADOR, 0 },
     [EF_FICHAS] = { SOM_FICHA, 0 },           [EF_COBRADOR] = { SOM_FICHA, -2 },
@@ -1571,6 +1636,8 @@ static const struct { int16_t som; int8_t tom; } VOZ_PODER[EF_N] = {
     [EF_TERREMOTO] = { SOM_FORTE, -3 },       [EF_FICHA_CORINGA] = { SOM_MOEDA_BATE, 2 },
     [EF_MOSAICO] = { SOM_AD_FIGURINHA, -2 },
     [EF_LEQUE] = { SOM_LEQUE, 0 },            [EF_BALAO] = { SOM_BALAO, 0 },
+    [EF_SENTINELA] = { SOM_SENTINELA, 0 },    [EF_AGIOTA] = { SOM_AGIOTA, 0 },
+    [EF_OCULTO] = { SOM_OCULTO, 0 },
 };
 
 // A cadeia do fim da rodada: cada poder com a sua voz (VOZ_PODER). Os sons
@@ -1591,7 +1658,7 @@ static void toca_evento(int i)
     // O combo: do 3o efeito seguido do mesmo lado, um tique por cima, cada vez mais agudo.
     int nc = 0;
     for (int q = 0; q <= i; q++) nc += ev[q].de_j == e->de_j;
-    if (nc >= 3) som_toca_tom(SOM_TIQUE, nc * 2 > 16 ? 16 : nc * 2);
+    if (nc >= 3) som_toca_tom(SOM_CONTA, nc * 2 > 16 ? 16 : nc * 2);
 }
 
 // E acelera de leve: cada efeito corre 5% mais depressa que o anterior (o

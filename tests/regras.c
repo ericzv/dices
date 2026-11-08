@@ -1595,6 +1595,33 @@ int main(void)
             limpa(); joga(0, D_D6, 6); F[0].fixo[1] = 3; joga(0, D_REVOLVER, 2); d = fim();
             CONFERE(d.total[0] == REVOLVER_TIRO && d.est[0][1] == V_ANULADO && poder_armado(0, 1) == 1,
                     "Revolver anulado na 4a: o tiro ja saiu, +12 no fim, deu %d", d.total[0]);
+            {   // A Dinamite: cada lance que nao cai nela poe +2 no pavio (ate 30), e a mesa mostra no pouso
+                int n0 = J[0].n_col, cresce = 0, fora = 0, nela = 0, mostra = 0;
+                J[0].col[n0] = nova_peca(D_D6);
+                ad_cola(&J[0].col[n0], 6, AD_DINAMITE);
+                J[0].n_col++;
+                for (int i = 0; i < 120; i++) {
+                    limpa(); primeiro = 0; vez = 0; n_pouso = 0; n_voo = 0;
+                    J[0].pavio[n0] = i % 10 == 9 ? DINAMITE_MAX : 0;     // de vez em quando, ja no teto
+                    int antes = J[0].pavio[n0];
+                    F[0].idx[0] = (int8_t)n0; F[0].tipo[0] = D_D6; F[0].n = 1;
+                    lanca_proximo();
+                    n_voo = 0;
+                    if (F[0].lado[0] == 6) { nela += J[0].pavio[n0] == antes && !pavio_mais[0][0]; continue; }
+                    fora++;
+                    int espera = antes + 2 > DINAMITE_MAX ? DINAMITE_MAX : antes + 2;
+                    cresce += J[0].pavio[n0] == espera && pavio_mais[0][0] == espera - antes;
+                    F[0].lancados = 1;
+                    adesivos_pousou(0, 0);
+                    mostra += espera > antes ? n_pouso == 1 && pouso_q[0].ad == AD_DINAMITE && pouso_q[0].n == 2 && pouso_dura(&pouso_q[0]) < 1
+                                             : n_pouso == 0;
+                    n_pouso = 0;
+                }
+                CONFERE(DINAMITE_CADA == 2 && fora > 60 && cresce == fora && mostra == fora && nela == 120 - fora,
+                        "Dinamite: +2 no pavio por lance fora dela e a mesa mostra (%d/%d/%d de %d)", cresce, mostra, nela, fora);
+                J[0].n_col--;
+                J[0].pavio[n0] = 0;
+            }
             {
                 int n0 = J[0].n_col;
                 J[0].col[n0] = (peca_t){ .tipo = D_REVOLVER, .fixo = 1 };
@@ -1608,6 +1635,23 @@ int main(void)
                 limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 3); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(d.total[0] == 3 + REVOLVER_TIRO && J[0].col[n0].fixo == 0, "Revolver: disparou e esvaziou (%d, %d)", d.total[0], J[0].col[n0].fixo);
+                // Disparou e alguem correu: o tambor esvazia do mesmo jeito (antes
+                // ficava cheio e disparava de novo no lance seguinte)
+                for (int quem = 0; quem < 2; quem++) {
+                    J[0].col[n0].fixo = 3;
+                    limpa(); F[0].fixo[0] = 3; joga_ad(0, n0, 3);
+                    CONFERE(revolver_dispara(F[0].fixo[0]), "Revolver: a 4a bala dispara");
+                    int pote0 = pote;
+                    pote = 10; vez = quem; fase = F_APOSTA;
+                    executa(OP_CORRER);
+                    CONFERE(fase == F_RESULTADO && J[0].col[n0].fixo == 0,
+                            "Revolver: disparou e %s correu, o tambor esvazia (%d)", quem ? "o oponente" : "ele mesmo", J[0].col[n0].fixo);
+                    pote = pote0;
+                }
+                J[0].col[n0].fixo = 1;
+                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 5);
+                { int pote0 = pote; pote = 10; vez = 1; fase = F_APOSTA; executa(OP_CORRER); pote = pote0; }
+                CONFERE(J[0].col[n0].fixo == 2, "Revolver: lancado e o oponente correu, carrega a bala (%d)", J[0].col[n0].fixo);
                 J[0].n_col--;
             }
             {
@@ -1769,37 +1813,37 @@ int main(void)
                 }
                 modo = m0;
             }
-            // O ciclo cosmico: na faixa de cima, valendo ou nao, evolui; valendo, o bonus.
+            // O ciclo cosmico: na faixa de cima, valendo, o bonus (evoluir, so terminando valendo).
             limpa(); joga(0, D_ASTRO, 4); d = fim();
-            CONFERE(d.total[0] == 4 && !F[0].evolui[0], "Estrela com 4: 4, sem evoluir (%d)", d.total[0]);
+            CONFERE(d.total[0] == 4 && !F[0].faixa[0], "Estrela com 4: 4, sem bonus (%d)", d.total[0]);
             limpa(); joga(0, D_ASTRO, 5); d = fim();
-            CONFERE(d.total[0] == 6 && F[0].evolui[0] && !strcmp(F[0].tag[0], "+1"), "Estrela com 5: 6, e evolui (%d)", d.total[0]);
+            CONFERE(d.total[0] == 6 && F[0].faixa[0] && !strcmp(F[0].tag[0], "+1"), "Estrela com 5: 6 (+1) (%d)", d.total[0]);
             limpa(); joga(0, D_CONSTELACAO, 5); d = fim();
-            CONFERE(d.total[0] == 5 && !F[0].evolui[0], "Constelacao com 5: 5 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 5 && !F[0].faixa[0], "Constelacao com 5: 5 (%d)", d.total[0]);
             limpa(); joga(0, D_CONSTELACAO, 6); d = fim();
-            CONFERE(d.total[0] == 9 && F[0].evolui[0], "Constelacao com 6: 9 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 9 && F[0].faixa[0], "Constelacao com 6: 9 (%d)", d.total[0]);
             limpa(); joga(0, D_GALAXIA, 8); d = fim();
-            CONFERE(d.total[0] == 8 && !F[0].evolui[0], "Galaxia com 8: 8 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 8 && !F[0].faixa[0], "Galaxia com 8: 8 (%d)", d.total[0]);
             limpa(); joga(0, D_GALAXIA, 9); d = fim();
-            CONFERE(d.total[0] == 14 && F[0].evolui[0], "Galaxia com 9: 14 (%d)", d.total[0]);
+            CONFERE(d.total[0] == 14 && F[0].faixa[0], "Galaxia com 9: 14 (%d)", d.total[0]);
             limpa(); joga(0, D_D12, 12); joga(0, D_ASTRO, 6); d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && F[0].evolui[1] && d.total[0] == 0, "Estrela anulada com 6: evolui sem pontuar (%d)", d.total[0]);
+            CONFERE(d.est[0][1] == V_ANULADO && F[0].faixa[1] && d.total[0] == 0, "Estrela anulada com 6: sem bonus (%d)", d.total[0]);
             // O Buraco Negro valendo, de 14 a 20: anula os seus vizinhos (os firmes ficam).
             limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 15); joga(0, D_D20, 18);
             CONFERE(poder_armado(0, 1) == 2, "Buraco Negro com 15: armado contra os seus");
             d = fim();
-            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 15 && F[0].evolui[1],
+            CONFERE(d.est[0][0] == V_ANULADO && d.est[0][2] == V_ANULADO && d.total[0] == 15 && F[0].faixa[1],
                     "Buraco Negro com 15: anula os dois vizinhos (%d)", d.total[0]);
             limpa(); joga(0, D_D6, 3); joga(0, D_BURACO, 13); joga(0, D_D20, 18); d = fim();
-            CONFERE(d.total[0] == 34 && !F[0].evolui[1], "Buraco Negro com 13: nada (%d)", d.total[0]);
+            CONFERE(d.total[0] == 34 && !F[0].faixa[1], "Buraco Negro com 13: nada (%d)", d.total[0]);
             limpa(); joga(0, D_TEIMOSO, 3); joga(0, D_BURACO, 16); d = fim();
             CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 19, "Buraco Negro: o Teimoso resiste (%d)", d.total[0]);
             limpa(); joga(0, D_D6, 2); joga(0, D_D20, 18); joga(0, D_BURACO, 15); d = fim();
-            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && F[0].evolui[2] && d.total[0] == 2,
-                    "Buraco Negro anulado: evolui, mas nao engole (%d)", d.total[0]);
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && F[0].faixa[2] && d.total[0] == 2,
+                    "Buraco Negro anulado: nao engole (%d)", d.total[0]);
             // O Universo: pontua o que tirou, sempre faz o Big Bang, nao cai nem e atacado.
             limpa(); joga(0, D_UNIVERSO, 77); d = fim();
-            CONFERE(d.total[0] == 77 && F[0].evolui[0], "Universo: 77 e Big Bang (%d)", d.total[0]);
+            CONFERE(d.total[0] == 77 && F[0].faixa[0], "Universo: 77 e Big Bang (%d)", d.total[0]);
             CONFERE(nao_anulavel_t(D_UNIVERSO) && nao_roubavel_t(D_UNIVERSO), "Universo: nao cai nem e roubado");
             limpa(); joga(0, D_UNIVERSO, 40); joga(1, D_LASER, 6); d = fim();
             CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 40, "Universo: o Laser nao alcanca (%d)", d.total[0]);
@@ -1817,17 +1861,29 @@ int main(void)
                 J[0].col[n0] = (peca_t){ .tipo = D_ASTRO };
                 ad_cola(&J[0].col[n0], 2, AD_CHUMBO);
                 J[0].n_col++;
-                limpa(); joga_ad(0, n0, 6); d = fim();
+                // Evolui quem termina a rodada valendo, tire o que tirar; anulado, fica.
+                limpa(); joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(J[0].col[n0].tipo == D_CONSTELACAO && J[0].col[n0].velcro && !ad_quantos(&J[0].col[n0]),
-                        "Estrela evolui: Constelacao, sem os adesivos, e volta para a mao");
+                        "Estrela valendo com 2: evolui (Constelacao, sem os adesivos, e volta para a mao)");
+                limpa(); joga(0, D_D12, 12); joga_ad(0, n0, 8); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.est[0][1] == V_ANULADO && J[0].col[n0].tipo == D_CONSTELACAO, "Constelacao anulada com 8: fica");
                 limpa(); joga_ad(0, n0, 3); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].tipo == D_CONSTELACAO, "Constelacao com 3: fica");
+                CONFERE(J[0].col[n0].tipo == D_GALAXIA, "Constelacao valendo com 3: evolui (Galaxia)");
+                // Anulada no fim, por um poder do oponente: tambem fica.
+                J[0].col[n0] = (peca_t){ .tipo = D_GALAXIA };
+                limpa(); joga_ad(0, n0, 4); joga(1, D_LASER, 6); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(d.est[0][0] == V_ANULADO && J[0].col[n0].tipo == D_GALAXIA, "Galaxia que o Laser derruba: fica");
                 J[0].col[n0] = (peca_t){ .tipo = D_BURACO };
                 limpa(); joga(0, D_D20, 20); joga_ad(0, n0, 14); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].tipo == D_UNIVERSO && J[0].col[n0].velcro, "Buraco Negro anulado com 14 tambem evolui");
+                CONFERE(J[0].col[n0].tipo == D_BURACO, "Buraco Negro anulado com 14: fica");
+                limpa(); joga_ad(0, n0, 2); d = fim();
+                contadores_ficam(0, &d);
+                CONFERE(J[0].col[n0].tipo == D_UNIVERSO && J[0].col[n0].velcro, "Buraco Negro valendo com 2: evolui");
                 limpa(); joga_ad(0, n0, 50); d = fim();
                 contadores_ficam(0, &d);
                 CONFERE(J[0].col[n0].tipo == D_ASTRO && !J[0].col[n0].velcro, "Big Bang: volta a ser Estrela, sem voltar para a mao");
@@ -1850,11 +1906,11 @@ int main(void)
             limpa(); F[0].tipo[0] = D_PANETONE; fatia(0, 0, sempre_dois);
             F[0].tipo[1] = D_D8; F[0].fruta[1] = 3; fatia(0, 1, sempre_dois);
             CONFERE(F[0].fruta[0] == 1 && F[0].fruta[1] == 0, "a fatia: r(4) - 1, so no Panetone");
-            // Pisca-pisca: aceso, x2; apagado, 0 (mas conta na sequencia); alterna a cada lance.
+            // Pisca-pisca: aceso, x2; apagado, um d4 comum; acende ou nao, meio a meio, ao vir para a mao.
             limpa(); joga(0, D_PISCA, 3); d = fim();
             CONFERE(d.total[0] == 6 && !strcmp(F[0].tag[0], "x2") && poder_armado(0, 0) == 1, "Pisca aceso: 6, deu %d", d.total[0]);
             limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 3); joga(0, D_D6, 5); d = fim();
-            CONFERE(d.total[0] == 5 && !strcmp(F[0].tag[0], "=0") && poder_armado(0, 0) == 0, "Pisca apagado: 0, deu %d", d.total[0]);
+            CONFERE(d.total[0] == 3 + 5 && !F[0].tag[0][0] && poder_armado(0, 0) == 0, "Pisca apagado: pontua o que tirou, deu %d", d.total[0]);
             limpa(); F[0].fixo[0] = 1; joga(0, D_PISCA, 4); joga(0, D_D4, 2); d = fim();
             CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO, "Pisca apagado ainda derruba quem tira menos");
             {
@@ -1863,11 +1919,19 @@ int main(void)
                 J[0].n_col++;
                 limpa(); joga(0, D_D6, 6); joga_ad(0, n0, 2); d = fim();
                 contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 1, "Pisca lancado (mesmo caido) apaga para a proxima");
-                limpa(); F[0].fixo[0] = 1; joga_ad(0, n0, 2); d = fim();
-                contadores_ficam(0, &d);
-                CONFERE(J[0].col[n0].fixo == 0, "e acende de novo");
+                CONFERE(J[0].col[n0].fixo == 0, "Pisca lancado nao alterna (%d)", J[0].col[n0].fixo);
                 J[0].n_col--;
+                // Na compra: so ele na bolsa, aceso mais ou menos metade das vezes.
+                jogador_t guarda = J[1];
+                int acesos = 0, N = 400;
+                for (int i = 0; i < N; i++) {
+                    J[1].n_col = 1; J[1].col[0] = (peca_t){ .tipo = D_PISCA, .fixo = (uint8_t)(i & 1) };
+                    J[1].onde[0] = NA_BOLSA; J[1].n_mao = 0;
+                    compra(&J[1]);
+                    acesos += J[1].n_mao == 1 && pisca_aceso(J[1].col[0].fixo);
+                }
+                CONFERE(acesos > N * 4 / 10 && acesos < N * 6 / 10, "Pisca: na compra, aceso meio a meio (%d de %d)", acesos, N);
+                J[1] = guarda;
             }
             // Meia na Lareira: anulada, guarda +2; valendo, paga tudo e esvazia.
             limpa(); F[0].fixo[0] = 6; joga(0, D_MEIA, 3); d = fim();
@@ -2108,28 +2172,29 @@ int main(void)
         joga(0, D_CHECKPOINT, 6);
         d = fim();
         CONFERE(d.total[0] == 6, "Checkpoint sozinho: esperava 6, deu %d", d.total[0]);
-        // Sorte/Reves: um d12 soma, um d8 tira; o dado vale a diferenca, ate
+        // Sorte/Reves: um d12 soma, um d4 tira; o dado vale a diferenca, ate
         // negativa, e o seguinte so precisa passar dela.
         {
             int menor;
-            lances_sr[0] = 12; lances_sr[1] = 5; li_sr = 0;
+            lances_sr[0] = 12; lances_sr[1] = 3; li_sr = 0;
             int x = sorteia_valor(D_SORTE_REVES, 0, rola_sr, &menor);
-            CONFERE(x == 7 && menor == 5, "Sorte/Reves 12 e 5: esperava 7 (reves 5), deu %d (%d)", x, menor);
+            CONFERE(x == 9 && menor == 3, "Sorte/Reves 12 e 3: esperava 9 (reves 3), deu %d (%d)", x, menor);
         }
+        CONFERE(SR_REVES == 4, "o Reves e um d4");
         limpa();
         joga(0, D_D4, 3);
-        F[0].descarte[1] = 5; joga(0, D_SORTE_REVES, 7);
-        CONFERE(F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "12-5"), "Sorte/Reves: etiqueta %s", F[0].tag[1]);
+        F[0].descarte[1] = 3; joga(0, D_SORTE_REVES, 9);
+        CONFERE(F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "12-3"), "Sorte/Reves: etiqueta %s", F[0].tag[1]);
         limpa();
-        F[0].descarte[0] = 8; joga(0, D_SORTE_REVES, -6);
+        F[0].descarte[0] = 4; joga(0, D_SORTE_REVES, -3);
         joga(0, D_D4, 1);
         d = fim();
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && d.bruto[0] == -5 && d.total[0] == 0,
-                "Sorte/Reves negativo: esperava bruto -5 e total 0, deu %d e %d", d.bruto[0], d.total[0]);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && d.bruto[0] == -2 && d.total[0] == 0,
+                "Sorte/Reves negativo: esperava bruto -2 e total 0, deu %d e %d", d.bruto[0], d.total[0]);
         limpa();
         joga(0, D_D6, 5);
         F[0].tipo[1] = D_SORTE_REVES; F[0].n = 2;
-        CONFERE(risco(0) == 70, "Sorte/Reves depois de um 5: esperava 70%% de cair, deu %d", risco(0));
+        CONFERE(risco(0) == 54, "Sorte/Reves depois de um 5: esperava 54%% de cair (26 de 48), deu %d", risco(0));
         // Prisma: +1 por tipo diferente valendo.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
@@ -2397,6 +2462,53 @@ int main(void)
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
+        // As opcoes e o estilo estragados: o padrao, uma copia a parte e o
+        // aviso, como os perfis. E a copia sai inteira mesmo quando o texto
+        // passa do espaco de leitura (um salvamento de uma versao mais nova).
+        {
+            static char longo[3000];
+            memset(longo, '7', sizeof longo - 1);
+            static const struct { const char *chave, *texto, *aviso; } OP[] = {
+                { "vel", "9", "velocidade" }, { "letra", "x", "letra" }, { "tremor", "01", "tremor" },
+                { "som", "a,b,c", "volumes" }, { "som", "4,99,4", "volumes" }, { "estilo1", "EST1z00", "estilo" },
+                { "estilo1", "EST1", "estilo" }, { "vel", longo, "velocidade" }, { "estilo1", longo, "estilo" },
+            };
+            for (int i = 0; i < (int)(sizeof OP / sizeof OP[0]); i++) {
+                memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+                salva_limpa_tudo();
+                salva_grava(OP[i].chave, OP[i].texto);
+                int vel0 = velocidade, f, m, me;
+                if (!strcmp(OP[i].chave, "som")) som_le_volumes();   // os volumes: so na primeira vez do dado_inicia
+                else if (!strcmp(OP[i].chave, "estilo1")) {
+                    estilo_le(0, &f, &m, &me);
+                    CONFERE(f == FT_VERDE && m == MAT_MARFIM && me == MS_NOGUEIRA, "estilo estragado %d: nao voltou ao padrao", i);
+                } else {
+                    rapido_lido = letra_lida = tremor_lido = false;
+                    dado_inicia(1);
+                    CONFERE(velocidade == vel0 && !gfx_letra_e_maior() && !tremor_off, "opcao estragada %d mudou alguma coisa", i);
+                }
+                char k[24];
+                snprintf(k, sizeof k, "%s_ruim", OP[i].chave);
+                static char c[4096];
+                CONFERE(salva_le(k, c, sizeof c) == (int)strlen(OP[i].texto) && !strcmp(c, OP[i].texto) && t_aviso_salvo > 0
+                        && strstr(aviso_salvo, OP[i].aviso), "salvamento estragado %d (%s): sem copia inteira ou sem aviso", i, OP[i].chave);
+            }
+            // As boas abrem sem aviso nenhum.
+            memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+            salva_limpa_tudo();
+            salva_grava("vel", "1"); salva_grava("letra", "0"); salva_grava("tremor", "1"); salva_grava("som", "10,10,10");
+            salva_grava("estilo1", "EST1000");
+            rapido_lido = letra_lida = tremor_lido = false;
+            dado_inicia(1);
+            som_le_volumes();
+            int f, m, me;
+            estilo_le(0, &f, &m, &me);
+            CONFERE(t_aviso_salvo <= 0 && salva_le("vel_ruim", longo, sizeof longo) == 0, "opcoes boas deram aviso: %s", aviso_salvo);
+            salva_limpa_tudo();
+            rapido_lido = letra_lida = tremor_lido = false;
+            dado_inicia(1);
+            t_aviso_salvo = 0;
+        }
         modo = modo_antes;
     }
 
@@ -3170,7 +3282,7 @@ int main(void)
             CONFERE(des_carrega(&rr2) && rr2.andar == DES_ANDAR_FINAL, "o salao do Coringa devia ficar salvo");
             run.no[0].semente = 4242;
             des_comeca_partida();
-            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 1),
+            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 0),
                     "Coringa: trunfo %d, nivel %d", reg_op, nivel_jog[1]);
             int fracos = 0, bons = 0, fechados = 0;   // a bolsa dele: sem dados de saida, so do tema
             for (int i = 0; i < J[1].n_col; i++) {
@@ -3572,10 +3684,24 @@ int main(void)
             l = lanca_peca(D_PREVISIVEL, 1, &prev, sempre_tres);
             CONFERE(!l.reflete && l.x == 2, "Previsivel no 2, sem Reflexivo: %d", l.x);
         }
+        // O Vazio tem um lado so (o do 0): cai sempre nele; o Remendo ali vale sempre 2.
         peca_t vazio = { .tipo = D_VAZIO };
-        ad_cola(&vazio, 3, AD_REMENDO);
-        x = sorteia_peca(D_VAZIO, 0, &vazio, sempre_tres, &menor, &lado, &antes);
-        CONFERE(x == 2 && lado == 3, "o Vazio com Remendo no lado 3: %d (lado %d)", x, lado);
+        CONFERE(ad_lado_min(D_VAZIO) == 1 && ad_lado_max(D_VAZIO) == 1 && ad_livres(&vazio) == 1 && lado_mostra(D_VAZIO, 1) == 0
+                && lado_do_lance(D_VAZIO, 5, 0) == 1, "o Vazio tem um lado so, o 0");
+        ad_cola(&vazio, 1, AD_REMENDO);
+        int vz = 0;
+        for (int i = 0; i < 60; i++) { x = sorteia_peca(D_VAZIO, 0, &vazio, rola, &menor, &lado, &antes); vz += x == 2 && lado == 1; }
+        CONFERE(vz == 60 && !ad_cabe(&vazio), "o Vazio com Remendo: sempre 2, sempre no lado dele (%d de 60)", vz);
+        {   // e o adesivo dele age em todo lance (o Confete, valendo)
+            int n0 = J[0].n_col;
+            J[0].col[n0] = (peca_t){ .tipo = D_VAZIO };
+            ad_cola(&J[0].col[n0], 1, AD_CONFETE);
+            J[0].n_col++;
+            limpa(); joga_ad(0, n0, 0); desfecho_t dv = fim();
+            CONFERE(F[0].lado[0] == 1 && ad_fila(0, 0) == AD_CONFETE && dv.total[0] > 0,
+                    "o Vazio: o adesivo do lado dele age (lado %d, total %d)", F[0].lado[0], dv.total[0]);
+            J[0].n_col--;
+        }
         x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);
         lances_sr[0] = 9; lances_sr[1] = 4; li_sr = 0;
         x = sorteia_peca(D_SORTE_REVES, 0, NULL, rola_sr, &menor, &lado, &antes);
@@ -3598,7 +3724,8 @@ int main(void)
         CONFERE(!ad_cabe_o(&d6, AD_CHUMBO) && ad_cabe_o(&d6, AD_CONFETE) && ad_conta(&d6, AD_CHUMBO) == 2,
                 "no maximo dois Chumbos por dado");
 
-        // A fila: o Transparente segura a queda; o lado que conta e o de cima no fim.
+        // A fila: a sequencia nao ve o dado no lado do Transparente (como a Ponte);
+        // o lado que conta e o de cima no fim.
         // (Na partida rapida: sem amuletos nem trunfos no meio da conta.)
         modo = M_UM;
         memset(J, 0, sizeof J);
@@ -3609,8 +3736,24 @@ int main(void)
         limpa();
         joga_ad(0, 0, 5);
         joga_ad(0, 1, 2);
-        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO, "o Transparente no 2 nao cai (cai o 5): %d %d", F[0].est[0], F[0].est[1]);
-        // O Trevo com 4 que o Transparente segura vale 12, e a etiqueta diz.
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_VALIDO, "o Transparente no 2: nem cai nem derruba o 5: %d %d", F[0].est[0], F[0].est[1]);
+        joga(0, D_D6, 4);                          // o seguinte compara com o 5, de antes dele
+        CONFERE(F[0].est[2] == V_ANULADO && F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO,
+                "depois do Transparente, o 4 compara com o 5 e cai com ele: %d %d %d", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(risco(0) >= 0, "risco depois do Transparente");
+        limpa();
+        joga_ad(0, 0, 5);
+        joga_ad(0, 1, 2);
+        joga(1, D_LASER, 6);
+        {
+            desfecho_t dl = fim();
+            CONFERE(dl.est[0][1] == V_ANULADO, "o Transparente nao protege de outro dado: o Laser derruba (%d)", dl.est[0][1]);
+        }
+        limpa();
+        joga_ad(0, 0, 5);
+        F[0].n = 2; F[0].idx[1] = 1; F[0].tipo[1] = D_D6;   // o proximo: o d6 com o Transparente no 2
+        CONFERE(risco(0) == 50, "o d6 contra o 5: cai no 1, 3 e 4 (o 2 e o Transparente): risco %d", risco(0));
+        // O Trevo com 4 no lado do Transparente: a sequencia nao o ve, vale 12, e a etiqueta diz.
         J[0].col[3] = (peca_t){ .tipo = D_TREVO };
         ad_cola(&J[0].col[3], lado_do_lance(D_TREVO, 4, 0), AD_TRANSPARENTE);
         limpa();
@@ -3618,9 +3761,9 @@ int main(void)
         joga_ad(0, 3, 4);
         {
             desfecho_t dt = fim();
-            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_ANULADO && dt.total[0] == 12
+            CONFERE(F[0].est[1] == V_VALIDO && F[0].est[0] == V_VALIDO && dt.total[0] == 17
                     && !strcmp(F[0].tag[1], "=12") && !strcmp(F[0].tag_num[1], "=12"),
-                    "o Trevo com 4 seguro pelo Transparente: vale 12 e mostra =12 (%d, tag %s)", dt.total[0], F[0].tag[1]);
+                    "o Trevo com 4 no Transparente: 5 + 12 e mostra =12 (%d, tag %s)", dt.total[0], F[0].tag[1]);
         }
         J[0].col[2] = (peca_t){ .tipo = D_GEMEO };
         ad_cola(&J[0].col[2], 2, AD_CONFETE);

@@ -78,7 +78,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define SENTINELA_PTS 2           // a Sentinela que cai pela sequencia: o de antes, que ela protegeu, ganha isto
 #define TREVO_SORTE 12            // o 4 do Trevo (era 10)
 #define COPIADOR_CADA 4           // o Copiador, em cada dado igual
-#define SR_REVES 8                // o Reves: um d8 (o risco e a graca do dado)
+#define SR_REVES 4                // o Reves: um d4 (o risco e a graca do dado)
 #define SEMENTE_BROTA 12          // a Semente brota com os seus validos somando isto ou mais
 #define SEMENTE_PTS   6           // e o que ela paga, fora de qualquer multiplicador
 // O teto do bonus que o Acumulador guarda, e o da Autofagia.
@@ -146,7 +146,9 @@ static int previsivel_valor(int fixo) { int v = fixo + PREVISIVEL_COMECA; return
 #define ASSOMBRA_FANTASMAS 2
 #define ASSOMBRA_PTS 2            // a Assombracao valendo: o susto tira isto do oponente
 static bool cosmico(int t) { return t >= D_ASTRO && t <= D_UNIVERSO; }
-// O que ele vira, e a partir de que numero (o Universo: sempre, no Big Bang).
+// O que ele vira (evolui quando termina a rodada valendo; o Universo, que
+// nunca cai, sempre: o Big Bang). E a faixa de cima de cada um, a partir da
+// qual o lance ganha o bonus do estagio (o Buraco Negro: engole os vizinhos).
 static int cosmo_proximo(int t) { return t == D_UNIVERSO ? D_ASTRO : t + 1; }
 static int cosmo_faixa(int t)
 {
@@ -158,7 +160,7 @@ static int cosmo_faixa(int t)
     default:            return 1;
     }
 }
-static bool cosmo_evolui(int t, int v) { return cosmico(t) && v >= cosmo_faixa(t); }
+static bool cosmo_na_faixa(int t, int v) { return cosmico(t) && v >= cosmo_faixa(t); }
 static int cosmo_bonus(int t) { return t == D_ASTRO ? COSMO_ESTRELA : t == D_CONSTELACAO ? COSMO_CONSTELACAO : t == D_GALAXIA ? COSMO_GALAXIA : 0; }
 // A epoca do Natal (20 de outubro a 6 de janeiro): o feltro Natalino abre e os dados
 // de Natal entram no jogo (util.inc le o relogio no comeco de cada partida).
@@ -273,7 +275,7 @@ static const tipo_t TIPO[D_N] = {
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
-    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d8 subtrai" },
+    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d4 subtrai" },
     { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo igual: +3; um a mais: +2; dois: +1" },
@@ -316,15 +318,15 @@ static const tipo_t TIPO[D_N] = {
     { "Três Patinhos",    4, EF_PATINHOS,     RAR_INCOMUM,  0, "A cada 3 vezes que é lançado: x3" },
     { "Presente",         6, EF_PRESENTE,     RAR_INCOMUM,  0, "Lançado: vira de vez um dado raro ou especial" },
     { "Panetone",         8, EF_PANETONE,     RAR_INCOMUM,  0, "Cada fatia: +0 a +3 de frutas" },
-    { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Uma vez aceso (x2), outra apagado (0)" },
+    { "Pisca-pisca",      4, EF_PISCA,        RAR_COMUM,    0, "Aceso: x2 · apagado: um d4 comum" },
     { "Meia na Lareira",  4, EF_MEIA,         RAR_INCOMUM,  0, "Anulada: guarda +4 · válida: paga tudo" },
     { "Estrela de Belém", 8, EF_ESTRELA,      RAR_RARO,     0, "Por último: +2 por dado válido abaixo" },
     { "Rena",             6, EF_RENA,         RAR_COMUM,    0, "+1 nos dados válidos ao lado dela" },
     { "Revólver",         6, EF_REVOLVER,     RAR_INCOMUM,  0, "Carrega 1 bala por lance · na 4ª: +12" },
-    { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "5 ou 6: +1, e evolui" },
-    { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "6 a 8: +3, e evolui" },
-    { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "9 a 12: +5, e evolui" },
-    { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "14 a 20: anula os vizinhos, e evolui" },
+    { "Estrela",          6, EF_ASTRO,        RAR_INCOMUM,  0, "Termina válida: evolui · 5 ou 6: +1" },
+    { "Constelação",      8, EF_CONSTELACAO,  RAR_INCOMUM,  0, "Termina válida: evolui · 6 a 8: +3" },
+    { "Galáxia",         12, EF_GALAXIA,      RAR_RARO,     0, "Termina válida: evolui · 9 a 12: +5" },
+    { "Buraco Negro",    20, EF_BURACO,       RAR_RARO,     0, "Termina válido: evolui · 14 a 20: anula os vizinhos" },
     { "Universo",       100, EF_UNIVERSO,     RAR_LENDA,    0, "Só vai sozinho · nada interfere nele" },
     { "Ficha Coringa",    2, EF_FICHA_CORINGA, RAR_LENDA,   0, "No fim, vira o último dado do oponente" },
     { "Terremoto",        8, EF_TERREMOTO,    RAR_RARO,     0, "Com 7 ou 8: rola de novo o último dado do oponente" },
@@ -410,7 +412,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
-    [D_SORTE_REVES]     = "Rola um d12 que soma e um d8 que subtrai. Pontua a diferença, até negativa.",
+    [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
     [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
     [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",
@@ -455,15 +457,15 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PATINHOS]        = "Na 3ª, 6ª, 9ª... vez que é lançado, pontua x3 se ficar válido. Os patinhos marcam a contagem.",
     [D_PRESENTE]        = "Ao ser lançado, desembrulha e vira um dado raro ou especial ao acaso, que fica no lugar dele na bolsa.",
     [D_PANETONE]        = "Cada vez que é lançado, a fatia vem com 0 a 3 frutas: +0 a +3 no que tirou.",
-    [D_PISCA]           = "Lançado aceso, pontua x2; na vez seguinte, apagado, pontua 0. O dado mostra como vem.",
+    [D_PISCA]           = "Cada vez que vem para a mão, acende ou não, meio a meio. Aceso, pontua x2; apagado, pontua o que tirou.",
     [D_MEIA]            = "Cada vez que termina anulada, guarda +4. Válida, paga tudo o que guardou e esvazia.",
     [D_ESTRELA]         = "Se terminar válida como o último dado lançado, +2 por dado válido abaixo dela.",
     [D_RENA]            = "Se terminar válida, os dados válidos logo antes e logo depois dela pontuam +1.",
     [D_REVOLVER]        = "Cada vez que é lançado, valendo ou não, carrega uma bala. Na 4ª vez, o tambor cheio dispara: +12, e esvazia.",
-    [D_ASTRO]           = "Tirando 5 ou 6, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +1.",
-    [D_CONSTELACAO]     = "Tirando 6, 7 ou 8, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +3.",
-    [D_GALAXIA]         = "Tirando de 9 a 12, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, +5.",
-    [D_BURACO]          = "Tirando de 14 a 20, evolui, valendo ou não, e volta para a sua mão na rodada seguinte. Valendo, anula os seus dados ao lado dele.",
+    [D_ASTRO]           = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando 5 ou 6, valendo, +1.",
+    [D_CONSTELACAO]     = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando 6, 7 ou 8, valendo, +3.",
+    [D_GALAXIA]         = "Terminando a rodada válida, evolui e volta para a sua mão na rodada seguinte. Tirando de 9 a 12, valendo, +5.",
+    [D_BURACO]          = "Terminando a rodada válido, evolui e volta para a sua mão na rodada seguinte. Tirando de 14 a 20, valendo, anula os seus dados ao lado dele.",
     [D_UNIVERSO]        = "Só pode ser lançado sozinho. Nada interfere nele: pontua exatamente o que tirar.",
     [D_FICHA_CORINGA]   = "Fica fora da sequência até o fim da rodada; então vira o último dado válido do oponente (sem nenhum, é anulada).",
     [D_TERREMOTO]       = "Se terminar válido com 7 ou 8, no fim rola de novo o último dado válido do oponente.",
@@ -644,8 +646,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "dado anterior.",
     [D_SACRIFICIO]      = "Quatro lados, mas não pontua. Se terminar válido, no fim da rodada o seu dado válido de menor "
                           "número, entre os que pontuam, pontua x2.",
-    [D_VAZIO]           = "Seis lados, mas pontua sempre 0. Nunca é anulado e nunca anula o dado anterior, por maior que ele "
-                          "seja: depois dele, qualquer número é válido. Pode ser roubado.",
+    [D_VAZIO]           = "Um lado só, o 0: cai sempre nele, e o adesivo colado ali age em todo lance. Pontua sempre 0. "
+                          "Nunca é anulado e nunca anula o dado anterior, por maior que ele seja: depois dele, qualquer "
+                          "número é válido. Pode ser roubado.",
     [D_MEDIA]           = "Quatro lados. Se terminar válido, ganha no fim da rodada um bônus igual ao total dos seus dados "
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
@@ -688,9 +691,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "outubro a 6 de janeiro.",
     [D_PANETONE]        = "Oito lados. Cada vez que é lançado, a fatia vem com 0, 1, 2 ou 3 frutas cristalizadas, ao acaso: "
                           "esse bônus soma no que ele tirou, se terminar válido. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_PISCA]           = "Quatro lados. Alterna a cada vez que é lançado: aceso, pontua x2; apagado, pontua 0 (mas conta "
-                          "na sequência com o número que tirou). As luzinhas no dado mostram como ele vem na próxima vez. "
-                          "Só aparece de 20 de outubro a 6 de janeiro.",
+    [D_PISCA]           = "Quatro lados. Cada vez que vem da bolsa para a mão, acende ou não, com a mesma chance. Aceso, "
+                          "pontua x2; apagado, pontua o número que tirou, como um d4 comum. As luzinhas no dado mostram "
+                          "como ele veio. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_MEIA]            = "Quatro lados. Cada vez que termina a rodada anulada, guarda +4 na meia. Quando termina válida, "
                           "paga tudo o que guardou no fim da rodada, fora dos multiplicadores, e esvazia. Só aparece de "
                           "20 de outubro a 6 de janeiro.",
@@ -703,16 +706,16 @@ static const char *TEXTO_CAT[D_N] = {
                           "balas aparecem no dado). Na quarta vez, com o tambor cheio, dispara: +12 - somado no que tirou, "
                           "se ficar válido; anulado, o tiro já saiu e os +12 vêm no fim da rodada. Depois o tambor esvazia "
                           "para a próxima volta. As balas ficam com ele.",
-    [D_ASTRO]           = "Seis lados. Tirando 5 ou 6, evolui, valendo ou não: na rodada seguinte, volta para a sua mão "
-                          "(e os adesivos dela caem). Se ficar válida, ainda pontua +1 no que tirou. A cada partida, "
-                          "recomeça como Estrela.",
-    [D_CONSTELACAO]     = "Oito lados. Tirando 6, 7 ou 8, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
-    [D_GALAXIA]         = "Doze lados. Tirando de 9 a 12, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
-    [D_BURACO]          = "Vinte lados. Tirando de 14 a 20, evolui, valendo ou não: na rodada seguinte, volta para a sua mão. "
-                          "Se ficar válido, no fim da rodada ainda anula os seus dados lançados logo antes e logo depois "
-                          "dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
+    [D_ASTRO]           = "Seis lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão "
+                          "(e os adesivos dela caem). Tirando 5 ou 6 e ficando válida, ainda pontua +1 no que tirou. "
+                          "A cada partida, recomeça como Estrela.",
+    [D_CONSTELACAO]     = "Oito lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando 6, 7 ou 8 e ficando válida, ainda pontua +3 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_GALAXIA]         = "Doze lados. Se terminar a rodada válida, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando de 9 a 12 e ficando válida, ainda pontua +5 no que tirou. A cada partida, recomeça como Estrela.",
+    [D_BURACO]          = "Vinte lados. Se terminar a rodada válido, evolui: na rodada seguinte, volta para a sua mão. "
+                          "Tirando de 14 a 20 e ficando válido, no fim da rodada ainda anula os seus dados lançados logo antes "
+                          "e logo depois dele (os que não caem, ficam). A cada partida, recomeça como Estrela.",
     [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Nada interfere nele: "
                           "nenhum dado, adesivo, amuleto ou trunfo, seu ou do oponente, o anula, rouba, copia ou muda o que "
                           "ele tira. A cada partida, recomeça como Estrela.",
@@ -920,18 +923,18 @@ static const visual_t VISUAL[D_N] = {
     [D_EGOISTA]    = { V_AMEIXA,  V_AMEIXA, 18, V_OURO, 55 },
     [D_LASER]      = { V_LIMA,    V_CHUMBO, 34, V_LIMA, 60 },
     [D_VENTANIA]   = { V_CEU,     V_CEU, 35,    V_NOITE, 45 },
-    [D_MISERICORDIOSO] = { V_PRATA, V_PRATA, 20, V_LATAO, 100 },
+    [D_MISERICORDIOSO] = { V_PRATA, V_PRATA, 20, V_CEU, 100,    V_OURO, 100,   V_CHUMBO, 100 },
     [D_SOLITARIO]  = { V_NOITE,   V_NOITE, 40,  RGB(246, 222, 132), 100, V_CEU, 100, RGB(30, 40, 70), 100 },
-    [D_SENTINELA]  = { V_TERRA,   V_PEDRA, 46,  V_BARRO, 35,    V_BRANCO, 18 },
-    [D_FERREIRO]   = { V_FERRO,   V_FERRO, 30,  V_BREU, 22 },
+    [D_SENTINELA]  = { V_TERRA,   V_PEDRA, 52,  V_PEDRA, 100,   V_BRANCO, 100, V_BARRO, 100 },
+    [D_FERREIRO]   = { V_FERRO,   V_CHUMBO, 45, V_FERRO, 100,   V_FOGO, 100,   V_AMBAR, 100 },
     [D_COBRADOR]   = { V_TERRA,   V_TERRA, 16,  V_TERRA, 35,    V_VINHO, 45 },
     [D_DESAFIANTE] = { V_VERM,    0, 0,         V_OURO, 100,    V_VERM, 100,   V_SANGUE, 100 },
     [D_VIDRO]      = { V_CEU,     V_CEU, 52,    V_BRANCO, 85 },
     [D_ACUMULADOR] = { V_AMBAR,   V_AMBAR, 20 }, // as seis casas vem por cima
     [D_SEGURANCA]  = { V_NOITE,   0, 0,         V_AZUL, 50 },
-    [D_BUMERANGUE] = { V_TERRA,   V_TERRA, 18,  V_COURO, 55 },
-    [D_GEMEO]      = { V_AGUA,    0, 0,         V_AGUA, 50 },
-    [D_PRISMA]     = { V_LILAS,   0, 0,         V_ROSA, 45,     V_OURO, 45,    V_NOITE, 45 },
+    [D_BUMERANGUE] = { V_TERRA,   V_TRIGO, 25,  V_TRIGO, 100,   RGB(238, 230, 212), 100, V_OURO, 100 },
+    [D_GEMEO]      = { V_AGUA,    0, 0,         V_AGUA, 100 },
+    [D_PRISMA]     = { V_LILAS,   V_LILAS, 18,  V_VERM, 100,    V_OURO, 100,   V_NOITE, 100 },
     [D_FENIX]      = { V_FOGO,    V_FOGO, 14,   V_AMBAR, 60,    V_FOGO, 60 },
     [D_TRONO]      = { V_OURO,    V_AMEIXA, 18, V_OURO, 65 },
     [D_CAVALO]     = { V_TERRA,   V_TERRA, 30,  V_MADEIRA, 40 },
@@ -975,7 +978,7 @@ static const visual_t VISUAL[D_N] = {
     [D_SANGUESSUGA] = { V_VERDE,  V_VERDE, 16,  V_VERDE, 100,   V_AMBAR, 100,  V_SANGUE, 100 }, // o corpo, as pintas e o sangue
     [D_TRENO]      = { V_VERM,    V_VERM, 16,   V_VERM, 100,    V_OURO, 100,   V_VERDE, 100 },
     [D_BONECO]     = { V_CEU,     V_BRANCO, 100 }, // a neve, a cara e o cachecol vem do corpo (neve_boneco)
-    [D_JINGLE]     = { V_OURO,    V_OURO, 12,   V_OURO, 100,    V_LATAO_E, 100, V_VERM, 80 },
+    [D_JINGLE]     = { V_OURO,    V_OURO, 30,   V_OURO, 100,    V_LATAO_E, 100, V_VERM, 100 },
     [D_FURIA]      = { V_FOGO,    V_SANGUE, 16, V_FOGO, 95,     V_AMBAR, 100,  V_BREU, 85 },
     [D_ONDA]       = { V_CIANO,   V_CEU, 14,    RGB(44, 78, 136), 100, RGB(96, 160, 200), 100, V_BRANCO, 100 },   // a agua da Tsunami
     [D_TSUNAMI]    = { V_AZUL,    V_AZUL, 0,    RGB(30, 52, 100), 100, RGB(96, 160, 200), 100, V_BRANCO, 100 },

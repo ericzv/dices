@@ -82,6 +82,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_PIAO] = "piao", [SOM_GELATINA] = "gelatina", [SOM_MATRIOSKA] = "matrioska", [SOM_BALAO] = "balao",
     [SOM_LEQUE] = "leque", [SOM_PAPAGAIO] = "papagaio", [SOM_RETRATO] = "retrato", [SOM_ESTILINGUE] = "estilingue",
     [SOM_AD_COLEIRA] = "ad_coleira", [SOM_AD_TIQUETE] = "ad_tiquete",
+    [SOM_CONTA] = "conta", [SOM_TUDO_NADA] = "tudo_nada", [SOM_TUDO_NADA_PERDE] = "tudo_nada_perde",
+    [SOM_SENTINELA] = "sentinela", [SOM_AGIOTA] = "agiota", [SOM_OCULTO] = "oculto", [SOM_ESPINHOSO] = "espinhoso", [SOM_PAVIO] = "pavio",
 };
 
 typedef struct {
@@ -98,6 +100,7 @@ static int   chefe_qual = -1;              // o som_chefe de agora
 static bool  chefe_toca;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 #define VOL_TRILHA 0.35f                     // a trilha no volume 10
+#define VOL_BATUCADA 0.708f                  // a batucada do chefe 3 dB abaixo da trilha: as tres juntas nao estouram
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
 // A trilha e a batucada ficam na memoria desde o comeco; a voz e a do chefe
@@ -334,7 +337,7 @@ void som_atualiza(float dt)
     if (v_voz < 0.001f && alvo_voz == 0) v_voz = 0;
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
     cam_alvo[CAM_TRILHA] = m * duck;
-    cam_alvo[CAM_CHEFE] = m * duck * v_chefe;
+    cam_alvo[CAM_CHEFE] = m * duck * v_chefe * VOL_BATUCADA;
     cam_alvo[CAM_VOZ] = m * duck * v_voz;
 }
 

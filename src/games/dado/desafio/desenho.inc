@@ -807,15 +807,17 @@ static void desenha_bolsa_run(void)
         if (idx == cursor) gfx_disco(x, y, 14, C_LATAO);
         desenha_amuleto(x, y, 11, a, false);
         zona_clique(x - 12, y - 12, 24, 24, &cursor, idx, 0);
-        if (idx == cursor) {
-            txt_c(GFX_W / 2, 262, AMULETO[a].nome, AMULETO[a].cor, true);
-            txt_c(GFX_W / 2, 262 + TXT_H + 2, AMULETO[a].desc, C_MARFIM_S, false);
+        if (idx == cursor) {                        // em duas linhas, o nome sobe para nao ficar por baixo delas
+            int yn = 262 - (txt_quebra(AMULETO[a].desc, LARG_TEXTO) ? txt_passo() / 2 + 2 : 0);
+            txt_c(GFX_W / 2, yn, AMULETO[a].nome, AMULETO[a].cor, true);
+            txt_c_duas(GFX_W / 2, 262 + TXT_H + 2, AMULETO[a].desc, C_MARFIM_S, LARG_TEXTO);
         }
         na++;
     }
     if (run.n_col && cursor < run.n_col) {
         bool tem = ad_quantos(&run.col[cursor]) > 0;      // com adesivos: uma linha deles embaixo
-        dado_e_poder(tem ? 252 : 262, run.col[cursor].tipo, true);
+        int y = !tem ? 262 : txt_quebra(TEXTO_MEDIO[run.col[cursor].tipo], LARG_TEXTO) ? 252 - txt_passo() / 2 : 252;
+        dado_e_poder(y, run.col[cursor].tipo, true);
         if (tem) ad_linha(GFX_W / 2, 294, &run.col[cursor], run.col, run.n_col);
     }
     rodape_run("setas escolhem  ·  I detalhes  ·  TAB volta ao mapa");
@@ -1147,7 +1149,8 @@ static void nome_na_coluna(int cx, int y, const char *s, int w, uint16_t c)
 static void desenha_fim_partida_run(void)
 {
     int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
-    int alto = 150 + (venc_partida == 0 && des_marco >= 0 ? 18 : 0) + (venc_partida == 0 && des_presente >= 0 ? 18 : 0);
+    int alto = 150 + (venc_partida == 0 && des_marco >= 0 ? 18 : 0) + (venc_partida == 0 && des_presente >= 0 ? 18 : 0)
+             + (venc_partida == 1 && des_primeira_derrota ? 30 : 0);
     painel(C0 - 70, alto, FIM_PAINEL_W);
     // O oponente, grande, na margem a esquerda do painel (o da faixa sai
     // nesta tela: e o mesmo), com o nome embaixo, sem passar do painel.
@@ -1191,7 +1194,20 @@ static void desenha_fim_partida_run(void)
         txt_c(GFX_W / 2, C0 + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
                                      : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
                                                          : "A run termina aqui.", C_MARFIM, true);
-        teclas_c(GFX_W / 2, C0 + 46, "ENTER segue", C_MARFIM_S);
+        int yt = C0 + 46;
+        if (venc_partida == 1 && des_primeira_derrota) {   // a 1a derrota: o motivo e uma dica
+            char m[96];
+            if (fim_motivo == FM_FICHAS)
+                snprintf(m, sizeof m, "Faltaram fichas para a entrada da %dª rodada.", fim_rodada);
+            else snprintf(m, sizeof m, "As %d rodadas acabaram com você atrás: %d fichas contra %d.",
+                          DES_RODADAS, J[0].fichas, J[1].fichas);
+            txt_c(GFX_W / 2, C0 + 24, m, C_MARFIM_S, false);
+            const char *d = "Dica: sequências maiores pontuam mais. Cabem até 4 dados.";
+            int f = gfx_largura(d, GFX_FINO) <= FIM_PAINEL_W - 24 ? GFX_FINO : GFX_MIUDO;
+            gfx_texto(GFX_W / 2 - gfx_largura(d, f) / 2, C0 + 42 + (f == GFX_MIUDO ? 3 : 0), d, C_OURO, f, false);
+            yt += 30;
+        }
+        teclas_c(GFX_W / 2, yt, "ENTER segue", C_MARFIM_S);
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];

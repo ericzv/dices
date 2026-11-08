@@ -86,6 +86,14 @@ enum {
     SOM_ESTILINGUE,  // o Estilingue: a borracha esticando, o estalo e a pedra zunindo
     SOM_AD_COLEIRA,  // a Coleira: o sininho do pingente, o tranco e um latido curto
     SOM_AD_TIQUETE,  // o Tiquete de Metro: o bip da catraca e ela girando
+    SOM_CONTA,       // o placar contando no fim da rodada (e o combo): um clique de contador
+    SOM_TUDO_NADA,   // Tudo ou Nada deu 2: a moeda gira, cai e vem o tudo
+    SOM_TUDO_NADA_PERDE, // Tudo ou Nada deu 1: a moeda gira, cai e vem o nada
+    SOM_SENTINELA,   // a Sentinela cai protegendo: o escudo e o toque da trompa
+    SOM_AGIOTA,      // o Agiota cobrando: o carimbo, tres fichas e o caixa
+    SOM_OCULTO,      // o Oculto mostrando o numero: o pano puxado e a celesta
+    SOM_ESPINHOSO,   // o Espinhoso espetando: tres espetadas e o ai grave
+    SOM_PAVIO,       // a Dinamite que nao saiu: o pavio cresce (chiado curto e um tilintar)
     SOM_N
 };
 

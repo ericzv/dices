@@ -25,12 +25,19 @@ static bool estilo_aberto(int i, int andar)
 }
 
 // A escolha guardada do perfil i; o que nao estiver aberto volta ao padrao.
+// Estragada (ou de uma versao mais nova, com mais feltros): o padrao, uma
+// copia a parte e o aviso.
 static void estilo_le(int i, int *feltro, int *mat, int *mesa_id)
 {
     *feltro = FT_VERDE; *mat = MAT_MARFIM; *mesa_id = MS_NOGUEIRA;
-    char b[16];
-    if (i < 0 || salva_le(chave_estilo(i), b, (int)sizeof b) != 7 || memcmp(b, "EST1", 4)) return;
+    char b[16] = { 0 };
+    int n = i < 0 ? 0 : salva_le(chave_estilo(i), b, (int)sizeof b);
+    if (n <= 0) return;
     int f = b[4] - '0', m = b[5] - '0', s = b[6] - '0';
+    if (n != 7 || memcmp(b, "EST1", 4) || f < 0 || f >= FT_N || m < 0 || m >= MAT_N || s < 0 || s >= MS_N) {
+        salvo_estragado(chave_estilo(i), b, "O estilo salvo deste perfil não abriu: uma cópia ficou guardada à parte.");
+        return;
+    }
     if (f >= 0 && f < FT_N && estilo_aberto(i, ABRE_FELTRO[f])) *feltro = f;
     if (m >= 0 && m < MAT_N && estilo_aberto(i, ABRE_MATERIAL[m])) *mat = m;
     if (s >= 0 && s < MS_N && estilo_aberto(i, ABRE_MESA[s])) *mesa_id = s;

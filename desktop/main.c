@@ -199,11 +199,12 @@ static void le_controles(void)
     };
     static float segura[CONTROLES][4];        // ha quanto tempo cada direcao esta apertada
     static float proxima[CONTROLES][4];       // quando ela repete
+    static bool ligado[CONTROLES];            // ja estava ligado no quadro anterior
     int ligados = 0;
     for (int g = 0; g < CONTROLES; g++) ligados += IsGamepadAvailable(g);
     float dt = GetFrameTime();
     for (int g = 0; g < CONTROLES; g++) {
-        if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); continue; }
+        if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); ligado[g] = false; continue; }
         int vez = ligados > 1 ? dado_vez_do_controle() : -1;
         bool outro = vez >= 0 && vez != g;    // a vez e do outro controle
         const char *nome = GetGamepadName(g);
@@ -211,6 +212,9 @@ static void le_controles(void)
         if (nome && (strstr(nome, "PS") || strstr(nome, "Sony") || strstr(nome, "DualS") || strstr(nome, "PLAYSTATION")
                      || strstr(nome, "054c") || !strcmp(nome, "Wireless Controller")))
             estilo = CONTROLE_PS;
+        // Ligou agora (ou ja estava ligado ao abrir o jogo): as dicas mostram
+        // os botoes dele desde ja, sem esperar o primeiro botao.
+        if (!ligado[g]) { ligado[g] = true; dado_controle(estilo); }
         for (unsigned i = 0; i < sizeof BOTAO / sizeof BOTAO[0]; i++)
             if (IsGamepadButtonPressed(g, BOTAO[i].bt)) {
                 dado_controle(estilo);

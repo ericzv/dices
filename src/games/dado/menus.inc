@@ -184,6 +184,8 @@ static void desenha_abertura(void)
     gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
     txt_c(GFX_W / 2, 140, menu_tela ? "Modo Desafiante" : "Criado por ERICZ", menu_tela ? C_LATAO : C_TEXTO_M,
           menu_tela != 0);
+    if (primeira_vez && !menu_tela)                  // a primeira vez: sugere o tutorial
+        txt_c(GFX_W / 2, 158, "Primeira vez? Veja o Tutorial.", C_OURO, true);
 
     // As fichas entram uma depois da outra, caindo de leve no feltro.
     const char *op[MN_N];
@@ -217,9 +219,8 @@ static void desenha_abertura(void)
              : controle_estilo ? "setas escolhem  ·  ENTER confirma  ·  M som  ·  K controles"
              : "M som  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
              C_TEXTO_M);
-    // A versao, miuda no canto da mesa: diz qual jogo esta aberto.
-    char ver[32];
-    snprintf(ver, sizeof ver, "versão %s", DADO_VERSAO);
+    // A versao, miuda no canto da mesa: diz qual jogo esta aberto (v1.0, v1.1...).
+    const char *ver = DADO_VERSAO;
     gfx_texto(MESA_X1 - 12 - gfx_largura(ver, GFX_MIUDO), MESA_Y1 - 18, ver,
               gfx_mistura(C_TEXTO_M, C_FELTRO, 35), GFX_MIUDO, false);
 }
@@ -305,6 +306,14 @@ static void desenha_online(void)
             txt_c(GFX_W / 2, 214, "Ele escolhe Online > Entrar com código e digita o código.", C_TEXTO_M, false);
         snprintf(t, sizeof t, "esperando o amigo entrar%.*s", (int)(t_fase * 3) % 4, "...");
         txt_c(GFX_W / 2, 268, t, C_OURO, false);
+    } else if (digitando && tt_ativo()) {       // com o controle: o teclado na tela
+        bool cheio = strlen(codigo_dig) == 4;
+        txt_c(GFX_W / 2, 94, "O código da sala do seu amigo:", C_MARFIM, true);
+        casas_codigo(112, codigo_dig, true);
+        tt_desenha(176, false);
+        ui_botao(GFX_W / 2 - 60, 176 + TT_ALTO + 6, 120, 22, "entrar", C_LATAO,
+                 !cheio ? UI_DESLIGADO : tt_lin == TT_LINHAS ? UI_FOCO : 0);
+        teclas_c(GFX_W / 2, 282, "ENTER escreve  ·  BACKSPACE apaga  ·  TAB entra", C_TEXTO_M);
     } else if (digitando) {
         txt_c(GFX_W / 2, 116, "Digite o código da sala do seu amigo:", C_MARFIM, true);
         casas_codigo(146, codigo_dig, true);

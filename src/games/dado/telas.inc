@@ -2,9 +2,13 @@
 // Telas da partida: ordem, jogada, aposta, resultado, premio, loja
 // e fim
 // ===========================================================================
-// Uma linha: "VOCÊ joga  ·  Moeda [comum]", e embaixo o que o dado faz.
+// Uma linha: "VOCÊ joga  ·  Moeda [comum]", e embaixo o que o dado faz. Se
+// o que ele faz vai em duas linhas, a de cima sobe meia linha, para a
+// primeira nao passar por cima da etiqueta.
 static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
 {
+    int yd = y + TXT_H - 2;
+    if (txt_quebra(TIPO[tipo].desc, LARG_TEXTO)) y -= txt_passo() / 2;
     char c[32];
     classe(tipo, c, sizeof c);
     int wq = gfx_largura(quem, 1), wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(c, 1) + 10;
@@ -16,12 +20,16 @@ static void quem_e_dado(int y, const char *quem, uint16_t cor, int tipo)
     int xc = x + wn + 12;
     ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
-    txt_c(GFX_W / 2, y + TXT_H - 2, TIPO[tipo].desc, C_MARFIM_S, false);
+    txt_c_duas(GFX_W / 2, yd, TIPO[tipo].desc, C_MARFIM_S, LARG_TEXTO);
 }
 
 static void dado_e_poder(int y, int tipo, bool medio)
 {
-    // Nome e, ao lado, a etiqueta "D8 · raro" na cor da raridade.
+    // Nome e, ao lado, a etiqueta "D8 · raro" na cor da raridade (meia linha
+    // acima se o texto embaixo vai em duas).
+    const char *d = medio ? TEXTO_MEDIO[tipo] : TIPO[tipo].desc;
+    int yd = y + TXT_H - 1;
+    if (txt_quebra(d, LARG_TEXTO)) y -= txt_passo() / 2;
     char c[32];
     classe(tipo, c, sizeof c);
     int wn = gfx_largura(TIPO[tipo].nome, 1), wc = gfx_largura(c, 1) + 10;
@@ -30,7 +38,7 @@ static void dado_e_poder(int y, int tipo, bool medio)
     int xc = x + wn + 12;
     ui_etiqueta(xc, y + 2, wc, TXT_H - 2, cor_rar(tipo));
     gfx_texto(xc + 5, y, c, cor_rar(tipo), 1, false);
-    txt_c(GFX_W / 2, y + TXT_H - 1, medio ? TEXTO_MEDIO[tipo] : TIPO[tipo].desc, C_MARFIM_S, false);
+    txt_c_duas(GFX_W / 2, yd, d, C_MARFIM_S, LARG_TEXTO);
 }
 
 // Tracinho discreto na cor da raridade, embaixo de um dado.
@@ -96,7 +104,7 @@ static void plaqueta_sua_vez(int cx, int y_beira)
     float e = SUA_VEZ_T - t_sua_vez - 0.12f;            // espera a mao chegar
     if (e < 0) return;
     char s[40];
-    if (modo == M_DOIS) snprintf(s, sizeof s, "VEZ DE %s", J[vez].nome);
+    if (modo == M_DOIS) snprintf(s, sizeof s, "VEZ DO %s", J[vez].nome);   // JOGADOR 1 ou JOGADOR 2
     else snprintf(s, sizeof s, "SUA VEZ");
     int f = fonte_de(true), W = gfx_largura(s, f) + 22, h = UI_PLAQUETA_H + 2;
     float q = t_sua_vez < 0.22f ? t_sua_vez / 0.22f : 1;
@@ -219,6 +227,13 @@ static void desenha_ordem(void)
         zona_clique(bx, by, wp, BOTAO_H, NULL, 0, KEY_TAB);
     }
     plaqueta_sua_vez(GFX_W / 2, vez == baixo ? ry - 34 : ry + LUGAR_R + 36);   // do lado de longe da mao
+    // Nas tres primeiras rodadas, as teclas de montar a sequencia, entre a
+    // fila e a mao de quem joga aqui (com controle, os botoes dele).
+    if (rodada <= 3 && !(cpu >> vez & 1) && !(remoto >> vez & 1) && t_fase > 0.5f) {
+        int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
+                              : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
+        teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
+    }
 }
 
 // Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o
@@ -395,7 +410,8 @@ static void desenha_aposta(void)
     char ctx[96], q[48];
     int y1 = CENTRO - 30 + ui_entra(t_fase, 0, UI_ENTRA_PLACA) + menu_da_vez();   // entra como as placas (interface.inc)
     // O contexto: quem fez quantos pontos e o lance que esta na mesa.
-    int n = snprintf(ctx, sizeof ctx, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
+    int n = snprintf(ctx, sizeof ctx, "%s fez %d %s", J[primeiro].nome, F[primeiro].pontos,
+                     F[primeiro].pontos == 1 || F[primeiro].pontos == -1 ? "ponto" : "pontos");
     int quem = outro(vez);                        // quem fez o lance que esta valendo
     if (a_pagar) {
         if (quem == primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? " e dobrou" : " e apostou %d", a_pagar);
@@ -442,7 +458,6 @@ static void desenha_efeitos(void)
     if (wi && !icone_poder(x + 6, CENTRO - 15 + (TXT_H + 8) / 2, tipo)) x += wi / 2, wi = 0;
     gfx_texto(x + wi, CENTRO - 11 - (f == 1), e->txt, c, f, f == 1);
     desenha_evento();
-    desenha_combo();
 }
 
 // O registro do fim da rodada, a esquerda das filas: uma fita de eventos
@@ -840,10 +855,10 @@ static void desenha_premio(void)
         if (premio_cabe(oferta_ad[cursor])) {
             char l[112];
             snprintf(l, sizeof l, "%s %s", d->l1, d->l2);
-            txt_c(GFX_W / 2, 212, l, C_MARFIM, false);
+            txt_c_duas(GFX_W / 2, 212, l, C_MARFIM, LARG_TEXTO);
         } else txt_c(GFX_W / 2, 212, "nenhum dado seu tem lado livre", C_VINHO_CLR, false);
     } else if (cursor < 3) {
-        txt_c(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, false);
+        txt_c_duas(GFX_W / 2, 212, TEXTO_MEDIO[oferta[cursor].tipo], C_MARFIM, LARG_TEXTO);
     } else {
         txt_c(GFX_W / 2, 212, pode ? "troca o prêmio por tirar um dos seus, para sempre"
                                    : "com 4 dados, nenhum pode sair", C_MARFIM, false);

@@ -357,7 +357,7 @@ static void gera_salao_final(void)
     chefe->tipo = NO_CHEFE;
     chefe->perso = PERSO_CORINGA;
     chefe->nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
-    if (run.dificuldade < CORINGA_SOME) chefe->nivel = 1;    // no 5 e no 6 ele ainda pensa menos
+    if (run.dificuldade < CORINGA_SOME) chefe->nivel = 0;    // no 5 e no 6, a IA simples (a afiada so do 7)
     chefe->semente = rnd_r() | 1;
 }
 

@@ -39,7 +39,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
 #define MASSINHA_REMENDA 1                      // a Massinha: os lados que ganham Remendo por vez
 #define CORRENTE_CADA 3                         // a Corrente: por elo (ela e cada adesivo que agiu antes dela)
-#define DINAMITE_CADA 3                         // a Dinamite: o que o pavio guarda a cada lance que nao cai nela
+#define DINAMITE_CADA 2                         // a Dinamite: o que o pavio guarda a cada lance que nao cai nela
 #define DINAMITE_MAX 30
 
 // A regra em duas linhas (o cartao da loja), o preco, o nivel que abre e as
@@ -64,7 +64,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_ELETRONICO]   = { "Eletrônico", "tirando este lado,", "se terminar válido: x2", 5, 0,
                           RGB(96, 182, 198), RGB(168, 204, 230), RGB(26, 34, 62),
                           { "....##.", "...##..", "..##...", ".#####.", "...##..", "..##...", ".##...." } },
-    [AD_TRANSPARENTE] = { "Transparente", "tirando este lado,", "não pode ser anulado", 5, 3,
+    [AD_TRANSPARENTE] = { "Transparente", "tirando este lado, a", "sequência não vê o dado", 5, 3,
                           AD_SEM_FUNDO, RGB(168, 204, 230), RGB(168, 204, 230),
                           { "#######", "#....##", "#...#.#", "#..#..#", "#.#...#", "##....#", "#######" } },
     [AD_DOURADO]      = { "Dourado", "tirando este lado:", "+1 moeda", 5, 5,
@@ -112,7 +112,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_POSTIT]       = { "Post-it", "tirando este lado: o próximo", "rola 2 vezes e fica o maior", 4, 6,
                           RGB(246, 222, 132), RGB(252, 248, 236), RGB(150, 122, 62),
                           { "#######", "#.....#", "#.###.#", "#.....#", "#.###.#", "#....#.", "#####.." } },
-    [AD_HOLOGRAFICO]  = { "Holográfico", "tirando este lado: copia os", "adesivos do fim dos seus dados", 6, 9,
+    [AD_HOLOGRAFICO]  = { "Holográfico", "tirando este lado: copia os", "adesivos que agiram na rodada", 6, 9,
                           RGB(184, 194, 208), RGB(252, 248, 236), RGB(102, 74, 138),
                           { "...#...", "..###..", ".#####.", "#######", ".#####.", "..###..", "...#..." } },
     [AD_PURPURINA]    = { "Purpurina", "tirando este lado, se válido:", "+3 por adesivo que agiu", 5, 7,
@@ -197,7 +197,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     [AD_CORRENTE]     = { "Corrente", "tirando este lado, se válido: +3,", "+3 por adesivo que agiu antes dela", 4, 1,
                           RGB(120, 128, 140), RGB(184, 194, 208), RGB(36, 32, 29),
                           { "##.....", "#.#....", ".###...", "..#.#..", "...###.", "....#.#", ".....##" } },
-    [AD_DINAMITE]     = { "Dinamite", "lance sem cair aqui: +3 no pavio;", "tirando este lado, válido: paga", 3, 2,
+    [AD_DINAMITE]     = { "Dinamite", "lance sem cair aqui: +2 no pavio;", "tirando este lado, válido: paga", 3, 2,
                           RGB(190, 56, 60), RGB(226, 164, 168), RGB(246, 222, 132),
                           { "......#", ".....#.", "....#..", ".####..", ".#..#..", ".####..", ".####.." } },
     [AD_ESCADINHA]    = { "Escadinha", "tirando este lado, se válido:", "+2 por degrau na escada de 1 em 1", 4, 3,
@@ -288,8 +288,11 @@ static int ad_quantos(const peca_t *p)
 }
 // Os lados que um tipo mostra: o Lastro so de 4 a 12; o Sorte/Reves, os 12
 // da Sorte.
+// O Vazio tem um lado so (o do 0): cai sempre nele, e e o unico que leva adesivo.
 static int ad_lado_min(int t) { return TIPO[t].efeito == EF_LASTRO ? 4 : 1; }
-static int ad_lado_max(int t) { return TIPO[t].lados; }
+static int ad_lado_max(int t) { return t == D_VAZIO ? 1 : TIPO[t].lados; }
+// O numero que o lado l mostra ao jogador: o do Vazio e o 0.
+static int lado_mostra(int t, int l) { return t == D_VAZIO ? 0 : l; }
 static int ad_n_lados(int t) { return ad_lado_max(t) - ad_lado_min(t) + 1; }
 // O lado do avesso: o 1 do d6 e o 6; o 4 do Lastro, o 12.
 static int ad_oposto(int t, int lado) { return ad_lado_min(t) + ad_lado_max(t) - lado; }
@@ -439,7 +442,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_REFLEXIVO]    = "Tirando este lado, o dado rola de novo e pontua o segundo lance.",
     [AD_CONFETE]      = "Tirando este lado, se o dado terminar válido: +4 pontos.",
     [AD_ELETRONICO]   = "Tirando este lado, se o dado terminar válido: pontua x2.",
-    [AD_TRANSPARENTE] = "Tirando este lado, o dado não pode ser anulado.",
+    [AD_TRANSPARENTE] = "Tirando este lado, a sequência não vê o dado: ele não cai e o próximo compara com o de antes dele.",
     [AD_DOURADO]      = "Tirando este lado: +1 moeda.",
     [AD_LOBO]         = "Tirando este lado: -2 pontos para o oponente.",
     [AD_REMENDO]      = "Este lado tira 2 a mais: um 3 vira 5.",
@@ -478,7 +481,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_DUPLA]        = "Tirando este lado, o adesivo do lado oposto do dado também age.",
     [AD_CASCA]        = "Tirando este lado, o 4º dado do oponente escorrega: rola duas vezes e fica o menor.",
     [AD_CORRENTE]     = "Tirando este lado, se válido: +3, e mais +3 por adesivo seu que agiu antes dela.",
-    [AD_DINAMITE]     = "Cada lance que não cai aqui põe +3 no pavio. Tirando este lado, se terminar válido: paga o pavio.",
+    [AD_DINAMITE]     = "Cada lance que não cai aqui põe +2 no pavio. Tirando este lado, se terminar válido: paga o pavio.",
     [AD_BUSSOLA]      = "Tirando este lado, o próximo dado sem adesivo rola de novo: fica o 2º se cair em adesivo ou for maior.",
     [AD_MOLDURA]      = "Tirando este lado, os adesivos dos lados vizinhos (o número de baixo e o de cima) também agem.",
     [AD_XEROX]        = "Tirando este lado, o adesivo do lado oposto ganha uma cópia, para sempre, em outro dado seu.",
@@ -491,7 +494,7 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_CHUMBO]       = "Nos outros dois terços, rola normal (e ainda pode tirar esse lado). No máximo dois Chumbos por dado: com dois, cada um sai um terço das vezes.",
     [AD_REFLEXIVO]    = "Rola de novo uma vez só.",
     [AD_ELETRONICO]   = "Soma com os outros multiplicadores.",
-    [AD_TRANSPARENTE] = "Nem pela sequência, nem por outro dado. Ainda pode ser roubado.",
+    [AD_TRANSPARENTE] = "Como a Ponte: não cai pela sequência nem derruba o de antes. Outro dado ainda pode anular ou roubar.",
     [AD_DOURADO]      = "Válido ou anulado. A moeda entra com o saque da mesa vencida.",
     [AD_LOBO]         = "Válido ou anulado.",
     [AD_REMENDO]      = "O número novo conta na sequência e nos poderes do dado: no Explosivo, o 6 vira 8 e explode.",
@@ -509,8 +512,8 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_PURPURINA]    = "Ela junto. Os que agem no pouso também contam.",
     [AD_VELCRO]       = "Válido ou anulado. Ele entra como um dos dados da compra, em vez de ir para fora.",
     [AD_RATOEIRA]     = "Vale até anulado pela sequência. Se foi o oponente que o anulou com um poder, a ratoeira fecha: o maior dado válido dele é anulado.",
-    [AD_FIGURINHA]    = "Conta as figurinhas de todos os seus dados com Figurinha; cada um começa com 1, e o que agiu junta mais uma. A cada partida, recomeça do 1.",
-    [AD_ETIQUETA]     = "Ela junto, num dado só ou em vários, sem limite.",
+    [AD_FIGURINHA]    = "Cada dado com Figurinha conta 1, mais 1 a cada vez que ela agiu nele nesta partida (duas no mesmo dado contam como uma). Volta a 1 na partida seguinte.",
+    [AD_ETIQUETA]     = "Conta cada adesivo de Etiqueta da bolsa, ela inclusive, num dado só ou em vários, sem limite. Não cresce na partida: cresce comprando mais.",
     [AD_BILHETE]      = "Os pontos de bônus dos poderes e dos adesivos, não o número que os dados tiraram.",
     [AD_NOTA_DEZ]     = "No d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
     [AD_CARBONO]      = "Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
@@ -713,12 +716,12 @@ static void ad_selos(float cx, float cy, float r, const peca_t *p, int aceso)
         return;
     }
     int m = n > 4 ? 3 : n, tot = 0, ws[4];
-    for (int i = 0; i < m; i++) { ws[i] = ad_pilula_w(lados[i]); tot += ws[i] + 1; }
+    for (int i = 0; i < m; i++) { ws[i] = ad_pilula_w(lado_mostra(p->tipo, lados[i])); tot += ws[i] + 1; }
     char mais[12] = "";
     if (n > m) { snprintf(mais, sizeof mais, "+%d", n - m); tot += gfx_largura(mais, GFX_MIUDO) + 2; }
     int x = (int)cx - tot / 2, y = (int)(cy + r * 0.85f);
     for (int i = 0; i < m; i++) {
-        ad_pilula(x + ws[i] / 2, y, ad_no_lado(p, lados[i]), lados[i], lados[i] == aceso);
+        ad_pilula(x + ws[i] / 2, y, ad_no_lado(p, lados[i]), lado_mostra(p->tipo, lados[i]), lados[i] == aceso);
         x += ws[i] + 1;
     }
     if (mais[0]) {
@@ -838,7 +841,7 @@ static void ad_linha(int cx, int y, const peca_t *p, const peca_t *col, int n_co
         if (v >= 0) snprintf(nomes[i], sizeof nomes[i], "%s +%d", ADESIVO[a].nome, v);
         else if (a == AD_SELO && p->selo) snprintf(nomes[i], sizeof nomes[i], "%s lacrado", ADESIVO[a].nome);
         else snprintf(nomes[i], sizeof nomes[i], "%s", ADESIVO[a].nome);
-        ws[i] = ad_pilula_w(lados[i]) + 3 + gfx_largura(nomes[i], GFX_MIUDO);
+        ws[i] = ad_pilula_w(lado_mostra(p->tipo, lados[i])) + 3 + gfx_largura(nomes[i], GFX_MIUDO);
         if (tot + ws[i] > 520) break;
         tot += ws[i] + (m ? 10 : 0);
         m++;
@@ -848,8 +851,8 @@ static void ad_linha(int cx, int y, const peca_t *p, const peca_t *col, int n_co
     if (m < n) { snprintf(mais, sizeof mais, "+%d", n - m); tot += 8 + gfx_largura(mais, GFX_MIUDO); }
     int x = cx - tot / 2;
     for (int i = 0; i < m; i++) {
-        int a = ad_no_lado(p, lados[i]), pw = ad_pilula_w(lados[i]);
-        ad_pilula(x + pw / 2, y + 5, a, lados[i], false);
+        int a = ad_no_lado(p, lados[i]), pw = ad_pilula_w(lado_mostra(p->tipo, lados[i]));
+        ad_pilula(x + pw / 2, y + 5, a, lado_mostra(p->tipo, lados[i]), false);
         gfx_texto(x + pw + 3, y - 1, nomes[i], ADESIVO[a].luz, GFX_MIUDO, false);
         x += ws[i] + 10;
     }

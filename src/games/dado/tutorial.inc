@@ -10,9 +10,9 @@ static const pagina_t TUTORIAL[] = {
         "A cada rodada, os dois pagam a entrada no pote.",
         "Quem faz mais pontos na rodada leva o pote.",
         "No fim, ganha quem tiver mais fichas." },
-        "2 jogadores: 100 fichas e 15 rodadas; a entrada é de 5, de 10 a partir da 6ª e de 15 a partir da 11ª." },
+        "2 jogadores: 100 fichas e 15 rodadas." },
     { "A BOLSA E A SEQUÊNCIA", {
-        "A cada rodada, você compra 7 dados da sua bolsa,",
+        "A cada rodada, você tira 7 dados da sua bolsa,",
         "escolhe até 4 para a sequência, na ordem que quiser,",
         "e joga um por um, do primeiro ao último." },
         NULL },
@@ -30,7 +30,8 @@ static const pagina_t TUTORIAL[] = {
         "Entre os turnos, dá para apostar 10 ou 25 fichas.",
         "O outro paga para ver, aumenta ou corre:",
         "quem corre entrega o pote na hora." },
-        "Se quem abriu termina com 0, nem tem aposta: o outro leva o pote sem jogar." },
+        "Se quem abriu termina com 0, nem tem aposta: o outro leva o pote sem jogar.\n"
+        "2 jogadores: a entrada é de 5, de 10 a partir da 6ª rodada e de 15 a partir da 11ª." },
     { "LOJA, PRÊMIOS E DADOS ESPECIAIS", {
         "Quem vence uma rodada escolhe um prêmio:",
         "um dado novo, ou tirar um fraco da bolsa.",
@@ -284,10 +285,18 @@ static void desenha_tutorial(void)
         y += 19;
     }
     if (pg->nota) {                                  // o detalhe, na fina e apagado
-        char nota[200];                              // "%d": quantos dados ha
+        char nota[240];                              // "%d": quantos dados ha
         snprintf(nota, sizeof nota, pg->nota, n_basicos());
-        int f = gfx_largura(nota, GFX_FINO) <= 584 ? GFX_FINO : GFX_MIUDO;
-        gfx_texto(GFX_W / 2 - gfx_largura(nota, f) / 2, y - 1 + (f == GFX_MIUDO ? 4 : 0), nota, C_TEXTO_M, f, false);
+        bool duas = strchr(nota, '\n') != NULL;     // ate duas linhas (\n), mais juntas, acima das bolinhas
+        if (duas) y -= 3;
+        for (char *l = nota; l; ) {
+            char *nl = strchr(l, '\n');
+            if (nl) *nl = 0;
+            int f = gfx_largura(l, GFX_FINO) <= 584 ? GFX_FINO : GFX_MIUDO;
+            gfx_texto(GFX_W / 2 - gfx_largura(l, f) / 2, y - 1 + (f == GFX_MIUDO ? 4 : 0), l, C_TEXTO_M, f, false);
+            y += 12;
+            l = nl ? nl + 1 : NULL;
+        }
     }
     // Bolinhas das paginas.
     for (int i = 0; i < N_TUTORIAL; i++)

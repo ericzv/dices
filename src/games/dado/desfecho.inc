@@ -665,7 +665,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         d->semente[j] += FICHA_VELHA_PTS;
         evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
-    for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na quarta: o tiro ja saiu, +8 por fora
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na quarta: o tiro ja saiu, +REVOLVER_TIRO (12) por fora
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
         d->semente[j] += REVOLVER_TIRO;
         evento(gera, EV_EXTRA, j, k, j, 0, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
@@ -960,7 +960,7 @@ static int poder_armado(int j, int k)
         return 0;
     case EF_COLECIONADOR: return v >= COLECIONADOR_DE;
     case EF_BURACO:                                          // vai engolir um vizinho seu
-        for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
+        for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
             if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
         return 0;
     case EF_BONECO:       return v >= 8;
@@ -1068,7 +1068,7 @@ static void miras_agora(uint8_t mira[2])
                 break;
             case EF_AUTOFAGIA: mira_menores(est, j, 1, k, &mira[j]); break;
             case EF_BURACO:
-                for (int s = -1; s <= 1 && f->evolui[k]; s += 2)
+                for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
                     if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s))
                         mira[j] |= (uint8_t)(1 << (k + s));
                 break;
@@ -1170,7 +1170,7 @@ static void poderes_de(desfecho_t *d, int j, bool gera)
         // Buraco Negro que evolui: engole os seus dados logo antes e logo
         // depois dele na sequencia (os firmes resistem).
         if (ef == EF_BURACO) {
-            for (int s = -1; s <= 1 && F[j].evolui[k]; s += 2) {
+            for (int s = -1; s <= 1 && F[j].faixa[k]; s += 2) {
                 int b = k + s;
                 if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme_sem_capa(j, b)) continue;
                 if (bloqueia_capa(gera, j, k, j, b, "Buraco Negro", 0)) continue;
@@ -2241,6 +2241,7 @@ static int risco(int j)
         if (ef == EF_MATRIOSKA && v >= 6) v += 3;               // abre: o d6 de dentro soma
         if (ef == EF_ESPELHO && v <= 2) continue;
         if ((ef == EF_MALDITO && v <= AGOURO_ATE) || (ef == EF_VIDRO && v == 1)) { ruins++; continue; }
+        if (ad_no_lado(p, lado_do_lance(t, a, 0)) == AD_TRANSPARENTE) continue;   // a sequencia nao o ve: nao cai
         if (cai_depois(j, v, L)) ruins++;
     }
     if (ef == EF_GELATINA) return ruins * ruins * 100 / (total * total);   // quica: so cai se os dois lances caem

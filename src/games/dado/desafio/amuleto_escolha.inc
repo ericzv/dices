@@ -87,19 +87,23 @@ static void desenha_amuleto_run(void)
         if (nome_rar_am(a)[0]) ui_selo_c(x, cy + 80, nome_rar_am(a), cor_rar_am(a), GFX_FINO);
         zona_clique(x - 64, cy, 128, 100, &cursor, i, KEY_ENTER);
     }
-    if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N)
-        txt_c(GFX_W / 2, 234, AMULETO[run.am_oferta[cursor]].desc, C_MARFIM, false);
+    int desce = 0;                                  // o texto em duas linhas: os seus amuletos descem
+    if (cursor >= 0 && cursor < 3 && run.am_oferta[cursor] < A_N) {
+        const char *d = AMULETO[run.am_oferta[cursor]].desc;
+        if (txt_quebra(d, LARG_TEXTO)) desce = txt_passo() / 2 + 2;
+        txt_c_duas(GFX_W / 2, 234 + desce / 4, d, C_MARFIM, LARG_TEXTO);
+    }
     // Os que ja tem, miudos, embaixo.
     int meus[A_N], na = meus_amuletos(meus);
     int lugares = am_lugares();
     snprintf(s, sizeof s, "seus amuletos  ·  %d de %d", na, lugares);
-    txt_c(GFX_W / 2, 258, s, C_TEXTO_M, false);
+    txt_c(GFX_W / 2, 258 + desce, s, C_TEXTO_M, false);
     int x0 = GFX_W / 2 - (lugares - 1) * 12;
     for (int i = 0; i < lugares; i++) {
-        if (i < na) desenha_amuleto(x0 + 24 * i, 288, 9, meus[i], false);
+        if (i < na) desenha_amuleto(x0 + 24 * i, 288 + desce, 9, meus[i], false);
         else {                                       // lugar vazio: so o aro
-            gfx_disco(x0 + 24 * i, 288, 9, C_FELTRO2);
-            gfx_disco(x0 + 24 * i, 288, 7, C_FELTRO_ESC);
+            gfx_disco(x0 + 24 * i, 288 + desce, 9, C_FELTRO2);
+            gfx_disco(x0 + 24 * i, 288 + desce, 7, C_FELTRO_ESC);
         }
     }
     rodape_run(selo ? "ENTER leva o amuleto" : "setas escolhem  ·  ENTER leva o amuleto");

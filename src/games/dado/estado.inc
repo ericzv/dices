@@ -62,7 +62,7 @@ typedef struct {
     bool    escondido[N_FILA];       // Oculto lancado: o numero so aparece no fim da rodada
     uint8_t fruta[N_FILA];           // Panetone: as frutas desta fatia (+0 a +3)
     uint8_t presente[N_FILA];        // saiu de um Presente desembrulhado no lance (2: e fica de vez)
-    bool    evolui[N_FILA];          // o ciclo cosmico tirou a faixa de cima: no fim da rodada, evolui
+    bool    faixa[N_FILA];           // o ciclo cosmico tirou a faixa de cima: o bonus (e o Buraco Negro engole os vizinhos)
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
@@ -211,6 +211,7 @@ static float t_aviso_tremor;
 static float t_aviso_letra;              // > 0: o aviso da letra maior (tecla L) esta na mesa
 static float t_aviso_salvo;              // > 0: um salvamento nao abriu (aviso_salvo diz qual)
 static char aviso_salvo[96];
+static void salvo_estragado(const char *chave, const char *texto, const char *msg);   // desafio/perfis.inc
 static bool  letra_lida;
 static void crescendo(int j, int nivel);
 static void reage_evento(const evento_t *e);
@@ -298,6 +299,10 @@ static bool levou[2][N_LOJA];
 static int  loja_primeiro;
 static bool abertura_pronta;
 static int  menu_cur;                // opcao do menu de abertura
+// A primeira vez no jogo: nenhum perfil e o tutorial nunca aberto. O menu
+// abre com o cursor no Tutorial e uma linha sugerindo ve-lo; abrir o
+// tutorial grava "tutorial" e a linha some.
+static bool primeira_vez;
 // Qual lista o menu mostra: a principal ou a escolha da run do Modo
 // Desafiante (continuar ou comecar outra).
 enum { MT_PRINCIPAL, MT_DESAFIO };
@@ -389,6 +394,7 @@ static void hist_lance(int j, bool cheia, int hora_res);
 static void hist_jackpot(void);
 static void hist_rodada(int pote_seu);
 static void hist_partida(int vencedor);
+static bool hist_uma_derrota(void);      // desafio/historico.inc
 static void hist_run_venceu(void);
 static void estilo_do_perfil(void);
 static int nivel_jog[2];                // o nivel da IA de cada lado (ia.inc)      // le o estilo do perfil escolhido e monta a paleta (desafio/estilo.inc)
@@ -559,6 +565,11 @@ static char codigo_dig[8];
 static int  online_cur;
 static float t_sair = -1;            // ESC apertado uma vez: confirma com outro
 static bool des_saiu;                // Desafiante: saiu no meio da partida (conta como derrota)
+// Por que a partida acabou (a tela da 1a derrota explica): as rodadas
+// acabaram, ou faltaram fichas para a entrada da rodada fim_rodada.
+enum { FM_RODADAS, FM_FICHAS };
+static int  fim_motivo, fim_rodada;
+static bool des_primeira_derrota;    // a 1a derrota do perfil: a tela diz o motivo e da uma dica
 static void des_abandona(void);
 static bool des_abandono(void);
 static int  tut_pag;                 // pagina do tutorial

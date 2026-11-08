@@ -63,6 +63,14 @@ static perfil_t perfis[N_PERFIS];
 static int perfil_atual = -1;
 static bool perfis_lidos;
 
+static void perfis_le(void);
+static bool tem_perfil(void)
+{
+    perfis_le();
+    for (int i = 0; i < N_PERFIS; i++) if (perfis[i].nome[0]) return true;
+    return false;
+}
+
 static const char *chave_run(void)
 {
     static const char *const K[N_PERFIS] = { "desafio", "desafio2", "desafio3" };
@@ -106,19 +114,37 @@ static void perfis_salva(void)
     salva_grava("perfis", buf);
 }
 
+// O texto inteiro guardado na chave. Quem leu pode ter cortado: o espaco de
+// leitura e do tamanho do que esta versao grava, e um salvamento de uma
+// versao mais nova (com mais coisa guardada) passa dele. NULL: sem memoria.
+#define SALVO_MAX (1 << 20)
+static char *salvo_inteiro(const char *chave)
+{
+    for (int n = 4096; n <= SALVO_MAX; n *= 2) {
+        char *b = malloc((size_t)n);
+        if (!b) return NULL;
+        if (salva_le(chave, b, n) < n - 1) return b;
+        free(b);
+    }
+    return NULL;
+}
+
 // Um salvamento que nao abre (estragado, cortado, ou de uma versao que nao se
-// le mais): nada some calado. Uma copia fica guardada a parte (a chave com
-// "_ruim") e a mesa avisa - uma vez por chave na sessao.
-static char salvo_avisado[8][16];                // as chaves ja avisadas nesta sessao
+// le mais): nada some calado. Uma copia inteira fica guardada a parte (a
+// chave com "_ruim") e a mesa avisa - uma vez por chave na sessao.
+#define SALVO_CHAVES 24                          // perfis, 3 runs, 3 historicos, 3 estilos, as opcoes...
+static char salvo_avisado[SALVO_CHAVES][16];     // as chaves ja avisadas nesta sessao
 static void salvo_estragado(const char *chave, const char *texto, const char *msg)
 {
     int i = 0;
-    while (i < 8 && salvo_avisado[i][0] && strcmp(salvo_avisado[i], chave)) i++;
-    if (i == 8 || salvo_avisado[i][0]) return;   // ja avisada (ou chaves demais: nao repete a cada quadro)
+    while (i < SALVO_CHAVES && salvo_avisado[i][0] && strcmp(salvo_avisado[i], chave)) i++;
+    if (i == SALVO_CHAVES || salvo_avisado[i][0]) return;   // ja avisada (ou chaves demais: nao repete a cada quadro)
     snprintf(salvo_avisado[i], sizeof salvo_avisado[i], "%s", chave);
     char k[24];
     snprintf(k, sizeof k, "%s_ruim", chave);
-    salva_grava(k, texto);
+    char *inteiro = salvo_inteiro(chave);
+    salva_grava(k, inteiro ? inteiro : texto);
+    free(inteiro);
     snprintf(aviso_salvo, sizeof aviso_salvo, "%s", msg);
     t_aviso_salvo = 6.0f;
 }

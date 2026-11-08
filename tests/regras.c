@@ -2108,28 +2108,29 @@ int main(void)
         joga(0, D_CHECKPOINT, 6);
         d = fim();
         CONFERE(d.total[0] == 6, "Checkpoint sozinho: esperava 6, deu %d", d.total[0]);
-        // Sorte/Reves: um d12 soma, um d8 tira; o dado vale a diferenca, ate
+        // Sorte/Reves: um d12 soma, um d4 tira; o dado vale a diferenca, ate
         // negativa, e o seguinte so precisa passar dela.
         {
             int menor;
-            lances_sr[0] = 12; lances_sr[1] = 5; li_sr = 0;
+            lances_sr[0] = 12; lances_sr[1] = 3; li_sr = 0;
             int x = sorteia_valor(D_SORTE_REVES, 0, rola_sr, &menor);
-            CONFERE(x == 7 && menor == 5, "Sorte/Reves 12 e 5: esperava 7 (reves 5), deu %d (%d)", x, menor);
+            CONFERE(x == 9 && menor == 3, "Sorte/Reves 12 e 3: esperava 9 (reves 3), deu %d (%d)", x, menor);
         }
+        CONFERE(SR_REVES == 4, "o Reves e um d4");
         limpa();
         joga(0, D_D4, 3);
-        F[0].descarte[1] = 5; joga(0, D_SORTE_REVES, 7);
-        CONFERE(F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "12-5"), "Sorte/Reves: etiqueta %s", F[0].tag[1]);
+        F[0].descarte[1] = 3; joga(0, D_SORTE_REVES, 9);
+        CONFERE(F[0].est[1] == V_VALIDO && !strcmp(F[0].tag[1], "12-3"), "Sorte/Reves: etiqueta %s", F[0].tag[1]);
         limpa();
-        F[0].descarte[0] = 8; joga(0, D_SORTE_REVES, -6);
+        F[0].descarte[0] = 4; joga(0, D_SORTE_REVES, -3);
         joga(0, D_D4, 1);
         d = fim();
-        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && d.bruto[0] == -5 && d.total[0] == 0,
-                "Sorte/Reves negativo: esperava bruto -5 e total 0, deu %d e %d", d.bruto[0], d.total[0]);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && d.bruto[0] == -2 && d.total[0] == 0,
+                "Sorte/Reves negativo: esperava bruto -2 e total 0, deu %d e %d", d.bruto[0], d.total[0]);
         limpa();
         joga(0, D_D6, 5);
         F[0].tipo[1] = D_SORTE_REVES; F[0].n = 2;
-        CONFERE(risco(0) == 70, "Sorte/Reves depois de um 5: esperava 70%% de cair, deu %d", risco(0));
+        CONFERE(risco(0) == 54, "Sorte/Reves depois de um 5: esperava 54%% de cair (26 de 48), deu %d", risco(0));
         // Prisma: +1 por tipo diferente valendo.
         limpa();
         joga(0, D_D6, 2); joga(0, D_D4, 3); joga(0, D_PRISMA, 5);
@@ -3170,7 +3171,7 @@ int main(void)
             CONFERE(des_carrega(&rr2) && rr2.andar == DES_ANDAR_FINAL, "o salao do Coringa devia ficar salvo");
             run.no[0].semente = 4242;
             des_comeca_partida();
-            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 1),
+            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 0),
                     "Coringa: trunfo %d, nivel %d", reg_op, nivel_jog[1]);
             int fracos = 0, bons = 0, fechados = 0;   // a bolsa dele: sem dados de saida, so do tema
             for (int i = 0; i < J[1].n_col; i++) {

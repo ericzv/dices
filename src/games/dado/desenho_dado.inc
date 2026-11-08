@@ -3322,7 +3322,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     an_fx_t fx = an_fx;                           // o que se anima no adesivo: so deste dado
     an_fx_zera();
     int lados = TIPO[tipo].lados;
-    if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d8
+    if (tipo == D_SORTE_REVES && sr_lado == 2) lados = SR_REVES;   // o Reves e um d4
     if (tipo == D_MATRIOSKA && boneca_lados) lados = boneca_lados;  // uma boneca de dentro
     const visual_t *vi = &VISUAL[tipo];
     // Os dados comuns no material de quem joga com eles; os especiais (e a

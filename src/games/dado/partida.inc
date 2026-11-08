@@ -275,6 +275,7 @@ static void nova_rodada(void)
     int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
     bool extra = modo == M_DESAFIO && J[0].fichas == J[1].fichas && rodada <= max_r + DES_EXTRAS;
     if (rodada > max_r && !extra) {
+        fim_motivo = FM_RODADAS;
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
     }
@@ -283,6 +284,8 @@ static void nova_rodada(void)
     // com fichas iguais, empate.
     int ante = ante_da(rodada);
     bool sem0 = J[0].fichas < ante, sem1 = J[1].fichas < ante;
+    fim_motivo = FM_FICHAS;
+    fim_rodada = rodada;
     if (sem0 && sem1) {
         encerra(J[0].fichas == J[1].fichas ? 2 : (J[0].fichas > J[1].fichas ? 0 : 1));
         return;
@@ -363,6 +366,7 @@ static void poe_nomes(void)
 
 static void abre_loja(void);
 static void som_le_volumes(void);        // painel_som.inc
+static bool tem_perfil(void);            // desafio/perfis.inc
 
 void dado_inicia(int n_partidas)
 {
@@ -371,6 +375,9 @@ void dado_inicia(int n_partidas)
     if (!paleta_pronta) {                // a paleta, com o feltro e a mesa do perfil
         estilo_do_perfil();
         paleta_pronta = true;
+        char b[4];                       // a primeira vez: o cursor comeca no Tutorial
+        primeira_vez = !tem_perfil() && salva_le("tutorial", b, sizeof b) <= 0;
+        if (primeira_vez) menu_cur = MN_TUTORIAL;
     }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
@@ -482,7 +489,7 @@ static int sorteia_valor_de(int t, int fixo, int x, const peca_t *p, int (*r)(in
         *menor = vy;
         return vx;
     }
-    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d8 do Reves
+    case EF_SORTE_REVES: {                   // o d12 da Sorte menos o d4 do Reves
         int b = r(SR_REVES);
         *menor = b;
         return remenda(p, x) - b;

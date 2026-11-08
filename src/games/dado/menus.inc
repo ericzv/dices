@@ -184,6 +184,8 @@ static void desenha_abertura(void)
     gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
     txt_c(GFX_W / 2, 140, menu_tela ? "Modo Desafiante" : "Criado por ERICZ", menu_tela ? C_LATAO : C_TEXTO_M,
           menu_tela != 0);
+    if (primeira_vez && !menu_tela)                  // a primeira vez: sugere o tutorial
+        txt_c(GFX_W / 2, 158, "Primeira vez? Veja o Tutorial.", C_OURO, true);
 
     // As fichas entram uma depois da outra, caindo de leve no feltro.
     const char *op[MN_N];

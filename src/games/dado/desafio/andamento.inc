@@ -664,6 +664,7 @@ static void des_comeca_partida(void)
     n_voo = 0;
     t_sair = -1;
     des_saiu = false;
+    des_primeira_derrota = false;
     detalhe = -1;
     nova_rodada();
     fala_evento(FA_INICIO);
@@ -711,6 +712,8 @@ static void des_resultado(void)
         perfis_salva();
     }
     if (venc_partida != 0) {
+        // A 1a derrota do perfil (o historico ja contou esta): a tela explica.
+        des_primeira_derrota = venc_partida == 1 && !des_saiu && hist_uma_derrota();
         des_perdeu_para = no->perso;
         des_perdeu_andar = run.andar;
         salva_apaga(chave_run());

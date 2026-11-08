@@ -63,6 +63,14 @@ static perfil_t perfis[N_PERFIS];
 static int perfil_atual = -1;
 static bool perfis_lidos;
 
+static void perfis_le(void);
+static bool tem_perfil(void)
+{
+    perfis_le();
+    for (int i = 0; i < N_PERFIS; i++) if (perfis[i].nome[0]) return true;
+    return false;
+}
+
 static const char *chave_run(void)
 {
     static const char *const K[N_PERFIS] = { "desafio", "desafio2", "desafio3" };

@@ -314,7 +314,10 @@ static void menu_executa(int i)
         fase = F_ONLINE;
         break;
     case MN_DADOS:    t_fase = 0; fase = F_CATALOGO; break;
-    default:          tut_pag = 0; t_fase = 0; fase = F_TUTORIAL; break;
+    default:
+        if (primeira_vez) { salva_grava("tutorial", "1"); primeira_vez = false; }
+        tut_pag = 0; t_fase = 0; fase = F_TUTORIAL;
+        break;
     }
 }
 

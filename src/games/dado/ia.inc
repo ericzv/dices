@@ -32,7 +32,7 @@ static float media(peca_t p)
     case EF_EXPLODE:  return 5.1f;
     case EF_MATRIOSKA: return 6.2f;                      // o d8 e as bonecas que abrem (6 a 8: d6; 5 ou 6: d4; 4: d2)
     case EF_COLCHA:   return 4.5f;                       // o 1, o 2 e o 3 remendados
-    case EF_SORTE_REVES: return 2.0f;                    // a Sorte (6,5) menos o Reves (4,5)
+    case EF_SORTE_REVES: return 6.5f - (SR_REVES + 1) / 2.0f;   // a Sorte (6,5) menos o Reves (2,5)
     case EF_PREVISIVEL: return previsivel_valor(p.fixo);   // o proximo da escada
     case EF_RELOGIO:  return relogio_valor();            // o numero da rodada
     case EF_DIGITAL:  return 21.0f;                      // o de antes +1: vai por ultimo

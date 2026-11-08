@@ -17,8 +17,8 @@ static int faces_de(int tipo, int *f)
 {
     int n = 0, lados = TIPO[tipo].lados;
     if (tipo == D_FANTASMA) { f[0] = 1; return 1; }     // o Fantasma nao e sorteado: e sempre o 1
-    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de -7 a 11, de 2 em 2
-        for (int v = -7; v <= 11; v += 2) f[n++] = v;
+    if (TIPO[tipo].efeito == EF_SORTE_REVES) {          // de 1 - SR_REVES a 11, de 2 em 2
+        for (int v = 1 - SR_REVES; v <= 11; v += 2) f[n++] = v;
         return n;
     }
     int de = TIPO[tipo].efeito == EF_LASTRO ? 4 : 1;

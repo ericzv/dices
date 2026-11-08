@@ -78,7 +78,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define SENTINELA_PTS 2           // a Sentinela que cai pela sequencia: o de antes, que ela protegeu, ganha isto
 #define TREVO_SORTE 12            // o 4 do Trevo (era 10)
 #define COPIADOR_CADA 4           // o Copiador, em cada dado igual
-#define SR_REVES 8                // o Reves: um d8 (o risco e a graca do dado)
+#define SR_REVES 4                // o Reves: um d4 (o risco e a graca do dado)
 #define SEMENTE_BROTA 12          // a Semente brota com os seus validos somando isto ou mais
 #define SEMENTE_PTS   6           // e o que ela paga, fora de qualquer multiplicador
 // O teto do bonus que o Acumulador guarda, e o da Autofagia.
@@ -273,7 +273,7 @@ static const tipo_t TIPO[D_N] = {
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
-    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d8 subtrai" },
+    { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d4 subtrai" },
     { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo igual: +3; um a mais: +2; dois: +1" },
@@ -410,7 +410,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
-    [D_SORTE_REVES]     = "Rola um d12 que soma e um d8 que subtrai. Pontua a diferença, até negativa.",
+    [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
     [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
     [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",

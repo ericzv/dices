@@ -96,7 +96,7 @@ static void plaqueta_sua_vez(int cx, int y_beira)
     float e = SUA_VEZ_T - t_sua_vez - 0.12f;            // espera a mao chegar
     if (e < 0) return;
     char s[40];
-    if (modo == M_DOIS) snprintf(s, sizeof s, "VEZ DE %s", J[vez].nome);
+    if (modo == M_DOIS) snprintf(s, sizeof s, "VEZ DO %s", J[vez].nome);   // JOGADOR 1 ou JOGADOR 2
     else snprintf(s, sizeof s, "SUA VEZ");
     int f = fonte_de(true), W = gfx_largura(s, f) + 22, h = UI_PLAQUETA_H + 2;
     float q = t_sua_vez < 0.22f ? t_sua_vez / 0.22f : 1;
@@ -219,6 +219,13 @@ static void desenha_ordem(void)
         zona_clique(bx, by, wp, BOTAO_H, NULL, 0, KEY_TAB);
     }
     plaqueta_sua_vez(GFX_W / 2, vez == baixo ? ry - 34 : ry + LUGAR_R + 36);   // do lado de longe da mao
+    // Nas tres primeiras rodadas, as teclas de montar a sequencia, entre a
+    // fila e a mao de quem joga aqui (com controle, os botoes dele).
+    if (rodada <= 3 && !(cpu >> vez & 1) && !(remoto >> vez & 1) && t_fase > 0.5f) {
+        int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
+                              : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
+        teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
+    }
 }
 
 // Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o
@@ -395,7 +402,8 @@ static void desenha_aposta(void)
     char ctx[96], q[48];
     int y1 = CENTRO - 30 + ui_entra(t_fase, 0, UI_ENTRA_PLACA) + menu_da_vez();   // entra como as placas (interface.inc)
     // O contexto: quem fez quantos pontos e o lance que esta na mesa.
-    int n = snprintf(ctx, sizeof ctx, "%s fez %d pontos", J[primeiro].nome, F[primeiro].pontos);
+    int n = snprintf(ctx, sizeof ctx, "%s fez %d %s", J[primeiro].nome, F[primeiro].pontos,
+                     F[primeiro].pontos == 1 || F[primeiro].pontos == -1 ? "ponto" : "pontos");
     int quem = outro(vez);                        // quem fez o lance que esta valendo
     if (a_pagar) {
         if (quem == primeiro) snprintf(ctx + n, sizeof ctx - (size_t)n, aumentou ? " e dobrou" : " e apostou %d", a_pagar);

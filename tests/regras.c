@@ -2398,6 +2398,53 @@ int main(void)
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
+        // As opcoes e o estilo estragados: o padrao, uma copia a parte e o
+        // aviso, como os perfis. E a copia sai inteira mesmo quando o texto
+        // passa do espaco de leitura (um salvamento de uma versao mais nova).
+        {
+            static char longo[3000];
+            memset(longo, '7', sizeof longo - 1);
+            static const struct { const char *chave, *texto, *aviso; } OP[] = {
+                { "vel", "9", "velocidade" }, { "letra", "x", "letra" }, { "tremor", "01", "tremor" },
+                { "som", "a,b,c", "volumes" }, { "som", "4,99,4", "volumes" }, { "estilo1", "EST1z00", "estilo" },
+                { "estilo1", "EST1", "estilo" }, { "vel", longo, "velocidade" }, { "estilo1", longo, "estilo" },
+            };
+            for (int i = 0; i < (int)(sizeof OP / sizeof OP[0]); i++) {
+                memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+                salva_limpa_tudo();
+                salva_grava(OP[i].chave, OP[i].texto);
+                int vel0 = velocidade, f, m, me;
+                if (!strcmp(OP[i].chave, "som")) som_le_volumes();   // os volumes: so na primeira vez do dado_inicia
+                else if (!strcmp(OP[i].chave, "estilo1")) {
+                    estilo_le(0, &f, &m, &me);
+                    CONFERE(f == FT_VERDE && m == MAT_MARFIM && me == MS_NOGUEIRA, "estilo estragado %d: nao voltou ao padrao", i);
+                } else {
+                    rapido_lido = letra_lida = tremor_lido = false;
+                    dado_inicia(1);
+                    CONFERE(velocidade == vel0 && !gfx_letra_e_maior() && !tremor_off, "opcao estragada %d mudou alguma coisa", i);
+                }
+                char k[24];
+                snprintf(k, sizeof k, "%s_ruim", OP[i].chave);
+                static char c[4096];
+                CONFERE(salva_le(k, c, sizeof c) == (int)strlen(OP[i].texto) && !strcmp(c, OP[i].texto) && t_aviso_salvo > 0
+                        && strstr(aviso_salvo, OP[i].aviso), "salvamento estragado %d (%s): sem copia inteira ou sem aviso", i, OP[i].chave);
+            }
+            // As boas abrem sem aviso nenhum.
+            memset(salvo_avisado, 0, sizeof salvo_avisado); t_aviso_salvo = 0;
+            salva_limpa_tudo();
+            salva_grava("vel", "1"); salva_grava("letra", "0"); salva_grava("tremor", "1"); salva_grava("som", "10,10,10");
+            salva_grava("estilo1", "EST1000");
+            rapido_lido = letra_lida = tremor_lido = false;
+            dado_inicia(1);
+            som_le_volumes();
+            int f, m, me;
+            estilo_le(0, &f, &m, &me);
+            CONFERE(t_aviso_salvo <= 0 && salva_le("vel_ruim", longo, sizeof longo) == 0, "opcoes boas deram aviso: %s", aviso_salvo);
+            salva_limpa_tudo();
+            rapido_lido = letra_lida = tremor_lido = false;
+            dado_inicia(1);
+            t_aviso_salvo = 0;
+        }
         modo = modo_antes;
     }
 

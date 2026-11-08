@@ -381,13 +381,18 @@ void dado_inicia(int n_partidas)
     }
     if (!rapido_lido) {                  // a velocidade escolhida da ultima vez
         char b[8];
-        if (salva_le("vel", b, sizeof b) > 0)
-            for (int v = 0; v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) velocidade = v;
+        int n = salva_le("vel", b, sizeof b), achou = -1;
+        for (int v = 0; n == 1 && v < VEL_N; v++) if (b[0] == VEL_GRAVA[v]) achou = v;
+        if (achou >= 0) velocidade = achou;
+        else if (n > 0) salvo_estragado("vel", b, "A velocidade salva não abriu: uma cópia ficou guardada à parte.");
         rapido_lido = true;
     }
     if (!letra_lida) {                   // a letra maior (tecla L)
         char b[8];
-        gfx_letra_maior(salva_le("letra", b, sizeof b) > 0 && b[0] == '1');
+        int n = salva_le("letra", b, sizeof b);
+        gfx_letra_maior(n == 1 && b[0] == '1');
+        if (n > 0 && !(n == 1 && (b[0] == '0' || b[0] == '1')))
+            salvo_estragado("letra", b, "A opção da letra maior não abriu: uma cópia ficou guardada à parte.");
         letra_lida = true;
     }
     static bool som_lido;
@@ -397,7 +402,10 @@ void dado_inicia(int n_partidas)
     }
     if (!tremor_lido) {                  // e se o tremor da tela foi desligado
         char b[8];
-        tremor_off = salva_le("tremor", b, sizeof b) > 0 && b[0] == '0';
+        int n = salva_le("tremor", b, sizeof b);
+        tremor_off = n == 1 && b[0] == '0';
+        if (n > 0 && !(n == 1 && (b[0] == '0' || b[0] == '1')))
+            salvo_estragado("tremor", b, "A opção do tremor da tela não abriu: uma cópia ficou guardada à parte.");
         tremor_lido = true;
     }
     partidas = n_partidas;

@@ -46,13 +46,17 @@ static void som_grava(void)
 }
 
 // Os volumes da ultima vez (dado_inicia). Um "som" com um quarto numero (o
-// ambiente dos saloes, que saiu) le os tres primeiros.
+// ambiente dos saloes, que saiu) le os tres primeiros. Estragado: os volumes
+// cheios, uma copia a parte e o aviso.
 static void som_le_volumes(void)
 {
     char b[32];
-    int v[SOM_CANAIS];
-    if (salva_le("som", b, sizeof b) > 0 && sscanf(b, "%d,%d,%d", &v[0], &v[1], &v[2]) == SOM_CANAIS)
+    int v[SOM_CANAIS], n = salva_le("som", b, sizeof b);
+    bool ok = n > 0 && sscanf(b, "%d,%d,%d", &v[0], &v[1], &v[2]) == SOM_CANAIS;
+    for (int c = 0; ok && c < SOM_CANAIS; c++) ok = v[c] >= 0 && v[c] <= SOM_NIVEIS;
+    if (ok)
         for (int c = 0; c < SOM_CANAIS; c++) som_volume(c, v[c]);
+    else if (n > 0) salvo_estragado("som", b, "Os volumes salvos não abriram: uma cópia ficou guardada à parte.");
     if (som_volume_de(SOM_CANAL_MUSICA) > 0) som_musica_antes = som_volume_de(SOM_CANAL_MUSICA);
 }
 

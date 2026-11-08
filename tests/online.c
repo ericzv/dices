@@ -5,9 +5,10 @@
 // Os marcos da partida (rede_marco: o estado das regras a cada rodada e a
 // cada turno) dos dois lados tem que ser os mesmos, na mesma ordem, e a
 // partida tem que terminar nos dois. E o que garante que o placar de um
-// computador e o placar do outro. Alem do numero que o jogo manda (o hash
-// da partida), o teste confere um mais largo: os adesivos, o Fermento, o ar
-// do Balao, as bonecas, os lances crus - o que so aparece no placar depois.
+// computador e o placar do outro. O numero que o jogo manda (o hash da
+// partida) ja leva os adesivos, o Fermento, o ar do Balao, as bonecas e os
+// lances crus; o teste confere tambem o seu, feito a parte, para pegar um
+// campo que o do jogo deixe de fora.
 //
 // Para forcar: os dados novos nas bolsas dos dois (1: os que o online tem;
 // 2: tambem os de adesivo, com adesivos colados, a forca), as teclas do
@@ -70,8 +71,8 @@ static void xbytes(uint32_t *hp, const void *p, size_t n)
     for (size_t i = 0; i < n; i++) XMIX(b[i]);
     *hp = h;
 }
-// Tudo o que as regras guardam e o hash do jogo nao olha: os adesivos, o
-// Fermento, o ar do Balao, as bonecas, os lances crus, o pavio.
+// Tudo o que as regras guardam, contado a parte do hash do jogo: os
+// adesivos, o Fermento, o ar do Balao, as bonecas, os lances crus, o pavio.
 static uint32_t hash_largo(void)
 {
     uint32_t h = 2166136261u;

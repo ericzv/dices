@@ -344,7 +344,7 @@ e Mosquitto de reserva), que só repassa as mensagens da sala. Os dois
 navegadores rodam a mesma partida com a mesma semente; só viajam as teclas
 de quem está na vez. O que segura a partida quando a rede falha:
 
-- cada tecla vai numerada e fica guardada; o sinal de vida (a cada 3 s) diz
+- cada tecla vai numerada e fica guardada; o sinal de vida (a cada 1 s) diz
   quantas chegaram e o outro lado manda de novo as que faltam. Uma queda
   curta da internet não perde nada;
 - quem entra diz a versão do jogo: versões diferentes (uma página aberta

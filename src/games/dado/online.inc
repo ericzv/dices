@@ -24,9 +24,11 @@ void dado_rede_tecla(int k)
 
 // Os marcos da partida online. A cada rodada que comeca e a cada vez que
 // alguem para, o estado das regras - o sorteio, as fichas, o pote, as bolsas
-// e as sequencias - vira um numero, e a rede manda o ultimo ao rival no sinal
-// de vida. Os dois lados passam pelos mesmos marcos na mesma ordem, cada um
-// no seu tempo; se o numero de um marco diferir, as duas mesas sairam do
+// (com os adesivos e o que cada dado guarda: o Fermento, o pavio da
+// Dinamite) e as sequencias (com os lances crus, os bonus, o ar do Balao, as
+// bonecas) - vira um numero, e a rede manda o ultimo ao rival no sinal de
+// vida. Os dois lados passam pelos mesmos marcos na mesma ordem, cada um no
+// seu tempo; se o numero de um marco diferir, as duas mesas sairam do
 // compasso e a partida para com o aviso, em vez de seguir com dois placares.
 static int n_marco;
 static uint32_t hash_partida(void)
@@ -35,12 +37,25 @@ static uint32_t hash_partida(void)
 #define MIX(v) (h = (h ^ (uint32_t)(v)) * 16777619u)
     MIX(semente); MIX(partidas); MIX(rodada); MIX(vez); MIX(primeiro); MIX(pote);
     for (int j = 0; j < 2; j++) {
-        MIX(J[j].fichas);
-        MIX(J[j].n_col);
-        for (int i = 0; i < J[j].n_col; i++) { MIX(J[j].col[i].tipo); MIX(J[j].col[i].fixo); }
-        MIX(F[j].n);
-        for (int k = 0; k < F[j].n; k++) { MIX(F[j].tipo[k]); MIX(F[j].valor[k]); MIX(F[j].est[k]); }
+        const jogador_t *p = &J[j];
+        MIX(p->fichas); MIX(p->n_col); MIX(p->perdidas); MIX(p->n_mao);
+        for (int i = 0; i < p->n_col && i < MAX_COL; i++) {
+            const peca_t *c = &p->col[i];
+            MIX(c->tipo); MIX(c->fixo);
+            for (int l = 0; l < AD_LADOS; l++) MIX(c->ad[l]);
+            MIX(c->fermento); MIX(c->capa); MIX(c->selo); MIX(c->velcro); MIX(c->figurinha); MIX(c->chiclete);
+            MIX(p->onde[i]); MIX(p->pavio[i]);
+        }
+        for (int m = 0; m < MAO; m++) MIX(p->mao[m]);
+        const fila_t *f = &F[j];
+        MIX(f->n); MIX(f->lancados); MIX(f->pontos); MIX(f->total); MIX(f->carta); MIX(f->grudado); MIX(f->chiclete);
+        for (int k = 0; k < f->n && k < N_FILA; k++) {
+            MIX(f->idx[k]); MIX(f->tipo[k]); MIX(f->fixo[k]); MIX(f->cru[k]); MIX(f->valor[k]); MIX(f->lado[k]);
+            MIX(f->est[k]); MIX(f->dobra[k]); MIX(f->bonus[k]); MIX(f->quebra[k]); MIX(f->bonecas[k]);
+            MIX(f->abalo[k]); MIX(f->guarda[k]); MIX(f->presente[k]); MIX(f->copiou[k]); MIX(f->bomba[k]);
+        }
     }
+    for (int j = 0; j < 2; j++) { MIX(bis_fila[j]); MIX(ad_moedas[j]); }
 #undef MIX
     return h;
 }

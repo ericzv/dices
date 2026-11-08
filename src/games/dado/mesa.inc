@@ -1234,29 +1234,38 @@ static void placar_faiscas(int x, int y, int w, int h, float alem)
     }
 }
 
+// A caixa escura do placar no tranco (hora.inc: tranco_passo): acende num tom
+// quente e pisca de volta ao escuro, cada vez menos ate apagar. Quanto maior o
+// tranco (tranco_nv), mais claro o tom, mais rapidas as piscadas e mais fundo
+// o apagar entre elas; do salto enorme, o tom vai ao vinho. O numero continua
+// lendo: o tom mais claro fica so na luz de cima.
+static void placar_caixa(int j, int x, int y, int w, int h)
+{
+    if (tranco_t[j] >= TRANCO_DURA) return;
+    static const uint16_t QUENTE[4][2] = {
+        { C_PLACA, C_PLACA_LUZ }, { C_MADEIRA_ESC, C_MADEIRA }, { C_MADEIRA, C_MADEIRA_CLR }, { C_MADEIRA_CLR, C_TERRA },
+    };
+    static const uint16_t VINHO[4][2] = {
+        { C_PLACA, C_PLACA_LUZ }, { RGB(66, 18, 24), RGB(118, 30, 38) }, { RGB(118, 30, 38), C_VERMELHO }, { RGB(118, 30, 38), C_VINHO_CLR },
+    };
+    float nv = tranco_nv[j], q = 1 - tranco_t[j] / TRANCO_DURA;
+    float a = (0.7f + 2.3f * nv) * q;                 // ate onde acende agora: 0..3
+    float hz = 6 + 6 * nv;                            // piscadas por segundo
+    bool aceso = (int)(tranco_t[j] * hz * 2) % 2 == 0;
+    int k = aceso ? (int)ceilf(a) : (int)(a * (0.15f + 0.3f * nv));
+    if (k > 3) k = 3;
+    if (k <= 0) return;
+    const uint16_t (*R)[2] = tranco_n[j] >= TRANCO_ENORME ? VINHO : QUENTE;
+    ui_fundo(x + 2, y + 2, w - 4, h - 4, R[k][0], R[k][1]);
+}
+
 // O tranco do placar (hora.inc: tranco_passo), na placa (x, y, w, h) de j:
-// as faiscas que espirram do salto, o "+N" pulando do lado de fora e, com o
-// calor dos saltos seguidos, o fogo lambendo a beira de cima.
+// as faiscas que espirram do salto forte e o "+N" pulando do lado de fora.
 static void placar_tranco(int j, int x, int y, int w, int h)
 {
     float t = tranco_t[j];
     int n = tranco_n[j];
     bool forte = n >= TRANCO_FORTE, enorme = n >= TRANCO_ENORME;
-    // O fogo: de TRANCO_FOGO de calor para cima, as linguas na beira de cima.
-    float fogo = (tranco_calor[j] - TRANCO_FOGO) / TRANCO_FOGO;
-    if (fogo > 0) {
-        if (fogo > 1) fogo = 1;
-        static const uint16_t CHAMA[4] = { C_BRANCO, C_AMARELO, C_FOGO, C_VERMELHO };
-        for (int i = 1; i < w - 1; i++) {
-            float onda = 0.5f + 0.5f * sinf(t_relogio * 9 + i * 0.7f) * sinf(t_relogio * 5.3f + i * 0.31f);
-            int alto = (int)lroundf((4 + 11 * onda) * (0.45f + 0.55f * fogo) * (0.6f + 0.4f * ((hash2(i, (int)(t_relogio * 12)) % 5) / 4.0f)));
-            for (int k = 0; k < alto; k++) {
-                int c = k * 4 / (alto + 1);
-                if (k == alto - 1 && (i + (int)(t_relogio * 20)) % 3 == 0) continue;   // a ponta tremula
-                gfx_pixel(x + i, y - 1 - k, CHAMA[c]);
-            }
-        }
-    }
     if (t >= TRANCO_DURA) return;
     // As faiscas: do meio da placa para fora, caindo de leve; do salto forte,
     // mais e mais longe; do enorme, no fogo.
@@ -1965,11 +1974,11 @@ static void desenha_fila(int j)
         // empate os dois acendem iguais.
         bool res = fase == F_RESULTADO, zero = res && zerou == j, empate = res && venc_mao == 2;
         int sx = zero && t_fase < 0.7f ? (int)(sinf(t_fase * 48) * 3 * (1 - t_fase / 0.7f)) : 0;
-        // O tranco de um salto grande (hora.inc): treme, mais forte quanto maior.
+        // O tranco de um salto (hora.inc): treme, mais forte quanto maior.
         float tranco = tranco_forca(j);
         int ty = 0;
-        if (tranco > 0 && tranco_n[j] >= TRANCO_FORTE) {
-            float amp = tranco_n[j] >= TRANCO_ENORME ? 4 : 2;
+        if (tranco > 0) {
+            float amp = 1.2f + 3.8f * tranco_nv[j];
             sx += (int)lroundf(sinf(tranco_t[j] * 70) * amp * tranco);
             ty = (int)lroundf(cosf(tranco_t[j] * 53) * amp * 0.6f * tranco);
         }
@@ -1984,6 +1993,7 @@ static void desenha_fila(int j)
         if (tranco > 0)                           // o clarao do salto: o numero vai ao branco e volta
             c = gfx_mistura(c, tranco_n[j] >= TRANCO_ENORME && tranco_t[j] > 0.12f ? C_FOGO : C_BRANCO, (int)(tranco * 100));
         ui_painel(PLACAR_X - 34 + sx, y - 26 + ty, 68, 50);
+        placar_caixa(j, PLACAR_X - 34 + sx, y - 26 + ty, 68, 50);
         if (tranco > 0.25f)                       // e a moldura acende junto
             ui_contorno(PLACAR_X - 32 + sx, y - 24 + ty, 64, 46,
                         tranco_n[j] >= TRANCO_ENORME ? ((int)(tranco_t[j] * 20) % 2 ? C_FOGO : C_AMARELO) : C_BRANCO);

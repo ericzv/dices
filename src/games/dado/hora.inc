@@ -701,30 +701,36 @@ static int placar_real(int j)
 
 // O tranco do placar (como no Balatro): no fim da rodada, cada salto de pontos
 // de uma vez (um bonus, um multiplicador) de TRANCO_MIN para cima sacode o
-// placar - o clarao, a tremida, as faiscas e o "+N" -, mais forte quanto maior
-// o salto (TRANCO_FORTE, TRANCO_ENORME). Os saltos seguidos somam calor
-// (tranco_calor, que esfria sozinho) e, de TRANCO_FOGO para cima, o placar
-// pega fogo. Salto pequeno, nada: so quando a pontuacao sobe de verdade.
+// placar - a caixa pisca, o numero clareia, tudo treme e, do salto forte para
+// cima, as faiscas e o "+N" -, mais forte quanto maior o salto (TRANCO_FORTE,
+// TRANCO_ENORME). Os pontos que vem seguidos somam calor (tranco_calor, que
+// esfria sozinho): o salto que chega com o placar ja quente pisca mais. Salto
+// pequeno sozinho, nada: so quando a pontuacao sobe de verdade.
 #define TRANCO_MIN    6
 #define TRANCO_FORTE  12
 #define TRANCO_ENORME 24
-#define TRANCO_FOGO   24
+#define TRANCO_TETO   40                 // daqui para cima o tranco ja e o mais forte
 #define TRANCO_DURA   0.7f
 static int   tranco_alvo[2];             // o placar de antes, para ver o salto
 static float tranco_t[2] = { 9, 9 };     // ha quanto tempo foi o ultimo tranco (s)
 static int   tranco_n[2], tranco_seq;     // de quanto foi; e um numero para as faiscas mudarem
-static float tranco_calor[2];          // os saltos recentes, somados, esfriando
+static float tranco_calor[2];          // os pontos recentes, somados, esfriando
+static float tranco_nv[2];             // 0..1: o tamanho do ultimo tranco (o salto e o calor de antes)
 static void tranco_passo(int j, int alvo, bool desfecho_agora, float dt_real)
 {
     if (tranco_t[j] < 9) tranco_t[j] += dt_real;
     tranco_calor[j] *= expf(-dt_real / 1.6f);
     int d = alvo - tranco_alvo[j];
     tranco_alvo[j] = alvo;
-    if (!desfecho_agora || fase != F_EFEITOS || d < TRANCO_MIN) return;
+    if (!desfecho_agora || fase != F_EFEITOS || d <= 0) return;
+    float antes = tranco_calor[j];
+    tranco_calor[j] += (float)d;
+    if (d < TRANCO_MIN) return;
     tranco_t[j] = 0;
     tranco_n[j] = d;
     tranco_seq++;
-    tranco_calor[j] += (float)d;
+    float nv = (d + antes * 0.5f - TRANCO_MIN) / (float)(TRANCO_TETO - TRANCO_MIN);
+    tranco_nv[j] = nv < 0 ? 0 : nv > 1 ? 1 : nv;
 }
 // 0..1: a forca do tranco agora (cai em TRANCO_DURA).
 static float tranco_forca(int j)

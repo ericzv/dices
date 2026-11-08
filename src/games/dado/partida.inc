@@ -94,7 +94,12 @@ static void pouso_toca(const pouso_ad_t *p)
 {
     if (p->ad == AD_DINAMITE) {                  // o pavio cresceu: o adesivo saltando, o quanto e o chiado curtinho (nao o BUM)
         flutua_em(p->j, p->k, C_FOGO, 0.25f, "pavio +%d", p->n);
-        som_toca(SOM_PAVIO);
+        // Cada pavio a mais, um degrau acima (na escala maior, ate a oitava):
+        // a pilha crescendo soa subindo.
+        static const int8_t DEGRAU[8] = { 0, 2, 4, 5, 7, 9, 11, 12 };
+        int pv = p->i >= 0 && p->i < J[p->j].n_col ? J[p->j].pavio[p->i] : DINAMITE_CADA;
+        int d = pv / DINAMITE_CADA - 1;
+        som_toca_tom(SOM_PAVIO, DEGRAU[d < 0 ? 0 : d > 7 ? 7 : d]);
         return;
     }
     som_toca(p->ad == AD_BARRO && p->capa ? som_adesivo(AD_IMPERMEAVEL) : som_adesivo(p->ad));

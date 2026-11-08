@@ -2347,18 +2347,18 @@ def espinhoso():
     return sala(m.x, 0.15)
 
 def pavio():
-    """A Dinamite que nao saiu: o pavio cresce. Breve e macio, de coisa
-    guardando - um chiado curto, duas fagulhas estalando e um tilintar leve,
-    subindo, como moeda caindo no cofre."""
-    m = Mix(0.55)
-    n = int(0.24 * SR); t = np.arange(n) / SR
-    chia = pa(rng.standard_normal(n), 4500) * (0.65 + 0.35 * np.sin(2 * np.pi * 29 * t)) * env(n, 0.012, 0.14)
-    m.poe(0.0, chia, 0.09)
-    for k in range(2):                                                       # as fagulhas
-        m.poe(0.035 + k * 0.06 + rnd.uniform(0, 0.01), estalinho(0.004, 4200), 0.12)
-    m.poe(0.07, nota('glockenspiel', 91, 0.18, 0.22), 0.11)                  # o tilintar: sol, e o si de cima
-    m.poe(0.12, nota('glockenspiel', 95, 0.22, 0.25), 0.09)
-    return sala(m.x, 0.12)
+    """A Dinamite que nao saiu: o pavio cresce. Curto, redondo e doce, de
+    coisa guardando: um 'fff' de fagulha bem abafado e duas notinhas de
+    caixinha de musica subindo (sol e re, uma quinta). No jogo cada pavio a
+    mais toca um degrau acima (som_toca_tom), e a pilha soa subindo."""
+    m = Mix(0.7)
+    n = int(0.13 * SR)
+    fff = pb(banda(rng.standard_normal(n), 1600, 4800), 3200) * env(n, 0.018, 0.04)
+    m.poe(0.0, fff, 0.035)
+    m.poe(0.025, nota('music_box', 79, 0.10, 0.30), 0.40)                     # sol
+    m.poe(0.095, nota('music_box', 86, 0.16, 0.40), 0.32)                     # e o re de cima
+    m.poe(0.095, nota('celesta', 74, 0.16, 0.30), 0.08)                       # um corpo por baixo
+    return sala(m.x, 0.15)
 
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam

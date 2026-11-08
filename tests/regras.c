@@ -6576,6 +6576,59 @@ int main(void)
         ia_nivel = 2;
     }
 
+    // ---- IA: dois dados do mesmo tipo, um com adesivo -------------------
+    // A IA nao repete filas com os mesmos dados na mesma ordem, mas um d6
+    // com adesivo nao e um d6 liso: atras de quatro d6 lisos na mao, o d6
+    // com Raspadinha em todos os lados (+10 valendo) tem de entrar na fila.
+    // Antes, a fila era reconhecida so pelo tipo e pelo numero guardado, e
+    // o quinto d6 nunca era nem testado.
+    {
+        static const int T[7] = { D_D6, D_D6, D_D6, D_D6, D_D6, D_D4, D_D4 };
+        for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
+        J[0].n_col = 0;
+        for (int i = 0; i < 7; i++) {
+            J[0].col[i] = (peca_t){ .tipo = (uint8_t)T[i] };
+            J[0].onde[i] = NA_MAO;
+            J[0].mao[i] = (int8_t)i;
+            J[0].n_col++;
+        }
+        for (int l = 1; l <= 6; l++) ad_cola(&J[0].col[4], l, AD_RASPADINHA);
+        J[0].n_mao = 7;
+        memset(F, 0, sizeof F);
+        primeiro = vez = 0;
+        rodada = 2;
+        ia_esforco = 0;
+        for (int niv = 1; niv <= 2; niv++) {
+            ia_nivel = niv;
+            plano_rodada = -1;
+            ia_planeja();
+            bool tem = false;
+            for (int k = 0; k < plano_n; k++) tem |= plano[k] == 4;
+            CONFERE(tem, "IA nivel %d deixou de fora o d6 com Raspadinha, atras de quatro d6 lisos (fila de %d)", niv, plano_n);
+        }
+        ia_esforco = 1;
+        ia_nivel = 2;
+    }
+
+    // ---- IA: a media da Tela em Branco e do Bumerangue --------------------
+    // A Tela em Branco pontua 0 no lado sem adesivo: vazia, nao vale um d6 (e
+    // o nivel facil nao a poe no lugar de um). O Bumerangue rola de novo o 1
+    // e o 2: em media 25/6, mais que um d6.
+    {
+        peca_t t = { .tipo = D_TELA };
+        CONFERE(media(t) == 0, "media da Tela vazia: %.2f", media(t));
+        ad_cola(&t, 6, AD_CONFETE);
+        ad_cola(&t, 3, AD_REMENDO);
+        CONFERE(fabsf(media(t) - 11.0f / 6) < 0.001f, "media da Tela com o 6 e o 3 (Remendo, 5): %.3f", media(t));
+        peca_t b = { .tipo = D_BUMERANGUE };
+        CONFERE(fabsf(media(b) - 25.0f / 6) < 0.001f, "media do Bumerangue: %.3f", media(b));
+        peca_t mao[5] = { { .tipo = D_TELA }, { .tipo = D_D6 }, { .tipo = D_D6 }, { .tipo = D_D6 }, { .tipo = D_D6 } };
+        int ordem[N_FILA], q = fila_simples(mao, 5, ordem);
+        bool tela = false;
+        for (int k = 0; k < q; k++) tela |= ordem[k] == 0;
+        CONFERE(q == 4 && !tela, "IA facil pos a Tela em Branco vazia no lugar de um d6");
+    }
+
     // ---- IA: o Chiclete que ainda vai grudar ------------------------------
     // Quem joga depois responde a aposta antes da vez: a IA pesa a fila ja com
     // o grudado na frente, sem mexer na mesa, e na vez de verdade monta a fila

@@ -7559,6 +7559,17 @@ int main(void)
         CONFERE(embrulho == 0 && J[0].col[0].tipo == D_PRESENTE, "Presente surpresa: sem o Chiclete, embrulha");
         desfaz_embrulho();
 
+        // O Camaleao atras da Ficha Coringa nao fica de fora da sequencia (so
+        // ela fica): entra e pode cair. O risco dele e o de um d8, nao zero.
+        modo = M_DOIS; reg_op = REG_NADA;
+        limpa();
+        joga(0, D_D8, 8); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois);
+        F[0].tipo[2] = D_CAMALEAO; F[0].n = 3;
+        CONFERE(risco(0) == 700 / 8, "Camaleao atras da Ficha Coringa: risco %d, esperado %d", risco(0), 700 / 8);
+        joga(0, D_CAMALEAO, 3);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[2] == V_ANULADO && !F[0].curinga[2],
+                "Camaleao atras da Ficha Coringa: entra na sequencia e cai");
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

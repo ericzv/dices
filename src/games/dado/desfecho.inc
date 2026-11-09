@@ -2342,7 +2342,7 @@ static int risco(int j)
     const peca_t *p = peca_fila(j, k);       // cada lado com o numero que tira (o Remendo soma 2)
     if (estilingue_armado(j, k)) return l >= 0 && cai_depois(j, remenda(p, lados), L) ? 100 : 0;   // sai no maximo
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
-    if (ef == EF_FICHA_CORINGA) return 0;                     // fica de fora ate o fim
+    if (TIPO[f->tipo[k]].efeito == EF_FICHA_CORINGA) return 0;   // fica de fora ate o fim (a de verdade: o Camaleao atras dela entra na sequencia)
     if (TIPO[f->tipo[k]].efeito == EF_CARROSSEL) return 0;    // gira de fora ate o fim (o de verdade: o Camaleao atras dele nao gira)
     if (ef == EF_RELOGIO) return l >= 0 && cai_depois(j, remenda(p, relogio_valor()), L) ? 100 : 0;
     if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, previsivel_valor(f->fixo[k])), L) ? 100 : 0;

@@ -1204,7 +1204,17 @@ static bool casca_no_fim(void)
 }
 static bool fim_incerto(void)
 {
-    return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim();
+    if (carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim()) return true;
+    // O Espelho que espera vira no fim e a sequencia dele e refeita: so entao
+    // um Terremoto pode passar a valer, ou o dado em que a Casca pega. A
+    // previa vira o Espelho e diz (previa_sorte).
+    bool espera = false;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) espera |= F[j].espera[k];
+    if (!espera) return false;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    return previa_sorte;
 }
 // Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
 // Espelho esperando o maior do outro, a Ficha Coringa com o curinga para

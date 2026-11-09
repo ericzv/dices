@@ -2090,6 +2090,12 @@ static void guarda_seq_de(int de, int j, int t1, int t2)
         if (ev[i].de_j == j && (ev[i].tipo == t1 || ev[i].tipo == t2)) guarda_seq(&ev[i], j);
 }
 
+// A previa nao sabe o que o tremor e a Casca de Banana vao dar, mas sabe se
+// vao agir: e o que ela anota aqui, com o Espelho que esperava ja virado e a
+// sequencia dele refeita (fim_incerto, partida.inc).
+static bool previa_sorte;
+static bool casca_no_fim(void);
+
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
 static void calcula_desfecho(desfecho_t *d, bool gera)
@@ -2147,6 +2153,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         if (gera) guarda_seq_de(0, j, EV_REVELA, EV_ESPELHO);
         virou = true;
     }
+    if (!gera) previa_sorte = tremor_na_mesa() || casca_no_fim();
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
     // valido dele rola de novo e a sequencia dele e refeita com o numero
     // novo (menor que o de antes, cai e leva o anterior). So no fim de

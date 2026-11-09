@@ -7488,6 +7488,29 @@ int main(void)
                 "Carrossel depois do Oculto: no fim dos eventos, a mesa do motor (%d, pago %d)", total_visivel(0), resolvido.total[0]);
         if (fase == F_EFEITOS) conclui_rodada();
 
+        // O Espelho que espera vira no fim e refaz a sequencia: o 4o dado de
+        // quem abriu, anulado ate ali, volta a valer e a Casca de Banana do
+        // outro o pega. O fim depende da sorte (nem "ja venceu", nem previa certa).
+        ad_cola(&J[0].col[0], 6, AD_CASCA);
+        limpa(); primeiro = 1;
+        joga(1, D_D8, 2); joga(1, D_ESPELHO, 1); joga(1, D_D6, 4); joga(1, D_D6, 3);
+        CONFERE(F[1].espera[1] && F[1].est[2] == V_ANULADO && F[1].est[3] == V_ANULADO, "Espelho e Casca: a mesa do teste");
+        joga_ad(0, 0, 6);
+        CONFERE(fim_incerto(), "Espelho esperando com a Casca do outro lado: o fim depende da sorte");
+        CONFERE(!ja_vence(0), "Espelho esperando com a Casca do outro lado: a vez nao acaba sozinha");
+        CONFERE(F[1].espera[1] && F[1].valor[1] == 1 && F[1].est[3] == V_ANULADO, "fim_incerto nao mexe na mesa");
+        J[0].col[0] = (peca_t){ .tipo = D_D6 };
+        // O mesmo com o Terremoto: anulado ate o Espelho virar, depois vale com 8.
+        limpa(); primeiro = 1;
+        joga(1, D_ESPELHO, 2); joga(1, D_D12, 9); joga(1, D_TERREMOTO, 8);
+        joga(0, D_D12, 10);
+        CONFERE(F[1].est[2] == V_ANULADO && !tremor_na_mesa(), "Espelho e Terremoto: a mesa do teste");
+        CONFERE(fim_incerto(), "Espelho esperando com um Terremoto que volta a valer: o fim depende da sorte");
+        // Sem Espelho esperando, nada muda: um Terremoto anulado nao treme.
+        limpa(); primeiro = 1;
+        joga(1, D_D12, 9); joga(1, D_TERREMOTO, 8); joga(0, D_D12, 10);
+        CONFERE(!fim_incerto(), "Terremoto anulado, sem Espelho: o fim nao depende da sorte");
+
         // A previa de quem ainda tem dados por lancar conta a rodada como se
         // parasse agora: a Rede olha o ultimo dado lancado, como o desfecho.
         desfecho_t d, pv;

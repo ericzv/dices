@@ -251,7 +251,8 @@ static void embrulha_um(void)
     if (!tem_reg(REG_PRESENTE) || !J[0].n_mao) return;
     int ok[MAO], n = 0;
     for (int i = 0; i < J[0].n_mao; i++)
-        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE && J[0].col[J[0].mao[i]].tipo != D_UNIVERSO) ok[n++] = J[0].mao[i];   // o Universo vai sozinho: nao embrulha
+        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE && J[0].col[J[0].mao[i]].tipo != D_UNIVERSO   // o Universo vai sozinho: nao embrulha
+            && !J[0].col[J[0].mao[i]].chiclete) ok[n++] = J[0].mao[i];   // nem o grudado pelo Chiclete: ja vai para a mesa, sem ser lancado
     if (!n) return;
     embrulho = (int16_t)ok[rnd() % (uint32_t)n];
     embrulho_tipo = J[0].col[embrulho].tipo;

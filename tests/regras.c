@@ -7546,6 +7546,19 @@ int main(void)
         coringa_completa(1);
         CONFERE(F[1].carta && F[1].n == 4, "Coringa abrindo: a carta (carta %d, n %d)", F[1].carta, F[1].n);
 
+        // O Papai Noel nao embrulha o dado que o Chiclete grudou: ele ja vai
+        // para a mesa sem ser lancado (e nunca seria desembrulhado).
+        modo = M_DESAFIO; reg_op = REG_PRESENTE;
+        limpa();
+        J[0].col[0] = (peca_t){ .tipo = D_D8, .chiclete = 1 };
+        J[0].onde[0] = NA_MAO; J[0].mao[0] = 0; J[0].n_mao = 1;
+        embrulha_um();
+        CONFERE(embrulho < 0 && J[0].col[0].tipo == D_D8, "Presente surpresa: o dado grudado nao e embrulhado (tipo %d)", J[0].col[0].tipo);
+        J[0].col[0].chiclete = 0;
+        embrulha_um();
+        CONFERE(embrulho == 0 && J[0].col[0].tipo == D_PRESENTE, "Presente surpresa: sem o Chiclete, embrulha");
+        desfaz_embrulho();
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

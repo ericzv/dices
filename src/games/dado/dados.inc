@@ -915,7 +915,7 @@ static const visual_t VISUAL[D_N] = {
     [D_FARTURA]    = { V_AMBAR,   V_AMBAR, 40,  V_TRIGO, 100,   V_AMBAR, 100 },                 // os graos de milho claros
     [D_SORTE]      = { V_AZUL,    0, 0,         V_AZUL, 65,     V_VERM, 65 },
     [D_TEIMOSO]    = { V_ACO,     0, 0,         V_ACO, 34 },
-    [D_SEMENTE]    = { V_TERRA,   V_PEDRA, 55,  V_COURO, 100,   V_PEDRA, 100,  V_BREU, 100 },   // o feijao rajado: as rajas, a casca e o olho
+    [D_SEMENTE]    = { V_VERDE,   V_LIMA, 30,   V_LIMA, 100 },                                  // a semente verde-clara e as rajas suaves
     [D_FOGO]       = { V_FOGO },                // a ficha em chamas, desenhada a parte
     [D_MALDICAO]   = { V_ROXO,    V_ROXO, 20,   V_ROXO, 65 },
     [D_TREVO]      = { V_VERDE,   V_LIMA, 28,   V_VERDE, 90,    V_VERDE, 65,   V_VERDE, 100 },   // o tecido estampado de trevinhos
@@ -949,7 +949,7 @@ static const visual_t VISUAL[D_N] = {
     [D_DOMINO]     = { V_BREU,    0, 0,         V_BREU, 70,     V_LATAO, 100 },
     [D_ANCORA]     = { V_AZUL,    V_AZUL, 12,   V_AZUL, 85,     V_FERRO, 80 },
     [D_MARTIR]     = { V_SANGUE,  V_PEDRA, 12,  V_SANGUE, 100,  V_BREU, 75,    V_VERM, 100 },
-    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 30,   V_VERM, 100,    V_ROSA, 100 },                  // a seta grande da frente da fila
+    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 10,   RGB(226, 164, 168), 100 },                      // as listras e as setinhas, quase brancas
     [D_COVEIRO]    = { V_BARRO,   V_PEDRA, 10,  V_PEDRA, 100,   V_TERRA, 100,  V_BREU, 85 },    // a pedra e o aco, a terra e a madeira
     [D_HEXA]       = { V_AMBAR,   V_AMBAR, 40,  V_AMBAR, 100,   V_TRIGO, 100,  V_LATAO_E, 100 },  // o favo de mel
     [D_OURICO]     = { V_COURO,   V_TERRA, 22,  V_COURO, 85 },
@@ -1017,7 +1017,7 @@ static const visual_t VISUAL[D_N] = {
     // O Mosaico: os azulejos de tres cores com o rejunte claro.
     [D_MOSAICO]     = { V_CIANO,  0, 0,         V_CIANO, 100,   V_ROSA, 100,   V_TRIGO, 100 },
     // O Piao: a madeira torneada com as listras vermelha e creme em volta.
-    [D_PIAO]       = { V_TERRA,   V_TERRA, 40,  V_VERM, 100,    V_TERRA, 100,  V_AZUL, 100 },   // a madeira torneada e os aneis pintados
+    [D_PIAO]       = { V_TERRA,   0, 0,         RGB(238, 230, 212), 100, RGB(226, 164, 168), 100, V_CEU, 100 },   // a madeira bem clara e os aneis leves
     // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
     [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
     // O Leque: o papel rosa em gomos, o vinco vinho e o ouro do fio, das florzinhas e do pino.

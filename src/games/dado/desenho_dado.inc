@@ -946,16 +946,15 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (f2 - f1 < 2.2f * s) return LUZ(2, 0.05f);                         // a rachadura miuda, de um pixel
         return LUZ(1, base + ((int)(id % 5) - 2) * 0.035f);                    // cada caco num tom um pouco diferente
     }
-    case D_PIAO: {                                // o piao de madeira torneada, de lado: a madeira clara com as marcas do torno e os aneis finos pintados, curvos como o corpo
+    case D_PIAO: {                                // o piao de madeira bem clarinha, torneada: o veio e as marcas do torno quase sumindo, e dois aneis pintados bem leves
         float x = u - 0.08f, y = v - 0.08f;
-        float yy = y - 0.14f * x * x;                                         // os aneis fazem curva: o corpo e redondo
-        float luz = 0.55f - x * 0.35f - y * 0.10f;                            // o corpo e um cilindro: claro a esquerda
-        luz += 0.40f * expf(-(x + 0.42f) * (x + 0.42f) / 0.004f);             // o risco de brilho do verniz
-        static const float A[4] = { -0.70f, -0.62f, 0.62f, 0.70f }, W[4] = { 0.030f, 0.012f, 0.012f, 0.030f };   // perto das beiras, longe dos pontos
-        for (int i = 0; i < 4; i++)
-            if (fabsf(yy - A[i]) < W[i] + 0.4f * s) return i == 0 || i == 3 ? LUZ(1, luz - 0.10f) : LUZ(3, luz - 0.10f);   // os aneis: vermelho largo, azul fino
-        float veio = 0.08f * ruido(x / 0.40f + 2, yy / 0.03f) + (fr(yy / 0.07f) < 0.8f * s / 0.07f ? -0.18f : 0);   // o veio e as marcas do torno
-        return LUZ(2, luz + veio);
+        float yy = y - 0.14f * x * x;                                         // as marcas fazem curva: o corpo e redondo
+        float luz = 0.10f - x * 0.15f - y * 0.06f;                            // o cilindro, com pouca sombra
+        static const float A[2] = { -0.68f, 0.68f };
+        for (int i = 0; i < 2; i++)
+            if (fabsf(yy - A[i]) < 0.022f + 0.4f * s) return i == 0 ? LUZ(2, 0.55f) : LUZ(3, 0.55f);   // os aneis: rosa e azul, bem claros
+        float veio = 0.22f * ruido(x / 0.40f + 2, yy / 0.03f) + (fr(yy / 0.09f) < 0.8f * s / 0.09f ? -0.25f : 0);   // o veio e as marcas do torno
+        return LUZ(1, luz + veio);
     }
     case D_CAMELO: {                              // as bugigangas miudas da banca, em volta do numero
         static const float BX[8] = { -0.56f, -0.22f, 0.22f, 0.56f, -0.56f, -0.22f, 0.22f, 0.56f };
@@ -1243,17 +1242,16 @@ static int desenho_interno(int tipo, float u, float v, float s)
     case D_TEIMOSO:                               // um X por tras dos pontos: nao cai
         if (fabsf(u) > 0.6f || fabsf(v) > 0.6f) return 0;
         return fabsf(u - v) < 0.2f || fabsf(u + v) < 0.2f;
-    case D_SEMENTE: {                             // o feijao rajado: a casca bege e lustrosa, as rajas cor de vinho ao comprido e o olho da semente na beira
+    case D_SEMENTE: {                             // a semente verde-clara e lustrosa, as rajas suaves ao comprido e o olho da semente na beira
         float x = u - 0.06f, y = v - 0.06f, rr = sqrtf(x * x + y * y);
         float hx = (x - 0.64f) / 0.055f, hy = (y - 0.02f) / 0.15f, h = hx * hx + hy * hy;   // o olho (o hilo), comprido, na beira da direita
-        if (h < 1) return h > 0.55f ? LUZ(3, -0.4f) : LUZ(2, 0.95f);
-        float luz = 0.30f - (x + y) * 0.40f - fmaxf(0, rr - 0.55f) * 1.2f;   // convexa: clara em cima a esquerda
+        if (h < 1) return h > 0.55f ? LUZ(1, 0.15f) : LUZ(1, 0.95f);
+        float luz = 0.67f - (x + y) * 0.06f - fmaxf(0, rr - 0.65f) * 0.4f;   // clara, quase sem sombra
         float a = (x * 0.8f - y * 0.6f), b = (x * 0.6f + y * 0.8f);         // as rajas correm ao comprido, na diagonal
         float w = ruido(a / 0.08f + 3.0f, b / 0.32f + 1.0f) + 0.35f * ruido(x / 0.05f + 7, y / 0.05f);
         if (rr < 0.30f) w -= 0.9f * (1 - rr / 0.30f);                         // o campo do numero, mais limpo
-        if (w > 0.42f) return LUZ(1, luz - 0.10f);
-        if (w > 0.30f) return LUZ(1, luz + 0.25f);                            // a beira da raja, mais rala
-        return LUZ(2, luz);
+        if (w > 0.42f) return LUZ(1, luz - 0.06f);                            // a raja, so um pouco mais verde
+        return LUZ(1, luz);
     }
     case D_MALDICAO: {                            // Maldito: a espiral de um feitico, em volta do numero, sem passar por ele
         float x = u - 0.05f, y = v - 0.22f, rr = sqrtf(x * x + y * y);
@@ -1626,17 +1624,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_PUXA_FILA: {                           // a seta grande da frente da fila, apontando para a direita, com o numero no corpo dela
-        float x = u - 0.08f, y = v - 0.08f;
-        float luz = 0.10f - (x + y) * 0.35f;
-        bool corpo = fabsf(y) < 0.31f && x > -0.80f && x < 0.22f;
-        bool ponta = x >= 0.20f && x < 0.84f && fabsf(y) < 0.58f * (0.84f - x) / 0.64f;
-        if (corpo || ponta) {
-            bool beira = (corpo && (fabsf(y) > 0.31f - 1.4f * s) && x < 0.20f) || (ponta && fabsf(y) > 0.58f * (0.84f - x) / 0.64f - 1.6f * s);
-            return beira ? LUZ(2, 0.0f) : 0;                                  // a seta: marfim, com o fio de rosa em volta
+    case D_PUXA_FILA: {                           // a faixa de desfile na beira, listrada para a frente, e o miolo de setinhas para a direita: tudo quase branco
+        float g = face_g(8, u, v, NULL), x = u - 0.08f, y = v - 0.08f;
+        if (g > 0.70f && g < 0.94f) {                                        // a faixa: as divisas apontando para a direita
+            float f = fr((x + 0.55f * fabsf(y)) / 0.14f);
+            return f < 0.34f ? 0 : LUZ(1, 0.62f - (x + y) * 0.08f);
         }
-        float f = fr((x + 0.95f * fabsf(y)) / 0.18f);                        // o fundo vermelho, com as divisas miudas para a frente
-        return f < 0.18f ? LUZ(1, luz - 0.25f) : LUZ(1, luz);
+        if (g > 0.70f - 1.2f * s / 0.69f && g <= 0.70f) return LUZ(1, 0.40f);   // o fio de dentro
+        // o miolo: fileiras de setinhas ">", alternando dois rosas bem claros
+        const float C = 0.15f;
+        float cx = floorf(x / C + 50) - 50, cy = floorf(y / C + 50) - 50;
+        float lx = x - (cx + 0.5f) * C, ly = y - (cy + 0.5f) * C;
+        float d = lx + 0.9f * fabsf(ly) - 0.02f;
+        if (fabsf(ly) < 0.045f && fabsf(d) < 0.014f + 0.4f * s)
+            return ((int)(cx + cy) & 1) ? LUZ(1, 0.62f) : LUZ(1, 0.80f);
+        return 0;
     }
     case D_COVEIRO: {                             // a lapide com a cruz, fincada no monte de terra, e a pa ao lado
         // O monte de terra, de lado a lado embaixo, por cima do pe da lapide e da lamina da pa.

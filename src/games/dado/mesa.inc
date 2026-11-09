@@ -3841,8 +3841,11 @@ static void desenha_evento_dentro(const evento_t *e, float p)
             int y = ficha_py[r] + (int)((ficha_py[d] - ficha_py[r]) * s) - (int)(sinf(s * 3.1416f) * 40);
             ficha(x, y, C_OURO);
         }
-        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, "-2", C_VINHO_CLR, 1);
-        if (p > 0.6f) txt_sombra_c(ficha_px[d] + 46, ficha_py[d] - 4 - (int)((p - 0.6f) * 16), "+2", C_OURO, 1);
+        char menos[8], mais[8];                              // o tanto que ele leva (AGIOTA_FICHAS)
+        snprintf(menos, sizeof menos, "-%d", AGIOTA_FICHAS);
+        snprintf(mais, sizeof mais, "+%d", AGIOTA_FICHAS);
+        if (p > 0.15f && p < 0.9f) txt_sombra_c(ficha_px[r] + 46, ficha_py[r] - 4, menos, C_VINHO_CLR, 1);
+        if (p > 0.6f) txt_sombra_c(ficha_px[d] + 46, ficha_py[d] - 4 - (int)((p - 0.6f) * 16), mais, C_OURO, 1);
     }
     // Cavalo de Troia: atingido, se abre onde estiver (no lugar dele ou, se foi
     // roubado, entre os roubados do outro) e de dentro sai um soldado para

@@ -162,6 +162,48 @@ A moeda e a ficha usam o disco das fichas (`ficha_disco`).
   cor; no desfecho, acende quando acontece. As etiquetas do próprio dado
   passam por `poe_tag` (`fila.inc`), que guarda a última de cada tipo.
 
+### Os grupos do desenho dos dados
+
+Todo dado especial entra num destes grupos. O desenho diz do que o dado é
+feito ou onde mora a identidade dele; nunca é uma figura solta.
+
+| Grupo | O que é | Regras |
+|-------|---------|--------|
+| **Feito de…** | O dado inteiro é de um material: madeira, latão, veludo, lã, pedra, papel. | O material cobre 60% ou mais da face. Dois ou três tons vizinhos da mesma rampa, pouco contraste. Luz de cima, à esquerda, convexa. O número tem contorno e nada passa por cima dele. |
+| **Acabamento de borda** | O centro fica marfim e calmo; a identidade mora na borda, num canto ou num padrão que se repete. | O desenho ocupa a faixa junto da borda (30% dela ou mais). Padrão repetido em vez de figura. O centro em volta do número fica liso. |
+| **Noite** | Corpo escuro com brilho miúdo: o cósmico, o misterioso, o oculto. | Corpo escuro em duas camadas. Número claro. Pontos de brilho esparsos, nunca encostando no número. |
+| **Ficha e moeda** | Os d2 são discos. | Ficha de cassino com listras na borda, ou metal com aro (moeda), com o mesmo cuidado de material do "Feito de…". |
+| **Clássico** | Só os dados comuns. | Marfim liso e aro de latão, sem desenho. É o que faz os especiais se destacarem. |
+
+O que evitar, com os limites medidos na simulação das pranchas:
+
+- **Quase liso**: um traço pequeno num dado marfim. Some na mesa e fica igual
+  a outros na bolsa. Limite: menos de 29% da face com desenho (na faixa da
+  borda e na face toda). A exceção são os pontos do d6, quando a identidade
+  está neles (o Copiador).
+- **Desenho solto no centro**: uma figura atrás do número, no meio do marfim.
+  Limite: o desenho no meio 1,15 vez ou mais do que na borda, cobrindo menos
+  da metade da face.
+- **Número disputado**: o desenho encostando em 44% ou mais do contorno do
+  número. Abra um campo calmo em volta dele.
+- **Luz invertida**: a metade de baixo, à direita, mais clara que a de cima,
+  à esquerda.
+
+Ficam como estão, por escolha: o Desafiante, o Dominó e o Panetone.
+
+Para desenhar (`desenho_dado.inc`): `desenho_interno` devolve 0 (o corpo),
+1 a 3 (as cores `c1`..`c3` do `VISUAL`) ou `LUZ(c, l)`, a cor `c` na rampa
+com a luz `l` de -1 a 1. As ajudas comuns:
+
+- `face_g(lados, u, v, &t)`: 0 no centro da face, 1 na beira de dentro do
+  aro; em `t`, onde o ponto cai ao longo da beira. É a régua das faixas de
+  borda e do campo calmo do número.
+- `celulas` e `celula_vet`: o mosaico torto (rachaduras, grãos, covinhas de
+  martelo). `celula_vet` dá o caminho até o centro da célula, para o volume.
+- `grao`: o grão de um pixel preso ao desenho (escovado, veludo).
+- Os números claros (`tinta = C_MARFIM`) vão nos corpos escuros. A lista fica
+  em `desenha_dado_base`.
+
 ## 8. Retratos
 
 - Busto de 22 x 27 pixels (`RT_W`, `RT_H`), ampliado 2x (a mesa, o mapa) ou

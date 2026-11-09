@@ -222,15 +222,42 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 3, "Copiador anulado: esperava 3, deu %d", d.total[0]);
 
-    // Jackpot: tres iguais (sem contar ele) com o Jackpot valendo: +10.
+    // Jackpot: so contam os dados iguais a ele. Tres 5 ao lado de um Jackpot
+    // com 1 nao valem nada.
     limpa();
     joga(0, D_JACKPOT, 1);
     joga(0, D_D6, 5);
     joga(0, D_D6, 5);
     joga(0, D_D8, 5);
     d = fim();
-    CONFERE(d.total[0] == 1 + 15 + 10, "Jackpot com trinca: esperava 26, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 1 + 15, "Jackpot 1 com tres 5: esperava 16, deu %d", d.total[0]);
     bool viu = false;
+    for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_JACKPOT || (ev[i].tipo == EV_EXTRA && ev[i].de_k == 0)) viu = true;
+    CONFERE(!viu, "Jackpot 1 com tres 5: nao devia agir");
+    // Jackpot 2, d6 3, d6 3: os dois d6 sao iguais entre si, mas nao a ele.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 3);
+    joga(0, D_D6, 3);
+    CONFERE(poder_armado(0, 0) == 0, "Jackpot 2 com dois 3: nao devia acender");
+    d = fim();
+    CONFERE(d.total[0] == 2 + 3 + 3, "Jackpot 2 com dois 3: esperava 8, deu %d", d.total[0]);
+    // Jackpot 2, d6 2, d6 3: o d6 com 2 e igual a ele, +4.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 2);
+    CONFERE(poder_armado(0, 0) == 1, "Jackpot 2 com um 2: devia acender");
+    joga(0, D_D6, 3);
+    d = fim();
+    CONFERE(d.total[0] == 2 + 2 + 3 + 4, "Jackpot 2 com um 2: esperava 11, deu %d", d.total[0]);
+    // Jackpot 2 com dois 2: tres com ele, +10 e o evento.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 2);
+    joga(0, D_D8, 2);
+    d = fim();
+    CONFERE(d.total[0] == 6 + 10, "Jackpot 2 com dois 2: esperava 16, deu %d", d.total[0]);
+    viu = false;
     for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_JACKPOT) viu = true;
     CONFERE(viu, "Jackpot com trinca: faltou o evento");
 

@@ -285,30 +285,24 @@ static bool copia_antes(int j, int k)
     return false;
 }
 
-// Tres ou mais dados valendo com o mesmo numero. Devolve o numero (0 se nao
-// ha trinca) e, em masc, quais dados formam a trinca.
-// Pelo menos q dados valendo de j com o mesmo numero: devolve o numero (o
-// primeiro que fecha) e, em masc, quais sao. 0: nao ha.
-static int mesmo_numero(int j, const uint8_t *est, int q, uint8_t *masc)
+// O Jackpot: quantos dados de j valendo mostram o numero v (o Jackpot
+// incluido), se um deles e um Jackpot valendo; 0 se nenhum Jackpot valendo
+// mostra v. Em masc, quais sao. So conta quem e igual ao Jackpot: dois 3
+// ao lado de um Jackpot com 2 nao valem.
+static int jackpot_com(int j, const uint8_t *est, int v, uint8_t *masc)
 {
-    for (int a = 0; a < F[j].lancados; a++) {
-        if (est[a] != V_VALIDO) continue;
-        uint8_t m = 0;
-        for (int b = 0; b < F[j].lancados; b++)
-            if (est[b] == V_VALIDO && F[j].valor[b] == F[j].valor[a]) m |= (uint8_t)(1 << b);
-        int n = 0;
-        for (uint8_t x = m; x; x >>= 1) n += x & 1;
-        if (n >= q) { if (masc) *masc = m; return F[j].valor[a]; }
+    bool tem = false;
+    uint8_t m = 0;
+    int n = 0;
+    for (int b = 0; b < F[j].lancados; b++) {
+        if (est[b] != V_VALIDO || F[j].valor[b] != v) continue;
+        m |= (uint8_t)(1 << b);
+        n++;
+        tem |= TIPO[tipo_de(j, b)].efeito == EF_JACKPOT;
     }
-    return 0;
-}
-static int trinca(int j, const uint8_t *est, uint8_t *masc) { return mesmo_numero(j, est, 3, masc); }
-
-static bool tem_jackpot(int j, const uint8_t *est)
-{
-    for (int k = 0; k < F[j].lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_JACKPOT) return true;
-    return false;
+    if (!tem) return 0;
+    if (masc) *masc = m;
+    return n;
 }
 
 // Os lances de um Explosivo que somaram v: o primeiro (o 8, ou mais com o
@@ -759,12 +753,12 @@ static void aplica_regra(int j, int k)
     } else if (ef == EF_SORTE_REVES && f->descarte[k] && ver_tipo == 0) {
         snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: pontua %d", v + f->descarte[k], f->descarte[k], v);
         ver_comum = false;
-    } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
-        snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
+    } else if (f->est[k] == V_VALIDO && jackpot_com(j, f->est, v, NULL) >= 3) {
+        snprintf(veredito, sizeof veredito, "três %d: JACKPOT no fim!", v);
         ver_tipo = 0;
         ver_comum = false;
-    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && mesmo_numero(j, f->est, 2, NULL) == v && tem_jackpot(j, f->est)) {
-        snprintf(veredito, sizeof veredito, "dois iguais: Jackpot +4 no fim");
+    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && jackpot_com(j, f->est, v, NULL) == 2) {
+        snprintf(veredito, sizeof veredito, "dois %d: Jackpot +4 no fim", v);
         ver_comum = false;
     }
     f->pontos = soma(j, f->est);

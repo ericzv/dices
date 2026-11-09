@@ -828,21 +828,22 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
         }
     }
 
-    // Jackpot: tres dados valendo com o mesmo numero, +10; so dois, +4. Fora
-    // dos multiplicadores (soma no mesmo bonus fixo da Semente).
-    uint8_t trio = 0, dupla = 0;
-    int num = trinca(j, est, &trio), par = num ? 0 : mesmo_numero(j, est, 2, &dupla);
-    for (int k = 0; (num || par) && k < f->lancados; k++) {
+    // Jackpot: tres dados valendo com o numero dele (ele incluido), +10; so
+    // dois, +4. Iguais entre si, mas nao a ele, nao contam. Fora dos
+    // multiplicadores (soma no mesmo bonus fixo da Semente).
+    for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_JACKPOT) continue;
-        if (num) {
+        uint8_t iguais = 0;
+        int num = f->valor[k], n = jackpot_com(j, est, num, &iguais);
+        if (n >= 3) {
             d->semente[j] += 10;
             evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
-            if (e) e->mascara = trio;
-        } else {
+            if (e) e->mascara = iguais;
+        } else if (n == 2) {
             d->semente[j] += 4;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 4, "Jackpot: dois %d, +4", par);
+            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 4, "Jackpot: dois %d, +4", num);
             for (int i = 0; e && i < N_FILA; i++)
-                if (dupla >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
+                if (iguais >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
         }
     }
 }
@@ -905,7 +906,7 @@ static int poder_armado(int j, int k)
     case EF_SEMENTE:      return soma(j, f->est) >= SEMENTE_BROTA;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
-    case EF_JACKPOT:      return mesmo_numero(j, f->est, 2, NULL) != 0;
+    case EF_JACKPOT:      return iguais > 0;                    // outro seu valendo com o numero dele
     case EF_COPIADOR:     return iguais > 0;
     case EF_LASER:        return v >= 5;
     case EF_TERREMOTO:    return v >= TERREMOTO_DE;

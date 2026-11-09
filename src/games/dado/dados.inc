@@ -252,7 +252,7 @@ static const tipo_t TIPO[D_N] = {
     { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "Válido: queima o seu maior dado · 2: +10" },
     { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "Pontua e tira o mesmo número do oponente" },
     { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 pontua 12 · 1 a 3 pontua 0" },
-    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Dois iguais: +4 · três iguais: +10" },
+    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Um igual a ele: +4 · dois: +10" },
     { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "Cada dado seu igual a ele: +4" },
     { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "Anula os seus outros dados" },
     { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula o último dado do oponente" },
@@ -389,7 +389,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_FOGO]            = "Se terminar válido, o seu maior dado queima e sai da bolsa. Tirando 2, ainda +10.",
     [D_MALDICAO]        = "Se terminar válido, pontua para você e tira o mesmo número de pontos do oponente.",
     [D_TREVO]           = "Tirando 4: SORTE, pontua 12. Tirando 1, 2 ou 3: pontua 0.",
-    [D_JACKPOT]         = "Se terminar válido: dois dados válidos seus com o mesmo número, +4; três, +10.",
+    [D_JACKPOT]         = "Se terminar válido: outro dado válido seu com o mesmo número dele, +4; dois outros, +10.",
     [D_COPIADOR]        = "Se terminar válido, cada outro dado válido seu com o mesmo número pontua +4.",
     [D_EGOISTA]         = "Anula todos os seus outros dados. Ele mesmo não pode ser anulado.",
     [D_LASER]           = "Se terminar válido com 5 ou 6, anula o último dado válido do oponente.",
@@ -542,8 +542,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "tirou.",
     [D_TREVO]           = "Quatro lados. Tirando 4: SORTE, pontua 12. Tirando 1, 2 ou 3, pontua 0. Para a sequência, conta o "
                           "número que saiu.",
-    [D_JACKPOT]         = "Quatro lados. Se terminar válido e dois dados válidos seus mostrarem o mesmo número (este dado pode "
-                          "ser um deles), pontua +4 no fim da rodada; se forem três: JACKPOT, +10.",
+    [D_JACKPOT]         = "Quatro lados. Se terminar válido e outro dado válido seu mostrar o mesmo número que ele, pontua +4 "
+                          "no fim da rodada; se forem dois outros (três com ele): JACKPOT, +10. Iguais entre si, mas não a ele, não contam.",
     [D_COPIADOR]        = "Seis lados. Se terminar válido, no fim da rodada cada outro dado válido seu com o mesmo número "
                           "pontua +4.",
     [D_EGOISTA]         = "Doze lados. Ao ser lançado, anula os outros dados da sequência, antes e depois dele. Ele mesmo "

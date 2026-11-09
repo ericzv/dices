@@ -122,7 +122,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   aguarda..."), antes do amuleto dele e da loja. Quando o Coringa abre a
   rodada, a carta ainda vai virar e rolar: o botão "parar" fica só "parar",
   sem dizer por quanto vence ou perde - o mesmo com um Oculto escondido, um
-  Terremoto por sacudir, um Espelho esperando ou uma Ficha Coringa por virar
+  Terremoto por sacudir, um Espelho esperando, uma Ficha Coringa por virar ou um Carrossel girando
   (vencendo de vez, a vez acaba sozinha). Você começa com os dados da
   bolsa que escolheu (o Saco de Pano: 13 dados simples, 6 D6, 4 D4, 2 moedas e um D8) e 4 moedas
   de ouro no térreo (a dificuldade Normal), e 1 a mais a cada andar: 5 no Nível 1, 6
@@ -289,7 +289,15 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   mesma chance), no 8; e a Matrioska (d8
   lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
   com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
-  a soma de todas), no 9. Os oponentes só usam o
+  a soma de todas), no 9. E o Carrossel (d8 incomum, no 4): lançado, fica
+  girando fora da sequência, como o Oculto, mostrando quantos dados valem
+  na mesa agora, dos dois lados, ele incluído - a cobertura listrada anda
+  para a frente quando um dado entra valendo e para trás quando um cai. No
+  fim da rodada (depois do Oculto, do Espelho, do tremor, da Casca e da
+  Ficha Coringa, antes dos ataques) para nesse número, de 1 a 8, com a
+  caixinha de música perdendo o embalo, e entra na sequência: pode valer,
+  cair ou derrubar o seguinte. Com o Calibre logo antes, +1 (até o 8); com
+  dois na mesa, param um de cada vez, os de quem abriu primeiro. Os oponentes só usam o
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção

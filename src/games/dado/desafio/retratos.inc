@@ -1053,8 +1053,11 @@ typedef struct {
     uint8_t  tirou_gratis;               // Caixa de Ferramentas: o dado de graca desta loja ja saiu
     uint8_t  bolsa_ganho;                // a ultima vitoria: o que a bolsa pagou a mais (a Carteira, a Maleta)
     peca_t   pac_op_mais[PAC_MAX - PAC_OPCOES];   // a quarta carta do pacote (a Caixa de Papelao)
+    // Depois do 128o tipo de dado (a run salva de antes abre com eles nunca
+    // vistos): os bits dos dados de 128 em diante.
+    uint8_t  vistos2[4];                 // bit t - 128: o dado t ja esteve na vitrine
 } run_t;
-typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
+typedef char run_vistos_cabem[D_N <= 8 * (16 + 4) && AD_N <= 8 * 8 ? 1 : -1];
 // O tamanho da run salva de antes das bolsas (ate o presente, com a folga) e
 // o de antes da loja sem repeticao (ate o porquinho, com a folga).
 #define RUN_TAM_SEM_BOLSA (offsetof(run_t, presente) + 2)
@@ -1063,8 +1066,10 @@ typedef char run_vistos_cabem[D_N <= 8 * 16 && AD_N <= 8 * 8 ? 1 : -1];
 // antes dos adesivos de papel (ate o segundo adesivo, com a folga).
 #define RUN_TAM_SEM_LOJA2 ((offsetof(run_t, dois_adesivos) + 3) & ~(size_t)3)
 #define RUN_TAM_SEM_VISTOS2 ((offsetof(run_t, ad_vistos2) + 3) & ~(size_t)3)
-// E o de antes das bolsas da loja (ate os adesivos de papel, com a folga).
+// E o de antes das bolsas da loja (ate os adesivos de papel, com a folga), e o
+// de antes do 128o tipo de dado (ate a quarta carta do pacote: sem folga).
 #define RUN_TAM_SEM_BOLSAS2 ((offsetof(run_t, gasto) + 3) & ~(size_t)3)
+#define RUN_TAM_SEM_DADOS2 offsetof(run_t, vistos2)
 
 // A run salva de antes dos adesivos de um byte por lado: a mesma, campo a
 // campo, com a peca de 13 bytes. Abre convertida (des_carrega).

@@ -2346,6 +2346,25 @@ def espinhoso():
     m.poe(0.34, nota('acoustic_bass', 38, 0.25, 0.1), 0.35)
     return sala(m.x, 0.15)
 
+def carrossel():
+    """O Carrossel parando: a valsinha de caixinha de musica do carrossel de
+    parque, cada nota um pouco mais demorada que a anterior (a roda perdendo
+    o embalo), um tlec de catraca baixinho em cada uma e, quando ele para,
+    o toc da trava e o sino (do, com o glockenspiel por cima)."""
+    m = Mix(1.9)
+    NOTAS = (79, 84, 88, 91, 88, 84, 86, 83)                                 # sol do mi sol mi do re si
+    PASSO = (0.08, 0.09, 0.10, 0.115, 0.135, 0.16, 0.19, 0.23)              # desacelera: para em 1,1 s (CARROSSEL_PARA)
+    t = 0.0
+    for k, n_ in enumerate(NOTAS):
+        m.poe(t, nota('music_box', n_, 0.22 + 0.03 * k, 0.25), 0.36 - 0.012 * k)
+        m.poe(t, estalinho(0.003, 2200), 0.05)                               # a catraca
+        t += PASSO[k]
+    m.poe(t, marimba(60, 0.08), 0.30)                                        # a trava: toc
+    m.poe(t + 0.02, nota('tubular_bells', 84, 0.9, 0.5), 0.22)               # o sino: do
+    m.poe(t + 0.02, nota('music_box', 84, 0.6, 0.4), 0.30)
+    m.poe(t + 0.05, nota('glockenspiel', 96, 0.5, 0.4), 0.12)
+    return sala(m.x, 0.2)
+
 def pavio():
     """A Dinamite que nao saiu: o pavio cresce. Curto, redondo e doce, de
     coisa guardando: um 'fff' de fagulha bem abafado e duas notinhas de
@@ -2433,6 +2452,7 @@ VOLUME.update({'conta': VOLUME['tique'], 'tudo_nada': VOLUME['efeito'], 'tudo_na
                'sentinela': VOLUME['efeito'], 'agiota': VOLUME['efeito'] * 0.9,
                'oculto': VOLUME['efeito'] * 0.9, 'espinhoso': VOLUME['tira']})
 VOLUME['pavio'] = VOLUME['efeito'] * 0.55                                    # o pavio crescendo: baixinho, nao e o BUM
+VOLUME['carrossel'] = VOLUME['efeito'] * 0.9                                 # o Carrossel parando: na altura do Oculto
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2462,7 +2482,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
              'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
              'ad_coleira', 'ad_tiquete', 'conta', 'tudo_nada', 'tudo_nada_perde', 'sentinela', 'agiota',
-             'oculto', 'espinhoso', 'pavio'):
+             'oculto', 'espinhoso', 'pavio', 'carrossel'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

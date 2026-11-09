@@ -84,6 +84,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_COLEIRA] = "ad_coleira", [SOM_AD_TIQUETE] = "ad_tiquete",
     [SOM_CONTA] = "conta", [SOM_TUDO_NADA] = "tudo_nada", [SOM_TUDO_NADA_PERDE] = "tudo_nada_perde",
     [SOM_SENTINELA] = "sentinela", [SOM_AGIOTA] = "agiota", [SOM_OCULTO] = "oculto", [SOM_ESPINHOSO] = "espinhoso", [SOM_PAVIO] = "pavio",
+    [SOM_CARROSSEL] = "carrossel",
 };
 
 typedef struct {

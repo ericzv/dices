@@ -21,7 +21,7 @@ enum { EF_NADA, EF_DOBRO, EF_VICIADO, EF_LASTRO, EF_PAR, EF_ESCUDO,
        EF_FICHA_CORINGA, EF_TERREMOTO, EF_DIGITAL, EF_RELOGIO, EF_ADESIVADO, EF_AGNUS,
        EF_TELA, EF_PINCEL, EF_MOSAICO,
        EF_PIAO, EF_CAMELO, EF_LEQUE, EF_RETRATO, EF_ESTILINGUE, EF_CAMALEAO, EF_BALAO,
-       EF_PAPAGAIO, EF_MATRIOSKA, EF_COLCHA, EF_GELATINA, EF_N };
+       EF_PAPAGAIO, EF_MATRIOSKA, EF_COLCHA, EF_GELATINA, EF_CARROSSEL, EF_N };
 
 enum { RAR_COMUM, RAR_INCOMUM, RAR_RARO, RAR_LENDA };
 
@@ -68,7 +68,9 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
        D_AGNUS, D_TELA, D_PINCEL, D_MOSAICO,
        // Os que vivem dos adesivos e da fila (a leva do relatorio de builds).
        D_PIAO, D_CAMELO, D_LEQUE, D_RETRATO, D_ESTILINGUE, D_CAMALEAO, D_BALAO,
-       D_PAPAGAIO, D_MATRIOSKA, D_COLCHA, D_GELATINA, D_N };
+       D_PAPAGAIO, D_MATRIOSKA, D_COLCHA, D_GELATINA,
+       // O que gira esperando o fim: vale quantos dados valem na mesa.
+       D_CARROSSEL, D_N };
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
@@ -252,7 +254,7 @@ static const tipo_t TIPO[D_N] = {
     { "Ficha Fogo",       2, EF_FOGO,         RAR_RARO,    22, "Válido: queima o seu maior dado · 2: +10" },
     { "Maldito",          4, EF_MALDICAO,     RAR_RARO,     0, "Pontua e tira o mesmo número do oponente" },
     { "Trevo",            4, EF_TREVO,        RAR_INCOMUM,  8, "4 pontua 12 · 1 a 3 pontua 0" },
-    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Dois iguais: +4 · três iguais: +10" },
+    { "Jackpot",          4, EF_JACKPOT,      RAR_INCOMUM,  9, "Um igual a ele: +4 · dois: +10" },
     { "Copiador",         6, EF_COPIADOR,     RAR_INCOMUM, 11, "Cada dado seu igual a ele: +4" },
     { "Egoísta",         12, EF_EGOISTA,      RAR_INCOMUM, 14, "Anula os seus outros dados" },
     { "Laser",            6, EF_LASER,        RAR_RARO,    16, "Com 5 ou 6: anula o último dado do oponente" },
@@ -350,6 +352,7 @@ static const tipo_t TIPO[D_N] = {
     { "Matrioska",        8, EF_MATRIOSKA,    RAR_LENDA,    0, "Abre bonecas menores e soma" },
     { "Colcha de Retalhos", 6, EF_COLCHA,     RAR_COMUM,    0, "Remendo no 1, no 2 e no 3" },
     { "Gelatina",         6, EF_GELATINA,     RAR_INCOMUM,  0, "Abaixo do de antes: quica de novo" },
+    { "Carrossel",        8, EF_CARROSSEL,    RAR_INCOMUM,  0, "No fim, vale os dados válidos da mesa" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)
@@ -389,7 +392,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_FOGO]            = "Se terminar válido, o seu maior dado queima e sai da bolsa. Tirando 2, ainda +10.",
     [D_MALDICAO]        = "Se terminar válido, pontua para você e tira o mesmo número de pontos do oponente.",
     [D_TREVO]           = "Tirando 4: SORTE, pontua 12. Tirando 1, 2 ou 3: pontua 0.",
-    [D_JACKPOT]         = "Se terminar válido: dois dados válidos seus com o mesmo número, +4; três, +10.",
+    [D_JACKPOT]         = "Se terminar válido: outro dado válido seu com o mesmo número dele, +4; dois outros, +10.",
     [D_COPIADOR]        = "Se terminar válido, cada outro dado válido seu com o mesmo número pontua +4.",
     [D_EGOISTA]         = "Anula todos os seus outros dados. Ele mesmo não pode ser anulado.",
     [D_LASER]           = "Se terminar válido com 5 ou 6, anula o último dado válido do oponente.",
@@ -488,6 +491,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_MATRIOSKA]       = "Tirando 6 a 8, abre um d6; com 5 ou 6, um d4; com 4, um d2. Vale a soma de todos.",
     [D_COLCHA]          = "Já vem com um Remendo no 1, no 2 e no 3: os lados baixos tiram 3, 4 e 5.",
     [D_GELATINA]        = "Se tirar menos que o dado de antes, quica: rola de novo uma vez e vale o segundo lance.",
+    [D_CARROSSEL]       = "Fica fora da sequência até o fim da rodada; então vale quantos dados válidos há na mesa, dos dois lados, ele incluído (1 a 8).",
 };
 
 static const char *TEXTO_CAT[D_N] = {
@@ -542,8 +546,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "tirou.",
     [D_TREVO]           = "Quatro lados. Tirando 4: SORTE, pontua 12. Tirando 1, 2 ou 3, pontua 0. Para a sequência, conta o "
                           "número que saiu.",
-    [D_JACKPOT]         = "Quatro lados. Se terminar válido e dois dados válidos seus mostrarem o mesmo número (este dado pode "
-                          "ser um deles), pontua +4 no fim da rodada; se forem três: JACKPOT, +10.",
+    [D_JACKPOT]         = "Quatro lados. Se terminar válido e outro dado válido seu mostrar o mesmo número que ele, pontua +4 "
+                          "no fim da rodada; se forem dois outros (três com ele): JACKPOT, +10. Iguais entre si, mas não a ele, não contam.",
     [D_COPIADOR]        = "Seis lados. Se terminar válido, no fim da rodada cada outro dado válido seu com o mesmo número "
                           "pontua +4.",
     [D_EGOISTA]         = "Doze lados. Ao ser lançado, anula os outros dados da sequência, antes e depois dele. Ele mesmo "
@@ -779,6 +783,11 @@ static const char *TEXTO_CAT[D_N] = {
                           "baixos tiram 3, 4 e 5. Conta três adesivos para o Neon e o Mosaico, e sobra pouco lado livre.",
     [D_GELATINA]        = "Um dado de gelatina que treme. Se tirar menos que o dado de antes (o que derrubaria a "
                           "sequência), quica: rola de novo uma vez e vale o segundo lance, que também pode cair.",
+    [D_CARROSSEL]       = "Oito lados. Lançado, fica girando fora da sequência: o dado seguinte compara com o dado "
+                          "anterior a ele. Enquanto gira, mostra quantos dados válidos há na mesa, contando os dois lados "
+                          "e ele mesmo: gira para a frente quando um dado entra válido, para trás quando um cai. No fim "
+                          "da rodada para nesse número (1 a 8) e entra na sequência: pode ser válido, ser anulado ou "
+                          "anular o dado anterior.",
 };
 
 static const char *RARIDADE[] = { "comum", "incomum", "raro", "lendário" };
@@ -1038,6 +1047,8 @@ static const visual_t VISUAL[D_N] = {
     [D_COLCHA]      = { V_AMEIXA, 0, 0,         V_ROSA, 100,    V_CEU, 100,    V_TRIGO, 100 },
     // A Gelatina: o corpo vem de gelatina_corpo; aqui, o aro e o brilho.
     [D_GELATINA]    = { V_ROSA,   0, 0,         V_BRANCO, 100,  V_ROSA, 100,   V_VERM, 100 },
+    // O Carrossel: a lona vermelha e branca da cobertura, o ouro do mastro e dos frisos.
+    [D_CARROSSEL]   = { V_VERM,   0, 0,         V_VERM, 100,    V_OURO, 100,   V_SANGUE, 100 },
 };
 
 // A cor de um dado nas telas (o nome dele): a cor propria, clareada se for

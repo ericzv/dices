@@ -34,8 +34,9 @@ static peca_t peca_r(int t)
 // repetem. Se os abertos acabarem, volta a sortear entre todos. O que esta
 // a venda vira "visto" quando sai (trocar a vitrine, a loja seguinte): assim
 // a mesma loja, sorteada de novo, mostra o mesmo.
-static bool dado_visto(int t) { return run.vistos[t >> 3] >> (t & 7) & 1; }
-static void marca_visto(int t) { if (t >= 0 && t < D_N) run.vistos[t >> 3] |= (uint8_t)(1u << (t & 7)); }
+static uint8_t *dado_visto_byte(int t) { return t < 128 ? &run.vistos[t >> 3] : &run.vistos2[(t - 128) >> 3]; }
+static bool dado_visto(int t) { return t >= 0 && t < D_N && (*dado_visto_byte(t) >> (t & 7) & 1); }
+static void marca_visto(int t) { if (t >= 0 && t < D_N) *dado_visto_byte(t) |= (uint8_t)(1u << (t & 7)); }
 // (os adesivos de 32 em diante, no segundo campo: o primeiro so tinha 32 bits)
 static uint8_t *ad_visto_byte(int a) { return a < 32 ? &run.ad_vistos[a >> 3] : &run.ad_vistos2[(a - 32) >> 3]; }
 static bool adesivo_visto(int a) { return a > AD_NADA && a < AD_N && (*ad_visto_byte(a) >> (a & 7) & 1); }

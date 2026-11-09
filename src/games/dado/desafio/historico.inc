@@ -4,7 +4,7 @@
 // chave do perfil ("HIS2" + hexadecimal). A estrutura tem espaco para os
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
-#define HIST_DADOS 128                   // par: o rabo da estrutura fica no mesmo alinhamento
+#define HIST_DADOS 160                   // par: o rabo da estrutura fica no mesmo alinhamento
 #define HIST_COL   48                 // dados guardados da run campea (camp_n conta todos)
 #define HIST_CAMPOS(N, NIV)                                                                \
     char     marca[4];                   /* "HIS2" */                                      \
@@ -22,15 +22,19 @@
     int32_t  camp_moedas;                                                                  \
     uint8_t  reserva[32];
 typedef struct { HIST_CAMPOS(HIST_DADOS, N_NIVEIS) } hist_t;
-typedef struct { HIST_CAMPOS(96, N_NIVEIS) } hist96_t;           // "HIS2" de antes dos 102 tipos: lido e convertido
+typedef struct { HIST_CAMPOS(128, N_NIVEIS) } hist128_t;         // "HIS2" de antes dos 129 tipos: lido e convertido
+typedef struct { HIST_CAMPOS(96, N_NIVEIS) } hist96_t;           // "HIS2" de antes dos 102 tipos: idem
 typedef struct { HIST_CAMPOS(96, N_NIVEIS_V) } hist1_t;          // "HIS1", dos 5 niveis: idem
 typedef struct { HIST_CAMPOS(64, N_NIVEIS_V) } hist64_t;         // o de antes dos 69 tipos: idem
 _Static_assert(D_N <= HIST_DADOS && MAX_COL <= 255 && A_N <= 40, "o historico nao comporta os dados");
 _Static_assert(sizeof(hist_t) != sizeof(hist1_t) && sizeof(hist_t) != sizeof(hist64_t)
                && sizeof(hist1_t) != sizeof(hist64_t) && sizeof(hist96_t) != sizeof(hist_t)
-               && sizeof(hist96_t) != sizeof(hist1_t) && sizeof(hist96_t) != sizeof(hist64_t),
+               && sizeof(hist96_t) != sizeof(hist1_t) && sizeof(hist96_t) != sizeof(hist64_t)
+               && sizeof(hist128_t) != sizeof(hist_t) && sizeof(hist128_t) != sizeof(hist96_t)
+               && sizeof(hist128_t) != sizeof(hist1_t) && sizeof(hist128_t) != sizeof(hist64_t),
                "os formatos do historico se distinguem pelo tamanho");
-_Static_assert(sizeof(hist_t) - offsetof(hist_t, camp_tem) == sizeof(hist96_t) - offsetof(hist96_t, camp_tem),
+_Static_assert(sizeof(hist_t) - offsetof(hist_t, camp_tem) == sizeof(hist96_t) - offsetof(hist96_t, camp_tem)
+               && sizeof(hist_t) - offsetof(hist_t, camp_tem) == sizeof(hist128_t) - offsetof(hist128_t, camp_tem),
                "o rabo do historico fica igual quando as listas crescem");
 
 static hist_t hist;
@@ -80,10 +84,20 @@ static bool hist_le_de(const char *buf, int n, hist_t *saida)
 {
     static hist64_t v64;
     static hist96_t v96;
+    static hist128_t v128;
     static hist1_t v1;
     static hist_t h;
     bool velho = true;
-    if (n == (int)(2 * sizeof v96)) {                  // de antes dos 102 tipos: as tres listas cresceram
+    if (n == (int)(2 * sizeof v128)) {                 // de antes dos 129 tipos: as tres listas cresceram
+        if (!de_hex(buf, &v128, sizeof v128)) return false;
+        velho = false;
+        memset(&h, 0, sizeof h);
+        memcpy(&h, &v128, offsetof(hist128_t, lancou));
+        memcpy(h.lancou, v128.lancou, sizeof v128.lancou);
+        memcpy(h.valeu, v128.valeu, sizeof v128.valeu);
+        memcpy(h.ganhou, v128.ganhou, sizeof v128.ganhou);
+        memcpy(&h.camp_tem, &v128.camp_tem, sizeof v128 - offsetof(hist128_t, camp_tem));
+    } else if (n == (int)(2 * sizeof v96)) {           // de antes dos 102 tipos: as tres listas cresceram
         if (!de_hex(buf, &v96, sizeof v96)) return false;
         velho = false;
         memset(&h, 0, sizeof h);

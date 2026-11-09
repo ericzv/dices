@@ -204,17 +204,19 @@ static bool des_carrega_de(const char *buf, int n, run_t *r)
                    : n == (int)(2 * RUN_TAM_SEM_VISTOS) ? RUN_TAM_SEM_VISTOS
                    : n == (int)(2 * RUN_TAM_SEM_LOJA2) ? RUN_TAM_SEM_LOJA2
                    : n == (int)(2 * RUN_TAM_SEM_VISTOS2) ? RUN_TAM_SEM_VISTOS2
-                   : n == (int)(2 * RUN_TAM_SEM_BOLSAS2) ? RUN_TAM_SEM_BOLSAS2 : sizeof *r;
+                   : n == (int)(2 * RUN_TAM_SEM_BOLSAS2) ? RUN_TAM_SEM_BOLSAS2
+                   : n == (int)(2 * RUN_TAM_SEM_DADOS2) ? RUN_TAM_SEM_DADOS2 : sizeof *r;
         if (n != (int)(2 * tam) || !de_hex(buf, r, tam)) return false;
         if (tam <= RUN_TAM_SEM_BOLSA) r->bolsa = r->porco = r->porco_quebrou = 0;   // de antes das bolsas: o Saco de Pano
         if (tam < RUN_TAM_SEM_LOJA2) { memset(r->vistos, 0, sizeof r->vistos); memset(r->ad_vistos, 0, sizeof r->ad_vistos); }
         if (tam < RUN_TAM_SEM_VISTOS2) r->dois_adesivos = r->adesivo2 = r->ad_vendido2 = 0;   // a loja de 1 adesivo
         if (tam < RUN_TAM_SEM_BOLSAS2) memset(r->ad_vistos2, 0, sizeof r->ad_vistos2);
-        if (tam < sizeof *r) {                   // de antes das bolsas da loja: nada contado ainda
+        if (tam < RUN_TAM_SEM_DADOS2) {          // de antes das bolsas da loja: nada contado ainda
             r->gasto = 0;
             r->pacotes = r->tirados = r->tirou_gratis = r->bolsa_ganho = 0;
             memset(r->pac_op_mais, 0, sizeof r->pac_op_mais);
         }
+        if (tam < sizeof *r) memset(r->vistos2, 0, sizeof r->vistos2);   // de antes do 128o dado: nenhum deles visto
     }
     if (memcmp(r->marca, RUN_MARCA, 4) || r->andar > DES_ANDAR_FINAL
         || (r->andar == DES_ANDAR_FINAL && r->dificuldade < CORINGA_DESDE)

@@ -222,15 +222,42 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 3, "Copiador anulado: esperava 3, deu %d", d.total[0]);
 
-    // Jackpot: tres iguais (sem contar ele) com o Jackpot valendo: +10.
+    // Jackpot: so contam os dados iguais a ele. Tres 5 ao lado de um Jackpot
+    // com 1 nao valem nada.
     limpa();
     joga(0, D_JACKPOT, 1);
     joga(0, D_D6, 5);
     joga(0, D_D6, 5);
     joga(0, D_D8, 5);
     d = fim();
-    CONFERE(d.total[0] == 1 + 15 + 10, "Jackpot com trinca: esperava 26, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 1 + 15, "Jackpot 1 com tres 5: esperava 16, deu %d", d.total[0]);
     bool viu = false;
+    for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_JACKPOT || (ev[i].tipo == EV_EXTRA && ev[i].de_k == 0)) viu = true;
+    CONFERE(!viu, "Jackpot 1 com tres 5: nao devia agir");
+    // Jackpot 2, d6 3, d6 3: os dois d6 sao iguais entre si, mas nao a ele.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 3);
+    joga(0, D_D6, 3);
+    CONFERE(poder_armado(0, 0) == 0, "Jackpot 2 com dois 3: nao devia acender");
+    d = fim();
+    CONFERE(d.total[0] == 2 + 3 + 3, "Jackpot 2 com dois 3: esperava 8, deu %d", d.total[0]);
+    // Jackpot 2, d6 2, d6 3: o d6 com 2 e igual a ele, +4.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 2);
+    CONFERE(poder_armado(0, 0) == 1, "Jackpot 2 com um 2: devia acender");
+    joga(0, D_D6, 3);
+    d = fim();
+    CONFERE(d.total[0] == 2 + 2 + 3 + 4, "Jackpot 2 com um 2: esperava 11, deu %d", d.total[0]);
+    // Jackpot 2 com dois 2: tres com ele, +10 e o evento.
+    limpa();
+    joga(0, D_JACKPOT, 2);
+    joga(0, D_D6, 2);
+    joga(0, D_D8, 2);
+    d = fim();
+    CONFERE(d.total[0] == 6 + 10, "Jackpot 2 com dois 2: esperava 16, deu %d", d.total[0]);
+    viu = false;
     for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_JACKPOT) viu = true;
     CONFERE(viu, "Jackpot com trinca: faltou o evento");
 
@@ -264,6 +291,45 @@ int main(void)
     joga(0, D_D6, 4);
     d = fim();
     CONFERE(d.total[0] == 12, "Trinca sem Jackpot: esperava 12, deu %d", d.total[0]);
+
+    // Um dado ataca antes de cair: quando um poder vai anular um dado do
+    // oponente que tem um ataque armado, o ataque dele vem antes. O Laser 6
+    // mira o Carrasco 4, e o Carrasco 4 mira o Laser: os dois caem, quem quer
+    // que tenha aberto a rodada.
+    for (int p = 0; p < 2; p++) {
+        limpa();
+        primeiro = p;
+        joga(1, D_D4, 2);
+        joga(1, D_LASER, 6);
+        joga(0, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[1][1] == V_ANULADO && d.est[0][0] == V_ANULADO,
+                "Laser x Carrasco (abre o %d): os dois deviam cair (%d, %d)", p, d.est[1][1], d.est[0][0]);
+        CONFERE(d.total[1] == 2 && d.total[0] == 0, "Laser x Carrasco (abre o %d): %d x %d", p, d.total[0], d.total[1]);
+        // e o ataque de quem ia cair aparece antes do que o derruba
+        int ic = -1, il = -1;
+        for (int i = 0; i < n_ev; i++) {
+            if (ev[i].tipo == EV_ANULA && ev[i].de_j == 0 && ic < 0) ic = i;
+            if (ev[i].tipo == EV_ANULA && ev[i].de_j == 1 && il < 0) il = i;
+        }
+        if (p == 1) CONFERE(ic >= 0 && il > ic, "Laser x Carrasco: o Carrasco devia agir antes de cair (%d, %d)", ic, il);
+    }
+    // Quem cai sem ataque armado nao reage: o Carrasco com 2 so cai.
+    limpa();
+    primeiro = 1;
+    joga(1, D_LASER, 6);
+    joga(0, D_CARRASCO, 2);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_VALIDO, "Laser x Carrasco 2: so o Carrasco cai");
+    // Tirar pontos tambem e ataque: o Espinhoso 4 que o Laser derruba ainda tira 4.
+    limpa();
+    primeiro = 1;
+    joga(1, D_LASER, 6);
+    joga(1, D_D8, 8);
+    joga(0, D_MARTELO, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 6 + 8 - 4,
+            "Laser x Espinhoso: o Espinhoso devia tirar 4 antes de cair (%d)", d.total[1]);
 
     // Egoista: anula os anteriores ao chegar e os que vierem depois; o Escudo resiste.
     limpa();
@@ -1720,6 +1786,56 @@ int main(void)
             CONFERE(F[0].valor[2] == 6, "Coringa com o Calibre antes: 5 +1, deu %d", F[0].valor[2]);
             limpa(); joga(1, D_D6, 5); joga_com(0, D_FICHA_CORINGA, 2, sempre_dois); F[0].n = 2; F[0].tipo[1] = D_D6;
             CONFERE(risco(0) == 0 && F[0].pontos == 0, "depois da Coringa, o seguinte nao tem com quem comparar");
+            // Carrossel: fora da sequencia ate o fim; ai vale quantos dados valem na
+            // mesa, dos dois lados, ele incluido (1 a 8), e entra na sequencia.
+            limpa(); joga(1, D_D6, 3); joga(1, D_D8, 7);
+            joga(0, D_D6, 4); joga_com(0, D_CARROSSEL, 1, sempre_dois); joga(0, D_D8, 8);
+            CONFERE(F[0].est[1] == V_ESPERA && F[0].est[2] == V_VALIDO && F[0].gira[1] && poder_armado(0, 1) == 1 && F[0].pontos == 12,
+                    "Carrossel girando: fora da sequencia (%d, %d)", F[0].est[1], F[0].pontos);
+            CONFERE(carrossel_conta() == 5, "girando, mostra 5: os 4 validos e ele (%d)", carrossel_conta());
+            calcula_desfecho(&d, false);
+            CONFERE(d.total[0] == 17 && F[0].gira[1] && F[0].est[1] == V_ESPERA, "previa: 4 + 5 + 8, e ele segue girando (%d)", d.total[0]);
+            d = fim();
+            CONFERE(F[0].valor[1] == 5 && !F[0].gira[1] && d.est[0][1] == V_VALIDO && d.total[0] == 17,
+                    "Carrossel para no 5: 17, deu %d", d.total[0]);
+            CONFERE(n_ev >= 1 && ev[0].tipo == EV_CARROSSEL && ev[0].de_k == 1 && ev[0].valor == 5, "o evento do Carrossel diz o 5");
+            limpa(); joga(0, D_D6, 6); joga(0, D_D6, 2);     // um dado que cai deixa o numero menor
+            CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "o 2 depois do 6: os dois caem");
+            joga_com(0, D_CARROSSEL, 1, sempre_dois);
+            CONFERE(carrossel_conta() == 1, "so ele vale na mesa: 1 (%d)", carrossel_conta());
+            d = fim();
+            CONFERE(F[0].valor[2] == 1 && d.est[0][2] == V_VALIDO && d.total[0] == 1, "sozinho, para no 1 e vale 1 (%d)", d.total[0]);
+            limpa(); joga(0, D_D8, 8); joga_com(0, D_CARROSSEL, 1, sempre_dois); d = fim();
+            CONFERE(F[0].valor[1] == 2 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 0,
+                    "para no 2 depois do 8: os dois caem (%d)", d.total[0]);
+            limpa(); joga(1, D_D6, 1); joga(1, D_D6, 2); joga(1, D_D6, 3);
+            joga(0, D_D6, 1); joga_com(0, D_CARROSSEL, 1, sempre_dois); joga(0, D_D6, 2); d = fim();
+            CONFERE(F[0].valor[1] == 6 && d.est[0][1] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 1,
+                    "para no 6 antes do 2: o 2 cai e leva ele (%d)", d.total[0]);
+            limpa(); joga(1, D_D6, 1); joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D6, 4);
+            joga(0, D_D6, 1); joga(0, D_D6, 2); joga(0, D_D6, 3); joga_com(0, D_CARROSSEL, 1, sempre_dois);
+            CONFERE(carrossel_conta() == 8, "a mesa cheia valendo: 8 (%d)", carrossel_conta());
+            d = fim();
+            CONFERE(F[0].valor[3] == 8 && d.est[0][3] == V_VALIDO, "para no 8, o maximo (%d)", F[0].valor[3]);
+            limpa(); joga(1, D_D6, 1); joga(1, D_D6, 2); joga(1, D_D6, 3); joga(1, D_D6, 4);
+            joga(0, D_D6, 1); joga(0, D_D6, 2); joga(0, D_CALIBRE, 3); joga_com(0, D_CARROSSEL, 1, sempre_dois); d = fim();
+            CONFERE(F[0].calibre[3] && F[0].valor[3] == 8, "Calibre no 8: fica 8 (%d)", F[0].valor[3]);
+            limpa(); joga(1, D_D6, 5); joga(0, D_CALIBRE, 2); joga_com(0, D_CARROSSEL, 1, sempre_dois); d = fim();
+            CONFERE(F[0].valor[1] == 4 && n_ev >= 1 && ev[0].tipo == EV_CARROSSEL, "Calibre antes: 3 validos +1, deu %d", F[0].valor[1]);
+            limpa(); joga_com(1, D_OCULTO, 6, sempre_dois); joga_com(0, D_CARROSSEL, 1, sempre_dois);
+            CONFERE(carrossel_conta() == 1, "o Oculto escondido ainda nao conta (%d)", carrossel_conta());
+            d = fim();
+            CONFERE(F[0].valor[0] == 2, "no fim, o Oculto aparece antes e conta: 2 (%d)", F[0].valor[0]);
+            // Dois Carrosseis: param um de cada vez, os de quem abriu primeiro, cada um no numero da mesa naquela hora.
+            limpa(); primeiro = 0;
+            joga(0, D_D6, 5); joga_com(0, D_CARROSSEL, 1, sempre_dois); joga_com(1, D_CARROSSEL, 1, sempre_dois);
+            CONFERE(carrossel_conta() == 3, "dois girando e um valido: 3 (%d)", carrossel_conta());
+            d = fim();
+            CONFERE(F[0].valor[1] == 3 && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && F[1].valor[0] == 1,
+                    "o primeiro para no 3 e cai com o 5; o outro, sozinho, no 1 (%d, %d)", F[0].valor[1], F[1].valor[0]);
+            limpa(); joga(1, D_D6, 5); joga_com(0, D_CARROSSEL, 2, sempre_dois); F[0].n = 2; F[0].tipo[1] = D_D6;
+            CONFERE(risco(0) == 0 && F[0].pontos == 0, "depois do Carrossel, o seguinte nao tem com quem comparar");
+            CONFERE(!carbono_age(0, 0), "o Papel Carbono nao mexe no Carrossel");
             // Terremoto: valendo com 7 ou 8, o ultimo valido do oponente rola de novo (pela semente do pouso).
             {
                 uint32_t um = 0, seis = 0;               // sementes que dao 1 e 6 num d6
@@ -2622,6 +2738,20 @@ int main(void)
         hex_de(&run, sizeof run, buf);
         salva_grava(chave_run(), buf);
         CONFERE(des_carrega(&r) && r.ad_vistos2[0] == run.ad_vistos2[0], "a run de agora guarda os vistos de 32 em diante");
+        // Os dados de 128 em diante (o Carrossel) vao no segundo campo; a run de
+        // antes deles abre com eles nunca vistos e o resto igual.
+        memset(run.vistos2, 0, sizeof run.vistos2);
+        marca_visto(D_CARROSSEL);
+        CONFERE(D_CARROSSEL >= 128 && dado_visto(D_CARROSSEL) && run.vistos2[0] && !dado_visto(D_CARROSSEL - 128),
+                "o Carrossel visto, no segundo campo");
+        run.gasto = 7;
+        hex_de(&run, RUN_TAM_SEM_DADOS2, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(RUN_TAM_SEM_DADOS2 == offsetof(run_t, vistos2) && des_carrega(&r) && !r.vistos2[0] && r.gasto == 7
+                && r.ad_vistos2[0] == run.ad_vistos2[0], "a run de antes do 128o dado (%d gastas)", r.gasto);
+        hex_de(&run, sizeof run, buf);
+        salva_grava(chave_run(), buf);
+        CONFERE(des_carrega(&r) && r.vistos2[0] == run.vistos2[0] && r.gasto == 7, "a run de agora guarda os vistos de 128 em diante");
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
@@ -6940,9 +7070,9 @@ int main(void)
             int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
             CONFERE(q >= 2 && ordem[0] != 0, "IA facil abriu a fila com %s", TIPO[QUEM[w]].nome);
         }
-        peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_PUXA_FILA }, { .tipo = D_D4 } };
+        peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_CHECKPOINT }, { .tipo = D_D4 } };
         int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
-        CONFERE(q >= 1 && ordem[0] == 2, "IA facil nao abriu a fila com o Puxa-fila");
+        CONFERE(q >= 1 && ordem[0] == 2, "IA facil nao abriu a fila com o Checkpoint");
         // A IA que imagina jogadas, nos dois niveis: nem pensa em abrir com eles.
         for (int w = 0; w < 2; w++)
             for (int niv = 1; niv <= 2; niv++) {
@@ -6969,6 +7099,50 @@ int main(void)
         limpa();
         ia_esforco = 1;
         ia_nivel = 2;
+    }
+
+    // ---- IA facil: cada poder no lugar em que age --------------------------
+    // Medido jogando as 24 ordens de cada mao (lugar_ia, em ia.inc): a ordem
+    // pela media punha estes dados num lugar pior. A mao: o dado de poder com
+    // um d6, um d8 e um d4; o lugar dele na fila de quatro.
+    {
+        static const struct { int tipo, lugar; const char *por; } LUGAR[] = {
+            { D_VIUVA, 0, "sozinha valendo dobra: abrindo, da para parar nela" },
+            { D_SANGUESSUGA, 0, "anula o seu dado de antes: abrindo, nao ha" },
+            { D_DOBRO, 0, "abrindo, vale sempre e dobra o seguinte" },
+            { D_GARIMPEIRO, 0, "abrindo, vale sempre" },
+            { D_CHECKPOINT, 0, "pontua por quem vem depois dele" },
+            { D_PISCA, 0, "aceso, dobra so no fim: na sequencia e um d4" },
+            { D_DIGITAL, 1, "sempre vale: logo depois do primeiro, ele joga" },
+            { D_MARTIR, 1, "quer cair: logo depois do primeiro" },
+            { D_BERSERKER, 2, "na ponta, o vizinho do oponente pode faltar" },
+            { D_ESTILINGUE, 2, "com 1, o seguinte tira o maximo: antes do maior" },
+            { D_TUDO_NADA, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_EGOISTA, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_SORTE_REVES, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_OCULTO, 3, "fica fora da sequencia ate o fim" },
+            { D_ESTRELA, 3, "so age por ultima" },
+        };
+        for (unsigned i = 0; i < sizeof LUGAR / sizeof LUGAR[0]; i++) {
+            peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = (uint8_t)LUGAR[i].tipo }, { .tipo = D_D8 }, { .tipo = D_D4 } };
+            int ordem[N_FILA], q = fila_simples(mao, 4, ordem), lugar = -1;
+            for (int k = 0; k < q; k++) if (ordem[k] == 1) lugar = k;
+            CONFERE(q == 4 && lugar == LUGAR[i].lugar, "IA facil: %s devia ir em %d lugar, foi em %d (%s)",
+                    TIPO[LUGAR[i].tipo].nome, LUGAR[i].lugar + 1, lugar + 1, LUGAR[i].por);
+        }
+        // O Puxa-fila nao abre so por ser ele: os quatro valendo e raro, e o
+        // d8 na frente sobe a barra dos outros. Vai pela media, como um d8.
+        peca_t pf[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_PUXA_FILA }, { .tipo = D_D4 } };
+        int ordem[N_FILA], q = fila_simples(pf, 4, ordem);
+        CONFERE(q == 4 && ordem[0] != 2, "IA facil abriu a fila com o Puxa-fila");
+        // A Gelatina quica abaixo do de antes: abrindo, nao ha de antes.
+        peca_t ge[4] = { { .tipo = D_GELATINA }, { .tipo = D_D4 }, { .tipo = D_D6 }, { .tipo = D_D8 } };
+        q = fila_simples(ge, 4, ordem);
+        CONFERE(q == 4 && ordem[0] != 0, "IA facil abriu a fila com a Gelatina");
+        // O Maldito fica onde estava: abrindo (medido, e o melhor lugar dele).
+        peca_t ma[4] = { { .tipo = D_D6 }, { .tipo = D_MALDICAO }, { .tipo = D_D8 }, { .tipo = D_D4 } };
+        q = fila_simples(ma, 4, ordem);
+        CONFERE(q == 4 && ordem[0] == 1, "IA facil: o Maldito devia abrir a fila");
     }
 
     // ---- IA: o Chiclete que ainda vai grudar ------------------------------

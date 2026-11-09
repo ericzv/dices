@@ -120,6 +120,23 @@ int main(int argc, char **argv)
                     && hist.camp_tem && hist.camp_col[1] == D_LASER && hist.camp_moedas == 321,
                     "historico de antes nao foi convertido");
         }
+        // O de antes dos 129 tipos (128 por lista): volta convertido, sem perder nada.
+        {
+            static hist128_t v;
+            static char buf[2 * sizeof(hist128_t) + 1];
+            memset(&v, 0, sizeof v);
+            memcpy(v.marca, "HIS2", 4);
+            v.rodadas = 88; v.runs_venc[N_NIVEIS] = 3; v.lancou[D_D6] = 6; v.valeu[127] = 4; v.ganhou[100] = 2;
+            v.camp_tem = 1; v.camp_dif = 4; v.camp_n = 2; v.camp_col[1] = D_GELATINA; v.camp_moedas = 123;
+            hex_de(&v, sizeof v, buf);
+            salva_grava("hist1", buf);
+            hist_de = -1;
+            hist_carrega(0);
+            CONFERE(!memcmp(hist.marca, "HIS2", 4) && hist.rodadas == 88 && hist.runs_venc[N_NIVEIS] == 3 && hist.lancou[D_D6] == 6
+                    && hist.valeu[127] == 4 && hist.ganhou[100] == 2 && hist.lancou[D_CARROSSEL] == 0 && hist.camp_tem
+                    && hist.camp_dif == 4 && hist.camp_col[1] == D_GELATINA && hist.camp_moedas == 123,
+                    "historico dos 128 tipos nao foi convertido");
+        }
         // O dos 5 niveis: a vitoria no nivel n vai para o 2n, e a run campea tambem.
         {
             static hist1_t v1;

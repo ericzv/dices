@@ -59,7 +59,7 @@ static bool carbono_age(int j, int k)
 {
     int ef = TIPO[tipo_de(j, k)].efeito;
     return ad_fila(j, k) == AD_CARBONO && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL
-        && ef != EF_RELOGIO && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA && ef != EF_UNIVERSO;
+        && ef != EF_RELOGIO && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA && ef != EF_UNIVERSO && ef != EF_CARROSSEL;
 }
 
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
@@ -216,7 +216,7 @@ static int maior_do_rival(int j)
     const fila_t *r = &F[outro(j)];
     int vale = 0, qualquer = 0;
     for (int i = 0; i < r->lancados; i++) {
-        if (r->escondido[i] || r->curinga[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto e a Ficha Coringa ainda nao mostraram; o Universo, ninguem copia
+        if (r->escondido[i] || r->curinga[i] || r->gira[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto, a Ficha Coringa e o Carrossel ainda nao pararam; o Universo, ninguem copia
         if (r->valor[i] > qualquer) qualquer = r->valor[i];
         if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
     }
@@ -224,13 +224,13 @@ static int maior_do_rival(int j)
 }
 // O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente.
 // Nao copia o Universo, nem o Oculto ainda virado, nem outra Ficha Coringa
-// esperando. A posicao na fila do oponente, ou -1 se nao ha nenhum valido
-// para copiar (e ela e anulada).
+// esperando, nem o Carrossel girando. A posicao na fila do oponente, ou -1
+// se nao ha nenhum valido para copiar (e ela e anulada).
 static int alvo_curinga(int j)
 {
     const fila_t *r = &F[outro(j)];
     for (int i = r->lancados - 1; i >= 0; i--)
-        if (r->est[i] == V_VALIDO && !r->escondido[i] && !r->curinga[i] && r->tipo[i] != D_UNIVERSO) return i;
+        if (r->est[i] == V_VALIDO && !r->escondido[i] && !r->curinga[i] && !r->gira[i] && r->tipo[i] != D_UNIVERSO) return i;
     return -1;
 }
 // Alguma Ficha Coringa de j ainda com o curinga para cima?
@@ -238,6 +238,26 @@ static bool tem_curinga(int j)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (F[j].curinga[k]) return true;
     return false;
+}
+// Algum Carrossel de j ainda girando?
+static bool tem_gira(int j)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (F[j].gira[k]) return true;
+    return false;
+}
+// O numero do Carrossel agora: quantos dados valem na mesa, dos dois lados,
+// contando os Carrosseis que ainda giram (ele mesmo entre eles) - de 1 a 8.
+// E o que ele mostra girando, e o numero em que para no fim. Os outros que
+// esperam (o Oculto, a Ficha Coringa, o Espelho) so contam depois de virar.
+#define CARROSSEL_MAX 8
+#define CARROSSEL_PARA 1.1f              // no fim, quanto ele leva girando ate parar (s): o sino do som cai ai
+static int carrossel_conta(void)
+{
+    int n = 0;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            n += F[j].gira[k] || F[j].est[k] == V_VALIDO;
+    return n < 1 ? 1 : n > CARROSSEL_MAX ? CARROSSEL_MAX : n;
 }
 // O Calibre valendo logo antes do dado k: o que ele tira sobe 1.
 static bool calibre_antes(int j, int k)
@@ -285,30 +305,24 @@ static bool copia_antes(int j, int k)
     return false;
 }
 
-// Tres ou mais dados valendo com o mesmo numero. Devolve o numero (0 se nao
-// ha trinca) e, em masc, quais dados formam a trinca.
-// Pelo menos q dados valendo de j com o mesmo numero: devolve o numero (o
-// primeiro que fecha) e, em masc, quais sao. 0: nao ha.
-static int mesmo_numero(int j, const uint8_t *est, int q, uint8_t *masc)
+// O Jackpot: quantos dados de j valendo mostram o numero v (o Jackpot
+// incluido), se um deles e um Jackpot valendo; 0 se nenhum Jackpot valendo
+// mostra v. Em masc, quais sao. So conta quem e igual ao Jackpot: dois 3
+// ao lado de um Jackpot com 2 nao valem.
+static int jackpot_com(int j, const uint8_t *est, int v, uint8_t *masc)
 {
-    for (int a = 0; a < F[j].lancados; a++) {
-        if (est[a] != V_VALIDO) continue;
-        uint8_t m = 0;
-        for (int b = 0; b < F[j].lancados; b++)
-            if (est[b] == V_VALIDO && F[j].valor[b] == F[j].valor[a]) m |= (uint8_t)(1 << b);
-        int n = 0;
-        for (uint8_t x = m; x; x >>= 1) n += x & 1;
-        if (n >= q) { if (masc) *masc = m; return F[j].valor[a]; }
+    bool tem = false;
+    uint8_t m = 0;
+    int n = 0;
+    for (int b = 0; b < F[j].lancados; b++) {
+        if (est[b] != V_VALIDO || F[j].valor[b] != v) continue;
+        m |= (uint8_t)(1 << b);
+        n++;
+        tem |= TIPO[tipo_de(j, b)].efeito == EF_JACKPOT;
     }
-    return 0;
-}
-static int trinca(int j, const uint8_t *est, uint8_t *masc) { return mesmo_numero(j, est, 3, masc); }
-
-static bool tem_jackpot(int j, const uint8_t *est)
-{
-    for (int k = 0; k < F[j].lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_JACKPOT) return true;
-    return false;
+    if (!tem) return 0;
+    if (masc) *masc = m;
+    return n;
 }
 
 // Os lances de um Explosivo que somaram v: o primeiro (o 8, ou mais com o
@@ -363,6 +377,15 @@ static void aplica_regra(int j, int k)
     if (f->curinga[k]) {
         f->est[k] = V_ESPERA;
         snprintf(veredito, sizeof veredito, "Ficha Coringa: no fim, vira o último do oponente");
+        ver_tipo = 0;
+        f->pontos = soma(j, f->est);
+        return;
+    }
+    // O Carrossel lancado: gira fora da sequencia, como o Oculto, ate parar no
+    // fim no numero de dados validos da mesa.
+    if (f->gira[k]) {
+        f->est[k] = V_ESPERA;
+        snprintf(veredito, sizeof veredito, "Carrossel: no fim, vale os dados válidos da mesa");
         ver_tipo = 0;
         f->pontos = soma(j, f->est);
         return;
@@ -759,12 +782,12 @@ static void aplica_regra(int j, int k)
     } else if (ef == EF_SORTE_REVES && f->descarte[k] && ver_tipo == 0) {
         snprintf(veredito, sizeof veredito, "Sorte %d, Revés %d: pontua %d", v + f->descarte[k], f->descarte[k], v);
         ver_comum = false;
-    } else if (f->est[k] == V_VALIDO && trinca(j, f->est, NULL) && tem_jackpot(j, f->est)) {
-        snprintf(veredito, sizeof veredito, "três iguais: JACKPOT no fim!");
+    } else if (f->est[k] == V_VALIDO && jackpot_com(j, f->est, v, NULL) >= 3) {
+        snprintf(veredito, sizeof veredito, "três %d: JACKPOT no fim!", v);
         ver_tipo = 0;
         ver_comum = false;
-    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && mesmo_numero(j, f->est, 2, NULL) == v && tem_jackpot(j, f->est)) {
-        snprintf(veredito, sizeof veredito, "dois iguais: Jackpot +4 no fim");
+    } else if (f->est[k] == V_VALIDO && ver_tipo == 0 && jackpot_com(j, f->est, v, NULL) == 2) {
+        snprintf(veredito, sizeof veredito, "dois %d: Jackpot +4 no fim", v);
         ver_comum = false;
     }
     f->pontos = soma(j, f->est);
@@ -808,6 +831,7 @@ static void pousa(int j, int k, int (*r)(int))
     f->escondido[k] = ef0 == EF_OCULTO;                          // o Oculto cai virado
     f->curinga[k] = ef0 == EF_FICHA_CORINGA;                     // a Ficha Coringa, com o curinga para cima
     f->curinga_nada[k] = false;
+    f->gira[k] = ef0 == EF_CARROSSEL;                            // o Carrossel, girando
     // O Terremoto ja traz a semente do lance que o tremor dara no fim: a
     // previa e a IA nao a usam, e o fim de verdade e o mesmo dos dois lados.
     f->abalo[k] = ef0 == EF_TERREMOTO ? (uint32_t)r(0x7FFFFFFF) : 0;
@@ -823,8 +847,8 @@ static void pousa(int j, int k, int (*r)(int))
     // Calibre valendo logo antes: o que ele tirou sobe 1, ate o maximo dele.
     int mira = f->valor[k];
     f->calibre[k] = false;
-    if ((ef0 == EF_DIGITAL || ef0 == EF_FICHA_CORINGA) && calibre_antes(j, k))
-        f->calibre[k] = true;                                    // o +1 vai no numero que eles acendem ou viram
+    if ((ef0 == EF_DIGITAL || ef0 == EF_FICHA_CORINGA || ef0 == EF_CARROSSEL) && calibre_antes(j, k))
+        f->calibre[k] = true;                                    // o +1 vai no numero que eles acendem, viram ou param
     else if (calibre_antes(j, k) && f->tipo[k] != D_QUEBRADO && f->tipo[k] != D_FANTASMA) {
         int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
         if (mira < teto) {
@@ -840,7 +864,7 @@ static void pousa(int j, int k, int (*r)(int))
             ver_comum = false;
         }
         if (voltou) poe_tag(f, k, "%d>%d", (int8_t)tirou, (int8_t)f->valor[k]);
-        bool sobe = f->calibre[k] && ef0 != EF_DIGITAL && ef0 != EF_FICHA_CORINGA;   // nesses, o +1 ja esta no numero deles
+        bool sobe = f->calibre[k] && ef0 != EF_DIGITAL && ef0 != EF_FICHA_CORINGA && ef0 != EF_CARROSSEL;   // nesses, o +1 ja esta no numero deles
         if (sobe && !f->tag[k][0]) poe_tag(f, k, "%d>%d", (int8_t)mira, (int8_t)(mira + 1));
         if (sobe && ver_tipo == 0 && !voltou) {
             snprintf(veredito, sizeof veredito, "Calibre: o %d vira %d", mira, mira + 1);

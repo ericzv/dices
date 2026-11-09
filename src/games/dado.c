@@ -14,8 +14,8 @@
 //
 // Os poderes que mexem no rival resolvem no fim, um de cada vez e animados:
 // um traco de quem ataca ate o dado atingido, o dado roubado atravessando a
-// mesa. Primeiro os poderes de quem jogou primeiro; um dado anulado por um
-// ataque nao dispara o proprio poder depois.
+// mesa. Primeiro os poderes de quem jogou primeiro; mas um dado com ataque
+// armado ataca antes de ser anulado (dois dados que se miram caem os dois).
 //
 // Versao PC: mesa de 640x360 (a do Cardputer, 240x135, esta em
 // cardputer/dado.c). Os textos sao UTF-8, com acentos.
@@ -37,7 +37,7 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.6"
+#define DADO_VERSAO "v1.10"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())

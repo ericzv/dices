@@ -94,6 +94,7 @@ enum {
     SOM_OCULTO,      // o Oculto mostrando o numero: o pano puxado e a celesta
     SOM_ESPINHOSO,   // o Espinhoso espetando: tres espetadas e o ai grave
     SOM_PAVIO,       // a Dinamite que nao saiu: o pavio cresce (chiado curto e um tilintar)
+    SOM_CARROSSEL,   // o Carrossel parando: a caixinha de musica desacelerando, a trava e o sino
     SOM_N
 };
 

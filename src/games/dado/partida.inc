@@ -229,7 +229,7 @@ static bool melhor_lance(int j, peca_t *out)
     const fila_t *f = &F[j];
     int b = -1;
     for (int k = 0; k < f->lancados && k < f->n; k++)
-        if (!f->escondido[k] && !f->curinga[k] && f->tipo[k] != D_UNIVERSO && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto e a Ficha Coringa ainda nao mostraram; o Universo nao se copia
+        if (!f->escondido[k] && !f->curinga[k] && !f->gira[k] && f->tipo[k] != D_UNIVERSO && (b < 0 || f->valor[k] >= f->valor[b])) b = k;   // o Oculto, a Ficha Coringa e o Carrossel ainda nao pararam; o Universo nao se copia
     if (b < 0) return false;
     *out = (peca_t){ .tipo = f->tipo[b], .fixo = f->fixo[b] };
     return true;
@@ -358,6 +358,9 @@ static void nova_rodada(void)
     memset(vis_capa_t, 0, sizeof vis_capa_t);
     memset(vis_espelho, 0, sizeof vis_espelho);
     memset(vis_curinga, 0, sizeof vis_curinga);
+    memset(vis_carrossel, 0, sizeof vis_carrossel);
+    memset(vis_car_n, 0, sizeof vis_car_n);
+    memset(vis_car_ate, 0, sizeof vis_car_ate);
     memset(vis_tremor, 0, sizeof vis_tremor);
     memset(vis_semente, 0, sizeof vis_semente);
     aviso[0] = veredito[0] = nota[0] = 0;
@@ -589,7 +592,7 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     *antes = 0;
     bonecas_ult = 0;
     bool pousa = p && ef != EF_QUEBRADO && ef != EF_FANTASMA && ef != EF_PREVISIVEL && ef != EF_RELOGIO
-              && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA   // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
+              && ef != EF_DIGITAL && ef != EF_FICHA_CORINGA && ef != EF_CARROSSEL   // os que nao valem o que rolam: o Chumbo e o Avesso nao mexem
               && !lance_no_maximo;                            // nem no lance do Estilingue
     if (pousa) x0 = pousa_lado(t, p, x0, r, antes);
     if (pousa && ef == EF_VICIADO) {
@@ -1204,14 +1207,14 @@ static bool fim_incerto(void)
     return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim();
 }
 // Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
-// Espelho esperando o maior do outro e a Ficha Coringa com o curinga para
-// cima. O botao "parar" entao e so "parar": nem vence, nem perde por tanto.
+// Espelho esperando o maior do outro, a Ficha Coringa com o curinga para
+// cima e o Carrossel girando. O botao "parar" entao e so "parar": nem vence, nem perde por tanto.
 static bool fim_em_aberto(void)
 {
     if (fim_incerto()) return true;
     for (int j = 0; j < 2; j++)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-            if (F[j].espera[k] || F[j].curinga[k]) return true;
+            if (F[j].espera[k] || F[j].curinga[k] || F[j].gira[k]) return true;
     return false;
 }
 // A fila do Coringa ficou pronta com tres dados: o quarto e a copia, ou a
@@ -1560,6 +1563,7 @@ static int som_do_evento(int i)
         if (e->ad == AD_CASCA) return e->bloqueado ? som_adesivo(AD_IMPERMEAVEL) : SOM_AD_CASCA;
         return SOM_FORTE;
     case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
+    case EV_CARROSSEL: return SOM_CARROSSEL;   // a caixinha de musica desacelerando e o sino ao parar
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
@@ -1727,16 +1731,19 @@ static void desfecho(void)
         memset(vis_espelho[j], 0, N_FILA);
         memset(vis_oculto[j], 0, N_FILA);
         memset(vis_curinga[j], 0, N_FILA);
+        memset(vis_carrossel[j], 0, N_FILA);
         memset(vis_tremor[j], 0, N_FILA);
     }
     // O que se refez no comeco do desfecho (o Espelho, o Oculto, o tremor, a
-    // Ficha Coringa) aparece na mesa so quando o evento de cada um chega.
+    // Ficha Coringa, o Carrossel) aparece na mesa so quando o evento de cada
+    // um chega.
     for (int i = 0; i < n_ev; i++) {
         const evento_t *e = &ev[i];
         int q = e->tipo == EV_TREMOR ? e->alvo_j : e->de_j;
         if (e->tipo == EV_ESPELHO) vis_espelho[e->de_j][e->de_k] = 1;
         else if (e->tipo == EV_REVELA) vis_oculto[e->de_j][e->de_k] = 1;
         else if (e->tipo == EV_CORINGA) vis_curinga[e->de_j][e->de_k] = 1;
+        else if (e->tipo == EV_CARROSSEL) vis_carrossel[e->de_j][e->de_k] = 1;
         else if (e->tipo == EV_TREMOR && e->alvo_k < N_FILA && !vis_tremor[q][e->alvo_k]) {
             vis_tremor[q][e->alvo_k] = 1;                 // o primeiro tremor no dado: o que ele tinha
             vis_tremor_de[q][e->alvo_k] = e->antes;
@@ -1828,6 +1835,7 @@ static float duracao_de(const evento_t *e)
     case EV_GARIMPO: return 1.7f;
     case EV_REVELA:  return 1.4f;
     case EV_CORINGA: return 1.9f;
+    case EV_CARROSSEL: return CARROSSEL_PARA + 0.9f;   // gira devagar ate parar, e o numero assenta
     case EV_TREMOR:  return e->ad == AD_CASCA ? 2.0f : 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
@@ -2019,9 +2027,11 @@ static void aplica_evento(int i)
     case EV_ESPELHO:                    // virou: a sequencia refeita aparece
     case EV_REVELA:                     // o Oculto mostrou: idem
     case EV_CORINGA:                    // a Ficha Coringa virou: idem
+    case EV_CARROSSEL:                  // o Carrossel parou: idem
         vis_espelho[e->de_j][e->de_k] = 0;
         vis_oculto[e->de_j][e->de_k] = 0;
         vis_curinga[e->de_j][e->de_k] = 0;
+        vis_carrossel[e->de_j][e->de_k] = 0;
         memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
         break;
     case EV_TREMOR:                     // o dado sacudido pousou: a sequencia do oponente refeita
@@ -2155,14 +2165,14 @@ static void descarta_sobras(int j)
 }
 
 // Quem abriu a rodada terminou com 0, e nada mais muda isso: sem Espelho
-// esperando o outro, sem Oculto escondido, sem Ficha Coringa por virar, sem a
-// carta do Coringa, e 0 tambem depois dos efeitos do fim. Qualquer dado do
+// esperando o outro, sem Oculto escondido, sem Ficha Coringa por virar, sem
+// Carrossel girando, sem a carta do Coringa, e 0 tambem depois dos efeitos do fim. Qualquer dado do
 // outro ja venceria: a rodada acaba aqui.
 static bool zerou_de_vez(int j)
 {
     if (carta_posta(j)) return false;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        if (F[j].espera[k] || F[j].escondido[k] || F[j].curinga[k]) return false;
+        if (F[j].espera[k] || F[j].escondido[k] || F[j].curinga[k] || F[j].gira[k]) return false;
     desfecho_t d;
     calcula_desfecho(&d, false);
     return d.bruto[j] + lapis_pena(j) <= 0;      // os dados fizeram 0 (o -4 do Estojo de Lapis nao conta)

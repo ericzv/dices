@@ -65,6 +65,7 @@ typedef struct {
     bool    faixa[N_FILA];           // o ciclo cosmico tirou a faixa de cima: o bonus (e o Buraco Negro engole os vizinhos)
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
+    bool    gira[N_FILA];            // Carrossel lancado: gira fora da sequencia ate parar no fim (nos validos da mesa)
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)
     uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
@@ -136,7 +137,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_ADESIVO,                   // um adesivo do lado que ficou para cima (ad: qual)
        EV_ONDA,                      // a Onda juntou 9: vira Tsunami
        EV_CORINGA,                   // a Ficha Coringa vira o ultimo dado do oponente
-       EV_TREMOR };                  // o Terremoto: o ultimo dado do oponente rola de novo
+       EV_TREMOR,                    // o Terremoto: o ultimo dado do oponente rola de novo
+       EV_CARROSSEL };               // o Carrossel para no numero de dados validos da mesa
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
@@ -286,6 +288,12 @@ static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja 
 static uint8_t vis_espelho[2][N_FILA];
 static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t vis_curinga[2][N_FILA];       // Ficha Coringa que ja virou na conta, mas ainda com "?" na mesa
+static uint8_t vis_carrossel[2][N_FILA];     // Carrossel que ja parou na conta, mas ainda girando na mesa
+// O Carrossel girando na mesa (mesa.inc, carrossel_roda): o numero que ele
+// mostra (0: ainda nao girou nesta rodada) e a roda, de que angulo para qual
+// e desde quando (t_relogio).
+static uint8_t vis_car_n[2][N_FILA];
+static float vis_car_de[2][N_FILA], vis_car_ate[2][N_FILA], vis_car_t[2][N_FILA];
 static uint8_t vis_tremor[2][N_FILA];        // dado que o Terremoto ja sacudiu na conta, mas ainda parado na mesa
 static int vis_tremor_de[2][N_FILA];         // e o que ele tinha tirado, que a mesa mostra ate la
 // A sequencia antes do Espelho, do Oculto, do Terremoto e da Ficha Coringa a

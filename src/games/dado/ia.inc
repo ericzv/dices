@@ -37,6 +37,7 @@ static float media(peca_t p)
     case EF_RELOGIO:  return relogio_valor();            // o numero da rodada
     case EF_DIGITAL:  return 21.0f;                      // o de antes +1: vai por ultimo
     case EF_FICHA_CORINGA: return 6.0f;                  // o ultimo do oponente, em geral um dos maiores
+    case EF_CARROSSEL: return 5.0f;                      // os validos da mesa no fim: em geral uns 5 dos 8
     case EF_VAZIO: case EF_SACRIFICIO: return 0;   // nao pontuam
     case EF_PRESENTE: return 4.5f;                       // vira um raro: em media, um d8
     case EF_PISCA:    return pisca_aceso(p.fixo) ? 5.0f : 2.5f;  // aceso, x2; apagado, um d4

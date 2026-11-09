@@ -85,6 +85,10 @@ static const char *const SP_CAMERA[] = { "..##...", "#######", "##ooo##", "#o+++
 static const char *const SP_ESTILINGUE[] = { "#.....#", "#.....#", ".#...#.", "..###..", "...#...", "...#...", "...#..." };
 // O charutao do Agiota (o icone parado): o fumo, o anel de ouro e a brasa.
 static const char *const SP_CHARUTO[] = { ".#+#########.", "##+########oo", "##+########oo", ".#+#########." };
+// O Carrossel: a cobertura listrada e os mastros; os gomos trocam de lugar
+// de um quadro para o outro, e ele parece rodar.
+static const char *const SP_CARROSSEL_A[] = { "...o...", "..#+#..", ".#+#+#.", "#+#+#+#", "o..o..o", "o..o..o" };
+static const char *const SP_CARROSSEL_B[] = { "...o...", "..+#+..", ".+#+#+.", "+#+#+#+", "o..o..o", "o..o..o" };
 static const char *const SP_FALHA[] = { "#......", ".#.....", ".##....", "...#...", "...##..", ".....#.", "......#" };
 
 enum { MV_FLUTUA, MV_PULSA, MV_BATIDA, MV_VARRE, MV_SOBE, MV_CAI, MV_BATE, MV_BALANCA, MV_TREME,
@@ -176,6 +180,7 @@ static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_PAPAGAIO]     = { PA_SP2(SP_PAPAGAIO, SP_PAPAGAIO_B), MV_QUADROS, C_VERDE, C_AMARELO, C_EBANO },   // o bico abrindo
     [EF_RETRATO]      = { PA_SP(SP_CAMERA), MV_ESPECIAL, C_EBANO_B, C_VENTO, C_PRATA },               // a camera e o flash
     [EF_ESTILINGUE]   = { PA_SP(SP_ESTILINGUE), MV_ESPECIAL, C_MADEIRA, C_MADEIRA_CLR, C_MADEIRA_ESC }, // o elastico puxado
+    [EF_CARROSSEL]    = { PA_SP2(SP_CARROSSEL_A, SP_CARROSSEL_B), MV_QUADROS, C_VERMELHO, C_BRANCO, C_OURO },   // a cobertura rodando
 };
 #undef PA_SP
 #undef PA_SP2

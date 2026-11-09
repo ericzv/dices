@@ -1401,6 +1401,49 @@ static void aureola_miuda(int x, int y, float fase)
 static void rachadura(int x, int y, int r, float q);
 static void rachadura_em(int x, int y, int r, float q, uint16_t clara, uint16_t escura);
 static void chiclete_goma(int x, int y, int r, float q);   // a goma do Chiclete (mais abaixo)
+// O Carrossel na mesa. Enquanto gira, mostra quantos dados valem agora, dos
+// dois lados, ele incluido (no desfecho, como a mesa mostra ate o evento
+// dele). Cada vez que o numero muda, a cobertura anda um gomo por dado: para
+// a frente (no sentido do relogio) quando um dado entra valendo, para tras
+// quando um cai. No evento dele, a roda perde o embalo e para.
+#define CARROSSEL_GOMO (6.2832f / 6)             // um passo: um gomo vermelho e um marfim
+#define CARROSSEL_RODA 0.55f                     // quanto leva cada passo (s)
+#define CARROSSEL_FREIO (6.2832f * 1.25f)        // no fim, ainda da uma volta e um quarto ate parar
+static int carrossel_vivo(bool no_desfecho)
+{
+    if (!no_desfecho) return carrossel_conta();
+    int n = 0;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+            n += vis_carrossel[j][k] || vis_est[j][k] == V_VALIDO;
+    return n < 1 ? 1 : n > CARROSSEL_MAX ? CARROSSEL_MAX : n;
+}
+// O angulo da cobertura do Carrossel k de j, com n o numero de agora (0: ja
+// parou, nao muda mais) e freio de 0 (girando) a 1 (parado). Em *passo, o
+// quanto do ultimo passo ja andou (0 a 1).
+static float carrossel_roda(int j, int k, int n, float freio, float *passo)
+{
+    float q = fminf(1, fmaxf(0, (t_relogio - vis_car_t[j][k]) / CARROSSEL_RODA));
+    float de = vis_car_de[j][k], ate = vis_car_ate[j][k];
+    float agora = de + (ate - de) * (1 - (1 - q) * (1 - q) * (1 - q));
+    if (n > 0 && n != vis_car_n[j][k]) {
+        if (vis_car_n[j][k]) {                   // mudou: a roda anda um gomo por dado
+            vis_car_de[j][k] = agora;
+            vis_car_ate[j][k] += (n - vis_car_n[j][k]) * CARROSSEL_GOMO;
+            vis_car_t[j][k] = t_relogio;
+            q = 0;
+        } else {                                 // acabou de pousar: comeca onde esta
+            vis_car_de[j][k] = vis_car_ate[j][k];
+            vis_car_t[j][k] = t_relogio - CARROSSEL_RODA;
+            q = 1;
+        }
+        vis_car_n[j][k] = (uint8_t)n;
+    }
+    if (passo) *passo = q;
+    float fr_ = 1 - (1 - freio) * (1 - freio);   // perde o embalo devagar
+    return agora + CARROSSEL_FREIO * fr_;
+}
+
 static void desenha_fila(int j)
 {
     fila_t *f = &F[j];
@@ -1578,6 +1621,19 @@ static void desenha_fila(int j)
             pulo += sinf(q * 3.1416f) * 22;
             giro_ficha = cosf(q * 5 * 3.1416f);   // duas voltas e meia: cai do outro lado
         }
+        // O Carrossel: girando, o numero da mesa agora; no evento dele, para.
+        bool parando = e && e->tipo == EV_CARROSSEL && e->de_j == j && e->de_k == k;
+        float tq_car = parando ? p * duracao_evento(ev_i) : 0;
+        if (f->tipo[k] == D_CARROSSEL) {
+            bool girando = f->gira[k] || (no_desfecho && vis_carrossel[j][k] && !(parando && tq_car >= CARROSSEL_PARA));
+            float freio = parando ? fminf(1, tq_car / CARROSSEL_PARA) : !girando && vis_car_n[j][k] ? 1 : 0;
+            float passo = 1;
+            carrossel_giro = carrossel_roda(j, k, girando ? carrossel_vivo(no_desfecho) : 0, freio, &passo);
+            if (girando && vis_car_n[j][k]) face = vis_car_n[j][k];
+            if (passo < 1) pulo += sinf(passo * 3.1416f) * 2;          // o numero mudou: um pulinho
+            if (parando && tq_car >= CARROSSEL_PARA && tq_car < CARROSSEL_PARA + 0.3f)
+                pulo += sinf((tq_car - CARROSSEL_PARA) / 0.3f * 3.1416f) * 3;   // parou: assenta no numero
+        }
         // O Digital que acabou de entrar: o visor acende.
         if (t == D_DIGITAL && fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t_fase < DIGITAL_ACENDE)
             digital_q = t_fase / DIGITAL_ACENDE;
@@ -1684,6 +1740,7 @@ static void desenha_fila(int j)
         face_capa = false;
         sem_risca = false;
         face_curinga = false;
+        carrossel_giro = 0;
         digital_q = 1;
         risca_anima(9);
         if (golpe && giro < 0.5f) {                           // as trincas crescem do meio

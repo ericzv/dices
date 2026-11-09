@@ -356,6 +356,9 @@ static bool caixa_fechada;
 static int frutas_desta = -1;
 // O Relogio: as horas que o mostrador marca (o arco enche ate elas).
 static int relogio_desta = 1;
+// O Carrossel: quanto a cobertura girou (radianos, no sentido do relogio).
+// Quem desenha o que gira avisa (a mesa); o resto fica parado em 0.
+static float carrossel_giro;
 // O Pisca-pisca aceso? Na mao, como vem no proximo lance; na fila, como veio.
 static bool pisca_desta(void) { return marca_nivel < 0 || pisca_aceso(marca_nivel); }
 // A Meia na Lareira: o que ela guardou (na colecao, um pouco).
@@ -2247,6 +2250,21 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float pelo = 0.30f * ruido(u / 0.045f + 7.0f, v / 0.14f) + 0.10f * grao(u, v, s, 1, 9);
         return LUZ(1, 0.05f - (x + y) * 0.40f + pelo);
     }
+    case D_CARROSSEL: {                           // a cobertura do carrossel vista de cima: os gomos de lona vermelha e marfim na beira, com o babado; o anel de ouro com as lampadas; o miolo liso para o numero
+        float g = face_g(8, u, v, NULL), x = u - face_cu(8), y = v - face_cv(8);
+        float gomo = (atan2f(y, x) - carrossel_giro) / 6.2832f * 12;         // doze gomos, seis vermelhos (girando: carrossel_giro)
+        float fg = fr(gomo), luz = 0.20f - (x + y) * 0.40f;
+        bool verm = ((int)floorf(gomo + 120) & 1) == 0;
+        float babado = 0.62f + 0.05f * sinf(fg * 3.1416f);                    // a beira de dentro da lona: uma onda por gomo
+        if (g > babado + 1.6f * s) return verm ? LUZ(1, luz + (g - babado) * 0.5f) : 0;   // a lona (o marfim e o corpo)
+        if (g > babado) return 3;                                             // a costura do babado
+        if (g > 0.50f && g < 0.57f) {                                         // o anel de ouro e seis lampadas, onde cada gomo vermelho comeca
+            float f6 = fr(gomo / 2), lamp = fminf(f6, 1 - f6) * 0.47f;        // a distancia a lampada mais perto, ao longo do anel
+            if (lamp < 0.03f + s && fabsf(g - 0.535f) < 0.025f + s) return LUZ(2, 0.95f);
+            return LUZ(2, luz);
+        }
+        return 0;
+    }
     case D_FICHA_CORINGA: {                       // a ficha de cassino: seis listras de marfim na beira, o anel de ouro, o miolo liso
         if (ro > 0.60f) {
             if (fabsf(fr(atan2f(v, u) / 6.2832f * 6 + 0.25f) - 0.5f) < 0.15f) return 1;
@@ -2902,7 +2920,7 @@ static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float d
     // A chave: o dado, o estado que o desenho le e a geometria, medida do pixel do centro.
     uint64_t h = 1469598103934665603ULL;
     uint32_t k[] = { (uint32_t)tipo, (uint32_t)n, (uint32_t)dr, (uint32_t)corpo_desta, (uint32_t)valor_desta,
-                     (uint32_t)marca_nivel, (uint32_t)bala_lancada, (uint32_t)patos_pousou, (uint32_t)relogio_desta,
+                     (uint32_t)marca_nivel, (uint32_t)bala_lancada, (uint32_t)patos_pousou, (uint32_t)relogio_desta, pq_f(carrossel_giro),
                      (uint32_t)boneca_lados, (uint32_t)rampas_ok, (uint32_t)claro << 16 | escuro,
                      (uint32_t)cores[1] << 16 | cores[2], cores[3],
                      pq_f(dcx - ox), pq_f(dcy - oy), pq_f(bcx - ox), pq_f(bcy - oy), pq_f(cx - ox), pq_f(cy - oy),

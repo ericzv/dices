@@ -875,6 +875,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
     if (ef == EF_FICHA_CORINGA) return f->curinga[k];          // com o curinga para cima: vira no fim
+    if (ef == EF_CARROSSEL) return f->gira[k];                 // girando: para no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
         for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
@@ -2214,6 +2215,33 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         refaz_sequencia(j, F[j].lancados);
         virou = true;
     }
+    // O Carrossel para: vale quantos dados valem na mesa agora, dos dois
+    // lados, depois de tudo o que virou acima (o Oculto, o Espelho, o tremor,
+    // a Casca, a Ficha Coringa) e antes dos ataques do fim. Ele conta, e os
+    // outros Carrosseis que ainda giram tambem (de 1 a 8; com o Calibre
+    // antes, +1, ate o 8). Entra na sequencia do dono com ele - pode cair, ou
+    // derrubar o seguinte. Com mais de um, param um de cada vez (os de quem
+    // abriu a rodada primeiro), cada um no numero da mesa naquela hora. Na
+    // previa tambem (nada ao acaso), e a mesa volta no fim.
+    for (int o = 0; o < 2; o++) {
+        int j = o ? outro(primeiro) : primeiro;
+        if (!tem_gira(j)) continue;
+        if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!F[j].gira[k]) continue;
+            int roda = carrossel_conta();
+            F[j].gira[k] = false;
+            int v = roda + (F[j].calibre[k] && roda < CARROSSEL_MAX ? 1 : 0);
+            F[j].valor[k] = v;
+            lado_vira(j, k, v);
+            refaz_sequencia(j, F[j].lancados);
+            if (v != roda) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: %d válidos e o Calibre", v, roda);
+            else if (v == 1) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no 1: só ele vale na mesa");
+            else evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: dados válidos na mesa", v);
+        }
+        virou = true;
+    }
     memcpy(veredito, ver_antes, sizeof veredito);
     ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
     for (int j = 0; j < 2; j++) memcpy(d->est[j], F[j].est, N_FILA);
@@ -2277,6 +2305,7 @@ static int risco(int j)
     if (estilingue_armado(j, k)) return l >= 0 && cai_depois(j, remenda(p, lados), L) ? 100 : 0;   // sai no maximo
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
     if (ef == EF_FICHA_CORINGA) return 0;                     // fica de fora ate o fim
+    if (TIPO[f->tipo[k]].efeito == EF_CARROSSEL) return 0;    // gira de fora ate o fim (o de verdade: o Camaleao atras dele nao gira)
     if (ef == EF_RELOGIO) return l >= 0 && cai_depois(j, remenda(p, relogio_valor()), L) ? 100 : 0;
     if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, previsivel_valor(f->fixo[k])), L) ? 100 : 0;
     if (ef == EF_QUEBRADO) return l >= 0 && cai_depois(j, remenda(p, (int8_t)f->fixo[k]), L) ? 100 : 0;

@@ -292,6 +292,45 @@ int main(void)
     d = fim();
     CONFERE(d.total[0] == 12, "Trinca sem Jackpot: esperava 12, deu %d", d.total[0]);
 
+    // Um dado ataca antes de cair: quando um poder vai anular um dado do
+    // oponente que tem um ataque armado, o ataque dele vem antes. O Laser 6
+    // mira o Carrasco 4, e o Carrasco 4 mira o Laser: os dois caem, quem quer
+    // que tenha aberto a rodada.
+    for (int p = 0; p < 2; p++) {
+        limpa();
+        primeiro = p;
+        joga(1, D_D4, 2);
+        joga(1, D_LASER, 6);
+        joga(0, D_CARRASCO, 4);
+        d = fim();
+        CONFERE(d.est[1][1] == V_ANULADO && d.est[0][0] == V_ANULADO,
+                "Laser x Carrasco (abre o %d): os dois deviam cair (%d, %d)", p, d.est[1][1], d.est[0][0]);
+        CONFERE(d.total[1] == 2 && d.total[0] == 0, "Laser x Carrasco (abre o %d): %d x %d", p, d.total[0], d.total[1]);
+        // e o ataque de quem ia cair aparece antes do que o derruba
+        int ic = -1, il = -1;
+        for (int i = 0; i < n_ev; i++) {
+            if (ev[i].tipo == EV_ANULA && ev[i].de_j == 0 && ic < 0) ic = i;
+            if (ev[i].tipo == EV_ANULA && ev[i].de_j == 1 && il < 0) il = i;
+        }
+        if (p == 1) CONFERE(ic >= 0 && il > ic, "Laser x Carrasco: o Carrasco devia agir antes de cair (%d, %d)", ic, il);
+    }
+    // Quem cai sem ataque armado nao reage: o Carrasco com 2 so cai.
+    limpa();
+    primeiro = 1;
+    joga(1, D_LASER, 6);
+    joga(0, D_CARRASCO, 2);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_VALIDO, "Laser x Carrasco 2: so o Carrasco cai");
+    // Tirar pontos tambem e ataque: o Espinhoso 4 que o Laser derruba ainda tira 4.
+    limpa();
+    primeiro = 1;
+    joga(1, D_LASER, 6);
+    joga(1, D_D8, 8);
+    joga(0, D_MARTELO, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.total[1] == 6 + 8 - 4,
+            "Laser x Espinhoso: o Espinhoso devia tirar 4 antes de cair (%d)", d.total[1]);
+
     // Egoista: anula os anteriores ao chegar e os que vierem depois; o Escudo resiste.
     limpa();
     joga(0, D_D6, 2);

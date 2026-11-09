@@ -131,6 +131,20 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(regras PRIVATE m)
     endif()
     add_test(NAME regras COMMAND regras)
+    # Varredura das regras: mesas inteiras ao acaso (dados, adesivos, amuletos)
+    # pelo caminho de verdade do jogo, conferindo o que tem que valer sempre -
+    # a previa nao mexe na mesa, previa e desfecho batem, nada fica esperando,
+    # a mesma semente da o mesmo resultado. Aqui, uma varredura curta;
+    # build/varredura 2000000 varre milhoes de rodadas.
+    add_executable(varredura tests/varredura.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(varredura PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(varredura PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(varredura PRIVATE m)
+    endif()
+    add_test(NAME varredura COMMAND varredura 3000)
     # O salvamento em arquivo do PC: o ".novo" que sobra de um desligamento abre.
     add_executable(salva_arquivo tests/salva_arquivo.c)
     target_include_directories(salva_arquivo PRIVATE src desktop)

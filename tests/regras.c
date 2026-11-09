@@ -7488,6 +7488,25 @@ int main(void)
                 "Carrossel depois do Oculto: no fim dos eventos, a mesa do motor (%d, pago %d)", total_visivel(0), resolvido.total[0]);
         if (fase == F_EFEITOS) conclui_rodada();
 
+        // A previa de quem ainda tem dados por lancar conta a rodada como se
+        // parasse agora: a Rede olha o ultimo dado lancado, como o desfecho.
+        desfecho_t d, pv;
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_REDE);
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 3);
+        joga_com(0, D_FICHA_CORINGA, 1, sempre_dois);   // de fora ate o fim; vira o 3 do oponente
+        joga(0, D_D6, 1);                               // vale: a Ficha ainda nao entrou
+        F[0].n = 3;                                     // a sequencia montada tinha tres dados
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].n == 3 && F[0].curinga[0], "a previa nao mexe na sequencia (n %d)", F[0].n);
+        F[0].n = 2;                                     // parou: o que nao foi lancado sai da mesa
+        d = fim();
+        CONFERE(d.total[0] == 3 && d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO,
+                "Rede no fim: a Ficha Coringa virada fica (deu %d)", d.total[0]);
+        CONFERE(pv.total[0] == d.total[0], "Rede, parando antes do fim da sequencia: a previa dava %d e o desfecho deu %d",
+                pv.total[0], d.total[0]);
+        amul[0] = 0; modo = M_DOIS;
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

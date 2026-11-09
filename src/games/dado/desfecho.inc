@@ -2110,6 +2110,11 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     bool virou = false;
     memcpy(f_antes, F, sizeof F);
     memcpy(ver_antes, veredito, sizeof veredito);
+    // A previa conta a rodada como se acabasse agora: os dados da sequencia
+    // ainda por lancar ja teriam saido da mesa (descarta_sobras), e a Rede
+    // olha o ultimo dado lancado, como no fim de verdade. O n volta no fim.
+    for (int j = 0; !gera && j < 2; j++)
+        if (F[j].n > F[j].lancados) F[j].n = F[j].lancados;
     // O Oculto mostra o que tirou (so no desfecho de verdade: a previa nao
     // sabe, e a IA imagina o numero antes): a sequencia e refeita com ele.
     uint8_t revelados[2] = { 0, 0 };
@@ -2299,6 +2304,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         d->total[j] = t < 0 ? 0 : t;
     }
     if (!gera && virou) memcpy(F, f_antes, sizeof F);   // previa: o Espelho segue esperando
+    for (int j = 0; !gera && j < 2; j++) F[j].n = f_antes[j].n;
 }
 
 // Pontuacao que a mesa mostra durante e depois da animacao dos eventos.

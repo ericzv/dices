@@ -1301,6 +1301,7 @@ static bool poe_copia_jingle(int j, const peca_t *orig)
     if (p->n_col >= lim_col()) return false;
     peca_t c = orig && orig->tipo == D_JINGLE ? *orig : nova_peca(D_JINGLE);
     c.fixo = 1;
+    c.chiclete = 0;                              // a marca de quem grudou nesta rodada e so do original
     p->col[p->n_col] = c;
     p->onde[p->n_col++] = NA_BOLSA;
     return true;

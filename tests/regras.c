@@ -7585,6 +7585,17 @@ int main(void)
         }
         CONFERE(tirou & (tirou - 1), "Camaleao como Terremoto: o tremor deu sempre o mesmo numero (%08x)", tirou);
 
+        // A copia do Jingle Bell nao leva a marca do Chiclete: so o dado que
+        // grudou abre a proxima sequencia (a copia abriria outra, mais tarde,
+        // com o numero de outro dado).
+        J[0].n_col = 8;
+        J[0].col[0] = (peca_t){ .tipo = D_JINGLE, .chiclete = 1 };
+        ad_cola(&J[0].col[0], 1, AD_CHICLETE);
+        CONFERE(poe_copia_jingle(0, &J[0].col[0]) && J[0].n_col == 9, "Jingle Bell: a copia entra na bolsa");
+        CONFERE(J[0].col[8].tipo == D_JINGLE && J[0].col[8].fixo == 1 && ad_no_lado(&J[0].col[8], 1) == AD_CHICLETE,
+                "Jingle Bell: a copia e a mesma peca, com os adesivos");
+        CONFERE(!J[0].col[8].chiclete && J[0].col[0].chiclete, "Jingle Bell: a copia nao vem grudada pelo Chiclete");
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

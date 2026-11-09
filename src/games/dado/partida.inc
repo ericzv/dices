@@ -2076,6 +2076,7 @@ static void aplica_evento(int i)
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
         case AD_ETIQUETA: case AD_PATINHO: case AD_NEON: case AD_INFECTADO:
+        case AD_CORRENTE: case AD_DINAMITE:     // (a Dinamite anulada so apaga: valor 0)
             vis_semente[e->de_j] += e->valor;
             break;
         case AD_SUJEIRA: vis_delta[e->de_j] += e->valor; break;   // o barro do oponente: -2 no seu placar

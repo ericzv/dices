@@ -7444,6 +7444,37 @@ int main(void)
         limpa();
     }
 
+    // ---- O que a varredura achou (tests/varredura.c) ------------------------
+    {
+        jogador_t g0 = J[0], g1 = J[1];
+        int modo0 = modo, rodada0 = rodada;
+        uint64_t am0 = amul[0], am1 = amul[1];
+        uint8_t reg0 = reg_op;
+        modo = M_DOIS; amul[0] = amul[1] = 0; reg_op = REG_NADA; rodada = 1;
+        for (int q = 0; q < 2; q++) {
+            J[q].n_col = 8;
+            for (int i = 0; i < 8; i++) { J[q].col[i] = (peca_t){ .tipo = D_D6 }; J[q].onde[i] = NA_BOLSA; J[q].pavio[i] = 0; }
+            J[q].fichas = 100;
+        }
+        // Os pontos da Corrente e da Dinamite chegam no placar que a mesa
+        // mostra durante os efeitos (antes, so no resultado).
+        ad_cola(&J[0].col[0], 4, AD_CORRENTE);
+        ad_cola(&J[0].col[1], 5, AD_DINAMITE); J[0].pavio[1] = 6;
+        limpa(); joga_ad(0, 0, 4); joga_ad(0, 1, 5); joga(1, D_D6, 2);
+        pote = 10;
+        desfecho();
+        for (int i = 0; i < n_ev; i++) aplica_evento(i);
+        CONFERE(resolvido.total[0] == 4 + 5 + CORRENTE_CADA + 6, "Corrente e Dinamite: esperava 18, deu %d", resolvido.total[0]);
+        CONFERE(total_visivel(0) == resolvido.total[0], "Corrente e Dinamite: os eventos mostram %d, o motor paga %d",
+                total_visivel(0), resolvido.total[0]);
+        if (fase == F_EFEITOS) conclui_rodada();
+        for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
+
+        amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
+        J[0] = g0; J[1] = g1;
+        limpa();
+    }
+
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");
     return 0;

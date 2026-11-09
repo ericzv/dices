@@ -83,6 +83,8 @@ static const char *const SP_PAPAGAIO[] = { ".###...", "#####..", "#o###++", "###
 static const char *const SP_PAPAGAIO_B[] = { ".###...", "#####.+", "#o###+.", "######.", "####.++", ".###..." };
 static const char *const SP_CAMERA[] = { "..##...", "#######", "##ooo##", "#o+++o#", "##ooo##", "#######" };
 static const char *const SP_ESTILINGUE[] = { "#.....#", "#.....#", ".#...#.", "..###..", "...#...", "...#...", "...#..." };
+// O charutao do Agiota (o icone parado): o fumo, o anel de ouro e a brasa.
+static const char *const SP_CHARUTO[] = { ".#+#########.", "##+########oo", "##+########oo", ".#+#########." };
 static const char *const SP_FALHA[] = { "#......", ".#.....", ".##....", "...#...", "...##..", ".....#.", "......#" };
 
 enum { MV_FLUTUA, MV_PULSA, MV_BATIDA, MV_VARRE, MV_SOBE, MV_CAI, MV_BATE, MV_BALANCA, MV_TREME,
@@ -108,7 +110,7 @@ static const poder_anima_t PODER_ANIMA[EF_N] = {
     [EF_ESPELHO]      = { NULL, NULL, 0, 0, MV_ESPECIAL, C_BRANCO, C_BRANCO, C_PRATA },
     [EF_FICHAS]       = { PA_SP(SP_MOEDA), MV_PULSA, C_OURO, C_AMARELO, C_LATAO_ESC },
     [EF_COBRADOR]     = { PA_SP(SP_BOLSA), MV_ESPECIAL, C_TERRA, C_OURO, C_MADEIRA },
-    [EF_AGIOTA]       = { PA_SP(SP_MOEDA), MV_VARRE, C_OURO, C_AMARELO, C_LATAO_ESC },
+    [EF_AGIOTA]       = { PA_SP(SP_CHARUTO), MV_ESPECIAL, C_TERRA, C_OURO, C_FOGO },              // o charutao aceso
     [EF_POTE]         = { PA_SP(SP_PANETONE), MV_ESPECIAL, C_TERRA, C_FOGO, C_MADEIRA },
     [EF_GARIMPEIRO]   = { PA_SP(SP_PICARETA), MV_BATE, C_FERRO, C_PRATA, C_TERRA },
     [EF_TUDO_NADA]    = { PA_SP(SP_EXCLAMA), MV_PISCADA, C_OURO, C_AMARELO, C_OURO },
@@ -524,6 +526,32 @@ static void anima_poder(int x, int y, int R, int tipo, float fase)
                 gfx_rect(sx - 1, ay - 3, 3, 3, C_BARRA);
                 gfx_pixel(sx, ay - 2, C_CINZA);
                 for (int i = 1; i <= 3; i++) if (bayer(sx - i * 2, ay - 2) < 0.7f - i * 0.18f) gfx_pixel(sx - i * 2, ay - 2, C_MARFIM_S);
+            }
+            break;
+        }
+        case EF_AGIOTA: {                          // o charutao aceso do agiota: a brasa respira, a cinza cresce e a fumaca sobe
+            int L = R >= 16 ? 19 : 14, H = R >= 16 ? 5 : 4;
+            int x0 = ax - L / 2, y0 = ay - H / 2 + (int)lroundf(sinf(t * 1.7f) * 0.8f);
+            float br = 0.5f + 0.5f * sinf(t * 2.6f);              // a tragada: a brasa acende e esmorece devagar
+            gfx_rect(x0, y0 - 1, L, H + 2, C_BARRA);               // o contorno, com as pontas arredondadas
+            gfx_rect(x0 - 1, y0, L + 2, H, C_BARRA);
+            for (int j = 0; j < H; j++)                            // o fumo enrolado: claro em cima, escuro embaixo
+                gfx_rect(x0, y0 + j, L, 1, j == 0 ? C_MADEIRA_CLR : j == H - 1 ? C_MADEIRA_ESC : C_TERRA);
+            for (int i = 8; i < L - 4; i += 4) gfx_pixel(x0 + i, y0 + 1 + (i / 4) % 2, C_MADEIRA);   // a folha enrolada, em espiral
+            gfx_rect(x0 + 3, y0, 3, H, C_OURO);                    // o anel de ouro, com o selo vermelho
+            gfx_rect(x0 + 3, y0, 3, 1, C_AMARELO);
+            gfx_rect(x0 + 4, y0 + 1, 1, H - 2, C_VERMELHO);
+            gfx_rect(x0 + L - 3, y0, 2, H, C_CINZA);               // a cinza
+            gfx_rect(x0 + L - 3, y0, 2, 1, C_PRATA);
+            gfx_rect(x0 + L - 1, y0, 1, H, br > 0.55f ? C_AMARELO : C_FOGO);   // a brasa na ponta
+            gfx_pixel(x0 + L - 2, y0 + H / 2, br > 0.55f ? C_FOGO : C_BRASA);
+            if (br > 0.55f) { gfx_pixel(x0 + L, y0 + 1, C_FOGO); gfx_pixel(x0 + L, y0 + H - 2, C_FOGO); }   // o brilho em volta
+            for (int i = 0; i < 7; i++) {                          // a fumaca: fiapos que sobem da ponta, ondulando, abrindo e se desfazendo
+                float q = fmodf(t * 0.45f + i / 7.0f, 1.0f);
+                int fx = x0 + L - 1 + (int)lroundf(sinf(t * 1.8f + q * 5) * (1 + q * 2) + q * 4), fy = y0 - 2 - (int)(q * 15);
+                if (q > 0.15f && bayer(fx, fy) < (q - 0.15f) * 1.1f) continue;
+                gfx_pixel(fx, fy, q < 0.5f ? C_MARFIM_S : C_CINZA);
+                if (q > 0.25f) gfx_pixel(fx + 1, fy, C_CINZA);
             }
             break;
         }

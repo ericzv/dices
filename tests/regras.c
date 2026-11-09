@@ -2211,11 +2211,12 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][1] == V_VALIDO && d.est[0][0] == V_ANULADO && d.total[0] == 2,
                 "Fenix: esperava so ela (2), deu %d", d.total[0]);
-        // Trono: +4 se for o 4o da fila e os quatro terminarem valendo.
+        // Trono: +8 (TRONO_BONUS) se for o 4o da fila e os quatro terminarem valendo.
         limpa();
         joga(0, D_D4, 1); joga(0, D_D6, 3); joga(0, D_D8, 5); joga(0, D_TRONO, 10);
         d = fim();
-        CONFERE(d.total[0] == 1 + 3 + 5 + 10 + 4, "Trono em 4o: esperava 23, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 1 + 3 + 5 + 10 + TRONO_BONUS, "Trono em 4o: esperava 27, deu %d", d.total[0]);
+        CONFERE(TRONO_BONUS == 8, "Trono: o bonus devia ser +8");
         CONFERE(poder_armado(0, 3) == 1, "Trono em 4o com todos valendo devia brilhar");
         limpa();
         joga(0, D_D6, 3); joga(0, D_TRONO, 10);                    // so dois dados
@@ -6926,6 +6927,48 @@ int main(void)
         bool tela = false;
         for (int k = 0; k < q; k++) tela |= ordem[k] == 0;
         CONFERE(q == 4 && !tela, "IA facil pos a Tela em Branco vazia no lugar de um d6");
+    }
+
+    // ---- IA: quem precisa de um dado antes nao abre a fila -----------------
+    // A Sentinela protege o dado de antes e o Par empata com ele: abrindo a
+    // fila, o poder nao age. No empate de media com um d4 comum, a IA facil
+    // punha o dado de poder na frente. O Puxa-fila so age abrindo.
+    {
+        static const int QUEM[2] = { D_SENTINELA, D_PAR };
+        for (int w = 0; w < 2; w++) {
+            peca_t mao[4] = { { .tipo = (uint8_t)QUEM[w] }, { .tipo = D_D4 }, { .tipo = D_D6 }, { .tipo = D_D8 } };
+            int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
+            CONFERE(q >= 2 && ordem[0] != 0, "IA facil abriu a fila com %s", TIPO[QUEM[w]].nome);
+        }
+        peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_PUXA_FILA }, { .tipo = D_D4 } };
+        int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
+        CONFERE(q >= 1 && ordem[0] == 2, "IA facil nao abriu a fila com o Puxa-fila");
+        // A IA que imagina jogadas, nos dois niveis: nem pensa em abrir com eles.
+        for (int w = 0; w < 2; w++)
+            for (int niv = 1; niv <= 2; niv++) {
+                static const int T[6] = { D_D4, D_D4, D_D6, D_D6, D_D8, D_D4 };
+                colecao_inicial(&J[0]);
+                J[0].n_col = 0;
+                for (int i = 0; i < 6; i++) {
+                    J[0].col[i] = (peca_t){ .tipo = (uint8_t)(i == 0 ? QUEM[w] : T[i]) };
+                    J[0].onde[i] = NA_MAO;
+                    J[0].mao[i] = (int8_t)i;
+                    J[0].n_col++;
+                }
+                J[0].n_mao = 6;
+                limpa();
+                rodada = 3;
+                primeiro = 0;
+                vez = 0;
+                ia_nivel = niv;
+                ia_esforco = 0;
+                plano_rodada = -1;
+                ia_planeja();
+                CONFERE(plano_n >= 1 && J[0].mao[plano[0]] != 0, "IA nivel %d abriu a fila com %s", niv, TIPO[QUEM[w]].nome);
+            }
+        limpa();
+        ia_esforco = 1;
+        ia_nivel = 2;
     }
 
     // ---- IA: o Chiclete que ainda vai grudar ------------------------------

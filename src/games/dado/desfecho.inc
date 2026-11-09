@@ -706,8 +706,8 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
         } else if (ef == EF_TRONO && k == FILA_NORMAL - 1 && valendo == f->lancados) {
-            d->semente[j] += 4;                      // o 4o da fila, e nenhum dos seus caiu
-            evento(gera, EV_EXTRA, j, k, j, 0, 4, "Trono: a sequência inteira válida, +4");
+            d->semente[j] += TRONO_BONUS;            // o 4o da fila, e nenhum dos seus caiu
+            evento(gera, EV_EXTRA, j, k, j, 0, TRONO_BONUS, "Trono: a sequência inteira válida, +%d", TRONO_BONUS);
         } else if (ef == EF_SEGURANCA && valendo == f->lancados) {
             d->semente[j] += 2;                      // nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: a sequência inteira válida, +2");

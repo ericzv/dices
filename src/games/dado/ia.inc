@@ -135,6 +135,24 @@ static int preferencia_ia(peca_t p)
     return s;
 }
 
+// Dados cujo poder depende de um dado antes deles na fila: abrindo a fila, o
+// poder nao tem como agir (o Par nao tem com quem empatar, a Sentinela nao
+// tem quem proteger, o Treno nao tem quem puxar). Nunca abrem a fila quando
+// ha outro dado para abrir.
+static bool precisa_anterior(int tipo)
+{
+    switch (tipo) {
+    case D_PAR: case D_SENTINELA: case D_GEMEO: case D_ECO: case D_DIGITAL:
+    case D_VENTANIA: case D_TRENO: case D_CAMALEAO:
+        return true;
+    default:
+        return false;
+    }
+}
+// E os que so agem abrindo a fila: o Puxa-fila (o primeiro, com os quatro
+// valendo) e o Checkpoint (pontua por quem vem depois dele).
+static bool quer_abrir(int tipo) { return tipo == D_PUXA_FILA || tipo == D_CHECKPOINT; }
+
 // Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
 static bool arriscado(int tipo)
 {
@@ -178,6 +196,25 @@ static int fila_simples_r(const peca_t *pc, int n, int *ordem, bool evita_risco)
         if ((pc[ordem[b]].tipo == D_DOBRO || pc[ordem[b]].tipo == D_FERREIRO) && b == m - 1) {
             int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t;
         }
+    // O que so age abrindo a fila vai na frente; o que precisa de um dado
+    // antes (o Par, a Sentinela...) nao abre: o primeiro que nao precisa
+    // passa para a frente dele.
+    for (int b = 1; b < m; b++)
+        if (quer_abrir(pc[ordem[b]].tipo) && !quer_abrir(pc[ordem[0]].tipo)) {
+            int t = ordem[b];
+            memmove(&ordem[1], &ordem[0], (size_t)b * sizeof ordem[0]);
+            ordem[0] = t;
+            break;
+        }
+    if (m >= 2 && precisa_anterior(pc[ordem[0]].tipo)) {
+        int b = 1;
+        while (b < m && precisa_anterior(pc[ordem[b]].tipo)) b++;
+        if (b < m) {
+            int t = ordem[b];
+            memmove(&ordem[1], &ordem[0], (size_t)b * sizeof ordem[0]);
+            ordem[0] = t;
+        }
+    }
     return m;
 }
 static int fila_simples(const peca_t *pc, int n, int *ordem) { return fila_simples_r(pc, n, ordem, true); }
@@ -561,6 +598,10 @@ static void ia_planeja(void)
         for (int q = 0; q < m; q++)
             if (!memcmp(&p->col[p->mao[q]], &p->col[p->mao[m]], sizeof(peca_t))) { igual[m] = (int8_t)q; break; }
     }
+    // O Par, a Sentinela e os outros que precisam de um dado antes nao abrem a
+    // fila (o poder deles ficaria sem efeito), quando ha outro dado para abrir.
+    bool tem_abre = false;
+    for (int m = 0; m < n; m++) tem_abre |= !precisa_anterior(p->col[p->mao[m]].tipo);
     int8_t s[N_FILA] = { 0 };
     int nivel = 0;
     s[0] = -1;
@@ -574,6 +615,7 @@ static void ia_planeja(void)
         // Dobro por ultimo nao dobra nada: a IA nem considera. O Universo so
         // vai sozinho: entra no fim, como fila de um dado so.
         if (L >= 2 && p->col[p->mao[s[L - 1]]].tipo == D_DOBRO) continue;   // (o Ferreiro pontua: por ultimo ainda vale)
+        if (L >= 2 && gm < 0 && tem_abre && precisa_anterior(p->col[p->mao[s[0]]].tipo)) continue;
         bool uni = false;
         for (int k = 0; k < L && L >= 2; k++) uni |= p->col[p->mao[s[k]]].tipo == D_UNIVERSO;
         if (uni) continue;

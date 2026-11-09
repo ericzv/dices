@@ -2169,7 +2169,9 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             int antes = F[r].valor[a];
             if (!pre[r]) memcpy(est_pre_espelho[r], F[r].est, N_FILA);
             pre[r] = true;
-            treme_dado(r, a, F[j].abalo[k]);
+            // (sem a semente do lance - o Camaleao atras de um Terremoto, o
+            // Terremoto que ja veio grudado pelo Chiclete -, a da mesa, como a Casca)
+            treme_dado(r, a, F[j].abalo[k] ? F[j].abalo[k] : pega_semente(j, k));
             refaz_sequencia(r, F[r].lancados);
             evento_t *e;
             if (F[r].valor[a] == antes) e = evento(gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);

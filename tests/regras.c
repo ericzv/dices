@@ -7570,6 +7570,21 @@ int main(void)
         CONFERE(F[0].est[0] == V_ANULADO && F[0].est[2] == V_ANULADO && !F[0].curinga[2],
                 "Camaleao atras da Ficha Coringa: entra na sequencia e cai");
 
+        // O Terremoto sem a semente do lance (o Camaleao atras de um Terremoto)
+        // nao rola sempre o mesmo numero: o tremor sai da mesa, como a Casca.
+        uint32_t tirou = 0;
+        for (int r = 1; r <= 12; r++) {
+            rodada = r;
+            limpa();
+            joga(1, D_D20, 10);
+            joga_com(0, D_TERREMOTO, 5, sempre_dois);   // com 5 nao treme
+            joga_com(0, D_CAMALEAO, 8, sempre_dois);    // o Camaleao, como Terremoto, com 8: treme
+            CONFERE(tremor_armado(0, 1) && !tremor_armado(0, 0) && !F[0].abalo[1], "Camaleao como Terremoto: a mesa do teste");
+            fim();
+            if (F[1].valor[0] >= 1 && F[1].valor[0] <= 20) tirou |= 1u << F[1].valor[0];
+        }
+        CONFERE(tirou & (tirou - 1), "Camaleao como Terremoto: o tremor deu sempre o mesmo numero (%08x)", tirou);
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

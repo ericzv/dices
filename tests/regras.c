@@ -7530,6 +7530,22 @@ int main(void)
                 pv.total[0], d.total[0]);
         amul[0] = 0; modo = M_DOIS;
 
+        // O Coringa jogando depois, sem nada seu para copiar (voce abriu so com
+        // o Universo): nao ha quarto dado - nem uma carta que nunca viraria.
+        modo = M_DESAFIO; reg_op = REG_CORINGA;
+        limpa(); primeiro = 0;
+        joga(0, D_UNIVERSO, 40);
+        for (int k = 0; k < 3; k++) { F[1].idx[k] = (int8_t)k; F[1].tipo[k] = D_D6; }
+        F[1].n = 3;
+        coringa_completa(1);
+        CONFERE(!F[1].carta && F[1].n == 3, "Coringa depois do Universo: sem carta (carta %d, n %d)", F[1].carta, F[1].n);
+        // Abrindo a rodada, a carta continua: vira depois do seu turno.
+        limpa(); primeiro = 1;
+        for (int k = 0; k < 3; k++) { F[1].idx[k] = (int8_t)k; F[1].tipo[k] = D_D6; }
+        F[1].n = 3;
+        coringa_completa(1);
+        CONFERE(F[1].carta && F[1].n == 4, "Coringa abrindo: a carta (carta %d, n %d)", F[1].carta, F[1].n);
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

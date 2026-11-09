@@ -1235,6 +1235,10 @@ static void coringa_completa(int j)
     if (!coringa_joga(j) || f->n != 3) return;
     peca_t c;
     f->carta = !melhor_lance(outro(j), &c);
+    // Jogando depois, sem nada seu para copiar (so o Universo, ou dados que
+    // ainda esperam o fim): nao ha quarto dado. A carta e so de quem abre: e
+    // ela que vira depois do seu turno.
+    if (f->carta && j != primeiro) { f->carta = false; return; }
     if (f->carta) c = (peca_t){ .tipo = D_D6, .fixo = 0 };       // so o lugar: o tipo vem depois
     f->tipo[3] = c.tipo; f->fixo[3] = c.fixo; f->idx[3] = -1;
     f->n = 4;

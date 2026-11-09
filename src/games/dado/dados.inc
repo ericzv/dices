@@ -91,6 +91,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // A Esperanca dobra quem comecou a rodada com tantas fichas ou menos.
 #define ESPERANCA_FICHAS 40     // (era 15: quase nunca valia)
 #define AGIOTA_FICHAS 3          // o Agiota leva isto do oponente (eram 2)
+#define TRONO_BONUS 8            // o Trono em 4o, com os quatro valendo (era +4)
 #define LEQUE_PTS     2          // o Leque: por dado seu valendo que caiu num lado com adesivo
 #define BALAO_ESTOURA 7          // o Balao estoura (e soma o ar guardado) com 7 ou 8
 #define BALAO_CADA    2          // e enche isto por rodada fora da fila ou anulado
@@ -269,7 +270,7 @@ static const tipo_t TIPO[D_N] = {
     { "Gêmeo",            6, EF_GEMEO,        RAR_RARO,     0, "Tira o mesmo do último dado válido (até 6)" },
     { "Prisma",           8, EF_PRISMA,       RAR_RARO,     0, "+1 por tipo de dado válido (d2, d4, d6...)" },
     { "Fênix",            6, EF_FENIX,        RAR_RARO,     0, "Se for anulado: renasce no fim" },
-    { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +4" },
+    { "Trono",           12, EF_TRONO,        RAR_LENDA,    0, "4º da sequência, os quatro válidos: +8" },
     { "Cavalo de Troia",  8, EF_CAVALO,       RAR_RARO,     0, "Anulado ou roubado pelo oponente: anula os dados dele" },
     { "Berserker",       20, EF_BERSERKER,    RAR_LENDA,    0, "Válido: anula o vizinho do oponente" },
     { "Viúva Negra",      8, EF_VIUVA,        RAR_RARO,     0, "Único dado seu válido: x2" },
@@ -406,7 +407,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_GEMEO]           = "Tira o mesmo número do último dado válido da sequência, até 6 (senão, rola normalmente).",
     [D_PRISMA]          = "Se terminar válido, +1 no fim para cada tipo de dado entre os seus válidos: d2, d4, d6, d8, d12, d20.",
     [D_FENIX]           = "Se terminar anulado, renasce no fim e pontua o número que tirou.",
-    [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +4.",
+    [D_TRONO]           = "Se for o 4º dado da sequência e os quatro terminarem válidos: +8.",
     [D_CAVALO]          = "Se o oponente anular ou roubar este dado, todos os dados do oponente são anulados.",
     [D_BERSERKER]       = "Se terminar válido, anula no fim o dado do oponente na casa vizinha; sem ele, o seu vizinho.",
     [D_VIUVA]           = "Se terminar como o único dado válido seu, pontua x2 no fim.",
@@ -577,7 +578,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_FENIX]           = "Seis lados. Se terminar anulado, renasce no fim da rodada e pontua o número que tirou. Se for "
                           "roubado, não volta.",
     [D_TRONO]           = "Doze lados. Se for o 4º dado da sua sequência e os quatro terminarem válidos, este dado incluído, "
-                          "pontua +4 no fim da rodada.",
+                          "pontua +8 no fim da rodada.",
     [D_CAVALO]          = "Oito lados. Se um dado do oponente anular ou roubar este dado, todos os dados válidos do oponente "
                           "são anulados, e o que ele roubou na rodada deixa de contar.",
     [D_BERSERKER]       = "Vinte lados. Se terminar válido, no fim da rodada anula o dado válido do oponente na casa vizinha "
@@ -911,10 +912,10 @@ static const visual_t VISUAL[D_N] = {
     [D_QUEBRADO]   = { V_TERRA,   V_PRATA, 40,  V_PRATA, 100,   V_ACO, 100,    V_PEDRA, 100 },   // a porcelana craquelada e o biscoito da lasca
     [D_INVEJOSO]   = { V_LIMA,    V_VERDE, 70,  V_VERDE, 100,   V_LIMA, 100,   V_BREU, 100 },   // a malaquita
     [D_CARIDOSO]   = { V_ROSA,    0, 0,         V_ROSA, 45 },
-    [D_FARTURA]    = { V_AMBAR,   V_AMBAR, 40,  V_AMBAR, 100,   V_LATAO_E, 100 },              // os graos de milho
+    [D_FARTURA]    = { V_AMBAR,   V_AMBAR, 40,  V_TRIGO, 100,   V_AMBAR, 100 },                 // os graos de milho claros
     [D_SORTE]      = { V_AZUL,    0, 0,         V_AZUL, 65,     V_VERM, 65 },
-    [D_TEIMOSO]    = { V_ACO,     0, 0,         V_ACO, 100 },                                    // as cintas de aco
-    [D_SEMENTE]    = { V_VERDE,   RGB(36, 32, 29), 85, V_PEDRA, 100, V_VERDE, 100, RGB(62, 56, 50), 100 },   // a casca listrada e o broto
+    [D_TEIMOSO]    = { V_ACO,     0, 0,         V_ACO, 34 },
+    [D_SEMENTE]    = { V_TERRA,   V_PEDRA, 55,  V_COURO, 100,   V_PEDRA, 100,  V_BREU, 100 },   // o feijao rajado: as rajas, a casca e o olho
     [D_FOGO]       = { V_FOGO },                // a ficha em chamas, desenhada a parte
     [D_MALDICAO]   = { V_ROXO,    V_ROXO, 20,   V_ROXO, 65 },
     [D_TREVO]      = { V_VERDE,   V_LIMA, 28,   V_VERDE, 90,    V_VERDE, 65,   V_VERDE, 100 },   // o tecido estampado de trevinhos
@@ -941,18 +942,18 @@ static const visual_t VISUAL[D_N] = {
     [D_BERSERKER]  = { V_VINHO,   V_VERM, 85,   V_VERM, 100,    V_TERRA, 100,  V_FERRO, 100 },  // o escudo pintado, a madeira e os rebites
     [D_VIUVA]      = { V_ACO,     0, 0,         V_ACO, 45 },
     [D_CAPITAO]    = { V_AZUL,    V_AZUL, 22,   V_BRANCO, 100,  V_OURO, 100,   RGB(30, 34, 52), 100 },
-    [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_CHUMBO, 100,  V_BRANCO, 100 },                 // o xadrez da chegada
+    [D_CHECKPOINT] = { V_VERDE,   V_VERDE, 10,  V_LIMA, 100 },                                  // o xadrez discreto da chegada
     [D_SORTE_REVES] = { V_AMEIXA, 0, 0,         V_CHUMBO, 100,  V_BRANCO, 100, V_OURO, 100 },  // o ebano, o marfim e o ouro
     [D_AUTOFAGIA]  = { V_AGUA,    V_AGUA, 10,   V_VERDE, 100,   V_BREU, 100,   RGB(34, 76, 44), 100 },
     [D_ECO]        = { V_LILAS,   V_LILAS, 12,  V_ROXO, 90,     V_ROXO, 62,    V_ROXO, 38 },
     [D_DOMINO]     = { V_BREU,    0, 0,         V_BREU, 70,     V_LATAO, 100 },
     [D_ANCORA]     = { V_AZUL,    V_AZUL, 12,   V_AZUL, 85,     V_FERRO, 80 },
     [D_MARTIR]     = { V_SANGUE,  V_PEDRA, 12,  V_SANGUE, 100,  V_BREU, 75,    V_VERM, 100 },
-    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 10,   V_VERM, 100,    V_BRANCO, 100 },                 // a faixa de desfile
+    [D_PUXA_FILA]  = { V_VERM,    V_VERM, 30,   V_VERM, 100,    V_ROSA, 100 },                  // a seta grande da frente da fila
     [D_COVEIRO]    = { V_BARRO,   V_PEDRA, 10,  V_PEDRA, 100,   V_TERRA, 100,  V_BREU, 85 },    // a pedra e o aco, a terra e a madeira
     [D_HEXA]       = { V_AMBAR,   V_AMBAR, 40,  V_AMBAR, 100,   V_TRIGO, 100,  V_LATAO_E, 100 },  // o favo de mel
     [D_OURICO]     = { V_COURO,   V_TERRA, 22,  V_COURO, 85 },
-    [D_CALIBRE]    = { V_LIMA,    V_LIMA, 50,   V_LIMA, 100,    V_CHUMBO, 100 },               // o aluminio anodizado e a escala
+    [D_CALIBRE]    = { V_LIMA,    V_LIMA, 50,   V_LIMA, 100,    V_CHUMBO, 100, V_VERM, 100 },   // o aluminio, a escala e a mira
     [D_SABOTADOR]  = { V_ROXO,    V_ROXO, 12,   V_ACO, 100,     V_LATAO, 100,  V_BREU, 90 },    // a engrenagem, a chave
     [D_AZARAO]     = { V_VERDE,   V_VERDE, 12,  V_VERDE, 85 },
     [D_AMPULHETA]  = { V_MADEIRA, V_TRIGO, 18,  V_AMBAR, 55,    V_AMBAR, 95,   V_MADEIRA, 90 },
@@ -1016,7 +1017,7 @@ static const visual_t VISUAL[D_N] = {
     // O Mosaico: os azulejos de tres cores com o rejunte claro.
     [D_MOSAICO]     = { V_CIANO,  0, 0,         V_CIANO, 100,   V_ROSA, 100,   V_TRIGO, 100 },
     // O Piao: a madeira torneada com as listras vermelha e creme em volta.
-    [D_PIAO]       = { V_TERRA,   V_TRIGO, 30,  V_VERM, 100,    V_BRANCO, 100, V_TRIGO, 100 },    // a madeira torneada e as faixas pintadas
+    [D_PIAO]       = { V_TERRA,   V_TERRA, 40,  V_VERM, 100,    V_TERRA, 100,  V_AZUL, 100 },   // a madeira torneada e os aneis pintados
     // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
     [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
     // O Leque: o papel rosa em gomos, o vinco vinho e o ouro do fio, das florzinhas e do pino.

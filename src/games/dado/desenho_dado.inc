@@ -833,6 +833,7 @@ static float luz_beira(float nx, float ny) { return -(nx + ny) * 0.7071f; }
 // Nas coordenadas do desenho, o centro da face (onde o numero fica) e a
 // bitola da face: 0 no centro, 1 na beira de dentro do aro; em *t, onde o
 // ponto cai ao longo da beira mais perto (de -1 a 1).
+static int valor_desta;                   // o numero que este dado mostra (0: nenhum, na mao ou no ar); o Trevo desenha um trevo por ele
 static float face_cu(int lados) { return lados == 2 ? 0.06f : 0.08f; }
 static float face_cv(int lados) { return lados == 4 ? 0.25f : lados == 2 ? 0.06f : 0.08f; }
 static float face_g(int lados, float u, float v, float *t)
@@ -914,13 +915,27 @@ static int desenho_interno(int tipo, float u, float v, float s)
         celula_vet(u, v, 0.15f, &dx, &dy, NULL);
         return LUZ(1, base + amp * (dx + dy) / 0.15f * 0.40f);              // a covinha e funda: clara do lado de baixo a direita
     }
-    case D_QUEBRADO: {                            // porcelana craquelada: a rede fina de rachaduras no esmalte e uma lasca na quina de baixo
+    case D_QUEBRADO: {                            // porcelana craquelada: a rede fina de rachaduras, a rachadura grande atravessando e uma lasca na ponta de baixo
         float x = u - 0.08f, y = v - 0.08f, g = (fabsf(x) + fabsf(y)) / 0.98f;
-        // a lasca: o esmalte saltou da quina de baixo e mostra o biscoito por baixo
-        float lx = x - 0.05f, ly = y - 0.98f;                                 // a mordida na ponta de baixo
+        // a lasca: o esmalte saltou da ponta de baixo e mostra o biscoito por baixo
+        float lx = x - 0.05f, ly = y - 0.98f;
         float lasca = 0.27f + 0.025f * sinf(atan2f(ly, lx) * 9.0f) - sqrtf(lx * lx + ly * ly);
         if (lasca > 0) return lasca < 1.6f * s ? LUZ(3, -0.7f) : LUZ(3, 0.25f - (x + y) * 0.3f);
         if (lasca > -1.4f * s) return LUZ(1, 0.95f);                         // a beira viva do esmalte, clara
+        // a rachadura grande: da ponta de cima ate a de direita, torta, passando longe do numero, com um galho
+        static const float R[9][2] = { {0.02f,-0.95f}, {0.09f,-0.78f}, {0.03f,-0.64f}, {0.17f,-0.50f}, {0.31f,-0.47f},
+                                       {0.37f,-0.30f}, {0.52f,-0.22f}, {0.60f,-0.07f}, {0.95f,0.02f} };
+        static const float G[3][2] = { {0.31f,-0.47f}, {0.42f,-0.58f}, {0.47f,-0.52f} };
+        float lado = 0, d = 9;
+        for (int i = 0; i < 8; i++) {
+            float q = ate_seg(x, y, R[i][0], R[i][1], R[i + 1][0], R[i + 1][1]);
+            if (q < d) { d = q; float nx = -(R[i + 1][1] - R[i][1]), ny = R[i + 1][0] - R[i][0];
+                         lado = ((x - R[i][0]) * nx + (y - R[i][1]) * ny) * -(nx + ny); }
+        }
+        float dg = fminf(ate_seg(x, y, G[0][0], G[0][1], G[1][0], G[1][1]), ate_seg(x, y, G[1][0], G[1][1], G[2][0], G[2][1]));
+        float w = 0.012f + 0.6f * s;
+        if (d < w || dg < w * 0.6f) return LUZ(2, -0.9f);                     // o fundo da rachadura
+        if (d < w + 1.2f * s) return lado > 0 ? LUZ(2, -0.3f) : LUZ(1, 0.95f);  // a parede na sombra e a que pega a luz
         float hx = x + 0.34f, hy = y + 0.34f;                                 // o brilho do esmalte
         if (hx * hx + hy * hy < 0.012f) return LUZ(1, 0.95f);
         float base = 0.30f - (x + y) * 0.45f;
@@ -928,19 +943,19 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float f2;
         uint32_t id;
         float f1 = celulas(u, v, 0.24f, &f2, &id);
-        if (f2 - f1 < 2.2f * s) return LUZ(2, 0.05f);                         // a rachadura, de um pixel
+        if (f2 - f1 < 2.2f * s) return LUZ(2, 0.05f);                         // a rachadura miuda, de um pixel
         return LUZ(1, base + ((int)(id % 5) - 2) * 0.035f);                    // cada caco num tom um pouco diferente
     }
-    case D_PIAO: {                                // o piao visto de cima: a madeira torneada no meio e as faixas pintadas em espiral na beira
-        float x = u - 0.08f, y = v - 0.08f, rr = sqrtf(x * x + y * y), g = face_g(6, u, v, NULL);
-        if (g > 0.66f) {                                                      // a beira pintada, girando
-            float a = atan2f(y, x) / 6.2832f, f = fr(a * 6 + rr * 2.5f);
-            if (fabsf(g - 0.66f) < 1.2f * s / 0.8f) return LUZ(3, -0.4f);      // o friso
-            return f < 0.5f ? LUZ(1, 0.25f - (x + y) * 0.4f) : LUZ(2, 0.40f - (x + y) * 0.4f);
-        }
-        float anel = fr(rr / 0.11f);                                          // os aneis do torno na madeira
-        float luz = 0.30f - (x + y) * 0.35f;
-        return anel < 1.1f * s / 0.11f ? LUZ(3, luz - 0.2f) : LUZ(3, luz + 0.35f);
+    case D_PIAO: {                                // o piao de madeira torneada, de lado: a madeira clara com as marcas do torno e os aneis finos pintados, curvos como o corpo
+        float x = u - 0.08f, y = v - 0.08f;
+        float yy = y - 0.14f * x * x;                                         // os aneis fazem curva: o corpo e redondo
+        float luz = 0.55f - x * 0.35f - y * 0.10f;                            // o corpo e um cilindro: claro a esquerda
+        luz += 0.40f * expf(-(x + 0.42f) * (x + 0.42f) / 0.004f);             // o risco de brilho do verniz
+        static const float A[4] = { -0.70f, -0.62f, 0.62f, 0.70f }, W[4] = { 0.030f, 0.012f, 0.012f, 0.030f };   // perto das beiras, longe dos pontos
+        for (int i = 0; i < 4; i++)
+            if (fabsf(yy - A[i]) < W[i] + 0.4f * s) return i == 0 || i == 3 ? LUZ(1, luz - 0.10f) : LUZ(3, luz - 0.10f);   // os aneis: vermelho largo, azul fino
+        float veio = 0.08f * ruido(x / 0.40f + 2, yy / 0.03f) + (fr(yy / 0.07f) < 0.8f * s / 0.07f ? -0.18f : 0);   // o veio e as marcas do torno
+        return LUZ(2, luz + veio);
     }
     case D_CAMELO: {                              // as bugigangas miudas da banca, em volta do numero
         static const float BX[8] = { -0.56f, -0.22f, 0.22f, 0.56f, -0.56f, -0.22f, 0.22f, 0.56f };
@@ -1122,14 +1137,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return LUZ(1, luz);
     }
-    case D_VICIADO: {                             // acrilico vermelho de cassino: translucido, a beira acesa e o chumbo escondido no fundo
+    case D_VICIADO: {                             // acrilico vermelho de cassino: translucido, a beira acesa e o brilho na quina
         float x = u - 0.08f, y = v - 0.08f, g = face_g(6, u, v, NULL);
         float hx = x + 0.44f, hy = y + 0.44f;
         if (fabsf(hx - hy) < 0.05f && hx + hy > 0 && hx + hy < 0.36f) return LUZ(2, 0.9f);   // o brilho na quina de cima
-        float cx = x / 0.40f, cy = (y - 0.50f) / 0.20f, ch = cx * cx + cy * cy;           // o chumbo, visto atraves do acrilico
-        float luz = -0.05f - (x + y) * 0.35f + 0.55f * fmaxf(0, g - 0.72f) / 0.28f;       // a beira translucida clareia
-        if (ch < 1) luz -= 0.55f * (1 - ch);
-        return LUZ(1, luz);
+        return LUZ(1, -0.05f - (x + y) * 0.35f + 0.55f * fmaxf(0, g - 0.72f) / 0.28f);       // a beira translucida clareia
     }
     case D_LASTRO:                                // metal escovado
         return fr(v / (3 * s)) < 0.34f;
@@ -1217,39 +1229,31 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float q = x * x + y * y - 1;
         return q * q * q - x * x * y * y * y <= 0;
     }
-    case D_FARTURA: {                             // o monte de graos de milho: cada um gordo e lustroso, o miolo liso para o numero
+    case D_FARTURA: {                             // o monte de graos de milho, claros e macios; o miolo liso para o numero
         float g = face_g(4, u, v, NULL);
         if (g < 0.42f) return 0;
-        float dx = 0, dy = 0, f2, f1 = celula_vet(u, v, 0.15f, &dx, &dy, &f2);
-        if (f2 - f1 < 1.2f * s + 0.006f) return LUZ(2, -0.3f);               // o vao entre os graos
-        return LUZ(1, 0.40f - (dx + dy) / 0.15f * 0.7f - f1 / 0.15f * 0.2f);   // cada grao e um domo, claro em cima a esquerda
+        float dx = 0, dy = 0, f2, f1 = celula_vet(u, v, 0.18f, &dx, &dy, &f2);
+        if (f2 - f1 < 1.2f * s + 0.004f) return LUZ(2, 0.50f);               // o vao entre os graos, so um pouco mais escuro
+        return LUZ(1, 0.42f - (dx + dy) / 0.18f * 0.18f);
     }
     case D_SORTE: {                               // o aro de uma ficha de cassino, azul e vermelho
         if (ro < 0.6f || ro > 0.76f) return 0;
         return ((int)floorf(fr(atan2f(v, u) / 6.2832f + 0.0625f) * 8) & 1) ? 2 : 1;
     }
-    case D_TEIMOSO: {                             // as cintas de aco cruzadas, pregadas nas quinas: o meio livre para o numero
-        float x = u - 0.08f, y = v - 0.08f;
-        if (fmaxf(fabsf(x), fabsf(y)) < 0.30f || fabsf(x) > 0.70f || fabsf(y) > 0.70f) return 0;
-        float d1 = (x - y) * 0.7071f, d2 = (x + y) * 0.7071f;
-        float d = fabsf(d1) < fabsf(d2) ? d1 : d2;
-        if (fabsf(d) > 0.14f) return 0;
-        if (fabsf(d) > 0.14f - 1.2f * s) return LUZ(1, d < 0 ? 0.6f : -0.5f);    // a beira da cinta
-        return LUZ(1, 0.15f - (x + y) * 0.35f);
-    }
-    case D_SEMENTE: {                             // a casca da semente de girassol: listras claras curvas, o meio liso e o broto na beira de cima
+    case D_TEIMOSO:                               // um X por tras dos pontos: nao cai
+        if (fabsf(u) > 0.6f || fabsf(v) > 0.6f) return 0;
+        return fabsf(u - v) < 0.2f || fabsf(u + v) < 0.2f;
+    case D_SEMENTE: {                             // o feijao rajado: a casca bege e lustrosa, as rajas cor de vinho ao comprido e o olho da semente na beira
         float x = u - 0.06f, y = v - 0.06f, rr = sqrtf(x * x + y * y);
-        // o broto: duas folhinhas verdes saindo da beira de cima
-        for (int k = -1; k <= 1; k += 2) {
-            float fx = (x - k * 0.10f) / 0.10f, fy = (y + 0.66f + fabsf(x) * 0.35f) / 0.055f;
-            if (fx * fx + fy * fy < 1 && fabsf(x) < 0.21f) return LUZ(2, 0.5f - k * 0.3f - fy * 0.3f);
-        }
-        if (fabsf(x) < 0.025f && y < -0.58f && y > -0.72f) return LUZ(2, -0.2f);   // o talinho
-        float alt = sqrtf(fmaxf(0.02f, 1 - (y / 0.88f) * (y / 0.88f)));           // a curva da casca
-        float su = x / alt;
-        float luz = 0.10f - (x + y) * 0.55f - fmaxf(0, rr - 0.6f) * 1.4f;        // convexa: clara no alto a esquerda
-        if (fabsf(su) > 0.24f && fr(su / 0.28f + 0.5f) < 0.16f + s * 0.8f) return LUZ(1, luz - 0.05f);   // as listras claras, poucas e finas
-        return LUZ(3, luz);
+        float hx = (x - 0.64f) / 0.055f, hy = (y - 0.02f) / 0.15f, h = hx * hx + hy * hy;   // o olho (o hilo), comprido, na beira da direita
+        if (h < 1) return h > 0.55f ? LUZ(3, -0.4f) : LUZ(2, 0.95f);
+        float luz = 0.30f - (x + y) * 0.40f - fmaxf(0, rr - 0.55f) * 1.2f;   // convexa: clara em cima a esquerda
+        float a = (x * 0.8f - y * 0.6f), b = (x * 0.6f + y * 0.8f);         // as rajas correm ao comprido, na diagonal
+        float w = ruido(a / 0.08f + 3.0f, b / 0.32f + 1.0f) + 0.35f * ruido(x / 0.05f + 7, y / 0.05f);
+        if (rr < 0.30f) w -= 0.9f * (1 - rr / 0.30f);                         // o campo do numero, mais limpo
+        if (w > 0.42f) return LUZ(1, luz - 0.10f);
+        if (w > 0.30f) return LUZ(1, luz + 0.25f);                            // a beira da raja, mais rala
+        return LUZ(2, luz);
     }
     case D_MALDICAO: {                            // Maldito: a espiral de um feitico, em volta do numero, sem passar por ele
         float x = u - 0.05f, y = v - 0.22f, rr = sqrtf(x * x + y * y);
@@ -1257,8 +1261,35 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float k = rr / 0.11f - atan2f(y, x) / 6.2832f;
         return fabsf(k - roundf(k)) * 0.11f < l * 1.2f;
     }
-    case D_TREVO: {                               // o tecido estampado de trevinhos: dois verdes proximos, o numero num campo liso
+    case D_TREVO: {                               // 1 a 3: um trevo so, com uma folha por ponto; 4: o tecido estampado de trevinhos de quatro folhas
         float x = u - 0.07f, y = v - 0.25f;
+        int n = valor_desta >= 1 && valor_desta <= 3 ? valor_desta : 0;
+        if (n) {
+            // as folhas abrem para as pontas do dado (onde ha espaco); o numero fica no coracao do trevo
+            static const float ANG[4][3] = { {0, 0, 0}, {-2.2689f, 0, 0}, {-2.3562f, -0.7854f, 0}, {-1.5708f, 0.5236f, 2.6180f} };
+            static const float K[4] = { 0, 1.10f, 0.80f, 0.95f };
+            float k = K[n];
+            if (n != 3 && ate_seg(x, y, 0.05f, 0.08f, 0.26f, 0.34f) < 0.018f + 0.5f * s) return LUZ(3, 0.25f - (x + y) * 0.5f);   // o cabinho, de lado
+            for (int i = 0; i < n; i++) {
+                float ca = cosf(ANG[n][i]), sa = sinf(ANG[n][i]);
+                float la = (x * ca + y * sa) / k, lb = (-x * sa + y * ca) / k;   // ao longo da folha e de lado, na escala da folha
+                float d1 = (la - 0.36f) * (la - 0.36f) + (lb - 0.13f) * (lb - 0.13f);
+                float d2 = (la - 0.36f) * (la - 0.36f) + (lb + 0.13f) * (lb + 0.13f);
+                const float RL = 0.165f;
+                bool lobo = d1 < RL * RL || d2 < RL * RL;
+                bool cunha = la > 0.03f && la < 0.40f && fabsf(lb) < (la - 0.03f) * 0.95f;
+                if (!lobo && !cunha) continue;
+                float dl = sqrtf(fminf(d1, d2));
+                float luz = 0.35f - (x + y) * 0.45f - dl * 1.1f;               // cada lobo e um domo: claro em cima a esquerda
+                float e = 1.6f * s / k;                                        // a borda, de um pixel e meio
+                bool beira = !(d1 < (RL - e) * (RL - e) || d2 < (RL - e) * (RL - e)) && !(la > 0.03f + e * 1.5f && fabsf(lb) < (la - 0.03f) * 0.95f - e);
+                if (beira) return LUZ(1, luz - 0.50f);                         // a borda da folha, na sombra
+                if (fabsf(lb) < 0.5f * s / k + 0.004f && la > 0.06f && la < 0.44f) return LUZ(1, luz - 0.30f);   // a nervura do meio
+                if (fabsf(la - 0.20f - fabsf(lb) * 0.9f) < 0.6f * s / k + 0.008f && fabsf(lb) < 0.12f) return LUZ(2, 0.85f);   // o V claro da folha
+                return LUZ(1, luz);
+            }
+            return 0;
+        }
         if (x * x + y * y < 0.30f * 0.30f) return 0;
         const float C = 0.30f;
         float fila = floorf(v / (C * 0.866f));
@@ -1292,11 +1323,13 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float lustro = 0.7f * fmaxf(0, g - 0.62f) / 0.20f;                    // o veludo clareia rente a beira
         return LUZ(1, -0.15f - (x + y) * 0.45f + pelo + lustro);
     }
-    case D_LASER: {                               // o metal escuro do aparelho, escovado, e as cantoneiras verde-lima do visor nas quatro quinas
+    case D_LASER: {                               // o metal escuro do aparelho, escovado, as cantoneiras verde-lima do visor e a mira no centro
         float x = u - 0.08f, y = v - 0.08f, w = 0.018f + 0.5f * s;
-        float px = fabsf(x), py = fabsf(y);
+        float px = fabsf(x), py = fabsf(y), dd = sqrtf(x * x + y * y);
         if ((fabsf(py - 0.64f) < w && px > 0.40f && px < 0.64f + w) || (fabsf(px - 0.64f) < w && py > 0.40f && py < 0.64f + w))
             return LUZ(2, 0.55f);
+        if (fabsf(dd - 0.28f) < w * 0.8f) return LUZ(2, 0.40f);              // a mira: o anel
+        if ((px < w * 0.8f && py > 0.16f && py < 0.34f) || (py < w * 0.8f && px > 0.16f && px < 0.32f)) return LUZ(2, 0.40f);   // e os quatro tracos
         float luz = -0.35f - (x + y) * 0.35f + 0.06f * grao(u, v, s, 1, 3) * (fr(u / (2 * s)) < 0.5f);
         return LUZ(1, luz);
     }
@@ -1539,14 +1572,12 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (fabsf(sinf(4 * a)) * ro < l) return 1;
         return fabsf(ro - 0.28f) < l || fabsf(ro - 0.52f) < l || fabsf(ro - 0.76f) < l;
     }
-    case D_CHECKPOINT: {                          // a bandeira de chegada em volta da beira: o xadrez em duas fileiras, o miolo liso
-        float t, g = face_g(8, u, v, &t), x = u - 0.08f, y = v - 0.08f;
-        if (g > 0.70f && g < 0.96f) {
-            int a = (int)floorf(t * 6 + 50), b = g > 0.83f;
-            return (a + b) & 1 ? LUZ(1, 0.15f - (x + y) * 0.35f) : LUZ(2, 0.45f - (x + y) * 0.30f);
-        }
-        if (g > 0.70f - 1.2f * s / 0.69f && g <= 0.70f) return LUZ(1, -0.2f);   // o fio de dentro
-        return 0;
+    case D_CHECKPOINT: {                          // a bandeira de chegada na face toda, num xadrez bem discreto de verde claro
+        float x = u - 0.08f, y = v - 0.08f;
+        float a = (x + y) * 0.7071f, b = (x - y) * 0.7071f;                 // os quadros alinhados com as beiras
+        int i = (int)floorf(a / 0.16f + 50), j = (int)floorf(b / 0.16f + 50);
+        if (fabsf(x) + fabsf(y) < 0.30f) return 0;                          // em volta do numero, liso
+        return (i + j) & 1 ? LUZ(1, 0.62f - (x + y) * 0.15f) : 0;
     }
     case D_AUTOFAGIA: {                           // a cobra que come o proprio rabo, em volta do numero
         // a cabeca, em cima a esquerda, morde a ponta do rabo; o corpo engrossa ate ela
@@ -1595,15 +1626,17 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_PUXA_FILA: {                           // a faixa de desfile na beira, com as divisas marchando para a frente (a direita); o miolo liso
-        float g = face_g(8, u, v, NULL), x = u - 0.08f, y = v - 0.08f;
-        if (g > 0.70f && g < 0.94f) {
-            float luz = 0.10f - (x + y) * 0.35f;
-            float f = fr((x + 0.55f * fabsf(y)) / 0.14f);
-            return f < 0.34f ? LUZ(2, luz + 0.35f) : LUZ(1, luz);
+    case D_PUXA_FILA: {                           // a seta grande da frente da fila, apontando para a direita, com o numero no corpo dela
+        float x = u - 0.08f, y = v - 0.08f;
+        float luz = 0.10f - (x + y) * 0.35f;
+        bool corpo = fabsf(y) < 0.31f && x > -0.80f && x < 0.22f;
+        bool ponta = x >= 0.20f && x < 0.84f && fabsf(y) < 0.58f * (0.84f - x) / 0.64f;
+        if (corpo || ponta) {
+            bool beira = (corpo && (fabsf(y) > 0.31f - 1.4f * s) && x < 0.20f) || (ponta && fabsf(y) > 0.58f * (0.84f - x) / 0.64f - 1.6f * s);
+            return beira ? LUZ(2, 0.0f) : 0;                                  // a seta: marfim, com o fio de rosa em volta
         }
-        if (g > 0.70f - 1.2f * s / 0.69f && g <= 0.70f) return LUZ(1, -0.3f);
-        return 0;
+        float f = fr((x + 0.95f * fabsf(y)) / 0.18f);                        // o fundo vermelho, com as divisas miudas para a frente
+        return f < 0.18f ? LUZ(1, luz - 0.25f) : LUZ(1, luz);
     }
     case D_COVEIRO: {                             // a lapide com a cruz, fincada no monte de terra, e a pa ao lado
         // O monte de terra, de lado a lado embaixo, por cima do pe da lapide e da lamina da pa.
@@ -1684,8 +1717,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float along = fabsf(x) > fabsf(y) ? y : x;
         return e > 0.66f - 0.18f * tri(along / 0.22f + 0.5f);
     }
-    case D_CALIBRE: {                             // o aluminio anodizado verde-lima, escovado, com a escala do paquimetro nas tres beiras
-        float t, g = borda_d4(u, v, &t), x = u - 0.07f, y = v - 0.25f;
+    case D_CALIBRE: {                             // o aluminio anodizado verde-lima, escovado, a escala do paquimetro nas beiras e a mirinha em volta do numero
+        float t = 0, g = borda_d4(u, v, &t), x = u - 0.07f, y = v - 0.25f;
+        float dd = sqrtf(x * x + y * y);
+        if (fabsf(dd - 0.30f) < l * 1.2f) return LUZ(3, 0.1f);              // a mira: o anel
+        if (dd > 0.22f && dd < 0.40f && (fabsf(x) < l * 1.2f || fabsf(y) < l * 1.2f)) return LUZ(3, 0.1f);   // e a cruz
         float luz = 0.0f - (x + y) * 0.40f + 0.06f * grao(u, v, s, 1, 2) * (fr(v / (2 * s)) < 0.5f);
         if (g > 0.74f) {
             float q = t * 10 + 50, fq = q - floorf(q);
@@ -1914,7 +1950,7 @@ static int desenho_interno(int tipo, float u, float v, float s)
         return 0;
     }
     case D_VAMPIRO: {                             // a capa: o cetim preto em pregas que descem do colarinho e o forro vermelho aparecendo na beira
-        float t, g = borda_d4(u, v, &t), x = u - 0.07f, y = v - 0.25f;
+        float t = 0, g = borda_d4(u, v, &t), x = u - 0.07f, y = v - 0.25f;
         float ax = x, ay = y + 1.05f, an = atan2f(ax, ay);                     // as pregas abrem do bico de cima
         float prega = sinf(an * 16 + 0.6f * ruido(u * 2, v * 2));
         if (g > 0.84f) return LUZ(2, 0.35f - (x + y) * 0.4f + 0.25f * prega);   // o forro de cetim vermelho
@@ -1989,15 +2025,15 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_SANGUESSUGA: {                         // a pele da sanguessuga: gomos em arco, oliva escuro e molhado, as pintas ambar no dorso
+    case D_SANGUESSUGA: {                         // a pele da sanguessuga: gomos em arco, verde-oliva claro e molhado, as pintas ambar discretas no dorso
         float x = u - 0.08f, y = v - 0.08f;
         const float P = 0.17f;
         float yy = y - 0.22f * x * x, p = yy / P + 0.5f, f = p - floorf(p);
-        if (f < 1.2f * s / P) return LUZ(1, -1);                            // o vinco entre os gomos
-        float luz = -0.45f - (x + y) * 0.30f + (0.5f - f) * 0.55f;           // cada gomo e roliço: claro em cima
-        if (fabsf(f - 0.26f) < 0.8f * s / P && x < 0.10f && x > -0.60f) return LUZ(1, luz + 0.7f);   // o brilho molhado
+        float luz = 0.45f - (x + y) * 0.25f + (0.5f - f) * 0.25f;            // cada gomo e roliço: claro em cima
+        if (f < 1.2f * s / P) return LUZ(1, luz - 0.25f);                    // o vinco entre os gomos
+        if (fabsf(f - 0.26f) < 0.8f * s / P && x < 0.10f && x > -0.60f) return LUZ(1, luz + 0.30f);   // o brilho molhado
         float px = fabsf(x) - 0.42f, py = (f - 0.5f) * P;
-        if (px * px + py * py < 0.032f * 0.032f) return LUZ(2, 0.35f - (px + py) * 6);   // as pintas
+        if (px * px + py * py < 0.030f * 0.030f) return LUZ(2, 0.55f - (px + py) * 3);   // as pintas
         return LUZ(1, luz);
     }
     case D_TRENO: {                               // a madeira laqueada de vermelho do treno, o friso dourado na beira e as volutas nas pontas
@@ -3658,6 +3694,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
+    valor_desta = vista == 2 && valor >= 1 && valor != SO_CORPO ? valor : 0;
     corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || tipo == D_AGNUS || tipo == D_GELATINA || cosmico(tipo) ? tipo : 0;
     corpo_apagado = zerado;
     uint16_t corpo = mt->tons[2];
@@ -3684,14 +3721,14 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     }
     if (tipo == D_VICIADO) tinta = C_BRANCO;     // pontos brancos no acrilico de cassino
     if (tipo == D_GATUNO || tipo == D_RENA) tinta = C_MARFIM;   // a listra escura e o pelo pedem os pontos claros
-    if (tipo == D_PIRATA || tipo == D_SANGUESSUGA || tipo == D_TRENO || tipo == D_BERSERKER || tipo == D_LASER || tipo == D_VAMPIRO) tinta = C_MARFIM;   // o conves, a pele e a laca escuros pedem o numero claro
+    if (tipo == D_PIRATA || tipo == D_TRENO || tipo == D_BERSERKER || tipo == D_LASER || tipo == D_VAMPIRO) tinta = C_MARFIM;   // o conves, a pele e a laca escuros pedem o numero claro
     if (tipo == D_ASSOMBRACAO) { corpo = RGB(112, 90, 140); tinta = C_MARFIM; }   // o lilas que assombra
     if (tipo == D_TSUNAMI) { corpo = RGB(44, 78, 136); tinta = C_MARFIM; }       // a agua funda
     if (tipo == D_BALAO) tinta = C_MARFIM;       // o numero claro, impresso no latex
     if (tipo == D_ESTILINGUE) tinta = C_MARFIM;  // os pontos claros no couro
     if (tipo == D_MATRIOSKA) tinta = C_MARFIM;   // o numero claro na laca vermelha
     if (tipo == D_INVEJOSO) tinta = C_MARFIM;    // o numero claro na pupila escura
-    if (tipo == D_SEMENTE || tipo == D_EGOISTA) tinta = C_MARFIM;   // a casca escura e o veludo roxo pedem o numero claro
+    if (tipo == D_EGOISTA) tinta = C_MARFIM;     // o veludo roxo pede o numero claro
     if (tipo == D_SACRIFICIO || tipo == D_FICHA_CORINGA) tinta = C_MARFIM;   // o corpo vinho (e o roxo da ficha) pede a tinta clara
     if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)
         corpo = tipo == D_GALAXIA ? RGB(54, 36, 74) : tipo == D_BURACO ? RGB(14, 14, 12) : RGB(26, 34, 62);

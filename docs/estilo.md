@@ -189,7 +189,9 @@ O que evitar, com os limites medidos na simulação das pranchas:
 - **Luz invertida**: a metade de baixo, à direita, mais clara que a de cima,
   à esquerda.
 
-Ficam como estão, por escolha: o Desafiante, o Dominó e o Panetone.
+Ficam como estão, por escolha: o Desafiante, o Dominó, o Panetone e o Teimoso
+(o X por trás dos pontos). O Trevo desenha um trevo só, com uma folha por ponto,
+quando tira 1, 2 ou 3, e o tecido de trevinhos quando tira 4.
 
 Para desenhar (`desenho_dado.inc`): `desenho_interno` devolve 0 (o corpo),
 1 a 3 (as cores `c1`..`c3` do `VISUAL`) ou `LUZ(c, l)`, a cor `c` na rampa
@@ -201,6 +203,8 @@ com a luz `l` de -1 a 1. As ajudas comuns:
 - `celulas` e `celula_vet`: o mosaico torto (rachaduras, grãos, covinhas de
   martelo). `celula_vet` dá o caminho até o centro da célula, para o volume.
 - `grao`: o grão de um pixel preso ao desenho (escovado, veludo).
+- `valor_desta`: o número que o dado mostra (0 na mão e no ar), para o
+  desenho que muda com ele.
 - Os números claros (`tinta = C_MARFIM`) vão nos corpos escuros. A lista fica
   em `desenha_dado_base`.
 

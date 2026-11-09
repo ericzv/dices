@@ -2697,6 +2697,39 @@ static uint16_t ceu_cosmico(int tipo, float u, float v, float s, int nivel, uint
 // A luz vem de cima, a esquerda, sempre da tela: o corpo escurece aos poucos
 // para baixo e para a direita, e tem um reflexo suave no alto. Por cima,
 // manchas largas e discretas, do proprio material, que giram com o dado.
+// As linhas do corpo, de cima a baixo: o poligono (vx, vy, n) ou, sem ele
+// (n = 0), o mesmo disco de gfx_disco em (dcx, dcy), raio dr. corpo_linha
+// poe em xs as beiras da linha y, aos pares, e diz quantas.
+static void corpo_altura(const float *vy, int n, float dcy, int dr, int *y0, int *y1)
+{
+    if (n) {
+        float ymin = vy[0], ymax = vy[0];
+        for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
+        *y0 = (int)ceilf(ymin); *y1 = (int)floorf(ymax);
+    } else {
+        *y0 = (int)dcy - dr; *y1 = (int)dcy + dr;
+    }
+}
+static int corpo_linha(const float *vx, const float *vy, int n, float dcx, float dcy, int dr, int y, float *xs)
+{
+    int nx = 0;
+    if (n) {
+        for (int i = 0; i < n && nx < 16; i++) {
+            int j = (i + 1) % n;
+            float ya = vy[i], yb = vy[j];
+            if ((ya <= y && yb > y) || (yb <= y && ya > y))
+                xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
+        }
+        for (int a = 1; a < nx; a++)
+            for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
+    } else {                                      // o mesmo disco de gfx_disco
+        int dy = y - (int)dcy, w = 0;
+        while ((w + 1) * (w + 1) + dy * dy <= dr * dr + dr) w++;
+        xs[0] = (float)((int)dcx - w); xs[1] = (float)((int)dcx + w); nx = 2;
+    }
+    return nx;
+}
+
 // O desenho de dentro foi feito com o corpo um pouco deslocado do centro (o
 // brilho antigo na aresta de cima): (arte_du, arte_dv), em pixels, e onde o
 // centro do corpo cai nas coordenadas do desenho. Somado depois de girar, o
@@ -2712,30 +2745,10 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
     int tex = textura_de(tipo);
     float desvio = tipo * 3.7f;
     int y0, y1;
-    if (n) {
-        float ymin = vy[0], ymax = vy[0];
-        for (int i = 1; i < n; i++) { if (vy[i] < ymin) ymin = vy[i]; if (vy[i] > ymax) ymax = vy[i]; }
-        y0 = (int)ceilf(ymin); y1 = (int)floorf(ymax);
-    } else {
-        y0 = (int)dcy - dr; y1 = (int)dcy + dr;
-    }
+    corpo_altura(vy, n, dcy, dr, &y0, &y1);
     for (int y = y0; y <= y1; y++) {
         float xs[16];
-        int nx = 0;
-        if (n) {
-            for (int i = 0; i < n && nx < 16; i++) {
-                int j = (i + 1) % n;
-                float ya = vy[i], yb = vy[j];
-                if ((ya <= y && yb > y) || (yb <= y && ya > y))
-                    xs[nx++] = vx[i] + (y - ya) / (yb - ya) * (vx[j] - vx[i]);
-            }
-            for (int a = 1; a < nx; a++)
-                for (int b = a; b > 0 && xs[b] < xs[b - 1]; b--) { float t = xs[b]; xs[b] = xs[b - 1]; xs[b - 1] = t; }
-        } else {                                  // o mesmo disco de gfx_disco
-            int dy = y - (int)dcy, w = 0;
-            while ((w + 1) * (w + 1) + dy * dy <= dr * dr + dr) w++;
-            xs[0] = (float)((int)dcx - w); xs[1] = (float)((int)dcx + w); nx = 2;
-        }
+        int nx = corpo_linha(vx, vy, n, dcx, dcy, dr, y, xs);
         for (int k = 0; k + 1 < nx; k += 2)
             for (int x = (int)ceilf(xs[k]); x <= (int)floorf(xs[k + 1]); x++) {
                 float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa + arte_du, v = dx * sa + dy * ca + arte_dv;
@@ -2829,6 +2842,121 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     }
                 }
                 gfx_pixel(x, y, c);
+            }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A regra da bolsa (docs/estilo.md): o dado pequeno (r < 12: a bolsa, o
+// historico, a colecao) mostra o material dele numa versao simplificada, e
+// nao so a cor do corpo. Cada pixel junta 2x2 amostras do desenho de dentro,
+// como num dado do dobro do tamanho (perto do da mesa, onde o desenho foi
+// pensado), e fica com a media delas, na paleta. O pixel sem nada do desenho
+// fica como estava: o corpo liso, em bisel (claro em cima a esquerda, escuro
+// embaixo; no disco, uma cor so). O dado sem desenho nao muda.
+// A bolsa e o historico redesenham os mesmos dados parados a cada quadro: o
+// resultado fica guardado, pela chave de tudo o que muda o desenho.
+// ---------------------------------------------------------------------------
+#define PQ_LADO 24                                  // o quadro guardado de um dado pequeno (r < 12: o corpo cabe a 11 pixels do centro)
+#define PQ_N 96                                     // quantos dados ficam guardados (a bolsa cheia e o historico cabem)
+#define PQ_NADA 0xF81F                              // o pixel que o desenho nao toca (fica o que estava)
+typedef struct { uint64_t chave; uint32_t uso; bool pintou; uint16_t px[PQ_LADO * PQ_LADO]; } pq_t;
+static pq_t pq_guarda[PQ_N];
+static uint32_t pq_vez;
+static bool pq_pintou;                              // o dado pequeno em curso ganhou o material (o numero ganha o contorno)
+
+static uint64_t pq_mistura(uint64_t h, uint32_t w)
+{
+    for (int i = 0; i < 4; i++) { h ^= (w >> (i * 8)) & 255; h *= 1099511628211ULL; }
+    return h;
+}
+static uint32_t pq_f(float f) { uint32_t w; memcpy(&w, &f, 4); return w; }
+
+// Uma amostra: a cor do desenho em (u, v) (pixels do dado, ja girados) e se
+// o desenho estava ali; sem desenho, o fundo.
+static uint16_t pq_amostra(int tipo, float u, float v, float s, int bx, int by,
+                           const uint16_t *cores, uint16_t fundo, bool *tem)
+{
+    int p = desenho_interno(tipo, u * s, v * s, s * 0.5f);   // o pixel do desenho: meio pixel do dado
+    *tem = true;
+    if (p >= 1000) {                                          // um tom com luz (LUZ)
+        int ci = p / 1000;
+        return rampas_ok ? tom_rampa(rampas_desta[ci], (p % 1000 - 100) / 100.0f, bx, by) : cores[ci];
+    }
+    if (p) return cores[p];
+    uint16_t c = fundo;                                        // os corpos que sao o proprio material
+    if (corpo_desta == D_PANETONE) c = miolo_panetone(u * s, v * s, s, 0, fundo, cores[1]);
+    else if (corpo_desta == D_BONECO) c = neve_boneco(u * s, v * s, s, 0, fundo, cores[1]);
+    else if (cosmico(corpo_desta)) c = ceu_cosmico(corpo_desta, u * s, v * s, s, 0, fundo, cores[1]);
+    else if (corpo_desta == D_AGNUS) c = la_agnus(u * s, v * s, s, bx, by, fundo, cores[1]);
+    else if (corpo_desta == D_GELATINA) c = gelatina_corpo(u * s, v * s, bx, by, fundo, cores[1]);
+    *tem = c != fundo;
+    return c;
+}
+
+static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float dcx, float dcy, int dr,
+                                int tipo, const uint16_t *cores, uint16_t claro, uint16_t escuro,
+                                float bcx, float bcy, float cx, float cy, float ang, float r)
+{
+    int ox = (int)floorf(cx), oy = (int)floorf(cy), meio = PQ_LADO / 2;
+    // A chave: o dado, o estado que o desenho le e a geometria, medida do pixel do centro.
+    uint64_t h = 1469598103934665603ULL;
+    uint32_t k[] = { (uint32_t)tipo, (uint32_t)n, (uint32_t)dr, (uint32_t)corpo_desta, (uint32_t)valor_desta,
+                     (uint32_t)marca_nivel, (uint32_t)bala_lancada, (uint32_t)patos_pousou, (uint32_t)relogio_desta,
+                     (uint32_t)boneca_lados, (uint32_t)rampas_ok, (uint32_t)claro << 16 | escuro,
+                     (uint32_t)cores[1] << 16 | cores[2], cores[3],
+                     pq_f(dcx - ox), pq_f(dcy - oy), pq_f(bcx - ox), pq_f(bcy - oy), pq_f(cx - ox), pq_f(cy - oy),
+                     pq_f(ang), pq_f(r), pq_f(arte_du), pq_f(arte_dv) };
+    for (unsigned i = 0; i < sizeof k / sizeof k[0]; i++) h = pq_mistura(h, k[i]);
+    for (int i = 0; i < n; i++) h = pq_mistura(pq_mistura(h, pq_f(vx[i] - ox)), pq_f(vy[i] - oy));
+    bool anima = tipo == D_PISCA || tipo == D_ESTRELA;         // as luzinhas piscam: refeito a cada quadro
+    pq_t *e = NULL;
+    if (!anima) {
+        pq_t *velho = &pq_guarda[0];
+        for (int i = 0; i < PQ_N && !e; i++) {
+            if (pq_guarda[i].uso && pq_guarda[i].chave == h) e = &pq_guarda[i];
+            else if (pq_guarda[i].uso < velho->uso) velho = &pq_guarda[i];
+        }
+        if (e) {                                               // ja guardado: so copia
+            e->uso = ++pq_vez;
+            pq_pintou = e->pintou;
+            for (int y = 0; y < PQ_LADO; y++)
+                for (int x = 0; x < PQ_LADO; x++)
+                    if (e->px[y * PQ_LADO + x] != PQ_NADA) gfx_pixel(ox + x - meio, oy + y - meio, e->px[y * PQ_LADO + x]);
+            return;
+        }
+        e = velho;
+        e->chave = h;
+        e->uso = ++pq_vez;
+        e->pintou = false;
+        for (int i = 0; i < PQ_LADO * PQ_LADO; i++) e->px[i] = PQ_NADA;
+    }
+    float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
+    int y0, y1;
+    corpo_altura(vy, n, dcy, dr, &y0, &y1);
+    for (int y = y0; y <= y1; y++) {
+        float xs[16];
+        int nx = corpo_linha(vx, vy, n, dcx, dcy, dr, y, xs);
+        for (int q = 0; q + 1 < nx; q += 2)
+            for (int x = (int)ceilf(xs[q]); x <= (int)floorf(xs[q + 1]); x++) {
+                uint16_t fundo = (x - bcx) + (y - bcy) <= 0 ? claro : escuro;   // o que o bisel deixou ali
+                int sr = 0, sg = 0, sb = 0, nd = 0;
+                for (int j = 0; j < 2; j++)
+                    for (int i = 0; i < 2; i++) {
+                        float dx = x - 0.25f + i * 0.5f - cx, dy = y - 0.25f + j * 0.5f - cy;
+                        float u = dx * ca - dy * sa + arte_du, v = dx * sa + dy * ca + arte_dv;
+                        bool tem;
+                        uint16_t c = pq_amostra(tipo, u, v, s, 2 * x + i, 2 * y + j, cores, fundo, &tem);
+                        nd += tem;
+                        sr += ((c >> 11) & 31) * 255 / 31; sg += ((c >> 5) & 63) * 255 / 63; sb += (c & 31) * 255 / 31;
+                    }
+                if (!nd) continue;
+                uint16_t c = cor_de_dado(RGB(sr / 4, sg / 4, sb / 4));
+                gfx_pixel(x, y, c);
+                pq_pintou = true;
+                if (e) e->pintou = true;
+                int gx = x - ox + meio, gy = y - oy + meio;
+                if (e && gx >= 0 && gy >= 0 && gx < PQ_LADO && gy < PQ_LADO) e->px[gy * PQ_LADO + gx] = c;
             }
     }
 }
@@ -3778,6 +3906,8 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         }
     }
     bool desenha = r >= 12;
+    bool pequeno = !desenha && r >= 6 && !zerado && !lado;   // a regra da bolsa (pinta_corpo_pequeno)
+    pq_pintou = false;
     float ea = r < 12 ? 1 : r / 10;      // espessura do aro
     int so = r < 12 ? 2 : (int)(r / 6);  // deslocamento da sombra
     mca = cosf(ang); msa = sinf(ang); mcx = cx; mcy = cy;
@@ -3835,7 +3965,10 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         poligono_bisel(NULL, NULL, 0, cx, cy, ri, brilho, sombra_bisel);
         arte_du = arte_dv = 1;
         if (desenha) pinta_corpo(NULL, NULL, 0, cx, cy, ri - 1, tipo, tons, cores, cx, cy, ang, r);
-        else gfx_disco((int)cx, (int)cy, ri - 1, corpo);
+        else {
+            gfx_disco((int)cx, (int)cy, ri - 1, corpo);
+            if (pequeno) pinta_corpo_pequeno(NULL, NULL, 0, cx, cy, ri - 1, tipo, cores, corpo, corpo, cx, cy, cx, cy, ang, r);
+        }
         mcx = cx - (mca - msa); mcy = cy - (msa + mca);
     } else {
         float vx[12], vy[12], dx = ea * 0.8f, d = ea * 0.85f;
@@ -3850,6 +3983,9 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             n = forma_d(lados, cx, cy, r, ang, -d - 1, vx, vy);
             if (desenha) pinta_corpo(vx, vy, n, 0, 0, 0, tipo, tons, cores, cx, bcy, ang, r);
             else poligono(vx, vy, n, corpo);
+        } else if (pequeno) {                     // a regra da bolsa: o material, simplificado, sobre o bisel
+            n = forma_d(lados, cx, cy, r, ang, -d - 1, vx, vy);
+            pinta_corpo_pequeno(vx, vy, n, 0, 0, 0, tipo, cores, brilho, sombra_bisel, cx, bcy, cx, bcy, ang, r);
         }
         if (tipo == D_AGNUS) chifres_agnus(cx, bcy, r, ang, cores, zerado);   // por cima do aro
         if (tipo == D_BALAO && r >= 9) balao_no(cx, bcy, r, ang, zerado);
@@ -3885,6 +4021,11 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_INVEJOSO && !zerado && r >= 12) contorno = RGB(14, 14, 12);
     if (tipo == D_AGNUS && !zerado && r >= 12) contorno = C_BRANCO;   // o numero recortado na la
     if (tipo == D_ONDA && !zerado && r >= 12) contorno = C_MARFIM;    // o numero escuro se le na agua funda
+    aro_cruz = false;
+    if (pq_pintou && !contorno && tipo != D_ASTRO) {   // pequeno, com o material em volta: o numero com um contorno fino do corpo (a Estrela, nao: fica sobre a luz)
+        contorno = corpo;
+        aro_cruz = true;
+    }
     if (curinga && valor != SO_CORPO) {          // a Ficha Coringa: o curinga, ate virar
         curinga_face(cx, cy, r, zerado);
         if (zerado && vista) risca(cx, cy, r);
@@ -3900,19 +4041,19 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         // gravado nele, que e o que ele vai valer.
         if ((tipo == D_QUEBRADO || tipo == D_FANTASMA) && valor) {
             snprintf(s, sizeof s, "%d", (int8_t)valor);
-            numero(cx, cy, r, s, tinta);
+            numero_contorno(cx, cy, r, s, tinta, contorno);
             return;
         }
-        if (tipo == D_MISTERIOSO || caixa) { numero(cx, cy, r, "?", tinta); return; }
+        if (tipo == D_MISTERIOSO || caixa) { numero_contorno(cx, cy, r, "?", tinta, contorno); return; }
         if (tipo == D_PREVISIVEL) {               // o proximo da escada: o que ele vai tirar
             snprintf(s, sizeof s, "%d", previsivel_valor(valor));
-            numero(cx, cy, r, s, tinta);
+            numero_contorno(cx, cy, r, s, tinta, contorno);
             return;
         }
-        if (tipo == D_VAZIO) { numero(cx, cy, r, "0", tinta); return; }
+        if (tipo == D_VAZIO) { numero_contorno(cx, cy, r, "0", tinta, contorno); return; }
         if (tipo == D_RELOGIO && na_partida()) {  // o numero que ele vai tirar: o da rodada
             snprintf(s, sizeof s, "%d", relogio_valor());
-            numero(cx, cy, r, s, tinta);
+            numero_contorno(cx, cy, r, s, tinta, contorno);
             return;
         }
         // A tinta do dado a meio caminho do corpo: le-se bem, mas nao se

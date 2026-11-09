@@ -6940,9 +6940,9 @@ int main(void)
             int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
             CONFERE(q >= 2 && ordem[0] != 0, "IA facil abriu a fila com %s", TIPO[QUEM[w]].nome);
         }
-        peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_PUXA_FILA }, { .tipo = D_D4 } };
+        peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_CHECKPOINT }, { .tipo = D_D4 } };
         int ordem[N_FILA], q = fila_simples(mao, 4, ordem);
-        CONFERE(q >= 1 && ordem[0] == 2, "IA facil nao abriu a fila com o Puxa-fila");
+        CONFERE(q >= 1 && ordem[0] == 2, "IA facil nao abriu a fila com o Checkpoint");
         // A IA que imagina jogadas, nos dois niveis: nem pensa em abrir com eles.
         for (int w = 0; w < 2; w++)
             for (int niv = 1; niv <= 2; niv++) {
@@ -6969,6 +6969,50 @@ int main(void)
         limpa();
         ia_esforco = 1;
         ia_nivel = 2;
+    }
+
+    // ---- IA facil: cada poder no lugar em que age --------------------------
+    // Medido jogando as 24 ordens de cada mao (lugar_ia, em ia.inc): a ordem
+    // pela media punha estes dados num lugar pior. A mao: o dado de poder com
+    // um d6, um d8 e um d4; o lugar dele na fila de quatro.
+    {
+        static const struct { int tipo, lugar; const char *por; } LUGAR[] = {
+            { D_VIUVA, 0, "sozinha valendo dobra: abrindo, da para parar nela" },
+            { D_SANGUESSUGA, 0, "anula o seu dado de antes: abrindo, nao ha" },
+            { D_DOBRO, 0, "abrindo, vale sempre e dobra o seguinte" },
+            { D_GARIMPEIRO, 0, "abrindo, vale sempre" },
+            { D_CHECKPOINT, 0, "pontua por quem vem depois dele" },
+            { D_PISCA, 0, "aceso, dobra so no fim: na sequencia e um d4" },
+            { D_DIGITAL, 1, "sempre vale: logo depois do primeiro, ele joga" },
+            { D_MARTIR, 1, "quer cair: logo depois do primeiro" },
+            { D_BERSERKER, 2, "na ponta, o vizinho do oponente pode faltar" },
+            { D_ESTILINGUE, 2, "com 1, o seguinte tira o maximo: antes do maior" },
+            { D_TUDO_NADA, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_EGOISTA, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_SORTE_REVES, 3, "arriscado: por ultimo, da para parar antes" },
+            { D_OCULTO, 3, "fica fora da sequencia ate o fim" },
+            { D_ESTRELA, 3, "so age por ultima" },
+        };
+        for (unsigned i = 0; i < sizeof LUGAR / sizeof LUGAR[0]; i++) {
+            peca_t mao[4] = { { .tipo = D_D6 }, { .tipo = (uint8_t)LUGAR[i].tipo }, { .tipo = D_D8 }, { .tipo = D_D4 } };
+            int ordem[N_FILA], q = fila_simples(mao, 4, ordem), lugar = -1;
+            for (int k = 0; k < q; k++) if (ordem[k] == 1) lugar = k;
+            CONFERE(q == 4 && lugar == LUGAR[i].lugar, "IA facil: %s devia ir em %d lugar, foi em %d (%s)",
+                    TIPO[LUGAR[i].tipo].nome, LUGAR[i].lugar + 1, lugar + 1, LUGAR[i].por);
+        }
+        // O Puxa-fila nao abre so por ser ele: os quatro valendo e raro, e o
+        // d8 na frente sobe a barra dos outros. Vai pela media, como um d8.
+        peca_t pf[4] = { { .tipo = D_D6 }, { .tipo = D_D8 }, { .tipo = D_PUXA_FILA }, { .tipo = D_D4 } };
+        int ordem[N_FILA], q = fila_simples(pf, 4, ordem);
+        CONFERE(q == 4 && ordem[0] != 2, "IA facil abriu a fila com o Puxa-fila");
+        // A Gelatina quica abaixo do de antes: abrindo, nao ha de antes.
+        peca_t ge[4] = { { .tipo = D_GELATINA }, { .tipo = D_D4 }, { .tipo = D_D6 }, { .tipo = D_D8 } };
+        q = fila_simples(ge, 4, ordem);
+        CONFERE(q == 4 && ordem[0] != 0, "IA facil abriu a fila com a Gelatina");
+        // O Maldito fica onde estava: abrindo (medido, e o melhor lugar dele).
+        peca_t ma[4] = { { .tipo = D_D6 }, { .tipo = D_MALDICAO }, { .tipo = D_D8 }, { .tipo = D_D4 } };
+        q = fila_simples(ma, 4, ordem);
+        CONFERE(q == 4 && ordem[0] == 1, "IA facil: o Maldito devia abrir a fila");
     }
 
     // ---- IA: o Chiclete que ainda vai grudar ------------------------------

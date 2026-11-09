@@ -208,6 +208,19 @@ com a luz `l` de -1 a 1. As ajudas comuns:
 - Os números claros (`tinta = C_MARFIM`) vão nos corpos escuros. A lista fica
   em `desenha_dado_base`.
 
+**A regra da bolsa.** O dado pequeno (raio menor que 12: a bolsa, o
+histórico, a fileira da coleção) mostra o material dele numa versão
+simplificada, e não só a cor do corpo e do aro. `pinta_corpo_pequeno` junta
+2x2 amostras de `desenho_interno` por pixel, como num dado do dobro do
+tamanho, e põe a média na paleta; o pixel sem nada do desenho fica no bisel
+liso de sempre, então o dado comum não muda. Com o material em volta, o
+número ganha um contorno fino (em cruz) na cor do corpo; a Estrela não, o
+número escuro dela fica sobre a luz. O anulado, o Sorte/Revés e o dado de
+raio menor que 6 ficam lisos. Os d4 pequenos mostram pouco: o número tem
+tamanho fixo e cobre quase todo o triângulo. O resultado de cada dado fica
+guardado (`pq_guarda`), porque a bolsa e o histórico redesenham os mesmos
+dados parados a cada quadro.
+
 ## 8. Retratos
 
 - Busto de 22 x 27 pixels (`RT_W`, `RT_H`), ampliado 2x (a mesa, o mapa) ou

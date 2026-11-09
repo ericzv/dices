@@ -143,15 +143,53 @@ static bool precisa_anterior(int tipo)
 {
     switch (tipo) {
     case D_PAR: case D_SENTINELA: case D_GEMEO: case D_ECO: case D_DIGITAL:
-    case D_VENTANIA: case D_TRENO: case D_CAMALEAO:
+    case D_VENTANIA: case D_TRENO: case D_CAMALEAO: case D_GELATINA:   // a Gelatina quica abaixo do de antes
         return true;
     default:
         return false;
     }
 }
-// E os que so agem abrindo a fila: o Puxa-fila (o primeiro, com os quatro
-// valendo) e o Checkpoint (pontua por quem vem depois dele).
-static bool quer_abrir(int tipo) { return tipo == D_PUXA_FILA || tipo == D_CHECKPOINT; }
+// O lugar na fila em que o poder de cada dado age melhor, medido jogando as
+// 24 ordens de maos de quatro (o dado de poder com d4, d6, d8, d12), abrindo
+// e jogando depois, contra a bolsa inicial (fora do repo, 1500 rodadas por
+// ordem). So os que a ordem pela media punha num lugar pior:
+//   abre:       o Checkpoint (pontua por quem vem depois), a Viuva Negra
+//               (sozinha valendo, x2: abrindo, da para parar nela), a
+//               Sanguessuga (anula o seu dado de antes: abrindo, nao ha), o
+//               Dobro (o seguinte dobra, e ele vale sempre) e o Garimpeiro
+//               (abrindo, vale sempre);
+//   segundo:    o Digital (sempre vale: cedo, ele joga) e o Martir (quer
+//               cair: logo depois de um maior);
+//   penultimo:  o Berserker (na ponta da fila, o vizinho do oponente pode nao
+//               existir, e ai ele anula um dos seus) e o Estilingue (com 1, o
+//               seguinte tira o maximo: antes do maior);
+//   ultimo:     o Tudo ou Nada, o Egoista e o Sorte/Reves (os arriscados,
+//               quando entram: por ultimo, da para parar antes deles), o
+//               Oculto (fora da sequencia ate o fim) e a Estrela de Belem
+//               (so age por ultima).
+enum { LUGAR_LIVRE, LUGAR_ABRE, LUGAR_SEGUNDO, LUGAR_PENULTIMO, LUGAR_ULTIMO };
+static int lugar_ia(int tipo)
+{
+    switch (tipo) {
+    case D_CHECKPOINT: case D_VIUVA: case D_SANGUESSUGA: case D_DOBRO: case D_GARIMPEIRO:
+        return LUGAR_ABRE;
+    case D_DIGITAL: case D_MARTIR:
+        return LUGAR_SEGUNDO;
+    case D_BERSERKER: case D_ESTILINGUE:
+        return LUGAR_PENULTIMO;
+    case D_TUDO_NADA: case D_EGOISTA: case D_SORTE_REVES: case D_OCULTO: case D_ESTRELA:
+        return LUGAR_ULTIMO;
+    default:
+        return LUGAR_LIVRE;
+    }
+}
+// A barra: a media do numero que cai, que e o que a sequencia compara. O
+// Pisca aceso dobra so no fim da rodada; na sequencia, vale o d4 que caiu.
+static float barra_ia(peca_t p)
+{
+    if (TIPO[p.tipo].efeito == EF_PISCA) return (TIPO[p.tipo].lados + 1) / 2.0f;
+    return media(p);
+}
 
 // Dados que so atrapalham a fila de quem nao sabe o que esta fazendo.
 static bool arriscado(int tipo)
@@ -188,24 +226,36 @@ static int fila_simples_r(const peca_t *pc, int n, int *ordem, bool evita_risco)
         ordem[m++] = b;
     }
     for (int a = 1; a < m; a++)
-        for (int b = a; b > 0 && media(pc[ordem[b]]) < media(pc[ordem[b - 1]]); b--) {
+        for (int b = a; b > 0 && barra_ia(pc[ordem[b]]) < barra_ia(pc[ordem[b - 1]]); b--) {
             int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t;
         }
-    // O Dobro dobra o dado seguinte: por ultimo nao serve. Vai uma casa antes.
-    for (int b = m - 1; b > 0; b--)
-        if ((pc[ordem[b]].tipo == D_DOBRO || pc[ordem[b]].tipo == D_FERREIRO) && b == m - 1) {
-            int t = ordem[b]; ordem[b] = ordem[b - 1]; ordem[b - 1] = t;
-        }
-    // O que so age abrindo a fila vai na frente; o que precisa de um dado
-    // antes (o Par, a Sentinela...) nao abre: o primeiro que nao precisa
-    // passa para a frente dele.
-    for (int b = 1; b < m; b++)
-        if (quer_abrir(pc[ordem[b]].tipo) && !quer_abrir(pc[ordem[0]].tipo)) {
-            int t = ordem[b];
-            memmove(&ordem[1], &ordem[0], (size_t)b * sizeof ordem[0]);
-            ordem[0] = t;
-            break;
-        }
+    // Cada poder no lugar em que age (lugar_ia): o que abre na frente, o
+    // segundo logo depois do primeiro, o penultimo e o ultimo no fim (um de
+    // cada; os outros iguais ficam como livres); os livres no meio, pela barra.
+    int ab = -1, sg = -1, pe = -1, ul = -1, livre[N_FILA], nl = 0;
+    for (int i = 0; i < m; i++) {
+        int l = lugar_ia(pc[ordem[i]].tipo), o = ordem[i];
+        if (l == LUGAR_ABRE && ab < 0) ab = o;
+        else if (l == LUGAR_SEGUNDO && sg < 0) sg = o;
+        else if (l == LUGAR_PENULTIMO && pe < 0 && m >= 3) pe = o;
+        else if (l == LUGAR_ULTIMO && ul < 0) ul = o;
+        else livre[nl++] = o;
+    }
+    int k = 0, f = 0, fim = ul >= 0 ? nl : nl - 1;   // sem um ultimo, o maior dos livres fecha a fila
+    if (ab >= 0) ordem[k++] = ab;
+    else if (sg >= 0 && f < nl) ordem[k++] = livre[f++];
+    if (sg >= 0) ordem[k++] = sg;
+    while (f < fim) ordem[k++] = livre[f++];
+    if (pe >= 0) ordem[k++] = pe;
+    while (f < nl) ordem[k++] = livre[f++];
+    if (ul >= 0) ordem[k++] = ul;
+    // O Ferreiro (e o Dobro, se nao abriu) mexe no dado seguinte: por ultimo
+    // nao serve. Vai uma casa antes.
+    if (m >= 2 && (pc[ordem[m - 1]].tipo == D_DOBRO || pc[ordem[m - 1]].tipo == D_FERREIRO)) {
+        int t = ordem[m - 1]; ordem[m - 1] = ordem[m - 2]; ordem[m - 2] = t;
+    }
+    // O que precisa de um dado antes (o Par, a Sentinela...) nao abre: o
+    // primeiro que nao precisa passa para a frente dele.
     if (m >= 2 && precisa_anterior(pc[ordem[0]].tipo)) {
         int b = 1;
         while (b < m && precisa_anterior(pc[ordem[b]].tipo)) b++;

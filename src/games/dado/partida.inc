@@ -2032,11 +2032,11 @@ static void aplica_evento(int i)
         vis_oculto[e->de_j][e->de_k] = 0;
         vis_curinga[e->de_j][e->de_k] = 0;
         vis_carrossel[e->de_j][e->de_k] = 0;
-        memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
+        memcpy(vis_est[e->de_j], e->tem_seq ? e->seq : F[e->de_j].est, N_FILA);   // como ficou nessa hora, nao no fim de tudo
         break;
     case EV_TREMOR:                     // o dado sacudido pousou: a sequencia do oponente refeita
         if (e->alvo_k < N_FILA) vis_tremor[e->alvo_j][e->alvo_k] = 0;
-        memcpy(vis_est[e->alvo_j], F[e->alvo_j].est, N_FILA);
+        memcpy(vis_est[e->alvo_j], e->tem_seq ? e->seq : F[e->alvo_j].est, N_FILA);
         break;
     case EV_VAMPIRO:
         for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->alvo_j][k] -= (int8_t)e->valor;

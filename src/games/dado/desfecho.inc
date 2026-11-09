@@ -2073,6 +2073,23 @@ static void bilhete_de(desfecho_t *d, int j, bool gera)
 // poderes do fim dos dados de j agem uma segunda vez, depois de tudo.
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
 
+// A sequencia de j acabou de ser refeita por causa do evento e (ou dos
+// eventos do tipo t1 ou t2 de j, de 'de' em diante): cada um guarda como ela
+// ficou nessa hora. A mesa mostra isso quando o evento chega - e nao o fim de
+// tudo, que ainda depende dos que viram depois (o Carrossel conta os validos
+// da mesa de agora).
+static void guarda_seq(evento_t *e, int j)
+{
+    if (!e) return;
+    e->tem_seq = true;
+    memcpy(e->seq, F[j].est, N_FILA);
+}
+static void guarda_seq_de(int de, int j, int t1, int t2)
+{
+    for (int i = de; i < n_ev; i++)
+        if (ev[i].de_j == j && (ev[i].tipo == t1 || ev[i].tipo == t2)) guarda_seq(&ev[i], j);
+}
+
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
 static void calcula_desfecho(desfecho_t *d, bool gera)
@@ -2122,6 +2139,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
+        if (gera) guarda_seq_de(0, j, EV_REVELA, EV_ESPELHO);
         virou = true;
     }
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
@@ -2145,6 +2163,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (F[r].valor[a] == antes) e = evento(gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);
             else e = evento(gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d", antes, J[r].nome, F[r].valor[a]);
             if (e) e->antes = antes;
+            guarda_seq(e, r);
             virou = true;
         }
     }
@@ -2170,6 +2189,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (impermeavel(t, a)) {
                 e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s está protegido", antes, J[t].nome);
                 if (e) { e->antes = antes; e->ad = AD_CASCA; e->bloqueado = (uint8_t)(1 << a); }
+                guarda_seq(e, t);
                 continue;
             }
             static fila_t guarda;
@@ -2181,6 +2201,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (fica) e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s escorrega e fica", antes, J[t].nome);
             else e = evento(gera, EV_TREMOR, r, kc, t, a, F[t].valor[a], "Casca de Banana: o %d de %s escorrega: %d", antes, J[t].nome, F[t].valor[a]);
             if (e) { e->antes = antes; e->ad = AD_CASCA; }
+            guarda_seq(e, t);
             virou = true;
         }
     }
@@ -2199,6 +2220,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         if (!tem_curinga(j)) continue;
         if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         pre[j] = true;
+        int ev0 = n_ev;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].curinga[k]) continue;
             F[j].curinga[k] = false;
@@ -2213,6 +2235,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             evento(gera, EV_CORINGA, j, k, outro(j), c_alvo[j], v, "Ficha Coringa vira o %d de %s", c_val[j], J[outro(j)].nome);
         }
         refaz_sequencia(j, F[j].lancados);
+        if (gera) guarda_seq_de(ev0, j, EV_CORINGA, EV_CORINGA);
         virou = true;
     }
     // O Carrossel para: vale quantos dados valem na mesa agora, dos dois
@@ -2236,9 +2259,11 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             F[j].valor[k] = v;
             lado_vira(j, k, v);
             refaz_sequencia(j, F[j].lancados);
-            if (v != roda) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: %d válidos e o Calibre", v, roda);
-            else if (v == 1) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no 1: só ele vale na mesa");
-            else evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: dados válidos na mesa", v);
+            evento_t *e;
+            if (v != roda) e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: %d válidos e o Calibre", v, roda);
+            else if (v == 1) e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no 1: só ele vale na mesa");
+            else e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: dados válidos na mesa", v);
+            guarda_seq(e, j);
         }
         virou = true;
     }

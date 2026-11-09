@@ -7470,6 +7470,24 @@ int main(void)
         if (fase == F_EFEITOS) conclui_rodada();
         for (int i = 0; i < 8; i++) J[0].col[i] = (peca_t){ .tipo = D_D6 };
 
+        // O Carrossel para no numero que mostrava girando: o Oculto aparece
+        // antes (2, 3 e 3 valem, mais ele e o 5 do outro: 5) e so depois o
+        // Carrossel entra e derruba o ultimo 3 - a mesa nao mostra isso antes.
+        limpa();
+        joga_com(0, D_OCULTO, 2, sempre_dois); joga(0, D_D6, 3); joga_com(0, D_CARROSSEL, 1, sempre_dois); joga(0, D_D6, 3);
+        joga(1, D_D6, 5);
+        J[0].fichas = J[1].fichas = 100; pote = 10;
+        desfecho();
+        int mostra = -1, para = -1;
+        for (int i = 0; i < n_ev; i++) {
+            if (ev[i].tipo == EV_CARROSSEL) { mostra = carrossel_vivo(true); para = ev[i].valor; }
+            aplica_evento(i);
+        }
+        CONFERE(para == 5 && mostra == para, "Carrossel depois do Oculto: girava mostrando %d e parou no %d", mostra, para);
+        CONFERE(vis_est[0][2] == V_ANULADO && vis_est[0][3] == V_ANULADO && total_visivel(0) == resolvido.total[0],
+                "Carrossel depois do Oculto: no fim dos eventos, a mesa do motor (%d, pago %d)", total_visivel(0), resolvido.total[0]);
+        if (fase == F_EFEITOS) conclui_rodada();
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

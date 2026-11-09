@@ -160,6 +160,8 @@ typedef struct {
     uint8_t bloqueado;               // dados do alvo (bit k: alvo_j, k) com a capa do Impermeavel: o
                                      // efeito chega, mas nao pega (nem passa para outro dado)
     int     antes;                   // EV_TREMOR: o que o dado sacudido tinha tirado
+    bool    tem_seq;                 // os que refazem uma sequencia no comeco do desfecho (o Oculto, o Espelho, o
+    uint8_t seq[N_FILA];             // tremor, a Ficha Coringa, o Carrossel): como ela ficou logo depois deste
     uint8_t bolsa_i;                 // EV_ADESIVO do Infectado e do Barro: o dado da bolsa que pegou (0xFF: nenhum)
     uint32_t bolsa_lados;            // e os lados dele (bit l: o lado l)
     bool    bolsa_capa;              // o Barro: o dado sorteado estava com a bolha do Impermeavel (nao sujou)

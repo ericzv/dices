@@ -157,6 +157,29 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     if (UNIX)
         target_link_libraries(balanco PRIVATE m)
     endif()
+    # A IA mestre (o nivel 3 de ia.inc): jogadas legais, sem mexer no jogo nem
+    # nos sorteios, a fila em pedacos igual a de uma vez; e, pensando como no
+    # jogo, cada quadro dela no tempo.
+    add_executable(ia_mestre tests/ia_mestre.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(ia_mestre PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(ia_mestre PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(ia_mestre PRIVATE m)
+    endif()
+    add_test(NAME ia_mestre COMMAND ia_mestre 8 0)
+    add_test(NAME ia_mestre_tempo COMMAND ia_mestre 2 1 250)
+    # Arena das IAs (uma contra a outra, e o laboratorio da aposta): mede, nao
+    # testa (fica fora do ctest).
+    add_executable(arena tests/arena.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(arena PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(arena PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(arena PRIVATE m)
+    endif()
     # Prancha dos adesivos (exploracao de adesivo_estilo.inc): fora do ctest.
     add_executable(prancha_adesivos tests/prancha_adesivos.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
     target_include_directories(prancha_adesivos PRIVATE src desktop)

@@ -3475,7 +3475,7 @@ int main(void)
             CONFERE(des_carrega(&rr2) && rr2.andar == DES_ANDAR_FINAL, "o salao do Coringa devia ficar salvo");
             run.no[0].semente = 4242;
             des_comeca_partida();
-            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= CORINGA_SOME ? 2 : 0),
+            CONFERE(reg_op == REG_CORINGA && nivel_jog[1] == (dif >= MESTRE_DESDE[DES_ANDAR_FINAL] ? 3 : dif >= CORINGA_SOME ? 2 : 0),
                     "Coringa: trunfo %d, nivel %d", reg_op, nivel_jog[1]);
             int fracos = 0, bons = 0, fechados = 0;   // a bolsa dele: sem dados de saida, so do tema
             for (int i = 0; i < J[1].n_col; i++) {

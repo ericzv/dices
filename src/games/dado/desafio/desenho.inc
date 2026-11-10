@@ -415,7 +415,7 @@ static void texto_no_chao(int x, int y, const char *s, uint16_t c, int f)
 // O quadro de baixo, em colunas separadas por filetes: quem e (com as
 // etiquetas e quanto paga), o trunfo (nome e regra) e a bolsa dele, com os
 // dados agrupados por tipo.
-static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada" };
+static const char *const NIVEL_IA[] = { "IA simples", "IA atenta", "IA afiada", "IA mestre" };
 #define INFO_Y  220
 #define INFO_H  86
 static void info_divisa(int x)

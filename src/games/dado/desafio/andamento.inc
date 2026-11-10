@@ -25,12 +25,16 @@ static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
     { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 0, 9 } },   // 2o salao: a Dona
     { { 0, 99 },  { 0, 99 },  { 0, 5 },   { 0, 0 } },   // 3o salao: o Barao
 };
+// A IA mestre (ia.inc, nivel 3) nos chefes do alto: o Coringa do 8o andar
+// para cima, mais o Barao no 9o e a Dona na Cobertura (o Crupie, nunca).
+static const uint8_t MESTRE_DESDE[DES_ANDAR_FINAL + 1] = { 99, 10, 9, 8 };   // Crupie, Dona, Barao, Coringa
 static int nivel_mesa(const no_t *no)
 {
     int ia = no->nivel;
     if (run.andar < DES_ANDARES && no->tipo <= NO_CHEFE)
         for (int k = 0; k < 2; k++)
             if (run.dificuldade >= IA_SOBE[run.andar][no->tipo][k] && ia < k + 1) ia = k + 1;
+    if (no->tipo == NO_CHEFE && run.andar <= DES_ANDAR_FINAL && run.dificuldade >= MESTRE_DESDE[run.andar]) ia = 3;
     return ia;
 }
 // Em quantos % das decisoes a mesa pensa um nivel acima do dela.

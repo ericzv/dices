@@ -98,7 +98,13 @@ function pagina(nome, op = {}) {
   const jogo = {
     comecou: null, teclas: [],
     _dado_online_comeca(s, eu) { this.comecou = { s, eu }; },
-    _dado_rede_tecla(k) { this.teclas.push(k); },
+    // op.fila: quantas teclas cabem na fila do jogo sem ele as aplicar (consome).
+    na_fila: 0,
+    _dado_rede_tecla(k) {
+      if (op.fila && this.na_fila >= op.fila) return 0;
+      this.na_fila++; this.teclas.push(k); return 1;
+    },
+    consome(n) { this.na_fila = Math.max(0, this.na_fila - n); },
   };
   const end = { origin: 'https://ericzv.github.io', pathname: op.caminho || '/dices/', search: op.busca || '' };
   const guardado = new Map(Object.entries(op.guarda || {}));
@@ -313,6 +319,20 @@ const iguais = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     confere(iguais(B.jogo.teclas, A.mandadas), 'B recebeu ' + B.jogo.teclas.length + ' de ' + A.mandadas.length + ', na ordem');
     confere(iguais(A.jogo.teclas, B.mandadas), 'A recebeu ' + A.jogo.teclas.length + ' de ' + B.mandadas.length + ', na ordem');
     confere(A.rede.estado === JOGANDO && B.rede.estado === JOGANDO, 'a partida segue: ' + A.rede.erro + B.rede.erro);
+  });
+
+  await caso('a fila do jogo cheia (a pagina parada e o rival apertando): a tecla espera, nenhuma se perde', () => {
+    const [A, B] = partida({}, { fila: 8 });
+    servidor.perde = msg => msg.t === 'k' && rnd() < 0.2;
+    servidor.embaralha = true;
+    for (let i = 0; i < 300; i++) { A.manda(0x100 + i); anda(30); }   // 300 teclas em 9 s; o jogo de B parado
+    anda(3000);
+    confere(B.jogo.teclas.length === 8, 'so as 8 que cabem entraram: ' + B.jogo.teclas.length);
+    for (let i = 0; i < 400 && B.jogo.teclas.length < 300; i++) { B.jogo.consome(3); anda(250); }   // B volta a andar
+    confere(iguais(B.jogo.teclas, A.mandadas), 'B recebeu ' + B.jogo.teclas.length + ' de ' + A.mandadas.length + ', na ordem');
+    A.manda(7); B.manda(9); B.jogo.consome(8); anda(4000);
+    confere(iguais(B.jogo.teclas, A.mandadas) && iguais(A.jogo.teclas, B.mandadas), 'e a partida segue nos dois sentidos');
+    confere(A.rede.estado === JOGANDO && B.rede.estado === JOGANDO, 'jogando: ' + A.rede.erro + B.rede.erro);
   });
 
   console.log(falhas ? '\n' + falhas + ' falha(s) em ' + casos + ' casos' : '\n' + casos + ' casos ok');

@@ -3578,10 +3578,11 @@ static void desenha_evento_dentro(const evento_t *e, float p)
     }
     // Ataques: um projetil em arco do dado que age ate o alvo (o dado, ou o
     // placar do rival), com rastro, e um anel de impacto quando chega.
-    if (e->tipo == EV_ANULA || e->tipo == EV_TIRA) {
+    // (A Autofagia comendo, EV_COME: a mesma cobra, sem derrubar o dado.)
+    if (e->tipo == EV_ANULA || e->tipo == EV_TIRA || e->tipo == EV_COME) {
         bool praga = TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_MALDICAO;
         uint16_t c = praga ? C_VIOLETA : C_VINHO_CLR;
-        int bx = e->tipo == EV_ANULA ? SLOT_X(e->alvo_k) : PLACAR_X, by = zona(e->alvo_j);
+        int bx = e->tipo != EV_TIRA ? SLOT_X(e->alvo_k) : PLACAR_X, by = zona(e->alvo_j);
         bool bate = e->tipo == EV_ANULA && (e->bloqueado >> e->alvo_k & 1);   // na bolha da capa
         if (TIPO[F[e->de_j].tipo[e->de_k]].efeito == EF_LASER) {
             // Laser: um raio verde reto sai do emissor e chega ao alvo,

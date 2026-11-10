@@ -83,9 +83,13 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define SR_REVES 4                // o Reves: um d4 (o risco e a graca do dado)
 #define SEMENTE_BROTA 12          // a Semente brota com os seus validos somando isto ou mais
 #define SEMENTE_PTS   6           // e o que ela paga, fora de qualquer multiplicador
-// O teto do bonus que o Acumulador guarda, e o da Autofagia.
+// O teto do bonus que o Acumulador guarda.
 #define ACUM_MAX 6
-#define AUTO_MAX 3
+// A Autofagia: tirando isto, pontua tudo o que comeu na partida. O que ela
+// guarda nao tem limite de regra; AUTO_TETO so segura o numero no tamanho
+// do campo (na pratica nao se chega la).
+#define AUTO_ATIVA 8
+#define AUTO_TETO 99
 // O que a Ficha Velha anulada rende no fim.
 #define FICHA_VELHA_PTS 4
 // A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
@@ -279,7 +283,7 @@ static const tipo_t TIPO[D_N] = {
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
     { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d4 subtrai" },
-    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
+    { "Autofagia",        8, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor; no 8, soma o que comeu" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo igual: +3; um a mais: +2; dois: +1" },
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
@@ -417,7 +421,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
     [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
-    [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
+    [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (ele ainda pontua e sai da partida). Tirando 8, pontua 8 + tudo o que comeu.",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
     [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",
     [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
@@ -595,9 +599,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "terminar válido pontua +3.",
     [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
                           "Negativo, tira pontos da sequência, e o dado seguinte só precisa ser maior que ele.",
-    [D_AUTOFAGIA]       = "Doze lados. Se terminar válido, no fim da rodada anula o outro dado válido seu de menor número, que "
-                          "sai da bolsa até o fim da partida, e a Autofagia ganha +1 nas rodadas seguintes, até +3. Se você "
-                          "tiver menos de 8 dados, ou ela já tiver +3, só anula.",
+    [D_AUTOFAGIA]       = "Oito lados. Se terminar válido, depois da contagem come o outro dado válido seu de menor número: "
+                          "ele pontua nesta rodada e sai da bolsa até o fim da partida, e a Autofagia guarda o número dele. "
+                          "Tirando 8, ela pontua 8 mais tudo o que guardou na partida. Com menos de 8 dados em jogo, não come.",
     [D_ECO]             = "Seis lados. Tira o mesmo número do primeiro dado válido da sequência. Se esse número passar de 6, ou "
                           "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
                           "sequência.",

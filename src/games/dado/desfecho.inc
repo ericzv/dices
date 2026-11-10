@@ -250,13 +250,13 @@ static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera)
 }
 
 // A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
-// vindos da bolsa, com ela abaixo de +3 e com pelo menos 8 dados em jogo.
+// vindos da bolsa e com pelo menos 8 dados em jogo.
 static bool autofagia_come_pode(int j, int a, int b)
 {
     const jogador_t *p = &J[j];
     int ia = F[j].idx[a], ib = F[j].idx[b];
     if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
-    if (p->col[ia].tipo != D_AUTOFAGIA || p->col[ia].fixo >= AUTO_MAX) return false;
+    if (p->col[ia].tipo != D_AUTOFAGIA) return false;
     int vivos = 0;
     for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
     return vivos >= AUTO_BOLSA;
@@ -1199,28 +1199,8 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         return;
     }
 
-    // Autofagia: come o outro dado seu de menor numero que vale (no
-    // empate, o primeiro): ele cai e sai da bolsa ate a proxima
-    // partida, e ela ganha +1 (ate +3). Com a bolsa abaixo de 8 dados
-    // em jogo, ou ja com +3, so anula. Escudo e Teimoso resistem.
-    if (ef == EF_AUTOFAGIA) {
-        int b = -1;
-        for (int i = 0; i < F[j].lancados; i++)
-            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
-                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-        bool pode = b >= 0 && !d->come[j] && autofagia_come_pode(j, k, b);
-        if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) {   // o de capa: nem anula, nem come
-        } else if (b >= 0) {
-            d->est[j][b] = V_ANULADO;
-            bool come = pode;
-            if (come) { d->come[j] = (uint8_t)(b + 1); d->come_de[j] = (uint8_t)(k + 1); }
-            if (come) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                             "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
-            else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                        "Autofagia: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
-        }
-        return;
-    }
+    // Autofagia: nao ataca; come so depois da contagem (autofagia_de).
+    if (ef == EF_AUTOFAGIA) return;
 
     // Buraco Negro que evolui: engole os seus dados logo antes e logo
     // depois dele na sequencia (os firmes resistem).
@@ -2098,6 +2078,31 @@ static bool casca_no_fim(void);
 
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
+// Autofagia: depois da contagem, a que terminou valendo come o outro dado
+// seu de menor numero que vale (no empate, o primeiro). Ele ja pontuou nesta
+// rodada: nao cai, mas sai da bolsa ate o fim da partida, e o numero dele
+// fica guardado na Autofagia (autofagia_come), que o pontua quando tirar 8.
+// Escudo e Teimoso nao sao comidos (vai o seguinte); o de capa se protege.
+// Com menos de 8 dados em jogo na bolsa, ela nao come. Uma refeicao por
+// rodada para cada jogador.
+static void autofagia_de(desfecho_t *d, int j, bool gera)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA && !d->come[j]; k++) {
+        if (TIPO[tipo_de(j, k)].efeito != EF_AUTOFAGIA || d->est[j][k] != V_VALIDO) continue;
+        int b = -1;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
+                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        if (b < 0 || !autofagia_come_pode(j, k, b)) continue;
+        if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) return;   // o de capa: nao e comido
+        d->come[j] = (uint8_t)(b + 1);
+        d->come_de[j] = (uint8_t)(k + 1);
+        int guarda = F[j].valor[b] > 0 ? F[j].valor[b] : 0;
+        evento(gera, EV_COME, j, k, j, b, guarda, "Autofagia come o %d do próprio %s: guarda +%d",
+               F[j].valor[b], J[j].nome, guarda);
+    }
+}
+
 static void calcula_desfecho(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
@@ -2312,6 +2317,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         d->bruto[j] = t;
         d->total[j] = t < 0 ? 0 : t;
     }
+    for (int o = 0; o < 2; o++) autofagia_de(d, ordem[o], gera);   // depois da contagem: nao muda os pontos
     if (!gera && virou) memcpy(F, f_antes, sizeof F);   // previa: o Espelho segue esperando
     for (int j = 0; !gera && j < 2; j++) F[j].n = f_antes[j].n;
 }

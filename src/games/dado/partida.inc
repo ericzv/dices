@@ -1145,14 +1145,17 @@ static void contadores_ficam(int j, const desfecho_t *d)
     cosmo_ficam(j, d->est[j]);
 }
 
-// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
+// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda
+// o numero que ele tirou (soma com o que ja tinha; pontua tudo no 8).
 static void autofagia_come(int j, const desfecho_t *d)
 {
     if (!d->come[j] || !d->come_de[j]) return;
-    int b = F[j].idx[d->come[j] - 1], a = F[j].idx[d->come_de[j] - 1];
+    int kb = d->come[j] - 1;
+    int b = F[j].idx[kb], a = F[j].idx[d->come_de[j] - 1];
     if (a < 0 || a >= J[j].n_col || b < 0 || b >= J[j].n_col) return;
     J[j].onde[b] = COMIDO;
-    if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
+    int guarda = J[j].col[a].fixo + (F[j].valor[kb] > 0 ? F[j].valor[kb] : 0);
+    J[j].col[a].fixo = (uint8_t)(guarda < AUTO_TETO ? guarda : AUTO_TETO);
 }
 
 // O Garimpeiro valeu: os outros dados de j que terminaram valendo voltam para
@@ -1580,6 +1583,7 @@ static int som_do_evento(int i)
         return SOM_FORTE;
     case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
     case EV_CARROSSEL: return SOM_CARROSSEL;   // a caixinha de musica desacelerando e o sino ao parar
+    case EV_COME:    return SOM_AUTOFAGIA;     // a dentada e o engolir
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
@@ -1852,6 +1856,7 @@ static float duracao_de(const evento_t *e)
     case EV_REVELA:  return 1.4f;
     case EV_CORINGA: return 1.9f;
     case EV_CARROSSEL: return CARROSSEL_PARA + 0.9f;   // gira devagar ate parar, e o numero assenta
+    case EV_COME:    return 1.6f;                       // a cobra vai, se fecha no dado e volta com o numero
     case EV_TREMOR:  return e->ad == AD_CASCA ? 2.0f : 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
@@ -1917,6 +1922,7 @@ static void flutua_evento_(const evento_t *e)
                 flutua_em(dj, k, C_VINHO_CLR, k * 0.06f, "%d", e->por_dado[k]);
         break;
     case EV_ANULA:   if (!(e->bloqueado >> ak & 1)) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+    case EV_COME:    if (dk < N_FILA) flutua_em(dj, dk, C_VERDE, 0.5f, "+%d", e->valor); break;   // o que ela guardou
     case EV_TIRA:    flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_PIRATA:
         flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor);

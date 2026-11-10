@@ -601,9 +601,13 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = 4;
             poe_tag(f, k, "$+4");
         }
-        if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->fixo[k]) {
-            int teto = ef == EF_AUTOFAGIA ? AUTO_MAX : ACUM_MAX;
-            f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
+        if (ef == EF_ACUMULADOR && f->fixo[k]) {
+            f->bonus[k] = (int8_t)(f->fixo[k] < ACUM_MAX ? f->fixo[k] : ACUM_MAX);
+            poe_tag(f, k, "+%d", f->bonus[k]);
+        }
+        // Autofagia: tirando 8, pontua tudo o que comeu na partida.
+        if (ef == EF_AUTOFAGIA && v == AUTO_ATIVA && f->fixo[k]) {
+            f->bonus[k] = (int8_t)(f->fixo[k] < AUTO_TETO ? f->fixo[k] : AUTO_TETO);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
         // Furia: o bonus guardado, ja com este lance (4 a 6 guarda +2, 1 ou 2 perde 1).
@@ -688,8 +692,10 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Fichas rende: pontua %d (+4)", vale);
-        } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
+        } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
+        } else if (ef == EF_AUTOFAGIA && f->bonus[k]) {
+            snprintf(veredito, sizeof veredito, "Autofagia tirou 8: pontua %d (+%d do que comeu)", vale, f->bonus[k]);
         } else if (ef == EF_FURIA && (v >= FURIA_DE || v <= FURIA_ATE)) {
             if (v >= FURIA_DE) snprintf(veredito, sizeof veredito, "Fúria! guarda +%d: pontua %d (%+d)", FURIA_GANHA, vale, f->bonus[k]);
             else        snprintf(veredito, sizeof veredito, "Fúria tirou %d: perde %d, pontua %d (%+d)", v, FURIA_PERDE, vale, f->bonus[k]);

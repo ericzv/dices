@@ -1069,57 +1069,96 @@ int main(void)
         joga(0, D_FENIX, 4); joga(0, D_BERSERKER, 10);
         d = fim();
         CONFERE(d.total[0] == 14, "Berserker + Fenix: a Fenix renasce, esperava 14, deu %d", d.total[0]);
-        // Autofagia: valendo, anula o outro dado seu de menor numero (no
-        // empate, o primeiro); Escudo resiste; caida, nao age.
+        // Autofagia (d8): valendo, depois da contagem come o outro dado seu
+        // de menor numero que vale (no empate, o primeiro). O comido ainda
+        // pontua na rodada; sai da bolsa ate o fim da partida, e o numero dele
+        // fica guardado. Tirando 8, ela pontua 8 + tudo o que guardou.
+        CONFERE(TIPO[D_AUTOFAGIA].lados == 8, "Autofagia devia ter 8 lados");
         limpa();
-        joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
+        joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 7);
         d = fim();
-        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.total[0] == 5 + 9,
-                "Autofagia: devia comer o 2 (deu %d)", d.total[0]);
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 2 + 5 + 7 && d.come[0] == 0,
+                "Autofagia fora da bolsa: nao come nem anula (deu %d)", d.total[0]);
         CONFERE(poder_armado(0, 2) == 2, "Autofagia com alvo devia brilhar contra o dono");
-        limpa();
-        joga(0, D_D4, 3); joga(0, D_D6, 3); joga(0, D_AUTOFAGIA, 4);
-        d = fim();
-        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO, "Autofagia no empate: devia comer o primeiro");
-        limpa();
-        joga(0, D_ESCUDO, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
-        d = fim();
-        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO, "Autofagia: o Escudo resiste, vai o 5");
         limpa();
         joga(0, D_AUTOFAGIA, 7);
         d = fim();
         CONFERE(d.total[0] == 7, "Autofagia sozinha: esperava 7, deu %d", d.total[0]);
+        // Tirando 8: o exemplo do dono do jogo - comeu um 2, um 3 e um 5.
         limpa();
-        joga(0, D_D4, 2); joga(0, D_D12, 9); joga(0, D_AUTOFAGIA, 3);
+        F[0].fixo[0] = 2 + 3 + 5;
+        joga(0, D_AUTOFAGIA, 8);
         d = fim();
-        CONFERE(F[0].est[2] == V_ANULADO && d.est[0][0] == V_VALIDO && d.total[0] == 2,
-                "Autofagia caida nao devia agir (deu %d)", d.total[0]);
-        // Come de verdade: com 8 dados em jogo, o comido sai da bolsa e ela
-        // guarda +1 (ate +3); com 7, ou ja com +3, so anula.
+        CONFERE(d.total[0] == 18 && !strcmp(F[0].tag[0], "+10"), "Autofagia no 8 com 10 guardado: esperava 18, deu %d", d.total[0]);
+        limpa();
+        F[0].fixo[0] = 10;
+        joga(0, D_AUTOFAGIA, 7);
+        d = fim();
+        CONFERE(d.total[0] == 7, "Autofagia fora do 8: pontua so o numero (deu %d)", d.total[0]);
+        limpa();
+        F[0].fixo[0] = 10;
+        joga(0, D_D8, 7); joga(0, D_AUTOFAGIA, 8);
+        joga(0, D_D4, 1);                                // 1 depois do 8: os dois caem
+        d = fim();
+        CONFERE(d.total[0] == 7, "Autofagia caida no 8 nao pontua o guardado (deu %d)", d.total[0]);
+        // Come de verdade: com 8 dados em jogo na bolsa.
         {
             jogador_t guarda = J[0];
             J[0].n_col = 8;
             for (int i = 0; i < 8; i++) { J[0].col[i] = (peca_t){ .tipo = D_D6, .fixo = 0 }; J[0].onde[i] = NA_BOLSA; }
             J[0].col[2] = (peca_t){ .tipo = D_AUTOFAGIA, .fixo = 0 };
             limpa();
-            joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 9);
+            joga(0, D_D4, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 7);
             F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            desfecho_t pre;
+            calcula_desfecho(&pre, false);
             d = fim();
             CONFERE(d.come[0] == 1 && d.come_de[0] == 3, "Autofagia com 8 em jogo devia comer o 2");
+            CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2 + 5 + 7 && pre.total[0] == d.total[0],
+                    "Autofagia: o comido ainda pontua (deu %d, previa %d)", d.total[0], pre.total[0]);
+            int ic = -1;
+            for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_COME) ic = i;
+            CONFERE(ic == n_ev - 1 && ev[ic].de_k == 2 && ev[ic].alvo_k == 0 && ev[ic].valor == 2,
+                    "Autofagia: o evento de comer devia vir por ultimo, do dado 2 no 0, guardando 2");
             autofagia_come(0, &d);
-            CONFERE(J[0].onde[0] == COMIDO && J[0].col[2].fixo == 1 && em_jogo(&J[0]) == 7,
-                    "Autofagia: o comido devia sair da bolsa e ela guardar +1");
+            CONFERE(J[0].onde[0] == COMIDO && J[0].col[2].fixo == 2 && em_jogo(&J[0]) == 7,
+                    "Autofagia: o comido devia sair da bolsa e ela guardar o 2 (guardou %d)", J[0].col[2].fixo);
             d = fim();
-            CONFERE(d.come[0] == 0 && d.est[0][0] == V_ANULADO, "Autofagia com 7 em jogo: so anula");
+            CONFERE(d.come[0] == 0 && d.est[0][0] == V_VALIDO, "Autofagia com 7 em jogo: nao come nem anula");
+            // Soma sem limite: come de novo e junta.
             J[0].onde[0] = NA_BOLSA;
-            J[0].col[2].fixo = AUTO_MAX;
-            d = fim();
-            CONFERE(d.come[0] == 0, "Autofagia ja com +3: so anula");
             limpa();
-            F[0].fixo[0] = 9;
-            joga(0, D_AUTOFAGIA, 4);
+            joga(0, D_D6, 3); joga(0, D_D6, 6); joga(0, D_AUTOFAGIA, 7);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
             d = fim();
-            CONFERE(d.total[0] == 4 + AUTO_MAX, "Autofagia: o bonus para em +3 (deu %d)", d.total[0]);
+            autofagia_come(0, &d);
+            CONFERE(J[0].col[2].fixo == 2 + 3, "Autofagia: devia somar 2 + 3 (deu %d)", J[0].col[2].fixo);
+            // No empate, o primeiro; o Escudo nao e comido (vai o seguinte).
+            J[0].onde[0] = NA_BOLSA;
+            limpa();
+            joga(0, D_D4, 3); joga(0, D_D6, 3); joga(0, D_AUTOFAGIA, 4);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            d = fim();
+            CONFERE(d.come[0] == 1 && d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO, "Autofagia no empate: devia comer o primeiro");
+            limpa();
+            joga(0, D_ESCUDO, 2); joga(0, D_D8, 5); joga(0, D_AUTOFAGIA, 7);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            d = fim();
+            CONFERE(d.come[0] == 2 && d.est[0][1] == V_VALIDO, "Autofagia: o Escudo fica, vai o 5");
+            // Caida, nao come.
+            limpa();
+            joga(0, D_D4, 2); joga(0, D_D8, 7); joga(0, D_AUTOFAGIA, 3);
+            F[0].idx[0] = 0; F[0].idx[1] = 1; F[0].idx[2] = 2;
+            d = fim();
+            CONFERE(F[0].est[2] == V_ANULADO && d.come[0] == 0 && d.total[0] == 2, "Autofagia caida nao devia comer (deu %d)", d.total[0]);
+            // O guardado para no tamanho do campo.
+            J[0].col[2].fixo = AUTO_TETO - 1;
+            limpa();
+            joga(0, D_D4, 4); joga(0, D_AUTOFAGIA, 5);
+            F[0].idx[0] = 0; F[0].idx[1] = 2;
+            d = fim();
+            autofagia_come(0, &d);
+            CONFERE(J[0].col[2].fixo == AUTO_TETO, "Autofagia: o guardado para em %d (deu %d)", AUTO_TETO, J[0].col[2].fixo);
             J[0] = guarda;
         }
         // ---- Os dados das builds ------------------------------------------
@@ -4962,7 +5001,7 @@ int main(void)
         medusa_petrifica(0, &d);
         CONFERE(J[0].col[3].tipo == D_D6 && J[0].col[2].tipo == D_QUEBRADO, "Medusa: o de capa segue um d6");
         J[0].col[2] = (peca_t){ .tipo = D_D6 };
-        // A Autofagia ia comer o de capa: bloqueia tudo (nao anula nem come).
+        // A Autofagia ia comer o de capa: ele se protege (nao e comido).
         J[0].col[6] = (peca_t){ .tipo = D_AUTOFAGIA };
         limpa();
         joga_ad(0, 3, 2); joga_ad(0, 2, 4); joga_ad(0, 6, 6);   // o menor que vale e o 2, com a capa
@@ -4970,7 +5009,7 @@ int main(void)
         CONFERE(d.est[0][0] == V_VALIDO && !d.come[0], "Autofagia no de capa: bloqueada (est %d, come %d)", d.est[0][0], d.come[0]);
         J[0].col[3].capa = 0;
         d = fim();
-        CONFERE(d.est[0][0] == V_ANULADO && d.come[0] == 1, "Autofagia sem a capa: come o 2 (est %d, come %d)", d.est[0][0], d.come[0]);
+        CONFERE(d.est[0][0] == V_VALIDO && d.come[0] == 1, "Autofagia sem a capa: come o 2, que ainda vale (est %d, come %d)", d.est[0][0], d.come[0]);
         J[0].col[3].capa = 1;
         // A capa e so da partida.
         peca_t cp = { .tipo = D_D6, .capa = 1 };

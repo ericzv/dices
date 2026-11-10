@@ -328,7 +328,7 @@ static void guarda_ao_acaso(peca_t *p)
     case D_QUEBRADO:   p->fixo = vp(85) ? (uint8_t)(1 + vn(8)) : (uint8_t)(int8_t)(vp(50) ? -(1 + vn(12)) : 9 + vn(30)); break;
     case D_FANTASMA:   p->fixo = 1; break;
     case D_ACUMULADOR: p->fixo = (uint8_t)vn(ACUM_MAX + 1); break;
-    case D_AUTOFAGIA:  p->fixo = (uint8_t)vn(AUTO_MAX + 1); break;
+    case D_AUTOFAGIA:  p->fixo = (uint8_t)(vp(70) ? vn(16) : vn(AUTO_TETO + 1)); break;
     case D_PREVISIVEL: p->fixo = (uint8_t)vn(12); break;
     case D_BALAO:      p->fixo = (uint8_t)(vp(80) ? vn(20) : vn(BALAO_GUARDA + 1)); break;
     case D_FURIA:      p->fixo = (uint8_t)(int8_t)(vn(21) - 6); break;
@@ -813,13 +813,13 @@ static void confere_eventos(void)
     CONFERE(n_ev >= 0 && n_ev < MAX_EV, "%d eventos: a lista encheu (cabem %d) e o resto se perdeu", n_ev, MAX_EV);
     for (int i = 0; i < n_ev; i++) {
         const evento_t *e = &ev[i];
-        CONFERE(e->tipo <= EV_CARROSSEL, "evento %d com tipo %d", i, e->tipo);
+        CONFERE(e->tipo <= EV_COME, "evento %d com tipo %d", i, e->tipo);
         CONFERE(e->de_j <= 1 && e->alvo_j <= 1, "evento %d (tipo %d): jogador %d ou %d", i, e->tipo, e->de_j, e->alvo_j);
         if (e->de_j > 1 || e->alvo_j > 1) continue;
         CONFERE(e->de_k == 0xFF || e->de_k < F[e->de_j].lancados, "evento %d (tipo %d, '%s'): sai do dado %d de %d, que nao existe",
                 i, e->tipo, e->txt, e->de_k, e->de_j);
         // Os que a mesa usa para achar o dado atingido.
-        bool usa_alvo = e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_FOGO || e->tipo == EV_CORTA
+        bool usa_alvo = e->tipo == EV_ANULA || e->tipo == EV_ROUBA || e->tipo == EV_FOGO || e->tipo == EV_CORTA || e->tipo == EV_COME
                      || (e->tipo == EV_TREMOR)
                      || (e->tipo == EV_ADESIVO && (e->ad == AD_MIRA || (e->ad == AD_RATOEIRA && e->alvo_j != e->de_j)));
         if (usa_alvo)
@@ -827,7 +827,7 @@ static void confere_eventos(void)
                     i, e->tipo, e->txt, e->alvo_k, e->alvo_j);
         bool usa_de = e->tipo == EV_ANULA || e->tipo == EV_ESPELHO || e->tipo == EV_REVELA || e->tipo == EV_CORINGA
                    || e->tipo == EV_CARROSSEL || e->tipo == EV_RENASCE || e->tipo == EV_ONDA || e->tipo == EV_CAVALO
-                   || e->tipo == EV_ROUBA;
+                   || e->tipo == EV_ROUBA || e->tipo == EV_COME;
         if (usa_de) CONFERE(e->de_k < F[e->de_j].lancados, "evento %d (tipo %d, '%s'): o dado de origem e %d", i, e->tipo, e->txt, e->de_k);
         CONFERE(e->txt[0] && memchr(e->txt, 0, sizeof e->txt), "evento %d (tipo %d) sem texto ou sem fim", i, e->tipo);
         CONFERE(e->ad < AD_N, "evento %d com adesivo %d", i, e->ad);

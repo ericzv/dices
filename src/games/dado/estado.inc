@@ -138,7 +138,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_ONDA,                      // a Onda juntou 9: vira Tsunami
        EV_CORINGA,                   // a Ficha Coringa vira o ultimo dado do oponente
        EV_TREMOR,                    // o Terremoto: o ultimo dado do oponente rola de novo
-       EV_CARROSSEL };               // o Carrossel para no numero de dados validos da mesa
+       EV_CARROSSEL,                 // o Carrossel para no numero de dados validos da mesa
+       EV_COME };                    // a Autofagia come o seu menor dado (que ja pontuou): guarda o numero dele
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))

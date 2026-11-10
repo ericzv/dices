@@ -78,6 +78,11 @@ void dado_online_comeca(uint32_t sem, int eu)
     rede_ini = rede_fim = 0;
     n_marco = 0;
     digitando = false;
+    // O primeiro marco sai antes de a rodada 1 limpar as sequencias: o que
+    // sobrou nelas de uma partida de antes neste computador (1 ou 2
+    // jogadores, o Desafiante) entrava no numero, e as duas mesas "ficavam
+    // diferentes" logo na saida da loja, sem nada de errado no jogo.
+    memset(F, 0, sizeof F);
     dado_inicia(0);
 }
 

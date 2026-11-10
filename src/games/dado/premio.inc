@@ -41,6 +41,7 @@ static int sorteia_tipo(void)
 #define PREMIO_AD_PCT 20
 // Colando o adesivo ganho: as telas sao as da loja do Desafiante (desafio/loja.inc).
 static bool premio_colando(void);
+static void premio_cola_larga(void);
 static bool premio_cabe(int a);
 static void premio_cola_desenha(void);
 static void cola_passo(float dt);
@@ -221,6 +222,7 @@ static void abre_premio(int w)
     vez = w;
     cursor = 0;
     removendo = false;
+    premio_cola_larga();
     t_tira = 0;
     fase = F_PREMIO;
     if (anuncia_maquina()) t_slot = -1;      // a maquina escolhe sem a roleta

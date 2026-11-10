@@ -83,9 +83,13 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define SR_REVES 4                // o Reves: um d4 (o risco e a graca do dado)
 #define SEMENTE_BROTA 12          // a Semente brota com os seus validos somando isto ou mais
 #define SEMENTE_PTS   6           // e o que ela paga, fora de qualquer multiplicador
-// O teto do bonus que o Acumulador guarda, e o da Autofagia.
+// O teto do bonus que o Acumulador guarda.
 #define ACUM_MAX 6
-#define AUTO_MAX 3
+// A Autofagia: tirando isto, pontua tudo o que comeu na partida. O que ela
+// guarda nao tem limite de regra; AUTO_TETO so segura o numero no tamanho
+// do campo (na pratica nao se chega la).
+#define AUTO_ATIVA 8
+#define AUTO_TETO 99
 // O que a Ficha Velha anulada rende no fim.
 #define FICHA_VELHA_PTS 4
 // A Autofagia so come com pelo menos tantos dados em jogo na bolsa.
@@ -279,7 +283,7 @@ static const tipo_t TIPO[D_N] = {
     { "Capitão",          8, EF_CAPITAO,      RAR_RARO,     0, "Válido: +1 por dado seu válido" },
     { "Checkpoint",       8, EF_CHECKPOINT,   RAR_RARO,     0, "Válido: +3 em cada dado válido depois dele" },
     { "Sorte/Revés",     12, EF_SORTE_REVES,  RAR_INCOMUM,  0, "Um d12 soma, um d4 subtrai" },
-    { "Autofagia",       12, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor dado: +1 (até +3)" },
+    { "Autofagia",        8, EF_AUTOFAGIA,    RAR_LENDA,    0, "Come o seu menor; no 8, soma o que comeu" },
     { "Eco",              6, EF_ECO,          RAR_RARO,     0, "Tira o mesmo número do 1º dado válido" },
     { "Dominó",           6, EF_DOMINO,       RAR_COMUM,    0, "O próximo igual: +3; um a mais: +2; dois: +1" },
     { "Âncora",           4, EF_ANCORA,       RAR_INCOMUM,  0, "O próximo dado não é anulado nem roubado" },
@@ -417,7 +421,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_CAPITAO]         = "Se terminar válido, +1 no fim por dado válido seu, este dado incluído.",
     [D_CHECKPOINT]      = "Se terminar válido: +3 no fim para cada dado seu lançado depois dele que terminar válido.",
     [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
-    [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (sai da bolsa até a próxima partida) e ganha +1 (até +3).",
+    [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (ele ainda pontua e sai da partida). Tirando 8, pontua 8 + tudo o que comeu.",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
     [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",
     [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
@@ -518,7 +522,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "você.",
     [D_ESPELHO]         = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, "
                           "o Espelho permanece válido até o fim do turno do oponente, vira no fim da rodada e pode ser anulado "
-                          "pela sequência.",
+                          "pela sequência. Sem dado do oponente para copiar, é anulado.",
     [D_FICHAS]          = "Quatro lados. Se terminar válido e você começou a rodada com mais fichas que o oponente, pontua +4.",
     [D_TUDO_NADA]       = "Uma moeda de risco. Tirando 2 e terminando válido: cada dado válido da sequência pontua +5. Tirando "
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
@@ -595,9 +599,9 @@ static const char *TEXTO_CAT[D_N] = {
                           "terminar válido pontua +3.",
     [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
                           "Negativo, tira pontos da sequência, e o dado seguinte só precisa ser maior que ele.",
-    [D_AUTOFAGIA]       = "Doze lados. Se terminar válido, no fim da rodada anula o outro dado válido seu de menor número, que "
-                          "sai da bolsa até o fim da partida, e a Autofagia ganha +1 nas rodadas seguintes, até +3. Se você "
-                          "tiver menos de 8 dados, ou ela já tiver +3, só anula.",
+    [D_AUTOFAGIA]       = "Oito lados. Se terminar válido, depois da contagem come o outro dado válido seu de menor número: "
+                          "ele pontua nesta rodada e sai da bolsa até o fim da partida, e a Autofagia guarda o número dele. "
+                          "Tirando 8, ela pontua 8 mais tudo o que guardou na partida. Com menos de 8 dados em jogo, não come.",
     [D_ECO]             = "Seis lados. Tira o mesmo número do primeiro dado válido da sequência. Se esse número passar de 6, ou "
                           "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
                           "sequência.",
@@ -916,7 +920,7 @@ static const visual_t VISUAL[D_N] = {
     [D_ESPELHO]    = { V_PRATA,   V_PRATA, 55,  V_ACO, 28,      V_BRANCO, 55 },
     [D_FICHAS]     = { V_VERM,    0, 0,         V_VERM, 100,    V_BRANCO, 100, V_SANGUE, 100 },
     [D_TUDO_NADA]  = { V_OURO },                // a moeda de ouro, desenhada a parte
-    [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(54, 36, 74), 45, V_LILAS, 40 },
+    [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(82, 60, 112), 100, V_LILAS, 100, V_AMEIXA, 100 },
     [D_GATUNO]     = { V_CHUMBO,  V_CHUMBO, 70, RGB(36, 32, 29), 100, V_CHUMBO, 100 },              // a camisa listrada do ladrao
     [D_QUEBRADO]   = { V_TERRA,   V_PRATA, 40,  V_PRATA, 100,   V_ACO, 100,    V_PEDRA, 100 },   // a porcelana craquelada e o biscoito da lasca
     [D_INVEJOSO]   = { V_LIMA,    V_VERDE, 70,  V_VERDE, 100,   V_LIMA, 100,   V_BREU, 100 },   // a malaquita
@@ -946,7 +950,7 @@ static const visual_t VISUAL[D_N] = {
     [D_GEMEO]      = { V_AGUA,    0, 0,         V_AGUA, 100 },
     [D_PRISMA]     = { V_LILAS,   V_LILAS, 18,  V_VERM, 100,    V_OURO, 100,   V_NOITE, 100 },
     [D_FENIX]      = { V_FOGO,    V_FOGO, 14,   V_AMBAR, 60,    V_FOGO, 60 },
-    [D_TRONO]      = { V_OURO,    V_AMEIXA, 18, V_OURO, 65 },
+    [D_TRONO]      = { V_OURO,    V_VINHO, 80,  V_VINHO, 100,   V_SANGUE, 100, V_OURO, 100 },
     [D_CAVALO]     = { V_TERRA,   V_TERRA, 50,  V_TERRA, 100,   V_MADEIRA, 100, V_FERRO, 100 },  // as tabuas e os pregos
     [D_BERSERKER]  = { V_VINHO,   V_VERM, 85,   V_VERM, 100,    V_TERRA, 100,  V_FERRO, 100 },  // o escudo pintado, a madeira e os rebites
     [D_VIUVA]      = { V_ACO,     0, 0,         V_ACO, 45 },
@@ -972,7 +976,7 @@ static const visual_t VISUAL[D_N] = {
     [D_RANCOR]     = { V_SANGUE,  V_VINHO, 8,   V_VINHO, 100,   V_SANGUE, 100, V_BREU, 85 },
     [D_ESPERANCA]  = { V_CEU,     V_NOITE, 72,  V_CEU, 95,      V_TRIGO, 100,  V_TRIGO, 75 },
     [D_PONTE]      = { V_AGUA,    V_CEU, 14,    V_AGUA, 100,    V_CIANO, 100,  V_CEU, 40 },
-    [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 100,   V_COURO, 100,  V_OURO, 100 },
+    [D_GARIMPEIRO] = { V_TERRA,   V_TRIGO, 10,  V_TERRA, 40,    V_TERRA, 70,   V_OURO, 100 },
     [D_POTE_QUENTE] = { V_FOGO,   V_AMBAR, 12,  V_AMBAR, 80,    V_FOGO, 95,    V_TRIGO, 100 },
     [D_FANTASMA]   = { V_CIANO,   V_CEU, 22,    V_BRANCO, 100,  V_CEU, 100,    RGB(44, 58, 96), 100 },
     [D_PREVISIVEL] = { V_CIANO,   V_CEU, 16,    V_CIANO, 100,   V_AZUL, 100 },                 // o papel quadriculado e a escada
@@ -981,7 +985,7 @@ static const visual_t VISUAL[D_N] = {
     [D_VAZIO]      = { V_PEDRA,   V_BRANCO, 40, V_BARRO, 45,    V_PEDRA, 60,   V_BRANCO, 60 },
     [D_MEDIA]      = { V_AGUA,    V_CEU, 20,    V_AGUA, 75,     V_SANGUE, 85,  V_AGUA, 100 },
     [D_VAMPIRO]    = { V_BREU,    V_CHUMBO, 70, V_CHUMBO, 100,  V_VERM, 100,   V_SANGUE, 100 }, // o cetim preto e o forro
-    [D_COLECIONADOR] = { V_NOITE, V_NOITE, 30,  V_AZUL, 70,     V_OURO, 100,   V_CEU, 85 },
+    [D_COLECIONADOR] = { V_NOITE, V_NOITE, 14,  V_AZUL, 80,     V_NOITE, 70,   V_OURO, 100 },
     [D_PACTO]      = { V_ROXO,    V_PEDRA, 40,  V_TRIGO, 100,   V_SANGUE, 100, V_VINHO, 100 },  // o pergaminho e o lacre
     [D_ASSOMBRACAO] = { V_AMEIXA,  V_AMEIXA, 0,  RGB(150, 126, 180), 100, RGB(176, 156, 202), 100, RGB(86, 66, 112), 100 },
     [D_FICHA_VELHA] = { V_COURO,  V_TERRA, 46,  V_VINHO, 80,    V_ROSA, 55,    V_MADEIRA, 95 },
@@ -1028,7 +1032,7 @@ static const visual_t VISUAL[D_N] = {
     // O Piao: a madeira torneada com as listras vermelha e creme em volta.
     [D_PIAO]       = { V_TERRA,   0, 0,         RGB(238, 230, 212), 100, RGB(226, 164, 168), 100, V_CEU, 100 },   // a madeira bem clara e os aneis leves
     // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
-    [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
+    [D_CAMELO]      = { V_AZUL,   V_AZUL, 14,   V_AZUL, 90,     V_AMBAR, 100,  V_ROSA, 100 },
     // O Leque: o papel rosa em gomos, o vinco vinho e o ouro do fio, das florzinhas e do pino.
     [D_LEQUE]       = { V_OURO,   V_ROSA, 100,  RGB(226, 164, 168), 100, V_VINHO, 100, V_OURO, 100 },
     // O Porta-Retrato: a moldura de prata e a foto em sepia.

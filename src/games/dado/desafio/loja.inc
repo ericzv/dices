@@ -1419,6 +1419,11 @@ static void lj_cola_lados(void)
 // As mesmas duas telas, na bolsa de quem venceu a rodada, sem custo; colado,
 // a partida segue para a proxima rodada.
 static bool premio_colando(void) { return cola_premio && lj_colando; }
+// Um premio novo comeca sempre pela escolha: quem largou uma partida de 2
+// jogadores no meio de colar o adesivo ganho nao pode cair nessa tela no
+// premio seguinte (online, as teclas dele iam para ela e as duas mesas se
+// separavam).
+static void premio_cola_larga(void) { if (cola_premio) { cola_premio = false; lj_colando = 0; } }
 static bool premio_cabe(int a)
 {
     for (int c = 0; c < J[vez].n_col; c++) if (ad_cabe_o(&J[vez].col[c], a)) return true;

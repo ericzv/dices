@@ -250,13 +250,13 @@ static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera)
 }
 
 // A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
-// vindos da bolsa, com ela abaixo de +3 e com pelo menos 8 dados em jogo.
+// vindos da bolsa e com pelo menos 8 dados em jogo.
 static bool autofagia_come_pode(int j, int a, int b)
 {
     const jogador_t *p = &J[j];
     int ia = F[j].idx[a], ib = F[j].idx[b];
     if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
-    if (p->col[ia].tipo != D_AUTOFAGIA || p->col[ia].fixo >= AUTO_MAX) return false;
+    if (p->col[ia].tipo != D_AUTOFAGIA) return false;
     int vivos = 0;
     for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
     return vivos >= AUTO_BOLSA;
@@ -1199,28 +1199,8 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         return;
     }
 
-    // Autofagia: come o outro dado seu de menor numero que vale (no
-    // empate, o primeiro): ele cai e sai da bolsa ate a proxima
-    // partida, e ela ganha +1 (ate +3). Com a bolsa abaixo de 8 dados
-    // em jogo, ou ja com +3, so anula. Escudo e Teimoso resistem.
-    if (ef == EF_AUTOFAGIA) {
-        int b = -1;
-        for (int i = 0; i < F[j].lancados; i++)
-            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
-                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-        bool pode = b >= 0 && !d->come[j] && autofagia_come_pode(j, k, b);
-        if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) {   // o de capa: nem anula, nem come
-        } else if (b >= 0) {
-            d->est[j][b] = V_ANULADO;
-            bool come = pode;
-            if (come) { d->come[j] = (uint8_t)(b + 1); d->come_de[j] = (uint8_t)(k + 1); }
-            if (come) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                             "Autofagia come o %d do próprio %s: +1", F[j].valor[b], J[j].nome);
-            else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
-                        "Autofagia: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
-        }
-        return;
-    }
+    // Autofagia: nao ataca; come so depois da contagem (autofagia_de).
+    if (ef == EF_AUTOFAGIA) return;
 
     // Buraco Negro que evolui: engole os seus dados logo antes e logo
     // depois dele na sequencia (os firmes resistem).
@@ -2073,8 +2053,56 @@ static void bilhete_de(desfecho_t *d, int j, bool gera)
 // poderes do fim dos dados de j agem uma segunda vez, depois de tudo.
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
 
+// A sequencia de j acabou de ser refeita por causa do evento e (ou dos
+// eventos do tipo t1 ou t2 de j, de 'de' em diante): cada um guarda como ela
+// ficou nessa hora. A mesa mostra isso quando o evento chega - e nao o fim de
+// tudo, que ainda depende dos que viram depois (o Carrossel conta os validos
+// da mesa de agora).
+static void guarda_seq(evento_t *e, int j)
+{
+    if (!e) return;
+    e->tem_seq = true;
+    memcpy(e->seq, F[j].est, N_FILA);
+}
+static void guarda_seq_de(int de, int j, int t1, int t2)
+{
+    for (int i = de; i < n_ev; i++)
+        if (ev[i].de_j == j && (ev[i].tipo == t1 || ev[i].tipo == t2)) guarda_seq(&ev[i], j);
+}
+
+// A previa nao sabe o que o tremor e a Casca de Banana vao dar, mas sabe se
+// vao agir: e o que ela anota aqui, com o Espelho que esperava ja virado e a
+// sequencia dele refeita (fim_incerto, partida.inc).
+static bool previa_sorte;
+static bool casca_no_fim(void);
+
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
+// Autofagia: depois da contagem, a que terminou valendo come o outro dado
+// seu de menor numero que vale (no empate, o primeiro). Ele ja pontuou nesta
+// rodada: nao cai, mas sai da bolsa ate o fim da partida, e o numero dele
+// fica guardado na Autofagia (autofagia_come), que o pontua quando tirar 8.
+// Escudo e Teimoso nao sao comidos (vai o seguinte); o de capa se protege.
+// Com menos de 8 dados em jogo na bolsa, ela nao come. Uma refeicao por
+// rodada para cada jogador.
+static void autofagia_de(desfecho_t *d, int j, bool gera)
+{
+    for (int k = 0; k < F[j].lancados && k < N_FILA && !d->come[j]; k++) {
+        if (TIPO[tipo_de(j, k)].efeito != EF_AUTOFAGIA || d->est[j][k] != V_VALIDO) continue;
+        int b = -1;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
+                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        if (b < 0 || !autofagia_come_pode(j, k, b)) continue;
+        if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) return;   // o de capa: nao e comido
+        d->come[j] = (uint8_t)(b + 1);
+        d->come_de[j] = (uint8_t)(k + 1);
+        int guarda = F[j].valor[b] > 0 ? F[j].valor[b] : 0;
+        evento(gera, EV_COME, j, k, j, b, guarda, "Autofagia come o %d do próprio %s: guarda +%d",
+               F[j].valor[b], J[j].nome, guarda);
+    }
+}
+
 static void calcula_desfecho(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
@@ -2083,7 +2111,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
 
     // Espelho que esperava o oponente (com "?"): vira agora o maior dado dele,
     // e a sequencia do dono e refeita com o numero novo - so agora ele pode
-    // cair ou derrubar outro. Enquanto esperava, nao anulava nem era anulado.
+    // cair ou derrubar outro. Enquanto esperava, nada o anulava (firme).
     // No desfecho de verdade fica assim; na previa, a mesa volta como estava.
     static fila_t f_antes[2];
     static char ver_antes[sizeof veredito];
@@ -2093,6 +2121,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     bool virou = false;
     memcpy(f_antes, F, sizeof F);
     memcpy(ver_antes, veredito, sizeof veredito);
+    // A previa conta a rodada como se acabasse agora: os dados da sequencia
+    // ainda por lancar ja teriam saido da mesa, e a Rede passa a valer no
+    // ultimo dado lancado, com a sequencia refeita (descarta_sobras). A mesa
+    // volta no fim.
+    for (int j = 0; !gera && j < 2; j++)
+        if (F[j].n > F[j].lancados) {
+            F[j].n = F[j].lancados;
+            if (tem_am(j, A_REDE)) { refaz_sequencia(j, F[j].lancados); virou = true; }
+        }
     // O Oculto mostra o que tirou (so no desfecho de verdade: a previa nao
     // sabe, e a IA imagina o numero antes): a sequencia e refeita com ele.
     uint8_t revelados[2] = { 0, 0 };
@@ -2108,7 +2145,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados; k++) {
-            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO || alvo <= 0) continue;
+            if (!F[j].espera[k] || alvo <= 0) continue;
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             F[j].espera[k] = false;
@@ -2122,8 +2159,10 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
+        if (gera) guarda_seq_de(0, j, EV_REVELA, EV_ESPELHO);
         virou = true;
     }
+    if (!gera) previa_sorte = tremor_na_mesa() || casca_no_fim();
     // O Terremoto valendo com 7 ou 8 sacode a mesa do oponente: o ultimo dado
     // valido dele rola de novo e a sequencia dele e refeita com o numero
     // novo (menor que o de antes, cai e leva o anterior). So no fim de
@@ -2139,12 +2178,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             int antes = F[r].valor[a];
             if (!pre[r]) memcpy(est_pre_espelho[r], F[r].est, N_FILA);
             pre[r] = true;
-            treme_dado(r, a, F[j].abalo[k]);
+            // (sem a semente do lance - o Camaleao atras de um Terremoto, o
+            // Terremoto que ja veio grudado pelo Chiclete -, a da mesa, como a Casca)
+            treme_dado(r, a, F[j].abalo[k] ? F[j].abalo[k] : pega_semente(j, k));
             refaz_sequencia(r, F[r].lancados);
             evento_t *e;
             if (F[r].valor[a] == antes) e = evento(gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);
             else e = evento(gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d", antes, J[r].nome, F[r].valor[a]);
             if (e) e->antes = antes;
+            guarda_seq(e, r);
             virou = true;
         }
     }
@@ -2170,6 +2212,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (impermeavel(t, a)) {
                 e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s está protegido", antes, J[t].nome);
                 if (e) { e->antes = antes; e->ad = AD_CASCA; e->bloqueado = (uint8_t)(1 << a); }
+                guarda_seq(e, t);
                 continue;
             }
             static fila_t guarda;
@@ -2181,6 +2224,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (fica) e = evento(gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s escorrega e fica", antes, J[t].nome);
             else e = evento(gera, EV_TREMOR, r, kc, t, a, F[t].valor[a], "Casca de Banana: o %d de %s escorrega: %d", antes, J[t].nome, F[t].valor[a]);
             if (e) { e->antes = antes; e->ad = AD_CASCA; }
+            guarda_seq(e, t);
             virou = true;
         }
     }
@@ -2199,6 +2243,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         if (!tem_curinga(j)) continue;
         if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         pre[j] = true;
+        int ev0 = n_ev;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].curinga[k]) continue;
             F[j].curinga[k] = false;
@@ -2213,6 +2258,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             evento(gera, EV_CORINGA, j, k, outro(j), c_alvo[j], v, "Ficha Coringa vira o %d de %s", c_val[j], J[outro(j)].nome);
         }
         refaz_sequencia(j, F[j].lancados);
+        if (gera) guarda_seq_de(ev0, j, EV_CORINGA, EV_CORINGA);
         virou = true;
     }
     // O Carrossel para: vale quantos dados valem na mesa agora, dos dois
@@ -2236,11 +2282,46 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             F[j].valor[k] = v;
             lado_vira(j, k, v);
             refaz_sequencia(j, F[j].lancados);
-            if (v != roda) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: %d válidos e o Calibre", v, roda);
-            else if (v == 1) evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no 1: só ele vale na mesa");
-            else evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: dados válidos na mesa", v);
+            evento_t *e;
+            if (v != roda) e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: %d válidos e o Calibre", v, roda);
+            else if (v == 1) e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no 1: só ele vale na mesa");
+            else e = evento(gera, EV_CARROSSEL, j, k, j, k, v, "Carrossel para no %d: dados válidos na mesa", v);
+            guarda_seq(e, j);
         }
         virou = true;
+    }
+    // O Espelho que nao achou o que copiar no comeco (o oponente so com o
+    // Universo, o Vazio, ou com a Ficha Coringa e o Carrossel, que so viraram
+    // agora): vira aqui o maior do oponente, como la em cima. Se nem assim ha
+    // o que copiar, e anulado (como a Ficha Coringa sem alvo), a sequencia e
+    // refeita sem ele e a marca "=?" sai da mesa.
+    for (int j = 0; j < 2; j++) {
+        int alvo = maior_do_rival(j), ev0 = n_ev;
+        uint8_t quais = 0, nada = 0;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!F[j].espera[k]) continue;
+            F[j].espera[k] = false;
+            virou = true;
+            if (alvo <= 0) {
+                if (!strcmp(F[j].tag[k], "=?")) F[j].tag[k][0] = 0;
+                if (!strcmp(F[j].tag_num[k], "=?")) F[j].tag_num[k][0] = 0;
+                F[j].espelho_nada[k] = true;
+                nada |= (uint8_t)(1 << k);
+                evento(gera, EV_ESPELHO, j, k, outro(j), 0xFF, 0, "Espelho: %s não tem o que copiar, anulado", J[outro(j)].nome);
+                continue;
+            }
+            F[j].valor[k] = alvo;
+            lado_vira(j, k, alvo);
+            quais |= (uint8_t)(1 << k);
+            evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+        }
+        if (!quais && !nada) continue;
+        if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
+        refaz_sequencia(j, F[j].lancados);
+        for (int k = 0; k < F[j].lancados; k++)
+            if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
+        if (gera) guarda_seq_de(ev0, j, EV_ESPELHO, EV_ESPELHO);
     }
     memcpy(veredito, ver_antes, sizeof veredito);
     ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
@@ -2273,7 +2354,9 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         d->bruto[j] = t;
         d->total[j] = t < 0 ? 0 : t;
     }
+    for (int o = 0; o < 2; o++) autofagia_de(d, ordem[o], gera);   // depois da contagem: nao muda os pontos
     if (!gera && virou) memcpy(F, f_antes, sizeof F);   // previa: o Espelho segue esperando
+    for (int j = 0; !gera && j < 2; j++) F[j].n = f_antes[j].n;
 }
 
 // Pontuacao que a mesa mostra durante e depois da animacao dos eventos.
@@ -2304,7 +2387,7 @@ static int risco(int j)
     const peca_t *p = peca_fila(j, k);       // cada lado com o numero que tira (o Remendo soma 2)
     if (estilingue_armado(j, k)) return l >= 0 && cai_depois(j, remenda(p, lados), L) ? 100 : 0;   // sai no maximo
     if (ef == EF_PONTE || ef == EF_VAZIO || ef == EF_SANGUESSUGA) return 0;   // nunca caem
-    if (ef == EF_FICHA_CORINGA) return 0;                     // fica de fora ate o fim
+    if (TIPO[f->tipo[k]].efeito == EF_FICHA_CORINGA) return 0;   // fica de fora ate o fim (a de verdade: o Camaleao atras dela entra na sequencia)
     if (TIPO[f->tipo[k]].efeito == EF_CARROSSEL) return 0;    // gira de fora ate o fim (o de verdade: o Camaleao atras dele nao gira)
     if (ef == EF_RELOGIO) return l >= 0 && cai_depois(j, remenda(p, relogio_valor()), L) ? 100 : 0;
     if (ef == EF_PREVISIVEL) return l >= 0 && cai_depois(j, remenda(p, previsivel_valor(f->fixo[k])), L) ? 100 : 0;

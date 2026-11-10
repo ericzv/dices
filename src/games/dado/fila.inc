@@ -207,7 +207,10 @@ static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) 
 // Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os
 // ataques do fim da rodada continuam mirando nele (firme_sem_capa) e batem na
 // capa: o efeito nao pega e nao passa para outro dado.
-static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, k); }
+// O Espelho que espera o oponente tambem: enquanto espera, nada o anula (nem
+// a sequencia, nem o Agouro, o Egoista, a Sanguessuga ou o Vidro). No fim ele
+// vira, deixa de esperar e volta a ser um dado como os outros.
+static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, k) || F[j].espera[k]; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -355,7 +358,7 @@ static void aplica_regra(int j, int k)
     if (f->carta && k == 3) { f->est[k] = V_ESPERA; return; }   // a carta do Coringa: ainda em suspensao
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
-    int v = f->valor[k];
+    int v = f->valor[k], lado0 = f->lado[k];
     anulou_a = anulou_b = -1;
     anulou_masc = 0;
     resistiu = -1;
@@ -398,6 +401,14 @@ static void aplica_regra(int j, int k)
         f->pontos = soma(j, f->est);
         return;
     }
+    // O Espelho que esperou e, no fim, nao achou o que copiar: anulado.
+    if (f->espelho_nada[k]) {
+        f->est[k] = V_ANULADO;
+        snprintf(veredito, sizeof veredito, "Espelho sem nada para copiar: anulado");
+        ver_tipo = 1;
+        f->pontos = soma(j, f->est);
+        return;
+    }
 
     // O Papel Carbono: tirando o lado dele, o dado fica com o numero do
     // ultimo valido da sequencia - igual, nao cai. O primeiro da sequencia
@@ -410,9 +421,11 @@ static void aplica_regra(int j, int k)
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
-    // vale como esta, sem cair.
-    if (ef == EF_ESPELHO && v <= 2) {
-        int alvo = maior_do_rival(j);
+    // vale como esta, firme. O que ja espera segue esperando quando a
+    // sequencia e refeita: quem o vira e o fim da rodada, com o evento dele
+    // (mesmo o que tirou 1 e a Prensa ja fez 3).
+    if (ef == EF_ESPELHO && (v <= 2 || f->espera[k])) {
+        int alvo = f->espera[k] ? 0 : maior_do_rival(j);
         if (alvo > 0) {
             v = f->valor[k] = alvo;
             lado_vira(j, k, v);
@@ -470,6 +483,11 @@ static void aplica_regra(int j, int k)
         poe_tag(f, k, "=3");
         am_disparou |= AM_BIT(A_PRENSA);
     }
+    // O proprio poder (ou a Prensa) virou o dado para um lado com o Papel
+    // Carbono: o adesivo age na hora. A regra recomeca com o dado como ficou,
+    // que e como ela o le quando a sequencia e refeita - o pouso e o refazer
+    // dao o mesmo. (Uma vez so: na volta, o Carbono ja copiou.)
+    if (f->lado[k] != lado0 && !f->copiou[k] && carbono_age(j, k) && l >= 0) { aplica_regra(j, k); return; }
 
     // O ciclo cosmico: tirando a faixa de cima, o bonus do estagio (se ficar
     // valendo); o Buraco Negro, valendo, engole os vizinhos. Evoluir, ele
@@ -549,17 +567,21 @@ static void aplica_regra(int j, int k)
         && cai_depois(j, v, f->valor[l])) {
         // (a Ponte, o Vazio, a Sanguessuga e o dado no lado do Transparente nunca caem)
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
-        // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
+        // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo
+        // (o ultimo da sequencia montada; depois de parar, o ultimo lancado).
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
         // Ferradura: uma vez por rodada, na primeira queda que nada mais
         // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
-        bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
+        // A queda que ela segurou fica marcada na fila (o dado que caiu):
+        // refeita a sequencia, ela segura essa mesma queda, se ainda houver,
+        // e nenhuma outra.
+        bool ferr = tem_am(j, A_FERRADURA) && (!f->ferradura || f->ferradura == k + 1) && !firme(j, l)
                     && !sentinela && !luva && !rede;
         if (luva) am_disparou |= AM_BIT(A_LUVA);
         if (rede) am_disparou |= AM_BIT(A_REDE);
-        if (ferr) am_disparou |= AM_BIT(A_FERRADURA);
+        if (ferr) { am_disparou |= AM_BIT(A_FERRADURA); f->ferradura = (uint8_t)(k + 1); }
         bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;
@@ -601,9 +623,13 @@ static void aplica_regra(int j, int k)
             f->bonus[k] = 4;
             poe_tag(f, k, "$+4");
         }
-        if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->fixo[k]) {
-            int teto = ef == EF_AUTOFAGIA ? AUTO_MAX : ACUM_MAX;
-            f->bonus[k] = (int8_t)(f->fixo[k] < teto ? f->fixo[k] : teto);
+        if (ef == EF_ACUMULADOR && f->fixo[k]) {
+            f->bonus[k] = (int8_t)(f->fixo[k] < ACUM_MAX ? f->fixo[k] : ACUM_MAX);
+            poe_tag(f, k, "+%d", f->bonus[k]);
+        }
+        // Autofagia: tirando 8, pontua tudo o que comeu na partida.
+        if (ef == EF_AUTOFAGIA && v == AUTO_ATIVA && f->fixo[k]) {
+            f->bonus[k] = (int8_t)(f->fixo[k] < AUTO_TETO ? f->fixo[k] : AUTO_TETO);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
         // Furia: o bonus guardado, ja com este lance (4 a 6 guarda +2, 1 ou 2 perde 1).
@@ -688,8 +714,10 @@ static void aplica_regra(int j, int k)
             snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "Fichas rende: pontua %d (+4)", vale);
-        } else if ((ef == EF_ACUMULADOR || ef == EF_AUTOFAGIA) && f->bonus[k]) {
+        } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
+        } else if (ef == EF_AUTOFAGIA && f->bonus[k]) {
+            snprintf(veredito, sizeof veredito, "Autofagia tirou 8: pontua %d (+%d do que comeu)", vale, f->bonus[k]);
         } else if (ef == EF_FURIA && (v >= FURIA_DE || v <= FURIA_ATE)) {
             if (v >= FURIA_DE) snprintf(veredito, sizeof veredito, "Fúria! guarda +%d: pontua %d (%+d)", FURIA_GANHA, vale, f->bonus[k]);
             else        snprintf(veredito, sizeof veredito, "Fúria tirou %d: perde %d, pontua %d (%+d)", v, FURIA_PERDE, vale, f->bonus[k]);
@@ -831,6 +859,7 @@ static void pousa(int j, int k, int (*r)(int))
     f->escondido[k] = ef0 == EF_OCULTO;                          // o Oculto cai virado
     f->curinga[k] = ef0 == EF_FICHA_CORINGA;                     // a Ficha Coringa, com o curinga para cima
     f->curinga_nada[k] = false;
+    f->espelho_nada[k] = false;
     f->gira[k] = ef0 == EF_CARROSSEL;                            // o Carrossel, girando
     // O Terremoto ja traz a semente do lance que o tremor dara no fim: a
     // previa e a IA nao a usam, e o fim de verdade e o mesmo dos dois lados.

@@ -7,7 +7,7 @@
 # executavel final nao depende de nenhuma DLL fora do sistema.
 # O firmware do Cardputer usa cardputer/CMakeLists.txt (ESP-IDF), nao este.
 cmake_minimum_required(VERSION 3.16)
-project(DadoEmCasa VERSION 1.10 LANGUAGES C)
+project(DadoEmCasa VERSION 1.14 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -131,6 +131,20 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(regras PRIVATE m)
     endif()
     add_test(NAME regras COMMAND regras)
+    # Varredura das regras: mesas inteiras ao acaso (dados, adesivos, amuletos)
+    # pelo caminho de verdade do jogo, conferindo o que tem que valer sempre -
+    # a previa nao mexe na mesa, previa e desfecho batem, nada fica esperando,
+    # a mesma semente da o mesmo resultado. Aqui, uma varredura curta;
+    # build/varredura 2000000 varre milhoes de rodadas.
+    add_executable(varredura tests/varredura.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(varredura PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(varredura PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(varredura PRIVATE m)
+    endif()
+    add_test(NAME varredura COMMAND varredura 3000)
     # O salvamento em arquivo do PC: o ".novo" que sobra de um desligamento abre.
     add_executable(salva_arquivo tests/salva_arquivo.c)
     target_include_directories(salva_arquivo PRIVATE src desktop)
@@ -156,6 +170,29 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
     endif()
     if (UNIX)
         target_link_libraries(balanco PRIVATE m)
+    endif()
+    # A IA mestre (o nivel 3 de ia.inc): jogadas legais, sem mexer no jogo nem
+    # nos sorteios, a fila em pedacos igual a de uma vez; e, pensando como no
+    # jogo, cada quadro dela no tempo.
+    add_executable(ia_mestre tests/ia_mestre.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(ia_mestre PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(ia_mestre PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(ia_mestre PRIVATE m)
+    endif()
+    add_test(NAME ia_mestre COMMAND ia_mestre 8 0)
+    add_test(NAME ia_mestre_tempo COMMAND ia_mestre 2 1 250)
+    # Arena das IAs (uma contra a outra, e o laboratorio da aposta): mede, nao
+    # testa (fica fora do ctest).
+    add_executable(arena tests/arena.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+    target_include_directories(arena PRIVATE src desktop)
+    if (MSVC)
+        target_compile_options(arena PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/desktop/msvc.h)
+    endif()
+    if (UNIX)
+        target_link_libraries(arena PRIVATE m)
     endif()
     # Prancha dos adesivos (exploracao de adesivo_estilo.inc): fora do ctest.
     add_executable(prancha_adesivos tests/prancha_adesivos.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
@@ -198,6 +235,12 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         # E forcado: os dados novos (e os de adesivo, a forca) nas duas bolsas,
         # as teclas do outro atrasadas ate 2 s, quadros enormes e as teclas locais.
         add_test(NAME online_forcado COMMAND online 2 150000 2 120 1 3 1)
+        # Os dados que esperam o fim da rodada (Carrossel, Ficha Coringa, Oculto,
+        # Espelho, Terremoto) em bolsas sorteadas, com adesivos; o mouse; um
+        # computador que antes jogou outra coisa; e a conexao caindo e voltando.
+        add_test(NAME online_espera COMMAND online 4 150000 3 120 1 3 2 1 1 6)
+        # A pagina parada enquanto o rival aperta mais teclas do que cabem na fila.
+        add_test(NAME online_fila COMMAND online 2 150000 3 0 0 1 0 0 2 6)
     endif()
     # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
     # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.

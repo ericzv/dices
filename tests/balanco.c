@@ -42,7 +42,10 @@
 // ADESIVOS=0: o robo nao compra adesivos (para comparar). BOLSA=b: a bolsa da
 // run (B_*; o Saco de Pano se nao der). NATAL=2: como em dezembro (o Papai
 // Noel no lugar do Barao, os oponentes de Natal); sem ele, fora de dezembro,
-// qualquer que seja a data.
+// qualquer que seja a data. MESTRE=mascara: as mesas em que o oponente joga com
+// a IA mestre (o nivel 3 de ia.inc, que nenhuma mesa do jogo usa): um bit por
+// mesa da run, na ordem das linhas MESA (0 a 9; 0x3FF: todas; 0x324: os
+// chefes). Serve para medir onde ela caberia, sem mexer na curva do jogo.
 #include <stdio.h>
 #include <stdlib.h>
 #include "../src/games/dado.c"
@@ -82,6 +85,7 @@ static uint32_t rnd_t(void) { est ^= est << 13; est ^= est >> 17; est ^= est << 
 
 static int ia_jog = 2, jeito_aposta, jeito_compra, recomecos, recomecou;
 static int adesivos_robo = 1;           // ADESIVOS=0 no ambiente: o robo nao compra adesivos
+static unsigned mestre_mesas;           // MESTRE=mascara no ambiente: as mesas com a IA mestre
 
 // Um perfil com o nivel pedido aberto (tudo: todos os dados e amuletos), e
 // sempre com o D20 e o Lastro, que abrem nos dois primeiros chefes.
@@ -303,6 +307,7 @@ static void curva(int runs, int nivel, bool imortal, uint32_t sem)
                 trata_tecla(KEY_ENTER);
                 if (fase == F_ORDEM || fase == F_JOGA) {
                     mesa = mesa_idx(run.andar, run.passo);
+                    if (mestre_mesas >> mesa & 1) nivel_jog[1] = 3;
                     chegou[mesa]++;
                     bolsa[mesa] += run.n_col;
                     recomecou = 0;
@@ -375,6 +380,7 @@ static bool duelo(const peca_t *b, int nb, amul_t am, int nivel, int salao, int 
     run_poe_amuletos(am);
     recomecou = recomecos;
     des_comeca_partida();
+    if (mestre_mesas >> mesa_idx(salao, mesa) & 1) nivel_jog[1] = 3;
     long passos = 0;
     while (partida_passo())
         if (++passos > 3000000) { printf("partida parada na fase %d\n", fase); exit(1); }
@@ -552,6 +558,7 @@ int main(int argc, char **argv)
     ia_esforco = getenv("ESFORCO") ? atoi(getenv("ESFORCO")) : 1;
     adesivos_robo = getenv("ADESIVOS") ? atoi(getenv("ADESIVOS")) : 1;
     natal_forcado = getenv("NATAL") ? atoi(getenv("NATAL")) : 0;   // fora de dezembro, qualquer que seja a data
+    mestre_mesas = getenv("MESTRE") ? (unsigned)strtoul(getenv("MESTRE"), NULL, 0) : 0;
     const char *m = argc > 1 ? argv[1] : "";
     if (!strcmp(m, "curva")) {
         int nivel = ARG(3, 0);

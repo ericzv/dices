@@ -251,7 +251,8 @@ static void embrulha_um(void)
     if (!tem_reg(REG_PRESENTE) || !J[0].n_mao) return;
     int ok[MAO], n = 0;
     for (int i = 0; i < J[0].n_mao; i++)
-        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE && J[0].col[J[0].mao[i]].tipo != D_UNIVERSO) ok[n++] = J[0].mao[i];   // o Universo vai sozinho: nao embrulha
+        if (J[0].col[J[0].mao[i]].tipo != D_PRESENTE && J[0].col[J[0].mao[i]].tipo != D_UNIVERSO   // o Universo vai sozinho: nao embrulha
+            && !J[0].col[J[0].mao[i]].chiclete) ok[n++] = J[0].mao[i];   // nem o grudado pelo Chiclete: ja vai para a mesa, sem ser lancado
     if (!n) return;
     embrulho = (int16_t)ok[rnd() % (uint32_t)n];
     embrulho_tipo = J[0].col[embrulho].tipo;
@@ -283,7 +284,6 @@ static void nova_rodada(void)
     carta_virando = false;
     zerou = -1;
     vence_j = -1;
-    ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
@@ -1144,14 +1144,17 @@ static void contadores_ficam(int j, const desfecho_t *d)
     cosmo_ficam(j, d->est[j]);
 }
 
-// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda +1.
+// A Autofagia comeu: o dado sai da bolsa ate o fim da partida e ela guarda
+// o numero que ele tirou (soma com o que ja tinha; pontua tudo no 8).
 static void autofagia_come(int j, const desfecho_t *d)
 {
     if (!d->come[j] || !d->come_de[j]) return;
-    int b = F[j].idx[d->come[j] - 1], a = F[j].idx[d->come_de[j] - 1];
+    int kb = d->come[j] - 1;
+    int b = F[j].idx[kb], a = F[j].idx[d->come_de[j] - 1];
     if (a < 0 || a >= J[j].n_col || b < 0 || b >= J[j].n_col) return;
     J[j].onde[b] = COMIDO;
-    if (J[j].col[a].fixo < AUTO_MAX) J[j].col[a].fixo++;
+    int guarda = J[j].col[a].fixo + (F[j].valor[kb] > 0 ? F[j].valor[kb] : 0);
+    J[j].col[a].fixo = (uint8_t)(guarda < AUTO_TETO ? guarda : AUTO_TETO);
 }
 
 // O Garimpeiro valeu: os outros dados de j que terminaram valendo voltam para
@@ -1204,7 +1207,21 @@ static bool casca_no_fim(void)
 }
 static bool fim_incerto(void)
 {
-    return carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim();
+    if (carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim()) return true;
+    // O Espelho que espera vira no fim e a sequencia dele e refeita: so entao
+    // um Terremoto pode passar a valer, ou o dado em que a Casca pega. A
+    // previa vira o Espelho e diz (previa_sorte). O mesmo com a Rede de quem
+    // ainda tem dados por lancar: parando agora, a sequencia e refeita com
+    // ela no ultimo lancado, e um Terremoto anulado pode voltar a valer.
+    bool espera = false;
+    for (int j = 0; j < 2; j++) {
+        espera |= F[j].n > F[j].lancados && tem_am(j, A_REDE);
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) espera |= F[j].espera[k];
+    }
+    if (!espera) return false;
+    desfecho_t d;
+    calcula_desfecho(&d, false);
+    return previa_sorte;
 }
 // Algo na mesa ainda vira sozinho no fim: alem do que depende da sorte, o
 // Espelho esperando o maior do outro, a Ficha Coringa com o curinga para
@@ -1225,6 +1242,10 @@ static void coringa_completa(int j)
     if (!coringa_joga(j) || f->n != 3) return;
     peca_t c;
     f->carta = !melhor_lance(outro(j), &c);
+    // Jogando depois, sem nada seu para copiar (so o Universo, ou dados que
+    // ainda esperam o fim): nao ha quarto dado. A carta e so de quem abre: e
+    // ela que vira depois do seu turno.
+    if (f->carta && j != primeiro) { f->carta = false; return; }
     if (f->carta) c = (peca_t){ .tipo = D_D6, .fixo = 0 };       // so o lugar: o tipo vem depois
     f->tipo[3] = c.tipo; f->fixo[3] = c.fixo; f->idx[3] = -1;
     f->n = 4;
@@ -1286,6 +1307,7 @@ static bool poe_copia_jingle(int j, const peca_t *orig)
     if (p->n_col >= lim_col()) return false;
     peca_t c = orig && orig->tipo == D_JINGLE ? *orig : nova_peca(D_JINGLE);
     c.fixo = 1;
+    c.chiclete = 0;                              // a marca de quem grudou nesta rodada e so do original
     p->col[p->n_col] = c;
     p->onde[p->n_col++] = NA_BOLSA;
     return true;
@@ -1564,6 +1586,8 @@ static int som_do_evento(int i)
         return SOM_FORTE;
     case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
     case EV_CARROSSEL: return SOM_CARROSSEL;   // a caixinha de musica desacelerando e o sino ao parar
+    case EV_ESPELHO: return e->alvo_k < N_FILA ? SOM_EFEITO : SOM_ANULA;   // sem o que copiar, cai
+    case EV_COME:    return SOM_AUTOFAGIA;     // a dentada e o engolir
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;
     case EV_ROUBA:   return SOM_ROUBA;
@@ -1836,6 +1860,7 @@ static float duracao_de(const evento_t *e)
     case EV_REVELA:  return 1.4f;
     case EV_CORINGA: return 1.9f;
     case EV_CARROSSEL: return CARROSSEL_PARA + 0.9f;   // gira devagar ate parar, e o numero assenta
+    case EV_COME:    return 1.6f;                       // a cobra vai, se fecha no dado e volta com o numero
     case EV_TREMOR:  return e->ad == AD_CASCA ? 2.0f : 2.2f;
     case EV_VAMPIRO: return 1.6f;
     case EV_RENASCE: return 1.5f;
@@ -1901,6 +1926,7 @@ static void flutua_evento_(const evento_t *e)
                 flutua_em(dj, k, C_VINHO_CLR, k * 0.06f, "%d", e->por_dado[k]);
         break;
     case EV_ANULA:   if (!(e->bloqueado >> ak & 1)) flutua_em(aj, ak, C_VINHO_CLR, 0, "-%d", e->valor); break;
+    case EV_COME:    if (dk < N_FILA) flutua_em(dj, dk, C_VERDE, 0.5f, "+%d", e->valor); break;   // o que ela guardou
     case EV_TIRA:    flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor); break;
     case EV_PIRATA:
         flutua_em(aj, N_FILA, C_VINHO_CLR, 0, "-%d", e->valor);
@@ -2032,11 +2058,11 @@ static void aplica_evento(int i)
         vis_oculto[e->de_j][e->de_k] = 0;
         vis_curinga[e->de_j][e->de_k] = 0;
         vis_carrossel[e->de_j][e->de_k] = 0;
-        memcpy(vis_est[e->de_j], F[e->de_j].est, N_FILA);
+        memcpy(vis_est[e->de_j], e->tem_seq ? e->seq : F[e->de_j].est, N_FILA);   // como ficou nessa hora, nao no fim de tudo
         break;
     case EV_TREMOR:                     // o dado sacudido pousou: a sequencia do oponente refeita
         if (e->alvo_k < N_FILA) vis_tremor[e->alvo_j][e->alvo_k] = 0;
-        memcpy(vis_est[e->alvo_j], F[e->alvo_j].est, N_FILA);
+        memcpy(vis_est[e->alvo_j], e->tem_seq ? e->seq : F[e->alvo_j].est, N_FILA);
         break;
     case EV_VAMPIRO:
         for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1) vis_bonus[e->alvo_j][k] -= (int8_t)e->valor;
@@ -2076,6 +2102,7 @@ static void aplica_evento(int i)
         switch (e->ad) {
         case AD_CONFETE: case AD_RASPADINHA: case AD_FERMENTO: case AD_ESTRELINHA: case AD_PURPURINA: case AD_FIGURINHA:
         case AD_ETIQUETA: case AD_PATINHO: case AD_NEON: case AD_INFECTADO:
+        case AD_CORRENTE: case AD_DINAMITE:     // (a Dinamite anulada so apaga: valor 0)
             vis_semente[e->de_j] += e->valor;
             break;
         case AD_SUJEIRA: vis_delta[e->de_j] += e->valor; break;   // o barro do oponente: -2 no seu placar
@@ -2159,9 +2186,26 @@ static void descarta_sobras(int j)
         devolvidos[n_devolvidos++] = (devolvido_t){ (float)SLOT_X(k), (float)zona(j), f->tipo[k], (uint8_t)j, f->fixo[k] };
         f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; tira_tag(f, k);
     }
-    if (f->n > f->lancados) f->n = f->lancados;
+    bool sobrou = f->n > f->lancados;
+    if (sobrou) f->n = f->lancados;
     if (f->lancados <= 3) f->carta = false;      // parou antes da carta do Coringa
     t_devolve = n_devolvidos ? 0 : -1;
+    // A Rede vale no ultimo dado da sequencia, e a sequencia e a dos dados
+    // lancados: parando antes de lancar todos, o ultimo lancado passa a ser o
+    // ultimo, e a sequencia e refeita com a Rede nele (o veredito do ultimo
+    // lance fica como estava).
+    if (sobrou && tem_am(j, A_REDE)) {
+        char ver[sizeof veredito];
+        int vt = ver_tipo, aa = anulou_a, ab = anulou_b, res = resistiu;
+        bool vc = ver_comum;
+        uint8_t am = anulou_masc;
+        memcpy(ver, veredito, sizeof ver);
+        am_disparou = 0;
+        refaz_sequencia(j, f->lancados);
+        if (am_disparou >> A_REDE & 1) am_acende(A_REDE);
+        memcpy(veredito, ver, sizeof veredito);
+        ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
+    }
 }
 
 // Quem abriu a rodada terminou com 0, e nada mais muda isso: sem Espelho

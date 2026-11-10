@@ -65,9 +65,11 @@ typedef struct {
     bool    faixa[N_FILA];           // o ciclo cosmico tirou a faixa de cima: o bonus (e o Buraco Negro engole os vizinhos)
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
+    bool    espelho_nada[N_FILA];    // o Espelho que nem no fim achou o que copiar: anulado
     bool    gira[N_FILA];            // Carrossel lancado: gira fora da sequencia ate parar no fim (nos validos da mesa)
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)
+    uint8_t ferradura;               // a queda que a Ferradura segurou nesta rodada: o dado que caiu (a posicao + 1; 0: nenhuma)
     uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
     char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
     char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
@@ -138,7 +140,8 @@ enum { EV_ANULA, EV_ROUBA, EV_TIRA, EV_PIRATA, EV_BONUS, EV_MULT, EV_FOGO, EV_SE
        EV_ONDA,                      // a Onda juntou 9: vira Tsunami
        EV_CORINGA,                   // a Ficha Coringa vira o ultimo dado do oponente
        EV_TREMOR,                    // o Terremoto: o ultimo dado do oponente rola de novo
-       EV_CARROSSEL };               // o Carrossel para no numero de dados validos da mesa
+       EV_CARROSSEL,                 // o Carrossel para no numero de dados validos da mesa
+       EV_COME };                    // a Autofagia come o seu menor dado (que ja pontuou): guarda o numero dele
 // Mascara de amuletos: bit a, o amuleto a (sao mais de 32).
 typedef uint64_t amul_t;
 #define AM_BIT(a) ((amul_t)1 << (a))
@@ -160,6 +163,8 @@ typedef struct {
     uint8_t bloqueado;               // dados do alvo (bit k: alvo_j, k) com a capa do Impermeavel: o
                                      // efeito chega, mas nao pega (nem passa para outro dado)
     int     antes;                   // EV_TREMOR: o que o dado sacudido tinha tirado
+    bool    tem_seq;                 // os que refazem uma sequencia no comeco do desfecho (o Oculto, o Espelho, o
+    uint8_t seq[N_FILA];             // tremor, a Ficha Coringa, o Carrossel): como ela ficou logo depois deste
     uint8_t bolsa_i;                 // EV_ADESIVO do Infectado e do Barro: o dado da bolsa que pegou (0xFF: nenhum)
     uint32_t bolsa_lados;            // e os lados dele (bit l: o lado l)
     bool    bolsa_capa;              // o Barro: o dado sorteado estava com a bolha do Impermeavel (nao sujou)
@@ -357,7 +362,6 @@ static int am_lugares(void);         // os de agora (desafio/bolsas.inc)
 static amul_t amul[2];
 static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou (o resto de amul[1] e o trunfo)
 static amul_t am_disparou;           // amuletos que acabaram de agir (a faixa acende)
-static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
 static int des_rod_cheias;           // as vencidas com 4 dados validos (abre o Estojo de Lapis)
 static bool des_atras7;              // comecou a 7a rodada atras em fichas (abre o Saco de Sementes)

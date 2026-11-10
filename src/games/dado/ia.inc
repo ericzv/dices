@@ -384,6 +384,7 @@ static bool abre_continua(int j) { return abre_continua_de(j, false); }
 // moedas que so ganha porque o rival fez pouco.
 #define IA_MARGEM 0.005f
 #define IA_FICHAS 0.01f                 // cada ficha do Agiota e da Gorjeta, na nota da mao
+static float ia_folga = 1.0f;                // quanto a margem pesa (a mestre, que conta fichas, quase nao olha)
 static bool ia_sem_margem[2];                // so para medir a IA antiga nos testes
 // O que ainda nao se ve na mesa, a IA imagina: o Oculto de cada lado tira um
 // numero ao acaso (nem o dono sabe o dele) e entra na sequencia.
@@ -420,7 +421,7 @@ static float nota_mesa(int j, bool margem)
     float r = a > b ? 1.0f : (a == b ? 0.5f : 0.0f);
     if (margem && !ia_sem_margem[j & 1]) {
         int m = a - b < -20 ? -20 : a - b > 20 ? 20 : a - b;
-        r += IA_MARGEM * (float)m;
+        r += IA_MARGEM * ia_folga * (float)m;
         // E as fichas que a rodada paga por fora (o Agiota e a Gorjeta), com
         // peso pequeno: so desempatam maos de margem parecida.
         int o = outro(j);
@@ -500,7 +501,8 @@ static float sim_resto(int j, bool margem)
 #define IA_AMOSTRAS 240
 static int ia_esforco = 1;                   // o simulador pede menos para andar rapido
 // Nivel da IA: 0 facil (a IA antiga, de regras simples), 1 medio (a que
-// imagina jogadas, mas pensando pouco: erra de vez em quando), 2 dificil.
+// imagina jogadas, mas pensando pouco: erra de vez em quando), 2 dificil,
+// 3 a mestre (no fim do arquivo; nenhuma mesa do jogo usa ainda).
 static int ia_nivel = 2;
 static int nivel_jog[2] = { 2, 2 };          // o nivel de cada lado (so conta onde ha IA; declarado em estado.inc)
 // No Desafiante, o oponente do comeco da run pensa um nivel acima numa parte
@@ -623,21 +625,15 @@ static float avalia_fila(int j, const int8_t *seq, int L, int amostras, uint32_t
 
 #define MAX_CAND 2520                        // 7 x 6 x 5 x 4 x 3 (a fila de 5 do Estojo de Lapis)
 _Static_assert(MAO <= 16 && N_FILA * 4 <= 64, "a assinatura da fila: um lugar da mao em 4 bits");
-static void ia_planeja(void)
+static int8_t cand[MAX_CAND][N_FILA];
+static float nota_c[MAX_CAND];
+static uint64_t assin[MAX_CAND];
+// Todas as filas de L dados da mao de j que vale a pena pesar (em cand[]);
+// gm: o lugar na mao do dado grudado pelo Chiclete, ou -1. Devolve quantas.
+static int monta_candidatas(int j, int L, int gm)
 {
-    int j = vez;
-    if (plano_rodada == rodada && plano_vez == j) return;
     jogador_t *p = &J[j];
-    int n = p->n_mao, L = n < max_fila(j) ? n : max_fila(j);
-    plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
-    if (L <= 0) return;
-    int gm = -1;                                 // o grudado pelo Chiclete: o primeiro de toda fila
-    for (int m = 0; m < n && F[j].grudado; m++) if (p->mao[m] == F[j].idx[0]) gm = m;
-
-    static int8_t cand[MAX_CAND][N_FILA];
-    static float nota_c[MAX_CAND];
-    static uint64_t assin[MAX_CAND];
-    int nc = 0;
+    int n = p->n_mao, nc = 0;
     // Todas as sequencias de L posicoes diferentes da mao. Sequencias com os
     // mesmos dados na mesma ordem (dois d6 trocados) contam uma vez so. Igual
     // e igual de tudo: o tipo, o numero guardado, os adesivos e as marcas
@@ -678,6 +674,22 @@ static void ia_planeja(void)
         assin[nc] = a;
         memcpy(cand[nc++], s, N_FILA);
     }
+    return nc;
+}
+
+static void mestre_planeja(void);            // a do nivel 3, mais abaixo
+static void ia_planeja(void)
+{
+    int j = vez;
+    if (plano_rodada == rodada && plano_vez == j) return;
+    if (ia_nivel >= 3) { mestre_planeja(); return; }
+    jogador_t *p = &J[j];
+    int n = p->n_mao, L = n < max_fila(j) ? n : max_fila(j);
+    plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
+    if (L <= 0) return;
+    int gm = -1;                                 // o grudado pelo Chiclete: o primeiro de toda fila
+    for (int m = 0; m < n && F[j].grudado; m++) if (p->mao[m] == F[j].idx[0]) gm = m;
+    int nc = monta_candidatas(j, L, gm);
 
     mesa_t m;
     guarda_mesa(&m);
@@ -990,6 +1002,814 @@ static int facil_premio(void)
     return b;
 }
 
+// ===========================================================================
+// A IA mestre (nivel 3)
+// ===========================================================================
+// Um nivel acima da afiada. Nenhuma mesa do jogo usa ainda: e so pedir o
+// nivel 3 (nivel_jog) que ela joga. Monta a fila e lanca como a afiada, com
+// mais cuidado na escolha, e muda de verdade na aposta, que ela pensa pela
+// partida inteira: o que conta nao e vencer a rodada, e a chance de vencer a
+// partida com as fichas que sobram depois dela.
+//
+// A aposta e um jogo pequeno em que so um lado tem segredo: a mesa de quem
+// abriu esta a vista, e so quem joga depois sabe a mao que tem. A mestre
+// sorteia as maos que ele pode ter, mede a chance de cada uma contra a mesa
+// (com as regras de verdade) e resolve esse jogo ate o equilibrio: quanto
+// apostar com mao boa, quanto blefar, quando pagar e quando correr. Medido
+// na arena (tests/arena.c), contra a afiada. (O jeito de apostar de cada
+// oponente, ia_ousadia, ela nao usa: aposta sempre pela conta.)
+
+// A curva da partida: a chance (em 10000) de vencer a partida para quem ABRE
+// a rodada r (linha r - 1), entrando nela com d fichas a mais que o rival
+// (coluna: d de -100 a 100, de 4 em 4; as fichas dos dois somam 100). Quem
+// nao paga a entrada ja perdeu. Sai de tras para a frente (tests/arena.c,
+// "curva"): na ultima rodada so importa quem fica na frente; em cada rodada
+// antes, o valor e o da aposta resolvida, em mesas de partidas de verdade,
+// com a curva da rodada seguinte no fim. Quem joga depois ve a mesa, e por
+// isso abrir vale menos: levar a rodada (e abrir a proxima) pesa menos que as
+// fichas dizem.
+#define MS_CURVA_N 51
+static const uint16_t MS_CURVA[DES_RODADAS][MS_CURVA_N] = {
+    { 0, 0, 0, 417, 558, 733, 941, 1111, 1323, 1511, 1699, 1880, 2087, 2348, 2556, 2724, 2873, 3102, 3412,
+      3650, 3792, 3937, 4194, 4530, 4789, 4922, 5054, 5315, 5657, 5917, 6057, 6196, 6441, 6753, 6995, 7151,
+      7312, 7529, 7793, 8005, 8195, 8392, 8589, 8813, 8992, 9210, 9398, 9550, 10000, 10000, 10000, },
+    { 0, 0, 0, 404, 541, 701, 894, 1093, 1253, 1455, 1669, 1897, 2109, 2240, 2437, 2714, 2987, 3160, 3275,
+      3457, 3789, 4124, 4297, 4383, 4560, 4922, 5287, 5463, 5543, 5717, 6061, 6405, 6584, 6688, 6861, 7164,
+      7462, 7633, 7762, 7987, 8226, 8450, 8663, 8829, 9041, 9243, 9415, 9564, 10000, 10000, 10000, },
+    { 0, 0, 0, 330, 481, 663, 871, 1017, 1240, 1426, 1619, 1772, 1982, 2320, 2544, 2683, 2777, 3024, 3419,
+      3654, 3746, 3825, 4103, 4571, 4855, 4919, 4980, 5265, 5746, 6028, 6098, 6184, 6433, 6839, 7104, 7196,
+      7319, 7560, 7898, 8113, 8274, 8477, 8671, 8912, 9066, 9285, 9480, 9644, 10000, 10000, 10000, },
+    { 0, 0, 0, 391, 487, 610, 696, 935, 1131, 1283, 1545, 1828, 2093, 2125, 2330, 2683, 3024, 3147, 3205,
+      3298, 3768, 4198, 4277, 4325, 4385, 4919, 5459, 5520, 5552, 5630, 6106, 6577, 6660, 6726, 6835, 7206,
+      7596, 7740, 7774, 8060, 8357, 8638, 8795, 8985, 9248, 9341, 9475, 9578, 10000, 10000, 10000, },
+    { 0, 0, 0, 0, 0, 667, 836, 1041, 1041, 1403, 1424, 1438, 1584, 2341, 2622, 2680, 2719, 3084, 3488, 3574,
+      3594, 3630, 3674, 4764, 4867, 4887, 4913, 4957, 6040, 6147, 6151, 6183, 6277, 6864, 7087, 7129, 7191,
+      7497, 8275, 8441, 8456, 8479, 8878, 8878, 9095, 9283, 10000, 10000, 10000, 10000, 10000, },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 1120, 1384, 1384, 1384, 2024, 2024, 2213, 2213, 2213, 2308, 3634, 3634, 3780,
+      3885, 3885, 4852, 4852, 4852, 4852, 4852, 6132, 6132, 6132, 6132, 6132, 7595, 7595, 7595, 7595, 7807,
+      7807, 8503, 8503, 8503, 8797, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2323, 2323, 2323, 2323, 3296, 3296, 3296, 3296, 3296, 3296,
+      5005, 5005, 5005, 5005, 5005, 6412, 6412, 6412, 6412, 6412, 7503, 7503, 7503, 7503, 7503, 10000, 10000,
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4820, 4820, 4820, 4820, 4820, 4820, 4820, 4820,
+      4820, 4820, 4820, 4820, 4820, 4820, 4820, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, },
+};
+static const uint16_t (*ms_curva)[MS_CURVA_N] = MS_CURVA;   // (a arena troca pela que esta medindo)
+static float ms_curva_le(int r, float d)
+{
+    const uint16_t *c = ms_curva[r - 1];
+    float x = (d + 100.0f) / 4.0f;
+    if (x <= 0) return (float)c[0] / 10000.0f;
+    if (x >= MS_CURVA_N - 1) return (float)c[MS_CURVA_N - 1] / 10000.0f;
+    int i = (int)x;
+    float t = x - (float)i;
+    return ((1.0f - t) * (float)c[i] + t * (float)c[i + 1]) / 10000.0f;
+}
+// Chance de vencer a partida saindo desta rodada com fj fichas contra fr;
+// abre: j abre a proxima (levou esta). Depois da ultima rodada, so importa
+// quem fica na frente; antes dela, quem nao paga a proxima entrada perde, e o
+// resto vem da curva. Fora do Desafiante (mais rodadas, mais fichas), a curva
+// vale pelas rodadas que faltam e pela parte das fichas.
+static float ms_util(int fj, int fr, bool abre)
+{
+    int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
+    int d = fj - fr, faltam = max_r - rodada;
+    float lado = d > 0 ? 1.0f : d < 0 ? 0.0f : 0.5f;
+    if (!ms_curva) return 0.5f + (float)d / 400.0f;   // (sem curva: so as fichas, para a arena medir a aposta em fichas)
+    if (faltam <= 0) return lado;
+    int ante = ante_da(rodada + 1);
+    if (fj < ante || fr < ante) return fj < ante && fr < ante ? lado : fj < ante ? 0.0f : 1.0f;
+    int r = faltam >= DES_RODADAS ? 1 : DES_RODADAS + 1 - faltam;
+    float dn = (float)d * 100.0f / (float)(fj + fr);
+    return abre ? ms_curva_le(r, dn) : 1.0f - ms_curva_le(r, -dn);
+}
+
+// As maos que r pode ter (ele ainda nao jogou): MS_TIPOS maos sorteadas do
+// que ele tem na bolsa e na mao (a mao de verdade a IA nao olha), cada uma
+// jogada MS_LANCES vezes contra a mesa de quem abriu. p[k]: a chance de a mao
+// k vencer a rodada.
+#define MS_TIPOS  40
+#define MS_LANCES 20
+// A mao imaginada joga pela regra simples (fila_imaginada); quem joga de
+// verdade acha filas melhores. Medido (LAB=3 na arena): 9 pontos de chance a
+// mais nas maos do meio, nada nas que ja vencem ou perdem sempre.
+#define MS_ACHA   0.09f
+static uint32_t ms_marca(int j);
+// As maos ja medidas desta aposta (a conta se reparte por quadros, e serve
+// para as duas decisoes de quem abriu). crua: a chance de quem abriu sem o
+// acerto de MS_ACHA - o que o rival franco ve.
+static struct { uint32_t marca; int k; float p[MS_TIPOS], crua; } ms_maos;
+// Mede mais n maos de r; true quando estao todas. A mesa volta como estava.
+static bool ms_maos_fatia(int r, int n)
+{
+    uint32_t base = 0x3E57A1u + (uint32_t)rodada * 7919u + (uint32_t)primeiro * 104729u;
+    uint32_t marca = (ms_marca(r) ^ base) | 1;
+    if (ms_maos.marca != marca) { ms_maos.marca = marca; ms_maos.k = 0; ms_maos.crua = 0; }
+    if (ms_maos.k >= MS_TIPOS) return true;
+    mesa_t m;
+    guarda_mesa(&m);
+    for (; n > 0 && ms_maos.k < MS_TIPOS; n--, ms_maos.k++) {
+        int k = ms_maos.k;
+        float s = 0;
+        for (int a = 0; a < MS_LANCES; a++) {
+            volta_mesa(&m);
+            semeia_ia(base, k);                  // a mesma mao em todos os lances dela
+            fila_imaginada(r, false);
+            semeia_ia(base ^ (0x9E3779B9u * (uint32_t)(k + 1)), a);
+            sim_turno(r);
+            s += placar(r);
+        }
+        s /= (float)MS_LANCES;
+        ms_maos.crua += (1.0f - s) / (float)MS_TIPOS;
+        ms_maos.p[k] = s + MS_ACHA * 4.0f * s * (1.0f - s);
+    }
+    volta_mesa(&m);
+    return ms_maos.k >= MS_TIPOS;
+}
+// Todas de uma vez, em p[] (e devolve a chance crua de quem abriu).
+static float ms_tipos(int r, float *p)
+{
+    while (!ms_maos_fatia(r, MS_TIPOS)) {}
+    memcpy(p, ms_maos.p, sizeof ms_maos.p);
+    return ms_maos.crua;
+}
+
+// A aposta, numa copia: f[0] e de quem abriu a rodada, f[1] de quem joga
+// depois; vez, 0 ou 1 do mesmo jeito. As contas sao as de aposta.inc.
+typedef struct { int f[2], pote, a_pagar, passes, vez; bool aumentou; } ms_ap_t;
+static int ms_lim(const ms_ap_t *s, int quer)
+{
+    int m = s->f[0] < s->f[1] ? s->f[0] : s->f[1];
+    return quer < m ? quer : m;
+}
+static int ms_sobe(const ms_ap_t *s)
+{
+    int sobe = s->a_pagar, sobra = s->f[s->vez] - s->a_pagar;
+    if (sobe > sobra) sobe = sobra;
+    if (sobe > s->f[s->vez ^ 1]) sobe = s->f[s->vez ^ 1];
+    return sobe < 0 ? 0 : sobe;
+}
+// O que da para fazer (so o que muda alguma coisa: sem ficha, apostar e passar).
+static int ms_ops(const ms_ap_t *s, int *op)
+{
+    int n = 0;
+    if (!s->a_pagar) {
+        int b10 = ms_lim(s, 10), b25 = ms_lim(s, 25);
+        op[n++] = OP_PASSAR;
+        if (b10 > 0) op[n++] = OP_APOSTAR10;
+        if (b25 > b10) op[n++] = OP_APOSTAR25;
+    } else {
+        op[n++] = OP_CORRER;
+        op[n++] = OP_PAGAR;
+        if (!s->aumentou && ms_sobe(s) > 0) op[n++] = OP_AUMENTAR;
+    }
+    return n;
+}
+// Faz o lance na copia: 0, a aposta segue; 1, fechou (o segundo joga); 2,
+// quem estava na vez correu.
+static int ms_faz(ms_ap_t *s, int op)
+{
+    int v = s->vez;
+    switch (op) {
+    case OP_PASSAR:
+        if (++s->passes >= 2) return 1;
+        break;
+    case OP_APOSTAR10:
+    case OP_APOSTAR25: {
+        int b = ms_lim(s, op == OP_APOSTAR10 ? 10 : 25);
+        if (b <= 0) return 1;
+        s->f[v] -= b; s->pote += b; s->a_pagar = b;
+        break;
+    }
+    case OP_PAGAR: {
+        int b = s->a_pagar < s->f[v] ? s->a_pagar : s->f[v];
+        s->f[v] -= b; s->pote += b;
+        return 1;
+    }
+    case OP_AUMENTAR: {
+        int sobe = ms_sobe(s);
+        s->f[v] -= s->a_pagar + sobe; s->pote += s->a_pagar + sobe;
+        s->a_pagar = sobe;
+        s->aumentou = true;
+        break;
+    }
+    default:
+        return 2;
+    }
+    s->vez = v ^ 1;
+    return 0;
+}
+// O que quem abriu espera da partida (ms_util) se a aposta acabar assim,
+// contra cada mao k do outro: correu alguem, ou os dados decidem o pote.
+static void ms_fim(const ms_ap_t *s, int fim, const float *p, int K, float *u)
+{
+    if (fim == 2) {
+        float v = s->vez == 0 ? ms_util(s->f[0], s->f[1] + s->pote, false) : ms_util(s->f[0] + s->pote, s->f[1], true);
+        for (int k = 0; k < K; k++) u[k] = v;
+        return;
+    }
+    float ganha = ms_util(s->f[0] + s->pote, s->f[1], true), perde = ms_util(s->f[0], s->f[1] + s->pote, false);
+    for (int k = 0; k < K; k++) u[k] = (1.0f - p[k]) * ganha + p[k] * perde;
+}
+
+// O rival franco: aposta pelo valor, como a IA afiada e muita gente - aposta
+// quando esta bem, dobra quando esta muito bem, paga quando a chance cobre o
+// preco, quase nao blefa (os cortes sao os de ia_aposta). x: a chance que ele
+// ve (a da mao, para quem joga depois; a da mesa, para quem abriu), com uma
+// folga (larg) no lugar do corte seco. Devolve a chance de cada lance de op[].
+static float ms_mole(float v, float larg) { return 1.0f / (1.0f + expf(-v / larg)); }
+static void ms_franco(const ms_ap_t *s, float x, float larg, const int *op, int n, float *sg)
+{
+    float q[OP_CORRER + 1] = { 0 };
+    if (!s->a_pagar) {
+        float f25 = ms_mole(x - 0.72f, larg), f10 = ms_mole(x - 0.58f, larg);
+        if (f10 < f25) f10 = f25;
+        float blefe = 0.125f * ms_mole(0.35f - x, larg);
+        q[OP_APOSTAR25] = f25;
+        q[OP_APOSTAR10] = f10 - f25 + blefe * (1 - f10);
+        q[OP_PASSAR] = 1 - q[OP_APOSTAR25] - q[OP_APOSTAR10];
+        bool tem10 = false, tem25 = false;
+        for (int a = 0; a < n; a++) { tem10 |= op[a] == OP_APOSTAR10; tem25 |= op[a] == OP_APOSTAR25; }
+        if (!tem25) { q[OP_APOSTAR10] += q[OP_APOSTAR25]; q[OP_APOSTAR25] = 0; }
+        if (!tem10) { q[OP_PASSAR] += q[OP_APOSTAR10]; q[OP_APOSTAR10] = 0; }
+    } else {
+        float precisa = (float)s->a_pagar / (float)(s->pote + s->a_pagar);
+        float dobra = ms_mole(x - 0.75f, larg), paga = ms_mole(x - precisa, larg);
+        q[OP_AUMENTAR] = dobra;
+        q[OP_PAGAR] = (1 - dobra) * paga;
+        q[OP_CORRER] = 1 - q[OP_AUMENTAR] - q[OP_PAGAR];
+        bool tem = false;
+        for (int a = 0; a < n; a++) tem |= op[a] == OP_AUMENTAR;
+        if (!tem) { q[OP_PAGAR] += q[OP_AUMENTAR]; q[OP_AUMENTAR] = 0; }
+    }
+    for (int a = 0; a < n; a++) sg[a] = q[op[a]];
+}
+
+// O equilibrio, pelo arrependimento: a cada volta, cada lado joga mais o que
+// teria dado mais certo ate ali (quem abriu, um plano so; o outro, um por
+// mao), e a media das voltas vai para o equilibrio. O jogo e pequeno: cabe
+// em poucos milissegundos.
+// O rival da conta e uma mistura: numa parte (MS_FRANCA) ele e o franco, de
+// plano fixo; no resto, joga o melhor que da contra a mestre. Assim ela ganha
+// do jeito franco de apostar sem abrir a guarda para quem a estuda: com a
+// parte franca em 0, e o equilibrio puro, que ninguem explora (e que ganha
+// menos de quem aposta franco).
+#define MS_NOS 64                            // ate 3 lances antes de cada decisao: 4^3
+static float ms_arrep[MS_NOS][MS_TIPOS + 1][3], ms_media[MS_NOS][MS_TIPOS + 1][3], ms_fixo[MS_NOS][MS_TIPOS + 1][3];
+typedef struct {
+    const float *p, *w;                      // a chance e o peso de cada mao de quem joga depois
+    int K, eu;                               // eu: o lado da mestre (0 abriu, 1 joga depois)
+    bool franco, primeira;                   // nesta volta, o rival e o franco; e a primeira volta
+    float peso, mesa;                        // o peso da volta na media; mesa: a chance que quem abriu ve
+} ms_conta_t;
+static void ms_plano(const float *arrep, int n, float *sg)
+{
+    float t = 0;
+    for (int a = 0; a < n; a++) t += arrep[a] > 0 ? arrep[a] : 0;
+    for (int a = 0; a < n; a++) {
+        sg[a] = t > 0 ? (arrep[a] > 0 ? arrep[a] : 0) / t : 1.0f / (float)n;
+        if (sg[a] < 1e-4f) sg[a] = 0;            // (chances minusculas multiplicadas viram numeros que travam a conta)
+    }
+}
+#define MS_LARG_MESA 0.03f
+#define MS_LARG_MAO  0.06f
+// Uma volta, do no h em diante. ra e rb[k]: a chance de cada lado ter jogado
+// ate aqui (rb, por mao). Devolve em u[k] o que quem abriu espera contra a mao k.
+static void ms_volta(const ms_conta_t *c, ms_ap_t s, int h, float ra, const float *rb, float *u)
+{
+    int op[3], n = ms_ops(&s, op), K = c->K;
+    float ua[3][MS_TIPOS + 1], rb2[MS_TIPOS + 1], sg[3];
+    bool fixo = c->franco && s.vez != c->eu;     // o rival franco: plano fixo, sem aprender
+    if (s.vez == 0) {
+        if (fixo) {                              // (o plano do franco nao muda de uma volta para a outra)
+            if (c->primeira) ms_franco(&s, c->mesa, MS_LARG_MESA, op, n, ms_fixo[h][0]);
+            memcpy(sg, ms_fixo[h][0], sizeof sg);
+        } else ms_plano(ms_arrep[h][0], n, sg);
+        for (int a = 0; a < n; a++) {
+            ms_ap_t s2 = s;
+            int fim = ms_faz(&s2, op[a]);
+            if (fim) ms_fim(&s2, fim, c->p, K, ua[a]);
+            else ms_volta(c, s2, h * 4 + a + 1, ra * sg[a], rb, ua[a]);
+            if (!c->franco) ms_media[h][0][a] += c->peso * ra * sg[a];
+        }
+        float arr[3] = { 0 };
+        for (int k = 0; k < K; k++) {
+            u[k] = 0;
+            for (int a = 0; a < n; a++) u[k] += sg[a] * ua[a][k];
+            for (int a = 0; a < n; a++) arr[a] += c->w[k] * rb[k] * (ua[a][k] - u[k]);
+        }
+        for (int a = 0; a < n && !fixo; a++) {
+            float v = ms_arrep[h][0][a] + arr[a];
+            ms_arrep[h][0][a] = v > 0 ? v : 0;
+        }
+        return;
+    }
+    float sk[MS_TIPOS + 1][3];
+    for (int k = 0; k < K; k++) {
+        if (fixo) {
+            if (c->primeira) ms_franco(&s, c->p[k], MS_LARG_MAO, op, n, ms_fixo[h][k]);
+            memcpy(sk[k], ms_fixo[h][k], sizeof sk[k]);
+        } else ms_plano(ms_arrep[h][k], n, sk[k]);
+    }
+    for (int a = 0; a < n; a++) {
+        for (int k = 0; k < K; k++) rb2[k] = rb[k] * sk[k][a];
+        ms_ap_t s2 = s;
+        int fim = ms_faz(&s2, op[a]);
+        if (fim) ms_fim(&s2, fim, c->p, K, ua[a]);
+        else ms_volta(c, s2, h * 4 + a + 1, ra, rb2, ua[a]);
+    }
+    for (int k = 0; k < K; k++) {
+        u[k] = 0;
+        for (int a = 0; a < n; a++) u[k] += sk[k][a] * ua[a][k];
+        for (int a = 0; a < n && !fixo; a++) {
+            float v = ms_arrep[h][k][a] + ra * (u[k] - ua[a][k]);   // o que e bom para quem abriu e ruim para ele
+            ms_arrep[h][k][a] = v > 0 ? v : 0;
+            if (!c->franco) ms_media[h][k][a] += c->peso * rb[k] * sk[k][a];
+        }
+    }
+}
+#define MS_VOLTAS 300
+#define MS_FRANCA 0.8f
+static float ms_franca_jog[2] = { MS_FRANCA, MS_FRANCA };   // a parte franca de cada lugar (a arena mede uma contra a outra)
+// Resolve a aposta a partir de s. eu: o lado da mestre; fr: a parte franca do
+// rival; mesa: a chance que quem abriu ve. Devolve o que quem abriu espera da
+// partida (a media das voltas).
+static float ms_resolve(const ms_ap_t *s, const float *p, const float *w, int K, int eu, float fr, float mesa)
+{
+    memset(ms_arrep, 0, sizeof ms_arrep);
+    memset(ms_media, 0, sizeof ms_media);
+    float rb[MS_TIPOS + 1], u[MS_TIPOS + 1];
+    ms_conta_t c = { .p = p, .w = w, .K = K, .eu = eu, .mesa = mesa };
+    if (fr > 0.95f) fr = 0.95f;                  // (a media dos planos vem da parte livre)
+    float valor = 0, pesos = 0;
+    for (int t = 1; t <= MS_VOLTAS; t++) {
+        c.peso = (float)t;
+        c.primeira = t == 1;
+        for (int mundo = 0; mundo < 2; mundo++) {
+            float parte = mundo ? fr : 1.0f - fr;
+            if (parte <= 0) continue;
+            c.franco = mundo == 1;
+            // A parte do rival entra no alcance dele: no de quem joga depois, por mao; no de quem abriu, um so.
+            for (int k = 0; k < K; k++) rb[k] = eu == 0 ? parte : 1.0f;
+            ms_volta(&c, *s, 0, eu == 0 ? 1.0f : parte, rb, u);
+            for (int k = 0; k < K; k++) valor += c.peso * parte * w[k] * u[k];
+        }
+        pesos += c.peso;
+    }
+    return valor / pesos;
+}
+// O plano medio de um no (k: a mao de quem joga depois; 0 para quem abriu).
+static void ms_le(int h, int k, int n, float *q)
+{
+    float t = 0;
+    for (int a = 0; a < n; a++) t += ms_media[h][k][a];
+    for (int a = 0; a < n; a++) q[a] = t > 0 ? ms_media[h][k][a] / t : 1.0f / (float)n;
+}
+
+// Um numero de 0 a 1 para sortear o lance desta decisao: sai do contador das
+// decisoes e do que esta na mesa, sem gastar sorteio nenhum (nem o da IA).
+static float ms_sorte(void)
+{
+    uint32_t h = ia_conta * 2654435761u ^ (uint32_t)rodada * 40503u ^ (uint32_t)pote * 9973u
+               ^ (uint32_t)a_pagar * 131u ^ (uint32_t)J[vez].fichas * 7919u ^ (uint32_t)vez * 0x51ED27u;
+    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
+    return (float)(h >> 8) / 16777216.0f;
+}
+// Sorteia um lance do plano q; o que quase nunca se joga (menos de 4%) e
+// ruido da conta, e fica de fora.
+static int ms_escolhe(const float *q, int n)
+{
+    float t = 0, c[3];
+    for (int a = 0; a < n; a++) { c[a] = q[a] < 0.04f ? 0 : q[a]; t += c[a]; }
+    if (t <= 0) return 0;
+    float x = ms_sorte() * t;
+    for (int a = 0; a < n; a++) { if (x < c[a]) return a; x -= c[a]; }
+    return n - 1;
+}
+
+static int ms_apostou[2] = { -1, -1 };       // rodada * 32 + quanto: a aposta que a mestre abriu (para refazer a conta se dobrarem)
+// O plano da ultima decisao de aposta: os lances e a chance de cada um (os
+// testes e a arena olham).
+static int ms_ult_ops[3], ms_ult_n;
+static float ms_ult_q[3];
+
+// Ele apostou (ou dobrou) e a mestre, que abriu, responde: acha o comeco da
+// aposta (s0) e o caminho ate aqui. Devolve o no de agora (ou -1); *hb, o no
+// em que ele decidiu; *ib, o lance dele la; *sb, a aposta naquela hora.
+static int ms_refaz(const ms_ap_t *s, int j, ms_ap_t *s0, ms_ap_t *sb, int *hb, int *ib)
+{
+    for (int t = 0; t < 3; t++) {
+        int x = 0;
+        if (s->aumentou) {                       // a mestre apostou x e ele dobrou
+            x = t == 0 ? (ms_apostou[j & 1] / 32 == rodada ? ms_apostou[j & 1] % 32 : 0) : t == 1 ? 10 : 25;
+            if (x <= 0) continue;
+            *s0 = (ms_ap_t){ .f = { s->f[0] + x, s->f[1] + x + s->a_pagar }, .pote = s->pote - 2 * x - s->a_pagar };
+        } else {                                 // a mestre passou e ele apostou
+            if (t) break;
+            *s0 = (ms_ap_t){ .f = { s->f[0], s->f[1] + s->a_pagar }, .pote = s->pote - s->a_pagar, .passes = 0 };
+        }
+        if (s0->pote < 0) continue;
+        int o0[3], n0 = ms_ops(s0, o0);
+        for (int a = 0; a < n0; a++) {
+            int o1 = o0[a];
+            if (s->aumentou ? (o1 == OP_PASSAR || ms_lim(s0, o1 == OP_APOSTAR10 ? 10 : 25) != x) : o1 != OP_PASSAR) continue;
+            *sb = *s0;
+            if (ms_faz(sb, o1)) continue;
+            int o2[3], nb = ms_ops(sb, o2);
+            for (int c = 0; c < nb; c++) {
+                ms_ap_t s2 = *sb;
+                if (ms_faz(&s2, o2[c])) continue;
+                if (s2.f[0] == s->f[0] && s2.f[1] == s->f[1] && s2.pote == s->pote && s2.a_pagar == s->a_pagar
+                    && s2.aumentou == s->aumentou) { *hb = a + 1; *ib = c; return *hb * 4 + c + 1; }
+            }
+        }
+    }
+    return -1;
+}
+
+// O lance da mestre na aposta: o lugar dele em opcoes().
+static int mestre_aposta(void)
+{
+    int j = vez, r = outro(j), pr = primeiro;
+    bool abre = j == pr;
+    ms_ap_t s = { .f = { J[pr].fichas, J[outro(pr)].fichas }, .pote = pote, .a_pagar = a_pagar,
+                  .passes = passes, .vez = abre ? 0 : 1, .aumentou = aumentou };
+    int ops[3], n = ms_ops(&s, ops);
+    float p[MS_TIPOS + 1], w[MS_TIPOS + 1], q[3] = { 0 }, fr = ms_franca_jog[j & 1];
+    int K = MS_TIPOS, certo = -1;                // certo: o lance, quando a conta da um so
+    float crua;
+    if (!abre) {
+        // Quem joga depois sabe tudo: a chance da mao dele e a conta.
+        float eu = ia_chance();
+        if (a_pagar && aumentou) {               // dobraram a aposta dele: paga se vale
+            float corre = ms_util(s.f[1], s.f[0] + s.pote, false);
+            int b = s.a_pagar < s.f[1] ? s.a_pagar : s.f[1];
+            float paga = eu * ms_util(s.f[1] + s.pote, s.f[0], true) + (1 - eu) * ms_util(s.f[1] - b, s.f[0] + s.pote + b, false);
+            certo = paga >= corre ? OP_PAGAR : OP_CORRER;
+        } else {
+            // O que quem abriu responde depende do que ele imagina da mao: as
+            // maos que esta poderia ser, e a de verdade no meio delas.
+            crua = ms_tipos(j, p);
+            p[K] = eu;
+            for (int k = 0; k <= K; k++) w[k] = 1.0f / (float)(K + 1);
+            ms_resolve(&s, p, w, K + 1, 1, fr, crua);
+            ms_le(0, K, n, q);
+        }
+    } else {
+        crua = ms_tipos(r, p);
+        for (int k = 0; k < K; k++) w[k] = 1.0f / (float)K;
+        ms_ap_t s0, sb;
+        int hb = -1, ib = -1, h = 0;
+        if (!a_pagar) {
+            ms_resolve(&s, p, w, K, 0, fr, crua);
+            ms_le(0, 0, n, q);
+        } else if ((h = ms_refaz(&s, j, &s0, &sb, &hb, &ib)) >= 0) {
+            // Ele apostou (ou dobrou): a aposta diz alguma coisa da mao dele.
+            // A conta, refeita do comeco da aposta, diz com que maos ele faria
+            // isso, e o plano dela para este no ja responde a essas maos.
+            ms_resolve(&s0, p, w, K, 0, fr, crua);
+            float pos[MS_TIPOS], massa = 0;
+            int ob[3], nb = ms_ops(&sb, ob);
+            for (int t = 0; t < 2 && massa < 0.03f; t++) {
+                massa = 0;
+                for (int k = 0; k < K; k++) {
+                    float qb[3], qf[3];
+                    ms_le(hb, k, nb, qb);
+                    ms_franco(&sb, p[k], MS_LARG_MAO, ob, nb, qf);
+                    for (int c = 0; c < nb; c++) qb[c] = (1 - fr) * qb[c] + fr * qf[c];
+                    float v = t == 0 ? qb[ib] : 0;
+                    if (t == 1) for (int c = 1; c < nb; c++) v += qb[c];
+                    pos[k] = w[k] * v;
+                    massa += pos[k];
+                }
+            }
+            if (massa >= 0.03f) ms_le(h, 0, n, q);
+            else {
+                // Um lance que a conta nao espera de mao nenhuma (nem a outra
+                // aposta dele): quanto mais forte a mao, mais ele aposta - e a
+                // mestre responde o melhor contra essas maos.
+                massa = 0;
+                for (int k = 0; k < K; k++) { pos[k] = w[k] * p[k]; massa += pos[k]; }
+                float melhor = -1;
+                for (int a = 0; a < n; a++) {
+                    ms_ap_t s2 = s;
+                    int fim = ms_faz(&s2, ops[a]);
+                    float u[MS_TIPOS], v = 0;
+                    if (fim) ms_fim(&s2, fim, p, K, u);
+                    else {                       // dobrou: ele paga so com o que vale a pena
+                        ms_ap_t sc = s2, sp = s2;
+                        float uc[MS_TIPOS], up[MS_TIPOS];
+                        ms_fim(&sc, ms_faz(&sc, OP_CORRER), p, K, uc);
+                        ms_fim(&sp, ms_faz(&sp, OP_PAGAR), p, K, up);
+                        for (int k = 0; k < K; k++) u[k] = up[k] < uc[k] ? up[k] : uc[k];
+                    }
+                    for (int k = 0; k < K; k++) v += pos[k] * u[k];
+                    if (v > melhor) { melhor = v; certo = ops[a]; }
+                }
+            }
+        } else {
+            // Nao deu para refazer a conta (nao devia acontecer): paga pelo preco.
+            float eu = 0;
+            for (int k = 0; k < K; k++) eu += w[k] * (1 - p[k]);
+            certo = eu >= (float)a_pagar / (float)(pote + a_pagar) ? OP_PAGAR : OP_CORRER;
+        }
+    }
+    if (certo >= 0) for (int a = 0; a < n; a++) q[a] = ops[a] == certo ? 1.0f : 0.0f;
+    ms_ult_n = n;
+    for (int a = 0; a < n; a++) { ms_ult_ops[a] = ops[a]; ms_ult_q[a] = q[a]; }
+    int quer = ops[ms_escolhe(q, n)];
+    if (abre && !a_pagar && (quer == OP_APOSTAR10 || quer == OP_APOSTAR25))
+        ms_apostou[j & 1] = rodada * 32 + ms_lim(&s, quer == OP_APOSTAR10 ? 10 : 25);
+    int op[4], no = opcoes(op);
+    for (int i = 0; i < no; i++) if (op[i] == quer) return i;
+    for (int i = 0; i < no; i++) if (op[i] == OP_PAGAR || op[i] == OP_PASSAR) return i;
+    return 0;
+}
+
+// ---- A fila -----------------------------------------------------------------
+// Como a afiada, testa as ordens da mao jogando de mentira (as mesmas rodadas
+// imaginadas), mas:
+//  - peneira aos poucos: todas as filas jogam um pouco, as melhores jogam
+//    mais, e as melhores dessas mais ainda. A afiada escolhe 8 finalistas com
+//    24 jogadas cada, e a sorte decide muito: medido (LAB=4 na arena), a fila
+//    da mestre vence 0,8 ponto de chance a mais, abrindo ou jogando depois;
+//  - quem joga depois conta so a chance de vencer: a folga no placar nao vale ficha;
+//  - pensa em pedacos (ms_fatia): um pouco a cada quadro, sem travar a tela.
+static void ms_poe_fila(int j, const int8_t *seq, int L)
+{
+    fila_t *f = &F[j];
+    int k0 = f->grudado ? 1 : 0;                 // o grudado ja esta pousado no primeiro lugar
+    if (!k0) memset(f, 0, sizeof *f);
+    for (int k = k0; k < L; k++) {
+        peca_t pc = J[j].col[J[j].mao[seq[k]]];
+        f->idx[k] = J[j].mao[seq[k]];
+        f->tipo[k] = pc.tipo;
+        f->fixo[k] = pc.fixo;
+    }
+    f->n = L;
+    if (L == 3) coringa_completa(j);             // o quarto do Coringa: a copia, ou a carta
+}
+#define MS_FOLGA 0.1f                        // a margem, para quem joga depois: so desempata
+// Joga as amostras a0..a1-1 da fila e soma a nota em *s e a chance de vencer
+// a rodada em *c (como avalia_fila_c, aos pedacos).
+static void ms_avalia(int j, const int8_t *seq, int L, int a0, int a1, uint32_t base, const mesa_t *m, float *s, float *c)
+{
+    if (j != primeiro) ia_folga = MS_FOLGA;
+    for (int a = a0; a < a1; a++) {
+        volta_mesa(m);
+        semeia_ia(base, a);
+        ms_poe_fila(j, seq, L);
+        *s += sim_resto(j, true);
+        *c += placar(j);
+        *s += ia_futuro_nota(j);
+    }
+    ia_folga = 1.0f;
+}
+
+enum { MS_E_PENEIRA, MS_E_TEIMA, MS_E_CURTA, MS_E_UNIVERSO, MS_E_PRONTO };
+#define MS_LOTE (N_FILA - 1)                 // as do tira-teima, ou as filas curtas
+typedef struct {
+    uint32_t marca;                          // a situacao que este plano pensa (ms_marca)
+    int etapa, j, L, gm, nc;
+    uint32_t base;
+    int volta, vivos, feitas, i, a;          // a peneira: a volta, quantas seguem, as jogadas de cada uma, a da vez
+    int8_t seq[MS_LOTE][N_FILA];             // o lote da vez: o tira-teima, as filas curtas, o Universo
+    int8_t Lq[MS_LOTE];
+    float s[MS_LOTE], c[MS_LOTE];
+    int n_lote, N;                           // quantas no lote e as jogadas de cada
+    uint32_t base_lote;
+    bool tem;                                // ja ha uma fila escolhida
+    int8_t melhor[N_FILA];
+    int melhor_n;
+    float nota_m, chance_m;
+} ms_pl_t;
+static ms_pl_t ms_pl;
+static int8_t ms_cand[MAX_CAND][N_FILA];
+static int16_t ms_ord[MAX_CAND];
+static float ms_soma[MAX_CAND];
+
+// A situacao em que o plano vale: a rodada, a mao e o que esta na mesa.
+static uint32_t ms_marca(int j)
+{
+    uint32_t h = 2166136261u;
+    #define MS_MX(v) (h = (h ^ (uint32_t)(v)) * 16777619u)
+    MS_MX(rodada); MS_MX(j); MS_MX(primeiro); MS_MX(J[j].n_mao); MS_MX(ia_esforco); MS_MX(max_fila(j));
+    for (int m = 0; m < J[j].n_mao; m++) {
+        const peca_t *pc = &J[j].col[J[j].mao[m]];
+        MS_MX(J[j].mao[m]); MS_MX(pc->tipo); MS_MX(pc->fixo);
+    }
+    for (int q = 0; q < 2; q++) {
+        MS_MX(F[q].lancados); MS_MX(F[q].n);
+        for (int k = 0; k < F[q].lancados && k < N_FILA; k++) { MS_MX(F[q].tipo[k]); MS_MX(F[q].valor[k]); MS_MX(F[q].est[k]); }
+    }
+    #undef MS_MX
+    return h | 1;
+}
+
+// As jogadas de cada volta da peneira e quantas filas seguem depois dela.
+// (Medido: com metade das jogadas a fila piora; com uma vez e meia, nao melhora.)
+#define MS_VOLTAS_PEN 4
+static const int16_t MS_PENEIRA[MS_VOLTAS_PEN][2] = { { 16, 64 }, { 48, 16 }, { 128, 6 }, { 256, 2 } };
+static const int16_t MS_PEN_POUCO[MS_VOLTAS_PEN][2] = { { 4, 8 }, { 8, 2 }, { 0, 2 }, { 0, 2 } };   // ia_esforco 0: os testes andam rapido
+static int ms_n_teima(void) { return ia_esforco == 0 ? 24 : IA_AMOSTRAS; }
+
+static void ms_abre_lote(int etapa, int n, int N, uint32_t base)
+{
+    ms_pl.etapa = etapa; ms_pl.n_lote = n; ms_pl.N = N; ms_pl.base_lote = base;
+    ms_pl.i = ms_pl.a = 0;
+    memset(ms_pl.s, 0, sizeof ms_pl.s);
+    memset(ms_pl.c, 0, sizeof ms_pl.c);
+}
+// O Universo sozinho, contra a melhor fila sem ele (com um grudado na mesa,
+// nao da: ele so vai sozinho).
+static void ms_abre_universo(void)
+{
+    const jogador_t *p = &J[ms_pl.j];
+    for (int i = 0; i < p->n_mao && ms_pl.L >= 2 && ms_pl.gm < 0; i++) {
+        if (p->col[p->mao[i]].tipo != D_UNIVERSO) continue;
+        ms_abre_lote(MS_E_UNIVERSO, 1, ms_n_teima(), ms_pl.base ^ 0x27d4eb2fu);
+        memset(ms_pl.seq[0], 0, N_FILA);
+        ms_pl.seq[0][0] = (int8_t)i;
+        ms_pl.Lq[0] = 1;
+        return;
+    }
+    ms_pl.etapa = MS_E_PRONTO;
+}
+
+static void ms_comeca(int j, uint32_t marca)
+{
+    const jogador_t *p = &J[j];
+    memset(&ms_pl, 0, sizeof ms_pl);
+    ms_pl.marca = marca;
+    ms_pl.j = j;
+    int n = p->n_mao;
+    ms_pl.L = n < max_fila(j) ? n : max_fila(j);
+    ms_pl.gm = -1;
+    ms_pl.chance_m = 0.5f;
+    ms_pl.base = 0xA5A5u + (uint32_t)rodada * 7919u + (uint32_t)j * 104729u;
+    if (ms_pl.L <= 0) { ms_pl.etapa = MS_E_PRONTO; return; }
+    for (int m = 0; m < n && F[j].grudado; m++) if (p->mao[m] == F[j].idx[0]) ms_pl.gm = m;
+    ms_pl.nc = monta_candidatas(j, ms_pl.L, ms_pl.gm);
+    memcpy(ms_cand, cand, sizeof(cand[0]) * (size_t)ms_pl.nc);   // (cand[] e tambem da afiada, que pode pensar entre dois pedacos)
+    for (int c = 0; c < ms_pl.nc; c++) { ms_ord[c] = (int16_t)c; ms_soma[c] = 0; }
+    ms_pl.vivos = ms_pl.nc;
+    ms_pl.etapa = MS_E_PENEIRA;
+    if (!ms_pl.nc) ms_abre_universo();
+}
+
+// Um pedaco do plano; devolve quanto trabalho fez (em jogadas de mentira).
+static int ms_passo(const mesa_t *m)
+{
+    int j = ms_pl.j;
+    if (ms_pl.etapa == MS_E_PENEIRA) {
+        const int16_t (*pen)[2] = ia_esforco == 0 ? MS_PEN_POUCO : MS_PENEIRA;
+        int N = pen[ms_pl.volta][0];
+        if (ms_pl.i < ms_pl.vivos) {                 // a fila da vez joga as dela, em pedacos de ate 64
+            int c = ms_ord[ms_pl.i], a1 = ms_pl.a + 64 < N ? ms_pl.a + 64 : N, feito = a1 - ms_pl.a;
+            float chance = 0;
+            ms_avalia(j, ms_cand[c], ms_pl.L, ms_pl.feitas + ms_pl.a, ms_pl.feitas + a1, ms_pl.base, m, &ms_soma[c], &chance);
+            ms_pl.a = a1;
+            if (a1 >= N) { ms_pl.i++; ms_pl.a = 0; }
+            return feito;
+        }
+        // A volta acabou: as melhores na frente, e so elas seguem.
+        for (int a = 1; a < ms_pl.vivos; a++) {
+            int16_t c = ms_ord[a];
+            int b = a;
+            while (b > 0 && ms_soma[ms_ord[b - 1]] < ms_soma[c]) { ms_ord[b] = ms_ord[b - 1]; b--; }
+            ms_ord[b] = c;
+        }
+        ms_pl.feitas += N;
+        if (ms_pl.vivos > pen[ms_pl.volta][1]) ms_pl.vivos = pen[ms_pl.volta][1];
+        ms_pl.volta++;
+        ms_pl.i = 0;
+        if (ms_pl.volta < MS_VOLTAS_PEN && ms_pl.vivos > 2 && pen[ms_pl.volta][0] > 0) return 1;
+        // A sorte do vencedor: a primeira pode estar na frente so porque os
+        // sorteios dela sairam bons. As duas melhores jogam de novo, com
+        // sorteios novos, e vale essa medida.
+        int n = ms_pl.vivos < 2 ? ms_pl.vivos : 2;
+        ms_abre_lote(MS_E_TEIMA, n, ms_n_teima(), ms_pl.base ^ 0x27d4eb2fu);
+        for (int i = 0; i < n; i++) { memcpy(ms_pl.seq[i], ms_cand[ms_ord[i]], N_FILA); ms_pl.Lq[i] = (int8_t)ms_pl.L; }
+        return 1;
+    }
+    if (ms_pl.i < ms_pl.n_lote) {                // o lote: uma fila de cada vez, em pedacos
+        int i = ms_pl.i, a1 = ms_pl.a + 64 < ms_pl.N ? ms_pl.a + 64 : ms_pl.N, feito = a1 - ms_pl.a;
+        ms_avalia(j, ms_pl.seq[i], ms_pl.Lq[i], ms_pl.a, a1, ms_pl.base_lote, m, &ms_pl.s[i], &ms_pl.c[i]);
+        ms_pl.a = a1;
+        if (a1 >= ms_pl.N) { ms_pl.i++; ms_pl.a = 0; }
+        return feito;
+    }
+    float N = (float)ms_pl.N;
+    switch (ms_pl.etapa) {
+    case MS_E_TEIMA: {
+        int a = ms_pl.n_lote > 1 && ms_pl.s[1] > ms_pl.s[0] ? 1 : 0, n = 0;
+        ms_pl.tem = true;
+        memcpy(ms_pl.melhor, ms_pl.seq[a], N_FILA);
+        ms_pl.melhor_n = ms_pl.L;
+        ms_pl.nota_m = ms_pl.s[a] / N;
+        ms_pl.chance_m = ms_pl.c[a] / N;
+        // A fila pode ser mais curta: se so o comeco dela ja e melhor (o
+        // Solitario sozinho, um dado grande e parar), a mestre monta so esse
+        // comeco, em vez de por quatro dados na mesa e parar no primeiro.
+        ms_abre_lote(MS_E_CURTA, ms_pl.L - 1, ms_pl.N, ms_pl.base_lote);
+        for (int q = 1; q < ms_pl.L; q++) {
+            memcpy(ms_pl.seq[n], ms_pl.melhor, N_FILA);
+            ms_pl.Lq[n++] = (int8_t)q;
+        }
+        break;
+    }
+    case MS_E_CURTA:
+        for (int i = 0; i < ms_pl.n_lote; i++)
+            if (ms_pl.s[i] / N > ms_pl.nota_m + 0.01f) {
+                ms_pl.nota_m = ms_pl.s[i] / N;
+                ms_pl.chance_m = ms_pl.c[i] / N;
+                ms_pl.melhor_n = ms_pl.Lq[i];
+            }
+        ms_abre_universo();
+        break;
+    case MS_E_UNIVERSO:
+        if (!ms_pl.tem || ms_pl.s[0] / N > ms_pl.nota_m) {
+            ms_pl.tem = true;
+            memset(ms_pl.melhor, 0, N_FILA);
+            ms_pl.melhor[0] = ms_pl.seq[0][0];
+            ms_pl.melhor_n = 1;
+            ms_pl.nota_m = ms_pl.s[0] / N;
+            ms_pl.chance_m = ms_pl.c[0] / N;
+        }
+        ms_pl.etapa = MS_E_PRONTO;
+        break;
+    }
+    return 1;
+}
+
+// Pensa a fila de quem esta na vez por mais um pedaco (trabalho: quantas
+// jogadas de mentira cabem agora). true: o plano esta pronto (em plano[]).
+// A mesa volta como estava a cada pedaco: entre um e outro, o jogo desenha.
+// O plano e o mesmo, em quantos pedacos for: cada jogada tem o seu sorteio.
+static bool ms_fatia(int trabalho)
+{
+    int j = vez;
+    if (plano_rodada == rodada && plano_vez == j) return true;
+    uint32_t marca = ms_marca(j);
+    if (ms_pl.marca != marca) ms_comeca(j, marca);
+    if (ms_pl.etapa != MS_E_PRONTO) {
+        mesa_t m;
+        guarda_mesa(&m);
+        while (trabalho > 0 && ms_pl.etapa != MS_E_PRONTO) trabalho -= ms_passo(&m);
+        volta_mesa(&m);
+        if (ms_pl.etapa != MS_E_PRONTO) return false;
+    }
+    plano_rodada = rodada; plano_vez = j;
+    plano_n = ms_pl.tem ? ms_pl.melhor_n : 0;
+    if (ms_pl.tem) memcpy(plano, ms_pl.melhor, N_FILA);
+    // A aposta usa a chance de vencer, nao a nota (que soma margem, fichas e
+    // o que fica guardado para depois).
+    plano_p = ms_pl.chance_m < 0 ? 0 : ms_pl.chance_m > 1 ? 1 : ms_pl.chance_m;
+    return true;
+}
+static void mestre_planeja(void) { while (!ms_fatia(1 << 20)) {} }
+// Enquanto a maquina "pensa" (a pausa antes de cada gesto), a mestre pensa de
+// verdade, um pedaco por quadro: a fila e as maos da aposta. O resto (resolver
+// a aposta, lancar ou parar) cabe num quadro. Devolve se ja pode decidir.
+#define MS_FATIA 300                         // jogadas de mentira por quadro: uns 3 ms no PC
+#define MS_FATIA_MAOS 10                     // maos da aposta por quadro: uns 2 ms
+static bool mestre_pensa(void)
+{
+    if (fase == F_ORDEM) return ms_fatia(MS_FATIA);
+    if (fase != F_APOSTA) return true;
+    // Na aposta, quem joga depois ja pesa a fila. Com um Chiclete na mao, pesa
+    // com ele grudado numa copia da mesa, como ia_chance (que depois acha o
+    // plano pronto); na vez de verdade a situacao e a mesma, e o plano tambem.
+    if (vez != primeiro && !F[vez].lancados) {
+        int g = F[vez].n ? -1 : chiclete_na_mao(vez);
+        if (g < 0) { if (!ms_fatia(MS_FATIA)) return false; }
+        else {
+            mesa_t m;
+            guarda_mesa(&m);
+            poe_grudado(vez, g);
+            plano_rodada = -1;
+            bool pronto = ms_fatia(MS_FATIA);
+            volta_mesa(&m);
+            plano_rodada = -1;
+            if (!pronto) return false;
+        }
+    }
+    if (vez != primeiro && a_pagar && aumentou) return true;   // dobraram a aposta dele: so a conta de pagar
+    return ms_maos_fatia(vez == primeiro ? outro(vez) : vez, MS_FATIA_MAOS);
+}
+
+// ---- Lancar ou parar -----------------------------------------------------
+// Como a afiada (parar agora contra lancar mais um, jogando de mentira);
+// quem joga depois, sem a folga no placar.
+static bool mestre_continua(void)
+{
+    if (vez != primeiro) ia_folga = MS_FOLGA;
+    bool segue = ia_continua();
+    ia_folga = 1.0f;
+    return segue;
+}
+
 static void ia_passo(float dt)
 {
     ia_nivel = nivel_jog[vez & 1];
@@ -1013,7 +1833,11 @@ static void ia_passo(float dt)
     // Contra uma pessoa, a loja e o premio da maquina nao tem tela: ela
     // decide na hora, e o anuncio mostra o que levou.
     bool direto = anuncia_maquina() && (fase == F_LOJA || fase == F_PREMIO);
+    // A mestre pensa a fila durante a pausa, um pedaco por quadro; se a pausa
+    // acabar antes, espera o plano ficar pronto.
+    bool pronta = ia_nivel < 3 || direto || mestre_pensa();
     if (!direto && t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
+    if (!pronta) return;
     t_ia = 0;
 
     if (direto && fase == F_LOJA) {
@@ -1061,11 +1885,11 @@ static void ia_passo(float dt)
         break;
     }
     case F_JOGA:
-        if (ia_nivel == 0 ? facil_continua() : ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
+        if (ia_nivel == 0 ? facil_continua() : ia_nivel >= 3 ? mestre_continua() : ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
     case F_APOSTA:
-        cursor = ia_nivel == 0 ? facil_aposta() : ia_aposta();
+        cursor = ia_nivel == 0 ? facil_aposta() : ia_nivel >= 3 ? mestre_aposta() : ia_aposta();
         trata_tecla(KEY_ENTER);
         break;
     case F_PREMIO:

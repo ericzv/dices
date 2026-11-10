@@ -930,7 +930,7 @@ static bool varre(uint32_t s)
 
 int main(int argc, char **argv)
 {
-    setvbuf(stdout, NULL, _IOLBF, 0);            // as falhas saem na hora, mesmo se a varredura for interrompida
+    setvbuf(stdout, NULL, _IONBF, 0);            // as falhas saem na hora, mesmo se a varredura for interrompida (_IOLBF com tamanho 0 derruba o MSVC)
     natal_forcado = 0;
     ia_esforco = 0;
     if (argc > 2 && !strcmp(argv[1], "--uma")) {

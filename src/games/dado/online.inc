@@ -57,6 +57,13 @@ static uint32_t hash_partida(void)
             MIX(f->idx[k]); MIX(f->tipo[k]); MIX(f->fixo[k]); MIX(f->cru[k]); MIX(f->valor[k]); MIX(f->lado[k]);
             MIX(f->est[k]); MIX(f->dobra[k]); MIX(f->bonus[k]); MIX(f->quebra[k]); MIX(f->bonecas[k]);
             MIX(f->abalo[k]); MIX(f->guarda[k]); MIX(f->presente[k]); MIX(f->copiou[k]); MIX(f->bomba[k]);
+            // Os que esperam o fim da rodada fora da sequencia (o Carrossel
+            // girando, a Ficha Coringa e o Oculto por virar, o Espelho
+            // esperando) e o resto do que o desfecho le de cada dado: com o
+            // mesmo numero na mesa, um deles diferente muda quem leva o pote.
+            MIX(f->gira[k]); MIX(f->curinga[k]); MIX(f->curinga_nada[k]); MIX(f->escondido[k]); MIX(f->espera[k]);
+            MIX(f->cinza[k]); MIX(f->descarte[k]); MIX(f->ancora[k]); MIX(f->calibre[k]); MIX(f->bomba1[k]);
+            MIX(f->fruta[k]); MIX(f->faixa[k]);
         }
     }
     for (int j = 0; j < 2; j++) { MIX(bis_fila[j]); MIX(ad_moedas[j]); }

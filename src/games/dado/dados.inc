@@ -920,7 +920,7 @@ static const visual_t VISUAL[D_N] = {
     [D_ESPELHO]    = { V_PRATA,   V_PRATA, 55,  V_ACO, 28,      V_BRANCO, 55 },
     [D_FICHAS]     = { V_VERM,    0, 0,         V_VERM, 100,    V_BRANCO, 100, V_SANGUE, 100 },
     [D_TUDO_NADA]  = { V_OURO },                // a moeda de ouro, desenhada a parte
-    [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(54, 36, 74), 45, V_LILAS, 40 },
+    [D_MALDITO]    = { V_ROXO,    V_ROXO, 30,   RGB(82, 60, 112), 100, V_LILAS, 100, V_AMEIXA, 100 },
     [D_GATUNO]     = { V_CHUMBO,  V_CHUMBO, 70, RGB(36, 32, 29), 100, V_CHUMBO, 100 },              // a camisa listrada do ladrao
     [D_QUEBRADO]   = { V_TERRA,   V_PRATA, 40,  V_PRATA, 100,   V_ACO, 100,    V_PEDRA, 100 },   // a porcelana craquelada e o biscoito da lasca
     [D_INVEJOSO]   = { V_LIMA,    V_VERDE, 70,  V_VERDE, 100,   V_LIMA, 100,   V_BREU, 100 },   // a malaquita
@@ -950,7 +950,7 @@ static const visual_t VISUAL[D_N] = {
     [D_GEMEO]      = { V_AGUA,    0, 0,         V_AGUA, 100 },
     [D_PRISMA]     = { V_LILAS,   V_LILAS, 18,  V_VERM, 100,    V_OURO, 100,   V_NOITE, 100 },
     [D_FENIX]      = { V_FOGO,    V_FOGO, 14,   V_AMBAR, 60,    V_FOGO, 60 },
-    [D_TRONO]      = { V_OURO,    V_AMEIXA, 18, V_OURO, 65 },
+    [D_TRONO]      = { V_OURO,    V_VINHO, 80,  V_VINHO, 100,   V_SANGUE, 100, V_OURO, 100 },
     [D_CAVALO]     = { V_TERRA,   V_TERRA, 50,  V_TERRA, 100,   V_MADEIRA, 100, V_FERRO, 100 },  // as tabuas e os pregos
     [D_BERSERKER]  = { V_VINHO,   V_VERM, 85,   V_VERM, 100,    V_TERRA, 100,  V_FERRO, 100 },  // o escudo pintado, a madeira e os rebites
     [D_VIUVA]      = { V_ACO,     0, 0,         V_ACO, 45 },
@@ -985,7 +985,7 @@ static const visual_t VISUAL[D_N] = {
     [D_VAZIO]      = { V_PEDRA,   V_BRANCO, 40, V_BARRO, 45,    V_PEDRA, 60,   V_BRANCO, 60 },
     [D_MEDIA]      = { V_AGUA,    V_CEU, 20,    V_AGUA, 75,     V_SANGUE, 85,  V_AGUA, 100 },
     [D_VAMPIRO]    = { V_BREU,    V_CHUMBO, 70, V_CHUMBO, 100,  V_VERM, 100,   V_SANGUE, 100 }, // o cetim preto e o forro
-    [D_COLECIONADOR] = { V_NOITE, V_NOITE, 30,  V_AZUL, 70,     V_OURO, 100,   V_CEU, 85 },
+    [D_COLECIONADOR] = { V_NOITE, V_NOITE, 14,  V_AZUL, 80,     V_NOITE, 70,   V_OURO, 100 },
     [D_PACTO]      = { V_ROXO,    V_PEDRA, 40,  V_TRIGO, 100,   V_SANGUE, 100, V_VINHO, 100 },  // o pergaminho e o lacre
     [D_ASSOMBRACAO] = { V_AMEIXA,  V_AMEIXA, 0,  RGB(150, 126, 180), 100, RGB(176, 156, 202), 100, RGB(86, 66, 112), 100 },
     [D_FICHA_VELHA] = { V_COURO,  V_TERRA, 46,  V_VINHO, 80,    V_ROSA, 55,    V_MADEIRA, 95 },
@@ -1032,7 +1032,7 @@ static const visual_t VISUAL[D_N] = {
     // O Piao: a madeira torneada com as listras vermelha e creme em volta.
     [D_PIAO]       = { V_TERRA,   0, 0,         RGB(238, 230, 212), 100, RGB(226, 164, 168), 100, V_CEU, 100 },   // a madeira bem clara e os aneis leves
     // O Camelo: a lona azul da banca e as bugigangas miudas, de cor viva.
-    [D_CAMELO]      = { V_AZUL,   V_AZUL, 40,   V_AMBAR, 100,   V_LIMA, 100,   V_ROSA, 100 },
+    [D_CAMELO]      = { V_AZUL,   V_AZUL, 14,   V_AZUL, 90,     V_AMBAR, 100,  V_ROSA, 100 },
     // O Leque: o papel rosa em gomos, o vinco vinho e o ouro do fio, das florzinhas e do pino.
     [D_LEQUE]       = { V_OURO,   V_ROSA, 100,  RGB(226, 164, 168), 100, V_VINHO, 100, V_OURO, 100 },
     // O Porta-Retrato: a moldura de prata e a foto em sepia.

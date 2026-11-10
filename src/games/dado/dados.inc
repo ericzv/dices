@@ -522,7 +522,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "você.",
     [D_ESPELHO]         = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, "
                           "o Espelho permanece válido até o fim do turno do oponente, vira no fim da rodada e pode ser anulado "
-                          "pela sequência.",
+                          "pela sequência. Sem dado do oponente para copiar, é anulado.",
     [D_FICHAS]          = "Quatro lados. Se terminar válido e você começou a rodada com mais fichas que o oponente, pontua +4.",
     [D_TUDO_NADA]       = "Uma moeda de risco. Tirando 2 e terminando válido: cada dado válido da sequência pontua +5. Tirando "
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",

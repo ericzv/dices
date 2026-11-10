@@ -185,7 +185,7 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_FILA[] = {
     CAMPO(idx), CAMPO(tipo), CAMPO(fixo), CAMPO(n), CAMPO(lancados), CAMPO(cru), CAMPO(valor), CAMPO(lado), CAMPO(est),
     CAMPO(dobra), CAMPO(bonus), CAMPO(quebra), CAMPO(cinza), CAMPO(descarte), CAMPO(espera), CAMPO(ancora),
     CAMPO(grudado), CAMPO(chiclete), CAMPO(calibre), CAMPO(bomba), CAMPO(bomba1), CAMPO(copiou), CAMPO(carta),
-    CAMPO(escondido), CAMPO(fruta), CAMPO(presente), CAMPO(faixa), CAMPO(curinga), CAMPO(curinga_nada), CAMPO(gira),
+    CAMPO(escondido), CAMPO(fruta), CAMPO(presente), CAMPO(faixa), CAMPO(curinga), CAMPO(curinga_nada), CAMPO(espelho_nada), CAMPO(gira),
     CAMPO(abalo), CAMPO(guarda), CAMPO(ferradura), CAMPO(bonecas), CAMPO(tag), CAMPO(tag_num), CAMPO(tag_mais), CAMPO(pontos), CAMPO(total),
 };
 static const char *campo_fila(size_t o)

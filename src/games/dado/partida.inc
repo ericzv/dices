@@ -1586,6 +1586,7 @@ static int som_do_evento(int i)
         return SOM_FORTE;
     case EV_CORINGA: return e->alvo_k < N_FILA ? SOM_MOEDA_BATE : SOM_ANULA;   // a ficha gira e pousa depois; sem o que copiar, cai
     case EV_CARROSSEL: return SOM_CARROSSEL;   // a caixinha de musica desacelerando e o sino ao parar
+    case EV_ESPELHO: return e->alvo_k < N_FILA ? SOM_EFEITO : SOM_ANULA;   // sem o que copiar, cai
     case EV_COME:    return SOM_AUTOFAGIA;     // a dentada e o engolir
     case EV_CAVALO:  return SOM_ANULA;
     case EV_TIRA: case EV_PIRATA: case EV_CORTA: return SOM_TIRA;

@@ -401,6 +401,14 @@ static void aplica_regra(int j, int k)
         f->pontos = soma(j, f->est);
         return;
     }
+    // O Espelho que esperou e, no fim, nao achou o que copiar: anulado.
+    if (f->espelho_nada[k]) {
+        f->est[k] = V_ANULADO;
+        snprintf(veredito, sizeof veredito, "Espelho sem nada para copiar: anulado");
+        ver_tipo = 1;
+        f->pontos = soma(j, f->est);
+        return;
+    }
 
     // O Papel Carbono: tirando o lado dele, o dado fica com o numero do
     // ultimo valido da sequencia - igual, nao cai. O primeiro da sequencia
@@ -851,6 +859,7 @@ static void pousa(int j, int k, int (*r)(int))
     f->escondido[k] = ef0 == EF_OCULTO;                          // o Oculto cai virado
     f->curinga[k] = ef0 == EF_FICHA_CORINGA;                     // a Ficha Coringa, com o curinga para cima
     f->curinga_nada[k] = false;
+    f->espelho_nada[k] = false;
     f->gira[k] = ef0 == EF_CARROSSEL;                            // o Carrossel, girando
     // O Terremoto ja traz a semente do lance que o tremor dara no fim: a
     // previa e a IA nao a usam, e o fim de verdade e o mesmo dos dois lados.

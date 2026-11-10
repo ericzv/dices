@@ -3971,7 +3971,7 @@ static void desenha_evento_dentro(const evento_t *e, float p)
             }
     }
     // Espelho: um reflexo sai do maior dado do rival e chega nele.
-    if (e->tipo == EV_ESPELHO) {
+    if (e->tipo == EV_ESPELHO && e->alvo_k < N_FILA) {
         const fila_t *fr = &F[e->alvo_j];
         int a = 0;
         for (int i = 0; i < fr->lancados; i++) if (fr->valor[i] == e->valor) { a = i; break; }

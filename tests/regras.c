@@ -7760,7 +7760,7 @@ int main(void)
         CONFERE(F[1].valor[0] == 2 && F[0].valor[0] == 2 && !F[0].espera[0] && d.total[0] == 2,
                 "Espelho depois do Carrossel: vira o 2 (virou %d)", F[0].valor[0]);
         // Sem nada para copiar nem assim (o oponente so com o Universo, ou so
-        // com o Vazio): fica com o que tirou, valendo, e a marca "=?" sai.
+        // com o Vazio): o Espelho e anulado no fim, e a marca "=?" sai.
         for (int caso = 0; caso < 2; caso++) {
             limpa();
             joga(0, D_D6, 5); joga(0, D_ESPELHO, 1);
@@ -7769,11 +7769,14 @@ int main(void)
             calcula_desfecho(&pv, false);
             d = fim();
             n_esp = 0;
-            for (int i = 0; i < n_ev; i++) n_esp += ev[i].tipo == EV_ESPELHO;
-            CONFERE(!F[0].espera[1] && F[0].valor[1] == 1 && !F[0].tag_num[1][0] && !F[0].tag[1][0] && !n_esp,
-                    "Espelho sem alvo (caso %d): fica com o 1, sem a marca (marca '%s')", caso, F[0].tag_num[1]);
-            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 6 && pv.total[0] == 6,
-                    "Espelho sem alvo (caso %d): 5 + 1 (deu %d, a previa %d)", caso, d.total[0], pv.total[0]);
+            int i_nada = -1;
+            for (int i = 0; i < n_ev; i++)
+                if (ev[i].tipo == EV_ESPELHO) { n_esp++; if (ev[i].alvo_k == 0xFF && ev[i].de_k == 1 && ev[i].tem_seq) i_nada = i; }
+            CONFERE(!F[0].espera[1] && F[0].espelho_nada[1] && !F[0].tag_num[1][0] && !F[0].tag[1][0] && n_esp == 1 && i_nada >= 0,
+                    "Espelho sem alvo (caso %d): anulado, sem a marca, com o evento (marca '%s', eventos %d)", caso, F[0].tag_num[1], n_esp);
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.total[0] == 5 && pv.total[0] == 5,
+                    "Espelho sem alvo (caso %d): so o 5 (deu %d, a previa %d)", caso, d.total[0], pv.total[0]);
+            CONFERE(i_nada < 0 || ev[i_nada].seq[1] == V_ANULADO, "Espelho sem alvo (caso %d): a mesa mostra o anulado", caso);
         }
 
         // A Ferradura segura uma queda so por rodada, mesmo quando a

@@ -65,6 +65,7 @@ typedef struct {
     bool    faixa[N_FILA];           // o ciclo cosmico tirou a faixa de cima: o bonus (e o Buraco Negro engole os vizinhos)
     bool    curinga[N_FILA];         // Ficha Coringa lancada: fica com o "?", fora da sequencia, ate virar no fim
     bool    curinga_nada[N_FILA];    // e a que virou sem nenhum dado valido do oponente para copiar: anulada
+    bool    espelho_nada[N_FILA];    // o Espelho que nem no fim achou o que copiar: anulado
     bool    gira[N_FILA];            // Carrossel lancado: gira fora da sequencia ate parar no fim (nos validos da mesa)
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)

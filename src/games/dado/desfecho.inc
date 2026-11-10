@@ -2293,11 +2293,11 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     // O Espelho que nao achou o que copiar no comeco (o oponente so com o
     // Universo, o Vazio, ou com a Ficha Coringa e o Carrossel, que so viraram
     // agora): vira aqui o maior do oponente, como la em cima. Se nem assim ha
-    // o que copiar, fica com o que tirou, valendo como estava, e nao espera
-    // mais - a marca "=?" sai da mesa.
+    // o que copiar, e anulado (como a Ficha Coringa sem alvo), a sequencia e
+    // refeita sem ele e a marca "=?" sai da mesa.
     for (int j = 0; j < 2; j++) {
         int alvo = maior_do_rival(j), ev0 = n_ev;
-        uint8_t quais = 0;
+        uint8_t quais = 0, nada = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].espera[k]) continue;
             F[j].espera[k] = false;
@@ -2305,6 +2305,9 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             if (alvo <= 0) {
                 if (!strcmp(F[j].tag[k], "=?")) F[j].tag[k][0] = 0;
                 if (!strcmp(F[j].tag_num[k], "=?")) F[j].tag_num[k][0] = 0;
+                F[j].espelho_nada[k] = true;
+                nada |= (uint8_t)(1 << k);
+                evento(gera, EV_ESPELHO, j, k, outro(j), 0xFF, 0, "Espelho: %s não tem o que copiar, anulado", J[outro(j)].nome);
                 continue;
             }
             F[j].valor[k] = alvo;
@@ -2312,7 +2315,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             quais |= (uint8_t)(1 << k);
             evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
-        if (!quais) continue;
+        if (!quais && !nada) continue;
         if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         pre[j] = true;
         refaz_sequencia(j, F[j].lancados);

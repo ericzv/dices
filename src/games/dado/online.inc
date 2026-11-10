@@ -63,8 +63,9 @@ static uint32_t hash_partida(void)
             // mesmo numero na mesa, um deles diferente muda quem leva o pote.
             MIX(f->gira[k]); MIX(f->curinga[k]); MIX(f->curinga_nada[k]); MIX(f->escondido[k]); MIX(f->espera[k]);
             MIX(f->cinza[k]); MIX(f->descarte[k]); MIX(f->ancora[k]); MIX(f->calibre[k]); MIX(f->bomba1[k]);
-            MIX(f->fruta[k]); MIX(f->faixa[k]);
+            MIX(f->fruta[k]); MIX(f->faixa[k]); MIX(f->espelho_nada[k]);
         }
+        MIX(f->ferradura);
     }
     for (int j = 0; j < 2; j++) { MIX(bis_fila[j]); MIX(ad_moedas[j]); }
 #undef MIX

@@ -7664,6 +7664,56 @@ int main(void)
                 "Espelho com a Prensa, sequencia refeita: o mesmo (valor %d)", F[0].valor[1]);
         amul[0] = 0; modo = M_DOIS;
 
+        // O Espelho sem alvo na hora de virar (o oponente so com a Ficha
+        // Coringa, que ainda vai virar) espera e vira depois dela: a Ficha
+        // vira o 4, e o Espelho vira o 4 da Ficha.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 4);
+        joga_com(1, D_FICHA_CORINGA, 1, sempre_dois);
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].espera[0] && F[0].valor[0] == 2 && F[1].curinga[0], "Espelho e Ficha Coringa: a previa nao mexe na mesa");
+        J[0].fichas = J[1].fichas = 100; pote = 10;
+        desfecho();
+        int i_cor = -1, i_esp = -1;
+        for (int i = 0; i < n_ev; i++) {
+            if (ev[i].tipo == EV_CORINGA) i_cor = i;
+            if (ev[i].tipo == EV_ESPELHO) {
+                i_esp = i;
+                CONFERE(vis_espelho[0][0] && ev[i].tem_seq, "Espelho depois da Ficha Coringa: a mesa espera o evento dele");
+            }
+            aplica_evento(i);
+        }
+        CONFERE(F[1].valor[0] == 4 && F[0].valor[0] == 4 && !F[0].espera[0], "Espelho depois da Ficha Coringa: vira o 4 (virou %d)", F[0].valor[0]);
+        CONFERE(i_cor >= 0 && i_esp > i_cor, "Espelho depois da Ficha Coringa: o evento dele vem depois (%d, %d)", i_cor, i_esp);
+        CONFERE(resolvido.total[0] == 8 && total_visivel(0) == 8 && !vis_espelho[0][0],
+                "Espelho depois da Ficha Coringa: 4 + 4 (pago %d, na mesa %d)", resolvido.total[0], total_visivel(0));
+        CONFERE(pv.total[0] == resolvido.total[0] && pv.total[1] == resolvido.total[1],
+                "Espelho depois da Ficha Coringa: a previa dava %d x %d", pv.total[0], pv.total[1]);
+        if (fase == F_EFEITOS) conclui_rodada();
+        // O mesmo com o Carrossel: para no 2 (ele e o Espelho), e o Espelho vira o 2.
+        limpa();
+        joga(0, D_ESPELHO, 1);
+        joga_com(1, D_CARROSSEL, 1, sempre_dois);
+        d = fim();
+        CONFERE(F[1].valor[0] == 2 && F[0].valor[0] == 2 && !F[0].espera[0] && d.total[0] == 2,
+                "Espelho depois do Carrossel: vira o 2 (virou %d)", F[0].valor[0]);
+        // Sem nada para copiar nem assim (o oponente so com o Universo, ou so
+        // com o Vazio): fica com o que tirou, valendo, e a marca "=?" sai.
+        for (int caso = 0; caso < 2; caso++) {
+            limpa();
+            joga(0, D_D6, 5); joga(0, D_ESPELHO, 1);
+            if (caso == 0) joga(1, D_UNIVERSO, 40); else joga(1, D_VAZIO, 0);
+            CONFERE(F[0].espera[1] && !strcmp(F[0].tag_num[1], "=?"), "Espelho sem alvo: a mesa do teste");
+            calcula_desfecho(&pv, false);
+            d = fim();
+            n_esp = 0;
+            for (int i = 0; i < n_ev; i++) n_esp += ev[i].tipo == EV_ESPELHO;
+            CONFERE(!F[0].espera[1] && F[0].valor[1] == 1 && !F[0].tag_num[1][0] && !F[0].tag[1][0] && !n_esp,
+                    "Espelho sem alvo (caso %d): fica com o 1, sem a marca (marca '%s')", caso, F[0].tag_num[1]);
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 6 && pv.total[0] == 6,
+                    "Espelho sem alvo (caso %d): 5 + 1 (deu %d, a previa %d)", caso, d.total[0], pv.total[0]);
+        }
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

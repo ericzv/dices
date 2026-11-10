@@ -494,23 +494,6 @@ static void monta_fila(int j, int variante)
 // ---------------------------------------------------------------------------
 // As conferencias
 // ---------------------------------------------------------------------------
-// O Espelho que pode terminar a rodada ainda com a marca de quem espera: o
-// que nao tem o que copiar - o oponente so com o Universo, com o Vazio (0),
-// ou so com dados que tambem esperam o fim (a Ficha Coringa e o Carrossel
-// viram depois dele). Anotado antes do desfecho.
-static bool espelho_fica[2][N_FILA];
-static void anota_espelhos(void)
-{
-    for (int j = 0; j < 2; j++) {
-        const fila_t *r = &F[outro(j)];
-        bool tem_alvo = false;
-        for (int i = 0; i < r->lancados && i < N_FILA; i++)
-            tem_alvo |= !r->curinga[i] && !r->gira[i] && r->tipo[i] != D_UNIVERSO && !(r->carta && i == 3) && r->valor[i] > 0;
-        for (int k = 0; k < N_FILA; k++)
-            espelho_fica[j][k] = k < F[j].lancados && F[j].espera[k] && !tem_alvo;
-    }
-}
-
 static void confere_limites(const char *quando, bool no_fim)
 {
     CONFERE(pote >= 0, "%s: pote %d", quando, pote);
@@ -554,11 +537,7 @@ static void confere_limites(const char *quando, bool no_fim)
             CONFERE(f->guarda[k] <= N_FILA, "%s: guarda %d no dado %d de %d", quando, f->guarda[k], k, j);
             bool espera = f->escondido[k] || f->curinga[k] || f->gira[k] || (f->carta && k == 3);
             if (no_fim) {
-                // (o Espelho que nao achou o que copiar fica com a marca:
-                // espelho_fica - ou o que o tremor ou a Casca rolou de novo, e
-                // tirou 1 ou 2 sem ter o que copiar)
-                CONFERE(!f->escondido[k] && !f->curinga[k] && !f->gira[k]
-                        && !(f->espera[k] && !espelho_fica[j][k] && maior_do_rival(j) > 0),
+                CONFERE(!f->escondido[k] && !f->curinga[k] && !f->gira[k] && !f->espera[k],
                         "%s: dado %d de %d (%s) ainda espera (escondido %d, curinga %d, gira %d, espera %d)", quando, k, j,
                         TIPO[t].nome, f->escondido[k], f->curinga[k], f->gira[k], f->espera[k]);
                 CONFERE(f->est[k] != V_ESPERA, "%s: dado %d de %d (%s) terminou em V_ESPERA", quando, k, j, TIPO[t].nome);
@@ -736,7 +715,6 @@ static void termina(int variante)
         previa_vale = !fim_incerto() && !vai_virar;
         confere_previa("antes de terminar o turno", &previa_fim);
         fichas_mesa = J[0].fichas + J[1].fichas + pote;
-        anota_espelhos();
         termina_turno();
         return;
     }

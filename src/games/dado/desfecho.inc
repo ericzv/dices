@@ -2281,6 +2281,36 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         }
         virou = true;
     }
+    // O Espelho que nao achou o que copiar no comeco (o oponente so com o
+    // Universo, o Vazio, ou com a Ficha Coringa e o Carrossel, que so viraram
+    // agora): vira aqui o maior do oponente, como la em cima. Se nem assim ha
+    // o que copiar, fica com o que tirou, valendo como estava, e nao espera
+    // mais - a marca "=?" sai da mesa.
+    for (int j = 0; j < 2; j++) {
+        int alvo = maior_do_rival(j), ev0 = n_ev;
+        uint8_t quais = 0;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!F[j].espera[k]) continue;
+            F[j].espera[k] = false;
+            virou = true;
+            if (alvo <= 0) {
+                if (!strcmp(F[j].tag[k], "=?")) F[j].tag[k][0] = 0;
+                if (!strcmp(F[j].tag_num[k], "=?")) F[j].tag_num[k][0] = 0;
+                continue;
+            }
+            F[j].valor[k] = alvo;
+            lado_vira(j, k, alvo);
+            quais |= (uint8_t)(1 << k);
+            evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+        }
+        if (!quais) continue;
+        if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
+        refaz_sequencia(j, F[j].lancados);
+        for (int k = 0; k < F[j].lancados; k++)
+            if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
+        if (gera) guarda_seq_de(ev0, j, EV_ESPELHO, EV_ESPELHO);
+    }
     memcpy(veredito, ver_antes, sizeof veredito);
     ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
     for (int j = 0; j < 2; j++) memcpy(d->est[j], F[j].est, N_FILA);

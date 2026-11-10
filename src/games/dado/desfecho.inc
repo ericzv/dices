@@ -2106,7 +2106,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
 
     // Espelho que esperava o oponente (com "?"): vira agora o maior dado dele,
     // e a sequencia do dono e refeita com o numero novo - so agora ele pode
-    // cair ou derrubar outro. Enquanto esperava, nao anulava nem era anulado.
+    // cair ou derrubar outro. Enquanto esperava, nada o anulava (firme).
     // No desfecho de verdade fica assim; na previa, a mesa volta como estava.
     static fila_t f_antes[2];
     static char ver_antes[sizeof veredito];
@@ -2136,7 +2136,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados; k++) {
-            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO || alvo <= 0) continue;
+            if (!F[j].espera[k] || alvo <= 0) continue;
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             F[j].espera[k] = false;

@@ -495,10 +495,9 @@ static void monta_fila(int j, int variante)
 // As conferencias
 // ---------------------------------------------------------------------------
 // O Espelho que pode terminar a rodada ainda com a marca de quem espera: o
-// que foi anulado esperando (nao vira mais) e o que nao tem o que copiar - o
-// oponente so com o Universo, com o Vazio (0), ou so com dados que tambem
-// esperam o fim (a Ficha Coringa e o Carrossel viram depois dele). Anotado
-// antes do desfecho.
+// que nao tem o que copiar - o oponente so com o Universo, com o Vazio (0),
+// ou so com dados que tambem esperam o fim (a Ficha Coringa e o Carrossel
+// viram depois dele). Anotado antes do desfecho.
 static bool espelho_fica[2][N_FILA];
 static void anota_espelhos(void)
 {
@@ -508,7 +507,7 @@ static void anota_espelhos(void)
         for (int i = 0; i < r->lancados && i < N_FILA; i++)
             tem_alvo |= !r->curinga[i] && !r->gira[i] && r->tipo[i] != D_UNIVERSO && !(r->carta && i == 3) && r->valor[i] > 0;
         for (int k = 0; k < N_FILA; k++)
-            espelho_fica[j][k] = k < F[j].lancados && F[j].espera[k] && (F[j].est[k] != V_VALIDO || !tem_alvo);
+            espelho_fica[j][k] = k < F[j].lancados && F[j].espera[k] && !tem_alvo;
     }
 }
 
@@ -555,9 +554,9 @@ static void confere_limites(const char *quando, bool no_fim)
             CONFERE(f->guarda[k] <= N_FILA, "%s: guarda %d no dado %d de %d", quando, f->guarda[k], k, j);
             bool espera = f->escondido[k] || f->curinga[k] || f->gira[k] || (f->carta && k == 3);
             if (no_fim) {
-                // (o Espelho anulado enquanto esperava fica com a marca, e o que
-                // nao achou o que copiar tambem: espelho_fica - ou o que o tremor
-                // ou a Casca rolou de novo, e tirou 1 ou 2 sem ter o que copiar)
+                // (o Espelho que nao achou o que copiar fica com a marca:
+                // espelho_fica - ou o que o tremor ou a Casca rolou de novo, e
+                // tirou 1 ou 2 sem ter o que copiar)
                 CONFERE(!f->escondido[k] && !f->curinga[k] && !f->gira[k]
                         && !(f->espera[k] && !espelho_fica[j][k] && maior_do_rival(j) > 0),
                         "%s: dado %d de %d (%s) ainda espera (escondido %d, curinga %d, gira %d, espera %d)", quando, k, j,
@@ -648,16 +647,15 @@ static void confere_refaz(const char *quando)
     retrata(&r0);
     memcpy(antes, F, sizeof F);
     for (int j = 0; j < 2; j++) {
-        // Ficam de fora (veja o relatorio das regras em aberto): o Espelho que
-        // espera, que vira quando a refazem; a Ferradura e a Rede, que olham
-        // onde a queda aconteceu da primeira vez; e o dado que o proprio poder
-        // (ou a Prensa, o Calibre) virou para um lado com adesivo da sequencia.
+        // Ficam de fora (veja o relatorio das regras em aberto): a Ferradura e
+        // a Rede, que olham onde a queda aconteceu da primeira vez; e o dado
+        // que o proprio poder (ou a Prensa, o Calibre) virou para um lado com
+        // adesivo da sequencia.
         bool fora = !F[j].lancados || tem_am(j, A_FERRADURA) || tem_am(j, A_REDE);
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int a = ad_fila(j, k), ef = TIPO[tipo_de(j, k)].efeito;
             bool virou = F[j].calibre[k] || tem_am(j, A_PRENSA) || ef == EF_GEMEO || ef == EF_ECO || ef == EF_DIGITAL
                       || ef == EF_ESPELHO || ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL;
-            fora |= F[j].espera[k];
             fora |= a == AD_CARBONO && !F[j].copiou[k];
             fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && virou;
         }

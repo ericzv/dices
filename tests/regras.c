@@ -7596,6 +7596,74 @@ int main(void)
                 "Jingle Bell: a copia e a mesma peca, com os adesivos");
         CONFERE(!J[0].col[8].chiclete && J[0].col[0].chiclete, "Jingle Bell: a copia nao vem grudada pelo Chiclete");
 
+        // ---- As regras decididas depois da varredura ------------------------
+        for (int i = 0; i < 8; i++) { J[0].col[i] = J[1].col[i] = (peca_t){ .tipo = D_D6 }; }
+        J[0].n_col = J[1].n_col = 8;
+        modo = M_DOIS; reg_op = REG_NADA; amul[0] = amul[1] = 0; rodada = 1;
+
+        // O Espelho que espera e firme: nada o anula ate virar. O dado menor
+        // depois dele cai sozinho, como depois de um Teimoso.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 1);
+        CONFERE(F[0].espera[0] && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO,
+                "Espelho esperando e um dado menor: so o menor cai (%d, %d)", F[0].est[0], F[0].est[1]);
+        // No fim ele vira o 5 e a sequencia e refeita: o 1 depois do 5 derruba os dois.
+        joga(1, D_D6, 5);
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(F[0].valor[0] == 5 && !F[0].espera[0] && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 0,
+                "Espelho virou 5 com um 1 depois: caem os dois (deu %d)", d.total[0]);
+        CONFERE(pv.total[0] == d.total[0], "Espelho firme: a previa dava %d e o desfecho deu %d", pv.total[0], d.total[0]);
+        // Virando 1, o 1 de depois volta a valer.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 1); joga(1, D_D2, 1);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 2, "Espelho virou 1: o 1 de depois vale (deu %d)", d.total[0]);
+        // Nem o Agouro, nem o Egoista (chegando, ou ja na mesa), nem a
+        // Sanguessuga, nem o Vidro que quebra.
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1); joga(0, D_MALDITO, 3);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].espera[1], "Espelho esperando: o Agouro nao o anula");
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1); joga(0, D_EGOISTA, 7);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO, "Espelho esperando: o Egoista que chega nao o anula");
+        limpa();
+        joga(0, D_EGOISTA, 7); joga(0, D_ESPELHO, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].espera[1], "Espelho esperando: vale ao lado do Egoista ate virar");
+        joga(1, D_D12, 9);
+        d = fim();
+        CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 7, "Espelho virado ao lado do Egoista: anulado (deu %d)", d.total[0]);
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_SANGUESSUGA, 5);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Espelho esperando: a Sanguessuga nao o suga");
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_VIDRO, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Espelho esperando: o Vidro quebra sozinho");
+        // Ele nao vira calado quando outra coisa refaz a sequencia (a Ventania
+        // da carta do Coringa, o tremor): quem o vira e o fim, com o evento.
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_ESPELHO, 2); joga(0, D_D6, 1);
+        joga(1, D_D6, 5);
+        refaz_sequencia(0, F[0].lancados);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 2 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO,
+                "Espelho esperando, sequencia refeita: segue esperando com o 2 (valor %d)", F[0].valor[1]);
+        d = fim();
+        int n_esp = 0;
+        for (int i = 0; i < n_ev; i++) n_esp += ev[i].tipo == EV_ESPELHO;
+        CONFERE(n_esp == 1 && !F[0].espera[1] && F[0].valor[1] == 5, "Espelho: vira no fim, com o evento (%d eventos)", n_esp);
+
+        // Com a Prensa, o 1 dele vira 3 e ele segue esperando, firme: refazer a
+        // sequencia da o mesmo que o pouso deu.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho com a Prensa: espera com o 3, sem cair (valor %d)", F[0].valor[1]);
+        refaz_sequencia(0, F[0].lancados);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho com a Prensa, sequencia refeita: o mesmo (valor %d)", F[0].valor[1]);
+        amul[0] = 0; modo = M_DOIS;
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

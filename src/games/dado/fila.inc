@@ -207,7 +207,10 @@ static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) 
 // Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os
 // ataques do fim da rodada continuam mirando nele (firme_sem_capa) e batem na
 // capa: o efeito nao pega e nao passa para outro dado.
-static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, k); }
+// O Espelho que espera o oponente tambem: enquanto espera, nada o anula (nem
+// a sequencia, nem o Agouro, o Egoista, a Sanguessuga ou o Vidro). No fim ele
+// vira, deixa de esperar e volta a ser um dado como os outros.
+static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, k) || F[j].espera[k]; }
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
@@ -410,9 +413,11 @@ static void aplica_regra(int j, int k)
 
     // Espelho caido com 1 ou 2 vira sempre o maior dado do rival. Se o rival
     // ainda nao jogou, espera: vira no calculo do fim da rodada, e ate la
-    // vale como esta, sem cair.
-    if (ef == EF_ESPELHO && v <= 2) {
-        int alvo = maior_do_rival(j);
+    // vale como esta, firme. O que ja espera segue esperando quando a
+    // sequencia e refeita: quem o vira e o fim da rodada, com o evento dele
+    // (mesmo o que tirou 1 e a Prensa ja fez 3).
+    if (ef == EF_ESPELHO && (v <= 2 || f->espera[k])) {
+        int alvo = f->espera[k] ? 0 : maior_do_rival(j);
         if (alvo > 0) {
             v = f->valor[k] = alvo;
             lado_vira(j, k, v);

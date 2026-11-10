@@ -559,7 +559,8 @@ static void aplica_regra(int j, int k)
         && cai_depois(j, v, f->valor[l])) {
         // (a Ponte, o Vazio, a Sanguessuga e o dado no lado do Transparente nunca caem)
         // A Sentinela cai sozinha: o dado de antes fica de pe. A Luva de
-        // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo.
+        // Couro segura o primeiro da sequencia; a Rede, o de antes do ultimo
+        // (o ultimo da sequencia montada; depois de parar, o ultimo lancado).
         bool sentinela = ef == EF_SENTINELA;
         bool luva = l == 0 && tem_am(j, A_LUVA) && !firme(j, l);
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;

@@ -624,11 +624,10 @@ static void confere_refaz(const char *quando)
     retrata(&r0);
     memcpy(antes, F, sizeof F);
     for (int j = 0; j < 2; j++) {
-        // Ficam de fora: a Rede, que olha onde a queda aconteceu da primeira
-        // vez (regra em aberto); e o Camaleao atras da Ficha Coringa ou do
-        // Carrossel num lado com adesivo da sequencia (regra mantida como
-        // esta: ele entra na sequencia como um dado comum).
-        bool fora = !F[j].lancados || tem_am(j, A_REDE);
+        // Fica de fora o Camaleao atras da Ficha Coringa ou do Carrossel num
+        // lado com adesivo da sequencia (regra mantida como esta: ele entra
+        // na sequencia como um dado comum).
+        bool fora = !F[j].lancados;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int a = ad_fila(j, k), ef = TIPO[tipo_de(j, k)].efeito;
             fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && (ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL);

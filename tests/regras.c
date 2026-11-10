@@ -7875,6 +7875,60 @@ int main(void)
                 "Digital para o lado do Corretivo: o 4 de depois vale (%d %d)", F[0].est[1], F[0].est[2]);
         J[0].col[1] = (peca_t){ .tipo = D_D6 };
 
+        // A Rede vale sempre no ultimo dado da sequencia: o 3o de tres, o 5o
+        // de cinco (com o Bis) - e nao no 4o de cinco.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_REDE);
+        limpa();
+        joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D6, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO, "Rede numa sequencia de tres: vale no 3o (%d %d)", F[0].est[1], F[0].est[2]);
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_D6, 2); joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D6, 2);
+        CONFERE(F[0].est[3] == V_VALIDO && F[0].est[4] == V_ANULADO, "Rede numa sequencia de cinco: vale no 5o (%d %d)", F[0].est[3], F[0].est[4]);
+        // Parando antes de lancar todos, os que sobram saem da mesa e a Rede
+        // passa a valer no ultimo lancado: a sequencia e refeita com ela. O
+        // pouso (parando ali), a previa e o desfecho dao o mesmo.
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 6);
+        joga(0, D_D6, 5);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 2;
+        F[0].n = 4; F[0].lancados = 2;                  // montou quatro dados; este e o segundo
+        aplica_regra(0, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "Rede no meio da sequencia: nao vale ainda (%d %d)", F[0].est[0], F[0].est[1]);
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].n == 4 && F[0].est[0] == V_ANULADO, "Rede: a previa nao mexe na mesa (n %d)", F[0].n);
+        CONFERE(pv.total[0] == 5 && pv.est[0][0] == V_VALIDO, "Rede: a previa de quem para agora ja conta com ela (deu %d)", pv.total[0]);
+        vez = 0; J[0].n_mao = 0;
+        descarta_sobras(0);
+        CONFERE(F[0].n == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].pontos == 5,
+                "Rede, parando antes do fim: vale no ultimo lancado (%d %d, %d pontos)", F[0].est[0], F[0].est[1], F[0].pontos);
+        d = fim();
+        CONFERE(d.total[0] == 5 && d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && pv.total[0] == d.total[0],
+                "Rede, parando antes do fim: o desfecho da o mesmo (deu %d, a previa %d)", d.total[0], pv.total[0]);
+        // Lancando todos, o segundo dado nao era o ultimo: a Rede nao o segura.
+        limpa();
+        joga(0, D_D6, 5);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 2;
+        F[0].n = 3; F[0].lancados = 2;
+        aplica_regra(0, 1);
+        F[0].tipo[2] = D_D6; F[0].cru[2] = F[0].valor[2] = 4; F[0].lancados = 3;
+        aplica_regra(0, 2);
+        vez = 0;
+        descarta_sobras(0);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 4, "Rede, lancando todos: so vale no ultimo (deu %d)", d.total[0]);
+        // Um Terremoto anulado no meio da sequencia volta a valer se o dono
+        // parar ali (a Rede o segura) e entao treme: o fim depende da sorte.
+        limpa(); primeiro = 1;
+        joga(1, D_D12, 10);
+        joga(0, D_TERREMOTO, 7);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 4;
+        F[0].n = 3; F[0].lancados = 2;
+        aplica_regra(0, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && !tremor_na_mesa(), "Rede e Terremoto: a mesa do teste");
+        CONFERE(fim_incerto() && !ja_vence(0), "Rede e Terremoto que volta a valer ao parar: o fim depende da sorte");
+        CONFERE(F[0].n == 3 && F[0].est[0] == V_ANULADO, "Rede e Terremoto: fim_incerto nao mexe na mesa");
+        amul[0] = 0; modo = M_DOIS;
+
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;
         limpa();

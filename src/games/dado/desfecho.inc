@@ -2117,10 +2117,14 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     memcpy(f_antes, F, sizeof F);
     memcpy(ver_antes, veredito, sizeof veredito);
     // A previa conta a rodada como se acabasse agora: os dados da sequencia
-    // ainda por lancar ja teriam saido da mesa (descarta_sobras), e a Rede
-    // olha o ultimo dado lancado, como no fim de verdade. O n volta no fim.
+    // ainda por lancar ja teriam saido da mesa, e a Rede passa a valer no
+    // ultimo dado lancado, com a sequencia refeita (descarta_sobras). A mesa
+    // volta no fim.
     for (int j = 0; !gera && j < 2; j++)
-        if (F[j].n > F[j].lancados) F[j].n = F[j].lancados;
+        if (F[j].n > F[j].lancados) {
+            F[j].n = F[j].lancados;
+            if (tem_am(j, A_REDE)) { refaz_sequencia(j, F[j].lancados); virou = true; }
+        }
     // O Oculto mostra o que tirou (so no desfecho de verdade: a previa nao
     // sabe, e a IA imagina o numero antes): a sequencia e refeita com ele.
     uint8_t revelados[2] = { 0, 0 };

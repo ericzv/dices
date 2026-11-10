@@ -91,6 +91,7 @@ void dado_online_comeca(uint32_t sem, int eu)
     // jogadores, o Desafiante) entrava no numero, e as duas mesas "ficavam
     // diferentes" logo na saida da loja, sem nada de errado no jogo.
     memset(F, 0, sizeof F);
+    epoca_presa = false;                     // a epoca desta sala: lida agora e presa ate sair (le_epoca)
     dado_inicia(0);
 }
 

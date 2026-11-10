@@ -2256,6 +2256,21 @@ int main(void)
                 CONFERE(natal && dezembro && !reveillon, "dezembro, antes do dia 26");
                 natal_forcado = 3; le_epoca();
                 CONFERE(natal && dezembro && reveillon, "do dia 26 em diante: o Reveillon");
+                // Online, a epoca lida ao entrar na sala fica presa ate sair: a
+                // revanche usa a mesma, mesmo que o relogio ja tenha virado.
+                {
+                    int m0 = modo;
+                    natal_forcado = -1; modo = M_ONLINE; epoca_presa = false;
+                    le_epoca();
+                    CONFERE(epoca_presa, "online: a epoca devia ficar presa ao entrar na sala");
+                    epoca_mes = 0; epoca_dia = 7;                  // como se a sala tivesse comecado em 7 de janeiro
+                    le_epoca();                                    // a revanche
+                    CONFERE(!natal && !dezembro && !reveillon, "online: a revanche usa a epoca da sala, nao o relogio");
+                    epoca_mes = 11; epoca_dia = 31;
+                    le_epoca();
+                    CONFERE(natal && dezembro && reveillon, "online: a epoca presa vale ate sair da sala");
+                    modo = m0; epoca_presa = false;
+                }
                 // Os estilos de Natal: abertos na epoca; o Reveillon, so do dia 26.
                 CONFERE(ABRE_FELTRO[FT_NOITE_FELIZ] == ANDAR_NATAL && ABRE_FELTRO[FT_XADREZ] == ANDAR_NATAL
                         && ABRE_FELTRO[FT_REVEILLON] == ANDAR_REVEILLON && ABRE_MATERIAL[MAT_BOLA] == ANDAR_NATAL

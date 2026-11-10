@@ -37,6 +37,11 @@ static int face_v(int tipo, int valor)
 #define NATAL_DESDE 20                   // o dia de outubro em que comeca
 #define NATAL_ATE   6                    // e o de janeiro em que acaba
 static int natal_forcado = -1;
+// Online, a epoca fica a lida ao entrar na sala, ate sair dela: as revanches
+// usam a mesma, e os dois lados nao se separam se uma comecar na virada
+// (dado_online_comeca solta a de antes).
+static bool epoca_presa;
+static int8_t epoca_mes, epoca_dia;
 static void poe_epoca(int mes, int dia)  // mes de 0 (janeiro) a 11
 {
     bool jan = mes == 0 && dia <= NATAL_ATE;
@@ -52,10 +57,16 @@ static void le_epoca(void)
         poe_epoca(MES[f], DIA[f]);
         return;
     }
+    if (modo == M_ONLINE && epoca_presa) { poe_epoca(epoca_mes, epoca_dia); return; }
     time_t agora = time(NULL);
     const struct tm *m = modo == M_ONLINE ? gmtime(&agora) : localtime(&agora);
     if (m) poe_epoca(m->tm_mon, m->tm_mday);
     else natal = dezembro = reveillon = false;
+    if (modo == M_ONLINE) {
+        epoca_presa = true;
+        epoca_mes = (int8_t)(m ? m->tm_mon : 3);       // (sem relogio: fora da epoca, como acima)
+        epoca_dia = (int8_t)(m ? m->tm_mday : 1);
+    }
 }
 
 static int outro(int j) { return j ^ 1; }

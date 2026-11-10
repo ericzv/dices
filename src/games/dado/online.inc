@@ -14,12 +14,16 @@ static bool rede_na_vez(void) { return (remoto >> vez & 1) && aceita_escolha(); 
 // Digitando o codigo da sala: todas as letras sao do codigo, ate M e N.
 bool dado_digitando(void) { return (fase == F_ONLINE && digitando) || fase == F_PCRIA; }
 
-void dado_rede_tecla(int k)
+// Devolve 0 com a fila cheia (o rival apertou muita coisa enquanto esta
+// pagina estava parada, de lado ou sem conexao): a tecla nao entrou, e a
+// rede a entrega de novo mais tarde. Perdida, as duas mesas se separavam.
+int dado_rede_tecla(int k)
 {
     int prox_i = (rede_fim + 1) % FILA_REDE;
-    if (prox_i == rede_ini) return;          // fila cheia: nunca numa partida normal
+    if (prox_i == rede_ini) return 0;
     rede_q[rede_fim] = (uint16_t)k;
     rede_fim = prox_i;
+    return 1;
 }
 
 // Os marcos da partida online. A cada rodada que comeca e a cada vez que

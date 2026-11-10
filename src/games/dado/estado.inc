@@ -68,6 +68,7 @@ typedef struct {
     bool    gira[N_FILA];            // Carrossel lancado: gira fora da sequencia ate parar no fim (nos validos da mesa)
     uint32_t abalo[N_FILA];          // Terremoto: a semente do lance de novo que o tremor da no fim
     uint8_t guarda[N_FILA];          // a Sentinela caiu protegendo este dado (a posicao + 1; 0: nenhum)
+    uint8_t ferradura;               // a queda que a Ferradura segurou nesta rodada: o dado que caiu (a posicao + 1; 0: nenhuma)
     uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
     char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
     char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
@@ -359,7 +360,6 @@ static int am_lugares(void);         // os de agora (desafio/bolsas.inc)
 static amul_t amul[2];
 static int   op_amul_extra = -1;         // Diamante: o amuleto que o oponente ganhou (o resto de amul[1] e o trunfo)
 static amul_t am_disparou;           // amuletos que acabaram de agir (a faixa acende)
-static int8_t ferr_k[2] = { -1, -1 };  // dado que a Ferradura salvou nesta rodada
 static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca)
 static int des_rod_cheias;           // as vencidas com 4 dados validos (abre o Estojo de Lapis)
 static bool des_atras7;              // comecou a 7a rodada atras em fichas (abre o Saco de Sementes)

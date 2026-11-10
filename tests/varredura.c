@@ -149,7 +149,6 @@ typedef struct {
     int pote, primeiro, vez, rodada, zerou, vence_j, n_ev, ver_tipo, anulou_a, anulou_b, resistiu;
     int fichas_ini[2], bis_fila[2], bis_vem[2], chic_valor[2], ad_moedas[2];
     uint8_t chic_lado[2], anulou_masc;
-    int8_t ferr_k[2];
     amul_t amul[2];
     int16_t embrulho;
     bool ver_comum, carta_virando;
@@ -172,7 +171,7 @@ static void retrata(retrato_t *r)
     for (int j = 0; j < 2; j++) {
         r->fichas_ini[j] = fichas_ini[j]; r->bis_fila[j] = bis_fila[j]; r->bis_vem[j] = bis_vem[j];
         r->chic_valor[j] = chic_valor[j]; r->chic_lado[j] = chic_lado[j]; r->ad_moedas[j] = ad_moedas[j];
-        r->ferr_k[j] = ferr_k[j]; r->amul[j] = amul[j];
+        r->amul[j] = amul[j];
     }
     memcpy(r->pavio_mais, pavio_mais, sizeof pavio_mais);
     memcpy(r->veredito, veredito, sizeof veredito);
@@ -187,7 +186,7 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_FILA[] = {
     CAMPO(dobra), CAMPO(bonus), CAMPO(quebra), CAMPO(cinza), CAMPO(descarte), CAMPO(espera), CAMPO(ancora),
     CAMPO(grudado), CAMPO(chiclete), CAMPO(calibre), CAMPO(bomba), CAMPO(bomba1), CAMPO(copiou), CAMPO(carta),
     CAMPO(escondido), CAMPO(fruta), CAMPO(presente), CAMPO(faixa), CAMPO(curinga), CAMPO(curinga_nada), CAMPO(gira),
-    CAMPO(abalo), CAMPO(guarda), CAMPO(bonecas), CAMPO(tag), CAMPO(tag_num), CAMPO(tag_mais), CAMPO(pontos), CAMPO(total),
+    CAMPO(abalo), CAMPO(guarda), CAMPO(ferradura), CAMPO(bonecas), CAMPO(tag), CAMPO(tag_num), CAMPO(tag_mais), CAMPO(pontos), CAMPO(total),
 };
 static const char *campo_fila(size_t o)
 {
@@ -230,7 +229,7 @@ static bool difere(const retrato_t *a, const retrato_t *b, char *onde, size_t n)
     else if (memcmp(a->veredito, b->veredito, sizeof a->veredito) || a->ver_tipo != b->ver_tipo || a->ver_comum != b->ver_comum
              || a->anulou_a != b->anulou_a || a->anulou_b != b->anulou_b || a->resistiu != b->resistiu
              || a->anulou_masc != b->anulou_masc) snprintf(onde, n, "o veredito do ultimo lance");
-    else snprintf(onde, n, "o resto do estado (pote, vez, amuletos, Ferradura, Chiclete...)");
+    else snprintf(onde, n, "o resto do estado (pote, vez, amuletos, Chiclete...)");
     return true;
 }
 
@@ -265,7 +264,6 @@ static void zera_jogo(void)
     vez = primeiro = 0; rodada = 1; pote = 0; cursor = 0; partidas = 0;
     a_pagar = passes = 0; aumentou = false;
     zerou = vence_j = -1; correu_venc = -1; venc_mao = venc_partida = 0;
-    ferr_k[0] = ferr_k[1] = -1;
     amul[0] = amul[1] = 0; op_amul_extra = -1; am_disparou = 0;
     reg_op = REG_NADA; estilo_op = 0; maluco_lado = 0; juros_rodada = 0;
     modo = M_DOIS; cpu = 0; remoto = 0; baixo = 0;
@@ -626,11 +624,11 @@ static void confere_refaz(const char *quando)
     retrata(&r0);
     memcpy(antes, F, sizeof F);
     for (int j = 0; j < 2; j++) {
-        // Ficam de fora (veja o relatorio das regras em aberto): a Ferradura e
-        // a Rede, que olham onde a queda aconteceu da primeira vez; e o dado
-        // que o proprio poder (ou a Prensa, o Calibre) virou para um lado com
-        // adesivo da sequencia.
-        bool fora = !F[j].lancados || tem_am(j, A_FERRADURA) || tem_am(j, A_REDE);
+        // Ficam de fora (veja o relatorio das regras em aberto): a Rede, que
+        // olha onde a queda aconteceu da primeira vez; e o dado que o proprio
+        // poder (ou a Prensa, o Calibre) virou para um lado com adesivo da
+        // sequencia.
+        bool fora = !F[j].lancados || tem_am(j, A_REDE);
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int a = ad_fila(j, k), ef = TIPO[tipo_de(j, k)].efeito;
             bool virou = F[j].calibre[k] || tem_am(j, A_PRENSA) || ef == EF_GEMEO || ef == EF_ECO || ef == EF_DIGITAL
@@ -676,7 +674,6 @@ static void chega_na_fila(void)
         && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
         J[j].col[F[j].idx[k]].fixo++;
     for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
-    if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
     if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
     cosmo_pousa(j, k);
     flutua_pouso(j, k);

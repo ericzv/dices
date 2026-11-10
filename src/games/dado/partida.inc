@@ -284,7 +284,6 @@ static void nova_rodada(void)
     carta_virando = false;
     zerou = -1;
     vence_j = -1;
-    ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,

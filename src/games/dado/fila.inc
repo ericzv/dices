@@ -560,11 +560,14 @@ static void aplica_regra(int j, int k)
         bool rede = k == f->n - 1 && tem_am(j, A_REDE) && !firme(j, l) && !sentinela && !luva;
         // Ferradura: uma vez por rodada, na primeira queda que nada mais
         // segurou (Luva, Rede, Sentinela, dado firme), o dado de antes fica.
-        bool ferr = tem_am(j, A_FERRADURA) && (ferr_k[j] < 0 || ferr_k[j] == k) && !firme(j, l)
+        // A queda que ela segurou fica marcada na fila (o dado que caiu):
+        // refeita a sequencia, ela segura essa mesma queda, se ainda houver,
+        // e nenhuma outra.
+        bool ferr = tem_am(j, A_FERRADURA) && (!f->ferradura || f->ferradura == k + 1) && !firme(j, l)
                     && !sentinela && !luva && !rede;
         if (luva) am_disparou |= AM_BIT(A_LUVA);
         if (rede) am_disparou |= AM_BIT(A_REDE);
-        if (ferr) am_disparou |= AM_BIT(A_FERRADURA);
+        if (ferr) { am_disparou |= AM_BIT(A_FERRADURA); f->ferradura = (uint8_t)(k + 1); }
         bool esc_l = firme(j, l) || sentinela || luva || rede || ferr, esc_k = firme(j, k);
         if (!esc_l) f->est[l] = V_ANULADO;
         f->est[k] = esc_k ? V_VALIDO : V_ANULADO;

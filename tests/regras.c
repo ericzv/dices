@@ -859,14 +859,13 @@ int main(void)
         desfecho_t d;
         modo = M_DESAFIO;
         // Ferradura: na primeira queda da rodada, o de antes fica; o novo cai.
-        limpa(); amul[0] = 1u << A_FERRADURA; ferr_k[0] = -1; am_disparou = 0;
+        limpa(); amul[0] = 1u << A_FERRADURA; am_disparou = 0;
         joga(0, D_D6, 5); joga(0, D_D4, 2);
         CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && (am_disparou >> A_FERRADURA & 1),
                 "Ferradura: o 5 devia ficar e o 2 cair");
-        ferr_k[0] = 1;                                   // a primeira queda ja pousou
-        joga(0, D_D6, 6); joga(0, D_D4, 1);
+        CONFERE(F[0].ferradura == 2, "Ferradura: a queda que ela segurou fica marcada (%d)", F[0].ferradura);
+        joga(0, D_D6, 6); joga(0, D_D4, 1);              // a primeira queda ja pousou
         CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO, "Ferradura: a segunda queda devia cair");
-        ferr_k[0] = -1;
         // Dado Pesado: +1 nos de 6 lados.
         limpa(); amul[0] = 1u << A_PESADO;
         joga(0, D_D6, 4); joga(0, D_D8, 4);
@@ -7713,6 +7712,47 @@ int main(void)
             CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 6 && pv.total[0] == 6,
                     "Espelho sem alvo (caso %d): 5 + 1 (deu %d, a previa %d)", caso, d.total[0], pv.total[0]);
         }
+
+        // A Ferradura segura uma queda so por rodada, mesmo quando a
+        // sequencia e refeita. A Ventania rola o primeiro de novo (5) e os
+        // dois 4 passam a cair: ela segura a primeira queda, e na segunda o 5
+        // cai junto.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_FERRADURA);
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_D6, 4); joga(0, D_D6, 4);
+        CONFERE(!F[0].ferradura, "Ferradura: sem queda, nada marcado");
+        joga_com(0, D_VENTANIA, 8, sempre_cinco);
+        CONFERE(F[0].valor[0] == 5 && F[0].ferradura == 2, "Ferradura e Ventania: a queda marcada e a do segundo dado (%d)", F[0].ferradura);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO && F[0].est[3] == V_VALIDO,
+                "Ferradura e Ventania: uma queda so (%d %d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2], F[0].est[3]);
+        // Refeita a sequencia, ela segura a mesma queda - e nao a seguinte.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_D6, 6); joga(0, D_D4, 1);
+        for (int vez_ = 0; vez_ < 2; vez_++) {
+            CONFERE(F[0].ferradura == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO
+                    && F[0].est[3] == V_ANULADO, "Ferradura, sequencia %s: segura a queda do segundo dado, e so ela",
+                    vez_ ? "refeita" : "lancada");
+            refaz_sequencia(0, F[0].lancados);
+        }
+        // Se a queda que ela segurou deixa de existir, nao segura outra: a
+        // Ventania rola o primeiro (2), o 2 de depois ja nao cai, e a propria
+        // Ventania, com 1, cai e leva o 2.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2);
+        joga_com(0, D_VENTANIA, 1, sempre_dois);
+        CONFERE(F[0].valor[0] == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO,
+                "Ferradura ja usada: a queda nova nao e segurada (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        // A previa nao gasta a Ferradura: o Espelho vira 2 no fim e cai depois
+        // do 3; ela segura o 3 na previa e no desfecho, e so o desfecho marca.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_ESPELHO, 1);
+        joga(1, D_D8, 2);
+        calcula_desfecho(&pv, false);
+        CONFERE(!F[0].ferradura && pv.total[0] == 5, "Ferradura: a previa nao a gasta (marca %d, total %d)", F[0].ferradura, pv.total[0]);
+        d = fim();
+        CONFERE(F[0].ferradura == 3 && d.total[0] == 5 && d.est[0][1] == V_VALIDO && d.est[0][2] == V_ANULADO,
+                "Ferradura no fim: segura o 3 quando o Espelho cai (deu %d)", d.total[0]);
+        amul[0] = 0; modo = M_DOIS;
 
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;

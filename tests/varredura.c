@@ -624,17 +624,14 @@ static void confere_refaz(const char *quando)
     retrata(&r0);
     memcpy(antes, F, sizeof F);
     for (int j = 0; j < 2; j++) {
-        // Ficam de fora (veja o relatorio das regras em aberto): a Rede, que
-        // olha onde a queda aconteceu da primeira vez; e o dado que o proprio
-        // poder (ou a Prensa, o Calibre) virou para um lado com adesivo da
-        // sequencia.
+        // Ficam de fora: a Rede, que olha onde a queda aconteceu da primeira
+        // vez (regra em aberto); e o Camaleao atras da Ficha Coringa ou do
+        // Carrossel num lado com adesivo da sequencia (regra mantida como
+        // esta: ele entra na sequencia como um dado comum).
         bool fora = !F[j].lancados || tem_am(j, A_REDE);
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int a = ad_fila(j, k), ef = TIPO[tipo_de(j, k)].efeito;
-            bool virou = F[j].calibre[k] || tem_am(j, A_PRENSA) || ef == EF_GEMEO || ef == EF_ECO || ef == EF_DIGITAL
-                      || ef == EF_ESPELHO || ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL;
-            fora |= a == AD_CARBONO && !F[j].copiou[k];
-            fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && virou;
+            fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && (ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL);
         }
         if (fora) continue;
         refaz_sequencia(j, F[j].lancados);

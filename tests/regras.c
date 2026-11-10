@@ -81,6 +81,30 @@ static void joga_ad(int j, int i, int v)
     f->lancados = k + 1;
     aplica_regra(j, k);
 }
+// Como joga_ad, mas o dado cai pela regra completa (o Calibre de antes sobe o lance).
+static void joga_ad_com(int j, int i, int v, int (*r)(int))
+{
+    fila_t *f = &F[j];
+    int k = f->lancados, t = J[j].col[i].tipo;
+    if (k >= N_FILA) return;
+    f->idx[k] = (int8_t)i;
+    f->tipo[k] = (uint8_t)t;
+    f->n = k + 1;
+    f->cru[k] = f->valor[k] = v;
+    f->lado[k] = (uint8_t)lado_do_lance(t, v, 0);
+    f->lancados = k + 1;
+    pousa(j, k, r);
+}
+// Refaz a sequencia de j sem nada ter mudado: da a mesma (estados, numeros e lados)?
+static bool refaz_igual(int j)
+{
+    fila_t a = F[j];
+    refaz_sequencia(j, F[j].lancados);
+    bool igual = true;
+    for (int k = 0; k < a.lancados; k++)
+        igual &= a.est[k] == F[j].est[k] && a.valor[k] == F[j].valor[k] && a.lado[k] == F[j].lado[k];
+    return igual;
+}
 static int sempre_um(int lados) { (void)lados; return 1; }
 static int seq_v[8], seq_n;                 // os lances que r_seq devolve, um a um
 static int r_seq(int lados) { (void)lados; return seq_n < 8 ? seq_v[seq_n++] : 1; }
@@ -7753,6 +7777,103 @@ int main(void)
         CONFERE(F[0].ferradura == 3 && d.total[0] == 5 && d.est[0][1] == V_VALIDO && d.est[0][2] == V_ANULADO,
                 "Ferradura no fim: segura o 3 quando o Espelho cai (deu %d)", d.total[0]);
         amul[0] = 0; modo = M_DOIS;
+
+        // O adesivo do lado para onde o proprio poder virou o dado age na
+        // hora, e refazer a sequencia da o mesmo que o pouso deu.
+        // A Prensa faz do 1 um 3, e o lado do 3 tem o Papel Carbono: copia o 5.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+        ad_cola(&J[0].col[1], 3, AD_CARBONO);
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 3 && F[0].copiou[1] && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Prensa para o lado do Papel Carbono: copia o 5 (valor %d, %d %d)", F[0].valor[1], F[0].est[0], F[0].est[1]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Papel Carbono: refeita, a sequencia muda (valor %d)", F[0].valor[1]);
+        // O primeiro da sequencia nao tem o que copiar: fica com o 3 da Prensa.
+        limpa();
+        joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[0] == 3 && !F[0].copiou[0] && refaz_igual(0), "Prensa para o lado do Papel Carbono, o primeiro: fica 3 (%d)", F[0].valor[0]);
+        // O lado do 3 com o Transparente: a sequencia nao ve o dado, nada cai.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 3, AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 1); joga_ad(0, 2, 5);
+        CONFERE(F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "Prensa para o lado do Transparente: nao cai nem derruba (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Transparente: refeita, a sequencia muda");
+        // O lado do 3 com o Corretivo: pontua, mas o 2 de depois compara com o 2 de antes.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 3, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 2); joga_ad(0, 1, 1); joga_ad(0, 2, 2);
+        CONFERE(F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "Prensa para o lado do Corretivo: nao sobe a regua (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Corretivo: refeita, a sequencia muda");
+        amul[0] = 0; modo = M_DOIS;
+        // O Espelho vira o 4 do oponente, e o lado do 4 tem o Papel Carbono: copia o 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ESPELHO };
+        ad_cola(&J[0].col[1], 4, AD_CARBONO);
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 4 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho para o lado do Papel Carbono: copia o 5 (valor %d, %d %d)", F[0].valor[1], F[0].est[0], F[0].est[1]);
+        CONFERE(refaz_igual(0), "Espelho para o lado do Papel Carbono: refeita, a sequencia muda (valor %d)", F[0].valor[1]);
+        // Copiando 1 ou 2, o Espelho vira de novo o maior do oponente - no pouso e ao refazer.
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 2); joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[1] == 4 && F[0].lado[1] == 4 && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Espelho para o lado do Papel Carbono, copiando 2: vira o 4 de novo (valor %d)", F[0].valor[1]);
+        // Esperando, ele vira no fim: o lado do 4 tem o Papel Carbono e ele copia o 5.
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        joga(1, D_D6, 4);
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(F[0].valor[1] == 5 && d.total[0] == 10 && pv.total[0] == 10, "Espelho que vira no fim para o lado do Papel Carbono: 5 + 5 (deu %d, a previa %d)",
+                d.total[0], pv.total[0]);
+        // O lado do 4 com o Transparente: o Espelho virado nao cai depois do 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ESPELHO };
+        ad_cola(&J[0].col[1], 4, AD_TRANSPARENTE);
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[1] == 4 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Espelho para o lado do Transparente: nao cai (%d %d)", F[0].est[0], F[0].est[1]);
+        // O Calibre sobe o 4 para 5, e o lado do 5 tem o Papel Carbono: copia o 3 do Calibre.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 5, AD_CARBONO);
+        limpa(); primeiro = 0;
+        joga(0, D_CALIBRE, 3); joga_ad_com(0, 1, 4, sempre_dois);
+        CONFERE(F[0].valor[1] == 3 && F[0].lado[1] == 5 && F[0].copiou[1] && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Calibre para o lado do Papel Carbono: copia o 3 (valor %d)", F[0].valor[1]);
+        // O lado do 5 com o Corretivo: o 4 de depois compara com o 3 do Calibre.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 5, AD_CORRETIVO);
+        limpa();
+        joga(0, D_CALIBRE, 3); joga_ad_com(0, 1, 4, sempre_dois); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 5 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Calibre para o lado do Corretivo: nao sobe a regua (%d %d)", F[0].est[1], F[0].est[2]);
+        // O Eco vira o 2 do primeiro dado, e o lado do 2 tem o Transparente: nao cai depois do 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ECO };
+        ad_cola(&J[0].col[1], 2, AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 2); joga_ad(0, 2, 5); joga_ad(0, 1, 6);
+        CONFERE(F[0].valor[2] == 2 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Eco para o lado do Transparente: nao cai (%d %d)", F[0].est[1], F[0].est[2]);
+        // O Gemeo e o Digital, o mesmo: o lado novo com o Corretivo nao sobe a regua.
+        J[0].col[1] = (peca_t){ .tipo = D_GEMEO };
+        ad_cola(&J[0].col[1], 4, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 4); joga_ad(0, 1, 1); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 4 && F[0].lado[1] == 4 && F[0].est[2] == V_VALIDO && refaz_igual(0), "Gemeo para o lado do Corretivo (%d)", F[0].est[2]);
+        J[0].col[1] = (peca_t){ .tipo = D_DIGITAL };
+        ad_cola(&J[0].col[1], 5, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 4); joga_ad(0, 1, 1); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 5 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Digital para o lado do Corretivo: o 4 de depois vale (%d %d)", F[0].est[1], F[0].est[2]);
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
 
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;

@@ -358,7 +358,7 @@ static void aplica_regra(int j, int k)
     if (f->carta && k == 3) { f->est[k] = V_ESPERA; return; }   // a carta do Coringa: ainda em suspensao
     int t = tipo_de(j, k), ef = TIPO[t].efeito;
     int l = ultimo_da_regra(j, f->est, k);
-    int v = f->valor[k];
+    int v = f->valor[k], lado0 = f->lado[k];
     anulou_a = anulou_b = -1;
     anulou_masc = 0;
     resistiu = -1;
@@ -475,6 +475,11 @@ static void aplica_regra(int j, int k)
         poe_tag(f, k, "=3");
         am_disparou |= AM_BIT(A_PRENSA);
     }
+    // O proprio poder (ou a Prensa) virou o dado para um lado com o Papel
+    // Carbono: o adesivo age na hora. A regra recomeca com o dado como ficou,
+    // que e como ela o le quando a sequencia e refeita - o pouso e o refazer
+    // dao o mesmo. (Uma vez so: na volta, o Carbono ja copiou.)
+    if (f->lado[k] != lado0 && !f->copiou[k] && carbono_age(j, k) && l >= 0) { aplica_regra(j, k); return; }
 
     // O ciclo cosmico: tirando a faixa de cima, o bonus do estagio (se ficar
     // valendo); o Buraco Negro, valendo, engole os vizinhos. Evoluir, ele

@@ -81,6 +81,30 @@ static void joga_ad(int j, int i, int v)
     f->lancados = k + 1;
     aplica_regra(j, k);
 }
+// Como joga_ad, mas o dado cai pela regra completa (o Calibre de antes sobe o lance).
+static void joga_ad_com(int j, int i, int v, int (*r)(int))
+{
+    fila_t *f = &F[j];
+    int k = f->lancados, t = J[j].col[i].tipo;
+    if (k >= N_FILA) return;
+    f->idx[k] = (int8_t)i;
+    f->tipo[k] = (uint8_t)t;
+    f->n = k + 1;
+    f->cru[k] = f->valor[k] = v;
+    f->lado[k] = (uint8_t)lado_do_lance(t, v, 0);
+    f->lancados = k + 1;
+    pousa(j, k, r);
+}
+// Refaz a sequencia de j sem nada ter mudado: da a mesma (estados, numeros e lados)?
+static bool refaz_igual(int j)
+{
+    fila_t a = F[j];
+    refaz_sequencia(j, F[j].lancados);
+    bool igual = true;
+    for (int k = 0; k < a.lancados; k++)
+        igual &= a.est[k] == F[j].est[k] && a.valor[k] == F[j].valor[k] && a.lado[k] == F[j].lado[k];
+    return igual;
+}
 static int sempre_um(int lados) { (void)lados; return 1; }
 static int seq_v[8], seq_n;                 // os lances que r_seq devolve, um a um
 static int r_seq(int lados) { (void)lados; return seq_n < 8 ? seq_v[seq_n++] : 1; }
@@ -859,14 +883,13 @@ int main(void)
         desfecho_t d;
         modo = M_DESAFIO;
         // Ferradura: na primeira queda da rodada, o de antes fica; o novo cai.
-        limpa(); amul[0] = 1u << A_FERRADURA; ferr_k[0] = -1; am_disparou = 0;
+        limpa(); amul[0] = 1u << A_FERRADURA; am_disparou = 0;
         joga(0, D_D6, 5); joga(0, D_D4, 2);
         CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && (am_disparou >> A_FERRADURA & 1),
                 "Ferradura: o 5 devia ficar e o 2 cair");
-        ferr_k[0] = 1;                                   // a primeira queda ja pousou
-        joga(0, D_D6, 6); joga(0, D_D4, 1);
+        CONFERE(F[0].ferradura == 2, "Ferradura: a queda que ela segurou fica marcada (%d)", F[0].ferradura);
+        joga(0, D_D6, 6); joga(0, D_D4, 1);              // a primeira queda ja pousou
         CONFERE(F[0].est[2] == V_ANULADO && F[0].est[3] == V_ANULADO, "Ferradura: a segunda queda devia cair");
-        ferr_k[0] = -1;
         // Dado Pesado: +1 nos de 6 lados.
         limpa(); amul[0] = 1u << A_PESADO;
         joga(0, D_D6, 4); joga(0, D_D8, 4);
@@ -7634,6 +7657,316 @@ int main(void)
         CONFERE(J[0].col[8].tipo == D_JINGLE && J[0].col[8].fixo == 1 && ad_no_lado(&J[0].col[8], 1) == AD_CHICLETE,
                 "Jingle Bell: a copia e a mesma peca, com os adesivos");
         CONFERE(!J[0].col[8].chiclete && J[0].col[0].chiclete, "Jingle Bell: a copia nao vem grudada pelo Chiclete");
+
+        // ---- As regras decididas depois da varredura ------------------------
+        for (int i = 0; i < 8; i++) { J[0].col[i] = J[1].col[i] = (peca_t){ .tipo = D_D6 }; }
+        J[0].n_col = J[1].n_col = 8;
+        modo = M_DOIS; reg_op = REG_NADA; amul[0] = amul[1] = 0; rodada = 1;
+
+        // O Espelho que espera e firme: nada o anula ate virar. O dado menor
+        // depois dele cai sozinho, como depois de um Teimoso.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 1);
+        CONFERE(F[0].espera[0] && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO,
+                "Espelho esperando e um dado menor: so o menor cai (%d, %d)", F[0].est[0], F[0].est[1]);
+        // No fim ele vira o 5 e a sequencia e refeita: o 1 depois do 5 derruba os dois.
+        joga(1, D_D6, 5);
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(F[0].valor[0] == 5 && !F[0].espera[0] && d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 0,
+                "Espelho virou 5 com um 1 depois: caem os dois (deu %d)", d.total[0]);
+        CONFERE(pv.total[0] == d.total[0], "Espelho firme: a previa dava %d e o desfecho deu %d", pv.total[0], d.total[0]);
+        // Virando 1, o 1 de depois volta a valer.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 1); joga(1, D_D2, 1);
+        d = fim();
+        CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 2, "Espelho virou 1: o 1 de depois vale (deu %d)", d.total[0]);
+        // Nem o Agouro, nem o Egoista (chegando, ou ja na mesa), nem a
+        // Sanguessuga, nem o Vidro que quebra.
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1); joga(0, D_MALDITO, 3);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO && F[0].espera[1], "Espelho esperando: o Agouro nao o anula");
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1); joga(0, D_EGOISTA, 7);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_VALIDO, "Espelho esperando: o Egoista que chega nao o anula");
+        limpa();
+        joga(0, D_EGOISTA, 7); joga(0, D_ESPELHO, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].espera[1], "Espelho esperando: vale ao lado do Egoista ate virar");
+        joga(1, D_D12, 9);
+        d = fim();
+        CONFERE(d.est[0][1] == V_ANULADO && d.total[0] == 7, "Espelho virado ao lado do Egoista: anulado (deu %d)", d.total[0]);
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_SANGUESSUGA, 5);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO, "Espelho esperando: a Sanguessuga nao o suga");
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_VIDRO, 1);
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO, "Espelho esperando: o Vidro quebra sozinho");
+        // Ele nao vira calado quando outra coisa refaz a sequencia (a Ventania
+        // da carta do Coringa, o tremor): quem o vira e o fim, com o evento.
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_ESPELHO, 2); joga(0, D_D6, 1);
+        joga(1, D_D6, 5);
+        refaz_sequencia(0, F[0].lancados);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 2 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO,
+                "Espelho esperando, sequencia refeita: segue esperando com o 2 (valor %d)", F[0].valor[1]);
+        d = fim();
+        int n_esp = 0;
+        for (int i = 0; i < n_ev; i++) n_esp += ev[i].tipo == EV_ESPELHO;
+        CONFERE(n_esp == 1 && !F[0].espera[1] && F[0].valor[1] == 5, "Espelho: vira no fim, com o evento (%d eventos)", n_esp);
+
+        // Com a Prensa, o 1 dele vira 3 e ele segue esperando, firme: refazer a
+        // sequencia da o mesmo que o pouso deu.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+        limpa();
+        joga(0, D_D6, 4); joga(0, D_ESPELHO, 1);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho com a Prensa: espera com o 3, sem cair (valor %d)", F[0].valor[1]);
+        refaz_sequencia(0, F[0].lancados);
+        CONFERE(F[0].espera[1] && F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho com a Prensa, sequencia refeita: o mesmo (valor %d)", F[0].valor[1]);
+        amul[0] = 0; modo = M_DOIS;
+
+        // O Espelho sem alvo na hora de virar (o oponente so com a Ficha
+        // Coringa, que ainda vai virar) espera e vira depois dela: a Ficha
+        // vira o 4, e o Espelho vira o 4 da Ficha.
+        limpa();
+        joga(0, D_ESPELHO, 2); joga(0, D_D6, 4);
+        joga_com(1, D_FICHA_CORINGA, 1, sempre_dois);
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].espera[0] && F[0].valor[0] == 2 && F[1].curinga[0], "Espelho e Ficha Coringa: a previa nao mexe na mesa");
+        J[0].fichas = J[1].fichas = 100; pote = 10;
+        desfecho();
+        int i_cor = -1, i_esp = -1;
+        for (int i = 0; i < n_ev; i++) {
+            if (ev[i].tipo == EV_CORINGA) i_cor = i;
+            if (ev[i].tipo == EV_ESPELHO) {
+                i_esp = i;
+                CONFERE(vis_espelho[0][0] && ev[i].tem_seq, "Espelho depois da Ficha Coringa: a mesa espera o evento dele");
+            }
+            aplica_evento(i);
+        }
+        CONFERE(F[1].valor[0] == 4 && F[0].valor[0] == 4 && !F[0].espera[0], "Espelho depois da Ficha Coringa: vira o 4 (virou %d)", F[0].valor[0]);
+        CONFERE(i_cor >= 0 && i_esp > i_cor, "Espelho depois da Ficha Coringa: o evento dele vem depois (%d, %d)", i_cor, i_esp);
+        CONFERE(resolvido.total[0] == 8 && total_visivel(0) == 8 && !vis_espelho[0][0],
+                "Espelho depois da Ficha Coringa: 4 + 4 (pago %d, na mesa %d)", resolvido.total[0], total_visivel(0));
+        CONFERE(pv.total[0] == resolvido.total[0] && pv.total[1] == resolvido.total[1],
+                "Espelho depois da Ficha Coringa: a previa dava %d x %d", pv.total[0], pv.total[1]);
+        if (fase == F_EFEITOS) conclui_rodada();
+        // O mesmo com o Carrossel: para no 2 (ele e o Espelho), e o Espelho vira o 2.
+        limpa();
+        joga(0, D_ESPELHO, 1);
+        joga_com(1, D_CARROSSEL, 1, sempre_dois);
+        d = fim();
+        CONFERE(F[1].valor[0] == 2 && F[0].valor[0] == 2 && !F[0].espera[0] && d.total[0] == 2,
+                "Espelho depois do Carrossel: vira o 2 (virou %d)", F[0].valor[0]);
+        // Sem nada para copiar nem assim (o oponente so com o Universo, ou so
+        // com o Vazio): fica com o que tirou, valendo, e a marca "=?" sai.
+        for (int caso = 0; caso < 2; caso++) {
+            limpa();
+            joga(0, D_D6, 5); joga(0, D_ESPELHO, 1);
+            if (caso == 0) joga(1, D_UNIVERSO, 40); else joga(1, D_VAZIO, 0);
+            CONFERE(F[0].espera[1] && !strcmp(F[0].tag_num[1], "=?"), "Espelho sem alvo: a mesa do teste");
+            calcula_desfecho(&pv, false);
+            d = fim();
+            n_esp = 0;
+            for (int i = 0; i < n_ev; i++) n_esp += ev[i].tipo == EV_ESPELHO;
+            CONFERE(!F[0].espera[1] && F[0].valor[1] == 1 && !F[0].tag_num[1][0] && !F[0].tag[1][0] && !n_esp,
+                    "Espelho sem alvo (caso %d): fica com o 1, sem a marca (marca '%s')", caso, F[0].tag_num[1]);
+            CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 6 && pv.total[0] == 6,
+                    "Espelho sem alvo (caso %d): 5 + 1 (deu %d, a previa %d)", caso, d.total[0], pv.total[0]);
+        }
+
+        // A Ferradura segura uma queda so por rodada, mesmo quando a
+        // sequencia e refeita. A Ventania rola o primeiro de novo (5) e os
+        // dois 4 passam a cair: ela segura a primeira queda, e na segunda o 5
+        // cai junto.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_FERRADURA);
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_D6, 4); joga(0, D_D6, 4);
+        CONFERE(!F[0].ferradura, "Ferradura: sem queda, nada marcado");
+        joga_com(0, D_VENTANIA, 8, sempre_cinco);
+        CONFERE(F[0].valor[0] == 5 && F[0].ferradura == 2, "Ferradura e Ventania: a queda marcada e a do segundo dado (%d)", F[0].ferradura);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO && F[0].est[3] == V_VALIDO,
+                "Ferradura e Ventania: uma queda so (%d %d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2], F[0].est[3]);
+        // Refeita a sequencia, ela segura a mesma queda - e nao a seguinte.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2); joga(0, D_D6, 6); joga(0, D_D4, 1);
+        for (int vez_ = 0; vez_ < 2; vez_++) {
+            CONFERE(F[0].ferradura == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO
+                    && F[0].est[3] == V_ANULADO, "Ferradura, sequencia %s: segura a queda do segundo dado, e so ela",
+                    vez_ ? "refeita" : "lancada");
+            refaz_sequencia(0, F[0].lancados);
+        }
+        // Se a queda que ela segurou deixa de existir, nao segura outra: a
+        // Ventania rola o primeiro (2), o 2 de depois ja nao cai, e a propria
+        // Ventania, com 1, cai e leva o 2.
+        limpa();
+        joga(0, D_D6, 5); joga(0, D_D4, 2);
+        joga_com(0, D_VENTANIA, 1, sempre_dois);
+        CONFERE(F[0].valor[0] == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].est[2] == V_ANULADO,
+                "Ferradura ja usada: a queda nova nao e segurada (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        // A previa nao gasta a Ferradura: o Espelho vira 2 no fim e cai depois
+        // do 3; ela segura o 3 na previa e no desfecho, e so o desfecho marca.
+        limpa();
+        joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_ESPELHO, 1);
+        joga(1, D_D8, 2);
+        calcula_desfecho(&pv, false);
+        CONFERE(!F[0].ferradura && pv.total[0] == 5, "Ferradura: a previa nao a gasta (marca %d, total %d)", F[0].ferradura, pv.total[0]);
+        d = fim();
+        CONFERE(F[0].ferradura == 3 && d.total[0] == 5 && d.est[0][1] == V_VALIDO && d.est[0][2] == V_ANULADO,
+                "Ferradura no fim: segura o 3 quando o Espelho cai (deu %d)", d.total[0]);
+        amul[0] = 0; modo = M_DOIS;
+
+        // O adesivo do lado para onde o proprio poder virou o dado age na
+        // hora, e refazer a sequencia da o mesmo que o pouso deu.
+        // A Prensa faz do 1 um 3, e o lado do 3 tem o Papel Carbono: copia o 5.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+        ad_cola(&J[0].col[1], 3, AD_CARBONO);
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 3 && F[0].copiou[1] && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Prensa para o lado do Papel Carbono: copia o 5 (valor %d, %d %d)", F[0].valor[1], F[0].est[0], F[0].est[1]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Papel Carbono: refeita, a sequencia muda (valor %d)", F[0].valor[1]);
+        // O primeiro da sequencia nao tem o que copiar: fica com o 3 da Prensa.
+        limpa();
+        joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[0] == 3 && !F[0].copiou[0] && refaz_igual(0), "Prensa para o lado do Papel Carbono, o primeiro: fica 3 (%d)", F[0].valor[0]);
+        // O lado do 3 com o Transparente: a sequencia nao ve o dado, nada cai.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 3, AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 1); joga_ad(0, 2, 5);
+        CONFERE(F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "Prensa para o lado do Transparente: nao cai nem derruba (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Transparente: refeita, a sequencia muda");
+        // O lado do 3 com o Corretivo: pontua, mas o 2 de depois compara com o 2 de antes.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 3, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 2); joga_ad(0, 1, 1); joga_ad(0, 2, 2);
+        CONFERE(F[0].valor[1] == 3 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO,
+                "Prensa para o lado do Corretivo: nao sobe a regua (%d %d %d)", F[0].est[0], F[0].est[1], F[0].est[2]);
+        CONFERE(refaz_igual(0), "Prensa para o lado do Corretivo: refeita, a sequencia muda");
+        amul[0] = 0; modo = M_DOIS;
+        // O Espelho vira o 4 do oponente, e o lado do 4 tem o Papel Carbono: copia o 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ESPELHO };
+        ad_cola(&J[0].col[1], 4, AD_CARBONO);
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 4 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO,
+                "Espelho para o lado do Papel Carbono: copia o 5 (valor %d, %d %d)", F[0].valor[1], F[0].est[0], F[0].est[1]);
+        CONFERE(refaz_igual(0), "Espelho para o lado do Papel Carbono: refeita, a sequencia muda (valor %d)", F[0].valor[1]);
+        // Copiando 1 ou 2, o Espelho vira de novo o maior do oponente - no pouso e ao refazer.
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 2); joga_ad(0, 1, 1);
+        CONFERE(F[0].valor[1] == 4 && F[0].lado[1] == 4 && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Espelho para o lado do Papel Carbono, copiando 2: vira o 4 de novo (valor %d)", F[0].valor[1]);
+        // Esperando, ele vira no fim: o lado do 4 tem o Papel Carbono e ele copia o 5.
+        limpa();
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        joga(1, D_D6, 4);
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(F[0].valor[1] == 5 && d.total[0] == 10 && pv.total[0] == 10, "Espelho que vira no fim para o lado do Papel Carbono: 5 + 5 (deu %d, a previa %d)",
+                d.total[0], pv.total[0]);
+        // O lado do 4 com o Transparente: o Espelho virado nao cai depois do 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ESPELHO };
+        ad_cola(&J[0].col[1], 4, AD_TRANSPARENTE);
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 4);
+        joga_ad(0, 0, 5); joga_ad(0, 1, 2);
+        CONFERE(F[0].valor[1] == 4 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Espelho para o lado do Transparente: nao cai (%d %d)", F[0].est[0], F[0].est[1]);
+        // O Calibre sobe o 4 para 5, e o lado do 5 tem o Papel Carbono: copia o 3 do Calibre.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 5, AD_CARBONO);
+        limpa(); primeiro = 0;
+        joga(0, D_CALIBRE, 3); joga_ad_com(0, 1, 4, sempre_dois);
+        CONFERE(F[0].valor[1] == 3 && F[0].lado[1] == 5 && F[0].copiou[1] && F[0].est[1] == V_VALIDO && refaz_igual(0),
+                "Calibre para o lado do Papel Carbono: copia o 3 (valor %d)", F[0].valor[1]);
+        // O lado do 5 com o Corretivo: o 4 de depois compara com o 3 do Calibre.
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[1], 5, AD_CORRETIVO);
+        limpa();
+        joga(0, D_CALIBRE, 3); joga_ad_com(0, 1, 4, sempre_dois); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 5 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Calibre para o lado do Corretivo: nao sobe a regua (%d %d)", F[0].est[1], F[0].est[2]);
+        // O Eco vira o 2 do primeiro dado, e o lado do 2 tem o Transparente: nao cai depois do 5.
+        J[0].col[1] = (peca_t){ .tipo = D_ECO };
+        ad_cola(&J[0].col[1], 2, AD_TRANSPARENTE);
+        limpa();
+        joga_ad(0, 0, 2); joga_ad(0, 2, 5); joga_ad(0, 1, 6);
+        CONFERE(F[0].valor[2] == 2 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Eco para o lado do Transparente: nao cai (%d %d)", F[0].est[1], F[0].est[2]);
+        // O Gemeo e o Digital, o mesmo: o lado novo com o Corretivo nao sobe a regua.
+        J[0].col[1] = (peca_t){ .tipo = D_GEMEO };
+        ad_cola(&J[0].col[1], 4, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 4); joga_ad(0, 1, 1); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 4 && F[0].lado[1] == 4 && F[0].est[2] == V_VALIDO && refaz_igual(0), "Gemeo para o lado do Corretivo (%d)", F[0].est[2]);
+        J[0].col[1] = (peca_t){ .tipo = D_DIGITAL };
+        ad_cola(&J[0].col[1], 5, AD_CORRETIVO);
+        limpa();
+        joga_ad(0, 0, 4); joga_ad(0, 1, 1); joga_ad(0, 2, 4);
+        CONFERE(F[0].valor[1] == 5 && F[0].lado[1] == 5 && F[0].est[1] == V_VALIDO && F[0].est[2] == V_VALIDO && refaz_igual(0),
+                "Digital para o lado do Corretivo: o 4 de depois vale (%d %d)", F[0].est[1], F[0].est[2]);
+        J[0].col[1] = (peca_t){ .tipo = D_D6 };
+
+        // A Rede vale sempre no ultimo dado da sequencia: o 3o de tres, o 5o
+        // de cinco (com o Bis) - e nao no 4o de cinco.
+        modo = M_DESAFIO; amul[0] = AM_BIT(A_REDE);
+        limpa();
+        joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D6, 2);
+        CONFERE(F[0].est[1] == V_VALIDO && F[0].est[2] == V_ANULADO, "Rede numa sequencia de tres: vale no 3o (%d %d)", F[0].est[1], F[0].est[2]);
+        limpa();
+        joga(0, D_D6, 1); joga(0, D_D6, 2); joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D6, 2);
+        CONFERE(F[0].est[3] == V_VALIDO && F[0].est[4] == V_ANULADO, "Rede numa sequencia de cinco: vale no 5o (%d %d)", F[0].est[3], F[0].est[4]);
+        // Parando antes de lancar todos, os que sobram saem da mesa e a Rede
+        // passa a valer no ultimo lancado: a sequencia e refeita com ela. O
+        // pouso (parando ali), a previa e o desfecho dao o mesmo.
+        limpa(); primeiro = 1;
+        joga(1, D_D6, 6);
+        joga(0, D_D6, 5);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 2;
+        F[0].n = 4; F[0].lancados = 2;                  // montou quatro dados; este e o segundo
+        aplica_regra(0, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[1] == V_ANULADO, "Rede no meio da sequencia: nao vale ainda (%d %d)", F[0].est[0], F[0].est[1]);
+        calcula_desfecho(&pv, false);
+        CONFERE(F[0].n == 4 && F[0].est[0] == V_ANULADO, "Rede: a previa nao mexe na mesa (n %d)", F[0].n);
+        CONFERE(pv.total[0] == 5 && pv.est[0][0] == V_VALIDO, "Rede: a previa de quem para agora ja conta com ela (deu %d)", pv.total[0]);
+        vez = 0; J[0].n_mao = 0;
+        descarta_sobras(0);
+        CONFERE(F[0].n == 2 && F[0].est[0] == V_VALIDO && F[0].est[1] == V_ANULADO && F[0].pontos == 5,
+                "Rede, parando antes do fim: vale no ultimo lancado (%d %d, %d pontos)", F[0].est[0], F[0].est[1], F[0].pontos);
+        d = fim();
+        CONFERE(d.total[0] == 5 && d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && pv.total[0] == d.total[0],
+                "Rede, parando antes do fim: o desfecho da o mesmo (deu %d, a previa %d)", d.total[0], pv.total[0]);
+        // Lancando todos, o segundo dado nao era o ultimo: a Rede nao o segura.
+        limpa();
+        joga(0, D_D6, 5);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 2;
+        F[0].n = 3; F[0].lancados = 2;
+        aplica_regra(0, 1);
+        F[0].tipo[2] = D_D6; F[0].cru[2] = F[0].valor[2] = 4; F[0].lancados = 3;
+        aplica_regra(0, 2);
+        vez = 0;
+        descarta_sobras(0);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.total[0] == 4, "Rede, lancando todos: so vale no ultimo (deu %d)", d.total[0]);
+        // Um Terremoto anulado no meio da sequencia volta a valer se o dono
+        // parar ali (a Rede o segura) e entao treme: o fim depende da sorte.
+        limpa(); primeiro = 1;
+        joga(1, D_D12, 10);
+        joga(0, D_TERREMOTO, 7);
+        F[0].tipo[1] = D_D6; F[0].cru[1] = F[0].valor[1] = 4;
+        F[0].n = 3; F[0].lancados = 2;
+        aplica_regra(0, 1);
+        CONFERE(F[0].est[0] == V_ANULADO && !tremor_na_mesa(), "Rede e Terremoto: a mesa do teste");
+        CONFERE(fim_incerto() && !ja_vence(0), "Rede e Terremoto que volta a valer ao parar: o fim depende da sorte");
+        CONFERE(F[0].n == 3 && F[0].est[0] == V_ANULADO, "Rede e Terremoto: fim_incerto nao mexe na mesa");
+        amul[0] = 0; modo = M_DOIS;
 
         amul[0] = am0; amul[1] = am1; modo = modo0; reg_op = reg0; rodada = rodada0;
         J[0] = g0; J[1] = g1;

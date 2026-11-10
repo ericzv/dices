@@ -2111,7 +2111,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
 
     // Espelho que esperava o oponente (com "?"): vira agora o maior dado dele,
     // e a sequencia do dono e refeita com o numero novo - so agora ele pode
-    // cair ou derrubar outro. Enquanto esperava, nao anulava nem era anulado.
+    // cair ou derrubar outro. Enquanto esperava, nada o anulava (firme).
     // No desfecho de verdade fica assim; na previa, a mesa volta como estava.
     static fila_t f_antes[2];
     static char ver_antes[sizeof veredito];
@@ -2122,10 +2122,14 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     memcpy(f_antes, F, sizeof F);
     memcpy(ver_antes, veredito, sizeof veredito);
     // A previa conta a rodada como se acabasse agora: os dados da sequencia
-    // ainda por lancar ja teriam saido da mesa (descarta_sobras), e a Rede
-    // olha o ultimo dado lancado, como no fim de verdade. O n volta no fim.
+    // ainda por lancar ja teriam saido da mesa, e a Rede passa a valer no
+    // ultimo dado lancado, com a sequencia refeita (descarta_sobras). A mesa
+    // volta no fim.
     for (int j = 0; !gera && j < 2; j++)
-        if (F[j].n > F[j].lancados) F[j].n = F[j].lancados;
+        if (F[j].n > F[j].lancados) {
+            F[j].n = F[j].lancados;
+            if (tem_am(j, A_REDE)) { refaz_sequencia(j, F[j].lancados); virou = true; }
+        }
     // O Oculto mostra o que tirou (so no desfecho de verdade: a previa nao
     // sabe, e a IA imagina o numero antes): a sequencia e refeita com ele.
     uint8_t revelados[2] = { 0, 0 };
@@ -2141,7 +2145,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados; k++) {
-            if (!F[j].espera[k] || F[j].est[k] != V_VALIDO || alvo <= 0) continue;
+            if (!F[j].espera[k] || alvo <= 0) continue;
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             F[j].espera[k] = false;
@@ -2285,6 +2289,36 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
             guarda_seq(e, j);
         }
         virou = true;
+    }
+    // O Espelho que nao achou o que copiar no comeco (o oponente so com o
+    // Universo, o Vazio, ou com a Ficha Coringa e o Carrossel, que so viraram
+    // agora): vira aqui o maior do oponente, como la em cima. Se nem assim ha
+    // o que copiar, fica com o que tirou, valendo como estava, e nao espera
+    // mais - a marca "=?" sai da mesa.
+    for (int j = 0; j < 2; j++) {
+        int alvo = maior_do_rival(j), ev0 = n_ev;
+        uint8_t quais = 0;
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            if (!F[j].espera[k]) continue;
+            F[j].espera[k] = false;
+            virou = true;
+            if (alvo <= 0) {
+                if (!strcmp(F[j].tag[k], "=?")) F[j].tag[k][0] = 0;
+                if (!strcmp(F[j].tag_num[k], "=?")) F[j].tag_num[k][0] = 0;
+                continue;
+            }
+            F[j].valor[k] = alvo;
+            lado_vira(j, k, alvo);
+            quais |= (uint8_t)(1 << k);
+            evento(gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+        }
+        if (!quais) continue;
+        if (gera && !pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
+        pre[j] = true;
+        refaz_sequencia(j, F[j].lancados);
+        for (int k = 0; k < F[j].lancados; k++)
+            if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
+        if (gera) guarda_seq_de(ev0, j, EV_ESPELHO, EV_ESPELHO);
     }
     memcpy(veredito, ver_antes, sizeof veredito);
     ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;

@@ -284,7 +284,6 @@ static void nova_rodada(void)
     carta_virando = false;
     zerou = -1;
     vence_j = -1;
-    ferr_k[0] = ferr_k[1] = -1;
     // A Detetive joga por ultimo na primeira rodada e quando esta atras em fichas.
     if (tem_reg(REG_ULTIMA) && (rodada == 1 || J[1].fichas < J[0].fichas)) primeiro = 0;
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
@@ -1211,10 +1210,14 @@ static bool fim_incerto(void)
     if (carta_posta(primeiro) || tem_escondido(0) || tem_escondido(1) || tremor_na_mesa() || casca_no_fim()) return true;
     // O Espelho que espera vira no fim e a sequencia dele e refeita: so entao
     // um Terremoto pode passar a valer, ou o dado em que a Casca pega. A
-    // previa vira o Espelho e diz (previa_sorte).
+    // previa vira o Espelho e diz (previa_sorte). O mesmo com a Rede de quem
+    // ainda tem dados por lancar: parando agora, a sequencia e refeita com
+    // ela no ultimo lancado, e um Terremoto anulado pode voltar a valer.
     bool espera = false;
-    for (int j = 0; j < 2; j++)
+    for (int j = 0; j < 2; j++) {
+        espera |= F[j].n > F[j].lancados && tem_am(j, A_REDE);
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) espera |= F[j].espera[k];
+    }
     if (!espera) return false;
     desfecho_t d;
     calcula_desfecho(&d, false);
@@ -2182,9 +2185,26 @@ static void descarta_sobras(int j)
         devolvidos[n_devolvidos++] = (devolvido_t){ (float)SLOT_X(k), (float)zona(j), f->tipo[k], (uint8_t)j, f->fixo[k] };
         f->idx[k] = 0; f->tipo[k] = 0; f->fixo[k] = 0; tira_tag(f, k);
     }
-    if (f->n > f->lancados) f->n = f->lancados;
+    bool sobrou = f->n > f->lancados;
+    if (sobrou) f->n = f->lancados;
     if (f->lancados <= 3) f->carta = false;      // parou antes da carta do Coringa
     t_devolve = n_devolvidos ? 0 : -1;
+    // A Rede vale no ultimo dado da sequencia, e a sequencia e a dos dados
+    // lancados: parando antes de lancar todos, o ultimo lancado passa a ser o
+    // ultimo, e a sequencia e refeita com a Rede nele (o veredito do ultimo
+    // lance fica como estava).
+    if (sobrou && tem_am(j, A_REDE)) {
+        char ver[sizeof veredito];
+        int vt = ver_tipo, aa = anulou_a, ab = anulou_b, res = resistiu;
+        bool vc = ver_comum;
+        uint8_t am = anulou_masc;
+        memcpy(ver, veredito, sizeof ver);
+        am_disparou = 0;
+        refaz_sequencia(j, f->lancados);
+        if (am_disparou >> A_REDE & 1) am_acende(A_REDE);
+        memcpy(veredito, ver, sizeof veredito);
+        ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
+    }
 }
 
 // Quem abriu a rodada terminou com 0, e nada mais muda isso: sem Espelho

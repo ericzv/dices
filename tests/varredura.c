@@ -149,7 +149,6 @@ typedef struct {
     int pote, primeiro, vez, rodada, zerou, vence_j, n_ev, ver_tipo, anulou_a, anulou_b, resistiu;
     int fichas_ini[2], bis_fila[2], bis_vem[2], chic_valor[2], ad_moedas[2];
     uint8_t chic_lado[2], anulou_masc;
-    int8_t ferr_k[2];
     amul_t amul[2];
     int16_t embrulho;
     bool ver_comum, carta_virando;
@@ -172,7 +171,7 @@ static void retrata(retrato_t *r)
     for (int j = 0; j < 2; j++) {
         r->fichas_ini[j] = fichas_ini[j]; r->bis_fila[j] = bis_fila[j]; r->bis_vem[j] = bis_vem[j];
         r->chic_valor[j] = chic_valor[j]; r->chic_lado[j] = chic_lado[j]; r->ad_moedas[j] = ad_moedas[j];
-        r->ferr_k[j] = ferr_k[j]; r->amul[j] = amul[j];
+        r->amul[j] = amul[j];
     }
     memcpy(r->pavio_mais, pavio_mais, sizeof pavio_mais);
     memcpy(r->veredito, veredito, sizeof veredito);
@@ -187,7 +186,7 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_FILA[] = {
     CAMPO(dobra), CAMPO(bonus), CAMPO(quebra), CAMPO(cinza), CAMPO(descarte), CAMPO(espera), CAMPO(ancora),
     CAMPO(grudado), CAMPO(chiclete), CAMPO(calibre), CAMPO(bomba), CAMPO(bomba1), CAMPO(copiou), CAMPO(carta),
     CAMPO(escondido), CAMPO(fruta), CAMPO(presente), CAMPO(faixa), CAMPO(curinga), CAMPO(curinga_nada), CAMPO(gira),
-    CAMPO(abalo), CAMPO(guarda), CAMPO(bonecas), CAMPO(tag), CAMPO(tag_num), CAMPO(tag_mais), CAMPO(pontos), CAMPO(total),
+    CAMPO(abalo), CAMPO(guarda), CAMPO(ferradura), CAMPO(bonecas), CAMPO(tag), CAMPO(tag_num), CAMPO(tag_mais), CAMPO(pontos), CAMPO(total),
 };
 static const char *campo_fila(size_t o)
 {
@@ -230,7 +229,7 @@ static bool difere(const retrato_t *a, const retrato_t *b, char *onde, size_t n)
     else if (memcmp(a->veredito, b->veredito, sizeof a->veredito) || a->ver_tipo != b->ver_tipo || a->ver_comum != b->ver_comum
              || a->anulou_a != b->anulou_a || a->anulou_b != b->anulou_b || a->resistiu != b->resistiu
              || a->anulou_masc != b->anulou_masc) snprintf(onde, n, "o veredito do ultimo lance");
-    else snprintf(onde, n, "o resto do estado (pote, vez, amuletos, Ferradura, Chiclete...)");
+    else snprintf(onde, n, "o resto do estado (pote, vez, amuletos, Chiclete...)");
     return true;
 }
 
@@ -265,7 +264,6 @@ static void zera_jogo(void)
     vez = primeiro = 0; rodada = 1; pote = 0; cursor = 0; partidas = 0;
     a_pagar = passes = 0; aumentou = false;
     zerou = vence_j = -1; correu_venc = -1; venc_mao = venc_partida = 0;
-    ferr_k[0] = ferr_k[1] = -1;
     amul[0] = amul[1] = 0; op_amul_extra = -1; am_disparou = 0;
     reg_op = REG_NADA; estilo_op = 0; maluco_lado = 0; juros_rodada = 0;
     modo = M_DOIS; cpu = 0; remoto = 0; baixo = 0;
@@ -494,24 +492,6 @@ static void monta_fila(int j, int variante)
 // ---------------------------------------------------------------------------
 // As conferencias
 // ---------------------------------------------------------------------------
-// O Espelho que pode terminar a rodada ainda com a marca de quem espera: o
-// que foi anulado esperando (nao vira mais) e o que nao tem o que copiar - o
-// oponente so com o Universo, com o Vazio (0), ou so com dados que tambem
-// esperam o fim (a Ficha Coringa e o Carrossel viram depois dele). Anotado
-// antes do desfecho.
-static bool espelho_fica[2][N_FILA];
-static void anota_espelhos(void)
-{
-    for (int j = 0; j < 2; j++) {
-        const fila_t *r = &F[outro(j)];
-        bool tem_alvo = false;
-        for (int i = 0; i < r->lancados && i < N_FILA; i++)
-            tem_alvo |= !r->curinga[i] && !r->gira[i] && r->tipo[i] != D_UNIVERSO && !(r->carta && i == 3) && r->valor[i] > 0;
-        for (int k = 0; k < N_FILA; k++)
-            espelho_fica[j][k] = k < F[j].lancados && F[j].espera[k] && (F[j].est[k] != V_VALIDO || !tem_alvo);
-    }
-}
-
 static void confere_limites(const char *quando, bool no_fim)
 {
     CONFERE(pote >= 0, "%s: pote %d", quando, pote);
@@ -555,11 +535,7 @@ static void confere_limites(const char *quando, bool no_fim)
             CONFERE(f->guarda[k] <= N_FILA, "%s: guarda %d no dado %d de %d", quando, f->guarda[k], k, j);
             bool espera = f->escondido[k] || f->curinga[k] || f->gira[k] || (f->carta && k == 3);
             if (no_fim) {
-                // (o Espelho anulado enquanto esperava fica com a marca, e o que
-                // nao achou o que copiar tambem: espelho_fica - ou o que o tremor
-                // ou a Casca rolou de novo, e tirou 1 ou 2 sem ter o que copiar)
-                CONFERE(!f->escondido[k] && !f->curinga[k] && !f->gira[k]
-                        && !(f->espera[k] && !espelho_fica[j][k] && maior_do_rival(j) > 0),
+                CONFERE(!f->escondido[k] && !f->curinga[k] && !f->gira[k] && !f->espera[k],
                         "%s: dado %d de %d (%s) ainda espera (escondido %d, curinga %d, gira %d, espera %d)", quando, k, j,
                         TIPO[t].nome, f->escondido[k], f->curinga[k], f->gira[k], f->espera[k]);
                 CONFERE(f->est[k] != V_ESPERA, "%s: dado %d de %d (%s) terminou em V_ESPERA", quando, k, j, TIPO[t].nome);
@@ -648,18 +624,13 @@ static void confere_refaz(const char *quando)
     retrata(&r0);
     memcpy(antes, F, sizeof F);
     for (int j = 0; j < 2; j++) {
-        // Ficam de fora (veja o relatorio das regras em aberto): o Espelho que
-        // espera, que vira quando a refazem; a Ferradura e a Rede, que olham
-        // onde a queda aconteceu da primeira vez; e o dado que o proprio poder
-        // (ou a Prensa, o Calibre) virou para um lado com adesivo da sequencia.
-        bool fora = !F[j].lancados || tem_am(j, A_FERRADURA) || tem_am(j, A_REDE);
+        // Fica de fora o Camaleao atras da Ficha Coringa ou do Carrossel num
+        // lado com adesivo da sequencia (regra mantida como esta: ele entra
+        // na sequencia como um dado comum).
+        bool fora = !F[j].lancados;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             int a = ad_fila(j, k), ef = TIPO[tipo_de(j, k)].efeito;
-            bool virou = F[j].calibre[k] || tem_am(j, A_PRENSA) || ef == EF_GEMEO || ef == EF_ECO || ef == EF_DIGITAL
-                      || ef == EF_ESPELHO || ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL;
-            fora |= F[j].espera[k];
-            fora |= a == AD_CARBONO && !F[j].copiou[k];
-            fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && virou;
+            fora |= (a == AD_TRANSPARENTE || a == AD_CORRETIVO) && (ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL);
         }
         if (fora) continue;
         refaz_sequencia(j, F[j].lancados);
@@ -699,7 +670,6 @@ static void chega_na_fila(void)
         && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
         J[j].col[F[j].idx[k]].fixo++;
     for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
-    if ((am_disparou >> A_FERRADURA & 1) && ferr_k[j] < 0) ferr_k[j] = (int8_t)k;
     if (F[j].tipo[k] == D_REVOLVER && revolver_dispara(F[j].fixo[k])) dispara_revolver(j, k);
     cosmo_pousa(j, k);
     flutua_pouso(j, k);
@@ -738,7 +708,6 @@ static void termina(int variante)
         previa_vale = !fim_incerto() && !vai_virar;
         confere_previa("antes de terminar o turno", &previa_fim);
         fichas_mesa = J[0].fichas + J[1].fichas + pote;
-        anota_espelhos();
         termina_turno();
         return;
     }

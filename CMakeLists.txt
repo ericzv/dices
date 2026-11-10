@@ -235,6 +235,12 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         # E forcado: os dados novos (e os de adesivo, a forca) nas duas bolsas,
         # as teclas do outro atrasadas ate 2 s, quadros enormes e as teclas locais.
         add_test(NAME online_forcado COMMAND online 2 150000 2 120 1 3 1)
+        # Os dados que esperam o fim da rodada (Carrossel, Ficha Coringa, Oculto,
+        # Espelho, Terremoto) em bolsas sorteadas, com adesivos; o mouse; um
+        # computador que antes jogou outra coisa; e a conexao caindo e voltando.
+        add_test(NAME online_espera COMMAND online 4 150000 3 120 1 3 2 1 1 6)
+        # A pagina parada enquanto o rival aperta mais teclas do que cabem na fila.
+        add_test(NAME online_fila COMMAND online 2 150000 3 0 0 1 0 0 2 6)
     endif()
     # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
     # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.

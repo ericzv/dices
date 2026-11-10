@@ -221,16 +221,21 @@ function criaRede(amb) {
   }
 
   // ---- As teclas -------------------------------------------------------
-  function aplica(k) { n_rec++; amb.jogo()._dado_rede_tecla(k); }
+  // Entrega ao jogo, em ordem, as que ja chegaram. O jogo devolve 0 quando a
+  // fila dele esta cheia (a pagina ficou parada e o rival apertou muita
+  // coisa): a tecla fica guardada aqui e entra no proximo sinal de vida.
+  function despeja() {
+    while (Object.prototype.hasOwnProperty.call(guardadas, n_rec)) {
+      if (amb.jogo()._dado_rede_tecla(guardadas[n_rec]) === 0) return;
+      delete guardadas[n_rec];
+      n_rec++;
+    }
+  }
   function chega_tecla(n, k) {
     if (typeof n !== 'number' || n < n_rec) return;              // repetida
-    if (n > n_rec) { guardadas[n] = k; pede(); return; }        // passou na frente da que falta
-    aplica(k);
-    while (Object.prototype.hasOwnProperty.call(guardadas, n_rec)) {
-      var g = guardadas[n_rec];
-      delete guardadas[n_rec];
-      aplica(g);
-    }
+    guardadas[n] = k;
+    despeja();
+    if (n >= n_rec && !Object.prototype.hasOwnProperty.call(guardadas, n_rec)) pede();   // passou na frente da que falta
   }
   function pede() {                                                // "faltou a tecla n_rec"
     var agora = amb.agora();
@@ -255,6 +260,7 @@ function criaRede(amb) {
     ultimo = amb.agora();
     timers.push(amb.setInterval(function () {
       if (r.estado !== JOGANDO) return;
+      despeja();
       vida();
       if (amb.agora() - ultimo > SILENCIO_MS) falha(MSG.sumiu);
     }, VIDA_MS));

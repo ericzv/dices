@@ -28,7 +28,7 @@ int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
 // semente; so viajam as teclas de quem esta na vez de decidir.
 // A plataforma avisa o jogo:
 void dado_online_comeca(uint32_t semente, int eu);   // eu: 0 cria a sala, 1 entra
-void dado_rede_tecla(int k);                         // tecla que o rival apertou
+int  dado_rede_tecla(int k);                         // tecla que o rival apertou
 void dado_online_abre(void);                         // abre a tela do online (quem chega por um convite)
 bool dado_digitando(void);                           // campo de texto aberto: letras sao dele
 // e o jogo pede a plataforma (cada uma implementa as suas):

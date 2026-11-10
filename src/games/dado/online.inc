@@ -14,12 +14,16 @@ static bool rede_na_vez(void) { return (remoto >> vez & 1) && aceita_escolha(); 
 // Digitando o codigo da sala: todas as letras sao do codigo, ate M e N.
 bool dado_digitando(void) { return (fase == F_ONLINE && digitando) || fase == F_PCRIA; }
 
-void dado_rede_tecla(int k)
+// Devolve 0 com a fila cheia (o rival apertou muita coisa enquanto esta
+// pagina estava parada, de lado ou sem conexao): a tecla nao entrou, e a
+// rede a entrega de novo mais tarde. Perdida, as duas mesas se separavam.
+int dado_rede_tecla(int k)
 {
     int prox_i = (rede_fim + 1) % FILA_REDE;
-    if (prox_i == rede_ini) return;          // fila cheia: nunca numa partida normal
+    if (prox_i == rede_ini) return 0;
     rede_q[rede_fim] = (uint16_t)k;
     rede_fim = prox_i;
+    return 1;
 }
 
 // Os marcos da partida online. A cada rodada que comeca e a cada vez que
@@ -53,7 +57,15 @@ static uint32_t hash_partida(void)
             MIX(f->idx[k]); MIX(f->tipo[k]); MIX(f->fixo[k]); MIX(f->cru[k]); MIX(f->valor[k]); MIX(f->lado[k]);
             MIX(f->est[k]); MIX(f->dobra[k]); MIX(f->bonus[k]); MIX(f->quebra[k]); MIX(f->bonecas[k]);
             MIX(f->abalo[k]); MIX(f->guarda[k]); MIX(f->presente[k]); MIX(f->copiou[k]); MIX(f->bomba[k]);
+            // Os que esperam o fim da rodada fora da sequencia (o Carrossel
+            // girando, a Ficha Coringa e o Oculto por virar, o Espelho
+            // esperando) e o resto do que o desfecho le de cada dado: com o
+            // mesmo numero na mesa, um deles diferente muda quem leva o pote.
+            MIX(f->gira[k]); MIX(f->curinga[k]); MIX(f->curinga_nada[k]); MIX(f->escondido[k]); MIX(f->espera[k]);
+            MIX(f->cinza[k]); MIX(f->descarte[k]); MIX(f->ancora[k]); MIX(f->calibre[k]); MIX(f->bomba1[k]);
+            MIX(f->fruta[k]); MIX(f->faixa[k]); MIX(f->espelho_nada[k]);
         }
+        MIX(f->ferradura);
     }
     for (int j = 0; j < 2; j++) { MIX(bis_fila[j]); MIX(ad_moedas[j]); }
 #undef MIX
@@ -74,6 +86,11 @@ void dado_online_comeca(uint32_t sem, int eu)
     rede_ini = rede_fim = 0;
     n_marco = 0;
     digitando = false;
+    // O primeiro marco sai antes de a rodada 1 limpar as sequencias: o que
+    // sobrou nelas de uma partida de antes neste computador (1 ou 2
+    // jogadores, o Desafiante) entrava no numero, e as duas mesas "ficavam
+    // diferentes" logo na saida da loja, sem nada de errado no jogo.
+    memset(F, 0, sizeof F);
     dado_inicia(0);
 }
 

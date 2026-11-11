@@ -852,11 +852,12 @@ int main(void)
         joga(1, D_D6, 6);
         d = fim();
         CONFERE(d.total[1] == 6, "amuleto valeu para o oponente: %d", d.total[1]);
-        // Ima: o Caridoso do oponente nao rouba.
-        limpa(); amul[0] = 1 << A_IMA; primeiro = 0;
+        // Couraca (com o Ima dentro): o Caridoso do oponente nao rouba.
+        limpa(); amul[0] = 1 << A_COURACA; primeiro = 0;
         joga(0, D_D4, 2); joga(1, D_CARIDOSO, 3);
         d = fim();
-        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2, "Ima: o dado foi roubado");
+        CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 2, "Couraca: o dado foi roubado");
+        CONFERE(!amuleto_no_jogo(A_IMA) && amuleto_no_jogo(A_COURACA), "o Ima saiu do jogo (virou parte da Couraca)");
         // Couraca: o Carrasco do oponente nao anula.
         limpa(); amul[0] = 1 << A_COURACA;
         joga(0, D_D6, 5); joga(1, D_CARRASCO, 4);
@@ -2884,7 +2885,7 @@ int main(void)
         perfis[0].bolsas_vistas = 0;
         perfis[0].bolsas = 0xFF;
         // Copo de Couro: sem os D2, com um D8 e o Viciado; compra 6.
-        des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
+        des_bolsa = B_COPO; des_nova_run(); amuleto_escolhido(0); run_poe_amuletos(0); des_comeca_partida();   // sem amuleto: a mao e so a da bolsa
         int d2 = 0, d8 = 0, vic = 0;
         for (int i = 0; i < run.n_col; i++) { d2 += run.col[i].tipo == D_D2; d8 += run.col[i].tipo == D_D8; vic += run.col[i].tipo == D_VICIADO; }
         CONFERE(run.bolsa == B_COPO && run.n_col == 12 && !d2 && d8 == 1 && vic == 1 && tam_mao(0) == 6 && J[0].n_mao == 6,
@@ -3429,7 +3430,7 @@ int main(void)
         CONFERE(chefe_deixa_amuleto() && !fim_da_run(), "o Barao da Cobertura deixa amuleto");
         run.dificuldade = 0; run.andar = 0;
         // Cinco lugares: o sexto pede troca. Voltar devolve a escolha; trocar tira o escolhido.
-        run_poe_amuletos(1u << A_BOLSA | 1u << A_OURO | 1u << A_PENA | 1u << A_IMA | 1u << A_COFRE);
+        run_poe_amuletos(1u << A_BOLSA | 1u << A_OURO | 1u << A_PENA | 1u << A_COURACA | 1u << A_COFRE);
         oferece_amuleto(AV_CHEFE);
         cursor = 2;
         int novo = run.am_oferta[2];
@@ -3443,8 +3444,8 @@ int main(void)
         amuleto_troca(A_OURO);
         CONFERE(am_conta(run_amuletos()) == 5 && !(run_amuletos() >> A_OURO & 1) && (run_amuletos() >> novo & 1)
                 && !run.am_novo && fase == F_RLOJA, "troca: o Ouro devia sair e o %d entrar", novo);
-        // Todos tem raridade; os que voltaram, nas que foram escolhidas.
-        for (int a = 0; a < A_N; a++) CONFERE(amuleto_no_jogo(a), "amuleto %d sem raridade", a);
+        // Todos tem raridade (menos o Ima, que virou parte da Couraca); os que voltaram, nas que foram escolhidas.
+        for (int a = 0; a < A_N; a++) CONFERE(amuleto_no_jogo(a) == (a != A_IMA), "amuleto %d: raridade errada", a);
         CONFERE(RAR_AMULETO[A_FERRADURA] == AMR_RARO && RAR_AMULETO[A_COROA] == AMR_INCOMUM
                 && RAR_AMULETO[A_PRENSA] == AMR_INCOMUM && RAR_AMULETO[A_CUPOM] == AMR_COMUM
                 && RAR_AMULETO[A_TACA] == AMR_COMUM && RAR_AMULETO[A_CORINGA] == AMR_INCOMUM
@@ -7644,6 +7645,23 @@ int main(void)
         F[1].n = 3;
         coringa_completa(1);
         CONFERE(F[1].carta && F[1].n == 4, "Coringa abrindo: a carta (carta %d, n %d)", F[1].carta, F[1].n);
+        // Do Nivel 7, depois da virada, o Coringa destroi os seus dados anulados;
+        // com a Couraca, nao.
+        {
+            int dif0 = run.dificuldade, rod0 = rodada, sobra[2];
+            run.dificuldade = CORINGA_SOME; rodada = VIRADA_RODADA;
+            for (int c = 0; c < 2; c++) {
+                limpa(); amul[0] = c ? 1 << A_COURACA : 0; primeiro = 0;
+                colecao_inicial(&J[0]);
+                int n0 = J[0].n_col;
+                joga(0, D_D6, 5); joga(0, D_D6, 2);         // o 2 cai pela sequencia
+                (void)fim();
+                recolhe_quebrados();
+                sobra[c] = n0 - J[0].n_col;
+            }
+            CONFERE(sobra[0] > 0 && sobra[1] == 0, "Coringa destroi: sem Couraca saem %d, com Couraca %d", sobra[0], sobra[1]);
+            run.dificuldade = (uint8_t)dif0; rodada = rod0; amul[0] = 0;
+        }
 
         // O Papai Noel nao embrulha o dado que o Chiclete grudou: ele ja vai
         // para a mesa sem ser lancado (e nunca seria desembrulhado).

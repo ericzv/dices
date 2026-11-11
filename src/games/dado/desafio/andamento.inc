@@ -244,6 +244,12 @@ static bool des_carrega_de(const char *buf, int n, run_t *r)
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > COLAR_MOEDAS) r->colar = 0;
     r->presente = 0;                             // sem uso (todo Presente fica agora)
+    if (r->amuletos >> A_IMA & 1) {              // o Ima virou parte da Couraca: a run de antes troca um pelo outro
+        r->amuletos &= (uint16_t)~(1u << A_IMA);
+        r->amuletos |= (uint16_t)(1u << A_COURACA);
+    }
+    for (int i = 0; i < (int)(sizeof r->am_oferta / sizeof r->am_oferta[0]); i++)
+        if (r->am_oferta[i] == A_IMA) r->am_oferta[i] = A_COURACA;
     return true;
 }
 
@@ -616,7 +622,7 @@ static void des_comeca_partida(void)
     op_amul_extra = -1;
     // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
     if (run.dificuldade >= N_NIVEIS && chefe_idx(no->perso) != 2) {
-        static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
+        static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
         for (int i = 0; i < 4; i++) {

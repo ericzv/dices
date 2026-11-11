@@ -68,7 +68,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Adesivado (já com 3 adesivos) | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
   | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas, Cobrador e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
-  | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -3 | vencer 3 rodadas de uma partida com 4 dados válidos |
+  | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -2 | vencer 3 rodadas de uma partida com 4 dados válidos |
   | Bauzinho | começa com 2 amuletos; vem com um D8 e a Ficha Velha | cabem só 4 amuletos | ter 5 amuletos |
   | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |
   | Carteira | cada chefe vencido paga 10 moedas a mais; vem com a Moeda sorte e o Cobrador | a run começa com 4 moedas a menos | gastar 25 moedas numa run |
@@ -289,7 +289,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   mesma chance), no 8; e a Matrioska (d8
   lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
   com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
-  a soma de todas), no 9. E o Carrossel (d8 incomum, no 4): lançado, fica
+  a soma de todas), no 9. E o Carrossel (d8 raro, no 4): lançado, fica
   girando fora da sequência, como o Oculto, mostrando quantos dados valem
   na mesa agora, dos dois lados, ele incluído - a cobertura listrada anda
   para a frente quando um dado entra valendo e para trás quando um cai. No

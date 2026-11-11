@@ -89,14 +89,14 @@ static int preco_ajusta(int p)
     if (run_amuletos() >> A_CUPOM & 1) p--;
     return p < 1 ? 1 : p;
 }
-#define LISO_A_MAIS 2                 // o D8 e o D12 na loja
+#define LISO_A_MAIS 2                 // o D12 na loja
 static int preco_run(int t)
 {
     static const int P[4] = { 3, 4, 6, 9 };
-    // Os lisos de muitos lados (D8 e D12) custam 2 a mais: na fila crescente,
+    // O D12 liso custa 2 a mais: na fila crescente,
     // numero alto passa quase todos os especiais da raridade deles. (O D20
     // nem se vende: fora_da_loja.)
-    return preco_ajusta(P[TIPO[t].raridade] + (t == D_D8 || t == D_D12 ? LISO_A_MAIS : 0));
+    return preco_ajusta(P[TIPO[t].raridade] + (t == D_D12 ? LISO_A_MAIS : 0));
 }
 // A Sacola de Feira troca a loja de graca uma vez em cada loja (depois, 1, 2,
 // 3...); a Caixa de Ferramentas tira um dado de graca uma vez em cada loja (o

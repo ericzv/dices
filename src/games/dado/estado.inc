@@ -502,8 +502,8 @@ enum { B_PANO, B_COPO, B_LATA, B_PORCO, B_SEMENTES, B_LAPIS, B_BAU, B_FOSFORO,
 typedef char bolsas_cabem[B_N <= B_MAX ? 1 : -1];
 #define BOLSAS_TODAS ((uint32_t)((1ull << B_N) - 1))   // os bits de todas as bolsas
 static bool tem_bolsa(int j, int b);     // so voce, so no Desafiante
-// Estojo de Lapis: toda rodada comeca com -3.
-#define LAPIS_PENA 3
+// Estojo de Lapis: toda rodada comeca com -2.
+#define LAPIS_PENA 2
 static int lapis_pena(int j) { return tem_bolsa(j, B_LAPIS) ? LAPIS_PENA : 0; }
 #define DES_RODADAS 8                // rodadas de cada partida da run
 // Saco de Sementes: seus dados pontuam -1 nas duas primeiras rodadas e +1 nas duas ultimas.

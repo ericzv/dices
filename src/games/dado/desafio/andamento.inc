@@ -25,9 +25,9 @@ static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
     { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 0, 9 } },   // 2o salao: a Dona
     { { 0, 99 },  { 0, 99 },  { 0, 5 },   { 0, 0 } },   // 3o salao: o Barao
 };
-// A IA mestre (ia.inc, nivel 3) nos chefes do alto: o Coringa do 8o andar
-// para cima, mais o Barao no 9o e a Dona na Cobertura (o Crupie, nunca).
-static const uint8_t MESTRE_DESDE[DES_ANDAR_FINAL + 1] = { 99, 10, 9, 8 };   // Crupie, Dona, Barao, Coringa
+// A IA mestre (ia.inc, nivel 3) nos chefes do alto: o Coringa e o Barao do 9o
+// andar para cima, mais a Dona na Cobertura (o Crupie, nunca).
+static const uint8_t MESTRE_DESDE[DES_ANDAR_FINAL + 1] = { 99, 10, 9, 9 };   // Crupie, Dona, Barao, Coringa
 static int nivel_mesa(const no_t *no)
 {
     int ia = no->nivel;
@@ -40,6 +40,8 @@ static int nivel_mesa(const no_t *no)
 // Em quantos % das decisoes a mesa pensa um nivel acima do dela.
 static int pensa_mesa(const no_t *no)
 {
+    // O Coringa do 5 e do 6 (a IA simples): pensa como a atenta em parte das decisoes.
+    if (run.andar == DES_ANDAR_FINAL && run.dificuldade < CORINGA_SOME) return run.dificuldade == CORINGA_DESDE ? 35 : 70;
     if (run.andar >= DES_ANDARES || no->tipo > NO_CHEFE || nivel_mesa(no) >= 2) return 0;
     int dif = run.andar == 0 && run.dificuldade > S1_TETO ? S1_TETO : run.dificuldade;   // o 1o salao: ate o Nivel 3
     int k = dif - PENSA_DESDE[run.andar][no->tipo] + 1;

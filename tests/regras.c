@@ -2557,10 +2557,10 @@ int main(void)
         t_aviso_salvo = 0;
         memset(&run, 0, sizeof run);
         run.dificuldade = 3;
-        CONFERE(preco_run(D_D8) == 4 + LISO_A_MAIS, "preco do D8: %d", preco_run(D_D8));
+        CONFERE(preco_run(D_D8) == 4, "preco do D8: %d", preco_run(D_D8));
         run_poe_amuleto(A_CUPOM);
         CONFERE(run_amuletos() >> A_CUPOM & 1 && run.amuletos_hi, "amuleto 16+ nao entrou na parte alta");
-        CONFERE(preco_run(D_D8) == 3 + LISO_A_MAIS, "D8 com Cupom: %d", preco_run(D_D8));
+        CONFERE(preco_run(D_D8) == 3, "D8 com Cupom: %d", preco_run(D_D8));
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
         perfil_atual = -1;
@@ -2951,11 +2951,11 @@ int main(void)
         rodada = 1;
         limpa(); joga(0, D_D6, 4);
         CONFERE(F[0].pontos == 3, "Sementes na rodada 1: o 4 pontua %d", F[0].pontos);
-        // Estojo de Lapis: 5 na sequencia (4 com o Contrato Sujo), a rodada comeca com -3, e vem a Moeda sorte.
+        // Estojo de Lapis: 5 na sequencia (4 com o Contrato Sujo), a rodada comeca com -2, e vem a Moeda sorte.
         des_bolsa = B_LAPIS; des_nova_run(); amuleto_escolhido(0); des_comeca_partida();
         int sorte = 0;
         for (int i = 0; i < run.n_col; i++) sorte += run.col[i].tipo == D_SORTE;
-        CONFERE(max_fila(0) == 5 && max_fila(1) == 4 && LAPIS_PENA == 3 && sorte == 1, "Lapis: fila de %d", max_fila(0));
+        CONFERE(max_fila(0) == 5 && max_fila(1) == 4 && LAPIS_PENA == 2 && sorte == 1, "Lapis: fila de %d", max_fila(0));
         limpa();
         for (int k = 0; k < 5; k++) joga(0, D_D6, k + 1);
         desfecho_t d;
@@ -3632,10 +3632,10 @@ int main(void)
         run_poe_amuletos(0);
         CONFERE(fase == F_RLOJA && n_vitrine() == (run.dois_adesivos ? 1 : 2) && n_vitrine() + n_adesivos_loja() == 3,
                 "a loja da entrada: %d dados e %d adesivos", n_vitrine(), n_adesivos_loja());
-        // Precos: 3, 4, 6 e 9 pela raridade; os lisos de muitos lados (D8 e D12), 2 a mais
+        // Precos: 3, 4, 6 e 9 pela raridade; o D12 liso, 2 a mais
         // (o D20 nao se vende).
         CONFERE(preco_run(D_FICHAS) == 3 && preco_run(D_PAR) == 4 && preco_run(D_D12) == 6 + LISO_A_MAIS
-                && preco_run(D_D8) == 4 + LISO_A_MAIS,
+                && preco_run(D_D8) == 4,
                 "precos %d %d %d %d", preco_run(D_FICHAS), preco_run(D_PAR), preco_run(D_D12), preco_run(D_D8));
         // Sem moedas: nada sai, e o cartao treme.
         int n = run.n_col;
@@ -6101,6 +6101,28 @@ int main(void)
                     CONFERE(nivel_mesa(&nn) == IA[i].ia && pensa_mesa(&nn) == IA[i].pensa,
                             "IA do salao %d mesa %d no nivel %d: %d e %d%% acima, devia %d e %d%%", IA[i].andar + 1, IA[i].tipo,
                             IA[i].nv, nivel_mesa(&nn), pensa_mesa(&nn), IA[i].ia, IA[i].pensa);
+                }
+                // O Coringa do 5o e do 6o andar (a IA simples) pensa como a atenta em
+                // 35% e 70% das decisoes; do 7o em diante, a afiada, e a mestre do 9o.
+                for (int nv = CORINGA_DESDE; nv <= CORINGA_SOME; nv++) {
+                    no_t nn = { 0 };
+                    nn.tipo = NO_CHEFE;
+                    nn.nivel = NIVEL_NO[DES_ANDAR_FINAL][3];
+                    run.dificuldade = (uint8_t)nv; run.andar = DES_ANDAR_FINAL;
+                    int quer = nv == CORINGA_DESDE ? 35 : nv < CORINGA_SOME ? 70 : 0;
+                    CONFERE(pensa_mesa(&nn) == quer, "Coringa no nivel %d: pensa %d%%, devia %d%%", nv, pensa_mesa(&nn), quer);
+                }
+                CONFERE(MESTRE_DESDE[DES_ANDAR_FINAL] == 9 && MESTRE_DESDE[2] == 9 && MESTRE_DESDE[1] == 10,
+                        "IA mestre: Coringa e Barao do 9o andar, Dona na Cobertura");
+                // A Onda, o Revolver e os Tres Patinhos guardam a carga de uma
+                // partida para a outra da run; o Previsivel e a Autofagia recomecam.
+                {
+                    peca_t cp[5] = { { .tipo = D_ONDA, .fixo = 5 }, { .tipo = D_REVOLVER, .fixo = 2 }, { .tipo = D_PATINHOS, .fixo = 4 },
+                                     { .tipo = D_PREVISIVEL, .fixo = 3 }, { .tipo = D_AUTOFAGIA, .fixo = 9 } };
+                    zera_acumuladores(cp, 5);
+                    CONFERE(cp[0].fixo == 5 && cp[1].fixo == 2 && cp[2].fixo == 4 && cp[3].fixo == 0 && cp[4].fixo == 0,
+                            "entre partidas: Onda %d, Revolver %d, Patinhos %d guardam; Previsivel %d, Autofagia %d zeram",
+                            cp[0].fixo, cp[1].fixo, cp[2].fixo, cp[3].fixo, cp[4].fixo);
                 }
                 CONFERE(incomuns_s1(3, 0) == 0 && incomuns_s1(3, 1) == 1 && incomuns_s1(3, 4) == 1 && incomuns_s1(3, 5) == 2
                         && incomuns_s1(3, 10) == 2 && incomuns_s1(2, 1) == 0 && incomuns_s1(2, 2) == 1 && incomuns_s1(2, 6) == 2

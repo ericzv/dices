@@ -50,7 +50,7 @@ static const bolsa_t BOLSA[B_N] = {
                      "Nas rodadas 1 e 2, seus dados pontuam -1.", "",
                      "Vença uma partida começando a 7ª rodada atrás em fichas.", RGB(88, 152, 84),
                      { X6(D_D6), X4(D_D4), D_D2, D_SEMENTE, D_PAR, 0xFF } },
-    [B_LAPIS]    = { "Estojo de Lápis", "+1 dado na sequência.", "Toda rodada começa com -3.", "",
+    [B_LAPIS]    = { "Estojo de Lápis", "+1 dado na sequência.", "Toda rodada começa com -2.", "",
                      "Vença 3 rodadas de uma partida com 4 dados válidos.", RGB(228, 194, 106),
                      { X6(D_D6), X4(D_D4), D_D2, D_D2, D_DOBRO, D_SORTE, 0xFF } },
     [B_BAU]      = { "Bauzinho", "Começa com 2 amuletos.", "Cabem só 4 amuletos.", "",

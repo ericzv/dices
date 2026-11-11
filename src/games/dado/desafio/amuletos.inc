@@ -11,7 +11,7 @@ static const amuleto_t AMULETO[A_N] = {
     [A_PENA]     = { "Peso Pena",     "Seus dados de 2 e 4 lados pontuam +1.", RGB(196, 176, 230) },
     [A_CONTRATO] = { "Contrato Sujo", "O terceiro dado da sua sequência pontua +4, mas a sequência leva 1 dado a menos.", C_VINHO_CLR },
     [A_IMA]      = { "Ímã",           "Nenhum dado seu pode ser roubado.", RGB(214, 84, 84) },
-    [A_COURACA]  = { "Couraça",       "Os dados do oponente não podem anular os seus.", C_ACO },
+    [A_COURACA]  = { "Couraça",       "O oponente não pode roubar, anular nem destruir os seus dados.", C_ACO },
     [A_COFRE]    = { "Cofre",         "Ao vencer uma mesa, rende 1 moeda a cada 3 que você tem.", C_LATAO },
     [A_RESERVA]  = { "Reserva",       "Você começa cada partida com 10 fichas a mais.", RGB(104, 186, 110) },
     [A_POTE]     = { "Pote Gordo",    "Vencendo uma rodada, você leva 2 fichas a mais.", RGB(222, 154, 50) },
@@ -44,7 +44,7 @@ static const amuleto_t AMULETO[A_N] = {
 // (nenhum hoje). Os de nivel (NIVEL_AMULETO) so entram depois de abertos.
 enum { AMR_FORA, AMR_COMUM, AMR_INCOMUM, AMR_RARO };
 static const uint8_t RAR_AMULETO[A_N] = {
-    [A_BOLSA] = AMR_COMUM, [A_OURO] = AMR_COMUM, [A_PENA] = AMR_COMUM, [A_IMA] = AMR_COMUM,
+    [A_BOLSA] = AMR_COMUM, [A_OURO] = AMR_COMUM, [A_PENA] = AMR_COMUM, [A_IMA] = AMR_FORA,   // o Ima virou parte da Couraca
     [A_COURACA] = AMR_COMUM, [A_COFRE] = AMR_COMUM, [A_POTE] = AMR_COMUM, [A_FURADO] = AMR_COMUM,
     [A_SELO] = AMR_COMUM, [A_DESFORRA] = AMR_COMUM, [A_RELOGIO] = AMR_COMUM, [A_CUPOM] = AMR_COMUM,
     [A_TACA] = AMR_COMUM, [A_DUPLA] = AMR_COMUM, [A_COLAR] = AMR_COMUM,

@@ -1389,7 +1389,7 @@ static void recolhe_quebrados(void)
             if (vis_queima[j][k] && !some)  { F[j].cinza[k] = true; some = true; n_cinza++; }
             if (j == 0 && !some && coringa_destroi() && F[j].tipo[k] != D_FANTASMA
                 && F[0].est[k] == V_ANULADO) {         // o estado final (no desfecho, ja com os ataques)
-                if (impermeavel(j, k)) n_capa++;      // com a capa, fica
+                if (impermeavel(j, k) || tem_am(j, A_COURACA)) n_capa++;   // com a capa (ou a Couraca), fica
                 else { F[j].quebra[k] = true; some = true; n_coringa++; }
             }
             if (some && F[j].idx[k] >= 0) saem[n++] = F[j].idx[k];   // a copia do Coringa nao e da bolsa
@@ -1454,7 +1454,8 @@ static void recolhe_quebrados(void)
     if (n_coringa)
         snprintf(nota, sizeof nota, n_coringa > 1 ? "o Coringa destrói %d dados seus anulados" : "o Coringa destrói o seu dado anulado", n_coringa);
     else if (n_capa)
-        snprintf(nota, sizeof nota, "o Impermeável protege o dado do Coringa");
+        snprintf(nota, sizeof nota, tem_am(0, A_COURACA) ? "a Couraça protege os seus dados do Coringa"
+                                                          : "o Impermeável protege o dado do Coringa");
     if (n_mist) {
         snprintf(nota, sizeof nota, "a pedra se parte... havia um dado dentro");
         if (!(cpu & 1)) t_misterio = 0.001f;    // a vinheta, para quem joga

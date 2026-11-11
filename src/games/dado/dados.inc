@@ -356,7 +356,7 @@ static const tipo_t TIPO[D_N] = {
     { "Matrioska",        8, EF_MATRIOSKA,    RAR_LENDA,    0, "Abre bonecas menores e soma" },
     { "Colcha de Retalhos", 6, EF_COLCHA,     RAR_COMUM,    0, "Remendo no 1, no 2 e no 3" },
     { "Gelatina",         6, EF_GELATINA,     RAR_INCOMUM,  0, "Abaixo do de antes: quica de novo" },
-    { "Carrossel",        8, EF_CARROSSEL,    RAR_INCOMUM,  0, "No fim, vale os dados válidos da mesa" },
+    { "Carrossel",        8, EF_CARROSSEL,    RAR_RARO,     0, "No fim, vale os dados válidos da mesa" },
 };
 
 // Tres niveis de texto por dado, sempre com a mesma regra: o curto (TIPO.desc)

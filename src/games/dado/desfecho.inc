@@ -49,7 +49,7 @@ static int contribui(int j, int k)
 static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 {
     int a = -1;
-    if (!maior && tem_am(j, A_IMA)) return -1;      // Ima: ninguem rouba
+    if (!maior && tem_am(j, A_COURACA)) return -1;  // Couraca: ninguem rouba
     for (int i = 0; i < F[j].lancados; i++) {
         if (i == exceto || est[i] != V_VALIDO) continue;
         if (maior ? firme_sem_capa(j, i) : nao_roubavel(j, i)) continue;
@@ -1220,7 +1220,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && invejoso_age(v))
                             || (ef == EF_BONECO && v >= 8) || (ef == EF_TSUNAMI && v >= 9) || (ef == EF_AGNUS && v == AGNUS_RAIO)))
         am_acende(A_COURACA);
-    if (gera && tem_am(r, A_IMA) && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_IMA);
+    if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
     if (ef == EF_CARRASCO && v == 4) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
         if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Carrasco", 0)) {

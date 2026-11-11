@@ -25,9 +25,9 @@ static const uint8_t IA_SOBE[DES_ANDARES][4][2] = {
     { { 99, 99 }, { 99, 99 }, { 99, 99 }, { 0, 9 } },   // 2o salao: a Dona
     { { 0, 99 },  { 0, 99 },  { 0, 5 },   { 0, 0 } },   // 3o salao: o Barao
 };
-// A IA mestre (ia.inc, nivel 3) nos chefes do alto: o Coringa do 8o andar
-// para cima, mais o Barao no 9o e a Dona na Cobertura (o Crupie, nunca).
-static const uint8_t MESTRE_DESDE[DES_ANDAR_FINAL + 1] = { 99, 10, 9, 8 };   // Crupie, Dona, Barao, Coringa
+// A IA mestre (ia.inc, nivel 3) nos chefes do alto: o Coringa e o Barao do 9o
+// andar para cima, mais a Dona na Cobertura (o Crupie, nunca).
+static const uint8_t MESTRE_DESDE[DES_ANDAR_FINAL + 1] = { 99, 10, 9, 9 };   // Crupie, Dona, Barao, Coringa
 static int nivel_mesa(const no_t *no)
 {
     int ia = no->nivel;
@@ -40,6 +40,8 @@ static int nivel_mesa(const no_t *no)
 // Em quantos % das decisoes a mesa pensa um nivel acima do dela.
 static int pensa_mesa(const no_t *no)
 {
+    // O Coringa do 5 e do 6 (a IA simples): pensa como a atenta em parte das decisoes.
+    if (run.andar == DES_ANDAR_FINAL && run.dificuldade < CORINGA_SOME) return run.dificuldade == CORINGA_DESDE ? 35 : 70;
     if (run.andar >= DES_ANDARES || no->tipo > NO_CHEFE || nivel_mesa(no) >= 2) return 0;
     int dif = run.andar == 0 && run.dificuldade > S1_TETO ? S1_TETO : run.dificuldade;   // o 1o salao: ate o Nivel 3
     int k = dif - PENSA_DESDE[run.andar][no->tipo] + 1;
@@ -242,6 +244,12 @@ static bool des_carrega_de(const char *buf, int n, run_t *r)
     r->amuletos_x &= (uint8_t)((1u << (A_N - 32)) - 1);
     if (r->colar > COLAR_MOEDAS) r->colar = 0;
     r->presente = 0;                             // sem uso (todo Presente fica agora)
+    if (r->amuletos >> A_IMA & 1) {              // o Ima virou parte da Couraca: a run de antes troca um pelo outro
+        r->amuletos &= (uint16_t)~(1u << A_IMA);
+        r->amuletos |= (uint16_t)(1u << A_COURACA);
+    }
+    for (int i = 0; i < (int)(sizeof r->am_oferta / sizeof r->am_oferta[0]); i++)
+        if (r->am_oferta[i] == A_IMA) r->am_oferta[i] = A_COURACA;
     return true;
 }
 
@@ -614,7 +622,7 @@ static void des_comeca_partida(void)
     op_amul_extra = -1;
     // Na Cobertura, mais um amuleto para ele (o Barao, nao: ele ja vira forte).
     if (run.dificuldade >= N_NIVEIS && chefe_idx(no->perso) != 2) {
-        static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA, A_IMA,
+        static const uint8_t EXTRA[] = { A_LUVA, A_REDE, A_BOLSA, A_OURO, A_PENA,
                                          A_COURACA, A_RESERVA, A_POTE, A_FURADO };
         uint32_t h = no->semente * 2246822519u;
         for (int i = 0; i < 4; i++) {

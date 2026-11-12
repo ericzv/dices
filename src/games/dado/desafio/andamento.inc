@@ -536,7 +536,8 @@ static void des_nova_run(void)
         des_salva();
         abre_loja_run();
     } else oferece_amuleto(AV_INICIO);           // a run comeca com um amuleto
-    t_elev = ELEV_T;                             // e o elevador sobe ate o andar
+    elev_d = run.dificuldade;
+    t_elev = elev_dur(elev_d);                   // e o elevador sobe ate o andar
     moedas_ok = false;                           // as moedas da faixa nascem certas
 }
 

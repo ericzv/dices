@@ -545,6 +545,8 @@ static void predio_dificuldade(int sel, int aberto)
     fio_andar(PRED_Y + PRED_H - 14 - passo / 2 - sel * passo, pr_luz[sel]);
 }
 
+#include "elevador.inc"                     // o elevador do comeco da run: a placa de latao de perto
+
 // As cores e as medidas de cena saem daqui (o resto do jogo tem as dele).
 #undef G_PIL
 #undef G_SH

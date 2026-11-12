@@ -137,7 +137,7 @@ int main(void)
         confere(fase == F_MAPA, "loja: o segundo toque no 'seguir' vai para o mapa");
     }
     // No mapa, a bolsa da faixa so abre a tela de olhar: um toque.
-    abre_mapa(); t_luz = 0; t_mapa_anda = 0; passa(60);
+    abre_mapa(); t_luz = 0; t_cort = -1; t_mapa_anda = 0; passa(60);
     z = acha_zona(KEY_TAB, false, false, 0);
     confere(z != NULL, "mapa: a bolsa da faixa vale com um toque");
     if (z) {
@@ -146,7 +146,7 @@ int main(void)
         confere(fase == F_RBOLSA, "mapa: um toque na bolsa abre a bolsa");
     }
     // A mesa do mapa: dois toques para sentar.
-    abre_mapa(); t_luz = 0; t_mapa_anda = 0; passa(60);
+    abre_mapa(); t_luz = 0; t_cort = -1; t_mapa_anda = 0; passa(60);
     z = acha_zona(KEY_ENTER, true, true, 0);
     confere(z != NULL, "mapa: a mesa da vez pede dois toques");
     if (z) {

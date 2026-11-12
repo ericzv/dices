@@ -93,7 +93,20 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
 
 - **Modo Desafiante**: uma run pelo cassino (1 jogador vai direto aos perfis). São 3 salões, cada um com dois
   oponentes (um fácil e um difícil) e o chefe, sempre nessa ordem e
-  todos à vista desde o começo. A dificuldade sobe mesa a mesa pelos dados dos
+  todos à vista desde o começo. O mapa é o salão visto de frente: a parede do
+  andar ao fundo, o tapete vermelho vindo da porta até o estrado do chefe e
+  cada oponente sentado à sua mesa, sob uma luminária na cor do salão (verde,
+  vermelho, dourado; roxo no do Coringa). Cada andar tem o seu cenário - o
+  boteco no Térreo, madeira e dardos no 1º, o bar de tijolo no 2º, aço com
+  roleta e globo espelhado no 3º, o jardim de inverno no 4º, ouro no 5º, art
+  déco no 6º, o teatro no 7º, o lounge do sax no 8º, aquário e pôquer no 9º e
+  o terraço de vidro com a cidade à noite na Cobertura -, e cada salão é um
+  trecho dele, com as suas peças (na Cobertura, a mesma cidade vista mais da
+  direita a cada salão); o salão do Coringa é o fim do andar, apagado. Saindo
+  da loja para um salão novo, uma cortina de veludo fecha, a plaquinha de
+  latão diz qual salão vai começar e ela abre sobre o salão ainda escuro, que
+  acende luminária por luminária (qualquer tecla, clique ou botão pula).
+  A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
   bolsa cresce a cada mesa e a cada salão. Até o nível 3, o primeiro salão
   sobe bem aos poucos: um D4 ou D6 vira um incomum de 4 ou 6 lados (o Viciado,

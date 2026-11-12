@@ -484,9 +484,9 @@ static void parede_g(const sala_t *S)
             }
             case 3: {                                     // chapas escuras com rebite
                 int a = (u - x0) % 18, b = j % 13;
-                c = (a == 0 || b == 0) ? K_FERRO : K_CHUMBO;
-                if ((a == 3 || a == 15) && (b == 3 || b == 10)) c = K_ACO;
-                if (j < 2 || j >= hp - 2) c = ac ? K_AZ1 : K_AZ0;     // a fita de LED
+                c = (a == 0 || b == 0) ? K_EB : K_CHUMBO;          // como no mapa: aco escuro, junta escura
+                if ((a == 3 || a == 15) && (b == 3 || b == 10)) c = K_FERRO;
+                if (j < 2 || j >= hp - 2) c = ac ? K_AZ2 : K_AZ1;     // a fita de LED azul
                 break;
             }
             case 4: {                                     // trelica em losango, passo 8
@@ -506,14 +506,18 @@ static void parede_g(const sala_t *S)
                 }
                 break;
             }
-            case 6: {                                     // raios chapados a partir do semicirculo dourado
+            case 6: {                                     // o laqueado preto com as pilastras douradas e os
+                int pu = (u - x0) % 32, pc = u - pu + 17;  // leques (como no mapa) e o sol atras da cantora
+                c = K_EB;
+                if (pu < 3) c = pu == 1 ? K_LAT3 : K_LAT1;
+                float fx = (float)(u - pc) + 0.5f, fy = (float)(y0 + 12 - v);
+                if (pu >= 3 && fy >= 0 && fx * fx + fy * fy < 42) c = (((int)(atan2f(fy, fx) / 0.2618f)) & 1) ? K_LAT1 : K_MAD1;
                 int cx = x0 + 68, cy = y0 + hp;
                 float dx = (float)(u - cx) + 0.5f, dy = (float)(cy - v);
-                float r = sqrtf(dx * dx + dy * dy), ang = atan2f(dy, dx);
-                float rr = ang / 0.2618f;
-                if (r < 12) c = r < 11 ? (r < 7 ? K_LAT3 : K_LAT2) : K_LAT1;
-                else c = (fabsf(frac_(rr) - 0.5f) > 0.43f) ? K_LAT2 : (((int)rr) & 1) ? K_MAD2 : K_MAD1;
-                if (j < 3) c = j == 2 ? K_LAT2 : K_MAD0;
+                float r = sqrtf(dx * dx + dy * dy), rr = atan2f(dy, dx) / 0.2618f;
+                if (r < 30) c = r < 8 ? K_LAT3 : (fabsf(frac_(rr) - 0.5f) > 0.43f) ? K_LAT2 : (((int)rr) & 1) ? K_LAT1 : K_MAD1;
+                if (j >= hp - 10 && r >= 30) c = j == hp - 10 ? K_LAT2 : K_PLACA;   // o friso e o rodameio escuro
+                if (j < 3) c = j == 1 ? K_LAT3 : K_MAD0;                            // a cornija em degrau
                 break;
             }
             case 7: {                                     // pregas de larguras irregulares, sombra a direita
@@ -726,7 +730,7 @@ static void sala2(const sala_t *S)                               // 2o: o bar de
     for (int i = 0; i < 3; i++) {
         bool on = !(i == 1 && falha);
         if (on) for (int dy = -2; dy <= 2; dy++) for (int dx = -2; dx <= 2; dx++) if (abs(dx) + abs(dy) <= 3 && (dx || dy)) gfx_texto(ax + dx, ny + dy, L[i], K_VIN1, 1, true);
-        gfx_texto(ax, ny, L[i], on ? K_FOGO2 : K_VIN0, 1, true);
+        gfx_texto(ax, ny, L[i], on ? K_VIN3 : K_VIN0, 1, true);     // o neon rosa, como no mapa
         ax += gfx_largura(L[i], 1);
     }
     // o espelho e as prateleiras atras do balcao

@@ -3295,6 +3295,17 @@ int main(void)
         CONFERE(fase == F_RLOJA && run.estado == R_LOJA_INI && am_conta(run_amuletos()) == 1, "a loja da entrada");
         loja_sai();
         CONFERE(fase == F_MAPA && run.estado == R_MAPA && run.passo == 0, "da loja da entrada, o mapa");
+        // A cortina: fecha sobre a loja, segura as luzes do salao enquanto
+        // nao abre; qualquer tecla pula a cortina e o salao acendendo.
+        {
+            CONFERE(t_cort >= 0 && t_luz == LUZ_T, "da loja para o salao novo: a cortina (t %.2f, luz %.2f)", t_cort, t_luz);
+            for (int i = 0; i < 30; i++) dado_passo(1 / 60.0f);
+            CONFERE(t_cort > 0 && t_luz == LUZ_T, "com a cortina passando, o salao espera para acender (luz %.2f)", t_luz);
+            t_elev = 0; bolsa_pop = -1;              // o elevador da tela de antes ja chegou
+            key_event_t e = { .key = 'x' };
+            dado_tecla(&e);
+            CONFERE(t_cort < 0 && t_luz == 0 && fase == F_MAPA, "qualquer tecla pula a cortina e acende o salao (t %.2f, luz %.2f)", t_cort, t_luz);
+        }
         // Cada mesa vencida paga a tabela e abre a loja; o chefe deixa antes um
         // amuleto (o primeiro, incomum).
         static const int VALE[DES_MESAS] = { 3, 5, 6 };
@@ -3332,6 +3343,8 @@ int main(void)
         }
         CONFERE(run.andar == 1 && run.passo == 0 && fase == F_MAPA && run.no[2].perso == PERSO_CHEFE0 + 1,
                 "depois do Crupie, o Salao Vermelho (andar %d)", run.andar);
+        CONFERE(t_cort >= 0, "o Salao Vermelho tambem abre com a cortina");
+        t_cort = -1;
         CONFERE(perfis[0].partidas == 3 && (perfis[0].marcos & 1) && dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
                 "vencer o Crupie devia abrir o D20 (partidas %d)", perfis[0].partidas);
         // Cofre (1 a cada 3 moedas, sem limite) e Taca (1 a cada 3 rodadas vencidas).

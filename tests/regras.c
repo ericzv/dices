@@ -6145,13 +6145,23 @@ int main(void)
                 }
                 perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0;
             }
-            // A escolha da dificuldade: so as abertas (a de cima aparece quando
-            // abrir), e o cursor nao passa da ultima aberta.
+            // A escolha da dificuldade, no predio: para cima sobe um andar e
+            // nao passa do ultimo aberto (o de cima nega, com o cadeado); para
+            // baixo para no Terreo, sem dar a volta. O clique num trancado
+            // so nega.
             {
                 int f0 = fase, dc0 = dif_cur, maior = 0;
-                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0;
-                for (int i = 0; i < 8; i++) { manda_tecla(KEY_DOWN); if (dif_cur > maior) maior = dif_cur; }
-                CONFERE(maior == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0; negado_d = -1;
+                for (int i = 0; i < 8; i++) { manda_tecla(KEY_UP); if (dif_cur > maior) maior = dif_cur; }
+                CONFERE(maior == 3 && dif_cur == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                CONFERE(negado_d == 4, "dificuldade: subir do ultimo aberto nega o de cima (negado %d)", negado_d);
+                for (int i = 0; i < 8; i++) manda_tecla(KEY_DOWN);
+                CONFERE(dif_cur == 0, "dificuldade: para baixo para no Terreo, sem dar a volta (%d)", dif_cur);
+                manda_tecla(KEY_RIGHT);
+                CONFERE(dif_cur == 1, "dificuldade: a direita tambem sobe (%d)", dif_cur);
+                negado_d = -1;
+                manda_tecla(TECLA_TRANCADO + 9);
+                CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
                 fase = f0; dif_cur = dc0;
             }
             // Do Nivel 5, o Barao nao fecha a run: vencido ele, a tela do aviso

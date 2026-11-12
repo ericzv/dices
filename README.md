@@ -221,10 +221,16 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)
   abre o estilo do andar e a dificuldade seguinte. Os cards aparecem logo
   depois da partida, na primeira vitória contra cada chefe naquela
-  dificuldade. A tela da dificuldade mostra só os níveis já abertos, em
-  poucas linhas: "inimigos mais fortes" (o detalhe se descobre jogando), do
-  nível 5 que um novo chefe surge após o Barão, as moedas do começo e o que
-  cada chefe desbloqueia ali. Até 3
+  dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
+  nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
+  com a sua cara e a sua cena. O andar escolhido abre e acende, a cabine do
+  elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
+  ↓ desce; no mouse, passar por cima escolhe e o clique começa a run). Os
+  andares ainda fechados ficam de luz apagada, com a persiana baixada e
+  cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
+  lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre
+  jogando), do nível 5 que um novo chefe surge após o Barão, as moedas do
+  começo e o que cada chefe desbloqueia ali. Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,

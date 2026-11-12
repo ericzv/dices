@@ -166,8 +166,18 @@ static bool des_tecla(int k, int e)
         return estilo_tecla(k);
 
     case F_RDIFIC: {
+        // O predio: para cima sobe um andar, para baixo desce (os lados
+        // tambem: direita sobe). Passar do ultimo aberto aperta o trancado
+        // de cima, que nega; do Terreo para baixo nao tem nada.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
-        if (e) { dif_cur = (dif_cur + e + nv + 1) % (nv + 1); som_toca(SOM_TIQUE); return true; }
+        if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
+        int sobe = k == KEY_UP || k == 'w' || k == ';' ? 1 : k == KEY_DOWN || k == 's' || k == '.' ? -1 : e;
+        if (sobe) {
+            int nd = (dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur) + sobe;
+            if (nd > nv && nd <= N_NIVEIS) predio_nega(nd);
+            else if (nd >= 0 && nd <= nv) { dif_cur = nd; som_toca(SOM_TIQUE); }
+            return true;
+        }
         if (k == KEY_ENTER && dif_cur >= 0 && dif_cur <= nv) {
             som_toca(SOM_FICHA);
             des_dif = dif_cur;

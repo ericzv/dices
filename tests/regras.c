@@ -3295,6 +3295,17 @@ int main(void)
         CONFERE(fase == F_RLOJA && run.estado == R_LOJA_INI && am_conta(run_amuletos()) == 1, "a loja da entrada");
         loja_sai();
         CONFERE(fase == F_MAPA && run.estado == R_MAPA && run.passo == 0, "da loja da entrada, o mapa");
+        // A cortina: fecha sobre a loja, segura as luzes do salao enquanto
+        // nao abre; qualquer tecla pula a cortina e o salao acendendo.
+        {
+            CONFERE(t_cort >= 0 && t_luz == LUZ_T, "da loja para o salao novo: a cortina (t %.2f, luz %.2f)", t_cort, t_luz);
+            for (int i = 0; i < 30; i++) dado_passo(1 / 60.0f);
+            CONFERE(t_cort > 0 && t_luz == LUZ_T, "com a cortina passando, o salao espera para acender (luz %.2f)", t_luz);
+            t_elev = 0; bolsa_pop = -1;              // o elevador da tela de antes ja chegou
+            key_event_t e = { .key = 'x' };
+            dado_tecla(&e);
+            CONFERE(t_cort < 0 && t_luz == 0 && fase == F_MAPA, "qualquer tecla pula a cortina e acende o salao (t %.2f, luz %.2f)", t_cort, t_luz);
+        }
         // Cada mesa vencida paga a tabela e abre a loja; o chefe deixa antes um
         // amuleto (o primeiro, incomum).
         static const int VALE[DES_MESAS] = { 3, 5, 6 };
@@ -3332,6 +3343,8 @@ int main(void)
         }
         CONFERE(run.andar == 1 && run.passo == 0 && fase == F_MAPA && run.no[2].perso == PERSO_CHEFE0 + 1,
                 "depois do Crupie, o Salao Vermelho (andar %d)", run.andar);
+        CONFERE(t_cort >= 0, "o Salao Vermelho tambem abre com a cortina");
+        t_cort = -1;
         CONFERE(perfis[0].partidas == 3 && (perfis[0].marcos & 1) && dado_liberado(D_D20) && !dado_liberado(D_LASTRO),
                 "vencer o Crupie devia abrir o D20 (partidas %d)", perfis[0].partidas);
         // Cofre (1 a cada 3 moedas, sem limite) e Taca (1 a cada 3 rodadas vencidas).
@@ -6145,14 +6158,35 @@ int main(void)
                 }
                 perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0;
             }
-            // A escolha da dificuldade: so as abertas (a de cima aparece quando
-            // abrir), e o cursor nao passa da ultima aberta.
+            // A escolha da dificuldade, no predio: para cima sobe um andar e
+            // nao passa do ultimo aberto (o de cima nega, com o cadeado); para
+            // baixo para no Terreo, sem dar a volta. O clique num trancado
+            // so nega.
             {
                 int f0 = fase, dc0 = dif_cur, maior = 0;
-                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0;
-                for (int i = 0; i < 8; i++) { manda_tecla(KEY_DOWN); if (dif_cur > maior) maior = dif_cur; }
-                CONFERE(maior == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0; negado_d = -1;
+                for (int i = 0; i < 8; i++) { manda_tecla(KEY_UP); if (dif_cur > maior) maior = dif_cur; }
+                CONFERE(maior == 3 && dif_cur == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                CONFERE(negado_d == 4, "dificuldade: subir do ultimo aberto nega o de cima (negado %d)", negado_d);
+                for (int i = 0; i < 8; i++) manda_tecla(KEY_DOWN);
+                CONFERE(dif_cur == 0, "dificuldade: para baixo para no Terreo, sem dar a volta (%d)", dif_cur);
+                manda_tecla(KEY_RIGHT);
+                CONFERE(dif_cur == 1, "dificuldade: a direita tambem sobe (%d)", dif_cur);
+                negado_d = -1;
+                manda_tecla(TECLA_TRANCADO + 9);
+                CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
                 fase = f0; dif_cur = dc0;
+            }
+            // A luz do andar escolhido no predio pisca so ao acender; acesa,
+            // fica firme (nao volta a tremer quadro a quadro).
+            {
+                int f0 = fase, dc0 = dif_cur, nv0 = perfis[0].nivel;
+                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 2; t_fase = 0;
+                for (int q = 0; q < 90; q++) { dado_passo(1 / 60.0f); dado_desenha(); }
+                int firme = 0;
+                for (int q = 0; q < 60; q++) { dado_passo(1 / 60.0f); dado_desenha(); if (pr_luz[2] >= 1.0f) firme++; }
+                CONFERE(firme == 60, "predio: a luz acesa do andar fica firme (%d de 60 quadros)", firme);
+                fase = f0; dif_cur = dc0; perfis[0].nivel = nv0;
             }
             // Do Nivel 5, o Barao nao fecha a run: vencido ele, a tela do aviso
             // (sem dizer quem) vem antes do amuleto dele e da loja. Antes dele,

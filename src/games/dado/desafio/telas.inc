@@ -49,6 +49,8 @@ static bool pf_apagando;                 // pedindo confirmacao para apagar
 static int  pf_avatar;                   // tela de criar perfil
 static char pf_nome[11];
 static int  dif_cur;
+static int   negado_d = -1;                // o andar trancado que acabaram de apertar (predio.inc)
+static float negado_t = -9;
 
 // Uma parte do estilo, pequena: o feltro e a mesa num retalho, o material
 // num D6. lin: 0 feltro, 1 material, 2 mesa.
@@ -242,32 +244,20 @@ static void desenha_cria_perfil(void)
     rodape_run("setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta");
 }
 
+static void predio_dificuldade(int sel, int aberto);   // predio.inc: o predio e a botoeira
 static void desenha_dificuldade(void)
 {
     ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
     faixa_titulo("Dificuldade da run");
-    // So as abertas: a de cima aparece quando abrir.
+    // O predio do cassino com todos os andares; os que ainda nao abriram
+    // ficam apagados e trancados. A botoeira escolhe.
     int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
-    int x0 = 28, y0 = 54;
-    for (int d = 0; d <= nv; d++) {
-        bool cur = d == dif_cur;
-        int y = y0 + d * 22;
-        ui_cartao(x0, y, 150, 20, cur, 0);
-        gfx_disco(x0 + 14, y + 10, 6, gfx_mistura(COR_DIF[d], C_BARRA, 30));
-        gfx_disco(x0 + 14, y + 10, 4, COR_DIF[d]);
-        txt(x0 + 28, y, NOME_DIF_CURTO[d], COR_DIF[d], true);
-        if (perfil()->venceu[d]) {                  // medalha: o Barao ja caiu nesta
-            gfx_disco(x0 + 134, y + 10, 5, C_LATAO_ESC);
-            gfx_disco(x0 + 134, y + 10, 4, C_OURO);
-            gfx_disco(x0 + 133, y + 9, 1, C_BRANCO);
-        }
-        zona_clique(x0, y, 150, 20, &dif_cur, d, KEY_ENTER);
-    }
+    predio_dificuldade(dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur, nv);
     // O que vale na escolhida, curto: o que muda nos oponentes fica num
     // "inimigos mais fortes" (o detalhe se descobre jogando); do Nivel 5, que
     // a run nao acaba no Barao; e as moedas do comeco.
-    int px = 194, py = 54;
-    ui_painel(px, py, 416, 254);
+    int px = 236, py = 54, pw = 378;
+    ui_painel(px, py, pw, 254);
     int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
     int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
     txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
@@ -287,8 +277,13 @@ static void desenha_dificuldade(void)
     }
     {
         char m[64];                                  // o mesmo comeco em todo andar
-        snprintf(m, sizeof m, "Você começa com %d moedas.", moedas_iniciais(d));
-        txt(px + 24, ly, m, C_VERDE, false);
+        if (negado_d > nv && t_relogio - negado_t < 1.2f) {   // apertaram um trancado: por que nao abre
+            snprintf(m, sizeof m, "Vença uma run no %s para abrir.", NOME_DIF_CURTO[nv]);
+            txt(px + 24, ly, m, C_VERMELHO, false);
+        } else {
+            snprintf(m, sizeof m, "Você começa com %d moedas.", moedas_iniciais(d));
+            txt(px + 24, ly, m, C_VERDE, false);
+        }
         ly += 17;
     }
     // O que os chefes desta dificuldade abrem, chefe a chefe: aceso o que ja
@@ -303,61 +298,76 @@ static void desenha_dificuldade(void)
         int w = gfx_largura(curto_c[c], GFX_FINO) + 14;
         if (w > col) col = w;
     }
-    for (int c = 0; c < chefes_de(d); c++) {
-        novidade_t it[PEDACO_MAX];
-        int ni = pedaco(d, c, it);
-        if (!ni) continue;
-        bool ab = chefe_abriu(d, c);
-        int ix = px + 24 + col, iy = ly + 9;
-        gfx_texto(px + 24, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
-        for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
-            int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
-            for (int q = 0; q < np; q++) {
-                char nome[40];
-                switch (it[i].k) {
-                case NV_DIF:     snprintf(nome, sizeof nome, "%s", NOME_DIF_CURTO[v]); break;
-                case NV_AMULETO: snprintf(nome, sizeof nome, "%s", AMULETO[v].nome); break;
-                case NV_ADESIVO: snprintf(nome, sizeof nome, "%s", ADESIVO[v].nome); break;
-                case NV_DADO:    snprintf(nome, sizeof nome, "%s", TIPO[v].nome); break;
-                default:         estilo_parte_nome(lin[q], k[q], nome, sizeof nome); break;
+    // Duas passadas: a primeira so mede; se a lista nao cabe no painel (a
+    // letra maior, num nivel que abre muito), as linhas chegam mais perto.
+    int passo = 19, ly0 = ly;
+    for (int medindo = 1; medindo >= 0; medindo--) {
+        int linhas = 0, prox = ly0 + 9;
+        ly = ly0;
+        for (int c = 0; c < chefes_de(d); c++) {
+            novidade_t it[PEDACO_MAX];
+            int ni = pedaco(d, c, it);
+            if (!ni) continue;
+            bool ab = chefe_abriu(d, c);
+            int ix = px + 24 + col, iy = prox;
+            linhas++;
+            if (!medindo) gfx_texto(px + 24, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
+            for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
+                int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
+                for (int q = 0; q < np; q++) {
+                    char nome[40];
+                    switch (it[i].k) {
+                    case NV_DIF:     snprintf(nome, sizeof nome, "%s", NOME_DIF_CURTO[v]); break;
+                    case NV_AMULETO: snprintf(nome, sizeof nome, "%s", AMULETO[v].nome); break;
+                    case NV_ADESIVO: snprintf(nome, sizeof nome, "%s", ADESIVO[v].nome); break;
+                    case NV_DADO:    snprintf(nome, sizeof nome, "%s", TIPO[v].nome); break;
+                    default:         estilo_parte_nome(lin[q], k[q], nome, sizeof nome); break;
+                    }
+                    int wi = 13 + gfx_largura(nome, GFX_FINO) + 12;
+                    if (ix + wi > px + pw - 6) { ix = px + 24 + col; iy += passo; linhas++; }
+                    uint16_t cn = C_TEXTO_M;
+                    if (medindo) { ix += wi; continue; }
+                    switch (it[i].k) {
+                    case NV_DIF: {
+                        char nn[4];
+                        snprintf(nn, sizeof nn, "%d", v);
+                        gfx_disco(ix, iy, 8, ab ? COR_DIF[v] : C_FELTRO2);
+                        gfx_disco(ix, iy, 6, C_FELTRO_ESC);
+                        gfx_texto(ix - gfx_largura(nn, GFX_MIUDO) / 2, iy - 6, nn, ab ? COR_DIF[v] : C_TEXTO_M, GFX_MIUDO, false);
+                        if (ab) cn = COR_DIF[v];
+                        break;
+                    }
+                    case NV_AMULETO:
+                        desenha_amuleto(ix, iy, 8, v, !ab);
+                        if (ab) { cn = AMULETO[v].cor; dica_zona(ix - 10, iy - 9, wi, 18, DICA_AMULETO, v); }
+                        break;
+                    case NV_ADESIVO:
+                        ad_solto_d(ix, iy, v, 1, 0);
+                        if (ab) { cn = ADESIVO[v].luz; dica_zona(ix - 10, iy - 9, wi, 18, DICA_ADESIVO, v); }
+                        break;
+                    case NV_DADO:
+                        desenha_dado((float)ix, (float)iy, 8, v, 0, 0, 0, 0, !ab);
+                        if (ab) { cn = cor_dado(v); dica_zona(ix - 10, iy - 9, wi, 18, DICA_DADO, v); }
+                        break;
+                    default:
+                        estilo_mini(lin[q], k[q], ix, iy, 7);
+                        if (!ab) acinzenta(ix - 8, iy - 8, 17, 17, 70);
+                        if (ab) cn = C_MARFIM_S;
+                        break;
+                    }
+                    gfx_texto(ix + 12, iy - 10, nome, cn, GFX_FINO, false);
+                    ix += wi;
                 }
-                int wi = 13 + gfx_largura(nome, GFX_FINO) + 12;
-                if (ix + wi > px + 410) { ix = px + 24 + col; iy += 19; }
-                uint16_t cn = C_TEXTO_M;
-                switch (it[i].k) {
-                case NV_DIF: {
-                    char nn[4];
-                    snprintf(nn, sizeof nn, "%d", v);
-                    gfx_disco(ix, iy, 8, ab ? COR_DIF[v] : C_FELTRO2);
-                    gfx_disco(ix, iy, 6, C_FELTRO_ESC);
-                    gfx_texto(ix - gfx_largura(nn, GFX_MIUDO) / 2, iy - 6, nn, ab ? COR_DIF[v] : C_TEXTO_M, GFX_MIUDO, false);
-                    if (ab) cn = COR_DIF[v];
-                    break;
-                }
-                case NV_AMULETO:
-                    desenha_amuleto(ix, iy, 8, v, !ab);
-                    if (ab) { cn = AMULETO[v].cor; dica_zona(ix - 10, iy - 9, wi, 18, DICA_AMULETO, v); }
-                    break;
-                case NV_ADESIVO:
-                    ad_solto_d(ix, iy, v, 1, 0);
-                    if (ab) { cn = ADESIVO[v].luz; dica_zona(ix - 10, iy - 9, wi, 18, DICA_ADESIVO, v); }
-                    break;
-                case NV_DADO:
-                    desenha_dado((float)ix, (float)iy, 8, v, 0, 0, 0, 0, !ab);
-                    if (ab) { cn = cor_dado(v); dica_zona(ix - 10, iy - 9, wi, 18, DICA_DADO, v); }
-                    break;
-                default:
-                    estilo_mini(lin[q], k[q], ix, iy, 7);
-                    if (!ab) acinzenta(ix - 8, iy - 8, 17, 17, 70);
-                    if (ab) cn = C_MARFIM_S;
-                    break;
-                }
-                gfx_texto(ix + 12, iy - 10, nome, cn, GFX_FINO, false);
-                ix += wi;
             }
+            ly = iy + 10;
+            prox = iy + passo;
         }
-        ly = iy + 10;
+        int sobra = ly - (py + 254 - 4);
+        if (medindo && sobra > 0 && linhas > 1) {
+            passo -= (sobra + linhas - 2) / (linhas - 1);
+            if (passo < 15) passo = 15;
+        }
     }
-    rodape_run("setas escolhem  ·  ENTER começa a run  ·  ESC volta");
+    rodape_run("↑↓ escolhem o andar  ·  ENTER começa a run  ·  ESC volta");
 }
 

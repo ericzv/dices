@@ -26,6 +26,8 @@
 #include "desafio/loja.inc"       // a loja depois de cada mesa
 #include "desafio/amuleto_escolha.inc" // a escolha e a troca de amuleto
 #include "desafio/telas.inc"      // perfis e dificuldades
+#include "desafio/predio_salas.inc" // as salas de cada andar do cassino
+#include "desafio/predio.inc"     // o predio e a botoeira da tela de Dificuldade
 #include "desafio/bolsa_escolha.inc" // a escolha da bolsa, em fichas, no comeco da run
 #include "desafio/historico.inc"  // o que cada perfil ja jogou
 #include "desafio/estilo_perfil.inc" // o feltro, a mesa e os dados do perfil

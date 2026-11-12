@@ -318,12 +318,15 @@ static void desenha_flutua(void)
 // ---------------------------------------------------------------------------
 // Teclas desenhadas: "ENTER senta  ·  TAB bolsa" vira [ENTER] senta  [TAB] bolsa.
 // Cada trecho entre " · " comeca pelas teclas (palavras em maiusculas, < > -
-// + ou "setas"), ligadas por "ou"/"e"; o resto e o que ela faz.
+// + ou "setas"; "↑↓" sao so as de cima e de baixo), ligadas por "ou"/"e";
+// o resto e o que ela faz.
 // ---------------------------------------------------------------------------
 #define TECLA_H 17
+static bool eh_setas_v(const char *p, int n) { return n == 6 && !strncmp(p, "↑↓", 6); }
 static bool eh_tecla(const char *p, int n)
 {
     if (n == 5 && !strncmp(p, "setas", 5)) return true;
+    if (eh_setas_v(p, n)) return true;
     if (n == 1 && strchr("<>-+", p[0])) return true;
     bool letra = false;
     for (int i = 0; i < n; i++) {
@@ -400,7 +403,7 @@ static int botao_da_tecla(const char *rot, int n, const char **nome)
     if (n == 9 && !strncmp(rot, "BACKSPACE", 9)) return BT_DIREITA;
     if (n == 3 && !strncmp(rot, "TAB", 3)) return BT_CIMA;
     if (n == 1 && rot[0] == 'I') return BT_ESQUERDA;
-    if (n == 5 && !strncmp(rot, "setas", 5)) return 4;
+    if ((n == 5 && !strncmp(rot, "setas", 5)) || eh_setas_v(rot, n)) return 4;
     if (n == 3 && !strncmp(rot, "ESC", 3)) *nome = xbox ? "START" : "OPTIONS";
     else if (n == 1 && rot[0] == 'B') *nome = xbox ? "VIEW" : "SHARE";
     else if (n == 1 && rot[0] == 'X') *nome = xbox ? "LB" : "L1";
@@ -424,10 +427,10 @@ static int tecla(int x, int y, const char *rot, int n, bool desenha)
         return 18;
     }
     if (nome) { rot = nome; n = (int)strlen(nome); }
-    bool setas = n == 5 && !strncmp(rot, "setas", 5);
+    bool setas = n == 5 && !strncmp(rot, "setas", 5), em_pe = eh_setas_v(rot, n);
     char s[16];
     snprintf(s, sizeof s, "%.*s", n < 15 ? n : 15, rot);
-    int w = setas ? 22 : gfx_largura(s, 1) + 9;
+    int w = setas || em_pe ? 22 : gfx_largura(s, 1) + 9;
     if (!desenha) return w;
     gfx_rect(x + 1, y + 1, w - 2, TECLA_H - 2, C_EBANO);            // a espessura
     gfx_rect(x + 1, y + 1, w - 2, TECLA_H - 4, C_EBANO_B);          // a face
@@ -437,6 +440,11 @@ static int tecla(int x, int y, const char *rot, int n, bool desenha)
         for (int i = 0; i < 4; i++) {
             gfx_rect(x + 5 + i, y + 7 - i, 1, 2 * i + 1, C_MARFIM);  // <
             gfx_rect(x + 16 - i, y + 7 - i, 1, 2 * i + 1, C_MARFIM); // >
+        }
+    } else if (em_pe) {
+        for (int i = 0; i < 4; i++) {
+            gfx_rect(x + 6 - i, y + 4 + i, 2 * i + 1, 1, C_MARFIM);  // ^
+            gfx_rect(x + 15 - i, y + 7 - i, 2 * i + 1, 1, C_MARFIM); // v
         }
     } else gfx_texto(x + 5, y - 3, s, C_MARFIM, 1, false);
     return w;

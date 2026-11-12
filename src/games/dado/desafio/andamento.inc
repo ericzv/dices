@@ -68,6 +68,7 @@ static float t_luz;                          // > 0: o salao novo acendendo (des
 static void luz_sons(float antes, float agora);
 // Pular o salao acendendo (qualquer tecla): a luz firma e a ficha entra.
 static void luz_pula(void) { t_luz = 0; t_mapa_anda = 0.7f; }
+#include "cortina.inc"                      // a cortina entre a loja e o salao novo
 
 // O saque, no fim de uma partida vencida: as moedas entram uma a uma na
 // fileira (a da mesa, depois as do Cofre e as da Taca, cada grupo acendendo o
@@ -89,12 +90,13 @@ static bool nov_tem_chefe(void);
 
 static void des_contadores_passo(float dt, float dt_real)
 {
+    cort_passo(dt_real);                        // a cortina anda em qualquer tela (ela some sozinha)
     if (modo != M_DESAFIO) { moedas_ok = false; return; }
     if (!moedas_ok) { contador_fixa(&moedas_cont, run.moedas); moedas_ok = true; }
     contador_passo(&moedas_cont, run.moedas, dt_real, dt_real, 6, 12);
     if (t_bolsa_pulo > 0) t_bolsa_pulo -= dt_real / 0.35f;
     if (t_mapa_anda > 0 && fase == F_MAPA && (t_mapa_anda -= dt_real) <= 0) som_toca(SOM_FICHA);   // a ficha assenta
-    if (t_luz > 0 && fase == F_MAPA) {          // o salao novo acendendo; aceso, a ficha entra pela porta
+    if (t_luz > 0 && fase == F_MAPA && !cort_segura()) {   // o salao novo acendendo (depois que a cortina abre); aceso, a ficha entra pela porta
         float antes = LUZ_T - t_luz;
         t_luz -= dt_real;
         luz_sons(antes, LUZ_T - fmaxf(t_luz, 0));
@@ -345,7 +347,7 @@ static void avanca_passo(void)
     des_salva();
     abre_mapa();
     t_mapa_anda = run.passo ? 0.7f : 0;          // o marcador sai da mesa vencida
-    if (!run.passo) t_luz = LUZ_T;               // o salao novo acende
+    if (!run.passo) { t_luz = LUZ_T; cortina_comeca(); }   // o salao novo: a cortina, e ele acende
 }
 
 // De onde veio o amuleto da tela de escolha (run.am_volta), e para onde ela segue.

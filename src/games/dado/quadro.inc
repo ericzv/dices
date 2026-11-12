@@ -188,6 +188,11 @@ static void transicao(void)
 {
     uint16_t *fb = display_fb();
     int tela = tela_atual();
+    if (t_cort >= 0) {                                        // a cortina ja e a passagem: sem a varredura
+        trans_tela = tela; t_trans = -1;
+        memcpy(trans_buf, fb, sizeof trans_buf);
+        return;
+    }
     if (trans_tela >= 0 && tela != trans_tela) {             // trocou: a velha esta em trans_buf
         t_trans = 0;
         som_toca(SOM_TRANSICAO);                              // e a cortina passa, da esquerda para a direita
@@ -254,6 +259,7 @@ void dado_desenha(void)
     desenha_misterio();
     desenha_clarao();                                    // o golpe: o clarao de quem acertou
     aplica_tremor();
+    desenha_cortina();                                   // a cortina entre a loja e o salao novo
     gfx_quantiza();                                      // o quadro so com cores da paleta
     transicao();
 }

@@ -47,10 +47,9 @@ static void sala_mini(int d, int x, int y, int w, int h, float t)
     chao_g(&S);
     hl(x, y, w, K_PLACA);
     switch (d) {
-    case 0: hl(x + 14, y + 1, 18, K_BRANCO); hl(x + 78, y + 1, 18, K_BRANCO);
-            gfx_rect(x + w - 30, yF - 9, 5, 7, K_VERM); gfx_rect(x + w - 22, yF - 9, 5, 7, K_VERM);
-            px(x + w - 28, yF - 7, K_MARF); px(x + w - 20, yF - 7, K_MARF);
-            gfx_rect(x + 3, yF - 6, 28, 4, K_VERM); break;
+    case 0: px(x + 24, y + 2, K_MARF); px(x + 94, y + 2, K_MARF);                 // o saguao: os globos, o guiche e a mesa
+            gfx_rect(x + 5, yF - 8, 30, 6, K_MAD1); hl(x + 9, yF - 7, 22, K_LAT2); hl(x + 5, yF - 8, 30, K_MAD2);
+            hl(x + 84, yF - 5, 26, feltro_tons[4]); break;
     case 1: gfx_disco(x + 12, y + 4, 2, K_VERM); px(x + 12, y + 4, K_MARF);
             px(x + 74, y + 2, K_VERDE2); px(x + 100, y + 2, K_VERDE2); hl(x + 62, yF - 5, 50, feltro_tons[4]); break;
     case 2: hl(x + 70, y + 2, 9, K_FOGO2); hl(x + 6, y + 3, 40, K_VERDE); for (int i = 0; i < 40; i += 3) px(x + 6 + i, y + 3, i % 2 ? K_LAT2 : K_VIN2);
@@ -291,7 +290,8 @@ static void predio_g(int sel, int aberto, float t, float dt)
         // A luz so acende com a sala aberta e a cabine ja no andar; a de
         // antes apaga logo (segurar a seta nao deixa rastro aceso).
         float alvo_l = k == sel && pr_abre[k] > 0.9f && k <= aberto && fabsf(pr_cab - (float)sel) < 0.15f ? 1.0f : 0.0f;
-        if (alvo_l > pr_luz[k]) pr_luz[k] += dt / 0.45f; else pr_luz[k] -= dt / 0.1f;
+        if (alvo_l > pr_luz[k]) pr_luz[k] += dt / 0.45f;
+        else if (alvo_l < pr_luz[k]) pr_luz[k] -= dt / 0.1f;   // acesa de vez fica acesa (sem tremer)
         if (pr_luz[k] < 0) pr_luz[k] = 0;
         if (pr_luz[k] > 1) pr_luz[k] = 1;
         alt[k] = G_FECHA + (int)lroundf(pr_abre[k] * (G_ABRE - G_FECHA));

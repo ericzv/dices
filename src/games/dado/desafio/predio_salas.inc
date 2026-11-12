@@ -1,6 +1,6 @@
 // ===========================================================================
 // As salas do predio da tela de Dificuldade: cada andar do cassino com a sua
-// cara (Terreo boteco, 1º madeira, 2º bar de tijolo, 3º aco, 4º jardim de
+// cara (Terreo saguao, 1º madeira, 2º bar de tijolo, 3º aco, 4º jardim de
 // inverno, 5º ouro, 6º art deco, 7º cortina, 8º lounge, 9º aquario e a
 // Cobertura). Tres planos por sala (parede, chao em profundidade e um objeto
 // escuro na frente), luz chapada de cima, gente em silhueta com cotovelo e a
@@ -420,36 +420,6 @@ static void notas_s(int x, int y, float t, uint16_t c, int n)
     }
 }
 
-// Caca-niquel de 14 x 22: janela de marfim com tres simbolos e a alavanca.
-static void caca_g(int x, int yF, float t, int k)
-{
-    float ciclo = fmodf(t + k * 1.3f, 3.4f);
-    bool gira = ciclo < 1.2f;
-    int top = yF - 22;
-    escurece_px(x + 3, yF); for (int i = 2; i < 14; i++) escurece_px(x + i, yF);
-    gfx_rect(x + 2, top, 10, 2, K_VIN1); hl(x + 3, top, 8, K_VERM);
-    gfx_rect(x, top + 2, 14, 20, K_VIN1);
-    gfx_rect(x + 1, top + 2, 11, 19, K_VERM);
-    vl(x + 1, top + 2, 19, K_VIN3);
-    for (int i = 0; i < 3; i++) px(x + 4 + i * 3, top + 1, ((int)(t * 5) + i + k) % 3 == 0 ? K_LAT4 : K_LAT1);
-    gfx_rect(x + 2, top + 5, 10, 7, K_ACO);
-    gfx_rect(x + 3, top + 6, 8, 5, K_MARF);
-    static const uint16_t SIMB[4] = { K_VERM, K_LAT3, K_PLACA, K_VERDE };
-    for (int r = 0; r < 3; r++) {
-        bool roda = gira && ciclo < 0.5f + r * 0.3f;
-        int rx = x + 3 + r * 3;
-        if (roda) { for (int j = 0; j < 5; j++) px(rx + 1, top + 6 + j, SIMB[((int)(t * 18) + r + j) % 4]); }
-        else { int s = (k + r * 2 + (int)(t / 3.4f)) % 4; gfx_rect(rx, top + 7, 2, 3, SIMB[s]); }
-    }
-    gfx_rect(x + 3, top + 14, 8, 2, K_PLACA);
-    hl(x + 2, top + 17, 10, K_LAT1);
-    hl(x, yF - 1, 14, K_VIN0);
-    bool puxa = ciclo < 0.25f;
-    int ly = puxa ? top + 11 : top + 4;
-    vl(x + 15, ly, top + 12 - ly, K_ACO);
-    gfx_disco(x + 15, ly - 1, 1, K_VERM);
-}
-
 // --- parede e chao de cada andar -----------------------------------------------
 static void parede_g(const sala_t *S)
 {
@@ -461,14 +431,18 @@ static void parede_g(const sala_t *S)
             int u = x0 + i, v = y0 + j;
             uint16_t c = K_EB;
             switch (S->d) {
-            case 0: {                                     // azulejo de y = 30 para baixo; pintura em cima
-                int faixa = hp > 40 ? 30 : hp / 2;
-                if (j >= faixa + 2) {
-                    int a = (u - x0) % 6, b = (j - faixa - 2) % 6;
-                    c = (a == 0 || b == 0) ? K_MARF3 : K_MARF2;
+            case 0: {                                     // o papel creme listrado e o lambri com o friso de latao (como no mapa)
+                int lb = hp > 40 ? hp - 15 : hp - hp / 3;
+                if (j >= lb + 2) {
+                    int a = (u - x0) % 14, jj = j - lb - 2;
+                    c = (a == 0 || jj == 0 || j == hp - 1) ? K_MAD0 : K_MAD1;
+                    if (a > 1 && a < 13 && jj > 1 && j < hp - 2) c = (a == 2 || jj == 2) ? K_MAD0 : (a == 12 || j == hp - 3) ? K_MAD2 : K_MAD1;
+                } else if (j >= lb) c = j == lb ? K_LAT3 : K_LAT1;
+                else {
+                    c = (u - x0) % 5 == 0 ? K_MARF3 : K_MARF2;
                     if (!ac) c = c == K_MARF3 ? K_PARDO : K_CINZA;
-                } else if (j >= faixa) c = ((u + j) & 1) ? K_AGUA : (ac ? K_AGUA2 : K_AGUA);
-                else c = ac ? K_EB2 : K_EB;
+                    if (j < 2) c = K_MAD0;                            // a sanca
+                }
                 break;
             }
             case 1: {                                     // tabuas de 8 com junta de 1
@@ -553,7 +527,7 @@ static void chao_g(const sala_t *S)
     int fbh = S->h < 30 ? 2 : FB;
     int x0 = S->x, w = S->w, y0 = S->yF - fbh, cx = x0 + w / 2;
     static const uint16_t T[11][4] = {   // fundo, meio, frente, junta
-        { K_VIN0, K_VIN1, K_VIN1, K_MARF3 }, { K_MAD0, K_MAD1, K_MAD2, K_MAD0 }, { K_PLACA, K_MAD0, K_MAD1, K_PLACA },
+        { K_MAD0, K_MAD1, K_MAD2, K_MAD0 }, { K_MAD0, K_MAD1, K_MAD2, K_MAD0 }, { K_PLACA, K_MAD0, K_MAD1, K_PLACA },
         { K_EB2, K_CHUMBO, K_FERRO, K_EB2 }, { K_EB, K_EB2, K_PARDO, K_EB }, { K_VIN0, K_VIN1, K_VIN1, K_LAT0 },
         { K_PLACA, K_EB, K_EB2, K_MARF3 }, { K_VIN0, K_VIN0, K_VIN1, K_VIN0 }, { K_PLACA, K_ROX0, K_ROX0, K_ROX1 },
         { K_PLACA, K_AZ0, K_AZ0, K_AZ1 }, { K_MAD1, K_MAD2, K_MAD3, K_MAD1 } };
@@ -567,9 +541,15 @@ static void chao_g(const sala_t *S)
             bool junta = fabsf(k - roundf(k)) * passo < 0.6f;
             uint16_t c = base;
             switch (S->d) {
-            case 0: case 6: {                             // xadrez em perspectiva
+            case 0: {                                     // o taco em espinha de peixe (como no mapa)
+                int col = (int)floorf(k * 2), d = (col & 1) ? (u + j) : (u - j + 64);
+                c = (d % 4 == 0) ? c4[3] : base;
+                if (j == 0) c = K_MAD0;
+                break;
+            }
+            case 6: {                                     // xadrez em perspectiva
                 int q = (int)floorf(k) + j / 2;
-                c = (q & 1) ? (S->d == 0 ? K_MARF3 : K_MARF3) : (S->d == 0 ? K_VIN1 : K_PLACA);
+                c = (q & 1) ? K_MARF3 : K_PLACA;
                 if (j == 0) c = abaixo(c);
                 break;
             }
@@ -587,71 +567,84 @@ static void chao_g(const sala_t *S)
 
 // --- as onze salas -----------------------------------------------------------
 #define LUZS(S) (S)->luz, (S)->lx, (S)->ly
-static void sala0(const sala_t *S)                               // terreo: o boteco
+static void sala0(const sala_t *S)                               // terreo: o saguao do cassino
 {
-    int x = S->x, y = S->y, w = S->w, yF = S->yF;
+    int x = S->x, y = S->y, yF = S->yF;
     float t = S->t;
     bool ac = S->ac;
     int hx, hy;
-    // a prateleira com as garrafas de cachaca e o calendario
-    hl(x + 4, y + 22, 30, K_MAD2); hl(x + 4, y + 23, 30, K_MAD0);
-    for (int i = 0; i < 9; i++) { uint16_t g = i % 3 == 0 ? K_LAT2 : i % 3 == 1 ? K_VERDE : K_MARF3; gfx_rect(x + 6 + i * 3, y + 17, 2, 5, g); px(x + 6 + i * 3, y + 16, K_EB2); px(x + 6 + i * 3, y + 18, ac ? K_BRANCO : g); }
-    gfx_rect(x + 40, y + 8, 9, 12, K_MARF); hl(x + 40, y + 8, 9, K_VERM); hl(x + 40, y + 9, 9, K_VERM);
-    for (int j = 0; j < 3; j++) for (int i = 0; i < 4; i++) px(x + 41 + i * 2, y + 12 + j * 2, K_PARDO);
-    px(x + 44, y + 6, K_EB2); vl(x + 44, y + 7, 1, K_EB2);
-    // a TV no suporte, com o brilho azulado na parede
-    int tx = x + 62, ty = y + 6;
-    if (ac) for (int j = -3; j < 17; j++) for (int i = -3; i < 23; i++) if (i < 0 || i > 19 || j < 0 || j > 13) clareia_px(tx + i, ty + j);
-    gfx_rect(tx, ty, 20, 14, K_PLACA);
-    gfx_rect(tx + 1, ty + 1, 18, 11, K_EB2);
-    gfx_rect(tx + 2, ty + 2, 16, 9, K_VERDE);
-    vl(tx + 10, ty + 2, 9, K_VERDE2); px(tx + 10, ty + 6, K_VERDE2);
-    int bxp = tx + 3 + (int)((onda(t, 2.4f) * 0.5f + 0.5f) * 13), byp = ty + 3 + (int)((onda(t, 1.3f) * 0.5f + 0.5f) * 6);
-    px(bxp, byp, K_BRANCO);
-    px(tx + 5 + (int)(onda(t, 1.7f) * 2 + 2), ty + 7, K_VERM); px(tx + 13 - (int)(onda(t, 2.1f) * 2 + 2), ty + 5, K_AZ3);
-    bool gol = ((int)(t * 2)) % 7 == 0;
-    hl(tx + 3, ty + 2, 5, gol ? K_LAT4 : K_PLACA);                      // o placar piscando no gol
-    vl(tx + 9, ty + 14, 3, K_EB2); hl(tx + 6, ty + 17, 8, K_EB2);
-    // o balcao vermelho, o garcom de bone e o freguês de bermuda na banqueta
-    pes_t gar = P(0.4f, 1.6f + onda(t, 0.8f) * 0.3f);
-    gar.cab = C_BONE; gar.roupa = R_COLETE; gar.ac = AC_NADA;
-    pessoa(x + 18, yF - 6, gar, LUZS(S), t);
-    pes_mao(x + 18, yF - 6, &gar, 1, &hx, &hy); copo(hx - 1, hy - 3, K_MARF3);
-    gfx_rect(x + 3, yF - 15, 34, 1, ac ? K_MARF : K_MARF2);
-    gfx_rect(x + 3, yF - 14, 34, 1, K_MARF3);
-    gfx_rect(x + 3, yF - 13, 34, 11, K_VERM);
-    for (int i = 5; i < 34; i += 5) vl(x + 3 + i, yF - 13, 11, K_VIN1);
-    vl(x + 3, yF - 13, 11, K_VIN3); hl(x + 3, yF - 3, 34, K_VIN0);
-    for (int i = 2; i < 34; i++) escurece_px(x + 3 + i, yF - 1);
-    banqueta(x + 40, yF - 1, K_VERM);
-    pes_t fre = P(0.2f, 2.0f + onda(t, 3.0f) * 0.3f);
-    fre.sent = 1; fre.dir = -1; fre.roupa = R_BERMUDA; fre.cab = C_CARECA; fre.barriga = 1;
-    pessoa(x + 43, yF - 3, fre, LUZS(S), t);
-    pes_mao(x + 43, yF - 3, &fre, 1, &hx, &hy); copo(hx - 1, hy - 3, K_LAT3); px(hx, hy - 3, K_BRANCO);
-    // os caca-niqueis e quem joga
-    caca_g(x + w - 34, yF - 2, t, 0);
-    caca_g(x + w - 18, yF - 2, t, 1);
-    pes_t jog = P(0.3f, fmodf(t + 0, 3.4f) < 0.25f ? 1.9f : 1.2f);
-    jog.cab = C_BONE; jog.roupa = R_BERMUDA; jog.dir = 1;
-    pessoa(x + w - 41, yF - 1, jog, LUZS(S), t);
-    // o teto: fluorescentes (uma falha), o ventilador e a mosca
-    for (int k = 0; k < 2; k++) {
-        int fx = x + 14 + k * 70;
-        bool pisca = k == 1 && ((int)(t * 8)) % 29 < 2;
-        hl(fx, y + 1, 20, K_MARF3);
-        hl(fx + 1, y + 2, 18, ac && !pisca ? K_BRANCO : K_MARF3);
+    // o guiche do caixa: a cabine de madeira, a janela com a grade e o caixa dentro
+    int gx = x + 5, gw = 36, gy = y + 12;
+    gfx_rect(gx, gy, gw, yF - 1 - gy, K_MAD1);
+    hl(gx - 1, gy - 2, gw + 2, K_MAD2); hl(gx - 1, gy - 1, gw + 2, K_MAD0);
+    gfx_rect(gx + 11, gy + 1, 14, 3, K_LAT2); hl(gx + 11, gy + 1, 14, K_LAT3); hl(gx + 13, gy + 2, 10, K_LAT1);   // a plaquinha
+    int jx = gx + 4, jy = gy + 6, jw = gw - 8, jh = 14;
+    gfx_rect(jx, jy, jw, jh, ac ? K_EB2 : K_EB);
+    if (ac) hl(jx, jy, jw, K_LAT3);                                       // a luz de dentro
+    pes_t cx_ = P(0.3f, 0.6f + onda(t, 2.6f) * 0.25f);                    // o caixa, de colete, contando
+    cx_.roupa = R_COLETE; cx_.ac = AC_GRAVATA; cx_.cor = K_VIN3;
+    pessoa(jx + jw / 2, jy + 26, cx_, LUZS(S), t);
+    gfx_rect(gx, jy + jh, gw, yF - 1 - jy - jh, K_MAD1);                   // a frente da cabine tapa as pernas
+    for (int i = 2; i < jw; i += 3) vl(jx + i, jy, jh, K_LAT1);           // a grade de latao
+    hl(jx, jy + 5, jw, K_LAT1);
+    vl(jx - 1, jy, jh, K_MAD0); vl(jx + jw, jy, jh, K_MAD2); hl(jx - 1, jy - 1, jw + 2, K_MAD0);
+    hl(gx - 1, jy + jh, gw + 2, ac ? K_MAD3 : K_MAD2); hl(gx - 1, jy + jh + 1, gw + 2, K_MAD0);   // o balcao
+    for (int k = 0; k < 3; k++) fichas(jx + 4 + k * 8, jy + jh - 1, 2 + k % 2, k == 1 ? K_VERM : K_LAT3);
+    for (int k = 0; k < 2; k++) {                                         // as almofadas da frente
+        int px0 = gx + 3 + k * (gw / 2), py0 = jy + jh + 4, pw = gw / 2 - 6, ph = yF - 4 - py0;
+        hl(px0, py0, pw, K_MAD0); vl(px0, py0, ph, K_MAD0); hl(px0, py0 + ph, pw + 1, K_MAD2); vl(px0 + pw, py0, ph, K_MAD2);
     }
-    int vx = x + 56;
-    vl(vx, y + 1, 3, K_EB2);
-    gfx_rect(vx - 1, y + 4, 3, 2, K_MAD2);
-    int fq = ((int)(t * 12)) % 4;
-    static const int L1[4] = { 10, 7, 2, 7 };
-    hl(vx - L1[fq], y + 5, 2 * L1[fq] + 1, K_MAD1);
-    hl(vx - L1[(fq + 2) % 4], y + 6, 2 * L1[(fq + 2) % 4] + 1, K_MAD0);
-    px(vx - 12 + fq * 6, y + 1, K_PLACA);                               // a sombra das pas no teto
-    int mx = x + 30 + (int)(sinf(t * 3.1f) * 5), my = y + 6 + (int)(cosf(t * 4.3f) * 2);
-    px(mx, my, K_PRETO);
-    frente(S, 3, false);
+    vl(gx + gw, gy, yF - 1 - gy, K_MAD0);
+    // o freguês de chapeu na janela, trocando o dinheiro por fichas
+    float tr = fmodf(t, 4.2f);
+    pes_t fre = P(0.2f, tr < 1.2f ? 2.2f : 1.4f);
+    fre.dir = -1; fre.cab = C_FEDORA; fre.ac = AC_GRAVATA; fre.cor = K_AZ2;
+    pessoa(gx + gw + 6, yF - 1, fre, LUZS(S), t);
+    pes_mao(gx + gw + 6, yF - 1, &fre, 1, &hx, &hy);
+    if (tr < 1.2f) px(hx, hy - 1, K_LAT4);                                // a nota passando pela grade
+    // o cabideiro de pe com o chapeu e o sobretudo
+    int kx = x + 58;
+    vl(kx, yF - 30, 29, K_MAD2); vl(kx + 1, yF - 30, 29, K_MAD0);
+    hl(kx - 3, yF - 1, 8, K_MAD1); px(kx - 3, yF - 2, K_MAD2); px(kx + 4, yF - 2, K_MAD2);
+    gfx_disco(kx, yF - 31, 1, K_LAT2);
+    px(kx - 2, yF - 28, K_LAT2); px(kx + 3, yF - 28, K_LAT2);
+    gfx_rect(kx - 6, yF - 31, 5, 2, K_EB2); hl(kx - 7, yF - 29, 7, K_EB2); hl(kx - 6, yF - 30, 5, K_VIN1);   // o chapeu
+    for (int j = 0; j < 14; j++) hl(kx + 2, yF - 27 + j, 3 + j / 5, j == 5 ? K_MAD0 : K_VIN1);              // o sobretudo
+    // o relogio de parede (o ponteiro dos segundos anda)
+    int rx = x + 58, ry = y + 12;
+    gfx_disco(rx, ry, 5, K_MAD0); gfx_disco(rx, ry, 4, ac ? K_MARF : K_MARF2);
+    vl(rx, ry - 3, 3, K_PLACA); hl(rx, ry, 3, K_PLACA);
+    float sa = t * 6.2832f / 60.0f;
+    px(rx + (int)lroundf(sinf(sa) * 3), ry - (int)lroundf(cosf(sa) * 3), K_VERM);
+    // o quadro do torneio, de cortica, com as chaves
+    int qx = x + 82, qy = y + 7;
+    gfx_rect(qx, qy, 24, 14, K_MAD2); hl(qx, qy, 24, K_MAD3); vl(qx, qy, 14, K_MAD3); hl(qx, qy + 13, 24, K_MAD0); vl(qx + 23, qy, 14, K_MAD0);
+    for (int k = 0; k < 4; k++) { hl(qx + 2, qy + 2 + k * 3, 5, K_MARF); px(qx + 7, qy + 3 + k * 3, K_PLACA); }
+    for (int k = 0; k < 2; k++) { vl(qx + 8, qy + 3 + k * 6, 4, K_PLACA); hl(qx + 10, qy + 4 + k * 6, 4, K_MARF); }
+    vl(qx + 15, qy + 5, 7, K_PLACA); hl(qx + 17, qy + 7, 4, K_MARF2); px(qx + 19, qy + 5, K_LAT4);
+    // a mesa redonda: a moca joga os dados, o senhor de chapeu-coco olha
+    mesa_g(x + 86, yF - 1, 26, ac);
+    float jt = fmodf(t + 1.1f, 3.0f);
+    pes_t moca = P(0.3f, jt < 0.4f ? 1.9f : 0.9f);
+    moca.roupa = R_VESTIDO; moca.cab = C_COQUE; moca.ac = AC_COLAR; moca.cor = K_LAT4;
+    pessoa(x + 82, yF - 1, moca, LUZS(S), t);
+    pes_t sen = P(0.3f, 0.5f);
+    sen.sent = 1; sen.dir = -1; sen.cab = C_COCO; sen.ac = AC_GRAVATA; sen.cor = K_VERM;
+    pessoa(x + 116, yF - 1, sen, LUZS(S), t);
+    for (int k = 0; k < 2; k++) {                                         // os dados pulando no feltro
+        int dx = x + 94 + k * 5 + (jt < 0.9f ? (int)(jt * 6) : 5), dy = yF - 15 - (jt < 0.9f ? (int)(sinf(jt * 7 + k) * 2 + 2) : 0);
+        gfx_rect(dx, dy, 2, 2, K_MARF); px(dx + 1, dy + 1, K_MARF3);
+    }
+    fichas(x + 106, yF - 14, 3, K_AZ2);
+    // as luminarias de globo, penduradas no teto
+    for (int k = 0; k < 2; k++) {
+        int lx = x + 24 + k * 70;
+        vl(lx, y + 1, 2, K_LAT1);
+        hl(lx - 1, y + 3, 3, K_LAT2);
+        gfx_rect(lx - 2, y + 4, 5, 2, ac ? K_MARF : K_MARF3); px(lx - 1, y + 4, ac ? K_BRANCO : K_MARF2);
+        hl(lx - 1, y + 6, 3, ac ? K_LAT4 : K_LAT1);
+    }
+    frente(S, 1, true);
 }
 
 static void sala1(const sala_t *S)                               // 1o: madeira, dardos e carteado

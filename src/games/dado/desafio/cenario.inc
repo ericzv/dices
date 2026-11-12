@@ -50,7 +50,7 @@ static const uint8_t CEN_TETO[CM_N] = { 5, 5, 5, 4, 5, 3, 3, 4, 5, 4, 5, 5, 5, 5
 static uint8_t cen_m[CH_H][CH_W], cen_t[CH_H][CH_W];
 static int cen_chave = -1, cen_off, cen_andar;
 // O que mexe, desenhado a cada quadro por cima do guardado.
-enum { DT_TV, DT_NEON, DT_FAROL, DT_GLOBO, DT_FONTE, DT_MARQUISE, DT_PEIXES, DT_BOLHAS, DT_VELA, DT_LETREIRO };
+enum { DT_FAROL, DT_GLOBO, DT_FONTE, DT_MARQUISE, DT_PEIXES, DT_BOLHAS, DT_VELA, DT_LETREIRO };
 typedef struct { uint8_t tipo; int16_t x, y, w, h; } det_t;
 #define CEN_DET 6
 static det_t cen_det[CEN_DET];
@@ -178,82 +178,98 @@ static void deco_arandela(int x, int y)
     cluz(x, y, 20, 18, 1.1f);
 }
 
-// ---- o Terreo: o boteco ------------------------------------------------------
-static void deco_prateleira(int cx, int y)
+// ---- o Terreo: o saguao do cassino --------------------------------------------
+// O papel creme listrado, o lambri com o friso de latao e o taco em espinha.
+// Verde: o quadro do torneio e o cabideiro; Vermelho: o guiche do caixa;
+// Dourado: o retrato do fundador e os trofeus.
+
+// O quadro do torneio: a cortica, os papeizinhos com os nomes e as chaves a
+// tinta, ate o campeao (o percevejo de latao).
+static void deco_torneio(int cx, int y)
 {
-    int w = 50, x0 = cx - w / 2;
-    for (int i = 0; i < 12; i++) {
-        int bx = x0 + 1 + i * 4, h = 9 + (int)(ruido_xy(i, 5) % 4);
-        int m = i % 3 == 0 ? CM_LAT : i % 3 == 1 ? CM_VERDE : CM_MARF, t = m == CM_MARF ? 2 : 3;
-        crect(bx, y - h, 3, h, m, t);
-        cvl(bx, y - h + 1, h - 2, m, t + 1);
-        cvl(bx + 1, y - h - 3, 3, m, t);
-        cp(bx + 1, y - h - 4, CM_NEU, 1);
-        chl(bx, y - h + 3, 3, CM_MARF, 3);
+    int w = 44, h = 28, x = cx - w / 2;
+    csombra(x + 1, y + 2, w + 4, h + 4);
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) cp(x + i, y + j, CM_MAD, ruido_xy(x + i, y + j) % 5 == 0 ? 2 : 3);
+    static const int Y1[4] = { 3, 9, 16, 22 }, Y2[2] = { 6, 19 };
+    for (int k = 0; k < 4; k++) {                                   // a 1a rodada: quatro duelos
+        crect(x + 2, y + Y1[k], 8, 3, CM_MARF, 4); chl(x + 3, y + Y1[k] + 1, 5, CM_NEU, 2);
+        cp(x + 5, y + Y1[k], CM_VIN, 4);                              // o percevejo
+        chl(x + 10, y + Y1[k] + 1, 3, CM_NEU, 1);
     }
-    csombra(x0 - 1, y + 2, w + 4, 2);
-    chl(x0 - 2, y, w + 4, CM_MAD, 4);
-    chl(x0 - 2, y + 1, w + 4, CM_MAD, 2);
-    for (int k = 0; k < 2; k++) {                       // as maos-francesas
-        int bx = k ? x0 + w - 4 : x0 + 2;
-        cvl(bx, y + 2, 4, CM_MAD, 1);
-        cp(bx + 1, y + 2, CM_MAD, 1); cp(bx + 1, y + 3, CM_MAD, 1); cp(bx + 2, y + 2, CM_MAD, 1);
+    for (int k = 0; k < 2; k++) {                                   // as chaves ate a semifinal
+        cvl(x + 13, y + Y1[2 * k] + 1, Y1[2 * k + 1] - Y1[2 * k] + 1, CM_NEU, 1);
+        chl(x + 13, y + Y2[k] + 1, 4, CM_NEU, 1);
+        crect(x + 17, y + Y2[k], 8, 3, CM_MARF, 4); chl(x + 18, y + Y2[k] + 1, 4, CM_NEU, 2);
+        cp(x + 20, y + Y2[k], CM_VERDE, 4);
+        chl(x + 25, y + Y2[k] + 1, 3, CM_NEU, 1);
     }
+    cvl(x + 28, y + Y2[0] + 1, Y2[1] - Y2[0] + 1, CM_NEU, 1);        // a final
+    chl(x + 28, y + 13, 4, CM_NEU, 1);
+    crect(x + 32, y + 12, 9, 3, CM_MARF, 5); chl(x + 33, y + 13, 5, CM_NEU, 2);
+    cdisco(x + 36, y + 9, 1, CM_LAT, 4); cp(x + 36, y + 8, CM_LAT, 5);   // o campeao
+    cmoldura(x, y, w, h, CM_MAD);
 }
-static void deco_calendario(int cx, int y)
+// O cabideiro de pe: a haste torneada, os ganchos, o chapeu e o sobretudo.
+static void deco_cabideiro(int cx, int yb)
 {
-    int x = cx - 7;
-    csombra(x + 1, y + 1, 15, 19);
-    crect(x, y, 14, 18, CM_MARF, 3);
-    crect(x, y, 14, 7, CM_VIN, 3);                      // a folhinha de cima: a figura
-    crect(x + 4, y + 2, 6, 4, CM_MARF, 4);
-    for (int j = 0; j < 4; j++)
-        for (int i = 0; i < 6; i++) cp(x + 1 + i * 2, y + 9 + j * 2, CM_NEU, j == 2 && i == 3 ? 0 : 2);
-    cp(x + 7, y + 9 + 4, CM_VIN, 3);                    // o dia marcado
-    cp(cx, y - 2, CM_NEU, 4);                           // o prego
-    cp(cx - 1, y - 1, CM_NEU, 3); cp(cx + 1, y - 1, CM_NEU, 3);
-}
-static void deco_flamula(int cx, int y)
-{
-    chl(cx - 10, y, 21, CM_MAD, 3);
-    for (int j = 1; j < 18; j++) {
-        int hw = 10 - j * 10 / 18;
-        for (int i = -hw; i <= hw; i++) {
-            int t = 3;
-            if (j > 3 && j < 6) t = 5;                      // a faixa
-            cp(cx + i, y + j, j > 3 && j < 6 ? CM_MARF : CM_VIN, i == -hw || i == hw ? t - 1 : t);
-        }
+    int top = yb - 54;
+    for (int k = -1; k <= 1; k++) {                                 // os tres pes
+        int fx = cx + k * 6;
+        chl(k < 0 ? fx : cx, yb - 1, abs(k) * 6 + 1, CM_MAD, 2);
+        cp(fx, yb - 2, CM_MAD, 3);
     }
-    chl(cx - 2, y + 8, 5, CM_LAT, 4);                   // a estrelinha
-    cp(cx, y + 7, CM_LAT, 4); cp(cx, y + 9, CM_LAT, 4);
-}
-static void deco_tv(int cx, int y)
-{
-    int x = cx - 13;
-    cvl(cx, y - 8, 8, CM_NEU, 1);                       // o suporte, preso no alto
-    chl(cx - 3, y - 8, 7, CM_NEU, 2);
-    csombra(x + 2, y + 2, 27, 18);
-    crect(x, y, 26, 18, CM_NEU, 1);
-    chl(x, y, 26, CM_NEU, 3); cvl(x, y, 18, CM_NEU, 2);
-    for (int j = 0; j < 13; j++) chl(x + 3, y + 2 + j, 20, CM_CEU, (j & 1) ? 3 : 1);
-    cp(x + 23, y + 16, CM_LUZ, 3);                     // a luzinha
-    cdet(DT_TV, x + 3, y + 2, 20, 13);
-    cluz(cx, y + 9, 30, 22, 0.9f);
-}
-static void deco_lousa(int cx, int y)
-{
-    int x = cx - 18;
-    csombra(x + 1, y + 2, 38, 28);
-    crect(x, y, 36, 26, CM_MAD, 3);
-    crect(x + 2, y + 2, 32, 22, CM_NEU, 1);
-    chl(x + 9, y + 3, 18, CM_MARF, 4);                   // o titulo, sublinhado
-    for (int l = 0; l < 4; l++) {                       // o cardapio a giz: o prato, os pontinhos e o preco
-        int ly = y + 8 + l * 4, w1 = 8 + (int)(ruido_xy(l, 3) % 7);
-        chl(x + 4, ly, w1, CM_MARF, 3);
-        for (int i = x + 6 + w1; i < x + 24; i += 2) cp(i, ly, CM_MARF, 1);
-        chl(x + 25, ly, 4, CM_MARF, 3);
+    cvl(cx - 1, top + 3, yb - top - 4, CM_MAD, 4); cvl(cx, top + 3, yb - top - 4, CM_MAD, 3);
+    cvl(cx + 1, top + 3, yb - top - 4, CM_MAD, 1);
+    for (int j = 0; j < 3; j++) chl(cx - 1, yb - 20 + j * 7, 2, CM_MAD, 1);   // os aneis do torneado
+    cdisco(cx, top + 1, 2, CM_LAT, 3); cp(cx - 1, top, CM_LAT, 5);   // a bola de cima
+    for (int s = -1; s <= 1; s += 2) {                              // os ganchos
+        cp(cx + s * 2, top + 5, CM_LAT, 3); cp(cx + s * 3, top + 4, CM_LAT, 3); cp(cx + s * 4, top + 3, CM_LAT, 4);
     }
-    cvl(x, y, 23, CM_MAD, 4); chl(x, y, 34, CM_MAD, 4);
+    for (int j = 0; j < 5; j++) {                                   // o chapeu no gancho da esquerda
+        int hw = j < 2 ? 3 : j == 4 ? 7 : 4;
+        chl(cx - 6 - hw, top + 2 + j, 2 * hw + 1, CM_NEU, j == 4 ? 2 : 1);
+    }
+    chl(cx - 9, top + 5, 7, CM_VIN, 3);                             // a fita
+    cp(cx - 9, top + 3, CM_NEU, 3);
+    for (int j = 0; j < 24; j++) {                                  // o sobretudo no da direita, caindo
+        int hw = 2 + j / 6;
+        for (int i = 0; i <= hw; i++) cp(cx + 3 + i, top + 5 + j, CM_MAD, i == 0 ? 2 : i == hw ? 1 : 2);
+        cp(cx + 3, top + 5 + j, CM_MAD, 3);
+    }
+    chl(cx + 3, top + 18, 5, CM_MAD, 1);                            // o cinto
+}
+// O guiche do caixa: a cabine de madeira ate o chao, a janela com a grade de
+// latao, o abajur verde aceso la dentro e a plaquinha em cima.
+static void deco_caixa(int cx, int y)
+{
+    int w = 42, x = cx - w / 2, yb = FR_RODA;
+    csombra(x + 1, y + 2, w + 3, yb - y);
+    crect(x, y, w, yb - y, CM_MAD, 2);
+    chl(x, y, w, CM_MAD, 4); cvl(x, y, yb - y, CM_MAD, 4);
+    cvl(x + w - 1, y, yb - y, CM_MAD, 1);
+    crect(x - 2, y - 3, w + 4, 3, CM_MAD, 3); chl(x - 2, y - 3, w + 4, CM_MAD, 4);   // a cornija
+    crect(cx - 9, y + 2, 18, 5, CM_LAT, 3); chl(cx - 9, y + 2, 18, CM_LAT, 4);       // a plaquinha: CAIXA
+    chl(cx - 6, y + 4, 12, CM_LAT, 1);
+    int jx = x + 5, jy = y + 10, jw = w - 10, jh = 20;              // a janela: o fundo escuro e o abajur
+    crect(jx, jy, jw, jh, CM_NEU, 1);
+    chl(jx + 1, jy + 1, jw - 2, CM_LUZ, 3); chl(jx + 1, jy + 2, jw - 2, CM_LUZ, 1);   // a luz de dentro
+    for (int k = 0; k < 4; k++) {                                   // as pilhas de fichas no balcao de dentro
+        int hk = 3 + (int)(ruido_xy(k, 7) % 6), fx = jx + 3 + k * 7;
+        for (int j = 0; j < hk; j++) chl(fx, jy + jh - 1 - j, 4, k == 2 ? CM_VIN : CM_LAT, (j & 1) ? 3 : 4);
+    }
+    for (int i = 2; i < jw; i += 4) cvl(jx + i, jy, jh, CM_LAT, 3);   // a grade
+    chl(jx, jy + 6, jw, CM_LAT, 2);
+    cmoldura(jx, jy, jw, jh, CM_MAD);
+    crect(x - 1, jy + jh + 3, w + 2, 3, CM_MAD, 4); chl(x - 1, jy + jh + 3, w + 2, CM_MAD, 5);   // o balcao
+    chl(x - 1, jy + jh + 6, w + 2, CM_MAD, 0);
+    for (int k = 0; k < 2; k++) {                                   // as almofadas da frente
+        int px0 = x + 4 + k * (w / 2 - 2), py0 = jy + jh + 9, pw = w / 2 - 6, ph = yb - py0 - 4;
+        if (ph < 4) break;
+        chl(px0, py0, pw, CM_MAD, 1); cvl(px0, py0, ph, CM_MAD, 1);
+        chl(px0, py0 + ph, pw + 1, CM_MAD, 3); cvl(px0 + pw, py0, ph, CM_MAD, 3);
+    }
+    cluz(cx, jy + jh, 30, 16, 0.8f);
 }
 static void deco_relogio(int cx, int cy)
 {
@@ -265,105 +281,79 @@ static void deco_relogio(int cx, int cy)
     cvl(cx, cy - 5, 5, CM_NEU, 0);
     chl(cx, cy, 4, CM_NEU, 0);
 }
-static void deco_foto_time(int cx, int y)
+// A prateleira dos trofeus: a taca grande do campeao no meio e duas menores.
+static void deco_trofeus(int cx, int y)
 {
-    int x = cx - 10;
-    for (int j = 0; j < 16; j++) chl(x, y + j, 20, CM_MARF, 2);
-    for (int r = 0; r < 2; r++)
-        for (int i = 0; i < 5; i++) {
-            int px = x + 1 + i * 4 + r * 2, py = y + 3 + r * 6;
-            if (px + 3 > x + 20) continue;
-            cp(px + 1, py, CM_MARF, 4);
-            crect(px, py + 1, 3, 3, CM_VIN, r ? 3 : 4);
-        }
-    chl(x, y + 13, 20, CM_VERDE, 3); chl(x, y + 14, 20, CM_VERDE, 3);
-    cmoldura(x, y, 20, 16, CM_MAD);
-}
-// O neon do dado: o quadrado arredondado e os tres pontos, com o halo.
-static void deco_neon(int cx, int cy, bool aceso)
-{
-    for (int j = -13; j <= 13; j++)
-        for (int i = -13; i <= 13; i++) {
-            int ai = abs(i), aj = abs(j);
-            bool tubo = ((ai == 11 && aj <= 7) || (aj == 11 && ai <= 7) || (ai + aj == 18 && ai > 7 && aj > 7));
-            bool pt = (i - 5) * (i - 5) + (j + 5) * (j + 5) <= 3 || i * i + j * j <= 3 || (i + 5) * (i + 5) + (j - 5) * (j - 5) <= 3;
-            if (tubo || pt) cp(cx + i, cy + j, aceso ? CM_NEON : CM_VIN, aceso ? 3 : 2);
-        }
-    if (!aceso) return;
-    for (int j = -15; j <= 15; j++)                      // o halo: o tom de baixo, pontilhado
-        for (int i = -15; i <= 15; i++) {
-            int m = cm_de(cx + i, cy + j);
-            if (m < 0 || m == CM_NEON) continue;
-            bool perto = false;
-            for (int b = -2; b <= 2 && !perto; b++)
-                for (int a2 = -2; a2 <= 2 && !perto; a2++)
-                    if (cm_de(cx + i + a2, cy + j + b) == CM_NEON && cen_t[cy + j + b - CH_Y0][cx + i + a2 - CH_X0] == 3) perto = true;
-            if (perto && bayer(cx + i, cy + j) < 0.5f) cp(cx + i, cy + j, CM_NEON, 0);
-        }
-    cdet(DT_NEON, cx - 15, cy - 15, 31, 31);
-    cluz(cx, cy + 6, 40, 30, 1.0f);
-}
-// Fechado: a mesa redonda com as cadeiras de pernas para cima.
-static void deco_fechado(int cx, int yb)
-{
-    int yt = yb - 22;
-    crect(cx - 2, yt + 2, 4, 20, CM_NEU, 2);            // o pe
-    chl(cx - 8, yb - 1, 16, CM_NEU, 2);
-    crect(cx - 13, yt, 26, 3, CM_MAD, 2); chl(cx - 13, yt, 26, CM_MAD, 3);
-    for (int s = -1; s <= 1; s += 2) {                  // as cadeiras viradas, o assento no tampo
-        int sx = cx + s * 6 - 4;
-        crect(sx, yt - 3, 9, 3, CM_VIN, 2);
-        cvl(sx, yt - 14, 11, CM_MAD, 2); cvl(sx + 8, yt - 14, 11, CM_MAD, 2);
-        cvl(sx + (s < 0 ? 0 : 8), yt - 20, 6, CM_MAD, 2);
+    int w = 44, x = cx - w / 2;
+    csombra(x - 1, y + 2, w + 4, 3);
+    chl(x - 2, y, w + 4, CM_MAD, 4); chl(x - 2, y + 1, w + 4, CM_MAD, 2);
+    for (int k = 0; k < 2; k++) {                                   // as maos-francesas
+        int bx = k ? x + w - 6 : x + 3;
+        cvl(bx, y + 2, 4, CM_MAD, 1); cp(bx + 1, y + 2, CM_MAD, 1); cp(bx + 1, y + 3, CM_MAD, 1); cp(bx + 2, y + 2, CM_MAD, 1);
     }
+    static const int DX[3] = { -14, 0, 14 }, H[3] = { 12, 18, 10 };
+    for (int k = 0; k < 3; k++) {
+        int tx = cx + DX[k], h = H[k], r = h / 3;
+        crect(tx - r, y - 3, 2 * r + 1, 3, CM_MAD, 1); chl(tx - r, y - 3, 2 * r + 1, CM_MAD, 3);   // a base
+        cvl(tx, y - h / 2 - 1, h / 2 - 2, CM_LAT, 3);                // a haste
+        chl(tx - 1, y - 4, 3, CM_LAT, 2);
+        for (int j = 0; j <= r + 1; j++) {                          // a taca
+            int hw = r + 1 - j * j / (r + 2);
+            for (int i = -hw; i <= hw; i++) cp(tx + i, y - h + j, CM_LAT, i < -hw / 2 ? 5 : i > hw / 2 ? 2 : 4);
+        }
+        cp(tx - r - 2, y - h + 1, CM_LAT, 3); cp(tx - r - 2, y - h + 2, CM_LAT, 3);   // as alcas
+        cp(tx + r + 2, y - h + 1, CM_LAT, 2); cp(tx + r + 2, y - h + 2, CM_LAT, 2);
+    }
+    crect(cx - 5, y + 3, 11, 3, CM_LAT, 3); chl(cx - 5, y + 3, 11, CM_LAT, 4);   // a plaquinha
 }
 
 static void cen_terreo(int a, const vao_t *v, int nv)
 {
     for (int y = CH_Y0; y < FR_RODA; y++)
         for (int x = CH_X0; x < CH_X1; x++) {
-            int X = x - CH_X0 + cen_off, m = CM_NEU, t = 2;
-            if (y < CH_Y0 + 3) { m = CM_MAD; t = y == CH_Y0 + 2 ? 0 : y == CH_Y0 ? 1 : 3; }
-            else if (y < 95) {                             // a pintura gasta, com a sombra da sanca
-                if (ruido_xy(X / 5, y / 3) % 19 == 0 && bayer(x, y) < 0.6f) t = 1;
-                if (y < CH_Y0 + 9 && bayer(x, y) < (CH_Y0 + 9 - y) / 7.0f) t = 1;
-            } else if (y < 97) { m = CM_AGUA; t = y == 95 ? 2 : 1; }
-            else {                                          // o azulejo de 7, com um ou outro trocado
-                int u = X % 7, w = (y - 97) % 7;
-                m = CM_MARF; t = 0;
-                if (u == 0 || w == 0) m = CM_NEU, t = 1;
+            int X = x - CH_X0 + cen_off, m = CM_MARF, t = 3;
+            if (X % 6 == 0) t = 2;                                    // a listra fina do papel
+            if (y < CH_Y0 + 3) { m = CM_MAD; t = y == CH_Y0 + 1 ? 3 : 0; }   // a sanca
+            else if (y < CH_Y0 + 8 && bayer(x, y) < (CH_Y0 + 8 - y) / 6.0f) t--;
+            if (y >= 102) {                                           // o friso de latao e o lambri
+                m = CM_MAD; t = 2;
+                int u = X % 24, j = y - 106;
+                if (y == 102) { m = CM_LAT; t = 4; }
+                else if (y == 103) { m = CM_LAT; t = 2; }
+                else if (y == 104) t = 0;
+                else if (u < 2 || j < 0 || j > 17) t = u == 0 ? 1 : 2;   // o quadro do lambri
+                else t = (u == 2 || j == 0) ? 1 : (u == 23 || j == 17) ? 3 : 2;   // a almofada, chanfrada
             }
             cp(x, y, m, t);
         }
-    for (int y = FR_RODA; y < FR_CHAO; y++) chl(CH_X0, y, CH_W, CM_NEU, y == FR_RODA ? 3 : 1);
-    for (int y = FR_CHAO; y < CH_Y1; y++) {                 // o ladrilho em xadrez, em perspectiva
-        int row = (int)floorf(fr_z(y) / 16);
+    for (int y = FR_RODA; y < FR_CHAO; y++) chl(CH_X0, y, CH_W, CM_MAD, y == FR_RODA ? 3 : 1);   // o rodape
+    for (int y = FR_CHAO; y < CH_Y1; y++) {                         // o taco em espinha de peixe
+        float z = fr_z(y), e = fr_esc(y);
         for (int x = CH_X0; x < CH_X1; x++) {
-            int col = (int)floorf((fr_xm(x, y) + cen_off) / 16);
-            bool claro = (row + col) & 1;
-            int t = claro ? 0 : 1;
-            if (y < FR_CHAO + 3 && bayer(x, y) < 0.5f) t = 0;
-            cp(x, y, claro ? CM_MARF : CM_VIN, t);
+            float xm = fr_xm(x, y) + cen_off;
+            int col = (int)floorf(xm / 16);
+            float u = xm - col * 16, d = (col & 1) ? u + z * 0.8f : 16 - u + z * 0.8f;
+            int fila = (int)floorf(d / 8);
+            float f = d - fila * 8;
+            int t = 2 + (ruido_xy(col, fila) % 5 == 0 && bayer(x, y) < 0.5f);
+            if (f < 0.6f / e || u < 0.5f / e) t = 1;                 // as juntas
+            if (y < FR_CHAO + 3 && bayer(x, y) < 0.5f) t = 1;
+            cp(x, y, CM_MAD, t);
         }
     }
     // As decoracoes de cada salao, nos vaos.
-    if (a == 0) {                                         // o Verde: a prateleira de garrafas
-        if (vlarg(&v[0]) >= 18) deco_calendario(vmeio(&v[0]), 70);
-        if (nv > 1 && vlarg(&v[1]) >= 46) deco_prateleira(vmeio(&v[1]), 90);
-        if (nv > 2 && vlarg(&v[2]) >= 24) deco_flamula(vmeio(&v[2]), 66);
-    } else if (a == 1) {                                  // o Vermelho: a lousa do cardapio
-        if (vlarg(&v[0]) >= 26) deco_tv(vmeio(&v[0]), 70);
-        if (nv > 1 && vlarg(&v[1]) >= 38) deco_lousa(vmeio(&v[1]), 68);
-        if (nv > 2 && vlarg(&v[2]) >= 20) deco_relogio(vmeio(&v[2]), 76);
-    } else if (a == 2) {                                  // o Dourado: o neon do dado
-        if (vlarg(&v[0]) >= 26) deco_foto_time(vmeio(&v[0]), 70);
-        if (nv > 1 && vlarg(&v[1]) >= 30) deco_neon(vmeio(&v[1]), 82, true);
-        if (nv > 2 && vlarg(&v[2]) >= 18) deco_calendario(vmeio(&v[2]), 70);
-    } else {                                                // o fim do andar: o bar fechado
-        int x0 = v[0].x0, x1 = v[0].x1;
-        deco_fechado(x0 + (x1 - x0) / 4, 172);
-        deco_fechado(x0 + (x1 - x0) * 3 / 5, 168);
-        deco_neon(x0 + (x1 - x0) * 3 / 5, 80, false);       // apagado
+    if (a == 0) {                                         // o Verde: o quadro do torneio e o cabideiro
+        if (vlarg(&v[0]) >= 18) deco_relogio(vmeio(&v[0]), 80);
+        if (nv > 1 && vlarg(&v[1]) >= 50) deco_torneio(vmeio(&v[1]), 70);
+        if (nv > 2 && vlarg(&v[2]) >= 22) deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8);
+    } else if (a == 1) {                                  // o Vermelho: o guiche do caixa
+        if (vlarg(&v[0]) >= 28) deco_quadro(vmeio(&v[0]), 84, 20, 16, 0);
+        if (nv > 1 && vlarg(&v[1]) >= 48) deco_caixa(vmeio(&v[1]), 72);
+        if (nv > 2 && vlarg(&v[2]) >= 20) deco_arandela(vmeio(&v[2]), 84);
+    } else {                                              // o Dourado: o retrato do fundador e os trofeus
+        if (vlarg(&v[0]) >= 28) deco_quadro(vmeio(&v[0]), 84, 20, 26, 1);
+        if (nv > 1 && vlarg(&v[1]) >= 48) deco_trofeus(vmeio(&v[1]), 92);
+        if (nv > 2 && vlarg(&v[2]) >= 22) deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8);
     }
 }
 
@@ -770,11 +760,17 @@ static void cen_pinta(int d, int a)
 
 // ---- a luz ------------------------------------------------------------------
 static bool fr_coringa(void) { return run.andar >= DES_ANDARES; }
+#ifndef FR_BASE
+#define FR_BASE       0.25f              // a luz do salao inteiro (0: o tom pintado), clara como a sala do predio
+#define FR_BASE_COR  -0.4f               // o do Coringa, mais apagado
+#define FR_POCA       1.3f               // a luz de cada mesa por jogar
+#define FR_POCA_FEITA 0.5f               // a de uma mesa ja jogada (o salao nao apaga)
+#endif
 static void fr_luz(const poca_t *pc, int np, int x0, int x1, int y0, int y1)
 {
     int ex0 = estrado_cx() - ESTRADO_W / 2;
     bool cor = fr_coringa();
-    float base = cor ? -1.3f : -0.9f;
+    float base = cor ? FR_BASE_COR : FR_BASE;
     if (x0 < CH_X0) x0 = CH_X0;
     if (x1 > CH_X1) x1 = CH_X1;
     if (y0 < CH_Y0) y0 = CH_Y0;
@@ -846,19 +842,7 @@ static void fr_detalhes(void)
     for (int k = 0; k < cen_nd; k++) {
         const det_t *d = &cen_det[k];
         switch (d->tipo) {
-        case DT_TV: {                                       // a TV: a cena troca de tempos em tempos
-            int cena = (int)(t / 1.7f);
-            for (int j = 0; j < d->h; j++)
-                for (int i = 0; i < d->w; i++) {
-                    uint32_t h = ruido_xy(i / 4 + cena * 7, j / 3);
-                    int tt = (j & 1) ? 3 : 1;
-                    if (h % 5 == 0) tt = 4;
-                    uint16_t c = cena % 3 == 1 && j > 7 ? ((j & 1) ? RGB(88, 152, 84) : RGB(56, 112, 60)) : CEN_RAMPA[CM_CEU][tt];
-                    gfx_pixel(d->x + i, d->y + j, c);
-                }
-            break;
-        }
-        case DT_NEON: case DT_LETREIRO: {                   // o neon: firme, com uma piscada rara
+        case DT_LETREIRO: {                                 // o neon: firme, com uma piscada rara
             float c = fmodf(t + d->x * 0.01f, 9.0f);
             if ((c > 6.0f && c < 6.08f) || (c > 6.2f && c < 6.26f))
                 for (int j = 0; j < d->h; j++)
@@ -1121,8 +1105,8 @@ static void desenha_mapa(void)
     for (int p = 0; p < n; p++) {
         int x = salao_x(p), y = mesa_y(p), rx = mesa_rx(p), ry = mesa_ry(p);
         bool chefe = salao_chefe(p);
-        if (p >= run.passo) {
-            float s = chefe ? 2.4f : 2.3f;
+        {
+            float s = p < run.passo ? FR_POCA_FEITA : FR_POCA + (chefe ? 0.1f : 0);
             if (p == run.passo) s += 0.45f * (0.5f + 0.5f * sinf(t_fase * 4));
             pc[np++] = (poca_t){ x, chefe ? 106 : 112, chefe ? 88 : 68, chefe ? 52 : 44, s };   // a parede
             pc[np++] = (poca_t){ x, y + 2, rx + 26, ry + 6, s * 0.7f };                           // o chao, junto da mesa

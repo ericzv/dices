@@ -6177,6 +6177,17 @@ int main(void)
                 CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
                 fase = f0; dif_cur = dc0;
             }
+            // A luz do andar escolhido no predio pisca so ao acender; acesa,
+            // fica firme (nao volta a tremer quadro a quadro).
+            {
+                int f0 = fase, dc0 = dif_cur, nv0 = perfis[0].nivel;
+                perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 2; t_fase = 0;
+                for (int q = 0; q < 90; q++) { dado_passo(1 / 60.0f); dado_desenha(); }
+                int firme = 0;
+                for (int q = 0; q < 60; q++) { dado_passo(1 / 60.0f); dado_desenha(); if (pr_luz[2] >= 1.0f) firme++; }
+                CONFERE(firme == 60, "predio: a luz acesa do andar fica firme (%d de 60 quadros)", firme);
+                fase = f0; dif_cur = dc0; perfis[0].nivel = nv0;
+            }
             // Do Nivel 5, o Barao nao fecha a run: vencido ele, a tela do aviso
             // (sem dizer quem) vem antes do amuleto dele e da loja. Antes dele,
             // a loja nao avisa nada; depois, diz quem vem.

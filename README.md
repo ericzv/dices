@@ -97,7 +97,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   andar ao fundo, o tapete vermelho vindo da porta até o estrado do chefe e
   cada oponente sentado à sua mesa, sob uma luminária na cor do salão (verde,
   vermelho, dourado; roxo no do Coringa). Cada andar tem o seu cenário - o
-  boteco no Térreo, madeira e dardos no 1º, o bar de tijolo no 2º, aço com
+  saguão do cassino no Térreo (o guichê do caixa, o quadro do torneio e os
+  troféus), madeira e dardos no 1º, o bar de tijolo no 2º, aço com
   roleta e globo espelhado no 3º, o jardim de inverno no 4º, ouro no 5º, art
   déco no 6º, o teatro no 7º, o lounge do sax no 8º, aquário e pôquer no 9º e
   o terraço de vidro com a cidade à noite na Cobertura -, e cada salão é um

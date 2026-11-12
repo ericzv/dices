@@ -843,14 +843,14 @@ static void cen_nono(int a, const vao_t *v, int nv)
 {
     for (int y = CH_Y0; y < FR_RODA; y++)                           // o azul-noite com os losangos discretos
         for (int x = CH_X0; x < CH_X1; x++) {
-            int X = x - CH_X0 + cen_off, u = X % 12, w = (y - CH_Y0) % 12, m = CM_AZ, t = 2;
-            if (abs(u - 6) + abs(w - 6) == 6) t = 1;
+            int X = x - CH_X0 + cen_off, u = X % 12, w = (y - CH_Y0) % 12, m = CM_AZ, t = 1;
+            if (abs(u - 6) + abs(w - 6) == 6) t = 0;
             if (y >= 112) { m = CM_MAD; t = y == 112 ? 3 : 1; }      // o lambri de madeira
             if (y < CH_Y0 + 3) { m = CM_LAT; t = y == CH_Y0 + 1 ? 3 : 0; }
             cp(x, y, m, t);
         }
     rodape(CM_MAD, 0);
-    chao_carpete(CM_AZ, 1, 3);
+    chao_carpete(CM_AZ, 0, 3);
     if (a == 0) {                                                    // o Verde: o aquario comprido
         if (nv > 1 && vlarg(&v[1]) >= 52) deco_aquario(vmeio(&v[1]), 84, 46, 30, true);
     } else if (a == 1) {                                             // o Vermelho: as escotilhas

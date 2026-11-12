@@ -20,7 +20,8 @@ instrumentos.
   Benjamin Gleitzman. Licença [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - **Laser, ventania, vassourinha e shaker da trilha, o chiado do fogo, as asas
   do Vampiro, o assobio do Sabotador, a areia da Ampulheta, o surdo da mesa do
-  chefe e o sopro da troca de tela**: sintetizados no próprio projeto.
+  chefe, o sopro da troca de tela, o motor do elevador e o sino de cúpula da
+  chegada**: sintetizados no próprio projeto.
 
 As composições (a trilha e as vinhetas) são do jogo.
 

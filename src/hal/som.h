@@ -95,6 +95,7 @@ enum {
     SOM_ESPINHOSO,   // o Espinhoso espetando: tres espetadas e o ai grave
     SOM_PAVIO,       // a Dinamite que nao saiu: o pavio cresce (chiado curto e um tilintar)
     SOM_CARROSSEL,   // o Carrossel parando: a caixinha de musica desacelerando, a trava e o sino
+    SOM_ELEVADOR,    // o elevador chegando no andar: o freio, a trava e o sino de chegada
     SOM_N
 };
 
@@ -106,6 +107,7 @@ bool som_falhou(void);       // o aparelho nao tem saida de audio
 void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola (false para tambem a moeda)
 void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e uma moeda
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
+void som_motor(bool on);     // o motor do elevador, subindo de tom, enquanto a cabine sobe
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide
 void som_cadeia(bool on);    // a cadeia de efeitos do fim da rodada: a trilha abaixa enquanto ela corre
 // O chefe do salao: a batucada entra na trilha, com a voz dele por cima (o

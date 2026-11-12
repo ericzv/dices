@@ -45,14 +45,19 @@ void dado_passo(float dt)
     if (t_sua_vez > 0) t_sua_vez -= dt_real;
     for (int j = 0; j < 2; j++) if (t_humor_pisca[j] > 0) t_humor_pisca[j] -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
-    if (t_elev > 0) {
-        int d = elev_d;
-        float antes = elev_dur(d) - t_elev;
-        t_elev -= dt_real;
-        float agora = elev_dur(d) - t_elev;
-        if (antes < ELEV_BOTAO && agora >= ELEV_BOTAO) som_toca(SOM_TIQUE);                        // o botao do andar
-        if (agora < elev_chega(d) && (int)elev_ponteiro(agora, d) > (int)elev_ponteiro(antes, d)) som_toca(SOM_CONTA);   // um andar passando
-        if (antes < elev_chega(d) && agora >= elev_chega(d)) som_toca(SOM_VALIDO);                // o "dim" da chegada
+    {
+        bool motor = false;                      // o motor do elevador: liga quando o ponteiro sai, para na chegada (ou ao pular)
+        if (t_elev > 0) {
+            int d = elev_d;
+            float antes = elev_dur(d) - t_elev;
+            t_elev -= dt_real;
+            float agora = elev_dur(d) - t_elev;
+            if (antes < ELEV_BOTAO && agora >= ELEV_BOTAO) som_toca(SOM_TIQUE);                    // o botao do andar
+            if (agora < elev_chega(d) && (int)elev_ponteiro(agora, d) > (int)elev_ponteiro(antes, d)) som_toca(SOM_CONTA);   // um andar passando
+            if (antes < elev_chega(d) && agora >= elev_chega(d)) som_toca(SOM_ELEVADOR);          // o freio e o sino da chegada
+            motor = d > 0 && t_elev > 0 && agora >= ELEV_SOBE && agora < elev_chega(d);
+        }
+        if (motor != elev_motor) { elev_motor = motor; som_motor(motor); }
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
     if (t_misterio > 0) {                // o Dado Misterioso: a pedra se parte, depois a mesa para

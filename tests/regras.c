@@ -15,6 +15,8 @@ bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
 void som_giro(bool on) { (void)on; }
+static bool teste_motor;                  // o motor do elevador ligado (o som de verdade nao toca aqui)
+void som_motor(bool on) { teste_motor = on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
 void som_chefe(int q, bool t) { (void)q; (void)t; }
@@ -2588,9 +2590,12 @@ int main(void)
             for (float q = 0; q < elev_dur(7); q += 0.01f) { float p = elev_ponteiro(q, 7); if (p > m) m = p; }
             CONFERE(elev_ponteiro(0, 7) == 0 && m > 7 && m < 7.1f && fabsf(elev_ponteiro(elev_dur(7), 7) - 7) < 1e-4f,
                     "elevador: o ponteiro sai do T, passa um tico do 7 e assenta (%.3f)", m);
+            for (int q = 0; q < 36; q++) dado_passo(1 / 60.0f);          // 0,6 s: o ponteiro ja saiu
+            CONFERE(teste_motor, "o motor do elevador liga quando o ponteiro sai");
             key_event_t k = { .key = 'x' };
             dado_tecla(&k);
-            CONFERE(t_elev <= 0 && fase == F_RAMULETO, "qualquer tecla pula o elevador (%.2f)", t_elev);
+            dado_passo(1 / 60.0f);
+            CONFERE(t_elev <= 0 && fase == F_RAMULETO && !teste_motor, "qualquer tecla pula o elevador e para o motor (%.2f)", t_elev);
         }
         amuleto_escolhido(0);
         // Cada fase da run, salva e continuada: a run volta igual e cai na tela certa.

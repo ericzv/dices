@@ -241,9 +241,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
   ↓ desce; no mouse, passar por cima escolhe e o clique começa a run).
   Começando a run, a placa de latão do elevador sobe na tela: o botão do
-  andar afunda e acende, o ponteiro sobe pelo mostrador (quanto mais alto o
-  andar, mais demora) e, na chegada, o sino toca e a plaquinha de esmalte
-  mostra o andar (qualquer tecla, clique ou botão pula). Os
+  andar afunda e acende, o ponteiro sobe pelo mostrador com o motor
+  zumbindo e subindo de tom (quanto mais alto o andar, mais demora) e, na
+  chegada, o freio segura a cabine, o sino de elevador toca e a plaquinha de
+  esmalte mostra o andar (qualquer tecla, clique ou botão pula). Os
   andares ainda fechados ficam de luz apagada, com a persiana baixada e
   cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
   lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre

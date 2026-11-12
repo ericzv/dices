@@ -84,7 +84,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_AD_COLEIRA] = "ad_coleira", [SOM_AD_TIQUETE] = "ad_tiquete",
     [SOM_CONTA] = "conta", [SOM_TUDO_NADA] = "tudo_nada", [SOM_TUDO_NADA_PERDE] = "tudo_nada_perde",
     [SOM_SENTINELA] = "sentinela", [SOM_AGIOTA] = "agiota", [SOM_OCULTO] = "oculto", [SOM_ESPINHOSO] = "espinhoso", [SOM_PAVIO] = "pavio",
-    [SOM_CARROSSEL] = "carrossel",
+    [SOM_CARROSSEL] = "carrossel", [SOM_ELEVADOR] = "elevador_sino",
 };
 
 typedef struct {
@@ -93,10 +93,10 @@ typedef struct {
 } efeito_t;
 
 static efeito_t ef[SOM_N];
-static Sound rufo, moeda_rola, giro;
+static Sound rufo, moeda_rola, giro, motor;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
-static bool  rufando, girando, suspense, cadeia;
+static bool  rufando, girando, motor_on, suspense, cadeia;
 static int   chefe_qual = -1;              // o som_chefe de agora
 static bool  chefe_toca;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
@@ -150,7 +150,7 @@ static int canal_de(int s)
                    || s == SOM_TRANSICAO
                ? SOM_CANAL_INTERFACE : SOM_CANAL_EFEITOS;
 }
-static float vol_rufo, vol_giro, duck = 1;   // duck: quanto a trilha abaixa
+static float vol_rufo, vol_giro, vol_motor, duck = 1;   // duck: quanto a trilha abaixa
 static float t_climax;                       // > 0: um climax tocando (a trilha abaixa ate ele acabar)
 
 static const som_arquivo_t *acha(const char *nome)
@@ -280,6 +280,7 @@ void som_inicia(void)
     rufo = carrega(acha("rufo"));
     moeda_rola = carrega(acha("moeda_rola"));
     giro = carrega(acha("giro"));
+    motor = carrega(acha("elevador_motor"));
     monta_banda();
     pronto = true;
 }
@@ -295,6 +296,7 @@ void som_encerra(void)
     UnloadSound(rufo);
     UnloadSound(moeda_rola);
     UnloadSound(giro);
+    UnloadSound(motor);
     if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
     for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
     if (voz_dec) stb_vorbis_close(voz_dec);
@@ -319,6 +321,14 @@ void som_atualiza(float dt)
     if (IsSoundPlaying(giro)) {
         SetSoundVolume(giro, vol_giro * ganho(SOM_CANAL_EFEITOS));
         if (!girando && vol_giro < 0.01f) StopSound(giro);
+    }
+    // O motor do elevador entra em 30 ms e sai em 120 ms, quando a cabine chega
+    // (o tom sobe na propria gravacao: numa subida curta, so se ouve o comeco).
+    float am = motor_on && ligado ? 1 : 0;
+    vol_motor += (am - vol_motor) * fminf(1, dt / (motor_on ? 0.03f : 0.12f));
+    if (IsSoundPlaying(motor)) {
+        SetSoundVolume(motor, vol_motor * ganho(SOM_CANAL_EFEITOS));
+        if (!motor_on && vol_motor < 0.01f) StopSound(motor);
     }
     // Na cadeia de efeitos do fim da rodada a trilha abaixa, para cada poder
     // se ouvir; na hora da verdade quase some; nos climax (Jackpot, fim da
@@ -411,6 +421,17 @@ void som_giro(bool on)
         PlaySound(giro);
     }
     girando = on;
+}
+
+void som_motor(bool on)
+{
+    if (!pronto) return;
+    if (on && !motor_on) {
+        vol_motor = 0;
+        SetSoundVolume(motor, 0);
+        PlaySound(motor);
+    }
+    motor_on = on;
 }
 
 void som_suspense(bool on) { suspense = on; }

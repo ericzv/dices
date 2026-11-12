@@ -431,9 +431,25 @@ static float t_aviso_grudado;            // > 0: o aviso de que o dado do Chicle
 static bool cosmo_recem[2][MAX_COL];     // o ciclo cosmico que evoluiu na rodada passada: chega na mao com o nome novo
 // Elevador do Desafiante: ao comecar a run, um mostrador sobe ate o andar
 // da dificuldade (> 0: quanto falta da animacao).
-#define ELEV_T     1.9f
-#define ELEV_CHEGA 1.25f                 // quando o ponteiro chega
+// O elevador do comeco da run (desafio/elevador.inc): o botao afunda, o
+// ponteiro sai, sobe (mais andares, mais demora), chega e a placa desce.
+#define ELEV_BOTAO 0.30f
+#define ELEV_SOBE  0.42f
+static float elev_viagem(int d) { return d > 0 ? 0.4f + 0.08f * d : 0.12f; }
+static float elev_chega(int d) { return ELEV_SOBE + elev_viagem(d); }
+static float elev_dur(int d) { return elev_chega(d) + 0.85f; }
+// Onde esta o ponteiro (em andares): sai devagar, corre, freia, passa um
+// tico do andar e volta.
+static float elev_ponteiro(float e, int d)
+{
+    float q = (e - ELEV_SOBE) / elev_viagem(d);
+    if (q <= 0) return 0;
+    if (q < 1) return d * (q < 0.5f ? 4 * q * q * q : 1 - powf(-2 * q + 2, 3) / 2);
+    float a = e - elev_chega(d);
+    return d + (d > 0 && a < 0.3f ? sinf(a / 0.3f * 3.14159265f) * 0.07f : 0);
+}
 static float t_elev;
+static int elev_d;                       // o andar para onde o elevador sobe
 static int   fala_perso = -1;            // o oponente da partida do Desafiante
 // A virada dos chefes: da 5a rodada em diante, o chefe muda o jogo. Cada um
 // tem a sua, que aparece num andar e fica mais forte num andar acima:

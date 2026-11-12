@@ -147,42 +147,13 @@ static void desenha_cat_adesivo(int i)
 
 static int des_dificuldade(void) { return run.dificuldade; }
 
-// O elevador: um mostrador antigo, em arco, com o ponteiro subindo do terreo
-// ate o andar da run. Pula com qualquer tecla.
+// O elevador do comeco da run: a placa de latao de perto (elevador.inc).
+// Pula com qualquer tecla.
 static void des_elevador(void)
 {
     if (t_elev <= 0 || modo != M_DESAFIO) return;
     n_zonas = 0;                                 // nada por baixo responde ao clique
-    float e = ELEV_T - t_elev;
-    int d = run.dificuldade;
-    const int w = 250, h = 150, x0 = GFX_W / 2 - w / 2, y0 = CENTRO - h / 2 - 4;
-    const int cx = GFX_W / 2, cy = y0 + 106, R = 64;
-    ui_escurece(0, 0, GFX_W, GFX_H, 150);
-    ui_painel(x0, y0, w, h);
-    for (int i = 0; i <= 60; i++) {              // o arco do mostrador
-        float a = 3.1416f * (0.08f + 0.84f * i / 60.0f);
-        gfx_rect(cx - (int)(cosf(a) * R), cy - (int)(sinf(a) * R), 2, 2, C_LATAO_ESC);
-    }
-    // O ponteiro: sai do terreo, passa um pouco do andar e assenta.
-    float q = e / ELEV_CHEGA;
-    if (q > 1) q = 1;
-    float p = d * (1 - (1 - q) * (1 - q) * (1 - q));
-    if (q >= 1 && e < ELEV_CHEGA + 0.25f) p = d + sinf((e - ELEV_CHEGA) / 0.25f * 3.1416f) * 0.08f * (d > 0);
-    bool chegou = e >= ELEV_CHEGA;
-    static const char *const MARCA[N_NIVEIS + 1] = { "T", "1", "2", "3", "4", "5", "6", "7", "8", "9", "C" };
-    for (int i = 0; i <= N_NIVEIS; i++) {
-        float a = 3.1416f * (0.08f + 0.84f * i / N_NIVEIS);
-        int mx = cx - (int)(cosf(a) * R), my = cy - (int)(sinf(a) * R);
-        bool aceso = chegou && i == d;
-        gfx_disco(mx, my, 3, aceso ? cor_dif(i) : C_LATAO_ESC);
-        int lx = cx - (int)(cosf(a) * (R + 15)), ly = cy - (int)(sinf(a) * (R + 15));
-        txt_c(lx, ly - TXT_H / 2 - 1, MARCA[i], aceso ? cor_dif(i) : C_TEXTO_M, true);
-    }
-    float a = 3.1416f * (0.08f + 0.84f * p / N_NIVEIS);
-    gfx_linha_grossa(cx, cy, cx - (int)(cosf(a) * (R - 12)), cy - (int)(sinf(a) * (R - 12)), 2, C_OURO);
-    gfx_disco(cx, cy, 6, C_LATAO_ESC);
-    gfx_disco(cx, cy, 4, C_LATAO);
-    txt_c(cx, cy + 12, chegou ? ANDAR_DIF[d] : "subindo...", chegou ? (d ? cor_dif(d) : C_MARFIM) : C_TEXTO_M, chegou);
+    elevador_placa(elev_dur(elev_d) - t_elev, elev_d);
 }
 
 // O chefe vira na 5a rodada: a mesa para um instante, uma faixa atravessa a

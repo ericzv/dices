@@ -239,7 +239,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
   com a sua cara e a sua cena. O andar escolhido abre e acende, a cabine do
   elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
-  ↓ desce; no mouse, passar por cima escolhe e o clique começa a run). Os
+  ↓ desce; no mouse, passar por cima escolhe e o clique começa a run).
+  Começando a run, a placa de latão do elevador sobe na tela: o botão do
+  andar afunda e acende, o ponteiro sobe pelo mostrador (quanto mais alto o
+  andar, mais demora) e, na chegada, o sino toca e a plaquinha de esmalte
+  mostra o andar (qualquer tecla, clique ou botão pula). Os
   andares ainda fechados ficam de luz apagada, com a persiana baixada e
   cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
   lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre

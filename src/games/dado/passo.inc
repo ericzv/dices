@@ -46,9 +46,13 @@ void dado_passo(float dt)
     for (int j = 0; j < 2; j++) if (t_humor_pisca[j] > 0) t_humor_pisca[j] -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
     if (t_elev > 0) {
-        float antes = ELEV_T - t_elev;
+        int d = elev_d;
+        float antes = elev_dur(d) - t_elev;
         t_elev -= dt_real;
-        if (antes < ELEV_CHEGA && ELEV_T - t_elev >= ELEV_CHEGA) som_toca(SOM_VALIDO);   // o "dim" do elevador
+        float agora = elev_dur(d) - t_elev;
+        if (antes < ELEV_BOTAO && agora >= ELEV_BOTAO) som_toca(SOM_TIQUE);                        // o botao do andar
+        if (agora < elev_chega(d) && (int)elev_ponteiro(agora, d) > (int)elev_ponteiro(antes, d)) som_toca(SOM_CONTA);   // um andar passando
+        if (antes < elev_chega(d) && agora >= elev_chega(d)) som_toca(SOM_VALIDO);                // o "dim" da chegada
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
     if (t_misterio > 0) {                // o Dado Misterioso: a pedra se parte, depois a mesa para

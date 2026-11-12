@@ -2577,6 +2577,21 @@ int main(void)
         perfis[0].nivel = N_NIVEIS; perfis[0].bolsas = BOLSAS_TODAS;
         perfil_atual = 0; perfis_lidos = true;
         des_dif = 4; des_bolsa = B_LATA; des_nova_run();
+        // O elevador do comeco da run sobe ate o andar escolhido: mais alto,
+        // mais demora; o ponteiro sai do Terreo, passa um tico do andar e
+        // assenta nele; qualquer tecla pula.
+        {
+            CONFERE(elev_d == 4 && fabsf(t_elev - elev_dur(4)) < 1e-4f, "o elevador sobe ate o 4 (%d, %.2f)", elev_d, t_elev);
+            CONFERE(elev_dur(0) < elev_dur(4) && elev_dur(4) < elev_dur(N_NIVEIS) && elev_dur(N_NIVEIS) < 2.6f,
+                    "elevador: mais alto, mais demora (%.2f %.2f %.2f)", elev_dur(0), elev_dur(4), elev_dur(N_NIVEIS));
+            float m = 0;
+            for (float q = 0; q < elev_dur(7); q += 0.01f) { float p = elev_ponteiro(q, 7); if (p > m) m = p; }
+            CONFERE(elev_ponteiro(0, 7) == 0 && m > 7 && m < 7.1f && fabsf(elev_ponteiro(elev_dur(7), 7) - 7) < 1e-4f,
+                    "elevador: o ponteiro sai do T, passa um tico do 7 e assenta (%.3f)", m);
+            key_event_t k = { .key = 'x' };
+            dado_tecla(&k);
+            CONFERE(t_elev <= 0 && fase == F_RAMULETO, "qualquer tecla pula o elevador (%.2f)", t_elev);
+        }
         amuleto_escolhido(0);
         // Cada fase da run, salva e continuada: a run volta igual e cai na tela certa.
         static const struct { int estado, fase; } FASES[] = {

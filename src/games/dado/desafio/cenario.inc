@@ -66,9 +66,10 @@ static int cen_np;
 
 static void cp(int x, int y, int m, int t)
 {
-    if (x < CH_X0 || x >= CH_X1 || y < CH_Y0 || y >= CH_Y1) return;
-    cen_m[y - CH_Y0][x - CH_X0] = (uint8_t)m;
-    cen_t[y - CH_Y0][x - CH_X0] = (uint8_t)(t < 0 ? 0 : t > 5 ? 5 : t);
+    unsigned i = (unsigned)(x - CH_X0), j = (unsigned)(y - CH_Y0);   // fora do chao (negativo vira enorme): nada
+    if (i >= (unsigned)CH_W || j >= (unsigned)CH_H) return;
+    cen_m[j][i] = (uint8_t)m;
+    cen_t[j][i] = (uint8_t)(t < 0 ? 0 : t > 5 ? 5 : t);
 }
 static int cm_de(int x, int y) { return x < CH_X0 || x >= CH_X1 || y < CH_Y0 || y >= CH_Y1 ? -1 : cen_m[y - CH_Y0][x - CH_X0]; }
 static void crect(int x, int y, int w, int h, int m, int t) { for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) cp(x + i, y + j, m, t); }

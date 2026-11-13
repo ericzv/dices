@@ -7,7 +7,7 @@
 # executavel final nao depende de nenhuma DLL fora do sistema.
 # O firmware do Cardputer usa cardputer/CMakeLists.txt (ESP-IDF), nao este.
 cmake_minimum_required(VERSION 3.16)
-project(DadoEmCasa VERSION 1.21 LANGUAGES C)
+project(DadoEmCasa VERSION 1.22 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -35,6 +35,15 @@ add_library(jogo STATIC
     src/ui/gfx.c
     src/ui/fonte.c)
 target_include_directories(jogo PUBLIC src desktop)
+# Otimizacao entre os arquivos (LTO) no Release: o desenho chama gfx_pixel,
+# gfx_rect e gfx_mistura (gfx.c) pixel a pixel, e assim elas entram inline no
+# dado.c. Os mesmos pixels; so menos chamadas. Onde o compilador nao suporta,
+# fica como antes.
+include(CheckIPOSupported)
+check_ipo_supported(RESULT DADO_LTO OUTPUT DADO_LTO_ERRO LANGUAGES C)
+if (DADO_LTO)
+    set_property(TARGET jogo PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 # A versao que aparece miuda na tela inicial (v1.0, v1.1...) fica em
 # src/games/dado.c (DADO_VERSAO): a mesma no PC, no site e no Cardputer.
 if (MSVC)
@@ -85,6 +94,9 @@ endif()
 
 add_executable(dado WIN32 MACOSX_BUNDLE ${FONTES})
 target_link_libraries(dado PRIVATE jogo sons raylib)
+if (DADO_LTO)
+    set_property(TARGET dado PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 set_target_properties(dado PROPERTIES
     OUTPUT_NAME "DadoEmCasa"
     MACOSX_BUNDLE_BUNDLE_NAME "Dado em Casa"

@@ -600,9 +600,16 @@ static void quadro(void)
     le_controles();
     float dt = GetFrameTime();
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
+    // A maquina pensa aos pedacos, no que sobra do quadro depois do desenho
+    // (entre 2 e 8 ms): a tela nao para enquanto ela decide.
+    static double ult_desenho = 0.002;
+    double orc = 0.012 - ult_desenho;
+    dado_ia_orcamento((int)(1e6 * (orc < 0.002 ? 0.002 : orc > 0.008 ? 0.008 : orc)));
     dado_passo(dt);
     som_atualiza(dt);
+    double t_des = GetTime();
     dado_desenha();
+    ult_desenho = GetTime() - t_des;
     aviso_zoom();
     poe_cursor();
     UpdateTexture(tela, fb);

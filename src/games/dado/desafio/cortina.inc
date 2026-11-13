@@ -71,7 +71,9 @@ static void cort_passo(float dt)
 static const uint16_t CORT_TOM[5] = { RGB(14, 14, 12), RGB(66, 18, 24), RGB(118, 30, 38), RGB(190, 56, 60), RGB(208, 98, 108) };
 static uint16_t cort_veludo(float L, int x, int y)
 {
-    int k = (int)floorf(L * 4 + bayer(x, y) - 0.5f);
+    float v = L * 4 + bayer(x, y) - 0.5f;
+    int k = (int)v;                                   // o piso (floorf), pelo inteiro
+    if ((float)k > v) k--;
     return CORT_TOM[k < 0 ? 0 : k > 4 ? 4 : k];
 }
 
@@ -80,6 +82,13 @@ static uint16_t cort_veludo(float L, int x, int y)
 // larguras variam de uma prega para a outra.
 #define CORT_LUT 1024
 static float cort_c[CORT_LUT], cort_s[CORT_LUT];
+// O que cada ponto da tabela da a luz do veludo, em cada metade (0 a da
+// esquerda, 1 a da direita): as mesmas contas do pixel, feitas uma vez so.
+typedef struct {
+    float sl15, crista, vale, ponta;                // 0,15 x a inclinacao; a crista; o fundo; a ultima prega
+    uint8_t barra, tem_crista, tem_vale, tem_ponta, filete;
+} cort_k_t;
+static cort_k_t cort_k[2][CORT_LUT];
 static void cort_tabela(void)
 {
     static bool feita = false;
@@ -91,6 +100,20 @@ static void cort_tabela(void)
         cort_c[k] = cosf(fase);
         cort_s[k] = sinf(fase);
     }
+    for (int m = 0; m < 2; m++)
+        for (int k = 0; k < CORT_LUT; k++) {
+            int lado = m ? 1 : -1;
+            float c = cort_c[k], sl = cort_s[k] * lado, u = (float)k / CORT_LUT;
+            cort_k[m][k].sl15 = 0.15f * sl;
+            cort_k[m][k].tem_crista = c > 0.75f;
+            cort_k[m][k].crista = 0.18f * (c - 0.75f) / 0.25f;
+            cort_k[m][k].tem_vale = c < -0.55f;
+            cort_k[m][k].vale = -0.55f - c;
+            cort_k[m][k].tem_ponta = u > 0.93f;
+            cort_k[m][k].ponta = (u - 0.93f) * 3;
+            cort_k[m][k].filete = lado < 0 && c > 0.3f && cort_s[k] > 0.75f;
+            cort_k[m][k].barra = (uint8_t)((c < -0.3f ? 1 : 0) + (c < -0.8f ? 1 : 0));
+        }
 }
 
 // A beira da metade da esquerda na linha y (a da direita e o espelho).
@@ -115,6 +138,8 @@ static void cort_metade(int lado, float fechada, float sanefa_y)
     cort_tabela();
     int y0 = (int)sanefa_y + 6;
     if (y0 < 0) y0 = 0;
+    int sway[GFX_W];                                  // o balanco da franja em cada coluna (so na barra)
+    bool sway_feito = false;
     for (int y = y0; y < GFX_H; y++) {
         int yy = y < CORT_FIM_Y ? y : CORT_FIM_Y - 1;
         float e = cort_beira(meia, yy);
@@ -124,6 +149,13 @@ static void cort_metade(int lado, float fechada, float sanefa_y)
         float vert = 0.1f - 0.2f * y / GFX_H;          // a luz vem de cima: o alto mais claro
         if (y < CORT_SANEFA + 10) vert -= 0.22f * (1 - (y - CORT_SANEFA) / 10.0f);   // a sombra da sanefa
         int passo = (CORT_LUT << 10) / ex;           // u em 1/1024 da tabela, por pixel
+        // A luz de cada pixel: o que vem da linha (o aperto, a luz de cima),
+        // o que vem da prega (cort_k) e o pontilhado da coluna. O piso do
+        // veludo (floorf) pelo inteiro, que da o mesmo.
+        float a1 = 1 + 0.6f * aperto, a2 = 0.2f + 0.2f * aperto;
+        float bb[4];
+        for (int q = 0; q < 4; q++) bb[q] = bayer(q, y);
+        const cort_k_t *tk = cort_k[lado < 0 ? 0 : 1];
         for (int i = 0; i < ex + 8 && i < GFX_W; i++) {
             int x = lado < 0 ? i : GFX_W - 1 - i;
             uint16_t *px = &fb[y * GFX_W + x];
@@ -136,11 +168,16 @@ static void cort_metade(int lado, float fechada, float sanefa_y)
             }
             int k = (i * passo) >> 10;
             if (k >= CORT_LUT) k = CORT_LUT - 1;
-            int barra = CORT_FIM_Y - (cort_c[k] < -0.3f ? 1 : 0) - (cort_c[k] < -0.8f ? 1 : 0);   // a barra, ondulando com as pregas
+            const cort_k_t *t = &tk[k];
+            int barra = CORT_FIM_Y - t->barra;         // a barra, ondulando com as pregas
             if (y >= barra) {                         // a franja, balancando com a barra
+                if (!sway_feito) {
+                    for (int q = 0; q < GFX_W; q++)
+                        sway[q] = (int)lroundf(sinf(q * 0.21f + t_cort * 9) * fminf(2.5f, fabsf(cort_bv) * 0.6f));
+                    sway_feito = true;
+                }
                 int fy = y - barra;
-                int sway = (int)lroundf(sinf(i * 0.21f + t_cort * 9) * fminf(2.5f, fabsf(cort_bv) * 0.6f));
-                int fi = i + sway;
+                int fi = i + sway[i];
                 if (fy < 2) *px = fy == 0 ? rl[1] : rl[3];
                 else if (fy < 9 - (fi % 3 == 0) && (fi & 1)) *px = (fi % 4 == 1) ? rl[2] : rl[1];
                 continue;
@@ -150,15 +187,16 @@ static void cort_metade(int lado, float fechada, float sanefa_y)
                 *px = i == ex - 1 ? C_BARRA : k == 0 ? rl[3] : k == 1 ? rl[2] : rl[1];
                 continue;
             }
-            float u = (float)k / CORT_LUT;
-            float c = cort_c[k], sl = cort_s[k] * lado;
-            float L = 0.5f + 0.15f * sl * (1 + 0.6f * aperto) + vert;
-            if (c > 0.75f) L += 0.18f * (c - 0.75f) / 0.25f;              // a crista: o brilho do veludo
-            if (c < -0.55f) L -= (0.2f + 0.2f * aperto) * (-0.55f - c) / 0.45f;   // o fundo da prega, vinho escuro
+            float L = 0.5f + t->sl15 * a1 + vert;
+            if (t->tem_crista) L += t->crista;        // a crista: o brilho do veludo
+            if (t->tem_vale) L -= a2 * t->vale / 0.45f;   // o fundo da prega, vinho escuro
             if (L < 0.27f) L = 0.27f;                 // nunca o preto: o vale fica no vinho
-            if (u > 0.93f) L -= (u - 0.93f) * 3;       // a ultima prega, virando
-            if (lado < 0 && c > 0.3f && cort_s[k] > 0.75f) L += 0.25f;   // o filete de luz no flanco esquerdo
-            *px = cort_veludo(L, x, y);
+            if (t->tem_ponta) L -= t->ponta;          // a ultima prega, virando
+            if (t->filete) L += 0.25f;                // o filete de luz no flanco esquerdo
+            float v = L * 4 + bb[x & 3] - 0.5f;       // cort_veludo, com o piso pelo inteiro
+            int kv = (int)v;
+            if ((float)kv > v) kv--;
+            *px = CORT_TOM[kv < 0 ? 0 : kv > 4 ? 4 : kv];
         }
     }
 }
@@ -169,19 +207,38 @@ static void cort_sanefa(int oy)
     uint16_t *fb = display_fb(), rl[4];
     rampa_de(C_LATAO, rl);
     const int bw = 128;
+    // O desenho de um bando nao muda: a barra (fundo) e a luz da coluna, e a
+    // dobra de cada linha para cada altura de barra, guardados (as mesmas
+    // contas, uma vez so).
+    static int8_t fundo_u[128];
+    static float q1_u[128], q2_u[128], dobra[CORT_SANEFA + 14][13];
+    static bool feito = false;
+    if (!feito) {
+        feito = true;
+        for (int u = 0; u < bw; u++) {
+            float q = (float)u / bw;
+            fundo_u[u] = (int8_t)(18 + (int)(sinf(q * 3.1416f) * 12));
+            q1_u[u] = 0.12f * (0.5f - fabsf(q - 0.5f));
+            q2_u[u] = 0.1f * q;
+        }
+        for (int y = 5; y < CORT_SANEFA + 14; y++)
+            for (int f = 18; f <= 30; f++) {
+                if (y >= f) continue;
+                float v = (y - 5) / (float)(f - 5);
+                float band = sinf(v * 3.1416f * 3);           // tres dobras no bando, acompanhando a curva
+                dobra[y][f - 18] = 0.48f + 0.2f * band - 0.12f * (1 - v);
+            }
+    }
     for (int y = 0; y < CORT_SANEFA + 14; y++) {
         int sy = y + oy;
         if (sy < 0 || sy >= GFX_H) continue;
         for (int x = 0; x < GFX_W; x++) {
             int u = x % bw;
-            float q = (float)u / bw;
-            int fundo = 18 + (int)(sinf(q * 3.1416f) * 12);       // a barra do bando (a faixa de cima e inteira)
+            int fundo = fundo_u[u];                               // a barra do bando (a faixa de cima e inteira)
             uint16_t *px = &fb[sy * GFX_W + x];
             if (y < 5) { *px = y == 0 || y == 4 ? C_BARRA : y == 1 ? rl[3] : y == 2 ? rl[2] : rl[1]; continue; }
             if (y < fundo) {
-                float v = (y - 5) / (float)(fundo - 5);
-                float band = sinf(v * 3.1416f * 3);               // tres dobras no bando, acompanhando a curva
-                float L = 0.48f + 0.2f * band - 0.12f * (1 - v) + 0.12f * (0.5f - fabsf(q - 0.5f)) - 0.1f * q;
+                float L = dobra[y][fundo - 18] + q1_u[u] - q2_u[u];
                 if (L < 0.3f) L = 0.3f;
                 *px = cort_veludo(L, x, sy);
                 continue;

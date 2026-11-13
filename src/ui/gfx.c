@@ -48,12 +48,11 @@ void gfx_quantiza(void)
     // De quatro em quatro: le os quatro pixels antes de escrever, e o
     // processador nao espera cada escrita para a proxima leitura da tabela
     // (mais de duas vezes mais rapido; a conta e a mesma).
-    int i = 0;
-    for (; i + 4 <= GFX_W * GFX_H; i += 4) {
+    _Static_assert(GFX_W * GFX_H % 4 == 0, "a tela vai de quatro em quatro pixels");
+    for (int i = 0; i < GFX_W * GFX_H; i += 4) {
         uint16_t a = fb[i], b = fb[i + 1], c = fb[i + 2], d = fb[i + 3];
         fb[i] = lut[a]; fb[i + 1] = lut[b]; fb[i + 2] = lut[c]; fb[i + 3] = lut[d];
     }
-    for (; i < GFX_W * GFX_H; i++) fb[i] = lut[fb[i]];
 }
 
 static uint16_t *desvio;

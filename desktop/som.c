@@ -26,6 +26,7 @@
 //
 // Como os sons foram feitos: tools/sons/. Creditos: desktop/sons/CREDITOS.md.
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "raylib.h"
@@ -90,10 +91,12 @@ static const char *const NOME[SOM_N] = {
 typedef struct {
     Sound base[VARIANTES], voz[VARIANTES][VOZES];
     int   n, prox, ultima;
+    bool  feito;                             // ja decodificado (aos poucos, ou no primeiro toque)
 } efeito_t;
 
 static efeito_t ef[SOM_N];
 static Sound rufo, moeda_rola, giro, motor;
+static bool rufo_feito, moeda_feito, giro_feito, motor_feito;
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
 static bool  rufando, girando, motor_on, suspense, cadeia;
@@ -260,6 +263,8 @@ static void monta_banda(void)
 static void monta_efeito(int s)
 {
     efeito_t *e = &ef[s];
+    if (e->feito) return;
+    e->feito = true;
     const som_arquivo_t *a = acha(NOME[s]);
     if (a) e->base[e->n++] = carrega(a);
     else
@@ -273,14 +278,51 @@ static void monta_efeito(int s)
         for (int k = 0; k < VOZES; k++) e->voz[v][k] = LoadSoundAlias(e->base[v]);
 }
 
+// Os lacos (o rufo, a moeda rolando, o giro, o motor): decodificados na
+// primeira vez que tocam, se a carga aos poucos ainda nao tiver chegado neles.
+static Sound *laco(int i)
+{
+    static const char *const ARQ[4] = { "rufo", "moeda_rola", "giro", "elevador_motor" };
+    Sound *s[4] = { &rufo, &moeda_rola, &giro, &motor };
+    bool *feito[4] = { &rufo_feito, &moeda_feito, &giro_feito, &motor_feito };
+    if (!*feito[i]) { *feito[i] = true; *s[i] = carrega(acha(ARQ[i])); }
+    return s[i];
+}
+
+// Os efeitos vem aos poucos, depois da abertura: decodificar os ~150 de uma
+// vez segurava a janela preta na abertura (no aparelho fraco, segundos). A
+// cada quadro, so o que cabe em uns 2 ms (os do menu e da mesa primeiro); um
+// som pedido antes da vez dele e decodificado na hora (nunca fica mudo).
+#define PRE_LACOS SOM_N                      // na fila, depois dos efeitos: os 4 lacos
+static int16_t pre_fila[SOM_N + 4];
+static int pre_n, pre_i;
+static void monta_fila_de_carga(void)
+{
+    static const int16_t PRIMEIRO[] = {
+        SOM_MENU_PASSA, SOM_MENU_ESCOLHE, SOM_TIQUE, SOM_TRANSICAO, SOM_PASSA, SOM_ABERTURA,
+        SOM_BATE, SOM_BATE_DADO, SOM_POUSA, SOM_FICHA, SOM_VALIDO, SOM_ANULA, SOM_TURNO, SOM_PARTIDA,
+    };
+    bool posto[SOM_N] = { false };
+    pre_n = pre_i = 0;
+    for (int i = 0; i < (int)(sizeof PRIMEIRO / sizeof *PRIMEIRO); i++) { pre_fila[pre_n++] = PRIMEIRO[i]; posto[PRIMEIRO[i]] = true; }
+    for (int k = 0; k < 4; k++) pre_fila[pre_n++] = (int16_t)(PRE_LACOS + k);
+    for (int s = 0; s < SOM_N; s++) if (!posto[s]) pre_fila[pre_n++] = (int16_t)s;
+}
+static void carrega_aos_poucos(void)
+{
+    double t0 = GetTime();
+    while (pre_i < pre_n) {
+        int k = pre_fila[pre_i++];
+        if (k >= PRE_LACOS) laco(k - PRE_LACOS);
+        else monta_efeito(k);
+        if (GetTime() - t0 > 0.002) break;
+    }
+}
+
 void som_inicia(void)
 {
     if (!IsAudioDeviceReady()) { falhou = true; ligado = false; return; }
-    for (int s = 0; s < SOM_N; s++) monta_efeito(s);
-    rufo = carrega(acha("rufo"));
-    moeda_rola = carrega(acha("moeda_rola"));
-    giro = carrega(acha("giro"));
-    motor = carrega(acha("elevador_motor"));
+    monta_fila_de_carga();
     monta_banda();
     pronto = true;
 }
@@ -288,15 +330,18 @@ void som_inicia(void)
 void som_encerra(void)
 {
     if (!pronto) return;
-    for (int s = 0; s < SOM_N; s++)
+    for (int s = 0; s < SOM_N; s++) {
         for (int v = 0; v < ef[s].n; v++) {
             for (int k = 0; k < VOZES; k++) UnloadSoundAlias(ef[s].voz[v][k]);
             UnloadSound(ef[s].base[v]);
         }
-    UnloadSound(rufo);
-    UnloadSound(moeda_rola);
-    UnloadSound(giro);
-    UnloadSound(motor);
+        ef[s].n = 0; ef[s].feito = false;
+    }
+    if (rufo_feito) UnloadSound(rufo);
+    if (moeda_feito) UnloadSound(moeda_rola);
+    if (giro_feito) UnloadSound(giro);
+    if (motor_feito) UnloadSound(motor);
+    rufo_feito = moeda_feito = giro_feito = motor_feito = false;
     if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
     for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
     if (voz_dec) stb_vorbis_close(voz_dec);
@@ -308,6 +353,7 @@ void som_encerra(void)
 void som_atualiza(float dt)
 {
     if (!pronto) return;
+    carrega_aos_poucos();
     // O rufo entra em 60 ms e sai em 120 ms; a trilha abaixa enquanto ele toca.
     float alvo = rufando && ligado ? 1 : 0;
     vol_rufo += (alvo - vol_rufo) * fminf(1, dt / (rufando ? 0.06f : 0.12f));
@@ -375,7 +421,9 @@ static void toca(int s, float tom)
 
 void som_toca(int s)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n || !nivel[canal_de(s)]) return;
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !nivel[canal_de(s)]) return;
+    monta_efeito(s);                         // ainda nao veio: agora
+    if (!ef[s].n) return;
     // Batidas, pousos e fichas variam um pouco de tom.
     bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
                  s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA;
@@ -385,7 +433,9 @@ void som_toca(int s)
 // Um semitom e a raiz duodecima de 2: doze sobem uma oitava.
 void som_toca_tom(int s, int semitons)
 {
-    if (!pronto || !ligado || s < 0 || s >= SOM_N || !ef[s].n || !nivel[canal_de(s)]) return;
+    if (!pronto || !ligado || s < 0 || s >= SOM_N || !nivel[canal_de(s)]) return;
+    monta_efeito(s);
+    if (!ef[s].n) return;
     toca(s, powf(2.0f, semitons / 12.0f));
 }
 
@@ -403,19 +453,20 @@ static void comeca_a_rolar(Sound *s)
 void som_rufo(bool on)
 {
     if (!pronto) return;
-    if (on) comeca_a_rolar(&rufo);
+    if (on) comeca_a_rolar(laco(0));
     else rufando = false;
 }
 
 void som_rufo_moeda(void)
 {
-    if (pronto) comeca_a_rolar(&moeda_rola);
+    if (pronto) comeca_a_rolar(laco(1));
 }
 
 void som_giro(bool on)
 {
     if (!pronto) return;
     if (on && !girando) {
+        laco(2);
         vol_giro = 0;
         SetSoundVolume(giro, 0);
         PlaySound(giro);
@@ -427,6 +478,7 @@ void som_motor(bool on)
 {
     if (!pronto) return;
     if (on && !motor_on) {
+        laco(3);
         vol_motor = 0;
         SetSoundVolume(motor, 0);
         PlaySound(motor);

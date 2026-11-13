@@ -17,7 +17,7 @@ int main(int argc, char **argv)
             erros++;
         }
     }
-    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "trilha", "trilha_chefe" };
+    static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "elevador_motor", "trilha", "trilha_chefe" };
     for (int i = 0; i < (int)(sizeof LOOPS / sizeof *LOOPS); i++)
         if (!acha(LOOPS[i])) { printf("falta %s\n", LOOPS[i]); erros++; }
     // As camadas (a batucada e a voz de cada chefe) tocam junto com a trilha,

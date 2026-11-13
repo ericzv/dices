@@ -2379,6 +2379,51 @@ def pavio():
     m.poe(0.095, nota('celesta', 74, 0.16, 0.30), 0.08)                       # um corpo por baixo
     return sala(m.x, 0.15)
 
+def elevador_motor():
+    """O motor do elevador subindo (2,2 s): o contator fecha (o tchac do rele
+    e o freio soltando num sopro curto), o motor pega e o zumbido sobe de tom
+    enquanto a cabine ganha velocidade, com o assobio da engrenagem, o ronco
+    da polia pulsando a cada volta e o cabo chiando de leve. No jogo ele toca
+    enquanto o ponteiro sobe e some em 0,12 s na chegada: numa subida curta,
+    so se ouve o comeco (a cabine nem pega velocidade)."""
+    dur = 2.2
+    n = int(dur * SR); t = np.arange(n) / SR
+    v = np.clip(t / 1.3, 0, 1); v = 1 - (1 - v) ** 2                          # a velocidade, ate 1,3 s
+    f0 = 55 + 50 * v                                                            # o zumbido: de 55 a 105 Hz
+    fase = 2 * np.pi * np.cumsum(f0) / SR
+    zum = pb(np.sin(fase) + 0.6 * np.sin(2 * fase) + 0.35 * np.sin(3 * fase + 0.4)
+             + 0.2 * np.sin(4 * fase + 1.1) + 0.12 * np.sin(6 * fase), 1200)
+    eng = np.sin(7.5 * fase) * (0.05 + 0.10 * v)                                # a engrenagem
+    ronco = pb(rng.standard_normal(n), 160) * (0.45 + 0.55 * np.sin(fase / 8) ** 2)   # a polia
+    cabo = banda(rng.standard_normal(n), 2500, 6500) * v * 0.035                # o cabo
+    x = (0.5 * zum + eng + 0.45 * ronco + cabo) * np.minimum(1, t / 0.10)
+    m = Mix(dur)
+    m.poe(0.0, x, 1.0)
+    m.poe(0.0, pb(estalinho(0.012, 1500), 5000), 0.8)                         # o rele: tchac
+    m.poe(0.003, tom(batida('dicehit_metal2'), -12), 0.22)
+    n2 = int(0.09 * SR)
+    m.poe(0.02, banda(rng.standard_normal(n2), 400, 2500) * env(n2, 0.005, 0.03), 0.07)   # o freio soltando
+    return sala(m.x, 0.10)
+
+def elevador_sino():
+    """A chegada do elevador: o freio segura a cabine (um baque abafado e o
+    clec da trava) e toca o sino de chegada, um 'ding' so (subindo, um toque):
+    um sino de cupula em Mi, com os parciais fora de escala dos sinos de
+    verdade e um tremido leve, e o vibrafone por baixo dando a nota."""
+    m = Mix(2.3)
+    n = int(0.12 * SR)
+    m.poe(0.0, pb(rng.standard_normal(n), 140) * env(n, 0.004, 0.03), 0.5)    # o baque da cabine parando
+    m.poe(0.0, marimba(48, 0.06), 0.22)
+    m.poe(0.03, pb(estalinho(0.01, 2000), 6000), 0.3)                          # a trava: clec
+    f = 1318.5; d = 1.9; n = int(d * SR); t = np.arange(n) / SR
+    PARC = ((0.5, 0.22, 1.5), (1.0, 1.0, 1.1), (2.0, 0.32, 0.7), (2.76, 0.42, 0.5), (5.4, 0.18, 0.25), (8.93, 0.07, 0.12))
+    ding = sum(a * np.sin(2 * np.pi * f * r * t + r) * np.exp(-t / q) for r, a, q in PARC)
+    ding = ding * np.minimum(1, t / 0.002) * (1 + 0.06 * np.sin(2 * np.pi * 5.2 * t))
+    m.poe(0.08, ding, 0.32)
+    m.poe(0.08, nota('vibraphone', 88, 1.4, 0.6), 0.45)                        # Mi 6
+    m.poe(0.08, tom(nota('tubular_bells', 84, 0.8, 0.45), -8), 0.14)           # o corpo, uma oitava abaixo (Mi 5)
+    return sala(m.x, 0.22)
+
 # ---------------------------------------------------------------------------
 # O volume de cada som do som.c antigo (o maior RMS em 50 ms); os novos ficam
 # iguais, com os ajustes pedidos em GANHO_DB.
@@ -2453,6 +2498,9 @@ VOLUME.update({'conta': VOLUME['tique'], 'tudo_nada': VOLUME['efeito'], 'tudo_na
                'oculto': VOLUME['efeito'] * 0.9, 'espinhoso': VOLUME['tira']})
 VOLUME['pavio'] = VOLUME['efeito'] * 0.55                                    # o pavio crescendo: baixinho, nao e o BUM
 VOLUME['carrossel'] = VOLUME['efeito'] * 0.9                                 # o Carrossel parando: na altura do Oculto
+# O elevador do comeco da run: o motor por baixo, abaixo do giro; o sino da
+# chegada na altura do "dim" que ele substitui.
+VOLUME.update({'elevador_motor': VOLUME['giro'] * 0.9, 'elevador_sino': VOLUME['valido'] * 0.9})
 GANHO_DB = {'vidro': 5.0, 'vento': -3.0, 'valido4': 3.0}
 
 # nome do arquivo -> (receita, som de referencia do volume, e loop?)
@@ -2482,7 +2530,7 @@ for nome in ('ad_cola', 'ad_chumbo', 'ad_reflexivo', 'ad_avesso', 'ad_confete', 
              'vampiro', 'sabotador', 'coveiro', 'autofagia', 'ampulheta', 'transicao', 'agnus',
              'piao', 'gelatina', 'matrioska', 'balao', 'leque', 'papagaio', 'retrato', 'estilingue',
              'ad_coleira', 'ad_tiquete', 'conta', 'tudo_nada', 'tudo_nada_perde', 'sentinela', 'agiota',
-             'oculto', 'espinhoso', 'pavio', 'carrossel'):
+             'oculto', 'espinhoso', 'pavio', 'carrossel', 'elevador_motor', 'elevador_sino'):
     SONS[nome] = (globals()[nome], nome)
 for v in range(4):
     SONS['bate_%d' % v] = ((lambda v=v: bate(v)), 'bate')

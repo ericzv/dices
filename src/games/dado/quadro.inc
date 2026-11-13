@@ -225,7 +225,9 @@ void dado_desenha(void)
     foco_bx = -1;
     zonas_fase = fase;
     bolsas_vistas = 0;
-    desenha_tudo();
+    // A cortina fechando cobre a tela inteira com a loja guardada (cort_buf):
+    // o que estaria embaixo nao aparece, e nem e desenhado.
+    if (t_cort < 0 || t_cort >= CORT_FECHA) desenha_tudo();
     desenha_pouso();                     // o Infectado, o Barro e a Massinha que acabaram de cair
     desenha_tiro();
     desenha_buraco_suga();

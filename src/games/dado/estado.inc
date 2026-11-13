@@ -450,6 +450,7 @@ static float elev_ponteiro(float e, int d)
 }
 static float t_elev;
 static int elev_d;                       // o andar para onde o elevador sobe
+static bool elev_motor;                  // o motor do elevador ligado (som_motor)
 static int   fala_perso = -1;            // o oponente da partida do Desafiante
 // A virada dos chefes: da 5a rodada em diante, o chefe muda o jogo. Cada um
 // tem a sua, que aparece num andar e fica mais forte num andar acima:

@@ -32,10 +32,18 @@ static int feltro_idx(uint16_t c)
 // voltaria ao mesmo tom, desce um tom na rampa dele (pontilhado, com pouco veu).
 // O veu grande (a mesa inteira, embaixo da loja e das telas da run) quase
 // sempre cai na mesma mesa do quadro anterior: guarda o que entrou e o que
-// saiu, e se a entrada se repete (com o mesmo feltro), so copia a saida.
-static uint16_t esc_ent[GFX_W * GFX_H], esc_sai[GFX_W * GFX_H];
-static int esc_chave[5] = { -1, -1, -1, -1, -1 };
-static uint16_t esc_feltro[7];
+// saiu, linha a linha, e a linha que se repete (com o mesmo feltro) so copia a
+// saida; so as linhas que mudaram (o que anima embaixo) sao refeitas. Duas
+// vagas, para dois veus grandes no mesmo quadro (o da tela do amuleto e o do
+// elevador por cima, as salas do predio): cada um fica com a sua.
+#define ESC_VAGAS 2
+static struct {
+    int chave[5];                                // x, y, w, h e alfa (vazia: uso 0)
+    uint16_t feltro[7];
+    uint32_t uso;                                // a mais antiga cede a vaga
+    uint16_t ent[GFX_W * GFX_H], sai[GFX_W * GFX_H];
+} esc[ESC_VAGAS];                                // (zerada: nao pesa no executavel)
+static uint32_t esc_relogio;
 static void ui_escurece(int x, int y, int w, int h, int alfa)
 {
     if (x < 0) { w += x; x = 0; }
@@ -44,18 +52,22 @@ static void ui_escurece(int x, int y, int w, int h, int alfa)
     if (y + h > GFX_H) h = GFX_H - y;
     if (w <= 0 || h <= 0 || alfa <= 0) return;
     uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
-    const bool grande = w * h >= 32768;
-    if (grande) {
+    // A vaga: a deste veu (mesmo lugar, alfa e feltro), ou a mais antiga, que
+    // fica com ele (vazia: nenhuma linha guardada serve).
+    int v = -1;
+    bool guardado = false;
+    if (w * h >= 32768) {
         int ch[5] = { x, y, w, h, alfa };
-        bool igual = !memcmp(ch, esc_chave, sizeof ch) && !memcmp(esc_feltro, feltro_tons, sizeof esc_feltro);
-        for (int j = 0; j < h && igual; j++) igual = !memcmp(fb + (y + j) * GFX_W + x, esc_ent + j * w, (size_t)w * 2);
-        if (igual) {
-            for (int j = 0; j < h; j++) memcpy(fb + (y + j) * GFX_W + x, esc_sai + j * w, (size_t)w * 2);
-            return;
+        for (int k = 0; k < ESC_VAGAS && v < 0; k++)
+            if (esc[k].uso && !memcmp(ch, esc[k].chave, sizeof ch) && !memcmp(esc[k].feltro, feltro_tons, sizeof esc[k].feltro)) v = k;
+        guardado = v >= 0;
+        if (v < 0) {
+            v = 0;
+            for (int k = 1; k < ESC_VAGAS; k++) if (esc[k].uso < esc[v].uso) v = k;
+            memcpy(esc[v].chave, ch, sizeof ch);
+            memcpy(esc[v].feltro, feltro_tons, sizeof esc[v].feltro);
         }
-        for (int j = 0; j < h; j++) memcpy(esc_ent + j * w, fb + (y + j) * GFX_W + x, (size_t)w * 2);
-        memcpy(esc_chave, ch, sizeof ch);
-        memcpy(esc_feltro, feltro_tons, sizeof esc_feltro);
+        esc[v].uso = ++esc_relogio;
     }
     float fica = 1 - alfa / 255.0f, meio = alfa >= 128 ? 1 : alfa / 128.0f;
     int pct = alfa * 100 / 255;
@@ -65,9 +77,19 @@ static void ui_escurece(int x, int y, int w, int h, int alfa)
     // de Bayer fica abaixo da fracao), e a cor igual a do pixel anterior nem
     // procura de novo: a mesma conta, sem o ponto flutuante por pixel.
     struct { uint16_t cor, um, outro, mascara; uint8_t usado; } m[256];
-    for (int k = 0; k < 256; k++) m[k].usado = 0;
+    bool m_pronto = false;
     for (int j = y; j < y + h; j++) {
         uint16_t *p = fb + j * GFX_W;
+        uint16_t *ent = v >= 0 ? esc[v].ent + (j - y) * w : NULL, *sai = v >= 0 ? esc[v].sai + (j - y) * w : NULL;
+        if (guardado && !memcmp(p + x, ent, (size_t)w * 2)) {   // a linha de antes: a saida guardada
+            memcpy(p + x, sai, (size_t)w * 2);
+            continue;
+        }
+        if (ent) memcpy(ent, p + x, (size_t)w * 2);
+        if (!m_pronto) {
+            for (int k = 0; k < 256; k++) m[k].usado = 0;
+            m_pronto = true;
+        }
         uint8_t lim[4];                          // o degrau de Bayer de cada coluna (mod 4) da linha
         for (int k = 0; k < 4; k++) lim[k] = (uint8_t)(bayer(k, j) * 16);
         int ult = -1, h8 = 0;
@@ -102,8 +124,8 @@ static void ui_escurece(int x, int y, int w, int h, int alfa)
             }
             p[i] = (m[h8].mascara >> lim[i & 3]) & 1 ? m[h8].outro : m[h8].um;
         }
+        if (sai) memcpy(sai, p + x, (size_t)w * 2);
     }
-    if (grande) for (int j = 0; j < h; j++) memcpy(esc_sai + j * w, fb + (y + j) * GFX_W + x, (size_t)w * 2);
 }
 
 // A luz no feltro: sobe 'tons' na rampa dele (fracao pelo pontilhado); o que

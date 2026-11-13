@@ -128,6 +128,22 @@ static inline uint16_t hora_mistura(uint16_t a, uint16_t b, int pct)
     int bl = ba + (bb - ba) * pct / 100;
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
+// O escuro inteiro (longe da luz) de xa a xb-1: o degrau de cada coluna
+// (mod 4) e fixo na linha, e a cor escurecida da ultima cor de cada coluna
+// fica guardada (ult_c/ult_s).
+static inline void hora_longe(uint16_t *lin, int xa, int xb, const int *a4, int *ult_c, uint16_t *ult_s)
+{
+    for (int x = xa; x < xb; x++) {
+        int f = x & 3, a = a4[f];
+        if (a <= 0) continue;
+        uint16_t c = lin[x];
+        if (ult_c[f] != c) {
+            ult_c[f] = c;
+            ult_s[f] = hora_mistura(c, C_BARRA, a > 100 ? 100 : a);
+        }
+        lin[x] = ult_s[f];
+    }
+}
 static void desenha_hora(void)
 {
     if (t_hora <= 0) return;
@@ -138,18 +154,44 @@ static void desenha_hora(void)
     float raio = 92 + (1 - t) * 280 + pulso * 6 * t, borda = 110;
     float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo
     uint16_t *fb = display_fb();
+    // Longe da luz (alem da borda, com um pixel de folga) o escuro ja e o
+    // inteiro (s = 1): o degrau so depende do pontilhado, e sai de uma tabela,
+    // sem a raiz. E a cor escurecida de cada coluna (mod 4) fica guardada:
+    // o feltro liso repete a mesma conta pixel apos pixel.
+    float um = 1, longe = raio + borda + 1, longe2 = longe * longe;
+    int a_longe[4][4];
+    for (int j = 0; j < 4; j++)
+        for (int i = 0; i < 4; i++) a_longe[j][i] = (int)(um * forte + (BAYER[j][i] - 7.5f) * 1.6f);
     for (int y = 0; y < GFX_H; y++) {
         float dy = (y - hora_y) * 1.3f;
-        for (int x = 0; x < GFX_W; x++) {
+        uint16_t *lin = fb + y * GFX_W;
+        const int *a4 = a_longe[y & 3];
+        int ult_c[4] = { -1, -1, -1, -1 };
+        uint16_t ult_s[4] = { 0, 0, 0, 0 };
+        // Na linha, so o trecho [x0, x1] chega perto da luz (com 2 pixels de
+        // folga); fora dele nem a distancia precisa ser medida.
+        float r2 = longe2 - dy * dy;
+        int x0 = GFX_W, x1 = GFX_W - 1;
+        if (r2 > 0) {
+            float w = sqrtf(r2) + 2;
+            x0 = (int)floorf(hora_x - w); x1 = (int)ceilf(hora_x + w);
+            if (x0 < 0) x0 = 0;
+            if (x0 > GFX_W) x0 = GFX_W;
+            if (x1 > GFX_W - 1) x1 = GFX_W - 1;
+            if (x1 < x0 - 1) x1 = x0 - 1;
+        }
+        hora_longe(lin, 0, x0, a4, ult_c, ult_s);
+        for (int x = x0; x <= x1; x++) {
             float dx = x - hora_x, d2 = dx * dx + dy * dy;
             if (d2 <= raio * raio) continue;
+            if (d2 >= longe2) { hora_longe(lin, x, x + 1, a4, ult_c, ult_s); continue; }
             float s = (sqrtf(d2) - raio) / borda;
             if (s > 1) s = 1;
             int a = (int)(s * forte + (BAYER[y & 3][x & 3] - 7.5f) * 1.6f);
             if (a <= 0) continue;
-            uint16_t *p = &fb[y * GFX_W + x];
-            *p = hora_mistura(*p, C_BARRA, a > 100 ? 100 : a);
+            lin[x] = hora_mistura(lin[x], C_BARRA, a > 100 ? 100 : a);
         }
+        hora_longe(lin, x1 + 1, GFX_W, a4, ult_c, ult_s);
     }
 }
 

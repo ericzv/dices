@@ -524,6 +524,118 @@ static int amostras_ia(int cheio, int pouco)
     return cheio;
 }
 
+// ---- Pensar aos pedacos -------------------------------------------------------
+// Uma decisao custa dezenas de milissegundos (com a mesa cheia de especiais,
+// centenas): feita de uma vez, a tela para. Quando a plataforma da um tempo
+// por quadro (dado_ia_orcamento: o PC e o navegador), a decisao e feita aos
+// poucos, ja na pausa de "pensar": cada conta de rodadas imaginadas guarda
+// onde parou (as somas e a proxima amostra). No quadro seguinte a decisao e
+// refeita do comeco, e cada conta pronta so devolve o resultado guardado, com
+// a semente da IA onde a conta a deixou. Cada amostra tem a semente dela, e
+// as somas seguem na mesma ordem: a decisao sai igual a feita de uma vez,
+// so mais tarde quando nao cabe na pausa. Sem tempo dado (os testes, o
+// simulador, o Cardputer), tudo e de uma vez, como sempre.
+static int ia_orcamento_us;                  // 0: sem limite
+void dado_ia_orcamento(int us) { ia_orcamento_us = us > 0 ? us : 0; }
+
+typedef struct {
+    uint32_t chave;                          // de quem e a conta (conferencia)
+    int feitas;                              // amostras ja somadas
+    float s, c;                              // as somas ate ali
+    uint32_t semente;                        // a semente da IA no fim da conta
+    bool pronta;
+} ia_memo_t;
+#define IA_MEMOS (2520 + 64)                 // as filas candidatas (MAX_CAND) e as outras contas
+static ia_memo_t ia_memos[IA_MEMOS];
+static int ia_n_memos, ia_i_memo;            // as guardadas; a proxima desta passada
+static bool ia_aos_pedacos, ia_faltou;       // numa passada aos pedacos; o tempo dela acabou
+static int64_t ia_prazo;                     // quando acaba o tempo desta passada
+static int ia_feitas;                        // amostras contadas nesta passada (a primeira sempre anda)
+static uint32_t ia_marca;                    // a mesa a que as contas guardadas valem
+static int ia_trocas;                        // quantas vezes a mesa mudou nesta decisao
+static bool ia_de_uma_vez;                   // a mesa nao para quieta: esta decisao vai de uma vez
+
+static uint32_t ia_fnv(uint32_t h, const void *p, size_t n)
+{
+    const uint8_t *b = p;
+    for (size_t i = 0; i < n; i++) h = (h ^ b[i]) * 16777619u;
+    return h;
+}
+// Tudo o que as contas leem e pode mudar entre um quadro e outro.
+static uint32_t ia_estado(void)
+{
+    uint32_t h = 2166136261u;
+    h = ia_fnv(h, F, sizeof F);
+    h = ia_fnv(h, J, sizeof J);
+    int v[] = { fase, vez, primeiro, rodada, pote, a_pagar, ia_nivel, ia_esforco, ver_tipo,
+                anulou_a, anulou_b, resistiu, anulou_masc, ver_comum, ia_sem_margem[0], ia_sem_margem[1] };
+    h = ia_fnv(h, v, sizeof v);
+    float fl[] = { ia_ousadia, ia_folga };
+    h = ia_fnv(h, fl, sizeof fl);
+    h = ia_fnv(h, chic_valor, sizeof chic_valor);
+    h = ia_fnv(h, chic_lado, sizeof chic_lado);
+    h = ia_fnv(h, loja, sizeof loja);
+    h = ia_fnv(h, levou, sizeof levou);
+    h = ia_fnv(h, oferta, sizeof oferta);
+    h = ia_fnv(h, oferta_ad, sizeof oferta_ad);
+    return h;
+}
+// Esquece as contas guardadas (outra decisao).
+static void ia_memo_zera(void) { ia_n_memos = 0; ia_marca = 0; ia_trocas = 0; ia_de_uma_vez = false; }
+// Comeca uma passada aos pedacos: se a mesa mudou, as contas guardadas nao
+// valem mais (e se ela mudar toda hora, esta decisao vai de uma vez).
+static void ia_passada_comeca(void)
+{
+    uint32_t e = ia_estado();
+    if (e != ia_marca) {
+        if (ia_marca && ++ia_trocas > 4) ia_de_uma_vez = true;
+        ia_n_memos = 0;
+        ia_marca = e;
+    }
+    ia_aos_pedacos = !ia_de_uma_vez;
+    ia_faltou = false;
+    ia_i_memo = 0;
+    ia_feitas = 0;
+    ia_prazo = esp_timer_get_time() + ia_orcamento_us;
+}
+static void ia_passada_fim(void) { ia_aos_pedacos = false; }
+// A proxima conta desta passada: a guardada no mesmo lugar (se for a mesma
+// conta) ou uma nova. NULL: fora de uma passada aos pedacos, de uma vez.
+static ia_memo_t *ia_memo(uint32_t chave)
+{
+    if (!ia_aos_pedacos || ia_i_memo >= IA_MEMOS) return NULL;
+    int i = ia_i_memo++;
+    ia_memo_t *e = &ia_memos[i];
+    if (i >= ia_n_memos || e->chave != chave) {
+        memset(e, 0, sizeof *e);
+        e->chave = chave;
+        ia_n_memos = i + 1;
+    }
+    return e;
+}
+// O tempo da passada acabou? (Depois de acabar, toda conta devolve 0 sem
+// contar nada: a passada so termina para a mesa voltar como estava.)
+static bool ia_sem_tempo(void)
+{
+    if (ia_faltou) return true;
+    if (ia_feitas++ == 0 || esp_timer_get_time() < ia_prazo) return false;
+    ia_faltou = true;
+    return true;
+}
+// Uma conta guardada pronta: a semente fica onde a conta a deixou.
+static bool ia_memo_pronta(const ia_memo_t *e)
+{
+    if (!e || !e->pronta) return false;
+    semente_ia = e->semente;
+    return true;
+}
+static void ia_memo_guarda(ia_memo_t *e, int feitas, float s, float c, bool pronta)
+{
+    if (!e) return;
+    e->feitas = feitas; e->s = s; e->c = c; e->pronta = pronta;
+    if (pronta) e->semente = semente_ia;
+}
+
 // O que os dados lancados por j guardam para as proximas rodadas, em pontos:
 // a bala do Revolver (o tiro dividido pelo tambor), a Meia anulada que
 // guarda, os Tres Patinhos andando para o x3, a Onda valendo que enche para
@@ -597,7 +709,19 @@ static float avalia_fila_c(int j, const int8_t *seq, int L, int amostras, uint32
                            const mesa_t *m, float *chance)
 {
     float s = 0, c = 0;
-    for (int a = 0; a < amostras; a++) {
+    int a0 = 0;
+    ia_memo_t *e = NULL;
+    if (ia_aos_pedacos) {
+        if (ia_faltou) { if (chance) *chance = 0; return 0; }
+        uint32_t k = ia_fnv(2166136261u ^ 1u, seq, (size_t)L);
+        int v[] = { j, L, amostras, chance != NULL };
+        k = ia_fnv(ia_fnv(k, v, sizeof v), &base, sizeof base);
+        e = ia_memo(k);
+        if (ia_memo_pronta(e)) { if (chance) *chance = e->c / (float)amostras; return e->s / (float)amostras; }
+        if (e) { a0 = e->feitas; s = e->s; c = e->c; }
+    }
+    for (int a = a0; a < amostras; a++) {
+        if (e && ia_sem_tempo()) { ia_memo_guarda(e, a, s, c, false); if (chance) *chance = 0; return 0; }
         volta_mesa(m);
         semeia_ia(base, a);
         fila_t *f = &F[j];
@@ -615,6 +739,7 @@ static float avalia_fila_c(int j, const int8_t *seq, int L, int amostras, uint32
         if (chance) c += placar(j);
         s += ia_futuro_nota(j);
     }
+    ia_memo_guarda(e, amostras, s, c, true);
     if (chance) *chance = c / (float)amostras;
     return s / (float)amostras;
 }
@@ -630,8 +755,10 @@ static float nota_c[MAX_CAND];
 static uint64_t assin[MAX_CAND];
 // Todas as filas de L dados da mao de j que vale a pena pesar (em cand[]);
 // gm: o lugar na mao do dado grudado pelo Chiclete, ou -1. Devolve quantas.
+static uint32_t cand_versao;                 // muda a cada montagem de cand[]
 static int monta_candidatas(int j, int L, int gm)
 {
+    cand_versao++;
     jogador_t *p = &J[j];
     int n = p->n_mao, nc = 0;
     // Todas as sequencias de L posicoes diferentes da mao. Sequencias com os
@@ -678,18 +805,35 @@ static int monta_candidatas(int j, int L, int gm)
 }
 
 static void mestre_planeja(void);            // a do nivel 3, mais abaixo
+// As candidatas de j: aos pedacos, a mesma mesa nao monta de novo a cada
+// passada (com a mao grande, montar ja pesa).
+static int ia_candidatas(int j, int L, int gm)
+{
+    static uint32_t marca, versao;
+    static int cj = -1, cl, cg, cn;
+    if (ia_aos_pedacos && marca == ia_marca && versao == cand_versao && cj == j && cl == L && cg == gm) return cn;
+    cn = monta_candidatas(j, L, gm);
+    marca = ia_marca; versao = cand_versao; cj = j; cl = L; cg = gm;
+    return cn;
+}
+static void ia_planeja_fila(int j);
 static void ia_planeja(void)
 {
     int j = vez;
     if (plano_rodada == rodada && plano_vez == j) return;
     if (ia_nivel >= 3) { mestre_planeja(); return; }
+    ia_planeja_fila(j);
+    if (ia_faltou) plano_rodada = -1;            // a conta nao acabou: o plano fica para a proxima passada
+}
+static void ia_planeja_fila(int j)
+{
     jogador_t *p = &J[j];
     int n = p->n_mao, L = n < max_fila(j) ? n : max_fila(j);
     plano_rodada = rodada; plano_vez = j; plano_n = 0; plano_p = 0.5f;
     if (L <= 0) return;
     int gm = -1;                                 // o grudado pelo Chiclete: o primeiro de toda fila
     for (int m = 0; m < n && F[j].grudado; m++) if (p->mao[m] == F[j].idx[0]) gm = m;
-    int nc = monta_candidatas(j, L, gm);
+    int nc = ia_candidatas(j, L, gm);
 
     mesa_t m;
     guarda_mesa(&m);
@@ -776,7 +920,17 @@ static bool ia_continua(void)
     int amostras = amostras_ia(IA_AMOSTRAS, 24);
     uint32_t base = 0xC0FFEEu + (uint32_t)rodada * 31u + (uint32_t)f->lancados;
     float parar = 0, seguir = 0;
-    for (int a = 0; a < amostras; a++) {
+    int a0 = 0;
+    ia_memo_t *e = NULL;
+    if (ia_aos_pedacos) {                    // aos pedacos: de onde a conta parou
+        if (ia_faltou) { volta_mesa(&m); return false; }
+        int v[] = { 2, j, f->lancados, amostras };
+        e = ia_memo(ia_fnv(ia_fnv(2166136261u, v, sizeof v), &base, sizeof base));
+        if (ia_memo_pronta(e)) a0 = amostras;
+        if (e) { if (!e->pronta) a0 = e->feitas; parar = e->s; seguir = e->c; }
+    }
+    for (int a = a0; a < amostras; a++) {
+        if (e && ia_sem_tempo()) { ia_memo_guarda(e, a, parar, seguir, false); volta_mesa(&m); return false; }
         volta_mesa(&m);
         semeia_ia(base, a);
         F[j].n = F[j].lancados;              // parar: a fila acaba aqui
@@ -786,6 +940,7 @@ static bool ia_continua(void)
         sim_lanca(j);
         seguir += sim_resto(j, true) + ia_futuro_nota(j);
     }
+    if (e && !e->pronta) ia_memo_guarda(e, amostras, parar, seguir, true);
     volta_mesa(&m);
     parar /= (float)amostras;
     seguir /= (float)amostras;
@@ -819,12 +974,23 @@ static float ia_chance(void)
     guarda_mesa(&m);
     int amostras = amostras_ia(IA_AMOSTRAS, 24);
     float s = 0;
-    for (int a = 0; a < amostras; a++) {
+    int a0 = 0;
+    ia_memo_t *e = NULL;
+    if (ia_aos_pedacos) {                        // aos pedacos: de onde a conta parou
+        if (ia_faltou) { volta_mesa(&m); return 0; }
+        int v[] = { 3, j, rodada, amostras, F[j].lancados };
+        e = ia_memo(ia_fnv(2166136261u, v, sizeof v));
+        if (ia_memo_pronta(e)) a0 = amostras;
+        if (e) { if (!e->pronta) a0 = e->feitas; s = e->s; }
+    }
+    for (int a = a0; a < amostras; a++) {
+        if (e && ia_sem_tempo()) { ia_memo_guarda(e, a, s, 0, false); volta_mesa(&m); return 0; }
         volta_mesa(&m);
         semeia_ia(0xBE77u + (uint32_t)rodada, a);
         F[j].n = F[j].lancados;
         s += sim_resto(j, false);
     }
+    if (e && !e->pronta) ia_memo_guarda(e, amostras, s, 0, true);
     volta_mesa(&m);
     return s / (float)amostras;
 }
@@ -868,7 +1034,17 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
     guarda_mesa(&m);
     int amostras = amostras_ia(600, 40), r = outro(j);
     float s = 0;
-    for (int a = 0; a < amostras; a++) {
+    int a0 = 0;
+    ia_memo_t *e = NULL;
+    if (ia_aos_pedacos) {                        // aos pedacos: de onde a conta parou
+        if (ia_faltou) return 0;
+        int v[] = { 4, j, extra, fixo_extra, amostras, n };
+        e = ia_memo(ia_fnv(ia_fnv(2166136261u, v, sizeof v), &base, sizeof base));
+        if (ia_memo_pronta(e)) a0 = amostras;
+        if (e) { if (!e->pronta) a0 = e->feitas; s = e->s; }
+    }
+    for (int a = a0; a < amostras; a++) {
+        if (e && ia_sem_tempo()) { ia_memo_guarda(e, a, s, 0, false); volta_mesa(&m); return 0; }
         volta_mesa(&m);
         semeia_ia(base, a);
         primeiro = a & 1 ? j : r;
@@ -889,6 +1065,7 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
         sim_turno(outro(primeiro));
         s += placar(j);
     }
+    if (e && !e->pronta) ia_memo_guarda(e, amostras, s, 0, true);
     volta_mesa(&m);
     return s / (float)amostras;
 }
@@ -1810,6 +1987,47 @@ static bool mestre_continua(void)
     return segue;
 }
 
+// A escolha desta fase pelo nivel (a mesma de sempre).
+static int ia_escolha(void)
+{
+    switch (fase) {
+    case F_LOJA:   return ia_nivel == 0 ? facil_compra() : ia_compra();
+    case F_ORDEM:  return ia_nivel == 0 ? facil_proximo_da_fila() : ia_proximo_da_fila();
+    case F_JOGA:   return ia_nivel == 0 ? facil_continua() : ia_nivel >= 3 ? mestre_continua() : ia_continua();
+    case F_APOSTA: return ia_nivel == 0 ? facil_aposta() : ia_nivel >= 3 ? mestre_aposta() : ia_aposta();
+    case F_PREMIO: return ia_nivel == 0 ? facil_premio() : ia_premio();
+    }
+    return -1;
+}
+
+// Uma passada aos pedacos: devolve se a escolha ficou pronta (em *r). Sem
+// ficar pronta (ou so pensando, na pausa: 'so_pensa'), a semente da IA e o
+// plano voltam como estavam: a passada nao deixa rastro alem das contas
+// guardadas, e a passada que decide de fato faz o mesmo caminho de antes.
+static bool ia_tenta(int *r, bool so_pensa)
+{
+    uint32_t sem = semente_ia;
+    int8_t pl[N_FILA];
+    memcpy(pl, plano, sizeof pl);
+    int pn = plano_n, pr = plano_rodada, pv = plano_vez;
+    float pp = plano_p;
+    ia_passada_comeca();
+    *r = ia_escolha();
+    bool ok = !ia_faltou;
+    ia_passada_fim();
+    if (!ok || so_pensa) {
+        semente_ia = sem;
+        memcpy(plano, pl, sizeof pl);
+        plano_n = pn; plano_rodada = pr; plano_vez = pv; plano_p = pp;
+    }
+    return ok;
+}
+
+// A loja da maquina contra uma pessoa (sem tela): as compras em sequencia,
+// cada uma podendo levar alguns quadros aos pedacos.
+static int ia_loja_k = -1, ia_loja_n;        // a compra da vez (-1: nenhuma comecou); quantas levou
+static peca_t ia_loja_lev[N_LOJA];
+
 static void ia_passo(float dt)
 {
     ia_nivel = nivel_jog[vez & 1];
@@ -1817,8 +2035,12 @@ static void ia_passo(float dt)
     // A Banqueira: aposta alto quando esta na frente em fichas e corre cedo
     // quando esta atras.
     if (modo == M_DESAFIO && (vez & 1) == 1 && estilo_op == 1) ia_ousadia = J[1].fichas > J[0].fichas ? 1.0f : -1.0f;
-    if (!ia_na_vez() || (fase == F_PREMIO && (t_tira > 0 || slot_girando()))) { ia_fase = -1; return; }
-    if (t_anuncio > 0) return;                // a pessoa ainda le o que ela fez
+    if (!ia_na_vez() || (fase == F_PREMIO && (t_tira > 0 || slot_girando()))) { ia_fase = -1; ia_loja_k = -1; return; }
+    // Contra uma pessoa, a loja e o premio da maquina nao tem tela: ela
+    // decide na hora, e o anuncio mostra o que levou.
+    bool direto = anuncia_maquina() && (fase == F_LOJA || fase == F_PREMIO);
+    bool comprando = direto && fase == F_LOJA && ia_loja_k >= 0 && fase == ia_fase && vez == ia_vez;
+    if (t_anuncio > 0 && !comprando) return;  // a pessoa ainda le o que ela fez
     if (fase != ia_fase || vez != ia_vez) {   // nova decisao: pensa um pouco
         ia_fase = fase; ia_vez = vez;
         t_ia = fase == F_ORDEM && !anuncia_maquina() ? -0.4f : 0;
@@ -1827,37 +2049,52 @@ static void ia_passo(float dt)
                    ^ (uint32_t)(F[vez].lancados * 16 + F[vez].n) * 131u ^ (uint32_t)J[vez].fichas * 7919u;
         h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12; h *= 0x297A2D39u; h ^= h >> 15;
         ia_sobe = p > 0 && (int)(h % 100u) < p;
+        ia_memo_zera();
+        ia_loja_k = -1;
     }
     if (ia_sobe && ia_nivel < 2) ia_nivel++;
     t_ia += dt;
-    // Contra uma pessoa, a loja e o premio da maquina nao tem tela: ela
-    // decide na hora, e o anuncio mostra o que levou.
-    bool direto = anuncia_maquina() && (fase == F_LOJA || fase == F_PREMIO);
+    // Aos pedacos (a plataforma deu um tempo por quadro), as contas andam ja
+    // na pausa. A mestre pensa a fila e os lances do jeito dela (mestre_pensa).
+    bool pedacos = ia_orcamento_us > 0 && ia_nivel >= 1
+                && !(ia_nivel >= 3 && (fase == F_ORDEM || fase == F_JOGA || fase == F_APOSTA));
     // A mestre pensa a fila durante a pausa, um pedaco por quadro; se a pausa
     // acabar antes, espera o plano ficar pronto.
     bool pronta = ia_nivel < 3 || direto || mestre_pensa();
-    if (!direto && t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) return;
+    if (!direto && t_ia < (fase == F_JOGA ? 0.3f : 0.55f)) {
+        int r;
+        if (pedacos) ia_tenta(&r, true);
+        return;
+    }
     if (!pronta) return;
-    t_ia = 0;
 
     if (direto && fase == F_LOJA) {
-        peca_t levadas[N_LOJA];
-        int n = 0;
-        for (int k = 0; k < N_LOJA; k++) {
-            int i = ia_nivel == 0 ? facil_compra() : ia_compra();
+        if (ia_loja_k < 0) { ia_loja_k = 0; ia_loja_n = 0; }
+        while (ia_loja_k < N_LOJA) {
+            int i;
+            if (pedacos) { if (!ia_tenta(&i, false)) return; }   // o resto no proximo quadro
+            else i = ia_escolha();
+            ia_loja_k++;
             if (i < 0) break;
             int antes = J[vez].n_col;
             cursor = i;
             trata_tecla(KEY_ENTER);
             if (J[vez].n_col == antes) break;
-            levadas[n++] = loja[i];
+            ia_loja_lev[ia_loja_n++] = loja[i];
         }
-        anuncia_pecas(n ? "%s comprou" : "%s não comprou nada", levadas, n);
+        t_ia = 0;
+        ia_loja_k = -1;
+        anuncia_pecas(ia_loja_n ? "%s comprou" : "%s não comprou nada", ia_loja_lev, ia_loja_n);
         trata_tecla(KEY_TAB);
         return;
     }
+    int r;
+    if (pedacos) { if (!ia_tenta(&r, false)) return; }   // ainda pensando: o resto no proximo quadro
+    else r = ia_escolha();
+    t_ia = 0;
+
     if (direto && fase == F_PREMIO) {
-        int i = ia_nivel == 0 ? facil_premio() : ia_premio();
+        int i = r;
         peca_t p = oferta[i];
         bool cabe = J[vez].n_col < lim_col();
         cursor = i;
@@ -1867,33 +2104,32 @@ static void ia_passo(float dt)
     }
 
     switch (fase) {
-    case F_LOJA: {
-        int i = ia_nivel == 0 ? facil_compra() : ia_compra();
-        if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
+    case F_LOJA:
+        if (r >= 0) { cursor = r; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
-    }
     case F_ORDEM: {
         // Contra uma pessoa, monta a sequencia inteira de uma vez: o menu
-        // dela nao aparece, so os dados indo para a fila.
+        // dela nao aparece, so os dados indo para a fila. (O primeiro dado e
+        // o que pesa: os outros saem do plano ja feito.)
         int vezes = anuncia_maquina() ? N_FILA + 1 : 1;
         for (int n = 0; n < vezes && fase == F_ORDEM; n++) {
-            int i = ia_nivel == 0 ? facil_proximo_da_fila() : ia_proximo_da_fila();
+            int i = n == 0 ? r : ia_escolha();
             if (i >= 0) { cursor = i; trata_tecla(KEY_ENTER); }
             else { trata_tecla(KEY_TAB); break; }
         }
         break;
     }
     case F_JOGA:
-        if (ia_nivel == 0 ? facil_continua() : ia_nivel >= 3 ? mestre_continua() : ia_continua()) { cursor = 0; trata_tecla(KEY_ENTER); }
+        if (r) { cursor = 0; trata_tecla(KEY_ENTER); }
         else trata_tecla(KEY_TAB);
         break;
     case F_APOSTA:
-        cursor = ia_nivel == 0 ? facil_aposta() : ia_nivel >= 3 ? mestre_aposta() : ia_aposta();
+        cursor = r;
         trata_tecla(KEY_ENTER);
         break;
     case F_PREMIO:
-        cursor = ia_nivel == 0 ? facil_premio() : ia_premio();
+        cursor = r;
         trata_tecla(KEY_ENTER);
         break;
     }

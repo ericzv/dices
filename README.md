@@ -241,9 +241,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
   ↓ desce; no mouse, passar por cima escolhe e o clique começa a run).
   Começando a run, a placa de latão do elevador sobe na tela: o botão do
-  andar afunda e acende, o ponteiro sobe pelo mostrador (quanto mais alto o
-  andar, mais demora) e, na chegada, o sino toca e a plaquinha de esmalte
-  mostra o andar (qualquer tecla, clique ou botão pula). Os
+  andar afunda e acende, o ponteiro sobe pelo mostrador com o motor
+  zumbindo e subindo de tom (quanto mais alto o andar, mais demora) e, na
+  chegada, o freio segura a cabine, o sino de elevador toca e a plaquinha de
+  esmalte mostra o andar (qualquer tecla, clique ou botão pula). Os
   andares ainda fechados ficam de luz apagada, com a persiana baixada e
   cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
   lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre
@@ -523,6 +524,25 @@ arredondamento de outro compilador. Mudou uma tela de propósito:
 ./build/telas tests/telas_ref.txt --fotos /tmp/telas   # as telas, para conferir
 ./build/telas tests/telas_ref.txt --atualiza           # a referência nova
 ```
+
+### Desempenho
+
+O jogo desenha tudo no processador, num quadro de 640 x 360, e a placa de
+vídeo só amplia. Para não pesar em aparelho fraco:
+
+- **A máquina pensa aos pedaços.** Uma decisão da IA pode custar dezenas de
+  milissegundos (com a mesa cheia de especiais, centenas). No PC e no
+  navegador ela pensa já na pausa de "pensando", no que sobra de cada quadro
+  (de 2 a 8 ms, `dado_ia_orcamento`), e chega à mesma jogada que faria de uma
+  vez. Sem esse tempo (os testes, o simulador), tudo é de uma vez, como antes.
+- **Os sons chegam aos poucos.** Na abertura só a trilha é decodificada; os
+  efeitos vêm depois, uns 2 ms por quadro (os do menu e da mesa primeiro), e
+  um som pedido antes da vez dele é decodificado na hora.
+- **As telas pesadas não refazem o que não muda.** O véu escuro guarda o que
+  escureceu linha a linha (duas vagas, para dois véus no mesmo quadro); a
+  cortina não desenha o salão escondido atrás dela; o foco da hora da verdade
+  só faz a conta da distância perto da luz. Os pixels são os mesmos.
+- **Release com LTO** (otimização entre arquivos), onde o compilador permite.
 
 ### Versão do navegador
 

@@ -105,8 +105,8 @@ static int etiquetas_protecao(int x, int y, int tipo)
 }
 
 // Colecao em tres secoes, Dados, Amuletos e Adesivos, trocadas pelas abas no alto.
-// O que ainda esta fechado no Desafiante (para o perfil em uso) fica no
-// escuro, com cadeado e o que falta para abrir.
+// O que ainda esta fechado no Desafiante (para o perfil em uso) nao se
+// mostra: um "?", o nome e o que falta para abrir.
 static int  cat_trava_dado(int t, char *s, int n);       // desafio.inc: 0 sempre livre, 1 aberto, 2 fechado
 static void desenha_cat_amuleto(int i);
 static void desenha_cat_adesivo(int i);
@@ -171,39 +171,37 @@ static int vitrine_chao(int cx, int r)
     luz_no_feltro(cx, VIT_CHAO, sr, sr / 4 + 2, -2.4f);
     return (int)lroundf(sobe);
 }
-// Fechada: a peca no escuro (so os pixels que ela pintou, comparados com o
-// feltro guardado antes) e o cadeado.
-#define VIT_R 104
-static uint16_t vit_fundo[(2 * VIT_R) * (2 * VIT_R)];
-static void vitrine_guarda(int cx, int cy)
+// Fechada, nada da peca se mostra: na vitrine, so um "?" de latao flutuando
+// na luz, no lugar dela (nem o desenho, nem o que faz); na fileira de baixo,
+// um "?" pequeno. Ao lado, so o nome e como abre (coluna_fechada).
+static void vitrine_misterio(int cx, int cy)
 {
-    const uint16_t *fb = display_fb();
-    for (int y = 0; y < 2 * VIT_R; y++)
-        for (int x = 0; x < 2 * VIT_R; x++) {
-            int X = cx - VIT_R + x, Y = cy - VIT_R + y;
-            vit_fundo[y * 2 * VIT_R + x] = X >= 0 && Y >= 0 && X < GFX_W && Y < GFX_H ? fb[Y * GFX_W + X] : 0;
-        }
+    txt_sombra_c(cx, cy - GFX_ALT_TEXTO(6) / 2 + 6, "?", C_LATAO, 6);
 }
-static void vitrine_no_escuro(int cx, int cy)
+static void fileira_misterio(int x, int y)
 {
-    uint16_t *fb = display_fb();
-    for (int y = 0; y < 2 * VIT_R; y++)
-        for (int x = 0; x < 2 * VIT_R; x++) {
-            int X = cx - VIT_R + x, Y = cy - VIT_R + y;
-            if (X < 0 || Y < 0 || X >= GFX_W || Y >= GFX_H) continue;
-            uint16_t *p = &fb[Y * GFX_W + X];
-            if (*p != vit_fundo[y * 2 * VIT_R + x]) *p = gfx_mistura(*p, C_SOMBRA, 62);
-        }
-    cadeado(cx + 46, cy - 58, C_VINHO_CLR, 2);
+    gfx_texto(x - gfx_largura("?", 1) / 2, y - TXT_H / 2, "?", feltro_tons[5], 1, false);
 }
 
 // A fileira embaixo: a pagina de pecas em que esta a da vitrine, a dela com
-// as cantoneiras. As fechadas sao so a silhueta, no escuro. O mouse em cima
+// as cantoneiras. As fechadas sao so um "?". O mouse em cima
 // troca a vitrine; a pagina so vira pelas setas (ou na ponta dela).
 #define FIL_N     15
 #define FIL_PASSO 38
 #define FIL_Y     (MESA_Y1 - 24)
 #define CAT_TEXTO_H (FIL_Y - 20 - 152)       // o texto da coluna da direita: de y 152 ate a fileira
+// A coluna da direita de uma peca fechada: o nome apagado, o cadeado com
+// "Bloqueado" e, embaixo, como abrir (com a primeira letra maiuscula).
+static void coluna_fechada(int x, const char *nome, const char *como)
+{
+    gfx_texto(x, 60, nome, C_TEXTO_M, 2, true);
+    cadeado(x + 4, 112, C_VINHO_CLR, 1);
+    txt(x + 14, 104, "Bloqueado", C_VINHO_CLR, true);
+    char s[200];
+    snprintf(s, sizeof s, "%s.", como);
+    if (s[0] >= 'a' && s[0] <= 'z') s[0] = (char)(s[0] - 'a' + 'A');
+    quebra_cabe(x, 130, 320, FIL_Y - 20 - 130, s, C_MARFIM);   // ate a fileira de baixo
+}
 enum { FIL_DADO, FIL_AMULETO, FIL_ADESIVO };
 static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, float dens);
 static int cat_amuleto(int i);               // desafio/colecao.inc
@@ -223,19 +221,17 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
             char tr[80];
             int t = cat_tipo(i);
             fechado = cat_trava_dado(t, tr, sizeof tr) == 2;
-            int lados = TIPO[t].lados;
-            if (fechado) silhueta_dado((float)x, (float)y, 11, lados == 2 ? 100 : lados, C_SOMBRA, 0.85f);
+            if (fechado) fileira_misterio(x, y);
             else { peca_t pc = { .tipo = (uint8_t)t }; peca_parada((float)x, (float)y, 11, pc, 0); }
         } else if (sec == FIL_AMULETO) {
             int a = cat_amuleto(i);
             fechado = !amuleto_liberado(a);
-            if (fechado) silhueta_dado((float)x, (float)y, 10, 100, C_SOMBRA, 0.85f);
+            if (fechado) fileira_misterio(x, y);
             else desenha_amuleto(x, y, 10, a, false);
         } else {
             int a = cat_adesivo(i);
             fechado = !adesivo_aberto(a);
-            if (fechado && ad_estilo == ADE_NOVO) ad_novo_silhueta(x, y, a, 2, C_SOMBRA);   // a forma dele, no escuro
-            else if (fechado) silhueta_dado((float)x, (float)y, 9, 6, C_SOMBRA, 0.85f);
+            if (fechado) fileira_misterio(x, y);
             else ad_solto_d(x, y, a, ad_estilo == ADE_NOVO ? 2 : 1, 0);   // o recorte pede uns pixels a mais
         }
         zona_clique(x - FIL_PASSO / 2, FIL_Y - 18, FIL_PASSO, 36, var, i, 0);
@@ -245,15 +241,6 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
         int px = x0 + (FIL_N - 1) * FIL_PASSO + 30, py = FIL_Y + 20;
         for (int k = 0; k < pags; k++) gfx_rect(px - (pags - k) * 5, py, 3, 3, k == pag ? C_OURO : C_FELTRO2);
     }
-}
-
-// "Bloqueado" e, ao lado e miudo, o que falta para abrir.
-static void linha_bloqueio(int x, int y, const char *falta)
-{
-    cadeado(x + 4, y + 8, C_VINHO_CLR, 1);
-    int xb = x + 14;
-    txt(xb, y, "Bloqueado", C_VINHO_CLR, true);
-    gfx_texto(xb + gfx_largura("Bloqueado", 1) + 8, y, falta, C_TEXTO_M, 1, false);
 }
 
 // A nota ao lado da etiqueta de raridade: inteira se couber ate o fim da
@@ -278,11 +265,14 @@ static void desenha_catalogo(void)
     // A peca, a esquerda, flutuando na luz e passando pelas faces, com o
     // poder animado como na mesa (o brilho girando e o desenho dele).
     int cx = VIT_X, sobe = vitrine_chao(cx, 46), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
-    if (st == 2) vitrine_guarda(cx, cy);
+    if (st == 2) {                                      // fechado: so o "?", o nome e como abre
+        vitrine_misterio(cx, cy);
+        fileira_colecao(FIL_DADO, cat_i, n_catalogo(), &cat_i);
+        coluna_fechada(290, d->nome, trava);
+        return;
+    }
     if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
-        so_apagado = true;                              // fechado: apagado
-        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, st == 2);
-        so_apagado = false;
+        tudo_ou_nada((float)cx, (float)cy, 46, t_fase * 0.8f, -1, false);
     } else if (d->lados == 2) {
         moeda_girando(cx, cy, tipo, t_fase);
     } else {
@@ -291,26 +281,25 @@ static void desenha_catalogo(void)
         float dentro = fmodf(t_fase, 0.9f);
         float r = 46 + (dentro < 0.08f && nf > 1 ? 3 : 0);   // pulinho a cada face (com uma so, fica parado)
         float ang = sinf(t_fase * 0.9f) * 0.3f;           // balanca devagar
-        if (d->efeito && st != 2) brilho_poder((float)cx, (float)cy, r, tipo, ang, true);
+        if (d->efeito) brilho_poder((float)cx, (float)cy, r, tipo, ang, true);
         so_apagado = true;
         peca_t am = adesivado_amostra();                 // o Adesivado mostra os adesivos de uma amostra
         if (tipo == D_ADESIVADO) ad_face = ad_no_lado(&am, f[i]);
         if (tipo == D_DIGITAL && dentro < DIGITAL_ACENDE) digital_q = dentro / DIGITAL_ACENDE;   // o visor acende a cada numero
-        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, f[i], 2, st == 2);
+        desenha_dado((float)cx, (float)cy, r, tipo, 0, ang, f[i], 2, false);
         if (tipo == D_ADESIVADO) ad_selos((float)cx, (float)cy, r, &am, 0);
         so_apagado = false;
-        if (d->efeito && st != 2) anima_poder(cx, cy, (int)r, tipo, 0);
+        if (d->efeito) anima_poder(cx, cy, (int)r, tipo, 0);
         if (tipo == D_TREVO && f[i] == 4) {
             gfx_rect(cx - 30, cy + 58, 60, TXT_H + 4, C_BARRA);
             txt_c(cx, cy + 60, "SORTE", C_OURO, true);
         }
     }
-    if (st == 2) vitrine_no_escuro(cx, cy);             // fechado: no escuro, com o cadeado
     fileira_colecao(FIL_DADO, cat_i, n_catalogo(), &cat_i);
 
     // A direita: nome, lados, raridade e o que ele faz.
     int x = 290;
-    gfx_texto(x, 60, d->nome, st == 2 ? C_TEXTO_M : cor_dado(tipo), 2, true);
+    gfx_texto(x, 60, d->nome, cor_dado(tipo), 2, true);
     classe(tipo, s, sizeof s);
     int xt = etiquetas_protecao(etiqueta_caixa(x, 104, s, cor_rar(tipo)), 104, tipo);
     if (so_inicial(tipo)) nota_etiqueta(xt + 2, x + 320, "dado inicial", NULL);
@@ -318,11 +307,7 @@ static void desenha_catalogo(void)
     if (de_natal(tipo)) nota_etiqueta(xt + 2, x + 320, "de Natal: de 20 de outubro a 6 de janeiro", "de Natal: 20 out. a 6 jan.");
     if (tipo == D_TSUNAMI) nota_etiqueta(xt + 2, x + 320, "nasce da Onda", NULL);
     if (tipo == D_D20) nota_etiqueta(xt + 2, x + 320, "sai do Presente e da Sacola de Presente", "do Presente e da Sacola");
-    if (st == 2) {
-        linha_bloqueio(x, 124, trava);
-    } else if (st == 1) {
-        txt(x, 124, trava, C_VERDE, false);
-    }
+    if (st == 1) txt(x, 124, trava, C_VERDE, false);
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     quebra_cabe(x, 152, 320, CAT_TEXTO_H, TEXTO_CAT[tipo], C_MARFIM);   // ate a fileira de baixo (x: a coluna da direita)
 }

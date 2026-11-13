@@ -328,7 +328,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
-  mostra o que está aberto e qual chefe abre o que falta.
+  mostra o que está aberto; o que falta aparece só como um "?", com o nome e
+  qual chefe o abre (sem o desenho nem o que faz).
 
 ## 2 jogadores na mesma mesa: de quem é a vez
 

@@ -53,27 +53,30 @@ static void desenha_cat_amuleto(int i)
     faixas_colecao(i, n_amuletos_jogo());
 
     bool aberto = amuleto_liberado(a);
-    // Na vitrine (catalogo.inc): flutuando na poca de luz; fechado, no escuro.
+    // Na vitrine (catalogo.inc): flutuando na poca de luz; fechado, so o "?",
+    // o nome e quem o abre.
     int cx = VIT_X, sobe = vitrine_chao(cx, 40), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
-    if (!aberto) vitrine_guarda(cx, cy);
-    desenha_amuleto(cx, cy, 40, a, !aberto);
-    if (!aberto) vitrine_no_escuro(cx, cy);
+    int x = 290;
+    if (!aberto) {
+        vitrine_misterio(cx, cy);
+        fileira_colecao(FIL_AMULETO, i, n_amuletos_jogo(), &cat_a);
+        quem_abre(NIVEL_AMULETO[a], CH_DONA, -1, s, sizeof s);
+        coluna_fechada(x, AMULETO[a].nome, s);
+        return;
+    }
+    desenha_amuleto(cx, cy, 40, a, false);
     fileira_colecao(FIL_AMULETO, i, n_amuletos_jogo(), &cat_a);
 
-    int x = 290;
-    gfx_texto(x, 60, AMULETO[a].nome, aberto ? AMULETO[a].cor : C_TEXTO_M, 2, true);
+    gfx_texto(x, 60, AMULETO[a].nome, AMULETO[a].cor, 2, true);
     int ex = etiqueta_caixa(x, 104, nome_rar_am(a), cor_rar_am(a)) + 2;
     static const char *const QUANDO[] = { "", "no começo da run", "depois do 1º chefe", "depois do 2º chefe" };
     snprintf(s, sizeof s, "amuleto · %s", QUANDO[RAR_AMULETO[a]]);
     txt(ex, 105, s, C_TEXTO_M, false);
     if (NIVEL_AMULETO[a] == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
-    else if (aberto) {
+    else {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
         txt(x, 124, s, C_VERDE, false);
-    } else {
-        quem_abre(NIVEL_AMULETO[a], CH_DONA, -1, s, sizeof s);
-        linha_bloqueio(x, 124, s);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     quebra_cabe(x, 152, 320, CAT_TEXTO_H, AMULETO[a].desc, C_MARFIM);
@@ -98,9 +101,16 @@ static void desenha_cat_adesivo(int i)
     bool aberto = adesivo_aberto(a);             // a Sujeira vem com o Barro
     // Na vitrine (catalogo.inc): o adesivo flutua na luz, a ponta descolando
     // de tempos em tempos, e embaixo, no chao, tres dados com ele no lado de
-    // cima; fechado, tudo no escuro.
+    // cima; fechado, so o "?", o nome e quem o abre.
     int cx = VIT_X, sobe = vitrine_chao(cx, 50), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
-    if (!aberto) vitrine_guarda(cx, VIT_Y);
+    int x = 290;
+    if (!aberto) {
+        vitrine_misterio(cx, cy - 22);
+        fileira_colecao(FIL_ADESIVO, i, N_AD_COLECAO, &cat_ad);
+        quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
+        coluna_fechada(x, d->nome, s);
+        return;
+    }
     float ciclo = fmodf(t_fase, 3.1f), descola = ciclo < 0.5f ? sinf(ciclo / 0.5f * 3.1416f) : 0;
     static const int T[3] = { D_D4, D_D6, D_D20 };
     for (int k = 0; k < 3; k++) {
@@ -108,11 +118,9 @@ static void desenha_cat_adesivo(int i)
         ad_face = a;
         desenha_dado((float)(cx - 44 + k * 44), (float)(VIT_CHAO - 10), 14, T[k], 0, 0, v + (a == AD_REMENDO ? 2 : 0), 2, false);
     }
-    ad_solto_d(cx, cy - 22, a, 6, aberto ? descola : 0);
-    if (!aberto) vitrine_no_escuro(cx, VIT_Y);
+    ad_solto_d(cx, cy - 22, a, 6, descola);
     fileira_colecao(FIL_ADESIVO, i, N_AD_COLECAO, &cat_ad);
-    int x = 290;
-    gfx_texto(x, 60, d->nome, aberto ? d->luz : C_TEXTO_M, 2, true);
+    gfx_texto(x, 60, d->nome, d->luz, 2, true);
     if (!ad_a_venda(a)) {                        // a Sujeira: so pelo Barro do oponente
         int ex = etiqueta_caixa(x, 104, "não se vende", C_TEXTO_M) + 2;
         txt(ex, 105, "vem do Barro do oponente", C_TEXTO_M, false);
@@ -122,13 +130,10 @@ static void desenha_cat_adesivo(int i)
         txt(ex, 105, "adesivo · na loja e no pacote de adesivos", C_TEXTO_M, false);
     }
     if (d->nivel == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
-    else if (aberto) {
+    else {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);
         else snprintf(s, sizeof s, "Aberto no Desafiante");
         txt(x, 124, s, C_VERDE, false);
-    } else {
-        quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
-        linha_bloqueio(x, 124, s);
     }
     gfx_rect(x, 144, 320, 1, C_FELTRO2);
     // O que o adesivo faz, curto, na fonte do texto; embaixo, menores e

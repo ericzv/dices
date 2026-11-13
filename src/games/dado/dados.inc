@@ -678,8 +678,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "a 6 de janeiro.",
     [D_BONECO]          = "Oito lados. Se terminar válido tirando 8, no fim da rodada congela e anula o 4º dado da sequência "
                           "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_JINGLE]          = "Seis lados. Cada vez que termina a rodada válido, uma cópia dele (com os mesmos adesivos) entra na "
-                          "sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
+    [D_JINGLE]          = "Seis lados. Cada vez que termina a rodada válido, uma cópia dele (de laço verde, com os mesmos adesivos) "
+                          "entra na sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
                           "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_FURIA]           = "Seis lados. Cada vez que tira 4, 5 ou 6, guarda +2 de bônus; cada vez que tira 1 ou 2, perde 1 (o 3 "
                           "não mexe). O bônus "

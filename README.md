@@ -31,8 +31,10 @@ Lareira e Pinho com fita), e nove dados de Natal entram no jogo, nos dois
 modos, abertos sem precisar vencer nada: o **Trenó** (d8, puxa os seus dados
 válidos de antes dele, +1, +2 e +3), o **Boneco de Neve** (d8, com 8 congela
 e anula o 4º dado do oponente), o **Jingle Bell** (d6: válido, deixa uma
-cópia na bolsa até o fim da partida; com dois ou mais válidos, os sinos batem
-um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
+cópia na bolsa até o fim da partida, de laço verde para não se confundir com o
+original, de laço vermelho; se a cópia quebra — o Frágil, a Medusa —, o que ela
+virou também some no fim da partida, e o original fica; com dois ou mais
+válidos, os sinos batem um no outro e cada um rende +4), o **Presente** (d6: lançado, desembrulha e
 vira um dado raro ao acaso, que fica no lugar dele na bolsa — no Desafiante,
 pela run; nas outras partidas, até o fim da partida), o **Panetone** (d8, cada fatia com
 0 a 3 frutas: +0 a +3), o **Pisca-pisca** (d4: cada vez que vem para a mão,

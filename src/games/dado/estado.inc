@@ -31,6 +31,7 @@ typedef struct {
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
     bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
     uint8_t pavio[MAX_COL];      // a Dinamite: o que o pavio de cada dado guardou nesta partida
+    uint8_t de_copia[MAX_COL];   // era copia de um Jingle Bell e mudou de forma (o Fragil, a Medusa): some no fim da partida, como ela
 } jogador_t;
 
 enum { V_ESPERA, V_VALIDO, V_ANULADO, V_ROUBADO };

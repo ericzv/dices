@@ -156,7 +156,9 @@ static int lugares_fila(int j, int ry, int lados_cur)
         bool feito = k < f->n, proximo = k == f->n;
         if (feito && k == 0 && f->grudado) {         // grudado pelo Chiclete: ja pousado, com o numero e a goma
             ad_face = ad_fila(j, 0);
+            marca_nivel = f->tipo[0] == D_JINGLE ? f->fixo[0] : -1;   // a copia do Jingle leva o laco verde
             desenha_dado((float)x, (float)ry, LUGAR_R, f->tipo[0], j, 0, f->valor[0], 2, false);
+            marca_nivel = -1;
             chiclete_goma(x, ry, LUGAR_R, 1);
         } else if (feito) {
             const peca_t *pf = peca_fila(j, k);      // a da bolsa (com os adesivos); a carta do Coringa nao tem

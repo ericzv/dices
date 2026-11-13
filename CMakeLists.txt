@@ -7,7 +7,7 @@
 # executavel final nao depende de nenhuma DLL fora do sistema.
 # O firmware do Cardputer usa cardputer/CMakeLists.txt (ESP-IDF), nao este.
 cmake_minimum_required(VERSION 3.16)
-project(DadoEmCasa VERSION 1.22 LANGUAGES C)
+project(DadoEmCasa VERSION 1.23 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)

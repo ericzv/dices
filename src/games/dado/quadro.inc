@@ -36,6 +36,19 @@ static void dica_textos(int tipo, int id, const char **nome, uint16_t *cor, cons
     }
 }
 
+// Os textos da dica de d: a copia de um Jingle Bell (a do laco verde) diz
+// que e copia e que some no fim da partida.
+static void dica_textos_de(const dica_t *d, const char **nome, uint16_t *cor, const char **desc)
+{
+    dica_textos(d->tipo, d->id, nome, cor, desc);
+    if (d->tipo == DICA_DADO && d->com_peca && copia_jingle(&d->pc)) {
+        static char t[240];
+        snprintf(t, sizeof t, "Cópia: some no fim da partida. %s", TEXTO_MEDIO[D_JINGLE]);
+        *nome = "Jingle Bell (cópia)";
+        *desc = t;
+    }
+}
+
 // A bolsa onde a peca p esta: a de um jogador (0, 1), a da run fora da
 // partida (2), ou nenhuma (-1: uma copia).
 static bool peca_em(const peca_t *p, const peca_t *col, int n)
@@ -91,7 +104,7 @@ static bool dica_rect(int *r, const dica_t **qual)
     if (!d) return false;
     const char *nome, *desc;
     uint16_t cor;
-    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    dica_textos_de(d, &nome, &cor, &desc);
     int larg = 260;
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
@@ -120,7 +133,7 @@ static void desenha_dica(const int *r, const dica_t *d)
 {
     const char *nome, *desc;
     uint16_t cor;
-    dica_textos(d->tipo, d->id, &nome, &cor, &desc);
+    dica_textos_de(d, &nome, &cor, &desc);
     ui_painel(r[0], r[1], r[2], r[3]);
     gfx_rect(r[0] + 3, r[1] + 3, 3, r[3] - 6, cor);             // a cor da coisa, na beira
     int x = r[0] + 8, y = r[1] + 5;

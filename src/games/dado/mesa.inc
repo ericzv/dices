@@ -1336,7 +1336,9 @@ static void desenha_jingle_copias(void)
                 float sq = q * q * (3 - 2 * q);
                 int sx = SLOT_X(k), sy = zona(j), arco = j == baixo ? 40 : -30;
                 int x = sx + (int)((bx - sx) * sq), y = sy + (int)((by - sy) * sq) - (int)(sinf(sq * 3.1416f) * arco);
+                marca_nivel = 1;                     // e copia: o laco verde
                 desenha_dado((float)x, (float)y, 14 - sq * 2, D_JINGLE, j, sinf(q * 12) * 0.3f, 6, 0, false);
+                marca_nivel = -1;
             } else {
                 float r2 = (q - 1) / 0.4f;
                 int rr = 9 + (int)(r2 * 10);
@@ -1510,8 +1512,10 @@ static void desenha_fila(int j)
             if (q > 1) q = 1;
             float s = q * q * (3 - 2 * q);
             int tx = ROUBO_X(vis_nroubo[e->de_j]), ty = zona(e->de_j);
+            marca_nivel = t == D_JINGLE ? f->fixo[k] : -1;   // a copia do Jingle leva o laco verde
             desenha_dado(x + (tx - x) * s, y + (ty - y) * s, R + (R_ROUBO - R) * s, t, j, s * 6.28f,
                          f->valor[k], 2, false);
+            marca_nivel = -1;
             continue;
         }
         if (est == V_ROUBADO) {                           // lugar vazio: foi levado
@@ -1526,7 +1530,9 @@ static void desenha_fila(int j)
         if (fase == F_RESULTADO && f->cinza[k] && t_fase > 0.35f) {
             float q = (t_fase - 0.35f) / 1.25f;
             if (q < 1) {
+                marca_nivel = t == D_JINGLE ? f->fixo[k] : -1;   // a copia do Jingle leva o laco verde
                 desenha_dado((float)x, (float)y, R, t, j, 0, f->valor[k], 2, false);
+                marca_nivel = -1;
                 int topo = y - R - 6, corte = topo + (int)(q * (2 * R + 12));
                 for (int yy = topo; yy < corte; yy++)            // o feltro volta
                     memcpy(display_fb() + yy * GFX_W + x - R - 6,
@@ -2017,7 +2023,9 @@ static void desenha_fila(int j)
             int rx = ROUBO_X(i);
             if (e && e->tipo == EV_CAVALO && e->alvo_j == j && r->tipo == D_CAVALO && p < 0.3f)
                 rx += (int)(sinf(t_fase * 70) * 3);               // o Cavalo roubado treme e se abre
+            marca_nivel = r->tipo == D_JINGLE ? r->fixo : -1;   // a copia do Jingle leva o laco verde
             desenha_dado((float)rx, (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, r->anulado);
+            marca_nivel = -1;
         }
 
     if (f->lancados || vis_nroubo[j] || (previa && pv.bruto[j] != 0)) {
@@ -2117,7 +2125,9 @@ static void pega_mostra(int q, int i, int l, int ad, float vida, bool cola, floa
     gfx_disco(bx + 2, y + (int)r - 1, (int)(r * 0.8f), C_SOMBRA);
     ad_face = cola ? ad : ad_no_lado(pc, l) == ad ? AD_NADA : ad_no_lado(pc, l);   // (o Infectado do pouso ja esta colado)
     ad_face_aceso = cola && (int)(t_fase * 8) % 2 == 0;
+    marca_nivel = pc->tipo == D_JINGLE ? pc->fixo : -1;      // a copia do Jingle leva o laco verde
     desenha_dado((float)bx, (float)y, r, pc->tipo, q, 0, pc->tipo == D_QUEBRADO ? (int8_t)pc->fixo : l, 2, false);
+    marca_nivel = -1;
     if (capa >= 0) capa_aura(bx, y, r, s, capa, onda);
 }
 // O que aconteceu com o dado da bolsa, a esquerda dele, na letra dos

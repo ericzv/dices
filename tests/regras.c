@@ -1646,6 +1646,71 @@ int main(void)
                 some_fantasmas();
                 CONFERE(J[0].n_col == n0 + 1 && J[0].col[n0].tipo == D_JINGLE && J[0].col[n0].fixo == 0,
                         "fim da partida: a copia some, o original fica");
+                // O Fragil quebra a copia (com os adesivos dela, o Fragil
+                // vem junto): ela vira Quebrado, mas ainda some no fim da
+                // partida e o original fica. Quebrando o original, ele fica
+                // como Quebrado e a copia some.
+                for (int caso = 0; caso < 2; caso++) {
+                    colecao_inicial(&J[0]);
+                    int o = J[0].n_col, c = o + 1, q = caso ? o : c;
+                    J[0].col[o] = nova_peca(D_JINGLE);
+                    ad_cola(&J[0].col[o], 2, AD_FRAGIL);
+                    J[0].col[c] = J[0].col[o];
+                    J[0].col[c].fixo = 1;
+                    J[0].onde[o] = J[0].onde[c] = NA_BOLSA;
+                    J[0].n_col = c + 1;
+                    J[0].onde[q] = NA_MAO;
+                    limpa(); joga(0, D_D4, 4); joga_ad(0, q, 2); joga(1, D_D4, 3);   // o 2 depois do 4: anulado
+                    desfecho_t df = fim();
+                    adesivos_ficam(0, &df);
+                    recolhe_quebrados();
+                    CONFERE(J[0].col[q].tipo == D_QUEBRADO && J[0].de_copia[q] == (caso == 0),
+                            "Fragil no Jingle %s: vira Quebrado (marca de copia %d)", caso ? "original" : "copia", J[0].de_copia[q]);
+                    some_fantasmas();
+                    int sinos = 0, quebrados = 0, copias = 0;
+                    for (int i = 0; i < J[0].n_col; i++) {
+                        sinos += J[0].col[i].tipo == D_JINGLE;
+                        copias += copia_jingle(&J[0].col[i]);
+                        quebrados += J[0].col[i].tipo == D_QUEBRADO;
+                    }
+                    CONFERE(J[0].n_col == o + 1 && !copias && sinos == (caso == 0) && quebrados == (caso == 1),
+                            "fim da partida, %s quebrado: %d dados, %d Jingle, %d Quebrado (copias %d)",
+                            caso ? "o original" : "a copia", J[0].n_col, sinos, quebrados, copias);
+                }
+                // A Medusa petrifica a copia: a pedra tambem some no fim da partida.
+                {
+                    colecao_inicial(&J[0]);
+                    int o = J[0].n_col;
+                    J[0].col[o] = nova_peca(D_JINGLE);
+                    J[0].col[o].fixo = 1;
+                    J[0].col[o + 1] = nova_peca(D_MEDUSA);
+                    J[0].onde[o] = J[0].onde[o + 1] = NA_MAO;
+                    J[0].n_col = o + 2;
+                    limpa(); joga_ad(0, o, 3); joga_ad(0, o + 1, 9); joga(1, D_D4, 1);
+                    desfecho_t df = fim();
+                    medusa_petrifica(0, &df);
+                    CONFERE(df.medusa[0] && J[0].col[o].tipo == D_QUEBRADO && J[0].de_copia[o] && !J[0].de_copia[o + 1],
+                            "Medusa na copia do Jingle: pedra marcada (%d)", J[0].de_copia[o]);
+                    some_fantasmas();
+                    CONFERE(J[0].n_col == o + 1 && J[0].col[o].tipo == D_QUEBRADO && J[0].col[o].fixo == 9,
+                            "fim da partida: a pedra da copia some, a da Medusa fica (%d dados)", J[0].n_col);
+                }
+                // Com a bolsa no minimo, o que era copia e sai da bolsa deixa um
+                // d4 no lugar: esse d4 tambem so fica ate o fim da partida.
+                {
+                    J[0].n_col = FILA_NORMAL;
+                    for (int i = 0; i < FILA_NORMAL; i++) { J[0].col[i] = nova_peca(D_D6); J[0].onde[i] = NA_BOLSA; J[0].de_copia[i] = 0; }
+                    J[0].col[3] = (peca_t){ .tipo = D_QUEBRADO, .fixo = 2 };
+                    J[0].onde[3] = NA_MAO;
+                    J[0].de_copia[3] = 1;                                  // o que sobrou de uma copia quebrada
+                    limpa(); joga_ad(0, 3, 2); joga(1, D_D4, 1);
+                    recolhe_quebrados();
+                    CONFERE(J[0].n_col == FILA_NORMAL && J[0].col[3].tipo == D_D4 && J[0].de_copia[3],
+                            "bolsa no minimo: o Quebrado da copia deixa um d4 marcado");
+                    some_fantasmas();
+                    CONFERE(J[0].n_col == FILA_NORMAL - 1 && !J[0].de_copia[3],
+                            "fim da partida: o d4 no lugar da copia some (%d dados)", J[0].n_col);
+                }
                 for (int j = 0; j < 2; j++) colecao_inicial(&J[j]);
             }
             // Furia (d6): tirando 4 a 6 guarda +2, tirando 1 ou 2 perde 1; o bonus soma no que tira.

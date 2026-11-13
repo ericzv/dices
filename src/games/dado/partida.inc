@@ -28,6 +28,16 @@ static int em_jogo(const jogador_t *p)
     return n;
 }
 
+// A copia de um Jingle Bell: a mesma peca, adesivos e tudo, marcada (fixo 1)
+// para sumir no fim da partida. Se ela muda de forma (o Fragil a quebra, a
+// Medusa a petrifica, ou sai da bolsa e um d4 fica no lugar), a marca passa
+// para de_copia: o que ela virou some no fim da partida do mesmo jeito.
+static bool copia_jingle(const peca_t *pc) { return pc->tipo == D_JINGLE && pc->fixo; }
+static void guarda_marca_copia(jogador_t *p, int i)
+{
+    if (i >= 0 && i < p->n_col && copia_jingle(&p->col[i])) p->de_copia[i] = 1;
+}
+
 // A mao da rodada anterior sai da mesa.
 // O dado do Velcro gruda: em vez de sair, volta para a mao (e desgruda). O do
 // Chiclete tambem volta, e fica marcado ate abrir a sequencia (gruda_chiclete).
@@ -1051,6 +1061,7 @@ static void adesivos_ficam(int j, const desfecho_t *d)
         // O Fragil anulado quebra: vira um Quebrado com o numero que tirou.
         if ((d->fragil[j] >> k & 1) && F[j].tipo[k] != D_QUEBRADO && F[j].tipo[k] != D_FANTASMA) {
             int v = F[j].valor[k] > 99 ? 99 : F[j].valor[k] < -99 ? -99 : F[j].valor[k] ? F[j].valor[k] : 1;
+            guarda_marca_copia(p, i);            // a copia do Jingle quebrada ainda some no fim da partida
             p->col[i] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)v };
         }
     }
@@ -1181,6 +1192,7 @@ static void medusa_petrifica(int j, const desfecho_t *d)
         if (impermeavel(j, k)) continue;                                   // com a capa, nao vira pedra
         if (f->idx[k] < 0 || f->idx[k] >= J[j].n_col) continue;
         int v = f->valor[k] > 99 ? 99 : f->valor[k] < -99 ? -99 : f->valor[k] ? f->valor[k] : 1;
+        guarda_marca_copia(&J[j], f->idx[k]);   // a copia do Jingle petrificada ainda some no fim da partida
         J[j].col[f->idx[k]] = (peca_t){ .tipo = D_QUEBRADO, .fixo = (uint8_t)(int8_t)v };    // o Reves negativo vira pedra negativa
     }
 }
@@ -1298,9 +1310,7 @@ static void mau_olhado(int w)
     else snprintf(aviso + m, sizeof aviso - m, r == 0 ? "  ·  um Fantasma entra na sua bolsa" : "  ·  um Fantasma entra na bolsa dele");
 }
 
-// A copia de um Jingle Bell: a mesma peca, adesivos e tudo, marcada (fixo 1)
-// para sumir no fim da partida.
-static bool copia_jingle(const peca_t *pc) { return pc->tipo == D_JINGLE && pc->fixo; }
+// Uma copia nova de um Jingle Bell na bolsa de j (copia_jingle, la em cima).
 static bool poe_copia_jingle(int j, const peca_t *orig)
 {
     jogador_t *p = &J[j];
@@ -1314,8 +1324,8 @@ static bool poe_copia_jingle(int j, const peca_t *orig)
 }
 
 // Tira da bolsa de j o dado i: os de depois descem um lugar, cada um com o
-// que e dele na bolsa - o lugar (onde), o pavio da Dinamite e a marca do
-// ciclo cosmico que acabou de evoluir.
+// que e dele na bolsa - o lugar (onde), o pavio da Dinamite, a marca de quem
+// era copia de um Jingle Bell e a do ciclo cosmico que acabou de evoluir.
 static void tira_da_bolsa(int j, int i)
 {
     jogador_t *p = &J[j];
@@ -1324,23 +1334,27 @@ static void tira_da_bolsa(int j, int i)
         p->col[m] = p->col[m + 1];
         p->onde[m] = p->onde[m + 1];
         p->pavio[m] = p->pavio[m + 1];
+        p->de_copia[m] = p->de_copia[m + 1];
         cosmo_recem[j][m] = cosmo_recem[j][m + 1];
     }
     p->n_col--;
     p->pavio[p->n_col] = 0;
+    p->de_copia[p->n_col] = 0;
     cosmo_recem[j][p->n_col] = false;
 }
 
-// Fim da partida: os Fantasmas e as copias dos Jingle Bells somem das bolsas.
+// Fim da partida: os Fantasmas e as copias dos Jingle Bells (inteiras ou no
+// que viraram) somem das bolsas.
 static void some_fantasmas(void)
 {
     for (int j = 0; j < 2; j++) {
         jogador_t *p = &J[j];
         int n = 0;
         for (int i = 0; i < p->n_col; i++)
-            if (p->col[i].tipo != D_FANTASMA && !copia_jingle(&p->col[i])) { p->col[n] = p->col[i]; p->onde[n++] = p->onde[i]; }
+            if (p->col[i].tipo != D_FANTASMA && !copia_jingle(&p->col[i]) && !p->de_copia[i]) { p->col[n] = p->col[i]; p->onde[n++] = p->onde[i]; }
         p->n_col = n;
         p->n_mao = 0;
+        memset(p->de_copia, 0, sizeof p->de_copia);
     }
 }
 
@@ -1402,6 +1416,7 @@ static void recolhe_quebrados(void)
         int tirados[N_FILA], nt = 0;
         for (int i = 0; i < n; i++) {
             if (em_jogo(p) <= FILA_NORMAL) {
+                guarda_marca_copia(p, saem[i]);     // no lugar de uma copia do Jingle, o d4 tambem so fica ate o fim da partida
                 p->col[saem[i]] = nova_peca(D_D4);
                 p->pavio[saem[i]] = 0;
                 cosmo_recem[j][saem[i]] = false;

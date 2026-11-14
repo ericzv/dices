@@ -136,7 +136,7 @@ static int cat_adesivo(int i)
 {
     for (int nv = 0; nv <= N_NIVEIS; nv++)
         for (int a = AD_NADA + 1; a < AD_N; a++)
-            if (ADESIVO[a].nivel == nv && !ad_aposentado(a) && i-- == 0) return a;
+            if (nivel_do_adesivo(a) == nv && !ad_aposentado(a) && i-- == 0) return a;
     return AD_CONFETE;
 }
 
@@ -158,7 +158,7 @@ static void desenha_cat_adesivo(int i)
         vitrine_misterio(cx, cy - 22, cq >= 0);
         fileira_colecao(FIL_ADESIVO, i, N_AD_COLECAO, &cat_ad);
         if (cq >= 0) { coluna_conquista(x, d->nome, cq); return; }
-        quem_abre(d->nivel, CH_CRUPIE, -1, s, sizeof s);
+        quem_abre(nivel_do_adesivo(a), chefe_do_adesivo(a), -1, s, sizeof s);
         coluna_fechada(x, d->nome, s);
         return;
     }
@@ -181,7 +181,7 @@ static void desenha_cat_adesivo(int i)
         txt(ex, 105, "adesivo · na loja e no pacote de adesivos", C_TEXTO_M, false);
     }
     int dy = 0;                                  // a linha da conquista, em duas: o resto desce
-    if (d->nivel == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
+    if (nivel_do_adesivo(a) == 0) txt(x, 124, "Aberto desde o começo", C_TEXTO_M, false);
     else if (cq >= 0) dy = linha_conquista(x, cq);
     else {
         if (perfil_atual >= 0) snprintf(s, sizeof s, "Aberto no Desafiante (%s)", perfil()->nome);

@@ -529,6 +529,7 @@ static void des_nova_run(void)
         if (p->runs < 65535) p->runs++;
         p->bolsa_ult = (uint8_t)des_bolsa;
         perfis_salva();
+        if (p->runs >= CQ_BUMERANGUE_RUNS) cq_abre(CQ_BUMERANGUE);   // a 3a run: o Bumerangue (o card, na saida da loja)
     }
     // A bolsa do comeco: dados simples, muitos fracos (tirar os fracos, na
     // loja, e parte da run), e o que a bolsa escolhida traz.

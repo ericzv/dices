@@ -3576,6 +3576,114 @@ int main(void)
             CONFERE(perfis[1].cq_vitorias == 12 && perfis[1].cq_encontro[2] == 2 && cq_aberta(baixo), "PER8: os contadores ficam salvos");
             perfil_atual = 0;
         }
+        // As da v1.26: a 3a run abre o Bumerangue; 5 derrotas para chefe, a Furia;
+        // vencer com 3 pontos ou menos lancando, a Moeda sorte.
+        {
+            memset(&perfis[0], 0, sizeof perfis[0]);
+            snprintf(perfis[0].nome, sizeof perfis[0].nome, "CQ");
+            perfil_atual = 0; modo = M_DESAFIO; des_dif = 0;
+            for (int r = 1; r <= 3; r++) {
+                n_cq_cards = 0;
+                des_nova_run();
+                CONFERE(perfis[0].runs == r && cq_aberta(CQ_BUMERANGUE) == (r == 3) && dado_liberado(D_BUMERANGUE) == (r == 3),
+                        "Bumerangue na run %d", r);
+            }
+            CONFERE(n_cq_cards == 1 && cq_cards[0] == CQ_BUMERANGUE, "o card do Bumerangue espera a loja");
+            no_t nf = { 0 }, nc = { 0 };
+            nf.tipo = NO_FACIL; nf.perso = 2; nc.tipo = NO_CHEFE; nc.perso = PERSO_CHEFE0;
+            run.andar = CH_CRUPIE;
+            for (int i = 0; i < 4; i++) { cq_partida_comeca(); cq_partida_fim(&nf, false); }   // perder para quem nao e chefe nao conta
+            for (int i = 1; i <= 5; i++) {
+                cq_partida_comeca(); cq_partida_fim(&nc, true);    // vencer o chefe tambem nao
+                cq_partida_comeca(); cq_partida_fim(&nc, false);
+                CONFERE(perfis[0].cq_derrotas == i && cq_conta(CQ_FURIA) == i && cq_aberta(CQ_FURIA) == (i == 5), "Furia: %d derrotas", i);
+            }
+            #define FILA_MS(...) do { static const int TV[][3] = { __VA_ARGS__ }; limpa(); \
+                for (unsigned q = 0; q < sizeof TV / sizeof TV[0]; q++) { F[0].tipo[q] = (uint8_t)TV[q][0]; \
+                    F[0].valor[q] = F[0].cru[q] = TV[q][1]; F[0].est[q] = (uint8_t)TV[q][2]; } \
+                F[0].lancados = F[0].n = (int)(sizeof TV / sizeof TV[0]); } while (0)
+            cq_partida_comeca();
+            limpa(); F[0].total = 0; F[1].total = -2; venc_mao = 0;      // o oponente estourou antes: 0 sem jogar
+            cq_rodada(0, 10, false);
+            CONFERE(!cq_aberta(CQ_MOEDA_SORTE), "vencer sem lancar nao abre a Moeda sorte");
+            FILA_MS({ D_D4, 4, V_VALIDO }); F[0].total = 4; F[1].total = 0; venc_mao = 0;
+            cq_rodada(0, 10, false);
+            CONFERE(!cq_aberta(CQ_MOEDA_SORTE), "4 pontos nao abre a Moeda sorte");
+            FILA_MS({ D_D4, 3, V_VALIDO }, { D_D6, 2, V_ANULADO }); F[0].total = 3; F[1].total = 3; venc_mao = 1;
+            cq_rodada(1, 0, false);
+            CONFERE(!cq_aberta(CQ_MOEDA_SORTE), "perder com 3 nao abre a Moeda sorte");
+            FILA_MS({ D_D4, 3, V_VALIDO }); F[0].total = 3; F[1].total = 1; venc_mao = 0;
+            cq_rodada(0, 10, true);
+            CONFERE(!cq_aberta(CQ_MOEDA_SORTE), "o oponente correndo nao abre a Moeda sorte");
+            cq_rodada(0, 10, false);
+            CONFERE(cq_aberta(CQ_MOEDA_SORTE) && dado_liberado(D_SORTE), "3 a 1 lancando: a Moeda sorte");
+            #undef FILA_MS
+            perfil_atual = 0;
+        }
+        // A tabela de chefes da v1.26: cada chefe de cada nivel abre alguma
+        // coisa, quantidades parecidas, um amuleto da Dona em cada nivel, e
+        // nada sem dono (o que tinha nivel antes tem lugar na tabela).
+        {
+            for (int d = 0; d < N_NIVEIS; d++) {
+                int menor = 99, maior = 0, amd = 0;
+                for (int c = 0; c < chefes_de(d); c++) {
+                    novidade_t pd[PEDACO_MAX];
+                    int n = pedaco(d, c, pd), itens = 0;
+                    for (int i = 0; i < n; i++) {
+                        itens += pd[i].k == NV_DADO || pd[i].k == NV_ADESIVO || pd[i].k == NV_AMULETO;
+                        amd += pd[i].k == NV_AMULETO;
+                        if (pd[i].k == NV_AMULETO) CONFERE(c == CH_DONA, "amuleto fora da Dona no nivel %d", d + 1);
+                    }
+                    CONFERE(itens >= 1, "nivel %d: %s nao abre nada", d + 1, NOME_CHEFE[c]);
+                    if (itens < menor) menor = itens;
+                    if (itens > maior) maior = itens;
+                }
+                CONFERE(maior - menor <= 2 && amd == 1, "nivel %d: chefes de %d a %d itens, %d amuletos", d + 1, menor, maior, amd);
+            }
+            for (int t = 0; t < D_N; t++) {
+                if (cq_do_dado(t) >= 0 || marco_do_dado(t) >= 0 || sem_sorteio(t)) continue;
+                CONFERE((nivel_antes(t) > 0) == (nivel_do_dado(t) > 0), "%s: nivel antes %d, agora %d", TIPO[t].nome, nivel_antes(t), nivel_do_dado(t));
+                if (nivel_do_dado(t) > 0) CONFERE(chefe_do_dado(t) < chefes_de(nivel_do_dado(t) - 1), "%s: chefe que nao existe no nivel", TIPO[t].nome);
+            }
+            for (int a = AD_NADA + 1; a < AD_N; a++)
+                if (ad_a_venda(a) && cq_do_adesivo(a) < 0)
+                    CONFERE((ADESIVO[a].nivel > 0) == (nivel_do_adesivo(a) > 0) && chefe_do_adesivo(a) < chefes_de(nivel_do_adesivo(a) > 0 ? nivel_do_adesivo(a) - 1 : 0),
+                            "%s: nivel antes %d, agora %d", ADESIVO[a].nome, ADESIVO[a].nivel, nivel_do_adesivo(a));
+            CONFERE(NIVEL_AMULETO[A_PIRAMIDE] == 9 && NIVEL_AMULETO_ANTES[A_PIRAMIDE] == 0 && chefe_do_dado(D_BERSERKER) == CH_CORINGA
+                    && nivel_do_dado(D_CARROSSEL) == 7, "a tabela aprovada");
+        }
+        // O perfil da v1.25 ("PER8"): ganha as conquistas novas que o chefe ja
+        // tinha aberto, e o que a tabela nova abre mais tarde fica aberto para
+        // quem ja tinha (o legado); um perfil novo comeca sem eles.
+        {
+            perfil_t v[N_PERFIS];
+            memset(v, 0, sizeof v);
+            snprintf(v[0].nome, sizeof v[0].nome, "OITO");
+            v[0].nivel = 4; v[0].runs = 2; v[0].cq_vitorias = 7;
+            static char buf[16 + 2 * sizeof v];
+            memcpy(buf, "PER80", 5);
+            hex_de(v, sizeof v, buf + 5);
+            salva_grava("perfis", buf);
+            perfis_lidos = false; perfis_le();
+            CONFERE(perfil_atual == 0 && !strcmp(perfis[0].nome, "OITO") && perfis[0].cq_vitorias == 7, "PER8 aberto");
+            CONFERE(cq_aberta(CQ_BUMERANGUE) && !cq_aberta(CQ_FURIA) && !cq_aberta(CQ_MOEDA_SORTE),
+                    "PER8: o Bumerangue (Nivel 1) vira conquista feita; Furia (6) e Moeda sorte (5), nao");
+            CONFERE(dado_liberado(D_CARROSSEL) && dado_liberado(D_PONTE) && amuleto_liberado(A_PIRAMIDE) && amuleto_liberado(A_DESFORRA)
+                    && adesivo_liberado(AD_PATINHO) && adesivo_liberado(AD_AVESSO),
+                    "PER8 no Nivel 4: o que ja estava aberto continua (Carrossel, Ponte, Piramide, Patinho Feio...)");
+            CONFERE(!dado_liberado(D_CAPITAO) && !adesivo_liberado(AD_ETIQUETA) && !dado_liberado(D_LEQUE),
+                    "PER8 no Nivel 4: o que nao estava aberto segue fechado (Capitao, Etiqueta, Leque)");
+            perfis_salva();                              // salvo de novo, em "PER9", e lido: igual, sem converter de novo
+            perfis[0].conq &= ~(1ull << CQ_BUMERANGUE);
+            perfis_salva();
+            perfis_lidos = false; perfis_le();
+            CONFERE(!cq_aberta(CQ_BUMERANGUE) && dado_liberado(D_CARROSSEL), "PER9 lido sem converter de novo");
+            memset(&perfis[0], 0, sizeof perfis[0]);     // um perfil novo, no mesmo nivel: sem o legado
+            snprintf(perfis[0].nome, sizeof perfis[0].nome, "NOVO");
+            perfis[0].nivel = 4;
+            CONFERE(!dado_liberado(D_CARROSSEL) && !amuleto_liberado(A_PIRAMIDE) && !amuleto_liberado(A_ABRE_ALAS) && amuleto_liberado(A_DESFORRA) && dado_liberado(D_VAMPIRO),
+                    "perfil novo no Nivel 4: so a tabela nova");
+        }
         n_cq_cards = n_cq_avisos = 0;
         memset(&run, 0, sizeof run);
         salva_limpa_tudo();
@@ -3640,8 +3748,9 @@ int main(void)
             int m = run.moedas;
             venc_partida = 0;
             des_resultado();
-            CONFERE(run.moedas == m + VALE[p] && run.ganho == VALE[p] && run.estado == R_VENCEU,
-                    "mesa %d pagou %d", p, run.moedas - m);
+            int extra = run.colar + run.juros + run.taca + run.dourado + run.bolsa_ganho;   // o do amuleto escolhido (o Cofre...)
+            CONFERE(run.moedas == m + VALE[p] + extra && run.ganho == VALE[p] && run.estado == R_VENCEU,
+                    "mesa %d pagou %d (%d da mesa)", p, run.moedas - m, run.ganho);
             run_t r;
             CONFERE(des_carrega(&r) && r.estado == R_VENCEU, "a vitoria nao ficou salva");
             des_apos_fim();
@@ -3885,19 +3994,23 @@ int main(void)
                     if (chefe_do_dado(t) == CH_CRUPIE && dc < 0) dc = t;
                     if (chefe_do_dado(t) == CH_DONA && dd < 0) dd = t;
                 }
-            CONFERE(dc >= 0 && dd >= 0 && !dado_liberado(dc) && !adesivo_liberado(AD_TRANSPARENTE),
+            // Os adesivos do Nivel 3: o Barro com o Crupie, o Transparente com o Barao.
+            CONFERE(nivel_do_adesivo(AD_BARRO) == 3 && chefe_do_adesivo(AD_BARRO) == CH_CRUPIE
+                    && nivel_do_adesivo(AD_TRANSPARENTE) == 3 && chefe_do_adesivo(AD_TRANSPARENTE) == CH_BARAO, "os adesivos do Nivel 3");
+            CONFERE(dc >= 0 && dd >= 0 && !dado_liberado(dc) && !adesivo_liberado(AD_BARRO) && !adesivo_liberado(AD_TRANSPARENTE),
                     "Nivel 2: o pedaco do Nivel 3 ainda fechado");
-            {                                        // o amuleto do Nivel 3 (Relogio de Bolso) e de conquista: a Dona nao o traz
+            {                                        // o Relogio de Bolso e de conquista: o amuleto da Dona no Nivel 3 e a Trinca
                 novidade_t pdn[PEDACO_MAX];
-                int npd = pedaco(2, CH_DONA, pdn), amd = 0;
-                for (int i = 0; i < npd; i++) amd += pdn[i].k == NV_AMULETO;
-                CONFERE(amd == 0 && cq_do_amuleto(A_RELOGIO) == CQ_RELOGIO_BOLSO, "a Dona do Nivel 2 com %d amuletos", amd);
+                int npd = pedaco(2, CH_DONA, pdn), amd = 0, am = -1;
+                for (int i = 0; i < npd; i++) if (pdn[i].k == NV_AMULETO) { amd++; am = pdn[i].v; }
+                CONFERE(amd == 1 && am == A_TRINCA && cq_do_amuleto(A_RELOGIO) == CQ_RELOGIO_BOLSO,
+                        "a Dona do Nivel 2 com %d amuletos (%d)", amd, am);
             }
             J[0].n_col = run.n_col; memcpy(J[0].col, run.col, sizeof run.col);
             venc_partida = 0;
             des_resultado();
-            CONFERE(dado_liberado(dc) && !dado_liberado(dd) && adesivo_liberado(AD_TRANSPARENTE)
-                    && (pf->chefes[2] & 1) && des_chefe_novo, "o Crupie devia abrir os comuns e o adesivo");
+            CONFERE(dado_liberado(dc) && !dado_liberado(dd) && adesivo_liberado(AD_BARRO) && !adesivo_liberado(AD_TRANSPARENTE)
+                    && (pf->chefes[2] & 1) && des_chefe_novo, "o Crupie devia abrir os comuns e o adesivo dele");
             des_apos_fim();
             novidade_t pc[PEDACO_MAX];
             int npc = pedaco(2, CH_CRUPIE, pc);

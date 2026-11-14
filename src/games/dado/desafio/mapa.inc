@@ -279,7 +279,8 @@ static bool adesivo_liberado(int a)
 {
     if (!ad_a_venda(a)) return false;
     int c = cq_do_adesivo(a);
-    return c >= 0 ? cq_aberta(c) : chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE);
+    if (c >= 0) return cq_aberta(c);
+    return chefe_abriu(nivel_do_adesivo(a) - 1, chefe_do_adesivo(a)) || legado_de(perfil(), LG_ADESIVO, a);
 }
 // Na colecao: a Sujeira (que nao se vende) abre junto com o Barro.
 static bool adesivo_aberto(int a) { return adesivo_liberado(a == AD_SUJEIRA ? AD_BARRO : a); }

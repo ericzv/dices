@@ -25,7 +25,11 @@ enum {
     CQ_AMPULHETA,
     // A secreta de sempre: a pedra negativa que se parte (partida.inc, pedra_misteriosa).
     CQ_MISTERIOSO,
+    // A da v1.26: a terceira run, as derrotas para chefe e a vitoria com pouco.
+    // (So no fim: o bit de cada uma e a posicao dela, guardada no perfil.)
+    CQ_BUMERANGUE, CQ_FURIA, CQ_MOEDA_SORTE,
     CQ_N };
+#define CQ_V126 CQ_BUMERANGUE                    // as conquistas a partir da v1.26
 _Static_assert(CQ_N <= 64, "as conquistas cabem nos 64 bits do perfil");
 
 typedef struct {
@@ -64,6 +68,9 @@ typedef struct {
 #define CQ_POTE_FICHAS    100
 #define CQ_INFECTADO_DADOS 3
 #define CQ_AMPULHETA_ROD  200
+#define CQ_BUMERANGUE_RUNS 3
+#define CQ_FURIA_DERROTAS 5
+#define CQ_MOEDA_PONTOS   3
 
 static const conquista_t CONQ[CQ_N] = {
     [CQ_JACKPOT]      = { CQK_DADO, D_JACKPOT, 0, false, "Tire o mesmo número em três dados válidos de uma sequência", NULL },
@@ -116,6 +123,9 @@ static const conquista_t CONQ[CQ_N] = {
     [CQ_INFECTADO]    = { CQK_ADESIVO, AD_INFECTADO, 0, false, "Tenha o mesmo adesivo em 3 dados diferentes da bolsa", NULL },
     [CQ_AMPULHETA]    = { CQK_DADO, D_AMPULHETA, CQ_AMPULHETA_ROD, false, "Jogue 200 rodadas, somando todas as suas runs", NULL },
     [CQ_MISTERIOSO]   = { CQK_DADO, D_MISTERIOSO, 0, true, "Jogue um Quebrado de número negativo", "Por que você usaria esse dado?" },
+    [CQ_BUMERANGUE]   = { CQK_DADO, D_BUMERANGUE, CQ_BUMERANGUE_RUNS, false, "Comece a sua 3ª run", NULL },
+    [CQ_FURIA]        = { CQK_DADO, D_FURIA, CQ_FURIA_DERROTAS, false, "Perca para um chefe 5 vezes, somando as suas runs", NULL },
+    [CQ_MOEDA_SORTE]  = { CQK_DADO, D_SORTE, 0, false, "Lance seus dados e vença uma rodada fazendo 3 pontos ou menos", NULL },
 };
 
 // Os encontros: vencer o oponente, de run em run, abre o dado dele. Ele
@@ -167,6 +177,8 @@ static int cq_conta_de(const perfil_t *p, int c)
     case CQ_FIGURINHA:  return p->cq_colados;
     case CQ_AMPULHETA:  return p->cq_rodadas;
     case CQ_CAMELO:     return cq_bits(p->cq_crupie);
+    case CQ_BUMERANGUE: return p->runs;
+    case CQ_FURIA:      return p->cq_derrotas;
     default:
         for (int i = 0; i < CQ_ENCONTROS; i++) if (ENCONTRO[i].cq == c) return p->cq_encontro[i];
         return 0;
@@ -186,18 +198,23 @@ static const char *cq_nome(int c)
 
 // O perfil de antes das conquistas: o que um chefe ja tinha aberto pela
 // regra antiga continua aberto (a conquista dele conta como feita).
+static bool cq_abria_antes(const perfil_t *p, int c)
+{
+    int it = CONQ[c].item;
+    switch (CONQ[c].k) {
+    case CQK_AMULETO: return chefe_abriu_de(p, NIVEL_AMULETO_ANTES[it] - 1, CH_DONA);
+    case CQK_ADESIVO: return chefe_abriu_de(p, ADESIVO[it].nivel - 1, CH_CRUPIE);   // o nivel de antes
+    default:          return nivel_antes(it) > 0 && chefe_abriu_de(p, nivel_antes(it) - 1, chefe_antes(it));
+    }
+}
 static void cq_converte(perfil_t *p)
 {
-    for (int c = 0; c < CQ_N; c++) {
-        int it = CONQ[c].item;
-        bool aberto;
-        switch (CONQ[c].k) {
-        case CQK_AMULETO: aberto = chefe_abriu_de(p, NIVEL_AMULETO[it] - 1, CH_DONA); break;
-        case CQK_ADESIVO: aberto = chefe_abriu_de(p, ADESIVO[it].nivel - 1, CH_CRUPIE); break;
-        default:          aberto = nivel_do_dado(it) > 0 && chefe_abriu_de(p, nivel_do_dado(it) - 1, chefe_do_dado(it)); break;
-        }
-        if (aberto) p->conq |= (uint64_t)1 << c;
-    }
+    for (int c = 0; c < CQ_N; c++) if (cq_abria_antes(p, c)) p->conq |= (uint64_t)1 << c;
+}
+// O perfil da v1.25 ("PER8"): so as conquistas novas, do mesmo jeito.
+static void cq_converte_novas(perfil_t *p)
+{
+    for (int c = CQ_V126; c < CQ_N; c++) if (cq_abria_antes(p, c)) p->conq |= (uint64_t)1 << c;
 }
 
 // A medalha de latao: o sinal de conquista (na Colecao e, no mapa, sobre a
@@ -348,6 +365,9 @@ static void cq_rodada(int w, int pote_levado, bool correu)
     if (!correu) {
         int a = F[0].total, b = F[1].total;
         if (a >= CQ_ESTRELA_PONTOS) cq_abre(CQ_ESTRELA);
+        // A Moeda sorte: vencer com 3 pontos ou menos, tendo lancado (quando
+        // o oponente estoura antes, voce vence com 0 sem jogar: nao conta).
+        if (venc_mao == 0 && f->lancados > 0 && a <= CQ_MOEDA_PONTOS) cq_abre(CQ_MOEDA_SORTE);
         if (venc_mao == 0 && a - b >= CQ_DINAMITE_DIF) cq_abre(CQ_DINAMITE);
         if (a == b && a >= CQ_ESPELHO_PONTOS) cq_abre(CQ_ESPELHO);   // o empate (o Crupie leva o dele, mas empatou)
         if (venc_mao == 0 && a == b + 1) cq_por1_v = true;
@@ -378,6 +398,7 @@ static void cq_partida_fim(const no_t *no, bool venceu)
     p->cq_rodadas = (uint16_t)(p->cq_rodadas + cq_rod_partida < 60000 ? p->cq_rodadas + cq_rod_partida : 60000);
     p->cq_cheias = (uint16_t)(p->cq_cheias + cq_cheias_partida < 60000 ? p->cq_cheias + cq_cheias_partida : 60000);
     if (cq_viuva_partida && p->cq_viuva < 250) p->cq_viuva++;
+    if (!venceu && no->tipo == NO_CHEFE && p->cq_derrotas < 250) p->cq_derrotas++;   // Furia
     if (venceu) {
         bool chefe = no->tipo == NO_CHEFE;
         int c = chefe ? run.andar : -1;          // 0 o Crupie, 1 a Dona, 2 o Barao (ou o Papai Noel), 3 o Coringa

@@ -33,7 +33,9 @@ typedef struct {
     uint16_t cq_rodadas;                 // rodadas jogadas (Ampulheta)
     uint8_t  cq_viuva;                   // partidas com uma rodada vencida com 1 dado valido so (Viuva Negra)
     uint8_t  cq_encontro[6];             // vitorias contra cada oponente de encontro (CQ_ENCONTROS)
-    uint8_t  cq_reserva[25];             // para as proximas, sem mudar o salvamento
+    uint8_t  cq_derrotas;                // partidas perdidas para um chefe (Furia)
+    uint8_t  legado[8];                  // bit i: o item LEGADO[i] ja estava aberto pela regra de antes (fica aberto)
+    uint8_t  cq_reserva[16];             // para as proximas, sem mudar o salvamento
 } perfil_t;
 typedef struct {                         // "PER7": de antes das conquistas, lido e convertido
     char     nome[12];
@@ -129,11 +131,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER8" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER9" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER8", 4);
+    memcpy(buf, "PER9", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -176,6 +178,8 @@ static void salvo_estragado(const char *chave, const char *texto, const char *ms
 
 static bool perfis_le_de(const char *buf, int n);
 static void cq_converte(perfil_t *p);    // conquistas.inc: o que o chefe ja tinha aberto continua aberto
+static void cq_converte_novas(perfil_t *p);   // as conquistas da v1.26 (de um perfil "PER8")
+static void legado_converte(perfil_t *p);     // o que muda de chefe e ja estava aberto fica aberto
 static void perfis_le(void)
 {
     if (perfis_lidos) return;
@@ -277,11 +281,20 @@ static bool perfis_le_de(const char *buf, int n)
             lido[i].bolsas = v[i].bolsas;
             lido[i].bolsas_vistas = v[i].bolsas_vistas;
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER8", 4) || !de_hex(buf + 5, lido, sizeof lido)) return false;
+    } else if (n != 5 + (int)(2 * sizeof perfis) || (memcmp(buf, "PER9", 4) && memcmp(buf, "PER8", 4))
+               || !de_hex(buf + 5, lido, sizeof lido)) return false;
     // De qualquer formato de antes das conquistas: o item que um chefe ja
-    // tinha aberto ganha a conquista dele (so aqui, na conversao).
-    if (memcmp(buf, "PER8", 4))
-        for (int i = 0; i < N_PERFIS; i++) if (lido[i].nome[0]) cq_converte(&lido[i]);
+    // tinha aberto ganha a conquista dele (so aqui, na conversao). O "PER8"
+    // (o mesmo perfil, sem as conquistas da v1.26) ganha so as novas. E de
+    // qualquer um de antes do "PER9", o que a tabela nova de chefes abre mais
+    // tarde fica aberto para quem ja tinha.
+    bool per8 = !memcmp(buf, "PER8", 4), per9 = !memcmp(buf, "PER9", 4);
+    for (int i = 0; i < N_PERFIS; i++) {
+        if (!lido[i].nome[0] || per9) continue;
+        if (per8) cq_converte_novas(&lido[i]);
+        else cq_converte(&lido[i]);
+        legado_converte(&lido[i]);
+    }
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -297,14 +310,12 @@ static bool perfis_le_de(const char *buf, int n)
 }
 
 // Conteudo liberado: o que vem com cada dificuldade.
-static const uint8_t NIVEL_AMULETO[A_N] = {
+// ---- A regra de antes (ate a v1.25), so para converter perfis: os niveis de
+// antes e a divisao de cada nivel por raridade, em tres partes. Nao muda mais.
+static const uint8_t NIVEL_AMULETO_ANTES[A_N] = {
     [A_FERRADURA] = 1, [A_PESADO] = 2, [A_RELOGIO] = 3, [A_CARTOLA] = 4, [A_COROA] = 5,
     [A_CUPOM] = 6, [A_PRENSA] = 7, [A_TACA] = 8, [A_CORINGA] = 9, [A_DUPLA] = 10 };
-// Os dados que cada nivel abre, dos faceis de entender aos que mexem mais
-// no jogo: no Normal so os de bonus simples (e os dados de numero), e a
-// cada nivel uns poucos a mais - ataques, depois os que mexem na sequencia,
-// por ultimo os estranhos. Assim quem comeca nao enfrenta tudo de uma vez.
-static int nivel_do_dado(int t)
+static int nivel_antes(int t)
 {
     switch (t) {
     case D_EXPLOSIVO: case D_BUMERANGUE: case D_PREVISIVEL: case D_DOMINO:
@@ -348,10 +359,11 @@ static int nivel_do_dado(int t)
 static int marco_do_dado(int t) { return t == D_D20 ? 0 : (t == D_LASTRO ? 1 : -1); }
 
 // O que abre, chefe a chefe. Os chefes da dificuldade d abrem, um pedaco
-// cada, o que vem com o nivel d + 1: o Crupie, os dados mais comuns e o
-// adesivo; a Dona, os do meio e o amuleto; o Barao, os mais raros; e quem
-// fecha a run (o Barao, ou do Nivel 5 o Coringa), o estilo do andar d e a
-// dificuldade seguinte. O que a dificuldade ja passou fica todo aberto.
+// cada, o que vem com o nivel d + 1 (a tabela abaixo): o Crupie, os mais
+// comuns; a Dona, o amuleto e os do meio; o Barao e o Coringa, os mais raros;
+// e quem fecha a run (o Barao, ou do Nivel 5 o Coringa) tambem o estilo do
+// andar d e a dificuldade seguinte. O que a dificuldade ja passou fica todo
+// aberto.
 enum { CH_CRUPIE, CH_DONA, CH_BARAO, CH_CORINGA, CH_N };
 static const char *const NOME_CHEFE[CH_N] = { "o Crupiê", "a Dona do Salão", "o Barão", "o Coringa" };
 // Em dezembro, quem senta no lugar do Barao e o Papai Noel.
@@ -365,23 +377,105 @@ static bool chefe_abriu_de(const perfil_t *p, int d, int c)
 }
 static bool chefe_abriu(int d, int c) { return chefe_abriu_de(perfil(), d, c); }
 
-// Qual chefe abre o dado t: os dados do nivel dele, do mais comum ao mais
+// O chefe de antes do dado t: os dados do nivel dele, do mais comum ao mais
 // raro, em tres partes.
-static int chefe_do_dado(int t)
+static int chefe_antes(int t)
 {
-    int nv = nivel_do_dado(t), n = 0, antes = 0;
+    int nv = nivel_antes(t), n = 0, antes = 0;
     for (int u = 0; u < D_N; u++) {
-        if (nivel_do_dado(u) != nv || marco_do_dado(u) >= 0) continue;
+        if (nivel_antes(u) != nv || marco_do_dado(u) >= 0) continue;
         n++;
         antes += TIPO[u].raridade < TIPO[t].raridade || (TIPO[u].raridade == TIPO[t].raridade && u < t);
     }
     return n ? antes * 3 / n : CH_CRUPIE;
 }
+// O adesivo de antes: ADESIVO[a].nivel, sempre com o Crupie.
+
+// ---- A tabela de hoje (v1.26): cada item com o nivel que o abre (o 1 vem
+// com o Normal vencido) e o chefe dele. Os chefes de um nivel abrem
+// quantidades parecidas; quem fecha a run, um a menos (abre tambem o estilo
+// e o nivel seguinte). O que nao esta aqui vem aberto desde o comeco, abre
+// por conquista ou e marco (D20 e Lastro).
+typedef struct { uint8_t nivel, chefe; } abre_t;
+static const abre_t ABRE_DADO[D_N] = {
+    [D_SENTINELA] = { 1, CH_CRUPIE }, [D_HEXA] = { 1, CH_CRUPIE }, [D_COPIADOR] = { 1, CH_DONA }, [D_PIRATA] = { 1, CH_BARAO }, [D_PREVISIVEL] = { 1, CH_BARAO },   // Nivel 1
+    [D_VAZIO] = { 2, CH_CRUPIE }, [D_ESTILINGUE] = { 2, CH_CRUPIE }, [D_SEMENTE] = { 2, CH_DONA }, [D_SEGURANCA] = { 2, CH_DONA }, [D_LASER] = { 2, CH_BARAO }, [D_AZARAO] = { 2, CH_BARAO },   // Nivel 2
+    [D_PIAO] = { 3, CH_CRUPIE }, [D_CALIBRE] = { 3, CH_CRUPIE }, [D_MEDIA] = { 3, CH_DONA }, [D_GELATINA] = { 3, CH_DONA }, [D_CARRASCO] = { 3, CH_BARAO }, [D_MARTIR] = { 3, CH_BARAO },   // Nivel 3
+    [D_QUEBRADO] = { 4, CH_CRUPIE }, [D_VIDRO] = { 4, CH_CRUPIE }, [D_COLCHA] = { 4, CH_DONA }, [D_FICHA_VELHA] = { 4, CH_DONA }, [D_CARIDOSO] = { 4, CH_BARAO }, [D_VAMPIRO] = { 4, CH_BARAO },   // Nivel 4
+    [D_FARTURA] = { 5, CH_CRUPIE }, [D_SACRIFICIO] = { 5, CH_CRUPIE }, [D_SANGUESSUGA] = { 5, CH_DONA }, [D_INVEJOSO] = { 5, CH_BARAO }, [D_TERREMOTO] = { 5, CH_BARAO },   // Nivel 5
+    [D_FERREIRO] = { 6, CH_CRUPIE }, [D_BALAO] = { 6, CH_CRUPIE }, [D_PAPAGAIO] = { 6, CH_DONA }, [D_LEQUE] = { 6, CH_BARAO }, [D_VENTANIA] = { 6, CH_CORINGA }, [D_PONTE] = { 6, CH_CORINGA },   // Nivel 6
+    [D_ANCORA] = { 7, CH_CRUPIE }, [D_ONDA] = { 7, CH_CRUPIE }, [D_OURICO] = { 7, CH_DONA }, [D_RETRATO] = { 7, CH_DONA }, [D_CHECKPOINT] = { 7, CH_BARAO }, [D_CARROSSEL] = { 7, CH_CORINGA },   // Nivel 7
+    [D_SABOTADOR] = { 8, CH_CRUPIE }, [D_ASSOMBRACAO] = { 8, CH_CRUPIE }, [D_EGOISTA] = { 8, CH_DONA }, [D_CAPITAO] = { 8, CH_BARAO }, [D_ESPERANCA] = { 8, CH_CORINGA },   // Nivel 8
+    [D_CAVALO] = { 9, CH_CRUPIE }, [D_FOGO] = { 9, CH_CRUPIE }, [D_PACTO] = { 9, CH_DONA }, [D_MATRIOSKA] = { 9, CH_BARAO }, [D_FICHA_CORINGA] = { 9, CH_CORINGA },   // Nivel 9
+    [D_GARIMPEIRO] = { 10, CH_CRUPIE }, [D_AUTOFAGIA] = { 10, CH_DONA }, [D_MEDUSA] = { 10, CH_BARAO }, [D_BERSERKER] = { 10, CH_CORINGA },   // Nivel 10
+};
+static const abre_t ABRE_ADESIVO[AD_N] = {
+    [AD_GORJETA] = { 1, CH_CRUPIE }, [AD_FRAGIL] = { 1, CH_CRUPIE }, [AD_BOMBA] = { 1, CH_DONA }, [AD_CORRENTE] = { 1, CH_BARAO },   // Nivel 1
+    [AD_VELCRO] = { 2, CH_CRUPIE }, [AD_TIQUETE] = { 2, CH_CRUPIE }, [AD_BIS] = { 2, CH_DONA }, [AD_IMPERMEAVEL] = { 2, CH_BARAO },   // Nivel 2
+    [AD_BARRO] = { 3, CH_CRUPIE }, [AD_ESTRELINHA] = { 3, CH_CRUPIE }, [AD_LENTICULAR] = { 3, CH_DONA }, [AD_TRANSPARENTE] = { 3, CH_BARAO },   // Nivel 3
+    [AD_CHICLETE] = { 4, CH_CRUPIE }, [AD_IMANTADO] = { 4, CH_CRUPIE }, [AD_MASSINHA] = { 4, CH_DONA }, [AD_BUSSOLA] = { 4, CH_BARAO },   // Nivel 4
+    [AD_CORRETIVO] = { 5, CH_CRUPIE }, [AD_CASCA] = { 5, CH_CRUPIE }, [AD_CARBONO] = { 5, CH_DONA }, [AD_MOLDURA] = { 5, CH_BARAO },   // Nivel 5
+    [AD_POSTIT] = { 6, CH_CRUPIE }, [AD_COLEIRA] = { 6, CH_DONA }, [AD_FERMENTO] = { 6, CH_BARAO },   // Nivel 6
+    [AD_XEROX] = { 7, CH_CRUPIE }, [AD_NEON] = { 7, CH_BARAO }, [AD_CHUMBO] = { 7, CH_CORINGA },   // Nivel 7
+    [AD_RATOEIRA] = { 8, CH_CRUPIE }, [AD_PATINHO] = { 8, CH_BARAO }, [AD_NOTA_DEZ] = { 8, CH_CORINGA },   // Nivel 8
+    [AD_AVESSO] = { 9, CH_CRUPIE }, [AD_HOLOGRAFICO] = { 9, CH_BARAO }, [AD_CARIMBO] = { 9, CH_CORINGA },   // Nivel 9
+    [AD_ETIQUETA] = { 10, CH_CRUPIE }, [AD_DUPLA] = { 10, CH_BARAO }, [AD_BILHETE] = { 10, CH_CORINGA },   // Nivel 10
+};
+// Os amuletos: a Dona traz um em cada nivel.
+static const uint8_t NIVEL_AMULETO[A_N] = {
+    [A_FERRADURA] = 1, [A_DESFORRA] = 2, [A_TRINCA] = 3, [A_CONTRATO] = 4, [A_COROA] = 5, [A_CORRIMAO] = 6, [A_PRENSA] = 7, [A_ABRE_ALAS] = 8, [A_PIRAMIDE] = 9, [A_DUPLA] = 10 };
+// Os de conquista guardam o nivel de antes (so para mostrar).
+static int nivel_do_dado(int t)  { return ABRE_DADO[t].nivel ? ABRE_DADO[t].nivel : nivel_antes(t); }
+static int chefe_do_dado(int t)  { return ABRE_DADO[t].nivel ? ABRE_DADO[t].chefe : chefe_antes(t); }
+static int nivel_do_adesivo(int a) { return ABRE_ADESIVO[a].nivel ? ABRE_ADESIVO[a].nivel : ADESIVO[a].nivel; }
+static int chefe_do_adesivo(int a) { return ABRE_ADESIVO[a].nivel ? ABRE_ADESIVO[a].chefe : CH_CRUPIE; }
 // As conquistas (conquistas.inc): o item que tem uma abre so por ela.
 static int  cq_do_dado(int t);
 static int  cq_do_amuleto(int a);
 static int  cq_do_adesivo(int a);
 static bool cq_aberta(int c);
+// O legado: os itens que a tabela da v1.26 abre mais tarde do que a regra de
+// antes (outro nivel, um chefe depois, ou um amuleto que vinha aberto). Quem
+// ja tinha um deles aberto continua com ele (o bit em perfil_t.legado,
+// marcado na conversao). A lista so cresce no fim: o bit e a posicao.
+enum { LG_DADO, LG_ADESIVO, LG_AMULETO };
+static const struct { uint8_t k, id; } LEGADO[] = {
+    { LG_DADO, D_PREVISIVEL }, { LG_DADO, D_SEMENTE }, { LG_DADO, D_AZARAO }, { LG_DADO, D_CARRASCO },
+    { LG_DADO, D_FICHA_VELHA }, { LG_DADO, D_COLCHA }, { LG_DADO, D_CARIDOSO }, { LG_DADO, D_INVEJOSO },
+    { LG_DADO, D_LEQUE }, { LG_DADO, D_VENTANIA }, { LG_DADO, D_PONTE }, { LG_DADO, D_OURICO },
+    { LG_DADO, D_CARROSSEL }, { LG_DADO, D_EGOISTA }, { LG_DADO, D_CAPITAO }, { LG_DADO, D_ESPERANCA },
+    { LG_DADO, D_FICHA_CORINGA }, { LG_DADO, D_BERSERKER }, { LG_ADESIVO, AD_BOMBA }, { LG_ADESIVO, AD_CORRENTE },
+    { LG_ADESIVO, AD_BIS }, { LG_ADESIVO, AD_IMPERMEAVEL }, { LG_ADESIVO, AD_LENTICULAR }, { LG_ADESIVO, AD_TRANSPARENTE },
+    { LG_ADESIVO, AD_MASSINHA }, { LG_ADESIVO, AD_BUSSOLA }, { LG_ADESIVO, AD_CARBONO }, { LG_ADESIVO, AD_MOLDURA },
+    { LG_ADESIVO, AD_COLEIRA }, { LG_ADESIVO, AD_FERMENTO }, { LG_ADESIVO, AD_NEON }, { LG_ADESIVO, AD_CHUMBO },
+    { LG_ADESIVO, AD_PATINHO }, { LG_ADESIVO, AD_NOTA_DEZ }, { LG_ADESIVO, AD_AVESSO }, { LG_ADESIVO, AD_HOLOGRAFICO },
+    { LG_ADESIVO, AD_CARIMBO }, { LG_ADESIVO, AD_ETIQUETA }, { LG_ADESIVO, AD_DUPLA }, { LG_ADESIVO, AD_BILHETE },
+    { LG_AMULETO, A_DESFORRA }, { LG_AMULETO, A_TRINCA }, { LG_AMULETO, A_CONTRATO }, { LG_AMULETO, A_CORRIMAO },
+    { LG_AMULETO, A_ABRE_ALAS }, { LG_AMULETO, A_PIRAMIDE } };
+#define N_LEGADO ((int)(sizeof LEGADO / sizeof LEGADO[0]))
+_Static_assert(sizeof LEGADO / sizeof LEGADO[0] <= 8 * sizeof ((perfil_t *)0)->legado, "o legado cabe no perfil");
+static bool legado_de(const perfil_t *p, int k, int id)
+{
+    for (int i = 0; i < N_LEGADO; i++)
+        if (LEGADO[i].k == k && LEGADO[i].id == id) return p->legado[i >> 3] >> (i & 7) & 1;
+    return false;
+}
+// Na conversao de um perfil de antes da v1.26: o que a regra de antes ja
+// tinha aberto entra no legado.
+static void legado_converte(perfil_t *p)
+{
+    for (int i = 0; i < N_LEGADO; i++) {
+        int id = LEGADO[i].id;
+        bool aberto;
+        switch (LEGADO[i].k) {
+        case LG_DADO:    aberto = nivel_antes(id) > 0 && chefe_abriu_de(p, nivel_antes(id) - 1, chefe_antes(id)); break;
+        case LG_ADESIVO: aberto = chefe_abriu_de(p, ADESIVO[id].nivel - 1, CH_CRUPIE); break;
+        default:         aberto = chefe_abriu_de(p, NIVEL_AMULETO_ANTES[id] - 1, CH_DONA); break;
+        }
+        if (aberto) p->legado[i >> 3] |= (uint8_t)(1u << (i & 7));
+    }
+}
+
 static bool dado_liberado(int t)
 {
     if (sem_sorteio(t)) return false;            // nao sai em sorteio nenhum
@@ -390,17 +484,18 @@ static bool dado_liberado(int t)
     if (c >= 0) return cq_aberta(c);
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
-    return chefe_abriu(nivel_do_dado(t) - 1, chefe_do_dado(t));
+    return chefe_abriu(nivel_do_dado(t) - 1, chefe_do_dado(t)) || legado_de(perfil(), LG_DADO, t);
 }
 static bool amuleto_liberado(int a)
 {
     int c = cq_do_amuleto(a);
-    return c >= 0 ? cq_aberta(c) : chefe_abriu(NIVEL_AMULETO[a] - 1, CH_DONA);
+    if (c >= 0) return cq_aberta(c);
+    return chefe_abriu(NIVEL_AMULETO[a] - 1, CH_DONA) || legado_de(perfil(), LG_AMULETO, a);
 }
 
 // O pedaco do chefe c na dificuldade d, como os cards o mostram: a
 // dificuldade seguinte (so quem fecha a run), o amuleto, os dados (os
-// lendarios por ultimo), o adesivo e o estilo do andar.
+// lendarios por ultimo), os adesivos e o estilo do andar.
 enum { NV_DIF, NV_AMULETO, NV_DADO, NV_ADESIVO, NV_ESTILO };
 typedef struct { uint8_t k, v, cq; } novidade_t;    // cq: a conquista que o abriu, + 1 (0: o chefe)
 #define PEDACO_MAX 16
@@ -417,9 +512,9 @@ static int pedaco(int d, int c, novidade_t *out)
             if (nivel_do_dado(t) == nv && marco_do_dado(t) < 0 && TIPO[t].raridade == r && chefe_do_dado(t) == c
                 && cq_do_dado(t) < 0)
                 out[n++] = (novidade_t){ NV_DADO, (uint8_t)t, 0 };
-    if (c == CH_CRUPIE)
-        for (int a = AD_NADA + 1; a < AD_N && n < PEDACO_MAX; a++)
-            if (ADESIVO[a].nivel == nv && ad_a_venda(a) && cq_do_adesivo(a) < 0) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a, 0 };
+    for (int a = AD_NADA + 1; a < AD_N && n < PEDACO_MAX; a++)
+        if (nivel_do_adesivo(a) == nv && chefe_do_adesivo(a) == c && ad_a_venda(a) && cq_do_adesivo(a) < 0)
+            out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a, 0 };
     char es[96];
     if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d, 0 };
     return n;

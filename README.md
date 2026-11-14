@@ -230,12 +230,21 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
   um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
   rende 2 moedas a cada mesa vencida, e o Cofre, 1 moeda a cada 3 que você
-  tem, sem limite.
+  tem, sem limite. Dezesseis vêm abertos desde o começo; dos outros, a Dona
+  do Salão traz um a cada dificuldade, do Normal ao Nível 9 (a Ferradura no
+  Normal, a Desforra no 1, a Trinca no 2, o Contrato Sujo no 3, a Coroa do
+  Azarão no 4, o Corrimão no 5, a Prensa no 6, o Abre-Alas no 7, a Pirâmide
+  no 8 e a Dupla no 9), e os demais abrem por conquista.
   Perdeu (ou saiu no meio da partida, com ESC duas vezes), a run acaba. O que
-  abre vem chefe a chefe: em cada dificuldade, o Crupiê abre os dados mais
-  comuns do nível seguinte e o adesivo; a Dona, os do meio e o amuleto; o
-  Barão, os mais raros; e quem fecha a run (o Barão, ou do nível 5 o Coringa)
-  abre o estilo do andar e a dificuldade seguinte. Os cards aparecem logo
+  abre vem chefe a chefe, por uma tabela fixa: em cada dificuldade, cada
+  chefe abre a sua parte - dados, adesivos e, com a Dona, um amuleto -, em
+  quantidades parecidas (quem fecha a run - o Barão, ou do Nível 5 em diante
+  o Coringa - abre um a menos, porque abre também o estilo do andar e a
+  dificuldade seguinte). Os adesivos se dividem entre os chefes,
+  não só com o Crupiê. A tela da dificuldade mostra o que cada chefe abre
+  ali, e a coleção, no item fechado, qual chefe e em qual nível. Os perfis de
+  antes não perdem nada: o que já estava aberto pela regra antiga continua
+  aberto, mesmo que na tabela nova ele venha mais tarde. Os cards aparecem logo
   depois da partida, na primeira vitória contra cada chefe naquela
   dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
@@ -281,22 +290,22 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Normal só os de bônus simples; os ataques, os que mexem na sequência e os
   mais estranhos entram aos poucos, alguns por nível (o Revólver, um d6 que
   carrega uma bala a cada lance, valendo ou não, e na quarta dispara, +12
-  mesmo anulado, no 3 - o Caubói
+  mesmo anulado, por conquista - o Caubói
   sempre traz o dele, já com balas no tambor; os Três Patinhos, x3 a
-  cada 3 vezes lançados, no 5; a Fúria, um d6 que guarda +2 a cada 4, 5 ou
-  6, nada no 3 e perde 1 no 1 e no 2, no 6; a Onda, que pontua e guarda o que tira até virar um
+  cada 3 vezes lançados, por conquista; a Fúria, um d6 que guarda +2 a cada 4, 5 ou
+  6, nada no 3 e perde 1 no 1 e no 2, por conquista; a Onda, que pontua e guarda o que tira até virar um
   Tsunami, no 7; a Estrela, um d6 que, terminando a rodada válida,
   evolui e volta para a mão na rodada seguinte - e o que ela vira é
-  surpresa, que a coleção não mostra -, no 8; o Adesivado, um d6 que já
-  vem com 3 adesivos sorteados, no 3; o Relógio, um d20 que tira o número
-  da rodada, no 4; o Terremoto, um d8 que com 7 ou 8 faz o último dado
+  surpresa, que a coleção não mostra -, por conquista; o Adesivado, um d6 que já
+  vem com 3 adesivos sorteados, por conquista; o Relógio, um d20 que tira o número
+  da rodada, por conquista; o Terremoto, um d8 que com 7 ou 8 faz o último dado
   válido do oponente rolar de novo no fim, no 5; o Digital, cujo visor
-  acende o último da sequência +1 e nunca cai, no 8; o Agnus, um d8 lendário
+  acende o último da sequência +1 e nunca cai, por conquista; o Agnus, um d8 lendário
   de lã de cordeiro e chifres de carneiro que, tirando 7, valendo ou não,
   ressuscita no fim da rodada todos os seus dados anulados (os da sequência
   e os dos poderes do oponente, ele mesmo incluído; os roubados, não), e,
   tirando 8 valendo, manda uma luz que anula o maior dado válido do
-  oponente, no 8; e a Ficha Coringa,
+  oponente, por conquista; e a Ficha Coringa,
   que fica fora da sequência e no fim vira o último dado válido do
   oponente, no 9). E a quarta leva, a dos dados que combam com os
   adesivos e com a fila: o Estilingue (d6: com 1, valendo ou não, o próximo
@@ -306,17 +315,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   lance), no 3; a
   Colcha de Retalhos (d6 com um Remendo no 1, no 2 e no 3), no 4; o Leque
   (d8: valendo, +2 por outro dado seu valendo caído num lado com adesivo),
-  no 5; o Balão (d8: enche +2 a cada rodada fora da fila ou anulado, sem
+  o Balão (d8: enche +2 a cada rodada fora da fila ou anulado, sem
   limite, o látex clareando e o brilho crescendo até +10, e com 7 ou 8
   valendo estoura e soma tudo) e o Papagaio (d8: valendo, repete o último adesivo
   seu que agiu na rodada), no 6; o Camaleão (d8 com o poder - e a cor - do
-  dado de antes) e o Porta-Retrato (d6: valendo, o adesivo dele age também
+  dado de antes), por conquista, e o Porta-Retrato (d6: valendo, o adesivo dele age também
   no dado de antes, se ele valer), no 7; o Camelô (d12: em cada partida,
   um adesivo sorteado em cada lado vazio, entre os abertos, todos com a
-  mesma chance), no 8; e a Matrioska (d8
+  mesma chance), por conquista; e a Matrioska (d8
   lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
   com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
-  a soma de todas), no 9. E o Carrossel (d8 raro, no 4): lançado, fica
+  a soma de todas), no 9. E o Carrossel (d8 raro, no 7): lançado, fica
   girando fora da sequência, como o Oculto, mostrando quantos dados valem
   na mesa agora, dos dois lados, ele incluído - a cobertura listrada anda
   para a frente quando um dado entra valendo e para trás quando um cai. No
@@ -331,7 +340,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto; o que falta aparece só como um "?", com o nome e
   qual chefe o abre (sem o desenho nem o que faz).
-- **Conquistas**: 50 itens (dados, amuletos e adesivos) não abrem com
+- **Conquistas**: 53 itens (dados, amuletos e adesivos) não abrem com
   chefe nenhum, só com um feito na run - em qualquer andar, valendo em
   qualquer nível. Abrindo, um aviso desce do alto na hora ("Conquista!" e o
   nome, com o "?" de latão) e o card do item vem depois da partida (antes
@@ -400,6 +409,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Oculto | dado | Vença o Ilusionista 3 vezes |
   | Infectado | adesivo | Tenha o mesmo adesivo em 3 dados diferentes da bolsa |
   | Ampulheta | dado | Jogue 200 rodadas, somando todas as suas runs |
+  | Bumerangue | dado | Comece a sua 3ª run |
+  | Fúria | dado | Perca para um chefe 5 vezes, somando as suas runs |
+  | Moeda sorte | dado | Lance seus dados e vença uma rodada fazendo 3 pontos ou menos (vencer sem lançar, porque o oponente estourou antes, não conta) |
   | e quatro secretas | dado | - |
 
 ## 2 jogadores na mesma mesa: de quem é a vez

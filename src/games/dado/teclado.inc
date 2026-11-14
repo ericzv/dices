@@ -418,16 +418,17 @@ static void trata_tecla(int k)
 
     case F_CATALOGO:
         // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
-        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '3')) {
-            int sec = k == KEY_TAB ? (cat_sec + 1) % 3 : k >= '1' && k <= '3' ? k - '1'
-                    : k == KEY_DOWN || k == 's' ? (cat_sec < 2 ? cat_sec + 1 : 2) : (cat_sec > 0 ? cat_sec - 1 : 0);
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '4')) {
+            int sec = k == KEY_TAB ? (cat_sec + 1) % 4 : k >= '1' && k <= '4' ? k - '1'
+                    : k == KEY_DOWN || k == 's' ? (cat_sec < 3 ? cat_sec + 1 : 3) : (cat_sec > 0 ? cat_sec - 1 : 0);
             if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
             return;
         }
         if (e) {
             if (cat_sec == 0) cat_i = (cat_i + e + n_catalogo()) % n_catalogo();
             else if (cat_sec == 1) cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
-            else cat_ad = (cat_ad + e + N_AD_COLECAO) % N_AD_COLECAO;
+            else if (cat_sec == 2) cat_ad = (cat_ad + e + N_AD_COLECAO) % N_AD_COLECAO;
+            else cat_cq = (cat_cq + e + n_cat_conquistas()) % n_cat_conquistas();
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;

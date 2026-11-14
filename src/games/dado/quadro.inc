@@ -260,6 +260,7 @@ void dado_desenha(void)
         des_elevador();
         des_virada_anuncio();
         des_bolsa_nova();
+        cq_aviso_desenha();
         desenha_bolsa_pop();
     } else bolsa_pop = -1;
     desenha_aviso_salvo();

@@ -1021,6 +1021,11 @@ static void fr_salao_mesa(int p)
         gfx_linha_grossa(x - 9, vy, x - 2, vy + 8, 4, C_OURO);
         gfx_linha_grossa(x - 2, vy + 8, x + 12, vy - 10, 4, C_OURO);
     }
+    if (!feita && cq_encontro_aberto(no->perso)) {   // um encontro: vencendo, abre o dado dele
+        float pulso = 0.5f + 0.5f * sinf(t_relogio * 3.2f);
+        ui_contorno(x - w / 2 - 4, y - 4, w + 8, h + 8, gfx_mistura(C_OURO, C_LATAO_ESC, (int)(70 * (1 - pulso))));
+        medalha(x + w / 2 + 2, y - 2 + (int)lroundf(2 * sinf(t_relogio * 2.4f)), C_OURO);   // a medalha balanca no canto
+    }
     pl_mesa(x, my, rx, ry, acesa, chefe);
     uint16_t cn = feita ? C_TEXTO_M : cor_no(no->tipo);
     const char *nome = PERSO[no->perso].nome;

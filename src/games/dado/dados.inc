@@ -834,9 +834,10 @@ static void classe(int tipo, char *s, int n)
     else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), nome_raridade(tipo));
 }
 
-// O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
-// fora da epoca, os de Natal.
-static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t); }
+// O catalogo mostra os dados do mais comum ao mais raro, menos os segredos
+// (o ciclo cosmico, o Mais Adesivado) e, fora da epoca, os de Natal. O
+// Misterioso aparece: fechado, como conquista secreta (conquistas.inc).
+static bool no_catalogo(int t) { return !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t); }
 static int n_catalogo(void)
 {
     int n = 0;

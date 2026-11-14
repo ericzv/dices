@@ -1390,6 +1390,7 @@ static void recolhe_quebrados(void)
         for (int k = 0; k < F[j].lancados; k++) {
             bool some = false;
             if (pedra_misteriosa(j, k)) {
+                cq_misterioso();                     // a conquista secreta
                 F[j].quebra[k] = true;
                 J[j].col[F[j].idx[k]] = (peca_t){ .tipo = D_MISTERIOSO, .fixo = 0 };
                 n_mist++;
@@ -1561,6 +1562,7 @@ static void conclui_rodada(void)
     op_nervoso = venc_mao == 0;
     if (venc_mao == 0) des_rod_vencidas++;
     if (venc_mao == 0 && modo == M_DESAFIO) des_rodada_vencida(seu_pote);
+    if (modo == M_DESAFIO) cq_rodada(venc_mao == 0 ? 0 : 1, seu_pote, false);   // as conquistas da rodada
     if (venc_mao == 0) fala_evento(FA_PERDE_R);
     else if (venc_mao == 1) fala_evento(FA_GANHA_R);
     if (venc_mao == 0) rival_reage(F[0].total >= RODADA_GRANDE ? RM_COMBO : RM_PERDE_R);

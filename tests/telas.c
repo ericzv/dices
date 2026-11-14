@@ -112,6 +112,11 @@ static void passeio(void)
     snprintf(perfis[0].nome, sizeof perfis[0].nome, "TESTE");
     perfis[0].nivel = 10; perfis[0].marcos = 3; perfil_atual = 0; perfis_lidos = true;
     perfis[0].bolsas = 0xFF;
+    // As conquistas: quase todas feitas (os avisos nao entram nas fotos); umas
+    // fechadas e uns contadores no meio, para a aba Conquistas no fim.
+    perfis[0].conq = ~0ull & ~(1ull << CQ_AGNUS | 1ull << CQ_MISTERIOSO | 1ull << CQ_GATUNO | 1ull << CQ_CAMALEAO
+                               | 1ull << CQ_AMPULHETA | 1ull << CQ_FIGURINHA | 1ull << CQ_JACKPOT);
+    perfis[0].cq_encontro[2] = 2; perfis[0].cq_rodadas = 120; perfis[0].cq_colados = 7; perfis[0].cq_oponentes = 0x5A5;
 
     fase = F_ABERTURA; menu_tela = MT_PRINCIPAL; t_fase = 0; menu_cur = 0; passa(150); tela("menu");
     som_abre(); passa(30); tela("painel_som"); som_aberto = false;
@@ -163,6 +168,8 @@ static void passeio(void)
     perfis[0].bolsas = perfis[0].bolsas_vistas = BOLSAS_TODAS;
     abre_bolsas(); passa(120);
     bs_cur = B_PRESENTE; passa(90); tela("bolsas_novas");
+    // E a aba Conquistas da Colecao: abertas, fechadas, contadores e as bolsas.
+    t_fase = 0; fase = F_CATALOGO; cat_sec = 3; cat_cq = 0; passa(40); tela("conquistas");
 }
 
 static int hex(int c) { return c <= '9' ? c - '0' : (c | 32) - 'a' + 10; }

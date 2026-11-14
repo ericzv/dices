@@ -275,7 +275,12 @@ static void monta_pacote(void)
 // Os adesivos da loja (adesivos.inc): entre os que o perfil ja abriu (o
 // Crupie abre o de cada nivel), sorteados pela raridade com os pesos da
 // vitrine: no primeiro salao, os lendarios quase nao saem.
-static bool adesivo_liberado(int a) { return ad_a_venda(a) && chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE); }
+static bool adesivo_liberado(int a)
+{
+    if (!ad_a_venda(a)) return false;
+    int c = cq_do_adesivo(a);
+    return c >= 0 ? cq_aberta(c) : chefe_abriu(ADESIVO[a].nivel - 1, CH_CRUPIE);
+}
 // Na colecao: a Sujeira (que nao se vende) abre junto com o Barro.
 static bool adesivo_aberto(int a) { return adesivo_liberado(a == AD_SUJEIRA ? AD_BARRO : a); }
 static int preco_adesivo(int a) { return preco_ajusta(a > AD_NADA && a < AD_N ? ADESIVO[a].preco - (run.bolsa == B_LATA) : 0); }
@@ -551,9 +556,12 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // salao, dois no segundo, tres dali em diante. Cada um toma o lugar de um
     // dos sorteados (o primeiro vem de graca: ninguem fica sem o seu).
     // So entra o que a sua dificuldade ja abriu (o Coringa, na Cobertura,
-    // traz o que quiser): o nucleo e o tema fechados ficam de fora.
+    // traz o que quiser): o nucleo e o tema fechados ficam de fora. Menos o
+    // dado dos encontros (conquistas.inc): esse ele traz sempre, para voce
+    // ver o que ganha vencendo-o.
     for (int i = 0; i < 3 && i <= andar && pe->nucleo[i] && n < MAX_COL; i++) {
-        if (!tudo && !dado_liberado(pe->nucleo[i])) continue;
+        bool encontro = i == 0 && cq_encontro(no->perso) >= 0;
+        if (!tudo && !encontro && !dado_liberado(pe->nucleo[i])) continue;
         col[n++] = peca_r(pe->nucleo[i]);
         if (i > 0 && extras > 0) extras--;
     }

@@ -143,6 +143,7 @@ static void loja_abriu(void)
     cola_premio = false;
     cola_pac = -1;
     t_lj_cola = 0;
+    cq_loja_abriu();
     memset(t_lj_ad_carimbo, 0, sizeof t_lj_ad_carimbo);
     lj_vira = false;
     t_lj_vira = 0;
@@ -364,6 +365,7 @@ static void loja_compra(int i)
     loja_paga(pr);
     run.col[run.n_col++] = run.vitrine[i];
     run.levou[i] = 1;
+    cq_comprou();
     des_salva();
     t_lj_vendido[i] = 0.001f;
     lj_voa(i, run.vitrine[i], lj_card_x(i), LJ_Y + 40);
@@ -395,6 +397,7 @@ static void loja_pacote(void)
     run.pac_estado = PAC_ABERTO;
     if (run.pacotes < 255) run.pacotes++;
     if (run.pacotes >= PAPELAO_ABRE) abre_bolsa(B_PAPELAO);   // 5 pacotes abertos: a Caixa de Papelao
+    cq_comprou();
     des_salva();
     lj_pac = true;
     t_pac = 0;
@@ -499,6 +502,7 @@ static void cola_escolhe_lado(int c)
         ad_cola(p, lado, a);
         pac_levado = cola_pac;
         run.pac_estado = PAC_USADO;
+        cq_colou();
         des_salva();
     } else {
         if (run.moedas < pr || ad_loja_vendido(lj_ad_k)) return;
@@ -506,6 +510,8 @@ static void cola_escolhe_lado(int c)
         ad_cola(p, lado, a);
         if (lj_ad_k) run.ad_vendido2 = 1;
         else run.ad_vendido = 1;
+        cq_colou();
+        cq_comprou();
         des_salva();
     }
     lj_cola_lado = lado;
@@ -588,10 +594,16 @@ static void loja_tira(int i)
     som_toca(SOM_ANULA);
 }
 
+static void loja_sai_segue(void);
 static void loja_sai(void)
 {
     if (run.moedas >= PORCO_ABRE) abre_bolsa(B_PORCO);   // guardou: abre o Porquinho
     bolsa_voando = 0;
+    if (n_cq_cards) { nov_abre_conquistas(NOVD_LOJA); return; }   // o que abriu na loja: os cards antes do mapa
+    loja_sai_segue();
+}
+static void loja_sai_segue(void)
+{
     if (run.estado == R_LOJA_INI) { run.estado = R_MAPA; des_salva(); abre_mapa(); t_luz = LUZ_T; cortina_comeca(); }   // o primeiro salao: a cortina, e ele acende
     else avanca_passo();
 }

@@ -367,6 +367,8 @@ static int des_rod_vencidas;         // rodadas que voce venceu na partida (Taca
 static int des_rod_cheias;           // as vencidas com 4 dados validos (abre o Estojo de Lapis)
 static bool des_atras7;              // comecou a 7a rodada atras em fichas (abre o Saco de Sementes)
 static void des_rodada_vencida(int pote_levado);   // desafio/bolsas.inc
+static void cq_rodada(int w, int pote_levado, bool correu);   // desafio/conquistas.inc: o fim de uma rodada
+static void cq_misterioso(void);                  // e a pedra negativa que se partiu
 static float am_brilho[A_N];
 static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a & 1); }
 // Trunfos dos oponentes do Desafiante que nao sao amuletos (o resto deles
@@ -611,7 +613,8 @@ static int  plano_n, plano_rodada = -1, plano_vez = -1;
 static float plano_p;                // chance de vencer com o plano
 static int  detalhe = -1, detalhe_fase;   // dado aberto pela tecla I (-1: nenhum)
 static int  cat_i, cat_a;         // dado e amuleto em exibicao na colecao
-static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos, 2 adesivos
+static int  cat_sec;              // secao da colecao: 0 dados, 1 amuletos, 2 adesivos, 3 conquistas
+static int  cat_cq;               // a conquista (ou a bolsa) em foco na lista
 static int  cat_ad;               // o adesivo em foco na colecao
 static bool removendo;               // premio trocado por tirar um dado
 static float t_tira;                 // animacao do dado saindo (0 = parado)

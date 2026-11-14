@@ -154,6 +154,7 @@ static bool bs_tecla(int k, int e)
 static void bolsas_passo(float dt)
 {
     if (bolsa_nova >= 0) t_bolsa_nova += dt;
+    cq_passo(dt);                                // o aviso da conquista, depois do da bolsa
     if (t_porco > 0 && (t_porco += dt) > 1.2f) t_porco = 0;
     t_fosf += dt;
     if (fase != F_RBOLSAS) return;

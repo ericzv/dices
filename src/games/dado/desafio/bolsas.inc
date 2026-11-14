@@ -148,6 +148,7 @@ static void bolsas_confere(void)
     if (ad >= LATA_ABRE) abre_bolsa(B_LATA);
     if (am_conta(run_amuletos()) >= AM_LUGARES) abre_bolsa(B_BAU);
     if (raros >= PRESENTE_RAROS) abre_bolsa(B_PRESENTE);
+    cq_confere();                                // e as conquistas da bolsa e das moedas
 }
 
 // Rodada vencida (partida.inc): as com 4 dados validos abrem o Estojo de

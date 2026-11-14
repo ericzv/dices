@@ -87,6 +87,11 @@ static void nov_passo(void);             // as novidades (novidades.inc)
 static void nov_monta_run(void);
 static void nov_abre_chefe(void);
 static bool nov_tem_chefe(void);
+static void nov_abre_conquistas(int depois);
+// Depois dos cards de novidades: os creditos (fim da run), a run segue (o
+// chefe), o fim da run perdida (as conquistas da partida perdida) ou o mapa
+// (as conquistas da loja).
+enum { NOVD_RUN, NOVD_CHEFE, NOVD_DERROTA, NOVD_LOJA };
 
 static void des_contadores_passo(float dt, float dt_real)
 {
@@ -511,6 +516,7 @@ static int moedas_iniciais(int dif) { return DES_MOEDAS + dif; }
 
 static void des_nova_run(void)
 {
+    cq_esquece();
     memset(&run, 0, sizeof run);
     memcpy(run.marca, RUN_MARCA, 4);
     run.semente = ((uint32_t)esp_timer_get_time() * 2654435761u) ^ 0x5bd1e995u;
@@ -634,6 +640,7 @@ static void des_comeca_partida(void)
         }
     }
     des_rod_vencidas = des_rod_cheias = 0;
+    cq_partida_comeca();
     reg_op = trunfo_ativo(no->perso) ? PERSO[no->perso].reg : REG_NADA;
     estilo_op = PERSO[no->perso].estilo;
     op_nervoso = false;
@@ -728,6 +735,7 @@ static void des_resultado(void)
         perfis[perfil_atual].partidas++;
         perfis_salva();
     }
+    cq_partida_fim(no, venc_partida == 0);       // as conquistas da partida e os contadores
     if (venc_partida != 0) {
         // A 1a derrota do perfil (o historico ja contou esta): a tela explica.
         des_primeira_derrota = venc_partida == 1 && !des_saiu && hist_uma_derrota();
@@ -834,11 +842,13 @@ static void des_apos_fim(void)
 {
     if (venc_partida == 0 && nov_tem_chefe() && !fim_da_run()) nov_abre_chefe();   // o chefe abriu coisas: os cards antes
     else if (venc_partida == 0) des_pos_vitoria();
+    else if (n_cq_cards) nov_abre_conquistas(NOVD_DERROTA);   // perdeu: as conquistas da partida antes do fim
     else encerra_run(false);
 }
 
 static void des_continua(void)
 {
+    cq_esquece();
     if (!des_carrega(&run)) { des_nova_run(); return; }
     moedas_ok = false;
     switch (run.estado) {

@@ -325,11 +325,82 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   caixinha de música perdendo o embalo, e entra na sequência: pode valer,
   cair ou derrubar o seguinte. Com o Calibre logo antes, +1 (até o 8); com
   dois na mesa, param um de cada vez, os de quem abriu primeiro. Os oponentes só usam o
-  que você já abriu, e as mesas fáceis levam poucos tipos de dado especial. O
+  que você já abriu (menos os seis de encontro, abaixo, que sempre trazem o
+  dado deles), e as mesas fáceis levam poucos tipos de dado especial. O
   que abre aparece em cards, um de cada vez, logo depois de cada chefe (e o
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto; o que falta aparece só como um "?", com o nome e
   qual chefe o abre (sem o desenho nem o que faz).
+- **Conquistas**: 50 itens (dados, amuletos e adesivos) não abrem com
+  chefe nenhum, só com um feito na run - em qualquer andar, valendo em
+  qualquer nível. Abrindo, um aviso desce do alto na hora ("Conquista!" e o
+  nome, com o "?" de latão) e o card do item vem depois da partida (antes
+  do fim da run, se a partida foi perdida; na saída da loja, se foi lá).
+  Na coleção, o item de conquista tem a medalha e o texto do feito
+  ("Conquista: ..."); os que se somam aos poucos mostram quanto falta
+  (como "6 de 15"). A quarta aba da coleção, **Conquistas**, lista todas,
+  e as bolsas, com o que já abriu. Quatro são secretas (só aparecem como
+  "Conquista secreta"; a do Dado Misterioso, o d20 que sai de uma pedra
+  negativa partida, dá uma pista: "Por que você usaria esse dado?"). A
+  rodada em que o oponente corre conta como vencida, para as conquistas e
+  para as bolsas (Estojo de Lápis e Maleta do Apostador); "tire N" vale o
+  número depois de adesivo e poder, e o dado que não rola (o Quebrado, o
+  Fantasma, o Previsível, o Relógio, o Digital, a Ficha Coringa, o Universo
+  e o Carrossel) não conta. Seis oponentes são de **encontro**: sempre
+  trazem o dado deles, mesmo fechado (para você ver o que ele faz), e
+  vencer cada um 3 vezes abre esse dado; até lá, a mesa dele brilha no mapa
+  com uma medalha. Os perfis de antes guardam o que um chefe já tinha
+  aberto.
+
+  | Item | Tipo | Como abre |
+  |---|---|---|
+  | Jackpot | dado | Tire o mesmo número em três dados válidos de uma sequência |
+  | Dominó | dado | Tire três números seguidos numa sequência, em ordem (como 2-3-4) |
+  | Prisma | dado | Vença uma rodada com 4 dados válidos de 4 tamanhos diferentes |
+  | Desafiante | dado | Vença um chefe sem perder nem correr de nenhuma rodada |
+  | Fênix | dado | Vença uma partida depois de ficar com 15 fichas ou menos |
+  | Colecionador | dado | Tenha 22 dados na bolsa ao mesmo tempo |
+  | Mosaico | dado | Tenha 8 adesivos colados na bolsa ao mesmo tempo |
+  | Cartola | amuleto | Compre 4 coisas numa mesma loja (dados, adesivos e pacotes contam) |
+  | Coringa | amuleto | Vença o Coringa |
+  | Acumulador | dado | Vença 30 partidas, somando todas as suas runs |
+  | Camaleão | dado | Vença 15 oponentes diferentes do cassino |
+  | Três Patinhos | dado | Tire 2 em três dados válidos de uma sequência: 2-2-2 |
+  | Gêmeo | dado | Tire dois pares válidos numa sequência (como 2-2-5-5) |
+  | Viúva Negra | dado | Vença uma rodada com só 1 dado válido, em 5 partidas diferentes |
+  | Rancor | dado | Vença uma partida mesmo perdendo 5 rodadas nela |
+  | Tudo ou Nada | dado | Aposte todas as suas fichas e leve um pote de 80 ou mais |
+  | Trono | dado | Vença o Barão sem perder nem correr de nenhuma rodada |
+  | Tela em Branco | dado | Tenha um dado com adesivo em 3 lados |
+  | Dourado | adesivo | Junte 15 moedas de uma vez |
+  | Cupom | amuleto | Gaste 40 moedas numa mesma run |
+  | Puxa-fila | dado | Termine 20 rodadas com 4 dados válidos, somando as suas runs |
+  | Adesivado | dado | Tenha 5 adesivos num mesmo dado |
+  | Revólver | dado | Vença o Caubói 3 vezes |
+  | Coveiro | dado | Vença o Coveiro 3 vezes |
+  | Sorte/Revés | dado | Numa partida, vença uma rodada por 1 ponto e perca outra por 1 |
+  | Espelho | dado | Empate uma rodada com 12 pontos ou mais de cada lado |
+  | Estrela | dado | Faça 40 pontos ou mais numa única rodada |
+  | Camelô | dado | Vença o Crupiê com 5 bolsas diferentes |
+  | Purpurina | adesivo | Faça 3 adesivos seus agirem na mesma rodada |
+  | Mira | adesivo | Anule 2 dados do oponente numa mesma rodada |
+  | Figurinha | adesivo | Cole 20 adesivos, somando todas as suas runs |
+  | Explosivo | dado | Tire o número máximo em dois dados válidos de 6 lados ou mais numa mesma sequência |
+  | Relógio de Bolso | amuleto | Vença um chefe antes da 5ª rodada |
+  | Relógio | dado | Vença um chefe virando o placar na última rodada |
+  | Taça | amuleto | Vença 5 rodadas seguidas numa partida |
+  | Dinamite | adesivo | Vença uma rodada por 24 pontos ou mais |
+  | Dado Pesado | amuleto | Vença uma rodada com quatro dados de seis lados válidos |
+  | Pote Quente | dado | Leve um pote de 100 fichas ou mais |
+  | Eco | dado | Tire o mesmo número nos quatro dados de uma sequência |
+  | Digital | dado | Faça uma escada de quatro numa sequência (como 3-4-5-6) |
+  | Gatuno | dado | Vença o Ladrão 3 vezes |
+  | Agiota | dado | Vença a Banqueira 3 vezes |
+  | Misericordioso | dado | Vença o Monge 3 vezes |
+  | Oculto | dado | Vença o Ilusionista 3 vezes |
+  | Infectado | adesivo | Tenha o mesmo adesivo em 3 dados diferentes da bolsa |
+  | Ampulheta | dado | Jogue 200 rodadas, somando todas as suas runs |
+  | e quatro secretas | dado | - |
 
 ## 2 jogadores na mesma mesa: de quem é a vez
 

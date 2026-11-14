@@ -104,12 +104,14 @@ static int etiquetas_protecao(int x, int y, int tipo)
     return x;
 }
 
-// Colecao em tres secoes, Dados, Amuletos e Adesivos, trocadas pelas abas no alto.
+// Colecao em quatro secoes, Dados, Amuletos, Adesivos e Conquistas, trocadas pelas abas no alto.
 // O que ainda esta fechado no Desafiante (para o perfil em uso) nao se
 // mostra: um "?", o nome e o que falta para abrir.
 static int  cat_trava_dado(int t, char *s, int n);       // desafio.inc: 0 sempre livre, 1 aberto, 2 fechado
 static void desenha_cat_amuleto(int i);
 static void desenha_cat_adesivo(int i);
+static void desenha_cat_conquistas(int i);   // desafio/colecao.inc
+static int  n_cat_conquistas(void);
 static void cadeado(int x, int y, uint16_t c, int e);
 
 // As faixas da colecao: a chave Dados | Amuletos, a contagem e as teclas.
@@ -118,9 +120,9 @@ static void faixas_colecao(int atual, int total)
     faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
     txt(botao_voltar(KEY_ESC), ty, "COLEÇÃO", C_LATAO, true);
-    static const char *const SEC[3] = { "Dados", "Amuletos", "Adesivos" };
-    const int w = 96, h = 26, x0 = GFX_W / 2 - w * 3 / 2, y0 = (FAIXA_H - h) / 2 - 1;
-    for (int i = 0; i < 3; i++) {                 // tres abas, a escolhida em latao
+    static const char *const SEC[4] = { "Dados", "Amuletos", "Adesivos", "Conquistas" };
+    const int w = 90, h = 26, x0 = GFX_W / 2 - w * 4 / 2, y0 = (FAIXA_H - h) / 2 - 1;
+    for (int i = 0; i < 4; i++) {                 // quatro abas, a escolhida em latao
         ui_botao(x0 + i * w, y0, w, h, SEC[i], cat_sec == i ? C_LATAO : 0, 0);
         zona_clique(x0 + i * w, y0, w, h, NULL, 0, '1' + i);
     }
@@ -130,7 +132,9 @@ static void faixas_colecao(int atual, int total)
     int yb = GFX_H - FAIXA_H;
     faixa_madeira(yb);
     teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, cat_sec == 0 ? "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta"
-             : cat_sec == 1 ? "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta" : "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
+             : cat_sec == 1 ? "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta"
+             : cat_sec == 2 ? "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta"
+             : "setas passam a lista  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
 }
 
 // ---- A vitrine e a fileira ------------------------------------------------
@@ -174,13 +178,15 @@ static int vitrine_chao(int cx, int r)
 // Fechada, nada da peca se mostra: na vitrine, so um "?" de latao flutuando
 // na luz, no lugar dela (nem o desenho, nem o que faz); na fileira de baixo,
 // um "?" pequeno. Ao lado, so o nome e como abre (coluna_fechada).
-static void vitrine_misterio(int cx, int cy)
+// O de conquista (conquistas.inc) e de latao tambem na fileira, e brilha um
+// pouco na vitrine: da para ver, folheando, o que se abre jogando agora.
+static void vitrine_misterio(int cx, int cy, bool conquista)
 {
-    txt_sombra_c(cx, cy - GFX_ALT_TEXTO(6) / 2 + 6, "?", C_LATAO, 6);
+    txt_sombra_c(cx, cy - GFX_ALT_TEXTO(6) / 2 + 6, "?", conquista ? C_OURO : C_LATAO, 6);
 }
-static void fileira_misterio(int x, int y)
+static void fileira_misterio(int x, int y, bool conquista)
 {
-    gfx_texto(x - gfx_largura("?", 1) / 2, y - TXT_H / 2, "?", feltro_tons[5], 1, false);
+    gfx_texto(x - gfx_largura("?", 1) / 2, y - TXT_H / 2, "?", conquista ? C_LATAO : feltro_tons[5], 1, false);
 }
 
 // A fileira embaixo: a pagina de pecas em que esta a da vitrine, a dela com
@@ -202,6 +208,12 @@ static void coluna_fechada(int x, const char *nome, const char *como)
     if (s[0] >= 'a' && s[0] <= 'z') s[0] = (char)(s[0] - 'a' + 'A');
     quebra_cabe(x, 130, 320, FIL_Y - 20 - 130, s, C_MARFIM);   // ate a fileira de baixo
 }
+// As pecas de conquista (desafio/colecao.inc e conquistas.inc).
+static int  cq_do_dado(int t);
+static int  cq_do_amuleto(int a);
+static int  cq_do_adesivo(int a);
+static void coluna_conquista(int x, const char *nome, int c);
+static int  linha_conquista(int x, int c);
 enum { FIL_DADO, FIL_AMULETO, FIL_ADESIVO };
 static void silhueta_dado(float cx, float cy, float r, int lados, uint16_t cor, float dens);
 static int cat_amuleto(int i);               // desafio/colecao.inc
@@ -221,17 +233,17 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
             char tr[80];
             int t = cat_tipo(i);
             fechado = cat_trava_dado(t, tr, sizeof tr) == 2;
-            if (fechado) fileira_misterio(x, y);
+            if (fechado) fileira_misterio(x, y, cq_do_dado(t) >= 0);
             else { peca_t pc = { .tipo = (uint8_t)t }; peca_parada((float)x, (float)y, 11, pc, 0); }
         } else if (sec == FIL_AMULETO) {
             int a = cat_amuleto(i);
             fechado = !amuleto_liberado(a);
-            if (fechado) fileira_misterio(x, y);
+            if (fechado) fileira_misterio(x, y, cq_do_amuleto(a) >= 0);
             else desenha_amuleto(x, y, 10, a, false);
         } else {
             int a = cat_adesivo(i);
             fechado = !adesivo_aberto(a);
-            if (fechado) fileira_misterio(x, y);
+            if (fechado) fileira_misterio(x, y, cq_do_adesivo(a) >= 0);
             else ad_solto_d(x, y, a, ad_estilo == ADE_NOVO ? 2 : 1, 0);   // o recorte pede uns pixels a mais
         }
         zona_clique(x - FIL_PASSO / 2, FIL_Y - 18, FIL_PASSO, 36, var, i, 0);
@@ -254,6 +266,7 @@ static void desenha_catalogo(void)
 {
     if (cat_sec == 1) { desenha_cat_amuleto(cat_a); return; }
     if (cat_sec == 2) { desenha_cat_adesivo(cat_ad); return; }
+    if (cat_sec == 3) { desenha_cat_conquistas(cat_cq); return; }
     if (cat_i >= n_catalogo()) cat_i = 0;              // o Natal acabou com a colecao aberta num deles
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
@@ -266,9 +279,11 @@ static void desenha_catalogo(void)
     // poder animado como na mesa (o brilho girando e o desenho dele).
     int cx = VIT_X, sobe = vitrine_chao(cx, 46), cy = VIT_Y - sobe + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
     if (st == 2) {                                      // fechado: so o "?", o nome e como abre
-        vitrine_misterio(cx, cy);
+        int cq = cq_do_dado(tipo);
+        vitrine_misterio(cx, cy, cq >= 0);
         fileira_colecao(FIL_DADO, cat_i, n_catalogo(), &cat_i);
-        coluna_fechada(290, d->nome, trava);
+        if (cq >= 0) coluna_conquista(290, d->nome, cq);
+        else coluna_fechada(290, d->nome, trava);
         return;
     }
     if (tipo == D_TUDO_NADA) {                          // o yin-yang, girando devagar
@@ -307,9 +322,11 @@ static void desenha_catalogo(void)
     if (de_natal(tipo)) nota_etiqueta(xt + 2, x + 320, "de Natal: de 20 de outubro a 6 de janeiro", "de Natal: 20 out. a 6 jan.");
     if (tipo == D_TSUNAMI) nota_etiqueta(xt + 2, x + 320, "nasce da Onda", NULL);
     if (tipo == D_D20) nota_etiqueta(xt + 2, x + 320, "sai do Presente e da Sacola de Presente", "do Presente e da Sacola");
-    if (st == 1) txt(x, 124, trava, C_VERDE, false);
-    gfx_rect(x, 144, 320, 1, C_FELTRO2);
-    quebra_cabe(x, 152, 320, CAT_TEXTO_H, TEXTO_CAT[tipo], C_MARFIM);   // ate a fileira de baixo (x: a coluna da direita)
+    int dy = 0;                                         // a linha da conquista, em duas: o resto desce
+    if (st == 1 && cq_do_dado(tipo) >= 0) dy = linha_conquista(x, cq_do_dado(tipo));
+    else if (st == 1) txt(x, 124, trava, C_VERDE, false);
+    gfx_rect(x, 144 + dy, 320, 1, C_FELTRO2);
+    quebra_cabe(x, 152 + dy, 320, CAT_TEXTO_H - dy, TEXTO_CAT[tipo], C_MARFIM);   // ate a fileira de baixo (x: a coluna da direita)
 }
 
 // O dado em foco na partida: o do cursor na mao, na loja ou no premio, ou o

@@ -22,7 +22,32 @@ typedef struct {
     uint8_t  bolsa_rec[B_MAX];           // o maior nivel vencido com cada uma, +1 (0: nenhum)
     uint32_t bolsas;                     // bit b: a bolsa b abriu (o Saco de Pano, sempre)
     uint32_t bolsas_vistas;              // bit b: ja apareceu aberta na escolha (a nova chega com festa)
+    // As conquistas (desafio/conquistas.inc): as que ja aconteceram e os
+    // contadores das que somam, de run em run.
+    uint64_t conq;                       // bit c: a conquista c aconteceu (o item dela abriu)
+    uint32_t cq_oponentes;               // bit p: o oponente p ja foi vencido (Camaleao)
+    uint32_t cq_crupie;                  // bit b: o Crupie ja caiu com a bolsa b (Camelo)
+    uint16_t cq_vitorias;                // partidas vencidas (Acumulador)
+    uint16_t cq_cheias;                  // rodadas terminadas com 4 dados validos (Puxa-fila)
+    uint16_t cq_colados;                 // adesivos colados (Figurinha)
+    uint16_t cq_rodadas;                 // rodadas jogadas (Ampulheta)
+    uint8_t  cq_viuva;                   // partidas com uma rodada vencida com 1 dado valido so (Viuva Negra)
+    uint8_t  cq_encontro[6];             // vitorias contra cada oponente de encontro (CQ_ENCONTROS)
+    uint8_t  cq_reserva[25];             // para as proximas, sem mudar o salvamento
 } perfil_t;
+typedef struct {                         // "PER7": de antes das conquistas, lido e convertido
+    char     nome[12];
+    uint8_t  avatar, nivel;
+    uint8_t  venceu[N_NIVEIS + 1];
+    uint16_t runs;
+    uint16_t partidas;
+    uint8_t  marcos;
+    uint8_t  chefes[N_NIVEIS + 1];
+    uint8_t  bolsa_ult;
+    uint8_t  bolsa_rec[B_MAX];
+    uint32_t bolsas;
+    uint32_t bolsas_vistas;
+} perfil_7_t;
 typedef struct {                         // "PER6": as 8 primeiras bolsas, em 8 bits; lido e convertido
     char     nome[12];
     uint8_t  avatar, nivel;
@@ -104,11 +129,11 @@ static bool de_hex(const char *s, void *p, size_t n)
     return true;
 }
 
-// "PER7" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
+// "PER8" + perfil escolhido por ultimo + os tres perfis em hexadecimal.
 static void perfis_salva(void)
 {
     static char buf[8 + 2 * sizeof perfis + 1];
-    memcpy(buf, "PER7", 4);
+    memcpy(buf, "PER8", 4);
     buf[4] = (char)('0' + (perfil_atual < 0 ? 0 : perfil_atual));
     hex_de(perfis, sizeof perfis, buf + 5);
     salva_grava("perfis", buf);
@@ -150,6 +175,7 @@ static void salvo_estragado(const char *chave, const char *texto, const char *ms
 }
 
 static bool perfis_le_de(const char *buf, int n);
+static void cq_converte(perfil_t *p);    // conquistas.inc: o que o chefe ja tinha aberto continua aberto
 static void perfis_le(void)
 {
     if (perfis_lidos) return;
@@ -231,7 +257,31 @@ static bool perfis_le_de(const char *buf, int n)
             lido[i].bolsa_ult = v[i].bolsa_ult;
             memcpy(lido[i].bolsa_rec, v[i].bolsa_rec, sizeof v[i].bolsa_rec);
         }
-    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER7", 4) || !de_hex(buf + 5, lido, sizeof lido)) return false;
+    } else if (n == 5 + (int)(2 * sizeof(perfil_7_t[N_PERFIS])) && !memcmp(buf, "PER7", 4)) {
+        // Os de antes das conquistas: tudo igual, sem conquista nenhuma
+        // (a conversao abaixo mantem aberto o que um chefe ja abriu).
+        perfil_7_t v[N_PERFIS];
+        if (!de_hex(buf + 5, v, sizeof v)) return false;
+        memset(lido, 0, sizeof lido);
+        for (int i = 0; i < N_PERFIS; i++) {
+            memcpy(lido[i].nome, v[i].nome, sizeof lido[i].nome);
+            lido[i].avatar = v[i].avatar;
+            lido[i].nivel = v[i].nivel;
+            memcpy(lido[i].venceu, v[i].venceu, sizeof lido[i].venceu);
+            lido[i].runs = v[i].runs;
+            lido[i].partidas = v[i].partidas;
+            lido[i].marcos = v[i].marcos;
+            memcpy(lido[i].chefes, v[i].chefes, sizeof lido[i].chefes);
+            lido[i].bolsa_ult = v[i].bolsa_ult;
+            memcpy(lido[i].bolsa_rec, v[i].bolsa_rec, sizeof lido[i].bolsa_rec);
+            lido[i].bolsas = v[i].bolsas;
+            lido[i].bolsas_vistas = v[i].bolsas_vistas;
+        }
+    } else if (n != 5 + (int)(2 * sizeof perfis) || memcmp(buf, "PER8", 4) || !de_hex(buf + 5, lido, sizeof lido)) return false;
+    // De qualquer formato de antes das conquistas: o item que um chefe ja
+    // tinha aberto ganha a conquista dele (so aqui, na conversao).
+    if (memcmp(buf, "PER8", 4))
+        for (int i = 0; i < N_PERFIS; i++) if (lido[i].nome[0]) cq_converte(&lido[i]);
     for (int i = 0; i < N_PERFIS; i++) {
         lido[i].nome[sizeof lido[i].nome - 1] = 0;
         if (lido[i].avatar >= AV_N) lido[i].avatar = 0;
@@ -327,38 +377,50 @@ static int chefe_do_dado(int t)
     }
     return n ? antes * 3 / n : CH_CRUPIE;
 }
+// As conquistas (conquistas.inc): o item que tem uma abre so por ela.
+static int  cq_do_dado(int t);
+static int  cq_do_amuleto(int a);
+static int  cq_do_adesivo(int a);
+static bool cq_aberta(int c);
 static bool dado_liberado(int t)
 {
     if (sem_sorteio(t)) return false;            // nao sai em sorteio nenhum
     if (de_natal(t)) return true;                // no Natal, abertos para todos
+    int c = cq_do_dado(t);
+    if (c >= 0) return cq_aberta(c);
     int m = marco_do_dado(t);
     if (m >= 0) return perfil()->marcos >> m & 1;
     return chefe_abriu(nivel_do_dado(t) - 1, chefe_do_dado(t));
 }
-static bool amuleto_liberado(int a) { return chefe_abriu(NIVEL_AMULETO[a] - 1, CH_DONA); }
+static bool amuleto_liberado(int a)
+{
+    int c = cq_do_amuleto(a);
+    return c >= 0 ? cq_aberta(c) : chefe_abriu(NIVEL_AMULETO[a] - 1, CH_DONA);
+}
 
 // O pedaco do chefe c na dificuldade d, como os cards o mostram: a
 // dificuldade seguinte (so quem fecha a run), o amuleto, os dados (os
 // lendarios por ultimo), o adesivo e o estilo do andar.
 enum { NV_DIF, NV_AMULETO, NV_DADO, NV_ADESIVO, NV_ESTILO };
-typedef struct { uint8_t k, v; } novidade_t;
+typedef struct { uint8_t k, v, cq; } novidade_t;    // cq: a conquista que o abriu, + 1 (0: o chefe)
 #define PEDACO_MAX 16
 static int pedaco(int d, int c, novidade_t *out)
 {
     int n = 0, nv = d + 1;
     bool fecha = c == chefe_final(d);
-    if (fecha && d < N_NIVEIS) out[n++] = (novidade_t){ NV_DIF, (uint8_t)nv };
+    if (fecha && d < N_NIVEIS) out[n++] = (novidade_t){ NV_DIF, (uint8_t)nv, 0 };
     if (c == CH_DONA)
         for (int a = 0; a < A_N && n < PEDACO_MAX; a++)
-            if (NIVEL_AMULETO[a] == nv && amuleto_no_jogo(a)) out[n++] = (novidade_t){ NV_AMULETO, (uint8_t)a };
+            if (NIVEL_AMULETO[a] == nv && amuleto_no_jogo(a) && cq_do_amuleto(a) < 0) out[n++] = (novidade_t){ NV_AMULETO, (uint8_t)a, 0 };
     for (int r = RAR_COMUM; r <= RAR_LENDA; r++)
         for (int t = 0; t < D_N && n < PEDACO_MAX; t++)
-            if (nivel_do_dado(t) == nv && marco_do_dado(t) < 0 && TIPO[t].raridade == r && chefe_do_dado(t) == c)
-                out[n++] = (novidade_t){ NV_DADO, (uint8_t)t };
+            if (nivel_do_dado(t) == nv && marco_do_dado(t) < 0 && TIPO[t].raridade == r && chefe_do_dado(t) == c
+                && cq_do_dado(t) < 0)
+                out[n++] = (novidade_t){ NV_DADO, (uint8_t)t, 0 };
     if (c == CH_CRUPIE)
         for (int a = AD_NADA + 1; a < AD_N && n < PEDACO_MAX; a++)
-            if (ADESIVO[a].nivel == nv && ad_a_venda(a)) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a };
+            if (ADESIVO[a].nivel == nv && ad_a_venda(a) && cq_do_adesivo(a) < 0) out[n++] = (novidade_t){ NV_ADESIVO, (uint8_t)a, 0 };
     char es[96];
-    if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d };
+    if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d, 0 };
     return n;
 }

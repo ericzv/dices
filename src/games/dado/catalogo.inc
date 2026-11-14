@@ -319,6 +319,7 @@ static void desenha_catalogo(void)
     int xt = etiquetas_protecao(etiqueta_caixa(x, 104, s, cor_rar(tipo)), 104, tipo);
     if (so_inicial(tipo)) nota_etiqueta(xt + 2, x + 320, "dado inicial", NULL);
     if (so_desafio(tipo)) nota_etiqueta(xt + 2, x + 320, "só no Desafiante", NULL);
+    if (dado_de_adesivo(tipo)) nota_etiqueta(xt + 2, x + 320, "no Desafiante e no modo 2 jogadores", "Desafiante e 2 jogadores");
     if (de_natal(tipo)) nota_etiqueta(xt + 2, x + 320, "de Natal: de 20 de outubro a 6 de janeiro", "de Natal: 20 out. a 6 jan.");
     if (tipo == D_TSUNAMI) nota_etiqueta(xt + 2, x + 320, "nasce da Onda", NULL);
     if (tipo == D_D20) nota_etiqueta(xt + 2, x + 320, "sai do Presente e da Sacola de Presente", "do Presente e da Sacola");

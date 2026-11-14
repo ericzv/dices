@@ -1760,7 +1760,7 @@ int main(void)
             CONFERE(d.est[1][0] == V_ANULADO && d.total[0] == 10 && d.total[1] == 0, "Tsunami com 10 anula o 5");
             limpa(); joga(1, D_D6, 5); joga(0, D_TSUNAMI, 8); d = fim();
             CONFERE(d.est[1][0] == V_VALIDO, "Tsunami com 8 nao anula");
-            CONFERE(sem_sorteio(D_TSUNAMI) && peso_dado(D_TSUNAMI) == 0 && !dado_liberado(D_TSUNAMI) && no_catalogo(D_TSUNAMI),
+            CONFERE(sem_sorteio(D_TSUNAMI) && peso_dado(D_TSUNAMI, 0) == 0 && !dado_liberado(D_TSUNAMI) && no_catalogo(D_TSUNAMI),
                     "Tsunami: so da Onda, mas na colecao");
             // Tres Patinhos: na 3a, 6a... vez lancados, x3 se valem; a contagem fica no dado.
             limpa(); joga(0, D_PATINHOS, 3); d = fim();
@@ -2230,6 +2230,56 @@ int main(void)
                             && F[0].tipo[0] == t && F[0].presente[0], "Presente vira um raro (%s)", TIPO[t].nome);
                 }
                 CONFERE(viu20, "Presente tambem vira o D20");
+                // Os dados de adesivo (Piao, Camelo, Leque, Porta-Retrato, Papagaio,
+                // Colcha): fora do Desafiante, so no modo 2 jogadores e so para quem
+                // joga; a maquina e o online nao os ganham. Os so do Desafiante
+                // (Trono, Berserker, Autofagia, Garimpeiro) seguem so la.
+                {
+                    int cpu0 = cpu, r0 = rodada;
+                    static const int ADES[] = { D_PIAO, D_CAMELO, D_LEQUE, D_RETRATO, D_PAPAGAIO, D_COLCHA };
+                    for (int i = 0; i < 6; i++) {
+                        int t = ADES[i], dois = 0, maq = 0, onl = 0, rap = 0;
+                        for (rodada = 1; rodada <= 15; rodada++) {
+                            modo = M_DOIS; cpu = 0;  dois += peso_dado(t, 0) > 0 && peso_dado(t, 1) > 0;
+                            cpu = 2;                 maq += peso_dado(t, 1) > 0;
+                            modo = M_ONLINE; cpu = 0; onl += peso_dado(t, 0) > 0;
+                            modo = M_UM; cpu = 2;    rap += peso_dado(t, 0) > 0;
+                        }
+                        CONFERE(dois > 0 && !maq && !onl && !rap && dado_de_adesivo(t) && !so_desafio(t),
+                                "%s: no premio do modo 2 jogadores (%d), nao para a maquina (%d), no online (%d) nem na rapida (%d)",
+                                TIPO[t].nome, dois, maq, onl, rap);
+                    }
+                    static const int SO[] = { D_TRONO, D_BERSERKER, D_AUTOFAGIA, D_GARIMPEIRO };
+                    for (int i = 0; i < 4; i++) {
+                        int n = 0;
+                        modo = M_DOIS; cpu = 0;
+                        for (rodada = 1; rodada <= 15; rodada++) n += peso_dado(SO[i], 0) > 0;
+                        CONFERE(!n && dado_fora_do_modo(SO[i], 0), "%s segue so no Desafiante", TIPO[SO[i]].nome);
+                    }
+                    // O Presente de quem joga, no modo 2 jogadores, tambem vira um deles
+                    // (o Camelo e o Leque sao raros); o da maquina, nao.
+                    bool viu_ad = false, maq_ad = false;
+                    modo = M_DOIS;
+                    for (int q = 1; q <= 40; q++) {
+                        lance_fixo = q;
+                        cpu = 0; limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = -1;
+                        viu_ad |= dado_de_adesivo(desembrulha(0, 0, lance_q));
+                        cpu = 1; limpa(); F[0].tipo[0] = D_PRESENTE; F[0].idx[0] = -1;
+                        maq_ad |= dado_de_adesivo(desembrulha(0, 0, lance_q));
+                    }
+                    CONFERE(viu_ad && !maq_ad, "Presente no modo 2 jogadores: dado de adesivo para quem joga (%d), nao para a maquina (%d)", viu_ad, maq_ad);
+                    // O Camelo fora do Desafiante ja vem armado: todo lado com adesivo do premio.
+                    modo = M_DOIS; cpu = 0;
+                    peca_t c = nova_peca(D_CAMELO);
+                    int cheios = 0;
+                    for (int l = 1; l <= 12; l++) cheios += ad_no_lado(&c, l) != AD_NADA && ad_no_premio(ad_no_lado(&c, l));
+                    CONFERE(cheios == 12, "Camelo no modo 2 jogadores vem com os 12 lados cheios (%d)", cheios);
+                    modo = M_DESAFIO;
+                    c = nova_peca(D_CAMELO);
+                    CONFERE(ad_quantos(&c) == 0, "Camelo do Desafiante vem vazio (arma no comeco da partida)");
+                    modo = M_DOIS;
+                    cpu = cpu0; rodada = r0;
+                }
                 for (int m = 0; m < 2; m++) {            // nos dois modos, e para os dois lados
                     modo = m ? M_DESAFIO : M_DOIS;
                     for (int j = 0; j < 2; j++) {
@@ -2296,14 +2346,14 @@ int main(void)
                 int antes = natal_forcado;
                 natal_forcado = 0; le_epoca();
                 int fora = n_catalogo();
-                CONFERE(!natal && sem_sorteio(D_TRENO) && peso_dado(D_JINGLE) == 0 && !dado_liberado(D_BONECO)
+                CONFERE(!natal && sem_sorteio(D_TRENO) && peso_dado(D_JINGLE, 0) == 0 && !dado_liberado(D_BONECO)
                         && !no_catalogo(D_TRENO) && !estilo_aberto(0, ABRE_FELTRO[FT_NATAL]), "fora do Natal: nada de Natal");
                 natal_forcado = 1; le_epoca();
                 rodada = 12;                                         // o premio dos raros
-                CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_TRENO) > 0 && dado_liberado(D_BONECO)
+                CONFERE(natal && !sem_sorteio(D_TRENO) && peso_dado(D_TRENO, 0) > 0 && dado_liberado(D_BONECO)
                         && n_catalogo() == fora + 9 && estilo_aberto(-1, ABRE_FELTRO[FT_NATAL]), "no Natal: tudo aberto");
                 rodada = 8;                                          // o Jingle Bell e incomum: no premio do meio
-                CONFERE(peso_dado(D_JINGLE) > 0 && TIPO[D_JINGLE].raridade == RAR_INCOMUM, "no Natal: o Jingle Bell (incomum) no premio");
+                CONFERE(peso_dado(D_JINGLE, 0) > 0 && TIPO[D_JINGLE].raridade == RAR_INCOMUM, "no Natal: o Jingle Bell (incomum) no premio");
                 rodada = 12;
                 CONFERE(nivel_do_dado(D_TRENO) == 0 && no_pacote(D_TRENO) && no_pacote(D_BONECO) && no_pacote(D_JINGLE),
                         "os de Natal: sem nivel, nos pacotes");
@@ -2391,7 +2441,7 @@ int main(void)
         // O Dado Misterioso e oculto: um d20 sem poder, fora do premio, da loja
         // e da liberacao. Na colecao ele aparece fechado, como conquista secreta.
         CONFERE(TIPO[D_MISTERIOSO].lados == 20 && TIPO[D_MISTERIOSO].efeito == EF_NADA, "Misterioso: um d20 comum");
-        CONFERE(peso_dado(D_MISTERIOSO) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
+        CONFERE(peso_dado(D_MISTERIOSO, 0) == 0 && !dado_liberado(D_MISTERIOSO), "Misterioso nao sai em sorteio");
         {
             int vis = 0, achou = 0;
             for (int t = 0; t < D_N; t++) vis += !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t);
@@ -2494,19 +2544,19 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 8 + 9, "Trono no meio: esperava 17, deu %d", d.total[0]);
         // Nenhum deles entra no sorteio das partidas basicas.
-        for (int t = 0; t < D_N; t++) if (so_desafio(t)) CONFERE(peso_dado(t) == 0, "dado %d na partida basica", t);
+        for (int t = 0; t < D_N; t++) if (so_desafio(t)) CONFERE(peso_dado(t, 0) == 0, "dado %d na partida basica", t);
         // Fora do Desafiante, o premio sobe de raridade com as rodadas: 1 a 5,
         // comuns e incomuns; 6 a 10, incomuns e raros; 11 em diante, raros e
         // lendarios. A loja do comeco: so comuns e incomuns.
         int rod_antes = rodada;
         rodada = 3;
-        CONFERE(peso_dado(D_VIDRO) > 0 && peso_dado(D_JACKPOT) > 0 && peso_dado(D_CARIDOSO) == 0 && peso_dado(D_D20) == 0,
+        CONFERE(peso_dado(D_VIDRO, 0) > 0 && peso_dado(D_JACKPOT, 0) > 0 && peso_dado(D_CARIDOSO, 0) == 0 && peso_dado(D_D20, 0) == 0,
                 "rodada 3: so comuns e incomuns");
         rodada = 8;
-        CONFERE(peso_dado(D_VIDRO) == 0 && peso_dado(D_JACKPOT) > 0 && peso_dado(D_CARIDOSO) > 0 && peso_dado(D_D20) == 0,
+        CONFERE(peso_dado(D_VIDRO, 0) == 0 && peso_dado(D_JACKPOT, 0) > 0 && peso_dado(D_CARIDOSO, 0) > 0 && peso_dado(D_D20, 0) == 0,
                 "rodada 8: so incomuns e raros");
         rodada = 12;
-        CONFERE(peso_dado(D_JACKPOT) == 0 && peso_dado(D_CARIDOSO) > 0 && peso_dado(D_D20) > 0, "rodada 12: so raros e lendarios");
+        CONFERE(peso_dado(D_JACKPOT, 0) == 0 && peso_dado(D_CARIDOSO, 0) > 0 && peso_dado(D_D20, 0) > 0, "rodada 12: so raros e lendarios");
         rodada = rod_antes;
         for (unsigned i = 0; i < sizeof VITRINE; i++)
             CONFERE(TIPO[VITRINE[i]].raridade <= RAR_INCOMUM, "a loja do comeco vende o raro %s", TIPO[VITRINE[i]].nome);
@@ -6365,7 +6415,7 @@ int main(void)
             CONFERE(risco(0) == 100, "Fantasma depois de um 4 cai com certeza (%d)", risco(0));
             some_fantasmas();
             CONFERE(J[0].n_col == antes, "fim da partida: o Fantasma some");
-            CONFERE(peso_dado(D_FANTASMA) == 0 && !dado_liberado(D_FANTASMA), "Fantasma nao sai em sorteio");
+            CONFERE(peso_dado(D_FANTASMA, 0) == 0 && !dado_liberado(D_FANTASMA), "Fantasma nao sai em sorteio");
             // O Coringa: monta 3; o quarto e a copia do seu dado que tirou mais
             // no seu turno (empate: o ultimo).
             reg_op = REG_CORINGA;

@@ -445,6 +445,12 @@ lendários: Chumbo, Mira, Holográfico, Bilhete Premiado, Nota Dez e
 Carimbo). Levando o adesivo, você escolhe o dado da sua
 bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
+Os seis dados que vivem de adesivo - o Pião, o Camelô, o Leque, o
+Porta-Retrato, o Papagaio e a Colcha de Retalhos - também saem no prêmio (e
+no Presente) de quem joga no modo 2 jogadores; contra a máquina e no online,
+não. Fora do Desafiante o Camelô já chega com a banca armada: um adesivo
+sorteado em cada lado, entre os que saem no prêmio. O Trono, o Berserker, a
+Autofagia e o Garimpeiro continuam só no Desafiante.
 
 ## Jogar no navegador (e online)
 

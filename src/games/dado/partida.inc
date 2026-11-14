@@ -629,6 +629,11 @@ static int sorteia_peca(int t, int fixo, const peca_t *p, int (*r)(int), int *me
     return x;
 }
 
+// Fora do Desafiante, quem pode ganhar adesivo (e os dados que vivem dele):
+// no modo 2 jogadores, quem joga; a maquina e o online, nao.
+static bool adesivo_no_modo(int j) { return modo == M_DOIS && !(cpu >> j & 1); }
+static bool dado_fora_do_modo(int t, int j) { return so_desafio(t) || (dado_de_adesivo(t) && !adesivo_no_modo(j)); }
+
 // O Presente desembrulha no lance: um dado raro ao acaso, ou o D20 (o dado
 // especial, que nao se vende) - no Desafiante, os seus so entre os que voce
 // ja abriu -, que sai dele e fica no lugar dele na
@@ -649,7 +654,7 @@ static int desembrulha(int j, int k, int (*r)(int))
     int ok[D_N], n = 0;
     for (int t = 0; t < D_N; t++) {
         if ((TIPO[t].raridade != RAR_RARO && t != D_D20) || sem_sorteio(t) || t == D_PRESENTE) continue;
-        if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : so_desafio(t)) continue;
+        if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : dado_fora_do_modo(t, j)) continue;
         ok[n++] = t;
     }
     int t = n ? ok[r(n) - 1] : D_D6;
@@ -661,6 +666,7 @@ static int desembrulha(int j, int k, int (*r)(int))
     if (i >= 0 && i < J[j].n_col && J[j].col[i].tipo == D_PRESENTE) {   // a copia do Coringa nao tem peca
         J[j].col[i].tipo = (uint8_t)t;          // fica: os adesivos seguem com ele
         J[j].col[i].fixo = f->fixo[k];
+        if (t == D_CAMELO && modo != M_DESAFIO) camelo_enche(&J[j].col[i], r);   // fora do Desafiante, ja armado
         f->presente[k] = 2;
     }
     return t;

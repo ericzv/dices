@@ -16,20 +16,20 @@ static bool raridade_da_rodada(int rar, int r)
     return rar >= RAR_RARO;
 }
 
-static int peso_dado(int t)
+static int peso_dado(int t, int w)
 {
-    if (so_desafio(t) || sem_sorteio(t)) return 0;   // so no Modo Desafiante (ou em lugar nenhum)
+    if (dado_fora_do_modo(t, w) || sem_sorteio(t)) return 0;   // nao neste modo (ou em lugar nenhum)
     if (!raridade_da_rodada(TIPO[t].raridade, rodada)) return 0;
     static const int PESO[4] = { 8, 4, 2, 1 };
     return so_inicial(t) ? 0 : PESO[TIPO[t].raridade];
 }
-static int sorteia_tipo(void)
+static int sorteia_tipo(int w)
 {
     int total = 0;
-    for (int t = 0; t < D_N; t++) total += peso_dado(t);
+    for (int t = 0; t < D_N; t++) total += peso_dado(t, w);
     int r = sorte(total);
     for (int t = 0; t < D_N; t++) {
-        r -= peso_dado(t);
+        r -= peso_dado(t, w);
         if (r < 0) return t;
     }
     return D_D8;
@@ -45,7 +45,7 @@ static void premio_cola_larga(void);
 static bool premio_cabe(int a);
 static void premio_cola_desenha(void);
 static void cola_passo(float dt);
-static bool premio_com_adesivo(int w) { return modo == M_DOIS && !(cpu >> w & 1); }
+static bool premio_com_adesivo(int w) { return adesivo_no_modo(w); }
 static int peso_adesivo(int a)
 {
     if (!ad_no_premio(a) || !raridade_da_rodada(RAR_ADESIVO[a], rodada)) return 0;
@@ -214,7 +214,7 @@ static void abre_premio(int w)
         }
         bool rep;
         do {
-            oferta[i] = nova_peca(sorteia_tipo());
+            oferta[i] = nova_peca(sorteia_tipo(w));
             rep = false;
             for (int k = 0; k < i; k++) if (!oferta_ad[k] && oferta[k].tipo == oferta[i].tipo) rep = true;
         } while (rep);

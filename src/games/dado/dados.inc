@@ -206,7 +206,17 @@ static bool so_desafio(int t)
 {
     switch (t) {
     case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA: case D_GARIMPEIRO:
-    case D_PIAO: case D_CAMELO: case D_LEQUE: case D_RETRATO: case D_PAPAGAIO: case D_COLCHA:   // os de adesivo
+        return true;
+    default:
+        return false;
+    }
+}
+// Os que vivem de adesivo: fora do Desafiante, so no modo 2 jogadores, que e
+// onde o premio traz adesivo (e so para quem joga: a maquina nao cola).
+static bool dado_de_adesivo(int t)
+{
+    switch (t) {
+    case D_PIAO: case D_CAMELO: case D_LEQUE: case D_RETRATO: case D_PAPAGAIO: case D_COLCHA:
         return true;
     default:
         return false;
@@ -216,13 +226,13 @@ static bool so_desafio(int t)
 static int n_basicos(void)
 {
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !sem_sorteio(t);
+    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !dado_de_adesivo(t) && !sem_sorteio(t);
     return n;
 }
 static int basico(int i)
 {
     for (int t = 0; t < D_N; t++)
-        if (!so_desafio(t) && !sem_sorteio(t) && i-- == 0) return t;
+        if (!so_desafio(t) && !dado_de_adesivo(t) && !sem_sorteio(t) && i-- == 0) return t;
     return D_D6;
 }
 

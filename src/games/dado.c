@@ -37,7 +37,7 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.26"
+#define DADO_VERSAO "v1.27"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
@@ -127,7 +127,7 @@ int  dado_dbg_pronta(void)   { return abertura_pronta; }
 int  dado_dbg_ver(void)      { return ver_tipo; }
 const char *dado_dbg_veredito(void) { return veredito; }
 int  dado_dbg_n_ev(void)     { return n_ev; }
-int  dado_dbg_sorteia(void)  { return sorteia_tipo(); }
+int  dado_dbg_sorteia(void)  { return sorteia_tipo(0); }
 const char *dado_dbg_cat_nome(void) { return cat_sec == 0 ? TIPO[cat_tipo(cat_i)].nome : "amuleto"; }
 int  dado_dbg_ev_tipo(void)  { return ev_i < n_ev ? ev[ev_i].tipo : -1; }
 void dado_dbg_cpu(int mascara) { cpu = mascara; }

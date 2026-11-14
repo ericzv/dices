@@ -100,12 +100,14 @@ static int relogio_valor(void) { return rodada < 1 ? 1 : rodada > RELOGIO_MAX ? 
 
 static void adesiva(peca_t *p, int (*r)(int), bool desafio);
 static void colcha_remenda(peca_t *p);
+static void camelo_enche(peca_t *p, int (*r)(int));
 static peca_t nova_peca(int tipo)
 {
     peca_t p = { .tipo = (uint8_t)tipo, .fixo = 0 };
     if (tipo == D_QUEBRADO) p.fixo = (uint8_t)rola(8);
     if (tipo == D_ADESIVADO || tipo == D_MAIS_ADESIVADO) adesiva(&p, rola, modo == M_DESAFIO);   // ja vem com os adesivos
     if (tipo == D_COLCHA) colcha_remenda(&p);    // e a Colcha, com os tres Remendos
+    if (tipo == D_CAMELO && modo != M_DESAFIO) camelo_enche(&p, rola);   // fora do Desafiante, o Camelo ja vem armado
     return p;
 }
 

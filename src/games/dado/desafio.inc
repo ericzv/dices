@@ -19,6 +19,7 @@
 #include "desafio/retratos.inc"   // os bustos em pixels
 #include "desafio/amuletos.inc"   // os amuletos da run
 #include "desafio/perfis.inc"     // ate 3 perfis por aparelho
+#include "desafio/conquistas.inc" // os itens que abrem por um feito, e nao por um chefe
 #include "desafio/mapa.inc"       // o sorteio, a loja, as mesas de cada salao e os oponentes
 #include "desafio/bolsas.inc"     // as bolsas do comeco da run: regra, icone e o que abre cada uma
 #include "desafio/andamento.inc"  // salvamento e andamento da run

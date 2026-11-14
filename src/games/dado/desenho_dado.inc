@@ -4004,6 +4004,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
         cores[1] = tom_desenho(corpo, vi->c1, vi->p1);
         cores[2] = tom_desenho(corpo, vi->c2, vi->p2);
         cores[3] = tom_desenho(corpo, vi->c3, vi->p3);
+        if (tipo == D_JINGLE && marca_nivel > 0) cores[3] = tom_desenho(corpo, V_VERDE, vi->p3);   // a copia: o laco verde (o original, vermelho)
         for (int i = 1; i < 4; i++) rampa_de(cores[i], rampas_desta[i]);   // os tons com luz (LUZ)
         if (comum) memcpy(tons, mt->tons, sizeof tons);
         else tons_do_corpo(corpo, tons);

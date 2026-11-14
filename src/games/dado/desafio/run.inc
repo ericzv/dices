@@ -172,7 +172,7 @@ static const perso_t PERSO[] = {
         { "Faz parte do número.", "Um truque falhou. Tenho outros." },
         { "E para o grand finale...", "Aplausos, por favor." },
         { "Bravo! Você viu o truque.", "Um mágico nunca explica a derrota." } },
-      7, { D_ESPELHO, D_COPIADOR }, ES_NORMAL },
+      7, { D_OCULTO, D_ESPELHO, D_COPIADOR }, ES_NORMAL },     // o Oculto: o dado do encontro (conquistas.inc)
     { "O CAUBÓI",        "Atira primeiro, pergunta depois.",   0.6f,
       { D_REVOLVER, D_LASER, D_EXPLOSIVO, D_DESAFIANTE, D_D12, D_VICIADO, 0xFF },
       "Saque rápido", "O primeiro dado da sequência dele pontua +1.", 0, REG_SAQUE,
@@ -192,7 +192,7 @@ static const perso_t PERSO[] = {
         { "Também isso passará.", "Uma lição, não uma perda." },
         { "Não há vencedor. Só o caminho.", "Medite sobre isso." },
         { "Você está em paz com a sorte.", "O aluno superou o mestre." } },
-      5, { D_SENTINELA, D_SOLITARIO }, ES_NORMAL },
+      5, { D_MISERICORDIOSO, D_SENTINELA, D_SOLITARIO }, ES_NORMAL },   // o Misericordioso: o do encontro
     { "A DETETIVE",      "Já sabe o que você vai jogar.",      0.0f,
       { D_INVEJOSO, D_COBRADOR, D_MARTELO, D_D12, D_D8, 0xFF },
       "Última palavra", "Na 1ª rodada e quando está atrás em fichas, ela joga por último.", 0, REG_ULTIMA,
@@ -265,7 +265,7 @@ static const perso_t PERSO[] = {
         { "Tudo volta para o pó.", "Hm. Cedo demais." },
         { "Encomendo as flores.", "Que descanse em paz." },
         { "Você escapou. Desta vez.", "Guardo o seu lugar." } },
-      8, { D_MARTIR, D_COVEIRO }, ES_NORMAL },
+      8, { D_COVEIRO, D_MARTIR }, ES_NORMAL },   // o Coveiro: o dado do encontro, primeiro
     // ...e o chefe do salao final, depois do Barao, do Nivel 5 em diante. A
     // regra cresce no 7 (veja regra_perso).
     { "O CORINGA",       "Ri de tudo. Principalmente de você.", 0.7f,

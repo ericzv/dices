@@ -95,6 +95,7 @@ static uint32_t hash_largo(void)
         xbytes(&h, J[j].col, sizeof(peca_t) * (size_t)J[j].n_col);
         xbytes(&h, J[j].onde, (size_t)J[j].n_col);
         xbytes(&h, J[j].pavio, sizeof J[j].pavio);
+        xbytes(&h, J[j].de_copia, sizeof J[j].de_copia);
         xbytes(&h, J[j].mao, sizeof J[j].mao);
         const fila_t *f = &F[j];
         XMIX(f->n); XMIX(f->lancados); XMIX(f->pontos); XMIX(f->total); XMIX(f->carta); XMIX(f->grudado); XMIX(f->chiclete);

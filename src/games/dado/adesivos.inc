@@ -378,6 +378,21 @@ static void colcha_remenda(peca_t *p)
 {
     for (int l = 1; l <= 3; l++) ad_cola(p, l, AD_REMENDO);
 }
+// O Camelo fora do Desafiante (o modo 2 jogadores): a partida e uma so, entao
+// ele ja chega com a banca armada - cada lado vazio com um adesivo sorteado
+// entre os que saem no premio, todos com a mesma chance. r sorteia de 1 a n.
+static void camelo_enche(peca_t *p, int (*r)(int))
+{
+    int total = 0;
+    for (int a = AD_NADA + 1; a < AD_N; a++) total += ad_no_premio(a);
+    if (!total) return;
+    for (int l = ad_lado_min(p->tipo); l <= ad_lado_max(p->tipo); l++) {
+        if (ad_no_lado(p, l) != AD_NADA) continue;
+        int x = r(total) - 1, a = AD_NADA + 1;
+        for (; a < AD_N; a++) if (ad_no_premio(a) && x-- == 0) break;
+        if (a < AD_N) ad_cola(p, l, a);
+    }
+}
 static void adesiva(peca_t *p, int (*r)(int), bool desafio)
 {
     if (p->tipo == D_MAIS_ADESIVADO) {

@@ -126,6 +126,7 @@ static void executa(int op)
         p->perdeu_ultima = true;
         J[w].perdeu_ultima = false;
         J[w].fichas += pote;
+        int levou = pote;
         snprintf(aviso, sizeof aviso, "%s correu. %s leva %d", p->nome, J[w].nome, pote);
         mau_olhado(w);                                                // Mau-Olhado, a Bruxaria
         som_toca(SOM_CORREU);
@@ -137,6 +138,10 @@ static void executa(int op)
         memset(cosmo_recem, 0, sizeof cosmo_recem);   // o ciclo cosmico valendo evolui mesmo assim
         for (int j = 0; j < 2; j++) cosmo_ficam(j, F[j].est);
         for (int j = 0; j < 2; j++) contadores_correu(j);   // o Revolver que disparou esvazia; o lancado carrega
+        if (modo == M_DESAFIO) {          // o oponente correu: conta como rodada vencida (as bolsas e as conquistas)
+            if (w == 0) des_rodada_vencida(levou);
+            cq_rodada(w == 0 ? 0 : 1, w == 0 ? levou : 0, true);
+        }
         recolhe_quebrados();
         t_fase = 0;
         fase = F_RESULTADO;

@@ -73,6 +73,7 @@ int main(void)
     snprintf(perfis[0].nome, sizeof perfis[0].nome, "TESTE");
     perfis[0].nivel = 10; perfis[0].marcos = 3; perfil_atual = 0; perfis_lidos = true;
     perfis[0].bolsas = 0xFF;
+    perfis[0].conq = ~0ull;                      // as conquistas ja feitas: a loja sai direto ao mapa
     des_dif = 2; des_bolsa = B_LATA; des_nova_run(); t_elev = 0; passa(30);
     amuleto_escolhido(1);
     run.andar = 0; gera_andar(); run.passo = 0;

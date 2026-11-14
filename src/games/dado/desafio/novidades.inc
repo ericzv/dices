@@ -7,7 +7,7 @@
 // nova e o pedaco de quem fecha a run). Os cards esperam de costas na fileira de baixo; um de cada
 // vez sobe, vira no meio da mesa e volta de frente para o lugar, sozinho.
 // ENTER acelera, TAB mostra tudo; no fim, o resumo (com um card so, ele fica).
-#define NOV_MAX   (PEDACO_MAX + 2)       // um pedaco, o dado do marco e a dificuldade
+#define NOV_MAX   (PEDACO_MAX + 2 + CQ_FILA)   // um pedaco, o dado do marco, a dificuldade e as conquistas
 #define NOV_ENTRA 0.35f                  // a fileira aparece antes do primeiro
 #define NOV_VOA   0.22f                  // de costas, da fileira ao meio
 #define NOV_VIRA  0.20f
@@ -18,13 +18,35 @@
 #define NOV_FY    (MESA_Y1 - 24)         // a fileira
 static novidade_t nov[NOV_MAX];
 static int  n_nov;
-static bool nov_da_run;                  // depois: os creditos (fim da run) ou a run segue (o chefe)
+static int  nov_depois;                  // o que vem depois dos cards (NOVD_*, andamento.inc)
 static char nov_sub[64];
 static int  nov_tocou;                   // quantos cards ja viraram, com o som
 static bool nov_fim_tocou;
 
 static int nov_quantas(void) { return n_nov; }
-static void nov_poe(int k, int v) { if (n_nov < NOV_MAX) nov[n_nov++] = (novidade_t){ (uint8_t)k, (uint8_t)v }; }
+static void nov_poe(int k, int v) { if (n_nov < NOV_MAX) nov[n_nov++] = (novidade_t){ (uint8_t)k, (uint8_t)v, 0 }; }
+// As conquistas que esperavam (conquistas.inc): o card de cada item, com o feito.
+static void nov_poe_conquistas(void)
+{
+    static const uint8_t NV_DE[3] = { NV_DADO, NV_AMULETO, NV_ADESIVO };
+    for (int i = 0; i < n_cq_cards && n_nov < NOV_MAX; i++) {
+        int c = cq_cards[i];
+        nov[n_nov++] = (novidade_t){ NV_DE[CONQ[c].k], CONQ[c].item, (uint8_t)(c + 1) };
+    }
+    n_cq_cards = 0;
+}
+static int nov_conquistas(void)          // quantas conquistas na fileira
+{
+    int n = 0;
+    for (int i = 0; i < n_nov; i++) n += nov[i].cq != 0;
+    return n;
+}
+static void nov_sub_conquistas(void)
+{
+    int n = nov_conquistas();
+    if (n == 1) snprintf(nov_sub, sizeof nov_sub, "Uma conquista: um item novo na Coleção");
+    else snprintf(nov_sub, sizeof nov_sub, "%d conquistas: itens novos na Coleção", n);
+}
 
 // A dificuldade e os lendarios ficam mais tempo no meio, com o som grande.
 static bool nov_grande(int i)
@@ -77,9 +99,10 @@ static void nov_monta_run(void)
     n_nov = 0;
     if (des_liberou > 0) nov_poe(NV_DIF, des_liberou);
     nov_poe_pedaco();
+    nov_poe_conquistas();
     snprintf(nov_sub, sizeof nov_sub, "Você venceu %s no %s", PERSO[run.no[run.passo].perso].nome,
              NOME_DIF_CURTO[run.dificuldade]);
-    nov_da_run = true;
+    nov_depois = NOVD_RUN;
 }
 
 // A linha da tela do fim da run: quantas, e a dificuldade que abriu.
@@ -103,25 +126,42 @@ static void nov_abre(void)
 // Um chefe vencido no meio da run: o pedaco dele (na primeira vez nesta
 // dificuldade) e, na primeira vitoria contra o Crupie e a Dona, o D20 e o
 // Lastro.
-static bool nov_tem_chefe(void) { return des_marco >= 0 || des_chefe_novo; }
+static bool nov_tem_chefe(void) { return des_marco >= 0 || des_chefe_novo || n_cq_cards; }
 static void nov_abre_chefe(void)
 {
     n_nov = 0;
-    bool so_marco = !des_chefe_novo;
+    bool chefe = des_chefe_novo, marco = des_marco >= 0;
     if (des_marco >= 0) nov_poe(NV_DADO, des_marco);
     nov_poe_pedaco();
+    nov_poe_conquistas();
     const char *nome = PERSO[run.no[run.passo].perso].nome;
-    if (so_marco) snprintf(nov_sub, sizeof nov_sub, "Primeira vitória contra %s", nome);
-    else snprintf(nov_sub, sizeof nov_sub, "Você venceu %s no %s", nome, NOME_DIF_CURTO[run.dificuldade]);
-    nov_da_run = false;
+    if (chefe) snprintf(nov_sub, sizeof nov_sub, "Você venceu %s no %s", nome, NOME_DIF_CURTO[run.dificuldade]);
+    else if (marco) snprintf(nov_sub, sizeof nov_sub, "Primeira vitória contra %s", nome);
+    else nov_sub_conquistas();
+    nov_depois = NOVD_CHEFE;
     des_marco = -1;
     nov_abre();
 }
+// So as conquistas: depois da partida perdida (antes do fim da run, o
+// consolo) ou ao sair da loja.
+static void nov_abre_conquistas(int depois)
+{
+    n_nov = 0;
+    nov_poe_conquistas();
+    nov_sub_conquistas();
+    nov_depois = depois;
+    nov_abre();
+}
 
+static void loja_sai_segue(void);        // loja.inc
 static void nov_segue(void)
 {
-    if (nov_da_run) { t_fase = 0; fase = F_CREDITOS; }   // venceu a run: os creditos antes do menu
-    else des_pos_vitoria();                               // o chefe: o amuleto dele e a loja
+    switch (nov_depois) {
+    case NOVD_RUN:     t_fase = 0; fase = F_CREDITOS; break;   // venceu a run: os creditos antes do menu
+    case NOVD_DERROTA: encerra_run(false); break;                // e entao o fim da run
+    case NOVD_LOJA:    loja_sai_segue(); break;                  // e entao o mapa
+    default:           des_pos_vitoria(); break;                 // o chefe: o amuleto dele e a loja
+    }
 }
 
 // O som de cada card quando ele vira: um semitom acima a cada um; o grande
@@ -399,7 +439,11 @@ static void desenha_novidades(void)
     if (etapa == 2) nov_raios(i, cx, NOV_CY, desde, desde < 0.15f ? desde / 0.15f : 1);
     else if (etapa == 3) nov_raios(i, cx, NOV_CY, desde, 1 - q);
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 4, "NOVIDADES", C_OURO, 2);
-    txt_c(GFX_W / 2, MESA_Y0 + 30, nov_sub, C_TEXTO_M, false);
+    if (etapa >= 0 && etapa < 4 && i < n_nov && nov[i].cq) {   // o card de uma conquista: o feito, em cima
+        char s[160];
+        snprintf(s, sizeof s, "Conquista: %s", CONQ[nov[i].cq - 1].texto);
+        txt_c(GFX_W / 2, MESA_Y0 + 30, s, C_OURO, false);
+    } else txt_c(GFX_W / 2, MESA_Y0 + 30, nov_sub, C_TEXTO_M, false);
     if (etapa == 4) {
         nov_resumo(desde);
         rodape_run("ENTER segue");

@@ -36,6 +36,7 @@ typedef struct {
     uint8_t balao[2];                // os Baloes que estouraram: o ar zera
     uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
     uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
+    uint8_t ad_agiram[2];            // quantos adesivos de cada um agiram na rodada (a conquista da Purpurina)
 } desfecho_t;
 
 static int contribui(int j, int k)
@@ -1990,6 +1991,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (carimbado(d, j, k)) { purp_md[n_purp] = (uint8_t)(md | EVM_CARIMBO); purp[n_purp++] = k; n_purp_ad++; }
     }
     int cada = PURPURINA_CADA * (agiram + n_purp_ad);
+    d->ad_agiram[j] = (uint8_t)(agiram + n_purp_ad > 250 ? 250 : agiram + n_purp_ad);
     for (int i = 0; i < n_purp; i++) {
         d->semente[j] += cada;
         const char *pre = purp_md[i] & EVM_CARIMBO ? "Carimbo » " : purp_md[i] & EVM_DUPLA ? "Dupla Face » " : "";

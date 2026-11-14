@@ -1280,22 +1280,6 @@ static void ad_novo_solto(int cx, int cy, int a, int s, float descola)
     ad_novo_solto_r((float)cx, (float)cy, a, an_raio_solto(a, s), descola, s >= 2 ? 2 : 1, s >= 2 ? 3 : 1);
 }
 
-// A silhueta do recorte solto, numa cor so (o que ainda nao abriu, na
-// prateleira da colecao).
-static void ad_novo_silhueta(int cx, int cy, int a, int s, uint16_t cor)
-{
-    const ad_novo_t *v = &AD_NOVO[a];
-    float R = an_raio_solto(a, s), th = v->giro * 0.017453f;
-    int marg = R >= 20 ? 2 : 1;
-    int m = (int)(R * 1.25f) + marg + 3;
-    if (2 * m + 1 > AN_G) m = (AN_G - 1) / 2;
-    int W = 2 * m + 1;
-    an_grade(a, W, -m + 0.5f, -m + 0.5f, cosf(-th), sinf(-th), R);
-    for (int j = 0; j < W; j++)
-        for (int i = 0; i < W; i++)
-            if (an_dd[j * W + i] < marg + 1) gfx_pixel(cx - m + i, cy - m + j, cor);
-}
-
 // O selinho do lado (a pilula com o numero) no estilo novo: a cor do
 // recorte, a borda branca do papel e o numero escuro ou claro, o que ler.
 static bool ad_pilula_nova(int a, uint16_t *borda, uint16_t *fundo, uint16_t *tinta)

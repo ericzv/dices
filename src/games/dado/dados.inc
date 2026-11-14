@@ -206,7 +206,17 @@ static bool so_desafio(int t)
 {
     switch (t) {
     case D_TRONO: case D_BERSERKER: case D_AUTOFAGIA: case D_GARIMPEIRO:
-    case D_PIAO: case D_CAMELO: case D_LEQUE: case D_RETRATO: case D_PAPAGAIO: case D_COLCHA:   // os de adesivo
+        return true;
+    default:
+        return false;
+    }
+}
+// Os que vivem de adesivo: fora do Desafiante, so no modo 2 jogadores, que e
+// onde o premio traz adesivo (e so para quem joga: a maquina nao cola).
+static bool dado_de_adesivo(int t)
+{
+    switch (t) {
+    case D_PIAO: case D_CAMELO: case D_LEQUE: case D_RETRATO: case D_PAPAGAIO: case D_COLCHA:
         return true;
     default:
         return false;
@@ -216,13 +226,13 @@ static bool so_desafio(int t)
 static int n_basicos(void)
 {
     int n = 0;
-    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !sem_sorteio(t);
+    for (int t = 0; t < D_N; t++) n += !so_desafio(t) && !dado_de_adesivo(t) && !sem_sorteio(t);
     return n;
 }
 static int basico(int i)
 {
     for (int t = 0; t < D_N; t++)
-        if (!so_desafio(t) && !sem_sorteio(t) && i-- == 0) return t;
+        if (!so_desafio(t) && !dado_de_adesivo(t) && !sem_sorteio(t) && i-- == 0) return t;
     return D_D6;
 }
 
@@ -678,8 +688,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "a 6 de janeiro.",
     [D_BONECO]          = "Oito lados. Se terminar válido tirando 8, no fim da rodada congela e anula o 4º dado da sequência "
                           "do oponente, se ele lançou um 4º e esse dado puder ser anulado. Só aparece de 20 de outubro a 6 de janeiro.",
-    [D_JINGLE]          = "Seis lados. Cada vez que termina a rodada válido, uma cópia dele (com os mesmos adesivos) entra na "
-                          "sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
+    [D_JINGLE]          = "Seis lados. Cada vez que termina a rodada válido, uma cópia dele (de laço verde, com os mesmos adesivos) "
+                          "entra na sua bolsa até o fim da partida. Com 2 ou mais Jingle Bells válidos na sequência, os sinos tocam: "
                           "cada um pontua +4 no fim, fora dos multiplicadores. Só aparece de 20 de outubro a 6 de janeiro.",
     [D_FURIA]           = "Seis lados. Cada vez que tira 4, 5 ou 6, guarda +2 de bônus; cada vez que tira 1 ou 2, perde 1 (o 3 "
                           "não mexe). O bônus "
@@ -834,9 +844,10 @@ static void classe(int tipo, char *s, int n)
     else snprintf(s, (size_t)n, "%s · %s", nome_tipo(tipo), nome_raridade(tipo));
 }
 
-// O catalogo mostra os dados do mais comum ao mais raro, menos o oculto e,
-// fora da epoca, os de Natal.
-static bool no_catalogo(int t) { return !oculto(t) && !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t); }
+// O catalogo mostra os dados do mais comum ao mais raro, menos os segredos
+// (o ciclo cosmico, o Mais Adesivado) e, fora da epoca, os de Natal. O
+// Misterioso aparece: fechado, como conquista secreta (conquistas.inc).
+static bool no_catalogo(int t) { return !fora_de_epoca(t) && !cosmo_oculto(t) && !adesivado_secreto(t) && !aposentado(t); }
 static int n_catalogo(void)
 {
     int n = 0;

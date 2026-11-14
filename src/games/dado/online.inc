@@ -48,7 +48,7 @@ static uint32_t hash_partida(void)
             MIX(c->tipo); MIX(c->fixo);
             for (int l = 0; l < AD_LADOS; l++) MIX(c->ad[l]);
             MIX(c->fermento); MIX(c->capa); MIX(c->selo); MIX(c->velcro); MIX(c->figurinha); MIX(c->chiclete);
-            MIX(p->onde[i]); MIX(p->pavio[i]);
+            MIX(p->onde[i]); MIX(p->pavio[i]); MIX(p->de_copia[i]);
         }
         for (int m = 0; m < MAO; m++) MIX(p->mao[m]);
         const fila_t *f = &F[j];

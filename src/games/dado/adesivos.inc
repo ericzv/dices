@@ -33,7 +33,7 @@ enum { AD_NADA, AD_CHUMBO, AD_REFLEXIVO, AD_CONFETE, AD_ELETRONICO, AD_TRANSPARE
 #define GORJETA_FICHAS 4                        // a Gorjeta: o que o oponente te paga
 #define TIQUETE_VALIDOS 4                       // o Tiquete de Metro: com 4 dados validos na sequencia,
 #define TIQUETE_PONTOS 5                        // +5
-#define INFECTADO_PONTOS 2                      // o Infectado valendo: +2 no fim (e, ao cair, valendo ou nao, passa para outro lado da sua bolsa)
+#define INFECTADO_PONTOS 3                      // o Infectado valendo: +3 no fim (e, ao cair, valendo ou nao, passa para outro lado da sua bolsa)
 #define BARRO_LADOS 1                           // o Barro: os lados do dado do oponente que ficam sujos (para sempre)
 #define SUJEIRA_PONTOS 2                        // a Sujeira: -2 no placar de quem tirar o lado sujo
 #define RATOEIRA_PONTOS 2                       // a Ratoeira anulada (ate pela sequencia): o queijo fica
@@ -161,7 +161,7 @@ static const adesivo_t ADESIVO[AD_N] = {
     // barro que voce joga nos dados do oponente (la, o respingo vira uma
     // Sujeira, para sempre). O germe e uma bolinha de espinhos com
     // dois olhos; "w": o branco do olho, so no colorido.
-    [AD_INFECTADO]    = { "Infectado", "tirando este lado: infecta outro", "lado seu; se válido, +2", 6, 6,
+    [AD_INFECTADO]    = { "Infectado", "tirando este lado: infecta outro", "lado seu; se válido, +3", 6, 6,
                           RGB(130, 204, 112), RGB(206, 180, 218), RGB(102, 74, 138),
                           { "#..#..#", "..###..", ".#####.", "##w#w##", ".#####.", "..###..", "#..#..#" } },
     [AD_BARRO]        = { "Barro", "tirando este lado: suja 1 lado", "de um dado do oponente (-2 lá)", 3, 3,
@@ -479,7 +479,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_RATOEIRA]     = "Tirando este lado, se o dado terminar anulado: +2 pontos.",
     [AD_FIGURINHA]    = "Tirando este lado, se o dado terminar válido: +1 por figurinha juntada nos seus dados.",
     [AD_PATINHO]      = "Se o dado terminar válido: neste lado, -2 pontos; em qualquer outro, +2.",
-    [AD_ETIQUETA]     = "Tirando este lado, se o dado terminar válido: +1 ponto por Etiqueta nos dados da sua bolsa.",
+    [AD_ETIQUETA]     = "Tirando este lado, se válido: +1 por Etiqueta na bolsa. Com uma, todo pacote de adesivos traz mais uma.",
     [AD_BILHETE]      = "Tirando este lado, se o dado terminar válido: os bônus dos seus dados válidos valem em dobro.",
     [AD_NOTA_DEZ]     = "Tirando este lado, o dado vira para o lado mais alto.",
     [AD_CARBONO]      = "Tirando este lado, o dado copia o número do seu último dado válido.",
@@ -487,7 +487,7 @@ static const char *const AD_TEXTO[AD_N] = {
     [AD_IMPERMEAVEL]  = "Tirando este lado, o dado ganha uma bolha: não pode ser anulado nem destruído.",
     [AD_LENTICULAR]   = "Tirando este lado: válido, pontua x2; anulado, -4 no seu placar.",
     [AD_NEON]         = "Tirando este lado, se o dado terminar válido: +2 pontos por adesivo colado neste dado.",
-    [AD_INFECTADO]    = "Tirando este lado, o Infectado se espalha para um dado da sua bolsa. Válido: +2 pontos.",
+    [AD_INFECTADO]    = "Tirando este lado, o Infectado se espalha para um dado da sua bolsa. Válido: +3 pontos.",
     [AD_BARRO]        = "Tirando este lado, suja um dado do oponente: o lado sujo tira 2 pontos dele.",
     [AD_SUJEIRA]      = "O barro do oponente: tirando este lado, -2 no seu placar.",
     [AD_CHICLETE]     = "Tirando este lado, o dado gruda: na próxima rodada, abre a sua sequência com esse número.",
@@ -528,7 +528,7 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_VELCRO]       = "Válido ou anulado. Ele entra como um dos dados da compra, em vez de ir para fora.",
     [AD_RATOEIRA]     = "Vale até anulado pela sequência. Se foi o oponente que o anulou com um poder, a ratoeira fecha: o maior dado válido dele é anulado.",
     [AD_FIGURINHA]    = "Cada dado com Figurinha conta 1, mais 1 a cada vez que ela agiu nele nesta partida (duas no mesmo dado contam como uma). Volta a 1 na partida seguinte.",
-    [AD_ETIQUETA]     = "Conta cada adesivo de Etiqueta da bolsa, ela inclusive, num dado só ou em vários, sem limite. Não cresce na partida: cresce comprando mais.",
+    [AD_ETIQUETA]     = "Conta cada Etiqueta da bolsa, ela inclusive, num dado só ou em vários, sem limite. Com uma na bolsa, o pacote de adesivos traz, além das opções de sempre, uma Etiqueta.",
     [AD_BILHETE]      = "Os pontos de bônus dos poderes e dos adesivos, não o número que os dados tiraram.",
     [AD_NOTA_DEZ]     = "No d6, o 6; no d20, o 20 (com o Remendo lá, 2 a mais). Vira uma vez só: o adesivo do lado mais alto age no fim da rodada, mas não faz virar de novo.",
     [AD_CARBONO]      = "Igual não cai: a sequência não o anula (um poder ainda pode). O primeiro da sequência não tem o que copiar e fica com o que tirou.",
@@ -536,7 +536,7 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_IMPERMEAVEL]  = "A bolha fica até o fim da partida. Nem pela sequência. Um ataque que mire nele bate na bolha e não passa para outro dado; o Barro e a Casca de Banana do oponente não pegam nele. Ainda pode ser roubado.",
     [AD_LENTICULAR]   = "O x2 soma com os outros multiplicadores.",
     [AD_NEON]         = "Ele junto: com 6 adesivos, +12. A Sujeira também conta.",
-    [AD_INFECTADO]    = "Espalha assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um Infectado novo gruda num lado livre de um dado sorteado (pode ser este). Os novos ficam para sempre e também se espalham. Os +2 vêm no fim da rodada.",
+    [AD_INFECTADO]    = "Espalha assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um Infectado novo gruda num lado livre de um dado sorteado (pode ser este). Os novos ficam para sempre e também se espalham. Os +3 vêm no fim da rodada.",
     [AD_BARRO]        = "Suja assim que o dado cai, válido ou anulado, mesmo se o oponente correr: um lado livre de um dado sorteado da bolsa dele vira Sujeira, para sempre. Com a bolha do Impermeável, o barro não gruda.",
     [AD_SUJEIRA]      = "Válido ou anulado. Não sai mais do dado. O Neon conta a Sujeira como adesivo do dado; a Purpurina e o Holográfico, não.",
     [AD_CHICLETE]     = "Gruda assim que o dado cai, válido ou anulado, mesmo se alguém correr; na próxima, entra sem rolar e é sempre válido. Depois desgruda, volta a rolar normal e pode grudar de novo. Só um dado gruda por rodada. Número baixo é começo seguro; alto vale mais, mas sobe a régua.",

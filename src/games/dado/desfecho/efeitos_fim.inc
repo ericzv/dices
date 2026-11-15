@@ -365,11 +365,9 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         int n = 0;
         for (int i = c + 1; i < f->lancados; i++) n += est[i] == V_VALIDO;
         if (!n) continue;
-        d->semente[j] += 3 * n;
-        evento_t *e = evento(gera, EV_EXTRA, j, c, j, 0, 3 * n, "Checkpoint: %d dado%s depois dele, +%d",
-                             n, n > 1 ? "s" : "", 3 * n);
-        for (int i = c + 1; e && i < f->lancados && i < N_FILA; i++)
-            if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 3; }
+        evento_t *e = extra(d, gera, j, c, 3 * n, "Checkpoint: %d dado%s depois dele, +%d",
+                            n, n > 1 ? "s" : "", 3 * n);
+        marca_validos(e, est, c + 1, f->lancados, 3);
     }
     // Daqui ate o fim, os bonus fixos, fora dos multiplicadores (no mesmo
     // lugar da Semente): Jingle Bells, Estrela de Belem, Meia na Lareira, a
@@ -394,9 +392,8 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
             m_sino |= (uint8_t)(1 << k);
         }
     if (sinos >= 2) {
-        d->semente[j] += JINGLE_PTS * sinos;
-        evento_t *e = evento(gera, EV_EXTRA, j, sino0, j, 0, JINGLE_PTS * sinos, "Jingle Bells: %d sinos, +%d em cada",
-                             sinos, JINGLE_PTS);
+        evento_t *e = extra(d, gera, j, sino0, JINGLE_PTS * sinos, "Jingle Bells: %d sinos, +%d em cada",
+                            sinos, JINGLE_PTS);
         for (int i = 0; e && i < N_FILA; i++)
             if (m_sino >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = JINGLE_PTS; }
     }
@@ -407,11 +404,9 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         int n = 0;
         for (int i = 0; i < ult; i++) n += est[i] == V_VALIDO;
         if (n) {
-            d->semente[j] += ESTRELA_PTS * n;
-            evento_t *e = evento(gera, EV_EXTRA, j, ult, j, 0, ESTRELA_PTS * n, "Estrela de Belém no topo: %d dado%s, +%d",
-                                 n, n > 1 ? "s" : "", ESTRELA_PTS * n);
-            for (int i = 0; e && i < ult; i++)
-                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = ESTRELA_PTS; }
+            evento_t *e = extra(d, gera, j, ult, ESTRELA_PTS * n, "Estrela de Belém no topo: %d dado%s, +%d",
+                                n, n > 1 ? "s" : "", ESTRELA_PTS * n);
+            marca_validos(e, est, 0, ult, ESTRELA_PTS);
         }
     }
     // Meia na Lareira: valendo, paga o que guardou (fora dos multiplicadores);
@@ -420,8 +415,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         if (TIPO[tipo_de(j, k)].efeito != EF_MEIA) continue;
         // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
         if (est[k] == V_VALIDO && f->fixo[k]) {
-            d->semente[j] += f->fixo[k];
-            evento(gera, EV_EXTRA, j, k, j, 0, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
+            extra(d, gera, j, k, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
         } else if (est[k] == V_ANULADO && !(d->meia[j] >> k & 1)) {
             d->meia[j] |= (uint8_t)(1 << k);
             int g = meia_depois(f->fixo[k]);
@@ -451,34 +445,28 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
     }
     for (int k = 0; k < f->lancados; k++) {               // Ficha Velha anulada: +4, caida ou atacada
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_FICHA_VELHA) continue;
-        d->semente[j] += FICHA_VELHA_PTS;
-        evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
+        extra(d, gera, j, k, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
     for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na quarta: o tiro ja saiu, +REVOLVER_TIRO (12) por fora
         // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
-        d->semente[j] += REVOLVER_TIRO;
-        evento(gera, EV_EXTRA, j, k, j, 0, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
+        extra(d, gera, j, k, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
     }
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_MARTIR) continue;
-        d->semente[j] += 2 * valendo;
-        evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 2 * valendo, "Mártir anulado: +2 em %d dado%s",
-                             valendo, valendo > 1 ? "s" : "");
-        for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
-            if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
+        evento_t *e = extra(d, gera, j, k, 2 * valendo, "Mártir anulado: +2 em %d dado%s",
+                            valendo, valendo > 1 ? "s" : "");
+        marca_validos(e, est, 0, f->lancados, 2);
     }
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO) continue;
         int ef = TIPO[tipo_de(j, k)].efeito;
         if (ef == EF_MISERICORDIA && anulados) {
-            d->semente[j] += 2 * anulados;
-            evento(gera, EV_EXTRA, j, k, j, 0, 2 * anulados, "Misericordioso: %d anulado%s, +%d",
-                   anulados, anulados > 1 ? "s" : "", 2 * anulados);
+            extra(d, gera, j, k, 2 * anulados, "Misericordioso: %d anulado%s, +%d",
+                  anulados, anulados > 1 ? "s" : "", 2 * anulados);
         } else if (ef == EF_SOLITARIO && !(k > 0 && est[k - 1] == V_VALIDO)
                    && !(k + 1 < f->lancados && est[k + 1] == V_VALIDO)) {
-            d->semente[j] += SOLITARIO_PTS;
-            evento(gera, EV_EXTRA, j, k, j, 0, SOLITARIO_PTS, "Solitário sem vizinhos: +%d", SOLITARIO_PTS);
+            extra(d, gera, j, k, SOLITARIO_PTS, "Solitário sem vizinhos: +%d", SOLITARIO_PTS);
         } else if (ef == EF_PRISMA) {                // +1 por tamanho de dado diferente valendo: d2, d4, d6...
             int lados[N_FILA], nt = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++) {
@@ -487,14 +475,11 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
                 for (int q = 0; q < nt; q++) ja |= lados[q] == l;
                 if (!ja) lados[nt++] = l;
             }
-            d->semente[j] += nt;
-            evento(gera, EV_EXTRA, j, k, j, 0, nt, "Prisma: %d tipo%s de dado, +%d", nt, nt > 1 ? "s" : "", nt);
+            extra(d, gera, j, k, nt, "Prisma: %d tipo%s de dado, +%d", nt, nt > 1 ? "s" : "", nt);
         } else if (ef == EF_CAPITAO) {               // +1 por dado seu valendo, ele incluido
-            d->semente[j] += valendo;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, valendo, "Capitão: %d dado%s, +%d",
-                                 valendo, valendo > 1 ? "s" : "", valendo);
-            for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
-                if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
+            evento_t *e = extra(d, gera, j, k, valendo, "Capitão: %d dado%s, +%d",
+                                valendo, valendo > 1 ? "s" : "", valendo);
+            marca_validos(e, est, 0, f->lancados, 1);
         } else if (ef == EF_TRONO && k == FILA_NORMAL - 1 && valendo == f->lancados) {
             d->semente[j] += TRONO_BONUS;            // o 4o da fila, e nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, TRONO_BONUS, "Trono: a sequência inteira válida, +%d", TRONO_BONUS);
@@ -504,31 +489,26 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] >= f->valor[k] && f->valor[k + 1] <= f->valor[k] + 2) {
             // ACHADO A19: preservado - encaixa mesmo com o dado seguinte anulado ou roubado (nao olha est[k + 1])
             int n = 3 - (f->valor[k + 1] - f->valor[k]);   // o mesmo: +3; um a mais: +2; dois a mais: +1
-            d->semente[j] += n;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, n, "Dominó: a peça %d encaixa, +%d", f->valor[k + 1], n);
+            evento_t *e = extra(d, gera, j, k, n, "Dominó: a peça %d encaixa, +%d", f->valor[k + 1], n);
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = (int8_t)n; }   // a peca cai no seguinte
         } else if (ef == EF_PUXA && k == 0 && f->lancados >= FILA_NORMAL && valendo == f->lancados) {
-            d->semente[j] += 5;
-            evento(gera, EV_EXTRA, j, k, j, 0, 5, "Puxa-fila: a sequência inteira válida, +5");
+            extra(d, gera, j, k, 5, "Puxa-fila: a sequência inteira válida, +5");
         } else if (ef == EF_COVEIRO) {
             int n = 0;
             for (int q = 0; q < 2; q++)
                 for (int i = 0; i < F[q].lancados; i++) n += d->est[q][i] == V_ANULADO;
             if (n) {
-                d->semente[j] += n;
-                evento(gera, EV_EXTRA, j, k, j, 0, n, "Coveiro: %d anulado%s na mesa, +%d", n, n > 1 ? "s" : "", n);
+                extra(d, gera, j, k, n, "Coveiro: %d anulado%s na mesa, +%d", n, n > 1 ? "s" : "", n);
             }
         } else if (ef == EF_HEXA) {                  // +1 por dado de seis lados seu valendo
             int n = 0;
             for (int i = 0; i < f->lancados; i++) n += est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6;
-            d->semente[j] += n;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, n, "Hexa: %d dado%s de seis lados, +%d", n, n > 1 ? "s" : "", n);
+            evento_t *e = extra(d, gera, j, k, n, "Hexa: %d dado%s de seis lados, +%d", n, n > 1 ? "s" : "", n);
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
         } else if (ef == EF_AMPULHETA && ampulheta() > 0) {
             int n = ampulheta();
-            d->semente[j] += n;
-            evento(gera, EV_EXTRA, j, k, j, 0, n, "Ampulheta: %d rodadas jogadas, +%d", rodada - 1, n);
+            extra(d, gera, j, k, n, "Ampulheta: %d rodadas jogadas, +%d", rodada - 1, n);
         } else if (ef == EF_ASSOMBRA) {                   // valendo, o susto: -2 no oponente (os Fantasmas vao no fim da rodada)
             int r = outro(j);
             d->delta[r] -= ASSOMBRA_PTS;
@@ -541,9 +521,8 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
             for (int i = 0; i < f->lancados && i < N_FILA; i++)
                 if (i != k && est[i] == V_VALIDO && ad_fila(j, i)) { m |= (uint8_t)(1 << i); n++; }
             if (n) {
-                d->semente[j] += LEQUE_PTS * n;
-                evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, LEQUE_PTS * n, "Leque: %d dado%s no adesivo, +%d",
-                                     n, n > 1 ? "s" : "", LEQUE_PTS * n);
+                evento_t *e = extra(d, gera, j, k, LEQUE_PTS * n, "Leque: %d dado%s no adesivo, +%d",
+                                    n, n > 1 ? "s" : "", LEQUE_PTS * n);
                 for (int i = 0; e && i < N_FILA; i++) if (m >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = LEQUE_PTS; }
             }
         } else if (ef == EF_BALAO && f->valor[k] >= BALAO_ESTOURA && f->fixo[k] > 0 && F[j].tipo[k] == D_BALAO) {
@@ -558,8 +537,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
                 if (pm) n += ad_quantos(pm);
             }
             if (n) {
-                d->semente[j] += n;
-                evento(gera, EV_EXTRA, j, k, j, 0, n, "Mosaico: %d adesivo%s nos lançados, +%d", n, n > 1 ? "s" : "", n);
+                extra(d, gera, j, k, n, "Mosaico: %d adesivo%s nos lançados, +%d", n, n > 1 ? "s" : "", n);
             }
         } else if (ef == EF_MEDUSA && !d->medusa[j]) {      // a fila inteira vira pedra (so a primeira age)
             d->medusa[j] = 1;
@@ -571,18 +549,15 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
             }
         } else if (ef == EF_RANCOR && J[j].perdidas > 0) {   // +1 por rodada perdida na partida
             int n = J[j].perdidas;
-            d->semente[j] += n;
-            evento(gera, EV_EXTRA, j, k, j, 0, n, "Rancor: %d rodada%s perdida%s, +%d", n, n > 1 ? "s" : "", n > 1 ? "s" : "", n);
+            extra(d, gera, j, k, n, "Rancor: %d rodada%s perdida%s, +%d", n, n > 1 ? "s" : "", n > 1 ? "s" : "", n);
         } else if (ef == EF_MEDIA) {                        // o total da fila dividido por 4
             int tot = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]), n = tot > 0 ? tot / 4 : 0;
             if (n) {
-                d->semente[j] += n;
-                evento(gera, EV_EXTRA, j, k, j, 0, n, "Média: %d ÷ 4, +%d", tot, n);
+                extra(d, gera, j, k, n, "Média: %d ÷ 4, +%d", tot, n);
             }
         } else if (ef == EF_POTE && pote >= 25) {           // +1 a cada 25 fichas no pote
             int n = pote / 25;
-            d->semente[j] += n;
-            evento(gera, EV_EXTRA, j, k, j, 0, n, "Pote Quente: %d fichas no pote, +%d", pote, n);
+            extra(d, gera, j, k, n, "Pote Quente: %d fichas no pote, +%d", pote, n);
         } else if (ef == EF_GARIMPEIRO && !d->garimpo[j]) { // os outros validos voltam para a bolsa (so o primeiro age)
             uint8_t m = 0;
             int n = 0, maior = 0;
@@ -598,8 +573,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
                 if (e) e->mascara = m;
                 int pepita = (maior + 1) / 2;              // a bateia: o maior dos que voltam fica, pela metade
                 if (pepita > 0) {
-                    d->semente[j] += pepita;
-                    evento(gera, EV_EXTRA, j, k, j, 0, pepita, "Garimpeiro: a pepita do %d, +%d", maior, pepita);
+                    extra(d, gera, j, k, pepita, "Garimpeiro: a pepita do %d, +%d", maior, pepita);
                 }
             }
         } else if (ef == EF_AGIOTA) {
@@ -614,8 +588,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
                         break;
                     }
             if (maior) {
-                d->semente[j] += 4;
-                evento(gera, EV_EXTRA, j, k, j, 0, 4, "Desafiante: o %d é o maior, +4", f->valor[k]);
+                extra(d, gera, j, k, 4, "Desafiante: o %d é o maior, +4", f->valor[k]);
             }
         }
     }
@@ -632,8 +605,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
             evento_t *e = evento(gera, EV_JACKPOT, j, k, j, 0, 10, "JACKPOT! três %d: +10", num);
             if (e) e->mascara = iguais;
         } else if (n == 2) {
-            d->semente[j] += 4;
-            evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, 4, "Jackpot: dois %d, +4", num);
+            evento_t *e = extra(d, gera, j, k, 4, "Jackpot: dois %d, +4", num);
             for (int i = 0; e && i < N_FILA; i++)
                 if (iguais >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
         }

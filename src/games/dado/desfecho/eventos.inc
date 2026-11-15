@@ -25,8 +25,9 @@ static bool bloqueia_capa(desfecho_t *d, bool gera, int j, int k, int r, int a, 
     if (capa_ev) { capa_ev->bloqueado = (uint8_t)(1 << a); capa_ev->ad = (uint8_t)ad; }
     return true;
 }
-static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
-                        const char *fmt, ...)
+// O mesmo, com a lista de argumentos ja aberta (para quem repassa o texto).
+static evento_t *evento_v(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
+                          const char *fmt, va_list ap)
 {
     // ACHADO A31: preservado - lista cheia (MAX_EV): o evento some sem aviso; o placar em d sai certo
     if (!gera || n_ev >= MAX_EV) return NULL;
@@ -34,11 +35,39 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
     memset(e, 0, sizeof *e);
     e->tipo = (uint8_t)tipo; e->de_j = (uint8_t)dj; e->de_k = (uint8_t)dk;
     e->alvo_j = (uint8_t)aj; e->alvo_k = (uint8_t)ak; e->valor = valor;
+    vsnprintf(e->txt, sizeof e->txt, fmt, ap);
+    return e;
+}
+static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
+                        const char *fmt, ...)
+{
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(e->txt, sizeof e->txt, fmt, ap);
+    evento_t *e = evento_v(gera, tipo, dj, dk, aj, ak, valor, fmt, ap);
     va_end(ap);
     return e;
+}
+
+// Pontos fixos para j, fora dos multiplicadores (d->semente), e o evento
+// deles (EV_EXTRA) no dado k. Devolve o evento, para marcar os dados.
+static evento_t *extra(desfecho_t *d, bool gera, int j, int k, int n, const char *fmt, ...)
+    __attribute__((format(printf, 6, 7)));
+static evento_t *extra(desfecho_t *d, bool gera, int j, int k, int n, const char *fmt, ...)
+{
+    d->semente[j] += n;
+    va_list ap;
+    va_start(ap, fmt);
+    evento_t *e = evento_v(gera, EV_EXTRA, j, k, j, 0, n, fmt, ap);
+    va_end(ap);
+    return e;
+}
+
+// Marca no evento e os dados valendo de j entre de e ate-1 (pela lista est),
+// cada um com por pontos.
+static void marca_validos(evento_t *e, const uint8_t *est, int de, int ate, int por)
+{
+    for (int i = de; e && i < ate && i < N_FILA; i++)
+        if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = (int8_t)por; }
 }
 
 // A sequencia de j acabou de ser refeita por causa do evento e (ou dos

@@ -44,6 +44,28 @@ static bool copia_pode(int a)
 }
 // O dado de antes de k tirou o Carimbo (a segunda vez e dele, nao da Tela em Branco).
 static bool carimbado_ja(int j, int k) { return k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO); }
+// O comeco do texto de um adesivo do dado k de j, pelo modo em que ele age
+// (age_modo) e se e copia: quem o fez agir ("Papagaio, como ", "Carimbo » ",
+// "Holográfico, como ", "Dupla Face » "...). "" quando age sozinho.
+static const char *ad_prefixo(int modo, bool copia, int j, int k)
+{
+    bool de_novo = modo & EVM_CARIMBO;
+    // ACHADO A35: preservado - carimbado_ja nao ve se o Carimbo de antes foi roubado: a Tela sai como Carimbo
+    return modo & EVM_PAPAGAIO ? "Papagaio, como " : modo & EVM_RETRATO ? "Porta-Retrato » "
+         : copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
+         : de_novo ? (F[j].tipo[k] == D_TELA && !carimbado_ja(j, k) ? "Tela em Branco » " : "Carimbo » ")
+         : modo & EVM_DUPLA ? "Dupla Face » "
+         : modo & EVM_MOLDURA ? "Moldura » " : "";
+}
+// No evento: qual adesivo agiu, se e copia (o Holografico, o Papagaio, o
+// Porta-Retrato) e o modo - a mesa desenha por eles.
+static void ad_marca(evento_t *e, int a, bool copia, int modo)
+{
+    if (!e) return;
+    e->ad = (uint8_t)a;
+    e->copia = copia;
+    e->modo = (uint8_t)modo;
+}
 // O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
 // Holografico (no dado k; ou o Papagaio, ou o Porta-Retrato) copiando o do
 // dado ko (copia: nada sai nem cresce no dado de la; o Fermento paga o que
@@ -55,12 +77,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
-    // ACHADO A35: preservado - carimbado_ja nao ve se o Carimbo de antes foi roubado: a Tela sai como Carimbo
-    const char *pre = age_modo & EVM_PAPAGAIO ? "Papagaio, como " : age_modo & EVM_RETRATO ? "Porta-Retrato » "
-                    : copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
-                    : de_novo ? (F[j].tipo[k] == D_TELA && !carimbado_ja(j, k) ? "Tela em Branco » " : "Carimbo » ")
-                    : age_modo & EVM_DUPLA ? "Dupla Face » "
-                    : age_modo & EVM_MOLDURA ? "Moldura » " : "";
+    const char *pre = ad_prefixo(age_modo, copia, j, k);
     evento_t *e = NULL;
     switch (a) {
     case AD_CONFETE:
@@ -154,7 +171,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             if (vale && !ele) { d->mult[j][k] = (int8_t)(d->mult[j][k] + mx); m |= bit; ele = true; }
             if (vale2) { d->mult[j][p] = (int8_t)(d->mult[j][p] + mx); m |= (uint8_t)(1 << p); }
             e = evento(gera, EV_ADESIVO, j, k, j, p, mx, de_novo ? "%sImantado: dois %d, x3" : "%sImantado: dois %d, x2", pre, F[j].valor[k]);
-            if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
+            if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); }
+            ad_marca(e, a, copia, age_modo);
             agiu = true;
         }
         if (!agiu) return false;
@@ -271,7 +289,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (alvo < 0) return false;
         // ACHADO A26: preservado - copiada pelo Papagaio contra a capa, o texto sai como Holografico, como Mira
         if (bloqueia_capa(d, gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
-            if (capa_ev) { capa_ev->copia = copia; capa_ev->modo = (uint8_t)age_modo; }
+            ad_marca(capa_ev, AD_MIRA, copia, age_modo);
             return true;
         }
         // ACHADO A03: preservado - o adesivo anula na hora, sem o contra-ataque dos dados: a Mira do alvo nao age mais
@@ -279,13 +297,13 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         d->atacados[r]++;
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: anula o %d de %s", pre, F[r].valor[alvo], J[r].nome);
-        if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
+        ad_marca(e, a, copia, age_modo);
         apos_ataque(d, j, k, r, alvo, gera);
         return true;
     }
     default: return false;
     }
-    if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
+    ad_marca(e, a, copia, age_modo);
     return true;
 }
 
@@ -376,7 +394,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         d->semente[j] += SELO_PONTOS;
         agiram++;
         evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, SELO_PONTOS, "Selo: o lacre se rompe, +%d", SELO_PONTOS);
-        if (e) e->ad = AD_SELO;
+        ad_marca(e, AD_SELO, false, 0);
     }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         int a = ad_fila(j, k);
@@ -464,17 +482,17 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     d->ad_agiram[j] = (uint8_t)(agiram + n_purp_ad > 250 ? 250 : agiram + n_purp_ad);
     for (int i = 0; i < n_purp; i++) {
         d->semente[j] += cada;
-        const char *pre = purp_md[i] & EVM_CARIMBO ? "Carimbo » " : purp_md[i] & EVM_DUPLA ? "Dupla Face » " : "";
+        const char *pre = ad_prefixo(purp_md[i], false, j, purp[i]);
         evento_t *e = evento(gera, EV_ADESIVO, j, purp[i], j, purp[i], cada, "%sPurpurina: %d adesivo%s, +%d", pre,
                              agiram + n_purp_ad, agiram + n_purp_ad > 1 ? "s" : "", cada);
-        if (e) { e->ad = AD_PURPURINA; e->modo = purp_md[i]; }
+        ad_marca(e, AD_PURPURINA, false, purp_md[i]);
     }
     for (int h = 0; h < n_holo && n_purp; h++) {       // o Holografico valendo copia a Purpurina tambem
         if (d->est[j][holo[h]] != V_VALIDO) continue;
         for (int i = 0; i < n_purp; i++) {
             d->semente[j] += cada;
             evento_t *e = evento(gera, EV_ADESIVO, j, holo[h], j, holo[h], cada, "Holográfico, como Purpurina: +%d", cada);
-            if (e) { e->ad = AD_PURPURINA; e->copia = 1; }
+            ad_marca(e, AD_PURPURINA, true, 0);
         }
     }
 }
@@ -507,7 +525,8 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
     const char *nome = copia ? "Holográfico, como Bilhete" : carimbo ? "Carimbo » Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
     evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? (carimbo ? "%s: bônus x3, +%d" : "%s: bônus em dobro, +%d")
                                                                  : "%s: nenhum bônus para dobrar", nome, extra);
-    if (e) { e->ad = AD_BILHETE; e->copia = copia; e->modo = carimbo ? EVM_CARIMBO : 0; e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
+    ad_marca(e, AD_BILHETE, copia, carimbo ? EVM_CARIMBO : 0);
+    if (e) { e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
 }
 
 static void bilhete_de(desfecho_t *d, int j, bool gera)

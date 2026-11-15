@@ -432,6 +432,18 @@ static void achados_desfecho(void)
     d = fim();
     CONFERE(d.est[0][1] == V_ANULADO && !(d.fragil[0] >> 1 & 1), "A17: a copia do Fragil nao quebra o dado do Holografico (fragil 0x%02x)", d.fragil[0]);
 
+    // A18: o Vampiro so tira de quem pontua mais que 0 (o Trevo sem o 4 fica em 0).
+    achado_zera(); achado_fila(0);
+    joga(0, D_VAMPIRO, 2);
+    joga(1, D_TREVO, 2); joga(1, D_D6, 5);
+    d = fim();
+    CONFERE(d.total[1] == 4 && d.bonus[1][0] == 0, "A18: Vampiro nao deixa o Trevo em -1 (B %d, bonus do Trevo %d)", d.total[1], d.bonus[1][0]);
+    achado_fila(0);
+    joga(0, D_VAMPIRO, 2);
+    joga(1, D_TREVO, 2);
+    d = fim();
+    CONFERE(d.bruto[1] == 0 && d.atacados[1] == 0, "A18: Vampiro sem ninguem para morder nao ataca (bruto %d, atacados %d)", d.bruto[1], d.atacados[1]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

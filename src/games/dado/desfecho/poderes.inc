@@ -234,8 +234,11 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     } else if (ef == EF_VAMPIRO) {               // valendo: -1 em cada dado do oponente que vale
         uint8_t m = 0;
         for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
-            // ACHADO A18: preservado - tira 1 tambem do dado que pontua 0: ele fica em -1
-            if (d->est[r][i] == V_VALIDO && !universo(r, i)) { d->bonus[r][i] = (int8_t)(d->bonus[r][i] - 1); m |= (uint8_t)(1 << i); }
+            if (d->est[r][i] == V_VALIDO && !universo(r, i)                       // so de quem pontua (como o Sabotador)
+                && valor_pontos(r, i) + F[r].bonus[i] + d->bonus[r][i] > 0) {
+                d->bonus[r][i] = (int8_t)(d->bonus[r][i] - 1);
+                m |= (uint8_t)(1 << i);
+            }
         if (m) d->atacados[r]++;
         evento_t *e = m ? evento(gera, EV_VAMPIRO, j, k, r, 0, 1, "Vampiro: -1 em cada dado de %s", J[r].nome) : NULL;
         if (e) e->mascara = m;

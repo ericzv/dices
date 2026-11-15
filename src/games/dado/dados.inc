@@ -473,7 +473,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
     [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
     [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
-    [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
+    [D_VAMPIRO]         = "Se terminar válido, no fim cada dado do oponente que vale ponto perde 1.",
     [D_COLECIONADOR]    = "Tirando 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
     [D_ASSOMBRACAO]     = "Se terminar válido, assusta o oponente: -2 na pontuação dele e dois Fantasmas (pontuam 1) na bolsa.",
@@ -685,7 +685,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MEDIA]           = "Quatro lados. Se terminar válido, ganha no fim da rodada um bônus igual ao total dos seus dados "
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
-                          "perde 1 ponto.",
+                          "que vale ponto perde 1 (o que já está em 0 fica como está).",
     [D_COLECIONADOR]    = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
                           "Fantasmas que entraram na sua bolsa contam.",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "

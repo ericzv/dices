@@ -467,7 +467,9 @@ static void achados_desfecho(void)
     CONFERE(d.delta[0] == -2 && d.atacados[0] == 1 && d.ad_agiram[0] == 0,
             "A21: Porta-Retrato na Sujeira cobra o -2 uma vez (delta %d, atacados %d, agiram %d)", d.delta[0], d.atacados[0], d.ad_agiram[0]);
 
-    // A22: o alvo que ja caiu no contra-ataque nao e anulado de novo (o golpe se perde, conta 1 tentativa).
+    // A22 (regra do dono, v1.31): o alvo que ja caiu no contra-ataque nao e
+    // anulado de novo - o golpe procura outro alvo pela mesma regra (o Laser,
+    // o novo ultimo valido de B: o Ourico). Sem outro, se perde e conta 1 tentativa.
     achado_zera();
     achado_peca(0, 0, D_LASER, 0, 0);
     achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
@@ -476,13 +478,28 @@ static void achados_desfecho(void)
     joga(1, D_OURICO, 2); joga(1, D_CARRASCO, 4);
     d = fim();
     {
-        int anula_b = 0, rato = 0;
+        int anula_b = 0, rato = 0, laser_ourico = 0;
         for (int e = 0; e < n_ev; e++) {
             if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1) anula_b++;
+            if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1 && ev[e].alvo_k == 0 && strstr(ev[e].txt, "Laser anula o 2")) laser_ourico++;
             if (ev[e].tipo == EV_ADESIVO && ev[e].ad == AD_RATOEIRA && ev[e].alvo_j == 1) rato++;
         }
-        CONFERE(rato == 1 && anula_b == 0 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO,
-                "A22: Laser nao anula de novo o Carrasco que a Ratoeira derrubou (ratoeira %d, anula %d, atacados %d)", rato, anula_b, d.atacados[1]);
+        CONFERE(rato == 1 && anula_b == 1 && laser_ourico == 1 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO && d.est[1][0] == V_ANULADO,
+                "A22: o Laser, com o Carrasco ja caido, anula o novo ultimo (ratoeira %d, anula %d, ourico %d, atacados %d)",
+                rato, anula_b, laser_ourico, d.atacados[1]);
+    }
+    achado_zera();
+    achado_peca(0, 0, D_LASER, 0, 0);
+    achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
+    achado_fila(0);
+    joga_ad(0, 0, 5); joga_ad(0, 1, 6);
+    joga(1, D_CARRASCO, 4);
+    d = fim();
+    {
+        int anula_b = 0;
+        for (int e = 0; e < n_ev; e++) anula_b += ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1;
+        CONFERE(anula_b == 0 && d.atacados[1] == 2 && d.est[1][0] == V_ANULADO,
+                "A22: sem outro alvo, o golpe do Laser se perde e conta (anula %d, atacados %d)", anula_b, d.atacados[1]);
     }
 
     // A23: a Casca de Banana conta ataque para o Ourico tambem na previa.
@@ -670,6 +687,124 @@ static void achados_desfecho(void)
     joga(0, D_CAMALEAO, 3); F[0].fixo[1] = 1;
     d = fim();
     CONFERE(d.total[0] == 10 && d.mult[0][1] > 0, "A07: Camaleao atras do Pisca aceso dobra (A %d, mult %d)", d.total[0], d.mult[0][1]);
+
+    // R130 (respostas do dono, v1.30) -----------------------------------
+    // 6: o Domino so encaixa se o proximo tambem terminar valendo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_DOMINO, 3); joga(0, D_D6, 3);
+    d = fim();
+    CONFERE(d.total[0] == 9, "R130-6: Domino 3 e o proximo 3 valendo, +3 (A %d)", d.total[0]);
+    CONFERE(poder_armado(0, 0) != 0, "R130-6: o Domino brilha com o proximo valendo");
+    achado_fila(0);
+    joga(0, D_DOMINO, 3); joga(0, D_D6, 3);
+    F[0].est[1] = V_ANULADO;
+    d = fim();
+    {
+        int dom = 0;
+        for (int e = 0; e < n_ev; e++) dom += strstr(ev[e].txt, "Dominó") != NULL;
+        CONFERE(d.total[0] == 3 && dom == 0, "R130-6: com o proximo anulado o Domino nao encaixa (A %d, eventos %d)", d.total[0], dom);
+        CONFERE(poder_armado(0, 0) == 0, "R130-6: o Domino nao brilha com o proximo anulado");
+    }
+
+    // 7: o tremor repete o que mexe no lance - o tremor rola com lanca_do_dado
+    // (o mesmo lance da mesa, com o Estilingue, o Piao e a Gelatina).
+    achado_zera(); achado_fila(0);
+    joga(1, D_ESTILINGUE, 1); joga(1, D_D8, 3);
+    {
+        int no_max = 0;
+        fila_t guarda = F[1];
+        for (uint32_t s = 1; s <= 30; s++) {
+            int q = treme_dado(1, 1, s * 2654435761u);
+            no_max += F[1].valor[1] == 8 && (q & TREME_ESTILINGUE);
+            F[1] = guarda;
+        }
+        CONFERE(no_max == 30, "R130-7: o Estilingue de antes com 1 manda o tremor no 8 (%d de 30)", no_max);
+    }
+    achado_zera(); achado_fila(0);
+    joga(1, D_D6, 5); joga(1, D_GELATINA, 6);
+    {
+        int difere = 0, quicou = 0;
+        fila_t guarda = F[1];
+        for (uint32_t s = 1; s <= 60; s++) {
+            uint32_t sem = s * 2654435761u;
+            int fora;
+            abalo_s = sem;
+            lance_t l = lanca_do_dado(1, 1, D_GELATINA, F[1].fixo[1], peca_fila(1, 1), rola_abalo, &fora);
+            F[1] = guarda;
+            int q = treme_dado(1, 1, sem);
+            difere += F[1].valor[1] != l.x;
+            quicou += (q & TREME_QUICOU) != 0;
+            F[1] = guarda;
+        }
+        CONFERE(difere == 0 && quicou > 0, "R130-7: a Gelatina quica no tremor como no lance (diferentes %d, quicou %d)", difere, quicou);
+    }
+    achado_zera();
+    achado_peca(1, 0, D_PIAO, 6, AD_CONFETE);
+    achado_fila(0);
+    joga_ad(1, 0, 6);
+    {
+        int difere = 0, girou = 0;
+        fila_t guarda = F[1];
+        for (uint32_t s = 1; s <= 60; s++) {
+            uint32_t sem = s * 2654435761u;
+            int fora;
+            abalo_s = sem;
+            lance_t l = lanca_do_dado(1, 0, D_PIAO, F[1].fixo[0], peca_fila(1, 0), rola_abalo, &fora);
+            F[1] = guarda;
+            int q = treme_dado(1, 0, sem);
+            difere += F[1].valor[0] != l.x;
+            girou += (q & TREME_GIROU) != 0;
+            F[1] = guarda;
+        }
+        CONFERE(difere == 0 && girou > 0, "R130-7: o Piao gira de novo no tremor como no lance (diferentes %d, girou %d)", difere, girou);
+    }
+
+    // 8: com dois Sacrificios, o segundo vai para o proximo menor (2 x2 e 3 x2, nao 2 x4).
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 2); joga(0, D_D6, 3); joga(0, D_SACRIFICIO, 3); joga(0, D_SACRIFICIO, 4);
+    d = fim();
+    CONFERE(d.total[0] == 10 && d.mult[0][0] > 0 && d.mult[0][1] > 0,
+            "R130-8: dois Sacrificios dobram o 2 e o 3 (A %d, mult %d e %d)", d.total[0], d.mult[0][0], d.mult[0][1]);
+    CONFERE(poder_armado(0, 2) != 0 && poder_armado(0, 3) != 0, "R130-8: os dois Sacrificios brilham");
+    achado_fila(0);
+    joga(0, D_D6, 2); joga(0, D_SACRIFICIO, 3); joga(0, D_SACRIFICIO, 4);
+    d = fim();
+    CONFERE(d.total[0] == 4, "R130-8: sem outro dado que pontue, o segundo Sacrificio nao age (A %d)", d.total[0]);
+    CONFERE(poder_armado(0, 1) != 0 && poder_armado(0, 2) == 0, "R130-8: so o primeiro Sacrificio brilha");
+
+    // 9: o Holografico copia a Ratoeira: anulado, ele tambem da o queijo.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 3, AD_RATOEIRA);
+    achado_peca(0, 1, D_D6, 4, AD_HOLOGRAFICO);
+    achado_fila(0);
+    joga_ad(0, 0, 3); joga_ad(0, 1, 4);
+    F[0].est[0] = F[0].est[1] = V_ANULADO;
+    d = fim();
+    {
+        int holo = 0;
+        for (int e = 0; e < n_ev; e++) holo += strstr(ev[e].txt, "Holográfico, como Ratoeira") != NULL;
+        CONFERE(holo == 1 && d.total[0] == 2 * RATOEIRA_PONTOS, "R130-9: o Holografico anulado copia a Ratoeira (eventos %d, A %d)", holo, d.total[0]);
+    }
+
+    // 10: o Camaleao anulado atras da Meia nao guarda nem avisa que guarda (so a Meia de verdade).
+    achado_zera(); achado_fila(0);
+    joga(0, D_MEIA, 2); joga(0, D_CAMALEAO, 3);
+    F[0].est[1] = V_ANULADO;
+    d = fim();
+    {
+        int guarda = 0;
+        for (int e = 0; e < n_ev; e++) guarda += strstr(ev[e].txt, "guarda +") != NULL;
+        CONFERE(guarda == 0 && poder_armado(0, 1) == 0, "R130-10: o Camaleao anulado atras da Meia nao avisa (eventos %d, brilho %d)", guarda, poder_armado(0, 1));
+    }
+    achado_fila(0);
+    joga(0, D_MEIA, 2);
+    F[0].est[0] = V_ANULADO;
+    d = fim();
+    {
+        int guarda = 0;
+        for (int e = 0; e < n_ev; e++) guarda += strstr(ev[e].txt, "Meia na Lareira anulada: guarda +") != NULL;
+        CONFERE(guarda == 1 && poder_armado(0, 0) != 0, "R130-10: a Meia anulada ainda avisa que guarda (eventos %d)", guarda);
+    }
 
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;

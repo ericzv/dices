@@ -446,7 +446,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SORTE_REVES]     = "Rola um d12 que soma e um d4 que subtrai. Pontua a diferença, até negativa.",
     [D_AUTOFAGIA]       = "Se terminar válido, come o seu menor dado (ele ainda pontua e sai da partida). Tirando 8, pontua 8 + tudo o que comeu.",
     [D_ECO]             = "Tira o mesmo número do primeiro dado válido da sequência (até 6). Pode ser anulado pela sequência.",
-    [D_DOMINO]          = "Se terminar válido e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",
+    [D_DOMINO]          = "Se os dois terminarem válidos e o próximo dado seu tirar o mesmo número: +3; um a mais: +2; dois a mais: +1.",
     [D_ANCORA]          = "Se estiver válida, o próximo dado seu não pode ser anulado nem roubado.",
     [D_MARTIR]          = "Se terminar anulado, no fim cada dado válido seu pontua +2.",
     [D_PUXA_FILA]       = "Se for o 1º da sequência e os quatro terminarem válidos: +5.",
@@ -470,7 +470,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_PREVISIVEL]      = "Não é sorteado: tira 1 na primeira vez, 2 na segunda, e assim até 12. Recomeça a cada partida.",
     [D_OCULTO]          = "Ninguém vê o que ele tirou até o fim da rodada: só então entra na sequência e pode ser anulado ou "
                           "anular.",
-    [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
+    [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2. Um segundo Sacrifício vai para o próximo menor.",
     [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
     [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
     [D_VAMPIRO]         = "Se terminar válido, no fim cada dado do oponente que vale ponto perde 1.",
@@ -630,8 +630,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
                           "sequência.",
     [D_DOMINO]          = "Seis lados. Se terminar válido, olha o dado seu lançado logo depois dele: com o mesmo número, a "
-                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1. Vale "
-                          "mesmo se o próximo for anulado.",
+                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1. O "
+                          "próximo também precisa terminar válido.",
     [D_ANCORA]          = "Quatro lados. O dado seu lançado logo depois da Âncora, com ela válida, não pode ser anulado (nem "
                           "pela sequência, nem por outro dado) nem roubado. Se ele for menor, quem é anulada pela sequência é a "
                           "Âncora.",
@@ -679,7 +679,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "anterior a ele. No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o "
                           "dado anterior.",
     [D_SACRIFICIO]      = "Quatro lados, mas não pontua. Se terminar válido, no fim da rodada o seu dado válido de menor "
-                          "número, entre os que pontuam, pontua x2.",
+                          "número, entre os que pontuam, pontua x2. Com dois Sacrifícios, o segundo vai para o próximo "
+                          "menor (sem outro que pontue, não age).",
     [D_VAZIO]           = "Um lado só, o 0: cai sempre nele, e o adesivo colado ali age em todo lance. Pontua sempre 0. "
                           "Nunca é anulado e nunca anula o dado anterior, por maior que ele seja: depois dele, qualquer "
                           "número é válido. Pode ser roubado.",

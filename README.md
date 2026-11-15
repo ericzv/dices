@@ -29,8 +29,9 @@ mostra, o Espelho vira, o tremor, a Casca de Banana, a Ficha Coringa, o
 Carrossel). Depois os poderes que atacam, roubam e cortam: os de quem abriu
 a rodada, depois os do outro; com a Saideira, os do dono agem de novo logo
 em seguida; e o Ranzinza. O dado atacado que também ataca age antes de cair
-— se nesse contra-ataque ele mesmo cai, o golpe se perde, mas conta como
-ataque. Vêm então as Miras, antes dos outros adesivos (um dado que ia ser
+— se nesse contra-ataque ele mesmo cai, o golpe procura outro alvo pela
+mesma regra (o Laser, o novo último; o Carrasco, o novo maior); sem outro,
+se perde, mas conta como ataque. Vêm então as Miras, antes dos outros adesivos (um dado que ia ser
 anulado por um ataque ainda dá o seu; vale para a Mira), a Fênix e o Agnus,
 os adesivos, a Fênix e o Agnus de novo, os bônus e multiplicadores do fim
 (com a Saideira, os do dono duas vezes), o Ouriço (o oponente perde 5 por
@@ -40,7 +41,10 @@ dado que pontua: o Sabotador e o Ranzinza cortam o de maior número entre os
 que valem mais que 0, e o Vampiro não tira do que já está em 0. Quem rouba
 leva o dado como ele pontua naquela hora (com o corte e o -1). Preso pela
 Âncora, o Segurança segura o golpe que viria para ele: não cai nem é
-roubado.
+roubado. O dado que treme (pelo Terremoto ou pela Casca) rola como no
+lance: com o Estilingue de antes em 1 sai no maior lado, o Pião gira de
+novo e a Gelatina quica. O Dominó só encaixa se o próximo também terminar
+válido; com dois Sacrifícios, o segundo dobra o próximo menor dado.
 
 **Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
 Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez

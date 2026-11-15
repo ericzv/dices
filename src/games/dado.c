@@ -38,7 +38,7 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.29"
+#define DADO_VERSAO "v1.31"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
@@ -122,6 +122,7 @@ int  dado_dbg_lados(int t)   { return TIPO[t].lados; }
 int  dado_dbg_pontos(int j)  { return F[j].pontos; }
 int  dado_dbg_total(int j)   { return F[j].total; }
 int  dado_dbg_lancados(int j){ return F[j].lancados; }
+int  dado_dbg_max_fila(int j){ return max_fila(j); }
 int  dado_dbg_risco(int j)   { return risco(j); }
 int  dado_dbg_rodada(void)   { return rodada; }
 int  dado_dbg_pote(void)     { return pote; }

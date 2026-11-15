@@ -36,16 +36,21 @@ typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bo
                  uint8_t giros; bool quicou; uint16_t bonecas;
                  uint8_t n_re; int re_x[2]; uint8_t re_lado[2]; } lance_t;   // (re: ate PIAO_GIROS)
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int));
-// O tremor rola o dado com o mesmo lance da mesa (lanca_peca: o Reflexivo e
-// o Papel Bomba rolam de novo; o Previsivel, de novo, como um d12). Os poderes
-// que mexem no lance (o Estilingue, o giro do Piao, o quique da Gelatina) nao
-// se repetem no tremor: sao do lance de quem joga.
-static void treme_dado(int r, int a, uint32_t semente_abalo)
+static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, int (*r)(int), int *fora);
+static bool estilingue_armado(int j, int k);
+// O que o tremor repetiu do lance, para o texto do evento (treme_dado devolve).
+enum { TREME_GIROU = 1, TREME_QUICOU = 2, TREME_ESTILINGUE = 4 };
+// O tremor rola o dado com o mesmo lance da mesa (lanca_do_dado), com tudo o
+// que mexe no lance: o Reflexivo e o Papel Bomba rolam de novo (o Previsivel,
+// de novo, como um d12); o Estilingue de antes com 1 manda este no numero mais
+// alto; o Piao gira de novo num lado sem adesivo; a Gelatina que cairia quica.
+static int treme_dado(int r, int a, uint32_t semente_abalo)
 {
     fila_t *f = &F[r];
     abalo_s = semente_abalo ? semente_abalo : 0x9E3779B9u;
-    int t = f->tipo[a];
-    lance_t l = lanca_peca(t, f->fixo[a], peca_fila(r, a), rola_abalo);
+    int t = f->tipo[a], fora;
+    bool estilingue = estilingue_armado(r, a);
+    lance_t l = lanca_do_dado(r, a, t, f->fixo[a], peca_fila(r, a), rola_abalo, &fora);
     int x = l.x, lado = l.lado;
     f->bomba[a] = l.bomba;                       // o Papel Bomba: rolou de novo e somou
     f->bomba1[a] = (int8_t)l.x1;
@@ -57,5 +62,12 @@ static void treme_dado(int r, int a, uint32_t semente_abalo)
     f->descarte[a] = (uint8_t)l.menor;
     f->espera[a] = false;
     fatia(r, a, rola_abalo);
+    return (l.n_re && TIPO[t].efeito == EF_PIAO ? TREME_GIROU : 0) | (l.n_re && TIPO[t].efeito == EF_GELATINA ? TREME_QUICOU : 0)
+         | (estilingue ? TREME_ESTILINGUE : 0);
+}
+// O fim do texto do tremor: o que o lance repetiu.
+static const char *treme_txt(int q)
+{
+    return q & TREME_ESTILINGUE ? " (Estilingue)" : q & TREME_GIROU ? " (o Pião gira)" : q & TREME_QUICOU ? " (a Gelatina quica)" : "";
 }
 

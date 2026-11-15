@@ -29,22 +29,41 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 // Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
 enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_SACRIFICIO, MULT_BARAO,
        MULT_PIRAMIDE, MULT_ABRE_ALAS, MULT_PATINHOS, MULT_PISCA, MULT_N };
+// Cada multiplicador: o nome no texto (NULL: o nome do Barao, J[1]), quanto
+// ele soma ao multiplicador do dado, se o texto fala so dele mesmo (sem "no
+// 5") e o amuleto que acende (-1: nenhum).
+static const struct { const char *nome; uint8_t fator; bool so_ele; int8_t am; } MULTIPLICA[MULT_N] = {
+    [MULT_DOBRO]      = { "Dobro",         2, false, -1 },
+    [MULT_FARTURA]    = { "Fartura",       2, false, -1 },          // x2 por Fartura valendo
+    [MULT_VIUVA]      = { "Viúva Negra",   2, true,  -1 },
+    [MULT_AZARAO]     = { "Azarão",        2, true,  -1 },
+    [MULT_ESPERANCA]  = { "Esperança",     2, true,  -1 },
+    [MULT_SACRIFICIO] = { "Sacrifício",    2, false, -1 },          // x2 por Sacrificio valendo
+    [MULT_BARAO]      = { NULL,            2, false, -1 },
+    [MULT_PIRAMIDE]   = { "Pirâmide",      2, false, A_PIRAMIDE },
+    [MULT_ABRE_ALAS]  = { "Abre-Alas",     2, false, A_ABRE_ALAS },
+    [MULT_PATINHOS]   = { "Três Patinhos", 3, true,  -1 },
+    [MULT_PISCA]      = { "Pisca-pisca",   2, true,  -1 },
+};
+// O multiplicador q, vezes (as Farturas, os Sacrificios), no dado do bit.
+static void mult_poe(int *m, uint8_t *de, int q, uint8_t bit, int vezes)
+{
+    *m += MULTIPLICA[q].fator * vezes;
+    de[q] |= bit;
+}
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
-    const char *nome[MULT_N] = { "Dobro", "Fartura", "Viúva Negra", "Azarão", "Esperança", "Sacrifício", J[1].nome,
-                                 "Pirâmide", "Abre-Alas", "Três Patinhos", "Pisca-pisca" };
-    int x[MULT_N] = { 2, 2 * n_far, 2, 2, 2, 2, 2, 2, 2, 3, 2 };
     size_t p = 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
         if (!de[q]) continue;
         if (p) p += (size_t)snprintf(s + p, n - p, curto ? ", " : " · ");
         if (p >= n) break;
-        p += (size_t)snprintf(s + p, n - p, "%s", nome[q]);
+        p += (size_t)snprintf(s + p, n - p, "%s", MULTIPLICA[q].nome ? MULTIPLICA[q].nome : J[1].nome);
         if (curto || p >= n) continue;
-        p += (size_t)snprintf(s + p, n - p, " x%d", x[q]);
-        if (q == MULT_VIUVA || q == MULT_AZARAO || q == MULT_ESPERANCA || q == MULT_PATINHOS || q == MULT_PISCA
-            || p >= n) continue;                 // ele mesmo
+        // ACHADO A37: preservado - com dois Sacrificios no mesmo dado (x4), o texto diz x2
+        p += (size_t)snprintf(s + p, n - p, " x%d", MULTIPLICA[q].fator * (q == MULT_FARTURA ? n_far : 1));
+        if (MULTIPLICA[q].so_ele || p >= n) continue;   // ele mesmo
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
         p += (size_t)snprintf(s + p, n - p, nv > 1 ? " nos" : " no");
@@ -261,7 +280,7 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
         int a = -1;
         for (int i = 0; i < f->lancados && i < N_FILA; i++)
             if (est[i] == V_VALIDO && valor_pontos(j, i) > 0 && (a < 0 || f->valor[i] < f->valor[a])) a = i;
-        if (a >= 0) sac[a] += 2;
+        if (a >= 0) sac[a]++;                     // um Sacrificio a mais neste dado
     }
     uint8_t mask = 0;
     uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
@@ -276,31 +295,25 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
         // adiante para o proximo que vale.
         // E so se o Dobro tirou de 1 a 3.
         if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
-            && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
-        if (n_far && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
-        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && valendo == 1) { m += 2; de[MULT_VIUVA] |= bit; }
-        if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && fichas_ini[j] < fichas_ini[outro(j)]) {
-            m += 2;                              // comecou a rodada atras em fichas
-            de[MULT_AZARAO] |= bit;
-        }
-        if (TIPO[tipo_de(j, k)].efeito == EF_ESPERANCA && fichas_ini[j] <= ESPERANCA_FICHAS) {
-            m += 2;                              // comecou a rodada com ESPERANCA_FICHAS fichas ou menos
-            de[MULT_ESPERANCA] |= bit;
-        }
-        if (sac[k]) { m += sac[k]; de[MULT_SACRIFICIO] |= bit; }
-        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1))) {
-            m += 2;                              // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
-            de[MULT_BARAO] |= bit;
-        }
+            && f->valor[k - 1] <= 3) mult_poe(&m, de, MULT_DOBRO, bit, 1);
+        if (n_far && f->valor[k] <= 2) mult_poe(&m, de, MULT_FARTURA, bit, n_far);
+        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && valendo == 1) mult_poe(&m, de, MULT_VIUVA, bit, 1);
+        if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && fichas_ini[j] < fichas_ini[outro(j)])
+            mult_poe(&m, de, MULT_AZARAO, bit, 1);       // comecou a rodada atras em fichas
+        if (TIPO[tipo_de(j, k)].efeito == EF_ESPERANCA && fichas_ini[j] <= ESPERANCA_FICHAS)
+            mult_poe(&m, de, MULT_ESPERANCA, bit, 1);    // comecou a rodada com ESPERANCA_FICHAS fichas ou menos
+        if (sac[k]) mult_poe(&m, de, MULT_SACRIFICIO, bit, sac[k]);
+        if (j == 1 && virada_forca(2) && (k == 0 || (virada_forca(2) == 2 && k == 1)))
+            mult_poe(&m, de, MULT_BARAO, bit, 1);        // o Barao virado: x2 no primeiro (e no segundo, na Cobertura)
         // Amuletos: Piramide (x2 nos de 4 lados), Abre-Alas (x2 no primeiro da sequencia).
-        if (tem_am(j, A_PIRAMIDE) && TIPO[tipo_de(j, k)].lados == 4) { m += 2; de[MULT_PIRAMIDE] |= bit; }
+        if (tem_am(j, A_PIRAMIDE) && TIPO[tipo_de(j, k)].lados == 4) mult_poe(&m, de, MULT_PIRAMIDE, bit, 1);
         // Tres Patinhos: na 3a (6a, 9a...) vez que sao lancados, x3 (se valem).
         // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
-        if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(f->fixo[k])) { m += 3; de[MULT_PATINHOS] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(f->fixo[k])) mult_poe(&m, de, MULT_PATINHOS, bit, 1);
         // Pisca-pisca aceso: x2 nele mesmo.
         // ACHADO A07: preservado - o Camaleao atras do Pisca-pisca le o proprio fixo (0 = aceso): x2 sempre
-        if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(f->fixo[k])) { m += 2; de[MULT_PISCA] |= bit; }
-        if (k == 0 && tem_am(j, A_ABRE_ALAS)) { m += 2; de[MULT_ABRE_ALAS] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(f->fixo[k])) mult_poe(&m, de, MULT_PISCA, bit, 1);
+        if (k == 0 && tem_am(j, A_ABRE_ALAS)) mult_poe(&m, de, MULT_ABRE_ALAS, bit, 1);
         // Somam aos que ja havia (a Saideira passa uma segunda vez: x2 de novo e x4).
         if (m) { d->mult[j][k] = (int8_t)(d->mult[j][k] + m); mask |= 1 << k; }
     }
@@ -314,8 +327,8 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
         if (e) {
             e->mascara = mask;
             memcpy(e->por_dado, d->mult[j], N_FILA);
-            if (de[MULT_PIRAMIDE]) e->am |= AM_BIT(A_PIRAMIDE);
-            if (de[MULT_ABRE_ALAS]) e->am |= AM_BIT(A_ABRE_ALAS);
+            for (int q = 0; q < MULT_N; q++)
+                if (de[q] && MULTIPLICA[q].am >= 0) e->am |= AM_BIT(MULTIPLICA[q].am);
         }
     }
 }

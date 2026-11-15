@@ -792,7 +792,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "(Chumbo, Bússola, Nota Dez, Pião).",
     [D_RETRATO]         = "A moldura de prata com a foto de um dado. Se terminar válido, o adesivo do lado em que ele "
                           "caiu age também no dado logo antes dele, se esse dado valer: um Confete paga duas vezes, um "
-                          "Eletrônico dobra os dois.",
+                          "Eletrônico dobra os dois. A Sujeira, que é do oponente, não se repete.",
     [D_ESTILINGUE]      = "O couro do estilingue, com o elástico. Se tirar 1, valendo ou não, o próximo dado da sua "
                           "sequência sai com o número mais alto dele: um d12 tira 12. O 1 dele, fora do começo, "
                           "costuma cair pela sequência.",

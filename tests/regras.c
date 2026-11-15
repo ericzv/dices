@@ -458,6 +458,15 @@ static void achados_desfecho(void)
     CONFERE(d.total[0] == 1, "A20: Ranzinza corta o D4 2, nao o Trevo 3 (A %d)", d.total[0]);
     modo = M_DOIS; reg_op = 0; rodada = 1;
 
+    // A21: o Porta-Retrato nao repete a Sujeira (o barro do oponente nao e adesivo seu).
+    achado_zera();
+    achado_peca(0, 0, D_RETRATO, 2, AD_SUJEIRA);
+    achado_fila(0);
+    joga(0, D_D6, 1); joga_ad(0, 0, 2);
+    d = fim();
+    CONFERE(d.delta[0] == -2 && d.atacados[0] == 1 && d.ad_agiram[0] == 0,
+            "A21: Porta-Retrato na Sujeira cobra o -2 uma vez (delta %d, atacados %d, agiram %d)", d.delta[0], d.atacados[0], d.ad_agiram[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

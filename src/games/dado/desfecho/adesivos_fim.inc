@@ -56,11 +56,11 @@ static void miras_zera(void)
 }
 // O que o Papagaio e o Porta-Retrato podem repetir em outro dado: os do fim
 // da rodada (os do pouso, os que agem depois - o Holografico, a Purpurina, o
-// Bilhete - e os que so fazem outro agir, nao).
+// Bilhete -, os que so fazem outro agir e a Sujeira, o barro do oponente,
+// que nao e adesivo do dono, nao).
 static bool copia_pode(int a)
 {
-    // ACHADO A21: preservado - a Sujeira nao esta na lista: o Porta-Retrato a repete no dado de antes
-    return a && a != AD_HOLOGRAFICO && a != AD_PURPURINA && a != AD_CARIMBO && a != AD_DUPLA && a != AD_MOLDURA
+    return a && a != AD_SUJEIRA && a != AD_HOLOGRAFICO && a != AD_PURPURINA && a != AD_CARIMBO && a != AD_DUPLA && a != AD_MOLDURA
         && a != AD_BILHETE && a != AD_BARRO && a != AD_MASSINHA && a != AD_CHICLETE && a != AD_XEROX && !ad_do_pouso(a);
 }
 // O dado de antes de k tirou o Carimbo (a segunda vez e dele, nao da Tela em Branco).
@@ -354,7 +354,6 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
 {
     uint8_t bit = (uint8_t)(1 << k);
     if (a == AD_HOLOGRAFICO || a == AD_PURPURINA || a == AD_CARIMBO || a == AD_DUPLA) return false;   // agem depois (ou por outro)
-    // ACHADO A21: preservado - sozinha, a Sujeira nao conta para a Purpurina; repetida pelo Porta-Retrato, conta
     if (a == AD_SUJEIRA) return ad_age(d, j, k, k, a, gera, false);   // o barro do oponente: nao e adesivo seu
     if (ad_do_pouso(a)) { if (primeira) (*agiram)++; return false; }
     // O Barro, a Massinha e o germe do Infectado ja agiram no pouso
@@ -479,7 +478,6 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             && d->est[j][k - 1] == V_VALIDO && copia_pode(a)) {
             age_modo = EVM_RETRATO;
             corrente_copia = corrente_pagou;     // a Corrente dele acabou de pagar
-            // ACHADO A21: preservado - com a Sujeira, o -2 cai de novo, conta outro ataque e +1 para a Purpurina
             if (ad_age(d, j, k - 1, k, a, gera, true)) agiram++;
             age_modo = 0;
         }

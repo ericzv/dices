@@ -119,11 +119,11 @@ static void fase_terremoto(resolve_t *rm)
             rm->pre[r] = true;
             // (sem a semente do lance - o Camaleao atras de um Terremoto, o
             // Terremoto que ja veio grudado pelo Chiclete -, a da mesa, como a Casca)
-            treme_dado(r, a, F[j].abalo[k] ? F[j].abalo[k] : pega_semente(j, k));
+            int q = treme_dado(r, a, F[j].abalo[k] ? F[j].abalo[k] : pega_semente(j, k));
             refaz_sequencia(r, F[r].lancados);
             evento_t *e;
-            if (F[r].valor[a] == antes) e = evento(rm->gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d", antes, J[r].nome, antes);
-            else e = evento(rm->gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d", antes, J[r].nome, F[r].valor[a]);
+            if (F[r].valor[a] == antes) e = evento(rm->gera, EV_TREMOR, j, k, r, a, antes, "Terremoto: o %d de %s treme e fica %d%s", antes, J[r].nome, antes, treme_txt(q));
+            else e = evento(rm->gera, EV_TREMOR, j, k, r, a, F[r].valor[a], "Terremoto: o %d de %s rola de novo: %d%s", antes, J[r].nome, F[r].valor[a], treme_txt(q));
             if (e) e->antes = antes;
             guarda_seq(e, r);
             rm->virou = true;
@@ -162,12 +162,12 @@ static void fase_casca(resolve_t *rm, desfecho_t *d)
             }
             static fila_t guarda;
             guarda = F[t];
-            treme_dado(t, a, pega_semente(r, kc) ^ (0x5CA1AB1Eu * (uint32_t)(n + 1)));
+            int q = treme_dado(t, a, pega_semente(r, kc) ^ (0x5CA1AB1Eu * (uint32_t)(n + 1)));
             bool fica = F[t].valor[a] >= antes;
             if (fica) F[t] = guarda;                 // caiu de novo no mesmo, ou maior: fica o de antes
             else refaz_sequencia(t, F[t].lancados);
-            if (fica) e = evento(rm->gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s escorrega e fica", antes, J[t].nome);
-            else e = evento(rm->gera, EV_TREMOR, r, kc, t, a, F[t].valor[a], "Casca de Banana: o %d de %s escorrega: %d", antes, J[t].nome, F[t].valor[a]);
+            if (fica) e = evento(rm->gera, EV_TREMOR, r, kc, t, a, antes, "Casca de Banana: o %d de %s escorrega e fica%s", antes, J[t].nome, treme_txt(q));
+            else e = evento(rm->gera, EV_TREMOR, r, kc, t, a, F[t].valor[a], "Casca de Banana: o %d de %s escorrega: %d%s", antes, J[t].nome, F[t].valor[a], treme_txt(q));
             if (e) { e->antes = antes; e->ad = AD_CASCA; }
             guarda_seq(e, t);
             rm->virou = true;

@@ -61,7 +61,6 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         if (p >= n) break;
         p += (size_t)snprintf(s + p, n - p, "%s", MULTIPLICA[q].nome ? MULTIPLICA[q].nome : J[1].nome);
         if (curto || p >= n) continue;
-        // ACHADO A37: preservado - com dois Sacrificios no mesmo dado (x4), o texto diz x2
         p += (size_t)snprintf(s + p, n - p, " x%d", MULTIPLICA[q].fator * (q == MULT_FARTURA ? n_far : 1));
         if (MULTIPLICA[q].so_ele || p >= n) continue;   // ele mesmo
         int vals[N_FILA], nv = 0;
@@ -263,24 +262,41 @@ static void fim_fogo(desfecho_t *d, int j, bool gera)
     }
 }
 
+// Os Sacrificios de j valendo, na ordem da fila: cada um vai para o dado seu
+// de menor numero que pontua e que nenhum Sacrificio de antes pegou (o
+// segundo vai para o proximo menor). Sem nenhum livre, aquele nao tem onde
+// agir. alvo[s]: o dado do Sacrificio s, ou -1. A mesa (poder_armado) e o fim
+// usam este.
+static void sacrificio_alvos(int j, const uint8_t *est, int8_t *alvo)
+{
+    const fila_t *f = &F[j];
+    uint8_t pego = 0;
+    for (int s = 0; s < N_FILA; s++) alvo[s] = -1;
+    for (int s = 0; s < f->lancados && s < N_FILA; s++) {
+        if (est[s] != V_VALIDO || TIPO[tipo_de(j, s)].efeito != EF_SACRIFICIO) continue;
+        int a = -1;
+        for (int i = 0; i < f->lancados && i < N_FILA; i++)
+            if (est[i] == V_VALIDO && !(pego >> i & 1) && valor_pontos(j, i) > 0 && (a < 0 || f->valor[i] < f->valor[a])) a = i;
+        if (a >= 0) { alvo[s] = (int8_t)a; pego |= (uint8_t)(1 << a); }
+    }
+}
+
 // O fim de j, 4: o Sacrificio e os multiplicadores, num evento so.
 // Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
 // valor 1 e 2).
 // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
-// contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
+// contar os que nao pontuam); o segundo Sacrificio, no proximo menor
+// (sacrificio_alvos).
 static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
 {
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
 
     int sac[N_FILA] = { 0 };
-    for (int s = 0; s < f->lancados && s < N_FILA; s++) {
-        if (est[s] != V_VALIDO || TIPO[tipo_de(j, s)].efeito != EF_SACRIFICIO) continue;
-        int a = -1;
-        for (int i = 0; i < f->lancados && i < N_FILA; i++)
-            if (est[i] == V_VALIDO && valor_pontos(j, i) > 0 && (a < 0 || f->valor[i] < f->valor[a])) a = i;
-        if (a >= 0) sac[a]++;                     // um Sacrificio a mais neste dado
-    }
+    int8_t sac_alvo[N_FILA];
+    sacrificio_alvos(j, est, sac_alvo);
+    for (int s = 0; s < N_FILA; s++)
+        if (sac_alvo[s] >= 0) sac[sac_alvo[s]]++;   // um Sacrificio neste dado
     uint8_t mask = 0;
     uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
     int8_t mult0[N_FILA];                        // os de antes (da primeira passada da Saideira)
@@ -420,10 +436,11 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
     // anulada, avisa que guarda mais MEIA_GUARDA (4) (uma vez so, mesmo com a Saideira).
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (TIPO[tipo_de(j, k)].efeito != EF_MEIA) continue;
-        // (o Camaleao que a copia nao guardou nada: o fixo e o dele)
+        // (o Camaleao que a copia nao guardou nada - o fixo e o dele - e,
+        // anulado, nao guarda: so a Meia de verdade avisa que guarda)
         if (est[k] == V_VALIDO && f->fixo[k]) {
             extra(d, gera, j, k, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
-        } else if (est[k] == V_ANULADO && !(d->meia[j] >> k & 1)) {
+        } else if (est[k] == V_ANULADO && f->tipo[k] == D_MEIA && !(d->meia[j] >> k & 1)) {
             d->meia[j] |= (uint8_t)(1 << k);
             int g = meia_depois(f->fixo[k]);
             evento(gera, EV_EXTRA, j, k, j, 0, 0, "Meia na Lareira anulada: guarda +%d (%d na meia)", g - f->fixo[k], g);
@@ -479,9 +496,10 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         } else if (ef == EF_SEGURANCA && valendo == f->lancados) {
             d->semente[j] += 2;                      // nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: a sequência inteira válida, +2");
-        } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] >= f->valor[k] && f->valor[k + 1] <= f->valor[k] + 2) {
-            // So o numero do seguinte conta (o texto diz "tirar"): encaixa mesmo
-            // que ele tenha sido anulado ou roubado.
+        } else if (ef == EF_DOMINO && k + 1 < f->lancados && est[k + 1] == V_VALIDO
+                   && f->valor[k + 1] >= f->valor[k] && f->valor[k + 1] <= f->valor[k] + 2) {
+            // So encaixa se o seguinte tambem terminar valendo (anulado ou
+            // roubado, a peca nao tem onde cair).
             int n = 3 - (f->valor[k + 1] - f->valor[k]);   // o mesmo: +3; um a mais: +2; dois a mais: +1
             evento_t *e = extra(d, gera, j, k, n, "Dominó: a peça %d encaixa, +%d", f->valor[k + 1], n);
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = (int8_t)n; }   // a peca cai no seguinte

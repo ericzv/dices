@@ -76,7 +76,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_ESTILINGUE) return v == 1 && k + 1 < f->n && f->lancados == k + 1;   // com 1, valendo ou nao: o proximo sai no maximo
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(fixo_de(j, k));   // o tiro anulado: +12 no fim
-    if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +MEIA_GUARDA (4)
+    if (ef == EF_MEIA && f->est[k] == V_ANULADO && f->tipo[k] == D_MEIA) return 1;   // anulada: guarda +MEIA_GUARDA (4) (o Camaleao, nao)
     if (ef == EF_FICHA_CORINGA) return f->curinga[k];          // com o curinga para cima: vira no fim
     if (ef == EF_CARROSSEL) return f->gira[k];                 // girando: para no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
@@ -117,7 +117,7 @@ static int poder_armado(int j, int k)
     case EF_FERREIRO:     return v >= FERREIRO_ARMA;
     case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
     case EF_VIUVA:        return outros == 0;
-    case EF_DOMINO:       return k + 1 < f->lancados && f->valor[k + 1] >= v && f->valor[k + 1] <= v + 2;
+    case EF_DOMINO:       return k + 1 < f->lancados && f->est[k + 1] == V_VALIDO && f->valor[k + 1] >= v && f->valor[k + 1] <= v + 2;
     case EF_ANCORA:       return k == f->lancados - 1 || f->ancora[k + 1];
     case EF_CALIBRE:      return k == f->lancados - 1 || f->calibre[k + 1];
     case EF_PUXA:         return k == 0 && f->lancados >= FILA_NORMAL && outros == f->lancados - 1;
@@ -184,9 +184,11 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados && i < N_FILA; i++)
             if (i != k && f->est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_JINGLE) return 1;
         return 0;
-    case EF_SACRIFICIO:                                      // um outro dado seu que pontua
-        for (int i = 0; i < f->lancados && i < N_FILA; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
-        return 0;
+    case EF_SACRIFICIO: {                                    // um dado seu que pontua e que outro Sacrificio nao pegou
+        int8_t alvo[N_FILA];
+        sacrificio_alvos(j, f->est, alvo);
+        return alvo[k] >= 0;
+    }
     case EF_SEGURANCA:    return outros == f->lancados - 1;   // o +2: nenhum seu caido (o desvio vale sempre)
     case EF_SORTE: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
     case EF_MEDIA: case EF_ASSOMBRA:

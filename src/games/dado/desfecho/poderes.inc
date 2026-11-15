@@ -250,8 +250,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             if (d->est[j][k] != V_VALIDO) break;  // o Cavalo de Troia roubado o anulou: para de roubar
             int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
             if (a < 0) break;
-            // ACHADO A10: preservado - o roubo vale o dado cheio, sem o corte ja aplicado em d->bonus
-            int vale = contribui(r, a);
+            int vale = contribui(d, r, a);       // como ele pontua agora (com o corte do Sabotador, o -1 do Vampiro)
             // ACHADO A14: preservado - o roubo nao passa por bloqueia_capa: o dado com a capa do Impermeavel e roubado
             d->est[r][a] = V_ROUBADO;
             d->roubo_val[j] += vale;

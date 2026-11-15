@@ -3,16 +3,21 @@
 // o maior, o menor, o ultimo, o primeiro, o vizinho, o que treme - com o
 // desvio para o Seguranca.
 // Le: F (a mesa), o estado dos dados que quem chama passa (d->est ou F[].est)
-// e os amuletos (a Couraca). Nao le J[] nem ev[].
+// e os amuletos (a Couraca); contribui, tambem os cortes do fim (d->bonus).
+// Nao le J[] nem ev[].
 // Grava: nada de fora; mira_menores marca so a copia do estado e a mascara
 // que recebe.
 // Quem chama: reacoes, poderes, adesivos_fim, armado e resolve_mesa.
 // ===========================================================================
 
-static int contribui(int j, int k)
+// Quanto o dado k de j vale num roubo (e no aviso do Cavalo de Troia): o que
+// ele pontua agora, ja com os cortes do fim (o Sabotador, o Vampiro: d->bonus).
+// O corte nao o leva abaixo de 0; o que ja era negativo (o Reves) fica.
+static int contribui(const desfecho_t *d, int j, int k)
 {
-    // ACHADO A10: preservado - nao soma d->bonus: o roubo ignora o corte do Sabotador e o -1 do Vampiro
-    return (valor_pontos(j, k) + F[j].bonus[k]) * (F[j].dobra[k] ? 2 : 1);
+    int base = valor_pontos(j, k) + F[j].bonus[k], v = base + d->bonus[j][k];
+    if (base >= 0 && v < 0) v = 0;
+    return v * (F[j].dobra[k] ? 2 : 1);
 }
 
 // Alvo de um ataque na fila de j. maior = true: o maior, para ANULAR (Carrasco,

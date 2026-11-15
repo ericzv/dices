@@ -329,6 +329,21 @@ static void achados_desfecho(void)
     CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.total[0] == 1,
             "A08: Carrasco 1 ancorado nao anula a si mesmo (est %d %d, A %d)", d.est[0][0], d.est[0][1], d.total[0]);
 
+    // A10: o roubo leva o dado como ele pontua agora - com o corte do
+    // Sabotador (8 -> 4) e o -1 do Vampiro (8 -> 7) ja aplicados.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_SABOTADOR, 5); joga(0, D_GATUNO, 6);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.roubo_val[0] == 4 && d.total[0] == 16, "A10: Gatuno rouba o 8 cortado pelo Sabotador (roubo %d, A %d)",
+            d.roubo_val[0], d.total[0]);
+    achado_fila(0);
+    joga(0, D_VAMPIRO, 2); joga(0, D_CARIDOSO, 3);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.roubo_val[0] == 7 && d.total[0] == 12, "A10: Caridoso rouba o 8 com o -1 do Vampiro (roubo %d, A %d)",
+            d.roubo_val[0], d.total[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

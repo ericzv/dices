@@ -67,8 +67,7 @@ static void apos_ataque(desfecho_t *d, int j, int k, int r, int a, bool gera)
     for (int i = 0; i < F[j].lancados; i++)
         if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)) {
             if (impermeavel(j, i)) { capa |= (uint8_t)(1 << i); continue; }   // bate na capa
-            // ACHADO A10: preservado - o numero mostrado no evento do Cavalo tambem ignora d->bonus
-            perde[i] = (int8_t)contribui(j, i);
+            perde[i] = (int8_t)contribui(d, j, i);
             d->est[j][i] = V_ANULADO;
             mask |= (uint8_t)(1 << i);
             d->atacados[j]++;

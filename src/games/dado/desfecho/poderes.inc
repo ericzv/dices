@@ -248,7 +248,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         tira_placar(d, j, k, 4, "Pirata tira %d de %s", gera);
     } else if ((ef == EF_CARIDOSO && arma) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
         for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
-            // ACHADO A05: preservado - o laco nao reconfere se o Gatuno ainda vale: anulado pelo Cavalo, segue roubando
+            if (d->est[j][k] != V_VALIDO) break;  // o Cavalo de Troia roubado o anulou: para de roubar
             int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
             if (a < 0) break;
             // ACHADO A10: preservado - o roubo vale o dado cheio, sem o corte ja aplicado em d->bonus

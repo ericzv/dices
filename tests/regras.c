@@ -304,6 +304,14 @@ static void achados_desfecho(void)
             "A09: Fenix renasce tambem da Mira copiada pelo Holografico (A %d, est %d %d %d)",
             d.total[0], d.est[0][0], d.est[0][1], d.est[0][2]);
 
+    // A05: o Gatuno anulado pelo Cavalo de Troia no 1o roubo para de roubar.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_D8, 1); joga(0, D_GATUNO, 6);
+    joga(1, D_CAVALO, 2); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[0][2] == V_ANULADO && d.est[1][1] == V_VALIDO && d.total[0] == 0 && d.total[1] == 7,
+            "A05: Gatuno anulado pelo Cavalo nao rouba mais (A %d, B %d, 7 de B est %d)", d.total[0], d.total[1], d.est[1][1]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

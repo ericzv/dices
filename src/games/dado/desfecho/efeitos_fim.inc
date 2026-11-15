@@ -440,19 +440,6 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         d->onda[j] |= (uint8_t)(1 << k);
         evento(gera, EV_ONDA, j, k, j, k, 0, "Onda junta %d: vira Tsunami!", ONDA_VIRA);
     }
-    // O Ourico na fila (valido ou anulado; roubado, nao): cada tentativa do
-    // oponente de anular, atacar ou tirar pontos seus na rodada custa a ele
-    // OURICO_PTS - ate a que a bolha do Impermeavel segurou.
-    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
-        if (est[k] == V_ROUBADO || TIPO[tipo_de(j, k)].efeito != EF_OURICO) continue;
-        int r = outro(j), n = d->atacados[j];
-        if (!n) continue;
-        // ACHADO A13: preservado - na Saideira do dono, cobra de novo o total: os ataques ja cobrados custam outra vez
-        // ACHADO A01: preservado - se o dono do Ourico abriu a rodada, cobra antes de a Assombracao do rival contar
-        d->delta[r] -= OURICO_PTS * n;
-        evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n,
-               n > 1 ? "s" : "", OURICO_PTS * n, J[r].nome);
-    }
     for (int k = 0; k < f->lancados; k++) {               // Ficha Velha anulada: +4, caida ou atacada
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_FICHA_VELHA) continue;
         extra(d, gera, j, k, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
@@ -522,8 +509,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         } else if (ef == EF_ASSOMBRA) {                   // valendo, o susto: -2 no oponente (os Fantasmas vao no fim da rodada)
             int r = outro(j);
             d->delta[r] -= ASSOMBRA_PTS;
-            // ACHADO A01: preservado - o Ourico do rival so cobra este susto se o dono da Assombracao abriu a rodada
-            d->atacados[r]++;
+            d->atacados[r]++;                    // conta para o Ourico do rival (cobrado depois de tudo)
             evento(gera, EV_TIRA, j, k, r, 0, ASSOMBRA_PTS, "Assombração assusta %s: -%d", J[r].nome, ASSOMBRA_PTS);
         } else if (ef == EF_LEQUE) {                      // +2 por outro dado seu valendo que caiu num lado com adesivo
             int n = 0;

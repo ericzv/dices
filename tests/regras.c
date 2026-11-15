@@ -217,6 +217,31 @@ static void achados_desfecho(void)
                 "A02: Holografico nao copia o Bilhete de um dado anulado (abre %d: %d dobras)", p, dobras);
     }
 
+    // A01: o Ourico cobra a Assombracao do rival abra quem abrir a rodada.
+    achado_zera();
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga(0, D_OURICO, 3);
+        joga(1, D_ASSOMBRACAO, 4);
+        d = fim();
+        CONFERE(d.atacados[0] == 1 && d.delta[1] == -OURICO_PTS && d.total[1] == 0,
+                "A01: Ourico x Assombracao (abre %d): B delta %d, total %d", p, d.delta[1], d.total[1]);
+    }
+    // A13: com a Saideira do dono, o Ourico cobra tudo de novo, uma vez so no fim
+    // (um ataque do Pirata: -5 sem Saideira, -10 com ela, num evento so).
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS;
+    for (int s = 0; s < 2; s++) {
+        achado_fila(0); amul[0] = s ? AM_BIT(A_SAIDEIRA) : 0;
+        joga(0, D_OURICO, 3);
+        joga(1, D_PIRATA, 7);
+        d = fim();
+        int ouricos = 0;
+        for (int i = 0; i < n_ev; i++) ouricos += ev[i].tipo == EV_TIRA && !strncmp(ev[i].txt, "Ouriço", 6);
+        CONFERE(d.delta[1] == -OURICO_PTS * (s ? 2 : 1) && ouricos == 1,
+                "A13: Ourico %s Saideira: B delta %d em %d eventos", s ? "com" : "sem", d.delta[1], ouricos);
+    }
+    amul[0] = 0; modo = M_DOIS; rodada = 1;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

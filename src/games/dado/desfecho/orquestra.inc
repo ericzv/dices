@@ -1,6 +1,6 @@
 // ===========================================================================
 // ORQUESTRA: calcula_desfecho, a entrada do desfecho - chama as fases em
-// ordem. E as que so ela usa: a Saideira, os totais e a Autofagia.
+// ordem. E as que so ela usa: a Saideira, o Ourico, os totais e a Autofagia.
 // Le: F, d, J[] (a bolsa, so para ler: a Autofagia conta os dados em jogo),
 // quem abriu a rodada (primeiro), a rodada e os amuletos.
 // Grava: d inteiro (zera, e cada fase preenche a sua parte; aqui, come,
@@ -70,9 +70,30 @@ static void fase_saideira(desfecho_t *d, const int *ordem, bool gera)
         poderes_de(d, j, gera);
         fenix_de(d, j, gera);
         agnus_de(d, j, gera);
-        // ACHADO A13: preservado - a segunda passada cobra o Ourico de novo pelos mesmos ataques
         efeitos_do_fim(d, j, gera);
         if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: nem o aviso
+    }
+}
+
+// O Ourico na fila (valido ou anulado; roubado, nao): cada tentativa do
+// oponente de anular, atacar ou tirar pontos seus na rodada custa a ele
+// OURICO_PTS - ate a que a bolha do Impermeavel segurou. Cobra depois dos
+// efeitos do fim dos dois (a Assombracao do rival tambem conta, abra quem
+// abrir), uma vez so; com a Saideira do dono, em dobro (tudo de novo).
+static void ourico_de(desfecho_t *d, int j, bool gera)
+{
+    int r = outro(j), n = d->atacados[j], vezes = saideira(j) ? 2 : 1;
+    if (!n) return;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        if (d->est[j][k] == V_ROUBADO || TIPO[tipo_de(j, k)].efeito != EF_OURICO) continue;
+        int perde = OURICO_PTS * n * vezes;
+        d->delta[r] -= perde;
+        evento_t *e = vezes > 1
+            ? evento(gera, EV_TIRA, j, k, r, 0, perde, "Ouriço: %d ataque%s, duas vezes, -%d para %s", n, n > 1 ? "s" : "",
+                     perde, J[r].nome)
+            : evento(gera, EV_TIRA, j, k, r, 0, perde, "Ouriço: %d ataque%s, -%d para %s", n, n > 1 ? "s" : "",
+                     perde, J[r].nome);
+        if (e && vezes > 1) e->am = AM_BIT(A_SAIDEIRA);
     }
 }
 
@@ -124,9 +145,9 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
     // ACHADO A03: preservado - Mira contra Mira: a de quem abriu anula a do outro antes de ela agir
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
-    // ACHADO A01: preservado - um jogador de cada vez: o Ourico de quem abre nao ve a Assombracao do outro
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     fase_saideira(d, ordem, gera);
+    for (int o = 0; o < 2; o++) ourico_de(d, ordem[o], gera);   // depois de todos os ataques
     for (int o = 0; o < 2; o++) bilhete_de(d, ordem[o], gera);   // o Bilhete Premiado, por ultimo
     fase_totais(d);
     for (int o = 0; o < 2; o++) autofagia_de(d, ordem[o], gera);   // depois da contagem: nao muda os pontos

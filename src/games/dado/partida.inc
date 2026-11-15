@@ -677,12 +677,8 @@ static int desembrulha(int j, int k, int (*r)(int))
 // Reflexivo, rola de novo e vale o segundo (x); com o Papel Bomba, rola de
 // novo e vale a soma dos dois. Um dos dois por lance: o lado do segundo lance
 // nao faz rolar de novo.
-// O Piao e a Gelatina rolam de novo de verdade: n_re lances de antes (re_x,
-// re_lado), que o dado mostra um a um antes do que fica.
-typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba;
-                 uint8_t giros; bool quicou; uint16_t bonecas;
-                 uint8_t n_re; int re_x[2]; uint8_t re_lado[2]; } lance_t;   // (re: ate PIAO_GIROS)
-// ACHADO A33: preservado - treme_dado (desfecho/tremor.inc) repete este lance por conta propria
+// O lance de um dado (lance_t: desfecho/tremor.inc), com o Reflexivo e o
+// Papel Bomba. O tremor (treme_dado) rola por aqui tambem.
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;

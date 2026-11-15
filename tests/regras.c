@@ -608,6 +608,28 @@ static void achados_desfecho(void)
     CONFERE(n_ev < MAX_EV && ev_perdidos == 0, "A31: a lista de eventos nao enche no pior caso (%d de %d, perdidos %d)", n_ev, MAX_EV, ev_perdidos);
     modo = M_DOIS; rodada = 1; amul[0] = amul[1] = 0;
 
+    // A33: o tremor rola o dado como o lance normal (lanca_peca): o Previsivel com Reflexivo rola o
+    // segundo como um d12 comum, nos dois.
+    achado_zera();
+    achado_peca(1, 0, D_PREVISIVEL, 1, AD_REFLEXIVO);
+    for (int l = 2; l <= 12; l++) ad_cola(&J[1].col[0], l, AD_REFLEXIVO);
+    achado_fila(0);
+    joga_ad(1, 0, 3);
+    {
+        int difere = 0;
+        fila_t guarda = F[1];
+        for (uint32_t s = 1; s <= 60; s++) {
+            uint32_t sem = s * 2654435761u;
+            abalo_s = sem;
+            lance_t l = lanca_peca(F[1].tipo[0], F[1].fixo[0], peca_fila(1, 0), rola_abalo);
+            F[1] = guarda;
+            treme_dado(1, 0, sem);
+            difere += F[1].valor[0] != l.x;
+            F[1] = guarda;
+        }
+        CONFERE(difere == 0, "A33: o tremor rola como o lance normal (diferentes em %d de 60)", difere);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

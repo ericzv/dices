@@ -242,6 +242,23 @@ static void achados_desfecho(void)
     }
     amul[0] = 0; modo = M_DOIS; rodada = 1;
 
+    // A04: a segunda passada da Saideira (Carrasco 4 de A, duas vezes) derruba
+    // dados de B antes de os efeitos do fim de B serem pagos: o Capitao conta
+    // os 2 que sobraram (+2) e o Martir, caido so na segunda, paga.
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS;
+    achado_fila(0); amul[0] = AM_BIT(A_SAIDEIRA);
+    joga(0, D_CARRASCO, 4);
+    joga(1, D_D6, 1); joga(1, D_CAPITAO, 3); joga(1, D_D8, 5); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[1][2] == V_ANULADO && d.est[1][3] == V_ANULADO && d.total[1] == 6,
+            "A04: Saideira x Capitao: B fez %d (esperado 6: 1 + 3 + 2)", d.total[1]);
+    achado_fila(0); amul[0] = AM_BIT(A_SAIDEIRA);
+    joga(0, D_CARRASCO, 4);
+    joga(1, D_D6, 1); joga(1, D_MARTIR, 4); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[1][1] == V_ANULADO && d.total[1] == 3, "A04: Saideira x Martir: B fez %d (esperado 3)", d.total[1]);
+    amul[0] = 0; modo = M_DOIS; rodada = 1;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

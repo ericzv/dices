@@ -57,19 +57,37 @@ static void desfecho_prepara(desfecho_t *d, bool gera)
     if (gera) n_ev = 0;
 }
 
-// A Saideira: os poderes do fim de quem a tem agem de novo, na mesma ordem.
-static void fase_saideira(desfecho_t *d, const int *ordem, bool gera)
+// A Saideira: os poderes do fim de quem a tem agem de novo, na mesma ordem -
+// em duas partes, para nada ser pago sobre a mesa velha: os poderes (que
+// anulam, roubam e cortam) logo depois da primeira passada, antes de tudo o
+// que conta pontos; os efeitos do fim, depois dos efeitos do fim dos dois.
+// O aviso sai uma vez, na primeira parte que fizer algo.
+static bool saideira_avisou[2];
+static evento_t *saideira_aviso(int j, bool gera)
+{
+    evento_t *e = evento(gera, EV_AVISO, j, 0xFF, j, 0, 0, "Saideira: tudo de novo!");
+    if (e) e->am = AM_BIT(A_SAIDEIRA);
+    return e;
+}
+static void fase_saideira_poderes(desfecho_t *d, const int *ordem, bool gera)
+{
+    for (int o = 0; o < 2; o++) {
+        int j = ordem[o], antes = n_ev;
+        saideira_avisou[j] = false;
+        if (!saideira(j)) continue;
+        evento_t *e = saideira_aviso(j, gera);
+        agiu[j] = 0;                             // os dele agem de novo; os do rival, nao
+        poderes_de(d, j, gera);
+        if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: o aviso fica para os efeitos do fim
+        else saideira_avisou[j] = true;
+    }
+}
+static void fase_saideira_fim(desfecho_t *d, const int *ordem, bool gera)
 {
     for (int o = 0; o < 2; o++) {
         int j = ordem[o], antes = n_ev;
         if (!saideira(j)) continue;
-        evento_t *e = evento(gera, EV_AVISO, j, 0xFF, j, 0, 0, "Saideira: tudo de novo!");
-        if (e) e->am = AM_BIT(A_SAIDEIRA);
-        agiu[j] = 0;                             // os dele agem de novo; os do rival, nao
-        // ACHADO A04: preservado - a 2a passada derruba dados do rival, mas os efeitos do fim dele nao sao refeitos
-        poderes_de(d, j, gera);
-        fenix_de(d, j, gera);
-        agnus_de(d, j, gera);
+        evento_t *e = saideira_avisou[j] ? NULL : saideira_aviso(j, gera);
         efeitos_do_fim(d, j, gera);
         if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: nem o aviso
     }
@@ -139,6 +157,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     int ordem[2] = { primeiro, outro(primeiro) };
     agiu[0] = agiu[1] = 0;
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
+    fase_saideira_poderes(d, ordem, gera);       // a Saideira: os poderes de novo, antes de contar pontos
     ranzinza_corta(d, gera);
     // ACHADO A09: preservado - Fenix e Agnus agem antes dos adesivos: nao revivem o dado que a Mira anula depois
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
@@ -146,7 +165,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     // ACHADO A03: preservado - Mira contra Mira: a de quem abriu anula a do outro antes de ela agir
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
-    fase_saideira(d, ordem, gera);
+    fase_saideira_fim(d, ordem, gera);           // a Saideira: os efeitos do fim de novo
     for (int o = 0; o < 2; o++) ourico_de(d, ordem[o], gera);   // depois de todos os ataques
     for (int o = 0; o < 2; o++) bilhete_de(d, ordem[o], gera);   // o Bilhete Premiado, por ultimo
     fase_totais(d);

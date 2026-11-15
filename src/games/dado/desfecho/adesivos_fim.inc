@@ -33,6 +33,11 @@ static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J
 static int age_modo;
 static int age_lado;                             // o lado do adesivo que esta agindo (o de cima, o de baixo, o vizinho)
 static int corrente_antes;                       // a Corrente: os adesivos que agiram nos dados antes deste
+// A copia da Corrente (o Holografico, o Papagaio, o Porta-Retrato) paga o que
+// a Corrente copiada pagou: os elos de cada uma que agiu, pela posicao em
+// fonte[] (corrente_elos) - e os que a copia que esta agindo usa.
+static int corrente_pagou, corrente_copia;
+static uint8_t corrente_elos[N_FILA * AD_LADOS];
 // A fase das Miras (miras_de, antes dos outros adesivos): as Miras dos dois
 // jogadores agem logo depois dos poderes, e o dado que uma Mira derruba nessa
 // fase ainda dispara a sua (como o dado que ataca antes de cair) - quem abriu
@@ -274,10 +279,10 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     }
     case AD_CORRENTE: {                          // +CORRENTE_CADA (3) por elo: ela e cada adesivo seu que agiu antes
         if (!vale) return false;
-        // ACHADO A12: preservado - copiada, conta os elos de corrente_antes: nem os que pagou, nem os do dado da copia
-        int elos = corrente_antes + 1, n = CORRENTE_CADA * elos;
+        int elos = copia ? corrente_copia : corrente_antes + 1, n = CORRENTE_CADA * elos;
+        if (!copia) corrente_pagou = elos;
         d->semente[j] += n;
-        if (corrente_antes > 0)
+        if (elos > 1)
             e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: %d elos, +%d", pre, elos, n);
         else
             e = evento(gera, EV_ADESIVO, j, k, j, k, n, "%sCorrente: um elo, +%d", pre, n);
@@ -379,6 +384,7 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
     if (!ad_age(d, j, k, k, a, gera, false)) return false;
     if (primeira) {
         if (a != AD_RATOEIRA || !(d->rato_bits[j] >> k & 1)) (*agiram)++;   // a que desarmou ja contou
+        corrente_elos[*n_fonte] = (uint8_t)(a == AD_CORRENTE ? corrente_pagou : 0);
         fonte[*n_fonte] = k; qual[(*n_fonte)++] = a;
     }
     return true;
@@ -453,7 +459,6 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
         int viz[2];                              // a Moldura: os dos lados vizinhos
         moldura_fila(j, k, viz);
-        // ACHADO A12: preservado - fica com a conta do ultimo dado com adesivo: as copias da Corrente usam esse valor
         corrente_antes = agiram;
         for (int q = 0; q < 4; q++) {            // o de cima, pela Dupla Face o de baixo, pela Moldura os vizinhos
             int x = q == 0 ? a : q == 1 ? b : viz[q - 2];
@@ -475,6 +480,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (TIPO[tipo_de(j, k)].efeito == EF_RETRATO && d->est[j][k] == V_VALIDO && k > 0
             && d->est[j][k - 1] == V_VALIDO && copia_pode(a)) {
             age_modo = EVM_RETRATO;
+            corrente_copia = corrente_pagou;     // a Corrente dele acabou de pagar
             // ACHADO A21: preservado - com a Sujeira, o -2 cai de novo, conta outro ataque e +1 para a Purpurina
             if (ad_age(d, j, k - 1, k, a, gera, true)) agiram++;
             age_modo = 0;
@@ -494,6 +500,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         int ul = n_fonte - 1;
         if (!copia_pode(qual[ul])) continue;
         age_modo = EVM_PAPAGAIO;
+        corrente_copia = corrente_elos[ul];
         if (ad_age(d, j, k, fonte[ul], qual[ul], gera, true)) agiram++;
         age_modo = 0;
     }
@@ -506,7 +513,10 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         for (int c = 0; c < (carimbo ? 2 : 1); c++) {
             age_modo = md | (c ? EVM_CARIMBO : 0);
             bool esta = false;
-            for (int f = 0; f < n_fonte; f++) esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
+            for (int f = 0; f < n_fonte; f++) {
+                corrente_copia = corrente_elos[f];
+                esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
+            }
             // ACHADO A16: preservado - carimbado (c == 1), o Holografico anota outra copia cheia do Bilhete (x8)
             if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
                 d->bil_holo[j][k]++;             // uma passada a mais: no fim, uma copia por Bilhete que valeu

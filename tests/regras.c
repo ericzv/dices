@@ -365,6 +365,19 @@ static void achados_desfecho(void)
     CONFERE(copias == 2 && tela_txt == 1 && d.semente[0] == 12,
             "A11: Holografico na Tela copia duas vezes (%d copias, %d da Tela, semente %d)", copias, tela_txt, d.semente[0]);
 
+    // A12: o Holografico que copia a Corrente paga o que ela pagou (1 elo, +3),
+    // nao a conta do ultimo dado com adesivo (2 elos).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_HOLOGRAFICO);
+    achado_peca(0, 1, D_D6, 2, AD_CORRENTE);
+    achado_peca(0, 2, D_D6, 3, AD_CONFETE);
+    achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3);
+    d = fim();
+    int copia_corr = -1;
+    for (int i = 0; i < n_ev; i++) if (ev_tipo_ad(i, AD_CORRENTE) && ev[i].copia) copia_corr = ev[i].valor;
+    CONFERE(copia_corr == CORRENTE_CADA && d.semente[0] == 3 + 4 + 3 + 4,
+            "A12: Holografico copia a Corrente pelo que ela pagou (copia %d, semente %d)", copia_corr, d.semente[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

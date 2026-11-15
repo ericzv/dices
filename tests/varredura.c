@@ -22,11 +22,17 @@
 //
 //   varredura [mesas] [semente]        mesas ao acaso (padrao: 3000)
 //   varredura --uma SEMENTE            uma mesa so, escrita rodada a rodada
+//   varredura --impressao [mesas] [ref] [--grava]
+//                                      impressao digital do desfecho, campo a
+//                                      campo, comparada (ou gravada) na referencia
+//   varredura --cobertura [mesas]      o que as mesas da impressao exercitam
+//   varredura --tempo [mesas]          quanto custa uma previa (100 por mesa)
 //
 // Cada mesa joga de uma a quatro rodadas seguidas. Cada falha escreve a
 // semente da mesa: --uma repete so ela. Compile com
 // -fsanitize=address,undefined para pegar erro de memoria.
 #include <stdio.h>
+#include <time.h>
 #include "../src/games/dado.c"
 
 static uint16_t fb[GFX_W * GFX_H];
@@ -1065,6 +1071,31 @@ int main(int argc, char **argv)
         printf("\nmenos vistos (dados com menos de 20 rodadas):");
         for (int t = 0; t < D_N; t++) if (cob_dado[t] && cob_dado[t] < 20) printf(" %s(%ld)", TIPO[t].nome, cob_dado[t]);
         printf("\n");
+        return 0;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--tempo")) {
+        // A previa e o que a IA chama centenas de vezes por decisao: mede o
+        // custo dela nas mesas da varredura, depois da rodada jogada (sem
+        // previas no meio). A soma dos totais confere que a conta e a mesma.
+        int mesas = argc > 2 ? atoi(argv[2]) : 2000, por = 100, n = 0;
+        long soma = 0;
+        double gasto = 0;
+        for (uint32_t s = 1; n < mesas; s++) {
+            vs = 0x1234567ull * s + 99;
+            semente_rodada = s;
+            variante_agora = VAR_SECA;
+            monta_mesa();
+            if (!joga_rodada(VAR_SECA)) continue;
+            clock_t t0 = clock();
+            for (int i = 0; i < por; i++) {
+                desfecho_t d;
+                calcula_desfecho(&d, false);
+                soma += d.total[0] * 3 + d.total[1];
+            }
+            gasto += (double)(clock() - t0) / CLOCKS_PER_SEC;
+            n++;
+        }
+        printf("%d previas em %.3f s (%.2f us cada), conferencia %ld\n", mesas * por, gasto, gasto / (mesas * por) * 1e6, soma);
         return 0;
     }
     if (argc > 1 && !strcmp(argv[1], "--impressao")) {

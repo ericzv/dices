@@ -44,9 +44,10 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
 // A Ampulheta: +1 a cada 3 rodadas ja jogadas, ate +4.
 static int ampulheta(void) { int n = (rodada - 1) / 3; return n < 0 ? 0 : n > 4 ? 4 : n; }
 
-// Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
-// multiplicadores. Decididos sobre o estado depois dos ataques.
-static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
+// O fim de j, 1: os bonus que entram antes dos multiplicadores (Moeda da
+// sorte, Copiador, Treno, Duende, Rena, Dupla, Ferreiro, Sentinela e Tudo
+// ou Nada).
+static void fim_bonus(desfecho_t *d, int j, bool gera)
 {
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
@@ -176,19 +177,34 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                                                                           : "Tudo ou Nada deu 1: -5 em cada dado") : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
     }
+}
 
-    // Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
-    // valor 1 e 2).
-    bool fartura = false;
+// O fim de j, 2: se ha Fartura valendo, e quantas.
+// Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
+// valor 1 e 2).
+static void fim_mult_prepara(const desfecho_t *d, int j, bool *fartura, int *n_far)
+{
+    const fila_t *f = &F[j];
+    const uint8_t *est = d->est[j];
+
+    *fartura = false;
     for (int k = 0; k < f->lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) fartura = true;
-    int n_far = 0;
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) *fartura = true;
+    *n_far = 0;
     for (int k = 0; k < f->lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) n_far++;
-    // Ficha de Fogo: com 2, +10; com 1, nada. Nos dois casos o maior dado seu
-    // que pontua (sem contar ela) queima no fim. Duas fichas queimam dois
-    // dados diferentes. O dado com a capa do Impermeavel e alvo como os
-    // outros, mas nao queima - e o fogo nao passa para outro.
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) (*n_far)++;
+}
+
+// O fim de j, 3: a Ficha de Fogo.
+// Ficha de Fogo: com 2, +10; com 1, nada. Nos dois casos o maior dado seu
+// que pontua (sem contar ela) queima no fim. Duas fichas queimam dois
+// dados diferentes. O dado com a capa do Impermeavel e alvo como os
+// outros, mas nao queima - e o fogo nao passa para outro.
+static void fim_fogo(desfecho_t *d, int j, bool gera)
+{
+    const fila_t *f = &F[j];
+    const uint8_t *est = d->est[j];
+
     uint8_t mirado[N_FILA] = { 0 };
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FOGO) continue;
@@ -211,9 +227,16 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                                                              : "Ficha Fogo deu 1: o %d vira cinza", f->valor[a]);
         if (e && capa) e->bloqueado = (uint8_t)(1 << a);
     }
+}
 
-    // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
-    // contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
+// O fim de j, 4: o Sacrificio e os multiplicadores, num evento so.
+// Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
+// contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
+static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
+{
+    const fila_t *f = &F[j];
+    const uint8_t *est = d->est[j];
+
     int sac[N_FILA] = { 0 };
     for (int s = 0; s < f->lancados && s < N_FILA; s++) {
         if (est[s] != V_VALIDO || TIPO[tipo_de(j, s)].efeito != EF_SACRIFICIO) continue;
@@ -277,9 +300,16 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
             if (de[MULT_ABRE_ALAS]) e->am |= AM_BIT(A_ABRE_ALAS);
         }
     }
+}
 
-    // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
-    // roubou) somam SEMENTE_BROTA ou mais, +SEMENTE_PTS no fim - fora de qualquer multiplicador.
+// O fim de j, 5: os pontos fixos, fora dos multiplicadores.
+// Semente: se os dados deste jogador (com bonus, multiplicadores e os que
+// roubou) somam SEMENTE_BROTA ou mais, +SEMENTE_PTS no fim - fora de qualquer multiplicador.
+static void fim_fixos(desfecho_t *d, int j, bool gera)
+{
+    const fila_t *f = &F[j];
+    const uint8_t *est = d->est[j];
+
     int dados = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j];
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SEMENTE) continue;
@@ -582,5 +612,18 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
                 if (iguais >> i & 1) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 2; }
         }
     }
+}
+
+// Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
+// multiplicadores. Decididos sobre o estado depois dos ataques.
+static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
+{
+    fim_bonus(d, j, gera);
+    bool fartura;
+    int n_far;
+    fim_mult_prepara(d, j, &fartura, &n_far);
+    fim_fogo(d, j, gera);
+    fim_mult(d, j, gera, fartura, n_far);
+    fim_fixos(d, j, gera);
 }
 

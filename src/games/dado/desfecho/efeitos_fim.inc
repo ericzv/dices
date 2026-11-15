@@ -56,6 +56,14 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
 // A Ampulheta: +1 a cada 3 rodadas ja jogadas, ate +4.
 static int ampulheta(void) { int n = (rodada - 1) / 3; return n < 0 ? 0 : n > 4 ? 4 : n; }
 
+// +n no dado i de j, marcado na mascara e anotado em por (para o evento).
+static void bonus_em(desfecho_t *d, int j, int i, int n, uint8_t *mask, int8_t *por)
+{
+    d->bonus[j][i] = (int8_t)(d->bonus[j][i] + n);
+    *mask |= (uint8_t)(1 << i);
+    por[i] = (int8_t)n;
+}
+
 // O fim de j, 1: os bonus que entram antes dos multiplicadores (Moeda da
 // sorte, Copiador, Treno, Duende, Rena, Dupla, Ferreiro, Sentinela e Tudo
 // ou Nada).
@@ -73,8 +81,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
             if (est[i] != V_VALIDO) continue;
             bool impar = f->valor[i] % 2 == 1;
             // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
-            if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
-            if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
+            if ((face == 1 && impar) || (face == 2 && !impar)) bonus_em(d, j, i, 1, &mask, por);
         }
         const char *txt = face == 1 ? "Moeda sorte deu 1: +1 nos ímpares" : "Moeda sorte deu 2: +1 nos pares";
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", txt) : NULL;
@@ -89,7 +96,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
         int nl = f->lancados < N_FILA ? f->lancados : N_FILA;
         for (int i = 0; i < nl; i++) {
             if (i == k || est[i] != V_VALIDO || f->valor[i] != f->valor[k]) continue;
-            d->bonus[j][i] += COPIADOR_CADA; mask |= (uint8_t)(1 << i); por[i] = COPIADOR_CADA;
+            bonus_em(d, j, i, COPIADOR_CADA, &mask, por);
         }
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Copiador %d: +%d em cada %d",
                                     f->valor[k], COPIADOR_CADA, f->valor[k]) : NULL;
@@ -104,7 +111,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
         int8_t por[N_FILA] = { 0 };
         int n = 0;
         for (int i = 0; i < k; i++)
-            if (est[i] == V_VALIDO) { n++; d->bonus[j][i] += (int8_t)n; por[i] = (int8_t)n; mask |= (uint8_t)(1 << i); }
+            if (est[i] == V_VALIDO) bonus_em(d, j, i, ++n, &mask, por);
         evento_t *e = !mask ? NULL : n == 1 ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "Trenó puxa o dado de antes: +1")
                                            : evento(gera, EV_BONUS, j, k, 0, 0, 0, "Trenó puxa %d dados: +1 a +%d", n, n);
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
@@ -119,7 +126,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
             if (est[k] != V_VALIDO) continue;
             int n = 0;
             for (int i = 0; i < f->lancados && i < N_FILA; i++) n += i != k && est[i] == V_VALIDO && tipo_de(j, i) == tipo_de(j, k);
-            if (n) { d->bonus[j][k] += (int8_t)n; por[k] = (int8_t)n; mask |= (uint8_t)(1 << k); }
+            if (n) bonus_em(d, j, k, n, &mask, por);
         }
         evento_t *e = mask ? evento(gera, EV_BONUS, j, 0xFF, 0, 0, 0, "Linha de montagem: +1 por dado igual") : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
@@ -133,7 +140,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
         int8_t por[N_FILA] = { 0 };
         for (int i = k - 1; i <= k + 1; i += 2)
             if (i >= 0 && i < f->lancados && i < N_FILA && est[i] == V_VALIDO) {
-                d->bonus[j][i] += 1; por[i] = 1; mask |= (uint8_t)(1 << i);
+                bonus_em(d, j, i, 1, &mask, por);
             }
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", (mask & (mask - 1)) ? "Rena puxa os dois vizinhos: +1"
                                                                                        : "Rena puxa o vizinho: +1") : NULL;
@@ -149,7 +156,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
             if (est[k] != V_VALIDO) continue;
             for (int i = 0; i < nl; i++)
                 if (i != k && est[i] == V_VALIDO && f->valor[i] == f->valor[k]) {
-                    d->bonus[j][k] += 2; mask |= (uint8_t)(1 << k); por[k] = 2;
+                    bonus_em(d, j, k, 2, &mask, por);
                     break;
                 }
         }
@@ -185,7 +192,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
         uint8_t mask = 0;
         int8_t por[N_FILA] = { 0 };
         for (int i = 0; i < f->lancados && i < N_FILA; i++)
-            if (est[i] == V_VALIDO) { d->bonus[j][i] += (int8_t)s; mask |= (uint8_t)(1 << i); por[i] = (int8_t)s; }
+            if (est[i] == V_VALIDO) bonus_em(d, j, i, s, &mask, por);
         evento_t *e = mask ? evento(gera, EV_BONUS, j, k, 0, 0, 0, "%s", s > 0 ? "Tudo ou Nada deu 2: +5 em cada dado"
                                                                           : "Tudo ou Nada deu 1: -5 em cada dado") : NULL;
         if (e) { e->mascara = mask; memcpy(e->por_dado, por, sizeof por); }
@@ -193,17 +200,15 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
 }
 
 // O fim de j, 2: se ha Fartura valendo, e quantas.
-static void fim_mult_prepara(const desfecho_t *d, int j, bool *fartura, int *n_far)
+static int fim_mult_prepara(const desfecho_t *d, int j)
 {
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
 
-    *fartura = false;
+    int n_far = 0;
     for (int k = 0; k < f->lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) *fartura = true;
-    *n_far = 0;
-    for (int k = 0; k < f->lancados; k++)
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) (*n_far)++;
+        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) n_far++;
+    return n_far;
 }
 
 // O fim de j, 3: a Ficha de Fogo.
@@ -245,7 +250,7 @@ static void fim_fogo(desfecho_t *d, int j, bool gera)
 // valor 1 e 2).
 // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
 // contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
-static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
+static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
 {
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
@@ -262,8 +267,6 @@ static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
     uint8_t de[MULT_N] = { 0 };                  // de onde veio cada multiplicador (para o texto)
     int8_t mult0[N_FILA];                        // os de antes (da primeira passada da Saideira)
     memcpy(mult0, d->mult[j], N_FILA);
-    int sozinhos = 0;                            // dados valendo: a Viuva quer ser a unica
-    for (int k = 0; k < f->lancados; k++) sozinhos += est[k] == V_VALIDO;
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || universo(j, k)) continue;   // nada multiplica o Universo
         int m = 0;
@@ -274,8 +277,8 @@ static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
         // E so se o Dobro tirou de 1 a 3.
         if (k > 0 && est[k - 1] == V_VALIDO && TIPO[tipo_de(j, k - 1)].efeito == EF_DOBRO
             && f->valor[k - 1] <= 3) { m += 2; de[MULT_DOBRO] |= bit; }
-        if (fartura && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
-        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && sozinhos == 1) { m += 2; de[MULT_VIUVA] |= bit; }
+        if (n_far && f->valor[k] <= 2) { m += 2 * n_far; de[MULT_FARTURA] |= bit; }
+        if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && valendo == 1) { m += 2; de[MULT_VIUVA] |= bit; }
         if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && fichas_ini[j] < fichas_ini[outro(j)]) {
             m += 2;                              // comecou a rodada atras em fichas
             de[MULT_AZARAO] |= bit;
@@ -320,7 +323,7 @@ static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
 // O fim de j, 5: os pontos fixos, fora dos multiplicadores.
 // Semente: se os dados deste jogador (com bonus, multiplicadores e os que
 // roubou) somam SEMENTE_BROTA ou mais, +SEMENTE_PTS no fim - fora de qualquer multiplicador.
-static void fim_fixos(desfecho_t *d, int j, bool gera)
+static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados)
 {
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
@@ -336,8 +339,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
     // Crisantemo (o Velorio do Coveiro): +1 por dado de j anulado na rodada.
     // Do oponente, so vem do trunfo do Coveiro; seu, do amuleto.
     if (tem_am(j, A_CRISANTEMO)) {
-        int mortos = 0;
-        for (int k = 0; k < f->lancados; k++) if (d->est[j][k] == V_ANULADO) mortos++;
+        int mortos = anulados;
         if (mortos) {
             d->semente[j] += mortos;
             evento_t *e = NULL;
@@ -376,11 +378,6 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
     // Seguranca, Domino, Puxa-fila, Coveiro, Hexa, Ampulheta, Assombracao,
     // Leque, Balao, Mosaico, Medusa, Rancor, Media, Pote Quente, Garimpeiro,
     // Agiota e Desafiante; por ultimo, o Jackpot.
-    int anulados = 0, valendo = 0;
-    for (int k = 0; k < f->lancados; k++) {
-        if (est[k] == V_ANULADO) anulados++;
-        if (est[k] == V_VALIDO) valendo++;
-    }
     // Jingle Bells: com dois ou mais valendo, os sinos tocam - +4 em cada um,
     // fora dos multiplicadores.
     int sinos = 0, sino0 = -1;
@@ -618,12 +615,16 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
 // e fim_fixos (os pontos fixos). Decididos sobre o estado depois dos ataques.
 static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 {
+    // Os efeitos do fim nao mudam o estado dos dados: conta uma vez so.
+    int valendo = 0, anulados = 0;
+    for (int k = 0; k < F[j].lancados; k++) {
+        valendo += d->est[j][k] == V_VALIDO;
+        anulados += d->est[j][k] == V_ANULADO;
+    }
     fim_bonus(d, j, gera);
-    bool fartura;
-    int n_far;
-    fim_mult_prepara(d, j, &fartura, &n_far);
+    int n_far = fim_mult_prepara(d, j);
     fim_fogo(d, j, gera);
-    fim_mult(d, j, gera, fartura, n_far);
-    fim_fixos(d, j, gera);
+    fim_mult(d, j, gera, n_far, valendo);
+    fim_fixos(d, j, gera, valendo, anulados);
 }
 

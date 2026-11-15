@@ -87,7 +87,9 @@ static void confere_estado(int partida)
         CONFERE(dado_dbg_fichas(j) >= 0, "partida %d jogador %d fichas %d", partida, j, dado_dbg_fichas(j));
         CONFERE(dado_dbg_col(j) >= 4 && dado_dbg_col(j) <= 128, "partida %d colecao %d", partida, dado_dbg_col(j));
         CONFERE(dado_dbg_pool(j) >= 0 && dado_dbg_pool(j) <= 10, "partida %d mao %d", partida, dado_dbg_pool(j));   // MAO: 7, a Bolsa Funda e o Bis
-        CONFERE(dado_dbg_lancados(j) >= 0 && dado_dbg_lancados(j) <= 4, "partida %d lancados %d", partida, dado_dbg_lancados(j));
+        // 4 por sequencia; 5 com o Bis da rodada passada ou o Estojo de Lapis (6 com os dois)
+        CONFERE(dado_dbg_lancados(j) >= 0 && dado_dbg_lancados(j) <= dado_dbg_max_fila(j), "partida %d lancados %d (cabem %d)",
+                partida, dado_dbg_lancados(j), dado_dbg_max_fila(j));
     }
     CONFERE(dado_dbg_rodada() <= 16, "partida %d rodada %d", partida, dado_dbg_rodada());
     CONFERE(dado_dbg_pote() >= 0, "partida %d pote %d", partida, dado_dbg_pote());

@@ -62,6 +62,7 @@ int  dado_dbg_lados(int t);
 int  dado_dbg_pontos(int j);
 int  dado_dbg_total(int j);
 int  dado_dbg_lancados(int j);
+int  dado_dbg_max_fila(int j);
 int  dado_dbg_risco(int j);
 int  dado_dbg_rodada(void);
 int  dado_dbg_pote(void);

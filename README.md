@@ -40,7 +40,10 @@ dado que pontua: o Sabotador e o Ranzinza cortam o de maior número entre os
 que valem mais que 0, e o Vampiro não tira do que já está em 0. Quem rouba
 leva o dado como ele pontua naquela hora (com o corte e o -1). Preso pela
 Âncora, o Segurança segura o golpe que viria para ele: não cai nem é
-roubado.
+roubado. O dado que treme (pelo Terremoto ou pela Casca) rola como no
+lance: com o Estilingue de antes em 1 sai no maior lado, o Pião gira de
+novo e a Gelatina quica. O Dominó só encaixa se o próximo também terminar
+válido; com dois Sacrifícios, o segundo dobra o próximo menor dado.
 
 **Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
 Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez

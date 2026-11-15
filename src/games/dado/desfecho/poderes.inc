@@ -20,7 +20,8 @@
 // miram se anulam os dois, quem quer que tenha aberto a rodada. Cada dado
 // age uma vez so (agiu[j], um bit por lugar); a Saideira zera os de quem
 // repete.
-// ACHADO A03: preservado - isso vale para os dados; entre adesivos (Mira contra Mira), quem abriu a rodada leva
+// O mesmo vale para a Mira (adesivo): a fase das Miras (miras_de) faz o dado
+// que uma Mira derruba ainda disparar a sua.
 static uint8_t agiu[2];
 static void poder_de(desfecho_t *d, int j, int k, bool gera);
 

@@ -259,6 +259,31 @@ static void achados_desfecho(void)
     CONFERE(d.est[1][1] == V_ANULADO && d.total[1] == 3, "A04: Saideira x Martir: B fez %d (esperado 3)", d.total[1]);
     amul[0] = 0; modo = M_DOIS; rodada = 1;
 
+    // A03: Mira contra Mira - as duas agem, abra quem abrir (como dois Carrascos).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 4, AD_MIRA);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 4); joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_ANULADO && d.total[0] == 0 && d.total[1] == 0,
+                "A03: Mira x Mira (abre %d): A %d (est %d), B %d (est %d)", p, d.total[0], d.est[0][0], d.total[1], d.est[1][0]);
+    }
+    // A38: um adesivo que paga "se terminar valendo" (o Confete de A) nao paga
+    // antes de a Mira de B anular o dado, abra quem abrir.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_CONFETE);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga(0, D_D6, 5);
+        joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.semente[0] == 0 && d.total[0] == 5,
+                "A38: Confete num dado que a Mira anula (abre %d): A %d, semente %d", p, d.total[0], d.semente[0]);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

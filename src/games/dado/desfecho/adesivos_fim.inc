@@ -33,6 +33,22 @@ static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J
 static int age_modo;
 static int age_lado;                             // o lado do adesivo que esta agindo (o de cima, o de baixo, o vizinho)
 static int corrente_antes;                       // a Corrente: os adesivos que agiram nos dados antes deste
+// A fase das Miras (miras_de, antes dos outros adesivos): as Miras dos dois
+// jogadores agem logo depois dos poderes, e o dado que uma Mira derruba nessa
+// fase ainda dispara a sua (como o dado que ataca antes de cair) - quem abriu
+// a rodada nao leva vantagem. Na passada dos adesivos cada Mira ja feita so
+// conta (para a Purpurina, a Corrente e o Holografico), sem agir de novo.
+static int age_vez;                              // a vez do adesivo no dado: lado (0 cima, 1 Dupla, 2-3 Moldura) x 2 + Carimbo
+static bool na_fase_mira;
+static uint8_t mira_feita[2][N_FILA], mira_deu[2][N_FILA];   // um bit por vez: ja agiu na fase / e pegou
+static uint8_t mira_caiu[2];                     // os dados que uma Mira derrubou na fase
+static void miras_zera(void)
+{
+    memset(mira_feita, 0, sizeof mira_feita);
+    memset(mira_deu, 0, sizeof mira_deu);
+    mira_caiu[0] = mira_caiu[1] = 0;
+    na_fase_mira = false;
+}
 // O que o Papagaio e o Porta-Retrato podem repetir em outro dado: os do fim
 // da rodada (os do pouso, os que agem depois - o Holografico, a Purpurina, o
 // Bilhete - e os que so fazem outro agir, nao).
@@ -281,7 +297,9 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         break;
     }
     case AD_MIRA: {                              // o menor dado do oponente que vale (e que cai)
-        if (!vale) return false;
+        if (!copia && !na_fase_mira && (mira_feita[j][k] >> age_vez & 1))
+            return mira_deu[j][k] >> age_vez & 1;  // ja agiu na fase das Miras: aqui so conta
+        if (!vale && !(na_fase_mira && !copia && (mira_caiu[j] >> k & 1))) return false;
         bool couraca = tem_am(r, A_COURACA);
         if (couraca && gera) am_acende(A_COURACA);
         int a0 = couraca ? -1 : menor_valido(d->est[r], r, 0);
@@ -292,8 +310,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             ad_marca(capa_ev, AD_MIRA, copia, age_modo);
             return true;
         }
-        // ACHADO A03: preservado - o adesivo anula na hora, sem o contra-ataque dos dados: a Mira do alvo nao age mais
         d->est[r][alvo] = V_ANULADO;
+        if (na_fase_mira) mira_caiu[r] |= (uint8_t)(1 << alvo);   // a Mira dele ainda dispara
         d->atacados[r]++;
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: anula o %d de %s", pre, F[r].valor[alvo], J[r].nome);
@@ -381,6 +399,36 @@ static void moldura_fila(int j, int k, int *viz)
         viz[q] = b;
     }
 }
+// As Miras de j (as do lado de cima, as da Dupla Face e da Moldura, e a
+// repeticao do Carimbo e da Tela), pela mesma ordem da passada dos adesivos.
+static void miras_de(desfecho_t *d, int j, bool gera)
+{
+    na_fase_mira = true;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        int a = ad_fila(j, k);
+        if (!a || d->est[j][k] == V_ROUBADO) continue;
+        const peca_t *pc = peca_fila(j, k);
+        bool carimbo = carimbado(d, j, k) || F[j].tipo[k] == D_TELA;
+        int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
+        int viz[2];
+        moldura_fila(j, k, viz);
+        for (int q = 0; q < 4; q++) {
+            int x = q == 0 ? a : q == 1 ? b : viz[q - 2];
+            if (x != AD_MIRA) continue;
+            int lc = F[j].lado[k];
+            age_lado = q == 0 ? lc : q == 1 ? ad_oposto(pc->tipo, lc) : q == 2 ? lc - 1 : lc + 1;
+            for (int c = 0; c < (carimbo ? 2 : 1); c++) {
+                age_modo = (q == 1 ? EVM_DUPLA : q >= 2 ? EVM_MOLDURA : 0) | (c ? EVM_CARIMBO : 0);
+                age_vez = q * 2 + c;
+                bool deu = ad_age(d, j, k, k, AD_MIRA, gera, false);
+                mira_feita[j][k] |= (uint8_t)(1 << age_vez);
+                if (deu) mira_deu[j][k] |= (uint8_t)(1 << age_vez);
+            }
+        }
+    }
+    age_modo = 0;
+    na_fase_mira = false;
+}
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
     // ACHADO A32: preservado - as Ratoeiras que desarmaram ja entram na conta da Purpurina (nao reproduz diferenca)
@@ -413,6 +461,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             age_lado = q == 0 ? lc : q == 1 ? ad_oposto(pc->tipo, lc) : q == 2 ? lc - 1 : lc + 1;
             for (int c = 0; c < (carimbo ? 2 : 1); c++) {   // e carimbado, outra vez
                 age_modo = (q == 1 ? EVM_DUPLA : q >= 2 ? EVM_MOLDURA : 0) | (c ? EVM_CARIMBO : 0);
+                age_vez = q * 2 + c;
                 bool agiu = age_um(d, j, k, x, gera, c == 0, fonte, qual, &n_fonte, &agiram);
                 duplo |= agiu && q;
                 carimbou |= agiu && c;

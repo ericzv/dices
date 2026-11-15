@@ -55,6 +55,7 @@ static void desfecho_prepara(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
     if (gera) n_ev = 0;
+    miras_zera();
 }
 
 // A Saideira: os poderes do fim de quem a tem agem de novo, na mesma ordem -
@@ -162,7 +163,7 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     // ACHADO A09: preservado - Fenix e Agnus agem antes dos adesivos: nao revivem o dado que a Mira anula depois
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
-    // ACHADO A03: preservado - Mira contra Mira: a de quem abriu anula a do outro antes de ela agir
+    for (int o = 0; o < 2; o++) miras_de(d, ordem[o], gera);      // as Miras, antes dos adesivos que pagam
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     fase_saideira_fim(d, ordem, gera);           // a Saideira: os efeitos do fim de novo

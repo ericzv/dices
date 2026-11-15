@@ -4239,6 +4239,43 @@ int main(void)
                     por_nivel[1][0], por_nivel[1][1], por_nivel[1][2], por_nivel[1][3]);
             run.vitorias = 0;
         }
+        // A Etiqueta: com uma colada na bolsa (e aberta), todo pacote de adesivos
+        // traz, alem das cartas de sempre, uma Etiqueta (as de sempre saem sem ela);
+        // sem nenhuma na bolsa, o pacote fica como era. Com a Caixa de Papelao, 5 cartas.
+        {
+            run_t r0 = run;
+            uint8_t nv0 = perfis[0].nivel;
+            perfis[0].nivel = N_NIVEIS;
+            run.bolsa = B_PANO;
+            int com = 0, sem = 0, rep = 0, extra_sem = 0, caixa = 0;
+            for (int etq = 0; etq < 2; etq++) {
+                run.n_col = 0;
+                run.col[run.n_col++] = nova_peca(D_D6);
+                run.col[run.n_col++] = nova_peca(D_D8);
+                if (etq) ad_cola(&run.col[1], 3, AD_ETIQUETA);
+                for (int l = 0; l < 300; l++) {
+                    run.lojas = (uint8_t)(l & 0xFF);
+                    run.trocas = (uint8_t)(l >> 8);
+                    monta_pacote();
+                    if (!pacote_de_adesivos()) continue;
+                    if (!etq) { sem++; extra_sem += pac_n() != PAC_OPCOES || pac_etiqueta_extra(); continue; }
+                    com += pac_n() == PAC_OPCOES + 1 && pac_ad(PAC_OPCOES) == AD_ETIQUETA;
+                    for (int i = 0; i < PAC_OPCOES; i++) rep += pac_ad(i) == AD_ETIQUETA;
+                }
+            }
+            run.bolsa = B_PAPELAO;
+            for (int l = 0; l < 300 && !caixa; l++) {
+                run.lojas = (uint8_t)l;
+                monta_pacote();
+                if (pacote_de_adesivos()) caixa = pac_n() == PAC_MAX + 1 && pac_ad(PAC_MAX) == AD_ETIQUETA && pac_carta_p(PAC_MAX)->ad[0] == AD_ETIQUETA;
+            }
+            CONFERE(com > 50 && sem > 50 && !rep && !extra_sem && caixa,
+                    "Etiqueta extra no pacote: com %d, sem %d, repetida %d, extra sem ter %d, Caixa %d", com, sem, rep, extra_sem, caixa);
+            perfis[0].nivel = 0;                         // fechada no perfil: nao vem (mesmo com uma na bolsa)
+            CONFERE(!tem_etiqueta_na_bolsa(), "Etiqueta fechada no perfil nao entra no pacote");
+            perfis[0].nivel = nv0;
+            run = r0;
+        }
         {
             // A raridade dentro de cada nivel (com tudo aberto): o Bronze quase so
             // comuns, o Diamante so raros e lendarios.
@@ -5621,7 +5658,7 @@ int main(void)
             d = fim();
             inf = 0;
             for (int i = 0; i < J[0].n_col; i++) inf += ad_conta(&J[0].col[i], AD_INFECTADO);
-            CONFERE(d.total[0] == 4 + INFECTADO_PONTOS && inf == 2, "Infectado: no fim, so os +2 (%d, %d germes)", d.total[0], inf);
+            CONFERE(d.total[0] == 4 + INFECTADO_PONTOS && inf == 2, "Infectado: no fim, so os +%d (%d, %d germes)", INFECTADO_PONTOS, d.total[0], inf);
             int ip = o[0].i, lp = lado_da_mascara(o[0].lados);
             J[0].col[ip].ad[lp - 1] = AD_NADA;      // a mesma mesa escolhe o mesmo lugar, sem gastar o sorteio
             uint32_t s0 = semente;
@@ -5665,7 +5702,7 @@ int main(void)
             joga(0, D_D6, 6); joga_ad(0, 0, 4);
             pegou = adesivos_no_pouso(0, 1, o, 2);
             d = fim();
-            CONFERE(d.est[0][1] == V_ANULADO && pegou == 1 && d.semente[0] == 0, "Infectado anulado: espalha, sem os +2 (%d)",
+            CONFERE(d.est[0][1] == V_ANULADO && pegou == 1 && d.semente[0] == 0, "Infectado anulado: espalha, sem os pontos (%d)",
                     d.semente[0]);
             ad_cola(&J[0].col[3], 2, AD_CARIMBO);
             limpa();
@@ -5679,7 +5716,7 @@ int main(void)
             joga_ad(0, 0, 4);
             pegou = adesivos_no_pouso(0, 0, o, 2);
             d = fim();
-            CONFERE(pegou == 0 && d.semente[0] == INFECTADO_PONTOS, "Infectado sem lado livre: so os +2 (%d)", pegou);
+            CONFERE(pegou == 0 && d.semente[0] == INFECTADO_PONTOS, "Infectado sem lado livre: so os +%d (%d)", INFECTADO_PONTOS, pegou);
             limpa();
             joga(0, D_D6, 6); joga_ad(0, 0, 4);
             d = fim();

@@ -182,7 +182,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Etiqueta mostram na dica do dado quanto valem agora), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
   Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
-  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados),
+  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados; com uma na bolsa, todo pacote de adesivos traz, além das cartas de sempre, mais uma Etiqueta),
   ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada) e aos
   de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
   Carbono (copia o número do seu último dado válido: igual não cai), o Papel
@@ -195,7 +195,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dado: o Infectado (assim que o dado cai, válido ou anulado, e mesmo se o
   oponente correr, um Infectado novo gruda num lado livre de um dado
   sorteado da sua bolsa, qualquer um, para sempre, e também se espalha;
-  valendo, +2 no fim da rodada; o Adesivado que ele encher vira o Mais Adesivado
+  valendo, +3 no fim da rodada; o Adesivado que ele encher vira o Mais Adesivado
   no fim da partida) e o Barro (assim que o dado cai, válido ou anulado, e
   mesmo se o oponente correr, suja um lado livre de um dado sorteado da bolsa
   do oponente: a Sujeira, que não sai mais e dá -2 no placar de quem tirar

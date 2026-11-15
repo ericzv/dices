@@ -192,13 +192,37 @@ static bool tem_pacote(void) { return run.pacote <= PAC_ADESIVOS; }
 static bool pacote_de_adesivos(void) { return run.pacote == PAC_ADESIVOS; }
 // Quantas cartas o pacote traz: 3, ou 4 com a Caixa de Papelao (a quarta
 // fica no fim da run: a run salva de antes abre igual).
-static int pac_n(void) { return run.bolsa == B_PAPELAO ? PAC_MAX : PAC_OPCOES; }
-static peca_t *pac_carta_p(int i) { return i < PAC_OPCOES ? &run.pac_op[i] : &run.pac_op_mais[i - PAC_OPCOES]; }
+static int pac_n_base(void) { return run.bolsa == B_PAPELAO ? PAC_MAX : PAC_OPCOES; }
+// A carta extra da Etiqueta: nao se guarda, sai da bolsa (ver pac_etiqueta_extra).
+static peca_t *pac_carta_p(int i)
+{
+    static peca_t etiqueta;
+    if (i >= pac_n_base()) {
+        memset(&etiqueta, 0, sizeof etiqueta);
+        etiqueta.ad[0] = AD_ETIQUETA;
+        return &etiqueta;
+    }
+    return i < PAC_OPCOES ? &run.pac_op[i] : &run.pac_op_mais[i - PAC_OPCOES];
+}
+// A Etiqueta: com uma colada nos dados da bolsa (e aberta no perfil), todo
+// pacote de adesivos traz, alem das cartas de sempre, mais uma: a Etiqueta.
+// Se uma das de sempre ja e Etiqueta (ela saiu antes de voce ter a primeira),
+// nao repete.
+static bool adesivo_liberado(int a);
+static bool tem_etiqueta_na_bolsa(void) { return adesivo_liberado(AD_ETIQUETA) && conta_etiquetas(run.col, NULL, run.n_col) > 0; }
+static bool pac_etiqueta_extra(void)
+{
+    if (!pacote_de_adesivos() || !tem_etiqueta_na_bolsa()) return false;
+    for (int i = 0; i < pac_n_base(); i++) if (pac_carta_p(i)->ad[0] == AD_ETIQUETA) return false;
+    return true;
+}
+static int pac_n(void) { return pac_n_base() + pac_etiqueta_extra(); }
 static int pac_ad(int i) { return i >= 0 && i < pac_n() && pac_carta_p(i)->ad[0] < AD_N ? pac_carta_p(i)->ad[0] : AD_NADA; }
 // "3 dados ao acaso, quase todos comuns." (o nivel g, com as cartas do pacote).
 static void desc_pacote(int g, char *s, int n)
 {
-    if (g == PAC_ADESIVOS) snprintf(s, (size_t)n, "%d adesivos ao acaso, entre os abertos.", pac_n());
+    if (g == PAC_ADESIVOS && pac_etiqueta_extra()) snprintf(s, (size_t)n, "%d adesivos ao acaso, entre os abertos, e uma Etiqueta.", pac_n_base());
+    else if (g == PAC_ADESIVOS) snprintf(s, (size_t)n, "%d adesivos ao acaso, entre os abertos.", pac_n());
     else snprintf(s, (size_t)n, "%d dados ao acaso, %s", pac_n(), DESC_NIVEL[g >= 0 && g < PN_N ? g : 0]);
 }
 
@@ -256,11 +280,14 @@ static void monta_pacote(void)
     memset(run.pac_op, 0, sizeof run.pac_op);
     memset(run.pac_op_mais, 0, sizeof run.pac_op_mais);
     if (run.bolsa == B_FEIRA) { run.pacote = PAC_NENHUM; return; }   // a Sacola de Feira: sem pacote
-    int np = pac_n();
-    if (adesivos_abertos() >= np && sorte_r(2)) {
+    int np = pac_n_base();
+    // Com uma Etiqueta na bolsa, ela vem como carta extra: as de sempre saem sem ela.
+    int sem = tem_etiqueta_na_bolsa();
+    if (adesivos_abertos() - sem >= np && sorte_r(2)) {
         run.pacote = PAC_ADESIVOS;
-        uint8_t ja[PAC_MAX];
-        for (int i = 0; i < np; i++) pac_carta_p(i)->ad[0] = ja[i] = (uint8_t)sorteia_adesivo_loja(ja, i, false);
+        uint8_t ja[PAC_MAX + 1];
+        if (sem) ja[0] = AD_ETIQUETA;
+        for (int i = 0; i < np; i++) pac_carta_p(i)->ad[0] = ja[sem + i] = (uint8_t)sorteia_adesivo_loja(ja, sem + i, false);
         return;
     }
     const uint8_t *ch = chance_nivel();

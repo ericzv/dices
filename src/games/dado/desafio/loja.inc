@@ -120,8 +120,9 @@ static int lj_card_x(int i)
 }
 static int lj_sx(void) { return lj_card_x(lj_n_cartoes() - 1) + lj_cw() / 2 + LJ_SEC; }
 static int lj_serv_y(int s) { return LJ_Y + s * (LJ_SH + 8); }
-// As cartas do pacote aberto, centradas: 3, ou 4 (a Caixa de Papelao) mais juntas.
-static int pac_passo(void) { return pac_n() > PAC_OPCOES ? 124 : PAC_PASSO; }
+// As cartas do pacote aberto, centradas: 3; 4 (a Caixa de Papelao, ou a Etiqueta
+// a mais) mais juntas; 5 (as duas), mais ainda.
+static int pac_passo(void) { return pac_n() > PAC_MAX ? 118 : pac_n() > PAC_OPCOES ? 124 : PAC_PASSO; }
 static int pac_carta_x(int i) { return PAC_CX + (int)lroundf((i - (pac_n() - 1) / 2.0f) * pac_passo()); }
 
 static void loja_abriu(void)
@@ -1574,8 +1575,10 @@ static void lj_desenha_pacote(void)
     } else if (pronto && cursor < np) dado_e_poder(LJ_DESC_Y + 6, pac_carta_p(cursor)->tipo, true);
     else if (pronto) {
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, "Pular o pacote", C_LATAO, true);
-        txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, np > PAC_OPCOES ? "Fica sem nenhum dos quatro. As moedas não voltam."
-                                                             : "Fica sem nenhum dos três. As moedas não voltam.", C_MARFIM_S, false);
+        static const char *const QUANTOS[] = { "três", "quatro", "cinco" };
+        char l[80];
+        snprintf(l, sizeof l, "Fica sem nenhum dos %s. As moedas não voltam.", QUANTOS[np > 5 ? 2 : np < 3 ? 0 : np - 3]);
+        txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, l, C_MARFIM_S, false);
     }
     if (t_lj_aviso > 0) txt_c(GFX_W / 2, LJ_DESC_Y + 6 + 2 * TXT_H, lj_aviso, C_VINHO_CLR, true);
     if (pronto) {
@@ -1632,7 +1635,9 @@ static void desenha_loja_run(void)
             snprintf(s, sizeof s, "Pacote de %s", NOME_PACOTE[g]);
             txt_c(GFX_W / 2, LJ_DESC_Y, s, cor_pacote(g), true);
             char dp[96];
-            if (g == PAC_ADESIVOS) snprintf(dp, sizeof dp, "%d adesivos ao acaso: abre na hora, você leva 1 e já cola num dado.", pac_n());
+            if (g == PAC_ADESIVOS && pac_etiqueta_extra())
+                snprintf(dp, sizeof dp, "%d adesivos ao acaso e uma Etiqueta: você leva 1 e já cola num dado.", pac_n_base());
+            else if (g == PAC_ADESIVOS) snprintf(dp, sizeof dp, "%d adesivos ao acaso: abre na hora, você leva 1 e já cola num dado.", pac_n());
             else desc_pacote(g, dp, sizeof dp);
             txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.pac_estado != PAC_VENDA ? "Já aberto. Troque a loja ou espere a próxima para outro pacote."
                   : dp, C_MARFIM_S, false);

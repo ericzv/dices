@@ -1733,7 +1733,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, NEON_CADA * n, "%sNeon: %d adesivo%s, +%d", pre, n, n > 1 ? "s" : "", NEON_CADA * n);
         break;
     }
-    case AD_INFECTADO:                           // valendo, +2 (o germe ja pegou na bolsa no pouso: adesivos_no_pouso)
+    case AD_INFECTADO:                           // valendo, +3 (o germe ja pegou na bolsa no pouso: adesivos_no_pouso)
         if (!vale) return false;
         d->semente[j] += INFECTADO_PONTOS;
         e = evento(gera, EV_ADESIVO, j, k, j, k, INFECTADO_PONTOS, "%sInfectado: +%d", pre, INFECTADO_PONTOS);

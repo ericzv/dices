@@ -19,6 +19,7 @@
 //
 // Versao PC: mesa de 640x360 (a do Cardputer, 240x135, esta em
 // cardputer/dado.c). Os textos sao UTF-8, com acentos.
+#include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>

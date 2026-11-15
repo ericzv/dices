@@ -591,6 +591,23 @@ static void achados_desfecho(void)
     }
     modo = M_DOIS; amul[0] = 0;
 
+    // A31: a lista de eventos nao enche nem no pior caso medido (fila de 6, Telas com Moldura, Holograficos,
+    // Selo) com a Saideira dos dois na ultima rodada.
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS; amul[0] = amul[1] = AM_BIT(A_SAIDEIRA);
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < N_FILA; i++) {
+            bool holo = i >= N_FILA - 2;
+            achado_peca(j, i, holo ? D_D6 : D_TELA, 3, holo ? AD_HOLOGRAFICO : AD_MOLDURA);
+            if (!holo) { ad_cola(&J[j].col[i], 2, AD_CONFETE); ad_cola(&J[j].col[i], 4, AD_CONFETE); }
+            J[j].col[i].selo = 1;
+        }
+    achado_fila(0);
+    for (int j = 0; j < 2; j++) for (int i = 0; i < N_FILA; i++) joga_ad(j, i, 3);
+    for (int j = 0; j < 2; j++) for (int i = 0; i < N_FILA; i++) F[j].est[i] = V_VALIDO;
+    d = fim();
+    CONFERE(n_ev < MAX_EV && ev_perdidos == 0, "A31: a lista de eventos nao enche no pior caso (%d de %d, perdidos %d)", n_ev, MAX_EV, ev_perdidos);
+    modo = M_DOIS; rodada = 1; amul[0] = amul[1] = 0;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

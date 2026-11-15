@@ -40,8 +40,12 @@ static bool bloqueia_desvio(desfecho_t *d, bool gera, int j, int k, int r, int a
 static evento_t *evento_v(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                           const char *fmt, va_list ap)
 {
-    // ACHADO A31: preservado - lista cheia (MAX_EV): o evento some sem aviso; o placar em d sai certo
-    if (!gera || n_ev >= MAX_EV) return NULL;
+    if (!gera) return NULL;
+    if (n_ev >= MAX_EV) {                        // a lista encheu: o placar em d sai certo, o evento nao
+        ev_perdidos++;
+        assert(!"a lista de eventos encheu: suba MAX_EV");
+        return NULL;
+    }
     evento_t *e = &ev[n_ev++];
     memset(e, 0, sizeof *e);
     e->tipo = (uint8_t)tipo; e->de_j = (uint8_t)dj; e->de_k = (uint8_t)dk;

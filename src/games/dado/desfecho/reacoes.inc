@@ -18,7 +18,9 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
     uint8_t bit = (uint8_t)(1 << a);
     if (d->rato_bits[r] & bit) return;
     d->rato_bits[r] |= bit;
-    // ACHADO A32: preservado - conta como adesivo que agiu mesmo sem pegar ninguem (nao reproduz diferenca no placar)
+    // Conta como adesivo que agiu (a Purpurina) mesmo sem pegar ninguem (a
+    // Couraca segurou, ou nao havia alvo): anulada, ela paga o queijo de todo
+    // jeito, e age_um nao a conta de novo.
     d->ratoeira[r]++;
     if (tem_am(j, A_COURACA)) {
         if (gera) am_acende(A_COURACA);

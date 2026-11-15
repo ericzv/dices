@@ -436,7 +436,9 @@ static void miras_de(desfecho_t *d, int j, bool gera)
 }
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
-    // ACHADO A32: preservado - as Ratoeiras que desarmaram ja entram na conta da Purpurina (nao reproduz diferenca)
+    // As Ratoeiras que desarmaram ja contam para a Purpurina aqui; a de cada
+    // dado conta uma vez so (rato_bits), e a que nao pegou ninguem tambem
+    // agiu: anulada, ela paga o queijo de todo jeito.
     int agiram = d->ratoeira[j];
     int fonte[N_FILA * AD_LADOS], qual[N_FILA * AD_LADOS], n_fonte = 0;   // o que o Holografico copia: o dado e o adesivo
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {

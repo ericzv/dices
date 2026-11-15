@@ -83,7 +83,9 @@ static void golpe_anula(desfecho_t *d, int j, int k, int a0, const golpe_t *g, b
     int r = outro(j), a = desvia_seguranca(d->est[r], r, a0);
     if (a < 0 || bloqueia_desvio(d, gera, j, k, r, a, a0, g->quem, 0)) return;
     contra_ataque(d, r, a, gera);                // o ataque dele, se tiver, vem antes
-    // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
+    // O alvo ja caiu no contra-ataque (a Ratoeira do dono derrubou o proprio
+    // dado, por exemplo): o golpe se perde, mas conta como ataque.
+    if (d->est[r][a] != V_VALIDO) { d->atacados[r]++; return; }
     d->est[r][a] = V_ANULADO;
     if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a], g->seg, g->quem, J[r].nome);
     else if (g->so_rival) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a], g->anula, J[r].nome);

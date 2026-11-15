@@ -467,6 +467,24 @@ static void achados_desfecho(void)
     CONFERE(d.delta[0] == -2 && d.atacados[0] == 1 && d.ad_agiram[0] == 0,
             "A21: Porta-Retrato na Sujeira cobra o -2 uma vez (delta %d, atacados %d, agiram %d)", d.delta[0], d.atacados[0], d.ad_agiram[0]);
 
+    // A22: o alvo que ja caiu no contra-ataque nao e anulado de novo (o golpe se perde, conta 1 tentativa).
+    achado_zera();
+    achado_peca(0, 0, D_LASER, 0, 0);
+    achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
+    achado_fila(0);
+    joga_ad(0, 0, 5); joga_ad(0, 1, 6);
+    joga(1, D_OURICO, 2); joga(1, D_CARRASCO, 4);
+    d = fim();
+    {
+        int anula_b = 0, rato = 0;
+        for (int e = 0; e < n_ev; e++) {
+            if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1) anula_b++;
+            if (ev[e].tipo == EV_ADESIVO && ev[e].ad == AD_RATOEIRA && ev[e].alvo_j == 1) rato++;
+        }
+        CONFERE(rato == 1 && anula_b == 0 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO,
+                "A22: Laser nao anula de novo o Carrasco que a Ratoeira derrubou (ratoeira %d, anula %d, atacados %d)", rato, anula_b, d.atacados[1]);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

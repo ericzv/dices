@@ -102,7 +102,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Berserker anula o %d de %s", F[r].valor[a], J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, k, r, a, gera);
+                apos_ataque(d, j, k, r, a, gera);
             }
             return;
         }
@@ -147,7 +147,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                         "Carrasco anula o %d de %s", F[r].valor[a], J[r].nome);
             d->atacados[r]++;
-            cavalo_abre(d, j, k, r, a, gera);
+            apos_ataque(d, j, k, r, a, gera);
         }
     } else if ((ef == EF_LASER && v >= 5) || (ef == EF_TSUNAMI && v >= 9)) {
         // O Laser (5 ou 6) pega o ultimo dado do oponente que pode ser
@@ -165,7 +165,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
                 else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                             "Laser anula o %d de %s", F[r].valor[a], J[r].nome);
                 d->atacados[r]++;
-                cavalo_abre(d, j, k, r, a, gera);
+                apos_ataque(d, j, k, r, a, gera);
             }
         }
     } else if (ef == EF_BONECO && v >= 8) {     // Boneco de Neve com 8: congela o 4o do oponente
@@ -179,7 +179,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                         "Boneco de Neve congela o 4º de %s", J[r].nome);
             d->atacados[r]++;
-            cavalo_abre(d, j, k, r, a, gera);
+            apos_ataque(d, j, k, r, a, gera);
         }
     } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
@@ -191,7 +191,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                         "Invejoso anula o %d de %s", F[r].valor[a], J[r].nome);
             d->atacados[r]++;
-            cavalo_abre(d, j, k, r, a, gera);
+            apos_ataque(d, j, k, r, a, gera);
         }
     } else if (ef == EF_AGNUS && v == AGNUS_RAIO) {   // Agnus com 8: a luz anula o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
@@ -203,7 +203,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                         "Agnus: a luz anula o %d de %s", F[r].valor[a], J[r].nome);
             d->atacados[r]++;
-            cavalo_abre(d, j, k, r, a, gera);
+            apos_ataque(d, j, k, r, a, gera);
         }
     } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
         uint8_t ja = 0;                              // (o de capa e um dos dois: bate nela e fica)
@@ -265,7 +265,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ROUBA, j, k, r, a, vale,
                         "%s rouba o %d de %s", nome, vale, J[r].nome);
             d->atacados[r]++;
-            cavalo_abre(d, j, k, r, a, gera);
+            apos_ataque(d, j, k, r, a, gera);
         }
     }
 }

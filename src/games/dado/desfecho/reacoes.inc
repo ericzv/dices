@@ -5,7 +5,7 @@
 // A Ratoeira (posicao a de r, com o lado dela para cima) foi anulada por um
 // poder de j: desarma e anula o maior dado valendo de j (o Seguranca dele
 // leva no lugar; a Couraca protege). Uma vez por dado e por rodada.
-static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera);
+static void apos_ataque(desfecho_t *d, int j, int k, int r, int a, bool gera);
 static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
 {
     uint8_t bit = (uint8_t)(1 << a);
@@ -25,7 +25,7 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
     d->atacados[j]++;
     evento_t *e = evento(gera, EV_ADESIVO, r, a, j, b, F[j].valor[b], "Ratoeira: anula o %d de %s", F[j].valor[b], J[j].nome);
     if (e) e->ad = AD_RATOEIRA;
-    cavalo_abre(d, r, a, j, b, gera);               // o dado dele que caiu pode ser um Cavalo
+    apos_ataque(d, r, a, j, b, gera);               // o dado dele que caiu pode ser um Cavalo
 }
 
 // A Coleira: o dado dela (no lado de cima) foi roubado ou anulado por um
@@ -43,7 +43,7 @@ static void coleira_cobra(desfecho_t *d, int j, int k, int r, int a, bool gera)
 }
 // Depois de um ataque do dado k de j que pegou o dado a de r: a Coleira cobra,
 // a Ratoeira desarma, o Cavalo de Troia abre.
-static void cavalo_abre(desfecho_t *d, int j, int k, int r, int a, bool gera)
+static void apos_ataque(desfecho_t *d, int j, int k, int r, int a, bool gera)
 {
     if (a >= 0 && a < N_FILA && (d->est[r][a] == V_ANULADO || d->est[r][a] == V_ROUBADO)) coleira_cobra(d, j, k, r, a, gera);
     if (a >= 0 && a < N_FILA && d->est[r][a] == V_ANULADO && ad_fila_tem(r, a, AD_RATOEIRA)) ratoeira_desarma(d, j, r, a, gera);

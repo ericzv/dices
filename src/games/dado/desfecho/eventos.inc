@@ -17,8 +17,6 @@ static bool bloqueia_capa(bool gera, int j, int k, int r, int a, const char *que
     return true;
 }
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
-                        const char *fmt, ...) __attribute__((format(printf, 8, 9)));
-static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                         const char *fmt, ...)
 {
     if (!gera || n_ev >= MAX_EV) return NULL;

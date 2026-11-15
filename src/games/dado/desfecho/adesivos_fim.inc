@@ -24,7 +24,6 @@ static int corrente_antes;                       // a Corrente: os adesivos que 
 // O que o Papagaio e o Porta-Retrato podem repetir em outro dado: os do fim
 // da rodada (os do pouso, os que agem depois - o Holografico, a Purpurina, o
 // Bilhete - e os que so fazem outro agir, nao).
-static bool ad_do_pouso(int a);
 static bool copia_pode(int a)
 {
     return a && a != AD_HOLOGRAFICO && a != AD_PURPURINA && a != AD_CARIMBO && a != AD_DUPLA && a != AD_MOLDURA
@@ -263,7 +262,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
         else e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: anula o %d de %s", pre, F[r].valor[alvo], J[r].nome);
         if (e) { e->ad = (uint8_t)a; e->copia = copia; e->modo = (uint8_t)age_modo; }
-        cavalo_abre(d, j, k, r, alvo, gera);
+        apos_ataque(d, j, k, r, alvo, gera);
         return true;
     }
     default: return false;

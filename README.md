@@ -24,6 +24,24 @@ borda dourada) uma mira vermelha marca o dado que ele vai pegar no fim. No
 registro do fim da rodada, à esquerda, a linha que decidiu o resultado vem
 em ouro.
 
+**O fim da rodada, em ordem.** Primeiro a mesa se resolve (o Oculto se
+mostra, o Espelho vira, o tremor, a Casca de Banana, a Ficha Coringa, o
+Carrossel). Depois os poderes que atacam, roubam e cortam: os de quem abriu
+a rodada, depois os do outro; com a Saideira, os do dono agem de novo logo
+em seguida; e o Ranzinza. O dado atacado que também ataca age antes de cair
+— se nesse contra-ataque ele mesmo cai, o golpe se perde, mas conta como
+ataque. Vêm então as Miras, antes dos outros adesivos (um dado que ia ser
+anulado por um ataque ainda dá o seu; vale para a Mira), a Fênix e o Agnus,
+os adesivos, a Fênix e o Agnus de novo, os bônus e multiplicadores do fim
+(com a Saideira, os do dono duas vezes), o Ouriço (o oponente perde 5 por
+ataque que o dono sofreu na rodada; em dobro com a Saideira), o Bilhete
+Premiado, a contagem e, por último, a Autofagia. Cortes e mordidas só pegam
+dado que pontua: o Sabotador e o Ranzinza cortam o de maior número entre os
+que valem mais que 0, e o Vampiro não tira do que já está em 0. Quem rouba
+leva o dado como ele pontua naquela hora (com o corte e o -1). Preso pela
+Âncora, o Segurança segura o golpe que viria para ele: não cai nem é
+roubado.
+
 **Natal** (de 20 de outubro a 6 de janeiro, pelo relógio do computador): os estilos de
 Natal ficam abertos para todos (os feltros Natalino, Noite Feliz e Xadrez
 escocês; os dados de Bola de Natal, Biscoito, Gelo e Veludo vinho; as mesas

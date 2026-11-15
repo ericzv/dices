@@ -153,6 +153,75 @@ static uint32_t teste_rnd(void)
     return teste_estado;
 }
 
+// ---------------------------------------------------------------------------
+// Os achados do desfecho (A01-A36, revisao da v1.29): cada conserto entra com
+// o teste da mesa que mostrava o erro. A = jogador 0, B = jogador 1.
+// ---------------------------------------------------------------------------
+// A mesa vazia, sem amuletos, com a bolsa vazia (e os nomes, para os textos).
+static void achado_zera(void)
+{
+    limpa(); memset(J, 0, sizeof J); amul[0] = amul[1] = 0; modo = M_DOIS; rodada = 1; reg_op = 0;
+    J[0].nome = "A"; J[1].nome = "B";
+    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) F[j].idx[k] = -1;
+}
+// A fila limpa entre duas jogadas (sem herdar a peca 0 da bolsa: idx = -1).
+static void achado_fila(int quem_abre)
+{
+    limpa();
+    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) F[j].idx[k] = -1;
+    primeiro = quem_abre;
+}
+// A peca i da bolsa de j: tipo t, com o adesivo a no lado l (a = 0: sem adesivo).
+static void achado_peca(int j, int i, int t, int l, int a)
+{
+    if (J[j].n_col <= i) J[j].n_col = i + 1;
+    J[j].col[i] = (peca_t){ .tipo = (uint8_t)t };
+    J[j].onde[i] = NA_BOLSA;
+    if (a) ad_cola(&J[j].col[i], l, a);
+}
+
+static void achados_desfecho(void)
+{
+    jogador_t g0 = J[0], g1 = J[1];
+    amul_t am0 = amul[0], am1 = amul[1];
+    int modo0 = modo, rodada0 = rodada, prim0 = primeiro;
+    uint8_t reg0 = reg_op;
+    desfecho_t d;
+
+    // A02: o Bilhete Premiado so dobra se o dado dele terminar valendo - a
+    // Mira de B anula o dado do Bilhete, e o placar nao depende de quem abre.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_BILHETE);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga(0, D_CAPITAO, 3);
+        joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == 4,
+                "A02: Bilhete num dado anulado pela Mira nao dobra (abre %d: A fez %d, esperado 4)", p, d.total[0]);
+    }
+    // ...e copiado pelo Holografico: a copia tambem so dobra Bilhete que terminou valendo.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_BILHETE);
+    achado_peca(0, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga_ad(0, 1, 5); joga(0, D_CAPITAO, 3);
+        joga_ad(1, 0, 4);
+        d = fim();
+        int dobras = 0;
+        for (int i = 0; i < n_ev; i++) dobras += ev_tipo_ad(i, AD_BILHETE);
+        CONFERE(d.est[0][0] == V_ANULADO && dobras == 0,
+                "A02: Holografico nao copia o Bilhete de um dado anulado (abre %d: %d dobras)", p, dobras);
+    }
+
+    J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
+    modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
+    limpa();
+}
+
 int main(void)
 {
     natal_forcado = 0;                   // a epoca nao depende do dia em que o teste roda
@@ -8611,6 +8680,8 @@ int main(void)
         J[0] = g0; J[1] = g1;
         limpa();
     }
+
+    achados_desfecho();
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");

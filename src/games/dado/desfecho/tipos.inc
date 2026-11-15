@@ -41,7 +41,7 @@ typedef struct {
     uint8_t dinamite[2];             // as Dinamites que estouraram ou apagaram: o pavio zera
     uint8_t balao[2];                // os Baloes que estouraram: o ar zera
     uint8_t bil_carimbo[2];          // e os carimbados: o bonus vale x3 em vez de x2
-    uint8_t bil_holo[2][N_FILA];     // e quantos cada Holografico copia (por posicao)
+    uint8_t bil_holo[2][N_FILA];     // e quantas passadas de cada Holografico o copiam (por posicao; no fim, uma copia por Bilhete que valeu)
     uint8_t ad_agiram[2];            // quantos adesivos de cada um agiram na rodada (a conquista da Purpurina)
 } desfecho_t;
 

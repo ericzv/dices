@@ -352,7 +352,7 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
     }
     if (a == AD_BILHETE) {                       // o Bilhete age no fim de tudo (bilhete_de)
         if (d->est[j][k] != V_VALIDO) return false;
-        // ACHADO A02: preservado - o Bilhete e anotado aqui; se a Mira do rival anular o dado depois, dobra assim mesmo
+        // anotado aqui; bilhete_de reconfere no fim se o dado ainda vale (a Mira do rival pode anular depois)
         if (primeira) { d->bilhete[j] |= bit; (*agiram)++; }
         else d->bil_carimbo[j] |= bit;
         return true;
@@ -460,7 +460,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             for (int f = 0; f < n_fonte; f++) esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
             // ACHADO A16: preservado - carimbado (c == 1), o Holografico anota outra copia cheia do Bilhete (x8)
             if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
-                for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
+                d->bil_holo[j][k]++;             // uma passada a mais: no fim, uma copia por Bilhete que valeu
                 esta = true;
             }
             if (esta && c) agiram++;             // o Carimbo de antes
@@ -529,16 +529,23 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
     if (e) { e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
 }
 
+// So os Bilhetes cujo dado terminou valendo: a Mira (ou a segunda passada da
+// Saideira) pode ter anulado o dado depois de ele ser anotado.
 static void bilhete_de(desfecho_t *d, int j, bool gera)
 {
+    uint8_t vale = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        // ACHADO A02: preservado - dobra sem reconferir se o dado do Bilhete ainda vale
-        if (d->bilhete[j] >> k & 1) {
+        if (d->bilhete[j] >> k & 1 && d->est[j][k] == V_VALIDO) {
+            vale |= (uint8_t)(1 << k);
             dobra_bonus(d, j, k, gera, false, false);
             if (d->bil_carimbo[j] >> k & 1) dobra_bonus(d, j, k, gera, false, true);
         }
-    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+    int n = 0;                                   // os Bilhetes que o Holografico copia
+    for (int k = 0; k < N_FILA; k++) n += vale >> k & 1;
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+        if (d->est[j][k] != V_VALIDO) continue;  // o Holografico tambem precisa terminar valendo
         // ACHADO A16: preservado - cada copia do Holografico dobra cheio (carimbo = false), a carimbada tambem
-        for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true, false);
+        for (int c = 0; c < d->bil_holo[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, false);
+    }
 }
 

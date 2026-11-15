@@ -92,6 +92,36 @@ static void golpe_anula(desfecho_t *d, int j, int k, int a0, const golpe_t *g, b
     apos_ataque(d, j, k, r, a, gera);
 }
 
+// O maior dado valendo de r (pelo numero na face; o Universo nao) passa a
+// pontuar metade, arredondando o corte para cima: o Sabotador e o Ranzinza.
+// Devolve qual foi (ou -1, sem corte), quanto saiu e quanto ele pontua.
+static int corta_metade(desfecho_t *d, int r, int *corte, int *fica)
+{
+    int a = -1;
+    // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
+    for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
+        if (d->est[r][i] == V_VALIDO && !universo(r, i) && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
+    if (a < 0) return -1;
+    int base = valor_pontos(r, a) + F[r].bonus[a] + d->bonus[r][a];
+    int c = base > 0 ? (base + 1) / 2 : 0;
+    if (!c) return -1;
+    d->bonus[r][a] = (int8_t)(d->bonus[r][a] - c);
+    *corte = c;
+    *fica = base - c;
+    return a;
+}
+
+// O dado k de j tira n pontos do placar do oponente (o Espinhoso, o Maldito,
+// o Pirata): fora dos dados, e conta como ataque para o Ourico. fmt: o texto,
+// com n e o nome do oponente.
+static void tira_placar(desfecho_t *d, int j, int k, int n, const char *fmt, bool gera)
+{
+    int r = outro(j);
+    d->delta[r] -= n;
+    d->atacados[r]++;
+    evento(gera, EV_TIRA, j, k, r, 0, n, fmt, n, J[r].nome);
+}
+
 static void poder_de(desfecho_t *d, int j, int k, bool gera)
 {
     int r = outro(j);
@@ -205,19 +235,11 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
                         "Invejoso tirou %d: anula o %d do próprio %s", v, F[j].valor[b], J[j].nome);
         }
     } else if (ef == EF_SABOTADOR && v >= SABOTADOR_DE) {   // o maior do oponente passa a valer metade
-        int a = -1;
-        // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
-        for (int i = 0; i < F[r].lancados; i++)
-            if (d->est[r][i] == V_VALIDO && !universo(r, i) && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
+        int corte, fica, a = corta_metade(d, r, &corte, &fica);
         if (a >= 0) {
-            int base = valor_pontos(r, a) + F[r].bonus[a] + d->bonus[r][a];
-            int corte = base > 0 ? (base + 1) / 2 : 0;
-            if (corte) {
-                d->atacados[r]++;
-                d->bonus[r][a] = (int8_t)(d->bonus[r][a] - corte);
-                evento(gera, EV_CORTA, j, k, r, a, corte, "Sabotador corta o %d de %s: pontua %d",
-                       F[r].valor[a], J[r].nome, base - corte);
-            }
+            d->atacados[r]++;
+            evento(gera, EV_CORTA, j, k, r, a, corte, "Sabotador corta o %d de %s: pontua %d",
+                   F[r].valor[a], J[r].nome, fica);
         }
     } else if (ef == EF_VAMPIRO) {               // valendo: -1 em cada dado do oponente que vale
         uint8_t m = 0;
@@ -228,17 +250,11 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         evento_t *e = m ? evento(gera, EV_VAMPIRO, j, k, r, 0, 1, "Vampiro: -1 em cada dado de %s", J[r].nome) : NULL;
         if (e) e->mascara = m;
     } else if (ef == EF_MARTELO && v >= MARTELO_DE) {     // Espinhoso: com 3 ou 4
-        d->delta[r] -= 4;
-        d->atacados[r]++;
-        evento(gera, EV_TIRA, j, k, r, 0, 4, "Espinhoso: -4 para %s", J[r].nome);
+        tira_placar(d, j, k, 4, "Espinhoso: -%d para %s", gera);
     } else if (ef == EF_MALDICAO) {              // vale para o dono e tira do oponente
-        d->delta[r] -= v;
-        d->atacados[r]++;
-        evento(gera, EV_TIRA, j, k, r, 0, v, "Maldito: -%d para %s", v, J[r].nome);
+        tira_placar(d, j, k, v, "Maldito: -%d para %s", gera);
     } else if (ef == EF_PIRATA && v >= PIRATA_DE) {      // so tira; nao fica com os pontos
-        d->delta[r] -= 4;
-        d->atacados[r]++;
-        evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
+        tira_placar(d, j, k, 4, "Pirata tira %d de %s", gera);
     } else if ((ef == EF_CARIDOSO && v >= CARIDOSO_DE) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
         for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
             // ACHADO A05: preservado - o laco nao reconfere se o Gatuno ainda vale: anulado pelo Cavalo, segue roubando
@@ -265,16 +281,9 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
 static void ranzinza_corta(desfecho_t *d, bool gera)
 {
     if (!tem_reg(REG_RANZINZA) || rodada < RANZINZA_RODADA) return;
-    int a = -1;
-    // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
-    for (int i = 0; i < F[0].lancados && i < N_FILA; i++)
-        if (d->est[0][i] == V_VALIDO && !universo(0, i) && (a < 0 || F[0].valor[i] > F[0].valor[a])) a = i;
+    int corte, fica, a = corta_metade(d, 0, &corte, &fica);
     if (a < 0) return;
-    int base = valor_pontos(0, a) + F[0].bonus[a] + d->bonus[0][a];
-    int corte = base > 0 ? (base + 1) / 2 : 0;
-    if (!corte) return;
-    d->bonus[0][a] = (int8_t)(d->bonus[0][a] - corte);
-    evento(gera, EV_CORTA, 1, 0xFF, 0, a, corte, "%s: o seu %d pontua só %d", J[1].nome, F[0].valor[a], base - corte);
+    evento(gera, EV_CORTA, 1, 0xFF, 0, a, corte, "%s: o seu %d pontua só %d", J[1].nome, F[0].valor[a], fica);
 }
 
 // Fenix: anulada, renasce valendo o que tirou (roubada, nao).

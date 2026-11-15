@@ -567,6 +567,17 @@ static void achados_desfecho(void)
     }
     modo = M_DOIS; amul[1] = 0;
 
+    // A28: com a Couraca de quem escorrega, a Casca nao sorteia nada: o fim nao e incerto.
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_COURACA);
+    achado_peca(1, 0, D_D6, 3, AD_CASCA);
+    achado_fila(0);
+    joga(0, D_D4, 1); joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_D6, 4);
+    joga_ad(1, 0, 3);
+    CONFERE(!casca_no_fim(), "A28: com a Couraca, a Casca nao deixa o fim incerto");
+    amul[0] = 0;
+    CONFERE(casca_no_fim(), "A28: sem a Couraca, a Casca deixa o fim incerto");
+    modo = M_DOIS;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

@@ -148,7 +148,7 @@ static void fase_casca(resolve_t *rm, desfecho_t *d)
     int nc = cascas_de(r);
     for (int n = 0; n < nc; n++) {
         int kc = casca_dado(r, n), a = CASCA_DADO + 1 - nc + n;
-        // ACHADO A28: preservado - estas guardas (o Universo, a Couraca) nao existem em casca_no_fim (partida.inc)
+        // as mesmas guardas de casca_no_fim (partida.inc)
         if (a >= F[t].lancados || F[t].est[a] != V_VALIDO || universo(t, a)) continue;
         if (tem_am(t, A_COURACA)) { if (rm->gera) am_acende(A_COURACA); continue; }
         d->atacados[t]++;                        // conta para o Ourico, na previa tambem

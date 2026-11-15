@@ -1215,13 +1215,15 @@ static bool carta_posta(int j) { return F[j].carta && F[j].lancados > 3; }
 // carta do Coringa por virar (e ser lancada), um Oculto escondido, um
 // Terremoto por sacudir, a Casca de Banana de quem joga depois (o 4o dado
 // de quem abriu ainda vai escorregar). A previa do fim nao sabe o que vai dar.
+// As guardas sao as da fase da Casca (resolve_mesa.inc): a Couraca segura
+// tudo, e no Universo ou no de capa ela nao sorteia.
 static bool casca_no_fim(void)
 {
-    int n = cascas_de(outro(primeiro));
+    int t = primeiro, n = cascas_de(outro(t));
+    if (tem_am(t, A_COURACA)) return false;
     for (int i = 0; i < n; i++) {
         int a = CASCA_DADO + 1 - n + i;
-        // ACHADO A28: preservado - nao olha a Couraca nem o Universo: previa_sorte liga sem nada a sortear
-        if (a < F[primeiro].lancados && F[primeiro].est[a] == V_VALIDO) return true;
+        if (a < F[t].lancados && F[t].est[a] == V_VALIDO && !universo(t, a) && !impermeavel(t, a)) return true;
     }
     return false;
 }

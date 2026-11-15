@@ -53,23 +53,23 @@ static int poder_armado(int j, int k)
     switch (ef) {
     case EF_DOBRO:        return v <= 3;
     case EF_PAR:          return f->bonus[k] >= 6;
-    case EF_CARRASCO:     return v == 4;
-    case EF_MARTELO:      return v >= 3;
-    case EF_PIRATA:       return v >= 7;
+    case EF_CARRASCO:     return v == CARRASCO_ANULA;
+    case EF_MARTELO:      return v >= MARTELO_DE;
+    case EF_PIRATA:       return v >= PIRATA_DE;
     case EF_ESPELHO:      return f->cru[k] <= 2;
     case EF_FICHAS:       return fichas_ini[j] > fichas_ini[outro(j)];
     case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
     case EF_TUDO_NADA:    return v == 2;
     case EF_GATUNO:       return uns > 0;
     case EF_INVEJOSO:     return invejoso_age(v) ? 1 : v <= 2 ? 2 : 0;
-    case EF_CARIDOSO:     return v >= 3;
+    case EF_CARIDOSO:     return v >= CARIDOSO_DE;
     case EF_FARTURA:      return baixos > 0 || v <= 2;
     case EF_SEMENTE:      return soma(j, f->est) >= SEMENTE_BROTA;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
     case EF_JACKPOT:      return iguais > 0;                    // outro seu valendo com o numero dele
     case EF_COPIADOR:     return iguais > 0;
-    case EF_LASER:        return v >= 5;
+    case EF_LASER:        return v >= LASER_DE;
     case EF_TERREMOTO:    return v >= TERREMOTO_DE;
     case EF_FERREIRO:     return v >= FERREIRO_ARMA;
     case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
@@ -84,7 +84,7 @@ static int poder_armado(int j, int k)
         return 0;
     case EF_HEXA:         return 1;
     case EF_OURICO:       return 1;
-    case EF_SABOTADOR:    return v >= 5;
+    case EF_SABOTADOR:    return v >= SABOTADOR_DE;
     case EF_AZARAO:       return fichas_ini[j] < fichas_ini[outro(j)];
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
@@ -126,8 +126,8 @@ static int poder_armado(int j, int k)
         for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
             if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
         return 0;
-    case EF_BONECO:       return v >= 8;
-    case EF_TSUNAMI:      return v >= 9;
+    case EF_BONECO:       return v >= BONECO_DE;
+    case EF_TSUNAMI:      return v >= TSUNAMI_DE;
     case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
     case EF_PISCA:        return pisca_aceso(f->fixo[k]);
     case EF_MEIA:         return f->fixo[k] > 0;
@@ -175,7 +175,7 @@ static void miras_agora(uint8_t mira[2])
             switch (ef) {
             case EF_CARRASCO:
                 if (f->cru[k] == 1) mira_menores(est, j, 1, -1, &mira[j]);   // o seu menor (ele mesmo, se for)
-                else if (v == 4 && !couraca) a = alvo_de(F[r].est, r, true, -1);
+                else if (v == CARRASCO_ANULA && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
             case EF_INVEJOSO:
                 if (invejoso_age(v)) { if (!couraca) a = alvo_de(F[r].est, r, true, -1); }

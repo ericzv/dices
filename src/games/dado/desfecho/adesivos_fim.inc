@@ -272,7 +272,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
         // ACHADO A26: preservado - copiada pelo Papagaio contra a capa, o texto sai como Holografico, como Mira
-        if (bloqueia_capa(gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
+        if (bloqueia_capa(d, gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
             if (capa_ev) { capa_ev->copia = copia; capa_ev->modo = (uint8_t)age_modo; }
             return true;
         }

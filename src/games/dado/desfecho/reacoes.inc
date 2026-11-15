@@ -28,7 +28,7 @@ static void ratoeira_desarma(desfecho_t *d, int j, int r, int a, bool gera)
     for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
         if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
     b = desvia_seguranca(d->est[j], j, b);
-    if (b < 0 || bloqueia_capa(gera, r, a, j, b, "Ratoeira", AD_RATOEIRA)) return;
+    if (b < 0 || bloqueia_capa(d, gera, r, a, j, b, "Ratoeira", AD_RATOEIRA)) return;
     d->est[j][b] = V_ANULADO;
     d->atacados[j]++;
     evento_t *e = evento(gera, EV_ADESIVO, r, a, j, b, F[j].valor[b], "Ratoeira: anula o %d de %s", F[j].valor[b], J[j].nome);

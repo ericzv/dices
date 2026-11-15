@@ -4,7 +4,7 @@
 // Le: F, d, J[] (a bolsa, so para ler: a Autofagia conta os dados em jogo),
 // quem abriu a rodada (primeiro), a rodada e os amuletos.
 // Grava: d inteiro (zera, e cada fase preenche a sua parte; aqui, come,
-// come_de, bruto e total), ev[]/n_ev (so com gera), d_atual e agiu[]. F so
+// come_de, bruto e total), ev[]/n_ev (so com gera) e agiu[]. F so
 // pelas fases de resolve_mesa.inc; na previa, ela volta.
 // Quem chama: a partida (uma vez com gera, e as previas), a IA, a mesa, a
 // hora da verdade, as telas e as falas do Desafiante.
@@ -44,7 +44,7 @@ static void autofagia_de(desfecho_t *d, int j, bool gera)
             if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
                 && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
         if (b < 0 || !autofagia_come_pode(j, k, b)) continue;
-        if (bloqueia_capa(gera, j, k, j, b, "Autofagia", 0)) return;   // o de capa: nao e comido
+        if (bloqueia_capa(d, gera, j, k, j, b, "Autofagia", 0)) return;   // o de capa: nao e comido
         d->come[j] = (uint8_t)(b + 1);
         d->come_de[j] = (uint8_t)(k + 1);
         int guarda = F[j].valor[b] > 0 ? F[j].valor[b] : 0;
@@ -57,8 +57,6 @@ static void autofagia_de(desfecho_t *d, int j, bool gera)
 static void desfecho_prepara(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
-    // ACHADO A30: preservado - o ponteiro fica depois de calcula_desfecho voltar, mesmo com d local de quem chamou
-    d_atual = d;
     if (gera) n_ev = 0;
 }
 

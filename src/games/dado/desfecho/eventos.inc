@@ -1,12 +1,11 @@
 // ===========================================================================
 // EVENTOS: a lista do que aconteceu no fim da rodada, para a mesa animar, e
 // a capa do Impermeavel, que segura um ataque (bloqueia_capa).
-// Le: F (o numero e a sequencia de cada dado), ev[]/n_ev, d_atual.
-// Grava: ev[]/n_ev, so com gera (a previa nao gera eventos); capa_ev; e, por
-// d_atual, d->atacados (o ataque que a capa segura conta para o Ourico).
+// Le: F (o numero e a sequencia de cada dado), ev[]/n_ev.
+// Grava: ev[]/n_ev, so com gera (a previa nao gera eventos); capa_ev; e
+// d->atacados (o ataque que a capa segura conta para o Ourico).
 // Nao grava F.
-// Quem chama: todas as fases do desfecho. d_atual e posto por
-// desfecho_prepara (orquestra.inc).
+// Quem chama: todas as fases do desfecho.
 // ===========================================================================
 
 // Um evento novo no fim da lista (so quando gera). Devolve o evento, para
@@ -17,12 +16,10 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
 // Impermeavel: vai ate ele e nada pega - nem passa para outro dado. quem: o
 // nome de quem ataca; ad: o adesivo que ataca (Mira, Ratoeira), ou 0.
 static evento_t *capa_ev;                   // o evento do ultimo bloqueio (NULL sem gerar)
-static desfecho_t *d_atual;                  // o desfecho em andamento (o Ourico conta ate o ataque que a bolha segura)
-static bool bloqueia_capa(bool gera, int j, int k, int r, int a, const char *quem, int ad)
+static bool bloqueia_capa(desfecho_t *d, bool gera, int j, int k, int r, int a, const char *quem, int ad)
 {
     if (a < 0 || !impermeavel(r, a)) return false;
-    // ACHADO A30: preservado - d_atual pode apontar para o desfecho_t de uma previa que ja acabou
-    if (d_atual && j != r) d_atual->atacados[r]++;
+    if (j != r) d->atacados[r]++;                // o ataque que a bolha segura conta para o Ourico
     capa_ev = evento(gera, ad ? EV_ADESIVO : EV_ANULA, j, k, r, a, F[r].valor[a], "%s: o %d está protegido",
                      quem, F[r].valor[a]);
     if (capa_ev) { capa_ev->bloqueado = (uint8_t)(1 << a); capa_ev->ad = (uint8_t)ad; }

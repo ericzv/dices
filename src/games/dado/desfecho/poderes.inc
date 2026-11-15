@@ -82,7 +82,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         for (int i = 0; i < F[j].lancados; i++)
             if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
                 && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-        if (bloqueia_capa(gera, j, k, j, b, "Carrasco tirou 1", 0)) {
+        if (bloqueia_capa(d, gera, j, k, j, b, "Carrasco tirou 1", 0)) {
         } else if (b == k) {
             d->est[j][b] = V_ANULADO;
             evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Carrasco tirou 1: anula a si mesmo");
@@ -109,7 +109,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         int ro = tem_am(r, A_COURACA) ? -1 : alvo_vizinho(d->est[r], r, k);
         if (ro >= 0) {
             int a = desvia_seguranca(d->est[r], r, ro);
-            if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Berserker", 0)) {
+            if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, "Berserker", 0)) {
                 contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
                 // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
                 d->est[r][a] = V_ANULADO;
@@ -123,7 +123,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             return;
         }
         int b = alvo_vizinho(d->est[j], j, k);
-        if (b >= 0 && !bloqueia_capa(gera, j, k, j, b, "Berserker", 0)) {
+        if (b >= 0 && !bloqueia_capa(d, gera, j, k, j, b, "Berserker", 0)) {
             d->est[j][b] = V_ANULADO;
             evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                    "Berserker: anula o %d do próprio %s", F[j].valor[b], J[j].nome);
@@ -140,7 +140,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         for (int s = -1; s <= 1 && F[j].faixa[k]; s += 2) {
             int b = k + s;
             if (b < 0 || b >= F[j].lancados || d->est[j][b] != V_VALIDO || firme_sem_capa(j, b)) continue;
-            if (bloqueia_capa(gera, j, k, j, b, "Buraco Negro", 0)) continue;
+            if (bloqueia_capa(d, gera, j, k, j, b, "Buraco Negro", 0)) continue;
             d->est[j][b] = V_ANULADO;
             evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                    "Buraco Negro engole o %d do próprio %s", F[j].valor[b], J[j].nome);
@@ -156,7 +156,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
     if (ef == EF_CARRASCO && v == 4) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-        if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Carrasco", 0)) {
+        if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, "Carrasco", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
             // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
@@ -173,7 +173,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         {
             int a0 = couraca ? -1 : ef == EF_LASER ? alvo_ultimo(d->est[r], r) : alvo_primeiro(d->est[r], r);
             int a = desvia_seguranca(d->est[r], r, a0);
-            if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, nome, 0)) {
+            if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, nome, 0)) {
                 contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
                 // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
                 d->est[r][a] = V_ANULADO;
@@ -190,7 +190,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     } else if (ef == EF_BONECO && v >= 8) {     // Boneco de Neve com 8: congela o 4o do oponente
         int a0 = !couraca && F[r].lancados > 3 && d->est[r][3] == V_VALIDO && !firme_sem_capa(r, 3) ? 3 : -1;
         int a = desvia_seguranca(d->est[r], r, a0);
-        if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Boneco de Neve", 0)) {
+        if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, "Boneco de Neve", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
             // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
@@ -203,7 +203,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         }
     } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-        if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Invejoso", 0)) {
+        if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, "Invejoso", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
             // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
@@ -216,7 +216,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         }
     } else if (ef == EF_AGNUS && v == AGNUS_RAIO) {   // Agnus com 8: a luz anula o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
-        if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Agnus", 0)) {
+        if (a >= 0 && !bloqueia_capa(d, gera, j, k, r, a, "Agnus", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
             // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
@@ -236,7 +236,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
                     && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
             if (b < 0) break;
             ja |= (uint8_t)(1 << b);
-            if (bloqueia_capa(gera, j, k, j, b, "Invejoso", 0)) continue;
+            if (bloqueia_capa(d, gera, j, k, j, b, "Invejoso", 0)) continue;
             d->est[j][b] = V_ANULADO;
             if (b == k) evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b], "Invejoso tirou %d: anula a si mesmo", v);
             else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],

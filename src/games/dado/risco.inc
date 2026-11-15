@@ -1,5 +1,14 @@
+// ===========================================================================
+// RISCO: a chance, de 0 a 100, de o proximo dado de j cair pela sequencia
+// (risco).
+// Le: F e a peca do proximo dado na bolsa (J[].col, pelos adesivos dele).
+// Nao le d nem ev[].
+// Grava: nada.
+// Quem chama: a IA (ia.inc) e o simulador (dado_dbg_risco, dado.c).
+// ===========================================================================
+
 // Probabilidade de o proximo dado cair. Nao aparece mais na tela; fica para
-// o simulador medir o jogo.
+// a IA decidir e para o simulador medir o jogo.
 static bool estilingue_armado(int j, int k);
 static int risco(int j)
 {

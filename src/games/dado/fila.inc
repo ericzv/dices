@@ -481,6 +481,7 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
         poe_tag(f, k, "=3");
+        // ACHADO A29: preservado - a previa passa por aqui (refaz_sequencia) e o bit fica em am_disparou: ninguem repoe
         am_disparou |= AM_BIT(A_PRENSA);
     }
     // O proprio poder (ou a Prensa) virou o dado para um lado com o Papel

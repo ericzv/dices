@@ -682,6 +682,7 @@ static int desembrulha(int j, int k, int (*r)(int))
 typedef struct { int x, menor, lado, x1, menor1, lado1, antes1; bool reflete, bomba;
                  uint8_t giros; bool quicou; uint16_t bonecas;
                  uint8_t n_re; int re_x[2]; uint8_t re_lado[2]; } lance_t;   // (re: ate PIAO_GIROS)
+// ACHADO A33: preservado - treme_dado (desfecho/tremor.inc) repete este lance por conta propria
 static lance_t lanca_peca(int t, int fixo, const peca_t *pc, int (*r)(int))
 {
     lance_t l;
@@ -1219,6 +1220,7 @@ static bool casca_no_fim(void)
     int n = cascas_de(outro(primeiro));
     for (int i = 0; i < n; i++) {
         int a = CASCA_DADO + 1 - n + i;
+        // ACHADO A28: preservado - nao olha a Couraca nem o Universo: previa_sorte liga sem nada a sortear
         if (a < F[primeiro].lancados && F[primeiro].est[a] == V_VALIDO) return true;
     }
     return false;

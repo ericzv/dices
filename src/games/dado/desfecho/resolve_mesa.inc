@@ -1,7 +1,14 @@
+// ===========================================================================
 // As fases da mesa: o que muda nos dados antes dos poderes do fim (o corte
 // da previa, o Oculto, o Espelho, o tremor, a Casca, a Ficha Coringa e o
 // Carrossel), na ordem em que calcula_desfecho chama. Sao as unicas fases
 // que gravam em F; na previa, a mesa e o veredito voltam (mesa_devolve).
+// Le: F, J[].nome, quem abriu a rodada (primeiro), o veredito da sequencia.
+// Grava: F; o veredito (que volta sempre); d so em dois lugares (a Casca
+// soma em atacados, fase_fotografa copia o estado para d->est); ev[]; com
+// gera, est_pre_espelho e o brilho da Couraca; sem gera, previa_sorte.
+// Quem chama: calcula_desfecho (orquestra.inc). previa_sorte: partida.inc.
+// ===========================================================================
 
 // A previa nao sabe o que o tremor e a Casca de Banana vao dar, mas sabe se
 // vao agir: e o que ela anota aqui, com o Espelho que esperava ja virado e a
@@ -41,6 +48,7 @@ static void fase_sobras_rede(resolve_t *rm)
     for (int j = 0; !rm->gera && j < 2; j++)
         if (F[j].n > F[j].lancados) {
             F[j].n = F[j].lancados;
+            // ACHADO A29: preservado - na previa, refaz_sequencia liga bits em am_disparou, e mesa_devolve nao os repoe
             if (tem_am(j, A_REDE)) { refaz_sequencia(j, F[j].lancados); rm->virou = true; }
         }
 }
@@ -68,17 +76,20 @@ static void fase_espelho(resolve_t *rm)
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados; k++) {
+            // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
             if (!F[j].espera[k] || alvo <= 0) continue;
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             F[j].espera[k] = false;
             quais |= (uint8_t)(1 << k);
             virados++;
+            // ACHADO A36: preservado - o evento do Espelho sai com alvo_k = 0 fixo, nao com o dado copiado
             evento(rm->gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
         if (!virados && !rm->revelados[j]) continue;
         if (rm->gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         rm->pre[j] = true;
+        // ACHADO A29: preservado - idem: am_disparou fica com os bits da previa
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
@@ -138,10 +149,12 @@ static void fase_casca(resolve_t *rm, desfecho_t *d)
         int nc = cascas_de(r);
         for (int n = 0; n < nc; n++) {
             int kc = casca_dado(r, n), a = CASCA_DADO + 1 - nc + n;
+            // ACHADO A28: preservado - estas guardas (o Universo, a Couraca) nao existem em casca_no_fim (partida.inc)
             if (a >= F[t].lancados || F[t].est[a] != V_VALIDO || universo(t, a)) continue;
             if (tem_am(t, A_COURACA)) { am_acende(A_COURACA); continue; }
             int antes = F[t].valor[a];
             evento_t *e;
+            // ACHADO A23: preservado - so conta com gera: a previa nao soma a Casca para o Ourico (erra por OURICO_PTS)
             d->atacados[t]++;
             if (!rm->pre[t]) memcpy(est_pre_espelho[t], F[t].est, N_FILA);
             rm->pre[t] = true;
@@ -261,6 +274,7 @@ static void fase_espelho_tardio(resolve_t *rm)
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             quais |= (uint8_t)(1 << k);
+            // ACHADO A36: preservado - o evento do Espelho sai com alvo_k = 0 fixo, nao com o dado copiado
             evento(rm->gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
         if (!quais && !nada) continue;

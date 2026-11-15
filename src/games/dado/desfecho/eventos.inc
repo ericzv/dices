@@ -1,3 +1,14 @@
+// ===========================================================================
+// EVENTOS: a lista do que aconteceu no fim da rodada, para a mesa animar, e
+// a capa do Impermeavel, que segura um ataque (bloqueia_capa).
+// Le: F (o numero e a sequencia de cada dado), ev[]/n_ev, d_atual.
+// Grava: ev[]/n_ev, so com gera (a previa nao gera eventos); capa_ev; e, por
+// d_atual, d->atacados (o ataque que a capa segura conta para o Ourico).
+// Nao grava F.
+// Quem chama: todas as fases do desfecho. d_atual e posto por
+// desfecho_prepara (orquestra.inc).
+// ===========================================================================
+
 // Um evento novo no fim da lista (so quando gera). Devolve o evento, para
 // completar a mascara e os numeros de cada dado, ou NULL.
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
@@ -10,6 +21,7 @@ static desfecho_t *d_atual;                  // o desfecho em andamento (o Ouric
 static bool bloqueia_capa(bool gera, int j, int k, int r, int a, const char *quem, int ad)
 {
     if (a < 0 || !impermeavel(r, a)) return false;
+    // ACHADO A30: preservado - d_atual pode apontar para o desfecho_t de uma previa que ja acabou
     if (d_atual && j != r) d_atual->atacados[r]++;
     capa_ev = evento(gera, ad ? EV_ADESIVO : EV_ANULA, j, k, r, a, F[r].valor[a], "%s: o %d está protegido",
                      quem, F[r].valor[a]);
@@ -19,6 +31,7 @@ static bool bloqueia_capa(bool gera, int j, int k, int r, int a, const char *que
 static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,
                         const char *fmt, ...)
 {
+    // ACHADO A31: preservado - lista cheia (MAX_EV): o evento some sem aviso; o placar em d sai certo
     if (!gera || n_ev >= MAX_EV) return NULL;
     evento_t *e = &ev[n_ev++];
     memset(e, 0, sizeof *e);

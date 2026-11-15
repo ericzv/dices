@@ -1,7 +1,19 @@
+// ===========================================================================
+// ADESIVOS DO FIM: o que cada adesivo faz no fim da rodada (ad_age), a ordem
+// em que agem (adesivos_de: o Selo, os de cada dado, o Porta-Retrato, o
+// Papagaio, o Holografico, a Purpurina) e o Bilhete Premiado (bilhete_de).
+// Le: F, d e J[] (a bolsa, so para ler: os adesivos de cada dado, o pavio,
+// as figurinhas e etiquetas; o nome).
+// Grava: d (os pontos e o que fica para depois da rodada: o que sai, cresce,
+// quebra, lacra), ev[] e os tres avisos daqui (age_modo, age_lado,
+// corrente_antes); com gera, acende a Couraca. Nao grava F nem a bolsa.
+// Quem chama: calcula_desfecho (orquestra.inc). ad_do_pouso: tambem a fila.
+// ===========================================================================
+
 // Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
-// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
-// fila (o Transparente, o Corretivo, o Papel Carbono): no fim da rodada so
-// contam para a Purpurina.
+// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba, a Bussola), ou na
+// regra da fila (o Transparente, o Corretivo, o Papel Carbono): no fim da
+// rodada so contam para a Purpurina.
 static bool ad_do_pouso(int a)
 {
     return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
@@ -26,20 +38,24 @@ static int corrente_antes;                       // a Corrente: os adesivos que 
 // Bilhete - e os que so fazem outro agir, nao).
 static bool copia_pode(int a)
 {
+    // ACHADO A21: preservado - a Sujeira nao esta na lista: o Porta-Retrato a repete no dado de antes
     return a && a != AD_HOLOGRAFICO && a != AD_PURPURINA && a != AD_CARIMBO && a != AD_DUPLA && a != AD_MOLDURA
         && a != AD_BILHETE && a != AD_BARRO && a != AD_MASSINHA && a != AD_CHICLETE && a != AD_XEROX && !ad_do_pouso(a);
 }
-// O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
-// Holografico (no dado k) copiando o do dado ko (copia: nada sai nem cresce
-// no dado de la; o Fermento paga o que pagou la). Devolve se agiu.
 // O dado de antes de k tirou o Carimbo (a segunda vez e dele, nao da Tela em Branco).
 static bool carimbado_ja(int j, int k) { return k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO); }
+// O que o adesivo a faz no fim da rodada, pelo dado k de j: e dele, ou e o
+// Holografico (no dado k; ou o Papagaio, ou o Porta-Retrato) copiando o do
+// dado ko (copia: nada sai nem cresce no dado de la; o Fermento paga o que
+// pagou la). Devolve se agiu.
+// ACHADO A17: preservado - apesar do que diz acima, o Fragil copiado num dado anulado quebra o dado da copia
 static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool copia)
 {
     int r = outro(j);
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
+    // ACHADO A35: preservado - carimbado_ja nao ve se o Carimbo de antes foi roubado: a Tela sai como Carimbo
     const char *pre = age_modo & EVM_PAPAGAIO ? "Papagaio, como " : age_modo & EVM_RETRATO ? "Porta-Retrato » "
                     : copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
                     : de_novo ? (F[j].tipo[k] == D_TELA && !carimbado_ja(j, k) ? "Tela em Branco » " : "Carimbo » ")
@@ -110,6 +126,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, mas o dado está protegido", pre);
             if (e) e->bloqueado = bit;
         } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k)) {
+            // ACHADO A17: preservado - vale para a copia tambem: o Holografico anulado quebra o proprio dado
             d->fragil[j] |= bit;
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
         } else return false;
@@ -220,8 +237,9 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         e = evento(gera, EV_ADESIVO, j, k, j, k, pts, cima ? "%sPatinho Feio: caiu nele, %d" : "%sPatinho Feio: +%d", pre, pts);
         break;
     }
-    case AD_CORRENTE: {                          // +2 por elo: ela e cada adesivo seu que agiu nos dados antes dela
+    case AD_CORRENTE: {                          // +CORRENTE_CADA (3) por elo: ela e cada adesivo seu que agiu antes
         if (!vale) return false;
+        // ACHADO A12: preservado - copiada, conta os elos de corrente_antes: nem os que pagou, nem os do dado da copia
         int elos = corrente_antes + 1, n = CORRENTE_CADA * elos;
         d->semente[j] += n;
         if (corrente_antes > 0)
@@ -253,10 +271,12 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             if (d->est[r][i] == V_VALIDO && !firme_sem_capa(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
+        // ACHADO A26: preservado - copiada pelo Papagaio contra a capa, o texto sai como Holografico, como Mira
         if (bloqueia_capa(gera, j, k, r, alvo, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
             if (capa_ev) { capa_ev->copia = copia; capa_ev->modo = (uint8_t)age_modo; }
             return true;
         }
+        // ACHADO A03: preservado - o adesivo anula na hora, sem o contra-ataque dos dados: a Mira do alvo nao age mais
         d->est[r][alvo] = V_ANULADO;
         d->atacados[r]++;
         if (alvo != a0) e = evento(gera, EV_ADESIVO, j, k, r, alvo, F[r].valor[alvo], "%sMira: o Segurança de %s leva no lugar", pre, J[r].nome);
@@ -296,12 +316,13 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
 {
     uint8_t bit = (uint8_t)(1 << k);
     if (a == AD_HOLOGRAFICO || a == AD_PURPURINA || a == AD_CARIMBO || a == AD_DUPLA) return false;   // agem depois (ou por outro)
+    // ACHADO A21: preservado - sozinha, a Sujeira nao conta para a Purpurina; repetida pelo Porta-Retrato, conta
     if (a == AD_SUJEIRA) return ad_age(d, j, k, k, a, gera, false);   // o barro do oponente: nao e adesivo seu
     if (ad_do_pouso(a)) { if (primeira) (*agiram)++; return false; }
     // O Barro, a Massinha e o germe do Infectado ja agiram no pouso
     // (adesivos_no_pouso), valendo ou nao: aqui so contam - para a Purpurina,
     // e o Carimbo e a Dupla Face que os fizeram agir tambem. O Infectado
-    // valendo ainda paga os +2 (ad_age).
+    // valendo ainda paga os +INFECTADO_PONTOS (3) (ad_age).
     if (a == AD_BARRO || a == AD_MASSINHA || (a == AD_INFECTADO && d->est[j][k] != V_VALIDO)) {
         if (primeira) (*agiram)++;
         return true;
@@ -315,6 +336,7 @@ static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
     }
     if (a == AD_BILHETE) {                       // o Bilhete age no fim de tudo (bilhete_de)
         if (d->est[j][k] != V_VALIDO) return false;
+        // ACHADO A02: preservado - o Bilhete e anotado aqui; se a Mira do rival anular o dado depois, dobra assim mesmo
         if (primeira) { d->bilhete[j] |= bit; (*agiram)++; }
         else d->bil_carimbo[j] |= bit;
         return true;
@@ -345,6 +367,7 @@ static void moldura_fila(int j, int k, int *viz)
 }
 static void adesivos_de(desfecho_t *d, int j, bool gera)
 {
+    // ACHADO A32: preservado - as Ratoeiras que desarmaram ja entram na conta da Purpurina (nao reproduz diferenca)
     int agiram = d->ratoeira[j];
     int fonte[N_FILA * AD_LADOS], qual[N_FILA * AD_LADOS], n_fonte = 0;   // o que o Holografico copia: o dado e o adesivo
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
@@ -365,6 +388,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         int b = a == AD_DUPLA ? ad_oposto_fila(j, k) : AD_NADA;
         int viz[2];                              // a Moldura: os dos lados vizinhos
         moldura_fila(j, k, viz);
+        // ACHADO A12: preservado - fica com a conta do ultimo dado com adesivo: as copias da Corrente usam esse valor
         corrente_antes = agiram;
         for (int q = 0; q < 4; q++) {            // o de cima, pela Dupla Face o de baixo, pela Moldura os vizinhos
             int x = q == 0 ? a : q == 1 ? b : viz[q - 2];
@@ -385,6 +409,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (TIPO[tipo_de(j, k)].efeito == EF_RETRATO && d->est[j][k] == V_VALIDO && k > 0
             && d->est[j][k - 1] == V_VALIDO && copia_pode(a)) {
             age_modo = EVM_RETRATO;
+            // ACHADO A21: preservado - com a Sujeira, o -2 cai de novo, conta outro ataque e +1 para a Purpurina
             if (ad_age(d, j, k - 1, k, a, gera, true)) agiram++;
             age_modo = 0;
         }
@@ -409,6 +434,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     int holo[N_FILA], n_holo = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (!ad_fila_tem(j, k, AD_HOLOGRAFICO) || d->est[j][k] == V_ROUBADO) continue;
+        // ACHADO A11: preservado - aqui a Tela em Branco nao conta: o Holografico nela age uma vez so
         bool carimbo = carimbado(d, j, k), algum = false;
         int md = ad_fila(j, k) == AD_HOLOGRAFICO ? 0 : EVM_DUPLA;
         holo[n_holo++] = k;
@@ -416,6 +442,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
             age_modo = md | (c ? EVM_CARIMBO : 0);
             bool esta = false;
             for (int f = 0; f < n_fonte; f++) esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
+            // ACHADO A16: preservado - carimbado (c == 1), o Holografico anota outra copia cheia do Bilhete (x8)
             if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
                 for (int b = 0; b < N_FILA; b++) d->bil_holo[j][k] += d->bilhete[j] >> b & 1;
                 esta = true;
@@ -432,6 +459,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (!ad_fila_tem(j, k, AD_PURPURINA) || d->est[j][k] != V_VALIDO) continue;
         int md = ad_fila(j, k) == AD_PURPURINA ? 0 : EVM_DUPLA;
         purp_md[n_purp] = (uint8_t)md; purp[n_purp++] = k; n_purp_ad += 1 + (md != 0);
+        // ACHADO A11: preservado - aqui a Tela em Branco nao conta: a Purpurina nela age uma vez so
         if (carimbado(d, j, k)) { purp_md[n_purp] = (uint8_t)(md | EVM_CARIMBO); purp[n_purp++] = k; n_purp_ad++; }
     }
     int cada = PURPURINA_CADA * (agiram + n_purp_ad);
@@ -487,11 +515,13 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
 static void bilhete_de(desfecho_t *d, int j, bool gera)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        // ACHADO A02: preservado - dobra sem reconferir se o dado do Bilhete ainda vale
         if (d->bilhete[j] >> k & 1) {
             dobra_bonus(d, j, k, gera, false, false);
             if (d->bil_carimbo[j] >> k & 1) dobra_bonus(d, j, k, gera, false, true);
         }
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        // ACHADO A16: preservado - cada copia do Holografico dobra cheio (carimbo = false), a carimbada tambem
         for (int c = 0; c < d->bil_holo[j][k]; c++) dobra_bonus(d, j, k, gera, true, false);
 }
 

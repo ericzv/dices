@@ -1,10 +1,20 @@
+// ===========================================================================
+// ORQUESTRA: calcula_desfecho, a entrada do desfecho - chama as fases em
+// ordem. E as que so ela usa: a Saideira, os totais e a Autofagia.
+// Le: F, d, J[] (a bolsa, so para ler: a Autofagia conta os dados em jogo),
+// quem abriu a rodada (primeiro), a rodada e os amuletos.
+// Grava: d inteiro (zera, e cada fase preenche a sua parte; aqui, come,
+// come_de, bruto e total), ev[]/n_ev (so com gera), d_atual e agiu[]. F so
+// pelas fases de resolve_mesa.inc; na previa, ela volta.
+// Quem chama: a partida (uma vez com gera, e as previas), a IA, a mesa, a
+// hora da verdade, as telas e as falas do Desafiante.
+// ===========================================================================
+
 // Saideira (amuleto): na ultima rodada da partida (a 8a e as extras), os
 // poderes do fim dos dados de j agem uma segunda vez, depois de tudo.
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
 
 
-// Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
-// a previa do botao "parar" de quem joga em segundo.
 // A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
 // vindos da bolsa e com pelo menos 8 dados em jogo.
 static bool autofagia_come_pode(int j, int a, int b)
@@ -47,6 +57,7 @@ static void autofagia_de(desfecho_t *d, int j, bool gera)
 static void desfecho_prepara(desfecho_t *d, bool gera)
 {
     memset(d, 0, sizeof *d);
+    // ACHADO A30: preservado - o ponteiro fica depois de calcula_desfecho voltar, mesmo com d local de quem chamou
     d_atual = d;
     if (gera) n_ev = 0;
 }
@@ -60,9 +71,11 @@ static void fase_saideira(desfecho_t *d, const int *ordem, bool gera)
         evento_t *e = evento(gera, EV_AVISO, j, 0xFF, j, 0, 0, "Saideira: tudo de novo!");
         if (e) e->am = AM_BIT(A_SAIDEIRA);
         agiu[j] = 0;                             // os dele agem de novo; os do rival, nao
+        // ACHADO A04: preservado - a 2a passada derruba dados do rival, mas os efeitos do fim dele nao sao refeitos
         poderes_de(d, j, gera);
         fenix_de(d, j, gera);
         agnus_de(d, j, gera);
+        // ACHADO A13: preservado - a segunda passada cobra o Ourico de novo pelos mesmos ataques
         efeitos_do_fim(d, j, gera);
         if (e && n_ev == antes + 1) n_ev = antes;      // nada agiu de novo: nem o aviso
     }
@@ -80,6 +93,11 @@ static void fase_totais(desfecho_t *d)
     }
 }
 
+// O fim da rodada inteiro, fase por fase. Com gera, e o desfecho de verdade:
+// gera os eventos, e a mesa fica como as fases a deixaram. Sem gera, e a
+// previa: nao gera eventos e a mesa volta como estava (as fases mexem na
+// mesa de verdade, nao numa copia; mesa_devolve a repoe). A previa serve ao
+// botao "parar", a IA e as dicas da mesa.
 static void calcula_desfecho(desfecho_t *d, bool gera)
 {
     desfecho_prepara(d, gera);
@@ -106,9 +124,12 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     agiu[0] = agiu[1] = 0;
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
     ranzinza_corta(d, gera);
+    // ACHADO A09: preservado - Fenix e Agnus agem antes dos adesivos: nao revivem o dado que a Mira anula depois
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
+    // ACHADO A03: preservado - Mira contra Mira: a de quem abriu anula a do outro antes de ela agir
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
+    // ACHADO A01: preservado - um jogador de cada vez: o Ourico de quem abre nao ve a Assombracao do outro
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     fase_saideira(d, ordem, gera);
     for (int o = 0; o < 2; o++) bilhete_de(d, ordem[o], gera);   // o Bilhete Premiado, por ultimo

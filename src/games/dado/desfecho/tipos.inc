@@ -1,9 +1,15 @@
 // ===========================================================================
 // Desfecho: poderes que mexem no rival, em sequencia
+//
+// Aqui: desfecho_t (d), tudo o que o fim da rodada calcula - o estado de cada
+// dado, os bonus, os multiplicadores, o placar e o que fica para depois da
+// rodada. So o tipo: nada aqui le nem grava. Quem grava em d sao as fases de
+// calcula_desfecho (orquestra.inc); quem le depois e a partida (partida.inc),
+// a mesa, a IA e as dicas.
 // ===========================================================================
 typedef struct {
     uint8_t est[2][N_FILA];
-    int8_t  bonus[2][N_FILA];        // Moeda da sorte
+    int8_t  bonus[2][N_FILA];        // pontos a mais (ou a menos) por dado: a soma de todos os efeitos do fim
     int8_t  mult[2][N_FILA];         // soma dos multiplicadores (0 = nenhum)
     uint8_t queima[2][N_FILA];       // alvos da Ficha de Fogo
     int semente[2];

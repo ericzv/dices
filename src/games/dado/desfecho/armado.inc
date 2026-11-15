@@ -1,3 +1,13 @@
+// ===========================================================================
+// ARMADO: a mesa ao vivo, antes do fim - se o poder de um dado esta armado
+// (poder_armado, o brilho dele) e quais dados os poderes armados miram
+// (miras_agora). E os numeros do Agnus.
+// Le: F como esta agora (F[].est, nao d), J[].perdidas, as fichas do comeco
+// da rodada, o pote e os amuletos. Nao le d nem ev[].
+// Grava: nada; so a mascara mira[] que recebe.
+// Quem chama: a mesa (mesa.inc), a cada quadro.
+// ===========================================================================
+
 #define AGNUS_NUMERO 7                 // o Agnus: o numero que ressuscita
 #define AGNUS_RAIO   8                 // e o que anula, com a luz, o maior do oponente (valendo)
 // O evento dele na mesa: a gloria acende sobre o Agnus e, a partir de
@@ -23,7 +33,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_ESTILINGUE) return v == 1 && k + 1 < f->n && f->lancados == k + 1;   // com 1, valendo ou nao: o proximo sai no maximo
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
-    if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +2
+    if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +MEIA_GUARDA (4)
     if (ef == EF_FICHA_CORINGA) return f->curinga[k];          // com o curinga para cima: vira no fim
     if (ef == EF_CARROSSEL) return f->gira[k];                 // girando: para no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
@@ -106,6 +116,7 @@ static int poder_armado(int j, int k)
     case EF_BERSERKER:                                       // o vizinho do oponente; sem ele, o seu (contra o dono)
         if (!tem_am(outro(j), A_COURACA) && alvo_vizinho(F[outro(j)].est, outro(j), k) >= 0) return 1;
         return alvo_vizinho(f->est, j, k) >= 0 ? 2 : 0;
+    // ACHADO A24: preservado - acende sem ver se a Autofagia pode comer (autofagia_come_pode: menos de 8 dados)
     case EF_AUTOFAGIA:
         for (int i = 0; i < f->lancados; i++)
             if (i != k && f->est[i] == V_VALIDO && !firme_sem_capa(j, i)) return 2;
@@ -207,6 +218,7 @@ static void miras_agora(uint8_t mira[2])
             case EF_AGNUS:                       // com 8 valendo: a luz no maior do oponente
                 if (v == AGNUS_RAIO && f->est[k] == V_VALIDO && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
+            // ACHADO A24: preservado - a mira aparece mesmo quando a Autofagia nao pode comer
             case EF_AUTOFAGIA: mira_menores(est, j, 1, k, &mira[j]); break;
             case EF_BURACO:
                 for (int s = -1; s <= 1 && f->faixa[k]; s += 2)

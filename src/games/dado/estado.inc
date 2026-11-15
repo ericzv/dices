@@ -171,6 +171,7 @@ typedef struct {
     bool    bolsa_capa;              // o Barro: o dado sorteado estava com a bolha do Impermeavel (nao sujou)
     char txt[64];
 } evento_t;
+// ACHADO A31: preservado - com fila de 6 e muitos adesivos a lista enche e eventos somem (desfecho/eventos.inc)
 #define MAX_EV 64                    // a Saideira repete a cadeia inteira
 
 typedef struct { uint8_t tipo, fixo, de_j, anulado; int valor; } roubado_t;   // anulado: pelo Cavalo

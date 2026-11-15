@@ -1,5 +1,17 @@
+// ===========================================================================
+// ALVOS: quanto um dado vale num roubo (contribui) e quem cada poder atinge -
+// o maior, o menor, o ultimo, o primeiro, o vizinho, o que treme - com o
+// desvio para o Seguranca.
+// Le: F (a mesa), o estado dos dados que quem chama passa (d->est ou F[].est)
+// e os amuletos (a Couraca). Nao le J[] nem ev[].
+// Grava: nada de fora; mira_menores marca so a copia do estado e a mascara
+// que recebe.
+// Quem chama: reacoes, poderes, adesivos_fim, armado e resolve_mesa.
+// ===========================================================================
+
 static int contribui(int j, int k)
 {
+    // ACHADO A10: preservado - nao soma d->bonus: o roubo ignora o corte do Sabotador e o -1 do Vampiro
     return (valor_pontos(j, k) + F[j].bonus[k]) * (F[j].dobra[k] ? 2 : 1);
 }
 
@@ -25,7 +37,9 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 static bool impermeavel(int j, int k);
 static int desvia_seguranca(const uint8_t *est, int j, int a)
 {
+    // ACHADO A14: preservado - o alvo com capa dispensa o Seguranca tambem no roubo, que a capa nao segura
     if (a < 0 || impermeavel(j, a)) return a;
+    // ACHADO A15: preservado - o Seguranca preso pela Ancora (firme) tambem leva o golpe no lugar
     for (int i = 0; i < F[j].lancados; i++)
         if (i != a && est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_SEGURANCA) return i;
     return a;

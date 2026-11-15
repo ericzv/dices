@@ -1,3 +1,14 @@
+// ===========================================================================
+// ADESIVOS DO POUSO: os que agem assim que o dado cai (adesivos_no_pouso: o
+// Chiclete, o Xerox, o Infectado, o Barro, a Massinha) e o sorteio que eles
+// usam, tirado da mesa (pega_semente).
+// Le: F, J[] (a bolsa dos dois) e a rodada. Nao le d nem ev[].
+// Grava: a bolsa (J[].col: cola adesivos, marca o Chiclete) - e o unico
+// destes arquivos que grava nela; F[].chiclete, chic_valor e chic_lado.
+// Quem chama: o lance (partida.inc). pega_semente serve tambem ao tremor e a
+// Casca do fim (desfecho/resolve_mesa.inc).
+// ===========================================================================
+
 // O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q -
 // qualquer dado (no Quebrado, so o lado do numero gravado; os estagios
 // escondidos do ciclo cosmico nao levam adesivo; o lado virado para cima de
@@ -43,6 +54,7 @@ static int pega_dado(int q, uint32_t h)
 {
     int cand[MAX_COL], n = 0;
     uint8_t lados[AD_LADOS];
+    // ACHADO A25: preservado - o sorteio aceita o dado COMIDO pela Autofagia (nao olha J[q].onde)
     for (int i = 0; i < J[q].n_col && i < MAX_COL; i++) if (pega_lados(q, i, lados)) cand[n++] = i;
     return n ? cand[h % (uint32_t)n] : -1;
 }
@@ -61,6 +73,9 @@ static bool bolsa_impermeavel(int q, int i)
 typedef struct { int8_t j, k, q, i; uint8_t ad, capa, n; uint32_t lados; } pouso_ad_t;
 // Os adesivos que agem no pouso do dado (o do lado de cima, ou o de baixo
 // pela Dupla Face), valendo ou nao - e por isso mesmo se alguem correr:
+// o Xerox (o adesivo do lado oposto ao dele e copiado num lado livre de um
+// dado sorteado da sua bolsa - de preferencia outro dado; carimbado, duas
+// vezes),
 // o Infectado (um germe num lado livre de um dado sorteado da sua bolsa), o
 // Barro (um lado livre de um dado sorteado da bolsa do oponente vira Sujeira;
 // com a bolha do Impermeavel, nao gruda) e a Massinha (o lado mais baixo sem

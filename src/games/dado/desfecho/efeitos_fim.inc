@@ -1,3 +1,15 @@
+// ===========================================================================
+// EFEITOS DO FIM: a conta dos pontos de uma fila (pontos_fila) e os efeitos
+// de cada jogador sobre a propria fila - os bonus por dado, a Ficha de Fogo,
+// os multiplicadores e os pontos fixos (efeitos_do_fim).
+// Le: F, d, J[] (o nome, as rodadas perdidas, os adesivos dos dados), as
+// fichas do comeco da rodada, o pote, a rodada, os amuletos e os trunfos.
+// Grava: d (bonus, mult, queima, semente, delta, atacados, agiota, medusa,
+// garimpo, onda, meia, balao) e ev[]. Nao grava F nem a bolsa.
+// Quem chama: calcula_desfecho e a Saideira (orquestra.inc); pontos_fila
+// serve tambem ao placar visivel, e ampulheta ao poder armado.
+// ===========================================================================
+
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
 // Multiplicadores se SOMAM (x2, x3, x2 = x7) e valem sobre valor + bonus.
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
@@ -60,6 +72,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
         for (int i = 0; i < f->lancados; i++) {
             if (est[i] != V_VALIDO) continue;
             bool impar = f->valor[i] % 2 == 1;
+            // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
             if (face == 1 && impar)  { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
             if (face == 2 && !impar) { d->bonus[j][i] += 1; mask |= 1 << i; por[i] = 1; }
         }
@@ -180,8 +193,6 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
 }
 
 // O fim de j, 2: se ha Fartura valendo, e quantas.
-// Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
-// valor 1 e 2).
 static void fim_mult_prepara(const desfecho_t *d, int j, bool *fartura, int *n_far)
 {
     const fila_t *f = &F[j];
@@ -230,6 +241,8 @@ static void fim_fogo(desfecho_t *d, int j, bool gera)
 }
 
 // O fim de j, 4: o Sacrificio e os multiplicadores, num evento so.
+// Multiplicadores: Dobro (no dado valido logo acima), Fartura (nos de
+// valor 1 e 2).
 // Sacrificio valendo: x2 no dado seu de menor numero que pontua (sem
 // contar os que nao pontuam); dois Sacrificios no mesmo dado, x4.
 static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
@@ -279,8 +292,10 @@ static void fim_mult(desfecho_t *d, int j, bool gera, bool fartura, int n_far)
         // Amuletos: Piramide (x2 nos de 4 lados), Abre-Alas (x2 no primeiro da sequencia).
         if (tem_am(j, A_PIRAMIDE) && TIPO[tipo_de(j, k)].lados == 4) { m += 2; de[MULT_PIRAMIDE] |= bit; }
         // Tres Patinhos: na 3a (6a, 9a...) vez que sao lancados, x3 (se valem).
+        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
         if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(f->fixo[k])) { m += 3; de[MULT_PATINHOS] |= bit; }
         // Pisca-pisca aceso: x2 nele mesmo.
+        // ACHADO A07: preservado - o Camaleao atras do Pisca-pisca le o proprio fixo (0 = aceso): x2 sempre
         if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(f->fixo[k])) { m += 2; de[MULT_PISCA] |= bit; }
         if (k == 0 && tem_am(j, A_ABRE_ALAS)) { m += 2; de[MULT_ABRE_ALAS] |= bit; }
         // Somam aos que ja havia (a Saideira passa uma segunda vez: x2 de novo e x4).
@@ -334,7 +349,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         }
     }
 
-    // A virada do Barao: +2 para ele por dado seu anulado na rodada.
+    // A virada do Barao: +VIRADA_BARAO (3) para ele por dado seu anulado na rodada.
     if (j == 1 && virada_forca(2)) {
         int caidos = 0;
         for (int k = 0; k < F[0].lancados; k++) if (d->est[0][k] == V_ANULADO) caidos++;
@@ -356,8 +371,13 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         for (int i = c + 1; e && i < f->lancados && i < N_FILA; i++)
             if (est[i] == V_VALIDO) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 3; }
     }
-    // Bonus fixos, fora dos multiplicadores (no mesmo lugar da Semente):
-    // Misericordioso, Solitario, Prisma, Desafiante, Capitao, Trono e Seguranca.
+    // Daqui ate o fim, os bonus fixos, fora dos multiplicadores (no mesmo
+    // lugar da Semente): Jingle Bells, Estrela de Belem, Meia na Lareira, a
+    // Onda que vira, Ourico, Ficha Velha, Revolver e Martir; depois, de cada
+    // dado valendo, Misericordioso, Solitario, Prisma, Capitao, Trono,
+    // Seguranca, Domino, Puxa-fila, Coveiro, Hexa, Ampulheta, Assombracao,
+    // Leque, Balao, Mosaico, Medusa, Rancor, Media, Pote Quente, Garimpeiro,
+    // Agiota e Desafiante; por ultimo, o Jackpot.
     int anulados = 0, valendo = 0;
     for (int k = 0; k < f->lancados; k++) {
         if (est[k] == V_ANULADO) anulados++;
@@ -395,9 +415,10 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         }
     }
     // Meia na Lareira: valendo, paga o que guardou (fora dos multiplicadores);
-    // anulada, avisa que guarda mais 2 (uma vez so, mesmo com a Saideira).
+    // anulada, avisa que guarda mais MEIA_GUARDA (4) (uma vez so, mesmo com a Saideira).
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (TIPO[tipo_de(j, k)].efeito != EF_MEIA) continue;
+        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
         if (est[k] == V_VALIDO && f->fixo[k]) {
             d->semente[j] += f->fixo[k];
             evento(gera, EV_EXTRA, j, k, j, 0, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
@@ -422,6 +443,8 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         if (est[k] == V_ROUBADO || TIPO[tipo_de(j, k)].efeito != EF_OURICO) continue;
         int r = outro(j), n = d->atacados[j];
         if (!n) continue;
+        // ACHADO A13: preservado - na Saideira do dono, cobra de novo o total: os ataques ja cobrados custam outra vez
+        // ACHADO A01: preservado - se o dono do Ourico abriu a rodada, cobra antes de a Assombracao do rival contar
         d->delta[r] -= OURICO_PTS * n;
         evento(gera, EV_TIRA, j, k, r, 0, OURICO_PTS * n, "Ouriço: %d ataque%s, -%d para %s", n,
                n > 1 ? "s" : "", OURICO_PTS * n, J[r].nome);
@@ -432,6 +455,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         evento(gera, EV_EXTRA, j, k, j, 0, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
     for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na quarta: o tiro ja saiu, +REVOLVER_TIRO (12) por fora
+        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
         d->semente[j] += REVOLVER_TIRO;
         evento(gera, EV_EXTRA, j, k, j, 0, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
@@ -478,6 +502,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
             d->semente[j] += 2;                      // nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: a sequência inteira válida, +2");
         } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] >= f->valor[k] && f->valor[k + 1] <= f->valor[k] + 2) {
+            // ACHADO A19: preservado - encaixa mesmo com o dado seguinte anulado ou roubado (nao olha est[k + 1])
             int n = 3 - (f->valor[k + 1] - f->valor[k]);   // o mesmo: +3; um a mais: +2; dois a mais: +1
             d->semente[j] += n;
             evento_t *e = evento(gera, EV_EXTRA, j, k, j, 0, n, "Dominó: a peça %d encaixa, +%d", f->valor[k + 1], n);
@@ -507,6 +532,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
         } else if (ef == EF_ASSOMBRA) {                   // valendo, o susto: -2 no oponente (os Fantasmas vao no fim da rodada)
             int r = outro(j);
             d->delta[r] -= ASSOMBRA_PTS;
+            // ACHADO A01: preservado - o Ourico do rival so cobra este susto se o dono da Assombracao abriu a rodada
             d->atacados[r]++;
             evento(gera, EV_TIRA, j, k, r, 0, ASSOMBRA_PTS, "Assombração assusta %s: -%d", J[r].nome, ASSOMBRA_PTS);
         } else if (ef == EF_LEQUE) {                      // +2 por outro dado seu valendo que caiu num lado com adesivo
@@ -614,8 +640,10 @@ static void fim_fixos(desfecho_t *d, int j, bool gera)
     }
 }
 
-// Efeitos do fim sobre a propria fila: Moeda da sorte, depois os
-// multiplicadores. Decididos sobre o estado depois dos ataques.
+// Efeitos do fim sobre a propria fila, em cinco partes, nesta ordem:
+// fim_bonus (os bonus por dado), fim_mult_prepara (conta as Farturas),
+// fim_fogo (a Ficha de Fogo), fim_mult (o Sacrificio e os multiplicadores)
+// e fim_fixos (os pontos fixos). Decididos sobre o estado depois dos ataques.
 static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 {
     fim_bonus(d, j, gera);

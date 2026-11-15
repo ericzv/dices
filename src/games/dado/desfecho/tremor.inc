@@ -1,3 +1,14 @@
+// ===========================================================================
+// TREMOR: o Terremoto armado (tremor_armado, tremor_na_mesa) e o dado que
+// rola de novo no fim (treme_dado), pelo Terremoto ou pela Casca de Banana.
+// Le: F e a peca do dado na bolsa (J[].col, pelos adesivos dele); nao le d
+// nem ev[].
+// Grava: treme_dado grava F (o dado sacudido: numero, lado, descarte...) e a
+// semente abalo_s. Nao grava d, ev[] nem a bolsa.
+// Quem chama: fase_anota_sorte, fase_terremoto e fase_casca
+// (resolve_mesa.inc), so com gera; e fim_incerto (partida.inc).
+// ===========================================================================
+
 // O Terremoto k de j vai sacudir a mesa do oponente: terminou valendo com 7 ou 8.
 static bool tremor_armado(int j, int k)
 {
@@ -18,6 +29,7 @@ static int rola_abalo(int lados)
     abalo_s ^= abalo_s << 13; abalo_s ^= abalo_s >> 17; abalo_s ^= abalo_s << 5;
     return 1 + (int)(abalo_s % (uint32_t)lados);
 }
+// ACHADO A33: preservado - segunda implementacao do lance (lanca_peca, partida.inc): as duas tem de andar juntas
 static void treme_dado(int r, int a, uint32_t semente_abalo)
 {
     fila_t *f = &F[r];

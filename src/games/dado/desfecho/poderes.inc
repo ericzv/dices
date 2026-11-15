@@ -1,3 +1,15 @@
+// ===========================================================================
+// PODERES: os poderes dos dados que valem no fim - os ataques, os roubos, os
+// que tiram pontos do rival e os que caem no dono (poder_de), o corte do
+// Ranzinza, a Fenix e o Agnus.
+// Le: F, d, J[].nome, a rodada, os amuletos (a Couraca) e os trunfos.
+// Grava: d (est, bonus, delta, roubo_val, atacados, e o que as reacoes
+// gravam), ev[] e agiu[] (quem ja agiu); com gera, acende a Couraca. Nao
+// grava F nem a bolsa.
+// Quem chama: calcula_desfecho e a Saideira (orquestra.inc); agnus_armado
+// serve tambem a IA e a mesa.
+// ===========================================================================
+
 // Os poderes dos dados de j que valem no fim (ataques, roubos, os que
 // tiram do rival e os que agem contra o dono). A Saideira chama de novo.
 //
@@ -8,6 +20,7 @@
 // miram se anulam os dois, quem quer que tenha aberto a rodada. Cada dado
 // age uma vez so (agiu[j], um bit por lugar); a Saideira zera os de quem
 // repete.
+// ACHADO A03: preservado - isso vale para os dados; entre adesivos (Mira contra Mira), quem abriu a rodada leva
 static uint8_t agiu[2];
 static void poder_de(desfecho_t *d, int j, int k, bool gera);
 
@@ -49,6 +62,7 @@ static void contra_ataque(desfecho_t *d, int r, int a, bool gera)
 static void poderes_de(desfecho_t *d, int j, bool gera)
 {
     for (int k = 0; k < F[j].lancados; k++)
+        // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
         if (!(agiu[j] >> k & 1)) poder_de(d, j, k, gera);
 }
 
@@ -63,6 +77,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     // o lancou - ele mesmo, se estiver valendo e for o menor (no empate,
     // ele).
     if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
+        // ACHADO A08: preservado - o Carrasco com 1 entra como alvo sem olhar a Ancora: preso por ela, anula a si mesmo
         int b = d->est[j][k] == V_VALIDO ? k : -1;
         for (int i = 0; i < F[j].lancados; i++)
             if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
@@ -96,6 +111,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             int a = desvia_seguranca(d->est[r], r, ro);
             if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Berserker", 0)) {
                 contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+                // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
                 d->est[r][a] = V_ANULADO;
                 if (a != ro) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "Berserker: o Segurança de %s leva no lugar", J[r].nome);
@@ -136,11 +152,13 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (couraca && gera && ((ef == EF_CARRASCO && v == 4) || (ef == EF_LASER && v >= 5) || (ef == EF_INVEJOSO && invejoso_age(v))
                             || (ef == EF_BONECO && v >= 8) || (ef == EF_TSUNAMI && v >= 9) || (ef == EF_AGNUS && v == AGNUS_RAIO)))
         am_acende(A_COURACA);
+    // ACHADO A27: preservado - a Couraca acende ate com o Caridoso que tirou 1 ou 2 (nao rouba)
     if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
     if (ef == EF_CARRASCO && v == 4) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
         if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Carrasco", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+            // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
             if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Carrasco: o Segurança de %s leva no lugar", J[r].nome);
@@ -157,6 +175,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             int a = desvia_seguranca(d->est[r], r, a0);
             if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, nome, 0)) {
                 contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+                // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
                 d->est[r][a] = V_ANULADO;
                 if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                     "%s: o Segurança de %s leva no lugar", nome, J[r].nome);
@@ -173,6 +192,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         int a = desvia_seguranca(d->est[r], r, a0);
         if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Boneco de Neve", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+            // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
             if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Boneco de Neve: o Segurança de %s leva no lugar", J[r].nome);
@@ -185,6 +205,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
         if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Invejoso", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+            // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
             if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Invejoso: o Segurança de %s leva no lugar", J[r].nome);
@@ -197,6 +218,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1), a = desvia_seguranca(d->est[r], r, a0);
         if (a >= 0 && !bloqueia_capa(gera, j, k, r, a, "Agnus", 0)) {
             contra_ataque(d, r, a, gera);           // o ataque dele, se tiver, vem antes
+            // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
             d->est[r][a] = V_ANULADO;
             if (a != a0) evento(gera, EV_ANULA, j, k, r, a, F[r].valor[a],
                                 "Agnus: o Segurança de %s leva a luz", J[r].nome);
@@ -222,6 +244,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         }
     } else if (ef == EF_SABOTADOR && v >= 5) {   // o maior do oponente passa a valer metade
         int a = -1;
+        // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
         for (int i = 0; i < F[r].lancados; i++)
             if (d->est[r][i] == V_VALIDO && !universo(r, i) && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
         if (a >= 0) {
@@ -237,6 +260,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     } else if (ef == EF_VAMPIRO) {               // valendo: -1 em cada dado do oponente que vale
         uint8_t m = 0;
         for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
+            // ACHADO A18: preservado - tira 1 tambem do dado que pontua 0: ele fica em -1
             if (d->est[r][i] == V_VALIDO && !universo(r, i)) { d->bonus[r][i] = (int8_t)(d->bonus[r][i] - 1); m |= (uint8_t)(1 << i); }
         if (m) d->atacados[r]++;
         evento_t *e = m ? evento(gera, EV_VAMPIRO, j, k, r, 0, 1, "Vampiro: -1 em cada dado de %s", J[r].nome) : NULL;
@@ -255,9 +279,12 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         evento(gera, EV_TIRA, j, k, r, 0, 4, "Pirata tira 4 de %s", J[r].nome);
     } else if ((ef == EF_CARIDOSO && v >= 3) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
         for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
+            // ACHADO A05: preservado - o laco nao reconfere se o Gatuno ainda vale: anulado pelo Cavalo, segue roubando
             int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
             if (a < 0) break;
+            // ACHADO A10: preservado - o roubo vale o dado cheio, sem o corte ja aplicado em d->bonus
             int vale = contribui(r, a);
+            // ACHADO A14: preservado - o roubo nao passa por bloqueia_capa: o dado com a capa do Impermeavel e roubado
             d->est[r][a] = V_ROUBADO;
             d->roubo_val[j] += vale;
             if (a != a0) evento(gera, EV_ROUBA, j, k, r, a, vale,
@@ -277,6 +304,7 @@ static void ranzinza_corta(desfecho_t *d, bool gera)
 {
     if (!tem_reg(REG_RANZINZA) || rodada < RANZINZA_RODADA) return;
     int a = -1;
+    // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
     for (int i = 0; i < F[0].lancados && i < N_FILA; i++)
         if (d->est[0][i] == V_VALIDO && !universo(0, i) && (a < 0 || F[0].valor[i] > F[0].valor[a])) a = i;
     if (a < 0) return;
@@ -304,12 +332,14 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
 static int agnus_armado(int j)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
+        // ACHADO A06: preservado - devolve o primeiro Agnus com 7, mesmo roubado
         if (TIPO[tipo_de(j, k)].efeito == EF_AGNUS && F[j].valor[k] == AGNUS_NUMERO) return k;
     return -1;
 }
 static void agnus_de(desfecho_t *d, int j, bool gera)
 {
     int ag = agnus_armado(j);
+    // ACHADO A06: preservado - com o primeiro Agnus roubado, desiste: o segundo Agnus com 7 nao ressuscita ninguem
     if (ag < 0 || d->est[j][ag] == V_ROUBADO) return;
     uint8_t m = 0;
     int n = 0;

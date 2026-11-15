@@ -1,3 +1,12 @@
+// ===========================================================================
+// PLACAR VISIVEL: os pontos que a mesa mostra enquanto os eventos do fim
+// tocam, um a um (total_visivel).
+// Le: F e o que a animacao ja mostrou (vis_est, vis_bonus, vis_mult,
+// vis_delta, vis_semente, vis_roubo, vis_espelho, vis_tremor). Nao le d.
+// Grava: nada.
+// Quem chama: a partida (partida.inc) e a hora da verdade (hora.inc).
+// ===========================================================================
+
 // Pontuacao que a mesa mostra durante e depois da animacao dos eventos.
 static int total_visivel(int j)
 {

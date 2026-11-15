@@ -81,7 +81,7 @@
 #include "dado/adesivos.inc"      // os adesivos do Desafiante: o que fazem e o desenho
 #include "dado/desenho_dado.inc"  // o desenho de cada dado
 #include "dado/fila.inc"          // a regra da fila: o que vale, o que anula
-#include "dado/adesivos_pouso.inc" // os adesivos que agem quando o dado cai (Infectado, Barro, Massinha)
+#include "dado/adesivos_pouso.inc" // os adesivos que agem quando o dado cai (Chiclete, Xerox, Infectado, Barro, Massinha)
 #include "dado/desfecho.inc"      // os poderes que mexem no rival, em sequencia
 #include "dado/risco.inc"         // a chance de o proximo dado cair (o simulador e a IA)
 #include "dado/partida.inc"       // comeco, rodada, resultado e fim

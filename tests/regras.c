@@ -485,6 +485,19 @@ static void achados_desfecho(void)
                 "A22: Laser nao anula de novo o Carrasco que a Ratoeira derrubou (ratoeira %d, anula %d, atacados %d)", rato, anula_b, d.atacados[1]);
     }
 
+    // A23: a Casca de Banana conta ataque para o Ourico tambem na previa.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 3, AD_CASCA);
+    achado_fila(0);
+    joga(0, D_D4, 1); joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_D6, 4);
+    joga_ad(1, 0, 3);
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(pv.atacados[0] == 1 && d.atacados[0] == 1, "A23: a Casca conta 1 ataque na previa e no fim (previa %d, fim %d)", pv.atacados[0], d.atacados[0]);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

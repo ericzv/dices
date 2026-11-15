@@ -140,22 +140,22 @@ static void fase_terremoto(resolve_t *rm)
 // cascas, o 3o, o 2o, o 1o) rola de novo e fica o menor dos dois - menor
 // que o de antes, a sequencia derruba os dois. Sem esse dado (ou ja
 // anulado), nada. Como o tremor, so no fim de verdade (a previa e a IA nao
-// sabem o que vai dar), pelo sorteio que vem da mesa. A Couraca e a bolha
-// do Impermeavel seguram.
+// sabem o que vai dar), pelo sorteio que vem da mesa; a previa so conta o
+// ataque (para o Ourico). A Couraca e a bolha do Impermeavel seguram.
 static void fase_casca(resolve_t *rm, desfecho_t *d)
 {
-    if (rm->gera) {
-        int r = outro(primeiro), t = primeiro;   // r: o dono das cascas; t: quem escorrega
-        int nc = cascas_de(r);
-        for (int n = 0; n < nc; n++) {
-            int kc = casca_dado(r, n), a = CASCA_DADO + 1 - nc + n;
-            // ACHADO A28: preservado - estas guardas (o Universo, a Couraca) nao existem em casca_no_fim (partida.inc)
-            if (a >= F[t].lancados || F[t].est[a] != V_VALIDO || universo(t, a)) continue;
-            if (tem_am(t, A_COURACA)) { am_acende(A_COURACA); continue; }
+    int r = outro(primeiro), t = primeiro;       // r: o dono das cascas; t: quem escorrega
+    int nc = cascas_de(r);
+    for (int n = 0; n < nc; n++) {
+        int kc = casca_dado(r, n), a = CASCA_DADO + 1 - nc + n;
+        // ACHADO A28: preservado - estas guardas (o Universo, a Couraca) nao existem em casca_no_fim (partida.inc)
+        if (a >= F[t].lancados || F[t].est[a] != V_VALIDO || universo(t, a)) continue;
+        if (tem_am(t, A_COURACA)) { if (rm->gera) am_acende(A_COURACA); continue; }
+        d->atacados[t]++;                        // conta para o Ourico, na previa tambem
+        if (!rm->gera) continue;                 // o que a casca da, so no fim de verdade
+        {
             int antes = F[t].valor[a];
             evento_t *e;
-            // ACHADO A23: preservado - so conta com gera: a previa nao soma a Casca para o Ourico (erra por OURICO_PTS)
-            d->atacados[t]++;
             if (!rm->pre[t]) memcpy(est_pre_espelho[t], F[t].est, N_FILA);
             rm->pre[t] = true;
             if (impermeavel(t, a)) {

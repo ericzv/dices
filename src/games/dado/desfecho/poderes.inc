@@ -92,15 +92,13 @@ static void golpe_anula(desfecho_t *d, int j, int k, int a0, const golpe_t *g, b
     apos_ataque(d, j, k, r, a, gera);
 }
 
-// O maior dado valendo de r (pelo numero na face; o Universo nao) passa a
-// pontuar metade, arredondando o corte para cima: o Sabotador e o Ranzinza.
-// Devolve qual foi (ou -1, sem corte), quanto saiu e quanto ele pontua.
+// O maior dado de r que pontua (alvo_corte: pelo numero na face, entre os
+// que valem mais que 0) passa a pontuar metade, arredondando o corte para
+// cima: o Sabotador e o Ranzinza. Devolve qual foi (ou -1, sem corte),
+// quanto saiu e quanto ele pontua.
 static int corta_metade(desfecho_t *d, int r, int *corte, int *fica)
 {
-    int a = -1;
-    // ACHADO A20: preservado - o alvo e o de maior numero na face; se ele pontua 0, o corte e 0 e ninguem e cortado
-    for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
-        if (d->est[r][i] == V_VALIDO && !universo(r, i) && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
+    int a = alvo_corte(d->est[r], d->bonus[r], r);
     if (a < 0) return -1;
     int base = valor_pontos(r, a) + F[r].bonus[a] + d->bonus[r][a];
     int c = base > 0 ? (base + 1) / 2 : 0;
@@ -267,8 +265,8 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     }
 }
 
-// O Ranzinza (trunfo): da 5a rodada em diante, o seu maior dado valendo
-// pontua metade - uma vez por rodada, depois dos poderes.
+// O Ranzinza (trunfo): da 5a rodada em diante, o seu maior dado que
+// pontua (alvo_corte) vale metade - uma vez por rodada, depois dos poderes.
 #define RANZINZA_RODADA 5
 static void ranzinza_corta(desfecho_t *d, bool gera)
 {

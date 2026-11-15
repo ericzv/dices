@@ -46,7 +46,7 @@ Barão (trunfo "Presente surpresa": um dado da sua mão vem embrulhado e você
 só descobre qual é ao lançar; a bolsa dele é cheia de Trenós e Jingle Bells),
 cada salão tem um oponente de Natal — a **Rena** (o primeiro dado dela não
 cai pela sequência), o **Duende** (+1 por dado igual na sequência dele) e o
-**Ranzinza** (da 5ª rodada, o seu maior dado pontua metade) — e todos os
+**Ranzinza** (da 5ª rodada, o seu maior dado que pontua vale metade) — e todos os
 retratos ganham gorro, cachecol ou tiara de rena. De 26 de dezembro a 6 de
 janeiro, abre também o feltro **Réveillon**, preto com ouro e fogos nos cantos. Fora
 da época, nada disso aparece.

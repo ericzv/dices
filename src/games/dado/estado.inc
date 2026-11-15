@@ -378,7 +378,7 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
        REG_MALUCO, REG_JUROS, REG_CORINGA,
        REG_PRESENTE,                     // o Papai Noel: um dado da sua mao vem embrulhado
-       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior dado pontua metade
+       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior que pontua vale metade
        REG_DUENDE };                     // o Duende: +1 por dado igual na sequencia dele
 // O Presente surpresa do Papai Noel: o dado da sua mao (indice na bolsa) que
 // veio embrulhado nesta rodada, e o que ele e de verdade (-1: nenhum).

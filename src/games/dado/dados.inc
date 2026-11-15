@@ -316,7 +316,7 @@ static const tipo_t TIPO[D_N] = {
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada ataque do oponente: -5 nele" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
-    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente pontua metade" },
+    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente (entre os que pontuam) vale metade" },
     { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "Começou a rodada com menos fichas: x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
     { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "Válido: 3 fichas do oponente para você" },
@@ -454,7 +454,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_HEXA]            = "Se terminar válido, +1 no fim por dado de seis lados válido seu, este dado incluído.",
     [D_OURICO]          = "Na sua fila, cada vez que o oponente tentar anular, atacar ou tirar pontos seus, ele perde 5.",
     [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
-    [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente pontua metade no fim.",
+    [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente (entre os que pontuam) vale metade no fim.",
     [D_AZARAO]          = "Se você começou a rodada com menos fichas e ele terminar válido: x2.",
     [D_AMPULHETA]       = "Se terminar válido: +1 a cada 3 rodadas já jogadas, até +4.",
     [D_AGIOTA]          = "Se terminar válido, no fim 3 fichas do oponente passam para você, fora do pote.",
@@ -646,8 +646,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "no fim da rodada. Conta até o ataque que a bolha do Impermeável segura. Roubado, não espeta.",
     [D_CALIBRE]         = "Quatro lados. O dado seu lançado logo depois dele, com o Calibre válido, tira 1 a mais, sem passar "
                           "do máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
-    [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado válido do oponente passa a pontuar metade no "
-                          "fim da rodada (arredondado para baixo).",
+    [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado do oponente entre os que pontuam (valem mais "
+                          "que 0) passa a pontuar metade no fim da rodada (arredondado para baixo).",
     [D_AZARAO]          = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar válido, pontua "
                           "x2.",
     [D_AMPULHETA]       = "Seis lados. Se terminar válido, pontua +1 no fim da rodada a cada 3 rodadas já jogadas na partida, "

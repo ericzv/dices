@@ -294,7 +294,7 @@ static const perso_t PERSO[] = {
       0, { D_TRENO, D_JINGLE, D_JINGLE }, ES_NORMAL },
     { "O RANZINZA",      "Odeia o Natal. E você também.",    -0.2f,
       { D_SABOTADOR, D_VAMPIRO, D_MALDICAO, D_TEIMOSO, D_D12, 0xFF },
-      "Bah, Natal", "Da 5ª rodada em diante, o seu maior dado de cada rodada pontua metade.", 0, REG_RANZINZA,
+      "Bah, Natal", "Da 5ª rodada em diante, o seu maior dado que pontua vale metade.", 0, REG_RANZINZA,
       { { "Tire esse gorro da minha mesa.", "Bah. Natal." },
         { "Bem feito.", "Hmpf. Justo." },
         { "Menos um enfeite.", "Bah." },

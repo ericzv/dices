@@ -444,6 +444,20 @@ static void achados_desfecho(void)
     d = fim();
     CONFERE(d.bruto[1] == 0 && d.atacados[1] == 0, "A18: Vampiro sem ninguem para morder nao ataca (bruto %d, atacados %d)", d.bruto[1], d.atacados[1]);
 
+    // A20: o Sabotador e o Ranzinza cortam o de maior numero entre os que pontuam.
+    achado_zera(); achado_fila(0);
+    joga(0, D_SABOTADOR, 5);
+    joga(1, D_D4, 2); joga(1, D_TREVO, 3);
+    d = fim();
+    CONFERE(d.total[1] == 1 && d.atacados[1] == 1, "A20: Sabotador corta o D4 2, nao o Trevo 3 que pontua 0 (B %d, atacados %d)", d.total[1], d.atacados[1]);
+    achado_zera(); achado_fila(0);
+    modo = M_DESAFIO; reg_op = REG_RANZINZA; rodada = 5;
+    joga(0, D_D4, 2); joga(0, D_TREVO, 3);
+    joga(1, D_D6, 1);
+    d = fim();
+    CONFERE(d.total[0] == 1, "A20: Ranzinza corta o D4 2, nao o Trevo 3 (A %d)", d.total[0]);
+    modo = M_DOIS; reg_op = 0; rodada = 1;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

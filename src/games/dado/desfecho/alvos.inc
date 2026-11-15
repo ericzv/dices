@@ -98,6 +98,19 @@ static int maior_valido(const uint8_t *est, int j, uint8_t fora)
             && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
     return b;
 }
+// O alvo do corte (o Sabotador e o Ranzinza): o de maior numero na face
+// entre os dados valendo de j que pontuam - somam mais que 0, com os bonus
+// de extra (os cortes e bonus do fim; NULL na mesa ao vivo). No empate, o
+// primeiro. O Universo nao. Sem nenhum, -1.
+static int alvo_corte(const uint8_t *est, const int8_t *extra, int j)
+{
+    int b = -1;
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+        if (est[i] == V_VALIDO && !universo(j, i)
+            && valor_pontos(j, i) + F[j].bonus[i] + (extra ? extra[i] : 0) > 0
+            && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
+    return b;
+}
 static void mira_menores(uint8_t *est, int j, int n, int exceto, uint8_t *masc)
 {
     for (int q = 0; q < n; q++) {                // os n menores que podem ser anulados, um de cada vez

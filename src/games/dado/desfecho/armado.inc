@@ -217,9 +217,8 @@ static void miras_agora(uint8_t mira[2])
             case EF_BONECO:
                 if (!couraca && F[r].lancados > 3 && F[r].est[3] == V_VALIDO && !firme_sem_capa(r, 3)) a = 3;
                 break;
-            case EF_SABOTADOR:                   // corta o maior do oponente (sem desvio)
-                for (int i = 0; i < F[r].lancados && i < N_FILA; i++)
-                    if (F[r].est[i] == V_VALIDO && !universo(r, i) && (a < 0 || F[r].valor[i] > F[r].valor[a])) a = i;
+            case EF_SABOTADOR:                   // corta o maior do oponente que pontua (sem desvio)
+                a = alvo_corte(F[r].est, NULL, r);
                 desvia = false;
                 break;
             case EF_CARIDOSO: a = alvo_de(F[r].est, r, false, -1); break;

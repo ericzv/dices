@@ -68,6 +68,15 @@ typedef struct {
     bool so_rival;                               // o texto do golpe so tem o nome do rival
 } golpe_t;
 #define SEG_NO_LUGAR "%s: o Segurança de %s leva no lugar"
+// Os golpes que anulam, um por poder (constantes: nao ocupam a pilha a cada
+// contra-ataque).
+static const golpe_t G_BERSERKER = { "Berserker", SEG_NO_LUGAR, "Berserker anula o %d de %s", false };
+static const golpe_t G_CARRASCO  = { "Carrasco", SEG_NO_LUGAR, "Carrasco anula o %d de %s", false };
+static const golpe_t G_LASER     = { "Laser", SEG_NO_LUGAR, "Laser anula o %d de %s", false };
+static const golpe_t G_TSUNAMI   = { "Tsunami", SEG_NO_LUGAR, "Tsunami leva o %d de %s", false };
+static const golpe_t G_BONECO    = { "Boneco de Neve", SEG_NO_LUGAR, "Boneco de Neve congela o 4º de %s", true };
+static const golpe_t G_INVEJOSO  = { "Invejoso", SEG_NO_LUGAR, "Invejoso anula o %d de %s", false };
+static const golpe_t G_AGNUS     = { "Agnus", "%s: o Segurança de %s leva a luz", "Agnus: a luz anula o %d de %s", false };
 static void golpe_anula(desfecho_t *d, int j, int k, int a0, const golpe_t *g, bool gera)
 {
     int r = outro(j), a = desvia_seguranca(d->est[r], r, a0);
@@ -151,8 +160,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (ef == EF_BERSERKER) {
         int ro = tem_am(r, A_COURACA) ? -1 : alvo_vizinho(d->est[r], r, k);
         if (ro >= 0) {
-            golpe_anula(d, j, k, ro, &(golpe_t){ "Berserker", SEG_NO_LUGAR, "Berserker anula o %d de %s", false },
-                        gera);
+            golpe_anula(d, j, k, ro, &G_BERSERKER, gera);
             return;
         }
         int b = alvo_vizinho(d->est[j], j, k);
@@ -189,24 +197,21 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
     if (ef == EF_CARRASCO && arma) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
-        golpe_anula(d, j, k, a0, &(golpe_t){ "Carrasco", SEG_NO_LUGAR, "Carrasco anula o %d de %s", false }, gera);
+        golpe_anula(d, j, k, a0, &G_CARRASCO, gera);
     } else if ((ef == EF_LASER || ef == EF_TSUNAMI) && arma) {
         // O Laser (5 ou 6) pega o ultimo dado do oponente que pode ser
         // anulado; o Tsunami (9 a 12), o primeiro.
         int a0 = couraca ? -1 : ef == EF_LASER ? alvo_ultimo(d->est[r], r) : alvo_primeiro(d->est[r], r);
-        const char *anula = ef == EF_TSUNAMI ? "Tsunami leva o %d de %s" : "Laser anula o %d de %s";
-        golpe_anula(d, j, k, a0, &(golpe_t){ nome, SEG_NO_LUGAR, anula, false }, gera);
+        golpe_anula(d, j, k, a0, ef == EF_TSUNAMI ? &G_TSUNAMI : &G_LASER, gera);
     } else if (ef == EF_BONECO && arma) {     // Boneco de Neve com 8: congela o 4o do oponente
         int a0 = !couraca && F[r].lancados > 3 && d->est[r][3] == V_VALIDO && !firme_sem_capa(r, 3) ? 3 : -1;
-        golpe_anula(d, j, k, a0, &(golpe_t){ "Boneco de Neve", SEG_NO_LUGAR, "Boneco de Neve congela o 4º de %s", true },
-                    gera);
+        golpe_anula(d, j, k, a0, &G_BONECO, gera);
     } else if (ef == EF_INVEJOSO && arma) {   // Invejoso com 5 ou 6: o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
-        golpe_anula(d, j, k, a0, &(golpe_t){ "Invejoso", SEG_NO_LUGAR, "Invejoso anula o %d de %s", false }, gera);
+        golpe_anula(d, j, k, a0, &G_INVEJOSO, gera);
     } else if (ef == EF_AGNUS && arma) {   // Agnus com 8: a luz anula o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
-        golpe_anula(d, j, k, a0, &(golpe_t){ "Agnus", "%s: o Segurança de %s leva a luz",
-                                             "Agnus: a luz anula o %d de %s", false }, gera);
+        golpe_anula(d, j, k, a0, &G_AGNUS, gera);
     } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
         uint8_t ja = 0;                              // (o de capa e um dos dois: bate nela e fica)
         for (int n = 0; n < 2; n++) {

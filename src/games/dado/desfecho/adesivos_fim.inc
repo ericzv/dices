@@ -65,11 +65,12 @@ static bool carimbado_ja(int j, int k) { return k > 0 && ad_fila_tem(j, k - 1, A
 // "Holográfico, como ", "Dupla Face » "...). "" quando age sozinho.
 static const char *ad_prefixo(int modo, bool copia, int j, int k)
 {
-    bool de_novo = modo & EVM_CARIMBO;
+    bool de_novo = modo & EVM_CARIMBO, tela = F[j].tipo[k] == D_TELA && !carimbado_ja(j, k);   // a 2a vez e da Tela
     // ACHADO A35: preservado - carimbado_ja nao ve se o Carimbo de antes foi roubado: a Tela sai como Carimbo
     return modo & EVM_PAPAGAIO ? "Papagaio, como " : modo & EVM_RETRATO ? "Porta-Retrato » "
-         : copia ? (de_novo ? "Carimbo » Holográfico, como " : "Holográfico, como ")
-         : de_novo ? (F[j].tipo[k] == D_TELA && !carimbado_ja(j, k) ? "Tela em Branco » " : "Carimbo » ")
+         : copia && de_novo ? (tela ? "Tela em Branco » Holográfico, como " : "Carimbo » Holográfico, como ")
+         : copia ? "Holográfico, como "
+         : de_novo ? (tela ? "Tela em Branco » " : "Carimbo » ")
          : modo & EVM_DUPLA ? "Dupla Face » "
          : modo & EVM_MOLDURA ? "Moldura » " : "";
 }
@@ -499,8 +500,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     int holo[N_FILA], n_holo = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (!ad_fila_tem(j, k, AD_HOLOGRAFICO) || d->est[j][k] == V_ROUBADO) continue;
-        // ACHADO A11: preservado - aqui a Tela em Branco nao conta: o Holografico nela age uma vez so
-        bool carimbo = carimbado(d, j, k), algum = false;
+        bool carimbo = carimbado(d, j, k) || F[j].tipo[k] == D_TELA, algum = false;   // a Tela: duas vezes
         int md = ad_fila(j, k) == AD_HOLOGRAFICO ? 0 : EVM_DUPLA;
         holo[n_holo++] = k;
         for (int c = 0; c < (carimbo ? 2 : 1); c++) {
@@ -524,8 +524,9 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
         if (!ad_fila_tem(j, k, AD_PURPURINA) || d->est[j][k] != V_VALIDO) continue;
         int md = ad_fila(j, k) == AD_PURPURINA ? 0 : EVM_DUPLA;
         purp_md[n_purp] = (uint8_t)md; purp[n_purp++] = k; n_purp_ad += 1 + (md != 0);
-        // ACHADO A11: preservado - aqui a Tela em Branco nao conta: a Purpurina nela age uma vez so
-        if (carimbado(d, j, k)) { purp_md[n_purp] = (uint8_t)(md | EVM_CARIMBO); purp[n_purp++] = k; n_purp_ad++; }
+        if (carimbado(d, j, k) || F[j].tipo[k] == D_TELA) {     // carimbada (ou na Tela): outra vez
+            purp_md[n_purp] = (uint8_t)(md | EVM_CARIMBO); purp[n_purp++] = k; n_purp_ad++;
+        }
     }
     int cada = PURPURINA_CADA * (agiram + n_purp_ad);
     d->ad_agiram[j] = (uint8_t)(agiram + n_purp_ad > 250 ? 250 : agiram + n_purp_ad);

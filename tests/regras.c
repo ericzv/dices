@@ -344,6 +344,27 @@ static void achados_desfecho(void)
     CONFERE(d.roubo_val[0] == 7 && d.total[0] == 12, "A10: Caridoso rouba o 8 com o -1 do Vampiro (roubo %d, A %d)",
             d.roubo_val[0], d.total[0]);
 
+    // A11: os adesivos colados na Tela em Branco agem duas vezes - a
+    // Purpurina e o Holografico tambem.
+    achado_zera();
+    achado_peca(0, 0, D_TELA, 3, AD_PURPURINA);
+    achado_fila(0); joga_ad(0, 0, 3);
+    d = fim();
+    int purps = 0, tela_txt = 0;
+    for (int i = 0; i < n_ev; i++) if (ev_tipo_ad(i, AD_PURPURINA)) { purps++; tela_txt += !strncmp(ev[i].txt, "Tela em Branco", 14); }
+    CONFERE(purps == 2 && tela_txt == 1, "A11: Purpurina na Tela age duas vezes (%d eventos, %d da Tela)", purps, tela_txt);
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_CONFETE);
+    achado_peca(0, 1, D_TELA, 3, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 2); joga_ad(0, 1, 3);
+    d = fim();
+    int copias = 0;
+    tela_txt = 0;
+    for (int i = 0; i < n_ev; i++)
+        if (ev_tipo_ad(i, AD_CONFETE) && ev[i].copia) { copias++; tela_txt += !strncmp(ev[i].txt, "Tela em Branco", 14); }
+    CONFERE(copias == 2 && tela_txt == 1 && d.semente[0] == 12,
+            "A11: Holografico na Tela copia duas vezes (%d copias, %d da Tela, semente %d)", copias, tela_txt, d.semente[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

@@ -193,8 +193,8 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     bool arma = ataque_armado(ef, v);
     // Divergencia mantida: o Berserker (la em cima) cai no dono sem acender a Couraca.
     if (couraca && gera && arma && PODER_ATAQUE[ef].golpe == GOLPE_ANULA) am_acende(A_COURACA);
-    // ACHADO A27: preservado - a Couraca acende ate com o Caridoso que tirou 1 ou 2 (nao rouba)
-    if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
+    // O roubo armado (o Caridoso com 3 ou 4; o Gatuno chega aqui com algum 1) bate na Couraca.
+    if (gera && couraca && ((ef == EF_CARIDOSO && arma) || ef == EF_GATUNO)) am_acende(A_COURACA);
     if (ef == EF_CARRASCO && arma) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
         golpe_anula(d, j, k, a0, &G_CARRASCO, gera);

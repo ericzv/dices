@@ -550,6 +550,23 @@ static void achados_desfecho(void)
         CONFERE(papagaio == 1 && holo == 0, "A26: Mira do Papagaio na capa diz Papagaio (papagaio %d, holografico %d)", papagaio, holo);
     }
 
+    // A27: a Couraca so acende quando ha roubo armado (o Caridoso com 1 nao rouba).
+    achado_zera(); modo = M_DESAFIO; amul[1] = AM_BIT(A_COURACA);
+    achado_fila(0);
+    joga(0, D_CARIDOSO, 1); joga(1, D_D6, 5);
+    am_brilho[A_COURACA] = 0;
+    d = fim();
+    {
+        float b1 = am_brilho[A_COURACA];
+        achado_fila(0);
+        joga(0, D_CARIDOSO, 3); joga(1, D_D6, 5);
+        am_brilho[A_COURACA] = 0;
+        d = fim();
+        CONFERE(b1 == 0 && am_brilho[A_COURACA] > 0 && d.roubo_val[0] == 0,
+                "A27: Couraca acende so com roubo armado (Caridoso 1: %.1f, Caridoso 3: %.1f)", b1, am_brilho[A_COURACA]);
+    }
+    modo = M_DOIS; amul[1] = 0;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

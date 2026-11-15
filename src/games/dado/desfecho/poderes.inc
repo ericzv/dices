@@ -30,25 +30,15 @@ static bool ataca_oponente(const desfecho_t *d, int j, int k)
 {
     if (k < 0 || k >= F[j].lancados || d->est[j][k] != V_VALIDO) return false;
     int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k], r = outro(j);
-    switch (ef) {
-    case EF_BERSERKER: return !tem_am(r, A_COURACA) && alvo_vizinho(d->est[r], r, k) >= 0;   // sem vizinho no oponente, cai no dono
-    case EF_CARRASCO:  return v == CARRASCO_ANULA && F[j].cru[k] != 1;
-    case EF_LASER:     return v >= LASER_DE;
-    case EF_TSUNAMI:   return v >= TSUNAMI_DE;
-    case EF_BONECO:    return v >= BONECO_DE;
-    case EF_INVEJOSO:  return invejoso_age(v);
-    case EF_AGNUS:     return v == AGNUS_RAIO;
-    case EF_SABOTADOR: return v >= SABOTADOR_DE;
-    case EF_VAMPIRO:   return true;
-    case EF_MARTELO:   return v >= MARTELO_DE;
-    case EF_MALDICAO:  return true;
-    case EF_PIRATA:    return v >= PIRATA_DE;
-    case EF_CARIDOSO:  return v >= CARIDOSO_DE;
-    case EF_GATUNO:
+    if (ef == EF_BERSERKER) return !tem_am(r, A_COURACA) && alvo_vizinho(d->est[r], r, k) >= 0;   // sem vizinho no oponente, cai no dono
+    if (ef == EF_GATUNO) {
         for (int i = 0; i < F[j].lancados; i++) if (i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO) return true;
         return false;
-    default:           return false;
     }
+    // Divergencia mantida: o Carrasco com 1 nao conta aqui, mas no poder_de, com 4 na face, anula tambem.
+    if (ef == EF_CARRASCO && F[j].cru[k] == 1) return false;
+    // Divergencia mantida: sem olhar a Couraca (o contra-ataque so acende o amuleto).
+    return ataque_armado(ef, v);
 }
 
 // O dado a de r vai ser anulado por um ataque: se ele tem um ataque armado
@@ -192,28 +182,28 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     }
 
     bool couraca = tem_am(r, A_COURACA);         // os ataques dele nao anulam
-    if (couraca && gera && ((ef == EF_CARRASCO && v == CARRASCO_ANULA) || (ef == EF_LASER && v >= LASER_DE) || (ef == EF_INVEJOSO && invejoso_age(v))
-                            || (ef == EF_BONECO && v >= BONECO_DE) || (ef == EF_TSUNAMI && v >= TSUNAMI_DE) || (ef == EF_AGNUS && v == AGNUS_RAIO)))
-        am_acende(A_COURACA);
+    bool arma = ataque_armado(ef, v);
+    // Divergencia mantida: o Berserker (la em cima) cai no dono sem acender a Couraca.
+    if (couraca && gera && arma && PODER_ATAQUE[ef].golpe == GOLPE_ANULA) am_acende(A_COURACA);
     // ACHADO A27: preservado - a Couraca acende ate com o Caridoso que tirou 1 ou 2 (nao rouba)
     if (gera && couraca && (ef == EF_CARIDOSO || ef == EF_GATUNO)) am_acende(A_COURACA);
-    if (ef == EF_CARRASCO && v == CARRASCO_ANULA) {
+    if (ef == EF_CARRASCO && arma) {
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
         golpe_anula(d, j, k, a0, &(golpe_t){ "Carrasco", SEG_NO_LUGAR, "Carrasco anula o %d de %s", false }, gera);
-    } else if ((ef == EF_LASER && v >= LASER_DE) || (ef == EF_TSUNAMI && v >= TSUNAMI_DE)) {
+    } else if ((ef == EF_LASER || ef == EF_TSUNAMI) && arma) {
         // O Laser (5 ou 6) pega o ultimo dado do oponente que pode ser
         // anulado; o Tsunami (9 a 12), o primeiro.
         int a0 = couraca ? -1 : ef == EF_LASER ? alvo_ultimo(d->est[r], r) : alvo_primeiro(d->est[r], r);
         const char *anula = ef == EF_TSUNAMI ? "Tsunami leva o %d de %s" : "Laser anula o %d de %s";
         golpe_anula(d, j, k, a0, &(golpe_t){ nome, SEG_NO_LUGAR, anula, false }, gera);
-    } else if (ef == EF_BONECO && v >= BONECO_DE) {     // Boneco de Neve com 8: congela o 4o do oponente
+    } else if (ef == EF_BONECO && arma) {     // Boneco de Neve com 8: congela o 4o do oponente
         int a0 = !couraca && F[r].lancados > 3 && d->est[r][3] == V_VALIDO && !firme_sem_capa(r, 3) ? 3 : -1;
         golpe_anula(d, j, k, a0, &(golpe_t){ "Boneco de Neve", SEG_NO_LUGAR, "Boneco de Neve congela o 4º de %s", true },
                     gera);
-    } else if (ef == EF_INVEJOSO && invejoso_age(v)) {   // Invejoso com 5 ou 6: o maior do oponente
+    } else if (ef == EF_INVEJOSO && arma) {   // Invejoso com 5 ou 6: o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
         golpe_anula(d, j, k, a0, &(golpe_t){ "Invejoso", SEG_NO_LUGAR, "Invejoso anula o %d de %s", false }, gera);
-    } else if (ef == EF_AGNUS && v == AGNUS_RAIO) {   // Agnus com 8: a luz anula o maior do oponente
+    } else if (ef == EF_AGNUS && arma) {   // Agnus com 8: a luz anula o maior do oponente
         int a0 = couraca ? -1 : alvo_de(d->est[r], r, true, -1);
         golpe_anula(d, j, k, a0, &(golpe_t){ "Agnus", "%s: o Segurança de %s leva a luz",
                                              "Agnus: a luz anula o %d de %s", false }, gera);
@@ -229,7 +219,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             else evento(gera, EV_ANULA, j, k, j, b, F[j].valor[b],
                         "Invejoso tirou %d: anula o %d do próprio %s", v, F[j].valor[b], J[j].nome);
         }
-    } else if (ef == EF_SABOTADOR && v >= SABOTADOR_DE) {   // o maior do oponente passa a valer metade
+    } else if (ef == EF_SABOTADOR && arma) {   // o maior do oponente passa a valer metade
         int corte, fica, a = corta_metade(d, r, &corte, &fica);
         if (a >= 0) {
             d->atacados[r]++;
@@ -244,13 +234,13 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
         if (m) d->atacados[r]++;
         evento_t *e = m ? evento(gera, EV_VAMPIRO, j, k, r, 0, 1, "Vampiro: -1 em cada dado de %s", J[r].nome) : NULL;
         if (e) e->mascara = m;
-    } else if (ef == EF_MARTELO && v >= MARTELO_DE) {     // Espinhoso: com 3 ou 4
+    } else if (ef == EF_MARTELO && arma) {     // Espinhoso: com 3 ou 4
         tira_placar(d, j, k, 4, "Espinhoso: -%d para %s", gera);
     } else if (ef == EF_MALDICAO) {              // vale para o dono e tira do oponente
         tira_placar(d, j, k, v, "Maldito: -%d para %s", gera);
-    } else if (ef == EF_PIRATA && v >= PIRATA_DE) {      // so tira; nao fica com os pontos
+    } else if (ef == EF_PIRATA && arma) {      // so tira; nao fica com os pontos
         tira_placar(d, j, k, 4, "Pirata tira %d de %s", gera);
-    } else if ((ef == EF_CARIDOSO && v >= CARIDOSO_DE) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
+    } else if ((ef == EF_CARIDOSO && arma) || ef == EF_GATUNO) {   // Caridoso: com 3 ou 4; Gatuno: um por 1
         for (int q = 0; q < roubos; q++) {                             // o menor, depois o menor que sobrou...
             // ACHADO A05: preservado - o laco nao reconfere se o Gatuno ainda vale: anulado pelo Cavalo, segue roubando
             int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);

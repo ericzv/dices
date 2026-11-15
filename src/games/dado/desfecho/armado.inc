@@ -17,6 +17,36 @@
 #define AGNUS_LUZ_PASSO 0.32f
 #define AGNUS_LEVANTA   0.22f
 
+// Os poderes que atacam o oponente pelo numero que o dado tirou (valendo): o
+// que o golpe faz e quando ele arma. E a fonte unica dos limiares para o
+// brilho (poder_armado), o contra-ataque (ataca_oponente), a Couraca e o
+// proprio golpe (poder_de). Os que dependem da mesa (o Gatuno, pelos 1 dos
+// outros; o Berserker, pelo vizinho) ficam de fora. miras_agora, que refaz a
+// escolha dos alvos, segue com as suas condicoes.
+enum { GOLPE_NENHUM, GOLPE_ANULA, GOLPE_CORTA, GOLPE_MENOS1, GOLPE_TIRA, GOLPE_ROUBA };
+enum { ARMA_SEMPRE, ARMA_IGUAL, ARMA_DE };        // sempre; com o limiar exato; do limiar para cima
+typedef struct { uint8_t golpe, arma, limiar; } poder_ataque_t;
+static const poder_ataque_t PODER_ATAQUE[EF_N] = {
+    [EF_CARRASCO]  = { GOLPE_ANULA,  ARMA_IGUAL,  CARRASCO_ANULA },   // o maior do oponente
+    [EF_LASER]     = { GOLPE_ANULA,  ARMA_DE,     LASER_DE },         // o ultimo
+    [EF_TSUNAMI]   = { GOLPE_ANULA,  ARMA_DE,     TSUNAMI_DE },       // o primeiro
+    [EF_BONECO]    = { GOLPE_ANULA,  ARMA_DE,     BONECO_DE },        // o 4o
+    [EF_INVEJOSO]  = { GOLPE_ANULA,  ARMA_DE,     INVEJOSO_DE },      // o maior (com 1 ou 2, os do dono)
+    [EF_AGNUS]     = { GOLPE_ANULA,  ARMA_IGUAL,  AGNUS_RAIO },       // a luz no maior
+    [EF_SABOTADOR] = { GOLPE_CORTA,  ARMA_DE,     SABOTADOR_DE },     // metade do maior
+    [EF_VAMPIRO]   = { GOLPE_MENOS1, ARMA_SEMPRE, 0 },                // -1 em cada um
+    [EF_MARTELO]   = { GOLPE_TIRA,   ARMA_DE,     MARTELO_DE },       // o Espinhoso: -4 no placar
+    [EF_MALDICAO]  = { GOLPE_TIRA,   ARMA_SEMPRE, 0 },                // o Maldito: -o que tirou
+    [EF_PIRATA]    = { GOLPE_TIRA,   ARMA_DE,     PIRATA_DE },        // -4 no placar
+    [EF_CARIDOSO]  = { GOLPE_ROUBA,  ARMA_DE,     CARIDOSO_DE },      // o menor
+};
+static bool ataque_armado(int ef, int v)
+{
+    const poder_ataque_t *p = &PODER_ATAQUE[ef];
+    if (p->golpe == GOLPE_NENHUM) return false;
+    return p->arma == ARMA_SEMPRE || (p->arma == ARMA_IGUAL ? v == p->limiar : v >= p->limiar);
+}
+
 // O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
 // agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
 // 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker, Autofagia).
@@ -29,7 +59,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_TUDO_NADA && f->cru[k] == 1) return 2;
     if (ef == EF_FENIX) return f->est[k] == V_ANULADO;         // anulada: renasce no fim
     if (ef == EF_AGNUS)                                         // com 7, valendo ou nao: ressuscita os anulados no fim;
-        return v == AGNUS_NUMERO || (v == AGNUS_RAIO && f->est[k] == V_VALIDO);   // com 8 valendo: a luz no oponente
+        return v == AGNUS_NUMERO || (ataque_armado(ef, v) && f->est[k] == V_VALIDO);   // com 8 valendo: a luz no oponente
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_ESTILINGUE) return v == 1 && k + 1 < f->n && f->lancados == k + 1;   // com 1, valendo ou nao: o proximo sai no maximo
     if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
@@ -42,6 +72,12 @@ static int poder_armado(int j, int k)
         return 0;
     }
     if (f->est[k] != V_VALIDO) return 0;
+    // Os ataques pelo numero (PODER_ATAQUE). Divergencia mantida: o brilho
+    // nao olha a Couraca do oponente nem se ha alvo (a mira, sim).
+    if (PODER_ATAQUE[ef].golpe != GOLPE_NENHUM) {
+        if (ataque_armado(ef, v)) return 1;
+        return ef == EF_INVEJOSO && v <= 2 ? 2 : 0;          // o Invejoso com 1 ou 2: contra o dono
+    }
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
     for (int i = 0; i < f->lancados; i++) {
         if (i == k || f->est[i] != V_VALIDO) continue;
@@ -53,23 +89,17 @@ static int poder_armado(int j, int k)
     switch (ef) {
     case EF_DOBRO:        return v <= 3;
     case EF_PAR:          return f->bonus[k] >= 6;
-    case EF_CARRASCO:     return v == CARRASCO_ANULA;
-    case EF_MARTELO:      return v >= MARTELO_DE;
-    case EF_PIRATA:       return v >= PIRATA_DE;
     case EF_ESPELHO:      return f->cru[k] <= 2;
     case EF_FICHAS:       return fichas_ini[j] > fichas_ini[outro(j)];
     case EF_COBRADOR:     return fichas_ini[outro(j)] > fichas_ini[j];
     case EF_TUDO_NADA:    return v == 2;
     case EF_GATUNO:       return uns > 0;
-    case EF_INVEJOSO:     return invejoso_age(v) ? 1 : v <= 2 ? 2 : 0;
-    case EF_CARIDOSO:     return v >= CARIDOSO_DE;
     case EF_FARTURA:      return baixos > 0 || v <= 2;
     case EF_SEMENTE:      return soma(j, f->est) >= SEMENTE_BROTA;
     case EF_FOGO:         return outros > 0 ? (f->cru[k] == 2 ? 1 : 2) : 0;   // com 1, so queima
     case EF_TREVO:        return v == 4;
     case EF_JACKPOT:      return iguais > 0;                    // outro seu valendo com o numero dele
     case EF_COPIADOR:     return iguais > 0;
-    case EF_LASER:        return v >= LASER_DE;
     case EF_TERREMOTO:    return v >= TERREMOTO_DE;
     case EF_FERREIRO:     return v >= FERREIRO_ARMA;
     case EF_TRONO:        return k == FILA_NORMAL - 1 && outros == f->lancados - 1;
@@ -84,7 +114,6 @@ static int poder_armado(int j, int k)
         return 0;
     case EF_HEXA:         return 1;
     case EF_OURICO:       return 1;
-    case EF_SABOTADOR:    return v >= SABOTADOR_DE;
     case EF_AZARAO:       return fichas_ini[j] < fichas_ini[outro(j)];
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
@@ -126,8 +155,6 @@ static int poder_armado(int j, int k)
         for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
             if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
         return 0;
-    case EF_BONECO:       return v >= BONECO_DE;
-    case EF_TSUNAMI:      return v >= TSUNAMI_DE;
     case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
     case EF_PISCA:        return pisca_aceso(f->fixo[k]);
     case EF_MEIA:         return f->fixo[k] > 0;
@@ -149,8 +176,8 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
         return 0;
     case EF_SEGURANCA:    return outros == f->lancados - 1;   // o +2: nenhum seu caido (o desvio vale sempre)
-    case EF_SORTE: case EF_MALDICAO: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
-    case EF_MEDIA: case EF_ASSOMBRA: case EF_VAMPIRO:
+    case EF_SORTE: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
+    case EF_MEDIA: case EF_ASSOMBRA:
         return 1;                                            // basta terminar valendo
     default:              return 0;
     }

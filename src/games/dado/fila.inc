@@ -200,8 +200,8 @@ static bool nao_roubavel(int j, int k) { return nao_roubavel_t(tipo_de(j, k)) ||
 // O Universo: nada interfere nele - nenhum dado, adesivo, amuleto ou trunfo,
 // de quem for, mexe no que ele tira (nem o copia, nem o embrulha).
 static bool universo(int j, int k) { return tipo_de(j, k) == D_UNIVERSO; }
-// O Invejoso age com numero impar: 1, 3 ou 5.
-static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
+// O Invejoso age contra o oponente de 5 para cima; com 1 ou 2, contra o dono.
+static bool invejoso_age(int v) { return v >= INVEJOSO_DE; }
 // Nao anulavel agora: pelo tipo ou preso pela Ancora.
 static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os

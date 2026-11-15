@@ -142,8 +142,8 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define ADESIVADO_N  3
 // Os ataques do fim e o numero que cada um precisa tirar (valendo): o Laser
 // e o Sabotador de 5 para cima, o Tsunami de 9, o Boneco de Neve de 8, o
-// Pirata de 7, o Espinhoso (Martelo) e o Caridoso de 3; o Carrasco anula
-// com o 4 exato.
+// Pirata de 7, o Espinhoso (Martelo) e o Caridoso de 3, o Invejoso de 5;
+// o Carrasco anula com o 4 exato.
 #define LASER_DE       5
 #define SABOTADOR_DE   5
 #define TSUNAMI_DE     9
@@ -152,6 +152,7 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define MARTELO_DE     3
 #define CARIDOSO_DE    3
 #define CARRASCO_ANULA 4
+#define INVEJOSO_DE    5
 // O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
 static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe

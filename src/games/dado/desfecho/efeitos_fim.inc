@@ -483,7 +483,8 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
             d->semente[j] += 2;                      // nenhum dos seus caiu
             evento(gera, EV_EXTRA, j, k, j, 0, 2, "Segurança: a sequência inteira válida, +2");
         } else if (ef == EF_DOMINO && k + 1 < f->lancados && f->valor[k + 1] >= f->valor[k] && f->valor[k + 1] <= f->valor[k] + 2) {
-            // ACHADO A19: preservado - encaixa mesmo com o dado seguinte anulado ou roubado (nao olha est[k + 1])
+            // So o numero do seguinte conta (o texto diz "tirar"): encaixa mesmo
+            // que ele tenha sido anulado ou roubado.
             int n = 3 - (f->valor[k + 1] - f->valor[k]);   // o mesmo: +3; um a mais: +2; dois a mais: +1
             evento_t *e = extra(d, gera, j, k, n, "Dominó: a peça %d encaixa, +%d", f->valor[k + 1], n);
             if (e) { e->mascara = (uint8_t)(3 << k); e->por_dado[k] = (int8_t)n; }   // a peca cai no seguinte

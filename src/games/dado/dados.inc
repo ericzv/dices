@@ -630,7 +630,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
                           "sequência.",
     [D_DOMINO]          = "Seis lados. Se terminar válido, olha o dado seu lançado logo depois dele: com o mesmo número, a "
-                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1.",
+                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1. Vale "
+                          "mesmo se o próximo for anulado.",
     [D_ANCORA]          = "Quatro lados. O dado seu lançado logo depois da Âncora, com ela válida, não pode ser anulado (nem "
                           "pela sequência, nem por outro dado) nem roubado. Se ele for menor, quem é anulada pela sequência é a "
                           "Âncora.",

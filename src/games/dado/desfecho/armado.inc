@@ -47,6 +47,19 @@ static bool ataque_armado(int ef, int v)
     return p->arma == ARMA_SEMPRE || (p->arma == ARMA_IGUAL ? v == p->limiar : v >= p->limiar);
 }
 
+// A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
+// vindos da bolsa e com pelo menos 8 dados em jogo.
+static bool autofagia_come_pode(int j, int a, int b)
+{
+    const jogador_t *p = &J[j];
+    int ia = F[j].idx[a], ib = F[j].idx[b];
+    if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
+    if (p->col[ia].tipo != D_AUTOFAGIA) return false;
+    int vivos = 0;
+    for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
+    return vivos >= AUTO_BOLSA;
+}
+
 // O poder do dado k de j esta armado, pelo que ele tirou e pela mesa de
 // agora? E o brilho dele enquanto a sequencia e lancada. 0: nao; 1: sim;
 // 2: sim, mas contra quem o jogou (Carrasco ou Tudo ou Nada com 1, Berserker, Autofagia).
@@ -145,11 +158,10 @@ static int poder_armado(int j, int k)
     case EF_BERSERKER:                                       // o vizinho do oponente; sem ele, o seu (contra o dono)
         if (!tem_am(outro(j), A_COURACA) && alvo_vizinho(F[outro(j)].est, outro(j), k) >= 0) return 1;
         return alvo_vizinho(f->est, j, k) >= 0 ? 2 : 0;
-    // ACHADO A24: preservado - acende sem ver se a Autofagia pode comer (autofagia_come_pode: menos de 8 dados)
-    case EF_AUTOFAGIA:
-        for (int i = 0; i < f->lancados; i++)
-            if (i != k && f->est[i] == V_VALIDO && !firme_sem_capa(j, i)) return 2;
-        return 0;
+    case EF_AUTOFAGIA: {                                     // vai comer o seu menor (se puder: bolsa de 8)
+        int b = menor_valido(f->est, j, (uint8_t)(1 << k));
+        return b >= 0 && autofagia_come_pode(j, k, b) ? 2 : 0;
+    }
     case EF_COLECIONADOR: return v >= COLECIONADOR_DE;
     case EF_BURACO:                                          // vai engolir um vizinho seu
         for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
@@ -244,8 +256,7 @@ static void miras_agora(uint8_t mira[2])
             case EF_AGNUS:                       // com 8 valendo: a luz no maior do oponente
                 if (v == AGNUS_RAIO && f->est[k] == V_VALIDO && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
-            // ACHADO A24: preservado - a mira aparece mesmo quando a Autofagia nao pode comer
-            case EF_AUTOFAGIA: mira_menores(est, j, 1, k, &mira[j]); break;
+            case EF_AUTOFAGIA: mira_menores(est, j, 1, k, &mira[j]); break;   // armada: ela pode comer
             case EF_BURACO:
                 for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
                     if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s))

@@ -498,6 +498,25 @@ static void achados_desfecho(void)
         CONFERE(pv.atacados[0] == 1 && d.atacados[0] == 1, "A23: a Casca conta 1 ataque na previa e no fim (previa %d, fim %d)", pv.atacados[0], d.atacados[0]);
     }
 
+    // A24: a Autofagia so fica armada (e com mira) quando pode comer: bolsa com 8 dados em jogo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_AUTOFAGIA, 3);
+    {
+        uint8_t mira[2] = { 0, 0 };
+        miras_agora(mira);
+        CONFERE(poder_armado(0, 1) == 0 && mira[0] == 0, "A24: Autofagia sem bolsa de 8 nao arma (armado %d, mira %02x)", poder_armado(0, 1), mira[0]);
+    }
+    achado_zera();
+    achado_peca(0, 0, D_AUTOFAGIA, 0, 0);
+    for (int i = 1; i < 8; i++) achado_peca(0, i, D_D6, 0, 0);
+    achado_fila(0);
+    joga_ad(0, 1, 1); joga_ad(0, 0, 3);
+    {
+        uint8_t mira[2] = { 0, 0 };
+        miras_agora(mira);
+        CONFERE(poder_armado(0, 1) == 2 && mira[0] == 1, "A24: Autofagia com bolsa de 8 arma e mira o 1 (armado %d, mira %02x)", poder_armado(0, 1), mira[0]);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();
@@ -1455,7 +1474,7 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 2 + 5 + 7 && d.come[0] == 0,
                 "Autofagia fora da bolsa: nao come nem anula (deu %d)", d.total[0]);
-        CONFERE(poder_armado(0, 2) == 2, "Autofagia com alvo devia brilhar contra o dono");
+        CONFERE(poder_armado(0, 2) == 0, "Autofagia fora da bolsa: nao come, entao nao brilha");
         limpa();
         joga(0, D_AUTOFAGIA, 7);
         d = fim();

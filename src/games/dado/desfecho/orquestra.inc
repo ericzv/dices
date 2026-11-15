@@ -15,19 +15,6 @@
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
 
 
-// A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
-// vindos da bolsa e com pelo menos 8 dados em jogo.
-static bool autofagia_come_pode(int j, int a, int b)
-{
-    const jogador_t *p = &J[j];
-    int ia = F[j].idx[a], ib = F[j].idx[b];
-    if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
-    if (p->col[ia].tipo != D_AUTOFAGIA) return false;
-    int vivos = 0;
-    for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
-    return vivos >= AUTO_BOLSA;
-}
-
 // Autofagia: depois da contagem, a que terminou valendo come o outro dado
 // seu de menor numero que vale (no empate, o primeiro). Ele ja pontuou nesta
 // rodada: nao cai, mas sai da bolsa ate o fim da partida, e o numero dele

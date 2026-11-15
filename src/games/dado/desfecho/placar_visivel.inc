@@ -14,7 +14,7 @@ static int total_visivel(int j)
     for (int i = 0; i < vis_nroubo[j]; i++) if (!vis_roubo[j][i].anulado) t += vis_roubo[j][i].valor;
     // Espelho cujo evento ainda nao tocou: na tela, ainda com o que tirou.
     // (Esses eventos vem antes de todos, sem bonus nem multiplicador ainda.)
-    for (int k = 0; k < F[j].lancados; k++) {
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (vis_espelho[j][k] && vis_est[j][k] == V_VALIDO) t -= F[j].valor[k] - F[j].cru[k];
         if (vis_tremor[j][k] && vis_est[j][k] == V_VALIDO) t -= F[j].valor[k] - vis_tremor_de[j][k];   // o sacudido, ainda parado
     }

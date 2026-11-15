@@ -74,8 +74,7 @@ static void fase_espelho(resolve_t *rm)
     for (int j = 0; j < 2; j++) {
         int alvo = maior_do_rival(j), virados = 0;
         uint8_t quais = 0;
-        for (int k = 0; k < F[j].lancados; k++) {
-            // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].espera[k] || alvo <= 0) continue;
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
@@ -89,7 +88,7 @@ static void fase_espelho(resolve_t *rm)
         if (rm->gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         rm->pre[j] = true;
         refaz_sequencia(j, F[j].lancados);
-        for (int k = 0; k < F[j].lancados; k++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
         if (rm->gera) guarda_seq_de(0, j, EV_REVELA, EV_ESPELHO);
         rm->virou = true;
@@ -279,7 +278,7 @@ static void fase_espelho_tardio(resolve_t *rm)
         if (rm->gera && !rm->pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         rm->pre[j] = true;
         refaz_sequencia(j, F[j].lancados);
-        for (int k = 0; k < F[j].lancados; k++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);
         if (rm->gera) guarda_seq_de(ev0, j, EV_ESPELHO, EV_ESPELHO);
     }

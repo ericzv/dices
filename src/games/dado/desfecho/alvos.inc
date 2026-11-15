@@ -27,7 +27,7 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
 {
     int a = -1;
     if (!maior && tem_am(j, A_COURACA)) return -1;  // Couraca: ninguem rouba
-    for (int i = 0; i < F[j].lancados; i++) {
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
         if (i == exceto || est[i] != V_VALIDO) continue;
         if (maior ? firme_sem_capa(j, i) : nao_roubavel(j, i)) continue;
         if (a < 0 || (maior ? F[j].valor[i] > F[j].valor[a] : F[j].valor[i] < F[j].valor[a]))
@@ -44,7 +44,7 @@ static int desvia_seguranca(const uint8_t *est, int j, int a)
 {
     if (a < 0 || impermeavel(j, a)) return a;
     // O preso pela Ancora tambem leva o golpe no lugar, e o segura (bloqueia_desvio).
-    for (int i = 0; i < F[j].lancados; i++)
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
         if (i != a && est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_SEGURANCA) return i;
     return a;
 }
@@ -60,7 +60,7 @@ static int alvo_ultimo(const uint8_t *est, int r)
 }
 static int alvo_primeiro(const uint8_t *est, int r)
 {
-    for (int i = 0; i < F[r].lancados; i++) if (est[i] == V_VALIDO && !firme_sem_capa(r, i)) return i;
+    for (int i = 0; i < F[r].lancados && i < N_FILA; i++) if (est[i] == V_VALIDO && !firme_sem_capa(r, i)) return i;
     return -1;
 }
 static int alvo_vizinho(const uint8_t *est, int j, int k)

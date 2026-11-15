@@ -56,9 +56,9 @@ static void coleira_cobra(desfecho_t *d, int j, int k, int r, int a, bool gera)
 // nesta rodada, o proprio Cavalo inclusive, deixa de contar para ele.
 static void apos_ataque(desfecho_t *d, int j, int k, int r, int a, bool gera)
 {
-    if (a >= 0 && a < N_FILA && (d->est[r][a] == V_ANULADO || d->est[r][a] == V_ROUBADO)) coleira_cobra(d, j, k, r, a, gera);
-    if (a >= 0 && a < N_FILA && d->est[r][a] == V_ANULADO && ad_fila_tem(r, a, AD_RATOEIRA)) ratoeira_desarma(d, j, r, a, gera);
-    // ACHADO A34: preservado - sem a guarda de a das duas linhas acima (todos os chamadores passam a >= 0)
+    if (a < 0 || a >= N_FILA) return;
+    if (d->est[r][a] == V_ANULADO || d->est[r][a] == V_ROUBADO) coleira_cobra(d, j, k, r, a, gera);
+    if (d->est[r][a] == V_ANULADO && ad_fila_tem(r, a, AD_RATOEIRA)) ratoeira_desarma(d, j, r, a, gera);
     if (TIPO[tipo_de(r, a)].efeito != EF_CAVALO) return;
     if (tem_am(j, A_COURACA)) {
         if (gera) am_acende(A_COURACA);
@@ -66,7 +66,7 @@ static void apos_ataque(desfecho_t *d, int j, int k, int r, int a, bool gera)
     }
     uint8_t mask = 0, capa = 0;
     int8_t perde[N_FILA] = { 0 };
-    for (int i = 0; i < F[j].lancados; i++)
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
         if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)) {
             if (impermeavel(j, i)) { capa |= (uint8_t)(1 << i); continue; }   // bate na capa
             perde[i] = (int8_t)contribui(d, j, i);

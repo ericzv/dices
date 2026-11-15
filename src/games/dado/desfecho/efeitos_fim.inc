@@ -15,7 +15,7 @@
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
 {
     int t = -lapis_pena(j);                      // o Estojo de Lapis: a rodada comeca com -4
-    for (int k = 0; k < F[j].lancados; k++) {
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO) continue;
         if (universo(j, k)) { t += F[j].valor[k]; continue; }   // nada mexe no Universo
         int base = valor_pontos(j, k) + F[j].bonus[k] + (bonus ? bonus[k] : 0);
@@ -91,15 +91,14 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
     const fila_t *f = &F[j];
     const uint8_t *est = d->est[j];
 
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SORTE) continue;
         int face = f->valor[k];
         uint8_t mask = 0;
         int8_t por[N_FILA] = { 0 };
-        for (int i = 0; i < f->lancados; i++) {
+        for (int i = 0; i < f->lancados && i < N_FILA; i++) {
             if (est[i] != V_VALIDO) continue;
             bool impar = f->valor[i] % 2 == 1;
-            // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
             if ((face == 1 && impar) || (face == 2 && !impar)) bonus_em(d, j, i, 1, &mask, por);
         }
         const char *txt = face == 1 ? "Moeda sorte deu 1: +1 nos ímpares" : "Moeda sorte deu 2: +1 nos pares";
@@ -108,7 +107,7 @@ static void fim_bonus(desfecho_t *d, int j, bool gera)
     }
 
     // Copiador: +COPIADOR_CADA em cada outro dado seu com o mesmo numero que ele.
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_COPIADOR) continue;
         uint8_t mask = 0;
         int8_t por[N_FILA] = { 0 };
@@ -225,7 +224,7 @@ static int fim_mult_prepara(const desfecho_t *d, int j)
     const uint8_t *est = d->est[j];
 
     int n_far = 0;
-    for (int k = 0; k < f->lancados; k++)
+    for (int k = 0; k < f->lancados && k < N_FILA; k++)
         if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito == EF_FARTURA) n_far++;
     return n_far;
 }
@@ -241,10 +240,10 @@ static void fim_fogo(desfecho_t *d, int j, bool gera)
     const uint8_t *est = d->est[j];
 
     uint8_t mirado[N_FILA] = { 0 };
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_FOGO) continue;
         int a = -1;
-        for (int i = 0; i < f->lancados; i++) {
+        for (int i = 0; i < f->lancados && i < N_FILA; i++) {
             if (i == k || est[i] != V_VALIDO || mirado[i]) continue;
             if (TIPO[tipo_de(j, i)].efeito == EF_FOGO) continue;
             if (a < 0 || f->valor[i] > f->valor[a]) a = i;
@@ -342,7 +341,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
     const uint8_t *est = d->est[j];
 
     int dados = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]) + d->roubo_val[j];
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_SEMENTE) continue;
         if (dados < SEMENTE_BROTA) continue;
         d->semente[j] += SEMENTE_PTS;
@@ -367,7 +366,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
     // A virada do Barao: +VIRADA_BARAO (3) para ele por dado seu anulado na rodada.
     if (j == 1 && virada_forca(2)) {
         int caidos = 0;
-        for (int k = 0; k < F[0].lancados; k++) if (d->est[0][k] == V_ANULADO) caidos++;
+        for (int k = 0; k < F[0].lancados && k < N_FILA; k++) if (d->est[0][k] == V_ANULADO) caidos++;
         if (caidos) {
             d->semente[1] += VIRADA_BARAO * caidos;
             evento(gera, EV_CHEFE, 1, 0xFF, 1, 0, VIRADA_BARAO * caidos, "%s: %d dado%s seu%s anulado%s, +%d", J[1].nome,
@@ -375,10 +374,10 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         }
     }
     // Checkpoint valendo: cada dado seu lancado depois dele e valendo ganha +3.
-    for (int c = 0; c < f->lancados; c++) {
+    for (int c = 0; c < f->lancados && c < N_FILA; c++) {
         if (tipo_de(j, c) != D_CHECKPOINT || est[c] != V_VALIDO) continue;
         int n = 0;
-        for (int i = c + 1; i < f->lancados; i++) n += est[i] == V_VALIDO;
+        for (int i = c + 1; i < f->lancados && i < N_FILA; i++) n += est[i] == V_VALIDO;
         if (!n) continue;
         evento_t *e = extra(d, gera, j, c, 3 * n, "Checkpoint: %d dado%s depois dele, +%d",
                             n, n > 1 ? "s" : "", 3 * n);
@@ -440,7 +439,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         d->onda[j] |= (uint8_t)(1 << k);
         evento(gera, EV_ONDA, j, k, j, k, 0, "Onda junta %d: vira Tsunami!", ONDA_VIRA);
     }
-    for (int k = 0; k < f->lancados; k++) {               // Ficha Velha anulada: +4, caida ou atacada
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {               // Ficha Velha anulada: +4, caida ou atacada
         if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_FICHA_VELHA) continue;
         extra(d, gera, j, k, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
@@ -455,7 +454,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
                             valendo, valendo > 1 ? "s" : "");
         marca_validos(e, est, 0, f->lancados, 2);
     }
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO) continue;
         int ef = TIPO[tipo_de(j, k)].efeito;
         if (ef == EF_MISERICORDIA && anulados) {
@@ -493,13 +492,13 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         } else if (ef == EF_COVEIRO) {
             int n = 0;
             for (int q = 0; q < 2; q++)
-                for (int i = 0; i < F[q].lancados; i++) n += d->est[q][i] == V_ANULADO;
+                for (int i = 0; i < F[q].lancados && i < N_FILA; i++) n += d->est[q][i] == V_ANULADO;
             if (n) {
                 extra(d, gera, j, k, n, "Coveiro: %d anulado%s na mesa, +%d", n, n > 1 ? "s" : "", n);
             }
         } else if (ef == EF_HEXA) {                  // +1 por dado de seis lados seu valendo
             int n = 0;
-            for (int i = 0; i < f->lancados; i++) n += est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6;
+            for (int i = 0; i < f->lancados && i < N_FILA; i++) n += est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6;
             evento_t *e = extra(d, gera, j, k, n, "Hexa: %d dado%s de seis lados, +%d", n, n > 1 ? "s" : "", n);
             for (int i = 0; e && i < f->lancados && i < N_FILA; i++)
                 if (est[i] == V_VALIDO && TIPO[tipo_de(j, i)].lados == 6) { e->mascara |= (uint8_t)(1 << i); e->por_dado[i] = 1; }
@@ -578,7 +577,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         } else if (ef == EF_DESAFIANTE) {
             bool maior = true;
             for (int q = 0; q < 2 && maior; q++)
-                for (int i = 0; i < F[q].lancados; i++)
+                for (int i = 0; i < F[q].lancados && i < N_FILA; i++)
                     if (!(q == j && i == k) && d->est[q][i] == V_VALIDO && F[q].valor[i] >= f->valor[k]) {
                         maior = false;
                         break;
@@ -592,7 +591,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
     // Jackpot: tres dados valendo com o numero dele (ele incluido), +10; so
     // dois, +4. Iguais entre si, mas nao a ele, nao contam. Fora dos
     // multiplicadores (soma no mesmo bonus fixo da Semente).
-    for (int k = 0; k < f->lancados; k++) {
+    for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (est[k] != V_VALIDO || TIPO[tipo_de(j, k)].efeito != EF_JACKPOT) continue;
         uint8_t iguais = 0;
         int num = f->valor[k], n = jackpot_com(j, est, num, &iguais);
@@ -616,7 +615,7 @@ static void efeitos_do_fim(desfecho_t *d, int j, bool gera)
 {
     // Os efeitos do fim nao mudam o estado dos dados: conta uma vez so.
     int valendo = 0, anulados = 0;
-    for (int k = 0; k < F[j].lancados; k++) {
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         valendo += d->est[j][k] == V_VALIDO;
         anulados += d->est[j][k] == V_ANULADO;
     }

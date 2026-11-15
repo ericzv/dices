@@ -81,7 +81,7 @@ static int poder_armado(int j, int k)
     if (ef == EF_CARROSSEL) return f->gira[k];                 // girando: para no fim
     if (ef == EF_MARTIR) {                                      // caido, com algum seu valendo
         if (f->est[k] != V_ANULADO) return 0;
-        for (int i = 0; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
+        for (int i = 0; i < f->lancados && i < N_FILA; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;
     }
     if (f->est[k] != V_VALIDO) return 0;
@@ -92,7 +92,7 @@ static int poder_armado(int j, int k)
         return ef == EF_INVEJOSO && v <= 2 ? 2 : 0;          // o Invejoso com 1 ou 2: contra o dono
     }
     int outros = 0, baixos = 0, iguais = 0, uns = 0;           // os outros dados seus
-    for (int i = 0; i < f->lancados; i++) {
+    for (int i = 0; i < f->lancados && i < N_FILA; i++) {
         if (i == k || f->est[i] != V_VALIDO) continue;
         uns += f->cru[i] == 1;                                 // os 1 dos outros valendo (o Gatuno)
         outros++;
@@ -123,7 +123,7 @@ static int poder_armado(int j, int k)
     case EF_PUXA:         return k == 0 && f->lancados >= FILA_NORMAL && outros == f->lancados - 1;
     case EF_COVEIRO:
         for (int q = 0; q < 2; q++)
-            for (int i = 0; i < F[q].lancados; i++) if (F[q].est[i] == V_ANULADO) return 1;
+            for (int i = 0; i < F[q].lancados && i < N_FILA; i++) if (F[q].est[i] == V_ANULADO) return 1;
         return 0;
     case EF_HEXA:         return 1;
     case EF_OURICO:       return 1;
@@ -133,7 +133,7 @@ static int poder_armado(int j, int k)
     case EF_MEDUSA:       return 1;
     case EF_MOSAICO:      return 1;
     case EF_LEQUE:                                           // um outro seu valendo no lado com adesivo
-        for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && ad_fila(j, i)) return 1;
+        for (int i = 0; i < f->lancados && i < N_FILA; i++) if (i != k && f->est[i] == V_VALIDO && ad_fila(j, i)) return 1;
         return 0;
     case EF_BALAO:        return f->fixo[k] > 0 && v >= BALAO_ESTOURA && f->tipo[k] == D_BALAO;
     case EF_PAPAGAIO:     return 1;
@@ -142,17 +142,17 @@ static int poder_armado(int j, int k)
     case EF_ESPERANCA:    return fichas_ini[j] <= ESPERANCA_FICHAS;
     case EF_POTE:         return pote >= 25;
     case EF_GARIMPEIRO:                                      // um outro dado seu valendo
-        for (int i = 0; i < f->lancados; i++)
+        for (int i = 0; i < f->lancados && i < N_FILA; i++)
             if (i != k && f->est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito != EF_GARIMPEIRO) return 1;
         return 0;
     case EF_CHECKPOINT:                                      // um dado seu valendo depois dele
-        for (int i = k + 1; i < f->lancados; i++) if (f->est[i] == V_VALIDO) return 1;
+        for (int i = k + 1; i < f->lancados && i < N_FILA; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;
     case EF_SOLITARIO:
         return !(k > 0 && f->est[k - 1] == V_VALIDO) && !(k + 1 < f->lancados && f->est[k + 1] == V_VALIDO);
     case EF_DESAFIANTE:                                      // o maior da mesa, sozinho
         for (int q = 0; q < 2; q++)
-            for (int i = 0; i < F[q].lancados; i++)
+            for (int i = 0; i < F[q].lancados && i < N_FILA; i++)
                 if (!(q == j && i == k) && F[q].est[i] == V_VALIDO && F[q].valor[i] >= v) return 0;
         return 1;
     case EF_BERSERKER:                                       // o vizinho do oponente; sem ele, o seu (contra o dono)
@@ -181,11 +181,11 @@ static int poder_armado(int j, int k)
         for (int i = 0; i < k; i++) if (f->est[i] == V_VALIDO) return 1;
         return 0;
     case EF_JINGLE:                                          // um outro sino valendo
-        for (int i = 0; i < f->lancados; i++)
+        for (int i = 0; i < f->lancados && i < N_FILA; i++)
             if (i != k && f->est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_JINGLE) return 1;
         return 0;
     case EF_SACRIFICIO:                                      // um outro dado seu que pontua
-        for (int i = 0; i < f->lancados; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
+        for (int i = 0; i < f->lancados && i < N_FILA; i++) if (i != k && f->est[i] == V_VALIDO && valor_pontos(j, i) > 0) return 1;
         return 0;
     case EF_SEGURANCA:    return outros == f->lancados - 1;   // o +2: nenhum seu caido (o desvio vale sempre)
     case EF_SORTE: case EF_MISERICORDIA: case EF_PRISMA: case EF_CAPITAO:
@@ -238,7 +238,7 @@ static void miras_agora(uint8_t mira[2])
                 int n = 0;
                 uint8_t er[N_FILA];
                 memcpy(er, F[r].est, N_FILA);
-                for (int i = 0; i < f->lancados; i++) n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO;
+                for (int i = 0; i < f->lancados && i < N_FILA; i++) n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO;
                 for (int q = 0; q < n; q++) {
                     int b = desvia_seguranca(er, r, alvo_de(er, r, false, -1));
                     if (b < 0) break;

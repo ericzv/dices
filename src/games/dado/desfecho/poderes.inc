@@ -33,7 +33,7 @@ static bool ataca_oponente(const desfecho_t *d, int j, int k)
     int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k], r = outro(j);
     if (ef == EF_BERSERKER) return !tem_am(r, A_COURACA) && alvo_vizinho(d->est[r], r, k) >= 0;   // sem vizinho no oponente, cai no dono
     if (ef == EF_GATUNO) {
-        for (int i = 0; i < F[j].lancados; i++) if (i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO) return true;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++) if (i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO) return true;
         return false;
     }
     // Divergencia mantida: o Carrasco com 1 nao conta aqui, mas no poder_de, com 4 na face, anula tambem.
@@ -52,8 +52,7 @@ static void contra_ataque(desfecho_t *d, int r, int a, bool gera)
 
 static void poderes_de(desfecho_t *d, int j, bool gera)
 {
-    for (int k = 0; k < F[j].lancados; k++)
-        // ACHADO A34: preservado - laco sem a guarda < N_FILA (seguro enquanto lancados <= N_FILA)
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
         if (!(agiu[j] >> k & 1)) poder_de(d, j, k, gera);
 }
 
@@ -149,7 +148,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     int roubos = 1;
     if (ef == EF_GATUNO) {
         roubos = 0;
-        for (int i = 0; i < F[j].lancados; i++) roubos += i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++) roubos += i != k && F[j].cru[i] == 1 && d->est[j][i] == V_VALIDO;
     }
     if (d->est[j][k] != V_VALIDO || roubos <= 0) return;
     const char *nome = TIPO[tipo_de(j, k)].nome;
@@ -281,7 +280,7 @@ static void ranzinza_corta(desfecho_t *d, bool gera)
 // Fenix: anulada, renasce valendo o que tirou (roubada, nao).
 static void fenix_de(desfecho_t *d, int j, bool gera)
 {
-    for (int k = 0; k < F[j].lancados; k++)
+    for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
         if (d->est[j][k] == V_ANULADO && TIPO[tipo_de(j, k)].efeito == EF_FENIX) {
             d->est[j][k] = V_VALIDO;
             evento(gera, EV_RENASCE, j, k, j, k, F[j].valor[k], "Fênix renasce e pontua %d", F[j].valor[k]);

@@ -305,6 +305,28 @@ static void imp_fim_mesa(void)
     }
     imp_int(pote);
 }
+// A cobertura (--cobertura): quantas vezes cada dado entrou num desfecho,
+// quantas vezes cada efeito do fim agiu, cada adesivo agiu e cada amuleto
+// acendeu. O que nunca aparece, a impressao nao vigia.
+static bool cobrindo;
+static long cob_dado[D_N], cob_ev[EV_COME + 1], cob_ad[AD_N], cob_am[A_N];
+static void cobre_desfecho(void)
+{
+    if (!cobrindo) return;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) cob_dado[tipo_de(j, k)]++;
+    for (int i = 0; i < n_ev; i++) {
+        if (ev[i].tipo <= EV_COME) cob_ev[ev[i].tipo]++;
+        if (ev[i].tipo != EV_ADESIVO && ev[i].tipo != EV_TREMOR) continue;
+        if (ev[i].ad < AD_N) cob_ad[ev[i].ad]++;
+        if (ev[i].copia && ev[i].copia < AD_N) cob_ad[AD_HOLOGRAFICO]++;   // a copia: o Holografico (ou o Papagaio) agindo
+        if (ev[i].modo & EVM_CARIMBO) cob_ad[AD_CARIMBO]++;
+        if (ev[i].modo & EVM_DUPLA) cob_ad[AD_DUPLA]++;
+        if (ev[i].modo & EVM_MOLDURA) cob_ad[AD_MOLDURA]++;
+    }
+    for (int j = 0; j < 2; j++)
+        for (int a = 0; a < A_N; a++) if (amul[j] & AM_BIT(a)) cob_am[a]++;
+}
 // Quantos bytes de um struct nenhuma lista cobre (deveria ser so enchimento).
 static int imp_fora(size_t tam, const size_t *de, const size_t *t, size_t n)
 {
@@ -908,7 +930,7 @@ static bool joga_rodada(int variante)
     }
     uint32_t marca = marca_do_calculo();
     marca_calculo = mistura(marca_calculo, &marca, sizeof marca);
-    if (variante == VAR_CHEIA) { imp_desfecho(&resolvido); imp_eventos(); imp_fila(); }
+    if (variante == VAR_CHEIA) { imp_desfecho(&resolvido); imp_eventos(); imp_fila(); cobre_desfecho(); }
     if (variante == VAR_SECA) { conclui_rodada(); return true; }
 
     // O desfecho de verdade ja rodou (desfecho): os eventos, um a um.
@@ -997,13 +1019,14 @@ static uint32_t joga_mesa(uint32_t s, int variante)
     return h;
 }
 
-static bool imprimir;                            // --impressao
+static bool imprimir, cobrir;                    // --impressao, --cobertura
 static bool varre(uint32_t s)
 {
     falhou_rodada = false;
     imprimindo = imprimir;
+    cobrindo = cobrir;
     uint32_t h1 = joga_mesa(s, VAR_CHEIA), m1 = marca_calculo;
-    imprimindo = false;
+    imprimindo = cobrindo = false;
     if (falhou_rodada) return false;
     joga_mesa(s, VAR_SECA);
     CONFERE(marca_calculo == m1, "a mesma rodada, com e sem as previas no meio, deu desfechos diferentes (%d x %d)",
@@ -1025,6 +1048,24 @@ int main(int argc, char **argv)
         bool ok = varre((uint32_t)strtoul(argv[2], NULL, 10));
         printf("%s\n", ok ? "mesa sem falhas" : "mesa com falhas");
         return ok ? 0 : 1;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--cobertura")) {
+        long mesas = argc > 2 ? atol(argv[2]) : 3000;
+        cobrir = true;
+        for (long i = 0; i < mesas; i++) varre(20240229u + (uint32_t)i * 2654435761u);
+        printf("cobertura em %ld mesas (%ld rodadas)\n", mesas, n_rodadas);
+        printf("dados que nunca entraram num desfecho:");
+        for (int t = 0; t < D_N; t++) if (!cob_dado[t] && !aposentado(t)) printf(" %s", TIPO[t].nome);
+        printf("\ntipos de evento que nunca sairam:");
+        for (int e = 0; e <= EV_COME; e++) if (!cob_ev[e]) printf(" %d", e);
+        printf("\nadesivos sem evento no desfecho (os da sequencia, do lance e do pouso agem antes):");
+        for (int a = AD_NADA + 1; a < AD_N; a++) if (!cob_ad[a]) printf(" %s", ADESIVO[a].nome);
+        printf("\namuletos que nunca estiveram numa mesa:");
+        for (int a = 0; a < A_N; a++) if (!cob_am[a]) printf(" %s", AMULETO[a].nome);
+        printf("\nmenos vistos (dados com menos de 20 rodadas):");
+        for (int t = 0; t < D_N; t++) if (cob_dado[t] && cob_dado[t] < 20) printf(" %s(%ld)", TIPO[t].nome, cob_dado[t]);
+        printf("\n");
+        return 0;
     }
     if (argc > 1 && !strcmp(argv[1], "--impressao")) {
         // varredura --impressao [mesas] [arquivo de referencia] [--grava]

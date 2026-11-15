@@ -75,12 +75,29 @@ static int alvo_tremor(const uint8_t *est, int r)
     return -1;
 }
 
+// O dado valendo de j de menor (ou maior) numero que pode ser anulado, pela
+// lista est: sem os firmes (a capa do Impermeavel nao conta: o ataque bate
+// nela) e sem os lugares da mascara fora. No empate, o primeiro. -1 sem ele.
+static int menor_valido(const uint8_t *est, int j, uint8_t fora)
+{
+    int b = -1;
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+        if (!(fora >> i & 1) && est[i] == V_VALIDO && !firme_sem_capa(j, i)
+            && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+    return b;
+}
+static int maior_valido(const uint8_t *est, int j, uint8_t fora)
+{
+    int b = -1;
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+        if (!(fora >> i & 1) && est[i] == V_VALIDO && !firme_sem_capa(j, i)
+            && (b < 0 || F[j].valor[i] > F[j].valor[b])) b = i;
+    return b;
+}
 static void mira_menores(uint8_t *est, int j, int n, int exceto, uint8_t *masc)
 {
     for (int q = 0; q < n; q++) {                // os n menores que podem ser anulados, um de cada vez
-        int b = -1;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-            if (i != exceto && est[i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        int b = menor_valido(est, j, exceto >= 0 ? (uint8_t)(1 << exceto) : 0);
         if (b < 0) return;
         est[b] = V_ANULADO;
         *masc |= (uint8_t)(1 << b);

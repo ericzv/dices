@@ -39,10 +39,7 @@ static void autofagia_de(desfecho_t *d, int j, bool gera)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA && !d->come[j]; k++) {
         if (TIPO[tipo_de(j, k)].efeito != EF_AUTOFAGIA || d->est[j][k] != V_VALIDO) continue;
-        int b = -1;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
-                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        int b = menor_valido(d->est[j], j, (uint8_t)(1 << k));
         if (b < 0 || !autofagia_come_pode(j, k, b)) continue;
         if (bloqueia_capa(d, gera, j, k, j, b, "Autofagia", 0)) return;   // o de capa: nao e comido
         d->come[j] = (uint8_t)(b + 1);

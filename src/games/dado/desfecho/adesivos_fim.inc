@@ -266,9 +266,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (!vale) return false;
         bool couraca = tem_am(r, A_COURACA);
         if (couraca && gera) am_acende(A_COURACA);
-        int a0 = -1;
-        for (int i = 0; i < F[r].lancados && !couraca; i++)
-            if (d->est[r][i] == V_VALIDO && !firme_sem_capa(r, i) && (a0 < 0 || F[r].valor[i] < F[r].valor[a0])) a0 = i;
+        int a0 = couraca ? -1 : menor_valido(d->est[r], r, 0);
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
         // ACHADO A26: preservado - copiada pelo Papagaio contra a capa, o texto sai como Holografico, como Mira

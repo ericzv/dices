@@ -133,10 +133,8 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     // ele).
     if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
         // ACHADO A08: preservado - o Carrasco com 1 entra como alvo sem olhar a Ancora: preso por ela, anula a si mesmo
-        int b = d->est[j][k] == V_VALIDO ? k : -1;
-        for (int i = 0; i < F[j].lancados; i++)
-            if (i != k && d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i)
-                && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        int b = menor_valido(d->est[j], j, (uint8_t)(1 << k));
+        if (d->est[j][k] == V_VALIDO && (b < 0 || F[j].valor[b] >= F[j].valor[k])) b = k;   // no empate, ele
         if (bloqueia_capa(d, gera, j, k, j, b, "Carrasco tirou 1", 0)) {
         } else if (b == k) {
             d->est[j][b] = V_ANULADO;
@@ -222,10 +220,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     } else if (ef == EF_INVEJOSO && v <= 2) {    // com 1 ou 2: os seus dois menores, ele incluido
         uint8_t ja = 0;                              // (o de capa e um dos dois: bate nela e fica)
         for (int n = 0; n < 2; n++) {
-            int b = -1;
-            for (int i = 0; i < F[j].lancados; i++)
-                if (d->est[j][i] == V_VALIDO && !firme_sem_capa(j, i) && !(ja >> i & 1)
-                    && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+            int b = menor_valido(d->est[j], j, ja);
             if (b < 0) break;
             ja |= (uint8_t)(1 << b);
             if (bloqueia_capa(d, gera, j, k, j, b, "Invejoso", 0)) continue;

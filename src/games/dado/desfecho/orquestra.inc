@@ -160,11 +160,15 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     for (int o = 0; o < 2; o++) poderes_de(d, ordem[o], gera);
     fase_saideira_poderes(d, ordem, gera);       // a Saideira: os poderes de novo, antes de contar pontos
     ranzinza_corta(d, gera);
-    // ACHADO A09: preservado - Fenix e Agnus agem antes dos adesivos: nao revivem o dado que a Mira anula depois
+    for (int o = 0; o < 2; o++) miras_de(d, ordem[o], gera);      // as Miras, antes dos adesivos que pagam
+    // A Fenix e o Agnus 7 depois de tudo o que anula - os poderes e as Miras -
+    // e de novo depois dos adesivos (uma Mira copiada pelo Holografico, pelo
+    // Papagaio ou pelo Porta-Retrato ainda anula ali).
     for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
-    for (int o = 0; o < 2; o++) miras_de(d, ordem[o], gera);      // as Miras, antes dos adesivos que pagam
     for (int o = 0; o < 2; o++) adesivos_de(d, ordem[o], gera);
+    for (int o = 0; o < 2; o++) fenix_de(d, ordem[o], gera);
+    for (int o = 0; o < 2; o++) agnus_de(d, ordem[o], gera);
     for (int o = 0; o < 2; o++) efeitos_do_fim(d, ordem[o], gera);
     fase_saideira_fim(d, ordem, gera);           // a Saideira: os efeitos do fim de novo
     for (int o = 0; o < 2; o++) ourico_de(d, ordem[o], gera);   // depois de todos os ataques

@@ -284,6 +284,26 @@ static void achados_desfecho(void)
                 "A38: Confete num dado que a Mira anula (abre %d): A %d, semente %d", p, d.total[0], d.semente[0]);
     }
 
+    // A09: a Fenix e o Agnus 7 revivem tambem o dado que a Mira (adesivo) anulou -
+    // a da fase das Miras e a copiada pelo Holografico, na passada dos adesivos.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    achado_peca(1, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_fila(0);
+    joga(0, D_FENIX, 2); joga(0, D_D6, 5); joga_ad(1, 0, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 7, "A09: Fenix anulada pela Mira renasce (A %d, est %d)", d.total[0], d.est[0][0]);
+    achado_fila(0);
+    joga(0, D_D6, 2); joga(0, D_AGNUS, 7); joga_ad(1, 0, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 9, "A09: Agnus 7 ressuscita o anulado pela Mira (A %d)", d.total[0]);
+    achado_fila(0);
+    joga(0, D_FENIX, 2); joga(0, D_D6, 3); joga(0, D_D6, 5); joga_ad(1, 0, 4); joga_ad(1, 1, 5);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 10,
+            "A09: Fenix renasce tambem da Mira copiada pelo Holografico (A %d, est %d %d %d)",
+            d.total[0], d.est[0][0], d.est[0][1], d.est[0][2]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

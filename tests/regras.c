@@ -410,6 +410,19 @@ static void achados_desfecho(void)
     CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0,
             "A15: Seguranca ancorado segura o roubo (est %d %d, roubo %d)", d.est[1][0], d.est[1][1], d.roubo_val[0]);
 
+    // A16: o Holografico carimbado copia o Bilhete: a 1a copia dobra, a 2a (a do
+    // Carimbo) sobe so um degrau, como o Bilhete carimbado. Confete 4 e as duas
+    // copias dele pelo Holografico: 12; Bilhete 24; copia 48; copia carimbada 72
+    // (antes, x8: 96).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_CONFETE);
+    achado_peca(0, 1, D_D6, 2, AD_BILHETE);
+    achado_peca(0, 2, D_D6, 3, AD_CARIMBO);
+    achado_peca(0, 3, D_D6, 4, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3); joga_ad(0, 3, 4);
+    d = fim();
+    CONFERE(d.semente[0] == 72, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 72)", d.semente[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

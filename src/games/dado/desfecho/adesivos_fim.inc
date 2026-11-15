@@ -517,9 +517,9 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
                 corrente_copia = corrente_elos[f];
                 esta |= ad_age(d, j, k, fonte[f], qual[f], gera, true);
             }
-            // ACHADO A16: preservado - carimbado (c == 1), o Holografico anota outra copia cheia do Bilhete (x8)
             if (d->bilhete[j] && d->est[j][k] == V_VALIDO) {     // o Bilhete, copiado no fim de tudo
-                d->bil_holo[j][k]++;             // uma passada a mais: no fim, uma copia por Bilhete que valeu
+                if (c) d->bil_holo_c[j][k]++;    // carimbada: a copia sobe so um degrau
+                else d->bil_holo[j][k]++;        // uma passada a mais: no fim, uma copia por Bilhete que valeu
                 esta = true;
             }
             if (esta && c) agiram++;             // o Carimbo de antes
@@ -582,7 +582,9 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
     if (carimbo) sem /= 2;
     d->semente[j] += sem;
     extra += sem;
-    const char *nome = copia ? "Holográfico, como Bilhete" : carimbo ? "Carimbo » Bilhete" : "Bilhete Premiado";   // curto: o aviso cabe na mesa
+    char nome[48];                               // curto: o aviso cabe na mesa
+    snprintf(nome, sizeof nome, "%s%s", ad_prefixo(carimbo ? EVM_CARIMBO : 0, copia, j, k),
+             copia || carimbo ? "Bilhete" : "Bilhete Premiado");
     evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? (carimbo ? "%s: bônus x3, +%d" : "%s: bônus em dobro, +%d")
                                                                  : "%s: nenhum bônus para dobrar", nome, extra);
     ad_marca(e, AD_BILHETE, copia, carimbo ? EVM_CARIMBO : 0);
@@ -604,8 +606,8 @@ static void bilhete_de(desfecho_t *d, int j, bool gera)
     for (int k = 0; k < N_FILA; k++) n += vale >> k & 1;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (d->est[j][k] != V_VALIDO) continue;  // o Holografico tambem precisa terminar valendo
-        // ACHADO A16: preservado - cada copia do Holografico dobra cheio (carimbo = false), a carimbada tambem
         for (int c = 0; c < d->bil_holo[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, false);
+        for (int c = 0; c < d->bil_holo_c[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, true);
     }
 }
 

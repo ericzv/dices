@@ -211,7 +211,7 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_DESFECHO[] = {
     CAMPO_D(garimpo), CAMPO_D(onda), CAMPO_D(meia), CAMPO_D(moedas), CAMPO_D(bis), CAMPO_D(gorjeta), CAMPO_D(fermento),
     CAMPO_D(raspa), CAMPO_D(raspa_lados), CAMPO_D(selo_rompe), CAMPO_D(selo_lacra), CAMPO_D(velcro), CAMPO_D(fragil),
     CAMPO_D(capa), CAMPO_D(ratoeira), CAMPO_D(rato_bits), CAMPO_D(coleira_bits), CAMPO_D(fig_cresce), CAMPO_D(fermento2),
-    CAMPO_D(fig_cresce2), CAMPO_D(bilhete), CAMPO_D(dinamite), CAMPO_D(balao), CAMPO_D(bil_carimbo), CAMPO_D(bil_holo),
+    CAMPO_D(fig_cresce2), CAMPO_D(bilhete), CAMPO_D(dinamite), CAMPO_D(balao), CAMPO_D(bil_carimbo), CAMPO_D(bil_holo), CAMPO_D(bil_holo_c),
 };
 static const char *campo_desfecho(size_t o)
 {

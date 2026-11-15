@@ -153,6 +153,529 @@ static uint32_t teste_rnd(void)
     return teste_estado;
 }
 
+// ---------------------------------------------------------------------------
+// Os achados do desfecho (A01-A36, revisao da v1.29): cada conserto entra com
+// o teste da mesa que mostrava o erro. A = jogador 0, B = jogador 1.
+// ---------------------------------------------------------------------------
+// A mesa vazia, sem amuletos, com a bolsa vazia (e os nomes, para os textos).
+static void achado_zera(void)
+{
+    limpa(); memset(J, 0, sizeof J); amul[0] = amul[1] = 0; modo = M_DOIS; rodada = 1; reg_op = 0;
+    J[0].nome = "A"; J[1].nome = "B";
+    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) F[j].idx[k] = -1;
+}
+// A fila limpa entre duas jogadas (sem herdar a peca 0 da bolsa: idx = -1).
+static void achado_fila(int quem_abre)
+{
+    limpa();
+    for (int j = 0; j < 2; j++) for (int k = 0; k < N_FILA; k++) F[j].idx[k] = -1;
+    primeiro = quem_abre;
+}
+// A peca i da bolsa de j: tipo t, com o adesivo a no lado l (a = 0: sem adesivo).
+static void achado_peca(int j, int i, int t, int l, int a)
+{
+    if (J[j].n_col <= i) J[j].n_col = i + 1;
+    J[j].col[i] = (peca_t){ .tipo = (uint8_t)t };
+    J[j].onde[i] = NA_BOLSA;
+    if (a) ad_cola(&J[j].col[i], l, a);
+}
+
+static void achados_desfecho(void)
+{
+    jogador_t g0 = J[0], g1 = J[1];
+    amul_t am0 = amul[0], am1 = amul[1];
+    int modo0 = modo, rodada0 = rodada, prim0 = primeiro;
+    uint8_t reg0 = reg_op;
+    desfecho_t d;
+
+    // A02: o Bilhete Premiado so dobra se o dado dele terminar valendo - a
+    // Mira de B anula o dado do Bilhete, e o placar nao depende de quem abre.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_BILHETE);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga(0, D_CAPITAO, 3);
+        joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.total[0] == 4,
+                "A02: Bilhete num dado anulado pela Mira nao dobra (abre %d: A fez %d, esperado 4)", p, d.total[0]);
+    }
+    // ...e copiado pelo Holografico: a copia tambem so dobra Bilhete que terminou valendo.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_BILHETE);
+    achado_peca(0, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga_ad(0, 1, 5); joga(0, D_CAPITAO, 3);
+        joga_ad(1, 0, 4);
+        d = fim();
+        int dobras = 0;
+        for (int i = 0; i < n_ev; i++) dobras += ev_tipo_ad(i, AD_BILHETE);
+        CONFERE(d.est[0][0] == V_ANULADO && dobras == 0,
+                "A02: Holografico nao copia o Bilhete de um dado anulado (abre %d: %d dobras)", p, dobras);
+    }
+
+    // A01: o Ourico cobra a Assombracao do rival abra quem abrir a rodada.
+    achado_zera();
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga(0, D_OURICO, 3);
+        joga(1, D_ASSOMBRACAO, 4);
+        d = fim();
+        CONFERE(d.atacados[0] == 1 && d.delta[1] == -OURICO_PTS && d.total[1] == 0,
+                "A01: Ourico x Assombracao (abre %d): B delta %d, total %d", p, d.delta[1], d.total[1]);
+    }
+    // A13: com a Saideira do dono, o Ourico cobra tudo de novo, uma vez so no fim
+    // (um ataque do Pirata: -5 sem Saideira, -10 com ela, num evento so).
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS;
+    for (int s = 0; s < 2; s++) {
+        achado_fila(0); amul[0] = s ? AM_BIT(A_SAIDEIRA) : 0;
+        joga(0, D_OURICO, 3);
+        joga(1, D_PIRATA, 7);
+        d = fim();
+        int ouricos = 0;
+        for (int i = 0; i < n_ev; i++) ouricos += ev[i].tipo == EV_TIRA && !strncmp(ev[i].txt, "Ouriço", 6);
+        CONFERE(d.delta[1] == -OURICO_PTS * (s ? 2 : 1) && ouricos == 1,
+                "A13: Ourico %s Saideira: B delta %d em %d eventos", s ? "com" : "sem", d.delta[1], ouricos);
+    }
+    amul[0] = 0; modo = M_DOIS; rodada = 1;
+
+    // A04: a segunda passada da Saideira (Carrasco 4 de A, duas vezes) derruba
+    // dados de B antes de os efeitos do fim de B serem pagos: o Capitao conta
+    // os 2 que sobraram (+2) e o Martir, caido so na segunda, paga.
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS;
+    achado_fila(0); amul[0] = AM_BIT(A_SAIDEIRA);
+    joga(0, D_CARRASCO, 4);
+    joga(1, D_D6, 1); joga(1, D_CAPITAO, 3); joga(1, D_D8, 5); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[1][2] == V_ANULADO && d.est[1][3] == V_ANULADO && d.total[1] == 6,
+            "A04: Saideira x Capitao: B fez %d (esperado 6: 1 + 3 + 2)", d.total[1]);
+    achado_fila(0); amul[0] = AM_BIT(A_SAIDEIRA);
+    joga(0, D_CARRASCO, 4);
+    joga(1, D_D6, 1); joga(1, D_MARTIR, 4); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[1][1] == V_ANULADO && d.total[1] == 3, "A04: Saideira x Martir: B fez %d (esperado 3)", d.total[1]);
+    amul[0] = 0; modo = M_DOIS; rodada = 1;
+
+    // A03: Mira contra Mira - as duas agem, abra quem abrir (como dois Carrascos).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 4, AD_MIRA);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 4); joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_ANULADO && d.total[0] == 0 && d.total[1] == 0,
+                "A03: Mira x Mira (abre %d): A %d (est %d), B %d (est %d)", p, d.total[0], d.est[0][0], d.total[1], d.est[1][0]);
+    }
+    // A38: um adesivo que paga "se terminar valendo" (o Confete de A) nao paga
+    // antes de a Mira de B anular o dado, abra quem abrir.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_CONFETE);
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    for (int p = 0; p < 2; p++) {
+        achado_fila(p);
+        joga_ad(0, 0, 2); joga(0, D_D6, 5);
+        joga_ad(1, 0, 4);
+        d = fim();
+        CONFERE(d.est[0][0] == V_ANULADO && d.semente[0] == 0 && d.total[0] == 5,
+                "A38: Confete num dado que a Mira anula (abre %d): A %d, semente %d", p, d.total[0], d.semente[0]);
+    }
+
+    // A09: a Fenix e o Agnus 7 revivem tambem o dado que a Mira (adesivo) anulou -
+    // a da fase das Miras e a copiada pelo Holografico, na passada dos adesivos.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 4, AD_MIRA);
+    achado_peca(1, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_fila(0);
+    joga(0, D_FENIX, 2); joga(0, D_D6, 5); joga_ad(1, 0, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 7, "A09: Fenix anulada pela Mira renasce (A %d, est %d)", d.total[0], d.est[0][0]);
+    achado_fila(0);
+    joga(0, D_D6, 2); joga(0, D_AGNUS, 7); joga_ad(1, 0, 4);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 9, "A09: Agnus 7 ressuscita o anulado pela Mira (A %d)", d.total[0]);
+    achado_fila(0);
+    joga(0, D_FENIX, 2); joga(0, D_D6, 3); joga(0, D_D6, 5); joga_ad(1, 0, 4); joga_ad(1, 1, 5);
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.total[0] == 10,
+            "A09: Fenix renasce tambem da Mira copiada pelo Holografico (A %d, est %d %d %d)",
+            d.total[0], d.est[0][0], d.est[0][1], d.est[0][2]);
+
+    // A05: o Gatuno anulado pelo Cavalo de Troia no 1o roubo para de roubar.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_D8, 1); joga(0, D_GATUNO, 6);
+    joga(1, D_CAVALO, 2); joga(1, D_D8, 7);
+    d = fim();
+    CONFERE(d.est[0][2] == V_ANULADO && d.est[1][1] == V_VALIDO && d.total[0] == 0 && d.total[1] == 7,
+            "A05: Gatuno anulado pelo Cavalo nao rouba mais (A %d, B %d, 7 de B est %d)", d.total[0], d.total[1], d.est[1][1]);
+
+    // A06: dois Agnus com 7, o primeiro roubado pelo Caridoso: o segundo ressuscita.
+    achado_zera(); achado_fila(0);
+    joga(1, D_AGNUS, 7); joga(1, D_AGNUS, 7); joga(1, D_D8, 8); joga(1, D_D6, 2);
+    joga(0, D_CARIDOSO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO && d.est[1][2] == V_VALIDO && d.est[1][3] == V_VALIDO && d.total[1] == 17,
+            "A06: o 2o Agnus 7 ressuscita com o 1o roubado (B %d, est %d %d %d %d)", d.total[1],
+            d.est[1][0], d.est[1][1], d.est[1][2], d.est[1][3]);
+
+    // A08: o Carrasco que tirou 1, preso pela Ancora, fica; cai o menor que nao esta firme.
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_D6, 5);
+    F[0].ancora[0] = 1;
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.total[0] == 1,
+            "A08: Carrasco 1 ancorado nao anula a si mesmo (est %d %d, A %d)", d.est[0][0], d.est[0][1], d.total[0]);
+
+    // A10: o roubo leva o dado como ele pontua agora - com o corte do
+    // Sabotador (8 -> 4) e o -1 do Vampiro (8 -> 7) ja aplicados.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_SABOTADOR, 5); joga(0, D_GATUNO, 6);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.roubo_val[0] == 4 && d.total[0] == 16, "A10: Gatuno rouba o 8 cortado pelo Sabotador (roubo %d, A %d)",
+            d.roubo_val[0], d.total[0]);
+    achado_fila(0);
+    joga(0, D_VAMPIRO, 2); joga(0, D_CARIDOSO, 3);
+    joga(1, D_D8, 8);
+    d = fim();
+    CONFERE(d.roubo_val[0] == 7 && d.total[0] == 12, "A10: Caridoso rouba o 8 com o -1 do Vampiro (roubo %d, A %d)",
+            d.roubo_val[0], d.total[0]);
+
+    // A11: os adesivos colados na Tela em Branco agem duas vezes - a
+    // Purpurina e o Holografico tambem.
+    achado_zera();
+    achado_peca(0, 0, D_TELA, 3, AD_PURPURINA);
+    achado_fila(0); joga_ad(0, 0, 3);
+    d = fim();
+    int purps = 0, tela_txt = 0;
+    for (int i = 0; i < n_ev; i++) if (ev_tipo_ad(i, AD_PURPURINA)) { purps++; tela_txt += !strncmp(ev[i].txt, "Tela em Branco", 14); }
+    CONFERE(purps == 2 && tela_txt == 1, "A11: Purpurina na Tela age duas vezes (%d eventos, %d da Tela)", purps, tela_txt);
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_CONFETE);
+    achado_peca(0, 1, D_TELA, 3, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 2); joga_ad(0, 1, 3);
+    d = fim();
+    int copias = 0;
+    tela_txt = 0;
+    for (int i = 0; i < n_ev; i++)
+        if (ev_tipo_ad(i, AD_CONFETE) && ev[i].copia) { copias++; tela_txt += !strncmp(ev[i].txt, "Tela em Branco", 14); }
+    CONFERE(copias == 2 && tela_txt == 1 && d.semente[0] == 12,
+            "A11: Holografico na Tela copia duas vezes (%d copias, %d da Tela, semente %d)", copias, tela_txt, d.semente[0]);
+
+    // A12: o Holografico que copia a Corrente paga o que ela pagou (1 elo, +3),
+    // nao a conta do ultimo dado com adesivo (2 elos).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_HOLOGRAFICO);
+    achado_peca(0, 1, D_D6, 2, AD_CORRENTE);
+    achado_peca(0, 2, D_D6, 3, AD_CONFETE);
+    achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3);
+    d = fim();
+    int copia_corr = -1;
+    for (int i = 0; i < n_ev; i++) if (ev_tipo_ad(i, AD_CORRENTE) && ev[i].copia) copia_corr = ev[i].valor;
+    CONFERE(copia_corr == CORRENTE_CADA && d.semente[0] == 3 + 4 + 3 + 4,
+            "A12: Holografico copia a Corrente pelo que ela pagou (copia %d, semente %d)", copia_corr, d.semente[0]);
+
+    // A14: o roubo contra o dado com a capa do Impermeavel fracassa (bate na
+    // bolha), e o Seguranca nao vai no lugar.
+    achado_zera();
+    J[1].n_col = 2;
+    J[1].col[0] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[1].col[0], 1, AD_IMPERMEAVEL);
+    J[1].col[1] = (peca_t){ .tipo = D_SEGURANCA };
+    achado_fila(0);
+    joga(0, D_CARIDOSO, 3);
+    joga_ad(1, 0, 1); joga_ad(1, 1, 3);
+    d = fim();
+    int bolhas = 0;
+    for (int i = 0; i < n_ev; i++) bolhas += ev[i].bloqueado != 0;
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0 && bolhas == 1,
+            "A14: roubo contra a capa fracassa (est %d %d, roubo %d, %d bolhas)", d.est[1][0], d.est[1][1], d.roubo_val[0], bolhas);
+
+    // A15: o Seguranca preso pela Ancora leva o golpe no lugar e segura: nao
+    // cai nem e roubado (o aviso "protegido"), e o outro dado fica a salvo.
+    achado_zera(); achado_fila(0);
+    joga(1, D_D6, 2); joga(1, D_SEGURANCA, 3); F[1].ancora[1] = 1;
+    joga(0, D_CARRASCO, 4);
+    d = fim();
+    int segura = 0;
+    for (int i = 0; i < n_ev; i++) segura += ev[i].alvo_j == 1 && (ev[i].bloqueado >> 1 & 1);
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && segura == 1,
+            "A15: Seguranca ancorado segura o Carrasco (est %d %d, %d avisos)", d.est[1][0], d.est[1][1], segura);
+    achado_fila(0);
+    joga(1, D_D6, 2); joga(1, D_SEGURANCA, 3); F[1].ancora[1] = 1;
+    joga(0, D_CARIDOSO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0,
+            "A15: Seguranca ancorado segura o roubo (est %d %d, roubo %d)", d.est[1][0], d.est[1][1], d.roubo_val[0]);
+
+    // A16: o Holografico carimbado copia o Bilhete: a 1a copia dobra, a 2a (a do
+    // Carimbo) sobe so um degrau, como o Bilhete carimbado. Confete 4 e as duas
+    // copias dele pelo Holografico: 12; Bilhete 24; copia 48; copia carimbada 72
+    // (antes, x8: 96).
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_CONFETE);
+    achado_peca(0, 1, D_D6, 2, AD_BILHETE);
+    achado_peca(0, 2, D_D6, 3, AD_CARIMBO);
+    achado_peca(0, 3, D_D6, 4, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3); joga_ad(0, 3, 4);
+    d = fim();
+    CONFERE(d.semente[0] == 72, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 72)", d.semente[0]);
+
+    // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 3, AD_FRAGIL);
+    achado_peca(0, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 3); joga_ad(0, 1, 5);
+    joga(1, D_CARRASCO, 4);
+    d = fim();
+    CONFERE(d.est[0][1] == V_ANULADO && !(d.fragil[0] >> 1 & 1), "A17: a copia do Fragil nao quebra o dado do Holografico (fragil 0x%02x)", d.fragil[0]);
+
+    // A18: o Vampiro so tira de quem pontua mais que 0 (o Trevo sem o 4 fica em 0).
+    achado_zera(); achado_fila(0);
+    joga(0, D_VAMPIRO, 2);
+    joga(1, D_TREVO, 2); joga(1, D_D6, 5);
+    d = fim();
+    CONFERE(d.total[1] == 4 && d.bonus[1][0] == 0, "A18: Vampiro nao deixa o Trevo em -1 (B %d, bonus do Trevo %d)", d.total[1], d.bonus[1][0]);
+    achado_fila(0);
+    joga(0, D_VAMPIRO, 2);
+    joga(1, D_TREVO, 2);
+    d = fim();
+    CONFERE(d.bruto[1] == 0 && d.atacados[1] == 0, "A18: Vampiro sem ninguem para morder nao ataca (bruto %d, atacados %d)", d.bruto[1], d.atacados[1]);
+
+    // A20: o Sabotador e o Ranzinza cortam o de maior numero entre os que pontuam.
+    achado_zera(); achado_fila(0);
+    joga(0, D_SABOTADOR, 5);
+    joga(1, D_D4, 2); joga(1, D_TREVO, 3);
+    d = fim();
+    CONFERE(d.total[1] == 1 && d.atacados[1] == 1, "A20: Sabotador corta o D4 2, nao o Trevo 3 que pontua 0 (B %d, atacados %d)", d.total[1], d.atacados[1]);
+    achado_zera(); achado_fila(0);
+    modo = M_DESAFIO; reg_op = REG_RANZINZA; rodada = 5;
+    joga(0, D_D4, 2); joga(0, D_TREVO, 3);
+    joga(1, D_D6, 1);
+    d = fim();
+    CONFERE(d.total[0] == 1, "A20: Ranzinza corta o D4 2, nao o Trevo 3 (A %d)", d.total[0]);
+    modo = M_DOIS; reg_op = 0; rodada = 1;
+
+    // A21: o Porta-Retrato nao repete a Sujeira (o barro do oponente nao e adesivo seu).
+    achado_zera();
+    achado_peca(0, 0, D_RETRATO, 2, AD_SUJEIRA);
+    achado_fila(0);
+    joga(0, D_D6, 1); joga_ad(0, 0, 2);
+    d = fim();
+    CONFERE(d.delta[0] == -2 && d.atacados[0] == 1 && d.ad_agiram[0] == 0,
+            "A21: Porta-Retrato na Sujeira cobra o -2 uma vez (delta %d, atacados %d, agiram %d)", d.delta[0], d.atacados[0], d.ad_agiram[0]);
+
+    // A22: o alvo que ja caiu no contra-ataque nao e anulado de novo (o golpe se perde, conta 1 tentativa).
+    achado_zera();
+    achado_peca(0, 0, D_LASER, 0, 0);
+    achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
+    achado_fila(0);
+    joga_ad(0, 0, 5); joga_ad(0, 1, 6);
+    joga(1, D_OURICO, 2); joga(1, D_CARRASCO, 4);
+    d = fim();
+    {
+        int anula_b = 0, rato = 0;
+        for (int e = 0; e < n_ev; e++) {
+            if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1) anula_b++;
+            if (ev[e].tipo == EV_ADESIVO && ev[e].ad == AD_RATOEIRA && ev[e].alvo_j == 1) rato++;
+        }
+        CONFERE(rato == 1 && anula_b == 0 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO,
+                "A22: Laser nao anula de novo o Carrasco que a Ratoeira derrubou (ratoeira %d, anula %d, atacados %d)", rato, anula_b, d.atacados[1]);
+    }
+
+    // A23: a Casca de Banana conta ataque para o Ourico tambem na previa.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 3, AD_CASCA);
+    achado_fila(0);
+    joga(0, D_D4, 1); joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_D6, 4);
+    joga_ad(1, 0, 3);
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        d = fim();
+        CONFERE(pv.atacados[0] == 1 && d.atacados[0] == 1, "A23: a Casca conta 1 ataque na previa e no fim (previa %d, fim %d)", pv.atacados[0], d.atacados[0]);
+    }
+
+    // A24: a Autofagia so fica armada (e com mira) quando pode comer: bolsa com 8 dados em jogo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_AUTOFAGIA, 3);
+    {
+        uint8_t mira[2] = { 0, 0 };
+        miras_agora(mira);
+        CONFERE(poder_armado(0, 1) == 0 && mira[0] == 0, "A24: Autofagia sem bolsa de 8 nao arma (armado %d, mira %02x)", poder_armado(0, 1), mira[0]);
+    }
+    achado_zera();
+    achado_peca(0, 0, D_AUTOFAGIA, 0, 0);
+    for (int i = 1; i < 8; i++) achado_peca(0, i, D_D6, 0, 0);
+    achado_fila(0);
+    joga_ad(0, 1, 1); joga_ad(0, 0, 3);
+    {
+        uint8_t mira[2] = { 0, 0 };
+        miras_agora(mira);
+        CONFERE(poder_armado(0, 1) == 2 && mira[0] == 1, "A24: Autofagia com bolsa de 8 arma e mira o 1 (armado %d, mira %02x)", poder_armado(0, 1), mira[0]);
+    }
+
+    // A25: o sorteio do pouso (Barro, Massinha, Infectado, Xerox) nao cai em dado comido pela Autofagia.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 0, 0);
+    achado_peca(0, 1, D_D6, 0, 0);
+    achado_peca(0, 2, D_D6, 0, 0);
+    J[0].onde[1] = COMIDO;
+    achado_fila(0);
+    {
+        int no_comido = 0, nenhum = 0;
+        for (uint32_t h = 0; h < 300; h++) {
+            int i = pega_dado(0, h * 2654435761u + 7);
+            no_comido += i == 1;
+            nenhum += i < 0;
+        }
+        CONFERE(no_comido == 0 && nenhum == 0, "A25: o sorteio do pouso pula o dado comido (caiu nele %d vezes, em nenhum %d)", no_comido, nenhum);
+    }
+
+    // A26: a Mira copiada pelo Papagaio, contra a capa, sai com o texto do Papagaio.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_MIRA);
+    achado_peca(1, 0, D_D6, 5, AD_IMPERMEAVEL);
+    achado_fila(0);
+    joga_ad(0, 0, 2); joga(0, D_PAPAGAIO, 3); joga_ad(1, 0, 5);
+    d = fim();
+    {
+        int papagaio = 0, holo = 0;
+        for (int e = 0; e < n_ev; e++) {
+            papagaio += strstr(ev[e].txt, "Papagaio, como Mira") != NULL;
+            holo += strstr(ev[e].txt, "Holográfico") != NULL;
+        }
+        CONFERE(papagaio == 1 && holo == 0, "A26: Mira do Papagaio na capa diz Papagaio (papagaio %d, holografico %d)", papagaio, holo);
+    }
+
+    // A27: a Couraca so acende quando ha roubo armado (o Caridoso com 1 nao rouba).
+    achado_zera(); modo = M_DESAFIO; amul[1] = AM_BIT(A_COURACA);
+    achado_fila(0);
+    joga(0, D_CARIDOSO, 1); joga(1, D_D6, 5);
+    am_brilho[A_COURACA] = 0;
+    d = fim();
+    {
+        float b1 = am_brilho[A_COURACA];
+        achado_fila(0);
+        joga(0, D_CARIDOSO, 3); joga(1, D_D6, 5);
+        am_brilho[A_COURACA] = 0;
+        d = fim();
+        CONFERE(b1 == 0 && am_brilho[A_COURACA] > 0 && d.roubo_val[0] == 0,
+                "A27: Couraca acende so com roubo armado (Caridoso 1: %.1f, Caridoso 3: %.1f)", b1, am_brilho[A_COURACA]);
+    }
+    modo = M_DOIS; amul[1] = 0;
+
+    // A28: com a Couraca de quem escorrega, a Casca nao sorteia nada: o fim nao e incerto.
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_COURACA);
+    achado_peca(1, 0, D_D6, 3, AD_CASCA);
+    achado_fila(0);
+    joga(0, D_D4, 1); joga(0, D_D4, 2); joga(0, D_D4, 3); joga(0, D_D6, 4);
+    joga_ad(1, 0, 3);
+    CONFERE(!casca_no_fim(), "A28: com a Couraca, a Casca nao deixa o fim incerto");
+    amul[0] = 0;
+    CONFERE(casca_no_fim(), "A28: sem a Couraca, a Casca deixa o fim incerto");
+    modo = M_DOIS;
+
+    // A29: a previa nao deixa bits em am_disparou (a faixa dos amuletos acenderia sem nada ter agido).
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+    achado_fila(0);
+    joga(0, D_D6, 5); joga(0, D_ESPELHO, 2);     // o Espelho espera; na previa vira o 1 do rival, e a Prensa o faz 3
+    joga(1, D_D2, 1);
+    am_disparou = 0;
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        CONFERE(am_disparou == 0, "A29: a previa nao acende amuletos (am_disparou %llx)", (unsigned long long)am_disparou);
+    }
+    modo = M_DOIS; amul[0] = 0;
+
+    // A31: a lista de eventos nao enche nem no pior caso medido (fila de 6, Telas com Moldura, Holograficos,
+    // Selo) com a Saideira dos dois na ultima rodada.
+    achado_zera(); modo = M_DESAFIO; rodada = DES_RODADAS; amul[0] = amul[1] = AM_BIT(A_SAIDEIRA);
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < N_FILA; i++) {
+            bool holo = i >= N_FILA - 2;
+            achado_peca(j, i, holo ? D_D6 : D_TELA, 3, holo ? AD_HOLOGRAFICO : AD_MOLDURA);
+            if (!holo) { ad_cola(&J[j].col[i], 2, AD_CONFETE); ad_cola(&J[j].col[i], 4, AD_CONFETE); }
+            J[j].col[i].selo = 1;
+        }
+    achado_fila(0);
+    for (int j = 0; j < 2; j++) for (int i = 0; i < N_FILA; i++) joga_ad(j, i, 3);
+    for (int j = 0; j < 2; j++) for (int i = 0; i < N_FILA; i++) F[j].est[i] = V_VALIDO;
+    d = fim();
+    CONFERE(n_ev < MAX_EV && ev_perdidos == 0, "A31: a lista de eventos nao enche no pior caso (%d de %d, perdidos %d)", n_ev, MAX_EV, ev_perdidos);
+    modo = M_DOIS; rodada = 1; amul[0] = amul[1] = 0;
+
+    // A33: o tremor rola o dado como o lance normal (lanca_peca): o Previsivel com Reflexivo rola o
+    // segundo como um d12 comum, nos dois.
+    achado_zera();
+    achado_peca(1, 0, D_PREVISIVEL, 1, AD_REFLEXIVO);
+    for (int l = 2; l <= 12; l++) ad_cola(&J[1].col[0], l, AD_REFLEXIVO);
+    achado_fila(0);
+    joga_ad(1, 0, 3);
+    {
+        int difere = 0;
+        fila_t guarda = F[1];
+        for (uint32_t s = 1; s <= 60; s++) {
+            uint32_t sem = s * 2654435761u;
+            abalo_s = sem;
+            lance_t l = lanca_peca(F[1].tipo[0], F[1].fixo[0], peca_fila(1, 0), rola_abalo);
+            F[1] = guarda;
+            treme_dado(1, 0, sem);
+            difere += F[1].valor[0] != l.x;
+            F[1] = guarda;
+        }
+        CONFERE(difere == 0, "A33: o tremor rola como o lance normal (diferentes em %d de 60)", difere);
+    }
+
+    // A35: com o Carimbo de antes roubado, a segunda vez do adesivo da Tela e dela: o texto diz Tela em Branco.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_CARIMBO);
+    achado_peca(0, 1, D_TELA, 3, AD_CONFETE);
+    achado_fila(0);
+    joga_ad(0, 0, 1); joga_ad(0, 1, 3);
+    joga(1, D_CARIDOSO, 3);
+    d = fim();
+    {
+        int tela = 0, carimbo = 0;
+        for (int e = 0; e < n_ev; e++) {
+            tela += strstr(ev[e].txt, "Tela em Branco » Confete") != NULL;
+            carimbo += strstr(ev[e].txt, "Carimbo » Confete") != NULL;
+        }
+        CONFERE(d.est[0][0] == V_ROUBADO && tela == 1 && carimbo == 0,
+                "A35: Carimbo roubado, a Tela diz Tela em Branco (roubado %d, tela %d, carimbo %d)", d.est[0][0] == V_ROUBADO, tela, carimbo);
+    }
+
+    // A36: o evento do Espelho aponta o dado copiado (alvo_k), nao o primeiro do rival.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_ESPELHO, 2);
+    joga(1, D_D6, 2); joga(1, D_D8, 5);
+    d = fim();
+    {
+        int k_ev = -1;
+        for (int e = 0; e < n_ev; e++) if (ev[e].tipo == EV_ESPELHO) k_ev = ev[e].alvo_k;
+        CONFERE(k_ev == 1, "A36: o Espelho aponta o 5 de B, o segundo dado (alvo_k %d)", k_ev);
+    }
+
+    // A07: o Camaleao le o que o dado copiado mostra (o Pisca-pisca aceso ou apagado), nao o proprio fixo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_PISCA, 2); F[0].fixo[0] = 1;       // apagado
+    joga(0, D_CAMALEAO, 3);
+    d = fim();
+    CONFERE(d.total[0] == 5 && d.mult[0][1] == 0, "A07: Camaleao atras do Pisca apagado nao dobra (A %d, mult %d)", d.total[0], d.mult[0][1]);
+    achado_fila(0);
+    joga(0, D_PISCA, 2); F[0].fixo[0] = 0;       // aceso
+    joga(0, D_CAMALEAO, 3); F[0].fixo[1] = 1;
+    d = fim();
+    CONFERE(d.total[0] == 10 && d.mult[0][1] > 0, "A07: Camaleao atras do Pisca aceso dobra (A %d, mult %d)", d.total[0], d.mult[0][1]);
+
+    J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
+    modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
+    limpa();
+}
+
 int main(void)
 {
     natal_forcado = 0;                   // a epoca nao depende do dia em que o teste roda
@@ -1105,7 +1628,7 @@ int main(void)
         d = fim();
         CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.total[0] == 2 + 5 + 7 && d.come[0] == 0,
                 "Autofagia fora da bolsa: nao come nem anula (deu %d)", d.total[0]);
-        CONFERE(poder_armado(0, 2) == 2, "Autofagia com alvo devia brilhar contra o dono");
+        CONFERE(poder_armado(0, 2) == 0, "Autofagia fora da bolsa: nao come, entao nao brilha");
         limpa();
         joga(0, D_AUTOFAGIA, 7);
         d = fim();
@@ -5740,8 +6263,8 @@ int main(void)
             pegou = adesivos_no_pouso(0, 1, o, 2);
             CONFERE(pegou == 0 && ad_no_lado(&J[0].col[1], lb) == AD_NADA, "Infectado: nem embaixo da Dupla Face na mesa (%d)", pegou);
             ad_cola(&J[0].col[1], 5, AD_LOBO); ad_cola(&J[0].col[1], lb, AD_LOBO);
-            // Pega em qualquer dado: o Adesivado (que, cheio, vira o Mais
-            // Adesivado no fim da partida) e o que a Autofagia comeu.
+            // Pega no Adesivado (que, cheio, vira o Mais Adesivado no fim da
+            // partida); no que a Autofagia comeu, nao: ele saiu da partida.
             J[0].col[1] = (peca_t){ .tipo = D_ADESIVADO };
             for (int l = 1; l <= 5; l++) ad_cola(&J[0].col[1], l, AD_CONFETE);
             limpa();
@@ -5757,7 +6280,7 @@ int main(void)
             limpa();
             joga_ad(0, 0, 4);
             pegou = adesivos_no_pouso(0, 0, o, 2);
-            CONFERE(pegou == 1 && o[0].i == 2 && o[0].lados == 1u << 6, "Infectado: pega no dado comido (%d)", o[0].i);
+            CONFERE(!(pegou == 1 && o[0].i == 2), "Infectado: nao pega no dado comido (%d, %d)", pegou, o[0].i);
             J[0].onde[2] = NA_BOLSA;
             // O Barro: assim que o dado cai, valendo ou nao, um lado livre de um
             // dado do oponente vira Sujeira; no fim da rodada, nada mais.
@@ -8611,6 +9134,8 @@ int main(void)
         J[0] = g0; J[1] = g1;
         limpa();
     }
+
+    achados_desfecho();
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");

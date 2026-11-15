@@ -140,6 +140,19 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 #define TERREMOTO_DE 7
 #define RELOGIO_MAX  20
 #define ADESIVADO_N  3
+// Os ataques do fim e o numero que cada um precisa tirar (valendo): o Laser
+// e o Sabotador de 5 para cima, o Tsunami de 9, o Boneco de Neve de 8, o
+// Pirata de 7, o Espinhoso (Martelo) e o Caridoso de 3, o Invejoso de 5;
+// o Carrasco anula com o 4 exato.
+#define LASER_DE       5
+#define SABOTADOR_DE   5
+#define TSUNAMI_DE     9
+#define BONECO_DE      8
+#define PIRATA_DE      7
+#define MARTELO_DE     3
+#define CARIDOSO_DE    3
+#define CARRASCO_ANULA 4
+#define INVEJOSO_DE    5
 // O Pisca-pisca: o fixo diz como ele vem no proximo lance (0 aceso, 1 apagado).
 static bool pisca_aceso(int fixo) { return !(fixo & 1); }
 // O Revolver: o fixo sao as balas no tambor antes do lance; este lance poe
@@ -303,7 +316,7 @@ static const tipo_t TIPO[D_N] = {
     { "Hexa",             6, EF_HEXA,         RAR_INCOMUM,  0, "+1 por dado de seis lados válido seu" },
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada ataque do oponente: -5 nele" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
-    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente pontua metade" },
+    { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente (entre os que pontuam) vale metade" },
     { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "Começou a rodada com menos fichas: x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
     { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "Válido: 3 fichas do oponente para você" },
@@ -441,7 +454,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_HEXA]            = "Se terminar válido, +1 no fim por dado de seis lados válido seu, este dado incluído.",
     [D_OURICO]          = "Na sua fila, cada vez que o oponente tentar anular, atacar ou tirar pontos seus, ele perde 5.",
     [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
-    [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente pontua metade no fim.",
+    [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente (entre os que pontuam) vale metade no fim.",
     [D_AZARAO]          = "Se você começou a rodada com menos fichas e ele terminar válido: x2.",
     [D_AMPULHETA]       = "Se terminar válido: +1 a cada 3 rodadas já jogadas, até +4.",
     [D_AGIOTA]          = "Se terminar válido, no fim 3 fichas do oponente passam para você, fora do pote.",
@@ -460,7 +473,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SACRIFICIO]      = "Não pontua. Se terminar válido, no fim o seu menor dado válido (entre os que pontuam) pontua x2.",
     [D_VAZIO]           = "Pontua sempre 0 e nunca é anulado. Não anula o dado anterior: depois dele, qualquer número é válido.",
     [D_MEDIA]           = "Se terminar válido, ganha no fim o total dos seus dados dividido por 4 (para baixo).",
-    [D_VAMPIRO]         = "Se terminar válido, no fim cada dado válido do oponente perde 1 ponto.",
+    [D_VAMPIRO]         = "Se terminar válido, no fim cada dado do oponente que vale ponto perde 1.",
     [D_COLECIONADOR]    = "Tirando 6, ganha um bônus da metade dos dados que você tem (Fantasmas contam).",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, um Fantasma (pontua 1) entra na sua bolsa.",
     [D_ASSOMBRACAO]     = "Se terminar válido, assusta o oponente: -2 na pontuação dele e dois Fantasmas (pontuam 1) na bolsa.",
@@ -586,7 +599,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "+6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar válido.",
     [D_SEGURANCA]       = "Quatro lados. Se o oponente anular ou roubar um dado seu e o Segurança estiver válido, quem é "
                           "anulado ou roubado é o Segurança, e o outro dado fica. Se ele e todos os outros dados da sua "
-                          "sequência terminarem válidos, pontua +2 no fim da rodada.",
+                          "sequência terminarem válidos, pontua +2 no fim da rodada. Preso pela Âncora, ele leva o golpe e "
+                          "segura: não cai nem é roubado.",
     [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
                           "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",
@@ -616,7 +630,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "se ele for o primeiro, rola normalmente. Se o último dado válido for maior, o Eco é anulado pela "
                           "sequência.",
     [D_DOMINO]          = "Seis lados. Se terminar válido, olha o dado seu lançado logo depois dele: com o mesmo número, a "
-                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1.",
+                          "peça encaixa em cheio e pontua +3 no fim da rodada; com um a mais, +2; com dois a mais, +1. Vale "
+                          "mesmo se o próximo for anulado.",
     [D_ANCORA]          = "Quatro lados. O dado seu lançado logo depois da Âncora, com ela válida, não pode ser anulado (nem "
                           "pela sequência, nem por outro dado) nem roubado. Se ele for menor, quem é anulada pela sequência é a "
                           "Âncora.",
@@ -632,8 +647,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "no fim da rodada. Conta até o ataque que a bolha do Impermeável segura. Roubado, não espeta.",
     [D_CALIBRE]         = "Quatro lados. O dado seu lançado logo depois dele, com o Calibre válido, tira 1 a mais, sem passar "
                           "do máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
-    [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado válido do oponente passa a pontuar metade no "
-                          "fim da rodada (arredondado para baixo).",
+    [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado do oponente entre os que pontuam (valem mais "
+                          "que 0) passa a pontuar metade no fim da rodada (arredondado para baixo).",
     [D_AZARAO]          = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar válido, pontua "
                           "x2.",
     [D_AMPULHETA]       = "Seis lados. Se terminar válido, pontua +1 no fim da rodada a cada 3 rodadas já jogadas na partida, "
@@ -671,7 +686,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_MEDIA]           = "Quatro lados. Se terminar válido, ganha no fim da rodada um bônus igual ao total dos seus dados "
                           "válidos (com bônus e multiplicadores, este dado incluído) dividido por 4, arredondado para baixo.",
     [D_VAMPIRO]         = "Quatro lados. Se terminar válido, com qualquer número, no fim da rodada cada dado válido do oponente "
-                          "perde 1 ponto.",
+                          "que vale ponto perde 1 (o que já está em 0 fica como está).",
     [D_COLECIONADOR]    = "Seis lados. Tirando 6, ganha um bônus da metade dos dados que você tem (arredondado para baixo). Os "
                           "Fantasmas que entraram na sua bolsa contam.",
     [D_PACTO]           = "Doze lados. Cada vez que é lançado, válido ou não, um Fantasma (pontua sempre 1) entra na sua bolsa "
@@ -778,13 +793,14 @@ static const char *TEXTO_CAT[D_N] = {
                           "(Chumbo, Bússola, Nota Dez, Pião).",
     [D_RETRATO]         = "A moldura de prata com a foto de um dado. Se terminar válido, o adesivo do lado em que ele "
                           "caiu age também no dado logo antes dele, se esse dado valer: um Confete paga duas vezes, um "
-                          "Eletrônico dobra os dois.",
+                          "Eletrônico dobra os dois. A Sujeira, que é do oponente, não se repete.",
     [D_ESTILINGUE]      = "O couro do estilingue, com o elástico. Se tirar 1, valendo ou não, o próximo dado da sua "
                           "sequência sai com o número mais alto dele: um d12 tira 12. O 1 dele, fora do começo, "
                           "costuma cair pela sequência.",
     [D_CAMALEAO]        = "Escamas que mudam de cor. Tem o poder do dado logo antes dele na sequência, como se fosse "
                           "ele: atrás de um Pirata, é outro Pirata; atrás de um Laser, outro Laser. Rola o próprio d8. "
-                          "Atrás de um dado sem poder, é um d8 comum.",
+                          "Atrás de um dado sem poder, é um d8 comum. Segue o que o outro mostra (o Pisca-pisca aceso "
+                          "ou apagado), mas não paga o que ele guardou (Meia, Balão).",
     [D_BALAO]           = "O balão de festa que vai enchendo. Cada rodada fora da fila, ou anulado, ele ganha +2 de ar "
                           "sem limite. Terminando válido com 7 ou 8, estoura: soma tudo de uma vez nos pontos dele e volta "
                           "vazio. Válido com 1 a 6, segura o ar que guardou.",

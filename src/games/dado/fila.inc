@@ -200,8 +200,8 @@ static bool nao_roubavel(int j, int k) { return nao_roubavel_t(tipo_de(j, k)) ||
 // O Universo: nada interfere nele - nenhum dado, adesivo, amuleto ou trunfo,
 // de quem for, mexe no que ele tira (nem o copia, nem o embrulha).
 static bool universo(int j, int k) { return tipo_de(j, k) == D_UNIVERSO; }
-// O Invejoso age com numero impar: 1, 3 ou 5.
-static bool invejoso_age(int v) { return v >= 5; }   // contra o oponente; com 1 ou 2, contra o dono
+// O Invejoso age contra o oponente de 5 para cima; com 1 ou 2, contra o dono.
+static bool invejoso_age(int v) { return v >= INVEJOSO_DE; }
 // Nao anulavel agora: pelo tipo ou preso pela Ancora.
 static bool firme_sem_capa(int j, int k) { return nao_anulavel_t(tipo_de(j, k)) || F[j].ancora[k]; }
 // Com a capa do Impermeavel, tambem nada o anula (nem a sequencia) - mas os
@@ -214,16 +214,24 @@ static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, 
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
-static int maior_do_rival(int j)
+// Qual dado do rival o Espelho copia (maior_do_rival): o de maior numero
+// entre os que valem, e sem nenhum, entre todos; no empate, o primeiro. -1:
+// nenhum (o numero dele seria 0).
+static int maior_do_rival_k(int j)
 {
     const fila_t *r = &F[outro(j)];
-    int vale = 0, qualquer = 0;
-    for (int i = 0; i < r->lancados; i++) {
+    int vale = -1, qualquer = -1;
+    for (int i = 0; i < r->lancados && i < N_FILA; i++) {
         if (r->escondido[i] || r->curinga[i] || r->gira[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto, a Ficha Coringa e o Carrossel ainda nao pararam; o Universo, ninguem copia
-        if (r->valor[i] > qualquer) qualquer = r->valor[i];
-        if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
+        if (r->valor[i] > 0 && (qualquer < 0 || r->valor[i] > r->valor[qualquer])) qualquer = i;
+        if (r->est[i] == V_VALIDO && r->valor[i] > 0 && (vale < 0 || r->valor[i] > r->valor[vale])) vale = i;
     }
-    return vale ? vale : qualquer;
+    return vale >= 0 ? vale : qualquer;
+}
+static int maior_do_rival(int j)
+{
+    int k = maior_do_rival_k(j);
+    return k >= 0 ? F[outro(j)].valor[k] : 0;
 }
 // O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente.
 // Nao copia o Universo, nem o Oculto ainda virado, nem outra Ficha Coringa
@@ -481,6 +489,7 @@ static void aplica_regra(int j, int k)
         v = f->valor[k] = 3;
         lado_vira(j, k, 3);
         poe_tag(f, k, "=3");
+        // (a previa passa por aqui tambem; calcula_desfecho repoe am_disparou)
         am_disparou |= AM_BIT(A_PRENSA);
     }
     // O proprio poder (ou a Prensa) virou o dado para um lado com o Papel
@@ -640,15 +649,15 @@ static void aplica_regra(int j, int k)
         if (ef == EF_SACRIFICIO) poe_tag(f, k, "=0");
         // Onda: a etiqueta diz quanto ela tera guardado se ficar.
         if (ef == EF_ONDA) poe_tag(f, k, "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
-        if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) poe_tag(f, k, "x3");
+        if (ef == EF_PATINHOS && patinhos_ativo(fixo_de(j, k))) poe_tag(f, k, "x3");
         // Panetone: as frutas da fatia somam no que ele tirou.
         if (ef == EF_PANETONE && f->fruta[k]) {
             f->bonus[k] = (int8_t)(f->bonus[k] + f->fruta[k]);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        if (ef == EF_PISCA && pisca_aceso(f->fixo[k])) poe_tag(f, k, "x2");   // apagado, um d4 comum
+        if (ef == EF_PISCA && pisca_aceso(fixo_de(j, k))) poe_tag(f, k, "x2");   // apagado, um d4 comum
         // Revolver: com a sexta bala, o tiro soma no que ele tirou.
-        if (ef == EF_REVOLVER && revolver_dispara(f->fixo[k])) {
+        if (ef == EF_REVOLVER && revolver_dispara(fixo_de(j, k))) {
             f->bonus[k] = (int8_t)(f->bonus[k] + REVOLVER_TIRO);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
@@ -727,20 +736,20 @@ static void aplica_regra(int j, int k)
             int g = onda_depois(f->fixo[k], v);
             if (g >= ONDA_VIRA) snprintf(veredito, sizeof veredito, "Onda chega a %d: se ficar, vira Tsunami!", ONDA_VIRA);
             else snprintf(veredito, sizeof veredito, "Onda pontua %d e guarda (%d de %d)", v, g, ONDA_VIRA);
-        } else if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) {
-            snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", f->fixo[k] + 1);
+        } else if (ef == EF_PATINHOS && patinhos_ativo(fixo_de(j, k))) {
+            snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", fixo_de(j, k) + 1);
         } else if (ef == EF_PANETONE) {
             if (f->fruta[k]) snprintf(veredito, sizeof veredito, "Panetone com %d fruta%s: pontua %d", f->fruta[k],
                                       f->fruta[k] > 1 ? "s" : "", vale);
             else snprintf(veredito, sizeof veredito, "Panetone sem frutas: pontua %d", vale);
         } else if (ef == EF_PISCA) {
-            if (pisca_aceso(f->fixo[k])) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
+            if (pisca_aceso(fixo_de(j, k))) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
             else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua %d, como um d4", vale);
         } else if (ef == EF_MEIA && f->fixo[k]) {
             snprintf(veredito, sizeof veredito, "Meia na Lareira: se ficar, paga +%d", f->fixo[k]);
         } else if (ef == EF_REVOLVER) {
-            if (revolver_dispara(f->fixo[k])) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
-            else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", f->fixo[k] + 1, REVOLVER_BALAS);
+            if (revolver_dispara(fixo_de(j, k))) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
+            else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", fixo_de(j, k) + 1, REVOLVER_BALAS);
         } else if (ef == EF_UNIVERSO) {
             snprintf(veredito, sizeof veredito, "BIG BANG! O Universo pontua %d", vale);
         } else if (ef == EF_DIGITAL) {

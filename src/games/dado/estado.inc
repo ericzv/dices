@@ -171,7 +171,10 @@ typedef struct {
     bool    bolsa_capa;              // o Barro: o dado sorteado estava com a bolha do Impermeavel (nao sujou)
     char txt[64];
 } evento_t;
-#define MAX_EV 64                    // a Saideira repete a cadeia inteira
+// O pior caso medido (fila de 6, Telas com Moldura, Holograficos, Selo e a
+// Saideira dos dois) da 76 eventos; 192 deixa folga. Se encher, o evento se
+// perde (o placar em d sai certo) e ev_perdidos conta: os testes conferem.
+#define MAX_EV 192
 
 typedef struct { uint8_t tipo, fixo, de_j, anulado; int valor; } roubado_t;   // anulado: pelo Cavalo
 
@@ -274,6 +277,7 @@ static uint32_t semente;
 
 static evento_t ev[MAX_EV];
 static int  n_ev, ev_i;
+static int  ev_perdidos;             // eventos que nao couberam na lista (deve ficar 0)
 static uint8_t vis_est[2][N_FILA];
 static roubado_t vis_roubo[2][4];
 static int  vis_nroubo[2], vis_delta[2];
@@ -377,7 +381,7 @@ static bool tem_am(int j, int a) { return modo == M_DESAFIO && (amul[j & 1] >> a
 enum { REG_NADA, REG_NERVOSO, REG_BATEDOR, REG_CASA, REG_ULTIMA, REG_FOLEGO, REG_SAQUE,
        REG_MALUCO, REG_JUROS, REG_CORINGA,
        REG_PRESENTE,                     // o Papai Noel: um dado da sua mao vem embrulhado
-       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior dado pontua metade
+       REG_RANZINZA,                     // o Ranzinza: da 5a rodada, o seu maior que pontua vale metade
        REG_DUENDE };                     // o Duende: +1 por dado igual na sequencia dele
 // O Presente surpresa do Papai Noel: o dado da sua mao (indice na bolsa) que
 // veio embrulhado nesta rodada, e o que ele e de verdade (-1: nenhum).

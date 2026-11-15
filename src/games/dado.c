@@ -19,6 +19,7 @@
 //
 // Versao PC: mesa de 640x360 (a do Cardputer, 240x135, esta em
 // cardputer/dado.c). Os textos sao UTF-8, com acentos.
+#include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -37,7 +38,7 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.28"
+#define DADO_VERSAO "v1.29"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
@@ -81,7 +82,9 @@
 #include "dado/adesivos.inc"      // os adesivos do Desafiante: o que fazem e o desenho
 #include "dado/desenho_dado.inc"  // o desenho de cada dado
 #include "dado/fila.inc"          // a regra da fila: o que vale, o que anula
+#include "dado/adesivos_pouso.inc" // os adesivos que agem quando o dado cai (Chiclete, Xerox, Infectado, Barro, Massinha)
 #include "dado/desfecho.inc"      // os poderes que mexem no rival, em sequencia
+#include "dado/risco.inc"         // a chance de o proximo dado cair (o simulador e a IA)
 #include "dado/partida.inc"       // comeco, rodada, resultado e fim
 #include "dado/aposta.inc"        // a aposta entre os dois turnos
 #include "dado/premio.inc"        // o sorteio e a roleta do premio

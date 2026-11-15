@@ -3981,12 +3981,8 @@ static void desenha_evento_dentro(const evento_t *e, float p)
             }
     }
     // Espelho: um reflexo sai do maior dado do rival e chega nele.
-    if (e->tipo == EV_ESPELHO && e->alvo_k < N_FILA) {
-        const fila_t *fr = &F[e->alvo_j];
-        int a = 0;
-        for (int i = 0; i < fr->lancados; i++) if (fr->valor[i] == e->valor) { a = i; break; }
-        projetil(SLOT_X(a), zona(e->alvo_j), ax, ay, p / 0.5f, C_ACO);
-    }
+    if (e->tipo == EV_ESPELHO && e->alvo_k < N_FILA)
+        projetil(SLOT_X(e->alvo_k), zona(e->alvo_j), ax, ay, p / 0.5f, C_ACO);
     // Ficha de Fogo: linha de fogo tremulando ate o alvo, brasas subindo dele.
     if (e->tipo == EV_FOGO) {
         float q = p / 0.35f;

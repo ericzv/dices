@@ -22,11 +22,20 @@
 //
 //   varredura [mesas] [semente]        mesas ao acaso (padrao: 3000)
 //   varredura --uma SEMENTE            uma mesa so, escrita rodada a rodada
+//   varredura --impressao [mesas] [ref] [--grava]
+//                                      impressao digital do desfecho, campo a
+//                                      campo, comparada (ou gravada) na referencia;
+//                                      com IMPRESSAO_LISTA=arquivo, grava tambem a
+//                                      de cada mesa (para contar quantas um
+//                                      conserto muda: diff de duas listas)
+//   varredura --cobertura [mesas]      o que as mesas da impressao exercitam
+//   varredura --tempo [mesas]          quanto custa uma previa (100 por mesa)
 //
 // Cada mesa joga de uma a quatro rodadas seguidas. Cada falha escreve a
 // semente da mesa: --uma repete so ela. Compile com
 // -fsanitize=address,undefined para pegar erro de memoria.
 #include <stdio.h>
+#include <time.h>
 #include "../src/games/dado.c"
 
 static uint16_t fb[GFX_W * GFX_H];
@@ -202,7 +211,7 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_DESFECHO[] = {
     CAMPO_D(garimpo), CAMPO_D(onda), CAMPO_D(meia), CAMPO_D(moedas), CAMPO_D(bis), CAMPO_D(gorjeta), CAMPO_D(fermento),
     CAMPO_D(raspa), CAMPO_D(raspa_lados), CAMPO_D(selo_rompe), CAMPO_D(selo_lacra), CAMPO_D(velcro), CAMPO_D(fragil),
     CAMPO_D(capa), CAMPO_D(ratoeira), CAMPO_D(rato_bits), CAMPO_D(coleira_bits), CAMPO_D(fig_cresce), CAMPO_D(fermento2),
-    CAMPO_D(fig_cresce2), CAMPO_D(bilhete), CAMPO_D(dinamite), CAMPO_D(balao), CAMPO_D(bil_carimbo), CAMPO_D(bil_holo),
+    CAMPO_D(fig_cresce2), CAMPO_D(bilhete), CAMPO_D(dinamite), CAMPO_D(balao), CAMPO_D(bil_carimbo), CAMPO_D(bil_holo), CAMPO_D(bil_holo_c),
 };
 static const char *campo_desfecho(size_t o)
 {
@@ -240,6 +249,113 @@ static uint32_t mistura(uint32_t h, const void *p, size_t n)
     for (size_t i = 0; i < n; i++) h = (h ^ b[i]) * 16777619u;
     return h;
 }
+
+// ---------------------------------------------------------------------------
+// A impressao digital (--impressao): um numero so que resume o que o desfecho
+// calculou nas mesas - a previa depois de cada lance (com o poder armado e as
+// miras que a mesa acende), o desfecho de verdade, cada evento, a sequencia e,
+// no fim de cada mesa, as bolsas e as fichas. Campo a campo, pelo valor: nao
+// muda se um struct for reordenado ou ganhar enchimento, so se o jogo mudar.
+// A referencia fica em tests/impressao_ref.txt; uma reorganizacao do codigo
+// tem que deixa-la igual. Campo novo em fila_t, desfecho_t ou evento_t entra
+// na lista (CAMPOS_FILA, CAMPOS_DESFECHO, CAMPOS_EV): o --impressao diz quantos
+// bytes de cada um ficaram de fora e reclama se forem muitos.
+// ---------------------------------------------------------------------------
+#define CAMPO_E(c) { #c, offsetof(evento_t, c), sizeof ((evento_t *)0)->c }
+static const struct { const char *nome; size_t de, tam; } CAMPOS_EV[] = {
+    CAMPO_E(tipo), CAMPO_E(de_j), CAMPO_E(de_k), CAMPO_E(alvo_j), CAMPO_E(alvo_k), CAMPO_E(valor), CAMPO_E(mascara),
+    CAMPO_E(por_dado), CAMPO_E(am), CAMPO_E(ad), CAMPO_E(copia), CAMPO_E(modo), CAMPO_E(bloqueado), CAMPO_E(antes),
+    CAMPO_E(tem_seq), CAMPO_E(seq), CAMPO_E(bolsa_i), CAMPO_E(bolsa_lados), CAMPO_E(bolsa_capa),
+};
+#define N_CAMPOS(l) (sizeof l / sizeof l[0])
+static bool imprimindo;                          // so na primeira jogada de cada mesa (a variante cheia)
+static uint32_t impressao = 2166136261u;
+static uint32_t impressao_mesa;                  // a da mesa de agora (IMPRESSAO_LISTA: uma linha por mesa)
+static void imp(const void *p, size_t n)
+{
+    if (!imprimindo) return;
+    impressao = mistura(impressao, p, n);
+    impressao_mesa = mistura(impressao_mesa, p, n);
+}
+static void imp_int(int v) { int32_t x = v; imp(&x, sizeof x); }
+#define IMP_CAMPOS(lista, base) \
+    for (size_t c_ = 0; c_ < N_CAMPOS(lista); c_++) imp((const uint8_t *)(base) + lista[c_].de, lista[c_].tam)
+static void imp_desfecho(const desfecho_t *d) { IMP_CAMPOS(CAMPOS_DESFECHO, d); }
+static void imp_fila(void) { for (int j = 0; j < 2; j++) IMP_CAMPOS(CAMPOS_FILA, &F[j]); }
+static void imp_eventos(void)
+{
+    imp_int(n_ev);
+    for (int i = 0; i < n_ev; i++) {
+        IMP_CAMPOS(CAMPOS_EV, &ev[i]);
+        size_t n = 0;
+        while (n < sizeof ev[i].txt && ev[i].txt[n]) n++;
+        imp(ev[i].txt, n);
+    }
+}
+// O que a mesa acende ao vivo (o brilho do poder armado e as miras): a outra
+// copia das regras dos poderes, fora do desfecho.
+static void imp_mesa_viva(void)
+{
+    if (!imprimindo) return;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) imp_int(poder_armado(j, k));
+    uint8_t mira[2];
+    miras_agora(mira);
+    imp(mira, sizeof mira);
+    imp_int(previa_sorte);
+}
+static void imp_fim_mesa(void)
+{
+    if (!imprimindo) return;
+    for (int j = 0; j < 2; j++) {
+        imp_int(J[j].n_col);
+        imp_int(J[j].fichas);
+        for (int i = 0; i < J[j].n_col; i++) {
+            const peca_t *p = &J[j].col[i];
+            imp_int(p->tipo); imp_int(p->fixo);
+            imp(p->ad, sizeof p->ad);
+            imp_int(p->fermento); imp_int(p->capa); imp_int(p->selo); imp_int(p->velcro);
+            imp_int(p->figurinha); imp_int(p->chiclete);
+        }
+    }
+    imp_int(pote);
+}
+// A cobertura (--cobertura): quantas vezes cada dado entrou num desfecho,
+// quantas vezes cada efeito do fim agiu, cada adesivo agiu e cada amuleto
+// acendeu. O que nunca aparece, a impressao nao vigia.
+static bool cobrindo;
+static long cob_dado[D_N], cob_ev[EV_COME + 1], cob_ad[AD_N], cob_am[A_N];
+static void cobre_desfecho(void)
+{
+    if (!cobrindo) return;
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) cob_dado[tipo_de(j, k)]++;
+    for (int i = 0; i < n_ev; i++) {
+        if (ev[i].tipo <= EV_COME) cob_ev[ev[i].tipo]++;
+        if (ev[i].tipo != EV_ADESIVO && ev[i].tipo != EV_TREMOR) continue;
+        if (ev[i].ad < AD_N) cob_ad[ev[i].ad]++;
+        if (ev[i].copia && ev[i].copia < AD_N) cob_ad[AD_HOLOGRAFICO]++;   // a copia: o Holografico (ou o Papagaio) agindo
+        if (ev[i].modo & EVM_CARIMBO) cob_ad[AD_CARIMBO]++;
+        if (ev[i].modo & EVM_DUPLA) cob_ad[AD_DUPLA]++;
+        if (ev[i].modo & EVM_MOLDURA) cob_ad[AD_MOLDURA]++;
+    }
+    for (int j = 0; j < 2; j++)
+        for (int a = 0; a < A_N; a++) if (amul[j] & AM_BIT(a)) cob_am[a]++;
+}
+// Quantos bytes de um struct nenhuma lista cobre (deveria ser so enchimento).
+static int imp_fora(size_t tam, const size_t *de, const size_t *t, size_t n)
+{
+    int fora = 0;
+    for (size_t o = 0; o < tam; o++) {
+        bool dentro = false;
+        for (size_t i = 0; i < n && !dentro; i++) dentro = o >= de[i] && o < de[i] + t[i];
+        fora += !dentro;
+    }
+    return fora;
+}
+#define IMP_FORA(tipo, lista, extra) do { size_t de_[64], t_[64], n_ = 0; \
+    for (size_t c_ = 0; c_ < N_CAMPOS(lista); c_++) { de_[n_] = lista[c_].de; t_[n_++] = lista[c_].tam; } \
+    extra; fora_##tipo = imp_fora(sizeof(tipo), de_, t_, n_); } while (0)
 
 // ---------------------------------------------------------------------------
 // A mesa sorteada
@@ -592,6 +708,8 @@ static void confere_previa(const char *quando, desfecho_t *sai)
     CONFERE(!memcmp(&d1, &d2, sizeof d1), "%s: duas previas seguidas deram resultados diferentes (%d x %d e %d x %d)", quando,
             d1.total[0], d1.total[1], d2.total[0], d2.total[1]);
     confere_desfecho(&d1, quando);
+    imp_desfecho(&d1);
+    imp_mesa_viva();
     if (sai) *sai = d1;
 }
 
@@ -827,6 +945,7 @@ static bool joga_rodada(int variante)
     }
     uint32_t marca = marca_do_calculo();
     marca_calculo = mistura(marca_calculo, &marca, sizeof marca);
+    if (variante == VAR_CHEIA) { imp_desfecho(&resolvido); imp_eventos(); imp_fila(); cobre_desfecho(); }
     if (variante == VAR_SECA) { conclui_rodada(); return true; }
 
     // O desfecho de verdade ja rodou (desfecho): os eventos, um a um.
@@ -905,6 +1024,7 @@ static uint32_t joga_mesa(uint32_t s, int variante)
         confere_limites("rodada nova", false);
         confere_mao("rodada nova");
     }
+    imp_fim_mesa();
     uint32_t h = hash_partida();
     h = mistura(h, F, sizeof F);
     for (int j = 0; j < 2; j++) {
@@ -914,10 +1034,14 @@ static uint32_t joga_mesa(uint32_t s, int variante)
     return h;
 }
 
+static bool imprimir, cobrir;                    // --impressao, --cobertura
 static bool varre(uint32_t s)
 {
     falhou_rodada = false;
+    imprimindo = imprimir;
+    cobrindo = cobrir;
     uint32_t h1 = joga_mesa(s, VAR_CHEIA), m1 = marca_calculo;
+    imprimindo = cobrindo = false;
     if (falhou_rodada) return false;
     joga_mesa(s, VAR_SECA);
     CONFERE(marca_calculo == m1, "a mesma rodada, com e sem as previas no meio, deu desfechos diferentes (%d x %d)",
@@ -939,6 +1063,107 @@ int main(int argc, char **argv)
         bool ok = varre((uint32_t)strtoul(argv[2], NULL, 10));
         printf("%s\n", ok ? "mesa sem falhas" : "mesa com falhas");
         return ok ? 0 : 1;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--cobertura")) {
+        long mesas = argc > 2 ? atol(argv[2]) : 3000;
+        cobrir = true;
+        for (long i = 0; i < mesas; i++) varre(20240229u + (uint32_t)i * 2654435761u);
+        printf("cobertura em %ld mesas (%ld rodadas)\n", mesas, n_rodadas);
+        printf("dados que nunca entraram num desfecho:");
+        for (int t = 0; t < D_N; t++) if (!cob_dado[t] && !aposentado(t)) printf(" %s", TIPO[t].nome);
+        printf("\ntipos de evento que nunca sairam:");
+        for (int e = 0; e <= EV_COME; e++) if (!cob_ev[e]) printf(" %d", e);
+        printf("\nadesivos sem evento no desfecho (os da sequencia, do lance e do pouso agem antes):");
+        for (int a = AD_NADA + 1; a < AD_N; a++) if (!cob_ad[a]) printf(" %s", ADESIVO[a].nome);
+        printf("\namuletos que nunca estiveram numa mesa:");
+        for (int a = 0; a < A_N; a++) if (!cob_am[a]) printf(" %s", AMULETO[a].nome);
+        printf("\nmenos vistos (dados com menos de 20 rodadas):");
+        for (int t = 0; t < D_N; t++) if (cob_dado[t] && cob_dado[t] < 20) printf(" %s(%ld)", TIPO[t].nome, cob_dado[t]);
+        printf("\n");
+        return 0;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--tempo")) {
+        // A previa e o que a IA chama centenas de vezes por decisao: mede o
+        // custo dela nas mesas da varredura, depois da rodada jogada (sem
+        // previas no meio). A soma dos totais confere que a conta e a mesma.
+        int mesas = argc > 2 ? atoi(argv[2]) : 2000, por = 100, n = 0;
+        long soma = 0;
+        double gasto = 0;
+        for (uint32_t s = 1; n < mesas; s++) {
+            vs = 0x1234567ull * s + 99;
+            semente_rodada = s;
+            variante_agora = VAR_SECA;
+            monta_mesa();
+            if (!joga_rodada(VAR_SECA)) continue;
+            clock_t t0 = clock();
+            for (int i = 0; i < por; i++) {
+                desfecho_t d;
+                calcula_desfecho(&d, false);
+                soma += d.total[0] * 3 + d.total[1];
+            }
+            gasto += (double)(clock() - t0) / CLOCKS_PER_SEC;
+            n++;
+        }
+        printf("%d previas em %.3f s (%.2f us cada), conferencia %ld\n", mesas * por, gasto, gasto / (mesas * por) * 1e6, soma);
+        return 0;
+    }
+    if (argc > 1 && !strcmp(argv[1], "--impressao")) {
+        // varredura --impressao [mesas] [arquivo de referencia] [--grava]
+        long mesas = argc > 2 ? atol(argv[2]) : 3000;
+        const char *ref = argc > 3 ? argv[3] : NULL;
+        bool grava = argc > 4 && !strcmp(argv[4], "--grava");
+        int fora_fila_t, fora_desfecho_t, fora_evento_t;
+        IMP_FORA(fila_t, CAMPOS_FILA, (void)0);
+        IMP_FORA(desfecho_t, CAMPOS_DESFECHO, (void)0);
+        IMP_FORA(evento_t, CAMPOS_EV, (de_[n_] = offsetof(evento_t, txt), t_[n_++] = sizeof ((evento_t *)0)->txt));
+        printf("bytes fora das listas (enchimento): fila %d, desfecho %d, evento %d\n", fora_fila_t, fora_desfecho_t, fora_evento_t);
+        if (fora_fila_t > 16 || fora_desfecho_t > 16 || fora_evento_t > 16) {
+            printf("campo novo fora da impressao: ponha na lista (CAMPOS_FILA, CAMPOS_DESFECHO ou CAMPOS_EV)\n");
+            return 1;
+        }
+        imprimir = true;
+        const char *lista_arq = getenv("IMPRESSAO_LISTA");
+        FILE *lista = lista_arq ? fopen(lista_arq, "w") : NULL;
+        for (long i = 0; i < mesas; i++) {
+            impressao_mesa = 2166136261u;
+            bool ok = varre(20240229u + (uint32_t)i * 2654435761u);
+            if (lista) fprintf(lista, "%ld %08x\n", i, impressao_mesa);
+            if (!ok && rodadas_ruins > 12) break;
+        }
+        if (lista) fclose(lista);
+        printf("impressao %ld %08x\n", mesas, impressao);
+        if (falhas) { printf("%d falhas na varredura\n", falhas); return 1; }
+        if (!ref) return 0;
+        // A referencia: uma linha "mesas impressao" por tamanho.
+        char linhas[16][64];
+        int nl = 0;
+        unsigned esperado = 0;
+        bool tem = false;
+        FILE *f = fopen(ref, "r");
+        if (f) {
+            while (nl < 16 && fgets(linhas[nl], sizeof linhas[nl], f)) {
+                long m; unsigned h;
+                if (sscanf(linhas[nl], "%ld %x", &m, &h) == 2 && m == mesas) { esperado = h; tem = true; continue; }
+                nl++;
+            }
+            fclose(f);
+        }
+        if (grava) {
+            f = fopen(ref, "w");
+            if (!f) { printf("nao consegui gravar %s\n", ref); return 1; }
+            for (int i = 0; i < nl; i++) fputs(linhas[i], f);
+            fprintf(f, "%ld %08x\n", mesas, impressao);
+            fclose(f);
+            printf("gravada em %s\n", ref);
+            return 0;
+        }
+        if (!tem) { printf("%s nao tem a impressao de %ld mesas\n", ref, mesas); return 1; }
+        if (esperado != impressao) {
+            printf("A IMPRESSAO MUDOU: era %08x, agora %08x - o desfecho calcula diferente\n", esperado, impressao);
+            return 1;
+        }
+        printf("igual a referencia\n");
+        return 0;
     }
     long mesas = argc > 1 ? atol(argv[1]) : 3000;
     uint32_t base = argc > 2 ? (uint32_t)strtoul(argv[2], NULL, 10) : 20240229u;

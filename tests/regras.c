@@ -517,6 +517,23 @@ static void achados_desfecho(void)
         CONFERE(poder_armado(0, 1) == 2 && mira[0] == 1, "A24: Autofagia com bolsa de 8 arma e mira o 1 (armado %d, mira %02x)", poder_armado(0, 1), mira[0]);
     }
 
+    // A25: o sorteio do pouso (Barro, Massinha, Infectado, Xerox) nao cai em dado comido pela Autofagia.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 0, 0);
+    achado_peca(0, 1, D_D6, 0, 0);
+    achado_peca(0, 2, D_D6, 0, 0);
+    J[0].onde[1] = COMIDO;
+    achado_fila(0);
+    {
+        int no_comido = 0, nenhum = 0;
+        for (uint32_t h = 0; h < 300; h++) {
+            int i = pega_dado(0, h * 2654435761u + 7);
+            no_comido += i == 1;
+            nenhum += i < 0;
+        }
+        CONFERE(no_comido == 0 && nenhum == 0, "A25: o sorteio do pouso pula o dado comido (caiu nele %d vezes, em nenhum %d)", no_comido, nenhum);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();
@@ -6109,8 +6126,8 @@ int main(void)
             pegou = adesivos_no_pouso(0, 1, o, 2);
             CONFERE(pegou == 0 && ad_no_lado(&J[0].col[1], lb) == AD_NADA, "Infectado: nem embaixo da Dupla Face na mesa (%d)", pegou);
             ad_cola(&J[0].col[1], 5, AD_LOBO); ad_cola(&J[0].col[1], lb, AD_LOBO);
-            // Pega em qualquer dado: o Adesivado (que, cheio, vira o Mais
-            // Adesivado no fim da partida) e o que a Autofagia comeu.
+            // Pega no Adesivado (que, cheio, vira o Mais Adesivado no fim da
+            // partida); no que a Autofagia comeu, nao: ele saiu da partida.
             J[0].col[1] = (peca_t){ .tipo = D_ADESIVADO };
             for (int l = 1; l <= 5; l++) ad_cola(&J[0].col[1], l, AD_CONFETE);
             limpa();
@@ -6126,7 +6143,7 @@ int main(void)
             limpa();
             joga_ad(0, 0, 4);
             pegou = adesivos_no_pouso(0, 0, o, 2);
-            CONFERE(pegou == 1 && o[0].i == 2 && o[0].lados == 1u << 6, "Infectado: pega no dado comido (%d)", o[0].i);
+            CONFERE(!(pegou == 1 && o[0].i == 2), "Infectado: nao pega no dado comido (%d, %d)", pegou, o[0].i);
             J[0].onde[2] = NA_BOLSA;
             // O Barro: assim que o dado cai, valendo ou nao, um lado livre de um
             // dado do oponente vira Sujeira; no fim da rodada, nada mais.

@@ -10,7 +10,8 @@
 // ===========================================================================
 
 // O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q -
-// qualquer dado (no Quebrado, so o lado do numero gravado; os estagios
+// qualquer dado em jogo (o comido pela Autofagia nao; no Quebrado, so o
+// lado do numero gravado; os estagios
 // escondidos do ciclo cosmico nao levam adesivo; o lado virado para cima de
 // um dado que ja caiu nesta rodada tambem nao). O sorteio sai do que esta
 // na mesa (a rodada, quem age, o que tirou), sem gastar o sorteio da
@@ -54,8 +55,8 @@ static int pega_dado(int q, uint32_t h)
 {
     int cand[MAX_COL], n = 0;
     uint8_t lados[AD_LADOS];
-    // ACHADO A25: preservado - o sorteio aceita o dado COMIDO pela Autofagia (nao olha J[q].onde)
-    for (int i = 0; i < J[q].n_col && i < MAX_COL; i++) if (pega_lados(q, i, lados)) cand[n++] = i;
+    for (int i = 0; i < J[q].n_col && i < MAX_COL; i++)   // o comido pela Autofagia saiu da partida
+        if (J[q].onde[i] != COMIDO && pega_lados(q, i, lados)) cand[n++] = i;
     return n ? cand[h % (uint32_t)n] : -1;
 }
 // O dado i da bolsa de q esta com a bolha do Impermeavel: de antes, nesta

@@ -92,7 +92,6 @@ static void ad_marca(evento_t *e, int a, bool copia, int modo)
 // Holografico (no dado k; ou o Papagaio, ou o Porta-Retrato) copiando o do
 // dado ko (copia: nada sai nem cresce no dado de la; o Fermento paga o que
 // pagou la). Devolve se agiu.
-// ACHADO A17: preservado - apesar do que diz acima, o Fragil copiado num dado anulado quebra o dado da copia
 static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool copia)
 {
     int r = outro(j);
@@ -160,12 +159,11 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         if (vale) {
             d->semente[j] += FRAGIL_PONTOS;
             e = evento(gera, EV_ADESIVO, j, k, j, k, FRAGIL_PONTOS, "%sFrágil: +%d", pre, FRAGIL_PONTOS);
-        } else if (de_novo) return false;         // quebrar, quebra uma vez so
+        } else if (de_novo || copia) return false;   // quebrar, quebra uma vez so, e so o dele (a copia nao marca o dado)
         else if (d->est[j][k] == V_ANULADO && peca_fila(j, k) && impermeavel(j, k)) {
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, mas o dado está protegido", pre);
             if (e) e->bloqueado = bit;
         } else if (d->est[j][k] == V_ANULADO && peca_fila(j, k)) {
-            // ACHADO A17: preservado - vale para a copia tambem: o Holografico anulado quebra o proprio dado
             d->fragil[j] |= bit;
             e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sFrágil: anulado, o dado quebra", pre);
         } else return false;

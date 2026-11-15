@@ -423,6 +423,15 @@ static void achados_desfecho(void)
     d = fim();
     CONFERE(d.semente[0] == 72, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 72)", d.semente[0]);
 
+    // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 3, AD_FRAGIL);
+    achado_peca(0, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_fila(0); joga_ad(0, 0, 3); joga_ad(0, 1, 5);
+    joga(1, D_CARRASCO, 4);
+    d = fim();
+    CONFERE(d.est[0][1] == V_ANULADO && !(d.fragil[0] >> 1 & 1), "A17: a copia do Fragil nao quebra o dado do Holografico (fragil 0x%02x)", d.fragil[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

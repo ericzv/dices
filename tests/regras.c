@@ -630,6 +630,24 @@ static void achados_desfecho(void)
         CONFERE(difere == 0, "A33: o tremor rola como o lance normal (diferentes em %d de 60)", difere);
     }
 
+    // A35: com o Carimbo de antes roubado, a segunda vez do adesivo da Tela e dela: o texto diz Tela em Branco.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 1, AD_CARIMBO);
+    achado_peca(0, 1, D_TELA, 3, AD_CONFETE);
+    achado_fila(0);
+    joga_ad(0, 0, 1); joga_ad(0, 1, 3);
+    joga(1, D_CARIDOSO, 3);
+    d = fim();
+    {
+        int tela = 0, carimbo = 0;
+        for (int e = 0; e < n_ev; e++) {
+            tela += strstr(ev[e].txt, "Tela em Branco » Confete") != NULL;
+            carimbo += strstr(ev[e].txt, "Carimbo » Confete") != NULL;
+        }
+        CONFERE(d.est[0][0] == V_ROUBADO && tela == 1 && carimbo == 0,
+                "A35: Carimbo roubado, a Tela diz Tela em Branco (roubado %d, tela %d, carimbo %d)", d.est[0][0] == V_ROUBADO, tela, carimbo);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

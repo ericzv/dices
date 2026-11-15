@@ -63,15 +63,19 @@ static bool copia_pode(int a)
     return a && a != AD_SUJEIRA && a != AD_HOLOGRAFICO && a != AD_PURPURINA && a != AD_CARIMBO && a != AD_DUPLA && a != AD_MOLDURA
         && a != AD_BILHETE && a != AD_BARRO && a != AD_MASSINHA && a != AD_CHICLETE && a != AD_XEROX && !ad_do_pouso(a);
 }
-// O dado de antes de k tirou o Carimbo (a segunda vez e dele, nao da Tela em Branco).
-static bool carimbado_ja(int j, int k) { return k > 0 && ad_fila_tem(j, k - 1, AD_CARIMBO); }
+// O dado k de j foi carimbado: o dado de antes dele (que nao foi roubado)
+// tirou o Carimbo, ou a Dupla Face com o Carimbo do outro lado. Na Tela em
+// Branco carimbada, a segunda vez e do Carimbo; sem ele, e dela.
+static bool carimbado(const desfecho_t *d, int j, int k)
+{
+    return k > 0 && k < N_FILA && d->est[j][k - 1] != V_ROUBADO && ad_fila_tem(j, k - 1, AD_CARIMBO);
+}
 // O comeco do texto de um adesivo do dado k de j, pelo modo em que ele age
 // (age_modo) e se e copia: quem o fez agir ("Papagaio, como ", "Carimbo » ",
 // "Holográfico, como ", "Dupla Face » "...). "" quando age sozinho.
-static const char *ad_prefixo(int modo, bool copia, int j, int k)
+static const char *ad_prefixo(const desfecho_t *d, int modo, bool copia, int j, int k)
 {
-    bool de_novo = modo & EVM_CARIMBO, tela = F[j].tipo[k] == D_TELA && !carimbado_ja(j, k);   // a 2a vez e da Tela
-    // ACHADO A35: preservado - carimbado_ja nao ve se o Carimbo de antes foi roubado: a Tela sai como Carimbo
+    bool de_novo = modo & EVM_CARIMBO, tela = F[j].tipo[k] == D_TELA && !carimbado(d, j, k);   // a 2a vez e da Tela
     return modo & EVM_PAPAGAIO ? "Papagaio, como " : modo & EVM_RETRATO ? "Porta-Retrato » "
          : copia && de_novo ? (tela ? "Tela em Branco » Holográfico, como " : "Carimbo » Holográfico, como ")
          : copia ? "Holográfico, como "
@@ -98,7 +102,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
-    const char *pre = ad_prefixo(age_modo, copia, j, k);
+    const char *pre = ad_prefixo(d, age_modo, copia, j, k);
     evento_t *e = NULL;
     switch (a) {
     case AD_CONFETE:
@@ -342,12 +346,6 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
 // oposto do dado; o Carimbo faz o adesivo do dado seguinte agir duas vezes
 // (os dois contam uma vez cada para a Purpurina, quando fazem agir).
 
-// O dado k de j foi carimbado: o dado de antes dele (que nao foi roubado)
-// tirou o Carimbo, ou a Dupla Face com o Carimbo do outro lado.
-static bool carimbado(const desfecho_t *d, int j, int k)
-{
-    return k > 0 && k < N_FILA && d->est[j][k - 1] != V_ROUBADO && ad_fila_tem(j, k - 1, AD_CARIMBO);
-}
 // Um adesivo a do dado k de j agindo no fim (primeira: nao e a repeticao do
 // Carimbo; so a primeira conta para a Purpurina e serve ao Holografico).
 static bool age_um(desfecho_t *d, int j, int k, int a, bool gera, bool primeira,
@@ -541,7 +539,7 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
     d->ad_agiram[j] = (uint8_t)(agiram + n_purp_ad > 250 ? 250 : agiram + n_purp_ad);
     for (int i = 0; i < n_purp; i++) {
         d->semente[j] += cada;
-        const char *pre = ad_prefixo(purp_md[i], false, j, purp[i]);
+        const char *pre = ad_prefixo(d, purp_md[i], false, j, purp[i]);
         evento_t *e = evento(gera, EV_ADESIVO, j, purp[i], j, purp[i], cada, "%sPurpurina: %d adesivo%s, +%d", pre,
                              agiram + n_purp_ad, agiram + n_purp_ad > 1 ? "s" : "", cada);
         ad_marca(e, AD_PURPURINA, false, purp_md[i]);
@@ -582,7 +580,7 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
     d->semente[j] += sem;
     extra += sem;
     char nome[48];                               // curto: o aviso cabe na mesa
-    snprintf(nome, sizeof nome, "%s%s", ad_prefixo(carimbo ? EVM_CARIMBO : 0, copia, j, k),
+    snprintf(nome, sizeof nome, "%s%s", ad_prefixo(d, carimbo ? EVM_CARIMBO : 0, copia, j, k),
              copia || carimbo ? "Bilhete" : "Bilhete Premiado");
     evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? (carimbo ? "%s: bônus x3, +%d" : "%s: bônus em dobro, +%d")
                                                                  : "%s: nenhum bônus para dobrar", nome, extra);

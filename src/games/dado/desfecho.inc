@@ -17,5 +17,6 @@
 #include "desfecho/armado.inc"         // o poder armado e as miras da mesa ao vivo
 #include "desfecho/poderes.inc"        // os poderes dos dados que valem no fim
 #include "desfecho/adesivos_fim.inc"   // os adesivos que agem no fim da rodada
+#include "desfecho/resolve_mesa.inc"   // as fases que mexem na mesa antes dos poderes
 #include "desfecho/orquestra.inc"      // calcula_desfecho: as fases, em ordem
 #include "desfecho/placar_visivel.inc" // o placar que a mesa mostra

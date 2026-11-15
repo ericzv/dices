@@ -130,11 +130,10 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     if (d->est[j][k] == V_ROUBADO) return;
     // Carrasco que tirou 1 (valendo ou nao): anula o menor dado de quem
     // o lancou - ele mesmo, se estiver valendo e for o menor (no empate,
-    // ele).
+    // ele). Preso pela Ancora, ele fica: cai o menor que nao esta firme.
     if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
-        // ACHADO A08: preservado - o Carrasco com 1 entra como alvo sem olhar a Ancora: preso por ela, anula a si mesmo
         int b = menor_valido(d->est[j], j, (uint8_t)(1 << k));
-        if (d->est[j][k] == V_VALIDO && (b < 0 || F[j].valor[b] >= F[j].valor[k])) b = k;   // no empate, ele
+        if (d->est[j][k] == V_VALIDO && !firme_sem_capa(j, k) && (b < 0 || F[j].valor[b] >= F[j].valor[k])) b = k;
         if (bloqueia_capa(d, gera, j, k, j, b, "Carrasco tirou 1", 0)) {
         } else if (b == k) {
             d->est[j][b] = V_ANULADO;

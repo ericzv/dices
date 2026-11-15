@@ -321,6 +321,14 @@ static void achados_desfecho(void)
             "A06: o 2o Agnus 7 ressuscita com o 1o roubado (B %d, est %d %d %d %d)", d.total[1],
             d.est[1][0], d.est[1][1], d.est[1][2], d.est[1][3]);
 
+    // A08: o Carrasco que tirou 1, preso pela Ancora, fica; cai o menor que nao esta firme.
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_D6, 5);
+    F[0].ancora[0] = 1;
+    d = fim();
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.total[0] == 1,
+            "A08: Carrasco 1 ancorado nao anula a si mesmo (est %d %d, A %d)", d.est[0][0], d.est[0][1], d.total[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

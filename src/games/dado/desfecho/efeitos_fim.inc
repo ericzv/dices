@@ -307,11 +307,9 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
         // Amuletos: Piramide (x2 nos de 4 lados), Abre-Alas (x2 no primeiro da sequencia).
         if (tem_am(j, A_PIRAMIDE) && TIPO[tipo_de(j, k)].lados == 4) mult_poe(&m, de, MULT_PIRAMIDE, bit, 1);
         // Tres Patinhos: na 3a (6a, 9a...) vez que sao lancados, x3 (se valem).
-        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
-        if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(f->fixo[k])) mult_poe(&m, de, MULT_PATINHOS, bit, 1);
+        if (TIPO[tipo_de(j, k)].efeito == EF_PATINHOS && patinhos_ativo(fixo_de(j, k))) mult_poe(&m, de, MULT_PATINHOS, bit, 1);
         // Pisca-pisca aceso: x2 nele mesmo.
-        // ACHADO A07: preservado - o Camaleao atras do Pisca-pisca le o proprio fixo (0 = aceso): x2 sempre
-        if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(f->fixo[k])) mult_poe(&m, de, MULT_PISCA, bit, 1);
+        if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(fixo_de(j, k))) mult_poe(&m, de, MULT_PISCA, bit, 1);
         if (k == 0 && tem_am(j, A_ABRE_ALAS)) mult_poe(&m, de, MULT_ABRE_ALAS, bit, 1);
         // Somam aos que ja havia (a Saideira passa uma segunda vez: x2 de novo e x4).
         if (m) { d->mult[j][k] = (int8_t)(d->mult[j][k] + m); mask |= 1 << k; }
@@ -422,7 +420,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
     // anulada, avisa que guarda mais MEIA_GUARDA (4) (uma vez so, mesmo com a Saideira).
     for (int k = 0; k < f->lancados && k < N_FILA; k++) {
         if (TIPO[tipo_de(j, k)].efeito != EF_MEIA) continue;
-        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
+        // (o Camaleao que a copia nao guardou nada: o fixo e o dele)
         if (est[k] == V_VALIDO && f->fixo[k]) {
             extra(d, gera, j, k, f->fixo[k], "Meia na Lareira paga +%d", f->fixo[k]);
         } else if (est[k] == V_ANULADO && !(d->meia[j] >> k & 1)) {
@@ -444,8 +442,7 @@ static void fim_fixos(desfecho_t *d, int j, bool gera, int valendo, int anulados
         extra(d, gera, j, k, FICHA_VELHA_PTS, "Ficha Velha anulada: +%d", FICHA_VELHA_PTS);
     }
     for (int k = 0; k < f->lancados && k < N_FILA; k++) { // Revolver anulado na quarta: o tiro ja saiu, +REVOLVER_TIRO (12) por fora
-        // ACHADO A07: preservado - copiado pelo Camaleao, le o fixo do Camaleao (0), nao o do outro dado (nao testado)
-        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(f->fixo[k])) continue;
+        if (est[k] != V_ANULADO || TIPO[tipo_de(j, k)].efeito != EF_REVOLVER || !revolver_dispara(fixo_de(j, k))) continue;
         extra(d, gera, j, k, REVOLVER_TIRO, "Revólver anulado: o tiro já saiu, +%d", REVOLVER_TIRO);
     }
     for (int k = 0; k < f->lancados && valendo; k++) {    // Martir caido: +2 em cada um que vale

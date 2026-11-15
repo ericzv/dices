@@ -659,6 +659,18 @@ static void achados_desfecho(void)
         CONFERE(k_ev == 1, "A36: o Espelho aponta o 5 de B, o segundo dado (alvo_k %d)", k_ev);
     }
 
+    // A07: o Camaleao le o que o dado copiado mostra (o Pisca-pisca aceso ou apagado), nao o proprio fixo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_PISCA, 2); F[0].fixo[0] = 1;       // apagado
+    joga(0, D_CAMALEAO, 3);
+    d = fim();
+    CONFERE(d.total[0] == 5 && d.mult[0][1] == 0, "A07: Camaleao atras do Pisca apagado nao dobra (A %d, mult %d)", d.total[0], d.mult[0][1]);
+    achado_fila(0);
+    joga(0, D_PISCA, 2); F[0].fixo[0] = 0;       // aceso
+    joga(0, D_CAMALEAO, 3); F[0].fixo[1] = 1;
+    d = fim();
+    CONFERE(d.total[0] == 10 && d.mult[0][1] > 0, "A07: Camaleao atras do Pisca aceso dobra (A %d, mult %d)", d.total[0], d.mult[0][1]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

@@ -799,7 +799,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "costuma cair pela sequência.",
     [D_CAMALEAO]        = "Escamas que mudam de cor. Tem o poder do dado logo antes dele na sequência, como se fosse "
                           "ele: atrás de um Pirata, é outro Pirata; atrás de um Laser, outro Laser. Rola o próprio d8. "
-                          "Atrás de um dado sem poder, é um d8 comum.",
+                          "Atrás de um dado sem poder, é um d8 comum. Segue o que o outro mostra (o Pisca-pisca aceso "
+                          "ou apagado), mas não paga o que ele guardou (Meia, Balão).",
     [D_BALAO]           = "O balão de festa que vai enchendo. Cada rodada fora da fila, ou anulado, ele ganha +2 de ar "
                           "sem limite. Terminando válido com 7 ou 8, estoura: soma tudo de uma vez nos pontos dele e volta "
                           "vazio. Válido com 1 a 6, segura o ar que guardou.",

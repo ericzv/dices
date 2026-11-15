@@ -649,15 +649,15 @@ static void aplica_regra(int j, int k)
         if (ef == EF_SACRIFICIO) poe_tag(f, k, "=0");
         // Onda: a etiqueta diz quanto ela tera guardado se ficar.
         if (ef == EF_ONDA) poe_tag(f, k, "%d/%d", onda_depois(f->fixo[k], v), ONDA_VIRA);
-        if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) poe_tag(f, k, "x3");
+        if (ef == EF_PATINHOS && patinhos_ativo(fixo_de(j, k))) poe_tag(f, k, "x3");
         // Panetone: as frutas da fatia somam no que ele tirou.
         if (ef == EF_PANETONE && f->fruta[k]) {
             f->bonus[k] = (int8_t)(f->bonus[k] + f->fruta[k]);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
-        if (ef == EF_PISCA && pisca_aceso(f->fixo[k])) poe_tag(f, k, "x2");   // apagado, um d4 comum
+        if (ef == EF_PISCA && pisca_aceso(fixo_de(j, k))) poe_tag(f, k, "x2");   // apagado, um d4 comum
         // Revolver: com a sexta bala, o tiro soma no que ele tirou.
-        if (ef == EF_REVOLVER && revolver_dispara(f->fixo[k])) {
+        if (ef == EF_REVOLVER && revolver_dispara(fixo_de(j, k))) {
             f->bonus[k] = (int8_t)(f->bonus[k] + REVOLVER_TIRO);
             poe_tag(f, k, "+%d", f->bonus[k]);
         }
@@ -736,20 +736,20 @@ static void aplica_regra(int j, int k)
             int g = onda_depois(f->fixo[k], v);
             if (g >= ONDA_VIRA) snprintf(veredito, sizeof veredito, "Onda chega a %d: se ficar, vira Tsunami!", ONDA_VIRA);
             else snprintf(veredito, sizeof veredito, "Onda pontua %d e guarda (%d de %d)", v, g, ONDA_VIRA);
-        } else if (ef == EF_PATINHOS && patinhos_ativo(f->fixo[k])) {
-            snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", f->fixo[k] + 1);
+        } else if (ef == EF_PATINHOS && patinhos_ativo(fixo_de(j, k))) {
+            snprintf(veredito, sizeof veredito, "Três Patinhos: a %dª vez, x3 no fim!", fixo_de(j, k) + 1);
         } else if (ef == EF_PANETONE) {
             if (f->fruta[k]) snprintf(veredito, sizeof veredito, "Panetone com %d fruta%s: pontua %d", f->fruta[k],
                                       f->fruta[k] > 1 ? "s" : "", vale);
             else snprintf(veredito, sizeof veredito, "Panetone sem frutas: pontua %d", vale);
         } else if (ef == EF_PISCA) {
-            if (pisca_aceso(f->fixo[k])) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
+            if (pisca_aceso(fixo_de(j, k))) snprintf(veredito, sizeof veredito, "Pisca-pisca aceso: x2 no fim");
             else snprintf(veredito, sizeof veredito, "Pisca-pisca apagado: pontua %d, como um d4", vale);
         } else if (ef == EF_MEIA && f->fixo[k]) {
             snprintf(veredito, sizeof veredito, "Meia na Lareira: se ficar, paga +%d", f->fixo[k]);
         } else if (ef == EF_REVOLVER) {
-            if (revolver_dispara(f->fixo[k])) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
-            else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", f->fixo[k] + 1, REVOLVER_BALAS);
+            if (revolver_dispara(fixo_de(j, k))) snprintf(veredito, sizeof veredito, "BANG! O Revólver dispara: pontua %d (+%d)", vale, REVOLVER_TIRO);
+            else snprintf(veredito, sizeof veredito, "Revólver carrega: %d de %d balas", fixo_de(j, k) + 1, REVOLVER_BALAS);
         } else if (ef == EF_UNIVERSO) {
             snprintf(veredito, sizeof veredito, "BIG BANG! O Universo pontua %d", vale);
         } else if (ef == EF_DIGITAL) {

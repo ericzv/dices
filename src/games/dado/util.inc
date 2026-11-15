@@ -95,6 +95,19 @@ static int tipo_de(int j, int k)
     return F[j].tipo[k];
 }
 
+// O fixo que vale para o poder do dado k de j. O Camaleao que copia o dado
+// de antes (ou um Camaleao que copia: segue a fila) le o que esse dado mostra:
+// o Pisca-pisca aceso ou apagado, a vez dos Tres Patinhos, a bala do
+// Revolver. O que o outro guardou (a Meia, o Balao, a Onda...) nao: e o
+// proprio fixo, e o Camaleao nao guardou nada.
+static int fixo_de(int j, int k)
+{
+    int ef = TIPO[tipo_de(j, k)].efeito, s = k;
+    if (ef != EF_PISCA && ef != EF_PATINHOS && ef != EF_REVOLVER) return F[j].fixo[k];
+    while (s > 0 && s < N_FILA && F[j].tipo[s] == D_CAMALEAO && tipo_de(j, s) != D_CAMALEAO) s--;
+    return F[j].fixo[s];
+}
+
 // O Relogio tira o numero da rodada (de 1 ate o maior lado dele).
 static int relogio_valor(void) { return rodada < 1 ? 1 : rodada > RELOGIO_MAX ? RELOGIO_MAX : rodada; }
 

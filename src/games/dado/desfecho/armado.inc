@@ -75,7 +75,7 @@ static int poder_armado(int j, int k)
         return v == AGNUS_NUMERO || (ataque_armado(ef, v) && f->est[k] == V_VALIDO);   // com 8 valendo: a luz no oponente
     if (ef == EF_FICHA_VELHA) return f->est[k] == V_ANULADO;   // anulada: +4 no fim
     if (ef == EF_ESTILINGUE) return v == 1 && k + 1 < f->n && f->lancados == k + 1;   // com 1, valendo ou nao: o proximo sai no maximo
-    if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(f->fixo[k]);   // o tiro anulado: +12 no fim
+    if (ef == EF_REVOLVER) return f->est[k] == V_ANULADO && revolver_dispara(fixo_de(j, k));   // o tiro anulado: +12 no fim
     if (ef == EF_MEIA && f->est[k] == V_ANULADO) return 1;     // anulada: guarda +MEIA_GUARDA (4)
     if (ef == EF_FICHA_CORINGA) return f->curinga[k];          // com o curinga para cima: vira no fim
     if (ef == EF_CARROSSEL) return f->gira[k];                 // girando: para no fim
@@ -167,8 +167,8 @@ static int poder_armado(int j, int k)
         for (int s = -1; s <= 1 && f->faixa[k]; s += 2)
             if (k + s >= 0 && k + s < f->lancados && f->est[k + s] == V_VALIDO && !firme_sem_capa(j, k + s)) return 2;
         return 0;
-    case EF_PATINHOS:     return patinhos_ativo(f->fixo[k]);
-    case EF_PISCA:        return pisca_aceso(f->fixo[k]);
+    case EF_PATINHOS:     return patinhos_ativo(fixo_de(j, k));
+    case EF_PISCA:        return pisca_aceso(fixo_de(j, k));
     case EF_MEIA:         return f->fixo[k] > 0;
     case EF_ESTRELA:                                         // por ultimo, com um seu valendo abaixo
         if (k != f->lancados - 1) return 0;

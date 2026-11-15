@@ -1,3 +1,14 @@
+// Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
+// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
+// fila (o Transparente, o Corretivo, o Papel Carbono): no fim da rodada so
+// contam para a Purpurina.
+static bool ad_do_pouso(int a)
+{
+    return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
+        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO
+        || a == AD_BUSSOLA;
+}
+
 // Como o adesivo age agora (adesivos_de): EVM_CARIMBO, a segunda vez dele,
 // carimbado pelo dado de antes - o que multiplica sobe so um degrau (x2 vira
 // x3), e o que so marca o dado (Bis, Selo, Velcro, Chiclete, Impermeavel, o

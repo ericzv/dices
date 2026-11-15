@@ -16,8 +16,6 @@
 #include "desfecho/efeitos_fim.inc"    // os bonus, multiplicadores e fixos do fim
 #include "desfecho/armado.inc"         // o poder armado e as miras da mesa ao vivo
 #include "desfecho/poderes.inc"        // os poderes dos dados que valem no fim
-#include "desfecho/pouso.inc"          // os adesivos que agem no pouso
 #include "desfecho/adesivos_fim.inc"   // os adesivos que agem no fim da rodada
 #include "desfecho/orquestra.inc"      // calcula_desfecho: as fases, em ordem
 #include "desfecho/placar_visivel.inc" // o placar que a mesa mostra
-#include "desfecho/risco.inc"          // a chance de o proximo dado cair

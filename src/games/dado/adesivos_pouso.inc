@@ -1,14 +1,3 @@
-// Os adesivos que agem no pouso, antes da fila (o Chumbo, o Reflexivo, o
-// Avesso, o Remendo, o Post-it, a Nota Dez, o Papel Bomba), ou na regra da
-// fila (o Transparente, o Corretivo, o Papel Carbono): no fim da rodada so
-// contam para a Purpurina.
-static bool ad_do_pouso(int a)
-{
-    return a == AD_CHUMBO || a == AD_REFLEXIVO || a == AD_AVESSO || a == AD_REMENDO || a == AD_TRANSPARENTE
-        || a == AD_CORRETIVO || a == AD_POSTIT || a == AD_NOTA_DEZ || a == AD_BOMBA || a == AD_CARBONO
-        || a == AD_BUSSOLA;
-}
-
 // O Infectado e o Barro sorteiam um lado livre de um dado da bolsa de q -
 // qualquer dado (no Quebrado, so o lado do numero gravado; os estagios
 // escondidos do ciclo cosmico nao levam adesivo; o lado virado para cima de

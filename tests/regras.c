@@ -534,6 +534,22 @@ static void achados_desfecho(void)
         CONFERE(no_comido == 0 && nenhum == 0, "A25: o sorteio do pouso pula o dado comido (caiu nele %d vezes, em nenhum %d)", no_comido, nenhum);
     }
 
+    // A26: a Mira copiada pelo Papagaio, contra a capa, sai com o texto do Papagaio.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_MIRA);
+    achado_peca(1, 0, D_D6, 5, AD_IMPERMEAVEL);
+    achado_fila(0);
+    joga_ad(0, 0, 2); joga(0, D_PAPAGAIO, 3); joga_ad(1, 0, 5);
+    d = fim();
+    {
+        int papagaio = 0, holo = 0;
+        for (int e = 0; e < n_ev; e++) {
+            papagaio += strstr(ev[e].txt, "Papagaio, como Mira") != NULL;
+            holo += strstr(ev[e].txt, "Holográfico") != NULL;
+        }
+        CONFERE(papagaio == 1 && holo == 0, "A26: Mira do Papagaio na capa diz Papagaio (papagaio %d, holografico %d)", papagaio, holo);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

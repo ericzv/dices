@@ -309,8 +309,9 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         int a0 = couraca ? -1 : menor_valido(d->est[r], r, 0);
         int alvo = desvia_seguranca(d->est[r], r, a0);
         if (alvo < 0) return false;
-        // ACHADO A26: preservado - copiada pelo Papagaio contra a capa, o texto sai como Holografico, como Mira
-        if (bloqueia_desvio(d, gera, j, k, r, alvo, a0, copia ? "Holográfico, como Mira" : de_novo ? "Carimbo » Mira" : "Mira", AD_MIRA)) {
+        char quem[64];                           // o texto da capa, com quem a fez agir (pre)
+        snprintf(quem, sizeof quem, "%sMira", pre);
+        if (bloqueia_desvio(d, gera, j, k, r, alvo, a0, quem, AD_MIRA)) {
             ad_marca(capa_ev, AD_MIRA, copia, age_modo);
             return true;
         }

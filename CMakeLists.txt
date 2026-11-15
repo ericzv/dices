@@ -157,6 +157,14 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         target_link_libraries(varredura PRIVATE m)
     endif()
     add_test(NAME varredura COMMAND varredura 3000)
+    # A impressao digital do desfecho: um numero que resume 3.000 mesas
+    # (previas, desfecho, eventos, bolsas). Reorganizar o codigo nao pode
+    # muda-la; mudou uma regra de proposito: build/varredura --impressao 3000
+    # tests/impressao_ref.txt --grava (e o mesmo com 300000, a longa). So no
+    # Linux: a IA conta em float e em outros sistemas pode sair diferente.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_test(NAME impressao COMMAND varredura --impressao 3000 ${CMAKE_CURRENT_SOURCE_DIR}/tests/impressao_ref.txt)
+    endif()
     # O salvamento em arquivo do PC: o ".novo" que sobra de um desligamento abre.
     add_executable(salva_arquivo tests/salva_arquivo.c)
     target_include_directories(salva_arquivo PRIVATE src desktop)

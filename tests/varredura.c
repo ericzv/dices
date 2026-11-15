@@ -24,7 +24,10 @@
 //   varredura --uma SEMENTE            uma mesa so, escrita rodada a rodada
 //   varredura --impressao [mesas] [ref] [--grava]
 //                                      impressao digital do desfecho, campo a
-//                                      campo, comparada (ou gravada) na referencia
+//                                      campo, comparada (ou gravada) na referencia;
+//                                      com IMPRESSAO_LISTA=arquivo, grava tambem a
+//                                      de cada mesa (para contar quantas um
+//                                      conserto muda: diff de duas listas)
 //   varredura --cobertura [mesas]      o que as mesas da impressao exercitam
 //   varredura --tempo [mesas]          quanto custa uma previa (100 por mesa)
 //
@@ -267,7 +270,13 @@ static const struct { const char *nome; size_t de, tam; } CAMPOS_EV[] = {
 #define N_CAMPOS(l) (sizeof l / sizeof l[0])
 static bool imprimindo;                          // so na primeira jogada de cada mesa (a variante cheia)
 static uint32_t impressao = 2166136261u;
-static void imp(const void *p, size_t n) { if (imprimindo) impressao = mistura(impressao, p, n); }
+static uint32_t impressao_mesa;                  // a da mesa de agora (IMPRESSAO_LISTA: uma linha por mesa)
+static void imp(const void *p, size_t n)
+{
+    if (!imprimindo) return;
+    impressao = mistura(impressao, p, n);
+    impressao_mesa = mistura(impressao_mesa, p, n);
+}
 static void imp_int(int v) { int32_t x = v; imp(&x, sizeof x); }
 #define IMP_CAMPOS(lista, base) \
     for (size_t c_ = 0; c_ < N_CAMPOS(lista); c_++) imp((const uint8_t *)(base) + lista[c_].de, lista[c_].tam)
@@ -1113,8 +1122,15 @@ int main(int argc, char **argv)
             return 1;
         }
         imprimir = true;
-        for (long i = 0; i < mesas; i++)
-            if (!varre(20240229u + (uint32_t)i * 2654435761u) && rodadas_ruins > 12) break;
+        const char *lista_arq = getenv("IMPRESSAO_LISTA");
+        FILE *lista = lista_arq ? fopen(lista_arq, "w") : NULL;
+        for (long i = 0; i < mesas; i++) {
+            impressao_mesa = 2166136261u;
+            bool ok = varre(20240229u + (uint32_t)i * 2654435761u);
+            if (lista) fprintf(lista, "%ld %08x\n", i, impressao_mesa);
+            if (!ok && rodadas_ruins > 12) break;
+        }
+        if (lista) fclose(lista);
         printf("impressao %ld %08x\n", mesas, impressao);
         if (falhas) { printf("%d falhas na varredura\n", falhas); return 1; }
         if (!ref) return 0;

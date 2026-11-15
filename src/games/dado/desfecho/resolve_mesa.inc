@@ -48,7 +48,6 @@ static void fase_sobras_rede(resolve_t *rm)
     for (int j = 0; !rm->gera && j < 2; j++)
         if (F[j].n > F[j].lancados) {
             F[j].n = F[j].lancados;
-            // ACHADO A29: preservado - na previa, refaz_sequencia liga bits em am_disparou, e mesa_devolve nao os repoe
             if (tem_am(j, A_REDE)) { refaz_sequencia(j, F[j].lancados); rm->virou = true; }
         }
 }
@@ -89,7 +88,6 @@ static void fase_espelho(resolve_t *rm)
         if (!virados && !rm->revelados[j]) continue;
         if (rm->gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
         rm->pre[j] = true;
-        // ACHADO A29: preservado - idem: am_disparou fica com os bits da previa
         refaz_sequencia(j, F[j].lancados);
         for (int k = 0; k < F[j].lancados; k++)
             if (quais >> k & 1) poe_tag(&F[j], k, "=%d", alvo);

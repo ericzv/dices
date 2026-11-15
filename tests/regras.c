@@ -578,6 +578,19 @@ static void achados_desfecho(void)
     CONFERE(casca_no_fim(), "A28: sem a Couraca, a Casca deixa o fim incerto");
     modo = M_DOIS;
 
+    // A29: a previa nao deixa bits em am_disparou (a faixa dos amuletos acenderia sem nada ter agido).
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+    achado_fila(0);
+    joga(0, D_D6, 5); joga(0, D_ESPELHO, 2);     // o Espelho espera; na previa vira o 1 do rival, e a Prensa o faz 3
+    joga(1, D_D2, 1);
+    am_disparou = 0;
+    {
+        desfecho_t pv;
+        calcula_desfecho(&pv, false);
+        CONFERE(am_disparou == 0, "A29: a previa nao acende amuletos (am_disparou %llx)", (unsigned long long)am_disparou);
+    }
+    modo = M_DOIS; amul[0] = 0;
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

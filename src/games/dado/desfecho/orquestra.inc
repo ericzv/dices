@@ -118,10 +118,12 @@ static void fase_totais(desfecho_t *d)
 // O fim da rodada inteiro, fase por fase. Com gera, e o desfecho de verdade:
 // gera os eventos, e a mesa fica como as fases a deixaram. Sem gera, e a
 // previa: nao gera eventos e a mesa volta como estava (as fases mexem na
-// mesa de verdade, nao numa copia; mesa_devolve a repoe). A previa serve ao
-// botao "parar", a IA e as dicas da mesa.
+// mesa de verdade, nao numa copia; mesa_devolve a repoe, e am_disparou, os
+// amuletos que acendem, volta tambem). A previa serve ao botao "parar", a IA
+// e as dicas da mesa.
 static void calcula_desfecho(desfecho_t *d, bool gera)
 {
+    amul_t disparou0 = am_disparou;              // refazer a sequencia liga bits aqui (a Prensa)
     desfecho_prepara(d, gera);
 
     // A mesa: o que muda nos dados antes dos poderes (resolve_mesa.inc).
@@ -163,4 +165,5 @@ static void calcula_desfecho(desfecho_t *d, bool gera)
     fase_totais(d);
     for (int o = 0; o < 2; o++) autofagia_de(d, ordem[o], gera);   // depois da contagem: nao muda os pontos
     mesa_devolve(&rm);
+    if (!gera) am_disparou = disparou0;
 }

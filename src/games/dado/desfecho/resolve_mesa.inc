@@ -72,7 +72,7 @@ static void fase_oculto(resolve_t *rm)
 static void fase_espelho(resolve_t *rm)
 {
     for (int j = 0; j < 2; j++) {
-        int alvo = maior_do_rival(j), virados = 0;
+        int alvo = maior_do_rival(j), alvo_k = maior_do_rival_k(j), virados = 0;
         uint8_t quais = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].espera[k] || alvo <= 0) continue;
@@ -81,8 +81,7 @@ static void fase_espelho(resolve_t *rm)
             F[j].espera[k] = false;
             quais |= (uint8_t)(1 << k);
             virados++;
-            // ACHADO A36: preservado - o evento do Espelho sai com alvo_k = 0 fixo, nao com o dado copiado
-            evento(rm->gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+            evento(rm->gera, EV_ESPELHO, j, k, outro(j), alvo_k, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
         if (!virados && !rm->revelados[j]) continue;
         if (rm->gera) memcpy(est_pre_espelho[j], F[j].est, N_FILA);
@@ -254,7 +253,7 @@ static void fase_carrossel(resolve_t *rm)
 static void fase_espelho_tardio(resolve_t *rm)
 {
     for (int j = 0; j < 2; j++) {
-        int alvo = maior_do_rival(j), ev0 = n_ev;
+        int alvo = maior_do_rival(j), alvo_k = maior_do_rival_k(j), ev0 = n_ev;
         uint8_t quais = 0, nada = 0;
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
             if (!F[j].espera[k]) continue;
@@ -271,8 +270,7 @@ static void fase_espelho_tardio(resolve_t *rm)
             F[j].valor[k] = alvo;
             lado_vira(j, k, alvo);
             quais |= (uint8_t)(1 << k);
-            // ACHADO A36: preservado - o evento do Espelho sai com alvo_k = 0 fixo, nao com o dado copiado
-            evento(rm->gera, EV_ESPELHO, j, k, outro(j), 0, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
+            evento(rm->gera, EV_ESPELHO, j, k, outro(j), alvo_k, alvo, "Espelho vira o %d de %s", alvo, J[outro(j)].nome);
         }
         if (!quais && !nada) continue;
         if (rm->gera && !rm->pre[j]) memcpy(est_pre_espelho[j], F[j].est, N_FILA);

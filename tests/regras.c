@@ -648,6 +648,17 @@ static void achados_desfecho(void)
                 "A35: Carimbo roubado, a Tela diz Tela em Branco (roubado %d, tela %d, carimbo %d)", d.est[0][0] == V_ROUBADO, tela, carimbo);
     }
 
+    // A36: o evento do Espelho aponta o dado copiado (alvo_k), nao o primeiro do rival.
+    achado_zera(); achado_fila(0);
+    joga(0, D_D6, 1); joga(0, D_ESPELHO, 2);
+    joga(1, D_D6, 2); joga(1, D_D8, 5);
+    d = fim();
+    {
+        int k_ev = -1;
+        for (int e = 0; e < n_ev; e++) if (ev[e].tipo == EV_ESPELHO) k_ev = ev[e].alvo_k;
+        CONFERE(k_ev == 1, "A36: o Espelho aponta o 5 de B, o segundo dado (alvo_k %d)", k_ev);
+    }
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

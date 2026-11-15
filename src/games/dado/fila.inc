@@ -214,16 +214,24 @@ static bool firme(int j, int k) { return firme_sem_capa(j, k) || impermeavel(j, 
 
 // O maior dado do rival de j, para o Espelho: entre os que valem; se nenhum
 // vale, o maior que ele jogou. 0 se o rival ainda nao jogou nada.
-static int maior_do_rival(int j)
+// Qual dado do rival o Espelho copia (maior_do_rival): o de maior numero
+// entre os que valem, e sem nenhum, entre todos; no empate, o primeiro. -1:
+// nenhum (o numero dele seria 0).
+static int maior_do_rival_k(int j)
 {
     const fila_t *r = &F[outro(j)];
-    int vale = 0, qualquer = 0;
-    for (int i = 0; i < r->lancados; i++) {
+    int vale = -1, qualquer = -1;
+    for (int i = 0; i < r->lancados && i < N_FILA; i++) {
         if (r->escondido[i] || r->curinga[i] || r->gira[i] || r->tipo[i] == D_UNIVERSO) continue;   // o Oculto, a Ficha Coringa e o Carrossel ainda nao pararam; o Universo, ninguem copia
-        if (r->valor[i] > qualquer) qualquer = r->valor[i];
-        if (r->est[i] == V_VALIDO && r->valor[i] > vale) vale = r->valor[i];
+        if (r->valor[i] > 0 && (qualquer < 0 || r->valor[i] > r->valor[qualquer])) qualquer = i;
+        if (r->est[i] == V_VALIDO && r->valor[i] > 0 && (vale < 0 || r->valor[i] > r->valor[vale])) vale = i;
     }
-    return vale ? vale : qualquer;
+    return vale >= 0 ? vale : qualquer;
+}
+static int maior_do_rival(int j)
+{
+    int k = maior_do_rival_k(j);
+    return k >= 0 ? F[outro(j)].valor[k] : 0;
 }
 // O que a Ficha Coringa de j vira no fim: o ultimo dado valido do oponente.
 // Nao copia o Universo, nem o Oculto ainda virado, nem outra Ficha Coringa

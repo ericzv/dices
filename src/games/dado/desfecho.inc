@@ -10,9 +10,9 @@
 
 #include "desfecho/tipos.inc"          // o que o desfecho calcula (desfecho_t)
 #include "desfecho/alvos.inc"          // quem cada poder atinge
-#include "desfecho/tremor.inc"         // o Terremoto e o abalo
 #include "desfecho/eventos.inc"        // a lista de eventos e a capa do Impermeavel
 #include "desfecho/reacoes.inc"        // Ratoeira, Coleira e Cavalo de Troia
+#include "desfecho/tremor.inc"         // o Terremoto e o abalo
 #include "desfecho/efeitos_fim.inc"    // os bonus, multiplicadores e fixos do fim
 #include "desfecho/armado.inc"         // o poder armado e as miras da mesa ao vivo
 #include "desfecho/poderes.inc"        // os poderes dos dados que valem no fim

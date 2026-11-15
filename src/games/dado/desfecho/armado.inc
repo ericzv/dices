@@ -148,17 +148,6 @@ static int poder_armado(int j, int k)
 // A mira: os dados que os poderes armados agora vao pegar no fim da rodada
 // (anular, roubar ou cortar), pelas mesmas regras de alvo do fim, com a mesa
 // como esta. Uma mascara por jogador (de quem e o dado mirado).
-static void mira_menores(uint8_t *est, int j, int n, int exceto, uint8_t *masc)
-{
-    for (int q = 0; q < n; q++) {                // os n menores que podem ser anulados, um de cada vez
-        int b = -1;
-        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
-            if (i != exceto && est[i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
-        if (b < 0) return;
-        est[b] = V_ANULADO;
-        *masc |= (uint8_t)(1 << b);
-    }
-}
 static void miras_agora(uint8_t mira[2])
 {
     mira[0] = mira[1] = 0;

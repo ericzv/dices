@@ -324,8 +324,3 @@ static void agnus_de(desfecho_t *d, int j, bool gera)
         e->por_dado[k] = (int8_t)(m >> k & 1 ? (F[j].valor[k] > 127 ? 127 : F[j].valor[k]) : 0);
 }
 
-// As figurinhas juntadas nos dados de j com Figurinha (cada um comeca com 1),
-// e as Etiquetas coladas nos dados dele: o que a Figurinha e a Etiqueta pagam.
-static int figurinhas_de(int j) { return conta_figurinhas(J[j].col, J[j].onde, J[j].n_col); }
-static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J[j].n_col); }
-

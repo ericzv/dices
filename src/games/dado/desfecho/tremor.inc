@@ -9,12 +9,6 @@ static bool tremor_na_mesa(void)
         for (int k = 0; k < F[j].lancados && k < N_FILA; k++) if (tremor_armado(j, k)) return true;
     return false;
 }
-// O dado de r que o tremor sacode: o ultimo valido (o Universo nao treme).
-static int alvo_tremor(const uint8_t *est, int r)
-{
-    for (int i = F[r].lancados - 1; i >= 0; i--) if (est[i] == V_VALIDO && !universo(r, i)) return i;
-    return -1;
-}
 // O dado a de r rola de novo, como ele rola (com os adesivos dele: o Chumbo,
 // o Avesso, o Remendo, o Reflexivo), pelo sorteio que vem da semente do
 // Terremoto. O Calibre que tinha subido o lance sobe este tambem.

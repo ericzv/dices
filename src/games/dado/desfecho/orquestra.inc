@@ -2,23 +2,6 @@
 // poderes do fim dos dados de j agem uma segunda vez, depois de tudo.
 static bool saideira(int j) { return tem_am(j, A_SAIDEIRA) && rodada >= DES_RODADAS; }
 
-// A sequencia de j acabou de ser refeita por causa do evento e (ou dos
-// eventos do tipo t1 ou t2 de j, de 'de' em diante): cada um guarda como ela
-// ficou nessa hora. A mesa mostra isso quando o evento chega - e nao o fim de
-// tudo, que ainda depende dos que viram depois (o Carrossel conta os validos
-// da mesa de agora).
-static void guarda_seq(evento_t *e, int j)
-{
-    if (!e) return;
-    e->tem_seq = true;
-    memcpy(e->seq, F[j].est, N_FILA);
-}
-static void guarda_seq_de(int de, int j, int t1, int t2)
-{
-    for (int i = de; i < n_ev; i++)
-        if (ev[i].de_j == j && (ev[i].tipo == t1 || ev[i].tipo == t2)) guarda_seq(&ev[i], j);
-}
-
 // A previa nao sabe o que o tremor e a Casca de Banana vao dar, mas sabe se
 // vao agir: e o que ela anota aqui, com o Espelho que esperava ja virado e a
 // sequencia dele refeita (fim_incerto, partida.inc).
@@ -27,6 +10,19 @@ static bool casca_no_fim(void);
 
 // Funcao pura sobre copias: serve ao desfecho de verdade (gerando eventos) e
 // a previa do botao "parar" de quem joga em segundo.
+// A Autofagia (posicao a da fila de j) pode comer o dado b? So com os dois
+// vindos da bolsa e com pelo menos 8 dados em jogo.
+static bool autofagia_come_pode(int j, int a, int b)
+{
+    const jogador_t *p = &J[j];
+    int ia = F[j].idx[a], ib = F[j].idx[b];
+    if (ia < 0 || ia >= p->n_col || ib < 0 || ib >= p->n_col || ia == ib) return false;
+    if (p->col[ia].tipo != D_AUTOFAGIA) return false;
+    int vivos = 0;
+    for (int i = 0; i < p->n_col; i++) vivos += p->onde[i] != COMIDO;
+    return vivos >= AUTO_BOLSA;
+}
+
 // Autofagia: depois da contagem, a que terminou valendo come o outro dado
 // seu de menor numero que vale (no empate, o primeiro). Ele ja pontuou nesta
 // rodada: nao cai, mas sai da bolsa ate o fim da partida, e o numero dele

@@ -9,6 +9,11 @@ static bool ad_do_pouso(int a)
         || a == AD_BUSSOLA;
 }
 
+// As figurinhas juntadas nos dados de j com Figurinha (cada um comeca com 1),
+// e as Etiquetas coladas nos dados dele: o que a Figurinha e a Etiqueta pagam.
+static int figurinhas_de(int j) { return conta_figurinhas(J[j].col, J[j].onde, J[j].n_col); }
+static int etiquetas_de(int j)   { return conta_etiquetas(J[j].col, J[j].onde, J[j].n_col); }
+
 // Como o adesivo age agora (adesivos_de): EVM_CARIMBO, a segunda vez dele,
 // carimbado pelo dado de antes - o que multiplica sobe so um degrau (x2 vira
 // x3), e o que so marca o dado (Bis, Selo, Velcro, Chiclete, Impermeavel, o

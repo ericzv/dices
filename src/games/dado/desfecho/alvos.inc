@@ -54,3 +54,22 @@ static int alvo_vizinho(const uint8_t *est, int j, int k)
     return -1;
 }
 
+// O dado de r que o tremor sacode: o ultimo valido (o Universo nao treme).
+static int alvo_tremor(const uint8_t *est, int r)
+{
+    for (int i = F[r].lancados - 1; i >= 0; i--) if (est[i] == V_VALIDO && !universo(r, i)) return i;
+    return -1;
+}
+
+static void mira_menores(uint8_t *est, int j, int n, int exceto, uint8_t *masc)
+{
+    for (int q = 0; q < n; q++) {                // os n menores que podem ser anulados, um de cada vez
+        int b = -1;
+        for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+            if (i != exceto && est[i] == V_VALIDO && !firme_sem_capa(j, i) && (b < 0 || F[j].valor[i] < F[j].valor[b])) b = i;
+        if (b < 0) return;
+        est[b] = V_ANULADO;
+        *masc |= (uint8_t)(1 << b);
+    }
+}
+

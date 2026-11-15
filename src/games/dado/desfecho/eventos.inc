@@ -33,3 +33,20 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
     return e;
 }
 
+// A sequencia de j acabou de ser refeita por causa do evento e (ou dos
+// eventos do tipo t1 ou t2 de j, de 'de' em diante): cada um guarda como ela
+// ficou nessa hora. A mesa mostra isso quando o evento chega - e nao o fim de
+// tudo, que ainda depende dos que viram depois (o Carrossel conta os validos
+// da mesa de agora).
+static void guarda_seq(evento_t *e, int j)
+{
+    if (!e) return;
+    e->tem_seq = true;
+    memcpy(e->seq, F[j].est, N_FILA);
+}
+static void guarda_seq_de(int de, int j, int t1, int t2)
+{
+    for (int i = de; i < n_ev; i++)
+        if (ev[i].de_j == j && (ev[i].tipo == t1 || ev[i].tipo == t2)) guarda_seq(&ev[i], j);
+}
+

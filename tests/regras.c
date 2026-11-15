@@ -467,7 +467,9 @@ static void achados_desfecho(void)
     CONFERE(d.delta[0] == -2 && d.atacados[0] == 1 && d.ad_agiram[0] == 0,
             "A21: Porta-Retrato na Sujeira cobra o -2 uma vez (delta %d, atacados %d, agiram %d)", d.delta[0], d.atacados[0], d.ad_agiram[0]);
 
-    // A22: o alvo que ja caiu no contra-ataque nao e anulado de novo (o golpe se perde, conta 1 tentativa).
+    // A22 (regra do dono, v1.31): o alvo que ja caiu no contra-ataque nao e
+    // anulado de novo - o golpe procura outro alvo pela mesma regra (o Laser,
+    // o novo ultimo valido de B: o Ourico). Sem outro, se perde e conta 1 tentativa.
     achado_zera();
     achado_peca(0, 0, D_LASER, 0, 0);
     achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
@@ -476,13 +478,28 @@ static void achados_desfecho(void)
     joga(1, D_OURICO, 2); joga(1, D_CARRASCO, 4);
     d = fim();
     {
-        int anula_b = 0, rato = 0;
+        int anula_b = 0, rato = 0, laser_ourico = 0;
         for (int e = 0; e < n_ev; e++) {
             if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1) anula_b++;
+            if (ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1 && ev[e].alvo_k == 0 && strstr(ev[e].txt, "Laser anula o 2")) laser_ourico++;
             if (ev[e].tipo == EV_ADESIVO && ev[e].ad == AD_RATOEIRA && ev[e].alvo_j == 1) rato++;
         }
-        CONFERE(rato == 1 && anula_b == 0 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO,
-                "A22: Laser nao anula de novo o Carrasco que a Ratoeira derrubou (ratoeira %d, anula %d, atacados %d)", rato, anula_b, d.atacados[1]);
+        CONFERE(rato == 1 && anula_b == 1 && laser_ourico == 1 && d.atacados[1] == 2 && d.est[1][1] == V_ANULADO && d.est[1][0] == V_ANULADO,
+                "A22: o Laser, com o Carrasco ja caido, anula o novo ultimo (ratoeira %d, anula %d, ourico %d, atacados %d)",
+                rato, anula_b, laser_ourico, d.atacados[1]);
+    }
+    achado_zera();
+    achado_peca(0, 0, D_LASER, 0, 0);
+    achado_peca(0, 1, D_D6, 6, AD_RATOEIRA);
+    achado_fila(0);
+    joga_ad(0, 0, 5); joga_ad(0, 1, 6);
+    joga(1, D_CARRASCO, 4);
+    d = fim();
+    {
+        int anula_b = 0;
+        for (int e = 0; e < n_ev; e++) anula_b += ev[e].tipo == EV_ANULA && ev[e].alvo_j == 1;
+        CONFERE(anula_b == 0 && d.atacados[1] == 2 && d.est[1][0] == V_ANULADO,
+                "A22: sem outro alvo, o golpe do Laser se perde e conta (anula %d, atacados %d)", anula_b, d.atacados[1]);
     }
 
     // A23: a Casca de Banana conta ataque para o Ourico tambem na previa.

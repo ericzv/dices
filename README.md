@@ -29,8 +29,9 @@ mostra, o Espelho vira, o tremor, a Casca de Banana, a Ficha Coringa, o
 Carrossel). Depois os poderes que atacam, roubam e cortam: os de quem abriu
 a rodada, depois os do outro; com a Saideira, os do dono agem de novo logo
 em seguida; e o Ranzinza. O dado atacado que também ataca age antes de cair
-— se nesse contra-ataque ele mesmo cai, o golpe se perde, mas conta como
-ataque. Vêm então as Miras, antes dos outros adesivos (um dado que ia ser
+— se nesse contra-ataque ele mesmo cai, o golpe procura outro alvo pela
+mesma regra (o Laser, o novo último; o Carrasco, o novo maior); sem outro,
+se perde, mas conta como ataque. Vêm então as Miras, antes dos outros adesivos (um dado que ia ser
 anulado por um ataque ainda dá o seu; vale para a Mira), a Fênix e o Agnus,
 os adesivos, a Fênix e o Agnus de novo, os bônus e multiplicadores do fim
 (com a Saideira, os do dono duas vezes), o Ouriço (o oponente perde 5 por

@@ -16,14 +16,25 @@ static evento_t *evento(bool gera, int tipo, int dj, int dk, int aj, int ak, int
 // Impermeavel: vai ate ele e nada pega - nem passa para outro dado. quem: o
 // nome de quem ataca; ad: o adesivo que ataca (Mira, Ratoeira), ou 0.
 static evento_t *capa_ev;                   // o evento do ultimo bloqueio (NULL sem gerar)
-static bool bloqueia_capa(desfecho_t *d, bool gera, int j, int k, int r, int a, const char *quem, int ad)
+static bool segura_golpe(desfecho_t *d, bool gera, int j, int k, int r, int a, const char *quem, int ad)
 {
-    if (a < 0 || !impermeavel(r, a)) return false;
     if (j != r) d->atacados[r]++;                // o ataque que a bolha segura conta para o Ourico
     capa_ev = evento(gera, ad ? EV_ADESIVO : EV_ANULA, j, k, r, a, F[r].valor[a], "%s: o %d está protegido",
                      quem, F[r].valor[a]);
     if (capa_ev) { capa_ev->bloqueado = (uint8_t)(1 << a); capa_ev->ad = (uint8_t)ad; }
     return true;
+}
+static bool bloqueia_capa(desfecho_t *d, bool gera, int j, int k, int r, int a, const char *quem, int ad)
+{
+    if (a < 0 || !impermeavel(r, a)) return false;
+    return segura_golpe(d, gera, j, k, r, a, quem, ad);
+}
+// Nos golpes que o Seguranca desvia (a, no lugar de a0): o Seguranca preso
+// pela Ancora leva o golpe e nao cai nem e roubado - segura, como a capa.
+static bool bloqueia_desvio(desfecho_t *d, bool gera, int j, int k, int r, int a, int a0, const char *quem, int ad)
+{
+    if (a >= 0 && a != a0 && F[r].ancora[a]) return segura_golpe(d, gera, j, k, r, a, quem, ad);
+    return bloqueia_capa(d, gera, j, k, r, a, quem, ad);
 }
 // O mesmo, com a lista de argumentos ja aberta (para quem repassa o texto).
 static evento_t *evento_v(bool gera, int tipo, int dj, int dk, int aj, int ak, int valor,

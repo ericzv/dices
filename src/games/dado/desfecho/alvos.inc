@@ -43,7 +43,7 @@ static bool impermeavel(int j, int k);
 static int desvia_seguranca(const uint8_t *est, int j, int a)
 {
     if (a < 0 || impermeavel(j, a)) return a;
-    // ACHADO A15: preservado - o Seguranca preso pela Ancora (firme) tambem leva o golpe no lugar
+    // O preso pela Ancora tambem leva o golpe no lugar, e o segura (bloqueia_desvio).
     for (int i = 0; i < F[j].lancados; i++)
         if (i != a && est[i] == V_VALIDO && TIPO[tipo_de(j, i)].efeito == EF_SEGURANCA) return i;
     return a;

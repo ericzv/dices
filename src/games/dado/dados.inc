@@ -599,7 +599,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "+6. O bônus fica com ele de rodada em rodada e soma ao número que tirou, se ele terminar válido.",
     [D_SEGURANCA]       = "Quatro lados. Se o oponente anular ou roubar um dado seu e o Segurança estiver válido, quem é "
                           "anulado ou roubado é o Segurança, e o outro dado fica. Se ele e todos os outros dados da sua "
-                          "sequência terminarem válidos, pontua +2 no fim da rodada.",
+                          "sequência terminarem válidos, pontua +2 no fim da rodada. Preso pela Âncora, ele leva o golpe e "
+                          "segura: não cai nem é roubado.",
     [D_BUMERANGUE]      = "Seis lados. Se tirar 1 ou 2, volta e rola de novo uma vez; fica o segundo número.",
     [D_GEMEO]           = "Seis lados. Tira o mesmo número do último dado válido da sequência. Se o último dado válido da "
                           "sequência passar de 6, ou se não houver um dado válido antes do Gêmeo, ele rola normalmente.",

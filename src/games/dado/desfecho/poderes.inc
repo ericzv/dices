@@ -81,7 +81,7 @@ static const golpe_t G_AGNUS     = { "Agnus", "%s: o Segurança de %s leva a luz
 static void golpe_anula(desfecho_t *d, int j, int k, int a0, const golpe_t *g, bool gera)
 {
     int r = outro(j), a = desvia_seguranca(d->est[r], r, a0);
-    if (a < 0 || bloqueia_capa(d, gera, j, k, r, a, g->quem, 0)) return;
+    if (a < 0 || bloqueia_desvio(d, gera, j, k, r, a, a0, g->quem, 0)) return;
     contra_ataque(d, r, a, gera);                // o ataque dele, se tiver, vem antes
     // ACHADO A22: preservado - o alvo nao e reconferido depois do contra-ataque: pode ser anulado de novo
     d->est[r][a] = V_ANULADO;
@@ -250,7 +250,7 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
             if (d->est[j][k] != V_VALIDO) break;  // o Cavalo de Troia roubado o anulou: para de roubar
             int a0 = alvo_de(d->est[r], r, false, -1), a = desvia_seguranca(d->est[r], r, a0);
             if (a < 0) break;
-            if (bloqueia_capa(d, gera, j, k, r, a, nome, 0)) continue;   // a capa segura o roubo: bate na bolha
+            if (bloqueia_desvio(d, gera, j, k, r, a, a0, nome, 0)) continue;   // a capa (ou o Seguranca ancorado) segura
             int vale = contribui(d, r, a);       // como ele pontua agora (com o corte do Sabotador, o -1 do Vampiro)
             d->est[r][a] = V_ROUBADO;
             d->roubo_val[j] += vale;

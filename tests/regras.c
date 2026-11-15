@@ -393,6 +393,23 @@ static void achados_desfecho(void)
     CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0 && bolhas == 1,
             "A14: roubo contra a capa fracassa (est %d %d, roubo %d, %d bolhas)", d.est[1][0], d.est[1][1], d.roubo_val[0], bolhas);
 
+    // A15: o Seguranca preso pela Ancora leva o golpe no lugar e segura: nao
+    // cai nem e roubado (o aviso "protegido"), e o outro dado fica a salvo.
+    achado_zera(); achado_fila(0);
+    joga(1, D_D6, 2); joga(1, D_SEGURANCA, 3); F[1].ancora[1] = 1;
+    joga(0, D_CARRASCO, 4);
+    d = fim();
+    int segura = 0;
+    for (int i = 0; i < n_ev; i++) segura += ev[i].alvo_j == 1 && (ev[i].bloqueado >> 1 & 1);
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && segura == 1,
+            "A15: Seguranca ancorado segura o Carrasco (est %d %d, %d avisos)", d.est[1][0], d.est[1][1], segura);
+    achado_fila(0);
+    joga(1, D_D6, 2); joga(1, D_SEGURANCA, 3); F[1].ancora[1] = 1;
+    joga(0, D_CARIDOSO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0,
+            "A15: Seguranca ancorado segura o roubo (est %d %d, roubo %d)", d.est[1][0], d.est[1][1], d.roubo_val[0]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

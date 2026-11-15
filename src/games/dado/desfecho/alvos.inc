@@ -36,13 +36,12 @@ static int alvo_de(const uint8_t *est, int j, bool maior, int exceto)
     return a;
 }
 
-// Seguranca: um ataque ao dado a da fila de j cai no Seguranca dele, se houver
-// um valendo (e nao for o proprio alvo). O alvo com a capa do Impermeavel nao
-// precisa dele: o ataque bate na capa.
+// Seguranca: um ataque (ou roubo) ao dado a da fila de j cai no Seguranca
+// dele, se houver um valendo (e nao for o proprio alvo). O alvo com a capa do
+// Impermeavel nao precisa dele: o ataque, e o roubo, batem na capa.
 static bool impermeavel(int j, int k);
 static int desvia_seguranca(const uint8_t *est, int j, int a)
 {
-    // ACHADO A14: preservado - o alvo com capa dispensa o Seguranca tambem no roubo, que a capa nao segura
     if (a < 0 || impermeavel(j, a)) return a;
     // ACHADO A15: preservado - o Seguranca preso pela Ancora (firme) tambem leva o golpe no lugar
     for (int i = 0; i < F[j].lancados; i++)

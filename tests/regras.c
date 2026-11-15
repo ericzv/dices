@@ -378,6 +378,21 @@ static void achados_desfecho(void)
     CONFERE(copia_corr == CORRENTE_CADA && d.semente[0] == 3 + 4 + 3 + 4,
             "A12: Holografico copia a Corrente pelo que ela pagou (copia %d, semente %d)", copia_corr, d.semente[0]);
 
+    // A14: o roubo contra o dado com a capa do Impermeavel fracassa (bate na
+    // bolha), e o Seguranca nao vai no lugar.
+    achado_zera();
+    J[1].n_col = 2;
+    J[1].col[0] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[1].col[0], 1, AD_IMPERMEAVEL);
+    J[1].col[1] = (peca_t){ .tipo = D_SEGURANCA };
+    achado_fila(0);
+    joga(0, D_CARIDOSO, 3);
+    joga_ad(1, 0, 1); joga_ad(1, 1, 3);
+    d = fim();
+    int bolhas = 0;
+    for (int i = 0; i < n_ev; i++) bolhas += ev[i].bloqueado != 0;
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0 && bolhas == 1,
+            "A14: roubo contra a capa fracassa (est %d %d, roubo %d, %d bolhas)", d.est[1][0], d.est[1][1], d.roubo_val[0], bolhas);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

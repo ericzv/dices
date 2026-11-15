@@ -266,7 +266,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
         const peca_t *pc = peca_fila(j, k);
         if (!pc || pc->capa || de_novo || (d->capa[j] & bit)) return false;   // ja estava com a capa
         d->capa[j] |= bit;
-        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: não pode ser anulado nem destruído", pre);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, 0, "%sImpermeável: nada o anula, rouba ou destrói", pre);
         break;
     }
     case AD_PATINHO: {                           // valendo: no lado dele, -2; caindo em outro, +2

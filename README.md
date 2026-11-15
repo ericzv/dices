@@ -187,9 +187,10 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
   Carbono (copia o número do seu último dado válido: igual não cai), o Papel
   Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
-  partida, o dado fica numa bolha de proteção e não pode ser anulado nem
-  destruído: um ataque que mire nele bate na bolha e não passa para outro
-  dado, e nem o Barro gruda nele), o
+  partida, o dado fica numa bolha de proteção e não pode ser anulado,
+  roubado nem destruído: um ataque ou roubo que mire nele bate na bolha e
+  não passa para outro dado, nem para o Segurança, e nem o Barro gruda
+  nele), o
   Lenticular (valendo, x2; anulado, -4 no seu placar) e o Neon (valendo, +2
   por adesivo colado no dado, a Sujeira também), e aos que passam de dado em
   dado: o Infectado (assim que o dado cai, válido ou anulado, e mesmo se o

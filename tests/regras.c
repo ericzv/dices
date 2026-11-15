@@ -312,6 +312,15 @@ static void achados_desfecho(void)
     CONFERE(d.est[0][2] == V_ANULADO && d.est[1][1] == V_VALIDO && d.total[0] == 0 && d.total[1] == 7,
             "A05: Gatuno anulado pelo Cavalo nao rouba mais (A %d, B %d, 7 de B est %d)", d.total[0], d.total[1], d.est[1][1]);
 
+    // A06: dois Agnus com 7, o primeiro roubado pelo Caridoso: o segundo ressuscita.
+    achado_zera(); achado_fila(0);
+    joga(1, D_AGNUS, 7); joga(1, D_AGNUS, 7); joga(1, D_D8, 8); joga(1, D_D6, 2);
+    joga(0, D_CARIDOSO, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ROUBADO && d.est[1][2] == V_VALIDO && d.est[1][3] == V_VALIDO && d.total[1] == 17,
+            "A06: o 2o Agnus 7 ressuscita com o 1o roubado (B %d, est %d %d %d %d)", d.total[1],
+            d.est[1][0], d.est[1][1], d.est[1][2], d.est[1][3]);
+
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();

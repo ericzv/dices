@@ -291,18 +291,18 @@ static void fenix_de(desfecho_t *d, int j, bool gera)
 // anulados do dono nesta rodada ressuscitam - os que a sequencia derrubou e
 // os que os ataques anularam, ele mesmo incluido - e pontuam o que tiraram.
 // Os roubados nao voltam. Um evento so, com todos (mascara).
-static int agnus_armado(int j)
+// O primeiro Agnus de j com 7 que nao foi roubado (pelo estado est), ou -1.
+static int agnus_armado_em(const uint8_t *est, int j)
 {
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
-        // ACHADO A06: preservado - devolve o primeiro Agnus com 7, mesmo roubado
-        if (TIPO[tipo_de(j, k)].efeito == EF_AGNUS && F[j].valor[k] == AGNUS_NUMERO) return k;
+        if (TIPO[tipo_de(j, k)].efeito == EF_AGNUS && F[j].valor[k] == AGNUS_NUMERO && est[k] != V_ROUBADO) return k;
     return -1;
 }
+static int agnus_armado(int j) { return agnus_armado_em(F[j].est, j); }   // a mesa de agora (a IA e a mesa)
 static void agnus_de(desfecho_t *d, int j, bool gera)
 {
-    int ag = agnus_armado(j);
-    // ACHADO A06: preservado - com o primeiro Agnus roubado, desiste: o segundo Agnus com 7 nao ressuscita ninguem
-    if (ag < 0 || d->est[j][ag] == V_ROUBADO) return;
+    int ag = agnus_armado_em(d->est[j], j);       // roubado um, o outro Agnus com 7 ressuscita
+    if (ag < 0) return;
     uint8_t m = 0;
     int n = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)

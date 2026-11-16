@@ -183,6 +183,8 @@ void dado_passo(float dt)
                 && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
                 J[j].col[F[j].idx[k]].fixo++;
             for (int a = 0; a < A_N; a++) if (am_disparou >> a & 1) am_acende(a);
+            reg_lance(j, k);                      // o registro das partidas (registro.inc)
+            cq_pousou();                          // os "tire" da sua sequencia: a conquista na hora
             // A Ventania tem o som dela quando rola o primeiro dado.
             if (sequencia_nao_ve(j, k)) som_toca(som_adesivo(AD_TRANSPARENTE));   // o Transparente: a sequencia nao o ve
             // O Revolver com a sexta bala dispara ao pousar, valendo ou nao.

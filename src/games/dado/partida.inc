@@ -229,6 +229,7 @@ static void encerra(int vencedor)
         fala_evento(vencedor == 1 ? FA_GANHA_P : FA_PERDE_P);
         des_resultado();                      // a run anota na hora
     }
+    reg_partida_fim(vencedor);
 }
 
 static void des_virou(void);
@@ -285,6 +286,7 @@ static void avisa_sua_vez(void)
 static void marca_online(void);             // online.inc: o marco da partida para o rival conferir
 static void nova_rodada(void)
 {
+    cq_rodada_limpa();                           // as conquistas da rodada de antes ja foram vistas
     n_pouso = 0;                                 // o que ainda voava no pouso da rodada de antes
     memset(pavio_mais, 0, sizeof pavio_mais);
     marca_online();
@@ -382,6 +384,8 @@ static void nova_rodada(void)
     avisa_sua_vez();
     humor_da_rodada();
     som_toca(rodada == 1 ? SOM_PARTIDA : SOM_BOLSA);   // comeca a partida, ou mais uma rodada
+    cq_rodada_abre();
+    reg_rodada_comeca();
 }
 
 // Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2). E as
@@ -1584,6 +1588,7 @@ static void conclui_rodada(void)
         garimpa(j, &resolvido);
     }
     recolhe_quebrados();
+    reg_rodada_fim(false);
     t_fase = 0;
     fase = F_RESULTADO;
 }

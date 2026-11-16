@@ -413,6 +413,26 @@ static void hist_lance(int j, bool cheia, int hora_res);
 static void hist_jackpot(void);
 static void hist_rodada(int pote_seu);
 static void hist_partida(int vencedor);
+// O registro das partidas (registro.inc): cada coisa que aconteceu vira uma linha.
+static void reg_rodada_comeca(void);
+static void reg_decide(bool lanca);
+static void reg_lance(int j, int k);
+static void reg_aposta(int op);
+static void reg_rodada_fim(bool correu);
+static void reg_partida_fim(int vencedor);
+static void reg_run_comeca(void);
+static void reg_run_fim(bool venceu);
+static void reg_loja_abre(void);
+static void reg_loja(const char *acao, const peca_t *p, int adesivo, int preco);
+static void reg_amuleto(int a);
+static void reg_conquista(const char *item, const char *criterio, const char *motivo);
+// As conquistas da rodada (desafio/conquistas.inc): a mesa avisa quando
+// comeca, quando um dado pousa e o que brilha.
+static void cq_rodada_limpa(void);
+static void cq_rodada_abre(void);
+static void cq_pousou(void);
+static uint8_t cq_brilho_agora(void);
+static bool cq_cartao_visivel(void);
 static bool hist_uma_derrota(void);      // desafio/historico.inc
 static void hist_run_venceu(void);
 static void estilo_do_perfil(void);

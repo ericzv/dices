@@ -4238,6 +4238,35 @@ int main(void)
             t_misterio = 0;
             J[0] = guarda;
         }
+        // v1.32: os "tire" abrem no pouso do dado, com o motivo (os numeros) e
+        // os seus dados que contaram; o Oculto ainda escondido nao conta (nem
+        // voce viu o numero dele); o fim da rodada junta as da rodada e os
+        // dados que brilham; a rodada seguinte comeca limpa.
+        {
+            perfis[0].conq &= ~(1ull << CQ_AGNUS | 1ull << CQ_DOMINO | 1ull << CQ_DIGITAL);
+            n_cq_cards = n_cq_avisos = 0;
+            cq_rodada_limpa();
+            cq_rodada_abre();
+            FILA_CQ({ D_D6, 3, V_VALIDO }, { D_OCULTO, 3, V_VALIDO }, { D_D6, 3, V_ANULADO });
+            F[0].escondido[1] = true;
+            cq_pousou();
+            CONFERE(!cq_aberta(CQ_AGNUS) && !n_cq_rod, "o Oculto escondido nao conta para o 3-3-3");
+            F[0].escondido[1] = false;
+            cq_pousou();
+            CONFERE(cq_aberta(CQ_AGNUS) && cq_dados_de[CQ_AGNUS] == 7 && !strcmp(cq_motivo[CQ_AGNUS], "3-3-3 na sua sequência")
+                    && n_cq_rod == 1 && cq_rod[0] == CQ_AGNUS && n_cq_avisos == 1,
+                    "o Agnus abre no pouso (dados %x, motivo '%s', %d na rodada)", cq_dados_de[CQ_AGNUS], cq_motivo[CQ_AGNUS], n_cq_rod);
+            FILA_CQ({ D_D6, 2, V_ANULADO }, { D_D6, 3, V_VALIDO }, { D_D6, 4, V_VALIDO }, { D_D6, 5, V_VALIDO });
+            cq_pousou();
+            CONFERE(cq_aberta(CQ_DOMINO) && cq_aberta(CQ_DIGITAL) && cq_dados_de[CQ_DIGITAL] == 15
+                    && !strcmp(cq_motivo[CQ_DIGITAL], "2-3-4-5: uma escada de 4") && n_cq_rod == 3,
+                    "o Domino e o Digital no pouso (motivo '%s', %d na rodada)", cq_motivo[CQ_DIGITAL], n_cq_rod);
+            fase = F_RESULTADO;
+            CONFERE(cq_brilho_agora() == 15, "no fim da rodada, brilham os dados que contaram (%x)", cq_brilho_agora());
+            cq_rodada_limpa();
+            CONFERE(!n_cq_rod && !cq_brilho_agora(), "a rodada nova comeca sem o cartao");
+            fase = F_JOGA;
+        }
         #undef FILA_CQ
         // Perdeu a partida com conquista nova: os cards antes do fim da run.
         {

@@ -635,6 +635,25 @@ static void quadro(void)
     EndDrawing();
 }
 
+#ifndef __EMSCRIPTEN__
+// O registro das partidas (a versao de teste, ligada no painel do som): a
+// pasta "registros" fica ao lado do jogo, fora dos salvos, e continua la
+// quando o .exe e trocado por uma versao nova. No Mac, ao lado do .app (nao
+// dentro dele, que se troca inteiro).
+static void registro_pasta(void)
+{
+    char p[1024];
+    snprintf(p, sizeof p, "%s", GetApplicationDirectory());
+    char *app = strstr(p, ".app/Contents/MacOS");
+    if (app) {
+        *app = 0;
+        char *barra = strrchr(p, '/');
+        if (barra) barra[1] = 0;
+    }
+    dado_registro_pasta(p);
+}
+#endif
+
 int main(void)
 {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
@@ -664,6 +683,9 @@ int main(void)
     prepara_ampliacao();
 
     le_zoom();
+#ifndef __EMSCRIPTEN__
+    registro_pasta();                      // a pasta "registros" fica ao lado do jogo
+#endif
     dado_inicia(0);
 #ifdef __EMSCRIPTEN__
     // No navegador quem manda no ritmo e a pagina: um quadro por repintura.

@@ -695,7 +695,7 @@ static void desenha_resultado(void)
             snprintf(t, sizeof t, "%+d", d);
             res_numero(j, t, d > 0 ? C_OURO : C_VINHO_CLR, q);
         }
-    if (t_fase > fim + 0.35f) teclas_c(GFX_W / 2, CENTRO - 10, "ENTER segue", C_TEXTO_M);
+    if (t_fase > fim + 0.35f && !cq_cartao_visivel()) teclas_c(GFX_W / 2, CENTRO - 10, "ENTER segue", C_TEXTO_M);   // (com o cartao das conquistas, a tecla vai nele)
 }
 
 // As fichas da faixa: no resultado, sobem (ou descem) enquanto o pote voa.

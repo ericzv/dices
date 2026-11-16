@@ -310,6 +310,7 @@ static void abre_loja_run(void)
 
 static void encerra_run(bool venceu)
 {
+    reg_run_fim(venceu);
     des_venceu_run = venceu;
     des_liberou = -1;
     if (!venceu) des_chefe_novo = false;
@@ -449,6 +450,7 @@ static void amuleto_segue(void)
 // na tela da troca (sai um dos seus, ou ele fica de fora).
 static void ganha_amuleto(int a, int volta)
 {
+    reg_amuleto(a);
     run.am_volta = (uint8_t)volta;
     if (!am_lugar()) {
         run.am_novo = (uint8_t)(a + 1);
@@ -529,7 +531,7 @@ static void des_nova_run(void)
         if (p->runs < 65535) p->runs++;
         p->bolsa_ult = (uint8_t)des_bolsa;
         perfis_salva();
-        if (p->runs >= CQ_BUMERANGUE_RUNS) cq_abre(CQ_BUMERANGUE);   // a 3a run: o Bumerangue (o card, na saida da loja)
+        if (p->runs >= CQ_BUMERANGUE_RUNS) cq_abre_m(CQ_BUMERANGUE, 0, "começou a sua %dª run", p->runs);   // a 3a run: o Bumerangue (o card, na saida da loja)
     }
     // A bolsa do comeco: dados simples, muitos fracos (tirar os fracos, na
     // loja, e parte da run), e o que a bolsa escolhida traz.
@@ -537,6 +539,7 @@ static void des_nova_run(void)
     if (des_bolsa == B_CARTEIRA)                 // a Carteira: comeca com menos (nunca abaixo de zero)
         run.moedas = run.moedas > CARTEIRA_MENOS ? run.moedas - CARTEIRA_MENOS : 0;
     gera_andar();
+    reg_run_comeca();
     if (des_bolsa == B_PRESENTE) {               // a Sacola de Presente: sem amuleto, direto a loja da entrada
         run.estado = R_LOJA_INI;
         monta_loja_run();

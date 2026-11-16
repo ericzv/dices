@@ -156,6 +156,7 @@ static void loja_abriu(void)
     pac_caiu = 0;
     pac_bateu = 0xFF;
     if (lj_pac) cursor = 0;
+    reg_loja_abre();
 }
 
 static void lj_flutua(float x, float y, uint16_t cor, const char *fmt, int v)
@@ -366,6 +367,7 @@ static void loja_compra(int i)
     loja_paga(pr);
     run.col[run.n_col++] = run.vitrine[i];
     run.levou[i] = 1;
+    reg_loja("compra", &run.vitrine[i], AD_NADA, pr);
     cq_comprou();
     des_salva();
     t_lj_vendido[i] = 0.001f;
@@ -396,6 +398,7 @@ static void loja_pacote(void)
     }
     loja_paga(pr);
     run.pac_estado = PAC_ABERTO;
+    reg_loja(pacote_de_adesivos() ? "pacote_adesivos" : "pacote_dados", NULL, AD_NADA, pr);
     if (run.pacotes < 255) run.pacotes++;
     if (run.pacotes >= PAPELAO_ABRE) abre_bolsa(B_PAPELAO);   // 5 pacotes abertos: a Caixa de Papelao
     cq_comprou();
@@ -427,10 +430,11 @@ static void pacote_escolhe(int i)
     if (i >= 0 && i < pac_n()) {
         if (run.n_col >= MAX_COL) { lj_nega(-1, "A bolsa está cheia."); return; }
         run.col[run.n_col++] = *pac_carta_p(i);
+        reg_loja("pacote_leva", pac_carta_p(i), AD_NADA, -1);
         lj_voa(VITRINE_MAX, *pac_carta_p(i), pac_carta_x(i), LJ_Y + 40);
         mola_chuta();
         som_toca(SOM_VALIDO);
-    } else som_toca(SOM_CORREU);
+    } else { som_toca(SOM_CORREU); reg_loja("pacote_pula", NULL, AD_NADA, -1); }
     pac_levado = i;
     run.pac_estado = PAC_USADO;
     des_salva();
@@ -503,6 +507,7 @@ static void cola_escolhe_lado(int c)
         ad_cola(p, lado, a);
         pac_levado = cola_pac;
         run.pac_estado = PAC_USADO;
+        reg_loja("cola_do_pacote", p, a, -1);
         cq_colou();
         des_salva();
     } else {
@@ -511,6 +516,7 @@ static void cola_escolhe_lado(int c)
         ad_cola(p, lado, a);
         if (lj_ad_k) run.ad_vendido2 = 1;
         else run.ad_vendido = 1;
+        reg_loja("cola", p, a, pr);
         cq_colou();
         cq_comprou();
         des_salva();
@@ -534,6 +540,8 @@ static void loja_troca(void)
     if (run.trocas >= FEIRA_ABRE) abre_bolsa(B_FEIRA);   // 3 trocas na mesma loja: a Sacola de Feira
     sorteia_loja();
     des_salva();
+    reg_loja("troca", NULL, AD_NADA, pr);
+    reg_loja_abre();                             // a vitrine nova
     t_lj_entra = 0;                              // os cartoes novos caem, girando
     lj_caiu = 0;
     memset(t_lj_vendido, 0, sizeof t_lj_vendido);
@@ -574,6 +582,7 @@ static void lj_tira_confirma(void)
     if (i < 0 || i >= run.n_col || run.n_col <= BOLSA_MIN || run.moedas < pr) return;
     bool gratis = tira_gratis();
     loja_paga(pr);
+    reg_loja("tira", &run.col[i], AD_NADA, pr);
     for (int m = i; m + 1 < run.n_col; m++) run.col[m] = run.col[m + 1];
     run.n_col--;
     if (gratis) run.tirou_gratis = 1;            // a Caixa de Ferramentas: o de graca desta loja
@@ -598,6 +607,7 @@ static void loja_tira(int i)
 static void loja_sai_segue(void);
 static void loja_sai(void)
 {
+    reg_loja("sai", NULL, AD_NADA, -1);
     if (run.moedas >= PORCO_ABRE) abre_bolsa(B_PORCO);   // guardou: abre o Porquinho
     bolsa_voando = 0;
     if (n_cq_cards) { nov_abre_conquistas(NOVD_LOJA); return; }   // o que abriu na loja: os cards antes do mapa

@@ -978,6 +978,24 @@ static void estrelinha(int x, int y, int r, uint16_t c)
     if (r >= 3) { gfx_rect(x - 1, y - 1, 3, 3, c); gfx_pixel(x, y, C_BRANCO); }
 }
 
+// O seu dado que ajudou a abrir uma conquista (o aviso descendo e o fim da
+// rodada): um aro de ouro tracejado girando em volta e uma estrelinha em cada
+// canto, piscando uma de cada vez.
+static void cq_dado_brilha(int cx, int cy, int r, int k)
+{
+    int rr = r + 6;
+    float gira = t_relogio * 1.2f + k * 0.5f;
+    for (int a = 0; a < 28; a += 2) {
+        float an = a * (6.2832f / 28) + gira;
+        gfx_rect((int)lroundf(cx + cosf(an) * rr) - 1, (int)lroundf(cy + sinf(an) * rr) - 1, 2, 2, a % 4 ? C_OURO : C_AMARELO);
+    }
+    for (int i = 0; i < 4; i++) {
+        float f = sinf(t_relogio * 6 + k * 0.9f + i * 1.5708f);
+        int sx = cx + (i & 1 ? rr : -rr), sy = cy + (i & 2 ? rr : -rr);
+        estrelinha(sx, sy, f > 0.2f ? 3 : 2, f > 0.6f ? C_AMARELO : C_OURO);
+    }
+}
+
 // O gelo do Boneco de Neve sobre o dado em (x, y), q de 0 a 1: a camada
 // palida que se espalha do meio, os cristais e os pingentes embaixo.
 static void gelo_sobre(int x, int y, float q)
@@ -1793,6 +1811,8 @@ static void desenha_fila(int j)
         // O Agnus armado: cada anulado do dono ganha a aureola miuda (vai voltar no fim).
         if (anul && !no_desfecho && fase != F_FIM && giro < 0.5f && !poder_armado(j, k) && agnus_armado(j) >= 0)
             aureola_miuda(x, (int)(y - pulo) - R - 4, k * 0.9f);
+        // A conquista que este dado ajudou a abrir: o aro de ouro e as estrelinhas.
+        if (j == 0 && k < f->lancados && (cq_brilho_agora() >> k & 1) && giro < 0.5f) cq_dado_brilha(x, (int)(y - pulo), R, k);
         // As protecoes de agora: lancado, conta a Ancora.
         if (!anul && giro < 0.5f && vis_est[j][k] != V_ROUBADO) {
             bool la = k < f->lancados;

@@ -469,7 +469,12 @@ static void desenha_novidades(void)
             nov_clarao(i, cx, NOV_CY, desde);
             char s[24];
             snprintf(s, sizeof s, "%d de %d", i + 1, n_nov);
-            if (n_nov > 1) txt_c(cx, NOV_CY + NOV_CH / 2 + 6, s, C_TEXTO_M, false);
+            if (nov[i].cq && cq_motivo[nov[i].cq - 1][0]) {   // a conquista: o que aconteceu, com os numeros
+                char m[128];
+                if (n_nov > 1) snprintf(m, sizeof m, "%s  ·  você: %s", s, cq_motivo[nov[i].cq - 1]);
+                else snprintf(m, sizeof m, "Você: %s", cq_motivo[nov[i].cq - 1]);
+                txt_c(cx, NOV_CY + NOV_CH / 2 + 6, m, C_MARFIM, false);
+            } else if (n_nov > 1) txt_c(cx, NOV_CY + NOV_CH / 2 + 6, s, C_TEXTO_M, false);
             if (nov[i].k == NV_DADO) dica_zona(cx - NOV_CW / 2, NOV_CY - NOV_CH / 2, NOV_CW, NOV_CH, DICA_DADO, nov[i].v);
         } else {                                 // de frente, encolhendo de volta ao lugar
             float e = q * q;

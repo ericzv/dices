@@ -38,7 +38,7 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.31"
+#define DADO_VERSAO "v1.32"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
@@ -102,6 +102,7 @@
 #include "dado/painel_som.inc"    // o painel do som: os volumes (tecla M)
 #include "dado/painel_controles.inc"   // o quadro dos controles: o que faz cada botao (tecla K)
 #include "dado/desafio.inc"       // o Modo Desafiante
+#include "dado/registro.inc"      // o registro das partidas (versao de teste): linhas na pasta "registros"
 #include "dado/bolsa.inc"         // o pop-up da bolsa: os dados de um jogador
 #include "dado/quadro.inc"        // o quadro de cada fase
 #include "dado/salao.inc"         // o salao em volta da mesa (a margem da janela)

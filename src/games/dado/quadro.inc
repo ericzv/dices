@@ -260,6 +260,7 @@ void dado_desenha(void)
         des_elevador();
         des_virada_anuncio();
         des_bolsa_nova();
+        cq_cartao_rodada();                      // o fim da rodada: as conquistas dela, paradas ate o clique
         cq_aviso_desenha();
         desenha_bolsa_pop();
     } else bolsa_pop = -1;

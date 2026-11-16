@@ -478,11 +478,11 @@ static void trata_tecla(int k)
         bool pode_voltar = f->lancados == 0;
         if (e) { if (pode_parar || pode_voltar) cursor ^= 1; return; }
         if (k == KEY_BKSP && pode_voltar) { cursor = 0; t_fase = 1; fase = F_ORDEM; return; }
-        if (k == KEY_TAB || k == 'x') { if (pode_parar) termina_turno(); return; }
+        if (k == KEY_TAB || k == 'x') { if (pode_parar) { reg_decide(false); termina_turno(); } return; }
         if (k == KEY_ENTER) {
             if (cursor == 1 && pode_voltar) { cursor = 0; t_fase = 1; fase = F_ORDEM; }
-            else if (cursor == 1 && pode_parar) termina_turno();
-            else if (pode_jogar) lanca_proximo();
+            else if (cursor == 1 && pode_parar) { reg_decide(false); termina_turno(); }
+            else if (pode_jogar) { reg_decide(true); lanca_proximo(); }
         }
         return;
     }
@@ -498,8 +498,8 @@ static void trata_tecla(int k)
     case F_APOSTA: {
         int op[4], n = opcoes(op);
         if (e) { cursor = (cursor + e + n) % n; return; }
-        if (k >= '1' && k <= '0' + n) { executa(op[k - '1']); return; }
-        if (k == KEY_ENTER) executa(op[cursor]);
+        if (k >= '1' && k <= '0' + n) { reg_aposta(op[k - '1']); executa(op[k - '1']); return; }
+        if (k == KEY_ENTER) { reg_aposta(op[cursor]); executa(op[cursor]); }
         return;
     }
 

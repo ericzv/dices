@@ -24,6 +24,10 @@ int  dado_vez_do_controle(void);
 // jogo, com o quadro de GFX_W x GFX_H em (ox, oy).
 void dado_salao(uint16_t *px, int w, int h, int ox, int oy);
 int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
+// O registro das partidas (versao de teste): a pasta do jogo, onde a pasta
+// "registros" e criada quando a opcao do painel do som esta ligada. Sem
+// chamar (o site, os testes), nada se grava e a opcao nem aparece.
+void dado_registro_pasta(const char *pasta);
 
 // Modo online. Os dois computadores rodam a mesma partida com a mesma
 // semente; so viajam as teclas de quem esta na vez de decidir.

@@ -143,6 +143,7 @@ static void executa(int op)
             cq_rodada(w == 0 ? 0 : 1, w == 0 ? levou : 0, true);
         }
         recolhe_quebrados();
+        reg_rodada_fim(true);
         t_fase = 0;
         fase = F_RESULTADO;
         return;

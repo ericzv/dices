@@ -363,11 +363,40 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   D20 e o Lastro, na primeira vitória contra o Crupiê e a Dona). A coleção
   mostra o que está aberto; o que falta aparece só como um "?", com o nome e
   qual chefe o abre (sem o desenho nem o que faz).
+- **Registro das partidas** (versão de teste, só no computador): ligando
+  "Registrar partidas" no painel do som (M, ou o RT no controle; começa
+  desligado e fica guardado), cada partida sua contra a máquina vira linhas
+  de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
+  lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
+  arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.32.txt`). Cada linha é uma coisa que
+  aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
+  colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
+  mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,
+  a entrada, as duas mãos), a sequência montada, cada lance (o número e
+  como ficou), cada decisão de lançar ou parar (o risco do próximo dado, a
+  prévia do placar e, nas da máquina, a conta que ela fez), cada aposta
+  (com a chance que a máquina calculou), o fim da rodada (os dados, os
+  efeitos e quem levou), o fim da partida e as conquistas (com o motivo).
+  Cada linha leva o tempo em segundos desde que o arquivo abriu. Gravar não
+  muda a partida (as contas são as da prévia do placar, que não sorteiam
+  nada); se a pasta não deixar gravar, o painel mostra "sem acesso à pasta".
+  No site, a opção não aparece.
 - **Conquistas**: 53 itens (dados, amuletos e adesivos) não abrem com
   chefe nenhum, só com um feito na run - em qualquer andar, valendo em
-  qualquer nível. Abrindo, um aviso desce do alto na hora ("Conquista!" e o
-  nome, com o "?" de latão) e o card do item vem depois da partida (antes
-  do fim da run, se a partida foi perdida; na saída da loja, se foi lá).
+  qualquer nível. Abrindo, um aviso desce do alto na hora ("Conquista!", o
+  nome, com o "?" de latão, e o que aconteceu, com os números: "3-3-3 na sua
+  sequência") e o card do item vem depois da partida (antes do fim da run,
+  se a partida foi perdida; na saída da loja, se foi lá), também com o que
+  aconteceu. As de "tire" que só olham os números da sua sequência (3-3-3,
+  1-1-1-1, 6-6-6, quatro iguais, 2-3-4 e a escada de quatro) abrem no pouso
+  do dado, e os dados que contaram brilham na mesa (aro de ouro e
+  estrelinhas); valem o que a mesa mostrava ali - um Terremoto depois não
+  tira mais. O Oculto ainda escondido não conta no pouso (nem você viu o
+  número), só no fim da rodada. No fim da rodada, um cartão parado entre as
+  duas filas lista as conquistas que abriram nela - o item, o que se
+  ganhou, o que aconteceu e o critério - e espera o ENTER, com os seus dados
+  que contaram brilhando.
   Na coleção, o item de conquista tem a medalha e o texto do feito
   ("Conquista: ..."); os que se somam aos poucos mostram quanto falta
   (como "6 de 15"). A quarta aba da coleção, **Conquistas**, lista todas,
@@ -545,7 +574,7 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior e o tremor da tela (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior, o tremor da tela e, no computador, o registro das partidas (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
@@ -583,7 +612,7 @@ a letra maior e o tremor da tela ficam no painel do som (o RT).
 | LB | L1 | Recusa (o X) |
 | RB | R1 | Velocidade (o V) |
 | LT | L2 | Mostra o que faz cada botão (o K) |
-| RT | R2 | O painel do som, a letra maior e o tremor (o M) |
+| RT | R2 | O painel do som, a letra maior, o tremor e o registro das partidas (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.

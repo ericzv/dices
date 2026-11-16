@@ -906,6 +906,11 @@ static int ia_proximo_da_fila(void)
 }
 
 // ---- Lancar ou parar -----------------------------------------------------
+// As contas da decisao que a maquina acabou de tomar, para o registro das
+// partidas (registro.inc): a media de parar e de seguir, e a chance de vencer
+// na aposta (-1: a conta nao foi feita). So se leem; nada decide por elas.
+static float ia_ult_parar = -1, ia_ult_seguir = -1, ia_ult_chance = -1;
+
 // Compara as duas coisas jogando de mentira: parar agora (e o rival
 // responder, se ainda nao jogou) contra lancar mais um e seguir. Um empate
 // certo nao vira derrota certa, como lancar um Quebrado que anula o seu 6.
@@ -946,6 +951,8 @@ static bool ia_continua(void)
     seguir /= (float)amostras;
     // O Quebrado some da colecao quando e jogado: so vale a pena se ajudar.
     if (tipo_de(j, f->lancados) == D_QUEBRADO) seguir -= 0.02f;
+    ia_ult_parar = parar;
+    ia_ult_seguir = seguir;
     return seguir > parar + 0.005f;
 }
 
@@ -999,6 +1006,7 @@ static int ia_aposta(void)
 {
     int op[4], n = opcoes(op);
     float p = ia_chance();
+    ia_ult_chance = p;
     // A ousadia desloca as barras: quem e ousado aposta e dobra com menos
     // chance, e blefa mais; o cauteloso so aposta quando esta bem.
     float o = ia_ousadia * 0.12f;
@@ -1619,6 +1627,7 @@ static int mestre_aposta(void)
     if (!abre) {
         // Quem joga depois sabe tudo: a chance da mao dele e a conta.
         float eu = ia_chance();
+        ia_ult_chance = eu;
         if (a_pagar && aumentou) {               // dobraram a aposta dele: paga se vale
             float corre = ms_util(s.f[1], s.f[0] + s.pote, false);
             int b = s.a_pagar < s.f[1] ? s.a_pagar : s.f[1];
@@ -2051,6 +2060,7 @@ static void ia_passo(float dt)
         ia_sobe = p > 0 && (int)(h % 100u) < p;
         ia_memo_zera();
         ia_loja_k = -1;
+        ia_ult_parar = ia_ult_seguir = ia_ult_chance = -1;   // as contas desta decisao
     }
     if (ia_sobe && ia_nivel < 2) ia_nivel++;
     t_ia += dt;

@@ -16,12 +16,19 @@ static int   som_musica_antes = SOM_NIVEIS;    // o volume da musica antes do N
 static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface" };
 // As linhas do painel, de cima para baixo.
 static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE };
-// Depois dos volumes, duas opcoes de ver: a letra maior (L) e o tremor da
-// tela (T). Ficam aqui para quem joga com o controle, que nao tem essas
-// teclas: o RT abre o painel e os lados trocam.
-#define SOM_OPCOES 2
+// Depois dos volumes, as opcoes: a letra maior (L), o tremor da tela (T) e,
+// no computador, o registro das partidas (registro.inc: a versao de teste,
+// que grava as partidas contra a maquina numa pasta ao lado do jogo). Ficam
+// aqui para quem joga com o controle, que nao tem essas teclas: o RT abre o
+// painel e os lados trocam.
+static bool reg_disponivel(void);                // registro.inc
+static bool reg_e_ligado(void);
+static const char *reg_estado_txt(void);
+static void alterna_registro(void);
+#define SOM_OPCOES_MAX 3
+#define SOM_OPCOES (reg_disponivel() ? 3 : 2)    // o registro so onde ha pasta (no site, nao)
 #define SOM_LINHAS (SOM_CANAIS + SOM_OPCOES)
-static const char *const SOM_OPCAO[SOM_OPCOES] = { "Letra", "Tremor da tela" };
+static const char *const SOM_OPCAO[SOM_OPCOES_MAX] = { "Letra", "Tremor da tela", "Registrar partidas" };
 
 static void alterna_letra(void)
 {
@@ -93,7 +100,9 @@ static void som_tecla(int k)
     if (k == KEY_DOWN || k == 's') { if (som_cur < SOM_LINHAS - 1) { som_cur++; som_toca(SOM_TIQUE); } return; }
     if (som_cur >= SOM_CANAIS) {                // as opcoes: os lados (ou o clique) trocam
         if (k == KEY_LEFT || k == KEY_RIGHT || k == 'a' || k == 'd' || k == TECLA_SOM) {
-            if (som_cur == SOM_CANAIS) alterna_letra(); else alterna_tremor();
+            if (som_cur == SOM_CANAIS) alterna_letra();
+            else if (som_cur == SOM_CANAIS + 1) alterna_tremor();
+            else alterna_registro();
             return;
         }
         if (k == 'n') { som_alterna_musica(); return; }
@@ -131,7 +140,7 @@ static void desenha_som(void)
 {
     if (!som_aberto) return;
     n_zonas = 0;                                 // nada por baixo responde ao clique
-    const int w = 300, h = 40 + SOM_LINHAS * 24 + 6 + (som_falhou() ? 52 : 34), x = GFX_W / 2 - w / 2;
+    const int w = reg_disponivel() ? 340 : 300, h = 40 + SOM_LINHAS * 24 + 6 + (som_falhou() ? 52 : 34), x = GFX_W / 2 - w / 2;
     int y = CENTRO - h / 2 - 6 + ui_entra(t_som, 0, 14);
     ui_escurece(0, 0, GFX_W, GFX_H, 110);
     ui_painel(x, y, w, h);
@@ -161,10 +170,10 @@ static void desenha_som(void)
     gfx_rect(x + 22, oy - 6, w - 44, 1, C_LATAO_ESC);
     for (int o = 0; o < SOM_OPCOES; o++) {
         int l = SOM_CANAIS + o, ly = oy + o * 24;
-        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : !tremor_off;
+        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : o == 1 ? !tremor_off : reg_e_ligado();
         if (cur) ui_cantos(x + 10, ly - 4, w - 20, 22, C_OURO);
         txt(x + 22, ly - 2, SOM_OPCAO[o], cur ? C_MARFIM : C_MARFIM_S, false);
-        const char *v = o == 0 ? (liga ? "maior" : "normal") : (liga ? "ligado" : "desligado");
+        const char *v = o == 0 ? (liga ? "maior" : "normal") : o == 1 ? (liga ? "ligado" : "desligado") : reg_estado_txt();
         int vw = gfx_largura(v, 1), vx = x + w - 34 - vw;
         txt(vx, ly - 2, v, cur ? C_OURO : C_MARFIM_S, cur);
         for (int i = 0; i < 4 && cur; i++) {          // as setinhas: os lados trocam

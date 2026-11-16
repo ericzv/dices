@@ -301,9 +301,20 @@ static void cq_passo(float dt)
     if (n_cq_avisos) som_toca(SOM_NOVIDADE);
 }
 
-// O aviso que desce do alto: "Conquista! Jackpot", com o "?" de latao (o
-// desenho do item so aparece no card, depois da partida), o que aconteceu
-// ("3-3-3 na sua sequência") e o que se ganhou.
+// O desenho do que a conquista abriu (o dado, o amuleto ou o adesivo), com
+// raio r, no lugar do "?": o aviso e o cartao do fim da rodada.
+static void cq_icone(int c, int cx, int cy, int r)
+{
+    int it = CONQ[c].item;
+    switch (CONQ[c].k) {
+    case CQK_AMULETO: desenha_amuleto(cx, cy, r, it, false); break;
+    case CQK_ADESIVO: ad_solto_d(cx, cy, it, r >= 10 ? 2 : 1, 0); break;
+    default:          desenha_dado((float)cx, (float)cy, (float)r, it, 0, 0, 0, 0, false); break;
+    }
+}
+
+// O aviso que desce do alto: "Conquista! Jackpot", com o desenho do item,
+// o que aconteceu ("3-3-3 na sua sequência") e o que se ganhou.
 static const char *const CQ_TIPO_NOVO[3] = { "um dado novo na Coleção", "um amuleto novo na Coleção", "um adesivo novo na Coleção" };
 static void cq_aviso_desenha(void)
 {
@@ -319,9 +330,7 @@ static void cq_aviso_desenha(void)
     if (wm > larg) larg = wm;
     int w = larg + 64, h = mot[0] ? 52 : 40, x = GFX_W / 2 - w / 2, y = -h + (int)((h + FAIXA_H + 6) * q);
     ui_cartao_aceso(x, y, w, h, true, C_OURO);
-    gfx_disco(x + 22, y + h / 2, 14, C_LATAO_ESC);
-    gfx_disco(x + 22, y + h / 2, 11, C_FELTRO_ESC);
-    txt_c(x + 22, y + h / 2 - TXT_H / 2, "?", C_OURO, true);
+    cq_icone(c, x + 22, y + h / 2, 12);
     txt(x + 44, y + 3, s, C_OURO, true);
     if (mot[0]) txt(x + 44, y + 17, mot, C_MARFIM, false);
     gfx_texto(x + 44, y + (mot[0] ? 31 : 17), sub, C_MARFIM_S, GFX_FINO, false);
@@ -358,9 +367,7 @@ static void cq_cartao_rodada(void)
     linha_teclas(x + w - 10 - tw, y + 6, "ENTER segue", C_TEXTO_M, true);
     for (int i = 0; i < n; i++) {
         int c = cq_rod[i], ly = y + 22 + i * lh, my = ly + (curto ? 11 : 16);
-        gfx_disco(x + 20, my, 10, C_LATAO_ESC);
-        gfx_disco(x + 20, my, 7, C_FELTRO_ESC);
-        txt_c(x + 20, my - TXT_H / 2, "?", C_OURO, true);
+        cq_icone(c, x + 20, my, 10);
         char s[96];
         snprintf(s, sizeof s, "%s  ·  %s", cq_nome(c), CQ_TIPO_NOVO[CONQ[c].k]);
         txt(x + 36, ly, s, C_OURO, true);

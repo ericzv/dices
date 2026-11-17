@@ -4266,6 +4266,25 @@ int main(void)
             cq_rodada_limpa();
             CONFERE(!n_cq_rod && !cq_brilho_agora(), "a rodada nova comeca sem o cartao");
             fase = F_JOGA;
+            // v1.34: o Sorte/Reves avisa uma vez so, quando as duas metades
+            // aconteceram, e o motivo conta as duas (nao so a desta rodada).
+            perfis[0].conq &= ~(1ull << CQ_SORTE_REVES);
+            cq_partida_comeca();
+            cq_rodada_abre();
+            FILA_CQ({ D_D6, 1, V_VALIDO }, { D_D4, 2, V_VALIDO });
+            F[0].total = 8; F[1].total = 7; venc_mao = 0;
+            cq_rodada(0, 10, false);
+            CONFERE(!cq_aberta(CQ_SORTE_REVES), "so a vitoria por 1 nao abre o Sorte/Reves");
+            F[0].total = 9; F[1].total = 10; venc_mao = 1;
+            cq_rodada(1, 0, false);
+            CONFERE(cq_aberta(CQ_SORTE_REVES) && !strcmp(cq_motivo[CQ_SORTE_REVES], "venceu uma rodada por 8 a 7 e perdeu outra por 9 a 10"),
+                    "o Sorte/Reves com as duas metades no motivo ('%s')", cq_motivo[CQ_SORTE_REVES]);
+            int avisos = n_cq_avisos, cards = n_cq_cards;
+            cq_rodada(1, 0, false);                   // perde por 1 de novo: ja aberta, nada avisa
+            int vezes = 0;
+            for (int i = 0; i < n_cq_rod; i++) vezes += cq_rod[i] == CQ_SORTE_REVES;
+            CONFERE(vezes == 1 && n_cq_avisos == avisos && n_cq_cards == cards, "a conquista aberta nao avisa de novo (%d vezes no cartao, avisos %d->%d)", vezes, avisos, n_cq_avisos);
+            cq_rodada_limpa();
         }
         #undef FILA_CQ
         // Perdeu a partida com conquista nova: os cards antes do fim da run.

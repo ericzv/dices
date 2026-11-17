@@ -394,6 +394,7 @@ static bool cq_rola(int t)
 // A partida: o que se conta ate o fim dela (cq_partida_fim soma no perfil).
 static int  cq_min_fichas, cq_seguidas, cq_rod_partida, cq_cheias_partida;
 static bool cq_por1_v, cq_por1_p, cq_viuva_partida, cq_atras_ultima;
+static int  cq_por1[4];                  // os placares: a vitoria por 1 (seu, dele) e a derrota por 1 (o motivo do Sorte/Reves)
 static int  cq_compras_loja;            // o que ja se comprou nesta loja (Cartola)
 static void cq_partida_comeca(void)
 {
@@ -534,10 +535,11 @@ static void cq_rodada(int w, int pote_levado, bool correu)
         if (venc_mao == 0 && f->lancados > 0 && a <= CQ_MOEDA_PONTOS) cq_abre_m(CQ_MOEDA_SORTE, m_val, "venceu com %d a %d", a, b);
         if (venc_mao == 0 && a - b >= CQ_DINAMITE_DIF) cq_abre_m(CQ_DINAMITE, m_val, "venceu por %d: %d a %d", a - b, a, b);
         if (a == b && a >= CQ_ESPELHO_PONTOS) cq_abre_m(CQ_ESPELHO, m_val, "empatou em %d a %d", a, b);   // o empate (o Crupie leva o dele, mas empatou)
-        if (venc_mao == 0 && a == b + 1) cq_por1_v = true;
-        if (venc_mao == 1 && b == a + 1) cq_por1_p = true;
-        if (cq_por1_v && cq_por1_p)
-            cq_abre_m(CQ_SORTE_REVES, 0, "nesta partida, %s por 1 ponto (%d a %d)", venc_mao == 0 ? "venceu esta" : "perdeu esta", a, b);
+        if (venc_mao == 0 && a == b + 1) { cq_por1_v = true; cq_por1[0] = a; cq_por1[1] = b; }
+        if (venc_mao == 1 && b == a + 1) { cq_por1_p = true; cq_por1[2] = a; cq_por1[3] = b; }
+        if (cq_por1_v && cq_por1_p)                   // o motivo conta as duas metades, nao so a desta rodada
+            cq_abre_m(CQ_SORTE_REVES, 0, "venceu uma rodada por %d a %d e perdeu outra por %d a %d",
+                      cq_por1[0], cq_por1[1], cq_por1[2], cq_por1[3]);
         if (resolvido.ad_agiram[0] >= CQ_PURPURINA_AD)
             cq_abre_m(CQ_PURPURINA, 0, "%d adesivos seus agiram nesta rodada", resolvido.ad_agiram[0]);
         uint8_t anulei = 0;                           // dados dele que os meus anularam (e ficaram anulados)

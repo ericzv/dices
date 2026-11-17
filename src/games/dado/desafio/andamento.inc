@@ -766,7 +766,7 @@ static void des_resultado(void)
         if (!chefe_abriu(d, c)) {
             novidade_t pd[PEDACO_MAX];
             int n = pedaco(d, c, pd);
-            for (int i = 0; i < n; i++) des_chefe_novo |= pd[i].k != NV_DIF;
+            for (int i = 0; i < n; i++) des_chefe_novo |= pd[i].k != NV_DIF && !novidade_do_legado(&pd[i]);
         }
         p->chefes[d] |= (uint8_t)(1u << c);
         des_chefe_c = c;

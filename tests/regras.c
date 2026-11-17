@@ -4434,6 +4434,31 @@ int main(void)
             perfis_salva();
             perfis_lidos = false; perfis_le();
             CONFERE(!cq_aberta(CQ_BUMERANGUE) && dado_liberado(D_CARROSSEL), "PER9 lido sem converter de novo");
+            // v1.35: o Neon aberto pelo legado (o Crupie do Nivel 7, na regra de
+            // antes) ja sai na loja; vencer o Barao que o abre na tabela nova nao
+            // o anuncia como novo, so o resto do pedaco.
+            {
+                memset(perfis[0].legado, 0, sizeof perfis[0].legado);
+                memset(perfis[0].chefes, 0, sizeof perfis[0].chefes);
+                for (int i = 0; i < N_LEGADO; i++)
+                    if (LEGADO[i].k == LG_ADESIVO && LEGADO[i].id == AD_NEON) perfis[0].legado[i >> 3] |= (uint8_t)(1u << (i & 7));
+                int dn = nivel_do_adesivo(AD_NEON) - 1, cn = chefe_do_adesivo(AD_NEON);
+                novidade_t pn[PEDACO_MAX];
+                int npn = pedaco(dn, cn, pn), tem = 0, esperado = 0;
+                for (int i = 0; i < npn; i++) {
+                    tem += pn[i].k == NV_ADESIVO && pn[i].v == AD_NEON;
+                    esperado += pn[i].k != NV_DIF && !(pn[i].k == NV_ADESIVO && pn[i].v == AD_NEON);
+                }
+                CONFERE(cn == CH_BARAO && adesivo_liberado(AD_NEON) && !chefe_abriu(dn, cn) && tem == 1,
+                        "o Neon do legado: aberto na loja e no pedaco do Barao (chefe %d, %d no pedaco)", cn, tem);
+                run.dificuldade = (uint8_t)dn; des_chefe_c = cn; des_chefe_novo = true; n_nov = 0;
+                nov_poe_pedaco();
+                int neon = 0;
+                for (int i = 0; i < n_nov; i++) neon += nov[i].k == NV_ADESIVO && nov[i].v == AD_NEON;
+                CONFERE(neon == 0 && n_nov == esperado && esperado > 0,
+                        "o card do Barao nao anuncia o Neon do legado (%d vezes, %d cards de %d)", neon, n_nov, esperado);
+                n_nov = 0;
+            }
             memset(&perfis[0], 0, sizeof perfis[0]);     // um perfil novo, no mesmo nivel: sem o legado
             snprintf(perfis[0].nome, sizeof perfis[0].nome, "NOVO");
             perfis[0].nivel = 4;

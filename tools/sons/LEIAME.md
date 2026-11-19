@@ -46,6 +46,9 @@ o tamanho): o `som.c` as mistura amostra a amostra com ela, e o teste `sons`
 confere que todas têm o mesmo número de quadros. Uma camada de outro
 tamanho fica fora do jogo. A batucada fica na memória desde o começo; a voz
 é só a do chefe do salão, decodificada aos poucos quando o salão muda.
+Por cima do volume medido aqui, o `som.c` tem o ajuste de ouvido de cada
+chefe (`AJUSTE_CHEFE`): o Crupiê, que não tem voz, +15% na batucada; a Dona
++5%, o Barão e o Coringa +10% na voz; o Papai Noel como está.
 
 O volume de cada som foi igualado ao do som sintetizado que ele substituiu
 (`VOLUME` no `gera.py`); `GANHO_DB` guarda os ajustes pedidos depois

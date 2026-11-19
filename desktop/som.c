@@ -105,6 +105,12 @@ static bool  chefe_toca;
 static int   nivel[SOM_CANAIS] = { SOM_NIVEIS, SOM_NIVEIS, SOM_NIVEIS };
 #define VOL_TRILHA 0.35f                     // a trilha no volume 10
 #define VOL_BATUCADA 0.708f                  // a batucada do chefe 3 dB abaixo da trilha: as tres juntas nao estouram
+// O ajuste de ouvido de cada chefe, por cima do volume medido no gera.py: o
+// Crupie nao tem voz, entao o dele vai na batucada; o dos outros, na voz.
+// (Com eles, o pico da trilha + batucada + voz fica abaixo de 0,46.)
+static const float AJUSTE_CHEFE[SOM_CHEFES] = {
+    [SOM_CHEFE_CRUPIE] = 1.15f, [SOM_CHEFE_DONA] = 1.05f, [SOM_CHEFE_BARAO] = 1.10f,
+    [SOM_CHEFE_CORINGA] = 1.10f, [SOM_CHEFE_NOEL] = 1.0f };
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
 // A trilha e a batucada ficam na memoria desde o comeco; a voz e a do chefe
@@ -394,8 +400,10 @@ void som_atualiza(float dt)
     if (v_voz < 0.001f && alvo_voz == 0) v_voz = 0;
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
     cam_alvo[CAM_TRILHA] = m * duck;
-    cam_alvo[CAM_CHEFE] = m * duck * v_chefe * VOL_BATUCADA;
-    cam_alvo[CAM_VOZ] = m * duck * v_voz;
+    float aj_bat = chefe_qual == SOM_CHEFE_CRUPIE ? AJUSTE_CHEFE[SOM_CHEFE_CRUPIE] : 1;
+    float aj_voz = voz_qual > SOM_CHEFE_CRUPIE && voz_qual < SOM_CHEFES ? AJUSTE_CHEFE[voz_qual] : 1;
+    cam_alvo[CAM_CHEFE] = m * duck * v_chefe * VOL_BATUCADA * aj_bat;
+    cam_alvo[CAM_VOZ] = m * duck * v_voz * aj_voz;
 }
 
 // Toca o som s no tom tom (1: o gravado). Cada voz guarda o ultimo tom que

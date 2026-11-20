@@ -151,7 +151,8 @@ R = {
            lambda v: mix((0, G.tom(m(v), -2), 1), (0, mt(v), db(-8))),
            lambda v: G.pb(G.tom(mt(v), [-1.5, 0, 1.5, -0.7, 0.7][v % 5]), 7000)),
  # madeira com madeira: o toc de dois dados de madeira, o corpo grave e o feltro baixinho
- 'madeira': (lambda v: G.pb(mix((0, dm(v), 1), (0.001, G.pb(G.tom(dm(v + 3), -7), 1400), db(-5)), (0, f(v), db(-8))), 6000),
+ 'madeira': (lambda v: G.pb(mix((0, dm(v), 1), (0.001, G.pb(G.tom(dm(v + 3), -7), 1400), db(-5)),
+                                 (0.001, G.banda(G.tom(dm(v + 1), -5), 400, 1200), 1), (0, f(v), db(-14))), 6000),
              lambda v: G.tom(m(v), 3),
              lambda v: dm(v)),
  'macio': (lambda v: G.pb(G.tom(f(v), -5), 900),
@@ -234,9 +235,9 @@ def rola_pedra():
     return rolagem(g, taxa=(0.08, 0.14))
 def rola_metal():
     def g(M, t, c):                                    # o baque pesado e, as vezes, o metal abafado
-        M.poe(t, G.pb(feltro_r((-4, -1)), 3000), c * rnd().uniform(0.45, 0.85) * 0.6)
+        M.poe(t, G.pb(feltro_r((-4, -1)), 3000), c * rnd().uniform(0.45, 0.85) * 0.38)
         if rnd().random() < 0.8:
-            M.poe(t + 0.003, G.banda(G.tom(G.batida(rnd().choice(DMETAL)), rnd().uniform(-2, 1)), 700, 3500), c * rnd().uniform(0.45, 0.7))
+            M.poe(t + 0.003, G.banda(G.tom(G.batida(rnd().choice(DMETAL)), rnd().uniform(-2, 1)), 700, 3500), c * rnd().uniform(0.9, 1.4))
     return rolagem(g)
 def rola_madeira():
     def g(M, t, c):                                    # o feltro e o toc oco da madeira
@@ -368,10 +369,12 @@ def treno_sino():
     M = G.Mix(0.6)
     G.guizos(M, 0.0, 9, 0.5, 0.14)
     M.poe(0.002, parcial(2800, 0.3, 0.08), 0.12)              # o corpo do guizo
+    M.poe(0.002, parcial(4200, 0.25, 0.07), 0.12 * db(-3))    # e as parciais de cima (guizo, nao bip)
+    M.poe(0.002, parcial(5600, 0.2, 0.06), 0.12 * db(-5))
     x = G.pb(M.x, 9000)
     x = x * np.exp(-np.arange(len(x)) / (0.25 * SR) * 2)     # e some em ~0,25 s
     return G.sala(x, 0.15)
-UM = {'sopro': (sopro, G.VOLUME['vento'] * db(0)), 'treno_sino': (treno_sino, G.VOLUME['efeito'] * db(-7))}
+UM = {'sopro': (sopro, G.VOLUME['vento'] * db(0)), 'treno_sino': (treno_sino, G.VOLUME['efeito'] * db(-1))}
 
 def rms(x): return float(np.sqrt(np.mean(x ** 2)))
 _RUFO = []

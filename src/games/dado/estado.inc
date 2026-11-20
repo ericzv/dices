@@ -130,6 +130,7 @@ typedef struct {
     float t_lampejo;
     float andou, dir_x, dir_y;
     float girou;                     // o quanto o Bumerangue ja virou
+    float t_voa;                     // o tempo do lance na fisica (a rajada e o guizo: o mesmo em todo lance, lento ou nao)
     uint8_t assina_som;              // o que a assinatura ja fez neste lance (1: o sopro, 2: o guizo, 4: o tranco, 8: o estrondo, 16: o tremor)
 } voo_t;
 

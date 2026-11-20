@@ -922,6 +922,7 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
+        voo_zera_lance(w);                   // o vento e a curva dele, nao os do dado de verdade
         w->face = rola_v(TIPO[t].efeito == EF_SORTE_REVES ? SR_REVES : lados);
         n_voo = 2;
     }
@@ -936,6 +937,7 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
+        voo_zera_lance(w);
         w->face = rola_v(lados);
         n_voo = 2;
     }
@@ -1015,6 +1017,7 @@ static bool ad_etapa_passo(float dt)
         w->hesita = hora ? HESITA_T : 0;
         w->chumbou = false;
         voo_zera_lance(w);                   // o lance do acabamento comeca do zero
+        if (v->ad_rola == AD_BOMBA) w->assina_som |= 4;   // a Furia ja sai no estouro (sem segurar de novo)
     }
     v->valor = v->valor2;
     v->lado = v->lado2;

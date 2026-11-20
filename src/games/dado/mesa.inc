@@ -210,18 +210,18 @@ static void toque_pouso(int i)
         break;
     case PO_GELO: {                                    // o rastro que fica e apaga, e os graos de gelo que espirram
         rastro(px, py, poeira[i].dx, poeira[i].dy, 40, 1 - t / POEIRA_T, false);
-        if (t > 0.38f) break;
-        float q2 = t / 0.38f, e = 1 - (1 - q2) * (1 - q2);
+        if (t > 0.42f) break;
+        float q2 = t / 0.42f, e = 1 - (1 - q2) * (1 - q2);
         float ba = atan2f(-poeira[i].dy, -poeira[i].dx);          // a maioria espirra para tras
         bool rumo = poeira[i].dx != 0 || poeira[i].dy != 0;
-        for (int k = 0; k < 16; k++) {
+        for (int k = 0; k < 24; k++) {
             uint32_t h = pouso_sorte(i, k);
             if (q2 > 0.75f && k % 2) continue;                    // no fim, so a metade (vai sumindo)
-            float an = rumo && k < 11 ? ba + ((int)(h % 140) - 70) / 57.3f : (h % 628) / 100.0f;
-            float d = R_DADO + 1 + e * (10 + h % 16);
-            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.2f + sinf(an) * d * 0.6f - sinf(q2 * 3.1416f) * (2 + h % 4));
+            float an = rumo && k < 16 ? ba + ((int)(h % 140) - 70) / 57.3f : (h % 628) / 100.0f;
+            float d = R_DADO + 4 + e * (12 + h % 18);
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.2f + sinf(an) * d * 0.8f - sinf(q2 * 3.1416f) * (2 + h % 4));
             uint16_t c = k % 3 == 0 ? C_BRANCO : k % 3 == 1 ? C_CELESTE : C_PRATA;
-            int g = k % 2 == 0 && q2 < 0.6f ? 2 : 1;               // os maiores, 2x2, no comeco
+            int g = k % 2 == 0 && q2 < 0.7f ? 2 : 1;               // os maiores, 2x2, no comeco
             for (int yy = 0; yy < g; yy++)
                 for (int xx = 0; xx < g; xx++)
                     if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = c;
@@ -263,14 +263,14 @@ static void toque_pouso(int i)
         }
         break;
     }
-    case PO_FIAPO:                                     // oito fiapos (3 px tortos), no tom mais claro, que caem devagar
-    case PO_MIGALHA:                                   // oito migalhas de 2x2, no tom mais claro
+    case PO_FIAPO:                                     // dez fiapos (3 px tortos), no tom mais claro, que caem devagar
+    case PO_MIGALHA:                                   // dez migalhas de 2x2, no tom mais claro
         if (t > 0.36f) break;
-        for (int k = 0; k < 8; k++) {
+        for (int k = 0; k < 10; k++) {
             uint32_t h = pouso_sorte(i, k);
             if (t > 0.22f + (h % 8) * 0.018f) continue;                 // somem um a um
             float q2 = fminf(1, t / 0.2f), an = (h % 628) / 100.0f;
-            float d = R_DADO + 1 + (1 - (1 - q2) * (1 - q2)) * (6 + h % 9);   // saem da beira do dado
+            float d = R_DADO + 4 + (1 - (1 - q2) * (1 - q2)) * (10 + h % 12);   // saem da beira do dado e caem fora dele e da sombra
             int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.3f + sinf(an) * d * 0.6f + (tp == PO_FIAPO ? t * 10 : 0));
             uint16_t c = poeira[i].cor;
             if (tp == PO_FIAPO) {                      // o fio: dois pixels e um terceiro descendo
@@ -647,8 +647,8 @@ static void desenha_lance(void)
             }
             if (as == AS_FURIA && t_fase < 0.3f)        // a Furia: segura tremendo e sai no tranco
                 ex += (t_fase < 0.12f ? 2.5f : 2 * (1 - t_fase / 0.3f)) * sinf(t_fase * 95);
-            if (as == AS_RAJADA && !v->fantasma && t_fase >= RAJADA_T0 && t_fase < RAJADA_T0 + 0.25f)
-                rajada_riscos(ex, ey, v->vento_x, v->vento_y, (t_fase - RAJADA_T0) / 0.25f);
+            if (as == AS_RAJADA && !v->fantasma && v->t_voa >= RAJADA_T0 && v->t_voa < RAJADA_T1)
+                rajada_riscos(ex, ey, v->vento_x, v->vento_y, (v->t_voa - RAJADA_T0) / (RAJADA_T1 - RAJADA_T0));
         }
         // O Presente no comeco do lance: ainda a caixa embrulhada, que rasga.
         bool abre = !v->fantasma && fase == F_ROLANDO && v->slot < N_FILA && F[v->dono].presente[v->slot]
@@ -805,7 +805,7 @@ static void desenha_lance(void)
         if (!v->parado && v->t_lampejo >= 0) {                       // o lampejo enquanto gira: por 4 ou 5 quadros
             int lp = ACAB[acab_de(v->tipo, v->dono)].lampejo;
             float dt_l = t_fase - v->t_lampejo;
-            int lx = (int)(ex + dx - r * 0.5f), ly = (int)(ey + bob - r * 0.55f);
+            int lx = (int)(ex + dx - r * 0.2f), ly = (int)(ey + bob - r * 0.75f);
             if (lp == LP_BRILHO && dt_l >= 0 && dt_l < 0.07f)
                 estrela4(lx, ly, dt_l < 0.035f ? 2 : 1, C_BRANCO, C_BRANCO, C_MARFIM);
             else if (lp == LP_ESTRELA && dt_l >= 0 && dt_l < 0.09f) {

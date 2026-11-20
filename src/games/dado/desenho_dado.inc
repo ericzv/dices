@@ -3094,8 +3094,8 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                         if (sulco) c = GELO_FLOCO[0];
                         else if (fro < 0.70f && br < 0.05f && fu - fv > 0) c = GELO_FLOCO[1];   // a luz na beira do sulco
                     }
-                    if (mat_desta == MAT_BRONZE && !forma) {                 // o metal: um risco de luz na diagonal
-                        float d = fabsf((dx - dy) * s * 0.7f + (dx + dy) * s * 0.25f + 0.05f);
+                    if (mat_desta == MAT_BRONZE && !forma) {                 // o metal: um risco de luz na diagonal (rolando, ele atravessa a face)
+                        float d = fabsf((dx - dy) * s * 0.7f + (dx + dy) * s * 0.25f + 0.05f + acab_varre * (acab_fase - 0.5f) * 0.9f);
                         if (d < 0.13f && nivel < 2) c = tons[nivel + 3];
                     }
                     if (mat_desta == MAT_MARMORE) {                           // os veios: finos, tortos, que se cruzam
@@ -4723,8 +4723,9 @@ static void pouso_novos_passo(voo_t *v)
     }
 }
 
-#define RAJADA_T0 0.30f              // a rajada da Ventania, no tempo do lance
-#define RAJADA_T1 0.55f
+#define RAJADA_T0 0.19f              // a rajada da Ventania, no tempo da fisica do lance (t_voa)
+#define RAJADA_T1 0.34f
+#define TRENO_SINO 0.28f             // o guizo do Treno, no mesmo tempo
 
 // O som do pouso: a Furia e o Terremoto caem pesados (uma vez por lance, e
 // so o dado de verdade: o esbarrao que acorda o dado e o fantasma do Viciado
@@ -4751,6 +4752,7 @@ static void voo_zera_lance(voo_t *v)
     v->andou = 0;
     v->dir_x = v->dir_y = 0;
     v->girou = 0;
+    v->t_voa = 0;
     v->assina_som = 0;
     float vv = sqrtf(v->vx * v->vx + v->vy * v->vy);
     if (vv > 0) { v->vento_x = -v->vy / vv; v->vento_y = v->vx / vv; }   // o vento da Ventania: de lado
@@ -4796,6 +4798,7 @@ static bool fisica(float dt)
         if (v->pouso > 0) v->pouso -= dt;
         if (v->parado) continue;
         todos = false;
+        v->t_voa += dt;
         // Os numeros do acabamento e as assinaturas. A moeda gira como sempre.
         bool moeda = TIPO[v->tipo].lados == 2;     // moeda tem os sons dela, mais leves
         int cl = moeda ? AC_MARFIM : acab_de(v->tipo, v->dono), as = moeda ? AS_NADA : assina_de(v->tipo);
@@ -4834,11 +4837,11 @@ static bool fisica(float dt)
             }
         }
         if (as == AS_RAJADA && v0 > 80) {                              // a Ventania: uma rajada de lado, com o sopro
-            float a = t_fase >= RAJADA_T0 && t_fase < RAJADA_T1 ? 1100 : 0;   // no meio do caminho, quando ele ja perdeu forca
+            float a = v->t_voa >= RAJADA_T0 && v->t_voa < RAJADA_T1 ? 1100 : 0;   // no meio do caminho, quando ele ja perdeu forca
             v->vx += v->vento_x * a * dt; v->vy += v->vento_y * a * dt;
-            if (a > 0 && !(v->assina_som & 1)) { v->assina_som |= 1; som_toca(SOM_SOPRO); }
+            if (a > 0 && !v->fantasma && !(v->assina_som & 1)) { v->assina_som |= 1; som_toca(SOM_SOPRO); }
         }
-        if (as == AS_DESLIZA && t_fase >= 0.45f && v0 > 60 && !(v->assina_som & 2)) {   // o Treno: o guizo no meio do caminho
+        if (as == AS_DESLIZA && v->t_voa >= TRENO_SINO && v0 > 60 && !v->fantasma && !(v->assina_som & 2)) {   // o Treno: o guizo no meio do caminho
             v->assina_som |= 2;
             som_toca(SOM_TRENO_SINO);
         }
@@ -4888,8 +4891,8 @@ static bool fisica(float dt)
         if (v->t_face <= 0) {
             v->face = face_v(v->tipo, v->valor);
             v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
-            // O lampejo: a face nova passa pela luz; rolando rapido, no maximo um a cada 0,2 s.
-            if (ac->lampejo && vel > 120 && (v->t_lampejo < 0 || t_fase - v->t_lampejo >= 0.2f)) v->t_lampejo = t_fase;
+            // O lampejo: a face nova passa pela luz; rolando, no maximo um a cada 0,15 s.
+            if (ac->lampejo && vel > 90 && (v->t_lampejo < 0 || t_fase - v->t_lampejo >= 0.15f)) v->t_lampejo = t_fase;
         }
         if (as == AS_PIAO && vel < para && v->gira_mais > 0 && t_fase <= 6.0f) {   // o Piao ainda gira no lugar antes de deitar
             v->gira_mais -= dt;

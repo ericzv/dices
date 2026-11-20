@@ -271,8 +271,9 @@ static void materiais_da_partida(int op)
     material_j[outro(baixo)] = (uint8_t)op;
 }
 
-// O oponente da partida rapida, pelo nivel: facil marfim, medio osso,
-// dificil jade. Com duas pessoas ou online, o outro lado fica no marfim.
+// O material do outro lado na loja do comeco da partida: com duas pessoas ou
+// online, o marfim. Na partida contra a maquina dos testes (M_UM), pelo nivel
+// dela: facil marfim, medio osso, dificil jade.
 static int material_rapida(void)
 {
     if (modo != M_UM) return MAT_MARFIM;

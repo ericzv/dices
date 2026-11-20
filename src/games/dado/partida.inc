@@ -390,7 +390,8 @@ static void nova_rodada(void)
 
 // Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2). E as
 // cores: com dois na mesma mesa, azul e rosa, para saber de quem e a vez de
-// relance; nos outros modos, quem joga aqui fica no latao.
+// relance; nos outros modos, quem joga aqui fica no latao. (M_UM, o
+// "COMPUTADOR": a partida contra a maquina, que so os testes jogam.)
 static void poe_nomes(void)
 {
     switch (modo) {
@@ -2170,6 +2171,8 @@ static void aplica_evento(int i)
 
 // A maquina joga contra uma pessoa? Entao os menus dela nao aparecem, e o que
 // ela decide vira uma linha curta (maquina contra maquina, nos testes, nao).
+// No jogo, so no Desafiante; os casos da loja e do premio (F_LOJA, F_PREMIO)
+// so acontecem na partida contra a maquina dos testes.
 static bool anuncia_maquina(void)
 {
     return (cpu >> vez & 1) && !(cpu >> outro(vez) & 1);

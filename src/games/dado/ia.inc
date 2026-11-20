@@ -514,7 +514,7 @@ static uint32_t ia_conta;                    // as decisoes da partida
 static bool ia_sobe;                         // esta decisao, um nivel acima
 static float ousadia_jog[2];
 // Ousadia nas apostas, de -1 (cautela) a +1 (aposta alto): o jeito de cada
-// oponente do Modo Desafiante. 0 na partida rapida.
+// oponente do Modo Desafiante (0 na partida contra a maquina dos testes).
 static float ia_ousadia;
 // Quantas rodadas de mentira cabem numa decisao, pelo nivel.
 static int amostras_ia(int cheio, int pouco)
@@ -1078,6 +1078,14 @@ static float forca_colecao(int j, int extra, int fixo_extra, uint32_t base)
     return s / (float)amostras;
 }
 
+// ---- A loja e o premio da partida (so nos testes) ---------------------------
+// No jogo, a maquina so joga no Desafiante, que nao tem a loja do comeco da
+// partida nem o premio por rodada (esses sao das 2 pessoas e do online). A
+// IA da loja e do premio (ia_compra, ia_premio, facil_compra, facil_premio e
+// o caminho 'direto' do ia_passo) fica para a partida contra a maquina dos
+// testes (tests/simula.c joga partidas inteiras, com loja e premio, com a
+// maquina de um lado ou dos dois).
+//
 // Loja: compra o que mais sobe a chance de vencer, pesando o preco: um ponto
 // de chance a mais em cada rodada que falta vale mais ou menos um quarto do
 // pote medio. Guarda sempre fichas para as apostas.
@@ -1164,6 +1172,7 @@ static int facil_aposta(void)
     return 0;
 }
 
+// A loja e o premio da IA facil (so nos testes, como as de cima).
 static int facil_compra(void)
 {
     int b = -1;

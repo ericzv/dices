@@ -70,10 +70,10 @@ static const char *reg_estado_txt(void)
     return reg_falhou ? "sem acesso à pasta" : "ligado";
 }
 
-// Grava? A run do Desafiante (a loja, os amuletos, as conquistas) com a opcao
-// ligada; numa partida, so a sua contra a maquina.
+// Grava? A run do Desafiante (a loja, os amuletos, as conquistas, as
+// partidas) com a opcao ligada.
 static bool reg_run(void) { return reg_disponivel() && reg_e_ligado() && !reg_falhou; }
-static bool reg_vale(void) { return reg_run() && (modo == M_DESAFIO || modo == M_UM) && cpu == 2; }
+static bool reg_vale(void) { return reg_run() && modo == M_DESAFIO && cpu == 2; }
 
 // ---- O arquivo e a linha --------------------------------------------------------
 static bool reg_abre(void)
@@ -241,7 +241,6 @@ static void reg_partida_comeca(void)
 {
     reg_n_partida++;
     if (!reg_comeca("partida")) return;
-    reg_ks("modo", modo == M_DESAFIO ? "desafiante" : "rapida");
     reg_ks("oponente", J[1].nome ? J[1].nome : "?");
     reg_ki("ia_nivel", nivel_jog[1]);
     if (modo == M_DESAFIO) {

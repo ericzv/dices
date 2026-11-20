@@ -64,7 +64,7 @@ int main(int argc, char **argv)
         perfil_atual = 0;
         perfis_lidos = true;
         hist_de = -1;
-        modo = M_UM; cpu = 2;
+        modo = M_DESAFIO; cpu = 2;
         memset(F, 0, sizeof F);
         F[0].tipo[0] = D_D6; F[0].tipo[1] = D_D8; F[0].n = F[0].lancados = 2;
         F[0].est[0] = V_VALIDO; F[0].est[1] = V_ANULADO;
@@ -79,6 +79,10 @@ int main(int argc, char **argv)
         modo = M_DOIS; cpu = 0;                  // duas pessoas: nao conta
         hist_rodada(99);
         hist_partida(0);
+        modo = M_UM; cpu = 2;                    // a partida contra a maquina dos testes: nao conta
+        hist_rodada(99);
+        hist_partida(0);
+        modo = M_DOIS; cpu = 0;
         CONFERE(hist.rodadas == 2 && hist.rodadas_venc == 1 && hist.maior_rodada == 37 && hist.maior_pote == 25,
                 "historico das rodadas: %u %u %d %d", (unsigned)hist.rodadas, (unsigned)hist.rodadas_venc,
                 hist.maior_rodada, hist.maior_pote);

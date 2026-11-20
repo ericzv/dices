@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Historico: o que cada perfil ja jogou. Conta so a pessoa contra a maquina
-// (Desafiante e partida rapida), no perfil escolhido por ultimo, e guarda na
+// Historico: o que cada perfil ja jogou. Conta so as partidas do Desafiante
+// (a pessoa contra a maquina), no perfil escolhido por ultimo, e guarda na
 // chave do perfil ("HIS2" + hexadecimal). A estrutura tem espaco para os
 // dados que vierem e uma sobra no fim: crescer nao apaga o que ja foi contado.
 // ---------------------------------------------------------------------------
@@ -147,10 +147,10 @@ static void hist_apaga(int i)
     if (hist_de == i) hist_de = -1;
 }
 
-// Conta? So a pessoa (embaixo) contra a maquina, com um perfil escolhido.
+// Conta? So o Desafiante (a pessoa, embaixo, contra a maquina), com um perfil escolhido.
 static bool hist_conta(void)
 {
-    if ((modo != M_DESAFIO && modo != M_UM) || cpu != 2) return false;
+    if (modo != M_DESAFIO || cpu != 2) return false;
     perfis_le();
     if (perfil_atual < 0 || !perfis[perfil_atual].nome[0]) return false;
     hist_carrega(perfil_atual);

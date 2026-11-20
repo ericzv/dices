@@ -14,6 +14,7 @@ bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
+void som_rufo_de(int q) { (void)q; }
 void som_giro(bool on) { (void)on; }
 static bool teste_motor;                  // o motor do elevador ligado (o som de verdade nao toca aqui)
 void som_motor(bool on) { teste_motor = on; }

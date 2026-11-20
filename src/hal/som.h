@@ -96,8 +96,31 @@ enum {
     SOM_PAVIO,       // a Dinamite que nao saiu: o pavio cresce (chiado curto e um tilintar)
     SOM_CARROSSEL,   // o Carrossel parando: a caixinha de musica desacelerando, a trava e o sino
     SOM_ELEVADOR,    // o elevador chegando no andar: o freio, a trava e o sino de chegada
+    // Os acabamentos: o pouso, a batida na borda de madeira e em outro dado
+    SOM_POUSA_LACA, SOM_BATE_LACA, SOM_BATE_DADO_LACA,
+    SOM_POUSA_VIDRO, SOM_BATE_VIDRO, SOM_BATE_DADO_VIDRO,
+    SOM_POUSA_GELO, SOM_BATE_GELO, SOM_BATE_DADO_GELO,
+    SOM_POUSA_PEDRA, SOM_BATE_PEDRA, SOM_BATE_DADO_PEDRA,
+    SOM_POUSA_METAL, SOM_BATE_METAL, SOM_BATE_DADO_METAL,
+    SOM_POUSA_MADEIRA, SOM_BATE_MADEIRA, SOM_BATE_DADO_MADEIRA,
+    SOM_POUSA_MACIO, SOM_BATE_MACIO, SOM_BATE_DADO_MACIO,
+    SOM_POUSA_SECO, SOM_BATE_SECO, SOM_BATE_DADO_SECO,
+    SOM_POUSA_LOUCA, SOM_BATE_LOUCA, SOM_BATE_DADO_LOUCA,
+    SOM_POUSA_BORRACHA, SOM_BATE_BORRACHA, SOM_BATE_DADO_BORRACHA,
+    SOM_POUSA_NOITE, SOM_BATE_NOITE, SOM_BATE_DADO_NOITE,
+    SOM_POUSA_PAPEL, SOM_BATE_PAPEL, SOM_BATE_DADO_PAPEL,
+    SOM_POUSA_GRAO, SOM_BATE_GRAO, SOM_BATE_DADO_GRAO,
+    // As assinaturas: a Furia e o Terremoto caindo pesados, o
+    // fluuush da Ventania mudando o caminho e o guizo do Treno no meio dele
+    SOM_POUSA_FURIA, SOM_POUSA_TREMOR, SOM_SOPRO, SOM_TRENO_SINO,
     SOM_N
 };
+// O dado rolando, um laco por acabamento (SOM_ROLA_FELTRO: o rufo de
+// sempre, tambem o da laca e o da noite) e os das assinaturas que rolam de
+// um jeito proprio.
+enum { SOM_ROLA_FELTRO, SOM_ROLA_VIDRO, SOM_ROLA_GELO, SOM_ROLA_PEDRA, SOM_ROLA_METAL,
+       SOM_ROLA_MADEIRA, SOM_ROLA_MACIO, SOM_ROLA_SECO, SOM_ROLA_LOUCA, SOM_ROLA_BORRACHA,
+       SOM_ROLA_PAPEL, SOM_ROLA_GRAO, SOM_ROLA_FURIA, SOM_ROLA_ONDA, SOM_ROLA_PIAO, SOM_ROLAS };
 
 void som_toca(int som);
 void som_toca_tom(int som, int semitons);   // o mesmo som, transposto (a escada do fim da rodada)
@@ -106,6 +129,7 @@ bool som_ligado(void);
 bool som_falhou(void);       // o aparelho nao tem saida de audio
 void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola (false para tambem a moeda)
 void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e uma moeda
+void som_rufo_de(int rola);  // como o som_rufo(true), com o laco do acabamento (SOM_ROLA_*)
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_motor(bool on);     // o motor do elevador, subindo de tom, enquanto a cabine sobe
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide

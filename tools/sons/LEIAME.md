@@ -12,6 +12,7 @@ pip install numpy scipy imageio-ffmpeg
 python3 tools/sons/baixa.py
 python3 tools/sons/gera.py vidro fogo      # refaz só esses
 python3 tools/sons/gera.py --saida /tmp/x  # refaz todos em outra pasta, para comparar
+python3 tools/sons/gera_acab.py metal rola_pedra   # os dos acabamentos (todos, sem nomes)
 ```
 
 Cada som tem a sua semente: refazer um não muda os outros. Os arquivos do
@@ -37,6 +38,8 @@ caindo).
 | Roleta | `giro`, `slot`, `premio` | celesta, cliques reais, metal e moedas |
 | Elevador | `elevador_motor`, `elevador_sino` | o motor subindo (o tchac do relé, o zumbido que sobe de tom com a velocidade, a engrenagem, a polia e o cabo; o jogo o liga enquanto o ponteiro sobe e o apaga na chegada) e a chegada: o baque do freio, o clec da trava e o sino de cúpula em Mi com o vibrafone (um toque só, de quem sobe) |
 | Poderes com som próprio | `vampiro`, `sabotador`, `coveiro`, `autofagia`, `ampulheta`, `agnus` | asas e presas, catraca e assobio murchando, pazadas e sino, dentada e marimba, areia grão a grão e celesta, e o sino de capela com o coro de cordas e a celesta subindo (o Agnus ressuscitando) |
+| Acabamentos (`gera_acab.py`) | `pousa_<classe>_*`, `bate_<classe>_*`, `bate_dado_<classe>_*` e `rola_<classe>`, das classes laca, vidro, gelo, pedra, metal, madeira, macio, seco (o biscoito), papel, grao, louca, borracha e noite | as mesmas gravações, com o caráter de cada material: a pedra pesada e áspera, o metal grave no feltro e o tinido abafado rolando, a madeira com madeira e o toc oco, o macio abafado, a borracha grave, a louça firme e rolando como bolinha de gude, o gelo deslizando, o papel amassando, os grãos chacoalhando. O `rola_*` é o laço do dado rolando, como o `rufo` |
+| Assinaturas (`gera_acab.py`) | `rola_furia`, `rola_onda`, `rola_piao`, `pousa_furia_*`, `pousa_tremor_*`, `sopro`, `treno_sino` | a Fúria rolando e caindo pesada (o estrondo com harmônicos, para aparecer nas caixinhas pequenas, e o chão roncando), a Onda rolando com água, o Pião zunindo, o Terremoto pousando mais longo, o fluuush da Ventania e o guizo do Trenó |
 
 Quem tem variantes (`bate_0`…`bate_3` etc.) é sorteado no jogo, sem repetir
 a anterior, e com um pouco de variação de tom.

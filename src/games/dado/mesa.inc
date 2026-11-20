@@ -84,15 +84,20 @@ static void presente_abre(float x, float y, float q)
 // um tom (pontilhado), abre em volta de onde ele bateu e some. Fica no lugar
 // mesmo quando o dado ja foi para a fila.
 #define POEIRA_T 0.42f
-#define POEIRA_N 4
-static struct { float x, y, t; } poeira[POEIRA_N];
+#define POEIRA_N 8
+// tipo: o toque do acabamento por cima do anel (PO_*); cor: o tom
+// claro do corpo (fiapos, migalhas); anel: a forca do anel de sempre (0: sem
+// anel, as faiscas); (dx, dy): para onde ele rolava (o rastro do gelo).
+static struct { float x, y, t; uint8_t tipo; uint16_t cor; float anel, dx, dy; } poeira[POEIRA_N];
 static int feltro_idx(uint16_t c);           // catalogo.inc
-static void poeira_solta(float x, float y)
+static void poeira_solta_ac(float x, float y, int tipo, uint16_t cor, float anel, float dx, float dy)
 {
     int k = 0;
     for (int i = 1; i < POEIRA_N; i++) if (poeira[i].t <= 0 || poeira[i].t > poeira[k].t) k = i;   // a mais velha
-    poeira[k].x = x; poeira[k].y = y; poeira[k].t = 0.001f;
+    poeira[k].x = x; poeira[k].y = y; poeira[k].t = 0.001f; poeira[k].tipo = (uint8_t)tipo; poeira[k].cor = cor;
+    poeira[k].anel = anel; poeira[k].dx = dx; poeira[k].dy = dy;
 }
+static void poeira_solta(float x, float y) { poeira_solta_ac(x, y, PO_POEIRA, 0, 1, 0, 0); }
 // O estouro do Papel Bomba: um clarao, o anel de fogo que abre, a fumaca
 // subindo e os pedacos do papel queimado, onde o dado estava quando o papel
 // explodiu (ele sai voando dali). A mesa treme e o feltro levanta poeira.
@@ -156,39 +161,219 @@ static void poeira_passo(float dt)
     if (estouro_fx.t > 0 && (estouro_fx.t += dt) > ESTOURO_T) estouro_fx.t = 0;
     for (int i = 0; i < n_voo; i++) if (voo[i].t_assenta > 0 && voo[i].t_assenta < 9) voo[i].t_assenta += dt;
 }
-static void desenha_poeira(void)
+// O toque do pouso de cada acabamento, por cima do anel de
+// sempre: o vidro cintila, o gelo deixa o rastro e solta graos, o macio uns
+// fiapos, o seco umas migalhas, a louca um brilho, a noite estrelas; o metal
+// solta faiscas nas batidas fortes (sem anel).
+static uint32_t pouso_sorte(int i, int k) { return hash2((int)poeira[i].x * 7 + k * 131, (int)poeira[i].y * 13 + k * 71); }
+#define NO_FELTRO(x, y) ((x) > MESA_X0 && (x) < MESA_X1 - 1 && (y) > MESA_Y0 && (y) < MESA_Y1 - 1)
+// O rastro no feltro atras do dado (o feltro dois tons acima, pontilhado),
+// da beira de fora do dado ate comp px, apagando para tras, com a forca
+// dada: o gelo deixa uma faixa molhada; o Treno, os dois trilhos dos patins.
+static void rastro(float x, float y, float dx, float dy, float comp, float forca, bool patins)
 {
     uint16_t *fb = display_fb();
-    for (int i = 0; i < POEIRA_N; i++) {
-        if (poeira[i].t <= 0) continue;
-        float q = poeira[i].t / POEIRA_T, e = 1 - (1 - q) * (1 - q) * (1 - q);   // abre rapido e devagara
-        float rx = R_DADO + 2 + e * 28, ry = rx * 0.55f, larg = 7 - 5 * q;   // o anel, achatado como o chao
-        float forte = (1 - q) * 1.5f;
-        int cx = (int)poeira[i].x, cy = (int)(poeira[i].y + R_DADO * 0.45f);
-        for (int y = (int)(cy - ry - larg); y <= (int)(cy + ry + larg); y++) {
-            if (y < MESA_Y0 || y >= MESA_Y1) continue;
-            float dy = (y - cy) / ry;
-            for (int x = (int)(cx - rx - larg); x <= (int)(cx + rx + larg); x++) {
-                if (x < MESA_X0 || x >= MESA_X1) continue;
-                float dx = (x - cx) / rx, d = sqrtf(dx * dx + dy * dy) * rx;   // ~ a distancia, em px no eixo x
-                float fora = fabsf(d - rx) / larg;                             // 0 no meio do anel
-                if (fora >= 1) continue;
-                float dens = (1 - fora) * forte;
-                if (bayer(x, y) >= dens) continue;
-                uint16_t *p = &fb[y * GFX_W + x];
-                int k = feltro_idx(*p);
-                int k2 = k + (dens > 0.6f ? 2 : 1);              // forte: dois tons acima
-                if (k >= 0 && k < 5) *p = feltro_tons[k2 > 5 ? 5 : k2];
-            }
-        }
-        for (int g = 0; g < 7; g++) {                // uns graos que espirram para fora
-            float a = g * 0.898f + poeira[i].x * 0.03f, d = rx + 4 + e * 10;
-            int px = (int)(cx + cosf(a) * d), py = (int)(cy + sinf(a) * d * 0.55f - sinf(q * 3.1416f) * 5);
-            if (q < 0.7f && px > MESA_X0 && px < MESA_X1 - 2 && py > MESA_Y0 && py < MESA_Y1 - 2)
-                gfx_rect(px, py, q < 0.35f ? 2 : 1, q < 0.35f ? 2 : 1, feltro_tons[5]);
+    if (dx == 0 && dy == 0) return;
+    float nx = -dy, ny = dx;                            // de lado
+    for (int d = 0; d < (int)comp; d++) {
+        float dist = R_DADO + 2 + d, dens0 = forca * 0.9f * (1 - d / comp);
+        float cx = x - dx * dist, cy = y - dy * dist;
+        for (int w = -8; w <= 8; w++) {
+            float dens = dens0;
+            if (patins) { if (abs(w) != 8) continue; }        // os patins: dois trilhos, 16 px um do outro
+            else if (abs(w) > 6) continue;
+            else dens *= 0.75f * (1 - fabsf((float)w) / 7);   // a faixa, mais fraca nas beiras
+            int qx = (int)lroundf(cx + nx * w), qy = (int)lroundf(cy + ny * w);
+            if (!NO_FELTRO(qx, qy) || bayer(qx, qy) >= dens) continue;
+            uint16_t *p = &fb[qy * GFX_W + qx];
+            int k = feltro_idx(*p);
+            if (k >= 0 && k < 5) *p = feltro_tons[k + 2 > 5 ? 5 : k + 2];
         }
     }
 }
+static void toque_pouso(int i)
+{
+    uint16_t *fb = display_fb();
+    float t = poeira[i].t;
+    float px = poeira[i].x, py = poeira[i].y;
+    int tp = poeira[i].tipo;
+    switch (tp) {
+    case PO_CINTILA:                                   // quatro cintilas em volta, uma depois da outra
+        for (int k = 0; k < 4; k++) {
+            float t0 = k * 0.05f;
+            if (t < t0 || t > t0 + 0.10f) continue;
+            uint32_t h = pouso_sorte(i, k);
+            float an = (h % 628) / 100.0f, d = 22 + h % 7;
+            int x = (int)(px + cosf(an) * d), y = (int)(py + sinf(an) * d * 0.8f);
+            if (NO_FELTRO(x, y)) estrela4(x, y, t - t0 < 0.05f ? 2 : 1, C_BRANCO, C_CELESTE, C_PRATA);
+        }
+        break;
+    case PO_GELO: {                                    // o rastro que fica e apaga, e os graos de gelo que espirram
+        rastro(px, py, poeira[i].dx, poeira[i].dy, 40, 1 - t / POEIRA_T, false);
+        if (t > 0.38f) break;
+        float q2 = t / 0.38f, e = 1 - (1 - q2) * (1 - q2);
+        float ba = atan2f(-poeira[i].dy, -poeira[i].dx);          // a maioria espirra para tras
+        bool rumo = poeira[i].dx != 0 || poeira[i].dy != 0;
+        for (int k = 0; k < 16; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            if (q2 > 0.75f && k % 2) continue;                    // no fim, so a metade (vai sumindo)
+            float an = rumo && k < 11 ? ba + ((int)(h % 140) - 70) / 57.3f : (h % 628) / 100.0f;
+            float d = R_DADO + 1 + e * (10 + h % 16);
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.2f + sinf(an) * d * 0.6f - sinf(q2 * 3.1416f) * (2 + h % 4));
+            uint16_t c = k % 3 == 0 ? C_BRANCO : k % 3 == 1 ? C_CELESTE : C_PRATA;
+            int g = k % 2 == 0 && q2 < 0.6f ? 2 : 1;               // os maiores, 2x2, no comeco
+            for (int yy = 0; yy < g; yy++)
+                for (int xx = 0; xx < g; xx++)
+                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = c;
+        }
+        break;
+    }
+    case PO_TRILHO:                                    // o Treno: os dois trilhos dos patins ficam e apagam
+        rastro(px, py, poeira[i].dx, poeira[i].dy, 40, 1 - t / POEIRA_T, true);
+        break;
+    case PO_PAPEL: {                                   // pedacinhos de papel: saltam, giram e caem devagar, balancando
+        if (t > 0.4f) break;
+        float q2 = t / 0.4f;
+        for (int k = 0; k < 7; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            float an = (h % 628) / 100.0f, d = R_DADO + 2 + (1 - (1 - q2) * (1 - q2)) * (12 + h % 10);
+            float sobe = sinf(fminf(1, q2 * 2.2f) * 1.5708f) * (7 + h % 4) - q2 * q2 * 14;   // sobe e desce
+            int x = (int)(px + cosf(an) * d + sinf(t * 22 + k) * 2), y = (int)(py + sinf(an) * d * 0.6f - sobe);
+            bool de_pe = ((int)(t * 30) + k) % 3 == 0;            // girando: ora deitado (3x2), ora de lado (1x2)
+            int w = de_pe ? 1 : 3, hh = 2;
+            uint16_t c = k % 3 == 2 ? poeira[i].cor : C_MARFIM_S;  // dois de cada tres brancos, como papel
+            for (int yy = 0; yy < hh; yy++)
+                for (int xx = 0; xx < w; xx++)
+                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = yy && !de_pe && xx == w - 1 ? C_SOMBRA : c;
+        }
+        break;
+    }
+    case PO_GRAO: {                                    // os graos: saltam para fora em dois pulinhos e ficam no feltro
+        float q2 = fminf(1, t / 0.3f);
+        for (int k = 0; k < 10; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            if (t > 0.30f + (h % 9) * 0.012f) continue;                 // e somem, um a um
+            float an = (h % 628) / 100.0f, d = R_DADO * 0.8f + (1 - (1 - q2) * (1 - q2)) * (9 + h % 12);
+            float pulo = fabsf(sinf(q2 * 6.2832f)) * (3 + h % 3) * (1 - q2);
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.25f + sinf(an) * d * 0.6f - pulo);
+            uint16_t c = poeira[i].cor;                            // o grao: 2x2, com a sombra embaixo a direita
+            for (int yy = 0; yy < 2; yy++)
+                for (int xx = 0; xx < 2; xx++)
+                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = xx && yy ? C_SOMBRA : c;
+        }
+        break;
+    }
+    case PO_FIAPO:                                     // oito fiapos (3 px tortos), no tom mais claro, que caem devagar
+    case PO_MIGALHA:                                   // oito migalhas de 2x2, no tom mais claro
+        if (t > 0.36f) break;
+        for (int k = 0; k < 8; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            if (t > 0.22f + (h % 8) * 0.018f) continue;                 // somem um a um
+            float q2 = fminf(1, t / 0.2f), an = (h % 628) / 100.0f;
+            float d = R_DADO + 1 + (1 - (1 - q2) * (1 - q2)) * (6 + h % 9);   // saem da beira do dado
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.3f + sinf(an) * d * 0.6f + (tp == PO_FIAPO ? t * 10 : 0));
+            uint16_t c = poeira[i].cor;
+            if (tp == PO_FIAPO) {                      // o fio: dois pixels e um terceiro descendo
+                int sx = h & 1 ? 1 : -1;
+                if (NO_FELTRO(x, y)) fb[y * GFX_W + x] = c;
+                if (NO_FELTRO(x + sx, y)) fb[y * GFX_W + x + sx] = c;
+                if (NO_FELTRO(x + 2 * sx, y + 1)) fb[(y + 1) * GFX_W + x + 2 * sx] = c;
+            } else {
+                for (int yy = 0; yy < 2; yy++)
+                    for (int xx = 0; xx < 2; xx++)
+                        if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = c;
+            }
+        }
+        break;
+    case PO_BRILHO:                                    // a louca: um brilho de um instante
+        if (t < 0.08f) estrela4((int)(px - R_DADO * 0.45f), (int)(py - R_DADO * 0.5f), t < 0.04f ? 2 : 1, C_BRANCO, C_BRANCO, C_MARFIM);
+        break;
+    case PO_ESTRELAS:                                  // quatro estrelinhas, uma a cada dois quadros; a ultima maior
+        for (int k = 0; k < 4; k++) {
+            float t0 = k * 0.034f;
+            if (t < t0 || t > t0 + 0.1f) continue;
+            uint32_t h = pouso_sorte(i, k);
+            float an = (h % 628) / 100.0f, d = 28 + h % 7;
+            int x = (int)(px + cosf(an) * d), y = (int)(py + sinf(an) * d * 0.8f);
+            if (!NO_FELTRO(x, y)) continue;
+            if (k == 3) estrela4(x, y, 2, C_BRANCO, C_AMARELO, C_OURO);
+            else fb[y * GFX_W + x] = k % 2 ? C_BRANCO : C_AMARELO;
+        }
+        break;
+    case PO_FAISCA:                                    // o metal batendo forte: tres faiscas que saltam do ponto, por 3 quadros
+        if (t > 0.05f) break;
+        for (int k = 0; k < 3; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            float an = (h % 628) / 100.0f, d = 2 + t * 90;
+            int x = (int)(px + cosf(an) * d), y = (int)(py + sinf(an) * d);
+            if (NO_FELTRO(x, y)) fb[y * GFX_W + x] = k ? C_AMARELO : C_BRANCO;
+        }
+        break;
+    default:
+        break;
+    }
+}
+// O anel de poeira de sempre (forca 1: o de hoje): clareia o feltro um tom
+// (pontilhado), abre em volta de onde o dado bateu e some; q vai de 0 a 1.
+// raio0 e abre: onde comeca e quanto abre (a pedra: menor e mais rapido).
+static void anel_poeira(float px, float py, float q, float forca, float raio0, float abre, int graos)
+{
+    uint16_t *fb = display_fb();
+    float e = 1 - (1 - q) * (1 - q) * (1 - q);              // abre rapido e devagara
+    float rx = raio0 + e * abre, ry = rx * 0.55f, larg = 7 - 5 * q;   // o anel, achatado como o chao
+    float forte = (1 - q) * 1.5f * forca;
+    int cx = (int)px, cy = (int)(py + R_DADO * 0.45f);
+    for (int y = (int)(cy - ry - larg); y <= (int)(cy + ry + larg); y++) {
+        if (y < MESA_Y0 || y >= MESA_Y1) continue;
+        float dy = (y - cy) / ry;
+        for (int x = (int)(cx - rx - larg); x <= (int)(cx + rx + larg); x++) {
+            if (x < MESA_X0 || x >= MESA_X1) continue;
+            float dx = (x - cx) / rx, d = sqrtf(dx * dx + dy * dy) * rx;   // ~ a distancia, em px no eixo x
+            float fora = fabsf(d - rx) / larg;                             // 0 no meio do anel
+            if (fora >= 1) continue;
+            float dens = (1 - fora) * forte;
+            if (bayer(x, y) >= dens) continue;
+            uint16_t *p = &fb[y * GFX_W + x];
+            int k = feltro_idx(*p);
+            int k2 = k + (dens > 0.6f ? 2 : 1);              // forte: dois tons acima
+            if (k >= 0 && k < 5) *p = feltro_tons[k2 > 5 ? 5 : k2];
+        }
+    }
+    for (int g = 0; g < graos; g++) {                       // uns graos que espirram para fora
+        float a = g * 0.898f + px * 0.03f, d = rx + 4 + e * 10;
+        int gx = (int)(cx + cosf(a) * d), gy = (int)(cy + sinf(a) * d * 0.55f - sinf(q * 3.1416f) * 5);
+        if (q < 0.7f && gx > MESA_X0 && gx < MESA_X1 - 2 && gy > MESA_Y0 && gy < MESA_Y1 - 2)
+            gfx_rect(gx, gy, q < 0.35f ? 2 : 1, q < 0.35f ? 2 : 1, feltro_tons[5]);
+    }
+}
+static void desenha_poeira(void)
+{
+    for (int i = 0; i < POEIRA_N; i++) {
+        if (poeira[i].t <= 0) continue;
+        int tp = poeira[i].tipo;
+        float t = poeira[i].t, a = poeira[i].anel, px = poeira[i].x, py = poeira[i].y;
+        if (a > 0) {
+            if (tp == PO_AFUNDA) {                             // a pedra e os pesados: o anel cheio, menor e mais rapido
+                if (t < 0.2f) anel_poeira(px, py, t / 0.2f, a, R_DADO, 20, 2);
+            } else if (tp == PO_FIAPO || tp == PO_MIGALHA || tp == PO_PAPEL || tp == PO_GRAO) {   // o macio, o seco, o papel e os graos: menor e mais curto
+                if (t < 0.25f) anel_poeira(px, py, t / 0.25f, a, R_DADO, 22, 2);
+            } else if (t < POEIRA_T) {
+                anel_poeira(px, py, t / POEIRA_T, a, R_DADO + 2, 28, a >= 0.9f ? 7 : a >= 0.5f ? 3 : 2);
+                if (tp == PO_TREMOR && t > 0.08f) anel_poeira(px, py, fminf(1, (t - 0.08f) / POEIRA_T), 0.8f, R_DADO + 8, 28, 0);
+            }
+        }
+        if (tp != PO_POEIRA) toque_pouso(i);
+    }
+    // O gelo e o Treno, rolando, deixam o rastro atras de si.
+    for (int i = 0; i < n_voo; i++) {
+            const voo_t *v = &voo[i];
+            if (v->parado || v->fantasma || TIPO[v->tipo].lados == 2) continue;
+            if (acab_de(v->tipo, v->dono) != AC_GELO && assina_de(v->tipo) != AS_DESLIZA) continue;
+            float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+            if (vel > 30) rastro(v->x, v->y, v->dir_x, v->dir_y, 40 * fminf(1, vel / 250), 1, assina_de(v->tipo) == AS_DESLIZA);
+        }
+}
+#undef NO_FELTRO
 // O que os adesivos do pouso desenham em volta do dado parado: a Nota Dez
 // virando, com estrelinhas de ouro em volta; o Papel Bomba, o pavio chiando
 // antes de estourar; o Papel Carbono, a folha azul que passa por cima com o
@@ -296,6 +481,29 @@ static void estilingue_pedra(int x0, int y0, float x, float y, float q)
         for (int i = 0; i < 6; i++) {
             float an = i * 1.047f + 0.5f, d = R_DADO + 3 + b * 14;
             gfx_rect((int)(x + cosf(an) * d), (int)(y + sinf(an) * d), 2, 2, i % 2 ? C_OURO : C_AMARELO);
+        }
+    }
+}
+
+// A rajada da Ventania (q de 0 a 1): quatro riscos de vento que vem de tras
+// do dado e passam por ele, no rumo do vento - a ponta no tom claro do
+// feltro, o corpo um tom abaixo e a cauda pontilhada -, acendendo rapido e
+// apagando no fim. O dado, desenhado depois, fica por cima.
+static void rajada_riscos(float x, float y, float wx, float wy, float q)
+{
+    if (wx == 0 && wy == 0) return;
+    uint16_t *fb = display_fb();
+    float nx = -wy, ny = wx, forte = q < 0.12f ? q / 0.12f : q > 0.7f ? (1 - q) / 0.3f : 1;
+    static const float LADO[4] = { -13, -4, 6, 15 }, COMP[4] = { 16, 24, 20, 12 }, ATRAS[4] = { 6, 0, 10, 3 };
+    for (int k = 0; k < 4; k++) {
+        float ponta = -R_DADO - 24 + q * 70 - ATRAS[k];          // a ponta da frente, correndo com o vento
+        for (int d = 0; d < (int)COMP[k]; d++) {
+            float a = ponta - d, cauda = (float)d / COMP[k];
+            int px = (int)lroundf(x + wx * a + nx * LADO[k]), py = (int)lroundf(y + wy * a + ny * LADO[k]);
+            if (px <= MESA_X0 || px >= MESA_X1 - 1 || py <= MESA_Y0 || py >= MESA_Y1 - 1) continue;
+            if (d > 2 && bayer(px, py) >= forte * (1.1f - cauda)) continue;
+            if (d <= 2 && forte < 0.3f) continue;
+            fb[py * GFX_W + px] = d <= 2 ? feltro_tons[6] : feltro_tons[5];
         }
     }
 }
@@ -418,11 +626,29 @@ static void desenha_lance(void)
         }
         // Rolando: quica, e a sombra se afasta quando ele esta no alto.
         sombra_alt = 0;
+        int as = TIPO[v->tipo].lados == 2 ? AS_NADA : assina_de(v->tipo);
         if (!v->parado) {
             float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
-            float h = fabsf(sinf(v->giro * 0.9f)) * fminf(1, vel / 420);
-            r *= 1 + 0.16f * h;
-            sombra_alt = h * 7;
+            float pulo = 1, freq = 0.9f;                 // o pulinho do acabamento e da assinatura
+            if (TIPO[v->tipo].lados != 2) {
+                pulo = ACAB[acab_de(v->tipo, v->dono)].pulo;
+                if (as == AS_PESADO) pulo *= 0.4f;
+                else if (as == AS_DESLIZA) pulo = 0;
+                else if (as == AS_FLUTUA) { pulo *= 0.6f; freq *= 0.5f; }
+                else if (as == AS_FURIA) pulo *= 1.5f;
+            }
+            float h = fabsf(sinf(v->giro * freq)) * fminf(1, vel / 420);
+            r *= 1 + 0.16f * h * pulo;
+            sombra_alt = h * 7 * pulo;
+            if (as == AS_FLUTUA) {                      // flutua: no alto, balancando devagar, e a sombra longe (desce quando perde a forca)
+                float b = sinf(t_fase * 5.5f + i), sobe = fminf(1, t_fase / 0.15f) * fminf(1, vel / 150);
+                ey -= (5 + 2 * b) * sobe;
+                sombra_alt += (9 + 2 * b) * sobe;
+            }
+            if (as == AS_FURIA && t_fase < 0.3f)        // a Furia: segura tremendo e sai no tranco
+                ex += (t_fase < 0.12f ? 2.5f : 2 * (1 - t_fase / 0.3f)) * sinf(t_fase * 95);
+            if (as == AS_RAJADA && !v->fantasma && t_fase >= RAJADA_T0 && t_fase < RAJADA_T0 + 0.25f)
+                rajada_riscos(ex, ey, v->vento_x, v->vento_y, (t_fase - RAJADA_T0) / 0.25f);
         }
         // O Presente no comeco do lance: ainda a caixa embrulhada, que rasga.
         bool abre = !v->fantasma && fase == F_ROLANDO && v->slot < N_FILA && F[v->dono].presente[v->slot]
@@ -463,6 +689,16 @@ static void desenha_lance(void)
         // de novo).
         float estx = 1, esty = 1;
         bool pouso_novo = !v->fantasma && !descartado && v->parado && v->t_assenta > 0 && fase != F_ABERTURA;
+        if (pouso_novo && acab_de(v->tipo, v->dono) == AC_BORRACHA && v->tipo != D_GELATINA
+            && TIPO[v->tipo].lados != 4 && v->t_assenta < 0.085f) {   // a borracha achata e estica
+            if (v->t_assenta < 0.05f) { estx = 1.08f; esty = 0.92f; }
+            else { estx = 0.96f; esty = 1.04f; }
+        }
+        if (pouso_novo && as == AS_TOMBA && v->t_assenta < 0.28f) {     // o Viciado balanca e tomba para o lado pesado
+            float q = v->t_assenta / 0.28f;
+            ang += 0.22f * sinf(q * 12.566f) * (1 - q);
+            dx += 3 * sinf(q * 3.1416f);
+        }
         if (v->estilingue && !v->fantasma && !descartado && v->slot > 0 && fase == F_ROLANDO && t_fase < 0.45f)
             estilingue_pedra(SLOT_X(v->slot - 1), zona(v->dono), ex, ey, t_fase / 0.30f);
         if (pouso_novo && v->tipo == D_PIAO && v->giros && v->t_assenta < PIAO_RODA) {
@@ -559,8 +795,24 @@ static void desenha_lance(void)
         if (tv == D_DIGITAL) digital_q = -1;                   // o visor so acende na sequencia
         bool bonecas = !v->fantasma && !descartado && BONECAS_N(v->bonecas);
         if (bonecas && fase == F_ARRUMA) matrioska_bonecas(v, ex + dx, ey + bob, r);   // voltando: por baixo
+        if (!v->parado && !descartado) {                              // rolando, o reflexo vai e volta pela face, no passo do caminho
+            acab_varre = fminf(1, sqrtf(v->vx * v->vx + v->vy * v->vy) / 250);
+            acab_fase = tri(v->andou / 40);
+        }
         if (estx != 1 || esty != 1) dado_esticado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, estx, esty);
         else desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        acab_varre = acab_fase = 0;
+        if (!v->parado && v->t_lampejo >= 0) {                       // o lampejo enquanto gira: por 4 ou 5 quadros
+            int lp = ACAB[acab_de(v->tipo, v->dono)].lampejo;
+            float dt_l = t_fase - v->t_lampejo;
+            int lx = (int)(ex + dx - r * 0.5f), ly = (int)(ey + bob - r * 0.55f);
+            if (lp == LP_BRILHO && dt_l >= 0 && dt_l < 0.07f)
+                estrela4(lx, ly, dt_l < 0.035f ? 2 : 1, C_BRANCO, C_BRANCO, C_MARFIM);
+            else if (lp == LP_ESTRELA && dt_l >= 0 && dt_l < 0.09f) {
+                bool noite = acab_de(v->tipo, v->dono) == AC_NOITE;
+                estrela4(lx, ly, dt_l < 0.045f ? 3 : 2, C_BRANCO, noite ? C_AMARELO : C_BRANCO, noite ? C_OURO : C_PRATA);
+            }
+        }
         if (bonecas && fase != F_ARRUMA) matrioska_bonecas(v, ex + dx, ey + bob, r);
         if (v->estilingue && pouso_novo && v->t_assenta < 0.55f) {   // saiu no maximo: o ouro acende no pouso
             float b = v->t_assenta / 0.55f;

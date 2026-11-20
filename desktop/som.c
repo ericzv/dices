@@ -17,8 +17,10 @@
 //    so quase some, e o coracao (o suspense) toca sozinho.
 //  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
 //    os efeitos da mesa e os da interface (o cursor e os menus).
-//  - Rufo: o dado rolando no feltro enquanto rola; abaixa a trilha. Uma
-//    moeda tem o seu: a beirada tocando o feltro a cada volta.
+//  - Rufo: o dado rolando no feltro enquanto rola, no som do acabamento
+//    dele (a pedra aspera, o metal, a madeira oca, o macio abafado...);
+//    abaixa a trilha. Uma moeda tem o seu: a beirada tocando o feltro a cada
+//    volta.
 //  - Giro: o arpejo do caca-niquel enquanto a roleta do premio gira.
 //  - Efeitos: dados, feltro, madeira e fichas de verdade; as jogadas e a
 //    partida no mesmo teclado e baixo da trilha. Batidas, pousos e fichas
@@ -86,6 +88,28 @@ static const char *const NOME[SOM_N] = {
     [SOM_CONTA] = "conta", [SOM_TUDO_NADA] = "tudo_nada", [SOM_TUDO_NADA_PERDE] = "tudo_nada_perde",
     [SOM_SENTINELA] = "sentinela", [SOM_AGIOTA] = "agiota", [SOM_OCULTO] = "oculto", [SOM_ESPINHOSO] = "espinhoso", [SOM_PAVIO] = "pavio",
     [SOM_CARROSSEL] = "carrossel", [SOM_ELEVADOR] = "elevador_sino",
+    [SOM_POUSA_LACA] = "pousa_laca", [SOM_BATE_LACA] = "bate_laca", [SOM_BATE_DADO_LACA] = "bate_dado_laca",
+    [SOM_POUSA_VIDRO] = "pousa_vidro", [SOM_BATE_VIDRO] = "bate_vidro", [SOM_BATE_DADO_VIDRO] = "bate_dado_vidro",
+    [SOM_POUSA_GELO] = "pousa_gelo", [SOM_BATE_GELO] = "bate_gelo", [SOM_BATE_DADO_GELO] = "bate_dado_gelo",
+    [SOM_POUSA_PEDRA] = "pousa_pedra", [SOM_BATE_PEDRA] = "bate_pedra", [SOM_BATE_DADO_PEDRA] = "bate_dado_pedra",
+    [SOM_POUSA_METAL] = "pousa_metal", [SOM_BATE_METAL] = "bate_metal", [SOM_BATE_DADO_METAL] = "bate_dado_metal",
+    [SOM_POUSA_MADEIRA] = "pousa_madeira", [SOM_BATE_MADEIRA] = "bate_madeira", [SOM_BATE_DADO_MADEIRA] = "bate_dado_madeira",
+    [SOM_POUSA_MACIO] = "pousa_macio", [SOM_BATE_MACIO] = "bate_macio", [SOM_BATE_DADO_MACIO] = "bate_dado_macio",
+    [SOM_POUSA_SECO] = "pousa_seco", [SOM_BATE_SECO] = "bate_seco", [SOM_BATE_DADO_SECO] = "bate_dado_seco",
+    [SOM_POUSA_LOUCA] = "pousa_louca", [SOM_BATE_LOUCA] = "bate_louca", [SOM_BATE_DADO_LOUCA] = "bate_dado_louca",
+    [SOM_POUSA_BORRACHA] = "pousa_borracha", [SOM_BATE_BORRACHA] = "bate_borracha", [SOM_BATE_DADO_BORRACHA] = "bate_dado_borracha",
+    [SOM_POUSA_NOITE] = "pousa_noite", [SOM_BATE_NOITE] = "bate_noite", [SOM_BATE_DADO_NOITE] = "bate_dado_noite",
+    [SOM_POUSA_PAPEL] = "pousa_papel", [SOM_BATE_PAPEL] = "bate_papel", [SOM_BATE_DADO_PAPEL] = "bate_dado_papel",
+    [SOM_POUSA_GRAO] = "pousa_grao", [SOM_BATE_GRAO] = "bate_grao", [SOM_BATE_DADO_GRAO] = "bate_dado_grao",
+    [SOM_POUSA_FURIA] = "pousa_furia", [SOM_POUSA_TREMOR] = "pousa_tremor", [SOM_SOPRO] = "sopro", [SOM_TRENO_SINO] = "treno_sino",
+};
+// Os lacos do dado rolando de cada acabamento (o primeiro e o rufo).
+static const char *const ROLA_ARQ[SOM_ROLAS] = {
+    [SOM_ROLA_FELTRO] = "rufo", [SOM_ROLA_VIDRO] = "rola_vidro", [SOM_ROLA_GELO] = "rola_gelo",
+    [SOM_ROLA_PEDRA] = "rola_pedra", [SOM_ROLA_METAL] = "rola_metal", [SOM_ROLA_MADEIRA] = "rola_madeira",
+    [SOM_ROLA_MACIO] = "rola_macio", [SOM_ROLA_SECO] = "rola_seco", [SOM_ROLA_LOUCA] = "rola_louca",
+    [SOM_ROLA_BORRACHA] = "rola_borracha", [SOM_ROLA_PAPEL] = "rola_papel", [SOM_ROLA_GRAO] = "rola_grao",
+    [SOM_ROLA_FURIA] = "rola_furia", [SOM_ROLA_ONDA] = "rola_onda", [SOM_ROLA_PIAO] = "rola_piao",
 };
 
 typedef struct {
@@ -97,6 +121,8 @@ typedef struct {
 static efeito_t ef[SOM_N];
 static Sound rufo, moeda_rola, giro, motor;
 static bool rufo_feito, moeda_feito, giro_feito, motor_feito;
+static Sound rola[SOM_ROLAS];                // os do acabamento (o 0 fica no rufo)
+static bool rola_feito[SOM_ROLAS];
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static bool  pronto, falhou, ligado = true;
 static bool  rufando, girando, motor_on, suspense, cadeia;
@@ -295,12 +321,26 @@ static Sound *laco(int i)
     return s[i];
 }
 
+// O laco do acabamento; o SOM_ROLA_FELTRO e o rufo de sempre.
+static Sound *laco_rola(int q)
+{
+    if (q <= 0 || q >= SOM_ROLAS) return laco(0);
+    if (!rola_feito[q]) {
+        rola_feito[q] = true;
+        const som_arquivo_t *a = acha(ROLA_ARQ[q]);
+        rola[q] = a ? carrega(a) : (Sound){ 0 };
+        if (!a) return laco(0);
+    }
+    return rola[q].frameCount ? &rola[q] : laco(0);
+}
+
 // Os efeitos vem aos poucos, depois da abertura: decodificar os ~150 de uma
 // vez segurava a janela preta na abertura (no aparelho fraco, segundos). A
 // cada quadro, so o que cabe em uns 2 ms (os do menu e da mesa primeiro); um
 // som pedido antes da vez dele e decodificado na hora (nunca fica mudo).
 #define PRE_LACOS SOM_N                      // na fila, depois dos efeitos: os 4 lacos
-static int16_t pre_fila[SOM_N + 4];
+#define PRE_ROLAS (SOM_N + 4)                // e os do acabamento
+static int16_t pre_fila[SOM_N + 4 + SOM_ROLAS];
 static int pre_n, pre_i;
 static void monta_fila_de_carga(void)
 {
@@ -312,6 +352,7 @@ static void monta_fila_de_carga(void)
     pre_n = pre_i = 0;
     for (int i = 0; i < (int)(sizeof PRIMEIRO / sizeof *PRIMEIRO); i++) { pre_fila[pre_n++] = PRIMEIRO[i]; posto[PRIMEIRO[i]] = true; }
     for (int k = 0; k < 4; k++) pre_fila[pre_n++] = (int16_t)(PRE_LACOS + k);
+    for (int k = 1; k < SOM_ROLAS; k++) pre_fila[pre_n++] = (int16_t)(PRE_ROLAS + k);
     for (int s = 0; s < SOM_N; s++) if (!posto[s]) pre_fila[pre_n++] = (int16_t)s;
 }
 static void carrega_aos_poucos(void)
@@ -319,7 +360,8 @@ static void carrega_aos_poucos(void)
     double t0 = GetTime();
     while (pre_i < pre_n) {
         int k = pre_fila[pre_i++];
-        if (k >= PRE_LACOS) laco(k - PRE_LACOS);
+        if (k >= PRE_ROLAS) laco_rola(k - PRE_ROLAS);
+        else if (k >= PRE_LACOS) laco(k - PRE_LACOS);
         else monta_efeito(k);
         if (GetTime() - t0 > 0.002) break;
     }
@@ -348,6 +390,10 @@ void som_encerra(void)
     if (giro_feito) UnloadSound(giro);
     if (motor_feito) UnloadSound(motor);
     rufo_feito = moeda_feito = giro_feito = motor_feito = false;
+    for (int q = 1; q < SOM_ROLAS; q++) {
+        if (rola_feito[q] && rola[q].frameCount) UnloadSound(rola[q]);
+        rola_feito[q] = false;
+    }
     if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
     for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
     if (voz_dec) stb_vorbis_close(voz_dec);
@@ -434,7 +480,7 @@ void som_toca(int s)
     if (!ef[s].n) return;
     // Batidas, pousos e fichas variam um pouco de tom.
     bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
-                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA;
+                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA || (s >= SOM_POUSA_LACA && s <= SOM_POUSA_TREMOR);
     toca(s, varia ? 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f : 1.0f);
 }
 
@@ -468,6 +514,11 @@ void som_rufo(bool on)
 void som_rufo_moeda(void)
 {
     if (pronto) comeca_a_rolar(laco(1));
+}
+
+void som_rufo_de(int q)
+{
+    if (pronto) comeca_a_rolar(laco_rola(q));
 }
 
 void som_giro(bool on)

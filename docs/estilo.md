@@ -221,6 +221,50 @@ tamanho fixo e cobre quase todo o triângulo. O resultado de cada dado fica
 guardado (`pq_guarda`), porque a bolsa e o histórico redesenham os mesmos
 dados parados a cada quadro.
 
+### Os acabamentos
+
+Cada dado é feito de alguma coisa, e isso aparece no reflexo, no jeito de
+rolar, no som e no pouso (`acabamento.inc`). Os comuns vão no acabamento do
+material de quem joga com eles (`ACAB_MAT`); cada especial tem o seu
+(`ACAB_TIPO`). Um dado novo escolhe a classe dele ali; sem entrada, fica
+marfim.
+
+| Classe | Reflexo próprio | Rolar | Pouso (por cima do anel de poeira) |
+|--------|-----------------|-------|------------------------------------|
+| Marfim | — (o de sempre) | o de sempre | o anel de sempre |
+| Laca | ponto duro na quina de cima | quica mais, gira mais | — |
+| Vidro | arco de luz na beira que olha para a luz, um ponto e a luz que atravessa | escorrega | cintilas |
+| Gelo | — | gira pouco, desliza e deixa rastro | grãos de gelo para trás |
+| Pedra | — | pesada, para cedo | o anel cheio e curto |
+| Metal | ponto e a faixa que atravessa a face | pesada | faíscas nas batidas fortes |
+| Madeira | — | quica, gira | — |
+| Macio | — | abafado, quase não quica | fiapos |
+| Biscoito | — | seco | migalhas |
+| Papel | — | leve | pedacinhos de papel girando |
+| Grãos | — | — | grãos saltando |
+| Louça | — | firme | um brilho de um instante |
+| Borracha | ponto molhado e um menor embaixo | quica muito | achata e estica |
+| Noite | três estrelinhas | gira pouco | estrelas |
+
+- O reflexo próprio só nos brilhantes (laca, vidro, metal, borracha e
+  noite), por cima do reflexo de sempre, nunca no número nem encostando nos
+  pontos do d6. A luz é da mesa: o reflexo não gira com o dado. Rolando, ele
+  vai e volta pela face no passo do caminho (mais quanto mais rápido) e
+  volta ao lugar quando o dado para.
+- O lampejo (uma estrelinha de um instante quando o dado gira rápido) só nos
+  brilhantes, no gelo e na louça.
+- As moedas e fichas (d2) giram e soam como sempre.
+- Os sons de cada classe (rolando, batendo na borda, em outro dado e
+  pousando) são feitos em `tools/sons/gera_acab.py`.
+- As assinaturas (`ASSINA_TIPO`): um jeito próprio de rolar quando o tema
+  pede. Pesado (Âncora, Lastro), desliza (Trenó: os trilhos dos patins e o
+  guizo no meio do caminho), flutua (Fantasma, Vazio, Assombração, Balão),
+  pião (Pião, Carrossel), fúria (Fúria, Berserker, Estilingue: sai num
+  tranco e cai pesada), rajada (Ventania: o desvio, o sopro e os riscos de
+  vento), volta (Bumerangue), onda (Onda, Tsunami), tremor (Terremoto) e
+  tomba (Viciado). Cada assinatura tem um traço principal só; duas não se
+  parecem.
+
 ## 8. Retratos
 
 - Busto de 22 x 27 pixels (`RT_W`, `RT_H`), ampliado 2x (a mesa, o mapa) ou

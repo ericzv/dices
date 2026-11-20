@@ -487,6 +487,8 @@ void dado_inicia(int n_partidas)
                       .dono = 0, .tipo = D_D6, .valor = 6, .face = 1 };
     voo[1] = (voo_t){ .x = 580, .y = 245, .vx = -650, .vy = -110, .spin = -11,
                       .dono = 1, .tipo = D_D6, .valor = 6, .face = 3 };
+    voo_zera_lance(&voo[0]);
+    voo_zera_lance(&voo[1]);
     abertura_pronta = false;
     t_fase = 0;
     fase = F_ABERTURA;
@@ -902,11 +904,7 @@ static void lanca_proximo(void)
         v->lado = l.re_lado[0];
         v->etapa = 5;
     }
-    v->x = GFX_W / 2 + frnd(-110, 110);
-    v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
-    v->vx = frnd(-300, 300);
-    v->vy = (vez == baixo ? -1 : 1) * frnd(420, 600);
-    v->spin = frnd(-14, 14);
+    voo_lanca(v, vez == baixo);
     v->face = face_v(t, x1);
     if (hora) v->hesita = HESITA_T;
     n_voo = 1;
@@ -942,7 +940,7 @@ static void lanca_proximo(void)
         n_voo = 2;
     }
     if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
-    else som_rufo(true);                     // o dado rolando ate assentar
+    else som_rufo_de(acab_rola(v->tipo, v->dono));   // o dado rolando ate assentar (no som do acabamento)
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -987,7 +985,7 @@ static bool ad_etapa_passo(float dt)
             v->lado = v->lado_v;
         }
         if (q < 1) return true;
-        som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA);
+        som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : som_pouso_voo(v));
         assenta(v);
         v->t_etapa = 0;
         v->etapa = v->reflete ? 2 : v->copia ? 3 : 0;
@@ -1016,6 +1014,7 @@ static bool ad_etapa_passo(float dt)
         w->spin = frnd(-12, 12);
         w->hesita = hora ? HESITA_T : 0;
         w->chumbou = false;
+        voo_zera_lance(w);                   // o lance do acabamento comeca do zero
     }
     v->valor = v->valor2;
     v->lado = v->lado2;
@@ -1024,7 +1023,7 @@ static bool ad_etapa_passo(float dt)
     v->t_etapa = 0;
     v->reflete = false;
     t_fase = 0;
-    if (TIPO[v->tipo].lados == 2) som_rufo_moeda(); else som_rufo(true);
+    if (TIPO[v->tipo].lados == 2) som_rufo_moeda(); else som_rufo_de(acab_rola(v->tipo, v->dono));
     return true;
 }
 

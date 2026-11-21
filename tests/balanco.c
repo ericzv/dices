@@ -61,6 +61,8 @@ bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
 void som_rufo(bool on) { (void)on; }
 void som_rufo_moeda(void) {}
+void som_rufo_de(int q) { (void)q; }
+void som_rufo_forca(float f) { (void)f; }
 void som_giro(bool on) { (void)on; }
 void som_motor(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }

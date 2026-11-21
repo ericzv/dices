@@ -20,6 +20,8 @@ int main(int argc, char **argv)
     static const char *const LOOPS[] = { "rufo", "moeda_rola", "giro", "elevador_motor", "trilha", "trilha_chefe" };
     for (int i = 0; i < (int)(sizeof LOOPS / sizeof *LOOPS); i++)
         if (!acha(LOOPS[i])) { printf("falta %s\n", LOOPS[i]); erros++; }
+    for (int q = 0; q < SOM_ROLAS; q++)                // o dado rolando de cada acabamento
+        if (!ROLA_ARQ[q] || !acha(ROLA_ARQ[q])) { printf("falta o laco de rolagem %d (%s)\n", q, ROLA_ARQ[q] ? ROLA_ARQ[q] : "?"); erros++; }
     // As camadas (a batucada e a voz de cada chefe) tocam junto com a trilha,
     // amostra a amostra: do mesmo tamanho dela (senao o som.c as deixa de fora).
     const char *camadas[CAMADAS + SOM_CHEFES];

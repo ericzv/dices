@@ -5,15 +5,17 @@ no mesmo teclado ou **online**, cada um no seu computador. Criado por ERICZ.
 Nasceu no
 [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) e agora roda
 também no PC (Windows, macOS e Linux), numa mesa de 640×360 pixels ampliada
-sem borrar, com trilha sonora e efeitos sintetizados pelo próprio jogo.
+sem borrar, com trilha sonora e efeitos feitos de gravações (dados de
+verdade em madeira, feltro e metal, teclado, baixo, sax, cordas e
+percussão) e alguns sintetizados.
 
 Cada rodada, os dois montam uma sequência de até quatro dados e jogam um por um.
 Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido; os
 seguintes precisam ser iguais ou maiores que o último dado válido — se sair
 menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
-termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 85
-dados mudam as regras (veja o menu **Dados** no jogo; o Modo Desafiante abre
-mais 4).
+termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 103
+dados mudam as regras (veja o menu **Dados da casa** no jogo; no Natal, mais
+9; o Modo Desafiante abre mais 4).
 
 Proteção, só de dois jeitos, com o mesmo ícone em todo lugar: o escudo
 (**não anulável**: nada o anula, nem a sequência nem ataque) e o cadeado
@@ -251,7 +253,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dados: no primeiro salão, os lendários quase não aparecem.
   Amuletos: um comum no começo, um incomum depois do primeiro chefe e um raro
   depois do segundo (e do Barão, do nível 5). Cabem 5: para levar o sexto,
-  um dos seus sai. São 33; o Colar de Pérolas (comum, aberto desde o começo)
+  um dos seus sai. São 32; o Colar de Pérolas (comum, aberto desde o começo)
   rende 2 moedas a cada mesa vencida, e o Cofre, 1 moeda a cada 3 que você
   tem, sem limite. Dezesseis vêm abertos desde o começo; dos outros, a Dona
   do Salão traz um a cada dificuldade, do Normal ao Nível 9 (a Ferradura no
@@ -271,9 +273,21 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois da partida, na primeira vitória contra cada chefe naquela
   dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
-  com a sua cara e a sua cena. O andar escolhido abre e acende, a cabine do
-  elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
-  ↓ desce; no mouse, passar por cima escolhe e o clique começa a run).
+  com a sua cara e a sua cena. A tela abre no último andar aberto (é nele
+  que se sobe no Desafiante), com o botão "Iniciar a run" já em foco. Os
+  três botões são um menu: as setas (ou o direcional) passam o foco entre
+  "Iniciar a run", embaixo, e "Desbloqueios" e "Trocar de andar", em cima,
+  e ENTER (ou o A do controle) aperta o que está em foco; o mouse em cima
+  de um botão põe o foco nele e o clique aperta. O andar escolhido abre e
+  acende e a cabine do elevador vai até ele. Para jogar em outro, "Trocar de
+  andar" acende o prédio: aí as setas trocam o andar e ENTER confirma (o
+  foco volta ao "Iniciar a run"), ESC (ou o B) volta ao andar de antes, e o
+  clique num andar (ou num botão da botoeira de latão ao lado) escolhe. No
+  toque, o "Iniciar a run" pede dois toques, como as outras ações. O que os
+  chefes do andar desbloqueiam fica no baú: "Desbloqueios" (ou a tecla I, o
+  X do controle) abre um pop-up com tudo, chefe a chefe, e quantos já
+  abriram (com ele aberto, as setas não trocam o andar). ESC (ou o B) volta
+  ao menu.
   Começando a run, a placa de latão do elevador sobe na tela: o botão do
   andar afunda e acende, o ponteiro sobe pelo mostrador com o motor
   zumbindo e subindo de tom (quanto mais alto o andar, mais demora) e, na
@@ -282,8 +296,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   andares ainda fechados ficam de luz apagada, com a persiana baixada e
   cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
   lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre
-  jogando), do nível 5 que um novo chefe surge após o Barão, as moedas do
-  começo e o que cada chefe desbloqueia ali. Até 3
+  jogando), do nível 5 que um novo chefe surge após o Barão e as moedas do
+  começo (o que cada chefe desbloqueia fica no baú). Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
@@ -365,11 +379,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   qual chefe o abre (sem o desenho nem o que faz).
 - **Registro das partidas** (versão de teste, só no computador): ligando
   "Registrar partidas" no painel do som (M, ou o RT no controle; começa
-  desligado e fica guardado), cada partida sua contra a máquina vira linhas
+  desligado e fica guardado), cada partida sua no Desafiante vira linhas
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.34.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.41.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,
@@ -499,8 +513,7 @@ bolsa e o lado, e ele fica ali até o fim da partida. O Dourado, que rende
 moedas do Desafiante, não sai aqui; no online, o prêmio é sempre um dado.
 Os seis dados que vivem de adesivo - o Pião, o Camelô, o Leque, o
 Porta-Retrato, o Papagaio e a Colcha de Retalhos - também saem no prêmio (e
-no Presente) de quem joga no modo 2 jogadores; contra a máquina e no online,
-não. Fora do Desafiante o Camelô já chega com a banca armada: um adesivo
+no Presente) de quem joga no modo 2 jogadores; no online, não. Fora do Desafiante o Camelô já chega com a banca armada: um adesivo
 sorteado em cada lado, entre os que saem no prêmio. O Trono, o Berserker, a
 Autofagia e o Garimpeiro continuam só no Desafiante.
 
@@ -744,9 +757,10 @@ Antes de desenhar uma tela, um dado ou um ícone novo, veja `docs/estilo.md`:
 a paleta fechada, a luz de cima à esquerda, o pontilhado, o kit de interface
 e os tamanhos dos ícones pequenos.
 
-A versão do Cardputer (tela 240x135) ficou em `cardputer/dado.c`: tem as
-mesmas regras e a IA, com o desenho do aparelho. Uma regra nova precisa ir
-para os dois arquivos.
+A versão do Cardputer (tela 240x135) fica em `cardputer/dado.c`, com o
+desenho do aparelho. Ela parou numa versão antiga do jogo (de setembro de
+2026): as regras, os dados e o Desafiante de agora são só do PC e do
+navegador.
 
 Para ouvir a trilha e os efeitos fora do jogo:
 `./build/exporta_som pasta/` grava um `.wav` de cada. Os sons são feitos por

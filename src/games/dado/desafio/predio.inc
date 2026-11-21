@@ -367,6 +367,15 @@ static void predio_g(int sel, int aberto, float t, float dt)
         g_plaquinha(&p, d, d == sel, d > aberto, t);
     }
     ui_cantos(g_rm(&p), p.fy0[sel], G_RM, p.fy1[sel] - p.fy0[sel], 0);
+    // Com "Trocar de andar" aceso, o predio todo respira em ouro e cada andar
+    // e uma zona de clique (o aberto escolhe, o trancado nega); o mouse em
+    // cima de um aberto acende as cantoneiras dele.
+    for (int d = 0; d <= nv && dif_escolhe; d++) {
+        int y = p.fy0[d], h = p.fy1[d] - p.fy0[d] + 1;
+        if (d <= aberto && d != sel && mouse_em(p.x0, y, g_x1(&p) - p.x0, h)) ui_cantos_em(g_rm(&p), y, G_RM, h - 1, COR_DIF[d], 1);
+        zona_clique(p.x0, y, g_x1(&p) - p.x0, h, NULL, 0, d <= aberto ? TECLA_ANDAR + d : TECLA_TRANCADO + d);
+    }
+    if (dif_escolhe) ui_cantos(bx - 2, by - 2, PRED_BX + PRED_BW - bx + 4, bh + 4, C_OURO);
 }
 
 // --- a botoeira -------------------------------------------------------------
@@ -466,9 +475,9 @@ static void botao_andar(int cx, int cy, int r, int i, int sel, int aberto, float
     if (i == sel) ui_cantos(cx - r - 3, cy - r - 3, 2 * r + 7, 2 * r + 7, 0);
 }
 
-// A botoeira em pe, ao lado do predio (C em cima, T embaixo). Cada botao e
-// uma zona de clique: o aberto escolhe (e o clique comeca a run); o
-// trancado so nega.
+// A botoeira em pe, ao lado do predio (C em cima, T embaixo). Com "Trocar
+// de andar" aceso, cada botao e uma zona de clique: o aberto escolhe o andar
+// (quem comeca a run e o "Iniciar a run"); o trancado so nega.
 static void botoeira_v(int x, int y, int w, int h, int sel, int aberto, float t)
 {
     placa_latao(x, y, w, h);
@@ -477,7 +486,8 @@ static void botoeira_v(int x, int y, int w, int h, int sel, int aberto, float t)
     for (int i = 0; i <= N_NIVEIS; i++) {
         int cy = y + h - 14 - passo / 2 - i * passo;
         botao_andar(x + w / 2, cy, 8, i, sel, aberto, t);
-        if (i <= aberto) zona_clique(x + 2, cy - passo / 2, w - 4, passo, &dif_cur, i, KEY_ENTER);
+        if (!dif_escolhe) continue;                             // o clique so vale com "Trocar de andar" aceso
+        if (i <= aberto) zona_clique(x + 2, cy - passo / 2, w - 4, passo, NULL, 0, TECLA_ANDAR + i);   // so escolhe (sem passar o mouse)
         else zona_clique(x + 2, cy - passo / 2, w - 4, passo, NULL, 0, TECLA_TRANCADO + i);
     }
 }

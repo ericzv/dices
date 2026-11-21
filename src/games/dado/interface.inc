@@ -729,7 +729,7 @@ static bool fase_de_acao(void)
 {
     switch (fase) {
     case F_ORDEM: case F_APOSTA: case F_ARRUMA: case F_JOGA: case F_LOJA: case F_PREMIO:
-    case F_MAPA: case F_RLOJA: case F_RAMULETO: case F_RBOLSAS:
+    case F_MAPA: case F_RLOJA: case F_RAMULETO: case F_RBOLSAS: case F_RDIFIC:
         return true;
     default:
         return false;
@@ -772,14 +772,20 @@ static void desenha_armada(void)
         const zona_clique_t *z = &zonas[i];
         if (!zona_armada(z)) continue;
         if (!z->var) ui_cantos(z->x, z->y, z->w, z->h, 0);
+        // Mede com a mesma fonte com que escreve (a fina; com a letra maior,
+        // a Jersey) e centra a tinta: em "toque de novo" ela vai da linha 9
+        // a 15 da fina (4 a 15 da Jersey) e comeca na coluna 0. A etiqueta
+        // deixa 7 px de folga dos lados e 5 em cima e embaixo.
         const char *s = "toque de novo";
-        int w = gfx_largura(s, 1) + 12, h = TXT_H + 5;
+        int f = fonte_de(false), tw = gfx_largura(s, f) - 1;          // sem o espaco depois do "o"
+        int topo = gfx_letra_e_maior() ? 4 : 9, alto = 15 - topo + 1;
+        int w = tw + 16, h = alto + 12;
         int x = z->x + z->w / 2 - w / 2, y = z->y - h - 5;
         if (y < 2) y = z->y + z->h + 5;
         if (x < 4) x = 4;
         if (x + w > GFX_W - 4) x = GFX_W - 4 - w;
         ui_etiqueta(x, y, w, h, C_OURO);
-        txt(x + 6, y + 2, s, C_OURO, false);
+        gfx_texto(x + 8, y + 6 - topo, s, C_OURO, f, false);
         return;
     }
 }

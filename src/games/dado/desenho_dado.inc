@@ -393,6 +393,8 @@ static float onda_sup(float x, float cheia)
 }
 
 static float sombra_alt;                 // altura do dado no ar, em pixels
+static bool sem_sombra;                  // o Vampiro e o Buraco Negro: sem sombra no feltro
+static bool pq_dentro;                   // pinta_corpo_pequeno em curso (a bolsa)
 // O Sorte/Reves no ar sao dois dados: 1 o d12 da Sorte (marfim, aro de ouro,
 // "+"), 2 o d8 do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
 static int sr_lado;
@@ -1154,10 +1156,8 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return LUZ(1, luz);
     }
-    case D_VICIADO: {                             // acrilico vermelho de cassino: translucido, a beira acesa e o brilho na quina
+    case D_VICIADO: {                             // acrilico vermelho de cassino: translucido e a beira acesa (o brilho e o ponto da laca)
         float x = u - 0.08f, y = v - 0.08f, g = face_g(6, u, v, NULL);
-        float hx = x + 0.44f, hy = y + 0.44f;
-        if (fabsf(hx - hy) < 0.05f && hx + hy > 0 && hx + hy < 0.36f) return LUZ(2, 0.9f);   // o brilho na quina de cima
         return LUZ(1, -0.05f - (x + y) * 0.35f + 0.55f * fmaxf(0, g - 0.72f) / 0.28f);       // a beira translucida clareia
     }
     case D_LASTRO:                                // metal escovado
@@ -1175,8 +1175,17 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (dentro && (ax > larg - 1.4f * s || y < -0.40f + 1.4f * s)) return LUZ(1, (x + y < 0) ? -0.45f : 0.65f);
         return LUZ(1, luz + (dentro ? 0.08f : 0));
     }
-    case D_CARRASCO:                              // o capuz: a ponta de cima escura
-        return v < -0.30f;
+    case D_CARRASCO: {                            // o capuz: o terco de cima em breu, descendo pela borda dos dois lados, com os dois furos dos olhos
+        float tt, g = borda_d4(u, v, &tt), x = u - 0.07f;
+        bool base = (v - 0.24f) / 0.5f > g - 0.01f;                           // a borda de baixo fica limpa
+        for (int k = -1; k <= 1; k += 2) {                                    // os olhos, bravos: a ponta de fora mais alta
+            float ex = (x * k - 0.105f) / 0.062f, ey = (v + 0.30f + (x * k - 0.105f) * 0.35f) / 0.042f;
+            if (ex * ex + ey * ey < 1) return 0;
+        }
+        if (v < -0.16f + 1.2f * x * x) return 1;                              // o capuz, com a barra em arco
+        if (!base && g > 0.70f + 0.27f * fmaxf(0, (v + 0.16f) / 0.80f)) return 1;   // e as abas, afinando para baixo
+        return 0;
+    }
     case D_EXPLOSIVO: {                           // oito raios saindo do meio
         if (ro < 0.36f) return 0;
         float a = atan2f(v, u) / 6.2832f * 8;
@@ -1414,7 +1423,7 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
     case D_FERREIRO: {                            // o ferro batido no fogo: as marcas do martelo e a ponta em brasa
         float x = u - 0.07f;
-        float calor = (v - 0.18f) / 0.58f + 0.10f * sinf(x * 9.0f);          // 0 no meio, 1 na beira de baixo
+        float calor = (v - 0.30f) / 0.50f + 0.08f * sinf(x * 9.0f);          // a brasa 3 px mais baixa, na faixa da base
         uint32_t hf = hash2((int)floorf(u / s), (int)floorf(v / s));
         if (calor > 0.62f) return LUZ(3, 0.2f + (calor - 0.62f) * 2.0f);      // a brasa, amarela na ponta
         if (calor > 0.25f) {                                                  // o rubro, pontilhado na passagem
@@ -1424,7 +1433,7 @@ static int desenho_interno(int tipo, float u, float v, float s)
         // as faiscas, saindo da brasa
         for (int k = 0; k < 5; k++) {
             float fx = -0.45f + k * 0.24f + 0.05f * sinf(k * 2.1f), fy = 0.05f - 0.16f * fabsf(sinf(k * 1.7f + 0.4f));
-            if (fabsf(u - fx) < s * 0.8f + 0.012f && fabsf(v - fy) < s * 0.8f + 0.012f) return LUZ(3, 0.9f);
+            if (fabsf(fx - 0.07f) > 0.30f && fabsf(u - fx) < s * 0.8f + 0.012f && fabsf(v - fy) < s * 0.8f + 0.012f) return LUZ(3, 0.9f);   // nenhuma em cima do numero
         }
         // as marcas do martelo: covinhas redondas, a luz por dentro ao contrario
         const float C = 0.22f;
@@ -1667,16 +1676,38 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (py < 0 && py > -0.12f && fabsf(px + py * 0.5f) < w * 0.9f) return 1;
         return 0;
     }
-    case D_MARTIR: {                              // sangue escorrendo da ponta, e a cruz embaixo
-        float y = v - 0.50f;
-        if ((fabsf(u) < l * 1.6f && fabsf(y) < 0.15f) || (fabsf(y + 0.05f) < l * 1.6f && fabsf(u) < 0.10f)) return LUZ(2, -0.9f);
-        if (v < -0.34f) return LUZ(1, 0.70f - (u + v) * 0.45f);   // a mancha da ponta, molhada: clara em cima a esquerda
-        static const float GX[4] = { -0.17f, -0.05f, 0.07f, 0.17f }, GL[4] = { 0.06f, 0.22f, 0.12f, 0.02f };
-        for (int i = 0; i < 4; i++) {                              // os fios que escorrem
-            float fim = -0.34f + GL[i], dx = u - GX[i];
-            if (fabsf(dx) < 0.028f + l * 0.5f && v < fim) return LUZ(1, dx < 0 ? 0.45f : 0.05f);
-            float gy = v - fim - 0.03f;                            // a gota na ponta do fio
-            if (dx * dx + gy * gy < 0.045f * 0.045f) return gy < -0.01f && dx < 0 ? 3 : LUZ(1, 0.15f - (dx + gy) * 4);
+    case D_MARTIR: {                              // a coroa de espinhos na beira -- um ramo seco e torto, os espinhos para dentro -- e o sangue em quatro espinhos, pingando; o miolo liso para o numero
+        const float cu = 0.07f, cv = 0.24f, a = 0.5f;
+        float g = -1, t = 0; int lado = 0;
+        for (int i = 0; i < 3; i++) {                              // a beira mais perto (como na borda_d4), e qual e: 0 embaixo, 1 em cima a esquerda, 2 em cima a direita
+            float an = 1.5708f + i * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float d = ((u - cu) * nx + (v - cv) * ny) / a;
+            if (d > g) { g = d; t = ((u - cu) * -ny + (v - cv) * nx) / (a * 1.732f); lado = i; }
+        }
+        const float K = 26.0f, LT = 0.11f;                         // um espinho a cada ~5 px de beira; o comprimento dele, em raios
+        float hw = fmaxf(0.085f, l * 2.4f) * (1 + 0.25f * sinf(t * 11 + lado * 2.1f));   // o ramo, um pouco mais grosso aqui e ali
+        float gc = 0.845f + 0.035f * sinf(t * 7 + lado), dg = g - gc;   // e torto
+        float k = roundf(t * K / 6.2832f), tk = k * 6.2832f / K;
+        bool sangra = (lado == 1 && (k == -1 || k == 2)) || (lado == 2 && k == 1) || (lado == 0 && k == -2);   // os quatro espinhos com sangue
+        float ao = (t - tk) * a * 1.732f;
+        if (fabsf(dg) < hw) {
+            if (sangra && dg < 0 && fabsf(ao) < 0.07f) return LUZ(1, 0.05f - (u + v) * 0.2f);   // o sangue escorrendo pelo ramo
+            return LUZ(2, 0.20f - dg / hw * 0.30f * (lado ? 1 : -1) - (u + v) * 0.20f);
+        }
+        float g0 = gc - hw * 0.7f, n = (g0 - g) * a, inc = ((int)k & 1) ? 0.55f : -0.55f;   // o espinho sai inclinado, um para cada lado
+        float m = ao - n * inc;
+        if (fabsf(tk) < 0.8f && n > -0.02f && n < LT && fabsf(m) < 0.036f * (1 - n / LT) + l * 0.35f) {
+            if (sangra && n > LT * 0.35f) return m < 0 ? 3 : LUZ(1, 0.1f);      // a ponta molhada de sangue
+            return LUZ(2, m < 0 ? -0.25f : -0.75f);
+        }
+        if (sangra && lado) {                                      // a gota pingando da ponta (nas beiras de cima), caindo reto para baixo
+            float an = 1.5708f + lado * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float al = tk * a * 1.732f + LT * inc, gb = (gc - hw * 0.7f) * a - LT;   // a ponta do espinho: ao longo da beira e para dentro
+            float px = cu + nx * gb - ny * al, py = cv + ny * gb + nx * al;
+            float gx = u - px, gy = v - (py + 0.09f), rg = 0.055f + l * 0.3f;
+            float rr = gy < 0 ? rg * (1 + gy / (rg * 2.0f)) : rg;          // a gota, afinando para cima
+            if (gy > -rg * 2.0f && gx * gx + fmaxf(0, gy) * fmaxf(0, gy) < rr * rr)
+                return gx + gy < -0.02f ? 3 : LUZ(1, 0.15f - (gx + gy) * 6);
         }
         return 0;
     }
@@ -1905,14 +1936,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
         }
         return 0;
     }
-    case D_RANCOR: {                              // as camadas que se assentam no fundo, cada vez mais escuras, embaixo do numero
-        float t, g = borda_d4(u, v, &t);
-        if (g > 1) return 0;
-        float y = v + 0.015f * sinf(u * 9.0f + 1.0f);              // o assento levemente ondulado
-        static const float C[3] = { 0.47f, 0.56f, 0.65f };
-        for (int i = 2; i >= 0; i--)
-            if (y > C[i]) return y < C[i] + l * 1.6f ? 0 : i + 1;   // o fio do corpo entre as camadas
-        return 0;
+    case D_RANCOR: {                              // os arranhoes em diagonal na faixa da borda dos tres lados, de tres em tres (a garra)
+        float tt, g = borda_d4(u, v, &tt);
+        if (g < 0.58f || g > 0.97f) return 0;
+        float ao = (tt + 1) * 20.8f, fundo = (1 - g) * 12;                    // ao longo da borda e para dentro, em pixels do dado da mesa
+        float m = fmodf(ao + fundo + 400, 13.0f);
+        int risco = m < 1.2f ? 1 : m >= 2.6f && m < 3.8f ? 2 : m >= 5.2f && m < 6.4f ? 3 : 0;
+        if (!risco) return 0;
+        return risco != 2 && (fundo < 1.2f || fundo > 4.0f) ? 0 : 2;          // o do meio, mais comprido
     }
     case D_ESPERANCA: {                           // a luz que sobe do ponto mais baixo, em leque
         const float hu = 0.08f, hv = 0.84f;      // a ponta de baixo do losango
@@ -1998,8 +2029,8 @@ static int desenho_interno(int tipo, float u, float v, float s)
             float d = ((u - cu) * nx + (v - cv) * ny) / 0.30f;
             if (d > g) g = d;
         }
-        if (g < 1 && g > 1 - (l * 1.8f + 0.03f) / 0.30f) return 3;           // o contorno de ouro
-        if (g < 1) return 2;                                                 // o fogo dentro
+        if (g < 1 && g > 1 - 1.1f * s / 0.30f) return 3;                     // o filete de ouro, de 1 px
+        if (g < 1) return 2;                                                 // dentro, o sangue escuro (o numero de marfim se le)
         float t, gb = borda_d4(u, v, &t);
         return gb > 0.86f ? 1 : 0;                                           // a borda escura do corpo
     }
@@ -2118,16 +2149,28 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (px * px + py * py < 0.030f * 0.030f) return LUZ(2, 0.55f - (px + py) * 3);   // as pintas
         return LUZ(1, luz);
     }
-    case D_TRENO: {                               // a madeira laqueada de vermelho do treno, o friso dourado na beira e as volutas nas pontas
+    case D_TRENO: {                               // a laca vermelha do treno, o friso de ouro so embaixo (os patins, com a voluta nas pontas do lado) e o azevinho na ponta de cima
         float g = face_g(8, u, v, NULL), x = u - 0.08f, y = v - 0.08f;
-        if (fabsf(g - 0.86f) < 1.1f * s / 0.69f) return LUZ(2, 0.55f - (x + y) * 0.4f);   // o filete largo
-        if (fabsf(g - 0.80f) < 0.6f * s / 0.69f) return LUZ(2, 0.10f - (x + y) * 0.4f);   // o fino
-        static const float VX[4] = { 0, 0.60f, 0, -0.60f }, VY[4] = { -0.60f, 0, 0.60f, 0 };
-        for (int i = 0; i < 4; i++) {                                       // as volutas: um caracol de ouro em cada ponta
-            float cx = x - VX[i], cy = y - VY[i], rr = sqrtf(cx * cx + cy * cy);
-            if (rr > 0.10f) continue;
-            float an = atan2f(cy, cx) / 6.2832f + 0.5f, alvo = 0.025f + 0.065f * an;
+        if (y > 0.03f) {
+            if (fabsf(g - 0.86f) < 1.1f * s / 0.69f) return LUZ(2, 0.55f - (x + y) * 0.4f);   // o filete largo
+            if (fabsf(g - 0.76f) < 0.6f * s / 0.69f) return LUZ(2, 0.10f - (x + y) * 0.4f);   // o fino
+        }
+        for (int i = -1; i <= 1; i += 2) {                                  // as volutas: o caracol de ouro na ponta de cada patim
+            float cx = x - i * 0.62f, cy = y, rr = sqrtf(cx * cx + cy * cy);
+            if (rr > 0.12f) continue;
+            float an = atan2f(cy, cx) / 6.2832f + 0.5f, alvo = 0.03f + 0.075f * an;
             if (fabsf(rr - alvo) < 0.6f * s + 0.008f) return LUZ(2, 0.5f - (cx + cy) * 3);
+        }
+        float hy = y + 0.64f;                                               // o azevinho: tres bagas de ouro e duas folhas
+        static const float BX[3] = { 0, -0.055f, 0.055f }, BY[3] = { -0.10f, -0.02f, -0.02f };
+        for (int i = 0; i < 3; i++) {
+            float bx = x - BX[i], by = hy - BY[i];
+            if (bx * bx + by * by < 0.045f * 0.045f) return LUZ(2, 0.75f - (bx + by) * 5);
+        }
+        for (int k = -1; k <= 1; k += 2) {
+            float lx = x * k - 0.13f, ly = hy - 0.08f;
+            float a = (lx * 0.80f + ly * 0.60f) / 0.14f, b = (-lx * 0.60f + ly * 0.80f) / 0.060f;
+            if (a * a + b * b < 1) return fabsf(b) < 0.22f ? LUZ(3, 1.0f) : LUZ(3, 0.34f);   // a folha e a nervura clara
         }
         return LUZ(1, -0.05f - (x + y) * 0.45f + 0.05f * grao(u, v, s, 1, 4));
     }
@@ -2301,20 +2344,14 @@ static int desenho_interno(int tipo, float u, float v, float s)
         float t = v / 0.14f + tri(u / 0.16f) * 0.5f;
         return fr(t) < s * 1.1f / 0.14f;
     }
-    case D_ESTRELA: {                             // o ceu da noite: estrelinhas espalhadas longe do numero, e a estrela de Belem na ponta de cima
-        float ax = fabsf(u), ay = fabsf(v + 0.60f);
-        if (ax < 0.06f * (1 - ay / 0.17f) && ay < 0.17f) return ay < 0.045f ? 2 : 1;      // as pontas, finas
-        if (ay < 0.06f * (1 - ax / 0.15f) && ax < 0.15f) return ax < 0.045f ? 2 : 1;
-        if (ro < 0.34f) return 0;
-        const float cel = 0.16f;                                                             // as estrelinhas: uma ou nenhuma por celula
-        int gx = (int)floorf(u / cel), gy = (int)floorf(v / cel);
-        uint32_t h = hash2(gx + 7, gy + 23);
-        if (h % 100 >= 40) return 0;
-        float ox = (gx + 0.25f + (h >> 8 & 255) / 255.0f * 0.5f) * cel, oy = (gy + 0.25f + (h >> 16 & 255) / 255.0f * 0.5f) * cel;
-        float dx = fabsf(u - ox), dy = fabsf(v - oy);
-        if ((h >> 24) % 4 == 0 && ((dx < s * 0.6f && dy < 0.04f) || (dy < s * 0.6f && dx < 0.04f))) return 3;   // umas em cruz
-        bool apaga = (int)(t_relogio * 1.5f + (h >> 4) % 7) % 5 == 0;                       // e umas piscando
-        return dx < s * 0.7f && dy < s * 0.7f && !apaga ? 3 : 0;
+    case D_ESTRELA: {                             // a noite azul e so a estrela de Belem, amarela, de quatro pontas, com a cauda, na ponta de cima
+        float x = u - 0.08f, y = v + 0.56f, ax = fabsf(x), ay = fabsf(y);
+        float g = pq_dentro ? 1.7f : 1;                                                    // na bolsa, mais grossas: a cauda aparece
+        if (ax < 0.07f * g * (1 - ay / 0.22f) && ay < 0.22f) return ay < 0.06f ? 2 : 1;   // as pontas, finas: o miolo claro
+        if (ay < 0.07f * g * (1 - ax / 0.18f) && ax < 0.18f) return ax < 0.06f ? 2 : 1;
+        float ta = (y - x) * 0.7071f, tb = (x + y) * 0.7071f;                              // a cauda: para baixo, a esquerda, afinando
+        if (ta > 0.10f && ta < 0.50f && fabsf(tb) < 0.05f * g * (1 - (ta - 0.10f) / 0.40f) + 0.5f * s) return ta < 0.30f ? 1 : LUZ(1, -0.45f);
+        return 0;
     }
     case D_RENA: {                                // o pelo da rena: curto, em fios para baixo, e as galhadas pequenas no alto, entre os pontos
         float x = u - 0.08f, y = v - 0.08f;
@@ -2451,6 +2488,125 @@ static float brilho_desta = -1;          // o de passagem do dado em curso
 // O material do corpo comum deste dado (veio da madeira, furta-cor da
 // perola); -1: os outros, sem textura propria.
 static int mat_desta = -1;
+// O acabamento deste dado (acabamento.inc); -1: sem (o dado anulado).
+static int acab_desta = -1;
+// As beiras do corpo: a normal de cada aresta, para fora, e a distancia dela
+// ate a origem. Com elas cada pixel sabe quanto esta da beira e para onde a
+// beira mais perto olha (o arco do vidro e a luz que atravessa ele).
+static float beira_nx[12], beira_ny[12], beira_c[12];
+static int beira_n;
+static void beira_prepara(const float *vx, const float *vy, int n)
+{
+    beira_n = 0;
+    if (!n) return;
+    float mx = 0, my = 0;
+    for (int i = 0; i < n; i++) { mx += vx[i]; my += vy[i]; }
+    mx /= n; my /= n;
+    for (int i = 0; i < n && beira_n < 12; i++) {
+        int j = (i + 1) % n;
+        float ex = vx[j] - vx[i], ey = vy[j] - vy[i], L = sqrtf(ex * ex + ey * ey);
+        if (L < 0.5f) continue;
+        float nx = ey / L, ny = -ex / L;
+        if ((vx[i] - mx) * nx + (vy[i] - my) * ny < 0) { nx = -nx; ny = -ny; }
+        beira_nx[beira_n] = nx; beira_ny[beira_n] = ny; beira_c[beira_n] = nx * vx[i] + ny * vy[i];
+        beira_n++;
+    }
+}
+// Quanto o pixel (x, y) esta da beira do corpo (o poligono preparado, ou o
+// disco dcx, dcy, dr quando n == 0) e a direcao em que a beira mais perto olha.
+static float beira_de(int n, float dcx, float dcy, int dr, int x, int y, float *nx, float *ny)
+{
+    if (!n) {
+        float dx = x - dcx, dy = y - dcy, d = sqrtf(dx * dx + dy * dy);
+        if (d < 0.01f) { *nx = 0; *ny = 1; return (float)dr; }
+        *nx = dx / d; *ny = dy / d;
+        return dr + 0.5f - d;
+    }
+    float best = 1e9f;
+    *nx = 0; *ny = 1;
+    for (int b = 0; b < beira_n; b++) {
+        float d = beira_c[b] - (beira_nx[b] * x + beira_ny[b] * y);
+        if (d < best) { best = d; *nx = beira_nx[b]; *ny = beira_ny[b]; }
+    }
+    return best;
+}
+// O reflexo do acabamento ac no pixel (q, w): q e w em pixels de um dado de
+// raio 24, a partir do centro, na tela (a luz e da mesa: nao gira com o
+// dado); (a, b), o mesmo a partir do centro do reflexo; prof, a distancia ate
+// a beira (pixels de verdade) e (nx, ny), para onde ela olha; ang, o giro do
+// dado (a banda do metal desliza com ele). Devolve 0 (nada), 1 (sobe um tom),
+// 2 (o reflexo: o tom mais claro), 3 (uma estrelinha: a noite) ou 5 (o
+// miolo do brilho: o branco; no vidro escuro, a prata); dens, o pontilhado
+// (1: cheio). Nunca no numero nem a 1 pixel dele (os pontos do d6:
+// pinta_corpo). So os brilhantes tem forma propria, e ela entra por cima do
+// reflexo de sempre (laca: o ponto duro; vidro: o arco na beira que olha
+// para a luz, o ponto e a luz que atravessa; metal: o ponto e a banda;
+// borracha: os dois pontos, molhado; noite: as estrelinhas).
+// Rolando, o reflexo vai e volta pela face no passo do caminho (uma ida a
+// cada 40 px andados) e volta ao lugar quando o dado para: varre, o quanto
+// (0 parado, 1 rapido); fase, onde a passada esta (0..1, ida e volta).
+// desenha_lance acerta.
+static float acab_varre, acab_fase;
+static float acab_s24 = 1;       // o dado em relacao ao de raio 24
+static float acab_rx, acab_ry;   // o centro do reflexo (pixels de um dado de raio 24)
+// O ponto duro, em pixels de tela a partir do centro do reflexo: o miolo
+// 2x2 no branco e 1 pixel do tom claro em volta, sem as quinas.
+static int ponto_duro(int A, int B)
+{
+    if (A >= 0 && A <= 1 && B >= 0 && B <= 1) return 5;
+    if (A >= -1 && A <= 2 && B >= -1 && B <= 2 && !((A == -1 || A == 2) && (B == -1 || B == 2))) return 2;
+    return 0;
+}
+static int acab_forma(int ac, float q, float w, float a, float b, float prof, float nx, float ny,
+                      float ang, float *dens)
+{
+    *dens = 1;
+    bool numero_perto = fabsf(q) <= 8 && fabsf(w) <= 7;
+    int A = (int)floorf(a * acab_s24 + 0.5f), B = (int)floorf(b * acab_s24 + 0.5f);   // em pixels de tela
+    float luz = -0.7071f * (nx + ny);              // a beira olhando para a luz (1) ou de costas (-1)
+    switch (ac) {
+    case AC_LACA:                                   // o ponto duro, junto da beira de cima
+        return numero_perto ? 0 : ponto_duro(A, B);
+    case AC_VIDRO: {                                // o arco de luz na beira (so a que olha para a luz), o ponto e a luz que atravessa
+        float pos = atan2f(w, q), sombra = -luz;        // onde o pixel esta, em volta do centro
+        if (!numero_perto) {
+            float p0 = atan2f(acab_ry, acab_rx), dp = fabsf(remainderf(pos - p0, 6.2832f));
+            float s = acab_s24, in = prof / s;            // a fundura na escala do dado de raio 24
+            if (luz > 0.6f && dp < 0.28f && in >= 1.6f && in < 2.8f) return 5;      // o miolo do arco
+            if (luz > 0.6f && dp < 0.62f && in >= 1.2f && in < 3.4f) { *dens = dp < 0.45f ? 1 : 0.55f; return 2; }
+            int pd = ponto_duro(A - 3, B - 3);            // o ponto, mais para dentro
+            if (pd) return pd;
+        }
+        bool volta = prof >= 1.5f && prof < 3.5f && sombra > 0.75f && fabsf(pos - 0.785f) < 0.6f;
+        if (volta || (prof >= 3.5f && prof < 5 && sombra > 0.85f && fabsf(pos - 0.785f) < 0.4f)) { *dens = 0.5f; return 1; }
+        return 0;
+    }
+    case AC_METAL: {                                // o ponto duro e a banda que atravessa a face (deslizando com o giro)
+        if (numero_perto) return 0;
+        int pd = ponto_duro(A, B);
+        if (pd) return pd;
+        float d = fabsf((q - w) * 0.7f / 24 + (q + w) * 0.25f / 24 + 0.05f + sinf(ang * 2) * 0.04f
+                        + acab_varre * (acab_fase - 0.5f) * 1.1f);
+        if (d < 0.07f) return 1;
+        if (d < 0.14f) { *dens = 0.6f; return 1; }
+        return 0;
+    }
+    case AC_BORRACHA: {                             // molhado: o ponto duro e, embaixo a direita, um ponto menor
+        if (numero_perto) return 0;
+        int pd = ponto_duro(A, B);
+        if (pd) return pd;
+        if (fabsf(q + acab_rx * 0.85f) <= 1 && fabsf(w + acab_ry * 0.85f) <= 1) { *dens = 0.5f; return 1; }
+        return 0;
+    }
+    case AC_NOITE: {                                // tres estrelinhas paradas, longe do numero
+        static const float E[3][2] = { { -12, -5 }, { -5, -13 }, { 10, -11 } };
+        for (int i = 0; i < 3; i++) if (fabsf(q - E[i][0]) < 0.5f && fabsf(w - E[i][1]) < 0.5f) return 3;
+        return 0;
+    }
+    default:
+        return 0;
+    }
+}
 static float brilho_lenda(int tipo, bool *forte)
 {
     *forte = false;
@@ -2580,6 +2736,9 @@ static uint16_t gelatina_corpo(float u, float v, int x, int y, uint16_t c, uint1
 {
     float ro = sqrtf(u * u + v * v);
     if (corpo_apagado) return ro > 0.80f ? cinza : c;
+    // pequena (a bolsa), nada de misturar com o fundo, que caia no cinza:
+    // os tons do rosa - o claro onde a luz entra, o rosa, o vinho na beira.
+    if (pq_dentro) return ro > 0.80f ? RGB(150, 62, 80) : u + v < -0.45f ? RGB(226, 164, 168) : RGB(208, 98, 108);
     uint16_t g = gfx_mistura(c, RGB(208, 98, 108), 72);
     if (ro > 0.76f) g = gfx_mistura(g, RGB(118, 30, 38), 40 + (int)((ro - 0.76f) * 120));   // a beira, funda
     else if (u + v < -0.5f) g = gfx_mistura(g, RGB(246, 196, 190), 30);                       // a luz entrando em cima
@@ -2841,6 +3000,59 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
     float desvio = tipo * 3.7f;
     int y0, y1;
     corpo_altura(vy, n, dcy, dr, &y0, &y1);
+    // O acabamento: o reflexo de cada classe, por cima do desenho nos brilhantes.
+    const acabamento_t *ac = acab_desta >= 0 ? &ACAB[acab_desta] : NULL;
+    // So os brilhantes; a bola de natal e o bronze ja tem o deles (a janela, o risco).
+    bool forma = ac && acab_tem_luz(acab_desta) && mat_desta != MAT_BOLA && mat_desta != MAT_BRONZE;
+    int lados_d = TIPO[tipo].lados;
+    float esc = 24 * s;                                  // pixels de verdade -> pixels de um dado de raio 24
+    float rcx = -8, rcy = -9;                            // o centro do reflexo (pixels de um dado de raio 24)
+    // O tom do reflexo e o da luz: os do material; num corpo tingido (os
+    // especiais), cuja rampa e quase plana, o claro da familia da cor na paleta.
+    uint16_t tom_refl = tons[4], tom_luz = tons[3];
+    if (forma && tons[4] == tons[2]) {
+        uint16_t rl[4];
+        rampa_de(tons[2], rl);
+        tom_refl = rl[3];
+        tom_luz = rl[3];
+    }
+    // Os pontos do d6 (pips_luz), com 1 pixel de folga: o reflexo nao encosta neles.
+    int pips_n = 0, pip_x[7], pip_y[7];
+    float pip_r2 = 0;
+    if (forma && lados_d == 6) {
+        int ri = (int)r, o = ri * 5 / 11, pr = ri / 7 > 1 ? ri / 7 : 1;
+        static const int8_t P[7][2] = { { -1, -1 }, { 1, -1 }, { -1, 0 }, { 1, 0 }, { -1, 1 }, { 1, 1 }, { 0, 0 } };
+        for (int k = 0; k < 7; k++) { pip_x[k] = (int)cx + P[k][0] * o; pip_y[k] = (int)cy + P[k][1] * o; }
+        pips_n = 7;
+        pip_r2 = (pr + 1.5f) * (pr + 1.5f);
+    }
+    uint16_t tom_vivo = acab_desta == AC_VIDRO && brilho_de(tons[2]) < 120 ? C_PRATA : C_BRANCO;
+    acab_s24 = r / 24;
+    if (forma) {
+        beira_prepara(vx, vy, n);
+        // O reflexo fica junto da quina de cima, a esquerda: no raio que vai do
+        // centro para a luz, 3,5 pixels antes da beira (entre a beira e o ponto
+        // do d6). No d4, perto da ponta de cima.
+        // No d6 a quina e da pinta de cima: o reflexo sobe para a beira de
+        // cima, um pouco a esquerda (onde nunca ha pinta).
+        float rdx = lados_d == 6 ? -0.26f : -0.7071f, rdy = lados_d == 6 ? -0.966f : -0.7071f;
+        float tb = n ? 1e9f : (float)dr;
+        for (int b = 0; b < beira_n; b++) {
+            float den = beira_nx[b] * rdx + beira_ny[b] * rdy;
+            if (den > 0.05f) {
+                float t = (beira_c[b] - (beira_nx[b] * cx + beira_ny[b] * cy)) / den;
+                if (t < tb) tb = t;
+            }
+        }
+        float dentro = (lados_d == 6 ? 5.5f : 3.5f) * r / 24;        // no d6, abaixo do filete da beira
+        if (tb < 1e8f) { rcx = rdx * (tb - dentro) * esc; rcy = rdy * (tb - dentro) * esc; }
+        if (lados_d == 4) { rcx = -1.5f; rcy = -11.5f; }
+        if (acab_varre > 0) {                       // rolando: o reflexo corre para dentro e volta a cada passada
+            float k = acab_varre * acab_fase * 9;
+            rcx -= rdx * k; rcy -= rdy * k;
+        }
+        acab_rx = rcx; acab_ry = rcy;
+    }
     for (int y = y0; y <= y1; y++) {
         float xs[16];
         int nx = corpo_linha(vx, vy, n, dcx, dcy, dr, y, xs);
@@ -2849,12 +3061,31 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                 float dx = x - cx, dy = y - cy, u = dx * ca - dy * sa + arte_du, v = dx * sa + dy * ca + arte_dv;
                 int p = desenho_interno(tipo, u * s, v * s, s);
                 uint16_t c;
+                // O reflexo do acabamento: onde ele bate e o quanto.
+                int lv = 0;
+                float dn = 1, prof = 99, bnx = 0, bny = 1;
+                if (forma) {
+                    float q = dx * esc, w = dy * esc;
+                    prof = beira_de(n, dcx, dcy, dr, x, y, &bnx, &bny);
+                    lv = acab_forma(acab_desta, q, w, q - rcx, w - rcy, prof, bnx, bny, ang, &dn);
+                    if (lv == 3 && tipo == D_ESTRELA) lv = 0;                // a Estrela de Belem: so a estrela dela no ceu
+                    if (lv && lv != 3 && bayer(x, y) >= dn) lv = 0;
+                    for (int k = 0; lv && k < pips_n; k++)
+                        if ((x - pip_x[k]) * (x - pip_x[k]) + (y - pip_y[k]) * (y - pip_y[k]) <= pip_r2) lv = 0;
+                }
+                // Nos brilhantes, o reflexo tambem sobe um tom do desenho que esta embaixo.
+                bool sobe = (lv == 1 || lv == 2 || lv == 5) && p && ac->por_cima && rampas_ok
+                            && brilho_de(p >= 1000 ? cores[p / 1000] : cores[p]) >= 60;
                 if (p >= 1000) {                                              // um tom com luz (LUZ)
                     int ci = p / 1000;
-                    c = rampas_ok ? tom_rampa(rampas_desta[ci], (p % 1000 - 100) / 100.0f, x, y) : cores[ci];
-                } else if (p) c = cores[p];
+                    c = rampas_ok ? tom_rampa(rampas_desta[ci], (p % 1000 - 100) / 100.0f + (sobe ? 0.67f : 0), x, y) : cores[ci];
+                } else if (p) c = sobe ? rampas_desta[p][3] : cores[p];
                 else {
                     float hx = dx * s + 0.34f, hy = dy * s + 0.38f;           // o reflexo
+                    if (acab_varre > 0 && acab_desta == AC_METAL) {           // o metal rolando: o reflexo corre pela face
+                        float m = acab_varre * acab_fase * 0.45f;
+                        hx -= m * 0.74f; hy -= m * 0.67f;
+                    }
                     float reflexo = mat_desta == MAT_BRONZE ? 2.1f : mat_desta == MAT_BOLA ? 2.6f   // o metal e o espelho
                                   : mat_desta == MAT_VELUDO || mat_desta == MAT_BISCOITO ? 0.7f : 1.6f;  // foscos
                     float luz = -(dx + dy) * s * 1.1f
@@ -2887,7 +3118,7 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                         if (f > corte) c = furta[0];
                         else if (f < -corte) c = furta[1];
                     }
-                    if (mat_desta == MAT_BOLA) {                             // o espelho: a janela refletida e a luz de baixo
+                    if (mat_desta == MAT_BOLA && !forma) {                   // o espelho: a janela refletida e a luz de baixo
                         float jx = dx * s + 0.30f, jy = dy * s + 0.36f;
                         if (fabsf(jx + jy * 0.3f) < 0.07f && fabsf(jy) < 0.16f) c = tons[4];
                         else if (fabsf(jx - 0.10f + jy * 0.3f) < 0.035f && fabsf(jy) < 0.12f) c = tons[3];
@@ -2897,17 +3128,26 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                         uint32_t hm = hash2((int)floorf(u * s * 9 + 40), (int)floorf(v * s * 9 + 40)) % 29;
                         if (hm == 0) c = BISCOITO_MIGALHA[0];
                         else if (hm == 1 && nivel < 2) c = BISCOITO_MIGALHA[1];
-                    } else if (mat_desta == MAT_GELO) {                      // o floco gravado, girando com o dado
-                        float fu = u * s, fv = v * s, fro = sqrtf(fu * fu + fv * fv);
-                        float an = atan2f(fv, fu) / 1.0472f, br = fabsf(fr(an + 0.5f) - 0.5f) * 1.0472f * fro;
-                        bool sulco = fro < 0.70f && br < 0.028f;              // os seis bracos
-                        float ra = fro - 0.40f;                               // e os galhinhos, em V
-                        if (fabsf(ra) < 0.13f && fabsf(br - fabsf(ra) * 0.7f) < 0.024f && ra > -0.02f) sulco = true;
-                        if (sulco) c = GELO_FLOCO[0];
-                        else if (fro < 0.70f && br < 0.05f && fu - fv > 0) c = GELO_FLOCO[1];   // a luz na beira do sulco
+                    } else if (mat_desta == MAT_GELO) {                      // dois flocos pequenos gravados, no alto e embaixo, fora do numero e dos pontos
+                        for (int q = 0; q < 2; q++) {
+                            float k = q ? 0.62f : 1;                              // o de baixo, menor
+                            float fu = (u - arte_du) * s, fv = (v - arte_dv) * s + (q ? -0.52f : 0.50f), fro = sqrtf(fu * fu + fv * fv);
+                            float an = atan2f(fv, fu) / 1.0472f, br = fabsf(fr(an + 0.5f) - 0.5f) * 1.0472f * fro;
+                            bool sulco = fro < 0.23f * k && br < 0.024f;          // os seis bracos
+                            float ra = fro - 0.13f;                               // e os galhinhos, em V
+                            if (!q && fabsf(ra) < 0.045f && fabsf(br - fabsf(ra) * 0.7f) < 0.020f && ra > -0.01f) sulco = true;
+                            if (sulco) c = GELO_FLOCO[0];
+                            else if (fro < 0.23f * k && br < 0.045f && fu - fv > 0) c = GELO_FLOCO[1];   // a luz na beira do sulco
+                        }
+                    } else if (mat_desta == MAT_OSSO) {                      // os poros e uma trinca fina, no alto, longe dos pontos
+                        float gu = (u - arte_du) * s, gv = (v - arte_dv) * s;
+                        if (hash2((int)floorf(u) + 53, (int)floorf(v) + 11) % 19 == 0 && nivel < 2) c = tons[0];
+                        float xl = 0.16f - 0.11f * (gv + 0.82f) / 0.52f + 0.025f * sinf(gv * 20.0f);
+                        if (gv > -0.84f && gv < -0.30f && fabsf(gu - xl) < 0.6f * s) c = OSSO_TRINCA;
+                        if (gv > -0.62f && gv < -0.50f && fabsf(gu - xl - (gv + 0.62f) * 0.9f) < 0.6f * s) c = OSSO_TRINCA;   // o galho
                     }
-                    if (mat_desta == MAT_BRONZE) {                           // o metal: um risco de luz na diagonal
-                        float d = fabsf((dx - dy) * s * 0.7f + (dx + dy) * s * 0.25f + 0.05f);
+                    if (mat_desta == MAT_BRONZE && !forma) {                 // o metal: um risco de luz na diagonal (rolando, ele atravessa a face)
+                        float d = fabsf((dx - dy) * s * 0.7f + (dx + dy) * s * 0.25f + 0.05f + acab_varre * (acab_fase - 0.5f) * 0.9f);
                         if (d < 0.13f && nivel < 2) c = tons[nivel + 3];
                     }
                     if (mat_desta == MAT_MARMORE) {                           // os veios: finos, tortos, que se cruzam
@@ -2924,7 +3164,12 @@ static void pinta_corpo(const float *vx, const float *vy, int n, float dcx, floa
                     else if (cosmico(corpo_desta)) c = ceu_cosmico(corpo_desta, u * s, v * s, s, nivel, c, cores[1]);
                     else if (corpo_desta == D_AGNUS) c = la_agnus(u * s, v * s, s, x, y, c, cores[1]);
                     else if (corpo_desta == D_GELATINA) c = gelatina_corpo(u * s, v * s, x, y, c, cores[1]);
+                    if (lv == 2) c = tom_refl;                                // a forma do reflexo
+                    else if (lv == 1) c = tons[4] != tons[2] ? tons[nivel + 3 > 4 ? 4 : nivel + 3] : tom_luz;
+                    else if (lv == 3) c = (int)(dx * 7 + dy * 3) & 1 ? C_BRANCO : C_AMARELO;
+                    else if (lv == 5) c = tom_vivo;
                 }
+                if (lv == 5) c = tom_vivo;                                    // o miolo do brilho fica por cima do desenho
                 if (brilho > -5) {
                     float d = fabsf((dx + dy) * s - brilho), d2 = fabsf((dx + dy) * s - brilho + 0.3f);
                     if (forte) {                       // o do lendario: miolo branco, beira dourada
@@ -2959,6 +3204,9 @@ typedef struct { uint64_t chave; uint32_t uso; bool pintou; uint16_t px[PQ_LADO 
 static pq_t pq_guarda[PQ_N];
 static uint32_t pq_vez;
 static bool pq_pintou;                              // o dado pequeno em curso ganhou o material (o numero ganha o contorno)
+// o d4 pequeno quase nao mostra o desenho (o numero cobre o triangulo): os
+// tres cantos, fora da caixa do numero, vao na cor do desenho do dado (0: nao).
+static uint16_t pq_canto;
 
 static uint64_t pq_mistura(uint64_t h, uint32_t w)
 {
@@ -3001,10 +3249,10 @@ static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float d
                      (uint32_t)boneca_lados, (uint32_t)rampas_ok, (uint32_t)claro << 16 | escuro,
                      (uint32_t)cores[1] << 16 | cores[2], cores[3],
                      pq_f(dcx - ox), pq_f(dcy - oy), pq_f(bcx - ox), pq_f(bcy - oy), pq_f(cx - ox), pq_f(cy - oy),
-                     pq_f(ang), pq_f(r), pq_f(arte_du), pq_f(arte_dv) };
+                     pq_f(ang), pq_f(r), pq_f(arte_du), pq_f(arte_dv), pq_canto };
     for (unsigned i = 0; i < sizeof k / sizeof k[0]; i++) h = pq_mistura(h, k[i]);
     for (int i = 0; i < n; i++) h = pq_mistura(pq_mistura(h, pq_f(vx[i] - ox)), pq_f(vy[i] - oy));
-    bool anima = tipo == D_PISCA || tipo == D_ESTRELA;         // as luzinhas piscam: refeito a cada quadro
+    bool anima = tipo == D_PISCA;                              // as luzinhas piscam: refeito a cada quadro
     pq_t *e = NULL;
     if (!anima) {
         pq_t *velho = &pq_guarda[0];
@@ -3029,6 +3277,7 @@ static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float d
     float ca = cosf(-ang), sa = sinf(-ang), s = 1 / r;
     int y0, y1;
     corpo_altura(vy, n, dcy, dr, &y0, &y1);
+    pq_dentro = true;
     for (int y = y0; y <= y1; y++) {
         float xs[16];
         int nx = corpo_linha(vx, vy, n, dcx, dcy, dr, y, xs);
@@ -3045,8 +3294,9 @@ static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float d
                         nd += tem;
                         sr += ((c >> 11) & 31) * 255 / 31; sg += ((c >> 5) & 63) * 255 / 63; sb += (c & 31) * 255 / 31;
                     }
-                if (!nd) continue;
-                uint16_t c = cor_de_dado(RGB(sr / 4, sg / 4, sb / 4));
+                bool canto = pq_canto && (fabsf(x - cx) >= 5 || y - cy <= -6);   // fora da caixa do numero
+                if (!nd && !canto) continue;
+                uint16_t c = nd == 4 || (nd && !canto) ? cor_de_dado(RGB(sr / 4, sg / 4, sb / 4)) : pq_canto;   // o desenho cheio fica; o resto do canto, na cor
                 gfx_pixel(x, y, c);
                 pq_pintou = true;
                 if (e) e->pintou = true;
@@ -3054,6 +3304,7 @@ static void pinta_corpo_pequeno(const float *vx, const float *vy, int n, float d
                 if (e && gx >= 0 && gy >= 0 && gx < PQ_LADO && gy < PQ_LADO) e->px[gy * PQ_LADO + gx] = c;
             }
     }
+    pq_dentro = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -3929,6 +4180,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     bool comum = TIPO[tipo].efeito == EF_NADA && lados != 2 && tipo != D_MISTERIOSO;
     const material_t *mt = &MATERIAL[comum ? material_j[dono & 1] : MAT_MARFIM];
     mat_desta = comum && !zerado ? material_j[dono & 1] : -1;
+    acab_desta = !zerado ? acab_de(tipo, dono) : -1;
     valor_desta = vista == 2 && valor >= 1 && valor != SO_CORPO ? valor : 0;
     corpo_desta = tipo == D_PANETONE || tipo == D_BONECO || tipo == D_AGNUS || tipo == D_GELATINA || cosmico(tipo) ? tipo : 0;
     corpo_apagado = zerado;
@@ -3962,6 +4214,8 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_BALAO) tinta = C_MARFIM;       // o numero claro, impresso no latex
     if (tipo == D_ESTILINGUE) tinta = C_MARFIM;  // os pontos claros no couro
     if (tipo == D_TRONO) tinta = C_MARFIM;       // o veludo do trono pede o numero claro
+    if (tipo == D_CAVALO || tipo == D_FERREIRO) tinta = C_MARFIM;   // a tabua marrom e o chumbo pedem o numero claro
+    if (tipo == D_ESTRELA) { corpo = RGB(26, 34, 62); tinta = C_MARFIM; }   // a Estrela de Belem no grupo Noite: o azul-noite
     if (tipo == D_MALDITO) { corpo = RGB(54, 36, 74); tinta = C_MARFIM; }   // Agouro: a noite carregada
     if (tipo == D_MATRIOSKA) tinta = C_MARFIM;   // o numero claro na laca vermelha
     if (tipo == D_INVEJOSO) tinta = C_MARFIM;    // o numero claro na pupila escura
@@ -4054,7 +4308,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (lado) mt = lado;
     brilho_apagado = zerado;
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
-    if (cosmico(tipo) && !zerado)                 // no ceu, a aresta acesa e um tom da propria noite
+    if ((cosmico(tipo) || tipo == D_ESTRELA) && !zerado)   // no ceu (e na Estrela de Belem), a aresta acesa e um tom da propria noite
         brilho = tipo == D_GALAXIA || tipo == D_UNIVERSO ? RGB(102, 74, 138) : tipo == D_BURACO ? RGB(62, 56, 50) : RGB(56, 86, 150);
     // Tudo em volta do mesmo centro: o aro, o bisel (a aresta de dentro, clara
     // do lado da luz) e o corpo. O desenho de dentro guarda a sua referencia
@@ -4093,7 +4347,9 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
             else poligono(vx, vy, n, corpo);
         } else if (pequeno) {                     // a regra da bolsa: o material, simplificado, sobre o bisel
             n = forma_d(lados, cx, cy, r, ang, -d - 1, vx, vy);
+            if (lados == 4 && !comum) pq_canto = cores[1] != corpo ? cores[1] : gfx_na_paleta(aro);   // os cantos do d4 pequeno
             pinta_corpo_pequeno(vx, vy, n, 0, 0, 0, tipo, cores, brilho, sombra_bisel, cx, bcy, cx, bcy, ang, r);
+            pq_canto = 0;
         }
         if (tipo == D_AGNUS) chifres_agnus(cx, bcy, r, ang, cores, zerado);   // por cima do aro
         if (tipo == D_BALAO && r >= 9) balao_no(cx, bcy, r, ang, zerado);
@@ -4246,7 +4502,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (px_dentro) { desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado); return; }
     uint16_t *alvo = gfx_alvo(), *fb = alvo ? alvo : display_fb();
     int so = r < 12 ? 2 : (int)(r / 6), alt = (int)sombra_alt;
-    bool sombra = tipo != D_VAZIO;                      // o Vazio faz a dele (as linhas)
+    bool sombra = tipo != D_VAZIO && !sem_sombra;       // o Vazio faz a dele (as linhas)
     int m = (int)(r * 1.7f) + 8;
     int x0 = (int)cx - m, y0 = (int)cy - m, x1 = (int)cx + m, y1 = (int)cy + m;
     if (x0 < 1) x0 = 1;
@@ -4258,7 +4514,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
     gfx_desvia(px_buf);
     px_dentro = true;
-    px_sem_sombra = sombra;
+    px_sem_sombra = sombra || sem_sombra;   // o Vampiro e o Buraco Negro: nem a sombra pontilhada de fora, nem o disco de dentro
     desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado);
     px_dentro = px_sem_sombra = false;
     gfx_desvia(alvo);
@@ -4448,11 +4704,46 @@ static void dado_esticado(float cx, float cy, float r, int tipo, int dono, float
 // O dado deitou no feltro: o pulinho do pouso, o relogio dele (o numero) e
 // o anel de poeira no lugar (mesa.inc).
 static void poeira_solta(float x, float y);
+static void poeira_solta_ac(float x, float y, int tipo, uint16_t cor, float anel, float dx, float dy);
+static void treme(float px, float dur);      // hora.inc
+// A cor dos fiapos e das migalhas do dado de dono: o tom claro do material
+// dos comuns; nos especiais, o claro da familia da cor dele (no feltro
+// escuro, o tom do meio sumia).
+static uint16_t acab_cor(int tipo, int dono)
+{
+    uint16_t c = acab_comum(tipo) ? MATERIAL[material_j[dono & 1] % MAT_N].tons[4]
+               : VISUAL[tipo].tom ? cor_de_dado(VISUAL[tipo].tom) : VISUAL[tipo].cor ? VISUAL[tipo].cor : C_MARFIM_S, rl[4];
+    if (acab_comum(tipo) && brilho_de(c) >= 100) return c;
+    rampa_de(c, rl);
+    return brilho_de(rl[3]) < 100 ? C_CINZA : rl[3];      // no dado escuro, o fiapo claro (senao some no feltro)
+}
 static void assenta(voo_t *v)
 {
     v->pouso = 0.18f;
     v->t_assenta = 0.001f;
-    if (!v->fantasma) poeira_solta(v->x, v->y);
+    int as = assina_lance(v->tipo, v->dono, v->slot);
+    if (!v->fantasma) {
+        const acabamento_t *ac = &ACAB[acab_de(v->tipo, v->dono)];   // o anel de sempre, na forca da classe, e o toque dela por cima
+        int po = ac->pouso;
+        float anel = ac->anel;
+        if (as == AS_FLUTUA) anel = fminf(anel, 0.7f);               // flutua: levanta menos poeira
+        if (as == AS_PESADO || as == AS_ARRASTA) { po = PO_AFUNDA; anel = 1; }   // pesado: o anel curto e cheio, como a pedra
+        if (as == AS_TREMOR) { po = PO_TREMOR; anel = 1; }          // o Terremoto: dois aneis
+        if (as == AS_DESLIZA) po = PO_TRILHO;                       // o Treno: os trilhos dos patins ficam e apagam
+        if (as == AS_ECO) po = PO_ECO;                              // o Eco: o anel e mais dois
+        if (as == AS_BIGORNA) { po = PO_BIGORNA; anel = fminf(anel, 0.6f); }   // o Ferreiro: as faiscas
+        if (as == AS_ENTERRA) { po = PO_TERRA; anel = fminf(anel, 0.6f); }   // o Coveiro: a marca e uns torroes, sem levantar muita poeira
+        if (as == AS_SEM_SOMBRA) po = PO_NEVOA;                     // o Vampiro: a nevoa roxa
+        if (as == AS_ATRAI) { po = PO_ATRAI; anel = 0.5f; }         // o Buraco Negro: o anel escuro que se fecha
+        uint16_t cor = as == AS_ESPINHO ? C_BARRA : acab_cor(v->tipo, v->dono);     // o Ourico: os fiapos do pouso quase pretos, como os do caminho
+        poeira_solta_ac(v->x, v->y, po, cor, anel, v->dir_x, v->dir_y);
+        if (as == AS_PESADO || as == AS_ARRASTA) treme(1, 0.08f);   // o peso: a mesa sente
+        if ((as == AS_TREMOR || as == AS_FURIA) && !(v->assina_som & 16)) {   // uma vez por lance
+            v->assina_som |= 16;
+            if (as == AS_TREMOR) treme(5, 0.60f);           // o Terremoto: a mesa treme quando ele deita
+            else treme(4, 0.45f);                           // a Furia cai pesada
+        }
+    }
     if (!v->fantasma && fase == F_ROLANDO) {         // a Gelatina faz bloop; o Piao que girou de novo zune
         if (v->tipo == D_GELATINA) som_toca(SOM_GELATINA);
         else if (v->tipo == D_PIAO && v->giros) som_toca(SOM_PIAO);
@@ -4479,6 +4770,13 @@ static bool pouso_pronto(const voo_t *v)
 {
     if (v->fantasma || v->t_assenta <= 0) return true;
     float t = v->t_assenta;
+    switch (assina_lance(v->tipo, v->dono, v->slot)) {          // as assinaturas com pouso proprio: ate o fim dele
+    case AS_OCO:     if (t < 0.60f) return false; break;
+    case AS_ECO:     if (t < 0.40f) return false; break;
+    case AS_BIGORNA: if (t < 0.44f) return false; break;
+    case AS_ENTERRA: if (t < 0.36f) return false; break;
+    default: break;
+    }
     if (v->tipo == D_PIAO && v->giros) return t >= PIAO_RODA;
     if (v->tipo == D_GELATINA && v->quicou) return t >= GEL_PULO_1 + 0.12f;
     int nb = BONECAS_N(v->bonecas);
@@ -4500,6 +4798,124 @@ static void pouso_novos_passo(voo_t *v)
     }
 }
 
+// O sulco que a Ancora deixa arrastando (apaga aos poucos) e os fiapos que
+// os espinhos do Ourico soltam: a fisica poe, a mesa desenha.
+#define SULCO_N 160
+#define SULCO_T 2.6f
+static struct { float x, y, t, dx, dy; } sulco[SULCO_N];
+static int sulco_i;
+static void sulco_poe(float x, float y, float dx, float dy)
+{
+    sulco[sulco_i].x = x; sulco[sulco_i].y = y; sulco[sulco_i].t = 0.001f;
+    sulco[sulco_i].dx = dx; sulco[sulco_i].dy = dy;
+    sulco_i = (sulco_i + 1) % SULCO_N;
+}
+#define FIAPO_N 40
+#define FIAPO_T 2.4f
+static struct { float x, y, t; uint16_t cor; uint8_t forma; } fiapo_r[FIAPO_N];
+static int fiapo_i;
+static void fiapo_poe(float x, float y, uint16_t cor, int forma)
+{
+    fiapo_r[fiapo_i].x = x; fiapo_r[fiapo_i].y = y; fiapo_r[fiapo_i].t = 0.001f;
+    fiapo_r[fiapo_i].cor = cor; fiapo_r[fiapo_i].forma = (uint8_t)forma;
+    fiapo_i = (fiapo_i + 1) % FIAPO_N;
+}
+#define RAJADA_T0 0.19f              // a rajada da Ventania, no tempo da fisica do lance (t_voa)
+#define RAJADA_T1 0.34f
+static const float TRENO_SINO[3] = { 0.10f, 0.27f, 0.46f };   // o guizo do Treno, no mesmo tempo (2 ou 3 vezes)
+
+// O som do pouso: a Furia e o Terremoto caem pesados (uma vez por lance, e
+// so o dado de verdade: o esbarrao que acorda o dado e o fantasma do Viciado
+// pousam com o som do acabamento); os outros, o do acabamento.
+static int som_pouso_voo(voo_t *v)
+{
+    int as = assina_lance(v->tipo, v->dono, v->slot);
+    if ((as == AS_FURIA || as == AS_TREMOR) && !v->fantasma && !(v->assina_som & 8)) {
+        v->assina_som |= 8;
+        return as == AS_FURIA ? SOM_POUSA_FURIA : SOM_POUSA_TREMOR;
+    }
+    if (as == AS_TAMBOR && !v->fantasma && !(v->assina_som & 8)) { v->assina_som |= 8; return SOM_AS_TRAVA; }   // o Revolver trava
+    if (!v->fantasma && !(v->assina_som & 8)) {                 // as outras de pouso proprio, uma vez por lance
+        int s = as == AS_OCO ? SOM_AS_OCO : as == AS_ECO ? SOM_AS_ECO : as == AS_BIGORNA ? SOM_AS_BIGORNA
+              : as == AS_ENTERRA ? SOM_AS_ENTERRA : as == AS_RETA ? SOM_AS_RETA : as == AS_ATRAI ? SOM_AS_ATRAI : -1;
+        if (s >= 0) { v->assina_som |= 8; return s; }
+    }
+    return ACAB[acab_de(v->tipo, v->dono)].som_pousa;
+}
+
+// A Gelatina sai forte: a velocidade minima para chegar na borda (e achatar
+// nela) em todo lance. O atrito tira atrito px/s a cada px andado: chega na
+// primeira borda batendo de frente a 170 px/s (de raspao, mais rapido; no
+// maximo 900 px/s, o lance mais forte). Vale no lance e na re-rolagem.
+static void geleia_ate_a_borda(voo_t *v, float atrito)
+{
+    float vv = sqrtf(v->vx * v->vx + v->vy * v->vy), r = R_DADO + 2;
+    if (vv < 1) return;
+    float ux = v->vx / vv, uy = v->vy / vv;
+    float ax = ux > 0.01f ? (MESA_X1 - r - v->x) / ux : ux < -0.01f ? (MESA_X0 + r - v->x) / ux : 1e9f;
+    float ay = uy > 0.01f ? (MESA_Y1 - r - v->y) / uy : uy < -0.01f ? (MESA_Y0 + r - v->y) / uy : 1e9f;
+    float frente = ax < ay ? fabsf(ux) : fabsf(uy);                  // quanto da velocidade bate de frente na borda
+    float precisa = fminf(900, atrito * fminf(ax, ay) + 170 / fmaxf(frente, 0.2f));
+    if (vv < precisa) { v->vx *= precisa / vv; v->vy *= precisa / vv; }
+}
+
+// O lancamento: de onde o dado sai e com que forca. O acabamento
+// e a assinatura mudam a forca e o giro, depois do sorteio (o sorteio e o
+// mesmo: desligado, o lance de antes).
+// O que o acabamento guarda de um lance (o lancamento e o relance do
+// Reflexivo e do Papel Bomba comecam do zero).
+static void voo_zera_lance(voo_t *v)
+{
+    v->t_lampejo = -1;
+    v->andou = 0;
+    v->dir_x = v->dir_y = 0;
+    v->girou = 0;
+    v->t_voa = 0;
+    v->assina_som = 0;
+    v->passo_as = 0;
+    v->t_tique = -1;
+    v->t_bate = 0;
+    v->sulco_x = v->sulco_y = -999;
+    float vv = sqrtf(v->vx * v->vx + v->vy * v->vy);
+    if (vv > 0) { v->vento_x = -v->vy / vv; v->vento_y = v->vx / vv; }   // o vento da Ventania: de lado
+    v->curva = v->spin >= 0 ? 1 : -1;                                     // o Bumerangue curva para o lado do giro
+}
+// A moeda (e a ficha) sempre gira no lance: o giro sorteado vai para 9 a 14,
+// do lado sorteado (perto de zero ela quase nao virava).
+static float giro_de_moeda(float spin) { return copysignf(9 + fabsf(spin) * (5.0f / 14), spin); }
+static void voo_lanca(voo_t *v, bool de_baixo)
+{
+    v->x = GFX_W / 2 + frnd(-110, 110);
+    v->y = de_baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
+    v->vx = frnd(-300, 300);
+    v->vy = (de_baixo ? -1 : 1) * frnd(420, 600);
+    v->spin = frnd(-14, 14);
+    if (TIPO[v->tipo].lados == 2) v->spin = giro_de_moeda(v->spin);
+    else {                                  // o dado: o acabamento e a assinatura mudam a forca e o giro
+        const acabamento_t *ac = &ACAB[acab_de(v->tipo, v->dono)];
+        float f = ac->forca, g = ac->giro;
+        int as = assina_lance(v->tipo, v->dono, v->slot);
+        switch (as) {
+        case AS_PESADO:  g *= 0.6f; break;
+        case AS_DESLIZA: f *= 0.85f; g *= 0.1f; break;
+        case AS_FLUTUA:  f *= 0.75f; g *= 0.5f; break;
+        case AS_PIAO:    g *= 3.4f; break;                          // gira muito
+        case AS_FURIA:   f *= 1.4f; g *= 1.6f; break;
+        case AS_ONDA:    g *= 0.7f; break;
+        case AS_RETA:    g *= 0.25f; break;                         // o Laser quase nao gira
+        case AS_SEM_SOMBRA: g *= 0.6f; break;
+        case AS_ATRAI:   f *= 0.9f; break;
+        case AS_ARRASTA: g *= 0.6f; break;
+        case AS_TAMBOR:  g *= 1.3f; break;                          // o tambor girando
+        case AS_ANDA:    f *= 0.85f; g *= 0.04f; break;             // a Viuva quase nao gira: anda
+        default: break;
+        }
+        v->vx *= f; v->vy *= f; v->spin *= g;
+        if (as == AS_GELEIA) geleia_ate_a_borda(v, ac->atrito);   // a Gelatina sai forte: chega na borda (e achata nela) em todo lance
+    }
+    voo_zera_lance(v);
+}
+
 // som: SOM_BATE (na borda de madeira) ou SOM_BATE_DADO (num outro dado).
 static void estala(float forca, int som)
 {
@@ -4516,25 +4932,135 @@ static bool fisica(float dt)
         if (v->pouso > 0) v->pouso -= dt;
         if (v->parado) continue;
         todos = false;
+        v->t_voa += dt;
+        // Os numeros do acabamento e as assinaturas. A moeda gira como sempre
+        // (os sons e o brilho, os do material dela).
+        bool moeda = TIPO[v->tipo].lados == 2;
+        int cl = moeda ? AC_MARFIM : acab_de(v->tipo, v->dono), as = moeda ? AS_NADA : assina_lance(v->tipo, v->dono, v->slot);
+        const acabamento_t *ac = &ACAB[cl];
+        float quica = ac->quica, atr = ac->atrito, para = ac->para;
+        float vel0 = sqrtf(v->vx * v->vx + v->vy * v->vy);
+        switch (as) {
+        case AS_PESADO:  quica *= 0.6f; atr *= 0.9f; para *= 1.5f; break;
+        case AS_DESLIZA: atr *= 0.95f; para += 4; quica *= 0.8f; break;
+        case AS_FLUTUA:  atr = fmaxf(2.0f, atr * 0.82f); quica *= 0.8f; break;
+        case AS_PIAO: {                                           // o Piao: corre longe sem perder forca e, quando cai, para logo
+            float k = fminf(1, fmaxf(0, (v->andou - 170) / 110));
+            atr *= 0.22f + 3.6f * k * k;
+            break;
+        }
+        case AS_FURIA:   quica = fminf(0.85f, quica + 0.15f); atr = t_fase < 0.15f ? 0 : atr * 1.2f; break;   // o tranco: sem atrito na saida
+        case AS_RAJADA:  break;
+        case AS_VOLTA:   atr *= 1.12f; break;                     // a volta sem passar de ~1,15 s
+        case AS_RETA: {                                           // o Laser: reto e constante, e para de uma vez (lento, depois de bater em outro dado, para logo)
+            bool corre = v->andou < 300 && v->vx * v->vx + v->vy * v->vy > 200 * 200;
+            atr = corre ? 0 : atr * 6; quica = 0.95f; para *= 1.6f; break;
+        }
+        case AS_ATRAI:   atr = atr * 0.3f + (v->andou / 300) * (v->andou / 300); break;           // o Buraco Negro: perde forca enquanto espirala
+        case AS_GALOPE:  atr *= 0.85f; break;
+        case AS_ARRASTA: quica *= 0.6f; atr *= vel0 < 240 ? 0.62f : 0.9f; break;   // a Ancora: pesada, e no fim arrasta
+        case AS_ANDA:    atr = v->andou < 230 ? atr * 0.25f : atr * 9; quica *= 0.7f; para *= 1.8f; break;   // a Viuva: anda constante e para de repente
+        default: break;
+        }
+        if (as == AS_ARRASTA && vel0 < 240 && vel0 > 1 && dt > 0) {   // a Ancora arrastando: nao rola mais, e o feltro marca
+            v->spin *= powf(0.82f, dt / (0.62f / 60));                 // (0,82 por quadro no lance do jogador)
+            if (!v->fantasma) {                                        // o som do arrasto no lugar do dado rolando, baixando com a forca
+                if (!(v->assina_som & 64)) { v->assina_som |= 64; som_rufo_de(SOM_ROLA_ARRASTA); }
+                som_rufo_forca(0.3f + 0.7f * vel0 / 240);
+            }
+            float ddx = v->x - v->sulco_x, ddy = v->y + 4 - v->sulco_y;
+            if (!v->fantasma && ddx * ddx + ddy * ddy > 4) {
+                v->sulco_x = v->x; v->sulco_y = v->y + 4;
+                sulco_poe(v->x, v->y + 4, v->vx / vel0, v->vy / vel0);
+            }
+        }
+        if (as == AS_ANDA && !v->fantasma && vel0 > 40 && (v->t_tique < 0 || t_fase - v->t_tique >= 0.056f + (hash2((int)(t_fase * 1000), v->slot) % 4) * 0.007f)) {
+            v->t_tique = t_fase;                                       // a Viuva Negra: as patinhas batendo no feltro, tictictic, baixinho
+            som_toca(SOM_AS_PASSO);
+        }
+        if (v->t_bate > 0 && v->t_bate < 9) v->t_bate += dt;
+        if (as == AS_SEM_SOMBRA && !v->fantasma && !(v->assina_som & 32)) { v->assina_som |= 32; som_toca(SOM_AS_ASAS); }
+        if (as == AS_FURIA && !(v->assina_som & 4)) {                 // a Furia: segura um instante, tremendo, e sai num tranco
+            if (t_fase < 0.12f) { v->giro += v->spin * dt * 0.2f; continue; }
+            v->assina_som |= 4;
+            poeira_solta_ac(v->x, v->y, PO_NADA, 0, 0.6f, 0, 0);
+            treme(1.5f, 0.08f);
+        }
         v->x += v->vx * dt;
         v->y += v->vy * dt;
         v->giro += v->spin * dt;
-        float atrito = 1.0f - 2.4f * dt;
-        v->vx *= atrito; v->vy *= atrito; v->spin *= atrito;
+        float atrito = 1.0f - atr * dt;
+        v->vx *= atrito; v->vy *= atrito;
+        v->spin *= as == AS_PIAO ? 1.0f - atr * 0.3f * dt : atrito;   // o Piao perde o giro devagar
+        float v0 = sqrtf(v->vx * v->vx + v->vy * v->vy);
+        if (as == AS_VOLTA && v0 > 1) {                                // o Bumerangue: reto um pouco, depois faz a volta (um arco de raio 45 px, ate ~290 graus) e vem para quem lancou
+            float ds = v0 * dt;
+            if (v->andou > 60 && v->girou < 5.1f) {
+                float th = ds / 45 * v->curva, c = cosf(th), sn = sinf(th);
+                float nvx = v->vx * c - v->vy * sn, nvy = v->vx * sn + v->vy * c;
+                v->vx = nvx; v->vy = nvy;
+                v->girou += fabsf(th);
+            }
+        }
+        if (as == AS_RAJADA && v0 > 80) {                              // a Ventania: uma rajada de lado, com o sopro
+            float a = v->t_voa >= RAJADA_T0 && v->t_voa < RAJADA_T1 ? 1100 : 0;   // no meio do caminho, quando ele ja perdeu forca
+            v->vx += v->vento_x * a * dt; v->vy += v->vento_y * a * dt;
+            if (a > 0 && !v->fantasma && !(v->assina_som & 1)) { v->assina_som |= 1; som_toca(SOM_SOPRO); }
+        }
+        if (as == AS_DESLIZA && v->passo_as < 3 && v->t_voa >= TRENO_SINO[v->passo_as] && !v->fantasma) {   // o Treno: o guizo, baixinho, 2 ou 3 vezes pelo caminho
+            static const int8_t TOM[3] = { 0, 2, -1 };
+            if (v0 > 60) som_toca_tom(SOM_TRENO_SINO, TOM[v->passo_as]);
+            v->passo_as = v0 > 60 ? v->passo_as + 1 : 3;              // devagar, ja nao toca mais
+        }
+        if (as == AS_PIAO && v0 > 1) {                                 // o Piao: vai puxando para o lado do giro
+            float a = fminf(420 / v0, 3.5f) * dt * (v->spin >= 0 ? 1 : -1);
+            float nvx = v->vx - v->vy * a, nvy = v->vy + v->vx * a, k = v0 / fmaxf(1e-3f, sqrtf(nvx * nvx + nvy * nvy));
+            v->vx = nvx * k; v->vy = nvy * k;
+        }
+        if (as == AS_ONDA && v0 > 1) {                                 // a Onda: serpenteia, com a mesma onda pelo caminho todo
+            float ds = v0 * dt, k = 6.2832f / 140;
+            bool borda = v->x < MESA_X0 + 40 + R_DADO || v->x > MESA_X1 - 40 - R_DADO || v->y < MESA_Y0 + 40 + R_DADO || v->y > MESA_Y1 - 40 - R_DADO;
+            float th = borda ? 0 : 0.8f * k * cosf(k * v->andou) * ds * v->curva, c = cosf(th), sn = sinf(th);
+            float nvx = v->vx * c - v->vy * sn, nvy = v->vx * sn + v->vy * c;
+            v->vx = nvx; v->vy = nvy;
+        }
+        if (as == AS_ATRAI && v0 > 1) {                                // o Buraco Negro: espirala, cada vez mais fechado
+            float R = fmaxf(18, 110 - v->andou * 0.35f), th = v0 * dt / R * v->curva, c = cosf(th), sn = sinf(th);
+            float nvx = v->vx * c - v->vy * sn, nvy = v->vx * sn + v->vy * c;
+            v->vx = nvx; v->vy = nvy;
+        }
+        if (as == AS_DESLIZA && v0 > 20)                               // o Treno: a frente acompanha o caminho (pelo lado mais curto)
+            v->giro += remainderf(atan2f(v->vy, v->vx) + 1.5708f - v->giro, 6.2832f) * fminf(1, 8 * dt);
+        v->andou += v0 * dt;                                           // o caminho andado (o reflexo corre por ele)
+        if (as == AS_GALOPE && !v->fantasma) {                         // a Rena: tres saltos longos, o casco batendo em cada um
+            int k = (int)(v->andou / GALOPE_L);
+            if (k > v->passo_as && k <= 3) {
+                v->passo_as = (uint8_t)k;
+                som_toca(SOM_AS_CASCO);
+                poeira_solta_ac(v->x, v->y, PO_NADA, 0, 0.35f, 0, 0);
+            }
+        }
 
         const float r = R_DADO + 2;
-        bool moeda = TIPO[v->tipo].lados == 2;     // moeda tem os sons dela, mais leves
-        int borda = moeda ? SOM_MOEDA_BATE : SOM_BATE;
-        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); v->vx = -v->vx * 0.62f; v->spin = -v->spin; }
-        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
-        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); v->vy = -v->vy * 0.62f; }
+        int borda = moeda ? d2_bate(v->tipo) : ac->som_bate;
+        float bate = 0, bx = 0, by = 0;                                // a batida mais forte, e onde (as faiscas do metal)
+        if (v->x < MESA_X0 + r) { v->x = MESA_X0 + r; estala(fabsf(v->vx), borda); bate = fabsf(v->vx); bx = MESA_X0 + 2; by = v->y; v->vx = -v->vx * quica; v->spin = -v->spin; }
+        if (v->x > MESA_X1 - r) { v->x = MESA_X1 - r; estala(fabsf(v->vx), borda); bate = fabsf(v->vx); bx = MESA_X1 - 3; by = v->y; v->vx = -v->vx * quica; v->spin = -v->spin; }
+        if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); bate = fabsf(v->vy); bx = v->x; by = MESA_Y0 + 2; v->vy = -v->vy * quica; }
+        if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); bate = fabsf(v->vy); bx = v->x; by = MESA_Y1 - 3; v->vy = -v->vy * quica; }
+        if (!moeda && cl == AC_METAL && bate > 250) poeira_solta_ac(bx, by, PO_FAISCA, 0, 0, 0, 0);
+        if (as == AS_GELEIA && bate > 120) {                          // a Gelatina: achata contra a borda e treme
+            v->t_bate = 0.001f;
+            v->eixo_bate = (bx == MESA_X0 + 2 || bx == MESA_X1 - 3) ? 0 : 1;
+            if (!v->fantasma) som_toca_tom(SOM_GELATINA, 5);
+        }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
+        if (vel > 20) { v->dir_x = v->vx / vel; v->dir_y = v->vy / vel; }   // para onde rolava (o rastro do gelo)
         v->t_face -= dt;
         // A hora da verdade: quase parado, o dado hesita na quina, balancando,
         // e a face troca cada vez mais devagar antes de deitar.
-        if ((vel < 36 || t_fase > 6.0f) && v->hesita > 0) {
+        if ((vel < para || t_fase > 6.0f) && v->hesita > 0) {
             if (v->hesita >= HESITA_T) v->giro_h = v->giro;
             v->hesita -= dt;
             float q = fmaxf(0, v->hesita / HESITA_T);
@@ -4550,12 +5076,25 @@ static bool fisica(float dt)
         if (v->t_face <= 0) {
             v->face = face_v(v->tipo, v->valor);
             v->t_face = 0.04f + (1.0f - vel / 680.0f) * 0.12f;
+            // O lampejo: a face nova passa pela luz; rolando, no maximo um a cada 0,15 s.
+            int lp = moeda ? (acab_d2(v->tipo) == AC_METAL ? LP_ESTRELA : LP_NADA) : ac->lampejo;   // a moeda de metal girando tambem
+            if (lp && vel > 90 && (v->t_lampejo < 0 || t_fase - v->t_lampejo >= 0.15f)) v->t_lampejo = t_fase;
+            if ((as == AS_ESPINHO || as == AS_TAMBOR) && !v->fantasma && vel > 60 && (v->t_tique < 0 || t_fase - v->t_tique >= (as == AS_ESPINHO ? 0.07f : 0.05f))) {
+                v->t_tique = t_fase;
+                som_toca(as == AS_ESPINHO ? SOM_AS_ESPINHO : SOM_AS_TAMBOR);
+                if (as == AS_ESPINHO) {                                    // os espinhos soltam um fiapo atras
+                    uint32_t h = hash2((int)(v->andou * 7), (int)(t_fase * 100));
+                    float lado = ((int)(h % 17) - 8) * 1.2f;
+                    fiapo_poe(v->x - v->dir_x * R_DADO * 0.9f - v->dir_y * lado, v->y - v->dir_y * R_DADO * 0.9f + v->dir_x * lado + 4,
+                              C_BARRA, (int)(h >> 5) % 3);            // o fiapo quase preto, o mesmo em toda mesa
+                }
+            }
         }
-        if (vel < 36 || t_fase > 6.0f) {
+        if (vel < para || t_fase > 6.0f) {
             v->parado = true;
             assenta(v);
             v->face = v->valor;
-            som_toca(moeda ? SOM_MOEDA_POUSA : SOM_POUSA);
+            som_toca(moeda ? d2_pousa(v->tipo) : som_pouso_voo(v));
         }
     }
     // Dados se empurram quando se encontram.
@@ -4572,7 +5111,11 @@ static bool fisica(float dt)
             float rv = (q->vx - p->vx) * nx + (q->vy - p->vy) * ny;
             if (rv < 0) {
                 float imp = -rv * 0.8f;
-                estala(imp, TIPO[p->tipo].lados == 2 || TIPO[q->tipo].lados == 2 ? SOM_MOEDA_BATE : SOM_BATE_DADO);
+                const acabamento_t *ap = &ACAB[acab_de(p->tipo, p->dono)], *aq = &ACAB[acab_de(q->tipo, q->dono)];
+                bool mp = TIPO[p->tipo].lados == 2, mq = TIPO[q->tipo].lados == 2;   // a moeda soa como moeda
+                estala(imp, mp ? d2_bate(p->tipo) : mq ? d2_bate(q->tipo) : (ap->dureza >= aq->dureza ? ap : aq)->som_bate_dado);
+                if (imp > 250 && !mp && !mq && (ap == &ACAB[AC_METAL] || aq == &ACAB[AC_METAL]))
+                    poeira_solta_ac((p->x + q->x) / 2, (p->y + q->y) / 2, PO_FAISCA, 0, 0, 0, 0);
                 p->vx -= imp * nx; p->vy -= imp * ny;
                 q->vx += imp * nx; q->vy += imp * ny;
                 if (p->parado || q->parado) { p->parado = q->parado = false; }

@@ -2,15 +2,16 @@
 // MODO DESAFIANTE: uma run pelo cassino, de salao em salao.
 //
 // Incluido pelo dado.c, como os outros arquivos de dado/ (usa as mesmas regras,
-// dados e desenho); nao se compila sozinho. Nada daqui muda a partida rapida,
-// as 2 pessoas ou o online.
+// dados e desenho); nao se compila sozinho. Nada daqui muda as 2 pessoas na
+// mesma mesa nem o online.
 //
-// A run: 3 saloes, cada um com tres oponentes (do mais facil ao mais
-// dificil) e o chefe, sempre nessa ordem, todos a vista desde o comeco. Cada
-// partida tem 8 rodadas e 50 fichas de cada lado; vencer paga umas poucas
-// moedas (mais a cada mesa e a cada salao) e abre uma loja pequena: a
-// vitrine, trocar a vitrine e tirar um dado da bolsa. Perder encerra a run.
-// Nada passa de uma run para outra.
+// A run: 3 saloes, cada um com dois oponentes (o mais facil primeiro) e o
+// chefe, sempre nessa ordem, todos a vista desde o comeco; do Nivel 5, depois
+// do Barao, o salao do Coringa. Cada partida tem 8 rodadas e 50 fichas de
+// cada lado; vencer paga umas poucas moedas (mais a cada mesa e a cada salao)
+// e abre a loja: dados, adesivos e um pacote na vitrine, trocar a vitrine e
+// tirar um dado da bolsa. Perder encerra a run. Nada passa de uma run para
+// outra, a nao ser o que o perfil abre (chefes e conquistas).
 // ===========================================================================
 
 // As partes, na ordem em que uma usa a outra.

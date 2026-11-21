@@ -19,8 +19,8 @@ static void bolsa_fecha(void)
 {
     bolsa_pop = -1;
     if (fase == F_ROLANDO && n_voo) {
-        if (TIPO[voo[0].tipo].lados == 2) som_rufo_moeda();
-        else som_rufo(true);
+        som_rola_voo(voo[0].tipo, voo[0].dono, voo[0].slot);
+        if (voo[0].assina_som & 64) som_rufo_de(SOM_ROLA_ARRASTA);   // a Ancora que ja arrastava volta arrastando
     }
 }
 

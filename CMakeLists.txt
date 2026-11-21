@@ -7,7 +7,7 @@
 # executavel final nao depende de nenhuma DLL fora do sistema.
 # O firmware do Cardputer usa cardputer/CMakeLists.txt (ESP-IDF), nao este.
 cmake_minimum_required(VERSION 3.16)
-project(DadoEmCasa VERSION 1.34 LANGUAGES C)
+project(DadoEmCasa VERSION 1.41 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -58,13 +58,13 @@ if (UNIX)
 endif()
 
 # Os sons (desktop/sons/*.ogg) vao dentro do executavel: no build, o CMake
-# gera um .c com os bytes de cada arquivo (cmake/embute_sons.cmake).
+# gera um .c com os bytes de cada arquivo (cmake/embute_sons.cmake). O script
+# recebe so a pasta e lista os .ogg ele mesmo: a lista inteira na linha de
+# comando passa do limite do Windows (8191 caracteres no cmd).
 file(GLOB SONS_OGG CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons/*.ogg)
-list(SORT SONS_OGG)
-string(REPLACE ";" "|" SONS_LISTA "${SONS_OGG}")   # o ; viraria separador de comando
 set(SONS_C ${CMAKE_CURRENT_BINARY_DIR}/sons_embutidos.c)
 add_custom_command(OUTPUT ${SONS_C}
-    COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DARQUIVOS=${SONS_LISTA}
+    COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DPASTA=${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
     DEPENDS ${SONS_OGG} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
     COMMENT "Embutindo os sons do jogo"

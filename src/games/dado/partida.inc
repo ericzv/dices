@@ -390,7 +390,8 @@ static void nova_rodada(void)
 
 // Nomes de cada modo: quem joga aqui e sempre VOCE (ou JOGADOR 1 e 2). E as
 // cores: com dois na mesma mesa, azul e rosa, para saber de quem e a vez de
-// relance; nos outros modos, quem joga aqui fica no latao.
+// relance; nos outros modos, quem joga aqui fica no latao. (M_UM, o
+// "COMPUTADOR": a partida contra a maquina, que so os testes jogam.)
 static void poe_nomes(void)
 {
     switch (modo) {
@@ -486,6 +487,8 @@ void dado_inicia(int n_partidas)
                       .dono = 0, .tipo = D_D6, .valor = 6, .face = 1 };
     voo[1] = (voo_t){ .x = 580, .y = 245, .vx = -650, .vy = -110, .spin = -11,
                       .dono = 1, .tipo = D_D6, .valor = 6, .face = 3 };
+    voo_zera_lance(&voo[0]);
+    voo_zera_lance(&voo[1]);
     abertura_pronta = false;
     t_fase = 0;
     fase = F_ABERTURA;
@@ -901,11 +904,7 @@ static void lanca_proximo(void)
         v->lado = l.re_lado[0];
         v->etapa = 5;
     }
-    v->x = GFX_W / 2 + frnd(-110, 110);
-    v->y = vez == baixo ? MESA_Y1 - R_DADO - 4 : MESA_Y0 + R_DADO + 4;
-    v->vx = frnd(-300, 300);
-    v->vy = (vez == baixo ? -1 : 1) * frnd(420, 600);
-    v->spin = frnd(-14, 14);
+    voo_lanca(v, vez == baixo);
     v->face = face_v(t, x1);
     if (hora) v->hesita = HESITA_T;
     n_voo = 1;
@@ -923,6 +922,7 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
+        voo_zera_lance(w);                   // o vento e a curva dele, nao os do dado de verdade
         w->face = rola_v(TIPO[t].efeito == EF_SORTE_REVES ? SR_REVES : lados);
         n_voo = 2;
     }
@@ -937,11 +937,11 @@ static void lanca_proximo(void)
         w->vx = -v->vx * 0.8f + frnd(-60, 60);
         w->vy = v->vy * frnd(0.8f, 1.0f);
         w->spin = -v->spin;
+        voo_zera_lance(w);
         w->face = rola_v(lados);
         n_voo = 2;
     }
-    if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
-    else som_rufo(true);                     // o dado rolando ate assentar
+    som_rola_voo(v->tipo, v->dono, v->slot);     // o dado rolando (a moeda girando) ate assentar, no som do acabamento
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -986,7 +986,7 @@ static bool ad_etapa_passo(float dt)
             v->lado = v->lado_v;
         }
         if (q < 1) return true;
-        som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : SOM_POUSA);
+        som_toca(TIPO[v->tipo].lados == 2 ? d2_pousa(v->tipo) : som_pouso_voo(v));
         assenta(v);
         v->t_etapa = 0;
         v->etapa = v->reflete ? 2 : v->copia ? 3 : 0;
@@ -1013,8 +1013,12 @@ static bool ad_etapa_passo(float dt)
         w->vx = frnd(-260, 260);
         w->vy = (w->y > CENTRO ? -1 : 1) * frnd(240, 360);
         w->spin = frnd(-12, 12);
+        if (TIPO[w->tipo].lados == 2) w->spin = giro_de_moeda(w->spin * 14.0f / 12);   // a moeda sempre gira (o mesmo giro do lance)
+        else if (assina_lance(w->tipo, w->dono, w->slot) == AS_GELEIA) geleia_ate_a_borda(w, ACAB[acab_de(w->tipo, w->dono)].atrito);
         w->hesita = hora ? HESITA_T : 0;
         w->chumbou = false;
+        voo_zera_lance(w);                   // o lance do acabamento comeca do zero
+        if (v->ad_rola == AD_BOMBA) w->assina_som |= 4;   // a Furia ja sai no estouro (sem segurar de novo)
     }
     v->valor = v->valor2;
     v->lado = v->lado2;
@@ -1023,7 +1027,7 @@ static bool ad_etapa_passo(float dt)
     v->t_etapa = 0;
     v->reflete = false;
     t_fase = 0;
-    if (TIPO[v->tipo].lados == 2) som_rufo_moeda(); else som_rufo(true);
+    som_rola_voo(v->tipo, v->dono, v->slot);
     return true;
 }
 
@@ -2170,6 +2174,8 @@ static void aplica_evento(int i)
 
 // A maquina joga contra uma pessoa? Entao os menus dela nao aparecem, e o que
 // ela decide vira uma linha curta (maquina contra maquina, nos testes, nao).
+// No jogo, so no Desafiante; os casos da loja e do premio (F_LOJA, F_PREMIO)
+// so acontecem na partida contra a maquina dos testes.
 static bool anuncia_maquina(void)
 {
     return (cpu >> vez & 1) && !(cpu >> outro(vez) & 1);

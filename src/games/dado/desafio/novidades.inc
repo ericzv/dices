@@ -83,13 +83,14 @@ static int nov_atual(int *etapa, float *q)
 }
 
 // ---- O que abriu ------------------------------------------------------------
-// O pedaco do chefe vencido (perfis.inc), quando e novo, sem a dificuldade.
+// O pedaco do chefe vencido (perfis.inc), quando e novo, sem a dificuldade
+// e sem o que o legado ja tinha aberto.
 static void nov_poe_pedaco(void)
 {
     if (!des_chefe_novo) return;
     novidade_t p[PEDACO_MAX];
     int n = pedaco(run.dificuldade, des_chefe_c, p);
-    for (int i = 0; i < n; i++) if (p[i].k != NV_DIF) nov_poe(p[i].k, p[i].v);
+    for (int i = 0; i < n; i++) if (p[i].k != NV_DIF && !novidade_do_legado(&p[i])) nov_poe(p[i].k, p[i].v);
     des_chefe_novo = false;
 }
 

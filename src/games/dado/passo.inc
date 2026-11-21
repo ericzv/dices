@@ -145,6 +145,7 @@ void dado_passo(float dt)
         float lento = ultimo ? 0.42f : (ia ? 1.0f : 0.62f);
         if (hora) lento = 0.40f * fminf(1, 0.5f + t_fase / 0.4f);
         bool parou = fisica(dt * lento);
+        if (parou) som_rufo(false);          // deitou: o som do dado rolando para ali (nao so quando ele vai para a fila)
         ad_pousou();                         // pousou no Chumbo (o baque) ou no Remendo
         pouso_novos_passo(&voo[0]);          // as bonecas da Matrioska saindo
         if (t_fase >= CASCA_VOA) casca_pisa(&voo[0]);   // a casca do oponente chegou nele: escorrega

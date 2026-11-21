@@ -519,3 +519,14 @@ static int pedaco(int d, int c, novidade_t *out)
     if (fecha && n < PEDACO_MAX && estilo_do_andar(d, es, sizeof es)) out[n++] = (novidade_t){ NV_ESTILO, (uint8_t)d, 0 };
     return n;
 }
+// O item do pedaco que o legado ja abriu (a regra de antes da v1.26): ja
+// estava na loja, entao o card do chefe nao o anuncia como novo.
+static bool novidade_do_legado(const novidade_t *x)
+{
+    switch (x->k) {
+    case NV_DADO:    return legado_de(perfil(), LG_DADO, x->v);
+    case NV_ADESIVO: return legado_de(perfil(), LG_ADESIVO, x->v);
+    case NV_AMULETO: return legado_de(perfil(), LG_AMULETO, x->v);
+    default:         return false;
+    }
+}

@@ -729,7 +729,7 @@ static bool fase_de_acao(void)
 {
     switch (fase) {
     case F_ORDEM: case F_APOSTA: case F_ARRUMA: case F_JOGA: case F_LOJA: case F_PREMIO:
-    case F_MAPA: case F_RLOJA: case F_RAMULETO: case F_RBOLSAS:
+    case F_MAPA: case F_RLOJA: case F_RAMULETO: case F_RBOLSAS: case F_RDIFIC:
         return true;
     default:
         return false;

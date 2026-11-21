@@ -277,8 +277,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   que se sobe no Desafiante) e o botão grande "Iniciar a run" (ENTER, ou o A
   do controle) começa ali. O andar escolhido abre e acende e a cabine do
   elevador vai até ele; para jogar em outro, ↑ e ↓ (ou o direcional) trocam
-  o andar, e o clique num andar do prédio ou num botão da botoeira de latão
-  ao lado só escolhe ("Trocar de andar" acende o prédio para isso). O que os
+  o andar, ou o botão "Trocar de andar" acende o prédio e aí o clique num
+  andar (ou num botão da botoeira de latão ao lado) escolhe. No toque, o
+  "Iniciar a run" pede dois toques, como as outras ações. O que os
   chefes do andar desbloqueiam fica no baú: o botão "Desbloqueios" (I, ou o
   X do controle) abre um pop-up com tudo, chefe a chefe, e quantos já
   abriram.

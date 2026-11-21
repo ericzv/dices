@@ -170,15 +170,16 @@ static bool des_tecla(int k, int e)
         // tambem: direita sobe). Passar do ultimo aberto aperta o trancado
         // de cima, que nega; do Terreo para baixo nao tem nada.
         // A tela abre no ultimo andar aberto; ENTER (o botao grande) comeca a
-        // run nele. O clique num andar (no predio ou na botoeira) so escolhe.
+        // run nele. As setas trocam o andar; o clique num andar (no predio ou
+        // na botoeira) so vale com "Trocar de andar" aceso, e so escolhe.
         // I (o X do controle) ou o bau abre o pop-up do que o andar
         // desbloqueia; com ele aberto, as setas ainda trocam o andar e o
         // resto fecha.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
         if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
-        if (k >= TECLA_ANDAR && k <= TECLA_ANDAR + N_NIVEIS) {
+        if (k >= TECLA_ANDAR && k <= TECLA_ANDAR + N_NIVEIS) {   // o clique num andar: so com "Trocar de andar" aceso
             int nd = k - TECLA_ANDAR;
-            if (nd <= nv) {
+            if (dif_escolhe && nd <= nv) {
                 if (nd != dif_cur) som_toca(SOM_TIQUE);
                 dif_cur = nd;
             }

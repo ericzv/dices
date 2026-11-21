@@ -7455,13 +7455,16 @@ int main(void)
                 negado_d = -1;
                 manda_tecla(TECLA_TRANCADO + 9);
                 CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
-                // O clique num andar aberto (predio ou botoeira) so escolhe; no
-                // trancado (pelo mesmo caminho) nao escolhe. Passar o mouse
-                // por cima nao troca o andar.
+                // O clique num andar (predio ou botoeira) so vale com "Trocar de
+                // andar" aceso, e so escolhe; no trancado nao escolhe. Passar
+                // o mouse por cima nao troca o andar.
                 manda_tecla(TECLA_ANDAR + 3);
-                CONFERE(dif_cur == 3 && fase == F_RDIFIC, "dificuldade: o clique no andar 3 so escolhe (andar %d, fase %d)", dif_cur, fase);
-                manda_tecla(TECLA_ANDAR + 7);
+                CONFERE(dif_cur == 1, "dificuldade: sem Trocar de andar, o clique no andar nao vale (%d)", dif_cur);
+                manda_tecla(TECLA_ESCOLHE); manda_tecla(TECLA_ANDAR + 3);
+                CONFERE(dif_cur == 3 && fase == F_RDIFIC && !dif_escolhe, "dificuldade: o clique no andar 3 so escolhe (andar %d, fase %d)", dif_cur, fase);
+                manda_tecla(TECLA_ESCOLHE); manda_tecla(TECLA_ANDAR + 7);
                 CONFERE(dif_cur == 3 && fase == F_RDIFIC, "dificuldade: o andar 7 trancado nao se escolhe pelo clique (%d)", dif_cur);
+                dif_escolhe = false;
                 dado_desenha();
                 dado_mouse(202 + 15, 284, 0);                          // a botoeira (x 202), no botao do Terreo
                 dado_desenha();

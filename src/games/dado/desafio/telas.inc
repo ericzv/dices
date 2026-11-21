@@ -379,10 +379,10 @@ static void icone_bau(int x, int y)
         }
 }
 
-// O botao grande de comecar a run: o feltro verde numa moldura de latao, a
-// letra grande e branca com o contorno escuro, e a tecla (ou o botao do
-// controle) no canto. E o que o ENTER aperta: as cantoneiras de ouro sempre
-// respirando em volta, e o ENTER afunda ele.
+// O botao de comecar a run: o feltro verde da mesa (os tons do feltro Verde,
+// que valem em qualquer mesa) numa moldura de latao com rebites, e a letra
+// branca (Jersey 2x) com o contorno escuro. E o que o ENTER aperta: as
+// cantoneiras de ouro sempre respirando em volta, e o ENTER afunda ele.
 static void botao_iniciar(int x, int y, int w, int h, const char *s)
 {
     bool em = mouse_em(x, y, w, h);
@@ -394,44 +394,45 @@ static void botao_iniciar(int x, int y, int w, int h, const char *s)
     uint16_t ouro[4];
     rampa_de(em ? C_AMARELO : C_OURO, ouro);                       // o mouse em cima: o latao acende
     static const float K[4] = { 3, 2, 1, 0 };
-    ui_aro(x, y + d, w, h - d, 6, ouro, K);                         // a moldura de latao, grossa
+    ui_aro(x, y + d, w, h - d, 4, ouro, K);                         // a moldura de latao
     ui_contorno(x, y + d, w, h - d, C_BARRA);
-    int fx = x + 6, fy = y + d + 6, fw = w - 12, fh = h - d - 12;
+    int fx = x + 4, fy = y + d + 4, fw = w - 8, fh = h - d - 8;
     ui_contorno(fx - 1, fy - 1, fw + 2, fh + 2, C_LATAO_ESC);      // o filete escuro entre o latao e o feltro
-    ui_fundo(fx, fy, fw, fh, C_VERDE, C_LASER);                     // o feltro verde, com a luz em cima
-    for (int j = fh - 5; j < fh; j++)                                // e a sombra embaixo, pontilhada
-        for (int i = 0; i < fw; i++)
-            if (bayer(fx + i, fy + j) < (j - (fh - 6)) / 5.0f) gfx_pixel(fx + i, fy + j, RGB(62, 56, 50));
+    // O feltro: o tom do meio do Verde, com os fios (pontos soltos um tom
+    // acima e um abaixo) e a luz em cima, como o pano da mesa.
+    const uint16_t *fv = FELTROS[FT_VERDE].tons;
+    for (int j = 0; j < fh; j++)
+        for (int i = 0; i < fw; i++) {
+            uint32_t hh = hash2(fx + i, fy + j) % 23;
+            uint16_t c = hh == 0 ? fv[5] : hh == 1 ? fv[2] : fv[4];
+            if (j < 2 && bayer(fx + i, fy + j) < 0.75f - j * 0.3f) c = fv[5];          // a luz na beira de cima
+            if (j >= fh - 3 && bayer(fx + i, fy + j) < (j - (fh - 4)) / 3.0f) c = fv[2];   // e a sombra embaixo
+            gfx_pixel(fx + i, fy + j, c);
+        }
     for (int k = 0; k < 4; k++) {                                    // os rebites de ouro nos cantos da moldura
-        int rx = k & 1 ? x + w - 5 : x + 2, ry = y + d + (k & 2 ? h - d - 5 : 2);
+        int rx = k & 1 ? x + w - 4 : x + 1, ry = y + d + (k & 2 ? h - d - 4 : 1);
         gfx_rect(rx, ry, 3, 3, C_LATAO_ESC);
         gfx_pixel(rx + 1, ry + 1, C_AMARELO);
-        gfx_pixel(rx, ry, ouro[3]);
     }
-    // A letra grande (Jersey 3x), branca, com o contorno escuro de 2 px e a
-    // sombra; centrada no que sobra a esquerda da tecla.
-    int kw = linha_teclas(0, 0, "ENTER", C_MARFIM, false);
-    int tw = gfx_largura(s, 3), tx = fx + (fw - kw - 10 - tw) / 2 + 2, ty = fy + fh / 2 - 31;
-    gfx_texto(tx + 2, ty + 4, s, C_BARRA, 3, false);                // a sombra
-    for (int oy = -2; oy <= 2; oy++)
-        for (int ox = -2; ox <= 2; ox++)
-            if ((ox || oy) && abs(ox) + abs(oy) <= 3) gfx_texto(tx + ox, ty + oy, s, C_BARRA, 3, false);
-    gfx_texto(tx, ty, s, C_BRANCO, 3, false);
-    linha_teclas(fx + fw - 6 - kw, fy + fh - TECLA_H - 3, "ENTER", C_MARFIM, true);   // a tecla (ou o A do controle)
+    int tw = gfx_largura(s, 2), tx = fx + (fw - tw) / 2, ty = fy + fh / 2 - 21;
+    static const int8_t CONT[8][2] = { {-1,0}, {1,0}, {0,-1}, {0,1}, {-1,-1}, {1,-1}, {-1,1}, {1,1} };
+    gfx_texto(tx + 1, ty + 2, s, C_BARRA, 2, false);                // a sombra
+    for (int k = 0; k < 8; k++) gfx_texto(tx + CONT[k][0], ty + CONT[k][1], s, C_BARRA, 2, false);
+    gfx_texto(tx, ty, s, C_BRANCO, 2, false);
     if (!baixo) ui_cantos(x - 1, y - 1, w + 2, h + 2, C_OURO);
-    zona_clique(x, y, w, h, NULL, 0, KEY_ENTER);
+    zona_clique(x, y, w, h, NULL, 0, KEY_ENTER);                     // no toque, pede o segundo toque
 }
 
 // Um botao de baixo do painel (os desbloqueios, trocar de andar): a face de
-// sempre, o bau (icone 0) ou as setas (1) a esquerda, o rotulo e um extra
-// miudo (a conta do bau).
+// sempre, o bau a esquerda (icone 0; 1: sem icone, o rotulo no meio), o
+// rotulo e um extra miudo (a conta do bau).
 static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, const char *extra, bool aceso, int tecla)
 {
     int d;
     uint16_t c = ui_botao_face(x, y, w, h, aceso ? C_LATAO : 0, aceso || mouse_em(x, y, w, h) ? UI_FOCO : 0, &d);
     int ix = x + 9, cy = y + d + (h - 4) / 2;
     if (icone == 0) { icone_bau(ix, cy - 7); ix += 22; }
-    else ix += linha_teclas(ix, cy - TECLA_H / 2, "↑↓", C_MARFIM, true) + 6;
+    else ix = x + (w - gfx_largura(rot, 1)) / 2;
     int tw = gfx_texto(ix, cy - TXT_H / 2 - 1, rot, c, 1, false);
     if (extra) gfx_texto(ix + tw + 6, cy - TXT_H / 2 + 1, extra, aceso ? C_BARRA : C_TEXTO_M, GFX_FINO, false);
     zona_clique(x, y, w, h, NULL, 0, tecla);
@@ -475,8 +476,9 @@ static void desenha_dificuldade(void)
     faixa_titulo("Dificuldade da run");
     // O predio do cassino com todos os andares; os que ainda nao abriram
     // ficam apagados e trancados. A tela abre no ultimo andar aberto: e nele
-    // que quase todo mundo joga, para subir. Clicar num andar (no predio ou
-    // na botoeira) so escolhe; quem comeca a run e o botao grande.
+    // que quase todo mundo joga, para subir. O clique num andar (no predio ou
+    // na botoeira) so vale depois de "Trocar de andar", e so escolhe; quem
+    // comeca a run e o botao grande.
     int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
     int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
     predio_dificuldade(d, nv);
@@ -517,10 +519,10 @@ static void desenha_dificuldade(void)
     conta_desbloqueios(d, &ab, &tot);
     char cnt[16];
     snprintf(cnt, sizeof cnt, "%d/%d", ab, tot);
-    int bh_g = 76, bw = (pw - 24 - 10) / 2, bh = 32, by = py + ph - 12 - bh_g - 12 - bh;
+    int bh_g = 44, bw_g = 250, bw = (pw - 24 - 10) / 2, bh = 30, by = py + ph - 14 - bh_g - 14 - bh;
     botao_dif(px + 12, by, bw, bh, 0, "Desbloqueios", cnt, false, 'i');
     botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Clique no andar" : "Trocar de andar", NULL, dif_escolhe, TECLA_ESCOLHE);
-    botao_iniciar(px + 12, py + ph - 12 - bh_g, pw - 24, bh_g, "Iniciar a run");
+    botao_iniciar(px + (pw - bw_g) / 2, py + ph - 14 - bh_g, bw_g, bh_g, "Iniciar a run");
     if (dif_pop) { desenha_desbloqueios(d); return; }
     rodape_run(dif_escolhe ? "↑↓ trocam o andar  ·  ENTER começa a run  ·  ESC deixa como está"
                            : "↑↓ trocam o andar  ·  ENTER começa a run  ·  I desbloqueios  ·  ESC volta");

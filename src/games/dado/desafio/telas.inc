@@ -427,7 +427,7 @@ static void botao_iniciar(int x, int y, int w, int h, const char *s, bool foco)
     zona_clique(x, y, w, h, &dif_foco, DIF_INICIAR, KEY_ENTER);      // no toque, pede o segundo toque
 }
 
-// Um botao de baixo do painel (os desbloqueios, trocar de andar): a face de
+// Um dos dois botoes de cima do painel (os desbloqueios, trocar de andar): a face de
 // sempre, o bau a esquerda (icone 0; 1: sem icone, o rotulo no meio), o
 // rotulo e um extra miudo (a conta do bau).
 static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, const char *extra, bool aceso, int qual)
@@ -440,7 +440,7 @@ static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, co
     int tw = gfx_texto(ix, cy - TXT_H / 2 - 1, rot, c, 1, false);
     if (extra) gfx_texto(ix + tw + 6, cy - TXT_H / 2 + 1, extra, aceso ? C_BARRA : C_TEXTO_M, GFX_FINO, false);
     zona_clique(x, y, w, h, &dif_foco, qual, KEY_ENTER);            // o mouse em cima poe o foco; o clique aperta
-    zona_sem_confirmar();                                            // so olhar: um toque basta
+    zona_sem_confirmar();                                            // nao comeca nada: um toque basta
 }
 
 // O pop-up dos desbloqueios do andar d: o que cada chefe dele abre. Fecha

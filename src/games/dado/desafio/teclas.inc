@@ -178,6 +178,7 @@ static bool des_tecla(int k, int e)
         // No pop-up dos desbloqueios as setas ainda trocam o andar e o resto
         // fecha. I (o X do controle) abre o pop-up direto.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
+        if (dif_foco != DIF_INICIAR) dif_foco_cima = dif_foco;   // o de cima onde o foco estava (seta, mouse ou ENTER)
         if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
         if (k >= TECLA_ANDAR && k <= TECLA_ANDAR + N_NIVEIS) {   // o clique num andar: so com "Trocar de andar" aceso
             int nd = k - TECLA_ANDAR;
@@ -212,7 +213,6 @@ static bool des_tecla(int k, int e)
             if (aperta == DIF_TROCA) { dif_foco = DIF_INICIAR; som_toca(SOM_TIQUE); return true; }
         } else if (cima || baixo || esq || dir) {   // o foco: os dois de cima lado a lado, o "Iniciar a run" embaixo
             int f = dif_foco;
-            if (f != DIF_INICIAR) dif_foco_cima = f;
             if (cima && f == DIF_INICIAR) f = dif_foco_cima;
             else if (baixo && f != DIF_INICIAR) f = DIF_INICIAR;
             else if (esq && f == DIF_TROCA) f = DIF_DESBLOQ;

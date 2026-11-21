@@ -7473,6 +7473,9 @@ int main(void)
                 manda_tecla(KEY_ENTER);
                 CONFERE(!dif_escolhe && dif_cur == 1 && dif_foco == DIF_INICIAR && fase == F_RDIFIC,
                         "dificuldade: ENTER confirma o andar e volta ao Iniciar, sem comecar (andar %d, foco %d, fase %d)", dif_cur, dif_foco, fase);
+                manda_tecla(KEY_UP);
+                CONFERE(dif_foco == DIF_TROCA, "dificuldade: para cima volta ao Trocar de andar, de onde o foco saiu (foco %d)", dif_foco);
+                manda_tecla(KEY_DOWN);
                 // ESC (e BACKSPACE, o B do controle) desiste: volta ao andar de antes.
                 dif_foco = DIF_TROCA; manda_tecla(KEY_ENTER); manda_tecla(KEY_UP); manda_tecla(KEY_ESC);
                 CONFERE(!dif_escolhe && dif_cur == 1 && fase == F_RDIFIC, "dificuldade: ESC volta ao andar de antes, sem sair da tela (%d)", dif_cur);

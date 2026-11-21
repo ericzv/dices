@@ -444,8 +444,8 @@ static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, co
 }
 
 // O pop-up dos desbloqueios do andar d: o que cada chefe dele abre. Fecha
-// com ENTER, ESC, I (o X do controle), o botao ou um clique em qualquer
-// lugar; as setas trocam o andar.
+// com ENTER, ESC, BACKSPACE (o B), I (o X do controle), o botao ou um
+// clique em qualquer lugar; as setas nao fazem nada.
 static void desenha_desbloqueios(int d)
 {
     n_zonas = 0;                                                     // nada por baixo responde ao clique

@@ -286,7 +286,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   toque, o "Iniciar a run" pede dois toques, como as outras ações. O que os
   chefes do andar desbloqueiam fica no baú: "Desbloqueios" (ou a tecla I, o
   X do controle) abre um pop-up com tudo, chefe a chefe, e quantos já
-  abriram.
+  abriram (com ele aberto, as setas não trocam o andar). ESC (ou o B) volta
+  ao menu.
   Começando a run, a placa de latão do elevador sobe na tela: o botão do
   andar afunda e acende, o ponteiro sobe pelo mostrador com o motor
   zumbindo e subindo de tom (quanto mais alto o andar, mais demora) e, na

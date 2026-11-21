@@ -7502,18 +7502,24 @@ int main(void)
                 dado_desenha();
                 CONFERE(dif_cur == 3, "dificuldade: passar o mouse na botoeira nao troca o andar (%d)", dif_cur);
                 // Os desbloqueios: ENTER no bau (ou I) abre o pop-up; as setas
-                // trocam o andar; ENTER e ESC so fecham (nao comecam a run nem
-                // saem).
+                // nao trocam o andar; ENTER, ESC e BACKSPACE so fecham (nao
+                // comecam a run nem saem).
                 dif_foco = DIF_DESBLOQ; manda_tecla(KEY_ENTER);
                 CONFERE(dif_pop, "dificuldade: ENTER em Desbloqueios devia abrir o pop-up");
-                manda_tecla(KEY_DOWN);
-                CONFERE(dif_pop && dif_cur == 2, "dificuldade: com o pop-up, a seta troca o andar (%d)", dif_cur);
+                manda_tecla(KEY_DOWN); manda_tecla(KEY_UP); manda_tecla(KEY_LEFT);
+                CONFERE(dif_pop && dif_cur == 3, "dificuldade: com o pop-up, as setas nao trocam o andar (%d)", dif_cur);
                 manda_tecla(KEY_ENTER);
                 CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ENTER fecha o pop-up sem comecar a run (fase %d)", fase);
                 dif_foco = DIF_INICIAR; manda_tecla('i');
                 CONFERE(dif_pop, "dificuldade: I abre os desbloqueios de qualquer foco");
                 manda_tecla(KEY_ESC);
                 CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ESC fecha o pop-up sem sair da tela (fase %d)", fase);
+                manda_tecla('i'); manda_tecla(KEY_BKSP);
+                CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: BACKSPACE fecha o pop-up sem sair da tela (fase %d)", fase);
+                // Fora do pop-up e do "Trocar de andar", o B (BACKSPACE) volta
+                // ao menu, como o ESC.
+                manda_tecla(KEY_BKSP);
+                CONFERE(fase == F_ABERTURA && dif_cur == 3, "dificuldade: BACKSPACE volta ao menu (fase %d)", fase);
                 fase = f0; dif_cur = dc0; dif_foco = DIF_INICIAR;
             }
             // A luz do andar escolhido no predio pisca so ao acender; acesa,

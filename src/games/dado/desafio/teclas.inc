@@ -175,8 +175,9 @@ static bool des_tecla(int k, int e)
         // para baixo nao tem nada) e ENTER confirma, com o foco de volta no
         // "Iniciar a run"; ESC (o B) volta ao andar de antes. O clique num
         // andar (no predio ou na botoeira) so vale com ele aceso, e escolhe.
-        // No pop-up dos desbloqueios as setas ainda trocam o andar e o resto
-        // fecha. I (o X do controle) abre o pop-up direto.
+        // No pop-up dos desbloqueios as setas nao fazem nada e o resto
+        // fecha. I (o X do controle) abre o pop-up direto. Fora disso, o B
+        // volta ao menu, como o ESC.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
         if (dif_foco != DIF_INICIAR) dif_foco_cima = dif_foco;   // o de cima onde o foco estava (seta, mouse ou ENTER)
         if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
@@ -192,7 +193,7 @@ static bool des_tecla(int k, int e)
         }
         bool cima = k == KEY_UP || k == 'w' || k == ';', baixo = k == KEY_DOWN || k == 's' || k == '.';
         bool esq = k == KEY_LEFT || k == 'a' || k == ',', dir = k == KEY_RIGHT || k == 'd' || k == '/';
-        if (dif_pop || dif_escolhe) {            // o andar: para cima (ou a direita) sobe
+        if (dif_escolhe) {                       // o andar: para cima (ou a direita) sobe
             int sobe = cima || dir ? 1 : baixo || esq ? -1 : 0;
             if (sobe) {
                 int nd = (dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur) + sobe;
@@ -201,7 +202,7 @@ static bool des_tecla(int k, int e)
                 return true;
             }
         }
-        if (dif_pop) {                           // o pop-up: o resto fecha
+        if (dif_pop) {                           // o pop-up: as setas nao fazem nada; o resto fecha
             if (k == KEY_ENTER || k == KEY_BKSP || k == 'i' || k == 'x') { dif_pop = false; som_toca(SOM_TIQUE); }
             return true;
         }
@@ -218,6 +219,9 @@ static bool des_tecla(int k, int e)
             else if (esq && f == DIF_TROCA) f = DIF_DESBLOQ;
             else if (dir && f == DIF_DESBLOQ) f = DIF_TROCA;
             if (f != dif_foco) { dif_foco = f; som_toca(SOM_TIQUE); }
+            return true;
+        } else if (k == KEY_BKSP) {             // o B volta ao menu, como o ESC
+            des_esc();
             return true;
         }
         if (aperta == DIF_DESBLOQ) { dif_pop = true; dif_pop_t = t_relogio; som_toca(SOM_TIQUE); return true; }

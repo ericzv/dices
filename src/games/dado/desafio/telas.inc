@@ -478,7 +478,7 @@ static void desenha_dificuldade(void)
     // ficam apagados e trancados. A tela abre no ultimo andar aberto: e nele
     // que quase todo mundo joga, para subir. O clique num andar (no predio ou
     // na botoeira) so vale depois de "Trocar de andar", e so escolhe; quem
-    // comeca a run e o botao grande.
+    // comeca a run e o botao "Iniciar a run".
     int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
     int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
     predio_dificuldade(d, nv);
@@ -519,7 +519,7 @@ static void desenha_dificuldade(void)
     conta_desbloqueios(d, &ab, &tot);
     char cnt[16];
     snprintf(cnt, sizeof cnt, "%d/%d", ab, tot);
-    int bh_g = 44, bw_g = 250, bw = (pw - 24 - 10) / 2, bh = 30, by = py + ph - 14 - bh_g - 14 - bh;
+    int bh_g = 44, bw_g = 250, bw = (pw - 24 - 10) / 2, bh = 30, by = py + ph - 14 - bh_g - 32 - bh;   // o vao cabe o "toque de novo"
     botao_dif(px + 12, by, bw, bh, 0, "Desbloqueios", cnt, false, 'i');
     botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Clique no andar" : "Trocar de andar", NULL, dif_escolhe, TECLA_ESCOLHE);
     botao_iniciar(px + (pw - bw_g) / 2, py + ph - 14 - bh_g, bw_g, bh_g, "Iniciar a run");

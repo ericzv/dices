@@ -169,7 +169,7 @@ static bool des_tecla(int k, int e)
         // O predio: para cima sobe um andar, para baixo desce (os lados
         // tambem: direita sobe). Passar do ultimo aberto aperta o trancado
         // de cima, que nega; do Terreo para baixo nao tem nada.
-        // A tela abre no ultimo andar aberto; ENTER (o botao grande) comeca a
+        // A tela abre no ultimo andar aberto; ENTER ("Iniciar a run") comeca a
         // run nele. As setas trocam o andar; o clique num andar (no predio ou
         // na botoeira) so vale com "Trocar de andar" aceso, e so escolhe.
         // I (o X do controle) ou o bau abre o pop-up do que o andar

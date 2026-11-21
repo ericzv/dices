@@ -477,7 +477,7 @@ static void botao_andar(int cx, int cy, int r, int i, int sel, int aberto, float
 
 // A botoeira em pe, ao lado do predio (C em cima, T embaixo). Com "Trocar
 // de andar" aceso, cada botao e uma zona de clique: o aberto escolhe o andar
-// (quem comeca a run e o botao grande); o trancado so nega.
+// (quem comeca a run e o "Iniciar a run"); o trancado so nega.
 static void botoeira_v(int x, int y, int w, int h, int sel, int aberto, float t)
 {
     placa_latao(x, y, w, h);

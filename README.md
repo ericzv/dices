@@ -274,7 +274,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
   com a sua cara e a sua cena. A tela abre no último andar aberto (é nele
-  que se sobe no Desafiante) e o botão grande "Iniciar a run" (ENTER, ou o A
+  que se sobe no Desafiante) e o botão "Iniciar a run" (ENTER, ou o A
   do controle) começa ali. O andar escolhido abre e acende e a cabine do
   elevador vai até ele; para jogar em outro, ↑ e ↓ (ou o direcional) trocam
   o andar, ou o botão "Trocar de andar" acende o prédio e aí o clique num

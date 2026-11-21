@@ -111,8 +111,15 @@ enum {
     SOM_POUSA_PAPEL, SOM_BATE_PAPEL, SOM_BATE_DADO_PAPEL,
     SOM_POUSA_GRAO, SOM_BATE_GRAO, SOM_BATE_DADO_GRAO,
     // As assinaturas: a Furia e o Terremoto caindo pesados, o
-    // fluuush da Ventania mudando o caminho e o guizo do Treno no meio dele
+    // fluuush da Ventania mudando o caminho e o guizo do Treno no meio dele;
+    // o pouso proprio do Cavalo (batem por dentro), do Eco (ecoa), do
+    // Ferreiro (a bigorna), do Coveiro (afunda), do Laser (o vibrafone) e do
+    // Buraco Negro (sugado); o casco da Rena e as asas do Vampiro
     SOM_POUSA_FURIA, SOM_POUSA_TREMOR, SOM_SOPRO, SOM_TRENO_SINO,
+    SOM_AS_OCO, SOM_AS_ECO, SOM_AS_BIGORNA, SOM_AS_ENTERRA, SOM_AS_RETA, SOM_AS_ATRAI,
+    SOM_AS_CASCO, SOM_AS_ASAS,
+    // A moeda de metal (a Moeda e o Tudo ou Nada) pousando e batendo
+    SOM_MOEDA_POUSA_METAL, SOM_MOEDA_BATE_METAL,
     SOM_N
 };
 // O dado rolando, um laco por acabamento (SOM_ROLA_FELTRO: o rufo de
@@ -120,7 +127,7 @@ enum {
 // um jeito proprio.
 enum { SOM_ROLA_FELTRO, SOM_ROLA_VIDRO, SOM_ROLA_GELO, SOM_ROLA_PEDRA, SOM_ROLA_METAL,
        SOM_ROLA_MADEIRA, SOM_ROLA_MACIO, SOM_ROLA_SECO, SOM_ROLA_LOUCA, SOM_ROLA_BORRACHA,
-       SOM_ROLA_PAPEL, SOM_ROLA_GRAO, SOM_ROLA_FURIA, SOM_ROLA_ONDA, SOM_ROLA_PIAO, SOM_ROLAS };
+       SOM_ROLA_PAPEL, SOM_ROLA_GRAO, SOM_ROLA_FURIA, SOM_ROLA_ONDA, SOM_ROLA_MOEDA_METAL, SOM_ROLAS };
 
 void som_toca(int som);
 void som_toca_tom(int som, int semitons);   // o mesmo som, transposto (a escada do fim da rodada)

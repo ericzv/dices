@@ -941,8 +941,7 @@ static void lanca_proximo(void)
         w->face = rola_v(lados);
         n_voo = 2;
     }
-    if (lados == 2) som_rufo_moeda();        // a moeda girando ate deitar
-    else som_rufo_de(acab_rola(v->tipo, v->dono));   // o dado rolando ate assentar (no som do acabamento)
+    som_rola_voo(v->tipo, v->dono, v->slot);     // o dado rolando (a moeda girando) ate assentar, no som do acabamento
     t_fase = 0;
     fase = F_ROLANDO;
 }
@@ -987,7 +986,7 @@ static bool ad_etapa_passo(float dt)
             v->lado = v->lado_v;
         }
         if (q < 1) return true;
-        som_toca(TIPO[v->tipo].lados == 2 ? SOM_MOEDA_POUSA : som_pouso_voo(v));
+        som_toca(TIPO[v->tipo].lados == 2 ? d2_pousa(v->tipo) : som_pouso_voo(v));
         assenta(v);
         v->t_etapa = 0;
         v->etapa = v->reflete ? 2 : v->copia ? 3 : 0;
@@ -1026,7 +1025,7 @@ static bool ad_etapa_passo(float dt)
     v->t_etapa = 0;
     v->reflete = false;
     t_fase = 0;
-    if (TIPO[v->tipo].lados == 2) som_rufo_moeda(); else som_rufo_de(acab_rola(v->tipo, v->dono));
+    som_rola_voo(v->tipo, v->dono, v->slot);
     return true;
 }
 

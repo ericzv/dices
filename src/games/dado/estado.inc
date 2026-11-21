@@ -121,17 +121,17 @@ typedef struct {
     uint8_t bonecas_pousadas;        // e quantas ja pousaram com o numero
     bool estilingue;                 // o Estilingue de antes atirou: este sai no maximo (a pedra vem nele)
     // O acabamento rolando: o vento da Ventania (perpendicular ao
-    // lancamento), o lado da curva do Bumerangue, o giro no lugar do Piao, o
-    // ultimo lampejo; o caminho andado (a Onda serpenteia por ele e o reflexo
-    // corre com ele) e a ultima direcao em que rolava (o rastro do gelo).
+    // lancamento), o lado da curva do Bumerangue, o ultimo lampejo; o caminho
+    // andado (a Onda serpenteia por ele, o reflexo corre com ele e o Piao
+    // so cai depois de um tanto) e a ultima direcao em que rolava (o rastro do gelo).
     float vento_x, vento_y;
     int8_t curva;
-    float gira_mais;
     float t_lampejo;
     float andou, dir_x, dir_y;
     float girou;                     // o quanto o Bumerangue ja virou
     float t_voa;                     // o tempo do lance na fisica (a rajada e o guizo: o mesmo em todo lance, lento ou nao)
-    uint8_t assina_som;              // o que a assinatura ja fez neste lance (1: o sopro, 2: o guizo, 4: o tranco, 8: o estrondo, 16: o tremor)
+    uint8_t assina_som;              // o que a assinatura ja fez neste lance (1: o sopro, 4: o tranco, 8: o estrondo, 16: o tremor, 32: as asas)
+    uint8_t passo_as;                // a Rena: os saltos ja dados (o casco de cada um); o Treno: as vezes que o guizo tocou
 } voo_t;
 
 // Eventos do desfecho, tocados um a um.

@@ -102,6 +102,10 @@ static const char *const NOME[SOM_N] = {
     [SOM_POUSA_PAPEL] = "pousa_papel", [SOM_BATE_PAPEL] = "bate_papel", [SOM_BATE_DADO_PAPEL] = "bate_dado_papel",
     [SOM_POUSA_GRAO] = "pousa_grao", [SOM_BATE_GRAO] = "bate_grao", [SOM_BATE_DADO_GRAO] = "bate_dado_grao",
     [SOM_POUSA_FURIA] = "pousa_furia", [SOM_POUSA_TREMOR] = "pousa_tremor", [SOM_SOPRO] = "sopro", [SOM_TRENO_SINO] = "treno_sino",
+    [SOM_AS_OCO] = "as_oco", [SOM_AS_ECO] = "as_eco", [SOM_AS_BIGORNA] = "as_bigorna",
+    [SOM_AS_ENTERRA] = "as_enterra", [SOM_AS_RETA] = "as_reta", [SOM_AS_ATRAI] = "as_atrai",
+    [SOM_AS_CASCO] = "as_casco", [SOM_AS_ASAS] = "as_asas",
+    [SOM_MOEDA_POUSA_METAL] = "moeda_pousa_metal", [SOM_MOEDA_BATE_METAL] = "moeda_bate_metal",
 };
 // Os lacos do dado rolando de cada acabamento (o primeiro e o rufo).
 static const char *const ROLA_ARQ[SOM_ROLAS] = {
@@ -109,7 +113,7 @@ static const char *const ROLA_ARQ[SOM_ROLAS] = {
     [SOM_ROLA_PEDRA] = "rola_pedra", [SOM_ROLA_METAL] = "rola_metal", [SOM_ROLA_MADEIRA] = "rola_madeira",
     [SOM_ROLA_MACIO] = "rola_macio", [SOM_ROLA_SECO] = "rola_seco", [SOM_ROLA_LOUCA] = "rola_louca",
     [SOM_ROLA_BORRACHA] = "rola_borracha", [SOM_ROLA_PAPEL] = "rola_papel", [SOM_ROLA_GRAO] = "rola_grao",
-    [SOM_ROLA_FURIA] = "rola_furia", [SOM_ROLA_ONDA] = "rola_onda", [SOM_ROLA_PIAO] = "rola_piao",
+    [SOM_ROLA_FURIA] = "rola_furia", [SOM_ROLA_ONDA] = "rola_onda", [SOM_ROLA_MOEDA_METAL] = "rola_moeda_metal",
 };
 
 typedef struct {
@@ -480,7 +484,8 @@ void som_toca(int s)
     if (!ef[s].n) return;
     // Batidas, pousos e fichas variam um pouco de tom.
     bool varia = s == SOM_BATE || s == SOM_BATE_DADO || s == SOM_POUSA || s == SOM_FICHA ||
-                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA || (s >= SOM_POUSA_LACA && s <= SOM_POUSA_TREMOR);
+                 s == SOM_MOEDA_BATE || s == SOM_MOEDA_POUSA || s == SOM_MOEDA_BATE_METAL || s == SOM_MOEDA_POUSA_METAL ||
+                 (s >= SOM_POUSA_LACA && s <= SOM_POUSA_TREMOR);
     toca(s, varia ? 0.9f + 0.2f * (float)GetRandomValue(0, 1000) / 1000.0f : 1.0f);
 }
 

@@ -58,8 +58,8 @@ static const material_t MATERIAL[MAT_N] = {
     [MAT_MARFIM]    = { "Marfim", { RGB(218, 208, 186), RGB(229, 220, 199), RGB(238, 230, 212), RGB(245, 239, 223),
                                     RGB(252, 248, 236) }, 0, 35,
                         RGB(36, 32, 29), RGB(204, 194, 172), RGB(62, 56, 50) },
-    [MAT_OSSO]      = { "Osso", { RGB(208, 194, 156), RGB(220, 206, 170), RGB(230, 218, 184), RGB(240, 230, 198),
-                                  RGB(250, 242, 214) }, RGB(250, 242, 214), 0,
+    [MAT_OSSO]      = { "Osso", { RGB(176, 160, 124), RGB(196, 182, 146), RGB(212, 198, 160), RGB(226, 214, 178),
+                                  RGB(244, 234, 204) }, RGB(244, 234, 204), 0,           // um degrau abaixo do marfim, mais amarelo
                         RGB(64, 42, 28), RGB(186, 170, 132), RGB(90, 64, 44) },
     [MAT_JADE]      = { "Jade", { RGB(80, 148, 112), RGB(96, 166, 128), RGB(120, 186, 148), RGB(150, 206, 172),
                                   RGB(186, 226, 200) }, RGB(186, 226, 200), 0,
@@ -118,6 +118,8 @@ static const uint16_t LAPIS_OURO = RGB(222, 188, 100);
 // O floco gravado no gelo (o sulco e a luz dele) e as migalhas do biscoito.
 static const uint16_t GELO_FLOCO[2] = { RGB(120, 166, 206), RGB(246, 252, 255) };
 static const uint16_t BISCOITO_MIGALHA[2] = { RGB(80, 42, 18), RGB(206, 152, 98) };
+// A trinca fina do osso: uma cor da paleta.
+static const uint16_t OSSO_TRINCA = RGB(128, 120, 112);
 // O miolo do Panetone (o dado especial, nao um material): a massa creme, sem
 // a luz do marfim por cima.
 static const uint16_t MIOLO_MASSA = RGB(244, 232, 186);

@@ -6,15 +6,21 @@
 // Os dados comuns vao no acabamento do material de quem joga com eles; cada
 // especial tem o seu (ACAB_TIPO) e, quando o tema pede, uma assinatura: um
 // jeito proprio de rolar (o Bumerangue faz a curva, a Ancora cai pesada). As
-// moedas (d2) giram e soam como sempre.
+// moedas e as fichas (d2) giram como sempre, cada uma no seu material.
 // ===========================================================================
 enum { AC_MARFIM, AC_LACA, AC_VIDRO, AC_GELO, AC_PEDRA, AC_METAL, AC_MADEIRA, AC_MACIO,
        AC_SECO, AC_LOUCA, AC_BORRACHA, AC_NOITE, AC_PAPEL, AC_GRAO, AC_N };
 enum { LP_NADA, LP_BRILHO, LP_ESTRELA };                       // o lampejo enquanto gira
 enum { PO_POEIRA, PO_CINTILA, PO_GELO, PO_AFUNDA, PO_FIAPO, PO_MIGALHA,
-       PO_BRILHO, PO_NADA, PO_ESTRELAS, PO_FAISCA, PO_TREMOR, PO_PAPEL, PO_GRAO, PO_TRILHO };   // o toque no feltro quando deita
+       PO_BRILHO, PO_NADA, PO_ESTRELAS, PO_FAISCA, PO_TREMOR, PO_LEVE, PO_TRILHO,
+       PO_ECO, PO_BIGORNA, PO_TERRA, PO_NEVOA, PO_ATRAI };   // o toque no feltro quando deita
 enum { AS_NADA, AS_PESADO, AS_DESLIZA, AS_FLUTUA, AS_PIAO, AS_FURIA, AS_RAJADA, AS_VOLTA,
-       AS_ONDA, AS_TREMOR, AS_TOMBA, AS_N };                    // as assinaturas
+       AS_ONDA, AS_TREMOR, AS_TOMBA,
+       // o Camaleao imita o dado de antes; o Cavalo bate por dentro; o Eco
+       // ecoa; o Ferreiro martela; o Vampiro nao tem sombra; a Rena galopa; o
+       // Coveiro afunda; o Laser vai reto; o Buraco Negro espirala
+       AS_MIMICO, AS_OCO, AS_ECO, AS_BIGORNA, AS_SEM_SOMBRA, AS_GALOPE,
+       AS_ENTERRA, AS_RETA, AS_ATRAI, AS_N };                    // as assinaturas
 
 typedef struct {
     const char *nome;
@@ -36,7 +42,8 @@ static const acabamento_t ACAB[AC_N] = {
     // O reflexo proprio so nos brilhantes (laca, vidro, metal, borracha e a
     // noite), por cima do reflexo de sempre; todo pouso guarda o anel de
     // poeira de sempre (70% a 100%) e o toque da classe entra por cima; o gelo
-    // e a noite rolam menos. O seco e o biscoito; o papel e os graos tem os seus.
+    // e a noite rolam menos. O seco e o biscoito; o papel e os graos tem os
+    // seus sons, e no pouso so o anel menor (sem nada por cima).
     //               nome        lampejo    cima quica  atrito giro   forca  para pulo   pouso        anel   dur  sons
     [AC_MARFIM]   = { "Marfim",   LP_NADA,    0, 0.62f, 2.4f, 1.0f,  1.0f,  36, 1.0f, PO_POEIRA,   1.00f, 3, SOM_POUSA, SOM_BATE, SOM_BATE_DADO, SOM_ROLA_FELTRO },
     [AC_LACA]     = { "Laca",     LP_BRILHO,  1, 0.68f, 2.3f, 1.15f, 1.0f,  36, 1.1f, PO_POEIRA,   0.85f, 4, SOM_POUSA_LACA, SOM_BATE_LACA, SOM_BATE_DADO_LACA, SOM_ROLA_FELTRO },
@@ -50,8 +57,8 @@ static const acabamento_t ACAB[AC_N] = {
     [AC_LOUCA]    = { "Louça",    LP_BRILHO,  0, 0.58f, 2.5f, 0.95f, 1.0f,  36, 1.0f, PO_BRILHO,   0.85f, 5, SOM_POUSA_LOUCA, SOM_BATE_LOUCA, SOM_BATE_DADO_LOUCA, SOM_ROLA_LOUCA },
     [AC_BORRACHA] = { "Borracha", LP_BRILHO,  1, 0.85f, 2.5f, 1.1f,  1.0f,  38, 1.6f, PO_POEIRA,   0.70f, 1, SOM_POUSA_BORRACHA, SOM_BATE_BORRACHA, SOM_BATE_DADO_BORRACHA, SOM_ROLA_BORRACHA },
     [AC_NOITE]    = { "Noite",    LP_ESTRELA, 0, 0.60f, 2.5f, 0.7f,  0.88f, 30, 1.2f, PO_ESTRELAS, 0.70f, 3, SOM_POUSA_NOITE, SOM_BATE_NOITE, SOM_BATE_DADO_NOITE, SOM_ROLA_FELTRO },
-    [AC_PAPEL]    = { "Papel",    LP_NADA,    0, 0.50f, 2.6f, 1.0f,  0.95f, 36, 1.0f, PO_PAPEL,    0.70f, 1, SOM_POUSA_PAPEL, SOM_BATE_PAPEL, SOM_BATE_DADO_PAPEL, SOM_ROLA_PAPEL },
-    [AC_GRAO]     = { "Grãos",    LP_NADA,    0, 0.45f, 2.8f, 0.9f,  0.92f, 36, 0.9f, PO_GRAO,     0.75f, 2, SOM_POUSA_GRAO, SOM_BATE_GRAO, SOM_BATE_DADO_GRAO, SOM_ROLA_GRAO },
+    [AC_PAPEL]    = { "Papel",    LP_NADA,    0, 0.50f, 2.6f, 1.0f,  0.95f, 36, 1.0f, PO_LEVE,     0.70f, 1, SOM_POUSA_PAPEL, SOM_BATE_PAPEL, SOM_BATE_DADO_PAPEL, SOM_ROLA_PAPEL },
+    [AC_GRAO]     = { "Grãos",    LP_NADA,    0, 0.45f, 2.8f, 0.9f,  0.92f, 36, 0.9f, PO_LEVE,     0.75f, 2, SOM_POUSA_GRAO, SOM_BATE_GRAO, SOM_BATE_DADO_GRAO, SOM_ROLA_GRAO },
 };
 // O reflexo proprio: so os brilhantes; os outros ficam com o de sempre.
 static bool acab_tem_luz(int ac)
@@ -97,30 +104,80 @@ static const uint8_t ASSINA_TIPO[D_N] = {
     [D_ASSOMBRACAO] = AS_FLUTUA, [D_TRENO] = AS_DESLIZA, [D_FURIA] = AS_FURIA, [D_ONDA] = AS_ONDA,
     [D_TSUNAMI] = AS_ONDA, [D_TERREMOTO] = AS_TREMOR, [D_PIAO] = AS_PIAO,
     [D_ESTILINGUE] = AS_FURIA, [D_BALAO] = AS_FLUTUA, [D_CARROSSEL] = AS_PIAO,
+    [D_CAMALEAO] = AS_MIMICO, [D_CAVALO] = AS_OCO, [D_ECO] = AS_ECO,
+    [D_FERREIRO] = AS_BIGORNA, [D_VAMPIRO] = AS_SEM_SOMBRA, [D_RENA] = AS_GALOPE,
+    [D_COVEIRO] = AS_ENTERRA, [D_LASER] = AS_RETA, [D_BURACO] = AS_ATRAI,
 };
+#define GALOPE_L 70.0f                // a Rena: o comprimento de cada salto (px)
 
 static bool acab_comum(int tipo)
 {
     return TIPO[tipo].efeito == EF_NADA && TIPO[tipo].lados != 2 && tipo != D_MISTERIOSO;
 }
+// As moedas e as fichas (d2): as de metal (a Moeda e o Tudo ou Nada) com o
+// brilho e o tinido de moeda; as fichas (a Moeda da Sorte, a de Fogo, a Velha
+// e a Coringa) com o ponto duro da laca e o clique de plastico de sempre; a
+// Semente, com os graos. Giram e quicam como sempre (fisica).
+static int acab_d2(int tipo)
+{
+    switch (tipo) {
+    case D_D2: case D_TUDO_NADA: return AC_METAL;
+    case D_SEMENTE:              return AC_GRAO;
+    default:                     return AC_LACA;
+    }
+}
 // O acabamento de um dado de dono (o material dos comuns e o de quem joga com eles).
 static int acab_de(int tipo, int dono)
 {
-    if (tipo < 0 || tipo >= D_N || TIPO[tipo].lados == 2) return AC_MARFIM;   // as moedas e as fichas: como sempre
+    if (tipo < 0 || tipo >= D_N) return AC_MARFIM;
+    if (TIPO[tipo].lados == 2) return acab_d2(tipo);
     return acab_comum(tipo) ? ACAB_MAT[material_j[dono & 1] % MAT_N] : ACAB_TIPO[tipo];
+}
+// Os sons das moedas e fichas: o pouso, a batida (na borda e num dado) e o
+// laco girando ate deitar (-1: o da moeda de sempre).
+static int d2_pousa(int tipo)
+{
+    int a = acab_d2(tipo);
+    return a == AC_METAL ? SOM_MOEDA_POUSA_METAL : a == AC_GRAO ? SOM_POUSA_GRAO : SOM_MOEDA_POUSA;
+}
+static int d2_bate(int tipo)
+{
+    int a = acab_d2(tipo);
+    return a == AC_METAL ? SOM_MOEDA_BATE_METAL : a == AC_GRAO ? SOM_BATE_GRAO : SOM_MOEDA_BATE;
+}
+static int d2_rola(int tipo)
+{
+    int a = acab_d2(tipo);
+    return a == AC_METAL ? SOM_ROLA_MOEDA_METAL : a == AC_GRAO ? SOM_ROLA_GRAO : -1;
 }
 static int assina_de(int tipo)
 {
     return tipo >= 0 && tipo < D_N && TIPO[tipo].lados != 2 ? ASSINA_TIPO[tipo] : AS_NADA;
 }
-// O laco do dado rolando (o som_rufo_de): a Furia rola pesada, a Onda com a
-// agua e o Piao zunindo; os outros, com o do acabamento.
-static int acab_rola(int tipo, int dono)
+// A assinatura do lance: o Camaleao rola com a do dado de antes (o que ele copia).
+static int assina_lance(int tipo, int dono, int slot)
 {
-    switch (assina_de(tipo)) {
+    int as = assina_de(tipo);
+    if (as != AS_MIMICO) return as;
+    if (slot <= 0 || slot >= N_FILA || F[dono & 1].tipo[slot] != tipo) return AS_NADA;
+    as = assina_de(tipo_de(dono & 1, slot));
+    return as == AS_MIMICO ? AS_NADA : as;
+}
+// O laco do dado rolando (o som_rufo_de): a Furia rola pesada e a Onda com a
+// agua; os outros (o Piao tambem), com o do acabamento.
+static int acab_rola(int tipo, int dono, int slot)
+{
+    switch (assina_lance(tipo, dono, slot)) {
     case AS_FURIA: return SOM_ROLA_FURIA;
     case AS_ONDA:  return SOM_ROLA_ONDA;
-    case AS_PIAO:  return SOM_ROLA_PIAO;
     default:       return ACAB[acab_de(tipo, dono)].rola;
     }
+}
+// O som do dado rolando ate assentar: o laco do acabamento (as moedas e as
+// fichas, o delas).
+static void som_rola_voo(int tipo, int dono, int slot)
+{
+    if (TIPO[tipo].lados != 2) som_rufo_de(acab_rola(tipo, dono, slot));
+    else if (d2_rola(tipo) >= 0) som_rufo_de(d2_rola(tipo));
+    else som_rufo_moeda();
 }

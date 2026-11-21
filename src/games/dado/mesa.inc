@@ -84,6 +84,7 @@ static void presente_abre(float x, float y, float q)
 // um tom (pontilhado), abre em volta de onde ele bateu e some. Fica no lugar
 // mesmo quando o dado ja foi para a fila.
 #define POEIRA_T 0.42f
+#define NEVOA_T  0.85f               // a nevoa do Vampiro fica mais
 #define POEIRA_N 8
 // tipo: o toque do acabamento por cima do anel (PO_*); cor: o tom
 // claro do corpo (fiapos, migalhas); anel: a forca do anel de sempre (0: sem
@@ -157,14 +158,14 @@ static void desenha_estouro(void)
 static void poeira_passo(float dt)
 {
     for (int i = 0; i < POEIRA_N; i++)
-        if (poeira[i].t > 0 && (poeira[i].t += dt) > POEIRA_T) poeira[i].t = 0;
+        if (poeira[i].t > 0 && (poeira[i].t += dt) > (poeira[i].tipo == PO_NEVOA ? NEVOA_T : POEIRA_T)) poeira[i].t = 0;
     if (estouro_fx.t > 0 && (estouro_fx.t += dt) > ESTOURO_T) estouro_fx.t = 0;
     for (int i = 0; i < n_voo; i++) if (voo[i].t_assenta > 0 && voo[i].t_assenta < 9) voo[i].t_assenta += dt;
 }
 // O toque do pouso de cada acabamento, por cima do anel de
 // sempre: o vidro cintila, o gelo deixa o rastro e solta graos, o macio uns
 // fiapos, o seco umas migalhas, a louca um brilho, a noite estrelas; o metal
-// solta faiscas nas batidas fortes (sem anel).
+// solta faiscas nas batidas fortes (sem anel); o papel e os graos, nada.
 static uint32_t pouso_sorte(int i, int k) { return hash2((int)poeira[i].x * 7 + k * 131, (int)poeira[i].y * 13 + k * 71); }
 #define NO_FELTRO(x, y) ((x) > MESA_X0 && (x) < MESA_X1 - 1 && (y) > MESA_Y0 && (y) < MESA_Y1 - 1)
 // O rastro no feltro atras do dado (o feltro dois tons acima, pontilhado),
@@ -228,41 +229,66 @@ static void toque_pouso(int i)
         }
         break;
     }
+    case PO_BIGORNA:                                   // o Ferreiro: faiscas a cada martelada
+        for (int h = 0; h < 3; h++) {
+            float th = t - h * 0.14f;
+            if (th < 0 || th > 0.07f) continue;
+            for (int k = 0; k < 7 - 2 * h; k++) {
+                uint32_t s = pouso_sorte(i, k + h * 7);
+                float an = -0.25f - (s % 265) / 100.0f, d = R_DADO * 0.55f + th * 300;   // um leque para cima
+                int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.45f + sinf(an) * d * 0.7f);
+                if (NO_FELTRO(x, y)) fb[y * GFX_W + x] = k % 2 ? C_AMARELO : C_BRANCO;
+                if (th < 0.035f && NO_FELTRO(x + 1, y)) fb[y * GFX_W + x + 1] = C_FOGO;
+            }
+        }
+        break;
+    case PO_TERRA: {                                   // o Coveiro: a marca escura onde afundou e os torroes de terra
+        int cy = (int)(py + R_DADO * 0.55f), rx = (int)(R_DADO + 6);
+        for (int yy = -5; yy <= 5; yy++)
+            for (int xx = -rx; xx <= rx; xx++) {
+                float e = (float)(xx * xx) / (rx * rx) + yy * yy / 25.0f;
+                int x = (int)px + xx, y = cy + yy;
+                if (e > 1 || !NO_FELTRO(x, y) || bayer(x, y) >= 0.6f * (1 - e * 0.5f)) continue;
+                fb[y * GFX_W + x] = C_SOMBRA;
+            }
+        float q2 = fminf(1, t / 0.3f);
+        for (int k = 0; k < 9; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            if (t > 0.26f + (h % 7) * 0.02f) continue;
+            float an = (h % 628) / 100.0f, d = R_DADO * 0.7f + (1 - (1 - q2) * (1 - q2)) * (10 + h % 10);
+            float pulo = sinf(fminf(1, q2 * 1.4f) * 3.1416f) * (4 + h % 4);
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.3f + sinf(an) * d * 0.55f - pulo);
+            uint16_t c = k % 3 ? C_TERRA : C_MADEIRA_CLR;
+            for (int yy = 0; yy < 2; yy++)
+                for (int xx = 0; xx < 2; xx++)
+                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = xx && yy ? C_MADEIRA_ESC : c;
+        }
+        break;
+    }
+    case PO_NEVOA: {                                   // o Vampiro: a nevoa roxa baixa, que abre larga, sobe um pouco e some devagar
+        float q2 = t / NEVOA_T, some = 1 - q2 * q2;
+        for (int k = 0; k < 9; k++) {
+            uint32_t h = pouso_sorte(i, k);
+            float an = k * 0.6981f + (h % 60) / 100.0f, abre = 1 - (1 - q2) * (1 - q2);
+            float d = R_DADO * 0.5f + abre * (26 + h % 14) * (k % 3 ? 1 : 0.6f);
+            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.45f + sinf(an) * d * 0.45f - q2 * (4 + h % 5));
+            disco_pontilhado(x, y, 6 + (int)(abre * 9), k % 2 ? C_VIOLETA : C_EBANO_B, 0.8f * some);
+        }
+        break;
+    }
+    case PO_ATRAI: {                                   // o Buraco Negro: um anel escuro que se fecha nele
+        if (t > 0.32f) break;
+        float q2 = t / 0.32f, rr = R_DADO + 22 * (1 - q2);
+        for (int k = 0; k < 64; k++) {
+            float an = k * 0.0982f + q2 * 3;
+            int x = (int)(px + cosf(an) * rr), y = (int)(py + R_DADO * 0.2f + sinf(an) * rr * 0.6f);
+            if (NO_FELTRO(x, y) && bayer(x, y) < 0.9f - q2 * 0.5f) fb[y * GFX_W + x] = k % 4 ? C_SOMBRA : C_VIOLETA;
+        }
+        break;
+    }
     case PO_TRILHO:                                    // o Treno: os dois trilhos dos patins ficam e apagam
         rastro(px, py, poeira[i].dx, poeira[i].dy, 40, 1 - t / POEIRA_T, true);
         break;
-    case PO_PAPEL: {                                   // pedacinhos de papel: saltam, giram e caem devagar, balancando
-        if (t > 0.4f) break;
-        float q2 = t / 0.4f;
-        for (int k = 0; k < 7; k++) {
-            uint32_t h = pouso_sorte(i, k);
-            float an = (h % 628) / 100.0f, d = R_DADO + 2 + (1 - (1 - q2) * (1 - q2)) * (12 + h % 10);
-            float sobe = sinf(fminf(1, q2 * 2.2f) * 1.5708f) * (7 + h % 4) - q2 * q2 * 14;   // sobe e desce
-            int x = (int)(px + cosf(an) * d + sinf(t * 22 + k) * 2), y = (int)(py + sinf(an) * d * 0.6f - sobe);
-            bool de_pe = ((int)(t * 30) + k) % 3 == 0;            // girando: ora deitado (3x2), ora de lado (1x2)
-            int w = de_pe ? 1 : 3, hh = 2;
-            uint16_t c = k % 3 == 2 ? poeira[i].cor : C_MARFIM_S;  // dois de cada tres brancos, como papel
-            for (int yy = 0; yy < hh; yy++)
-                for (int xx = 0; xx < w; xx++)
-                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = yy && !de_pe && xx == w - 1 ? C_SOMBRA : c;
-        }
-        break;
-    }
-    case PO_GRAO: {                                    // os graos: saltam para fora em dois pulinhos e ficam no feltro
-        float q2 = fminf(1, t / 0.3f);
-        for (int k = 0; k < 10; k++) {
-            uint32_t h = pouso_sorte(i, k);
-            if (t > 0.30f + (h % 9) * 0.012f) continue;                 // e somem, um a um
-            float an = (h % 628) / 100.0f, d = R_DADO * 0.8f + (1 - (1 - q2) * (1 - q2)) * (9 + h % 12);
-            float pulo = fabsf(sinf(q2 * 6.2832f)) * (3 + h % 3) * (1 - q2);
-            int x = (int)(px + cosf(an) * d), y = (int)(py + R_DADO * 0.25f + sinf(an) * d * 0.6f - pulo);
-            uint16_t c = poeira[i].cor;                            // o grao: 2x2, com a sombra embaixo a direita
-            for (int yy = 0; yy < 2; yy++)
-                for (int xx = 0; xx < 2; xx++)
-                    if (NO_FELTRO(x + xx, y + yy)) fb[(y + yy) * GFX_W + x + xx] = xx && yy ? C_SOMBRA : c;
-        }
-        break;
-    }
     case PO_FIAPO:                                     // dez fiapos (3 px tortos), no tom mais claro, que caem devagar
     case PO_MIGALHA:                                   // dez migalhas de 2x2, no tom mais claro
         if (t > 0.36f) break;
@@ -355,8 +381,13 @@ static void desenha_poeira(void)
         if (a > 0) {
             if (tp == PO_AFUNDA) {                             // a pedra e os pesados: o anel cheio, menor e mais rapido
                 if (t < 0.2f) anel_poeira(px, py, t / 0.2f, a, R_DADO, 20, 2);
-            } else if (tp == PO_FIAPO || tp == PO_MIGALHA || tp == PO_PAPEL || tp == PO_GRAO) {   // o macio, o seco, o papel e os graos: menor e mais curto
+            } else if (tp == PO_FIAPO || tp == PO_MIGALHA || tp == PO_LEVE) {   // o macio, o seco, o papel e os graos: menor e mais curto
                 if (t < 0.25f) anel_poeira(px, py, t / 0.25f, a, R_DADO, 22, 2);
+            } else if (tp == PO_ECO) {                           // o Eco: o anel e mais dois, cada vez mais fracos
+                for (int e = 0; e < 3; e++) {
+                    float te = t - e * 0.12f;
+                    if (te > 0 && te < 0.18f) anel_poeira(px, py, te / 0.18f, fmaxf(a, 0.8f) * (1 - e * 0.18f), R_DADO + 2 + e * 7, 24 + e * 6, e ? 0 : 3);
+                }
             } else if (t < POEIRA_T) {
                 anel_poeira(px, py, t / POEIRA_T, a, R_DADO + 2, 28, a >= 0.9f ? 7 : a >= 0.5f ? 3 : 2);
                 if (tp == PO_TREMOR && t > 0.08f) anel_poeira(px, py, fminf(1, (t - 0.08f) / POEIRA_T), 0.8f, R_DADO + 8, 28, 0);
@@ -368,9 +399,9 @@ static void desenha_poeira(void)
     for (int i = 0; i < n_voo; i++) {
             const voo_t *v = &voo[i];
             if (v->parado || v->fantasma || TIPO[v->tipo].lados == 2) continue;
-            if (acab_de(v->tipo, v->dono) != AC_GELO && assina_de(v->tipo) != AS_DESLIZA) continue;
+            if (acab_de(v->tipo, v->dono) != AC_GELO && assina_lance(v->tipo, v->dono, v->slot) != AS_DESLIZA) continue;
             float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
-            if (vel > 30) rastro(v->x, v->y, v->dir_x, v->dir_y, 40 * fminf(1, vel / 250), 1, assina_de(v->tipo) == AS_DESLIZA);
+            if (vel > 30) rastro(v->x, v->y, v->dir_x, v->dir_y, 40 * fminf(1, vel / 250), 1, assina_lance(v->tipo, v->dono, v->slot) == AS_DESLIZA);
         }
 }
 #undef NO_FELTRO
@@ -483,6 +514,37 @@ static void estilingue_pedra(int x0, int y0, float x, float y, float q)
             gfx_rect((int)(x + cosf(an) * d), (int)(y + sinf(an) * d), 2, 2, i % 2 ? C_OURO : C_AMARELO);
         }
     }
+}
+
+// As assinaturas rolando. O Laser: o raio verde atras dele, reto, do tamanho
+// do caminho (ate comp px): o miolo claro e o halo pontilhado, apagando para tras.
+static void laser_rastro(float x, float y, float dx, float dy, float comp)
+{
+    if (dx == 0 && dy == 0) return;
+    uint16_t *fb = display_fb();
+    float nx = -dy, ny = dx;
+    for (int d = 0; d < (int)comp; d++) {
+        float dist = R_DADO * 0.6f + d, f = 1 - d / comp;
+        for (int w = -1; w <= 1; w++) {
+            int px = (int)lroundf(x - dx * dist + nx * w), py = (int)lroundf(y - dy * dist + ny * w);
+            if (px <= MESA_X0 || px >= MESA_X1 - 1 || py <= MESA_Y0 || py >= MESA_Y1 - 1) continue;
+            if (w) { if (bayer(px, py) < f * 0.6f) fb[py * GFX_W + px] = C_VERDE; }
+            else if (bayer(px, py) < f + 0.2f) fb[py * GFX_W + px] = f > 0.5f ? C_LASER : C_VERDE;
+        }
+    }
+}
+// O Buraco Negro rolando: dois bracos de espiral escura girando em volta dele.
+static void espiral_escura(float x, float y, float t, float forca)
+{
+    uint16_t *fb = display_fb();
+    for (int b = 0; b < 2; b++)
+        for (int k = 0; k < 40; k++) {
+            float q = k / 40.0f, an = b * 3.1416f + q * 5.5f - t * 7, rr = R_DADO + 2 + q * 22;
+            int px = (int)(x + cosf(an) * rr), py = (int)(y + R_DADO * 0.2f + sinf(an) * rr * 0.62f);
+            if (px <= MESA_X0 || px >= MESA_X1 - 1 || py <= MESA_Y0 || py >= MESA_Y1 - 1) continue;
+            for (int w = 0; w < 2; w++)
+                if (bayer(px + w, py) < (1.1f - q) * forca) fb[py * GFX_W + px + w] = q < 0.5f ? C_SOMBRA : feltro_tons[1];
+        }
 }
 
 // A rajada da Ventania (q de 0 a 1): quatro riscos de vento que vem de tras
@@ -626,7 +688,7 @@ static void desenha_lance(void)
         }
         // Rolando: quica, e a sombra se afasta quando ele esta no alto.
         sombra_alt = 0;
-        int as = TIPO[v->tipo].lados == 2 ? AS_NADA : assina_de(v->tipo);
+        int as = TIPO[v->tipo].lados == 2 ? AS_NADA : assina_lance(v->tipo, v->dono, v->slot);
         if (!v->parado) {
             float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
             float pulo = 1, freq = 0.9f;                 // o pulinho do acabamento e da assinatura
@@ -636,19 +698,29 @@ static void desenha_lance(void)
                 else if (as == AS_DESLIZA) pulo = 0;
                 else if (as == AS_FLUTUA) { pulo *= 0.6f; freq *= 0.5f; }
                 else if (as == AS_FURIA) pulo *= 1.5f;
+                else if (as == AS_GALOPE || as == AS_RETA) pulo *= 0.3f;
             }
             float h = fabsf(sinf(v->giro * freq)) * fminf(1, vel / 420);
             r *= 1 + 0.16f * h * pulo;
             sombra_alt = h * 7 * pulo;
-            if (as == AS_FLUTUA) {                      // flutua: no alto, balancando devagar, e a sombra longe (desce quando perde a forca)
-                float b = sinf(t_fase * 5.5f + i), sobe = fminf(1, t_fase / 0.15f) * fminf(1, vel / 150);
-                ey -= (5 + 2 * b) * sobe;
-                sombra_alt += (9 + 2 * b) * sobe;
+            if (as == AS_FLUTUA) {                      // flutua: bem no alto, balancando devagar, e a sombra longe (desce quando perde a forca)
+                float b = sinf(t_fase * 5.5f + i), sobe = fminf(1, t_fase / 0.22f) * fminf(1, vel / 150);
+                ey -= (10 + 3 * b) * sobe;
+                r *= 1 + 0.05f * sobe;                  // mais perto de quem olha
+                sombra_alt += (17 + 3 * b) * sobe;
             }
             if (as == AS_FURIA && t_fase < 0.3f)        // a Furia: segura tremendo e sai no tranco
                 ex += (t_fase < 0.12f ? 2.5f : 2 * (1 - t_fase / 0.3f)) * sinf(t_fase * 95);
             if (as == AS_RAJADA && !v->fantasma && v->t_voa >= RAJADA_T0 && v->t_voa < RAJADA_T1)
                 rajada_riscos(ex, ey, v->vento_x, v->vento_y, (v->t_voa - RAJADA_T0) / (RAJADA_T1 - RAJADA_T0));
+            // As outras assinaturas, rolando.
+            if (as == AS_GALOPE && v->andou < 3 * GALOPE_L) {         // a Rena: tres saltos longos
+                float sl = fabsf(sinf(3.1416f * v->andou / GALOPE_L));
+                ey -= sl * 11; r *= 1 + 0.08f * sl; sombra_alt = sl * 12;
+            }
+            if (as == AS_SEM_SOMBRA) ey += sinf(t_fase * 55) * 1.2f * fminf(1, vel / 150);   // o Vampiro: bate as asas, baixo
+            if (as == AS_RETA && !v->fantasma) laser_rastro(ex, ey, v->dir_x, v->dir_y, fminf(v->andou, 90));
+            if (as == AS_ATRAI && !v->fantasma) espiral_escura(ex, ey, t_fase, fminf(1, vel / 120));
         }
         // O Presente no comeco do lance: ainda a caixa embrulhada, que rasga.
         bool abre = !v->fantasma && fase == F_ROLANDO && v->slot < N_FILA && F[v->dono].presente[v->slot]
@@ -664,6 +736,11 @@ static void desenha_lance(void)
             face_curinga = v->tipo == D_FICHA_CORINGA;   // a Ficha Coringa gira com o curinga dos dois lados
             moeda_girando_arte(v->x, v->y, r, v->tipo, v->dono, c, lado);
             face_curinga = false;
+            if (v->t_lampejo >= 0 && acab_d2(v->tipo) == AC_METAL) {   // a moeda de metal girando: o lampejo quando a face passa pela luz
+                float dt_l = t_fase - v->t_lampejo;
+                if (dt_l >= 0 && dt_l < 0.09f)
+                    estrela4((int)(v->x - r * 0.2f * fabsf(c)), (int)(v->y - r * 0.6f), dt_l < 0.045f ? 3 : 2, C_BRANCO, C_BRANCO, C_PRATA);
+            }
             if (abre) presente_abre(v->x, v->y, t_fase / PRESENTE_ABRE);
             sombra_alt = 0;
             continue;
@@ -698,6 +775,22 @@ static void desenha_lance(void)
             float q = v->t_assenta / 0.28f;
             ang += 0.22f * sinf(q * 12.566f) * (1 - q);
             dx += 3 * sinf(q * 3.1416f);
+        }
+        // As assinaturas com pouso proprio.
+        if (pouso_novo && as == AS_OCO && v->t_assenta > 0.30f && v->t_assenta < 0.52f) {   // o Cavalo: batem por dentro, duas vezes
+            float t = v->t_assenta;
+            if (t < 0.37f || t > 0.45f) { dx += ((int)(t * 120) & 1) ? 2 : -2; bob -= 1.5f; }
+        }
+        if (pouso_novo && as == AS_BIGORNA && v->t_assenta < 0.42f) {   // o Ferreiro: tres marteladas, cada uma mais baixa
+            static const float ALT[3] = { 7, 4.5f, 2.5f };
+            int k = (int)(v->t_assenta / 0.14f);
+            float q = v->t_assenta / 0.14f - k, a = sinf(q * 3.1416f) * ALT[k > 2 ? 2 : k];
+            bob -= a; sombra_alt = a;
+        }
+        if (pouso_novo && as == AS_ENTERRA) {                      // o Coveiro: afunda um pouco no feltro
+            float e = fminf(1, v->t_assenta / 0.15f);
+            e = 1 - (1 - e) * (1 - e);
+            bob += 2.5f * e; r *= 1 - 0.07f * e;
         }
         if (v->estilingue && !v->fantasma && !descartado && v->slot > 0 && fase == F_ROLANDO && t_fase < 0.45f)
             estilingue_pedra(SLOT_X(v->slot - 1), zona(v->dono), ex, ey, t_fase / 0.30f);
@@ -799,8 +892,10 @@ static void desenha_lance(void)
             acab_varre = fminf(1, sqrtf(v->vx * v->vx + v->vy * v->vy) / 250);
             acab_fase = tri(v->andou / 40);
         }
+        sem_sombra = !descartado && (as == AS_SEM_SOMBRA || as == AS_ATRAI);
         if (estx != 1 || esty != 1) dado_esticado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, estx, esty);
         else desenha_dado(ex + dx, ey + bob, r, tv, v->dono, ang, mostra, 2, descartado);
+        sem_sombra = false;
         acab_varre = acab_fase = 0;
         if (!v->parado && v->t_lampejo >= 0) {                       // o lampejo enquanto gira: por 4 ou 5 quadros
             int lp = ACAB[acab_de(v->tipo, v->dono)].lampejo;

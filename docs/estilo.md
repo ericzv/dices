@@ -240,8 +240,8 @@ marfim.
 | Madeira | — | quica, gira | — |
 | Macio | — | abafado, quase não quica | fiapos |
 | Biscoito | — | seco | migalhas |
-| Papel | — | leve | pedacinhos de papel girando |
-| Grãos | — | — | grãos saltando |
+| Papel | — | leve | só o anel, menor e mais curto |
+| Grãos | — | — | só o anel, menor e mais curto |
 | Louça | — | firme | um brilho de um instante |
 | Borracha | ponto molhado e um menor embaixo | quica muito | achata e estica |
 | Noite | três estrelinhas | gira pouco | estrelas |
@@ -253,7 +253,10 @@ marfim.
   volta ao lugar quando o dado para.
 - O lampejo (uma estrelinha de um instante quando o dado gira rápido) só nos
   brilhantes, no gelo e na louça.
-- As moedas e fichas (d2) giram e soam como sempre.
+- As moedas e fichas (d2) giram como sempre; o som e o brilho vêm do material
+  (`acab_d2`): a Moeda e o Tudo ou Nada são de metal (o tinido, e a
+  estrelinha quando giram rápido), a Semente é de grãos, e as outras fichas
+  são de laca (os sons de ficha de sempre).
 - Os sons de cada classe (rolando, batendo na borda, em outro dado e
   pousando) são feitos em `tools/sons/gera_acab.py`.
 - As assinaturas (`ASSINA_TIPO`): um jeito próprio de rolar quando o tema
@@ -261,9 +264,15 @@ marfim.
   guizo no meio do caminho), flutua (Fantasma, Vazio, Assombração, Balão),
   pião (Pião, Carrossel), fúria (Fúria, Berserker, Estilingue: sai num
   tranco e cai pesada), rajada (Ventania: o desvio, o sopro e os riscos de
-  vento), volta (Bumerangue), onda (Onda, Tsunami), tremor (Terremoto) e
-  tomba (Viciado). Cada assinatura tem um traço principal só; duas não se
-  parecem.
+  vento), volta (Bumerangue), onda (Onda, Tsunami), tremor (Terremoto),
+  tomba (Viciado), mímico (Camaleão: imita a assinatura do dado de antes),
+  oco (Cavalo de Troia: o pouso com as batidas por dentro), eco (Eco: os
+  anéis e o som repetindo), bigorna (Ferreiro: as marteladas e as faíscas),
+  sem sombra (Vampiro: voa baixo, batendo as asas, sem sombra, e pousa na
+  névoa roxa), galope (Rena: três saltos, o casco em cada um), enterra
+  (Coveiro: afunda na terra), reta (Laser: reto e constante, e para de uma
+  vez) e atrai (Buraco Negro: espirala e perde força). Cada assinatura tem um
+  traço principal só; duas não se parecem.
 
 ## 8. Retratos
 

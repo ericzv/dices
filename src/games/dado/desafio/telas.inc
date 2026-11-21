@@ -466,7 +466,7 @@ static void desenha_desbloqueios(int d)
     int bw = 100, bh = 26, bx = x + w - 14 - bw, by = y + h - 12 - bh;
     ui_botao(bx, by, bw, bh, "Fechar", 0, mouse_em(bx, by, bw, bh) ? UI_FOCO : 0);
     zona_clique(bx, by, bw, bh, NULL, 0, KEY_BKSP);
-    rodape_run("↑↓ trocam o andar  ·  ENTER ou ESC fecha");
+    faixa_madeira(GFX_H - FAIXA_H);                                  // o rodape limpo, sem as teclas
 }
 
 static void predio_dificuldade(int sel, int aberto);   // predio.inc: o predio e a botoeira
@@ -524,8 +524,7 @@ static void desenha_dificuldade(void)
     botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Clique no andar" : "Trocar de andar", NULL, dif_escolhe, TECLA_ESCOLHE);
     botao_iniciar(px + (pw - bw_g) / 2, py + ph - 14 - bh_g, bw_g, bh_g, "Iniciar a run");
     if (dif_pop) { desenha_desbloqueios(d); return; }
-    rodape_run(dif_escolhe ? "↑↓ trocam o andar  ·  ENTER começa a run  ·  ESC deixa como está"
-                           : "↑↓ trocam o andar  ·  ENTER começa a run  ·  I desbloqueios  ·  ESC volta");
+    faixa_madeira(GFX_H - FAIXA_H);                                  // o rodape limpo, sem as teclas
 }
 
 

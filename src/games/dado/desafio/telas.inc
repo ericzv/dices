@@ -51,9 +51,13 @@ static char pf_nome[11];
 static int  dif_cur;
 static bool  dif_pop;                    // o pop-up dos desbloqueios do andar escolhido (o bau)
 static float dif_pop_t;
-static bool  dif_escolhe;                // "Trocar de andar": o predio acende e espera o clique num andar
+static bool  dif_escolhe;                // "Trocar de andar": o predio acende; as setas ou o clique escolhem o andar
+static int   dif_antes;                  // o andar de antes do "Trocar de andar" (ESC volta a ele)
+// O botao em foco: as setas passam por eles e ENTER aperta. O "Iniciar a
+// run" e o 0, o de sempre; o de cima e o ultimo dos dois de cima visitado.
+enum { DIF_INICIAR, DIF_DESBLOQ, DIF_TROCA };
+static int   dif_foco, dif_foco_cima = DIF_DESBLOQ;
 #define TECLA_ANDAR   0x230                // o clique num andar aberto, no predio ou na botoeira (+ o andar): so escolhe
-#define TECLA_ESCOLHE 0x23F                // o botao "Trocar de andar"
 static int   negado_d = -1;                // o andar trancado que acabaram de apertar (predio.inc)
 static float negado_t = -9;
 
@@ -108,6 +112,7 @@ static void des_escolhe_nova(void)
     if (perfil()->nivel > 0) {
         dif_cur = perfil()->nivel;               // o ultimo andar aberto, ja escolhido
         dif_pop = dif_escolhe = false;
+        dif_foco = DIF_INICIAR;                  // e o "Iniciar a run" em foco
         t_fase = 0;
         fase = F_RDIFIC;
         return;
@@ -381,14 +386,13 @@ static void icone_bau(int x, int y)
 
 // O botao de comecar a run: o feltro verde da mesa (os tons do feltro Verde,
 // que valem em qualquer mesa) numa moldura de latao com rebites, e a letra
-// branca (Jersey 2x) com o contorno escuro. E o que o ENTER aperta: as
-// cantoneiras de ouro sempre respirando em volta, e o ENTER afunda ele.
-static void botao_iniciar(int x, int y, int w, int h, const char *s)
+// branca (Jersey 2x) com o contorno escuro. Em foco (o de sempre), as
+// cantoneiras de ouro respiram em volta e o ENTER afunda ele.
+static void botao_iniciar(int x, int y, int w, int h, const char *s, bool foco)
 {
     bool em = mouse_em(x, y, w, h);
     bool baixo = t_aperto > 0 && aperto_x >= x && aperto_x < x + w && aperto_y >= y && aperto_y < y + h;
-    foco_bx = x + w / 2;
-    foco_by = y + h / 2;
+    if (foco) { foco_bx = x + w / 2; foco_by = y + h / 2; }          // o ENTER afunda ele
     int d = baixo ? 2 : 0;
     if (!baixo) ui_sombra(x, y, w, h);
     uint16_t ouro[4];
@@ -419,23 +423,23 @@ static void botao_iniciar(int x, int y, int w, int h, const char *s)
     gfx_texto(tx + 1, ty + 2, s, C_BARRA, 2, false);                // a sombra
     for (int k = 0; k < 8; k++) gfx_texto(tx + CONT[k][0], ty + CONT[k][1], s, C_BARRA, 2, false);
     gfx_texto(tx, ty, s, C_BRANCO, 2, false);
-    if (!baixo) ui_cantos(x - 1, y - 1, w + 2, h + 2, C_OURO);
-    zona_clique(x, y, w, h, NULL, 0, KEY_ENTER);                     // no toque, pede o segundo toque
+    if (foco && !baixo) ui_cantos(x - 1, y - 1, w + 2, h + 2, C_OURO);
+    zona_clique(x, y, w, h, &dif_foco, DIF_INICIAR, KEY_ENTER);      // no toque, pede o segundo toque
 }
 
 // Um botao de baixo do painel (os desbloqueios, trocar de andar): a face de
 // sempre, o bau a esquerda (icone 0; 1: sem icone, o rotulo no meio), o
 // rotulo e um extra miudo (a conta do bau).
-static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, const char *extra, bool aceso, int tecla)
+static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, const char *extra, bool aceso, int qual)
 {
     int d;
-    uint16_t c = ui_botao_face(x, y, w, h, aceso ? C_LATAO : 0, aceso || mouse_em(x, y, w, h) ? UI_FOCO : 0, &d);
+    uint16_t c = ui_botao_face(x, y, w, h, aceso ? C_LATAO : 0, dif_foco == qual ? UI_FOCO : 0, &d);
     int ix = x + 9, cy = y + d + (h - 4) / 2;
     if (icone == 0) { icone_bau(ix, cy - 7); ix += 22; }
     else ix = x + (w - gfx_largura(rot, 1)) / 2;
     int tw = gfx_texto(ix, cy - TXT_H / 2 - 1, rot, c, 1, false);
     if (extra) gfx_texto(ix + tw + 6, cy - TXT_H / 2 + 1, extra, aceso ? C_BARRA : C_TEXTO_M, GFX_FINO, false);
-    zona_clique(x, y, w, h, NULL, 0, tecla);
+    zona_clique(x, y, w, h, &dif_foco, qual, KEY_ENTER);            // o mouse em cima poe o foco; o clique aperta
     zona_sem_confirmar();                                            // so olhar: um toque basta
 }
 
@@ -476,9 +480,10 @@ static void desenha_dificuldade(void)
     faixa_titulo("Dificuldade da run");
     // O predio do cassino com todos os andares; os que ainda nao abriram
     // ficam apagados e trancados. A tela abre no ultimo andar aberto: e nele
-    // que quase todo mundo joga, para subir. O clique num andar (no predio ou
-    // na botoeira) so vale depois de "Trocar de andar", e so escolhe; quem
-    // comeca a run e o botao "Iniciar a run".
+    // que quase todo mundo joga, para subir. Os tres botoes sao um menu: as
+    // setas passam por eles e ENTER aperta o que esta em foco (o "Iniciar a
+    // run", de comeco). O andar so muda depois de "Trocar de andar": pelas
+    // setas ou pelo clique num andar (no predio ou na botoeira).
     int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
     int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
     predio_dificuldade(d, nv);
@@ -520,9 +525,9 @@ static void desenha_dificuldade(void)
     char cnt[16];
     snprintf(cnt, sizeof cnt, "%d/%d", ab, tot);
     int bh_g = 44, bw_g = 250, bw = (pw - 24 - 10) / 2, bh = 30, by = py + ph - 14 - bh_g - 32 - bh;   // o vao cabe o "toque de novo"
-    botao_dif(px + 12, by, bw, bh, 0, "Desbloqueios", cnt, false, 'i');
-    botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Clique no andar" : "Trocar de andar", NULL, dif_escolhe, TECLA_ESCOLHE);
-    botao_iniciar(px + (pw - bw_g) / 2, py + ph - 14 - bh_g, bw_g, bh_g, "Iniciar a run");
+    botao_dif(px + 12, by, bw, bh, 0, "Desbloqueios", cnt, false, DIF_DESBLOQ);
+    botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Escolha o andar" : "Trocar de andar", NULL, dif_escolhe, DIF_TROCA);
+    botao_iniciar(px + (pw - bw_g) / 2, py + ph - 14 - bh_g, bw_g, bh_g, "Iniciar a run", dif_foco == DIF_INICIAR);
     if (dif_pop) { desenha_desbloqueios(d); return; }
     faixa_madeira(GFX_H - FAIXA_H);                                  // o rodape limpo, sem as teclas
 }

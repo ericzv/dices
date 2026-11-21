@@ -166,15 +166,17 @@ static bool des_tecla(int k, int e)
         return estilo_tecla(k);
 
     case F_RDIFIC: {
-        // O predio: para cima sobe um andar, para baixo desce (os lados
-        // tambem: direita sobe). Passar do ultimo aberto aperta o trancado
-        // de cima, que nega; do Terreo para baixo nao tem nada.
-        // A tela abre no ultimo andar aberto; ENTER ("Iniciar a run") comeca a
-        // run nele. As setas trocam o andar; o clique num andar (no predio ou
-        // na botoeira) so vale com "Trocar de andar" aceso, e so escolhe.
-        // I (o X do controle) ou o bau abre o pop-up do que o andar
-        // desbloqueia; com ele aberto, as setas ainda trocam o andar e o
-        // resto fecha.
+        // A tela e um menu de tres botoes: "Iniciar a run" embaixo (em foco
+        // ao abrir) e, em cima, "Desbloqueios" e "Trocar de andar". As setas
+        // passam o foco de um a outro e ENTER (o A do controle) aperta o que
+        // esta em foco; o mouse em cima poe o foco e o clique aperta.
+        // "Trocar de andar" acende o predio: as setas trocam o andar (passar
+        // do ultimo aberto aperta o trancado de cima, que nega; do Terreo
+        // para baixo nao tem nada) e ENTER confirma, com o foco de volta no
+        // "Iniciar a run"; ESC (o B) volta ao andar de antes. O clique num
+        // andar (no predio ou na botoeira) so vale com ele aceso, e escolhe.
+        // No pop-up dos desbloqueios as setas ainda trocam o andar e o resto
+        // fecha. I (o X do controle) abre o pop-up direto.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
         if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
         if (k >= TECLA_ANDAR && k <= TECLA_ANDAR + N_NIVEIS) {   // o clique num andar: so com "Trocar de andar" aceso
@@ -182,26 +184,45 @@ static bool des_tecla(int k, int e)
             if (dif_escolhe && nd <= nv) {
                 if (nd != dif_cur) som_toca(SOM_TIQUE);
                 dif_cur = nd;
+                dif_foco = DIF_INICIAR;
             }
             dif_escolhe = false;
             return true;
         }
-        int sobe = k == KEY_UP || k == 'w' || k == ';' ? 1 : k == KEY_DOWN || k == 's' || k == '.' ? -1 : e;
-        if (sobe) {
-            int nd = (dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur) + sobe;
-            if (nd > nv && nd <= N_NIVEIS) predio_nega(nd);
-            else if (nd >= 0 && nd <= nv) { dif_cur = nd; som_toca(SOM_TIQUE); }
-            return true;
+        bool cima = k == KEY_UP || k == 'w' || k == ';', baixo = k == KEY_DOWN || k == 's' || k == '.';
+        bool esq = k == KEY_LEFT || k == 'a' || k == ',', dir = k == KEY_RIGHT || k == 'd' || k == '/';
+        if (dif_pop || dif_escolhe) {            // o andar: para cima (ou a direita) sobe
+            int sobe = cima || dir ? 1 : baixo || esq ? -1 : 0;
+            if (sobe) {
+                int nd = (dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur) + sobe;
+                if (nd > nv && nd <= N_NIVEIS) predio_nega(nd);
+                else if (nd >= 0 && nd <= nv) { dif_cur = nd; som_toca(SOM_TIQUE); }
+                return true;
+            }
         }
         if (dif_pop) {                           // o pop-up: o resto fecha
             if (k == KEY_ENTER || k == KEY_BKSP || k == 'i' || k == 'x') { dif_pop = false; som_toca(SOM_TIQUE); }
             return true;
         }
-        if (k == 'i') { dif_pop = true; dif_pop_t = t_relogio; dif_escolhe = false; som_toca(SOM_TIQUE); return true; }
-        if (k == TECLA_ESCOLHE) { dif_escolhe = !dif_escolhe; som_toca(SOM_TIQUE); return true; }
-        if (k == KEY_BKSP && dif_escolhe) { dif_escolhe = false; return true; }
-        if (k == KEY_ENTER && dif_cur >= 0 && dif_cur <= nv) {
-            dif_escolhe = false;
+        int aperta = k == KEY_ENTER ? dif_foco : k == 'i' ? DIF_DESBLOQ : -1;
+        if (dif_escolhe) {
+            if (k == KEY_BKSP) { dif_cur = dif_antes; dif_escolhe = false; som_toca(SOM_TIQUE); return true; }
+            if (aperta < 0) return true;
+            dif_escolhe = false;                 // ENTER confirma o andar; o "Iniciar a run" (o mouse em cima) ja comeca
+            if (aperta == DIF_TROCA) { dif_foco = DIF_INICIAR; som_toca(SOM_TIQUE); return true; }
+        } else if (cima || baixo || esq || dir) {   // o foco: os dois de cima lado a lado, o "Iniciar a run" embaixo
+            int f = dif_foco;
+            if (f != DIF_INICIAR) dif_foco_cima = f;
+            if (cima && f == DIF_INICIAR) f = dif_foco_cima;
+            else if (baixo && f != DIF_INICIAR) f = DIF_INICIAR;
+            else if (esq && f == DIF_TROCA) f = DIF_DESBLOQ;
+            else if (dir && f == DIF_DESBLOQ) f = DIF_TROCA;
+            if (f != dif_foco) { dif_foco = f; som_toca(SOM_TIQUE); }
+            return true;
+        }
+        if (aperta == DIF_DESBLOQ) { dif_pop = true; dif_pop_t = t_relogio; som_toca(SOM_TIQUE); return true; }
+        if (aperta == DIF_TROCA) { dif_antes = dif_cur; dif_escolhe = true; som_toca(SOM_TIQUE); return true; }
+        if (aperta == DIF_INICIAR && dif_cur >= 0 && dif_cur <= nv) {
             som_toca(SOM_FICHA);
             des_dif = dif_cur;
             abre_bolsas();                       // e a bolsa da run

@@ -7438,20 +7438,48 @@ int main(void)
                 }
                 perfis[0].nivel = 0; run.dificuldade = 0; run.andar = 0;
             }
-            // A escolha da dificuldade, no predio: para cima sobe um andar e
-            // nao passa do ultimo aberto (o de cima nega, com o cadeado); para
-            // baixo para no Terreo, sem dar a volta. O clique num trancado
-            // so nega.
+            // A tela da dificuldade e um menu: as setas passam o foco pelos
+            // tres botoes ("Iniciar a run" embaixo, de comeco; "Desbloqueios" e
+            // "Trocar de andar" em cima) sem mexer no andar, e ENTER aperta o
+            // que esta em foco.
             {
                 int f0 = fase, dc0 = dif_cur, maior = 0;
                 perfis[0].nivel = 3; fase = F_RDIFIC; dif_cur = 0; negado_d = -1;
+                dif_foco = DIF_INICIAR; dif_foco_cima = DIF_DESBLOQ; dif_escolhe = dif_pop = false;
+                t_elev = 0; t_cort = -1;                 // o elevador e a cortina de antes comeriam as primeiras teclas
+                manda_tecla(KEY_UP);
+                CONFERE(dif_foco == DIF_DESBLOQ && dif_cur == 0, "dificuldade: para cima, do Iniciar vai a Desbloqueios sem trocar o andar (foco %d, andar %d)", dif_foco, dif_cur);
+                manda_tecla(KEY_RIGHT);
+                CONFERE(dif_foco == DIF_TROCA, "dificuldade: a direita vai a Trocar de andar (foco %d)", dif_foco);
+                manda_tecla(KEY_RIGHT); manda_tecla(KEY_UP);
+                CONFERE(dif_foco == DIF_TROCA && dif_cur == 0, "dificuldade: na ponta o foco fica (foco %d, andar %d)", dif_foco, dif_cur);
+                manda_tecla(KEY_DOWN);
+                CONFERE(dif_foco == DIF_INICIAR, "dificuldade: para baixo volta ao Iniciar (foco %d)", dif_foco);
+                manda_tecla(KEY_UP);
+                CONFERE(dif_foco == DIF_TROCA, "dificuldade: para cima volta ao ultimo de cima (foco %d)", dif_foco);
+                // "Trocar de andar": as setas trocam o andar, so ate o ultimo
+                // aberto (o de cima nega, com o cadeado); para baixo para no
+                // Terreo, sem dar a volta; ENTER confirma e o foco volta ao
+                // Iniciar.
+                manda_tecla(KEY_ENTER);
+                CONFERE(dif_escolhe && fase == F_RDIFIC, "dificuldade: ENTER em Trocar de andar devia acender o predio");
                 for (int i = 0; i < 8; i++) { manda_tecla(KEY_UP); if (dif_cur > maior) maior = dif_cur; }
-                CONFERE(maior == 3 && dif_cur == 3, "dificuldade: o cursor devia ir so ate a aberta (Nivel 3), foi ate %d", maior);
+                CONFERE(maior == 3 && dif_cur == 3, "dificuldade: o andar devia ir so ate o aberto (Nivel 3), foi ate %d", maior);
                 CONFERE(negado_d == 4, "dificuldade: subir do ultimo aberto nega o de cima (negado %d)", negado_d);
                 for (int i = 0; i < 8; i++) manda_tecla(KEY_DOWN);
                 CONFERE(dif_cur == 0, "dificuldade: para baixo para no Terreo, sem dar a volta (%d)", dif_cur);
                 manda_tecla(KEY_RIGHT);
                 CONFERE(dif_cur == 1, "dificuldade: a direita tambem sobe (%d)", dif_cur);
+                manda_tecla(KEY_ENTER);
+                CONFERE(!dif_escolhe && dif_cur == 1 && dif_foco == DIF_INICIAR && fase == F_RDIFIC,
+                        "dificuldade: ENTER confirma o andar e volta ao Iniciar, sem comecar (andar %d, foco %d, fase %d)", dif_cur, dif_foco, fase);
+                // ESC (e BACKSPACE, o B do controle) desiste: volta ao andar de antes.
+                dif_foco = DIF_TROCA; manda_tecla(KEY_ENTER); manda_tecla(KEY_UP); manda_tecla(KEY_ESC);
+                CONFERE(!dif_escolhe && dif_cur == 1 && fase == F_RDIFIC, "dificuldade: ESC volta ao andar de antes, sem sair da tela (%d)", dif_cur);
+                manda_tecla(KEY_ENTER);
+                CONFERE(dif_escolhe, "dificuldade: o foco segue em Trocar de andar depois do ESC");
+                manda_tecla(KEY_UP); manda_tecla(KEY_BKSP);
+                CONFERE(!dif_escolhe && dif_cur == 1, "dificuldade: BACKSPACE tambem volta ao andar de antes (%d)", dif_cur);
                 negado_d = -1;
                 manda_tecla(TECLA_TRANCADO + 9);
                 CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
@@ -7460,33 +7488,30 @@ int main(void)
                 // o mouse por cima nao troca o andar.
                 manda_tecla(TECLA_ANDAR + 3);
                 CONFERE(dif_cur == 1, "dificuldade: sem Trocar de andar, o clique no andar nao vale (%d)", dif_cur);
-                manda_tecla(TECLA_ESCOLHE); manda_tecla(TECLA_ANDAR + 3);
-                CONFERE(dif_cur == 3 && fase == F_RDIFIC && !dif_escolhe, "dificuldade: o clique no andar 3 so escolhe (andar %d, fase %d)", dif_cur, fase);
-                manda_tecla(TECLA_ESCOLHE); manda_tecla(TECLA_ANDAR + 7);
+                dif_foco = DIF_TROCA; manda_tecla(KEY_ENTER); manda_tecla(TECLA_ANDAR + 3);
+                CONFERE(dif_cur == 3 && fase == F_RDIFIC && !dif_escolhe && dif_foco == DIF_INICIAR,
+                        "dificuldade: o clique no andar 3 so escolhe (andar %d, fase %d, foco %d)", dif_cur, fase, dif_foco);
+                dif_foco = DIF_TROCA; manda_tecla(KEY_ENTER); manda_tecla(TECLA_ANDAR + 7);
                 CONFERE(dif_cur == 3 && fase == F_RDIFIC, "dificuldade: o andar 7 trancado nao se escolhe pelo clique (%d)", dif_cur);
                 dif_escolhe = false;
                 dado_desenha();
                 dado_mouse(202 + 15, 284, 0);                          // a botoeira (x 202), no botao do Terreo
                 dado_desenha();
                 CONFERE(dif_cur == 3, "dificuldade: passar o mouse na botoeira nao troca o andar (%d)", dif_cur);
-                // "Trocar de andar" acende e o clique no andar apaga; ESC desiste.
-                manda_tecla(TECLA_ESCOLHE);
-                CONFERE(dif_escolhe, "dificuldade: Trocar de andar devia acender");
-                manda_tecla(TECLA_ANDAR + 2);
-                CONFERE(!dif_escolhe && dif_cur == 2, "dificuldade: o clique no andar escolhe e apaga o Trocar (%d)", dif_cur);
-                manda_tecla(TECLA_ESCOLHE); manda_tecla(KEY_ESC);
-                CONFERE(!dif_escolhe && fase == F_RDIFIC && dif_cur == 2, "dificuldade: ESC desiste de trocar, sem sair da tela");
-                // O bau: I abre o pop-up dos desbloqueios; as setas ainda trocam
-                // o andar; ENTER e ESC so fecham (nao comecam a run nem saem).
-                manda_tecla('i');
-                CONFERE(dif_pop, "dificuldade: I devia abrir os desbloqueios");
-                manda_tecla(KEY_UP);
-                CONFERE(dif_pop && dif_cur == 3, "dificuldade: com o pop-up, a seta troca o andar (%d)", dif_cur);
+                // Os desbloqueios: ENTER no bau (ou I) abre o pop-up; as setas
+                // trocam o andar; ENTER e ESC so fecham (nao comecam a run nem
+                // saem).
+                dif_foco = DIF_DESBLOQ; manda_tecla(KEY_ENTER);
+                CONFERE(dif_pop, "dificuldade: ENTER em Desbloqueios devia abrir o pop-up");
+                manda_tecla(KEY_DOWN);
+                CONFERE(dif_pop && dif_cur == 2, "dificuldade: com o pop-up, a seta troca o andar (%d)", dif_cur);
                 manda_tecla(KEY_ENTER);
                 CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ENTER fecha o pop-up sem comecar a run (fase %d)", fase);
-                manda_tecla('i'); manda_tecla(KEY_ESC);
+                dif_foco = DIF_INICIAR; manda_tecla('i');
+                CONFERE(dif_pop, "dificuldade: I abre os desbloqueios de qualquer foco");
+                manda_tecla(KEY_ESC);
                 CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ESC fecha o pop-up sem sair da tela (fase %d)", fase);
-                fase = f0; dif_cur = dc0;
+                fase = f0; dif_cur = dc0; dif_foco = DIF_INICIAR;
             }
             // A luz do andar escolhido no predio pisca so ao acender; acesa,
             // fica firme (nao volta a tremer quadro a quadro).

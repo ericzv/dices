@@ -274,13 +274,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
   com a sua cara e a sua cena. A tela abre no último andar aberto (é nele
-  que se sobe no Desafiante) e o botão "Iniciar a run" (ENTER, ou o A
-  do controle) começa ali. O andar escolhido abre e acende e a cabine do
-  elevador vai até ele; para jogar em outro, ↑ e ↓ (ou o direcional) trocam
-  o andar, ou o botão "Trocar de andar" acende o prédio e aí o clique num
-  andar (ou num botão da botoeira de latão ao lado) escolhe. No toque, o
-  "Iniciar a run" pede dois toques, como as outras ações. O que os
-  chefes do andar desbloqueiam fica no baú: o botão "Desbloqueios" (I, ou o
+  que se sobe no Desafiante), com o botão "Iniciar a run" já em foco. Os
+  três botões são um menu: as setas (ou o direcional) passam o foco entre
+  "Iniciar a run", embaixo, e "Desbloqueios" e "Trocar de andar", em cima,
+  e ENTER (ou o A do controle) aperta o que está em foco; o mouse em cima
+  de um botão põe o foco nele e o clique aperta. O andar escolhido abre e
+  acende e a cabine do elevador vai até ele. Para jogar em outro, "Trocar de
+  andar" acende o prédio: aí as setas trocam o andar e ENTER confirma (o
+  foco volta ao "Iniciar a run"), ESC (ou o B) volta ao andar de antes, e o
+  clique num andar (ou num botão da botoeira de latão ao lado) escolhe. No
+  toque, o "Iniciar a run" pede dois toques, como as outras ações. O que os
+  chefes do andar desbloqueiam fica no baú: "Desbloqueios" (ou a tecla I, o
   X do controle) abre um pop-up com tudo, chefe a chefe, e quantos já
   abriram.
   Começando a run, a placa de latão do elevador sobe na tela: o botão do

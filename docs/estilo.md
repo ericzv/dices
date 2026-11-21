@@ -253,14 +253,15 @@ marfim.
   volta ao lugar quando o dado para.
 - O lampejo (uma estrelinha de um instante quando o dado gira rápido) só nos
   brilhantes, no gelo e na louça.
-- As moedas e fichas (d2) giram como sempre; o som e o brilho vêm do material
+- As moedas e fichas (d2) sempre giram no lance (viram a face duas ou três
+  vezes); o som e o brilho vêm do material
   (`acab_d2`): a Moeda e o Tudo ou Nada são de metal (o tinido, e a
   estrelinha quando giram rápido), a Semente é de grãos, e as outras fichas
   são de laca (os sons de ficha de sempre).
 - Os sons de cada classe (rolando, batendo na borda, em outro dado e
   pousando) são feitos em `tools/sons/gera_acab.py`.
 - As assinaturas (`ASSINA_TIPO`): um jeito próprio de rolar quando o tema
-  pede. Pesado (Âncora, Lastro), desliza (Trenó: os trilhos dos patins e o
+  pede. Pesado (Lastro), desliza (Trenó: os trilhos dos patins e o
   guizo no meio do caminho), flutua (Fantasma, Vazio, Assombração, Balão),
   pião (Pião, Carrossel), fúria (Fúria, Berserker, Estilingue: sai num tranco
   e cai pesada), rajada (Ventania: o desvio, o sopro e os riscos de vento),
@@ -270,10 +271,17 @@ marfim.
   som repetindo), bigorna (Ferreiro: as marteladas e as faíscas), sem sombra
   (Vampiro: voa baixo, batendo as asas, sem sombra, e pousa na névoa roxa),
   galope (Rena: até três saltos longos, o casco em cada um, mais baixos quando
-  ela perde a força), enterra (Coveiro: afunda na terra), reta (Laser: reto e
-  constante, e para de uma vez; se uma batida o deixa lento, para logo) e
-  atrai (Buraco Negro: espirala e perde força). Cada assinatura tem um traço
-  principal só; duas não se parecem.
+  ela perde a força), enterra (Coveiro: afunda um pouco na terra, discreto),
+  reta (Laser: reto e constante, e para de uma vez; se uma batida o deixa
+  lento, para logo), atrai (Buraco Negro: espirala e perde força, também sem
+  sombra), arrasta (Âncora: pesada e, no fim do lance, para de rolar e
+  arrasta, com o som do arrasto no lugar do rolar, deixando um sulco no
+  feltro que apaga aos poucos), espinho (Ouriço: os espinhos estalam no
+  feltro e soltam fiapos escuros), geleia (Gelatina: sai forte, chega na
+  borda e achata contra ela, tremendo), tambor (Revólver: o tambor gira com
+  cliques e trava no pouso) e anda (Viúva Negra: quase não gira, anda num
+  passo constante, as patinhas batendo baixinho, e para de repente). Cada
+  assinatura tem um traço principal só; duas não se parecem.
 
 ## 8. Retratos
 

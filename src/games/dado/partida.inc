@@ -1013,6 +1013,7 @@ static bool ad_etapa_passo(float dt)
         w->vx = frnd(-260, 260);
         w->vy = (w->y > CENTRO ? -1 : 1) * frnd(240, 360);
         w->spin = frnd(-12, 12);
+        if (TIPO[w->tipo].lados == 2) w->spin = giro_de_moeda(w->spin);   // a moeda sempre gira
         w->hesita = hora ? HESITA_T : 0;
         w->chumbou = false;
         voo_zera_lance(w);                   // o lance do acabamento comeca do zero

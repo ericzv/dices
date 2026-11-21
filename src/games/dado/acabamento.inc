@@ -20,7 +20,11 @@ enum { AS_NADA, AS_PESADO, AS_DESLIZA, AS_FLUTUA, AS_PIAO, AS_FURIA, AS_RAJADA, 
        // ecoa; o Ferreiro martela; o Vampiro nao tem sombra; a Rena galopa; o
        // Coveiro afunda; o Laser vai reto; o Buraco Negro espirala
        AS_MIMICO, AS_OCO, AS_ECO, AS_BIGORNA, AS_SEM_SOMBRA, AS_GALOPE,
-       AS_ENTERRA, AS_RETA, AS_ATRAI, AS_N };                    // as assinaturas
+       AS_ENTERRA, AS_RETA, AS_ATRAI,
+       // a Ancora arrasta no fim; o Ourico estala os espinhos; a Gelatina
+       // achata na borda; o Revolver gira o tambor; a Viuva Negra anda nas
+       // patinhas
+       AS_ARRASTA, AS_ESPINHO, AS_GELEIA, AS_TAMBOR, AS_ANDA, AS_N };   // as assinaturas
 
 typedef struct {
     const char *nome;
@@ -100,13 +104,14 @@ static const uint8_t ACAB_TIPO[D_N] = {
 };
 static const uint8_t ASSINA_TIPO[D_N] = {
     [D_VICIADO] = AS_TOMBA, [D_LASTRO] = AS_PESADO, [D_VENTANIA] = AS_RAJADA, [D_BUMERANGUE] = AS_VOLTA,
-    [D_BERSERKER] = AS_FURIA, [D_ANCORA] = AS_PESADO, [D_FANTASMA] = AS_FLUTUA, [D_VAZIO] = AS_FLUTUA,
+    [D_BERSERKER] = AS_FURIA, [D_ANCORA] = AS_ARRASTA, [D_FANTASMA] = AS_FLUTUA, [D_VAZIO] = AS_FLUTUA,
     [D_ASSOMBRACAO] = AS_FLUTUA, [D_TRENO] = AS_DESLIZA, [D_FURIA] = AS_FURIA, [D_ONDA] = AS_ONDA,
     [D_TSUNAMI] = AS_ONDA, [D_TERREMOTO] = AS_TREMOR, [D_PIAO] = AS_PIAO,
     [D_ESTILINGUE] = AS_FURIA, [D_BALAO] = AS_FLUTUA, [D_CARROSSEL] = AS_PIAO,
     [D_CAMALEAO] = AS_MIMICO, [D_CAVALO] = AS_OCO, [D_ECO] = AS_ECO,
     [D_FERREIRO] = AS_BIGORNA, [D_VAMPIRO] = AS_SEM_SOMBRA, [D_RENA] = AS_GALOPE,
     [D_COVEIRO] = AS_ENTERRA, [D_LASER] = AS_RETA, [D_BURACO] = AS_ATRAI,
+    [D_OURICO] = AS_ESPINHO, [D_GELATINA] = AS_GELEIA, [D_REVOLVER] = AS_TAMBOR, [D_VIUVA] = AS_ANDA,
 };
 #define GALOPE_L 70.0f                // a Rena: o comprimento de cada salto (px)
 
@@ -177,6 +182,7 @@ static int acab_rola(int tipo, int dono, int slot)
 // fichas, o delas).
 static void som_rola_voo(int tipo, int dono, int slot)
 {
+    if (assina_lance(tipo, dono, slot) == AS_ANDA) { som_rufo(false); return; }   // a Viuva Negra anda calada
     if (TIPO[tipo].lados != 2) som_rufo_de(acab_rola(tipo, dono, slot));
     else if (d2_rola(tipo) >= 0) som_rufo_de(d2_rola(tipo));
     else som_rufo_moeda();

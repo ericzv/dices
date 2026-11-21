@@ -106,6 +106,8 @@ static const char *const NOME[SOM_N] = {
     [SOM_AS_ENTERRA] = "as_enterra", [SOM_AS_RETA] = "as_reta", [SOM_AS_ATRAI] = "as_atrai",
     [SOM_AS_CASCO] = "as_casco", [SOM_AS_ASAS] = "as_asas",
     [SOM_MOEDA_POUSA_METAL] = "moeda_pousa_metal", [SOM_MOEDA_BATE_METAL] = "moeda_bate_metal",
+    [SOM_AS_ESPINHO] = "as_espinho", [SOM_AS_TAMBOR] = "as_tambor", [SOM_AS_TRAVA] = "as_trava",
+    [SOM_AS_PASSO] = "as_passo",
 };
 // Os lacos do dado rolando de cada acabamento (o primeiro e o rufo).
 static const char *const ROLA_ARQ[SOM_ROLAS] = {
@@ -114,6 +116,7 @@ static const char *const ROLA_ARQ[SOM_ROLAS] = {
     [SOM_ROLA_MACIO] = "rola_macio", [SOM_ROLA_SECO] = "rola_seco", [SOM_ROLA_LOUCA] = "rola_louca",
     [SOM_ROLA_BORRACHA] = "rola_borracha", [SOM_ROLA_PAPEL] = "rola_papel", [SOM_ROLA_GRAO] = "rola_grao",
     [SOM_ROLA_FURIA] = "rola_furia", [SOM_ROLA_ONDA] = "rola_onda", [SOM_ROLA_MOEDA_METAL] = "rola_moeda_metal",
+    [SOM_ROLA_ARRASTA] = "rola_arrasta",
 };
 
 typedef struct {
@@ -128,6 +131,8 @@ static bool rufo_feito, moeda_feito, giro_feito, motor_feito;
 static Sound rola[SOM_ROLAS];                // os do acabamento (o 0 fica no rufo)
 static bool rola_feito[SOM_ROLAS];
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
+static Sound *saindo;                        // o laco que sai quando outro entra no meio do lance (o arrasto da Ancora)
+static float forca_rufo = 1, vol_saindo;     // o laco da vez mais baixo (o arrasto perdendo a forca)
 static bool  pronto, falhou, ligado = true;
 static bool  rufando, girando, motor_on, suspense, cadeia;
 static int   chefe_qual = -1;              // o som_chefe de agora
@@ -389,6 +394,7 @@ void som_encerra(void)
         }
         ef[s].n = 0; ef[s].feito = false;
     }
+    saindo = NULL;
     if (rufo_feito) UnloadSound(rufo);
     if (moeda_feito) UnloadSound(moeda_rola);
     if (giro_feito) UnloadSound(giro);
@@ -411,7 +417,13 @@ void som_atualiza(float dt)
     if (!pronto) return;
     carrega_aos_poucos();
     // O rufo entra em 60 ms e sai em 120 ms; a trilha abaixa enquanto ele toca.
-    float alvo = rufando && ligado ? 1 : 0;
+    // O laco que outro substituiu no meio do lance sai em 80 ms, sem corte.
+    if (saindo) {
+        vol_saindo -= dt / 0.08f;
+        if (vol_saindo <= 0 || !ligado) { StopSound(*saindo); saindo = NULL; }
+        else SetSoundVolume(*saindo, vol_saindo * 0.8f * ganho(SOM_CANAL_EFEITOS));
+    }
+    float alvo = rufando && ligado ? forca_rufo : 0;
     vol_rufo += (alvo - vol_rufo) * fminf(1, dt / (rufando ? 0.06f : 0.12f));
     if (IsSoundPlaying(*rolando)) {
         SetSoundVolume(*rolando, vol_rufo * 0.8f * ganho(SOM_CANAL_EFEITOS));
@@ -500,8 +512,11 @@ void som_toca_tom(int s, int semitons)
 
 static void comeca_a_rolar(Sound *s)
 {
+    forca_rufo = 1;
     if (rufando && rolando == s) return;
-    StopSound(*rolando);
+    if (saindo) { StopSound(*saindo); saindo = NULL; }
+    if (rufando && vol_rufo > 0.01f && IsSoundPlaying(*rolando)) { saindo = rolando; vol_saindo = vol_rufo; }   // o de antes sai devagar
+    else StopSound(*rolando);
     rolando = s;
     vol_rufo = 0;
     SetSoundVolume(*s, 0);
@@ -525,6 +540,8 @@ void som_rufo_de(int q)
 {
     if (pronto) comeca_a_rolar(laco_rola(q));
 }
+
+void som_rufo_forca(float f) { forca_rufo = f < 0 ? 0 : f > 1 ? 1 : f; }
 
 void som_giro(bool on)
 {

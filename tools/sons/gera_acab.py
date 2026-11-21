@@ -13,22 +13,24 @@ bate_dado_<classe>_<v>.ogg (5 variantes de cada, no volume do pousa e do bate
 de sempre, com o ajuste da classe em AJUSTE) e rola_<classe>.ogg (o laco do
 dado rolando, como o rufo, no volume dele no primeiro 1,1 s - o que se ouve
 num lance -, com o ajuste em AJUSTE_ROLA; a laca e a noite rolam com o rufo
-de sempre); e os das assinaturas: rola_furia, rola_onda, pousa_furia_<v>,
-pousa_tremor_<v>, sopro, treno_sino e as_* (as assinaturas novas); e as
+de sempre); e os das assinaturas: rola_furia, rola_onda, rola_arrasta,
+pousa_furia_<v>, pousa_tremor_<v>, sopro, treno_sino e as_* (as assinaturas
+novas; as_espinho_<v>, as_tambor_<v> e as_passo_<v> com variantes); e as
 moedas de metal: moeda_pousa_metal_<v>, moeda_bate_metal_<v> e
 rola_moeda_metal.
 
 O que cada um quer parecer: a pedra pesada e aspera; o metal grave no feltro
 (sem o chiado de metal com metal) e, rolando, metal mesmo; a madeira
 pousando como madeira com madeira e rolando com o toc oco; o macio abafado; a
-borracha grave; a louca firme no pouso (sem tinido) e rolando como bolinha de
-gude; o gelo deslizando; o biscoito seco, com migalhas; o papel amassando; os
+borracha grave; a louca pousando como duas bolinhas de gude se tocando (o
+tique breve, sem o tinido longo) e rolando como bolinha de gude; o gelo deslizando; o biscoito seco, com migalhas; o papel amassando; os
 graos chacoalhando. A Furia cai pesada (o estrondo, a bigorna e o chao
 roncando; o grave tem harmonicos para aparecer nas caixinhas pequenas) e rola
 pesada; o
 Terremoto pousa com um impacto mais longo; a Ventania sopra um fluuush no
-meio do caminho; o Treno toca o guizo uma vez; a Onda rola com agua; o Piao
-zune enquanto roda.
+meio do caminho; o Treno toca o guizo no caminho; a Onda rola com agua; a
+Ancora arrasta no feltro; o Ourico estala os espinhos; o Revolver gira o
+tambor e trava; a Viuva Negra anda nas patinhas, baixinho.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -134,6 +136,17 @@ def bate_dado_grao(v):
     M.poe(0, G.tom(pl(v), 3), 1)
     chocalho(M, 0.003, 4, db(-14), 0.05)
     return M.x
+def pousa_louca(v):
+    """A louca (e a perola) pousando: duas bolinhas de gude se tocando -- o
+    tique breve e claro, vidro com vidro, e um tiquinho de volta -- com o
+    feltro bem baixo por baixo (sem o tinido longo)."""
+    def clique(k, st):
+        return corta(G.pb(G.pa(G.tom(pl(k), st), 1800), 8500), 0.022)
+    M = G.Mix(0.3)
+    M.poe(0, clique(v, 8 + v % 3), 1.0)
+    M.poe(0.026 + 0.007 * (v % 3), clique(v + 3, 10), 0.32)
+    M.poe(0, G.pb(f(v), 900), db(-14))
+    return M.x
 R = {
  'laca': (lambda v: mix((0, G.tom(f(v), 2), 1), (0, G.pa(pl(v), 2000), db(-14))),
           lambda v: G.pa(G.tom(m(v), 2), 300),
@@ -164,8 +177,8 @@ R = {
  'seco': (lambda v: mix((0, corta(G.pa(G.tom(f(v), 4), 600), 0.05), 1), (0.004, grao_de(0.0012, 2500), db(-16)), (0.019, grao_de(0.0008, 2500), db(-20))),
           lambda v: corta(G.pa(G.tom(m(v), 6), 700), 0.045),
           lambda v: corta(G.pb(G.tom(pl(v), 5), 3000), 0.04)),
- # a louca (e a perola): o toc firme, sem o tinido
- 'louca': (lambda v: mix((0, f(v), 1), (0, corta(G.pa(G.tom(pl(v), 5), 900), 0.05), db(-10))),
+ # a louca (e a perola): pousa como bolinha de gude; bate firme, sem o tinido
+ 'louca': (pousa_louca,
            lambda v: mix((0, G.tom(m(v), 4), 1), (0, corta(G.pa(G.tom(pl(v), 7), 1500), 0.04), db(-12))),
            lambda v: G.pb(mix((0, G.tom(pl(v), 7), 1), (0, G.tom(mt(v), 5), db(-18))), 7000)),
  'borracha': (lambda v: mix((0, G.pb(G.tom(f(v), -3), 1200), 1), (0.005, G.pb(nota('marimba', 'C3', 0.09), 800), db(-8))),
@@ -183,6 +196,7 @@ R = {
 }
 # o volume de cada classe em relacao ao pousa/bate de sempre
 AJUSTE = {'macio': -3, 'seco': -4, 'noite': -2, 'pedra': 1, 'borracha': -1, 'metal': -2, 'papel': -4, 'grao': -3}
+AJUSTE_POUSA = {'louca': -3}      # so o pouso: o tique claro soa mais alto que um baque no mesmo volume medido
 
 # --- O dado rolando (os lacos, como o rufo) --------------------------------
 ROLA_T = 4.0              # o laco (o rufo de sempre tem 8 s; um lance dura de 1 a 2)
@@ -312,6 +326,22 @@ def rola_onda():
         return x
     return rolagem(g, cama=cama)
 # a moeda de metal (a Moeda e o Tudo ou Nada) girando ate deitar
+def rola_arrasta():
+    """A Ancora arrastando no feltro (no lugar do dado rolando; o jogo baixa o
+    laco conforme ela perde a forca): o raspado aspero e abafado do feltro,
+    que prende e solta sem ritmo, e os fios prendendo, miudos e graves."""
+    n = int((ROLA_T + 1.0) * SR)
+    w = G.rng.standard_normal(n)
+    leito = G.pb(0.8 * unit(G.banda(w, 120, 700)) + 0.2 * unit(G.banda(w, 700, 1800)), 1800, 4)
+    m = G.pb(G.rng.standard_normal(n), 14)
+    leito = leito * (0.62 + 0.38 * m / (np.abs(m).max() + 1e-9))   # prende e solta: a aspereza variando, sem ritmo de motor
+    M = G.Mix(ROLA_T + 1.0)
+    M.poe(0, leito * 0.05, 1.0)
+    t = 0.0
+    while t < ROLA_T:                                  # os fios do feltro prendendo: toques curtos, baixos e graves
+        M.poe(t, corta(G.pb(G.tom(f(int(t * 97)), rnd().uniform(-9, -5)), 900), 0.05), rnd().uniform(0.08, 0.2))
+        t += rnd().uniform(0.03, 0.07)
+    return G.sala(G.loop(M, ROLA_T), 0.10)
 DMOEDA = ['dicehit_coin%d' % i for i in range(1, 7)]
 def cm(v): return G.batida(DMOEDA[v % len(DMOEDA)])
 def rola_moeda_metal():
@@ -324,7 +354,7 @@ def rola_moeda_metal():
         giro = np.abs(np.sin(2 * np.pi * 7.0 * tt + 0.6 * np.sin(2 * np.pi * 0.4 * tt))) ** 3
         return G.banda(G.rng.standard_normal(n), 600, 2500) * (0.2 + 0.8 * giro) * 0.012
     return rolagem(g, taxa=(0.07, 0.16), cama=cama)
-ROLA = {'vidro': rola_vidro, 'gelo': rola_gelo, 'pedra': rola_pedra, 'metal': rola_metal,
+ROLA = {'arrasta': rola_arrasta, 'vidro': rola_vidro, 'gelo': rola_gelo, 'pedra': rola_pedra, 'metal': rola_metal,
         'madeira': rola_madeira, 'macio': rola_macio, 'seco': rola_seco, 'papel': rola_papel, 'grao': rola_grao,
         'louca': rola_louca, 'borracha': rola_borracha,
         'furia': rola_furia, 'onda': rola_onda, 'moeda_metal': rola_moeda_metal}
@@ -412,12 +442,13 @@ def as_bigorna():
         M.poe(t, G.pb(G.tom(f(k), -4), 1800), 0.5 * g)
     return G.sala(M.x, 0.18)
 def as_enterra():
-    """O Coveiro: a pedra abafada, o timpano fundo e a terra assentando."""
-    M = G.Mix(1.0)
+    """O Coveiro: a pedra abafada, o timpano fundo (curto e baixo) e um pouco
+    de terra assentando -- discreto."""
+    M = G.Mix(0.8)
     M.poe(0, G.pb(R['pedra'][0](0), 1200), 0.9)
-    M.poe(0.008, G.pb(G.nota('timpani', 36, 0.5, 0.3), 300), 0.9)
-    cascalho(M, 0.03, 0.35, 10, 0.07)
-    return G.sala(M.x, 0.16)
+    M.poe(0.008, G.pb(G.nota('timpani', 36, 0.32, 0.18), 300), 0.45)
+    cascalho(M, 0.03, 0.22, 6, 0.05)
+    return G.sala(M.x, 0.12)
 def as_reta():
     """O Laser: o pouso de metal e uma nota de vibrafone."""
     M = G.Mix(1.2)
@@ -446,11 +477,38 @@ def as_asas():
         n = int(0.06 * SR)
         M.poe(0.075 * k, unit(G.banda(G.rng.standard_normal(n), 250, 1300)) * G.env(n, 0.006, 0.02) * 0.08, 1 - 0.2 * k)
     return G.sala(M.x, 0.1)
+def as_espinho(v):
+    """Um espinho do Ourico estalando no feltro: um tique seco, miudo."""
+    x = G.pb(G.pa(G.tom(G.batida(PLASTICO[v % len(PLASTICO)]), 9 + v % 3), 2200), 9000)
+    return corta(x, 0.015)
+def as_tambor(v):
+    """O tambor do Revolver girando: o clique do metal, curto."""
+    x = G.pb(G.pa(G.tom(mt(v + 2), 6 + v), 1500), 9000)
+    return G.sala(corta(x, 0.03), 0.05)
+def as_trava():
+    """O Revolver pousando e travando: o pouso de metal e o estalo duplo do cao."""
+    M = G.Mix(0.8)
+    M.poe(0, R['metal'][0](1), 0.8)
+    M.poe(0.05, G.pb(G.pa(G.tom(mt(4), 4), 1200), 8000), 0.9)
+    M.poe(0.085, G.pb(G.pa(G.tom(mt(6), 7), 1500), 8000), 0.7)
+    return G.sala(M.x, 0.12)
+def as_passo(v):
+    """A Viuva Negra andando: as patinhas no feltro -- dois tiquinhos secos,
+    quase juntos (tic) -- bem baixinho; o jogo toca um a cada ~0,06 s."""
+    M = G.Mix(0.06)
+    for k, (t, g) in enumerate(((0, 1.0), (0.006 + 0.002 * (v % 3), 0.55))):
+        x = G.pb(G.pa(G.tom(pl(v * 2 + k), 7 + (v + k) % 4), 1800), 6000, 4)
+        M.poe(t, corta(x, 0.008), g)
+    return M.x
+# os de varias variantes: (receita, quantas, volume)
+VARIAS = {'as_espinho': (as_espinho, 5, G.VOLUME['bate'] * db(-12)), 'as_tambor': (as_tambor, 3, G.VOLUME['bate'] * db(-9)),
+          'as_passo': (as_passo, 5, G.VOLUME['bate'] * db(-16))}
 UM = {'sopro': (sopro, G.VOLUME['vento'] * db(0)), 'treno_sino': (treno_sino, G.VOLUME['efeito'] * db(-9)),
       'as_oco': (as_oco, G.VOLUME['pousa'] * db(1)), 'as_eco': (as_eco, G.VOLUME['pousa']),
-      'as_bigorna': (as_bigorna, G.VOLUME['pousa'] * db(1)), 'as_enterra': (as_enterra, G.VOLUME['pousa'] * db(1)),
+      'as_bigorna': (as_bigorna, G.VOLUME['pousa'] * db(1)), 'as_enterra': (as_enterra, G.VOLUME['pousa'] * db(-4)),
       'as_reta': (as_reta, G.VOLUME['pousa']), 'as_atrai': (as_atrai, G.VOLUME['pousa']),
-      'as_casco': (as_casco, G.VOLUME['bate'] * db(-2)), 'as_asas': (as_asas, G.VOLUME['vento'] * db(-6))}
+      'as_casco': (as_casco, G.VOLUME['bate'] * db(-2)), 'as_asas': (as_asas, G.VOLUME['vento'] * db(-6)),
+      'as_trava': (as_trava, G.VOLUME['pousa'] * db(1))}
 
 # A moeda de metal pousando e batendo (como a moeda de sempre, que e ficha, mas de metal).
 def moeda_pousa_metal(v):
@@ -512,7 +570,8 @@ def main():
             for v in range(5):
                 arq = '%s_%s_%d' % (nome, cl, v)
                 G.semeia(arq)
-                grava(saida, arq, G.sala(receita(v), sala), G.VOLUME[ref] * db(AJUSTE.get(cl, 0)))
+                aj = AJUSTE.get(cl, 0) + (AJUSTE_POUSA.get(cl, 0) if nome == 'pousa' else 0)
+                grava(saida, arq, G.sala(receita(v), sala), G.VOLUME[ref] * db(aj))
         print('%-9s ok' % cl)
     for cl, receita in ROLA.items():
         if not (quer(cl) or quer('rola_' + cl)): continue
@@ -541,6 +600,13 @@ def main():
         if not quer(nome): continue
         G.semeia(nome)
         grava(saida, nome, receita(), alvo)
+        print('%-12s ok' % nome)
+    for nome, (receita, n, alvo) in VARIAS.items():
+        if not quer(nome): continue
+        for v in range(n):
+            arq = '%s_%d' % (nome, v)
+            G.semeia(arq)
+            grava(saida, arq, receita(v), alvo)
         print('%-12s ok' % nome)
 
 if __name__ == '__main__':

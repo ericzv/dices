@@ -1676,16 +1676,38 @@ static int desenho_interno(int tipo, float u, float v, float s)
         if (py < 0 && py > -0.12f && fabsf(px + py * 0.5f) < w * 0.9f) return 1;
         return 0;
     }
-    case D_MARTIR: {                              // sangue escorrendo da ponta, e a cruz embaixo
-        float y = v - 0.50f;
-        if ((fabsf(u) < l * 1.6f && fabsf(y) < 0.15f) || (fabsf(y + 0.05f) < l * 1.6f && fabsf(u) < 0.10f)) return LUZ(2, -0.9f);
-        if (v < -0.34f) return LUZ(1, 0.70f - (u + v) * 0.45f);   // a mancha da ponta, molhada: clara em cima a esquerda
-        static const float GX[4] = { -0.17f, -0.05f, 0.07f, 0.17f }, GL[4] = { 0.06f, 0.22f, 0.12f, 0.02f };
-        for (int i = 0; i < 4; i++) {                              // os fios que escorrem
-            float fim = -0.34f + GL[i], dx = u - GX[i];
-            if (fabsf(dx) < 0.028f + l * 0.5f && v < fim) return LUZ(1, dx < 0 ? 0.45f : 0.05f);
-            float gy = v - fim - 0.03f;                            // a gota na ponta do fio
-            if (dx * dx + gy * gy < 0.045f * 0.045f) return gy < -0.01f && dx < 0 ? 3 : LUZ(1, 0.15f - (dx + gy) * 4);
+    case D_MARTIR: {                              // a coroa de espinhos na beira -- um ramo seco e torto, os espinhos para dentro -- e o sangue em quatro espinhos, pingando; o miolo liso para o numero
+        const float cu = 0.07f, cv = 0.24f, a = 0.5f;
+        float g = -1, t = 0; int lado = 0;
+        for (int i = 0; i < 3; i++) {                              // a beira mais perto (como na borda_d4), e qual e: 0 embaixo, 1 em cima a esquerda, 2 em cima a direita
+            float an = 1.5708f + i * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float d = ((u - cu) * nx + (v - cv) * ny) / a;
+            if (d > g) { g = d; t = ((u - cu) * -ny + (v - cv) * nx) / (a * 1.732f); lado = i; }
+        }
+        const float K = 26.0f, LT = 0.11f;                         // um espinho a cada ~5 px de beira; o comprimento dele, em raios
+        float hw = fmaxf(0.085f, l * 2.4f) * (1 + 0.25f * sinf(t * 11 + lado * 2.1f));   // o ramo, um pouco mais grosso aqui e ali
+        float gc = 0.845f + 0.035f * sinf(t * 7 + lado), dg = g - gc;   // e torto
+        float k = roundf(t * K / 6.2832f), tk = k * 6.2832f / K;
+        bool sangra = (lado == 1 && (k == -1 || k == 2)) || (lado == 2 && k == 1) || (lado == 0 && k == -2);   // os quatro espinhos com sangue
+        float ao = (t - tk) * a * 1.732f;
+        if (fabsf(dg) < hw) {
+            if (sangra && dg < 0 && fabsf(ao) < 0.07f) return LUZ(1, 0.05f - (u + v) * 0.2f);   // o sangue escorrendo pelo ramo
+            return LUZ(2, 0.20f - dg / hw * 0.30f * (lado ? 1 : -1) - (u + v) * 0.20f);
+        }
+        float g0 = gc - hw * 0.7f, n = (g0 - g) * a, inc = ((int)k & 1) ? 0.55f : -0.55f;   // o espinho sai inclinado, um para cada lado
+        float m = ao - n * inc;
+        if (fabsf(tk) < 0.8f && n > -0.02f && n < LT && fabsf(m) < 0.036f * (1 - n / LT) + l * 0.35f) {
+            if (sangra && n > LT * 0.35f) return m < 0 ? 3 : LUZ(1, 0.1f);      // a ponta molhada de sangue
+            return LUZ(2, m < 0 ? -0.25f : -0.75f);
+        }
+        if (sangra && lado) {                                      // a gota pingando da ponta (nas beiras de cima), caindo reto para baixo
+            float an = 1.5708f + lado * 2.0944f, nx = cosf(an), ny = sinf(an);
+            float al = tk * a * 1.732f + LT * inc, gb = (gc - hw * 0.7f) * a - LT;   // a ponta do espinho: ao longo da beira e para dentro
+            float px = cu + nx * gb - ny * al, py = cv + ny * gb + nx * al;
+            float gx = u - px, gy = v - (py + 0.09f), rg = 0.055f + l * 0.3f;
+            float rr = gy < 0 ? rg * (1 + gy / (rg * 2.0f)) : rg;          // a gota, afinando para cima
+            if (gy > -rg * 2.0f && gx * gx + fmaxf(0, gy) * fmaxf(0, gy) < rr * rr)
+                return gx + gy < -0.02f ? 3 : LUZ(1, 0.15f - (gx + gy) * 6);
         }
         return 0;
     }
@@ -4492,7 +4514,7 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
         for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
     gfx_desvia(px_buf);
     px_dentro = true;
-    px_sem_sombra = sombra;
+    px_sem_sombra = sombra || sem_sombra;   // o Vampiro e o Buraco Negro: nem a sombra pontilhada de fora, nem o disco de dentro
     desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado);
     px_dentro = px_sem_sombra = false;
     gfx_desvia(alvo);
@@ -4705,16 +4727,17 @@ static void assenta(voo_t *v)
         int po = ac->pouso;
         float anel = ac->anel;
         if (as == AS_FLUTUA) anel = fminf(anel, 0.7f);               // flutua: levanta menos poeira
-        if (as == AS_PESADO) { po = PO_AFUNDA; anel = 1; }          // pesado: o anel curto e cheio, como a pedra
+        if (as == AS_PESADO || as == AS_ARRASTA) { po = PO_AFUNDA; anel = 1; }   // pesado: o anel curto e cheio, como a pedra
         if (as == AS_TREMOR) { po = PO_TREMOR; anel = 1; }          // o Terremoto: dois aneis
         if (as == AS_DESLIZA) po = PO_TRILHO;                       // o Treno: os trilhos dos patins ficam e apagam
         if (as == AS_ECO) po = PO_ECO;                              // o Eco: o anel e mais dois
         if (as == AS_BIGORNA) { po = PO_BIGORNA; anel = fminf(anel, 0.6f); }   // o Ferreiro: as faiscas
-        if (as == AS_ENTERRA) { po = PO_TERRA; anel = 1; }          // o Coveiro: a marca e os torroes
+        if (as == AS_ENTERRA) { po = PO_TERRA; anel = fminf(anel, 0.6f); }   // o Coveiro: a marca e uns torroes, sem levantar muita poeira
         if (as == AS_SEM_SOMBRA) po = PO_NEVOA;                     // o Vampiro: a nevoa roxa
         if (as == AS_ATRAI) { po = PO_ATRAI; anel = 0.5f; }         // o Buraco Negro: o anel escuro que se fecha
-        poeira_solta_ac(v->x, v->y, po, acab_cor(v->tipo, v->dono), anel, v->dir_x, v->dir_y);
-        if (as == AS_PESADO) treme(1, 0.08f);              // o peso: a mesa sente
+        uint16_t cor = as == AS_ESPINHO ? C_EBANO_B : acab_cor(v->tipo, v->dono);   // o Ourico: os fiapos do pouso escuros, como os do caminho
+        poeira_solta_ac(v->x, v->y, po, cor, anel, v->dir_x, v->dir_y);
+        if (as == AS_PESADO || as == AS_ARRASTA) treme(1, 0.08f);   // o peso: a mesa sente
         if ((as == AS_TREMOR || as == AS_FURIA) && !(v->assina_som & 16)) {   // uma vez por lance
             v->assina_som |= 16;
             if (as == AS_TREMOR) treme(5, 0.60f);           // o Terremoto: a mesa treme quando ele deita
@@ -4775,6 +4798,28 @@ static void pouso_novos_passo(voo_t *v)
     }
 }
 
+// O sulco que a Ancora deixa arrastando (apaga aos poucos) e os fiapos que
+// os espinhos do Ourico soltam: a fisica poe, a mesa desenha.
+#define SULCO_N 160
+#define SULCO_T 2.6f
+static struct { float x, y, t, dx, dy; } sulco[SULCO_N];
+static int sulco_i;
+static void sulco_poe(float x, float y, float dx, float dy)
+{
+    sulco[sulco_i].x = x; sulco[sulco_i].y = y; sulco[sulco_i].t = 0.001f;
+    sulco[sulco_i].dx = dx; sulco[sulco_i].dy = dy;
+    sulco_i = (sulco_i + 1) % SULCO_N;
+}
+#define FIAPO_N 40
+#define FIAPO_T 1.5f
+static struct { float x, y, t; uint16_t cor; uint8_t forma; } fiapo_r[FIAPO_N];
+static int fiapo_i;
+static void fiapo_poe(float x, float y, uint16_t cor, int forma)
+{
+    fiapo_r[fiapo_i].x = x; fiapo_r[fiapo_i].y = y; fiapo_r[fiapo_i].t = 0.001f;
+    fiapo_r[fiapo_i].cor = cor; fiapo_r[fiapo_i].forma = (uint8_t)forma;
+    fiapo_i = (fiapo_i + 1) % FIAPO_N;
+}
 #define RAJADA_T0 0.19f              // a rajada da Ventania, no tempo da fisica do lance (t_voa)
 #define RAJADA_T1 0.34f
 static const float TRENO_SINO[3] = { 0.10f, 0.27f, 0.46f };   // o guizo do Treno, no mesmo tempo (2 ou 3 vezes)
@@ -4789,6 +4834,7 @@ static int som_pouso_voo(voo_t *v)
         v->assina_som |= 8;
         return as == AS_FURIA ? SOM_POUSA_FURIA : SOM_POUSA_TREMOR;
     }
+    if (as == AS_TAMBOR && !v->fantasma && !(v->assina_som & 8)) { v->assina_som |= 8; return SOM_AS_TRAVA; }   // o Revolver trava
     if (!v->fantasma && !(v->assina_som & 8)) {                 // as outras de pouso proprio, uma vez por lance
         int s = as == AS_OCO ? SOM_AS_OCO : as == AS_ECO ? SOM_AS_ECO : as == AS_BIGORNA ? SOM_AS_BIGORNA
               : as == AS_ENTERRA ? SOM_AS_ENTERRA : as == AS_RETA ? SOM_AS_RETA : as == AS_ATRAI ? SOM_AS_ATRAI : -1;
@@ -4811,10 +4857,16 @@ static void voo_zera_lance(voo_t *v)
     v->t_voa = 0;
     v->assina_som = 0;
     v->passo_as = 0;
+    v->t_tique = -1;
+    v->t_bate = 0;
+    v->sulco_x = v->sulco_y = -999;
     float vv = sqrtf(v->vx * v->vx + v->vy * v->vy);
     if (vv > 0) { v->vento_x = -v->vy / vv; v->vento_y = v->vx / vv; }   // o vento da Ventania: de lado
     v->curva = v->spin >= 0 ? 1 : -1;                                     // o Bumerangue curva para o lado do giro
 }
+// A moeda (e a ficha) sempre gira no lance: o giro sorteado vai para 9 a 14,
+// do lado sorteado (perto de zero ela quase nao virava).
+static float giro_de_moeda(float spin) { return copysignf(9 + fabsf(spin) * (5.0f / 14), spin); }
 static void voo_lanca(voo_t *v, bool de_baixo)
 {
     v->x = GFX_W / 2 + frnd(-110, 110);
@@ -4822,10 +4874,12 @@ static void voo_lanca(voo_t *v, bool de_baixo)
     v->vx = frnd(-300, 300);
     v->vy = (de_baixo ? -1 : 1) * frnd(420, 600);
     v->spin = frnd(-14, 14);
-    if (TIPO[v->tipo].lados != 2) {         // a moeda gira como sempre
+    if (TIPO[v->tipo].lados == 2) v->spin = giro_de_moeda(v->spin);
+    else {                                  // o dado: o acabamento e a assinatura mudam a forca e o giro
         const acabamento_t *ac = &ACAB[acab_de(v->tipo, v->dono)];
         float f = ac->forca, g = ac->giro;
-        switch (assina_lance(v->tipo, v->dono, v->slot)) {
+        int as = assina_lance(v->tipo, v->dono, v->slot);
+        switch (as) {
         case AS_PESADO:  g *= 0.6f; break;
         case AS_DESLIZA: f *= 0.85f; g *= 0.1f; break;
         case AS_FLUTUA:  f *= 0.75f; g *= 0.5f; break;
@@ -4835,9 +4889,19 @@ static void voo_lanca(voo_t *v, bool de_baixo)
         case AS_RETA:    g *= 0.25f; break;                         // o Laser quase nao gira
         case AS_SEM_SOMBRA: g *= 0.6f; break;
         case AS_ATRAI:   f *= 0.9f; break;
+        case AS_ARRASTA: g *= 0.6f; break;
+        case AS_TAMBOR:  g *= 1.3f; break;                          // o tambor girando
+        case AS_ANDA:    f *= 0.85f; g *= 0.04f; break;             // a Viuva quase nao gira: anda
         default: break;
         }
         v->vx *= f; v->vy *= f; v->spin *= g;
+        if (as == AS_GELEIA) {              // a Gelatina sai forte: chega na borda (e achata nela) em todo lance
+            float vv = sqrtf(v->vx * v->vx + v->vy * v->vy), r = R_DADO + 2, ux = v->vx / vv, uy = v->vy / vv;
+            float ax = ux > 0.01f ? (MESA_X1 - r - v->x) / ux : ux < -0.01f ? (MESA_X0 + r - v->x) / ux : 1e9f;
+            float ay = uy > 0.01f ? (MESA_Y1 - r - v->y) / uy : uy < -0.01f ? (MESA_Y0 + r - v->y) / uy : 1e9f;
+            float precisa = ac->atrito * fminf(ax, ay) + 170;   // o atrito tira atrito px/s a cada px andado: chega batendo a 170 px/s
+            if (vv < precisa) { v->vx *= precisa / vv; v->vy *= precisa / vv; }
+        }
     }
     voo_zera_lance(v);
 }
@@ -4865,6 +4929,7 @@ static bool fisica(float dt)
         int cl = moeda ? AC_MARFIM : acab_de(v->tipo, v->dono), as = moeda ? AS_NADA : assina_lance(v->tipo, v->dono, v->slot);
         const acabamento_t *ac = &ACAB[cl];
         float quica = ac->quica, atr = ac->atrito, para = ac->para;
+        float vel0 = sqrtf(v->vx * v->vx + v->vy * v->vy);
         switch (as) {
         case AS_PESADO:  quica *= 0.6f; atr *= 0.9f; para *= 1.5f; break;
         case AS_DESLIZA: atr *= 0.95f; para += 4; quica *= 0.8f; break;
@@ -4883,8 +4948,27 @@ static bool fisica(float dt)
         }
         case AS_ATRAI:   atr = atr * 0.3f + (v->andou / 300) * (v->andou / 300); break;           // o Buraco Negro: perde forca enquanto espirala
         case AS_GALOPE:  atr *= 0.85f; break;
+        case AS_ARRASTA: quica *= 0.6f; atr *= vel0 < 240 ? 0.62f : 0.9f; break;   // a Ancora: pesada, e no fim arrasta
+        case AS_ANDA:    atr = v->andou < 230 ? atr * 0.25f : atr * 9; quica *= 0.7f; para *= 1.8f; break;   // a Viuva: anda constante e para de repente
         default: break;
         }
+        if (as == AS_ARRASTA && vel0 < 240 && vel0 > 1) {             // a Ancora arrastando: nao rola mais, e o feltro marca
+            v->spin *= 0.82f;
+            if (!v->fantasma) {                                        // o som do arrasto no lugar do dado rolando, baixando com a forca
+                if (!(v->assina_som & 64)) { v->assina_som |= 64; som_rufo_de(SOM_ROLA_ARRASTA); }
+                som_rufo_forca(0.3f + 0.7f * vel0 / 240);
+            }
+            float ddx = v->x - v->sulco_x, ddy = v->y + 4 - v->sulco_y;
+            if (!v->fantasma && ddx * ddx + ddy * ddy > 4) {
+                v->sulco_x = v->x; v->sulco_y = v->y + 4;
+                sulco_poe(v->x, v->y + 4, v->vx / vel0, v->vy / vel0);
+            }
+        }
+        if (as == AS_ANDA && !v->fantasma && vel0 > 40 && (v->t_tique < 0 || t_fase - v->t_tique >= 0.056f + (hash2((int)(t_fase * 1000), v->slot) % 4) * 0.007f)) {
+            v->t_tique = t_fase;                                       // a Viuva Negra: as patinhas batendo no feltro, tictictic, baixinho
+            som_toca(SOM_AS_PASSO);
+        }
+        if (v->t_bate > 0 && v->t_bate < 9) v->t_bate += dt;
         if (as == AS_SEM_SOMBRA && !v->fantasma && !(v->assina_som & 32)) { v->assina_som |= 32; som_toca(SOM_AS_ASAS); }
         if (as == AS_FURIA && !(v->assina_som & 4)) {                 // a Furia: segura um instante, tremendo, e sai num tranco
             if (t_fase < 0.12f) { v->giro += v->spin * dt * 0.2f; continue; }
@@ -4955,6 +5039,11 @@ static bool fisica(float dt)
         if (v->y < MESA_Y0 + r) { v->y = MESA_Y0 + r; estala(fabsf(v->vy), borda); bate = fabsf(v->vy); bx = v->x; by = MESA_Y0 + 2; v->vy = -v->vy * quica; }
         if (v->y > MESA_Y1 - r) { v->y = MESA_Y1 - r; estala(fabsf(v->vy), borda); bate = fabsf(v->vy); bx = v->x; by = MESA_Y1 - 3; v->vy = -v->vy * quica; }
         if (!moeda && cl == AC_METAL && bate > 250) poeira_solta_ac(bx, by, PO_FAISCA, 0, 0, 0, 0);
+        if (as == AS_GELEIA && bate > 120) {                          // a Gelatina: achata contra a borda e treme
+            v->t_bate = 0.001f;
+            v->eixo_bate = (bx == MESA_X0 + 2 || bx == MESA_X1 - 3) ? 0 : 1;
+            if (!v->fantasma) som_toca_tom(SOM_GELATINA, 5);
+        }
 
         float vel = sqrtf(v->vx * v->vx + v->vy * v->vy);
         if (vel > 20) { v->dir_x = v->vx / vel; v->dir_y = v->vy / vel; }   // para onde rolava (o rastro do gelo)
@@ -4980,6 +5069,16 @@ static bool fisica(float dt)
             // O lampejo: a face nova passa pela luz; rolando, no maximo um a cada 0,15 s.
             int lp = moeda ? (acab_d2(v->tipo) == AC_METAL ? LP_ESTRELA : LP_NADA) : ac->lampejo;   // a moeda de metal girando tambem
             if (lp && vel > 90 && (v->t_lampejo < 0 || t_fase - v->t_lampejo >= 0.15f)) v->t_lampejo = t_fase;
+            if ((as == AS_ESPINHO || as == AS_TAMBOR) && !v->fantasma && vel > 60 && (v->t_tique < 0 || t_fase - v->t_tique >= (as == AS_ESPINHO ? 0.07f : 0.05f))) {
+                v->t_tique = t_fase;
+                som_toca(as == AS_ESPINHO ? SOM_AS_ESPINHO : SOM_AS_TAMBOR);
+                if (as == AS_ESPINHO) {                                    // os espinhos soltam um fiapo atras
+                    uint32_t h = hash2((int)(v->andou * 7), (int)(t_fase * 100));
+                    float lado = ((int)(h % 17) - 8) * 1.2f;
+                    fiapo_poe(v->x - v->dir_x * R_DADO * 0.9f - v->dir_y * lado, v->y - v->dir_y * R_DADO * 0.9f + v->dir_x * lado + 4,
+                              C_EBANO_B, (int)(h >> 5) % 3);          // o fiapo escuro, o mesmo em toda mesa
+                }
+            }
         }
         if (vel < para || t_fase > 6.0f) {
             v->parado = true;

@@ -120,6 +120,9 @@ enum {
     SOM_AS_CASCO, SOM_AS_ASAS,
     // A moeda de metal (a Moeda e o Tudo ou Nada) pousando e batendo
     SOM_MOEDA_POUSA_METAL, SOM_MOEDA_BATE_METAL,
+    // os espinhos do Ourico, o tambor do Revolver girando e travando, e as
+    // patinhas da Viuva Negra (o arrasto da Ancora e um laco: SOM_ROLA_ARRASTA)
+    SOM_AS_ESPINHO, SOM_AS_TAMBOR, SOM_AS_TRAVA, SOM_AS_PASSO,
     SOM_N
 };
 // O dado rolando, um laco por acabamento (SOM_ROLA_FELTRO: o rufo de
@@ -127,7 +130,8 @@ enum {
 // um jeito proprio.
 enum { SOM_ROLA_FELTRO, SOM_ROLA_VIDRO, SOM_ROLA_GELO, SOM_ROLA_PEDRA, SOM_ROLA_METAL,
        SOM_ROLA_MADEIRA, SOM_ROLA_MACIO, SOM_ROLA_SECO, SOM_ROLA_LOUCA, SOM_ROLA_BORRACHA,
-       SOM_ROLA_PAPEL, SOM_ROLA_GRAO, SOM_ROLA_FURIA, SOM_ROLA_ONDA, SOM_ROLA_MOEDA_METAL, SOM_ROLAS };
+       SOM_ROLA_PAPEL, SOM_ROLA_GRAO, SOM_ROLA_FURIA, SOM_ROLA_ONDA, SOM_ROLA_MOEDA_METAL,
+       SOM_ROLA_ARRASTA, SOM_ROLAS };
 
 void som_toca(int som);
 void som_toca_tom(int som, int semitons);   // o mesmo som, transposto (a escada do fim da rodada)
@@ -137,6 +141,7 @@ bool som_falhou(void);       // o aparelho nao tem saida de audio
 void som_rufo(bool on);      // o dado rolando no feltro, enquanto rola (false para tambem a moeda)
 void som_rufo_moeda(void);   // no lugar do som_rufo(true) quando quem rola e uma moeda
 void som_rufo_de(int rola);  // como o som_rufo(true), com o laco do acabamento (SOM_ROLA_*)
+void som_rufo_forca(float f); // o laco da vez mais baixo (0..1; volta a 1 no proximo som_rufo_de)
 void som_giro(bool on);      // arpejo de caca-niquel enquanto a roleta gira
 void som_motor(bool on);     // o motor do elevador, subindo de tom, enquanto a cabine sobe
 void som_suspense(bool on);  // a hora da verdade: a trilha some enquanto o dado decide

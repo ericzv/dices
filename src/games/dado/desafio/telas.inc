@@ -439,12 +439,15 @@ static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, co
 }
 
 // O pop-up dos desbloqueios do andar d: o que cada chefe dele abre. Fecha
-// com ENTER, ESC, I (o X do controle) ou o botao; as setas trocam o andar.
+// com ENTER, ESC, I (o X do controle), o botao ou um clique em qualquer
+// lugar; as setas trocam o andar.
 static void desenha_desbloqueios(int d)
 {
     n_zonas = 0;                                                     // nada por baixo responde ao clique
     n_dicas = 0;
+    foco_bx = -1;                                                    // e o ENTER que fecha nao afunda o "Iniciar"
     ui_escurece(0, 0, GFX_W, GFX_H, 150);
+    zona_clique(0, 0, GFX_W, GFX_H, NULL, 0, KEY_BKSP);              // o clique em qualquer lugar fecha, como nos outros pop-ups
     int w = 520, h = 254, x = (GFX_W - w) / 2, y = 50 + ui_entra(t_relogio - dif_pop_t, 0, UI_ENTRA_PLACA);
     ui_painel(x, y, w, h);
     icone_bau(x + 14, y + 13);
@@ -456,7 +459,8 @@ static void desenha_desbloqueios(int d)
     conta_desbloqueios(d, &ab, &tot);
     snprintf(s, sizeof s, "%d de %d abertos", ab, tot);
     gfx_texto(x + w - 14 - gfx_largura(s, GFX_FINO), y + 8, s, ab == tot && tot ? C_OURO : C_TEXTO_M, GFX_FINO, false);
-    gfx_texto(x + 14, y + 32, tot ? "Vença os chefes deste andar para abrir:" : "Este andar não abre nada novo.", C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(x + 14, y + 32, !tot ? "Este andar não abre nada novo." : ab == tot ? "Tudo já aberto neste andar:" : "Vença os chefes deste andar para abrir:",
+              C_TEXTO_M, GFX_FINO, false);
     lista_desbloqueios(d, x + 26, y + 56, x + w - 8, y + h - 44);
     int bw = 100, bh = 26, bx = x + w - 14 - bw, by = y + h - 12 - bh;
     ui_botao(bx, by, bw, bh, "Fechar", 0, mouse_em(bx, by, bw, bh) ? UI_FOCO : 0);

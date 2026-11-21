@@ -714,8 +714,8 @@ static void desenha_lance(void)
             if (as == AS_RAJADA && !v->fantasma && v->t_voa >= RAJADA_T0 && v->t_voa < RAJADA_T1)
                 rajada_riscos(ex, ey, v->vento_x, v->vento_y, (v->t_voa - RAJADA_T0) / (RAJADA_T1 - RAJADA_T0));
             // As outras assinaturas, rolando.
-            if (as == AS_GALOPE && v->andou < 3 * GALOPE_L) {         // a Rena: tres saltos longos
-                float sl = fabsf(sinf(3.1416f * v->andou / GALOPE_L));
+            if (as == AS_GALOPE && v->andou < 3 * GALOPE_L) {         // a Rena: ate tres saltos longos, cada vez mais baixos quando perde a forca (pousa no chao, sem cair do alto)
+                float sl = fabsf(sinf(3.1416f * v->andou / GALOPE_L)) * fminf(1, vel / 110);
                 ey -= sl * 11; r *= 1 + 0.08f * sl; sombra_alt = sl * 12;
             }
             if (as == AS_SEM_SOMBRA) ey += sinf(t_fase * 55) * 1.2f * fminf(1, vel / 150);   // o Vampiro: bate as asas, baixo

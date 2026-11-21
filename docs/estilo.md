@@ -262,17 +262,18 @@ marfim.
 - As assinaturas (`ASSINA_TIPO`): um jeito próprio de rolar quando o tema
   pede. Pesado (Âncora, Lastro), desliza (Trenó: os trilhos dos patins e o
   guizo no meio do caminho), flutua (Fantasma, Vazio, Assombração, Balão),
-  pião (Pião, Carrossel), fúria (Fúria, Berserker, Estilingue: sai num
-  tranco e cai pesada), rajada (Ventania: o desvio, o sopro e os riscos de
-  vento), volta (Bumerangue), onda (Onda, Tsunami), tremor (Terremoto),
-  tomba (Viciado), mímico (Camaleão: imita a assinatura do dado de antes),
-  oco (Cavalo de Troia: o pouso com as batidas por dentro), eco (Eco: os
-  anéis e o som repetindo), bigorna (Ferreiro: as marteladas e as faíscas),
-  sem sombra (Vampiro: voa baixo, batendo as asas, sem sombra, e pousa na
-  névoa roxa), galope (Rena: três saltos, o casco em cada um), enterra
-  (Coveiro: afunda na terra), reta (Laser: reto e constante, e para de uma
-  vez) e atrai (Buraco Negro: espirala e perde força). Cada assinatura tem um
-  traço principal só; duas não se parecem.
+  pião (Pião, Carrossel), fúria (Fúria, Berserker, Estilingue: sai num tranco
+  e cai pesada), rajada (Ventania: o desvio, o sopro e os riscos de vento),
+  volta (Bumerangue), onda (Onda, Tsunami), tremor (Terremoto), tomba
+  (Viciado), mímico (Camaleão: imita a assinatura do dado de antes), oco
+  (Cavalo de Troia: o pouso com as batidas por dentro), eco (Eco: os anéis e o
+  som repetindo), bigorna (Ferreiro: as marteladas e as faíscas), sem sombra
+  (Vampiro: voa baixo, batendo as asas, sem sombra, e pousa na névoa roxa),
+  galope (Rena: até três saltos longos, o casco em cada um, mais baixos quando
+  ela perde a força), enterra (Coveiro: afunda na terra), reta (Laser: reto e
+  constante, e para de uma vez; se uma batida o deixa lento, para logo) e
+  atrai (Buraco Negro: espirala e perde força). Cada assinatura tem um traço
+  principal só; duas não se parecem.
 
 ## 8. Retratos
 

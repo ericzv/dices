@@ -394,6 +394,7 @@ static float onda_sup(float x, float cheia)
 
 static float sombra_alt;                 // altura do dado no ar, em pixels
 static bool sem_sombra;                  // o Vampiro e o Buraco Negro: sem sombra no feltro
+static bool pq_dentro;                   // pinta_corpo_pequeno em curso (a bolsa)
 // O Sorte/Reves no ar sao dois dados: 1 o d12 da Sorte (marfim, aro de ouro,
 // "+"), 2 o d8 do Reves (ebano, aro vinho, "-"). 0: o dado inteiro, na fila.
 static int sr_lado;
@@ -2323,10 +2324,11 @@ static int desenho_interno(int tipo, float u, float v, float s)
     }
     case D_ESTRELA: {                             // a noite azul e so a estrela de Belem, amarela, de quatro pontas, com a cauda, na ponta de cima
         float x = u - 0.08f, y = v + 0.56f, ax = fabsf(x), ay = fabsf(y);
-        if (ax < 0.07f * (1 - ay / 0.22f) && ay < 0.22f) return ay < 0.06f ? 2 : 1;       // as pontas, finas: o miolo claro
-        if (ay < 0.07f * (1 - ax / 0.18f) && ax < 0.18f) return ax < 0.06f ? 2 : 1;
+        float g = pq_dentro ? 1.7f : 1;                                                    // na bolsa, mais grossas: a cauda aparece
+        if (ax < 0.07f * g * (1 - ay / 0.22f) && ay < 0.22f) return ay < 0.06f ? 2 : 1;   // as pontas, finas: o miolo claro
+        if (ay < 0.07f * g * (1 - ax / 0.18f) && ax < 0.18f) return ax < 0.06f ? 2 : 1;
         float ta = (y - x) * 0.7071f, tb = (x + y) * 0.7071f;                              // a cauda: para baixo, a esquerda, afinando
-        if (ta > 0.10f && ta < 0.50f && fabsf(tb) < 0.05f * (1 - (ta - 0.10f) / 0.40f) + 0.5f * s) return ta < 0.30f ? 1 : LUZ(1, -0.45f);
+        if (ta > 0.10f && ta < 0.50f && fabsf(tb) < 0.05f * g * (1 - (ta - 0.10f) / 0.40f) + 0.5f * s) return ta < 0.30f ? 1 : LUZ(1, -0.45f);
         return 0;
     }
     case D_RENA: {                                // o pelo da rena: curto, em fios para baixo, e as galhadas pequenas no alto, entre os pontos
@@ -2708,7 +2710,6 @@ static uint16_t gelatina_fundo(int x, int y)
     if (x < 0 || y < 0 || x >= GFX_W || y >= GFX_H) return C_FELTRO;
     return b[y * GFX_W + x];
 }
-static bool pq_dentro;                    // pinta_corpo_pequeno em curso (a bolsa)
 static uint16_t gelatina_corpo(float u, float v, int x, int y, uint16_t c, uint16_t cinza)
 {
     float ro = sqrtf(u * u + v * v);
@@ -4285,7 +4286,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (lado) mt = lado;
     brilho_apagado = zerado;
     uint16_t brilho = zerado ? corpo : mt->brilho ? mt->brilho : gfx_mistura(corpo, C_BRANCO, mt->brilho_pct);
-    if (cosmico(tipo) && !zerado)                 // no ceu, a aresta acesa e um tom da propria noite
+    if ((cosmico(tipo) || tipo == D_ESTRELA) && !zerado)   // no ceu (e na Estrela de Belem), a aresta acesa e um tom da propria noite
         brilho = tipo == D_GALAXIA || tipo == D_UNIVERSO ? RGB(102, 74, 138) : tipo == D_BURACO ? RGB(62, 56, 50) : RGB(56, 86, 150);
     // Tudo em volta do mesmo centro: o aro, o bisel (a aresta de dentro, clara
     // do lado da luz) e o corpo. O desenho de dentro guarda a sua referencia
@@ -4876,7 +4877,10 @@ static bool fisica(float dt)
         case AS_FURIA:   quica = fminf(0.85f, quica + 0.15f); atr = t_fase < 0.15f ? 0 : atr * 1.2f; break;   // o tranco: sem atrito na saida
         case AS_RAJADA:  break;
         case AS_VOLTA:   atr *= 1.12f; break;                     // a volta sem passar de ~1,15 s
-        case AS_RETA:    atr = v->andou < 300 ? 0 : atr * 6; quica = 0.95f; para *= 1.6f; break;   // o Laser: reto e constante, e para de uma vez
+        case AS_RETA: {                                           // o Laser: reto e constante, e para de uma vez (lento, depois de bater em outro dado, para logo)
+            bool corre = v->andou < 300 && v->vx * v->vx + v->vy * v->vy > 200 * 200;
+            atr = corre ? 0 : atr * 6; quica = 0.95f; para *= 1.6f; break;
+        }
         case AS_ATRAI:   atr = atr * 0.3f + (v->andou / 300) * (v->andou / 300); break;           // o Buraco Negro: perde forca enquanto espirala
         case AS_GALOPE:  atr *= 0.85f; break;
         default: break;

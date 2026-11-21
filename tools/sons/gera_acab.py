@@ -13,8 +13,10 @@ bate_dado_<classe>_<v>.ogg (5 variantes de cada, no volume do pousa e do bate
 de sempre, com o ajuste da classe em AJUSTE) e rola_<classe>.ogg (o laco do
 dado rolando, como o rufo, no volume dele no primeiro 1,1 s - o que se ouve
 num lance -, com o ajuste em AJUSTE_ROLA; a laca e a noite rolam com o rufo
-de sempre); e os das assinaturas: rola_furia, rola_onda, rola_piao,
-pousa_furia_<v>, pousa_tremor_<v>, sopro e treno_sino.
+de sempre); e os das assinaturas: rola_furia, rola_onda, pousa_furia_<v>,
+pousa_tremor_<v>, sopro, treno_sino e as_* (as assinaturas novas); e as
+moedas de metal: moeda_pousa_metal_<v>, moeda_bate_metal_<v> e
+rola_moeda_metal.
 
 O que cada um quer parecer: a pedra pesada e aspera; o metal grave no feltro
 (sem o chiado de metal com metal) e, rolando, metal mesmo; a madeira
@@ -518,12 +520,15 @@ def main():
         G.semeia(arq)
         grava(saida, arq, receita(), rufo_ref() * db(AJUSTE_ROLA.get(cl, 0)), laco=True)
         print('%-12s ok' % arq)
-    for nome, receita, ganho in (('pousa_furia', pousa_furia, 0.5), ('pousa_tremor', pousa_tremor, 1.0)):
+    # A Furia e grave (o corpo fica abaixo de 150 Hz): o volume dela e medido na
+    # faixa toda, no nivel da Furia antiga (-12,4 dB na janela de 50 ms); o
+    # Tremor, acima de 150 Hz, como antes.
+    for nome, receita, ganho, acima in (('pousa_furia', pousa_furia, 4.8, 0), ('pousa_tremor', pousa_tremor, 1.0, 150)):
         if not quer(nome): continue
         for v in range(3):
             arq = '%s_%d' % (nome, v)
             G.semeia(arq)
-            grava(saida, arq, G.sala(receita(v), 0.14), G.VOLUME['pousa'] * db(ganho), acima=150)
+            grava(saida, arq, G.sala(receita(v), 0.14), G.VOLUME['pousa'] * db(ganho), acima=acima)
         print('%-12s ok' % nome)
     for nome, (receita, ref, sala) in MOEDA_M.items():
         if not quer(nome): continue

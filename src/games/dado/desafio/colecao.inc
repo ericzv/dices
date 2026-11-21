@@ -351,9 +351,11 @@ static bool des_desenha(void)
 static void des_esc(void)
 {
     if (fase == F_PERFIS && pf_apagando) { pf_apagando = false; return; }
+    if (fase == F_RDIFIC && dif_pop) { dif_pop = false; return; }        // o pop-up dos desbloqueios fecha
+    if (fase == F_RDIFIC && dif_escolhe) { dif_escolhe = false; return; }   // e o "Trocar de andar" desiste
     if (fase == F_PCRIA || fase == F_HIST || fase == F_ESTILO) { t_fase = 0; fase = F_PERFIS; return; }
     if (fase == F_RBOLSAS && t_bs_clique >= 0) return;          // ja escolhida: a run vai comecar
-    if (fase == F_RBOLSAS && perfil()->nivel > 0) { dif_cur = des_dif; t_fase = 0; fase = F_RDIFIC; return; }
+    if (fase == F_RBOLSAS && perfil()->nivel > 0) { dif_cur = des_dif; dif_pop = dif_escolhe = false; t_fase = 0; fase = F_RDIFIC; return; }
     if (fase == F_RBOLSAS) { menu_tela = des_tem_run() ? MT_DESAFIO : MT_PRINCIPAL; menu_cur = menu_tela ? 1 : MN_UM; t_fase = 1.0f; fase = F_ABERTURA; return; }
     bool tem = fase == F_RDIFIC && des_tem_run();      // da dificuldade, de volta a continuar ou nova
     menu_tela = tem ? MT_DESAFIO : MT_PRINCIPAL;

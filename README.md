@@ -273,9 +273,15 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   depois da partida, na primeira vitória contra cada chefe naquela
   dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
-  com a sua cara e a sua cena. O andar escolhido abre e acende, a cabine do
-  elevador vai até ele e uma botoeira de latão ao lado escolhe (↑ sobe,
-  ↓ desce; no mouse, passar por cima escolhe e o clique começa a run).
+  com a sua cara e a sua cena. A tela abre no último andar aberto (é nele
+  que se sobe no Desafiante) e o botão grande "Iniciar a run" (ENTER, ou o A
+  do controle) começa ali. O andar escolhido abre e acende e a cabine do
+  elevador vai até ele; para jogar em outro, ↑ e ↓ (ou o direcional) trocam
+  o andar, e o clique num andar do prédio ou num botão da botoeira de latão
+  ao lado só escolhe ("Trocar de andar" acende o prédio para isso). O que os
+  chefes do andar desbloqueiam fica no baú: o botão "Desbloqueios" (I, ou o
+  X do controle) abre um pop-up com tudo, chefe a chefe, e quantos já
+  abriram.
   Começando a run, a placa de latão do elevador sobe na tela: o botão do
   andar afunda e acende, o ponteiro sobe pelo mostrador com o motor
   zumbindo e subindo de tom (quanto mais alto o andar, mais demora) e, na
@@ -284,8 +290,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   andares ainda fechados ficam de luz apagada, com a persiana baixada e
   cadeado no botão: apertado, ele nega e o painel diz qual nível vencer. Ao
   lado, em poucas linhas: "inimigos mais fortes" (o detalhe se descobre
-  jogando), do nível 5 que um novo chefe surge após o Barão, as moedas do
-  começo e o que cada chefe desbloqueia ali. Até 3
+  jogando), do nível 5 que um novo chefe surge após o Barão e as moedas do
+  começo (o que cada chefe desbloqueia fica no baú). Até 3
   perfis, cada um com seu avatar e sua run guardada (no PC, numa pasta do
   usuário; no navegador, no próprio navegador), e o
   **histórico** (H na tela de perfis): partidas e rodadas vencidas, recordes,
@@ -371,7 +377,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.40.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.41.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

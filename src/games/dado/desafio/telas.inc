@@ -49,6 +49,11 @@ static bool pf_apagando;                 // pedindo confirmacao para apagar
 static int  pf_avatar;                   // tela de criar perfil
 static char pf_nome[11];
 static int  dif_cur;
+static bool  dif_pop;                    // o pop-up dos desbloqueios do andar escolhido (o bau)
+static float dif_pop_t;
+static bool  dif_escolhe;                // "Trocar de andar": o predio acende e espera o clique num andar
+#define TECLA_ANDAR   0x230                // o clique num andar aberto, no predio ou na botoeira (+ o andar): so escolhe
+#define TECLA_ESCOLHE 0x23F                // o botao "Trocar de andar"
 static int   negado_d = -1;                // o andar trancado que acabaram de apertar (predio.inc)
 static float negado_t = -9;
 
@@ -101,7 +106,8 @@ static void abre_bolsas(void);           // bolsa_escolha.inc
 static void des_escolhe_nova(void)
 {
     if (perfil()->nivel > 0) {
-        dif_cur = perfil()->nivel;
+        dif_cur = perfil()->nivel;               // o ultimo andar aberto, ja escolhido
+        dif_pop = dif_escolhe = false;
         t_fase = 0;
         fase = F_RDIFIC;
         return;
@@ -244,53 +250,13 @@ static void desenha_cria_perfil(void)
     rodape_run("setas trocam o retrato  ·  digite o nome  ·  ENTER cria  ·  ESC volta");
 }
 
-static void predio_dificuldade(int sel, int aberto);   // predio.inc: o predio e a botoeira
-static void desenha_dificuldade(void)
+// O que os chefes do andar d abrem, chefe a chefe: aceso o que ja abriu,
+// apagado (com o nome do chefe apagado) o que falta. A lista vai de x0 a x1,
+// do ly para baixo, sem passar de y_max (as linhas chegam mais perto se nao
+// couber: a letra maior, num andar que abre muito).
+static void lista_desbloqueios(int d, int x0, int ly, int x1, int y_max)
 {
-    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
-    faixa_titulo("Dificuldade da run");
-    // O predio do cassino com todos os andares; os que ainda nao abriram
-    // ficam apagados e trancados. A botoeira escolhe.
-    int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
-    predio_dificuldade(dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur, nv);
-    // O que vale na escolhida, curto: o que muda nos oponentes fica num
-    // "inimigos mais fortes" (o detalhe se descobre jogando); do Nivel 5, que
-    // a run nao acaba no Barao; e as moedas do comeco.
-    int px = 236, py = 54, pw = 378;
-    ui_painel(px, py, pw, 254);
-    int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
-    int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
-    txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
-    int ly = py + 32;
-    if (d > 0) {
-        txt(px + 12, ly, "+", COR_DIF[d], true);
-        txt(px + 24, ly, "Inimigos mais fortes.", C_MARFIM, false);
-    } else txt(px + 24, ly, PENA_DIF[0], C_MARFIM, false);
-    ly += 19;
     bool conhece_coringa = chefe_abriu(CORINGA_DESDE, CH_CORINGA);   // ja venceu o Coringa uma vez
-    if (d >= CORINGA_DESDE) {                        // a run segue depois do Barao (sem dizer quem)
-        char s[64];
-        snprintf(s, sizeof s, "Um novo chefe surge após %s.", dezembro ? "o Papai Noel" : "o Barão");
-        txt(px + 12, ly, "+", C_REAL, true);
-        txt(px + 24, ly, s, C_REAL, false);
-        ly += 19;
-    }
-    {
-        char m[64];                                  // o mesmo comeco em todo andar
-        if (negado_d > nv && t_relogio - negado_t < 1.2f) {   // apertaram um trancado: por que nao abre
-            snprintf(m, sizeof m, "Vença uma run no %s para abrir.", NOME_DIF_CURTO[nv]);
-            txt(px + 24, ly, m, C_VERMELHO, false);
-        } else {
-            snprintf(m, sizeof m, "Você começa com %d moedas.", moedas_iniciais(d));
-            txt(px + 24, ly, m, C_VERDE, false);
-        }
-        ly += 17;
-    }
-    // O que os chefes desta dificuldade abrem, chefe a chefe: aceso o que ja
-    // abriu, apagado (com o nome do chefe apagado) o que falta.
-    ly += 4;
-    txt(px + 12, ly, "Os chefes deste nível desbloqueiam:", C_TEXTO_M, false);
-    ly += 18;
     static const char *const CURTO[CH_N] = { "Crupiê", "Dona", "Barão", "Coringa" };
     const char *curto_c[CH_N] = { CURTO[0], CURTO[1], dezembro ? "Noel" : CURTO[2], conhece_coringa ? CURTO[3] : "???" };
     int col = 60;                                    // a coluna dos nomes: cabe o maior (com a letra maior tambem)
@@ -309,9 +275,9 @@ static void desenha_dificuldade(void)
             int ni = pedaco(d, c, it);
             if (!ni) continue;
             bool ab = chefe_abriu(d, c);
-            int ix = px + 24 + col, iy = prox;
+            int ix = x0 + col, iy = prox;
             linhas++;
-            if (!medindo) gfx_texto(px + 24, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
+            if (!medindo) gfx_texto(x0, iy - 10, curto_c[c], ab ? C_OURO : C_TEXTO_M, GFX_FINO, false);
             for (int i = 0; i < ni; i++) {               // em fluxo: cada um com a largura do seu nome
                 int v = it[i].v, lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(v, lin, k) : 1;
                 for (int q = 0; q < np; q++) {
@@ -324,7 +290,7 @@ static void desenha_dificuldade(void)
                     default:         estilo_parte_nome(lin[q], k[q], nome, sizeof nome); break;
                     }
                     int wi = 13 + gfx_largura(nome, GFX_FINO) + 12;
-                    if (ix + wi > px + pw - 6) { ix = px + 24 + col; iy += passo; linhas++; }
+                    if (ix + wi > x1) { ix = x0 + col; iy += passo; linhas++; }
                     uint16_t cn = C_TEXTO_M;
                     if (medindo) { ix += wi; continue; }
                     switch (it[i].k) {
@@ -362,12 +328,198 @@ static void desenha_dificuldade(void)
             ly = iy + 10;
             prox = iy + passo;
         }
-        int sobra = ly - (py + 254 - 4);
+        int sobra = ly - y_max;
         if (medindo && sobra > 0 && linhas > 1) {
             passo -= (sobra + linhas - 2) / (linhas - 1);
             if (passo < 15) passo = 15;
         }
     }
-    rodape_run("↑↓ escolhem o andar  ·  ENTER começa a run  ·  ESC volta");
 }
+
+// Quantos itens o andar d abre (as partes de um estilo contam uma a uma) e
+// quantos ja abriram.
+static void conta_desbloqueios(int d, int *abertos, int *total)
+{
+    *abertos = *total = 0;
+    for (int c = 0; c < chefes_de(d); c++) {
+        novidade_t it[PEDACO_MAX];
+        int ni = pedaco(d, c, it);
+        for (int i = 0; i < ni; i++) {
+            int lin[4], k[4], np = it[i].k == NV_ESTILO ? estilo_partes(it[i].v, lin, k) : 1;
+            *total += np;
+            if (chefe_abriu(d, c)) *abertos += np;
+        }
+    }
+}
+
+// O bau dos desbloqueios: 16 x 13, madeira com as cintas e a fechadura de
+// latao.
+static void icone_bau(int x, int y)
+{
+    static const char *const L[13] = {
+        "..BBBBBBBBBBBB..", ".BWWWWWWWWWWWWB.", "BWwwwwwwwwwwwwWB", "BwwwwwwwwwwwwwwB",
+        "BGGGGGGBBGGGGGGB", "BgggggBOOBgggggB", "BwwwwwBOkBwwwwwB", "BwwwwwBOkBwwwwwB",
+        "BwwwwwwBBwwwwwwB", "BdwwwwwwwwwwwwdB", "BGddddddddddddGB", "BGGddddddddddGGB",
+        ".BBBBBBBBBBBBBB." };
+    for (int j = 0; j < 13; j++)
+        for (int i = 0; i < 16; i++) {
+            uint16_t c;
+            switch (L[j][i]) {
+            case 'B': c = C_BARRA; break;
+            case 'W': c = C_TERRA; break;
+            case 'w': c = RGB(120, 78, 50); break;
+            case 'd': c = RGB(78, 46, 30); break;
+            case 'G': c = C_OURO; break;
+            case 'g': c = C_LATAO; break;
+            case 'O': c = C_AMARELO; break;
+            case 'k': c = C_EBANO; break;
+            default: continue;
+            }
+            gfx_pixel(x + i, y + j, c);
+        }
+}
+
+// O botao grande de comecar a run: o feltro verde numa moldura de latao, a
+// letra grande e branca com o contorno escuro, e a tecla (ou o botao do
+// controle) no canto. E o que o ENTER aperta: as cantoneiras de ouro sempre
+// respirando em volta, e o ENTER afunda ele.
+static void botao_iniciar(int x, int y, int w, int h, const char *s)
+{
+    bool em = mouse_em(x, y, w, h);
+    bool baixo = t_aperto > 0 && aperto_x >= x && aperto_x < x + w && aperto_y >= y && aperto_y < y + h;
+    foco_bx = x + w / 2;
+    foco_by = y + h / 2;
+    int d = baixo ? 2 : 0;
+    if (!baixo) ui_sombra(x, y, w, h);
+    uint16_t ouro[4];
+    rampa_de(em ? C_AMARELO : C_OURO, ouro);                       // o mouse em cima: o latao acende
+    static const float K[4] = { 3, 2, 1, 0 };
+    ui_aro(x, y + d, w, h - d, 6, ouro, K);                         // a moldura de latao, grossa
+    ui_contorno(x, y + d, w, h - d, C_BARRA);
+    int fx = x + 6, fy = y + d + 6, fw = w - 12, fh = h - d - 12;
+    ui_contorno(fx - 1, fy - 1, fw + 2, fh + 2, C_LATAO_ESC);      // o filete escuro entre o latao e o feltro
+    ui_fundo(fx, fy, fw, fh, C_VERDE, C_LASER);                     // o feltro verde, com a luz em cima
+    for (int j = fh - 5; j < fh; j++)                                // e a sombra embaixo, pontilhada
+        for (int i = 0; i < fw; i++)
+            if (bayer(fx + i, fy + j) < (j - (fh - 6)) / 5.0f) gfx_pixel(fx + i, fy + j, RGB(62, 56, 50));
+    for (int k = 0; k < 4; k++) {                                    // os rebites de ouro nos cantos da moldura
+        int rx = k & 1 ? x + w - 5 : x + 2, ry = y + d + (k & 2 ? h - d - 5 : 2);
+        gfx_rect(rx, ry, 3, 3, C_LATAO_ESC);
+        gfx_pixel(rx + 1, ry + 1, C_AMARELO);
+        gfx_pixel(rx, ry, ouro[3]);
+    }
+    // A letra grande (Jersey 3x), branca, com o contorno escuro de 2 px e a
+    // sombra; centrada no que sobra a esquerda da tecla.
+    int kw = linha_teclas(0, 0, "ENTER", C_MARFIM, false);
+    int tw = gfx_largura(s, 3), tx = fx + (fw - kw - 10 - tw) / 2 + 2, ty = fy + fh / 2 - 31;
+    gfx_texto(tx + 2, ty + 4, s, C_BARRA, 3, false);                // a sombra
+    for (int oy = -2; oy <= 2; oy++)
+        for (int ox = -2; ox <= 2; ox++)
+            if ((ox || oy) && abs(ox) + abs(oy) <= 3) gfx_texto(tx + ox, ty + oy, s, C_BARRA, 3, false);
+    gfx_texto(tx, ty, s, C_BRANCO, 3, false);
+    linha_teclas(fx + fw - 6 - kw, fy + fh - TECLA_H - 3, "ENTER", C_MARFIM, true);   // a tecla (ou o A do controle)
+    if (!baixo) ui_cantos(x - 1, y - 1, w + 2, h + 2, C_OURO);
+    zona_clique(x, y, w, h, NULL, 0, KEY_ENTER);
+}
+
+// Um botao de baixo do painel (os desbloqueios, trocar de andar): a face de
+// sempre, o bau (icone 0) ou as setas (1) a esquerda, o rotulo e um extra
+// miudo (a conta do bau).
+static void botao_dif(int x, int y, int w, int h, int icone, const char *rot, const char *extra, bool aceso, int tecla)
+{
+    int d;
+    uint16_t c = ui_botao_face(x, y, w, h, aceso ? C_LATAO : 0, aceso || mouse_em(x, y, w, h) ? UI_FOCO : 0, &d);
+    int ix = x + 9, cy = y + d + (h - 4) / 2;
+    if (icone == 0) { icone_bau(ix, cy - 7); ix += 22; }
+    else ix += linha_teclas(ix, cy - TECLA_H / 2, "↑↓", C_MARFIM, true) + 6;
+    int tw = gfx_texto(ix, cy - TXT_H / 2 - 1, rot, c, 1, false);
+    if (extra) gfx_texto(ix + tw + 6, cy - TXT_H / 2 + 1, extra, aceso ? C_BARRA : C_TEXTO_M, GFX_FINO, false);
+    zona_clique(x, y, w, h, NULL, 0, tecla);
+    zona_sem_confirmar();                                            // so olhar: um toque basta
+}
+
+// O pop-up dos desbloqueios do andar d: o que cada chefe dele abre. Fecha
+// com ENTER, ESC, I (o X do controle) ou o botao; as setas trocam o andar.
+static void desenha_desbloqueios(int d)
+{
+    n_zonas = 0;                                                     // nada por baixo responde ao clique
+    n_dicas = 0;
+    ui_escurece(0, 0, GFX_W, GFX_H, 150);
+    int w = 520, h = 254, x = (GFX_W - w) / 2, y = 50 + ui_entra(t_relogio - dif_pop_t, 0, UI_ENTRA_PLACA);
+    ui_painel(x, y, w, h);
+    icone_bau(x + 14, y + 13);
+    char s[64];
+    snprintf(s, sizeof s, "Desbloqueios do %s", ANDAR_DIF[d]);
+    int wt = gfx_texto(x + 38, y + 6, s, C_OURO, 1, true);
+    txt(x + 38 + wt + 10, y + 6, NOME_DIF_CURTO[d], COR_DIF[d], false);
+    int ab, tot;
+    conta_desbloqueios(d, &ab, &tot);
+    snprintf(s, sizeof s, "%d de %d abertos", ab, tot);
+    gfx_texto(x + w - 14 - gfx_largura(s, GFX_FINO), y + 8, s, ab == tot && tot ? C_OURO : C_TEXTO_M, GFX_FINO, false);
+    gfx_texto(x + 14, y + 32, tot ? "Vença os chefes deste andar para abrir:" : "Este andar não abre nada novo.", C_TEXTO_M, GFX_FINO, false);
+    lista_desbloqueios(d, x + 26, y + 56, x + w - 8, y + h - 44);
+    int bw = 100, bh = 26, bx = x + w - 14 - bw, by = y + h - 12 - bh;
+    ui_botao(bx, by, bw, bh, "Fechar", 0, mouse_em(bx, by, bw, bh) ? UI_FOCO : 0);
+    zona_clique(bx, by, bw, bh, NULL, 0, KEY_BKSP);
+    rodape_run("↑↓ trocam o andar  ·  ENTER ou ESC fecha");
+}
+
+static void predio_dificuldade(int sel, int aberto);   // predio.inc: o predio e a botoeira
+static void desenha_dificuldade(void)
+{
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
+    faixa_titulo("Dificuldade da run");
+    // O predio do cassino com todos os andares; os que ainda nao abriram
+    // ficam apagados e trancados. A tela abre no ultimo andar aberto: e nele
+    // que quase todo mundo joga, para subir. Clicar num andar (no predio ou
+    // na botoeira) so escolhe; quem comeca a run e o botao grande.
+    int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;
+    int d = dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur;
+    predio_dificuldade(d, nv);
+    // O que vale no andar escolhido, curto: o que muda nos oponentes fica num
+    // "inimigos mais fortes" (o detalhe se descobre jogando); do Nivel 5, que
+    // a run nao acaba no Barao; e as moedas do comeco. O que os chefes abrem
+    // fica no bau (o pop-up).
+    int px = 236, py = 54, pw = 378, ph = 254;
+    ui_painel(px, py, pw, ph);
+    int wt = gfx_texto(px + 12, py + 8, NOME_DIF[d], COR_DIF[d], 1, true);
+    txt(px + 12 + wt + 12, py + 8, ANDAR_DIF[d], C_TEXTO_M, false);
+    int ly = py + 38;
+    if (d > 0) {
+        txt(px + 12, ly, "+", COR_DIF[d], true);
+        txt(px + 24, ly, "Inimigos mais fortes.", C_MARFIM, false);
+    } else txt(px + 24, ly, PENA_DIF[0], C_MARFIM, false);
+    ly += 21;
+    if (d >= CORINGA_DESDE) {                        // a run segue depois do Barao (sem dizer quem)
+        char s[64];
+        snprintf(s, sizeof s, "Um novo chefe surge após %s.", dezembro ? "o Papai Noel" : "o Barão");
+        txt(px + 12, ly, "+", C_REAL, true);
+        txt(px + 24, ly, s, C_REAL, false);
+        ly += 21;
+    }
+    {
+        char m[64];                                  // o mesmo comeco em todo andar
+        if (negado_d > nv && t_relogio - negado_t < 1.2f) {   // apertaram um trancado: por que nao abre
+            snprintf(m, sizeof m, "Vença uma run no %s para abrir.", NOME_DIF_CURTO[nv]);
+            txt(px + 24, ly, m, C_VERMELHO, false);
+        } else {
+            snprintf(m, sizeof m, "Você começa com %d moedas.", moedas_iniciais(d));
+            txt(px + 24, ly, m, C_VERDE, false);
+        }
+    }
+    // Os dois botoes pequenos: o bau (o que este andar desbloqueia) e trocar
+    // de andar; embaixo, o grande, que comeca a run.
+    int ab, tot;
+    conta_desbloqueios(d, &ab, &tot);
+    char cnt[16];
+    snprintf(cnt, sizeof cnt, "%d/%d", ab, tot);
+    int bh_g = 76, bw = (pw - 24 - 10) / 2, bh = 32, by = py + ph - 12 - bh_g - 12 - bh;
+    botao_dif(px + 12, by, bw, bh, 0, "Desbloqueios", cnt, false, 'i');
+    botao_dif(px + 12 + bw + 10, by, bw, bh, 1, dif_escolhe ? "Clique no andar" : "Trocar de andar", NULL, dif_escolhe, TECLA_ESCOLHE);
+    botao_iniciar(px + 12, py + ph - 12 - bh_g, pw - 24, bh_g, "Iniciar a run");
+    if (dif_pop) { desenha_desbloqueios(d); return; }
+    rodape_run(dif_escolhe ? "↑↓ trocam o andar  ·  ENTER começa a run  ·  ESC deixa como está"
+                           : "↑↓ trocam o andar  ·  ENTER começa a run  ·  I desbloqueios  ·  ESC volta");
+}
+
 

@@ -7455,6 +7455,34 @@ int main(void)
                 negado_d = -1;
                 manda_tecla(TECLA_TRANCADO + 9);
                 CONFERE(dif_cur == 1 && negado_d == 9 && fase == F_RDIFIC, "dificuldade: o clique no 9 trancado so nega");
+                // O clique num andar aberto (predio ou botoeira) so escolhe; no
+                // trancado (pelo mesmo caminho) nao escolhe. Passar o mouse
+                // por cima nao troca o andar.
+                manda_tecla(TECLA_ANDAR + 3);
+                CONFERE(dif_cur == 3 && fase == F_RDIFIC, "dificuldade: o clique no andar 3 so escolhe (andar %d, fase %d)", dif_cur, fase);
+                manda_tecla(TECLA_ANDAR + 7);
+                CONFERE(dif_cur == 3 && fase == F_RDIFIC, "dificuldade: o andar 7 trancado nao se escolhe pelo clique (%d)", dif_cur);
+                dado_desenha();
+                dado_mouse(202 + 15, 284, 0);                          // a botoeira (x 202), no botao do Terreo
+                dado_desenha();
+                CONFERE(dif_cur == 3, "dificuldade: passar o mouse na botoeira nao troca o andar (%d)", dif_cur);
+                // "Trocar de andar" acende e o clique no andar apaga; ESC desiste.
+                manda_tecla(TECLA_ESCOLHE);
+                CONFERE(dif_escolhe, "dificuldade: Trocar de andar devia acender");
+                manda_tecla(TECLA_ANDAR + 2);
+                CONFERE(!dif_escolhe && dif_cur == 2, "dificuldade: o clique no andar escolhe e apaga o Trocar (%d)", dif_cur);
+                manda_tecla(TECLA_ESCOLHE); manda_tecla(KEY_ESC);
+                CONFERE(!dif_escolhe && fase == F_RDIFIC && dif_cur == 2, "dificuldade: ESC desiste de trocar, sem sair da tela");
+                // O bau: I abre o pop-up dos desbloqueios; as setas ainda trocam
+                // o andar; ENTER e ESC so fecham (nao comecam a run nem saem).
+                manda_tecla('i');
+                CONFERE(dif_pop, "dificuldade: I devia abrir os desbloqueios");
+                manda_tecla(KEY_UP);
+                CONFERE(dif_pop && dif_cur == 3, "dificuldade: com o pop-up, a seta troca o andar (%d)", dif_cur);
+                manda_tecla(KEY_ENTER);
+                CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ENTER fecha o pop-up sem comecar a run (fase %d)", fase);
+                manda_tecla('i'); manda_tecla(KEY_ESC);
+                CONFERE(!dif_pop && fase == F_RDIFIC, "dificuldade: ESC fecha o pop-up sem sair da tela (fase %d)", fase);
                 fase = f0; dif_cur = dc0;
             }
             // A luz do andar escolhido no predio pisca so ao acender; acesa,

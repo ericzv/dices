@@ -169,8 +169,22 @@ static bool des_tecla(int k, int e)
         // O predio: para cima sobe um andar, para baixo desce (os lados
         // tambem: direita sobe). Passar do ultimo aberto aperta o trancado
         // de cima, que nega; do Terreo para baixo nao tem nada.
+        // A tela abre no ultimo andar aberto; ENTER (o botao grande) comeca a
+        // run nele. O clique num andar (no predio ou na botoeira) so escolhe.
+        // I (o X do controle) ou o bau abre o pop-up do que o andar
+        // desbloqueia; com ele aberto, as setas ainda trocam o andar e o
+        // resto fecha.
         int nv = perfil()->nivel < N_NIVEIS ? perfil()->nivel : N_NIVEIS;   // so as abertas
         if (k >= TECLA_TRANCADO && k <= TECLA_TRANCADO + N_NIVEIS) { predio_nega(k - TECLA_TRANCADO); return true; }
+        if (k >= TECLA_ANDAR && k <= TECLA_ANDAR + N_NIVEIS) {
+            int nd = k - TECLA_ANDAR;
+            if (nd <= nv) {
+                if (nd != dif_cur) som_toca(SOM_TIQUE);
+                dif_cur = nd;
+            }
+            dif_escolhe = false;
+            return true;
+        }
         int sobe = k == KEY_UP || k == 'w' || k == ';' ? 1 : k == KEY_DOWN || k == 's' || k == '.' ? -1 : e;
         if (sobe) {
             int nd = (dif_cur < 0 ? 0 : dif_cur > nv ? nv : dif_cur) + sobe;
@@ -178,7 +192,15 @@ static bool des_tecla(int k, int e)
             else if (nd >= 0 && nd <= nv) { dif_cur = nd; som_toca(SOM_TIQUE); }
             return true;
         }
+        if (dif_pop) {                           // o pop-up: o resto fecha
+            if (k == KEY_ENTER || k == KEY_BKSP || k == 'i' || k == 'x') { dif_pop = false; som_toca(SOM_TIQUE); }
+            return true;
+        }
+        if (k == 'i') { dif_pop = true; dif_pop_t = t_relogio; dif_escolhe = false; som_toca(SOM_TIQUE); return true; }
+        if (k == TECLA_ESCOLHE) { dif_escolhe = !dif_escolhe; som_toca(SOM_TIQUE); return true; }
+        if (k == KEY_BKSP && dif_escolhe) { dif_escolhe = false; return true; }
         if (k == KEY_ENTER && dif_cur >= 0 && dif_cur <= nv) {
+            dif_escolhe = false;
             som_toca(SOM_FICHA);
             des_dif = dif_cur;
             abre_bolsas();                       // e a bolsa da run

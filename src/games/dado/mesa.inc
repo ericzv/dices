@@ -292,7 +292,7 @@ static void toque_pouso(int i)
     case PO_TRILHO:                                    // o Treno: os dois trilhos dos patins ficam e apagam
         rastro(px, py, poeira[i].dx, poeira[i].dy, 40, 1 - t / POEIRA_T, true);
         break;
-    case PO_FIAPO:                                     // dez fiapos (3 px tortos), no tom mais claro, que caem devagar
+    case PO_FIAPO:                                     // dez fiapos (3 px tortos), no tom mais claro (o Ourico: quase pretos), que caem devagar
     case PO_MIGALHA:                                   // dez migalhas de 2x2, no tom mais claro
         if (t > 0.36f) break;
         for (int k = 0; k < 10; k++) {
@@ -410,10 +410,11 @@ static void sulco_desenha(void)
             { { 0, 0 }, { 1, 0 }, { 2, 1 }, { 2, 2 }, { 3, 2 } },
             { { 0, 0 }, { 0, 1 }, { 1, 2 }, { 2, 2 }, { 3, 1 } },
             { { 0, 2 }, { 1, 1 }, { 2, 1 }, { 3, 0 }, { 4, 0 } } };
-        for (int k = 0; k < 5; k++) {
-            int px = x + FX[fiapo_r[i].forma % 3][k][0], py = y + FX[fiapo_r[i].forma % 3][k][1];
-            if (NO_FELTRO(px, py)) gfx_pixel(px, py, fiapo_r[i].cor);
-        }
+        for (int k = 0; k < 5; k++)                                  // com 2 px de grossura, para aparecer no feltro escuro
+            for (int e = 0; e < 2; e++) {
+                int px = x + FX[fiapo_r[i].forma % 3][k][0], py = y + FX[fiapo_r[i].forma % 3][k][1] + e;
+                if (NO_FELTRO(px, py)) gfx_pixel(px, py, fiapo_r[i].cor);
+            }
     }
 }
 static void desenha_poeira(void)

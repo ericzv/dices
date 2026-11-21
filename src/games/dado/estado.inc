@@ -132,7 +132,7 @@ typedef struct {
     float t_voa;                     // o tempo do lance na fisica (a rajada e o guizo: o mesmo em todo lance, lento ou nao)
     uint8_t assina_som;              // o que a assinatura ja fez neste lance (1: o sopro, 4: o tranco, 8: o estrondo, 16: o tremor, 32: as asas, 64: o arrasto)
     uint8_t passo_as;                // a Rena: os saltos ja dados (o casco de cada um); o Treno: as vezes que o guizo tocou
-    float t_tique;                   // o Ourico e o Revolver: o ultimo estalo (um por vez)
+    float t_tique;                   // o Ourico e o Revolver: o ultimo estalo; a Viuva: o ultimo passo (um por vez)
     float t_bate;                    // a Gelatina: o tempo desde a ultima batida na borda (0: nenhuma)
     uint8_t eixo_bate;               // e em que borda (0: dos lados, 1: de cima ou de baixo)
     float sulco_x, sulco_y;          // a Ancora: onde deixou o ultimo ponto do sulco

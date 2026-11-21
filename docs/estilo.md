@@ -277,10 +277,11 @@ marfim.
   sombra), arrasta (Âncora: pesada e, no fim do lance, para de rolar e
   arrasta, com o som do arrasto no lugar do rolar, deixando um sulco no
   feltro que apaga aos poucos), espinho (Ouriço: os espinhos estalam no
-  feltro e soltam fiapos escuros), geleia (Gelatina: sai forte, chega na
-  borda e achata contra ela, tremendo), tambor (Revólver: o tambor gira com
+  feltro e soltam fiapos quase pretos, o mesmo em toda mesa), geleia (Gelatina:
+  sai forte, chega na borda e achata contra ela, tremendo, também no relance), tambor (Revólver: o tambor gira com
   cliques e trava no pouso) e anda (Viúva Negra: quase não gira, anda num
-  passo constante, as patinhas batendo baixinho, e para de repente). Cada
+  passo constante, as patinhas batendo baixinho (a música abaixa como num
+  lance), e para de repente). Cada
   assinatura tem um traço principal só; duas não se parecem.
 
 ## 8. Retratos

@@ -138,13 +138,13 @@ def bate_dado_grao(v):
     return M.x
 def pousa_louca(v):
     """A louca (e a perola) pousando: duas bolinhas de gude se tocando -- o
-    tique breve e claro, vidro com vidro, e um tiquinho de volta -- com o
-    feltro bem baixo por baixo (sem o tinido longo)."""
+    tique breve e abafado, vidro com vidro, e um tiquinho de volta -- com o
+    feltro bem baixo por baixo (sem o tinido longo nem o agudo)."""
     def clique(k, st):
-        return corta(G.pb(G.pa(G.tom(pl(k), st), 1800), 8500), 0.022)
+        return corta(G.pb(G.pa(G.tom(pl(k), st), 1800), 6000, 4), 0.022)
     M = G.Mix(0.3)
-    M.poe(0, clique(v, 8 + v % 3), 1.0)
-    M.poe(0.026 + 0.007 * (v % 3), clique(v + 3, 10), 0.32)
+    M.poe(0, clique(v, 6 + v % 3), 1.0)
+    M.poe(0.026 + 0.007 * (v % 3), clique(v + 3, 8), 0.32)
     M.poe(0, G.pb(f(v), 900), db(-14))
     return M.x
 R = {
@@ -341,7 +341,8 @@ def rola_arrasta():
     while t < ROLA_T:                                  # os fios do feltro prendendo: toques curtos, baixos e graves
         M.poe(t, corta(G.pb(G.tom(f(int(t * 97)), rnd().uniform(-9, -5)), 900), 0.05), rnd().uniform(0.08, 0.2))
         t += rnd().uniform(0.03, 0.07)
-    return G.sala(G.loop(M, ROLA_T), 0.10)
+    M.x = G.sala(M.x, 0.10)[:len(M.x)]                # a sala antes de fechar o laco: a cauda volta para o comeco
+    return G.loop(M, ROLA_T)
 DMOEDA = ['dicehit_coin%d' % i for i in range(1, 7)]
 def cm(v): return G.batida(DMOEDA[v % len(DMOEDA)])
 def rola_moeda_metal():

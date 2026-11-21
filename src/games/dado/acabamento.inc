@@ -182,7 +182,11 @@ static int acab_rola(int tipo, int dono, int slot)
 // fichas, o delas).
 static void som_rola_voo(int tipo, int dono, int slot)
 {
-    if (assina_lance(tipo, dono, slot) == AS_ANDA) { som_rufo(false); return; }   // a Viuva Negra anda calada
+    if (assina_lance(tipo, dono, slot) == AS_ANDA) {      // a Viuva Negra: so os passinhos; o laco mudo, para a musica baixar como num lance
+        som_rufo_de(acab_rola(tipo, dono, slot));
+        som_rufo_forca(0);
+        return;
+    }
     if (TIPO[tipo].lados != 2) som_rufo_de(acab_rola(tipo, dono, slot));
     else if (d2_rola(tipo) >= 0) som_rufo_de(d2_rola(tipo));
     else som_rufo_moeda();

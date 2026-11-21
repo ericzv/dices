@@ -1013,7 +1013,8 @@ static bool ad_etapa_passo(float dt)
         w->vx = frnd(-260, 260);
         w->vy = (w->y > CENTRO ? -1 : 1) * frnd(240, 360);
         w->spin = frnd(-12, 12);
-        if (TIPO[w->tipo].lados == 2) w->spin = giro_de_moeda(w->spin);   // a moeda sempre gira
+        if (TIPO[w->tipo].lados == 2) w->spin = giro_de_moeda(w->spin * 14.0f / 12);   // a moeda sempre gira (o mesmo giro do lance)
+        else if (assina_lance(w->tipo, w->dono, w->slot) == AS_GELEIA) geleia_ate_a_borda(w, ACAB[acab_de(w->tipo, w->dono)].atrito);
         w->hesita = hora ? HESITA_T : 0;
         w->chumbou = false;
         voo_zera_lance(w);                   // o lance do acabamento comeca do zero

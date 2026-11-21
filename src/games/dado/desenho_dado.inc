@@ -4735,7 +4735,7 @@ static void assenta(voo_t *v)
         if (as == AS_ENTERRA) { po = PO_TERRA; anel = fminf(anel, 0.6f); }   // o Coveiro: a marca e uns torroes, sem levantar muita poeira
         if (as == AS_SEM_SOMBRA) po = PO_NEVOA;                     // o Vampiro: a nevoa roxa
         if (as == AS_ATRAI) { po = PO_ATRAI; anel = 0.5f; }         // o Buraco Negro: o anel escuro que se fecha
-        uint16_t cor = as == AS_ESPINHO ? C_EBANO_B : acab_cor(v->tipo, v->dono);   // o Ourico: os fiapos do pouso escuros, como os do caminho
+        uint16_t cor = as == AS_ESPINHO ? C_BARRA : acab_cor(v->tipo, v->dono);     // o Ourico: os fiapos do pouso quase pretos, como os do caminho
         poeira_solta_ac(v->x, v->y, po, cor, anel, v->dir_x, v->dir_y);
         if (as == AS_PESADO || as == AS_ARRASTA) treme(1, 0.08f);   // o peso: a mesa sente
         if ((as == AS_TREMOR || as == AS_FURIA) && !(v->assina_som & 16)) {   // uma vez por lance
@@ -4811,7 +4811,7 @@ static void sulco_poe(float x, float y, float dx, float dy)
     sulco_i = (sulco_i + 1) % SULCO_N;
 }
 #define FIAPO_N 40
-#define FIAPO_T 1.5f
+#define FIAPO_T 2.4f
 static struct { float x, y, t; uint16_t cor; uint8_t forma; } fiapo_r[FIAPO_N];
 static int fiapo_i;
 static void fiapo_poe(float x, float y, uint16_t cor, int forma)
@@ -4841,6 +4841,22 @@ static int som_pouso_voo(voo_t *v)
         if (s >= 0) { v->assina_som |= 8; return s; }
     }
     return ACAB[acab_de(v->tipo, v->dono)].som_pousa;
+}
+
+// A Gelatina sai forte: a velocidade minima para chegar na borda (e achatar
+// nela) em todo lance. O atrito tira atrito px/s a cada px andado: chega na
+// primeira borda batendo de frente a 170 px/s (de raspao, mais rapido; no
+// maximo 900 px/s, o lance mais forte). Vale no lance e na re-rolagem.
+static void geleia_ate_a_borda(voo_t *v, float atrito)
+{
+    float vv = sqrtf(v->vx * v->vx + v->vy * v->vy), r = R_DADO + 2;
+    if (vv < 1) return;
+    float ux = v->vx / vv, uy = v->vy / vv;
+    float ax = ux > 0.01f ? (MESA_X1 - r - v->x) / ux : ux < -0.01f ? (MESA_X0 + r - v->x) / ux : 1e9f;
+    float ay = uy > 0.01f ? (MESA_Y1 - r - v->y) / uy : uy < -0.01f ? (MESA_Y0 + r - v->y) / uy : 1e9f;
+    float frente = ax < ay ? fabsf(ux) : fabsf(uy);                  // quanto da velocidade bate de frente na borda
+    float precisa = fminf(900, atrito * fminf(ax, ay) + 170 / fmaxf(frente, 0.2f));
+    if (vv < precisa) { v->vx *= precisa / vv; v->vy *= precisa / vv; }
 }
 
 // O lancamento: de onde o dado sai e com que forca. O acabamento
@@ -4895,13 +4911,7 @@ static void voo_lanca(voo_t *v, bool de_baixo)
         default: break;
         }
         v->vx *= f; v->vy *= f; v->spin *= g;
-        if (as == AS_GELEIA) {              // a Gelatina sai forte: chega na borda (e achata nela) em todo lance
-            float vv = sqrtf(v->vx * v->vx + v->vy * v->vy), r = R_DADO + 2, ux = v->vx / vv, uy = v->vy / vv;
-            float ax = ux > 0.01f ? (MESA_X1 - r - v->x) / ux : ux < -0.01f ? (MESA_X0 + r - v->x) / ux : 1e9f;
-            float ay = uy > 0.01f ? (MESA_Y1 - r - v->y) / uy : uy < -0.01f ? (MESA_Y0 + r - v->y) / uy : 1e9f;
-            float precisa = ac->atrito * fminf(ax, ay) + 170;   // o atrito tira atrito px/s a cada px andado: chega batendo a 170 px/s
-            if (vv < precisa) { v->vx *= precisa / vv; v->vy *= precisa / vv; }
-        }
+        if (as == AS_GELEIA) geleia_ate_a_borda(v, ac->atrito);   // a Gelatina sai forte: chega na borda (e achata nela) em todo lance
     }
     voo_zera_lance(v);
 }
@@ -4952,8 +4962,8 @@ static bool fisica(float dt)
         case AS_ANDA:    atr = v->andou < 230 ? atr * 0.25f : atr * 9; quica *= 0.7f; para *= 1.8f; break;   // a Viuva: anda constante e para de repente
         default: break;
         }
-        if (as == AS_ARRASTA && vel0 < 240 && vel0 > 1) {             // a Ancora arrastando: nao rola mais, e o feltro marca
-            v->spin *= 0.82f;
+        if (as == AS_ARRASTA && vel0 < 240 && vel0 > 1 && dt > 0) {   // a Ancora arrastando: nao rola mais, e o feltro marca
+            v->spin *= powf(0.82f, dt / (0.62f / 60));                 // (0,82 por quadro no lance do jogador)
             if (!v->fantasma) {                                        // o som do arrasto no lugar do dado rolando, baixando com a forca
                 if (!(v->assina_som & 64)) { v->assina_som |= 64; som_rufo_de(SOM_ROLA_ARRASTA); }
                 som_rufo_forca(0.3f + 0.7f * vel0 / 240);
@@ -5076,7 +5086,7 @@ static bool fisica(float dt)
                     uint32_t h = hash2((int)(v->andou * 7), (int)(t_fase * 100));
                     float lado = ((int)(h % 17) - 8) * 1.2f;
                     fiapo_poe(v->x - v->dir_x * R_DADO * 0.9f - v->dir_y * lado, v->y - v->dir_y * R_DADO * 0.9f + v->dir_x * lado + 4,
-                              C_EBANO_B, (int)(h >> 5) % 3);          // o fiapo escuro, o mesmo em toda mesa
+                              C_BARRA, (int)(h >> 5) % 3);            // o fiapo quase preto, o mesmo em toda mesa
                 }
             }
         }

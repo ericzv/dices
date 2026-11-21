@@ -1,8 +1,11 @@
 # Embute os sons do jogo (desktop/sons/*.ogg) no executavel: gera um .c com
 # cada arquivo como um vetor de bytes e uma tabela nome -> dados.
 # Roda no build (cmake -P), so quando algum .ogg muda:
-#   cmake -DSAIDA=<arquivo.c> -DARQUIVOS="a.ogg|b.ogg" -P embute_sons.cmake
-string(REPLACE "|" ";" ARQUIVOS "${ARQUIVOS}")
+#   cmake -DSAIDA=<arquivo.c> -DPASTA=<desktop/sons> -P embute_sons.cmake
+# Recebe a pasta, e nao a lista: com centenas de sons, a lista na linha de
+# comando passava do limite do Windows.
+file(GLOB ARQUIVOS "${PASTA}/*.ogg")
+list(SORT ARQUIVOS)
 set(c "// GERADO PELO CMAKE (cmake/embute_sons.cmake) - NAO EDITAR\n")
 string(APPEND c "// Os sons do jogo, de desktop/sons/*.ogg. Creditos em desktop/sons/CREDITOS.md.\n")
 string(APPEND c "#include \"sons_embutidos.h\"\n\n")

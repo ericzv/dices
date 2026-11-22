@@ -223,7 +223,7 @@ static void desenha_ordem(void)
         int rs = respira(i);                     // esperando na mao: respira
         caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
         if (ordem == 0 && f->grudado) chiclete_goma(x, y + dy + rs, 17, 1);   // o grudado: a goma por baixo dele (e dos adesivos)
-        bool apaga = !caixa_fechada && poder_desligado(vez, p->col[p->mao[i]].tipo);   // nao rende agora: apagado
+        bool apaga = !caixa_fechada && vez_daqui() && poder_desligado(vez, p->col[p->mao[i]].tipo);   // nao rende agora: apagado
         if (apaga) apagado_guarda(x, y + dy + rs);
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
         if (apaga) apagado_aplica(x, y + dy + rs);
@@ -233,7 +233,8 @@ static void desenha_ordem(void)
         if (cosmo_recem[vez][p->mao[i]]) cosmo_chegou(x, y + dy + rs, p->col[p->mao[i]].tipo, t_fase - cosmo_chega(p, i));   // evoluiu: o nome novo
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
         if (p == &J[0] && p->mao[i] == embrulho) dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, DICA_EMBRULHO);
-        else dica_peca_mao(x - 25, y - 25, 50, 50, &p->col[p->mao[i]], vez);
+        else if (vez_daqui()) dica_peca_mao(x - 25, y - 25, 50, 50, &p->col[p->mao[i]], vez);
+        else dica_peca(x - 25, y - 25, 50, 50, &p->col[p->mao[i]]);
     }
 
     // No meio da mesa, so a fila: os lugares sendo preenchidos e o pronto.

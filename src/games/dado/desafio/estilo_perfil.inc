@@ -60,6 +60,7 @@ static void estilo_do_perfil(void)
     estilo_mat = m;
     material_j[baixo] = (uint8_t)m;
     if (f != estilo_feltro || s != estilo_mesa || !estilo_versao) aplica_estilo(f, s);
+    vistos_carrega();                            // ja ao entrar: o que abrir dali em diante ganha o selo
 }
 
 // ---- A tela ---------------------------------------------------------------

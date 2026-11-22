@@ -42,7 +42,7 @@ static uint32_t hash_partida(void)
     MIX(semente); MIX(partidas); MIX(rodada); MIX(vez); MIX(primeiro); MIX(pote);
     for (int j = 0; j < 2; j++) {
         const jogador_t *p = &J[j];
-        MIX(p->fichas); MIX(p->n_col); MIX(p->perdidas); MIX(p->n_mao);
+        MIX(p->fichas); MIX(p->n_col); MIX(p->perdidas); MIX(p->n_mao); MIX(p->perdeu_ultima);
         for (int i = 0; i < p->n_col && i < MAX_COL; i++) {
             const peca_t *c = &p->col[i];
             MIX(c->tipo); MIX(c->fixo);

@@ -362,6 +362,41 @@ static int tipo_em_foco(void)
     return -1;
 }
 
+// O motivo do dado apagado, embaixo do dado: em duas linhas centradas; se
+// nem assim couber em max_w (a letra maior), em quantas precisar.
+static void motivo_desligado(int cx, int y, const char *s, uint16_t c, int max_w)
+{
+    const int f = fonte_de(false), passo = txt_passo();
+    char a[200], l[200];
+    int n = (int)strlen(s), pior = 1 << 30;
+    for (int i = 1; i < n && i < (int)sizeof a; i++) {          // a melhor quebra em duas
+        if (s[i] != ' ') continue;
+        snprintf(a, sizeof a, "%.*s", i, s);
+        int la = gfx_largura(a, f), lb = gfx_largura(s + i + 1, f);
+        if ((la > lb ? la : lb) < pior) pior = la > lb ? la : lb;
+    }
+    if (gfx_largura(s, f) <= max_w || pior <= max_w) { txt_c_duas(cx, y, s, c, max_w); return; }
+    int yy = y - passo / 2;
+    const char *p = s;
+    while (*p) {                                                  // palavra a palavra, ate encher a linha
+        int ult = -1;
+        for (int i = 0; p[i] && i < (int)sizeof l - 1; i++) {
+            if (p[i] == ' ' || !p[i + 1]) {
+                int fim = p[i] == ' ' ? i : i + 1;
+                snprintf(l, sizeof l, "%.*s", fim, p);
+                if (ult >= 0 && gfx_largura(l, f) > max_w) break;
+                ult = fim;
+            }
+        }
+        int k = ult < 0 ? (int)strlen(p) : ult;
+        snprintf(l, sizeof l, "%.*s", k, p);
+        gfx_texto(cx - gfx_largura(l, f) / 2, yy, l, c, f, false);
+        yy += passo;
+        p += k;
+        while (*p == ' ') p++;
+    }
+}
+
 // Tecla I: o texto inteiro do dado em foco, por cima da mesa. So olha: a
 // partida fica parada onde estava, e qualquer tecla fecha.
 static void desenha_detalhe(void)
@@ -393,10 +428,10 @@ static void desenha_detalhe(void)
     quebra_cabe(x, y0 + 54, w - 180, h - 54 - 34, TEXTO_CAT[tipo], C_MARFIM);   // ate o "qualquer tecla fecha"
     // Aberto da mao (ou da sequencia por lancar) sem render agora: por que,
     // embaixo do dado, como na dica do mouse.
-    const char *desl = detalhe_fase == F_ORDEM || detalhe_fase == F_JOGA ? poder_desligado(vez, tipo) : NULL;
+    const char *desl = (detalhe_fase == F_ORDEM || detalhe_fase == F_JOGA) && vez_daqui() ? poder_desligado(vez, tipo) : NULL;
     if (desl) {
         txt_c(cx, y0 + 150, "Poder desativado", C_VINHO_CLR, true);
-        txt_c_duas(cx, y0 + 150 + TXT_H + txt_passo() / 2, desl, C_MARFIM_S, 150);   // em duas, centradas
+        motivo_desligado(cx, y0 + 150 + TXT_H + txt_passo() / 2, desl, C_MARFIM_S, 150);   // em duas, centradas
     }
     txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
 }

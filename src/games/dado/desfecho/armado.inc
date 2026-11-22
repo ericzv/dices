@@ -214,6 +214,10 @@ static const char *poder_desligado(int j, int tipo)
     return NULL;
 }
 
+// A vez e de quem joga neste aparelho (nem a maquina nem o rival do online):
+// so para ele o dado apagado e o "Você..." do motivo fazem sentido.
+static bool vez_daqui(void) { return !(cpu >> vez & 1) && !(remoto >> vez & 1); }
+
 // A mira: os dados que os poderes armados agora vao pegar no fim da rodada
 // (anular, roubar ou cortar), pelas mesmas regras de alvo do fim, com a mesa
 // como esta. Uma mascara por jogador (de quem e o dado mirado).

@@ -92,12 +92,12 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Saco de Pano | os dados de sempre; vem com um D8 | sem regra | desde o começo |
   | Copo de Couro | o Viciado no lugar dos D2; vem com um D8 | compra 6 dados por rodada | vencer o Crupiê |
   | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Adesivado (já com 3 adesivos) | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
-  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Fichas, Cobrador e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
+  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Riqueza, Pobreza e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -2 | vencer 3 rodadas de uma partida com 4 dados válidos |
   | Bauzinho | começa com 2 amuletos; vem com um D8 e a Ficha Velha | cabem só 4 amuletos | ter 5 amuletos |
   | Caixa de Fósforos | vê os dados que o oponente comprou na rodada; vem com o Escudo e dois Quebrados (o 4 e o 6) | cada partida começa com 45 fichas | vencer uma run |
-  | Carteira | cada chefe vencido paga 10 moedas a mais; vem com a Moeda sorte e o Cobrador | a run começa com 4 moedas a menos | gastar 25 moedas numa run |
+  | Carteira | cada chefe vencido paga 10 moedas a mais; vem com a Moeda sorte e a Pobreza | a run começa com 4 moedas a menos | gastar 25 moedas numa run |
   | Caixa de Ferramentas | tirar um dado da bolsa é de graça uma vez por loja (o de graça não sobe o preço dos outros); vem com 20 dados: 6 D6, 6 D4, 4 moedas, o Ferreiro, o Solitário, o Segurança e o Calibre | cada mesa paga 1 moeda a menos | tirar 5 dados da bolsa numa run |
   | Caixa de Papelão | os pacotes de dados e de adesivos mostram 4 opções, em vez de 3; vem com o Colecionador e o Oculto | as lojas não vendem adesivo avulso, só pacotes | abrir 5 pacotes numa run |
   | Sacola de Feira | trocar a loja é de graça uma vez por loja (depois, 1, 2, 3...); vem com a Fartura | as lojas não vendem pacotes | trocar a loja 3 vezes na mesma loja |
@@ -383,7 +383,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.41.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.42.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

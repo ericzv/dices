@@ -127,7 +127,7 @@ static int poder_armado(int j, int k)
         return 0;
     case EF_HEXA:         return 1;
     case EF_OURICO:       return 1;
-    case EF_AZARAO:       return fichas_ini[j] < fichas_ini[outro(j)];
+    case EF_AZARAO:       return J[j].perdeu_ultima;
     case EF_AMPULHETA:    return ampulheta() > 0;
     case EF_AGIOTA:       return 1;
     case EF_MEDUSA:       return 1;

@@ -1070,7 +1070,7 @@ static void aro(int x, int y, uint16_t c)
 // As marcas de um dado na fila, cada tipo no seu lugar, sem caixa: o texto
 // miudo com o contorno escuro em volta, como os numeros que sobem da mesa.
 //  - em cima, a esquerda: o que fez o numero (=5, =?, 4+5, 12-5, 3>4, 5/9);
-//  - em cima, a direita: os pontos a mais (+6, -1, $+4); havendo dois - o do
+//  - em cima, a direita: os pontos a mais (+6, -1, +4); havendo dois - o do
 //    proprio dado e o que vem de outros no fim -, um em cima do outro;
 //  - embaixo: o multiplicador (x2, x3...).
 // O que so vem no fim da rodada (a previa) sai no tom apagado da mesma cor.

@@ -38,14 +38,14 @@
 // A versao do jogo, que o jogador ve na tela inicial (e o nome do .zip).
 // Cada entrega nova sobe o numero de depois do ponto (v1.1, v1.2...); uma
 // mudanca grande sobe o de antes (v2.0).
-#define DADO_VERSAO "v1.41"
+#define DADO_VERSAO "v1.42"
 
 // Regras e medidas da mesa
 #define ANTE        5                    // a entrada do comeco; depois sobe (ante_da())
 #define FICHAS_INI  100
 #define MAX_RODADAS 15
 #define MAX_COL     128            // espaco para a colecao: a bolsa nao tem limite de dados
-#define MAO         10             // espaco da mao (compra 7; 8 com a Bolsa Funda, mais o Bis)
+#define MAO         10             // espaco da mao (compra 7; 9 com a Bolsa Funda)
 #define MAO_NORMAL  7              // quantos compra da bolsa por rodada
 #define N_FILA      6              // espaco da fila: leva de 1 a 4 (5 com o Estojo de Lapis, +1 com o Bis)
 #define FILA_NORMAL 4              // quantos dados a sequencia leva

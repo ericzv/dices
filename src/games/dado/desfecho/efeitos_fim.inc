@@ -313,8 +313,8 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
             && f->valor[k - 1] <= 3) mult_poe(&m, de, MULT_DOBRO, bit, 1);
         if (n_far && f->valor[k] <= 2) mult_poe(&m, de, MULT_FARTURA, bit, n_far);
         if (TIPO[tipo_de(j, k)].efeito == EF_VIUVA && valendo == 1) mult_poe(&m, de, MULT_VIUVA, bit, 1);
-        if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && fichas_ini[j] < fichas_ini[outro(j)])
-            mult_poe(&m, de, MULT_AZARAO, bit, 1);       // comecou a rodada atras em fichas
+        if (TIPO[tipo_de(j, k)].efeito == EF_AZARAO && J[j].perdeu_ultima)
+            mult_poe(&m, de, MULT_AZARAO, bit, 1);       // perdeu (ou correu d)a rodada anterior
         if (TIPO[tipo_de(j, k)].efeito == EF_ESPERANCA && fichas_ini[j] <= ESPERANCA_FICHAS)
             mult_poe(&m, de, MULT_ESPERANCA, bit, 1);    // comecou a rodada com ESPERANCA_FICHAS fichas ou menos
         if (sac[k]) mult_poe(&m, de, MULT_SACRIFICIO, bit, sac[k]);

@@ -29,7 +29,7 @@ typedef struct {
     int n_mao;
     bool embaralhou;             // a bolsa esvaziou e tudo voltou nesta compra
     int perdidas;                // rodadas que ele perdeu nesta partida (Rancor)
-    bool perdeu_ultima;          // e se perdeu a ultima (Desforra, a Revanche do Rival)
+    bool perdeu_ultima;          // e se perdeu a ultima (Desforra, Azarao, a Revanche do Rival)
     uint8_t pavio[MAX_COL];      // a Dinamite: o que o pavio de cada dado guardou nesta partida
     uint8_t de_copia[MAX_COL];   // era copia de um Jingle Bell e mudou de forma (o Fragil, a Medusa): some no fim da partida, como ela
 } jogador_t;
@@ -74,7 +74,7 @@ typedef struct {
     uint16_t bonecas[N_FILA];        // a Matrioska: as bonecas que abriu (BONECAS_N, BONECA_V)
     char    tag[N_FILA][14];         // a ultima etiqueta do dado (fila.inc, poe_tag)
     char    tag_num[N_FILA][14];     // a ultima que diz o numero ("=5", "4+5")
-    char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "$+4")
+    char    tag_mais[N_FILA][14];    // a ultima dos pontos a mais dele ("+6", "+4")
     int     pontos;
     int     total;
 } fila_t;
@@ -286,7 +286,7 @@ static int n_anuncio_peca, anuncio_dono;
 static int  ver_tipo;
 static bool ver_comum;               // veredito do dia a dia (vale 5, caiu): so o numero fala
 static int  anulou_a, anulou_b;
-static int  fichas_ini[2];           // fichas de cada um quando a rodada comecou (Cobrador)
+static int  fichas_ini[2];           // fichas de cada um quando a rodada comecou (Riqueza, Pobreza)
 static int  resistiu;                // dado que segurou a queda (treme)
 static uint8_t anulou_masc;          // dados que o Egoista acabou de anular
 static uint32_t semente;

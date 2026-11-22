@@ -1274,7 +1274,7 @@ int main(void)
     for (int i = 0; i < (int)sizeof VITRINE; i++)
         CONFERE(TIPO[VITRINE[i]].preco > 0, "%s esta na loja sem preco", TIPO[VITRINE[i]].nome);
 
-    // ---- Dados novos: Sentinela, Vidro, Ferreiro, Cobrador, ... -----------
+    // ---- Dados novos: Sentinela, Vidro, Ferreiro, Pobreza, ... ------------
     {
         desfecho_t d;
         // Sentinela cai sozinha: o 6 de antes continua valendo.
@@ -1390,17 +1390,17 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 18, "Ferreiro + Dobro: esperava 18, deu %d", d.total[0]);
 
-        // Cobrador: +4 se o oponente comecou a rodada com mais fichas.
+        // Pobreza: +4 se o oponente comecou a rodada com mais fichas.
         limpa();
         fichas_ini[0] = 50; fichas_ini[1] = 80;
         joga(0, D_COBRADOR, 3);
         d = fim();
-        CONFERE(d.total[0] == 7, "Cobrador cobrando: esperava 7, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 7, "Pobreza rendendo: esperava 7, deu %d", d.total[0]);
         limpa();
         fichas_ini[0] = 80; fichas_ini[1] = 50;
         joga(0, D_COBRADOR, 3);
         d = fim();
-        CONFERE(d.total[0] == 3, "Cobrador sem cobrar: esperava 3, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3, "Pobreza sem render: esperava 3, deu %d", d.total[0]);
         fichas_ini[0] = fichas_ini[1] = 0;
 
         // Misericordioso: +2 por dado seu anulado.
@@ -1967,17 +1967,25 @@ int main(void)
         joga(1, D_D12, 9);
         d = fim();
         CONFERE(d.total[1] == 9, "Sabotador 4: esperava 9, deu %d", d.total[1]);
-        // Azarao: comecou atras em fichas, x2.
+        // Azarao: perdeu a rodada anterior, x2. Atras em fichas nao conta mais.
+        limpa();
+        J[0].perdeu_ultima = true;
+        joga(0, D_AZARAO, 3);
+        d = fim();
+        CONFERE(d.total[0] == 6, "Azarao depois de perder: esperava 6, deu %d", d.total[0]);
+        J[0].perdeu_ultima = false;
         limpa();
         fichas_ini[0] = 30; fichas_ini[1] = 50;
         joga(0, D_AZARAO, 3);
         d = fim();
-        CONFERE(d.total[0] == 6, "Azarao atras: esperava 6, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3, "Azarao atras em fichas, sem ter perdido: esperava 3, deu %d", d.total[0]);
         fichas_ini[0] = fichas_ini[1] = 0;
         limpa();
+        J[1].perdeu_ultima = true;
         joga(0, D_AZARAO, 3);
         d = fim();
-        CONFERE(d.total[0] == 3, "Azarao empatado: esperava 3, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 3, "Azarao: quem perdeu foi o oponente, esperava 3, deu %d", d.total[0]);
+        J[1].perdeu_ultima = false;
         // Ampulheta: +1 a cada 3 rodadas jogadas, ate +4.
         {
             int rod = rodada;
@@ -3716,7 +3724,7 @@ int main(void)
                 pac_ad, preco_pacote());
         run_poe_amuleto(A_CARTOLA);
         CONFERE(n_vitrine() == 2, "Lata com a Cartola: %d", n_vitrine());
-        // Porquinho: vem com Fichas, Cobrador e Agiota; a mesa paga 1 a menos e
+        // Porquinho: vem com Riqueza, Pobreza e Agiota; a mesa paga 1 a menos e
         // poe 2 nele; quebrar leva tudo.
         des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0);
         {
@@ -3724,7 +3732,7 @@ int main(void)
             for (int i = 0; i < run.n_col; i++) {
                 fi += run.col[i].tipo == D_FICHAS; co += run.col[i].tipo == D_COBRADOR; ag += run.col[i].tipo == D_AGIOTA;
             }
-            CONFERE(fi == 1 && co == 1 && ag == 1 && run.n_col == 15, "Porquinho: %d Fichas, %d Cobrador, %d Agiota, %d dados",
+            CONFERE(fi == 1 && co == 1 && ag == 1 && run.n_col == 15, "Porquinho: %d Riqueza, %d Pobreza, %d Agiota, %d dados",
                     fi, co, ag, run.n_col);
         }
         loja_sai();
@@ -3805,7 +3813,7 @@ int main(void)
         // Papelao, a Sacola de Feira, a Maleta do Apostador e a Sacola de Presente.
         perfis[0].bolsas = BOLSAS_TODAS;
         {   // Carteira: comeca com 4 moedas a menos (nunca abaixo de zero), com a
-            // Moeda sorte e o Cobrador; o chefe paga 10 a mais.
+            // Moeda sorte e a Pobreza; o chefe paga 10 a mais.
             int dif_antes = des_dif;
             des_dif = 2; des_bolsa = B_CARTEIRA; des_nova_run();
             CONFERE(run.moedas == moedas_iniciais(2) - CARTEIRA_MENOS, "Carteira no nivel 2: %d moedas (de %d)", run.moedas,
@@ -7963,15 +7971,15 @@ int main(void)
     CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO,
             "Carrasco com 1 valendo e o menor: devia anular a si mesmo");
 
-    // ---- Fichas: comecou a rodada na frente, +4 ---------------------------
+    // ---- Riqueza: comecou a rodada na frente, +4 --------------------------
     limpa(); fichas_ini[0] = 40; fichas_ini[1] = 30;
     joga(0, D_FICHAS, 3);
     d = fim();
-    CONFERE(d.total[0] == 7, "Fichas na frente: esperava 7, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 7, "Riqueza na frente: esperava 7, deu %d", d.total[0]);
     limpa(); fichas_ini[0] = 30; fichas_ini[1] = 40;
     joga(0, D_FICHAS, 3);
     d = fim();
-    CONFERE(d.total[0] == 3, "Fichas atras: esperava 3, deu %d", d.total[0]);
+    CONFERE(d.total[0] == 3, "Riqueza atras: esperava 3, deu %d", d.total[0]);
     fichas_ini[0] = fichas_ini[1] = 0;
 
     // ---- Ficha de Fogo: +10 e o maior queima ------------------------------

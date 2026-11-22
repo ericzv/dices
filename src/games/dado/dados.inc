@@ -74,7 +74,6 @@ enum { D_D2, D_D4, D_D6, D_D8, D_D12, D_D20,
 // Os que so aparecem no Modo Desafiante; o resto vale tambem na partida
 // rapida, com 2 jogadores e online. (A ordem acima nao diz nada: os tipos
 // novos entram sempre no fim, por causa do salvamento.)
-// Os lados do d8 do Reves, no Sorte/Reves (a Sorte e o d12 do proprio tipo).
 #define FERREIRO_ARMA 4           // o Ferreiro forja tirando isto (o 4, o maior do d4)
 #define FERREIRO_FORJA 4          // e o que o proximo ganha, se os dois terminarem validos
 #define SENTINELA_PTS 2           // a Sentinela que cai pela sequencia: o de antes, que ela protegeu, ganha isto
@@ -264,16 +263,16 @@ static const tipo_t TIPO[D_N] = {
     { "Escudo",           4, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
     { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado." },
     { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "Se tirar 8, rola novamente somando a pontuação" },
-    { "Espinhoso",        4, EF_MARTELO,      RAR_RARO,    15, "Com 3 ou 4: tira 4 pontos do oponente" },
+    { "Espinhoso",        4, EF_MARTELO,      RAR_INCOMUM, 15, "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos." },
     { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "Com 7 ou 8: tira 4 pontos do oponente" },
     { "Espelho",          6, EF_ESPELHO,      RAR_RARO,    20, "1 ou 2: vira o maior do oponente" },
-    { "Fichas",           4, EF_FICHAS,       RAR_COMUM,    6, "Com mais fichas que o oponente: +4" },
+    { "Riqueza",          4, EF_FICHAS,       RAR_COMUM,    6, "Se você começar a rodada com mais fichas, pontua +4" },
     { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
     { "Agouro",          20, EF_MALDITO,      RAR_LENDA,   24, "5 ou menos: anula a sua sequência" },
     { "Gatuno",           6, EF_GATUNO,       RAR_RARO,    20, "Rouba 1 dado do oponente por 1 nos seus outros válidos" },
     { "Quebrado",         8, EF_QUEBRADO,     RAR_COMUM,    9, "Número fixo; quebra ao ser lançado" },
     { "Invejoso",         6, EF_INVEJOSO,     RAR_RARO,     0, "Se tirar 5 ou 6: anula o maior do oponente. Se tirar 1 ou 2: anula os seus 2 menores." },
-    { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Com 3 ou 4: rouba o menor do oponente" },
+    { "Caridoso",         4, EF_CARIDOSO,     RAR_RARO,     0, "Se tirar 3 ou 4 e terminar válido: rouba o menor do oponente" },
     { "Fartura",          4, EF_FARTURA,      RAR_INCOMUM, 14, "Seus dados com 1 ou 2 pontuam x2" },
     { "Moeda sorte",      2, EF_SORTE,        RAR_RARO,    14, "1: seus dados ímpares +1 · 2: seus dados pares +1" },
     { "Teimoso",          6, EF_TEIMOSO,      RAR_INCOMUM, 11, "Nunca é anulado" },
@@ -290,7 +289,7 @@ static const tipo_t TIPO[D_N] = {
     { "Solitário",        4, EF_SOLITARIO,    RAR_COMUM,    9, "Sem vizinho válido: +5" },
     { "Sentinela",        4, EF_SENTINELA,    RAR_COMUM,    6, "Cai sozinha e o de antes ganha +2" },
     { "Ferreiro",         4, EF_FERREIRO,     RAR_INCOMUM, 10, "Válido com 4: o próximo válido +4" },
-    { "Cobrador",         4, EF_COBRADOR,     RAR_COMUM,    6, "Oponente com mais fichas: +4" },
+    { "Pobreza",          4, EF_COBRADOR,     RAR_COMUM,    6, "Se você começar a rodada com menos fichas, pontua +4" },
     { "Desafiante",       8, EF_DESAFIANTE,   RAR_RARO,    13, "Maior dado da rodada: +4" },
     { "Vidro",            8, EF_VIDRO,        RAR_COMUM,    7, "Tirou 1: quebra e anula o dado anterior" },
     { "Acumulador",       8, EF_ACUMULADOR,   RAR_RARO,    16, "Guarda +1 cada vez que entra válido" },
@@ -317,9 +316,9 @@ static const tipo_t TIPO[D_N] = {
     { "Ouriço",           6, EF_OURICO,       RAR_INCOMUM,  0, "Cada ataque do oponente: -5 nele" },
     { "Calibre",          4, EF_CALIBRE,      RAR_INCOMUM,  0, "O próximo dado tira +1" },
     { "Sabotador",        6, EF_SABOTADOR,    RAR_INCOMUM,  0, "5 ou 6: o maior do oponente (entre os que pontuam) vale metade" },
-    { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "Começou a rodada com menos fichas: x2" },
+    { "Azarão",           4, EF_AZARAO,       RAR_INCOMUM,  0, "Se você perdeu a rodada anterior, pontua x2" },
     { "Ampulheta",        6, EF_AMPULHETA,    RAR_INCOMUM,  0, "+1 a cada 3 rodadas (até +4)" },
-    { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "Válido: 3 fichas do oponente para você" },
+    { "Agiota",           4, EF_AGIOTA,       RAR_COMUM,    0, "Se terminar válido, pega 3 fichas do oponente" },
     { "Medusa",          12, EF_MEDUSA,       RAR_LENDA,     0, "Válido: os dados da sequência viram Quebrados" },
     { "Misterioso",      20, EF_NADA,         RAR_LENDA,    0, "Um d20 todo preto" },
     { "Rancor",           4, EF_RANCOR,       RAR_RARO,     0, "+1 por rodada que você perdeu" },
@@ -399,10 +398,10 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_ESCUDO]          = "Nunca é anulado. Nunca é roubado.",
     [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado.",
     [D_EXPLOSIVO]       = "Se tirar 8, rola de novo, somando a pontuação (até 3 vezes seguidas).",
-    [D_MARTELO]         = "Se terminar válido com 3 ou 4, tira 4 pontos do oponente.",
+    [D_MARTELO]         = "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos.",
     [D_PIRATA]          = "Se terminar válido com 7 ou 8, tira 4 pontos do oponente.",
     [D_ESPELHO]         = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
-    [D_FICHAS]          = "Se terminar válido e você começou a rodada com mais fichas que o oponente: +4.",
+    [D_FICHAS]          = "Se você começar a rodada com mais fichas que o oponente e ele terminar válido, pontua +4.",
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
                           "-5.",
     [D_MALDITO]         = "Se tirar 5 ou menos, anula a sua sequência inteira, este dado incluído.",
@@ -410,7 +409,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_QUEBRADO]        = "Não é sorteado: pontua o número gravado nele. Quebra ao ser lançado.",
     [D_INVEJOSO]        = "Se terminar válido com 5 ou 6, anula o maior dado do oponente. Com 1 ou 2, anula os seus 2 menores "
                           "dados.",
-    [D_CARIDOSO]        = "Se terminar válido com 3 ou 4, rouba o menor dado do oponente.",
+    [D_CARIDOSO]        = "Se tirar 3 ou 4 e terminar válido: rouba o menor dado do oponente.",
     [D_FARTURA]         = "Se terminar válido, seus dados válidos que tiraram 1 ou 2 pontuam x2 no fim.",
     [D_SORTE]           = "Se terminar válido, tirando 1: cada dado ímpar seu pontua +1. Tirando 2: cada dado par seu pontua "
                           "+1.",
@@ -428,7 +427,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_SOLITARIO]       = "Se terminar válido, sem dado válido logo antes nem logo depois dele: +5.",
     [D_SENTINELA]       = "Se for anulado pela sequência, só ele cai: o dado anterior continua válido e ganha +2.",
     [D_FERREIRO]        = "Pontua o que tirar. Válido com 4, o próximo dado ganha +4, se terminar válido também.",
-    [D_COBRADOR]        = "Se o oponente começou a rodada com mais fichas que você: +4.",
+    [D_COBRADOR]        = "Se você começar a rodada com menos fichas que o oponente e ele terminar válido, pontua +4.",
     [D_DESAFIANTE]      = "Se for o maior dado válido da rodada, seu ou do oponente: +4 no fim.",
     [D_VIDRO]           = "Se tirar 1, quebra: é anulado, anula o dado anterior e sai da bolsa.",
     [D_ACUMULADOR]      = "Cada vez que entra válido na sequência, guarda +1 de bônus para as próximas vezes (até +6).",
@@ -455,7 +454,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_OURICO]          = "Na sua fila, cada vez que o oponente tentar anular, atacar ou tirar pontos seus, ele perde 5.",
     [D_CALIBRE]         = "Se estiver válido, o próximo dado seu tira +1, sem passar do máximo dele.",
     [D_SABOTADOR]       = "Se terminar válido com 5 ou 6: o maior dado do oponente (entre os que pontuam) vale metade no fim.",
-    [D_AZARAO]          = "Se você começou a rodada com menos fichas e ele terminar válido: x2.",
+    [D_AZARAO]          = "Se você perdeu a rodada anterior e ele terminar válido, pontua x2.",
     [D_AMPULHETA]       = "Se terminar válido: +1 a cada 3 rodadas já jogadas, até +4.",
     [D_AGIOTA]          = "Se terminar válido, no fim 3 fichas do oponente passam para você, fora do pote.",
     [D_MEDUSA]          = "Se terminar válido, no fim os dados que você lançou, este incluído, viram Quebrados com o número que "
@@ -539,14 +538,15 @@ static const char *TEXTO_CAT[D_N] = {
                           "terminar anulado: anula o seu menor dado.",
     [D_EXPLOSIVO]       = "Oito lados. Tirando 8, rola de novo e soma a pontuação da nova rolagem ao 8 que já tinha. Pode rolar "
                           "de novo, a cada 8, até 3 vezes seguidas (pontuação máxima: 32).",
-    [D_MARTELO]         = "Quatro lados. Se terminar válido, tirando 3 ou 4: tira 4 pontos do oponente. Tirando 1 ou 2, pontua "
-                          "normalmente.",
+    [D_MARTELO]         = "Quatro lados. Pontua o número que tirar. Se tirar 3 ou 4 e terminar válido: o oponente perde 4 "
+                          "pontos.",
     [D_PIRATA]          = "Oito lados. Se terminar válido, tirando 7 ou 8: tira 4 pontos do oponente. Os pontos não passam para "
                           "você.",
     [D_ESPELHO]         = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, "
                           "o Espelho permanece válido até o fim do turno do oponente, vira no fim da rodada e pode ser anulado "
                           "pela sequência. Sem dado do oponente para copiar, é anulado.",
-    [D_FICHAS]          = "Quatro lados. Se terminar válido e você começou a rodada com mais fichas que o oponente, pontua +4.",
+    [D_FICHAS]          = "Quatro lados. Se você começar a rodada com mais fichas que o oponente e ele terminar válido, pontua "
+                          "+4. Conta as fichas do começo da rodada; empate: nada.",
     [D_TUDO_NADA]       = "Uma moeda de risco. Tirando 2 e terminando válido: cada dado válido da sequência pontua +5. Tirando "
                           "1, mesmo se terminar anulado: cada dado válido da sequência pontua -5.",
     [D_MALDITO]         = "Vinte lados. Se tirar 5 ou menos, anula a sua sequência inteira, este dado incluído. Tirando 6 ou "
@@ -558,7 +558,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "da sua bolsa.",
     [D_INVEJOSO]        = "Seis lados. Se terminar válido, tirando 5 ou 6: anula o maior dado do oponente. Se terminar válido, "
                           "tirando 1 ou 2: anula os seus 2 menores dados. Tirando 3 ou 4, pontua normalmente.",
-    [D_CARIDOSO]        = "Quatro lados. Se terminar válido, tirando 3 ou 4, rouba o menor dado do oponente: os pontos dele "
+    [D_CARIDOSO]        = "Quatro lados. Se tirar 3 ou 4 e terminar válido: rouba o menor dado do oponente, e os pontos dele "
                           "passam para você. Se tirar 1 ou 2, pontua normalmente, mas não rouba dado do oponente.",
     [D_FARTURA]         = "Quatro lados. Se terminar válido, no fim da rodada cada dado válido seu que tirou 1 ou 2 pontua x2, "
                           "este dado incluído.",
@@ -590,7 +590,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "protegendo, e o dado anterior continua válido e ganha +2 no fim da rodada (se ainda valer).",
     [D_FERREIRO]        = "Quatro lados, de ferro batido. Pontua o número que tirar. Se terminar válido com 4, forja: o dado "
                           "seu lançado logo depois dele ganha +4 no fim da rodada, se terminar válido também.",
-    [D_COBRADOR]        = "Quatro lados. Pontua +4 se o oponente começou a rodada com mais fichas que você.",
+    [D_COBRADOR]        = "Quatro lados. Se você começar a rodada com menos fichas que o oponente e ele terminar válido, pontua "
+                          "+4. Conta as fichas do começo da rodada; empate: nada.",
     [D_DESAFIANTE]      = "Oito lados. Se terminar válido e for maior que todos os outros dados válidos da rodada, seus e do "
                           "oponente, pontua +4 no fim da rodada. Empate não conta.",
     [D_VIDRO]           = "Oito lados. Tirando 1, quebra: é anulado, anula também o último dado válido seu e sai da sua bolsa "
@@ -621,7 +622,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "incluído.",
     [D_CHECKPOINT]      = "Oito lados. Se terminar válido, no fim da rodada cada dado seu lançado depois dele que também "
                           "terminar válido pontua +3.",
-    [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d8 do Revés, e pontua a Sorte menos o Revés (de -7 a 11). "
+    [D_SORTE_REVES]     = "Dois dados em um: rola o d12 da Sorte e o d4 do Revés, e pontua a Sorte menos o Revés (de -3 a 11). "
                           "Negativo, tira pontos da sequência, e o dado seguinte só precisa ser maior que ele.",
     [D_AUTOFAGIA]       = "Oito lados. Se terminar válido, depois da contagem come o outro dado válido seu de menor número: "
                           "ele pontua nesta rodada e sai da bolsa até o fim da partida, e a Autofagia guarda o número dele. "
@@ -649,8 +650,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "do máximo: o Laser com 4 vira 5, o Trevo com 3 vira 4.",
     [D_SABOTADOR]       = "Seis lados. Se terminar válido com 5 ou 6, o maior dado do oponente entre os que pontuam (valem mais "
                           "que 0) passa a pontuar metade no fim da rodada (arredondado para baixo).",
-    [D_AZARAO]          = "Quatro lados. Se você começou a rodada com menos fichas que o oponente e ele terminar válido, pontua "
-                          "x2.",
+    [D_AZARAO]          = "Quatro lados. Se você perdeu a rodada anterior (ou correu dela) e ele terminar válido, pontua x2. "
+                          "Na primeira rodada da partida, e depois de um empate, não vale.",
     [D_AMPULHETA]       = "Seis lados. Se terminar válido, pontua +1 no fim da rodada a cada 3 rodadas já jogadas na partida, "
                           "até +4.",
     [D_AGIOTA]          = "Quatro lados. Se terminar válido, no fim da rodada 3 fichas do oponente passam para você, fora do "

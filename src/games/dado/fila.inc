@@ -10,7 +10,7 @@ static int ad_fila(int j, int k);
 // As etiquetas do dado. f->tag e a ultima que ele ganhou; a mesa mostra cada
 // tipo no seu lugar (mesa.inc, marcas_dado), entao a ultima de cada tipo fica
 // guardada a parte: a que diz o numero (tag_num: "=5", "4+5", "12-5", "3>4",
-// "5/9") e a dos pontos a mais do proprio dado (tag_mais: "+6", "-1", "$+4").
+// "5/9") e a dos pontos a mais do proprio dado (tag_mais: "+6", "-1", "+4").
 // O multiplicador ("x2") e os pontos que so vem no fim (poe_tag_fim: o +2 do
 // Copiador, o +6 do Ferreiro) a mesa tira da previa e do desfecho.
 enum { MARCA_VALOR, MARCA_SOMA, MARCA_MULT };
@@ -63,8 +63,8 @@ static bool carbono_age(int j, int k)
 }
 
 // Soma dos validos. O Tudo ou Nada valido com 2 dobra tudo no fim.
-// O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 8, o
-// resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
+// O que o dado vale no placar. So o Trevo difere do que saiu: 4 vira 12
+// (TREVO_SORTE), o resto vira 0. A queda da fila sempre compara o que saiu (F.valor).
 static const peca_t *peca_fila(int j, int k);
 static int tipo_de(int j, int k);
 static int valor_pontos(int j, int k)
@@ -627,10 +627,10 @@ static void aplica_regra(int j, int k)
         // Ferreiro com 4 valendo logo antes: +4 no fim, se os dois ficarem.
         if (l >= 0 && l == k - 1 && TIPO[tipo_de(j, l)].efeito == EF_FERREIRO && f->valor[l] >= FERREIRO_ARMA)
             poe_tag_fim(f, k, "+%d", FERREIRO_FORJA);
-        if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: o Cobrador cobra
-            || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: o Fichas rende
+        if ((ef == EF_COBRADOR && fichas_ini[outro(j)] > fichas_ini[j])     // atras: a Pobreza rende
+            || (ef == EF_FICHAS && fichas_ini[j] > fichas_ini[outro(j)])) {   // na frente: a Riqueza rende
             f->bonus[k] = 4;
-            poe_tag(f, k, "$+4");
+            poe_tag(f, k, "+4");
         }
         if (ef == EF_ACUMULADOR && f->fixo[k]) {
             f->bonus[k] = (int8_t)(f->fixo[k] < ACUM_MAX ? f->fixo[k] : ACUM_MAX);
@@ -720,9 +720,9 @@ static void aplica_regra(int j, int k)
             if (v >= FERREIRO_ARMA) snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: forja +%d no próximo", v, FERREIRO_FORJA);
             else        snprintf(veredito, sizeof veredito, "Ferreiro tirou %d: pontua, sem forjar", v);
         } else if (ef == EF_COBRADOR && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Cobrador cobra: pontua %d (+4)", vale);
+            snprintf(veredito, sizeof veredito, "Pobreza: pontua %d (+4)", vale);
         } else if (ef == EF_FICHAS && f->bonus[k]) {
-            snprintf(veredito, sizeof veredito, "Fichas rende: pontua %d (+4)", vale);
+            snprintf(veredito, sizeof veredito, "Riqueza: pontua %d (+4)", vale);
         } else if (ef == EF_ACUMULADOR && f->bonus[k]) {
             snprintf(veredito, sizeof veredito, "%s pontua %d (+%d guardado)", TIPO[t].nome, vale, f->bonus[k]);
         } else if (ef == EF_AUTOFAGIA && f->bonus[k]) {

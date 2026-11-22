@@ -301,7 +301,7 @@ static void nova_rodada(void)
     // Relogio de Bolso: na primeira rodada e quando voce esta atras em fichas,
     // o oponente abre (vale mais).
     if (tem_am(0, A_RELOGIO) && (rodada == 1 || J[0].fichas < J[1].fichas)) primeiro = 1;
-    for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para o Cobrador
+    for (int j = 0; j < 2; j++) fichas_ini[j] = J[j].fichas;   // para a Riqueza e a Pobreza
     if (rodada == 1) des_atras7 = false;
     if (rodada == 7) des_atras7 = J[0].fichas < J[1].fichas;
     // No Desafiante sao 8 rodadas; empatado no fim, ate 3 rodadas extras.
@@ -579,8 +579,8 @@ static int sorteia_valor(int t, int fixo, int (*r)(int), int *menor)
 }
 
 // O lance de um dado da bolsa, com os adesivos dele (p; NULL: sem). O Chumbo
-// puxa o primeiro lance para o lado dele metade das vezes (com mais de um,
-// para um deles); caindo no Avesso, o dado vira do avesso; na Nota Dez, vira
+// puxa o primeiro lance para o lado dele um terco das vezes (com dois, dois
+// tercos, para um deles); caindo no Avesso, o dado vira do avesso; na Nota Dez, vira
 // o lado mais alto (uma vez so: o lado de la nao faz virar de novo); o
 // Remendo soma 2 ao lado que ficou para cima (em sorteia_valor_de, antes dos
 // poderes). 'lado' recebe o lado de cima (0: fora dos lados do dado);
@@ -1524,7 +1524,7 @@ static void conclui_rodada(void)
         venc_mao = w;
         res_quem = w;
         J[outro(w)].perdidas++;                  // o Rancor conta
-        J[outro(w)].perdeu_ultima = true;        // e a Revanche do Rival
+        J[outro(w)].perdeu_ultima = true;        // e a Desforra, o Azarao e a Revanche do Rival
         J[w].perdeu_ultima = false;
         J[w].fichas += pote;
         if (casa) snprintf(aviso, sizeof aviso, "empate: a casa leva %d fichas", pote);

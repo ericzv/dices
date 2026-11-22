@@ -177,6 +177,32 @@ static int lugares_fila(int j, int ry, int lados_cur)
 
 // Montagem da fila: a mao comprada aparece na linha do jogador, um dado de
 // cada vez saindo da bolsa. A plaquinha dourada e a posicao na fila.
+// O dado da mao com o poder desligado agora (poder_desligado) fica apagado:
+// so o desenho dele escurece, nao o feltro em volta. apagado_guarda guarda o
+// quadrado antes de desenhar o dado; apagado_aplica escurece o que mudou.
+#define APAGADO_R 30
+static uint16_t apagado_antes[(2 * APAGADO_R) * (2 * APAGADO_R)];
+static void apagado_guarda(int cx, int cy)
+{
+    uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
+    for (int y = 0; y < 2 * APAGADO_R; y++)
+        for (int x = 0; x < 2 * APAGADO_R; x++) {
+            int px = cx - APAGADO_R + x, py = cy - APAGADO_R + y;
+            if (px >= 0 && py >= 0 && px < GFX_W && py < GFX_H) apagado_antes[y * 2 * APAGADO_R + x] = fb[py * GFX_W + px];
+        }
+}
+static void apagado_aplica(int cx, int cy)
+{
+    uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
+    for (int y = 0; y < 2 * APAGADO_R; y++)
+        for (int x = 0; x < 2 * APAGADO_R; x++) {
+            int px = cx - APAGADO_R + x, py = cy - APAGADO_R + y;
+            if (px < 0 || py < 0 || px >= GFX_W || py >= GFX_H) continue;
+            uint16_t *c = &fb[py * GFX_W + px];
+            if (*c != apagado_antes[y * 2 * APAGADO_R + x]) *c = gfx_mistura(*c, RGB(40, 44, 40), 55);
+        }
+}
+
 static void desenha_ordem(void)
 {
     jogador_t *p = &J[vez];
@@ -197,14 +223,17 @@ static void desenha_ordem(void)
         int rs = respira(i);                     // esperando na mao: respira
         caixa_fechada = p == &J[0] && p->mao[i] == embrulho;
         if (ordem == 0 && f->grudado) chiclete_goma(x, y + dy + rs, 17, 1);   // o grudado: a goma por baixo dele (e dos adesivos)
+        bool apaga = !caixa_fechada && poder_desligado(vez, p->col[p->mao[i]].tipo);   // nao rende agora: apagado
+        if (apaga) apagado_guarda(x, y + dy + rs);
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
+        if (apaga) apagado_aplica(x, y + dy + rs);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) plaqueta_num(x + 16, y - 17 + rs, ordem, C_OURO, C_BARRA, true);
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
         if (cosmo_recem[vez][p->mao[i]]) cosmo_chegou(x, y + dy + rs, p->col[p->mao[i]].tipo, t_fase - cosmo_chega(p, i));   // evoluiu: o nome novo
         zona_clique(x - 25, y - 25, 50, 50, &cursor, i, KEY_ENTER);
         if (p == &J[0] && p->mao[i] == embrulho) dica_zona(x - 25, y - 25, 50, 50, DICA_DADO, DICA_EMBRULHO);
-        else dica_peca(x - 25, y - 25, 50, 50, &p->col[p->mao[i]]);
+        else dica_peca_mao(x - 25, y - 25, 50, 50, &p->col[p->mao[i]], vez);
     }
 
     // No meio da mesa, so a fila: os lugares sendo preenchidos e o pronto.

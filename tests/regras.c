@@ -1986,6 +1986,23 @@ int main(void)
         d = fim();
         CONFERE(d.total[0] == 3, "Azarao: quem perdeu foi o oponente, esperava 3, deu %d", d.total[0]);
         J[1].perdeu_ultima = false;
+        // O dado da mao que nao rende agora fica apagado, e a dica diz por que.
+        {
+            int rod = rodada;
+            rodada = 2; fichas_ini[0] = 31; fichas_ini[1] = 24; J[0].perdeu_ultima = false;
+            const char *m = poder_desligado(0, D_COBRADOR);
+            CONFERE(!poder_desligado(0, D_FICHAS) && m && !strcmp(m, "Você tem mais fichas que o oponente"),
+                    "na frente: a Riqueza rende, a Pobreza nao (%s)", m ? m : "-");
+            m = poder_desligado(0, D_AZARAO);
+            CONFERE(m && !strcmp(m, "Você não perdeu a rodada anterior"), "Azarao sem ter perdido: %s", m ? m : "-");
+            J[0].perdeu_ultima = true;
+            CONFERE(!poder_desligado(0, D_AZARAO) && !poder_desligado(0, D_D6), "Azarao depois de perder: rende");
+            J[0].perdeu_ultima = false; rodada = 1; fichas_ini[1] = 31;
+            m = poder_desligado(0, D_FICHAS);
+            CONFERE(m && !strcmp(m, "Você e o oponente têm o mesmo número de fichas") && poder_desligado(0, D_COBRADOR)
+                    && !strcmp(poder_desligado(0, D_AZARAO), "É a primeira rodada da partida"), "empate na 1a rodada: %s", m ? m : "-");
+            fichas_ini[0] = fichas_ini[1] = 0; rodada = rod;
+        }
         // Ampulheta: +1 a cada 3 rodadas jogadas, ate +4.
         {
             int rod = rodada;

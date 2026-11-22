@@ -92,6 +92,23 @@ static int dica_ad_altura(const dica_t *d)
     return h + 8;                                        // e o filete que separa do dado
 }
 
+// O dado da mao com o poder desligado agora: o motivo (NULL: nao e o caso).
+// A dica diz "Poder desativado" e, embaixo, por que.
+static const char *dica_desligado(const dica_t *d)
+{
+    if (d->tipo != DICA_DADO || !d->mao || d->id >= D_N) return NULL;
+    return poder_desligado(d->mao - 1, d->id);
+}
+static int dica_desl_altura(const dica_t *d)
+{
+    const char *m = dica_desligado(d);
+    if (!m) return 0;
+    quebra_so_conta = true;
+    int l = quebra_linhas(0, 0, 260 - 16, 2, m, 0);
+    quebra_so_conta = false;
+    return 5 + TXT_H + l * LINHA_FINA + 2;
+}
+
 // A caixa da dica sob o mouse, se houver. Devolve o retangulo em r.
 static bool dica_rect(int *r, const dica_t **qual)
 {
@@ -109,7 +126,7 @@ static bool dica_rect(int *r, const dica_t **qual)
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
-    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_ad_altura(d);
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d) + dica_ad_altura(d);
     // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
     // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
     // fosse cobrir a propria coisa, vai para o lado dela.
@@ -145,11 +162,17 @@ static void desenha_dica(const int *r, const dica_t *d)
         icone_protecao(x + w + 8 + wc + 6, y + 3, nao_anulavel_t(d->id), nao_roubavel_t(d->id));   // as protecoes dele
     }
     int lin = quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
+    int yy = y + TXT_H + 2 + lin * LINHA_FINA + 4;
+    const char *desl = dica_desligado(d);
+    if (desl) {                                          // na mao, sem render agora: por que
+        gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
+        gfx_texto(x, yy + 3, "Poder desativado", C_VINHO_CLR, 1, true);
+        yy += 5 + TXT_H + quebra_linhas(x, yy + 3 + TXT_H, r[2] - 16, 2, desl, C_MARFIM_S) * LINHA_FINA + 2;
+    }
     // Os adesivos colados nele: o simbolo no vinil, o nome na cor dele, o lado
     // e (com ate dois) a regra.
     int lados[AD_LADOS], n = dica_adesivos(d, lados);
     if (!n) return;
-    int yy = y + TXT_H + 2 + lin * LINHA_FINA + 4;
     gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
     yy += 5;
     for (int i = 0; i < n; i++) {

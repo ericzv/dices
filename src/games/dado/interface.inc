@@ -795,7 +795,9 @@ enum { DICA_DADO, DICA_AMULETO, DICA_TRUNFO, DICA_ADESIVO };
 #define DICA_EMBRULHO D_N                // o id do dado embrulhado pelo Papai Noel (nao diz qual e)
 // dono: de quem e a bolsa do dado (0 e 1, os jogadores; 2, a bolsa da run
 // fora da partida; -1, nao se sabe), para os adesivos que contam a bolsa.
-typedef struct { int16_t x, y, w, h; uint8_t tipo, id, com_peca; int8_t dono; peca_t pc; } dica_t;
+// mao: o dado esta na mao de quem joga (o jogador + 1; 0: em outro lugar), para
+// a dica dizer quando o poder dele nao vale agora (poder_desligado).
+typedef struct { int16_t x, y, w, h; uint8_t tipo, id, com_peca; int8_t dono; peca_t pc; int8_t mao; } dica_t;
 #define MAX_DICAS 64
 static dica_t dicas[MAX_DICAS];
 static int n_dicas;
@@ -816,6 +818,13 @@ static void dica_peca(int x, int y, int w, int h, const peca_t *p)
         dicas[n_dicas - 1].pc = *p;
         dicas[n_dicas - 1].dono = (int8_t)dono_da_peca(p);
     }
+}
+// A de um dado na mao de j, na hora de montar a sequencia.
+static void dica_peca_mao(int x, int y, int w, int h, const peca_t *p, int j)
+{
+    int n = n_dicas;
+    dica_peca(x, y, w, h, p);
+    if (n_dicas > n) dicas[n_dicas - 1].mao = (int8_t)(j + 1);
 }
 
 static bool mouse_em(int x, int y, int w, int h)

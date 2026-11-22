@@ -382,5 +382,12 @@ static void desenha_detalhe(void)
     etiquetas_protecao(x + wn + 12 + wc + 6, y0 + 17, tipo);
     gfx_rect(x, y0 + 44, w - 180, 1, C_FELTRO2);
     quebra_cabe(x, y0 + 54, w - 180, h - 54 - 34, TEXTO_CAT[tipo], C_MARFIM);   // ate o "qualquer tecla fecha"
+    // Aberto da mao (ou da sequencia por lancar) sem render agora: por que,
+    // embaixo do dado, como na dica do mouse.
+    const char *desl = detalhe_fase == F_ORDEM || detalhe_fase == F_JOGA ? poder_desligado(vez, tipo) : NULL;
+    if (desl) {
+        txt_c(cx, y0 + 150, "Poder desativado", C_VINHO_CLR, true);
+        txt_c_duas(cx, y0 + 150 + TXT_H + txt_passo() / 2, desl, C_MARFIM_S, 150);   // em duas, centradas
+    }
     txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
 }

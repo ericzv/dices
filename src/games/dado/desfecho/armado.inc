@@ -197,6 +197,23 @@ static int poder_armado(int j, int k)
     }
 }
 
+// O dado de j que rende pelas fichas do comeco da rodada ou pela rodada de
+// antes (a Riqueza, a Pobreza, o Azarao) e, agora, nao rende: o motivo, para
+// a dica do mouse e o cartao do I; NULL: rende (ou nao depende disso). Na mao
+// ele fica apagado (telas.inc), mas continua jogavel: so pontua o numero.
+static const char *poder_desligado(int j, int tipo)
+{
+    if (tipo < 0 || tipo >= D_N) return NULL;
+    int ef = TIPO[tipo].efeito, eu = fichas_ini[j], ele = fichas_ini[outro(j)];
+    if (ef == EF_FICHAS && eu <= ele)
+        return eu == ele ? "Você e o oponente têm o mesmo número de fichas" : "Você tem menos fichas que o oponente";
+    if (ef == EF_COBRADOR && eu >= ele)
+        return eu == ele ? "Você e o oponente têm o mesmo número de fichas" : "Você tem mais fichas que o oponente";
+    if (ef == EF_AZARAO && !J[j].perdeu_ultima)
+        return rodada <= 1 ? "É a primeira rodada da partida" : "Você não perdeu a rodada anterior";
+    return NULL;
+}
+
 // A mira: os dados que os poderes armados agora vao pegar no fim da rodada
 // (anular, roubar ou cortar), pelas mesmas regras de alvo do fim, com a mesa
 // como esta. Uma mascara por jogador (de quem e o dado mirado).

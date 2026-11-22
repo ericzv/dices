@@ -220,6 +220,10 @@ static int cat_amuleto(int i);               // desafio/colecao.inc
 static int cat_adesivo(int i);
 static bool amuleto_liberado(int a);
 static bool adesivo_aberto(int a);
+static bool item_novo(int k, int id);          // desafio/vistos.inc: o selo "novo"
+static void item_visto(int k, int id);
+static void ponto_novo(int x, int y);
+static void selo_novo_esq(int x, int y);
 static void fileira_colecao(int sec, int atual, int total, int *var)
 {
     int i0 = atual / FIL_N * FIL_N, n = total - i0 < FIL_N ? total - i0 : FIL_N;
@@ -235,16 +239,19 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
             fechado = cat_trava_dado(t, tr, sizeof tr) == 2;
             if (fechado) fileira_misterio(x, y, cq_do_dado(t) >= 0);
             else { peca_t pc = { .tipo = (uint8_t)t }; peca_parada((float)x, (float)y, 11, pc, 0); }
+            if (!fechado && item_novo(0, t)) ponto_novo(x + 12, y - 12);   // 0: VS_DADO
         } else if (sec == FIL_AMULETO) {
             int a = cat_amuleto(i);
             fechado = !amuleto_liberado(a);
             if (fechado) fileira_misterio(x, y, cq_do_amuleto(a) >= 0);
             else desenha_amuleto(x, y, 10, a, false);
+            if (!fechado && item_novo(2, a)) ponto_novo(x + 12, y - 12);   // 2: VS_AMULETO
         } else {
             int a = cat_adesivo(i);
             fechado = !adesivo_aberto(a);
             if (fechado) fileira_misterio(x, y, cq_do_adesivo(a) >= 0);
             else ad_solto_d(x, y, a, ad_estilo == ADE_NOVO ? 2 : 1, 0);   // o recorte pede uns pixels a mais
+            if (!fechado && item_novo(1, a)) ponto_novo(x + 12, y - 12);   // 1: VS_ADESIVO
         }
         zona_clique(x - FIL_PASSO / 2, FIL_Y - 18, FIL_PASSO, 36, var, i, 0);
     }
@@ -314,7 +321,9 @@ static void desenha_catalogo(void)
 
     // A direita: nome, lados, raridade e o que ele faz.
     int x = 290;
-    gfx_texto(x, 60, d->nome, cor_dado(tipo), 2, true);
+    int wn = gfx_texto(x, 60, d->nome, cor_dado(tipo), 2, true);
+    item_visto(0, tipo);                                // na vitrine: visto (0: VS_DADO)
+    if (item_novo(0, tipo)) selo_novo_esq(x + wn + 10, 66);
     classe(tipo, s, sizeof s);
     int xt = etiquetas_protecao(etiqueta_caixa(x, 104, s, cor_rar(tipo)), 104, tipo);
     if (so_inicial(tipo)) nota_etiqueta(xt + 2, x + 320, "dado inicial", NULL);

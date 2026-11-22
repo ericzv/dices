@@ -271,7 +271,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   antes não perdem nada: o que já estava aberto pela regra antiga continua
   aberto, mesmo que na tabela nova ele venha mais tarde. Os cards aparecem logo
   depois da partida, na primeira vitória contra cada chefe naquela
-  dificuldade. A tela da dificuldade é o prédio do cassino em corte: cada
+  dificuldade. O que abriu aparece com o selo **NOVO** na loja, no pacote,
+  na escolha do amuleto e na coleção (um pontinho de ouro na fileira) até ser
+  visto uma vez; não precisa comprar nem usar. A tela da dificuldade é o prédio do cassino em corte: cada
   nível é um andar (o Térreo é o Normal, a Cobertura o Nível 10), cada um
   com a sua cara e a sua cena. A tela abre no último andar aberto (é nele
   que se sobe no Desafiante), com o botão "Iniciar a run" já em foco. Os

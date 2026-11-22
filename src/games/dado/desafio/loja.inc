@@ -794,6 +794,8 @@ static void lj_cartao_dado(int i)
     }
     nome_no_cartao(x + dx, y + 68, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, cw - 8);
     ui_selo_c(x + dx, y + 84, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
+    if (!ja) item_visto(VS_DADO, pc.tipo);
+    if (!ja && item_novo(VS_DADO, pc.tipo)) selo_novo_dir(x + dx + cw / 2 - 3, y - 7);   // abriu e e a primeira vez que aparece
     if (ja) {
         ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 22, t_lj_vendido[i] > 0 ? t_lj_vendido[i] : 1, "VENDIDO");   // ja vendido: assentado
@@ -1080,6 +1082,8 @@ static void lj_cartao_adesivo(int k)
     const char *nome = ADESIVO[a].nome;
     if (gfx_largura(nome, 1) <= cw - 8) txt_c(x + dx, y + 75, nome, ADESIVO[a].luz, true);
     else nome_no_cartao(x + dx, y + 78, nome, ADESIVO[a].luz, cw - 6);
+    if (!usado) item_visto(VS_ADESIVO, a);
+    if (!usado && item_novo(VS_ADESIVO, a)) selo_novo_dir(x + dx + cw / 2 - 3, y - 7);
     if (usado) {
         ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 17, t_lj_ad_carimbo[k] > 0 ? t_lj_ad_carimbo[k] : 1, "COLADO");
@@ -1505,6 +1509,8 @@ static void pac_carta(int i)
         if (esc > 0.9f) {
             nome_no_cartao(cx, y + 72, ADESIVO[a].nome, cur ? ADESIVO[a].luz : C_MARFIM_S, w - 8);
             ui_selo_c(cx, y + 89, RARIDADE[RAR_ADESIVO[a]], cr, GFX_MIUDO);
+            item_visto(VS_ADESIVO, a);
+            if (item_novo(VS_ADESIVO, a)) selo_novo_dir(x + w - 3, y - 7);
         }
         if (pronto) zona_clique(x1 - PAC_CW / 2, y1, PAC_CW, LJ_CH, &cursor, i, KEY_ENTER);
         return;
@@ -1519,6 +1525,8 @@ static void pac_carta(int i)
     if (esc > 0.9f) {
         nome_no_cartao(cx, y + 72, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, w - 8);
         ui_selo_c(cx, y + 89, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
+        item_visto(VS_DADO, pc.tipo);
+        if (item_novo(VS_DADO, pc.tipo)) selo_novo_dir(x + w - 3, y - 7);
     }
     if (pronto) zona_clique(x1 - PAC_CW / 2, y1, PAC_CW, LJ_CH, &cursor, i, KEY_ENTER);
 }

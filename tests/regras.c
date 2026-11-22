@@ -3589,6 +3589,34 @@ int main(void)
         modo = modo_antes;
     }
 
+    // ---- O selo "novo": o que abriu aparece com ele ate ser visto ----
+    {
+        int modo_antes = modo, fase_antes = fase;
+        salva_limpa_tudo();
+        memset(perfis, 0, sizeof perfis);
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "N");
+        perfil_atual = 0; perfis_lidos = true; perfis[0].nivel = N_NIVEIS;
+        modo = M_DESAFIO; fase = F_RLOJA;
+        vistos_de = -2;
+        bool algum = false;                       // um perfil sem a chave: tudo o que ja abriu conta como visto
+        for (int t = 0; t < D_N; t++) algum |= item_novo(VS_DADO, t);
+        char b[600] = { 0 };
+        CONFERE(!algum && salva_le(chave_vistos(0), b, sizeof b) > 4 && !memcmp(b, "VIS1", 4), "vistos: sem a chave, nada e novo");
+        // Abre um dado que estava fechado: novo ate ser visto; visto, o selo fica na tela e some na proxima.
+        int t = D_CARRASCO;
+        bool aberto = dado_liberado(t);
+        int bit = vs_bit(VS_DADO, t);
+        vistos[bit >> 3] &= (uint8_t)~(1u << (bit & 7));
+        CONFERE(aberto && item_novo(VS_DADO, t), "vistos: o Carrasco nao visto e novo");
+        item_visto(VS_DADO, t);
+        CONFERE(item_novo(VS_DADO, t), "vistos: na mesma tela, o selo fica");
+        fase = F_CATALOGO;
+        CONFERE(!item_novo(VS_DADO, t), "vistos: na tela seguinte, some");
+        vistos_de = -2;                           // relido da chave
+        CONFERE(!item_novo(VS_DADO, t), "vistos: o visto ficou guardado");
+        modo = modo_antes; fase = fase_antes; perfil_atual = -1; vistos_de = -2;
+    }
+
     // ---- A loja nao repete: cada dado e cada adesivo a venda uma vez na run ----
     {
         int modo_antes = modo;

@@ -114,7 +114,9 @@ static void desenha_cat_amuleto(int i)
     desenha_amuleto(cx, cy, 40, a, false);
     fileira_colecao(FIL_AMULETO, i, n_amuletos_jogo(), &cat_a);
 
-    gfx_texto(x, 60, AMULETO[a].nome, AMULETO[a].cor, 2, true);
+    int wn = gfx_texto(x, 60, AMULETO[a].nome, AMULETO[a].cor, 2, true);
+    item_visto(VS_AMULETO, a);                           // na vitrine: visto
+    if (item_novo(VS_AMULETO, a)) selo_novo_esq(x + wn + 10, 66);
     int ex = etiqueta_caixa(x, 104, nome_rar_am(a), cor_rar_am(a)) + 2;
     static const char *const QUANDO[] = { "", "no começo da run", "depois do 1º chefe", "depois do 2º chefe" };
     snprintf(s, sizeof s, "amuleto · %s", QUANDO[RAR_AMULETO[a]]);
@@ -171,7 +173,9 @@ static void desenha_cat_adesivo(int i)
     }
     ad_solto_d(cx, cy - 22, a, 6, descola);
     fileira_colecao(FIL_ADESIVO, i, N_AD_COLECAO, &cat_ad);
-    gfx_texto(x, 60, d->nome, d->luz, 2, true);
+    int wn = gfx_texto(x, 60, d->nome, d->luz, 2, true);
+    item_visto(VS_ADESIVO, a);                           // na vitrine: visto
+    if (item_novo(VS_ADESIVO, a)) selo_novo_esq(x + wn + 10, 66);
     if (!ad_a_venda(a)) {                        // a Sujeira: so pelo Barro do oponente
         int ex = etiqueta_caixa(x, 104, "não se vende", C_TEXTO_M) + 2;
         txt(ex, 105, "vem do Barro do oponente", C_TEXTO_M, false);

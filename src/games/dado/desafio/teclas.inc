@@ -90,6 +90,8 @@ static bool des_tecla(int k, int e)
                 salva_apaga(chave_run());
                 hist_apaga(pf_cur);
                 salva_apaga(chave_estilo(pf_cur));
+                salva_apaga(chave_vistos(pf_cur));
+                vistos_de = -2;                  // relidos na proxima vez
                 memset(&perfis[pf_cur], 0, sizeof perfis[pf_cur]);
                 perfil_atual = antes == pf_cur ? -1 : antes;
                 perfis_salva();

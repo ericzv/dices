@@ -85,6 +85,8 @@ static void desenha_amuleto_run(void)
         desenha_amuleto(x, cy + 32 + (int)bob, 26, a, false);
         txt_c(x, cy + 62, AMULETO[a].nome, cur ? AMULETO[a].cor : C_MARFIM_S, true);
         if (nome_rar_am(a)[0]) ui_selo_c(x, cy + 80, nome_rar_am(a), cor_rar_am(a), GFX_FINO);
+        item_visto(VS_AMULETO, a);
+        if (item_novo(VS_AMULETO, a)) selo_novo_dir(x + 64 - 3, cy - 7);
         zona_clique(x - 64, cy, 128, 100, &cursor, i, KEY_ENTER);
     }
     int desce = 0;                                  // o texto em duas linhas: os seus amuletos descem

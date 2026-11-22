@@ -22,6 +22,7 @@
 #include "desafio/perfis.inc"     // ate 3 perfis por aparelho
 #include "desafio/conquistas.inc" // os itens que abrem por um feito, e nao por um chefe
 #include "desafio/mapa.inc"       // o sorteio, a loja, as mesas de cada salao e os oponentes
+#include "desafio/vistos.inc"     // o selo "novo" no que abriu, ate ser visto
 #include "desafio/bolsas.inc"     // as bolsas do comeco da run: regra, icone e o que abre cada uma
 #include "desafio/andamento.inc"  // salvamento e andamento da run
 #include "desafio/desenho.inc"    // o salao, a bolsa, a vitoria e o fim de run

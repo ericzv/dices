@@ -272,19 +272,20 @@ static void desenha_ordem(void)
     // Entre a fila e a mao de quem joga aqui: com o cursor (teclado ou
     // controle) num dado apagado, por que ele nao rende; senao, nas tres
     // primeiras rodadas, as teclas de montar a sequencia (com controle, os botoes dele).
-    if (!vez_daqui() || t_fase <= 0.5f) return;
-    int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
-                          : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
-    const char *desl = NULL;
-    if (cursor >= 0 && cursor < p->n_mao && !(p == &J[0] && p->mao[cursor] == embrulho))
-        desl = poder_desligado(vez, p->col[p->mao[cursor]].tipo);
-    if (desl) {
-        const char *a = "Poder desativado: ";
-        int wa = gfx_largura(a, fonte_de(true)), x0 = GFX_W / 2 - (wa + gfx_largura(desl, fonte_de(false))) / 2;
-        int ty = ly + (TECLA_H - TXT_H) / 2 - 3;
-        txt(x0, ty, a, C_VINHO_CLR, true);
-        txt(x0 + wa, ty, desl, C_MARFIM_S, false);
-    } else if (rodada <= 3) teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
+    if (vez_daqui() && t_fase > 0.5f) {
+        int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
+                              : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
+        const char *desl = NULL;
+        if (cursor >= 0 && cursor < p->n_mao && !(p == &J[0] && p->mao[cursor] == embrulho))
+            desl = poder_desligado(vez, p->col[p->mao[cursor]].tipo);
+        if (desl) {
+            const char *a = "Poder desativado: ";
+            int wa = gfx_largura(a, fonte_de(true)), x0 = GFX_W / 2 - (wa + gfx_largura(desl, fonte_de(false))) / 2;
+            int ty = ly + (TECLA_H - TXT_H) / 2 - 3;
+            txt(x0, ty, a, C_VINHO_CLR, true);
+            txt(x0 + wa, ty, desl, C_MARFIM_S, false);
+        } else if (rodada <= 3) teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
+    }
 }
 
 // Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o

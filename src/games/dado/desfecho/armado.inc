@@ -8,6 +8,17 @@
 // Quem chama: a mesa (mesa.inc), a cada quadro.
 // ===========================================================================
 
+// O Carrasco que tirou 1 derruba o dado i do mesmo dono? So os que tiraram 1
+// e ainda valem; o firme (nao anulavel, preso pela Ancora) fica. O Digital,
+// a Ficha Coringa e o Carrossel nao valem o que rolam (o lance deles fica
+// escondido; o numero vem de outro lugar), entao o 1 rolado deles nao conta.
+static bool carrasco_castiga(int j, int i, uint8_t est)
+{
+    int ef = TIPO[tipo_de(j, i)].efeito;
+    if (ef == EF_DIGITAL || ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL) return false;
+    return F[j].cru[i] == 1 && est == V_VALIDO && !firme_sem_capa(j, i);
+}
+
 #define AGNUS_NUMERO 7                 // o Agnus: o numero que ressuscita
 #define AGNUS_RAIO   8                 // e o que anula, com a luz, o maior do oponente (valendo)
 // O evento dele na mesa: a gloria acende sobre o Agnus e, a partir de
@@ -238,7 +249,7 @@ static void miras_agora(uint8_t mira[2])
             case EF_CARRASCO:
                 if (f->cru[k] == 1) {            // todos os seus que tiraram 1 (ele mesmo incluido)
                     for (int i = 0; i < f->lancados && i < N_FILA; i++)
-                        if (f->cru[i] == 1 && est[i] == V_VALIDO && !firme_sem_capa(j, i)) mira[j] |= (uint8_t)(1 << i);
+                        if (carrasco_castiga(j, i, est[i])) mira[j] |= (uint8_t)(1 << i);
                 }
                 else if (v == CARRASCO_ANULA && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
@@ -264,7 +275,14 @@ static void miras_agora(uint8_t mira[2])
                 int n = 0;
                 uint8_t er[N_FILA];
                 memcpy(er, F[r].est, N_FILA);
-                for (int i = 0; i < f->lancados && i < N_FILA; i++) n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO;
+                // Um Carrasco com 1 antes dele na fila age primeiro: derruba
+                // os 1 (e o proprio Gatuno, se ele tirou 1) antes do roubo.
+                bool carrasco = false;
+                for (int c = 0; c < k; c++)
+                    carrasco |= TIPO[tipo_de(j, c)].efeito == EF_CARRASCO && f->cru[c] == 1 && f->est[c] != V_ROUBADO;
+                if (carrasco && carrasco_castiga(j, k, f->est[k])) break;
+                for (int i = 0; i < f->lancados && i < N_FILA; i++)
+                    n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO && !(carrasco && carrasco_castiga(j, i, f->est[i]));
                 for (int q = 0; q < n; q++) {
                     int b = desvia_seguranca(er, r, alvo_de(er, r, false, -1));
                     if (b < 0) break;

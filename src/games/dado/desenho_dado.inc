@@ -4219,7 +4219,10 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_MALDITO) { corpo = RGB(54, 36, 74); tinta = C_MARFIM; }   // Agouro: a noite carregada
     if (tipo == D_MATRIOSKA) tinta = C_MARFIM;   // o numero claro na laca vermelha
     if (tipo == D_INVEJOSO) tinta = C_MARFIM;    // o numero claro na pupila escura
-    if (tipo == D_AGIOTA) tinta = C_MARFIM;      // o numero claro, contornado, sobre a gravata e o terno
+    // O numero claro, contornado, sobre a gravata e o terno. O contorno so
+    // cabe de r 12 para cima; menor que isso fica o numero escuro de antes,
+    // que se le na camisa clara.
+    if (tipo == D_AGIOTA && r >= 12) tinta = C_MARFIM;
     if (tipo == D_EGOISTA) tinta = C_MARFIM;     // o veludo roxo pede o numero claro
     if (tipo == D_SACRIFICIO || tipo == D_FICHA_CORINGA) tinta = C_MARFIM;   // o corpo vinho (e o roxo da ficha) pede a tinta clara
     if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)

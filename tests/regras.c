@@ -339,6 +339,30 @@ static void achados_desfecho(void)
             && d.total[0] == 5, "Carrasco 1: devia anular os tres 1 e deixar o 5 (est %d %d %d %d, A %d)",
             d.est[0][0], d.est[0][1], d.est[0][2], d.est[0][3], d.total[0]);
 
+    // O Digital nao vale o que rola: o 1 escondido dele nao conta para o
+    // Carrasco (fica como ficaria com um d4 comum no lugar do Carrasco).
+    achado_zera(); achado_fila(0);
+    joga(0, D_D4, 1); joga(0, D_DIGITAL, 1); joga(0, D_D6, 6);
+    d = fim();
+    uint8_t dig_comum = d.est[0][1];
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_DIGITAL, 1); joga(0, D_D6, 6);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == dig_comum,
+            "Carrasco 1: o Digital (lance escondido 1) nao devia cair (est %d %d, comum %d)", d.est[0][0], d.est[0][1], dig_comum);
+    // O Carrasco com 1 antes do Gatuno derruba os 1 antes do roubo: a mira
+    // do Gatuno nao pode prometer roubo nenhum.
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_GATUNO, 3);
+    joga(1, D_D6, 2); joga(1, D_D6, 5);
+    {
+        uint8_t mira[2];
+        miras_agora(mira);
+        d = fim();
+        CONFERE(mira[1] == 0 && d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO,
+                "Carrasco 1 + Gatuno: sem roubo e sem mira no oponente (mira %d, est %d %d)", mira[1], d.est[1][0], d.est[1][1]);
+    }
+
     // A10: o roubo leva o dado como ele pontua agora - com o corte do
     // Sabotador (8 -> 4) e o -1 do Vampiro (8 -> 7) ja aplicados.
     achado_zera(); achado_fila(0);

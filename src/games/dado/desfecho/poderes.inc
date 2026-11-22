@@ -157,11 +157,13 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     // o preso pela Ancora) fica; a capa segura o dela.
     if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
         for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
-            if (F[j].cru[i] != 1 || d->est[j][i] != V_VALIDO || firme_sem_capa(j, i)) continue;
+            if (!carrasco_castiga(j, i, d->est[j][i])) continue;
             if (bloqueia_capa(d, gera, j, k, j, i, "Carrasco tirou 1", 0)) continue;
             d->est[j][i] = V_ANULADO;
             if (i == k) evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula a si mesmo");
-            else evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula o 1 do próprio %s", J[j].nome);
+            else if (F[j].valor[i] == 1) evento(gera, EV_ANULA, j, k, j, i, 1, "Carrasco tirou 1: anula o 1 do próprio %s", J[j].nome);
+            else evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula o %d (que tirou 1) do próprio %s",
+                        F[j].valor[i], J[j].nome);
         }
     }
     // Todo poder so age se o dado terminar valendo. O Gatuno, alem

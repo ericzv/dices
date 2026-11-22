@@ -4219,6 +4219,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     if (tipo == D_MALDITO) { corpo = RGB(54, 36, 74); tinta = C_MARFIM; }   // Agouro: a noite carregada
     if (tipo == D_MATRIOSKA) tinta = C_MARFIM;   // o numero claro na laca vermelha
     if (tipo == D_INVEJOSO) tinta = C_MARFIM;    // o numero claro na pupila escura
+    if (tipo == D_AGIOTA) tinta = C_MARFIM;      // o numero claro, contornado, sobre a gravata e o terno
     if (tipo == D_EGOISTA) tinta = C_MARFIM;     // o veludo roxo pede o numero claro
     if (tipo == D_SACRIFICIO || tipo == D_FICHA_CORINGA) tinta = C_MARFIM;   // o corpo vinho (e o roxo da ficha) pede a tinta clara
     if (cosmico(tipo)) {                          // o ciclo cosmico: o ceu da noite (o Buraco, o breu; a Galaxia, roxo)
@@ -4382,7 +4383,7 @@ static void desenha_dado_base(float cx, float cy, float r, int tipo, int dono,
     // corpo (na Estrela, nao: o numero escuro fica sobre a luz).
     uint16_t contorno = cosmico(tipo) && tipo != D_ASTRO && !zerado && r >= 12 ? corpo : 0;
     if (tipo == D_FICHA_CORINGA && !zerado && r >= 12) contorno = RGB(54, 36, 74);
-    if (tipo == D_INVEJOSO && !zerado && r >= 12) contorno = RGB(14, 14, 12);
+    if ((tipo == D_INVEJOSO || tipo == D_AGIOTA) && !zerado && r >= 12) contorno = RGB(14, 14, 12);
     if (tipo == D_AGNUS && !zerado && r >= 12) contorno = C_BRANCO;   // o numero recortado na la
     if (tipo == D_ONDA && !zerado && r >= 12) contorno = C_MARFIM;    // o numero escuro se le na agua funda
     aro_cruz = false;

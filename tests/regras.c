@@ -323,13 +323,21 @@ static void achados_desfecho(void)
             "A06: o 2o Agnus 7 ressuscita com o 1o roubado (B %d, est %d %d %d %d)", d.total[1],
             d.est[1][0], d.est[1][1], d.est[1][2], d.est[1][3]);
 
-    // A08: o Carrasco que tirou 1, preso pela Ancora, fica; cai o menor que nao esta firme.
+    // A08: o Carrasco que tirou 1, preso pela Ancora, fica; os outros que
+    // tiraram 1 caem, e o que nao tirou 1 fica.
     achado_zera(); achado_fila(0);
-    joga(0, D_CARRASCO, 1); joga(0, D_D6, 5);
+    joga(0, D_CARRASCO, 1); joga(0, D_D6, 1); joga(0, D_D6, 5);
     F[0].ancora[0] = 1;
     d = fim();
-    CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.total[0] == 1,
-            "A08: Carrasco 1 ancorado nao anula a si mesmo (est %d %d, A %d)", d.est[0][0], d.est[0][1], d.total[0]);
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[0][1] == V_ANULADO && d.est[0][2] == V_VALIDO && d.total[0] == 6,
+            "A08: Carrasco 1 ancorado nao anula a si mesmo (est %d %d %d, A %d)", d.est[0][0], d.est[0][1], d.est[0][2], d.total[0]);
+    // O Carrasco com 1 anula todos os seus que tiraram 1, ele tambem; o 5 fica.
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_D6, 1); joga(0, D_D6, 1); joga(0, D_D6, 5);
+    d = fim();
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_ANULADO && d.est[0][2] == V_ANULADO && d.est[0][3] == V_VALIDO
+            && d.total[0] == 5, "Carrasco 1: devia anular os tres 1 e deixar o 5 (est %d %d %d %d, A %d)",
+            d.est[0][0], d.est[0][1], d.est[0][2], d.est[0][3], d.total[0]);
 
     // A10: o roubo leva o dado como ele pontua agora - com o corte do
     // Sabotador (8 -> 4) e o -1 do Vampiro (8 -> 7) ja aplicados.
@@ -8003,18 +8011,27 @@ int main(void)
     d = fim();
     CONFERE(d.est[0][0] == V_VALIDO && d.est[1][0] == V_VALIDO, "Invejoso com 4 nao devia anular nada");
 
-    // ---- Carrasco com 1: anula o menor da propria sequencia ---------------
+    // ---- Carrasco com 1: anula os seus dados que tiraram 1 (ele tambem) ---
+    // 3, 5 e o Carrasco com 1: a sequencia faz o mesmo que com um d4 comum
+    // no lugar; o Carrasco nao leva mais nenhum (o 3 nao tirou 1).
+    limpa();
+    joga(0, D_D6, 3); joga(0, D_D6, 5); joga(0, D_D4, 1); joga(1, D_D6, 4);
+    d = fim();
+    uint8_t comum[3] = { d.est[0][0], d.est[0][1], d.est[0][2] };
     limpa();
     joga(0, D_D6, 3); joga(0, D_D6, 5);
-    joga(0, D_CARRASCO, 1);            // cai (1 < 5) e ainda anula o menor que sobrou
+    joga(0, D_CARRASCO, 1);
     joga(1, D_D6, 4);
     d = fim();
-    CONFERE(d.est[0][0] == V_ANULADO && d.est[1][0] == V_VALIDO, "Carrasco com 1 devia anular o seu 3");
+    CONFERE(d.est[0][0] == V_VALIDO && d.est[0][2] == V_ANULADO && d.est[1][0] == V_VALIDO
+            && d.est[0][0] == comum[0] && d.est[0][1] == comum[1] && d.est[0][2] == comum[2],
+            "Carrasco com 1 depois do 5: o 3 fica, como com um d4 comum (est %d %d %d, comum %d %d %d)",
+            d.est[0][0], d.est[0][1], d.est[0][2], comum[0], comum[1], comum[2]);
     limpa();
     joga(0, D_CARRASCO, 1); joga(0, D_D6, 2); joga(0, D_D6, 6);
     d = fim();
     CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO,
-            "Carrasco com 1 valendo e o menor: devia anular a si mesmo");
+            "Carrasco com 1 valendo, unico 1: devia anular so a si mesmo");
 
     // ---- Riqueza: comecou a rodada na frente, +4 --------------------------
     limpa(); fichas_ini[0] = 40; fichas_ini[1] = 30;

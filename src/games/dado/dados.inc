@@ -261,10 +261,10 @@ static const tipo_t TIPO[D_N] = {
     { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "Sempre de 4 a 12" },
     { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "Igual ao último dado válido: +6" },
     { "Escudo",           4, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
-    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado." },
+    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula todos os seus dados que tiraram 1" },
     { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "Se tirar 8, rola novamente somando a pontuação" },
     { "Espinhoso",        4, EF_MARTELO,      RAR_INCOMUM, 15, "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos" },
-    { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "Com 7 ou 8: tira 4 pontos do oponente" },
+    { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "Se tirar 7 ou 8 e terminar válido: o oponente perde 4 pontos" },
     { "Espelho",          6, EF_ESPELHO,      RAR_RARO,    20, "1 ou 2: vira o maior do oponente" },
     { "Riqueza",          4, EF_FICHAS,       RAR_COMUM,    6, "Se você começar a rodada com mais fichas, pontua +4" },
     { "Tudo ou Nada",     2, EF_TUDO_NADA,    RAR_INCOMUM, 14, "2: seus dados pontuam +5 cada · 1: seus dados pontuam -5 cada" },
@@ -396,10 +396,10 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_LASTRO]          = "Doze lados, mas só sai de 4 a 12, todos com a mesma chance.",
     [D_PAR]             = "Se tirar o mesmo número do último dado válido da sequência: +6.",
     [D_ESCUDO]          = "Nunca é anulado. Nunca é roubado.",
-    [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula o seu menor dado.",
+    [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula todos os seus dados que tiraram 1, ele também.",
     [D_EXPLOSIVO]       = "Se tirar 8, rola de novo, somando a pontuação (até 3 vezes seguidas).",
     [D_MARTELO]         = "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos.",
-    [D_PIRATA]          = "Se terminar válido com 7 ou 8, tira 4 pontos do oponente.",
+    [D_PIRATA]          = "Se tirar 7 ou 8 e terminar válido, o oponente perde 4 pontos.",
     [D_ESPELHO]         = "Se tirar 1 ou 2, vira o número do maior dado do oponente.",
     [D_FICHAS]          = "Se terminar válido e você começou a rodada com mais fichas que o oponente, pontua +4.",
     [D_TUDO_NADA]       = "Tirando 2: cada dado válido da sequência pontua +5. Tirando 1: cada dado válido da sequência pontua "
@@ -535,12 +535,12 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PAR]             = "Quatro lados. Se tirar o mesmo número do último dado válido da sequência, pontua +6.",
     [D_ESCUDO]          = "Quatro lados. Nunca é anulado. Nunca é roubado.",
     [D_CARRASCO]        = "Quatro lados. Se terminar válido, tirando 4: anula o maior dado do oponente. Tirando 1, mesmo se "
-                          "terminar anulado: anula o seu menor dado.",
+                          "terminar anulado: anula todos os seus dados que tiraram 1, ele também.",
     [D_EXPLOSIVO]       = "Oito lados. Tirando 8, rola de novo e soma a pontuação da nova rolagem ao 8 que já tinha. Pode rolar "
                           "de novo, a cada 8, até 3 vezes seguidas (pontuação máxima: 32).",
     [D_MARTELO]         = "Quatro lados. Pontua o número que tirar. Se tirar 3 ou 4 e terminar válido: o oponente perde 4 "
                           "pontos.",
-    [D_PIRATA]          = "Oito lados. Se terminar válido, tirando 7 ou 8: tira 4 pontos do oponente. Os pontos não passam para "
+    [D_PIRATA]          = "Oito lados. Se terminar válido, tirando 7 ou 8: o oponente perde 4 pontos. Os pontos não passam para "
                           "você.",
     [D_ESPELHO]         = "Seis lados. Se tirar 1 ou 2, vira o número do maior dado do oponente. Se o oponente ainda não jogou, "
                           "o Espelho permanece válido até o fim do turno do oponente, vira no fim da rodada e pode ser anulado "

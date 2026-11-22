@@ -178,8 +178,10 @@ static int lugares_fila(int j, int ry, int lados_cur)
 // Montagem da fila: a mao comprada aparece na linha do jogador, um dado de
 // cada vez saindo da bolsa. A plaquinha dourada e a posicao na fila.
 // O dado da mao com o poder desligado agora (poder_desligado) fica apagado:
-// so o desenho dele escurece, nao o feltro em volta. apagado_guarda guarda o
-// quadrado antes de desenhar o dado; apagado_aplica escurece o que mudou.
+// so o desenho dele perde a cor, nao o feltro em volta. Acinzentado mas com
+// o claro e o escuro de sempre (o numero se le: o dado ainda pontua), e de
+// vez em quando a cor volta um pouco, devagar, e some de novo. apagado_guarda
+// guarda o quadrado antes de desenhar o dado; apagado_aplica tira a cor do que mudou.
 #define APAGADO_R 30
 static uint16_t apagado_antes[(2 * APAGADO_R) * (2 * APAGADO_R)];
 static void apagado_guarda(int cx, int cy)
@@ -191,15 +193,23 @@ static void apagado_guarda(int cx, int cy)
             if (px >= 0 && py >= 0 && px < GFX_W && py < GFX_H) apagado_antes[y * 2 * APAGADO_R + x] = fb[py * GFX_W + px];
         }
 }
-static void apagado_aplica(int cx, int cy)
+static void apagado_aplica(int cx, int cy, int i)
 {
+    // A volta da cor: uma vez a cada 6 a 9 s (cada dado no seu tempo), por 1,6 s.
+    float per = 6.0f + (float)(i % 3) * 1.4f, t = fmodf(t_relogio + (float)i * 2.3f, per);
+    float volta = t < 1.6f ? sinf(t / 1.6f * 3.1416f) : 0;
+    int cinza = 68 - (int)(volta * 40);                      // % de cinza: 68 parado, 28 no auge da volta
     uint16_t *fb = gfx_alvo() ? gfx_alvo() : display_fb();
     for (int y = 0; y < 2 * APAGADO_R; y++)
         for (int x = 0; x < 2 * APAGADO_R; x++) {
             int px = cx - APAGADO_R + x, py = cy - APAGADO_R + y;
             if (px < 0 || py < 0 || px >= GFX_W || py >= GFX_H) continue;
             uint16_t *c = &fb[py * GFX_W + px];
-            if (*c != apagado_antes[y * 2 * APAGADO_R + x]) *c = gfx_mistura(*c, RGB(40, 44, 40), 55);
+            if (*c == apagado_antes[y * 2 * APAGADO_R + x]) continue;
+            int r = (*c >> 11 & 31) * 255 / 31, g = (*c >> 5 & 63) * 255 / 63, b = (*c & 31) * 255 / 31;
+            int l = (r * 77 + g * 150 + b * 29) >> 8;             // o mesmo claro, sem a cor
+            l = l * 88 / 100 + 10;
+            *c = gfx_mistura(*c, RGB(l, l, l + 4 > 255 ? 255 : l + 4), cinza);
         }
 }
 
@@ -226,7 +236,7 @@ static void desenha_ordem(void)
         bool apaga = !caixa_fechada && vez_daqui() && poder_desligado(vez, p->col[p->mao[i]].tipo);   // nao rende agora: apagado
         if (apaga) apagado_guarda(x, y + dy + rs);
         peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
-        if (apaga) apagado_aplica(x, y + dy + rs);
+        if (apaga) apagado_aplica(x, y + dy + rs, i);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) plaqueta_num(x + 16, y - 17 + rs, ordem, C_OURO, C_BARRA, true);
         if (cur) gfx_rect(x - 16, y + 23, 32, 3, p->cor);
@@ -259,13 +269,22 @@ static void desenha_ordem(void)
         zona_clique(bx, by, wp, BOTAO_H, NULL, 0, KEY_TAB);
     }
     plaqueta_sua_vez(GFX_W / 2, vez == baixo ? ry - 34 : ry + LUGAR_R + 36);   // do lado de longe da mao
-    // Nas tres primeiras rodadas, as teclas de montar a sequencia, entre a
-    // fila e a mao de quem joga aqui (com controle, os botoes dele).
-    if (rodada <= 3 && !(cpu >> vez & 1) && !(remoto >> vez & 1) && t_fase > 0.5f) {
-        int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
-                              : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
-        teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
-    }
+    // Entre a fila e a mao de quem joga aqui: com o cursor (teclado ou
+    // controle) num dado apagado, por que ele nao rende; senao, nas tres
+    // primeiras rodadas, as teclas de montar a sequencia (com controle, os botoes dele).
+    if (!vez_daqui() || t_fase <= 0.5f) return;
+    int ly = vez == baixo ? (ry + LUGAR_R + 18 + y - 20) / 2 - TECLA_H / 2
+                          : (y + 26 + ry - LUGAR_R - 2) / 2 - TECLA_H / 2;
+    const char *desl = NULL;
+    if (cursor >= 0 && cursor < p->n_mao && !(p == &J[0] && p->mao[cursor] == embrulho))
+        desl = poder_desligado(vez, p->col[p->mao[cursor]].tipo);
+    if (desl) {
+        const char *a = "Poder desativado: ";
+        int wa = gfx_largura(a, fonte_de(true)), x0 = GFX_W / 2 - (wa + gfx_largura(desl, fonte_de(false))) / 2;
+        int ty = ly + (TECLA_H - TXT_H) / 2 - 3;
+        txt(x0, ty, a, C_VINHO_CLR, true);
+        txt(x0 + wa, ty, desl, C_MARFIM_S, false);
+    } else if (rodada <= 3) teclas_c(GFX_W / 2, ly, "ENTER escolhe  ·  TAB joga  ·  BACKSPACE tira", C_TEXTO_M);
 }
 
 // Chance (%) de o proximo dado de j derrubar alguma coisa: ele mesmo ou o

@@ -236,7 +236,10 @@ static void miras_agora(uint8_t mira[2])
             memcpy(est, f->est, N_FILA);
             switch (ef) {
             case EF_CARRASCO:
-                if (f->cru[k] == 1) mira_menores(est, j, 1, -1, &mira[j]);   // o seu menor (ele mesmo, se for)
+                if (f->cru[k] == 1) {            // todos os seus que tiraram 1 (ele mesmo incluido)
+                    for (int i = 0; i < f->lancados && i < N_FILA; i++)
+                        if (f->cru[i] == 1 && est[i] == V_VALIDO && !firme_sem_capa(j, i)) mira[j] |= (uint8_t)(1 << i);
+                }
                 else if (v == CARRASCO_ANULA && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
             case EF_INVEJOSO:

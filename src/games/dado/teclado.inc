@@ -159,10 +159,11 @@ bool dado_mouse_clicavel(void)
 {
     if (zonas_fase != fase) return false;
     bool alheia = ia_na_vez() || (modo == M_ONLINE && rede_na_vez());
-    for (int i = 0; i < n_zonas; i++)
-        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)
-            && (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA))
-            return true;
+    for (int i = n_zonas - 1; i >= 0; i--)              // a de cima primeiro, como no clique
+        if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) {
+            if (!zonas[i].var && !zonas[i].tecla) return false;   // a zona muda: so engole o clique
+            if (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA) return true;
+        }
     return false;
 }
 

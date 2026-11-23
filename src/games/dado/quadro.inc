@@ -82,9 +82,11 @@ static int dica_adesivos(const dica_t *d, int *lados)
     return n;
 }
 // A etiqueta de quando cada adesivo age cabe na dica? Com muitos (o Infectado
-// espalhado num d20) ela passaria da tela: a lista curta sai sem ela.
-// dica_rect decide; desenha_dica segue.
+// espalhado num d20) ela passaria da tela: a lista curta sai sem ela. E se nem
+// assim couber (19 ou 20 num d20), a lista mostra os que cabem e termina em
+// "e mais N adesivos" (dica_ad_max). dica_rect decide; desenha_dica segue.
 static bool dica_quando_cabe = true;
+static int dica_ad_max = AD_LADOS;
 static int dica_ad_altura(const dica_t *d, bool quando)
 {
     int lados[AD_LADOS], n = dica_adesivos(d, lados), h = 0;
@@ -148,7 +150,14 @@ static bool dica_rect(int *r, const dica_t **qual)
     int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d, larg)
                     + (d->tipo == DICA_ADESIVO ? ad_quando_h(d->id) : 0);   // o adesivo: a etiqueta de quando ele age
     dica_quando_cabe = h + dica_ad_altura(d, true) <= GFX_H - 8;
-    h += dica_ad_altura(d, dica_quando_cabe);
+    int ha = dica_ad_altura(d, dica_quando_cabe), lados_d[AD_LADOS], na = dica_adesivos(d, lados_d);
+    dica_ad_max = AD_LADOS;
+    if (h + ha > GFX_H - 8 && na > 2) {         // nem sem as etiquetas: os que cabem, e a linha do resto
+        dica_ad_max = (GFX_H - 8 - h - 8) / DICA_AD_LIN - 1;
+        if (dica_ad_max < 1) dica_ad_max = 1;
+        ha = (dica_ad_max + 1) * DICA_AD_LIN + 8;
+    }
+    h += ha;
     // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
     // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
     // fosse cobrir a propria coisa, vai para o lado dela.
@@ -200,6 +209,12 @@ static void desenha_dica(const int *r, const dica_t *d)
     gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
     yy += 5;
     for (int i = 0; i < n; i++) {
+        if (i >= dica_ad_max) {                          // nao cabem todos: quantos ficaram de fora
+            char s[32];
+            snprintf(s, sizeof s, "e mais %d adesivo%s", n - i, n - i > 1 ? "s" : "");
+            gfx_texto(x + 18, yy - 2, s, C_TEXTO_M, GFX_FINO, false);
+            break;
+        }
         int a = ad_no_lado(&d->pc, lados[i]);
         const adesivo_t *ad = &ADESIVO[a];
         ad_solto_d(x + 6, yy + 7, a, 1, 0);

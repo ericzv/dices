@@ -193,7 +193,11 @@ static void nov_passo(void)
     }
     if (n_nov > 1 && nov_pronto() && !nov_fim_tocou) { nov_fim_tocou = true; som_toca(SOM_PREMIO); }
     if (nov_sel < 0 || nov_sel >= n_nov) nov_sel = 0;
-    if (nov_parado() && nov_sel != nov_sel_vis) { nov_sel_vis = nov_sel; nov_sel_t = t_fase; }   // o pulinho do escolhido
+    if (nov_parado() && nov_sel != nov_sel_vis) {   // trocou o escolhido: o pulinho e o som (o do mouse por cima ja tocou)
+        if (nov_sel_vis >= 0 && t_relogio - passa_em > 0.05f) som_toca(SOM_PASSA);
+        nov_sel_vis = nov_sel;
+        nov_sel_t = t_fase;
+    }
 }
 
 // TAB: todos de uma vez, ate os cards esperando na fileira (um card so: ele de frente).
@@ -206,10 +210,9 @@ static void nov_tudo(void)
 static bool nov_tecla(int k)
 {
     if (nov_parado()) {                  // esperando na fileira: as setas escolhem, ENTER e TAB levam ao resumo
-        if (k == KEY_LEFT || k == KEY_RIGHT) {
-            nov_sel = (nov_sel + (k == KEY_RIGHT ? 1 : n_nov - 1)) % n_nov;
-            som_toca(SOM_PASSA);
-        } else if (k == KEY_ENTER || k == KEY_TAB || k == 'x') nov_resumo_abre();
+        bool esq = k == KEY_LEFT || k == 'a' || k == ',', dir = k == KEY_RIGHT || k == 'd' || k == '/';
+        if (esq || dir) nov_sel = (nov_sel + (dir ? 1 : n_nov - 1)) % n_nov;   // o som sai em nov_passo
+        else if (k == KEY_ENTER || k == KEY_TAB || k == 'x') nov_resumo_abre();
         return true;
     }
     if (k == KEY_TAB || k == 'x') { if (nov_pronto()) nov_segue(); else nov_tudo(); return true; }
@@ -408,7 +411,9 @@ static void nov_clarao(int i, int cx, int cy, float desde)
     }
 }
 
-static int nov_slot_x(int i) { return GFX_W / 2 + (int)((i - (n_nov - 1) / 2.0f) * 30); }
+// O passo da fileira: 30, ou menos com mais de 20 cards (cabe na mesa e no mouse).
+static int nov_passo_x(void) { return n_nov > 20 ? 600 / n_nov : 30; }
+static int nov_slot_x(int i) { return GFX_W / 2 + (int)((i - (n_nov - 1) / 2.0f) * nov_passo_x()); }
 
 // A fileira: os vistos de frente, pequenos; os que faltam, de costas.
 static void nov_fileira(int atual, int etapa, float q)
@@ -478,8 +483,12 @@ static void nov_desenha_parado(void)
     for (int k = 0; k < n_nov; k++) {
         int x = nov_slot_x(k);
         if (k == i) ui_cantos(x - 13, NOV_FY - 13, 26, 26, nov_cor(k));
-        zona_clique(x - 15, NOV_FY - 16, 30, 32, &nov_sel, k, 0);   // passar por cima escolhe
+        int px = nov_passo_x();
+        zona_clique(x - px / 2, NOV_FY - 16, px, 32, &nov_sel, k, 0);   // passar por cima escolhe
     }
+    // O card grande engole o clique (e o toque, de quem quer ver a dica dele):
+    // so o clique fora dos cards abre o resumo.
+    zona_clique(cx - NOV_CW / 2, NOV_CY - NOV_CH / 2, NOV_CW, NOV_CH, NULL, 0, 0);
     int pulo = desde < 0.16f ? (int)(sinf(desde / 0.16f * 3.1416f) * 4) : 0;
     nov_frente(i, cx, NOV_CY - pulo, desde);
     nov_embaixo(i, cx);
@@ -507,11 +516,13 @@ static void desenha_novidades(void)
     if ((parado || (etapa >= 0 && etapa < 4)) && qual < n_nov && nov[qual].cq) {   // o card de uma conquista: o feito, em cima
         char s[160];
         snprintf(s, sizeof s, "Conquista: %s", CONQ[nov[qual].cq - 1].texto);
-        txt_c(GFX_W / 2, ys, s, C_OURO, false);
+        int f = fonte_de(false);         // a letra maior que passaria da mesa volta para a fina
+        if (gfx_largura(s, f) > MESA_X1 - MESA_X0 - 16) { f = GFX_FINO_FIXO; ys = MESA_Y0 + 30; }
+        gfx_texto(GFX_W / 2 - gfx_largura(s, f) / 2, ys, s, C_OURO, f, false);
     } else txt_c(GFX_W / 2, ys, nov_sub, C_TEXTO_M, false);
     if (parado) {
         nov_desenha_parado();
-        rodape_run("setas escolhem  ·  ENTER segue");
+        rodape_run(nov[nov_sel].k == NV_DADO ? "setas escolhem  ·  I detalhes  ·  ENTER segue" : "setas escolhem  ·  ENTER segue");
         return;
     }
     if (etapa == 4) {
@@ -547,5 +558,7 @@ static void desenha_novidades(void)
             nov_icone(i, x, y, 9 + (int)((1 - e) * 14));
         }
     }
-    rodape_run(nov_pronto() ? "ENTER segue" : n_nov > 1 ? "ENTER acelera  ·  TAB mostra tudo" : "ENTER acelera");
+    bool dado1 = n_nov == 1 && nov[0].k == NV_DADO;   // o card unico de frente, um dado: os detalhes
+    rodape_run(nov_pronto() ? (dado1 ? "I detalhes  ·  ENTER segue" : "ENTER segue")
+               : n_nov > 1 ? "ENTER acelera  ·  TAB mostra tudo" : "ENTER acelera");
 }

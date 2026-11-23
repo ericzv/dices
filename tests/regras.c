@@ -4726,6 +4726,14 @@ int main(void)
                 CONFERE(nov_sel == 1 && nov_parado(), "a seta devia escolher o 2o card (%d)", nov_sel);
                 nov_tecla(KEY_LEFT); nov_tecla(KEY_LEFT);
                 CONFERE(nov_sel == n_nov - 1, "a seta para tras devia dar a volta (%d de %d)", nov_sel, n_nov);
+                nov_tecla('d');                  // A e D tambem escolhem (como nas outras telas)
+                CONFERE(nov_sel == 0, "o D devia escolher o proximo (%d)", nov_sel);
+                CONFERE(tipo_em_foco() == D_D20, "I nas Novidades: o dado do card escolhido (%d)", tipo_em_foco());
+                int nd = -1;                     // um card que nao e dado: sem detalhes
+                for (int q = 0; q < n_nov && nd < 0; q++) if (nov[q].k != NV_DADO) nd = q;
+                if (nd >= 0) { nov_sel = nd; CONFERE(tipo_em_foco() == -1, "I num card que nao e dado devia nao abrir nada"); }
+                nov_tecla('a');
+                CONFERE(nov_sel == (nd >= 0 ? nd - 1 + n_nov : n_nov - 1) % n_nov, "o A devia escolher o anterior (%d)", nov_sel);
                 t_fase += 30;                    // parado nao segue sozinho
                 CONFERE(nov_parado() && !nov_pronto(), "os cards na fileira deviam esperar o jogador");
                 nov_tecla(KEY_ENTER);            // ENTER: o resumo

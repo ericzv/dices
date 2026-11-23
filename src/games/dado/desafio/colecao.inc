@@ -200,8 +200,16 @@ static void desenha_cat_adesivo(int i)
     ad_quando_selo(x, 150 + dy, a);              // quando ele age
     dy += AD_QUANDO_H;
     int y = 152 + dy + quebra_linhas(x, 152 + dy, 320, 4, AD_TEXTO[a], C_MARFIM) * LINHA_FINA + 5;
-    if (AD_DETALHE[a] && ATE - y >= LINHA_MIUDA)
-        y += quebra_linhas_em(x, y, 320, (ATE - y) / LINHA_MIUDA, AD_DETALHE[a], C_TEXTO_M, GFX_MIUDO, LINHA_MIUDA) * LINHA_MIUDA + 5;
+    if (AD_DETALHE[a] && ATE - y >= 10) {
+        // Com a letra maior, o detalhe que nao cabe volta para a miuda de
+        // sempre (como quebra_cabe): nao corta no meio da frase.
+        int f = GFX_MIUDO, passo = LINHA_MIUDA;
+        quebra_so_conta = true;
+        int nl = quebra_linhas_em(x, y, 320, 99, AD_DETALHE[a], 0, f, passo);
+        quebra_so_conta = false;
+        if (nl * passo > ATE - y) { f = GFX_MIUDO_FIXO; passo = 10; }
+        y += quebra_linhas_em(x, y, 320, (ATE - y) / passo, AD_DETALHE[a], C_TEXTO_M, f, passo) * passo + 5;
+    }
     static const char *const COMO = "Vai num lado de um dado da sua bolsa e só age quando o dado termina a rodada com esse lado para cima.";
     quebra_so_conta = true;
     int nc = quebra_linhas_em(x, 0, 320, 9, COMO, 0, GFX_MIUDO, LINHA_MIUDA);

@@ -81,13 +81,17 @@ static int dica_adesivos(const dica_t *d, int *lados)
     for (int l = 1; l <= AD_LADOS; l++) if (ad_no_lado(&d->pc, l)) lados[n++] = l;
     return n;
 }
-static int dica_ad_altura(const dica_t *d)
+// A etiqueta de quando cada adesivo age cabe na dica? Com muitos (o Infectado
+// espalhado num d20) ela passaria da tela: a lista curta sai sem ela.
+// dica_rect decide; desenha_dica segue.
+static bool dica_quando_cabe = true;
+static int dica_ad_altura(const dica_t *d, bool quando)
 {
     int lados[AD_LADOS], n = dica_adesivos(d, lados), h = 0;
     if (!n) return 0;
     quebra_so_conta = true;
     for (int i = 0; i < n; i++)
-        h += DICA_AD_LIN + AD_QUANDO_H
+        h += DICA_AD_LIN + (quando ? AD_QUANDO_H : 0)
            + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, 3, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
     quebra_so_conta = false;
     return h + 8;                                        // e o filete que separa do dado
@@ -113,12 +117,12 @@ static const char *dica_desligado(const dica_t *d)
     if (d->tipo != DICA_DADO || !d->mao || d->id >= D_N) return NULL;
     return poder_desligado(d->mao - 1, d->id);
 }
-static int dica_desl_altura(const dica_t *d)
+static int dica_desl_altura(const dica_t *d, int larg)
 {
     const char *m = dica_desligado(d);
     if (!m) return 0;
     quebra_so_conta = true;
-    int l = quebra_linhas(0, 0, 260 - 16, 2, m, 0);
+    int l = quebra_linhas(0, 0, larg - 16, 2, m, 0);
     quebra_so_conta = false;
     return 5 + TXT_H + l * LINHA_FINA + 2;
 }
@@ -141,8 +145,10 @@ static bool dica_rect(int *r, const dica_t **qual)
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
-    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d) + dica_ad_altura(d)
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d, larg)
                     + (d->tipo == DICA_ADESIVO ? AD_QUANDO_H : 0);   // o adesivo: a etiqueta de quando ele age
+    dica_quando_cabe = h + dica_ad_altura(d, true) <= GFX_H - 8;
+    h += dica_ad_altura(d, dica_quando_cabe);
     // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
     // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
     // fosse cobrir a propria coisa, vai para o lado dela.
@@ -207,8 +213,10 @@ static void desenha_dica(const int *r, const dica_t *d)
             gfx_texto(x + 18 + wn + 6 + wl + 4, yy - 2, s, C_OURO, GFX_FINO, false);
         }
         yy += DICA_AD_LIN;
-        ad_quando_selo(x + 18, yy - 3, a);               // quando ele age
-        yy += AD_QUANDO_H;
+        if (dica_quando_cabe) {                          // quando ele age
+            ad_quando_selo(x + 18, yy - 3, a);
+            yy += AD_QUANDO_H;
+        }
         if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, 3, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
     }
 }

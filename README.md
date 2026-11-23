@@ -186,8 +186,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   trocar a loja (sorteia tudo de novo: os dados, os adesivos e o pacote; 1,
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
   inteira). O adesivo vai num lado de um dado da sua bolsa (um por
-  lado, quantos couberem) e só age quando o dado termina a rodada com esse
-  lado para cima: são 48, do Confete (+4) e do Eletrônico (x2) ao Chumbo
+  lado, quantos couberem); a etiqueta dele diz quando age (na queda do
+  dado, se o dado terminar válido com esse lado, se cair nesse lado ou, no
+  Patinho e na Dinamite, em todo lance): são 48, do Confete (+4) e do Eletrônico (x2) ao Chumbo
   (sai nesse lado um terço das vezes; no máximo dois por dado, e com dois cada
   um sai um terço das vezes), ao Bis (1 dado a mais na sequência na próxima rodada), ao Avesso (vira o dado), à Mira (anula o
   menor do oponente), ao Selo (lacra o dado: no próximo lance, caia onde

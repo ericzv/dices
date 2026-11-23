@@ -559,7 +559,9 @@ static const char *const AD_DETALHE[AD_N] = {
 // lado dele, e o que faz muda se o dado terminar valido ou anulado; ou
 // caindo no lado dele, mas agindo em todo lance (o Patinho Feio e a
 // Dinamite). Conferido em desfecho/adesivos_fim.inc e adesivos_pouso.inc.
-enum { AQ_QUEDA, AQ_VALIDO, AQ_LADO, AQ_TODOS };
+// O Tiquete de Metro fica sem etiqueta (AQ_SEM): paga ate com o proprio
+// dado anulado, com 5 ou 6 dados, e nenhuma das quatro diz isso.
+enum { AQ_QUEDA, AQ_VALIDO, AQ_LADO, AQ_TODOS, AQ_SEM };
 static int ad_quando(int a)
 {
     switch (a) {
@@ -568,24 +570,30 @@ static int ad_quando(int a)
     case AD_FRAGIL: case AD_LENTICULAR: case AD_RATOEIRA: case AD_INFECTADO: case AD_IMANTADO:
         return AQ_LADO;
     case AD_CONFETE: case AD_ELETRONICO: case AD_RASPADINHA: case AD_FERMENTO: case AD_MIRA: case AD_PURPURINA:
-    case AD_FIGURINHA: case AD_ETIQUETA: case AD_BILHETE: case AD_NEON: case AD_CORRENTE: case AD_TIQUETE:
+    case AD_FIGURINHA: case AD_ETIQUETA: case AD_BILHETE: case AD_NEON: case AD_CORRENTE:
         return AQ_VALIDO;
+    case AD_TIQUETE:
+        return AQ_SEM;
     default:
         return AQ_QUEDA;
     }
 }
-static const char *const AD_QUANDO[4] = {
+static const char *const AD_QUANDO[5] = {
     [AQ_QUEDA]  = "Atua na queda do dado",
     [AQ_VALIDO] = "Ativa se o dado terminar válido com este lado",
     [AQ_LADO]   = "Ativa se cair neste lado",
     [AQ_TODOS]  = "Ativa se cair neste lado, mas atua em todos os lados",
+    [AQ_SEM]    = "",
 };
 static const char *ad_quando_txt(int a) { return a > AD_NADA && a < AD_N ? AD_QUANDO[ad_quando(a)] : ""; }
-// A etiqueta do quando, em (x, y) (o alto da linha) ou centrada em cx; devolve a largura.
+static bool ad_tem_quando(int a) { return *ad_quando_txt(a) != 0; }
+// A etiqueta do quando, em (x, y) (o alto da linha) ou centrada em cx; devolve
+// a largura. Sem etiqueta (o Tiquete), nao desenha nada e nao ocupa lugar.
 #define AD_QUANDO_H 14                           // a altura da linha da etiqueta
-static int ad_quando_w(int a) { return gfx_largura(ad_quando_txt(a), GFX_MIUDO) + 8; }
-static int ad_quando_selo(int x, int y, int a) { return ui_selo(x, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO); }
-static int ad_quando_selo_c(int cx, int y, int a) { return ui_selo_c(cx, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO); }
+static int ad_quando_h(int a) { return ad_tem_quando(a) ? AD_QUANDO_H : 0; }
+static int ad_quando_w(int a) { return ad_tem_quando(a) ? gfx_largura(ad_quando_txt(a), GFX_MIUDO) + 8 : 0; }
+static int ad_quando_selo(int x, int y, int a) { return ad_tem_quando(a) ? ui_selo(x, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO) : 0; }
+static int ad_quando_selo_c(int cx, int y, int a) { return ad_tem_quando(a) ? ui_selo_c(cx, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO) : 0; }
 
 // As tres massinhas de modelar da Massinha (o simbolo, a face e a bolota
 // que voa): o vermelho, o amarelo e o azul, cada um com o tom escuro.

@@ -1684,8 +1684,8 @@ static void desenha_loja_run(void)
                   C_MARFIM_S, false);
             if (!ad_loja_vendido(k) && t_lj_aviso <= 0) {   // onde vai e, na etiqueta, quando ele age
                 const char *vai = "Vai num lado de um dado da sua bolsa.";
-                int wv = gfx_largura(vai, fonte_de(false)), we = gfx_largura(ad_quando_txt(a), GFX_MIUDO) + 8;
-                int x0 = GFX_W / 2 - (wv + 8 + we) / 2, yv = LJ_DESC_Y + 2 * TXT_H - 3;
+                int wv = gfx_largura(vai, fonte_de(false)), we = ad_quando_w(a);
+                int x0 = GFX_W / 2 - (wv + (we ? 8 + we : 0)) / 2, yv = LJ_DESC_Y + 2 * TXT_H - 3;
                 txt(x0, yv, vai, C_TEXTO_M, false);
                 ad_quando_selo(x0 + wv + 8, yv + 1, a);
             }

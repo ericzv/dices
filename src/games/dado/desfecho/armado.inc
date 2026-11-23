@@ -8,15 +8,20 @@
 // Quem chama: a mesa (mesa.inc), a cada quadro.
 // ===========================================================================
 
-// O Carrasco que tirou 1 derruba o dado i do mesmo dono? So os que tiraram 1
-// e ainda valem; o firme (nao anulavel, preso pela Ancora) fica. O Digital,
-// a Ficha Coringa e o Carrossel nao valem o que rolam (o lance deles fica
-// escondido; o numero vem de outro lugar), entao o 1 rolado deles nao conta.
+// O Carrasco que tirou 1 derruba o dado i do mesmo dono? So os que mostram
+// 1 na mesa e ainda valem: o que rolou 1 e virou outro numero (a Prensa, o
+// Espelho, o Gemeo, o Eco) fica, e o lance escondido do Digital, da Ficha
+// Coringa e do Carrossel nao conta. O firme (nao anulavel, preso pela
+// Ancora) fica.
 static bool carrasco_castiga(int j, int i, uint8_t est)
 {
-    int ef = TIPO[tipo_de(j, i)].efeito;
-    if (ef == EF_DIGITAL || ef == EF_FICHA_CORINGA || ef == EF_CARROSSEL) return false;
-    return F[j].cru[i] == 1 && est == V_VALIDO && !firme_sem_capa(j, i);
+    return F[j].valor[i] == 1 && est == V_VALIDO && !firme_sem_capa(j, i);
+}
+// Na mira ao vivo: o Espelho que espera ainda mostra o 1 que rolou, mas vira
+// no fim, antes do castigo; a mira nao promete derruba-lo.
+static bool carrasco_castiga_ao_vivo(int j, int i, uint8_t est)
+{
+    return carrasco_castiga(j, i, est) && !F[j].espera[i];
 }
 
 #define AGNUS_NUMERO 7                 // o Agnus: o numero que ressuscita
@@ -247,9 +252,9 @@ static void miras_agora(uint8_t mira[2])
             memcpy(est, f->est, N_FILA);
             switch (ef) {
             case EF_CARRASCO:
-                if (f->cru[k] == 1) {            // todos os seus que tiraram 1 (ele mesmo incluido)
+                if (f->cru[k] == 1) {            // todos os seus que mostram 1 (ele mesmo incluido)
                     for (int i = 0; i < f->lancados && i < N_FILA; i++)
-                        if (carrasco_castiga(j, i, est[i])) mira[j] |= (uint8_t)(1 << i);
+                        if (carrasco_castiga_ao_vivo(j, i, est[i])) mira[j] |= (uint8_t)(1 << i);
                 }
                 else if (v == CARRASCO_ANULA && !couraca) a = alvo_de(F[r].est, r, true, -1);
                 break;
@@ -280,9 +285,9 @@ static void miras_agora(uint8_t mira[2])
                 bool carrasco = false;
                 for (int c = 0; c < k; c++)
                     carrasco |= TIPO[tipo_de(j, c)].efeito == EF_CARRASCO && f->cru[c] == 1 && f->est[c] != V_ROUBADO;
-                if (carrasco && carrasco_castiga(j, k, f->est[k])) break;
+                if (carrasco && carrasco_castiga_ao_vivo(j, k, f->est[k])) break;
                 for (int i = 0; i < f->lancados && i < N_FILA; i++)
-                    n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO && !(carrasco && carrasco_castiga(j, i, f->est[i]));
+                    n += i != k && f->cru[i] == 1 && f->est[i] == V_VALIDO && !(carrasco && carrasco_castiga_ao_vivo(j, i, f->est[i]));
                 for (int q = 0; q < n; q++) {
                     int b = desvia_seguranca(er, r, alvo_de(er, r, false, -1));
                     if (b < 0) break;

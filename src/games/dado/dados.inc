@@ -261,7 +261,7 @@ static const tipo_t TIPO[D_N] = {
     { "Lastro",          12, EF_LASTRO,       RAR_LENDA,   26, "Sempre de 4 a 12" },
     { "Par",              4, EF_PAR,          RAR_INCOMUM, 11, "Igual ao último dado válido: +6" },
     { "Escudo",           4, EF_ESCUDO,       RAR_RARO,    15, "Nunca é anulado nem roubado" },
-    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula todos os seus dados que tiraram 1" },
+    { "Carrasco",         4, EF_CARRASCO,     RAR_INCOMUM, 17, "Se tirar 4: anula o maior dado do oponente. Se tirar 1: anula todos os seus dados que mostram 1" },
     { "Explosivo",        8, EF_EXPLODE,      RAR_RARO,    16, "Se tirar 8, rola novamente somando a pontuação" },
     { "Espinhoso",        4, EF_MARTELO,      RAR_INCOMUM, 15, "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos" },
     { "Pirata",           8, EF_PIRATA,       RAR_RARO,     0, "Se tirar 7 ou 8 e terminar válido: o oponente perde 4 pontos" },
@@ -396,7 +396,7 @@ static const char *TEXTO_MEDIO[D_N] = {
     [D_LASTRO]          = "Doze lados, mas só sai de 4 a 12, todos com a mesma chance.",
     [D_PAR]             = "Se tirar o mesmo número do último dado válido da sequência: +6.",
     [D_ESCUDO]          = "Nunca é anulado. Nunca é roubado.",
-    [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1, mesmo se terminar anulado: anula todos os seus dados que tiraram 1, ele também.",
+    [D_CARRASCO]        = "Se tirar 4: anula o maior dado do oponente. Se tirar 1, mesmo se terminar anulado: anula todos os seus dados que mostram 1, ele também.",
     [D_EXPLOSIVO]       = "Se tirar 8, rola de novo, somando a pontuação (até 3 vezes seguidas).",
     [D_MARTELO]         = "Se tirar 3 ou 4 e terminar válido: o oponente perde 4 pontos.",
     [D_PIRATA]          = "Se tirar 7 ou 8 e terminar válido, o oponente perde 4 pontos.",
@@ -535,7 +535,7 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PAR]             = "Quatro lados. Se tirar o mesmo número do último dado válido da sequência, pontua +6.",
     [D_ESCUDO]          = "Quatro lados. Nunca é anulado. Nunca é roubado.",
     [D_CARRASCO]        = "Quatro lados. Se terminar válido, tirando 4: anula o maior dado do oponente. Tirando 1, mesmo se "
-                          "terminar anulado: anula todos os seus dados que tiraram 1, ele também.",
+                          "terminar anulado: anula todos os seus dados que mostram 1, ele também.",
     [D_EXPLOSIVO]       = "Oito lados. Tirando 8, rola de novo e soma a pontuação da nova rolagem ao 8 que já tinha. Pode rolar "
                           "de novo, a cada 8, até 3 vezes seguidas (pontuação máxima: 32).",
     [D_MARTELO]         = "Quatro lados. Pontua o número que tirar. Se tirar 3 ou 4 e terminar válido: o oponente perde 4 "

@@ -339,8 +339,9 @@ static void achados_desfecho(void)
             && d.total[0] == 5, "Carrasco 1: devia anular os tres 1 e deixar o 5 (est %d %d %d %d, A %d)",
             d.est[0][0], d.est[0][1], d.est[0][2], d.est[0][3], d.total[0]);
 
-    // O Digital nao vale o que rola: o 1 escondido dele nao conta para o
-    // Carrasco (fica como ficaria com um d4 comum no lugar do Carrasco).
+    // O Carrasco olha o numero que o dado mostra: o Digital (lance escondido
+    // 1) so cai se mostrar 1; senao fica como ficaria com um d4 comum no
+    // lugar do Carrasco.
     achado_zera(); achado_fila(0);
     joga(0, D_D4, 1); joga(0, D_DIGITAL, 1); joga(0, D_D6, 6);
     d = fim();
@@ -348,8 +349,17 @@ static void achados_desfecho(void)
     achado_zera(); achado_fila(0);
     joga(0, D_CARRASCO, 1); joga(0, D_DIGITAL, 1); joga(0, D_D6, 6);
     d = fim();
-    CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == dig_comum,
-            "Carrasco 1: o Digital (lance escondido 1) nao devia cair (est %d %d, comum %d)", d.est[0][0], d.est[0][1], dig_comum);
+    CONFERE(d.est[0][0] == V_ANULADO && d.est[0][1] == (F[0].valor[1] == 1 && dig_comum == V_VALIDO ? V_ANULADO : dig_comum),
+            "Carrasco 1: o Digital (mostra %d) (est %d %d, comum %d)", F[0].valor[1], d.est[0][0], d.est[0][1], dig_comum);
+    // Com a Prensa, o 1 vira 3: rolou 1 mas mostra 3, entao o Carrasco nao o
+    // derruba (nem a si mesmo, que tambem mostra 3).
+    achado_zera(); achado_fila(0); modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+    joga(0, D_D6, 1); joga(0, D_CARRASCO, 1); joga(0, D_D6, 5);
+    d = fim();
+    amul[0] = 0; modo = M_DOIS;
+    CONFERE(F[0].valor[0] == 3 && F[0].valor[1] == 3 && d.est[0][0] == V_VALIDO && d.est[0][1] == V_VALIDO && d.est[0][2] == V_VALIDO,
+            "Carrasco 1 com a Prensa: ninguem mostra 1, ninguem cai (valor %d %d, est %d %d %d)",
+            F[0].valor[0], F[0].valor[1], d.est[0][0], d.est[0][1], d.est[0][2]);
     // O Carrasco com 1 antes do Gatuno derruba os 1 antes do roubo: a mira
     // do Gatuno nao pode prometer roubo nenhum.
     achado_zera(); achado_fila(0);
@@ -843,6 +853,87 @@ static void achados_desfecho(void)
     J[0] = g0; J[1] = g1; amul[0] = am0; amul[1] = am1;
     modo = modo0; rodada = rodada0; primeiro = prim0; reg_op = reg0;
     limpa();
+}
+
+// A previa do poder na mao (telas.inc, previa_lados): os lados que ligam e os
+// contra o dono, com os adesivos; e nada do jogo muda (a mesa, a bolsa, os
+// sorteios, os amuletos que acenderam, as bonecas, o lance do Estilingue).
+static void previa_confere(const peca_t *q, uint32_t bom, uint32_t mau, int linha)
+{
+    J[0].n_col = 1;
+    J[0].col[0] = *q;
+    // uma mesa no meio da rodada, para ver que volta igual
+    achado_fila(0);
+    joga(0, D_D6, 5); joga(1, D_D8, 3);
+    snprintf(veredito, sizeof veredito, "antes");
+    ver_tipo = 7; anulou_a = 1; anulou_b = 2; resistiu = 3; anulou_masc = 5; ver_comum = true; primeiro = 1;
+    am_disparou = AM_BIT(A_LUVA); bonecas_ult = 0x1234; lance_no_maximo = true;
+    static fila_t f0[2]; static jogador_t j0[2]; static char v0[sizeof veredito];
+    memcpy(f0, F, sizeof F); memcpy(j0, J, sizeof J); memcpy(v0, veredito, sizeof veredito);
+    uint32_t s0 = semente, si0 = semente_ia;
+    uint32_t b, m;
+    bool tem = previa_lados(0, 0, &b, &m);
+    CONFERE(b == bom && m == mau && tem == (bom || mau),
+            "previa (linha %d, %s): liga %08x contra %08x, esperava %08x %08x", linha, TIPO[q->tipo].nome, b, m, bom, mau);
+    CONFERE(!memcmp(f0, F, sizeof F) && !memcmp(j0, J, sizeof J) && !memcmp(v0, veredito, sizeof veredito)
+            && ver_tipo == 7 && anulou_a == 1 && anulou_b == 2 && resistiu == 3 && anulou_masc == 5 && ver_comum
+            && primeiro == 1 && am_disparou == AM_BIT(A_LUVA) && bonecas_ult == 0x1234 && lance_no_maximo
+            && semente == s0 && semente_ia == si0,
+            "previa (linha %d, %s): mexeu no jogo", linha, TIPO[q->tipo].nome);
+    lance_no_maximo = false; am_disparou = 0; bonecas_ult = 0; primeiro = 0;
+}
+static void achados_previa(void)
+{
+    achado_zera();
+    static const struct { int t; int l1, a1, l2, a2; uint32_t bom, mau; } C[] = {
+        { D_CARRASCO,     0, 0, 0, 0,                         1u << 4,                 1u << 1 },
+        { D_CARRASCO,     1, AD_AVESSO, 2, AD_REMENDO,        1u << 1 | 1u << 2 | 1u << 4, 0 },
+        { D_CARRASCO,     4, AD_AVESSO, 0, 0,                 0,                       1u << 1 | 1u << 4 },
+        { D_CARRASCO,     1, AD_CHUMBO, 3, AD_REFLEXIVO,      1u << 4,                 1u << 1 },   // o Chumbo nao muda; o Reflexivo fica de fora
+        { D_TREVO,        1, AD_NOTA_DEZ, 0, 0,               1u << 1 | 1u << 4,       0 },
+        { D_TUDO_NADA,    0, 0, 0, 0,                         1u << 2,                 1u << 1 },
+        { D_VIDRO,        0, 0, 0, 0,                         0,                       1u << 1 },
+        { D_ESTILINGUE,   0, 0, 0, 0,                         1u << 1,                 0 },
+        { D_D6,           0, 0, 0, 0,                         0,                       0 },
+        { D_FICHAS,       0, 0, 0, 0,                         0,                       0 },         // nao depende do lado
+        { D_TERREMOTO,    0, 0, 0, 0,                         1u << 7 | 1u << 8,       0 },         // a semente do tremor nao conta como acaso
+        { D_LASER,        5, AD_BOMBA, 0, 0,                  1u << 6,                 0 },         // o 5 com Papel Bomba rola de novo: fora
+    };
+    for (unsigned c = 0; c < sizeof C / sizeof C[0]; c++) {
+        peca_t q; memset(&q, 0, sizeof q); q.tipo = (uint8_t)C[c].t; q.fixo = nova_peca(C[c].t).fixo;
+        if (C[c].l1) q.ad[C[c].l1 - 1] = (uint8_t)C[c].a1;
+        if (C[c].l2) q.ad[C[c].l2 - 1] = (uint8_t)C[c].a2;
+        previa_confere(&q, C[c].bom, C[c].mau, (int)c);
+    }
+    // Com a Prensa (que acende no lance de mentira e tem de apagar): o 1 vira
+    // 3 - o Carrasco segue castigando no 1, a Fartura nao liga mais no 1.
+    modo = M_DESAFIO; amul[0] = AM_BIT(A_PRENSA);
+    peca_t q; memset(&q, 0, sizeof q);
+    q.tipo = D_FARTURA; previa_confere(&q, 1u << 2, 0, 100);
+    q.tipo = D_CARRASCO; previa_confere(&q, 1u << 4, 1u << 1, 101);
+    amul[0] = 0; modo = M_DOIS;
+
+    // O relogio da volta (t_relogio vai a 0 a cada 1000 s) com o cursor parado
+    // no mesmo dado: a previa recomeca do primeiro lado, sem tempo negativo.
+    float t0 = t_relogio;
+    t_relogio = 900; previa_t(5); t_relogio = 901; previa_t(5);
+    t_relogio = 3;
+    float tv = previa_t(5);
+    bool bem = false;
+    int lado = previa_face(1u << 4, 1u << 1, tv, &bem);
+    CONFERE(tv >= 0 && lado == 4 && bem, "previa depois da volta do relogio: t %.1f, lado %d", tv, lado);
+    t_relogio = t0;
+
+    // A mira ao vivo do Carrasco com 1 nao promete o Espelho que espera: ele
+    // ainda mostra o 1 que rolou, mas vira no fim, antes do castigo.
+    achado_zera(); achado_fila(0);
+    joga(0, D_CARRASCO, 1); joga(0, D_ESPELHO, 1);
+    {
+        uint8_t mira[2] = { 0, 0 };
+        miras_agora(mira);
+        CONFERE(F[0].espera[1] && mira[0] == 1, "mira do Carrasco com o Espelho esperando: espera %d, mira %02x", F[0].espera[1], mira[0]);
+    }
+    achado_zera();
 }
 
 int main(void)
@@ -9505,6 +9596,7 @@ int main(void)
     }
 
     achados_desfecho();
+    achados_previa();
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");

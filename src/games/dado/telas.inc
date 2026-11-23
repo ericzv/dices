@@ -213,6 +213,111 @@ static void apagado_aplica(int cx, int cy, int i)
         }
 }
 
+// A previa do poder (P3): o dado escolhido na mao de quem joga aqui (o do
+// cursor; no online, tambem o do mouse) mostra, um de cada vez, os lados que
+// ligam o poder dele - com o brilho e a animacao do poder - e depois os que
+// ligam contra o dono. Cada lado e um lance de mentira: o dado cai nele como
+// o primeiro de uma sequencia, com os adesivos (o Avesso vira, a Nota Dez
+// sobe, o Remendo soma) e as regras do pouso, numa copia da mesa que volta
+// como estava. O lado que ainda depende do acaso depois de cair (o Explosivo
+// no 8, a Matrioska que abre, o Bumerangue, o Reflexivo) fica de fora; o
+// Chumbo so puxa o lance, nao muda o que cada lado faz. So ha previa quando
+// os lados nao fazem todos a mesma coisa (o Tudo ou Nada: o 2 liga, o 1 e
+// contra o dono).
+static int pv_lado, pv_chamadas;
+static bool pv_incerto;
+static int pv_sorteio(int n)                 // o 1o sorteio e o lado; depois disso, o lado depende do acaso
+{
+    (void)n;
+    if (pv_chamadas++) pv_incerto = true;
+    return pv_chamadas == 1 ? pv_lado : 1;
+}
+static int pv_semente(int n) { (void)n; return 1; }   // a semente do tremor do Terremoto: nao muda o lance
+static bool previa_lados(int j, int i, uint32_t *bom, uint32_t *mau)
+{
+    *bom = *mau = 0;
+    if (i < 0 || i >= J[j].n_col) return false;
+    const peca_t *pc = &J[j].col[i];
+    int t = pc->tipo, lados = TIPO[t].lados > 31 ? 31 : TIPO[t].lados, ef = TIPO[t].efeito;
+    peca_t q = *pc;                              // sem o Chumbo: ele so puxa o lance
+    for (int l = 0; l < AD_LADOS; l++) if (q.ad[l] == AD_CHUMBO) q.ad[l] = AD_NADA;
+    mesa_t m;
+    guarda_mesa(&m);
+    amul_t am = am_disparou;
+    uint16_t bon = bonecas_ult;
+    bool maxi = lance_no_maximo;
+    lance_no_maximo = false;
+    uint32_t certo = 0;
+    for (int s = 1; s <= lados; s++) {
+        memset(F, 0, sizeof F);
+        for (int a = 0; a < 2; a++) for (int k = 0; k < N_FILA; k++) F[a].idx[k] = -1;
+        fila_t *f = &F[j];
+        f->tipo[0] = (uint8_t)t;
+        f->fixo[0] = pc->fixo;
+        f->idx[0] = (int8_t)i;
+        f->n = 2;                                // o primeiro, com mais depois dele (o Estilingue arma)
+        pv_lado = s; pv_chamadas = 0; pv_incerto = false;
+        lance_t l = lanca_peca(t, pc->fixo, &q, pv_sorteio);
+        f->cru[0] = f->valor[0] = l.x;
+        f->lado[0] = (uint8_t)l.lado;
+        f->bonecas[0] = l.bonecas;
+        f->bomba[0] = l.bomba;
+        f->bomba1[0] = (int8_t)l.x1;
+        f->descarte[0] = (uint8_t)l.menor;
+        f->lancados = 1;
+        pousa(j, 0, ef == EF_TERREMOTO ? pv_semente : pv_sorteio);
+        if (pv_incerto) continue;
+        int a = poder_armado(j, 0);
+        if (!a && f->est[0] == V_ANULADO) a = 2;   // o Vidro que quebra, o Agouro que zera: contra o dono
+        certo |= 1u << s;
+        if (a == 1) *bom |= 1u << s;
+        else if (a == 2) *mau |= 1u << s;
+    }
+    volta_mesa(&m);
+    am_disparou = am;
+    bonecas_ult = bon;
+    lance_no_maximo = maxi;
+    if (*bom == certo || *mau == certo || !(*bom | *mau)) *bom = *mau = 0;   // todos iguais: nada para mostrar
+    return *bom || *mau;
+}
+// O lado da previa no tempo t: os que ligam, depois os contra o dono, 1,1 s
+// cada. O do cursor comeca do primeiro quando o cursor chega nele.
+static int pv_cur = -1;                      // o dado do cursor com previa (vez * 64 + i; -1: nenhum)
+static float pv_desde, pv_visto = -1;
+static float previa_t(int quem)
+{
+    float d = t_relogio - pv_visto;              // (o t_relogio volta a 0 a cada 1000 s: d negativo recomeca)
+    if (quem != pv_cur || d < 0 || d > 0.2f) { pv_cur = quem; pv_desde = t_relogio; }
+    pv_visto = t_relogio;
+    float t = t_relogio - pv_desde;
+    return t > 0 ? t : 0;
+}
+static int previa_face(uint32_t bom, uint32_t mau, float t, bool *bem)
+{
+    int faces[32], n = 0;
+    for (int s = 1; s < 32; s++) if (bom >> s & 1) faces[n++] = s;
+    for (int s = 1; s < 32; s++) if (mau >> s & 1) faces[n++] = s;
+    int q = t > 0 ? (int)(t / 1.1f) % n : 0;
+    int s = faces[q];
+    *bem = bom >> s & 1;
+    return s;
+}
+// O dado da mao mostrando o lado s da previa: caido nele (o adesivo do lado
+// na face, o selinho dele aceso), com o brilho e a animacao do poder.
+static void peca_previa(float x, float y, float r, peca_t p, int dono, int s, bool bem)
+{
+    brilho_poder(x, y, r, p.tipo, 0, bem);
+    ad_face = ad_no_lado(&p, s);
+    marca_nivel = p.fixo;
+    desenha_dado(x, y, r, p.tipo, dono, 0, lado_mostra(p.tipo, s), 2, false);
+    marca_nivel = -1;
+    ad_selos(x, y, r, &p, s);
+    if (p.selo) lacre_cera((int)(x + r * 0.72f), (int)(y - r * 0.72f), r >= 16 ? 4 : 3, 0);
+    if (p.capa) capa_aura((int)x, (int)y, r, 1, 0, 0);
+    marca_protecao(x, y, r, nao_anulavel_t(p.tipo), nao_roubavel_t(p.tipo));
+    anima_poder((int)x, (int)y, (int)r, p.tipo, 0);
+}
+
 static void desenha_ordem(void)
 {
     jogador_t *p = &J[vez];
@@ -235,7 +340,16 @@ static void desenha_ordem(void)
         if (ordem == 0 && f->grudado) chiclete_goma(x, y + dy + rs, 17, 1);   // o grudado: a goma por baixo dele (e dos adesivos)
         bool apaga = !caixa_fechada && vez_daqui() && poder_desligado(vez, p->col[p->mao[i]].tipo);   // nao rende agora: apagado
         if (apaga) apagado_guarda(x, y + dy + rs);
-        peca_parada((float)x, (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs), 17, p->col[p->mao[i]], vez);
+        uint32_t pb, pm;                         // a previa do poder: no escolhido (no online, tambem no do mouse)
+        bool previa = q >= 1 && vez_daqui() && !caixa_fechada && !apaga
+                   && (cur || (modo == M_ONLINE && mouse_em(x - 25, y - 25, 50, 50)))
+                   && previa_lados(vez, p->mao[i], &pb, &pm);
+        float py = (float)(y + dy - (cur ? 3 + mola_px() : 0) + rs);
+        if (previa) {
+            bool bem;
+            int s = previa_face(pb, pm, cur ? previa_t(vez * 64 + i) : t_relogio, &bem);
+            peca_previa((float)x, py, 17, p->col[p->mao[i]], vez, s, bem);
+        } else peca_parada((float)x, py, 17, p->col[p->mao[i]], vez);
         if (apaga) apagado_aplica(x, y + dy + rs, i);
         if (!cur && q >= 1) marca_rar(x, y + 24, p->col[p->mao[i]].tipo);
         if (ordem >= 0) plaqueta_num(x + 16, y - 17 + rs, ordem, C_OURO, C_BARRA, true);

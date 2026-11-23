@@ -153,17 +153,15 @@ static void poder_de(desfecho_t *d, int j, int k, bool gera)
     int ef = TIPO[tipo_de(j, k)].efeito, v = F[j].valor[k];
     if (d->est[j][k] == V_ROUBADO) return;
     // Carrasco que tirou 1 (valendo ou nao): anula todos os dados de quem
-    // o lancou que tiraram 1, ele mesmo incluido. O firme (o nao anulavel,
-    // o preso pela Ancora) fica; a capa segura o dela.
+    // o lancou que mostram 1 na mesa, ele mesmo incluido (carrasco_castiga).
+    // O firme (o nao anulavel, o preso pela Ancora) fica; a capa segura o dela.
     if (ef == EF_CARRASCO && F[j].cru[k] == 1) {
         for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
             if (!carrasco_castiga(j, i, d->est[j][i])) continue;
             if (bloqueia_capa(d, gera, j, k, j, i, "Carrasco tirou 1", 0)) continue;
             d->est[j][i] = V_ANULADO;
             if (i == k) evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula a si mesmo");
-            else if (F[j].valor[i] == 1) evento(gera, EV_ANULA, j, k, j, i, 1, "Carrasco tirou 1: anula o 1 do próprio %s", J[j].nome);
-            else evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula o %d (que tirou 1) do próprio %s",
-                        F[j].valor[i], J[j].nome);
+            else evento(gera, EV_ANULA, j, k, j, i, F[j].valor[i], "Carrasco tirou 1: anula o 1 do próprio %s", J[j].nome);
         }
     }
     // Todo poder so age se o dado terminar valendo. O Gatuno, alem

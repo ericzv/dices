@@ -74,6 +74,7 @@ static int dica_vale(const dica_t *d, int a)
 // etiqueta de quando age. Com ate dois, cada um vem com a regra tambem.
 #define DICA_AD_LIN 16                   // a linha do nome do adesivo
 #define DICA_AD_W   (260 - 16 - 16)      // a largura da regra, ao lado do simbolo
+#define DICA_AD_TXT 6                    // as linhas da regra (com ate dois adesivos)
 static int dica_adesivos(const dica_t *d, int *lados)
 {
     if (d->tipo != DICA_DADO || !d->com_peca) return 0;
@@ -94,7 +95,7 @@ static int dica_ad_altura(const dica_t *d, bool quando)
     quebra_so_conta = true;
     for (int i = 0; i < n; i++)
         h += DICA_AD_LIN + (quando ? ad_quando_h(ad_no_lado(&d->pc, lados[i])) : 0)
-           + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, 3, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
+           + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, DICA_AD_TXT, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
     quebra_so_conta = false;
     return h + 8;                                        // e o filete que separa do dado
 }
@@ -232,7 +233,7 @@ static void desenha_dica(const int *r, const dica_t *d)
             ad_quando_selo(x + 18, yy - 3, a);
             yy += ad_quando_h(a);
         }
-        if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, 3, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
+        if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, DICA_AD_TXT, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
     }
 }
 

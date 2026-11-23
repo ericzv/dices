@@ -101,7 +101,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     int r = outro(j);
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
-    int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau
+    int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau (para o aviso)
     const char *pre = ad_prefixo(d, age_modo, copia, j, k);
     evento_t *e = NULL;
     switch (a) {
@@ -127,7 +127,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     }
     case AD_ELETRONICO:
         if (!vale) return false;
-        d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
+        mult_soma(&d->mult[j][k], 2);
         e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sEletrônico: x3 no %d" : "%sEletrônico: x2 no %d", pre, F[j].valor[k]);
         if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
@@ -192,8 +192,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             bool vale2 = d->est[j][p] == V_VALIDO;
             if (!vale2 && (!vale || ele)) continue;
             uint8_t m = 0;
-            if (vale && !ele) { d->mult[j][k] = (int8_t)(d->mult[j][k] + mx); m |= bit; ele = true; }
-            if (vale2) { d->mult[j][p] = (int8_t)(d->mult[j][p] + mx); m |= (uint8_t)(1 << p); }
+            if (vale && !ele) { mult_soma(&d->mult[j][k], 2); m |= bit; ele = true; }
+            if (vale2) { mult_soma(&d->mult[j][p], 2); m |= (uint8_t)(1 << p); }
             e = evento(gera, EV_ADESIVO, j, k, j, p, mx, de_novo ? "%sImantado: dois %d, x3" : "%sImantado: dois %d, x2", pre, F[j].valor[k]);
             if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); }
             ad_marca(e, a, copia, age_modo);
@@ -220,7 +220,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     }
     case AD_LENTICULAR:                          // valendo, x2; anulado, -4 no seu placar
         if (vale) {
-            d->mult[j][k] = (int8_t)(d->mult[j][k] + mx);
+            mult_soma(&d->mult[j][k], 2);
             e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sLenticular: x3 no %d" : "%sLenticular: x2 no %d", pre, F[j].valor[k]);
             if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         } else if (d->est[j][k] == V_ANULADO) {

@@ -366,7 +366,7 @@ static void nov_frente(int i, int cx, int cy, float desde)
     nov_rotulo(i, s, sizeof s);
     gfx_texto(x0 + 56 - gfx_largura(s, GFX_FINO) / 2, y0 + NOV_CH - 27, s, c, GFX_FINO, false);
     txt_sombra_c(x0 + 208, y0 + 10, nov_nome(i), nov_cor_nome(i), 1);
-    quebra_linhas(x0 + 114, y0 + 36, NOV_CW - 124, 6, nov_texto(i), C_MARFIM_S);
+    quebra_cabe(x0 + 114, y0 + 36, NOV_CW - 124, NOV_CH - 36 - 6, nov_texto(i), C_MARFIM_S);   // o que nao cabe vai para a miuda
     if (nov_grande(i)) {                         // o grande: uma faixa de luz atravessa o card
         float f = fmodf(desde, 2.2f) / 0.7f;
         if (f < 1) {

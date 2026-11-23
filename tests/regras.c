@@ -1295,8 +1295,8 @@ int main(void)
     entrada(0, 0, 200);
     CONFERE(fase == F_FIM && venc_partida == 2, "os dois zerados: devia empatar (%d)", venc_partida);
 
-    // ---- Multiplicadores se somam -------------------------------------
-    // Dobro antes: x2. Dobro e Fartura no mesmo dado de 2: x2 + x2 = x4.
+    // ---- Multiplicadores se somam pelo que passa de x1 -----------------
+    // Dobro antes: x2. Dobro e Fartura no mesmo dado de 2: x2 + x2 = x3.
     limpa();
     joga(0, D_DOBRO, 1);
     joga(0, D_D6, 5);
@@ -1307,8 +1307,8 @@ int main(void)
     joga(0, D_DOBRO, 1);
     joga(0, D_D4, 2);
     d = fim();
-    // Fartura 1 (x2 = 2), Dobro 1 (x2 = 2), d4 2: Dobro + Fartura = x4 = 8.
-    CONFERE(d.total[0] == 2 + 2 + 8, "Dobro + Fartura: esperava 12, deu %d", d.total[0]);
+    // Fartura 1 (x2 = 2), Dobro 1 (x2 = 2), d4 2: Dobro + Fartura = x3 = 6.
+    CONFERE(d.total[0] == 2 + 2 + 6, "Dobro + Fartura: esperava 10, deu %d", d.total[0]);
     // Com o Tudo ou Nada 2 junto: +5 em cada dado, antes dos multiplicadores.
     limpa();
     joga(0, D_TUDO_NADA, 2);
@@ -1316,8 +1316,8 @@ int main(void)
     joga(0, D_DOBRO, 2);
     joga(0, D_D4, 2);
     d = fim();
-    // Cada um vale 2 + 5 = 7; Fartura x2 em todos (sao todos 2); o d4 ainda x2 do Dobro: x4.
-    CONFERE(d.total[0] == 14 + 14 + 14 + 28, "Tudo ou Nada 2 com multiplicadores: esperava 70, deu %d", d.total[0]);
+    // Cada um vale 2 + 5 = 7; Fartura x2 em todos (sao todos 2); o d4 ainda x2 do Dobro: x3.
+    CONFERE(d.total[0] == 14 + 14 + 14 + 21, "Tudo ou Nada 2 com multiplicadores: esperava 63, deu %d", d.total[0]);
 
     // ---- Tudo ou Nada: 2 da +5 em cada dado seu; 1 tira 5 de cada ----------
     limpa();
@@ -1785,10 +1785,10 @@ int main(void)
         bool aviso = false;
         for (int i = 0; i < n_ev; i++) aviso |= ev[i].tipo == EV_AVISO && (ev[i].am >> A_SAIDEIRA & 1);
         CONFERE(aviso, "Saideira: sem o aviso de tudo de novo");
-        limpa(); amul[0] = 1u << A_SAIDEIRA | 1u << A_ABRE_ALAS;     // x2 de novo: x4
+        limpa(); amul[0] = 1u << A_SAIDEIRA | 1u << A_ABRE_ALAS;     // x2 de novo: x3
         joga(0, D_D6, 4);
         d = fim();
-        CONFERE(d.total[0] == 16, "Saideira com Abre-Alas: esperava 16, deu %d", d.total[0]);
+        CONFERE(d.total[0] == 12, "Saideira com Abre-Alas: esperava 12, deu %d", d.total[0]);
         limpa(); amul[0] = 1u << A_SAIDEIRA;                         // nada para repetir: nem o aviso
         joga(0, D_D6, 4);
         d = fim();
@@ -2576,7 +2576,7 @@ int main(void)
             limpa(); F[0].fixo[0] = 2; joga(0, D_PATINHOS, 3); d = fim();
             CONFERE(d.total[0] == 9 && !strcmp(F[0].tag[0], "x3") && poder_armado(0, 0) == 1, "Patinhos na 3a vez: x3, deu %d", d.total[0]);
             limpa(); F[0].fixo[1] = 5; joga(0, D_DOBRO, 1); joga(0, D_PATINHOS, 4); d = fim();
-            CONFERE(d.total[0] == 1 + 4 * 5, "Patinhos na 6a vez com o Dobro: x5, deu %d", d.total[0]);
+            CONFERE(d.total[0] == 1 + 4 * 4, "Patinhos na 6a vez com o Dobro: x3 + x2 = x4, deu %d", d.total[0]);
             {
                 int n0 = J[0].n_col;
                 J[0].col[n0] = (peca_t){ .tipo = D_PATINHOS, .fixo = 1 };
@@ -5597,6 +5597,16 @@ int main(void)
                 CONFERE(ad_no_lado(&J[0].col[3], 6) == AD_NADA, "a Raspadinha devia sair");
             }
         }
+        // Abre-Alas e Eletronico no primeiro dado: x2 + x2 = x3 (o 6 vale 18, nao 24).
+        J[0].col[3] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[3], 6, AD_ELETRONICO);
+        int modo_aa = modo;
+        limpa(); modo = M_DESAFIO; amul[0] = 1u << A_ABRE_ALAS;   // amuleto: so no Desafiante
+        joga_ad(0, 3, 6);
+        joga(1, D_D4, 3);
+        d = fim();
+        amul[0] = 0; modo = modo_aa;
+        CONFERE(d.total[0] == 18 && d.mult[0][0] == 3, "Abre-Alas + Eletronico: x3 (18), deu %d (x%d)", d.total[0], d.mult[0][0]);
         // A Mira: anula o menor do oponente que vale.
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_MIRA);
@@ -7189,8 +7199,9 @@ int main(void)
             limpa();
         }
 
-        // Os textos cabem: o curto em 3 linhas na dica do mouse (e em 4 na
-        // colecao), e os detalhes inteiros embaixo dele, nos dois tamanhos de letra.
+        // Os textos cabem: o curto em DICA_AD_TXT linhas na dica do mouse (e em
+        // 4 na colecao, abaixo da etiqueta de quando ele age), e os detalhes
+        // inteiros embaixo dele, nos dois tamanhos de letra.
         for (int lm = 0; lm < 2; lm++) {
             gfx_letra_maior(lm);
             for (int a = 1; a < AD_N; a++) {
@@ -7198,9 +7209,11 @@ int main(void)
                 quebra_so_conta = true;
                 int nd = quebra_linhas(0, 0, DICA_AD_W, 99, AD_TEXTO[a], 0), nt = quebra_linhas(0, 0, 320, 99, AD_TEXTO[a], 0);
                 int ndet = AD_DETALHE[a] ? quebra_linhas_em(0, 0, 320, 99, AD_DETALHE[a], 0, GFX_MIUDO, LINHA_MIUDA) : 0;
+                int nfix = AD_DETALHE[a] ? quebra_linhas_em(0, 0, 320, 99, AD_DETALHE[a], 0, GFX_MIUDO_FIXO, 10) : 0;
                 quebra_so_conta = false;
-                int y = 152 + nt * LINHA_FINA + 5;
-                CONFERE(nd <= 3 && nt <= 4 && y + ndet * LINHA_MIUDA <= 268, "o texto do adesivo %s cabe (letra %s: %d, %d, %d)",
+                int y = 152 + ad_quando_h(a) + nt * LINHA_FINA + 5;   // o detalhe que nao cabe vai para a miuda fixa (colecao.inc)
+                CONFERE(nd <= DICA_AD_TXT && nt <= 4 && (y + ndet * LINHA_MIUDA <= 268 || y + nfix * 10 <= 268),
+                        "o texto do adesivo %s cabe (letra %s: %d, %d, %d)",
                         ADESIVO[a].nome, lm ? "maior" : "normal", nd, nt, ndet);
             }
         }

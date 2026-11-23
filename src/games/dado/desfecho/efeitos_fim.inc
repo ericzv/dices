@@ -11,7 +11,8 @@
 // ===========================================================================
 
 // Pontos de uma fila dados o estado, os bonus e os multiplicadores do fim.
-// Multiplicadores se SOMAM (x2, x3, x2 = x7) e valem sobre valor + bonus.
+// Multiplicadores se somam pelo que passa de x1: x2 e x2 dao x3 (10 vira 30:
+// 10 + 10 + 10), x2 e x3 dao x4. Valem sobre valor + bonus.
 static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int8_t *mult)
 {
     int t = -lapis_pena(j);                      // o Estojo de Lapis: a rodada comeca com -4
@@ -45,10 +46,14 @@ static const struct { const char *nome; uint8_t fator; bool so_ele; int8_t am; }
     [MULT_PATINHOS]   = { "Três Patinhos", 3, true,  -1 },
     [MULT_PISCA]      = { "Pisca-pisca",   2, true,  -1 },
 };
-// O multiplicador q, vezes (as Farturas, os Sacrificios), no dado do bit.
+// Soma um xf ao multiplicador m de um dado (0: ainda x1): so o que passa de
+// x1 entra - x2 num x2 da x3, nao x4.
+static void mult_soma(int8_t *m, int f) { *m = (int8_t)((*m > 0 ? *m : 1) + f - 1); }
+// O multiplicador q, vezes (as Farturas, os Sacrificios), no dado do bit: m
+// junta o que cada um passa de x1.
 static void mult_poe(int *m, uint8_t *de, int q, uint8_t bit, int vezes)
 {
-    *m += MULTIPLICA[q].fator * vezes;
+    *m += (MULTIPLICA[q].fator - 1) * vezes;
     de[q] |= bit;
 }
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
@@ -61,7 +66,7 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
         if (p >= n) break;
         p += (size_t)snprintf(s + p, n - p, "%s", MULTIPLICA[q].nome ? MULTIPLICA[q].nome : J[1].nome);
         if (curto || p >= n) continue;
-        p += (size_t)snprintf(s + p, n - p, " x%d", MULTIPLICA[q].fator * (q == MULT_FARTURA ? n_far : 1));
+        p += (size_t)snprintf(s + p, n - p, " x%d", 1 + (MULTIPLICA[q].fator - 1) * (q == MULT_FARTURA ? n_far : 1));
         if (MULTIPLICA[q].so_ele || p >= n) continue;   // ele mesmo
         int vals[N_FILA], nv = 0;
         for (int k = 0; k < N_FILA; k++) if (de[q] >> k & 1) vals[nv++] = F[j].valor[k];
@@ -327,8 +332,9 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
         // Pisca-pisca aceso: x2 nele mesmo.
         if (TIPO[tipo_de(j, k)].efeito == EF_PISCA && pisca_aceso(fixo_de(j, k))) mult_poe(&m, de, MULT_PISCA, bit, 1);
         if (k == 0 && tem_am(j, A_ABRE_ALAS)) mult_poe(&m, de, MULT_ABRE_ALAS, bit, 1);
-        // Somam aos que ja havia (a Saideira passa uma segunda vez: x2 de novo e x4).
-        if (m) { d->mult[j][k] = (int8_t)(d->mult[j][k] + m); mask |= 1 << k; }
+        // Somam aos que ja havia, pelo que passa de x1 (a Saideira passa uma
+        // segunda vez: o x2 de novo da x3).
+        if (m) { d->mult[j][k] = (int8_t)((d->mult[j][k] > 0 ? d->mult[j][k] : 1) + m); mask |= 1 << k; }
     }
     if (mask && gera) {
         int antes = pontos_fila(j, d->est[j], d->bonus[j], mult0);

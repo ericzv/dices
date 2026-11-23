@@ -70,8 +70,8 @@ static int dica_vale(const dica_t *d, int a)
     return ad_vale_agora(a, &d->pc, NULL, NULL, 0);
 }
 
-// Os adesivos de um dado com a peca: os lados que tem adesivo. Com ate dois,
-// cada um vem com a regra; com mais, uma linha so por adesivo.
+// Os adesivos de um dado com a peca: os lados que tem adesivo, cada um com a
+// etiqueta de quando age. Com ate dois, cada um vem com a regra tambem.
 #define DICA_AD_LIN 16                   // a linha do nome do adesivo
 #define DICA_AD_W   (260 - 16 - 16)      // a largura da regra, ao lado do simbolo
 static int dica_adesivos(const dica_t *d, int *lados)
@@ -87,9 +87,23 @@ static int dica_ad_altura(const dica_t *d)
     if (!n) return 0;
     quebra_so_conta = true;
     for (int i = 0; i < n; i++)
-        h += DICA_AD_LIN + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, 3, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
+        h += DICA_AD_LIN + AD_QUANDO_H
+           + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, 3, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
     quebra_so_conta = false;
     return h + 8;                                        // e o filete que separa do dado
+}
+
+// A etiqueta de quando age mais larga da dica, com o recuo dela (0: nenhuma).
+// Com a letra maior a etiqueta passa dos 260 da caixa: a caixa cresce.
+static int dica_quando_w(const dica_t *d)
+{
+    if (d->tipo == DICA_ADESIVO) return ad_quando_w(d->id);
+    int lados[AD_LADOS], n = dica_adesivos(d, lados), w = 0;
+    for (int i = 0; i < n; i++) {
+        int q = 18 + ad_quando_w(ad_no_lado(&d->pc, lados[i]));
+        if (q > w) w = q;
+    }
+    return w;
 }
 
 // O dado da mao com o poder desligado agora: o motivo (NULL: nao e o caso).
@@ -123,10 +137,12 @@ static bool dica_rect(int *r, const dica_t **qual)
     uint16_t cor;
     dica_textos_de(d, &nome, &cor, &desc);
     int larg = 260;
+    if (dica_quando_w(d) + 16 > larg) larg = dica_quando_w(d) + 16;   // a etiqueta de quando o adesivo age cabe inteira
     quebra_so_conta = true;                              // so conta as linhas
     int linhas = quebra_linhas(0, 0, larg - 16, 7, desc, 0);
     quebra_so_conta = false;
-    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d) + dica_ad_altura(d);
+    int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d) + dica_ad_altura(d)
+                    + (d->tipo == DICA_ADESIVO ? AD_QUANDO_H : 0);   // o adesivo: a etiqueta de quando ele age
     // Sempre para baixo, centrada embaixo da coisa: nao cobre o que esta em
     // cima dela na mesa. Se nao couber, encosta no pe da tela; e se assim
     // fosse cobrir a propria coisa, vai para o lado dela.
@@ -161,16 +177,18 @@ static void desenha_dica(const int *r, const dica_t *d)
         int wc = ui_selo(x + w + 9, y + 3, c2, cor_rar(d->id), GFX_MIUDO);
         icone_protecao(x + w + 8 + wc + 6, y + 3, nao_anulavel_t(d->id), nao_roubavel_t(d->id));   // as protecoes dele
     }
-    int lin = quebra_linhas(x, y + TXT_H + 2, r[2] - 16, 7, desc, C_MARFIM_S);
-    int yy = y + TXT_H + 2 + lin * LINHA_FINA + 4;
+    int yd = y + TXT_H + 2;
+    if (d->tipo == DICA_ADESIVO) { ad_quando_selo(x, yd, d->id); yd += AD_QUANDO_H; }   // quando ele age
+    int lin = quebra_linhas(x, yd, r[2] - 16, 7, desc, C_MARFIM_S);
+    int yy = yd + lin * LINHA_FINA + 4;
     const char *desl = dica_desligado(d);
     if (desl) {                                          // na mao, sem render agora: por que
         gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
         gfx_texto(x, yy + 3, "Poder desativado", C_VINHO_CLR, 1, true);
         yy += 5 + TXT_H + quebra_linhas(x, yy + 3 + TXT_H, r[2] - 16, 2, desl, C_MARFIM_S) * LINHA_FINA + 2;
     }
-    // Os adesivos colados nele: o simbolo no vinil, o nome na cor dele, o lado
-    // e (com ate dois) a regra.
+    // Os adesivos colados nele: o simbolo no vinil, o nome na cor dele, o lado,
+    // a etiqueta de quando age e (com ate dois) a regra.
     int lados[AD_LADOS], n = dica_adesivos(d, lados);
     if (!n) return;
     gfx_rect(x, yy, r[2] - 16, 1, C_LATAO_ESC);
@@ -189,6 +207,8 @@ static void desenha_dica(const int *r, const dica_t *d)
             gfx_texto(x + 18 + wn + 6 + wl + 4, yy - 2, s, C_OURO, GFX_FINO, false);
         }
         yy += DICA_AD_LIN;
+        ad_quando_selo(x + 18, yy - 3, a);               // quando ele age
+        yy += AD_QUANDO_H;
         if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, 3, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
     }
 }

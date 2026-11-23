@@ -197,6 +197,8 @@ static void desenha_cat_adesivo(int i)
     // apagados, os detalhes e os casos especiais e, se couber inteiro acima da
     // fileira, como os adesivos funcionam (a Sujeira nao: e o oponente que a cola).
     const int ATE = 268;                         // a fileira de baixo
+    ad_quando_selo(x, 150 + dy, a);              // quando ele age
+    dy += AD_QUANDO_H;
     int y = 152 + dy + quebra_linhas(x, 152 + dy, 320, 4, AD_TEXTO[a], C_MARFIM) * LINHA_FINA + 5;
     if (AD_DETALHE[a] && ATE - y >= LINHA_MIUDA)
         y += quebra_linhas_em(x, y, 320, (ATE - y) / LINHA_MIUDA, AD_DETALHE[a], C_TEXTO_M, GFX_MIUDO, LINHA_MIUDA) * LINHA_MIUDA + 5;

@@ -553,6 +553,40 @@ static const char *const AD_DETALHE[AD_N] = {
     [AD_CASCA]        = "Válido ou anulado. Com duas cascas, o 3º também; com três, o 2º; com quatro, o 1º. Se ele ainda vai jogar, escorrega no lance (o Post-it dele anula a casca); se já jogou, rola de novo no fim da rodada. Sem o 4º dado, nada. A bolha do Impermeável segura a casca.",
 };
 
+// Quando o adesivo age, na etiqueta da dica e de quem o escolhe (a loja, o
+// pacote, a Colecao e a lista de adesivos ao passar o mouse num dado): na
+// queda do dado; so se o dado terminar valido com o lado dele; caindo no
+// lado dele, e o que faz muda se o dado terminar valido ou anulado; ou
+// caindo no lado dele, mas agindo em todo lance (o Patinho Feio e a
+// Dinamite). Conferido em desfecho/adesivos_fim.inc e adesivos_pouso.inc.
+enum { AQ_QUEDA, AQ_VALIDO, AQ_LADO, AQ_TODOS };
+static int ad_quando(int a)
+{
+    switch (a) {
+    case AD_PATINHO: case AD_DINAMITE:
+        return AQ_TODOS;
+    case AD_FRAGIL: case AD_LENTICULAR: case AD_RATOEIRA: case AD_INFECTADO: case AD_IMANTADO:
+        return AQ_LADO;
+    case AD_CONFETE: case AD_ELETRONICO: case AD_RASPADINHA: case AD_FERMENTO: case AD_MIRA: case AD_PURPURINA:
+    case AD_FIGURINHA: case AD_ETIQUETA: case AD_BILHETE: case AD_NEON: case AD_CORRENTE: case AD_TIQUETE:
+        return AQ_VALIDO;
+    default:
+        return AQ_QUEDA;
+    }
+}
+static const char *const AD_QUANDO[4] = {
+    [AQ_QUEDA]  = "Atua na queda do dado",
+    [AQ_VALIDO] = "Ativa se o dado terminar válido com este lado",
+    [AQ_LADO]   = "Ativa se cair neste lado",
+    [AQ_TODOS]  = "Ativa se cair neste lado, mas atua em todos os lados",
+};
+static const char *ad_quando_txt(int a) { return a > AD_NADA && a < AD_N ? AD_QUANDO[ad_quando(a)] : ""; }
+// A etiqueta do quando, em (x, y) (o alto da linha) ou centrada em cx; devolve a largura.
+#define AD_QUANDO_H 14                           // a altura da linha da etiqueta
+static int ad_quando_w(int a) { return gfx_largura(ad_quando_txt(a), GFX_MIUDO) + 8; }
+static int ad_quando_selo(int x, int y, int a) { return ui_selo(x, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO); }
+static int ad_quando_selo_c(int cx, int y, int a) { return ui_selo_c(cx, y, ad_quando_txt(a), C_LATAO, GFX_MIUDO); }
+
 // As tres massinhas de modelar da Massinha (o simbolo, a face e a bolota
 // que voa): o vermelho, o amarelo e o azul, cada um com o tom escuro.
 static const uint16_t MASSA[3][2] = { { RGB(190, 56, 60), RGB(118, 30, 38) }, { RGB(246, 222, 132), RGB(228, 194, 106) },

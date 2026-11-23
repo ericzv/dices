@@ -1590,6 +1590,7 @@ static void lj_desenha_pacote(void)
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, l, ADESIVO[a].luz, true);
         snprintf(l, sizeof l, "%s %s", ADESIVO[a].l1, ADESIVO[a].l2);
         txt_c(GFX_W / 2, LJ_DESC_Y + 5 + TXT_H, l, C_MARFIM_S, false);
+        if (t_lj_aviso <= 0) ad_quando_selo_c(GFX_W / 2, LJ_DESC_Y + 7 + 2 * TXT_H, a);   // quando ele age
     } else if (pronto && cursor < np) dado_e_poder(LJ_DESC_Y + 6, pac_carta_p(cursor)->tipo, true);
     else if (pronto) {
         txt_c(GFX_W / 2, LJ_DESC_Y + 6, "Pular o pacote", C_LATAO, true);
@@ -1681,9 +1682,13 @@ static void desenha_loja_run(void)
             snprintf(s, sizeof s, "%s %s", ADESIVO[a].l1, ADESIVO[a].l2);
             txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, ad_loja_vendido(k) ? "Já colado. Troque a loja ou espere a próxima para outros." : s,
                   C_MARFIM_S, false);
-            if (!ad_loja_vendido(k) && t_lj_aviso <= 0)
-                txt_c(GFX_W / 2, LJ_DESC_Y + 2 * TXT_H - 3, "Vai num lado de um dado da sua bolsa. Age quando o dado tira esse lado.",
-                      C_TEXTO_M, false);
+            if (!ad_loja_vendido(k) && t_lj_aviso <= 0) {   // onde vai e, na etiqueta, quando ele age
+                const char *vai = "Vai num lado de um dado da sua bolsa.";
+                int wv = gfx_largura(vai, fonte_de(false)), we = gfx_largura(ad_quando_txt(a), GFX_MIUDO) + 8;
+                int x0 = GFX_W / 2 - (wv + 8 + we) / 2, yv = LJ_DESC_Y + 2 * TXT_H - 3;
+                txt(x0, yv, vai, C_TEXTO_M, false);
+                ad_quando_selo(x0 + wv + 8, yv + 1, a);
+            }
         }
     } else if (cursor == lj_item_troca()) {
         txt_c(GFX_W / 2, LJ_DESC_Y, "Trocar a loja", C_LATAO, true);

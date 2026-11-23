@@ -6,7 +6,10 @@
 // vitoria contra o Crupie e a Dona) e no fim da run vencida (a dificuldade
 // nova e o pedaco de quem fecha a run). Os cards esperam de costas na fileira de baixo; um de cada
 // vez sobe, vira no meio da mesa e volta de frente para o lugar, sozinho.
-// ENTER acelera, TAB mostra tudo; no fim, o resumo (com um card so, ele fica).
+// ENTER acelera, TAB mostra tudo. Depois do ultimo, os cards ficam na
+// fileira, de frente, esperando: o escolhido (o mouse por cima, as setas)
+// sobe grande para o meio, com o motivo; so com ENTER (ou o clique fora
+// deles) vem o resumo. Com um card so, ele fica de frente e nao ha resumo.
 #define NOV_MAX   (PEDACO_MAX + 2 + CQ_FILA)   // um pedaco, o dado do marco, a dificuldade e as conquistas
 #define NOV_ENTRA 0.35f                  // a fileira aparece antes do primeiro
 #define NOV_VOA   0.22f                  // de costas, da fileira ao meio
@@ -22,6 +25,11 @@ static int  nov_depois;                  // o que vem depois dos cards (NOVD_*, 
 static char nov_sub[64];
 static int  nov_tocou;                   // quantos cards ja viraram, com o som
 static bool nov_fim_tocou;
+static bool nov_no_resumo;               // o jogador ja pediu o resumo
+static float nov_t_resumo;               // quando (t_fase): a cascata dos cartoes conta dali
+static int  nov_sel;                     // o card escolhido na fileira, esperando
+static int  nov_sel_vis = -1;            // o que estava escolhido no passo anterior
+static float nov_sel_t;                  // quando (t_fase) ele foi escolhido: o pulinho conta dali
 
 static int nov_quantas(void) { return n_nov; }
 static void nov_poe(int k, int v) { if (n_nov < NOV_MAX) nov[n_nov++] = (novidade_t){ (uint8_t)k, (uint8_t)v, 0 }; }
@@ -61,8 +69,13 @@ static float nov_ini(int i)
     return t;
 }
 static float nov_virou(int i) { return nov_ini(i) + NOV_VOA + NOV_VIRA; }   // o card i ja de frente
-// Acabou de mostrar: o resumo (com mais de um) ou o card unico de frente.
-static bool nov_pronto(void) { return n_nov > 1 ? t_fase >= nov_ini(n_nov) : t_fase >= nov_virou(0); }
+// Ja mostrou todos: os cards de volta na fileira (ou o card unico de frente).
+static bool nov_visto(void) { return n_nov > 1 ? t_fase >= nov_ini(n_nov) : t_fase >= nov_virou(0); }
+// Os cards esperando na fileira, antes do resumo (so com mais de um).
+static bool nov_parado(void) { return n_nov > 1 && nov_visto() && !nov_no_resumo; }
+// Pronto para seguir: no resumo (com mais de um) ou o card unico de frente.
+static bool nov_pronto(void) { return n_nov > 1 ? nov_no_resumo : nov_visto(); }
+static void nov_resumo_abre(void) { nov_no_resumo = true; nov_t_resumo = t_fase; }
 
 // O card da vez e a etapa dele: -1 a fileira entrando, 0 voando, 1 virando,
 // 2 no meio, 3 voltando, 4 todos ja vistos. q: quanto da etapa ja passou.
@@ -120,6 +133,9 @@ static void nov_abre(void)
 {
     nov_tocou = 0;
     nov_fim_tocou = false;
+    nov_no_resumo = false;
+    nov_sel = 0;
+    nov_sel_vis = -1;
     t_fase = 0;
     fase = F_NOVIDADES;
 }
@@ -176,16 +192,26 @@ static void nov_passo(void)
         else som_toca_tom(SOM_NOVIDADE, i < 9 ? i : 9);
     }
     if (n_nov > 1 && nov_pronto() && !nov_fim_tocou) { nov_fim_tocou = true; som_toca(SOM_PREMIO); }
+    if (nov_sel < 0 || nov_sel >= n_nov) nov_sel = 0;
+    if (nov_parado() && nov_sel != nov_sel_vis) { nov_sel_vis = nov_sel; nov_sel_t = t_fase; }   // o pulinho do escolhido
 }
 
-static void nov_tudo(void)               // TAB: direto ao resumo (um card so: ele de frente)
+// TAB: todos de uma vez, ate os cards esperando na fileira (um card so: ele de frente).
+static void nov_tudo(void)
 {
-    if (n_nov > 1) { nov_tocou = n_nov; t_fase = nov_ini(n_nov) + 0.001f; }
+    if (n_nov > 1) { if (!nov_visto()) { nov_tocou = n_nov; t_fase = nov_ini(n_nov) + 0.001f; } }
     else if (t_fase < nov_virou(0)) t_fase = nov_virou(0) + 0.001f;
 }
 
 static bool nov_tecla(int k)
 {
+    if (nov_parado()) {                  // esperando na fileira: as setas escolhem, ENTER e TAB levam ao resumo
+        if (k == KEY_LEFT || k == KEY_RIGHT) {
+            nov_sel = (nov_sel + (k == KEY_RIGHT ? 1 : n_nov - 1)) % n_nov;
+            som_toca(SOM_PASSA);
+        } else if (k == KEY_ENTER || k == KEY_TAB || k == 'x') nov_resumo_abre();
+        return true;
+    }
     if (k == KEY_TAB || k == 'x') { if (nov_pronto()) nov_segue(); else nov_tudo(); return true; }
     if (k != KEY_ENTER) return true;
     if (nov_pronto()) { nov_segue(); return true; }
@@ -429,24 +455,67 @@ static void nov_resumo(float desde)
     }
 }
 
+// Embaixo do card grande: qual e, de quantos, e o que o jogador fez (a conquista).
+static void nov_embaixo(int i, int cx)
+{
+    char s[24];
+    snprintf(s, sizeof s, "%d de %d", i + 1, n_nov);
+    if (nov[i].cq && cq_motivo[nov[i].cq - 1][0]) {   // a conquista: o que aconteceu, com os numeros
+        char m[128];
+        if (n_nov > 1) snprintf(m, sizeof m, "%s  ·  você: %s", s, cq_motivo[nov[i].cq - 1]);
+        else snprintf(m, sizeof m, "Você: %s", cq_motivo[nov[i].cq - 1]);
+        txt_c(cx, NOV_CY + NOV_CH / 2 + 6, m, C_MARFIM, false);
+    } else if (n_nov > 1) txt_c(cx, NOV_CY + NOV_CH / 2 + 6, s, C_TEXTO_M, false);
+}
+
+// Todos vistos, esperando o ENTER: a fileira de frente, o escolhido com as
+// cantoneiras e, grande no meio, ele (o mesmo card de quando virou).
+static void nov_desenha_parado(void)
+{
+    int cx = GFX_W / 2, i = nov_sel;
+    float desde = t_fase - nov_sel_t;
+    nov_fileira(n_nov, 4, 1);
+    for (int k = 0; k < n_nov; k++) {
+        int x = nov_slot_x(k);
+        if (k == i) ui_cantos(x - 13, NOV_FY - 13, 26, 26, nov_cor(k));
+        zona_clique(x - 15, NOV_FY - 16, 30, 32, &nov_sel, k, 0);   // passar por cima escolhe
+    }
+    int pulo = desde < 0.16f ? (int)(sinf(desde / 0.16f * 3.1416f) * 4) : 0;
+    nov_frente(i, cx, NOV_CY - pulo, desde);
+    nov_embaixo(i, cx);
+    if (nov[i].k == NV_DADO) dica_zona(cx - NOV_CW / 2, NOV_CY - NOV_CH / 2, NOV_CW, NOV_CH, DICA_DADO, nov[i].v);
+}
+
 static void desenha_novidades(void)
 {
     ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 130);
     faixa_run(0);
     float q;
     int etapa, i = nov_atual(&etapa, &q), cx = GFX_W / 2;
+    bool parado = nov_parado();
     float desde = t_fase - (i < n_nov ? nov_virou(i) : nov_ini(n_nov));
     // Os raios vem antes do titulo: passam por baixo dele.
     if (etapa == 2) nov_raios(i, cx, NOV_CY, desde, desde < 0.15f ? desde / 0.15f : 1);
     else if (etapa == 3) nov_raios(i, cx, NOV_CY, desde, 1 - q);
+    else if (parado) {
+        float ds = t_fase - nov_sel_t;
+        nov_raios(nov_sel, cx, NOV_CY, ds, ds < 0.15f ? ds / 0.15f : 1);
+    }
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 4, "NOVIDADES", C_OURO, 2);
-    if (etapa >= 0 && etapa < 4 && i < n_nov && nov[i].cq) {   // o card de uma conquista: o feito, em cima
+    int qual = parado ? nov_sel : i;     // o card que se ve no meio
+    int ys = MESA_Y0 + 30 + (gfx_letra_e_maior() ? 5 : 0);   // a letra maior cresce para cima: desce, longe do titulo
+    if ((parado || (etapa >= 0 && etapa < 4)) && qual < n_nov && nov[qual].cq) {   // o card de uma conquista: o feito, em cima
         char s[160];
-        snprintf(s, sizeof s, "Conquista: %s", CONQ[nov[i].cq - 1].texto);
-        txt_c(GFX_W / 2, MESA_Y0 + 30, s, C_OURO, false);
-    } else txt_c(GFX_W / 2, MESA_Y0 + 30, nov_sub, C_TEXTO_M, false);
+        snprintf(s, sizeof s, "Conquista: %s", CONQ[nov[qual].cq - 1].texto);
+        txt_c(GFX_W / 2, ys, s, C_OURO, false);
+    } else txt_c(GFX_W / 2, ys, nov_sub, C_TEXTO_M, false);
+    if (parado) {
+        nov_desenha_parado();
+        rodape_run("setas escolhem  ·  ENTER segue");
+        return;
+    }
     if (etapa == 4) {
-        nov_resumo(desde);
+        nov_resumo(t_fase - nov_t_resumo);
         rodape_run("ENTER segue");
         return;
     }
@@ -468,14 +537,7 @@ static void desenha_novidades(void)
             int pulo = desde < 0.16f ? (int)(sinf(desde / 0.16f * 3.1416f) * 4) : 0;
             nov_frente(i, cx, NOV_CY - pulo, desde);
             nov_clarao(i, cx, NOV_CY, desde);
-            char s[24];
-            snprintf(s, sizeof s, "%d de %d", i + 1, n_nov);
-            if (nov[i].cq && cq_motivo[nov[i].cq - 1][0]) {   // a conquista: o que aconteceu, com os numeros
-                char m[128];
-                if (n_nov > 1) snprintf(m, sizeof m, "%s  ·  você: %s", s, cq_motivo[nov[i].cq - 1]);
-                else snprintf(m, sizeof m, "Você: %s", cq_motivo[nov[i].cq - 1]);
-                txt_c(cx, NOV_CY + NOV_CH / 2 + 6, m, C_MARFIM, false);
-            } else if (n_nov > 1) txt_c(cx, NOV_CY + NOV_CH / 2 + 6, s, C_TEXTO_M, false);
+            nov_embaixo(i, cx);
             if (nov[i].k == NV_DADO) dica_zona(cx - NOV_CW / 2, NOV_CY - NOV_CH / 2, NOV_CW, NOV_CH, DICA_DADO, nov[i].v);
         } else {                                 // de frente, encolhendo de volta ao lugar
             float e = q * q;

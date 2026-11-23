@@ -4718,8 +4718,18 @@ int main(void)
                 int npc = pedaco(0, CH_CRUPIE, pc);
                 CONFERE(fase == F_NOVIDADES && n_nov == 1 + npc && nov[0].k == NV_DADO && nov[0].v == D_D20 && !nov_pronto(),
                         "o chefe devia mostrar o D20 e o pedaco dele (fase %d, %d cards)", fase, n_nov);
-                nov_tudo();                      // TAB: o resumo
-                CONFERE(fase == F_NOVIDADES && nov_pronto(), "TAB devia ir ao resumo");
+                nov_tudo();                      // TAB: todos vistos, esperando na fileira
+                CONFERE(fase == F_NOVIDADES && nov_parado() && !nov_pronto() && nov_sel == 0,
+                        "TAB devia deixar os cards na fileira, esperando, sem ir ao resumo");
+                nov_passo();
+                nov_tecla(KEY_RIGHT);            // as setas escolhem o card
+                CONFERE(nov_sel == 1 && nov_parado(), "a seta devia escolher o 2o card (%d)", nov_sel);
+                nov_tecla(KEY_LEFT); nov_tecla(KEY_LEFT);
+                CONFERE(nov_sel == n_nov - 1, "a seta para tras devia dar a volta (%d de %d)", nov_sel, n_nov);
+                t_fase += 30;                    // parado nao segue sozinho
+                CONFERE(nov_parado() && !nov_pronto(), "os cards na fileira deviam esperar o jogador");
+                nov_tecla(KEY_ENTER);            // ENTER: o resumo
+                CONFERE(fase == F_NOVIDADES && nov_pronto() && !nov_parado(), "ENTER na fileira devia abrir o resumo");
                 nov_tecla(KEY_ENTER);            // segue
                 CONFERE(fase == F_RAMULETO && run.am_volta == AV_CHEFE && RAR_AMULETO[run.am_oferta[0]] == AMR_INCOMUM,
                         "o chefe devia deixar um incomum (fase %d)", fase);
@@ -4877,7 +4887,7 @@ int main(void)
             CONFERE(run.moedas == m + 21, "o Barao com o Coringa depois paga 21: %d", run.moedas - m);
             run_poe_amuletos(0);
             des_apos_fim();
-            if (fase == F_NOVIDADES) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
+            for (int q = 0; q < 4 && fase == F_NOVIDADES; q++) { nov_tudo(); nov_tecla(KEY_ENTER); }   // o pedaco do Barao, se abriu
             CONFERE(fase == F_RAVISO, "Barao do Nivel %d: antes do amuleto, o aviso (fase %d)", dif, fase);
             for (int i = 0; i < 2 && fase == F_RAVISO; i++) des_tecla(KEY_ENTER, 0);   // a frase toda, e segue
             CONFERE(fase == F_RAMULETO && RAR_AMULETO[run.am_oferta[0]] == AMR_RARO, "Barao do Nivel %d: raro", dif);
@@ -4975,7 +4985,7 @@ int main(void)
             int npc = pedaco(2, CH_CRUPIE, pc);
             CONFERE(fase == F_NOVIDADES && nov_depois == NOVD_CHEFE && n_nov == npc && nov[n_nov - 1].k == NV_ADESIVO,
                     "o Crupie: os cards logo depois (fase %d, %d de %d)", fase, n_nov, npc);
-            nov_tudo(); nov_tecla(KEY_ENTER);
+            for (int q = 0; q < 4 && fase == F_NOVIDADES; q++) { nov_tudo(); nov_tecla(KEY_ENTER); }   // a fileira, o resumo, segue
             CONFERE(fase == F_RAMULETO, "depois dos cards do Crupie, o amuleto dele (fase %d)", fase);
             // De novo, ja aberto: sem cards.
             run.andar = 0; gera_andar(); run.passo = DES_MESAS - 1;
@@ -4998,8 +5008,11 @@ int main(void)
             trata_tecla(KEY_ENTER);
             CONFERE(fase == F_NOVIDADES && !nov_pronto(), "ENTER no fim da run devia abrir as novidades (fase %d)", fase);
             int toques = 0;
-            while (!nov_pronto() && toques < 100) { nov_tecla(KEY_ENTER); toques++; }
-            CONFERE(nov_pronto() && toques <= 3 * n_nov + 1, "ENTER devia levar card a card ao resumo (%d toques)", toques);
+            while (!nov_parado() && toques < 100) { nov_tecla(KEY_ENTER); toques++; }
+            CONFERE(nov_parado() && !nov_pronto() && toques <= 3 * n_nov + 1,
+                    "ENTER devia levar card a card ate a fileira, esperando (%d toques)", toques);
+            nov_tecla(KEY_ENTER);
+            CONFERE(nov_pronto(), "ENTER na fileira devia abrir o resumo");
             nov_tecla(KEY_ENTER);
             CONFERE(fase == F_CREDITOS, "do resumo, os creditos (fase %d)", fase);
             // Sem nada novo (o Nivel 2 ja vencido antes, sem subir): direto aos creditos.

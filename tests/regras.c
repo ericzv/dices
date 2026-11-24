@@ -7262,6 +7262,7 @@ int main(void)
         {
             int mx0 = mouse_x, my0 = mouse_y, nd0 = n_dicas, det0 = detalhe, ri0 = rodada;
             int fi0 = fichas_ini[0], fi1 = fichas_ini[1];
+            bool pu0 = J[0].perdeu_ultima; dica_t dc0 = dicas[0];
             int longo[6] = { 0 }, nl[6] = { 0 };            // os 6 adesivos de regra mais longa na dica
             for (int a2 = 1; a2 < AD_N; a2++) {
                 if (ad_aposentado(a2)) continue;
@@ -7271,7 +7272,8 @@ int main(void)
                 for (int i = 0; i < 6; i++) if (l > nl[i]) { for (int k = 5; k > i; k--) { nl[k] = nl[k - 1]; longo[k] = longo[k - 1]; } nl[i] = l; longo[i] = a2; break; }
             }
             fichas_ini[0] = fichas_ini[1] = 50; rodada = 1;  // Riqueza e Pobreza empatadas, o Azarao na 1a rodada: desligados
-            int ruins = 0, pior = 0;
+            J[0].perdeu_ultima = false;
+            int ruins = 0, pior = 0, sem_regra = 0;
             for (int lm = 0; lm < 2; lm++) {
                 gfx_letra_maior(lm);
                 for (int t = 1; t < D_N; t++) for (int ia = 0; ia < 6; ia++) for (int ib = -1; ib < 6; ib++) for (int mao = 0; mao < 2; mao++) {
@@ -7284,11 +7286,14 @@ int main(void)
                     int r[4]; const dica_t *q;
                     if (!dica_rect(r, &q)) continue;
                     if (r[1] < 0 || r[1] + r[3] > GFX_H - 4) { if (!ruins++) pior = t; }
+                    if (dica_regra == DR_SEM) sem_regra++;   // a regra do adesivo sumiu da dica
                 }
             }
             CONFERE(!ruins, "a dica do dado com os adesivos de regra longa passa da tela (%d casos; o 1o num %s)", ruins, TIPO[pior].nome);
+            CONFERE(!sem_regra, "a dica do dado ficou sem a regra do adesivo em %d casos", sem_regra);
             gfx_letra_maior(false);
             mouse_x = mx0; mouse_y = my0; n_dicas = nd0; detalhe = det0; rodada = ri0; fichas_ini[0] = fi0; fichas_ini[1] = fi1;
+            J[0].perdeu_ultima = pu0; dicas[0] = dc0;
         }
         // Todos abrem e tem desenho, som, texto e raridade.
         for (int a = AD_NOTA_DEZ; a < AD_N; a++)

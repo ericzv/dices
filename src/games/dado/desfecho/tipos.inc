@@ -10,7 +10,7 @@
 typedef struct {
     uint8_t est[2][N_FILA];
     int8_t  bonus[2][N_FILA];        // pontos a mais (ou a menos) por dado: a soma de todos os efeitos do fim
-    int8_t  mult[2][N_FILA];         // soma dos multiplicadores (0 = nenhum)
+    int8_t  mult[2][N_FILA];         // multiplicador do dado (0 = nenhum): x2 e x2 dao x3
     uint8_t queima[2][N_FILA];       // alvos da Ficha de Fogo
     int semente[2];
     int roubo_val[2];

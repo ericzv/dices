@@ -88,6 +88,17 @@ static int dica_adesivos(const dica_t *d, int *lados)
 // "e mais N adesivos" (dica_ad_max). dica_rect decide; desenha_dica segue.
 static bool dica_quando_cabe = true;
 static int dica_ad_max = AD_LADOS;
+// Com ate dois adesivos, a regra de cada um vem embaixo dele: na fina (ate
+// DICA_AD_TXT linhas); se a dica passaria da tela (a letra maior, o "Poder
+// desativado"), na miuda fixa, inteira; e, se nem assim, sem a regra.
+enum { DR_FINA, DR_MIUDA, DR_SEM };
+static int dica_regra = DR_FINA;
+static int dica_regra_altura(const char *t)
+{
+    if (dica_regra == DR_SEM) return 0;
+    if (dica_regra == DR_MIUDA) return quebra_linhas_em(0, 0, DICA_AD_W, 99, t, 0, GFX_MIUDO_FIXO, 10) * 10 + 2;
+    return quebra_linhas(0, 0, DICA_AD_W, DICA_AD_TXT, t, 0) * LINHA_FINA + 2;
+}
 static int dica_ad_altura(const dica_t *d, bool quando)
 {
     int lados[AD_LADOS], n = dica_adesivos(d, lados), h = 0;
@@ -95,7 +106,7 @@ static int dica_ad_altura(const dica_t *d, bool quando)
     quebra_so_conta = true;
     for (int i = 0; i < n; i++)
         h += DICA_AD_LIN + (quando ? ad_quando_h(ad_no_lado(&d->pc, lados[i])) : 0)
-           + (n <= 2 ? quebra_linhas(0, 0, DICA_AD_W, DICA_AD_TXT, AD_TEXTO[ad_no_lado(&d->pc, lados[i])], 0) * LINHA_FINA + 2 : 0);
+           + (n <= 2 ? dica_regra_altura(AD_TEXTO[ad_no_lado(&d->pc, lados[i])]) : 0);
     quebra_so_conta = false;
     return h + 8;                                        // e o filete que separa do dado
 }
@@ -150,8 +161,11 @@ static bool dica_rect(int *r, const dica_t **qual)
     quebra_so_conta = false;
     int w = larg, h = 10 + (TXT_H + 2) + linhas * LINHA_FINA + 6 + dica_desl_altura(d, larg)
                     + (d->tipo == DICA_ADESIVO ? ad_quando_h(d->id) : 0);   // o adesivo: a etiqueta de quando ele age
+    int lados_d[AD_LADOS], na = dica_adesivos(d, lados_d);
+    for (dica_regra = DR_FINA; dica_regra < DR_SEM && na <= 2; dica_regra++)   // a regra na fina, na miuda, ou sem ela
+        if (h + dica_ad_altura(d, true) <= GFX_H - 8) break;
     dica_quando_cabe = h + dica_ad_altura(d, true) <= GFX_H - 8;
-    int ha = dica_ad_altura(d, dica_quando_cabe), lados_d[AD_LADOS], na = dica_adesivos(d, lados_d);
+    int ha = dica_ad_altura(d, dica_quando_cabe);
     dica_ad_max = AD_LADOS;
     if (h + ha > GFX_H - 8 && na > 2) {         // nem sem as etiquetas: os que cabem, e a linha do resto
         dica_ad_max = (GFX_H - 8 - h - 8) / DICA_AD_LIN - 1;
@@ -233,7 +247,10 @@ static void desenha_dica(const int *r, const dica_t *d)
             ad_quando_selo(x + 18, yy - 3, a);
             yy += ad_quando_h(a);
         }
-        if (n <= 2) yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, DICA_AD_TXT, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
+        if (n <= 2 && dica_regra == DR_FINA)
+            yy += quebra_linhas(x + 18, yy - 2, DICA_AD_W, DICA_AD_TXT, AD_TEXTO[a], C_TEXTO_M) * LINHA_FINA + 2;
+        else if (n <= 2 && dica_regra == DR_MIUDA)
+            yy += quebra_linhas_em(x + 18, yy, DICA_AD_W, 99, AD_TEXTO[a], C_TEXTO_M, GFX_MIUDO_FIXO, 10) * 10 + 2;
     }
 }
 

@@ -27,11 +27,11 @@ static int pontos_fila(int j, const uint8_t *est, const int8_t *bonus, const int
 }
 
 // De onde vem cada multiplicador, para o texto do evento: "Dobro x2 no 5 ·
-// Fartura x2 nos 1 e 2: 13 vira 25". curto: so os nomes ("Dobro, Fartura").
+// Fartura x2 nos 1 e 2: 8 vira 16". curto: so os nomes ("Dobro, Fartura").
 enum { MULT_DOBRO, MULT_FARTURA, MULT_VIUVA, MULT_AZARAO, MULT_ESPERANCA, MULT_SACRIFICIO, MULT_BARAO,
        MULT_PIRAMIDE, MULT_ABRE_ALAS, MULT_PATINHOS, MULT_PISCA, MULT_N };
-// Cada multiplicador: o nome no texto (NULL: o nome do Barao, J[1]), quanto
-// ele soma ao multiplicador do dado, se o texto fala so dele mesmo (sem "no
+// Cada multiplicador: o nome no texto (NULL: o nome do Barao, J[1]), o fator
+// (o que passa de x1 se soma ao do dado), se o texto fala so dele mesmo (sem "no
 // 5") e o amuleto que acende (-1: nenhum).
 static const struct { const char *nome; uint8_t fator; bool so_ele; int8_t am; } MULTIPLICA[MULT_N] = {
     [MULT_DOBRO]      = { "Dobro",         2, false, -1 },

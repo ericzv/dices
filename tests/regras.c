@@ -5607,6 +5607,44 @@ int main(void)
         d = fim();
         amul[0] = 0; modo = modo_aa;
         CONFERE(d.total[0] == 18 && d.mult[0][0] == 3, "Abre-Alas + Eletronico: x3 (18), deu %d (x%d)", d.total[0], d.mult[0][0]);
+        // Mais somas de multiplicador (o que passa de x1 de cada um se soma).
+        {
+            peca_t col_x[MAX_COL]; memcpy(col_x, J[0].col, sizeof col_x);
+            int rod_x = rodada;
+            modo = M_DESAFIO;
+            // Carimbo (o adesivo do proximo age duas vezes) + Eletronico + Piramide no d4: x2 + x2 + x2 = x4.
+            J[0].col[2] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[2], 2, AD_CARIMBO);
+            J[0].col[3] = (peca_t){ .tipo = D_D4 }; ad_cola(&J[0].col[3], 4, AD_ELETRONICO);
+            limpa(); amul[0] = 1u << A_PIRAMIDE;
+            joga_ad(0, 2, 2); joga_ad(0, 3, 4); d = fim();
+            CONFERE(d.total[0] == 2 + 16 && d.mult[0][1] == 4, "Carimbo + Eletronico + Piramide: 2 + 4x4, deu %d (x%d)", d.total[0], d.mult[0][1]);
+            // Imantado (x2 nele e nos vizinhos) + Abre-Alas no primeiro: 4x3 + 4x2.
+            J[0].col[2] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[2], 4, AD_IMANTADO);
+            J[0].col[3] = (peca_t){ .tipo = D_D6 };
+            limpa(); amul[0] = 1u << A_ABRE_ALAS;
+            joga_ad(0, 2, 4); joga_ad(0, 3, 4); d = fim();
+            CONFERE(d.total[0] == 12 + 8 && d.mult[0][0] == 3, "Imantado + Abre-Alas: 12 + 8, deu %d (x%d)", d.total[0], d.mult[0][0]);
+            // Duas Farturas: o 2 da segunda e o do d4 ficam x3; o 1 da primeira, x3 tambem.
+            limpa(); amul[0] = 0;
+            joga(0, D_FARTURA, 1); joga(0, D_FARTURA, 2); joga(0, D_D4, 2); d = fim();
+            CONFERE(d.total[0] == 3 + 6 + 6, "duas Farturas: 3 + 6 + 6, deu %d", d.total[0]);
+            limpa();
+            joga(0, D_FARTURA, 1); joga(0, D_FARTURA, 2); joga(0, D_DOBRO, 2); joga(0, D_D4, 2); d = fim();
+            CONFERE(d.total[0] == 3 + 6 + 6 + 8, "duas Farturas + Dobro: 3 + 6 + 6 + 8, deu %d", d.total[0]);
+            // Saideira (na ultima rodada os multiplicadores contam duas vezes) + Abre-Alas + Eletronico: x4.
+            J[0].col[2] = (peca_t){ .tipo = D_D6 }; ad_cola(&J[0].col[2], 4, AD_ELETRONICO);
+            rodada = DES_RODADAS;
+            limpa(); amul[0] = 1u << A_SAIDEIRA | 1u << A_ABRE_ALAS;
+            joga_ad(0, 2, 4); d = fim();
+            CONFERE(d.total[0] == 16, "Saideira + Abre-Alas + Eletronico: 4x4, deu %d (x%d)", d.total[0], d.mult[0][0]);
+            limpa(); amul[0] = 1u << A_SAIDEIRA;
+            joga(0, D_FARTURA, 1); joga(0, D_FARTURA, 2); joga(0, D_DOBRO, 2); joga(0, D_D4, 2); d = fim();
+            CONFERE(d.total[0] == 5 + 10 + 10 + 14, "Saideira + duas Farturas + Dobro: 5 + 10 + 10 + 14, deu %d", d.total[0]);
+            rodada = rod_x;
+            amul[0] = 0; modo = modo_aa;
+            memcpy(J[0].col, col_x, sizeof col_x);
+            limpa();
+        }
         // A Mira: anula o menor do oponente que vale.
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         ad_cola(&J[0].col[3], 6, AD_MIRA);
@@ -7218,6 +7256,40 @@ int main(void)
             }
         }
         gfx_letra_maior(false);
+        // A dica do dado com os adesivos de regra mais longa (dois deles, ou
+        // um), em todo dado, na mao com o "Poder desativado" (Riqueza,
+        // Pobreza, Azarao) e fora dela, nas duas letras: cabe na tela.
+        {
+            int mx0 = mouse_x, my0 = mouse_y, nd0 = n_dicas, det0 = detalhe, ri0 = rodada;
+            int fi0 = fichas_ini[0], fi1 = fichas_ini[1];
+            int longo[6] = { 0 }, nl[6] = { 0 };            // os 6 adesivos de regra mais longa na dica
+            for (int a2 = 1; a2 < AD_N; a2++) {
+                if (ad_aposentado(a2)) continue;
+                quebra_so_conta = true;
+                int l = quebra_linhas(0, 0, DICA_AD_W, 99, AD_TEXTO[a2], 0);
+                quebra_so_conta = false;
+                for (int i = 0; i < 6; i++) if (l > nl[i]) { for (int k = 5; k > i; k--) { nl[k] = nl[k - 1]; longo[k] = longo[k - 1]; } nl[i] = l; longo[i] = a2; break; }
+            }
+            fichas_ini[0] = fichas_ini[1] = 50; rodada = 1;  // Riqueza e Pobreza empatadas, o Azarao na 1a rodada: desligados
+            int ruins = 0, pior = 0;
+            for (int lm = 0; lm < 2; lm++) {
+                gfx_letra_maior(lm);
+                for (int t = 1; t < D_N; t++) for (int ia = 0; ia < 6; ia++) for (int ib = -1; ib < 6; ib++) for (int mao = 0; mao < 2; mao++) {
+                    if (!TEXTO_MEDIO[t]) continue;   // os aposentados: sem dica
+                    dica_t dd = { .x = 300, .y = 100, .w = 20, .h = 20, .tipo = DICA_DADO, .id = (uint8_t)t, .com_peca = 1, .dono = -1, .mao = (int8_t)mao };
+                    dd.pc = (peca_t){ .tipo = (uint8_t)t };
+                    ad_cola(&dd.pc, 1, longo[ia]);
+                    if (ib >= 0) ad_cola(&dd.pc, 2, longo[ib]);
+                    dicas[0] = dd; n_dicas = 1; mouse_x = 305; mouse_y = 105; detalhe = -1;
+                    int r[4]; const dica_t *q;
+                    if (!dica_rect(r, &q)) continue;
+                    if (r[1] < 0 || r[1] + r[3] > GFX_H - 4) { if (!ruins++) pior = t; }
+                }
+            }
+            CONFERE(!ruins, "a dica do dado com os adesivos de regra longa passa da tela (%d casos; o 1o num %s)", ruins, TIPO[pior].nome);
+            gfx_letra_maior(false);
+            mouse_x = mx0; mouse_y = my0; n_dicas = nd0; detalhe = det0; rodada = ri0; fichas_ini[0] = fi0; fichas_ini[1] = fi1;
+        }
         // Todos abrem e tem desenho, som, texto e raridade.
         for (int a = AD_NOTA_DEZ; a < AD_N; a++)
             if (ad_a_venda(a))

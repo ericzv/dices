@@ -185,7 +185,8 @@ typedef struct {
     uint8_t bolsa_i;                 // EV_ADESIVO do Infectado e do Barro: o dado da bolsa que pegou (0xFF: nenhum)
     uint32_t bolsa_lados;            // e os lados dele (bit l: o lado l)
     bool    bolsa_capa;              // o Barro: o dado sorteado estava com a bolha do Impermeavel (nao sujou)
-    char txt[64];
+    char txt[96];                    // o aviso: cabe o prefixo da copia ("Tela em Branco » Holográfico,
+                                     // como ...") com o "(fica xN)" no fim
 } evento_t;
 // O pior caso medido (fila de 6, Telas com Moldura, Holograficos, Selo e a
 // Saideira dos dois) da 76 eventos; 192 deixa folga. Se encher, o evento se

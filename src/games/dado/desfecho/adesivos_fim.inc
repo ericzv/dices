@@ -102,7 +102,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau (para o aviso)
-    char fica[40];                               // "(fica x3)": o multiplicador que somou com outro
+    char fica[64];                               // "(fica x3)": o multiplicador que somou com outro
     const char *pre = ad_prefixo(d, age_modo, copia, j, k);
     evento_t *e = NULL;
     switch (a) {
@@ -216,7 +216,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
                                                          : "%sFigurinha: %d figurinhas, +%d, e junta mais uma", pre, n, n);
         break;
     }
-    case AD_ETIQUETA: {                          // +1 por Etiqueta nos seus dados
+    case AD_ETIQUETA: {                          // +1 por Etiqueta na sua bolsa
         if (!vale) return false;
         int n = etiquetas_de(j);
         d->semente[j] += n;

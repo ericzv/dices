@@ -126,6 +126,9 @@ static desfecho_t fim(void)
 {
     desfecho_t d;
     calcula_desfecho(&d, true);
+    // Nenhum aviso cortado: o texto inteiro cabe em ev[].txt.
+    for (int i = 0; i < n_ev; i++)
+        CONFERE(strlen(ev[i].txt) < sizeof ev[i].txt - 1, "aviso cortado (%zu letras): %s", strlen(ev[i].txt), ev[i].txt);
     return d;
 }
 
@@ -466,6 +469,43 @@ static void achados_desfecho(void)
     achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3); joga_ad(0, 3, 4);
     d = fim();
     CONFERE(d.semente[0] == 48, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 48)", d.semente[0]);
+    {   // o aviso mais comprido do Bilhete vai inteiro, com o "(fica x4)" no fim
+        bool achou = false;
+        for (int i = 0; i < n_ev; i++)
+            achou |= strstr(ev[i].txt, "Carimbo » Holográfico, como Bilhete: bônus em dobro, +12 (fica x4)") != NULL;
+        CONFERE(achou, "A16: o aviso do Holografico carimbado devia terminar em (fica x4)");
+    }
+
+    // A Tela com Holografico copiando o Eletronico e o Lenticular: o prefixo
+    // comprido e o "(fica x5)" cabem no aviso.
+    achado_zera();
+    achado_peca(0, 0, D_D20, 3, AD_ELETRONICO);
+    achado_peca(0, 1, D_TELA, 4, AD_HOLOGRAFICO);
+    achado_peca(0, 2, D_D20, 19, AD_LENTICULAR);
+    achado_fila(0); joga_ad(0, 0, 3); joga_ad(0, 1, 4); joga_ad(0, 2, 19); joga(1, D_D4, 3);
+    d = fim();
+    {
+        int n = 0;
+        for (int i = 0; i < n_ev; i++)
+            n += strstr(ev[i].txt, "Tela em Branco » Holográfico, como ") && strstr(ev[i].txt, ": x3 no 4 (fica x") != NULL;
+        CONFERE(n == 2, "Tela + Holografico: os dois avisos com (fica xN) inteiros, achou %d", n);
+    }
+
+    // Quatro multiplicadores do fim no mesmo aviso (Dobro, Fartura, Piramide,
+    // Abre-Alas) com o Eletronico: o aviso fecha o parentese.
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_ABRE_ALAS) | AM_BIT(A_PIRAMIDE);
+    achado_peca(0, 0, D_D4, 2, AD_ELETRONICO);
+    achado_peca(0, 1, D_DOBRO, 3, 0);
+    achado_peca(0, 2, D_D4, 3, 0);
+    achado_peca(0, 3, D_FARTURA, 4, 0);
+    achado_fila(0); joga_ad(0, 0, 2); joga_ad(0, 1, 3); joga_ad(0, 2, 3); joga_ad(0, 3, 4); joga(1, D_D4, 3);
+    d = fim();
+    {
+        const char *t = NULL;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MULT) t = ev[i].txt;
+        CONFERE(t && t[strlen(t) - 1] == ')' && strstr(t, " vira "), "quatro multiplicadores: aviso %s", t ? t : "(nenhum)");
+    }
+    amul[0] = 0; modo = M_DOIS;
 
     // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
     achado_zera();

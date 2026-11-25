@@ -371,10 +371,14 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
             for (int q = 0; q < MULT_N; q++) fontes += de[q] >> k & 1;
             if (mult0[k] > 1 || fontes > 1) passou |= (uint8_t)(1 << k);
         }
-        char quem[64], fica[40];
+        // O aviso cabe em ev[].txt: ": 14 vira 30" leva ate 16; se nao couber,
+        // so os nomes; se ainda nao couber, sem o "(fica ...)".
+        char quem[sizeof ev[0].txt], fica[64];
+        const size_t cabe = sizeof ev[0].txt - 17;
         texto_fica(fica, sizeof fica, j, d->mult[j], mask, passou);
         texto_mult(quem, sizeof quem, j, de, n_far, false);
-        if (strlen(quem) + strlen(fica) > 46) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
+        if (strlen(quem) + strlen(fica) > cabe) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
+        if (strlen(quem) + strlen(fica) > cabe) fica[0] = 0;
         evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d%s", quem, antes, depois, fica);
         if (e) {
             e->mascara = mask;

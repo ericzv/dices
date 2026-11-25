@@ -920,6 +920,7 @@ static void confere_eventos(void)
                    || e->tipo == EV_ROUBA || e->tipo == EV_COME;
         if (usa_de) CONFERE(e->de_k < F[e->de_j].lancados, "evento %d (tipo %d, '%s'): o dado de origem e %d", i, e->tipo, e->txt, e->de_k);
         CONFERE(e->txt[0] && memchr(e->txt, 0, sizeof e->txt), "evento %d (tipo %d) sem texto ou sem fim", i, e->tipo);
+        CONFERE(strlen(e->txt) < sizeof e->txt - 1, "evento %d (tipo %d) com o aviso cortado: %s", i, e->tipo, e->txt);
         CONFERE(e->ad < AD_N, "evento %d com adesivo %d", i, e->ad);
         CONFERE(!(e->mascara >> N_FILA) && !(e->bloqueado >> N_FILA), "evento %d (tipo %d): mascara %d, bloqueado %d", i, e->tipo,
                 e->mascara, e->bloqueado);

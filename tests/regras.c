@@ -454,10 +454,10 @@ static void achados_desfecho(void)
     CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_VALIDO && d.roubo_val[0] == 0,
             "A15: Seguranca ancorado segura o roubo (est %d %d, roubo %d)", d.est[1][0], d.est[1][1], d.roubo_val[0]);
 
-    // A16: o Holografico carimbado copia o Bilhete: a 1a copia dobra, a 2a (a do
-    // Carimbo) sobe so um degrau, como o Bilhete carimbado. Confete 4 e as duas
-    // copias dele pelo Holografico: 12; Bilhete 24; copia 48; copia carimbada 72
-    // (antes, x8: 96).
+    // A16: o Holografico carimbado copia o Bilhete: a 1a copia e a 2a (a do
+    // Carimbo) sobem um degrau cada, como os Bilhetes se somam. Confete 4 e as
+    // duas copias dele pelo Holografico: 12; Bilhete, copia e copia carimbada
+    // somam 12 cada: 48 (com os Bilhetes dobrando o ja dobrado, 72).
     achado_zera();
     achado_peca(0, 0, D_D6, 1, AD_CONFETE);
     achado_peca(0, 1, D_D6, 2, AD_BILHETE);
@@ -465,7 +465,7 @@ static void achados_desfecho(void)
     achado_peca(0, 3, D_D6, 4, AD_HOLOGRAFICO);
     achado_fila(0); joga_ad(0, 0, 1); joga_ad(0, 1, 2); joga_ad(0, 2, 3); joga_ad(0, 3, 4);
     d = fim();
-    CONFERE(d.semente[0] == 72, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 72)", d.semente[0]);
+    CONFERE(d.semente[0] == 48, "A16: Holografico carimbado copiando o Bilhete (semente %d, esperado 48)", d.semente[0]);
 
     // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
     achado_zera();
@@ -5607,6 +5607,19 @@ int main(void)
         d = fim();
         amul[0] = 0; modo = modo_aa;
         CONFERE(d.total[0] == 18 && d.mult[0][0] == 3, "Abre-Alas + Eletronico: x3 (18), deu %d (x%d)", d.total[0], d.mult[0][0]);
+        {
+            const char *t = NULL;                 // o aviso diz quanto ficou: "Abre-Alas x2 no 6: 12 vira 18 (fica x3)"
+            for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MULT) t = ev[i].txt;
+            CONFERE(t && strstr(t, "(fica x3)"), "Abre-Alas + Eletronico: o aviso devia dizer (fica x3): %s", t ? t : "(sem aviso)");
+            bool grande = false;                  // um dado em x3: a mesa comemora (rodada grande)
+            for (int i = 0; i < n_ev; i++) grande |= ev[i].tipo == EV_MULT && evento_grande(&ev[i]);
+            CONFERE(grande, "um dado em x3 devia ser rodada grande");
+            limpa(); joga(0, D_DOBRO, 2); joga(0, D_D6, 5); joga(1, D_D4, 3); d = fim();
+            grande = false;
+            int mults = 0;
+            for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MULT) { mults++; grande |= evento_grande(&ev[i]); }
+            CONFERE(mults == 1 && !grande && d.total[0] == 2 + 10, "so um x2 nao e rodada grande (%d avisos, total %d)", mults, d.total[0]);
+        }
         // Mais somas de multiplicador (o que passa de x1 de cada um se soma).
         {
             peca_t col_x[MAX_COL]; memcpy(col_x, J[0].col, sizeof col_x);
@@ -6087,7 +6100,15 @@ int main(void)
         J[0].col[5] = (peca_t){ .tipo = D_D6 };              // o Holografico copia o Confete e o Bilhete
         ad_cola(&J[0].col[5], 5, AD_HOLOGRAFICO);
         limpa(); joga_ad(0, 4, 2); joga_ad(0, 5, 5); joga_ad(0, 3, 6); joga(1, D_D4, 3); d = fim();
-        CONFERE(d.total[0] == 2 + 5 + 6 + (4 + 4) * 2 * 2, "Holográfico copiando o Bilhete Premiado: %d", d.total[0]);
+        CONFERE(d.total[0] == 2 + 5 + 6 + (4 + 4) * 3, "Holográfico copiando o Bilhete Premiado: x3, deu %d", d.total[0]);
+        // Dois Bilhetes se somam como os multiplicadores: o bonus fica x3, nao x4.
+        J[0].col[6] = (peca_t){ .tipo = D_D6 };
+        ad_cola(&J[0].col[6], 6, AD_BILHETE);
+        limpa(); joga_ad(0, 4, 2); joga_ad(0, 3, 6); joga_ad(0, 6, 6); joga(1, D_D4, 3); d = fim();
+        bool fica3 = false;
+        for (int i = 0; i < n_ev; i++) fica3 |= ev_tipo_ad(i, AD_BILHETE) && strstr(ev[i].txt, "(fica x3)") != NULL;
+        CONFERE(d.total[0] == 2 + 6 + 6 + 4 * 3 && fica3, "dois Bilhetes: o bonus x3, deu %d (texto fica x3: %d)", d.total[0], fica3);
+        J[0].col[6] = (peca_t){ .tipo = D_D6 };
         J[0].col[3] = (peca_t){ .tipo = D_D6 };
         J[0].col[4] = (peca_t){ .tipo = D_D4 };
         J[0].col[5] = (peca_t){ .tipo = D_D6 };

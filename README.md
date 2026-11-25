@@ -207,8 +207,8 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   Etiqueta mostram na dica do dado quanto valem agora), à Figurinha (cada uma junta
   figurinhas no dado: quando uma age, soma +1 por figurinha de todas as suas
   Figurinhas, e a que agiu ganha mais uma; a cada partida, recomeçam do 1), ao Patinho Feio (valendo, -2 neste
-  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta nos seus dados; com uma na bolsa, todo pacote de adesivos traz, além das cartas de sempre, mais uma Etiqueta),
-  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada) e aos
+  lado e +2 em qualquer outro), à Etiqueta (+1 por Etiqueta na sua bolsa; com uma na bolsa, todo pacote de adesivos traz, além das cartas de sempre, mais uma Etiqueta),
+  ao Bilhete Premiado (dobra o bônus dos seus dados válidos na rodada; dois Bilhetes, x3) e aos
   de papel e plástico: a Nota Dez (o dado vira o lado mais alto), o Papel
   Carbono (copia o número do seu último dado válido: igual não cai), o Papel
   Bomba (rola de novo e soma os dois lances), o Impermeável (até o fim da
@@ -386,7 +386,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.48.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.49.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

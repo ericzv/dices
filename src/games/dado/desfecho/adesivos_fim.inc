@@ -102,6 +102,7 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     bool vale = d->est[j][k] == V_VALIDO, de_novo = age_modo & EVM_CARIMBO;
     uint8_t bit = (uint8_t)(1 << k);
     int8_t mx = de_novo ? 1 : 2;                 // o x2 carimbado: so mais um degrau (para o aviso)
+    char fica[40];                               // "(fica x3)": o multiplicador que somou com outro
     const char *pre = ad_prefixo(d, age_modo, copia, j, k);
     evento_t *e = NULL;
     switch (a) {
@@ -128,7 +129,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     case AD_ELETRONICO:
         if (!vale) return false;
         mult_soma(&d->mult[j][k], 2);
-        e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sEletrônico: x3 no %d" : "%sEletrônico: x2 no %d", pre, F[j].valor[k]);
+        texto_fica(fica, sizeof fica, j, d->mult[j], bit, d->mult[j][k] != (de_novo ? 3 : 2) ? bit : 0);
+        e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sEletrônico: x3 no %d%s" : "%sEletrônico: x2 no %d%s", pre, F[j].valor[k], fica);
         if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         break;
     case AD_LOBO:
@@ -194,7 +196,10 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
             uint8_t m = 0;
             if (vale && !ele) { mult_soma(&d->mult[j][k], 2); m |= bit; ele = true; }
             if (vale2) { mult_soma(&d->mult[j][p], 2); m |= (uint8_t)(1 << p); }
-            e = evento(gera, EV_ADESIVO, j, k, j, p, mx, de_novo ? "%sImantado: dois %d, x3" : "%sImantado: dois %d, x2", pre, F[j].valor[k]);
+            uint8_t passou = 0;
+            for (int q = 0; q < N_FILA; q++) if (m >> q & 1 && d->mult[j][q] != (de_novo ? 3 : 2)) passou |= (uint8_t)(1 << q);
+            texto_fica(fica, sizeof fica, j, d->mult[j], m, passou);
+            e = evento(gera, EV_ADESIVO, j, k, j, p, mx, de_novo ? "%sImantado: dois %d, x3%s" : "%sImantado: dois %d, x2%s", pre, F[j].valor[k], fica);
             if (e) { e->mascara = m; memcpy(e->por_dado, d->mult[j], N_FILA); }
             ad_marca(e, a, copia, age_modo);
             agiu = true;
@@ -221,7 +226,8 @@ static bool ad_age(desfecho_t *d, int j, int k, int ko, int a, bool gera, bool c
     case AD_LENTICULAR:                          // valendo, x2; anulado, -4 no seu placar
         if (vale) {
             mult_soma(&d->mult[j][k], 2);
-            e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sLenticular: x3 no %d" : "%sLenticular: x2 no %d", pre, F[j].valor[k]);
+            texto_fica(fica, sizeof fica, j, d->mult[j], bit, d->mult[j][k] != (de_novo ? 3 : 2) ? bit : 0);
+            e = evento(gera, EV_ADESIVO, j, k, j, k, mx, de_novo ? "%sLenticular: x3 no %d%s" : "%sLenticular: x2 no %d%s", pre, F[j].valor[k], fica);
             if (e) { e->mascara = bit; memcpy(e->por_dado, d->mult[j], N_FILA); }
         } else if (d->est[j][k] == V_ANULADO) {
             d->delta[j] -= LENTICULAR_PERDE;
@@ -557,17 +563,19 @@ static void adesivos_de(desfecho_t *d, int j, bool gera)
 // O Bilhete Premiado (adesivos_de anotou os que valeram), no fim de tudo: o
 // bonus dos dados validos de j vale em dobro - o que os poderes e amuletos
 // somaram em cada dado e os pontos a parte (a semente: os dos adesivos e dos
-// poderes que pontuam por fora). O numero que cada dado tirou, nao. Com dois
-// Bilhetes, dobra duas vezes; o Holografico copia cada um, e dobra de novo.
-static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool carimbo)
+// poderes que pontuam por fora). O numero que cada dado tirou, nao. Como os
+// multiplicadores, os Bilhetes se somam pelo que passa de x1: cada um (e a
+// segunda vez do carimbado, e cada copia do Holografico) soma de novo o bonus
+// de antes do primeiro Bilhete. Dois dao x3, nao x4.
+typedef struct { int b[N_FILA], sem, vezes; } bilhete_base_t;
+static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool carimbo, bilhete_base_t *bb)
 {
     int8_t por[N_FILA] = { 0 };
     uint8_t m = 0;
     int extra = 0;
     for (int i = 0; i < F[j].lancados && i < N_FILA; i++) {
         if (d->est[j][i] != V_VALIDO) continue;
-        int b = F[j].bonus[i] + d->bonus[j][i];
-        if (carimbo) b /= 2;                     // carimbado: o x2 vira x3 (mais a metade do ja dobrado)
+        int b = bb->b[i];
         if (b <= 0) continue;
         if (d->bonus[j][i] + b > 127) b = 127 - d->bonus[j][i];
         d->bonus[j][i] = (int8_t)(d->bonus[j][i] + b);
@@ -575,15 +583,16 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
         m |= (uint8_t)(1 << i);
         extra += b * (d->mult[j][i] > 0 ? d->mult[j][i] : 1);
     }
-    int sem = d->semente[j] > 0 ? d->semente[j] : 0;
-    if (carimbo) sem /= 2;
+    int sem = bb->sem;
     d->semente[j] += sem;
     extra += sem;
+    if (extra) bb->vezes++;
     char nome[48];                               // curto: o aviso cabe na mesa
     snprintf(nome, sizeof nome, "%s%s", ad_prefixo(d, carimbo ? EVM_CARIMBO : 0, copia, j, k),
              copia || carimbo ? "Bilhete" : "Bilhete Premiado");
-    evento_t *e = evento(gera, EV_ADESIVO, j, k, j, k, sem, extra ? (carimbo ? "%s: bônus x3, +%d" : "%s: bônus em dobro, +%d")
-                                                                 : "%s: nenhum bônus para dobrar", nome, extra);
+    evento_t *e = !extra ? evento(gera, EV_ADESIVO, j, k, j, k, sem, "%s: nenhum bônus para dobrar", nome)
+                : bb->vezes > 1 ? evento(gera, EV_ADESIVO, j, k, j, k, sem, "%s: bônus em dobro, +%d (fica x%d)", nome, extra, bb->vezes + 1)
+                : evento(gera, EV_ADESIVO, j, k, j, k, sem, "%s: bônus em dobro, +%d", nome, extra);
     ad_marca(e, AD_BILHETE, copia, carimbo ? EVM_CARIMBO : 0);
     if (e) { e->mascara = m; memcpy(e->por_dado, por, N_FILA); }
 }
@@ -592,19 +601,23 @@ static void dobra_bonus(desfecho_t *d, int j, int k, bool gera, bool copia, bool
 // Saideira) pode ter anulado o dado depois de ele ser anotado.
 static void bilhete_de(desfecho_t *d, int j, bool gera)
 {
+    bilhete_base_t bb = { .vezes = 0 };          // o bonus de antes do primeiro Bilhete: cada um soma ele de novo
+    for (int i = 0; i < F[j].lancados && i < N_FILA; i++)
+        if (d->est[j][i] == V_VALIDO) bb.b[i] = F[j].bonus[i] + d->bonus[j][i];
+    bb.sem = d->semente[j] > 0 ? d->semente[j] : 0;
     uint8_t vale = 0;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++)
         if (d->bilhete[j] >> k & 1 && d->est[j][k] == V_VALIDO) {
             vale |= (uint8_t)(1 << k);
-            dobra_bonus(d, j, k, gera, false, false);
-            if (d->bil_carimbo[j] >> k & 1) dobra_bonus(d, j, k, gera, false, true);
+            dobra_bonus(d, j, k, gera, false, false, &bb);
+            if (d->bil_carimbo[j] >> k & 1) dobra_bonus(d, j, k, gera, false, true, &bb);
         }
     int n = 0;                                   // os Bilhetes que o Holografico copia
     for (int k = 0; k < N_FILA; k++) n += vale >> k & 1;
     for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
         if (d->est[j][k] != V_VALIDO) continue;  // o Holografico tambem precisa terminar valendo
-        for (int c = 0; c < d->bil_holo[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, false);
-        for (int c = 0; c < d->bil_holo_c[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, true);
+        for (int c = 0; c < d->bil_holo[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, false, &bb);
+        for (int c = 0; c < d->bil_holo_c[j][k] * n; c++) dobra_bonus(d, j, k, gera, true, true, &bb);
     }
 }
 

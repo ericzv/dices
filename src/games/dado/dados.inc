@@ -780,7 +780,7 @@ static const char *TEXTO_CAT[D_N] = {
                           "que anula o maior dado valendo do oponente (o Segurança dele leva no lugar; a Couraça "
                           "protege).",
     [D_TELA]            = "Seis lados em branco, de linho esticado, esperando a sua colagem. Cada adesivo colado nele "
-                          "age duas vezes, como carimbado: o Confete dá +8, o Eletrônico fica x3. Mas caindo num lado "
+                          "age duas vezes, como carimbado: o Confete dá +8, o Eletrônico conta duas vezes. Mas caindo num lado "
                           "sem adesivo, ele pontua 0 (ainda entra na sequência com o número que tirou).",
     [D_MOSAICO]         = "Oito lados de azulejo. Se terminar válido: +1 no fim para cada adesivo colado nos seus dados "
                           "lançados na rodada, ele incluído, valendo ou não, agindo ou não. Um dado cheio vale muito.",

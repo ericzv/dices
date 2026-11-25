@@ -76,6 +76,29 @@ static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, b
     }
 }
 
+// O fim do texto de um multiplicador que somou com outro (os dados de
+// 'passou'): " (fica x3)" se todos os da mascara ficam iguais, ou " (o 4 fica
+// x3)" para cada um que passou do que o texto ja diz. Vazio se nenhum passou.
+static void texto_fica(char *s, size_t n, int j, const int8_t *mult, uint8_t mask, uint8_t passou)
+{
+    s[0] = 0;
+    if (!passou) return;
+    int x = -1;
+    bool iguais = true;
+    for (int k = 0; k < N_FILA; k++) {
+        if (!(mask >> k & 1)) continue;
+        int m = mult[k] > 0 ? mult[k] : 1;
+        if (x >= 0 && m != x) iguais = false;
+        x = m;
+    }
+    if (passou == mask && iguais) { snprintf(s, n, " (fica x%d)", x); return; }
+    size_t p = (size_t)snprintf(s, n, " (");
+    int c = 0;
+    for (int k = 0; k < N_FILA && p < n; k++)
+        if (passou >> k & 1) p += (size_t)snprintf(s + p, n - p, "%so %d fica x%d", c++ ? ", " : "", F[j].valor[k], mult[k] > 0 ? mult[k] : 1);
+    if (p < n) snprintf(s + p, n - p, ")");
+}
+
 // A Ampulheta: +1 a cada 3 rodadas ja jogadas, ate +4.
 static int ampulheta(void) { int n = (rodada - 1) / 3; return n < 0 ? 0 : n > 4 ? 4 : n; }
 
@@ -339,10 +362,20 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
     if (mask && gera) {
         int antes = pontos_fila(j, d->est[j], d->bonus[j], mult0);
         int depois = pontos_fila(j, d->est[j], d->bonus[j], d->mult[j]);
-        char quem[64];
+        // O dado que ja tinha multiplicador, ou que ganha mais de um aqui: o
+        // texto diz quanto fica, ja somado ("Abre-Alas x2 no 4: 8 vira 12 (fica x3)").
+        uint8_t passou = 0;
+        for (int k = 0; k < N_FILA; k++) {
+            if (!(mask >> k & 1)) continue;
+            int fontes = 0;
+            for (int q = 0; q < MULT_N; q++) fontes += de[q] >> k & 1;
+            if (mult0[k] > 1 || fontes > 1) passou |= (uint8_t)(1 << k);
+        }
+        char quem[64], fica[40];
+        texto_fica(fica, sizeof fica, j, d->mult[j], mask, passou);
         texto_mult(quem, sizeof quem, j, de, n_far, false);
-        if (strlen(quem) > 46) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
-        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d", quem, antes, depois);
+        if (strlen(quem) + strlen(fica) > 46) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
+        evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d%s", quem, antes, depois, fica);
         if (e) {
             e->mascara = mask;
             memcpy(e->por_dado, d->mult[j], N_FILA);

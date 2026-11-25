@@ -2,6 +2,7 @@
 // e valores exatos na fila e confere o que a regra da fila e o fim da rodada
 // fazem. Inclui o dado.c para alcancar as funcoes internas.
 #include <stdio.h>
+#include <ctype.h>
 #include "../src/games/dado.c"
 
 static uint16_t fb[GFX_W * GFX_H];
@@ -126,9 +127,16 @@ static desfecho_t fim(void)
 {
     desfecho_t d;
     calcula_desfecho(&d, true);
-    // Nenhum aviso cortado: o texto inteiro cabe em ev[].txt.
-    for (int i = 0; i < n_ev; i++)
-        CONFERE(strlen(ev[i].txt) < sizeof ev[i].txt - 1, "aviso cortado (%zu letras): %s", strlen(ev[i].txt), ev[i].txt);
+    // Nenhum aviso cortado: o texto inteiro cabe em ev[].txt. O do fim da
+    // rodada termina no numero ou fecha o parentese do "(fica ...)".
+    for (int i = 0; i < n_ev; i++) {
+        const char *t = ev[i].txt;
+        size_t n = strlen(t);
+        CONFERE(n < sizeof ev[i].txt - 1, "aviso cortado (%zu letras): %s", n, t);
+        if (ev[i].tipo == EV_MULT)
+            CONFERE(n && strstr(t, " vira ") && (strstr(t, " (fica ") || strstr(t, " (o ") ? t[n - 1] == ')' : isdigit((unsigned char)t[n - 1])),
+                    "aviso do multiplicador incompleto: %s", t);
+    }
     return d;
 }
 
@@ -505,6 +513,37 @@ static void achados_desfecho(void)
         for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MULT) t = ev[i].txt;
         CONFERE(t && t[strlen(t) - 1] == ')' && strstr(t, " vira "), "quatro multiplicadores: aviso %s", t ? t : "(nenhum)");
     }
+    // Seis dados com multiplicadores diferentes: o "(o 1 fica x4, ...)" nao
+    // cabe; o aviso sai sem ele, nunca pela metade (fim() confere).
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_PIRAMIDE);
+    achado_peca(0, 0, D_DOBRO, 1, 0);
+    {
+        static const int v[5] = { 1, 2, 3, 4, 4 };
+        for (int i = 0; i < 5; i++) achado_peca(0, i + 1, D_D4, v[i], AD_ELETRONICO);
+        achado_fila(0); joga_ad(0, 0, 1);
+        for (int i = 0; i < 5; i++) joga_ad(0, i + 1, v[i]);
+        joga(1, D_D4, 3);
+        d = fim();
+        int n = 0;
+        for (int i = 0; i < n_ev; i++) n += ev[i].tipo == EV_MULT;
+        CONFERE(n == 1, "seis dados multiplicados: um aviso do fim, achou %d", n);
+    }
+    // Oito multiplicadores: os nomes que nao cabem viram "e mais N" e o aviso
+    // termina no numero.
+    achado_zera(); modo = M_DESAFIO; amul[0] = AM_BIT(A_PIRAMIDE) | AM_BIT(A_ABRE_ALAS);
+    J[0].perdeu_ultima = true; fichas_ini[0] = 10;
+    {
+        static const int t[6] = { D_DOBRO, D_FARTURA, D_AZARAO, D_ESPERANCA, D_PATINHOS, D_PISCA }, x[6] = { 1, 2, 2, 3, 3, 4 };
+        for (int i = 0; i < 6; i++) achado_peca(0, i, t[i], x[i], 0);
+        achado_fila(0);
+        for (int i = 0; i < 6; i++) { joga_ad(0, i, x[i]); F[0].fixo[i] = t[i] == D_PATINHOS ? 2 : 0; }
+        joga(1, D_D4, 3);
+        d = fim();
+        const char *e = NULL;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_MULT) e = ev[i].txt;
+        CONFERE(e && strstr(e, " e mais "), "oito multiplicadores: o aviso devia dizer 'e mais': %s", e ? e : "(nenhum)");
+    }
+    fichas_ini[0] = 0;
     amul[0] = 0; modo = M_DOIS;
 
     // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.

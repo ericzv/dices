@@ -56,12 +56,23 @@ static void mult_poe(int *m, uint8_t *de, int q, uint8_t bit, int vezes)
     *m += (MULTIPLICA[q].fator - 1) * vezes;
     de[q] |= bit;
 }
+// curto: so os nomes, e o que nao couber em n vira " e mais 2".
 static void texto_mult(char *s, size_t n, int j, const uint8_t *de, int n_far, bool curto)
 {
     size_t p = 0;
+    int resto = 0;
+    for (int q = 0; q < MULT_N; q++) resto += de[q] != 0;
     s[0] = 0;
     for (int q = 0; q < MULT_N && p < n; q++) {
         if (!de[q]) continue;
+        if (curto) {                                // " e mais 10" cabe depois deste, se vier outro
+            const char *nome = MULTIPLICA[q].nome ? MULTIPLICA[q].nome : J[1].nome;
+            if (p + (p ? 2 : 0) + strlen(nome) + (resto > 1 ? 10 : 0) >= n) {
+                snprintf(s + p, n - p, " e mais %d", resto);
+                return;
+            }
+        }
+        resto--;
         if (p) p += (size_t)snprintf(s + p, n - p, curto ? ", " : " · ");
         if (p >= n) break;
         p += (size_t)snprintf(s + p, n - p, "%s", MULTIPLICA[q].nome ? MULTIPLICA[q].nome : J[1].nome);
@@ -96,7 +107,8 @@ static void texto_fica(char *s, size_t n, int j, const int8_t *mult, uint8_t mas
     int c = 0;
     for (int k = 0; k < N_FILA && p < n; k++)
         if (passou >> k & 1) p += (size_t)snprintf(s + p, n - p, "%so %d fica x%d", c++ ? ", " : "", F[j].valor[k], mult[k] > 0 ? mult[k] : 1);
-    if (p < n) snprintf(s + p, n - p, ")");
+    if (p < n) p += (size_t)snprintf(s + p, n - p, ")");
+    if (p >= n) s[0] = 0;                        // nao coube: sem o "(fica ...)", nunca cortado
 }
 
 // A Ampulheta: +1 a cada 3 rodadas ja jogadas, ate +4.
@@ -372,13 +384,20 @@ static void fim_mult(desfecho_t *d, int j, bool gera, int n_far, int valendo)
             if (mult0[k] > 1 || fontes > 1) passou |= (uint8_t)(1 << k);
         }
         // O aviso cabe em ev[].txt: ": 14 vira 30" leva ate 16; se nao couber,
-        // so os nomes; se ainda nao couber, sem o "(fica ...)".
-        char quem[sizeof ev[0].txt], fica[64];
+        // so os nomes; se ainda nao couber, sem o "(fica ...)" e de novo com
+        // os detalhes, ou so os nomes (os que passarem viram "e mais 2").
+        char quem[sizeof ev[0].txt], fica[sizeof ev[0].txt];
         const size_t cabe = sizeof ev[0].txt - 17;
         texto_fica(fica, sizeof fica, j, d->mult[j], mask, passou);
         texto_mult(quem, sizeof quem, j, de, n_far, false);
-        if (strlen(quem) + strlen(fica) > cabe) texto_mult(quem, sizeof quem, j, de, n_far, true);   // so os nomes
-        if (strlen(quem) + strlen(fica) > cabe) fica[0] = 0;
+        if (strlen(quem) + strlen(fica) > cabe) {
+            texto_mult(quem, cabe, j, de, n_far, true);
+            if (strlen(quem) + strlen(fica) > cabe) {
+                fica[0] = 0;
+                texto_mult(quem, sizeof quem, j, de, n_far, false);
+                if (strlen(quem) > cabe) texto_mult(quem, cabe, j, de, n_far, true);
+            }
+        }
         evento_t *e = evento(gera, EV_MULT, j, 0xFF, 0, 0, 0, "%s: %d vira %d%s", quem, antes, depois, fica);
         if (e) {
             e->mascara = mask;

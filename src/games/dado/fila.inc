@@ -55,13 +55,19 @@ static bool corta_sequencia(int j, const uint8_t *est, int k)
 {
     return est[k] == V_ESPERA && (F[j].escondido[k] || F[j].curinga[k] || F[j].gira[k]);
 }
-// O que corta a sequencia logo antes do dado 'antes' (sem nenhum valido no
-// meio), ou -1.
+// O que corta a sequencia logo antes do dado 'antes' (sem nenhum valido que
+// a regra enxergue no meio: a Ponte, o Corretivo e o Transparente ela pula),
+// ou -1.
+static int ve_na_regra(int j, const uint8_t *est, int k)
+{
+    return est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO
+        && !sequencia_nao_ve(j, k);
+}
 static int corte_antes(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--) {
         if (corta_sequencia(j, est, k)) return k;
-        if (est[k] == V_VALIDO) return -1;
+        if (ve_na_regra(j, est, k)) return -1;
     }
     return -1;
 }
@@ -69,8 +75,7 @@ static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--) {
         if (corta_sequencia(j, est, k)) return -1;
-        if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO
-            && !sequencia_nao_ve(j, k)) return k;
+        if (ve_na_regra(j, est, k)) return k;
     }
     return -1;
 }
@@ -807,10 +812,12 @@ static void aplica_regra(int j, int k)
             if (f->dobra[k])       snprintf(veredito, sizeof veredito, "pontua %d, x2 no fim", vale);
             else if (f->bonus[k] && ef == EF_PAR) snprintf(veredito, sizeof veredito, "pontua %d (Par)", vale);
             else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "pontua %d (%+d)", vale, f->bonus[k]);
-            else if (l < 0 && k && corte_antes(j, f->est, k) >= 0) {   // depois do Oculto (da Ficha, do Carrossel): so no fim
+            else if (l < 0 && k && ef != EF_PONTE && !sequencia_nao_ve(j, k) && corte_antes(j, f->est, k) >= 0) {
+                // depois do Oculto (da Ficha, do Carrossel): o que ele mostrar no fim pode mudar este
                 int c = tipo_de(j, corte_antes(j, f->est, k));
-                snprintf(veredito, sizeof veredito, ef == EF_SANGUESSUGA ? "pontua %d: no fim, tenta sugar %s" : "pontua %d: no fim, compara com %s", vale,
-                         c == D_OCULTO ? "o Oculto" : c == D_FICHA_CORINGA ? "a Ficha Coringa" : c == D_CARROSSEL ? "o Carrossel" : "o de antes");
+                const char *quem = c == D_FICHA_CORINGA ? "a Ficha Coringa" : c == D_CARROSSEL ? "o Carrossel" : "o Oculto";
+                snprintf(veredito, sizeof veredito, ef == EF_SANGUESSUGA ? "pontua %d: no fim, tenta sugar %s" : "pontua %d: %s pode mudar isso no fim",
+                         vale, quem);
             }
             else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "pontua %d: começa sequência nova", vale);
             else                   snprintf(veredito, sizeof veredito, "pontua %d", vale);

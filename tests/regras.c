@@ -587,8 +587,22 @@ static void achados_desfecho(void)
     joga_ad(1, 0, 4);
     joga_espera(1, 1, 2);
     joga_ad(1, 2, 3);
-    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO && strstr(veredito, "no fim, compara com o Oculto"),
+    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO && strstr(veredito, "o Oculto pode mudar isso no fim"),
             "depois do Oculto: o 3 nao derruba o 4 e o aviso diz que compara no fim (%s; est %d %d %d)", veredito, F[1].est[0], F[1].est[1], F[1].est[2]);
+    // Com uma Ponte entre o Oculto e o dado, o aviso ainda fala do Oculto (a
+    // regra pula a Ponte); e a Ponte logo depois dele fica com o aviso dela.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 4, 0);
+    achado_peca(1, 1, D_OCULTO, 6, 0);
+    achado_peca(1, 2, D_PONTE, 1, 0);
+    achado_peca(1, 3, D_D6, 3, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 4);
+    joga_espera(1, 1, 6);
+    joga_ad(1, 2, 1);
+    CONFERE(!strstr(veredito, "pode mudar"), "a Ponte logo depois do Oculto nao diz que o Oculto a muda (%s)", veredito);
+    joga_ad(1, 3, 3);
+    CONFERE(strstr(veredito, "o Oculto pode mudar isso no fim") != NULL, "Ponte entre o Oculto e o 3: o aviso fala do Oculto (%s)", veredito);
     // A Sanguessuga logo depois do Oculto escondido nao suga o dado de antes
     // dele; no fim suga o Oculto.
     achado_zera();

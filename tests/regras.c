@@ -86,6 +86,18 @@ static void joga_ad(int j, int i, int v)
     f->lancados = k + 1;
     aplica_regra(j, k);
 }
+// Como joga_ad, para o Oculto, a Ficha Coringa e o Carrossel: caem virados,
+// com o curinga para cima ou girando (como pousa, fila.inc), antes da regra.
+static void joga_espera(int j, int i, int v)
+{
+    fila_t *f = &F[j];
+    int k = f->lancados, ef = TIPO[J[j].col[i].tipo].efeito;
+    if (k >= N_FILA) return;
+    f->escondido[k] = ef == EF_OCULTO;
+    f->curinga[k] = ef == EF_FICHA_CORINGA;
+    f->gira[k] = ef == EF_CARROSSEL;
+    joga_ad(j, i, v);
+}
 // Como joga_ad, mas o dado cai pela regra completa (o Calibre de antes sobe o lance).
 static void joga_ad_com(int j, int i, int v, int (*r)(int))
 {
@@ -556,7 +568,7 @@ static void achados_desfecho(void)
     achado_peca(1, 3, D_D6, 3, 0);
     achado_fila(1);
     joga_ad(1, 0, 3);
-    joga_ad(1, 1, 5); F[1].escondido[1] = true; aplica_regra(1, 1);
+    joga_espera(1, 1, 5);
     joga_ad(1, 2, 1);
     CONFERE(F[1].est[0] == V_VALIDO && F[1].est[1] == V_ESPERA && F[1].est[2] == V_VALIDO,
             "Oculto escondido: o Teimoso depois dele nao anula o d4 de antes (est %d %d %d)", F[1].est[0], F[1].est[1], F[1].est[2]);
@@ -566,6 +578,43 @@ static void achados_desfecho(void)
     d = fim();
     CONFERE(d.total[1] == 11 && d.est[1][0] == V_VALIDO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO,
             "Oculto no fim: o 5 aparece e o Teimoso o anula (total %d, est %d %d %d)", d.total[1], d.est[1][0], d.est[1][1], d.est[1][2]);
+    // O aviso do dado logo depois do Oculto escondido diz que ele compara no fim.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 4, 0);
+    achado_peca(1, 1, D_OCULTO, 2, 0);
+    achado_peca(1, 2, D_D6, 3, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 4);
+    joga_espera(1, 1, 2);
+    joga_ad(1, 2, 3);
+    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO && strstr(veredito, "no fim, compara com o Oculto"),
+            "depois do Oculto: o 3 nao derruba o 4 e o aviso diz que compara no fim (%s; est %d %d %d)", veredito, F[1].est[0], F[1].est[1], F[1].est[2]);
+    // A Sanguessuga logo depois do Oculto escondido nao suga o dado de antes
+    // dele; no fim suga o Oculto.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 5, 0);
+    achado_peca(1, 1, D_OCULTO, 6, 0);
+    achado_peca(1, 2, D_SANGUESSUGA, 3, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 5);
+    joga_espera(1, 1, 6);
+    joga_ad(1, 2, 3);
+    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO, "Sanguessuga depois do Oculto: nao suga o 5 de antes (est %d %d)", F[1].est[0], F[1].est[2]);
+    joga(0, D_D4, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_VALIDO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO,
+            "Sanguessuga depois do Oculto: no fim suga o Oculto (est %d %d %d)", d.est[1][0], d.est[1][1], d.est[1][2]);
+    // O Carrossel girando tambem corta: o 2 depois dele nao derruba o 5.
+    achado_zera();
+    achado_peca(1, 0, D_D6, 5, 0);
+    achado_peca(1, 1, D_CARROSSEL, 1, 0);
+    achado_peca(1, 2, D_D6, 2, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 5);
+    joga_espera(1, 1, 1);
+    CONFERE(F[1].gira[1] && F[1].est[1] == V_ESPERA, "o Carrossel lancado gira fora da sequencia");
+    joga_ad(1, 2, 2);
+    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO, "Carrossel girando: o 2 depois dele nao derruba o 5 (est %d %d)", F[1].est[0], F[1].est[2]);
     // Rodada grande tambem pelos adesivos: o Holografico copiando dois
     // Eletronicos poe um dado em x3 (sem multiplicador do fim). Um
     // Eletronico so (x2) nao comemora.

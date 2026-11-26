@@ -642,8 +642,8 @@ static bool adesivo_no_modo(int j) { return modo == M_DOIS && !(cpu >> j & 1); }
 static bool dado_fora_do_modo(int t, int j) { return so_desafio(t) || (dado_de_adesivo(t) && !adesivo_no_modo(j)); }
 
 // O Presente desembrulha no lance: um dado raro ao acaso, ou o D20 (o dado
-// especial, que nao se vende) - no Desafiante, os seus so entre os que voce
-// ja abriu -, que sai dele e fica no lugar dele na
+// especial, que nao se vende) - no Desafiante, so entre os que voce ja abriu
+// (o seu e o do oponente) -, que sai dele e fica no lugar dele na
 // bolsa - no Desafiante, pela run (a bolsa volta para a run como terminou a
 // partida); nas outras, ate o fim da partida.
 static int desembrulha(int j, int k, int (*r)(int))

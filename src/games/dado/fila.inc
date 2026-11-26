@@ -48,11 +48,27 @@ static bool sequencia_nao_ve(int j, int k) { return ad_fila(j, k) == AD_TRANSPAR
 // O Oculto ainda escondido, a Ficha Coringa com o curinga para cima e o
 // Carrossel girando cortam a sequencia: o dado depois deles nao compara com
 // ninguem (como depois do Vazio) ate o fim, quando eles param e a sequencia
-// e refeita. Assim nada aparece anulado para voltar no fim.
+// e refeita - e o seguinte passa a comparar com eles. Assim o dado de antes
+// deles nao cai por causa do de depois para voltar no fim (os mais adiante
+// ainda podem mudar quando a sequencia e refeita).
+static bool corta_sequencia(int j, const uint8_t *est, int k)
+{
+    return est[k] == V_ESPERA && (F[j].escondido[k] || F[j].curinga[k] || F[j].gira[k]);
+}
+// O que corta a sequencia logo antes do dado 'antes' (sem nenhum valido no
+// meio), ou -1.
+static int corte_antes(int j, const uint8_t *est, int antes)
+{
+    for (int k = antes - 1; k >= 0; k--) {
+        if (corta_sequencia(j, est, k)) return k;
+        if (est[k] == V_VALIDO) return -1;
+    }
+    return -1;
+}
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
     for (int k = antes - 1; k >= 0; k--) {
-        if (est[k] == V_ESPERA && (F[j].escondido[k] || F[j].curinga[k] || F[j].gira[k])) return -1;
+        if (corta_sequencia(j, est, k)) return -1;
         if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO
             && !sequencia_nao_ve(j, k)) return k;
     }
@@ -381,7 +397,7 @@ static void aplica_regra(int j, int k)
     // Preso pela Ancora: o dado logo depois dela, com ela valendo.
     f->ancora[k] = k > 0 && tipo_de(j, k - 1) == D_ANCORA && f->est[k - 1] == V_VALIDO;
     // O Oculto lancado: ninguem ve o numero; fica fora da sequencia (nao cai,
-    // nao derruba, o seguinte compara com o de antes dele) ate o fim.
+    // nao derruba, o seguinte nao compara com ninguem: ultimo_da_regra) ate o fim.
     if (f->escondido[k]) {
         f->est[k] = V_ESPERA;
         snprintf(veredito, sizeof veredito, "Oculto: o número só aparece no fim");
@@ -791,6 +807,11 @@ static void aplica_regra(int j, int k)
             if (f->dobra[k])       snprintf(veredito, sizeof veredito, "pontua %d, x2 no fim", vale);
             else if (f->bonus[k] && ef == EF_PAR) snprintf(veredito, sizeof veredito, "pontua %d (Par)", vale);
             else if (f->bonus[k])  snprintf(veredito, sizeof veredito, "pontua %d (%+d)", vale, f->bonus[k]);
+            else if (l < 0 && k && corte_antes(j, f->est, k) >= 0) {   // depois do Oculto (da Ficha, do Carrossel): so no fim
+                int c = tipo_de(j, corte_antes(j, f->est, k));
+                snprintf(veredito, sizeof veredito, ef == EF_SANGUESSUGA ? "pontua %d: no fim, tenta sugar %s" : "pontua %d: no fim, compara com %s", vale,
+                         c == D_OCULTO ? "o Oculto" : c == D_FICHA_CORINGA ? "a Ficha Coringa" : c == D_CARROSSEL ? "o Carrossel" : "o de antes");
+            }
             else if (l < 0 && k)   snprintf(veredito, sizeof veredito, "pontua %d: começa sequência nova", vale);
             else                   snprintf(veredito, sizeof veredito, "pontua %d", vale);
             ver_comum = true;
@@ -799,10 +820,12 @@ static void aplica_regra(int j, int k)
     }
     // Sanguessuga: ao pousar, anula o seu dado de antes que ainda vale (o
     // ultimo valendo antes dela, qualquer que seja). Ela nunca cai: menor ou
-    // maior, so suga; e a sequencia segue a partir dela.
+    // maior, so suga; e a sequencia segue a partir dela. Logo depois de um
+    // Oculto escondido (Ficha Coringa, Carrossel) nao suga nada ate o fim:
+    // ai a sequencia e refeita e ela suga o que ele mostrar.
     if (ef == EF_SANGUESSUGA && f->est[k] == V_VALIDO) {
         int a = -1;
-        for (int i = k - 1; i >= 0 && a < 0; i--) if (f->est[i] == V_VALIDO) a = i;
+        for (int i = k - 1; i >= 0 && a < 0 && !corta_sequencia(j, f->est, i); i--) if (f->est[i] == V_VALIDO) a = i;
         if (a >= 0 && !firme(j, a)) {
             f->est[a] = V_ANULADO;
             anulou_a = a;

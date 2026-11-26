@@ -845,6 +845,29 @@ static void ia_planeja_fila(int j)
     for (int c = 0; c < nc; c++) nota_c[c] = avalia_fila(j, cand[c], L, a1, base, &m);
     int finalistas = ia_esforco == 0 ? 2 : (ia_nivel == 1 ? 4 : 8);
     int a2 = amostras_ia(IA_AMOSTRAS, 24);
+    // O nivel 1 pesa com poucas jogadas, e a sorte da primeira peneira
+    // escolhia filas ruins (D6, D4, D6 no lugar de D6, D6, D4). Uma peneira
+    // do meio: as 12 melhores jogam mais 48 vezes, com outra semente, e a nota
+    // passa a ser a media das duas; as finalistas saem so delas, e jogam 80
+    // vezes. (So aqui: lancar ou parar e a aposta seguem como eram.)
+    if (ia_nivel == 1 && ia_esforco != 0) {
+        enum { MEIO = 12, A_MEIO = 48 };
+        int top[MEIO], nt = 0;
+        float v1[MEIO];
+        for (; nt < MEIO && nt < nc; nt++) {
+            int b = -1;
+            for (int c = 0; c < nc; c++) if (nota_c[c] > -1 && (b < 0 || nota_c[c] > nota_c[b])) b = c;
+            if (b < 0) break;
+            top[nt] = b; v1[nt] = nota_c[b];
+            nota_c[b] = -2;                  // fora da conta ate a nota nova
+        }
+        for (int c = 0; c < nc; c++) if (nota_c[c] > -1) nota_c[c] = -2;   // as de fora nao chegam a finalistas
+        for (int i = 0; i < nt; i++) {
+            float v = avalia_fila(j, cand[top[i]], L, A_MEIO, base ^ 0x85ebca6bu, &m);
+            nota_c[top[i]] = (v1[i] * (float)a1 + v * A_MEIO) / (float)(a1 + A_MEIO);
+        }
+        a2 = 80;
+    }
     int melhor = -1, segundo = -1;
     float nota_m = -1, nota_s = -1, chance_m = 0.5f;
     for (int f = 0; f < finalistas && f < nc; f++) {

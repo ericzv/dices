@@ -893,6 +893,134 @@ static bool tem_escondido(int j)
     return false;
 }
 
+// Os anulados de j que o fim ainda pode levantar. Com um Oculto (uma Ficha
+// Coringa, um Carrossel) esperando antes deles, a sequencia e refeita no fim
+// com o numero que ele mostrar: tenta cada numero que ele pode mostrar e que
+// muda alguma comparacao (os dois extremos e cada numero da fila, um abaixo e
+// um acima), sem olhar o que o Oculto tirou, e marca os anulados agora que
+// ficam valendo em algum desses. Sao os que a mesa mostra com "?" no lugar do X. A mesa volta
+// como estava; guarda a ultima resposta (a mesa pergunta a cada quadro).
+static uint8_t anulados_incertos(int j)
+{
+    fila_t *f = &F[j];
+    int n = f->lancados < N_FILA ? f->lancados : N_FILA;
+    uint8_t anul = 0;
+    int cortes[N_FILA], nc = 0;
+    for (int k = 0; k < n; k++) {
+        if (f->est[k] == V_ANULADO) anul |= (uint8_t)(1 << k);
+        if (corta_sequencia(j, f->est, k)) cortes[nc++] = k;
+    }
+    if (!anul || !nc) return 0;
+    static fila_t memo_f[2][2];
+    static uint8_t memo_r[2];
+    static bool memo_ok[2];
+    if (memo_ok[j] && !memcmp(memo_f[j], F, sizeof F)) return memo_r[j];
+    // Os numeros que valem tentar: os que mudam alguma comparacao com a fila,
+    // dentro do que cada um pode mostrar (o Oculto, de 1 ao maior lado dele,
+    // com o Remendo e o Calibre; o Carrossel, de 1 a 8; a Ficha, o que o
+    // oponente tiver).
+    int lim[3 * N_FILA];
+    int nl = 0;
+    for (int k = 0; k < n; k++)
+        for (int d = -1; d <= 1; d++) lim[nl++] = f->valor[k] + d;
+    int cand[N_FILA][3 * N_FILA + 2], ncand[N_FILA];
+    int combos = 1;
+    for (int c = 0; c < nc; c++) {
+        int k = cortes[c], ef = TIPO[tipo_de(j, k)].efeito, lo = 0, hi = 99;
+        if (ef == EF_CARROSSEL) { lo = 1; hi = CARROSSEL_MAX; }
+        else if (f->escondido[k]) {
+            const peca_t *p = peca_fila(j, k);
+            lo = 99; hi = 0;
+            for (int x = 1; x <= TIPO[f->tipo[k]].lados; x++) {
+                int v = p ? remenda(p, x) : x;
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
+            }
+            if (f->calibre[k]) { lo++; hi++; }
+            if (f->valor[k] < lo) lo = f->valor[k];   // (um jeito de chegar la que a conta nao viu)
+            if (f->valor[k] > hi) hi = f->valor[k];
+        }
+        int *cc = cand[c], m = 0;
+        cc[m++] = lo;
+        if (hi != lo) cc[m++] = hi;
+        for (int i = 0; i < nl; i++) {
+            int v = lim[i], novo = v > lo && v < hi;
+            for (int q = 0; q < m && novo; q++) if (cc[q] == v) novo = 0;
+            if (novo) cc[m++] = v;
+        }
+        ncand[c] = m;
+        if (combos <= 4096) combos *= m;
+    }
+    uint8_t vale = 0;
+    if (combos > 4096) vale = anul;              // espera demais para testar: todos com "?"
+    else {
+        static fila_t antes[2];
+        char ver[sizeof veredito];
+        memcpy(antes, F, sizeof F);
+        memcpy(ver, veredito, sizeof ver);
+        int vt = ver_tipo, aa = anulou_a, ab = anulou_b, res = resistiu;
+        bool vc = ver_comum;
+        uint8_t am = anulou_masc;
+        amul_t disp = am_disparou;
+        for (int m = 0; m < combos && vale != anul; m++) {
+            for (int c = 0, r = m; c < nc; c++) {
+                int k = cortes[c];
+                f->escondido[k] = f->curinga[k] = f->gira[k] = false;
+                f->valor[k] = cand[c][r % ncand[c]];
+                r /= ncand[c];
+            }
+            refaz_sequencia(j, n);
+            for (int k = 0; k < n; k++) if ((anul >> k & 1) && f->est[k] == V_VALIDO) vale |= (uint8_t)(1 << k);
+            memcpy(F, antes, sizeof F);
+        }
+        memcpy(veredito, ver, sizeof veredito);
+        ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
+        am_disparou = disp;
+    }
+    memcpy(memo_f[j], F, sizeof F);
+    memo_r[j] = vale & anul;
+    memo_ok[j] = true;
+    return memo_r[j];
+}
+
+// O dado que acabou de pousar anulou dados que o fim ainda pode levantar
+// (anulados_incertos): o veredito diz que eles esperam o Oculto (a Ficha, o
+// Carrossel), e eles ficam sem o X; sem nada anulado de vez, sem o som de
+// anulado tambem (ver_tipo 5). So para a mesa: a IA e a previa nao passam aqui.
+static void veredito_incerto(int j)
+{
+    uint8_t caiu = anulou_masc;
+    if (anulou_a >= 0) caiu |= (uint8_t)(1 << anulou_a);
+    if (anulou_b >= 0) caiu |= (uint8_t)(1 << anulou_b);
+    uint8_t inc = anulados_incertos(j) & caiu, certo = caiu & (uint8_t)~inc;
+    if (!inc) return;
+    int pk = 0, ck = -1, nu = 0, ncerto = 0;
+    for (int k = N_FILA - 1; k >= 0; k--) {
+        if (inc >> k & 1) { pk = k; nu++; }
+        if (certo >> k & 1) { ck = k; ncerto++; }
+    }
+    int w = pk - 1;
+    while (w >= 0 && !corta_sequencia(j, F[j].est, w)) w--;
+    int c = w >= 0 ? tipo_de(j, w) : D_OCULTO;
+    const char *quem = c == D_FICHA_CORINGA ? "a Ficha Coringa" : c == D_CARROSSEL ? "o Carrossel" : "o Oculto";
+    char pre[40] = "", resto[64];
+    const char *dois = strchr(veredito, ':');
+    if (dois && dois - veredito < 28) snprintf(pre, sizeof pre, "%.*s: ", (int)(dois - veredito), veredito);
+    if (!ncerto && nu == 1)      snprintf(resto, sizeof resto, "o %d espera %s", F[j].valor[pk], quem);
+    else if (!ncerto && nu == 2) snprintf(resto, sizeof resto, "os dois esperam %s", quem);
+    else if (!ncerto)            snprintf(resto, sizeof resto, "%d dados esperam %s", nu, quem);
+    else if (ncerto == 1 && nu == 1)
+        snprintf(resto, sizeof resto, "anulou o %d; o %d espera %s", F[j].valor[ck], F[j].valor[pk], quem);
+    else snprintf(resto, sizeof resto, "%d anulado%s; %d espera%s %s", ncerto, ncerto > 1 ? "s" : "",
+                  nu, nu > 1 ? "m" : "", quem);
+    snprintf(veredito, sizeof veredito, "%s%s", pre, resto);
+    ver_comum = false;
+    if (!ncerto) ver_tipo = 5;
+    anulou_masc &= (uint8_t)~inc;
+    if (anulou_a >= 0 && (inc >> anulou_a & 1)) anulou_a = -1;
+    if (anulou_b >= 0 && (inc >> anulou_b & 1)) anulou_b = -1;
+}
+
 // Um dado acabou de cair na posicao k. O Ventania, antes da regra dele, rola
 // de novo o primeiro dado da sequencia e refaz a sequencia do comeco com o
 // valor novo (dados podem cair ou voltar a valer). Nao rola a si mesmo nem os

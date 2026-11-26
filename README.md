@@ -135,7 +135,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   acende luminária por luminária (qualquer tecla, clique ou botão pula).
   A dificuldade sobe mesa a mesa pelos dados dos
   oponentes: no primeiro salão eles só têm dados de número, quase todos D4, e a
-  bolsa cresce a cada mesa e a cada salão. Até o nível 3, o primeiro salão
+  bolsa cresce a cada mesa e a cada salão. Eles só trazem dados até um nível
+  acima do andar (no Nível 3, até os do 4), mesmo os que você já abriu por
+  conquista - menos o dado do encontro, que cada um traz sempre - e os
+  oponentes comuns, no máximo um lendário (os outros viram dados de número
+  do mesmo tamanho). Até o nível 3, o primeiro salão
   sobe bem aos poucos: um D4 ou D6 vira um incomum de 4 ou 6 lados (o Viciado,
   o Teimoso, o Par, o Trevo...; nenhum de ataque) no Crupiê desde o nível 1 e
   no difícil desde o 2, e os oponentes de lá pensam como a IA atenta numa
@@ -368,7 +372,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   a soma de todas), no 9. E o Carrossel (d8 raro, no 7): lançado, fica
   girando fora da sequência, como o Oculto e a Ficha Coringa (enquanto eles
   esperam, o dado logo depois vale qualquer número; no fim a sequência é
-  refeita com eles e ele passa a comparar com eles), mostrando quantos dados valem
+  refeita com eles e ele passa a comparar com eles; um dado depois deles que
+  cai, mas que o número que eles mostrarem ainda pode levantar, fica com um
+  "?" em cima em vez do X, e o placar mostra o fim com "?", como "(13?)"), mostrando quantos dados valem
   na mesa agora, dos dois lados, ele incluído - a cobertura listrada anda
   para a frente quando um dado entra valendo e para trás quando um cai. No
   fim da rodada (depois do Oculto, do Espelho, do tremor, da Casca e da
@@ -388,7 +394,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.53.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.54.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

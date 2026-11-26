@@ -445,6 +445,41 @@ int main(int argc, char **argv)
         soma_adesivos += adesivos;
         CONFERE(!des_tem_run(), "run acabada ainda salva");
     }
+    // As bolsas dos oponentes comuns, com tudo aberto no perfil: nada acima
+    // de um nivel alem do andar (menos o dado do encontro, que ele traz
+    // sempre) e no maximo um lendario.
+    {
+        perfil_t p0 = perfis[0];
+        int pa = perfil_atual;
+        bool pl = perfis_lidos;
+        uint8_t dif0 = run.dificuldade;
+        perfis[0].nivel = 10; perfis[0].marcos = 3; perfis[0].conq = ~0ull;
+        perfil_atual = 0; perfis_lidos = true;
+        int np = (int)(sizeof PERSO / sizeof PERSO[0]), ruins = 0;
+        for (int dif = 1; dif <= N_NIVEIS && ruins < 3; dif++)
+            for (int pe = 0; pe < np && ruins < 3; pe++) {
+                if ((pe >= PERSO_CHEFE0 && pe < PERSO_CHEFE0 + 4) || pe == PERSO_NOEL || pe == PERSO_CORINGA) continue;
+                run.dificuldade = (uint8_t)dif;
+                int enc = cq_encontro(pe) >= 0 ? PERSO[pe].nucleo[0] : -1;
+                for (int a = 0; a < DES_ANDARES; a++)
+                    for (int tier = 0; tier < 3; tier++)
+                        for (int sm = 0; sm < 8; sm++) {
+                            no_t no = { .tipo = (uint8_t)tier, .perso = (uint8_t)pe, .semente = 99u + (uint32_t)sm * 7907u + (uint32_t)dif * 131u };
+                            peca_t col[MAX_COL];
+                            int n = monta_oponente(&no, a, col), lendas = 0, acima = -1;
+                            for (int i = 0; i < n; i++) {
+                                lendas += TIPO[col[i].tipo].raridade == RAR_LENDA;
+                                if (nivel_do_dado(col[i].tipo) > dif + 1 && col[i].tipo != enc) acima = col[i].tipo;
+                            }
+                            if (lendas > 1 || acima >= 0) {
+                                ruins++;
+                                CONFERE(false, "bolsa de %s (nivel %d, salao %d, mesa %d): %d lendarios, acima do andar: %s",
+                                        PERSO[pe].nome, dif, a + 1, tier, lendas, acima >= 0 ? TIPO[acima].nome : "nenhum");
+                            }
+                        }
+            }
+        perfis[0] = p0; perfil_atual = pa; perfis_lidos = pl; run.dificuldade = dif0;
+    }
     if (falhas) return 1;
     printf("%d runs (IA do jogador nivel %d, caminho %d, dificuldade %s): %d vencidas (%.0f%%)\n", runs, nivel,
            estrategia, NOME_DIF[dific], vitorias, 100.0 * vitorias / runs);

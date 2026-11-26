@@ -661,9 +661,9 @@ static int desembrulha(int j, int k, int (*r)(int))
     int ok[D_N], n = 0;
     for (int t = 0; t < D_N; t++) {
         if ((TIPO[t].raridade != RAR_RARO && t != D_D20) || sem_sorteio(t) || t == D_PRESENTE) continue;
-        // No Desafiante, so os que voce ja abriu - tambem o do oponente, como o
-        // resto da bolsa dele (mapa.inc, monta_oponente).
-        if (modo == M_DESAFIO ? !dado_liberado(t) : dado_fora_do_modo(t, j)) continue;
+        // No Desafiante, so os que voce ja abriu; o do oponente, como o resto
+        // da bolsa dele, ate um nivel acima do andar (mapa.inc, do_andar).
+        if (modo == M_DESAFIO ? !(j == 0 ? dado_liberado(t) : do_andar(t)) : dado_fora_do_modo(t, j)) continue;
         ok[n++] = t;
     }
     int t = n ? ok[r(n) - 1] : D_D6;
@@ -1811,6 +1811,7 @@ static void desfecho(void)
     }
     n_voo = 0;
     ev_i = 0;
+    memset(festejou, 0, sizeof festejou);
     t_fase = 0;
     t_respiro = -1;
     for (int j = 0; j < 2; j++) log_base[j] = total_visivel(j);

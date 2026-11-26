@@ -501,7 +501,7 @@ static void desenha_joga(void)
     // dados caindo (o que for especial ainda aparece no veredito).
     if (fase == F_JOGA && anuncia_maquina()) { pote_mesa(); return; }
     if (fase == F_VEREDITO) {
-        uint16_t c = ver_tipo == 0 ? C_OURO : ver_tipo == 2 ? C_ACO
+        uint16_t c = ver_tipo == 0 || ver_tipo == 5 ? C_OURO : ver_tipo == 2 ? C_ACO
                    : ver_tipo == 4 ? gfx_mistura(C_EGO, C_BRANCO, 25) : C_VINHO_CLR;
         painel(y1 - 5, TXT_H + 8, larg_painel(gfx_largura(veredito, 1), 160));
         txt_c(GFX_W / 2, y1 - 1, veredito, c, false);

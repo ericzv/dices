@@ -249,6 +249,7 @@ static float t_congela, congela_dur, golpe_px, golpe_dur;
 static int8_t congela_j = -1;
 static uint8_t congela_masc;             // dados de congela_j que clareiam; bit N_FILA: o placar
 static void golpe(int j, unsigned masc);
+static uint8_t festejou[2];               // os dados que ja comemoraram nesta rodada (golpe_evento): de novo, maior
 static bool ev_espera;                   // o golpe segurou o comeco do efeito seguinte
 static float t_respiro = -1;             // a pausa entre um efeito e o seguinte (>= 0: correndo)
 #define EV_RESPIRO 0.4f                  // segundos de verdade: o resultado de um efeito fica a vista
@@ -626,6 +627,7 @@ static void bolsas_passo(float dt);      // as bolsas do comeco da run (desafio/
 static void fosforo_ve(void);            // Caixa de Fosforos: a mao que o oponente comprou
 static int  des_foco(void);
 static bool dado_liberado(int t);
+static bool do_andar(int t);            // o que o oponente pode trazer (desafio/mapa.inc)
 static void des_resumo(char *s, int n);
 static void des_esc(void);
 static int  remoto;                  // bit j: jogador j joga do outro computador

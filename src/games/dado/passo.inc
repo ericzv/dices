@@ -179,6 +179,7 @@ void dado_passo(float dt)
             am_disparou = 0;
             pousa(j, k, rola);
             adesivos_pousou(j, k);                // o Infectado, o Barro, a Massinha e o Chiclete agem na hora, mesmo se alguem correr
+            veredito_incerto(j);                  // anulado que o Oculto ainda pode levantar: "?" e nao o X
             // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
             if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
                 && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
@@ -195,7 +196,7 @@ void dado_passo(float dt)
             else if (vidro_quebra(j, k)) {
                 som_toca(SOM_VIDRO);
                 solta_cacos(SLOT_X(k), zona(j));
-            } else if (ver_tipo == 0) {             // valendo: uma nota acima a cada posicao
+            } else if (ver_tipo == 0 || ver_tipo == 5) {   // valendo (ou esperando o Oculto): uma nota acima a cada posicao
                 static const int SOM_POS[N_FILA] = { SOM_VALIDO, SOM_VALIDO2, SOM_VALIDO3, SOM_VALIDO4, SOM_VALIDO4 };
                 som_toca(SOM_POS[k < N_FILA ? k : N_FILA - 1]);
                 px_pulsa(SLOT_X(k), zona(j));          // o modo Pixel: a luz pulsa embaixo dele

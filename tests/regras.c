@@ -629,6 +629,83 @@ static void achados_desfecho(void)
     CONFERE(F[1].gira[1] && F[1].est[1] == V_ESPERA, "o Carrossel lancado gira fora da sequencia");
     joga_ad(1, 2, 2);
     CONFERE(F[1].est[0] == V_VALIDO && F[1].est[2] == V_VALIDO, "Carrossel girando: o 2 depois dele nao derruba o 5 (est %d %d)", F[1].est[0], F[1].est[2]);
+    // Anulado depois do Oculto, mas so de jeito provisorio: a mesa o mostra
+    // com "?" e nao com o X (anulados_incertos). O exemplo do Ilusionista:
+    // Oculto, 2, 1 - o 1 derruba o 2. O 2 cai de qualquer jeito (pelo 1, ou
+    // no fim pelo Oculto maior que ele); o 1 volta a valer se o Oculto
+    // mostrar 3 ou mais.
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 5, 0);
+    achado_peca(1, 1, D_D6, 2, 0);
+    achado_peca(1, 2, D_D6, 1, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 5);
+    joga_ad(1, 1, 2);
+    joga_ad(1, 2, 1);
+    {
+        fila_t antes[2];
+        memcpy(antes, F, sizeof F);
+        char ver0[sizeof veredito];
+        memcpy(ver0, veredito, sizeof ver0);
+        uint8_t inc = anulados_incertos(1);
+        CONFERE(F[1].est[1] == V_ANULADO && F[1].est[2] == V_ANULADO && inc == (1 << 2),
+                "Oculto, 2, 1: so o 1 fica com '?' (o 2 cai de qualquer jeito) (incertos 0x%02x, est %d %d)", inc, F[1].est[1], F[1].est[2]);
+        CONFERE(!memcmp(antes, F, sizeof F) && !strcmp(ver0, veredito), "anulados_incertos devolve a mesa e o aviso como estavam");
+        veredito_incerto(1);
+        CONFERE(strstr(veredito, "anulou o 2; o 1 espera o Oculto") && anulou_a == 1 && anulou_b == -1 && ver_tipo == 1,
+                "Oculto, 2, 1: o aviso diz que o 1 espera o Oculto (%s; anulou %d %d, tipo %d)", veredito, anulou_a, anulou_b, ver_tipo);
+    }
+    joga(0, D_D4, 3);
+    d = fim();
+    CONFERE(d.est[1][0] == V_ANULADO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO,
+            "Oculto 5, 2, 1: no fim o 2 cai no Oculto e o 1 volta a valer (est %d %d %d)", d.est[1][0], d.est[1][1], d.est[1][2]);
+    // A Sentinela depois do Oculto cai sozinha protegendo o 4: com o Oculto
+    // maior que o 4, no fim ela vale. Nada anulado de vez: aviso sem X nem
+    // som de anulado (tipo 5).
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 6, 0);
+    achado_peca(1, 1, D_D6, 4, 0);
+    achado_peca(1, 2, D_SENTINELA, 2, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 6);
+    joga_ad(1, 1, 4);
+    joga_ad(1, 2, 2);
+    {
+        uint8_t inc = anulados_incertos(1);
+        CONFERE(F[1].est[2] == V_ANULADO && inc == (1 << 2), "Sentinela depois do Oculto: fica com '?' (incertos 0x%02x, est %d)", inc, F[1].est[2]);
+        veredito_incerto(1);
+        CONFERE(ver_tipo == 5 && strstr(veredito, "o 2 espera o Oculto") && anulou_b == -1,
+                "Sentinela depois do Oculto: o aviso diz que ela espera (%s; tipo %d)", veredito, ver_tipo);
+    }
+    // O Egoista depois do Oculto anula de vez: nada de "?".
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 6, 0);
+    achado_peca(1, 1, D_D6, 5, 0);
+    achado_peca(1, 2, D_EGOISTA, 3, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 6);
+    joga_ad(1, 1, 5);
+    joga_ad(1, 2, 3);
+    {
+        char ver0[sizeof veredito];
+        memcpy(ver0, veredito, sizeof ver0);
+        uint8_t inc = anulados_incertos(1);
+        veredito_incerto(1);
+        CONFERE(F[1].est[1] == V_ANULADO && inc == 0 && !strcmp(ver0, veredito),
+                "Egoista depois do Oculto: o 5 cai de vez, sem '?' (incertos 0x%02x, %s)", inc, veredito);
+    }
+    // O Oculto (d8) nao mostra 10: o 5 depois do 10 so voltaria com um Oculto
+    // maior que 10, entao cai de vez.
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 1, 0);
+    achado_peca(1, 1, D_D12, 10, 0);
+    achado_peca(1, 2, D_D6, 5, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 1);
+    joga_ad(1, 1, 10);
+    joga_ad(1, 2, 5);
+    CONFERE(F[1].est[2] == V_ANULADO && anulados_incertos(1) == 0,
+            "Oculto d8, 10, 5: o 5 so voltaria com o Oculto acima de 10 - cai de vez (incertos 0x%02x)", anulados_incertos(1));
     // Rodada grande tambem pelos adesivos: o Holografico copiando dois
     // Eletronicos poe um dado em x3 (sem multiplicador do fim). Um
     // Eletronico so (x2) nao comemora.
@@ -654,6 +731,29 @@ static void achados_desfecho(void)
         bool grande = false;
         for (int i = 0; i < n_ev; i++) grande |= evento_grande(&ev[i]);
         CONFERE(!grande && d.mult[0][0] == 2, "um Eletronico so (x2) nao e rodada grande (x%d)", d.mult[0][0]);
+    }
+
+    // A segunda comemoracao do mesmo dado na rodada e maior (a mesa para mais
+    // tempo); outro dado chegando a x3 comemora do tamanho normal.
+    {
+        bool toff = tremor_off;
+        tremor_off = false;
+        memset(festejou, 0, sizeof festejou);
+        evento_t e1 = { .tipo = EV_MULT, .de_j = 0, .mascara = 1u << 1 };
+        e1.por_dado[1] = 3;
+        t_congela = 0; golpe_evento(&e1);
+        float p1 = t_congela;
+        t_congela = 0; e1.por_dado[1] = 4; golpe_evento(&e1);
+        float p2 = t_congela;
+        evento_t e2 = { .tipo = EV_MULT, .de_j = 0, .mascara = 1u << 1 | 1u << 2 };
+        e2.por_dado[1] = 2; e2.por_dado[2] = 3;
+        t_congela = 0; golpe_evento(&e2);
+        float p3 = t_congela;
+        CONFERE(p1 > 0 && p2 > p1 * 1.5f && fabsf(p3 - p1) < 1e-6f,
+                "comemoracao: a segunda do mesmo dado maior, a de outro dado normal (%.3f %.3f %.3f)", p1, p2, p3);
+        t_congela = 0; congela_j = -1; t_tremor = 0; t_onda = -1;
+        memset(festejou, 0, sizeof festejou);
+        tremor_off = toff;
     }
 
     // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
@@ -7816,7 +7916,7 @@ int main(void)
             CONFERE(todos, "Nivel 5: todos com trunfo");
             run.dificuldade = (uint8_t)dif0;
             // O nucleo: o Rival sempre traz o Eco (e o Gemeo a partir do 2o salao),
-            // quando a dificuldade ja abriu os dois.
+            // quando o andar ja chega neles (os dois sao do Nivel 6: do 5o andar).
             int pa0 = perfil_atual;
             bool pl0 = perfis_lidos;
             perfil_t p0 = perfis[0];
@@ -7825,6 +7925,7 @@ int main(void)
             perfis[0].nivel = N_NIVEIS; perfis[0].conq = ~0ull; perfil_atual = 0; perfis_lidos = true;
             no_t no = { 0 };
             no.tipo = NO_FACIL; no.perso = 16; no.semente = 99;
+            run.dificuldade = 5;
             for (int a = 0; a < 3; a++) {
                 peca_t col[MAX_COL];
                 run.andar = (uint8_t)a;
@@ -7832,6 +7933,14 @@ int main(void)
                 for (int i = 0; i < n; i++) { eco += col[i].tipo == D_ECO; gemeo += col[i].tipo == D_GEMEO; }
                 CONFERE(eco >= 1 && (a == 0 || gemeo >= 1), "nucleo do Rival no salao %d: eco %d gemeo %d", a, eco, gemeo);
             }
+            run.dificuldade = 4;                 // no 4o andar, ainda nao (mesmo com tudo aberto no perfil)
+            {
+                peca_t col[MAX_COL];
+                int n = monta_oponente(&no, 2, col), alto = 0;
+                for (int i = 0; i < n; i++) alto += col[i].tipo == D_ECO || col[i].tipo == D_GEMEO;
+                CONFERE(!alto, "4o andar: o Rival ainda sem o Eco e o Gemeo (%d)", alto);
+            }
+            run.dificuldade = (uint8_t)dif0;
             // O Revolver do oponente chega vazio, como o seu: o primeiro tiro
             // so sai no 4o lance dele (nunca na 1a ou 2a rodada).
             {

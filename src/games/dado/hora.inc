@@ -400,11 +400,26 @@ static bool evento_grande(const evento_t *e)
     return false;
 }
 
+// O mesmo dado comemorando de novo na rodada (x3 pelos adesivos e depois o
+// Abre-Alas): a segunda vez e um pouco maior - a mesa fica parada mais
+// tempo, treme mais e o som forte bate junto.
 static void golpe_evento(const evento_t *e)
 {
     if (!evento_grande(e)) return;
-    golpe(e->de_j, (e->mascara & ((1u << N_FILA) - 1)) | 1u << N_FILA);
-    crescendo(e->de_j, 2);
+    int j = e->de_j;
+    unsigned todos = e->mascara & ((1u << N_FILA) - 1), quem = todos;
+    bool mult = e->tipo == EV_MULT || e->tipo == EV_ADESIVO;
+    if (mult) {                                  // so os que chegaram a x3
+        quem = 0;
+        for (int k = 0; k < N_FILA; k++) if ((todos >> k & 1) && e->por_dado[k] >= 3) quem |= 1u << k;
+    }
+    bool de_novo = (festejou[j] & quem) != 0;
+    festejou[j] |= (uint8_t)quem;
+    golpe(j, todos | 1u << N_FILA);
+    if (!de_novo) { crescendo(j, 2); return; }
+    if (t_congela > 0) t_congela = congela_dur = GOLPE_T * 1.8f;
+    som_toca(SOM_FORTE);
+    crescendo(j, 3);
 }
 
 // ---------------------------------------------------------------------------

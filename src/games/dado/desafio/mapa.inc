@@ -6,13 +6,18 @@
 // O D20 nao se vende (nem na vitrine, nem nos pacotes): so sai de um
 // Presente e do dado que a Sacola de Presente ganha de cada chefe.
 static bool fora_da_loja(int t) { return t == D_D20; }
+// O que um oponente pode trazer: o que voce ja abriu, ate um nivel acima do
+// andar (a dificuldade da run) - mesmo o que voce abriu antes por uma
+// conquista (o Agouro, do Nivel 10) espera o andar dele para aparecer na
+// mesa dos outros.
+static bool do_andar(int t) { return dado_liberado(t) && nivel_do_dado(t) <= run.dificuldade + 1; }
 static int sorteia_raridade(const float w[4])
 {
     float total = 0;
-    for (int t = 0; t < D_N; t++) if (!so_inicial(t) && dado_liberado(t)) total += w[TIPO[t].raridade];
+    for (int t = 0; t < D_N; t++) if (!so_inicial(t) && do_andar(t)) total += w[TIPO[t].raridade];
     float x = (float)(rnd_r() % 1000000u) / 1000000.0f * total;
     for (int t = 0; t < D_N; t++) {
-        if (so_inicial(t) || !dado_liberado(t)) continue;
+        if (so_inicial(t) || !do_andar(t)) continue;
         x -= w[TIPO[t].raridade];
         if (x < 0) return t;
     }
@@ -521,11 +526,11 @@ static void poe_incomum_s1(peca_t *col, int n, const perso_t *pe, int nivel)
     int cand[sizeof INCOMUM_S1], nc = 0, abre = 2 + nivel;
     for (int j = 0; j < (int)sizeof INCOMUM_S1 && j < abre; j++)
         for (int i = 0; i < 8 && pe->fav[i] != 0xFF; i++)
-            if (pe->fav[i] == INCOMUM_S1[j] && dado_liberado(INCOMUM_S1[j])) { cand[nc++] = INCOMUM_S1[j]; break; }
+            if (pe->fav[i] == INCOMUM_S1[j] && do_andar(INCOMUM_S1[j])) { cand[nc++] = INCOMUM_S1[j]; break; }
     if (!nc || sorte_r(2)) {
         nc = 0;
         for (int j = 0; j < (int)sizeof INCOMUM_S1 && j < abre; j++)
-            if (dado_liberado(INCOMUM_S1[j])) cand[nc++] = INCOMUM_S1[j];
+            if (do_andar(INCOMUM_S1[j])) cand[nc++] = INCOMUM_S1[j];
     }
     if (!nc) return;
     int t = cand[sorte_r(nc)], alvo = -1;
@@ -589,13 +594,13 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
     // ver o que ganha vencendo-o.
     for (int i = 0; i < 3 && i <= andar && pe->nucleo[i] && n < MAX_COL; i++) {
         bool encontro = i == 0 && cq_encontro(no->perso) >= 0;
-        if (!tudo && !encontro && !dado_liberado(pe->nucleo[i])) continue;
+        if (!tudo && !encontro && !do_andar(pe->nucleo[i])) continue;
         col[n++] = peca_r(pe->nucleo[i]);
         if (i > 0 && extras > 0) extras--;
     }
     for (int i = 0; i < extras && n < MAX_COL; i++) {
         int t = (n_fav && (coringa || sorte_r(100) < (noel ? 70 : 45))) ? pe->fav[sorte_r(n_fav)] : sorteia_raridade(w);
-        if (!tudo && !dado_liberado(t)) t = coringa ? D_D12 : sorteia_raridade(w);
+        if (!tudo && !do_andar(t)) t = coringa ? D_D12 : sorteia_raridade(w);
         col[n++] = peca_r(t);
     }
     if (run.dificuldade >= 6 && andar >= 1) {   // do 2o salao: dados raros a mais, um do Nivel 6, dois do 8
@@ -624,10 +629,19 @@ static int monta_oponente(const no_t *no, int andar, peca_t *col)
               : andar == 0 ? RECHEIO_SIMPLES[sorte_r((int)sizeof RECHEIO_SIMPLES)]
               : andar == 1 ? RECHEIO_MEIO[sorte_r((int)sizeof RECHEIO_MEIO)]
               : RECHEIO[sorte_r((int)sizeof RECHEIO)];
-        col[n++] = peca_r(tudo || dado_liberado(t) ? t : coringa ? D_D12 : D_D6);
+        col[n++] = peca_r(tudo || do_andar(t) ? t : coringa ? D_D12 : D_D6);
     }
     if (andar == 0 && !coringa)
         for (int q = incomuns_s1(tier, dif_salao(andar)); q > 0; q--) poe_incomum_s1(col, n, pe, dif_salao(andar));
     if (!coringa) n = poucos_tipos(col, n, pe, 2 + (tier < 3 ? tier : 3) + andar + dif_salao(andar) / 4);
+    // Oponente comum (nem chefe, nem o Coringa, nem o Papai Noel): no maximo
+    // um lendario. O primeiro fica (o nucleo vem antes dos sorteados); os
+    // outros viram dados de numero do mesmo tamanho, como em poucos_tipos.
+    if (tier < 3 && !coringa && !noel)
+        for (int k = 0, lendas = 0; k < n; k++) {
+            if (TIPO[col[k].tipo].raridade != RAR_LENDA || lendas++ == 0) continue;
+            int l = TIPO[col[k].tipo].lados;
+            col[k] = (peca_t){ .tipo = (uint8_t)(l == 2 ? D_D2 : l == 4 ? D_D4 : l == 6 ? D_D6 : D_D8), .fixo = 0 };
+        }
     return n;
 }

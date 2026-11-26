@@ -1890,6 +1890,9 @@ static void desenha_fila(int j)
     if (previa) calcula_desfecho(&pv, false);
     uint8_t mira[2] = { 0, 0 };                          // os dados que um poder armado vai pegar
     if (previa) miras_agora(mira);
+    // Anulados que o fim ainda pode levantar (depois de um Oculto, de uma
+    // Ficha Coringa ou de um Carrossel esperando): sem o X, com um "?" em cima.
+    uint8_t incerto = previa ? anulados_incertos(j) : 0;
 
     for (int k = 0; k < f->n; k++) {
         int x = SLOT_X(k);
@@ -1969,8 +1972,9 @@ static void desenha_fila(int j)
             }
             continue;
         }
-        bool anul = est == V_ANULADO;
-        bool recente = fase == F_VEREDITO && j == vez
+        bool espera_fim = est == V_ANULADO && (incerto >> k & 1);
+        bool anul = est == V_ANULADO && !espera_fim;
+        bool recente = fase == F_VEREDITO && j == vez && !espera_fim
                        && (k == anulou_a || k == anulou_b || (anulou_masc >> k & 1));
         // O que segurou a queda treme no lugar, como quem balanca a cabeca.
         if (fase == F_VEREDITO && j == vez && k == resistiu && t_fase < 0.7f)
@@ -2421,6 +2425,10 @@ static void desenha_fila(int j)
         if (e && (e->tipo == EV_FOGO || e->tipo == EV_SEMENTE) && e->de_j == j && e->de_k == k)
             aro(x, y, e->tipo == EV_FOGO ? C_FOGO : C_VERDE);
         if (e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && !sino) aro(x, y, cor_dado(t));
+        if (espera_fim) {                                  // o fim decide: um "?" balancando em cima
+            int qy = (int)(y - pulo) - R - 28 + (int)(sinf(t_relogio * 3.2f + k) * 2);
+            txt_sombra_c(x, qy, "?", C_OURO, 2);
+        }
         if (!anul) {                                       // por cima dos aros
             bool alto = (giro < 0.5f && vis_est[j][k] != V_ROUBADO && (firme(j, k) || nao_roubavel(j, k)))
                         || (coringa_joga(j) && k == 3 && f->idx[k] == -1);
@@ -2510,8 +2518,12 @@ static void desenha_fila(int j)
         placar_tranco(j, PLACAR_X - 34 + sx, y - 26 + ty, 68, 50);
         // Ao lado, apagado: quanto fica depois dos bonus e dos ataques que ja
         // estao na mesa. Pode ser negativo (Espinhoso, Pirata, Maldito do rival).
-        if (previa && pv.bruto[j] != placar_real(j)) {
-            snprintf(s, sizeof s, "(%d)", pv.bruto[j]);
+        // Com um Oculto (uma Ficha Coringa, um Carrossel) ainda por mostrar, o
+        // numero vem com "?": o fim ainda pode muda-lo.
+        bool falta = false;
+        for (int k = 0; k < f->lancados && k < N_FILA; k++) if (corta_sequencia(j, f->est, k)) falta = true;
+        if (previa && (falta || pv.bruto[j] != placar_real(j))) {
+            snprintf(s, sizeof s, falta ? "(%d?)" : "(%d)", pv.bruto[j]);
             txt(PLACAR_X + 38, y - 10, s, gfx_mistura(C_TEXTO_M, C_FELTRO, 25), false);
         }
         if (carta_posta(j) || tem_escondido(j))   // a carta do Coringa ou um Oculto ainda vai virar

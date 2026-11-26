@@ -694,6 +694,88 @@ static void achados_desfecho(void)
         CONFERE(F[1].est[1] == V_ANULADO && inc == 0 && !strcmp(ver0, veredito),
                 "Egoista depois do Oculto: o 5 cai de vez, sem '?' (incertos 0x%02x, %s)", inc, veredito);
     }
+    // A Ficha Coringa sem nada para virar (o oponente sem valido): ela cai
+    // sozinha e o de depois compara com o de antes dela. 4, Ficha, 3, 2: o 2
+    // volta a valer - fica com "?".
+    achado_zera();
+    achado_peca(1, 0, D_D6, 1, 0); achado_peca(1, 1, D_FICHA_CORINGA, 1, 0);
+    achado_peca(1, 2, D_D6, 1, 0); achado_peca(1, 3, D_D6, 1, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 4); joga_espera(1, 1, 1); joga_ad(1, 2, 3); joga_ad(1, 3, 2);
+    CONFERE(anulados_incertos(1) >> 3 & 1, "Ficha sem nada para virar: o 2 depois do 3 fica com '?' (incertos 0x%02x)", anulados_incertos(1));
+    joga(0, D_D6, 5); joga(0, D_D6, 3);
+    d = fim();
+    CONFERE(d.est[1][3] == V_VALIDO, "Ficha sem nada para virar: no fim o 2 vale (est %d)", d.est[1][3]);
+    // O adesivo do lado do Oculto: o "?" nao pode depender do que ele tirou
+    // (Transparente no lado 3: com 3 ou com 6, a mesma resposta).
+    {
+        uint8_t r[2];
+        for (int q = 0; q < 2; q++) {
+            achado_zera();
+            achado_peca(1, 0, D_OCULTO, 3, AD_TRANSPARENTE); achado_peca(1, 1, D_D6, 1, 0); achado_peca(1, 2, D_D6, 1, 0);
+            achado_fila(1);
+            joga_espera(1, 0, q ? 6 : 3); joga_ad(1, 1, 5); joga_ad(1, 2, 4);
+            r[q] = anulados_incertos(1);
+        }
+        CONFERE(r[0] == r[1] && r[0] == (1 << 2), "Oculto com Transparente: o '?' nao depende do que ele tirou (0x%02x com 3, 0x%02x com 6)", r[0], r[1]);
+    }
+    // Impermeavel no 8 do Oculto: 7, 4 depois dele - o 4 nao volta com
+    // nenhum lado de verdade (com o 8, a bolha segura o Oculto e o 7 cai).
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 8, AD_IMPERMEAVEL); achado_peca(1, 1, D_D8, 1, 0); achado_peca(1, 2, D_D6, 1, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 2); joga_ad(1, 1, 7); joga_ad(1, 2, 4);
+    {
+        int volta = 0;
+        fila_t g[2];
+        memcpy(g, F, sizeof F);
+        for (int v = 1; v <= 8; v++) {
+            F[1].escondido[0] = false; F[1].valor[0] = F[1].cru[0] = v; F[1].lado[0] = (uint8_t)v;
+            refaz_sequencia(1, 3);
+            volta |= F[1].est[2] == V_VALIDO;
+            memcpy(F, g, sizeof F);
+        }
+        CONFERE(((anulados_incertos(1) >> 2) & 1) == volta, "Impermeavel no Oculto: '?' no 4 so se ele volta (incertos 0x%02x, volta %d)", anulados_incertos(1), volta);
+    }
+    // O Calibre antes do Oculto so soma ate o maior lado: d8 vai de 2 a 8.
+    // Calibre 1, Oculto, 8, 5: o 5 nao volta com nenhum desses.
+    achado_zera();
+    achado_peca(1, 0, D_CALIBRE, 1, 0); achado_peca(1, 1, D_OCULTO, 1, 0); achado_peca(1, 2, D_D8, 1, 0); achado_peca(1, 3, D_D6, 1, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 1); joga_ad_com(1, 1, 4, sempre_dois); joga_ad(1, 2, 8); joga_ad(1, 3, 5);
+    CONFERE(F[1].escondido[1] && F[1].est[3] == V_ANULADO && !(anulados_incertos(1) >> 3 & 1),
+            "Calibre antes do Oculto: o 5 cai de vez, sem '?' (incertos 0x%02x, est %d)", anulados_incertos(1), F[1].est[3]);
+    // A Rede com dados ainda por lancar: parando agora, ela segura o de antes
+    // do ultimo lancado. Oculto 4, 6, 3 (um por lancar): o 6 pode voltar.
+    achado_zera();
+    amul[1] = AM_BIT(A_REDE); modo = M_DESAFIO;
+    achado_peca(1, 0, D_OCULTO, 1, 0); achado_peca(1, 1, D_D6, 1, 0); achado_peca(1, 2, D_D6, 1, 0); achado_peca(1, 3, D_D6, 1, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 4); joga_ad(1, 1, 6);
+    F[1].idx[2] = 2; F[1].tipo[2] = D_D6; F[1].cru[2] = F[1].valor[2] = 3; F[1].lado[2] = 3; F[1].lancados = 3; F[1].n = 4;
+    F[1].idx[3] = 3; F[1].tipo[3] = D_D6;
+    aplica_regra(1, 2);
+    CONFERE(F[1].est[1] == V_ANULADO && (anulados_incertos(1) >> 1 & 1), "Rede com um por lancar: o 6 fica com '?' (est %d, incertos 0x%02x)",
+            F[1].est[1], anulados_incertos(1));
+    amul[1] = 0; modo = M_DOIS;
+    // No fim da rodada, o "?" segue ate o Oculto mostrar (vis_incerto), e
+    // sai quando o evento dele refaz a sequencia.
+    achado_zera();
+    achado_peca(1, 0, D_OCULTO, 5, 0); achado_peca(1, 1, D_D6, 2, 0); achado_peca(1, 2, D_D6, 1, 0);
+    achado_fila(1);
+    joga_espera(1, 0, 5); joga_ad(1, 1, 2); joga_ad(1, 2, 1);
+    joga(0, D_D4, 3);
+    desfecho();
+    {
+        int rv = -1;
+        for (int i = 0; i < n_ev; i++) if (ev[i].tipo == EV_REVELA && ev[i].de_j == 1) rv = i;
+        CONFERE(fase == F_EFEITOS && vis_est[1][2] == V_ANULADO && (vis_incerto[1] >> 2 & 1) && rv >= 0,
+                "no comeco do fim o 1 segue com '?' (fase %d, vis_est %d, vis_incerto 0x%02x, revela %d)", fase, vis_est[1][2], vis_incerto[1], rv);
+        if (rv >= 0) aplica_evento(rv);
+        CONFERE(vis_incerto[1] == 0 && vis_est[1][2] == V_VALIDO, "o Oculto mostrou: o '?' sai e o 1 vale (vis_incerto 0x%02x, vis_est %d)",
+                vis_incerto[1], vis_est[1][2]);
+        fase = F_JOGA; n_ev = ev_i = 0;
+    }
     // O Oculto (d8) nao mostra 10: o 5 depois do 10 so voltaria com um Oculto
     // maior que 10, entao cai de vez.
     achado_zera();

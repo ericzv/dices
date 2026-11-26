@@ -314,6 +314,7 @@ static uint8_t vis_fragil[2];            // o Fragil anulado ja rachou (quebra n
 static uint8_t vis_tsunami[2][N_FILA];          // a Onda que ja virou Tsunami
 static uint8_t jingle_copias[2];                // Jingle Bells lancados que ja puseram a copia na bolsa (fim da rodada)
 static uint8_t vis_espelho[2][N_FILA];
+static uint8_t vis_incerto[2];                // os anulados com "?" (anulados_incertos), ate o Oculto deles mostrar
 static uint8_t vis_oculto[2][N_FILA];        // Oculto que ja apareceu na conta, mas ainda com "?" na mesa
 static uint8_t vis_curinga[2][N_FILA];       // Ficha Coringa que ja virou na conta, mas ainda com "?" na mesa
 static uint8_t vis_carrossel[2][N_FILA];     // Carrossel que ja parou na conta, mas ainda girando na mesa

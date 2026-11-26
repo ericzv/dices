@@ -1891,8 +1891,9 @@ static void desenha_fila(int j)
     uint8_t mira[2] = { 0, 0 };                          // os dados que um poder armado vai pegar
     if (previa) miras_agora(mira);
     // Anulados que o fim ainda pode levantar (depois de um Oculto, de uma
-    // Ficha Coringa ou de um Carrossel esperando): sem o X, com um "?" em cima.
-    uint8_t incerto = previa ? anulados_incertos(j) : 0;
+    // Ficha Coringa ou de um Carrossel esperando): sem o X, com um "?" em
+    // cima - no fim da rodada tambem, ate o evento dele refazer a sequencia.
+    uint8_t incerto = previa ? anulados_incertos(j) : no_desfecho ? vis_incerto[j] : 0;
 
     for (int k = 0; k < f->n; k++) {
         int x = SLOT_X(k);

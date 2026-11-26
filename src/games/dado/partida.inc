@@ -754,6 +754,220 @@ static lance_t lanca_do_dado(int j, int k, int t, int fixo, const peca_t *pc, in
     return l;
 }
 
+// ---- O "?" depois do Oculto -------------------------------------------------
+// Um Oculto (uma Ficha Coringa, um Carrossel) esperando na fila: no fim a
+// sequencia e refeita com o numero que ele mostrar. Um dado depois dele que
+// cai agora, mas que esse numero ainda pode levantar, fica com "?" e nao com
+// o X (mesa.inc); o que cai de qualquer jeito fica com o X.
+
+// Os caminhos do sorteio, um por um: rola_enum devolve a escolha guardada
+// para cada sorteio do caminho (1 na primeira vez), e enum_proximo passa ao
+// caminho seguinte (como um odometro); false: acabaram.
+static int enum_seq[6], enum_lim[6], enum_n, enum_i;
+static int rola_enum(int lados)
+{
+    if (enum_i >= (int)(sizeof enum_seq / sizeof enum_seq[0])) return 1;
+    if (enum_i >= enum_n) { enum_seq[enum_i] = 1; enum_n = enum_i + 1; }
+    enum_lim[enum_i] = lados;
+    int x = enum_seq[enum_i++];
+    return x < lados ? x : lados;
+}
+static bool enum_proximo(void)
+{
+    enum_n = enum_i;                             // o que o caminho nao sorteou nao conta
+    while (enum_n > 0) {
+        if (enum_seq[enum_n - 1] < enum_lim[enum_n - 1]) { enum_seq[enum_n - 1]++; return true; }
+        enum_n--;
+    }
+    return false;
+}
+
+// Um jeito de o dado que espera virar no fim: o numero e o lado (o Oculto,
+// tirado do sorteio; a Ficha e o Carrossel viram no lado do numero), ou a
+// Ficha sem nada para virar (nada).
+typedef struct { int8_t v, lado; bool nada; } virada_t;
+#define VIRADAS_MAX 48
+
+// O que o Oculto k de j pode ter tirado, sem olhar o que ele tirou: cada
+// caminho do lance (lanca_peca, com os adesivos dele - Chumbo, Avesso, Nota
+// Dez, Reflexivo, Papel Bomba, Remendo - e o Estilingue de antes) e, com um
+// Calibre logo antes (valendo ou nao quando ele caiu: os dois jeitos), o +1
+// do Calibre, como em pousa. Devolve quantos (0: demais para contar).
+static int viradas_oculto(int j, int k, virada_t *out)
+{
+    const fila_t *f = &F[j];
+    int t = f->tipo[k], teto = TIPO[t].efeito == EF_SORTE_REVES ? TIPO[t].lados - 1 : TIPO[t].lados;
+    const peca_t *p = peca_fila(j, k);
+    bool cal = k > 0 && tipo_de(j, k - 1) == D_CALIBRE;
+    uint16_t bon = bonecas_ult;
+    bool maxi = lance_no_maximo;
+    int n = 0, caminhos = 0;
+    enum_n = 0;
+    do {
+        enum_i = 0;
+        lance_no_maximo = estilingue_armado(j, k);
+        lance_t l = lanca_peca(t, f->fixo[k], p, rola_enum);
+        for (int c = 0; c <= (cal ? 1 : 0) && n >= 0; c++) {
+            int v = l.x, lado = l.lado;
+            if (c) {
+                if (v >= teto) continue;
+                v++;
+                if (lado && lado < ad_lado_max(t)) lado++;
+            }
+            bool novo = true;
+            for (int i = 0; i < n && novo; i++) novo = out[i].v != v || out[i].lado != lado;
+            if (!novo) continue;
+            if (n >= VIRADAS_MAX) n = -1;
+            else out[n++] = (virada_t){ (int8_t)v, (int8_t)lado, false };
+        }
+    } while (n >= 0 && ++caminhos < 600 && enum_proximo());
+    lance_no_maximo = maxi;
+    bonecas_ult = bon;
+    return n < 0 || caminhos >= 600 ? 0 : n;
+}
+// A Ficha Coringa vira o ultimo valido do oponente (o que ele ainda vai
+// jogar, ninguem sabe: de 0 a 30, e um numero grande), ou nada, sem valido
+// nenhum la; o Carrossel para de 1 a 8.
+static int viradas_espera(int j, int k, virada_t *out)
+{
+    const fila_t *f = &F[j];
+    if (f->escondido[k]) return viradas_oculto(j, k, out);
+    int n = 0;
+    if (f->gira[k]) {
+        for (int v = 1; v <= CARROSSEL_MAX; v++) out[n++] = (virada_t){ (int8_t)v, 0, false };
+        return n;
+    }
+    for (int v = 0; v <= 30; v++) out[n++] = (virada_t){ (int8_t)v, 0, false };
+    out[n++] = (virada_t){ 99, 0, false };
+    out[n++] = (virada_t){ 0, 0, true };
+    return n;
+}
+
+// Os anulados de j que o fim ainda pode levantar: refaz a sequencia com cada
+// jeito de cada um que espera virar (todas as combinacoes; com a Rede e dados
+// ainda por lancar, tambem parando agora) e marca os anulados agora que ficam
+// valendo em algum. A mesa volta como estava; guarda a ultima resposta (a mesa
+// pergunta a cada quadro).
+static uint32_t ia_fnv(uint32_t h, const void *p, size_t n);   // ia.inc
+static uint32_t incertos_chave(void)
+{
+    uint32_t h = 2166136261u;
+    h = ia_fnv(h, amul, sizeof amul);
+    int8_t c[2] = { calado_j, calado_k };
+    h = ia_fnv(h, c, sizeof c);
+    h = ia_fnv(h, &modo, sizeof modo);
+    for (int j = 0; j < 2; j++)
+        for (int k = 0; k < F[j].lancados && k < N_FILA; k++) {
+            const peca_t *p = peca_fila(j, k);
+            peca_t z = { 0 };
+            h = ia_fnv(h, p ? p : &z, sizeof z);
+        }
+    return h;
+}
+static uint8_t anulados_incertos(int j)
+{
+    fila_t *f = &F[j];
+    int n = f->lancados < N_FILA ? f->lancados : N_FILA;
+    uint8_t anul = 0;
+    int cortes[N_FILA], nc = 0;
+    for (int k = 0; k < n; k++) {
+        if (f->est[k] == V_ANULADO) anul |= (uint8_t)(1 << k);
+        if (corta_sequencia(j, f->est, k)) cortes[nc++] = k;
+    }
+    if (!anul || !nc) return 0;
+    static fila_t memo_f[2][2];
+    static uint32_t memo_x[2];
+    static uint8_t memo_r[2];
+    static bool memo_ok[2];
+    uint32_t x = incertos_chave();
+    if (memo_ok[j] && memo_x[j] == x && !memcmp(memo_f[j], F, sizeof F)) return memo_r[j];
+    static virada_t vir[N_FILA][VIRADAS_MAX];
+    int nv[N_FILA], combos = 1;
+    for (int c = 0; c < nc && combos > 0; c++) {
+        nv[c] = viradas_espera(j, cortes[c], vir[c]);
+        combos = nv[c] && combos * nv[c] <= 4096 ? combos * nv[c] : 0;
+    }
+    uint8_t vale = 0;
+    if (!combos) vale = anul;                    // jeitos demais para testar: todos com "?"
+    else {
+        static fila_t antes[2];
+        char ver[sizeof veredito];
+        memcpy(antes, F, sizeof F);
+        memcpy(ver, veredito, sizeof ver);
+        int vt = ver_tipo, aa = anulou_a, ab = anulou_b, res = resistiu;
+        bool vc = ver_comum;
+        uint8_t am = anulou_masc;
+        amul_t disp = am_disparou;
+        bool parar = tem_am(j, A_REDE) && f->n > n;   // a Rede, parando agora: no ultimo lancado
+        for (int m = 0; m < combos && vale != anul; m++)
+            for (int q = 0; q <= (parar ? 1 : 0); q++) {
+                for (int c = 0, r = m; c < nc; c++) {
+                    int k = cortes[c];
+                    const virada_t *w = &vir[c][r % nv[c]];
+                    r /= nv[c];
+                    bool oc = f->escondido[k];
+                    f->escondido[k] = f->curinga[k] = f->gira[k] = false;
+                    if (w->nada) { f->curinga_nada[k] = true; continue; }
+                    f->cru[k] = f->valor[k] = w->v;
+                    if (oc) { f->lado[k] = (uint8_t)w->lado; f->bomba[k] = false; }
+                    else lado_vira(j, k, w->v);
+                }
+                if (q) f->n = n;
+                refaz_sequencia(j, n);
+                for (int k = 0; k < n; k++) if ((anul >> k & 1) && f->est[k] == V_VALIDO) vale |= (uint8_t)(1 << k);
+                memcpy(F, antes, sizeof F);
+            }
+        memcpy(veredito, ver, sizeof veredito);
+        ver_tipo = vt; anulou_a = aa; anulou_b = ab; resistiu = res; anulou_masc = am; ver_comum = vc;
+        am_disparou = disp;
+    }
+    memcpy(memo_f[j], F, sizeof F);
+    memo_x[j] = x;
+    memo_r[j] = vale & anul;
+    memo_ok[j] = true;
+    return memo_r[j];
+}
+
+// O dado que acabou de pousar anulou dados que o fim ainda pode levantar
+// (anulados_incertos): o veredito diz que eles esperam o Oculto (a Ficha, o
+// Carrossel), e eles ficam sem o X; sem nada anulado de vez, sem o som de
+// anulado tambem (ver_tipo 5). So para a mesa: a IA e a previa nao passam aqui.
+static void veredito_incerto(int j)
+{
+    uint8_t caiu = anulou_masc;
+    if (anulou_a >= 0) caiu |= (uint8_t)(1 << anulou_a);
+    if (anulou_b >= 0) caiu |= (uint8_t)(1 << anulou_b);
+    uint8_t inc = anulados_incertos(j) & caiu, certo = caiu & (uint8_t)~inc;
+    if (!inc) return;
+    int pk = 0, ck = -1, nu = 0, ncerto = 0;
+    for (int k = N_FILA - 1; k >= 0; k--) {
+        if (inc >> k & 1) { pk = k; nu++; }
+        if (certo >> k & 1) { ck = k; ncerto++; }
+    }
+    int w = pk - 1;
+    while (w >= 0 && !corta_sequencia(j, F[j].est, w)) w--;
+    int c = w >= 0 ? tipo_de(j, w) : D_OCULTO;
+    const char *quem = c == D_FICHA_CORINGA ? "a Ficha Coringa" : c == D_CARROSSEL ? "o Carrossel" : "o Oculto";
+    char pre[40] = "", resto[64];
+    const char *dois = strchr(veredito, ':');
+    if (dois && dois - veredito < 28) snprintf(pre, sizeof pre, "%.*s: ", (int)(dois - veredito), veredito);
+    if (!ncerto && nu == 1)      snprintf(resto, sizeof resto, "o %d espera %s", F[j].valor[pk], quem);
+    else if (!ncerto && nu == 2) snprintf(resto, sizeof resto, "os dois esperam %s", quem);
+    else if (!ncerto)            snprintf(resto, sizeof resto, "%d dados esperam %s", nu, quem);
+    else if (ncerto == 1 && nu == 1)
+        snprintf(resto, sizeof resto, "anulou o %d; o %d espera %s", F[j].valor[ck], F[j].valor[pk], quem);
+    else snprintf(resto, sizeof resto, "%d anulado%s; %d espera%s %s", ncerto, ncerto > 1 ? "s" : "",
+                  nu, nu > 1 ? "m" : "", quem);
+    snprintf(veredito, sizeof veredito, "%s%s", pre, resto);
+    ver_comum = false;
+    if (!ncerto) ver_tipo = 5;
+    anulou_masc &= (uint8_t)~inc;
+    if (anulou_a >= 0 && (inc >> anulou_a & 1)) anulou_a = -1;
+    if (anulou_b >= 0 && (inc >> anulou_b & 1)) anulou_b = -1;
+}
+
+
+
 static void lanca_proximo(void)
 {
     fila_t *f = &F[vez];
@@ -1771,6 +1985,7 @@ static int acha_decisivo(void)
 static int cursor_aposta(void);           // aposta.inc: onde o cursor comeca (nunca no correr)
 static void desfecho(void)
 {
+    for (int j = 0; j < 2; j++) vis_incerto[j] = anulados_incertos(j);   // seguem com "?" ate o Oculto deles mostrar
     calcula_desfecho(&resolvido, true);
     ev_decisivo = acha_decisivo();
     for (int j = 0; j < 2; j++) {
@@ -2095,6 +2310,10 @@ static void aplica_evento(int i)
         vis_curinga[e->de_j][e->de_k] = 0;
         vis_carrossel[e->de_j][e->de_k] = 0;
         memcpy(vis_est[e->de_j], e->tem_seq ? e->seq : F[e->de_j].est, N_FILA);   // como ficou nessa hora, nao no fim de tudo
+        for (int k = 0, espera = 0; k < N_FILA; k++) {     // o "?" sai dos que nada mais espera antes
+            if (!espera) vis_incerto[e->de_j] &= (uint8_t)~(1u << k);
+            espera |= vis_oculto[e->de_j][k] | vis_curinga[e->de_j][k] | vis_carrossel[e->de_j][k];
+        }
         break;
     case EV_TREMOR:                     // o dado sacudido pousou: a sequencia do oponente refeita
         if (e->alvo_k < N_FILA) vis_tremor[e->alvo_j][e->alvo_k] = 0;

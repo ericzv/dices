@@ -187,7 +187,7 @@ static void rival_lance(int j, int k)
     while (seguidos <= k && F[j].est[seguidos] == V_VALIDO) seguidos++;
     if (j == 0 && seguidos == FILA_NORMAL) rival_reage(RM_COMBO);
     else if (passou) rival_reage(j == 0 ? RM_PASSOU : RM_ELE_PASSOU);
-    else if (ver_tipo == 1 || ver_tipo >= 3) rival_reage(j == 0 ? RM_CAI_SEU : RM_CAI_DELE);   // caiu, zerou, o Egoista
+    else if (ver_tipo == 1 || (ver_tipo >= 3 && ver_tipo != 5)) rival_reage(j == 0 ? RM_CAI_SEU : RM_CAI_DELE);   // caiu, zerou, o Egoista (5: so espera o Oculto)
 }
 
 // A fala sai letra por letra: o tanto de fala_txt ja dito (contado em letras,

@@ -787,6 +787,13 @@ static void chega_na_fila(void)
     am_disparou = 0;
     pousa(j, k, rola);
     adesivos_pousou(j, k);
+    {   // o "?" depois do Oculto: so muda o aviso, e a mesa volta como estava
+        static fila_t f0[2];
+        memcpy(f0, F, sizeof F);
+        amul_t d0 = am_disparou;
+        veredito_incerto(j);
+        CONFERE(!memcmp(f0, F, sizeof F) && d0 == am_disparou, "veredito_incerto mexeu na mesa");
+    }
     if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
         && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
         J[j].col[F[j].idx[k]].fixo++;

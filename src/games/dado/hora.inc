@@ -381,8 +381,9 @@ static bool golpe_passo(float dt_real)
 }
 
 // Os combos do fim da rodada: o Jackpot, o Capitao com a fila toda e um
-// dado que o aviso multiplica e fica x3 para cima. Quando os pontos deles caem no placar, a
-// mesa para num golpe, depois os dados pulam e ela treme.
+// dado que o aviso multiplica e fica x3 para cima (o multiplicador do fim
+// ou um adesivo de x2: Eletronico, Imantado, Lenticular). Quando os pontos
+// deles caem no placar, a mesa para num golpe, depois os dados pulam e ela treme.
 static bool evento_grande(const evento_t *e)
 {
     if (e->tipo == EV_JACKPOT) return true;
@@ -392,7 +393,9 @@ static bool evento_grande(const evento_t *e)
         for (int k = 0; k < N_FILA; k++) n += e->mascara >> k & 1;
         if (n >= FILA_NORMAL) return true;
     }
-    if (e->tipo == EV_MULT)
+    bool mult = e->tipo == EV_MULT
+             || (e->tipo == EV_ADESIVO && (e->ad == AD_ELETRONICO || e->ad == AD_IMANTADO || e->ad == AD_LENTICULAR));
+    if (mult)
         for (int k = 0; k < N_FILA; k++) if (e->mascara >> k & 1 && e->por_dado[k] >= 3) return true;
     return false;
 }

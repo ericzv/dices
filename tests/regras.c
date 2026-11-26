@@ -545,6 +545,32 @@ static void achados_desfecho(void)
     }
     fichas_ini[0] = 0;
     amul[0] = 0; modo = M_DOIS;
+    // Rodada grande tambem pelos adesivos: o Holografico copiando dois
+    // Eletronicos poe um dado em x3 (sem multiplicador do fim). Um
+    // Eletronico so (x2) nao comemora.
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_ELETRONICO);
+    achado_peca(0, 1, D_D6, 5, AD_HOLOGRAFICO);
+    achado_peca(0, 2, D_D6, 4, AD_ELETRONICO);
+    achado_fila(0); joga_ad(0, 0, 2); joga_ad(0, 2, 4); joga_ad(0, 1, 5); joga(1, D_D4, 3);
+    d = fim();
+    {
+        bool grande = false, mult_fim = false;
+        int x3 = 0;
+        for (int k = 0; k < N_FILA; k++) x3 += d.mult[0][k] >= 3;
+        for (int i = 0; i < n_ev; i++) { grande |= evento_grande(&ev[i]); mult_fim |= ev[i].tipo == EV_MULT; }
+        CONFERE(x3 == 1 && !mult_fim && grande, "Holografico + dois Eletronicos: um dado x3 so por adesivo devia comemorar (x3: %d, aviso do fim: %d, grande: %d)",
+                x3, mult_fim, grande);
+    }
+    achado_zera();
+    achado_peca(0, 0, D_D6, 2, AD_ELETRONICO);
+    achado_fila(0); joga_ad(0, 0, 2); joga(1, D_D4, 1);
+    d = fim();
+    {
+        bool grande = false;
+        for (int i = 0; i < n_ev; i++) grande |= evento_grande(&ev[i]);
+        CONFERE(!grande && d.mult[0][0] == 2, "um Eletronico so (x2) nao e rodada grande (x%d)", d.mult[0][0]);
+    }
 
     // A17: o Holografico num dado anulado que copia um Fragil nao quebra o proprio dado.
     achado_zera();

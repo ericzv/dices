@@ -545,6 +545,27 @@ static void achados_desfecho(void)
     }
     fichas_ini[0] = 0;
     amul[0] = 0; modo = M_DOIS;
+    // O Oculto escondido corta a sequencia: o dado logo depois dele nao
+    // compara com ninguem (o print do Ilusionista: d4 3, Oculto, Teimoso 1,
+    // d6 3 - antes o Teimoso anulava o d4 e ele voltava no fim). No fim o
+    // Oculto mostra o 5 e o Teimoso, que nunca cai, anula o Oculto.
+    achado_zera();
+    achado_peca(1, 0, D_COPIADOR, 3, 0);
+    achado_peca(1, 1, D_OCULTO, 5, 0);
+    achado_peca(1, 2, D_TEIMOSO, 1, 0);
+    achado_peca(1, 3, D_D6, 3, 0);
+    achado_fila(1);
+    joga_ad(1, 0, 3);
+    joga_ad(1, 1, 5); F[1].escondido[1] = true; aplica_regra(1, 1);
+    joga_ad(1, 2, 1);
+    CONFERE(F[1].est[0] == V_VALIDO && F[1].est[1] == V_ESPERA && F[1].est[2] == V_VALIDO,
+            "Oculto escondido: o Teimoso depois dele nao anula o d4 de antes (est %d %d %d)", F[1].est[0], F[1].est[1], F[1].est[2]);
+    joga_ad(1, 3, 3);
+    CONFERE(F[1].pontos == 3 + 1 + 3, "Oculto escondido: placar parcial 7, deu %d", F[1].pontos);
+    joga(0, D_D4, 3);
+    d = fim();
+    CONFERE(d.total[1] == 11 && d.est[1][0] == V_VALIDO && d.est[1][1] == V_ANULADO && d.est[1][2] == V_VALIDO,
+            "Oculto no fim: o 5 aparece e o Teimoso o anula (total %d, est %d %d %d)", d.total[1], d.est[1][0], d.est[1][1], d.est[1][2]);
     // Rodada grande tambem pelos adesivos: o Holografico copiando dois
     // Eletronicos poe um dado em x3 (sem multiplicador do fim). Um
     // Eletronico so (x2) nao comemora.
@@ -3210,6 +3231,15 @@ int main(void)
                                 && F[j].presente[0] == 2, "modo %d, jogador %d: os dois Presentes ficam", modo, j);
                         J[j].n_col -= 2;
                     }
+                }
+                // No Desafiante, o Presente do oponente tambem so vira dado que
+                // voce ja abriu (como o resto da bolsa dele); sem nenhum, um D6.
+                modo = M_DESAFIO;
+                for (int q = 1; q <= 40; q++) {
+                    lance_fixo = q;
+                    limpa(); F[1].tipo[0] = D_PRESENTE; F[1].idx[0] = -1;
+                    int t = desembrulha(1, 0, lance_q);
+                    CONFERE(t == D_D6 || dado_liberado(t), "Presente do oponente no Desafiante virou %s, que voce nao abriu", TIPO[t].nome);
                 }
                 modo = modo0;
             }
@@ -9478,15 +9508,16 @@ int main(void)
         desfaz_embrulho();
 
         // O Camaleao atras da Ficha Coringa nao fica de fora da sequencia (so
-        // ela fica): entra e pode cair. O risco dele e o de um d8, nao zero.
+        // ela fica): entra nela. Enquanto a Ficha espera, o dado logo depois
+        // dela nao compara com ninguem: risco 0, e o d8 de antes nao cai.
         modo = M_DOIS; reg_op = REG_NADA;
         limpa();
         joga(0, D_D8, 8); joga_com(0, D_FICHA_CORINGA, 1, sempre_dois);
         F[0].tipo[2] = D_CAMALEAO; F[0].n = 3;
-        CONFERE(risco(0) == 700 / 8, "Camaleao atras da Ficha Coringa: risco %d, esperado %d", risco(0), 700 / 8);
+        CONFERE(risco(0) == 0, "Camaleao atras da Ficha Coringa: risco %d, esperado 0", risco(0));
         joga(0, D_CAMALEAO, 3);
-        CONFERE(F[0].est[0] == V_ANULADO && F[0].est[2] == V_ANULADO && !F[0].curinga[2],
-                "Camaleao atras da Ficha Coringa: entra na sequencia e cai");
+        CONFERE(F[0].est[0] == V_VALIDO && F[0].est[2] == V_VALIDO && !F[0].curinga[2],
+                "Camaleao atras da Ficha Coringa: entra na sequencia, sem comparar com o d8 de antes");
 
         // O Terremoto sem a semente do lance (o Camaleao atras de um Terremoto)
         // nao rola sempre o mesmo numero: o tremor sai da mesa, como a Casca.

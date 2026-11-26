@@ -661,7 +661,9 @@ static int desembrulha(int j, int k, int (*r)(int))
     int ok[D_N], n = 0;
     for (int t = 0; t < D_N; t++) {
         if ((TIPO[t].raridade != RAR_RARO && t != D_D20) || sem_sorteio(t) || t == D_PRESENTE) continue;
-        if (modo == M_DESAFIO ? (j == 0 && !dado_liberado(t)) : dado_fora_do_modo(t, j)) continue;
+        // No Desafiante, so os que voce ja abriu - tambem o do oponente, como o
+        // resto da bolsa dele (mapa.inc, monta_oponente).
+        if (modo == M_DESAFIO ? !dado_liberado(t) : dado_fora_do_modo(t, j)) continue;
         ok[n++] = t;
     }
     int t = n ? ok[r(n) - 1] : D_D6;

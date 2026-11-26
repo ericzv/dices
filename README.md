@@ -366,7 +366,9 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   lendário: de 6 a 8 abre uma boneca d6, que com 5 ou 6 abre um d4, que
   com 4 abre uma moeda; as bonecas não caem pela sequência e o valor dela é
   a soma de todas), no 9. E o Carrossel (d8 raro, no 7): lançado, fica
-  girando fora da sequência, como o Oculto, mostrando quantos dados valem
+  girando fora da sequência, como o Oculto e a Ficha Coringa (enquanto eles
+  esperam, o dado logo depois vale qualquer número; no fim a sequência é
+  refeita com eles e ele passa a comparar com eles), mostrando quantos dados valem
   na mesa agora, dos dois lados, ele incluído - a cobertura listrada anda
   para a frente quando um dado entra valendo e para trás quando um cai. No
   fim da rodada (depois do Oculto, do Espelho, do tremor, da Casca e da
@@ -386,7 +388,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.51.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.52.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

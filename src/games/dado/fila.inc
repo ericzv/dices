@@ -45,11 +45,17 @@ static void tira_tag(fila_t *f, int k) { f->tag[k][0] = f->tag_num[k][0] = f->ta
 // do Corretivo ou do Transparente ficam de fora (o dado depois compara com o
 // de antes deles).
 static bool sequencia_nao_ve(int j, int k) { return ad_fila(j, k) == AD_TRANSPARENTE; }   // como a Ponte: nem cai, nem derruba
+// O Oculto ainda escondido, a Ficha Coringa com o curinga para cima e o
+// Carrossel girando cortam a sequencia: o dado depois deles nao compara com
+// ninguem (como depois do Vazio) ate o fim, quando eles param e a sequencia
+// e refeita. Assim nada aparece anulado para voltar no fim.
 static int ultimo_da_regra(int j, const uint8_t *est, int antes)
 {
-    for (int k = antes - 1; k >= 0; k--)
+    for (int k = antes - 1; k >= 0; k--) {
+        if (est[k] == V_ESPERA && (F[j].escondido[k] || F[j].curinga[k] || F[j].gira[k])) return -1;
         if (est[k] == V_VALIDO && TIPO[tipo_de(j, k)].efeito != EF_PONTE && ad_fila(j, k) != AD_CORRETIVO
             && !sequencia_nao_ve(j, k)) return k;
+    }
     return -1;
 }
 

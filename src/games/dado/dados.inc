@@ -676,9 +676,9 @@ static const char *TEXTO_CAT[D_N] = {
     [D_PREVISIVEL]      = "Doze lados, mas não é sorteado: na primeira vez que é lançado na partida tira 1, na segunda 2, e "
                           "assim por diante, até 12. Sobe a cada lance, válido ou não. Recomeça do 1 a cada partida.",
     [D_OCULTO]          = "Oito lados. O que ele tirou fica escondido (um \"?\") para os dois até o fim da rodada. Enquanto isso "
-                          "não é anulado, não anula nenhum dado e não conta na sequência: o dado seguinte compara com o dado "
-                          "anterior a ele. No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o "
-                          "dado anterior.",
+                          "não é anulado, não anula nenhum dado e não conta na sequência: o dado seguinte vale qualquer número. "
+                          "No fim ele aparece e a sequência é refeita: pode ser válido, ser anulado ou anular o dado anterior, "
+                          "e o seguinte passa a comparar com ele.",
     [D_SACRIFICIO]      = "Quatro lados, mas não pontua. Se terminar válido, no fim da rodada o seu dado válido de menor "
                           "número, entre os que pontuam, pontua x2. Com dois Sacrifícios, o segundo vai para o próximo "
                           "menor (sem outro que pontue, não age).",
@@ -755,8 +755,8 @@ static const char *TEXTO_CAT[D_N] = {
     [D_UNIVERSO]        = "Cem lados. Só pode ser lançado sozinho, sem nenhum outro dado na sequência. Nada interfere nele: "
                           "nenhum dado, adesivo, amuleto ou trunfo, seu ou do oponente, o anula, rouba, copia ou muda o que "
                           "ele tira. A cada partida, recomeça como Estrela.",
-    [D_FICHA_CORINGA]   = "Uma ficha. Lançada, fica com o curinga para cima e fora da sequência: o dado seguinte se "
-                          "compara com o de antes dela. No fim da rodada, vira o último dado válido do oponente e entra "
+    [D_FICHA_CORINGA]   = "Uma ficha. Lançada, fica com o curinga para cima e fora da sequência: o dado seguinte vale "
+                          "qualquer número. No fim da rodada, vira o último dado válido do oponente e entra "
                           "na sequência com esse número - aí pode cair, ou derrubar o seguinte. Sem nenhum válido para "
                           "copiar, é anulada.",
     [D_TERREMOTO]       = "Oito lados. Se terminar válido com 7 ou 8, no fim da rodada o chão do oponente treme: o "
@@ -815,8 +815,8 @@ static const char *TEXTO_CAT[D_N] = {
                           "baixos tiram 3, 4 e 5. Conta três adesivos para o Neon e o Mosaico, e sobra pouco lado livre.",
     [D_GELATINA]        = "Um dado de gelatina que treme. Se tirar menos que o dado de antes (o que derrubaria a "
                           "sequência), quica: rola de novo uma vez e vale o segundo lance, que também pode cair.",
-    [D_CARROSSEL]       = "Oito lados. Lançado, fica girando fora da sequência: o dado seguinte compara com o dado "
-                          "anterior a ele. Enquanto gira, mostra quantos dados válidos há na mesa, contando os dois lados "
+    [D_CARROSSEL]       = "Oito lados. Lançado, fica girando fora da sequência: o dado seguinte vale qualquer número. "
+                          "Enquanto gira, mostra quantos dados válidos há na mesa, contando os dois lados "
                           "e ele mesmo: gira para a frente quando um dado entra válido, para trás quando um cai. No fim "
                           "da rodada para nesse número (1 a 8) e entra na sequência: pode ser válido, ser anulado ou "
                           "anular o dado anterior.",

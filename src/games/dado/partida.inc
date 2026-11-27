@@ -220,6 +220,7 @@ static void encerra(int vencedor)
     some_fantasmas();
     venc_partida = vencedor;
     fase = F_FIM;
+    t_fim_partida = 0;
     hist_partida(vencedor);
     // Contra o computador (ou online), perder tem o seu som; com duas pessoas
     // no mesmo teclado, alguem sempre ganhou.
@@ -331,9 +332,16 @@ static void nova_rodada(void)
         fala_comeca(3.2f);
         fala_e_curta = false;
     }
+    t_aviso_rodada = t_aviso_entrada = 0;
     if (rodada > 1 && ante > ante_da(rodada - 1)) {     // subiu: avisa, com faixa e fichas
         t_aviso_entrada = ENTRADA_AVISO_T;
         som_toca(SOM_FICHA);
+    }
+    // A ultima rodada (e cada rodada extra) se anuncia na mesma faixa; se a
+    // entrada subiu junto, as duas coisas numa linha so.
+    if (rodada_e_ultima(rodada) || rodada_e_extra(rodada)) {
+        t_aviso_rodada = RODADA_AVISO_T;
+        if (t_aviso_entrada <= 0) som_toca(SOM_FICHA);
     }
     // Os Juros da Banqueira: comecou atras em fichas, a sua entrada custa 2 a
     // mais (o que der, sem passar do que voce tem).
@@ -2128,13 +2136,14 @@ static float duracao_base(int i) { return duracao_de(&ev[i]); }
 static float duracao_evento(int i) { return duracao_base(i) + ev_intro(&ev[i]); }
 
 // Onde sai o numero flutuante de um dado (k < N_FILA) ou do placar de j: da
-// beira do lado do meio da mesa.
+// beira do lado do meio da mesa, livre do aro do dado (a moldura, o adesivo
+// em volta) e, na fila de baixo, das marcas que ficam em cima dele.
 static int flut_x(int k) { return k < N_FILA ? SLOT_X(k) : PLACAR_X; }
 static int flut_d(int j) { return j == baixo ? -1 : 1; }
 static int flut_y(int j, int k)
 {
-    int r = k < N_FILA ? R_DADO + 3 : 30;
-    return j == baixo ? zona(j) - r : zona(j) + r;
+    if (k >= N_FILA) return j == baixo ? zona(j) - 30 : zona(j) + 30;
+    return j == baixo ? zona(j) - R_DADO - 10 : zona(j) + R_DADO + 7;
 }
 static float flut_extra;                    // o evento com o Carimbo ou a Dupla Face antes: o numero espera
 static void flutua_em(int j, int k, uint16_t cor, float atraso, const char *fmt, int v)

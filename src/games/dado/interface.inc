@@ -294,11 +294,49 @@ static void ui_cartao(int x, int y, int w, int h, bool foco, uint16_t cor)
 // ---------------------------------------------------------------------------
 // 'y' e a beira de onde ele sai; 'dir' -1 sobe (fila de baixo), +1 desce
 // (fila de cima): sempre para o meio da mesa.
+// O que aparece no meio da mesa (o menu jogar/parar, a aposta, a placa do
+// veredito e a do resultado) reserva a faixa dele com flutua_reserva: o
+// numero para antes dela em vez de entrar por baixo. Se nem parado ele cabe
+// entre o dado e a faixa (com dois na mesa o menu fica perto da fila de quem
+// joga), quem reservou espera um instante (uns 0,2 s) e o numero some mais
+// depressa.
 typedef struct { int16_t x, y; int8_t dir; float t, atraso; char s[12]; uint16_t cor; } flutua_t;
 #define MAX_FLUT 16
 #define FLUT_T 0.95f
+#define FLUT_SOBE 14                        // quanto ele anda, em pixels
+#define FLUT_ALT  22                        // a cifra na escala 2, com o contorno
+#define FLUT_FOLGA 3                        // entre ele e a faixa reservada
 static flutua_t flut[MAX_FLUT];
 static int n_flut;
+static int flut_res[4];                     // a faixa reservada neste quadro: x0, x1, y0, y1 (x1 <= x0: nenhuma)
+static bool flut_pressa;                    // ha numero no caminho de um menu: o relogio deles corre
+static unsigned flut_quadro, flut_res_visto;   // o quadro de agora e o ultimo em que quem reservou se desenhou
+
+// Quanto o numero f ainda pode andar sem entrar na faixa reservada (< 0: nem
+// parado cabe); FLUT_SOBE se ela nao esta no caminho dele.
+static int flutua_livre(const flutua_t *f)
+{
+    int meia = gfx_largura(f->s, 2) / 2 + 1;
+    if (flut_res[1] <= flut_res[0] || f->x + meia < flut_res[0] || f->x - meia > flut_res[1]) return FLUT_SOBE;
+    int livre = f->dir < 0 ? f->y - FLUT_ALT - FLUT_FOLGA - flut_res[3] : flut_res[2] - FLUT_FOLGA - FLUT_ALT - f->y;
+    // (o que nasceu do outro lado da faixa nao tem nada com ela)
+    if (f->dir < 0 ? f->y < flut_res[2] : f->y > flut_res[3]) return FLUT_SOBE;
+    return livre > FLUT_SOBE ? FLUT_SOBE : livre;
+}
+// Reserva a faixa (x0..x1, y0..y1) do que vai ser desenhado no meio da mesa.
+// Com 'espera', devolve false enquanto houver numero que nao cabe ao lado
+// dela: quem chama ainda nao se desenha. Quem ja apareceu nao some de novo
+// por causa de um numero que nasceu depois.
+static bool flutua_reserva(int x0, int x1, int y0, int y1, bool espera)
+{
+    bool ja = flut_res_visto == flut_quadro - 1 || flut_res_visto == flut_quadro;
+    flut_res[0] = x0; flut_res[1] = x1; flut_res[2] = y0; flut_res[3] = y1;
+    if (espera && !ja)
+        for (int i = 0; i < n_flut; i++)
+            if (flut[i].atraso <= 0 && flutua_livre(&flut[i]) < 0) { flut_pressa = true; return false; }
+    flut_res_visto = flut_quadro;
+    return true;
+}
 
 static void flutua(int x, int y, int dir, uint16_t cor, float atraso, const char *fmt, int v)
 {
@@ -311,6 +349,8 @@ static void flutua(int x, int y, int dir, uint16_t cor, float atraso, const char
 static void flutua_passo(float dt)
 {
     int n = 0;
+    if (flut_pressa) dt *= 3;                // um menu espera por eles
+    flut_pressa = false;
     for (int i = 0; i < n_flut; i++) {
         if (flut[i].atraso > 0) flut[i].atraso -= dt;
         else flut[i].t += dt;
@@ -326,8 +366,10 @@ static void desenha_flutua(void)
         if (f->atraso > 0) continue;
         float q = f->t / FLUT_T, sobe = 1 - (1 - q) * (1 - q);    // sai rapido e assenta
         // Na escala 2 a cifra vai da linha 10 (topo) a 30 (base) do glifo.
-        int y = f->dir < 0 ? f->y - 2 * FONTE_BASE - (int)(sobe * 14)
-                           : f->y - 10 + (int)(sobe * 14);
+        int anda = (int)(sobe * FLUT_SOBE), livre = flutua_livre(f);
+        if (anda > livre) anda = livre < 0 ? 0 : livre;
+        int y = f->dir < 0 ? f->y - 2 * FONTE_BASE - anda
+                           : f->y - 10 + anda;
         // No fim ele escurece em dois passos, em cores da paleta, ate sumir.
         uint16_t c = q < 0.7f ? f->cor : q < 0.85f ? gfx_mistura(f->cor, C_FELTRO, 45) : gfx_mistura(f->cor, C_FELTRO, 75);
         int x = f->x - gfx_largura(f->s, 2) / 2;
@@ -363,14 +405,27 @@ static bool eh_tecla(const char *p, int n)
 // do Xbox, ou a cruz, a bola, o quadrado e o triangulo do PlayStation -, o
 // direcional no lugar das setas e o nome dos outros.
 static int controle_estilo;
+static int controle_estilo_de[2];           // o de cada controle ligado (o primeiro e o do JOGADOR 1); 0: desligado
+static bool ctrl_aberto;                    // painel_controles.inc
 void dado_controle(int estilo) { controle_estilo = estilo; }
+void dado_controle_de(int qual, int estilo) { if (qual >= 0 && qual < 2) controle_estilo_de[qual] = estilo; }
+// Os botoes que as dicas mostram: os do ultimo controle usado. Com dois na
+// mesma mesa e dois controles ligados, os do controle de quem escolhe agora
+// (um pode ser de Xbox e o outro de PlayStation).
+static int dica_estilo(void)
+{
+    if (controle_estilo == CONTROLE_NENHUM || ctrl_aberto) return controle_estilo;   // (no teclado; ou o quadro dos controles, que tem o estilo dele)
+    int v = dado_vez_do_controle();
+    if (v >= 0 && v < 2 && controle_estilo_de[0] && controle_estilo_de[1]) return controle_estilo_de[v];
+    return controle_estilo;
+}
 enum { BT_BAIXO, BT_DIREITA, BT_ESQUERDA, BT_CIMA };
 
 static void desenha_botao_face(int cx, int cy, int qual)
 {
     gfx_disco(cx, cy + 1, 8, C_BARRA);                              // a sombra
     gfx_disco(cx, cy, 8, C_BARRA);                                  // o contorno
-    if (controle_estilo == CONTROLE_PS) {
+    if (dica_estilo() == CONTROLE_PS) {
         static const uint16_t COR[4] = { RGB(124, 160, 220), RGB(214, 92, 96), RGB(226, 164, 168), RGB(112, 196, 150) };
         uint16_t c = COR[qual];
         gfx_disco(cx, cy, 7, C_EBANO_B);
@@ -419,7 +474,7 @@ static void desenha_direcional(int x, int y)
 // (4), ou o nome do botao em 'nome'; -1: o controle nao tem (fica a tecla).
 static int botao_da_tecla(const char *rot, int n, const char **nome)
 {
-    bool xbox = controle_estilo != CONTROLE_PS;
+    bool xbox = dica_estilo() != CONTROLE_PS;
     *nome = NULL;
     if (n == 5 && !strncmp(rot, "ENTER", 5)) return BT_BAIXO;
     if (n == 9 && !strncmp(rot, "BACKSPACE", 9)) return BT_DIREITA;
@@ -439,7 +494,7 @@ static int botao_da_tecla(const char *rot, int n, const char **nome)
 static int tecla(int x, int y, const char *rot, int n, bool desenha)
 {
     const char *nome = NULL;
-    int bt = controle_estilo ? botao_da_tecla(rot, n, &nome) : -1;
+    int bt = dica_estilo() ? botao_da_tecla(rot, n, &nome) : -1;
     if (bt >= 0 && bt < 4) {
         if (desenha) desenha_botao_face(x + 9, y + 8, bt);
         return 19;

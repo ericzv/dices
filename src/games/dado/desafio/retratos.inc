@@ -868,23 +868,67 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
 // um pouco do tamanho) e sai encolhendo de volta para o bico. O tamanho vem
 // da fala inteira; o texto, do que ja foi dito.
 #define BALAO_BICO 6
-static void balao_em(int tx, int ty, const char *s, const char *dito, float q);
-static void desenha_balao(int tx, int ty, const char *s, const char *dito)
+#define BALAO_LINHAS 3
+// Com balao_x_max > 0 o balao tem uma coluna que nao passa (o do oponente:
+// o comeco da fila dele): primeiro escorrega para a esquerda (ate
+// balao_x_min; o bico fica no lugar) e, se ainda nao couber, a fala quebra
+// nas palavras, em ate BALAO_LINHAS linhas.
+static int balao_x_min, balao_x_max;
+typedef struct { int W, H, x, nl, corte[BALAO_LINHAS + 1]; } balao_t;   // o tamanho cheio, onde comeca e onde cada linha comeca na fala
+static int balao_pedaco(const char *s, int de, int ate, char *lin, int cap)
+{
+    int m = ate - de < cap - 1 ? ate - de : cap - 1;
+    if (m < 0) m = 0;
+    memcpy(lin, s + de, (size_t)m);
+    lin[m] = 0;
+    return gfx_largura(lin, fonte_de(false));
+}
+static balao_t balao_mede(int tx, const char *s)
+{
+    int n = (int)strlen(s);
+    balao_t b = { gfx_largura(s, 1) + 16, TXT_H + 8, tx - 8, 1, { 0, n } };
+    if (balao_x_max <= 0 || b.x + b.W <= balao_x_max) return b;
+    int cabe = balao_x_max - balao_x_min - 16, maior = 0;
+    char lin[160];
+    b.nl = 0;
+    for (int i = 0; i < n && b.nl < BALAO_LINHAS; ) {
+        int fim = n, ult = -1;
+        for (int k = i; k <= n; k++) {
+            if (k < n && s[k] != ' ') continue;
+            if (balao_pedaco(s, i, k, lin, sizeof lin) > cabe && ult >= 0 && b.nl < BALAO_LINHAS - 1) { fim = ult; break; }
+            ult = k;
+        }
+        b.corte[b.nl++] = i;
+        int wl = balao_pedaco(s, i, fim, lin, sizeof lin);
+        if (wl > maior) maior = wl;
+        i = fim + 1;
+        b.corte[b.nl] = fim < n ? fim + 1 : n;
+    }
+    b.W = maior + 16;
+    b.H = TXT_H + 8 + (b.nl - 1) * txt_passo();
+    if (b.x + b.W > balao_x_max) b.x = balao_x_max - b.W;
+    if (b.x < balao_x_min) b.x = balao_x_min;
+    return b;
+}
+static float balao_q(void)                            // o pulinho de entrar e o encolher de sair
 {
     float e = fala_dur - t_fala, q = 1;               // ha quanto tempo saiu
     if (e < 0.2f) q = sai_mola(e / 0.2f);
     if (t_fala < 0.14f) q = t_fala / 0.14f;
-    balao_em(tx, ty, s, dito, q);
+    return q;
 }
-// O balao no tamanho q (0..1, o pulinho de entrar e o encolher de sair).
+static void balao_em(int tx, int ty, const char *s, const char *dito, float q);
+static void desenha_balao(int tx, int ty, const char *s, const char *dito) { balao_em(tx, ty, s, dito, balao_q()); }
+// O balao no tamanho q (0..1).
 static void balao_em(int tx, int ty, const char *s, const char *dito, float q)
 {
     if (q < 0.15f) return;
-    int W = gfx_largura(s, 1) + 16, H = TXT_H + 8;
+    balao_t b = balao_mede(tx, s);
+    int W = b.W, H = b.H;
     int w = (int)(W * q + 0.5f), h = (int)(H * q + 0.5f);
     if (w < 12) w = 12;
     if (h < 8) h = 8;
-    int x = tx - 8 - (int)((W - w) * 0.1f), y = ty + BALAO_BICO;   // cresce a partir do bico
+    int x = b.x + (int)((tx - 8 - b.x) * (1 - q)) - (int)((W - w) * 0.1f), y = ty + BALAO_BICO;   // cresce a partir do bico
     if (x + w > GFX_W - 6) x = GFX_W - 6 - w;
     ui_sombra(x, y, w, h);
     gfx_rect(x + 2, y + 1, w - 4, h - 2, C_MARFIM);                 // o miolo, de cantos redondos
@@ -904,7 +948,14 @@ static void balao_em(int tx, int ty, const char *s, const char *dito, float q)
         gfx_pixel(tx + (larg > 0 ? larg : 0), y - j, C_BARRA);
     }
     gfx_rect(tx, y, BALAO_BICO, 1, C_MARFIM);                      // abre a beira onde o bico encosta
-    if (q > 0.95f) txt(x + 8, y + 3, dito, C_EBANO, false);
+    if (q <= 0.95f) return;
+    if (b.nl == 1) { txt(x + 8, y + 3, dito, C_EBANO, false); return; }
+    int nd = (int)strlen(dito);                                   // o que ja foi dito, linha a linha
+    char lin[160];
+    for (int l = 0; l < b.nl && b.corte[l] < nd; l++) {
+        balao_pedaco(dito, b.corte[l], b.corte[l + 1] < nd ? b.corte[l + 1] : nd, lin, sizeof lin);
+        txt(x + 8, y + 3 + l * txt_passo(), lin, C_EBANO, false);
+    }
 }
 
 // Na faixa: o retrato inteiro num porta-retrato de latao pendurado na borda
@@ -913,20 +964,50 @@ static void balao_em(int tx, int ty, const char *s, const char *dito, float q)
 // nome comeca.
 #define PR_W (RT_W * 2 + 6)
 #define PR_H (RT_H * 2 + 6)
+static int retrato_dois(int j);          // desafio/telas.inc: o rosto de cada um com dois na mesma mesa (-1: nenhum)
+// O busto liso de quem joga sem perfil (dois na mesma mesa): a cabeca e os
+// ombros na cor do jogador, com o numero dele no peito.
+static void busto_liso(int x, int y, int esc, int j)
+{
+    static const struct { int8_t x, y, w, h; } P[] = {      // em pontos do retrato (RT_W x RT_H)
+        { 8, 5, 6, 1 }, { 7, 6, 8, 7 }, { 8, 13, 6, 1 },     // a cabeca
+        { 9, 14, 4, 2 },                                     // o pescoco
+        { 5, 16, 12, 1 }, { 4, 17, 14, 1 }, { 3, 18, 16, 9 },   // os ombros e o peito
+    };
+    uint16_t r[4];
+    rampa_de(J[j].cor, r);
+    for (int passo = 0; passo < 2; passo++)                 // o contorno escuro, depois a cor
+        for (unsigned i = 0; i < sizeof P / sizeof P[0]; i++) {
+            int e = passo ? 0 : 1, h = P[i].y + P[i].h + e > RT_H ? RT_H - P[i].y + e : P[i].h + 2 * e;
+            gfx_rect(x + (P[i].x - e) * esc, y + (P[i].y - e) * esc, (P[i].w + 2 * e) * esc, h * esc, passo ? r[2] : C_BARRA);
+        }
+    gfx_rect(x + 8 * esc, y + 6 * esc, 2 * esc, esc, r[3]);          // a luz na cabeca e no ombro
+    gfx_rect(x + 4 * esc, y + 18 * esc, 3 * esc, esc, r[3]);
+    gfx_rect(x + 13 * esc, y + 12 * esc, 2 * esc, esc, r[1]);        // a sombra do queixo e do lado
+    gfx_rect(x + 17 * esc, y + 20 * esc, 2 * esc, 7 * esc, r[1]);
+    char n[2] = { (char)('1' + j), 0 };
+    gfx_texto(x + RT_W * esc / 2 - gfx_largura(n, 1) / 2, y + 18 * esc - 1, n, C_BARRA, 1, true);
+}
+static bool retrato_faixa_mede;          // retrato_faixa so devolve onde o nome comeca, sem desenhar
 static int retrato_faixa(int j, int x, int y0)
 {
-    int perso = j == 1 ? fala_perso : avatar_retrato();
-    if (perso < 0 || (j == 1 && fase == F_FIM)) return x + 12;   // no fim da partida, o oponente desce para a mesa (grande)
+    // Com dois na mesma mesa, cada faixa tem o rosto de quem joga nela (o
+    // avatar do perfil, ou o busto liso), na moldura da cor do jogador.
+    bool dois = modo == M_DOIS, cima = dois ? j != baixo : j == 1;
+    int perso = dois ? retrato_dois(j) : j == 1 ? fala_perso : avatar_retrato();
+    if (!dois && (perso < 0 || (j == 1 && fase == F_FIM))) return x + 12;   // no fim da partida, o oponente desce para a mesa (grande)
     int esc = 2, w = RT_W * esc, h = RT_H * esc;
-    int fy = j == 1 ? 2 : GFX_H - 2 - PR_H, px = x, py = fy + 3;
+    if (retrato_faixa_mede) return x + w + 9;                 // so o lugar: o desenho vem depois (quadro.inc)
+    int fy = cima ? 2 : GFX_H - 2 - PR_H, px = x, py = fy + 3;
     uint16_t r[4];
-    ui_rampa(j == 1 && perso_chefe(perso) ? C_OURO : C_LATAO, false, r);
+    ui_rampa(dois ? J[j].cor : j == 1 && perso_chefe(perso) ? C_OURO : C_LATAO, false, r);
     ui_sombra(px - 3, fy, PR_W, PR_H);
     ui_contorno(px - 3, fy, PR_W, PR_H, C_BARRA);
     ui_aro(px - 2, fy + 1, PR_W - 2, PR_H - 2, 2, r, UI_VIVO);
     gfx_rect(px, py, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
-    retrato(px, py, esc, perso, t_fase + perso * 1.3f, j == 1 && fala_digitando(), 0, RT_H);
-    if (j == 1) dica_zona(px, py, w, h, DICA_TRUNFO, fala_perso);
+    if (perso < 0) busto_liso(px, py, esc, j);
+    else retrato(px, py, esc, perso, t_fase + perso * 1.3f, !dois && j == 1 && fala_digitando(), 0, RT_H);
+    if (!dois && j == 1) dica_zona(px, py, w, h, DICA_TRUNFO, fala_perso);
     return x + w + 9;
 }
 
@@ -956,15 +1037,54 @@ static void trunfo_faixa(int x, int y, int x_max)
     dica_zona(x, y + 4, x_max - x, 14, DICA_TRUNFO, fala_perso);
 }
 
-// O balao do oponente: depois de tudo, por cima da mesa.
+// Os avisos que descem do alto (conquista, bolsa nova) param na faixa de
+// madeira de cima, por cima da rodada: no feltro cairiam em cima dos dados
+// do oponente e do balao dele. Passam do nome e das fichas de quem esta em
+// cima quando cabem. q: 0 (fora da tela) .. 1 (no lugar).
+static void aviso_alto_lugar(int w, int h, float q, int *x, int *y)
+{
+    int yf = (FAIXA_H - h) / 2, xf = GFX_W / 2 - w / 2, x_min = ficha_px[outro(baixo)] + 48;
+    if (yf < 0) yf = 0;
+    if (xf < x_min) xf = x_min;
+    if (xf + w > GFX_W - 6) xf = GFX_W - 6 - w;
+    *x = xf;
+    *y = -h + (int)((h + yf) * q);
+}
+
+// O balao do oponente: depois de tudo, por cima da mesa. Fica na margem
+// esquerda do feltro, antes do primeiro lugar da fila de cima: nunca cobre
+// os dados dele (a fala comprida quebra em linhas).
+#define BALAO_OP_TX (VOLTAR_X0 - 4 + RT_W)    // o bico sai de baixo do porta-retrato de cima, no meio dele
+#define BALAO_OP_TY (2 + PR_H + 1)
+static bool balao_oponente_aberto(void)
+{
+    if (modo != M_DESAFIO || fala_perso < 0 || t_fala <= 0 || !fala_txt[0]) return false;
+    return fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
+        || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
+}
+static void balao_oponente_lugar(void)
+{
+    balao_x_min = MESA_X0 + 8;
+    balao_x_max = SLOT_X(0) - R_DADO - 10;
+}
+// Ate onde o balao do oponente desce agora (0: fechado): o registro do fim
+// da rodada, que fica na mesma margem, comeca abaixo dele.
+static int balao_oponente_fundo(void)
+{
+    if (!balao_oponente_aberto()) return 0;
+    float q = balao_q();
+    if (q < 0.15f) return 0;
+    balao_oponente_lugar();
+    balao_t b = balao_mede(BALAO_OP_TX, fala_txt);
+    balao_x_max = 0;
+    return BALAO_OP_TY + BALAO_BICO + (int)(b.H * (q > 1 ? 1 : q) + 0.5f);
+}
 static void balao_oponente(void)
 {
-    if (modo != M_DESAFIO || fala_perso < 0 || t_fala <= 0 || !fala_txt[0]) return;
-    bool partida = fase == F_ORDEM || fase == F_JOGA || fase == F_ROLANDO || fase == F_ARRUMA
-                || fase == F_VEREDITO || fase == F_APOSTA || fase == F_EFEITOS || fase == F_RESULTADO;
-    if (!partida) return;
-    // O bico sai de baixo do porta-retrato de cima, no meio dele.
-    desenha_balao(VOLTAR_X0 - 4 + RT_W, 2 + PR_H + 1, fala_txt, fala_dita_txt());
+    if (!balao_oponente_aberto()) return;
+    balao_oponente_lugar();
+    desenha_balao(BALAO_OP_TX, BALAO_OP_TY, fala_txt, fala_dita_txt());
+    balao_x_max = 0;
 }
 
 

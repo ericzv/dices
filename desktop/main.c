@@ -177,7 +177,8 @@ static void le_teclado(void)
 // e o ESC, VIEW (SHARE) abre a bolsa, LB/L1 recusa, RB/R1 muda a
 // velocidade, LT/L2 mostra o que faz cada botao e RT/R2 abre o som. O direcional e o analogico esquerdo andam, repetindo quando
 // segurados. No modo 2 jogadores, com os dois ligados, cada um joga na sua
-// vez (o primeiro e o JOGADOR 1).
+// vez (o primeiro e o JOGADOR 1), e as dicas da tela mostram os botoes do
+// controle de quem joga.
 #define CONTROLES 2
 static void le_controles(void)
 {
@@ -204,7 +205,7 @@ static void le_controles(void)
     for (int g = 0; g < CONTROLES; g++) ligados += IsGamepadAvailable(g);
     float dt = GetFrameTime();
     for (int g = 0; g < CONTROLES; g++) {
-        if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); ligado[g] = false; continue; }
+        if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); ligado[g] = false; dado_controle_de(g, CONTROLE_NENHUM); continue; }
         int vez = ligados > 1 ? dado_vez_do_controle() : -1;
         bool outro = vez >= 0 && vez != g;    // a vez e do outro controle
         const char *nome = GetGamepadName(g);
@@ -212,6 +213,7 @@ static void le_controles(void)
         if (nome && (strstr(nome, "PS") || strstr(nome, "Sony") || strstr(nome, "DualS") || strstr(nome, "PLAYSTATION")
                      || strstr(nome, "054c") || !strcmp(nome, "Wireless Controller")))
             estilo = CONTROLE_PS;
+        dado_controle_de(g, estilo);              // (com dois ligados, as dicas mostram os botoes de quem joga agora)
         // Ligou agora (ou ja estava ligado ao abrir o jogo): as dicas mostram
         // os botoes dele desde ja, sem esperar o primeiro botao.
         if (!ligado[g]) { ligado[g] = true; dado_controle(estilo); }

@@ -5132,6 +5132,7 @@ static bool fisica(float dt)
 // bordas. Nao muda nunca: e pintada uma vez e copiada a cada quadro.
 static uint16_t mesa_pronta[GFX_W * GFX_H];
 static bool mesa_feita;
+static bool mesa_sem_linha;                  // a mesa foi pintada sem a linha de aposta (o fim da partida)
 
 static uint32_t ruido_xy(int x, int y)
 {
@@ -5896,9 +5897,10 @@ static void pinta_mesa_toda(void)
     else if (estilo_feltro == FT_MAR) pinta_mar();
     else if (estilo_feltro == FT_DECO) pinta_deco();
     else if (estilo_feltro == FT_COURO) pinta_costura();
-    // Linha de aposta: uma elipse tracejada ao redor do centro da mesa.
+    // Linha de aposta: uma elipse tracejada ao redor do centro da mesa. No
+    // fim da partida ela sai: so sobrariam as pontas, dos lados do painel.
     uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
-    for (int i = 0; i < 360; i++) {
+    for (int i = 0; i < 360 && !mesa_sem_linha; i++) {
         if ((i / 4) % 2) continue;
         float a = i * 0.017453f;
         gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, linha);
@@ -6157,6 +6159,7 @@ static void mesa(void)
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }
+    if (mesa_sem_linha != (fase == F_FIM)) { mesa_sem_linha = fase == F_FIM; mesa_feita = false; }   // o fim da partida: sem a linha de aposta
     static int quadro_feito = -1;
     if (!mesa_feita) {
         pinta_mesa();

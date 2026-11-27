@@ -322,6 +322,8 @@ void dado_desenha(void)
     foco_bx = -1;
     zonas_fase = fase;
     bolsas_vistas = 0;
+    flut_quadro++;
+    flut_res[0] = flut_res[1] = 0;       // quem ocupa o meio da mesa reserva de novo (flutua_reserva)
     // A cortina fechando cobre a tela inteira com a loja guardada (cort_buf):
     // o que estaria embaixo nao aparece, e nem e desenhado.
     if (t_cort < 0 || t_cort >= CORT_FECHA) desenha_tudo();
@@ -394,6 +396,7 @@ static void desenha_tudo(void)
         desenha_fila(outro(vez));
         desenha_lances();                        // o ultimo lance de aposta de cada um
         desenha_vez_luz();                       // dois na mesa: a luz do lado de quem monta
+        if (pote > 0) pote_mesa();               // o pote fica na mesa a rodada toda
         if (t_anuncio > 0) break;                // o anuncio vem por cima, no fim
         if (anuncia_maquina()) {                 // a maquina monta sem menu
             desenha_fila(vez);
@@ -418,5 +421,9 @@ static void desenha_tudo(void)
         if (fase == F_ROLANDO || fase == F_ARRUMA) desenha_lance();
         break;
     }
+    // Dois na mesma mesa: os porta-retratos passam da faixa para o feltro;
+    // desenhados aqui, por cima, para a luz da vez (e o escuro da loja) nao
+    // cortar a ponta deles.
+    if (modo == M_DOIS) for (int j = 0; j < 2; j++) retrato_faixa(j, retrato_faixa_x[j], 0);
     ui_foco_cor = 0;
 }

@@ -19,6 +19,10 @@ bool dado_mouse_clicavel(void);           // mouse sobre um botao ou opcao
 // qualquer um), para cada controle so jogar na sua vez.
 enum { CONTROLE_NENHUM, CONTROLE_XBOX, CONTROLE_PS };
 void dado_controle(int estilo);
+// O estilo de cada controle ligado (qual: 0 ou 1; CONTROLE_NENHUM: desligado).
+// No modo 2 jogadores, com os dois ligados, as dicas mostram os botoes do
+// controle de quem joga agora.
+void dado_controle_de(int qual, int estilo);
 int  dado_vez_do_controle(void);
 // O salao em volta da mesa, para a margem da janela: px tem w x h pixels do
 // jogo, com o quadro de GFX_W x GFX_H em (ox, oy).

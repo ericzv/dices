@@ -10,6 +10,7 @@ static bool menu_sem_partida(void)
 }
 
 static void menu_passo(float dt);        // as fichas do menu (menus.inc)
+static float fim_letreiro_t(void);       // desafio/desenho.inc: quando o DERROTA acaba de assentar
 static void foto_clique(float antes, float agora);
 static void poeira_passo(float dt);       // o pouso: a poeira e o achatado (mesa.inc)
 static bool som_passo(float dt_real);     // o painel do som e a trilha na cadeia (painel_som.inc)
@@ -41,8 +42,16 @@ void dado_passo(float dt)
     if (t_aviso_salvo > 0) t_aviso_salvo -= dt_real;
     if (t_aviso_adesivo > 0) t_aviso_adesivo -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
+    if (t_aviso_rodada > 0) t_aviso_rodada -= dt_real;
     if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
     if (t_sua_vez > 0) t_sua_vez -= dt_real;
+    if (fase == F_FIM) {
+        // O fim de uma partida perdida (ou empatada) da run: quando a ultima
+        // letra do letreiro assenta, a mesa treme (desafio/desenho.inc).
+        float antes = t_fim_partida;
+        t_fim_partida += dt_real;
+        if (modo == M_DESAFIO && venc_partida != 0 && antes < fim_letreiro_t() && t_fim_partida >= fim_letreiro_t()) treme(2, 0.22f);
+    }
     for (int j = 0; j < 2; j++) if (t_humor_pisca[j] > 0) t_humor_pisca[j] -= dt_real;
     if (t_fantasma > 0) t_fantasma -= dt_real;
     {

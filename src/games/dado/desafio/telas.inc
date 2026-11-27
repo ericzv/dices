@@ -137,6 +137,19 @@ static void des_entra_perfil(int i)
 }
 
 static int avatar_retrato(void) { return perfil_atual >= 0 && perfis[perfil_atual].nome[0] ? RETRATO_AVATAR + perfil()->avatar : -1; }
+// Dois na mesma mesa: o JOGADOR 1 joga com o rosto do perfil em uso; o
+// JOGADOR 2, com o do perfil seguinte do aparelho, se houver outro. Quem nao
+// tem perfil fica com o busto liso (-1).
+static int retrato_dois(int j)
+{
+    int p = perfil_atual >= 0 && perfil_atual < N_PERFIS && perfis[perfil_atual].nome[0] ? perfil_atual : -1;
+    for (int i = 0, k = 0; i <= N_PERFIS; i++) {            // o perfil em uso primeiro, depois os outros, na ordem
+        int q = i == 0 ? p : i - 1;
+        if (q < 0 || (i > 0 && q == p) || !perfis[q].nome[0]) continue;
+        if (k++ == j) return RETRATO_AVATAR + perfis[q].avatar;
+    }
+    return -1;
+}
 
 static void moldura_retrato(int x, int y, int esc, int av, float t, bool cur)
 {

@@ -615,13 +615,21 @@ static int ante_da(int r)
 #endif
 }
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
+static float t_aviso_rodada;             // > 0: o aviso da ultima rodada (ou da rodada extra), na faixa do da entrada
 static float t_sua_vez;                  // > 0: a plaquinha SUA VEZ no painel da sequencia
+static float t_fim_partida;              // ha quanto tempo a partida acabou (o t_fase nao recomeca no F_FIM): a cena do fim
 static int   humor[2] = { -1, -1 };      // o rosto que dura a rodada (EX_*; -1: o de sempre), seu e do oponente
 static float t_humor_pisca[2];           // > 0: piscando, que o humor acabou de mudar
 static float t_detalhe;                  // desde que o cartao do detalhe (I) abriu
 static float t_trans = -1;               // >= 0: a transicao entre telas varrendo (quadro.inc)
 #define SUA_VEZ_T 2.0f
 #define ENTRADA_AVISO_T 2.6f
+#define RODADA_AVISO_T ENTRADA_AVISO_T
+// A rodada r e a ultima da partida (pela conta das rodadas)? E uma extra do
+// Desafiante (empatou no fim)?
+static int  rodadas_da_partida(void) { return modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS; }
+static bool rodada_e_ultima(int r) { return r == rodadas_da_partida(); }
+static bool rodada_e_extra(int r) { return r > rodadas_da_partida(); }
 static void des_resultado(void);
 static void des_contadores_passo(float dt, float dt_real);
 static void bolsas_passo(float dt);      // as bolsas do comeco da run (desafio/bolsas.inc)

@@ -576,7 +576,8 @@ static void des_bolsa_nova(void)
     float q = t < 0.35f ? sai_mola(t / 0.35f) : t > BOLSA_NOVA_T - 0.3f ? (BOLSA_NOVA_T - t) / 0.3f : 1;
     char s[64];
     snprintf(s, sizeof s, "Nova bolsa: %s", BOLSA[bolsa_nova].nome);
-    int w = gfx_largura(s, 1) + 64, h = 40, x = GFX_W / 2 - w / 2, y = -h + (int)((h + FAIXA_H + 6) * q);
+    int w = gfx_largura(s, 1) + 64, h = 40, x, y;
+    aviso_alto_lugar(w, h, q, &x, &y);
     ui_cartao_aceso(x, y, w, h, true, BOLSA[bolsa_nova].cor);
     ficha_bolsa(x + 22, y + h / 2, 15, bolsa_nova, 0, t * 2, false, false, 1, t, -1);
     txt(x + 44, y + 3, s, C_OURO, true);

@@ -26,6 +26,20 @@ borda dourada) uma mira vermelha marca o dado que ele vai pegar no fim. No
 registro do fim da rodada, à esquerda, a linha que decidiu o resultado vem
 em ouro.
 
+**Na mesa.** O pote fica à direita, à vista a rodada inteira (na montagem e
+nos efeitos também), e só sai quando as fichas voam para quem levou; uma
+placa no meio diz quem foi e quanto ("ERICZ leva 35"), com o motivo em cima
+quando não foram os pontos (o outro correu, fez 0, a casa levou o empate).
+O número que sobe de um dado para antes do menu de jogar e da aposta (com
+dois na mesa, o menu espera um instante por ele). A faixa de cima mostra a
+rodada e a entrada; a **última rodada** (e cada rodada extra) se anuncia
+numa faixa no alto da mesa. Na montagem, o dado escolhido salta da mão para
+o lugar dele e na mão fica só a silhueta, com o número. A fala do oponente
+quebra em linhas para não cobrir os dados dele, e os avisos de conquista e
+de bolsa nova descem na faixa de madeira de cima. Na derrota de uma partida
+do Desafiante o letreiro cai letra por letra, a mesa treme, as suas fichas
+vão para o oponente e ele comemora.
+
 **O fim da rodada, em ordem.** Primeiro a mesa se resolve (o Oculto se
 mostra, o Espelho vira, o tremor, a Casca de Banana, a Ficha Coringa, o
 Carrossel). Depois os poderes que atacam, roubam e cortam: os de quem abriu
@@ -394,7 +408,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.54.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.55.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,
@@ -504,6 +518,11 @@ comprar, escolher o prêmio):
 - o menu do meio chega para o lado dele (mais para baixo na vez do JOGADOR
   1, mais para cima na do JOGADOR 2), a pergunta diz a quem é ("JOGADOR 2,
   apostar?") e a seleção dos botões fica na cor dele.
+
+Cada faixa tem o rosto de quem joga nela, na moldura da cor do jogador: o
+JOGADOR 1 com o avatar do perfil em uso e o JOGADOR 2 com o de outro perfil
+do aparelho, se houver; quem não tem perfil aparece como um busto na cor
+dele, com o número.
 
 ## 2 jogadores e online: o prêmio da rodada
 
@@ -639,7 +658,9 @@ a letra maior e o tremor da tela ficam no painel do som (o RT).
 | RT | R2 | O painel do som, a letra maior, o tremor e o registro das partidas (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
-(o primeiro controle é o JOGADOR 1); com um só, ele passa de mão em mão.
+(o primeiro controle é o JOGADOR 1), e as dicas da tela mostram os botões
+do controle de quem joga (um pode ser de Xbox e o outro de PlayStation); com
+um só, ele passa de mão em mão.
 
 A ficha **Tutorial** do menu explica as regras.
 

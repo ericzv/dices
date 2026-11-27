@@ -1154,6 +1154,8 @@ static void trunfo_faixa(int x, int y, int x_max);
 static bool trunfo_ativo(int p);              // desafio/mapa.inc
 static void desenha_amuleto(int x, int y, int r, int a, bool apagado);
 static int  retrato_faixa(int j, int x, int y0);
+static int  retrato_faixa_x[2];          // onde fica o porta-retrato de cada faixa
+static bool retrato_faixa_mede;
 static int  fichas_vis(int j);   // devolve onde o nome comeca
 
 static void acinzenta(int x0, int y0, int w, int h, int pct);
@@ -1202,7 +1204,10 @@ static void faixa_jogador(int j)
     // Na faixa de cima, o "<" sai da partida (pede confirmacao, como o ESC):
     // no celular nao ha tecla.
     int x0 = cima ? botao_voltar(KEY_ESC) - 4 : 6;
-    int xn = modo == M_DESAFIO ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
+    retrato_faixa_mede = modo == M_DOIS;    // com dois na mesa o porta-retrato e desenhado no fim, por cima da luz da vez
+    int xn = modo == M_DESAFIO || modo == M_DOIS ? retrato_faixa(j, x0, y0) : (cima ? x0 + 4 : 18);
+    retrato_faixa_mede = false;
+    retrato_faixa_x[j] = x0;
     int x = xn + txt_nome(xn, ty, j, da_vez);
     ficha(x + 22, y0 + FAIXA_H / 2, p->cor);
     ficha_px[j] = x + 22; ficha_py[j] = y0 + FAIXA_H / 2;
@@ -1211,18 +1216,26 @@ static void faixa_jogador(int j)
     txt(x + 36, ty - (faixa_c[j].pulo > 0.4f ? 1 : 0), s, conta_cor(&faixa_c[j], C_MARFIM), true);
     int fim_fichas = x + 36 + gfx_largura(s, 1);
 
-    // A rodada mora na faixa de cima; o som, na de baixo.
+    // A rodada mora na faixa de cima; o som, na de baixo. A rodada em marfim
+    // e a entrada um tom abaixo, as duas na letra encorpada (a ultima rodada
+    // e a entrada que acabou de subir, em ouro).
     if (cima && rodada > 0 && fase != F_LOJA) {
-        int max_r = modo == M_DESAFIO ? DES_RODADAS : MAX_RODADAS;
-        if (rodada > max_r) snprintf(s, sizeof s, "rodada extra  ·  entrada %d", ante_da(rodada));
-        else snprintf(s, sizeof s, "rodada %d de %d  ·  entrada %d", rodada, max_r, ante_da(rodada));
-        if (juros_rodada > 0) {                  // a Banqueira cobrou juros da sua entrada
-            size_t n = strlen(s);
-            snprintf(s + n, sizeof s - n, " (+%d juros)", juros_rodada);
-        }
-        int cx = GFX_W / 2, meio = gfx_largura(s, 1) / 2;
+        char r[32], en[32];
+        // (acabadas as rodadas, a conta ja passou da ultima: a faixa fica nela)
+        int rd = fase == F_FIM && fim_motivo == FM_RODADAS && rodada > 1 ? rodada - 1 : rodada;
+        bool ult = rodada_e_ultima(rd), ext = rodada_e_extra(rd);
+        if (ext) snprintf(r, sizeof r, "rodada extra");
+        else if (ult) snprintf(r, sizeof r, "última rodada");
+        else snprintf(r, sizeof r, "rodada %d de %d", rd, rodadas_da_partida());
+        int n = snprintf(en, sizeof en, "entrada %d", ante_da(rd));
+        if (juros_rodada > 0) snprintf(en + n, sizeof en - (size_t)n, " (+%d juros)", juros_rodada);   // a Banqueira cobrou juros da sua entrada
+        int wr = gfx_largura(r, 1), wp = gfx_largura("  ·  ", 1), we = gfx_largura(en, 1);
+        int cx = GFX_W / 2, meio = (wr + wp + we) / 2;
         if (cx - meio < fim_fichas + 20) cx = fim_fichas + 20 + meio;   // nome comprido: anda para a direita
-        txt_c(cx, ty, s, t_aviso_entrada > 0 ? C_OURO : C_TEXTO_M, t_aviso_entrada > 0);
+        int rx = cx - meio;
+        gfx_texto(rx, ty, r, ult || ext ? C_OURO : C_MARFIM, 1, true);
+        gfx_texto(rx + wr, ty, "  ·  ", C_TEXTO_M, 1, false);
+        gfx_texto(rx + wr + wp, ty, en, t_aviso_entrada > 0 ? C_OURO : C_MARFIM_S, 1, true);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
     if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
@@ -2512,7 +2525,8 @@ static void desenha_fila(int j)
         }
         if (vence)                                // a plaquinha de latao, presa na beira do placar
             ui_plaqueta(PLACAR_X, (j == baixo ? y + 24 : y - 26) - UI_PLAQUETA_H / 2, "VENCE", C_OURO);
-        else txt_c(PLACAR_X, y - 42 + (j == baixo ? 72 : 0), "pontos", C_TEXTO_M, false);
+        // ("pontos": acima do placar de cima; no de baixo, entre a caixa e o filete dourado do feltro, sem encostar nele)
+        else txt_c(PLACAR_X, y - 42 + (j == baixo ? (gfx_letra_e_maior() ? 62 : 61) : 0), "pontos", C_TEXTO_M, false);
         int salta = tranco > 0 ? (int)lroundf(tranco * (tranco_n[j] >= TRANCO_ENORME ? 5 : 3)) : 0;   // o numero pula com o salto
         txt_c2(PLACAR_X + sx, y - 20 + ty - (pc->pulo > 0.4f ? 2 : 0) - salta, s, c);
         if (calor > 1) placar_faiscas(PLACAR_X - 34, y - 26, 68, 50, calor - 1);

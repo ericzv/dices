@@ -820,27 +820,67 @@ static void nome_na_coluna(int cx, int y, const char *s, int w, uint16_t c)
 }
 
 // Tela do fim de uma partida da run (por cima da mesa, como a normal).
-#define FIM_PAINEL_W 460
+// O painel deixa de cada lado uma coluna do feltro: na da esquerda cabe o
+// retrato do oponente, longe do filete da moldura, com o nome numa linha.
+#define FIM_PAINEL_W 404
+// O letreiro de quem nao venceu (DERROTA, EMPATE) entra letra por letra:
+// cada uma cai uns pixels e assenta; na ultima, a mesa treme (passo.inc).
+#define FIM_LETRA_0  0.36f               // a primeira letra, depois de a placa entrar
+#define FIM_LETRA_DT 0.07f               // de uma letra para a outra
+#define FIM_LETRA_T  0.16f               // a queda de cada uma
+static const char *fim_letreiro(void) { return venc_partida == 2 ? "EMPATE" : "DERROTA"; }
+static float fim_letreiro_t(void) { return FIM_LETRA_0 + ((int)strlen(fim_letreiro()) - 1) * FIM_LETRA_DT + FIM_LETRA_T; }
+static void fim_letreiro_desenha(int cx, int y, uint16_t cor)
+{
+    const char *s = fim_letreiro();
+    int n = (int)strlen(s), x = cx - gfx_largura(s, 3) / 2;
+    for (int i = 0; i < n; i++) {
+        char l[2] = { s[i], 0 }, antes[16];
+        snprintf(antes, sizeof antes, "%.*s", i, s);
+        float q = (t_fim_partida - FIM_LETRA_0 - i * FIM_LETRA_DT) / FIM_LETRA_T;
+        if (q <= 0) continue;
+        int dy = q >= 1 ? 0 : -(int)((1 - q * q) * 14);
+        int lx = x + gfx_largura(antes, 3);
+        gfx_texto(lx + 3, y + dy + 3, l, C_SOMBRA, 3, true);
+        gfx_texto(lx, y + dy, l, q < 1 ? gfx_mistura(cor, C_BRANCO, 45) : cor, 3, true);
+    }
+}
+// Na derrota, as fichas saem da sua faixa e vao, uma a uma, para o oponente,
+// que comemora: o retrato da uns pulinhos, com o rosto de quem ganhou.
+#define FIM_FICHAS_N  7
+#define FIM_FICHA_DT  0.09f
+#define FIM_FICHA_T   0.6f
 static void desenha_fim_partida_run(void)
 {
-    int C0 = CENTRO + ui_entra(t_fase, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
     int alto = 150 + (venc_partida == 0 && des_marco >= 0 ? 18 : 0) + (venc_partida == 0 && des_presente >= 0 ? 18 : 0)
              + (venc_partida == 1 && des_primeira_derrota ? 30 : 0);
+    // (o painel mais alto sobe um pouco: a ultima palavra do oponente cabe embaixo dele, dentro do feltro)
+    int C0 = CENTRO - (alto - 150) / 2 + ui_entra(t_fim_partida, 0, 2 * UI_ENTRA_PLACA);   // a placa entra (interface.inc)
     painel(C0 - 70, alto, FIM_PAINEL_W);
-    // O oponente, grande, na margem a esquerda do painel (o da faixa sai
-    // nesta tela: e o mesmo), com o nome embaixo, sem passar do painel.
+    bool perdeu = venc_partida == 1;
+    float depois = t_fim_partida - fim_letreiro_t();                       // desde que o letreiro assentou
+    int rcx = -1, rcy = 0;                                          // o meio do retrato (as fichas vao para la)
+    // O oponente, grande, na coluna a esquerda do painel (o da faixa sai
+    // nesta tela: e o mesmo), com o nome embaixo.
     if (fala_perso >= 0) {
         int esc = 3, w = RT_W * esc, h = RT_H * esc;
-        int borda = GFX_W / 2 - FIM_PAINEL_W / 2 - 5, rx = MESA_X0 + (borda - MESA_X0 - w) / 2, ry = C0 - 70;
+        int borda = GFX_W / 2 - FIM_PAINEL_W / 2 - 5, col0 = MESA_X0 + 10;   // (a coluna comeca depois do filete)
+        int rx = col0 + (borda - col0 - w) / 2, ry = C0 - 66;
+        if (perdeu && depois > 0 && depois < 1.8f)                  // comemora: pulinhos que vao acalmando
+            ry -= (int)(fabsf(sinf(depois * 8.5f)) * 5 * (1 - depois / 1.8f));
         uint16_t r[4];
         ui_rampa(perso_chefe(fala_perso) ? C_OURO : C_LATAO, false, r);
         ui_sombra(rx - 3, ry - 3, w + 6, h + 6);
         ui_contorno(rx - 3, ry - 3, w + 6, h + 6, C_BARRA);
         ui_aro(rx - 2, ry - 2, w + 4, h + 4, 2, r, UI_VIVO);
         gfx_rect(rx, ry, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+        int humor_dele = humor[1];
+        if (perdeu && depois > 0) humor[1] = perso_chefe(fala_perso) ? EX_DESDEM : EX_ALEGRE;   // ganhou: o rosto diz
         retrato(rx, ry, esc, fala_perso, t_fase + fala_perso * 1.3f, fala_digitando(), 0, RT_H);
+        humor[1] = humor_dele;
         dica_zona(rx, ry, w, h, DICA_TRUNFO, fala_perso);
-        nome_na_coluna(rx + w / 2, ry + h + 7, PERSO[fala_perso].nome, borda - MESA_X0 - 2, C_ROSA);
+        nome_na_coluna(col0 + (borda - col0) / 2, C0 - 66 + h + 7, PERSO[fala_perso].nome, borda - col0, C_ROSA);
+        rcx = rx + w / 2; rcy = C0 - 66 + h - 12;                   // (no peito dele, sem cobrir o rosto)
     }
     placa_placar(C0 - 70);                                          // o placar final, acima do painel
     if (venc_partida == 0) {
@@ -865,24 +905,40 @@ static void desenha_fim_partida_run(void)
         }
         teclas_c(GFX_W / 2, yd - (saque_pronto && t_saque < 0.15f ? 2 : 0), dica, saque_pronto ? C_MARFIM : C_TEXTO_M);
     } else {
-        txt_sombra_c(GFX_W / 2, C0 - 58, venc_partida == 2 ? "EMPATE" : "DERROTA", C_VINHO_CLR, 3);
-        txt_c(GFX_W / 2, C0 + 6, des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
-                                     : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui."
-                                                         : "A run termina aqui.", C_MARFIM, true);
+        fim_letreiro_desenha(GFX_W / 2, C0 - 58, C_VINHO_CLR);
+        // O resto vem depois do letreiro, uma linha de cada vez.
+        if (depois > 0.05f) {
+            const char *l = des_saiu ? "Você saiu da mesa: conta como derrota, e a run termina."
+                          : venc_partida == 2 ? "Empate não passa de mesa: a run termina aqui." : "A run termina aqui.";
+            int f = gfx_largura(l, 1) <= FIM_PAINEL_W - 24 ? 1 : GFX_FINO;   // a frase comprida vai na fina
+            gfx_texto(GFX_W / 2 - gfx_largura(l, f) / 2, C0 + 6 + ui_entra(depois - 0.05f, 0, 6), l, C_MARFIM, f, f == 1);
+        }
         int yt = C0 + 46;
-        if (venc_partida == 1 && des_primeira_derrota) {   // a 1a derrota: o motivo e uma dica
+        if (perdeu && des_primeira_derrota) {      // a 1a derrota: o motivo e uma dica
             char m[96];
             if (fim_motivo == FM_FICHAS)
                 snprintf(m, sizeof m, "Faltaram fichas para a entrada da %dª rodada.", fim_rodada);
             else snprintf(m, sizeof m, "As %d rodadas acabaram com você atrás: %d fichas contra %d.",
                           DES_RODADAS, J[0].fichas, J[1].fichas);
-            txt_c(GFX_W / 2, C0 + 24, m, C_MARFIM_S, false);
+            if (depois > 0.25f) {
+                int fm = gfx_largura(m, GFX_FINO) <= FIM_PAINEL_W - 24 ? GFX_FINO : GFX_MIUDO;
+                gfx_texto(GFX_W / 2 - gfx_largura(m, fm) / 2, C0 + 24 + (fm == GFX_MIUDO ? 3 : 0), m, C_MARFIM_S, fm, false);
+            }
             const char *d = "Dica: sequências maiores pontuam mais. Cabem até 4 dados.";
             int f = gfx_largura(d, GFX_FINO) <= FIM_PAINEL_W - 24 ? GFX_FINO : GFX_MIUDO;
-            gfx_texto(GFX_W / 2 - gfx_largura(d, f) / 2, C0 + 42 + (f == GFX_MIUDO ? 3 : 0), d, C_OURO, f, false);
+            if (depois > 0.45f) gfx_texto(GFX_W / 2 - gfx_largura(d, f) / 2, C0 + 42 + (f == GFX_MIUDO ? 3 : 0), d, C_OURO, f, false);
             yt += 30;
         }
-        teclas_c(GFX_W / 2, yt, "ENTER segue", C_MARFIM_S);
+        if (depois > 0.6f) teclas_c(GFX_W / 2, yt, "ENTER segue", C_MARFIM_S);
+        // As suas fichas indo para ele.
+        if (perdeu && rcx >= 0)
+            for (int i = 0; i < FIM_FICHAS_N; i++) {
+                float q = (depois - 0.1f - i * FIM_FICHA_DT) / FIM_FICHA_T;
+                if (q <= 0 || q >= 1) continue;
+                float e = q * q * (3 - 2 * q);
+                float fx = ficha_px[0] + (rcx - ficha_px[0]) * e, fy = ficha_py[0] + (rcy - ficha_py[0]) * e - sinf(q * 3.1416f) * 30;
+                ficha((int)fx, (int)fy, i % 3 == 0 ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
+            }
     }
     if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
         char q[80];

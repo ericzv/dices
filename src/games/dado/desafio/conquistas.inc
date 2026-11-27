@@ -328,7 +328,8 @@ static void cq_aviso_desenha(void)
     int ws = gfx_largura(s, 1), wb = gfx_largura(sub, GFX_FINO), wm = mot[0] ? gfx_largura(mot, 1) : 0;
     int larg = ws > wb ? ws : wb;
     if (wm > larg) larg = wm;
-    int w = larg + 64, h = mot[0] ? 52 : 40, x = GFX_W / 2 - w / 2, y = -h + (int)((h + FAIXA_H + 6) * q);
+    int w = larg + 64, h = mot[0] ? 52 : 40, x, y;
+    aviso_alto_lugar(w, h, q, &x, &y);
     ui_cartao_aceso(x, y, w, h, true, C_OURO);
     cq_icone(c, x + 22, y + h / 2, 12);
     txt(x + 44, y + 3, s, C_OURO, true);

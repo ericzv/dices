@@ -1307,6 +1307,138 @@ static void achados_previa(void)
     achado_zera();
 }
 
+// A mesa em movimento (so desenho e relogios, sem regra): o balao que quebra
+// em linhas, o numero flutuante que da lugar ao menu, o aviso da ultima
+// rodada, o relogio do fim da partida, o dado que voa da mao para o lugar,
+// os rostos e as dicas com dois na mesma mesa.
+static void mesa_em_movimento(void)
+{
+    // O balao do oponente: curto, numa linha; comprido, quebra nas palavras
+    // sem passar da coluna da fila dele.
+    balao_x_min = MESA_X0 + 8; balao_x_max = SLOT_X(0) - R_DADO - 10;
+    balao_t b = balao_mede(BALAO_OP_TX, "Ah.");
+    CONFERE(b.nl == 1 && b.x + b.W <= balao_x_max, "balao curto: uma linha (%d), ate %d", b.nl, b.x + b.W);
+    const char *longa = "Toquei no trevo três vezes antes de sentar, e mais uma.";
+    b = balao_mede(BALAO_OP_TX, longa);
+    CONFERE(b.nl >= 2 && b.nl <= BALAO_LINHAS, "balao comprido: quebra em %d linhas", b.nl);
+    CONFERE(b.x >= balao_x_min && b.x + b.W <= balao_x_max, "balao comprido: fica antes da fila (%d..%d, limite %d)", b.x, b.x + b.W, balao_x_max);
+    CONFERE(b.corte[0] == 0 && b.corte[b.nl] == (int)strlen(longa), "balao comprido: as linhas cobrem a fala toda");
+    for (int l = 1; l < b.nl; l++) CONFERE(longa[b.corte[l] - 1] == ' ', "balao comprido: a linha %d comeca numa palavra", l);
+    balao_x_max = 0;
+    b = balao_mede(BALAO_OP_TX, longa);
+    CONFERE(b.nl == 1, "balao sem coluna: uma linha so");
+    // O aviso do alto para na faixa de madeira: nunca desce ate os dados.
+    for (int h = 40; h <= 52; h += 12) {
+        int x, y;
+        aviso_alto_lugar(270, h, 1, &x, &y);
+        CONFERE(y >= 0 && y + h <= MESA_Y0 && x >= 0 && x + 270 <= GFX_W, "aviso do alto (h %d): em %d,%d", h, x, y);
+    }
+
+    // O numero flutuante e o menu: o numero para antes da faixa reservada;
+    // se nem parado cabe, o menu espera e o relogio do numero corre.
+    modo = M_DOIS; baixo = 0;
+    n_flut = 0; flut_pressa = false; flut_quadro = 100; flut_res_visto = 0;
+    CONFERE(flutua_reserva(170, 470, 143, 205, true), "sem numero no ar: o menu aparece");
+    flut_quadro = 200; flut_res_visto = 0;
+    flutua(300, 234, -1, C_OURO, 0, "+%d", 4);           // da fila de baixo: sobe, com folga
+    int livre = flutua_livre(&flut[0]);
+    CONFERE(livre >= 0 && livre < FLUT_SOBE, "numero da fila de baixo: anda %d antes do menu", livre);
+    CONFERE(flutua_reserva(170, 470, 143, 205, true) && !flut_pressa, "numero que cabe: o menu nao espera");
+    n_flut = 0; flut_quadro = 300; flut_res_visto = 0;
+    flutua(300, 123, 1, C_OURO, 0, "+%d", 4);            // da fila de cima, com o menu colado nela
+    CONFERE(!flutua_reserva(170, 470, 131, 193, true) && flut_pressa, "numero que nao cabe: o menu espera");
+    float t0 = flut[0].t;
+    flutua_passo(0.1f);
+    CONFERE(n_flut == 1 && flut[0].t > t0 + 0.29f && !flut_pressa, "com o menu esperando, o numero corre 3x (%.2f)", flut[0].t - t0);
+    flutua_passo(0.1f);
+    CONFERE(flut[0].t < t0 + 0.41f, "sem menu esperando, o numero volta ao passo dele");
+    for (int i = 0; i < 20 && n_flut; i++) { flut_quadro++; if (!flutua_reserva(170, 470, 131, 193, true)) flutua_passo(1 / 60.0f); }
+    CONFERE(n_flut == 0 || flut_res_visto == flut_quadro, "o menu nao espera mais que um instante");
+    flut_quadro++;
+    CONFERE(flutua_reserva(170, 470, 131, 193, true), "o numero sumiu: o menu aparece");
+    flutua(300, 123, 1, C_OURO, 0, "+%d", 2);
+    flut_quadro++;
+    CONFERE(flutua_reserva(170, 470, 131, 193, true), "menu ja na tela: um numero novo nao o esconde");
+    flutua(540, 128, 1, C_OURO, 0, "+%d", 2);            // o do placar: fora da largura do menu
+    CONFERE(flutua_livre(&flut[n_flut - 1]) == FLUT_SOBE, "numero do placar: o menu nao esta no caminho");
+    n_flut = 0; flut_res[0] = flut_res[1] = 0;
+
+    // A ultima rodada se anuncia; as outras, nao.
+    modo = M_DOIS; cpu = 0; remoto = 0;
+    CONFERE(rodada_e_ultima(MAX_RODADAS) && !rodada_e_ultima(DES_RODADAS) && !rodada_e_extra(MAX_RODADAS), "2 jogadores: a ultima e a %d", MAX_RODADAS);
+    entrada(60, 60, 0);
+    CONFERE(rodada == 2 && t_aviso_rodada <= 0, "rodada 2: sem aviso de ultima rodada");
+    rodada = MAX_RODADAS - 1; fase = F_RESULTADO;
+    nova_rodada();
+    CONFERE(rodada == MAX_RODADAS && t_aviso_rodada > 0, "ultima rodada: o aviso (%d, %.1f)", rodada, t_aviso_rodada);
+    float ta = t_aviso_rodada;
+    dado_passo(0.5f);
+    CONFERE(t_aviso_rodada < ta, "o aviso da ultima rodada passa com o tempo");
+    modo = M_DESAFIO;
+    CONFERE(rodada_e_ultima(DES_RODADAS) && rodada_e_extra(DES_RODADAS + 1) && !rodada_e_ultima(DES_RODADAS + 1), "Desafiante: a ultima e a %d, depois as extras", DES_RODADAS);
+    modo = M_DOIS;
+
+    // O relogio do fim da partida comeca do zero (o t_fase nao recomeca).
+    t_fim_partida = 7; t_fase = 3;
+    encerra(0);
+    CONFERE(fase == F_FIM && t_fim_partida == 0, "fim da partida: o relogio da cena comeca do zero");
+    dado_passo(0.25f);
+    CONFERE(t_fim_partida > 0.24f && t_fim_partida < 0.26f, "fim da partida: o relogio anda (%.2f)", t_fim_partida);
+    venc_partida = 1;
+    CONFERE(fim_letreiro_t() > FIM_LETRA_0 && !strcmp(fim_letreiro(), "DERROTA"), "o letreiro da derrota");
+    venc_partida = 2;
+    CONFERE(!strcmp(fim_letreiro(), "EMPATE"), "o letreiro do empate");
+
+    // O dado escolhido voa da mao para o lugar (e volta): nunca nos dois.
+    for (int i = 0; i < MAO; i++) { ordv_ord[i] = -1; ordv_desde[i] = -1; }
+    t_relogio = 10;
+    int de = -1;
+    CONFERE(ordem_voo(0, -1, &de) == 0, "na mao: parado");
+    float q = ordem_voo(0, 2, &de);
+    CONFERE(q > 0 && q < 0.05f && de == 2, "escolhido: ja sai da mao para o lugar 3 (%.2f, %d)", q, de);
+    t_relogio = 10 + ORD_VOO_T / 2;
+    q = ordem_voo(0, 2, &de);
+    CONFERE(q > 0.4f && q < 0.6f && de == 2, "no meio do voo (%.2f)", q);
+    t_relogio = 10 + ORD_VOO_T + 0.01f;
+    CONFERE(ordem_voo(0, 2, &de) == 1, "chegou ao lugar");
+    CONFERE(ordem_voo(0, 1, &de) == 1 && de == 1, "so mudou de lugar: nao voa");
+    q = ordem_voo(0, -1, &de);
+    CONFERE(q < 1 && q > 0.95f && de == 1, "tirado: ja volta do lugar 2 (%.2f, %d)", q, de);
+    t_relogio += ORD_VOO_T / 2;
+    q = ordem_voo(0, -1, &de);
+    CONFERE(q > 0.4f && q < 0.6f && de == 1, "voltando (%.2f)", q);
+    t_relogio += ORD_VOO_T;
+    CONFERE(ordem_voo(0, -1, &de) == 0, "de volta na mao");
+
+    // Dois na mesma mesa: o rosto de cada um e as dicas do controle de quem joga.
+    perfil_t guarda[N_PERFIS];
+    int pa = perfil_atual;
+    memcpy(guarda, perfis, sizeof guarda);
+    memset(perfis, 0, sizeof perfis);
+    perfil_atual = -1;
+    CONFERE(retrato_dois(0) == -1 && retrato_dois(1) == -1, "sem perfil: os dois com o busto liso");
+    snprintf(perfis[1].nome, sizeof perfis[1].nome, "ANA"); perfis[1].avatar = 3;
+    perfil_atual = 1;
+    CONFERE(retrato_dois(0) == RETRATO_AVATAR + 3 && retrato_dois(1) == -1, "um perfil: o JOGADOR 1 com o avatar dele");
+    snprintf(perfis[0].nome, sizeof perfis[0].nome, "BIA"); perfis[0].avatar = 5;
+    CONFERE(retrato_dois(0) == RETRATO_AVATAR + 3 && retrato_dois(1) == RETRATO_AVATAR + 5, "dois perfis: o em uso e do JOGADOR 1, o outro do 2");
+    memcpy(perfis, guarda, sizeof guarda);
+    perfil_atual = pa;
+    modo = M_DOIS; cpu = 0; fase = F_JOGA; vez = 1; ctrl_aberto = false;
+    dado_controle(CONTROLE_XBOX); dado_controle_de(0, CONTROLE_XBOX); dado_controle_de(1, CONTROLE_PS);
+    CONFERE(dica_estilo() == CONTROLE_PS, "dois controles, vez do JOGADOR 2: as dicas do controle dele");
+    vez = 0;
+    CONFERE(dica_estilo() == CONTROLE_XBOX, "dois controles, vez do JOGADOR 1: as dicas do controle dele");
+    vez = 1; dado_controle_de(0, CONTROLE_NENHUM);
+    CONFERE(dica_estilo() == CONTROLE_XBOX, "um controle so: as dicas do ultimo usado");
+    dado_controle_de(0, CONTROLE_XBOX); dado_controle(CONTROLE_NENHUM);
+    CONFERE(dica_estilo() == CONTROLE_NENHUM, "no teclado: as dicas mostram as teclas");
+    modo = M_UM; dado_controle(CONTROLE_XBOX);
+    CONFERE(dica_estilo() == CONTROLE_XBOX, "fora dos 2 jogadores: o ultimo controle usado");
+    dado_controle(CONTROLE_NENHUM); dado_controle_de(0, CONTROLE_NENHUM); dado_controle_de(1, CONTROLE_NENHUM);
+    modo = M_DOIS;
+}
+
 int main(void)
 {
     natal_forcado = 0;                   // a epoca nao depende do dia em que o teste roda
@@ -10119,6 +10251,7 @@ int main(void)
 
     achados_desfecho();
     achados_previa();
+    mesa_em_movimento();
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");

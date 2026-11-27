@@ -3,12 +3,17 @@
 // os de sair da partida, conexao e velocidade
 // ===========================================================================
 // A entrada subiu: uma faixa vermelha e dourada no alto da mesa, com fichas
-// pulando dos lados, por uns dois segundos e meio.
+// pulando dos lados, por uns dois segundos e meio. A ultima rodada e as
+// rodadas extras se anunciam na mesma faixa (com estrelas no lugar das
+// fichas); se a entrada subiu junto, ela vai na mesma linha.
+static void estrela4(int x, int y, int b, uint16_t miolo, uint16_t braco, uint16_t ponta);   // desenho_dado.inc
 static void desenha_aviso_entrada(void)
 {
-    if (t_aviso_entrada <= 0) return;
-    float e = ENTRADA_AVISO_T - t_aviso_entrada;
-    float abre = e < 0.18f ? e / 0.18f : (t_aviso_entrada < 0.25f ? t_aviso_entrada / 0.25f : 1);
+    bool rod = t_aviso_rodada > 0;
+    float resta = rod ? t_aviso_rodada : t_aviso_entrada, dur = rod ? RODADA_AVISO_T : ENTRADA_AVISO_T;
+    if (resta <= 0) return;
+    float e = dur - resta;
+    float abre = e < 0.18f ? e / 0.18f : (resta < 0.25f ? resta / 0.25f : 1);
     int h = (int)(46 * abre), y = MESA_Y0 + 34 - h / 2;
     if (h < 4) return;
     gfx_rect(MESA_X0, y + 3, MESA_X1 - MESA_X0, h, C_SOMBRA);
@@ -17,14 +22,22 @@ static void desenha_aviso_entrada(void)
     gfx_rect(MESA_X0, y + h - 2, MESA_X1 - MESA_X0, 2, C_OURO);
     if (abre < 1) return;
     char t[40];
-    snprintf(t, sizeof t, "ENTRADA: %d FICHAS", ante_da(rodada));
+    if (!rod) snprintf(t, sizeof t, "ENTRADA: %d FICHAS", ante_da(rodada));
+    else if (rodada_e_extra(rodada)) snprintf(t, sizeof t, "RODADA EXTRA");
+    else if (t_aviso_entrada > 0) snprintf(t, sizeof t, "ÚLTIMA RODADA  ·  ENTRADA %d", ante_da(rodada));
+    else snprintf(t, sizeof t, "ÚLTIMA RODADA");
     bool pisca = (int)(e / 0.25f) % 2 == 0 && e < 1.0f;      // pisca no comeco
     txt_sombra_c(GFX_W / 2, y + 7, t, pisca ? C_AMARELO : C_OURO, 2);
     int w = gfx_largura(t, 2) / 2;
-    for (int lado = -1; lado <= 1; lado += 2)                // pilhas de fichas pulando
+    for (int lado = -1; lado <= 1; lado += 2)
         for (int i = 0; i < 3; i++) {
             int x = GFX_W / 2 + lado * (w + 26 + i * 18);
-            int pulo = (int)(fabsf(sinf(e * 7 + i * 1.1f)) * 5);
+            if (rod) {                                       // estrelas piscando, uma depois da outra
+                int b = 4 + ((int)(e * 6) % 3 == i);
+                estrela4(x, y + h / 2, b, C_BRANCO, C_OURO, C_LATAO);
+                continue;
+            }
+            int pulo = (int)(fabsf(sinf(e * 7 + i * 1.1f)) * 5);  // pilhas de fichas pulando
             ficha(x, y + h / 2 - pulo, i % 2 ? C_VINHO : C_LATAO);
         }
 }

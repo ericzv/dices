@@ -477,7 +477,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
   arquivo por vez que o jogo abre, com a data, a hora e a versão no nome
-  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.56.txt`). Cada linha é uma coisa que
+  (`partidas_AAAA-MM-DD_HH-MM-SS_v1.58.txt`). Cada linha é uma coisa que
   aconteceu, em JSON: a run, a loja (a vitrine com os preços, o que comprou,
   colou, trocou e tirou), o amuleto (e os que havia), a partida (oponente,
   mesa, nível da IA, as duas bolsas e os amuletos), cada rodada (quem abre,

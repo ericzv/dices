@@ -71,9 +71,12 @@ static void tecla(int k)
 // navegador recusa, e dai em diante para de acompanhar o tamanho do canvas:
 // o desenho e o mouse se desencontram.
 EM_JS(void, web_tela_cheia, (void), {
+    // (sem gesto do usuario - um botao do controle, em alguns navegadores - a
+    // recusa vem como promessa rejeitada: so a ignora; a linha das opcoes
+    // mostra o estado de verdade)
     try {
-        if (document.fullscreenElement) document.exitFullscreen();
-        else document.documentElement.requestFullscreen();
+        var p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+        if (p && p.catch) p.catch(function () {});
     } catch (e) {}
 });
 EM_JS(int, web_tela_e_cheia, (void), { return document.fullscreenElement ? 1 : 0; });
@@ -114,10 +117,21 @@ static void le_zoom(void)
     }
 }
 
+static float escala_cheia(void);           // a maior escala que cabe na janela (area_do_jogo)
+// O menor tamanho que ainda muda alguma coisa: a mesa nunca fica com menos
+// de um pixel da tela por pixel do jogo (numa janela pequena, no celular,
+// as vezes nem o 95% cabe).
+static int zoom_minimo(void)
+{
+    float k = escala_cheia();
+    int z = ZOOM_MIN;
+    while (z < 100 && k * z / 100 < 1) z += 5;
+    return z;
+}
 static void muda_zoom(int d)
 {
-    int z = zoom + d;
-    if (z < ZOOM_MIN) z = ZOOM_MIN;
+    int z = zoom + d, zmin = zoom_minimo();
+    if (z < zmin) z = d < 0 && zoom < zmin ? zoom : zmin;   // (o guardado abaixo do que cabe fica, mas nao desce mais)
     if (z > 100) z = 100;
     if (z == zoom) return;
     zoom = z;
@@ -133,7 +147,8 @@ static void muda_zoom_tecla(int d)
     muda_zoom(d);
     zoom_aviso = 1.6f;
 }
-static int zoom_agora(void) { return zoom; }
+// O tamanho de verdade: o guardado, ou 100% quando ele nao cabe nesta janela.
+static int zoom_agora(void) { return escala_cheia() * zoom / 100 >= 1 ? zoom : 100; }
 
 static bool campo_focado;               // navegador: o teclado do aparelho, num campo escondido
 static float dt_quadro;                 // quanto tempo passou desde o quadro anterior (segundos)
@@ -290,6 +305,8 @@ static void poe_icone(void)
 }
 
 // Enche a janela mantendo a proporcao do jogo.
+static float escala_ult = 1;                // a maior escala que cabia no ultimo quadro
+static float escala_cheia(void) { return escala_ult; }
 static Rectangle area_do_jogo(void)
 {
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
@@ -300,6 +317,7 @@ static Rectangle area_do_jogo(void)
     if (cw > 0 && ch > 0) { W = (float)cw; H = (float)ch; }
 #endif
     float k = W / GFX_W < H / GFX_H ? W / GFX_W : H / GFX_H;
+    escala_ult = k;
     if (k * zoom / 100 >= 1) k = k * zoom / 100;         // nunca menor que 1 pixel por pixel
     float w = (float)(int)(GFX_W * k), h = (float)(int)(GFX_H * k);
     return (Rectangle){ (float)(int)((W - w) / 2), (float)(int)((H - h) / 2), w, h };
@@ -479,7 +497,7 @@ static void aviso_zoom(void)
     if (zoom_aviso <= 0) return;
     zoom_aviso -= dt_quadro;
     char b[48];
-    snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom);
+    snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom_agora());
     int w = gfx_largura(b, 1), x = (GFX_W - w) / 2, y = GFX_H / 8;
     gfx_rect_alfa(x - 12, y - 4, w + 24, FONTE_ALT + 6, 0x1082, 230);
     gfx_texto(x, y, b, 0xD58C, 1, false);
@@ -627,12 +645,20 @@ static bool no_jogo(float mx, float my, int *x, int *y)
 // Mouse: a posicao na janela vira posicao na tela do jogo (640x360).
 static void le_mouse(void)
 {
+    // So o mouse que andou na janela "passa por cima" (acao 0). Quando muda
+    // so a escala (o tamanho da mesa, a tela cheia), o mouse parado cai em
+    // outro ponto do jogo: o jogo fica sabendo onde (acao -1), sem trocar a
+    // escolha do cursor.
     static int ult_x = -1, ult_y = -1;
+    static float jan_x = -1, jan_y = -1;
 #ifdef __EMSCRIPTEN__
     int x, y;
-    if (no_jogo(web_mouse_x(), web_mouse_y(), &x, &y) && (x != ult_x || y != ult_y)) {
+    float wx = web_mouse_x(), wy = web_mouse_y();
+    bool andou = wx != jan_x || wy != jan_y;
+    jan_x = wx; jan_y = wy;
+    if (no_jogo(wx, wy, &x, &y) && (x != ult_x || y != ult_y)) {
         ult_x = x; ult_y = y;
-        dado_mouse(x, y, 0);
+        dado_mouse(x, y, andou ? 0 : -1);
     }
     float cx, cy;
     for (int b; (b = web_clique(&cx, &cy)) != 0; )
@@ -645,8 +671,10 @@ static void le_mouse(void)
     int n = n_cliques, x, y;
     n_cliques = 0;
     Vector2 m = GetMousePosition();
+    bool andou = m.x != jan_x || m.y != jan_y;
+    jan_x = m.x; jan_y = m.y;
     if (!no_jogo(m.x, m.y, &x, &y)) return;
-    if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, 0); }
+    if (x != ult_x || y != ult_y) { ult_x = x; ult_y = y; dado_mouse(x, y, andou ? 0 : -1); }
     for (int i = 0; i < n; i++) { dado_controle(CONTROLE_NENHUM); dado_mouse(x, y, cliques[i]); }
 #endif
 }

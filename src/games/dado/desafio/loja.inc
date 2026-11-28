@@ -285,6 +285,7 @@ static void loja_passo(float dt)
     if (fase != F_RLOJA) return;
     t_lj_entra += dt;
     t_lj_abriu += dt;
+    if (lj_porco_perg) t_porco_perg += dt;       // a placa da pergunta entra
     if (t_lj_aviso > 0) t_lj_aviso -= dt;
     for (int i = 0; i < LJ_ITENS_MAX; i++) if (t_lj_nega[i] > 0) t_lj_nega[i] -= dt;
     for (int i = 0; i < VITRINE_MAX; i++) if (t_lj_vendido[i] > 0) t_lj_vendido[i] += dt;
@@ -703,11 +704,14 @@ static void porco_pergunta(void)
 // e o mesmo que nao.
 static void porco_perg_tecla(int k)
 {
-    if (k == KEY_LEFT || k == KEY_RIGHT || k == KEY_UP || k == KEY_DOWN || k == 'a' || k == 'd' || k == 'w' || k == 's') {
-        lj_porco_cur ^= 1;
-        som_toca(SOM_TIQUE);
+    // Esquerda vai ao "sim", direita ao "nao", sem dar a volta: o direcional
+    // segurado (que repete) para num deles, nunca fica trocando.
+    if (k == KEY_LEFT || k == KEY_RIGHT || k == 'a' || k == 'd') {
+        int novo = k == KEY_LEFT || k == 'a' ? 0 : 1;
+        if (novo != lj_porco_cur) { lj_porco_cur = novo; som_toca(SOM_TIQUE); }
         return;
     }
+    if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's') return;
     if (k == KEY_ENTER) {
         lj_porco_perg = false;
         if (lj_porco_cur == 0) { porco_quebra(); cursor = 0; }      // (o porco sai das setas)

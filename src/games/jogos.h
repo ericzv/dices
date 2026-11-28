@@ -11,7 +11,7 @@ void dado_passo(float dt);               // avanca a animacao dt segundos
 void dado_ia_orcamento(int us);         // tempo por quadro para a IA pensar aos pedacos (0: de uma vez)
 void dado_desenha(void);                 // pinta o quadro inteiro no framebuffer
 void dado_tecla(const key_event_t *ev);
-void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito, 3 toque
+void dado_mouse(int x, int y, int acao);   // acao: 0 moveu, 1 clique, 2 clique direito, 3 toque; -1 so a escala mudou (o mouse parado caiu noutro ponto)
 bool dado_mouse_clicavel(void);           // mouse sobre um botao ou opcao
 // Controles: com que se joga agora (as dicas de tecla da tela mostram os
 // botoes dele) - 0 teclado e mouse, 1 controle do Xbox (e parecidos), 2 do

@@ -10524,8 +10524,12 @@ int main(void)
         dado_desenha();
         dado_mouse(MESA_X0 + 108, MESA_Y0 + 24, 3);     // outro toque no mesmo lugar: fora dos botoes, nada
         CONFERE(porco_perg_aberta() && porco_inteiro(), "Porquinho: o toque repetido no porco nao responde");
+        manda_tecla(KEY_RIGHT);
+        CONFERE(lj_porco_cur == 1, "Porquinho: a direita fica no nao (sem dar a volta)");
         manda_tecla(KEY_LEFT);
-        CONFERE(lj_porco_cur == 0, "Porquinho: as setas trocam entre o sim e o nao");
+        CONFERE(lj_porco_cur == 0, "Porquinho: a esquerda vai ao sim");
+        manda_tecla(KEY_LEFT);
+        CONFERE(lj_porco_cur == 0, "Porquinho: a esquerda segurada fica no sim");
         manda_tecla(KEY_ENTER);
         CONFERE(!porco_perg_aberta() && run.porco_quebrou && run.moedas == 11 && !run.porco, "Porquinho: o sim quebra (%d moedas)", run.moedas);
         CONFERE(cursor < lj_n_itens() && lj_n_itens() == lj_item_tira() + 1, "Porquinho: quebrado, sai das setas (%d de %d)", cursor, lj_n_itens());

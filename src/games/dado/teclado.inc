@@ -173,6 +173,7 @@ void dado_mouse(int x, int y, int acao)
 {
     mouse_x = x;
     mouse_y = y;
+    if (acao < 0) return;                               // (so a escala mudou: o mouse nao andou)
     bool toque = acao == 3;
     if (toque) acao = 1;
     if (acao == 2) { manda_tecla(KEY_BKSP); return; }

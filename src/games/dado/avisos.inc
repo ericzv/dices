@@ -77,35 +77,50 @@ static void desenha_maquina_monta(void)
 
 static void desenha_avisos(void)
 {
-    const char *msg = NULL;
+    // O aviso (msg) e, depois dele, as teclas (tec), desenhadas como as do
+    // rodape: com o controle, viram os botoes dele. As teclas que o controle
+    // nao tem (T, L) dao lugar ao painel de opcoes, que troca as mesmas coisas.
+    const char *msg = NULL, *tec = NULL;
     uint16_t c = C_OURO;
-    static char caiu[200];
+    bool ctl = dica_estilo() != CONTROLE_NENHUM;
     if (conexao_caiu()) {                           // online: o motivo que a rede deu (saiu, sumiu, mesas diferentes)
         const char *e = rede_erro();
-        snprintf(caiu, sizeof caiu, "%s  ESC volta ao menu.", e[0] ? e : "A conexão com o oponente caiu.");
-        msg = caiu;
+        msg = e[0] ? e : "A conexão com o oponente caiu.";
+        tec = "ESC volta ao menu";
         c = C_VINHO_CLR;
     }
-    else if (t_sair >= 0 && des_abandono()) { msg = "ESC (ou o <) de novo: sair conta como derrota, e a run acaba."; c = C_VINHO_CLR; }
-    else if (t_sair >= 0) msg = "Aperte ESC (ou toque no <) de novo para sair da partida.";
+    else if (t_sair >= 0 && des_abandono()) {
+        tec = ctl ? "ESC de novo: sair conta como derrota, e a run acaba." : "ESC ou < de novo: sair conta como derrota, e a run acaba.";
+        c = C_VINHO_CLR;
+    }
+    else if (t_sair >= 0) tec = ctl ? "ESC de novo: sai da partida" : "ESC ou < de novo: sai da partida";
     else if (t_aviso_universo > 0) msg = "O Universo só vai sozinho";
     else if (t_aviso_grudado > 0) msg = "Grudado pelo Chiclete: ele abre a sequência";
     else if (t_aviso_vel > 0) {
-        static const char *const VEL_AVISO[VEL_N] = { "Velocidade: normal  (V troca)", "Velocidade: média  (V troca)",
-                                                      "Velocidade: rápida  (V troca)" };
+        static const char *const VEL_AVISO[VEL_N] = { "Velocidade: normal", "Velocidade: média", "Velocidade: rápida" };
         msg = VEL_AVISO[velocidade];
+        tec = "V troca";
     }
-    else if (t_aviso_tremor > 0) msg = tremor_off ? "Tremor da tela: desligado  (T troca)" : "Tremor da tela: ligado  (T troca)";
-    else if (t_aviso_letra > 0) msg = gfx_letra_e_maior() ? "Letra: maior  (L troca)" : "Letra: normal  (L troca)";
+    else if (t_aviso_tremor > 0) { msg = tremor_off ? "Tremor da tela: desligado" : "Tremor da tela: ligado"; tec = ctl ? "M opções" : "T troca"; }
+    else if (t_aviso_letra > 0) { msg = gfx_letra_e_maior() ? "Letra: maior" : "Letra: normal"; tec = ctl ? "M opções" : "L troca"; }
     else if (t_aviso_adesivo > 0) {
         static char m[48];
-        snprintf(m, sizeof m, "Adesivos: %s  (J troca)", ADE_NOME[ad_estilo]);
+        snprintf(m, sizeof m, "Adesivos: %s", ADE_NOME[ad_estilo]);
         msg = m;
+        if (!ctl) tec = "J troca";
     }
-    if (!msg) return;
-    int w = gfx_largura(msg, 1) + 40;
+    if (!msg && !tec) return;
+    if (!tec) {                                     // so o aviso
+        int w = gfx_largura(msg, 1) + 40;
+        ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);
+        txt_c(GFX_W / 2, MESA_Y0 + 12, msg, c, false);
+        return;
+    }
+    int wm = msg ? gfx_largura(msg, fonte_de(false)) : 0, wt = linha_teclas(0, 0, tec, c, false), vao = msg ? 14 : 0;
+    int w = wm + vao + wt + 40, x = GFX_W / 2 - (wm + vao + wt) / 2;
     ui_painel(GFX_W / 2 - w / 2, MESA_Y0 + 6, w, TXT_H + 12);
-    txt_c(GFX_W / 2, MESA_Y0 + 12, msg, c, false);
+    if (msg) txt(x, MESA_Y0 + 11, msg, c, false);
+    linha_teclas(x + wm + vao, MESA_Y0 + 14, tec, msg ? C_TEXTO_M : c, true);   // (a letra das teclas na linha do aviso)
 }
 
 // Um salvamento que nao abriu (perfis, run ou historico): por cima de tudo,

@@ -8,15 +8,15 @@ static int menu_opcoes(const char **op)
 {
     if (menu_tela == MT_DESAFIO) { op[0] = "Continuar"; op[1] = "Nova run"; return 2; }
     op[0] = "1 jogador"; op[1] = "2 jogadores"; op[2] = "Online";
-    op[3] = "Dados da casa"; op[4] = "Tutorial";
+    op[3] = "Coleção"; op[4] = "Tutorial";
     return MN_N;
 }
 
 // Cada opcao e uma ficha de cassino: a cor dela e o desenho do meio.
-enum { ICO_UM, ICO_DOIS, ICO_ONLINE, ICO_DADO, ICO_TUTORIAL, ICO_CONTINUA, ICO_NOVA };
+enum { ICO_UM, ICO_DOIS, ICO_ONLINE, ICO_COLECAO, ICO_TUTORIAL, ICO_CONTINUA, ICO_NOVA };
 static void menu_ficha_de(int i, uint16_t *cor, int *ico)
 {
-    static const uint8_t ICO[MN_N] = { ICO_UM, ICO_DOIS, ICO_ONLINE, ICO_DADO, ICO_TUTORIAL };
+    static const uint8_t ICO[MN_N] = { ICO_UM, ICO_DOIS, ICO_ONLINE, ICO_COLECAO, ICO_TUTORIAL };
     const uint16_t COR[MN_N] = { C_VINHO, C_AZUL, C_VIOLETA, C_EBANO_B, C_TERRA };
     if (menu_tela == MT_DESAFIO) { *cor = i ? C_VINHO : C_AZUL; *ico = i ? ICO_NOVA : ICO_CONTINUA; return; }
     *cor = COR[i]; *ico = ICO[i];
@@ -58,12 +58,17 @@ static void icone_menu(int x, int y, int ico, uint16_t tinta)
         gfx_rect(x - 6, y - 4, 13, 1, gfx_mistura(tinta, fundo, 50));
         gfx_rect(x - 6, y + 4, 13, 1, gfx_mistura(tinta, fundo, 50));
         break;
-    case ICO_DADO:                                    // um dado mostrando 3
-        gfx_rect(x - 7, y - 7, 15, 15, tinta);
-        gfx_rect(x - 8, y - 6, 1, 13, tinta); gfx_rect(x + 8, y - 6, 1, 13, tinta);
-        gfx_rect(x - 6, y - 8, 13, 1, tinta); gfx_rect(x - 6, y + 8, 13, 1, tinta);
-        for (int k = -1; k <= 1; k++) gfx_rect(x + k * 4 - 1, y + k * 4 - 1, 3, 3, fundo);
+    case ICO_COLECAO: {                               // a colecao: o trofeu, em pixels
+        static const char *const T[16] = { "..###########..", "###.#######.###", "#.#.#######.#.#", "#.#.#######.#.#",
+                                           "#.#.#######.#.#", ".##.#######.##.", "..#.#######.#..", "...#########...",
+                                           "....#######....", ".....#####.....", "......###......", "......###......",
+                                           "......###......", "....#######....", "...#########...", "...#########..." };
+        for (int j = 0; j < 16; j++)
+            for (int i = 0; i < 15; i++)
+                if (T[j][i] == '#') gfx_rect(x - 7 + i, y - 8 + j, 1, 1, tinta);
+        gfx_rect(x - 2, y - 6, 1, 6, fundo);                               // o brilho da taca
         break;
+    }
     case ICO_TUTORIAL: {                              // o ponto de interrogacao, em pixels
         static const char *const Q[12] = { "..#####..", ".##...##.", "##.....##", "##.....##", ".......##",
                                            "......##.", ".....##..", "....##...", "....##...", ".........",
@@ -164,6 +169,7 @@ static void menu_passo(float dt)
     if (q >= 1) { t_menu_clique = -1; menu_executa(menu_escolhida); }
 }
 
+static bool colecao_progresso(int *abertas, int *total);   // desafio/colecao.inc
 static void desenha_abertura(void)
 {
     desenha_lance();
@@ -181,6 +187,7 @@ static void desenha_abertura(void)
     if (t_fase < 0.75f) return;
     if (menu_tela) botao_voltar(KEY_ESC);
     botao_clique(GFX_W - 10, (FAIXA_H - TXT_H - 4) / 2, "controles", 'k');   // o que faz cada botao do controle
+    botao_clique(GFX_W - 10 - gfx_largura("controles", 1) - 28, (FAIXA_H - TXT_H - 4) / 2, "opções", 'm');   // o painel de opcoes (o M, o RT)
     gfx_rect(GFX_W / 2 - 150, 134, 300, 2, C_LATAO_ESC);
     txt_c(GFX_W / 2, 140, menu_tela ? "Modo Desafiante" : "Criado por ERICZ", menu_tela ? C_LATAO : C_TEXTO_M,
           menu_tela != 0);
@@ -209,15 +216,19 @@ static void desenha_abertura(void)
     } else {
         static const char *const DICA[MN_N] = {
             "Modo Desafiante: uma run pelos salões do cassino.", "Dois na mesma mesa, 15 rodadas.",
-            "Contra um amigo, pela internet.", "Todos os dados e o que cada um faz.", "As regras, passo a passo." };
-        snprintf(dica, sizeof dica, "%s", DICA[menu_cur]);
+            "Contra um amigo, pela internet.", "Dados, amuletos, adesivos e conquistas.", "As regras, passo a passo." };
+        int ab, tot;
+        // A Colecao: com um perfil em uso, quantas conquistas e bolsas ele ja abriu.
+        if (menu_cur == MN_DADOS && colecao_progresso(&ab, &tot))
+            snprintf(dica, sizeof dica, "Dados, amuletos, adesivos e conquistas  ·  %d de %d abertos", ab, tot);
+        else snprintf(dica, sizeof dica, "%s", DICA[menu_cur]);
     }
     txt_c(GFX_W / 2, FICHA_Y + FICHA_R + 30, dica,
           menu_cur == 1 && menu_tela == MT_DESAFIO ? C_VINHO_CLR : C_TEXTO_M, false);
     teclas_c(GFX_W / 2, GFX_H - FAIXA_H + 14, menu_tela
              ? "setas escolhem  ·  ENTER confirma  ·  ESC volta"
-             : controle_estilo ? "setas escolhem  ·  ENTER confirma  ·  M som  ·  K controles"
-             : "M som  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
+             : controle_estilo ? "setas escolhem  ·  ENTER confirma  ·  M opções  ·  K controles"
+             : "M opções  ·  N música  ·  L letra  ·  F11 tela cheia  ·  - e + tamanho da mesa",
              C_TEXTO_M);
     // A versao, miuda no canto da mesa: diz qual jogo esta aberto (v1.0, v1.1...).
     const char *ver = DADO_VERSAO;
@@ -317,9 +328,9 @@ static void desenha_online(void)
     } else if (digitando) {
         txt_c(GFX_W / 2, 116, "Digite o código da sala do seu amigo:", C_MARFIM, true);
         casas_codigo(146, codigo_dig, true);
-        txt_c(GFX_W / 2, 222, strlen(codigo_dig) == 4 ? "ENTER entra na sala" : "4 letras ou números",
-              strlen(codigo_dig) == 4 ? C_OURO : C_TEXTO_M, false);
-        txt_c(GFX_W / 2, 250, "BACKSPACE apaga  ·  ESC volta", C_TEXTO_M, false);
+        if (strlen(codigo_dig) == 4) teclas_c(GFX_W / 2, 224, "ENTER entra na sala", C_OURO);
+        else txt_c(GFX_W / 2, 222, "4 letras ou números", C_TEXTO_M, false);
+        teclas_c(GFX_W / 2, 252, "BACKSPACE apaga  ·  ESC volta", C_TEXTO_M);
     } else {
         txt_c(GFX_W / 2, 112, "Cada um no seu computador: um cria a sala e manda o convite.",
               C_MARFIM_S, false);

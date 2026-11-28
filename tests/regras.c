@@ -1456,6 +1456,22 @@ static void mesa_em_movimento(void)
     modo = M_DOIS;
 }
 
+// A linha da opcao o no painel de opcoes agora (-1: nao esta nele).
+static int som_linha_de(int o)
+{
+    int op[OP_N], n = som_opcoes(op);
+    for (int i = 0; i < n; i++) if (op[i] == o) return SOM_CANAIS + i;
+    return -1;
+}
+
+// A janela de mentira do teste do painel de opcoes (dado_janela).
+static bool jt_cheia;
+static int  jt_mesa;
+static bool jt_e_cheia(void) { return jt_cheia; }
+static void jt_alterna(void) { jt_cheia = !jt_cheia; }
+static int  jt_mesa_agora(void) { return jt_mesa; }
+static void jt_muda(int d) { jt_mesa += d; if (jt_mesa < 50) jt_mesa = 50; if (jt_mesa > 100) jt_mesa = 100; }
+
 int main(void)
 {
     natal_forcado = 0;                   // a epoca nao depende do dia em que o teste roda
@@ -10351,7 +10367,7 @@ int main(void)
         medidor_le();
         CONFERE(!dado_medidor(), "medidor de quadros: desligado para quem nunca ligou");
         som_abre();
-        som_cur = SOM_CANAIS + 2;
+        som_cur = som_linha_de(OP_MEDIDOR);
         som_tecla(KEY_RIGHT);
         char b[8];
         CONFERE(dado_medidor() && salva_le("medidor", b, sizeof b) == 1 && b[0] == '1', "medidor de quadros: o lado direito liga e guarda");
@@ -10362,6 +10378,132 @@ int main(void)
         CONFERE(!dado_medidor() && salva_le("medidor", b, sizeof b) == 1 && b[0] == '0', "medidor de quadros: o toque na linha desliga e guarda");
         som_aberto = false;
         salva_apaga("medidor");
+    }
+    // O painel de opcoes: a velocidade e uma linha dele (os lados andam para
+    // os dois lados e guardam; o V continua trocando); a tela cheia e o
+    // tamanho da mesa so aparecem quando a plataforma os entrega (dado_janela),
+    // e a velocidade some numa partida online.
+    {
+        jt_cheia = false; jt_mesa = 100;
+        int modo_antes = modo, fase_antes = fase, vel_antes = velocidade;
+        char b[8];
+        modo = M_DESAFIO; fase = F_ORDEM;
+        dado_janela(NULL);
+        CONFERE(som_linha_de(OP_TELA_CHEIA) < 0 && som_linha_de(OP_MESA) < 0, "opcoes: sem a plataforma, a tela cheia e a mesa nao aparecem");
+        CONFERE(som_linha_de(OP_VELOCIDADE) == SOM_CANAIS, "opcoes: a velocidade e a primeira depois dos volumes (%d)", som_linha_de(OP_VELOCIDADE));
+        dado_janela_t jn = { jt_e_cheia, jt_alterna, jt_mesa_agora, jt_muda };
+        dado_janela(&jn);
+        CONFERE(som_linha_de(OP_TELA_CHEIA) > 0 && som_linha_de(OP_MESA) == som_linha_de(OP_TELA_CHEIA) + 1, "opcoes: com a plataforma, a tela cheia e a mesa");
+        som_abre();
+        velocidade = VEL_NORMAL;
+        som_cur = som_linha_de(OP_VELOCIDADE);
+        som_tecla(KEY_RIGHT);
+        CONFERE(velocidade == VEL_MEDIA && salva_le("vel", b, sizeof b) == 1 && b[0] == VEL_GRAVA[VEL_MEDIA], "opcoes: o lado direito passa a velocidade e guarda (%d)", velocidade);
+        som_tecla(KEY_LEFT); som_tecla(KEY_LEFT);
+        CONFERE(velocidade == VEL_RAPIDA, "opcoes: o lado esquerdo volta a velocidade, dando a volta (%d)", velocidade);
+        som_cur = som_linha_de(OP_TELA_CHEIA);
+        som_tecla(KEY_RIGHT);
+        CONFERE(jt_cheia, "opcoes: a tela cheia liga pelo painel");
+        som_tecla(TECLA_SOM);
+        CONFERE(!jt_cheia, "opcoes: e desliga pelo clique na linha");
+        som_cur = som_linha_de(OP_MESA);
+        som_tecla(KEY_LEFT); som_tecla(KEY_LEFT);
+        CONFERE(jt_mesa == 90, "opcoes: o lado esquerdo diminui a mesa de 5 em 5 (%d)", jt_mesa);
+        som_tecla(KEY_RIGHT);
+        CONFERE(jt_mesa == 95, "opcoes: o lado direito aumenta a mesa (%d)", jt_mesa);
+        som_tecla(KEY_DOWN); som_tecla(KEY_DOWN); som_tecla(KEY_DOWN); som_tecla(KEY_DOWN);
+        CONFERE(som_cur == SOM_CANAIS + som_opcoes((int[OP_N]){ 0 }) - 1, "opcoes: o cursor para na ultima linha (%d)", som_cur);
+        modo = M_ONLINE;                             // a partida online: sem a linha da velocidade
+        CONFERE(som_linha_de(OP_VELOCIDADE) < 0 && som_linha_de(OP_LETRA) == SOM_CANAIS, "opcoes: no online a velocidade nao aparece");
+        dado_desenha();
+        CONFERE(som_cur < SOM_CANAIS + som_opcoes((int[OP_N]){ 0 }), "opcoes: o cursor nao fica fora do painel quando uma linha some (%d)", som_cur);
+        som_tecla(KEY_BKSP);
+        CONFERE(!som_aberto, "opcoes: o BACKSPACE (o B do controle) fecha o painel");
+        // O V (o RB do controle) continua trocando, com o aviso.
+        modo = M_DESAFIO; velocidade = VEL_NORMAL; t_aviso_vel = 0;
+        t_elev = t_virada = t_anuncio = t_misterio = 0; t_cort = -1; bolsa_pop = -1; detalhe = -1;   // (o que os testes de antes deixaram na tela)
+        manda_tecla('v');
+        CONFERE(velocidade == VEL_MEDIA && t_aviso_vel > 0, "o V continua trocando a velocidade (%d)", velocidade);
+        t_aviso_vel = 0;
+        velocidade = vel_antes;
+        { char g[2] = { VEL_GRAVA[velocidade], 0 }; salva_grava("vel", g); }
+        dado_janela(NULL);
+        modo = modo_antes; fase = fase_antes;
+    }
+    // O Porquinho na loja: e um item das setas (o controle chega nele) e
+    // quebrar pede sempre a confirmacao, com o foco no "nao" - pelo Q, pelo
+    // ENTER nele ou pelo clique.
+    {
+        salva_apaga("desafio");
+        snprintf(perfis[0].nome, sizeof perfis[0].nome, "TESTE"); perfil_atual = 0; perfis_lidos = true;
+        perfis[0].bolsas = BOLSAS_TODAS;
+        des_dif = 1; des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0);
+        run.porco = 6; run.moedas = 5;
+        abre_loja_run();
+        t_elev = t_virada = t_anuncio = t_misterio = 0; t_cort = -1; t_luz = 0; bolsa_pop = -1; detalhe = -1;
+        CONFERE(fase == F_RLOJA && porco_inteiro() && lj_n_itens() == lj_item_porco() + 1, "Porquinho: e o ultimo item da loja (%d de %d)", lj_item_porco(), lj_n_itens());
+        dado_desenha();
+        cursor = lj_item_tira();
+        manda_tecla(KEY_RIGHT);
+        CONFERE(cursor == lj_item_porco(), "Porquinho: as setas chegam nele (%d)", cursor);
+        manda_tecla(KEY_ENTER);
+        CONFERE(porco_perg_aberta() && lj_porco_cur == 1 && run.porco == 6 && !run.porco_quebrou, "Porquinho: ENTER nele so pergunta, com o foco no nao");
+        manda_tecla(KEY_ENTER);
+        CONFERE(!porco_perg_aberta() && run.porco == 6 && run.moedas == 5 && porco_inteiro(), "Porquinho: responder nao deixa tudo como estava");
+        manda_tecla('q');
+        CONFERE(porco_perg_aberta() && porco_inteiro(), "Porquinho: o Q tambem so pergunta");
+        manda_tecla(KEY_ESC);
+        CONFERE(!porco_perg_aberta() && porco_inteiro() && t_sair < 0, "Porquinho: o ESC fecha a pergunta (e nao pede para sair)");
+        manda_tecla('q');
+        manda_tecla(KEY_TAB);
+        CONFERE(!porco_perg_aberta() && porco_inteiro() && fase == F_RLOJA, "Porquinho: o TAB na pergunta e nao (e nao sai da loja)");
+        // O clique (e o toque) no porco: a pergunta; o clique no "sim" quebra.
+        dado_desenha();
+        dado_mouse(MESA_X0 + 108, MESA_Y0 + 24, 3);
+        CONFERE(porco_perg_aberta() && porco_inteiro(), "Porquinho: um toque nele so pergunta");
+        dado_desenha();
+        dado_mouse(MESA_X0 + 108, MESA_Y0 + 24, 3);     // outro toque no mesmo lugar: fora dos botoes, nada
+        CONFERE(porco_perg_aberta() && porco_inteiro(), "Porquinho: o toque repetido no porco nao responde");
+        manda_tecla(KEY_LEFT);
+        CONFERE(lj_porco_cur == 0, "Porquinho: as setas trocam entre o sim e o nao");
+        manda_tecla(KEY_ENTER);
+        CONFERE(!porco_perg_aberta() && run.porco_quebrou && run.moedas == 11 && !run.porco, "Porquinho: o sim quebra (%d moedas)", run.moedas);
+        CONFERE(cursor < lj_n_itens() && lj_n_itens() == lj_item_tira() + 1, "Porquinho: quebrado, sai das setas (%d de %d)", cursor, lj_n_itens());
+        manda_tecla('q');
+        CONFERE(!porco_perg_aberta(), "Porquinho: quebrado, o Q nao pergunta mais");
+        // Vazio: avisa, sem perguntar.
+        des_bolsa = B_PORCO; des_nova_run(); amuleto_escolhido(0); run.porco = 0; abre_loja_run();
+        t_elev = t_virada = t_anuncio = t_misterio = 0; t_cort = -1; t_luz = 0; bolsa_pop = -1; detalhe = -1;
+        manda_tecla('q');
+        CONFERE(!porco_perg_aberta() && t_lj_aviso > 0 && porco_inteiro(), "Porquinho vazio: so o aviso");
+        t_porco = 0;
+        salva_apaga("desafio");
+        fase = F_ABERTURA; modo = M_UM;
+    }
+    // A Colecao: cima e baixo pulam a pagina inteira (15 pecas), na mesma
+    // casa, dando a volta; a secao troca pelo TAB, pelo V e pelo X (o Y, o RB
+    // e o LB do controle), e o V ali nao mexe na velocidade.
+    {
+        CONFERE(cat_pula_pagina(0, 114, 15, 1) == 15 && cat_pula_pagina(32, 114, 15, 1) == 47, "colecao: a pagina seguinte, na mesma casa");
+        CONFERE(cat_pula_pagina(100, 114, 15, 1) == 113, "colecao: a ultima pagina, mais curta, para na ultima peca (%d)", cat_pula_pagina(100, 114, 15, 1));
+        CONFERE(cat_pula_pagina(107, 114, 15, 1) == 2 && cat_pula_pagina(2, 114, 15, -1) == 107, "colecao: da a volta nas duas pontas");
+        CONFERE(cat_pula_pagina(4, 12, 15, 1) == 4 && cat_pula_pagina(4, 12, 15, -1) == 4, "colecao: com uma pagina so, nao anda");
+        int vel_antes = velocidade, fase_antes = fase;
+        fase = F_CATALOGO; cat_sec = 0; cat_i = 3; t_sair = -1;
+        manda_tecla(KEY_DOWN);
+        CONFERE(cat_sec == 0 && cat_i == 3 + FIL_N, "colecao: baixo pula a pagina e fica na secao (%d, secao %d)", cat_i, cat_sec);
+        manda_tecla(KEY_UP);
+        CONFERE(cat_i == 3, "colecao: cima volta a pagina (%d)", cat_i);
+        manda_tecla(KEY_RIGHT);
+        CONFERE(cat_i == 4, "colecao: os lados continuam de um em um (%d)", cat_i);
+        manda_tecla('v');
+        CONFERE(cat_sec == 1 && velocidade == vel_antes, "colecao: o V passa a secao e nao mexe na velocidade (%d)", cat_sec);
+        manda_tecla('x');
+        manda_tecla('x');
+        CONFERE(cat_sec == 3, "colecao: o X volta a secao, dando a volta (%d)", cat_sec);
+        manda_tecla(KEY_TAB);
+        CONFERE(cat_sec == 0, "colecao: o TAB passa a secao (%d)", cat_sec);
+        cat_i = 0; fase = fase_antes;
     }
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }

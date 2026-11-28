@@ -474,8 +474,23 @@ static void desenha_direcional(int x, int y)
     gfx_rect(x + 14, y + 7, 2, 2, C_MARFIM);
 }
 
+// O direcional com um lado so aceso (lado: -1 o esquerdo, 1 o direito; 0: o
+// de cima e o de baixo): o "<", o ">" e o "↑↓" das dicas, no controle.
+static void desenha_direcional_lado(int x, int y, int lado)
+{
+    desenha_direcional(x, y);
+    gfx_rect(x + 8, y + 2, 2, 2, C_CINZA);                           // as pontas, apagadas
+    gfx_rect(x + 8, y + 13, 2, 2, C_CINZA);
+    gfx_rect(x + 2, y + 7, 2, 2, C_CINZA);
+    gfx_rect(x + 14, y + 7, 2, 2, C_CINZA);
+    if (lado) gfx_rect(lado < 0 ? x + 1 : x + 12, y + 6, 5, 5, C_OURO);   // e o lado aceso, cheio
+    else { gfx_rect(x + 7, y + 1, 4, 5, C_OURO); gfx_rect(x + 7, y + 11, 4, 5, C_OURO); }
+}
+
 // A tecla de rot (n letras) no controle: o botao de face (0..3), o direcional
-// (4), ou o nome do botao em 'nome'; -1: o controle nao tem (fica a tecla).
+// (4; 6 e 7: so o lado esquerdo ou o direito dele, o "<" e o ">"; 8: o de cima
+// e o de baixo, o "↑↓"), ou o nome do botao em 'nome'; -1: o controle nao tem
+// (fica a tecla).
 static int botao_da_tecla(const char *rot, int n, const char **nome)
 {
     bool xbox = dica_estilo() != CONTROLE_PS;
@@ -484,7 +499,9 @@ static int botao_da_tecla(const char *rot, int n, const char **nome)
     if (n == 9 && !strncmp(rot, "BACKSPACE", 9)) return BT_DIREITA;
     if (n == 3 && !strncmp(rot, "TAB", 3)) return BT_CIMA;
     if (n == 1 && rot[0] == 'I') return BT_ESQUERDA;
-    if ((n == 5 && !strncmp(rot, "setas", 5)) || eh_setas_v(rot, n)) return 4;
+    if (n == 5 && !strncmp(rot, "setas", 5)) return 4;
+    if (eh_setas_v(rot, n)) return 8;
+    if (n == 1 && (rot[0] == '<' || rot[0] == '>')) return rot[0] == '<' ? 6 : 7;
     if (n == 3 && !strncmp(rot, "ESC", 3)) *nome = xbox ? "START" : "OPTIONS";
     else if (n == 1 && rot[0] == 'B') *nome = xbox ? "VIEW" : "SHARE";
     else if (n == 1 && rot[0] == 'X') *nome = xbox ? "LB" : "L1";
@@ -505,6 +522,10 @@ static int tecla(int x, int y, const char *rot, int n, bool desenha)
     }
     if (bt == 4) {
         if (desenha) desenha_direcional(x, y);
+        return 18;
+    }
+    if (bt >= 6 && bt <= 8) {
+        if (desenha) desenha_direcional_lado(x, y, bt == 6 ? -1 : bt == 7 ? 1 : 0);
         return 18;
     }
     if (nome) { rot = nome; n = (int)strlen(nome); }
@@ -775,7 +796,7 @@ static int ui_entra(float t, int i, int dist)
 // No toque (celular, tablet) nao ha "passar por cima": nas telas de jogo
 // (a partida, a loja, o mapa, os amuletos, a escolha da bolsa) as areas que
 // fazem alguma coisa pedem dois toques - o primeiro escolhe e mostra o que e,
-// o segundo confirma. Voltar, olhar a bolsa, o som, a velocidade e os menus
+// o segundo confirma. Voltar, olhar a bolsa, o painel de opcoes e os menus
 // seguem com um toque so.
 // ---------------------------------------------------------------------------
 typedef struct { int16_t x, y, w, h; int *var; int val; int tecla; bool confirma; } zona_clique_t;
@@ -799,8 +820,8 @@ static void zona_clique(int x, int y, int w, int h, int *var, int val, int tecla
 {
     if (n_zonas >= MAX_ZONAS) return;
     // So olhar (ou voltar) nao pede confirmacao: setas, ESC, BACKSPACE, a
-    // bolsa e o som (>= 0x200), a velocidade e os detalhes.
-    bool so_olha = !tecla || tecla == KEY_BKSP || tecla == KEY_ESC || tecla >= KEY_UP || tecla == 'v' || tecla == 'i';
+    // bolsa e o som (>= 0x200), o menu de opcoes e os detalhes.
+    bool so_olha = !tecla || tecla == KEY_BKSP || tecla == KEY_ESC || tecla >= KEY_UP || tecla == 'm' || tecla == 'i';
     zonas[n_zonas++] = (zona_clique_t){ (int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, var, val, tecla,
                                         fase_de_acao() && !so_olha };
 }

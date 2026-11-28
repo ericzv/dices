@@ -41,6 +41,17 @@ int  dado_sons_precisos(uint8_t *som, uint8_t *rola);
 // O medidor de quadros (uma opcao do painel do som): ligado, a plataforma
 // escreve no canto os quadros por segundo e o tempo de cada quadro.
 bool dado_medidor(void);
+// A janela (duas linhas do painel de opcoes, para quem joga com o controle
+// ou no toque): a plataforma entrega a tela cheia (se esta ligada, e trocar)
+// e o tamanho da mesa (em % do maior que cabe; d: quanto somar). Sem chamar
+// (os testes), as duas linhas nem aparecem.
+typedef struct {
+    bool (*tela_cheia)(void);
+    void (*alterna_tela_cheia)(void);
+    int  (*mesa)(void);
+    void (*muda_mesa)(int d);
+} dado_janela_t;
+void dado_janela(const dado_janela_t *j);
 
 // Modo online. Os dois computadores rodam a mesma partida com a mesma
 // semente; so viajam as teclas de quem esta na vez de decidir.

@@ -656,7 +656,7 @@ static void desenha_run_perdida(void)
     snprintf(s, sizeof s, "%d %s  ·  %d dados na bolsa  ·  %d moedas", run.vitorias,
              run.vitorias == 1 ? "partida vencida" : "partidas vencidas", run.n_col, run.moedas);
     gfx_texto(cx - gfx_largura(s, GFX_FINO) / 2, MESA_Y1 - 50, s, C_TEXTO_M, GFX_FINO, false);
-    teclas_c(GFX_W / 2, MESA_Y1 - 20, "ENTER volta ao menu", C_MARFIM_S);
+    rodape_run("ENTER volta ao menu");               // a dica de botao, no rodape como nas outras telas
 }
 
 // A run vencida: a bolsa campea posta na mesa, o flash e a foto, que fica
@@ -668,7 +668,7 @@ static void foto_clique(float antes, float agora)          // o clique da maquin
 }
 static void desenha_run_campea(int n)
 {
-    char s[96], leg[64];
+    char leg[64];
     txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "VITÓRIA", C_OURO, 2);
     txt_c(GFX_W / 2, MESA_Y0 + 40, run.andar >= DES_ANDAR_FINAL ? "Você venceu O CORINGA e fechou o cassino."
                                                                  : "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
@@ -690,8 +690,7 @@ static void desenha_run_campea(int n)
         else txt_c(GFX_W / 2, fy + fh + 3, "a foto fica no seu histórico", C_TEXTO_M, false);
     }
     if (n) nov_linha_fim(MESA_Y1 - 42);               // o que abriu vem depois, card a card
-    snprintf(s, sizeof s, "%s", n ? "ENTER mostra as novidades" : "ENTER segue");
-    teclas_c(GFX_W / 2, MESA_Y1 - 20, s, C_MARFIM_S);
+    rodape_run(n ? "ENTER mostra as novidades" : "ENTER segue");   // a dica de botao, no rodape
 }
 
 static void desenha_fim_run(void)
@@ -735,7 +734,7 @@ static void desenha_creditos(void)
         }
         y += L[i].tipo == 2 ? LINHA_FINA : L[i].tipo == 1 ? 18 : 20;
     }
-    teclas_c(GFX_W / 2, y + 10, "ENTER volta ao menu", C_MARFIM_S);
+    rodape_run("ENTER volta ao menu");
 }
 
 // As moedas da vitoria, em fileira: entram uma a uma (andamento.inc), a

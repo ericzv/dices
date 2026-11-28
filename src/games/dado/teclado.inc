@@ -83,6 +83,7 @@ void dado_tecla(const key_event_t *ev_)
     if (k == 'k' && !dado_digitando()) { ctrl_abre(); return; }
     if (k == 'm' && !dado_digitando()) { som_abre(); return; }
     if (k == 'n' && !dado_digitando()) { som_alterna_musica(); return; }
+    if (porco_perg_aberta()) { armada.ativo = false; porco_perg_tecla(k); return; }   // "Deseja quebrar o porquinho?" (desafio/loja.inc)
     if (bolsa_pop >= 0) { bolsa_fecha(); return; }   // o pop-up da bolsa: qualquer tecla fecha
     if (k == 'b' && !dado_digitando() && bolsa_abre_tecla()) return;   // B: a sua bolsa
 
@@ -95,13 +96,10 @@ void dado_tecla(const key_event_t *ev_)
         return;
     }
     if (t_anuncio > 0 && k != KEY_ESC) { t_anuncio = 0; return; }   // e o que a maquina fez
-    if (k == 'v' && !dado_digitando()) {
-        velocidade = (velocidade + 1) % VEL_N;     // normal, media, rapida
-        char g[2] = { VEL_GRAVA[velocidade], 0 };
-        salva_grava("vel", g);
+    if (k == 'v' && !dado_digitando() && fase != F_CATALOGO) {   // (na Colecao o V, o RB do controle, troca a secao)
+        muda_velocidade(1);                        // normal, media, rapida (painel_som.inc: o painel tambem troca)
         t_aviso_vel = 1.6f;
         t_aviso_tremor = t_aviso_letra = 0;
-        som_toca(SOM_TIQUE);
         return;
     }
     if (k == 't' && !dado_digitando()) {
@@ -162,7 +160,7 @@ bool dado_mouse_clicavel(void)
     for (int i = n_zonas - 1; i >= 0; i--)              // a de cima primeiro, como no clique
         if (mouse_em(zonas[i].x, zonas[i].y, zonas[i].w, zonas[i].h)) {
             if (!zonas[i].var && !zonas[i].tecla) return false;   // a zona muda: so engole o clique
-            if (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA) return true;
+            if (!alheia || zonas[i].tecla == KEY_ESC || zonas[i].tecla == TECLA_BOLSA || zonas[i].tecla == 'm') return true;
         }
     return false;
 }
@@ -211,6 +209,10 @@ void dado_mouse(int x, int y, int acao)
     // Uma bolsa (a sua ou a do oponente): so olhar, vale ate na vez dos outros.
     if (z && z->tecla == TECLA_BOLSA) {
         if (acao == 1) bolsa_abre(z->val);
+        return;
+    }
+    if (z && z->tecla == 'm' && !som_aberto) {          // o "Menu" (o painel de opcoes): tambem
+        if (acao == 1) { ui_aperta(x, y); manda_tecla('m'); }
         return;
     }
     // Na vez da IA ou do rival online, o mouse nao mexe em nada; so o "<" de
@@ -323,6 +325,17 @@ static void menu_executa(int i)
     }
 }
 
+// A Colecao, de pagina em pagina: da peca i (de n, 'por' em cada pagina) para
+// a mesma casa da pagina seguinte (d > 0) ou da de antes, dando a volta; na
+// ultima pagina, mais curta, fica na ultima peca. Uma pagina so: nao anda.
+static int cat_pula_pagina(int i, int n, int por, int d)
+{
+    int pags = (n + por - 1) / por;
+    if (pags <= 1) return i;
+    int pag = (i / por + (d > 0 ? 1 : pags - 1)) % pags, j = pag * por + i % por;
+    return j < n ? j : n - 1;
+}
+
 // A tecla ja traduzida, venha de quem vier: pessoa ou IA.
 static void trata_tecla(int k)
 {
@@ -417,25 +430,33 @@ static void trata_tecla(int k)
         return;
     }
 
-    case F_CATALOGO:
-        // Cima e baixo (e TAB) trocam a secao; os lados passam as paginas.
-        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's' || k == KEY_TAB || (k >= '1' && k <= '4')) {
-            int sec = k == KEY_TAB ? (cat_sec + 1) % 4 : k >= '1' && k <= '4' ? k - '1'
-                    : k == KEY_DOWN || k == 's' ? (cat_sec < 3 ? cat_sec + 1 : 3) : (cat_sec > 0 ? cat_sec - 1 : 0);
+    case F_CATALOGO: {
+        // TAB (o Y do controle) e V (o RB) passam a secao seguinte, X (o LB) a
+        // de antes, 1 a 4 (as abas) escolhem. Os lados passam as pecas uma a
+        // uma; cima e baixo pulam a pagina inteira (a fileira de 15, ou a
+        // lista das conquistas), na mesma casa dela.
+        if (k == KEY_TAB || k == 'v' || k == 'x' || (k >= '1' && k <= '4')) {
+            int sec = k == 'x' ? (cat_sec + 3) % 4 : k >= '1' && k <= '4' ? k - '1' : (cat_sec + 1) % 4;
             if (sec != cat_sec) { cat_sec = sec; t_fase = 0; som_toca(SOM_TIQUE); }
             return;
         }
+        int *var = cat_sec == 0 ? &cat_i : cat_sec == 1 ? &cat_a : cat_sec == 2 ? &cat_ad : &cat_cq;
+        int n = cat_sec == 0 ? n_catalogo() : cat_sec == 1 ? n_amuletos_jogo() : cat_sec == 2 ? N_AD_COLECAO : n_cat_conquistas();
+        int por = cat_sec == 3 ? LCQ_POR : FIL_N;
+        if (k == KEY_UP || k == KEY_DOWN || k == 'w' || k == 's') {
+            int i = cat_pula_pagina(*var, n, por, k == KEY_DOWN || k == 's' ? 1 : -1);
+            if (i != *var) { *var = i; t_fase = 0; som_toca(SOM_TIQUE); }
+            return;
+        }
         if (e) {
-            if (cat_sec == 0) cat_i = (cat_i + e + n_catalogo()) % n_catalogo();
-            else if (cat_sec == 1) cat_a = (cat_a + e + n_amuletos_jogo()) % n_amuletos_jogo();
-            else if (cat_sec == 2) cat_ad = (cat_ad + e + N_AD_COLECAO) % N_AD_COLECAO;
-            else cat_cq = (cat_cq + e + n_cat_conquistas()) % n_cat_conquistas();
+            *var = (*var + e + n) % n;
             t_fase = 0;
             som_toca(SOM_TIQUE);
             return;
         }
         if (k == KEY_ENTER || k == KEY_BKSP) ao_menu_sem_partida();
         return;
+    }
 
     case F_LOJA: {
         jogador_t *p = &J[vez];

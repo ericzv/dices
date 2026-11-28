@@ -1238,12 +1238,13 @@ static void faixa_jogador(int j)
         gfx_texto(rx + wr + wp, ty, en, t_aviso_entrada > 0 ? C_OURO : C_MARFIM_S, 1, true);
     }
     if (!cima && som_ligado()) icone_som(GFX_W / 2 - 8, y0 + FAIXA_H / 2 - 7);
-    if (!cima && modo != M_ONLINE) {        // a velocidade, que o toque tambem troca
-        static const char *const VEL_NOME[VEL_N] = { "» normal", "» médio", "» rápido" };
-        const char *v = VEL_NOME[velocidade];
-        int vx = GFX_W / 2 + 22;
-        gfx_texto(vx, y0 + FAIXA_H / 2 - 10, v, velocidade == VEL_RAPIDA ? C_OURO : velocidade == VEL_MEDIA ? C_MARFIM_S : C_TEXTO_M, 1, false);
-        zona_clique(vx - 4, y0 + 6, gfx_largura(v, 1) + 8, FAIXA_H - 12, NULL, 0, 'v');
+    if (!cima && modo != M_ONLINE) {        // o "Menu": abre o painel de opcoes (a velocidade mora la), com a tecla ao lado
+        int bw = gfx_largura("Menu", 1) + 18, bh = TXT_H + 4, vx = GFX_W / 2 + 20, vy = y0 + (FAIXA_H - bh) / 2 - 1;
+        int tw = tecla(0, 0, "M", 1, false);
+        bool em = !som_aberto && mouse_em(vx - 2, y0 + 4, bw + tw + 10, FAIXA_H - 8);
+        ui_botao(vx, vy, bw, bh, "Menu", 0, em ? UI_FOCO : 0);
+        tecla(vx + bw + 5, y0 + (FAIXA_H - TECLA_H) / 2, "M", 1, true);
+        zona_clique(vx - 2, y0 + 4, bw + tw + 10, FAIXA_H - 8, NULL, 0, 'm');
     }
     if (modo == M_DESAFIO)                  // os do oponente, junto da bolsa (o meio e da rodada)
         amuletos_faixa(j, j == 0 ? x + 60 + gfx_largura(s, 1) : GFX_W - 142, y0 + FAIXA_H / 2);

@@ -14,7 +14,7 @@ Depois de cada dado: parar ou arriscar o próximo. O primeiro sempre é válido;
 seguintes precisam ser iguais ou maiores que o último dado válido — se sair
 menor, os dois são anulados. Entre os turnos tem aposta — menos quando quem abriu
 termina com 0: aí ele perde na hora, e o outro leva o pote sem jogar. E 103
-dados mudam as regras (veja o menu **Dados da casa** no jogo; no Natal, mais
+dados mudam as regras (veja a **Coleção**, no menu do jogo; no Natal, mais
 9; o Modo Desafiante abre mais 4).
 
 Proteção, só de dois jeitos, com o mesmo ícone em todo lugar: o escudo
@@ -107,7 +107,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   | Saco de Pano | os dados de sempre; vem com um D8 | sem regra | desde o começo |
   | Copo de Couro | o Viciado no lugar dos D2; vem com um D8 | compra 6 dados por rodada | vencer o Crupiê |
   | Lata de Biscoito | adesivo e pacote de adesivos custam 1 a menos; vem com o Adesivado (já com 3 adesivos) | as lojas vendem 1 dado a menos | ter 3 adesivos colados |
-  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja (Q) quando quiser; vem com Riqueza, Pobreza e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
+  | Porquinho | cada mesa põe 2 moedas nele; quebre-o na loja quando quiser (ele é um item da loja como os outros, ou a tecla Q; o jogo sempre pergunta "Deseja quebrar o porquinho?" antes, com o foco no "não"); vem com Riqueza, Pobreza e Agiota | até quebrar, cada mesa paga 1 a menos | sair de uma loja com 12 moedas |
   | Saco de Sementes | +1 nos seus dados nas duas últimas rodadas; vem com a Semente e o Par (e uma Moeda só) | -1 nas rodadas 1 e 2 | vencer uma partida começando a 7ª rodada atrás em fichas |
   | Estojo de Lápis | +1 dado na sequência; vem com o Dobro e a Moeda sorte | toda rodada começa com -2 | vencer 3 rodadas de uma partida com 4 dados válidos |
   | Bauzinho | começa com 2 amuletos; vem com um D8 e a Ficha Velha | cabem só 4 amuletos | ter 5 amuletos |
@@ -404,7 +404,7 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   mostra o que está aberto; o que falta aparece só como um "?", com o nome e
   qual chefe o abre (sem o desenho nem o que faz).
 - **Registro das partidas** (versão de teste, só no computador): ligando
-  "Registrar partidas" no painel do som (M, ou o RT no controle; começa
+  "Registrar partidas" no painel de opções (M, ou o RT no controle; começa
   desligado e fica guardado), cada partida sua no Desafiante vira linhas
   de texto num arquivo da pasta **registros**, ao lado do jogo (no Mac, ao
   lado do .app). A pasta fica mesmo trocando o .exe por uma versão nova; um
@@ -587,16 +587,18 @@ e mostra o que ela faz (o lembrete "toque de novo" aparece em cima), e o
 segundo confirma. Vale para pôr e tirar dados da sequência, jogar, apostar,
 correr, comprar, re-sortear a loja, tirar dado, colar adesivo, seguir para
 o mapa, sentar à mesa, levar o amuleto e escolher a bolsa. Os menus,
-voltar, olhar uma bolsa e o painel do som seguem com um toque só. Com
-mouse, um clique basta como sempre.
+voltar, olhar uma bolsa e o painel de opções seguem com um toque só (e a
+pergunta do Porquinho, que já é a confirmação). Com mouse, um clique basta
+como sempre. O botão **Menu**, na faixa de baixo da mesa (e o **opções**, no
+alto do menu), abre o painel de opções sem teclado.
 
 Para digitar (o nome do perfil, o código da sala), um toque na tela abre o
 teclado do aparelho.
 
 A página não dá zoom nem rola: o toque duplo e a pinça são do jogo, e a mesa
 ocupa a área visível inteira (sem a parte atrás da barra do navegador). Para
-saber se o aparelho dá conta, ligue o **medidor de quadros** no painel do som
-(o alto-falante da mesa, o M ou o RT): ele escreve no canto os quadros por
+saber se o aparelho dá conta, ligue o **medidor de quadros** no painel de
+opções (o Menu da mesa, o M ou o RT): ele escreve no canto os quadros por
 segundo, o tempo de cada quadro e quantos atrasaram.
 
 ## Jogar no computador
@@ -624,13 +626,13 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior, o tremor da tela, o medidor de quadros e, no computador, o registro das partidas (fica guardado; a partida espera) |
+| M | Abre o painel de opções: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a velocidade, a letra maior, o tremor da tela, a tela cheia, o tamanho da mesa, o medidor de quadros e, no computador, o registro das partidas (fica guardado; a partida espera). Na mesa, o botão **Menu** da faixa de baixo abre o mesmo painel; no menu, o botão **opções** |
 | N | Liga e desliga só a música (volta ao volume de antes) |
-| V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
+| V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada; também é uma linha do painel de opções). Na Coleção, passa à seção seguinte (o X, à de antes) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
 | L | Letra maior ou normal (fica guardada) |
-| F11 ou Alt+Enter | Tela cheia |
-| – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado) |
+| F11 ou Alt+Enter | Tela cheia (também no painel de opções) |
+| – e + | Diminuem e aumentam a mesa na tela (de 50% a 100%; fica guardado; também no painel de opções) |
 | F12 | Salva uma foto da tela (`dado_*.png`) |
 | K | Mostra o que faz cada botão do controle |
 | B, ou clicar numa bolsa | Mostra os dados da bolsa (a sua ou, na partida, a do oponente); a partida espera |
@@ -648,8 +650,11 @@ K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
 Tudo no jogo se faz pelo controle: o nome do perfil e o código da sala online
 se escrevem num teclado na tela (o direcional escolhe a letra, o A escreve,
 o B apaga e o Y confirma); nos perfis, o Y abre o histórico e o X o estilo;
-a letra maior, o tremor da tela e o medidor de quadros ficam no painel do
-som (o RT).
+a velocidade, a letra maior, o tremor da tela, a tela cheia, o tamanho da
+mesa e o medidor de quadros ficam no painel de opções (o RT); na loja, o
+Porquinho é um item como os outros (o direcional chega nele e o A pede para
+quebrar); na Coleção, o direcional para cima e para baixo pula a página
+inteira e o LB e o RB trocam a seção.
 
 | Xbox | PlayStation | O que faz |
 |---|---|---|
@@ -661,9 +666,9 @@ som (o RT).
 | Start | Options | O ESC |
 | View | Share | Mostra a sua bolsa (o B) |
 | LB | L1 | Recusa (o X) |
-| RB | R1 | Velocidade (o V) |
+| RB | R1 | Velocidade (o V); na Coleção, a seção seguinte |
 | LT | L2 | Mostra o que faz cada botão (o K) |
-| RT | R2 | O painel do som, a letra maior, o tremor, o medidor de quadros e o registro das partidas (o M) |
+| RT | R2 | O painel de opções: os volumes, a velocidade, a letra maior, o tremor, a tela cheia, o tamanho da mesa, o medidor de quadros e o registro das partidas (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1), e as dicas da tela mostram os botões
@@ -749,7 +754,7 @@ vídeo só amplia. Para não pesar em aparelho fraco:
   jogo pula uma repintura sim, outra não; e o quadro que saiu igual ao que
   já está na tela (a mesa esperando a jogada, a loja parada) não é enviado
   de novo à placa de vídeo. O jogo anda e desenha como sempre.
-- **O medidor de quadros** (no painel do som) mostra tudo isso no próprio
+- **O medidor de quadros** (no painel de opções) mostra tudo isso no próprio
   aparelho: quadros por segundo (e quantos foram para a tela), o tempo de
   cada quadro, os atrasados, a memória dos sons e quantos foram decodificados
   na hora de tocar.

@@ -114,8 +114,9 @@ static void desenha_cat_conquistas(int i);   // desafio/colecao.inc
 static int  n_cat_conquistas(void);
 static void cadeado(int x, int y, uint16_t c, int e);
 
-// As faixas da colecao: a chave Dados | Amuletos, a contagem e as teclas.
-static void faixas_colecao(int atual, int total)
+// As faixas da colecao: a chave Dados | Amuletos, a contagem, a pagina (com
+// mais de uma: 'por' pecas em cada) e as teclas.
+static void faixas_colecao(int atual, int total, int por)
 {
     faixa_madeira(0);
     int ty = (FAIXA_H - TXT_H) / 2 - 2;
@@ -127,14 +128,26 @@ static void faixas_colecao(int atual, int total)
         zona_clique(x0 + i * w, y0, w, h, NULL, 0, '1' + i);
     }
     char s[32];
+    int pags = (total + por - 1) / por;
     snprintf(s, sizeof s, "%d de %d", atual + 1, total);
-    txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
+    if (pags > 1) {                               // em duas linhas: a peca e a pagina
+        gfx_texto(GFX_W - 18 - gfx_largura(s, GFX_FINO), 3, s, C_MARFIM_S, GFX_FINO, false);
+        snprintf(s, sizeof s, "página %d de %d", atual / por + 1, pags);
+        int f = fonte_que_cabe(s, GFX_FINO, GFX_W - 18 - (x0 + 4 * w + 8));    // (ate as abas)
+        gfx_texto(GFX_W - 18 - gfx_largura(s, f), 19, s, C_TEXTO_M, f, false);
+    } else txt(GFX_W - 18 - gfx_largura(s, 1), ty, s, C_TEXTO_M, false);
     int yb = GFX_H - FAIXA_H;
     faixa_madeira(yb);
-    teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, cat_sec == 0 ? "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta"
-             : cat_sec == 1 ? "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta"
-             : cat_sec == 2 ? "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta"
-             : "setas passam a lista  ·  TAB troca a seção  ·  ENTER volta", C_TEXTO_M);
+    // Os lados passam um a um; com mais de uma pagina, cima e baixo pulam a pagina inteira.
+    static const char *const UMA[4] = { "setas trocam o dado  ·  TAB troca a seção  ·  ENTER volta",
+                                        "setas trocam o amuleto  ·  TAB troca a seção  ·  ENTER volta",
+                                        "setas trocam o adesivo  ·  TAB troca a seção  ·  ENTER volta",
+                                        "setas passam a lista  ·  TAB troca a seção  ·  ENTER volta" };
+    static const char *const VARIAS[4] = { "setas trocam o dado  ·  ↑↓ pulam a página  ·  TAB troca a seção  ·  ENTER volta",
+                                           "setas trocam o amuleto  ·  ↑↓ pulam a página  ·  TAB troca a seção  ·  ENTER volta",
+                                           "setas trocam o adesivo  ·  ↑↓ pulam a página  ·  TAB troca a seção  ·  ENTER volta",
+                                           "setas passam a lista  ·  ↑↓ pulam a página  ·  TAB troca a seção  ·  ENTER volta" };
+    teclas_c(GFX_W / 2, yb + (FAIXA_H - TECLA_H) / 2 + 1, (pags > 1 ? VARIAS : UMA)[cat_sec], C_TEXTO_M);
 }
 
 // ---- A vitrine e a fileira ------------------------------------------------
@@ -191,7 +204,8 @@ static void fileira_misterio(int x, int y, bool conquista)
 
 // A fileira embaixo: a pagina de pecas em que esta a da vitrine, a dela com
 // as cantoneiras. As fechadas sao so um "?". O mouse em cima
-// troca a vitrine; a pagina so vira pelas setas (ou na ponta dela).
+// troca a vitrine; a pagina vira pelas setas: os lados na ponta dela, ou cima
+// e baixo, que pulam a pagina inteira (a faixa de cima diz qual e).
 #define FIL_N     15
 #define FIL_PASSO 38
 #define FIL_Y     (MESA_Y1 - 24)
@@ -255,11 +269,6 @@ static void fileira_colecao(int sec, int atual, int total, int *var)
         }
         zona_clique(x - FIL_PASSO / 2, FIL_Y - 18, FIL_PASSO, 36, var, i, 0);
     }
-    int pags = (total + FIL_N - 1) / FIL_N, pag = atual / FIL_N;
-    if (pags > 1) {                                   // a pagina: pontinhos na ponta da prateleira
-        int px = x0 + (FIL_N - 1) * FIL_PASSO + 30, py = FIL_Y + 20;
-        for (int k = 0; k < pags; k++) gfx_rect(px - (pags - k) * 5, py, 3, 3, k == pag ? C_OURO : C_FELTRO2);
-    }
 }
 
 // A nota ao lado da etiqueta de raridade: inteira se couber ate o fim da
@@ -278,7 +287,7 @@ static void desenha_catalogo(void)
     int tipo = cat_tipo(cat_i);
     const tipo_t *d = &TIPO[tipo];
     char s[32];
-    faixas_colecao(cat_i, n_catalogo());
+    faixas_colecao(cat_i, n_catalogo(), FIL_N);
     char trava[80];
     int st = cat_trava_dado(tipo, trava, sizeof trava);
 
@@ -433,5 +442,5 @@ static void desenha_detalhe(void)
         txt_c(cx, y0 + 150, "Poder desativado", C_VINHO_CLR, true);
         motivo_desligado(cx, y0 + 150 + TXT_H + txt_passo() / 2, desl, C_MARFIM_S, 150);   // em duas, centradas
     }
-    txt_c(GFX_W / 2, y0 + h - 28, "qualquer tecla fecha", C_TEXTO_M, false);
+    txt_c(GFX_W / 2, y0 + h - 28, dica_estilo() ? "qualquer botão fecha" : "qualquer tecla fecha", C_TEXTO_M, false);
 }

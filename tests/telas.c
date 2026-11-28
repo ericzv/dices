@@ -105,6 +105,12 @@ static void tela(const char *nome)
     if (fotos) foto(nome);
 }
 
+// A janela de mentira, para o painel de opcoes sair com todas as linhas.
+static bool j_cheia(void) { return false; }
+static void j_alterna(void) {}
+static int  j_mesa(void) { return 100; }
+static void j_muda(int d) { (void)d; }
+
 // O passeio: as mesmas telas, sempre na mesma ordem e no mesmo instante.
 static void passeio(void)
 {
@@ -121,7 +127,9 @@ static void passeio(void)
     perfis[0].cq_encontro[2] = 2; perfis[0].cq_rodadas = 120; perfis[0].cq_colados = 7; perfis[0].cq_oponentes = 0x5A5;
 
     fase = F_ABERTURA; menu_tela = MT_PRINCIPAL; t_fase = 0; menu_cur = 0; passa(150); tela("menu");
+    dado_janela(&(dado_janela_t){ j_cheia, j_alterna, j_mesa, j_muda });
     som_abre(); passa(30); tela("painel_som"); som_aberto = false;
+    dado_janela(NULL);
     menu_tela = MT_DESAFIO; t_fase = 0; passa(60); tela("menu_desafio");
     des_abre_perfis(); passa(40); tela("perfis");
     dif_cur = 2; fase = F_RDIFIC; t_fase = 0; passa(40); tela("dificuldade");

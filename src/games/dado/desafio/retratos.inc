@@ -307,10 +307,15 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(4, hy + 1 + bravo, 12, 1, RGB(60, 150, 100));        // viseira (virado, ele a baixa)
         rr(5, hy + 2 + bravo, 10, 1, gfx_mistura(RGB(60, 150, 100), C_FELTRO, 30));
         if (bravo) {                                           // e ela sombreia o olhar: so o brilho dos olhos
-            rr(5, hy + 1, 10, 1, PRETO);
-            rr(6, hy + 4, 8, 2, sombra(P_CLARA));
-            rp(7, hy + 6, sombra(P_CLARA)); rp(12, hy + 6, sombra(P_CLARA));   // (sem o branco dos olhos)
-            rp(7, hy + 7, sombra(P_CLARA)); rp(12, hy + 7, sombra(P_CLARA));
+            rr(5, hy + 1, 10, 1, PRETO);                        // (onde a viseira estava, o cabelo)
+            // A sombra da aba: uma faixa inteira na largura do rosto, das
+            // sobrancelhas aos olhos, que clareia na ultima linha.
+            rr(5, hy + 4, 9, 3, gfx_mistura(P_CLARA, PRETO, 62));
+            rr(5, hy + 7, 9, 1, gfx_mistura(P_CLARA, PRETO, 36));
+            if (!pisca) {                                       // no escuro, so dois pontos de luz
+                uint16_t brilho = gfx_mistura(C_BRANCO, RGB(236, 214, 150), 35);
+                rp(8, hy + 6, brilho); rp(11, hy + 6, brilho);
+            }
         }
         if (!boca) rr(8, hy + 9, 4, 1, PRETO);                  // bigode fino
         break;

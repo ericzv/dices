@@ -861,6 +861,42 @@ static void lj_carimbo(int cx, int cy, float t, const char *s)
     txt_c(cx + 1, y + 3 + cresce / 2, s, C_VINHO_CLR, true);
 }
 
+// O molde dos cartoes da loja, igual nos tres (dado, adesivo, pacote): o
+// desenho grande em cima, o nome na fonte grande (na fina ou na miuda, se
+// nao couber), uma linha miuda com o tipo ("D8 · raro", "adesivo · raro",
+// "pacote · dados") na etiqueta de sempre e o preco embaixo.
+#define LJ_DES_Y   34                    // o meio do desenho
+#define LJ_NOME_Y  57
+#define LJ_TIPO_Y  78
+static void lj_nome_tipo(int cx, int y, int cw, const char *nome, uint16_t cn, const char *tipo, uint16_t ct)
+{
+    if (gfx_largura(nome, 1) <= cw - 8) txt_c(cx, y + LJ_NOME_Y, nome, cn, true);
+    else nome_no_cartao(cx, y + LJ_NOME_Y + 1, nome, cn, cw - 6);
+    if (gfx_largura(tipo, GFX_MIUDO) + 8 <= cw - 4) { ui_selo_c(cx, y + LJ_TIPO_Y, tipo, ct, GFX_MIUDO); return; }
+    int w = gfx_largura(tipo, GFX_MIUDO_FIXO) + 8;            // (com a letra maior nao cabe no cartao: a etiqueta fica na miuda)
+    ui_etiqueta(cx - w / 2, y + LJ_TIPO_Y + 1, w, 12, ct);
+    gfx_texto(cx - w / 2 + 4, y + LJ_TIPO_Y, tipo, ct, GFX_MIUDO_FIXO, false);
+}
+// A cartela do adesivo: ele nao vem colado em dado nenhum - vem na folha de
+// papel encerado em que e vendido, com o furo de pendurar em cima. E o que
+// separa, de longe, o cartao de adesivo do cartao de dado.
+static void lj_cartela(int cx, int cy)
+{
+    const int w = 46, h = 48, x = cx - w / 2, y = cy - h / 2 - 1;
+    const uint16_t papel = C_MARFIM_S, luz = C_MARFIM, dobra = RGB(166, 154, 132);
+    ui_sombra(x, y, w, h);
+    gfx_rect(x + 1, y + 1, w - 2, h - 2, papel);
+    gfx_rect(x + 2, y + 1, w - 4, 1, luz); gfx_rect(x + 1, y + 2, 1, h - 4, luz);           // a luz de cima, a esquerda
+    gfx_rect(x + 2, y + h - 2, w - 4, 1, dobra); gfx_rect(x + w - 2, y + 2, 1, h - 4, dobra);
+    for (int j = 9; j < h - 3; j++)                                                        // o brilho do papel encerado, em diagonal
+        for (int i = 3; i < w - 3; i++)
+            if ((i + j) % 13 < 3 && bayer(x + i, y + j) < 0.5f) gfx_pixel(x + i, y + j, luz);
+    ui_contorno(x, y, w, h, C_BARRA);
+    gfx_rect(cx - 5, y + 4, 10, 3, C_FELTRO_ESC);                                          // o furo de pendurar
+    gfx_rect(cx - 4, y + 3, 8, 1, C_FELTRO_ESC); gfx_rect(cx - 4, y + 7, 8, 1, C_FELTRO_ESC);
+    gfx_rect(cx - 4, y + 8, 8, 1, dobra);
+}
+
 static void lj_cartao_dado(int i)
 {
     int x = lj_card_x(i), cw = lj_cw();
@@ -878,11 +914,13 @@ static void lj_cartao_dado(int i)
     if (!ja || t_lj_vendido[i] < 0.12f) {
         if (cur && !ja) brilho_passa = mola_brilho();
         marca_nivel = pc.fixo;
-        desenha_dado((float)(x + dx), y + 40 + bob, 24, pc.tipo, 0, giro, pc.fixo, 0, false);
+        int sobe = TIPO[pc.tipo].lados == 4 ? 7 : 0;  // a piramide pesa para baixo (e o Jackpot ainda tem a janelinha): sobe, longe do nome
+        desenha_dado((float)(x + dx), y + LJ_DES_Y - sobe + bob, 22, pc.tipo, 0, giro, pc.fixo, 0, false);
         marca_nivel = -1;
     }
-    nome_no_cartao(x + dx, y + 68, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM_S, cw - 8);
-    ui_selo_c(x + dx, y + 84, RARIDADE[TIPO[pc.tipo].raridade], cor_rar(pc.tipo), GFX_MIUDO);
+    char tp[32];
+    classe(pc.tipo, tp, sizeof tp);
+    lj_nome_tipo(x + dx, y, cw, TIPO[pc.tipo].nome, cur ? cor_dado(pc.tipo) : C_MARFIM, tp, cor_rar(pc.tipo));
     if (!ja) item_visto(VS_DADO, pc.tipo);
     if (!ja && item_novo(VS_DADO, pc.tipo)) selo_novo_dir(x + dx + cw / 2 - 3, y - 7);   // abriu e e a primeira vez que aparece
     if (ja) {
@@ -1135,10 +1173,9 @@ static void lj_cartao_pacote(void)
     float ciclo = fmodf(t_relogio + 0.7f, 2.6f);                         // a cada 2,6 s, um tremelique
     int mexe = !usado && ciclo < 0.3f ? (int)(sinf(ciclo * 60) * 2 * (1 - ciclo / 0.3f)) : 0;
     float bob = cur && !usado ? sinf(t_fase * 4) * 3 - mola_px() : 0;
-    if (pacote_de_adesivos()) desenha_figurinhas(x + dx + mexe, y + 34 + (int)bob, 0.84f, usado);
-    else desenha_pacote(x + dx + mexe, y + 38 + (int)bob, 0.9f, g, usado);
-    txt_c(x + dx, y + 62, "Pacote", cur ? C_MARFIM : C_MARFIM_S, false);
-    txt_c(x + dx, y + 75, NOME_PACOTE[g], cor_pacote(g), true);
+    if (pacote_de_adesivos()) desenha_figurinhas(x + dx + mexe, y + LJ_DES_Y - 2 + (int)bob, 0.84f, usado);
+    else desenha_pacote(x + dx + mexe, y + LJ_DES_Y + 2 + (int)bob, 0.9f, g, usado);
+    lj_nome_tipo(x + dx, y, cw, NOME_PACOTE[g], cor_pacote(g), pacote_de_adesivos() ? "pacote" : "pacote · dados", cor_pacote(g));
     if (usado) {
         ui_escurece(x - cw / 2 + 1, y + 1, cw - 2, LJ_CH - 2, 110);
         lj_carimbo(x, y + LJ_CH - 17, t_pac_carimbo > 0 ? t_pac_carimbo : 1, "ABERTO");
@@ -1166,11 +1203,11 @@ static void lj_cartao_adesivo(int k)
     float ciclo = fmodf(t_relogio + 1.9f + 1.3f * k, 3.1f);
     float descola = !usado && ciclo < 0.5f ? sinf(ciclo / 0.5f * 3.1416f) : 0;
     float bob = cur && !usado ? sinf(t_fase * 4) * 3 - mola_px() : 0;
-    ad_solto_d(x + dx, y + 36 + (int)bob, a, 3, descola);
-    txt_c(x + dx, y + 62, "Adesivo", cur ? C_MARFIM : C_MARFIM_S, false);
-    const char *nome = ADESIVO[a].nome;
-    if (gfx_largura(nome, 1) <= cw - 8) txt_c(x + dx, y + 75, nome, ADESIVO[a].luz, true);
-    else nome_no_cartao(x + dx, y + 78, nome, ADESIVO[a].luz, cw - 6);
+    lj_cartela(x + dx, y + LJ_DES_Y - 2 + (int)bob);
+    ad_solto_d(x + dx, y + LJ_DES_Y + 1 + (int)bob, a, 3, descola);
+    char tp[32];
+    snprintf(tp, sizeof tp, "adesivo · %s", RARIDADE[RAR_ADESIVO[a]]);
+    lj_nome_tipo(x + dx, y, cw, ADESIVO[a].nome, ADESIVO[a].luz, tp, COR_RAR[RAR_ADESIVO[a]]);
     if (!usado) item_visto(VS_ADESIVO, a);
     if (!usado && item_novo(VS_ADESIVO, a)) selo_novo_dir(x + dx + cw / 2 - 3, y - 7);
     if (usado) {

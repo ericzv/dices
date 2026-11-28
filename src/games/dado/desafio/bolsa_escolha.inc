@@ -212,6 +212,29 @@ static void bs_linha(int y, const char *s, uint16_t c, bool sobe, uint16_t cs)
     gfx_texto(x + 12, y + (f == GFX_MIUDO ? 4 : 0), s, c, f, false);
 }
 
+// O que abre a bolsa trancada, em destaque logo abaixo do nome: a placa
+// escura com o filete de ouro pulsando, o cadeado dourado, o rotulo miudo e
+// a condicao na letra grande (na fina, se nao couber). q, de 0 a 1: a placa
+// chegando. Quem tenta escolher a trancada (t_bs_nega) ve a placa tremer e
+// piscar em branco.
+#define BS_PLACA_Y 202
+#define BS_PLACA_H 30
+static void bs_placa_abre(const char *abre, float q)
+{
+    bool nega = t_bs_nega >= 0, pisca = nega && (int)(t_bs_nega * 10) % 2;
+    int treme = nega && t_bs_nega < 0.4f ? (int)lroundf(sinf(t_bs_nega * 70) * 3 * (1 - t_bs_nega / 0.4f)) : 0;
+    int f = gfx_largura(abre, 1) <= 440 ? 1 : GFX_FINO_FIXO;
+    int tw = gfx_largura(abre, f), rw = gfx_largura("PARA ABRIR", GFX_MIUDO_FIXO);
+    int w = 12 + 18 + 10 + (tw > rw ? tw : rw) + 14, h = BS_PLACA_H;
+    int x = GFX_W / 2 - w / 2 + treme, y = BS_PLACA_Y - (int)lroundf((1 - sai_mola(q)) * 8);
+    ui_sombra(x, y, w, h);
+    ui_painel(x, y, w, h);
+    ui_contorno(x + 1, y + 1, w - 2, h - 2, pisca ? C_BRANCO : gfx_mistura(C_LATAO, C_OURO, (int)(50 + 50 * sinf(t_relogio * 3))));
+    icone_cadeado(x + 12 + 8, y + h / 2, 2, pisca ? C_BRANCO : C_OURO);
+    gfx_texto(x + 40, y + 1, "PARA ABRIR", C_LATAO, GFX_MIUDO_FIXO, false);
+    gfx_texto(x + 40, y + 9, abre, pisca ? C_BRANCO : C_AMARELO, f, f == 1);
+}
+
 // O nome, na letra do titulo: as letras caem uma a uma quando o foco chega.
 static void bs_nome(int cx, int y, const char *nome, uint16_t c, float t)
 {
@@ -459,22 +482,28 @@ static void desenha_bolsas(void)
     uint16_t cn = fechada ? C_TEXTO_M : (b == B_PANO ? C_LATAO : bo->cor);
     bs_nome(GFX_W / 2, 148, bo->nome, cn, t);
     float qa = fminf(1, (t - 0.12f) / 0.2f);                  // a regra acende depois do nome
+    // A trancada: o que a abre vem em destaque, logo abaixo do nome - a placa
+    // escura com o filete de ouro que pulsa, o cadeado e a condicao na letra
+    // grande (na fina, se nao couber). A regra e os dados do comeco descem
+    // para dar o lugar. Quem tenta escolhe-la ve a placa tremer e piscar.
+    bool trancada = fechada && !bolsa_aberta(b);
+    if (trancada && t > 0.06f) bs_placa_abre(bo->abre, fminf(1, (t - 0.06f) / 0.22f));
     if (qa > 0) {
-        int y = 194;
+        int y = trancada ? 234 : 194;
         uint16_t cg = gfx_mistura(fechada ? C_TEXTO_M : C_MARFIM, C_FELTRO, (int)((1 - qa) * 100));
         uint16_t cc = gfx_mistura(fechada ? C_TEXTO_M : C_MARFIM_S, C_FELTRO, (int)((1 - qa) * 100));
         if (b == B_PANO) {
             txt_c(GFX_W / 2, y + 6, "Os dados de sempre, sem regra nenhuma.", cg, false);
         } else {
             bs_linha(y, bo->ganho, cg, true, gfx_mistura(C_LASER, C_FELTRO, (int)((1 - qa) * 100)));
-            bs_linha(y + 18, bo->custo, cc, false, gfx_mistura(C_VINHO_CLR, C_FELTRO, (int)((1 - qa) * 100)));
+            bs_linha(y + (trancada ? 14 : 18), bo->custo, cc, false, gfx_mistura(C_VINHO_CLR, C_FELTRO, (int)((1 - qa) * 100)));
         }
     }
     // Os dados do comeco, depois do rotulo: os de base juntos (D6 x6), e os
     // que vem a mais (o D8 e os de poder), depois do "+", com o nome
     // embaixo (repetidos, com o x3 ao lado). Entram um de cada vez.
     // Os Quebrados, cada um com o numero gravado, ficam separados.
-    int tipos[BOLSA_DADOS], fixos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = 252;
+    int tipos[BOLSA_DADOS], fixos[BOLSA_DADOS], conta[BOLSA_DADOS], ng = 0, n = bolsa_n_dados(b), dy = trancada ? 277 : 252;
     for (int i = 0; i < n; i++) {
         int g = 0, fx = bolsa_fixo(b, i);
         while (g < ng && (tipos[g] != bo->dados[i] || fixos[g] != fx)) g++;
@@ -526,17 +555,13 @@ static void desenha_bolsas(void)
         x += larg[g] + 6;
     }
     if (bo->mais[0] && t > 0.2f + ng * 0.05f) txt(x + 2, dy - 10, bo->mais, fechada ? C_TEXTO_M : C_MARFIM_S, false);
-    // Embaixo de tudo: o que a abre, ou o recorde com ela.
-    char s[96];
-    if (fechada && !bolsa_aberta(b)) {
-        bool pisca = t_bs_nega >= 0 && (int)(t_bs_nega * 10) % 2;
-        snprintf(s, sizeof s, "Para abrir: %s", bo->abre);
-        txt_c(GFX_W / 2, 276, s, pisca ? C_BRANCO : C_OURO, true);
-    } else if (perfil()->bolsa_rec[b]) {
+    // Embaixo de tudo: o recorde com ela (o que abre a trancada esta na placa, la em cima).
+    if (!trancada && perfil()->bolsa_rec[b]) {
+        char s[96];
         int d = perfil()->bolsa_rec[b] - 1;
         snprintf(s, sizeof s, "Já venceu uma run com ela no %s", NOME_DIF_CURTO[d]);
         txt_c(GFX_W / 2, 278, s, COR_DIF[d], false);
     }
-    rodape_run(fechada && !bolsa_aberta(b) ? "setas escolhem  ·  esta ainda não abriu  ·  ESC volta"
+    rodape_run(trancada ? "setas escolhem  ·  esta ainda não abriu  ·  ESC volta"
                                            : "setas escolhem  ·  ENTER começa a run  ·  ESC volta");
 }

@@ -23,6 +23,7 @@ static void desenha_aviso_entrada(void)
     if (abre < 1) return;
     char t[40];
     if (!rod) snprintf(t, sizeof t, "ENTRADA: %d FICHAS", ante_da(rodada));
+    else if (rodada_e_extra(rodada) && t_aviso_entrada > 0) snprintf(t, sizeof t, "RODADA EXTRA  ·  ENTRADA %d", ante_da(rodada));
     else if (rodada_e_extra(rodada)) snprintf(t, sizeof t, "RODADA EXTRA");
     else if (t_aviso_entrada > 0) snprintf(t, sizeof t, "ÚLTIMA RODADA  ·  ENTRADA %d", ante_da(rodada));
     else snprintf(t, sizeof t, "ÚLTIMA RODADA");

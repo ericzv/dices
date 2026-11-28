@@ -30,8 +30,9 @@ em ouro.
 nos efeitos também), e só sai quando as fichas voam para quem levou; uma
 placa no meio diz quem foi e quanto ("ERICZ leva 35"), com o motivo em cima
 quando não foram os pontos (o outro correu, fez 0, a casa levou o empate).
-O número que sobe de um dado para antes do menu de jogar e da aposta (com
-dois na mesa, o menu espera um instante por ele). A faixa de cima mostra a
+O número que sobe de um dado para antes do menu de jogar e da aposta; quando
+nem parado ele cabe (o que acontece mais com dois na mesa), o menu espera um
+instante por ele, e os botões já atendem o toque nesse instante. A faixa de cima mostra a
 rodada e a entrada; a **última rodada** (e cada rodada extra) se anuncia
 numa faixa no alto da mesa. Na montagem, o dado escolhido salta da mão para
 o lugar dele e na mão fica só a silhueta, com o número. A fala do oponente

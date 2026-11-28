@@ -1043,6 +1043,10 @@ static void trunfo_faixa(int x, int y, int x_max)
 // cima quando cabem. q: 0 (fora da tela) .. 1 (no lugar).
 static void aviso_alto_lugar(int w, int h, float q, int *x, int *y)
 {
+    // Fora da mesa (mapa, loja, fim da run) nao ha faixa de cima: o lugar de
+    // sempre, no meio, logo abaixo do cabecalho.
+    bool na_mesa = fase <= F_FIM || fase == F_JOGA || fase == F_VEREDITO || fase == F_EFEITOS;
+    if (!na_mesa) { *x = GFX_W / 2 - w / 2; *y = -h + (int)((h + FAIXA_H + 6) * q); return; }
     int yf = (FAIXA_H - h) / 2, xf = GFX_W / 2 - w / 2, x_min = ficha_px[outro(baixo)] + 48;
     if (yf < 0) yf = 0;
     if (xf < x_min) xf = x_min;

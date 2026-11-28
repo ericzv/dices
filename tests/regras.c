@@ -1338,27 +1338,27 @@ static void mesa_em_movimento(void)
     // se nem parado cabe, o menu espera e o relogio do numero corre.
     modo = M_DOIS; baixo = 0;
     n_flut = 0; flut_pressa = false; flut_quadro = 100; flut_res_visto = 0;
-    CONFERE(flutua_reserva(170, 470, 143, 205, true), "sem numero no ar: o menu aparece");
+    CONFERE(flutua_reserva(FR_MENU, 170, 470, 143, 205, true), "sem numero no ar: o menu aparece");
     flut_quadro = 200; flut_res_visto = 0;
     flutua(300, 234, -1, C_OURO, 0, "+%d", 4);           // da fila de baixo: sobe, com folga
     int livre = flutua_livre(&flut[0]);
     CONFERE(livre >= 0 && livre < FLUT_SOBE, "numero da fila de baixo: anda %d antes do menu", livre);
-    CONFERE(flutua_reserva(170, 470, 143, 205, true) && !flut_pressa, "numero que cabe: o menu nao espera");
+    CONFERE(flutua_reserva(FR_MENU, 170, 470, 143, 205, true) && !flut_pressa, "numero que cabe: o menu nao espera");
     n_flut = 0; flut_quadro = 300; flut_res_visto = 0;
     flutua(300, 123, 1, C_OURO, 0, "+%d", 4);            // da fila de cima, com o menu colado nela
-    CONFERE(!flutua_reserva(170, 470, 131, 193, true) && flut_pressa, "numero que nao cabe: o menu espera");
+    CONFERE(!flutua_reserva(FR_MENU, 170, 470, 131, 193, true) && flut_pressa, "numero que nao cabe: o menu espera");
     float t0 = flut[0].t;
     flutua_passo(0.1f);
     CONFERE(n_flut == 1 && flut[0].t > t0 + 0.29f && !flut_pressa, "com o menu esperando, o numero corre 3x (%.2f)", flut[0].t - t0);
     flutua_passo(0.1f);
     CONFERE(flut[0].t < t0 + 0.41f, "sem menu esperando, o numero volta ao passo dele");
-    for (int i = 0; i < 20 && n_flut; i++) { flut_quadro++; if (!flutua_reserva(170, 470, 131, 193, true)) flutua_passo(1 / 60.0f); }
+    for (int i = 0; i < 20 && n_flut; i++) { flut_quadro++; if (!flutua_reserva(FR_MENU, 170, 470, 131, 193, true)) flutua_passo(1 / 60.0f); }
     CONFERE(n_flut == 0 || flut_res_visto == flut_quadro, "o menu nao espera mais que um instante");
     flut_quadro++;
-    CONFERE(flutua_reserva(170, 470, 131, 193, true), "o numero sumiu: o menu aparece");
+    CONFERE(flutua_reserva(FR_MENU, 170, 470, 131, 193, true), "o numero sumiu: o menu aparece");
     flutua(300, 123, 1, C_OURO, 0, "+%d", 2);
     flut_quadro++;
-    CONFERE(flutua_reserva(170, 470, 131, 193, true), "menu ja na tela: um numero novo nao o esconde");
+    CONFERE(flutua_reserva(FR_MENU, 170, 470, 131, 193, true), "menu ja na tela: um numero novo nao o esconde");
     flutua(540, 128, 1, C_OURO, 0, "+%d", 2);            // o do placar: fora da largura do menu
     CONFERE(flutua_livre(&flut[n_flut - 1]) == FLUT_SOBE, "numero do placar: o menu nao esta no caminho");
     n_flut = 0; flut_res[0] = flut_res[1] = 0;
@@ -1388,6 +1388,23 @@ static void mesa_em_movimento(void)
     CONFERE(fim_letreiro_t() > FIM_LETRA_0 && !strcmp(fim_letreiro(), "DERROTA"), "o letreiro da derrota");
     venc_partida = 2;
     CONFERE(!strcmp(fim_letreiro(), "EMPATE"), "o letreiro do empate");
+
+    // A linha de aposta sai no fim e volta depois so trocando os pontos dela
+    // na mesa pronta (sem repintar a mesa).
+    {
+        static uint16_t antes[GFX_W * GFX_H];
+        int fs = fase;
+        fase = F_ORDEM; mesa_feita = false; mesa();
+        memcpy(antes, mesa_pronta, sizeof antes);
+        CONFERE(linha_n > 300 && !linha_tirada, "a mesa pintada tem a linha de aposta (%d pontos)", linha_n);
+        int dif = 0;
+        fase = F_FIM; mesa();
+        for (int k = 0; k < linha_n; k++) dif += mesa_pronta[linha_pos[k]] != antes[linha_pos[k]];
+        CONFERE(linha_tirada && mesa_feita && dif > linha_n / 2, "no fim da partida a linha sai sem repintar (%d pontos mudaram)", dif);
+        fase = F_ORDEM; mesa();
+        CONFERE(!linha_tirada && !memcmp(antes, mesa_pronta, sizeof antes), "a linha volta igual depois do fim");
+        fase = fs;
+    }
 
     // O dado escolhido voa da mao para o lugar (e volta): nunca nos dois.
     for (int i = 0; i < MAO; i++) { ordv_ord[i] = -1; ordv_desde[i] = -1; }

@@ -5132,7 +5132,16 @@ static bool fisica(float dt)
 // bordas. Nao muda nunca: e pintada uma vez e copiada a cada quadro.
 static uint16_t mesa_pronta[GFX_W * GFX_H];
 static bool mesa_feita;
-static bool mesa_sem_linha;                  // a mesa foi pintada sem a linha de aposta (o fim da partida)
+// A linha de aposta sai no fim da partida (so sobrariam as pontas, dos
+// lados do painel). Repintar a mesa inteira custa caro num aparelho lento;
+// entao a pintura guarda o que havia debaixo de cada ponto da linha, e a
+// troca e so desses pontos, direto na mesa pronta.
+#define LINHA_MAX 760
+static int32_t linha_pos[LINHA_MAX];         // onde (y * GFX_W + x)
+static uint16_t linha_sem[LINHA_MAX], linha_com[LINHA_MAX];   // sem a linha e com ela (a mesa pronta)
+static int linha_n;
+static uint16_t linha_cor;
+static bool linha_tirada;                    // a mesa pronta esta sem a linha
 
 static uint32_t ruido_xy(int x, int y)
 {
@@ -5822,7 +5831,21 @@ static void pinta_mesa(void)
 {
     n_anima = anima_usado = 0;
     pinta_mesa_toda();
+    // O que veio por cima da linha (a fita do Natal) fica tambem sem ela.
+    const uint16_t *fb = display_fb();
+    for (int k = 0; k < linha_n; k++) if (fb[linha_pos[k]] != linha_cor) linha_sem[k] = fb[linha_pos[k]];
     anima_guarda();
+}
+// Tira (ou devolve) a linha de aposta da mesa pronta. So mexe no ponto que
+// ainda esta como a pintura deixou: o brilho animado por cima fica.
+// (A vinheta so escurece a beira da mesa, longe da linha.)
+static void linha_troca(bool tira)
+{
+    for (int k = 0; k < linha_n; k++) {
+        uint16_t *p = &mesa_pronta[linha_pos[k]];
+        if (tira && *p == linha_com[k]) *p = linha_sem[k];
+        else if (!tira && *p == linha_sem[k]) *p = linha_com[k];
+    }
 }
 
 static void pinta_mesa_toda(void)
@@ -5900,10 +5923,20 @@ static void pinta_mesa_toda(void)
     // Linha de aposta: uma elipse tracejada ao redor do centro da mesa. No
     // fim da partida ela sai: so sobrariam as pontas, dos lados do painel.
     uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
-    for (int i = 0; i < 360 && !mesa_sem_linha; i++) {
+    uint16_t *lfb = display_fb();
+    linha_n = 0;
+    linha_cor = linha;
+    for (int i = 0; i < 360; i++) {
         if ((i / 4) % 2) continue;
         float a = i * 0.017453f;
-        gfx_rect((int)(cx + cosf(a) * 250) , (int)(cy + sinf(a) * 52), 2, 1, linha);
+        int lx = (int)(cx + cosf(a) * 250), ly = (int)(cy + sinf(a) * 52);
+        for (int d = 0; d < 2; d++) {            // o que fica debaixo (o ponto ja na linha nao conta de novo)
+            int x = lx + d, pos = ly * GFX_W + x;
+            if (x < 0 || x >= GFX_W || ly < 0 || ly >= GFX_H || lfb[pos] == linha || linha_n >= LINHA_MAX) continue;
+            linha_pos[linha_n] = pos;
+            linha_sem[linha_n++] = lfb[pos];
+        }
+        gfx_rect(lx, ly, 2, 1, linha);
     }
     if (estilo_feltro == FT_NATAL) pinta_natal();      // por cima da linha: a fita contorna tudo
     if (lv <= 0) return;
@@ -6159,18 +6192,22 @@ static void mesa(void)
     if (mesa_andar != mesa_andar_feito) { mesa_feita = false; mesa_andar_feito = mesa_andar; }
     static int versao_feita = -1;                        // trocou o feltro ou a mesa: pinta de novo
     if (estilo_versao != versao_feita) { mesa_feita = false; versao_feita = estilo_versao; }
-    if (mesa_sem_linha != (fase == F_FIM)) { mesa_sem_linha = fase == F_FIM; mesa_feita = false; }   // o fim da partida: sem a linha de aposta
     static int quadro_feito = -1;
     if (!mesa_feita) {
         pinta_mesa();
         px_vinheta(display_fb());                         // a vinheta, pintada com a mesa
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
+        for (int k = 0; k < linha_n; k++) linha_com[k] = mesa_pronta[linha_pos[k]];
+        linha_tirada = false;
         mesa_feita = true;
         quadro_feito = -1;
     }
+    bool tira = fase == F_FIM;                            // o fim da partida: sem a linha de aposta
+    if (tira != linha_tirada) { linha_troca(tira); linha_tirada = tira; }
     int q = (int)(t_relogio / ANIMA_PASSO);
     if ((n_anima || estilo_mesa == MS_LED || estilo_mesa == MS_LAREIRA) && q != quadro_feito) {
         mesa_anima(q);
+        if (linha_tirada) linha_troca(true);              // (o que a animacao devolveu da pintura com a linha)
         quadro_feito = q;
     }
     memcpy(display_fb(), mesa_pronta, sizeof mesa_pronta);

@@ -58,6 +58,16 @@ static int larg_botoes(const char **rot, int n)
     return larg;
 }
 
+// So as zonas de clique dos botoes, sem desenhar (o menu que espera um instante).
+static void botoes_zonas(int y, const char **rot, const bool *ativo, int n)
+{
+    int x = GFX_W / 2 - larg_botoes(rot, n) / 2;
+    for (int i = 0; i < n; i++) {
+        int w = gfx_largura(rot[i], 1) + 24;
+        if (ativo[i]) zona_clique(x, y, w, BOTAO_H, &cursor, i, KEY_ENTER);
+        x += w + 12;
+    }
+}
 static void botoes(int y, const char **rot, const bool *ativo, int n, const uint16_t *tinta)
 {
     int x = GFX_W / 2 - larg_botoes(rot, n) / 2;
@@ -330,6 +340,7 @@ static void peca_previa(float x, float y, float r, peca_t p, int dono, int s, bo
 static int8_t ordv_ord[MAO];                 // -1: na mao
 static float  ordv_desde[MAO];               // t_relogio da ultima troca (< 0: parado)
 static int    ordv_vez = -1, ordv_rodada = -1, ordv_n = -1;
+static unsigned ordv_partida;
 static float  ordv_fase;
 // Quanto o dado i da mao esta fora dela: 0 na mao, 1 no lugar dele; no meio,
 // voando. 'de' recebe o lugar de onde (ou para onde) ele voa.
@@ -360,13 +371,13 @@ static void desenha_ordem(void)
     int y = zona(vez), n = p->n_mao;
     int cabe = max_fila(vez), ry = linha_lugares(vez);
     // Outra montagem (outra vez, outra rodada, outra mao): ninguem voa.
-    if (ordv_vez != vez || ordv_rodada != rodada || ordv_n != n || t_fase < ordv_fase) {
+    if (ordv_vez != vez || ordv_rodada != rodada || ordv_n != n || ordv_partida != partida_num || t_fase < ordv_fase) {
         for (int i = 0; i < MAO; i++) {
             ordv_ord[i] = -1;
             ordv_desde[i] = -1;
             for (int k = 0; k < f->n && i < n; k++) if (f->idx[k] == p->mao[i]) ordv_ord[i] = (int8_t)k;
         }
-        ordv_vez = vez; ordv_rodada = rodada; ordv_n = n;
+        ordv_vez = vez; ordv_rodada = rodada; ordv_n = n; ordv_partida = partida_num;
     }
     ordv_fase = t_fase;
     lugar_voando = 0;
@@ -582,7 +593,7 @@ static void desenha_joga(void)
         int larg = larg_painel(gfx_largura(veredito, 1), 160);
         pote_mesa();
         // (o numero que ainda sobe do dado nao fica por baixo da placa)
-        if (!flutua_reserva(GFX_W / 2 - larg / 2, GFX_W / 2 + larg / 2, y1 - 5, y1 + TXT_H + 3, true)) return;
+        if (!flutua_reserva(FR_VEREDITO, GFX_W / 2 - larg / 2, GFX_W / 2 + larg / 2, y1 - 5, y1 + TXT_H + 3, true)) return;
         painel(y1 - 5, TXT_H + 8, larg);
         txt_c(GFX_W / 2, y1 - 1, veredito, c, false);
         return;
@@ -595,6 +606,7 @@ static void desenha_joga(void)
     // O numero que ainda sobe do dado que acabou de pousar nao entra no
     // menu: para antes dele ou, se nao couber, o menu espera um instante.
     pote_mesa();
+    bool ativo[2] = { f->lancados < f->n, true };
     if (menu) {
         int by = y1 + (prox ? 2 * TXT_H : TXT_H) + 1, larg = larg_botoes(rot, 2), lt = gfx_largura(t, 1);
         if (prox) {
@@ -607,13 +619,13 @@ static void desenha_joga(void)
         }
         if (lt > larg) larg = lt;
         int alto = y1 + 3 - (prox && txt_quebra(TIPO[tipo_de(vez, f->lancados)].desc, LARG_TEXTO) ? txt_passo() / 2 : 0);
-        if (!flutua_reserva(GFX_W / 2 - larg / 2 - 4, GFX_W / 2 + larg / 2 + 4, alto, by + BOTAO_H + 3, true)) return;
+        // (esperando, os botoes ja atendem o toque, como o ENTER atende)
+        if (!flutua_reserva(FR_MENU, GFX_W / 2 - larg / 2 - 4, GFX_W / 2 + larg / 2 + 4, alto, by + BOTAO_H + 3, true)) { botoes_zonas(by, rot, ativo, 2); return; }
     }
     if (prox) quem_e_dado(y1, t, p->cor, tipo_de(vez, f->lancados));
     else txt_c(GFX_W / 2, y1, t, p->cor, true);
 
     if (menu) {
-        bool ativo[2] = { f->lancados < f->n, true };
         static const uint16_t TINTA_JOGA[2] = { RGB(38, 96, 64), RGB(40, 62, 104) };   // jogar, parar
         botoes(y1 + (prox ? 2 * TXT_H : TXT_H) + 1, rot, ativo, 2, TINTA_JOGA);
     }
@@ -647,11 +659,16 @@ static int larg_aposta(const int *op, int n, char rot[][24], int *w)
     }
     return tot;
 }
-static void botoes_aposta(int y, const int *op, int n, char rot[][24])
+static void botoes_aposta(int y, const int *op, int n, char rot[][24], bool desenha)
 {
     int w[4], x = GFX_W / 2 - larg_aposta(op, n, rot, w) / 2;
     for (int i = 0; i < n; i++) {
         if (i) x += op[i] == OP_CORRER || op[i - 1] == OP_CORRER ? AP_LONGE : AP_VAO;
+        if (!desenha) {                          // (esperando o numero: so a zona do clique)
+            zona_clique(x, y, w[i], BOTAO_AP_H, &cursor, i, KEY_ENTER);
+            x += w[i];
+            continue;
+        }
         int d;
         uint16_t c = ui_botao_face(x, y, w[i], BOTAO_AP_H, tinta_op(op[i]), i == cursor ? UI_FOCO : 0, &d);
         if (op[i] == OP_CORRER) c = C_ROSA;                  // o correr fala em vermelho
@@ -691,10 +708,13 @@ static void desenha_aposta(void)
     // (como o menu de jogar: o numero do ultimo dado nao fica por baixo)
     int larg = larg_aposta(op, no, r, w), lc = gfx_largura(ctx, fonte_de(false));
     if (lc > larg) larg = lc;
-    if (!flutua_reserva(GFX_W / 2 - larg / 2 - 4, GFX_W / 2 + larg / 2 + 4, y1 - 13, y1 + TXT_H + 6 + BOTAO_AP_H + 3, true)) return;
+    if (!flutua_reserva(FR_APOSTA, GFX_W / 2 - larg / 2 - 4, GFX_W / 2 + larg / 2 + 4, y1 - 13, y1 + TXT_H + 6 + BOTAO_AP_H + 3, true)) {
+        botoes_aposta(y1 + TXT_H + 6, op, no, r, false);
+        return;
+    }
     txt_c(GFX_W / 2, y1 - 16, ctx, C_MARFIM_S, false);
     txt_sombra_c(GFX_W / 2, y1, q, J[vez].cor, 1);
-    botoes_aposta(y1 + TXT_H + 6, op, no, r);
+    botoes_aposta(y1 + TXT_H + 6, op, no, r, true);
 }
 
 static void desenha_efeitos(void)
@@ -951,7 +971,7 @@ static void res_letreiro(int w)
     int wm = motivo[0] ? gfx_largura(motivo, GFX_FINO) : 0, wt = wn + wl + wv;
     int h = TXT_H + 8 + (motivo[0] ? 11 : 0), larg = larg_painel(wt > wm ? wt : wm, 160);
     int y = CENTRO - 22 - h + ui_entra(t_fase, 0, UI_ENTRA_PLACA);
-    flutua_reserva(GFX_W / 2 - larg / 2, GFX_W / 2 + larg / 2, y, y + h, false);   // o numero que sobrou dos efeitos para antes dela
+    flutua_reserva(FR_RESULTADO, GFX_W / 2 - larg / 2, GFX_W / 2 + larg / 2, y, y + h, false);   // o numero que sobrou dos efeitos para antes dela
     painel(y, h, larg);
     if (motivo[0]) {
         gfx_texto(GFX_W / 2 - wm / 2, y + 1, motivo, correu_venc == w || zerou >= 0 ? J[l].cor : C_MARFIM_S, GFX_FINO, false);

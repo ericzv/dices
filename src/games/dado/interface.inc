@@ -311,6 +311,8 @@ static int n_flut;
 static int flut_res[4];                     // a faixa reservada neste quadro: x0, x1, y0, y1 (x1 <= x0: nenhuma)
 static bool flut_pressa;                    // ha numero no caminho de um menu: o relogio deles corre
 static unsigned flut_quadro, flut_res_visto;   // o quadro de agora e o ultimo em que quem reservou se desenhou
+static int flut_res_quem = -1;              // quem foi (FR_*): a placa do veredito na tela nao deixa o menu entrar por cima do numero
+enum { FR_VEREDITO, FR_MENU, FR_APOSTA, FR_RESULTADO };
 
 // Quanto o numero f ainda pode andar sem entrar na faixa reservada (< 0: nem
 // parado cabe); FLUT_SOBE se ela nao esta no caminho dele.
@@ -327,14 +329,15 @@ static int flutua_livre(const flutua_t *f)
 // Com 'espera', devolve false enquanto houver numero que nao cabe ao lado
 // dela: quem chama ainda nao se desenha. Quem ja apareceu nao some de novo
 // por causa de um numero que nasceu depois.
-static bool flutua_reserva(int x0, int x1, int y0, int y1, bool espera)
+static bool flutua_reserva(int quem, int x0, int x1, int y0, int y1, bool espera)
 {
-    bool ja = flut_res_visto == flut_quadro - 1 || flut_res_visto == flut_quadro;
+    bool ja = flut_res_quem == quem && (flut_res_visto == flut_quadro - 1 || flut_res_visto == flut_quadro);
     flut_res[0] = x0; flut_res[1] = x1; flut_res[2] = y0; flut_res[3] = y1;
     if (espera && !ja)
         for (int i = 0; i < n_flut; i++)
             if (flut[i].atraso <= 0 && flutua_livre(&flut[i]) < 0) { flut_pressa = true; return false; }
     flut_res_visto = flut_quadro;
+    flut_res_quem = quem;
     return true;
 }
 
@@ -407,6 +410,7 @@ static bool eh_tecla(const char *p, int n)
 static int controle_estilo;
 static int controle_estilo_de[2];           // o de cada controle ligado (o primeiro e o do JOGADOR 1); 0: desligado
 static bool ctrl_aberto;                    // painel_controles.inc
+static bool som_aberto;                     // painel_som.inc
 void dado_controle(int estilo) { controle_estilo = estilo; }
 void dado_controle_de(int qual, int estilo) { if (qual >= 0 && qual < 2) controle_estilo_de[qual] = estilo; }
 // Os botoes que as dicas mostram: os do ultimo controle usado. Com dois na
@@ -414,7 +418,7 @@ void dado_controle_de(int qual, int estilo) { if (qual >= 0 && qual < 2) control
 // (um pode ser de Xbox e o outro de PlayStation).
 static int dica_estilo(void)
 {
-    if (controle_estilo == CONTROLE_NENHUM || ctrl_aberto) return controle_estilo;   // (no teclado; ou o quadro dos controles, que tem o estilo dele)
+    if (controle_estilo == CONTROLE_NENHUM || ctrl_aberto || som_aberto) return controle_estilo;   // (no teclado; ou os paineis dos controles e do som, de quem os abriu)
     int v = dado_vez_do_controle();
     if (v >= 0 && v < 2 && controle_estilo_de[0] && controle_estilo_de[1]) return controle_estilo_de[v];
     return controle_estilo;

@@ -470,6 +470,7 @@ void dado_inicia(int n_partidas)
         colecao_inicial(&J[j]);
     }
     rodada = 0;
+    partida_num++;
     pote = 0;
     memset(bis_fila, 0, sizeof bis_fila);
     memset(bis_vem, 0, sizeof bis_vem);

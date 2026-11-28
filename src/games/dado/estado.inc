@@ -617,6 +617,7 @@ static int ante_da(int r)
 static float t_aviso_entrada;            // > 0: o aviso de que a entrada subiu
 static float t_aviso_rodada;             // > 0: o aviso da ultima rodada (ou da rodada extra), na faixa do da entrada
 static float t_sua_vez;                  // > 0: a plaquinha SUA VEZ no painel da sequencia
+static unsigned partida_num;            // conta as partidas desta sessao (o desenho que guarda estado zera quando muda)
 static float t_fim_partida;              // ha quanto tempo a partida acabou (o t_fase nao recomeca no F_FIM): a cena do fim
 static int   humor[2] = { -1, -1 };      // o rosto que dura a rodada (EX_*; -1: o de sempre), seu e do oponente
 static float t_humor_pisca[2];           // > 0: piscando, que o humor acabou de mudar

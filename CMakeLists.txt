@@ -61,10 +61,25 @@ endif()
 # gera um .c com os bytes de cada arquivo (cmake/embute_sons.cmake). O script
 # recebe so a pasta e lista os .ogg ele mesmo: a lista inteira na linha de
 # comando passa do limite do Windows (8191 caracteres no cmd).
+#
+# Na versao do navegador as trilhas (trilha*.ogg: 3 MB, quase metade do que
+# se baixava) ficam de fora do jogo: vao como arquivos ao lado da pagina, e
+# o jogo as busca depois de abrir (desktop/som.c). A publicacao tem de levar
+# os trilha*.ogg junto com o index.wasm.
 file(GLOB SONS_OGG CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons/*.ogg)
 set(SONS_C ${CMAKE_CURRENT_BINARY_DIR}/sons_embutidos.c)
+set(SONS_FORA "")
+if (EMSCRIPTEN)
+    set(SONS_FORA "^trilha")
+    file(GLOB SONS_TRILHAS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons/trilha*.ogg)
+    foreach(arq IN LISTS SONS_TRILHAS)
+        get_filename_component(nome ${arq} NAME)
+        configure_file(${arq} ${nome} COPYONLY)
+    endforeach()
+endif()
 add_custom_command(OUTPUT ${SONS_C}
     COMMAND ${CMAKE_COMMAND} -DSAIDA=${SONS_C} -DPASTA=${CMAKE_CURRENT_SOURCE_DIR}/desktop/sons
+            -DFORA=${SONS_FORA}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
     DEPENDS ${SONS_OGG} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embute_sons.cmake
     COMMENT "Embutindo os sons do jogo"

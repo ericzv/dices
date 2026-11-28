@@ -108,6 +108,7 @@
 #include "dado/quadro.inc"        // o quadro de cada fase
 #include "dado/salao.inc"         // o salao em volta da mesa (a margem da janela)
 #include "dado/teclado.inc"       // teclado e mouse
+#include "dado/sons_precisos.inc" // os sons que a cena pode pedir (a carga sob demanda)
 
 int dado_vencedor(void) { return fase == F_FIM ? venc_partida : -1; }
 

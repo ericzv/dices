@@ -10120,6 +10120,100 @@ int main(void)
     achados_desfecho();
     achados_previa();
 
+    // A carga dos sons sob demanda (sons_precisos.inc): o jogo diz ao PC que
+    // sons a cena pode pedir. Os de todo dia, sempre; os de um dado, de um
+    // adesivo e de um acabamento, so com ele numa das bolsas ou na fila.
+    {
+        uint8_t qs[SOM_N], qr[SOM_ROLAS];
+        limpa();
+        modo = M_DOIS; fase = F_ORDEM;
+        J[0].n_col = J[1].n_col = 0;
+        n_voo = 0;
+        material_j[0] = material_j[1] = MAT_MARFIM;
+        int l = dado_sons_precisos(qs, qr);
+        CONFERE(qs[SOM_TIQUE] && qs[SOM_POUSA] && qs[SOM_BATE] && qs[SOM_FICHA] && qs[SOM_VALIDO] && qs[SOM_ANULA]
+                && qs[SOM_FIM] && qs[SOM_DERROTA] && qs[SOM_MENU_PASSA] && qr[SOM_ROLA_FELTRO],
+                "sons precisos: os de todo dia ficam sempre na memoria");
+        CONFERE(!qs[SOM_LASER] && !qs[SOM_AD_BIS] && !qs[SOM_AD_COLA] && !qs[SOM_POUSA_METAL] && !qs[SOM_VAMPIRO]
+                && !qr[SOM_ROLA_METAL] && !l, "sons precisos: sem dados especiais, nenhum som deles (lacos %d)", l);
+        J[1].col[0] = nova_peca(D_LASER);           // o oponente traz um Laser: o raio, a assinatura e o metal
+        J[1].n_col = 1;
+        l = dado_sons_precisos(qs, qr);
+        CONFERE(qs[SOM_LASER] && qs[SOM_AS_RETA] && qs[SOM_POUSA_METAL] && qs[SOM_BATE_METAL] && qs[SOM_BATE_DADO_METAL]
+                && qr[SOM_ROLA_METAL], "sons precisos: o Laser do oponente traz o raio, a assinatura e o metal");
+        CONFERE(!qs[SOM_POUSA_VIDRO] && !qs[SOM_AD_BIS] && !(l & SONS_LACO_MOEDA), "sons precisos: o Laser nao traz o vidro nem adesivo nem a moeda");
+        J[0].col[0] = nova_peca(D_SORTE);           // voce, uma ficha (rola como moeda) com um adesivo num lado
+        J[0].col[0].ad[1] = AD_BIS;
+        J[0].n_col = 1;
+        l = dado_sons_precisos(qs, qr);
+        CONFERE(qs[SOM_AD_BIS] && qs[SOM_AD_COLA] && (l & SONS_LACO_MOEDA) && qs[SOM_LASER],
+                "sons precisos: a ficha com o Bis traz o som do adesivo e a moeda rolando (lacos %d)", l);
+        J[0].n_col = J[1].n_col = 0;                // o que esta na fila conta, mesmo fora das bolsas (mudou de forma)
+        F[0].tipo[0] = D_VAMPIRO; F[0].n = 1;
+        dado_sons_precisos(qs, qr);
+        CONFERE(qs[SOM_VAMPIRO] && qs[SOM_AS_ASAS] && !qs[SOM_LASER], "sons precisos: o Vampiro na fila traz os sons dele");
+        // O material dos dados comuns de cada lado.
+        limpa();
+        J[0].col[0] = nova_peca(D_D6); J[0].n_col = 1;
+        for (int m = 0; m < MAT_N; m++) {
+            material_j[0] = (uint8_t)m;
+            dado_sons_precisos(qs, qr);
+            const acabamento_t *ac = &ACAB[ACAB_MAT[m]];
+            CONFERE(qs[ac->som_pousa] && qs[ac->som_bate] && qs[ac->som_bate_dado] && (ac->rola == SOM_ROLA_FELTRO || qr[ac->rola]),
+                    "sons precisos: o material %d dos dados comuns traz o pouso, as batidas e o laco dele", m);
+        }
+        material_j[0] = MAT_MARFIM;
+        // Todo som sob demanda tem quem o peca: juntando todos os dados, todos
+        // os adesivos e a run, nenhum fica de fora (um som novo posto na faixa
+        // sob demanda sem regra em sp_dado/sp_adesivo so tocaria com engasgo).
+        uint8_t todos[SOM_N] = { 0 }, rolas[SOM_ROLAS] = { 0 };
+        int modo_antes = modo;
+        for (int t = 0; t < D_N; t++)
+            for (int m = 0; m < MAT_N; m += (acab_comum(t) ? 1 : MAT_N)) {
+                material_j[0] = (uint8_t)m;
+                J[0].col[0] = nova_peca(t);
+                dado_sons_precisos(qs, qr);
+                for (int s = 0; s < SOM_N; s++) todos[s] |= qs[s];
+                for (int q = 0; q < SOM_ROLAS; q++) rolas[q] |= qr[q];
+            }
+        material_j[0] = MAT_MARFIM;
+        for (int a = AD_NADA + 1; a < AD_N; a++) {
+            J[0].col[0] = nova_peca(D_D6);
+            J[0].col[0].ad[0] = (uint8_t)a;
+            dado_sons_precisos(qs, qr);
+            for (int s = 0; s < SOM_N; s++) todos[s] |= qs[s];
+        }
+        J[0].n_col = 0;
+        modo = M_DESAFIO;
+        l = dado_sons_precisos(qs, qr);
+        for (int s = 0; s < SOM_N; s++) todos[s] |= qs[s];
+        CONFERE((l & SONS_LACO_MOTOR) && (l & SONS_LACO_GIRO), "sons precisos: na run, o motor do elevador e o giro da roleta (lacos %d)", l);
+        modo = modo_antes;
+        for (int s = 0; s < SOM_N; s++) CONFERE(todos[s], "sons precisos: o som %d e sob demanda e nenhum dado ou adesivo o pede", s);
+        for (int q = 0; q < SOM_ROLAS; q++) CONFERE(rolas[q], "sons precisos: o laco de rolar %d nao e pedido por nenhum dado", q);
+        limpa();
+    }
+    // O medidor de quadros: a linha do painel do som (os lados trocam, como
+    // as outras opcoes; o toque e o clique chegam como TECLA_SOM) e fica guardado.
+    {
+        salva_apaga("medidor");
+        medidor_lido = false;
+        medidor_le();
+        CONFERE(!dado_medidor(), "medidor de quadros: desligado para quem nunca ligou");
+        som_abre();
+        som_cur = SOM_CANAIS + 2;
+        som_tecla(KEY_RIGHT);
+        char b[8];
+        CONFERE(dado_medidor() && salva_le("medidor", b, sizeof b) == 1 && b[0] == '1', "medidor de quadros: o lado direito liga e guarda");
+        medidor_lido = false; medidor_on = false;
+        medidor_le();
+        CONFERE(dado_medidor(), "medidor de quadros: volta ligado na proxima vez");
+        som_tecla(TECLA_SOM);                        // o toque (ou o clique) na linha
+        CONFERE(!dado_medidor() && salva_le("medidor", b, sizeof b) == 1 && b[0] == '0', "medidor de quadros: o toque na linha desliga e guarda");
+        som_aberto = false;
+        salva_apaga("medidor");
+    }
+
     if (falhas) { printf("%d falhas\n", falhas); return 1; }
     puts("regras ok");
     return 0;

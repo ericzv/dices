@@ -2,9 +2,11 @@
 // (escolhe caminho, compra, escolhe premio) e confere que a run anda do
 // comeco ao fim sem sair do trilho. Tambem mede o quanto e dificil.
 //
-//   desafio [runs] [nivel da IA do jogador 0..2] [esforco 0|1] [caminho]
+//   desafio [runs] [nivel da IA do jogador 0..2] [esforco 0|1] [caminho] [sons]
 //
 // caminho: 0 ao acaso, 1 prefere mesas faceis, 2 prefere dificeis.
+// Confere tambem a carga dos sons sob demanda (sons_aviso.h); com um quinto
+// argumento, lista os sons que tocaram sem aviso.
 #include <stdio.h>
 #include "../src/games/dado.c"
 
@@ -12,17 +14,11 @@ static uint16_t fb[GFX_W * GFX_H];
 uint16_t *display_fb(void) { return fb; }
 static int64_t relogio = 1;
 int64_t esp_timer_get_time(void) { return relogio; }
-void som_toca(int s) { (void)s; }
-void som_toca_tom(int s, int t) { (void)s; (void)t; }
+#include "sons_aviso.h"                  // os som_toca e os lacos de mentira, que anotam o que tocou sem aviso
+#define dado_passo(dt) (dado_passo(dt), sons_avisa())   // como o PC, a cada quadro
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
-void som_rufo(bool on) { (void)on; }
-void som_rufo_moeda(void) {}
-void som_rufo_de(int q) { (void)q; }
-void som_rufo_forca(float f) { (void)f; }
-void som_giro(bool on) { (void)on; }
-void som_motor(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
 void som_chefe(int q, bool t) { (void)q; (void)t; }
@@ -497,5 +493,6 @@ int main(int argc, char **argv)
     printf("onde parou (mesa 1..%d, %d = o Coringa, %d = venceu):", PAROU_CORINGA, PAROU_CORINGA + 1, PAROU_VENCEU + 1);
     for (int i = 0; i < PAROU_N; i++) printf(" %d", chegou[i]);
     putchar('\n');
+    if (!sons_relata(argc > 5, 5)) return 1;      // a carga sob demanda: quase nada toca sem aviso
     return 0;
 }

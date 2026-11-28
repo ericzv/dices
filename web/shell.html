@@ -2,23 +2,76 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Dado em Casa</title>
 <link rel="icon" href="icone.png">
 <style>
-  html, body { margin: 0; height: 100%; background: #10100f; overflow: hidden; }
-  #canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  /* No tablet e no celular a pagina nao da zoom nem rola: o toque duplo e a
+     pinca sao do jogo (nele, o primeiro toque escolhe e o segundo confirma),
+     e a pagina e so a mesa. A altura e a da area visivel de verdade (100dvh:
+     sem a parte atras da barra do navegador); 100vh fica de reserva para o
+     navegador antigo. */
+  html, body {
+    margin: 0; width: 100%; height: 100%; background: #10100f; overflow: hidden;
+    overscroll-behavior: none; touch-action: none;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  }
+  body { position: fixed; inset: 0; }
+  #canvas {
+    display: block; width: 100vw; height: 100vh; height: 100dvh; outline: none;
+    touch-action: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+  }
   #capa {
     position: fixed; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 18px;
     background: #10100f; color: #eee7d6; cursor: pointer;
     font: 18px/1.4 ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   #capa img { width: 128px; height: 128px; image-rendering: pixelated; }
   #capa h1 { margin: 0; color: #be9c56; font-size: 34px; letter-spacing: 3px; }
   #capa .botao { padding: 10px 26px; border: 2px solid #be9c56; color: #be9c56; }
   #capa .dica { color: #aabeb2; font-size: 14px; text-align: center; max-width: 520px; }
   #capa.pronto .botao { background: #be9c56; color: #10100f; }
+  /* Enquanto o jogo baixa e abre: tres dadinhos pulando em fila, cada um
+     virando de face no alto do pulo. So mexem transform e opacity (em
+     degraus, como pixel art): o navegador os anima fora da thread da pagina,
+     e eles nao param nem quando ela esta ocupada abrindo o jogo. Com o jogo
+     pronto, pousam e ficam quietos. */
+  #dados { display: flex; gap: 24px; height: 108px; align-items: flex-end; padding-bottom: 8px; box-sizing: border-box; }
+  #dados .dado { position: relative; width: 48px; height: 48px; }
+  #dados .dado:nth-child(2) { animation-delay: .2s; }
+  #dados .dado:nth-child(3) { animation-delay: .4s; }
+  #dados .corpo { position: absolute; inset: 0; animation: dado-pula 1.2s steps(1, end) infinite; animation-delay: inherit; }
+  #dados svg { position: absolute; inset: 0; width: 48px; height: 48px; shape-rendering: crispEdges; }
+  #dados .f2 { opacity: 0; animation: dado-face 2.4s steps(1, end) infinite; animation-delay: inherit; }
+  #dados .sombra { position: absolute; left: 4px; right: 4px; bottom: -8px; height: 4px; background: #57523f; opacity: .45;
+                   animation: dado-sombra 1.2s steps(1, end) infinite; animation-delay: inherit; }
+  @keyframes dado-pula {
+    0%   { transform: translateY(0); }
+    8%   { transform: translateY(-12px) rotate(0deg); }
+    16%  { transform: translateY(-24px) rotate(45deg); }
+    24%  { transform: translateY(-32px) rotate(90deg); }
+    32%  { transform: translateY(-36px) rotate(90deg); }
+    40%  { transform: translateY(-32px) rotate(90deg); }
+    48%  { transform: translateY(-24px) rotate(135deg); }
+    56%  { transform: translateY(-12px) rotate(180deg); }
+    64%  { transform: translateY(0) rotate(180deg); }
+    70%  { transform: translateY(-4px) rotate(180deg); }
+    76%, 100% { transform: translateY(0) rotate(180deg); }
+  }
+  @keyframes dado-face { 0%, 12% { opacity: 0; } 12.01%, 62% { opacity: 1; } 62.01%, 100% { opacity: 0; } }
+  @keyframes dado-sombra {
+    0%, 64%, 100% { transform: scaleX(1); opacity: .45; }
+    16%, 48% { transform: scaleX(.75); opacity: .3; }
+    24%, 40% { transform: scaleX(.5); opacity: .2; }
+  }
+  #capa.pronto #dados .corpo, #capa.pronto #dados .f2, #capa.pronto #dados .sombra { animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    #dados .corpo, #dados .f2, #dados .sombra { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -26,6 +79,7 @@
 <div id="capa">
   <img src="icone.png" alt="">
   <h1>DADO EM CASA</h1>
+  <div id="dados" aria-hidden="true"></div>
   <div class="botao" id="botao">carregando...</div>
   <div class="dica">Jogue com o mouse (clique direito volta) ou com o teclado: setas, ENTER, TAB e BACKSPACE.<br>
     Para jogar online, escolha <b>Online</b> no menu e crie uma sala.</div>
@@ -418,6 +472,25 @@ window.addEventListener('beforeunload', function () { if (DadoRede.estado === 3)
 // clique tambem poe o teclado no jogo.
 // ---------------------------------------------------------------------------
 var capa = document.getElementById('capa'), botao = document.getElementById('botao');
+// Os dadinhos da espera: cada um com duas faces (a que mostra no chao e a que
+// aparece no meio do pulo), desenhadas em quadradinhos como os dados do jogo:
+// o marfim, a borda de latao, a luz em cima e a sombra embaixo.
+(function () {
+  var PINTAS = { 1: [[5, 5]], 2: [[2, 2], [8, 8]], 3: [[2, 2], [5, 5], [8, 8]], 4: [[2, 2], [8, 2], [2, 8], [8, 8]],
+                 5: [[2, 2], [8, 2], [5, 5], [2, 8], [8, 8]], 6: [[2, 2], [8, 2], [2, 5], [8, 5], [2, 8], [8, 8]] };
+  function face(n, classe) {
+    var r = function (x, y, w, h, cor) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + cor + '"/>'; };
+    var s = r(2, 0, 8, 12, '#be9c56') + r(0, 2, 12, 8, '#be9c56') + r(1, 1, 10, 10, '#be9c56') +   // a borda de latao, de cantos cortados
+            r(2, 1, 8, 10, '#eee7d6') + r(1, 2, 10, 8, '#eee7d6') +                                // o marfim
+            r(2, 1, 8, 1, '#fffaf0') + r(1, 2, 1, 8, '#fffaf0') +                                  // a luz de cima e da esquerda
+            r(2, 10, 8, 1, '#c9bfa6') + r(10, 2, 1, 8, '#c9bfa6');                                 // a sombra de baixo e da direita
+    PINTAS[n].forEach(function (p) { s += r(p[0], p[1], 2, 2, '#10100f'); });
+    return '<svg class="' + classe + '" viewBox="0 0 12 12" width="48" height="48">' + s + '</svg>';
+  }
+  var faces = [[6, 2], [3, 5], [4, 1]], h = '';
+  faces.forEach(function (f) { h += '<div class="dado"><div class="sombra"></div><div class="corpo">' + face(f[0], 'f1') + face(f[1], 'f2') + '</div></div>'; });
+  document.getElementById('dados').innerHTML = h;
+})();
 // Site de teste (/teste/): marca no titulo e no canto, para nao confundir.
 if (location.pathname.indexOf('/teste/') >= 0) {
   document.title = 'Dado em Casa · TESTE';
@@ -448,6 +521,7 @@ var Module = {
 capa.addEventListener('click', function () {
   if (!capa.classList.contains('pronto')) return;
   capa.style.display = 'none';
+  Module.dadoAberto = true;              // o jogo esta a vista (a carga dos sons volta ao passo curto)
   Module.canvas.focus();
   try { if (window.AudioContext) {
     // O miniaudio cria o contexto de audio suspenso; este clique o acorda.
@@ -463,6 +537,14 @@ capa.addEventListener('click', function () {
     CONVITE = '';
   }
 });
+// No toque, a pagina nao da zoom (a pinca e o toque duplo, que no jogo e
+// escolher e confirmar) nem rola: o Safari do iPad ignora o user-scalable da
+// viewport, e o que segura e isto e o touch-action do CSS.
+['gesturestart', 'gesturechange', 'gestureend'].forEach(function (g) {
+  document.addEventListener(g, function (e) { e.preventDefault(); }, { passive: false });
+});
+document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
 window.addEventListener('keydown', function (e) {
   // TAB, BACKSPACE e as setas sao do jogo, nao da pagina.
   if ([8, 9, 32, 37, 38, 39, 40].indexOf(e.keyCode) >= 0) e.preventDefault();

@@ -28,6 +28,15 @@ int  dado_vencedor(void);                // -1 em jogo, 0/1 vencedor, 2 empate
 // "registros" e criada quando a opcao do painel do som esta ligada. Sem
 // chamar (o site, os testes), nada se grava e a opcao nem aparece.
 void dado_registro_pasta(const char *pasta);
+// Os sons que a cena pode pedir agora (a carga sob demanda do PC e do site):
+// som recebe SOM_N marcas (hal/som.h; 1: pode tocar) e rola, SOM_ROLAS (os
+// lacos do dado rolando). Devolve os outros lacos que podem tocar. Barato:
+// a plataforma pergunta a cada quadro.
+enum { SONS_LACO_MOEDA = 1, SONS_LACO_GIRO = 2, SONS_LACO_MOTOR = 4 };
+int  dado_sons_precisos(uint8_t *som, uint8_t *rola);
+// O medidor de quadros (uma opcao do painel do som): ligado, a plataforma
+// escreve no canto os quadros por segundo e o tempo de cada quadro.
+bool dado_medidor(void);
 
 // Modo online. Os dois computadores rodam a mesma partida com a mesma
 // semente; so viajam as teclas de quem esta na vez de decidir.

@@ -35,6 +35,7 @@ enum {
 #include "rlgl.h"
 #include "ui/gfx.h"
 #include "hal/display.h"
+#include "hal/som.h"
 #include "games/jogos.h"
 #include "esp_timer.h"
 #include "plataforma.h"
@@ -114,6 +115,7 @@ static void muda_zoom(int d)
 }
 
 static bool campo_focado;               // navegador: o teclado do aparelho, num campo escondido
+static float dt_quadro;                 // quanto tempo passou desde o quadro anterior (segundos)
 
 static void le_teclado(void)
 {
@@ -202,7 +204,7 @@ static void le_controles(void)
     static bool ligado[CONTROLES];            // ja estava ligado no quadro anterior
     int ligados = 0;
     for (int g = 0; g < CONTROLES; g++) ligados += IsGamepadAvailable(g);
-    float dt = GetFrameTime();
+    float dt = dt_quadro;
     for (int g = 0; g < CONTROLES; g++) {
         if (!IsGamepadAvailable(g)) { memset(segura[g], 0, sizeof segura[g]); ligado[g] = false; continue; }
         int vez = ligados > 1 ? dado_vez_do_controle() : -1;
@@ -336,12 +338,14 @@ EM_JS(int, web_tam_real, (int *w, int *h), {
     return 1;
 });
 
-static void web_ajusta_canvas(void)
+// Devolve se o canvas mudou de tamanho (a tela tem de ser pintada de novo).
+static bool web_ajusta_canvas(void)
 {
     int w = 0, h = 0, cw = 0, ch = 0;
     web_tam_real(&w, &h);
     emscripten_get_canvas_element_size("#canvas", &cw, &ch);
-    if (w != cw || h != ch) emscripten_set_canvas_element_size("#canvas", w, h);
+    bool mudou = w != cw || h != ch;
+    if (mudou) emscripten_set_canvas_element_size("#canvas", w, h);
     // O raylib acha que o canvas tem o tamanho da pagina: o desenho segue o de verdade.
     rlViewport(0, 0, w, h);
     rlMatrixMode(RL_PROJECTION);
@@ -349,15 +353,105 @@ static void web_ajusta_canvas(void)
     rlOrtho(0, w, h, 0, 0, 1);
     rlMatrixMode(RL_MODELVIEW);
     rlLoadIdentity();
+    return mudou;
 }
+// A capa do site ("clique para jogar") ainda cobre o jogo?
+EM_JS(int, web_coberto, (void), { return Module.dadoAberto ? 0 : 1; });
+EM_JS(int, web_memoria_mb, (void), { return HEAP8.length >> 20; });
 #endif
+
+// O medidor de quadros (a opcao do painel do som, para conferir o aparelho:
+// um tablet, sobretudo). No canto de cima, refeito a cada segundo:
+//   - quantos quadros por segundo o jogo fez e, deles, quantos foram para a
+//     tela (no navegador, o quadro igual ao anterior nao e reenviado);
+//   - o intervalo entre dois quadros, medio e o pior do segundo;
+//   - o tempo de trabalho de um quadro (ler, andar, desenhar), medio e pior;
+//   - desde que foi ligado, quantos quadros atrasaram (passaram de 25 ms: a
+//     60 por segundo, um quadro perdido) e quantos passaram de 50 ms;
+//   - a memoria dos sons decodificados, quantos sons tiveram de ser
+//     decodificados na hora de tocar e quantos esperam na fila (e, no
+//     navegador, a memoria toda do jogo).
+static struct {
+    bool ligado;
+    double t_ult, t_seg;                 // o comeco do quadro anterior e do segundo em conta
+    int n, telas;
+    double soma, pior, trab_soma, trab_pior;
+    int atrasados, longos;
+    char linha[3][72];
+} med;
+
+// No comeco de cada quadro: o intervalo desde o anterior.
+static void medidor_quadro(double agora)
+{
+    bool on = dado_medidor();
+    if (on != med.ligado) { memset(&med, 0, sizeof med); med.ligado = on; med.t_seg = agora; }
+    if (!on) return;
+    if (med.t_ult > 0) {
+        double ms = (agora - med.t_ult) * 1000;
+        med.n++;
+        med.soma += ms;
+        if (ms > med.pior) med.pior = ms;
+        med.atrasados += ms > 25;
+        med.longos += ms > 50;
+    }
+    med.t_ult = agora;
+    double seg = agora - med.t_seg;
+    if (seg < 1 || !med.n) return;
+    int kb = 0, na_hora = 0, fila = 0;
+    som_medida(&kb, &na_hora, &fila);
+    snprintf(med.linha[0], sizeof med.linha[0], "%.0f qps (tela %.0f)  quadro %.1f ms, pior %.1f",
+             med.n / seg, med.telas / seg, med.soma / med.n, med.pior);
+    snprintf(med.linha[1], sizeof med.linha[1], "trabalho %.1f ms, pior %.1f  atrasados %d (+50 ms: %d)",
+             med.trab_soma / med.n, med.trab_pior, med.atrasados, med.longos);
+#ifdef __EMSCRIPTEN__
+    snprintf(med.linha[2], sizeof med.linha[2], "sons %d MB, na hora %d, fila %d  jogo %d MB", (kb + 512) / 1024, na_hora, fila, web_memoria_mb());
+#else
+    snprintf(med.linha[2], sizeof med.linha[2], "sons %d MB, na hora %d, fila %d", (kb + 512) / 1024, na_hora, fila);
+#endif
+    med.t_seg = agora;
+    med.n = med.telas = 0;
+    med.soma = med.pior = med.trab_soma = med.trab_pior = 0;
+}
+// No fim: quanto o quadro trabalhou e se foi para a tela.
+static void medidor_fim(double t_ini, bool na_tela)
+{
+    if (!med.ligado) return;
+    double ms = (GetTime() - t_ini) * 1000;
+    med.trab_soma += ms;
+    if (ms > med.trab_pior) med.trab_pior = ms;
+    med.telas += na_tela;
+}
+static void medidor_desenha(void)
+{
+    if (!med.ligado || !med.linha[0][0]) return;
+    int w = 0;
+    for (int i = 0; i < 3; i++) { int l = gfx_largura(med.linha[i], 1); if (l > w) w = l; }
+    gfx_rect_alfa(2, 2, w + 10, 3 * (FONTE_ALT + 1) + 5, 0x0000, 215);
+    for (int i = 0; i < 3; i++) gfx_texto(7, 4 + i * (FONTE_ALT + 1), med.linha[i], i ? 0xD6BA : 0xFFE0, 1, false);
+}
+
+// O quadro do jogo resumido num numero: no navegador, o quadro igual ao que
+// ja esta na tela nao e enviado de novo (quatro contas em paralelo, uns
+// 0,03 ms).
+static uint64_t resumo_do_quadro(void)
+{
+    const uint64_t K = 0x9E3779B97F4A7C15ull;
+    uint64_t h[4] = { 1, 2, 3, 4 }, w[4];
+    const unsigned char *p = (const unsigned char *)fb;
+    for (size_t i = 0; i + 32 <= sizeof fb; i += 32) {
+        memcpy(w, p + i, 32);
+        for (int k = 0; k < 4; k++) h[k] = (h[k] ^ w[k]) * K;
+    }
+    return h[0] ^ (h[1] << 1 | h[1] >> 63) ^ (h[2] << 2 | h[2] >> 62) ^ (h[3] << 3 | h[3] >> 61);
+}
+_Static_assert(sizeof fb % 32 == 0, "o resumo le o quadro de 32 em 32 bytes");
 
 // O tamanho da mesa escolhido com - e +, por um instante, desenhado no
 // proprio quadro do jogo (no mesmo grid de pixels do resto).
 static void aviso_zoom(void)
 {
     if (zoom_aviso <= 0) return;
-    zoom_aviso -= GetFrameTime();
+    zoom_aviso -= dt_quadro;
     char b[48];
     snprintf(b, sizeof b, "Mesa %d%%   ( -  e  + )", zoom);
     int w = gfx_largura(b, 1), x = (GFX_W - w) / 2, y = GFX_H / 8;
@@ -549,16 +643,21 @@ static uint16_t *salao_px;
 static int salao_w, salao_h;
 static float salao_falta;
 #define SALAO_MAX (2000 * 1200)              // pixels do jogo: numa janela enorme, nao passa disso
-static void desenha_salao(Rectangle area, float dt)
+static bool salao_tem;                       // ha margem (e textura) neste quadro
+// Refaz a textura do salao quando e hora. Devolve se o que vai para a tela mudou.
+static bool prepara_salao(Rectangle area, float dt)
 {
     float k = area.width / GFX_W;
-    if (area.x < k && area.y < k) return;    // a mesa enche a janela: nao ha margem
+    bool tinha = salao_tem;
+    salao_tem = false;
+    if (area.x < k && area.y < k) return tinha;    // a mesa enche a janela: nao ha margem
     int ox = (int)ceilf(area.x / k), oy = (int)ceilf(area.y / k);
     int w = 2 * ox + GFX_W + 1, h = 2 * oy + GFX_H + 1;
-    if ((long)w * h > SALAO_MAX) return;
+    if ((long)w * h > SALAO_MAX) return tinha;
+    bool mudou = !tinha;
     if (w != salao_w || h != salao_h) {
         uint16_t *n = realloc(salao_px, (size_t)w * h * sizeof(uint16_t));
-        if (!n) return;
+        if (!n) return tinha;
         salao_px = n;
         if (salao_w) UnloadTexture(salao);
         salao_w = w; salao_h = h;
@@ -568,12 +667,23 @@ static void desenha_salao(Rectangle area, float dt)
         SetTextureFilter(salao, amplia_ok ? TEXTURE_FILTER_BILINEAR : TEXTURE_FILTER_POINT);
         SetTextureWrap(salao, TEXTURE_WRAP_CLAMP);
         salao_falta = 0;
+        mudou = true;
     }
     if ((salao_falta -= dt) <= 0) {
         dado_salao(salao_px, w, h, ox, oy);
         UpdateTexture(salao, salao_px);
         salao_falta = 1 / 12.0f;
+        mudou = true;
     }
+    salao_tem = true;
+    return mudou;
+}
+static void desenha_salao(Rectangle area)
+{
+    if (!salao_tem) return;
+    float k = area.width / GFX_W;
+    int ox = (int)ceilf(area.x / k), oy = (int)ceilf(area.y / k);
+    int w = salao_w, h = salao_h;
     Rectangle dst = { area.x - ox * k, area.y - oy * k, w * k, h * k };
     if (amplia_ok) {
         float tam[2] = { (float)w, (float)h };
@@ -592,13 +702,27 @@ static void desenha_salao(Rectangle area, float dt)
 // Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
 static void quadro(void)
 {
+    double t_ini = GetTime();
 #ifdef __EMSCRIPTEN__
+    // O navegador chama a cada repintura da tela. Numa tela de 120 Hz (ou
+    // 144) isso seria o dobro do trabalho, da bateria e do calor, sem ganho
+    // nenhum para o pixel art: a repintura que chega menos de 9,5 ms depois
+    // de um quadro e pulada inteira (120 Hz da 60 quadros por segundo; 144,
+    // 72). A de 60 e a de 90 Hz seguem como sao. O tempo do quadro e medido
+    // aqui (o do raylib conta de EndDrawing a EndDrawing, e ha quadros sem).
+    static double t_ult = -1;
+    if (t_ult >= 0 && t_ini - t_ult < 0.0095) return;
+    dt_quadro = t_ult < 0 ? 1 / 60.0f : (float)(t_ini - t_ult);
+    t_ult = t_ini;
     campo_focado = web_campo_focado();
+#else
+    dt_quadro = GetFrameTime();
 #endif
+    medidor_quadro(t_ini);
     le_teclado();
     le_mouse();
     le_controles();
-    float dt = GetFrameTime();
+    float dt = dt_quadro;
     if (dt > 0.05f) dt = 0.05f;          // janela arrastada: nada de salto
     // A maquina pensa aos pedacos, no que sobra do quadro depois do desenho
     // (entre 2 e 8 ms): a tela nao para enquanto ela decide.
@@ -606,25 +730,58 @@ static void quadro(void)
     double orc = 0.012 - ult_desenho;
     dado_ia_orcamento((int)(1e6 * (orc < 0.002 ? 0.002 : orc > 0.008 ? 0.008 : orc)));
     dado_passo(dt);
+    {   // Os sons que a cena pode pedir: a carga os traz aos poucos (som.c).
+        uint8_t qs[SOM_N], qr[SOM_ROLAS];
+        int l = dado_sons_precisos(qs, qr);
+        som_precisa(qs, qr, l & SONS_LACO_MOEDA, l & SONS_LACO_GIRO, l & SONS_LACO_MOTOR);
+    }
+#ifdef __EMSCRIPTEN__
+    som_folga(web_coberto());
+#endif
     som_atualiza(dt);
     double t_des = GetTime();
     dado_desenha();
     ult_desenho = GetTime() - t_des;
     aviso_zoom();
+    medidor_desenha();
     poe_cursor();
-    UpdateTexture(tela, fb);
 
 #ifdef __EMSCRIPTEN__
     web_teclado_confere(dado_digitando());
-    web_ajusta_canvas();
+    bool tam_mudou = web_ajusta_canvas();
 #endif
+    Rectangle area = area_do_jogo();
+    bool salao_mudou = prepara_salao(area, dt);
+#ifdef __EMSCRIPTEN__
+    // A tela parada (o menu, a loja, a mesa esperando a jogada): se o quadro
+    // saiu igual ao que ja esta na tela, nao e enviado nem pintado de novo -
+    // o navegador segue mostrando o anterior. O jogo andou e desenhou como
+    // sempre (animacoes, relogios e a IA nao mudam); so a copia para a placa
+    // de video e a pintura da pagina e que sao poupadas. Por garantia, pinta
+    // ao menos duas vezes por segundo.
+    static uint64_t resumo_na_tela;
+    static double t_na_tela = -1;
+    static Rectangle area_na_tela;
+    uint64_t resumo = resumo_do_quadro();
+    bool area_mudou = memcmp(&area, &area_na_tela, sizeof area) != 0;      // o tamanho da mesa (- e +)
+    if (!tam_mudou && !salao_mudou && !area_mudou && resumo == resumo_na_tela && t_na_tela >= 0 && t_ini - t_na_tela < 0.5) {
+        PollInputEvents();                 // o que o EndDrawing faria: as teclas e os controles deste quadro
+        medidor_fim(t_ini, false);
+        return;
+    }
+    resumo_na_tela = resumo;
+    t_na_tela = t_ini;
+    area_na_tela = area;
+#else
+    (void)salao_mudou;
+#endif
+    UpdateTexture(tela, fb);
     BeginDrawing();
 #ifdef __EMSCRIPTEN__
     web_ajusta_canvas();                   // o BeginDrawing refaz a matriz do raylib
 #endif
     ClearBackground(C_FAIXA);
-    Rectangle area = area_do_jogo();
-    desenha_salao(area, dt);
+    desenha_salao(area);
     if (amplia_ok) {
         float esc = area.width / GFX_W;
         SetShaderValue(amplia, amplia_esc, &esc, SHADER_UNIFORM_FLOAT);
@@ -632,6 +789,7 @@ static void quadro(void)
     }
     DrawTexturePro(tela, (Rectangle){ 0, 0, GFX_W, GFX_H }, area, (Vector2){ 0, 0 }, 0, WHITE);
     if (amplia_ok) EndShaderMode();
+    medidor_fim(t_ini, true);
     EndDrawing();
 }
 
@@ -688,7 +846,8 @@ int main(void)
 #endif
     dado_inicia(0);
 #ifdef __EMSCRIPTEN__
-    // No navegador quem manda no ritmo e a pagina: um quadro por repintura.
+    // No navegador quem manda no ritmo e a pagina: um quadro por repintura
+    // (no maximo uns 60 por segundo: ver quadro).
     emscripten_set_main_loop(quadro, 0, 1);
 #else
     SetTargetFPS(60);

@@ -16,19 +16,23 @@ static int   som_musica_antes = SOM_NIVEIS;    // o volume da musica antes do N
 static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface" };
 // As linhas do painel, de cima para baixo.
 static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE };
-// Depois dos volumes, as opcoes: a letra maior (L), o tremor da tela (T) e,
-// no computador, o registro das partidas (registro.inc: a versao de teste,
-// que grava as partidas contra a maquina numa pasta ao lado do jogo). Ficam
-// aqui para quem joga com o controle, que nao tem essas teclas: o RT abre o
+// Depois dos volumes, as opcoes: a letra maior (L), o tremor da tela (T), o
+// medidor de quadros (a plataforma escreve no canto quantos quadros por
+// segundo o aparelho esta dando: para conferir num tablet) e, no computador,
+// o registro das partidas (registro.inc: a versao de teste, que grava as
+// partidas contra a maquina numa pasta ao lado do jogo). Ficam aqui para quem
+// joga com o controle ou no toque, que nao tem essas teclas: o RT abre o
 // painel e os lados trocam.
 static bool reg_disponivel(void);                // registro.inc
 static bool reg_e_ligado(void);
 static const char *reg_estado_txt(void);
 static void alterna_registro(void);
-#define SOM_OPCOES_MAX 3
-#define SOM_OPCOES (reg_disponivel() ? 3 : 2)    // o registro so onde ha pasta (no site, nao)
+#define SOM_OPCOES_MAX 4
+#define SOM_OPCOES (reg_disponivel() ? 4 : 3)    // o registro so onde ha pasta (no site, nao)
 #define SOM_LINHAS (SOM_CANAIS + SOM_OPCOES)
-static const char *const SOM_OPCAO[SOM_OPCOES_MAX] = { "Letra", "Tremor da tela", "Registrar partidas" };
+static const char *const SOM_OPCAO[SOM_OPCOES_MAX] = { "Letra", "Tremor da tela", "Medidor de quadros", "Registrar partidas" };
+static bool medidor_on, medidor_lido;            // o medidor de quadros, guardado ("medidor")
+bool dado_medidor(void) { return medidor_on; }
 
 static void alterna_letra(void)
 {
@@ -42,6 +46,22 @@ static void alterna_tremor(void)
     tremor_off = !tremor_off;
     salva_grava("tremor", tremor_off ? "0" : "1");
     som_toca(SOM_TIQUE);
+}
+
+static void alterna_medidor(void)
+{
+    medidor_on = !medidor_on;
+    salva_grava("medidor", medidor_on ? "1" : "0");
+    som_toca(SOM_TIQUE);
+}
+
+// A opcao guardada da ultima vez (dado_inicia).
+static void medidor_le(void)
+{
+    if (medidor_lido) return;
+    char b[8];
+    medidor_on = salva_le("medidor", b, sizeof b) == 1 && b[0] == '1';
+    medidor_lido = true;
 }
 
 static void som_grava(void)
@@ -102,6 +122,7 @@ static void som_tecla(int k)
         if (k == KEY_LEFT || k == KEY_RIGHT || k == 'a' || k == 'd' || k == TECLA_SOM) {
             if (som_cur == SOM_CANAIS) alterna_letra();
             else if (som_cur == SOM_CANAIS + 1) alterna_tremor();
+            else if (som_cur == SOM_CANAIS + 2) alterna_medidor();
             else alterna_registro();
             return;
         }
@@ -170,10 +191,10 @@ static void desenha_som(void)
     gfx_rect(x + 22, oy - 6, w - 44, 1, C_LATAO_ESC);
     for (int o = 0; o < SOM_OPCOES; o++) {
         int l = SOM_CANAIS + o, ly = oy + o * 24;
-        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : o == 1 ? !tremor_off : reg_e_ligado();
+        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : o == 1 ? !tremor_off : o == 2 ? medidor_on : reg_e_ligado();
         if (cur) ui_cantos(x + 10, ly - 4, w - 20, 22, C_OURO);
         txt(x + 22, ly - 2, SOM_OPCAO[o], cur ? C_MARFIM : C_MARFIM_S, false);
-        const char *v = o == 0 ? (liga ? "maior" : "normal") : o == 1 ? (liga ? "ligado" : "desligado") : reg_estado_txt();
+        const char *v = o == 0 ? (liga ? "maior" : "normal") : o <= 2 ? (liga ? "ligado" : "desligado") : reg_estado_txt();
         int vw = gfx_largura(v, 1), vx = x + w - 34 - vw;
         txt(vx, ly - 2, v, cur ? C_OURO : C_MARFIM_S, cur);
         for (int i = 0; i < 4 && cur; i++) {          // as setinhas: os lados trocam

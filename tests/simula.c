@@ -1,7 +1,12 @@
 // Teste de host: joga partidas inteiras com teclas ao acaso, sem janela, e
 // confere que o jogo nunca trava nem sai do trilho.
 //
-//   simula [partidas] [--fotos DIR] [--ia-forte]
+//   simula [partidas] [--fotos DIR] [--ia-forte] [--sons]
+//
+// Confere tambem a carga dos sons sob demanda: a cada quadro o jogo diz que
+// sons a cena pode pedir (dado_sons_precisos), e quase todo som que toca tem
+// de ter sido avisado no quadro anterior (os outros o PC decodifica na hora,
+// com um engasgo). --sons lista os que tocaram sem aviso.
 //
 // Com --fotos, salva em DIR um .ppm da primeira vez que cada tela aparece.
 // Compile com -fsanitize=address,undefined para pegar erro de memoria.
@@ -22,17 +27,12 @@ uint16_t *display_fb(void) { return fb; }
 static int64_t relogio = 1;
 int64_t esp_timer_get_time(void) { return relogio; }
 
-void som_toca(int s) { (void)s; }
-void som_toca_tom(int s, int t) { (void)s; (void)t; }
+// A carga sob demanda: os som_toca, som_rufo_*, som_giro e som_motor de
+// mentira, que anotam o que tocou sem o jogo ter avisado.
+#include "sons_aviso.h"
 bool som_liga(bool on) { (void)on; return false; }
 bool som_ligado(void) { return false; }
 bool som_falhou(void) { return false; }
-void som_rufo(bool on) { (void)on; }
-void som_rufo_moeda(void) {}
-void som_rufo_de(int q) { (void)q; }
-void som_rufo_forca(float f) { (void)f; }
-void som_giro(bool on) { (void)on; }
-void som_motor(bool on) { (void)on; }
 void som_suspense(bool on) { (void)on; }
 void som_cadeia(bool on) { (void)on; }
 void som_chefe(int q, bool t) { (void)q; (void)t; }
@@ -101,10 +101,11 @@ int main(int argc, char **argv)
 {
     int partidas = 50;
     const char *dir_fotos = NULL;
-    bool ia_forte = false;
+    bool ia_forte = false, lista_sons = false;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--fotos") && i + 1 < argc) dir_fotos = argv[++i];
         else if (!strcmp(argv[i], "--ia-forte")) ia_forte = true;
+        else if (!strcmp(argv[i], "--sons")) lista_sons = true;
         else partidas = atoi(argv[i]);
     }
     // A IA pensa jogando rodadas de mentira; aqui ela pensa pouco, para as
@@ -141,6 +142,7 @@ int main(int argc, char **argv)
             for (int q = 0; q < quadros; q++) {
                 relogio += 16667;
                 dado_passo(dt);
+                sons_avisa();                    // como o PC, a cada quadro
             }
             int fase = dado_dbg_fase();
             bool nova = fase >= 0 && fase < 32 && !fotografada[fase];
@@ -169,5 +171,6 @@ int main(int argc, char **argv)
            partidas, vitorias[0], vitorias[1], vitorias[2],
            partidas ? (double)rodadas / partidas : 0.0);
     printf("contra teclas ao acaso, a IA venceu %d de %d\n", ia_ganhou, ia_jogou);
+    if (!sons_relata(lista_sons, 5)) return 1;   // a carga sob demanda: quase nada toca sem aviso
     return 0;
 }

@@ -91,6 +91,9 @@ jobs:
           mkdir -p site
           cp build-web/index.html build-web/index.js build-web/index.wasm \
              build-web/mqtt.min.js build-web/icone.png site/
+          # As trilhas vao ao lado: o jogo as busca depois de abrir.
+          cp build-web/trilha*.ogg site/
+          test -f site/trilha.ogg
           # Enderecos com a versao: o navegador baixa o jogo novo a cada publicacao.
           v="?v=${GITHUB_SHA::7}"
           sed -i -E "s|__VERSAO__|$v|g; s#src=\"?index\\.js\"?#src=\"index.js$v\"#" site/index.html

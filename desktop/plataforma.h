@@ -11,6 +11,7 @@ void som_atualiza(float dt); // todo quadro: trilha em stream e volumes
 // elevador.
 void som_precisa(const unsigned char *som, const unsigned char *rola, bool moeda, bool roleta, bool elevador);
 void som_folga(bool on);     // a tela esta coberta (a capa do site): a carga pode usar mais tempo por quadro
+void som_carga_orcamento(double s);   // a folga deste quadro, em segundos: o tempo que a carga dos sons pode usar
 // Para o medidor de quadros: KB de som decodificado, quantos sons foram
 // decodificados na hora de tocar e quantos ainda esperam na fila.
 void som_medida(int *kb, int *na_hora, int *na_fila);

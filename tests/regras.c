@@ -1311,6 +1311,40 @@ static void achados_previa(void)
 // em linhas, o numero flutuante que da lugar ao menu, o aviso da ultima
 // rodada, o relogio do fim da partida, o dado que voa da mao para o lugar,
 // os rostos e as dicas com dois na mesma mesa.
+// O escuro feito por tabela (gfx_rect_alfa grande, a luz da vez dos dois)
+// tem de dar exatamente o que o gfx_mistura daria, pixel a pixel.
+static void escuro_por_tabela(void)
+{
+    static uint16_t antes[GFX_W * GFX_H], ref[GFX_W * GFX_H];
+    uint16_t *fb = display_fb();
+    uint32_t h = 12345;
+    for (int i = 0; i < GFX_W * GFX_H; i++) { h = h * 1103515245u + 12345u; fb[i] = (uint16_t)(h >> 9); }
+    memcpy(antes, fb, sizeof antes);
+    int dif = 0;
+    for (int alfa = 0; alfa <= 255; alfa += 17) {
+        uint16_t c = (uint16_t)(alfa * 257 + 99);
+        memcpy(fb, antes, sizeof antes);
+        gfx_rect_alfa(20, 30, 400, 200, c, alfa);
+        memcpy(ref, antes, sizeof ref);
+        int pct = alfa * 100 / 255;
+        for (int y = 30; y < 230; y++) for (int x = 20; x < 420; x++) ref[y * GFX_W + x] = gfx_mistura(antes[y * GFX_W + x], c, pct);
+        dif += memcmp(fb, ref, sizeof ref) != 0;
+    }
+    CONFERE(dif == 0, "gfx_rect_alfa por tabela: igual ao gfx_mistura (%d alfas diferentes)", dif);
+    // A luz da vez: forca e lugar quaisquer, contra a conta pixel a pixel.
+    vez_luz_forca = 0.8f; vez_luz_y = 140; t_hora = 0;
+    memcpy(fb, antes, sizeof antes);
+    desenha_vez_luz();
+    memcpy(ref, antes, sizeof ref);
+    for (int y = 0; y < VEZ_LUZ_H; y++)
+        for (int x = 0; x < VEZ_LUZ_W; x++) {
+            int i = (MESA_Y0 + y) * GFX_W + MESA_X0 + x;
+            if (vez_luz_escuro[y][x]) ref[i] = gfx_mistura(antes[i], C_BARRA, vez_luz_escuro[y][x]);
+        }
+    CONFERE(!memcmp(fb, ref, sizeof ref), "a luz da vez por tabela: igual ao gfx_mistura");
+    vez_luz_forca = 0;
+}
+
 static void mesa_em_movimento(void)
 {
     // O balao do oponente: curto, numa linha; comprido, quebra nas palavras
@@ -10345,6 +10379,7 @@ int main(void)
     achados_desfecho();
     achados_previa();
     mesa_em_movimento();
+    escuro_por_tabela();
 
     // A carga dos sons sob demanda (sons_precisos.inc): o jogo diz ao PC que
     // sons a cena pode pedir. Os de todo dia, sempre; os de um dado, de um

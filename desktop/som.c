@@ -581,6 +581,10 @@ static const int16_t PRIMEIRO[] = {
     SOM_MENU_PASSA, SOM_MENU_ESCOLHE, SOM_TIQUE, SOM_TRANSICAO, SOM_PASSA, SOM_ABERTURA,
     SOM_BATE, SOM_BATE_DADO, SOM_POUSA, SOM_FICHA, SOM_VALIDO, SOM_ANULA, SOM_TURNO, SOM_PARTIDA,
     SOM_N + LACO_RUFO,
+    // Os outros lacos tambem logo: pedidos so no instante de tocar (a roleta
+    // do premio comecando a girar), eles vinham decodificados na hora - um
+    // engasgo a cada premio no aparelho lento.
+    SOM_N + LACO_GIRO, SOM_N + LACO_MOEDA, SOM_N + LACO_MOTOR,
 };
 #define N_PRIMEIRO ((int)(sizeof PRIMEIRO / sizeof *PRIMEIRO))
 static int pri_i;                            // os PRIMEIRO antes deste ja estao feitos
@@ -596,6 +600,9 @@ static int proximo_item(void)
 // Um pedaco do trabalho da carga. Devolve false quando nao ha o que fazer
 // (ou quando o que ha fica para o comeco do proximo quadro).
 static bool carga_folgada;                   // nada da carga rodou ainda neste quadro
+static double carga_orc = CARGA_S;           // o tempo da carga neste quadro: a folga que o quadro tem (som_carga_orcamento)
+static bool carga_coberta;                   // a capa do site cobre a tela: pode usar mais
+static int carga_adiada;                     // quadros que o som comprido esperou folga para virar som
 static bool carga_passo(void)
 {
     if (carga.item < 0) {
@@ -613,7 +620,9 @@ static bool carga_passo(void)
     // Decodificado. Falta virar som do raylib, que o converte para a taxa do
     // aparelho de uma vez so: num som comprido (um laco de 4 s) isso custa
     // alguns milissegundos, e fica para o comeco de um quadro, sozinho.
-    if (carga.d.lidos > 44100 && !carga_folgada) return false;
+    // E so quando o quadro tem folga para ele (ou depois de esperar 2 s).
+    if (carga.d.lidos > 44100 && (!carga_folgada || (carga_orc < 0.004 && ++carga_adiada < 120))) return false;
+    carga_adiada = 0;
     Sound s = decod_som(&carga.d);
     if (s.frameCount) carga.base[carga.n++] = s;
     carga.v++;
@@ -701,6 +710,10 @@ static void item_solta(int it)
 // da proxima vez tocaria com outro engasgo.
 static void solta_os_sem_pedido(float dt)
 {
+#ifndef __EMSCRIPTEN__
+    (void)dt;
+    return;                                  // no computador a memoria sobra: o que veio fica (sem decodificar de novo depois)
+#endif
     static float t;
     if ((t += dt) < 1) return;
     float passou = t;
@@ -714,10 +727,9 @@ static void solta_os_sem_pedido(float dt)
 
 // O que cabe no tempo da carga deste quadro: primeiro os sons do menu e da
 // mesa; depois a trilha e o resto, um pedaco de cada, revezando.
-static double carga_s = CARGA_S;
 static void carrega_aos_poucos(void)
 {
-    double t0 = GetTime();
+    double t0 = GetTime(), carga_s = carga_coberta && carga_orc < 4 * CARGA_S ? 4 * CARGA_S : carga_orc;
     carga_folgada = true;
     for (int vez = 0; ; vez ^= 1) {
         bool fez;
@@ -735,16 +747,21 @@ void som_precisa(const uint8_t *som, const uint8_t *rola, bool moeda, bool rolet
 {
     memcpy(quer, som, SOM_N);
     quer[SOM_N + LACO_RUFO] = 1;
-    quer[SOM_N + LACO_MOEDA] = moeda;
-    quer[SOM_N + LACO_GIRO] = roleta;
-    quer[SOM_N + LACO_MOTOR] = elevador;
+    // (a moeda, a roleta e o elevador ficam sempre: sao pequenos, e pedidos so
+    // na hora de tocar chegavam tarde)
+    (void)moeda; (void)roleta; (void)elevador;
+    quer[SOM_N + LACO_MOEDA] = quer[SOM_N + LACO_GIRO] = quer[SOM_N + LACO_MOTOR] = 1;
     quer[SOM_N + LACOS] = 0;
     for (int q = 1; q < SOM_ROLAS; q++) quer[SOM_N + LACOS + q] = rola[q];
 }
 
 // Com a tela coberta (a capa do site, antes do clique) a carga pode usar
 // mais tempo por quadro: ninguem ve o quadro atrasar.
-void som_folga(bool on) { carga_s = on ? 4 * CARGA_S : CARGA_S; }
+void som_folga(bool on) { carga_coberta = on; }
+// O tempo que a carga pode usar neste quadro: a plataforma da a folga que
+// sobra depois do passo e do desenho. No quadro leve a carga anda depressa
+// (no PC termina em segundos); no pesado quase nao entra.
+void som_carga_orcamento(double s) { carga_orc = s < 0.0005 ? 0.0005 : s > 0.006 ? 0.006 : s; }
 
 // Para o medidor de quadros: a memoria dos sons decodificados (KB), quantos
 // tiveram de ser decodificados na hora de tocar e quantos ainda estao na fila.

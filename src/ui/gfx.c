@@ -99,9 +99,25 @@ void gfx_rect_alfa(int x, int y, int w, int h, uint16_t c, int alfa)
     if (!recorta(&x, &y, &w, &h)) return;
     int pct = alfa * 100 / 255;
     uint16_t *p = FB;
+    if (w * h < 256) {
+        for (int j = 0; j < h; j++) {
+            uint16_t *row = p + (y + j) * GFX_W + x;
+            for (int i = 0; i < w; i++) row[i] = gfx_mistura(row[i], c, pct);
+        }
+        return;
+    }
+    // A mesma conta do gfx_mistura, feita uma vez para cada valor de canal:
+    // num retangulo grande, so tres consultas por pixel (o mesmo resultado).
+    uint16_t lr[32], lg[64], lb[32];
+    int rb = (c >> 11) & 31, gb = (c >> 5) & 63, bb = c & 31;
+    for (int v = 0; v < 32; v++) { lr[v] = (uint16_t)((v + (rb - v) * pct / 100) << 11); lb[v] = (uint16_t)(v + (bb - v) * pct / 100); }
+    for (int v = 0; v < 64; v++) lg[v] = (uint16_t)((v + (gb - v) * pct / 100) << 5);
     for (int j = 0; j < h; j++) {
         uint16_t *row = p + (y + j) * GFX_W + x;
-        for (int i = 0; i < w; i++) row[i] = gfx_mistura(row[i], c, pct);
+        for (int i = 0; i < w; i++) {
+            uint16_t a = row[i];
+            row[i] = lr[a >> 11] | lg[(a >> 5) & 63] | lb[a & 31];
+        }
     }
 }
 

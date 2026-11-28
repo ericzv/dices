@@ -322,12 +322,29 @@ static void desenha_vez_luz(void)
     int cy = (int)lroundf(vez_luz_y), forte = (int)lroundf(VEZ_LUZ_ESCURO * f);
     if (forte <= 0) return;
     if (cy != vez_luz_feita_y || forte != vez_luz_feita_forte) vez_luz_monta(cy, forte);
+    // O escuro e sempre para o C_BARRA: a conta do gfx_mistura fica pronta
+    // numa tabela por forca e valor de canal (o mesmo resultado, sem as
+    // divisoes; e o que mais pesava na mesa de dois).
+    static uint16_t lr[101][32], lg[101][64], lb[101][32];
+    static bool feita;
+    if (!feita) {
+        int rb = (C_BARRA >> 11) & 31, gb = (C_BARRA >> 5) & 63, bb = C_BARRA & 31;
+        for (int a = 0; a <= 100; a++) {
+            for (int v = 0; v < 32; v++) { lr[a][v] = (uint16_t)((v + (rb - v) * a / 100) << 11); lb[a][v] = (uint16_t)(v + (bb - v) * a / 100); }
+            for (int v = 0; v < 64; v++) lg[a][v] = (uint16_t)((v + (gb - v) * a / 100) << 5);
+        }
+        feita = true;
+    }
     uint16_t *fb = display_fb();
     for (int y = 0; y < VEZ_LUZ_H; y++) {
         uint16_t *p = fb + (MESA_Y0 + y) * GFX_W + MESA_X0;
         const uint8_t *m = vez_luz_escuro[y];
-        for (int x = 0; x < VEZ_LUZ_W; x++)
-            if (m[x]) p[x] = gfx_mistura(p[x], C_BARRA, m[x]);
+        for (int x = 0; x < VEZ_LUZ_W; x++) {
+            int a = m[x];
+            if (!a) continue;
+            uint16_t c = p[x];
+            p[x] = lr[a][c >> 11] | lg[a][(c >> 5) & 63] | lb[a][c & 31];
+        }
     }
 }
 

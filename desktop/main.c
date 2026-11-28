@@ -804,6 +804,9 @@ static void quadro(void)
         uint8_t qs[SOM_N], qr[SOM_ROLAS];
         int l = dado_sons_precisos(qs, qr);
         som_precisa(qs, qr, l & SONS_LACO_MOEDA, l & SONS_LACO_GIRO, l & SONS_LACO_MOTOR);
+        // A carga dos sons usa so a folga do quadro: uns 13 ms menos o que o
+        // passo ja gastou e o que o desenho deve gastar.
+        som_carga_orcamento(0.013 - (GetTime() - t_ini) - ult_desenho);
     }
 #ifdef __EMSCRIPTEN__
     som_folga(web_coberto());

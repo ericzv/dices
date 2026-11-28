@@ -277,6 +277,16 @@ if (DADO_TESTES AND NOT CMAKE_CROSSCOMPILING AND NOT EMSCRIPTEN)
         # A pagina parada enquanto o rival aperta mais teclas do que cabem na fila.
         add_test(NAME online_fila COMMAND online 2 150000 3 0 0 1 0 0 2 6)
     endif()
+    # O cache dos dados pousados nao muda um pixel: o mesmo roteiro (partidas,
+    # dois na mesa, cenas montadas, todos os tipos de dado, a vinheta, o fim)
+    # em dois processos, um sem o cache e outro com, comparando a tela inteira
+    # de cada quadro. build/cache_dados --tudo e o roteiro longo; --tempo mede.
+    if (UNIX)
+        add_executable(cache_dados tests/cache_dados.c src/ui/gfx.c src/ui/fonte.c desktop/rede.c)
+        target_include_directories(cache_dados PRIVATE src desktop)
+        target_link_libraries(cache_dados PRIVATE m)
+        add_test(NAME cache_dados COMMAND cache_dados)
+    endif()
     # A rede do navegador (web/shell.html) num servidor MQTT de mentira:
     # perdas, repeticoes, quedas, versoes diferentes, marcos e o convite.
     find_program(NODE_EXE node)

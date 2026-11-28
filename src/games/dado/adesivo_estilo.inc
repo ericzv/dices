@@ -88,7 +88,7 @@ static uint16_t ad_acaba(int a, int ix, int iy, float X, float Y, float r, float
 static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, float fase, uint16_t fundo)
 {
     int ix = (int)floorf(X), iy = (int)floorf(Y);
-    float t = t_relogio, dist = sqrtf(X * X + Y * Y);
+    float dist = sqrtf(X * X + Y * Y);
     switch (a) {
     case AD_ESTRELINHA: {                         // uma estrela grande de nota, em marca d'agua, e duas faiscas que piscam
         float an = atan2f(Y, X) + 1.5708f, k = cosf(2.5f * an);   // 5 pontas, a de cima para cima
@@ -98,7 +98,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
         if (estrela) return (ix + iy) & 1 ? RGB(246, 222, 132) : fundo;   // o miolo pontilhado: o numero le por cima
         for (int i = 0; i < 2; i++) {
             float fx = (i ? -0.55f : 0.52f) * r, fy = (i ? 0.48f : -0.5f) * r;
-            float s = sinf(t * 2.4f + i * 3.1f + fase * 6.3f);
+            float s = sinf(t_relogio * 2.4f + i * 3.1f + fase * 6.3f);
             if (s < 0.3f) continue;
             float b = s > 0.8f ? 2.5f : 1.5f;
             if ((fabsf(X - fx) < 0.5f && fabsf(Y - fy) < b) || (fabsf(Y - fy) < 0.5f && fabsf(X - fx) < b)) return C_BRANCO;
@@ -109,7 +109,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
         float rr = 0.58f * r, an = atan2f(Y, X);
         if (dist < rr + 1.0f && dist >= rr) return RGB(106, 86, 44);         // o contorno, para a moeda sair da folha
         if (dist < rr && dist > rr - 2.0f) {                                   // o aro: claro em cima a esquerda, escuro embaixo
-            float gira = fr(t / 3.8f + fase) * 3.8f, alvo = -2.4f + gira / 0.9f * 6.2832f;
+            float gira = fr(t_relogio / 3.8f + fase) * 3.8f, alvo = -2.4f + gira / 0.9f * 6.2832f;
             if (gira < 0.9f && fabsf(an - alvo) < 0.4f) return C_BRANCO;
             return X + Y < 0 ? C_AMARELO : RGB(190, 156, 86);
         }
@@ -120,7 +120,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
     }
     case AD_FERMENTO: {                           // a massa crescendo: bolhas que sobem, crescem e estouram na beira
         for (int i = 0; i < 3; i++) {
-            float c = fr(t / 2.2f + fase + i * 0.33f), bx = (-0.42f + i * 0.42f) * r + sinf(c * 6 + i) * 1.2f;
+            float c = fr(t_relogio / 2.2f + fase + i * 0.33f), bx = (-0.42f + i * 0.42f) * r + sinf(c * 6 + i) * 1.2f;
             float by = 0.55f * r - c * 1.1f * r, br = 0.8f + c * 2.6f, db = sqrtf((X - bx) * (X - bx) + (Y - by) * (Y - by));
             if (c > 0.92f) {                                  // estourou: quatro respingos
                 if (fabsf(fabsf(X - bx) - br) < 0.6f && fabsf(Y - by) < 0.6f) return C_AMARELO;
@@ -134,13 +134,13 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
         return ADN_NADA;
     }
     case AD_MIRA: {                               // a luneta clara: o anel, as quatro marcas e, de tempos em tempos, trava
-        float trava = fr(t / 3.2f + fase), aperta = trava > 0.85f ? (trava - 0.85f) / 0.15f : 0;
+        float trava = fr(t_relogio / 3.2f + fase), aperta = trava > 0.85f ? (trava - 0.85f) / 0.15f : 0;
         float rr = 0.48f * r - aperta * 2;
         if (fabsf(dist - rr) < 0.6f) return RGB(226, 164, 168);
         bool marca = (fabsf(X) < 0.5f && fabsf(Y) > rr - 2.5f && fabsf(Y) < rr + 3.5f)
                   || (fabsf(Y) < 0.5f && fabsf(X) > rr - 2.5f && fabsf(X) < rr + 3.5f);
         if (marca) return RGB(226, 164, 168);
-        if (dist < 1.2f) return aperta > 0 && (int)(t * 14) % 2 ? C_BRANCO : C_VERMELHO;   // o ponto: pisca quando trava
+        if (dist < 1.2f) return aperta > 0 && (int)(t_relogio * 14) % 2 ? C_BRANCO : C_VERMELHO;   // o ponto: pisca quando trava
         return ADN_NADA;
     }
     case AD_SELO: {                               // o lacre de cera no papel: a gota vermelha, o brilho e a marca no meio
@@ -160,7 +160,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
         bool arame = (fabsf(v + 0.32f * r) < 0.6f && fabsf(u) < 0.45f * r)
                   || (fabsf(u - 0.45f * r) < 0.6f && v > -0.32f * r && v < 0.38f * r)
                   || (fabsf(u + 0.45f * r) < 0.6f && v > -0.32f * r && v < 0.38f * r);
-        float treme = fr(t / 2.7f + fase) < 0.08f ? (ix & 1) : 0;
+        float treme = fr(t_relogio / 2.7f + fase) < 0.08f ? (ix & 1) : 0;
         if (arame && !treme) return C_PRATA;
         if (arame) return C_BRANCO;
         float qx = (X + 0.58f * r) / (0.46f * r), qy = (0.56f * r - Y) / (0.40f * r);   // o queijo: a fatia no canto, com furos
@@ -175,7 +175,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
     }
     case AD_GORJETA: {                            // a ficha de cassino: as listras da beira e o miolo; outra chega de lado
         float cx2 = 0, cy2 = 0;
-        float ch = fr(t / 4 + fase);
+        float ch = fr(t_relogio / 4 + fase);
         for (int f = 1; f >= 0; f--) {
             float ox = f ? (-0.9f + fminf(1, ch / 0.25f) * 0.9f) * r * (ch < 0.6f ? 1 : 0) + (ch >= 0.6f ? 0 : 0) : 0;
             if (f && (ch < 0.02f || ch > 0.6f)) continue;     // a segunda so passa e volta
@@ -190,7 +190,7 @@ static uint16_t ad_textura_nova(int a, float X, float Y, float de, float r, floa
         return ADN_NADA;
     }
     case AD_BIS: {                                // o eco: um contorno da face sai para o lado e volta, como um dado a mais
-        float c = fr(t / 3 + fase), sai = c < 0.5f ? c / 0.5f : 1 - (c - 0.5f) / 0.5f;
+        float c = fr(t_relogio / 3 + fase), sai = c < 0.5f ? c / 0.5f : 1 - (c - 0.5f) / 0.5f;
         float off = sai * 3.0f, dd = de - off;
         if (fabsf(dd - 2.0f) < 0.6f && ((ix + iy) & 1)) return C_BRANCO;
         if (de >= 1.5f && de < 2.5f) return C_REAL;
@@ -239,18 +239,18 @@ static void ad_ponta(float cx, float cy, float r, float q, uint16_t luz)
 // ---- MOLDURA: a borda diz a familia -----------------------------------------
 static void ad_moldura_px(int fam, int x, int y, float cx, float cy, float de, uint16_t luz)
 {
-    float an = atan2f(y - cy, x - cx), t = t_relogio;
+    float an = atan2f(y - cy, x - cx);
     int passo = (int)floorf((an + 3.1416f) / 6.2832f * 40);   // ~40 marcas na volta
     uint16_t c = C_BRANCO;
     switch (fam) {
     case AF_PONTOS:                                   // o ouro com brilhos que acendem um de cada vez
-        c = passo % 5 == (int)(t * 3) % 5 && de > 0.8f ? C_BRANCO : (passo & 1 ? C_OURO : C_AMARELO);
+        c = passo % 5 == (int)(t_relogio * 3) % 5 && de > 0.8f ? C_BRANCO : (passo & 1 ? C_OURO : C_AMARELO);
         break;
     case AF_MULT:                                     // a borda dupla: branca, um fio do vinil e branca de novo
         c = de < 0.9f || de > 1.9f ? C_BRANCO : luz;
         break;
     case AF_DADO:                                     // as setas que correm em volta (o dado que muda)
-        c = ((passo + (int)(t * 6)) % 4 == 0) ? C_EBANO_B : C_BRANCO;
+        c = ((passo + (int)(t_relogio * 6)) % 4 == 0) ? C_EBANO_B : C_BRANCO;
         break;
     case AF_PROTEGE:                                  // o vidro grosso: claro em cima a esquerda, azul embaixo
         c = (x - cx) + (y - cy) < 0 ? C_BRANCO : (de < 1.2f ? C_VENTO : RGB(96, 134, 196));

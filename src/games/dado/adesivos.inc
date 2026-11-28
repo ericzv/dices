@@ -620,7 +620,7 @@ static void ad_icone(int x, int y, int a, int s, uint16_t c)
     bool cores = c == ADESIVO[a].tinta;
     // O Neon grande brilha: um halo do tubo em volta de cada ponto, antes, que
     // respira - cresce e acende, encolhe e escurece.
-    float neon = 0.5f + 0.5f * sinf(t_relogio * 4.2f);
+    float neon = cores && a == AD_NEON ? 0.5f + 0.5f * sinf(t_relogio * 4.2f) : 0;   // (so o Neon le o relogio)
     if (cores && a == AD_NEON && s >= 2) {
         int e = neon > 0.45f ? 2 : 1;
         for (int j = 0; j < 7; j++)

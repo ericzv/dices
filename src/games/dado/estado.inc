@@ -219,7 +219,14 @@ static devolvido_t devolvidos[N_FILA];
 static int   n_devolvidos;
 static float t_devolve = -1;
 static int   log_base[2];                 // pontos de cada um quando os efeitos do fim comecam
-static float t_relogio;                  // corre sempre: brilhos que nao recomecam a cada fase
+// O relogio que corre sempre (os brilhos que nao recomecam a cada fase). Quem
+// o le deixa a marca em dc_tempo_lido: e assim que o cache dos dados pousados
+// (desenho_dado.inc) descobre sozinho que um dado se mexe parado - o
+// holografico, as luzes piscando, o ceu girando - e nao o guarda.
+static float t_relogio_real;
+static bool  dc_tempo_lido;
+static inline float *dc_tempo(void) { dc_tempo_lido = true; return &t_relogio_real; }
+#define t_relogio (*dc_tempo())
 // A hora da verdade (hora.inc): o ultimo dado da rodada, quando quem leva o
 // pote depende da face dele. hora: 0 nada, 1 decide a rodada, 2 a partida.
 #define HESITA_T 0.26f                   // o dado hesita na quina antes de deitar (tempo do lance)
@@ -287,9 +294,12 @@ static char anuncio[64];
 static uint16_t anuncio_cor;
 static float t_anuncio, anuncio_dur;   // o anuncio da maquina: quanto falta, e quanto dura
 // O lance de aposta de cada um (passou, apostou 10, pagou 10, dobrou): uma
-// etiqueta curta junto do placar dele, que sobe e some (mesa.inc).
+// etiqueta presa na beira do placar dele (mesa.inc, desenha_lances). Fica
+// enquanto a aposta durar: o relogio dela para em LANCE_FICA ate a fase mudar.
 #define LANCE_T 1.6f
+#define LANCE_FICA 0.6f                  // o que sobra dela depois que a aposta acaba
 static char  lance_txt[2][24];
+static int   lance_op[2];                // o botao que ele apertou (OP_*): o desenho da etiqueta
 static float t_lance[2];
 // Na loja e no premio, o anuncio mostra tambem os dados que ela levou.
 static peca_t anuncio_peca[5];

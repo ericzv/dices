@@ -2607,6 +2607,15 @@ static int acab_forma(int ac, float q, float w, float a, float b, float prof, fl
         return 0;
     }
 }
+// A faixa de um lendario: quanto ja passou dela (0 a BRILHO_DUR), ou -1
+// fora dela. Le o relogio sem deixar a marca (dc_tempo_lido): entre uma
+// faixa e outra o lendario fica parado, e o cache dos dados pousados (mais
+// abaixo) pergunta aqui antes de usar o recorte guardado.
+static float lenda_faixa(int tipo)
+{
+    float f = fmodf(t_relogio_real + tipo * 0.77f, BRILHO_CADA);   // cada lendario no seu tempo
+    return f < BRILHO_DUR ? f : -1;
+}
 static float brilho_lenda(int tipo, bool *forte)
 {
     *forte = false;
@@ -2617,8 +2626,10 @@ static float brilho_lenda(int tipo, bool *forte)
     }
     if (TIPO[tipo].raridade != RAR_LENDA) return -9;
     *forte = true;
-    float f = fmodf(t_relogio + tipo * 0.77f, BRILHO_CADA);     // cada lendario no seu tempo
-    return f < BRILHO_DUR ? -1.7f + 3.4f * f / BRILHO_DUR : -9;
+    float f = lenda_faixa(tipo);
+    if (f < 0) return -9;
+    dc_tempo_lido = true;                                       // a faixa passando: este quadro nao vai para o cache
+    return -1.7f + 3.4f * f / BRILHO_DUR;
 }
 
 // Dois dados de Natal sao o proprio material, nao um desenho no meio: o
@@ -3541,7 +3552,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
 {
     int ix = (int)floorf(X), iy = (int)floorf(Y);
     uint32_t h = hash2(ix + 64, iy + 64);
-    float t = t_relogio, dist = sqrtf(X * X + Y * Y);
+    float dist = sqrtf(X * X + Y * Y);
     switch (a) {
     case AD_CHUMBO: {                             // metal escovado: riscos finos na horizontal
         uint32_t q = hash2((int)floorf(X / 5) + 64, iy + 64) % 9;
@@ -3555,7 +3566,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (f > 3.5f && f < 4.5f && (ix & 1)) return C_BRANCO;
         static const float L[2][3] = { { -0.42f, 0.30f, 0.0f }, { 0.36f, -0.34f, 2.4f } };
         for (int i = 0; i < 2; i++) {
-            float lx = X - L[i][0] * r, ly = Y - L[i][1] * r, s = sinf(t * 1.7f + L[i][2] + fase * 6.3f);
+            float lx = X - L[i][0] * r, ly = Y - L[i][1] * r, s = sinf(t_relogio * 1.7f + L[i][2] + fase * 6.3f);
             if (s < 0.2f) continue;
             float b = s > 0.75f ? 2.5f : 1.5f;     // no pico, a cruz cresce
             if ((fabsf(lx) < 0.5f && fabsf(ly) < b) || (fabsf(ly) < 0.5f && fabsf(lx) < b)) return C_BRANCO;
@@ -3577,12 +3588,12 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         float c = r * 0.17f;
         int i = (int)floorf(X / c + 3.5f), j = (int)floorf(Y / c + 3.5f);
         if (i < 0 || i > 6 || j < 0 || j > 6 || ADESIVO[a].ic[j][i] != '#') return fundo;
-        float p = fr(t / 4.5f + fase);
+        float p = fr(t_relogio / 4.5f + fase);
         if (p < 0.02f || (p > 0.035f && p < 0.065f)) return p < 0.02f ? C_VENTO : C_BRANCO;
         return (ix + iy) & 1 ? RGB(72, 150, 138) : fundo;
     }
     case AD_DOURADO: {                            // folha de ouro: o grao, e um brilho que passa de vez em quando
-        float p = fr(t / 4 + fase) * 4, pos = -1.7f * r + p / 0.55f * 3.4f * r, f = X + Y - pos;
+        float p = fr(t_relogio / 4 + fase) * 4, pos = -1.7f * r + p / 0.55f * 3.4f * r, f = X + Y - pos;
         if (p < 0.55f && fabsf(f) < 1) return C_BRANCO;
         if (p < 0.55f && fabsf(f) < 2.5f) return C_AMARELO;
         if (h % 11 == 0) return C_AMARELO;
@@ -3611,7 +3622,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         return d1 % 5 == 0 ? C_BRANCO : RGB(150, 112, 160);
     }
     case AD_FERMENTO: {                           // bolhinhas subindo devagar
-        float yy = Y + t * 2.5f;
+        float yy = Y + t_relogio * 2.5f;
         int cxl = (int)floorf(X / 6), cyl = (int)floorf(yy / 6);
         uint32_t q = hash2(cxl + 64, cyl + 64);
         if (q % 3) return fundo;
@@ -3662,7 +3673,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         uint32_t q = hash2(cxl + 64, cyl + 64);
         if (q % 3) return fundo;
         int px = cxl * 7 + 2 + (int)(q >> 4) % 3, py = cyl * 7 + 2 + (int)(q >> 6) % 3;
-        bool pisca = sinf(t * 2.2f + (q >> 8) % 17) > 0.35f;
+        bool pisca = sinf(t_relogio * 2.2f + (q >> 8) % 17) > 0.35f;
         if (ix == px && iy == py) return C_AMARELO;
         if (pisca && abs(ix - px) + abs(iy - py) == 1) return C_AMARELO;
         return fundo;
@@ -3689,7 +3700,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     case AD_PURPURINA: {                          // purpurina: pontinhos de brilho piscando
         if (h % 9) return fundo;
         static const uint16_t K[3] = { RGB(246, 222, 132), RGB(252, 248, 236), RGB(226, 164, 168) };
-        return sinf(t * 3 + (h >> 4) % 29) > -0.2f ? K[(h >> 9) % 3] : RGB(208, 98, 108);
+        return sinf(t_relogio * 3 + (h >> 4) % 29) > -0.2f ? K[(h >> 9) % 3] : RGB(208, 98, 108);
     }
     case AD_VELCRO:                               // os fios: o pelo miudo, mais escuro e mais claro
         if (h % 6 == 0) return RGB(14, 14, 12);
@@ -3707,7 +3718,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (de >= 4 && (ix % 3) == 0 && (iy % 3) == 0) return RGB(88, 152, 84);
         return fundo;
     case AD_PATINHO: {                            // a agua do lago, com ondinhas indo devagar
-        float o = 1.1f * sinf(X * 0.42f + t * 1.4f);
+        float o = 1.1f * sinf(X * 0.42f + t_relogio * 1.4f);
         return fr((Y + o + 100) / 6) < 0.16f && (ix % 4) ? C_BRANCO : fundo;
     }
     case AD_ETIQUETA: {                           // o papel pardo: fibras curtas
@@ -3729,11 +3740,11 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (q % 4) return fundo;
         int px = cxl * 6 + 2 + (int)(q >> 4) % 3, py = cyl * 6 + 2 + (int)(q >> 6) % 3;
         if (ix == px && iy == py) return C_AMARELO;
-        if (sinf(t * 2.6f + (q >> 8) % 19) > 0.55f && abs(ix - px) + abs(iy - py) == 1) return C_ROSA;
+        if (sinf(t_relogio * 2.6f + (q >> 8) % 19) > 0.55f && abs(ix - px) + abs(iy - py) == 1) return C_ROSA;
         return fundo;
     }
     case AD_CARBONO: {                            // a folha de copia: a letra que passou, linha por linha, e o brilho da cera
-        float p = fr(t / 5 + fase) * 5, pos = -1.8f * r + p / 0.6f * 3.6f * r;
+        float p = fr(t_relogio / 5 + fase) * 5, pos = -1.8f * r + p / 0.6f * 3.6f * r;
         if (p < 0.6f && fabsf(X - 0.5f * Y - pos) < 1.0f) return RGB(96, 134, 196);   // o brilho passando
         int linha = (int)floorf((Y + 100) / 5), dy = iy + 100 - linha * 5;
         int palavra = (int)floorf((X + 100 + linha * 7) / 6);
@@ -3744,7 +3755,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     }
     case AD_BOMBA: {                              // o papel da etiqueta: a moldura vermelha, as fibras e, de vez em quando, o pavio correndo
         if (de >= 1.6f && de < 2.6f) {
-            float an = atan2f(Y, X) / 6.2832f + 0.5f, q = fr(t / 3.5f + fase) * 3.5f;   // o fogo da a volta em 1 s
+            float an = atan2f(Y, X) / 6.2832f + 0.5f, q = fr(t_relogio / 3.5f + fase) * 3.5f;   // o fogo da a volta em 1 s
             float d = fabsf(an - q);
             if (q < 1 && d < 0.035f) return (h & 1) ? C_AMARELO : C_FOGO;
             if (q < 1 && an < q && q - an < 0.14f) return (h & 1) ? C_EBANO_B : C_BRASA;   // o rastro queimado
@@ -3757,7 +3768,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     }
     case AD_IMPERMEAVEL: {                        // o plastico da capa, liso como a bolha: de tempos em tempos um
                                                   // reflexo passa na diagonal, de cima a esquerda para baixo
-        float p = fr(t / 3.6f + fase);
+        float p = fr(t_relogio / 3.6f + fase);
         if (p > 0.4f) return fundo;
         float pos = (p / 0.4f * 2.6f - 1.3f) * r, d = (X + Y) * 0.7071f - pos;
         if (fabsf(d) < 0.8f || fabsf(d + 2.6f) < 0.45f) return C_BRANCO;   // o reflexo e o risco fino atras dele
@@ -3772,7 +3783,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     }
     case AD_NEON: {                               // o tubo de luz na parede escura, respirando: o brilho em volta cresce e
                                                   // encolhe, o tubo fica branco no pico; de vez em quando pisca e apaga
-        float p = fr(t / 6 + fase), pulso = 0.5f + 0.5f * sinf(t * 4.2f + fase * 6.3f);
+        float p = fr(t_relogio / 6 + fase), pulso = 0.5f + 0.5f * sinf(t_relogio * 4.2f + fase * 6.3f);
         bool apaga = (p > 0.02f && p < 0.035f) || (p > 0.05f && p < 0.06f);
         if (de >= 2.2f && de < 3.2f) {                       // o tubo: de vermelho apagado a branco
             if (apaga) return C_VINHO;
@@ -3793,15 +3804,15 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (q % 3 != 1) {
             float px = cxl * 6 + 2.0f + (int)(q >> 4) % 3, py = cyl * 6 + 2.0f + (int)(q >> 6) % 3;
             float dd = sqrtf((X - px) * (X - px) + (Y - py) * (Y - py));
-            float rr = 0.8f + 1.0f * (0.5f + 0.5f * sinf(t * 2.4f + (q >> 8) % 13 + fase * 6.3f));
+            float rr = 0.8f + 1.0f * (0.5f + 0.5f * sinf(t_relogio * 2.4f + (q >> 8) % 13 + fase * 6.3f));
             if (dd < rr) return dd < rr - 0.9f ? RGB(102, 74, 138) : RGB(150, 112, 160);
         }
-        if (h % 41 == 0 && sinf(t * 3.1f + (h >> 8) % 17) > 0.75f) return RGB(206, 180, 218);
+        if (h % 41 == 0 && sinf(t_relogio * 3.1f + (h >> 8) % 17) > 0.75f) return RGB(206, 180, 218);
         return fundo;
     }
     case AD_BARRO: {                              // o barro fresco: o grao, torroes escuros e o brilho molhado que passa
         uint32_t q = hash2((int)floorf(X / 2) + 64, (int)floorf(Y / 2) + 64) % 11;
-        float p = fr(t / 4.6f + fase);
+        float p = fr(t_relogio / 4.6f + fase);
         if (p < 0.3f && fabsf(X - Y * 0.4f - (p / 0.3f * 2.4f - 1.2f) * r) < 0.7f) return RGB(204, 194, 172);
         if (q == 0) return RGB(120, 78, 50);
         if (q == 1) return RGB(190, 156, 86);
@@ -3810,7 +3821,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     }
     case AD_SUJEIRA: {                            // a lama que o oponente jogou: manchas escuras e dois pingos escorrendo
         for (int c = 0; c < 2; c++) {
-            float colx = (c ? 0.22f : -0.28f) * r, yy = -0.45f * r + fr(t / 2.6f + fase + c * 0.5f) * 0.95f * r;
+            float colx = (c ? 0.22f : -0.28f) * r, yy = -0.45f * r + fr(t_relogio / 2.6f + fase + c * 0.5f) * 0.95f * r;
             if (fabsf(X - colx) < 1.0f && Y < yy && Y > yy - 3.5f) return RGB(56, 32, 20);   // o pingo e o rastro
             if (fabsf(X - colx) < 1.6f && fabsf(Y - yy) < 1.2f) return RGB(56, 32, 20);
         }
@@ -3820,7 +3831,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         return fundo;
     }
     case AD_CHICLETE: {                           // a goma rosa: uma bola enchendo e estourando, e os fios grudados
-        float ciclo = fr(t / 2.4f + fase), rb = ciclo < 0.8f ? 0.18f * r + ciclo / 0.8f * 0.32f * r : 0;
+        float ciclo = fr(t_relogio / 2.4f + fase), rb = ciclo < 0.8f ? 0.18f * r + ciclo / 0.8f * 0.32f * r : 0;
         float bx = 0.12f * r, by = -0.1f * r, db = sqrtf((X - bx) * (X - bx) + (Y - by) * (Y - by));
         if (rb > 0 && db < rb) {                  // a bola: rosa clara, com o brilho em cima a esquerda
             float lx = X - (bx - rb * 0.4f), ly = Y - (by - rb * 0.4f);
@@ -3829,7 +3840,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         }
         if (ciclo >= 0.8f && ciclo < 0.9f && (h % 3) == 0 && db < 0.5f * r) return C_VINHO_CLR;   // estourou: os pedacos
         for (int c = 0; c < 3; c++) {             // os fios esticados, de cima a baixo, ondulando
-            float fx = (-0.5f + c * 0.42f) * r + sinf(Y * 0.4f + t * 2 + c * 2) * 1.2f;
+            float fx = (-0.5f + c * 0.42f) * r + sinf(Y * 0.4f + t_relogio * 2 + c * 2) * 1.2f;
             if (fabsf(X - fx) < 0.6f && (c != 1 || Y > 0.2f * r)) return C_VINHO_CLR;
         }
         uint32_t q = hash2((int)floorf(X / 2) + 32, (int)floorf(Y / 2) + 32) % 9;
@@ -3841,7 +3852,7 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         if (de >= 1.0f && de < 2.3f && qa % 5 && (h % 7)) return RGB(118, 30, 38);
         if (de >= 2.3f && de < 3.0f && qa % 3 == 0) return RGB(150, 62, 80);
         if (h % 41 == 0) return RGB(150, 62, 80);
-        float pp = fr(t / 5 + fase) * 5, pos = -1.7f * r + pp / 0.6f * 3.4f * r, f = X + Y - pos;
+        float pp = fr(t_relogio / 5 + fase) * 5, pos = -1.7f * r + pp / 0.6f * 3.4f * r, f = X + Y - pos;
         if (pp < 0.6f && fabsf(f) < 1) return C_AMARELO;
         if (h % 17 == 0) return RGB(228, 194, 106);
         if (h % 19 == 1) return RGB(150, 122, 62);
@@ -3849,13 +3860,13 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
     }
     case AD_DUPLA: {                              // as duas faces: a metade de baixo, na diagonal, num preto mais claro,
                                                   // e nas quinas opostas as duas setas de virar, girando
-        if (X + Y > 0.15f * r * sinf(t * 1.3f + fase * 6.3f)) {
+        if (X + Y > 0.15f * r * sinf(t_relogio * 1.3f + fase * 6.3f)) {
             if ((ix + iy) % 5 == 0 && (h & 1)) return C_EBANO;
             fundo = C_EBANO_B;
         }
         for (int c = 0; c < 2; c++) {
             float cx2 = (c ? 0.5f : -0.5f) * r, cy2 = (c ? -0.5f : 0.5f) * r, dx = X - cx2, dy = Y - cy2;
-            float d2 = sqrtf(dx * dx + dy * dy), a2 = atan2f(dy, dx) - t * 2.2f * (c ? 1 : -1) + c * 3.1416f;
+            float d2 = sqrtf(dx * dx + dy * dy), a2 = atan2f(dy, dx) - t_relogio * 2.2f * (c ? 1 : -1) + c * 3.1416f;
             a2 -= 6.2832f * floorf(a2 / 6.2832f);
             if (fabsf(d2 - 0.17f * r) < 0.6f && a2 < 4.4f) return a2 > 3.7f ? C_BRANCO : C_MARFIM_S;   // a seta: o arco e a ponta
         }
@@ -3867,10 +3878,10 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         for (int c = 0; c < 3; c++) {
             float faixa = (-0.42f + c * 0.42f) * r;
             if (fabsf(w - faixa) > 0.8f) continue;
-            float fz = fr((u + t * (13 + c * 3) + c * 7 + fase * 31) / (11 + c * 2));
+            float fz = fr((u + t_relogio * (13 + c * 3) + c * 7 + fase * 31) / (11 + c * 2));
             if (fz < 0.3f) return fz < 0.08f ? C_BRANCO : RGB(96, 182, 198);
         }
-        float pq = fr(t / 3.1f + fase), gx = -r + pq * 2.4f * r, gy = 0.55f * r - pq * 0.3f * r;
+        float pq = fr(t_relogio / 3.1f + fase), gx = -r + pq * 2.4f * r, gy = 0.55f * r - pq * 0.3f * r;
         if (pq < 0.5f && fabsf(X - gx) < 1.3f && fabsf(Y - gy) < 0.8f) return C_AMARELO;
         return fundo;
     }
@@ -3879,9 +3890,9 @@ static uint16_t ad_textura(int a, float X, float Y, float de, float r, float fas
         float u = (X + Y) * 0.7071f, w = (X - Y) * 0.7071f;
         for (int c = 0; c < 3; c++) {
             float off = (-0.4f + c * 0.4f) * r;
-            float vv = off + sinf(w * 0.3f + t * 0.8f + c * 2.1f + fase * 6.3f) * 0.11f * r
-                     + sinf(w * 0.09f - t * 0.45f + c * 1.3f) * 0.07f * r;
-            float dd = u - vv, larg = 1.1f + 0.6f * sinf(w * 0.2f + c + t * 0.6f);
+            float vv = off + sinf(w * 0.3f + t_relogio * 0.8f + c * 2.1f + fase * 6.3f) * 0.11f * r
+                     + sinf(w * 0.09f - t_relogio * 0.45f + c * 1.3f) * 0.07f * r;
+            float dd = u - vv, larg = 1.1f + 0.6f * sinf(w * 0.2f + c + t_relogio * 0.6f);
             if (fabsf(dd) < larg) return MASSA[c][0];
             if (dd > 0 && dd < larg + 1.0f && ((ix + iy) & 1)) return MASSA[c][1];
         }
@@ -4500,10 +4511,128 @@ static void sombra_px(uint16_t *buf, int cx, int cy, int R)
         }
 }
 
+// ---- O cache dos dados pousados ---------------------------------------------
+// Um dado parado na mesa era pintado igual a cada quadro: o corpo com o ruido
+// e o bisel, o desenho, o adesivo, o contorno e a sombra. O que desenha_dado
+// cola na tela nao depende do que esta atras (so cobre), entao o recorte
+// pronto - a sombra e o dado - fica guardado e e so copiado enquanto nada do
+// que entra no desenho mudar. Tem de sair o mesmo pixel de antes, sempre
+// (tests/cache_dados.c desenha tudo das duas maneiras e compara):
+// - a chave leva tudo o que o desenho le: o lugar, o raio, o tipo, o numero,
+//   o anulado e o que quem chama deixa armado para "o proximo dado" (a
+//   etiqueta do adesivo, o material, a face escondida, a risca, o estilo...).
+// - o desenho tambem le e deixa para tras o rascunho do dado anterior
+//   (dc_resto_t: a rotacao, os tons, o brilho de passagem...). O de antes
+//   entra na chave e o de depois fica guardado com o recorte: quem copia
+//   deixa tudo como o desenho de verdade deixaria.
+// - so entra o dado pousado na mesa - quem o desenha avisa antes, com
+//   dc_pousado (a fila e os roubados, em mesa.inc); a loja, a colecao, a
+//   bolsa e o resto seguem como sempre -, e so deitado (vista 2, sem giro,
+//   no chao, de raio 12 para cima), direto na tela, sem efeito passando (o
+//   brilho de passagem, o adesivo agindo, a faixa do lendario).
+// - quem le o relogio enquanto e pintado (dc_tempo_lido, em estado.inc) se
+//   mexe parado - o holografico, as luzes piscando, o ceu girando: esse nunca
+//   e guardado, e ninguem precisa lembrar de avisar.
+// Mudou o que o desenho de um dado le? A variavel nova entra em dc_chave_t
+// (ou, se o desenho tambem a escreve, em dc_resto_t).
+#define DC_N 24                           // os recortes guardados (a mesa cheia tem 10 dados)
+#define DC_L 104                          // o lado do recorte: cabe o dado de raio ate 24, com a sombra
+typedef struct {                          // o rascunho que um dado deixa para o seguinte
+    float brilho_passa, brilho_desta, digital_q, mca, msa, mcx, mcy, arte_du, arte_dv, acab_s24, acab_rx, acab_ry;
+    float fx_escala, fx_dobra, fx_brilho, fx_onda;
+    int ad_face, relogio_desta, mat_desta, acab_desta, valor_desta, corpo_desta, beira_n;
+    int caixa_fechada, face_curinga, ad_face_aceso, fx_some, corpo_apagado, rampas_ok, pq_pintou, brilho_apagado, aro_cruz;
+    uint16_t pips_aro, pips_copia, pq_canto, rampas[4][4];
+} dc_resto_t;
+typedef struct {
+    float cx, cy, r, carrossel_giro, risca_q, risca_pop, acab_varre, acab_fase;
+    int tipo, dono, valor, zerado, marca_nivel, frutas, camaleao, num_cresce, estilo, ad_estilo, relogio, sr_lado, boneca,
+        patos, bala, sem_sombra, so_apagado, sem_risca, f_esc, f_capa, mat[2], letra;
+    dc_resto_t antes;
+} dc_chave_t;
+typedef struct {
+    bool usado;
+    dc_chave_t k;
+    dc_resto_t depois;
+    int x0, y0, w, h;                     // o recorte na tela
+    uint32_t uso;
+    uint16_t px[DC_L * DC_L];             // CHAVE: o que o dado nao cobre
+} dc_t;
+static dc_t dc[DC_N];
+static uint32_t dc_vez;
+static bool dc_liga = true;               // (o teste desliga para comparar)
+static bool dc_pousado;                   // o proximo dado e um dado pousado na mesa: pode vir do cache
+static long dc_copias, dc_guardados, dc_vivos;   // (e conta: copiados, guardados, pintados ao vivo por lerem o relogio)
+// Guarda em s (ou poe de volta, de s) o rascunho do dado. Campo a campo: a
+// chave e comparada byte a byte, e o que sobra entre os campos fica zerado.
+static void dc_resto(dc_resto_t *s, bool guarda)
+{
+#define DC_F(c, v) do { if (guarda) s->c = v; else v = s->c; } while (0)
+#define DC_V(c) DC_F(c, c)
+    DC_V(brilho_passa); DC_V(brilho_desta); DC_V(digital_q); DC_V(mca); DC_V(msa); DC_V(mcx); DC_V(mcy);
+    DC_V(arte_du); DC_V(arte_dv); DC_V(acab_s24); DC_V(acab_rx); DC_V(acab_ry);
+    DC_F(fx_escala, an_fx.escala); DC_F(fx_dobra, an_fx.dobra); DC_F(fx_brilho, an_fx.brilho); DC_F(fx_onda, an_fx.onda);
+    DC_F(fx_some, an_fx.some);
+    DC_V(ad_face); DC_V(relogio_desta); DC_V(mat_desta); DC_V(acab_desta); DC_V(valor_desta); DC_V(corpo_desta); DC_V(beira_n);
+    DC_V(caixa_fechada); DC_V(face_curinga); DC_V(ad_face_aceso); DC_V(corpo_apagado); DC_V(rampas_ok); DC_V(pq_pintou);
+    DC_V(brilho_apagado); DC_V(aro_cruz); DC_V(pips_aro); DC_V(pips_copia); DC_V(pq_canto);
+#undef DC_V
+#undef DC_F
+    if (guarda) memcpy(s->rampas, rampas_desta, sizeof s->rampas);
+    else memcpy(rampas_desta, s->rampas, sizeof s->rampas);
+}
+// O recorte guardado deste dado (copiado para a tela: devolve NULL e true em
+// *copiou) ou, se nao ha, o lugar onde guardar o que vai ser pintado agora
+// (NULL: este dado nao entra no cache).
+static dc_t *dc_procura(float cx, float cy, float r, int tipo, int dono, float ang, int valor, int vista, bool zerado,
+                        bool *copiou)
+{
+    *copiou = false;
+    bool pousado = dc_pousado;
+    dc_pousado = false;                                          // (vale so para este dado)
+    if (!pousado || !dc_liga || vista != 2 || ang != 0 || r < 12 || gfx_alvo() || (int)sombra_alt != 0 || tipo == D_BALAO
+        || brilho_passa >= 0 || an_fx.escala != 1 || an_fx.dobra != 0 || an_fx.brilho >= 0 || an_fx.onda >= 0 || an_fx.some
+        || (TIPO[tipo].raridade == RAR_LENDA && lenda_faixa(tipo) >= 0)) return NULL;
+    dc_chave_t k;
+    memset(&k, 0, sizeof k);
+    k.cx = cx; k.cy = cy; k.r = r; k.carrossel_giro = carrossel_giro; k.risca_q = risca_q; k.risca_pop = risca_pop;
+    k.acab_varre = acab_varre; k.acab_fase = acab_fase;
+    k.tipo = tipo; k.dono = dono; k.valor = valor; k.zerado = zerado; k.marca_nivel = marca_nivel; k.frutas = frutas_desta;
+    k.camaleao = camaleao_de; k.num_cresce = num_cresce; k.estilo = estilo_versao; k.ad_estilo = ad_estilo;
+    k.relogio = tipo != D_RELOGIO ? 0 : na_partida() ? relogio_valor() : -1;
+    k.sr_lado = sr_lado; k.boneca = boneca_lados; k.patos = patos_pousou; k.bala = bala_lancada; k.sem_sombra = sem_sombra;
+    k.so_apagado = so_apagado; k.sem_risca = sem_risca; k.f_esc = face_escondida; k.f_capa = face_capa;
+    k.mat[0] = material_j[0]; k.mat[1] = material_j[1]; k.letra = gfx_letra_e_maior();
+    dc_resto(&k.antes, true);
+    dc_t *velho = &dc[0];
+    for (int i = 0; i < DC_N; i++) {
+        dc_t *e = &dc[i];
+        if (e->usado && !memcmp(&e->k, &k, sizeof k)) {         // guardado: so copia
+            uint16_t *fb = display_fb();
+            for (int y = 0; y < e->h; y++) {
+                const uint16_t *o = e->px + y * DC_L;
+                uint16_t *d = fb + (e->y0 + y) * GFX_W + e->x0;
+                for (int x = 0; x < e->w; x++) if (o[x] != CHAVE) d[x] = o[x];
+            }
+            dc_resto(&e->depois, false);
+            e->uso = ++dc_vez;
+            dc_copias++;
+            *copiou = true;
+            return NULL;
+        }
+        if (velho->usado && (!e->usado || e->uso < velho->uso)) velho = e;
+    }
+    velho->usado = false;                                        // o mais antigo da o lugar
+    velho->k = k;
+    return velho;
+}
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                          float ang, int valor, int vista, bool zerado)
 {
     if (px_dentro) { desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado); return; }
+    bool copiou;
+    dc_t *guarda = dc_procura(cx, cy, r, tipo, dono, ang, valor, vista, zerado, &copiou);
+    if (copiou) return;
     uint16_t *alvo = gfx_alvo(), *fb = alvo ? alvo : display_fb();
     int so = r < 12 ? 2 : (int)(r / 6), alt = (int)sombra_alt;
     bool sombra = tipo != D_VAZIO && !sem_sombra;       // o Vazio faz a dele (as linhas)
@@ -4514,10 +4643,18 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
     if (x1 > GFX_W - 2) x1 = GFX_W - 2;
     if (y1 > GFX_H - 2) y1 = GFX_H - 2;
     if (x0 > x1 || y0 > y1) return;
+    if (guarda) {                                       // o recorte: o dado e a sombra, que cai ate so + 1 abaixo e so a direita
+        guarda->x0 = x0; guarda->y0 = y0; guarda->w = x1 - x0 + 1 + so; guarda->h = y1 - y0 + 2 + so;
+        if (guarda->x0 + guarda->w > GFX_W) guarda->w = GFX_W - guarda->x0;
+        if (guarda->y0 + guarda->h > GFX_H) guarda->h = GFX_H - guarda->y0;
+        if (guarda->w > DC_L || guarda->h > DC_L) guarda = NULL;   // grande demais (o dado que cresce na vinheta): ao vivo
+        else for (int i = 0; i < DC_L * DC_L; i++) guarda->px[i] = CHAVE;
+    }
     for (int y = y0 - 1; y <= y1 + 1; y++)
         for (int x = x0 - 1; x <= x1 + 1; x++) px_buf[y * GFX_W + x] = CHAVE;
     gfx_desvia(px_buf);
     px_dentro = true;
+    dc_tempo_lido = false;                              // quem ler o relogio daqui ate o fim do desenho se mexe parado
     px_sem_sombra = sombra || sem_sombra;   // o Vampiro e o Buraco Negro: nem a sombra pontilhada de fora, nem o disco de dentro
     desenha_dado_base(cx, cy, r, tipo, dono, ang, valor, vista, zerado);
     px_dentro = px_sem_sombra = false;
@@ -4568,13 +4705,23 @@ static void desenha_dado(float cx, float cy, float r, int tipo, int dono,
                 if (X <= x1 && Y <= y1 && px_buf[Y * GFX_W + X] != CHAVE) continue;   // o dado cobre
                 if (c == C_BARRA && bayer(X, Y) >= 0.5f) continue;                     // a beira, a meio tom
                 fb[Y * GFX_W + X] = C_SOMBRA;
+                if (guarda) guarda->px[(Y - y0) * DC_L + X - x0] = C_SOMBRA;
             }
     }
     for (int y = y0; y <= y1; y++)                      // cola o que nao e fundo
         for (int x = ca[y]; x <= cb[y]; x++) {
             uint16_t c = px_buf[y * GFX_W + x];
-            if (c != CHAVE) fb[y * GFX_W + x] = c;
+            if (c == CHAVE) continue;
+            fb[y * GFX_W + x] = c;
+            if (guarda) guarda->px[(y - y0) * DC_L + x - x0] = c;
         }
+    if (guarda && dc_tempo_lido) dc_vivos++;            // leu o relogio: mexe parado, nao se guarda
+    else if (guarda) {
+        dc_resto(&guarda->depois, true);
+        guarda->usado = true;
+        guarda->uso = ++dc_vez;
+        dc_guardados++;
+    }
     if (tipo == D_BALAO && !zerado && r >= 9) balao_brilho(cx, cy, r, ang);   // o brilho piscando, por cima
 }
 
@@ -5132,16 +5279,6 @@ static bool fisica(float dt)
 // bordas. Nao muda nunca: e pintada uma vez e copiada a cada quadro.
 static uint16_t mesa_pronta[GFX_W * GFX_H];
 static bool mesa_feita;
-// A linha de aposta sai no fim da partida (so sobrariam as pontas, dos
-// lados do painel). Repintar a mesa inteira custa caro num aparelho lento;
-// entao a pintura guarda o que havia debaixo de cada ponto da linha, e a
-// troca e so desses pontos, direto na mesa pronta.
-#define LINHA_MAX 760
-static int32_t linha_pos[LINHA_MAX];         // onde (y * GFX_W + x)
-static uint16_t linha_sem[LINHA_MAX], linha_com[LINHA_MAX];   // sem a linha e com ela (a mesa pronta)
-static int linha_n;
-static uint16_t linha_cor;
-static bool linha_tirada;                    // a mesa pronta esta sem a linha
 
 static uint32_t ruido_xy(int x, int y)
 {
@@ -5831,21 +5968,7 @@ static void pinta_mesa(void)
 {
     n_anima = anima_usado = 0;
     pinta_mesa_toda();
-    // O que veio por cima da linha (a fita do Natal) fica tambem sem ela.
-    const uint16_t *fb = display_fb();
-    for (int k = 0; k < linha_n; k++) if (fb[linha_pos[k]] != linha_cor) linha_sem[k] = fb[linha_pos[k]];
     anima_guarda();
-}
-// Tira (ou devolve) a linha de aposta da mesa pronta. So mexe no ponto que
-// ainda esta como a pintura deixou: o brilho animado por cima fica.
-// (A vinheta so escurece a beira da mesa, longe da linha.)
-static void linha_troca(bool tira)
-{
-    for (int k = 0; k < linha_n; k++) {
-        uint16_t *p = &mesa_pronta[linha_pos[k]];
-        if (tira && *p == linha_com[k]) *p = linha_sem[k];
-        else if (!tira && *p == linha_sem[k]) *p = linha_com[k];
-    }
 }
 
 static void pinta_mesa_toda(void)
@@ -5920,25 +6043,9 @@ static void pinta_mesa_toda(void)
     else if (estilo_feltro == FT_MAR) pinta_mar();
     else if (estilo_feltro == FT_DECO) pinta_deco();
     else if (estilo_feltro == FT_COURO) pinta_costura();
-    // Linha de aposta: uma elipse tracejada ao redor do centro da mesa. No
-    // fim da partida ela sai: so sobrariam as pontas, dos lados do painel.
-    uint16_t linha = lv >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;
-    uint16_t *lfb = display_fb();
-    linha_n = 0;
-    linha_cor = linha;
-    for (int i = 0; i < 360; i++) {
-        if ((i / 4) % 2) continue;
-        float a = i * 0.017453f;
-        int lx = (int)(cx + cosf(a) * 250), ly = (int)(cy + sinf(a) * 52);
-        for (int d = 0; d < 2; d++) {            // o que fica debaixo (o ponto ja na linha nao conta de novo)
-            int x = lx + d, pos = ly * GFX_W + x;
-            if (x < 0 || x >= GFX_W || ly < 0 || ly >= GFX_H || lfb[pos] == linha || linha_n >= LINHA_MAX) continue;
-            linha_pos[linha_n] = pos;
-            linha_sem[linha_n++] = lfb[pos];
-        }
-        gfx_rect(lx, ly, 2, 1, linha);
-    }
-    if (estilo_feltro == FT_NATAL) pinta_natal();      // por cima da linha: a fita contorna tudo
+    // (A estampa do feltro - as casas das filas, o lugar do pote e o brasao -
+    // nao e pintada aqui: entra e sai com a partida, em mesa_estampa.)
+    if (estilo_feltro == FT_NATAL) pinta_natal();      // a fita contorna tudo
     if (lv <= 0) return;
 
     // Acabamentos do andar, discretos: so nas bordas.
@@ -6186,6 +6293,141 @@ static bool luz_de_cena(void)
     return poca || pulso;
 }
 
+// ---- A estampa do feltro ----------------------------------------------------
+// No lugar da antiga elipse tracejada, impresso um tom acima do feltro: as
+// cantoneiras de cada casa das duas filas (onde o aro da selecao fecha), um
+// aro de latao gasto no lugar do pote e, no meio, o brasao da casa - um
+// losango com um dado dentro e dois filetes curtos para os lados. Cada marca
+// so aparece enquanto o lugar dela esta livre, e entra e sai no pontilhado
+// (q de 0 a 1) em um quarto de segundo: as casas, com a fila na mesa (na
+// montagem, a mao de quem monta ocupa a linha dele); o brasao, com o meio da
+// mesa sem texto nem botoes; fora da partida (os menus, a loja, o salao, o
+// fim), nada. Os feltros com desenho proprio no meio ficam sem o brasao.
+// So desenho: nao le nem muda nada do jogo alem da fase e de quem joga.
+//
+// Para nao custar nada por quadro, a estampa nao e pintada na tela: a mesa
+// pronta com ela por cima fica guardada em mesa_estampada, refeita so quando
+// uma marca entra ou sai (ou a mesa pronta muda: a animacao do feltro), e
+// e ela que mesa() copia para a tela.
+static uint16_t mesa_estampada[GFX_W * GFX_H];
+static bool mesa_mudou;                      // a mesa pronta foi repintada (ou animada) neste quadro
+#define ESTAMPA_T 0.25f                      // o tempo de uma marca entrar ou sair
+typedef struct { bool on; float t; } estampa_t;
+static estampa_t est_casas[2], est_pote, est_brasao;   // (as casas: a fila de cima e a de baixo)
+static void estampa_px(int x, int y, uint16_t c, float q)
+{
+    if (q >= 1 || bayer(x, y) < q) gfx_pixel(x, y, c);
+}
+// As quatro cantoneiras de cada casa da fila em y.
+static void estampa_casas(int y, int n, uint16_t c, float q)
+{
+    const int m = R_DADO + 6;
+    for (int k = 0; k < n; k++) {
+        int x = SLOT_X(k);
+        for (int canto = 0; canto < 4; canto++) {
+            int sx = canto & 1 ? -1 : 1, sy = canto & 2 ? -1 : 1;
+            int px = sx > 0 ? x - m : x + m - 1, py = sy > 0 ? y - m : y + m - 1;
+            for (int i = 0; i < 6; i++) { estampa_px(px + sx * i, py, c, q); estampa_px(px, py + sy * i, c, q); }
+        }
+    }
+}
+// O lugar do pote: um aro de latao gasto e outro pontilhado por dentro, sob a pilha.
+static void estampa_pote(uint16_t c, float q)
+{
+    int px = POTE_X, py = CENTRO + 10;
+    for (int i = 0; i < 96; i++) {
+        float a = i * 6.2832f / 96;
+        estampa_px(px + (int)lroundf(cosf(a) * 11), py + (int)lroundf(sinf(a) * 11), C_LATAO_ESC, q);
+        if (i % 3 == 0) estampa_px(px + (int)lroundf(cosf(a) * 8), py + (int)lroundf(sinf(a) * 8), c, q);
+    }
+}
+static void estampa_brasao(uint16_t c, float q)
+{
+    int cx = GFX_W / 2, cy = CENTRO;
+    const int A = 40, B = 20;
+    for (int x = -A; x <= A; x++) {                       // o losango de fora cheio, o de dentro pontilhado
+        int ax = x < 0 ? -x : x;
+        int y = (int)lroundf((float)(A - ax) * B / A);
+        estampa_px(cx + x, cy - y, c, q); estampa_px(cx + x, cy + y, c, q);
+        if (ax <= A - 8 && (x & 1) == 0) {
+            int yi = (int)lroundf((float)(A - 8 - ax) * (B - 4) / (A - 8));
+            estampa_px(cx + x, cy - yi, c, q); estampa_px(cx + x, cy + yi, c, q);
+        }
+    }
+    for (int i = -5; i <= 5; i++) {                       // o dado: 15 x 15, os cantos chanfrados
+        estampa_px(cx + i, cy - 7, c, q); estampa_px(cx + i, cy + 7, c, q);
+        estampa_px(cx - 7, cy + i, c, q); estampa_px(cx + 7, cy + i, c, q);
+    }
+    for (int k = 0; k < 4; k++) estampa_px(cx + (k & 1 ? 6 : -6), cy + (k & 2 ? 6 : -6), c, q);
+    static const int8_t PX[5] = { -4, 3, -1, -4, 3 }, PY[5] = { -4, -4, -1, 3, 3 };
+    for (int i = 0; i < 5; i++)                           // o cinco
+        for (int k = 0; k < 4; k++) estampa_px(cx + PX[i] + (k & 1), cy + PY[i] + (k >> 1), c, q);
+    for (int s = -1; s <= 1; s += 2) {                    // os filetes: um ponto, o traco e o fim pontilhado
+        int x0 = cx + s * (A + 5);
+        estampa_px(x0, cy - 1, c, q); estampa_px(x0 - 1, cy, c, q); estampa_px(x0 + 1, cy, c, q); estampa_px(x0, cy + 1, c, q);
+        for (int i = 5; i < 56; i++)
+            if (i < 38 || ((i & 1) == 0 && i < 48) || i % 4 == 0) estampa_px(x0 + s * i, cy, c, q);
+    }
+}
+// Quanto da marca aparece agora (0 a 1), dado se o lugar dela esta livre.
+static float estampa_q(estampa_t *e, bool on)
+{
+    if (on != e->on) { e->on = on; e->t = t_relogio; }
+    float q = (t_relogio - e->t) / ESTAMPA_T;
+    if (q > 1 || q < 0) q = 1;                            // (acabou, ou o relogio deu a volta)
+    return on ? q : 1 - q;
+}
+// Os feltros com desenho proprio no meio (a galaxia, o mar, os fogos...) ficam sem o brasao.
+static bool feltro_com_brasao(void)
+{
+    return estilo_feltro != FT_GALAXIA && estilo_feltro != FT_NOITE_FELIZ && estilo_feltro != FT_REVEILLON
+        && estilo_feltro != FT_MAR && estilo_feltro != FT_DECO;
+}
+static bool anuncia_maquina(void);
+// O meio da mesa esta livre: os dados rolando, ou a maquina jogando sem menu.
+// (A aposta, a montagem, o menu de quem joga, a placa do veredito, o
+// resultado e os anuncios escrevem ali.)
+static bool estampa_meio_livre(void)
+{
+    if (t_anuncio > 0) return false;
+    return fase == F_ROLANDO || fase == F_ARRUMA || (fase == F_VEREDITO && ver_comum) || (fase == F_JOGA && anuncia_maquina());
+}
+// A mesa deste quadro: a pronta, ou a pronta com a estampa por cima.
+static const uint16_t *mesa_estampa(void)
+{
+    static float q_feito[4];
+    static int n_feito[2];
+    static bool feita;
+    bool partida = fase == F_ORDEM || fase == F_APOSTA || fase == F_ROLANDO || fase == F_ARRUMA || fase == F_RESULTADO
+                || fase == F_JOGA || fase == F_VEREDITO || fase == F_EFEITOS;
+    float q[4];
+    int n[2];
+    for (int l = 0; l < 2; l++) {                         // 0: a fila de cima; 1: a de baixo
+        int j = l ? baixo : outro(baixo);
+        n[l] = max_fila(j);
+        q[l] = estampa_q(&est_casas[l], partida && !(fase == F_ORDEM && vez == j));
+    }
+    q[2] = estampa_q(&est_pote, partida);
+    q[3] = estampa_q(&est_brasao, partida && feltro_com_brasao() && estampa_meio_livre());
+    bool mudou = mesa_mudou;
+    mesa_mudou = false;
+    if (q[0] <= 0 && q[1] <= 0 && q[2] <= 0 && q[3] <= 0) { feita = false; return mesa_pronta; }
+    if (feita && !mudou && !memcmp(q, q_feito, sizeof q) && !memcmp(n, n_feito, sizeof n)) return mesa_estampada;
+    memcpy(q_feito, q, sizeof q);
+    memcpy(n_feito, n, sizeof n);
+    feita = true;
+    memcpy(mesa_estampada, mesa_pronta, sizeof mesa_estampada);
+    uint16_t c = mesa_andar >= 3 ? gfx_mistura(C_FELTRO2, C_OURO, 30) : C_FELTRO2;   // (a cor da antiga linha de aposta)
+    uint16_t *alvo = gfx_alvo();
+    gfx_desvia(mesa_estampada);
+    if (q[0] > 0) estampa_casas(LINHA_CIMA, n[0], c, q[0]);
+    if (q[1] > 0) estampa_casas(LINHA_BAIXO, n[1], c, q[1]);
+    if (q[2] > 0) estampa_pote(c, q[2]);
+    if (q[3] > 0) estampa_brasao(c, q[3]);
+    gfx_desvia(alvo);
+    return mesa_estampada;
+}
+
 static void mesa(void)
 {
     mesa_andar = modo == M_DESAFIO ? (des_dificuldade() + 1) / 2 : 0;   // um acabamento a cada dois andares
@@ -6197,21 +6439,19 @@ static void mesa(void)
         pinta_mesa();
         px_vinheta(display_fb());                         // a vinheta, pintada com a mesa
         memcpy(mesa_pronta, display_fb(), sizeof mesa_pronta);
-        for (int k = 0; k < linha_n; k++) linha_com[k] = mesa_pronta[linha_pos[k]];
-        linha_tirada = false;
         mesa_feita = true;
         quadro_feito = -1;
+        mesa_mudou = true;
     }
-    bool tira = fase == F_FIM;                            // o fim da partida: sem a linha de aposta
-    if (tira != linha_tirada) { linha_troca(tira); linha_tirada = tira; }
     int q = (int)(t_relogio / ANIMA_PASSO);
     if ((n_anima || estilo_mesa == MS_LED || estilo_mesa == MS_LAREIRA) && q != quadro_feito) {
         mesa_anima(q);
-        if (linha_tirada) linha_troca(true);              // (o que a animacao devolveu da pintura com a linha)
         quadro_feito = q;
+        mesa_mudou = true;
     }
-    memcpy(display_fb(), mesa_pronta, sizeof mesa_pronta);
-    mesa_acesa = mesa_pronta;
+    const uint16_t *pronta = mesa_estampa();              // com as casas, o lugar do pote e o brasao, quando cabem
+    memcpy(display_fb(), pronta, sizeof mesa_pronta);
+    mesa_acesa = pronta;
     if (luz_de_cena()) {                                  // a luz do quadro: guarda a mesa acesa
         memcpy(mesa_acesa_buf, display_fb(), sizeof mesa_acesa_buf);
         mesa_acesa = mesa_acesa_buf;

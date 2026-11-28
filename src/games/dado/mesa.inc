@@ -2,18 +2,50 @@
 // Desenho da mesa: o lance, as faixas dos jogadores, as filas, os
 // ataques e o pote
 // ===========================================================================
-// O lance de aposta de j (passou, apostou 10...), junto do placar dele: do
-// lado de dentro da mesa, sobe um pouco ao entrar e some no fim.
+// O lance de aposta de j (passou, apostou 10...): uma etiqueta presa na beira
+// de dentro do placar dele, sempre no mesmo lugar - o fundo escuro tingido e
+// o filete na cor do jogador, o desenho do botao que ele apertou (o visto, as
+// fichas, as fichas com a seta) e o texto. Cai da beira do placar com a mola
+// ao entrar, fica enquanto a aposta durar (passo.inc) e pisca ao sair.
+// Alinhada pela beira direita do placar (todas sao mais largas que ele): a
+// comprida ("apostou 25") cresce para o lado dos dados e nao entra na coluna
+// do pote (o rotulo "pote" do pote alto, o "+?" da previa).
+#define LANCE_H 16
+static void icone_aposta(int op, int x, int cy);
+static int icone_aposta_w(int op);
+static void lance_caixa(int j, int *x, int *y, int *w)
+{
+    *w = 7 + icone_aposta_w(lance_op[j]) + 5 + gfx_largura(lance_txt[j], fonte_de(true)) + 7;
+    *x = PLACAR_X + 32 - *w;
+    *y = j != baixo ? zona(j) + 24 - 2 : zona(j) - 26 - LANCE_H + 2;
+}
+// Um numero que sobe do placar (ou de um dado) passa por ali agora: a
+// etiqueta da a vez a ele.
+static bool lance_sob_numero(int x, int y, int w)
+{
+    for (int i = 0; i < n_flut; i++) {
+        const flutua_t *f = &flut[i];
+        if (f->atraso > 0) continue;
+        int meia = gfx_largura(f->s, 2) / 2 + 2;
+        int y0 = f->dir < 0 ? f->y - 2 * FONTE_BASE - FLUT_SOBE - 2 : f->y - 12, y1 = y0 + FLUT_SOBE + FLUT_ALT + 4;
+        if (f->x + meia >= x && f->x - meia <= x + w && y1 >= y && y0 <= y + LANCE_H) return true;
+    }
+    return false;
+}
 static void desenha_lances(void)
 {
     for (int j = 0; j < 2; j++) {
         if (t_lance[j] <= 0 || !lance_txt[j][0]) continue;
-        float e = LANCE_T - t_lance[j], q = e < 0.18f ? e / 0.18f : 1;
+        float e = LANCE_T - t_lance[j], q = e < 0.22f ? sai_mola(e / 0.22f) : 1;
         if (t_lance[j] < 0.12f && (int)(t_lance[j] * 40) % 2) continue;      // pisca ao sair
-        bool cima = j != baixo;
-        int y = cima ? zona(j) + 30 + (int)((1 - q) * -6) : zona(j) - 46 + (int)((1 - q) * 6);
-        int f = fonte_de(true), w = gfx_largura(lance_txt[j], f);
-        gfx_texto(PLACAR_X - w / 2, y, lance_txt[j], J[j].cor, f, true);
+        int x, y, w;
+        lance_caixa(j, &x, &y, &w);
+        if (lance_sob_numero(x, y, w)) continue;
+        y += (j != baixo ? -1 : 1) * (int)lroundf((1 - q) * 10);              // vem da beira do placar
+        ui_sombra(x, y, w, LANCE_H);
+        ui_etiqueta(x, y, w, LANCE_H, J[j].cor);
+        icone_aposta(lance_op[j], x + 7, y + LANCE_H / 2 - 1);
+        gfx_texto(x + 7 + icone_aposta_w(lance_op[j]) + 5, y - 2, lance_txt[j], J[j].cor, fonte_de(true), false);
     }
 }
 
@@ -2176,6 +2208,7 @@ static void desenha_fila(int j)
         else if (fabsf(vira) < 0.995f) moeda_girando_arte((float)x, y - pulo, r_suga, td, j, vira, face);   // a Dupla Face virando
         else {
             camaleao_de = t == D_CAMALEAO && t_poder != D_CAMALEAO && k < f->lancados ? t_poder : 0;
+            dc_pousado = true;                              // parado, vem do cache (desenho_dado.inc)
             desenha_dado((float)x, y - pulo, r_suga, td, j, giro, face, 2, anul && giro < 0.5f && !paga);
             camaleao_de = 0;
         }
@@ -2482,6 +2515,7 @@ static void desenha_fila(int j)
             if (e && e->tipo == EV_CAVALO && e->alvo_j == j && r->tipo == D_CAVALO && p < 0.3f)
                 rx += (int)(sinf(t_fase * 70) * 3);               // o Cavalo roubado treme e se abre
             marca_nivel = r->tipo == D_JINGLE ? r->fixo : -1;   // a copia do Jingle leva o laco verde
+            dc_pousado = true;
             desenha_dado((float)rx, (float)y, R_ROUBO, r->tipo, r->de_j, 0, r->valor, 2, r->anulado);
             marca_nivel = -1;
         }

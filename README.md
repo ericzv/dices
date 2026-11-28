@@ -26,10 +26,20 @@ borda dourada) uma mira vermelha marca o dado que ele vai pegar no fim. No
 registro do fim da rodada, à esquerda, a linha que decidiu o resultado vem
 em ouro.
 
-**Na mesa.** O pote fica à direita, à vista a rodada inteira (na montagem e
+**Na mesa.** O feltro tem a estampa da casa, um tom acima dele: as
+cantoneiras de cada lugar das duas filas, um aro de latão no lugar do pote e,
+no meio, o brasão (um losango com um dado e dois filetes). Cada marca só
+aparece enquanto o lugar dela está livre: o brasão some quando entram textos
+e botões no meio, os lugares somem da linha de quem está montando a mão, e
+fora da partida (a loja, o salão, os menus, o fim) não fica nada; os feltros
+com desenho próprio no meio (Galáxia, Mar, Réveillon, Noite Feliz, Déco) não
+levam o brasão. O pote fica à direita, à vista a rodada inteira (na montagem e
 nos efeitos também), e só sai quando as fichas voam para quem levou; uma
 placa no meio diz quem foi e quanto ("ERICZ leva 35"), com o motivo em cima
 quando não foram os pontos (o outro correu, fez 0, a casa levou o empate).
+O lance de cada um na aposta ("passou", "apostou 25"...) é uma etiqueta na
+cor do jogador, presa à beira de dentro do placar dele, com o desenho do
+botão apertado; fica enquanto a aposta durar e pisca ao sair.
 O número que sobe de um dado para antes do menu de jogar e da aposta; quando
 nem parado ele cabe (o que acontece mais com dois na mesa), o menu espera um
 instante por ele, e os botões já atendem o toque nesse instante. A faixa de cima mostra a
@@ -802,6 +812,17 @@ vídeo só amplia. Para não pesar em aparelho fraco:
   escureceu linha a linha (duas vagas, para dois véus no mesmo quadro); a
   cortina não desenha o salão escondido atrás dela; o foco da hora da verdade
   só faz a conta da distância perto da luz. Os pixels são os mesmos.
+- **Os dados pousados não são repintados.** O dado parado na fila (e o
+  roubado, ao lado dela) guarda o recorte pronto - o dado, o contorno e a
+  sombra - e é só copiado enquanto nada do que entra no desenho mudar (o
+  lugar, o tamanho, o tipo, o número, o anulado, o adesivo, o material, o
+  estilo...). Quem lê o relógio enquanto é pintado se mexe parado (o
+  Holográfico, o Pisca-pisca, o céu dos cósmicos) e continua pintado a cada
+  quadro, sem ninguém precisar avisar; o lendário também, no meio segundo em
+  que a faixa de brilho passa. Os pixels são os mesmos: o teste `cache_dados`
+  (Linux e macOS) joga o mesmo roteiro com e sem o cache e compara a tela
+  inteira de cada quadro (`./build/cache_dados --tudo` é o roteiro longo, e
+  `--tempo` mede o ganho).
 - **Release com LTO** (otimização entre arquivos), onde o compilador permite.
 
 ### Versão do navegador

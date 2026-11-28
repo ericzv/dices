@@ -761,6 +761,7 @@ static void desenha_salao(Rectangle area)
 }
 
 // Um quadro do jogo: teclado, mouse, passo, desenho e a textura ampliada na janela.
+static float periodo_quadro = 1 / 60.0f;    // o intervalo entre quadros (no site, o da tela; no PC, 60 por segundo)
 static void quadro(void)
 {
     double t_ini = GetTime();
@@ -782,6 +783,7 @@ static void quadro(void)
     }
     t_raf = t_ini;
     if (raf_medio < 0.0095f && t_ult >= 0 && t_ini - t_ult < 0.0095) return;
+    periodo_quadro = raf_medio < 0.0095f ? 2 * raf_medio : raf_medio;   // (a de 120 Hz e pulada um sim, um nao)
     dt_quadro = t_ult < 0 ? 1 / 60.0f : (float)(t_ini - t_ult);
     t_ult = t_ini;
     campo_focado = web_campo_focado();
@@ -804,9 +806,10 @@ static void quadro(void)
         uint8_t qs[SOM_N], qr[SOM_ROLAS];
         int l = dado_sons_precisos(qs, qr);
         som_precisa(qs, qr, l & SONS_LACO_MOEDA, l & SONS_LACO_GIRO, l & SONS_LACO_MOTOR);
-        // A carga dos sons usa so a folga do quadro: uns 13 ms menos o que o
-        // passo ja gastou e o que o desenho deve gastar.
-        som_carga_orcamento(0.013 - (GetTime() - t_ini) - ult_desenho);
+        // A carga dos sons usa so a folga do quadro: uns 78% do intervalo
+        // entre quadros (13 ms a 60 Hz, 8,7 ms a 90) menos o que o passo ja
+        // gastou e o que o desenho deve gastar.
+        som_carga_orcamento(periodo_quadro * 0.78 - (GetTime() - t_ini) - ult_desenho);
     }
 #ifdef __EMSCRIPTEN__
     som_folga(web_coberto());

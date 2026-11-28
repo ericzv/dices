@@ -78,7 +78,7 @@ static bool des_tecla(int k, int e)
         return true;
 
     case F_CREDITOS:
-        if (k == KEY_ENTER) volta_ao_menu();
+        if (k == KEY_ENTER || k == KEY_ESC) volta_ao_menu();
         return true;
 
     case F_PERFIS: {

@@ -4623,7 +4623,7 @@ static dc_t *dc_procura(float cx, float cy, float r, int tipo, int dono, float a
         if (velho->usado && (!e->usado || e->uso < velho->uso)) velho = e;
     }
     velho->usado = false;                                        // o mais antigo da o lugar
-    velho->k = k;
+    memcpy(&velho->k, &k, sizeof k);                             // (todos os bytes, o enchimento junto: a busca compara com memcmp)
     return velho;
 }
 static void desenha_dado(float cx, float cy, float r, int tipo, int dono,

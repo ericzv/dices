@@ -547,6 +547,7 @@ static struct {
     Sound base[VARIANTES];
 } carga = { .item = -1 };
 
+static int carga_adiada;                     // (carga_passo)
 // Desiste do item da vez (ele vai ser decodificado na hora, inteiro).
 static void carga_larga(void)
 {
@@ -554,6 +555,7 @@ static void carga_larga(void)
     decod_fecha(&carga.d, true);
     for (int v = 0; v < carga.n; v++) solta_som(&carga.base[v]);
     carga.item = -1;
+    carga_adiada = 0;
 }
 
 static void carga_conclui(void)
@@ -603,6 +605,7 @@ static bool carga_folgada;                   // nada da carga rodou ainda neste 
 static double carga_orc = CARGA_S;           // o tempo da carga neste quadro: a folga que o quadro tem (som_carga_orcamento)
 static bool carga_coberta;                   // a capa do site cobre a tela: pode usar mais
 static int carga_adiada;                     // quadros que o som comprido esperou folga para virar som
+static double carga_lim = CARGA_S;           // o tempo da carga neste quadro, ja com a capa do site (carrega_aos_poucos)
 static bool carga_passo(void)
 {
     if (carga.item < 0) {
@@ -621,7 +624,7 @@ static bool carga_passo(void)
     // aparelho de uma vez so: num som comprido (um laco de 4 s) isso custa
     // alguns milissegundos, e fica para o comeco de um quadro, sozinho.
     // E so quando o quadro tem folga para ele (ou depois de esperar 2 s).
-    if (carga.d.lidos > 44100 && (!carga_folgada || (carga_orc < 0.004 && ++carga_adiada < 120))) return false;
+    if (carga.d.lidos > 44100 && (!carga_folgada || (carga_lim < 0.004 && ++carga_adiada < 120))) return false;
     carga_adiada = 0;
     Sound s = decod_som(&carga.d);
     if (s.frameCount) carga.base[carga.n++] = s;
@@ -730,10 +733,12 @@ static void solta_os_sem_pedido(float dt)
 static void carrega_aos_poucos(void)
 {
     double t0 = GetTime(), carga_s = carga_coberta && carga_orc < 4 * CARGA_S ? 4 * CARGA_S : carga_orc;
+    carga_lim = carga_s;
     carga_folgada = true;
     for (int vez = 0; ; vez ^= 1) {
         bool fez;
-        if (pri_i < N_PRIMEIRO) fez = carga_passo();
+        // (enquanto um som comprido da frente espera folga, a trilha anda)
+        if (pri_i < N_PRIMEIRO) fez = carga_passo() || banda_passo();
         else if (vez) fez = banda_passo() || carga_passo();
         else fez = carga_passo() || banda_passo();
         carga_folgada = false;

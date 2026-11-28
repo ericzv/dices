@@ -169,15 +169,8 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
 {
     memset(rt, 0, sizeof rt);
     int fundo = 0;                               // os quadros tem paisagem atras
-    // Respira devagar, em quatro tempos: os ombros sobem 1 px, a cabeca vai
-    // atras, os ombros descem, a cabeca desce. Cada um no seu ritmo (o Monge
-    // lento, a Maratonista ofegante, o Maluco sem compasso), e fora de fase
-    // dos outros, como o piscar. Pisca de tempos em tempos.
-    float folego = perso == 13 ? 5.2f : perso == 15 ? 1.5f : 3.2f + 0.1f * (perso % 5);
-    float tr = t + perso * 0.77f + (perso == 18 ? 0.9f * sinf(t * 1.3f) : 0);
-    int tempo = (int)(fmodf(tr, folego) / folego * 4);         // 0 sobe o ombro, 1 a cabeca, 2 desce o ombro, 3 a cabeca
-    bool ombro = tempo == 0 || tempo == 1;
-    int dy = tempo == 1 || tempo == 2 ? 0 : 1;
+    // Respira devagar (1 px a cada 1,6 s); pisca de tempos em tempos.
+    int dy = (int)(t / 1.6f) % 2;
     float ciclo = fmodf(t + perso * 0.77f, 3.9f);
     bool pisca = ciclo > 3.72f;
     int boca = falando ? ((int)(t / 0.22f) % 2) : 0;
@@ -877,12 +870,6 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     }
     }
     if (dezembro) enfeite_natal(perso, hy);                     // em dezembro, todos se enfeitam
-    if (ombro) {                                                // inspira: o tronco sobe 1 px (a linha de baixo se repete)
-        const int topo = 16 + 1 + RT_TOPO;                      // a linha logo acima dos ombros
-        for (int j = topo; j < RT_H - 1; j++)
-            for (int i = 0; i < RT_W; i++)
-                if (j > topo || rt[j + 1][i]) rt[j][i] = rt[j + 1][i];
-    }
     // Contorno: tudo o que encosta num pixel cheio e esta vazio vira escuro.
     uint16_t contorno = RGB(14, 14, 13);
     for (int j = 0; j < RT_H; j++)

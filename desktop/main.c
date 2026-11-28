@@ -432,21 +432,24 @@ static void medidor_desenha(void)
     for (int i = 0; i < 3; i++) gfx_texto(7, 4 + i * (FONTE_ALT + 1), med.linha[i], i ? 0xD6BA : 0xFFE0, 1, false);
 }
 
-// O quadro do jogo resumido num numero: no navegador, o quadro igual ao que
-// ja esta na tela nao e enviado de novo (quatro contas em paralelo, uns
-// 0,03 ms).
-static uint64_t resumo_do_quadro(void)
+// Um bloco de pixels resumido num numero: no navegador, o quadro (ou a
+// margem) igual ao que ja esta na tela nao e enviado de novo (quatro contas
+// em paralelo, uns 0,03 ms no quadro; a mistura depois de cada palavra faz
+// os bits altos contarem tambem).
+static uint64_t resumo_de(const void *px, size_t tam)
 {
     const uint64_t K = 0x9E3779B97F4A7C15ull;
     uint64_t h[4] = { 1, 2, 3, 4 }, w[4];
-    const unsigned char *p = (const unsigned char *)fb;
-    for (size_t i = 0; i + 32 <= sizeof fb; i += 32) {
+    const unsigned char *p = (const unsigned char *)px;
+    size_t i = 0;
+    for (; i + 32 <= tam; i += 32) {
         memcpy(w, p + i, 32);
-        for (int k = 0; k < 4; k++) h[k] = (h[k] ^ w[k]) * K;
+        for (int k = 0; k < 4; k++) { h[k] = (h[k] ^ w[k]) * K; h[k] ^= h[k] >> 29; }
     }
+    for (; i < tam; i++) { h[0] = (h[0] ^ p[i]) * K; h[0] ^= h[0] >> 29; }   // (a sobra, na margem)
     return h[0] ^ (h[1] << 1 | h[1] >> 63) ^ (h[2] << 2 | h[2] >> 62) ^ (h[3] << 3 | h[3] >> 61);
 }
-_Static_assert(sizeof fb % 32 == 0, "o resumo le o quadro de 32 em 32 bytes");
+static uint64_t resumo_do_quadro(void) { return resumo_de(fb, sizeof fb); }
 
 // O tamanho da mesa escolhido com - e +, por um instante, desenhado no
 // proprio quadro do jogo (no mesmo grid de pixels do resto).
@@ -672,10 +675,17 @@ static bool prepara_salao(Rectangle area, float dt)
         mudou = true;
     }
     if ((salao_falta -= dt) <= 0) {
+        // (a margem parada nao vai de novo para a placa: a tela parada fica
+        // de fato parada, sem repintar 12 vezes por segundo)
+        static uint64_t salao_resumo;
         dado_salao(salao_px, w, h, ox, oy);
-        UpdateTexture(salao, salao_px);
+        uint64_t r = resumo_de(salao_px, (size_t)w * h * sizeof(uint16_t));
+        if (r != salao_resumo || mudou) {
+            UpdateTexture(salao, salao_px);
+            salao_resumo = r;
+            mudou = true;
+        }
         salao_falta = 1 / 12.0f;
-        mudou = true;
     }
     salao_tem = true;
     return mudou;
@@ -712,8 +722,17 @@ static void quadro(void)
     // de um quadro e pulada inteira (120 Hz da 60 quadros por segundo; 144,
     // 72). A de 60 e a de 90 Hz seguem como sao. O tempo do quadro e medido
     // aqui (o do raylib conta de EndDrawing a EndDrawing, e ha quadros sem).
-    static double t_ult = -1;
-    if (t_ult >= 0 && t_ini - t_ult < 0.0095) return;
+    // Pula so quando a tela e mesmo rapida (o intervalo medio entre as
+    // repinturas e curto): numa de 60 Hz, a repintura que vem logo depois de
+    // um quadro atrasado nao e pulada.
+    static double t_ult = -1, t_raf = -1;
+    static float raf_medio = 1 / 60.0f;
+    if (t_raf >= 0) {
+        float d = (float)(t_ini - t_raf);
+        raf_medio += ((d > 0.05f ? 0.05f : d) - raf_medio) * 0.1f;
+    }
+    t_raf = t_ini;
+    if (raf_medio < 0.0095f && t_ult >= 0 && t_ini - t_ult < 0.0095) return;
     dt_quadro = t_ult < 0 ? 1 / 60.0f : (float)(t_ini - t_ult);
     t_ult = t_ini;
     campo_focado = web_campo_focado();

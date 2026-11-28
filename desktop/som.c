@@ -352,6 +352,7 @@ static struct {
     uint8_t estado;
     bool buscado;                            // veio da rede: a memoria e nossa (trilha_solta)
     double depois;                           // falhou: quando tentar de novo
+    float espera;                            // e quanto esperar na proxima falha (dobra ate 4 min)
 } tarq[ARQ_TRILHAS];
 
 #ifdef __EMSCRIPTEN__
@@ -378,7 +379,11 @@ EMSCRIPTEN_KEEPALIVE void som_chegou(int f, int tam)
     if (f < 0 || f >= ARQ_TRILHAS || tarq[f].estado != TA_PEDIDO) return;
     unsigned char *p = tam > 0 ? malloc((size_t)tam) : NULL;
     web_copia(f, p);
-    if (!p) { tarq[f].estado = TA_FALHOU; tarq[f].depois = GetTime() + 15; return; }
+    if (!p) {                                // sem rede (ou 404): tenta de novo, cada vez mais espacado
+        tarq[f].espera = tarq[f].espera < 15 ? 15 : tarq[f].espera * 2 > 240 ? 240 : tarq[f].espera * 2;
+        tarq[f].estado = TA_FALHOU; tarq[f].depois = GetTime() + tarq[f].espera;
+        return;
+    }
     tarq[f].dados = p; tarq[f].tam = tam; tarq[f].buscado = true;
     tarq[f].estado = TA_PRONTO;
 }

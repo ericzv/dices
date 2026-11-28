@@ -87,6 +87,18 @@ static int es_andar(int lin, int k)
     return lin == 0 ? ABRE_FELTRO[k] : lin == 1 ? ABRE_MATERIAL[k] : ABRE_MESA[k];
 }
 
+// A folhinha: o que so abre numa epoca do ano (o Natal, o Reveillon), no
+// lugar do cadeado. (cx, cy) e o meio.
+static void icone_calendario(int cx, int cy, uint16_t c)
+{
+    gfx_rect(cx - 6, cy - 6, 13, 13, C_BARRA);                     // o contorno
+    gfx_rect(cx - 5, cy - 5, 11, 11, c);                           // a folha
+    gfx_rect(cx - 5, cy - 5, 11, 3, C_VINHO_CLR);                  // a tarja de cima
+    gfx_rect(cx - 3, cy - 7, 2, 3, C_BARRA); gfx_rect(cx + 2, cy - 7, 2, 3, C_BARRA);   // as argolas
+    for (int j = 0; j < 2; j++)                                    // os dias
+        for (int i = 0; i < 3; i++) gfx_rect(cx - 4 + i * 3, cy - 1 + j * 3, 2, 2, C_BARRA);
+}
+
 // A amostra de cada opcao, centrada em (cx, cy).
 static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
 {
@@ -143,9 +155,11 @@ static void es_amostra(int lin, int k, int cx, int cy, bool aberto)
             tacha(cx - 15, cy - 7, metal); tacha(cx + 14, cy - 7, metal);
         }
     }
-    if (!aberto) {                               // fechado: apagado, com o cadeado
+    if (!aberto) {                               // fechado: apagado, com o que o prende - a data (o calendario) ou um chefe (o cadeado)
         acinzenta(cx - 26, cy - 17, 52, 34, 70);
-        cadeado(cx, cy - 4, C_MARFIM_S, 1);
+        int andar = es_andar(lin, k);
+        if (andar == ANDAR_NATAL || andar == ANDAR_REVEILLON) icone_calendario(cx, cy, C_MARFIM_S);
+        else cadeado(cx, cy - 4, C_MARFIM_S, 1);
     }
 }
 
@@ -177,7 +191,7 @@ static void desenha_estilo(void)
         int y = 52 + lin * 80, n = ES_N[lin];
         ui_painel(26, y, GFX_W - 52, 76);
         int wt = gfx_texto(40, y + 2, TIT[lin], lin == es_foco / ES_LIN ? C_OURO : C_LATAO, 1, true);
-        if (lin == 1) gfx_texto(40 + wt + 8, y + 3, "os comuns", C_TEXTO_M, GFX_FINO, false);
+        if (lin == 1) wt += 8 + gfx_texto(40 + wt + 8, y + 3, "os comuns", C_TEXTO_M, GFX_FINO, false);
         // Mais de ES_VE opcoes: uma janela de ES_VE que so anda quando o foco
         // (ou a que esta em uso) sai dela; as setas mostram (e passam) o resto.
         static int es_ini[3];
@@ -187,34 +201,34 @@ static void desenha_estilo(void)
         if (foco >= ini + ve) ini = foco - ve + 1;
         ini = ini < 0 ? 0 : ini > n - ve ? n - ve : ini;
         es_ini[lin] = ini;
+        char conta[24];                          // onde esta na fila: "3 de 14" (a em foco; nas outras filas, a em uso)
+        snprintf(conta, sizeof conta, "%d de %d", foco + 1, n);
+        gfx_texto(40 + wt + 12, y + 3, conta, C_TEXTO_M, GFX_FINO, false);
         int vao = (GFX_W - 72) / ve > 92 ? 92 : (GFX_W - 72) / ve;
         int x0 = GFX_W / 2 - (ve * vao) / 2 + vao / 2, sw = vao - 2 < 64 ? vao - 2 : 64;
         if (ini > 0) {
             txt(31, y + 38, "<", C_OURO, true);
-            zona_clique(28, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini - 1, 'v');
+            zona_clique(28, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini - 1, 'u');
         }
         if (ini + ve < n) {
             txt(GFX_W - 31 - gfx_largura(">", 1), y + 38, ">", C_OURO, true);
-            zona_clique(GFX_W - 42, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini + ve, 'v');
+            zona_clique(GFX_W - 42, y + 26, 14, 40, &es_foco, lin * ES_LIN + ini + ve, 'u');
         }
-        // As legendas: com a letra maior, se alguma da fileira nao couber no
-        // vao, a fileira inteira fica no tamanho de antes.
-        int fl = GFX_MIUDO;
-        for (int k = ini; k < ini + ve; k++) {
-            char curto[20];
-            es_curto(lin, k, curto, sizeof curto);
-            if (fonte_que_cabe(curto, GFX_MIUDO, vao - 4) != GFX_MIUDO) fl = GFX_MIUDO_FIXO;
-        }
+        // A legenda miuda fica so na que esta em uso (o nome da em foco vai
+        // embaixo, na letra grande): com a letra maior, se nao couber no vao,
+        // no tamanho de antes.
         for (int k = ini; k < ini + ve; k++) {
             int cx = x0 + (k - ini) * vao, cy = y + 44;
             bool aberto = estilo_aberto(perfil_atual, es_andar(lin, k));
             if (k == em_uso[lin]) ui_marca(cx - sw / 2, y + 25, sw, 50, C_LATAO_ESC);
             if (lin * ES_LIN + k == es_foco) ui_selecao(cx - sw / 2, y + 25, sw, 50, C_OURO);
             es_amostra(lin, k, cx, cy, aberto);
-            char curto[20];
-            es_curto(lin, k, curto, sizeof curto);
-            gfx_texto(cx - gfx_largura(curto, fl) / 2, y + 62, curto,
-                      k == em_uso[lin] ? C_OURO : aberto ? C_MARFIM_S : C_TEXTO_M, fl, false);
+            if (k == em_uso[lin]) {
+                char curto[20];
+                es_curto(lin, k, curto, sizeof curto);
+                int fl = fonte_que_cabe(curto, GFX_MIUDO, vao - 4);
+                gfx_texto(cx - gfx_largura(curto, fl) / 2, y + 62, curto, C_OURO, fl, false);
+            }
             zona_clique(cx - sw / 2, y + 25, sw, 50, &es_foco, lin * ES_LIN + k, 'u');
         }
     }

@@ -79,7 +79,7 @@ static void desenha_controles(void)
         "B a sua bolsa",
         "X recusa",
         "V velocidade",
-        "M o som, a letra e o tremor",
+        "M as opções e o som",
         "K este quadro",
     };
     int y0 = y + 62, col1 = x + 22, col2 = x + w / 2 + 16;

@@ -6,8 +6,9 @@
 // inteira. O que sobra da janela fica na cor das faixas da mesa.
 //
 // Teclas do PC alem das do jogo: F11 ou Alt+Enter alternam tela cheia,
-// - e + mudam o tamanho da mesa, N liga e desliga a musica, F12 salva uma
-// foto da tela.
+// - e + mudam o tamanho da mesa (as duas coisas tambem ficam no painel de
+// opcoes do jogo, para o controle e o toque: dado_janela), N liga e desliga
+// a musica, F12 salva uma foto da tela.
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,6 +76,9 @@ EM_JS(void, web_tela_cheia, (void), {
         else document.documentElement.requestFullscreen();
     } catch (e) {}
 });
+EM_JS(int, web_tela_e_cheia, (void), { return document.fullscreenElement ? 1 : 0; });
+// O navegador sabe por a pagina em tela cheia? (o do iPhone, nao)
+EM_JS(int, web_tela_cheia_pode, (void), { return document.documentElement.requestFullscreen ? 1 : 0; });
 #endif
 
 static void alterna_tela_cheia(void)
@@ -83,6 +87,15 @@ static void alterna_tela_cheia(void)
     web_tela_cheia();
 #else
     ToggleBorderlessWindowed();
+#endif
+}
+
+static bool tela_e_cheia(void)
+{
+#ifdef __EMSCRIPTEN__
+    return web_tela_e_cheia();
+#else
+    return IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
 #endif
 }
 
@@ -106,13 +119,21 @@ static void muda_zoom(int d)
     int z = zoom + d;
     if (z < ZOOM_MIN) z = ZOOM_MIN;
     if (z > 100) z = 100;
-    zoom_aviso = 1.6f;
     if (z == zoom) return;
     zoom = z;
     char b[16];
     snprintf(b, sizeof b, "%d", zoom);
     salva_grava("tela", b);
 }
+
+// Pelas teclas - e +: com o aviso do tamanho por um instante. (Pelo painel
+// de opcoes nao precisa: a linha ja mostra o numero.)
+static void muda_zoom_tecla(int d)
+{
+    muda_zoom(d);
+    zoom_aviso = 1.6f;
+}
+static int zoom_agora(void) { return zoom; }
 
 static bool campo_focado;               // navegador: o teclado do aparelho, num campo escondido
 static float dt_quadro;                 // quanto tempo passou desde o quadro anterior (segundos)
@@ -167,8 +188,8 @@ static void le_teclado(void)
     // teclado (ABNT2, US...). O jogo so conhece ASCII.
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
         if (campo_focado) continue;           // as letras vem do campo (web_tecla)
-        if ((c == '-' || c == '_') && !dado_digitando()) { muda_zoom(-5); continue; }
-        if ((c == '+' || c == '=') && !dado_digitando()) { muda_zoom(5); continue; }
+        if ((c == '-' || c == '_') && !dado_digitando()) { muda_zoom_tecla(-5); continue; }
+        if ((c == '+' || c == '=') && !dado_digitando()) { muda_zoom_tecla(5); continue; }
         if (c >= 0x20 && c < 0x7F) tecla(c);
     }
 }
@@ -177,7 +198,7 @@ static void le_teclado(void)
 // teclas do jogo. O A (a cruz) confirma, o B (a bola) volta ou desfaz, o Y
 // (o triangulo) segue, o X (o quadrado) abre os detalhes; START (OPTIONS)
 // e o ESC, VIEW (SHARE) abre a bolsa, LB/L1 recusa, RB/R1 muda a
-// velocidade, LT/L2 mostra o que faz cada botao e RT/R2 abre o som. O direcional e o analogico esquerdo andam, repetindo quando
+// velocidade, LT/L2 mostra o que faz cada botao e RT/R2 abre as opcoes. O direcional e o analogico esquerdo andam, repetindo quando
 // segurados. No modo 2 jogadores, com os dois ligados, cada um joga na sua
 // vez (o primeiro e o JOGADOR 1), e as dicas da tela mostram os botoes do
 // controle de quem joga.
@@ -194,7 +215,7 @@ static void le_controles(void)
         { GAMEPAD_BUTTON_LEFT_TRIGGER_1, 'x', true },
         { GAMEPAD_BUTTON_RIGHT_TRIGGER_1, 'v', false },
         { GAMEPAD_BUTTON_LEFT_TRIGGER_2, 'k', false },     // LT/L2: o quadro dos controles
-        { GAMEPAD_BUTTON_RIGHT_TRIGGER_2, 'm', false },    // RT/R2: o painel do som
+        { GAMEPAD_BUTTON_RIGHT_TRIGGER_2, 'm', false },    // RT/R2: o painel de opcoes
     };
     static const struct { int bt, jogo; } DIRECAO[] = {
         { GAMEPAD_BUTTON_LEFT_FACE_UP, J_UP }, { GAMEPAD_BUTTON_LEFT_FACE_DOWN, J_DOWN },
@@ -862,6 +883,12 @@ int main(void)
     prepara_ampliacao();
 
     le_zoom();
+    // A tela cheia e o tamanho da mesa, tambem no painel de opcoes do jogo.
+    dado_janela_t janela = { tela_e_cheia, alterna_tela_cheia, zoom_agora, muda_zoom };
+#ifdef __EMSCRIPTEN__
+    if (!web_tela_cheia_pode()) janela.tela_cheia = NULL;
+#endif
+    dado_janela(&janela);
 #ifndef __EMSCRIPTEN__
     registro_pasta();                      // a pasta "registros" fica ao lado do jogo
 #endif

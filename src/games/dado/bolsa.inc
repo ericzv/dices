@@ -96,5 +96,5 @@ static void desenha_bolsa_pop(void)
         else dica_peca(x - r, y - r, 2 * r, 2 * r, &col[i]);
     }
     if (!no) txt_c(GFX_W / 2, topo + 8, "Nenhum dado.", C_TEXTO_M, false);
-    txt_c(GFX_W / 2, y0 + h - 24, "clique ou qualquer tecla fecha", C_TEXTO_M, false);
+    txt_c(GFX_W / 2, y0 + h - 24, dica_estilo() ? "qualquer botão fecha" : "clique ou qualquer tecla fecha", C_TEXTO_M, false);
 }

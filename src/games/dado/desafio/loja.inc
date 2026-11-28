@@ -43,7 +43,7 @@ static bool  lj_tirando;                 // escolhendo o dado que sai
 static float t_lj_entra = 9;             // desde que a vitrine (re)apareceu
 static float t_lj_abriu = 9;             // desde que a loja abriu (os servicos entram uma vez)
 static uint8_t lj_caiu;                  // cartoes que ja bateram na mesa (o som, uma vez)
-#define LJ_ITENS_MAX (VITRINE_MAX + AD_LOJA_MAX + 3)   // os dados, os adesivos, o pacote e os dois servicos
+#define LJ_ITENS_MAX (VITRINE_MAX + AD_LOJA_MAX + 4)   // os dados, os adesivos, o pacote, os dois servicos e o Porquinho
 static float t_lj_nega[LJ_ITENS_MAX];    // > 0: o item treme (sem moedas, sem lugar)
 static float t_lj_vendido[VITRINE_MAX];  // desde a compra: o carimbo bate
 static char  lj_aviso[64];               // por que nao deu
@@ -91,14 +91,17 @@ static int   cola_n(void) { return cola_premio ? J[vez].n_col : run.n_col; }
 static int   cola_ad(void) { return cola_premio ? cola_premio_ad : cola_pac >= 0 ? pac_ad(cola_pac) : ad_loja(lj_ad_k); }
 static int   cola_dono(void) { return cola_premio ? vez : 0; }
 
-// Os itens, na ordem das setas: os dados, os adesivos, o pacote e os dois
-// servicos. A Caixa de Papelao nao tem adesivo; a Sacola de Feira, pacote.
+// Os itens, na ordem das setas: os dados, os adesivos, o pacote, os dois
+// servicos e, na bolsa Porquinho, o porco inteiro (o ultimo: fica no canto,
+// ao lado das moedas). A Caixa de Papelao nao tem adesivo; a Sacola de
+// Feira, pacote.
 static int lj_item_adesivo(int k) { return n_vitrine() + k; }
 static int lj_item_pacote(void) { return n_vitrine() + n_adesivos_loja(); }
 static bool lj_e_pacote(int i) { return n_pacote_loja() && i == lj_item_pacote(); }
 static int lj_item_troca(void) { return lj_item_pacote() + n_pacote_loja(); }
 static int lj_item_tira(void) { return lj_item_troca() + 1; }
-static int lj_n_itens(void) { return lj_item_troca() + 2; }
+static int lj_item_porco(void) { return lj_item_tira() + 1; }
+static int lj_n_itens(void) { return lj_item_troca() + 2 + (porco_inteiro() ? 1 : 0); }
 static int lj_n_cartoes(void) { return lj_item_troca(); }
 // Cinco cartoes (a Cartola): todos um pouco mais estreitos; tres, mais largos.
 static int lj_cw(void) { int n = lj_n_cartoes(); return n >= 5 ? 76 : n == 4 ? 86 : 92; }
@@ -125,9 +128,19 @@ static int lj_serv_y(int s) { return LJ_Y + s * (LJ_SH + 8); }
 static int pac_passo(void) { return pac_n() > PAC_MAX ? 118 : pac_n() > PAC_OPCOES ? 124 : PAC_PASSO; }
 static int pac_carta_x(int i) { return PAC_CX + (int)lroundf((i - (pac_n() - 1) / 2.0f) * pac_passo()); }
 
+// Quebrar o Porquinho pede sempre a confirmacao - "Deseja quebrar o
+// porquinho?", sim ou nao -, venha o pedido do teclado (o Q, ou o ENTER nele),
+// do mouse, do toque ou do controle: quebrar nao tem volta. O foco comeca no
+// "nao".
+static bool  lj_porco_perg;              // a pergunta esta na mesa
+static int   lj_porco_cur;               // 0: sim; 1: nao
+static float t_porco_perg;               // desde que ela abriu
+static bool porco_perg_aberta(void) { return lj_porco_perg && fase == F_RLOJA && porco_inteiro(); }
+
 static void loja_abriu(void)
 {
     lj_tirando = false;
+    lj_porco_perg = false;
     t_lj_entra = t_lj_abriu = 0;
     lj_caiu = 0;
     lj_tira_i = -1;
@@ -674,6 +687,36 @@ static bool cola_tecla(int k, int e)
     return true;
 }
 
+// O pedido de quebrar o Porquinho: abre a pergunta (vazio, so avisa).
+static void porco_pergunta(void)
+{
+    if (!porco_inteiro()) return;
+    if (!run.porco) { lj_nega(lj_item_porco(), "O Porquinho está vazio."); return; }
+    lj_porco_perg = true;
+    lj_porco_cur = 1;
+    t_porco_perg = 0;
+    som_toca(SOM_TIQUE);
+}
+
+// Com a pergunta na mesa, ela fica com todas as teclas (teclado.inc): as
+// setas trocam entre o sim e o nao, ENTER responde; BACKSPACE, ESC, TAB ou X
+// e o mesmo que nao.
+static void porco_perg_tecla(int k)
+{
+    if (k == KEY_LEFT || k == KEY_RIGHT || k == KEY_UP || k == KEY_DOWN || k == 'a' || k == 'd' || k == 'w' || k == 's') {
+        lj_porco_cur ^= 1;
+        som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == KEY_ENTER) {
+        lj_porco_perg = false;
+        if (lj_porco_cur == 0) { porco_quebra(); cursor = 0; }      // (o porco sai das setas)
+        else som_toca(SOM_TIQUE);
+        return;
+    }
+    if (k == KEY_BKSP || k == KEY_ESC || k == KEY_TAB || k == 'x') { lj_porco_perg = false; som_toca(SOM_TIQUE); }
+}
+
 static bool loja_tecla(int k, int e)
 {
     if (lj_colando) return cola_tecla(k, e);    // (o pacote de adesivos tambem cola)
@@ -696,30 +739,45 @@ static bool loja_tecla(int k, int e)
         else if (cursor < lj_item_pacote()) loja_adesivo(cursor - nv);
         else if (lj_e_pacote(cursor)) loja_pacote();
         else if (cursor == lj_item_troca()) loja_troca();
-        else loja_tira_abre();
+        else if (cursor == lj_item_tira()) loja_tira_abre();
+        else porco_pergunta();
         return true;
     }
-    if (k == 'q' && porco_inteiro()) porco_quebra();
+    if (k == 'q' && porco_inteiro()) { cursor = lj_item_porco(); porco_pergunta(); }
     if (k == KEY_TAB || k == 'x') loja_sai();
     return true;
 }
 
 // ---- O desenho --------------------------------------------------------------
-// O Porquinho, ao lado das moedas: o que tem dentro e, inteiro, Q (ou o
-// clique) quebra. Quebrando, os cacos voam e as moedas pulam para as suas.
+// O Porquinho, ao lado das moedas: o que tem dentro e, inteiro, um item das
+// setas como os outros - ENTER nele, o Q ou o clique pedem para quebrar
+// (porco_pergunta). Quebrando, os cacos voam e as moedas pulam para as suas.
 static void lj_porquinho(void)
 {
     if (run.bolsa != B_PORCO) return;
     int cx = MESA_X0 + 108, cy = MESA_Y0 + 24;
     char s[24];
     if (!run.porco_quebrou) {
-        bool em = mouse_em(cx - 20, cy - 18, 70, 40);
-        int pula = em ? (int)(sinf(t_relogio * 9) * 1.5f) : 0;
-        icone_bolsa_em(B_PORCO, cx, cy + pula, 2, 1, t_relogio, 1, 0);
+        bool foco = cursor == lj_item_porco();
+        float nega = t_lj_nega[lj_item_porco()];
+        int pula = foco ? (int)(sinf(t_relogio * 9) * 1.5f) : 0, treme = nega > 0 ? (int)(sinf(nega * 60) * 2) : 0;
+        // A dica: o Q do teclado; no controle, que chega pelas setas, o botao que quebra.
+        const char *dica = !run.porco ? "vazio" : !dica_estilo() ? "Q quebra" : foco ? "ENTER quebra" : "quebrar";
+        int wd = linha_teclas(0, 0, dica, C_TEXTO_M, false);
+        // Nao cabe antes do titulo (a letra maior): so o botao, ou a palavra mais curta.
+        int livre = GFX_W / 2 - gfx_largura(run.estado == R_LOJA_INI ? "LOJA DA ENTRADA" : "LOJA", 2) / 2 - 6 - (cx + 19);
+        if (run.porco && wd > livre) {
+            dica = !dica_estilo() ? "Q" : foco ? "ENTER" : "";
+            wd = linha_teclas(0, 0, dica, C_TEXTO_M, false);
+        }
+        int wz = 42 + (wd > 28 ? wd : 28);
+        if (foco) ui_cantos(cx - 21, cy - 19, wz, 42, C_OURO);
+        icone_bolsa_em(B_PORCO, cx + treme, cy + pula, 2, 1, t_relogio, 1, 0);
         snprintf(s, sizeof s, "%d", run.porco);
         gfx_texto(cx + 19, cy - 16, s, C_ROSA, 1, true);
-        gfx_texto(cx + 19, cy - 2, run.porco ? "Q quebra" : "vazio", em ? C_OURO : C_TEXTO_M, GFX_FINO, false);
-        if (run.porco) zona_clique(cx - 20, cy - 18, 70, 40, NULL, 0, 'q');
+        linha_teclas(cx + 19, cy + 1, dica, foco ? C_OURO : C_TEXTO_M, true);
+        zona_clique(cx - 21, cy - 19, wz, 42, &cursor, lj_item_porco(), KEY_ENTER);
+        zona_sem_confirmar();                    // (quem confirma e a pergunta)
         return;
     }
     if (t_porco <= 0) return;
@@ -738,6 +796,33 @@ static void lj_porquinho(void)
     if (t < 0.9f) {
         snprintf(s, sizeof s, "+%d", porco_saiu);
         gfx_texto(cx + 6, cy - 22 - (int)(t * 14), s, C_AMARELO, 1, true);
+    }
+}
+
+// A pergunta do Porquinho, por cima da loja: so ela responde ao clique.
+static void lj_porco_pergunta(void)
+{
+    n_zonas = 0;
+    n_dicas = 0;
+    char s[96];
+    snprintf(s, sizeof s, run.porco == 1 ? "A moeda guardada vai para as suas. Não dá para desfazer."
+                                         : "As %d moedas guardadas vão para as suas. Não dá para desfazer.", run.porco);
+    const char *tit = "Deseja quebrar o porquinho?";
+    int wt = gfx_largura(tit, fonte_de(true)), ws = gfx_largura(s, fonte_de(false));
+    int w = (wt > ws ? wt : ws) + 48, h = 112, x = GFX_W / 2 - w / 2;
+    int y = CENTRO - h / 2 - 6 + ui_entra(t_porco_perg, 0, UI_ENTRA_PLACA);
+    ui_escurece(0, 0, GFX_W, GFX_H, 110);
+    ui_painel(x, y, w, h);
+    icone_bolsa_em(B_PORCO, GFX_W / 2 - wt / 2 - 20, y + 20, 1, 1, t_relogio, 1, 0);
+    txt(GFX_W / 2 - wt / 2 + 4, y + 8, tit, C_OURO, true);
+    txt_c(GFX_W / 2, y + 36, s, C_MARFIM_S, false);
+    static const char *const RESP[2] = { "Sim, quebrar", "Não" };
+    const int bw = 124, bh = 26, by = y + h - bh - 16;
+    for (int i = 0; i < 2; i++) {
+        int bx = GFX_W / 2 + (i ? 8 : -8 - bw);
+        ui_botao(bx, by, bw, bh, RESP[i], i == 0 ? C_VINHO : 0, lj_porco_cur == i ? UI_FOCO : 0);
+        zona_clique(bx, by, bw, bh, &lj_porco_cur, i, KEY_ENTER);
+        zona_sem_confirmar();                    // a pergunta ja e a confirmacao: um toque responde
     }
 }
 
@@ -1690,6 +1775,10 @@ static void desenha_loja_run(void)
                 ad_quando_selo(x0 + wv + 8, yv + 1, a);
             }
         }
+    } else if (porco_inteiro() && cursor == lj_item_porco()) {
+        txt_c(GFX_W / 2, LJ_DESC_Y, "Quebrar o Porquinho", C_ROSA, true);
+        txt_c(GFX_W / 2, LJ_DESC_Y + TXT_H - 1, run.porco ? "As moedas guardadas nele vão para as suas. Quebrado, as mesas voltam a pagar inteiro."
+              : "Ainda vazio: cada mesa vencida põe 2 moedas nele.", C_MARFIM_S, false);
     } else if (cursor == lj_item_troca()) {
         txt_c(GFX_W / 2, LJ_DESC_Y, "Trocar a loja", C_LATAO, true);
         const char *d = run.bolsa == B_FEIRA ? "Sorteia tudo de novo. A primeira troca de cada loja é de graça; depois, cada uma custa 1 a mais."
@@ -1707,5 +1796,8 @@ static void desenha_loja_run(void)
     lj_voos();
     lj_flutuantes();
     botao_clique(MESA_X1 - 10, MESA_Y0 + 8, "seguir »", KEY_TAB);
-    rodape_run("setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB segue");
+    if (porco_perg_aberta()) {
+        rodape_run("setas escolhem  ·  ENTER responde  ·  BACKSPACE volta");
+        lj_porco_pergunta();
+    } else rodape_run("setas escolhem  ·  ENTER compra  ·  I detalhes  ·  TAB segue");
 }

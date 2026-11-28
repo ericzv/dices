@@ -1,5 +1,5 @@
 // ===========================================================================
-// O painel do som (tecla M)
+// O painel de opcoes (tecla M): os volumes e as opcoes do jogo
 // ===========================================================================
 // Tres volumes, de 0 (mudo) a 10, cada um guardado: a musica, os efeitos da
 // mesa e a interface (o cursor e os menus). As setas escolhem a linha e
@@ -10,29 +10,60 @@ static bool  som_aberto;
 static int   som_cur;                          // a linha escolhida
 static float t_som;                            // ha quanto tempo o painel abriu
 static int   som_escada_x;                     // onde comeca a escada (o clique acha o degrau)
+static int   som_meio_x;                       // o meio do valor da opcao em foco (o clique a esquerda dele volta)
 static int   som_musica_antes = SOM_NIVEIS;    // o volume da musica antes do N
 #define TECLA_SOM  0x201                       // o clique numa linha do painel (val: a linha)
 #define SOM_DEGRAU 13                          // um degrau da escada, com o vao
+#define SOM_LIN    21                          // a altura de uma linha
 static const char *const SOM_ROTULO[SOM_CANAIS] = { "Música", "Efeitos", "Interface" };
 // As linhas do painel, de cima para baixo.
 static const int SOM_LINHA[SOM_CANAIS] = { SOM_CANAL_MUSICA, SOM_CANAL_EFEITOS, SOM_CANAL_INTERFACE };
-// Depois dos volumes, as opcoes: a letra maior (L), o tremor da tela (T), o
+// Depois dos volumes, as opcoes: a velocidade da partida (V), a letra maior
+// (L), o tremor da tela (T), a tela cheia e o tamanho da mesa (F11, - e +:
+// sao da janela, e so aparecem onde a plataforma as entrega, dado_janela), o
 // medidor de quadros (a plataforma escreve no canto quantos quadros por
 // segundo o aparelho esta dando: para conferir num tablet) e, no computador,
 // o registro das partidas (registro.inc: a versao de teste, que grava as
 // partidas contra a maquina numa pasta ao lado do jogo). Ficam aqui para quem
-// joga com o controle ou no toque, que nao tem essas teclas: o RT abre o
-// painel e os lados trocam.
+// joga com o controle ou no toque, que nao tem essas teclas: o RT (ou o
+// "Menu" da faixa de baixo da mesa) abre o painel e os lados trocam.
 static bool reg_disponivel(void);                // registro.inc
 static bool reg_e_ligado(void);
 static const char *reg_estado_txt(void);
 static void alterna_registro(void);
-#define SOM_OPCOES_MAX 4
-#define SOM_OPCOES (reg_disponivel() ? 4 : 3)    // o registro so onde ha pasta (no site, nao)
-#define SOM_LINHAS (SOM_CANAIS + SOM_OPCOES)
-static const char *const SOM_OPCAO[SOM_OPCOES_MAX] = { "Letra", "Tremor da tela", "Medidor de quadros", "Registrar partidas" };
+static bool menu_sem_partida(void);              // passo.inc
+enum { OP_VELOCIDADE, OP_LETRA, OP_TREMOR, OP_TELA_CHEIA, OP_MESA, OP_MEDIDOR, OP_REGISTRO, OP_N };
+static const char *const SOM_OPCAO[OP_N] = { "Velocidade", "Letra", "Tremor da tela", "Tela cheia", "Tamanho da mesa",
+                                             "Medidor de quadros", "Registrar partidas" };
 static bool medidor_on, medidor_lido;            // o medidor de quadros, guardado ("medidor")
 bool dado_medidor(void) { return medidor_on; }
+// A janela (jogos.h): a tela cheia e o tamanho da mesa sao da plataforma.
+static dado_janela_t janela;
+void dado_janela(const dado_janela_t *j) { if (j) janela = *j; else memset(&janela, 0, sizeof janela); }
+
+// As opcoes que valem agora, na ordem do painel. A velocidade nao muda nada
+// numa partida online (os dois lados andam juntos): la a linha nao aparece.
+static int som_opcoes(int *op)
+{
+    int n = 0;
+    if (modo != M_ONLINE || menu_sem_partida()) op[n++] = OP_VELOCIDADE;
+    op[n++] = OP_LETRA;
+    op[n++] = OP_TREMOR;
+    if (janela.tela_cheia && janela.alterna_tela_cheia) op[n++] = OP_TELA_CHEIA;
+    if (janela.mesa && janela.muda_mesa) op[n++] = OP_MESA;
+    op[n++] = OP_MEDIDOR;
+    if (reg_disponivel()) op[n++] = OP_REGISTRO;   // o registro so onde ha pasta (no site, nao)
+    return n;
+}
+
+// A velocidade: d > 0 a proxima (normal, media, rapida, e volta), d < 0 a de antes.
+static void muda_velocidade(int d)
+{
+    velocidade = (velocidade + (d < 0 ? VEL_N - 1 : 1)) % VEL_N;
+    char g[2] = { VEL_GRAVA[velocidade], 0 };
+    salva_grava("vel", g);
+    som_toca(SOM_TIQUE);
+}
 
 static void alterna_letra(void)
 {
@@ -62,6 +93,40 @@ static void medidor_le(void)
     char b[8];
     medidor_on = salva_le("medidor", b, sizeof b) == 1 && b[0] == '1';
     medidor_lido = true;
+}
+
+// A opcao o trocada pelos lados (d: -1 a esquerda, 1 a direita) ou pelo clique.
+static void som_troca_opcao(int o, int d)
+{
+    switch (o) {
+    case OP_VELOCIDADE: muda_velocidade(d); break;
+    case OP_LETRA:      alterna_letra(); break;
+    case OP_TREMOR:     alterna_tremor(); break;
+    case OP_TELA_CHEIA: janela.alterna_tela_cheia(); som_toca(SOM_TIQUE); break;
+    case OP_MESA: {
+        int antes = janela.mesa();
+        janela.muda_mesa(d < 0 ? -5 : 5);
+        if (janela.mesa() != antes) som_toca(SOM_TIQUE);
+        break;
+    }
+    case OP_MEDIDOR:    alterna_medidor(); break;
+    default:            alterna_registro(); break;
+    }
+}
+
+// O que a opcao o mostra a direita.
+static const char *som_valor(int o)
+{
+    static char s[16];
+    switch (o) {
+    case OP_VELOCIDADE: return velocidade == VEL_NORMAL ? "normal" : velocidade == VEL_MEDIA ? "média" : "rápida";
+    case OP_LETRA:      return gfx_letra_e_maior() ? "maior" : "normal";
+    case OP_TREMOR:     return tremor_off ? "desligado" : "ligado";
+    case OP_TELA_CHEIA: return janela.tela_cheia() ? "ligada" : "desligada";
+    case OP_MESA:       snprintf(s, sizeof s, "%d%%", janela.mesa()); return s;
+    case OP_MEDIDOR:    return medidor_on ? "ligado" : "desligado";
+    default:            return reg_estado_txt();
+    }
 }
 
 static void som_grava(void)
@@ -116,30 +181,27 @@ static void som_abre(void)
 // Com o painel aberto, ele fica com todas as teclas.
 static void som_tecla(int k)
 {
+    int op[OP_N], n = SOM_CANAIS + som_opcoes(op);
+    if (som_cur >= n) som_cur = n - 1;
     if (k == KEY_UP || k == 'w') { if (som_cur > 0) { som_cur--; som_toca(SOM_TIQUE); } return; }
-    if (k == KEY_DOWN || k == 's') { if (som_cur < SOM_LINHAS - 1) { som_cur++; som_toca(SOM_TIQUE); } return; }
+    if (k == KEY_DOWN || k == 's') { if (som_cur < n - 1) { som_cur++; som_toca(SOM_TIQUE); } return; }
+    if (k == 'n') { som_alterna_musica(); return; }
+    if (k == 'm' || k == KEY_ESC || k == KEY_ENTER || k == KEY_TAB || k == KEY_BKSP) { som_aberto = false; return; }
+    bool esq = k == KEY_LEFT || k == 'a', dir = k == KEY_RIGHT || k == 'd';
     if (som_cur >= SOM_CANAIS) {                // as opcoes: os lados (ou o clique) trocam
-        if (k == KEY_LEFT || k == KEY_RIGHT || k == 'a' || k == 'd' || k == TECLA_SOM) {
-            if (som_cur == SOM_CANAIS) alterna_letra();
-            else if (som_cur == SOM_CANAIS + 1) alterna_tremor();
-            else if (som_cur == SOM_CANAIS + 2) alterna_medidor();
-            else alterna_registro();
-            return;
-        }
-        if (k == 'n') { som_alterna_musica(); return; }
-        if (k == 'm' || k == KEY_ESC || k == KEY_ENTER || k == KEY_TAB) som_aberto = false;
+        int o = op[som_cur - SOM_CANAIS];
+        // O clique: a esquerda do valor volta (a mesa diminui), o resto avanca.
+        if (k == TECLA_SOM) som_troca_opcao(o, (o == OP_MESA || o == OP_VELOCIDADE) && mouse_x < som_meio_x ? -1 : 1);
+        else if (esq || dir) som_troca_opcao(o, esq ? -1 : 1);
         return;
     }
     int c = SOM_LINHA[som_cur];
-    if (k == KEY_LEFT || k == 'a') { som_muda(c, som_volume_de(c) - 1); return; }
-    if (k == KEY_RIGHT || k == 'd') { som_muda(c, som_volume_de(c) + 1); return; }
-    if (k == 'n') { som_alterna_musica(); return; }
+    if (esq) { som_muda(c, som_volume_de(c) - 1); return; }
+    if (dir) { som_muda(c, som_volume_de(c) + 1); return; }
     if (k == TECLA_SOM) {                       // o clique na linha: o degrau embaixo do mouse (antes dele, mudo)
         int dx = mouse_x - som_escada_x;
         if (dx >= -SOM_DEGRAU) som_muda(c, dx < 0 ? 0 : dx / SOM_DEGRAU + 1);
-        return;
     }
-    if (k == 'm' || k == KEY_ESC || k == KEY_ENTER || k == KEY_TAB) som_aberto = false;
 }
 
 // O tempo do painel, a trilha abaixando enquanto a cadeia de efeitos corre e
@@ -156,24 +218,26 @@ static bool som_passo(float dt_real)
 
 // A placa no meio da tela, por cima de tudo: cada canal numa linha, com o
 // nome, a escada de 10 degraus (cada um um pouco mais alto, acesos ate o
-// volume) e o numero.
+// volume) e o numero; depois de um fio, as opcoes, com o valor a direita.
 static void desenha_som(void)
 {
     if (!som_aberto) return;
     n_zonas = 0;                                 // nada por baixo responde ao clique
-    const int w = reg_disponivel() ? 340 : 300, h = 40 + SOM_LINHAS * 24 + 6 + (som_falhou() ? 52 : 34), x = GFX_W / 2 - w / 2;
-    int y = CENTRO - h / 2 - 6 + ui_entra(t_som, 0, 14);
+    int op[OP_N], n_op = som_opcoes(op);
+    if (som_cur >= SOM_CANAIS + n_op) som_cur = SOM_CANAIS + n_op - 1;
+    const int w = 340, h = 32 + (SOM_CANAIS + n_op) * SOM_LIN + 6 + (som_falhou() ? 44 : 28), x = GFX_W / 2 - w / 2;
+    int y = GFX_H / 2 - h / 2 + ui_entra(t_som, 0, 14);
     ui_escurece(0, 0, GFX_W, GFX_H, 110);
     ui_painel(x, y, w, h);
-    txt_c(GFX_W / 2, y + 6, "SOM", C_LATAO, true);
-    som_escada_x = x + 112;
+    txt_c(GFX_W / 2, y + 4, "OPÇÕES", C_LATAO, true);
+    som_escada_x = x + 132;
     for (int l = 0; l < SOM_CANAIS; l++) {
-        int c = SOM_LINHA[l], ly = y + 40 + l * 24, nv = som_volume_de(c);
+        int c = SOM_LINHA[l], ly = y + 34 + l * SOM_LIN, nv = som_volume_de(c);
         bool cur = l == som_cur;
-        if (cur) ui_cantos(x + 10, ly - 4, w - 20, 22, C_OURO);
+        if (cur) ui_cantos(x + 10, ly - 3, w - 20, SOM_LIN - 2, C_OURO);
         txt(x + 22, ly - 2, SOM_ROTULO[c], cur ? C_MARFIM : C_MARFIM_S, false);
         for (int i = 0; i < SOM_NIVEIS; i++) {
-            int dh = 6 + i, dx = som_escada_x + i * SOM_DEGRAU, dy = ly + 15 - dh;
+            int dh = 5 + i, dx = som_escada_x + i * SOM_DEGRAU, dy = ly + 15 - dh;
             bool aceso = i < nv;
             gfx_rect(dx - 1, dy - 1, SOM_DEGRAU - 2, dh + 2, C_BARRA);
             gfx_rect(dx, dy, SOM_DEGRAU - 4, dh, aceso ? (cur ? C_OURO : C_LATAO) : C_PLACA_LUZ);
@@ -184,25 +248,26 @@ static void desenha_som(void)
         int nx = som_escada_x + SOM_NIVEIS * SOM_DEGRAU + 6;
         if (nv) txt(nx, ly - 4, s, cur ? C_OURO : C_MARFIM_S, true);
         else txt(nx, ly - 2, "mudo", C_VINHO_CLR, false);
-        zona_clique(x + 10, ly - 4, w - 20, 22, &som_cur, l, TECLA_SOM);
+        zona_clique(x + 10, ly - 3, w - 20, SOM_LIN - 1, &som_cur, l, TECLA_SOM);
     }
-    // As opcoes de ver, depois de um fio.
-    int oy = y + 40 + SOM_CANAIS * 24 + 6;
+    // As opcoes, depois de um fio.
+    int oy = y + 34 + SOM_CANAIS * SOM_LIN + 6;
     gfx_rect(x + 22, oy - 6, w - 44, 1, C_LATAO_ESC);
-    for (int o = 0; o < SOM_OPCOES; o++) {
-        int l = SOM_CANAIS + o, ly = oy + o * 24;
-        bool cur = l == som_cur, liga = o == 0 ? gfx_letra_e_maior() : o == 1 ? !tremor_off : o == 2 ? medidor_on : reg_e_ligado();
-        if (cur) ui_cantos(x + 10, ly - 4, w - 20, 22, C_OURO);
-        txt(x + 22, ly - 2, SOM_OPCAO[o], cur ? C_MARFIM : C_MARFIM_S, false);
-        const char *v = o == 0 ? (liga ? "maior" : "normal") : o <= 2 ? (liga ? "ligado" : "desligado") : reg_estado_txt();
+    for (int i = 0; i < n_op; i++) {
+        int l = SOM_CANAIS + i, ly = oy + i * SOM_LIN;
+        bool cur = l == som_cur;
+        if (cur) ui_cantos(x + 10, ly - 3, w - 20, SOM_LIN - 2, C_OURO);
+        txt(x + 22, ly - 2, SOM_OPCAO[op[i]], cur ? C_MARFIM : C_MARFIM_S, false);
+        const char *v = som_valor(op[i]);
         int vw = gfx_largura(v, 1), vx = x + w - 34 - vw;
         txt(vx, ly - 2, v, cur ? C_OURO : C_MARFIM_S, cur);
-        for (int i = 0; i < 4 && cur; i++) {          // as setinhas: os lados trocam
-            gfx_rect(vx - 12 + i, ly + 6 - i, 1, 2 * i + 1, C_LATAO);
-            gfx_rect(vx + vw + 11 - i, ly + 6 - i, 1, 2 * i + 1, C_LATAO);
+        if (cur) som_meio_x = vx + vw / 2;
+        for (int k = 0; k < 4 && cur; k++) {          // as setinhas: os lados trocam
+            gfx_rect(vx - 12 + k, ly + 6 - k, 1, 2 * k + 1, C_LATAO);
+            gfx_rect(vx + vw + 11 - k, ly + 6 - k, 1, 2 * k + 1, C_LATAO);
         }
-        zona_clique(x + 10, ly - 4, w - 20, 22, &som_cur, l, TECLA_SOM);
+        zona_clique(x + 10, ly - 3, w - 20, SOM_LIN - 1, &som_cur, l, TECLA_SOM);
     }
-    if (som_falhou()) txt_c(GFX_W / 2, oy + SOM_OPCOES * 24 - 2, "sem saída de som neste computador", C_VINHO_CLR, false);
-    teclas_c(GFX_W / 2, y + h - 20, controle_estilo ? "setas mudam  ·  M fecha" : "setas mudam  ·  N música  ·  M fecha", C_TEXTO_M);
+    if (som_falhou()) txt_c(GFX_W / 2, oy + n_op * SOM_LIN - 2, "sem saída de som neste computador", C_VINHO_CLR, false);
+    teclas_c(GFX_W / 2, y + h - 21, controle_estilo ? "setas mudam  ·  M fecha" : "setas mudam  ·  N música  ·  M fecha", C_TEXTO_M);
 }

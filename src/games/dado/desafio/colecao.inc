@@ -95,7 +95,7 @@ static void desenha_cat_amuleto(int i)
     perfis_le();
     int a = cat_amuleto(i);
     char s[96];
-    faixas_colecao(i, n_amuletos_jogo());
+    faixas_colecao(i, n_amuletos_jogo(), FIL_N);
 
     bool aberto = amuleto_liberado(a);
     int cq = cq_do_amuleto(a);
@@ -148,7 +148,7 @@ static void desenha_cat_adesivo(int i)
     int a = cat_adesivo(i);
     const adesivo_t *d = &ADESIVO[a];
     char s[96];
-    faixas_colecao(i, N_AD_COLECAO);
+    faixas_colecao(i, N_AD_COLECAO, FIL_N);
     bool aberto = adesivo_aberto(a);             // a Sujeira vem com o Barro
     int cq = cq_do_adesivo(a);
     // Na vitrine (catalogo.inc): o adesivo flutua na luz, a ponta descolando
@@ -244,12 +244,23 @@ static void lcq_icone(int i, int cx, int cy, bool aberta)
     default: { peca_t pc = { .tipo = (uint8_t)it }; peca_parada((float)cx, (float)cy, 7, pc, 0); break; }
     }
 }
+// Quanto o perfil em uso ja abriu das conquistas e das bolsas (a ficha
+// "Colecao" do menu mostra); false: nenhum perfil em uso.
+static bool colecao_progresso(int *abertas, int *total)
+{
+    perfis_le();
+    if (perfil_atual < 0 || perfil_atual >= N_PERFIS || !perfis[perfil_atual].nome[0]) return false;
+    *total = n_cat_conquistas();
+    *abertas = 0;
+    for (int k = 0; k < *total; k++) *abertas += lcq_aberta(k);
+    return true;
+}
 static void desenha_cat_conquistas(int i)
 {
     perfis_le();
     int n = n_cat_conquistas();
     if (i < 0 || i >= n) i = cat_cq = 0;
-    faixas_colecao(i, n);
+    faixas_colecao(i, n, LCQ_POR);
     int abertas = 0;
     for (int k = 0; k < n; k++) abertas += lcq_aberta(k);
     char s[200];
@@ -288,8 +299,6 @@ static void desenha_cat_conquistas(int i)
     else { snprintf(buf, sizeof buf, "%s.", CONQ[i].texto); como = buf; }
     if (i < CQ_N && CONQ[i].secreta && !ab && CONQ[i].dica) { snprintf(buf, sizeof buf, "Conquista secreta: %s", CONQ[i].dica); como = buf; }
     quebra_linhas(x, y + 2 + LINHA_FINA + 2, 2 * LCQ_W + 12, 2, como, ab ? C_VERDE : C_MARFIM);
-    int pags = (n + LCQ_POR - 1) / LCQ_POR, pag = i / LCQ_POR;   // a pagina: pontinhos no canto
-    for (int k = 0; k < pags; k++) gfx_rect(GFX_W / 2 + (k - pags / 2) * 6, MESA_Y1 - 6, 3, 3, k == pag ? C_OURO : C_FELTRO2);
 }
 
 static int des_dificuldade(void) { return run.dificuldade; }

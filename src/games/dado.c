@@ -100,7 +100,7 @@
 #include "dado/menus.inc"         // a abertura e os menus
 #include "dado/tutorial.inc"      // como jogar
 #include "dado/avisos.inc"        // os avisos sobre a mesa
-#include "dado/painel_som.inc"    // o painel do som: os volumes (tecla M)
+#include "dado/painel_som.inc"    // o painel de opcoes: os volumes e as opcoes (tecla M)
 #include "dado/painel_controles.inc"   // o quadro dos controles: o que faz cada botao (tecla K)
 #include "dado/desafio.inc"       // o Modo Desafiante
 #include "dado/registro.inc"      // o registro das partidas (versao de teste): linhas na pasta "registros"

@@ -1215,6 +1215,15 @@ static void faixa_jogador(int j)
     snprintf(s, sizeof s, "%d", faixa_c[j].mostra);        // contando: dourado subindo, vinho descendo
     txt(x + 36, ty - (faixa_c[j].pulo > 0.4f ? 1 : 0), s, conta_cor(&faixa_c[j], C_MARFIM), true);
     int fim_fichas = x + 36 + gfx_largura(s, 1);
+    // A virada do chefe esta valendo: a etiqueta fica ao lado das fichas dele
+    // ate o fim da partida (o mouse em cima mostra a regra, como no retrato).
+    if (cima && modo == M_DESAFIO && j == 1 && fala_perso >= 0 && fala_perso == perso_virado && virada_a_vista()) {
+        float nasce = t_virada > 0 ? VIRADA_DUR - t_virada - VIRADA_TV : 9;
+        int ex = fim_fichas + 12, ey = ty - 1 - (nasce < 0.15f ? 2 : 0);
+        int ew = ui_selo(ex, ey, "VIRADA", (fmodf(t_relogio, 2.4f) < 0.25f) ? C_ROSA : C_VINHO_CLR, GFX_MIUDO);
+        dica_zona(ex, ey, ew, 14, DICA_TRUNFO, fala_perso);
+        fim_fichas = ex + ew;
+    }
 
     // A rodada mora na faixa de cima; o som, na de baixo. A rodada em marfim
     // e a entrada um tom abaixo, as duas na letra encorpada (a ultima rodada
@@ -2105,7 +2114,7 @@ static void desenha_fila(int j)
         // A Sanguessuga sugando o de antes incha a cada gole.
         bool suga = fase == F_VEREDITO && j == vez && k == f->lancados - 1 && t == D_SANGUESSUGA
                     && anulou_a >= 0 && t_fase < 0.9f;
-        float r_suga = suga ? R + sanguessuga_gole(t_fase) : R;
+        float r_suga = (suga ? R + sanguessuga_gole(t_fase) : R) * (1 + vinheta_pop(j, k));   // (o dado muito bom cresce)
         // A Ficha Velha pagando o seu +4 no fim: a cor volta enquanto ela paga.
         bool paga = e && e->tipo == EV_EXTRA && e->de_j == j && e->de_k == k && t == D_FICHA_VELHA && p > 0.12f && p < 0.92f;
         // O adesivo do lado de cima: a etiqueta, acesa enquanto ele age no fim.

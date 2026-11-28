@@ -123,6 +123,34 @@ static void solta_confete(int n)
     }
 }
 
+// A run campea: o papel cai do alto por toda a mesa, por uns 3 s, em pedacos
+// maiores (2 a 3 px) nas cores dos tres saloes; vencido o Coringa, tambem no
+// roxo dele, e as cartas dele caindo junto (marfim, o verso roxo).
+static void chove_confete(bool coringa)
+{
+    static const uint16_t COR[] = { C_VERDE, C_VINHO_CLR, C_OURO, C_LASER, C_BRASA, C_AMARELO, C_REAL, RGB(206, 180, 218) };
+    int cores = coringa ? 8 : 6;
+    n_confete = MAX_CONFETE;
+    for (int i = 0; i < n_confete; i++) {
+        confete_t *c = &confete[i];
+        bool carta = coringa && i % 9 == 0;
+        c->x = frnd(MESA_X0 + 4, MESA_X1 - 4);
+        c->y = -4 - frnd(0, 480);                // entram aos poucos: os ultimos, uns 2 s depois
+        c->vx = frnd(-24, 24);
+        c->vy = frnd(60, 110);
+        c->giro = frnd(0, 6.28f);
+        c->vg = frnd(-9, 9);
+        c->cor = carta ? C_MARFIM : COR[i % cores];
+        uint16_t r[4];
+        rampa_de(c->cor, r);
+        c->verso = carta ? C_VIOLETA : r[1];
+        c->w = (uint8_t)(carta ? 5 : 2 + (i % 2));
+        c->h = (uint8_t)(carta ? 7 : 2 + (i % 3 == 0));
+        c->caco = 0;
+        c->tela = -1;
+    }
+}
+
 // Cacos de vidro: estouram do dado para todos os lados e caem.
 static void solta_cacos(int x, int y)
 {

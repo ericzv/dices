@@ -225,6 +225,14 @@ static void g_telhado(const pg_t *p, float t)
         gfx_texto(ax, ly, l, on ? K_FOGO2 : K_VIN0, 1, true);
         ax += gfx_largura(l, 1);
     }
+    if (dezembro) {                                             // dezembro: um gorro pendurado no C do letreiro
+        int gx = lx - 2, gy = ly - 4;
+        gfx_rect(gx, gy + 3, 9, 3, K_EB);
+        gfx_rect(gx + 1, gy, 6, 4, K_EB);
+        gfx_rect(gx + 2, gy + 1, 4, 2, C_BRASA); gfx_rect(gx + 3, gy, 3, 1, C_BRASA);
+        gfx_rect(gx + 1, gy + 3, 7, 2, C_BRANCO);
+        gfx_rect(gx + 6, gy - 1, 3, 3, K_EB); gfx_pixel(gx + 7, gy, C_BRANCO);
+    }
 }
 
 

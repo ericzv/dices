@@ -108,6 +108,7 @@ static const char *const NOME[SOM_N] = {
     [SOM_MOEDA_POUSA_METAL] = "moeda_pousa_metal", [SOM_MOEDA_BATE_METAL] = "moeda_bate_metal",
     [SOM_AS_ESPINHO] = "as_espinho", [SOM_AS_TAMBOR] = "as_tambor", [SOM_AS_TRAVA] = "as_trava",
     [SOM_AS_PASSO] = "as_passo",
+    [SOM_HOLOFOTE] = "holofote",
 };
 // Os lacos do dado rolando de cada acabamento (o primeiro e o rufo).
 static const char *const ROLA_ARQ[SOM_ROLAS] = {

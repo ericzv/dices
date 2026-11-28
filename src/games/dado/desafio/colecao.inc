@@ -304,11 +304,12 @@ static void des_elevador(void)
 }
 
 // O chefe vira na 5a rodada: a mesa para um instante, uma faixa atravessa a
-// tela, o retrato muda e ele diz a frase dele.
+// tela com o retrato dele grande - calmo; no meio do anuncio ele muda de cara,
+// com um tremor e um clarao na cor do salao - e ele diz a frase dele.
 static void des_virou(void)
 {
     perso_virado = fala_perso;
-    t_virada = 2.4f;
+    t_virada = VIRADA_DUR;
     som_toca(SOM_ZERA);
     snprintf(fala_txt, sizeof fala_txt, "%s", virada_frase(fala_perso));
     fala_comeca(3.4f);
@@ -318,23 +319,121 @@ static void des_virada_anuncio(void)
 {
     if (t_virada <= 0 || chefe_idx(perso_virado) < 0) return;
     int c = chefe_idx(perso_virado);
-    float e = 2.4f - t_virada;
+    float e = VIRADA_DUR - t_virada, ev = e - VIRADA_TV;        // ev >= 0: ja virou
     n_zonas = 0;
+    bool branco = !tremor_off && ev >= 0 && ev < 0.07f;         // o clarao branco (quem desligou o tremor e o clarao, tecla T, nao o ve)
     int alfa = e < 0.2f ? (int)(e / 0.2f * 140) : 140;
     ui_escurece(0, 0, GFX_W, GFX_H, alfa);
     static const uint16_t COR[3] = { RGB(46, 120, 84), RGB(150, 30, 46), RGB(150, 36, 40) };
+    static const uint16_t CLARAO[3] = { C_LASER, C_VINHO_CLR, C_FOGO };
     float q = e / 0.3f;
     if (q > 1) q = 1;
     int dx = -(int)((1 - (1 - q) * (1 - q)) * GFX_W) + GFX_W;   // entra pela esquerda
-    int y = CENTRO - 30, h = 60;
-    gfx_rect(-dx, y, GFX_W, h, gfx_mistura(COR[c], C_BARRA, 55));
-    gfx_rect(-dx, y, GFX_W, 2, C_OURO);
-    gfx_rect(-dx, y + h - 2, GFX_W, 2, C_OURO);
+    int h = 72, y = CENTRO - h / 2;
+    // A faixa: escura e calma antes; no instante da virada, um clarao na cor
+    // do salao, e depois ela fica acesa.
+    uint16_t fundo = gfx_mistura(COR[c], C_BARRA, ev < 0 ? 70 : 35), filete = C_OURO;
+    if (branco) { fundo = C_BRANCO; filete = C_BRANCO; }
+    else if (ev >= 0.07f && ev < 0.2f) fundo = CLARAO[c];
+    gfx_rect(-dx, y, GFX_W, h, fundo);
+    if (ev >= 0.2f)                                             // a luz vem do retrato: pontilhado que some para a direita
+        for (int j = 2; j < h - 2; j++)
+            for (int i = 0; i < 230; i++)
+                if (bayer(i, j) < 0.55f * (1 - i / 230.0f)) gfx_pixel(i - dx, y + j, COR[c]);
+    gfx_rect(-dx, y, GFX_W, 2, filete);
+    gfx_rect(-dx, y + h - 2, GFX_W, 2, filete);
+    if (ev >= 0 && ev < 0.45f) {                                // os riscos do clarao, abrindo para cima e para baixo
+        int a = (int)(ev / 0.45f * 16);
+        uint16_t rc = ev < 0.2f && !tremor_off ? C_BRANCO : CLARAO[c];
+        gfx_rect(0, y - 3 - a, GFX_W, ev < 0.2f ? 2 : 1, rc);
+        gfx_rect(0, y + h + 1 + a, GFX_W, ev < 0.2f ? 2 : 1, rc);
+    }
+    // O retrato do chefe, grande (4x), na moldura de ouro que passa da faixa:
+    // calmo; treme um pouco antes; no instante, sacode e muda de cara (o
+    // tremor fica parado para quem o desligou, tecla T).
+    int esc = 4, w = RT_W * esc, hh = RT_H * esc, px = 40 - dx, py = CENTRO - hh / 2 - 2;
+    if (!tremor_off && ev > -0.4f && ev < 0) px += ((int)(e * 60) & 2) ? 1 : 0;                         // a espera
+    if (!tremor_off && ev >= 0 && ev < 0.6f) px += (int)lroundf(6 * expf(-6 * ev) * sinf(48 * ev));      // a sacudida
+    uint16_t r[4];
+    ui_rampa(ev >= 0.07f ? C_BRASA : C_OURO, false, r);
+    if (branco) r[0] = r[1] = r[2] = r[3] = C_BRANCO;
+    ui_sombra(px - 5, py - 5, w + 10, hh + 10);
+    ui_contorno(px - 5, py - 5, w + 10, hh + 10, C_BARRA);
+    ui_aro(px - 4, py - 4, w + 8, hh + 8, 3, r, UI_VIVO);
+    ui_contorno(px - 1, py - 1, w + 2, hh + 2, C_BARRA);
+    gfx_rect(px, py, w, hh, ev >= 0.07f ? gfx_mistura(COR[c], C_BARRA, 60) : gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(px, py, esc, perso_virado, t_fase + perso_virado * 1.3f, false, 0, RT_H);
+    if (branco)
+        for (int j = 0; j < hh; j++) for (int i = 0; i < w; i++) if (bayer(px + i, py + j) < 0.7f) gfx_pixel(px + i, py + j, C_BRANCO);
     if (q < 1) return;
-    txt_sombra_c(GFX_W / 2, y + 6, virada_titulo(perso_virado), C_OURO, 2);
+    int cx = (40 + w + 8 + GFX_W) / 2, larg = GFX_W - (40 + w + 8) - 24;
+    const char *tit = virada_titulo(perso_virado);
+    txt_sombra_c(cx, y + 9, tit, ev >= 0 && ev < 0.2f ? C_BARRA : C_OURO, gfx_largura(tit, 2) <= larg ? 2 : 1);
+    if (ev < 0.12f) return;                                     // a regra entra com a virada
     char s[96];
     virada_txt(c, virada_forca(c), false, s, sizeof s);
-    txt_c(GFX_W / 2, y + 36, s, C_MARFIM, false);
+    txt_c_duas(cx, y + 43, s, C_MARFIM, larg);
+}
+
+// Sentar a mesa da vez, no mapa: a partida comeca e o retrato do oponente
+// voa do lugar dele no salao para o canto de cima da mesa. O chefe tem antes
+// a apresentacao: a mesa escura, o retrato grande entrando pelo lado na
+// moldura de ouro, o nome na cor do salao, o trunfo e a fala de abertura.
+static void des_senta(void)
+{
+    int p = run.passo, esc = salao_esc(p);
+    bool chefe = salao_chefe(p);
+    entrada_x = salao_x(p) - RT_W * esc / 2; entrada_y = salao_topo(p); entrada_esc = esc;
+    des_comeca_partida();
+    t_entrada = entrada_dur = chefe ? ENTRADA_CHEFE : ENTRADA_VOO;
+}
+static void des_entrada(void)
+{
+    if (t_entrada <= 0 || modo != M_DESAFIO || fala_perso < 0) return;
+    n_zonas = 0;
+    bool chefe = entrada_dur > ENTRADA_VOO;
+    float e = entrada_dur - t_entrada, v = (e - (entrada_dur - ENTRADA_VOO)) / ENTRADA_VOO;
+    if (v < 0) v = 0;
+    float s = v * v * (3 - 2 * v);                              // o voo para o canto
+    int ax = entrada_x, ay = entrada_y, aesc = entrada_esc;
+    if (chefe) {
+        float q = e / 0.25f;
+        if (q > 1) q = 1;
+        aesc = 4;
+        ax = 40 - (int)((1 - q) * (1 - q) * (40 + RT_W * aesc + 12));   // entra pela esquerda
+        ay = CENTRO - RT_H * aesc / 2 - 14;
+        ui_escurece(0, 0, GFX_W, GFX_H, (int)(225 * q * (1 - s)));   // (quase tudo: o nome nao briga com a mesa)
+    }
+    int bx = retrato_faixa_x[1], by = 5;                        // o lugar dele na faixa (retrato_faixa)
+    int esc = aesc - (int)lroundf((aesc - 2) * s), w = RT_W * esc, h = RT_H * esc;
+    // (o meio do retrato vai em linha reta; o tamanho muda em volta dele)
+    int cx = ax + RT_W * aesc / 2 + (int)lroundf((bx + RT_W - ax - RT_W * aesc / 2) * s);
+    int cy = ay + RT_H * aesc / 2 + (int)lroundf((by + RT_H - ay - RT_H * aesc / 2) * s);
+    int px = cx - w / 2, py = cy - h / 2, m = esc >= 4 ? 3 : 2;
+    uint16_t r[4];
+    ui_rampa(perso_chefe(fala_perso) || chefe ? C_OURO : C_LATAO, false, r);
+    ui_sombra(px - m - 2, py - m - 2, w + 2 * m + 4, h + 2 * m + 4);
+    ui_contorno(px - m - 2, py - m - 2, w + 2 * m + 4, h + 2 * m + 4, C_BARRA);
+    ui_aro(px - m - 1, py - m - 1, w + 2 * m + 2, h + 2 * m + 2, m, r, UI_VIVO);
+    ui_contorno(px - 1, py - 1, w + 2, h + 2, C_BARRA);
+    gfx_rect(px, py, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato(px, py, esc, fala_perso, t_relogio + fala_perso * 1.3f, false, 0, RT_H);
+    if (!chefe || e < 0.25f || v > 0) return;                   // o nome, o trunfo e a fala: com o retrato parado
+    const perso_t *pp = &PERSO[fala_perso];
+    int tx0 = ax + w + 22, larg = GFX_W - tx0 - 24, tcx = tx0 + larg / 2, ty = ay + 10;
+    uint16_t cs = COR_SALAO[run.andar <= DES_ANDARES ? run.andar : 0];
+    txt_sombra_c(tcx, ty, pp->nome, cs, gfx_largura(pp->nome, 2) <= larg ? 2 : 1);
+    const char *sl = SALAO[run.andar <= DES_ANDARES ? run.andar : 0];
+    gfx_texto(tcx - gfx_largura(sl, GFX_FINO) / 2, ty + 28, sl, C_MARFIM_S, GFX_FINO, false);
+    if (pp->trunfo && trunfo_ativo(fala_perso)) {
+        gfx_texto(tcx - gfx_largura(pp->trunfo, 1) / 2, ty + 50, pp->trunfo, C_OURO, 1, false);
+        txt_c_duas(tcx, ty + 66, regra_perso(fala_perso), C_MARFIM, larg);
+    }
+    if (fala_txt[0]) {                                          // a fala de abertura, inteira, embaixo do retrato
+        balao_x_min = px; balao_x_max = GFX_W - 24;
+        balao_em(px + w / 2, py + h + m + 4, fala_txt, fala_txt, 1);
+        balao_x_max = 0;
+    }
 }
 
 static bool des_desenha(void)

@@ -123,6 +123,7 @@ enum {
     // os espinhos do Ourico, o tambor do Revolver girando e travando, e as
     // patinhas da Viuva Negra (o arrasto da Ancora e um laco: SOM_ROLA_ARRASTA)
     SOM_AS_ESPINHO, SOM_AS_TAMBOR, SOM_AS_TRAVA, SOM_AS_PASSO,
+    SOM_HOLOFOTE,    // o dado muito bom: o holofote acende nele (um vum grave e um brilho por cima)
     SOM_N
 };
 // O dado rolando, um laco por acabamento (SOM_ROLA_FELTRO: o rufo de

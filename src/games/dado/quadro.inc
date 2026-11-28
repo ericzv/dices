@@ -345,6 +345,7 @@ void dado_desenha(void)
         desenha_aviso_entrada();
         des_elevador();
         des_virada_anuncio();
+        des_entrada();
         des_bolsa_nova();
         cq_cartao_rodada();                      // o fim da rodada: as conquistas dela, paradas ate o clique
         cq_aviso_desenha();
@@ -413,6 +414,7 @@ static void desenha_tudo(void)
         desenha_jingle_copias();                 // as copias dos Jingle Bells voando para a bolsa
         desenha_vez_luz();                       // dois na mesa: a luz do lado de quem responde
         desenha_hora();                          // a hora da verdade: a mesa escurece em volta do dado
+        desenha_vinheta();                       // o dado muito bom: o holofote
         if (t_anuncio > 0 && (fase == F_APOSTA || fase == F_JOGA)) pote_mesa();   // o anuncio vem no fim
         else if (fase == F_APOSTA)    desenha_aposta();
         else if (fase == F_RESULTADO) { desenha_log(); desenha_resultado(); }

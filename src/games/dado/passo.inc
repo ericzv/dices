@@ -69,6 +69,10 @@ void dado_passo(float dt)
         if (motor != elev_motor) { elev_motor = motor; som_motor(motor); }
     }
     if (t_virada > 0) { t_virada -= dt_real; return; }   // o anuncio da virada para a mesa
+    if (t_entrada > 0) {                 // e a entrada do oponente (a apresentacao do chefe), depois da troca de tela
+        if (t_trans < 0 || t_trans > 1) t_entrada -= dt_real;   // (a troca de tela so anda com o desenho: nunca prende)
+        return;
+    }
     if (t_misterio > 0) {                // o Dado Misterioso: a pedra se parte, depois a mesa para
         float antes = t_misterio;
         t_misterio += dt_real;
@@ -100,7 +104,12 @@ void dado_passo(float dt)
     pouso_passo(dt);                     // o Infectado, o Barro, a Massinha e o Chiclete agindo no pouso
     passo_slot(dt);
     for (int a = 0; a < A_N; a++) if (am_brilho[a] > 0) am_brilho[a] -= dt;
-    if (t_fala > 0) t_fala -= dt_real;
+    if (t_fala > 0) {
+        t_fala -= dt_real;
+        // (o balao nao fecha no meio de um momento grande: a hora da verdade,
+        // o holofote do dado muito bom, o golpe - espera acabar)
+        if (t_fala < 0.2f && !fala_e_curta && (t_hora > 0 || t_vinheta >= 0 || t_congela > 0)) t_fala = 0.2f;
+    }
     if (fala_dita < 60) fala_dita += dt_real;
     if (t_reacao > 0) t_reacao -= dt_real;
     if (t_curta > 0) t_curta -= dt_real;
@@ -189,6 +198,7 @@ void dado_passo(float dt)
             pousa(j, k, rola);
             adesivos_pousou(j, k);                // o Infectado, o Barro, a Massinha e o Chiclete agem na hora, mesmo se alguem correr
             veredito_incerto(j);                  // anulado que o Oculto ainda pode levantar: "?" e nao o X
+            vinheta_pouso(j, k);                  // o dado muito bom: o holofote (hora.inc)
             // O Acumulador que pousou valendo guarda +1 para as proximas vezes.
             if (F[j].tipo[k] == D_ACUMULADOR && F[j].est[k] == V_VALIDO && F[j].idx[k] >= 0
                 && F[j].idx[k] < J[j].n_col && J[j].col[F[j].idx[k]].fixo < ACUM_MAX)
@@ -230,7 +240,8 @@ void dado_passo(float dt)
         // Na vez da IA o veredito passa mais rapido (menos no ultimo dado).
         bool ia_v = (cpu >> vez & 1) && F[vez].lancados < F[vez].n;
         if (t_fase > (ver_tipo == 0 ? (ia_v ? 0.35f : 0.6f) : (ia_v ? 0.8f : 1.3f)) + (hora ? 0.35f : 0)
-                     + (vence_j == vez ? 0.5f : 0) && !cosmo_segura() && !n_pouso) {
+                     + (vence_j == vez ? 0.5f : 0) && !cosmo_segura() && !n_pouso
+            && t_vinheta < 0) {                   // (o holofote do dado muito bom: a luz volta antes)
             if (F[vez].lancados >= F[vez].n || vence_j == vez) termina_turno();
             else { cursor = 0; fase = F_JOGA; }
         }

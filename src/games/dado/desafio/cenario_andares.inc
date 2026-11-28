@@ -266,7 +266,7 @@ static void cen_segundo(int a, const vao_t *v, int nv)
         if (nv > 2 && vlarg(&v[2]) >= 26) deco_cartaz(vmeio(&v[2]), 84);
     } else {                                                         // o Dourado: a vitrola
         if (vlarg(&v[0]) >= 26) deco_cartaz(vmeio(&v[0]), 84);
-        if (nv > 1 && vlarg(&v[1]) >= 34) deco_vitrola(vmeio(&v[1]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 34) NO_CHAO(deco_vitrola(vmeio(&v[1]), FR_CHAO + 6));
         if (nv > 2 && vlarg(&v[2]) >= 20) deco_relogio(vmeio(&v[2]), 84);
     }
 }
@@ -355,7 +355,7 @@ static void cen_terceiro(int a, const vao_t *v, int nv)
     } else if (a == 1) {                                             // o Vermelho: o globo espelhado
         if (nv > 1 && vlarg(&v[1]) >= 28) deco_globo(vmeio(&v[1]), 78);
     } else {                                                         // o Dourado: os caca-niqueis
-        if (nv > 1 && vlarg(&v[1]) >= 40) deco_niqueis(vmeio(&v[1]), FR_CHAO + 4, 2);
+        if (nv > 1 && vlarg(&v[1]) >= 40) NO_CHAO(deco_niqueis(vmeio(&v[1]), FR_CHAO + 4, 2));
     }
 }
 
@@ -463,13 +463,13 @@ static void cen_quarto(int a, const vao_t *v, int nv)
     }
     if (a == 0) {                                                    // o Verde: a janela em arco com a lua
         if (nv > 1 && vlarg(&v[1]) >= 44) deco_janela_arco(vmeio(&v[1]), 72, 36, 46);
-        if (vlarg(&v[0]) >= 18) deco_palmeira(vmeio(&v[0]), FR_CHAO + 6);
+        if (vlarg(&v[0]) >= 18) NO_CHAO(deco_palmeira(vmeio(&v[0]), FR_CHAO + 6));
     } else if (a == 1) {                                             // o Vermelho: a fonte
-        if (nv > 1 && vlarg(&v[1]) >= 34) deco_fonte(vmeio(&v[1]), FR_CHAO + 4);
-        if (nv > 2 && vlarg(&v[2]) >= 18) deco_palmeira(vmeio(&v[2]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 34) NO_CHAO(deco_fonte(vmeio(&v[1]), FR_CHAO + 4));
+        if (nv > 2 && vlarg(&v[2]) >= 18) NO_CHAO(deco_palmeira(vmeio(&v[2]), FR_CHAO + 6));
     } else {                                                         // o Dourado: as lanternas e a palmeira
-        if (nv > 1 && vlarg(&v[1]) >= 50) { deco_lanternas(v[1].x0 + 4, v[1].x1 - 4, 82); deco_palmeira(vmeio(&v[1]), FR_CHAO + 6); }
-        if (vlarg(&v[0]) >= 18) deco_palmeira(vmeio(&v[0]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 50) { deco_lanternas(v[1].x0 + 4, v[1].x1 - 4, 82); NO_CHAO(deco_palmeira(vmeio(&v[1]), FR_CHAO + 6)); }
+        if (vlarg(&v[0]) >= 18) NO_CHAO(deco_palmeira(vmeio(&v[0]), FR_CHAO + 6));
     }
 }
 
@@ -555,11 +555,11 @@ static void cen_sexto(int a, const vao_t *v, int nv)
         for (int x = CH_X0; x < CH_X1; x++)
             if (cm_de(x, y) == CM_MARF && bayer(x, y) < (y - 148) / 16.0f) cp(x, y, CM_NEU, 0);
     if (a == 0) {                                                    // o Verde: o piano de cauda
-        if (nv > 1 && vlarg(&v[1]) >= 60) deco_piano(vmeio(&v[1]) + 4, FR_CHAO + 8);
+        if (nv > 1 && vlarg(&v[1]) >= 60) NO_CHAO(deco_piano(vmeio(&v[1]) + 4, FR_CHAO + 8));
         if (vlarg(&v[0]) >= 16) deco_arandela_deco(vmeio(&v[0]), 92);
     } else if (a == 1) {                                             // o Vermelho: o microfone da cantora
         if (nv > 1 && vlarg(&v[1]) >= 50) deco_arco_deco(vmeio(&v[1]), FR_RODA, 46, 48);
-        if (nv > 1 && vlarg(&v[1]) >= 30) deco_microfone(vmeio(&v[1]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 30) NO_CHAO(deco_microfone(vmeio(&v[1]), FR_CHAO + 6));
         if (vlarg(&v[0]) >= 16) deco_arandela_deco(vmeio(&v[0]), 92);
         if (nv > 2 && vlarg(&v[2]) >= 16) deco_arandela_deco(vmeio(&v[2]), 92);
     } else if (a == 2) {                                             // o Dourado: o grande sol atras do chefe
@@ -567,8 +567,8 @@ static void cen_sexto(int a, const vao_t *v, int nv)
         if (nv > 1 && vlarg(&v[1]) >= 40) deco_quadro(vmeio(&v[1]), 96, 26, 30, 1);
     } else {                                                         // o fim do andar: o palco vazio
         int x0 = v[0].x0, x1 = v[0].x1;
-        deco_coberto(x0 + (x1 - x0) / 3, FR_CHAO + 8, 46, 24);          // o piano coberto com o lencol
-        deco_microfone(x0 + (x1 - x0) * 2 / 3, FR_CHAO + 6);
+        NO_CHAO(deco_coberto(x0 + (x1 - x0) / 3, FR_CHAO + 8, 46, 24));          // o piano coberto com o lencol
+        NO_CHAO(deco_microfone(x0 + (x1 - x0) * 2 / 3, FR_CHAO + 6));
         cen_np = 0;                                                  // apagado: sem o foco
     }
 }
@@ -657,17 +657,17 @@ static void cen_setimo(int a, const vao_t *v, int nv)
     chao_carpete(CM_VIN, 1, 0);                                      // o carpete vinho, com a barra dourada perto da parede
     chl(CH_X0, FR_CHAO + 4, CH_W, CM_LAT, 2); chl(CH_X0, FR_CHAO + 7, CH_W, CM_LAT, 1);
     if (a == 0) {                                                    // o Verde: o canhao de luz
-        if (vlarg(&v[0]) >= 20) deco_canhao(vmeio(&v[0]) - 4, FR_CHAO + 6);
-        if (nv > 1 && vlarg(&v[1]) >= 44) deco_cordao(v[1].x0 + 6, v[1].x1 - 6, FR_CHAO + 8);
+        if (vlarg(&v[0]) >= 20) NO_CHAO(deco_canhao(vmeio(&v[0]) - 4, FR_CHAO + 6));
+        if (nv > 1 && vlarg(&v[1]) >= 44) NO_CHAO(deco_cordao(v[1].x0 + 6, v[1].x1 - 6, FR_CHAO + 8));
     } else if (a == 1) {                                             // o Vermelho: o letreiro de lampadas
         if (nv > 1 && vlarg(&v[1]) >= 52) deco_marquise(vmeio(&v[1]), 96);
     } else if (a == 2) {                                             // o Dourado: o cordao de veludo da entrada do chefe
-        if (nv > 1 && vlarg(&v[1]) >= 44) deco_cordao(v[1].x0 + 6, v[1].x1 - 6, FR_CHAO + 8);
-        if (nv > 2 && vlarg(&v[2]) >= 20) deco_canhao(vmeio(&v[2]) - 4, FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 44) NO_CHAO(deco_cordao(v[1].x0 + 6, v[1].x1 - 6, FR_CHAO + 8));
+        if (nv > 2 && vlarg(&v[2]) >= 20) NO_CHAO(deco_canhao(vmeio(&v[2]) - 4, FR_CHAO + 6));
     } else {                                                         // o fim: o teatro vazio, so a luz de servico
         int x0 = v[0].x0, x1 = v[0].x1;
-        deco_luz_fantasma(x0 + (x1 - x0) / 2, FR_CHAO + 14);
-        deco_cordao(x0 + 20, x0 + 74, FR_CHAO + 8);
+        NO_CHAO(deco_luz_fantasma(x0 + (x1 - x0) / 2, FR_CHAO + 14));
+        NO_CHAO(deco_cordao(x0 + 20, x0 + 74, FR_CHAO + 8));
     }
 }
 
@@ -752,23 +752,23 @@ static void cen_oitavo(int a, const vao_t *v, int nv)
     rodape(CM_NEU, 0);
     chao_carpete(CM_ROX, 1, 2);
     if (a == 0) {                                                    // o Verde: o sofa capitone e o abajur
-        if (nv > 1 && vlarg(&v[1]) >= 56) deco_sofa(vmeio(&v[1]), FR_CHAO + 6, 50);
-        if (vlarg(&v[0]) >= 18) deco_abajur(vmeio(&v[0]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 56) NO_CHAO(deco_sofa(vmeio(&v[1]), FR_CHAO + 6, 50));
+        if (vlarg(&v[0]) >= 18) NO_CHAO(deco_abajur(vmeio(&v[0]), FR_CHAO + 6));
     } else if (a == 1) {                                             // o Vermelho: o sax no palquinho
-        if (nv > 1 && vlarg(&v[1]) >= 34) deco_sax(vmeio(&v[1]), FR_CHAO + 6);
-        if (nv > 2 && vlarg(&v[2]) >= 18) deco_abajur(vmeio(&v[2]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 34) NO_CHAO(deco_sax(vmeio(&v[1]), FR_CHAO + 6));
+        if (nv > 2 && vlarg(&v[2]) >= 18) NO_CHAO(deco_abajur(vmeio(&v[2]), FR_CHAO + 6));
     } else if (a == 2) {                                             // o Dourado: os discos na parede
         if (nv > 1 && vlarg(&v[1]) >= 54) deco_discos(vmeio(&v[1]), 90);
-        if (vlarg(&v[0]) >= 18) deco_abajur(vmeio(&v[0]), FR_CHAO + 6);
+        if (vlarg(&v[0]) >= 18) NO_CHAO(deco_abajur(vmeio(&v[0]), FR_CHAO + 6));
     } else {                                                         // o fim: o lounge vazio, a vela acesa
         int x0 = v[0].x0, x1 = v[0].x1;
-        deco_sofa(x0 + (x1 - x0) / 4, FR_CHAO + 6, 50);
-        deco_abajur(x0 + (x1 - x0) / 4 + 36, FR_CHAO + 6);
+        NO_CHAO(deco_sofa(x0 + (x1 - x0) / 4, FR_CHAO + 6, 50));
+        NO_CHAO(deco_abajur(x0 + (x1 - x0) / 4 + 36, FR_CHAO + 6));
         cen_np--;                                                    // o abajur apagado: so a vela acende
         for (int y = FR_CHAO - 40; y < FR_CHAO - 30; y++) for (int x = x0 + (x1 - x0) / 4 + 28; x < x0 + (x1 - x0) / 4 + 45; x++)
             if (cm_de(x, y) == CM_LUZ) cp(x, y, CM_MAD, 1);
-        deco_vela(x0 + (x1 - x0) * 3 / 5, FR_CHAO + 8);
-        deco_sax(x0 + (x1 - x0) * 4 / 5, FR_CHAO + 6);
+        NO_CHAO(deco_vela(x0 + (x1 - x0) * 3 / 5, FR_CHAO + 8));
+        NO_CHAO(deco_sax(x0 + (x1 - x0) * 4 / 5, FR_CHAO + 6));
         cen_np--;                                                    // e o sax no escuro
     }
 }
@@ -857,7 +857,7 @@ static void cen_nono(int a, const vao_t *v, int nv)
         if (nv > 1 && vlarg(&v[1]) >= 54) deco_escotilhas(vmeio(&v[1]), 94);
         if (nv > 2 && vlarg(&v[2]) >= 28) deco_fichas(vmeio(&v[2]), 92);
     } else if (a == 2) {                                             // o Dourado: a coluna de agua com bolhas
-        if (nv > 1 && vlarg(&v[1]) >= 24) deco_coluna(vmeio(&v[1]), FR_CHAO + 6);
+        if (nv > 1 && vlarg(&v[1]) >= 24) NO_CHAO(deco_coluna(vmeio(&v[1]), FR_CHAO + 6));
         if (nv > 2 && vlarg(&v[2]) >= 24) deco_fichas(vmeio(&v[2]), 92);
     } else {                                                         // o fim: o aquario com a bomba desligada
         int x0 = v[0].x0, x1 = v[0].x1;

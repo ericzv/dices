@@ -778,41 +778,9 @@ static void desenha_fim_run(void)
     else desenha_run_perdida();
 }
 
-// Os creditos: so depois de vencer uma run, de qualquer andar. Cada linha
-// entra um instante depois da anterior.
-static void desenha_creditos(void)
-{
-    static const struct { const char *s; int tipo; } L[] = {
-        { "Dado em Casa, criado por ERICZ", 0 },
-        { "Sons", 1 },
-        { "Dados, feltro e madeira: dice-box-threejs, de 3D Dice (MIT)", 2 },
-        { "Teclado: jRhodes3d, um Rhodes de 1977 gravado por J. Learman", 2 },
-        { "Baixo e sax: Karoryfer, coleção tonejs-instruments (CC BY 3.0)", 2 },
-        { "Vibrafone, celesta e outros: FluidR3 GM, de Frank Wen (CC BY 3.0)", 2 },
-        { "Fontes", 1 },
-        { "Jersey 10, Tiny5 e Bitcount Prop Single (SIL Open Font License)", 2 },
-        { "Obrigado por jogar.", 3 },
-    };
-    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 110);
-    faixa_run(0);
-    const int y0 = MESA_Y0 + 6;                                 // cabe todo dentro do feltro
-    painel(y0, MESA_Y1 - 6 - y0, 520);
-    txt_sombra_c(GFX_W / 2, y0 + 8, "CRÉDITOS", C_OURO, 2);
-    int y = y0 + 48;
-    for (int i = 0; i < (int)(sizeof L / sizeof L[0]); i++) {
-        if (L[i].tipo == 1 || L[i].tipo == 3) y += 4;          // folga antes de cada bloco
-        if (t_fase > 0.2f + i * 0.08f) {
-            switch (L[i].tipo) {
-            case 0: txt_c(GFX_W / 2, y, L[i].s, C_MARFIM, true);  break;
-            case 1: txt_c(GFX_W / 2, y, L[i].s, C_LATAO, true);   break;
-            case 2: txt_c(GFX_W / 2, y, L[i].s, C_TEXTO_M, false); break;
-            default: txt_c(GFX_W / 2, y, L[i].s, C_OURO, true);   break;
-            }
-        }
-        y += L[i].tipo == 2 ? LINHA_FINA : L[i].tipo == 1 ? 18 : 20;
-    }
-    rodape_run("ENTER volta ao menu");
-}
+// Os creditos: so depois de vencer uma run, de qualquer andar. Rolando, com
+// o elenco: no fim de predio_salas.inc (usam as salas e a gente do predio).
+static void desenha_creditos(void);
 
 // As moedas da vitoria, em fileira: entram uma a uma (andamento.inc), a
 // ultima pulando, com um brilho. Embaixo de cada grupo, de onde veio (a mesa,

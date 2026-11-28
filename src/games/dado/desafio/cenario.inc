@@ -65,10 +65,16 @@ static void cdet(int tipo, int x, int y, int w, int h)
 static poca_t cen_pc[CEN_POCAS];
 static int cen_np;
 
+// As colunas do salao com uma peca de pe no chao (o cabideiro, o piano, a
+// palmeira, o abajur...): quem pinta uma chama por NO_CHAO, e a gente do
+// salao (salao_gente, predio_salas.inc) nao para na frente delas.
+static bool cen_oc[CH_W], cen_oc_liga;
+#define NO_CHAO(chamada) do { cen_oc_liga = true; chamada; cen_oc_liga = false; } while (0)
 static void cp(int x, int y, int m, int t)
 {
     unsigned i = (unsigned)(x - CH_X0), j = (unsigned)(y - CH_Y0);   // fora do chao (negativo vira enorme): nada
     if (i >= (unsigned)CH_W || j >= (unsigned)CH_H) return;
+    if (cen_oc_liga) cen_oc[i] = true;
     cen_m[j][i] = (uint8_t)m;
     cen_t[j][i] = (uint8_t)(t < 0 ? 0 : t > 5 ? 5 : t);
 }
@@ -351,7 +357,7 @@ static void cen_terreo(int a, const vao_t *v, int nv)
     if (a == 0) {                                         // o Verde: o quadro do torneio e o cabideiro
         if (vlarg(&v[0]) >= 18) deco_relogio(vmeio(&v[0]), 80);
         if (nv > 1 && vlarg(&v[1]) >= 50) deco_torneio(vmeio(&v[1]), 70);
-        if (nv > 2 && vlarg(&v[2]) >= 22) deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8);
+        if (nv > 2 && vlarg(&v[2]) >= 22) NO_CHAO(deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8));
     } else if (a == 1) {                                  // o Vermelho: o guiche do caixa
         if (vlarg(&v[0]) >= 28) deco_quadro(vmeio(&v[0]), 84, 20, 16, 0);
         if (nv > 1 && vlarg(&v[1]) >= 48) deco_caixa(vmeio(&v[1]), 72);
@@ -359,7 +365,7 @@ static void cen_terreo(int a, const vao_t *v, int nv)
     } else {                                              // o Dourado: o retrato do fundador e os trofeus
         if (vlarg(&v[0]) >= 28) deco_quadro(vmeio(&v[0]), 84, 20, 26, 1);
         if (nv > 1 && vlarg(&v[1]) >= 48) deco_trofeus(vmeio(&v[1]), 92);
-        if (nv > 2 && vlarg(&v[2]) >= 22) deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8);
+        if (nv > 2 && vlarg(&v[2]) >= 22) NO_CHAO(deco_cabideiro(vmeio(&v[2]), FR_CHAO + 8));
     }
 }
 
@@ -488,8 +494,8 @@ static void cen_quinto(int a, const vao_t *v, int nv)
         deco_cortinado(estrado_cx());
     } else {                                                // o fim da galeria: tudo coberto
         int x0 = v[0].x0, x1 = v[0].x1;
-        deco_coberto(x0 + (x1 - x0) / 4, 168, 30, 26);
-        deco_coberto(x0 + (x1 - x0) * 3 / 5, 164, 44, 18);
+        NO_CHAO(deco_coberto(x0 + (x1 - x0) / 4, 168, 30, 26));
+        NO_CHAO(deco_coberto(x0 + (x1 - x0) * 3 / 5, 164, 44, 18));
         deco_quadro(x0 + (x1 - x0) * 2 / 5, 90, 30, 24, 0);
         for (int j = 0; j < 22; j++)                         // o pano por cima do quadro
             for (int i = -18; i <= 18 - j / 3; i++) {
@@ -621,6 +627,7 @@ static void cen_cobertura(int a, const vao_t *v, int nv)
         }
     if (a == 0 && vlarg(&v[0]) >= 24) {                     // a luneta no tripe
         int cx = vmeio(&v[0]);
+        cen_oc_liga = true;
         for (int k = -1; k <= 1; k++) {
             int fx = cx + k * 7;
             for (int j = 0; j < 30; j++) cp(cx + (fx - cx) * j / 30, 112 + j, CM_LAT, k ? 2 : 1);
@@ -631,6 +638,7 @@ static void cen_cobertura(int a, const vao_t *v, int nv)
             for (int j = -g; j <= g; j++) cp(x, y + j, CM_LAT, j < 0 ? 4 : j == 0 ? 3 : 2);
         }
         cp(cx + 12, 107, CM_MARF, 4);
+        cen_oc_liga = false;
     }
     if (a == 2) {                                            // o varal de lampadinhas na viga
         for (int x = CH_X0; x < CH_X1; x++) {
@@ -856,6 +864,7 @@ static void cen_pinta(int d, int a)
     cen_andar = d < 0 ? 0 : d > N_NIVEIS ? N_NIVEIS : d;
     cen_nd = 0;
     cen_np = 0;
+    memset(cen_oc, 0, sizeof cen_oc);
     vao_t v[DES_PASSOS + 2];
     int nv = fr_vaos(v);
     switch (cen_andar) {
@@ -1576,6 +1585,7 @@ static void fr_escuro(void)
     }
 }
 
+static void salao_gente(void);
 static void desenha_mapa(void)
 {
     faixa_run(KEY_ESC);
@@ -1603,6 +1613,7 @@ static void desenha_mapa(void)
     fr_par(ex - ESTRADO_W / 2 + 18, FR_CHAO + 10, par);
     fr_par(ex + ESTRADO_W / 2 - 16, FR_CHAO + 10, par);
     fr_natal();
+    salao_gente();                                       // quem esta no salao, nos vaos entre as mesas (predio_salas.inc)
     for (int p = 0; p < n; p++) fr_salao_mesa(p);
     int px = salao_x(run.passo), py = TAP_MEIO;
     if (t_luz > 0) px = PL_X0 + 14;

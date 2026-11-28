@@ -4465,6 +4465,19 @@ int main(void)
         CONFERE(bs_cur == B_COPO, "vitrine: o 2 e a segunda da fila (%d)", bs_cur);
         for (int i = 0; i < B_N + 2; i++) bs_tecla(KEY_RIGHT, 1);
         CONFERE(bs_cur == B_MALETA, "vitrine: a seta para na ultima (%d)", bs_cur);
+        // A trancada nao se escolhe: o ENTER (o A do controle, o clique, o toque)
+        // so faz a placa do "para abrir" tremer e piscar, e a run nao comeca.
+        {
+            int runs = perfis[0].runs;
+            t_fase = 99; bs_caiu = (1u << (2 * BS_LADO + 1)) - 1;
+            bs_tecla(KEY_ENTER, 0);
+            CONFERE(fase == F_RBOLSAS && t_bs_nega == 0 && t_bs_clique < 0 && perfis[0].runs == runs,
+                    "bolsa trancada: o ENTER so sacode a placa (fase %d, nega %.2f)", fase, t_bs_nega);
+            dado_desenha();                                   // a placa, tremendo
+            gfx_letra_maior(true); dado_desenha(); gfx_letra_maior(false);
+            for (int i = 0; i < 60; i++) bolsas_passo(1 / 60.0f);
+            CONFERE(t_bs_nega < 0, "bolsa trancada: a placa para de tremer (%.2f)", t_bs_nega);
+        }
         perfis[0].bolsas_vistas = 0;
         perfis[0].bolsas = 0xFF;
         // Copo de Couro: sem os D2, com um D8 e o Viciado; compra 6.
@@ -10568,6 +10581,92 @@ int main(void)
         manda_tecla(KEY_TAB);
         CONFERE(cat_sec == 0, "colecao: o TAB passa a secao (%d)", cat_sec);
         cat_i = 0; fase = fase_antes;
+    }
+
+    // O olhar do oponente: so o retrato dele na faixa da mesa olha em volta; os
+    // outros (o mapa, a loja, o fim) olham sempre para a frente. Falando ou
+    // reagindo, olha para voce; montando a fila, para baixo; atras do dado que
+    // rola; de lado um instante depois de perder a rodada.
+    {
+        int modo_v = modo, fase_v = fase, vez_v = vez, perso_v = fala_perso, nv_v = n_voo, quem_v = res_quem;
+        float tf_v = t_fase;
+        modo = M_DESAFIO; fala_perso = 0; t_fala = 0; t_reacao = 0; humor[1] = -1; retrato_ex = -1;
+        fase = F_ORDEM; vez = 1;
+        CONFERE(olhar_agora() == OL_BAIXO, "olhar: montando a fila dele, para baixo (%d)", olhar_agora());
+        vez = 0;
+        CONFERE(olhar_agora() == OL_FRENTE, "olhar: na sua vez de montar, para voce (%d)", olhar_agora());
+        fase = F_ROLANDO; n_voo = 1; voo[0].x = 500; voo[0].y = 60;
+        CONFERE(olhar_agora() == OL_DIR, "olhar: o dado rolando longe, a direita (%d)", olhar_agora());
+        voo[0].x = 80; voo[0].y = 200;
+        CONFERE(olhar_agora() == OL_BAIXO, "olhar: o dado rolando embaixo dele (%d)", olhar_agora());
+        voo[0].x = 300; voo[0].y = 200;
+        CONFERE(olhar_agora() == OL_BAIXO_DIR, "olhar: o dado no meio da mesa (%d)", olhar_agora());
+        t_reacao = 1;
+        CONFERE(olhar_agora() == OL_FRENTE, "olhar: reagindo, para voce (%d)", olhar_agora());
+        t_reacao = 0; t_fala = 2;
+        CONFERE(olhar_agora() == OL_FRENTE, "olhar: falando, para voce (%d)", olhar_agora());
+        t_fala = 0; n_voo = 0;
+        fase = F_RESULTADO; res_quem = 0; t_fase = 1;
+        CONFERE(olhar_agora() == OL_ESQ, "olhar: perdeu a rodada, desvia (%d)", olhar_agora());
+        t_fase = 2.5f;
+        CONFERE(olhar_agora() == OL_FRENTE, "olhar: e volta a olhar para voce (%d)", olhar_agora());
+        res_quem = 1; t_fase = 1;
+        CONFERE(olhar_agora() == OL_FRENTE, "olhar: ganhou a rodada, nao desvia (%d)", olhar_agora());
+        // Fora da faixa, o mesmo retrato olha para a frente; na faixa, olha (o
+        // Monge, de olhos fechados, nao tem pupila para mexer).
+        fase = F_ORDEM; vez = 1;
+        retrato(0, 0, 2, 0, 1.0f, false, 0, RT_H);
+        CONFERE(rosto_olhar == OL_FRENTE && rosto_olhou == OL_FRENTE, "olhar: fora da faixa, sempre para a frente (%d)", rosto_olhar);
+        olhar_na_faixa = true;
+        retrato(0, 0, 2, 0, 1.0f, false, 0, RT_H);
+        CONFERE(rosto_olhou == OL_BAIXO && olho_baixo() && olho_px(0) == 8 && olho_px(1) == 11, "olhar: na faixa, para baixo (%d)", rosto_olhou);
+        fala_perso = 13;
+        retrato(0, 0, 2, 13, 0.5f, false, 0, RT_H);
+        CONFERE(rosto_olhou == OL_FRENTE, "olhar: o Monge de olhos fechados nao mexe a pupila (%d)", rosto_olhou);
+        olhar_na_faixa = false;
+        modo = modo_v; fase = fase_v; vez = vez_v; fala_perso = perso_v; n_voo = nv_v; res_quem = quem_v; t_fase = tf_v;
+    }
+    // Os creditos sobem no tempo de quem le (a velocidade da partida nao os
+    // apressa), param no fim e o ENTER sai a qualquer momento.
+    {
+        int vel_v = velocidade, modo_v = modo;
+        modo = M_DESAFIO; velocidade = VEL_RAPIDA;
+        fase = F_CREDITOS; t_fase = 0;
+        t_elev = t_virada = t_entrada = t_anuncio = t_misterio = 0;
+        for (int i = 0; i < 120; i++) dado_passo(1 / 60.0f);
+        CONFERE(fase == F_CREDITOS && fabsf(t_fase - 2.0f) < 0.01f, "creditos: 2 s sao 2 s em qualquer velocidade (%.2f)", t_fase);
+        dado_desenha();
+        t_fase = 20; dado_desenha();                          // o meio da coluna
+        gfx_letra_maior(true); dado_desenha(); gfx_letra_maior(false);
+        t_fase = 500; dado_desenha();                         // parado no fim
+        t_fase = 3;
+        manda_tecla(KEY_ENTER);
+        CONFERE(fase != F_CREDITOS, "creditos: o ENTER sai no meio da rolagem (fase %d)", fase);
+        velocidade = vel_v; modo = modo_v;
+        fase = F_ABERTURA; modo = M_UM;
+    }
+    // A gente do salao: ninguem para na frente de uma peca de pe no chao, nem
+    // (em dezembro) do pinheiro junto da porta.
+    {
+        bool dez_v = dezembro;
+        dezembro = false;
+        memset(cen_oc, 0, sizeof cen_oc);
+        vao_t v = { 200, 280 };
+        CONFERE(gente_lugar(&v, 48, false) == 240, "gente: no vao livre, o grupo fica no meio (%d)", gente_lugar(&v, 48, false));
+        CONFERE(gente_lugar(&v, 20, true) == 212, "gente: o porteiro, na ponta do vao (%d)", gente_lugar(&v, 20, true));
+        for (int x = 230; x < 250; x++) cen_oc[x - CH_X0] = true;      // um abajur no meio
+        CONFERE(gente_lugar(&v, 48, false) < 0, "gente: o par nao cabe ao lado da peca (%d)", gente_lugar(&v, 48, false));
+        int cx = gente_lugar(&v, 24, false);
+        CONFERE(cx >= 0 && (cx + 12 <= 230 || cx - 12 >= 250), "gente: um so, fora da peca (%d)", cx);
+        for (int x = 200; x < 280; x++) cen_oc[x - CH_X0] = true;
+        CONFERE(gente_lugar(&v, 20, true) < 0, "gente: vao todo tomado, ninguem (%d)", gente_lugar(&v, 20, true));
+        memset(cen_oc, 0, sizeof cen_oc);
+        vao_t porta = { FR_PX1 + 3, FR_PX1 + 32 };
+        CONFERE(gente_lugar(&porta, 20, true) >= 0, "gente: o porteiro cabe junto da porta");
+        dezembro = true;
+        CONFERE(gente_lugar(&porta, 20, true) < 0, "gente: em dezembro o pinheiro fica no lugar do porteiro");
+        dezembro = dez_v;
+        cen_chave = -1;                                       // (o cenario e pintado de novo na proxima vez)
     }
 
     if (falhas) { printf("%d falhas\n", falhas); return 1; }

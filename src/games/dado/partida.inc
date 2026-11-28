@@ -473,6 +473,7 @@ void dado_inicia(int n_partidas)
     }
     rodada = 0;
     partida_num++;
+    t_vinheta = -1;                      // (o holofote de uma partida largada no meio nao segura a nova)
     pote = 0;
     memset(bis_fila, 0, sizeof bis_fila);
     memset(bis_vem, 0, sizeof bis_vem);

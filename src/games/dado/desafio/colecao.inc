@@ -436,7 +436,9 @@ static void des_entrada(void)
     gfx_texto(tcx - gfx_largura(sl, GFX_FINO) / 2, ty + 28, sl, C_MARFIM_S, GFX_FINO, false);
     if (pp->trunfo && trunfo_ativo(fala_perso)) {
         gfx_texto(tcx - gfx_largura(pp->trunfo, 1) / 2, ty + 50, pp->trunfo, C_OURO, 1, false);
-        txt_c_duas(tcx, ty + 66, regra_perso(fala_perso), C_MARFIM, larg);
+        // (a regra em duas linhas sobe meio passo: desce o mesmo, para nao cobrir o nome do trunfo)
+        const char *rg = regra_perso(fala_perso);
+        txt_c_duas(tcx, ty + 66 + (txt_quebra(rg, larg) ? txt_passo() / 2 : 0), rg, C_MARFIM, larg);
     }
     if (fala_txt[0]) {                                          // a fala de abertura, inteira, embaixo do retrato
         balao_x_min = px; balao_x_max = GFX_W - 24;

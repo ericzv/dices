@@ -629,6 +629,7 @@ static void des_comeca_partida(void)
     memset(J, 0, sizeof J);
     memset(F, 0, sizeof F);
     partida_num++;
+    t_vinheta = -1;
     J[0].nome = perfil()->nome;
     J[0].cor = C_LATAO;
     amul[0] = run_amuletos();

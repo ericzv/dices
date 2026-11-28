@@ -199,8 +199,8 @@ void dado_mouse(int x, int y, int acao)
         if (acao == 1) { t_cort = -1; luz_pula(); }
         return;
     }
-    if (t_entrada > 0) {                                // a apresentacao do chefe: um clique pula
-        if (acao == 1) t_entrada = 0;
+    if ((t_entrada > 0 || t_virada > 0) && !som_aberto && !ctrl_aberto) {   // a apresentacao e a virada do chefe: um clique pula
+        if (acao == 1) t_entrada = t_virada = 0;                         // (com o painel aberto, o clique e do painel)
         return;
     }
     if (t_luz > 0 && fase == F_MAPA) {                  // o salao acendendo: um clique pula

@@ -742,7 +742,7 @@ static void desenha_run_campea(int n)
              (unsigned)(d % 100), (unsigned)(d / 100 % 100), (unsigned)(d / 10000));
     // De cima para baixo, sem um texto por cima do outro: a foto, o aviso do
     // historico logo embaixo dela, o nivel que abriu e as teclas.
-    int fw = 340, fh = 134, fx = GFX_W / 2 - fw / 2, fy = MESA_Y0 + 58;
+    int fw = 340, fh = 134, fx = GFX_W / 2 - fw / 2, fy = MESA_Y0 + 58 + (coringa ? 4 : 0);   // (a moldura roxa nao corta a frase)
     if (t_fase < FOTO_FLASH) {                        // a bolsa vai sendo posta na mesa, ja onde a foto pega
         foto_arranjo_t f = foto_arranjo(fx + FOTO_BORDA, fy + FOTO_BORDA, fw - 2 * FOTO_BORDA,
                                         fh - FOTO_BORDA - FOTO_BAIXO, run.n_col, run_amuletos() != 0);

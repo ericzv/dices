@@ -42,9 +42,10 @@ void dado_passo(float dt)
     if (t_aviso_salvo > 0) t_aviso_salvo -= dt_real;
     if (t_aviso_adesivo > 0) t_aviso_adesivo -= dt_real;
     if (t_px_pulso >= 0 && (t_px_pulso += dt_real) > PX_PULSO_T) t_px_pulso = -1;
-    if (t_aviso_rodada > 0) t_aviso_rodada -= dt_real;
-    if (t_aviso_entrada > 0) t_aviso_entrada -= dt_real;
-    if (t_sua_vez > 0) t_sua_vez -= dt_real;
+    bool cena_chefe = t_virada > 0 || t_entrada > 0;   // (a cena do chefe na frente da mesa: os avisos dela esperam)
+    if (t_aviso_rodada > 0 && !cena_chefe) t_aviso_rodada -= dt_real;
+    if (t_aviso_entrada > 0 && !cena_chefe) t_aviso_entrada -= dt_real;
+    if (t_sua_vez > 0 && !cena_chefe) t_sua_vez -= dt_real;
     if (fase == F_FIM) {
         // O fim de uma partida perdida (ou empatada) da run: quando a ultima
         // letra do letreiro assenta, a mesa treme (desafio/desenho.inc).

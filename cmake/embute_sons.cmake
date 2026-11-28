@@ -1,7 +1,9 @@
 # Embute os sons do jogo (desktop/sons/*.ogg) no executavel: gera um .c com
 # cada arquivo como um vetor de bytes e uma tabela nome -> dados.
 # Roda no build (cmake -P), so quando algum .ogg muda:
-#   cmake -DSAIDA=<arquivo.c> -DPASTA=<desktop/sons> -P embute_sons.cmake
+#   cmake -DSAIDA=<arquivo.c> -DPASTA=<desktop/sons> [-DFORA=<regex>] -P embute_sons.cmake
+# FORA: os arquivos cujo nome casa ficam de fora (as trilhas, na versao do
+# navegador, que as busca ao lado da pagina).
 # Recebe a pasta, e nao a lista: com centenas de sons, a lista na linha de
 # comando passava do limite do Windows.
 file(GLOB ARQUIVOS "${PASTA}/*.ogg")
@@ -16,6 +18,9 @@ foreach(arq IN LISTS ARQUIVOS)
         continue()
     endif()
     get_filename_component(nome ${arq} NAME_WE)
+    if (FORA AND nome MATCHES "${FORA}")
+        continue()
+    endif()
     file(READ ${arq} hex HEX)
     string(LENGTH "${hex}" n)
     math(EXPR n "${n} / 2")

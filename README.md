@@ -593,6 +593,12 @@ mouse, um clique basta como sempre.
 Para digitar (o nome do perfil, o código da sala), um toque na tela abre o
 teclado do aparelho.
 
+A página não dá zoom nem rola: o toque duplo e a pinça são do jogo, e a mesa
+ocupa a área visível inteira (sem a parte atrás da barra do navegador). Para
+saber se o aparelho dá conta, ligue o **medidor de quadros** no painel do som
+(o alto-falante da mesa, o M ou o RT): ele escreve no canto os quadros por
+segundo, o tempo de cada quadro e quantos atrasaram.
+
 ## Jogar no computador
 
 Baixe o arquivo do seu sistema na página de
@@ -618,7 +624,7 @@ Não precisa instalar nada: é um executável só.
 | I | Mostra tudo sobre o dado escolhido (qualquer tecla fecha) |
 | 1–7 | Escolhe direto o dado da mão, a opção da aposta ou o item da loja |
 | X | Recusa o prêmio / sai da loja |
-| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior, o tremor da tela e, no computador, o registro das partidas (fica guardado; a partida espera) |
+| M | Abre o painel do som: o volume da música, dos efeitos e da interface, de 0 (mudo) a 10, a letra maior, o tremor da tela, o medidor de quadros e, no computador, o registro das partidas (fica guardado; a partida espera) |
 | N | Liga e desliga só a música (volta ao volume de antes) |
 | V | Velocidade normal, média (1,5x) ou rápida (2x): animações e vez do computador (fica guardada) |
 | T | Liga e desliga o tremor da tela e o clarão das jogadas fortes (fica guardado) |
@@ -642,7 +648,8 @@ K), abre o quadro com o que faz cada botão, do Xbox ou do PlayStation.
 Tudo no jogo se faz pelo controle: o nome do perfil e o código da sala online
 se escrevem num teclado na tela (o direcional escolhe a letra, o A escreve,
 o B apaga e o Y confirma); nos perfis, o Y abre o histórico e o X o estilo;
-a letra maior e o tremor da tela ficam no painel do som (o RT).
+a letra maior, o tremor da tela e o medidor de quadros ficam no painel do
+som (o RT).
 
 | Xbox | PlayStation | O que faz |
 |---|---|---|
@@ -656,7 +663,7 @@ a letra maior e o tremor da tela ficam no painel do som (o RT).
 | LB | L1 | Recusa (o X) |
 | RB | R1 | Velocidade (o V) |
 | LT | L2 | Mostra o que faz cada botão (o K) |
-| RT | R2 | O painel do som, a letra maior, o tremor e o registro das partidas (o M) |
+| RT | R2 | O painel do som, a letra maior, o tremor, o medidor de quadros e o registro das partidas (o M) |
 
 No modo **2 jogadores**, com dois controles ligados, cada um joga na sua vez
 (o primeiro controle é o JOGADOR 1), e as dicas da tela mostram os botões
@@ -725,9 +732,27 @@ vídeo só amplia. Para não pesar em aparelho fraco:
   navegador ela pensa já na pausa de "pensando", no que sobra de cada quadro
   (de 2 a 8 ms, `dado_ia_orcamento`), e chega à mesma jogada que faria de uma
   vez. Sem esse tempo (os testes, o simulador), tudo é de uma vez, como antes.
-- **Os sons chegam aos poucos.** Na abertura só a trilha é decodificada; os
-  efeitos vêm depois, uns 2 ms por quadro (os do menu e da mesa primeiro), e
-  um som pedido antes da vez dele é decodificado na hora.
+- **Os sons chegam aos poucos, e só os que a cena pode pedir.** Nada é
+  decodificado antes do primeiro quadro: a trilha e os efeitos vêm depois, em
+  pedaços que cabem em uns 2 ms por quadro (os do menu e da mesa primeiro).
+  Ficam sempre na memória só os sons de todo dia; os de cada dado, adesivo e
+  acabamento entram quando ele está numa das duas bolsas, na fila ou à venda
+  (`dado_sons_precisos` diz quais, a cada quadro) e saem um minuto e meio
+  depois de deixarem de ser pedidos. A batucada e a voz do chefe, só na run.
+  Um som que toque sem estar na memória é decodificado na hora (nunca fica
+  mudo); os testes `simula` e `desafio` conferem que isso quase não acontece.
+  No navegador a memória do jogo caiu de 133 MB para 64 a 77 MB.
+- **No navegador, as trilhas ficam fora do jogo.** Os `trilha*.ogg` (3 MB)
+  vão ao lado da página e são buscados depois que o jogo abre: até a trilha
+  chegar ele segue sem música. O primeiro download cai de 9,8 para 6,8 MB.
+- **No navegador, 60 quadros por segundo bastam.** Numa tela de 120 Hz o
+  jogo pula uma repintura sim, outra não; e o quadro que saiu igual ao que
+  já está na tela (a mesa esperando a jogada, a loja parada) não é enviado
+  de novo à placa de vídeo. O jogo anda e desenha como sempre.
+- **O medidor de quadros** (no painel do som) mostra tudo isso no próprio
+  aparelho: quadros por segundo (e quantos foram para a tela), o tempo de
+  cada quadro, os atrasados, a memória dos sons e quantos foram decodificados
+  na hora de tocar.
 - **As telas pesadas não refazem o que não muda.** O véu escuro guarda o que
   escureceu linha a linha (duas vagas, para dois véus no mesmo quadro); a
   cortina não desenha o salão escondido atrás dela; o foco da hora da verdade
@@ -743,6 +768,10 @@ emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release
 cmake --build build-web
 cd build-web && python3 -m http.server   # abra http://localhost:8000
 ```
+
+O jogo são `index.html`, `index.js`, `index.wasm`, `mqtt.min.js`, `icone.png`
+e as trilhas (`trilha*.ogg`), que ele busca depois de abrir: quem publicar à
+mão leva todos juntos.
 
 Para testar o online sem internet, rode um Mosquitto local com websockets e
 abra `index.html?servidor=ws://localhost:9001` em duas abas.
@@ -778,7 +807,7 @@ src/          o jogo
   ui/             primitivas de desenho e as fontes de pixels (Jersey 10, Bitcount Prop Single e Tiny5)
   hal/            contrato com a plataforma: teclado, som, tela
 desktop/      a plataforma PC: janela, teclado, som e ícone
-  sons/           a trilha e os efeitos (OGG), embutidos no executável no build
+  sons/           a trilha e os efeitos (OGG), embutidos no executável no build (no navegador, as trilhas vão ao lado)
 web/          a página do navegador e a rede do modo online (MQTT)
 tests/        simulador de partidas, regras, Desafiante, telas, online, rede e conferência dos sons
 tools/        geradores da fonte, do ícone e dos sons (tools/sons/)

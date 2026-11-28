@@ -24,10 +24,9 @@ int main(int argc, char **argv)
         if (!ROLA_ARQ[q] || !acha(ROLA_ARQ[q])) { printf("falta o laco de rolagem %d (%s)\n", q, ROLA_ARQ[q] ? ROLA_ARQ[q] : "?"); erros++; }
     // As camadas (a batucada e a voz de cada chefe) tocam junto com a trilha,
     // amostra a amostra: do mesmo tamanho dela (senao o som.c as deixa de fora).
-    const char *camadas[CAMADAS + SOM_CHEFES];
+    const char *camadas[ARQ_TRILHAS];
     int nc = 0;
-    for (int c = 0; c < CAMADAS; c++) if (CAM_ARQ[c]) camadas[nc++] = CAM_ARQ[c];
-    for (int q = 0; q < SOM_CHEFES; q++) if (VOZ_ARQ[q]) camadas[nc++] = VOZ_ARQ[q];
+    for (int f = 0; f < ARQ_TRILHAS; f++) if (TRILHA_ARQ[f]) camadas[nc++] = TRILHA_ARQ[f];
     unsigned n_trilha = 0;
     for (int c = 0; c < nc; c++) {
         const som_arquivo_t *a = acha(camadas[c]);
@@ -40,9 +39,9 @@ int main(int argc, char **argv)
         }
         if (w.channels != 2 || w.sampleRate != 44100) { printf("%s: nao e estereo a 44100 Hz\n", camadas[c]); erros++; }
         UnloadWave(w);
-        // A voz e decodificada aos poucos no jogo (o stb_vorbis do raylib): tem
-        // que abrir e dizer o mesmo tamanho.
-        if (c >= 2) {
+        // As camadas sao decodificadas aos poucos no jogo (o stb_vorbis do
+        // raylib): tem que abrir e dizer o mesmo tamanho.
+        {
             int e = 0;
             stb_vorbis *v = stb_vorbis_open_memory(a->dados, (int)a->tam, &e, NULL);
             if (!v || stb_vorbis_stream_length_in_samples(v) != n_trilha || stb_vorbis_get_info(v).sample_rate != 44100) {
@@ -59,6 +58,20 @@ int main(int argc, char **argv)
         if (!w.frameCount || !w.data) { printf("%s: nao decodificou\n", a->nome); erros++; continue; }
         WaveFormat(&w, w.sampleRate, 16, w.channels);
         const short *x = w.data;
+        // A carga aos poucos do jogo (decod_abre, decod_anda) tem de dar as
+        // mesmas amostras que o arquivo decodificado de uma vez.
+        decod_t d;
+        if (!decod_abre(&d, a->dados, a->tam, 0, NULL)) { printf("%s: a carga aos poucos nao abriu\n", a->nome); erros++; }
+        else {
+            int pedacos = 0;
+            while (!decod_anda(&d)) pedacos++;
+            if (d.lidos != w.frameCount || d.canais != (int)w.channels || d.taxa != (unsigned)w.sampleRate
+                || memcmp(d.buf, x, (size_t)w.frameCount * w.channels * sizeof(short))) {
+                printf("%s: a carga aos poucos deu outro som (%u quadros em %d pedacos, eram %u)\n", a->nome, d.lidos, pedacos + 1, w.frameCount);
+                erros++;
+            }
+            decod_fecha(&d, true);
+        }
         int pico = 0;
         for (unsigned k = 0; k < w.frameCount * w.channels; k++) {
             int v = x[k] < 0 ? -x[k] : x[k];

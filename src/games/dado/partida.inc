@@ -413,6 +413,7 @@ static void poe_nomes(void)
 
 static void abre_loja(void);
 static void som_le_volumes(void);        // painel_som.inc
+static void medidor_le(void);
 static bool tem_perfil(void);            // desafio/perfis.inc
 
 void dado_inicia(int n_partidas)
@@ -455,6 +456,7 @@ void dado_inicia(int n_partidas)
             salvo_estragado("tremor", b, "A opção do tremor da tela não abriu: uma cópia ficou guardada à parte.");
         tremor_lido = true;
     }
+    medidor_le();                        // e o medidor de quadros
     partidas = n_partidas;
     semente_v = (uint32_t)esp_timer_get_time() | 1;
     // Online, os dois lados sorteiam igual: a semente vem da sala.

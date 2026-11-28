@@ -10,11 +10,14 @@
 //    chefe entra a batucada (surdo, agogo, o aro e as cordas) e, por cima, a
 //    voz do chefe (o sax da Dona, as trompas do Barao, a caixinha do Coringa,
 //    os guizos do Papai Noel; o Crupie fica so com a batucada), e ja no mapa
-//    e na loja de antes dela. Todas vem decodificadas na memoria e um callback
-//    do audio as mistura amostra a amostra: nunca saem do compasso, nem se o
-//    jogo engasgar. A voz e so a do chefe do salao, decodificada aos poucos
-//    (um pedaco por quadro) quando o salao muda. Na hora da verdade a trilha
-//    so quase some, e o coracao (o suspense) toca sozinho.
+//    e na loja de antes dela. Todas ficam decodificadas na memoria e um
+//    callback do audio as mistura amostra a amostra: nunca saem do compasso,
+//    nem se o jogo engasgar. Sao decodificadas aos poucos (uns pedacos por
+//    quadro): a trilha logo que o jogo abre (ate ela ficar inteira, o jogo
+//    segue sem musica), a batucada e a voz so quando a run chega num salao.
+//    No navegador os arquivos das trilhas nao vao dentro do jogo: ficam ao
+//    lado da pagina e sao buscados depois que ele abre. Na hora da verdade a
+//    trilha so quase some, e o coracao (o suspense) toca sozinho.
 //  - Volumes: tres canais, de 0 a 10 (o painel do som, tecla M): a trilha,
 //    os efeitos da mesa e os da interface (o cursor e os menus).
 //  - Rufo: o dado rolando no feltro enquanto rola, no som do acabamento
@@ -26,6 +29,14 @@
 //    partida no mesmo teclado e baixo da trilha. Batidas, pousos e fichas
 //    sorteiam entre varias gravacoes e variam um pouco o tom.
 //
+//  - A carga: decodificados, os efeitos todos passam de 100 MB. Ficam sempre
+//    na memoria so os de todo dia (o menu, a mesa, as fichas, os vereditos);
+//    os dos dados, dos adesivos e dos acabamentos entram quando a cena pode
+//    pedi-los (as duas bolsas, a loja: o jogo diz quais, som_precisa) e saem
+//    um tempo depois de deixarem de ser pedidos. Tudo e decodificado aos
+//    poucos, em pedacos que cabem em 2 ms por quadro. Um som que toca sem
+//    estar na memoria e decodificado na hora (nunca fica mudo).
+//
 // Como os sons foram feitos: tools/sons/. Creditos: desktop/sons/CREDITOS.md.
 #include <math.h>
 #include <stdint.h>
@@ -35,6 +46,10 @@
 #include "hal/som.h"
 #include "plataforma.h"
 #include "sons_embutidos.h"
+#ifdef __EMSCRIPTEN__
+#include <stdlib.h>
+#include <emscripten.h>
+#endif
 
 #define VOZES     4                          // copias de cada gravacao, para sobrepor
 #define VARIANTES 5                          // gravacoes diferentes do mesmo som, no maximo
@@ -126,10 +141,23 @@ typedef struct {
 } efeito_t;
 
 static efeito_t ef[SOM_N];
-static Sound rufo, moeda_rola, giro, motor;
-static bool rufo_feito, moeda_feito, giro_feito, motor_feito;
-static Sound rola[SOM_ROLAS];                // os do acabamento (o 0 fica no rufo)
-static bool rola_feito[SOM_ROLAS];
+// Os lacos: o rufo, a moeda rolando, o giro da roleta e o motor do elevador;
+// depois, os do acabamento (o 0 deles e o rufo: fica vazio).
+enum { LACO_RUFO, LACO_MOEDA, LACO_GIRO, LACO_MOTOR, LACOS };
+static Sound lacos[LACOS + SOM_ROLAS];
+static bool laco_feito[LACOS + SOM_ROLAS];
+#define rufo       lacos[LACO_RUFO]
+#define moeda_rola lacos[LACO_MOEDA]
+#define giro       lacos[LACO_GIRO]
+#define motor      lacos[LACO_MOTOR]
+// Um item da carga: um efeito (0..SOM_N-1) ou um laco (SOM_N + o indice em lacos).
+#define ITENS (SOM_N + LACOS + SOM_ROLAS)
+static uint8_t quer[ITENS];                  // a cena pode pedir (som_precisa)
+static uint8_t a_pedido[ITENS];              // veio aos poucos, a pedido: sai quando deixa de ser pedido
+static float sem_pedido[ITENS];              // ha quanto tempo deixou de ser pedido
+#define SOLTA_DEPOIS 90.0f                   // segundos sem ser pedido (e sem tocar) ate sair da memoria
+static long mem_sons;                        // bytes dos sons decodificados (o medidor de quadros mostra)
+static int  na_hora;                         // quantos tiveram de ser decodificados na hora de tocar
 static Sound *rolando = &rufo;               // o loop da vez: o dado ou a moeda
 static Sound *saindo;                        // o laco que sai quando outro entra no meio do lance (o arrasto da Ancora)
 static float forca_rufo = 1, vol_saindo;     // o laco da vez mais baixo (o arrasto perdendo a forca)
@@ -148,23 +176,28 @@ static const float AJUSTE_CHEFE[SOM_CHEFES] = {
     [SOM_CHEFE_CORINGA] = 1.10f, [SOM_CHEFE_NOEL] = 1.0f };
 
 // A trilha em camadas (a "banda"): 16 bits, estereo, todas com cam_n quadros.
-// A trilha e a batucada ficam na memoria desde o comeco; a voz e a do chefe
-// do salao (voz_buf), trocada quando ele muda.
+// A trilha fica na memoria desde que acaba de ser decodificada; a batucada e
+// a voz (a do chefe do salao, trocada quando ele muda), so durante a run.
 enum { CAM_TRILHA, CAM_CHEFE, CAM_VOZ, CAMADAS };
-static const char *const CAM_ARQ[CAMADAS] = { "trilha", "trilha_chefe", NULL };
-static const char *const VOZ_ARQ[SOM_CHEFES] = {
-    [SOM_CHEFE_DONA] = "trilha_dona", [SOM_CHEFE_BARAO] = "trilha_barao",
-    [SOM_CHEFE_CORINGA] = "trilha_coringa", [SOM_CHEFE_NOEL] = "trilha_noel",
+// Os arquivos das camadas: a trilha, a batucada e a voz de cada chefe.
+#define ARQ_TRILHAS (2 + SOM_CHEFES)
+static const char *const TRILHA_ARQ[ARQ_TRILHAS] = {
+    "trilha", "trilha_chefe",
+    [2 + SOM_CHEFE_DONA] = "trilha_dona", [2 + SOM_CHEFE_BARAO] = "trilha_barao",
+    [2 + SOM_CHEFE_CORINGA] = "trilha_coringa", [2 + SOM_CHEFE_NOEL] = "trilha_noel",
 };
-static Wave  cam[CAMADAS];
+static short *cam_buf[CAMADAS];              // cam_n quadros estereo cada
+static volatile bool cam_ok[CAMADAS];        // inteira no cam_buf: o callback pode tocar
+static bool cam_falhou[CAMADAS];             // o arquivo nao serve (outro tamanho, outra taxa): fica de fora
 static unsigned cam_n, cam_pos;              // o tamanho do loop e onde ele esta (so o callback mexe)
 static AudioStream banda;
+static bool banda_on;                        // o stream existe (a trilha ja esta inteira)
 static volatile float cam_alvo[CAMADAS];     // o volume que o som_atualiza pede para cada camada
 static float cam_vol[CAMADAS];               // o do fim do ultimo bloco: o callback desliza de um ao outro
 static float v_chefe, v_voz;                 // quanto a batucada e a voz entraram (0..1)
 
-// A voz do chefe e decodificada aos poucos, para nao engasgar a tela: o
-// stb_vorbis que vem dentro do raylib (raudio.c), um pedaco por quadro.
+// Tudo e decodificado aos poucos, para nao engasgar a tela: o stb_vorbis
+// que vem dentro do raylib (raudio.c), uns pedacos por quadro.
 typedef struct stb_vorbis stb_vorbis;
 typedef struct { char *alloc_buffer; int alloc_buffer_length_in_bytes; } stb_vorbis_alloc;
 stb_vorbis *stb_vorbis_open_memory(const unsigned char *data, int len, int *error, const stb_vorbis_alloc *alloc);
@@ -178,12 +211,50 @@ typedef struct {
     int max_frame_size;
 } stb_vorbis_info;
 stb_vorbis_info stb_vorbis_get_info(stb_vorbis *f);
-#define VOZ_PEDACO 32768                     // quadros decodificados por quadro do jogo (~0,7 s de som)
-static short *voz_buf;                       // cam_n quadros estereo
-static int voz_qual = -1;                    // a voz que esta (ou vai ficando) no voz_buf
-static stb_vorbis *voz_dec;                  // != NULL: decodificando
-static unsigned voz_lidos;
-static volatile bool voz_ok;                 // inteira no voz_buf: o callback pode tocar
+#define PEDACO 4096                          // quadros de som por pedaco (~0,1 s; uns 0,1 ms num PC)
+#define CARGA_S 0.002                        // o tempo da carga por quadro do jogo
+static int voz_qual = -1;                    // a voz que esta (ou vai ficando) no cam_buf[CAM_VOZ]
+#define voz_ok cam_ok[CAM_VOZ]
+
+// Um arquivo sendo decodificado: n quadros de canais canais, lidos ate agora.
+typedef struct {
+    stb_vorbis *dec;
+    short *buf;
+    unsigned n, lidos, taxa;
+    int canais;
+} decod_t;
+
+// Abre o arquivo. canais 0: os do arquivo. buf NULL: aloca (decod_fecha solta).
+static bool decod_abre(decod_t *d, const unsigned char *dados, int tam, int canais, short *buf)
+{
+    int erro = 0;
+    memset(d, 0, sizeof *d);
+    d->dec = stb_vorbis_open_memory(dados, tam, &erro, NULL);
+    if (!d->dec) return false;
+    stb_vorbis_info inf = stb_vorbis_get_info(d->dec);
+    d->canais = canais ? canais : inf.channels;
+    d->taxa = inf.sample_rate;
+    d->n = stb_vorbis_stream_length_in_samples(d->dec);
+    d->buf = buf ? buf : MemAlloc((unsigned)(d->n ? d->n : 1) * d->canais * sizeof(short));
+    if (d->buf) return true;
+    stb_vorbis_close(d->dec);
+    d->dec = NULL;
+    return false;
+}
+// Mais um pedaco. Devolve true quando o arquivo acabou.
+static bool decod_anda(decod_t *d)
+{
+    unsigned falta = d->n - d->lidos, n = falta < PEDACO ? falta : PEDACO;
+    int lidos = n ? stb_vorbis_get_samples_short_interleaved(d->dec, d->canais, d->buf + (size_t)d->canais * d->lidos, (int)n * d->canais) : 0;
+    if (lidos > 0) d->lidos += (unsigned)lidos;
+    return !(lidos > 0 && d->lidos < d->n);
+}
+static void decod_fecha(decod_t *d, bool solta)
+{
+    if (d->dec) stb_vorbis_close(d->dec);
+    if (solta) MemFree(d->buf);
+    memset(d, 0, sizeof *d);
+}
 
 // O ganho de um canal, na escala do ouvido (metade do nivel nao e metade do
 // volume que se ouve); o 10 e o volume de sempre.
@@ -204,6 +275,8 @@ static const som_arquivo_t *acha(const char *nome)
     return NULL;
 }
 
+static long bytes_de(Sound s) { return (long)s.frameCount * s.stream.channels * (s.stream.sampleSize / 8); }
+// O arquivo inteiro, de uma vez (o som que toca antes de a carga chegar nele).
 static Sound carrega(const som_arquivo_t *a)
 {
     Sound s = { 0 };
@@ -211,7 +284,25 @@ static Sound carrega(const som_arquivo_t *a)
     Wave w = LoadWaveFromMemory(".ogg", a->dados, a->tam);
     s = LoadSoundFromWave(w);
     UnloadWave(w);
+    mem_sons += bytes_de(s);
     return s;
+}
+// O que o decodificador juntou vira um som (e o decodificador fecha).
+static Sound decod_som(decod_t *d)
+{
+    Sound s = { 0 };
+    if (d->lidos) {
+        Wave w = { .frameCount = d->lidos, .sampleRate = (int)d->taxa, .sampleSize = 16, .channels = d->canais, .data = d->buf };
+        s = LoadSoundFromWave(w);
+        mem_sons += bytes_de(s);
+    }
+    decod_fecha(d, true);
+    return s;
+}
+static void solta_som(Sound *s)
+{
+    if (s->frameCount) { mem_sons -= bytes_de(*s); UnloadSound(*s); }
+    *s = (Sound){ 0 };
 }
 
 // O callback do audio (na thread dele): soma as camadas, cada uma no seu
@@ -221,10 +312,11 @@ static void mistura_banda(void *saida, unsigned int quadros)
 {
     float *o = saida;
     memset(o, 0, quadros * 2 * sizeof *o);
-    const short *dados[CAMADAS] = { cam[CAM_TRILHA].data, cam[CAM_CHEFE].data, voz_ok ? voz_buf : NULL };
+    const short *dados[CAMADAS];
+    for (int c = 0; c < CAMADAS; c++) dados[c] = cam_ok[c] ? cam_buf[c] : NULL;
     for (int c = 0; c < CAMADAS; c++) {
         float v0 = cam_vol[c], v1 = cam_alvo[c];
-        cam_vol[c] = dados[c] ? v1 : 0;      // a voz que chegar entra do zero
+        cam_vol[c] = dados[c] ? v1 : 0;      // a camada que chegar entra do zero
         if (!dados[c] || (v0 <= 0 && v1 <= 0)) continue;
         const short *x = dados[c];
         float g = v0 / 32768.0f, dg = (v1 - v0) / 32768.0f / quadros;
@@ -244,171 +336,446 @@ static void mistura_banda(void *saida, unsigned int quadros)
 // antes daqui.
 static void espera_o_callback(void)
 {
-    if (cam_n) SetAudioStreamCallback(banda, mistura_banda);
+    if (banda_on) SetAudioStreamCallback(banda, mistura_banda);
 }
 
-// A voz do chefe q no voz_buf, um pedaco por chamada. Troca so com a voz de
-// antes calada; ate a nova ficar inteira, nenhuma toca.
-static void carrega_voz(int q)
+// ---------------------------------------------------------------------------
+// Os arquivos das trilhas. No PC vem embutidos, como os efeitos. No navegador
+// ficam ao lado da pagina (trilha.ogg, trilha_chefe.ogg...) e sao buscados
+// quando fazem falta: o jogo abre sem esperar por eles e segue sem musica ate
+// chegarem. Se a busca falhar (a rede caiu), tenta de novo dali a pouco.
+// ---------------------------------------------------------------------------
+enum { TA_NADA, TA_PEDIDO, TA_PRONTO, TA_FALHOU };
+static struct {
+    const unsigned char *dados;
+    int tam;
+    uint8_t estado;
+    bool buscado;                            // veio da rede: a memoria e nossa (trilha_solta)
+    double depois;                           // falhou: quando tentar de novo
+} tarq[ARQ_TRILHAS];
+
+#ifdef __EMSCRIPTEN__
+EM_JS(void, web_busca, (const char *nome, int f), {
+    var url = UTF8ToString(nome) + '.ogg';
+    if (Module.locateFile) url = Module.locateFile(url);
+    Module.dadoSons = Module.dadoSons || {};
+    fetch(url).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.arrayBuffer();
+    }).then(function (b) {
+        Module.dadoSons[f] = new Uint8Array(b);
+        Module._som_chegou(f, b.byteLength);
+    }, function () { Module._som_chegou(f, 0); });
+});
+// Copia o arquivo que chegou para a memoria do jogo (p 0: so o descarta).
+EM_JS(void, web_copia, (int f, unsigned char *p), {
+    var b = Module.dadoSons && Module.dadoSons[f];
+    if (b && p) HEAPU8.set(b, p);
+    if (b) delete Module.dadoSons[f];
+});
+EMSCRIPTEN_KEEPALIVE void som_chegou(int f, int tam)
 {
-    if (!cam_n) return;
-    if (q != voz_qual && (q >= 0 || voz_dec)) {
-        if (voz_ok && (v_voz > 0.001f || cam_vol[CAM_VOZ] > 0)) return;   // espera a de antes calar
+    if (f < 0 || f >= ARQ_TRILHAS || tarq[f].estado != TA_PEDIDO) return;
+    unsigned char *p = tam > 0 ? malloc((size_t)tam) : NULL;
+    web_copia(f, p);
+    if (!p) { tarq[f].estado = TA_FALHOU; tarq[f].depois = GetTime() + 15; return; }
+    tarq[f].dados = p; tarq[f].tam = tam; tarq[f].buscado = true;
+    tarq[f].estado = TA_PRONTO;
+}
+#endif
+
+// O arquivo f esta na memoria? Se nao, pede (no navegador) e responde que nao.
+static bool trilha_arquivo(int f)
+{
+    if (tarq[f].estado == TA_PRONTO) return true;
+    if (!TRILHA_ARQ[f]) return false;
+    if (tarq[f].estado == TA_NADA) {
+        const som_arquivo_t *a = acha(TRILHA_ARQ[f]);
+        if (a) { tarq[f].dados = a->dados; tarq[f].tam = a->tam; tarq[f].estado = TA_PRONTO; return true; }
+#ifndef __EMSCRIPTEN__
+        tarq[f].estado = TA_FALHOU;          // nao veio no executavel: fica sem
+        tarq[f].depois = 1e30;
+#endif
+    }
+#ifdef __EMSCRIPTEN__
+    if (tarq[f].estado == TA_NADA || (tarq[f].estado == TA_FALHOU && GetTime() >= tarq[f].depois)) {
+        tarq[f].estado = TA_PEDIDO;
+        web_busca(TRILHA_ARQ[f], f);
+    }
+#endif
+    return false;
+}
+// Decodificado, o arquivo que veio da rede sai da memoria (se fizer falta de
+// novo, o navegador o tem guardado).
+static void trilha_solta(int f)
+{
+    if (!tarq[f].buscado) return;
+#ifdef __EMSCRIPTEN__
+    free((void *)tarq[f].dados);
+#endif
+    tarq[f].dados = NULL; tarq[f].tam = 0; tarq[f].buscado = false;
+    tarq[f].estado = TA_NADA;
+}
+
+// ---------------------------------------------------------------------------
+// A banda: as camadas na memoria e o stream que as toca, que so comeca
+// quando a trilha esta inteira. Uma camada de outro tamanho (ou outra taxa)
+// que a trilha sairia do compasso: fica de fora.
+// ---------------------------------------------------------------------------
+static decod_t cam_dec;                      // a camada sendo decodificada
+static int cam_lendo = -1, cam_lendo_arq;    // qual (-1: nenhuma) e de que arquivo
+static float t_sem_chefe;                    // ha quanto tempo fora da run (a batucada e a voz saem da memoria)
+
+static void camada_abre(int c, int f)
+{
+    if (c != CAM_TRILHA && !cam_buf[c]) cam_buf[c] = MemAlloc(cam_n * 2 * sizeof(short));
+    bool ok = (c == CAM_TRILHA || cam_buf[c]) && decod_abre(&cam_dec, tarq[f].dados, tarq[f].tam, 2, cam_buf[c]);
+    if (ok && (cam_dec.taxa != 44100 || !cam_dec.n || (c != CAM_TRILHA && cam_dec.n != cam_n))) {
+        decod_fecha(&cam_dec, c == CAM_TRILHA);
+        ok = false;
+    }
+    if (!ok) { cam_falhou[c] = true; trilha_solta(f); return; }
+    cam_buf[c] = cam_dec.buf;
+    cam_lendo = c; cam_lendo_arq = f;
+}
+
+// Um pedaco do trabalho da banda. Devolve false quando nao ha o que fazer agora.
+static bool banda_passo(void)
+{
+    // O chefe mudou com a voz de antes pela metade: ela e largada.
+    if (cam_lendo == CAM_VOZ && voz_qual != chefe_qual) { decod_fecha(&cam_dec, false); cam_lendo = -1; }
+    if (cam_lendo >= 0) {
+        if (!decod_anda(&cam_dec)) return true;
+        int c = cam_lendo;
+        unsigned n = cam_dec.n;
+        bool inteira = cam_dec.lidos == n;
+        decod_fecha(&cam_dec, false);
+        trilha_solta(cam_lendo_arq);
+        cam_lendo = -1;
+        if (!inteira) { cam_falhou[c] = true; return true; }
+        if (c == CAM_TRILHA) {               // a trilha chegou: a banda comeca a tocar
+            cam_n = n;
+            cam_ok[c] = true;
+            banda = LoadAudioStream(44100, 32, 2);
+            SetAudioStreamCallback(banda, mistura_banda);
+            PlayAudioStream(banda);
+            banda_on = true;
+        } else {
+            espera_o_callback();
+            cam_ok[c] = true;
+        }
+        return true;
+    }
+    if (!cam_ok[CAM_TRILHA]) {
+        if (cam_falhou[CAM_TRILHA] || !trilha_arquivo(0)) return false;
+        camada_abre(CAM_TRILHA, 0);
+        return true;
+    }
+    int q = chefe_qual;
+    if (q < 0 || q >= SOM_CHEFES) return false;
+    // Outro chefe: a voz troca so com a de antes calada; ate a nova ficar
+    // inteira, nenhuma toca.
+    if (q != voz_qual && !(voz_ok && (v_voz > 0.001f || cam_vol[CAM_VOZ] > 0))) {
         voz_ok = false;
         espera_o_callback();
-        if (voz_dec) { stb_vorbis_close(voz_dec); voz_dec = NULL; }
         voz_qual = q;
-        voz_lidos = 0;
-        const som_arquivo_t *a = q >= 0 && q < SOM_CHEFES && VOZ_ARQ[q] ? acha(VOZ_ARQ[q]) : NULL;
-        if (!a) return;
-        if (!voz_buf) voz_buf = MemAlloc(cam_n * 2 * sizeof *voz_buf);
-        int erro = 0;
-        if (voz_buf) voz_dec = stb_vorbis_open_memory(a->dados, (int)a->tam, &erro, NULL);
-        // De outro tamanho (ou outra taxa) que a trilha sairia do compasso: fica de fora.
-        if (voz_dec && (stb_vorbis_get_info(voz_dec).sample_rate != 44100
-                        || stb_vorbis_stream_length_in_samples(voz_dec) != cam_n)) {
-            stb_vorbis_close(voz_dec);
-            voz_dec = NULL;
-        }
-        return;                                // o primeiro pedaco, no proximo quadro
+        cam_falhou[CAM_VOZ] = false;
     }
-    if (!voz_dec) return;
-    unsigned falta = cam_n - voz_lidos, n = falta < VOZ_PEDACO ? falta : VOZ_PEDACO;
-    int lidos = n ? stb_vorbis_get_samples_short_interleaved(voz_dec, 2, voz_buf + 2 * voz_lidos, (int)n * 2) : 0;
-    voz_lidos += lidos > 0 ? (unsigned)lidos : 0;
-    if (lidos > 0 && voz_lidos < cam_n) return;
-    stb_vorbis_close(voz_dec);
-    voz_dec = NULL;
-    if (voz_lidos == cam_n) { espera_o_callback(); voz_ok = true; }
+    bool falta_bat = !cam_ok[CAM_CHEFE] && !cam_falhou[CAM_CHEFE];
+    bool falta_voz = voz_qual == q && !voz_ok && !cam_falhou[CAM_VOZ] && TRILHA_ARQ[2 + q];
+    bool tem_bat = falta_bat && trilha_arquivo(1), tem_voz = falta_voz && trilha_arquivo(2 + q);   // as duas buscas saem juntas
+    if (tem_bat) { camada_abre(CAM_CHEFE, 1); return true; }
+    if (tem_voz) { camada_abre(CAM_VOZ, 2 + q); return true; }
+    return false;
 }
 
-// A banda: as camadas na memoria e o stream que as toca. Uma camada de outro
-// tamanho que a trilha sairia do compasso: fica de fora.
-static void monta_banda(void)
+// Fora da run ha um minuto, com as duas caladas: a batucada e a voz saem da
+// memoria (voltam, aos poucos, quando a run chegar de novo num salao).
+static void banda_enxuga(float dt)
 {
-    for (int c = 0; c < CAMADAS; c++) {
-        const som_arquivo_t *a = CAM_ARQ[c] ? acha(CAM_ARQ[c]) : NULL;
-        if (!a) continue;
-        cam[c] = LoadWaveFromMemory(".ogg", a->dados, a->tam);
-        if (cam[c].data) WaveFormat(&cam[c], 44100, 16, 2);
-    }
-    if (!cam[CAM_TRILHA].data || !cam[CAM_TRILHA].frameCount) return;
-    cam_n = cam[CAM_TRILHA].frameCount;
-    for (int c = 1; c < CAMADAS; c++)
-        if (cam[c].data && cam[c].frameCount != cam_n) { UnloadWave(cam[c]); cam[c] = (Wave){ 0 }; }
-    banda = LoadAudioStream(44100, 32, 2);
-    SetAudioStreamCallback(banda, mistura_banda);
-    PlayAudioStream(banda);
+    t_sem_chefe = chefe_qual < 0 ? t_sem_chefe + dt : 0;
+    if (t_sem_chefe < 60 || (!cam_buf[CAM_CHEFE] && !cam_buf[CAM_VOZ])) return;
+    if (cam_lendo == CAM_CHEFE || cam_lendo == CAM_VOZ) return;
+    if (v_chefe > 0.001f || v_voz > 0 || cam_vol[CAM_CHEFE] > 0 || cam_vol[CAM_VOZ] > 0) return;
+    cam_ok[CAM_CHEFE] = cam_ok[CAM_VOZ] = false;
+    espera_o_callback();
+    MemFree(cam_buf[CAM_CHEFE]); MemFree(cam_buf[CAM_VOZ]);
+    cam_buf[CAM_CHEFE] = cam_buf[CAM_VOZ] = NULL;
+    voz_qual = -1;
 }
 
-static void monta_efeito(int s)
+// ---------------------------------------------------------------------------
+// Os efeitos e os lacos
+// ---------------------------------------------------------------------------
+static bool item_feito(int it) { return it < SOM_N ? ef[it].feito : laco_feito[it - SOM_N]; }
+
+// O arquivo da gravacao v do item (um laco tem uma so; um efeito, "nome" ou
+// "nome_0", "nome_1"...). *unico: o efeito e de um arquivo so.
+static const som_arquivo_t *arq_do_item(int it, int v, bool *unico)
 {
-    efeito_t *e = &ef[s];
-    if (e->feito) return;
-    e->feito = true;
-    const som_arquivo_t *a = acha(NOME[s]);
-    if (a) e->base[e->n++] = carrega(a);
-    else
-        for (int v = 0; v < VARIANTES; v++) {
-            char nome[32];
-            snprintf(nome, sizeof nome, "%s_%d", NOME[s], v);
-            if (!(a = acha(nome))) break;
-            e->base[e->n++] = carrega(a);
-        }
+    static const char *const ARQ[LACOS] = { "rufo", "moeda_rola", "giro", "elevador_motor" };
+    if (it >= SOM_N) {
+        int l = it - SOM_N;
+        *unico = true;
+        return v ? NULL : acha(l < LACOS ? ARQ[l] : ROLA_ARQ[l - LACOS]);
+    }
+    const som_arquivo_t *a = v == 0 ? acha(NOME[it]) : NULL;
+    if (a) { *unico = true; return a; }
+    char nome[40];
+    snprintf(nome, sizeof nome, "%s_%d", NOME[it], v);
+    return acha(nome);
+}
+
+static void faz_vozes(efeito_t *e)
+{
     for (int v = 0; v < e->n; v++)
         for (int k = 0; k < VOZES; k++) e->voz[v][k] = LoadSoundAlias(e->base[v]);
 }
 
-// Os lacos (o rufo, a moeda rolando, o giro, o motor): decodificados na
-// primeira vez que tocam, se a carga aos poucos ainda nao tiver chegado neles.
+// A carga aos poucos: um item de cada vez, um arquivo de cada vez, um pedaco
+// de cada vez.
+static struct {
+    int item, v, n;
+    bool unico;
+    decod_t d;
+    Sound base[VARIANTES];
+} carga = { .item = -1 };
+
+// Desiste do item da vez (ele vai ser decodificado na hora, inteiro).
+static void carga_larga(void)
+{
+    if (carga.item < 0) return;
+    decod_fecha(&carga.d, true);
+    for (int v = 0; v < carga.n; v++) solta_som(&carga.base[v]);
+    carga.item = -1;
+}
+
+static void carga_conclui(void)
+{
+    int it = carga.item;
+    if (it < SOM_N) {
+        efeito_t *e = &ef[it];
+        e->n = carga.n;
+        for (int v = 0; v < carga.n; v++) e->base[v] = carga.base[v];
+        if (e->ultima >= e->n) e->ultima = 0;
+        faz_vozes(e);
+        e->feito = true;
+    } else {
+        lacos[it - SOM_N] = carga.n ? carga.base[0] : (Sound){ 0 };
+        laco_feito[it - SOM_N] = true;
+    }
+    a_pedido[it] = 1;
+    sem_pedido[it] = 0;
+    carga.item = -1;
+}
+
+// Os primeiros da fila, na ordem: o menu, a mesa e o dado rolando. Depois
+// deles, o resto do que a cena pede, na ordem da lista.
+static const int16_t PRIMEIRO[] = {
+    SOM_MENU_PASSA, SOM_MENU_ESCOLHE, SOM_TIQUE, SOM_TRANSICAO, SOM_PASSA, SOM_ABERTURA,
+    SOM_BATE, SOM_BATE_DADO, SOM_POUSA, SOM_FICHA, SOM_VALIDO, SOM_ANULA, SOM_TURNO, SOM_PARTIDA,
+    SOM_N + LACO_RUFO,
+};
+#define N_PRIMEIRO ((int)(sizeof PRIMEIRO / sizeof *PRIMEIRO))
+static int pri_i;                            // os PRIMEIRO antes deste ja estao feitos
+static int proximo_item(void)
+{
+    for (; pri_i < N_PRIMEIRO; pri_i++)
+        if (!item_feito(PRIMEIRO[pri_i])) return PRIMEIRO[pri_i];
+    for (int it = 0; it < ITENS; it++)
+        if (quer[it] && !item_feito(it)) return it;
+    return -1;
+}
+
+// Um pedaco do trabalho da carga. Devolve false quando nao ha o que fazer
+// (ou quando o que ha fica para o comeco do proximo quadro).
+static bool carga_folgada;                   // nada da carga rodou ainda neste quadro
+static bool carga_passo(void)
+{
+    if (carga.item < 0) {
+        int it = proximo_item();
+        if (it < 0) return false;
+        carga.item = it; carga.v = carga.n = 0; carga.unico = false;
+    }
+    if (!carga.d.dec) {                      // abre a proxima gravacao do item (ou ele acabou)
+        const som_arquivo_t *a = carga.v < VARIANTES && !(carga.unico && carga.v) ? arq_do_item(carga.item, carga.v, &carga.unico) : NULL;
+        if (!a) { carga_conclui(); return true; }
+        if (!decod_abre(&carga.d, a->dados, a->tam, 0, NULL)) carga.v++;     // estragado: fica sem essa
+        return true;
+    }
+    if (carga.d.lidos < carga.d.n && !decod_anda(&carga.d)) return true;
+    // Decodificado. Falta virar som do raylib, que o converte para a taxa do
+    // aparelho de uma vez so: num som comprido (um laco de 4 s) isso custa
+    // alguns milissegundos, e fica para o comeco de um quadro, sozinho.
+    if (carga.d.lidos > 44100 && !carga_folgada) return false;
+    Sound s = decod_som(&carga.d);
+    if (s.frameCount) carga.base[carga.n++] = s;
+    carga.v++;
+    return true;
+}
+
+// Na hora: o som que toca sem estar na memoria (a carga ainda nao chegou
+// nele, ou a cena nao avisou que ia pedir) e decodificado inteiro, agora.
+static void monta_efeito(int s)
+{
+    efeito_t *e = &ef[s];
+    if (e->feito) return;
+    if (carga.item == s) carga_larga();
+    e->feito = true;
+    e->n = 0;
+    a_pedido[s] = 0;
+    na_hora++;
+    const som_arquivo_t *a = acha(NOME[s]);
+    if (a) e->base[e->n++] = carrega(a);
+    else
+        for (int v = 0; v < VARIANTES; v++) {
+            char nome[40];
+            snprintf(nome, sizeof nome, "%s_%d", NOME[s], v);
+            if (!(a = acha(nome))) break;
+            e->base[e->n++] = carrega(a);
+        }
+    if (e->ultima >= e->n) e->ultima = 0;
+    faz_vozes(e);
+}
+
+// Os lacos (o rufo, a moeda rolando, o giro, o motor e os do acabamento,
+// LACOS + SOM_ROLA_*): tambem na hora, se a carga ainda nao chegou neles.
 static Sound *laco(int i)
 {
-    static const char *const ARQ[4] = { "rufo", "moeda_rola", "giro", "elevador_motor" };
-    Sound *s[4] = { &rufo, &moeda_rola, &giro, &motor };
-    bool *feito[4] = { &rufo_feito, &moeda_feito, &giro_feito, &motor_feito };
-    if (!*feito[i]) { *feito[i] = true; *s[i] = carrega(acha(ARQ[i])); }
-    return s[i];
+    if (!laco_feito[i]) {
+        bool unico;
+        if (carga.item == SOM_N + i) carga_larga();
+        laco_feito[i] = true;
+        a_pedido[SOM_N + i] = 0;
+        na_hora++;
+        lacos[i] = carrega(arq_do_item(SOM_N + i, 0, &unico));
+    }
+    return &lacos[i];
 }
 
 // O laco do acabamento; o SOM_ROLA_FELTRO e o rufo de sempre.
 static Sound *laco_rola(int q)
 {
-    if (q <= 0 || q >= SOM_ROLAS) return laco(0);
-    if (!rola_feito[q]) {
-        rola_feito[q] = true;
-        const som_arquivo_t *a = acha(ROLA_ARQ[q]);
-        rola[q] = a ? carrega(a) : (Sound){ 0 };
-        if (!a) return laco(0);
-    }
-    return rola[q].frameCount ? &rola[q] : laco(0);
+    if (q <= 0 || q >= SOM_ROLAS) return laco(LACO_RUFO);
+    Sound *s = laco(LACOS + q);
+    return s->frameCount ? s : laco(LACO_RUFO);
 }
 
-// Os efeitos vem aos poucos, depois da abertura: decodificar os ~150 de uma
-// vez segurava a janela preta na abertura (no aparelho fraco, segundos). A
-// cada quadro, so o que cabe em uns 2 ms (os do menu e da mesa primeiro); um
-// som pedido antes da vez dele e decodificado na hora (nunca fica mudo).
-#define PRE_LACOS SOM_N                      // na fila, depois dos efeitos: os 4 lacos
-#define PRE_ROLAS (SOM_N + 4)                // e os do acabamento
-static int16_t pre_fila[SOM_N + 4 + SOM_ROLAS];
-static int pre_n, pre_i;
-static void monta_fila_de_carga(void)
+static bool item_tocando(int it)
 {
-    static const int16_t PRIMEIRO[] = {
-        SOM_MENU_PASSA, SOM_MENU_ESCOLHE, SOM_TIQUE, SOM_TRANSICAO, SOM_PASSA, SOM_ABERTURA,
-        SOM_BATE, SOM_BATE_DADO, SOM_POUSA, SOM_FICHA, SOM_VALIDO, SOM_ANULA, SOM_TURNO, SOM_PARTIDA,
-    };
-    bool posto[SOM_N] = { false };
-    pre_n = pre_i = 0;
-    for (int i = 0; i < (int)(sizeof PRIMEIRO / sizeof *PRIMEIRO); i++) { pre_fila[pre_n++] = PRIMEIRO[i]; posto[PRIMEIRO[i]] = true; }
-    for (int k = 0; k < 4; k++) pre_fila[pre_n++] = (int16_t)(PRE_LACOS + k);
-    for (int k = 1; k < SOM_ROLAS; k++) pre_fila[pre_n++] = (int16_t)(PRE_ROLAS + k);
-    for (int s = 0; s < SOM_N; s++) if (!posto[s]) pre_fila[pre_n++] = (int16_t)s;
+    if (it >= SOM_N) {
+        Sound *s = &lacos[it - SOM_N];
+        return s == rolando || s == saindo || IsSoundPlaying(*s);
+    }
+    const efeito_t *e = &ef[it];
+    for (int v = 0; v < e->n; v++)
+        for (int k = 0; k < VOZES; k++) if (IsSoundPlaying(e->voz[v][k])) return true;
+    return false;
 }
+
+static void item_solta(int it)
+{
+    if (it >= SOM_N) {
+        solta_som(&lacos[it - SOM_N]);
+        laco_feito[it - SOM_N] = false;
+        return;
+    }
+    efeito_t *e = &ef[it];
+    for (int v = 0; v < e->n; v++) {
+        for (int k = 0; k < VOZES; k++) UnloadSoundAlias(e->voz[v][k]);
+        solta_som(&e->base[v]);
+    }
+    e->n = 0;
+    e->feito = false;
+}
+
+// Uma vez por segundo: o que veio a pedido e ja nao e pedido ha um tempo
+// (a partida acabou, o adesivo saiu da loja) sai da memoria, se nao estiver
+// tocando. O que foi decodificado na hora fica: a cena nao soube avisar, e
+// da proxima vez tocaria com outro engasgo.
+static void solta_os_sem_pedido(float dt)
+{
+    static float t;
+    if ((t += dt) < 1) return;
+    float passou = t;
+    t = 0;
+    for (int it = 0; it < ITENS; it++) {
+        if (quer[it] || !a_pedido[it] || !item_feito(it)) { sem_pedido[it] = 0; continue; }
+        if ((sem_pedido[it] += passou) < SOLTA_DEPOIS || item_tocando(it) || carga.item == it) continue;
+        item_solta(it);
+    }
+}
+
+// O que cabe no tempo da carga deste quadro: primeiro os sons do menu e da
+// mesa; depois a trilha e o resto, um pedaco de cada, revezando.
+static double carga_s = CARGA_S;
 static void carrega_aos_poucos(void)
 {
     double t0 = GetTime();
-    while (pre_i < pre_n) {
-        int k = pre_fila[pre_i++];
-        if (k >= PRE_ROLAS) laco_rola(k - PRE_ROLAS);
-        else if (k >= PRE_LACOS) laco(k - PRE_LACOS);
-        else monta_efeito(k);
-        if (GetTime() - t0 > 0.002) break;
+    carga_folgada = true;
+    for (int vez = 0; ; vez ^= 1) {
+        bool fez;
+        if (pri_i < N_PRIMEIRO) fez = carga_passo();
+        else if (vez) fez = banda_passo() || carga_passo();
+        else fez = carga_passo() || banda_passo();
+        carga_folgada = false;
+        if (!fez || GetTime() - t0 > carga_s) break;
     }
+}
+
+// O que a cena pode pedir (o jogo diz a cada quadro: dado_sons_precisos): os
+// efeitos (SOM_N marcas), os lacos do acabamento (SOM_ROLAS) e os outros.
+void som_precisa(const uint8_t *som, const uint8_t *rola, bool moeda, bool roleta, bool elevador)
+{
+    memcpy(quer, som, SOM_N);
+    quer[SOM_N + LACO_RUFO] = 1;
+    quer[SOM_N + LACO_MOEDA] = moeda;
+    quer[SOM_N + LACO_GIRO] = roleta;
+    quer[SOM_N + LACO_MOTOR] = elevador;
+    quer[SOM_N + LACOS] = 0;
+    for (int q = 1; q < SOM_ROLAS; q++) quer[SOM_N + LACOS + q] = rola[q];
+}
+
+// Com a tela coberta (a capa do site, antes do clique) a carga pode usar
+// mais tempo por quadro: ninguem ve o quadro atrasar.
+void som_folga(bool on) { carga_s = on ? 4 * CARGA_S : CARGA_S; }
+
+// Para o medidor de quadros: a memoria dos sons decodificados (KB), quantos
+// tiveram de ser decodificados na hora de tocar e quantos ainda estao na fila.
+void som_medida(int *kb, int *n_na_hora, int *na_fila)
+{
+    long b = mem_sons;
+    for (int c = 0; c < CAMADAS; c++) if (cam_buf[c]) b += (long)(c == CAM_TRILHA && !cam_n ? cam_dec.n : cam_n) * 2 * (long)sizeof(short);
+    int f = 0;
+    for (int it = 0; it < ITENS; it++) f += quer[it] && !item_feito(it);
+    *kb = (int)(b / 1024); *n_na_hora = na_hora; *na_fila = f;
 }
 
 void som_inicia(void)
 {
     if (!IsAudioDeviceReady()) { falhou = true; ligado = false; return; }
-    monta_fila_de_carga();
-    monta_banda();
     pronto = true;
 }
 
 void som_encerra(void)
 {
     if (!pronto) return;
-    for (int s = 0; s < SOM_N; s++) {
-        for (int v = 0; v < ef[s].n; v++) {
-            for (int k = 0; k < VOZES; k++) UnloadSoundAlias(ef[s].voz[v][k]);
-            UnloadSound(ef[s].base[v]);
-        }
-        ef[s].n = 0; ef[s].feito = false;
-    }
+    carga_larga();
     saindo = NULL;
-    if (rufo_feito) UnloadSound(rufo);
-    if (moeda_feito) UnloadSound(moeda_rola);
-    if (giro_feito) UnloadSound(giro);
-    if (motor_feito) UnloadSound(motor);
-    rufo_feito = moeda_feito = giro_feito = motor_feito = false;
-    for (int q = 1; q < SOM_ROLAS; q++) {
-        if (rola_feito[q] && rola[q].frameCount) UnloadSound(rola[q]);
-        rola_feito[q] = false;
+    rolando = &rufo;
+    for (int it = 0; it < ITENS; it++) if (item_feito(it)) item_solta(it);
+    if (banda_on) UnloadAudioStream(banda);  // antes das camadas: o callback para de ler
+    banda_on = false;
+    if (cam_lendo >= 0) decod_fecha(&cam_dec, false);
+    cam_lendo = -1;
+    for (int c = 0; c < CAMADAS; c++) {
+        MemFree(cam_buf[c]);
+        cam_buf[c] = NULL; cam_ok[c] = false; cam_falhou[c] = false;
     }
-    if (cam_n) UnloadAudioStream(banda);      // antes das camadas: o callback para de ler
-    for (int c = 0; c < CAMADAS; c++) UnloadWave(cam[c]);
-    if (voz_dec) stb_vorbis_close(voz_dec);
-    MemFree(voz_buf);
-    voz_dec = NULL; voz_buf = NULL; voz_ok = false; voz_qual = -1;
+    for (int f = 0; f < ARQ_TRILHAS; f++) trilha_solta(f);
+    cam_n = cam_pos = 0;
+    voz_qual = -1;
+    pri_i = 0;
     pronto = false;
 }
 
@@ -416,6 +783,8 @@ void som_atualiza(float dt)
 {
     if (!pronto) return;
     carrega_aos_poucos();
+    solta_os_sem_pedido(dt);
+    banda_enxuga(dt);
     // O rufo entra em 60 ms e sai em 120 ms; a trilha abaixa enquanto ele toca.
     // O laco que outro substituiu no meio do lance sai em 80 ms, sem corte.
     if (saindo) {
@@ -453,11 +822,11 @@ void som_atualiza(float dt)
     if (suspense) d = 0.08f;
     if (t_climax > 0 && d > 0.35f) d = 0.35f;
     duck += (d - duck) * fminf(1, dt / (d > duck && duck < 0.6f ? 0.9f : 0.25f));
-    // A banda do chefe entra em uns 2 s e sai em 1,5.
-    carrega_voz(chefe_qual);
-    float alvo_v = chefe_toca ? 1 : 0;
+    // A banda do chefe entra em uns 2 s e sai em 1,5 (cada camada, quando
+    // ja esta inteira na memoria).
+    float alvo_v = chefe_toca && cam_ok[CAM_CHEFE] ? 1 : 0;
     v_chefe += (alvo_v - v_chefe) * fminf(1, dt / (chefe_toca ? 0.7f : 0.5f));
-    float alvo_voz = voz_ok && voz_qual == chefe_qual ? alvo_v : 0;
+    float alvo_voz = chefe_toca && voz_ok && voz_qual == chefe_qual ? 1 : 0;
     v_voz += (alvo_voz - v_voz) * fminf(1, dt / (alvo_voz > v_voz ? 0.7f : 0.5f));
     if (v_voz < 0.001f && alvo_voz == 0) v_voz = 0;
     float m = VOL_TRILHA * ganho(SOM_CANAL_MUSICA) * (ligado ? 1 : 0);
@@ -527,13 +896,13 @@ static void comeca_a_rolar(Sound *s)
 void som_rufo(bool on)
 {
     if (!pronto) return;
-    if (on) comeca_a_rolar(laco(0));
+    if (on) comeca_a_rolar(laco(LACO_RUFO));
     else rufando = false;
 }
 
 void som_rufo_moeda(void)
 {
-    if (pronto) comeca_a_rolar(laco(1));
+    if (pronto) comeca_a_rolar(laco(LACO_MOEDA));
 }
 
 void som_rufo_de(int q)
@@ -547,7 +916,7 @@ void som_giro(bool on)
 {
     if (!pronto) return;
     if (on && !girando) {
-        laco(2);
+        laco(LACO_GIRO);
         vol_giro = 0;
         SetSoundVolume(giro, 0);
         PlaySound(giro);
@@ -559,7 +928,7 @@ void som_motor(bool on)
 {
     if (!pronto) return;
     if (on && !motor_on) {
-        laco(3);
+        laco(LACO_MOTOR);
         vol_motor = 0;
         SetSoundVolume(motor, 0);
         PlaySound(motor);

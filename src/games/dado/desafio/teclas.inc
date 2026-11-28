@@ -15,7 +15,7 @@ static bool des_tecla(int k, int e)
         }
         if (k == KEY_ENTER) {
             som_toca(SOM_FICHA);
-            des_comeca_partida();
+            des_senta();
             return true;
         }
         if (k == KEY_TAB) { cursor = 0; fase = F_RBOLSA; }

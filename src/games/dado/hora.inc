@@ -144,15 +144,11 @@ static inline void hora_longe(uint16_t *lin, int xa, int xb, const int *a4, int 
         lin[x] = ult_s[f];
     }
 }
-static void desenha_hora(void)
+// O escuro em volta de (cx, cy): dentro do raio o feltro como esta; dali ate
+// raio + borda escurece aos poucos, ate forte (% de escuro). ky achata o
+// circulo. E o veu da hora da verdade e o da vinheta do dado muito bom.
+static void veu_em_volta(float cx, float cy, float raio, float borda, float forte, float ky)
 {
-    if (t_hora <= 0) return;
-    float t = t_hora * t_hora * (3 - 2 * t_hora);
-    luz_no_feltro((int)hora_x, (int)hora_y + 16, 64, 24, 2.6f * t);
-    float bate = fmodf(t_relogio * 1.15f, 1.0f);
-    float pulso = bate < 0.08f ? 1 : bate > 0.16f && bate < 0.24f ? 0.6f : 0;
-    float raio = 92 + (1 - t) * 280 + pulso * 6 * t, borda = 110;
-    float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo
     uint16_t *fb = display_fb();
     // Longe da luz (alem da borda, com um pixel de folga) o escuro ja e o
     // inteiro (s = 1): o degrau so depende do pontilhado, e sai de uma tabela,
@@ -163,7 +159,7 @@ static void desenha_hora(void)
     for (int j = 0; j < 4; j++)
         for (int i = 0; i < 4; i++) a_longe[j][i] = (int)(um * forte + (BAYER[j][i] - 7.5f) * 1.6f);
     for (int y = 0; y < GFX_H; y++) {
-        float dy = (y - hora_y) * 1.3f;
+        float dy = (y - cy) * ky;
         uint16_t *lin = fb + y * GFX_W;
         const int *a4 = a_longe[y & 3];
         int ult_c[4] = { -1, -1, -1, -1 };
@@ -174,7 +170,7 @@ static void desenha_hora(void)
         int x0 = GFX_W, x1 = GFX_W - 1;
         if (r2 > 0) {
             float w = sqrtf(r2) + 2;
-            x0 = (int)floorf(hora_x - w); x1 = (int)ceilf(hora_x + w);
+            x0 = (int)floorf(cx - w); x1 = (int)ceilf(cx + w);
             if (x0 < 0) x0 = 0;
             if (x0 > GFX_W) x0 = GFX_W;
             if (x1 > GFX_W - 1) x1 = GFX_W - 1;
@@ -182,7 +178,7 @@ static void desenha_hora(void)
         }
         hora_longe(lin, 0, x0, a4, ult_c, ult_s);
         for (int x = x0; x <= x1; x++) {
-            float dx = x - hora_x, d2 = dx * dx + dy * dy;
+            float dx = x - cx, d2 = dx * dx + dy * dy;
             if (d2 <= raio * raio) continue;
             if (d2 >= longe2) { hora_longe(lin, x, x + 1, a4, ult_c, ult_s); continue; }
             float s = (sqrtf(d2) - raio) / borda;
@@ -193,6 +189,72 @@ static void desenha_hora(void)
         }
         hora_longe(lin, x1 + 1, GFX_W, a4, ult_c, ult_s);
     }
+}
+static void desenha_hora(void)
+{
+    if (t_hora <= 0) return;
+    float t = t_hora * t_hora * (3 - 2 * t_hora);
+    luz_no_feltro((int)hora_x, (int)hora_y + 16, 64, 24, 2.6f * t);
+    float bate = fmodf(t_relogio * 1.15f, 1.0f);
+    float pulso = bate < 0.08f ? 1 : bate > 0.16f && bate < 0.24f ? 0.6f : 0;
+    float raio = 92 + (1 - t) * 280 + pulso * 6 * t, borda = 110;
+    float forte = (hora == 2 ? 70 : 60) * t;           // % de escuro, no maximo
+    veu_em_volta(hora_x, hora_y, raio, borda, forte, 1.3f);
+}
+
+// ---------------------------------------------------------------------------
+// A vinheta do dado muito bom: o dado que pousa valendo 10 pontos ou mais, ou
+// na face maxima de um dado de 8 lados ou mais, ganha um holofote (a luz da
+// hora da verdade, mais curta e sem o coracao) e cresce por um instante. Vale
+// para os dois lados da mesa. So desenho e som: nenhuma regra muda, e o
+// veredito espera a luz voltar (passo.inc) - o proximo dado e o fim da rodada
+// nunca comecam com a mesa escura. Corre no tempo do lance (a velocidade do
+// jogo a encurta). Na hora da verdade, que ja tem a luz dela, nao entra; nem
+// no online, onde os dois aparelhos andam no mesmo passo.
+// ---------------------------------------------------------------------------
+static bool dado_muito_bom(int j, int k)
+{
+    if (F[j].est[k] != V_VALIDO || F[j].escondido[k]) return false;   // (o Oculto nao entrega o numero)
+    int lados = TIPO[F[j].tipo[k]].lados;
+    return valor_pontos(j, k) + F[j].bonus[k] >= VINHETA_PONTOS || (lados >= 8 && F[j].valor[k] >= lados);
+}
+// O dado k de j acabou de pousar.
+static void vinheta_pouso(int j, int k)
+{
+    if (hora || modo == M_ONLINE || !dado_muito_bom(j, k)) return;
+    t_vinheta = 0;
+    vinheta_j = j; vinheta_k = k;
+    vinheta_x = (float)SLOT_X(k); vinheta_y = (float)zona(j);
+    som_toca(SOM_HOLOFOTE);
+}
+// A luz: entra em VINHETA_ENTRA, segura ate VINHETA_SEGURA e sai ate VINHETA_T.
+static float vinheta_env(void)
+{
+    float t = t_vinheta;
+    if (t < 0) return 0;
+    if (t < VINHETA_ENTRA) { float q = t / VINHETA_ENTRA; return q * q * (3 - 2 * q); }
+    if (t < VINHETA_SEGURA) return 1;
+    float q = (t - VINHETA_SEGURA) / (VINHETA_T - VINHETA_SEGURA);
+    if (q >= 1) return 0;
+    return 1 - q * q * (3 - 2 * q);
+}
+// O dado cresce: um pulo de 50% do raio, 28% enquanto a luz esta nele, e volta.
+static float vinheta_pop(int j, int k)
+{
+    if (t_vinheta < 0 || j != vinheta_j || k != vinheta_k) return 0;
+    float t = t_vinheta;
+    if (t < 0.10f) return 0.5f * sinf(t / 0.10f * 1.5708f);
+    if (t < 0.28f) return 0.5f - 0.22f * (t - 0.10f) / 0.18f;
+    if (t < VINHETA_SEGURA) return 0.28f;
+    if (t < 1.3f) return 0.28f * (1 - (t - VINHETA_SEGURA) / (1.3f - VINHETA_SEGURA));
+    return 0;
+}
+static void desenha_vinheta(void)
+{
+    float e = vinheta_env();
+    if (e <= 0) return;
+    luz_no_feltro((int)vinheta_x, (int)vinheta_y + 16, 54, 20, 2.2f * e);
+    veu_em_volta(vinheta_x, vinheta_y, 36 + (1 - e) * 300, 78, 62 * e, 1.25f);
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +335,7 @@ static void desenha_vez_luz(void)
 // do veredito; a onda e o tremor do crescendo se acalmam.
 static void hora_passo(float dt, float dt_real)
 {
+    if (t_vinheta >= 0 && (t_vinheta += dt) > VINHETA_T) t_vinheta = -1;
     bool ativa = hora && (fase == F_ROLANDO || fase == F_ARRUMA || (fase == F_VEREDITO && t_fase < 0.3f));
     if (ativa) t_hora = fminf(1, t_hora + dt / 0.35f);
     else if (t_hora > 0) t_hora = fmaxf(0, t_hora - dt / 0.6f);

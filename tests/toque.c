@@ -182,6 +182,7 @@ int main(void)
         }
     } else if (fase == F_APOSTA && !ia_na_vez()) {
         z = acha_zona(KEY_ENTER, true, true, 0);
+        for (int i = 0; i < 90 && !z; i++) { passa(1); z = acha_zona(KEY_ENTER, true, true, 0); }   // (o menu espera o numero que ainda sobe)
         confere(z != NULL, "partida: os botoes da aposta pedem dois toques");
         if (z) {
             zona_clique_t bt = *z;

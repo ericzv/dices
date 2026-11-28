@@ -1454,6 +1454,66 @@ static void mesa_em_movimento(void)
     CONFERE(dica_estilo() == CONTROLE_XBOX, "fora dos 2 jogadores: o ultimo controle usado");
     dado_controle(CONTROLE_NENHUM); dado_controle_de(0, CONTROLE_NENHUM); dado_controle_de(1, CONTROLE_NENHUM);
     modo = M_DOIS;
+
+    // A vinheta do dado muito bom: valendo 10 pontos ou mais, ou a face
+    // maxima de um dado de 8 lados ou mais; nunca um dado anulado, nem na hora
+    // da verdade, nem no online. E o veredito espera a luz voltar.
+    {
+        int modo0 = modo, fase0 = fase, hora0 = hora, vez0 = vez, cpu0 = cpu;
+        modo = M_DOIS; cpu = 0; hora = 0; t_vinheta = -1;
+        limpa(); joga(0, D_D6, 6);
+        CONFERE(!dado_muito_bom(0, 0), "vinheta: o 6 do D6 nao e muito bom (face maxima so de D8 em diante)");
+        limpa(); joga(0, D_D8, 8);
+        CONFERE(dado_muito_bom(0, 0), "vinheta: o 8 do D8 (face maxima)");
+        limpa(); joga(0, D_D8, 7);
+        CONFERE(!dado_muito_bom(0, 0), "vinheta: o 7 do D8 nao");
+        limpa(); joga(0, D_D12, 10);
+        CONFERE(dado_muito_bom(0, 0), "vinheta: o 10 do D12 (10 pontos)");
+        limpa(); joga(0, D_D20, 9);
+        CONFERE(!dado_muito_bom(0, 0), "vinheta: o 9 do D20 nao");
+        limpa(); joga(0, D_D20, 12); joga(0, D_D20, 5);             // o segundo nao subiu: os dois anulados
+        CONFERE(F[0].est[0] == V_ANULADO || F[0].est[1] == V_ANULADO, "vinheta: a mesa do teste tem um anulado");
+        for (int k = 0; k < 2; k++)
+            if (F[0].est[k] != V_VALIDO) CONFERE(!dado_muito_bom(0, k), "vinheta: dado anulado nunca (posicao %d)", k);
+        limpa(); joga(1, D_D20, 20);
+        CONFERE(dado_muito_bom(1, 0), "vinheta: vale para o oponente tambem");
+        vinheta_pouso(1, 0);
+        CONFERE(t_vinheta == 0 && vinheta_j == 1 && vinheta_k == 0, "vinheta: o pouso a acende");
+        CONFERE(vinheta_env() == 0 && vinheta_pop(1, 0) == 0 && vinheta_pop(0, 0) == 0, "vinheta: comeca do zero");
+        t_vinheta = 0.5f;
+        CONFERE(vinheta_env() == 1 && vinheta_pop(1, 0) > 0.2f && vinheta_pop(1, 1) == 0, "vinheta: no meio, a luz inteira e so o dado dela maior");
+        // o veredito espera: com a luz acesa, a fase nao anda; apagada, anda
+        fase = F_VEREDITO; vez = 1; ver_tipo = 0; t_fase = 5; F[1].n = 2; F[1].lancados = 1; t_vinheta = 1.0f;
+        dado_passo(1 / 60.0f);
+        CONFERE(fase == F_VEREDITO && t_vinheta > 1.0f, "vinheta: o veredito espera a luz (fase %d)", fase);
+        for (int i = 0; i < 200 && fase == F_VEREDITO; i++) dado_passo(1 / 60.0f);
+        CONFERE(fase != F_VEREDITO && t_vinheta < 0, "vinheta: a luz volta e o jogo segue (fase %d, t %.2f)", fase, t_vinheta);
+        // uma tecla no veredito apaga a luz junto
+        fase = F_VEREDITO; t_fase = 0; t_vinheta = 0.3f; F[1].lancados = 1;
+        trata_tecla(KEY_ENTER);
+        CONFERE(t_vinheta < 0, "vinheta: a tecla que adianta o veredito apaga a luz");
+        t_vinheta = -1; hora = 1;
+        vinheta_pouso(1, 0);
+        CONFERE(t_vinheta < 0, "vinheta: na hora da verdade nao entra");
+        hora = 0; modo = M_ONLINE;
+        vinheta_pouso(1, 0);
+        CONFERE(t_vinheta < 0, "vinheta: no online nao entra");
+        modo = modo0; fase = fase0; hora = hora0; vez = vez0; cpu = cpu0; t_vinheta = -1;
+        limpa();
+    }
+    // A fala fica na mesa pelo tamanho dela (em letras, com acento contando uma).
+    CONFERE(fabsf(fala_tempo("Ah.") - (FALA_BASE + 3 * FALA_LETRA)) < 0.001f, "fala curta: %.2f s", fala_tempo("Ah."));
+    CONFERE(fabsf(fala_tempo("É") - (FALA_BASE + FALA_LETRA)) < 0.001f, "fala: a letra acentuada conta uma (%.2f s)", fala_tempo("É"));
+    CONFERE(fala_tempo("5º andar. Meus clientes começam a apostar em você.") > 4.5f, "fala comprida do chefe: fica mais (%.2f s)",
+            fala_tempo("5º andar. Meus clientes começam a apostar em você."));
+    CONFERE(fala_tempo("Toquei no trevo três vezes antes de sentar, e mais uma, e outra, e outra.") == FALA_TETO, "fala: o teto");
+    // A virada: a cara virada so aparece depois do instante da virada, dentro do anuncio.
+    t_virada = VIRADA_DUR;
+    CONFERE(!virada_a_vista(), "virada: no comeco do anuncio o chefe ainda esta calmo");
+    t_virada = VIRADA_DUR - VIRADA_TV - 0.01f;
+    CONFERE(virada_a_vista(), "virada: depois do instante, a cara virada");
+    t_virada = 0;
+    CONFERE(virada_a_vista(), "virada: acabado o anuncio, a cara virada fica");
 }
 
 int main(void)

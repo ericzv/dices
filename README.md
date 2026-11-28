@@ -39,7 +39,16 @@ o lugar dele e na mão fica só a silhueta, com o número. A fala do oponente
 quebra em linhas para não cobrir os dados dele, e os avisos de conquista e
 de bolsa nova descem na faixa de madeira de cima. Na derrota de uma partida
 do Desafiante o letreiro cai letra por letra, a mesa treme, as suas fichas
-vão para o oponente e ele comemora.
+vão para o oponente e ele comemora. O **dado muito bom** — o que pousa
+valendo 10 pontos ou mais, ou na face máxima de um dado de 8 lados ou mais
+(8 no D8, 12 no D12, 20 no D20), seu ou do oponente — ganha um holofote: a
+mesa escurece em volta dele, o dado cresce por um instante e toca um "vum"
+curto; o jogo espera a luz voltar antes do próximo dado (qualquer tecla
+adianta). Não muda regra nenhuma, e não entra na hora da verdade (que já tem
+a luz dela) nem no online. A fala do oponente fica na mesa pelo tamanho dela
+(1,8 s e mais 0,06 s por letra, até 5 s) e não fecha no meio da hora da
+verdade, do holofote ou de um golpe; no fim da partida do Desafiante ela sai
+no mesmo balão, do retrato grande.
 
 **O fim da rodada, em ordem.** Primeiro a mesa se resolve (o Oculto se
 mostra, o Espelho vira, o tremor, a Casca de Banana, a Ficha Coringa, o
@@ -86,7 +95,11 @@ só descobre qual é ao lançar; a bolsa dele é cheia de Trenós e Jingle Bells
 cada salão tem um oponente de Natal — a **Rena** (o primeiro dado dela não
 cai pela sequência), o **Duende** (+1 por dado igual na sequência dele) e o
 **Ranzinza** (da 5ª rodada, o seu maior dado que pontua vale metade) — e todos os
-retratos ganham gorro, cachecol ou tiara de rena. De 26 de dezembro a 6 de
+retratos ganham gorro, cachecol (em quatro padrões, estreito, sem tapar a
+gola de cada um) ou tiara de rena; os salões ganham uma árvore pequena ao
+lado da porta, um festão com luzinhas piscando no alto da parede, laço
+vermelho nas luminárias e neve nas janelas do jardim e do terraço, e o
+letreiro "CASSINO" do prédio, um gorro. De 26 de dezembro a 6 de
 janeiro, abre também o feltro **Réveillon**, preto com ouro e fogos nos cantos. Fora
 da época, nada disso aparece.
 
@@ -137,14 +150,31 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   todos à vista desde o começo. O mapa é o salão visto de frente: a parede do
   andar ao fundo, o tapete vermelho vindo da porta até o estrado do chefe e
   cada oponente sentado à sua mesa, sob uma luminária na cor do salão (verde,
-  vermelho, dourado; roxo no do Coringa). Cada andar tem o seu cenário - o
+  vermelho, dourado; roxo no do Coringa). O salão também veste a sua cor por
+  cima do andar: a sanefa de veludo no alto da parede, o rodapé, o tapete e
+  o estofado das cadeiras são verdes no Verde, vinho no Vermelho e de brocado
+  e filete de ouro no Dourado, que tem ainda o cortinado atrás do Barão em
+  todos os andares. O estrado do chefe é do material do andar (chapa de aço
+  no 3º, mármore xadrez no 6º, carpete no 8º, deque no terraço) e o par que o
+  ladeia muda com ele: palmeiras no jardim, colunas com candelabro no 5º,
+  abajures no lounge, aquários no 9º, tochas no terraço e plantas de folhas
+  largas nos outros. A mesa vencida continua mostrando quem era: o retrato
+  sem cor, com a cara de quem perdeu e um selo de visto no canto; o nome e a
+  etiqueta de cada mesa ficam numa plaquinha escura. Sentando à mesa, o
+  retrato do oponente voa do salão para o canto de cima; o chefe tem antes a
+  apresentação dele (o retrato grande, o nome na cor do salão, o trunfo e a
+  fala de abertura; 1,5 s, e qualquer tecla, clique ou botão pula). Cada andar tem o seu cenário - o
   saguão do cassino no Térreo (o guichê do caixa, o quadro do torneio e os
   troféus), madeira e dardos no 1º, o bar de tijolo no 2º, aço com
   roleta e globo espelhado no 3º, o jardim de inverno no 4º, ouro no 5º, art
   déco no 6º, o teatro no 7º, o lounge do sax no 8º, aquário e pôquer no 9º e
   o terraço de vidro com a cidade à noite na Cobertura -, e cada salão é um
   trecho dele, com as suas peças (na Cobertura, a mesma cidade vista mais da
-  direita a cada salão); o salão do Coringa é o fim do andar, apagado. Saindo
+  direita a cada salão); o salão do Coringa é o fim do andar, com a sala
+  dele: a parede de arlequim roxo com cartas de baralho presas, o cortinado
+  roxo, os cetros de guizos, o estrado e a ponta do tapete em xadrez roxo e
+  preto, e o retrato numa moldura torta (enquanto o salão acende, só a
+  silhueta dele, de olhos acesos). Saindo
   da loja para um salão novo, uma cortina de veludo fecha, a plaquinha de
   latão diz qual salão vai começar e ela abre sobre o salão ainda escuro, que
   acende luminária por luminária (qualquer tecla, clique ou botão pula).
@@ -171,7 +201,17 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   jeito de jogar, dados que são a cara dele e um trunfo: no Normal, só os
   chefes trazem o seu; a cada nível, mais oponentes, até todos no nível 10. Os
   chefes também viram na 5ª rodada a partir de um nível: a Dona no 2, o
-  Crupiê no 3 e o Barão no 4 (mais fortes no 7, no 8 e no 10). Do nível 5 em
+  Crupiê no 3 e o Barão no 4 (mais fortes no 7, no 8 e no 10). A virada é
+  anunciada numa faixa com o retrato do chefe grande: calmo, ele muda de
+  cara no meio do anúncio, com um tremor e um clarão na cor do salão; daí
+  até o fim da partida a moldura dele na mesa fica vinho, pulsando devagar,
+  com a etiqueta "VIRADA" ao lado das fichas. Vencida a run, a tela da
+  vitória põe gente na foto: você (o avatar do perfil, com a taça) de um
+  lado e o chefe vencido do outro, com a cara de derrota (o monóculo do
+  Barão caído; o Coringa de maquiagem borrada e chapéu murcho), e o papel
+  cai do alto por toda a mesa nas cores dos salões; vencido o Coringa, o
+  título e a moldura vêm em roxo e ouro e as cartas dele caem junto, e na
+  Cobertura a foto tem a cidade à noite ao fundo. Do nível 5 em
   diante, depois do Barão ainda há o salão do Coringa, o chefe especial, que
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz

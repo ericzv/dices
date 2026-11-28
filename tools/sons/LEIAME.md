@@ -30,6 +30,7 @@ caindo).
 | Menu | `tique` (cursor e escolher), `passa` (o mouse passando por cima) | madeira gravada, encurtada; o `passa` é mais curto e bem mais baixo |
 | Jogadas | `valido`…`valido4`, `anula`, `efeito`, `empate`, `vitoria`, `correu` | as notas do som sintetizado antigo, em teclado (Rhodes) e baixo elétrico; o `valido4` tem um sax-alto |
 | Momentos | `suspense` (a hora da verdade), `forte` (a vitória grande do crescendo) | o coração em tímpano abafado com o baixo por baixo; a vitória com acorde cheio, sax-alto, prato de vassourinha e mais fichas |
+| O dado muito bom | `holofote` | um "vum" grave e curto com um brilho agudo por cima, sintetizado só para a vinheta (o holofote no dado que pousa valendo 10 ou mais, ou na face máxima de um dado grande). Não sai do `gera.py`: o arquivo do repositório é o aprovado ouvindo |
 | Partida | `abertura`, `partida`, `fim`, `derrota` | as notas antigas, em teclado e baixo |
 | Música | `trilha` | a bossa antiga nota por nota: acordes e melodia no teclado, linha no baixo, vassourinha e shaker sintetizados |
 | Camada da música | `trilha_chefe` (a mesa do chefe) | do tamanho exato da trilha e na mesma harmonia, para tocar junto dela: a batucada (surdo sintetizado, agogô, o aro num dado batendo na madeira, cordas e o rolo de tímpano no fim de cada frase) |

@@ -271,7 +271,7 @@ static void embrulha_um(void)
     J[0].col[embrulho].tipo = D_PRESENTE;
     if (rodada == 1) {
         snprintf(fala_txt, sizeof fala_txt, "Ho-ho-ho! Embrulhei um dos seus dados. Adivinha qual?");
-        fala_comeca(3.0f);
+        fala_comeca(fala_tempo(fala_txt));
         fala_e_curta = false;
     }
 }
@@ -329,7 +329,7 @@ static void nova_rodada(void)
         des_virou();                             // o chefe vira: anuncio, retrato e fala
     if (rodada == VIRADA_RODADA && tem_reg(REG_CORINGA) && des_dificuldade() >= CORINGA_SOME) {   // o Coringa avisa: daqui, o que cai e dele
         snprintf(fala_txt, sizeof fala_txt, "Daqui em diante, dado seu que for anulado é meu! Hahaha!");
-        fala_comeca(3.2f);
+        fala_comeca(fala_tempo(fala_txt));
         fala_e_curta = false;
     }
     t_aviso_rodada = t_aviso_entrada = 0;
@@ -355,7 +355,7 @@ static void nova_rodada(void)
     if (tem_reg(REG_MALUCO)) {
         maluco_lado = (int8_t)((rnd() & 1) ? 2 : -1);
         snprintf(fala_txt, sizeof fala_txt, "%s", maluco_lado > 0 ? "Cara! Meus dados +2 nesta!" : "Coroa... -1 nos meus. Que seja!");
-        fala_comeca(2.6f);
+        fala_comeca(fala_tempo(fala_txt));
         fala_e_curta = false;
     }
     desfaz_embrulho();

@@ -328,6 +328,7 @@ static void encerra_run(bool venceu)
     salva_apaga(chave_run());
     t_fase = 0;
     fase = F_RFIM;
+    if (venceu) chove_confete(run.andar >= DES_ANDAR_FINAL);
 }
 
 // A mesa vencida fecha a run? O Barao, antes do Nivel 5; e o Coringa.
@@ -652,6 +653,7 @@ static void des_comeca_partida(void)
     fala_perso = no->perso;
     perso_virado = -1;
     t_virada = 0;
+    t_entrada = 0;
     t_fala = 0;
     t_reacao = t_curta = 0;
     fala_e_curta = false;

@@ -90,6 +90,7 @@ void dado_tecla(const key_event_t *ev_)
     if (t_cort >= 0) { t_cort = -1; luz_pula(); return; }     // a cortina (e o salao ja aceso)
     if (t_luz > 0 && fase == F_MAPA) { luz_pula(); return; }   // e o salao acendendo
     if (t_virada > 0) { t_virada = 0; return; }    // e o anuncio da virada
+    if (t_entrada > 0) { t_entrada = 0; return; }  // e a apresentacao do chefe
     if (t_misterio > 0) {                          // a vinheta do Dado Misterioso: espera um pouco
         if (t_misterio > MIST_ESPERA + MIST_MIN) t_misterio = 0;
         return;
@@ -198,6 +199,10 @@ void dado_mouse(int x, int y, int acao)
     }
     if (t_cort >= 0) {                                  // a cortina: um clique pula (e acende o salao)
         if (acao == 1) { t_cort = -1; luz_pula(); }
+        return;
+    }
+    if (t_entrada > 0) {                                // a apresentacao do chefe: um clique pula
+        if (acao == 1) t_entrada = 0;
         return;
     }
     if (t_luz > 0 && fase == F_MAPA) {                  // o salao acendendo: um clique pula
@@ -490,6 +495,7 @@ static void trata_tecla(int k)
 
     case F_VEREDITO:
         t_fase = 10.0f;
+        t_vinheta = -1;                      // (e o holofote do dado muito bom apaga junto)
         return;
 
     case F_EFEITOS:

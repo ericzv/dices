@@ -73,7 +73,7 @@ static void fala_evento(int cat)
                  : dif == N_NIVEIS ? "A cobertura é sua... mas lá em cima alguém está rindo."
                                    : "Você me venceu... mas ouço alguém rindo lá em cima.";
     snprintf(fala_txt, sizeof fala_txt, "%s", s);
-    fala_comeca(3.2f);
+    fala_comeca(fala_tempo(fala_txt));
     fala_e_curta = false;
 }
 

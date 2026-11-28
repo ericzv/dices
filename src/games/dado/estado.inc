@@ -226,6 +226,15 @@ static float t_relogio;                  // corre sempre: brilhos que nao recome
 static int   hora;
 static float t_hora;                     // 0..1: o quanto a mesa ja escureceu em volta dele
 static float hora_x, hora_y;             // onde esta a luz
+// A vinheta do dado muito bom (hora.inc): o holofote no dado que pousou
+// valendo VINHETA_PONTOS ou mais, ou na face maxima de um dado grande.
+#define VINHETA_PONTOS 10
+#define VINHETA_ENTRA  0.12f             // a mesa escurece em volta dele
+#define VINHETA_SEGURA 0.85f             // fica assim ate aqui
+#define VINHETA_T      1.7f              // e a luz ja voltou (tempo do lance)
+static float t_vinheta = -1;             // tempo do lance desde o pouso (-1: parada)
+static float vinheta_x, vinheta_y;       // onde esta o dado
+static int   vinheta_j = -1, vinheta_k = -1;
 static int  dado_decisivo(int j, int k);
 static void hora_comeca(int grau);
 // O crescendo: a mesa reage a sequencias longas e a combos. A onda faz os
@@ -422,6 +431,18 @@ static char  fala_txt[64];
 static float t_fala;                     // > 0: o balao do oponente esta na mesa
 static float fala_dur, fala_dita;        // quanto a fala dura, e ha quanto tempo comecou (sai letra por letra)
 static void fala_comeca(float dur) { t_fala = fala_dur = dur; fala_dita = 0; }
+// Quanto uma fala fica na mesa: pelo tamanho dela (em letras, nao em bytes) -
+// FALA_BASE mais FALA_LETRA por letra, ate FALA_TETO.
+#define FALA_BASE  1.8f
+#define FALA_LETRA 0.06f
+#define FALA_TETO  5.0f
+static float fala_tempo(const char *s)
+{
+    int n = 0;
+    for (; *s; s++) n += (*s & 0xC0) != 0x80;
+    float t = FALA_BASE + FALA_LETRA * n;
+    return t > FALA_TETO ? FALA_TETO : t;
+}
 // Reacoes do oponente (falas.inc): o rosto muda por um instante quando algo
 // acontece na mesa e, as vezes, sai uma palavra num balao curto.
 enum { RM_PASSOU, RM_ELE_PASSOU, RM_CAI_DELE, RM_CAI_SEU, RM_COMBO, RM_ATACOU, RM_HORA,
@@ -532,6 +553,17 @@ static int chefe_idx(int p)
 #define CORINGA_SOME  7
 static int   perso_virado = -1;          // o chefe que ja virou nesta partida
 static float t_virada;                   // > 0: o anuncio da virada na tela
+#define VIRADA_DUR 3.4f                  // o anuncio: a faixa entra, o chefe espera, vira e a regra fica a vista
+#define VIRADA_TV  1.3f                  // o instante em que ele vira, dentro do anuncio
+// O chefe ja mostra a cara virada? (durante o anuncio, so depois do instante da virada)
+static bool virada_a_vista(void) { return !(t_virada > 0 && VIRADA_DUR - t_virada < VIRADA_TV); }
+// A entrada na mesa (desafio/colecao.inc): o retrato do oponente voa do mapa
+// para o canto de cima; o chefe tem antes a apresentacao dele (o retrato
+// grande, o nome, o trunfo e a fala de abertura). Qualquer tecla pula.
+#define ENTRADA_CHEFE 1.5f               // a apresentacao inteira do chefe, com o voo no fim
+#define ENTRADA_VOO   0.4f               // o voo do retrato para o canto (os outros so tem isso)
+static float t_entrada, entrada_dur;     // > 0: correndo (a mesa espera)
+static int   entrada_x, entrada_y, entrada_esc;   // de onde o retrato sai, no mapa
 // A vinheta do Dado Misterioso: > 0 enquanto corre (primeiro a pedra se parte
 // na mesa; depois de MIST_ESPERA, a luz e o dado, com a mesa parada).
 #define MIST_ESPERA 1.0f
@@ -679,6 +711,6 @@ static float t_slot = -1, slot_t0, slot_dt;
 // fica na tela onde apareceu primeiro (tela -1: ainda nao viu nenhuma) e cai
 // por baixo dos paineis; os cacos de vidro voam por cima de tudo.
 typedef struct { float x, y, vx, vy, giro, vg; uint16_t cor, verso; uint8_t w, h, caco; int8_t tela; } confete_t;
-#define MAX_CONFETE 140
+#define MAX_CONFETE 240                  // (a chuva da run campea usa todos)
 static confete_t confete[MAX_CONFETE];
 static int n_confete;

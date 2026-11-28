@@ -23,7 +23,7 @@
 #define FR_VAO0    38                   // o vao aberto
 #define FR_VAO1    58
 
-enum { CM_NEU, CM_MAD, CM_LAT, CM_VIN, CM_MARF, CM_AZ, CM_ROX, CM_AGUA, CM_ACO, CM_VERDE,
+enum { CM_NEU, CM_MAD, CM_LAT, CM_VIN, CM_MARF, CM_AZ, CM_ROX, CM_AGUA, CM_ACO, CM_VERDE, CM_SVERDE,
        CM_LUZ, CM_CEU, CM_JAN, CM_NEON, CM_AQUA, CM_N };
 #define CM_EMITE(m) ((m) >= CM_LUZ)
 static const uint16_t CEN_RAMPA[CM_N][6] = {
@@ -37,6 +37,7 @@ static const uint16_t CEN_RAMPA[CM_N][6] = {
     { RGB(24, 22, 20), RGB(26, 34, 62), RGB(72, 150, 138), RGB(96, 182, 198), RGB(168, 204, 230), RGB(252, 248, 236) },
     { RGB(14, 14, 12), RGB(36, 32, 29), RGB(70, 76, 88), RGB(104, 112, 124), RGB(140, 150, 164), RGB(184, 194, 208) },
     { RGB(14, 14, 12), RGB(24, 22, 20), RGB(36, 32, 29), RGB(88, 152, 84), RGB(130, 204, 112), RGB(252, 248, 236) },
+    { RGB(14, 14, 12), RGB(11, 33, 24), RGB(18, 49, 36), RGB(40, 84, 62), RGB(88, 152, 84), RGB(130, 204, 112) },   // o veludo do Salao Verde
     // os de luz propria
     { RGB(56, 32, 20), RGB(120, 78, 50), RGB(214, 112, 44), RGB(238, 162, 74), RGB(246, 222, 132), RGB(252, 248, 236) },
     { RGB(14, 14, 12), RGB(26, 34, 62), RGB(54, 36, 74), RGB(56, 86, 150), RGB(166, 154, 132), RGB(252, 248, 236) },
@@ -46,7 +47,7 @@ static const uint16_t CEN_RAMPA[CM_N][6] = {
 };
 
 // O tom mais alto que a luz leva cada material (as cores fortes nao estouram na poca).
-static const uint8_t CEN_TETO[CM_N] = { 5, 5, 5, 4, 5, 3, 3, 4, 5, 4, 5, 5, 5, 5, 5 };
+static const uint8_t CEN_TETO[CM_N] = { 5, 5, 5, 4, 5, 3, 3, 4, 5, 4, 4, 5, 5, 5, 5, 5 };
 static uint8_t cen_m[CH_H][CH_W], cen_t[CH_H][CH_W];
 static int cen_chave = -1, cen_off, cen_andar;
 // O que mexe, desenhado a cada quadro por cima do guardado.
@@ -314,6 +315,10 @@ static void cen_terreo(int a, const vao_t *v, int nv)
         for (int x = CH_X0; x < CH_X1; x++) {
             int X = x - CH_X0 + cen_off, m = CM_MARF, t = 3;
             if (X % 6 == 0) t = 2;                                    // a listra fina do papel
+            if (a >= 0 && a < DES_ANDARES && X % 12 < 5 && y >= CH_Y0 + 3 && y < 102) {   // e a listra larga, na cor do salao
+                m = a == 0 ? CM_SVERDE : a == 1 ? CM_VIN : CM_LAT; t = a == 2 ? 3 : 2;
+                if (X % 12 == 0 || X % 12 == 4) t++;
+            }
             if (y < CH_Y0 + 3) { m = CM_MAD; t = y == CH_Y0 + 1 ? 3 : 0; }   // a sanca
             else if (y < CH_Y0 + 8 && bayer(x, y) < (CH_Y0 + 8 - y) / 6.0f) t--;
             if (y >= 102) {                                           // o friso de latao e o lambri
@@ -381,7 +386,10 @@ static void deco_espelho(int cx, int y, int w, int h)
 }
 // O cortinado atras do chefe: o bando em cima, os dois panos presos na
 // abracadeira de latao.
-static void deco_cortinado(int cx)
+static void deco_cortinado_de(int cx, int m);
+static void deco_cortinado(int cx) { deco_cortinado_de(cx, CM_VIN); }
+// (m: o veludo - vinho, ou o roxo do Coringa)
+static void deco_cortinado_de(int cx, int m)
 {
     for (int s = -1; s <= 1; s += 2)
         for (int y = CH_Y0 + 4; y < FR_RODA; y++) {
@@ -393,7 +401,7 @@ static void deco_cortinado(int cx)
             for (int x = xa; x <= xb; x++) {
                 int k = ((x - fora) * s + 40) % 6, t = k == 0 ? 1 : k < 3 ? 3 : 2;
                 if (x == xa || x == xb) t = 1;
-                cp(x, y, CM_VIN, t);
+                cp(x, y, m, t);
             }
         }
     for (int s = -1; s <= 1; s += 2) {                      // as abracadeiras
@@ -404,7 +412,7 @@ static void deco_cortinado(int cx)
     }
     for (int x = cx - 60; x <= cx + 60; x++) {             // o bando, em ondas, com a franja
         int fundo = CH_Y0 + 8 + (int)(fabsf(sinf((x - cx) * 0.105f)) * 4);
-        for (int y = CH_Y0 + 3; y < fundo; y++) cp(x, y, CM_VIN, y == fundo - 1 ? 2 : 3);
+        for (int y = CH_Y0 + 3; y < fundo; y++) cp(x, y, m, y == fundo - 1 ? 2 : 3);
         if (x % 2 == 0) cp(x, fundo, CM_LAT, 3);
     }
 }
@@ -637,23 +645,135 @@ static void cen_cobertura(int a, const vao_t *v, int nv)
 #include "cenario_andares.inc"
 
 // ---- o que vale para todos os andares ----------------------------------------
+// O estrado do chefe, vestido com o material do andar: a chapa de aco
+// rebitada no 3o, o marmore xadrez no 6o (art deco), o carpete no 8o (o
+// lounge), o deque no terraco; nos outros, as tabuas de sempre. No salao do
+// Coringa, o xadrez roxo e preto. Tudo discreto: o nome do chefe fica em cima.
 static void cen_estrado(void)
 {
     int ex0 = estrado_cx() - ESTRADO_W / 2;
-    for (int y = FR_CHAO; y < FR_EST_Y; y++)               // o tampo: tabuas de comprido, um tom acima
+    bool coringa = cen_off >= DES_ANDARES * CH_W;
+    int tipo = coringa ? 5 : cen_andar == 3 ? 1 : cen_andar == 6 ? 2 : cen_andar == 8 ? 3 : cen_andar == 10 ? 4 : 0;
+    int me = tipo == 1 ? CM_ACO : tipo == 2 ? CM_MARF : tipo == 3 || tipo == 5 ? CM_ROX : CM_MAD;   // o material do espelho
+    for (int y = FR_CHAO; y < FR_EST_Y; y++)               // o tampo, um tom acima do chao
         for (int x = ex0; x < CH_X1; x++) {
-            int fila = (int)floorf(fr_z(y) / 11), fa = (int)floorf(fr_z(y - 1) / 11);
-            int t = 2;
-            if (fila != fa && bayer(x, y) < 0.5f) t = 1;        // as juntas, discretas (o nome do chefe fica em cima)
+            float z = fr_z(y), xm = fr_xm(x, y);
+            int fila = (int)floorf(z / 11), fa = (int)floorf(fr_z(y - 1) / 11);
+            int m = CM_MAD, t = 2;
+            if (tipo == 0) {                                    // tabuas de comprido
+                if (fila != fa && bayer(x, y) < 0.5f) t = 1;    // as juntas, discretas
+            } else if (tipo == 1) {                             // chapas de aco: a junta e um rebite em cada canto
+                int col = (int)floorf(xm / 32), ca = (int)floorf(fr_xm(x - 1, y) / 32);
+                float u = xm - col * 32, w = z - fila * 11;
+                m = CM_ACO; t = 2;
+                if (fila != fa || col != ca) t = 1;
+                else if (w > 2 && w < 5 && ((int)u == 3 || (int)u == 28)) t = 3;
+            } else if (tipo == 2 || tipo == 5) {                // xadrez em perspectiva
+                int col = (int)floorf(xm / 16), lin = (int)floorf(z / 14);
+                bool claro = (col + lin) & 1;
+                if (tipo == 2) { m = claro ? CM_MARF : CM_NEU; t = claro ? 2 : 3; }
+                else { m = claro ? CM_ROX : CM_NEU; t = claro ? 2 : 1; }
+            } else if (tipo == 3) {                             // carpete: o pelo pontilhado e um losango miudo
+                int d = abs((int)floorf(xm) % 16 - 8) + abs((int)floorf(z) % 14 - 7);
+                m = CM_ROX; t = d == 6 ? 2 : 1;
+                if (t == 1 && ruido_xy(x, y) % 7 == 0) t = 2;
+            } else {                                            // deque: reguas de atravessado, com a fresta
+                int col = (int)floorf(xm / 9), ca = (int)floorf(fr_xm(x - 1, y) / 9);
+                t = col != ca ? 0 : 2 + (ruido_xy(col, 3) % 3 == 0 && bayer(x, y) < 0.4f);
+                if (fila != fa && ruido_xy(col, fila) % 4 == 0) t = 1;   // as emendas, desencontradas
+            }
             if (y < FR_CHAO + 3) t -= bayer(x, y) < 0.5f;
-            cp(x, y, CM_MAD, t);
+            cp(x, y, m, t);
         }
     chl(ex0, FR_EST_Y, CH_X1 - ex0, CM_LAT, 4);
     chl(ex0, FR_EST_Y + 1, CH_X1 - ex0, CM_LAT, 2);
-    for (int y = FR_EST_Y + 2; y < FR_EST_Y1; y++) chl(ex0, y, CH_X1 - ex0, CM_MAD, 1);   // o espelho
+    for (int y = FR_EST_Y + 2; y < FR_EST_Y1; y++) chl(ex0, y, CH_X1 - ex0, me, 1);   // o espelho
     cvl(ex0, FR_CHAO, FR_EST_Y1 - FR_CHAO, CM_LAT, 3);     // a quina, que pega a luz
     cvl(ex0 + 1, FR_EST_Y + 2, FR_EST_Y1 - FR_EST_Y - 2, CM_LAT, 1);
     chl(ex0, FR_EST_Y1, CH_X1 - ex0, CM_NEU, 0);            // a sombra no chao
+}
+
+// A sala do Coringa: a parede de arlequim roxo (a das margens da mesa dele,
+// salao.inc) por cima da do andar - o que tem luz propria (a cidade, as
+// janelas) fica -, com cartas de baralho presas no vazio da esquerda.
+static void cen_coringa(void)
+{
+    for (int y = CH_Y0 + 3; y < FR_RODA; y++)
+        for (int x = CH_X0; x < CH_X1; x++) {
+            int m = cm_de(x, y);
+            if (m < 0 || CM_EMITE(m)) continue;
+            int u = (x - CH_X0) % 24, w = (y - CH_Y0) % 32;        // losangos de 24 x 32
+            int d = abs(2 * (u - 12)) * 4 + abs(2 * (w - 16)) * 3; // 0 no meio, 96 na ponta
+            bool par = (((x - CH_X0) / 24) + ((y - CH_Y0) / 32)) & 1;
+            bool dentro = d < 92;
+            int t = dentro ? (par ? 2 : 1) : 0;
+            if (d >= 92 && d < 100) { cp(x, y, CM_LAT, 1); continue; }   // o filete entre os losangos
+            if (dentro && d > 76) t--;                             // a beira de cada um, um tom abaixo
+            cp(x, y, dentro == par ? CM_ROX : CM_NEU, t < 0 ? 0 : t + (dentro != par));
+        }
+    for (int y = FR_RODA; y < FR_CHAO; y++) chl(CH_X0, y, CH_W, CM_ROX, y == FR_RODA ? 3 : 1);   // o rodape
+    // As cartas: marfim, com o naipe (vinho ou preto) e um alfinete de latao.
+    static const int16_t C[][3] = { { 0, 0, 0 }, { 44, 14, 1 }, { 92, -6, 0 }, { 140, 10, 1 }, { 186, -2, 1 }, { 236, 16, 0 },
+                                   { 284, 2, 1 }, { 20, 34, 1 }, { 116, 38, 0 }, { 212, 40, 1 }, { 300, 36, 0 } };
+    int x0 = FR_PX1 + 26, lim = estrado_cx() - ESTRADO_W / 2 - 20;
+    for (unsigned k = 0; k < sizeof C / sizeof C[0]; k++) {
+        int x = x0 + C[k][0], y = CH_Y0 + 22 + C[k][1], torta = (int)(k % 3) - 1;
+        if (x + 10 > lim) continue;
+        csombra(x + 1, y + 1, 9, 12);
+        for (int j = 0; j < 11; j++) {
+            int dx = torta * (j / 4);                               // a carta pendurada torta
+            chl(x + dx, y + j, 8, CM_MARF, j == 0 ? 5 : j == 10 ? 3 : 4);
+            cp(x + dx + 7, y + j, CM_MARF, 3);
+        }
+        int cx = x + 3 + torta, cy = y + 5, nm = C[k][2] ? CM_VIN : CM_NEU, nt = C[k][2] ? 4 : 0;
+        cp(cx, cy - 1, nm, nt); chl(cx - 1, cy, 3, nm, nt); cp(cx, cy + 1, nm, nt);   // o naipe
+        cp(x + 1, y + 1, nm, nt); cp(x + 6 + 2 * torta, y + 9, nm, nt);
+        cp(x + 4, y, CM_LAT, 5);                                    // o alfinete
+    }
+}
+
+// A cor do salao no cenario, por cima do tema do andar: cen_salao e 0 no
+// Verde, 1 no Vermelho, 2 no Dourado (-1: o do Coringa, que tem a sala dele);
+// cen_mat, o veludo dele (a sanefa, o rodape, o tapete e o estofado).
+static int cen_salao = -1, cen_mat = CM_VIN;
+// A sanefa: um bando de veludo ao longo do alto da parede, em festoes, com a
+// franja de latao (brocado e borlas de ouro no Dourado); e o rodape pintado
+// na cor.
+static void cen_sanefa(void)
+{
+    if (cen_salao < 0) return;
+    int m = cen_mat;
+    for (int x = CH_X0; x < CH_X1; x++) {
+        int X = x - CH_X0 + cen_off;
+        float u = fmodf(X, 30.0f) / 30.0f;                       // um festao a cada 30 px
+        int fundo = CH_Y0 + 6 + (int)lroundf(sinf(u * 3.14159f) * 5);
+        int dobra = X % 30;
+        for (int y = CH_Y0 + 3; y < fundo; y++) {
+            int t = y == CH_Y0 + 3 ? 4 : y >= fundo - 1 ? 1 : (dobra % 6 == 2 ? 2 : 3);
+            if (dobra == 0 || dobra == 29) t = 1;                  // a prega entre dois festoes
+            if (cen_salao == 2) {                                  // o Dourado: brocado de ouro, forrado de vinho
+                t = y == CH_Y0 + 3 ? 5 : y >= fundo - 1 ? 2 : (dobra % 6 == 2 ? 3 : 4);
+                if (dobra == 0 || dobra == 29) t = 1;
+                cp(x, y, CM_LAT, t);
+                if (y == fundo - 1) cp(x, y, CM_VIN, 3);
+                continue;
+            }
+            cp(x, y, m, t);
+        }
+        if (cen_salao == 2) { cp(x, fundo, CM_VIN, 1); if (x % 2 == 0) cp(x, fundo + 1, CM_LAT, 4); }   // o galao de ouro e a franja
+        else if (x % 2 == 0) cp(x, fundo, CM_LAT, 3);
+        else { int mm = cm_de(x, fundo); if (mm >= 0 && !CM_EMITE(mm)) csombra(x, fundo, 1, 2); }
+        if (dobra == 0) {                                          // a roseta de latao na prega (com borla no Dourado)
+            crect(x - 1, CH_Y0 + 4, 3, 3, CM_LAT, 4); cp(x, CH_Y0 + 5, CM_LAT, 5);
+            if (cen_salao == 2) { cvl(x, CH_Y0 + 7, 4, CM_LAT, 3); crect(x - 1, CH_Y0 + 11, 3, 3, CM_LAT, 4); cp(x, CH_Y0 + 14, CM_LAT, 2); }
+        }
+    }
+    for (int y = FR_RODA; y < FR_CHAO; y++)                     // o rodape na cor do salao
+        for (int x = CH_X0; x < CH_X1; x++) {
+            if (cm_de(x, y) != CM_MAD && cm_de(x, y) != CM_NEU && cm_de(x, y) != CM_ACO && cm_de(x, y) != CM_MARF) continue;
+            if (cen_salao == 2) cp(x, y, CM_LAT, y == FR_RODA ? 5 : y == FR_CHAO - 1 ? 2 : 3);
+            else if (y == FR_RODA) cp(x, y, m, 4); else cp(x, y, m, y == FR_CHAO - 1 ? 1 : 2);
+        }
 }
 
 static void cen_tapete(void)
@@ -663,7 +783,18 @@ static void cen_tapete(void)
         for (int x = CH_X0; x < CH_X1; x++) {
             int k = tapete_tom(x, y - TAP_Y0, fim);
             if (k == -1) continue;
-            if (k == PL_FILETE) cp(x, y, CM_LAT, 3); else cp(x, y, CM_VIN, k + 1);
+            int r = y - TAP_Y0, hh = TAP_Y1 - TAP_Y0;
+            bool campo = r > 2 && r < hh - 3 && x < fim;
+            if (k == PL_FILETE) cp(x, y, CM_LAT, cen_salao == 2 ? 4 : 3);
+            else if (cen_salao == 2 && !campo && (r == 1 || r == hh - 2)) cp(x, y, CM_LAT, 2);   // o Dourado: o filete duplo
+            else if (cen_salao == 2 && campo && k >= 2) cp(x, y, CM_LAT, k == 3 ? 4 : 2);        // e os losangos bordados a ouro
+            else cp(x, y, cen_mat, k + 1);
+            // No salao do Coringa, o tapete vira xadrez roxo e preto perto do estrado.
+            int ex0 = estrado_cx() - ESTRADO_W / 2;
+            if (cen_off >= DES_ANDARES * CH_W && campo && k != PL_FILETE && bayer(x, y) < (x - (ex0 - 110)) / 60.0f) {
+                bool q = (((x - ex0 + 400) / 6) + (r / 4)) & 1;
+                cp(x, y, q ? CM_ROX : CM_NEU, q ? 2 : 1);
+            }
         }
     for (int y = FR_CHAO; y < TAP_Y0 + 3; y++) {           // o pedaco que vem da porta, em perspectiva
         float q = (y - FR_CHAO) / (float)(TAP_Y0 - FR_CHAO);
@@ -671,12 +802,13 @@ static void cen_tapete(void)
         int w = xr - xl;
         for (int x = xl; x <= xr; x++) {
             int r = x - xl;
-            if (r == 0 || r == w) cp(x, y, CM_VIN, 1);
+            if (r == 0 || r == w) cp(x, y, cen_mat, 1);
             else if (r == 2 || r == w - 2) cp(x, y, CM_LAT, 3);
-            else if (r == 1 || r == w - 1) cp(x, y, CM_VIN, 3);
+            else if (r == 1 || r == w - 1) cp(x, y, cen_mat, 3);
             else {
                 int d = abs(2 * (r - w / 2)) + abs(2 * ((int)(fr_z(y) / 2) % 14) - 13);
-                cp(x, y, CM_VIN, d == 9 ? 3 : d <= 3 ? 4 : 2);
+                if (cen_salao == 2 && (d == 9 || d <= 3)) cp(x, y, CM_LAT, d <= 3 ? 4 : 2);
+                else cp(x, y, cen_mat, d == 9 ? 3 : d <= 3 ? 4 : 2);
             }
         }
     }
@@ -739,6 +871,17 @@ static void cen_pinta(int d, int a)
     case 9: cen_nono(a, v, nv); break;
     default: cen_cobertura(a, v, nv); break;
     }
+    if (dezembro && (cen_andar == 4 || cen_andar == 10))        // dezembro: a neve nas janelas do jardim e no ceu do terraco
+        for (int y = CH_Y0; y < FR_RODA; y++)
+            for (int x = CH_X0; x < CH_X1; x++) {
+                int m = cm_de(x, y);
+                if ((m == CM_CEU || m == CM_JAN) && ruido_xy(x + cen_off, y) % 29 == 0) cp(x, y, m, 5);
+            }
+    if (a >= DES_ANDARES) { cen_coringa(); deco_cortinado_de(salao_x(mesas_do_salao() - 1), CM_ROX); }
+    cen_salao = a >= 0 && a < DES_ANDARES ? a : -1;
+    cen_mat = cen_salao == 0 ? CM_SVERDE : CM_VIN;
+    if (cen_salao == 2 && cen_andar != 5) deco_cortinado(salao_x(mesas_do_salao() - 1));   // o cortinado atras do Barao, em todo andar
+    cen_sanefa();
     cen_estrado();
     cen_tapete();
     cen_porta(cen_andar, a >= DES_ANDARES);
@@ -813,7 +956,7 @@ static poca_t fr_pc[FR_POCAS];
 static int fr_np = -1;
 static void fr_chao(const poca_t *pc0, int np0)
 {
-    int chave = run.dificuldade * 1000 + run.andar * 100 + mesas_do_salao();
+    int chave = run.dificuldade * 1000 + run.andar * 100 + mesas_do_salao() + (dezembro ? 100000 : 0);
     if (chave != cen_chave) { cen_pinta(run.dificuldade, run.andar); cen_chave = chave; fr_np = -1; }
     poca_t pc[FR_POCAS];
     int np = 0;
@@ -882,12 +1025,46 @@ static void fr_moldura(void)
     }
 }
 
-// A planta no vaso, de frente: o vaso de latao e a copa redonda.
-static void fr_planta(int x, int yb, bool escura)
+// As pecas do par do estrado, em pontos: cada letra uma cor, '.' nada, e o
+// contorno escuro em volta (como o sprite_em). (cx, yb): o meio e o pe.
+static uint16_t fr_cor(char c)
+{
+    switch (c) {
+    case 'n': return RGB(24, 62, 46);   case 'g': return RGB(40, 84, 62);
+    case 'G': return C_VERDE;           case 'L': return RGB(130, 204, 112);
+    case 't': return C_MADEIRA_CLR;     case 'T': return C_TERRA;
+    case 'M': return C_MARFIM;          case 'm': return C_BRANCO;      case 's': return C_MARFIM_S;
+    case 'd': return RGB(166, 154, 132);
+    case 'O': return C_OURO;            case 'o': return C_LATAO;       case 'q': return C_LATAO_ESC;
+    case 'y': return C_AMARELO;         case 'F': return RGB(238, 162, 74); case 'f': return C_FOGO;
+    case 'r': return C_BRASA;           case 'R': return RGB(118, 30, 38);
+    case 'w': return RGB(72, 150, 138); case 'W': return RGB(96, 182, 198); case 'b': return C_CELESTE;
+    case 'a': return C_ACO;             case 'A': return C_PRATA;       case 'c': return C_CHUMBO;  case 'C': return C_FERRO;
+    case 'p': return C_REAL;            case 'P': return RGB(206, 180, 218);
+    case 'v': return C_VIOLETA;         case 'V': return RGB(54, 36, 74);
+    case 'k': return C_EBANO;           case 'K': return C_EBANO_B;
+    default:  return C_BARRA;
+    }
+}
+static void fr_peca(int cx, int yb, const char *const *l, int h)
+{
+    int w = (int)strlen(l[0]), x0 = cx - w / 2, y0 = yb - h;
+#define FP_CHEIO(i, j) ((i) >= 0 && (j) >= 0 && (i) < w && (j) < h && l[j][i] != '.')
+    for (int j = -1; j <= h; j++)
+        for (int i = -1; i <= w; i++)
+            if (!FP_CHEIO(i, j) && (FP_CHEIO(i - 1, j) || FP_CHEIO(i + 1, j) || FP_CHEIO(i, j - 1) || FP_CHEIO(i, j + 1)))
+                gfx_pixel(x0 + i, y0 + j, C_BARRA);
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++)
+            if (l[j][i] != '.') gfx_pixel(x0 + i, y0 + j, fr_cor(l[j][i]));
+#undef FP_CHEIO
+}
+// O vaso de latao, afinando para baixo.
+static void fr_vaso(int x, int yb)
 {
     uint16_t rl[4];
     rampa_de(C_LATAO, rl);
-    for (int j = 0; j < 10; j++) {                          // o vaso, afinando para baixo
+    for (int j = 0; j < 10; j++) {
         int hw = 6 - j / 3;
         gfx_rect(x - hw - 1, yb - 10 + j, 2 * hw + 3, 1, C_BARRA);
         for (int i = -hw; i <= hw; i++) gfx_pixel(x + i, yb - 10 + j, i < -hw / 2 ? rl[2] : i < hw / 2 ? rl[1] : rl[0]);
@@ -895,16 +1072,254 @@ static void fr_planta(int x, int yb, bool escura)
     gfx_rect(x - 8, yb - 13, 17, 4, C_BARRA);
     gfx_rect(x - 7, yb - 12, 15, 2, rl[3]);
     gfx_rect(x - 7, yb - 10, 15, 1, rl[1]);
-    static const int8_t F[][3] = { { 0, -14, 7 }, { -7, -10, 6 }, { 7, -10, 6 }, { -4, -20, 5 }, { 5, -19, 5 }, { -10, -16, 4 }, { 10, -15, 4 }, { 0, -24, 4 } };
-    int n = sizeof F / sizeof F[0];
-    for (int k = 0; k < n; k++) gfx_disco(x + F[k][0], yb - 12 + F[k][1], F[k][2] + 1, C_BARRA);
-    for (int k = 0; k < n; k++) {
-        int fx = x + F[k][0], fy = yb - 12 + F[k][1], r = F[k][2];
-        uint16_t c0 = escura ? C_EBANO : (k & 1 ? C_VERDE : RGB(56, 112, 60));
-        uint16_t c1 = escura ? (k & 1 ? RGB(54, 36, 74) : C_EBANO_B) : (k & 1 ? RGB(130, 204, 112) : C_VERDE);
-        gfx_disco(fx, fy, r, c0);
-        gfx_disco(fx - 1, fy - 1, r - 2, c1);
-        if (!escura) gfx_pixel(fx - r / 2, fy - r / 2, RGB(130, 204, 112));
+}
+// O par que ladeia o estrado, no tema do andar: palmeiras no jardim (4o),
+// colunas com candelabro no de ouro (5o), abajures no lounge (8o), aquarios
+// pequenos no 9o, tochas no terraco; nos outros, a planta de folhas largas
+// (com recorte, nervura e sombra). No salao do Coringa, o cetro de bobo com
+// os guizos (a cortina roxa dele fica na parede: cen_pinta).
+static void fr_par(int x, int yb, int qual)
+{
+    static const char *const FOLHAS[] = {
+        "..........L..........",
+        ".........LG..........",
+        "....L....GG....L.....",
+        "...LGG...GGg..LG.....",
+        "...GGGg..GGg.LGG.....",
+        "....GGGg.GGgLGGg.....",
+        ".L...GGGgGGgGGGg...L.",
+        "LGG...GGGGnGGGg..LGG.",
+        "GGGGg..GGGnGGg..GGGGg",
+        ".gGGGGg.GGnGg.GGGGGg.",
+        "...gGGGGgGnGgGGGGg...",
+        ".....gGGGGnGGGGg.....",
+        "..LL...gGGnGGg...LL..",
+        ".LGGGG...GnG...GGGGL.",
+        "LGGnnGGG.GnG.GGGnnGGg",
+        ".gGGGGnnGGnGGnnGGGGg.",
+        "...ggGGGGnnnGGGGgg...",
+        "......ggGGnGGgg......",
+        ".........gng.........",
+        ".........gng.........",
+    };
+    static const char *const PALMEIRA[] = {
+        "....LL.......LL......",
+        "..LGGGGL...LGGGGL....",
+        ".LGGggGGG.GGGggGGL...",
+        "LGg...gGGGGGg...gGL..",
+        "Gg..LGGGGTGGGGL..gG..",
+        "g..LGGggGTGggGGL..g..",
+        "..LGg...GTG...gGL....",
+        "..Gg....tTt....gG....",
+        "..g.....tTt.....g....",
+        "........tTT..........",
+        ".........TTt.........",
+        ".........tTt.........",
+        ".........tTT.........",
+        "..........TTt........",
+        "..........tTt........",
+        "..........tTT........",
+        "..........tTt........",
+        "..........tTt........",
+    };
+    static const char *const COLUNA[] = {
+        "....y.....y.....y....",
+        "....f.....F.....f....",
+        "....m.....m.....m....",
+        "....m.....m.....m....",
+        "....O..OOOOOOO..O....",
+        "....oOOo..O..oOOo....",
+        "..........O..........",
+        ".......oOOOOOo.......",
+        "......mMMMMMMMs......",
+        ".......mMMMMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        "........mMsMs........",
+        ".......mMMMMMs.......",
+        "......mMMMMMMMs......",
+        ".....sssssssssdd.....",
+    };
+    static const char *const ABAJUR[] = {
+        ".......PPPPPPp.......",
+        "......PPPPPPPPp......",
+        ".....PPPPyyyPPPp.....",
+        "....PPPPyyyyyPPPp....",
+        "...PPPPyyyyyyyPPPp...",
+        "...PPPPPPPPPPPPPPp...",
+        "...vvvvvvvvvvvvvvv...",
+        "..........O..........",
+        "..........O..........",
+        "..........o..........",
+        "..........O..........",
+        "..........O..........",
+        "..........o..........",
+        "..........O..........",
+        "..........O..........",
+        "..........o..........",
+        "..........O..........",
+        "..........O..........",
+        "..........o..........",
+        "..........O..........",
+        "..........O..........",
+        "..........o..........",
+        "..........O..........",
+        "........oOOOo........",
+        "......oOOOOOOOq......",
+        ".....qqqqqqqqqqq.....",
+    };
+    static const char *const AQUARIO[] = {
+        "..AAAAAAAAAAAAAAAAA..",
+        "..AbWWWWWWWWWWWWWba..",
+        "..AWWwwwwwwwwwwwwwa..",
+        "..AWwwwwFFwwwwwbwwa..",
+        "..AWwwwFFFFfwwwwwwa..",
+        "..AWwwwwFFwwwwwwwwa..",
+        "..AWwwwwwwwwwwGwwwa..",
+        "..AWwbwwwwwwwGwwwwa..",
+        "..AWwwwwwwwwwGGwwwa..",
+        "..AWwwwwwwwwGwGwwwa..",
+        "..Asdsdsdsdsdsdsdsa..",
+        "..aaaaaaaaaaaaaaaaa..",
+        "....cCCCCCCCCCCCc....",
+        ".....CCCCCCCCCCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCcCCCCCcCc.....",
+        ".....CCCCCCCCCCc.....",
+        "....CCCCCCCCCCCCc....",
+        "...ccccccccccccccc...",
+    };
+    static const char *const TOCHA[] = {
+        "..........y..........",
+        ".........yy..........",
+        ".........yFy.........",
+        "........yFFy.........",
+        "........yFfFy........",
+        ".......yFfrfFy.......",
+        ".......FFfrfFF.......",
+        "......cCCCCCCCc......",
+        "......cCCCCCCCc......",
+        ".......cCCCCCc.......",
+        "........cCCCc........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".........CCc.........",
+        ".......cCCCCCc.......",
+        ".....ccCCCCCCCcc.....",
+    };
+    static const char *const GUIZOS[] = {
+        "..........y..........",
+        ".........yOy.........",
+        ".........OOo.........",
+        "....y....qOq....y....",
+        "...yOy...pPv...yOy...",
+        "...OOo..pPPvv..OOo...",
+        "...qOq.pPPPvvv.qOq...",
+        "....pppPPPPvvvvvv....",
+        ".....pPPPPPvvvvv.....",
+        "......OOOOOOOOO......",
+        ".......ooooooo.......",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".........kKk.........",
+        ".........pPv.........",
+        ".......oOOOOOq.......",
+        ".....qqqqqqqqqqq.....",
+    };
+#define FR_PECA(a, dy) fr_peca(x, yb - (dy), a, (int)(sizeof a / sizeof a[0]))
+    switch (qual) {
+    case 4:  fr_vaso(x, yb); FR_PECA(PALMEIRA, 12); break;
+    case 5:  FR_PECA(COLUNA, 0); break;
+    case 8:  FR_PECA(ABAJUR, 0); break;
+    case 9:  FR_PECA(AQUARIO, 0); break;
+    case 10: FR_PECA(TOCHA, 0); break;
+    case -1: FR_PECA(GUIZOS, 0); break;
+    default: fr_vaso(x, yb); FR_PECA(FOLHAS, 12); break;
+    }
+#undef FR_PECA
+}
+
+// Dezembro no salao: a arvore pequena ao lado da porta e o festao com as
+// luzinhas ao longo do alto da parede (a unica coisa a mais que mexe: elas
+// piscam devagar, uma cor de cada vez).
+static void fr_natal(void)
+{
+    if (!dezembro || fr_coringa()) return;
+    static const char *const ARVORE[] = {
+        "..........y..........",
+        ".........yOy.........",
+        "..........L..........",
+        ".........LGg.........",
+        "........LGGGg........",
+        ".......LGrGGGg.......",
+        "......LGGGGGyGg......",
+        "........LGGGg........",
+        ".......LGGGbGg.......",
+        "......LGyGGGGGg......",
+        ".....LGGGGGrGGGg.....",
+        "....LGGbGGGGGGyGg....",
+        ".......LGGGGGg.......",
+        "......LGGrGGGGg......",
+        ".....LGGGGGGbGGg.....",
+        "....LGyGGGGGGGGGg....",
+        "...LGGGGGbGGGrGGGg...",
+        "..LGGrGGGGGGGGGGyGg..",
+        ".........tTt.........",
+        ".........tTt.........",
+        ".......RrrrrrR.......",
+        ".......RrryrrR.......",
+        "........RrrrR........",
+    };
+    fr_peca(FR_PX1 + 15, FR_CHAO + 9, ARVORE, (int)(sizeof ARVORE / sizeof ARVORE[0]));
+    static const uint16_t LUZ[4] = { C_BRASA, C_AMARELO, C_CELESTE, C_LASER };
+    int x1 = estrado_cx() - ESTRADO_W / 2 - 4, vez_ = (int)(t_relogio / 0.6f) % 4;
+    for (int x = FR_PX1 + 6; x < x1; x++) {
+        int u = (x - FR_PX1) % 36;
+        int y = CH_Y0 + 16 + (int)lroundf(sinf(u / 36.0f * 3.14159f) * 6);
+        gfx_pixel(x, y, RGB(40, 84, 62)); gfx_pixel(x, y + 1, (x & 1) ? C_VERDE : RGB(24, 62, 46));
+        if (u % 9 == 4) {                                       // uma luzinha: acesa na vez da cor dela
+            int k = ((x - FR_PX1) / 9) % 4;
+            gfx_rect(x - 1, y + 2, 3, 3, C_BARRA);
+            gfx_pixel(x, y + 3, k == vez_ ? LUZ[k] : gfx_mistura(LUZ[k], C_BARRA, 55));
+            if (k == vez_) { gfx_pixel(x, y + 2, LUZ[k]); gfx_pixel(x - 1, y + 3, LUZ[k]); gfx_pixel(x + 1, y + 3, LUZ[k]); gfx_pixel(x, y + 4, LUZ[k]); }
+        }
+        if (u == 0) { gfx_rect(x - 1, y - 2, 3, 3, C_BARRA); gfx_pixel(x, y - 1, C_BRASA); }   // o laco em cada prego
     }
 }
 
@@ -924,6 +1339,12 @@ static void fr_luminaria(int x, int y, bool acesa, uint16_t cor)
             if (!acesa) c = i < 0 ? r[1] : r[0];
             gfx_pixel(x + i, y + j, c);
         }
+    }
+    if (dezembro) {                                             // dezembro: o laco vermelho no alto da cupula
+        gfx_rect(x - 4, y - 3, 9, 4, C_BARRA);
+        gfx_rect(x - 3, y - 2, 2, 2, C_BRASA); gfx_rect(x + 2, y - 2, 2, 2, C_BRASA);
+        gfx_pixel(x - 3, y - 2, C_VINHO_CLR); gfx_pixel(x + 2, y - 2, C_VINHO_CLR);
+        gfx_rect(x - 1, y - 2, 3, 2, RGB(118, 30, 38)); gfx_pixel(x, y - 1, C_BRASA);
     }
     gfx_rect(x - 8, y + 7, 17, 1, C_BARRA);
     if (acesa) {
@@ -956,19 +1377,25 @@ static void fr_arandela_chefe(int x, int y, bool acesa, uint16_t cor)
 static void fr_cadeira(int x, int y, int lado)
 {
     int sx = x - 4;
+    // O estofado na cor do salao: verde no Verde, vinho no Vermelho; no
+    // Dourado, vinho com a madeira dourada, os botoes e o galao.
+    static const uint16_t VERDE_T[4] = { RGB(18, 49, 36), RGB(40, 84, 62), RGB(88, 152, 84), RGB(130, 204, 112) };
+    const uint16_t *tap = run.andar == 0 ? VERDE_T : TAPETE;
+    bool ouro = run.andar == 2;
     gfx_rect(sx - 1, y - 1, 11, 5, C_BARRA);
-    gfx_rect(sx, y, 9, 2, TAPETE[2]);
-    gfx_rect(sx, y + 2, 9, 1, TAPETE[0]);
+    gfx_rect(sx, y, 9, 2, tap[2]);
+    gfx_rect(sx, y + 2, 9, 1, tap[0]);
     for (int k = 0; k < 2; k++) {
         int lx = k ? sx + 7 : sx;
         gfx_rect(lx - 1, y + 3, 4, 9, C_BARRA);
-        gfx_rect(lx, y + 3, 2, 8, k ? C_MADEIRA : C_MADEIRA_CLR);
+        gfx_rect(lx, y + 3, 2, 8, ouro ? (k ? C_LATAO_ESC : C_LATAO) : k ? C_MADEIRA : C_MADEIRA_CLR);
     }
     int bx = lado < 0 ? sx - 1 : sx + 7;
     gfx_rect(bx - 1, y - 14, 5, 15, C_BARRA);
-    gfx_rect(bx, y - 13, 3, 13, TAPETE[1]);
-    gfx_rect(bx, y - 13, 1, 13, TAPETE[2]);
-    gfx_rect(bx, y - 13, 3, 1, C_MADEIRA_CLR);
+    gfx_rect(bx, y - 13, 3, 13, tap[1]);
+    gfx_rect(bx, y - 13, 1, 13, tap[2]);
+    gfx_rect(bx, y - 13, 3, 1, ouro ? C_OURO : C_MADEIRA_CLR);
+    if (ouro) { gfx_pixel(bx + 1, y - 9, C_OURO); gfx_pixel(bx + 1, y - 5, C_OURO); gfx_rect(sx, y + 2, 9, 1, C_LATAO); }   // os botoes e o galao
 }
 // O pe da mesa: a saia do tampo (a grossura da borda), a coluna torneada e a base.
 static void fr_mesa_pe(int x, int y, int rx, int ry)
@@ -1011,15 +1438,53 @@ static void fr_salao_mesa(int p)
     uint16_t moldura = chefe ? C_OURO : (feita ? C_FELTRO2 : C_LATAO_ESC);
     uint16_t rm[4];
     ui_rampa(moldura, feita, rm);
+    if (fr_coringa()) {
+        // O do Coringa: a moldura pendurada torta (cai para a direita), roxa
+        // com os cantos de ouro; e, enquanto o salao acende, so a silhueta
+        // dele com os olhos acesos (como no aviso).
+        int fx = x - w / 2 - 4, fw = w + 8;
+        uint16_t rr_[4];
+        ui_rampa(C_REAL, false, rr_);
+        for (int i = 0; i < fw; i++) {
+            int dy = i * 5 / fw - 2, canto = i < 5 || i >= fw - 5;
+            gfx_rect(fx + i, y - 5 + dy, 1, h + 10, C_BARRA);
+            gfx_rect(fx + i, y - 4 + dy, 1, h + 8, canto ? C_OURO : i < fw / 2 ? rr_[2] : rr_[1]);
+            if (!canto) gfx_pixel(fx + i, y - 4 + dy, rr_[3]);
+        }
+        gfx_rect(fx - 1, y - 6, 1, h + 8, C_BARRA); gfx_rect(fx + fw, y - 2, 1, h + 8, C_BARRA);
+        gfx_rect(x - w / 2 - 1, y - 1, w + 2, h + 2, C_BARRA);
+        gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 60));
+        bool sil = t_luz > 0;
+        rt_sil = sil; rt_sil_beira = RGB(102, 74, 138);
+        retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
+        rt_sil = false;
+        if (sil) {                                              // os olhos
+            gfx_rect(x - w / 2 + 8 * esc, y + (RT_TOPO + 10) * esc, esc, esc, C_AMARELO);
+            gfx_rect(x - w / 2 + 13 * esc, y + (RT_TOPO + 10) * esc, esc, esc, C_AMARELO);
+        }
+    } else {
     ui_contorno(x - w / 2 - 3, y - 3, w + 6, h + 6, C_BARRA);
     ui_aro(x - w / 2 - 2, y - 2, w + 4, h + 4, 2, rm, UI_VIVO);
     gfx_rect(x - w / 2, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    if (feita && no->perso < (int)sizeof TEMPERAMENTO) {
+        int tp = TEMPERAMENTO[no->perso];
+        retrato_ex = tp == TP_ESQUENTADO || tp == TP_FRIO ? EX_BRAVA : EX_PREOCUPADA;
+    }
     retrato(x - w / 2, y, esc, no->perso, t_fase + no->perso * 1.3f, false, 0, RT_H);
+    retrato_ex = -1;
+    }
     if (feita) {
-        ui_escurece(x - w / 2, y, w, h, 150);
-        int vy = y + h / 2;
-        gfx_linha_grossa(x - 9, vy, x - 2, vy + 8, 4, C_OURO);
-        gfx_linha_grossa(x - 2, vy + 8, x + 12, vy - 10, 4, C_OURO);
+        // Vencido: o rosto continua a vista, sem cor e um pouco apagado, com a
+        // cara de quem perdeu (bravo ou preocupado, pelo temperamento), e um
+        // selo pequeno de visto no canto da moldura.
+        acinzenta(x - w / 2, y, w, h, 75);
+        ui_escurece(x - w / 2, y, w, h, 60);
+        int sx = x + w / 2 - 2, sy = y + h - 3;
+        gfx_disco(sx, sy, 7, C_BARRA);
+        gfx_disco(sx, sy, 6, C_LATAO_ESC);
+        gfx_disco(sx, sy, 5, C_EBANO);
+        gfx_linha_grossa(sx - 3, sy, sx - 1, sy + 2, 2, C_OURO);
+        gfx_linha_grossa(sx - 1, sy + 2, sx + 3, sy - 3, 2, C_OURO);
     }
     if (!feita && cq_encontro_aberto(no->perso)) {   // um encontro: vencendo, abre o dado dele
         float pulso = 0.5f + 0.5f * sinf(t_relogio * 3.2f);
@@ -1030,6 +1495,17 @@ static void fr_salao_mesa(int p)
     uint16_t cn = feita ? C_TEXTO_M : cor_no(no->tipo);
     const char *nome = PERSO[no->perso].nome;
     int f = gfx_largura(nome, GFX_FINO) <= 2 * rx + 40 ? GFX_FINO : GFX_MIUDO;
+    {   // a plaquinha escura atras do nome e da etiqueta: le em qualquer piso (e por cima do pe da mesa)
+        int vale_ = moedas_mesa(p);
+        if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale_ = 0;
+        const char *tag_ = feita ? "vencida" : NOME_NO[no->tipo];
+        char v_[16] = "";
+        if (!feita) snprintf(v_, sizeof v_, vale_ ? "+%d" : "final", vale_);
+        int w1 = gfx_largura(nome, f), w2 = gfx_largura(tag_, GFX_FINO) + (v_[0] ? gfx_largura(v_, GFX_FINO) + (vale_ ? 12 : 0) + 8 : 0);
+        int pw = (w1 > w2 ? w1 : w2) + 10;
+        ui_escurece(x - pw / 2, ly + 5, pw, 25, 110);
+        ui_escurece(x - pw / 2 + 1, ly + 4, pw - 2, 27, 50);
+    }
     texto_no_chao(x - gfx_largura(nome, f) / 2, ly + (f == GFX_MIUDO ? 2 : 0), nome, cn, f);
     int vale = moedas_mesa(p);
     if (run.andar == DES_ANDARES - 1 && chefe && !com_coringa()) vale = 0;
@@ -1123,8 +1599,10 @@ static void desenha_mapa(void)
     fr_detalhes();
     fr_moldura();
     int ex = estrado_cx();
-    fr_planta(ex - ESTRADO_W / 2 + 18, FR_CHAO + 10, fr_coringa());
-    fr_planta(ex + ESTRADO_W / 2 - 16, FR_CHAO + 10, fr_coringa());
+    int par = fr_coringa() ? -1 : cen_andar;
+    fr_par(ex - ESTRADO_W / 2 + 18, FR_CHAO + 10, par);
+    fr_par(ex + ESTRADO_W / 2 - 16, FR_CHAO + 10, par);
+    fr_natal();
     for (int p = 0; p < n; p++) fr_salao_mesa(p);
     int px = salao_x(run.passo), py = TAP_MEIO;
     if (t_luz > 0) px = PL_X0 + 14;

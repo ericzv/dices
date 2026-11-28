@@ -136,7 +136,8 @@ static int salao_topo(int p) { return salao_chefe(p) ? 61 : 82; }
 static int mesa_rx(int p) { return salao_chefe(p) ? 40 : 28; }
 static int mesa_ry(int p) { return salao_chefe(p) ? 11 : 10; }
 static int mesa_y(int p)  { return salao_topo(p) + RT_H * salao_esc(p) + mesa_ry(p); }
-static int rotulo_y(int p) { return mesa_y(p) + mesa_ry(p) - 2; }   // a fonte fina desce 6 px do y
+// (nas mesas comuns o rotulo desce 4 px: fica abaixo do pe torneado da mesa)
+static int rotulo_y(int p) { return mesa_y(p) + mesa_ry(p) - 2 + (salao_chefe(p) ? 0 : 4); }   // a fonte fina desce 6 px do y
 // Onde o tapete acaba: logo depois da mesa do fundo, com a franja.
 static int tapete_fim(void) { return estrado_cx() + 34; }
 
@@ -599,8 +600,9 @@ static foto_arranjo_t foto_arranjo(int x, int y, int w, int h, int n, bool amule
     f.yam = f.topo + (int)(f.r + 8 + f.ram);
     return f;
 }
+// (cidade: a run da Cobertura - a vista da cidade a noite no fundo da foto)
 static void foto_da_run(int x, int y, int w, int h, const peca_t *col, const uint8_t *tipos, int n, amul_t am,
-                        const char *legenda, float t)
+                        const char *legenda, float t, bool cidade)
 {
     int fx = x + FOTO_BORDA, fy = y + FOTO_BORDA, fw = w - 2 * FOTO_BORDA, fh = h - FOTO_BORDA - FOTO_BAIXO;
     uint16_t rm[4];
@@ -617,6 +619,29 @@ static void foto_da_run(int x, int y, int w, int h, const peca_t *col, const uin
             float q = d < 14 ? 1 - d / 14.0f : 0;
             gfx_pixel(fx + i, fy + j, bayer(fx + i, fy + j) < q ? C_FELTRO_ESC : C_FELTRO);
         }
+    if (cidade) {                                     // o ceu, as estrelas e os predios, por cima do alto do feltro
+        int ch = fh * 2 / 5;
+        for (int j = 0; j < ch; j++)
+            for (int i = 0; i < fw; i++) {
+                uint32_t r = ruido_xy(i, j + 77);
+                uint16_t c = j < ch / 2 ? RGB(14, 14, 12) : RGB(26, 34, 62);
+                if (j < ch - 8 && r % 97 == 0) c = (r >> 8) % 3 ? C_MARFIM_S : C_BRANCO;
+                gfx_pixel(fx + i, fy + j, c);
+            }
+        for (int bx = 0; bx < fw;) {                  // os predios, com as janelas acesas
+            uint32_t s = ruido_xy(bx, 5);
+            int bw = 7 + (int)(s % 9), bh = 6 + (int)((s >> 5) % (unsigned)(ch - 10));
+            for (int j = 0; j < bh; j++)
+                for (int i = 0; i < bw && bx + i < fw; i++) {
+                    uint16_t c = C_BARRA;
+                    if (i % 3 == 1 && j % 3 == 1 && j > 0 && ruido_xy(bx + i, j) % 3 == 0) c = (ruido_xy(bx, i + j) & 1) ? C_OURO : C_LATAO;
+                    gfx_pixel(fx + bx + i, fy + ch - bh + j, c);
+                }
+            bx += bw + (int)((s >> 11) % 3);
+        }
+        for (int i = 0; i < fw; i++)                  // o parapeito do terraco
+            for (int j = 0; j < 3; j++) gfx_pixel(fx + i, fy + ch + j, j == 0 ? C_ACO : j == 1 ? C_FERRO : C_CHUMBO);
+    }
     ui_contorno(fx - 1, fy - 1, fw + 2, fh + 2, C_BARRA);
     foto_arranjo_t f = foto_arranjo(fx, fy, fw, fh, n, am != 0);
     leque_da_bolsa(f.cx, f.topo, f.R, f.r, col, tipos, n, t);
@@ -666,12 +691,52 @@ static void foto_clique(float antes, float agora)          // o clique da maquin
 {
     if (des_venceu_run && antes < FOTO_FLASH && agora >= FOTO_FLASH) som_toca(SOM_TIQUE);
 }
+static void nome_na_coluna(int cx, int y, const char *s, int w, uint16_t c);
+// Quem esta na foto da run campea: um retrato grande (3x) na moldura, com o
+// nome embaixo. Voce (o avatar do perfil, contente, com a taca no canto) e o
+// chefe vencido, com a cara de derrota dele.
+static void campea_retrato(int cx, int y, int perso, bool voce, bool coringa)
+{
+    int esc = 3, w = RT_W * esc, h = RT_H * esc, x = cx - w / 2;
+    y += ui_entra(t_fase - (voce ? 0.1f : 0.25f), 0, UI_ENTRA_CARTAO);
+    uint16_t r[4];
+    ui_rampa(voce ? C_LATAO : coringa ? C_REAL : C_OURO, false, r);
+    ui_sombra(x - 3, y - 3, w + 6, h + 6);
+    ui_contorno(x - 3, y - 3, w + 6, h + 6, C_BARRA);
+    ui_aro(x - 2, y - 2, w + 4, h + 4, 2, r, UI_VIVO);
+    gfx_rect(x, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    retrato_ex = voce ? EX_ALEGRE : perso == PERSO_CORINGA ? EX_PREOCUPADA : EX_SURPRESA;   // (o Barao: o monoculo caido)
+    retrato_vencido = !voce;
+    retrato(x, y, esc, perso, t_fase + perso * 1.3f, false, 0, RT_H);
+    retrato_ex = -1; retrato_vencido = false;
+    if (voce) {                                       // a taca, no canto de baixo da moldura
+        int tx = x + w - 4, ty = y + h - 12;
+        gfx_rect(tx - 6, ty - 1, 13, 9, C_BARRA); gfx_rect(tx - 2, ty + 8, 5, 4, C_BARRA); gfx_rect(tx - 4, ty + 11, 9, 4, C_BARRA);
+        gfx_rect(tx - 8, ty + 1, 3, 5, C_BARRA); gfx_rect(tx + 6, ty + 1, 3, 5, C_BARRA);
+        gfx_rect(tx - 5, ty, 11, 3, C_OURO); gfx_rect(tx - 4, ty + 3, 9, 2, C_OURO); gfx_rect(tx - 3, ty + 5, 7, 2, C_LATAO);
+        gfx_rect(tx - 4, ty, 2, 4, C_AMARELO);
+        gfx_rect(tx - 7, ty + 2, 1, 3, C_LATAO); gfx_rect(tx + 7, ty + 2, 1, 3, C_LATAO);
+        gfx_rect(tx - 1, ty + 7, 3, 4, C_LATAO); gfx_rect(tx - 3, ty + 12, 7, 2, C_OURO);
+    }
+    const char *nome = voce ? perfil()->nome : PERSO[perso].nome;
+    nome_na_coluna(cx, y + h + 7, nome, 110, voce ? C_LATAO : C_ROSA);
+}
 static void desenha_run_campea(int n)
 {
     char s[96], leg[64];
-    txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "VITÓRIA", C_OURO, 2);
-    txt_c(GFX_W / 2, MESA_Y0 + 40, run.andar >= DES_ANDAR_FINAL ? "Você venceu O CORINGA e fechou o cassino."
-                                                                 : "Você venceu O BARÃO e fechou o cassino.", C_MARFIM, true);
+    bool coringa = run.andar >= DES_ANDAR_FINAL;
+    // Vencido o Coringa, o titulo e a moldura da foto em roxo e ouro.
+    txt_sombra_c(GFX_W / 2, MESA_Y0 + 2, "VITÓRIA", coringa ? RGB(206, 180, 218) : C_OURO, 2);
+    if (coringa) {
+        int tw = gfx_largura("VITÓRIA", 2);
+        gfx_rect(GFX_W / 2 - tw / 2 - 26, MESA_Y0 + 16, 18, 2, C_OURO); gfx_rect(GFX_W / 2 + tw / 2 + 8, MESA_Y0 + 16, 18, 2, C_OURO);
+        gfx_rect(GFX_W / 2 - tw / 2 - 34, MESA_Y0 + 14, 6, 6, C_BARRA); gfx_rect(GFX_W / 2 - tw / 2 - 33, MESA_Y0 + 15, 4, 4, C_REAL);
+        gfx_rect(GFX_W / 2 + tw / 2 + 28, MESA_Y0 + 14, 6, 6, C_BARRA); gfx_rect(GFX_W / 2 + tw / 2 + 29, MESA_Y0 + 15, 4, 4, C_REAL);
+    }
+    int chefe = coringa ? PERSO_CORINGA : dezembro ? PERSO_NOEL : PERSO_CHEFE0 + 2;
+    char fr[96];
+    snprintf(fr, sizeof fr, "Você venceu %s e fechou o cassino.", coringa ? "O CORINGA" : chefe == PERSO_NOEL ? "O PAPAI NOEL" : "O BARÃO");
+    txt_c(GFX_W / 2, MESA_Y0 + 40, fr, C_MARFIM, true);
     uint32_t d = hoje();
     snprintf(leg, sizeof leg, "Run campeã  ·  %s  ·  %02u/%02u/%04u", nome_dif(run.dificuldade),
              (unsigned)(d % 100), (unsigned)(d / 100 % 100), (unsigned)(d / 10000));
@@ -684,11 +749,22 @@ static void desenha_run_campea(int n)
         leque_da_bolsa(f.cx, f.topo, f.R, f.r, run.col, NULL, run.n_col, t_fase);
         if (t_fase > 1.0f) amuletos_fileira(f.cx, f.yam, run_amuletos(), (int)f.ram);
     } else {
-        foto_da_run(fx, fy, fw, fh, run.col, NULL, run.n_col, run_amuletos(), leg, 9);
+        if (coringa) {                                // a moldura roxa, com os cantos de ouro
+            uint16_t r[4];
+            ui_rampa(C_REAL, false, r);
+            ui_contorno(fx - 4, fy - 4, fw + 8, fh + 8, C_BARRA);
+            ui_aro(fx - 3, fy - 3, fw + 6, fh + 6, 3, r, UI_VIVO);
+            for (int k = 0; k < 4; k++) gfx_rect(k & 1 ? fx + fw - 3 : fx - 3, k & 2 ? fy + fh - 3 : fy - 3, 6, 6, C_OURO);
+        }
+        foto_da_run(fx, fy, fw, fh, run.col, NULL, run.n_col, run_amuletos(), leg, 9, run.dificuldade >= N_NIVEIS);
         float q = (t_fase - FOTO_FLASH) / 0.35f;      // o flash: a tela clareia e volta
         if (q < 1) gfx_rect_alfa(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, C_BRANCO, (int)(220 * (1 - q)));
         else txt_c(GFX_W / 2, fy + fh + 3, "a foto fica no seu histórico", C_TEXTO_M, false);
     }
+    // Gente na foto: voce de um lado, o chefe vencido do outro.
+    int col0 = MESA_X0 + 8, col1 = MESA_X1 - 8;
+    if (avatar_retrato() >= 0) campea_retrato((col0 + fx) / 2, fy + 14, avatar_retrato(), true, coringa);
+    campea_retrato((fx + fw + col1) / 2, fy + 14, chefe, false, coringa);
     if (n) nov_linha_fim(MESA_Y1 - 42);               // o que abriu vem depois, card a card
     snprintf(s, sizeof s, "%s", n ? "ENTER mostra as novidades" : "ENTER segue");
     teclas_c(GFX_W / 2, MESA_Y1 - 20, s, C_MARFIM_S);
@@ -698,6 +774,7 @@ static void desenha_fim_run(void)
 {
     ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 90);
     faixa_run(0);
+    if (des_venceu_run) desenha_confete(false);       // o papel da festa, por cima do feltro escurecido e por baixo da foto
     if (des_venceu_run) desenha_run_campea(nov_quantas());
     else desenha_run_perdida();
 }
@@ -940,13 +1017,10 @@ static void desenha_fim_partida_run(void)
                 ficha((int)fx, (int)fy, i % 3 == 0 ? C_LATAO : (i % 3 == 1 ? C_VINHO : C_MARFIM_S));
             }
     }
-    if (fala_perso >= 0 && fala_txt[0]) {                 // a ultima palavra dele, letra por letra
-        char q[80];
-        snprintf(q, sizeof q, "\"%s\"", fala_txt);
-        int x0 = GFX_W / 2 - gfx_largura(q, fonte_de(false)) / 2;
-        const char *dito = fala_dita_txt();
-        snprintf(q, sizeof q, "\"%s%s", dito, strlen(dito) == strlen(fala_txt) ? "\"" : "");
-        txt(x0, C0 - 70 + alto + 8, q, C_ROSA, false);
+    if (fala_perso >= 0 && fala_txt[0] && rcx >= 0) {     // a ultima palavra dele: o balao de sempre, saindo do retrato
+        balao_x_min = MESA_X0 + 10; balao_x_max = MESA_X1 - 10;   // (embaixo do painel; fica ate a tela fechar)
+        balao_em(rcx, C0 - 70 + alto - 3, fala_txt, fala_dita_txt(), sai_mola(fminf(1, fala_dita / 0.2f)));
+        balao_x_max = 0;
     }
 }
 

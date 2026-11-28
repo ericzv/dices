@@ -320,7 +320,7 @@ static void hist_resumo(void)
                      dt % 100, dt / 100 % 100, dt / 10000, hist.camp_moedas);
     else snprintf(s, sizeof s, "%s  ·  %d moedas", nome_dif(hist.camp_dif), hist.camp_moedas);
     amul_t am = (amul_t)hist.camp_amul | (amul_t)hist.camp_amul_x << 32;
-    foto_da_run(px, HIST_Y0 + 24, pw, HIST_H - 24, NULL, hist.camp_col, hist.camp_n, am, s, 9);   // o leque le so os primeiros
+    foto_da_run(px, HIST_Y0 + 24, pw, HIST_H - 24, NULL, hist.camp_col, hist.camp_n, am, s, 9, hist.camp_dif >= N_NIVEIS);   // o leque le so os primeiros
 }
 
 // Pagina dos dados: duas colunas, do mais usado ao menos; cada linha com o

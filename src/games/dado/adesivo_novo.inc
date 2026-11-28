@@ -493,7 +493,7 @@ static const uint16_t AN_ARCO[6] = { RGB(208, 98, 108), RGB(246, 222, 132), RGB(
 static float an_luz(int m, float x, float y, float e, float nx, float ny, float s, int X, int Y, float fase,
                     float mov, uint16_t *sobre)
 {
-    float t = t_relogio, lado = -(nx + ny) * 0.7071f;                 // 1: a beira que olha para a luz
+    float lado = -(nx + ny) * 0.7071f;                 // 1: a beira que olha para a luz
     float beira = e < 2.6f ? (1 - e / 2.6f) : 0, bisel = beira * lado;
     float g = -(x + y) * 0.16f;                                        // a luz de cima a esquerda, no adesivo todo
     uint32_t h = hash2(X + 311, Y + 97);
@@ -522,8 +522,8 @@ static float an_luz(int m, float x, float y, float e, float nx, float ny, float 
     }
     case MN_OURO: {                                // o ouro: faixas, brilhos que acendem e a luz passando
         float faixa = sinf((y * 0.8f + x * 0.45f) * 3.4f + 1.4f);
-        if ((h % 53) == 0 && sinf(t * 3.4f + (h >> 8) % 23) > 0.7f) { *sobre = C_BRANCO; return 0; }
-        float p = fr(t / 4.2f + fase), d = (x + y) * 0.7071f - (p / 0.25f * 2.8f - 1.4f);
+        if ((h % 53) == 0 && sinf(t_relogio * 3.4f + (h >> 8) % 23) > 0.7f) { *sobre = C_BRANCO; return 0; }
+        float p = fr(t_relogio / 4.2f + fase), d = (x + y) * 0.7071f - (p / 0.25f * 2.8f - 1.4f);
         if (p < 0.25f && fabsf(d) < 0.12f) { *sobre = C_BRANCO; return 0; }
         return 0.30f + faixa * 0.38f + bisel * 0.9f + g;
     }
@@ -535,15 +535,15 @@ static float an_luz(int m, float x, float y, float e, float nx, float ny, float 
         return -0.20f + (y - 0.08f) * 0.9f + bisel * 0.4f;
     }
     case MN_HOLO: {                                // o holografico: as cores correndo na diagonal, mudando com o dado
-        float f = (x * 0.7f - y) * 1.7f + t * 0.45f + mov + fase * 3;
+        float f = (x * 0.7f - y) * 1.7f + t_relogio * 0.45f + mov + fase * 3;
         int k = ((int)floorf(f * 2.2f) % 6 + 6) % 6;
         if (((X + Y) & 1) || fabsf(fr(f * 2.2f) - 0.5f) < 0.18f) *sobre = AN_ARCO[k];
-        if ((h % 31) == 0 && sinf(t * 4 + (h >> 8) % 17) > 0.6f) *sobre = C_BRANCO;
+        if ((h % 31) == 0 && sinf(t_relogio * 4 + (h >> 8) % 17) > 0.6f) *sobre = C_BRANCO;
         return 0.45f + bisel * 0.6f;
     }
     case MN_GLITTER: {                             // a purpurina fina: cada graozinho acende no seu tempo
         if ((h % 5) == 0) {
-            float b = sinf(t * 3.1f + (h >> 6) % 29);
+            float b = sinf(t_relogio * 3.1f + (h >> 6) % 29);
             if (b > 0.55f) { *sobre = (h >> 12) % 3 == 0 ? C_BRANCO : (h >> 12) % 3 == 1 ? C_AMARELO : C_ROSA; return 0; }
             return 0.33f + (b > 0 ? 0.45f : -0.35f);
         }
@@ -552,7 +552,7 @@ static float an_luz(int m, float x, float y, float e, float nx, float ny, float 
     case MN_PURPURINA: {                           // a purpurina grossa: muito grao, de muitas cores, piscando
         static const uint16_t P[5] = { RGB(252, 248, 236), RGB(246, 222, 132), RGB(226, 164, 168), RGB(168, 204, 230), RGB(206, 180, 218) };
         if ((h % 3) == 0) {
-            float b = sinf(t * 2.6f + (h >> 5) % 31);
+            float b = sinf(t_relogio * 2.6f + (h >> 5) % 31);
             if (b > 0.25f) { *sobre = P[(h >> 9) % 5]; return 0; }
             return 0.33f + (b > -0.4f ? 0.55f : -0.45f);
         }
@@ -593,7 +593,7 @@ static float an_luz(int m, float x, float y, float e, float nx, float ny, float 
     case MN_MADEIRA: return 0.33f + bisel * 0.45f + g * 0.7f + grao * 0.15f;
     case MN_LAMA: return 0.30f + bisel * 0.6f + g * 0.8f + grao * 0.3f;
     case MN_CETIM: {                               // o cetim: faixas largas e macias de brilho
-        float f = sinf((x * 0.6f + y) * 3.2f + t * 0.6f);
+        float f = sinf((x * 0.6f + y) * 3.2f + t_relogio * 0.6f);
         return 0.30f + f * 0.32f + bisel * 0.7f;
     }
     case MN_LENTE: {                               // a lente: o vidro escuro, o reflexo em arco no alto
@@ -626,7 +626,6 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
                            float mov, uint16_t cor)
 {
     const ad_novo_t *v = &AD_NOVO[a];
-    float t = t_relogio;
     uint32_t h = hash2(X + 64, Y + 64);
     switch (a) {
     case AD_CHUMBO: {                              // a alca de ferro; no peso, a chapa da frente com o friso
@@ -648,12 +647,12 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         return cor;
     }
     case AD_MIRA: {                                // a luneta: o reticulo vermelho que, de tempos em tempos, trava
-        float ro = sqrtf(x * x + y * y), trava = fr(t / 3.2f + fase), aperta = trava > 0.85f ? (trava - 0.85f) / 0.15f : 0;
+        float ro = sqrtf(x * x + y * y), trava = fr(t_relogio / 3.2f + fase), aperta = trava > 0.85f ? (trava - 0.85f) / 0.15f : 0;
         float rr = 0.50f - aperta * 0.12f;
         if (fabsf(x) > 0.86f || fabsf(y) > 0.86f) { an_mat_px = MN_METAL; return RGB(140, 150, 164); }   // as marcas de fora
         if (fabsf(ro - rr) < s * 0.7f) return v->cor2;
         if ((fabsf(x) < s * 0.6f && ro > 0.18f && ro < 0.70f) || (fabsf(y) < s * 0.6f && ro > 0.18f && ro < 0.70f)) return v->cor2;
-        if (ro < s * 1.3f) return aperta > 0 && (int)(t * 14) % 2 ? C_BRANCO : C_VERMELHO;
+        if (ro < s * 1.3f) return aperta > 0 && (int)(t_relogio * 14) % 2 ? C_BRANCO : C_VERMELHO;
         if (ro > 0.72f) { an_mat_px = MN_METAL; return RGB(104, 112, 124); }   // o aro de metal da lente
         return cor;
     }
@@ -670,7 +669,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
     }
     case AD_FERMENTO: {                            // a massa: bolhas subindo, crescendo e estourando na beira
         for (int i = 0; i < 3; i++) {
-            float c = fr(t / 2.2f + fase + i * 0.33f), bx = -0.42f + i * 0.42f + sinf(c * 6 + i) * 0.06f;
+            float c = fr(t_relogio / 2.2f + fase + i * 0.33f), bx = -0.42f + i * 0.42f + sinf(c * 6 + i) * 0.06f;
             float by = 0.55f - c * 1.05f, br = 0.05f + c * 0.14f, db = sqrtf((x - bx) * (x - bx) + (y - by) * (y - by));
             if (c > 0.92f) continue;
             if (fabsf(db - br) < s * 0.7f) return v->cor2;
@@ -745,7 +744,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
     }
     case AD_PATINHO: {                             // o patinho cinza: o bico, o olho e a asa; a agua com ondinhas
         if (parte == 1) {
-            float o = 0.05f * sinf(x * 6 + t * 1.6f + fase * 6);
+            float o = 0.05f * sinf(x * 6 + t_relogio * 1.6f + fase * 6);
             if (fr((y + o) * 5.5f + 10) < 0.16f && (X % 5) != 0) return C_BRANCO;
             return v->cor2;
         }
@@ -778,7 +777,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
     }
     case AD_LENTICULAR: {                          // as lentes em fileira: cada uma mostra uma das duas imagens, pelo angulo
         int col = (int)floorf((x + 3) / (s * 2));
-        int vira = (int)floorf(mov * 3 + sinf(t * 0.7f + fase * 6) * 1.5f);
+        int vira = (int)floorf(mov * 3 + sinf(t_relogio * 0.7f + fase * 6) * 1.5f);
         bool b = ((col + vira) & 1);
         if (fr((x + 3) / (s * 2)) < 0.5f) an_mat_px = MN_VINIL;   // o lado da lente que olha para a luz
         return b ? cor : v->cor2;
@@ -830,7 +829,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         return cor;
     }
     case AD_NEON: {                                // o tubo de luz no fundo escuro, respirando
-        float p = fr(t / 6 + fase), pulso = 0.5f + 0.5f * sinf(t * 4.2f + fase * 6.3f);
+        float p = fr(t_relogio / 6 + fase), pulso = 0.5f + 0.5f * sinf(t_relogio * 4.2f + fase * 6.3f);
         bool apaga = (p > 0.02f && p < 0.035f) || (p > 0.05f && p < 0.06f);
         if (e > 1.6f && e < 3.0f) return apaga ? C_VINHO : pulso > 0.65f && ((X + Y) & 1) ? C_BRANCO : C_ROSA;
         if (e >= 3.0f && e < 4.2f && !apaga && bayer(X, Y) < 0.3f + 0.4f * pulso) return C_VINHO_CLR;
@@ -877,7 +876,7 @@ static uint16_t an_textura(int a, int parte, float x, float y, float e, float s,
         float ro = sqrtf(x * x + y * y);
         if (ro > 0.80f) return x + y < 0 ? RGB(246, 222, 132) : RGB(150, 122, 62);
         if (ro > 0.72f) return RGB(66, 40, 24);
-        float an = 0.45f + 0.35f * sinf(t * 0.9f + fase * 6.28f), ca = cosf(an), sa = sinf(an);
+        float an = 0.45f + 0.35f * sinf(t_relogio * 0.9f + fase * 6.28f), ca = cosf(an), sa = sinf(an);
         float u = x * ca + y * sa, vv = -x * sa + y * ca;           // vv: ao longo da agulha
         if (fabsf(u) / 0.16f + fabsf(vv) / 0.62f < 1) return vv < 0 ? C_VERMELHO : RGB(56, 62, 74);   // o sul em aco
         if (fabsf(u) / (0.16f + s * 1.1f) + fabsf(vv) / (0.62f + s * 1.1f) < 1) return RGB(36, 32, 29);  // o contorno

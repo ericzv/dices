@@ -1423,21 +1423,111 @@ static void mesa_em_movimento(void)
     venc_partida = 2;
     CONFERE(!strcmp(fim_letreiro(), "EMPATE"), "o letreiro do empate");
 
-    // A linha de aposta sai no fim e volta depois so trocando os pontos dela
-    // na mesa pronta (sem repintar a mesa).
+    // A estampa do feltro (as casas das filas, o lugar do pote e o brasao):
+    // cada marca so com o lugar dela livre, nada fora da partida, e a mesa
+    // pronta nunca e mexida (a estampa vai numa copia).
     {
         static uint16_t antes[GFX_W * GFX_H];
-        int fs = fase;
-        fase = F_ORDEM; mesa_feita = false; mesa();
+        int fs = fase, vz = vez, bx = baixo, md = modo, cp = cpu, feltro0 = estilo_feltro, mesa0 = estilo_mesa;
+        float tr = t_relogio, ta = t_anuncio;
+        modo = M_DOIS; cpu = 0; baixo = 0; vez = 0; t_anuncio = 0;
+        aplica_estilo(FT_VERDE, MS_NOGUEIRA);
+        fase = F_ABERTURA; mesa_feita = false; mesa();
         memcpy(antes, mesa_pronta, sizeof antes);
-        CONFERE(linha_n > 300 && !linha_tirada, "a mesa pintada tem a linha de aposta (%d pontos)", linha_n);
-        int dif = 0;
-        fase = F_FIM; mesa();
-        for (int k = 0; k < linha_n; k++) dif += mesa_pronta[linha_pos[k]] != antes[linha_pos[k]];
-        CONFERE(linha_tirada && mesa_feita && dif > linha_n / 2, "no fim da partida a linha sai sem repintar (%d pontos mudaram)", dif);
-        fase = F_ORDEM; mesa();
-        CONFERE(!linha_tirada && !memcmp(antes, mesa_pronta, sizeof antes), "a linha volta igual depois do fim");
-        fase = fs;
+        // (um pixel de cada marca: a cantoneira da primeira casa de cada fila, o aro do pote, a ponta do losango)
+        const int m = R_DADO + 6;
+        int casa_c = (LINHA_CIMA - m) * GFX_W + SLOT_X(0) - m, casa_b = (LINHA_BAIXO - m) * GFX_W + SLOT_X(0) - m;
+        int pote_i = (CENTRO + 10) * GFX_W + POTE_X + 11, brasao_i = CENTRO * GFX_W + GFX_W / 2 - 40;
+        #define ESTAMPA_EM(f) (fase = (f), mesa_estampa(), t_relogio = fmodf(t_relogio + 2 * ESTAMPA_T, 900), mesa_estampa())
+        const uint16_t *e = ESTAMPA_EM(F_ABERTURA);
+        CONFERE(e == mesa_pronta, "estampa: fora da partida (o menu), a mesa pronta sem nada");
+        e = ESTAMPA_EM(F_ROLANDO);
+        CONFERE(e != mesa_pronta && e[casa_c] != antes[casa_c] && e[casa_b] != antes[casa_b] && e[pote_i] != antes[pote_i]
+                && e[brasao_i] != antes[brasao_i], "estampa: os dados rolando, as casas das duas filas, o lugar do pote e o brasao");
+        int marcados = 0;
+        for (int i = 0; i < GFX_W * GFX_H; i++) marcados += e[i] != antes[i];
+        CONFERE(marcados > 300 && marcados < 2500, "estampa: so uns pontos do feltro (%d)", marcados);
+        CONFERE(!memcmp(antes, mesa_pronta, sizeof antes), "estampa: a mesa pronta fica como foi pintada");
+        e = ESTAMPA_EM(F_APOSTA);
+        CONFERE(e[brasao_i] == antes[brasao_i] && e[casa_c] != antes[casa_c] && e[pote_i] != antes[pote_i],
+                "estampa: na aposta (texto e botoes no meio) o brasao sai; as casas e o pote ficam");
+        e = ESTAMPA_EM(F_JOGA);
+        CONFERE(e[brasao_i] == antes[brasao_i], "estampa: com o menu de quem joga no meio, sem brasao");
+        cpu = 1;                                 // a maquina joga com a mesa limpa
+        e = ESTAMPA_EM(F_JOGA);
+        CONFERE(anuncia_maquina() && e[brasao_i] != antes[brasao_i], "estampa: a maquina jogando (sem menu), o brasao fica");
+        cpu = 0;
+        e = ESTAMPA_EM(F_ORDEM);
+        CONFERE(e[casa_b] == antes[casa_b] && e[casa_c] != antes[casa_c] && e[brasao_i] == antes[brasao_i],
+                "estampa: montando, as casas somem da linha de quem monta (a de baixo) e ficam na outra");
+        vez = 1;
+        e = ESTAMPA_EM(F_ORDEM);
+        CONFERE(e[casa_c] == antes[casa_c] && e[casa_b] != antes[casa_b], "estampa: e da de cima, quando quem monta e o de cima");
+        vez = 0;
+        fase = F_ROLANDO; mesa_estampa(); t_relogio = fmodf(t_relogio + 2 * ESTAMPA_T, 900); mesa_estampa();
+        fase = F_APOSTA; mesa_estampa(); t_relogio += ESTAMPA_T / 2;
+        e = mesa_estampa();
+        int meio = 0, cheio = 0;
+        for (int x = GFX_W / 2 - 40; x <= GFX_W / 2 + 40; x++)
+            for (int y = CENTRO - 20; y <= CENTRO + 20; y++) meio += e[y * GFX_W + x] != antes[y * GFX_W + x];
+        t_relogio += 2 * ESTAMPA_T;
+        e = ESTAMPA_EM(F_ROLANDO);
+        for (int x = GFX_W / 2 - 40; x <= GFX_W / 2 + 40; x++)
+            for (int y = CENTRO - 20; y <= CENTRO + 20; y++) cheio += e[y * GFX_W + x] != antes[y * GFX_W + x];
+        CONFERE(meio > cheio / 5 && meio < cheio * 4 / 5, "estampa: o brasao sai no pontilhado (%d de %d pontos no meio do caminho)", meio, cheio);
+        for (int f = F_PREMIO; f <= F_LOJA; f++) {
+            if (f != F_PREMIO && f != F_FIM && f != F_LOJA) continue;
+            e = ESTAMPA_EM(f);
+            CONFERE(e == mesa_pronta, "estampa: nada no premio, no fim da partida nem na loja (fase %d)", f);
+        }
+        aplica_estilo(FT_GALAXIA, MS_NOGUEIRA);  // um feltro com desenho proprio no meio
+        fase = F_ROLANDO; mesa_feita = false; mesa();
+        memcpy(antes, mesa_pronta, sizeof antes);
+        e = ESTAMPA_EM(F_ROLANDO);
+        CONFERE(e[casa_c] != antes[casa_c] && e[brasao_i] == antes[brasao_i], "estampa: no feltro Galaxia, as casas sim, o brasao nao");
+        #undef ESTAMPA_EM
+        aplica_estilo(feltro0, mesa0);
+        fase = F_ABERTURA; mesa_estampa(); t_relogio = fmodf(t_relogio + 2 * ESTAMPA_T, 900); mesa_estampa();
+        fase = fs; vez = vz; baixo = bx; modo = md; cpu = cp; t_relogio = tr; t_anuncio = ta;
+        mesa_feita = false;
+    }
+
+    // O lance da aposta: a etiqueta guarda o botao apertado, fica enquanto a
+    // aposta durar, some depois, nao entra na coluna do pote e da a vez ao
+    // numero que sobe do placar.
+    {
+        int fs = fase, md = modo, cp = cpu, bx = baixo;
+        modo = M_DOIS; cpu = 0; baixo = 0;
+        lance_marca(0, OP_APOSTAR25, "apostou %d", 25);
+        lance_marca(1, OP_PASSAR, "passou", 0);
+        CONFERE(lance_op[0] == OP_APOSTAR25 && lance_op[1] == OP_PASSAR && !strcmp(lance_txt[0], "apostou 25") && t_lance[1] == LANCE_T,
+                "lance: a etiqueta guarda o texto e o botao apertado");
+        fase = F_APOSTA;
+        for (int i = 0; i < 300; i++) dado_passo(1 / 60.0f);
+        CONFERE(fase == F_APOSTA && t_lance[0] > 0 && t_lance[0] <= LANCE_FICA && t_lance[1] > 0,
+                "lance: fica enquanto a aposta durar (%.2f depois de 5 s)", t_lance[0]);
+        for (int j = 0; j < 2; j++) {
+            int x, y, w;
+            lance_caixa(j, &x, &y, &w);
+            CONFERE(x + w <= PLACAR_X + 32 && x + w < POTE_X - 12, "lance: a etiqueta de %d nao entra na coluna do pote (vai ate %d)", j, x + w);
+            CONFERE(j == baixo ? y + LANCE_H <= zona(j) - 24 + 2 : y >= zona(j) + 24 - 2, "lance: presa na beira de dentro do placar de %d (y %d)", j, y);
+        }
+        int x, y, w;
+        lance_caixa(0, &x, &y, &w);
+        n_flut = 0;
+        CONFERE(!lance_sob_numero(x, y, w), "lance: sem numero subindo, a etiqueta aparece");
+        flutua(PLACAR_X, zona(0) - 30, -1, C_OURO, 0, "+%d", 4);
+        CONFERE(n_flut == 1 && lance_sob_numero(x, y, w), "lance: o numero que sobe do placar passa na frente");
+        flut[0].atraso = 0.5f;
+        CONFERE(!lance_sob_numero(x, y, w), "lance: o numero que ainda nao saiu nao esconde a etiqueta");
+        n_flut = 0;
+        flutua(SLOT_X(0), zona(0) - R_DADO - 10, -1, C_OURO, 0, "+%d", 4);
+        CONFERE(!lance_sob_numero(x, y, w), "lance: o numero de um dado longe dela nao a esconde");
+        n_flut = 0;
+        fase = F_FIM;
+        for (int i = 0; i < 60; i++) dado_passo(1 / 60.0f);
+        CONFERE(t_lance[0] <= 0 && t_lance[1] <= 0, "lance: acabada a aposta, a etiqueta some (%.2f)", t_lance[0]);
+        fase = fs; modo = md; cpu = cp; baixo = bx;
     }
 
     // O dado escolhido voa da mao para o lugar (e volta): nunca nos dois.

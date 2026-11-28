@@ -1297,6 +1297,244 @@ static void sala10(const sala_t *S)                              // cobertura: o
     frente(S, 2, false);
 }
 
+// ---- A gente do salao (o mapa) -------------------------------------------------
+// As mesmas silhuetas do predio, maiores (uma vez e meia: 24 px viram 36),
+// para o salao de frente do mapa: o corpo em retangulos e os bracos em dois
+// pedacos como em pessoa(), cada medida multiplicada e arredondada pela beira
+// (nada e ampliado: o pixel continua do tamanho dos outros). gm_x/gm_y: onde
+// ficou cada mao (0 a esquerda, 1 a direita), para o copo e a bandeja.
+#define GENTE_K 1.5f
+#define GENTE_H 36                       // a altura de uma pessoa (24 * GENTE_K)
+static int gm_x[2], gm_y[2];
+static int gq(float v) { return (int)lroundf(v * GENTE_K); }
+static void g_r(int cx, int top, float a, float b, float w, float h, uint16_t m)
+{
+    int x0 = cx + gq(a), x1 = cx + gq(a + w), y0 = top + gq(b), y1 = top + gq(b + h);
+    f_r(x0, y0, x1 - x0, y1 - y0, m);
+}
+// As marcas viram a silhueta, em tres tons escuros (tom[0] o corpo, [1] a
+// roupa, [2] o chapeu e o cabelo), e a luz de contorno so do lado da mesa
+// acesa (lx) - cheia na cabeca e nos ombros (ate y_ombro), interrompida no
+// tronco e nos bracos, nenhuma nas pernas (de y_perna para baixo): duas
+// pernas contornadas viravam palitos. Do lado da sombra, com sombra_borda (no
+// salao escuro), um filete um tom acima do corpo fecha a forma: sem ele a
+// silhueta sumia na parede preta.
+static void g_fim(const uint16_t tom[3], uint16_t borda, uint16_t sombra_borda, int lx, int y_ombro, int y_perna)
+{
+    if (fbx1 < fbx0) return;
+    int w = fbx1 - fbx0 + 1, h = fby1 - fby0 + 1;
+    if (w > 96) w = 96;
+    if (h > 96) h = 96;
+    int meio = (fbx0 + fbx1) / 2, sx = lx < meio ? -1 : 1;
+#define G_FORA(p) ((p) != MARCA && (p) != MARCA2 && (p) != MARCA3)
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            int x = fbx0 + i, y = fby0 + j;
+            uint16_t p = pega(x, y);
+            uint8_t k = p == MARCA ? 1 : p == MARCA2 ? 2 : p == MARCA3 ? 3 : 0;
+            if (k && y < y_perna) {
+                bool fora_h = G_FORA(pega(x + sx, y)), fora_v = y <= y_ombro && G_FORA(pega(x, y - 1));
+                if (fora_h && (y <= y_ombro || (x + y * 2) % 5 != 0)) k += 4;
+                else if (fora_v && (sx > 0 ? x >= meio - 1 : x <= meio + 1)) k += 4;   // o alto, so a metade do lado da luz
+            }
+            if (k && k < 4 && sombra_borda && (G_FORA(pega(x - sx, y)) || G_FORA(pega(x, y - 1)))) k = 8;   // a beira do lado da sombra
+            f_tipo[j * 96 + i] = k;
+        }
+#undef G_FORA
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            uint8_t k = f_tipo[j * 96 + i];
+            if (k) px(fbx0 + i, fby0 + j, k == 8 ? sombra_borda : k >= 4 ? borda : tom[k - 1]);
+        }
+    fbx0 = fby0 = 9999; fbx1 = fby1 = -1;
+}
+// Uma pessoa do salao, de pe em (cx, yF). claro: o fundo atras dela e escuro
+// (os tons sobem um degrau e a beira da sombra fecha a forma).
+static void gente(int cx, int yF, pes_t p, uint16_t borda, bool claro, int lx, float t)
+{
+    static const uint16_t TOM[2][3] = { { K_EB, K_EB2, K_PLACA }, { K_EB2, K_EB2, K_EB } };
+    int resp = ((int)(t * 1.1f + cx * 0.37f)) % 2;                 // a respiracao: o ombro sobe 1 px
+    int top = yF - GENTE_H;
+    int dir = p.dir ? p.dir : 1;
+    sombra_pe(cx, yF, gq(11));
+    if (p.roupa == R_VESTIDO) {                                    // a saia abrindo ate o chao
+        for (int k = 0; k < gq(10); k++) {
+            int abre = k * 2 / gq(3);
+            f_r(cx - gq(2) - abre / 2, top + gq(13) + k, gq(5) + abre, 1, MARCA2);
+        }
+        g_r(cx, top, -2, 23.3f, 1.4f, 0.7f, MARCA); g_r(cx, top, 1, 23.3f, 1.4f, 0.7f, MARCA);
+    } else {
+        g_r(cx, top, -2, 14, 2, 10, MARCA); g_r(cx, top, 1, 14, 2, 10, MARCA);
+        g_r(cx, top, -2.3f, 23.3f, 2.6f, 0.7f, MARCA); g_r(cx, top, 1, 23.3f, 2.6f, 0.7f, MARCA);   // os sapatos
+        if (p.roupa == R_BERMUDA) g_r(cx, top, -2, 14, 5, 4, MARCA2);
+    }
+    uint16_t tr = p.roupa == R_BERMUDA ? MARCA : MARCA2;           // o tronco: ombros de 7, cintura de 5
+    f_r(cx + gq(-3), top + gq(6) + resp, gq(4) - gq(-3), gq(8) - gq(6), tr);
+    g_r(cx, top, -3, 8, 6 + (p.barriga ? 2 : 0), 3, tr);
+    g_r(cx, top, -2, 11, 5 + (p.barriga ? 2 : 0), 3, tr);
+    if (p.roupa == R_CAUDA) g_r(cx, top, dir > 0 ? -4 : 2, 13, 3, 6, MARCA2);
+    if (p.roupa == R_COLETE) g_r(cx, top, -1, 7, 3, 6, MARCA);
+    f_r(cx - 1, top + 8, 3, 1, MARCA);                             // o pescoco
+    f_r(cx - 2, top, 5, 1, MARCA); f_r(cx - 3, top + 1, 7, 1, MARCA); f_r(cx - 4, top + 2, 9, 4, MARCA);   // a cabeca: 9 x 8, redonda
+    f_r(cx - 3, top + 6, 7, 1, MARCA); f_r(cx - 2, top + 7, 5, 1, MARCA);
+    switch (p.cab) {                                               // o chapeu e o cabelo, na medida da cabeca de 9
+    case C_CARTOLA: f_r(cx - 3, top - 6, 7, 6, MARCA3); f_r(cx - 5, top, 11, 1, MARCA3); break;
+    case C_FEDORA:  f_r(cx - 3, top - 3, 7, 3, MARCA3); f_r(cx - 2, top - 4, 5, 1, MARCA3); f_r(cx - 6, top, 13, 1, MARCA3); break;
+    case C_COQUE:   f_r(cx - 3, top, 7, 1, MARCA3); f_r(cx - 4, top + 1, 9, 2, MARCA3); f_r(cx - dir * 4 - 2, top - 3, 4, 4, MARCA3); break;
+    case C_BONE:    f_r(cx - 3, top - 1, 7, 1, MARCA3); f_r(cx - 4, top, 9, 2, MARCA3); f_r(dir > 0 ? cx + 4 : cx - 8, top + 1, 5, 1, MARCA3); break;
+    case C_COCO:    f_r(cx - 2, top - 3, 5, 1, MARCA3); f_r(cx - 3, top - 2, 7, 2, MARCA3); f_r(cx - 5, top, 11, 1, MARCA3); break;
+    case C_RABO:    f_r(cx - 3, top, 7, 1, MARCA3); f_r(cx - 4, top + 1, 9, 2, MARCA3);
+                    f_r(cx - dir * 5 - 1, top + 2, 3, 3, MARCA3); f_r(cx - dir * 6 - 1, top + 4, 3, 6, MARCA3); break;
+    case C_CHEIO:   f_r(cx - 3, top - 1, 7, 1, MARCA3); f_r(cx - 4, top, 9, 3, MARCA3); f_r(cx - 5, top + 1, 2, 4, MARCA3); f_r(cx + 4, top + 1, 2, 4, MARCA3); break;
+    default: break;
+    }
+    for (int s = -1; s <= 1; s += 2) {                             // os bracos
+        float o = s < 0 ? p.oe : p.od, c = s < 0 ? p.ce : p.cd;
+        int sx = cx + (s < 0 ? gq(-3) + 1 : gq(4) - 2), sy = top + gq(7) + resp;
+        int ex = sx + (int)lroundf(sinf(o) * gq(5) * s), ey = sy + (int)lroundf(cosf(o) * gq(5));
+        int hx = ex + (int)lroundf(sinf(o + c) * gq(5) * s), hy = ey + (int)lroundf(cosf(o + c) * gq(5));
+        f_l(sx, sy, ex, ey, 3, tr);
+        f_l(ex, ey, hx, hy, 2, p.roupa == R_BERMUDA ? MARCA : tr);
+        f_r(hx - 1, hy - 1, 2, 2, MARCA);
+        gm_x[s > 0] = hx; gm_y[s > 0] = hy;
+    }
+    g_fim(TOM[claro], borda, claro ? K_PARDO : 0, lx, top + gq(9), yF - gq(10));
+    switch (p.ac) {                                                // o toque de cor
+    case AC_GRAVATA: gfx_rect(cx, top + gq(6), 1, gq(4), p.cor); gfx_rect(cx - 1, top + gq(6), 3, 1, p.cor); break;
+    case AC_COLAR:   hl(cx - 2, top + gq(6), 5, p.cor); px(cx, top + gq(6) + 1, p.cor); break;
+    case AC_FLOR:    gfx_rect(cx - 3 * dir - (dir < 0), top + gq(8), 2, 2, p.cor); break;
+    case AC_LENCO:   hl(cx - 3 * dir - 1, top + gq(8), 3, p.cor); break;
+    default: break;
+    }
+}
+// O copo na mao (maior, como a gente): o vidro, a bebida e o brilho.
+static void copo_g(int x, int y, uint16_t liq)
+{
+    gfx_rect(x, y, 4, 5, K_MARF3);
+    gfx_rect(x + 1, y + 1, 2, 3, liq);
+    px(x, y, K_MARF2); px(x + 1, y + 1, acima(liq));
+}
+// O lugar de um grupo de larg px num vao: o trecho livre mais comprido (sem
+// peca de pe no chao: cen_oc; em dezembro, sem o pinheiro junto da porta),
+// com 2 px de folga das pontas. Devolve o meio dele, ou, com junto_x0, o
+// comeco do primeiro trecho onde o grupo cabe (o porteiro, perto da porta).
+// -1: nao cabe.
+static int gente_lugar(const vao_t *v, int larg, bool junto_x0)
+{
+    int melhor = -1, tam = 0, ini = -1;
+    for (int x = v->x0 + 2; x <= v->x1 - 2; x++) {
+        bool livre = x < v->x1 - 2 && x >= CH_X0 && x < CH_X1 && !cen_oc[x - CH_X0]
+                  && !(dezembro && x >= FR_PX1 + 3 && x <= FR_PX1 + 27);
+        if (livre) { if (ini < 0) ini = x; continue; }
+        if (ini >= 0 && x - ini >= larg) {
+            if (junto_x0) return ini + larg / 2;
+            if (x - ini > tam) { tam = x - ini; melhor = (ini + x) / 2; }
+        }
+        ini = -1;
+    }
+    return melhor;
+}
+// A luz de contorno de quem fica em cx: a cor (mais viva perto da mesa acesa
+// mais proxima, por jogar) e de que lado ela vem (*lx).
+static uint16_t gente_luz(int cx, int *lx)
+{
+    *lx = -1;
+    for (int p = run.passo, n = mesas_do_salao(); p < n; p++)
+        if (luz_mesa(p) && (*lx < 0 || abs(salao_x(p) - cx) < abs(*lx - cx))) *lx = salao_x(p);
+    if (*lx < 0) { *lx = cx; return K_EB2; }
+    return abs(*lx - cx) < 150 ? K_LAT2 : K_LAT0;
+}
+#define GENTE_ESCURO 46                  // a media do fundo (0 a 255) abaixo da qual a silhueta sobe um tom
+// O fundo atras de quem fica de pe em (cx, yF) e escuro? Pelo tom pintado do
+// cenario (sem a luz das mesas, que pulsa: a silhueta nao pode trocar de tom
+// de um quadro para o outro).
+static bool gente_no_escuro(int cx, int yF)
+{
+    int soma = 0, n = 0;
+    for (int y = yF - GENTE_H; y < yF; y += 3)
+        for (int x = cx - 5; x <= cx + 5; x += 2) {
+            int m = cm_de(x, y);
+            if (m < 0) continue;
+            int t = cen_t[y - CH_Y0][x - CH_X0] + 1;               // (+1: a luz de base do salao)
+            uint16_t c = CEN_RAMPA[m][t > CEN_TETO[m] ? CEN_TETO[m] : t];
+            soma += ((c >> 11) * 8 * 3 + (c >> 5 & 63) * 4 * 6 + (c & 31) * 8) / 10;
+            n++;
+        }
+    return n && soma / n < GENTE_ESCURO;
+}
+// Quem esta no salao, ao fundo, nos vaos entre as mesas (os mesmos da
+// decoracao da parede): o porteiro junto da porta, um par conversando de
+// copo na mao, o garcom com a bandeja, alguem sozinho olhando o relogio. A
+// roupa segue o andar - bone e bermuda embaixo, terno e chapeu no meio,
+// cartola e casaca no alto. Tudo em silhueta escura, com a luz de contorno
+// do lado da mesa acesa mais perto; mexem pouco e devagar. Ninguem para na
+// frente de uma peca de pe no chao, nem dentro da moldura do cursor (os vaos
+// ja ficam fora dela).
+static void salao_gente(void)
+{
+    if (fr_coringa()) return;                                      // o Coringa espera sozinho
+    vao_t v[DES_PASSOS + 2];
+    int nv = fr_vaos(v), d = run.dificuldade, n = mesas_do_salao();
+    float t = t_fase;
+    int nivel = d <= 2 ? 0 : d <= 6 ? 1 : 2;
+    static const int CAB_H[3][3] = { { C_BONE, C_CHEIO, C_CARECA }, { C_FEDORA, C_COCO, C_CHEIO }, { C_CARTOLA, C_FEDORA, C_CARECA } };
+    static const int ROUPA_H[3][3] = { { R_BERMUDA, R_COLETE, R_TERNO }, { R_TERNO, R_COLETE, R_TERNO }, { R_CAUDA, R_TERNO, R_CAUDA } };
+    static const int CAB_M[3] = { C_RABO, C_COQUE, C_COQUE };
+    uint16_t toque = gfx_na_paleta(COR_SALAO[run.andar < DES_ANDARES ? run.andar : 0]);
+    for (int i = 0; i < nv; i++) {
+        uint32_t h = hsh(d * 7 + run.andar * 3 + 1, i * 5 + 2);
+        int viz = i < n - 1 ? i : n - 2;                           // o chao, na linha dos pes das cadeiras das mesas vizinhas
+        if (viz < 0) viz = 0;
+        int yF = mesa_y(viz) + 21;
+        if (i == 0) {                                              // o porteiro, de frente, as maos para tras
+            int cx = gente_lugar(&v[i], 20, true);
+            if (cx < 0) continue;
+            pes_t po = P(0.25f, 0.25f);
+            po.ce = po.cd = -0.7f; po.roupa = nivel == 2 ? R_CAUDA : R_TERNO; po.cab = nivel == 0 ? C_CARECA : nivel == 1 ? C_COCO : C_CARTOLA;
+            po.ac = AC_GRAVATA; po.cor = toque; po.barriga = 1;
+            int lx; uint16_t borda = gente_luz(cx, &lx);
+            gente(cx + 1, yF, po, borda, gente_no_escuro(cx, yF), lx, t);
+            continue;
+        }
+        int cx = gente_lugar(&v[i], 48, false), tipo = (int)(h % 2);   // largo: o par, ou o garcom com um fregues
+        if (cx < 0) { cx = gente_lugar(&v[i], 24, false); tipo = 2 + (int)(h >> 3) % 2; }   // estreito: um so
+        if (cx < 0) continue;
+        int lx; uint16_t borda = gente_luz(cx, &lx);
+        bool claro = gente_no_escuro(cx, yF);
+        if (tipo == 0 || tipo == 1) {                              // o par: ele bebe, ela conta um caso
+            int ax = cx - 11, bx = cx + 12;
+            float gole = fmodf(t + i * 1.7f, 6.5f);                // um gole de vez em quando
+            bool bebe = gole > 5.2f && gole < 6.1f;
+            pes_t a = P(bebe ? 2.2f : 0.75f, 0.1f);                // o copo na mao de fora
+            a.ce = bebe ? 1.7f : 1.35f; a.dir = 1; a.cab = CAB_H[nivel][h >> 5 & 1]; a.roupa = ROUPA_H[nivel][h >> 5 & 1];
+            a.ac = nivel ? AC_LENCO : AC_NADA; a.cor = K_MARF2;
+            float fala = fmodf(t * 0.9f + i, 4.0f);
+            pes_t b = P(0.12f, fala < 1.6f ? 1.5f + 0.35f * sinf(t * 5.5f) : 0.5f);
+            b.cd = fala < 1.6f ? 1.2f : 0.5f; b.dir = -1; b.cab = CAB_M[nivel]; b.roupa = R_VESTIDO; b.ac = AC_COLAR; b.cor = toque;
+            if (tipo == 1) {                                       // ou o garcom servindo: a bandeja no alto
+                b = P(0.12f, 2.75f); b.cd = 0.25f; b.dir = -1; b.roupa = R_COLETE; b.cab = C_CHEIO; b.ac = AC_GRAVATA; b.cor = toque;
+            }
+            gente(ax, yF, a, borda, claro, lx, t);
+            copo_g(gm_x[0] - 2, gm_y[0] - 5, nivel == 2 ? K_LAT4 : nivel ? K_VIN2 : K_LAT2);
+            gente(bx, yF, b, borda, claro, lx, t + 0.5f);
+            if (tipo == 1) {
+                int by = gm_y[1] - 2, bxm = gm_x[1];
+                gfx_rect(bxm - 6, by, 12, 1, K_PRATA); gfx_rect(bxm - 5, by + 1, 10, 1, K_FERRO);
+                copo_g(bxm - 5, by - 5, K_LAT4); copo_g(bxm + 1, by - 5, K_VIN2);
+            }
+        } else {                                                   // sozinho: olha o relogio, ou so espera
+            float olha = fmodf(t + i * 2.3f, 7.0f);
+            bool rel = tipo == 2 && olha > 5.4f && olha < 6.6f;
+            pes_t a = P(rel ? 1.2f : 0.2f, 0.2f);
+            a.ce = rel ? 1.9f : 0.3f; a.cd = 0.3f; a.dir = h & 64 ? 1 : -1;
+            if (tipo == 3) { a.roupa = R_VESTIDO; a.cab = CAB_M[nivel]; a.ac = AC_COLAR; a.cor = toque; a.od = 1.4f; a.cd = 1.1f; }
+            else { a.cab = CAB_H[nivel][2 - (h >> 7 & 1)]; a.roupa = ROUPA_H[nivel][1]; a.ac = AC_GRAVATA; a.cor = toque; }
+            gente(cx, yF, a, borda, claro, lx, t);
+            if (tipo == 3) copo_g(gm_x[1] - 1, gm_y[1] - 5, K_VIN2);
+        }
+    }
+}
+
 static uint16_t luz_andar(int d)
 {
     static const uint16_t L[N_NIVEIS + 1] = { RGB(204, 194, 172), RGB(190, 156, 86), RGB(238, 162, 74), RGB(168, 204, 230),
@@ -1339,4 +1577,178 @@ static void sala_g(int d, int x, int y, int w, int h, float t, bool aceso)
     }
     if (!aceso) ui_escurece(x, y, w, h, 90);
     if (andar_fechado) { ui_escurece(x, y, w, h, 150); sala_vazia = false; }
+}
+
+// ---- Os creditos ---------------------------------------------------------------
+// So depois de vencer uma run. Uma coluna comprida que sobe devagar pelo
+// feltro escurecido: o titulo, os textos e, entre um bloco e outro, o que o
+// jogo tem para mostrar - dados girando em fila, salas do predio com a gente
+// em silhueta (o bar, o piano com a cantora, o sax, a cobertura), figurantes
+// brindando e oponentes no porta-retrato dizendo a frase deles no balao. As
+// beiras de cima e de baixo somem no pontilhado; no fim, "Obrigado por
+// jogar." para no meio da mesa. ENTER (ou o botao do controle) sai a
+// qualquer hora.
+#define CR_VEL   30.0f                   // pixels por segundo
+#define CR_SALA_H 66
+static uint16_t cr_fundo[GFX_W * GFX_H];
+static int cr_perso(const char *nome)
+{
+    for (int p = 0; p < N_PERSO; p++) if (!strcmp(PERSO[p].nome, nome)) return p;
+    return 0;
+}
+// Um dado da fila dos creditos: gira um pouco, pula na vez dele e mostra um numero.
+static void cr_dado(int x, int y, int tipo, int i, float t)
+{
+    float f = fmodf(t * 0.9f + i * 0.21f, 2.4f);
+    float pulo = f < 0.5f ? sinf(f / 0.5f * 3.1416f) : 0;
+    int lados = TIPO[tipo].lados > 0 ? TIPO[tipo].lados : 6;
+    int v = 1 + ((int)(t * 0.9f + i * 0.21f) * 5 + i * 3) % lados;   // um numero novo a cada pulo
+    desenha_dado((float)x, y - pulo * 9, 15, tipo, 0, pulo > 0 ? (f / 0.5f) * 6.2832f : 0, v, 2, false);
+}
+static void cr_dados(int y, const uint8_t *tipos, int n, float t)
+{
+    if (y < MESA_Y0 - 30 || y > MESA_Y1 + 30) return;
+    for (int i = 0; i < n; i++) cr_dado(GFX_W / 2 + (2 * i - (n - 1)) * 27, y, tipos[i], i, t);
+}
+// Uma sala do predio, na moldura de latao, com o nome do andar embaixo.
+static void cr_sala(int x, int y, int d, float t)
+{
+    if (y < MESA_Y0 - CR_SALA_H - 20 || y > MESA_Y1 + 4) return;
+    uint16_t r[4];
+    ui_rampa(C_LATAO, false, r);
+    ui_sombra(x - 3, y - 3, 128 + 6, CR_SALA_H + 6);
+    sala_g(d, x, y, 128, CR_SALA_H, t, true);
+    ui_contorno(x - 3, y - 3, 128 + 6, CR_SALA_H + 6, C_BARRA);
+    ui_aro(x - 2, y - 2, 128 + 4, CR_SALA_H + 4, 2, r, UI_VIVO);
+}
+// Um oponente no porta-retrato, com a frase dele saindo no balao (as letras
+// uma a uma desde que ele entrou na mesa; a boca mexe enquanto saem).
+static void cr_fala(int x, int y, int perso, const char *frase, float t, bool balao_esq)
+{
+    if (y < MESA_Y0 - 90 || y > MESA_Y1 + 4) return;
+    int esc = 2, w = RT_W * esc, h = RT_H * esc;
+    uint16_t r[4];
+    ui_rampa(perso_chefe(perso) ? C_OURO : C_LATAO, false, r);
+    ui_sombra(x - 3, y - 3, w + 6, h + 6);
+    ui_contorno(x - 3, y - 3, w + 6, h + 6, C_BARRA);
+    ui_aro(x - 2, y - 2, w + 4, h + 4, 2, r, UI_VIVO);
+    gfx_rect(x, y, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
+    float e = (MESA_Y1 - 50 - y) / CR_VEL;                       // ha quanto tempo passou da beira de baixo
+    int n = 0, total = 0;
+    for (const char *q = frase; *q; q++) total += (*q & 0xC0) != 0x80;
+    int ditas = e <= 0 ? 0 : (int)(e * 22);
+    bool falando = ditas > 0 && ditas < total;
+    retrato(x, y, esc, perso, t + perso * 1.3f, falando, 0, RT_H);
+    txt_c(x + w / 2, y + h + 5, PERSO[perso].nome, perso_chefe(perso) ? C_OURO : C_ROSA, false);
+    if (ditas <= 0) return;
+    char dito[96];
+    const char *q = frase;
+    int k = 0;
+    while (*q && n < ditas && k < (int)sizeof dito - 5) {
+        dito[k++] = *q++;
+        while ((*q & 0xC0) == 0x80) dito[k++] = *q++;
+        n++;
+    }
+    dito[k] = 0;
+    int bw = gfx_largura(frase, 1) + 16;
+    float qb = fminf(1, e / 0.2f);
+    if (balao_esq) {                                             // o balao a esquerda dele: o bico encosta na moldura
+        int bx = x - 8 - bw, by = y + 14;
+        ui_sombra(bx, by, bw, TXT_H + 8);
+        gfx_rect(bx + 1, by + 1, bw - 2, TXT_H + 6, C_MARFIM);
+        ui_contorno(bx, by, bw, TXT_H + 8, C_BARRA);
+        gfx_rect(bx + 2, by + TXT_H + 6, bw - 4, 1, C_MARFIM_S);
+        for (int j = 0; j < 5; j++) { gfx_rect(bx + bw - 1, by + 8 + j, 5 - j, 1, C_MARFIM); gfx_pixel(bx + bw - 1 + 5 - j, by + 8 + j, C_BARRA); }
+        gfx_rect(bx + bw - 1, by + 7, 6, 1, C_BARRA);
+        txt(bx + 8, by + 3, dito, C_EBANO, false);
+    } else balao_em(x + w + 14, y + 12, frase, dito, sai_mola(qb));
+}
+// Dois figurantes brindando, em silhueta, com a luz de contorno do lado de dentro.
+static void cr_brinde(int cx, int yF, float t)
+{
+    if (yF < MESA_Y0 - 4 || yF > MESA_Y1 + 40) return;
+    float f = fmodf(t, 3.2f);
+    bool brinda = f > 2.2f;
+    pes_t a = P(0.25f, brinda ? 2.35f : 1.2f), b = P(brinda ? 2.35f : 1.2f, 0.25f);
+    a.cd = brinda ? 0.5f : 1.2f; b.ce = brinda ? 0.5f : 1.2f;
+    a.cab = C_CARTOLA; a.roupa = R_CAUDA; a.ac = AC_GRAVATA; a.cor = K_VERM;
+    b.cab = C_COQUE; b.roupa = R_VESTIDO; b.ac = AC_COLAR; b.cor = K_LAT4; b.dir = -1;
+    gente(cx - 13, yF, a, K_LAT3, true, cx, t);
+    copo_g(gm_x[1] - 1, gm_y[1] - 5, K_LAT4);
+    gente(cx + 13, yF, b, K_LAT3, true, cx, t + 0.4f);
+    copo_g(gm_x[0] - 2, gm_y[0] - 5, K_LAT4);
+    if (brinda && f < 2.5f) {                                    // o tim-tim
+        px(cx, yF - 34, K_BRANCO); px(cx - 2, yF - 36, K_LAT4); px(cx + 2, yF - 36, K_LAT4); px(cx, yF - 38, K_LAT4);
+    }
+}
+static int cr_linhas(int y, const char *tit, const char *const *l, int n)
+{
+    if (y > MESA_Y0 - 24 && y < MESA_Y1 + 4) txt_c(GFX_W / 2, y, tit, C_LATAO, true);
+    y += 22;
+    for (int i = 0; i < n; i++, y += LINHA_FINA + 1)
+        if (y > MESA_Y0 - 24 && y < MESA_Y1 + 4) txt_c(GFX_W / 2, y, l[i], C_MARFIM_S, false);
+    return y;
+}
+static void desenha_creditos(void)
+{
+    static const char *const SONS[] = {
+        "Dados, feltro e madeira: dice-box-threejs, de 3D Dice (MIT)",
+        "Teclado: jRhodes3d, um Rhodes de 1977 gravado por J. Learman",
+        "Baixo e sax: Karoryfer, coleção tonejs-instruments (CC BY 3.0)",
+        "Vibrafone, celesta e outros: FluidR3 GM, de Frank Wen (CC BY 3.0)",
+    };
+    static const char *const FONTES[] = { "Jersey 10, Tiny5 e Bitcount Prop Single (SIL Open Font License)" };
+    static const uint8_t D1[] = { D_D4, D_D6, D_JACKPOT, D_D8, D_FENIX, D_D12, D_TREVO };
+    static const uint8_t D2[] = { D_VIDRO, D_CAPITAO, D_ESPELHO, D_SANGUESSUGA, D_OCULTO, D_CARROSSEL, D_COPIADOR };
+    static const uint8_t D3[] = { D_D6, D_D6, D_D6, D_D6, D_D6 };
+    float t = t_fase;
+    ui_escurece(MESA_X0, MESA_Y0, MESA_X1 - MESA_X0, MESA_Y1 - MESA_Y0, 150);
+    memcpy(cr_fundo, display_fb(), sizeof cr_fundo);
+    // A coluna: cada bloco no seu y (0: o alto do titulo). Para de subir
+    // quando o "Obrigado por jogar." chega ao meio da mesa.
+    enum { Y_TIT = 0, Y_DADOS1 = 92, Y_CENA1 = 144, Y_SONS = 248, Y_CENA2 = 364, Y_FONTES = 470, Y_DADOS2 = 552,
+           Y_CENA3 = 596, Y_FIM = 800 };
+    float sobe = t * CR_VEL, fim = Y_FIM - (CENTRO - 34) + MESA_Y1 - 6;
+    if (sobe > fim) sobe = fim;
+    int y0 = MESA_Y1 - 6 - (int)sobe;
+    #define CR_VE(y, h) ((y) > MESA_Y0 - (h) && (y) < MESA_Y1 + 4)
+    if (CR_VE(y0 + Y_TIT, 80)) {
+        txt_sombra_c(GFX_W / 2, y0 + Y_TIT, "DADO EM CASA", C_OURO, 2);
+        txt_c(GFX_W / 2, y0 + Y_TIT + 44, "criado por ERICZ", C_MARFIM, true);
+    }
+    cr_dados(y0 + Y_DADOS1 + 16, D1, 7, t);
+    // o bar, e a Supersticiosa falando do trevo
+    cr_sala(70, y0 + Y_CENA1, 2, t);
+    int ps = cr_perso("A SUPERSTICIOSA"), pc = cr_perso("O CRUPIÊ");
+    cr_fala(300, y0 + Y_CENA1 + 2, ps, PERSO[ps].fala[FA_INICIO][0], t, false);
+    cr_linhas(y0 + Y_SONS, "Sons", SONS, 4);
+    // o Crupie, e a sala do piano com a cantora
+    cr_fala(196, y0 + Y_CENA2 + 2, pc, PERSO[pc].fala[FA_GANHA_P][0], t, true);
+    cr_sala(GFX_W - 70 - 128, y0 + Y_CENA2, 6, t);
+    cr_linhas(y0 + Y_FONTES, "Fontes", FONTES, 1);
+    cr_dados(y0 + Y_DADOS2 + 4, D2, 7, t + 1.1f);
+    // o sax, o brinde no meio e a cobertura
+    cr_sala(56, y0 + Y_CENA3, 8, t);
+    cr_brinde(GFX_W / 2, y0 + Y_CENA3 + CR_SALA_H - 2, t);
+    cr_sala(GFX_W - 56 - 128, y0 + Y_CENA3, 10, t);
+    if (CR_VE(y0 + Y_FIM, 80)) {
+        txt_sombra_c(GFX_W / 2, y0 + Y_FIM, "Obrigado por jogar.", C_OURO, 2);
+        cr_dados(y0 + Y_FIM + 62, D3, 5, t + 0.4f);
+    }
+    #undef CR_VE
+    // As beiras: fora do feltro volta a mesa; nas duas pontas, a coluna some
+    // no pontilhado.
+    uint16_t *fb = display_fb();
+    for (int y = 0; y < GFX_H; y++) {
+        int d = y < CENTRO ? y - (MESA_Y0 + 2) : MESA_Y1 - 3 - y;
+        if (d >= 18) continue;
+        for (int x = 0; x < GFX_W; x++)
+            if (d < 0 || x < MESA_X0 + 2 || x >= MESA_X1 - 2 || bayer(x, y) >= (d + 0.5f) / 18.0f) fb[y * GFX_W + x] = cr_fundo[y * GFX_W + x];
+    }
+    for (int y = MESA_Y0 + 20; y < MESA_Y1 - 20; y++) {              // (e os lados, sem pontilhado)
+        memcpy(fb + y * GFX_W, cr_fundo + y * GFX_W, (MESA_X0 + 2) * sizeof(uint16_t));
+        memcpy(fb + y * GFX_W + MESA_X1 - 2, cr_fundo + y * GFX_W + MESA_X1 - 2, (GFX_W - MESA_X1 + 2) * sizeof(uint16_t));
+    }
+    faixa_run(0);
+    rodape_run(sobe >= fim ? "ENTER volta ao menu" : "ENTER pula os créditos");
 }

@@ -38,8 +38,50 @@ static uint16_t luz(uint16_t c)
 // alegre, a gota de suor no preocupado (rosto_gota: o Novato tem a dele).
 static int rosto_ex = -1;
 static bool rosto_gota = true;
+// Para onde o oponente olha, na mesa (so o retrato dele na faixa; os outros
+// olham sempre para a frente): a pupila anda um pixel. Para a frente (para
+// voce) falando, reagindo e na sua vez; atras do dado que rola e, pousado,
+// para ele; para baixo montando a fila ou pensando no lance dele; de lado
+// (para fora da mesa) um instante depois de perder a rodada.
+enum { OL_FRENTE, OL_BAIXO, OL_DIR, OL_BAIXO_DIR, OL_ESQ };
+static bool olhar_na_faixa;              // desenhando o retrato do oponente na faixa da mesa
+static int rosto_olhar;                  // o olhar pedido a rosto()
+static int rosto_olhou;                  // o que rosto() desenhou de fato (piscando, ou na careta, fica OL_FRENTE)
+#define OLHAR_X 66                       // o meio do retrato do oponente na faixa
+#define OLHAR_Y 34
+static int olhar_para(float x, float y)
+{
+    float dx = x - OLHAR_X, dy = y - OLHAR_Y;
+    if (dy < 20 || dx > 2.4f * dy) return OL_DIR;
+    return dx < 0.5f * dy ? OL_BAIXO : OL_BAIXO_DIR;
+}
+static int olhar_agora(void)
+{
+    if (t_fala > 0.3f || t_reacao > 0) return OL_FRENTE;       // falando ou reagindo: para voce
+    switch (fase) {
+    case F_ROLANDO: case F_ARRUMA:
+        if (n_voo > 0) return olhar_para(voo[n_voo - 1].x, voo[n_voo - 1].y);
+        return OL_BAIXO_DIR;
+    case F_VEREDITO: {                                         // o dado que acabou de pousar
+        int k = F[vez].lancados - 1;
+        return olhar_para((float)slot_x(k < 0 ? 0 : k), (float)zona(vez));
+    }
+    case F_JOGA:    return vez == 1 ? OL_BAIXO : (fmodf(t_fase, 3.4f) > 2.6f ? OL_BAIXO_DIR : OL_FRENTE);
+    case F_ORDEM:   return vez == 1 ? OL_BAIXO : OL_FRENTE;
+    case F_APOSTA:  return vez == 1 ? (fmodf(t_fase, 1.6f) < 0.8f ? OL_BAIXO_DIR : OL_DIR) : OL_FRENTE;
+    case F_EFEITOS: return OL_BAIXO_DIR;
+    case F_RESULTADO: return res_quem == 0 && t_fase > 0.35f && t_fase < 1.9f ? OL_ESQ : OL_FRENTE;
+    default: return OL_FRENTE;
+    }
+}
+// Onde ficou a pupila de cada olho (0 o da esquerda, 1 o da direita) e se o
+// olhar desceu: para quem desenha por cima dos olhos (os furos da mascara do
+// Ladrao, os olhos verdes da Bruxa, o olho arregalado do Maluco).
+static int olho_px(int o) { return o ? (rosto_olhou == OL_DIR || rosto_olhou == OL_BAIXO_DIR ? 12 : 11) : (rosto_olhou == OL_ESQ ? 7 : 8); }
+static bool olho_baixo(void) { return rosto_olhou == OL_BAIXO || rosto_olhou == OL_BAIXO_DIR; }
 static void rosto(int hy, uint16_t pele, uint16_t cabelo, int expr, bool pisca, int boca)
 {
+    rosto_olhou = OL_FRENTE;
     bool sinal = rosto_ex >= 0;                                 // so quando reage (ou no humor da rodada): a cara de sempre fica como e
     if (rosto_ex >= 0) expr = rosto_ex;
     if (sinal && expr == EX_BRAVA) pele = gfx_mistura(pele, RGB(214, 84, 70), 22);
@@ -62,8 +104,16 @@ static void rosto(int hy, uint16_t pele, uint16_t cabelo, int expr, bool pisca, 
         rr(7, ey, 2, 1, sombra(pele)); rp(8, ey + 1, olho); rp(7, ey + 1, C_BRANCO);
         rr(11, ey, 2, 1, sombra(pele)); rp(12, ey + 1, olho); rp(11, ey + 1, C_BRANCO);
     } else {
-        rp(7, ey, C_BRANCO); rp(8, ey, olho); rp(8, ey + 1, olho); rp(7, ey + 1, luz(pele));
-        rp(12, ey, C_BRANCO); rp(11, ey, olho); rp(11, ey + 1, olho); rp(12, ey + 1, luz(pele));
+        // Os dois olhos para o mesmo lado (a pupila troca de coluna no olho
+        // de fora) e, para baixo, a pupila so na linha de baixo, com o
+        // branco em cima. De frente: como sempre foi.
+        rosto_olhou = rosto_olhar;
+        bool baixo = olho_baixo();
+        for (int o = 0; o < 2; o++) {
+            int x0 = o ? 11 : 7, px = olho_px(o), bx = px == x0 ? x0 + 1 : x0;
+            rp(bx, ey, C_BRANCO); rp(bx, ey + 1, luz(pele));
+            rp(px, ey, baixo ? C_BRANCO : olho); rp(px, ey + 1, olho);
+        }
     }
     uint16_t sob = sombra(cabelo);
     switch (expr) {                                             // sobrancelhas
@@ -183,6 +233,8 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
     if (lado >= 0 && t_humor_pisca[lado] > 0) pisca = true;
     if (retrato_ex >= 0) rex = retrato_ex;
     rosto_ex = rex;
+    rosto_olhar = olhar_na_faixa && lado == 1 ? olhar_agora() : OL_FRENTE;
+    rosto_olhou = OL_FRENTE;
     const uint16_t PRETO = RGB(34, 30, 32), MARROM = RGB(104, 66, 40),
                    GRISALHO = RGB(178, 176, 172), RUIVO = RGB(196, 84, 46);
     const uint16_t P_CLARA = RGB(234, 196, 160), P_MEDIA = RGB(204, 150, 106), P_ESCURA = RGB(132, 88, 60),
@@ -245,7 +297,10 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         else if (rex == EX_SURPRESA)   { rr(7, hy + 5, 2, 2, C_BRANCO); rp(8, hy + 6, PRETO); rr(11, hy + 5, 2, 2, C_BRANCO); rp(11, hy + 6, PRETO); }
         else if (rex == EX_ALEGRE)     { rr(7, hy + 6, 2, 1, C_BRANCO); rr(11, hy + 6, 2, 1, C_BRANCO); }
         else if (rex == EX_DESDEM)     { rp(8, hy + 6, C_BRANCO); rp(12, hy + 6, C_BRANCO); }
-        else { rp(7, hy + 6, C_BRANCO); rp(8, hy + 6, PRETO); rp(11, hy + 6, PRETO); rp(12, hy + 6, C_BRANCO); }
+        else {                                                  // os furos seguem o olhar (para baixo, descem para a beira da mascara)
+            int pe = olho_px(0), pd = olho_px(1), oy = hy + 6 + olho_baixo();
+            rp(pe == 8 ? 7 : 8, oy, C_BRANCO); rp(pe, oy, PRETO); rp(pd, oy, PRETO); rp(pd == 11 ? 12 : 11, oy, C_BRANCO);
+        }
         rr(5, hy - 2, 10, 4, RGB(54, 58, 72));                  // gorro
         rr(5, hy + 1, 10, 1, RGB(74, 80, 98));
         for (int i = 0; i < 5; i++) rp(6 + i, hy + 9 + (i & 1), sombra(P_MEDIA));  // barba por fazer
@@ -314,7 +369,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
             rr(5, hy + 7, 9, 1, gfx_mistura(P_CLARA, PRETO, 36));
             if (!pisca) {                                       // no escuro, so dois pontos de luz
                 uint16_t brilho = gfx_mistura(C_BRANCO, RGB(236, 214, 150), 35);
-                rp(8, hy + 6, brilho); rp(11, hy + 6, brilho);
+                rp(olho_px(0), hy + 6, brilho); rp(olho_px(1), hy + 6, brilho);   // (vao com o olhar, de lado; a sombra tapa o resto do olho)
             }
         }
         if (!boca) rr(8, hy + 9, 4, 1, PRETO);                  // bigode fino
@@ -435,7 +490,9 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rp(14, hy - 7, CHAP); rp(15, hy - 6, sombra(CHAP));     // a ponta, caida para o lado
         rr(6, hy - 2, 8, 1, RGB(150, 120, 60));                 // a fita
         rr(7, hy - 5, 1, 2, luz(CHAP));
-        if (!pisca && rex < 0) { rp(8, hy + 6, RGB(90, 170, 90)); rp(11, hy + 6, RGB(90, 170, 90)); }   // olhos verdes
+        if (!pisca && rex < 0) {                                // olhos verdes (vao com o olhar)
+            rp(olho_px(0), hy + 6 + olho_baixo(), RGB(90, 170, 90)); rp(olho_px(1), hy + 6 + olho_baixo(), RGB(90, 170, 90));
+        }
         if (!boca) rr(9, hy + 9, 2, 1, RGB(96, 40, 96));        // batom escuro
         break;
     }
@@ -450,7 +507,10 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         static const int8_t ESP[7][2] = { { 3, -2 }, { 5, -3 }, { 7, -4 }, { 10, -4 }, { 12, -3 }, { 14, -3 }, { 16, -2 } };
         for (int i = 0; i < 7; i++) rr(ESP[i][0] + ((i + tw) & 1), hy + ESP[i][1], 1, 2 + (i & 1), CAB);
         rr(3, hy + 1, 2, 3, CAB); rr(15, hy + 1, 2, 3, CAB); rp(2, hy + 2 + tw, CAB); rp(17, hy + 3 - tw, CAB);
-        if (!pisca && rex < 0) { rr(11, hy + 5, 3, 3, C_BRANCO); rp(12, hy + 6, RGB(30, 26, 30)); }   // o olho arregalado
+        if (!pisca && rex < 0) {                                // o olho arregalado (a pupila anda dentro dele)
+            rr(11, hy + 5, 3, 3, C_BRANCO);
+            rp(12 + (olho_px(1) == 12) - (olho_px(0) == 7), hy + 6 + olho_baixo(), RGB(30, 26, 30));
+        }
         if (!boca && rex < 0) {                                 // o sorriso largo, de dentes
             rr(7, hy + 9, 6, 1, RGB(60, 22, 26)); rr(8, hy + 9, 4, 1, C_BRANCO);
             rp(6, hy + 8, RGB(120, 52, 52)); rp(13, hy + 8, RGB(120, 52, 52));
@@ -467,6 +527,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(4, hy + 1, 12, 1, VIS); rr(5, hy + 2, 10, 1, gfx_mistura(VIS, C_FELTRO, 35));   // a viseira
         uint16_t aro = RGB(196, 160, 90);                       // os oculos de meia-lua, na ponta do nariz
         rr(6, hy + 7, 3, 1, aro); rr(11, hy + 7, 3, 1, aro); rp(10, hy + 7, aro);
+        if (olho_baixo()) { rp(olho_px(0), hy + 7, PRETO); rp(olho_px(1), hy + 7, PRETO); }   // olhando para baixo: por dentro da meia-lua
         if ((int)(t / 3.1f) % 3 == 0) rp(12, hy + 7, C_BRANCO);
         rp(4, hy + 8, C_BRANCO); rp(15, hy + 8, C_BRANCO);      // brincos de perola
         if (!boca) rr(9, hy + 9, 2, 1, RGB(170, 50, 60));
@@ -480,7 +541,7 @@ static void retrato(int x, int y, int esc, int perso, float t, bool falando, int
         rr(8, 17, 4, 2, RGB(226, 222, 212)); rp(9, 19, RGB(226, 222, 212)); rp(10, 19, RGB(226, 222, 212));   // o lenco branco
         rosto(hy, PELE, RGB(70, 70, 74), 0, pisca, boca);
         rr(6, hy + 11, 8, 1, PELE); rr(7, hy + 12, 6, 1, sombra(PELE));   // o queixo comprido
-        if (!pisca) { rr(7, hy + 7, 2, 1, sombra(PELE)); rr(11, hy + 7, 2, 1, sombra(PELE)); }   // olheiras
+        if (!pisca && !olho_baixo()) { rr(7, hy + 7, 2, 1, sombra(PELE)); rr(11, hy + 7, 2, 1, sombra(PELE)); }   // olheiras (o olhar baixo fica no lugar delas)
         rp(6, hy + 9, sombra(PELE)); rp(13, hy + 9, sombra(PELE));   // as macas fundas
         rr(4, hy - 1, 12, 1, CART); rr(6, hy - 6, 8, 5, CART);  // a cartola
         rr(6, hy - 2, 8, 1, RGB(110, 30, 40)); rr(7, hy - 6, 1, 4, luz(CART));
@@ -1084,7 +1145,11 @@ static int retrato_faixa(int j, int x, int y0)
     gfx_rect(px, py, w, h, gfx_mistura(C_FELTRO_ESC, C_BARRA, 30));
     if (perso < 0) busto_liso(px, py, esc, j);
     else if (!dois && j == 1 && t_entrada > 0) { }             // ele ainda esta chegando (colecao.inc)
-    else retrato(px, py, esc, perso, t_fase + perso * 1.3f, !dois && j == 1 && fala_digitando(), 0, RT_H);
+    else {
+        olhar_na_faixa = !dois && j == 1;                       // so este retrato olha em volta (o do oponente, na faixa)
+        retrato(px, py, esc, perso, t_fase + perso * 1.3f, !dois && j == 1 && fala_digitando(), 0, RT_H);
+        olhar_na_faixa = false;
+    }
     if (!dois && j == 1) dica_zona(px, py, w, h, DICA_TRUNFO, fala_perso);
     return x + w + 9;
 }

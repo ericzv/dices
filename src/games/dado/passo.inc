@@ -27,6 +27,7 @@ void dado_passo(float dt)
     if (t_aperto > 0) t_aperto -= dt_real;
     if (t_devolve >= 0 && (t_devolve += dt) > DEVOLVE_T + 0.07f * N_FILA) t_devolve = -1;
     float vel = modo != M_ONLINE && !menu_sem_partida() ? VEL_FATOR[velocidade] : 1;
+    if (fase == F_CREDITOS) vel = 1;     // os creditos sobem no tempo de quem le, em qualquer velocidade
     dt *= vel;
     if (bolsa_pop >= 0) {                // o pop-up da bolsa: fora do online, a partida espera
         t_bolsa_pop += dt_real;

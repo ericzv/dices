@@ -151,7 +151,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   primeiro, as fechadas no fim da fila. Enquanto só o Saco de Pano está
   aberto, a run começa sem perguntar. A bolsa nova chega fechada na tela, a
   vitrine vai até ela e o cadeado estoura; cada uma guarda o nível mais alto
-  em que você venceu uma run com ela. Na partida, abrir uma
+  em que você venceu uma run com ela. Na bolsa ainda trancada, o que a abre
+  vem em destaque logo abaixo do nome, numa placa com o cadeado dourado
+  ("PARA ABRIR" e a condição na letra grande, com o filete de ouro pulsando);
+  tentar escolhê-la (ENTER, o A do controle, o clique ou o toque) só faz a
+  placa tremer e piscar. Na partida, abrir uma
   bolsa (a sua ou a do oponente) mostra todos os dados dela, sem dizer quais
   já saíram: só a Caixa de Fósforos vê o que ele comprou.
 
@@ -184,7 +188,15 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dele: a parede de arlequim roxo com cartas de baralho presas, o cortinado
   roxo, os cetros de guizos, o estrado e a ponta do tapete em xadrez roxo e
   preto, e o retrato numa moldura torta (enquanto o salão acende, só a
-  silhueta dele, de olhos acesos). Saindo
+  silhueta dele, de olhos acesos). Nos vãos entre as mesas há gente, em
+  silhueta, como no prédio da tela de Dificuldade: o porteiro junto da porta,
+  um par conversando de copo na mão (ou o garçom servindo um freguês) e
+  alguém sozinho, com a roupa do andar (boné e bermuda embaixo, terno e
+  chapéu no meio, cartola e casaca no alto) e a luz de contorno do lado da
+  mesa acesa mais próxima; mexem pouco (respiram, bebem um gole, gesticulam,
+  olham o relógio), ninguém para na frente de uma peça de pé no chão (o
+  piano, o abajur, a palmeira, o pinheiro de dezembro) e o salão do Coringa
+  fica vazio. Saindo
   da loja para um salão novo, uma cortina de veludo fecha, a plaquinha de
   latão diz qual salão vai começar e ela abre sobre o salão ainda escuro, que
   acende luminária por luminária (qualquer tecla, clique ou botão pula).
@@ -215,13 +227,25 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   anunciada numa faixa com o retrato do chefe grande: calmo, ele muda de
   cara no meio do anúncio, com um tremor e um clarão na cor do salão; daí
   até o fim da partida a moldura dele na mesa fica vinho, pulsando devagar,
-  com a etiqueta "VIRADA" ao lado das fichas. Vencida a run, a tela da
+  com a etiqueta "VIRADA" ao lado das fichas. Na mesa, o retrato do
+  oponente olha em volta (a pupila anda um pixel): para você quando fala,
+  reage ou é a sua vez; para baixo quando monta a fila ou pensa no lance;
+  atrás do dado que rola e depois para o dado pousado; e de lado, um
+  instante, quando perde a rodada (os retratos do mapa, da loja e do fim
+  olham sempre para a frente). Vencida a run, a tela da
   vitória põe gente na foto: você (o avatar do perfil, com a taça) de um
   lado e o chefe vencido do outro, com a cara de derrota (o monóculo do
   Barão caído; o Coringa de maquiagem borrada e chapéu murcho), e o papel
   cai do alto por toda a mesa nas cores dos salões; vencido o Coringa, o
   título e a moldura vêm em roxo e ouro e as cartas dele caem junto, e na
-  Cobertura a foto tem a cidade à noite ao fundo. Do nível 5 em
+  Cobertura a foto tem a cidade à noite ao fundo. Depois dela vêm os
+  créditos: uma coluna que sobe devagar pelo feltro escurecido (uns 30 s, no
+  mesmo passo em qualquer velocidade de partida), com as beiras sumindo no
+  pontilhado e, entre os blocos de texto, coisas do jogo - filas de dados
+  pulando, quatro salas do prédio com a gente em silhueta, dois figurantes
+  brindando e dois oponentes dizendo a frase deles no balão, letra a letra -,
+  até "Obrigado por jogar." parar no meio; ENTER (o A do controle, o clique
+  ou o toque) sai a qualquer momento. Do nível 5 em
   diante, depois do Barão ainda há o salão do Coringa, o chefe especial, que
   fica mais forte a cada nível até a Cobertura: 13 dados no 5, um a mais por
   nível; do 7, o seu dado anulado some da 5ª rodada; na Cobertura, ele traz
@@ -254,7 +278,11 @@ com um tom; a escolhida assenta, gira um instante e abre a tela.
   dois abrem na hora e você leva 1 ou pula, e o adesivo você já cola),
   trocar a loja (sorteia tudo de novo: os dados, os adesivos e o pacote; 1,
   depois 2, 3...) e tirar um dado da bolsa (3, depois 5, 7... na run
-  inteira). O adesivo vai num lado de um dado da sua bolsa (um por
+  inteira). Os cartões da loja seguem todos o mesmo molde - o desenho em
+  cima, o nome na letra grande, uma etiqueta miúda com o tipo ("D8 · raro",
+  "adesivo · raro", "pacote · dados") e o preço -, e o adesivo à venda vem
+  na cartela de papel encerado, com o furo de pendurar (não colado num
+  dado): de longe já se vê o que é dado e o que é adesivo. O adesivo vai num lado de um dado da sua bolsa (um por
   lado, quantos couberem); a etiqueta dele diz quando age (na queda do
   dado, se o dado terminar válido com esse lado, se cair nesse lado ou, no
   Patinho e na Dinamite, em todo lance): são 48, do Confete (+4) e do Eletrônico (x2) ao Chumbo
